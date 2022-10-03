@@ -256,7 +256,8 @@ public:
 		const FEngineShowFlags& EngineShowFlags,
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
-		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults);
+		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults,
+		FRDGTextureRef SingleLayerWaterDepthTexture);
 
 	bool IsAllocated() const
 	{

@@ -3179,7 +3179,7 @@ void GetMaterialCoverageAndClipping(FMaterialPixelParameters Parameters, FPixelM
 {
 	ClipLODTransition(Parameters);
 
-#if MATERIALBLENDING_MASKED
+#if MATERIALBLENDING_MASKED && !SINGLE_LAYER_WATER_NO_DISCARD
 	#if MATERIAL_DITHER_OPACITY_MASK
 		/*
 		5 value dither. Every value present in +

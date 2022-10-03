@@ -341,9 +341,15 @@ public:
 		FSceneTextures& SceneTextures,
 		bool bDoParallelPass);
 
+	void RenderSingleLayerWaterDepthPrepass(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		FRDGTextureMSAA& OutDepthPrepassTexture);
+
 	void RenderSingleLayerWater(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
+		const FRDGTextureMSAA& SingleLayerWaterDepthPrepassTexture,
 		bool bShouldRenderVolumetricCloud,
 		FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
 		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
@@ -351,7 +357,8 @@ public:
 	void RenderSingleLayerWaterInner(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures);
+		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+		const FRDGTextureMSAA& SingleLayerWaterDepthPrepassTexture);
 
 	void RenderSingleLayerWaterReflections(
 		FRDGBuilder& GraphBuilder,

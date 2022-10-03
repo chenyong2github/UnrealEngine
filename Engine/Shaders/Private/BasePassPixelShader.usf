@@ -2149,6 +2149,13 @@ void FPixelShaderInOut_MainPS(
 
 #endif // STRATA_OPAQUE_DEFERRED
 
+// Force early Z on single layer water main pass.
+// This assumes that a full depth prepass was run for SLW and that the depth test is set to equal in the main pass.
+#ifndef PIXELSHADER_EARLYDEPTHSTENCIL
+	#if SINGLE_LAYER_WATER_NO_DISCARD && !OUTPUT_PIXEL_DEPTH_OFFSET
+		#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#endif // SINGLE_LAYER_WATER_NO_DISCARD && !OUTPUT_PIXEL_DEPTH_OFFSET
+#endif // PIXELSHADER_EARLYDEPTHSTENCIL
 
 // the following needs to match to the code in FSceneTextures::GetGBufferRenderTargets()
 #define PIXELSHADEROUTPUT_BASEPASS 1

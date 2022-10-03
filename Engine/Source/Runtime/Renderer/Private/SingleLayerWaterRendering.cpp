@@ -23,6 +23,7 @@
 
 DECLARE_GPU_STAT_NAMED(RayTracingWaterReflections, TEXT("Ray Tracing Water Reflections"));
 
+DECLARE_GPU_DRAWCALL_STAT(SingleLayerWaterDepthPrepass);
 DECLARE_GPU_DRAWCALL_STAT(SingleLayerWater);
 DECLARE_CYCLE_STAT(TEXT("WaterSingleLayer"), STAT_CLP_WaterSingleLayerPass, STATGROUP_ParallelCommandListMarkers);
 
@@ -96,6 +97,11 @@ static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksSingleLayerWa
 	0,
 	TEXT("Wait for completion of parallel render thread tasks at the end of Single layer water. A more granular version of r.RHICmdFlushRenderThreadTasks. If either r.RHICmdFlushRenderThreadTasks or r.RHICmdFlushRenderThreadTasksSingleLayerWater is > 0 we will flush."));
 
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerDepthPrepass(
+	TEXT("r.Water.SingleLayer.DepthPrepass"), 0,
+	TEXT("Enable a depth prepass for single layer water. Necessary for proper Virtual Shadow Maps support."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 // This is to have platforms use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
 bool SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform)
 {
@@ -130,6 +136,15 @@ bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(TArrayView<cons
 		}
 	}
 	return false;
+}
+
+bool ShouldRenderSingleLayerWaterDepthPrepass(TArrayView<const FViewInfo> Views)
+{
+	check(Views.Num() > 0);
+	const bool bPrepassEnabled = IsSingleLayerWaterDepthPrepassEnabled(Views[0].GetShaderPlatform(), Views[0].GetFeatureLevel());
+	const bool bShouldRenderWater = ShouldRenderSingleLayerWater(Views);
+	
+	return bPrepassEnabled && bShouldRenderWater;
 }
 
 bool ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(EPixelFormat DepthTextureFormat)
@@ -290,6 +305,160 @@ class FWaterRefractionCopyPS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FWaterRefractionCopyPS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterRefractionCopyPS", SF_Pixel);
+
+class FCopyDepthPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCopyDepthPS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyDepthPS, FGlobalShader);
+
+	class FMSAASampleCount : SHADER_PERMUTATION_SPARSE_INT("MSAA_SAMPLE_COUNT", 1, 2, 4, 8);
+	using FPermutationDomain = TShaderPermutationDomain<FMSAASampleCount>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS, DepthTextureMS)
+		RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCopyDepthPS, "/Engine/Private/CopyDepthTexture.usf", "CopyDepthPS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterDepthPassParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+static FSingleLayerWaterDepthPassParameters* GetDepthPassParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef DepthTexture)
+{
+	FSingleLayerWaterDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterDepthPassParameters>();
+	PassParameters->View = View.GetShaderParameters();
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	return PassParameters;
+}
+
+void FDeferredShadingSceneRenderer::RenderSingleLayerWaterDepthPrepass(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FRDGTextureMSAA& OutDepthPrepassTexture)
+{
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Water);
+	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderSingleLayerWaterDepthPrepass, FColor::Emerald);
+	SCOPE_CYCLE_COUNTER(STAT_WaterPassDrawTime);
+	RDG_EVENT_SCOPE(GraphBuilder, "SingleLayerWaterDepthPrepass");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWaterDepthPrepass);
+
+	// Create an identical copy of the main depth buffer
+	{
+		const FRDGTextureDesc& DepthPrepassTextureDesc = SceneTextures.Depth.Target->Desc;
+		OutDepthPrepassTexture = GraphBuilder.CreateTexture(DepthPrepassTextureDesc, TEXT("SLW.DepthPrepassOutput"));
+		if (DepthPrepassTextureDesc.NumSamples > 1)
+		{
+			FRDGTextureDesc DepthPrepassResolveTextureDesc = DepthPrepassTextureDesc;
+			DepthPrepassResolveTextureDesc.NumSamples = 1;
+			OutDepthPrepassTexture.Resolve = GraphBuilder.CreateTexture(DepthPrepassResolveTextureDesc, TEXT("SLW.DepthPrepassOutputResolve"));
+		}
+
+		//AddCopyTexturePass(GraphBuilder, SceneTextures.Depth.Target, OutDepthPrepassTexture.Target);
+		//AddClearDepthStencilPass(GraphBuilder, OutDepthPrepassTexture.Target, false, 0.0f, true, 0);
+
+		// Copy main depth buffer content to our prepass depth buffer and clear stencil to 0
+		// TODO: replace with AddCopyTexturePass() and AddClearDepthStencilPass() once CopyTexture() supports depth buffer copies on all platforms.
+		{
+			FCopyDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyDepthPS::FParameters>();
+			if (DepthPrepassTextureDesc.NumSamples > 1)
+			{
+				PassParameters->DepthTextureMS = SceneTextures.Depth.Target;
+			}
+			else
+			{
+				PassParameters->DepthTexture = SceneTextures.Depth.Target;
+			}
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthPrepassTexture.Target, ERenderTargetLoadAction::ENoAction, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+
+			FCopyDepthPS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FCopyDepthPS::FMSAASampleCount>(DepthPrepassTextureDesc.NumSamples);
+			TShaderMapRef<FCopyDepthPS> PixelShader(ShaderMap, PermutationVector);
+
+			FIntRect Viewport(0, 0, DepthPrepassTextureDesc.Extent.X, DepthPrepassTextureDesc.Extent.Y);
+
+			// Set depth test to always pass and stencil test to replace all pixels with zero, essentially also clearing stencil while doing the depth copy.
+			FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<
+				true, CF_Always,										// depth
+				true, CF_Always, SO_Replace, SO_Replace, SO_Replace,	// frontface stencil
+				true, CF_Always, SO_Replace, SO_Replace, SO_Replace		// backface stencil
+			>::GetRHI();
+
+			FPixelShaderUtils::AddFullscreenPass(
+				GraphBuilder,
+				ShaderMap,
+				RDG_EVENT_NAME("SLW::DepthBufferCopy"),
+				PixelShader,
+				PassParameters,
+				Viewport,
+				nullptr, /*BlendState*/
+				nullptr, /*RasterizerState*/
+				DepthStencilState,
+				0 /*StencilRef*/);
+
+			// The above copy technique loses HTILE data during the copy, so until AddCopyTexturePass() supports depth buffer copies on all platforms,
+			// this is the best we can do.
+			AddResummarizeHTilePass(GraphBuilder, OutDepthPrepassTexture.Target);
+		}
+	}
+
+	const bool bRenderInParallel = GRHICommandList.UseParallelAlgorithms() && CVarParallelSingleLayerWaterPass.GetValueOnRenderThread() == 1;
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		if (!View.ShouldRenderView())
+		{
+			continue;
+		}
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+		View.BeginRenderView();
+
+		FSingleLayerWaterDepthPassParameters* PassParameters = GetDepthPassParameters(GraphBuilder, View, OutDepthPrepassTexture.Target);
+
+		View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterDepthPrepass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
+		if (bRenderInParallel)
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("SingleLayerWaterDepthPrepassParallel"),
+				PassParameters,
+				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+				[this, &View, PassParameters](const FRDGPass* InPass, FRHICommandListImmediate& RHICmdList)
+				{
+					FRDGParallelCommandListSet ParallelCommandListSet(InPass, RHICmdList, GET_STATID(STAT_CLP_WaterSingleLayerPass), *this, View, FParallelCommandListBindings(PassParameters));
+					View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterDepthPrepass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+				});
+		}
+		else
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("SingleLayerWaterDepthPrepass"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[this, &View, PassParameters](FRHICommandList& RHICmdList)
+				{
+					SetStereoViewport(RHICmdList, View, 1.0f);
+					View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterDepthPrepass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+				});
+		}
+	}
+
+	AddResolveSceneDepthPass(GraphBuilder, Views, OutDepthPrepassTexture);
+}
 
 static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	FRDGBuilder& GraphBuilder,
@@ -809,6 +978,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
+	const FRDGTextureMSAA& SingleLayerWaterDepthPrepassTexture,
 	bool bShouldRenderVolumetricCloud,
 	FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
 	FLumenSceneFrameTemporaries& LumenFrameTemporaries)
@@ -830,13 +1000,21 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 		ComposeVolumetricRenderTargetOverSceneUnderWater(GraphBuilder, Views, SceneWithoutWaterTextures, SceneTextures);
 	}
 
-	RenderSingleLayerWaterInner(GraphBuilder, SceneTextures, SceneWithoutWaterTextures);
+	RenderSingleLayerWaterInner(GraphBuilder, SceneTextures, SceneWithoutWaterTextures, SingleLayerWaterDepthPrepassTexture);
 
 	// No SSR or composite needed in Forward. Reflections are applied in the WaterGBuffer pass.
 	if (!IsForwardShadingEnabled(ShaderPlatform))
 	{
+		// Reflection composite expects the depth buffer in FSceneTextures to contain water but the swap of the main depth buffer with the water prepass depth buffer
+		// is only done at the call site after this function returns (for visibility and to keep SceneTextures const), so we need to swap the depth buffers on an internal copy.
+		FSceneTextures SceneTexturesInternal = SceneTextures;
+		if (SingleLayerWaterDepthPrepassTexture.Target != nullptr)
+		{
+			SceneTexturesInternal.Depth = SingleLayerWaterDepthPrepassTexture;
+		}
+
 		// If supported render SSR, the composite pass in non deferred and/or under water effect.
-		RenderSingleLayerWaterReflections(GraphBuilder, SceneTextures, SceneWithoutWaterTextures, LumenFrameTemporaries);
+		RenderSingleLayerWaterReflections(GraphBuilder, SceneTexturesInternal, SceneWithoutWaterTextures, LumenFrameTemporaries);
 	}
 }
 
@@ -872,7 +1050,8 @@ END_SHADER_PARAMETER_STRUCT()
 void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures)
+	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+	const FRDGTextureMSAA& SingleLayerWaterDepthPrepassTexture)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Water);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderSingleLayerWaterPass, FColor::Emerald);
@@ -895,6 +1074,17 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	FRDGTextureRef WhiteForwardScreenSpaceShadowMask = SystemTextures.White;
 
+	const bool bHasDepthPrepass = SingleLayerWaterDepthPrepassTexture.Target != nullptr;
+	FDepthStencilBinding DepthStencilBinding;
+	if (bHasDepthPrepass)
+	{
+		DepthStencilBinding = FDepthStencilBinding(SingleLayerWaterDepthPrepassTexture.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
+	}
+	else
+	{
+		DepthStencilBinding = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
+	}
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
@@ -908,7 +1098,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 		View.BeginRenderView();
 
-		FSingleLayerWaterPassUniformParameters &SLWUniformParameters = *GraphBuilder.AllocParameters<FSingleLayerWaterPassUniformParameters>();
+		FSingleLayerWaterPassUniformParameters& SLWUniformParameters = *GraphBuilder.AllocParameters<FSingleLayerWaterPassUniformParameters>();
 		{
 			const bool bShouldUseBilinearSamplerForDepth = ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(SceneWithoutWaterTextures.DepthTexture->Desc.Format);
 			const bool bCustomDepthTextureProduced = HasBeenProduced(SceneTextures.CustomDepth.Depth);
@@ -926,7 +1116,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 			SLWUniformParameters.SceneWithoutSingleLayerWaterTextureSize = FVector2f(DepthTextureSize.X, DepthTextureSize.Y);
 			SLWUniformParameters.SceneWithoutSingleLayerWaterInvTextureSize = FVector2f(1.0f / DepthTextureSize.X, 1.0f / DepthTextureSize.Y);
 
-			const FLightSceneProxy *SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
+			const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
 			SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, SelectedForwardDirectionalLightProxy ? SelectedForwardDirectionalLightProxy->GetLightSceneInfo() : nullptr, SLWUniformParameters.ForwardDirLightCloudShadow);
 		}
 
@@ -937,7 +1127,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		PassParameters->SingleLayerWater = GraphBuilder.CreateUniformBuffer(&SLWUniformParameters);
 		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+		PassParameters->RenderTargets.DepthStencil = DepthStencilBinding;
 
 		View.ParallelMeshDrawCommandPasses[EMeshPass::SingleLayerWaterPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
 
@@ -967,7 +1157,10 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 		}
 	}
 
-	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
+	if (!bHasDepthPrepass)
+	{
+		AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
+	}
 }
 
 class FSingleLayerWaterPassMeshProcessor : public FSceneRenderingAllocatorObject<FSingleLayerWaterPassMeshProcessor>, public FMeshPassProcessor
@@ -1142,6 +1335,9 @@ void FSingleLayerWaterPassMeshProcessor::CollectPSOInitializers(const FSceneText
 			AddRenderTargetInfo(PF_FloatR11G11B10, TexCreate_ShaderResource | TexCreate_RenderTargetable, RenderTargetsInfo);
 		}
 
+		const bool bHasDepthPrepass = IsSingleLayerWaterDepthPrepassEnabled(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel);
+		RenderTargetsInfo.DepthStencilAccess = bHasDepthPrepass ? FExclusiveDepthStencil::DepthRead_StencilRead : FExclusiveDepthStencil::DepthRead_StencilNop;
+
 		AddGraphicsPipelineStateInitializer(
 			VertexFactoryType,
 			Material,
@@ -1158,15 +1354,304 @@ void FSingleLayerWaterPassMeshProcessor::CollectPSOInitializers(const FSceneText
 
 FMeshPassProcessor* CreateSingleLayerWaterPassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
+	const bool bHasDepthPrepass = IsSingleLayerWaterDepthPrepassEnabled(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel);
+	const FExclusiveDepthStencil::Type SceneBasePassDepthStencilAccess = FScene::GetDefaultBasePassDepthStencilAccess(FeatureLevel);
+
+	FMeshPassProcessorRenderState DrawRenderState;
+
+	// Make sure depth write is enabled if no prepass is used.
+	FExclusiveDepthStencil::Type BasePassDepthStencilAccess_DepthWrite = FExclusiveDepthStencil::Type(bHasDepthPrepass ? FExclusiveDepthStencil::DepthRead : SceneBasePassDepthStencilAccess | FExclusiveDepthStencil::DepthWrite);
+	SetupBasePassState(BasePassDepthStencilAccess_DepthWrite, false, DrawRenderState);
+	if (bHasDepthPrepass)
+	{
+		// Set depth stencil test to only pass if depth and stencil are equal to the values written by the prepass
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+			false, CF_Equal,							// Depth test
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,	// Front face stencil 
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,	// Back face stencil
+			0xFF, 0x0									// Stencil read/write masks
+		>::GetRHI());
+		DrawRenderState.SetStencilRef(1);
+	}
+
+	return new FSingleLayerWaterPassMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
+}
+
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(SingleLayerWater, CreateSingleLayerWaterPassProcessor, EShadingPath::Deferred, EMeshPass::SingleLayerWaterPass, EMeshPassFlags::MainView);
+
+
+class FSingleLayerWaterDepthPrepassMeshProcessor : public FSceneRenderingAllocatorObject<FSingleLayerWaterDepthPrepassMeshProcessor>, public FMeshPassProcessor
+{
+public:
+	FSingleLayerWaterDepthPrepassMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
+
+	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override final;
+
+private:
+	bool TryAddMeshBatch(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material);
+
+	template<bool bPositionOnly>
+	bool Process(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+		const FMaterial& RESTRICT MaterialResource,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		EBlendMode BlendMode);
+
+	template<bool bPositionOnly>
+	void CollectPSOInitializersInternal(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FVertexFactoryType* VertexFactoryType,
+		const FMaterial& RESTRICT MaterialResource,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		const FPSOPrecacheParams& PreCacheParams, 
+		TArray<FPSOPrecacheData>& PSOInitializers);
+
+	FMeshPassProcessorRenderState PassDrawRenderState;
+};
+
+FSingleLayerWaterDepthPrepassMeshProcessor::FSingleLayerWaterDepthPrepassMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type FeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::SingleLayerWaterPass, Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
+	, PassDrawRenderState(InPassDrawRenderState)
+{
+
+}
+
+void FSingleLayerWaterDepthPrepassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
+{
+	// Early out if the depth prepass for water is disabled
+	if (!IsSingleLayerWaterDepthPrepassEnabled(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel))
+	{
+		return;
+	}
+
+	const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+	while (MaterialRenderProxy)
+	{
+		const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+		if (Material)
+		{
+			if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
+			{
+				break;
+			}
+		}
+
+		MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
+	}
+}
+
+bool FSingleLayerWaterDepthPrepassMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material)
+{
+	if (Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
+	{
+		// Determine the mesh's material and blend mode.
+		const EBlendMode BlendMode = Material.GetBlendMode();
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+		if (BlendMode == BLEND_Opaque
+			&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
+			&& !Material.MaterialModifiesMeshPosition_RenderThread()
+			&& Material.WritesEveryPixel())
+		{
+			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
+			return Process<true>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode, BlendMode);
+		}
+		else
+		{
+			const bool bMaterialMasked = !Material.WritesEveryPixel();
+			const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
+			const FMaterial* EffectiveMaterial = &Material;
+
+			if (!bMaterialMasked && !Material.MaterialModifiesMeshPosition_RenderThread())
+			{
+				// Override with the default material for opaque materials that are not two sided
+				EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+				EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+				check(EffectiveMaterial);
+			}
+
+			return Process<false>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, BlendMode);
+		}
+	}
+
+	return true;
+}
+
+template<bool bPositionOnly>
+bool FSingleLayerWaterDepthPrepassMeshProcessor::Process(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+	const FMaterial& RESTRICT MaterialResource,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	EBlendMode BlendMode)
+{
+	TMeshProcessorShaders<TDepthOnlyVS<bPositionOnly>, FDepthOnlyPS> DepthPassShaders;
+	FShaderPipelineRef ShaderPipeline;
+
+	if (!GetDepthPassShaders<bPositionOnly>(
+		MaterialResource,
+		MeshBatch.VertexFactory->GetType(),
+		FeatureLevel,
+		MaterialResource.MaterialUsesPixelDepthOffset_GameThread(),
+		DepthPassShaders.VertexShader,
+		DepthPassShaders.PixelShader,
+		ShaderPipeline))
+	{
+		return false;
+	}
+
+	FMeshMaterialShaderElementData ShaderElementData;
+	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
+
+	FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(BlendMode, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
+
+	BuildMeshDrawCommands(
+		MeshBatch,
+		BatchElementMask,
+		PrimitiveSceneProxy,
+		MaterialRenderProxy,
+		MaterialResource,
+		PassDrawRenderState,
+		DepthPassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		SortKey,
+		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		ShaderElementData);
+
+	return true;
+}
+
+void FSingleLayerWaterDepthPrepassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	if (Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater) && IsSingleLayerWaterDepthPrepassEnabled(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel))
+	{
+		// Determine the mesh's material and blend mode.
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+		const EBlendMode BlendMode = Material.GetBlendMode();
+		const bool bSupportPositionOnlyStream = VertexFactoryType->SupportsPositionOnly();
+
+		if (BlendMode == BLEND_Opaque
+			&& bSupportPositionOnlyStream
+			&& !Material.MaterialModifiesMeshPosition_RenderThread()
+			&& Material.WritesEveryPixel())
+		{
+			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
+
+			CollectPSOInitializersInternal<true>(SceneTexturesConfig, VertexFactoryType, DefaultMaterial, MeshFillMode, MeshCullMode, PreCacheParams, PSOInitializers);
+		}
+		else
+		{
+			const bool bMaterialMasked = !Material.WritesEveryPixel();
+			const FMaterial* EffectiveMaterial = &Material;
+
+			if (!bMaterialMasked && !Material.MaterialModifiesMeshPosition_RenderThread())
+			{
+				// Override with the default material for opaque materials that are not two sided
+				FMaterialRenderProxy* EffectiveMaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+				EffectiveMaterial = EffectiveMaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+				check(EffectiveMaterial);
+			}
+
+			CollectPSOInitializersInternal<false>(SceneTexturesConfig, VertexFactoryType, *EffectiveMaterial, MeshFillMode, MeshCullMode, PreCacheParams, PSOInitializers);
+		}
+	}
+}
+
+template<bool bPositionOnly>
+void FSingleLayerWaterDepthPrepassMeshProcessor::CollectPSOInitializersInternal(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FVertexFactoryType* VertexFactoryType,
+	const FMaterial& RESTRICT MaterialResource,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	const FPSOPrecacheParams& PreCacheParams,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	TMeshProcessorShaders<TDepthOnlyVS<bPositionOnly>, FDepthOnlyPS> DepthPassShaders;
+	FShaderPipelineRef ShaderPipeline;
+
+	if (!GetDepthPassShaders<bPositionOnly>(
+		MaterialResource,
+		VertexFactoryType,
+		FeatureLevel,
+		MaterialResource.MaterialUsesPixelDepthOffset_GameThread(),
+		DepthPassShaders.VertexShader,
+		DepthPassShaders.PixelShader,
+		ShaderPipeline))
+	{
+		return;
+	}
+
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	RenderTargetsInfo.NumSamples = SceneTexturesConfig.NumSamples;
+
+	ETextureCreateFlags DepthStencilCreateFlags = SceneTexturesConfig.DepthCreateFlags;
+	SetupDepthStencilInfo(PF_DepthStencil, DepthStencilCreateFlags, ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite, RenderTargetsInfo);
+
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryType,
+		MaterialResource,
+		PassDrawRenderState,
+		RenderTargetsInfo,
+		DepthPassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		(EPrimitiveType)PreCacheParams.PrimitiveType,
+		bPositionOnly ? EMeshPassFeatures::PositionOnly : EMeshPassFeatures::Default,
+		PSOInitializers);
+}
+
+FMeshPassProcessor* CreateSingleLayerWaterDepthPrepassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
+{
 	const FExclusiveDepthStencil::Type SceneBasePassDepthStencilAccess = FScene::GetDefaultBasePassDepthStencilAccess(FeatureLevel);
 
 	FMeshPassProcessorRenderState DrawRenderState;
 
 	// Make sure depth write is enabled.
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess_DepthWrite = FExclusiveDepthStencil::Type(SceneBasePassDepthStencilAccess | FExclusiveDepthStencil::DepthWrite);
-	SetupBasePassState(BasePassDepthStencilAccess_DepthWrite, false, DrawRenderState);
+	
+	// Disable color writes, enable depth tests and writes.
+	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
+	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+		true, CF_DepthNearOrEqual,						// Depth test
+		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,	// Front face stencil 
+		true, CF_Always, SO_Keep, SO_Keep, SO_Replace	// Back face stencil
+	>::GetRHI());
+	DrawRenderState.SetDepthStencilAccess(BasePassDepthStencilAccess_DepthWrite);
+	DrawRenderState.SetStencilRef(1);
 
-	return new FSingleLayerWaterPassMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
+	return new FSingleLayerWaterDepthPrepassMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
 }
 
-REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(SingleLayerWater, CreateSingleLayerWaterPassProcessor, EShadingPath::Deferred, EMeshPass::SingleLayerWaterPass, EMeshPassFlags::MainView);
+REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR(SingleLayerWaterDepthPrepass, CreateSingleLayerWaterDepthPrepassProcessor, EShadingPath::Deferred, EMeshPass::SingleLayerWaterDepthPrepass, EMeshPassFlags::MainView);

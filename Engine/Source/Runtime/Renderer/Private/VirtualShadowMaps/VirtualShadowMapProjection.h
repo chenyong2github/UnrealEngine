@@ -12,10 +12,12 @@
 
 class FVirtualShadowMapClipmap;
 
+// Note: Must match the definitions in VirtualShadowMapPageManagement.usf!
 enum class EVirtualShadowMapProjectionInputType
 {
 	GBuffer = 0,
-	HairStrands = 1
+	HairStrands = 1,
+	GBufferAndSingleLayerWaterDepth = 2
 };
 const TCHAR* ToString(EVirtualShadowMapProjectionInputType In);
 

@@ -2039,6 +2039,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 	uint64 ShaderPlatformPropertiesHash = FDataDrivenShaderPlatformInfo::GetShaderPlatformPropertiesHash(Platform);
 	KeyString += FString::Printf(TEXT("_%u"), ShaderPlatformPropertiesHash);
+
+	if (IsSingleLayerWaterDepthPrepassEnabled(Platform, GetMaxSupportedFeatureLevel(Platform)))
+	{
+		KeyString += TEXT("_SLWDP");
+	}
 }
 
 EShaderPermutationFlags GetShaderPermutationFlags(const FPlatformTypeLayoutParameters& LayoutParams)

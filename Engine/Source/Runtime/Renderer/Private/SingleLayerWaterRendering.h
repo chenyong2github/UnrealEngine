@@ -25,6 +25,7 @@ struct FSceneWithoutWaterTextures
 
 bool ShouldRenderSingleLayerWater(TArrayView<const FViewInfo> Views);
 bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(TArrayView<const FViewInfo> Views);
+bool ShouldRenderSingleLayerWaterDepthPrepass(TArrayView<const FViewInfo> Views);
 bool ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(EPixelFormat DepthTextureFormat);
 
 class FWaterTileVS : public FGlobalShader
