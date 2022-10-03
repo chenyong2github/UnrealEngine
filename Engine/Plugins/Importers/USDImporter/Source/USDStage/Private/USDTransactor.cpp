@@ -294,7 +294,7 @@ namespace UsdUtils
 				*PrimChange.PrimTypeName
 			);
 
-			UsdUtils::RemoveAllPrimSpecs( Stage.GetPrimAtPath( PrimPath ), Stage.GetEditTarget() );
+			UsdUtils::RemoveAllLocalPrimSpecs( Stage.GetPrimAtPath( PrimPath ), Stage.GetEditTarget() );
 			return true;
 		}
 		else if ( bRename )

@@ -2491,7 +2491,7 @@ bool UsdUtils::RemoveUnrealSurfaceOutput( pxr::UsdPrim& MaterialPrim, const UE::
 		if ( pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( UnrealIdentifiers::Unreal ) )
 		{
 			// Fully remove the UnrealShader
-			UsdUtils::RemoveAllPrimSpecs( UE::FUsdPrim{ SurfaceShader.GetPrim() }, LayerToAuthorIn );
+			UsdUtils::RemoveAllLocalPrimSpecs( UE::FUsdPrim{ SurfaceShader.GetPrim() }, LayerToAuthorIn );
 		}
 
 		// Disconnect would author something like `token outputs:unreal:surface.connect = None`, which is not quite what we want:

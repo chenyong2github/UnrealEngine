@@ -525,7 +525,7 @@ void UUsdConversionBlueprintLibrary::RemoveAllPrimSpecs( const FString& StageRoo
 		return;
 	}
 
-	UsdUtils::RemoveAllPrimSpecs(
+	UsdUtils::RemoveAllLocalPrimSpecs(
 		Stage.GetPrimAtPath( UE::FSdfPath{ *PrimPath } ),
 		UE::FSdfLayer::FindOrOpen( *TargetLayer )
 	);

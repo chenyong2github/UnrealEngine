@@ -1833,7 +1833,7 @@ UE::FSdfPath UsdUtils::GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const 
 	return Result;
 }
 
-USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer )
+USDUTILITIES_API void UsdUtils::RemoveAllLocalPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer )
 {
 #if USE_USD_SDK
 	FScopedUsdAllocs Allocs;
@@ -1843,8 +1843,6 @@ USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, co
 	{
 		return;
 	}
-
-	pxr::SdfChangeBlock Block;
 
 	pxr::SdfLayerRefPtr UsdLayer{ Layer };
 	pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
@@ -1863,6 +1861,8 @@ USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, co
 		}
 	}
 
+	const pxr::SdfPath TargetPath = UsdPrim.GetPrimPath();
+
 	for ( const pxr::SdfPrimSpecHandle& Spec : UsdPrim.GetPrimStack() )
 	{
 		// For whatever reason sometimes there are invalid specs in the layer stack, so we need to be careful
@@ -1872,7 +1872,14 @@ USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, co
 		}
 
 		pxr::SdfPath SpecPath = Spec->GetPath();
-		if ( !SpecPath.IsPrimPath() )
+
+		// Filtering by the target path is important because if X references Y, we'll actually get Y's specs within
+		// X.GetPrimStack(), and we don't want to remove the referenced specs when removing the referencer.
+		// We strip variant selections here because when removing something inside the variant, SpecPath will contain
+		// the variant selection and look like '/PrimWithVarSet{VarSet=SomeVar}ChildPrim', but our TargetPath will
+		// just look like '/PrimWithVarSet/ChildPrim' instead. These do refer to the exact same prim on the stage
+		// though (when SomeVar is active at least), so we do want to remove both
+		if ( !SpecPath.IsPrimPath() || SpecPath.StripAllVariantSelections() != TargetPath )
 		{
 			continue;
 		}
@@ -1906,7 +1913,7 @@ bool UsdUtils::CutPrims( const TArray<UE::FUsdPrim>& Prims )
 
 	for ( const UE::FUsdPrim& Prim : Prims )
 	{
-		UsdUtils::RemoveAllPrimSpecs( Prim );
+		UsdUtils::RemoveAllLocalPrimSpecs( Prim );
 	}
 
 	return true;

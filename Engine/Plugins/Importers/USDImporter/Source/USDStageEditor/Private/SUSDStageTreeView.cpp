@@ -1054,7 +1054,7 @@ void SUsdStageTreeView::OnDeletePrim()
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		UsdUtils::RemoveAllPrimSpecs( SelectedItem->UsdPrim );
+		UsdUtils::RemoveAllLocalPrimSpecs( SelectedItem->UsdPrim );
 	}
 }
 

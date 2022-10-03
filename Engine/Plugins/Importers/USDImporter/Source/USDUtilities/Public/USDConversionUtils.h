@@ -283,7 +283,7 @@ namespace UsdUtils
 	USDUTILITIES_API UE::FSdfPath GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer );
 
 	/**
-	 * Removes all the prim specs for Prim on the given Layer.
+	 * Removes all the prim specs for Prim on the given Layer, if the layer belongs to the stage's local layer stack.
 	 *
 	 * This function is useful in case the prim is inside a variant set: In that case, just calling FUsdStage::RemovePrim()
 	 * will attempt to remove the "/Root/Example/Child", which wouldn't remove the "/Root{Varset=Var}Example/Child" spec,
@@ -295,7 +295,7 @@ namespace UsdUtils
 	 * @param Layer - Layer to remove prim specs from. This can be left with the invalid layer (default) in order to remove all
 	 *				  specs from the entire stage's local layer stack.
 	 */
-	USDUTILITIES_API void RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer = UE::FSdfLayer{} );
+	USDUTILITIES_API void RemoveAllLocalPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer = UE::FSdfLayer{} );
 
 	/**
 	 * Copies flattened versions of the input prims onto the clipboard stage and removes all the prim specs for Prims from their stages.
