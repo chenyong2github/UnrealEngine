@@ -121,7 +121,13 @@ namespace Horde.Build.Compute
 			if (!_queueUpdateTask.IsCompleted)
 			{
 				_cancellationSource.Cancel();
-				await _queueUpdateTask;
+				try
+				{
+					await _queueUpdateTask;
+				}
+				catch (OperationCanceledException)
+				{
+				}
 			}
 			_cancellationSource.Dispose();
 		}
