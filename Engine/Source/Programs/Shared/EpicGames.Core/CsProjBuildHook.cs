@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 
+#pragma warning disable CA1715 // Identifiers should have correct prefix
+
 namespace EpicGames.Core
 {
 

@@ -1226,7 +1226,7 @@ namespace Horde.Build.Logs
 				// Wait for all tasks to be complete OR (any task has completed AND 30 seconds has elapsed)
 				Task allCompleteTask = Task.WhenAll(chunkWriteTasks);
 				Task anyCompleteTask = Task.WhenAny(chunkWriteTasks);
-				await Task.WhenAny(allCompleteTask, Task.WhenAll(anyCompleteTask, Task.Delay(TimeSpan.FromSeconds(30.0))));
+				await Task.WhenAny(allCompleteTask, Task.WhenAll(anyCompleteTask, Task.Delay(TimeSpan.FromSeconds(30.0), cancellationToken)));
 
 				// Update the log file with the written chunks
 				List<LogChunkData?> writtenChunks = chunkWriteTasks.RemoveCompleteTasks();

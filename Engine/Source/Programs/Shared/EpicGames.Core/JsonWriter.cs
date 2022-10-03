@@ -27,7 +27,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Writer for JSON data, which indents the output text appropriately, and adds commas and newlines between fields
 	/// </summary>
-	public class JsonWriter : IDisposable
+	public sealed class JsonWriter : IDisposable
 	{
 		TextWriter _writer;
 		readonly bool _leaveOpen;

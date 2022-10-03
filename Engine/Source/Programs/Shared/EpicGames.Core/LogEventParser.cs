@@ -129,7 +129,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Buffer for holding partial line data
 		/// </summary>
-		readonly MemoryStream _partialLine = new MemoryStream();
+		readonly ByteArrayBuilder _partialLine = new ByteArrayBuilder();
 
 		/// <summary>
 		/// Whether matching is currently enabled
@@ -176,7 +176,23 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public void Dispose() => Flush();
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Standard Dispose pattern method
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				Flush();
+			}
+		}
 
 		/// <summary>
 		/// Enumerate all the types that implement <see cref="ILogEventMatcher"/> in the given assembly, and create instances of them
@@ -319,7 +335,7 @@ namespace EpicGames.Core
 				{
 					if (span[scanIdx] == '\n')
 					{
-						_partialLine.Write(span.Slice(baseIdx, scanIdx - baseIdx));
+						_partialLine.WriteFixedLengthBytes(span.Slice(baseIdx, scanIdx - baseIdx));
 						FlushPartialLine();
 						baseIdx = ++scanIdx;
 						break;
@@ -338,7 +354,7 @@ namespace EpicGames.Core
 			}
 
 			// Add the rest of the text to the partial line buffer
-			_partialLine.Write(span.Slice(baseIdx));
+			_partialLine.WriteFixedLengthBytes(span.Slice(baseIdx));
 
 			// Process the new data
 			ProcessData(false);
@@ -387,9 +403,8 @@ namespace EpicGames.Core
 		/// </summary>
 		private void FlushPartialLine()
 		{
-			AddLine(_partialLine.ToArray());
-			_partialLine.Position = 0;
-			_partialLine.SetLength(0);
+			AddLine(_partialLine.ToByteArray());
+			_partialLine.Clear();
 		}
 
 		/// <summary>

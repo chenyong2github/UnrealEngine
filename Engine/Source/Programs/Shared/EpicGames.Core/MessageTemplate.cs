@@ -115,7 +115,7 @@ namespace EpicGames.Core
 			char lastChar = '\0';
 			foreach (char character in text)
 			{
-				if ((character != '{' || character != '}') || character != lastChar)
+				if ((character != '{' && character != '}') || character != lastChar)
 				{
 					result.Append(character);
 				}

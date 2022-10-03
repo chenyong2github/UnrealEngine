@@ -29,7 +29,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The loggers that are being written to
 		/// </summary>
-		public ILogger[] Loggers
+		public IReadOnlyList<ILogger> Loggers
 		{
 			get;
 		}

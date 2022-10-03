@@ -69,7 +69,7 @@ namespace EpicGames.Core
 		/// Struct to wrap a formatted set of log values with applied indent
 		/// </summary>
 		/// <typeparam name="TState">Arbitrary type parameter</typeparam>
-		public struct FormattedLogValues<TState> : IEnumerable<KeyValuePair<string, object>>
+		struct FormattedLogValues<TState> : IEnumerable<KeyValuePair<string, object>>
 		{
 			/// <summary>
 			/// The indent to apply

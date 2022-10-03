@@ -253,7 +253,7 @@ namespace Horde.Build.Logs.Builder
 					int subChunkLineIndex = lineIndex;
 
 					List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
-					while (reader.Memory.Length > 0)
+					while (reader.RemainingMemory.Length > 0)
 					{
 						LogSubChunkData subChunkData = reader.ReadLogSubChunkData(subChunkOffset, subChunkLineIndex);
 						subChunkOffset += subChunkData.Length;

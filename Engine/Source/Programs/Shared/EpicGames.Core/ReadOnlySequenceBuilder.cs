@@ -3,10 +3,22 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Static utility methods
+	/// </summary>
+	public static class ReadOnlySequence
+	{
+		/// <summary>
+		/// Create a sequence from a list of segments
+		/// </summary>
+		/// <param name="segments"></param>
+		/// <returns>Sequence for the list of segments</returns>
+		public static ReadOnlySequence<T> Create<T>(IReadOnlyList<ReadOnlyMemory<T>> segments) => ReadOnlySequenceBuilder<T>.Create(segments);
+	}
+
 	/// <summary>
 	/// Utility class to combine buffers into a <see cref="ReadOnlySequence{T}"/>
 	/// </summary>
@@ -39,7 +51,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="segments"></param>
 		/// <returns>Sequence for the list of segments</returns>
-		public static ReadOnlySequence<T> Create(IReadOnlyList<ReadOnlyMemory<T>> segments)
+		internal static ReadOnlySequence<T> Create(IReadOnlyList<ReadOnlyMemory<T>> segments)
 		{
 			if (segments.Count == 0)
 			{

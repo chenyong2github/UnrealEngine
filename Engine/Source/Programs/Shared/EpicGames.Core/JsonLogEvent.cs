@@ -147,7 +147,9 @@ namespace EpicGames.Core
 		static readonly sbyte[] s_firstCharToLogLevel;
 		static readonly byte[][] s_logLevelNames;
 
+#pragma warning disable CA2207 // Initialize value type static fields inline
 		static JsonLogEvent()
+#pragma warning restore CA2207 // Initialize value type static fields inline
 		{
 			const int LogLevelCount = (int)LogLevel.None;
 

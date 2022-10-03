@@ -9,7 +9,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Allows queuing a large number of tasks to a thread pool and waiting for them all to complete.
 	/// </summary>
-	public class ThreadPoolWorkQueue : IDisposable
+	public sealed class ThreadPoolWorkQueue : IDisposable
 	{
 		/// <summary>
 		/// Object used for controlling access to NumOutstandingJobs and updating EmptyEvent

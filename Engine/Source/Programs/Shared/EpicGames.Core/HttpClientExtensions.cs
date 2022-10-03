@@ -6,6 +6,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+#pragma warning disable CA2234 // Pass system uri objects instead of strings
+#pragma warning disable CA1054 // URI-like parameters should not be strings
+
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -41,7 +44,8 @@ namespace EpicGames.Core
 		/// <returns>Response message</returns>
 		public static async Task<HttpResponseMessage> PostAsync<TRequest>(this HttpClient client, string url, TRequest request, CancellationToken cancellationToken)
 		{
-			return await client.PostAsync(url, ToJsonContent(request), cancellationToken);
+			using HttpContent content = ToJsonContent(request);
+			return await client.PostAsync(url, content, cancellationToken);
 		}
 
 		/// <summary>
@@ -74,7 +78,8 @@ namespace EpicGames.Core
 		/// <returns>Response message</returns>
 		public static async Task<HttpResponseMessage> PutAsync<TRequest>(this HttpClient client, string url, TRequest obj, CancellationToken cancellationToken)
 		{
-			return await client.PutAsync(url, ToJsonContent(obj), cancellationToken);
+			using HttpContent content = ToJsonContent(obj);
+			return await client.PutAsync(url, content, cancellationToken);
 		}
 
 		/// <summary>

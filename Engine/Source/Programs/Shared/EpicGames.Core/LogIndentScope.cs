@@ -7,7 +7,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Class to apply a log indent for the lifetime of an object 
 	/// </summary>
-	public class LogIndentScope : IDisposable
+	public sealed class LogIndentScope : IDisposable
 	{
 		/// <summary>
 		/// Whether the object has been disposed

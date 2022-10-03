@@ -8,7 +8,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Writes a status message to the log, which can be updated with a progress indicator as a slow task is being performed.
 	/// </summary>
-	public class LogStatusScope : IDisposable
+	public sealed class LogStatusScope : IDisposable
 	{
 		/// <summary>
 		/// The base status message

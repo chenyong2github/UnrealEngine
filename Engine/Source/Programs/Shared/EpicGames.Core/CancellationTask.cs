@@ -9,7 +9,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Wrapper class to create a waitable task out of a cancellation token
 	/// </summary>
-	public class CancellationTask : IDisposable
+	public sealed class CancellationTask : IDisposable
 	{
 		/// <summary>
 		/// Completion source for the task

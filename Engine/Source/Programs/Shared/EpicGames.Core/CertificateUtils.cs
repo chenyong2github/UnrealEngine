@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
@@ -39,7 +40,10 @@ namespace EpicGames.Core
 				// NB: MacOS requires 825 days or fewer (https://support.apple.com/en-us/HT210176)
 				using (X509Certificate2 certificate = request.CreateSelfSigned(new DateTimeOffset(DateTime.UtcNow.AddDays(-1)), new DateTimeOffset(DateTime.UtcNow.AddDays(800))))
 				{
-					certificate.FriendlyName = friendlyName;
+					if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+					{
+						certificate.FriendlyName = friendlyName;
+					}
 					byte[] privateCertData = certificate.Export(X509ContentType.Pkcs12); // Note: Need to reimport this to use immediately, otherwise key is ephemeral
 					return privateCertData;
 				}

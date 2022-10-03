@@ -13,12 +13,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static instance of an ordinal String comparer
 		/// </summary>
-		public static StringComparerUE Ordinal = new StringComparerUE(StringComparison.Ordinal);
+		public static StringComparerUE Ordinal { get; } = new StringComparerUE(StringComparison.Ordinal);
 
 		/// <summary>
 		/// Static instance of an ordinal String comparer which ignores case
 		/// </summary>
-		public static StringComparerUE OrdinalIgnoreCase = new StringComparerUE(StringComparison.OrdinalIgnoreCase);
+		public static StringComparerUE OrdinalIgnoreCase { get; } = new StringComparerUE(StringComparison.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// The comparison type

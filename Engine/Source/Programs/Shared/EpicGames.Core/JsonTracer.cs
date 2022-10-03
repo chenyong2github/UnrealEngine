@@ -202,7 +202,7 @@ namespace EpicGames.Core
 			// return the context of the parent, if applicable
 			foreach (Reference reference in references)
 			{
-				if (OpenTracing.References.ChildOf.Equals(reference.ReferenceType))
+				if (OpenTracing.References.ChildOf.Equals(reference.ReferenceType, StringComparison.Ordinal))
 				{
 					return reference.Context;
 				}
@@ -219,8 +219,10 @@ namespace EpicGames.Core
 				throw new InvalidOperationException(String.Format(format, args));
 			}
 		}
-		
+
+#pragma warning disable CA1034 // Nested types should not be visible
 		public sealed class Reference : IEquatable<Reference>
+#pragma warning restore CA1034 // Nested types should not be visible
 		{
 			public JsonTracerSpanContext Context { get; }
 

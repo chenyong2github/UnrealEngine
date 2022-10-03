@@ -12,7 +12,7 @@ namespace EpicGames.Core
 	/// Reads data from a binary output stream. Similar to the NET Framework BinaryReader class, but supports fast serialization of object graphs and container types, and supports nullable objects.
 	/// Significantly faster than BinaryReader due to the expectation that the whole stream is in memory before deserialization.
 	/// </summary>
-	public class BinaryArchiveReader : IDisposable
+	public sealed class BinaryArchiveReader : IDisposable
 	{
 		/// <summary>
 		/// The input stream.

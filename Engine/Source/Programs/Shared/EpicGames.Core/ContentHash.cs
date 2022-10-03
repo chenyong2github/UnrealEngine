@@ -9,6 +9,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+#pragma warning disable CA5351 // Do Not Use Broken Cryptographic Algorithms
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+#pragma warning disable CA1819 // Properties should not return arrays
+
 namespace EpicGames.Core
 {
 	/// <summary>

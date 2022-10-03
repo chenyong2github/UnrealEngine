@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Text;
 
 namespace EpicGames.Core
@@ -16,7 +17,7 @@ namespace EpicGames.Core
 		/// <returns>True if the argument needs to be escaped</returns>
 		static bool NeedsEscaping(string argument)
 		{
-			return argument.Contains(' ') || argument.Contains('\"');
+			return argument.Contains(' ', StringComparison.Ordinal) || argument.Contains('\"', StringComparison.Ordinal);
 		}
 
 		/// <summary>
@@ -31,7 +32,7 @@ namespace EpicGames.Core
 				builder.Append(' ');
 			}
 
-			int equalsIdx = argument.IndexOf('=');
+			int equalsIdx = argument.IndexOf('=', StringComparison.Ordinal);
 			if (equalsIdx != -1)
 			{
 				string name = argument.Substring(0, equalsIdx + 1);

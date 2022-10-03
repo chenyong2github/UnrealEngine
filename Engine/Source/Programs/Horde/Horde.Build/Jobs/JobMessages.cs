@@ -68,7 +68,7 @@ namespace Horde.Build.Jobs
 		/// <summary>
 		/// Parameters to use when selecting the change to execute at.
 		/// </summary>
-		[Obsolete]
+		[Obsolete("Use ChangeQueries instead")]
 		public ChangeQueryConfig? ChangeQuery
 		{
 			get => (ChangeQueries != null && ChangeQueries.Count > 0) ? ChangeQueries[0] : null;

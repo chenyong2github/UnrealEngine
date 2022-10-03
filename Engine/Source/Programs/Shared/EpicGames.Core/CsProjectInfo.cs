@@ -88,7 +88,7 @@ namespace EpicGames.Core
 		private bool IsNetCoreProject()
 		{
 			string? framework;
-			return Properties.TryGetValue("TargetFramework", out framework) && framework.StartsWith("netcoreapp");
+			return Properties.TryGetValue("TargetFramework", out framework) && framework.StartsWith("netcoreapp", StringComparison.Ordinal);
 		}
 
 		/// <summary>
@@ -287,7 +287,7 @@ namespace EpicGames.Core
 			string? targetFramework;
 			if (Properties.TryGetValue("TargetFramework", out targetFramework))
 			{
-				bIsDotNetCoreProject = targetFramework.ToLower().Contains("netstandard") || targetFramework.ToLower().Contains("netcoreapp");
+				bIsDotNetCoreProject = targetFramework.ToLower().Contains("netstandard", StringComparison.Ordinal) || targetFramework.ToLower().Contains("netcoreapp", StringComparison.Ordinal);
 			}
 
 			return bIsDotNetCoreProject;
@@ -509,7 +509,7 @@ namespace EpicGames.Core
 			if (!remainingComponents.Any())
 			{
 				// ** means include all files under this tree, so enumerate them all
-				if (currentComponent.Contains("**"))
+				if (currentComponent.Contains("**", StringComparison.Ordinal))
 				{
 					outFoundFiles.AddRange(DirectoryReference.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories));
 				}
@@ -523,7 +523,7 @@ namespace EpicGames.Core
 			{
 				// new component contains a wildcard, and based on the above we know there are more entries so find 
 				// matching directories
-				if (currentComponent.Contains("*"))
+				if (currentComponent.Contains('*', StringComparison.Ordinal))
 				{
 					// ** means all directories, no matter how deep
 					SearchOption option = currentComponent == "**" ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
@@ -551,7 +551,7 @@ namespace EpicGames.Core
 
 					// but... we can just take all the next components that don't have wildcards in them instead of recursing
 					// into each one!
-					IEnumerable<string> nonWildCardComponents = remainingComponents.TakeWhile(c => !c.Contains("*"));
+					IEnumerable<string> nonWildCardComponents = remainingComponents.TakeWhile(c => !c.Contains('*', StringComparison.Ordinal));
 					remainingComponents = remainingComponents.Skip(nonWildCardComponents.Count());
 
 					existingPath = DirectoryReference.Combine(existingPath, nonWildCardComponents.ToArray());
@@ -605,7 +605,7 @@ namespace EpicGames.Core
 			{
 				FileReference sourceFile = FileReference.Combine(baseDirectory, includePath);
 
-				if (sourceFile.FullName.Contains("*"))
+				if (sourceFile.FullName.Contains('*', StringComparison.Ordinal))
 				{
 					compileReferences.AddRange(FindMatchingFiles(sourceFile));
 				}
@@ -628,7 +628,7 @@ namespace EpicGames.Core
 			if (!String.IsNullOrEmpty(includePath))
 			{
 				string? copyTo = GetChildElementString(parentElement, "CopyToOutputDirectory", null);
-				bool shouldCopy = !String.IsNullOrEmpty(copyTo) && (copyTo.Equals("Always", StringComparison.InvariantCultureIgnoreCase) || copyTo.Equals("PreserveNewest", StringComparison.InvariantCultureIgnoreCase));
+				bool shouldCopy = !String.IsNullOrEmpty(copyTo) && (copyTo.Equals("Always", StringComparison.OrdinalIgnoreCase) || copyTo.Equals("PreserveNewest", StringComparison.OrdinalIgnoreCase));
 				FileReference contentFile = FileReference.Combine(baseDirectory, includePath);
 				contents.Add(contentFile, shouldCopy);
 			}
@@ -668,11 +668,11 @@ namespace EpicGames.Core
 			{
 				return defaultValue;
 			}
-			else if (value.Equals("True", StringComparison.InvariantCultureIgnoreCase))
+			else if (value.Equals("True", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
-			else if (value.Equals("False", StringComparison.InvariantCultureIgnoreCase))
+			else if (value.Equals("False", StringComparison.OrdinalIgnoreCase))
 			{
 				return false;
 			}
@@ -734,13 +734,13 @@ namespace EpicGames.Core
 				}
 			}
 
-			if (tokens.Length == 3 && tokens[0].StartsWith("'") && tokens[1] == "==" && tokens[2].StartsWith("'"))
+			if (tokens.Length == 3 && tokens[0].StartsWith("'", StringComparison.Ordinal) && tokens[1] == "==" && tokens[2].StartsWith("'", StringComparison.Ordinal))
 			{
-				bResult = String.Compare(tokens[0], tokens[2], StringComparison.InvariantCultureIgnoreCase) == 0;
+				bResult = String.Equals(tokens[0], tokens[2], StringComparison.OrdinalIgnoreCase);
 			}
-			else if (tokens.Length == 3 && tokens[0].StartsWith("'") && tokens[1] == "!=" && tokens[2].StartsWith("'"))
+			else if (tokens.Length == 3 && tokens[0].StartsWith("'", StringComparison.Ordinal) && tokens[1] == "!=" && tokens[2].StartsWith("'", StringComparison.Ordinal))
 			{
-				bResult = String.Compare(tokens[0], tokens[2], StringComparison.InvariantCultureIgnoreCase) != 0;
+				bResult = !String.Equals(tokens[0], tokens[2], StringComparison.OrdinalIgnoreCase);
 			}
 			else
 			{
@@ -759,7 +759,7 @@ namespace EpicGames.Core
 		static string ExpandProperties(string text, Dictionary<string, string> properties)
 		{
 			string newText = text;
-			for (int idx = newText.IndexOf("$("); idx != -1; idx = newText.IndexOf("$(", idx))
+			for (int idx = newText.IndexOf("$(", StringComparison.Ordinal); idx != -1; idx = newText.IndexOf("$(", idx, StringComparison.Ordinal))
 			{
 				// Find the end of the variable name, accounting for changes in scope
 				int endIdx = idx + 2;
@@ -1038,10 +1038,10 @@ namespace EpicGames.Core
 				{
 					if(newText[idx] == '%')
 					{
-						int upperDigitIdx = HexChars.IndexOf(Char.ToLowerInvariant(newText[idx + 1]));
+						int upperDigitIdx = HexChars.IndexOf(Char.ToLowerInvariant(newText[idx + 1]), StringComparison.Ordinal);
 						if(upperDigitIdx != -1)
 						{
-							int lowerDigitIdx = HexChars.IndexOf(Char.ToLowerInvariant(newText[idx + 2]));
+							int lowerDigitIdx = HexChars.IndexOf(Char.ToLowerInvariant(newText[idx + 2]), StringComparison.Ordinal);
 							if(lowerDigitIdx != -1)
 							{
 								char newChar = (char)((upperDigitIdx << 4) | lowerDigitIdx);

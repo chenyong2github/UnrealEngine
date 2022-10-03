@@ -33,7 +33,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The memory to read from
 		/// </summary>
-		public ReadOnlyMemory<byte> Memory
+		public ReadOnlyMemory<byte> RemainingMemory
 		{
 			get; private set;
 		}
@@ -41,7 +41,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Returns the memory at the current offset
 		/// </summary>
-		public ReadOnlySpan<byte> Span => Memory.Span;
+		public ReadOnlySpan<byte> RemainingSpan => RemainingMemory.Span;
 
 		/// <summary>
 		/// Constructor
@@ -49,7 +49,7 @@ namespace EpicGames.Core
 		/// <param name="memory">The memory to read from</param>
 		public MemoryReader(ReadOnlyMemory<byte> memory)
 		{
-			Memory = memory;
+			RemainingMemory = memory;
 		}
 
 		/// <summary>
@@ -57,17 +57,17 @@ namespace EpicGames.Core
 		/// </summary>
 		public void CheckEmpty()
 		{
-			if (Memory.Length > 0)
+			if (RemainingMemory.Length > 0)
 			{
-				throw new Exception($"Serialization is not at expected offset within the input buffer ({Memory.Length} bytes unused)");
+				throw new Exception($"Serialization is not at expected offset within the input buffer ({RemainingMemory.Length} bytes unused)");
 			}
 		}
 
 		/// <inheritdoc/>
-		public ReadOnlyMemory<byte> GetMemory(int minSize) => Memory;
+		public ReadOnlyMemory<byte> GetMemory(int minSize) => RemainingMemory;
 
 		/// <inheritdoc/>
-		public void Advance(int length) => Memory = Memory.Slice(length);
+		public void Advance(int length) => RemainingMemory = RemainingMemory.Slice(length);
 	}
 
 	/// <summary>

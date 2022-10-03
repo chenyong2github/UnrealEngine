@@ -133,7 +133,9 @@ namespace EpicGames.Core
 			writer.WriteString("type", "string");
 			if (Format != null)
 			{
+#pragma warning disable CA1308 // Normalize strings to uppercase
 				writer.WriteString("format", Format.Value.ToString().ToLowerInvariant());
+#pragma warning restore CA1308 // Normalize strings to uppercase
 			}
 			if (Pattern != null)
 			{
@@ -255,7 +257,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Properties to allow in this object
 		/// </summary>
-		public List<JsonSchemaProperty> Properties { get; set; } = new List<JsonSchemaProperty>();
+		public List<JsonSchemaProperty> Properties { get; } = new List<JsonSchemaProperty>();
 
 		/// <summary>
 		/// Type for additional properties

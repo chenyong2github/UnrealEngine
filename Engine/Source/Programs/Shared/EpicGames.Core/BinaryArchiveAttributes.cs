@@ -8,7 +8,7 @@ namespace EpicGames.Core
 	/// Instructs the serializer to ignore this property during serialization
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property)]
-	public class BinaryIgnoreAttribute : Attribute
+	public sealed class BinaryIgnoreAttribute : Attribute
 	{
 		/// <summary>
 		/// Constructor
@@ -22,7 +22,7 @@ namespace EpicGames.Core
 	/// Marks this class as supporting binary serialization. Used to automatically register types via BinaryArchive.RegisterTypes().
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class BinarySerializableAttribute : Attribute
+	public sealed class BinarySerializableAttribute : Attribute
 	{
 		/// <summary>
 		/// Constructor
@@ -36,7 +36,7 @@ namespace EpicGames.Core
 	/// Instructs the serializer to use a specific converter for this property or class
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Class)]
-	public class BinaryConverterAttribute : Attribute
+	public sealed class BinaryConverterAttribute : Attribute
 	{
 		/// <summary>
 		/// The serializer type

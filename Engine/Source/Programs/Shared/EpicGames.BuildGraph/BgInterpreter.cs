@@ -112,7 +112,7 @@ namespace EpicGames.BuildGraph
 			_names = reader.ReadVariableLengthArray(() => reader.ReadString());
 			int[] fragmentLengths = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
 
-			int offset = data.Length - reader.Memory.Length;
+			int offset = data.Length - reader.RemainingMemory.Length;
 
 			_fragments = new int[fragmentLengths.Length];
 			for (int idx = 0; idx < _fragments.Length; idx++)

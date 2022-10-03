@@ -29,7 +29,7 @@ namespace Horde.Build.Streams
 	/// Flags identifying content of a changelist
 	/// </summary>
 	[Flags]
-	[Obsolete]
+	[Obsolete("Use tags instead")]
 	public enum ChangeContentFlags
 	{
 		/// <summary>

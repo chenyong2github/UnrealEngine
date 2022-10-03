@@ -18,17 +18,17 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The path to this object. Stored as an absolute path, with O/S preferred separator characters, and no trailing slash for directories.
 		/// </summary>
-		public readonly string FullName;
+		public string FullName { get; }
 
 		/// <summary>
 		/// The comparer to use for file system references
 		/// </summary>
-		public static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
+		public static StringComparer Comparer { get; } = StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// The comparison to use for file system references
 		/// </summary>
-		public static readonly StringComparison Comparison = StringComparison.OrdinalIgnoreCase;
+		public static StringComparison Comparison { get; } = StringComparison.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// Direct constructor for a path
@@ -241,7 +241,7 @@ namespace EpicGames.Core
 		public string MakeRelativeTo(DirectoryReference directory)
 		{
 			StringBuilder result = s_makeRelativeToStringBuilder.Value!.Clear();
-			WriteRelativeTo(directory, ref result);
+			WriteRelativeTo(directory, result);
 			return result.ToString();
 		}
 
@@ -250,7 +250,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="directory"></param>
 		/// <param name="result"></param>
-		public void WriteRelativeTo(DirectoryReference directory, ref StringBuilder result)
+		public void WriteRelativeTo(DirectoryReference directory, StringBuilder result)
 		{
 			// Find how much of the path is common between the two paths. This length does not include a trailing directory separator character.
 			int commonDirectoryLength = -1;
@@ -335,7 +335,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public string ToNormalizedPath()
 		{
-			return FullName.Replace("\\", "/");
+			return FullName.Replace("\\", "/", StringComparison.Ordinal);
 		}
 
 		/// <summary>

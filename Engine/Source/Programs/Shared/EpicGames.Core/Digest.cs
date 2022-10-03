@@ -5,12 +5,16 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 
+#pragma warning disable CA1000 // Do not declare static members on generic types
+#pragma warning disable CA5351 // Do Not Use Broken Cryptographic Algorithms
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+
 namespace EpicGames.Core
 {
 	/// <summary>
 	/// Struct representing a weakly typed hash value. Counterpart to <see cref="Digest{T}"/> - a strongly typed digest.
 	/// </summary>
-	public struct Digest
+	public struct Digest : IEquatable<Digest>
 	{
 		/// <summary>
 		/// Memory storing the digest data
@@ -91,7 +95,10 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj) => (obj is Digest digest) && digest.Span.SequenceEqual(Span);
+		public override bool Equals(object? obj) => (obj is Digest digest) && Equals(digest);
+
+		/// <inheritdoc/>
+		public bool Equals(Digest other) => other.Span.SequenceEqual(Span);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
@@ -154,7 +161,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="length"></param>
-		public DigestTraits(int length)
+		protected DigestTraits(int length)
 		{
 			Length = length;
 		}
@@ -235,7 +242,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Generic HashValue implementation
 	/// </summary>
-	public struct Digest<T> where T : DigestTraits, new()
+	public struct Digest<T> : IEquatable<Digest<T>> where T : DigestTraits, new()
 	{
 		/// <summary>
 		/// Traits instance
@@ -272,13 +279,16 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj) => (obj is Digest<T> hash) && hash.Span.SequenceEqual(Span);
+		public override bool Equals(object? obj) => (obj is Digest<T> hash) && Equals(hash);
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
 
 		/// <inheritdoc/>
 		public override string ToString() => StringUtils.FormatHexString(Memory.Span);
+
+		/// <inheritdoc/>
+		public bool Equals(Digest<T> other) => other.Span.SequenceEqual(Span);
 
 		/// <summary>
 		/// Test two hash values for equality

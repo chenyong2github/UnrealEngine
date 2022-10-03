@@ -203,7 +203,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="reader">The Json reader</param>
 		/// <returns>New log event</returns>
+#pragma warning disable CA1045 // Do not pass types by reference
 		public static LogEvent Read(ref Utf8JsonReader reader)
+#pragma warning restore CA1045 // Do not pass types by reference
 		{
 			DateTime time = new DateTime(0);
 			LogLevel level = LogLevel.None;
@@ -542,7 +544,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Multiple inner exceptions, in the case of an <see cref="AggregateException"/>
 		/// </summary>
-		public List<LogException> InnerExceptions { get; set; } = new List<LogException>();
+		public List<LogException> InnerExceptions { get; } = new List<LogException>();
 
 		/// <summary>
 		/// Constructor
@@ -575,7 +577,6 @@ namespace EpicGames.Core
 				AggregateException? aggregateException = exception as AggregateException;
 				if (aggregateException != null && aggregateException.InnerExceptions.Count > 0)
 				{
-					result.InnerExceptions = new List<LogException>();
 					for (int idx = 0; idx < 16 && idx < aggregateException.InnerExceptions.Count; idx++) // Cap number of exceptions returned to avoid huge messages
 					{
 						LogException innerException = FromException(aggregateException.InnerExceptions[idx]);

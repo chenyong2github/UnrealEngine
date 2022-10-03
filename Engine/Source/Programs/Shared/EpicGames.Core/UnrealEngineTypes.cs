@@ -6,6 +6,10 @@ using System.Reflection;
 
 #pragma warning disable IDE1006 // Naming Styles
 #pragma warning disable CS1591 // Missing documentation
+#pragma warning disable CA1028 // Enum Storage should be Int32
+#pragma warning disable CA2217 // Do not mark enums with FlagsAttribute
+#pragma warning disable CA1069 // Enums values should not be duplicated
+#pragma warning disable CA1008 // Enums should have zero value
 
 namespace EpicGames.Core
 {

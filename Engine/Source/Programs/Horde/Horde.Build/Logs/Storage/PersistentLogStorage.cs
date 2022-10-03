@@ -82,9 +82,9 @@ namespace Horde.Build.Logs.Storage
 			MemoryReader reader = new MemoryReader(data.Value);
 			LogChunkData chunkData = reader.ReadLogChunkData(offset, lineIndex);
 
-			if (reader.Memory.Length > 0)
+			if (reader.RemainingMemory.Length > 0)
 			{
-				throw new Exception($"Serialization of persistent chunk {path} is not at expected offset ({reader.Memory.Length} bytes remaining)");
+				throw new Exception($"Serialization of persistent chunk {path} is not at expected offset ({reader.RemainingMemory.Length} bytes remaining)");
 			}
 
 			return chunkData;

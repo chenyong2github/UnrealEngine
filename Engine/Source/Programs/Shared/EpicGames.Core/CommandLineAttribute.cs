@@ -8,12 +8,14 @@ namespace EpicGames.Core
 	/// Attribute to indicate the name of a command line argument
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
-	public class CommandLineAttribute : Attribute
+	public sealed class CommandLineAttribute : Attribute
 	{
 		/// <summary>
 		/// Prefix for the option, with a leading '-' and trailing '=' character if a value is expected.
 		/// </summary>
+#pragma warning disable CA1019 // Define accessors for attribute arguments
 		public string? Prefix { get; set; }
+#pragma warning restore CA1019 // Define accessors for attribute arguments
 
 		/// <summary>
 		/// Specifies a fixed value for this argument. Specifying an alternate value is not permitted.
@@ -45,7 +47,7 @@ namespace EpicGames.Core
 
 			if(prefix != null)
 			{
-				if(!prefix.StartsWith("-"))
+				if(!prefix.StartsWith("-", StringComparison.Ordinal))
 				{
 					throw new Exception("Command-line arguments must begin with a '-' character");
 				}

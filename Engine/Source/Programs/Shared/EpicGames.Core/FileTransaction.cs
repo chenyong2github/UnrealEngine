@@ -169,6 +169,7 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override async ValueTask DisposeAsync()
 		{
+			GC.SuppressFinalize(this);
 			await base.DisposeAsync();
 			await _inner.DisposeAsync();
 		}

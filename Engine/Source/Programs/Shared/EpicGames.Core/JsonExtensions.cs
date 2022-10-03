@@ -4,6 +4,8 @@ using System;
 using System.Diagnostics;
 using System.Text.Json;
 
+#pragma warning disable CA1045 // Do not pass types by reference
+
 namespace EpicGames.Core
 {
 	/// <summary>

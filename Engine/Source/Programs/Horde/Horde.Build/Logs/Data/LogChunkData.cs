@@ -153,8 +153,8 @@ namespace Horde.Build.Logs.Data
 			if ((signature & 0xffffff) != CurrentSignature)
 			{
 				List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
-				subChunks.Add(new LogSubChunkData(LogType.Json, offset, lineIndex, new ReadOnlyLogText(reader.Memory)));
-				reader.Advance(reader.Memory.Length);
+				subChunks.Add(new LogSubChunkData(LogType.Json, offset, lineIndex, new ReadOnlyLogText(reader.RemainingMemory)));
+				reader.Advance(reader.RemainingMemory.Length);
 				return new LogChunkData(offset, lineIndex, subChunks);
 			}
 

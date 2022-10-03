@@ -146,7 +146,7 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-			return String.GetHashCode(Memory.Span);
+			return String.GetHashCode(Memory.Span, StringComparison.Ordinal);
 		}
 
 		/// <inheritdoc/>
@@ -188,12 +188,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static instance of an ordinal StringView comparer
 		/// </summary>
-		public static StringViewComparer Ordinal = new StringViewComparer(StringComparison.Ordinal);
+		public static StringViewComparer Ordinal { get; } = new StringViewComparer(StringComparison.Ordinal);
 
 		/// <summary>
 		/// Static instance of an ordinal StringView comparer which ignores case
 		/// </summary>
-		public static StringViewComparer OrdinalIgnoreCase = new StringViewComparer(StringComparison.OrdinalIgnoreCase);
+		public static StringViewComparer OrdinalIgnoreCase { get; } = new StringViewComparer(StringComparison.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// The comparison type
@@ -236,12 +236,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static instance of an ordinal StringView comparer
 		/// </summary>
-		public static StringViewComparerUe Ordinal = new StringViewComparerUe(StringComparison.Ordinal);
+		public static StringViewComparerUe Ordinal { get; } = new StringViewComparerUe(StringComparison.Ordinal);
 
 		/// <summary>
 		/// Static instance of an ordinal StringView comparer which ignores case
 		/// </summary>
-		public static StringViewComparerUe OrdinalIgnoreCase = new StringViewComparerUe(StringComparison.OrdinalIgnoreCase);
+		public static StringViewComparerUe OrdinalIgnoreCase { get; } = new StringViewComparerUe(StringComparison.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// The comparison type

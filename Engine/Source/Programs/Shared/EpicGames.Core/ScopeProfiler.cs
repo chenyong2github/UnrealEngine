@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma warning disable CA1822 // Mark members as static
+
 namespace EpicGames.Core
 {
 #if !__SCOPEPROFILER_AVAILABLE__
@@ -14,8 +16,8 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static instance of the profiler
 		/// </summary>
-		public static ScopeProfiler Instance = new ScopeProfiler();
-		
+		public static ScopeProfiler Instance { get; } = new ScopeProfiler();
+
 		/// <summary>
 		/// 
 		/// </summary>

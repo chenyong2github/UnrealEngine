@@ -58,6 +58,7 @@ namespace EpicGames.Core
 		public FileReference(string fullName, Sanitize sanitize)
 			: base(fullName)
 		{
+			_ = sanitize;
 		}
 
 		/// <summary>
@@ -245,6 +246,18 @@ namespace EpicGames.Core
 
 		/// <inheritdoc/>
 		public int CompareTo(FileReference? other) => Comparer.Compare(FullName, other?.FullName);
+
+		/// <inheritdoc/>
+		public static bool operator <(FileReference left, FileReference right) => ReferenceEquals(left, null) ? !ReferenceEquals(right, null) : left.CompareTo(right) < 0;
+
+		/// <inheritdoc/>
+		public static bool operator <=(FileReference left, FileReference right) => ReferenceEquals(left, null) || left.CompareTo(right) <= 0;
+
+		/// <inheritdoc/>
+		public static bool operator >(FileReference left, FileReference right) => !ReferenceEquals(left, null) && left.CompareTo(right) > 0;
+
+		/// <inheritdoc/>
+		public static bool operator >=(FileReference left, FileReference right) => ReferenceEquals(left, null) ? ReferenceEquals(right, null) : left.CompareTo(right) >= 0;
 
 		/// <summary>
 		/// Helper function to create a remote file reference. Unlike normal FileReference objects, these aren't converted to a full path in the local filesystem, but are
@@ -650,7 +663,7 @@ namespace EpicGames.Core
 			if(FileReference.Exists(location))
 			{
 				string currentContents = FileReference.ReadAllText(location);
-				if (String.Equals(contents, currentContents))
+				if (String.Equals(contents, currentContents, StringComparison.Ordinal))
 				{
 					return false;
 				}

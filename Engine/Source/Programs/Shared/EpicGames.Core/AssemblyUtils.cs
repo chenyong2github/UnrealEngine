@@ -43,7 +43,7 @@ namespace EpicGames.Core
 
 				return (
 					from knownAssemblyName in new[] { "SwarmAgent.exe", "../ThirdParty/Ionic/Ionic.Zip.Reduced.dll", "../ThirdParty/Newtonsoft/NewtonSoft.Json.dll" }
-					where assemblyName.Equals(Path.GetFileNameWithoutExtension(knownAssemblyName), StringComparison.InvariantCultureIgnoreCase)
+					where assemblyName.Equals(Path.GetFileNameWithoutExtension(knownAssemblyName), StringComparison.OrdinalIgnoreCase)
 					let resolvedAssemblyFilename = Path.Combine(pathToBinariesDotNET, knownAssemblyName)
 					// check if the file exists first. If we just try to load it, we correctly throw an exception, but it's a generic
 					// FileNotFoundException, which is not informative. Better to return null.

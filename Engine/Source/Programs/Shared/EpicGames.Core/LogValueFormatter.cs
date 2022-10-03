@@ -25,7 +25,7 @@ namespace EpicGames.Core
 	/// Specifies a type to use for serializing objects to a log event
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class)]
-	public class LogValueFormatterAttribute : Attribute
+	public sealed class LogValueFormatterAttribute : Attribute
 	{
 		/// <summary>
 		/// Type of the formatter

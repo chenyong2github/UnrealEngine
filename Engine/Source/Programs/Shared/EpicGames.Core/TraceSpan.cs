@@ -117,7 +117,7 @@ namespace EpicGames.Core
 			{
 				DirectoryReference.CreateDirectory(_telemetryDir);
 
-				string fileName = String.Format("{0}.{1}.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), process.Id, process.StartTime.Ticks);
+				string fileName = String.Format("{0}.{1}.{2}.json", Path.GetFileName(Assembly.GetEntryAssembly()!.Location), process.Id, process.StartTime.Ticks);
 				file = FileReference.Combine(_telemetryDir, fileName);
 			}
 

@@ -6,6 +6,8 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
+#pragma warning disable CA1707 // Identifiers should not contain underscores
+
 namespace EpicGames.Core
 {
 	/// <summary>

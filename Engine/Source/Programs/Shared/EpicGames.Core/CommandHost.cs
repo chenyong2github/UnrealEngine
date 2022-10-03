@@ -45,7 +45,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Names for this command
 		/// </summary>
-		public string[] Names { get; }
+		public IReadOnlyList<string> Names { get; }
 
 		/// <summary>
 		/// Short description for the mode. Will be displayed in the help text.
@@ -58,10 +58,12 @@ namespace EpicGames.Core
 		public ICommand CreateInstance(IServiceProvider serviceProvider);
 	}
 
+#pragma warning disable CA1019 // Define accessors for attribute arguments
 	/// <summary>
 	/// Attribute used to specify names of program modes, and help text
 	/// </summary>
-	public class CommandAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Class)]
+	public sealed class CommandAttribute : Attribute
 	{
 		/// <summary>
 		/// Names for this command
@@ -96,6 +98,7 @@ namespace EpicGames.Core
 			Description = description;
 		}
 	}
+#pragma warning restore CA1019 // Define accessors for attribute arguments
 
 	/// <summary>
 	/// Base class for all commands that can be executed by HordeAgent
@@ -123,7 +126,7 @@ namespace EpicGames.Core
 	/// </summary>
 	class CommandFactory : ICommandFactory
 	{
-		public string[] Names { get; }
+		public IReadOnlyList<string> Names { get; }
 		public string Description { get; }
 
 		public Type Type { get; }

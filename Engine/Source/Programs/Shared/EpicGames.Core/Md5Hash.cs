@@ -7,6 +7,8 @@ using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 
+#pragma warning disable CA5351 // Do Not Use Broken Cryptographic Algorithms
+
 namespace EpicGames.Core
 {
 	/// <summary>

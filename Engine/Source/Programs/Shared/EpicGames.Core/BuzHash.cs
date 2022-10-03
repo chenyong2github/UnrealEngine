@@ -156,7 +156,9 @@ namespace EpicGames.Core
 		/// <param name="threshold">Threshold for hash below which to terminate the scan</param>
 		/// <param name="state">The current hash value</param>
 		/// <returns>Number of bytes consumed from next</returns>
+#pragma warning disable CA1045 // Do not pass types by reference
 		public static unsafe int Update(ReadOnlySpan<byte> prev, ReadOnlySpan<byte> next, uint threshold, ref uint state)
+#pragma warning restore CA1045 // Do not pass types by reference
 		{
 			Debug.Assert(prev.Length == next.Length);
 

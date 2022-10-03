@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
+
+#pragma warning disable CA2227 // Collection properties should be read only
+#pragma warning disable CA1034 // Nested types should not be visible
 
 namespace EpicGames.Core
 {

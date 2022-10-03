@@ -11,7 +11,7 @@ namespace EpicGames.Core
     /// <summary>
     /// Writes data to a binary output stream. Similar to the NET Framework BinaryWriter class, but supports fast serialization of object graphs and container types, and supports nullable objects.
     /// </summary>
-    public class BinaryArchiveWriter : IDisposable
+    public sealed class BinaryArchiveWriter : IDisposable
     {
         /// <summary>
         /// Comparer which tests for reference equality between two objects

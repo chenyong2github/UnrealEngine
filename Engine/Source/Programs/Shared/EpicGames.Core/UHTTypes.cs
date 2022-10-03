@@ -4,6 +4,11 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 #pragma warning disable CS1591 // Missing documentation
+#pragma warning disable CA2227 // Collection properties should be read only
+#pragma warning disable CA1027 // Mark enums with FlagsAttribute
+#pragma warning disable CA1034 // Nested types should not be visible
+#pragma warning disable CA1716 // Identifiers should not match keywords
+#pragma warning disable IDE0049 // Use framework type
 
 namespace EpicGames.Core
 {
@@ -105,7 +110,7 @@ namespace EpicGames.Core
 				int Length = Name.Length;
 				foreach (string Define in PublicDefines)
 				{
-					if (!Define.StartsWith(Name))
+					if (!Define.StartsWith(Name, System.StringComparison.Ordinal))
 					{
 						continue;
 					}

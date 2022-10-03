@@ -19,7 +19,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static Task AsTask(this CancellationToken token)
 		{
-			return Task.Delay(-1, token).ContinueWith(x => { });
+			return Task.Delay(-1, token).ContinueWith(x => { }, TaskScheduler.Default);
 		}
 
 		/// <summary>
@@ -29,7 +29,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static Task<T> AsTask<T>(this CancellationToken token)
 		{
-			return Task.Delay(-1, token).ContinueWith(_ => Task.FromCanceled<T>(token)).Unwrap();
+			return Task.Delay(-1, token).ContinueWith(_ => Task.FromCanceled<T>(token), TaskScheduler.Default).Unwrap();
 		}
 
 		/// <summary>
@@ -76,7 +76,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static Task DelayNoThrow(TimeSpan time, CancellationToken token)
 		{
-			return Task.Delay(time, token).ContinueWith(x => { });
+			return Task.Delay(time, token).ContinueWith(x => { }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
 		}
 
 		/// <summary>

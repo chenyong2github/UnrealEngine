@@ -36,7 +36,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Tracks a set of processes, and destroys them when the object is disposed.
 	/// </summary>
-	public class ManagedProcessGroup : IDisposable
+	public sealed class ManagedProcessGroup : IDisposable
 	{
 #pragma warning disable IDE0049 // Naming Styles
 #pragma warning disable IDE1006 // Naming Styles
@@ -266,7 +266,9 @@ namespace EpicGames.Core
 		}
 
 		[DllImport("kernel32.dll", SetLastError = true)]
-        static extern int CreateProcess(/*[MarshalAs(UnmanagedType.LPTStr)]*/ string? lpApplicationName, StringBuilder lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, ProcessCreationFlags dwCreationFlags, IntPtr lpEnvironment, /*[MarshalAs(UnmanagedType.LPTStr)]*/ string? lpCurrentDirectory, STARTUPINFO lpStartupInfo, PROCESS_INFORMATION lpProcessInformation);
+#pragma warning disable CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
+		static extern int CreateProcess(/*[MarshalAs(UnmanagedType.LPTStr)]*/ string? lpApplicationName, StringBuilder lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, ProcessCreationFlags dwCreationFlags, IntPtr lpEnvironment, /*[MarshalAs(UnmanagedType.LPTStr)]*/ string? lpCurrentDirectory, STARTUPINFO lpStartupInfo, PROCESS_INFORMATION lpProcessInformation);
+#pragma warning restore CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 
 		[DllImport("kernel32.dll", SetLastError = true)]
 		static extern int ResumeThread(IntPtr hThread);
@@ -297,6 +299,7 @@ namespace EpicGames.Core
 		static extern int TerminateProcess(SafeHandleZeroOrMinusOneIsInvalid hProcess, uint uExitCode);
 
 		const UInt32 INFINITE = 0xFFFFFFFF;
+		const UInt32 WAIT_FAILED = 0xFFFFFFFF;
 
 		[DllImport("kernel32.dll", SetLastError = true)]
 		static extern UInt32 WaitForSingleObject(SafeHandleZeroOrMinusOneIsInvalid hHandle, UInt32 dwMilliseconds);
@@ -425,7 +428,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Cancellation token for background threads
 		/// </summary>
+#pragma warning disable CA2213
 		CancellationTokenSource? _frameworkCancellationSource;
+#pragma warning restore CA2213
 
 		/// <summary>
 		/// Static lock object. This is used to synchronize the creation of child processes - in particular, the inheritance of stdout/stderr write pipes. If processes
@@ -734,12 +739,9 @@ namespace EpicGames.Core
 
 					// Create a JobObject for each spawned process to do CPU usage accounting of spawned process and all its children
 					_accountingProcessGroup = new ManagedProcessGroup();
-					if (_accountingProcessGroup != null)
+					if (AssignProcessToJobObject(_accountingProcessGroup.JobHandle, processInfo.hProcess) == 0) 
 					{
-						if (AssignProcessToJobObject(_accountingProcessGroup.JobHandle, processInfo.hProcess) == 0) 
-						{
-							throw new Win32Exception();
-						}
+						throw new Win32Exception();
 					}
 
 					// On systems with more than one processor group (more than one CPU socket, or more than 64 cores), it is possible
@@ -764,7 +766,10 @@ namespace EpicGames.Core
 						GROUP_AFFINITY groupAffinity = new GROUP_AFFINITY();
 						groupAffinity.Mask = ~0ul >> (int)(64 - groupProcessorCount);
 						groupAffinity.Group = processorGroup;
-						SetThreadGroupAffinity(processInfo.hThread, groupAffinity, null);
+						if (SetThreadGroupAffinity(processInfo.hThread, groupAffinity, null) == 0)
+						{
+							throw new Win32Exception();
+						}
 					}
 					
 
@@ -800,11 +805,11 @@ namespace EpicGames.Core
 				{
 					if (processInfo.hProcess != IntPtr.Zero && _processHandle == null)
 					{
-						CloseHandle(processInfo.hProcess);
+						_ = CloseHandle(processInfo.hProcess);
 					}
 					if (processInfo.hThread != IntPtr.Zero)
 					{
-						CloseHandle(processInfo.hThread);
+						_ = CloseHandle(processInfo.hThread);
 					}
 				}
 			}
@@ -888,7 +893,7 @@ namespace EpicGames.Core
 				CancellationToken cancellationToken = _frameworkCancellationSource.Token;
 				Task stdOutTask = Task.Run(() => CopyPipeAsync(_frameworkProcess.StandardOutput.BaseStream, _frameworkChannel, cancellationToken));
 				Task stdErrTask = Task.Run(() => CopyPipeAsync(_frameworkProcess.StandardError.BaseStream, _frameworkChannel, cancellationToken));
-				_frameworkOutputTask = Task.WhenAll(stdOutTask, stdErrTask).ContinueWith(x => _frameworkChannel.Writer.Complete());
+				_frameworkOutputTask = Task.WhenAll(stdOutTask, stdErrTask).ContinueWith(x => _frameworkChannel.Writer.Complete(), TaskScheduler.Default);
 			}
 			else
 			{
@@ -929,8 +934,8 @@ namespace EpicGames.Core
 		{
 			if(_processHandle != null)
 			{
-				TerminateProcess(_processHandle, 0);
-				WaitForSingleObject(_processHandle, INFINITE);
+				_ = TerminateProcess(_processHandle, 0);
+				_ = WaitForSingleObject(_processHandle, INFINITE);
 
 				_processHandle.Dispose();
 				_processHandle = null;
@@ -976,7 +981,7 @@ namespace EpicGames.Core
 				_frameworkProcess.Dispose();
 				_frameworkProcess = null;
 
-				_frameworkOutputTask?.ContinueWith(x => _frameworkCancellationSource?.Dispose());
+				_frameworkOutputTask?.ContinueWith(x => _frameworkCancellationSource?.Dispose(), TaskScheduler.Default);
 			}
 		}
 
@@ -1253,7 +1258,10 @@ namespace EpicGames.Core
 		{
 			if (_frameworkProcess == null)
 			{
-				WaitForSingleObject(_processHandle!, INFINITE);
+				if (WaitForSingleObject(_processHandle!, INFINITE) == WAIT_FAILED)
+				{
+					throw new Win32Exception();
+				}
 			}
 			else
 			{

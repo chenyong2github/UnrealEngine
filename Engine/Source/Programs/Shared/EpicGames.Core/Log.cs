@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -21,7 +20,9 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Log Event Type
 	/// </summary>
+#pragma warning disable CA1027 // Mark enums with FlagsAttribute
 	public enum LogEventType
+#pragma warning restore CA1027 // Mark enums with FlagsAttribute
 	{
 		/// <summary>
 		/// The log event is a fatal error
@@ -56,7 +57,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The log event should only be displayed if very verbose logging is enabled
 		/// </summary>
+#pragma warning disable CA1069 // Enums values should not be duplicated
 		VeryVerbose = LogLevel.Trace
+#pragma warning restore CA1069 // Enums values should not be duplicated
 	}
 
 	/// <summary>
@@ -166,13 +169,13 @@ namespace EpicGames.Core
 		/// Log.txt will be backed up with its UTC creation time in the name e.g.
 		/// Log-backup-2021.10.29-19.53.17.txt
 		/// </summary>
-		public static bool BackupLogFiles = true;
+		public static bool BackupLogFiles { get; set; } = true;
 		
 		/// <summary>
 		/// The number of backups to be preserved - when there are more than this, the oldest backups will be deleted.
 		/// Backups will not be deleted if BackupLogFiles is false.
 		/// </summary>
-		public static int LogFileBackupCount = 10;
+		public static int LogFileBackupCount { get; set; } = 10;
 		
 		/// <summary>
 		/// Path to the log file being written to. May be null.
@@ -375,7 +378,7 @@ namespace EpicGames.Core
 
 				// Remove any trailing whitespace
 				int trimLen = message.Length;
-				while (trimLen > 0 && " \t\r\n".Contains(message[trimLen - 1]))
+				while (trimLen > 0 && " \t\r\n".Contains(message[trimLen - 1], StringComparison.Ordinal))
 				{
 					trimLen--;
 				}
@@ -406,7 +409,7 @@ namespace EpicGames.Core
 				// Forward it on to the internal logger
 				if (verbosity < LogEventType.Console)
 				{
-					Logger.Log((LogLevel)verbosity, message.ToString());
+					Logger.Log((LogLevel)verbosity, "{Message}", message.ToString());
 				}
 				else
 				{
@@ -813,7 +816,7 @@ namespace EpicGames.Core
 	/// Wrapper around a custom logger interface which flushes the event parser when switching between legacy
 	/// and native structured logging
 	/// </summary>
-	class LegacyEventLogger : ILogger
+	sealed class LegacyEventLogger : ILogger, IDisposable
 	{
 		private ILogger _inner;
 		private readonly LogEventParser _parser;
@@ -824,6 +827,11 @@ namespace EpicGames.Core
 		{
 			_inner = inner;
 			_parser = new LogEventParser(inner);
+		}
+
+		public void Dispose()
+		{
+			_parser.Dispose();
 		}
 
 		public void SetInnerLogger(ILogger inner)
@@ -943,7 +951,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Whether console output is redirected. This prevents writing status updates that rely on moving the cursor.
 		/// </summary>
-		private bool AllowStatusUpdates => !Console.IsOutputRedirected;
+		private static bool AllowStatusUpdates { get; set; } = !Console.IsOutputRedirected;
 
 		/// <summary>
 		/// When configured, this tracks time since initialization to prepend a timestamp to each log.
@@ -1375,7 +1383,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Provider for default logger instances
 	/// </summary>
-	public class DefaultLoggerProvider : ILoggerProvider
+	public sealed class DefaultLoggerProvider : ILoggerProvider
 	{
 		/// <inheritdoc/>
 		public ILogger CreateLogger(string categoryName)

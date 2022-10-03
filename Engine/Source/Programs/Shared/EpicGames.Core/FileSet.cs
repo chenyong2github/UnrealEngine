@@ -28,7 +28,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="path">Relative path within the tree</param>
-		public FileSet(string path)
+		protected FileSet(string path)
 		{
 			Path = path;
 		}

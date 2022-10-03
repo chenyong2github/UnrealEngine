@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -28,10 +29,14 @@ namespace EpicGames.Core
 		static extern bool TerminateProcess(SafeProcessHandle hProcess, uint uExitCode);
 
 		[DllImport("kernel32.dll", SetLastError = true)]
+#pragma warning disable CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 		static extern int QueryFullProcessImageName([In]SafeProcessHandle hProcess, [In]int dwFlags, [Out]StringBuilder lpExeName, ref int lpdwSize);
+#pragma warning restore CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 
 		[DllImport("Psapi.dll", SetLastError = true)]
 		static extern bool EnumProcesses([MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.U4)] [In][Out] uint[] processIds, int arraySizeBytes, [MarshalAs(UnmanagedType.U4)] out int bytesCopied);
+
+		const uint WAIT_FAILED = 0xffffffff;
 
 		[DllImport("kernel32.dll")]
 		static extern uint WaitForMultipleObjects(int nCount, IntPtr[] lpHandles, bool bWaitAll, uint dwMilliseconds);
@@ -134,7 +139,10 @@ namespace EpicGames.Core
 					}
 
 					// Wait for them all to complete
-					WaitForMultipleObjects(waitHandles.Count, waitHandles.Select(x => x.DangerousGetHandle()).ToArray(), true, 10 * 1000);
+					if (WaitForMultipleObjects(waitHandles.Count, waitHandles.Select(x => x.DangerousGetHandle()).ToArray(), true, 10 * 1000) == WAIT_FAILED)
+					{
+						throw new Win32Exception();
+					}
 				}
 				finally
 				{

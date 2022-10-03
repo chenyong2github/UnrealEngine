@@ -4,8 +4,21 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+#pragma warning disable CA1710 // Identifiers should have correct suffix
+
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Static methods for <see cref="ListSegment{T}"/>
+	/// </summary>
+	public static class ListSegment
+	{
+		/// <summary>
+		/// An empty list segment of the given element type
+		/// </summary>
+		public static ListSegment<T> Empty<T>() => new ListSegment<T>(null!, 0, 0);
+	}
+
 	/// <summary>
 	/// Delimits a section of a list
 	/// </summary>
@@ -28,11 +41,6 @@ namespace EpicGames.Core
 		/// Gets the number of elements in the range delimited by the array segment.
 		/// </summary>
 		public int Count { get; }
-
-		/// <summary>
-		/// An empty list segment of the given element type
-		/// </summary>
-		public static ListSegment<T> Empty { get; } = new ListSegment<T>(null!, 0, 0);
 
 		/// <inheritdoc/>
 		public bool IsReadOnly => List.IsReadOnly;

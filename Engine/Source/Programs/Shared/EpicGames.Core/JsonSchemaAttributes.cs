@@ -8,7 +8,7 @@ namespace EpicGames.Core
 	/// Attribute setting the identifier for a schema
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class JsonSchemaAttribute : Attribute
+	public sealed class JsonSchemaAttribute : Attribute
 	{
 		/// <summary>
 		/// The schema identifier
@@ -29,22 +29,22 @@ namespace EpicGames.Core
 	/// Attribute setting catalog entries for a schema
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class JsonSchemaCatalogAttribute : Attribute
+	public sealed class JsonSchemaCatalogAttribute : Attribute
 	{
 		/// <summary>
 		/// The schema name
 		/// </summary>
-		public string Name { get; set; }
+		public string Name { get; }
 
 		/// <summary>
 		/// Description of the schema
 		/// </summary>
-		public string Description { get; set; }
+		public string Description { get; }
 
 		/// <summary>
 		/// File patterns to match
 		/// </summary>
-		public string[]? FileMatch { get; set; }
+		public string[]? FileMatch { get; }
 
 		/// <summary>
 		/// Constructor
@@ -52,7 +52,9 @@ namespace EpicGames.Core
 		/// <param name="name"></param>
 		/// <param name="description"></param>
 		/// <param name="fileMatch">File patterns to match</param>
+#pragma warning disable CA1019 // Define accessors for attribute arguments
 		public JsonSchemaCatalogAttribute(string name, string description, string? fileMatch)
+#pragma warning restore CA1019 // Define accessors for attribute arguments
 			: this(name, description, (fileMatch == null) ? (string[]?)null : new[] { fileMatch })
 		{
 		}
@@ -82,7 +84,7 @@ namespace EpicGames.Core
 	/// Attribute setting properties for a type to be serialized as a string
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property)]
-	public class JsonSchemaStringAttribute : JsonSchemaTypeAttribute
+	public sealed class JsonSchemaStringAttribute : JsonSchemaTypeAttribute
 	{
 		/// <summary>
 		/// Format of the string

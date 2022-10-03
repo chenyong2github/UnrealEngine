@@ -61,9 +61,9 @@ namespace EpicGames.Core
 		/// </summary>
 		public bool IsMatch(string token)
 		{
-			if(Pattern.EndsWith("."))
+			if(Pattern.EndsWith(".", StringComparison.Ordinal))
 			{
-				return !token.Contains('.') && IsMatch(token, 0, Pattern.Substring(0, Pattern.Length - 1), 0);
+				return !token.Contains('.', StringComparison.Ordinal) && IsMatch(token, 0, Pattern.Substring(0, Pattern.Length - 1), 0);
 			}
 			else
 			{

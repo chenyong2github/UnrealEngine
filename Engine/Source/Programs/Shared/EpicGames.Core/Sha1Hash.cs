@@ -8,6 +8,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+
 namespace EpicGames.Core
 {
 	/// <summary>

@@ -89,7 +89,7 @@ namespace EpicGames.Core
 		/// <param name="rule">Pattern to match. See CreateRegex() for details.</param>
 		public void AddRule(string rule)
 		{
-			if (rule.StartsWith("-"))
+			if (rule.StartsWith("-", StringComparison.Ordinal))
 			{
 				Exclude(rule.Substring(1).TrimStart());
 			}
@@ -107,10 +107,10 @@ namespace EpicGames.Core
 		public void AddRule(string rule, params string[] allowTags)
 		{
 			string cleanRule = rule.Trim();
-			if(cleanRule.StartsWith("{"))
+			if(cleanRule.StartsWith("{", StringComparison.Ordinal))
 			{
 				// Find the end of the condition
-				int conditionEnd = cleanRule.IndexOf('}');
+				int conditionEnd = cleanRule.IndexOf('}', StringComparison.Ordinal);
 				if(conditionEnd == -1)
 				{
 					throw new Exception(String.Format("Missing closing parenthesis in rule: {0}", cleanRule));
@@ -205,9 +205,9 @@ namespace EpicGames.Core
 			foreach(string line in File.ReadAllLines(fileName.FullName))
 			{
 				string trimLine = line.Trim();
-				if(!trimLine.StartsWith(";") && trimLine.Length > 0)
+				if(!trimLine.StartsWith(";", StringComparison.Ordinal) && trimLine.Length > 0)
 				{
-					if(trimLine.StartsWith("["))
+					if(trimLine.StartsWith("[", StringComparison.Ordinal))
 					{
 						bInSection = (trimLine == "[" + sectionName + "]");
 					}
@@ -290,23 +290,23 @@ namespace EpicGames.Core
 
 			// Remove the slash from the start of the pattern. Any exclude pattern that doesn't contain a directory separator is assumed to apply to any directory (eg. *.cpp), otherwise it's 
 			// taken relative to the root.
-			if (normalizedPattern.StartsWith("/"))
+			if (normalizedPattern.StartsWith("/", StringComparison.Ordinal))
 			{
 				normalizedPattern = normalizedPattern.Substring(1);
 			}
-			else if(!normalizedPattern.Contains("/") && !normalizedPattern.StartsWith("..."))
+			else if(!normalizedPattern.Contains('/', StringComparison.Ordinal) && !normalizedPattern.StartsWith("...", StringComparison.Ordinal))
 			{
 				normalizedPattern = ".../" + normalizedPattern;
 			}
 
 			// All directories indicate a wildcard match
-			if (normalizedPattern.EndsWith("/"))
+			if (normalizedPattern.EndsWith("/", StringComparison.Ordinal))
 			{
 				normalizedPattern += "...";
 			}
 
 			// Replace any directory wildcards mid-string
-			for (int idx = normalizedPattern.IndexOf("..."); idx != -1; idx = normalizedPattern.IndexOf("...", idx))
+			for (int idx = normalizedPattern.IndexOf("...", StringComparison.Ordinal); idx != -1; idx = normalizedPattern.IndexOf("...", idx, StringComparison.Ordinal))
 			{
 				if (idx > 0 && normalizedPattern[idx - 1] != '/')
 				{

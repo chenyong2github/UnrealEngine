@@ -96,7 +96,7 @@ namespace EpicGames.Core
 				Message = message;
 				_progressInternal = String.Empty;
 
-				logger.LogInformation(message);
+				logger.LogInformation("{Progress}", message);
 			}
 
 			/// <summary>
@@ -119,7 +119,7 @@ namespace EpicGames.Core
 				}
 				if (!String.Equals(output, _lastOutput, StringComparison.Ordinal))
 				{
-					_logger.LogInformation(output);
+					_logger.LogInformation("{Progress}", output);
 					_lastOutput = output;
 				}
 			}

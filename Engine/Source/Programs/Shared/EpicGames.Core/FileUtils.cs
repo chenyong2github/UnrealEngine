@@ -9,12 +9,15 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
+#pragma warning disable CA1707 // Identifiers should not contain underscores
+#pragma warning disable CA1806 // Do not ignore method results
+
 namespace EpicGames.Core
 {
 	/// <summary>
 	/// Exception used to represent caught file/directory exceptions.
 	/// </summary>
-	class WrappedFileOrDirectoryException : Exception
+	public class WrappedFileOrDirectoryException : Exception
 	{
 		/// <summary>
 		/// Constructor
@@ -36,6 +39,53 @@ namespace EpicGames.Core
 	}
 
 	/// <summary>
+	/// Information about a locked file
+	/// </summary>
+	public class FileLockInfoWin32
+	{
+		/// <summary>
+		/// Process id
+		/// </summary>
+		public int ProcessId { get; }
+
+		/// <summary>
+		/// Path to the process holding the lock
+		/// </summary>
+		public string? FileName { get; }
+
+		/// <summary>
+		/// Name of the application
+		/// </summary>
+		public string AppName { get; }
+
+		/// <summary>
+		/// Time at which the process started
+		/// </summary>
+		public DateTime StartTime { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="processId">Process id</param>
+		/// <param name="fileName">Path to the process holding the lock</param>
+		/// <param name="appName">Name of the application</param>
+		/// <param name="startTime">Time at which the process started</param>
+		public FileLockInfoWin32(int processId, string? fileName, string appName, DateTime startTime)
+		{
+			ProcessId = processId;
+			FileName = fileName;
+			AppName = appName;
+			StartTime = startTime;
+		}
+
+		/// <inheritdoc/>
+		public override string ToString()
+		{
+			return $"{ProcessId}: {FileName ?? AppName} (started {StartTime})";
+		}
+	}
+
+	/// <summary>
 	/// Utility functions for manipulating files. Where these methods have similar functionality to those in the NET Framework, they generally go the extra mile to produce concise, specific error messages where possible.
 	/// </summary>
 	public static class FileUtils
@@ -43,12 +93,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Comparer that should be used for native path comparisons
 		/// </summary>
-		public static IEqualityComparer<string> PlatformPathComparer = RuntimePlatform.IsLinux ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+		public static IEqualityComparer<string> PlatformPathComparer { get; } = RuntimePlatform.IsLinux ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// Utf8 string comparer that should be used for native path comparisons
 		/// </summary>
-		public static IEqualityComparer<Utf8String> PlatformPathComparerUtf8 = RuntimePlatform.IsLinux ? Utf8StringComparer.Ordinal : Utf8StringComparer.OrdinalIgnoreCase;
+		public static IEqualityComparer<Utf8String> PlatformPathComparerUtf8 { get; } = RuntimePlatform.IsLinux ? Utf8StringComparer.Ordinal : Utf8StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// Read all text for a file
@@ -542,7 +592,7 @@ namespace EpicGames.Core
 				List<FileLockInfoWin32>? lockInfoList;
 				try
 				{
-					lockInfoList = GetFileLockInfo_Win32(fileName);
+					lockInfoList = GetFileLockInfoWin32(fileName);
 				}
 				catch
 				{
@@ -611,7 +661,9 @@ namespace EpicGames.Core
 		static extern int RmRegisterResources(uint pSessionHandle, uint nFiles, string[] rgsFilenames, uint nApplications, [In] RM_UNIQUE_PROCESS[]? rgApplications, uint nServices, string[]? rgsServiceNames);
 
 		[DllImport("rstrtmgr.dll", CharSet = CharSet.Auto)]
+#pragma warning disable CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 		static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, StringBuilder strSessionKey);
+#pragma warning restore CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 
 		[DllImport("rstrtmgr.dll")]
 		static extern int RmEndSession(uint pSessionHandle);
@@ -639,62 +691,17 @@ namespace EpicGames.Core
 		   out FILETIME lpUserTime);
 
 		[DllImport("kernel32.dll", SetLastError = true)]
+#pragma warning disable CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 		static extern bool QueryFullProcessImageName([In]SafeProcessHandle hProcess, [In]int dwFlags, [Out]StringBuilder lpExeName, ref int lpdwSize);
+#pragma warning restore CA1838 // Avoid 'StringBuilder' parameters for P/Invokes
 #pragma warning restore IDE1006
-
-		/// <summary>
-		/// Information about a locked file
-		/// </summary>
-		public class FileLockInfoWin32
-		{
-			/// <summary>
-			/// Process id
-			/// </summary>
-			public int ProcessId { get; }
-
-			/// <summary>
-			/// Path to the process holding the lock
-			/// </summary>
-			public string? FileName { get; }
-
-			/// <summary>
-			/// Name of the application
-			/// </summary>
-			public string AppName { get; }
-
-			/// <summary>
-			/// Time at which the process started
-			/// </summary>
-			public DateTime StartTime { get; }
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="processId">Process id</param>
-			/// <param name="fileName">Path to the process holding the lock</param>
-			/// <param name="appName">Name of the application</param>
-			/// <param name="startTime">Time at which the process started</param>
-			public FileLockInfoWin32(int processId, string? fileName, string appName, DateTime startTime)
-			{
-				ProcessId = processId;
-				FileName = fileName;
-				AppName = appName;
-				StartTime = startTime;
-			}
-
-			/// <inheritdoc/>
-			public override string ToString()
-			{
-				return $"{ProcessId}: {FileName ?? AppName} (started {StartTime})";
-			}
-		}
 
 		/// <summary>
 		/// Gets a list of processes that have a handle to the given file open
 		/// </summary>
 		/// <param name="fileName">File to check</param>
 		/// <returns>List of processes with a lock open</returns>
-		public static List<FileLockInfoWin32> GetFileLockInfo_Win32(string fileName)
+		public static List<FileLockInfoWin32> GetFileLockInfoWin32(string fileName)
 		{
 			uint sessionHandle = 0;
 			try

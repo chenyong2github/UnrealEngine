@@ -12,7 +12,7 @@ namespace EpicGames.Core
 	/// Sets a name used to discriminate between classes derived from a base class
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class JsonDiscriminatorAttribute : Attribute
+	public sealed class JsonDiscriminatorAttribute : Attribute
 	{
 		/// <summary>
 		/// Name to use to discriminate between different classes
@@ -33,7 +33,7 @@ namespace EpicGames.Core
 	/// Marks a class as the base class of a hierarchy, allowing any known subclasses to be serialized for it.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class JsonKnownTypesAttribute : Attribute
+	public sealed class JsonKnownTypesAttribute : Attribute
 	{
 		/// <summary>
 		/// Array of derived classes

@@ -7,7 +7,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Allows testing different platforsm
 	/// </summary>
-	public class RuntimePlatform
+	public static class RuntimePlatform
 	{
 		/// <summary>
 		/// Whether we are currently running on Linux.

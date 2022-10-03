@@ -106,11 +106,9 @@ namespace EpicGames.Core
 		}
 
 		static readonly MethodInfo s_readBoolMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadBool());
-		static readonly MethodInfo s_readIntMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadInt());
 		static readonly MethodInfo s_readArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveReader, Func<int>>((x, y) => x.ReadArray(y));
 		static readonly MethodInfo s_readPolymorphicObjectMethodInfo = GetMethodInfo(() => ReadObject(null!));
 		static readonly MethodInfo s_writeBoolMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteBool(false));
-		static readonly MethodInfo s_writeIntMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteInt(0));
 		static readonly MethodInfo s_writeArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveWriter, Action<int>>((x, y) => x.WriteArray(null!, y));
 		static readonly MethodInfo s_writePolymorphicObjectMethodInfo = GetMethodInfo(() => WritePolymorphicObject(null!, null!));
 

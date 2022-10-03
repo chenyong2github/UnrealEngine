@@ -11,6 +11,8 @@ using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable CA1710 // Identifiers should have correct suffix
+
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -701,7 +703,7 @@ namespace EpicGames.Core
 			}
 			else
 			{
-				if (valueType != typeof(bool) && attribute.Value == null && !prefix.EndsWith("=") && !prefix.EndsWith(":"))
+				if (valueType != typeof(bool) && attribute.Value == null && !prefix.EndsWith("=", StringComparison.Ordinal) && !prefix.EndsWith(":", StringComparison.Ordinal))
 				{
 					prefix += "=";
 				}
@@ -810,11 +812,11 @@ namespace EpicGames.Core
 			{
 				if(missingArguments.Count == 1)
 				{
-					throw new CommandLineArgumentException(String.Format("Missing {0} argument", missingArguments[0].Replace("=", "=...")));
+					throw new CommandLineArgumentException(String.Format("Missing {0} argument", missingArguments[0].Replace("=", "=...", StringComparison.Ordinal)));
 				}
 				else
 				{
-					throw new CommandLineArgumentException(String.Format("Missing {0} arguments", StringUtils.FormatList(missingArguments.Select(x => x.Replace("=", "=...")))));
+					throw new CommandLineArgumentException(String.Format("Missing {0} arguments", StringUtils.FormatList(missingArguments.Select(x => x.Replace("=", "=...", StringComparison.Ordinal)))));
 				}
 			}
 		}
@@ -873,7 +875,7 @@ namespace EpicGames.Core
 				{
 					if(descriptionBuilder.Length > 0)
 					{
-						descriptionBuilder.Append("\n");
+						descriptionBuilder.Append('\n');
 					}
 					descriptionBuilder.Append(attribute.Description);
 				}
@@ -929,13 +931,13 @@ namespace EpicGames.Core
 				{
 					if (argument[idx] == '=')
 					{
-						return String.Format("{0}=\"{1}\"", argument.Substring(0, idx), argument.Substring(idx + 1).Replace("\"", "\\\""));
+						return String.Format("{0}=\"{1}\"", argument.Substring(0, idx), argument.Substring(idx + 1).Replace("\"", "\\\"", StringComparison.Ordinal));
 					}
 				}
 			}
 
 			// Quote the whole thing
-			return "\"" + argument.Replace("\"", "\\\"") + "\"";
+			return "\"" + argument.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 		}
 
 		/// <summary>
@@ -1079,11 +1081,11 @@ namespace EpicGames.Core
 			{
 				if(remainingArguments.Count == 1)
 				{
-					logger.LogWarning(String.Format("Invalid argument: {0}", remainingArguments[0]));
+					logger.LogWarning("Invalid argument: {Argument}", remainingArguments[0]);
 				}
 				else
 				{
-					logger.LogWarning(String.Format("Invalid arguments:\n{0}", String.Join("\n", remainingArguments)));
+					logger.LogWarning("Invalid arguments:\n{Arguments}", String.Join("\n", remainingArguments));
 				}
 			}
 		}
@@ -1094,7 +1096,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public bool AreAnyArgumentsUsed()
 		{
-			return _usedArguments.Cast<bool>().Count(b => b) != 0;
+			return _usedArguments.Cast<bool>().Any(b => b);
 		}
 
 		/// <summary>
@@ -1171,7 +1173,7 @@ namespace EpicGames.Core
 			object? value;
 			if(!TryParseValue(valueType, valueText, out value))
 			{
-				logger.LogWarning("Unable to parse value for argument '{0}'.", argumentText);
+				logger.LogWarning("Unable to parse value for argument '{Argument}'.", argumentText);
 				return false;
 			}
 
@@ -1184,7 +1186,7 @@ namespace EpicGames.Core
 					object? previousValue = target.GetValue(targetObject);
 					if(!Object.Equals(previousValue, value))
 					{
-						logger.LogWarning("Argument '{0}' conflicts with '{1}'; ignoring.", argumentText, previousArgumentText);
+						logger.LogWarning("Argument '{Argument}' conflicts with '{PrevArgument}'; ignoring.", argumentText, previousArgumentText);
 					}
 					return false;
 				}
@@ -1353,15 +1355,15 @@ namespace EpicGames.Core
 				commandLine.Append(' ');
 			}
 
-			int spaceIdx = argument.IndexOf(' ');
+			int spaceIdx = argument.IndexOf(' ', StringComparison.Ordinal);
 			if(spaceIdx == -1)
 			{
 				commandLine.Append(argument);
 			}
 			else
 			{
-				int equalsIdx = argument.IndexOf('=');
-				if(equalsIdx == -1)
+				int equalsIdx = argument.IndexOf('=', StringComparison.Ordinal);
+				if(equalsIdx == -1 || equalsIdx > spaceIdx)
 				{
 					commandLine.AppendFormat("\"{0}\"", argument);
 				}

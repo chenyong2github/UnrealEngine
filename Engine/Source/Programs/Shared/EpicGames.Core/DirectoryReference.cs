@@ -213,6 +213,18 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public int CompareTo(DirectoryReference? other) => Comparer.Compare(FullName, other?.FullName);
 
+		/// <inheritdoc/>
+		public static bool operator <(DirectoryReference left, DirectoryReference right) => ReferenceEquals(left, null) ? !ReferenceEquals(right, null) : left.CompareTo(right) < 0;
+
+		/// <inheritdoc/>
+		public static bool operator <=(DirectoryReference left, DirectoryReference right) => ReferenceEquals(left, null) || left.CompareTo(right) <= 0;
+
+		/// <inheritdoc/>
+		public static bool operator >(DirectoryReference left, DirectoryReference right) => !ReferenceEquals(left, null) && left.CompareTo(right) > 0;
+
+		/// <inheritdoc/>
+		public static bool operator >=(DirectoryReference left, DirectoryReference right) => ReferenceEquals(left, null) ? ReferenceEquals(right, null) : left.CompareTo(right) >= 0;
+
 		/// <summary>
 		/// Helper function to create a remote directory reference. Unlike normal DirectoryReference objects, these aren't converted to a full path in the local filesystem.
 		/// </summary>

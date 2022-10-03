@@ -6,6 +6,8 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
+#pragma warning disable CA1045 // Do not pass types by reference
+
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -44,12 +46,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Base directory for all matched files
 		/// </summary>
-		public readonly DirectoryReference BaseDirectory;
+		public DirectoryReference BaseDirectory { get; }
 		
 		/// <summary>
 		/// List of tokens in the pattern. Every second token is a wildcard, other tokens are string fragments. Always has an odd number of elements. Path separators are normalized to the host platform format.
 		/// </summary>
-		public readonly List<string> Tokens = new List<string>();
+		public IReadOnlyList<string> Tokens { get; }
 
 		/// <summary>
 		/// Constructs a file pattern which matches a single file
@@ -58,7 +60,7 @@ namespace EpicGames.Core
 		public FilePattern(FileReference file)
 		{
 			BaseDirectory = file.Directory;
-			Tokens.Add(file.GetFileName());
+			Tokens = new[] { file.GetFileName() };
 		}
 
 		/// <summary>
@@ -123,23 +125,25 @@ namespace EpicGames.Core
 			}
 
 			// Parse the tokens
+			List<string> tokens = new List<string>();
 			int lastIdx = baseDirectoryLen;
 			for(int idx = baseDirectoryLen; idx < text.Length; idx++)
 			{
 				if(text[idx] == '?' || text[idx] == '*')
 				{
-					Tokens.Add(text.ToString(lastIdx, idx - lastIdx));
-					Tokens.Add(text.ToString(idx, 1));
+					tokens.Add(text.ToString(lastIdx, idx - lastIdx));
+					tokens.Add(text.ToString(idx, 1));
 					lastIdx = idx + 1;
 				}
 				else if(idx - 3 >= baseDirectoryLen && text[idx] == Path.DirectorySeparatorChar && text[idx - 1] == '.' && text[idx - 2] == '.' && text[idx - 3] == '.')
 				{
-					Tokens.Add(text.ToString(lastIdx, idx - 3 - lastIdx));
-					Tokens.Add(text.ToString(idx - 3, 4));
+					tokens.Add(text.ToString(lastIdx, idx - 3 - lastIdx));
+					tokens.Add(text.ToString(idx - 3, 4));
 					lastIdx = idx + 1;
 				}
 			}
-			Tokens.Add(text.ToString(lastIdx, text.Length - lastIdx));
+			tokens.Add(text.ToString(lastIdx, text.Length - lastIdx));
+			Tokens = tokens;
 		}
 
 		/// <summary>
@@ -255,7 +259,7 @@ namespace EpicGames.Core
 				// Append the next sequence of characters to match
 				pattern.Append(Regex.Escape(Tokens[idx + 1]));
 			}
-			pattern.Append("$");
+			pattern.Append('$');
 			return pattern.ToString();
 		}
 
@@ -269,7 +273,7 @@ namespace EpicGames.Core
 			for(int idx = 0;;idx += 2)
 			{
 				// Append the escaped replacement character
-				pattern.Append(Tokens[idx].Replace("$", "$$"));
+				pattern.Append(Tokens[idx].Replace("$", "$$", StringComparison.Ordinal));
 
 				// Check if we've reached the end of the string
 				if(idx == Tokens.Count - 1)
