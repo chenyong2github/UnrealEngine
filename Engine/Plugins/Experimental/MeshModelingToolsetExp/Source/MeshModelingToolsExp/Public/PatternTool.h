@@ -35,8 +35,12 @@ class MESHMODELINGTOOLSEXP_API UPatternToolBuilder : public UMultiSelectionMeshE
 	GENERATED_BODY()
 
 public:
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
+	virtual void InitializeNewTool(UMultiSelectionMeshEditingTool* NewTool, const FToolBuilderState& SceneState) const override;
+	
 protected:
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
@@ -478,6 +482,8 @@ protected:
 	struct FPatternElement
 	{
 		int32 TargetIndex = 0;
+
+		// todo: This is no longer necessary now that InitializeNewTool filters out invalid targets.
 		bool bValid = true;
 
 		UPrimitiveComponent* SourceComponent = nullptr;
