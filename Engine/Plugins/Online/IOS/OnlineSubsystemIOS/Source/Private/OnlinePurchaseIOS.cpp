@@ -3,6 +3,7 @@
 #include "OnlinePurchaseIOS.h"
 #include "OnlineError.h"
 #include "OnlineSubsystemIOS.h"
+#include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "IOS/ProxyPaymentTransactionObserver.h"
 
