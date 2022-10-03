@@ -14,16 +14,22 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
+int32 GDisplayClusterProjectionDomeprojectionPolicyEnableNearClippingPlane = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterProjectionDomeprojectionPolicyEnableNearClippingPlane(
+	TEXT("nDisplay.render.projection.EnableNearClippingPlane.Dome"),
+	GDisplayClusterProjectionDomeprojectionPolicyEnableNearClippingPlane,
+	TEXT("Enable NearClippingPlane for DomeProjection (0 - disable).\n"),
+	ECVF_RenderThreadSafe
+);
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterProjectionDomeprojectionPolicyBase
+//////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterProjectionDomeprojectionPolicyBase::FDisplayClusterProjectionDomeprojectionPolicyBase(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
 
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IDisplayClusterProjectionPolicy
-//////////////////////////////////////////////////////////////////////////////////////////////
 const FString& FDisplayClusterProjectionDomeprojectionPolicyBase::GetType() const
 {
 	static const FString& Type(DisplayClusterProjectionStrings::projection::Domeprojection);
@@ -95,7 +101,7 @@ void FDisplayClusterProjectionDomeprojectionPolicyBase::HandleEndScene(IDisplayC
 }
 
 
-bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float InNCP, const float InFCP)
 {
 	check(IsInGameThread());
 
@@ -103,6 +109,9 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(IDisplayCl
 	{
 		return false;
 	}
+
+	const float NCP = GDisplayClusterProjectionDomeprojectionPolicyEnableNearClippingPlane ? InNCP : 1;
+	const float FCP = GDisplayClusterProjectionDomeprojectionPolicyEnableNearClippingPlane ? InFCP : 1;
 
 	// Get origin component
 	const USceneComponent* const OriginComp = GetOriginComp();

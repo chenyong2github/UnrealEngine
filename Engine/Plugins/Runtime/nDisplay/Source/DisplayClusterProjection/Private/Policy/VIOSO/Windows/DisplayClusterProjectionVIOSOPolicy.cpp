@@ -36,6 +36,13 @@
 #include "ID3D12DynamicRHI.h"
 #endif // VIOSO_USE_GRAPHICS_API_D3D12
 
+int32 GDisplayClusterProjectionVIOSOPolicyEnableNearClippingPlane = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterProjectionVIOSOPolicyEnableNearClippingPlane(
+	TEXT("nDisplay.render.projection.EnableNearClippingPlane.vioso"),
+	GDisplayClusterProjectionVIOSOPolicyEnableNearClippingPlane,
+	TEXT("Enable NearClippingPlane for VIOSO (0 - disable).\n"),
+	ECVF_RenderThreadSafe
+);
 
 #if VIOSO_USE_GRAPHICS_API_D3D11
 /**
@@ -223,9 +230,12 @@ void FDisplayClusterProjectionVIOSOPolicy::ImplRelease()
 	}
 }
 
-bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float InNCP, const float InFCP)
 {
 	check(Views.Num() > (int32)InContextNum);
+
+	const float NCP = GDisplayClusterProjectionVIOSOPolicyEnableNearClippingPlane ? InNCP : 1;
+	const float FCP = GDisplayClusterProjectionVIOSOPolicyEnableNearClippingPlane ? InFCP : 1;
 
 	// Get view location in local space
 	const USceneComponent* const OriginComp = GetOriginComp();
