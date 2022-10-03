@@ -85,14 +85,14 @@ static FWriteBuffer* Writer_NextBufferInternal(FWriteBuffer* CurrentBuffer)
 
 	TraceData.Abandon();
 
+	GTlsWriteBuffer = NextBuffer;
+
 	NextBuffer->Committed = NextBuffer->Cursor;
 
 	if (CurrentBuffer == &GNullWriteBuffer)
 	{
 		NextBuffer->ThreadId = uint16(Writer_GetThreadId());
 		NextBuffer->PrevTimestamp = TimeGetTimestamp();
-
-		GTlsWriteBuffer = NextBuffer;
 
 		UE_TRACE_LOG($Trace, ThreadTiming, TraceLogChannel)
 			<< ThreadTiming.BaseTimestamp(NextBuffer->PrevTimestamp - GStartCycle);
@@ -112,8 +112,6 @@ static FWriteBuffer* Writer_NextBufferInternal(FWriteBuffer* CurrentBuffer)
 		CurrentBuffer->NextBuffer = NextBuffer;
 		NextBuffer->ThreadId = CurrentBuffer->ThreadId;
 		NextBuffer->PrevTimestamp = CurrentBuffer->PrevTimestamp;
-
-		GTlsWriteBuffer = NextBuffer;
 
 		// Retire current buffer.
 		int32 EtxOffset = int32(PTRINT((uint8*)(CurrentBuffer) - CurrentBuffer->Cursor));
