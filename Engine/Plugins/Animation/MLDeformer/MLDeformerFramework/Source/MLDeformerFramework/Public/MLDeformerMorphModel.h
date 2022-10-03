@@ -102,10 +102,10 @@ private:
 	 * A value of 0 will result in the highest quality morph targets, at the cost of higher runtime memory usage.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (ClampMin = "0.0", ClampMax = "1.0", ForceUnits="cm"))
-	float MorphTargetDeltaThreshold = 0.01f;
+	float MorphTargetDeltaThreshold = 0.0025f;
 
 	/** The morph target error tolerance. Higher values result in larger compression, but could result in visual artifacts. */
 	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (ClampMin = "0.01", ClampMax = "500"))
-	float MorphTargetErrorTolerance = 50.0f;
+	float MorphTargetErrorTolerance = 20.0f;
 #endif // WITH_EDITORONLY_DATA
 };

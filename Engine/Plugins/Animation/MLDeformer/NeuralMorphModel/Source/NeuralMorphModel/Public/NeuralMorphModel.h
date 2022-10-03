@@ -73,6 +73,7 @@ public:
 	int32 GetNumIterations() const						{ return NumIterations; }
 	int32 GetBatchSize() const							{ return BatchSize; }
 	float GetLearningRate() const						{ return LearningRate; }
+	float GetLearningRateDecay() const					{ return LearningRateDecay; }
 	float GetRegularizationFactor() const				{ return RegularizationFactor;  }
 
 public:
@@ -105,7 +106,7 @@ public:
 	 * Once the loss doesn't go down anymore, you know that more iterations most likely won't help much.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "1000000"))
-	int32 NumIterations = 2000;
+	int32 NumIterations = 5000;
 
 	/** 
 	 * The number of hidden layers that the neural network model will have.
@@ -137,7 +138,16 @@ public:
 
 	/** The learning rate used during the model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.000001", ClampMax = "1.0"))
-	float LearningRate = 0.01f;
+	float LearningRate = 0.001f;
+
+	/** 
+	 * The learning rate decay rate. If this is set to 1, the learning rate will not change. 
+	 * This is a multiplication factor. Every 1000 iterations, the new learning rate will be equal to
+	 * CurrentLearningRate * LearningRateDecay. This allows us to take slightly larger steps in the first iterations, and slowly take smaller steps.
+	 * Generally you want this to be between 0.9 and 1.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float LearningRateDecay = 0.98f;
 
 	/** 
 	 * The regularization factor. Higher values can help generate more sparse morph targets, but can also lead to visual artifacts. 

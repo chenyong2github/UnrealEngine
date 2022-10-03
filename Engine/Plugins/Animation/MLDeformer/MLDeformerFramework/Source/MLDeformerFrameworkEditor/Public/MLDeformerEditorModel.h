@@ -940,8 +940,9 @@ namespace UE::MLDeformer
 	};
 
 	/**
-	 * 
-	 * 
+	 * Train the model.
+	 * This will execute the train function inside your python code.
+	 * Provide the UMLDeformerTrainingModel inherited class type as template argument.
 	 */
 	template<class TrainingModelClass>
 	ETrainingResult TrainModel(FMLDeformerEditorModel* EditorModel)

@@ -498,6 +498,7 @@ namespace UE::MLDeformer
 			// User aborted the training process. Ask whether they want to use the partially trained results or not.
 			case ETrainingResult::Aborted:
 			{
+				ActiveModel->SetResamplingInputOutputsNeeded(false);
 				const FText Title(LOCTEXT("TrainingAbortedMessageTitle", "Use partially trained network?"));
 				const EAppReturnType::Type ReturnType = FMessageDialog::Open(
 					EAppMsgType::YesNo, 
