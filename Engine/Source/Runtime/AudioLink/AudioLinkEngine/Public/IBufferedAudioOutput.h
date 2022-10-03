@@ -2,6 +2,21 @@
 
 #pragma once
 
+class IPushableAudioOutput
+{
+public:
+	struct FOnNewBufferParams
+	{
+		const float* AudioData = nullptr;
+		int32 Id = INDEX_NONE;
+		int32 NumSamples = INDEX_NONE;
+		int32 NumChannels = INDEX_NONE;
+		int32 SampleRate = INDEX_NONE;
+	};
+	virtual void PushNewBuffer(const FOnNewBufferParams&) = 0;	
+	virtual void LastBuffer(int32 InId) = 0;
+};
+
 /**
 	Abstract interface for communication with outputting audio objects
 	Examples concrete implementation of these are (source, submix etc).
@@ -75,7 +90,11 @@ public:
 	 * @param InNumSamplesToReserve Reserve this number of samples.
 	 */
 	virtual void Reserve(int32 InNumSamplesToReserve, int32 InNumSamplesOfSilence = 0) = 0;
+
+	virtual IPushableAudioOutput* GetPushableInterface() { return nullptr; }
+	virtual const IPushableAudioOutput* GetPushableInterface() const { return nullptr; }
 };
 
 using FWeakBufferedOutputPtr = TWeakPtr<IBufferedAudioOutput, ESPMode::ThreadSafe>;
 using FSharedBufferedOutputPtr = TSharedPtr<IBufferedAudioOutput, ESPMode::ThreadSafe>;
+

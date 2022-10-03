@@ -63,6 +63,7 @@ class USoundWave;
 class USoundClass;
 class USoundSubmix;
 class USoundSourceBus;
+class UAudioLinkSettingsAbstract;
 struct FActiveSound;
 struct FWaveInstance;
 struct FSoundSourceBusSendInfo;
@@ -212,6 +213,10 @@ struct ENGINE_API FWaveInstance
 	/** Source Buffer listener */
 	FSharedISourceBufferListenerPtr SourceBufferListener;
 	bool bShouldSourceBufferListenerZeroBuffer = false;
+
+	/** AudioLink Opt in */
+	bool bShouldUseAudioLink = true;
+	UAudioLinkSettingsAbstract* AudioLinkSettingsOverride = nullptr;	
 
 private:
 

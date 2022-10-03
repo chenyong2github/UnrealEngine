@@ -33,6 +33,8 @@
 #include "Settings/LevelEditorMiscSettings.h"
 #endif
 
+#include "IAudioLinkFactory.h"
+
 static int32 GCVarEnableAudioThreadWait = 1;
 TAutoConsoleVariable<int32> CVarEnableAudioThreadWait(
 	TEXT("AudioThread.EnableAudioThreadWait"),
@@ -658,6 +660,13 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		// Get the audio mixer and non-audio mixer device module names
 		GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
 		GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
+
+		// If AudioLink is Enabled, use the AudioLink Platform.
+		static const FString AudioLinkMixerModule = TEXT("AudioMixerPlatformAudioLink");
+		if (IModularFeatures::Get().IsModularFeatureAvailable(TEXT("AudioLink Factory")))
+		{
+			AudioMixerModuleName = AudioLinkMixerModule;
+		}
 	}
 	else if (bForceNoAudioMixer)
 	{

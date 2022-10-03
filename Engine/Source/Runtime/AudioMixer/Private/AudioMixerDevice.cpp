@@ -171,6 +171,15 @@ namespace Audio
 		bAudioMixerModuleLoaded = true;
 
 		SourceManager = MakeUnique<FMixerSourceManager>(this);
+
+		// Register AudioLink Factory. 	
+		TArray<FName> Factories = IAudioLinkFactory::GetAllRegisteredFactoryNames();
+		if(Factories.Num() > 0)
+		{
+			// Allow only a single registered factory instance for now.
+			check(Factories.Num()==1);
+			AudioLinkFactory=IAudioLinkFactory::FindFactory(Factories[0]);
+		}
 	}
 
 	FMixerDevice::~FMixerDevice()
@@ -1951,6 +1960,11 @@ namespace Audio
 	int32 FMixerDevice::GetNumSources() const
 	{
 		return Sources.Num();
+	}
+
+	IAudioLinkFactory* FMixerDevice::GetAudioLinkFactory() const
+	{
+		return AudioLinkFactory;
 	}
 
 	int32 FMixerDevice::GetNumActiveSources() const

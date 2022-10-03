@@ -596,6 +596,28 @@ namespace Audio
 			InitParams.SourceBufferListener = WaveInstance->SourceBufferListener;
 			InitParams.bShouldSourceBufferListenerZeroBuffer = WaveInstance->bShouldSourceBufferListenerZeroBuffer;
 
+			if( WaveInstance->bShouldUseAudioLink)
+			{
+				if (IAudioLinkFactory* LinkFactory = MixerDevice->GetAudioLinkFactory())
+				{				
+					IAudioLinkFactory::FAudioLinkSourcePushedCreateArgs CreateArgs;					
+					if (WaveInstance->AudioLinkSettingsOverride)
+					{
+						CreateArgs.Settings = WaveInstance->AudioLinkSettingsOverride->GetProxy();
+					}
+					else
+					{
+						CreateArgs.Settings = GetDefault<UAudioLinkSettingsAbstract>(LinkFactory->GetSettingsClass())->GetProxy();
+					}
+					
+					CreateArgs.OwnerName = *WaveInstance->GetName();			// <-- FIXME: String FName conversion.
+					CreateArgs.NumChannels = SoundBuffer->NumChannels;
+					CreateArgs.NumFramesPerBuffer = MixerDevice->GetBufferLength();
+					CreateArgs.SampleRate = MixerDevice->GetSampleRate();
+					AudioLink = LinkFactory->CreateSourcePushedAudioLink(CreateArgs);
+					InitParams.AudioLink = AudioLink;
+				}
+			}
 
 			// Source manager needs to know if this is a vorbis source for rebuilding speaker maps
 			InitParams.bIsVorbis = bIsVorbis;
@@ -966,6 +988,14 @@ namespace Audio
 			AudioDevice->GetListenerTransform(ListenerIndex, ListenerTransform);
 
 			AudioDevice->SourceDataOverridePluginInterface->GetSourceDataOverrides(SourceId, ListenerTransform, WaveInstance);
+		}
+
+		// AudioLink, push state if we're enabled and 3d.
+		if (bIs3D && AudioLink.IsValid())
+		{
+			IAudioLinkSourcePushed::FOnUpdateWorldStateParams Params;
+			Params.WorldTransform = WaveInstance->ActiveSound->Transform;
+			AudioLink->OnUpdateWorldState(Params);
 		}
 
 		UpdatePitch();
@@ -1406,6 +1436,11 @@ namespace Audio
 
 		check(!bIsStopping);
 		check(!Playing);
+
+		if (AudioLink.IsValid())
+		{
+			AudioLink.Reset();
+		}
 
 		// Make a new pending release data ptr to pass off release data
 		if (MixerSourceVoice)

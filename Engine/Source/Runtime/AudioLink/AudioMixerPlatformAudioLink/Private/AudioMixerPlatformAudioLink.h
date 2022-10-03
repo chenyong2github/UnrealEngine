@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AudioMixer.h"
+#include "IAudioLinkFactory.h"
 
 namespace Audio
 {
@@ -33,6 +34,7 @@ namespace Audio
 	private:
 		bool bSuspended = false;
 		bool bInitialized = false;
+		IAudioLinkFactory::FAudioLinkSynchronizerSharedPtr SynchronizeLink;
 	};
 }
 

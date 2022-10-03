@@ -145,6 +145,8 @@ namespace Audio
 
 		FSharedISourceBufferListenerPtr SourceBufferListener;		
 
+		IAudioLinkFactory::FAudioLinkSourcePushedSharedPtr AudioLink;
+
 		FName AudioComponentUserID;
 		uint64 AudioComponentID = 0;
 		bool bIs3D = false;
@@ -382,6 +384,8 @@ namespace Audio
 		// Cached ptr to an optional source data override plugin
 		TAudioSourceDataOverridePtr SourceDataOverridePlugin;
 
+		IAudioLinkFactory* AudioLinkFactory = nullptr;
+
 		// Array of pointers to game thread audio source objects
 		TArray<FMixerSourceVoice*> MixerSources;
 
@@ -498,6 +502,9 @@ namespace Audio
 
 			// Optional Source buffer listener.
 			FSharedISourceBufferListenerPtr SourceBufferListener;
+
+			// Optional AudioLink.
+			IAudioLinkFactory::FAudioLinkSourcePushedSharedPtr AudioLink;
 
 			// State management
 			uint8 bIs3D:1;

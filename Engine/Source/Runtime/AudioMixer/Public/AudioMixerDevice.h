@@ -17,6 +17,7 @@
 class FOnSubmixEnvelopeBP;
 class IAudioMixerPlatformInterface;
 class USoundModulatorBase;
+class IAudioLinkFactory;
 
 namespace Audio
 {
@@ -217,6 +218,9 @@ namespace Audio
 		FMixerSourceVoice* GetMixerSourceVoice();
 		void ReleaseMixerSourceVoice(FMixerSourceVoice* InSourceVoice);
 		int32 GetNumSources() const;
+
+		// AudioLink
+		IAudioLinkFactory* GetAudioLinkFactory() const;
 
 		const FAudioPlatformDeviceInfo& GetPlatformDeviceInfo() const { return PlatformInfo; };
 
@@ -435,6 +439,8 @@ namespace Audio
 
 		/** MPSC command queue to send commands to the game thread */
 		TMpscQueue<TFunction<void()>> GameThreadCommandQueue;
+
+		IAudioLinkFactory* AudioLinkFactory = nullptr;
 		
 		/** Whether or not we generate output audio to test multi-platform mixer. */
 		bool bDebugOutputEnabled;

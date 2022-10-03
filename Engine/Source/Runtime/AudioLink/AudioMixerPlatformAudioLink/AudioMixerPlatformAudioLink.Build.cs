@@ -22,7 +22,6 @@ public class AudioMixerPlatformAudioLink: ModuleRules
 					
 		if (Target.bCompileAgainstEngine) 
 		{
-			//PrivateDependencyModuleNames.Add("XMA2");
 			PrivateDependencyModuleNames.Add("BinkAudioDecoder");
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,

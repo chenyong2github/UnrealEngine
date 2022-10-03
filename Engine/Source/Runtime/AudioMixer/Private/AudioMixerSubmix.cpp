@@ -284,15 +284,20 @@ namespace Audio
 					UpdateModulationSettings(VolMod, WetMod, DryMod);
 				});
 			}
-			if (SoundSubmix->AudioLinkSettings)
+			
+			// AudioLink send enabled? 
+			if (SoundSubmix->bSendToAudioLink)
 			{
-				if (IAudioLinkFactory* LinkFactory = IAudioLinkFactory::FindFactory(SoundSubmix->AudioLinkSettings->GetFactoryName()))
+				// If AudioLink is active, create a link.
+				if (IAudioLinkFactory* LinkFactory = MixerDevice->GetAudioLinkFactory())
 				{
-					AudioLinkInstance = LinkFactory->CreateSubmixAudioLink({ SoundSubmix, MixerDevice, SoundSubmix->AudioLinkSettings });
-				}
-				else
-				{
-					UE_LOG(LogAudioLink, Warning, TEXT("Failed to Find AudioLink Factory '%s'"), *SoundSubmix->AudioLinkSettings->GetFactoryName().GetPlainNameString());
+					check(LinkFactory->GetSettingsClass());
+					check(LinkFactory->GetSettingsClass()->GetDefaultObject());
+
+					const UAudioLinkSettingsAbstract* Settings = SoundSubmix->AudioLinkSettings.IsNull() ?
+						GetDefault<UAudioLinkSettingsAbstract>(LinkFactory->GetSettingsClass()) : SoundSubmix->AudioLinkSettings.Get();
+
+					AudioLinkInstance = LinkFactory->CreateSubmixAudioLink({ SoundSubmix, MixerDevice, Settings });
 				}
 			}
 			

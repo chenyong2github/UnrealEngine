@@ -48,6 +48,13 @@ public:
 	};
 	virtual FSharedBufferedOutputPtr CreateSourceBufferListener(const FSourceBufferListenerCreateParams&);
 
+	struct FPushedBufferListenerCreateParams
+	{
+		int32 SizeOfBufferInFrames = INDEX_NONE;
+		bool bShouldZeroBuffer = false;
+	};
+	virtual FSharedBufferedOutputPtr CreatePushableBufferListener(const FPushedBufferListenerCreateParams&);
+
 	struct FSubmixBufferListenerCreateParams
 	{
 		int32 SizeOfBufferInFrames = 0;
@@ -62,7 +69,7 @@ public:
 	{
 		TWeakObjectPtr<const USoundSubmix> Submix;
 		FAudioDevice* Device = nullptr;
-		TWeakObjectPtr<UAudioLinkSettingsAbstract> Settings;
+		TWeakObjectPtr<const UAudioLinkSettingsAbstract> Settings;
 	};
 
 	/**
@@ -88,12 +95,35 @@ public:
 	 * @return The newly created Link instance (if successful).
 	 */
 	virtual TUniquePtr<IAudioLink> CreateSourceAudioLink(const FAudioLinkSourceCreateArgs&) = 0;
+	
+	struct FAudioLinkSourcePushedCreateArgs
+	{
+		FName OwnerName;
+		int32 NumChannels = INDEX_NONE;
+		int32 SampleRate = INDEX_NONE;
+		int32 NumFramesPerBuffer = INDEX_NONE;
+		UAudioLinkSettingsAbstract::FSharedSettingsProxyPtr Settings;
+	};	
+	using FAudioLinkSourcePushedSharedPtr = TSharedPtr<IAudioLinkSourcePushed, ESPMode::ThreadSafe>;
+	virtual FAudioLinkSourcePushedSharedPtr CreateSourcePushedAudioLink(const FAudioLinkSourcePushedCreateArgs&) = 0;
+
+	/**
+	 * Create a AudioLinkSynchronizer callback
+	 * @return The newly created Link instance (if successful).
+	 */
+	using FAudioLinkSynchronizerSharedPtr = TSharedPtr<IAudioLinkSynchronizer, ESPMode::ThreadSafe>;
+	virtual FAudioLinkSynchronizerSharedPtr CreateSynchronizerAudioLink() = 0;
 		
 	/**	
 	 * Get the name of all AudioLink factories in the Modular Features registry.
 	 * @return "AudioLink Factory"
 	 */
-	static FName GetModularFeatureName();
+
+	inline static FName GetModularFeatureName()
+	{
+		static FName FeatureName = FName(TEXT("AudioLink Factory"));
+		return FeatureName;
+	}
 
 	/**
 	 * Gets all registered factory instances.

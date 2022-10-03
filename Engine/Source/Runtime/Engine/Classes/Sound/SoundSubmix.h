@@ -307,6 +307,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixLevel, meta = (DisplayName = "Dry Level (dB)", AudioParam = "Volume", ClampMin = "-96.0", ClampMax = "0.0", UIMin = "-96.0", UIMax = "0.0"))
 	FSoundModulationDestinationSettings DryLevelModulation;
 	
+	/** Whether to send this Submix to AudioLink (when AudioLink is Enabled)*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioLink)
+	uint8 bSendToAudioLink : 1;
+
 	/** Optional Audio Link Settings Object */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioLink)
 	TObjectPtr<UAudioLinkSettingsAbstract> AudioLinkSettings;

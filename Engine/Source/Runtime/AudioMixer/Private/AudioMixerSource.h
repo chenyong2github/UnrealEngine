@@ -118,6 +118,7 @@ namespace Audio
 		FMixerBuffer* MixerBuffer;
 		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> MixerSourceBuffer;
 		FMixerSourceVoice* MixerSourceVoice;
+		IAudioLinkFactory::FAudioLinkSourcePushedSharedPtr AudioLink;
 
 		uint32 bPreviousBusEnablement;
 		uint32 bPreviousBaseSubmixEnablement;

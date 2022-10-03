@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"AudioPlatformConfiguration",
 					"SoundFieldRendering",
 					"AudioExtensions",
+					"AudioLinkCore",
 					"AudioLinkEngine",
 					"HeadMountedDisplay"
 				}

@@ -81,7 +81,7 @@ void FBufferedListenerBase::OnBufferReceived(const FBufferFormat& InFormat, TArr
 		// Prevent log spam by limiting to 1:100 logs.
 		static const int32 NumLogMessagesToSkip = 100;
 		static int32 LogPacifier = 0;
-		UE_CLOG(LogPacifier++ % NumLogMessagesToSkip == 0, LogAudioLink, Warning, TEXT("Overflow by '%d' Samples in Buffer Listener"), InBuffer.Num() - SamplesPushed);
+		UE_CLOG(LogPacifier++ % NumLogMessagesToSkip == 0, LogAudioLink, Log, TEXT("Overflow by '%d' Samples in Buffer Listener"), InBuffer.Num() - SamplesPushed);
 	}
 }
 

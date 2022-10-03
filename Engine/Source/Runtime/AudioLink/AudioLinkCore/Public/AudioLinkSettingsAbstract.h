@@ -6,6 +6,8 @@
 #include "Templates/SharedPointer.h"
 #include "AudioLinkSettingsAbstract.generated.h"
 
+class UAudioLinkSettingsAbstract;
+
 /**
   * This interface should be used to provide a non-uclass version of the data described in
   * your implementation of UAudioLinkSettingsAbstract
@@ -14,6 +16,11 @@ class AUDIOLINKCORE_API IAudioLinkSettingsProxy
 {
 public:
 	virtual ~IAudioLinkSettingsProxy() = default;
+protected:
+#if WITH_EDITOR
+	friend class UAudioLinkSettingsAbstract;
+	virtual void RefreshFromSettings(UAudioLinkSettingsAbstract* InSettings, FPropertyChangedEvent& InPropertyChangedEvent) = 0;
+#endif //WITH_EDITOR
 };
 
 /**
@@ -46,6 +53,13 @@ public:
 	}
 
 protected:
+#if WITH_EDITOR	
+	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		GetProxy()->RefreshFromSettings(this, PropertyChangedEvent);
+	}
+#endif //WITH_EDITOR
+
 	virtual FSharedSettingsProxyPtr MakeProxy() const PURE_VIRTUAL(UAudioLinkSettingsAbstract::MakeProxy, return {};);
 	mutable FSharedSettingsProxyPtr ProxyInstance;
 };

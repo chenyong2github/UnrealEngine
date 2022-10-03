@@ -606,6 +606,12 @@ namespace Audio
 		SourceInfo.LowPassFreq = MAX_FILTER_FREQUENCY;
 		SourceInfo.HighPassFreq = MIN_FILTER_FREQUENCY;
 
+		if (SourceInfo.AudioLink)
+		{
+			SourceInfo.AudioLink->OnSourceReleased(SourceId);
+			SourceInfo.AudioLink.Reset();
+		}
+
 		if (SourceInfo.SourceBufferListener)
 		{
 			SourceInfo.SourceBufferListener->OnSourceReleased(SourceId);
@@ -907,6 +913,11 @@ namespace Audio
 			{
 				MixerDevice->ReverbPluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ReverbPluginSettings);
 				SourceInfo.bUseReverbPlugin = true;
+			}
+
+			if (InitParams.AudioLink.IsValid())
+			{
+				SourceInfo.AudioLink = InitParams.AudioLink;
 			}
 
 			// Optional Source Buffer listener.
@@ -2202,6 +2213,14 @@ namespace Audio
 				InSourceSubmixOutputBuffer.SetPreAttenuationSourceBuffer(&SourceInfo.PreDistanceAttenuationBuffer);
 			}
 			return;
+		}
+
+		if (SourceInfo.AudioLink.IsValid())
+		{
+			IAudioLinkSourcePushed::FOnNewBufferParams Params;
+			Params.SourceId = SourceId;
+			Params.Buffer = SourceInfo.PreDistanceAttenuationBuffer;
+			SourceInfo.AudioLink->OnNewBuffer(Params);
 		}
 
 		// If we have Source Buffer Listener
