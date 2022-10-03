@@ -675,6 +675,8 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 				continue;
 			}
 
+			check(!EnumHasAnyFlags(Scene.PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Excluded));
+
 			const FPrimitiveSceneInfo* SceneInfo = Scene.Primitives[PrimitiveIndex];
 
 			// #dxr_todo: ray tracing in scene captures should re-use the persistent RT scene. (UE-112448)
