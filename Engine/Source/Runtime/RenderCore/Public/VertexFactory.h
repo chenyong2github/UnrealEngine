@@ -125,7 +125,8 @@ enum class EVertexFactoryFlags : uint32
 	SupportsPSOPrecaching				  = 1u << 13,
 	SupportsManualVertexFetch			  = 1u << 14,
 	DoesNotSupportNullPixelShader		  = 1u << 15,
-	SupportsGPUSkinPassThrough			  = 1u << 16
+	SupportsGPUSkinPassThrough			  = 1u << 16,
+	SupportsComputeShading                = 1u << 17
 };
 ENUM_CLASS_FLAGS(EVertexFactoryFlags);
 
@@ -435,6 +436,7 @@ public:
 	bool SupportsPSOPrecaching() const                 { return HasFlags(EVertexFactoryFlags::SupportsPSOPrecaching); }
 	bool SupportsNullPixelShader() const			   { return !HasFlags(EVertexFactoryFlags::DoesNotSupportNullPixelShader); }
 	bool SupportsGPUSkinPassThrough() const			   { return HasFlags(EVertexFactoryFlags::SupportsGPUSkinPassThrough); }
+	bool SupportsComputeShading() const                { return HasFlags(EVertexFactoryFlags::SupportsComputeShading); }
 
 	bool SupportsManualVertexFetch(ERHIFeatureLevel::Type InFeatureLevel) const 
 	{

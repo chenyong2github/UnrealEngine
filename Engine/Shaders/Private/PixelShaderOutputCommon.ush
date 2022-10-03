@@ -1,53 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-PixelShaderOutputCommon.usf: To allow PS input/output passed int functions through a single struct, allowing for a more readable code (less #ifdefs, reducing the boolean hell)
+PixelShaderOutputCommon.ush: To allow PS input/output passed into functions
+through a single struct, allowing for a more readable code
+(less #ifdefs, reducing the boolean hell)
 =============================================================================*/
 
-#ifndef PIXELSHADEROUTPUT_INTERPOLANTS
-	#define PIXELSHADEROUTPUT_INTERPOLANTS 0
-#endif
-#ifndef PIXELSHADEROUTPUT_BASEPASS
-	#define PIXELSHADEROUTPUT_BASEPASS 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MESHDECALPASS
-	#define PIXELSHADEROUTPUT_MESHDECALPASS 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT0
-	#define PIXELSHADEROUTPUT_MRT0 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT1
-	#define PIXELSHADEROUTPUT_MRT1 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT2
-	#define PIXELSHADEROUTPUT_MRT2 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT3
-	#define PIXELSHADEROUTPUT_MRT3 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT4
-	#define PIXELSHADEROUTPUT_MRT4 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT5
-	#define PIXELSHADEROUTPUT_MRT5 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT6
-	#define PIXELSHADEROUTPUT_MRT6 0
-#endif
-#ifndef PIXELSHADEROUTPUT_MRT7
-	#define PIXELSHADEROUTPUT_MRT7 0
-#endif
-#ifndef PIXELSHADEROUTPUT_COVERAGE
-	#define PIXELSHADEROUTPUT_COVERAGE 0
-#endif
-#ifndef PIXELSHADEROUTPUT_A2C
-	#define PIXELSHADEROUTPUT_A2C 0
-#endif
-#ifndef PIXELSHADER_EARLYDEPTHSTENCIL
-#define PIXELSHADER_EARLYDEPTHSTENCIL
-#endif
-
-// ---------------------------------------------------------------------------------
+#include "ShaderOutputCommon.ush"
 
 PIXELSHADER_EARLYDEPTHSTENCIL
 void MainPS
@@ -95,7 +54,7 @@ void MainPS
 
 #if STRATA_OPAQUE_DEFERRED
 #if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 3
-#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been update but not the uint MRTs
+#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been updated but not the uint MRTs
 #endif
 #if PIXELSHADEROUTPUT_MRT4
 #error Strata cannot map to such a case

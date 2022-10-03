@@ -297,6 +297,198 @@ public:
 	}
 };
 
+// BEGIN COMPUTE
+
+/**
+ * The base type for compute shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.
+ * The base type is shared between the versions with and without sky light.
+ */
+template<typename LightMapPolicyType>
+class TBasePassComputeShaderPolicyParamType : public FMeshMaterialShader, public LightMapPolicyType::ComputeParametersType
+{
+	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TBasePassComputeShaderPolicyParamType, NonVirtual, FMeshMaterialShader, typename LightMapPolicyType::ComputeParametersType);
+
+public:
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		Strata::SetBasePassRenderTargetOutputFormat(Parameters.Platform, OutEnvironment);
+		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+	}
+
+	static bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError)
+	{
+		if (ParameterMap.ContainsParameterAllocation(FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName()))
+		{
+			OutError.Add(TEXT("Base pass shaders cannot read from the SceneTexturesStruct."));
+			return false;
+		}
+
+		return true;
+	}
+
+	/** Initialization constructor. */
+	TBasePassComputeShaderPolicyParamType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer):
+		FMeshMaterialShader(Initializer)
+	{
+		LightMapPolicyType::ComputeParametersType::Bind(Initializer.ParameterMap);
+		ReflectionCaptureBuffer.Bind(Initializer.ParameterMap, TEXT("ReflectionCapture"));
+
+		// These parameters should only be used nested in the base pass uniform buffer
+		check(!Initializer.ParameterMap.ContainsParameterAllocation(FFogUniformParameters::StaticStructMetadata.GetShaderVariableName()));
+		check(!Initializer.ParameterMap.ContainsParameterAllocation(FReflectionUniformParameters::StaticStructMetadata.GetShaderVariableName()));
+		check(!Initializer.ParameterMap.ContainsParameterAllocation(FPlanarReflectionUniformParameters::StaticStructMetadata.GetShaderVariableName()));
+	}
+	TBasePassComputeShaderPolicyParamType() {}
+
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const TBasePassShaderElementData<LightMapPolicyType>& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const;
+
+private:
+	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionCaptureBuffer);
+};
+
+/**
+ * The base type for compute shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.
+ * The base type is shared between the versions with and without sky light.
+ */
+template<typename LightMapPolicyType>
+class TBasePassComputeShaderBaseType : public TBasePassComputeShaderPolicyParamType<LightMapPolicyType>
+{
+	typedef TBasePassComputeShaderPolicyParamType<LightMapPolicyType> Super;
+	DECLARE_INLINE_TYPE_LAYOUT(TBasePassComputeShaderBaseType, NonVirtual);
+
+public:
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+	{
+		return LightMapPolicyType::ShouldCompilePermutation(Parameters);
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		LightMapPolicyType::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	/** Initialization constructor. */
+	TBasePassComputeShaderBaseType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : Super(Initializer) {}
+
+	TBasePassComputeShaderBaseType() {}
+};
+
+/** The concrete base pass compute shader type. */
+template<typename LightMapPolicyType, bool bEnableSkyLight>
+class TBasePassCS : public TBasePassComputeShaderBaseType<LightMapPolicyType>
+{
+	DECLARE_SHADER_TYPE(TBasePassCS,MeshMaterial);
+public:
+
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+	{
+		// Only compile skylight version for lit materials, and if the project allows them.
+		static const auto SupportStationarySkylight = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportStationarySkylight"));
+		static const auto SupportAllShaderPermutations = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAllShaderPermutations"));
+
+		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+
+		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
+		const bool bProjectSupportsStationarySkylight = !SupportStationarySkylight || SupportStationarySkylight->GetValueOnAnyThread() != 0 || bForceAllPermutations;
+
+		const bool bCacheShaders = !bEnableSkyLight
+			//translucent materials need to compile skylight support to support MOVABLE skylights also.
+			|| bTranslucent
+			// Some lightmap policies (eg Simple Forward) always require skylight support
+			|| IsSingleLayerWater
+			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.MaterialParameters.ShadingModels.IsLit());
+		return bCacheShaders
+			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+			&& TBasePassComputeShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters);
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), Parameters.MaterialParameters.MaterialDomain != MD_Surface);
+		OutEnvironment.SetDefine(TEXT("ENABLE_DBUFFER_TEXTURES"), Parameters.MaterialParameters.MaterialDomain == MD_Surface);
+		OutEnvironment.SetDefine(TEXT("COMPILE_BASEPASS_PIXEL_VOLUMETRIC_FOGGING"), DoesPlatformSupportVolumetricFog(Parameters.Platform));
+		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
+		OutEnvironment.SetDefine(TEXT("PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE"), ForceSimpleSkyDiffuse(Parameters.Platform));
+		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADED"), 1);
+
+		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+		const bool bIsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+		const bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		if (bSupportVirtualShadowMap && (bTranslucent || bIsSingleLayerWater))
+		{
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+		}
+
+		// This define simply lets the compilation environment know that we are using BasePassPixelShader.usf, so that we can check for more
+		// complicated defines later in the compilation pipe.
+		OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
+		OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 0);
+
+		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
+
+		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+		if (IsSingleLayerWater && IsWaterDistanceFieldShadowEnabled(Parameters.Platform))
+		{
+			// See FShaderCompileUtilities::FetchGBufferParamsRuntime for the details
+			const bool bOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform);
+			const bool bHasTangent = false;
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+			bool bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
+
+			uint32 TargetSeparatedMainDirLight = 5;
+			if (bOutputVelocity == false && bHasTangent == false)
+			{
+				TargetSeparatedMainDirLight = 5;
+				if (bHasPrecShadowFactor)
+				{
+					TargetSeparatedMainDirLight = 6;
+				}
+			}
+			else if (bOutputVelocity)
+			{
+				TargetSeparatedMainDirLight = 6;
+				if (bHasPrecShadowFactor)
+				{
+					TargetSeparatedMainDirLight = 7;
+				}
+			}
+			else if (bHasTangent)
+			{
+				TargetSeparatedMainDirLight = 6;
+				if (bHasPrecShadowFactor)
+				{
+					TargetSeparatedMainDirLight = 7;
+				}
+			}
+			OutEnvironment.SetRenderTargetOutputFormat(TargetSeparatedMainDirLight, PF_FloatR11G11B10);
+		}
+
+		TBasePassComputeShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+	
+	/** Initialization constructor. */
+	TBasePassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
+		TBasePassComputeShaderBaseType<LightMapPolicyType>(Initializer)
+	{}
+
+	/** Default constructor. */
+	TBasePassCS() {}
+};
+
+// END COMPUTE
+
 /**
  * The base type for pixel shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.
  * The base type is shared between the versions with and without sky light.
@@ -306,8 +498,6 @@ class TBasePassPixelShaderPolicyParamType : public FMeshMaterialShader, public L
 {
 	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TBasePassPixelShaderPolicyParamType, NonVirtual, FMeshMaterialShader, typename LightMapPolicyType::PixelParametersType);
 public:
-
-	// static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -528,6 +718,54 @@ public:
 	/** Default constructor. */
 	F128BitRTBasePassPS() {}
 };
+
+/**
+ * Get shader templates allowing to redirect between compatible shaders.
+ */
+
+template <typename LightMapPolicyType>
+bool GetBasePassShader(
+	const FMaterial& Material,
+	FVertexFactoryType* VertexFactoryType,
+	LightMapPolicyType LightMapPolicy,
+	ERHIFeatureLevel::Type FeatureLevel,
+	bool bEnableSkyLight,
+	TShaderRef<TBasePassComputeShaderPolicyParamType<LightMapPolicyType>>* ComputeShader
+)
+{
+	FMaterialShaderTypes ShaderTypes;
+
+	if (ComputeShader)
+	{
+		if (bEnableSkyLight)
+		{
+			ShaderTypes.AddShaderType<TBasePassCS<LightMapPolicyType, true>>();
+		}
+		else
+		{
+			ShaderTypes.AddShaderType<TBasePassCS<LightMapPolicyType, false>>();
+		}
+	}
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetComputeShader(ComputeShader);
+	return true;
+}
+
+template <>
+bool GetBasePassShader<FUniformLightMapPolicy>(
+	const FMaterial& Material,
+	FVertexFactoryType* VertexFactoryType,
+	FUniformLightMapPolicy LightMapPolicy,
+	ERHIFeatureLevel::Type FeatureLevel,
+	bool bEnableSkyLight,
+	TShaderRef<TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>>* ComputeShader
+);
 
 /**
  * Get shader templates allowing to redirect between compatible shaders.

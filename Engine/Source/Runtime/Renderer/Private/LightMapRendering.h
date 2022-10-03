@@ -199,6 +199,23 @@ public:
 		LAYOUT_FIELD(FShaderUniformBufferParameter, TranslucentSelfShadowBufferParameter);
 	};
 
+	class ComputeParametersType
+	{
+		DECLARE_INLINE_TYPE_LAYOUT(ComputeParametersType, NonVirtual);
+	public:
+		void Bind(const FShaderParameterMap& ParameterMap)
+		{
+			TranslucentSelfShadowBufferParameter.Bind(ParameterMap, TEXT("TranslucentSelfShadow"));
+		}
+
+		void Serialize(FArchive& Ar)
+		{
+			Ar << TranslucentSelfShadowBufferParameter;
+		}
+
+		LAYOUT_FIELD(FShaderUniformBufferParameter, TranslucentSelfShadowBufferParameter);
+	};
+
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return Parameters.MaterialParameters.ShadingModels.IsLit() &&
@@ -227,6 +244,15 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings)
 	{
 		ShaderBindings.Add(PixelShaderParameters->TranslucentSelfShadowBufferParameter, ShaderElementData);
+	}
+
+	static void GetComputeShaderBindings(
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const ElementDataType& ShaderElementData,
+		const ComputeParametersType* ComputeShaderParameters,
+		FMeshDrawSingleShaderBindings& ShaderBindings)
+	{
+		ShaderBindings.Add(ComputeShaderParameters->TranslucentSelfShadowBufferParameter, ShaderElementData);
 	}
 
 	friend bool operator==(const FSelfShadowedTranslucencyPolicy A,const FSelfShadowedTranslucencyPolicy B)
@@ -545,6 +571,7 @@ public:
 #if RHI_RAYTRACING
 	typedef FUniformLightMapPolicyShaderParametersType RayHitGroupParametersType;
 #endif
+	typedef FUniformLightMapPolicyShaderParametersType ComputeParametersType;
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -576,6 +603,12 @@ public:
 		FMeshDrawSingleShaderBindings& RayHitGroupBindings
 	) const;
 #endif // RHI_RAYTRACING
+
+	static void GetComputeShaderBindings(
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const ElementDataType& ShaderElementData,
+		const ComputeParametersType* PixelShaderParameters,
+		FMeshDrawSingleShaderBindings& ShaderBindings);
 
 	friend bool operator==(const FUniformLightMapPolicy A,const FUniformLightMapPolicy B)
 	{
@@ -744,6 +777,23 @@ public:
 		}
 	};
 
+	class ComputeParametersType : public FUniformLightMapPolicyShaderParametersType, public FSelfShadowedTranslucencyPolicy::ComputeParametersType
+	{
+		DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(ComputeParametersType, NonVirtual, FUniformLightMapPolicyShaderParametersType, FSelfShadowedTranslucencyPolicy::ComputeParametersType);
+	public:
+		void Bind(const FShaderParameterMap& ParameterMap)
+		{
+			FUniformLightMapPolicyShaderParametersType::Bind(ParameterMap);
+			FSelfShadowedTranslucencyPolicy::ComputeParametersType::Bind(ParameterMap);
+		}
+
+		void Serialize(FArchive& Ar)
+		{
+			FUniformLightMapPolicyShaderParametersType::Serialize(Ar);
+			FSelfShadowedTranslucencyPolicy::ComputeParametersType::Serialize(Ar);
+		}
+	};
+
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
@@ -770,6 +820,12 @@ public:
 		const ElementDataType& ShaderElementData,
 		const PixelParametersType* PixelShaderParameters,
 		FMeshDrawSingleShaderBindings& ShaderBindings);
+
+	static void GetComputeShaderBindings(
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const ElementDataType& ShaderElementData,
+		const ComputeParametersType* ComputeShaderParameters,
+		FMeshDrawSingleShaderBindings& ShaderBindings);
 };
 
 class FSelfShadowedVolumetricLightmapPolicy : public FSelfShadowedTranslucencyPolicy
@@ -791,6 +847,23 @@ public:
 		{
 			FUniformLightMapPolicyShaderParametersType::Serialize(Ar);
 			FSelfShadowedTranslucencyPolicy::PixelParametersType::Serialize(Ar);
+		}
+	};
+
+	class ComputeParametersType : public FUniformLightMapPolicyShaderParametersType, public FSelfShadowedTranslucencyPolicy::ComputeParametersType
+	{
+		DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(ComputeParametersType, NonVirtual, FUniformLightMapPolicyShaderParametersType, FSelfShadowedTranslucencyPolicy::ComputeParametersType);
+	public:
+		void Bind(const FShaderParameterMap& ParameterMap)
+		{
+			FUniformLightMapPolicyShaderParametersType::Bind(ParameterMap);
+			FSelfShadowedTranslucencyPolicy::ComputeParametersType::Bind(ParameterMap);
+		}
+
+		void Serialize(FArchive& Ar)
+		{
+			FUniformLightMapPolicyShaderParametersType::Serialize(Ar);
+			FSelfShadowedTranslucencyPolicy::ComputeParametersType::Serialize(Ar);
 		}
 	};
 
@@ -823,5 +896,11 @@ public:
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const ElementDataType& ShaderElementData,
 		const PixelParametersType* PixelShaderParameters,
+		FMeshDrawSingleShaderBindings& ShaderBindings);
+
+	static void GetComputeShaderBindings(
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const ElementDataType& ShaderElementData,
+		const ComputeParametersType* ComputeShaderParameters,
 		FMeshDrawSingleShaderBindings& ShaderBindings);
 };
