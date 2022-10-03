@@ -448,7 +448,7 @@ class UMaterial : public UMaterialInterface
 	TEnumAsByte<enum EMaterialDecalResponse> MaterialDecalResponse;
 
 	/** An override material which will be used instead of this one when rendering with nanite. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Nanite, meta = (EditInline))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Nanite, meta = (EditInline, ShowOnlyInnerProperties))
 	FMaterialOverrideNanite NaniteOverrideMaterial;
 
 	/**

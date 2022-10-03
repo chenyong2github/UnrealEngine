@@ -22,7 +22,7 @@ struct FMaterialOverrideNanite
 	GENERATED_BODY()
 
 	/** An override material which will be used when rendering with nanite. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Nanite Override Material"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite, meta = (DisplayName = "Nanite Override Material"))
 	TSoftObjectPtr<UMaterialInterface> OverrideMaterialRef;
 
 	/** 
