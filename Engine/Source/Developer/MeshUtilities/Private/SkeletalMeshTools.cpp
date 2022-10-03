@@ -18,7 +18,7 @@ namespace SkeletalMeshTools
 {
 	bool AreSkelMeshVerticesEqual( const FSoftSkinBuildVertex& V1, const FSoftSkinBuildVertex& V2, const FOverlappingThresholds& OverlappingThresholds)
 	{
-		if(!PointsEqual((FVector)V1.Position, (FVector)V2.Position, OverlappingThresholds))
+		if(!PointsEqual(V1.Position, V2.Position, OverlappingThresholds))
 		{
 			return false;
 		}
@@ -31,17 +31,17 @@ namespace SkeletalMeshTools
 			}
 		}
 
-		if(!NormalsEqual((FVector)V1.TangentX, (FVector)V2.TangentX, OverlappingThresholds))
+		if(!NormalsEqual(V1.TangentX, V2.TangentX, OverlappingThresholds))
 		{
 			return false;
 		}
 
-		if(!NormalsEqual((FVector)V1.TangentY, (FVector)V2.TangentY, OverlappingThresholds))
+		if(!NormalsEqual(V1.TangentY, V2.TangentY, OverlappingThresholds))
 		{
 			return false;
 		}
 
-		if(!NormalsEqual((FVector)V1.TangentZ, (FVector)V2.TangentZ, OverlappingThresholds))
+		if(!NormalsEqual(V1.TangentZ, V2.TangentZ, OverlappingThresholds))
 		{
 			return false;
 		}
@@ -103,8 +103,8 @@ namespace SkeletalMeshTools
 
 					// check to see if the points are really overlapping
 					if(PointsEqual(
-						(FVector)RawVertices[RawVertIndexAndZ[i].Index].Position,
-						(FVector)RawVertices[RawVertIndexAndZ[j].Index].Position, OverlappingThresholds))
+						RawVertices[RawVertIndexAndZ[i].Index].Position,
+						RawVertices[RawVertIndexAndZ[j].Index].Position, OverlappingThresholds))
 					{
 						RawVerts2Dupes.Add(RawVertIndexAndZ[i].Index, RawVertIndexAndZ[j].Index);
 						RawVerts2Dupes.Add(RawVertIndexAndZ[j].Index, RawVertIndexAndZ[i].Index);

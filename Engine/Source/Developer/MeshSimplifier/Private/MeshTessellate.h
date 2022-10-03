@@ -5,9 +5,6 @@
 #include "CoreMinimal.h"
 #include "Containers/HashTable.h"
 
-template< typename T > FORCEINLINE uint32 Min3Index( const T A, const T B, const T C ) { return ( A < B ) ? ( ( A < C ) ? 0 : 2 ) : ( ( B < C ) ? 1 : 2 ); }
-template< typename T > FORCEINLINE uint32 Max3Index( const T A, const T B, const T C ) { return ( A > B ) ? ( ( A > C ) ? 0 : 2 ) : ( ( B > C ) ? 1 : 2 ); }
-
 FORCEINLINE uint32 Hash3( const uint32 x, const uint32 y, const uint32 z )
 {
 	//return ( 73856093 * x ) ^ ( 15485867 * y ) ^ ( 83492791 * z );
@@ -82,7 +79,7 @@ void MeshTessellate( TArray<T>& Verts, TArray< uint32 >& Indexes, float MaxEdgeS
 			EdgeLength2[i] = ( p0 - p1 ).SizeSquared();
 		}
 
-		const uint32 e0 = Max3Index( EdgeLength2[0], EdgeLength2[1], EdgeLength2[2] );
+		const uint32 e0 = FMath::Max3Index( EdgeLength2[0], EdgeLength2[1], EdgeLength2[2] );
 		const uint32 e1 = (1 << e0) & 3;
 		const uint32 e2 = (1 << e1) & 3;
 		if( EdgeLength2[ e0 ] < MaxEdgeSize * MaxEdgeSize )

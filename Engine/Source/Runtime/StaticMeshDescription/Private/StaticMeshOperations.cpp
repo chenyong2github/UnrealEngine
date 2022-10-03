@@ -1356,9 +1356,9 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 
 		for (int32 Index = 0, TriIndex = 0; Index < NumTriangles; Index++, TriIndex += 3)
 		{
-			const FVector PointA(VertexPositions[TriVertexIDs[TriIndex + 0]]);
-			const FVector PointB(VertexPositions[TriVertexIDs[TriIndex + 1]]);
-			const FVector PointC(VertexPositions[TriVertexIDs[TriIndex + 2]]);
+			const FVector3f PointA(VertexPositions[TriVertexIDs[TriIndex + 0]]);
+			const FVector3f PointB(VertexPositions[TriVertexIDs[TriIndex + 1]]);
+			const FVector3f PointC(VertexPositions[TriVertexIDs[TriIndex + 2]]);
 			FTriangleData& TriangleData = TriangleDatas[Index];
 			TriangleData.Area = TriangleUtilities::ComputeTriangleArea(PointA, PointB, PointC);
 			TriangleData.SetCornerAngleData(TriVertexInstanceIDs[TriIndex + 0], TriangleUtilities::ComputeTriangleCornerAngle(PointA, PointB, PointC), 0);

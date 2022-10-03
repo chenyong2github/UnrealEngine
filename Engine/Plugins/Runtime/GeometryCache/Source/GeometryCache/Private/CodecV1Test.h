@@ -93,7 +93,7 @@ public:
 					const FVector3f& PositionA = OriginalMeshData.Positions[Index];
 					const FVector3f& PositionB = DecodedMeshData.Positions[Index];
 
-					if (!PointsEqual((FVector)PositionA, (FVector)PositionB, true))
+					if (!PointsEqual(PositionA, PositionB, true))
 					{
 						check(true);
 					}
@@ -133,7 +133,7 @@ public:
 					// Motion vectors if we have any
 					if (OriginalMeshData.Positions.Num() == OriginalMeshData.MotionVectors.Num())
 					{
-						if (!PointsEqual((FVector)OriginalMeshData.MotionVectors[Index], (FVector)DecodedMeshData.MotionVectors[Index]))
+						if (!PointsEqual(OriginalMeshData.MotionVectors[Index], DecodedMeshData.MotionVectors[Index]))
 						{
 							check(true);
 						}

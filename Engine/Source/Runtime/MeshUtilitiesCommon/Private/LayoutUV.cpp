@@ -249,13 +249,13 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 		for( ; Tri < NumTris && DisjointSet[ SortedTris[ Tri ] ] == ChartID; Tri++ )
 		{
 			// Calculate chart bounds
-			FVector		Positions[3];
+			FVector3f	Positions[3];
 			FVector2f	UVs[3];
 			for( int k = 0; k < 3; k++ )
 			{
 				uint32 Index = 3 * SortedTris[ Tri ] + k;
 
-				Positions[k] = FVector(MeshView.GetPosition( Index ));
+				Positions[k] = MeshView.GetPosition( Index );
 				UVs[k] = TexCoords[ Index ];
 
 				Chart.MinUV.X = FMath::Min( Chart.MinUV.X, UVs[k].X );
@@ -264,8 +264,8 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 				Chart.MaxUV.Y = FMath::Max( Chart.MaxUV.Y, UVs[k].Y );
 			}
 
-			FVector Edge1 = Positions[1] - Positions[0];
-			FVector Edge2 = Positions[2] - Positions[0];
+			FVector3f Edge1 = Positions[1] - Positions[0];
+			FVector3f Edge2 = Positions[2] - Positions[0];
 			float Area = 0.5f * ( Edge1 ^ Edge2 ).Size();
 
 			FVector2f EdgeUV1 = UVs[1] - UVs[0];

@@ -2202,7 +2202,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	VertIndexAndZ.Reserve(VertexNumberDest);
 	for (int32 VertexIndex = 0; VertexIndex < VertexNumberDest; ++VertexIndex)
 	{
-		new(VertIndexAndZ)FIndexAndZ(VertexIndex, (FVector)ImportDataDest.Points[VertexIndex]);
+		new(VertIndexAndZ)FIndexAndZ(VertexIndex, ImportDataDest.Points[VertexIndex]);
 	}
 	// Sort the vertices by z value
 	VertIndexAndZ.Sort(FCompareIndexAndZ());
@@ -2210,7 +2210,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	auto FindSimilarPosition = [&VertIndexAndZ, &ImportDataDest](const FVector3f& Position, TArray<int32>& PositionMatches, const float ComparisonThreshold)
 	{
 		PositionMatches.Reset();
-		FIndexAndZ PositionZ = FIndexAndZ(0, (FVector)Position);
+		FIndexAndZ PositionZ = FIndexAndZ(0, Position);
 		// Search for duplicates, quickly!
 		for (int32 i = 0; i < VertIndexAndZ.Num(); i++)
 		{

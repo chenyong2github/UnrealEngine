@@ -34,10 +34,10 @@ public:
 
 	bool		Equals(	const VertType& a ) const
 	{
-		if( !PointsEqual( (FVector)Position, (FVector)a.Position ) ||
-			!NormalsEqual( (FVector)Tangents[0], (FVector)a.Tangents[0] ) ||
-			!NormalsEqual( (FVector)Tangents[1], (FVector)a.Tangents[1] ) ||
-			!NormalsEqual( (FVector)Normal, (FVector)a.Normal ) ||
+		if( !PointsEqual( Position, a.Position ) ||
+			!NormalsEqual( Tangents[0], a.Tangents[0] ) ||
+			!NormalsEqual( Tangents[1], a.Tangents[1] ) ||
+			!NormalsEqual( Normal, a.Normal ) ||
 			!Color.Equals( a.Color ) )
 		{
 			return false;

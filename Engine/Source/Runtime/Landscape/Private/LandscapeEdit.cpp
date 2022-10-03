@@ -3535,7 +3535,7 @@ bool ALandscapeProxy::ExportToRawMesh(
 					FVector Position = CDI.GetWorldVertex(VertexX, VertexY);
 
 					// If at least one vertex is within the given bounds we should process the quad  
-					new(VertIndexAndZ)FIndexAndZ(CurrentIndex, Position);
+					new(VertIndexAndZ)FIndexAndZ(CurrentIndex, (FVector3f)Position);
 					IndexToPosition.Add(CurrentIndex, Position);
 					CurrentIndex++;
 				}
@@ -3547,7 +3547,7 @@ bool ALandscapeProxy::ExportToRawMesh(
 		auto FindPreviousIndex = [&VertIndexAndZ, &IndexToPosition](int32 Index)->int32
 		{
 			const FVector& PositionA = IndexToPosition[Index];
-			FIndexAndZ CompressPosition(0, PositionA);
+			FIndexAndZ CompressPosition(0, (FVector3f)PositionA);
 			// Search for lowest index duplicates
 			int32 BestIndex = MAX_int32;
 			for (int32 i = 0; i < IndexToPosition.Num(); i++)
@@ -3558,7 +3558,7 @@ bool ALandscapeProxy::ExportToRawMesh(
 					break;
 				}
 				const FVector& PositionB = IndexToPosition[VertIndexAndZ[i].Index];
-				if (PointsEqual(PositionA, PositionB, SMALL_NUMBER))
+				if (PointsEqual((FVector3f)PositionA, (FVector3f)PositionB, SMALL_NUMBER))
 				{
 					if (VertIndexAndZ[i].Index < BestIndex)
 					{

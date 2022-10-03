@@ -126,9 +126,9 @@ public:
 			}
 
 			// Don't process degenerate triangles.
-			if( PointsEqual((FVector)CornerPositions[0], (FVector)CornerPositions[1]) ||
-				PointsEqual((FVector)CornerPositions[0], (FVector)CornerPositions[2]) ||
-				PointsEqual((FVector)CornerPositions[1], (FVector)CornerPositions[2]) )
+			if( PointsEqual(CornerPositions[0], CornerPositions[1]) ||
+				PointsEqual(CornerPositions[0], CornerPositions[2]) ||
+				PointsEqual(CornerPositions[1], CornerPositions[2]) )
 			{
 				WedgeIndex += 3;
 				continue;
