@@ -348,7 +348,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 						InController->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
 					}
 
-					if (UnitNode->GetScriptStruct() == nullptr)
+					if (UnitNode->GetScriptStruct() == nullptr || UnitNode->ResolvedFunctionName.IsEmpty())
 					{
 						static const FString UnresolvedUnitNodeMessage = TEXT("Node @@ could not be resolved.");
 						Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, UnresolvedUnitNodeMessage);

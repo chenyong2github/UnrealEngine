@@ -202,5 +202,6 @@ protected:
 	friend struct FRigVMSetPreferredTemplatePermutationsAction;
 	friend struct FRigVMRemoveNodeAction;
 	friend class FRigVMTemplatesLibraryNode3Test;
+	friend class URigVMCompiler;
 };
 
