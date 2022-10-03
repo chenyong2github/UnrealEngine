@@ -315,7 +315,7 @@ void UCustomizableSkeletalComponent::TickComponent(float DeltaTime, ELevelTick T
 	{
 		USkeletalMeshComponent* Parent = Cast<USkeletalMeshComponent>(GetAttachParent());
 
-		if (Parent)
+		if (Parent && CustomizableObjectInstance)
 		{
 			UCustomizableObject* CustomizableObject = CustomizableObjectInstance->GetCustomizableObject(); 
 
