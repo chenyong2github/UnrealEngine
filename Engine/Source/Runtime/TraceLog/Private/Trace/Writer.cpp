@@ -224,12 +224,6 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_MemoryFree(void* Address, uint32 Size)
 {
-	// Here we are redirecting the per-thread buffer used to write events into. This
-	// path is only used when shutting down, and we neither want to allocate new
-	// memory for traced events or use memory that's been freed.
-
-	TWriteBufferRedirect<1 << 10> TraceData;
-
 #if TRACE_PRIVATE_STOMP
 	if (Address == nullptr)
 	{
@@ -261,12 +255,6 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 #if TRACE_PRIVATE_STATISTICS
 	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint64(-int64(Size)));
 #endif
-
-	if (TraceData.GetSize())
-	{
-		uint32 ThreadId = Writer_GetThreadId();
-		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
-	}
 }
 
 
