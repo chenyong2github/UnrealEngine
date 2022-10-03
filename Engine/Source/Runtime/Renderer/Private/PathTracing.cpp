@@ -1550,6 +1550,15 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 			PF_R32_UINT,
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
+
+		// jhoerner TODO 9/30/2022: Hack to work around MGPU resource transition architectural bug in RDG.  Mask PathTracer.LightGrid texture
+		// to only be present on current GPU.  The bug is that RDG batches transitions, but the execution of batched transitions uses the
+		// GPU Mask of the current Pass that's executing, not the GPU Mask that's relevant to the Passes where a given resource is used.  This
+		// causes an assert due to a mismatch in the expected transition state on a specific GPU, when an intermediate transition was skipped
+		// on that GPU, due to the arbitrary nature of the GPU mask when a transition batch is flushed.  The hack works by removing the
+		// resource from GPUs it's not actually used on, where the intermediate transition gets skipped.
+		LightGridDesc.GPUMask = GraphBuilder.RHICmdList.GetGPUMask();
+
 		FRDGTexture* LightGridTexture = GraphBuilder.CreateTexture(LightGridDesc, TEXT("PathTracer.LightGrid"), ERDGTextureFlags::None);
 		LightGridPassParameters->RWLightGrid = GraphBuilder.CreateUAV(LightGridTexture);
 

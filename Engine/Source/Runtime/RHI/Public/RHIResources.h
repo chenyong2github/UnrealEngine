@@ -1499,6 +1499,9 @@ struct RHI_API FRHITextureDesc
 	/** Resource memory percentage which should be allocated onto fast VRAM (hint-only). (encoding into 8bits, 0..255 -> 0%..100%) */
 	uint8 FastVRAMPercentage = 0xFF;
 
+	/* A mask representing which GPUs to create the resource on, in a multi-GPU system. */
+	FRHIGPUMask GPUMask = FRHIGPUMask::All();
+
 	/** Check the validity. */
 	static bool CheckValidity(const FRHITextureDesc& Desc, const TCHAR* Name)
 	{
@@ -1638,12 +1641,10 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		, ERHIAccess                  InInitialState
 		, TCHAR const*                InDebugName
 		, FResourceBulkDataInterface* InBulkData     = nullptr
-		, FRHIGPUMask                 InGPUMask      = FRHIGPUMask::All()
 		)
 		: FRHITextureDesc(InDesc)
 		, InitialState   (InInitialState)
 		, DebugName      (InDebugName)
-		, GPUMask        (InGPUMask)
 		, BulkData       (InBulkData)
 	{}
 
@@ -1680,9 +1681,6 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 
 	/* A friendly name for the resource. */
 	const TCHAR* DebugName = nullptr;
-
-	/* A mask representing which GPUs to create the resource on, in a multi-GPU system. */
-	FRHIGPUMask GPUMask = FRHIGPUMask::All();
 
 	/* Optional initial data to fill the resource with. */
 	FResourceBulkDataInterface* BulkData = nullptr;

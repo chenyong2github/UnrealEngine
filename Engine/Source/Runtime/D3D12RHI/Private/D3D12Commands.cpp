@@ -240,23 +240,31 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	}
 	case FRHITransitionInfo::EType::Buffer:
 	{
+		// Resource may be null if this is a multi-GPU resource not present on the current GPU
 		FD3D12Buffer* Buffer = Context.RetrieveObject<FD3D12Buffer>(Info.Buffer);
-		check(Buffer);
-		Function(Info, Buffer->GetResource());
+		check(Buffer || GNumExplicitGPUsForRendering > 1);
+		if (Buffer)
+		{
+			Function(Info, Buffer->GetResource());
+		}
 		break;
 	}
 	case FRHITransitionInfo::EType::Texture:
 	{
+		// Resource may be null if this is a multi-GPU resource not present on the current GPU
 		FD3D12Texture* Texture = Context.RetrieveTexture(Info.Texture);
-		check(Texture);
-		FD3D12Texture* TextureOut = nullptr;
-#if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
-		if (Texture->GetRequiresTypelessResourceDiscardWorkaround())
+		check(Texture || GNumExplicitGPUsForRendering > 1);
+		if (Texture)
 		{
-			TextureOut = Texture;
-		}
+			FD3D12Texture* TextureOut = nullptr;
+#if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
+			if (Texture->GetRequiresTypelessResourceDiscardWorkaround())
+			{
+				TextureOut = Texture;
+			}
 #endif // #if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
-		Function(Info, Texture->GetResource(), TextureOut);
+			Function(Info, Texture->GetResource(), TextureOut);
+		}
 		break;
 	}
 	default:
@@ -411,21 +419,29 @@ void FD3D12CommandContext::HandleTransientAliasing(const FD3D12TransitionData* T
 		{
 		case FRHITransientAliasingInfo::EType::Buffer:
 		{
+			// Resource may be null if this is a multi-GPU resource not present on the current GPU
 			FD3D12Buffer* Buffer = RetrieveObject<FD3D12Buffer>(Info.Buffer);
-			check(Buffer);
+			check(Buffer || GNumExplicitGPUsForRendering > 1);
 			BaseShaderResource = Buffer;
 			break;
 		}
 		case FRHITransientAliasingInfo::EType::Texture:
 		{
+			// Resource may be null if this is a multi-GPU resource not present on the current GPU
 			FD3D12Texture* Texture = RetrieveTexture(Info.Texture);
-			check(Texture);
+			check(Texture || GNumExplicitGPUsForRendering > 1);
 			BaseShaderResource = Texture;
 			break;
 		}
 		default:
 			checkNoEntry();
 			break;
+		}
+
+		// Resource may be null if this is a multi-GPU resource not present on the current GPU
+		if (!BaseShaderResource)
+		{
+			continue;
 		}
 
 		FD3D12Resource* Resource = BaseShaderResource->ResourceLocation.GetResource();
@@ -446,15 +462,31 @@ void FD3D12CommandContext::HandleTransientAliasing(const FD3D12TransitionData* T
 					switch (Overlap.Type)
 					{
 					case FRHITransientAliasingOverlap::EType::Texture:
-						ResourceBefore = RetrieveTexture(Overlap.Texture)->GetResource();
+						{
+							const FD3D12Texture* Texture = RetrieveTexture(Overlap.Texture);
+							if (Texture)
+							{
+								ResourceBefore = Texture->GetResource();
+							}
+						}
 						break;
 					case FRHITransientAliasingOverlap::EType::Buffer:
-						ResourceBefore = RetrieveObject<FD3D12Buffer>(Overlap.Buffer)->GetResource();
+						{
+							const FD3D12Buffer* Buffer = RetrieveObject<FD3D12Buffer>(Overlap.Buffer);
+							if (Buffer)
+							{
+								ResourceBefore = Buffer->GetResource();
+							}
+						}
 						break;
 					}
 
-					check(ResourceBefore);
-					AddAliasingBarrier(ResourceBefore->GetResource(), Resource->GetResource());
+					// Resource may be null if this is a multi-GPU resource not present on the current GPU
+					check(ResourceBefore || GNumExplicitGPUsForRendering > 1);
+					if (ResourceBefore)
+					{
+						AddAliasingBarrier(ResourceBefore->GetResource(), Resource->GetResource());
+					}
 				}
 			}
 		}
