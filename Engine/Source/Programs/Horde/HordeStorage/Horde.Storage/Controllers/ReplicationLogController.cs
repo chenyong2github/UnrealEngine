@@ -81,7 +81,7 @@ namespace Horde.Storage.Controllers
             [Required] NamespaceId ns,
             [FromQuery] string? lastBucket,
             [FromQuery] Guid? lastEvent,
-            [FromQuery] int count = 100
+            [FromQuery] int count = 1000
         )
         {
             ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.ReadTransactionLog });
