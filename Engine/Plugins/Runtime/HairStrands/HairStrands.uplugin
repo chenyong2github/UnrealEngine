@@ -21,6 +21,11 @@
 			"LoadingPhase": "PostConfigInit"
 		},
 		{
+			"Name": "HairStrandsRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "HairStrandsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
