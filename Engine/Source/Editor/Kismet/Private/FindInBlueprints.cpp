@@ -244,9 +244,11 @@ UBlueprint* FFindInBlueprintsResult::GetParentBlueprint() const
 	}
 	else
 	{
-		GIsEditorLoadingPackage = true;
-		UObject* Object = LoadObject<UObject>(NULL, *DisplayText.ToString(), NULL, 0, NULL);
-		GIsEditorLoadingPackage = false;
+		UObject* Object;
+		{
+			TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
+			Object = LoadObject<UObject>(NULL, *DisplayText.ToString(), NULL, 0, NULL);
+		}
 
 		if(UBlueprint* BlueprintObj = Cast<UBlueprint>(Object))
 		{

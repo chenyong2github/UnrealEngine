@@ -166,40 +166,41 @@ bool AssetViewUtils::LoadAssetsIfNeeded(const TArray<FString>& ObjectPaths, TArr
 			SlowTask.MakeDialog();
 		}
 
-		GIsEditorLoadingPackage = true;
-
-		// We usually don't want to follow redirects when loading objects for the Content Browser.  It would
-		// allow a user to interact with a ghost/unverified asset as if it were still alive.
-		// This can be overridden by providing bLoadRedirects = true as a parameter.
-		const ELoadFlags LoadFlags = bLoadRedirects ? LOAD_None : LOAD_NoRedirects;
-
 		bool bSomeObjectsFailedToLoad = false;
-		for (int32 PathIdx = 0; PathIdx < UnloadedObjectPaths.Num(); ++PathIdx)
 		{
-			const FString& ObjectPath = UnloadedObjectPaths[PathIdx];
-			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LoadingObjectf", "Loading {0}..."), FText::FromString(ObjectPath)));
+			TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
 
-			// Load up the object
-			FLinkerInstancingContext InstancingContext(bLoadAllExternalObjects ? TSet<FName>{ ULevel::LoadAllExternalObjectsTag } : TSet<FName>());
-			UObject* LoadedObject = LoadObject<UObject>(NULL, *ObjectPath, NULL, LoadFlags, NULL, &InstancingContext);
-			if ( LoadedObject )
-			{
-				LoadedObjects.Add(LoadedObject);
-			}
-			else
-			{
-				bSomeObjectsFailedToLoad = true;
-			}
+			// We usually don't want to follow redirects when loading objects for the Content Browser.  It would
+			// allow a user to interact with a ghost/unverified asset as if it were still alive.
+			// This can be overridden by providing bLoadRedirects = true as a parameter.
+			const ELoadFlags LoadFlags = bLoadRedirects ? LOAD_None : LOAD_NoRedirects;
 
-			if (GWarn->ReceivedUserCancel())
+			for (int32 PathIdx = 0; PathIdx < UnloadedObjectPaths.Num(); ++PathIdx)
 			{
-				// If the user has canceled stop loading the remaining objects. We don't add the remaining objects to the failed string,
-				// this would only result in launching another dialog when by their actions the user clearly knows not all of the 
-				// assets will have been loaded.
-				break;
+				const FString& ObjectPath = UnloadedObjectPaths[PathIdx];
+				SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LoadingObjectf", "Loading {0}..."), FText::FromString(ObjectPath)));
+
+				// Load up the object
+				FLinkerInstancingContext InstancingContext(bLoadAllExternalObjects ? TSet<FName>{ ULevel::LoadAllExternalObjectsTag } : TSet<FName>());
+				UObject* LoadedObject = LoadObject<UObject>(NULL, *ObjectPath, NULL, LoadFlags, NULL, &InstancingContext);
+				if ( LoadedObject )
+				{
+					LoadedObjects.Add(LoadedObject);
+				}
+				else
+				{
+					bSomeObjectsFailedToLoad = true;
+				}
+
+				if (GWarn->ReceivedUserCancel())
+				{
+					// If the user has canceled stop loading the remaining objects. We don't add the remaining objects to the failed string,
+					// this would only result in launching another dialog when by their actions the user clearly knows not all of the 
+					// assets will have been loaded.
+					break;
+				}
 			}
 		}
-		GIsEditorLoadingPackage = false;
 
 		if ( bSomeObjectsFailedToLoad )
 		{

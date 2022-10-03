@@ -2481,7 +2481,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 
 #define LOCTEXT_NAMESPACE "EditorEngine"
 	// We are beginning a map load
-	GIsEditorLoadingPackage = true;
+	TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
 
 	FWorldContext &Context = GetEditorWorldContext();
 	check(Context.World() == GWorld);
@@ -2510,7 +2510,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					FFormatNamedArguments Arguments;
 					Arguments.Add(TEXT("Reason"), NotMapReason);
 					FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("MapLoadFailed", "Failed to load map!\n{Reason}"), Arguments));
-					GIsEditorLoadingPackage = false;
 					return false;
 				}
 
@@ -2730,7 +2729,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				if (WorldPackage == nullptr)
 				{
 					FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "MapPackageLoadFailed", "Failed to open map file. This is most likely because the map was saved with a newer version of the engine."));
-					GIsEditorLoadingPackage = false;
 					return false;
 				}
 
@@ -2743,7 +2741,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				{
 					FText Message = FText::Format(NSLOCTEXT("UnrealEd", "MapPackageFindWorldFailed", "Failed to find the world in already loaded world package {0}! See log for more details."), FText::FromString(WorldPackage->GetPathName()));
 					FMessageDialog::Open(EAppMsgType::Ok, Message);
-					GIsEditorLoadingPackage = false;
 
 					FReferenceChainSearch RefChainSearch(WorldPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
 					UE_LOG(LogEditorServer, Warning, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
@@ -2943,7 +2940,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 	}
 
 	// Done loading a map
-	GIsEditorLoadingPackage = false;
 	return true;
 #undef LOCTEXT_NAMESPACE
 }
