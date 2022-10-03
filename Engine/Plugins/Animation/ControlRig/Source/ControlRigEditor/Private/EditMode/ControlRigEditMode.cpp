@@ -567,7 +567,14 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 	// We need to tick here since changing a bone for example
 	// might have changed the transform of the Control
 	{
-		PostPoseUpdate();
+		if (IsInLevelEditor())
+		{
+			TickManipulatableObjects(0.f);
+		}
+		else
+		{
+			PostPoseUpdate();
+		}
 		if (IsInLevelEditor() == false) //only do this check if not in level editor
 		{
 			for (TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
