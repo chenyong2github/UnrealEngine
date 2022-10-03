@@ -16,6 +16,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UObjectGlobals.h"
+#include "AssetRegistry/AssetData.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -29,7 +30,6 @@ class SNotificationItem;
 class UCustomizableObject;
 class USkeletalMesh;
 class UTexture2D;
-struct FAssetData;
 struct FFrame;
 struct FGuid;
 
