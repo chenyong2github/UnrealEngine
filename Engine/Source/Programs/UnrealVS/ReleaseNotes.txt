@@ -1,3 +1,7 @@
+1.76
+* files scheduled for async checkout are now saved in a .p4checkout.txt file in the solution directory, to allow recovery if Perforce is down or VS terminates.
+* fixed some launch settings being deleted when using command line editor.
+
 1.72
 * fixed exception when opening project missing a referenced configuration
 * added exceptions to guard against code UI code not being accessed on the UI thread

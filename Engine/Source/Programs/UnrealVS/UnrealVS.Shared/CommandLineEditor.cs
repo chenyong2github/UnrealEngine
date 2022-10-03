@@ -30,9 +30,16 @@ namespace UnrealVS
 			{
 				[JsonPropertyName("commandName")]
 				public string CommandName { get; set; }
+
 				[JsonPropertyName("commandLineArgs")]
 				public string CommandLineArgs { get; set; }
+
+				[JsonExtensionData]
+				public Dictionary<string, JsonElement> ExtensionData { get; set; }
 			}
+
+			[JsonExtensionData]
+			public Dictionary<string, JsonElement> ExtensionData { get; set; }
 		}
 		/** constants */
 
