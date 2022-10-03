@@ -79,6 +79,17 @@ void FShell::Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation Or
 	Face->SetHost(this);
 }
 
+void FShell::Remove(const FTopologicalShapeEntity* FaceToRemove)
+{
+	if (!FaceToRemove)
+	{
+		return;
+	}
+
+	int32 Index = TopologicalFaces.IndexOfByPredicate([&](const FOrientedFace& Face) { return (Face.Entity.Get() == FaceToRemove); });
+	TopologicalFaces.RemoveAt(Index);
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FShell::GetInfo(FInfoEntity& Info) const
 {

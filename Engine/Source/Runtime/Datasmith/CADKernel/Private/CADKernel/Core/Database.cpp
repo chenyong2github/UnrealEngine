@@ -274,9 +274,6 @@ void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& 
 		case EEntity::Body:
 			TmpModel->Add(StaticCastSharedRef<FBody>(Entity.ToSharedRef()));
 			break;
-		case EEntity::TopologicalFace:
-			TmpModel->Add(StaticCastSharedRef<FTopologicalFace>(Entity.ToSharedRef()));
-			break;
 		default:
 			AddEntityToSave(EntityId);
 			break;
@@ -484,7 +481,6 @@ void FDatabase::CleanArchiveEntities()
 		}
 	}
 
-	Model->Append(IndependantFaces);
 	Model->Append(NewBodies);
 }
 
@@ -629,10 +625,6 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 			ExpandSelection(Body, Filter, Selection);
 		}
 
-		for (const TSharedPtr<FTopologicalFace>& Domain : InModel->GetFaces())
-		{
-			ExpandSelection(Domain, Filter, Selection);
-		}
 		break;
 	}
 

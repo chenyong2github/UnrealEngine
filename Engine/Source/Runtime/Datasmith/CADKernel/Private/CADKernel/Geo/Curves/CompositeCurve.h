@@ -74,6 +74,7 @@ public:
 	}
 
 	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
+	virtual void Offset(const FPoint& OffsetDirection) override;
 
 	virtual TSharedPtr<FCurve> GetCurve(int32 Index) const
 	{

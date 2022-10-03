@@ -125,6 +125,13 @@ public:
 		return Dictionary.GetPatchId();
 	}
 
+	void RemoveOfHost()
+	{
+		GetHost()->Remove(this);
+	}
+
+	virtual void Remove(const FTopologicalShapeEntity*) = 0;
+
 #ifdef CADKERNEL_DEV
 	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif

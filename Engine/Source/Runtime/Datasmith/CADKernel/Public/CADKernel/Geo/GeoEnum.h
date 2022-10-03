@@ -84,6 +84,13 @@ enum EOrientation : uint8
 	Front = 1
 };
 
+enum ESituation : uint8
+{
+	Undefined = 0,
+	Inside,
+	Outside
+};
+
 #ifdef CADKERNEL_DEV
 extern const TCHAR* OrientationNames[];
 #endif

@@ -40,12 +40,6 @@ enum class EQuadType : uint8
 	Other
 };
 
-class FBezierSurface;
-class FFaceMesh;
-class FGrid;
-class FSegmentCurve;
-class FThinZone;
-class FThinZoneFinder;
 struct FBBoxWithNormal;
 
 class CADKERNEL_API FTopologicalFace : public FTopologicalShapeEntity
@@ -202,6 +196,8 @@ public:
 		return Loops;
 	}
 
+	const TSharedPtr<FTopologicalLoop> GetExternalLoop() const;
+
 	/**
 	 * Get a sampling of each loop of the face
 	 * @param OutLoopSamplings an array of 2d points
@@ -246,6 +242,16 @@ public:
 		}
 	}
 
+	int32 EdgeCount() const
+	{
+		int32 EdgeNum = 0;
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Loops)
+		{
+			EdgeNum += Loop->EdgeCount();
+		}
+		return EdgeNum;
+	}
+
 	// ======   Carrier Surface Functions   ======
 
 	TSharedRef<FSurface> GetCarrierSurface() const
@@ -284,9 +290,10 @@ public:
 	bool HasSameBoundariesAs(const TSharedPtr<FTopologicalFace>& OtherFace) const;
 
 	/**
-	 * Disconnects the face of its neighbors
+	 * Disconnects the face of its neighbors i.e. remove topological edge and vertex link with its neighbors
+	 * @param OutNewBorderEdges the neighbors edges
 	 */
-	void RemoveLinksWithNeighbours();
+	void Disjoin(TArray<FTopologicalEdge*>& OutNewBorderEdges);
 
 #ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;
@@ -417,6 +424,9 @@ public:
 		States &= ~EHaveStates::IsBackOriented;
 	}
 
+	virtual void Remove(const FTopologicalShapeEntity*) override
+	{
+	}
 
 	// =========================================================================================================================================================================================================
 	// =========================================================================================================================================================================================================
@@ -440,7 +450,7 @@ private:
 	TArray<int32> StartSideIndices;
 	TArray<FEdge2DProperties> SideProperties;
 	int32 NumOfMeshedSide = 0;
-	double LoopLength;
+	double LoopLength = -1.;
 	double LengthOfMeshedSide = 0;
 	double QuadCriteria = 0;
 	FSurfaceCurvature Curvatures;
@@ -581,8 +591,8 @@ struct FBBoxWithNormal
 	FPoint2D MinCoordinates[3];
 	FVector MaxPointNormals[3];
 	FVector MinPointNormals[3];
-	bool MaxNormalNeedUpdate[3];
-	bool MinNormalNeedUpdate[3];
+	bool MaxNormalNeedUpdate[3] = {true, true, true};
+	bool MinNormalNeedUpdate[3] = {true, true, true};
 
 	FBBoxWithNormal()
 		: Max(-HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE)

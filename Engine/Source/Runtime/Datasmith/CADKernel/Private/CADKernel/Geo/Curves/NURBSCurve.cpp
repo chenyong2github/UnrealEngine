@@ -51,12 +51,21 @@ TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 	TArray<FPoint> TransformedPoles;
 
 	TransformedPoles.Reserve(Poles.Num());
-	for (FPoint Pole : Poles) 
+	for (const FPoint& Pole : Poles) 
 	{
 		TransformedPoles.Emplace(InMatrix.Multiply(Pole));
 	}
 
 	return FEntity::MakeShared<FNURBSCurve>(Degree, NodalVector, TransformedPoles, Weights, Dimension);
+}
+
+void FNURBSCurve::Offset(const FPoint& OffsetDirection)
+{
+	for (FPoint& Pole : Poles)
+	{
+		Pole += OffsetDirection;
+	}
+	Finalize();
 }
 
 #ifdef CADKERNEL_DEV

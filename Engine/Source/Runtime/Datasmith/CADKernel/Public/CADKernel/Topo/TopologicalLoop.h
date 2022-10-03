@@ -170,6 +170,16 @@ public:
 		return bIsExternal;
 	}
 
+	void SetExternal()
+	{
+		bIsExternal = true;
+	}
+
+	void SetInternal()
+	{
+		bIsExternal = false;
+	}
+
 	/*
 	 * @return false if the orientation is doubtful
 	 */
@@ -214,7 +224,7 @@ public:
 		return -1;
 	}
 
-	void Get2DSampling(TArray<FPoint2D>& LoopSampling);
+	void Get2DSampling(TArray<FPoint2D>& LoopSampling) const;
 
 	/**
 	 * The idea is to remove degenerated edges of the loop i.e. where the surface is degenerated
@@ -223,7 +233,7 @@ public:
 	 * - so where the sampling could be in self-intersecting
 	 * @return false if the loop is degenerated
 	 */
-	bool Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& LoopSampling);
+	bool Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& LoopSampling) const;
 
 	void FindSurfaceCorners(TArray<TSharedPtr<FTopologicalVertex>>& OutCorners, TArray<int32>& OutStartSideIndex) const;
 	void FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& Ruptures, TArray<int32>& OutStartSideIndex, TArray<double>& RuptureValues) const;
@@ -235,6 +245,9 @@ public:
 	void CheckEdgesOrientation();
 	void CheckLoopWithTwoEdgesOrientation();
 	void RemoveDegeneratedEdges();
+
+	bool IsInside(const FTopologicalLoop& Other) const;
+
 };
 
 }

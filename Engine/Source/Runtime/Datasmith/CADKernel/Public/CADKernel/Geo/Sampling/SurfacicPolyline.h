@@ -16,6 +16,7 @@
 #include "CADKernel/Utils/IndexOfCoordinateFinder.h"
 
 #include "Serialization/Archive.h"
+#include "Algo/AllOf.h"
 
 namespace UE::CADKernel
 {
@@ -323,10 +324,28 @@ public:
 	/**
 	 * Get the sub polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
 	 */
+	void GetSubPolyline(const FLinearBoundary& InBoundary, TArray<double>& OutCoordinates, TArray<FPoint2D>& OutPoints) const
+	{
+		TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
+		Approximator.GetSubPolyline(InBoundary, OutCoordinates, OutPoints);
+	}
+
+	/**
+	 * Get the sub polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
+	 */
 	void GetSubPolyline(const FLinearBoundary& InBoundary, const EOrientation InOrientation, TArray<FPoint>& OutPoints) const
 	{
 		TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
 		Approximator3D.GetSubPolyline(InBoundary, InOrientation, OutPoints);
+	}
+
+	/**
+	 * Get the sub polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
+	 */
+	void GetSubPolyline(const FLinearBoundary& InBoundary, TArray<double>& OutCoordinates, TArray<FPoint>& OutPoints) const
+	{
+		TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+		Approximator3D.GetSubPolyline(InBoundary, OutCoordinates, OutPoints);
 	}
 
 	/**
@@ -429,6 +448,14 @@ public:
 	{
 		TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
 		return Approximator.ComputeLengthOfSubPolyline(InBoundary);
+	}
+
+	bool IsIso(EIso Iso, double ErrorTolerance = DOUBLE_SMALL_NUMBER) const
+	{
+		FPoint2D StartPoint = Points2D[0];
+		return Algo::AllOf(Points2D, [&](const FPoint2D& Point) { 
+			return FMath::IsNearlyEqual(Point[Iso], StartPoint[Iso], ErrorTolerance);
+			});
 	}
 
 };

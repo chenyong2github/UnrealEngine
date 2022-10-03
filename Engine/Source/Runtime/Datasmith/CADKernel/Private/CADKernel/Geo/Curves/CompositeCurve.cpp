@@ -184,6 +184,14 @@ TSharedPtr<FEntityGeom> FCompositeCurve::ApplyMatrix(const FMatrixH& InMatrix) c
 	return FEntity::MakeShared<FCompositeCurve>(TransformedCurves);
 }
 
+void FCompositeCurve::Offset(const FPoint& OffsetDirection)
+{
+	for (FOrientedCurve& Curve : Curves)
+	{
+		Curve.Entity->Offset(OffsetDirection);
+	}
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FCompositeCurve::GetInfo(FInfoEntity& Info) const
 {

@@ -388,9 +388,11 @@ public:
 		return EndVertex->GetCoordinates();
 	}
 
-
-
 	void GetTangentsAtExtremities(FPoint& StartTangent, FPoint& EndTangent, bool bForward) const;
+	void GetTangentsAtExtremities(FPoint& StartTangent, FPoint& EndTangent, EOrientation Orientation) const
+	{
+		GetTangentsAtExtremities(StartTangent, EndTangent, Orientation == EOrientation::Front);
+	}
 
 	// ======   Meshing Function   ======
 
@@ -626,6 +628,7 @@ public:
 		Curve->GetExtremities(Boundary, Extremities);
 	}
 
+	void Offset2D(const FPoint2D& OffsetDirection);
 
 	// ======   Geometrical Functions   ======
 
@@ -793,7 +796,7 @@ struct CADKERNEL_API FImposedCuttingPoint
 	/**
 	 * coordinate of the edge's mesh nodes
 	 */
-	double Coordinate;
+	double Coordinate = 0;
 	int32 OppositNodeIndex = -1;
 
 	FImposedCuttingPoint()
@@ -815,11 +818,11 @@ struct CADKERNEL_API FCuttingPoint
 	/**
 	 * coordinate of the edge's mesh nodes
 	 */
-	double Coordinate;
-	ECoordinateType Type;
+	double Coordinate = 0;
+	ECoordinateType Type = ECoordinateType::OtherCoordinate;
 	int32 OppositNodeIndex = -1;
 	int32 OppositNodeIndex2 = -1;
-	double IsoDeltaU;
+	double IsoDeltaU = 0;
 
 	FCuttingPoint()
 	{

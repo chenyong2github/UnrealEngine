@@ -19,8 +19,6 @@ class FTopologicalVertex;
 
 class CADKERNEL_API FTopomaker
 {
-	friend class FThinZone;
-	friend class FThinZoneFinder;
 
 protected:
 
@@ -29,8 +27,7 @@ protected:
 	TArray<FShell*> Shells;
 	TArray<TSharedPtr<FTopologicalFace>> Faces;
 
-	const double SewTolerance;
-	const double SewToleranceSquare;
+	double Tolerance;
 
 #ifdef CADKERNEL_DEV
 	FTopomakerReport Report;
@@ -42,16 +39,19 @@ public:
 	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
 	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
 
+	void SetTolerance(double NewValue)
+	{
+		Tolerance = NewValue;
+		SewTolerance = NewValue * UE_DOUBLE_SQRT_2;
+		SewToleranceSquare = FMath::Square(SewTolerance);
+	}
+
 	void Sew();
 
 	/**
 	 * Check topology of each body
 	 */
 	void CheckTopology();
-
-	//void MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities);
-	//void SortByShell(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody);
-	//void Join(TArray<TSharedPtr<FBody>> Bodies, double Tolerance);
 
 	/**
 	 * Split into connected shell and put each shell into the appropriate body
@@ -65,10 +65,17 @@ public:
 	 */
 	void UnlinkNonManifoldVertex();
 
+	void RemoveThinFaces();
+
 #ifdef CADKERNEL_DEV
-	void PrintReport()
+	void PrintSewReport()
 	{
-		Report.Print();
+		Report.PrintSewReport();
+	}
+
+	void PrintRemoveThinFacesReport()
+	{
+		Report.PrintRemoveThinFacesReport();
 	}
 #endif
 
@@ -112,10 +119,14 @@ private:
 	void CheckSelfConnectedEdge();
 	void RemoveIsolatedEdges(); // Useful ???
 
+	void SetSelfConnectedEdgeDegenerated(TArray<FTopologicalVertex*>& Vertices);
+
 	/**
 	 * First step, trivial edge merge i.e. couple of edges with same extremity vertex
 	 */
 	void MergeCoincidentEdges(TArray<FTopologicalVertex*>& Vertices);
+	void MergeCoincidentEdges(TArray<FTopologicalEdge*>& EdgesToProcess);
+	void MergeCoincidentEdges(FTopologicalEdge* Edge);
 
 	/**
 	 * Second step, parallel edges but with different length. the longest must be split
@@ -142,6 +153,9 @@ private:
 	 *              /                                                                   |
 	 */
 	void MergeUnconnectedAdjacentEdges();
+
+	double SewTolerance;
+	double SewToleranceSquare;
 
 };
 

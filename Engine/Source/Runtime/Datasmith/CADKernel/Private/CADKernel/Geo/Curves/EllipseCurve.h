@@ -16,14 +16,12 @@ protected:
 	FMatrixH Matrix;
 	double   RadiusU;
 	double   RadiusV;
-	FMatrixH InverseMatrix;
 
 	FEllipseCurve(const FMatrixH& InMatrix, double InRadiusU, double InRadiusV, int8 InDimension = 3)
 		: FCurve(FLinearBoundary(0, PI * 2.), InDimension)
 		, Matrix(InMatrix)
 		, RadiusU(InRadiusU)
 		, RadiusV(InRadiusV)
-		, InverseMatrix(InMatrix.GetInverse())
 	{
 	}
 
@@ -32,7 +30,6 @@ protected:
 		, Matrix(InMatrix)
 		, RadiusU(InRadiusU)
 		, RadiusV(InRadiusV)
-		, InverseMatrix(InMatrix.GetInverse())
 	{
 	}
 
@@ -46,7 +43,6 @@ public:
 		Ar << Matrix;
 		Ar << RadiusU;
 		Ar << RadiusV;
-		Ar << InverseMatrix;
 	}
 
 #ifdef CADKERNEL_DEV
@@ -69,6 +65,7 @@ public:
 	}
 
 	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
+	virtual void Offset(const FPoint& OffsetDirection) override;
 
 	virtual void EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder = 0) const override
 	{

@@ -13,6 +13,12 @@ TSharedPtr<FEntityGeom> FSegmentCurve::ApplyMatrix(const FMatrixH& InMatrix) con
 	return FEntity::MakeShared<FSegmentCurve>(TransformedStartPoint, TransformedEndPoint, Dimension);
 }
 
+void FSegmentCurve::Offset(const FPoint& OffsetDirection)
+{
+	StartPoint += OffsetDirection;
+	EndPoint += OffsetDirection;
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FSegmentCurve::GetInfo(FInfoEntity& Info) const
 {

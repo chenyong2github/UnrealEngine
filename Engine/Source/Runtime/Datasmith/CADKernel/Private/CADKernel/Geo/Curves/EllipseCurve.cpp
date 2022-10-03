@@ -10,6 +10,12 @@ TSharedPtr<FEntityGeom> FEllipseCurve::ApplyMatrix(const FMatrixH& InMatrix) con
 	return FEntity::MakeShared<FEllipseCurve>(NewMatrix, RadiusU, RadiusV, Boundary);
 }
 
+void FEllipseCurve::Offset(const FPoint& OffsetDirection)
+{
+	FMatrixH Offset = FMatrixH::MakeTranslationMatrix(OffsetDirection);
+	Matrix *= Offset;
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FEllipseCurve::GetInfo(FInfoEntity& Info) const
 {

@@ -263,13 +263,25 @@ void FTopologicalFace::RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop)
 	}
 }
 
-void FTopologicalFace::RemoveLinksWithNeighbours()
+void FTopologicalFace::Disjoin(TArray<FTopologicalEdge*>& NewBorderEdges)
 {
+	NewBorderEdges.Reserve(NewBorderEdges.Num() + EdgeCount());
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
 		for (const FOrientedEdge& Edge : Loop->GetEdges())
 		{
+			const TArray<FTopologicalEdge*> Twins = Edge.Entity->GetTwinEntities();
+			for (FTopologicalEdge* TwinEdge : Twins)
+			{
+				if (TwinEdge != Edge.Entity.Get())
+				{
+					NewBorderEdges.Add(TwinEdge);
+				}
+			}
 			Edge.Entity->RemoveFromLink();
+			Edge.Entity->SetMarker1();
+			Edge.Entity->GetStartVertex()->RemoveFromLink();
+			Edge.Entity->GetEndVertex()->RemoveFromLink();
 		}
 	}
 }
@@ -631,6 +643,19 @@ void FTopologicalFace::DefineSurfaceType()
 		break;
 	}
 }
+
+const TSharedPtr<FTopologicalLoop> FTopologicalFace::GetExternalLoop() const
+{
+	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
+	{
+		if (Loop->IsExternal())
+		{
+			return Loop;
+		}
+	}
+	return TSharedPtr<FTopologicalLoop>();
+}
+
 
 
 void FFaceSubset::SetMainShell(TMap<FTopologicalShapeEntity*, int32>& ShellToFaceCount)

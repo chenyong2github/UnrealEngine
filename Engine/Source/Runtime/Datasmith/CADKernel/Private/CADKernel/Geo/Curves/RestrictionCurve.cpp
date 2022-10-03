@@ -11,6 +11,13 @@ void FRestrictionCurve::ExtendTo(const FPoint2D& Point)
 	EvaluateSurfacicPolyline(Polyline);
 }
 
+void FRestrictionCurve::Offset2D(const FPoint2D& Offset)
+{
+	Curve2D->Offset(Offset);
+	EvaluateSurfacicPolyline(Polyline);
+}
+
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FRestrictionCurve::GetInfo(FInfoEntity& Info) const
 {

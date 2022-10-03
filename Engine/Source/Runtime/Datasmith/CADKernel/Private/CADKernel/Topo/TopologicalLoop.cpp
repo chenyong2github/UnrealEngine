@@ -22,6 +22,32 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 	TSharedRef<FTopologicalLoop> LoopRef = FEntity::MakeShared<FTopologicalLoop>(InEdges, InEdgeDirections, bIsExternalLoop);
 	FTopologicalLoop& Loop = *LoopRef;
 
+	const FSurface& Surface = *InEdges[0]->GetCurve()->GetCarrierSurface();
+	const bool bIsSphere = Surface.GetSurfaceType() == ESurface::Sphere;
+	if (bIsSphere && InEdges.Num() == 2)
+	{
+		// Workaround of TechSoft Bug (#jira https://techsoft3d.atlassian.net/servicedesk/customer/portal/7/SDHE-19879)
+		// If the loop is composed of two coincident edges in the parametric space, linking the poles. Offset one edge of 2Pi
+		const FTopologicalEdge& Edge0 = *InEdges[0];
+		FTopologicalEdge& Edge1 = *InEdges[1];
+
+		const FPoint2D StartPoint = Edge0.Approximate2DPoint(Edge0.GetBoundary().GetMin());
+		const FPoint2D EndPoint = Edge0.Approximate2DPoint(Edge0.GetBoundary().GetMax());
+		if (FMath::IsNearlyEqual(FMath::Abs(StartPoint.V), DOUBLE_HALF_PI) && FMath::IsNearlyEqual(FMath::Abs(EndPoint.V), DOUBLE_HALF_PI))
+		{
+			const double TolU = Surface.GetIsoTolerance(EIso::IsoU);
+			const bool Edge0IsIso = Edge0.GetCurve()->IsIso(EIso::IsoU, TolU);
+			const bool Edge1IsIso = Edge1.GetCurve()->IsIso(EIso::IsoU, TolU);
+			const FPoint2D Edge1EndPoint = Edge1.Approximate2DPoint(InEdgeDirections[0]== InEdgeDirections[1] ? Edge1.GetBoundary().GetMax() : Edge1.GetBoundary().GetMin());
+			double Distance = Edge1EndPoint.SquareDistance(StartPoint);
+			if (Distance < FMath::Square(TolU))
+			{
+				const FPoint2D Offset(TWO_PI, 0.);
+				Edge1.Offset2D(Offset);
+			}
+		}
+	}
+
 	Loop.EnsureLogicalClosing(GeometricTolerance);
 	Loop.RemoveDegeneratedEdges();
 
@@ -116,7 +142,7 @@ EOrientation FTopologicalLoop::GetDirection(TSharedPtr<FTopologicalEdge>& InEdge
 }
 
 
-void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling)
+void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling) const
 {
 	int32 PointCount = 0;
 	for (const FOrientedEdge& Edge : Edges)
@@ -134,7 +160,7 @@ void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling)
 	LoopSampling.Emplace(LoopSampling[0]);
 }
 
-bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& LoopSampling)
+bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& LoopSampling) const
 {
 	double LoopLength = 0;
 	int32 EdgeCount = 0;
@@ -211,6 +237,8 @@ bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& Lo
  * @return false if the orientation is doubtful
  * 
  */
+
+//#define DEBUG_ORIENT
 bool FTopologicalLoop::Orient()
 {
 	bool bSucceed = true;
@@ -226,6 +254,8 @@ bool FTopologicalLoop::Orient()
 	}
 
 #ifdef DEBUG_ORIENT
+	bool bDisplayDebug = (this->GetFace()->GetId() == 735);
+	if(bDisplayDebug)
 	{
 		F3DDebugSession _(*FString::Printf(TEXT("Loop before orientation")));
 		DisplayOrientedPolyline(LoopSampling, EVisuProperty::BlueCurve);
@@ -328,6 +358,7 @@ bool FTopologicalLoop::Orient()
 			Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
 
 #ifdef DEBUG_ORIENT
+			if (bDisplayDebug)
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Fix Pic Node %f"), Slop));
 				DisplayPoint(LoopSampling[Index], EVisuProperty::BluePoint, Index);
@@ -384,27 +415,30 @@ bool FTopologicalLoop::Orient()
 			else
 			{
 #ifdef DEBUG_ORIENT
-				F3DDebugSession _(*FString::Printf(TEXT("Pic case")));
+				if (bDisplayDebug)
 				{
-					F3DDebugSession _(*FString::Printf(TEXT("Loop")));
-					DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
+					F3DDebugSession _(*FString::Printf(TEXT("Pic case")));
+					{
+						F3DDebugSession _(*FString::Printf(TEXT("Loop")));
+						DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
+					}
+					{
+						F3DDebugSession _(*FString::Printf(TEXT("Next")));
+						DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
+					}
+					{
+						F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
+						DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
+					}
+					Wait();
 				}
-				{
-					F3DDebugSession _(*FString::Printf(TEXT("Next")));
-					DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
-				}
-				{
-					F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
-					DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
-				}
-				Wait();
 #endif
 				UndefinedOrientationCount++;
 			}
 		}
 
 #ifdef DEBUG_ORIENT
-		if (false /*Surface->GetId() == 826*/)
+		if (bDisplayDebug)
 		{
 			F3DDebugSession _(*FString::Printf(TEXT("Pic case")));
 			{
@@ -436,22 +470,25 @@ bool FTopologicalLoop::Orient()
 	if ((WrongOrientationCount != 0 && GoodOrientationCount != 0) || UndefinedOrientationCount > FMath::Max(WrongOrientationCount, GoodOrientationCount))
 	{
 #ifdef DEBUG_ORIENT
-		F3DDebugSession GraphicSession(TEXT("Points of evaluation"));
+		if (bDisplayDebug)
 		{
-			F3DDebugSession G(*FString::Printf(TEXT("Loop Discretization %d"), Face.Pin()->GetId()));
-			DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
-			for (int32 Index = 0; Index < LoopSampling.Num(); ++Index)
+			F3DDebugSession GraphicSession(TEXT("Points of evaluation"));
 			{
-				DisplayPoint(LoopSampling[Index], Index);
+				F3DDebugSession G(*FString::Printf(TEXT("Loop Discretization %d"), Face->GetId()));
+				DisplayPolyline(LoopSampling, EVisuProperty::BlueCurve);
+				for (int32 Index = 0; Index < LoopSampling.Num(); ++Index)
+				{
+					DisplayPoint(LoopSampling[Index], Index);
+				}
 			}
-		}
 
-		for (int32 Index : ExtremityIndex)
-		{
-			F3DDebugSession G(*FString::Printf(TEXT("Seg UMin Loop Discretization %d"), Face.Pin()->GetId()));
-			DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
+			for (int32 Index : ExtremityIndex)
+			{
+				F3DDebugSession G(*FString::Printf(TEXT("Seg UMin Loop Discretization %d"), Face->GetId()));
+				DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
+			}
+			Wait();
 		}
-		Wait();
 #endif
 
 		bSucceed = false;
@@ -464,15 +501,14 @@ bool FTopologicalLoop::Orient()
 	}
 
 #ifdef DEBUG_ORIENT
+	if (bDisplayDebug)
 	{
 		LoopSampling.Empty();
-		if (!Get2DSamplingWithoutDegeneratedEdges(LoopSampling))
+		if (Get2DSamplingWithoutDegeneratedEdges(LoopSampling))
 		{
-			return;
+			F3DDebugSession _(*FString::Printf(TEXT("Loop oriented")));
+			DisplayOrientedPolyline(LoopSampling, EVisuProperty::BlueCurve);
 		}
-
-		F3DDebugSession _(*FString::Printf(TEXT("Loop oriented")));
-		DisplayOrientedPolyline(LoopSampling, EVisuProperty::BlueCurve);
 	}
 #endif
 
@@ -925,14 +961,20 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 
 			double CosAngle = Gap2D.ComputeCosinus(EdgeTangent);
 			constexpr double CosFlatTangent = 0.98;  // ~10 deg: In 2D, the distortion due to the parametric space, degenerated area and else imposes to be more careful before extending a curve.
-			if (CosAngle > CosFlatTangent)
+
+			//   ----------------------*         ------------**--------*
+            //               *---------*    Or                         *
+			//               |				                           |
+			//               |				                           |
+			//               |				                           |
+			if (FMath::Abs(CosAngle) > CosFlatTangent)
 			{
 				OrientedEdge.Entity->ExtendTo(OrientedEdge.Direction == EOrientation::Front, PreviousExtremity.Point2D, PreviousEdgeEndVertex);
 			}
 			else
 			{
 				CosAngle = Gap2D.ComputeCosinus(PreviousTangent);
-				if (CosAngle < -CosFlatTangent)
+				if (FMath::Abs(CosAngle) > CosFlatTangent)
 				{
 					PreviousEdge.Entity->ExtendTo(PreviousEdge.Direction == EOrientation::Back, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
 				}
@@ -948,6 +990,11 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 
 						PreviousEdgeEndVertex->Link(*EdgeStartVertex);
 						++Index;
+					}
+					else
+					{
+						// joins two vertices
+						PreviousEdgeEndVertex->Link(*EdgeStartVertex);
 					}
 				}
 			}
@@ -1031,5 +1078,100 @@ void FTopologicalLoop::FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& OutBre
 		bPreviousIsSurface = bIsSurface;
 	}
 }
+
+namespace TopologicalLoopImpl
+{
+void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, const TArray<FPoint2D>& Loop, TArray<double>& OutIntersections)
+{
+	OutIntersections.Empty(8);
+
+	int32 UIndex = Iso == EIso::IsoU ? 0 : 1;
+	int32 VIndex = Iso == EIso::IsoU ? 1 : 0;
+
+	TFunction<void(const FPoint2D&, const FPoint2D&)> ComputeIntersection = [&](const FPoint2D& Point1, const FPoint2D& Point2)
+	{
+		if (IsoParameter > Point1[UIndex] && IsoParameter <= Point2[UIndex])
+		{
+			double Intersection = (IsoParameter - Point1[UIndex]) / (Point2[UIndex] - Point1[UIndex]) * (Point2[VIndex] - Point1[VIndex]) + Point1[VIndex];
+			OutIntersections.Add((IsoParameter - Point1[UIndex]) / (Point2[UIndex] - Point1[UIndex]) * (Point2[VIndex] - Point1[VIndex]) + Point1[VIndex]);
+		}
+	};
+
+	const FPoint2D* Point1 = &Loop.Last();
+	for (const FPoint2D& Point2 : Loop)
+	{
+		if (!FMath::IsNearlyEqual((*Point1)[UIndex], Point2[UIndex]))
+		{
+			if ((*Point1)[UIndex] < Point2[UIndex])
+			{
+				ComputeIntersection(*Point1, Point2);
+			}
+			else
+			{
+				ComputeIntersection(Point2, *Point1);
+			}
+		}
+		Point1 = &Point2;
+	}
+
+	Algo::Sort(OutIntersections);
+}
+};
+
+bool FTopologicalLoop::IsInside(const FTopologicalLoop& OtherLoop) const
+{
+	TArray<FPoint2D> Sampling2D;
+	Get2DSampling(Sampling2D);
+
+	TArray<FPoint2D> OtherSampling2D;
+	OtherLoop.Get2DSampling(OtherSampling2D);
+
+
+	int32 InsidePoint = 0;
+	int32 OutsidePoint = 0;
+
+	TFunction<void(const FPoint2D&, EIso)> CountLeftIntersection = [&](const FPoint2D& Point, EIso Iso)
+	{
+		TArray<double> Intersections;
+		TopologicalLoopImpl::FindLoopIntersectionsWithIso(Iso, Point[Iso], Sampling2D, Intersections);
+
+		int32 IntersectionLeftCount = 0;
+		const EIso OtherIso = Iso == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
+
+		for (const double& Intersection : Intersections)
+		{
+			if (Intersection < Point[OtherIso])
+			{
+				IntersectionLeftCount++;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (IntersectionLeftCount % 2 == 0)
+		{
+			OutsidePoint++;
+		}
+		else
+		{
+			InsidePoint++;
+		}
+	};
+
+	const int32 Step = 7;
+	const int32 OtherSampling2DCount = OtherSampling2D.Num();
+	const int32 Increment = FMath::Max(OtherSampling2DCount / Step, 1);
+	for (int32 Index = 0; Index < OtherSampling2DCount; Index += Increment)
+	{
+		const FPoint2D& TestPoint = OtherSampling2D[Index];
+		CountLeftIntersection(TestPoint, EIso::IsoU);
+		CountLeftIntersection(TestPoint, EIso::IsoV);
+	}
+
+	return InsidePoint > OutsidePoint;
+}
+
 
 }

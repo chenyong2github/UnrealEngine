@@ -10,6 +10,12 @@ TSharedPtr<FEntityGeom> FHyperbolaCurve::ApplyMatrix(const FMatrixH& InMatrix) c
 	return FEntity::MakeShared<FHyperbolaCurve>(NewMatrix, SemiMajorAxis, SemiImaginaryAxis, Boundary);
 }
 
+void FHyperbolaCurve::Offset(const FPoint& OffsetDirection)
+{
+	FMatrixH Offset = FMatrixH::MakeTranslationMatrix(OffsetDirection);
+	Matrix *= Offset;
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FHyperbolaCurve::GetInfo(FInfoEntity& Info) const
 {

@@ -111,7 +111,7 @@ public:
 	{
 		ensureCADKernel(TopologicalLink.IsValid());
 		TopologicalLink->RemoveEntity((EntityType&)*this);
-		TopologicalLink.Reset();
+		ResetTopologicalLink();
 	}
 
 	/**

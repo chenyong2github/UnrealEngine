@@ -146,7 +146,7 @@ public:
 		{
 			TopologicalLink->RemoveEntity(*this);
 			TopologicalLink->ComputeBarycenter();
-			TopologicalLink.Reset();
+			ResetTopologicalLink();
 		}
 	}
 

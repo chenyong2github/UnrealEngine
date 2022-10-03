@@ -326,6 +326,15 @@ public:
 
 	double SignedAngle(const FPoint& Vector2, const FPoint& Normal) const;
 
+	/**
+	 * Return the projection of the point on the diagonal axis (of vector (1,1,1))
+	 * i.e. return X + Y + Z
+	 */
+	double DiagonalAxisCoordinate() const
+	{
+		return X + Y + Z;
+	}
+
 	static double MixedTripleProduct(const FPoint& VectorA, const FPoint& VectorB, const FPoint& VectorC)
 	{
 		return VectorA * (VectorB ^ VectorC);
@@ -645,6 +654,15 @@ public:
 	FPoint2D GetPerpendicularVector()
 	{
 		return FPoint2D(-V, U);
+	}
+
+	/**
+	 * Return the projection of the point on the diagonal axis (of vector (1,1))
+	 * i.e. return U + V
+	 */
+	double DiagonalAxisCoordinate() const
+	{
+		return U + V;
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FPoint2D& Point)

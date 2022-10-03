@@ -104,6 +104,7 @@ public:
 	}
 
 	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override = 0;
+	virtual void Offset(const FPoint& OffsetDirection) = 0;
 
 	double GetLength(double Tolerance) const;
 

@@ -174,6 +174,9 @@ public:
 	 * @return SwapFaceCount for report purpose
 	 */
 	int32 Orient();
+
+	virtual void Remove(const FTopologicalShapeEntity*) override;
+
 };
 
 }

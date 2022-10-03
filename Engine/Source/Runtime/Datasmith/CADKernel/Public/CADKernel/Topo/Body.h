@@ -76,6 +76,8 @@ public:
 
 	void RemoveEmptyShell(FModel& Model);
 
+	virtual void Remove(const FTopologicalShapeEntity* ShellToRemove) override;
+
 	void Empty()
 	{
 		Shells.Empty();

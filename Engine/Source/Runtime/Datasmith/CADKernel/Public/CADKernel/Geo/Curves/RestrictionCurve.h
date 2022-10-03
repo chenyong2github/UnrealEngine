@@ -221,6 +221,15 @@ public:
 	}
 
 	/**
+	 * Get the sub polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
+	 */
+	template<class PointType>
+	void GetDiscretizationPoints(const FLinearBoundary& InBoundary, TArray<double>& OutCoordinates, TArray<PointType>& OutPoints) const
+	{
+		Polyline.GetSubPolyline(InBoundary, OutCoordinates, OutPoints);
+	}
+
+	/**
 	 * Samples the sub curve limited by the boundary respecting the input Desired segment length
 	 */
 	void Sample(const FLinearBoundary& InBoundary, const double DesiredSegmentLength, TArray<double>& OutCoordinates) const
@@ -234,6 +243,22 @@ public:
 	}
 
 	void ExtendTo(const FPoint2D& Point) override;
+
+	bool IsIso(EIso Iso, double ErrorTolerance = DOUBLE_SMALL_NUMBER) const
+	{
+		return Polyline.IsIso(Iso, ErrorTolerance);
+	}
+
+	void Offset2D(const FPoint2D& OffsetDirection);
+
+	/**
+	 * must not be call
+	 */
+	virtual void Offset(const FPoint& OffsetDirection) override
+	{
+		ensure(false);
+	}
+
 };
 
 } // namespace UE::CADKernel

@@ -736,7 +736,7 @@ void Draw(const FTopologicalFace& Face)
 				switch (Edge.Entity->GetTwinEntityCount())
 				{
 				case 1:
-					Property = EVisuProperty::BorderEdge;
+					Property =  Edge.Entity->IsDegenerated() ? EVisuProperty::PurpleCurve : EVisuProperty::BorderEdge;
 					break;
 				case 2:
 					Property = EVisuProperty::BlueCurve;
@@ -921,14 +921,6 @@ void Display(const FModel& Model)
 		}
 	}
 
-	{
-		const TArray<TSharedPtr<FTopologicalFace>>& Surfaces = Model.GetFaces();
-		FProgress SurfaceProgress((int32)Surfaces.Num(), TEXT("Surfaces"));
-		for (const TSharedPtr<FTopologicalFace>& Surface : Surfaces)
-		{
-			Display(*Surface);
-		}
-	}
 #endif
 }
 
@@ -947,14 +939,6 @@ void DisplayProductTree(const FModel& Model)
 		}
 	}
 
-	{
-		const TArray<TSharedPtr<FTopologicalFace>>& Faces = Model.GetFaces();
-		FProgress SurfaceProgress((int32)Faces.Num(), TEXT("Faces"));
-		for (const TSharedPtr<FTopologicalFace>& Face : Faces)
-		{
-			Display(*Face);
-		}
-	}
 #endif
 }
 

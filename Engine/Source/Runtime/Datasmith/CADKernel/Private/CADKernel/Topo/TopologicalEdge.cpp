@@ -559,6 +559,7 @@ bool FTopologicalEdge::IsSameDirection(const FTopologicalEdge& Edge) const
 FInfoEntity& FTopologicalEdge::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalEntity::GetInfo(Info)
+		.Add(TEXT("IsDegenerated"), IsDegenerated())
 		.Add(TEXT("Link"), TopologicalLink)
 		.Add(TEXT("Curve"), Curve)
 		.Add(TEXT("Vertex1"), StartVertex)
@@ -1070,6 +1071,10 @@ bool FTopologicalEdge::IsSharpEdge()
 	return false;
 }
 
+void FTopologicalEdge::Offset2D(const FPoint2D& OffsetDirection)
+{
+	Curve->Offset2D(OffsetDirection);
+}
 
 #ifdef CADKERNEL_DEV
 FInfoEntity& FEdgeLink::GetInfo(FInfoEntity& Info) const

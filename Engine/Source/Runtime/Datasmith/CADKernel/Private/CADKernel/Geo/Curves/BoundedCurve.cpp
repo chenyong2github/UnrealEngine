@@ -59,6 +59,11 @@ TSharedPtr<FEntityGeom> FBoundedCurve::ApplyMatrix(const FMatrixH& InMatrix) con
 	return FEntity::MakeShared<FBoundedCurve>(TransformedCurve.ToSharedRef(), Boundary, Dimension);
 }
 
+void FBoundedCurve::Offset(const FPoint& OffsetDirection)
+{
+	Curve->Offset(OffsetDirection);
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FBoundedCurve::GetInfo(FInfoEntity& Info) const
 {

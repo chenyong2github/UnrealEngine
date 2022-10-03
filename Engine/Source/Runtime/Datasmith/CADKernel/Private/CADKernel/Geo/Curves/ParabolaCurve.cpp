@@ -13,6 +13,13 @@ TSharedPtr<FEntityGeom> FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) co
 	return FEntity::MakeShared<FParabolaCurve>(NewMatrix, FocalDistance, Boundary, Dimension);
 }
 
+void FParabolaCurve::Offset(const FPoint& OffsetDirection)
+{
+	FMatrixH Offset = FMatrixH::MakeTranslationMatrix(OffsetDirection);
+	Matrix *= Offset;
+}
+
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FParabolaCurve::GetInfo(FInfoEntity& Info) const
 {

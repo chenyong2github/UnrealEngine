@@ -25,12 +25,10 @@ class CADKERNEL_API FModel : public FTopologicalShapeEntity
 protected:
 
 	TArray<TSharedPtr<FBody>> Bodies;
-	TArray<TSharedPtr<FTopologicalFace>> Faces;
 
 	FModel()
 	{
 		Bodies.Reserve(100);
-		Faces.Reserve(100);
 	}
 
 public:
@@ -39,7 +37,6 @@ public:
 	{
 		FTopologicalShapeEntity::Serialize(Ar);
 		SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Bodies);
-		SerializeIdents(Ar, (TArray<TSharedPtr<FEntity>>&) Faces);
 
 		if (Ar.IsLoading())
 		{
@@ -59,14 +56,12 @@ public:
 		}
 
 		SpawnIdentOnEntities(Bodies, Database);
-		SpawnIdentOnEntities(Faces, Database);
 	}
 
 	virtual void ResetMarkersRecursively() override
 	{
 		ResetMarkers();
 		ResetMarkersRecursivelyOnEntities(Bodies);
-		ResetMarkersRecursivelyOnEntities(Faces);
 	}
 
 #ifdef CADKERNEL_DEV
@@ -79,16 +74,6 @@ public:
 	}
 
 	void AddEntity(TSharedRef<FTopologicalEntity> InEntity);
-
-	void Add(const TSharedPtr<FTopologicalFace>& InFace)
-	{
-		Faces.Add(InFace);
-	}
-
-	void Append(TArray<TSharedPtr<FTopologicalFace>>& InNewFaces)
-	{
-		Faces.Append(InNewFaces);
-	}
 
 	void Append(TArray<TSharedPtr<FBody>>& InNewBody)
 	{
@@ -103,12 +88,6 @@ public:
 	void Empty()
 	{
 		Bodies.Empty();
-		Faces.Empty();
-	}
-
-	void RemoveFace(TSharedPtr<FTopologicalFace> InToplologicalFace)
-	{
-		Faces.Remove(InToplologicalFace);
 	}
 
 	void RemoveBody(TSharedPtr<FBody> InBody)
@@ -116,9 +95,9 @@ public:
 		Bodies.Remove(InBody);
 	}
 
-	void RemoveBody(const FBody* InBody)
+	virtual void Remove(const FTopologicalShapeEntity* InBody) override
 	{
-		int32 Index = Bodies.IndexOfByPredicate([&](const TSharedPtr<FBody>& Body) { return (InBody == Body.Get()); });
+		int32 Index = Bodies.IndexOfByPredicate([&](const TSharedPtr<FBody>& Body) { return (InBody == (FTopologicalShapeEntity*) Body.Get()); });
 		if (Index != INDEX_NONE)
 		{
 			Bodies.RemoveAt(Index);
@@ -137,7 +116,6 @@ public:
 	void Copy(const TSharedPtr<FModel>& OtherModel)
 	{
 		Bodies.Append(OtherModel->Bodies);
-		Faces.Append(OtherModel->Faces);
 	}
 
 	/**
@@ -146,7 +124,6 @@ public:
 	void Copy(const FModel& OtherModel)
 	{
 		Bodies.Append(OtherModel.Bodies);
-		Faces.Append(OtherModel.Faces);
 	}
 
 	/**
@@ -157,17 +134,11 @@ public:
 	{
 		Copy(OtherModel);
 		OtherModel.Bodies.Empty();
-		OtherModel.Faces.Empty();
 	}
 
 	int32 EntityCount() const
 	{
-		return Bodies.Num() + Faces.Num();
-	}
-
-	const TArray<TSharedPtr<FTopologicalFace>>& GetFaces() const
-	{
-		return Faces;
+		return Bodies.Num();
 	}
 
 	virtual void GetFaces(TArray<FTopologicalFace*>& OutFaces) override;
@@ -191,18 +162,6 @@ public:
 #ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;
 #endif
-
-	/**
-	 * Fore each body
-	 */
-	void FixModelTopology(double JoiningTolerance);
-
-	void MergeInto(TSharedPtr<FBody> Body, TArray<TSharedPtr<FTopologicalEntity>>& InEntities);
-
-	/**
-	 * Fore each shell of each body, try to stitch topological gap
-	 */
-	void HealModelTopology(double JoiningTolerance);
 
 	void Orient();
 };

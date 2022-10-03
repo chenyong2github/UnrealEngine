@@ -309,6 +309,38 @@ public:
 		return UVBoundaries[EIso::IsoU].IsDegenerated() || UVBoundaries[EIso::IsoV].IsDegenerated();
 	}
 
+	ESituation IsInside(const FSurfacicBoundary& OtherBoundary, const FSurfacicTolerance& Tolerance2D)
+	{
+		int32 Inside = 0;
+		int32 Outside = 0;
+		TFunction<void(double, double, double)> CheckInside = [&](double LeftSide, double RigthSide, double Tolerance)
+		{
+			if (LeftSide + Tolerance < RigthSide)
+			{
+				Inside++;
+			}
+			else if (RigthSide + Tolerance < LeftSide)
+			{
+				Outside++;
+			}
+		};
+
+		CheckInside(OtherBoundary[EIso::IsoU].GetMin(), UVBoundaries[EIso::IsoU].GetMin(), Tolerance2D[EIso::IsoU]);
+		CheckInside(OtherBoundary[EIso::IsoV].GetMin(), UVBoundaries[EIso::IsoV].GetMin(), Tolerance2D[EIso::IsoV]);
+		CheckInside(UVBoundaries[EIso::IsoU].GetMax(), OtherBoundary[EIso::IsoU].GetMax(), Tolerance2D[EIso::IsoU]);
+		CheckInside(UVBoundaries[EIso::IsoV].GetMax(), OtherBoundary[EIso::IsoV].GetMax(), Tolerance2D[EIso::IsoV]);
+
+		if (Inside > 2)
+		{
+			return ESituation::Inside;
+		}
+		if (Outside > 2)
+		{
+			return ESituation::Outside;
+		}
+		return ESituation::Undefined;
+	}
+
 	/**
 	 * Uses to initiate a boundary computation with ExtendTo
 	 */
@@ -396,6 +428,7 @@ public:
 	{
 		return UVBoundaries[Iso];
 	}
+
 };
 }
 

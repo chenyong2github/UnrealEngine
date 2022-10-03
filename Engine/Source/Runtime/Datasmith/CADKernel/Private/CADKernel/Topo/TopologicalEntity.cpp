@@ -8,6 +8,7 @@ namespace UE::CADKernel
 FInfoEntity& FTopologicalEntity::GetInfo(FInfoEntity& Info) const
 {
 	return FEntity::GetInfo(Info)
+		.Add(TEXT("IsDeleted"), IsDeleted())
 		.Add(TEXT("IsMesh"), IsMeshed());
 }
 #endif

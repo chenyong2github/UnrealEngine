@@ -22,8 +22,8 @@ struct FPolylineBBox
 	FPoint Min;
 	FPoint MaxPoints[3];
 	FPoint MinPoints[3];
-	double CoordinateOfMaxPoint[3];
-	double CoordinateOfMinPoint[3];
+	double CoordinateOfMaxPoint[3] = { -HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE };
+	double CoordinateOfMinPoint[3] = { HUGE_VALUE, HUGE_VALUE, HUGE_VALUE };
 
 	FPolylineBBox()
 		: Max(-HUGE_VALUE, -HUGE_VALUE, -HUGE_VALUE)
@@ -169,7 +169,6 @@ protected:
 
 		double LastSegmentLength;
 		double Length = 0;
-		ensureCADKernel(BoundaryIndices[1] > BoundaryIndices[0]);
 
 		OutCurvilinearCoordinates.Add(0);
 		if (BoundaryIndices[1] > BoundaryIndices[0] + 1)

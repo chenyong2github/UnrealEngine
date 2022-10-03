@@ -117,6 +117,14 @@ public:
 		return FEntity::MakeShared<PolylineType>(NewPoints, this->Coordinates);
 	}
 
+	virtual void Offset(const FPoint& OffsetDirection) override
+	{
+		for (PointType& Pole : this->Points)
+		{
+			Pole += OffsetDirection;
+		}
+	}
+
 	virtual void ExtendTo(const FPoint& DesiredPoint) override
 	{
 		PolylineTools::ExtendTo(this->Points, (PointType)DesiredPoint);

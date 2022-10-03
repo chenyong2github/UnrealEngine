@@ -35,12 +35,23 @@ void FBody::RemoveEmptyShell(FModel& Model)
 	if (NewShells.IsEmpty())
 	{
 		Delete();
-		Model.RemoveBody(this);
+		Model.Remove(this);
 	}
 	else
 	{
 		Swap(NewShells, Shells);
 	}
+}
+
+void FBody::Remove(const FTopologicalShapeEntity* ShellToRemove)
+{
+	if (!ShellToRemove)
+	{
+		return;
+	}
+
+	int32 Index = Shells.IndexOfByPredicate([&](const TSharedPtr<FShell>& Shell) { return (Shell.Get() == ShellToRemove); });
+	Shells.RemoveAt(Index);
 }
 
 #ifdef CADKERNEL_DEV

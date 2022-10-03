@@ -54,6 +54,14 @@ TSharedPtr<FEntityGeom> FBezierCurve::ApplyMatrix(const FMatrixH& InMatrix) cons
 	return FEntity::MakeShared<FBezierCurve>(TransformedPoles);
 }
 
+void FBezierCurve::Offset(const FPoint& OffsetDirection)
+{
+	for (FPoint& Pole : Poles)
+	{
+		Pole += OffsetDirection;
+	}
+}
+
 #ifdef CADKERNEL_DEV
 FInfoEntity& FBezierCurve::GetInfo(FInfoEntity& Info) const
 {

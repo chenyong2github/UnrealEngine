@@ -107,6 +107,14 @@ public:
 
 	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
 
+	/**
+	 * Must not be call
+	 */
+	virtual void Offset(const FPoint& OffsetDirection) override
+	{
+		ensure(false);
+	}
+
 	virtual void EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder = 0) const override;
 
 	virtual void Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder = 0) const override
