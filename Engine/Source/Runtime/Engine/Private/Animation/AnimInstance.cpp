@@ -255,16 +255,16 @@ void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 
 	GetProxyOnGameThread<FAnimInstanceProxy>().Initialize(this);
 
-#if DO_CHECK
 	{
+#if DO_CHECK
 		// Allow us to validate callbacks within user code
 		FGuardValue_Bitfield(bInitializing, true);
-		
+#endif
+
 		NativeInitializeAnimation();
 		BlueprintInitializeAnimation();
 	}
-#endif
-	
+
 	GetProxyOnGameThread<FAnimInstanceProxy>().InitializeRootNode(bInDeferRootNodeInitialization);
 
 	// we can bind rules & events now the graph has been initialized
