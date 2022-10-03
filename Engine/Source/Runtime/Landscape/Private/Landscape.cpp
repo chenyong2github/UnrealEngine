@@ -3749,6 +3749,18 @@ TArray<UPackage*> ULandscapeInfo::GetModifiedPackages() const
 	return LocalModifiedPackages;
 }
 
+void ULandscapeInfo::MarkModifiedPackagesAsDirty()
+{
+	for (TWeakObjectPtr<UPackage> WeakPackagePtr : ModifiedPackages)
+	{
+		if (UPackage* Package = WeakPackagePtr.Get())
+		{
+			Package->MarkPackageDirty();
+		}
+	}
+	ModifiedPackages.Empty();
+}
+
 int32 ULandscapeInfo::GetModifiedPackageCount() const
 {
 	int32 ModifiedPackageCount = 0;

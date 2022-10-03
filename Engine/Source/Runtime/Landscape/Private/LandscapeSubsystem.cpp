@@ -19,6 +19,7 @@
 #include "LandscapeConfigHelper.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
+#include "Misc/ScopedSlowTask.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSubsystem)
 
@@ -46,12 +47,12 @@ ULandscapeSubsystem::~ULandscapeSubsystem()
 
 void ULandscapeSubsystem::RegisterActor(ALandscapeProxy* Proxy)
 {
-	Proxies.AddUnique(Proxy);
+	Proxies.AddUnique(TWeakObjectPtr<ALandscapeProxy>(Proxy));
 }
 
 void ULandscapeSubsystem::UnregisterActor(ALandscapeProxy* Proxy)
 {
-	Proxies.Remove(Proxy);
+	Proxies.Remove(TWeakObjectPtr<ALandscapeProxy>(Proxy));
 }
 
 void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -132,30 +133,33 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 	}
 
 	int32 InOutNumComponentsCreated = 0;
-	for (ALandscapeProxy* Proxy : Proxies)
+	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
 	{
+		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+		{
 #if WITH_EDITOR
-		if (GIsEditor)
-		{
-			if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+			if (GIsEditor)
 			{
-				Landscape->TickLayers(DeltaTime);
-			}
+				if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
+				{
+					Landscape->TickLayers(DeltaTime);
+				}
 
-			// editor-only
-			if (!World->IsPlayInEditor())
-			{
-				Proxy->UpdateGIBakedTextures();
-				Proxy->UpdatePhysicalMaterialTasks();
+				// editor-only
+				if (!World->IsPlayInEditor())
+				{
+					Proxy->UpdateGIBakedTextures();
+					Proxy->UpdatePhysicalMaterialTasks();
+				}
 			}
-		}
 #endif
-		if (Cameras && Proxy->ShouldTickGrass())
-		{
-			Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
-		}
+			if (Cameras && Proxy->ShouldTickGrass())
+			{
+				Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
+			}
 
-		Proxy->UpdateRenderingMethod();
+			Proxy->UpdateRenderingMethod();
+		}
 	}
 
 #if WITH_EDITOR
@@ -170,6 +174,9 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 #if WITH_EDITOR
 void ULandscapeSubsystem::BuildAll()
 {
+	// This is a deliberate action, make sure to flush all packages that are 'pending dirty' :
+	MarkModifiedLandscapesAsDirty();
+
 	BuildGrassMaps();
 	BuildGIBakedTextures();
 	BuildPhysicalMaterial();
@@ -214,10 +221,22 @@ void ULandscapeSubsystem::BuildNanite()
 		return;
 	}
 
-	for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+	if (Proxies.IsEmpty())
 	{
-		ProxyIt->UpdateNaniteRepresentation();
-		ProxyIt->UpdateRenderingMethod();
+		return;
+	}
+
+	FScopedSlowTask SlowTask(Proxies.Num(), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
+	SlowTask.MakeDialog();
+
+	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
+	{
+		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh {0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
+		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
+		{
+			Proxy->UpdateNaniteRepresentation();
+			Proxy->UpdateRenderingMethod();
+		}
 	}
 }
 
@@ -292,6 +311,16 @@ void ULandscapeSubsystem::SaveModifiedLandscapes()
 				ModifiedPackage->SetDirtyFlag(false);
 			}
 		}
+		return true;
+	});
+}
+
+void ULandscapeSubsystem::MarkModifiedLandscapesAsDirty()
+{
+	// Flush all packages that are pending mark for dirty : 
+	ForEachLandscapeInfo([&](ULandscapeInfo* LandscapeInfo)
+	{
+		LandscapeInfo->MarkModifiedPackagesAsDirty();
 		return true;
 	});
 }

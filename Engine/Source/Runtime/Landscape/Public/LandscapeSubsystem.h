@@ -43,6 +43,7 @@ public:
 	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
 	LANDSCAPE_API void DisplayMessages(class FCanvas* Canvas, float& XPos, float& YPos);
+	LANDSCAPE_API void MarkModifiedLandscapesAsDirty();
 	LANDSCAPE_API void SaveModifiedLandscapes();
 	LANDSCAPE_API bool HasModifiedLandscapes() const;
 	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
@@ -59,7 +60,7 @@ private:
 	virtual void Deinitialize() override;
 	// End USubsystem
 
-	TArray<ALandscapeProxy*> Proxies;
+	TArray<TWeakObjectPtr<ALandscapeProxy>> Proxies;
 
 #if WITH_EDITOR
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
