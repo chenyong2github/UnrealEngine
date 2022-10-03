@@ -40,10 +40,13 @@ AAIController::AAIController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bSetControlRotationFromPawnOrientation = true;
-	PathFollowingComponent = CreateDefaultSubobject<UPathFollowingComponent>(TEXT("PathFollowingComponent"));
-	PathFollowingComponent->OnRequestFinished.AddUObject(this, &AAIController::OnMoveCompleted);
+	PathFollowingComponent = CreateOptionalDefaultSubobject<UPathFollowingComponent>(TEXT("PathFollowingComponent"));
+	if (PathFollowingComponent)
+	{
+		PathFollowingComponent->OnRequestFinished.AddUObject(this, &AAIController::OnMoveCompleted);
+	}
 
-	ActionsComp = CreateDefaultSubobject<UPawnActionsComponent>("ActionsComp");
+	ActionsComp = CreateOptionalDefaultSubobject<UPawnActionsComponent>(TEXT("ActionsComp"));
 
 	bSkipExtraLOSChecks = true;
 	bWantsPlayerState = false;
