@@ -63,6 +63,17 @@ public:
 	static void CalibrateTimers(FVulkanCommandListContext& InCmdContext);
 
 private:
+
+	/**
+	 * If results weren't available when first queried, make sure we try again.
+	 */
+	void RefreshPendingQueries(FVulkanCmdBuffer& CmdBuffer);
+
+	/**
+	 * Remove expired queries to make space for new ones
+	 */
+	void DiscardExpiredQueries(bool bNeedSpace);
+
 	/**
 	 * Initializes the static variables, if necessary.
 	 */

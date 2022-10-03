@@ -961,6 +961,36 @@ private:
 };
 
 
+// ***** VK_EXT_calibrated_timestamps
+class FVulkanEXTCalibratedTimestampsExtension : public FVulkanDeviceExtension
+{
+public:
+	FVulkanEXTCalibratedTimestampsExtension(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VULKAN_EXTENSION_NOT_PROMOTED)
+	{
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		uint32 TimeDomainCount = 0;
+		VulkanRHI::vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(Device->GetPhysicalHandle(), &TimeDomainCount, nullptr);
+
+		TArray<VkTimeDomainEXT, TInlineAllocator<4>> TimeDomains;
+		TimeDomains.SetNumZeroed(TimeDomainCount);
+		VulkanRHI::vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(Device->GetPhysicalHandle(), &TimeDomainCount, &TimeDomains[0]);
+
+		for (VkTimeDomainEXT TimeDomain : TimeDomains)
+		{
+			if (TimeDomain == VK_TIME_DOMAIN_DEVICE_EXT)
+			{
+				ExtensionFlags.HasEXTCalibratedTimestamps = 1;
+				break;
+			}
+		}
+	}
+};
+
+
 
 template <typename ExtensionType>
 static void FlagExtensionSupport(const TArray<VkExtensionProperties>& ExtensionProperties, TArray<TUniquePtr<ExtensionType>>& UEExtensions, const TCHAR* ExtensionTypeName)
@@ -1033,6 +1063,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanEXTDescriptorIndexingExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTHostQueryResetExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTSubgroupSizeControlExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanEXTCalibratedTimestampsExtension);
 
 	// Needed for Raytracing
 	ADD_CUSTOM_EXTENSION(FVulkanKHRBufferDeviceAddressExtension);

@@ -696,10 +696,12 @@ public:
 		FVulkanCmdBuffer* CmdBuffer;
 		uint64 FenceCounter;
 		uint64 FrameCount = UINT64_MAX;
+		uint32 Attempts = 0;
 	};
 	TArray<FCmdBufferFence> TimestampListHandles;
 
 	VulkanRHI::FStagingBuffer* ResultsBuffer = nullptr;
+	uint64* MappedPointer = nullptr;
 };
 
 class FVulkanRenderQuery : public FRHIRenderQuery

@@ -1443,3 +1443,30 @@ FVulkanTransientHeapCache& FVulkanDevice::GetOrCreateTransientHeapCache()
 	}
 	return *TransientHeapCache;
 }
+
+FGPUTimingCalibrationTimestamp FVulkanDevice::GetCalibrationTimestamp()
+{
+	auto ToMicroseconds = [](uint64_t Timestamp)
+	{
+		const double Frequency = double(FVulkanGPUTiming::GetTimingFrequency());
+		uint64 Microseconds = (uint64)((double(Timestamp) / Frequency) * 1000.0 * 1000.0);
+		return Microseconds;
+	};
+
+	FGPUTimingCalibrationTimestamp CalibrationTimestamp;
+	if (OptionalDeviceExtensions.HasEXTCalibratedTimestamps)
+	{
+		VkCalibratedTimestampInfoEXT TimestampInfo;
+		ZeroVulkanStruct(TimestampInfo, VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT);
+		TimestampInfo.timeDomain = VK_TIME_DOMAIN_DEVICE_EXT;
+
+		uint64_t GPUTimestamp = 0;
+		uint64_t MaxDeviation = 0;
+		VERIFYVULKANRESULT(VulkanRHI::vkGetCalibratedTimestampsEXT(Device, 1, &TimestampInfo, &GPUTimestamp, &MaxDeviation));
+		CalibrationTimestamp.GPUMicroseconds = ToMicroseconds(GPUTimestamp);
+
+		const uint64 CPUTimestamp = FPlatformTime::Cycles64();
+		CalibrationTimestamp.CPUMicroseconds = uint64(FPlatformTime::ToSeconds64(CPUTimestamp) * 1e6);
+	}
+	return CalibrationTimestamp;
+}

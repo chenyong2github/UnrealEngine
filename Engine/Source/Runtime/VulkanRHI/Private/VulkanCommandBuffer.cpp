@@ -260,7 +260,10 @@ void FVulkanCmdBuffer::End()
 		const uint32 Stride = sizeof(uint64) * Width;
 
 		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, Stride * Index, Stride, VK_QUERY_RESULT_64_BIT | BlockingFlags);
-		VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
+		if (Query.bBlocking)
+		{
+			VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
+		}
 	}
 
 	PendingTimestampQueries.Reset();

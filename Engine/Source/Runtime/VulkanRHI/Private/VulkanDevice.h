@@ -54,6 +54,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasRayTracingPipeline : 1;
 			uint64 HasRayQuery : 1;
 			uint64 HasDeferredHostOperations : 1;
+			uint64 HasEXTCalibratedTimestamps : 1;
 
 			// Vendor specific
 			uint64 HasAMDBufferMarker : 1;
@@ -494,6 +495,10 @@ public:
 	{
 		bDebugMarkersFound = true;
 	}
+
+	// Performs a GPU and CPU timestamp at nearly the same time.
+	// This allows aligning GPU and CPU events on the same timeline in profile visualization.
+	FGPUTimingCalibrationTimestamp GetCalibrationTimestamp();
 
 private:
 	const VkFormatProperties& GetFormatProperties(VkFormat InFormat);

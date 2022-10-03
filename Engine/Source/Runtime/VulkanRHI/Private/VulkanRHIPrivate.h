@@ -56,6 +56,7 @@
 
 #endif
 
+#include "GPUProfiler.h"
 #include "VulkanDevice.h"
 #include "VulkanQueue.h"
 #include "VulkanCommandBuffer.h"

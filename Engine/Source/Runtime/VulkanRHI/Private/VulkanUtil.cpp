@@ -26,6 +26,7 @@ extern CORE_API bool GIsGPUCrashed;
 static FString		EventDeepString(TEXT("EventTooDeep"));
 static const uint32	EventDeepCRC = FCrc::StrCrc32<TCHAR>(*EventDeepString);
 static const uint32 BUFFERED_TIMING_QUERIES = 1;
+static const uint32 TIMING_QUERY_RETRIES = 1;
 
 /**
  * Initializes the static variables, if necessary.
@@ -54,35 +55,12 @@ void FVulkanGPUTiming::PlatformStaticInitialize(void* UserData)
 
 void FVulkanGPUTiming::CalibrateTimers(FVulkanCommandListContext& InCmdContext)
 {
-#if VULKAN_USE_NEW_QUERIES
-
-	// TODO: Implement VULKAN_USE_NEW_QUERIES version
-
-#else
 	FVulkanDevice* Device = InCmdContext.GetDevice();
-	FVulkanRenderQuery* TimestampQuery = new FVulkanRenderQuery(RQT_AbsoluteTime);
-
+	if (Device->GetOptionalExtensions().HasEXTCalibratedTimestamps)
 	{
-		FVulkanCmdBuffer* CmdBuffer = InCmdContext.GetCommandBufferManager()->GetUploadCmdBuffer();
-		InCmdContext.EndRenderQueryInternal(CmdBuffer, TimestampQuery);
-		InCmdContext.GetCommandBufferManager()->SubmitUploadCmdBuffer();
+		FGPUTimingCalibrationTimestamp CalibrationTimestamp = Device->GetCalibrationTimestamp();
+		SetCalibrationTimestamp(CalibrationTimestamp);
 	}
-
-	uint64 CPUTimestamp = 0;
-	uint64 GPUTimestampMicroseconds = 0;
-
-	const bool bWait = true;
-	if (TimestampQuery->GetResult(Device, GPUTimestampMicroseconds, bWait))
-	{
-		CPUTimestamp = FPlatformTime::Cycles64();
-
-		GCalibrationTimestamp.CPUMicroseconds = uint64(FPlatformTime::ToSeconds64(CPUTimestamp) * 1e6);
-		GCalibrationTimestamp.GPUMicroseconds = GPUTimestampMicroseconds;
-	}
-
-	delete TimestampQuery;
-
-#endif
 }
 
 void FVulkanDynamicRHI::RHICalibrateTimers()
@@ -169,6 +147,7 @@ void FVulkanGPUTiming::Initialize(uint32 PoolSize)
 		check(!Pool);
 		Pool = new FVulkanTimingQueryPool(Device, CmdContext->GetCommandBufferManager(), PoolSize);
 		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(Pool->GetMaxQueries() * sizeof(uint64) * 2, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		Pool->MappedPointer = (uint64*)Pool->ResultsBuffer->GetMappedPointer();
 	}
 }
 
@@ -198,19 +177,39 @@ void FVulkanGPUTiming::StartTiming(FVulkanCmdBuffer* CmdBuffer)
 		{
 			CmdBuffer = CmdContext->GetCommandBufferManager()->GetActiveCmdBuffer();
 		}
+
+		// In case we aren't reading queries, remove oldest
+		if (NumPendingQueries >= Pool->BufferSize)
+		{
+			DiscardExpiredQueries(true);
+
+			if (NumPendingQueries >= Pool->BufferSize)
+			{
+				return;
+			}
+		}
+
+		RefreshPendingQueries(*CmdBuffer);
+
 		Pool->CurrentTimestamp = (Pool->CurrentTimestamp + 1) % Pool->BufferSize;
 		const uint32 QueryStartIndex = Pool->CurrentTimestamp * 2;
 
-		// If host query resets are supported, reset timestamp queries before writing to them (no need to consider host/GPU sync)
+		// Since we use non-blocking queries, we need to reset them before using them
+		// Use host query resets if supported since there's no need to consider host/GPU sync
 		if (Device->GetOptionalExtensions().HasEXTHostQueryReset)
 		{
 			VulkanRHI::vkResetQueryPoolEXT(Device->GetInstanceHandle(), Pool->GetHandle(), QueryStartIndex, 2);
+		}
+		else
+		{
+			VulkanRHI::vkCmdResetQueryPool(CmdBuffer->GetHandle(), Pool->GetHandle(), QueryStartIndex, 2);
 		}
 
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Pool->GetHandle(), QueryStartIndex);
 		Pool->TimestampListHandles[QueryStartIndex].CmdBuffer = CmdBuffer;
 		Pool->TimestampListHandles[QueryStartIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
 		Pool->TimestampListHandles[QueryStartIndex].FrameCount = CmdContext->GetFrameCounter();
+		Pool->TimestampListHandles[QueryStartIndex].Attempts = 0;
 		bIsTiming = true;
 	}
 }
@@ -233,27 +232,110 @@ void FVulkanGPUTiming::EndTiming(FVulkanCmdBuffer* CmdBuffer)
 		// Keep Start and End contiguous to fetch them together with a single AddPendingTimestampQuery(QueryStartIndex,2,...)
 		const uint32 QueryEndIndex = QueryStartIndex + 1;   
 
-		// In case we aren't reading queries, remove oldest
-		if (NumPendingQueries >= Pool->BufferSize)
-		{
-			PendingQueries.Pop();
-			NumPendingQueries--;
-		}
-
 		PendingQueries.Enqueue(Pool->CurrentTimestamp);
 		NumPendingQueries++;
 
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Pool->GetHandle(), QueryEndIndex);
 		CmdBuffer->AddPendingTimestampQuery(QueryStartIndex, 2, Pool->GetHandle(), Pool->ResultsBuffer->GetHandle(), false);
+		Pool->TimestampListHandles[QueryStartIndex].CmdBuffer = CmdBuffer;
+		Pool->TimestampListHandles[QueryStartIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
 		Pool->TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
 		Pool->TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
 		Pool->TimestampListHandles[QueryEndIndex].FrameCount = CmdContext->GetFrameCounter();
+		Pool->TimestampListHandles[QueryEndIndex].Attempts = 0;
 		Pool->NumIssuedTimestamps = FMath::Min<uint32>(Pool->NumIssuedTimestamps + 1, Pool->BufferSize);
 
 		bIsTiming = false;
 		bEndTimestampIssued = true;
 	}
 }
+
+void FVulkanGPUTiming::DiscardExpiredQueries(bool bNeedSpace)
+{
+	// Returns true if we can safely throw away the query
+	auto CanBeDiscarded = [this](uint32 QueryIndex)
+	{
+		FVulkanTimingQueryPool::FCmdBufferFence& QuerySyncPoint = Pool->TimestampListHandles[QueryIndex];
+		if (QuerySyncPoint.CmdBuffer && (QuerySyncPoint.FenceCounter < QuerySyncPoint.CmdBuffer->GetFenceSignaledCounter()))
+		{
+			const uint64 Availability = Pool->MappedPointer[QueryIndex * 2 + 1];
+
+			if (Availability || (QuerySyncPoint.Attempts < TIMING_QUERY_RETRIES))
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+
+	auto IsQueryExpired = [&](uint32 QueryIndex)
+	{
+		bool QueryExpired = CanBeDiscarded(QueryIndex);
+		if (!QueryExpired && bNeedSpace)
+		{
+			// If the hold back for a query is the fence and the command buffer was submitted, take a shot at updating its status
+			FVulkanTimingQueryPool::FCmdBufferFence& QuerySyncPoint = Pool->TimestampListHandles[QueryIndex];
+			if ((QuerySyncPoint.FenceCounter >= QuerySyncPoint.CmdBuffer->GetFenceSignaledCounter()) && QuerySyncPoint.CmdBuffer->IsSubmitted())
+			{
+				QuerySyncPoint.CmdBuffer->GetOwner()->RefreshFenceStatus();
+				if (QuerySyncPoint.FenceCounter < QuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
+				{
+					QueryExpired = CanBeDiscarded(QueryIndex);
+				}
+			}
+		}
+		return QueryExpired;
+	};
+
+	Pool->ResultsBuffer->InvalidateMappedMemory();
+
+	uint32 OldestTimestamp;
+	while (PendingQueries.Peek(OldestTimestamp))
+	{
+		const uint32 QueryStartIndex = OldestTimestamp * 2;
+		const uint32 QueryEndIndex = QueryStartIndex + 1;
+
+		const bool StartQueryExpired = IsQueryExpired(QueryStartIndex);
+		const bool EndQueryExpired = IsQueryExpired(QueryEndIndex);
+
+		if (StartQueryExpired || EndQueryExpired)
+		{
+			// If the queries is no good anymore, throw it away and try the next one
+			PendingQueries.Pop();
+			NumPendingQueries--;
+		}
+		else
+		{
+			break;
+		}
+	}
+}
+
+void FVulkanGPUTiming::RefreshPendingQueries(FVulkanCmdBuffer& CmdBuffer)
+{
+	for (int32 QueryIndex=0; QueryIndex < Pool->TimestampListHandles.Num(); ++QueryIndex)
+	{
+		FVulkanTimingQueryPool::FCmdBufferFence& QuerySyncPoint = Pool->TimestampListHandles[QueryIndex];
+
+		if (QuerySyncPoint.CmdBuffer && (QuerySyncPoint.FenceCounter < QuerySyncPoint.CmdBuffer->GetFenceSignaledCounter()))
+		{
+			Pool->ResultsBuffer->InvalidateMappedMemory();
+			const uint64 Availability = Pool->MappedPointer[QueryIndex * 2 + 1];
+
+			if (!Availability && (QuerySyncPoint.Attempts < TIMING_QUERY_RETRIES))
+			{
+				QuerySyncPoint.CmdBuffer = &CmdBuffer;
+				QuerySyncPoint.FenceCounter = CmdBuffer.GetFenceSignaledCounter();
+				QuerySyncPoint.FrameCount = CmdContext->GetFrameCounter();
+				++QuerySyncPoint.Attempts;
+
+				CmdBuffer.AddPendingTimestampQuery(
+					QueryIndex, 1, Pool->GetHandle(), Pool->ResultsBuffer->GetHandle(), false);
+			}
+		}
+	}
+}
+
 
 /**
  * Retrieves the most recently resolved timing measurement.
@@ -281,6 +363,8 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 
 		PreviousFrame = FrameCount;
 
+		DiscardExpiredQueries(false);
+
 		while (PendingQueries.Peek(TimestampIndex))
 		{
 			const uint32 QueryStartIndex = TimestampIndex * 2;
@@ -294,7 +378,7 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 
 			if (!bBlocking)
 			{
-				uint64_t QueryFrameCount = EndQuerySyncPoint.FrameCount;
+				const uint64_t QueryFrameCount = EndQuerySyncPoint.FrameCount;
 				
 				// Allow queries to back up if we are non-blocking
 				if (FrameCount < BUFFERED_TIMING_QUERIES || FrameCount - BUFFERED_TIMING_QUERIES < QueryFrameCount)
@@ -313,11 +397,10 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 				StartQuerySyncPoint.FenceCounter < StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
 			{
 				Pool->ResultsBuffer->InvalidateMappedMemory();
-				uint64* Data = (uint64*)Pool->ResultsBuffer->GetMappedPointer();
-				StartTimeAvailability = Data[QueryStartIndex * 2 + 1];
-				EndTimeAvailability = Data[QueryEndIndex * 2 + 1];
-				StartTime = Data[QueryStartIndex * 2];
-				EndTime = Data[QueryEndIndex * 2];
+				StartTimeAvailability = Pool->MappedPointer[QueryStartIndex * 2 + 1];
+				EndTimeAvailability = Pool->MappedPointer[QueryEndIndex * 2 + 1];
+				StartTime = Pool->MappedPointer[QueryStartIndex * 2];
+				EndTime = Pool->MappedPointer[QueryEndIndex * 2];
 
 				if (!StartTimeAvailability || !EndTimeAvailability)
 				{
@@ -329,7 +412,8 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 
 				if (EndTime > StartTime)
 				{
-					TotalTime += EndTime - StartTime;
+					// Only keep the most recent result
+					TotalTime = EndTime - StartTime;
 				}
 
 				continue;
@@ -363,11 +447,10 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 
 				Pool->ResultsBuffer->InvalidateMappedMemory();
-				uint64* Data = (uint64*)Pool->ResultsBuffer->GetMappedPointer();
-				StartTimeAvailability = Data[QueryStartIndex * 2 + 1];
-				EndTimeAvailability = Data[QueryEndIndex * 2 + 1];
-				StartTime = Data[QueryStartIndex * 2];
-				EndTime = Data[QueryEndIndex * 2];
+				StartTimeAvailability = Pool->MappedPointer[QueryStartIndex * 2 + 1];
+				EndTimeAvailability = Pool->MappedPointer[QueryEndIndex * 2 + 1];
+				StartTime = Pool->MappedPointer[QueryStartIndex * 2];
+				EndTime = Pool->MappedPointer[QueryEndIndex * 2];
 
 				PendingQueries.Pop();
 				NumPendingQueries--;
