@@ -42,13 +42,13 @@ void FTextureSharePostprocess::ShareViewport_RenderThread(FRHICommandListImmedia
 {
 	if (InViewportManagerProxy)
 	{
-		for (IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
+		for (TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 		{
-			if (ViewportProxyIt)
+			if (ViewportProxyIt.IsValid())
 			{
 				// Get viewport resource type
 				EDisplayClusterViewportResourceType ResourceType = InResourceType;
-				if (bAfterWarpBlend && ShouldApplyWarpBlend(ViewportProxyIt))
+				if (bAfterWarpBlend && ShouldApplyWarpBlend(ViewportProxyIt.Get()))
 				{
 					const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxyIt->GetProjectionPolicy_RenderThread();
 					if (PrjPolicy->ShouldUseAdditionalTargetableResource())

@@ -28,19 +28,19 @@ namespace DisplayClusterRenderTargetResourcesPool
 
 	static void ImplReleaseViewportResourcesRHI(FDisplayClusterViewportManagerProxy* InViewportManagerProxy, const TArrayView<FDisplayClusterViewportResource*>& InResources)
 	{
-		TArray<FDisplayClusterViewportResource*> ResourcesForRenderThread(InResources);
-
-		ENQUEUE_RENDER_COMMAND(DisplayCluster_ReleaseViewportResourcesRHI)(
-			[InViewportManagerProxy, ReleasedResources = std::move(ResourcesForRenderThread)](FRHICommandListImmediate& RHICmdList)
+		if (InViewportManagerProxy != nullptr && !InResources.IsEmpty())
 		{
-			for (FDisplayClusterViewportResource* DeletedResourcePtrIt : ReleasedResources)
-			{
-				if (InViewportManagerProxy)
+			TArray<FDisplayClusterViewportResource*> ResourcesForRenderThread(InResources);
+
+			ENQUEUE_RENDER_COMMAND(DisplayCluster_ReleaseViewportResourcesRHI)(
+				[InViewportManagerProxy = InViewportManagerProxy->AsShared(), ReleasedResources = std::move(ResourcesForRenderThread)](FRHICommandListImmediate& RHICmdList)
 				{
-					InViewportManagerProxy->DeleteResource_RenderThread(DeletedResourcePtrIt);
-				}
-			}
-		});
+					for (FDisplayClusterViewportResource* DeletedResourcePtrIt : ReleasedResources)
+					{
+						InViewportManagerProxy->DeleteResource_RenderThread(DeletedResourcePtrIt);
+					}
+				});
+		}
 	}
 
 	static FDisplayClusterViewportResourceSettings* ImplCreateViewportResourceSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, FViewport* InViewport)
