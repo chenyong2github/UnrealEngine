@@ -18,8 +18,4 @@ class UWorldPartitionBuilderCommandlet : public UCommandlet
 	//~ End UCommandlet Interface
 
 	UWorldPartitionBuilder* CreateBuilder(const FString& WorldConfigFilename);
-
-private:
-	UPROPERTY()
-	TArray<TObjectPtr<UWorldPartitionBuilder>> Builders;
 };
