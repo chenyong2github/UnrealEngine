@@ -7,8 +7,11 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Xml;
 
 namespace UnrealVS
@@ -721,7 +724,7 @@ namespace UnrealVS
 			}
 		}
 
-		private static string GetSolutionFolder()
+		public static string GetSolutionFolder()
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -733,6 +736,115 @@ namespace UnrealVS
 			return Path.GetDirectoryName(UnrealVSPackage.Instance.SolutionFilepath);
 		}
 
+		public static string SolutionTitle
+		{
+			set
+			{
+				if (!SolutionTextBlockSearched)
+				{
+					SolutionTextBlockSearched = true;
+
+					if (Utils.FindChild<System.Windows.DependencyObject>(System.Windows.Application.Current.MainWindow, "PART_SolutionNameTextBlock") is var textBlock)
+					{
+						SolutionTextBlock = Utils.FindChild<TextBlock>(textBlock, null);
+					}
+				}
+
+				if (SolutionTextBlock != null)
+				{
+					SolutionTextBlockText = value;
+					if (value != null)
+					{
+						SolutionTextBlockChanging = true;
+						SolutionTextBlock.Text = value;
+						SolutionTextBlockChanging = false;
+
+						if (!SolutionTextBlockTracked)
+						{
+							SolutionTextBlockTracked = true;
+							var dp = DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
+							dp.AddValueChanged(SolutionTextBlock, SolutionTextChanged);
+						}
+					}
+					else
+					{
+						if (SolutionTextBlockTracked)
+						{
+							SolutionTextBlockTracked = false;
+							var dp = DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
+							dp.RemoveValueChanged(SolutionTextBlock, SolutionTextChanged);
+						}
+						SolutionTextBlock.InvalidateVisual();
+					}
+				}
+			}
+		}
+
+		static void SolutionTextChanged(object sender, EventArgs e)
+		{
+			// Needed to prevent visual studio from changing text back to name from property
+			if (!SolutionTextBlockChanging && SolutionTextBlockText != null)
+			{
+				SolutionTextBlockChanging = true;
+				SolutionTextBlock.Text = SolutionTextBlockText;
+				SolutionTextBlockChanging = false;
+			}
+		}
+
+		public static string MainWindowTitle
+		{
+			get => System.Windows.Application.Current.MainWindow.Title;
+			set { System.Windows.Application.Current.MainWindow.Title = value; }
+		}
+
+		public static T FindChild<T>(System.Windows.DependencyObject Parent, string ChildName) where T : System.Windows.DependencyObject
+		{
+			if (Parent == null)
+			{
+				return null;
+			}
+
+			int ChildrenCount = VisualTreeHelper.GetChildrenCount(Parent);
+			for (int i = 0; i < ChildrenCount; i++)
+			{
+				var Child = VisualTreeHelper.GetChild(Parent, i);
+				if (ChildName != null)
+				{
+					// If the child's name is set for search
+					var FrameworkElement = Child as System.Windows.FrameworkElement;
+					if (FrameworkElement != null)
+					{
+						if (FrameworkElement.Name == ChildName)
+						{
+							// if the child's name is of the request name
+							return (T)Child;
+						}
+					}
+				}
+				else
+				{
+					if (Child is T TypedChild)
+					{
+						return TypedChild;
+					}
+				}
+
+				// recursively drill down the tree
+				T FoundChild = FindChild<T>(Child, ChildName);
+				if (FoundChild != null)
+				{
+					return FoundChild;
+				}
+			}
+
+			return null;
+		}
+
+		private static string SolutionTextBlockText;
+		private static TextBlock SolutionTextBlock;
+		private static bool SolutionTextBlockTracked;
+		private static bool SolutionTextBlockChanging;
+		private static bool SolutionTextBlockSearched;
 		private static string CachedUProjectRootFolder = string.Empty;
 		private static IEnumerable<string> CachedUProjectPaths = new string[0];
 		private static IDictionary<string, string> CachedUProjects = null;

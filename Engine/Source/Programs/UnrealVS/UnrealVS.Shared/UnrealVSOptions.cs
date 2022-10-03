@@ -52,6 +52,11 @@ namespace UnrealVS
 		[Description("Reconcile will attempt to resolve these extensions (including wildcards)")]
 		public string ReconcileExtensions { get; set; } = "c*;h*;ini;uproject;uplugin";
 
+		[Category("General")]
+		[DisplayName("Prefix UE5 solution name with folder")]
+		[Description("Will include name of folder that UE5.sln is located in to Visual Studio window title.")]
+		public bool IncludeFolderInUE5SolutionName { get; set; } = true;
+
 		protected override void OnApply(PageApplyEventArgs e)
 		{
 			base.OnApply(e);

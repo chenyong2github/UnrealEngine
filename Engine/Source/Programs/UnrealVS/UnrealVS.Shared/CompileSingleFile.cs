@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using System.Text;
+using System.Linq;
 
 namespace UnrealVS
 {
@@ -17,6 +18,7 @@ namespace UnrealVS
 	{
 		private const int CompileSingleFileButtonID = 0x1075;
 		private const int PreprocessSingleFileButtonID = 0x1076;
+		private const int CompileSingleModuleButtonID = 0x1077;
 		private const int UBTSubMenuID = 0x3103;
 		private string	  FileToCompileOriginalExt = "";
 
@@ -35,6 +37,10 @@ namespace UnrealVS
 			MenuCommand PreprocessSingleFileButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID2);
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(PreprocessSingleFileButtonCommand);
 
+			CommandID CommandID3 = new CommandID(GuidList.UnrealVSCmdSet, CompileSingleModuleButtonID);
+			MenuCommand CompileSingleModuleButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID3);
+			UnrealVSPackage.Instance.MenuCommandService.AddCommand(CompileSingleModuleButtonCommand);
+
 			// add sub menu for UBT commands
 			SubMenuCommand = new OleMenuCommand(null, new CommandID(GuidList.UnrealVSCmdSet, UBTSubMenuID));
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(SubMenuCommand);
@@ -51,9 +57,10 @@ namespace UnrealVS
 
 			MenuCommand SenderSubMenuCommand = (MenuCommand)Sender;
 
+			bool bIsFile = SenderSubMenuCommand.CommandID.ID != CompileSingleModuleButtonID;
 			bool PreprocessOnly = SenderSubMenuCommand.CommandID.ID == PreprocessSingleFileButtonID;
 
-			if (!TryCompileSingleFile(PreprocessOnly))
+			if (!TryCompileSingleFileOrModule(bIsFile, PreprocessOnly))
 			{
 				DTE DTE = UnrealVSPackage.Instance.DTE;
 				DTE.ExecuteCommand("Build.Compile");
@@ -74,7 +81,23 @@ namespace UnrealVS
 			}
 		}
 
-		bool TryCompileSingleFile(bool bPreProcessOnly)
+		string FindModuleForFile(string fileName, string rootDirectory)
+		{
+			string directory = Path.GetDirectoryName(fileName);
+			IEnumerable<string> buildFiles = Directory.EnumerateFiles(directory, "*.build.cs", SearchOption.TopDirectoryOnly);
+			string buildFile = buildFiles.FirstOrDefault();
+			if (buildFile != null)
+			{
+				return Path.GetFileName(buildFile.Substring(0, buildFile.LastIndexOf(".build.cs", StringComparison.OrdinalIgnoreCase)));
+			}
+			if (string.Equals(directory, rootDirectory, StringComparison.OrdinalIgnoreCase))
+			{
+				return null;
+			}
+			return FindModuleForFile(directory, rootDirectory);
+		}
+
+		bool TryCompileSingleFileOrModule(bool bIsFile, bool bPreProcessOnly)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 			DTE DTE = UnrealVSPackage.Instance.DTE;
@@ -152,10 +175,29 @@ namespace UnrealVS
 			// Check if the requested file is valid
 			string FileToCompile = DTE.ActiveDocument.FullName;
 			string FileToCompileExt = Path.GetExtension(FileToCompile);
-			if (!ValidExtensions.Contains(FileToCompileExt.ToLowerInvariant()))
+
+			string CompilingText;
+			string UBTArgument;
+			if (bIsFile)
 			{
-				MessageBox.Show($"Invalid file extension {FileToCompileExt} for single-file compile.", "Invalid Extension", MessageBoxButtons.OK);
-				return true;
+				if (!ValidExtensions.Contains(FileToCompileExt.ToLowerInvariant()))
+				{
+					MessageBox.Show($"Invalid file extension {FileToCompileExt} for single-file compile.", "Invalid Extension", MessageBoxButtons.OK);
+					return true;
+				}
+
+				CompilingText = FileToCompile;
+				UBTArgument = $"-singlefile=\"{FileToCompile}";
+			}
+			else
+			{
+				string ModuleName = FindModuleForFile(FileToCompile, Path.GetDirectoryName(DTE.Solution.FileName));
+				if (ModuleName == null)
+				{
+					MessageBox.Show($"Can't find module for for {FileToCompile} to compile.", "Invalid Module", MessageBoxButtons.OK);
+				}
+				CompilingText = ModuleName;
+				UBTArgument = $"-Module=\"{ModuleName}";
 			}
 
 			// If there's already a build in progress, don't let another one start
@@ -175,7 +217,7 @@ namespace UnrealVS
 			BuildOutputPane.Activate();
 			BuildOutputPane.Clear();
 			BuildOutputPane.OutputString($"1>------ Build started: Project: {StartupProject.Name}, Configuration: {ActiveConfiguration.ConfigurationName} {ActiveConfiguration.PlatformName} ------{Environment.NewLine}");
-			BuildOutputPane.OutputString($"1>  Compiling {FileToCompile}{Environment.NewLine}");
+			BuildOutputPane.OutputString($"1>  Compiling {CompilingText}{Environment.NewLine}");
 
 			// Set up event handlers 
 			DTE.Events.BuildEvents.OnBuildBegin += BuildEvents_OnBuildBegin;
@@ -207,7 +249,7 @@ namespace UnrealVS
 			// Spawn the new process
 			ChildProcess = new System.Diagnostics.Process();
 			ChildProcess.StartInfo.FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
-			ChildProcess.StartInfo.Arguments = $"/C \"{BuildCommandLine} {PreProcess} -singlefile=\"{FileToCompile}\"\"";
+			ChildProcess.StartInfo.Arguments = $"/C \"{BuildCommandLine} {PreProcess} {UBTArgument}\"\"";
 			ChildProcess.StartInfo.WorkingDirectory = Path.GetDirectoryName(StartupProject.FullName);
 			ChildProcess.StartInfo.UseShellExecute = false;
 			ChildProcess.StartInfo.RedirectStandardOutput = true;

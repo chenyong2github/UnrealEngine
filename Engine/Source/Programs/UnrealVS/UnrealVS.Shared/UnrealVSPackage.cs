@@ -6,7 +6,6 @@ using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.Editor;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -15,16 +14,11 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Microsoft.VisualStudio.TextManager.Interop;
 using Thread = System.Threading.Thread;
-using System.Windows.Forms;
 using Microsoft.VisualStudio.ComponentModelHost;
-using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
-using Microsoft.VisualStudio.Utilities;
-using Microsoft.VisualStudio.Text.Projection;
 using Microsoft;
+using System.Text;
 
 namespace UnrealVS
 {
@@ -64,6 +58,7 @@ namespace UnrealVS
 	// This attribute registers an options page for the package.
 	[ProvideOptionPage(typeof(UnrealVsOptions), ExtensionName, "General", 101, 102, true)]
 	[ProvideSolutionProperties(GuidList.UnrealVSPackageString)]
+	[ProvideToolWindow(typeof(FileBrowserWindow))]
 	/// <summary>
 	/// UnrealVSPackage implements Package abstract class.  This is the main class that is registered
 	/// with Visual Studio shell and serves as the entry point into our extension
@@ -75,11 +70,12 @@ namespace UnrealVS
 		IVsSelectionEvents,     // Allows us to be notified when the startup project has changed to a different project
 		IVsHierarchyEvents,     // Allows us to be notified when a hierarchy (the startup project) has had properties changed
 		IVsPersistSolutionProps, // Allows us to read props added to the solution to determine if the solution is a unreal solution
+		IVsDebuggerEvents,
 		IDisposable
 	{
 		/** Constants */
 
-		private const string VersionString = "v1.76";
+		private const string VersionString = "v1.77";
 		private const string UnrealSolutionFileNamePrefix = "UE";
 		private const string ExtensionName = "UnrealVS";
 		private const string CommandLineOptionKey = ExtensionName + "CommandLineMRU";
@@ -99,6 +95,14 @@ namespace UnrealVS
 		/// Called right before a project is closed
 		public delegate void OnProjectClosedDelegate(Project ClosedProject);
 		public event OnProjectClosedDelegate OnProjectClosed;
+
+		/// Called when a project is loaded in Visual Studio
+		public delegate void OnProjectLoadedDelegate(Project LoadedProject);
+		public event OnProjectLoadedDelegate OnProjectLoaded;
+
+		/// Called right before a project is unloaded in Visual Studio
+		public delegate void OnProjectUnloadingDelegate(Project UnloadedProject);
+		public event OnProjectUnloadingDelegate OnProjectUnloading;
 
 		/// Called when the startup project is edited in Visual Studio
 		public delegate void OnStartupProjectPropertyChangedDelegate(UInt32 itemid, Int32 propid, UInt32 flags);
@@ -129,6 +133,9 @@ namespace UnrealVS
 		public delegate void OnUIContextChangedDelegate(uint CmdUICookie, bool bActive);
 		public event OnUIContextChangedDelegate OnUIContextChanged;
 
+		public delegate void OnDocumentActivatedDelegate(Document Document);
+		public event OnDocumentActivatedDelegate OnDocumentActivated;
+
 		/** Public Fields & Properties */
 
 		/// Returns singleton instance of UnrealVSPackage
@@ -145,6 +152,10 @@ namespace UnrealVS
 		/// our singleton instance
 		public IVsSolutionBuildManager2 SolutionBuildManager { get; private set; }
 
+		/// Visual Studio solution build manager interface.  This is used to change the active startup
+		/// Project, among other things.  We expose public access to the solution build manager through
+		/// our singleton instance
+		public IVsDebugger Debugger { get; private set; }
 
 		/// Visual Studio solution "manager" interface.  We register with this to receive events
 		/// about projects being added and such.  This needs to be cleaned up at shutdown.
@@ -235,6 +246,11 @@ namespace UnrealVS
 			Assumes.Present(SolutionBuildManager);
 			SolutionBuildManager.AdviseUpdateSolutionEvents(this, out UpdateSolutionEventsHandle);
 
+			// Get debugger
+			Debugger = await GetServiceAsync(typeof(SVsShellDebugger)) as IVsDebugger;
+			Assumes.Present(Debugger);
+			Debugger.AdviseDebuggerEvents(this, out DebuggerEventsHandle);
+
 			// Create our command-line editor
 			CommandLineEditor.Initialize();
 
@@ -259,6 +275,9 @@ namespace UnrealVS
 			// Create 'Perforce menu' instance
 			P4CommandsGroup = new P4Commands();
 
+			// Create 'FileBrowser' instance
+			FileBrowser = new FileBrowser();
+
 			// Call parent implementation
 			base.Initialize();
 
@@ -267,10 +286,19 @@ namespace UnrealVS
 				StartTicker();
 			}
 
+			DTE2.Events.WindowEvents.WindowActivated += WindowEvents_WindowActivated;
+		}
+
+		private void WindowEvents_WindowActivated(Window GotFocus, Window LostFocus)
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+			if (GotFocus.Document != null)
+				OnDocumentActivated(GotFocus.Document);
 		}
 
 		private void StartTicker()
 		{
+			bRefreshTitleInTick = true;
 			// Create a "ticker" on a background thread that ticks the package on the UI thread
 			Interlocked.Exchange(ref bCancelTicker, 0);
 			Ticker = new Thread(TickAsyncMain)
@@ -295,17 +323,19 @@ namespace UnrealVS
 		{
 			try
 			{
+				bool bLastTick = false;
 				while (true)
 				{
-					if (bCancelTicker != 0) return;
-
 					ThreadHelper.JoinableTaskFactory.Run(async () =>
 					{
 						await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-						Tick();
+						if (bCancelTicker != 0)
+							bLastTick = true;
+						Tick(bLastTick);
 					});
 
-					if (bCancelTicker != 0) return;
+					if (bLastTick)
+						return;
 					Thread.Sleep(TickPeriod);
 				}
 			}
@@ -317,10 +347,55 @@ namespace UnrealVS
 		/// <summary>
 		/// Tick function on main UI thread
 		/// </summary>
-		private void Tick()
+		private void Tick(bool bLastTick)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
+
+			TickRefreshTitle(bLastTick);
+
 			BatchBuilder.Tick();
+		}
+
+		public void TickRefreshTitle(bool bLastTick)
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
+			if (bLastTick)
+			{
+				Utils.SolutionTitle = null;
+				return;
+			}
+
+			if (bRefreshTitleInTick)
+			{
+				bRefreshTitleInTick = false;
+
+				if (!UnrealVSPackage.Instance.OptionsPage.IncludeFolderInUE5SolutionName)
+				{
+					return;
+				}
+
+				string SolutionFileName = UnrealVSPackage.Instance.DTE.Solution.FileName;
+				string SolutionName = Path.GetFileNameWithoutExtension(SolutionFileName);
+
+				// Only affect UE5 solution
+				if (SolutionName != "UE5")
+				{
+					return;
+				}
+
+				string FolderName = Path.GetFileName(Path.GetDirectoryName(SolutionFileName));
+				string Mode = "";
+				if (DbgMode == DBGMODE.DBGMODE_Run)
+					Mode = " (Running)";
+				if (DbgMode == DBGMODE.DBGMODE_Break)
+					Mode = " (Debugging)";
+				string NewTitle = FolderName + '\\' + SolutionName;
+
+				Utils.SolutionTitle = NewTitle;
+
+				Utils.MainWindowTitle = NewTitle + Mode + " - Microsoft Visual Studio";
+			}
 		}
 
 		/// <summary>
@@ -380,6 +455,11 @@ namespace UnrealVS
 				SelectionEventsHandle = 0;
 			}
 			SelectionManager = null;
+
+			if (DebuggerEventsHandle != 0)
+				Debugger.UnadviseDebuggerEvents(DebuggerEventsHandle);
+			Debugger = null;
+
 
 			// No longer want update solution events
 			if (UpdateSolutionEventsHandle != 0)
@@ -625,6 +705,11 @@ namespace UnrealVS
 
 		int IVsSolutionEvents.OnAfterLoadProject(IVsHierarchy pStubHierarchy, IVsHierarchy pRealHierarchy)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
+			var LoadedProject = Utils.HierarchyObjectToProject(pRealHierarchy);
+			if (LoadedProject != null && OnProjectLoaded != null)
+				OnProjectLoaded.Invoke(LoadedProject);
 			return VSConstants.S_OK;
 		}
 
@@ -687,6 +772,11 @@ namespace UnrealVS
 
 		int IVsSolutionEvents.OnBeforeUnloadProject(IVsHierarchy pRealHierarchy, IVsHierarchy pStubHierarchy)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
+			var UnloadedProject = Utils.HierarchyObjectToProject(pRealHierarchy);
+			if (UnloadedProject != null && OnProjectUnloading != null)
+				OnProjectUnloading.Invoke(UnloadedProject);
 			return VSConstants.S_OK;
 		}
 
@@ -874,6 +964,14 @@ namespace UnrealVS
 
 		#endregion
 
+		int IVsDebuggerEvents.OnModeChange(DBGMODE dbgmodeNew)
+		{
+			DbgMode = dbgmodeNew;
+			bRefreshTitleInTick = true;
+			return VSConstants.S_OK;
+		}
+
+
 		// IVsUpdateSolutionEvents Interface
 
 		public int UpdateSolution_Begin(ref int pfCancelUpdate)
@@ -975,6 +1073,9 @@ namespace UnrealVS
 		/// Handle that we use at shutdown to unregister for events about solution build activity
 		private UInt32 UpdateSolutionEventsHandle;
 
+		/// Handle that we use at shutdown to unregister for events about solution build activity
+		private UInt32 DebuggerEventsHandle;
+
 		/// Handle that we use to unregister for events about startup project hierarchy activity
 		UInt32 ProjectHierarchyEventsHandle;
 
@@ -983,6 +1084,9 @@ namespace UnrealVS
 
 		/// BuildStartupProject feature
 		private BuildStartupProject BuildStartupProject;
+
+		/// FileBrowser feature
+		private FileBrowser FileBrowser;
 
 		/// CompileSingleFile feature
 		private CompileSingleFile CompileSingleFile;
@@ -1006,6 +1110,9 @@ namespace UnrealVS
 
 		private readonly List<string> LoadedProjectPaths = new List<string>();
 		private bool? _IsUESolutionLoaded;
+
+		private DBGMODE DbgMode = DBGMODE.DBGMODE_Design;
+		private bool bRefreshTitleInTick;
 
 		/// Obtains the DTE2 interface for this instance of VS from the RunningObjectTable
 		private static DTE2 GetDTE2ForCurrentInstance(DTE DTE)
@@ -1042,5 +1149,29 @@ namespace UnrealVS
 		/// ROT function in ole32.dll needed by GetDTE2ForCurrentInstance()
 		[DllImport("ole32.dll")]
 		internal static extern int GetRunningObjectTable(int reserved, out IRunningObjectTable prot);
+
+		public enum MapType : uint
+		{
+			MAPVK_VK_TO_VSC = 0x0,
+			MAPVK_VSC_TO_VK = 0x1,
+			MAPVK_VK_TO_CHAR = 0x2,
+			MAPVK_VSC_TO_VK_EX = 0x3,
+		}
+
+		[DllImport("user32.dll")]
+		public static extern int ToUnicode(
+			uint wVirtKey,
+			uint wScanCode,
+			byte[] lpKeyState,
+			[Out, MarshalAs(UnmanagedType.LPWStr, SizeParamIndex = 4)]
+			StringBuilder pwszBuff,
+			int cchBuff,
+			uint wFlags);
+
+		[DllImport("user32.dll")]
+		public static extern bool GetKeyboardState(byte[] lpKeyState);
+
+		[DllImport("user32.dll")]
+		public static extern uint MapVirtualKey(uint uCode, MapType uMapType);
 	}
 }
