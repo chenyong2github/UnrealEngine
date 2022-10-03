@@ -803,6 +803,8 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	{
 		bool bResult = false;
 
+		TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
+
 		FTextBuilder ErrorMessageBuilder;
 
 		using namespace UE::PackageTools::Private;
