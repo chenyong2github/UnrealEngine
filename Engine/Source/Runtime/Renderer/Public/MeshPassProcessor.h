@@ -27,7 +27,7 @@ struct FSceneTexturesConfig;
 /** Mesh pass types supported. */
 namespace EMeshPass
 {
-	enum Type
+	enum Type : uint8
 	{
 		DepthPass,
 		BasePass,
@@ -70,6 +70,7 @@ namespace EMeshPass
 	};
 }
 static_assert(EMeshPass::Num <= (1 << EMeshPass::NumBits), "EMeshPass::Num will not fit in EMeshPass::NumBits");
+static_assert(EMeshPass::NumBits <= sizeof(EMeshPass::Type) * 8, "EMeshPass::Type storage is too small");
 
 inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 {

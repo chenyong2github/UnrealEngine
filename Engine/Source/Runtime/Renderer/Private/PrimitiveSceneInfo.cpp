@@ -354,8 +354,11 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 							MeshRelevance.CommandInfosBase++;
 
 							int CommandInfoIndex = MeshAndInfo.MeshIndex * EMeshPass::Num + PassType;
-							check(SceneInfo->StaticMeshCommandInfos[CommandInfoIndex].MeshPass == EMeshPass::Num);
-							SceneInfo->StaticMeshCommandInfos[CommandInfoIndex] = CommandInfo;
+							FCachedMeshDrawCommandInfo& CurrentCommandInfo = SceneInfo->StaticMeshCommandInfos[CommandInfoIndex];
+							checkf(CurrentCommandInfo.MeshPass == EMeshPass::Num,
+								TEXT("SceneInfo->StaticMeshCommandInfos[%d] is not expected to be initialized yet. MeshPass is %d, but expected EMeshPass::Num (%d)."),
+								CommandInfoIndex, (int32)EMeshPass::Num, CurrentCommandInfo.MeshPass);
+							CurrentCommandInfo = CommandInfo;
 						}
 					}
 
