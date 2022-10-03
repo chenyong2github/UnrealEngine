@@ -38,7 +38,6 @@ namespace EpicGames.Serialization.Converters
 		public DynamicMethod ReadConcreteMethod { get; }
 		public DynamicMethod WriteConcreteContentsMethod { get; }
 
-		static readonly Dictionary<PropertyInfo, CbClassConverterMethods> s_propertyToMethods = new Dictionary<PropertyInfo, CbClassConverterMethods>();
 		static readonly Dictionary<Type, CbClassConverterMethods> s_typeToMethods = new Dictionary<Type, CbClassConverterMethods>();
 
 		public static CbClassConverterMethods Create(Type classType)

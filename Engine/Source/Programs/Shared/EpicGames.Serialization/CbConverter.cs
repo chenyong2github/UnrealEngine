@@ -13,7 +13,7 @@ namespace EpicGames.Serialization
 	/// Attribute declaring the converter to use for a type
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property)]
-	public class CbConverterAttribute : Attribute
+	public sealed class CbConverterAttribute : Attribute
 	{
 		/// <summary>
 		/// The converter type
@@ -235,7 +235,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Cache of type to converter
 		/// </summary>
-		public static Dictionary<Type, ICbConverter> TypeToConverter = new Dictionary<Type, ICbConverter>()
+		public static Dictionary<Type, ICbConverter> TypeToConverter { get; } = new Dictionary<Type, ICbConverter>()
 		{
 			[typeof(bool)] = new CbPrimitiveConverter<bool>(x => x.AsBool(), (w, v) => w.WriteBoolValue(v), (w, n, v) => w.WriteBool(n, v)),
 			[typeof(int)] = new CbPrimitiveConverter<int>(x => x.AsInt32(), (w, v) => w.WriteIntegerValue(v), (w, n, v) => w.WriteInteger(n, v)),
@@ -258,7 +258,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// List of converter factories. Must be 
 		/// </summary>
-		public static List<CbConverterFactory> ConverterFactories = new List<CbConverterFactory>
+		public static List<CbConverterFactory> ConverterFactories { get; } = new List<CbConverterFactory>
 		{
 			new CbClassConverterFactory(),
 			new CbStringConverterFactory(),

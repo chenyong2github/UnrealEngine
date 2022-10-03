@@ -39,7 +39,7 @@ namespace EpicGames.Serialization.Tests
 			CbObject rootObject = CbSerializer.Serialize(root);
 			IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
 			
-			CbPackageBuilder builder = new();
+			using CbPackageBuilder builder = new();
 			await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
 			byte[] bytes = builder.ToByteArray();
 
@@ -73,7 +73,7 @@ namespace EpicGames.Serialization.Tests
 			CbObject rootObject = CbSerializer.Serialize(root);
 			IoHash rootHash = IoHash.Compute(rootObject.GetView().Span);
 
-			CbPackageBuilder builder = new();
+			using CbPackageBuilder builder = new();
 			await builder.AddAttachment(rootHash, CbPackageAttachmentFlags.IsObject, rootObject.GetView().ToArray());
 			await builder.AddAttachment(simpleHash, CbPackageAttachmentFlags.IsObject, simpleObject.GetView().ToArray());
 			await builder.AddAttachment(blobHash, 0, blob);
@@ -114,7 +114,7 @@ namespace EpicGames.Serialization.Tests
 		[TestMethod]
 		public async Task ReadNoAttachments()
 		{
-			CbPackageBuilder packageBuilder = new CbPackageBuilder();
+			using CbPackageBuilder packageBuilder = new CbPackageBuilder();
 			byte[] buf = packageBuilder.ToByteArray();
 			await using MemoryStream ms = new MemoryStream(buf);
 

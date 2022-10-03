@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
+#pragma warning disable CA1028 // Enum Storage should be Int32
+
 namespace EpicGames.Serialization
 {
 	static class CbPackageConstants
@@ -84,10 +86,12 @@ namespace EpicGames.Serialization
 		/// Is marshaled using compressed buffer storage format
 		/// </summary>
 		IsCompressed = (1u << 0),
+
 		/// <summary>
 		/// Is compact binary object
 		/// </summary>
 		IsObject = (1u << 1),
+
 		/// <summary>
 		/// Is error (compact binary formatted) object
 		/// </summary>
@@ -267,9 +271,11 @@ namespace EpicGames.Serialization
 	/// <summary>
 	/// Builds a in-memory representation of a CbPackage
 	/// </summary>
-	public class CbPackageBuilder
+	public sealed class CbPackageBuilder : IDisposable
 	{
+#pragma warning disable CA2213
 		private readonly MemoryStream _packageBuffer;
+#pragma warning restore CA2213
 		private uint _countOfWrittenAttachments;
 
 		/// <summary>
@@ -288,6 +294,12 @@ namespace EpicGames.Serialization
 				Reserved2 = 0,
 			};
 			header.Write(_packageBuffer);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			_packageBuffer.Dispose();
 		}
 
 		/// <summary>

@@ -14,6 +14,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+#pragma warning disable CA1721 // Property names should not match get methods
+#pragma warning disable CA1028 // Enum Storage should be Int32
+
 namespace EpicGames.Serialization
 {
 	/// <summary>
@@ -172,11 +175,6 @@ namespace EpicGames.Serialization
 		CustomByName = 0x1f,
 
 		/// <summary>
-		/// Reserved for future use as a flag. Do not add types in this range. 
-		/// </summary>
-		Reserved = 0x20,
-
-		/// <summary>
 		/// A transient flag which indicates that the object or array containing this field has stored
 		/// the field type before the payload and name. Non-uniform objects and fields will set this.
 		/// 
@@ -196,7 +194,7 @@ namespace EpicGames.Serialization
 	[DebuggerDisplay("{_hash}")]
 	[JsonConverter(typeof(CbBinaryAttachmentJsonConverter))]
 	[TypeConverter(typeof(CbBinaryAttachmentTypeConverter))]
-	public struct CbBinaryAttachment
+	public struct CbBinaryAttachment : IEquatable<CbBinaryAttachment>
 	{
 		/// <summary>
 		/// Attachment with a hash of zero
@@ -221,7 +219,10 @@ namespace EpicGames.Serialization
 		public override string ToString() => Hash.ToString();
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj) => obj is CbBinaryAttachment other && other.Hash == Hash;
+		public override bool Equals(object? obj) => obj is CbBinaryAttachment other && Equals(other);
+
+		/// <inheritdoc/>
+		public bool Equals(CbBinaryAttachment other) => other.Hash == Hash;
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Hash.GetHashCode();
@@ -275,7 +276,7 @@ namespace EpicGames.Serialization
 	[DebuggerDisplay("{_hash}")]
 	[JsonConverter(typeof(CbObjectAttachmentJsonConverter))]
 	[TypeConverter(typeof(CbObjectAttachmentTypeConverter))]
-	public struct CbObjectAttachment
+	public struct CbObjectAttachment : IEquatable<CbObjectAttachment>
 	{
 		/// <summary>
 		/// Attachment with a hash of zero
@@ -300,7 +301,10 @@ namespace EpicGames.Serialization
 		public override string ToString() => Hash.ToString();
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj) => obj is CbObjectAttachment other && other.Hash == Hash;
+		public override bool Equals(object? obj) => obj is CbObjectAttachment other && Equals(other);
+
+		/// <inheritdoc/>
+		public bool Equals(CbObjectAttachment other) => other.Hash == Hash;
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Hash.GetHashCode();
@@ -716,12 +720,12 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Offset of the name with the memory
 		/// </summary>
-		public int _nameLen;
+		internal int _nameLen;
 
 		/// <summary>
 		/// Offset of the payload within the memory
 		/// </summary>
-		public int _payloadOffset;
+		internal int _payloadOffset;
 
 		/// <summary>
 		/// Error for parsing the current field type
@@ -1524,6 +1528,12 @@ namespace EpicGames.Serialization
 			hasher.Update(GetViewNoType().Span);
 		}
 
+		/// <inheritdoc/>
+		public override int GetHashCode() => throw new NotImplementedException();
+
+		/// <inheritdoc/>
+		public override bool Equals(object? other) => Equals(other as CbField);
+
 		/// <summary>
 		/// Whether this field is identical to the other field.
 		/// 
@@ -1600,7 +1610,9 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="name"></param>
 		/// <returns></returns>
+#pragma warning disable CA1043 // Use Integral Or String Argument For Indexers
 		public CbField this[Utf8String name] => this.FirstOrDefault(field => field.Name == name) ?? CbField.Empty;
+#pragma warning restore CA1043 // Use Integral Or String Argument For Indexers
 
 		/// <summary>
 		/// Create an iterator for the fields of an array or object, otherwise an empty iterator.
@@ -1899,7 +1911,7 @@ namespace EpicGames.Serialization
 	/// <summary>
 	/// Enumerator for contents of a field
 	/// </summary>
-	public class CbFieldEnumerator : IEnumerator<CbField>
+	public sealed class CbFieldEnumerator : IEnumerator<CbField>
 	{
 		/// <summary>
 		/// The underlying buffer
@@ -2426,7 +2438,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Empty array constant
 		/// </summary>
-		public static CbObject Empty = CbObject.FromFieldNoCheck(new CbField(new byte[] { (byte)CbFieldType.Object, 0 }));
+		public static CbObject Empty { get; } = CbObject.FromFieldNoCheck(new CbField(new byte[] { (byte)CbFieldType.Object, 0 }));
 
 		/// <summary>
 		/// The inner field object
@@ -2488,7 +2500,9 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
+#pragma warning disable CA1043 // Use Integral Or String Argument For Indexers
 		public CbField this[Utf8String name] => _innerField[name];
+#pragma warning restore CA1043 // Use Integral Or String Argument For Indexers
 
 		/// <summary>
 		/// Gets the underlying field for this object

@@ -10,7 +10,7 @@ namespace EpicGames.Serialization
 	/// when base class objects are empty.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class CbObjectAttribute : Attribute
+	public sealed class CbObjectAttribute : Attribute
 	{
 	}
 
@@ -18,12 +18,12 @@ namespace EpicGames.Serialization
 	/// Attribute used to mark a property that should be serialized to compact binary
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Property)]
-	public class CbFieldAttribute : Attribute
+	public sealed class CbFieldAttribute : Attribute
 	{
 		/// <summary>
 		/// Name of the serialized field
 		/// </summary>
-		public string? Name { get; set; }
+		public string? Name { get; }
 
 		/// <summary>
 		/// Default constructor
@@ -45,14 +45,16 @@ namespace EpicGames.Serialization
 	/// <summary>
 	/// Attribute used to indicate that this object is the base for a class hierarchy. Each derived class must have a [CbDiscriminator] attribute.
 	/// </summary>
-	public class CbPolymorphicAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Class)]
+	public sealed class CbPolymorphicAttribute : Attribute
 	{
 	}
 
 	/// <summary>
 	/// Sets the name used for discriminating between derived classes during serialization
 	/// </summary>
-	public class CbDiscriminatorAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Class)]
+	public sealed class CbDiscriminatorAttribute : Attribute
 	{
 		/// <summary>
 		/// Name used to identify this class
@@ -90,15 +92,15 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Type with missing field annotations
 		/// </summary>
-		public Type Type { get; }
+		public Type ClassType { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CbEmptyClassException(Type type)
-			: base($"{type.Name} does not have any fields marked with a [CbField] attribute. If this is intended, explicitly mark the class with a [CbObject] attribute.")
+		public CbEmptyClassException(Type classType)
+			: base($"{classType.Name} does not have any fields marked with a [CbField] attribute. If this is intended, explicitly mark the class with a [CbObject] attribute.")
 		{
-			Type = type;
+			ClassType = classType;
 		}
 	}
 
