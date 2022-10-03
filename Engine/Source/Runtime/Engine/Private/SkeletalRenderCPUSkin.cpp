@@ -605,7 +605,10 @@ FDynamicSkelMeshObjectDataCPUSkin::FDynamicSkelMeshObjectDataCPUSkin(
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	MeshComponentSpaceTransforms = InMeshComponent->GetComponentSpaceTransforms();
+	if (InMeshComponent)
+	{
+		MeshComponentSpaceTransforms = InMeshComponent->GetComponentSpaceTransforms();
+	}
 #endif
 }
 
