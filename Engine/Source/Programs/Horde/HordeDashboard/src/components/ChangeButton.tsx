@@ -25,7 +25,7 @@ export const ChangeContextMenu: React.FC<{ target: ChangeContextMenuTarget, onDi
    if (jobChange === undefined) {
       jobChange = stepRef?.change ?? job.change!;
    }
-      
+
    let change = jobChange.toString();
    if (!stepRef && job?.preflightChange) {
       change = `PF ${job.preflightChange}`;
@@ -69,6 +69,23 @@ export const ChangeContextMenu: React.FC<{ target: ChangeContextMenuTarget, onDi
          itemType: ContextualMenuItemType.Divider
       });
 
+
+   } else if (job.preflightDescription) {
+      menuItems.push({
+         key: "commit", onRender: () => {
+            return <Stack style={{ padding: 18, paddingTop: 18, paddingBottom: 18, maxWidth: 500 }} tokens={{ childrenGap: 12 }}>
+               <Stack horizontal tokens={{ childrenGap: 12 }}>
+                  <Text variant="small" style={{ fontFamily: "Horde Open Sans Bold" }}>Description:</Text>
+                  <Text variant="small" >{job.preflightDescription}</Text>
+               </Stack>
+            </Stack>
+         }
+      });
+
+      menuItems.push({
+         key: "commit_divider",
+         itemType: ContextualMenuItemType.Divider
+      });
 
    }
 
@@ -152,7 +169,7 @@ export const ChangeButton: React.FC<{ job?: JobData, stepRef?: GetJobStepRefResp
          <span ref={spanRef} style={{ padding: "2px 6px 2px 6px", height: "15px", cursor: "pointer" }} className={job.startedByUserInfo ? "cl-callout-button-user" : "cl-callout-button"} onClick={(ev) => { ev.stopPropagation(); ev.preventDefault(); setMenuShown(!menuShown) }} >{change}</span>
          {!hideAborted && <span ref={spanRef} style={{ padding: "2px 6px 2px 6px", height: "16px", cursor: "pointer", userSelect: "none", fontFamily: "Horde Open Sans SemiBold", fontSize: "10px", backgroundColor: colors.get(StatusColor.Failure), color: "rgb(255, 255, 255)" }} onClick={(ev) => { ev.preventDefault(); setMenuShown(!menuShown) }}>Aborted</span>}
       </Stack>
-      {menuShown && <ChangeContextMenu target={{ ref: spanRef }} job={job} commit={commit} stepRef={stepRef} rangeCL={rangeCL}  onDismiss={() => setMenuShown(false)} />}
+      {menuShown && <ChangeContextMenu target={{ ref: spanRef }} job={job} commit={commit} stepRef={stepRef} rangeCL={rangeCL} onDismiss={() => setMenuShown(false)} />}
    </div></Stack>);
 };
 
