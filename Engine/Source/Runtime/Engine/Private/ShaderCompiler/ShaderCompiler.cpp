@@ -369,6 +369,15 @@ FShaderPipelineCompileJob::FShaderPipelineCompileJob(uint32 InHash, uint32 InId,
 	}
 }
 
+FString FShaderCompileJobKey::ToString() const
+{
+	return FString::Printf(
+		TEXT("ShaderType:%s VertexFactoryType:%s PermutationId:%d"),
+		ShaderType ? ShaderType->GetName() : TEXT("None"),
+		VFType ? VFType->GetName() : TEXT("None"),
+		PermutationId);
+}
+
 FShaderCompileJobCollection::FShaderCompileJobCollection()
 {
 	FMemory::Memzero(PendingJobs);
@@ -6787,7 +6796,7 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(const FGlobalShaderType*
 		EShaderPlatform Platform = CurrentJob.Input.Target.GetPlatform();
 		FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindOrAddSection(ShaderType);
 
-		Section->GetResourceCode()->AddShaderCompilerOutput(CurrentJob.Output);
+		Section->GetResourceCode()->AddShaderCompilerOutput(CurrentJob.Output, CurrentJob.Key.ToString());
 
 		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 		{

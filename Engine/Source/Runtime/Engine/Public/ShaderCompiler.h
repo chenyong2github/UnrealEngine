@@ -191,7 +191,7 @@ struct FShaderCompileJobKey
 	{}
 
 	uint32 MakeHash(uint32 Id) const { return HashCombine(HashCombine(HashCombine(GetTypeHash(Id), GetTypeHash(VFType)), GetTypeHash(ShaderType)), GetTypeHash(PermutationId)); }
-
+	ENGINE_API FString ToString() const;
 	const FShaderType* ShaderType;
 	const FVertexFactoryType* VFType;
 	int32 PermutationId;

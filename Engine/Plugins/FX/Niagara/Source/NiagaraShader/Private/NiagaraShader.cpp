@@ -780,7 +780,7 @@ FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(const TRefCoun
 	auto CurrentJob = SingleJob->GetSingleShaderJob();
 	check(CurrentJob->Id == CompilingId);
 
-	GetResourceCode()->AddShaderCompilerOutput(CurrentJob->Output);
+	GetResourceCode()->AddShaderCompilerOutput(CurrentJob->Output, CurrentJob->Key.ToString());
 
 	FShader* Shader = nullptr;
 

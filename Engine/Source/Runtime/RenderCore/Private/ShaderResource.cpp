@@ -257,8 +257,7 @@ FShaderMapResourceCode::FShaderMapResourceCode(const FShaderMapResourceCode& Oth
 	ShaderEntries = Other.ShaderEntries;
 
 #if WITH_EDITORONLY_DATA
-	PlatformDebugData = Other.PlatformDebugData;
-	PlatformDebugDataHashes = Other.PlatformDebugDataHashes;
+	ShaderEditorOnlyDataEntries = Other.ShaderEditorOnlyDataEntries;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -296,30 +295,24 @@ int32 FShaderMapResourceCode::FindShaderIndex(const FSHAHash& InHash) const
 	return Algo::BinarySearch(ShaderHashes, InHash);
 }
 
-void FShaderMapResourceCode::AddShaderCompilerOutput(const FShaderCompilerOutput& Output)
-{
-#if WITH_EDITORONLY_DATA
-	AddPlatformDebugData(Output.PlatformDebugData);
-
-	for (const FShaderCompilerError& Error : Output.Errors)
-	{
-		CompilerWarnings.Add(Error.GetErrorString());
-	}
-#endif
-	AddShaderCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode);
-}
-
-void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, const FShaderCode& InCode)
+void FShaderMapResourceCode::AddShaderCompilerOutput(const FShaderCompilerOutput& Output, const FString& DebugName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResourceCode::AddShaderCode);
 
+	const FSHAHash& InHash = Output.OutputHash;
+	const FShaderCode& InCode = Output.ShaderCode;
 	const int32 Index = Algo::LowerBound(ShaderHashes, InHash);
 	if (Index >= ShaderHashes.Num() || ShaderHashes[Index] != InHash)
 	{
 		ShaderHashes.Insert(InHash, Index);
 
+#if WITH_EDITORONLY_DATA
+		// Output.Errors contains warnings in the case any exist (no errors since if there were the job would have failed)
+		AddEditorOnlyData(Index, DebugName, Output.PlatformDebugData, Output.Errors);
+#endif
+
 		FShaderEntry& Entry = ShaderEntries.InsertDefaulted_GetRef(Index);
-		Entry.Frequency = InFrequency;
+		Entry.Frequency = Output.Target.GetFrequency();
 		const TArray<uint8>& ShaderCode = InCode.GetReadAccess();
 
 		FName ShaderCompressionFormat = GetShaderCompressionFormat();
@@ -379,42 +372,54 @@ void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const F
 
 		Entry.Code = ShaderCode;
 	}
+#if WITH_EDITORONLY_DATA
+	else
+	{
+		// Output.Errors contains warnings in the case any exist (no errors since if there were the job would have failed)
+		// We append the warnings for any additional jobs which resulted in the same bytecode for the sake of determinism in the
+		// results saved to DDC. 
+		AppendWarningsToEditorOnlyData(Index, DebugName, Output.Errors);
+	}
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
-void FShaderMapResourceCode::AddPlatformDebugData(TConstArrayView<uint8> InPlatformDebugData)
+void FShaderMapResourceCode::AddEditorOnlyData(int32 Index, const FString& DebugName, TConstArrayView<uint8> InPlatformDebugData, TConstArrayView<FShaderCompilerError> InCompilerWarnings)
 {
-	if (InPlatformDebugData.Num() == 0)
-	{
-		return;
-	}
+	FShaderEditorOnlyDataEntry& Entry = ShaderEditorOnlyDataEntries.InsertDefaulted_GetRef(Index);
+	Entry.PlatformDebugData = InPlatformDebugData;
 
-	FSHAHash Hash;
-	{
-		FSHA1 Hasher;
-		Hasher.Update(InPlatformDebugData.GetData(), InPlatformDebugData.Num());
-		Hasher.Final();
-		Hasher.GetHash(Hash.Hash);
-	}
+	AppendWarningsToEditorOnlyData(Index, DebugName, InCompilerWarnings);
+}
 
-	const int32 Index = Algo::LowerBound(PlatformDebugDataHashes, Hash);
-	if (Index >= PlatformDebugDataHashes.Num() || PlatformDebugDataHashes[Index] != Hash)
+void FShaderMapResourceCode::AppendWarningsToEditorOnlyData(int32 Index, const FString& DebugName, TConstArrayView<FShaderCompilerError> InCompilerWarnings)
+{
+	FShaderEditorOnlyDataEntry& Entry = ShaderEditorOnlyDataEntries[Index];
+	for (const FShaderCompilerError& Warning : InCompilerWarnings)
 	{
-		PlatformDebugDataHashes.Insert(Hash, Index);
-		PlatformDebugData.EmplaceAt(Index, InPlatformDebugData.GetData(), InPlatformDebugData.Num());
+		FString ModifiedWarning = !DebugName.IsEmpty() ? FString::Printf(TEXT("%s [%s]"), *Warning.GetErrorString(), *DebugName) : Warning.GetErrorString();
+		// Maintain sorted order in Entry.CompilerWarnings & deduplicate
+		const int32 WarningIndex = Algo::LowerBound(Entry.CompilerWarnings, ModifiedWarning);
+		if (WarningIndex >= Entry.CompilerWarnings.Num() || Entry.CompilerWarnings[WarningIndex] != ModifiedWarning)
+		{
+			Entry.CompilerWarnings.Insert(ModifiedWarning, WarningIndex);
+		}
 	}
 }
 
 void FShaderMapResourceCode::LogShaderCompilerWarnings()
 {
-	if (CompilerWarnings.Num() > 0 && GShaderCompilerEmitWarningsOnLoad != 0)
+	if (ShaderEditorOnlyDataEntries.Num() > 0 && GShaderCompilerEmitWarningsOnLoad != 0)
 	{
 		// Emit all the compiler warnings seen whilst serializing/loading this shader to the log.
 		// Since successfully compiled shaders are stored in the DDC, we'll get the compiler warnings
 		// even if we didn't compile the shader this run.
-		for (const FString& CompilerWarning : CompilerWarnings)
+		for (const FShaderEditorOnlyDataEntry& Entry : ShaderEditorOnlyDataEntries)
 		{
-			UE_LOG(LogShaderWarnings, Warning, TEXT("%s"), *CompilerWarning);
+			for (const FString& CompilerWarning : Entry.CompilerWarnings)
+			{
+				UE_LOG(LogShaderWarnings, Warning, TEXT("%s"), *CompilerWarning);
+			}
 		}
 	}
 }
@@ -441,9 +446,7 @@ void FShaderMapResourceCode::Serialize(FArchive& Ar, bool bLoadedByCookedMateria
 	const bool bSerializeEditorOnlyData = !bLoadedByCookedMaterial && (!Ar.IsCooking() || Ar.CookingTarget()->HasEditorOnlyData());
 	if (bSerializeEditorOnlyData)
 	{
-		Ar << PlatformDebugDataHashes;
-		Ar << PlatformDebugData;
-		Ar << CompilerWarnings;
+		Ar << ShaderEditorOnlyDataEntries;
 	}
 #endif // WITH_EDITORONLY_DATA
 	ApplyResourceStats(*this);
@@ -462,13 +465,13 @@ void FShaderMapResourceCode::NotifyShadersCompiled(FName FormatName)
 #if WITH_ENGINE
 	// Notify the platform shader format that this particular shader is being used in the cook.
 	// We discard this data in cooked builds unless Ar.CookingTarget()->HasEditorOnlyData() is true.
-	if (PlatformDebugData.Num())
+	if (ShaderEditorOnlyDataEntries.Num())
 	{
 		if (const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(FormatName))
 		{
-			for (const TArray<uint8>& Entry : PlatformDebugData)
+			for (const FShaderEditorOnlyDataEntry& Entry : ShaderEditorOnlyDataEntries)
 			{
-				ShaderFormat->NotifyShaderCompiled(Entry, FormatName);
+				ShaderFormat->NotifyShaderCompiled(Entry.PlatformDebugData, FormatName);
 			}
 		}
 	}
