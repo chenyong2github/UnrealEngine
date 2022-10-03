@@ -108,10 +108,8 @@ void* FVulkanStagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 {
 	check(!bIsLocked);
 	bIsLocked = true;
-	uint32 QueuedEndOffset = QueuedNumBytes + QueuedOffset;
-	uint32 EndOffset = Offset + NumBytes;
-	check(Offset < QueuedNumBytes && EndOffset <= QueuedEndOffset);
-	//#todo-rco: Apply the offset in case it doesn't match
+	const uint32 EndOffset = Offset + NumBytes;
+	checkf(EndOffset <= QueuedNumBytes, TEXT("Lock at Offset (%u) and NumBytes (%u) reads beyond the allocated size of the staging buffer (%u)"), Offset, NumBytes, QueuedNumBytes);
 	return (void*)((uint8*)StagingBuffer->GetMappedPointer() + Offset);
 }
 

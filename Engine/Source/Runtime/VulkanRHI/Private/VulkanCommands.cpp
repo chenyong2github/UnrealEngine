@@ -812,7 +812,6 @@ void FVulkanCommandListContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferR
 		StagingBuffer->Device = Device;
 	}
 
-	StagingBuffer->QueuedOffset = Offset;
 	StagingBuffer->QueuedNumBytes = NumBytes;
 
 	VkBufferCopy Region;

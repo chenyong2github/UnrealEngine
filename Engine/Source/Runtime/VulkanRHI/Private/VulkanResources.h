@@ -1272,7 +1272,6 @@ public:
 
 private:
 	VulkanRHI::FStagingBuffer* StagingBuffer = nullptr;
-	uint32 QueuedOffset = 0;
 	uint32 QueuedNumBytes = 0;
 	// The staging buffer was allocated from this device.
 	FVulkanDevice* Device;
