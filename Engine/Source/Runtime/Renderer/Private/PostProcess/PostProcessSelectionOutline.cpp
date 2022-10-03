@@ -19,6 +19,8 @@ class FSelectionOutlinePS : public FEditorPrimitiveShader
 public:
 	DECLARE_GLOBAL_SHADER(FSelectionOutlinePS);
 	SHADER_USE_PARAMETER_STRUCT(FSelectionOutlinePS, FEditorPrimitiveShader);
+	class FSelectionOutlineHDRDim : SHADER_PERMUTATION_BOOL("SELECTION_OUTLINE_HDR");
+	using FPermutationDomain = TShaderPermutationDomain< FEditorPrimitiveShader::FPermutationDomain, FSelectionOutlineHDRDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -35,8 +37,26 @@ public:
 		SHADER_PARAMETER(float, SelectionHighlightIntensity)
 		SHADER_PARAMETER(FVector3f, SubduedOutlineColor)
 		SHADER_PARAMETER(float, BSPSelectionIntensity)
+		SHADER_PARAMETER(float, UILuminanceAndIsSCRGB)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool SupportHDR(const EShaderPlatform Platform)
+	{
+		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain CurrentPermutation(Parameters.PermutationId);
+		FEditorPrimitiveShader::FPermutationDomain EditorPrimitiveShaderDomain = CurrentPermutation.Get<FEditorPrimitiveShader::FPermutationDomain>();
+		bool bIsHDR = CurrentPermutation.Get<FSelectionOutlineHDRDim>();
+		if (bIsHDR && !SupportHDR(Parameters.Platform))
+		{
+			return false;
+		}
+		return FEditorPrimitiveShader::ShouldCompilePermutation(EditorPrimitiveShaderDomain, Parameters.Platform);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelectionOutline.usf", "MainPS", SF_Pixel);
@@ -188,8 +208,44 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 		PassParameters->SubduedOutlineColor = FVector3f(View.SubduedSelectionOutlineColor);
 		PassParameters->BSPSelectionIntensity = GEngine->BSPSelectionHighlightIntensity;
 
+		EDisplayOutputFormat DisplayOutputFormat = View.Family->RenderTarget->GetDisplayOutputFormat();
+		bool bIsHDR = false;
+		bool bIsSCRGB = false;
+		if (FSelectionOutlinePS::SupportHDR(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)))
+		{
+			switch (DisplayOutputFormat)
+			{
+			case EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB:
+			case EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB:
+				bIsHDR = true;
+				bIsSCRGB = true;
+				break;
+			case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
+			case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
+				bIsHDR = true;
+				break;
+			case EDisplayOutputFormat::SDR_sRGB:
+			case EDisplayOutputFormat::SDR_Rec709:
+			case EDisplayOutputFormat::SDR_ExplicitGammaMapping:
+			case EDisplayOutputFormat::HDR_LinearEXR:
+			case EDisplayOutputFormat::HDR_LinearNoToneCurve:
+			case EDisplayOutputFormat::HDR_LinearWithToneCurve:
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
+		}
+
+		static const auto CVarHDRUILuminance = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.HDR.UI.Luminance"));
+		float UILuminance = CVarHDRUILuminance ? CVarHDRUILuminance->GetValueOnRenderThread() : 300.0f;
+		PassParameters->UILuminanceAndIsSCRGB = bIsSCRGB ? UILuminance : -UILuminance;
+
 		FSelectionOutlinePS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSelectionOutlinePS::FSampleCountDimension>(NumSamples);
+		FEditorPrimitiveShader::FPermutationDomain PermutationVectorBase;
+		PermutationVectorBase.Set<FSelectionOutlinePS::FSampleCountDimension>(NumSamples);
+		PermutationVector.Set<FEditorPrimitiveShader::FPermutationDomain>(PermutationVectorBase);
+		PermutationVector.Set<FSelectionOutlinePS::FSelectionOutlineHDRDim>(bIsHDR);
 
 		TShaderMapRef<FSelectionOutlinePS> PixelShader(View.ShaderMap, PermutationVector);
 

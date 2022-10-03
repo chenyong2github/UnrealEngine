@@ -16,9 +16,8 @@ public:
 	class FSampleCountDimension : SHADER_PERMUTATION_RANGE_INT("MSAA_SAMPLE_COUNT", 1, kEditorMSAASampleCountMax + 1);
 	using FPermutationDomain = TShaderPermutationDomain<FSampleCountDimension>;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FPermutationDomain& PermutationVector, const EShaderPlatform Platform)
 	{
-		const FPermutationDomain PermutationVector(Parameters.PermutationId);
 		const int32 SampleCount = PermutationVector.Get<FSampleCountDimension>();
 
 		// Only use permutations with valid MSAA sample counts.
@@ -28,7 +27,13 @@ public:
 		}
 
 		// Only PC platforms render editor primitives.
-		return IsPCPlatform(Parameters.Platform);
+		return IsPCPlatform(Platform);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+		return ShouldCompilePermutation(PermutationVector, Parameters.Platform);
 	}
 
 	FEditorPrimitiveShader() = default;

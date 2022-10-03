@@ -2,6 +2,8 @@
 
 #include "Common.ush"
 #include "ScreenPass.ush"
+#include "GammaCorrectionCommon.ush"
+#include "ACES.ush"
 
 #if MSAA_SAMPLE_COUNT > 1
 Texture2DMS<float, MSAA_SAMPLE_COUNT> EditorPrimitivesDepth;
@@ -26,6 +28,7 @@ float3 OutlineColor;
 float3 SubduedOutlineColor;
 float SelectionHighlightIntensity;
 float BSPSelectionIntensity;
+float UILuminanceAndIsSCRGB;
 
 struct FPixelInfo
 {
@@ -267,10 +270,38 @@ void MainPS(
 		// Scene color has gamma applied. Need to remove and re-apply after linear operation.
 		if (Avg.a > 0)
 		{
-			OutColor.rgb = max(OutColor.rgb, 0.f);
-			OutColor.rgb = pow(OutColor.rgb, 2.2f );
-		    OutColor.rgb = lerp(OutColor.rgb, Avg.rgb, Avg.a);
-		    OutColor.rgb = pow(OutColor.rgb, 1.0f / 2.2f);
+#if SELECTION_OUTLINE_HDR
+			static const float ScRGBScaleFactor = 80.0f; // used to convert between ScRGB and nits
+			Avg.rgb *= abs(UILuminanceAndIsSCRGB);
+			if (UILuminanceAndIsSCRGB > 0.0)
+			{
+				OutColor.rgb *= ScRGBScaleFactor;
+			}
+			else
+			{
+				const float3x3 Rec2020_2_sRGB = mul(XYZ_2_sRGB_MAT, Rec2020_2_XYZ_MAT);
+				OutColor.rgb = ST2084ToLinear(OutColor.rgb);
+				OutColor.rgb = mul(Rec2020_2_sRGB, OutColor.rgb);
+			}
+#else
+			OutColor.rgb = sRGBToLinear(OutColor.rgb);
+#endif
+			OutColor.rgb = lerp(OutColor.rgb, Avg.rgb, Avg.a);
+
+#if SELECTION_OUTLINE_HDR
+			if (UILuminanceAndIsSCRGB > 0.0)
+			{
+				OutColor.rgb /= ScRGBScaleFactor;
+			}
+			else
+			{
+				const float3x3 sRGB_2_Rec2020 = mul(XYZ_2_Rec2020_MAT, sRGB_2_XYZ_MAT);
+				OutColor.xyz = mul(sRGB_2_Rec2020, OutColor.xyz);
+				OutColor.rgb = LinearToST2084(OutColor.rgb);
+			}
+#else
+			OutColor.rgb = LinearToSrgbBranchless(OutColor.rgb);
+#endif
 		}
 	}
 	else
