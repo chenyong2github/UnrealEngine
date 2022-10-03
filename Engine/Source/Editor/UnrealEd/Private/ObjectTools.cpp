@@ -213,7 +213,7 @@ namespace ObjectTools
 		while (InObjects.Num() != LastObjectCount)
 		{
 			LastObjectCount = InObjects.Num();
-			for (UObject* NewReferencer : FReferencerFinder::GetAllReferencers(InObjects, &InObjects))
+			for (UObject* NewReferencer : FReferencerFinder::GetAllReferencers(InObjects, &InObjects, EReferencerFinderFlags::SkipWeakReferences))
 			{
 				// Stop walking the dependency chain when the transactor is the referencer
 				if (Transactor == NewReferencer)
@@ -249,7 +249,7 @@ namespace ObjectTools
 
 		bOutIsReferenced = false;
 		bOutIsReferencedInMemoryByUndo = false;
-
+		
 		if (!CVarUseLegacyGetReferencersForDeletion.GetValueOnAnyThread())
 		{
 			const UTransactor* Transactor = GEditor ? ToRawPtr(GEditor->Trans) : nullptr;
@@ -284,7 +284,7 @@ namespace ObjectTools
 			}
 
 			// Check and see whether we are referenced by any objects that won't be garbage collected (*including* the undo buffer)
-			for (UObject* Referencer : FReferencerFinder::GetAllReferencers(ObjectsToDelete, nullptr))
+			for (UObject* Referencer : FReferencerFinder::GetAllReferencers(ObjectsToDelete, nullptr, EReferencerFinderFlags::SkipWeakReferences))
 			{
 				if (Referencer->IsIn(InObject))
 				{
@@ -323,7 +323,7 @@ namespace ObjectTools
 						}
 					}
 
-					if (FReferencerFinder::GetAllReferencers(Objects, nullptr).Contains(Transactor))
+					if (FReferencerFinder::GetAllReferencers(Objects, nullptr, EReferencerFinderFlags::SkipWeakReferences).Contains(Transactor))
 					{
 						bOutIsReferencedInMemoryByUndo = true;
 					}

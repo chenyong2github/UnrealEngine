@@ -42,8 +42,28 @@ public:
 			}
 		}
 	}
+
+	bool MarkWeakObjectReferenceForClearing(UObject** WeakReference)
+	{
+		return (Flags & EReferencerFinderFlags::SkipWeakReferences) == EReferencerFinderFlags::SkipWeakReferences;
+	}
 };
-typedef TDefaultReferenceCollector<FAllReferencesProcessor> FAllReferencesCollector;
+
+class FAllReferencesCollector : public TDefaultReferenceCollector<FAllReferencesProcessor>
+{
+	FAllReferencesProcessor& Processor;
+public:
+	FAllReferencesCollector(FAllReferencesProcessor& InProcessor, FGCArrayStruct& InObjectArrayStruct)
+		: TDefaultReferenceCollector<FAllReferencesProcessor>(InProcessor, InObjectArrayStruct)
+		, Processor(InProcessor)
+	{
+	}
+
+	virtual bool MarkWeakObjectReferenceForClearing(UObject** WeakReference) override
+	{
+		return Processor.MarkWeakObjectReferenceForClearing(WeakReference);
+	}
+};
 
 // Allow parallel reference collection to be overridden to single threaded via console command.
 static int32 GAllowParallelReferenceCollection = 1;
