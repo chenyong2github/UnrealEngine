@@ -22,6 +22,16 @@ namespace Horde.Build.Jobs.Graphs
 		public string Name { get; }
 
 		/// <summary>
+		/// References to inputs for this node
+		/// </summary>
+		public IReadOnlyList<NodeOutputRef> Inputs { get; }
+
+		/// <summary>
+		/// List of output names
+		/// </summary>
+		public IReadOnlyList<string> OutputNames { get; }
+
+		/// <summary>
 		/// Indices of nodes which must have succeeded for this node to run
 		/// </summary>
 		public NodeRef[] InputDependencies { get; }
@@ -142,6 +152,38 @@ namespace Horde.Build.Jobs.Graphs
 		{
 			return groups[GroupIdx].Nodes[NodeIdx];
 		}
+	}
+
+	/// <summary>
+	/// Output from a node
+	/// </summary>
+	[DebuggerDisplay("{NodeRef}, Output: {OutputIdx}")]
+	public class NodeOutputRef
+	{
+		/// <summary>
+		/// Node producing the output
+		/// </summary>
+		public NodeRef NodeRef { get; set; }
+
+		/// <summary>
+		/// Index of the output
+		/// </summary>
+		public int OutputIdx { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public NodeOutputRef(NodeRef nodeRef, int outputIdx)
+		{
+			NodeRef = nodeRef;
+			OutputIdx = outputIdx;
+		}
+
+		/// <inheritdoc/>
+		public override bool Equals(object? other) => other is NodeOutputRef otherRef && otherRef.NodeRef == NodeRef && otherRef.OutputIdx == OutputIdx;
+
+		/// <inheritdoc/>
+		public override int GetHashCode() => HashCode.Combine(NodeRef.GetHashCode(), OutputIdx);
 	}
 
 	/// <summary>
@@ -377,6 +419,16 @@ namespace Horde.Build.Jobs.Graphs
 		/// The name of this node 
 		/// </summary>
 		public string Name { get; set; } = null!;
+
+		/// <summary>
+		/// Input names
+		/// </summary>
+		public List<string>? Inputs { get; set; }
+
+		/// <summary>
+		/// Output names
+		/// </summary>
+		public List<string>? OutputNames { get; set; }
 
 		/// <summary>
 		/// List of nodes which must succeed for this node to run

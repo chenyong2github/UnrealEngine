@@ -34,6 +34,12 @@ namespace Horde.Build.Jobs.Graphs
 			public string Name { get; set; }
 
 			[BsonIgnoreIfNull]
+			public NodeOutputRef[]? Inputs { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string[]? OutputNames { get; set; }
+
+			[BsonIgnoreIfNull]
 			public NodeRef[] InputDependencies { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -54,6 +60,8 @@ namespace Horde.Build.Jobs.Graphs
 			[BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
 			public NodeAnnotations? Annotations { get; set; }
 
+			IReadOnlyList<NodeOutputRef> INode.Inputs => Inputs ?? Array.Empty<NodeOutputRef>();
+			IReadOnlyList<string> INode.OutputNames => OutputNames ?? Array.Empty<string>();
 			IReadOnlyDictionary<string, string>? INode.Credentials => Credentials;
 			IReadOnlyDictionary<string, string>? INode.Properties => Properties;
 			IReadOnlyNodeAnnotations INode.Annotations => Annotations ?? NodeAnnotations.Empty;
@@ -66,9 +74,11 @@ namespace Horde.Build.Jobs.Graphs
 				OrderDependencies = null!;
 			}
 
-			public Node(string name, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties, IReadOnlyNodeAnnotations? annotations)
+			public Node(string name, NodeOutputRef[]? inputs, string[]? outputNames, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties, IReadOnlyNodeAnnotations? annotations)
 			{
 				Name = name;
+				Inputs = (inputs != null && inputs.Length > 0) ? inputs: null;
+				OutputNames = (outputNames != null && outputNames.Length > 0) ? outputNames : null;
 				InputDependencies = inputDependencies;
 				OrderDependencies = orderDependencies;
 				Priority = priority;
@@ -195,6 +205,9 @@ namespace Horde.Build.Jobs.Graphs
 			[BsonIgnore]
 			IReadOnlyDictionary<string, NodeRef>? _cachedNodeNameToRef;
 
+			[BsonIgnore]
+			IReadOnlyDictionary<string, NodeOutputRef>? _cachedNodeOutputNameToRef;
+
 			IReadOnlyList<INodeGroup> IGraph.Groups => Groups;
 			IReadOnlyList<IAggregate> IGraph.Aggregates => Aggregates;
 			IReadOnlyList<ILabel> IGraph.Labels => Labels;
@@ -215,6 +228,7 @@ namespace Horde.Build.Jobs.Graphs
 			public GraphDocument(GraphDocument baseGraph, List<NewGroup>? newGroupRequests, List<NewAggregate>? newAggregateRequests, List<NewLabel>? newLabelRequests)
 			{
 				Dictionary<string, NodeRef> nodeNameToRef = new Dictionary<string, NodeRef>(baseGraph.GetNodeNameToRef(), StringComparer.OrdinalIgnoreCase);
+				Dictionary<string, NodeOutputRef> nodeOutputNameToRef = new Dictionary<string, NodeOutputRef>(baseGraph.GetNodeOutputNameToRef(), StringComparer.OrdinalIgnoreCase);
 
 				// Update the new list of groups
 				List<NodeGroup> newGroups = new List<NodeGroup>(baseGraph.Groups);
@@ -232,12 +246,28 @@ namespace Horde.Build.Jobs.Graphs
 							bool bRunEarly = newNodeRequest.RunEarly ?? false;
 							bool bWarnings = newNodeRequest.Warnings ?? true;
 
+							NodeOutputRef[]? inputs = null;
+							if (newNodeRequest.Inputs != null && newNodeRequest.Inputs.Count > 0)
+							{
+								inputs = newNodeRequest.Inputs.Select(x => nodeOutputNameToRef[x]).ToArray();
+							}
+
 							NodeRef[] inputDependencies = (newNodeRequest.InputDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.InputDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							NodeRef[] orderDependencies = (newNodeRequest.OrderDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.OrderDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							orderDependencies = orderDependencies.Union(inputDependencies).ToArray();
-							nodes.Add(new Node(newNodeRequest.Name, inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
+							nodes.Add(new Node(newNodeRequest.Name, inputs, newNodeRequest.OutputNames?.ToArray(), inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
 
-							nodeNameToRef.Add(newNodeRequest.Name, new NodeRef(newGroups.Count, nodeIdx));
+							NodeRef nodeRef = new NodeRef(newGroups.Count, nodeIdx);
+							nodeNameToRef.Add(newNodeRequest.Name, nodeRef);
+
+							if (newNodeRequest.OutputNames != null)
+							{
+								for (int outputIdx = 0; outputIdx < newNodeRequest.OutputNames.Count; outputIdx++)
+								{
+									string outputName = newNodeRequest.OutputNames[outputIdx];
+									nodeOutputNameToRef[$"{newNodeRequest.Name}/{outputName}"] = new NodeOutputRef(nodeRef, outputIdx);
+								}
+							}
 						}
 						newGroups.Add(new NodeGroup(newGroupRequest.AgentType, nodes));
 					}
@@ -295,6 +325,32 @@ namespace Horde.Build.Jobs.Graphs
 					_cachedNodeNameToRef = nodeNameToRef;
 				}
 				return _cachedNodeNameToRef;
+			}
+
+			public IReadOnlyDictionary<string, NodeOutputRef> GetNodeOutputNameToRef()
+			{
+				if (_cachedNodeOutputNameToRef == null)
+				{
+					Dictionary<string, NodeOutputRef> nodeOutputNameToRef = new Dictionary<string, NodeOutputRef>(StringComparer.OrdinalIgnoreCase);
+					for (int groupIdx = 0; groupIdx < Groups.Count; groupIdx++)
+					{
+						List<Node> nodes = Groups[groupIdx].Nodes;
+						for (int nodeIdx = 0; nodeIdx < nodes.Count; nodeIdx++)
+						{
+							Node node = nodes[nodeIdx];
+							if (node.OutputNames != null)
+							{
+								for (int outputIdx = 0; outputIdx < node.OutputNames.Length; outputIdx++)
+								{
+									string outputName = $"{node.Name}/{node.OutputNames[outputIdx]}";
+									nodeOutputNameToRef[outputName] = new NodeOutputRef(new NodeRef(groupIdx, nodeIdx), outputIdx);
+								}
+							}
+						}
+					}
+					_cachedNodeOutputNameToRef = nodeOutputNameToRef;
+				}
+				return _cachedNodeOutputNameToRef;
 			}
 		}
 
@@ -395,7 +451,7 @@ namespace Horde.Build.Jobs.Graphs
 		/// <inheritdoc/>
 		public async Task<IGraph> AddAsync(ITemplate template)
 		{
-			Node node = new Node(IJob.SetupNodeName, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null, null);
+			Node node = new Node(IJob.SetupNodeName, null, null, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null, null);
 			NodeGroup group = new NodeGroup(template.InitialAgentType ?? "Win64", new List<Node> { node });
 
 			GraphDocument graph = new GraphDocument(new List<NodeGroup> { group }, new List<Aggregate>(), new List<Label>());

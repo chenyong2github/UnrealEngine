@@ -624,6 +624,14 @@ namespace Horde.Build.Server
 				response.Name = node.Name;
 				response.Credentials.Add(credentials);
 
+				foreach(NodeOutputRef input in node.Inputs)
+				{
+					INode inputNode = graph.GetNode(input.NodeRef);
+					response.Inputs.Add($"{inputNode.Name}/{inputNode.OutputNames[input.OutputIdx]}");
+				}
+
+				response.OutputNames.Add(node.OutputNames);
+
 				string templateName = "<unknown>";
 				if (job.TemplateHash != null)
 				{
