@@ -338,9 +338,13 @@ FComputeGraphRenderProxy* UComputeGraph::CreateRenderProxy() const
 				{
 					Invocation.BoundProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
 
-					if (DataInterfaces[GraphEdge.DataInterfaceIndex]->IsExecutionInterface())
+					UComputeDataInterface const* DataInterface = DataInterfaces[GraphEdge.DataInterfaceIndex];
+					if (ensure(DataInterface != nullptr))
 					{
-						Invocation.ExecutionProviderIndex = GraphEdge.DataInterfaceIndex;
+						if (DataInterface->IsExecutionInterface())
+						{
+							Invocation.ExecutionProviderIndex = GraphEdge.DataInterfaceIndex;
+						}
 					}
 				}
 			}

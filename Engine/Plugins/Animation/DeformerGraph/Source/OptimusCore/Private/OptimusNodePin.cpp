@@ -419,7 +419,12 @@ TArray<UOptimusNodePin*> UOptimusNodePin::GetSubPinsRecursively(
 
 TArray<UOptimusNodePin*> UOptimusNodePin::GetConnectedPins() const
 {
-	return GetOwningNode()->GetOwningGraph()->GetConnectedPins(this);
+	UOptimusNodeGraph* Graph = GetOwningNode()->GetOwningGraph();
+	if (ensure(Graph != nullptr))
+	{
+		return Graph->GetConnectedPins(this);
+	}
+	return {};
 }
 
 
