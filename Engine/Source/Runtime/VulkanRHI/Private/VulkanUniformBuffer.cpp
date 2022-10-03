@@ -185,7 +185,7 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& InDevice, const FRHIUn
 
 	if (InLayout->ConstantBufferSize > 0)
 	{
-		const bool bInRenderingThread = IsInParallelRenderingThread();
+		const bool bInRenderingThread = IsInRenderingThread();
 		const bool bInRHIThread = IsInRHIThread();
 
 		if (UseRingBuffer(InUsage) && (bInRenderingThread || bInRHIThread))
