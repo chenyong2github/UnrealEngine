@@ -7,6 +7,7 @@
 #include "Hash/CityHash.h"
 #include "Misc/Paths.h"
 #include "WorldPartition/WorldPartitionLog.h"
+#include "UObject/Package.h"
 
 struct FWorldPartitionCookPackage
 {
