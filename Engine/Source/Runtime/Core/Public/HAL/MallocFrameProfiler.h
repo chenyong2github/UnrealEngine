@@ -23,6 +23,11 @@ public:
 
 	static FMalloc* OverrideIfEnabled(FMalloc*InUsedAlloc);
 
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
+
 protected:
 	virtual bool IsDisabled() override;
 

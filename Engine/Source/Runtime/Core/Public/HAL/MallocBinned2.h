@@ -685,6 +685,7 @@ public:
 	virtual void ClearAndDisableTLSCachesOnCurrentThread() override;
 	virtual const TCHAR* GetDescriptiveName() override;
 	virtual void UpdateStats() override;
+	virtual void OnMallocInitialized() override;
 	// End FMalloc interface.
 
 	void FlushCurrentThreadCache();

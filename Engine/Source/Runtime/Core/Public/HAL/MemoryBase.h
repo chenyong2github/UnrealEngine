@@ -205,6 +205,11 @@ public:
 		return TEXT("Unspecified allocator");
 	}
 
+	/**
+	 * Notifies the malloc implementation that initialization of all allocators in GMalloc is complete, so it's safe to initialize any extra features that require "regular" allocations
+	 */
+	virtual void OnMallocInitialized() {}
+
 protected:
 	friend struct FCurrentFrameCalls;
 

@@ -124,4 +124,9 @@ public:
 	{ 
 		return true; 
 	}
+
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
 };

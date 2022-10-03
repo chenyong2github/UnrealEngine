@@ -134,6 +134,11 @@ public:
 	{ 
 		return UsedMalloc->GetDescriptiveName();
 	}
+
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
 };
 
 #endif // MALLOC_VERIFY

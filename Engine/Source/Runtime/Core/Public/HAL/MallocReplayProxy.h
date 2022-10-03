@@ -125,6 +125,11 @@ public:
 
 	// called by destructor or otherwise, idempotent
 	void CloseHistory();
+
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
 };
 
 #endif // UE_USE_MALLOC_REPLAY_PROXY

@@ -215,6 +215,11 @@ public:
 	{
 		return UsedMalloc->GetDescriptiveName();
 	}
+
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
 };
 
 void FMemory::EnablePurgatoryTests()
@@ -381,6 +386,9 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 
 	GMalloc = FMallocDoubleFreeFinder::OverrideIfEnabled(GMalloc);
 	GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
+
+	GMalloc->OnMallocInitialized();
+
 	return 0;
 }
 

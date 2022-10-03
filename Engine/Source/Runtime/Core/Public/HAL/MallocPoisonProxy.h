@@ -144,5 +144,10 @@ public:
 		UsedMalloc->ClearAndDisableTLSCachesOnCurrentThread();
 	}
 
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
+
 	// FMalloc interface end
 };

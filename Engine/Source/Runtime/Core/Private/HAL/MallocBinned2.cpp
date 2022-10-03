@@ -10,6 +10,7 @@
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "HAL/MallocTimer.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #if CSV_PROFILER
@@ -720,6 +721,18 @@ FMallocBinned2::FMallocBinned2()
 
 FMallocBinned2::~FMallocBinned2()
 {
+}
+
+void FMallocBinned2::OnMallocInitialized() 
+{
+#if UE_USE_VERYLARGEPAGEALLOCATOR
+	FCoreDelegates::GetLowLevelAllocatorMemoryTrimDelegate().AddLambda([this]()
+		{
+			FScopeLock Lock(&Mutex);
+			CachedOSPageAllocator.FreeAll(&Mutex);
+		}
+	);
+#endif
 }
 
 bool FMallocBinned2::IsInternallyThreadSafe() const

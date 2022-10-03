@@ -129,6 +129,11 @@ public:
 	{
 		return UsedMalloc->GetDescriptiveName();
 	}
+		
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
 
 	static const SIZE_T MaxCallStackDepth = 64;
 	static const SIZE_T CallStackEntriesToSkipCount = 2;

@@ -127,6 +127,11 @@ public:
 	{ 
 		return UsedMalloc->GetDescriptiveName(); 
 	}
+
+	virtual void OnMallocInitialized() override
+	{
+		UsedMalloc->OnMallocInitialized();
+	}
 };
 
 
