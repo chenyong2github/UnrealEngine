@@ -273,7 +273,7 @@ const TObjectPtr<URetargetChainSettings> UIKRetargeter::GetChainMapByName(const 
 			return ChainMap->TargetChain == TargetChainName;
 		});
 	
-	return ChainMap->IsNull() ? nullptr : ChainMap->Get();
+	return !ChainMap ? nullptr : ChainMap->Get();
 }
 
 const FTargetChainSettings* UIKRetargeter::GetChainSettingsByName(const FName& TargetChainName) const
