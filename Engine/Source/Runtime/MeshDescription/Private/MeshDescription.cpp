@@ -2003,7 +2003,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		// If transacting, keep these members alive the other side of an undo, otherwise their values will get lost
 		Ar << UEVersion;
 		Ar << LicenseeUEVersion;
-		CustomVersionsMrp.Serialize( Ar );
+		CustomVersions.Serialize( Ar );
 		Ar << bBulkDataUpdated;
 	}
 	else
@@ -2060,7 +2060,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	{
 		// If loading, take a copy of the package's version information, so it can be applied when unpacking
 		// MeshDescription from the bulk data.
-		BulkData.GetBulkDataVersions(Ar, UEVersion, LicenseeUEVersion, CustomVersionsMrp);
+		BulkData.GetBulkDataVersions(Ar, UEVersion, LicenseeUEVersion, CustomVersions);
 
 	}
 
@@ -2091,7 +2091,7 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 		// Preserve versions at save time so we can reuse the same ones when reloading direct from memory
 		UEVersion = Ar.UEVer();
 		LicenseeUEVersion = Ar.LicenseeUEVer();
-		CustomVersionsMrp = Ar.GetCustomVersions();
+		CustomVersions = Ar.GetCustomVersions();
 	}
 
 	if (bGuidIsHash)
@@ -2129,7 +2129,7 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 		// is serialized with the same versioning.
 		Ar.SetUEVer(UEVersion);
 		Ar.SetLicenseeUEVer(LicenseeUEVersion);
-		Ar.SetCustomVersions(CustomVersionsMrp);
+		Ar.SetCustomVersions(CustomVersions);
 		Ar << MeshDescription;
 
 		BulkData.UnloadData();
@@ -2161,7 +2161,7 @@ void FMeshDescriptionBulkData::UpdateMeshDescriptionFormat()
 	// is serialized with the same versioning.
 	Reader.SetUEVer(UEVersion);
 	Reader.SetLicenseeUEVer(LicenseeUEVersion);
-	Reader.SetCustomVersions(CustomVersionsMrp);
+	Reader.SetCustomVersions(CustomVersions);
 	FMeshDescription MeshDescription;
 	MeshDescription.Empty();
 	Reader << MeshDescription;
@@ -2181,7 +2181,7 @@ void FMeshDescriptionBulkData::UpdateMeshDescriptionFormat()
 		// Preserve versions at save time so we can reuse the same ones when reloading direct from memory
 		UEVersion = NewBytes.UEVer();
 		LicenseeUEVersion = NewBytes.LicenseeUEVer();
-		CustomVersionsMrp = NewBytes.GetCustomVersions();
+		CustomVersions = NewBytes.GetCustomVersions();
 		if (bGuidIsHash)
 		{
 			UseHashAsGuid();

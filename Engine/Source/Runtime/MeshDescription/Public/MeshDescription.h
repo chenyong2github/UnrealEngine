@@ -1367,7 +1367,7 @@ private:
 	FGuid GetHash() const;
 
 	/** Take a copy of the bulk data versioning so it can be propagated to the bulk data reader when deserializing MeshDescription */
-	FCustomVersionContainer CustomVersionsMrp;
+	FCustomVersionContainer CustomVersions;
 	FPackageFileVersion UEVersion;
 	int32 LicenseeUEVersion;
 
