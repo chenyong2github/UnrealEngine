@@ -228,16 +228,16 @@ ETriggerState UInputTriggerChordAction::UpdateState_Implementation(const UEnhanc
 	return EventData ? EventData->TriggerStateTracker.GetState() : ETriggerState::None;
 }
 
-UInputTriggerComboAction::UInputTriggerComboAction()
+UInputTriggerCombo::UInputTriggerCombo()
 {
 	bShouldAlwaysTick = true;
 }
 
-ETriggerState UInputTriggerComboAction::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
+ETriggerState UInputTriggerCombo::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
 {
 	if (ComboActions.IsEmpty())
 	{
-		ensureMsgf(false, TEXT("You must add combo actions to the UInputTriggerComboAction for it work properly! Exiting..."));
+		ensureMsgf(false, TEXT("You must add combo actions to the UInputTriggerCombo for it work properly! Exiting..."));
 		return ETriggerState::None;
 	}
 	
@@ -316,7 +316,7 @@ ETriggerState UInputTriggerComboAction::UpdateState_Implementation(const UEnhanc
 };
 
 #if WITH_EDITOR
-EDataValidationResult UInputTriggerComboAction::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInputTriggerCombo::IsDataValid(TArray<FText>& ValidationErrors)
 {
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
 	

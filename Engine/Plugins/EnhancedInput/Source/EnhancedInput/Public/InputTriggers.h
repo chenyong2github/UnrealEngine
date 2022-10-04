@@ -428,15 +428,15 @@ struct FInputComboStepData
 };
 
 /**
- * UInputTriggerComboAction
+ * UInputTriggerCombo
  * All actions in the combo array must be pressed within a timeframe to trigger
 */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Combo", NotInputConfigurable = "true"))
-class ENHANCEDINPUT_API UInputTriggerComboAction : public UInputTrigger
+class ENHANCEDINPUT_API UInputTriggerCombo : public UInputTrigger
 {
 	GENERATED_BODY()
 
-	UInputTriggerComboAction();
+	UInputTriggerCombo();
 
 protected:
 	// Implicit, so action cannot fire unless this is firing.

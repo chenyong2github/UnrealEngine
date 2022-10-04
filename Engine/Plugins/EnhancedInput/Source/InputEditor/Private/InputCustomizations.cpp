@@ -117,7 +117,7 @@ bool FEnhancedActionMappingCustomization::DoesTriggerArrayContainCombo() const
 					// Make sure we can cast this to a input trigger and if it's a combo we can return true
 					if (UInputTrigger** InputComboTrigger = reinterpret_cast<UInputTrigger**>(ArrayHelper.GetRawPtr(i)))
 					{
-						if ((*InputComboTrigger) && (*InputComboTrigger)->IsA(UInputTriggerComboAction::StaticClass()))
+						if ((*InputComboTrigger) && (*InputComboTrigger)->IsA(UInputTriggerCombo::StaticClass()))
 						{
 							return true;
 						}
