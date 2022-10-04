@@ -30,7 +30,7 @@ through a single struct, allowing for a more readable code
 
 #if STRATA_OPAQUE_DEFERRED
 
-	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 2
+	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 3
 		#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been updated but not the uint MRTs
 	#endif
 	#if PIXELSHADEROUTPUT_MRT3
@@ -40,14 +40,17 @@ through a single struct, allowing for a more readable code
 		RWTexture2D<uint> StrataOutput3UAV;
 		RWTexture2D<uint> StrataOutput4UAV;
 		RWTexture2D<uint> StrataOutput5UAV;
+		RWTexture2D<uint> StrataOutput6UAV;
 	#elif PIXELSHADEROUTPUT_MRT1
 		RWTexture2D<uint> StrataOutput2UAV;
 		RWTexture2D<uint> StrataOutput3UAV;
 		RWTexture2D<uint> StrataOutput4UAV;
+		RWTexture2D<uint> StrataOutput5UAV;
 	#else
 		RWTexture2D<uint> StrataOutput1UAV;
 		RWTexture2D<uint> StrataOutput2UAV;
 		RWTexture2D<uint> StrataOutput3UAV;
+		RWTexture2D<uint> StrataOutput4UAV;
 	#endif
 
 #else // STRATA_OPAQUE_DEFERRED
