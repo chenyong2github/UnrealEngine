@@ -970,8 +970,11 @@ FSoundSpectrumAnalyzerSettings USoundSubmix::GetSpectrumAnalyzerSettings(EFFTSiz
 	OutSettings.FFTSize = FFTSize;
 	OutSettings.WindowType = WindowType;
 	OutSettings.InterpolationMethod = InterpolationMethod;
-	OutSettings.HopSize = HopSize;
 	OutSettings.SpectrumType = SpectrumType;
+
+	const float MinHopSize = 0.001f;
+	const float MaxHopSize = 10.0f;
+	OutSettings.HopSize = FMath::Clamp(HopSize, MinHopSize, MaxHopSize);
 
 	return OutSettings;
 }
