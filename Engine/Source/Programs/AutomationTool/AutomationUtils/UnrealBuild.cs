@@ -205,7 +205,7 @@ namespace AutomationTool
 			}
         }
 
-		BuildManifest BuildWithUBT(string TargetName, UnrealTargetPlatform TargetPlatform, UnrealTargetConfiguration Config, FileReference UprojectPath, bool ForceFlushMac = false, bool DisableXGE = false, string InAddArgs = "")
+		BuildManifest BuildWithUBT(string TargetName, UnrealTargetPlatform TargetPlatform, UnrealTargetConfiguration Config, FileReference UprojectPath, bool ForceFlushMac = false, bool DisableXGE = false, bool AllCores = false, string InAddArgs = "")
 		{
 			string AddArgs = "";
 			if (UprojectPath != null)
@@ -221,6 +221,10 @@ namespace AutomationTool
 			if (DisableXGE)
 			{
 				AddArgs += " -noxge";
+			}
+			if (AllCores)
+			{
+				AddArgs += " -allcores";
 			}
 
 			PrepareUBT();
@@ -527,7 +531,7 @@ namespace AutomationTool
 			return Result;
 		}
 
-		public bool ProcessXGEItems(List<XGEItem> Actions, string XGETool, string Args, string TaskFilePath, bool ShowProgress)
+		public bool ProcessXGEItems(List<XGEItem> Actions, string XGETool, string Args, string TaskFilePath, bool ShowProgress, bool AllCores)
 		{
 			IScope CombineXGEScope = GlobalTracer.Instance.BuildSpan("CombineXGEItemFiles").WithTag("xgeTool", Path.GetFileNameWithoutExtension(XGETool)).StartActive();
 
@@ -583,7 +587,7 @@ namespace AutomationTool
 					CommandUtils.PushDir(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, @"\Engine\Source"));
 					try
 					{
-						int ExitCode = ParallelExecutor.Execute(TaskFilePath, OwnerCommand.ParseParam("StopOnErrors"), OwnerCommand.ParseParam("AllCores"));
+						int ExitCode = ParallelExecutor.Execute(TaskFilePath, OwnerCommand.ParseParam("StopOnErrors"), AllCores);
 						if(ExitCode != 0)
 						{
 							return false;
@@ -982,7 +986,8 @@ namespace AutomationTool
 		/// <param name="InUpdateVersionFiles">True if the version files are to be updated </param>
 		/// <param name="InForceNoXGE">If true will force XGE off</param>
 		/// <param name="InUseParallelExecutor">If true AND XGE not present or not being used then use ParallelExecutor</param>
-		public void Build(BuildAgenda Agenda, bool? InDeleteBuildProducts = null, bool InUpdateVersionFiles = true, bool InForceNoXGE = false, bool InUseParallelExecutor = false, bool InShowProgress = false, int? InChangelistNumberOverride = null, Dictionary<BuildTarget, BuildManifest> InTargetToManifest = null)
+		/// <param name="InAllCores">If true AND XGE not present or not being used then ensure UBT uses all available cores</param>
+		public void Build(BuildAgenda Agenda, bool? InDeleteBuildProducts = null, bool InUpdateVersionFiles = true, bool InForceNoXGE = false, bool InUseParallelExecutor = false, bool InShowProgress = false, bool InAllCores = false, int? InChangelistNumberOverride = null, Dictionary<BuildTarget, BuildManifest> InTargetToManifest = null)
 		{
 			if (!CommandUtils.CmdEnv.HasCapabilityToCompile)
 			{
@@ -1076,7 +1081,7 @@ namespace AutomationTool
 			{
 				// When building a target for Mac or iOS, use UBT's -flushmac option to clean up the remote builder
 				bool bForceFlushMac = DeleteBuildProducts && (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS);
-				BuildManifest Manifest = BuildWithUBT(Target.TargetName, Target.Platform, Target.Config, Target.UprojectPath, bForceFlushMac, bDisableXGE, Target.UBTArgs);
+				BuildManifest Manifest = BuildWithUBT(Target.TargetName, Target.Platform, Target.Config, Target.UprojectPath, bForceFlushMac, bDisableXGE, InAllCores, Target.UBTArgs);
 				if(InTargetToManifest != null)
 				{
 					InTargetToManifest[Target] = Manifest;
@@ -1086,17 +1091,17 @@ namespace AutomationTool
 			// Execute all the XGE targets
 			if(ParallelXgeTargets.Count > 0)
 			{
-				BuildParallelTargets(ParallelXgeTargets, InShowProgress, XGEConsole, InTargetToManifest);
+				BuildParallelTargets(ParallelXgeTargets, InShowProgress, InAllCores, XGEConsole, InTargetToManifest);
 			}
 
 			// Execute all the parallel targets
 			if(ParallelTargets.Count > 0)
 			{
-				BuildParallelTargets(ParallelTargets, InShowProgress, null, InTargetToManifest);
+				BuildParallelTargets(ParallelTargets, InShowProgress, InAllCores, null, InTargetToManifest);
 			}
 		}
 
-		private void BuildParallelTargets(List<BuildTarget> ParallelTargets, bool InShowProgress, string XGETool, Dictionary<BuildTarget, BuildManifest> InTargetToManifest)
+		private void BuildParallelTargets(List<BuildTarget> ParallelTargets, bool InShowProgress, bool InAllCores, string XGETool, Dictionary<BuildTarget, BuildManifest> InTargetToManifest)
 		{
 			string TaskFilePath = CommandUtils.CombinePaths(CommandUtils.CmdEnv.LogFolder, @"UAT_XGE.xml");
 
@@ -1138,7 +1143,7 @@ namespace AutomationTool
 			}
 
 			CommandUtils.LogSetProgress(InShowProgress, "Building...");
-			if (!ProcessXGEItems(XGEItems, XGETool, Args, TaskFilePath, InShowProgress))
+			if (!ProcessXGEItems(XGEItems, XGETool, Args, TaskFilePath, InShowProgress, InAllCores))
 			{
 				throw new UnrealBuildException("{0} failed, retries not enabled:", XGETool);
 			}

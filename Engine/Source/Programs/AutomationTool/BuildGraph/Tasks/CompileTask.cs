@@ -62,6 +62,12 @@ namespace AutomationTool.Tasks
 		public bool AllowParallelExecutor = true;
 
 		/// <summary>
+		/// Whether to allow UBT to use all available cores, when AllowXGE is disabled.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool AllowAllCores = false;
+
+		/// <summary>
 		/// Whether to allow cleaning this target. If unspecified, targets are cleaned if the -Clean argument is passed on the command line.
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -100,6 +106,11 @@ namespace AutomationTool.Tasks
 		bool bAllowParallelExecutor = true;
 
 		/// <summary>
+		/// Whether to allow using all available cores for this job, when bAllowXGE is false
+		/// </summary>
+		bool bAllowAllCores = false;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Task">Initial task to execute</param>
@@ -136,6 +147,7 @@ namespace AutomationTool.Tasks
 			CompileTaskParameters Parameters = CompileTask.Parameters;
 			bAllowXGE &= Parameters.AllowXGE;
 			bAllowParallelExecutor &= Parameters.AllowParallelExecutor;
+			bAllowAllCores &= Parameters.AllowAllCores;
 
 			UnrealBuild.BuildTarget Target = new UnrealBuild.BuildTarget { TargetName = Parameters.Target, Platform = Parameters.Platform, Config = Parameters.Configuration, UprojectPath = CompileTask.FindProjectFile(), UBTArgs = "-nobuilduht " + (Parameters.Arguments ?? ""), Clean = Parameters.Clean };
 			if(!String.IsNullOrEmpty(Parameters.Tag))
@@ -165,7 +177,8 @@ namespace AutomationTool.Tasks
 			UnrealBuild Builder = new UnrealBuild(Job.OwnerCommand);
 
 			bool bCanUseParallelExecutor = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && bAllowParallelExecutor);	// parallel executor is only available on Windows as of 2016-09-22
-			Builder.Build(Agenda, InDeleteBuildProducts: null, InUpdateVersionFiles: false, InForceNoXGE: !bAllowXGE, InUseParallelExecutor: bCanUseParallelExecutor, InTargetToManifest: TargetToManifest);
+			bool bAllCores = (CommandUtils.IsBuildMachine || bAllowAllCores);	// Enable using all cores if this is a build agent or the flag was passed in to the task and XGE is disabled.
+			Builder.Build(Agenda, InDeleteBuildProducts: null, InUpdateVersionFiles: false, InForceNoXGE: !bAllowXGE, InUseParallelExecutor: bCanUseParallelExecutor, InAllCores: bAllCores, InTargetToManifest: TargetToManifest);
 
 			UnrealBuild.CheckBuildProducts(Builder.BuildProductFiles);
 
