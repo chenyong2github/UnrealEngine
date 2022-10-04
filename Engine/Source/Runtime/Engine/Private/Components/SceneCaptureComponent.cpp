@@ -169,17 +169,48 @@ USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectI
 	ShowFlags.SetHMDDistortion(0);
 	ShowFlags.SetOnScreenDebug(0);
 
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
-		FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &USceneCaptureComponent::ReleaseGarbageReferences);
+		if (HasAnyFlags(RF_NeedPostLoad) || GetOuter()->HasAnyFlags(RF_NeedPostLoad))
+		{
+			// Delegate registration is not thread-safe, so we postpone it on PostLoad when coming from loading which could be on another thread
+		}
+		else
+		{
+			RegisterDelegates();
+		}
 	}
+}
+
+void USceneCaptureComponent::RegisterDelegates()
+{
+	ensureMsgf(IsInGameThread(), TEXT("Potential race condition in USceneCaptureComponent registering to a delegate from non game-thread"));
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &USceneCaptureComponent::ReleaseGarbageReferences);
+	bDelegatesRegistered = true;
+}
+
+void USceneCaptureComponent::UnregisterDelegates()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		check(bDelegatesRegistered);
+
+		FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	}
+}
+
+void USceneCaptureComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	RegisterDelegates();
 }
 
 void USceneCaptureComponent::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	
+	UnregisterDelegates();
 }
 
 // Because HiddenActors and ShowOnlyActors are serialized they are not easily refactored into weak pointers.

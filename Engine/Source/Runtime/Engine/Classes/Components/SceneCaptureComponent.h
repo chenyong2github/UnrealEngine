@@ -196,6 +196,7 @@ public:
 	virtual void Serialize(FArchive& Ar);
 
 	virtual void OnUnregister() override;
+	virtual void PostLoad() override;
 
 	/** To leverage a component's bOwnerNoSee/bOnlyOwnerSee properties, the capture view requires an "owner". Override this to set a "ViewActor" for the scene. */
 	virtual const AActor* GetViewOwner() const { return nullptr; }
@@ -211,7 +212,10 @@ protected:
 	/** Update the show flags from our show flags settings (ideally, you'd be able to set this more directly, but currently unable to make FEngineShowFlags a UStruct to use it as a FProperty...) */
 	void UpdateShowFlags();
 
+	void RegisterDelegates();
+	void UnregisterDelegates();
 	void ReleaseGarbageReferences();
+	bool bDelegatesRegistered = false;
 
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) {};
 
