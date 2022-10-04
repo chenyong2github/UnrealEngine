@@ -483,7 +483,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 							FName TargetTestName(*URLStr);
 							for (const FAssetData& MapAsset : MapList)
 							{
-								if (MapAsset.AssetName == TargetTestName)
+								if (MapAsset.AssetName == TargetTestName && !MapAsset.HasAnyPackageFlags(PKG_CookGenerated))
 								{
 									Map = MapAsset.PackageName.ToString();
 									bFoundMap = true;
