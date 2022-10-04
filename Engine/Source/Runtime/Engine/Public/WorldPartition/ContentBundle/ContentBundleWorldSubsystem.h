@@ -64,6 +64,9 @@ class UContentBundleDuplicateForPIEHelper : public UObject
 
 public:
 #if WITH_EDITOR
+	void Initialize();
+	void Deinitialize();
+
 	bool StoreContentBundleStreamingObect(const FContentBundleEditor& ContentBundleEditor, URuntimeHashExternalStreamingObjectBase* StreamingObject);
 	URuntimeHashExternalStreamingObjectBase* RetrieveContentBundleStreamingObject(const FContentBundle& ContentBundle) const;
 
@@ -72,6 +75,8 @@ public:
 #endif
 
 private:
+	void OnPIEEnded(const bool bIsSimulating);
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TMap<FGuid, TObjectPtr<URuntimeHashExternalStreamingObjectBase>> StreamingObjects;

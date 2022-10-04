@@ -15,6 +15,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
+#include "Editor.h"
 #endif
 
 UContentBundleManager::UContentBundleManager()
@@ -28,6 +29,7 @@ void UContentBundleManager::Initialize()
 	if (!GetWorld()->IsGameWorld())
 	{
 		PIEDuplicateHelper = NewObject<UContentBundleDuplicateForPIEHelper>(this);
+		PIEDuplicateHelper->Initialize();
 	}
 #endif
 
@@ -47,7 +49,11 @@ void UContentBundleManager::Deinitialize()
 	ContentBundleContainers.Empty();
 
 #if WITH_EDITOR
-	PIEDuplicateHelper = nullptr;
+	if(PIEDuplicateHelper != nullptr)
+	{
+		PIEDuplicateHelper->Deinitialize();
+		PIEDuplicateHelper = nullptr;
+	}
 #endif
 }
 
@@ -133,6 +139,18 @@ void UContentBundleManager::OnWorldPartitionUninitialized(UWorldPartition* InWor
 
 #if WITH_EDITOR
 
+void UContentBundleDuplicateForPIEHelper::Initialize()
+{
+	FEditorDelegates::EndPIE.AddUObject(this, &UContentBundleDuplicateForPIEHelper::OnPIEEnded);
+}
+
+void UContentBundleDuplicateForPIEHelper::Deinitialize()
+{
+	FEditorDelegates::EndPIE.RemoveAll(this);
+
+	Clear();
+}
+
 bool UContentBundleDuplicateForPIEHelper::StoreContentBundleStreamingObect(const FContentBundleEditor& ContentBundleEditor, URuntimeHashExternalStreamingObjectBase* StreamingObject)
 {
 	FGuid ContentBundleUid = ContentBundleEditor.GetDescriptor()->GetGuid();
@@ -148,6 +166,11 @@ URuntimeHashExternalStreamingObjectBase* UContentBundleDuplicateForPIEHelper::Re
 {
 	const TObjectPtr<URuntimeHashExternalStreamingObjectBase>* ContentBundleStreamingObject = StreamingObjects.Find(ContentBundle.GetDescriptor()->GetGuid());
 	return ContentBundleStreamingObject != nullptr ? *ContentBundleStreamingObject : nullptr;
+}
+
+void UContentBundleDuplicateForPIEHelper::OnPIEEnded(const bool bIsSimulating)
+{
+	Clear();
 }
 
 #endif

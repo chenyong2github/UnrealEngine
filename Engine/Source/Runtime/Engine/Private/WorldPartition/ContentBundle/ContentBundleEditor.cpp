@@ -323,6 +323,8 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 		{
 			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Failed to store streaming object for %s. PIE duplication will not work."), *GetDescriptor()->GetDisplayName());
 		}
+		ExternalStreamingObject = nullptr;
+		ContentBundleCells.Empty();
 	}
 
 	WorldPartition->FlushStreaming();
