@@ -463,7 +463,10 @@ float UWaterBodyComponent::GetConstantDepth() const
 {
 	// Only makes sense when you consider the water depth to be constant for the whole water body, in which case we just use the first spline key's : 
 	const UWaterSplineComponent* const WaterSpline = GetWaterSpline();
-	return WaterSpline ? WaterSpline->GetFloatPropertyAtSplineInputKey(0.0f, GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth)) : 0.0f;
+	float SplinePointDepth = WaterSpline ? WaterSpline->GetFloatPropertyAtSplineInputKey(0.0f, GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth)) : 0.0f;
+
+	// Ensure that the existing spline depth is used if it is non-zero, otherwise use the new FixedWaterDepth parameter.
+	return SplinePointDepth != 0.f ? SplinePointDepth : FixedWaterDepth;
 }
 
 FVector UWaterBodyComponent::GetConstantVelocity() const

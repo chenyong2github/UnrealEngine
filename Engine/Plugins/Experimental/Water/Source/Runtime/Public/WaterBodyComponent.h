@@ -661,6 +661,10 @@ protected:
 	TArray<FDynamicMeshVertex> DilatedWaterBodyMeshVertices;
 	TArray<uint32> DilatedWaterBodyMeshIndices;
 
+	/** If the Water Material assigned to this component has Fixed Depth enabled, this is the depth that is passed. */
+	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay)
+	double FixedWaterDepth = 512.0;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<TLazyObjectPtr<AWaterBodyIsland>> Islands_DEPRECATED;
