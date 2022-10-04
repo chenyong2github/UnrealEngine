@@ -197,6 +197,8 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 		SetUsingPhysics();
 	}
 
+	TRemoteInputService<ModelDef>::SetMaxFaultLimit(Settings.MaximumRemoteInputFaultLimit);
+
 	ENetworkPredictionService ServiceMask = ENetworkPredictionService::None;
 	
 	if (Archetype.TickingMode == ENetworkPredictionTickingPolicy::Independent)
@@ -448,6 +450,8 @@ void UNetworkPredictionWorldManager::BindServerNetRecv_Fixed(FNetworkPredictionI
 
 	const int32 ServerRecvIdx = DataStore->ServerRecv.GetIndex(ID);
 
+	TFixedTickReplicator_Server<ModelDef>::SetNumInputsPerSend(Settings.FixedTickInputSendCount);
+
 	TServerRecvData_Fixed<ModelDef>& ServerRecvData = DataStore->ServerRecv.GetByIndexChecked(ServerRecvIdx);
 	ServerRecvData.TraceID = ID.GetTraceID();
 
@@ -469,6 +473,8 @@ void UNetworkPredictionWorldManager::BindServerNetRecv_Independent(FNetworkPredi
 		return;
 
 	const int32 ServerRecvIdx = DataStore->ServerRecv_IndependentTick.GetIndex(ID);
+
+	TIndependentTickReplicator_Server<ModelDef>::SetNumInputsPerSend(Settings.IndependentTickInputSendCount);
 
 	TServerRecvData_Independent<ModelDef>& ServerRecvData = DataStore->ServerRecv_IndependentTick.GetByIndexChecked(ServerRecvIdx);
 	ServerRecvData.TraceID = ID.GetTraceID();

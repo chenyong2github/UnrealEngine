@@ -51,6 +51,20 @@ struct FNetworkPredictionSettings
 	// Max buffered time to keep for fixed independent interpolated sims (client only).
 	UPROPERTY(config, EditAnywhere, Category = Interpolation)
 	int32 IndependentTickInterpolationMaxBufferedMS = 250;
+
+	// ------------------------------------------------------------------------------------------
+
+	// Clients should send this number of most recent input commands together per update, for a Fixed Tick simulation
+	UPROPERTY(config, EditAnywhere, Category = Input)
+	int32 FixedTickInputSendCount = 6;
+
+	// Clients should send this number of most recent input commands together per update, for an Independent Tick simulation
+	UPROPERTY(config, EditAnywhere, Category = Input)
+	int32 IndependentTickInputSendCount = 6;
+
+	// Cap the number of remote input commands required to be buffered before resuming input consumption after a fault
+	UPROPERTY(config, EditAnywhere, Category = Input)
+	int32 MaximumRemoteInputFaultLimit = 6;
 };
 
 USTRUCT(meta=(ShowOnlyInnerProperties))

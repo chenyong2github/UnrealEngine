@@ -87,6 +87,11 @@ public:
 	TRemoteInputService(TModelDataStore<ModelDef>* InDataStore)
 		: DataStore(InDataStore) { }
 
+	static void SetMaxFaultLimit(int32 InMaxFaultLimit) 
+	{ 
+		MaxFaultLimit = InMaxFaultLimit; 
+	}
+
 	void RegisterInstance(FNetworkPredictionID ID)
 	{
 		TInstanceData<ModelDef>* InstanceData = DataStore->Instances.Find(ID);
@@ -140,6 +145,8 @@ public:
 					UE_NP_TRACE_BUFFERED_INPUT(NumBufferedInputCmds, true);
 					continue;
 				}
+
+				UE_NP_TRACE_SYSTEM_FAULT("[Remote.Input] Recovered from Fault. FaultLimit now: %d", Remote.FaultLimit);
 				Remote.bFault = false;
 			}
 			else if (NumBufferedInputCmds == 0)
@@ -147,8 +154,8 @@ public:
 				// No Cmds to process, enter fault state. Increment FaultLimit each time this happens.
 				// TODO: We should have something to bring this back down (which means skipping frames) we don't want temporary poor conditions to cause permanent high input buffering
 				Remote.bFault = true;
-				Remote.FaultLimit = FMath::Min(Remote.FaultLimit+1, ServerRecvData.InputBuffer.Capacity());
-
+				Remote.FaultLimit = FMath::Min(Remote.FaultLimit + 1, FMath::Min(MaxFaultLimit, ServerRecvData.InputBuffer.Capacity()));
+				
 				UE_NP_TRACE_SYSTEM_FAULT("[Remote.Input] New Fault. No cmds to process. New FaultLimit=%d", Remote.FaultLimit);
 				UE_NP_TRACE_BUFFERED_INPUT(0, true);
 				continue;
@@ -176,5 +183,7 @@ private:
 
 	TSortedMap<int32, FInstance> InstanceMap;
 	TModelDataStore<ModelDef>* DataStore;
+	
+	inline static int32 MaxFaultLimit = 6;
 };
 

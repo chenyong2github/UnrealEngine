@@ -88,7 +88,7 @@ struct FNetworkPredictionSerialization
 //	AP Client -> Server replication
 //
 //	The Fixed/Independent ticking implementations are a more than trivially different so they are split into separate implementations.
-//	Both currently send the last 'NumSendPerUpdate' per serialization. This could be improved with something more configurable/dynamic.
+//	Both currently send the last 'NumInputsPerSend' per serialization, determined from config settings. This could be improved with something more dynamic.
 //
 // ---------------------------------------------------------------------------------------------------------------------------
 
@@ -101,7 +101,10 @@ public:
 	using StateTypes = typename ModelDef::StateTypes;
 	using InputType = typename StateTypes::InputType;
 
-	static const int32 NumSendPerUpdate = 6;
+	static void SetNumInputsPerSend(int32 NumToSend) 
+	{ 
+		NumInputsPerSend = NumToSend; 
+	}
 
 	// ------------------------------------------------------------------------------------------------------------
 	// TFixedTickReplicator_Server::NetRecv Server Receiving from AP client
@@ -112,24 +115,33 @@ public:
 		NETSIM_CHECKSUM(Ar);
 
 		const int32 EndFrame = FNetworkPredictionSerialization::ReadCompressedFrame(Ar, ServerRecvData.LastRecvFrame); // 1. StartFrame
-		const int32 StartFrame = EndFrame - NumSendPerUpdate;
+		const int32 StartFrame = EndFrame - NumInputsPerSend;
+		const bool bIsStarvedForInput = ServerRecvData.LastRecvFrame <= ServerRecvData.LastConsumedFrame;
 
 		for (int32 Frame=StartFrame; Frame < EndFrame; ++Frame)
 		{
-			if (Frame <= ServerRecvData.LastRecvFrame)
+			if (Frame <= ServerRecvData.LastRecvFrame || Frame <= ServerRecvData.LastConsumedFrame)
 			{
 				EatCmd(P);
 			}
 			else
 			{
-				for (int32 DroppedFrame = ServerRecvData.LastRecvFrame+1; DroppedFrame < Frame; ++DroppedFrame)
+				if (!bIsStarvedForInput)
 				{
-					UE_NP_TRACE_SYSTEM_FAULT("Gap in input stream detected on server. LastRecvFrame: %d. New Frame: %d", ServerRecvData.LastRecvFrame, DroppedFrame);
-					if (DroppedFrame > 0)
+					for (int32 DroppedFrame = ServerRecvData.LastRecvFrame+1; DroppedFrame < Frame; ++DroppedFrame)
 					{
-						// FixedTick can't skip frames like independent, so copy previous input
-						ServerRecvData.InputBuffer[DroppedFrame] = ServerRecvData.InputBuffer[DroppedFrame-1];
+						UE_NP_TRACE_SYSTEM_FAULT("Gap in input stream detected on server. Client frames involved: LastConsumedFrame: %d LastRecvFrame: %d. DroppedFrame: %d", ServerRecvData.LastConsumedFrame, ServerRecvData.LastRecvFrame, DroppedFrame);
+						if (DroppedFrame > 0)
+						{
+							// FixedTick can't skip frames like independent, so copy previous input
+							ServerRecvData.InputBuffer[DroppedFrame] = ServerRecvData.InputBuffer[DroppedFrame-1];
+						}
 					}
+				}
+				else
+				{
+					UE_NP_TRACE_SYSTEM_FAULT("Recovering from input stream starvation on server. Advancing over dropped client frames [%d-%d]", ServerRecvData.LastConsumedFrame+1, StartFrame-1);
+					ServerRecvData.LastConsumedFrame = StartFrame-1;
 				}
 
 				npEnsure(Frame >= 0);
@@ -161,7 +173,7 @@ public:
 		FNetworkPredictionSerialization::WriteCompressedFrame(Ar, TickState->PendingFrame); // 1. Client's PendingFrame number
 
 		const int32 EndFrame = TickState->PendingFrame; // PendingFrame doesn't have an input written until right before it ticks, so don't send it's contents
-		const int32 StartFrame = EndFrame - NumSendPerUpdate;
+		const int32 StartFrame = EndFrame - NumInputsPerSend;
 		
 		for (int32 Frame = StartFrame; Frame < EndFrame; ++Frame)
 		{
@@ -190,6 +202,9 @@ public:
 		TConditionalState<InputType> Empty;
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(Empty, P);  // 2. InputCmd	
 	}
+
+private:
+	inline static int32 NumInputsPerSend = 6;
 };
 
 template<typename InModelDef>
@@ -202,7 +217,10 @@ public:
 	using StateTypes = typename ModelDef::StateTypes;
 	using InputType= typename StateTypes::InputType;
 
-	static const int32 NumSendPerUpdate = 6;
+	static void SetNumInputsPerSend(int32 NumToSend) 
+	{ 
+		NumInputsPerSend=NumToSend; 
+	}
 
 	// ------------------------------------------------------------------------------------------------------------
 	// TIndependentTickReplicator_Server::NetRecv AP Client sending to server
@@ -213,7 +231,7 @@ public:
 		NETSIM_CHECKSUM(Ar);
 
 		const int32 EndFrame = FNetworkPredictionSerialization::ReadCompressedFrame(Ar, ServerRecvData.LastRecvFrame); // 1. StartFrame
-		const int32 StartFrame = EndFrame - NumSendPerUpdate;
+		const int32 StartFrame = EndFrame - NumInputsPerSend;
 
 		// Reset consumed frame if we detect a gap.
 		// Note this could discard unprocessed commands we previously received (but didn't process) but handling this case doesn't seem necessary or practical
@@ -280,7 +298,7 @@ public:
 		FNetworkPredictionSerialization::WriteCompressedFrame(Ar, TickState->PendingFrame); // 1. Client's PendingFrame number
 
 		const int32 EndFrame = TickState->PendingFrame; // PendingFrame doesn't have an input written until right before it ticks, so don't send it's contents
-		const int32 StartFrame = EndFrame - NumSendPerUpdate;
+		const int32 StartFrame = EndFrame - NumInputsPerSend;
 
 		for (int32 Frame = StartFrame; Frame < EndFrame; ++Frame)
 		{
@@ -316,6 +334,8 @@ private:
 		int32 TimeMS = 0;
 		FNetworkPredictionSerialization::SerializeDeltaMS(P.Ar, TimeMS); // 3. Delta InputCmd
 	}
+
+	inline static int32 NumInputsPerSend = 6;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------------
