@@ -1417,19 +1417,22 @@ void UWaterBodyComponent::PostLoad()
 
 	DeprecateData();
 
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
-	if (WaterMaterial)
+	if (IsComponentPSOPrecachingEnabled())
 	{
-		WaterMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
-	}
-	if (UnderwaterPostProcessMaterial)
-	{
-		UnderwaterPostProcessMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
-	}
-	if (WaterInfoMaterial)
-	{
-		WaterInfoMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
+		FPSOPrecacheParams PrecachePSOParams;
+		SetupPrecachePSOParams(PrecachePSOParams);
+		if (WaterMaterial)
+		{
+			WaterMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
+		}
+		if (UnderwaterPostProcessMaterial)
+		{
+			UnderwaterPostProcessMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
+		}
+		if (WaterInfoMaterial)
+		{
+			WaterInfoMaterial->PrecachePSOs(&FLocalVertexFactory::StaticType, PrecachePSOParams);
+		}
 	}
 
 #if WITH_EDITOR

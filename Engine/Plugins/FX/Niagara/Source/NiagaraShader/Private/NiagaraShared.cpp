@@ -520,6 +520,7 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 			CachedData.bViewUniformBufferUsed |= NiagaraShader->bNeedsViewUniformBuffer;
 
 			// request precache the compute shader
+			if (IsResourcePSOPrecachingEnabled() || IsComponentPSOPrecachingEnabled())
 			{
 				check(NiagaraShader->GetFrequency() == SF_Compute)
 				FRHIShader* RHIShader = GameThreadShaderMap->GetResource()->GetShader(Shader->GetResourceIndex());

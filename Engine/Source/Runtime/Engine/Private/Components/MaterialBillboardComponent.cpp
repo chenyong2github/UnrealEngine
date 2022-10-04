@@ -381,20 +381,23 @@ void UMaterialBillboardComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	FPSOPrecacheParams PrecachePSOParams;
-	SetupPrecachePSOParams(PrecachePSOParams);
-	PrecachePSOParams.PrimitiveType = PT_TriangleStrip;
-	PrecachePSOParams.bDisableBackFaceCulling = true;
-
-	const FVertexFactoryType* VFType = &FLocalVertexFactory::StaticType;
-
-	TArray<UMaterialInterface*> UsedMaterials;
-	GetUsedMaterials(UsedMaterials, false);
-	for (UMaterialInterface* MaterialInterface : UsedMaterials)
+	if (IsComponentPSOPrecachingEnabled())
 	{
-		if (MaterialInterface)
+		FPSOPrecacheParams PrecachePSOParams;
+		SetupPrecachePSOParams(PrecachePSOParams);
+		PrecachePSOParams.PrimitiveType = PT_TriangleStrip;
+		PrecachePSOParams.bDisableBackFaceCulling = true;
+
+		const FVertexFactoryType* VFType = &FLocalVertexFactory::StaticType;
+
+		TArray<UMaterialInterface*> UsedMaterials;
+		GetUsedMaterials(UsedMaterials, false);
+		for (UMaterialInterface* MaterialInterface : UsedMaterials)
 		{
-			MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
+			if (MaterialInterface)
+			{
+				MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
+			}
 		}
 	}
 }

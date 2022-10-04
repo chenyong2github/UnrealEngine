@@ -130,10 +130,21 @@ struct FPSOPrecacheData
 class IPSOCollector
 {
 public:
+	virtual ~IPSOCollector() {}
 	
 	// Collect all PSO for given material, vertex factory & params
 	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) = 0;
 };
+
+/**
+ * Precaching PSOs for components?
+ */
+extern ENGINE_API bool IsComponentPSOPrecachingEnabled();
+
+/**
+ * Precaching PSOs for resources?
+ */
+extern ENGINE_API bool IsResourcePSOPrecachingEnabled();
 
 /**
  * Try and create PSOs for all the given initializers and return an optional array of graph events of async compiling PSOs
@@ -202,7 +213,6 @@ private:
 namespace PSOCollectorStats
 {
 	extern ENGINE_API int32 IsPrecachingValidationEnabled();
-
 
 	using VertexFactoryCountTableType = Experimental::TRobinHoodHashMap<const FVertexFactoryType*, uint32>;
 	struct FShaderStateUsage

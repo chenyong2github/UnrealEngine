@@ -1360,7 +1360,7 @@ void UTextRenderComponent::PostLoad()
 		}
 	}
 
-	if (TextMaterial)
+	if (IsComponentPSOPrecachingEnabled() && TextMaterial)
 	{
 		FPSOPrecacheParams PrecachePSOParams;
 		SetupPrecachePSOParams(PrecachePSOParams);

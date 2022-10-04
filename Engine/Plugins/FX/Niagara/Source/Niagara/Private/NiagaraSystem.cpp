@@ -948,7 +948,7 @@ void UNiagaraSystem::PostLoad()
 
 void UNiagaraSystem::PrecachePSOs()
 {
-	if (!FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!IsComponentPSOPrecachingEnabled() && !IsResourcePSOPrecachingEnabled())
 	{
 		return;
 	}

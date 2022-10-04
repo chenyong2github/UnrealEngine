@@ -2617,7 +2617,7 @@ void UParticleSystem::PostLoad()
 
 void UParticleSystem::PrecachePSOs()
 {
-	if (!FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!IsComponentPSOPrecachingEnabled() && !IsResourcePSOPrecachingEnabled())
 	{
 		return;
 	}

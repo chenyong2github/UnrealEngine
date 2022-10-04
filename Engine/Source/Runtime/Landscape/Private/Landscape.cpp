@@ -914,6 +914,7 @@ void ULandscapeComponent::PostLoad()
 {
 	Super::PostLoad();
 
+	if (IsComponentPSOPrecachingEnabled())
 	{
 		TArray<UMaterialInterface*> Materials;
 		bool bGetDebugMaterials = false;

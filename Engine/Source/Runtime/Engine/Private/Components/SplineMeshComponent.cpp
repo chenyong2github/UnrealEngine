@@ -581,7 +581,7 @@ bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 
 void USplineMeshComponent::PrecachePSOs()
 {
-	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr || !FApp::CanEverRender())
+	if (!IsComponentPSOPrecachingEnabled() || GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
 	{
 		return;
 	}
