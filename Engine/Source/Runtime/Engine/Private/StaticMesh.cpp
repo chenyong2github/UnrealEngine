@@ -6221,6 +6221,8 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 #if WITH_EDITOR
 void UStaticMesh::CheckForMissingShaderModels()
 {
+	// Don't show the SM6 toasts on non-Windows platforms to avoid confusion around platform requirements.
+#if PLATFORM_WINDOWS
 	static bool bWarnedAboutMissingShaderModel = false;
 	if (GIsEditor && NaniteSettings.bEnabled && !bWarnedAboutMissingShaderModel)
 	{
@@ -6271,6 +6273,7 @@ void UStaticMesh::CheckForMissingShaderModels()
 			ShaderModelNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 		}
 	}
+#endif // PLATFORM_WINDOWS
 }
 #endif
 
