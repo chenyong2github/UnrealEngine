@@ -4,6 +4,7 @@
 
 #include "GlobalShader.h"
 #include "NNXShaderParameters.h"
+#include "NNXTypes.h"
 
 enum class EGemmCScalar : uint8
 {
@@ -48,7 +49,8 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 
-	static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, uint32 M, uint32 N, uint32 K, uint32 CWidth, uint32 CHeight, float CScalar, FMLGemmCS::FParameters& Parameters);
+	static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB,
+		const NNX::FMLTensorDesc &InputC, float CScalar, FMLGemmCS::FParameters& Parameters);
 
 	static uint32 GetShapeSize(TArray<uint32> Shape);
 	static uint32 GetMatMulOutputSize(TArray<uint32> ShapeA, TArray<uint32> ShapeB);

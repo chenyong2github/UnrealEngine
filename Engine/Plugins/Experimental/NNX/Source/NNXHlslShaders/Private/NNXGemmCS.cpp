@@ -15,9 +15,11 @@ namespace
 		TArray<uint32> StackShapeB;
 		TArray<uint32> StackStrideA;
 		TArray<uint32> StackStrideB;
+		uint32 CWidth = 0;
+		uint32 CHeight = 0;
 	};
 
-	static GemmMatrixParameters GetMatrixParameters(TArray<uint32> ShapeA, TArray<uint32> ShapeB)
+	static GemmMatrixParameters GetMatrixParameters(TArray<uint32> ShapeA, TArray<uint32> ShapeB, TArray<uint32> ShapeC)
 	{
 		check(!ShapeA.IsEmpty());
 		check(!ShapeB.IsEmpty());
@@ -44,6 +46,7 @@ namespace
 
 		const bool IsVectorA = ShapeA.Num() == 1;
 		const bool IsVectorB = ShapeB.Num() == 1;
+		const bool IsVectorC = ShapeC.Num() == 1;
 
 		Result.M = IsVectorA ? 1 : ShapeA[ShapeA.Num() - 2];
 		Result.N = IsVectorB ? 1 : ShapeB[ShapeB.Num() - 1];
@@ -68,6 +71,9 @@ namespace
 			Result.StackStrideB[i] = Result.StackStrideB[i + 1] * Result.StackShapeB[i + 1];
 		}
 
+		Result.CWidth = ShapeC.IsEmpty() ? 0 : ShapeC[ShapeC.Num() - 1];
+		Result.CHeight = ShapeC.IsEmpty() ? 0 : IsVectorC ? 1 : ShapeC[ShapeC.Num() - 2];
+
 		return Result;
 	}
 } // namespace
@@ -78,20 +84,31 @@ void FMLGemmCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParam
 	OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), NNXRT_GEMM_MAX_NUM_STACK_DIMENSIONS);
 }
 
-void FMLGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, uint32 M, uint32 N, uint32 K, uint32 CWidth, uint32 CHeight, float CScalar, FMLGemmCS::FParameters& Parameters)
+void FMLGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB,
+		const NNX::FMLTensorDesc &InputC, float CScalar, FMLGemmCS::FParameters& Parameters)
 {
+	auto MakeShape = [](const NNX::FMLTensorDesc &InputDesc) {
+		TArray<uint32> Result;
+		for (int32 i = 0; i < (int32)InputDesc.Dimension; i++) {
+			Result.Add(InputDesc.Sizes[i]);
+		}
+		return Result;
+	};
+
+	GemmMatrixParameters Params = GetMatrixParameters(MakeShape(InputA), MakeShape(InputB), MakeShape(InputC));
+
 	Parameters.Alpha = Alpha;
 	Parameters.Beta = Beta;
 	Parameters.TransA = TransA;
 	Parameters.TransB = TransB;
-	Parameters.M = M;
-	Parameters.N = N;
-	Parameters.K = K;
-	Parameters.MxK = M * K;
-	Parameters.KxN = K * N;
-	Parameters.MxN = M * N;
-	Parameters.CWidth = CWidth;
-	Parameters.CHeight = CHeight;
+	Parameters.M = Params.M;
+	Parameters.N = Params.N;
+	Parameters.K = Params.K;
+	Parameters.MxK = Params.M * Params.K;
+	Parameters.KxN = Params.K * Params.N;
+	Parameters.MxN = Params.M * Params.N;
+	Parameters.CWidth = Params.CWidth;
+	Parameters.CHeight = Params.CHeight;
 	Parameters.CScalar = CScalar;
 }
 
@@ -104,14 +121,14 @@ uint32 FMLGemmCS::GetShapeSize(TArray<uint32> Shape)
 
 uint32 FMLGemmCS::GetMatMulOutputSize(TArray<uint32> ShapeA, TArray<uint32> ShapeB)
 {
-	GemmMatrixParameters Params = GetMatrixParameters(ShapeA, ShapeB);
+	GemmMatrixParameters Params = GetMatrixParameters(ShapeA, ShapeB, {});
 
 	return FMath::Max(GetShapeSize(Params.StackShapeA), GetShapeSize(Params.StackShapeB)) * Params.M * Params.N;
 }
 
 void FMLGemmCS::FillInParametersMatMul(TArray<uint32> ShapeA, TArray<uint32> ShapeB, FMLGemmCS::FParameters& Parameters)
 {
-	GemmMatrixParameters Params = GetMatrixParameters(ShapeA, ShapeB);
+	GemmMatrixParameters Params = GetMatrixParameters(ShapeA, ShapeB, {});
 
 	Parameters.Alpha = 1.0f;
 	Parameters.Beta = 1.0f;
@@ -123,9 +140,9 @@ void FMLGemmCS::FillInParametersMatMul(TArray<uint32> ShapeA, TArray<uint32> Sha
 	Parameters.MxK = Params.M * Params.K;
 	Parameters.KxN = Params.K * Params.N;
 	Parameters.MxN = Params.M * Params.N;
-	Parameters.CWidth = 0;
-	Parameters.CHeight = 0;
-	Parameters.CScalar = 0;
+	Parameters.CWidth = Params.CWidth;
+	Parameters.CHeight = Params.CHeight;
+	Parameters.CScalar = 0.0f;
 
 	for (int32 i = 0; i < Params.StackShapeA.Num(); i++)
 	{

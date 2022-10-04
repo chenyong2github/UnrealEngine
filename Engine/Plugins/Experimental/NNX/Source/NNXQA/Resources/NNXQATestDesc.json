@@ -216,6 +216,13 @@
 				{	"target": "Min"},
 				{	"target": "Sum", "tags": [ "SmokeTest" ]}
 			]
+		},
+		{
+			"category": "Gemm",
+			"runtimes": [ { "name": "NNXRuntimeDml", "skip": true } ],
+			"targets": [
+				{ "target": "Gemm" }
+			]
 		}
 	],
 
@@ -338,6 +345,15 @@
 				{
 					"inputs": [ { "shape": [ 65536, 513 ] }, { "shape": [ 1 ] } ]
 				}
+			]
+		},
+		{
+			"name": "Gemm",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 2 ] }, { "shape": [ 2, 2 ] } ], "outputs": [ { "shape": [ 2, 2 ] } ]},
+				{ "inputs": [ { "shape": [ 3, 4 ] }, { "shape": [ 4, 5 ] } ], "outputs": [ { "shape": [ 3, 5 ] } ]},
+				{ "inputs": [ { "shape": [ 3, 4 ] }, { "shape": [ 4, 5 ] }, { "shape": [ 3, 5 ] } ], "outputs": [ { "shape": [ 3, 5 ] } ]},
+				{ "inputs": [ { "shape": [ 1, 1 ] }, { "shape": [ 1, 5 ] }, { "shape": [ 5 ] } ], "outputs": [ { "shape": [ 1, 5 ] } ]}
 			]
 		}
 	]

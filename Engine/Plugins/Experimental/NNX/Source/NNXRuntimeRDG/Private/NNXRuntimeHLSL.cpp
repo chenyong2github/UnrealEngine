@@ -6,6 +6,7 @@
 #include "NNXRuntimeHLSLElementWiseBinaryOps.h"
 #include "NNXRuntimeHLSLElementWiseUnaryOps.h"
 #include "NNXRuntimeHLSLElementWiseVariadicOps.h"
+#include "NNXRuntimeHLSLGemmOp.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
 
@@ -151,6 +152,7 @@ public:
 		RegisterElementWiseUnaryOperators(*registry);
 		RegisterElementWiseBinaryOperators(*registry);
 		RegisterElementWiseVariadicOperators(*registry);
+		RegisterGemmOperator(*registry);
 
 		return true;
 	}
