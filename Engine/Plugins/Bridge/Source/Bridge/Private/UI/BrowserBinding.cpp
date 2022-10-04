@@ -315,8 +315,11 @@ void UBrowserBinding::SwitchDragDropOp(TArray<FString> URLs, TSharedRef<FAssetDr
 	// Make a fake mouse event for slate, so we can initiate a drag and drop.
 	FDragDropEvent DragDropEvent(FakePointerEvent, DragDropOperation);
 
-	TSharedPtr<SWindow> OwnerWindow = FSlateApplication::Get().FindWidgetWindow(FBridgeUIManager::Instance->LocalBrowserDock.ToSharedRef());
-	FSlateApplication::Get().ProcessDragEnterEvent(OwnerWindow.ToSharedRef(), DragDropEvent);
+	TSharedPtr<IWebBrowserWindow> WebBrowserWindow = FBridgeUIManager::Instance->Browser;
+	if (WebBrowserWindow.IsValid() && WebBrowserWindow->GetParentWindow().IsValid())
+	{
+		FSlateApplication::Get().ProcessDragEnterEvent(WebBrowserWindow->GetParentWindow().ToSharedRef(), DragDropEvent);
+	}
 }
 
 void SetupOnActorsDroppedEvent()

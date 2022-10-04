@@ -12,6 +12,7 @@
 #include "TCPServer.h"
 #include "BridgeDragDropHelper.h"
 
+#include "IWebBrowserWindow.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "IPlacementModeModule.h"
 #include "ActorFactories/ActorFactoryBasicShape.h"

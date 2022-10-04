@@ -204,7 +204,7 @@ void MegascansSettingsWindow::OpenSettingsWindow()
 	{
 		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterial3d))
 		{
-			MaterialOverrideSettings->MasterMaterial3d = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterial3d));
+			MaterialOverrideSettings->MasterMaterial3d = CastChecked<UMaterialInterface>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterial3d));
 		}
 	}
 	/*else {
@@ -220,7 +220,7 @@ void MegascansSettingsWindow::OpenSettingsWindow()
 	{
 		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterialPlant))
 		{
-			MaterialOverrideSettings->MasterMaterialPlant = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterialPlant));
+			MaterialOverrideSettings->MasterMaterialPlant = CastChecked<UMaterialInterface>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterialPlant));
 		}
 	}
 	/*else
@@ -236,7 +236,7 @@ void MegascansSettingsWindow::OpenSettingsWindow()
 	{
 		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterialSurface))
 		{
-			MaterialOverrideSettings->MasterMaterialSurface = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterialSurface));
+			MaterialOverrideSettings->MasterMaterialSurface = CastChecked<UMaterialInterface>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterialSurface));
 		}
 	}
 	/*else

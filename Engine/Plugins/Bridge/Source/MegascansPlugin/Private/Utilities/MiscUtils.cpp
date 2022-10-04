@@ -255,11 +255,14 @@ TArray<UMaterialInstanceConstant*> AssetUtils::GetSelectedAssets(const FTopLevel
 	for (FAssetData SelectedAsset : AssetDatas)
 	{
 		if (SelectedAsset.AssetClassPath == AssetClass)
+			ObjectArray.Add(CastChecked<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(SelectedAsset.GetObjectPathString())));
+		}
+
+		if (SelectedAsset.AssetClassPath == AssetClass)
 		{
 			ObjectArray.Add(CastChecked<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(SelectedAsset.GetObjectPathString())));
 		}
 	}
-
 	return ObjectArray;
 }
 
@@ -360,7 +363,7 @@ void AssetUtils::SyncFolder(const FString& TargetFolder)
 	// Testing syncing
 }
 
-void AssetUtils::RegisterAsset(const FString& PackagePath) // Should this be named AssetPath?
+void AssetUtils::RegisterAsset(const FString& PackagePath)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	FAssetData CharacterAssetData = AssetRegistry.GetAssetByObjectPath(FSoftObjectPath(PackagePath));

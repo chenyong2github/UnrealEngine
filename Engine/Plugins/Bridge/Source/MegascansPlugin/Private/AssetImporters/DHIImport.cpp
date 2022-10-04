@@ -376,7 +376,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 	}
 
 	// Get confirmation from the user to update the existing common assets
-	/*if (AssetsToUpdateList.Num() > 0) 
+	if (AssetsToUpdateList.Num() > 0) 
 	{
 		FString AssetsUpdateMessage = TEXT("There are some changes to the Common assets in this project. If you continue importing this MetaHuman, your local changes to the following assets may be overwritten.\nContinue anyway?\n");
 
@@ -388,7 +388,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		EAppReturnType::Type UpdateAssetsDialog = FMessageDialog::Open(EAppMsgType::YesNo, FText(FText::FromString(AssetsUpdateMessage)));
 		if (UpdateAssetsDialog != EAppReturnType::Yes)
 			return;
-	}*/
+	}
 	/*if (AssetsToUpdateList.Num() > 0 ) 
 	{
 		ShowDialog(SourceMetahumanPath, DestinationMetahumanPath, CommonOverwriteMessage);
@@ -463,7 +463,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		bIsNewCharacter = false;
 		if (MHInLevel(BPPath))
 		{
-			EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::Ok, FText(FText::FromString("This MetaHuman already exists in this level. In order to continue, you will need to close the level and import the MetaHuman into a new or different level.\n\nNote: Hair cards will be missing until you restart Unreal Engine.")));
+			EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::Ok, FText(FText::FromString("This MetaHuman already exists in this level. In order to continue, you will need to close the level and import the MetaHuman into a new or different level.")));
 			return;
 		}
 
@@ -474,7 +474,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 	{
 		bIsNewCharacter = false;
 		
-		EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::YesNo, FText(FText::FromString("The MetaHuman you are trying to import already exists in this project. Do you want to overwrite them?\n\nNote: Hair cards will be missing until you restart Unreal Engine.")));
+		EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::YesNo, FText(FText::FromString("The MetaHuman you are trying to import already exists in this project. Do you want to overwrite them?")));
 		if (ContinueImport != EAppReturnType::Yes)
 			return;
 		
@@ -547,7 +547,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
     TArray<FString> FilesToCopy;
     
 	// Update existing common assets
-	//CopyCommonFiles(AssetsStatus["Update"], CharacterSourceData->CommonPath, true);
+	CopyCommonFiles(AssetsStatus["Update"], CharacterSourceData->CommonPath, true);
 
 	// Add new common assets
 	CopyCommonFiles(AssetsStatus["Add"], CharacterSourceData->CommonPath, false);
@@ -806,7 +806,12 @@ TArray<FString> FImportDHI::CheckVersionCompatibilty()
 
             FString VersionFilePath = FPaths::Combine(ProjectMetahumanPath, CharacterName, TEXT("VersionInfo.txt"));
 
-            if (!PlatformFile.FileExists(*VersionFilePath))
+			FString BPName = TEXT("BP_") + CharacterName.Replace(TEXT("/"), TEXT(""));
+			BPName += TEXT(".") + BPName;
+			FString BPPath = FPaths::Combine(TEXT("/Game/MetaHumans/"), CharacterName, BPName);
+			
+
+            if (!PlatformFile.FileExists(*VersionFilePath) && UEditorAssetLibrary::DoesAssetExist(BPPath))
             {
                 IncompatibleCharacters.Add(CharacterName);
             }
@@ -958,7 +963,7 @@ TMap<FString, TArray<FString>> FImportDHI::AssetsToUpdate(const FString& SourceC
 
 		if (PlatformFile.FileExists(*ProjectFilePath))
 		{
-			//AssetsUpdateList.Add(FormattedFilePath);
+			AssetsUpdateList.Add(FormattedFilePath);
 		}
 		else
 		{
