@@ -2785,6 +2785,11 @@ FORCEINLINE VectorRegister4Float VectorRound(const VectorRegister4Float &Vec)
 #endif
 }
 
+FORCEINLINE VectorRegister4Int VectorRoundToIntHalfToEven(const VectorRegister4Float& Vec)
+{
+	return _mm_cvtps_epi32(Vec);
+}
+
 FORCEINLINE VectorRegister4Float VectorCeil(const VectorRegister4Float& V)
 {
 #if UE_PLATFORM_MATH_USE_SSE4_1

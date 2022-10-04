@@ -2280,6 +2280,16 @@ FORCEINLINE VectorRegister4Double VectorRound(const VectorRegister4Double& Vec)
 }
 
 
+FORCEINLINE VectorRegister4Int VectorRoundToIntHalfToEven(const VectorRegister4Float& A)
+{
+	return MakeVectorRegisterInt(
+		(int32)FMath::RoundHalfToEven(A.V[0]),
+		(int32)FMath::RoundHalfToEven(A.V[1]),
+		(int32)FMath::RoundHalfToEven(A.V[2]),
+		(int32)FMath::RoundHalfToEven(A.V[3]));
+}
+
+
 FORCEINLINE VectorRegister4Float VectorMod(const VectorRegister4Float& X, const VectorRegister4Float& Y)
 {
 	return MakeVectorRegisterFloat(

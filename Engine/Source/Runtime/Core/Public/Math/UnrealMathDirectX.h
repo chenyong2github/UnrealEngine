@@ -1199,6 +1199,11 @@ FORCEINLINE VectorRegister4Int VectorIntAbs(const VectorRegister4Int& A)
 #define VectorIntToFloat(A) _mm_cvtepi32_ps(A)
 #define VectorFloatToInt(A) _mm_cvttps_epi32(A)
 
+FORCEINLINE VectorRegister4Int VectorRoundToIntHalfToEven(const VectorRegister4Float& Vec)
+{
+	return _mm_cvtps_epi32(Vec);
+}
+
 //Loads and stores
 
 /**
