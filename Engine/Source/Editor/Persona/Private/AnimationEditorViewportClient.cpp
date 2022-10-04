@@ -166,6 +166,11 @@ FAnimationViewportClient::~FAnimationViewportClient()
 {
 	CameraController = CachedDefaultCameraController;
 
+	if (ModeTools.IsValid())
+	{
+		((FAssetEditorModeManager*)ModeTools.Get())->SetPreviewScene(nullptr);
+	}
+
 	// Unregistering the callbacks is mandatory, else we get random crashes
 	if (PreviewScenePtr.IsValid())
 	{
