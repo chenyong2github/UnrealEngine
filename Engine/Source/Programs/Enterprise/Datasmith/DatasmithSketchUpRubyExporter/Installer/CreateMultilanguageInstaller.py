@@ -26,7 +26,7 @@ final_msi_dir.mkdir(parents=True, exist_ok=True)
 
 shutil.copy(en_msi_dir/msi_name, final_msi_path)
 
-assert final_msi_path.is_file(), f"Expected to see master msi copied from root culture msi '{final_msi_path}'"
+assert final_msi_path.is_file(), f"Expected to see final msi copied from root culture msi '{final_msi_path}'"
 
 def add_language(culture_name, culture_code):
     cmd = [
