@@ -371,5 +371,9 @@ protected:
 	FDelegateHandle BeginPIEDelegateHandle;
 	FDelegateHandle EndPIEDelegateHandle;
 	FDelegateHandle CancelPIEDelegateHandle;
+
+	// Holds references to Save callbacks to handle logic when the autosave triggers and shuts down active tools. 
+	// We need to recover from this, so we restart the select tool after the save is over.
+	FDelegateHandle PostSaveWorldDelegateHandle;
 };
 

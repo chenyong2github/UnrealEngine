@@ -49,6 +49,7 @@
 #include "EditorSupportDelegates.h"
 #include "Utilities/MeshUDIMClassifier.h"
 #include "UVEditorLogging.h"
+#include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorMode)
 
@@ -331,6 +332,11 @@ void UUVEditorMode::Enter()
 		bPIEModeActive = false;
 		ActivateDefaultTool();
 		SetSimulationWarning(false);
+	});
+
+	PostSaveWorldDelegateHandle = FEditorDelegates::PostSaveWorldWithContext.AddLambda([this](UWorld*, FObjectPostSaveContext)
+	{
+		ActivateDefaultTool();
 	});
 
 	// Our mode needs to get Render and DrawHUD calls, but doesn't implement the legacy interface that
@@ -859,6 +865,7 @@ void UUVEditorMode::Exit()
 	FEditorDelegates::PreBeginPIE.Remove(BeginPIEDelegateHandle);
 	FEditorDelegates::EndPIE.Remove(EndPIEDelegateHandle);
 	FEditorDelegates::CancelPIE.Remove(CancelPIEDelegateHandle);
+	FEditorDelegates::PostSaveWorldWithContext.Remove(PostSaveWorldDelegateHandle);
 
 	Super::Exit();
 }
@@ -1365,6 +1372,12 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 		TObjectPtr<UUVEditorToolMeshInput> ToolInput = ToolInputObjects[i];
 		ToolInput->AppliedPreview->Tick(DeltaTime);
 		ToolInput->UnwrapPreview->Tick(DeltaTime);
+	}
+
+	// If nothing is running at this point, restart the default tool, since it needs to be running to handle some toolbar UX
+	if (GetInteractiveToolsContext() && !GetInteractiveToolsContext()->HasActiveTool())
+	{
+		ActivateDefaultTool();
 	}
 
 }
