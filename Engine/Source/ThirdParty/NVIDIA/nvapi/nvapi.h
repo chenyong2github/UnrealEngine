@@ -41,7 +41,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Date: Jan 6, 2022 
+// Date: May 11, 2022 
 // File: nvapi.h
 //
 // NvAPI provides an interface to NVIDIA devices. This file contains the 
@@ -1920,7 +1920,7 @@ typedef struct _NV_GPU_DISPLAYIDS
     NvU32    isWFD                  : 1;    //!< Deprecated. Will always return 0.
     NvU32    isConnected            : 1;    //!< if bit is set, then this display is connected
 
-    NvU32    reservedInternal       :10;    //!< Do not use
+    NvU32    reservedInternal       : 10;    //!< Do not use
     NvU32    isPhysicallyConnected  : 1;    //!< if bit is set, then this display is a phycially connected display; Valid only when isConnected bit is set
     NvU32    reserved               : 14;   //!< must be zero
 } NV_GPU_DISPLAYIDS;
@@ -3544,7 +3544,7 @@ typedef struct
     void                  *callbackParam;   //!< This value will be passed back to the callback function when an event occurs
     union
     {
-        NVAPI_CALLBACK_QSYNCEVENT    nvQSYNCEventCallback; //!< Callback function pointer for QSYNC events
+        NVAPI_CALLBACK_QSYNCEVENT    nvQSYNCEventCallback;                     //!< Callback function pointer for QSYNC events
     }nvCallBackFunc;
 
 } NV_EVENT_REGISTER_CALLBACK, *PNV_EVENT_REGISTER_CALLBACK;
@@ -4174,6 +4174,8 @@ typedef NV_LICENSABLE_FEATURES_V4     NV_LICENSABLE_FEATURES;
 //! SUPPORTED OS:  Windows 7 and higher
 //!
 //!
+//! TCC_SUPPORTED
+//!
 //! \param [in]  hPhysicalGpu                   GPU selection
 //! \param [in,out] pLicensableFeatures         Licensable features information.
 //!
@@ -4219,6 +4221,7 @@ typedef NV_GPU_VR_READY_V1               NV_GPU_VR_READY;
 //! \ingroup gpu
 ///////////////////////////////////////////////////////////////////////////////
 NVAPI_INTERFACE NvAPI_GPU_GetVRReadyData(__in NvPhysicalGpuHandle hPhysicalGpu, __inout NV_GPU_VR_READY *pGpuVrReadyData);
+
 //! Used in NvAPI_GPU_GetPerfDecreaseInfo.
 //! Bit masks for knowing the exact reason for performance decrease
 typedef enum _NVAPI_GPU_PERF_DECREASE
@@ -12944,10 +12947,21 @@ typedef struct
     NvU64 gpuVAStart;                 //!< [OUT] gpu virtual address where resource starts
     NvU64 gpuVASize;                  //!< [OUT] virtual memory size
 } NVAPI_UAV_INFO_V1;
-#define NVAPI_UAV_INFO_VER1 1
 
-#define NVAPI_UAV_INFO_VER NVAPI_UAV_INFO_VER1
-typedef NVAPI_UAV_INFO_V1 NVAPI_UAV_INFO;
+typedef struct
+{
+    NvU32 version;                    //!< Structure version
+    NvU32 surfaceHandle;              //!< [OUT] driver handle for a UAV (that can be used as a cudaSurfaceObject_t)
+    NvU64 gpuVAStart;                 //!< [OUT] gpu virtual address where resource starts
+    NvU64 gpuVASize;                  //!< [OUT] virtual memory size
+    NvU64 outFlags;
+} NVAPI_UAV_INFO_V2;
+
+#define NVAPI_UAV_INFO_VER1 1
+#define NVAPI_UAV_INFO_VER2 MAKE_NVAPI_VERSION(NVAPI_UAV_INFO_V2, 2)
+
+#define NVAPI_UAV_INFO_VER NVAPI_UAV_INFO_VER2
+typedef NVAPI_UAV_INFO_V2 NVAPI_UAV_INFO;
 
 NVAPI_INTERFACE NvAPI_D3D12_CaptureUAVInfo(__in  ID3D12Device*               pDevice,
                                            __out NVAPI_UAV_INFO             *pUAVInfo);
@@ -13595,7 +13609,7 @@ NVAPI_INTERFACE NvAPI_D3D11_EnumerateMetaCommands(__in                          
 //!          #NvAPI_Status.  If there are return error codes with specific
 //!          meaning for this API, they are listed below.
 //!         
-//!          DXGI_ERROR_NOT_SUPPORTED  - The requested Metacommand is not supported.
+//!          NVAPI_NOT_SUPPORTED  - The requested Metacommand is not supported.
 //! \endcode
 //! \ingroup dx
 ///////////////////////////////////////////////////////////////////////////////
@@ -13819,7 +13833,7 @@ NVAPI_INTERFACE NvAPI_D3D12_EnumerateMetaCommands(__in                          
 //!          #NvAPI_Status.  If there are return error codes with specific
 //!          meaning for this API, they are listed below.
 //!         
-//!          DXGI_ERROR_NOT_SUPPORTED  - The requested Metacommand is not supported.
+//!          NVAPI_NOT_SUPPORTED  - The requested Metacommand is not supported.
 //! \endcode
 //! \ingroup dx
 ///////////////////////////////////////////////////////////////////////////////
@@ -16709,6 +16723,7 @@ typedef enum
     PRESENT_END             = 5,
     INPUT_SAMPLE            = 6,
     TRIGGER_FLASH           = 7,
+    PC_LATENCY_PING         = 8,
 } NV_LATENCY_MARKER_TYPE;
 
 //! SUPPORTED OS:  Windows 7 and higher
