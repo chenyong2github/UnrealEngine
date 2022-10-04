@@ -775,6 +775,15 @@ inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFe
 }
 
 /**
+* Returns true if Virtual Shadow Mapsare supported for the given shader platform.
+* Note: Virtual Shadow Maps require Nanite platform support.
+*/
+inline bool DoesPlatformSupportVirtualShadowMaps(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportNanite(Platform, false /* check project setting */);
+}
+
+/**
 * Returns true if non-Nanite virtual shadow maps are enabled by CVar r.Shadow.Virtual.NonNaniteVSM
 * and the runtime supports Nanite/virtual shadow maps.
 */

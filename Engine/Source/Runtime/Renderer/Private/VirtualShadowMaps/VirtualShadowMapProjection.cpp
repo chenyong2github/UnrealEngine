@@ -270,7 +270,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 			return false;
 		}
 		
-		return DoesPlatformSupportNanite(Parameters.Platform);
+		return DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjection", SF_Compute);
@@ -540,7 +540,7 @@ class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
+		return DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -603,7 +603,7 @@ class FVirtualShadowMapProjectionCompositeFromMaskBitsPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
+		return DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

@@ -604,7 +604,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
-			DoesPlatformSupportNanite(Parameters.Platform);
+			DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 
 	/**
@@ -1983,7 +1983,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
-			DoesPlatformSupportNanite(Parameters.Platform);
+			DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 
 	/**
@@ -2073,7 +2073,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
-			DoesPlatformSupportNanite(Parameters.Platform);
+			DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 
 	/**
@@ -2111,7 +2111,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
-			DoesPlatformSupportNanite(Parameters.Platform);
+			DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
 	}
 
 	/**
