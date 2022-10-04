@@ -3911,6 +3911,12 @@ void AActor::SetReplicates(bool bInReplicates)
 					ForcePropertyCompare();
 				}
 			}
+#if UE_WITH_IRIS
+			else if (HasActorBegunPlay())
+			{
+				EndReplication(EEndPlayReason::RemovedFromWorld);
+			}
+#endif
 
 			MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
 		}

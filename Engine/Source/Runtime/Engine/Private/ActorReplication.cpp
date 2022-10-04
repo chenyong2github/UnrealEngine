@@ -846,10 +846,7 @@ void AActor::BeginReplication()
 
 void AActor::EndReplication(EEndPlayReason::Type EndPlayReason)
 {
-	if (GetIsReplicated())
-	{
-		UE::Net::FReplicationSystemUtil::EndReplication(this, EndPlayReason);
-	}
+	UE::Net::FReplicationSystemUtil::EndReplication(this, EndPlayReason);
 }
 
 void AActor::UpdateOwningNetConnection() const

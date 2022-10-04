@@ -56,12 +56,12 @@ UActorReplicationBridge* FReplicationSystemUtil::GetActorReplicationBridge(const
 
 FNetHandle FReplicationSystemUtil::GetNetHandle(const AActor* Actor)
 {
-	// We really should cache the handle in the actor (or UObject if we can afford it)
-	if (!Actor || !Actor->GetIsReplicated())
+	if (!Actor)
 	{
 		return FNetHandle();
 	}
 
+	// We really should cache the handle in the actor (or UObject if we can afford it)
 	UActorReplicationBridge* Bridge = GetActorReplicationBridge(Actor);
 	return Bridge ? Bridge->GetReplicatedHandle(Actor) : FNetHandle();
 }
