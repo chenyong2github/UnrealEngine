@@ -36,6 +36,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 
 struct FSlateBrush;
 
@@ -136,6 +137,16 @@ bool SDataLayerTreeLabel::ShouldBeHighlighted() const
 	return DataLayerTreeItem && DataLayerTreeItem->ShouldBeHighlighted();
 }
 
+bool SDataLayerTreeLabel::ShouldBeItalic() const
+{
+	if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerPtr.Get()))
+	{
+		return !DataLayerInstanceWithAsset->GetAsset();
+	}
+
+	return false;
+}
+
 bool SDataLayerTreeLabel::IsInActorEditorContext() const
 {
 	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
@@ -148,10 +159,12 @@ FSlateFontInfo SDataLayerTreeLabel::GetDisplayNameFont() const
 	{
 		return FAppStyle::Get().GetFontStyle("DataLayerBrowser.LabelFontBold");
 	}
-	else
+	else if(ShouldBeItalic())
 	{
-		return FAppStyle::Get().GetFontStyle("DataLayerBrowser.LabelFont");
+		return FAppStyle::Get().GetFontStyle("PropertyWindow.ItalicFont");
 	}
+
+	return FAppStyle::Get().GetFontStyle("DataLayerBrowser.LabelFont");
 }
 
 FText SDataLayerTreeLabel::GetDisplayText() const
@@ -172,8 +185,21 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 		}
 	}
 
+	if (DataLayer)
+	{
+		if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayer))
+		{
+			if (!DataLayerInstanceWithAsset->GetAsset())
+			{
+				return LOCTEXT("DataLayerLabelUnknown", "Unknown");
+			}
+		}
+
+		return FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayer->GetDataLayerShortName()), SuffixText);
+	}
+	
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");
-	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayer->GetDataLayerShortName()), SuffixText) : DataLayerDeleted;
+	return DataLayerDeleted;
 }
 
 FText SDataLayerTreeLabel::GetTooltipText() const

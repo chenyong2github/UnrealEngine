@@ -1080,10 +1080,8 @@ void FDataLayerMode::RegisterContextMenu()
 			{
 				FToolMenuSection& Section = InMenu->AddSection("DataLayers", LOCTEXT("DataLayers", "Data Layers"));
 				
-				auto CreateNewDataLayerInternal = [SceneOutliner, Mode](UDataLayerInstance* InParentDataLayer, const UDataLayerAsset* InDataLayerAsset = nullptr)
+				auto CreateNewDataLayerInternal = [SceneOutliner, Mode](UDataLayerInstance* InParentDataLayer, const UDataLayerAsset* InDataLayerAsset = nullptr) -> UDataLayerInstance*
 				{
-					check(InDataLayerAsset || UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers());
-
 					const FScopedTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"));
 					Mode->SelectedDataLayersSet.Empty();
 					Mode->SelectedDataLayerActors.Empty();
@@ -1100,32 +1098,29 @@ void FDataLayerMode::RegisterContextMenu()
 						Mode->SelectedDataLayersSet.Add(NewDataLayerInstance);
 						// Select it and open a rename when it gets refreshed
 						SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
+
+						return NewDataLayerInstance;
 					}
+
+					return nullptr;
 				};
 
-				auto CreateNewDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr, const TSet<const UDataLayerAsset*>& InDataLayerAssets = {})
+				auto CreateNewDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr, const UDataLayerAsset* InDataLayerAsset = nullptr) -> UDataLayerInstance*
 				{
 					if (UDataLayerEditorSubsystem::Get()->HasDeprecatedDataLayers())
 					{
-						check(InDataLayerAssets.IsEmpty());
-						CreateNewDataLayerInternal(InParentDataLayer);
+						check(InDataLayerAsset == nullptr);
+						return CreateNewDataLayerInternal(InParentDataLayer);
 					}
 					else
 					{
-						TSet<const UDataLayerAsset*> DataLayerAssets = InDataLayerAssets;
-						DataLayerAssets.Remove(nullptr);
-						if (DataLayerAssets.IsEmpty())
-						{
-							if (UDataLayerAsset* DataLayerAsset = Mode->PromptDataLayerAssetSelection())
-							{
-								DataLayerAssets.Add(DataLayerAsset);
-							}
-						}
-						for (const UDataLayerAsset* DataLayerAsset : DataLayerAssets)
-						{
-							CreateNewDataLayerInternal(InParentDataLayer, DataLayerAsset);
-						}
+						return CreateNewDataLayerInternal(InParentDataLayer, InDataLayerAsset);
 					}
+				};
+
+				auto CreateNewEmptyDataLayer = [SceneOutliner, Mode, CreateNewDataLayerInternal](UDataLayerInstance* InParentDataLayer = nullptr) -> UDataLayerInstance*
+				{
+					return CreateNewDataLayerInternal(InParentDataLayer);
 				};
 
 				// If selection contains readonly DataLayerInstances
@@ -1166,7 +1161,10 @@ void FDataLayerMode::RegisterContextMenu()
 							FUIAction(FExecuteAction::CreateLambda([DataLayerAssetsToImport, CreateNewDataLayer]()
 								{
 									const FScopedTransaction Transaction(LOCTEXT("ImportDataLayersTransaction", "Import Data Layers"));
-									CreateNewDataLayer(nullptr, DataLayerAssetsToImport);
+									for (const UDataLayerAsset* DataLayerAsset : DataLayerAssetsToImport)
+									{
+										CreateNewDataLayer(nullptr, DataLayerAsset);
+									}
 								})));
 					}
 
@@ -1175,29 +1173,24 @@ void FDataLayerMode::RegisterContextMenu()
 				}
 				
 				Section.AddMenuEntry("CreateNewDataLayer", LOCTEXT("CreateNewDataLayer", "Create New Data Layer"), FText(), FSlateIcon(),
-					FUIAction(FExecuteAction::CreateLambda([CreateNewDataLayer]() { CreateNewDataLayer(); })));
+					FUIAction(FExecuteAction::CreateLambda([CreateNewEmptyDataLayer]() { CreateNewEmptyDataLayer(); })));
 
 				UDataLayerInstance* ParentDataLayer = (Mode->SelectedDataLayersSet.Num() == 1) ? const_cast<UDataLayerInstance*>(Mode->SelectedDataLayersSet.CreateIterator()->Get()) : nullptr;
 				if (ParentDataLayer)
 				{
 					Section.AddMenuEntry("CreateNewDataLayerUnderDataLayer", FText::Format(LOCTEXT("CreateNewDataLayerUnderDataLayer", "Create New Data Layer under \"{0}\""), FText::FromString(ParentDataLayer->GetDataLayerShortName())), FText(), FSlateIcon(),
-					FUIAction(FExecuteAction::CreateLambda([CreateNewDataLayer, ParentDataLayer]() { CreateNewDataLayer(ParentDataLayer); })));
+					FUIAction(FExecuteAction::CreateLambda([CreateNewEmptyDataLayer, ParentDataLayer]() { CreateNewEmptyDataLayer(ParentDataLayer); })));
 				}
 
 				Section.AddMenuEntry("AddSelectedActorsToNewDataLayer", LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"), FText(), FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([Mode]() {
-							if (UDataLayerAsset* DataLayerAsset = Mode->PromptDataLayerAssetSelection())
-							{
+						FExecuteAction::CreateLambda([Mode, CreateNewEmptyDataLayer]() {
 								const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"));
-								FDataLayerCreationParameters CreationParams;
-								CreationParams.DataLayerAsset = DataLayerAsset;
-								CreationParams.WorldDataLayers = Mode->GetOwningWorldAWorldDataLayers();
-								if (UDataLayerInstance* NewDataLayerInstance = UDataLayerEditorSubsystem::Get()->CreateDataLayerInstance(CreationParams))
+								if (UDataLayerInstance* NewDataLayerInstance = CreateNewEmptyDataLayer())
 								{
 									UDataLayerEditorSubsystem::Get()->AddSelectedActorsToDataLayer(NewDataLayerInstance);
 								}
-							}}),
+							}),
 						FCanExecuteAction::CreateLambda([] { return GEditor->GetSelectedActorCount() > 0; })
 					));
 
@@ -1773,26 +1766,6 @@ TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateShowOnlySelectedActorsFil
 		return InActor && InActor->IsSelected();
 	};
 	return MakeShareable(new FDataLayerActorFilter(FDataLayerActorTreeItem::FFilterPredicate::CreateStatic(IsActorSelected), FSceneOutlinerFilter::EDefaultBehaviour::Pass, FDataLayerActorTreeItem::FFilterPredicate::CreateStatic(IsActorSelected)));
-}
-
-UDataLayerAsset* FDataLayerMode::PromptDataLayerAssetSelection() const
-{
-	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-
-	FOpenAssetDialogConfig Config;
-	Config.bAllowMultipleSelection = false;
-	Config.AssetClassNames.Add(UDataLayerAsset::StaticClass()->GetClassPathName());
-	Config.DefaultPath = PickDataLayerDialogPath;
-	Config.DialogTitleOverride = LOCTEXT("PickDataLayerAssetDialogTitle", "Pick a Data Layer Asset");
-
-	TArray<FAssetData> Assets = ContentBrowserSingleton.CreateModalOpenAssetDialog(Config);
-	if (Assets.Num() == 1)
-	{
-		Assets[0].PackagePath.ToString(PickDataLayerDialogPath);
-		return CastChecked<UDataLayerAsset>(Assets[0].GetAsset());
-	}
-
-	return nullptr;
 }
 
 void FDataLayerMode::SynchronizeSelection()

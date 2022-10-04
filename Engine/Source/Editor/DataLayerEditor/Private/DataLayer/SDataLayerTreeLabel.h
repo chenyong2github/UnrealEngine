@@ -42,6 +42,7 @@ private:
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo);
 	bool ShouldBeHighlighted() const;
+	bool ShouldBeItalic() const;
 	bool IsInActorEditorContext() const;
 	void OnEnterEditingMode();
 	void OnExitEditingMode();
