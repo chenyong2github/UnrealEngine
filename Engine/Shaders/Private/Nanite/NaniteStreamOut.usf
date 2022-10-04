@@ -519,27 +519,9 @@ void InitQueue(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 {
 	const uint Index = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, 64);
 
-	if (Index == 0)
-	{
-		QueueState[0].PassState[0].ClusterBatchReadOffset = 0;
-		QueueState[0].PassState[0].ClusterWriteOffset = 0;
-		QueueState[0].PassState[0].NodeReadOffset = 0;
-		QueueState[0].PassState[0].NodeWriteOffset = NumRequests;
-		QueueState[0].PassState[0].NodePrevWriteOffset = 0;
-		QueueState[0].PassState[0].NodeCount = NumRequests;
-	}
-
 	if (Index < NumRequests)
 	{
 		const FNaniteStreamOutRequest RequestData = StreamOutRequests[Index];
-
-		{
-			FCandidateNodeRT Node;
-			Node.NodeIndex = 0;
-			Node.PrimitiveId = RequestData.PrimitiveId;
-			Node.RequestIndex = Index;
-			StoreCandidateNodeRT(NodesAndClusterBatches, Index, Node);
-		}
 
 #if ALLOCATE_VERTICES_AND_TRIANGLES_RANGES
 		const uint MeshDataOffset = RequestData.MeshDataOffset;
@@ -551,7 +533,11 @@ void InitQueue(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 			const uint SegmentDataOffset = MeshDataOffset + 3 + SegmentIndex * 2;
 			MeshDataBuffer[SegmentDataOffset + 1] = NumIndices; // segment first index
 			NumIndices += MeshDataBuffer[SegmentDataOffset];
+
+			MeshDataBuffer[SegmentDataOffset] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
 		}
+
+		MeshDataBuffer[MeshDataOffset + 2] = 0; // reset counter back to zero so that each cluster can determine it's offset during stream out pass
 
 		uint BaseVertexOffset;		
 		uint BaseIndexOffset;
@@ -564,16 +550,21 @@ void InitQueue(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 		{
 			MeshDataBuffer[MeshDataOffset + 0] = 0xFFFFFFFFu;
 			MeshDataBuffer[MeshDataOffset + 1] = 0xFFFFFFFFu;
-		}
-
-		// reset counters back to zero so that each cluster can determine it's offset during stream out pass
-		MeshDataBuffer[MeshDataOffset + 2] = 0;
-		for (uint SegmentIndex = 0; SegmentIndex < RequestData.NumSegments; ++SegmentIndex)
-		{
-			const uint SegmentDataOffset = MeshDataOffset + 3 + SegmentIndex * 2;
-			MeshDataBuffer[SegmentDataOffset] = 0;
+			return;
 		}
 #endif
+
+		uint NodeOffset = 0;
+		WaveInterlockedAddScalar_(QueueState[0].PassState[0].NodeWriteOffset, 1, NodeOffset);
+		WaveInterlockedAddScalar(QueueState[0].PassState[0].NodeCount, 1);
+
+		{
+			FCandidateNodeRT Node;
+			Node.NodeIndex = 0;
+			Node.PrimitiveId = RequestData.PrimitiveId;
+			Node.RequestIndex = Index;
+			StoreCandidateNodeRT(NodesAndClusterBatches, NodeOffset, Node);
+		}
 	}
 }
 

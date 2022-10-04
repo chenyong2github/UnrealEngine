@@ -178,26 +178,32 @@ namespace Nanite
 		uint32 VertexBufferSize,
 		uint32 IndexBufferSize)
 	{
-		FInitQueueCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitQueueCS::FParameters>();
-		PassParameters->QueueParameters = QueueParameters;
+		// Reset queue to empty state
+		AddClearUAVPass(GraphBuilder, QueueParameters.QueueState, 0);
 
-		PassParameters->StreamOutRequests = RequestsDataSRV;
-		PassParameters->NumRequests = NumRequests;
+		// Init queue with requests
+		{
+			FInitQueueCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitQueueCS::FParameters>();
+			PassParameters->QueueParameters = QueueParameters;
 
-		PassParameters->MeshDataBuffer = MeshDataBufferUAV;
+			PassParameters->StreamOutRequests = RequestsDataSRV;
+			PassParameters->NumRequests = NumRequests;
 
-		PassParameters->VertexAndIndexAllocator = VertexAndIndexAllocatorUAV;
-		PassParameters->CurrentAllocationFrameIndex = CurrentAllocationFrameIndex;
-		PassParameters->NumAllocationFrames = NumAllocationFrames;
-		PassParameters->VertexBufferSize = VertexBufferSize;
-		PassParameters->IndexBufferSize = IndexBufferSize;
+			PassParameters->MeshDataBuffer = MeshDataBufferUAV;
 
-		FInitQueueCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FInitQueueCS::FAllocateRangesDim>(bAllocateRanges);
+			PassParameters->VertexAndIndexAllocator = VertexAndIndexAllocatorUAV;
+			PassParameters->CurrentAllocationFrameIndex = CurrentAllocationFrameIndex;
+			PassParameters->NumAllocationFrames = NumAllocationFrames;
+			PassParameters->VertexBufferSize = VertexBufferSize;
+			PassParameters->IndexBufferSize = IndexBufferSize;
 
-		auto ComputeShader = ShaderMap->GetShader<FInitQueueCS>(PermutationVector);
+			FInitQueueCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FInitQueueCS::FAllocateRangesDim>(bAllocateRanges);
 
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::InitQueue"), ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCountWrapped(NumRequests, 64));
+			auto ComputeShader = ShaderMap->GetShader<FInitQueueCS>(PermutationVector);
+
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::InitQueue"), ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCountWrapped(NumRequests, 64));
+		}
 	}
 
 	static void GetQueueParams(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, TRefCountPtr<FRDGPooledBuffer>& NodesAndClusterBatchesBuffer, FQueueParameters& OutQueueParameters)
