@@ -5,6 +5,8 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 
+#include "Algo/RemoveIf.h"
+
 
 FFractureToolContext::FFractureToolContext(UGeometryCollectionComponent* InGeometryCollectionComponent)
 {
@@ -112,6 +114,51 @@ void FFractureToolContext::RandomReduceSelection(float ProbToKeep)
 		{
 			SelectedBones.RemoveAtSwap(i);
 			i--;
+		}
+	}
+}
+
+void FFractureToolContext::RemoveChildrenOfSelectedNodesFromSelection()
+{
+	Sanitize();
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+	TSet<int32> SelectionSet(SelectedBones);
+	SelectedBones.SetNum(Algo::RemoveIf(SelectedBones, [&](const int32& Bone)
+	{
+		int32 Parent = Bone;
+		while ((Parent = Parents[Parent]) != INDEX_NONE)
+		{
+			if (SelectionSet.Contains(Parent))
+			{
+				return true;
+			}
+		}
+		return false;
+	}), false);
+}
+
+void FFractureToolContext::ConvertEmbeddedSelectionToParents()
+{
+	Sanitize();
+	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+
+	for (int32 SelBoneIdx = 0; SelBoneIdx < SelectedBones.Num(); ++SelBoneIdx)
+	{
+		int32 Bone = SelectedBones[SelBoneIdx];
+		if (SimulationType[Bone] == FGeometryCollection::ESimulationTypes::FST_None)
+		{
+			int32 Parent = Parents[Bone];
+			if (Parent != INDEX_NONE)
+			{
+				SelectedBones[SelBoneIdx] = Parent;
+			}
+			else // embedded should always have a parent, but if it somehow does not, just remove from selection
+			{
+				SelectedBones.RemoveAtSwap(SelBoneIdx, 1, false);
+				--SelBoneIdx; // reconsider swapped-in-element at this idx next iter
+			}
 		}
 	}
 }

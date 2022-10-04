@@ -250,7 +250,9 @@ void UFractureToolMoveUp::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 		{
 			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 
-			Context.ConvertSelectionToRigidNodes();
+			Context.ConvertEmbeddedSelectionToParents(); // it's not valid to 'move up' embedded geo
+			Context.RemoveChildrenOfSelectedNodesFromSelection(); // if a node's children are also selected, just move up the parent node
+			
 			FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
 			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
 			Refresh(Context, Toolkit, true);

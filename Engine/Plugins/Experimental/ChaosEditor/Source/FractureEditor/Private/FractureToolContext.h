@@ -24,6 +24,8 @@ public:
 	void ConvertSelectionToRigidNodes();
 	void ConvertSelectionToEmbeddedGeometryNodes();
 	void ConvertSelectionToClusterNodes();
+	void RemoveChildrenOfSelectedNodesFromSelection();
+	void ConvertEmbeddedSelectionToParents();
 	void RemoveRootNodes();
 	/// @param ProbToKeep The chance to keep each bone in the selection
 	void RandomReduceSelection(float ProbToKeep);
