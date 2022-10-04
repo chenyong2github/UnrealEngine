@@ -80,5 +80,26 @@ uint4 ViewRect;
 [numthreads(16, 16, 1)]
 void MainCS(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID)
 {
-	// TODO
+#if PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS
+#if IS_NANITE_PASS
+	FNaniteFullscreenVSToPS NaniteInterpolants = (FNaniteFullscreenVSToPS)0;
+#else
+	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+#endif
+#endif
+
+#if IS_NANITE_PASS && (PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS)
+	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+	Interpolants.ViewIndex = NaniteInterpolants.ViewIndex;
+#endif
+
+	FPixelShaderIn PixelShaderIn = (FPixelShaderIn)0;
+	FPixelShaderOut PixelShaderOut = (FPixelShaderOut)0;
+
+#if PIXELSHADEROUTPUT_BASEPASS
+	FBasePassInterpolantsVSToPS BasePassInterpolants = (FBasePassInterpolantsVSToPS)0;
+	FPixelShaderInOut_MainPS(Interpolants, BasePassInterpolants, PixelShaderIn, PixelShaderOut);
+#endif
+
+	// TODO: Work in progress / experimental
 }

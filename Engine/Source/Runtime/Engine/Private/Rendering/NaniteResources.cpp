@@ -24,6 +24,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "NaniteSceneProxy.h"
+#include "NaniteVertexFactory.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Elements/SMInstance/SMInstanceManager.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
@@ -58,6 +59,14 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Custom Data Instances"), STAT_InstanceHasCu
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Random Data Instances"), STAT_InstanceHasRandomCount, STATGROUP_Nanite);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Local Bounds Instances"), STAT_InstanceHasLocalBounds, STATGROUP_Nanite);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Hierarchy Offset Instances"), STAT_InstanceHasHierarchyOffset, STATGROUP_Nanite);
+
+// TODO: Work in progress / experimental - do not use
+static int32 GNaniteAllowComputeMaterials = 0;
+static FAutoConsoleVariableRef CVarNaniteAllowComputeMaterials(
+	TEXT("r.Nanite.AllowComputeMaterials"),
+	GNaniteAllowComputeMaterials,
+	TEXT("Whether to enable support for Nanite compute materials"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 int32 GNaniteOptimizedRelevance = 1;
 FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
@@ -2056,6 +2065,12 @@ void FVertexFactoryResource::InitRHI()
 		LLM_SCOPE_BYTAG(Nanite);
 		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
 		VertexFactory->InitResource();
+
+		if (GNaniteAllowComputeMaterials != 0)
+		{
+			VertexFactory2 = new FNaniteVertexFactory(ERHIFeatureLevel::SM6);
+			VertexFactory2->InitResource();
+		}
 	}
 }
 
@@ -2067,9 +2082,70 @@ void FVertexFactoryResource::ReleaseRHI()
 
 		delete VertexFactory;
 		VertexFactory = nullptr;
+
+		if (GNaniteAllowComputeMaterials != 0)
+		{
+			delete VertexFactory2;
+			VertexFactory2 = nullptr;
+		}
 	}
 }
 
 TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
 
 } // namespace Nanite
+
+FNaniteVertexFactory::FNaniteVertexFactory(ERHIFeatureLevel::Type FeatureLevel) : ::FVertexFactory(FeatureLevel)
+{
+	// We do not want a vertex declaration since this factory is pure compute
+	bNeedsDeclaration = false;
+}
+
+FNaniteVertexFactory::~FNaniteVertexFactory()
+{
+	ReleaseResource();
+}
+
+void FNaniteVertexFactory::InitRHI()
+{
+	LLM_SCOPE_BYTAG(Nanite);
+}
+
+bool FNaniteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+{
+	bool bShouldCompile =
+		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
+		Nanite::IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
+		Nanite::IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
+		Parameters.ShaderType->GetFrequency() == SF_Compute &&
+		RHISupportsComputeShaders(Parameters.Platform) &&
+		DoesPlatformSupportNanite(Parameters.Platform) &&
+		GNaniteAllowComputeMaterials != 0;
+
+	return bShouldCompile;
+}
+
+void FNaniteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	OutEnvironment.SetDefine(TEXT("IS_NANITE_SHADING_PASS"), 1);
+	OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
+	OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
+	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
+	OutEnvironment.SetDefine(TEXT("NANITE_COMPUTE_SHADE"), 1);
+
+	// Get data from GPUSceneParameters rather than View.
+	// TODO: Profile this vs view uniform buffer path
+	//OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+}
+
+IMPLEMENT_VERTEX_FACTORY_TYPE(FNaniteVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush",
+	EVertexFactoryFlags::UsedWithMaterials
+	| EVertexFactoryFlags::SupportsStaticLighting
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
+	| EVertexFactoryFlags::SupportsNaniteRendering
+	| EVertexFactoryFlags::SupportsComputeShading
+	| EVertexFactoryFlags::SupportsManualVertexFetch
+);

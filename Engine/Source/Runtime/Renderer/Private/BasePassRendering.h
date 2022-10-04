@@ -230,9 +230,6 @@ public:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionCaptureBuffer);
 };
 
-
-
-
 /**
  * The base shader type for vertex shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.
  * The base type is shared between the versions with and without atmospheric fog.
@@ -245,11 +242,9 @@ class TBasePassVertexShaderBaseType : public TBasePassVertexShaderPolicyParamTyp
 	DECLARE_INLINE_TYPE_LAYOUT(TBasePassVertexShaderBaseType, NonVirtual);
 protected:
 	TBasePassVertexShaderBaseType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : Super(Initializer) {}
-
 	TBasePassVertexShaderBaseType() {}
 
 public:
-
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return LightMapPolicyType::ShouldCompilePermutation(Parameters);
@@ -260,9 +255,6 @@ public:
 		LightMapPolicyType::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
-
-	
-	
 };
 
 template<typename LightMapPolicyType>
@@ -405,11 +397,12 @@ public:
 		const bool bCacheShaders = !bEnableSkyLight
 			//translucent materials need to compile skylight support to support MOVABLE skylights also.
 			|| bTranslucent
-			// Some lightmap policies (eg Simple Forward) always require skylight support
 			|| IsSingleLayerWater
 			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.MaterialParameters.ShadingModels.IsLit());
+		
 		return bCacheShaders
-			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM6))
+			&& Parameters.VertexFactoryType->SupportsComputeShading()
 			&& TBasePassComputeShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters);
 	}
 

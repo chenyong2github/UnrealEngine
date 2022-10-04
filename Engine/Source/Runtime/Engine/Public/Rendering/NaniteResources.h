@@ -36,6 +36,7 @@ class UStaticMeshComponent;
 class UInstancedStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 class FVertexFactory;
+class FNaniteVertexFactory;
 
 namespace UE::DerivedData { class FRequestOwner; }
 
@@ -369,8 +370,14 @@ public:
 	virtual void ReleaseRHI() override;
 
 	FVertexFactory* GetVertexFactory() { return VertexFactory; }
+	FNaniteVertexFactory* GetVertexFactory2() { return VertexFactory2; }
+
 private:
+	// TODO: Work in progress / experimental (having two factories is temporary).
+	// VertexFactory is the currently used one for VS/PS material shading in Nanite.
+	// VertexFactory2 is the WIP compute shader path.
 	class FVertexFactory* VertexFactory = nullptr;
+	class FNaniteVertexFactory* VertexFactory2 = nullptr;
 };
 
 enum class ERayTracingMode : uint8

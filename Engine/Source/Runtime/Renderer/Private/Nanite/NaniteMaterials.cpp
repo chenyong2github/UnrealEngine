@@ -2,6 +2,7 @@
 
 #include "NaniteMaterials.h"
 #include "NaniteDrawList.h"
+#include "NaniteVertexFactory.h"
 #include "NaniteVisualizationData.h"
 #include "NaniteRayTracing.h"
 #include "Rendering/NaniteResources.h"
