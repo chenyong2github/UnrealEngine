@@ -1707,17 +1707,31 @@ void FBulkData::SetFlagsFromDiskWrittenValues(
 }
 #endif
 
-FCustomVersionContainer FBulkData::GetCustomVersions(FArchive& InlineArchive)
+FCustomVersionContainer FBulkData::GetCustomVersions(FArchive& InlineArchive) const
+{
+	FPackageFileVersion OutUEVersion;
+	int32 OutLicenseeUEVersion;
+	FCustomVersionContainer OutCustomVersions;
+	GetBulkDataVersions(InlineArchive, OutUEVersion, OutLicenseeUEVersion, OutCustomVersions);
+	return OutCustomVersions;
+}
+
+void FBulkData::GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion,
+	int32& OutLicenseeUEVersion, FCustomVersionContainer& OutCustomVersions) const
 {
 	if (!IsInSeparateFile())
 	{
-		return InlineArchive.GetCustomVersions();
+		OutUEVersion = InlineArchive.UEVer();
+		OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
+		OutCustomVersions = InlineArchive.GetCustomVersions();
 	}
 	else if (!IsInExternalResource())
 	{
 		// The BulkData is in a sidecar file. These files were created with the same custom versions that
 		// the package file containing the BulkData used
-		return InlineArchive.GetCustomVersions();
+		OutUEVersion = InlineArchive.UEVer();
+		OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
+		OutCustomVersions = InlineArchive.GetCustomVersions();
 	}
 	else
 	{
@@ -1731,10 +1745,15 @@ FCustomVersionContainer FBulkData::GetCustomVersions(FArchive& InlineArchive)
 			*ExternalArchive << PackageFileSummary;
 			if (PackageFileSummary.Tag == PACKAGE_FILE_TAG && !ExternalArchive->IsError())
 			{
-				return PackageFileSummary.GetCustomVersionContainer();
+				OutUEVersion = PackageFileSummary.GetFileVersionUE();
+				OutLicenseeUEVersion = PackageFileSummary.GetFileVersionLicenseeUE();
+				OutCustomVersions = PackageFileSummary.GetCustomVersionContainer();
+				return;
 			}
 		}
-		return FCustomVersionContainer();
+		OutUEVersion = InlineArchive.UEVer();
+		OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
+		OutCustomVersions = InlineArchive.GetCustomVersions();
 	}
 }
 

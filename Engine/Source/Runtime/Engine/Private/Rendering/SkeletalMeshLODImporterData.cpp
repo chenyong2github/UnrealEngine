@@ -502,9 +502,7 @@ void FReductionBaseSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	if (!Ar.IsTransacting() && Ar.IsLoading())
 	{
 		//Save the custom version so we can load FReductionSkeletalMeshData later
-		UEVersion = Ar.UEVer();
-		LicenseeUEVersion = Ar.LicenseeUEVer();
-		SerializeLoadingCustomVersionContainer = BulkData.GetCustomVersions(Ar);
+		BulkData.GetBulkDataVersions(Ar, UEVersion, LicenseeUEVersion, SerializeLoadingCustomVersionContainer);
 		bUseSerializeLoadingCustomVersion = true;
 	}
 }
@@ -816,9 +814,7 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	if (!Ar.IsTransacting() && Ar.IsLoading())
 	{
 		//Save the custom version so we can load FReductionSkeletalMeshData later
-		UEVersion = Ar.UEVer();
-		LicenseeUEVersion = Ar.LicenseeUEVer();
-		SerializeLoadingCustomVersionContainer = BulkData.GetCustomVersions(Ar);
+		BulkData.GetBulkDataVersions(Ar, UEVersion, LicenseeUEVersion, SerializeLoadingCustomVersionContainer);
 		bUseSerializeLoadingCustomVersion = true;
 	}
 }

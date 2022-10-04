@@ -1957,6 +1957,24 @@ FCustomVersionContainer FEditorBulkData::GetCustomVersions(FArchive& InlineArchi
 void FEditorBulkData::GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion,
 	int32& OutLicenseeUEVersion, FCustomVersionContainer& OutCustomVersions) const
 {
+	if (EnumHasAnyFlags(Flags, EFlags::ReferencesWorkspaceDomain))
+	{
+		// Read the version data out of the separate package file
+		TUniquePtr<FArchive> ExternalArchive = IPackageResourceManager::Get().OpenReadExternalResource(
+			EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
+		if (ExternalArchive.IsValid())
+		{
+			FPackageFileSummary PackageFileSummary;
+			*ExternalArchive << PackageFileSummary;
+			if (PackageFileSummary.Tag == PACKAGE_FILE_TAG && !ExternalArchive->IsError())
+			{
+				OutUEVersion = PackageFileSummary.GetFileVersionUE();
+				OutLicenseeUEVersion = PackageFileSummary.GetFileVersionLicenseeUE();
+				OutCustomVersions = PackageFileSummary.GetCustomVersionContainer();
+				return;
+			}
+		}
+	}
 	OutUEVersion = InlineArchive.UEVer();
 	OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
 	OutCustomVersions = InlineArchive.GetCustomVersions();

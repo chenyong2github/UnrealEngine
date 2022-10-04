@@ -279,13 +279,10 @@ public:
 	FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive);
 
 	/**
-	* Get the versions used in the file containing the payload. Currently this is assumed
-	* to always be the versions in the InlineArchive
-	*
-	* @param InlineArchive The archive that was used to load this object
-	*
-	* @return The CustomVersions that apply to the interpretation of the payload.
-	*/
+	 * Get the versions used in the file containing the payload.
+	 *
+	 * @param InlineArchive The archive that was used to load this object
+	 */
 	void GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion, int32& OutLicenseeUEVersion,
 		FCustomVersionContainer& OutCustomVersions) const;
 

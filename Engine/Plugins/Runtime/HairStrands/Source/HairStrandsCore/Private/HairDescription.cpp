@@ -113,7 +113,10 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		// If loading, take the package custom version so it can be applied to the bulk data archive
 		// when unpacking HairDescription from it
-		CustomVersions = BulkData.GetCustomVersions(Ar);
+		// TODO: Save the UEVersion and LicenseeVersion as well
+		FPackageFileVersion UEVersion;
+		int32 LicenseeUEVersion;
+		BulkData.GetBulkDataVersions(Ar, UEVersion, LicenseeUEVersion, CustomVersions);
 	}
 }
 

@@ -991,16 +991,19 @@ public:
 		return DataAllocation.StealFileMapping(this); 
 	}
 
+	UE_DEPRECATED(5.1, "Call GetBulkDataVersions instead.")
+	FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive) const;
+
 	/**
 	 * Get the CustomVersions used in the file containing the BulkData payload. If !IsInSeparateFile, this will be
 	 * the custom versions from the archive used to serialize the FBulkData, which the caller must provide.
 	 * Otherwise, the CustomVersions come from the separate file and this function will look them up.
-	 * 
-	 * @param InlineArchive The archive that was used to load this BulkData object
-	 * 
-	 * @return The CustomVersions that apply to the interpretation of the BulkData's payload.
+	 *
+	 * @param InlineArchive The archive that was used to load this object
+	 *
 	 */
-	FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive);
+	void GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion, int32& OutLicenseeUEVersion,
+		FCustomVersionContainer& OutCustomVersions) const;
 
 #if WITH_EDITOR
 	/**
