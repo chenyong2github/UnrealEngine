@@ -298,6 +298,20 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FInitializeMaterialsCS, "/Engine/Private/Nanite/NaniteMaterialCulling.usf", "InitializeMaterials", SF_Compute);
 
+class FFinalizeMaterialsCS : public FNaniteGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FFinalizeMaterialsCS);
+	SHADER_USE_PARAMETER_STRUCT(FFinalizeMaterialsCS, FNaniteGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, MaterialTileCount)
+		SHADER_PARAMETER(uint32, MaterialSlotCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, MaterialIndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FFinalizeMaterialsCS, "/Engine/Private/Nanite/NaniteMaterialCulling.usf", "FinalizeMaterials", SF_Compute);
+
 class FClassifyMaterialsCS : public FNaniteGlobalShader
 {
 public:
@@ -448,7 +462,8 @@ void DrawBasePass(
 
 	const uint32 MaxMaterialSlots = NANITE_MAX_STATE_BUCKET_ID + 1;
 
-	FRDGBufferRef MaterialIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(MaxMaterialSlots), TEXT("Nanite.MaterialIndirectArgs"));
+	const uint32 IndirectArgStride = (sizeof(FRHIDrawIndexedIndirectParameters) + sizeof(FRHIDispatchIndirectParameters)) >> 2u;
+	FRDGBufferRef MaterialIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgStride * MaxMaterialSlots), TEXT("Nanite.MaterialIndirectArgs"));
 
 	FRDGBufferRef MultiViewIndices = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Nanite.DummyMultiViewIndices"));
 	FRDGBufferRef MultiViewRectScaleOffsets = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1), TEXT("Nanite.DummyMultiViewRectScaleOffsets"));
@@ -528,6 +543,25 @@ void DrawBasePass(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("Classify Materials"),
+				ComputeShader,
+				PassParameters,
+				DispatchDim
+			);
+		}
+
+		// Finalize acceleration/indexing structures for tile classification
+		{
+			auto ComputeShader = View.ShaderMap->GetShader<FFinalizeMaterialsCS>();
+			FFinalizeMaterialsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFinalizeMaterialsCS::FParameters>();
+			PassParameters->MaterialSlotCount		= HighestMaterialSlot;
+			PassParameters->MaterialTileCount		= TileGridSize.X * TileGridSize.Y;
+			PassParameters->MaterialIndirectArgs	= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
+
+			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(PassParameters->MaterialSlotCount, 64);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Finalize Materials"),
 				ComputeShader,
 				PassParameters,
 				DispatchDim

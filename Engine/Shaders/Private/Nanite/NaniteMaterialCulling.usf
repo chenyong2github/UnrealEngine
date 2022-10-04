@@ -32,6 +32,8 @@ uint2 FetchClamp;
 groupshared uint  TileMaterialCount;
 groupshared uint  TileMaterialBins[NANITE_MAX_MATERIAL_BINS]; // 16384 material slot max (1 bit per material slot)
 
+static const uint IndirectArgStride = DRAW_INDEXED_INDIRECT_UINT_COUNT + DISPATCH_INDIRECT_UINT_COUNT;
+
 [numthreads(16, 16, 1)]
 void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID)
 {
@@ -150,7 +152,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 				TileBin1 &= ~(1u << Bin1Index);
 
 				const uint MaterialSlot1 = MaterialSlot1Base + Bin1Index;
-				InterlockedAdd(MaterialIndirectArgs[MaterialSlot1 * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1], 1);
+				InterlockedAdd(MaterialIndirectArgs[MaterialSlot1 * IndirectArgStride + 1], 1);
 
 				const uint RemapBaseOffset = (MaterialRemapCount * MaterialSlot1);
 				const uint RemapBinOffset  = TileLinearOffset & 31u;
@@ -175,7 +177,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					TileBin2 &= ~(1u << Bin2Index);
 
 					const uint MaterialSlot2 = MaterialSlot2Base + Bin2Index;
-					InterlockedAdd(MaterialIndirectArgs[MaterialSlot2 * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1], 1);
+					InterlockedAdd(MaterialIndirectArgs[MaterialSlot2 * IndirectArgStride + 1], 1);
 
 					const uint RemapBaseOffset = (MaterialRemapCount * MaterialSlot2);
 					const uint RemapBinOffset  = TileLinearOffset & 31u;
@@ -196,26 +198,39 @@ void InitializeMaterials(uint3 ThreadIndex : SV_DispatchThreadID)
 
 	if (MaterialSlot < MaterialSlotCount)
 	{
-		// IndexCountPerInstance
-		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 0] = TopologyIndexCount; // 6 for tri prim, 3 for rect prim
+		static const uint IndirectArgOffset = MaterialSlot * IndirectArgStride;
 
 		// TODO: Store4(0) with a byte address buffer to avoid any SPI bottlenecks
 
-		// InstanceCount
-		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1] = 0; // Populated by material tile classification (# of surviving tiles per material)
+		MaterialIndirectArgs[IndirectArgOffset + 0] = TopologyIndexCount; // IndexCountPerInstance: 6 for tri prim, 3 for rect prim
+		MaterialIndirectArgs[IndirectArgOffset + 1] = 0; // InstanceCount: Populated by material tile classification (# of surviving tiles per material)
+		MaterialIndirectArgs[IndirectArgOffset + 2] = 0; // StartIndexLocation
+		MaterialIndirectArgs[IndirectArgOffset + 3] = 0; // BaseVertexLocation
+		MaterialIndirectArgs[IndirectArgOffset + 4] = 0; // StartInstanceLocation
 
-		// StartIndexLocation
-		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 2] = 0;
-
-		// BaseVertexLocation
-		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 3] = 0;
-
-		// StartInstanceLocation
-		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 4] = 0;
+		MaterialIndirectArgs[IndirectArgOffset + 5] = 0; // ThreadGroupCountX: Populated by material tile classification (# of surviving tile thread groups per material)
+		MaterialIndirectArgs[IndirectArgOffset + 6] = 0; // ThreadGroupCountY
+		MaterialIndirectArgs[IndirectArgOffset + 7] = 1; // ThreadGroupCountZ
 
 		for (uint RemapIndex = 0; RemapIndex < MaterialRemapCount; ++RemapIndex)
 		{
 			MaterialTileRemap[(MaterialRemapCount * MaterialSlot) + RemapIndex] = 0u;
 		}
+	}
+}
+
+[numthreads(64, 1, 1)]
+void FinalizeMaterials(uint3 ThreadIndex : SV_DispatchThreadID)
+{
+	const uint MaterialSlot = ThreadIndex.x;
+
+	if (MaterialSlot < MaterialSlotCount)
+	{
+		static const uint IndirectArgOffset = MaterialSlot * IndirectArgStride;
+
+		const uint MaterialTileCount = MaterialIndirectArgs[IndirectArgOffset + 1];
+
+		MaterialIndirectArgs[IndirectArgOffset + 5] = (MaterialTileCount + 15u) / 16u; // ThreadGroupCountX
+		MaterialIndirectArgs[IndirectArgOffset + 6] = (MaterialTileCount + 15u) / 16u; // ThreadGroupCountY
 	}
 }

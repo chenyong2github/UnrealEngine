@@ -261,7 +261,8 @@ void SubmitNaniteIndirectMaterial(
 	}
 
 	check(MaterialIndirectArgs == nullptr || MaterialSlot != INDEX_NONE);
-	const uint32 MaterialSlotIndirectOffset = MaterialIndirectArgs != nullptr ? sizeof(FRHIDrawIndexedIndirectParameters) * uint32(MaterialSlot) : 0;
+	const uint32 IndirectArgSize = sizeof(FRHIDrawIndexedIndirectParameters) + sizeof(FRHIDispatchIndirectParameters);
+	const uint32 MaterialSlotIndirectOffset = MaterialIndirectArgs != nullptr ? IndirectArgSize * uint32(MaterialSlot) : 0;
 	FMeshDrawCommand::SubmitDrawIndirectEnd(MeshDrawCommand, InstanceFactor, RHICmdList, MaterialIndirectArgs, MaterialSlotIndirectOffset);
 }
 

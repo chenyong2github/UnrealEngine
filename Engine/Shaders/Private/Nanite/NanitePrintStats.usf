@@ -303,7 +303,8 @@ void CalculateShadingStats()
 	LOOP
 	for (uint ShadingBinIndex = 0; ShadingBinIndex < NumShadingBins; ++ShadingBinIndex)
 	{
-		if (MaterialIndirectArgs[ShadingBinIndex * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1] == 0)
+		static const uint ArgCount = DRAW_INDEXED_INDIRECT_UINT_COUNT + DISPATCH_INDIRECT_UINT_COUNT;
+		if (MaterialIndirectArgs[ShadingBinIndex * ArgCount + 1] == 0)
 		{
 			++NumEmptyShadingBins;
 		}
