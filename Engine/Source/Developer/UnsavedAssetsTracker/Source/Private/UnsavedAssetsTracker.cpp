@@ -13,6 +13,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
+#include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "UnsavedAssetsTracker"
 
@@ -23,8 +24,13 @@ namespace
 
 bool IsPackagePersistent(UPackage* Package)
 {
-	// Ignore the packages that cannot be saved to disk.
-	if (Package->HasAnyFlags(RF_Transient) || Package->HasAnyPackageFlags(PKG_CompiledIn) || Package == GetTransientPackage())
+	// Ignore the packages that aren't meant to be persistent.
+	if (Package->HasAnyFlags(RF_Transient) ||
+		Package->HasAnyPackageFlags(PKG_CompiledIn) ||
+		Package->HasAnyPackageFlags(PKG_PlayInEditor) ||
+		Package == GetTransientPackage() ||
+		FPackageName::IsMemoryPackage(Package->GetPathName()) ||
+		FPackageName::IsTempPackage(Package->GetPathName()))
 	{
 		return false;
 	}
