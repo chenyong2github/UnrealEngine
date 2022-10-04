@@ -86,14 +86,11 @@ enum EShaderPlatform
 	SP_OPENGL_PCES3_1				= 15,
 	SP_METAL_SM5					= 16,
 	SP_VULKAN_PCES3_1				= 17,
-	SP_METAL_SM5_NOTESS_REMOVED		UE_DEPRECATED(5.0, "ShaderPlatform is removed; please don't use.") = 18,
 	SP_VULKAN_SM5					= 20,
 	SP_VULKAN_ES3_1_ANDROID			= 21,
 	SP_METAL_MACES3_1 				= 22,
 	SP_OPENGL_ES3_1_ANDROID			= 24,
 	SP_METAL_MRT_MAC				= 27,
-	SP_VULKAN_SM5_LUMIN_REMOVED		UE_DEPRECATED(5.0, "ShaderPlatform is removed; please don't use.") = 28,
-	SP_VULKAN_ES3_1_LUMIN_REMOVED	UE_DEPRECATED(5.0, "ShaderPlatform is removed; please don't use.") = 29,
 	SP_METAL_TVOS					= 30,
 	SP_METAL_MRT_TVOS				= 31,
 	/**********************************************************************************/
@@ -1717,9 +1714,6 @@ enum class EBufferUsageFlags : uint32
 	/** Buffer should go in fast vram (hint only). Requires BUF_Transient */
 	FastVRAM                = 1 << 10,
 
-	/** Buffer should be allocated from transient memory. */
-	Transient UE_DEPRECATED(5.0, "EBufferUsageFlags::Transient flag is no longer used.") = None,
-
 	/** Create a buffer that can be shared with an external RHI or process. */
 	Shared                  = 1 << 12,
 
@@ -1931,8 +1925,6 @@ enum class ETextureCreateFlags : uint64
     AFRManual                         = 1ull << 30,
     // Workaround for 128^3 volume textures getting bloated 4x due to tiling mode on some platforms.
     ReduceMemoryWithTilingMode        = 1ull << 31,
-    /** Texture should be allocated from transient memory. */
-    Transient UE_DEPRECATED(5.0, "ETextureCreateFlags::Transient flag is no longer used.") = None,
     /** Texture needs to support atomic operations */
     AtomicCompatible                  = 1ull << 33,
 	/** Texture should be allocated for external access. Vulkan only */

@@ -117,9 +117,6 @@ private:
 	int32 SlotCount = 0;
 };
 
-UE_DEPRECATED(5.0, "Please rename to FUniformBufferStaticBindings")
-typedef FUniformBufferStaticBindings FUniformBufferGlobalBindings;
-
 struct FTransferResourceFenceData
 {
 	TStaticArray<void*, MAX_NUM_GPUS> SyncPoints;
@@ -314,9 +311,6 @@ public:
 	{
 		/** empty default implementation. */
 	}
-
-	UE_DEPRECATED(5.0, "Please rename to RHISetStaticUniformBuffers.")
-	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) {}
 
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) = 0;
 
@@ -661,11 +655,6 @@ public:
 
 	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) = 0;
 
-	UE_DEPRECATED(5.0, "SetGraphicsPipelineState now requires a StencilRef argument")
-	void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState)
-	{
-		RHISetGraphicsPipelineState(GraphicsState, 0, bApplyAdditionalState);
-	}
 #if PLATFORM_USE_FALLBACK_PSO
 	virtual void RHISetGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState) = 0;
 #endif

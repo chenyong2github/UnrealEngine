@@ -467,10 +467,6 @@ extern RHI_API bool GSupportsEfficientAsyncCompute;
 /** True if the RHI supports getting the result of occlusion queries when on a thread other than the render thread */
 extern RHI_API bool GSupportsParallelOcclusionQueries;
 
-/** true if the RHI supports aliasing of transient resources */
-UE_DEPRECATED(5.0, "GSupportsTransientResourceAliasing has been deprecated. Transient resource aliasing is handled through IRHITransientResourceAllocator.")
-extern RHI_API bool GSupportsTransientResourceAliasing;
-
 /** true if the RHI requires a valid RT bound during UAV scatter operation inside the pixel shader */
 extern RHI_API bool GRHIRequiresRenderTargetForPixelShaderUAVs;
 

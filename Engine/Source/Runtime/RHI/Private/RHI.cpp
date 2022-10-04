@@ -1447,7 +1447,6 @@ bool GRHISupportsRHIThread = false;
 bool GRHISupportsRHIOnTaskThread = false;
 bool GRHISupportsParallelRHIExecute = false;
 bool GSupportsParallelOcclusionQueries = false;
-bool GSupportsTransientResourceAliasing = false;
 bool GRHIRequiresRenderTargetForPixelShaderUAVs = false;
 bool GRHISupportsUAVFormatAliasing = false;
 bool GRHISupportsDirectGPUMemoryLock = false;

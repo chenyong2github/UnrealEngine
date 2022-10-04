@@ -50,16 +50,6 @@ enum class EClearBinding;
 class RHI_API FRHIResource
 {
 public:
-	UE_DEPRECATED(5.0, "FRHIResource(bool) is deprecated, please use FRHIResource(ERHIResourceType)")
-	FRHIResource(bool InbDoNotDeferDelete=false)
-		: ResourceType(RRT_None)
-		, bCommitted(true)
-#if RHI_ENABLE_RESOURCE_INFO
-		, bBeingTracked(false)
-#endif
-	{
-	}
-
 	FRHIResource(ERHIResourceType InResourceType)
 		: ResourceType(InResourceType)
 		, bCommitted(true)
@@ -1195,10 +1185,6 @@ private:
 	EBufferUsageFlags Usage{};
 };
 
-UE_DEPRECATED(5.0, "FRHIIndexBuffer is deprecated, please use FRHIBuffer.")      typedef class FRHIBuffer FRHIIndexBuffer;
-UE_DEPRECATED(5.0, "FRHIVertexBuffer is deprecated, please use FRHIBuffer.")     typedef class FRHIBuffer FRHIVertexBuffer;
-UE_DEPRECATED(5.0, "FRHIStructuredBuffer is deprecated, please use FRHIBuffer.") typedef class FRHIBuffer FRHIStructuredBuffer;
-
 //
 // Textures
 //
@@ -1857,18 +1843,6 @@ public:
 		return LastRenderTime.GetLastRenderTime();
 	}
 
-	/** Returns the last render time container, or NULL if none were specified at creation. */
-	UE_DEPRECATED(5.0, "GetLastRenderTimeContainer is deprecated and will be removed in the future")
-	FLastRenderTimeContainer* GetLastRenderTimeContainer()
-	{
-		return nullptr;
-	}
-
-	UE_DEPRECATED(5.0, "SetDefaultLastRenderTimeContainer is deprecated and will be removed in the future")
-	FORCEINLINE_DEBUGGABLE void SetDefaultLastRenderTimeContainer()
-	{
-	}
-
 	void SetName(const FName& InName)
 	{
 		Name = InName;
@@ -1954,11 +1928,6 @@ public:
 		check(DefaultTexture);
 		ReferencedTexture = DefaultTexture;
 	}
-
-	UE_DEPRECATED(5.0, "The InLastRenderTime parameter will be removed in the future")
-	explicit FRHITextureReference(FLastRenderTimeContainer* InLastRenderTime)
-		: FRHITextureReference()
-	{}
 
 	virtual class FRHITextureReference* GetTextureReference() override
 	{
@@ -2311,9 +2280,6 @@ typedef TRefCountPtr<FRHIBoundShaderState> FBoundShaderStateRHIRef;
 typedef TRefCountPtr<const FRHIUniformBufferLayout> FUniformBufferLayoutRHIRef;
 typedef TRefCountPtr<FRHIUniformBuffer> FUniformBufferRHIRef;
 typedef TRefCountPtr<FRHIBuffer> FBufferRHIRef;
-UE_DEPRECATED(5.0, "FIndexBufferRHIRef is deprecated, please use FBufferRHIRef.")      typedef FBufferRHIRef FIndexBufferRHIRef;
-UE_DEPRECATED(5.0, "FVertexBufferRHIRef is deprecated, please use FBufferRHIRef.")     typedef FBufferRHIRef FVertexBufferRHIRef;
-UE_DEPRECATED(5.0, "FStructuredBufferRHIRef is deprecated, please use FBufferRHIRef.") typedef FBufferRHIRef FStructuredBufferRHIRef;
 typedef TRefCountPtr<FRHITexture> FTextureRHIRef;
 /*UE_DEPRECATED(5.1, "FTexture2DRHIRef is deprecated, please use FTextureRHIRef.")      */ typedef FTextureRHIRef FTexture2DRHIRef;
 /*UE_DEPRECATED(5.1, "FTexture2DArrayRHIRef is deprecated, please use FTextureRHIRef.") */ typedef FTextureRHIRef FTexture2DArrayRHIRef;

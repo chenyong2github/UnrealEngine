@@ -2428,12 +2428,6 @@ public:
 
 	inline FRHIComputeShader* GetBoundComputeShader() const { return PersistentState.BoundComputeShaderRHI; }
 
-	UE_DEPRECATED(5.0, "Please rename to SetStaticUniformBuffers")
-	FORCEINLINE_DEBUGGABLE void SetGlobalUniformBuffers(const FUniformBufferStaticBindings& UniformBuffers)
-	{
-		SetStaticUniformBuffers(UniformBuffers);
-	}
-
 	FORCEINLINE_DEBUGGABLE void SetStaticUniformBuffers(const FUniformBufferStaticBindings& UniformBuffers)
 	{
 		if (Bypass())
@@ -2475,14 +2469,6 @@ public:
 			Result.WorkArea = &Cmd->WorkArea;
 		}
 		return Result;
-	}
-
-	UE_DEPRECATED(5.0, "Use Layout pointers instead")
-	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout& Layout)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return BuildLocalUniformBuffer(Contents, ContentsSize, &Layout);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	template <typename TRHIShader>
@@ -3467,12 +3453,6 @@ public:
 		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState, StencilRef, bApplyAdditionalState);
 	}
 
-	UE_DEPRECATED(5.0, "SetGraphicsPipelineState now requires a StencilRef argument")
-	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState, const FBoundShaderStateInput& ShaderInput, bool bApplyAdditionalState)
-	{
-		SetGraphicsPipelineState(GraphicsPipelineState, ShaderInput, 0, bApplyAdditionalState);
-	}
-
 #if PLATFORM_USE_FALLBACK_PSO
 	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState)
 	{
@@ -4267,12 +4247,6 @@ public:
 		return RHICreateUniformBuffer(Contents, Layout, Usage);
 	}
 
-	UE_DEPRECATED(5.0, "Use Layout pointers instead")
-	FORCEINLINE FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage)
-	{
-		return RHICreateUniformBuffer(Contents, &Layout, Usage);
-	}
-
 	UE_DEPRECATED(5.1, "Use CreateBuffer and LockBuffer separately")
 	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 	{
@@ -4289,18 +4263,6 @@ public:
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return CreateAndLockIndexBuffer(Stride, Size, Usage, ResourceState, CreateInfo, OutDataBuffer);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
-	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
-	FORCEINLINE void* LockIndexBuffer(FRHIBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-	{
-		return GDynamicRHI->RHILockBuffer(*this, IndexBuffer, Offset, SizeRHI, LockMode);
-	}
-	
-	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use UnlockBuffer() instead.")
-	FORCEINLINE void UnlockIndexBuffer(FRHIBuffer* IndexBuffer)
-	{
-		GDynamicRHI->RHIUnlockBuffer(*this, IndexBuffer);
 	}
 	
 	FORCEINLINE void* LockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
@@ -4331,41 +4293,11 @@ public:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
-	FORCEINLINE void* LockVertexBuffer(FRHIBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-	{
-		return GDynamicRHI->RHILockBuffer(*this, VertexBuffer, Offset, SizeRHI, LockMode);
-	}
-	
-	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use UnlockBuffer() instead.")
-	FORCEINLINE void UnlockVertexBuffer(FRHIBuffer* VertexBuffer)
-	{
-		GDynamicRHI->RHIUnlockBuffer(*this, VertexBuffer);
-	}
-	
 	FORCEINLINE void CopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_CopyBuffer_Flush);
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
 		GDynamicRHI->RHICopyBuffer(SourceBuffer, DestBuffer);
-	}
-
-	UE_DEPRECATED(5.0, "CopyVertexBuffer() has been replaced with a general CopyBuffer() function.")
-	FORCEINLINE void CopyVertexBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer)
-	{
-		CopyBuffer(SourceBuffer, DestBuffer);
-	}
-
-	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use LockBuffer() instead.")
-	FORCEINLINE void* LockStructuredBuffer(FRHIBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-	{
-		return GDynamicRHI->RHILockBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
-	}
-
-	UE_DEPRECATED(5.0, "Buffer locks have been unified. Use UnlockBuffer() instead.")
-	FORCEINLINE void UnlockStructuredBuffer(FRHIBuffer* StructuredBuffer)
-	{
-		GDynamicRHI->RHIUnlockBuffer(*this, StructuredBuffer);
 	}
 
 	// LockBufferMGPU / UnlockBufferMGPU may ONLY be called for buffers with the EBufferUsageFlags::MultiGPUAllocate flag set!
@@ -4487,14 +4419,6 @@ public:
 		});
 	}
 
-	UE_DEPRECATED(5.0, "RHIGetResourceInfo is no longer implemented in favor of FRHIResource::GetResourceInfo.")
-	FORCEINLINE void GetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return RHIGetResourceInfo(Ref, OutInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
 	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 	{
 		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateShaderResourceView"));
@@ -4705,18 +4629,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
 		GDynamicRHI->RHIRead3DSurfaceFloatData(Texture,Rect,ZMinMax,OutData,Flags);
 	}
-
-	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture) {}
-
-	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	FORCEINLINE void DiscardTransientResource_RenderThread(FRHITexture* Texture) {}
-
-	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIBuffer* Buffer) {}
-
-	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIBuffer* Buffer) {}
 
 	FORCEINLINE bool GetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait, uint32 GPUIndex = INDEX_NONE)
 	{
@@ -5036,12 +4948,6 @@ struct RHI_API FScopedUniformBufferStaticBindings
 
 #define SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS(RHICmdList, UniformBuffers) FScopedUniformBufferStaticBindings PREPROCESSOR_JOIN(UniformBuffers, __LINE__){ RHICmdList, UniformBuffers }
 
-UE_DEPRECATED(5.0, "Please rename to FScopedUniformBufferStaticBindings, or use the SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS instead.")
-typedef FScopedUniformBufferStaticBindings FScopedUniformBufferGlobalBindings;
-
-// UE_DEPRECATED(5.0)
-#define SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, UniformBuffers) FScopedUniformBufferGlobalBindings PREPROCESSOR_JOIN(UniformBuffers, __LINE__){ RHICmdList, UniformBuffers }
-
 // Helper to enable the use of graphics RHI command lists from within platform RHI implementations.
 // Recorded commands are dispatched when the command list is destructed. Intended for use on the stack / in a scope block.
 class RHI_API FRHICommandList_RecursiveHazardous : public FRHICommandList
@@ -5269,15 +5175,6 @@ FORCEINLINE FStagingBufferRHIRef RHICreateStagingBuffer()
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateStagingBuffer();
 }
 
-UE_DEPRECATED(5.0, "Use RHICreateBuffer() and RHILockBuffer() instead.")
-FORCEINLINE FBufferRHIRef RHICreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-{
-	check(IsInRenderingThread());
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockIndexBuffer(Stride, Size, InUsage, CreateInfo, OutDataBuffer);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 FORCEINLINE FBufferRHIRef RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	check(IsInRenderingThread());
@@ -5316,32 +5213,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
-FORCEINLINE void* RHILockIndexBuffer(FRHIBuffer* IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
-{
-	check(IsInRenderingThread());
-	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(IndexBuffer, Offset, Size, LockMode);
-}
-
-UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
-FORCEINLINE void RHIUnlockIndexBuffer(FRHIBuffer* IndexBuffer)
-{
-	check(IsInRenderingThread());
-	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(IndexBuffer);
-}
-
 FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().UpdateUniformBuffer(UniformBufferRHI, Contents);
-}
-
-UE_DEPRECATED(5.0, "Use RHICreateBuffer() and RHILockBuffer() instead.")
-FORCEINLINE FBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
-{
-	check(IsInRenderingThread());
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateAndLockVertexBuffer(Size, InUsage, CreateInfo, OutDataBuffer);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE FBufferRHIRef RHICreateVertexBuffer(uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
@@ -5376,20 +5250,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
-FORCEINLINE void* RHILockVertexBuffer(FRHIBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-{
-	check(IsInRenderingThread());
-	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(VertexBuffer, Offset, SizeRHI, LockMode);
-}
-
-UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
-FORCEINLINE void RHIUnlockVertexBuffer(FRHIBuffer* VertexBuffer)
-{
-	check(IsInRenderingThread());
-	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(VertexBuffer);
-}
-
 FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags Usage, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	check(IsInRenderingThread());
@@ -5402,20 +5262,6 @@ FORCEINLINE FBufferRHIRef RHICreateStructuredBuffer(uint32 Stride, uint32 Size, 
 	EBufferUsageFlags Usage = InUsage | BUF_StructuredBuffer;
 	ERHIAccess ResourceState = RHIGetDefaultResourceState(Usage, bHasInitialData);
 	return RHICreateStructuredBuffer(Stride, Size, Usage, ResourceState, CreateInfo);
-}
-
-UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHILockBuffer() instead.")
-FORCEINLINE void* RHILockStructuredBuffer(FRHIBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-{
-	check(IsInRenderingThread());
-	return FRHICommandListExecutor::GetImmediateCommandList().LockBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
-}
-
-UE_DEPRECATED(5.0, "Buffer locks have been unified. Use RHIUnlockBuffer() instead.")
-FORCEINLINE void RHIUnlockStructuredBuffer(FRHIBuffer* StructuredBuffer)
-{
-	check(IsInRenderingThread());
-	FRHICommandListExecutor::GetImmediateCommandList().UnlockBuffer(StructuredBuffer);
 }
 
 FORCEINLINE void* RHILockBuffer(FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -5474,12 +5320,6 @@ FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int3
 FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference()
 {
 	return new FRHITextureReference();
-}
-
-UE_DEPRECATED(5.0, "The LastRenderTime parameter will be removed in the future")
-FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
-{
-	return RHICreateTextureReference();
 }
 
 FORCEINLINE void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
@@ -5768,18 +5608,6 @@ FORCEINLINE void RHIUnlockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceI
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, bLockWithinMiptail);
 }
-
-UE_DEPRECATED(5.0, "RHIAcquireTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
-FORCEINLINE void RHIAcquireTransientResource(FRHITexture*) {}
-
-UE_DEPRECATED(5.0, "RHIDiscardTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
-FORCEINLINE void RHIDiscardTransientResource(FRHITexture*) {}
-
-UE_DEPRECATED(5.0, "RHIAcquireTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
-FORCEINLINE void RHIAcquireTransientResource(FRHIBuffer*)  {}
-
-UE_DEPRECATED(5.0, "RHIDiscardTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
-FORCEINLINE void RHIDiscardTransientResource(FRHIBuffer*)  {}
 
 FORCEINLINE void RHIAcquireThreadOwnership()
 {

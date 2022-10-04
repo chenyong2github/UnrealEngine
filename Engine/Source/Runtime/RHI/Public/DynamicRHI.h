@@ -408,12 +408,6 @@ public:
 	// FlushType: Thread safe, but varies depending on the RHI
 	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation) = 0;
 
-	UE_DEPRECATED(5.0, "Use Layout pointers instead")
-	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
-	{
-		return RHICreateUniformBuffer(Contents, &Layout, Usage, Validation);
-	}
-
 	virtual void RHIUpdateUniformBuffer(FRHICommandListBase& RHICmdList, FRHIUniformBuffer* UniformBufferRHI, const void* Contents) = 0;
 
 	/** Copies the contents of one buffer to another buffer. They must have identical sizes. */
@@ -449,17 +443,7 @@ public:
 
 	/** Creates an unordered access view of the given texture. */
 	// FlushType: Wait RHI Thread
-	UE_DEPRECATED(5.0, "RHICreateUnorderedAccessView now requires FirstArraySlice and NumArraySlices parameters.")
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel);
-
-	/** Creates an unordered access view of the given texture. */
-	// FlushType: Wait RHI Thread
 	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices) = 0;
-
-	/** Creates an unordered access view of the given texture. */
-	// FlushType: Wait RHI Thread
-	UE_DEPRECATED(5.0, "RHICreateUnorderedAccessView now requires FirstArraySlice and NumArraySlices parameters.")
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format);
 
 	/** Creates an unordered access view of the given texture. */
 	// FlushType: Wait RHI Thread
@@ -564,21 +548,6 @@ public:
 	*/
 	// FlushType: Flush RHI Thread
 	virtual void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D) = 0;
-
-	/**
-	* @param Ref may be 0
-	*/
-	// FlushType: Thread safe
-	UE_DEPRECATED(5.0, "RHIGetResourceInfo is no longer implemented in favor of FRHIResource::GetResourceInfo.")
-	virtual void RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
-	{
-#if RHI_ENABLE_RESOURCE_INFO
-		if (Ref)
-		{
-			Ref->GetResourceInfo(OutInfo);
-		}
-#endif
-	}
 
 	/**
 	* Creates a shader resource view for a texture
@@ -1139,34 +1108,10 @@ public:
 	virtual void* RHILockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail);
 	virtual void RHIUnlockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail);
 
-	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	virtual void RHIAcquireTransientResource_RenderThread(FRHITexture*) {}
-
-	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	virtual void RHIDiscardTransientResource_RenderThread(FRHITexture*) {}
-
-	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	virtual void RHIAcquireTransientResource_RenderThread(FRHIBuffer*)  {}
-
-	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
-	virtual void RHIDiscardTransientResource_RenderThread(FRHIBuffer*)  {}
-
 	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 GPUIndex, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight);
 	virtual void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 GPUIndex);
 	virtual void RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex);
 	virtual void RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, FReadSurfaceDataFlags Flags);
-
-	UE_DEPRECATED(5.0, "Use the version of this function that accepts GPUIndex -- can pass INDEX_NONE to pull from the active GPUMask (the original behavior), but this will fail if GPUMask contains more than one GPU")
-	inline void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
-	{
-		RHIMapStagingSurface_RenderThread(RHICmdList, Texture, INDEX_NONE, Fence, OutData, OutWidth, OutHeight);
-	}
-
-	UE_DEPRECATED(5.0, "Use the version of this function that accepts GPUIndex -- can pass INDEX_NONE to pull from the active GPUMask (the original behavior), but this will fail if GPUMask contains more than one GPU")
-	inline void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)
-	{
-		RHIUnmapStagingSurface_RenderThread(RHICmdList, Texture, INDEX_NONE);
-	}
 
 	// Buffer Lock/Unlock
 	virtual void* LockBuffer_BottomOfPipe(class FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -1196,9 +1141,6 @@ public:
 
 	virtual void RHICalibrateTimers() {}
 	virtual void RHIPollRenderQueryResults() {}
-
-	UE_DEPRECATED(5.0, "The global version of RHIIsTypedUAVLoadSupported should be used")
-	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return ::RHIIsTypedUAVLoadSupported(PixelFormat); }
 
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() { return 8; };
 
@@ -1349,12 +1291,6 @@ FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, co
 	return GDynamicRHI->RHICreateUniformBuffer(Contents, Layout, Usage, Validation);
 }
 
-UE_DEPRECATED(5.0, "Use Layout pointers instead")
-FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
-{
-	return GDynamicRHI->RHICreateUniformBuffer(Contents, &Layout, Usage, Validation);
-}
-
 FORCEINLINE FDynamicRHI::FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex = 0)
 {
 	if ( ! Desc.IsValid() )
@@ -1496,14 +1432,6 @@ FORCEINLINE uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
 FORCEINLINE void RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 {
 	GDynamicRHI->RHIGetTextureMemoryStats(OutStats);
-}
-
-UE_DEPRECATED(5.0, "RHIGetResourceInfo is no longer implemented in favor of FRHIResource::GetResourceInfo.")
-FORCEINLINE void RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	GDynamicRHI->RHIGetResourceInfo(Ref, OutInfo);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE uint32 RHIComputeMemorySize(FRHITexture* TextureRHI)
@@ -1649,12 +1577,6 @@ FORCEINLINE const FRHITransition* RHICreateTransition(const FRHITransitionCreate
 	FRHITransition* Transition = new (FConcurrentLinearAllocator::Malloc(FRHITransition::GetTotalAllocationSize(), (uint32)FRHITransition::GetAlignment())) FRHITransition(CreateInfo.SrcPipelines, CreateInfo.DstPipelines);
 	GDynamicRHI->RHICreateTransition(Transition, CreateInfo);
 	return Transition;
-}
-
-UE_DEPRECATED(5.0, "Use the FRHITransitionCreateInfo version of RHICreateTransition instead.")
-FORCEINLINE const FRHITransition* RHICreateTransition(ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHITransitionCreateFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
-{
-	return RHICreateTransition(FRHITransitionCreateInfo(SrcPipelines, DstPipelines, CreateFlags, Infos));
 }
 
 FORCEINLINE void RHIReleaseTransition(FRHITransition* Transition)
