@@ -55,17 +55,8 @@ namespace impl
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Task_Mutable_UpdateImage);
 
-		// TODO we cannot access all this from the mips steaming thread
-		// Get any external texture that may be requested for this update
-		//MUTABLE_CPUPROFILER_SCOPE(GetExternalImages);
-		//if (System->GetPrivate()->ImageProvider)
-		//{
-		//	for (const FCustomizableObjectTextureParameterValue& Param : CandidateInstance->TextureParameters)
-		//	{
-		//		System->GetPrivate()->ImageProvider->CacheImage(Param.ParameterValue);
-		//	}
-		//}
-
+		// Any external texture that may be needed for this update will be requested from Mutable Core's GetImage
+		// which will safely access the GlobalExternalImages map, and then just get the cached image or issue a disk read
 
 		// This runs in a worker thread.
 		check(OperationData.IsValid());

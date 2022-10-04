@@ -39,6 +39,20 @@ struct FMutableUpdateContext
 };
 
 
+struct FMutableMipUpdateLevel
+{
+	FMutableMipUpdateLevel(int32 InMipLevel, void* InDest, int32 InSizeX, int32 InSizeY, int32 InDataSize, EPixelFormat InFormat) :
+		Dest(InDest), MipLevel(InMipLevel), SizeX(InSizeX), SizeY(InSizeY), DataSize(InDataSize), Format(InFormat) {}
+
+	void* Dest; // Only access from the FMutableTextureMipDataProvider, owned by the FTextureMipInfoArray so don't delete
+	int32 MipLevel;
+	int32 SizeX;
+	int32 SizeY;
+	int32 DataSize;
+	EPixelFormat Format;
+};
+
+
 /** Runtime data used during a mutable image mipmap update */
 struct FMutableImageOperationData
 {

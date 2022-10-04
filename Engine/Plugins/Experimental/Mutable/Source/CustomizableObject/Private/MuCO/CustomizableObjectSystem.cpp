@@ -1901,15 +1901,6 @@ namespace impl
 				// Unlock the resource cache for the object used by this instance to avoid
 				// the destruction of resources that we may want to reuse.
 				System->ClearResourceCacheProtected();
-
-				// Free cached external images for this operation
-				{
-					MUTABLE_CPUPROFILER_SCOPE(ClearExternalImages);
-					if (System->GetPrivate()->ImageProvider)
-					{
-						System->GetPrivate()->ImageProvider->ClearCache();
-					}
-				}
 			}
 
 			// Next Task: Callbacks
@@ -1980,18 +1971,8 @@ namespace impl
 			}
 		}
 
-		// Get any external texture that may be requested for this update
-		{
-			MUTABLE_CPUPROFILER_SCOPE(GetExternalImages);
-			if (System->GetPrivate()->ImageProvider)
-			{
-				for (const FCustomizableObjectTextureParameterValue& Param : ObjectInstance->GetTextureParameters())
-				{
-					System->GetPrivate()->ImageProvider->CacheImage(Param.ParameterValue);
-				}
-			}
-		}
-
+		// Any external texture that may be needed for this update will be requested from Mutable Core's GetImage
+		// which will safely access the GlobalExternalImages map, and then just get the cached image or issue a disk read
 
 		// Copy data generated in the mutable thread over to the instance
 		ObjectInstance->GetPrivate()->PrepareForUpdate(OperationData);
@@ -2851,6 +2832,42 @@ uint64 UCustomizableObjectSystem::GetMaxChunkSizeForPlatform(const ITargetPlatfo
 	PlatformMaxChunkSize.Add(PlatformName, MaxChunkSize);
 
 	return MaxChunkSize;
+}
+
+
+void UCustomizableObjectSystem::CacheImage(uint64 ImageId)
+{
+	if (GetPrivate()->ImageProvider)
+	{
+		GetPrivate()->ImageProvider->CacheImage(ImageId);
+	}
+}
+
+
+void UCustomizableObjectSystem::UnCacheImage(uint64 ImageId)
+{
+	if (GetPrivate()->ImageProvider)
+	{
+		GetPrivate()->ImageProvider->UnCacheImage(ImageId);
+	}
+}
+
+
+void UCustomizableObjectSystem::CacheAllImagesInAllProviders(bool bClearPreviousCacheImages)
+{
+	if (GetPrivate()->ImageProvider)
+	{
+		GetPrivate()->ImageProvider->CacheAllImagesInAllProviders(bClearPreviousCacheImages);
+	}
+}
+
+
+void UCustomizableObjectSystem::ClearImageCache()
+{
+	if (GetPrivate()->ImageProvider)
+	{
+		GetPrivate()->ImageProvider->ClearCache();
+	}
 }
 
 #endif // WITH_EDITOR

@@ -171,8 +171,11 @@ public:
 		// Data will be provided with size and pointer
 		Raw,
 
-		// Data will be provided from an unreal texture
-		Unreal
+		// Data will be provided from an unreal texture, loaded in the game thread and kept in memory
+		Unreal,
+
+		// Data will be provided from an unreal texture, and will only be loaded when actually needed in the Mutable thread
+		Unreal_Deferred
 	};
 
 	// Query that Mutable will run to find out if a texture will be provided as an Unreal UTexture2D,
@@ -229,21 +232,8 @@ private:
 };
 
 
-struct FMutableMipUpdateLevel
-{
-	FMutableMipUpdateLevel(int32 InMipLevel, void* InDest, int32 InSizeX, int32 InSizeY, int32 InDataSize, EPixelFormat InFormat) :
-		MipLevel(InMipLevel), Dest(InDest), SizeX(InSizeX), SizeY(InSizeY), DataSize(InDataSize), Format(InFormat) {}
-
-	int32 MipLevel;
-	void* Dest; // Only access from the FMutableTextureMipDataProvider, owned by the FTextureMipInfoArray so don't delete
-	int32 SizeX;
-	int32 SizeY;
-	int32 DataSize;
-	EPixelFormat Format;
-};
-
-
 class UCustomizableInstanceLODManagementBase;
+
 
 UCLASS(Blueprintable, BlueprintType)
 class CUSTOMIZABLEOBJECT_API UCustomizableObjectSystem : public UObject
@@ -326,8 +316,25 @@ public:
 	/** [Texture Parameters] Add a new image provider to the CustomizableObject System. This will be queried for when an external image ID is provided to mutable in an Texture Parameter node. */
 	void RegisterImageProvider(UCustomizableSystemImageProvider* Provider);
 
-	/** [Texture Parameters] Remove a previously regiostered provider. */
+	/** [Texture Parameters] Remove a previously registered provider. */
 	void UnregisterImageProvider(UCustomizableSystemImageProvider* Provider);
+
+	/** [Texture Parameters] Interface to actually cache Images in the Mutable system and make them availabe at run-time.
+		Any cached image has to be registered by an Image provider before caching it.
+		Have in mind that once an image has been cached, it will spend memory according to its size, except in the case
+		of images of type UCustomizableSystemImageProvider::ValueType::Unreal_Deferred, where only a very small amount of
+		memory is used and the real texel data is loaded when needed during an update and then immediately discarded */
+
+	/** [Texture Parameters] Cache an image which has to have been previously registered by an Image provider with the parameter id. */
+	void CacheImage(uint64 ImageId);
+	/** [Texture Parameters] Remove an image from the cache. */
+	void UnCacheImage(uint64 ImageId);
+	/** [Texture Parameters] Cache all images which have been previously registered by all registered Image provider with the parameter id
+		that was used in the provider. If bClearPreviousCacheImages is true, then all previous cache state is cleared */
+	void CacheAllImagesInAllProviders(bool bClearPreviousCacheImages);
+	/** [Texture Parameters] Remove all images from the cache. */
+	void ClearImageCache();
+
 
 #if WITH_EDITOR
 	/** [Texture Parameters] Get the editor-side preview external texture provider. 

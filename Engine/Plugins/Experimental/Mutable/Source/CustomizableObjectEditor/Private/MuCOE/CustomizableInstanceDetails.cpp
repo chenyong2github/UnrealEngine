@@ -80,7 +80,10 @@ void FCustomizableInstanceDetails::Refresh() const
 
 void FCustomizableInstanceDetails::UpdateInstance() const
 {
-		CustomInstance->UpdateSkeletalMeshAsync(true, true);
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	System->CacheAllImagesInAllProviders(true);
+
+	CustomInstance->UpdateSkeletalMeshAsync(true, true);
 }
 
 

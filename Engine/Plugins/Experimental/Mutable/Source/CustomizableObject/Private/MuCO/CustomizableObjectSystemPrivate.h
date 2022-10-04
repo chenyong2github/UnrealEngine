@@ -454,8 +454,8 @@ public:
 	class FUnrealMutableModelBulkStreamer* Streamer = nullptr;
 
 	// This object is responsible for providing custom images to mutable models (for image parameters)
-	// This object is called from the mutable thread, and it should only access data already build in
-	// the game thread and stored in FUnrealMutableImageProvider::ExternalImagesForCurrentInstance.
+	// This object is called from the mutable thread, and it should only access data already safely submitted from
+	// the game thread and stored in FUnrealMutableImageProvider::GlobalExternalImages.
 	// Non-owned reference
 	class FUnrealMutableImageProvider* ImageProvider = nullptr;
 
