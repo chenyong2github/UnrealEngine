@@ -194,8 +194,13 @@ namespace ParallelForImpl
 		};
 
 		//shared data between tasks
-		struct alignas(PLATFORM_CACHE_LINE_SIZE) FParallelForData : public TConcurrentLinearObject<FParallelForData, FTaskGraphBlockAllocationTag>, public FThreadSafeRefCountedObject
+		struct alignas(PLATFORM_CACHE_LINE_SIZE) FParallelForData 
+			: public TConcurrentLinearObject<FParallelForData, FTaskGraphBlockAllocationTag>
+			, public FThreadSafeRefCountedObject
+			, private UE::FInheritedContextBase
 		{
+			using UE::FInheritedContextBase::RestoreInheritedContext;
+
 			FParallelForData(int32 InNum, int32 InBatchSize, int32 InNumBatches, int32 InNumWorkers, const TArrayView<ContextType>& InContexts, const BodyType& InBody, FEventRef& InFinishedSignal)
 				: Num(InNum)
 				, BatchSize(InBatchSize)
@@ -207,10 +212,7 @@ namespace ParallelForImpl
 				IncompleteBatches.store(NumBatches, std::memory_order_relaxed);
 				Tasks.AddDefaulted(InNumWorkers);
 
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-				InheritedTraceTag = MemoryTrace_GetActiveTag();
-#endif
-				LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
+				CaptureInheritedContext();
 			}
 
 			~FParallelForData()
@@ -226,10 +228,6 @@ namespace ParallelForImpl
 			int32 Num;
 			int32 BatchSize;
 			int32 NumBatches;
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-			int32 InheritedTraceTag;
-#endif
-			LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 			const TArrayView<ContextType>& Contexts;
 			const BodyType& Body;
 			FEventRef& FinishedSignal;
@@ -276,8 +274,7 @@ namespace ParallelForImpl
 
 			inline bool operator()(const bool bIsMaster = false, const TCHAR* DebugName = nullptr) const noexcept
 			{
-				LLM_SCOPE(Data->InheritedLLMTag);
-				UE_MEMSCOPE(Data->InheritedTraceTag);
+				UE::FInheritedContextScope InheritedContextScope = Data->RestoreInheritedContext();
 				FMemMark Mark(FMemStack::Get());
 
 				if(DebugName == nullptr)

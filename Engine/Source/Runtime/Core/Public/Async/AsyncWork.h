@@ -13,10 +13,9 @@
 #include "Stats/Stats.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "Async/InheritedContext.h"
 #include "Misc/IQueuedWork.h"
 #include "Misc/QueuedThreadPool.h"
-#include "ProfilingDebugging/TagTrace.h"
 #include "Async/Fundamental/Scheduler.h"
 
 /**
@@ -58,28 +57,19 @@
 
 **/
 template<typename TTask>
-class FAutoDeleteAsyncTask
-	: private IQueuedWork
+class FAutoDeleteAsyncTask : 
+	private UE::FInheritedContextBase, 
+	private IQueuedWork
 {
 	/** User job embedded in this task */
 	TTask Task;
-	/** optional LLM tag */
-	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-	/** optional Trace tag */
-	int32 InheritedTraceTag;
-#endif
 
 	/* Generic start function, not called directly
 	 * @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
 	 **/
 	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal)
 	{
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-		InheritedTraceTag = MemoryTrace_GetActiveTag();
-#endif
-
+		CaptureInheritedContext();
 		FPlatformMisc::MemoryBarrier();
 		FQueuedThreadPool* QueuedPool = InQueuedPool;
 		if (bForceSynchronous)
@@ -102,8 +92,7 @@ class FAutoDeleteAsyncTask
 	 **/
 	void DoWork()
 	{
-		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag);
+		UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
 		FScopeCycleCounter Scope(Task.GetStatId(), true);
 
 		Task.DoWork();
@@ -215,7 +204,8 @@ public:
 **/
 
 class FAsyncTaskBase
-	: private IQueuedWork
+	: private UE::FInheritedContextBase
+	, private IQueuedWork
 {
 	/** Thread safe counter that indicates WORK completion, no necessarily finalization of the job */
 	FThreadSafeCounter	WorkNotFinishedCounter;
@@ -231,12 +221,6 @@ class FAsyncTaskBase
 	int64 RequiredMemory = -1;
 	/** StatId used for FScopeCycleCounter */
 	TStatId StatId;
-	/** optional LLM tag */
-	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
-	/** Memory trace tag */
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-	int32 InheritedTraceTag;
-#endif
 
 	/* Internal function to destroy the completion event
 	**/
@@ -256,12 +240,10 @@ class FAsyncTaskBase
 	**/
 	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InQueuedWorkPriority, EQueuedWorkFlags InQueuedWorkFlags, int64 InRequiredMemory)
 	{
+		CaptureInheritedContext();
+
 		FScopeCycleCounter Scope(StatId, true);
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::Start" ), STAT_FAsyncTask_Start, STATGROUP_ThreadPoolAsyncTasks );
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-		InheritedTraceTag = MemoryTrace_GetActiveTag();
-#endif
 		RequiredMemory = InRequiredMemory;
 
 		FPlatformMisc::MemoryBarrier();
@@ -296,8 +278,7 @@ class FAsyncTaskBase
 	**/
 	void DoWork()
 	{
-		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag);
+		UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
 		FScopeCycleCounter Scope(StatId, true);
 
 		DoTaskWork();

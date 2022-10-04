@@ -30,6 +30,7 @@
 
 #include "Async/TaskTrace.h"
 #include "Tasks/TaskPrivate.h"
+#include "Async/InheritedContext.h"
 
 #if !defined(STATS)
 #error "STATS must be defined as either zero or one."
@@ -823,7 +824,7 @@ struct FTaskBlockAllocationTag : FDefaultBlockAllocationTag
  *	Tasks go through a very specific life stage progression, and this is verified.
  **/
 
-class FBaseGraphTask
+class FBaseGraphTask : private UE::FInheritedContextBase
 {
 protected:
 	/** 
@@ -835,13 +836,7 @@ protected:
 		, NumberOfPrerequistitesOutstanding(InNumberOfPrerequistitesOutstanding + 1) // + 1 is not a prerequisite, it is a lock to prevent it from executing while it is getting prerequisites, one it is safe to execute, call PrerequisitesComplete
 	{
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Contructed));
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-		InheritedTraceTag = MemoryTrace_GetActiveTag();
-#endif
-#if UE_TRACE_METADATA_ENABLED
-		InheritedMetadataId = UE_TRACE_METADATA_SAVE_STACK();
-#endif
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
+		CaptureInheritedContext();
 	}
 	/** 
 	 *	Sets the desired execution thread. This is not part of the constructor because this information may not be known quite yet duiring construction.
@@ -952,10 +947,9 @@ private:
 	 **/
 	FORCEINLINE void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)
 	{
-		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag);
-		UE_TRACE_METADATA_RESTORE_STACK(InheritedMetadataId);
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Executing));
+
+		UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
 		ExecuteTask(NewTasks, CurrentThread, bDeleteOnCompletion);
 	}
 
@@ -994,13 +988,6 @@ private:
 	FThreadSafeCounter			LifeStage;
 
 #endif
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-	int32 InheritedTraceTag;
-#endif
-#if UE_TRACE_METADATA_ENABLED
-	uint32 InheritedMetadataId;
-#endif
-	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 
 #if UE_TASK_TRACE_ENABLED
 	TaskTrace::FId TraceId;

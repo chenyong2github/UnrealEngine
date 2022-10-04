@@ -19,7 +19,6 @@
 #include "DerivedDataRequestOwner.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "Features/IModularFeatures.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreMisc.h"
@@ -333,7 +332,6 @@ public:
 		: Owner(InOwner)
 		, TaskBody(MoveTemp(InTaskBody))
 	{
-		LLM_IF_ENABLED(MemTag = FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 		Owner.Begin(this);
 		DoneEvent.Reset();
 		GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
@@ -342,7 +340,6 @@ public:
 private:
 	inline void Execute()
 	{
-		LLM_SCOPE(MemTag);
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
 		Owner.End(this, [this]
 		{
@@ -408,7 +405,6 @@ private:
 	IRequestOwner& Owner;
 	TUniqueFunction<void ()> TaskBody;
 	FLazyEvent DoneEvent{EEventMode::ManualReset};
-	LLM(const UE::LLMPrivate::FTagData* MemTag = nullptr);
 };
 
 void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&& TaskBody)

@@ -62,7 +62,7 @@ template<typename TagType>
 class FDefaultMemScope : public FMemScope
 {
 public:
-	CORE_API FDefaultMemScope(TagType InTag)
+	FDefaultMemScope(TagType InTag)
 		: FMemScope(InTag, MemoryTrace_GetActiveTag() == 0)
 	{
 		

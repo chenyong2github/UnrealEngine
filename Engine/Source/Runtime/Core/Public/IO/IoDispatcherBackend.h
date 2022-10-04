@@ -3,9 +3,8 @@
 #pragma once
 
 #include "IoDispatcher.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "Async/InheritedContext.h"
 #include "Misc/Optional.h"
-#include "ProfilingDebugging/TagTrace.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -13,15 +12,11 @@
 
 struct FIoContainerHeader;
 
-class FIoRequestImpl
+class FIoRequestImpl : private UE::FInheritedContextBase
 {
 public:
 	FIoRequestImpl* NextRequest = nullptr;
 	void* BackendData = nullptr;
-	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-	int32 InheritedTraceTag;
-#endif
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	int32 Priority = 0;
@@ -29,10 +24,7 @@ public:
 	FIoRequestImpl(class FIoRequestAllocator& InAllocator)
 		: Allocator(InAllocator)
 	{
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
-#if UE_MEMORY_TAGS_TRACE_ENABLED
-		InheritedTraceTag = MemoryTrace_GetActiveTag();
-#endif
+		CaptureInheritedContext();
 	}
 
 	bool IsCancelled() const

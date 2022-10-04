@@ -30,6 +30,7 @@
 #include "Templates/TypeCompatibleBytes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Async/InheritedContext.h"
 
 #include <atomic>
 #include <type_traits>
@@ -94,7 +95,7 @@ namespace UE::Tasks
 		// Implements internal logic of task prerequisites, nested tasks and deep task retraction.
 		// Implements intrusive ref-counting and so can be used with TRefCountPtr.
 		// It doesn't store task body, instead it expects a derived class to provide a task body as a parameter to `TryExecute` method. @see TExecutableTask
-		class FTaskBase
+		class FTaskBase : private UE::FInheritedContextBase
 		{
 			UE_NONCOPYABLE(FTaskBase);
 
@@ -152,6 +153,8 @@ namespace UE::Tasks
 					}
 				);
 				ExtendedPriority = InExtendedPriority;
+
+				CaptureInheritedContext();
 			}
 
 			virtual ~FTaskBase()
@@ -161,8 +164,8 @@ namespace UE::Tasks
 			}
 
 			// will be called to execute the task, must be implemented by a derived class that should call `FTaskBase::TryExecute` and pass the task body
-			// @see TExecutableTask::TryExecuteTask
-			virtual bool TryExecuteTask() = 0;
+			// @see TExecutableTask::TryExecuteTaskVirtual
+			virtual bool TryExecuteTaskVirtual() = 0;
 
 		public:
 			// returns true if it's valid to wait for the task completion.
@@ -591,8 +594,11 @@ namespace UE::Tasks
 			CORE_API void StartPipeExecution();
 			CORE_API void FinishPipeExecution();
 
-			// the task is already executed but it's not completed yet. This method sets completion flag if there're no pending nested tasks.
-			// The task can be deleted as the result of this call.
+			bool TryExecuteTask()
+			{
+				UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
+				return TryExecuteTaskVirtual();
+			}
 
 		private:
 			EExtendedTaskPriority ExtendedPriority; // internal priorities, if any
@@ -665,7 +671,7 @@ namespace UE::Tasks
 			UE_NONCOPYABLE(TExecutableTaskBase);
 
 		public:
-			virtual bool TryExecuteTask() override
+			virtual bool TryExecuteTaskVirtual() override
 			{
 				return FTaskBase::TryExecute(
 					[](FTaskBase& Task)
@@ -700,7 +706,7 @@ namespace UE::Tasks
 			UE_NONCOPYABLE(TExecutableTaskBase);
 
 		public:
-			virtual bool TryExecuteTask() override
+			virtual bool TryExecuteTaskVirtual() override
 			{
 				return TryExecute(
 					[](FTaskBase& Task)
@@ -784,7 +790,7 @@ namespace UE::Tasks
 				Init(InDebugName, ETaskPriority::Normal, EExtendedTaskPriority::TaskEvent);
 			}
 
-			virtual bool TryExecuteTask() override
+			virtual bool TryExecuteTaskVirtual() override
 			{
 				checkNoEntry(); // never executed because it doesn't have a task body
 				return true;
