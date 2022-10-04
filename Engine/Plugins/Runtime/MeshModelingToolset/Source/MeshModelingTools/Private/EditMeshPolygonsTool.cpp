@@ -455,6 +455,7 @@ void UEditMeshPolygonsTool::Setup()
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->SetShowSelectableCorners(CommonProps->bShowSelectableCorners);
 	SelectionMechanic->Properties->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
+	SelectionMechanic->Properties->bDisplayPolygroupReliantControls = !bTriangleMode;
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
 	SelectionMechanic->OnFaceSelectionPreviewChanged.AddWeakLambda(this, [this]() {
 		Preview->PreviewMesh->FastNotifySecondaryTrianglesChanged();

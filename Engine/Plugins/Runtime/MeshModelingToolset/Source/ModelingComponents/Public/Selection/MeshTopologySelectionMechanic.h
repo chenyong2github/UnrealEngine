@@ -41,22 +41,22 @@ public:
 	bool bSelectFaces = true;
 
 	/** When true, will select edge loops. Edge loops are paths along a string of valence-4 vertices. */
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bSelectEdges"))
+	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectEdgeLoops = false;
 
-	/** When true, will select rings of edges that are opposite each other across a quad face. */
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bSelectEdges"))
+	/** When set, will select rings of edges that are opposite each other across a quad face. */
+	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectEdgeRings = false;
 
-	/** When false, faces that face away from the camera are ignored in selection and occlusion. Useful for working with inside-out meshes. */
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, AdvancedDisplay)
+	/** When set, faces that face away from the camera are ignored in selection and occlusion. Useful for working with inside-out meshes. */
+	UPROPERTY(EditAnywhere, Category = AdditionalSelectionOptions, AdvancedDisplay)
 	bool bHitBackFaces = true;
 
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = AdditionalSelectionOptions, AdvancedDisplay)
 	bool bEnableMarquee = true;
 
 	/** Determines whether vertices should be checked for occlusion in marquee select (Note: marquee select currently only works with edges and vertices) */
-	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bEnableMarquee", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = AdditionalSelectionOptions, meta = (EditCondition = "bEnableMarquee", EditConditionHides))
 	bool bMarqueeIgnoreOcclusion = true;
 
 	// The following were originally in their own category, all marked as AdvancedDisplay. However, since there wasn't a non-AdvancedDisplay
@@ -64,16 +64,19 @@ public:
 	// The alternative approach, used below, is to have them in a nested category, which starts out as collapsed. This works nicely.
 
 	/** Prefer to select an edge projected to a point rather than the point, or a face projected to an edge rather than the edge. */
-	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
+	UPROPERTY(EditAnywhere, Category = "AdditionalSelectionOptions|Ortho Viewport Behavior")
 	bool bPreferProjectedElement = true;
 
 	/** If the closest element is valid, select other elements behind it that are aligned with it. */
-	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
+	UPROPERTY(EditAnywhere, Category = "AdditionalSelectionOptions|Ortho Viewport Behavior")
 	bool bSelectDownRay = true;
 
 	/** Do not check whether the closest element is occluded from the current view. */
-	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
+	UPROPERTY(EditAnywhere, Category = "AdditionalSelectionOptions|Ortho Viewport Behavior")
 	bool bIgnoreOcclusion = false;
+
+	// Used to avoid showing some of the selection filter buttons in triedit (in the detail customization)
+	bool bDisplayPolygroupReliantControls = true;
 
 	/** Invert current selection. If selection is empty, has same effect as Select All, and is similarly dependent on selection filter. */
 	UFUNCTION(CallInEditor, Category = SelectionActions)

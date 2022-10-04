@@ -77,6 +77,12 @@ void UMeshTopologySelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	Properties->WatchProperty(Properties->bSelectFaces, [this](bool bSelectFaces) {
 		UpdateMarqueeEnabled();
 	});
+	Properties->WatchProperty(Properties->bSelectEdgeLoops, [this](bool bSelectEdgeLoops) {
+		UpdateMarqueeEnabled();
+	});
+	Properties->WatchProperty(Properties->bSelectEdgeRings, [this](bool bSelectEdgeRings) {
+		UpdateMarqueeEnabled();
+	});
 	Properties->WatchProperty(Properties->bEnableMarquee, [this](bool bEnableMarquee) { 
 		UpdateMarqueeEnabled(); 
 	});
@@ -291,7 +297,7 @@ FGroupTopologySelector::FSelectionSettings UMeshTopologySelectionMechanic::GetTo
 	FGroupTopologySelector::FSelectionSettings Settings;
 
 	Settings.bEnableFaceHits = Properties->bSelectFaces;
-	Settings.bEnableEdgeHits = Properties->bSelectEdges;
+	Settings.bEnableEdgeHits = Properties->bSelectEdges || Properties->bSelectEdgeLoops || Properties->bSelectEdgeRings;
 	Settings.bEnableCornerHits = Properties->bSelectVertices;
 	Settings.bHitBackFaces = Properties->bHitBackFaces;
 
@@ -415,7 +421,7 @@ void UMeshTopologySelectionMechanic::SelectAll()
 	{
 		SelectAllIndices(TopologyProvider->GetNumCorners(), PersistentSelection.SelectedCornerIDs);
 	}
-	else if (Properties->bSelectEdges)
+	else if (Properties->bSelectEdges || Properties->bSelectEdgeLoops || Properties->bSelectEdgeRings)
 	{
 		SelectAllIndices(TopologyProvider->GetNumEdges(), PersistentSelection.SelectedEdgeIDs);
 	}
@@ -588,7 +594,8 @@ void UMeshTopologySelectionMechanic::UpdateMarqueeEnabled()
 	MarqueeMechanic->SetIsEnabled(
 		bIsEnabled 
 		&& Properties->bEnableMarquee
-		&& (Properties->bSelectVertices || Properties->bSelectEdges || Properties->bSelectFaces));
+		&& (Properties->bSelectVertices || Properties->bSelectEdges || Properties->bSelectFaces
+			|| Properties->bSelectEdgeLoops || Properties->bSelectEdgeRings));
 }
 
 
