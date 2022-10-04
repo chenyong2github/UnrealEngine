@@ -15930,7 +15930,7 @@ TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UO
 		}
 	}
 
-	if (!!(Options & EPrintStaleReferencesOptions::Fatal))
+	if ((Options & EPrintStaleReferencesOptions::Fatal) == EPrintStaleReferencesOptions::Fatal)
 	{
 		UE_LOG(LogLoad, Fatal, TEXT("Fatal world leaks detected. Logging first error, check logs for additional information") LINE_TERMINATOR TEXT("%s"), 
 			Paths.Num() ? *Paths[0] : TEXT("No paths to leaked objects found!"));
