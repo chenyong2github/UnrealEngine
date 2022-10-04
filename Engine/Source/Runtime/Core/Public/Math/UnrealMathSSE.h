@@ -3363,10 +3363,14 @@ FORCEINLINE VectorRegister4Int VectorIntSelect(const VectorRegister4Int& Mask, c
 
 FORCEINLINE VectorRegister4Int VectorIntMultiply(const VectorRegister4Int& A, const VectorRegister4Int& B)
 {
+#if UE_PLATFORM_MATH_USE_SSE4_1
+	return _mm_mullo_epi32(A, B);
+#else
 	//SSE2 doesn't have a multiply op for 4 32bit ints. Ugh.
 	__m128i Temp0 = _mm_mul_epu32(A, B);
 	__m128i Temp1 = _mm_mul_epu32(_mm_srli_si128(A, 4), _mm_srli_si128(B, 4));
 	return _mm_unpacklo_epi32(_mm_shuffle_epi32(Temp0, _MM_SHUFFLE(0, 0, 2, 0)), _mm_shuffle_epi32(Temp1, _MM_SHUFFLE(0, 0, 2, 0)));
+#endif
 }
 
 #define VectorIntNegate(A) VectorIntSubtract( GlobalVectorConstants::IntZero, A)
