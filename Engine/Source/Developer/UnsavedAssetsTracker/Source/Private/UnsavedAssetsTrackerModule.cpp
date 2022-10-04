@@ -58,4 +58,3 @@ TSharedRef<SWidget> FUnsavedAssetsTrackerModule::MakeUnsavedAssetsStatusBarWidge
 
 IMPLEMENT_MODULE(FUnsavedAssetsTrackerModule, UnsavedAssetsTracker)
 
-#undef LOCTEXT_NAMESPACE
