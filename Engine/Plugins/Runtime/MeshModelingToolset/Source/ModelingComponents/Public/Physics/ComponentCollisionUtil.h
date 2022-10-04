@@ -89,6 +89,15 @@ MODELINGCOMPONENTS_API void UpdateSimpleCollision(
 	FComponentCollisionSettings CollisionSettings = FComponentCollisionSettings());
 
 /**
+ * @return BodySetup on the given SourceComponent, or nullptr if no BodySetup was found
+ */
+MODELINGCOMPONENTS_API const UBodySetup* GetBodySetup(const UPrimitiveComponent* SourceComponent);
+/**
+ * @return BodySetup on the given SourceComponent, or nullptr if no BodySetup was found
+ */
+MODELINGCOMPONENTS_API UBodySetup* GetBodySetup(UPrimitiveComponent* SourceComponent);
+
+/**
  * Extract the simple collision geometry from AggGeom as meshes (ie spheres and capsules are tessellated) and
  * accumulate into MeshOut. TransformSequence is applied to the meshes as they are accumulated.
  * @param bSetToPerTriangleNormals if true and the mesh has a normals attribute overlay,  the mesh is set to face normals, otherwise averaged vertex normals

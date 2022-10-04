@@ -16,6 +16,8 @@
 #include "Physics/PhysicsDataCollection.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Components/BrushComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/AggregateGeom.h"
@@ -94,6 +96,50 @@ void UE::Geometry::UpdateSimpleCollision(
 	StaticMesh->bCustomizedCollision = CollisionSettings.bIsGeneratedCollision;
 #endif // WITH_EDITORONLY_DATA
 }
+
+
+const UBodySetup* UE::Geometry::GetBodySetup(const UPrimitiveComponent* Component)
+{
+	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+	{
+		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+		{
+			return StaticMesh->GetBodySetup();
+		}
+	}
+	else if (const UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+	{
+		return BrushComponent->BrushBodySetup;
+	}
+	else if (const UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		return DynamicMeshComponent->GetBodySetup();
+	}
+
+	return nullptr;
+}
+
+UBodySetup* UE::Geometry::GetBodySetup(UPrimitiveComponent* Component)
+{
+	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+	{
+		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+		{
+			return StaticMesh->GetBodySetup();
+		}
+	}
+	else if (UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+	{
+		return BrushComponent->BrushBodySetup;
+	}
+	else if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		return DynamicMeshComponent->GetBodySetup();
+	}
+
+	return nullptr;
+}
+
 
 
 bool UE::Geometry::SetSimpleCollision(
