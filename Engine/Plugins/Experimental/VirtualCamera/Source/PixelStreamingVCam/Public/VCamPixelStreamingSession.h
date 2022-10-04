@@ -13,7 +13,7 @@
 #endif
 #include "VCamPixelStreamingSession.generated.h"
 
-UCLASS(meta = (DisplayName = "Pixel Streaming Provider"))
+UCLASS(meta = (DisplayName = "Pixel Streaming Provider (Experimental)"))
 class PIXELSTREAMINGVCAM_API UVCamPixelStreamingSession : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
