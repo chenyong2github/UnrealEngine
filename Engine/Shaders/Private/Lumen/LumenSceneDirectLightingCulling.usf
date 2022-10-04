@@ -12,6 +12,10 @@
 #define THREADGROUP_SIZE 1
 #endif
 
+#ifndef MAX_LIGHT_SAMPLES
+#define MAX_LIGHT_SAMPLES 1
+#endif
+
 StructuredBuffer<uint> CardPageIndexAllocator;
 StructuredBuffer<uint> CardPageIndexData;
 RWStructuredBuffer<uint> RWCardTileAllocator;
@@ -138,7 +142,7 @@ bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3
 	return false;
 }
 
-bool DoesLightAffectCardPageUVRange(FLumenLight LumenLight, FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax)
+bool DoesLightAffectCardPageUVRange(FLumenLight LumenLight, FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax, inout float3 OutCardPageWorldCenter)
 {
 	float3 CardPageLocalCenter;
 	float3 CardPageLocalExtent;
@@ -147,6 +151,7 @@ bool DoesLightAffectCardPageUVRange(FLumenLight LumenLight, FLumenCardPageData C
 	float3 CardPageWorldCenter = mul(Card.WorldToLocalRotation, CardPageLocalCenter) + Card.Origin;
 	float3 CardPageWorldExtent = mul(abs(Card.WorldToLocalRotation), CardPageLocalExtent);
 	float CardPageWorldBoundingSphere = length(CardPageLocalExtent);
+	OutCardPageWorldCenter = CardPageWorldCenter;
 
 	float4 InfluenceSphere = LumenLight.InfluenceSphere;
 	float3 LightInfluenceSphereLocalCenter = mul(InfluenceSphere.xyz - Card.Origin, Card.WorldToLocalRotation);
@@ -200,13 +205,6 @@ bool DoesLightAffectCardPageUVRange(FLumenLight LumenLight, FLumenCardPageData C
 	return false;
 }
 
-bool DoesLightAffectCardPage(FLumenLight LumenLight, FLumenCardPageData CardPage, FLumenCardData Card)
-{
-	float2 UVMin = float2(0.0f, 0.0f);
-	float2 UVMax = float2(1.0f, 1.0f);
-	return DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
-}
-
 RWStructuredBuffer<uint> RWLightTileAllocator;
 RWStructuredBuffer<uint2> RWLightTiles;
 RWStructuredBuffer<uint> RWLightTileAllocatorPerLight;
@@ -217,6 +215,99 @@ RWStructuredBuffer<uint> RWLightTileOffsetNumPerCardTile;
 uint MaxLightsPerTile;
 uint NumLights;
 uint NumViews;
+
+struct FLightSample
+{
+	float Weight;
+	uint LightIndex;
+	bool bHasShadowMask;
+};
+
+struct FLightSampleAccumulator
+{
+	uint PackedSamples[MAX_LIGHT_SAMPLES];
+};
+
+FLightSampleAccumulator InitLightSampleAccumulator()
+{
+	FLightSampleAccumulator LightSampleAccumulator = (FLightSampleAccumulator)0;
+	for (uint PackedSampleIndex = 0; PackedSampleIndex < MAX_LIGHT_SAMPLES; ++PackedSampleIndex)
+	{
+		LightSampleAccumulator.PackedSamples[PackedSampleIndex] = 0;
+	}
+	return LightSampleAccumulator;
+}
+
+uint PackLightSample(FLightSample LightSample)
+{
+	uint PackedLightSample = LightSample.LightIndex & 0x3FFF;
+	PackedLightSample |= LightSample.bHasShadowMask ? 0x4000 : 0;
+	PackedLightSample |= 0x8000; // bValid
+	PackedLightSample |= asuint(LightSample.Weight) & 0xFFFF0000;
+	return PackedLightSample;
+}
+
+FLightSample UnpackLightSample(uint PackedLightSample)
+{
+	FLightSample LightSample = (FLightSample)0;
+	LightSample.LightIndex = PackedLightSample & 0x3FFF;
+	LightSample.bHasShadowMask = PackedLightSample & 0x4000 ? true : false;
+	LightSample.Weight = 0.0f;
+	return LightSample;
+}
+
+void AddLightSample(inout FLightSampleAccumulator LightSampleAccumulator, FLightSample LightSample)
+{
+	uint PackedLightSample = PackLightSample(LightSample);
+
+	uint MinPackedLightSample = 0xFFFFFFFF;
+	for (uint PackedSampleIndex = 0; PackedSampleIndex < MAX_LIGHT_SAMPLES; ++PackedSampleIndex)
+	{
+		MinPackedLightSample = min(MinPackedLightSample, LightSampleAccumulator.PackedSamples[PackedSampleIndex]);
+	}
+
+	// Replace the least important sample
+	if (PackedLightSample > MinPackedLightSample)
+	{
+		for (uint PackedSampleIndex = 0; PackedSampleIndex < MAX_LIGHT_SAMPLES; ++PackedSampleIndex)
+		{
+			if (LightSampleAccumulator.PackedSamples[PackedSampleIndex] == MinPackedLightSample)
+			{
+				LightSampleAccumulator.PackedSamples[PackedSampleIndex] = PackedLightSample;
+				break;
+			}
+		}
+	}
+}
+
+float GetLightWeight(FLumenLight LumenLight, float3 TranslatedWorldPosition)
+{
+	FDeferredLightData LightData = LumenLight.DeferredLightData;
+	float Weight = Luminance(LightData.Color);
+
+	if (LightData.bRadialLight)
+	{
+		float3 L = LightData.Direction;
+		float3 ToLight = L;
+		Weight *= GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
+
+		float Attenuation = 1.0f;
+		if (LightData.bRectLight)
+		{
+			FRect Rect = GetRect(ToLight, LightData);
+			Attenuation = IntegrateLight(Rect);
+		}
+		else
+		{
+			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+			Capsule.DistBiasSqr = 0;
+			Attenuation = IntegrateLight(Capsule, LightData.bInverseSquared);
+		}
+		Weight *= Attenuation;
+	}
+
+	return Weight;
+}
 
 /**
  * Pick N most important lights per tile in page selected to update to update this frame, and output a list of light tiles
@@ -229,6 +320,8 @@ void BuildLightTilesCS(
 {
 	// One thread per tile
 	uint CardTileIndex = DispatchThreadId.x;
+
+	FLightSampleAccumulator LightSampleAccumulator = InitLightSampleAccumulator();
 
 	if (CardTileIndex < CardTileAllocator[0])
 	{
@@ -251,43 +344,61 @@ void BuildLightTilesCS(
 			uint ViewIndex = GetCardViewIndex(CardPage, Card, UVMin, UVMax, NumViews, true);
 
 			// Loop over lights to select N most important lights
-			uint NumCulledLightsPerTile = 0;
 			for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
 			{
 				FLumenLight LumenLight = LoadLumenLight(LightIndex, PreViewTranslation[ViewIndex].xyz);
 
-				bool bLightAffectsCard = DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
+				float3 CardPageWorldCenter = 0.0f; // LWC_TODO:
+				bool bLightAffectsCard = DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax, CardPageWorldCenter);
 				if (bLightAffectsCard)
 				{
-					// Write light tile
-					FLightTileForCompactionPass LightTile;
-					LightTile.LightIndex = LightIndex;
-					LightTile.ViewIndex = ViewIndex;
-					LightTile.bHasShadowMask = LumenLight.bHasShadowMask;
-					LightTile.CardTileIndex = CardTileIndex;
-					LightTile.CulledLightIndex = NumCulledLightsPerTile;
+					// Center of a tile for estimating attenuation
+					float3 TranslatedWorldPosition = CardPageWorldCenter + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
-					// Add to global light tile array
-					uint CardTileIndex = 0;
-					InterlockedAdd(RWLightTileAllocator[0], 1, CardTileIndex);
-					RWLightTiles[CardTileIndex] = PackLightTileForCompactionPass(LightTile);
-
-					InterlockedAdd(RWLightTileAllocatorPerLight[LightIndex * NumViews + ViewIndex], 1);
-
-					// Stop when we reached the limit of cards per current tile
-					++NumCulledLightsPerTile;
-					if (NumCulledLightsPerTile >= MaxLightsPerTile)
-					{
-						break;
-					}
+					FLightSample LightSample;
+					LightSample.Weight = GetLightWeight(LumenLight, TranslatedWorldPosition);
+					LightSample.LightIndex = LightIndex;
+					LightSample.bHasShadowMask = LumenLight.bHasShadowMask;
+					AddLightSample(LightSampleAccumulator, LightSample);
 				}
 			}
 
-			if (NumCulledLightsPerTile > 0)
+			uint NumPackedLightSamples = 0;
+			for (uint PackedSampleIndex = 0; PackedSampleIndex < MAX_LIGHT_SAMPLES; ++PackedSampleIndex)
+			{
+				if (LightSampleAccumulator.PackedSamples[PackedSampleIndex] > 0)
+				{
+					++NumPackedLightSamples;
+				}
+			}
+
+			uint LightTileOffset = 0;
+			if (NumPackedLightSamples > 0)
+			{
+				InterlockedAdd(RWLightTileAllocator[0], NumPackedLightSamples, LightTileOffset);
+			}
+
+			for (uint LightSampleIndex = 0; LightSampleIndex < NumPackedLightSamples; ++LightSampleIndex)
+			{
+				FLightSample LightSample = UnpackLightSample(LightSampleAccumulator.PackedSamples[LightSampleIndex]);
+
+				// Write light tile to global light tile array
+				FLightTileForCompactionPass LightTile;
+				LightTile.LightIndex = LightSample.LightIndex;
+				LightTile.ViewIndex = ViewIndex;
+				LightTile.bHasShadowMask = LightSample.bHasShadowMask;
+				LightTile.CardTileIndex = CardTileIndex;
+				LightTile.CulledLightIndex = LightSampleIndex;
+				RWLightTiles[LightTileOffset + LightSampleIndex] = PackLightTileForCompactionPass(LightTile);
+
+				InterlockedAdd(RWLightTileAllocatorPerLight[LightSample.LightIndex * NumViews + ViewIndex], 1);
+			}
+
+			if (NumPackedLightSamples > 0)
 			{
 				uint CardLightTilesOffset;
-				InterlockedAdd(RWLightTileAllocatorForPerCardTileDispatch[0], NumCulledLightsPerTile, CardLightTilesOffset);
-				PackedOffsetNum = (NumCulledLightsPerTile << 24) | CardLightTilesOffset;
+				InterlockedAdd(RWLightTileAllocatorForPerCardTileDispatch[0], NumPackedLightSamples, CardLightTilesOffset);
+				PackedOffsetNum = (NumPackedLightSamples << 24) | CardLightTilesOffset;
 			}
 		}
 

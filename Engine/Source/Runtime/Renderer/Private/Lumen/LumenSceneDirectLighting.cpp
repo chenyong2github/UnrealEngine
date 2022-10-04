@@ -44,11 +44,10 @@ FAutoConsoleVariableRef CVarLumenDirectLightingOffscreenShadowingTraceMeshSDFs(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenDirectLightingMaxLightsPerTile = 8;
-FAutoConsoleVariableRef CVarLumenDirectLightinggMaxLightsPerTile(
+static TAutoConsoleVariable<int32> CVarLumenDirectLightingMaxLightsPerTile(
 	TEXT("r.LumenScene.DirectLighting.MaxLightsPerTile"),
-	GLumenDirectLightingMaxLightsPerTile,
-	TEXT(""),
+	8,
+	TEXT("Max number of lights to pick per tile based on their intenstiy and attenuation. Valid values are 4/8/16/32. Increasing this value will cause more memory usage and will slow down Lumen surface cache direct lighting pass."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -382,6 +381,7 @@ class FBuildLightTilesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLumenPackedLight>, LumenPackedLights)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWLightTileAllocator)
@@ -397,6 +397,9 @@ class FBuildLightTilesCS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(FMatrix44f, WorldToClip, [MaxLumenViews])
 		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [MaxLumenViews])
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FMaxLightSamples : SHADER_PERMUTATION_SPARSE_INT("MAX_LIGHT_SAMPLES", 1, 2, 4, 8, 16, 32);
+	using FPermutationDomain = TShaderPermutationDomain<FMaxLightSamples>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1528,7 +1531,7 @@ void CullDirectLightingTiles(
 
 	const uint32 MaxLightTiles = CardUpdateContext.MaxUpdateTiles;;
 	const uint32 NumLightsRoundedUp = FMath::RoundUpToPowerOfTwo(FMath::Max(GatheredLights.Num(), 1)) * Views.Num();
-	const uint32 MaxLightsPerTile = FMath::Max(GLumenDirectLightingMaxLightsPerTile, 1);
+	const uint32 MaxLightsPerTile = FMath::RoundUpToPowerOfTwo(FMath::Clamp(CVarLumenDirectLightingMaxLightsPerTile.GetValueOnRenderThread(), 1, 32));
 	const uint32 MaxCulledCardTiles = MaxLightsPerTile * MaxLightTiles;
 
 	Lumen::SpliceCardPagesIntoTiles(GraphBuilder, GlobalShaderMap, CardUpdateContext, LumenCardSceneUniformBuffer, CardTileUpdateCotnext, ComputePassFlags);
@@ -1554,6 +1557,7 @@ void CullDirectLightingTiles(
 	{
 		FBuildLightTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildLightTilesCS::FParameters>();
 		PassParameters->IndirectArgBuffer = DispatchCardTilesIndirectArgs;
+		PassParameters->View = Views[0].ViewUniformBuffer;
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->LumenPackedLights = GraphBuilder.CreateSRV(LumenPackedLights);
 		PassParameters->RWLightTileAllocator = GraphBuilder.CreateUAV(LightTileAllocator);
@@ -1574,7 +1578,10 @@ void CullDirectLightingTiles(
 			PassParameters->PreViewTranslation[ViewIndex] = FVector4f((FVector3f)Views[ViewIndex].ViewMatrices.GetPreViewTranslation(), 0.0f);
 		}
 
-		auto ComputeShader = GlobalShaderMap->GetShader<FBuildLightTilesCS>();
+		FBuildLightTilesCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FBuildLightTilesCS::FMaxLightSamples>(MaxLightsPerTile);
+
+		auto ComputeShader = GlobalShaderMap->GetShader<FBuildLightTilesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
