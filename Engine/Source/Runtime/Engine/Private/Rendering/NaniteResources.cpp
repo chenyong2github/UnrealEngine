@@ -2118,7 +2118,6 @@ bool FNaniteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPe
 		Nanite::IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
 		Nanite::IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
 		Parameters.ShaderType->GetFrequency() == SF_Compute &&
-		RHISupportsComputeShaders(Parameters.Platform) &&
 		DoesPlatformSupportNanite(Parameters.Platform) &&
 		GNaniteAllowComputeMaterials != 0;
 
