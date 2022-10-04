@@ -68,10 +68,7 @@ namespace PCGMetadataBreakVectorSettings
 
 	inline constexpr bool IsValidType(uint16 TypeId)
 	{
-		return TypeId == (uint16)EPCGMetadataTypes::Vector2 ||
-			TypeId == (uint16)EPCGMetadataTypes::Vector ||
-			TypeId == (uint16)EPCGMetadataTypes::Vector4 ||
-			TypeId == (uint16)EPCGMetadataTypes::Rotator;
+		return PCG::Private::IsOfTypes<FVector2D, FVector, FVector4, FRotator>(TypeId);
 	}
 
 	template <typename T>

@@ -17,7 +17,7 @@
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGMetadataBreakVectorTest, FPCGTestBaseClass, "pcg.tests.Metadata.BreakVector", PCGTestsCommon::TestFlags)
 
-namespace
+namespace PCGBreakVectorTest
 {
 	enum class EPCGComponentToCheck : uint8
 	{
@@ -162,7 +162,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		const FPCGMetadataAttributeBase* SourceAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputAttributeName);
 		check(SourceAttributeBase);
 
-		auto ValidateComponentOutput = [&](const FPCGTaggedData& Output, const FName& OutAttributeName, EPCGComponentToCheck ComponentToCheck)
+		auto ValidateComponentOutput = [&](const FPCGTaggedData& Output, const FName& OutAttributeName, PCGBreakVectorTest::EPCGComponentToCheck ComponentToCheck)
 		{
 			if (!TestTrue("Valid output data", Output.Data != nullptr))
 			{
@@ -256,19 +256,19 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 				const double OutValue = OutAttribute->GetValue(OutValueKey);
 
-				if (ComponentToCheck == EPCGComponentToCheck::X)
+				if (ComponentToCheck == PCGBreakVectorTest::EPCGComponentToCheck::X)
 				{
 					bTestPassed &= TestEqual("X", SourceValue.X, OutValue);
 				}
-				else if (ComponentToCheck == EPCGComponentToCheck::Y)
+				else if (ComponentToCheck == PCGBreakVectorTest::EPCGComponentToCheck::Y)
 				{
 					bTestPassed &= TestEqual("Y", SourceValue.Y, OutValue);
 				}
-				else if (ComponentToCheck == EPCGComponentToCheck::Z)
+				else if (ComponentToCheck == PCGBreakVectorTest::EPCGComponentToCheck::Z)
 				{
 					bTestPassed &= TestEqual("Z", SourceValue.Z, OutValue);
 				}
-				else if (ComponentToCheck == EPCGComponentToCheck::W)
+				else if (ComponentToCheck == PCGBreakVectorTest::EPCGComponentToCheck::W)
 				{
 					bTestPassed &= TestEqual("W", SourceValue.W, OutValue);
 				}
@@ -289,7 +289,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		{
 			if (TestEqual("Appropriate number of outputs generated fox X", OutputsX.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsX[0], DestinationAttributeForX, EPCGComponentToCheck::X);
+				ValidateComponentOutput(OutputsX[0], DestinationAttributeForX, PCGBreakVectorTest::EPCGComponentToCheck::X);
 			}
 			else
 			{
@@ -301,7 +301,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		{
 			if (TestEqual("Appropriate number of outputs generated for Y", OutputsY.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsY[0], DestinationAttributeForY, EPCGComponentToCheck::Y);
+				ValidateComponentOutput(OutputsY[0], DestinationAttributeForY, PCGBreakVectorTest::EPCGComponentToCheck::Y);
 			}
 			else
 			{
@@ -313,7 +313,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		{
 			if (TestEqual("Appropriate number of outputs generated for Z", OutputsZ.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsZ[0], DestinationAttributeForZ, EPCGComponentToCheck::Z);
+				ValidateComponentOutput(OutputsZ[0], DestinationAttributeForZ, PCGBreakVectorTest::EPCGComponentToCheck::Z);
 			}
 			else
 			{
@@ -325,7 +325,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		{
 			if (TestEqual("Appropriate number of outputs generated for W", OutputsW.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsW[0], DestinationAttributeForW, EPCGComponentToCheck::W);
+				ValidateComponentOutput(OutputsW[0], DestinationAttributeForW, PCGBreakVectorTest::EPCGComponentToCheck::W);
 			}
 			else
 			{
@@ -340,11 +340,11 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 	PCGTestsCommon::FTestData TestDataSpatial(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGMetadataBreakVectorSettings>(TestDataSpatial);
-	GenerateSpatialData(TestDataSpatial);
+	PCGBreakVectorTest::GenerateSpatialData(TestDataSpatial);
 
 	PCGTestsCommon::FTestData TestDataParams(PCGDeterminismTests::Defaults::Seed);
 	PCGDeterminismTests::GenerateSettings<UPCGMetadataBreakVectorSettings>(TestDataParams);
-	GenerateParamData(TestDataParams);
+	PCGBreakVectorTest::GenerateParamData(TestDataParams);
 
 	using PairWhatData = TPair<FString, PCGTestsCommon::FTestData*>;
 
@@ -369,7 +369,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FVector2D as input attribute"));
-			Settings->InputAttributeName = Vec2Attribute;
+			Settings->InputAttributeName = PCGBreakVectorTest::Vec2Attribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
@@ -377,13 +377,13 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FVector as input attribute"));
-			Settings->InputAttributeName = Vec3Attribute;
+			Settings->InputAttributeName = PCGBreakVectorTest::Vec3Attribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with FVector4 as input attribute"));
-			Settings->InputAttributeName = Vec4Attribute;
+			Settings->InputAttributeName = PCGBreakVectorTest::Vec4Attribute;
 			Settings->ForceOutputConnections[3] = true;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 			Settings->ForceOutputConnections[3] = false;
@@ -391,13 +391,13 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FRotator as input attribute"));
-			Settings->InputAttributeName = RotatorAttribute;
+			Settings->InputAttributeName = PCGBreakVectorTest::RotatorAttribute;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with Float as input attribute (invalid type)"));
-			Settings->InputAttributeName = FloatAttribute;
+			Settings->InputAttributeName = PCGBreakVectorTest::FloatAttribute;
 
 			bTestPassed &= ValidateMetadataBreakVector(*TestData, /*bIsValid=*/false);
 		}

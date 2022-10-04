@@ -56,6 +56,23 @@ namespace PCG
 
 #undef PCGMetadataGenerateDataTypes
 
+		// Verify if the TypeId is a type known by PCG and matches any types provided in the template.
+		// Example: IsOfTypes<FVector2D, FVector, FVector4>(TypeId);
+		template <typename ...Types>
+		constexpr inline bool IsOfTypes(uint16 TypeId)
+		{
+			return (TypeId < (uint16)EPCGMetadataTypes::Unknown) && ((TypeId == MetadataTypes<Types>::Id) || ...);
+		}
+
+		// Verify if T is a type known by PCG and if it matches another type
+		// in all provided types (in Types...)
+		// Example: IsOfTypes<T, FVector2D, FVector, FVector4>();
+		template <typename T, typename ...Types>
+		constexpr inline bool IsOfTypes()
+		{
+			return IsOfTypes<Types...>(MetadataTypes<T>::Id);
+		}
+
 		// Wrapper around a standard 2-dimensional CArray that is constexpr, to know if a type is broadcastable to another.
 		// First index is the original type, second index is the wanted type. Returns true if we can broadcast first type into second type.
 		struct UBroadcastableTypes
