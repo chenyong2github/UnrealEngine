@@ -220,7 +220,8 @@ void FUsdStageViewModel::SaveStageAs( const TCHAR* FilePath )
 		FText::FromString( FilePath )
 	) );
 
-	if ( UsdStageActor.IsValid() )
+	AUsdStageActor* StageActorPtr = UsdStageActor.Get();
+	if ( StageActorPtr )
 	{
 		if ( UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage() )
 		{
@@ -232,7 +233,25 @@ void FUsdStageViewModel::SaveStageAs( const TCHAR* FilePath )
 				{
 					FScopedUnrealAllocs UEAllocs;
 
+					// In the process of opening FilePath below we'll close our previous stage, which is an anonymous
+					// layer and marked dirty by default. Even though we just saved (exported) it to disk, we'd end
+					// up getting the "do you want to save these dirty USD layers?" dialog by default...
+					// Here we'll write out a comment on the layer that we can easily check for in
+					// USDStageEditorModule::SaveStageActorLayersForWorld to know to skip showing that dialog. Note
+					// how this comment iself doesn't actually get saved to disk though.
+					//
+					// We also block listening here because we don't want to record to the transactor that we wrote
+					// this comment, because we can't record restoring it to what it was either, given that we'll stop
+					// listening to the previous stage after we open the next one. If we just recorded writing the
+					// comment, undoing/redoing through this operation would have left the temp stage with the comment
+					// in it permanently.
+					FScopedBlockNoticeListening BlockListening( StageActorPtr );
+					FString OldComment = RootLayer.GetComment();
+					RootLayer.SetComment( UnrealIdentifiers::LayerSavedComment );
+
 					OpenStage( FilePath );
+
+					RootLayer.SetComment( *OldComment );
 
 					UsdViewModelImpl::SaveUEStateLayer( UsdStage );
 				}

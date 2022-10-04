@@ -230,6 +230,29 @@ namespace UE
 #endif // #if USE_USD_SDK
 
 	template<typename PtrType>
+	FString FSdfLayerBase<PtrType>::GetComment() const
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return ANSI_TO_TCHAR( Ptr->GetComment().c_str() );
+		}
+#endif // #if USE_USD_SDK
+		return {};
+	}
+
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetComment( const TCHAR* Comment ) const
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			Ptr->SetComment( TCHAR_TO_ANSI( Comment ) );
+		}
+#endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
 	void FSdfLayerBase<PtrType>::TransferContent( const FSdfLayer& SourceLayer )
 	{
 #if USE_USD_SDK

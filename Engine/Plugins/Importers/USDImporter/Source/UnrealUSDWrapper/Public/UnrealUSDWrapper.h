@@ -454,6 +454,8 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealEngineVersion;
 #endif // #if USE_USD_SDK
 
+	extern UNREALUSDWRAPPER_API const TCHAR* LayerSavedComment;
+
 	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;
 	extern UNREALUSDWRAPPER_API const TCHAR* Inherited;
 	extern UNREALUSDWRAPPER_API const TCHAR* IdentifierPrefix;

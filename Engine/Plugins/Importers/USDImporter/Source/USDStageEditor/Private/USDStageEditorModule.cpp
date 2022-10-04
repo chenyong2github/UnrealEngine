@@ -11,6 +11,8 @@
 #include "USDProjectSettings.h"
 #include "USDStageActor.h"
 
+#include "Editor/TransBuffer.h"
+#include "Editor/UnrealEdEngine.h"
 #include "EngineUtils.h"
 #include "Framework/Docking/TabManager.h"
 #include "IAssetTools.h"
@@ -18,6 +20,7 @@
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
+#include "UnrealEdGlobals.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
@@ -108,7 +111,10 @@ namespace UE::UsdStageEditorModule::Private
 
 			for ( const UE::FSdfLayer& UsedLayer : UsedLayers )
 			{
-				if ( UsedLayer.IsDirty() )
+				// This comment is written to the layer when we're in the process of saving a memory-only
+				// stage, and indicates that this layer is already saved (even though it will show as dirty and
+				// anonymous)
+				if ( UsedLayer.IsDirty() && UsedLayer.GetComment() != UnrealIdentifiers::LayerSavedComment )
 				{
 					FUsdSaveDialogRowData& RowData = RowsByIdentifier.FindOrAdd( UsedLayer.GetIdentifier() );
 					RowData.Layer = UsedLayer;
@@ -283,16 +289,38 @@ public:
 		}));
 
 		// Prompt to save modified USD Layers when closing stageactor stages
-		StageActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddLambda([](AUsdStageActor* StageActor)
+		StageActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddLambda([this](AUsdStageActor* StageActor)
 		{
 			if ( !StageActor )
 			{
 				return;
 			}
 
-			StageActor->OnPreStageChanged.AddLambda( [StageActor]()
+			// We never want to prompt when undoing or redoing.
+			// We have to subscribe to this here as the UTransBuffer doesn't exist by the time the module is
+			// initializing
+			if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
 			{
-				if ( StageActor && static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage() )
+				if ( !OnTransactionStateChangedHandle.IsValid() )
+				{
+					OnTransactionStateChangedHandle = TransBuffer->OnTransactionStateChanged().AddLambda(
+						[this]( const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState )
+						{
+							if ( InTransactionState == ETransactionStateEventType::UndoRedoStarted )
+							{
+								bUndoRedoing = true;
+							}
+							else if ( InTransactionState == ETransactionStateEventType::UndoRedoFinalized )
+							{
+								bUndoRedoing = false;
+							}
+						});
+				}
+			}
+
+			StageActor->OnPreStageChanged.AddLambda( [this, StageActor]()
+			{
+				if ( !bUndoRedoing && StageActor && static_cast< const AUsdStageActor* >( StageActor )->GetUsdStage() )
 				{
 					const bool bForClosing = true;
 					UE::UsdStageEditorModule::Private::SaveStageActorLayersForWorld( StageActor->GetWorld(), bForClosing, StageActor );
@@ -333,10 +361,13 @@ public:
 	}
 
 private:
+	bool bUndoRedoing = false;
+
 	FDelegateHandle LevelEditorTabManagerChangedHandle;
 	FDelegateHandle PreSaveWorldEditorDelegateHandle;
 	FDelegateHandle EditorCanCloseDelegate;
 	FDelegateHandle StageActorLoadedHandle;
+	FDelegateHandle OnTransactionStateChangedHandle;
 #endif // #if USE_USD_SDK
 };
 

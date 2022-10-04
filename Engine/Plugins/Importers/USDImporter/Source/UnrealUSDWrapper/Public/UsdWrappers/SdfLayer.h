@@ -81,6 +81,9 @@ namespace UE
 
 	// Wrapped pxr::SdfLayer functions, refer to the USD SDK documentation
 	public:
+		FString GetComment() const;
+		void SetComment( const TCHAR* Comment ) const;
+
 		void TransferContent( const FSdfLayer& SourceLayer );
 
 		static FSdfLayer FindOrOpen( const TCHAR* Identifier );
