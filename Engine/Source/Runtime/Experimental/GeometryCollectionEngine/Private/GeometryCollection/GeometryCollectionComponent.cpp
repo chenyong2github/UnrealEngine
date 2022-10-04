@@ -1471,7 +1471,6 @@ void UGeometryCollectionComponent::UpdateRepData()
 		//If the first child is enabled it means it's a one off and the cluster IS the first child
 		
 		//TODO: for now we have to iterate over all particles to find the clusters, would be better if we had the clusters and children already available
-		//Large refactor happening to this stuff so for now we just iterate
 		//We are relying on the fact that we fracture one level per step. This means we will see all one offs here
 
 		bool bClustersChanged = false;
@@ -1695,7 +1694,7 @@ void UGeometryCollectionComponent::ProcessRepData()
 			OneOff->SetW(ActivatedCluster.InitialAngularVelocity);
 		}
 
-		RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ OneOff });
+		RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ OneOff }, /* bTriggerBreakEvents */ true);
 	}
 
 	if(bHardSnap)

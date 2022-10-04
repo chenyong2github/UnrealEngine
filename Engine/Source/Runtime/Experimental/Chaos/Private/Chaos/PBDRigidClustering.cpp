@@ -773,19 +773,19 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticles(LIST)"), STAT_ReleaseClusterParticles_LIST, STATGROUP_Chaos);
 	TSet<FPBDRigidParticleHandle*> 
 	FRigidClustering::ReleaseClusterParticles(
-		TArray<FPBDRigidParticleHandle*> ChildrenParticles)
+		TArray<FPBDRigidParticleHandle*> ChildrenParticles, bool bTriggerBreakEvents /* = false */)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_LIST);
 		TSet<FPBDRigidParticleHandle*> ActivatedBodies;
 		if (ChildrenParticles.Num())
 		{
+			//for now just assume these all belong to same cluster
 			FPBDRigidParticleHandle* ClusterHandle = nullptr;
-			//todo(ocohen): refactor incoming, for now just assume these all belong to same cluster and hack strain array
 			
 			TMap<FGeometryParticleHandle*, FReal> FakeStrain;
 
 			bool bPreDoGenerateData = DoGenerateBreakingData;
-			DoGenerateBreakingData = false;
+			DoGenerateBreakingData = bTriggerBreakEvents;
 
 			for (FPBDRigidParticleHandle* ChildHandle : ChildrenParticles)
 			{

@@ -132,7 +132,7 @@ public:
 	*    Release all rigid body IDs passed,
 	*/
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticles(
-		TArray<FPBDRigidParticleHandle*> ChildrenParticles);
+		TArray<FPBDRigidParticleHandle*> ChildrenParticles, bool bTriggerBreakEvents = false);
 
 	/*
 	*  DestroyClusterParticle
