@@ -1139,6 +1139,11 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		const FTextureBuildSettings& BuildSettingsForLayer = SettingsPerLayer[LayerIndex];
 		FVirtualTextureSourceLayerData& LayerData = SourceLayers[LayerIndex];
 
+		// Note that this code is duplicated at GetBuildSettingsPerFormat in TextureDerivedData.cpp so that the DDC key for 
+		// the VT ends up the same for child platforms, preventing re-encoding of the same texture data over and over. 
+		// As a result, this code shouldn't be doing anything when used via the ddc texture build/cook path - the prefix 
+		// should already be removed.
+		// 
 		// Don't want platform specific swizzling for VT tile data, this tends to add extra padding for textures with odd dimensions
 		// (VT physical tiles generally not power-of-2 after adding border)
 		FName TextureFormatPrefix;

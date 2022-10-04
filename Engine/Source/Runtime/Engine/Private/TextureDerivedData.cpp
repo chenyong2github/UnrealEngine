@@ -46,6 +46,7 @@
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ArchiveCookContext.h"
+#include "TextureBuildUtilities.h"
 #include "VT/VirtualTextureDataBuilder.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "TextureCompiler.h"
@@ -1126,6 +1127,25 @@ static void GetBuildSettingsPerFormat(
 		{
 			FTextureBuildSettings& OutSettings = OutSettingPerLayer.Add_GetRef(SourceBuildSettings);
 			OutSettings.TextureFormatName = PlatformFormatsPerLayer[LayerIndex];
+
+			if (OutSettings.bVirtualStreamable)
+			{
+				// Virtual textures always strip the child format prefix prior to actual encode since
+				// VTs never tile. We do this here so that we can end up with the same DDC keys and
+				// avoid re-encoding the same texture N times under different keys.
+				// This is the same code used at the end of FVirtualTextureDataBuilder::BuildSourcePixels
+				FName TextureFormatPrefix;
+				FName TextureFormatName = UE::TextureBuildUtilities::TextureFormatRemovePrefixFromName(OutSettings.TextureFormatName, TextureFormatPrefix);
+
+				if (TextureFormatPrefix.IsNone())
+				{
+					OutSettings.TextureFormatName = TextureFormatName;
+				}
+				else
+				{
+					OutSettings.TextureFormatName = *(TextureFormatPrefix.ToString() + TextureFormatName.ToString());
+				}
+			}
 
 			FTexturePlatformData::FTextureEncodeResultMetadata* OutResultMetadata = nullptr;
 			if (OutResultMetadataPerLayer)
