@@ -458,6 +458,15 @@ const FRigVMTemplate* UControlRigGraphNode::GetTemplate() const
 	return CachedTemplate;
 }
 
+void UControlRigGraphNode::ClearErrorInfo()
+{
+	bHasCompilerMessage = false;
+	// SControlRigGraphNode only updates if the error types do not match so we have
+	// clear the error type as well, see SControlRigGraphNode::RefreshErrorInfo()
+	ErrorType = (int32)EMessageSeverity::Info + 1;
+	ErrorMsg = FString();	
+}
+
 FLinearColor UControlRigGraphNode::GetNodeProfilingColor() const
 {
 #if WITH_EDITOR

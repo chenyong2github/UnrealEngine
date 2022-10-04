@@ -157,6 +157,8 @@ public:
 
 	const FRigVMTemplate* GetTemplate() const;
 
+	void ClearErrorInfo();
+
 protected:
 
 	FLinearColor GetNodeProfilingColor() const;

@@ -1231,8 +1231,29 @@ void UControlRigBlueprint::RecompileVM()
 		UserData.Add(FRigVMUserDataArray(&InitContextPtr, 1));
 		UserData.Add(FRigVMUserDataArray(&UpdateContextPtr, 1));
 
+		// Clear all Errors
 		CompileLog.Messages.Reset();
 		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
+		
+		TArray<UEdGraph*> EdGraphs;
+		GetAllGraphs(EdGraphs);
+
+		for (UEdGraph* Graph : EdGraphs)
+		{
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph == nullptr)
+			{
+				continue;
+			}
+
+			for (UEdGraphNode* GraphNode : Graph->Nodes)
+			{
+				if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
+				{
+					ControlRigGraphNode->ClearErrorInfo();
+				}
+			}
+		}
 
 		URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
 		Compiler->Settings = (bCompileInDebugMode) ? FRigVMCompileSettings::Fast() : VMCompileSettings;
@@ -1251,28 +1272,6 @@ void UControlRigBlueprint::RecompileVM()
 				VMCompiledEvent.Broadcast(this, CDO->VM);
 			}
 			return;
-		}
-		else
-		{
-			TArray<UEdGraph*> EdGraphs;
-			GetAllGraphs(EdGraphs);
-
-			for (UEdGraph* Graph : EdGraphs)
-			{
-				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
-				if (RigGraph == nullptr)
-				{
-					continue;
-				}
-
-				for (UEdGraphNode* GraphNode : Graph->Nodes)
-				{
-					if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
-					{
-						ControlRigGraphNode->bHasCompilerMessage = false;
-					}
-				}
-			}
 		}
 
 		TArray<UObject*> ArchetypeInstances;

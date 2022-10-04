@@ -9596,6 +9596,11 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 			InputPin->Links.Remove(Link);
 			Graph->Links.Remove(Link);
 
+			// each time a link is removed, existing orphaned pins
+			// may become unused and thus can be removed
+			RemoveUnusedOrphanedPins(OutputPin->GetNode(), true);
+			RemoveUnusedOrphanedPins(InputPin->GetNode(), true);
+			
 			if (!bIsTransacting && !bSuspendRecomputingTemplateFilters)
 			{
 				RecomputeAllTemplateFilteredPermutations(bSetupUndoRedo);
@@ -17937,10 +17942,13 @@ bool URigVMController::PrepareToLink(URigVMPin* FirstToResolve, URigVMPin* Secon
 		if (FirstTemplateNode->IsA<URigVMFunctionEntryNode>() || FirstTemplateNode->IsA<URigVMFunctionReturnNode>())
 		{
 			URigVMPin* RootPin = FirstToResolve->GetRootPin();
-			if (!FirstTemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()))
+			if (!RootPin->IsOrphanPin())
 			{
-				ensure(RootPin == FirstToResolve);
-				bShouldPrepare = AddArgumentForPin(FirstToResolve, SecondToResolve, bSetupUndoRedo);
+				if (!FirstTemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()))
+				{
+					ensure(RootPin == FirstToResolve);
+					bShouldPrepare = AddArgumentForPin(FirstToResolve, SecondToResolve, bSetupUndoRedo);
+				}
 			}
 		}
 		if (!FirstTemplateNode->IsSingleton() && bShouldPrepare)
@@ -17961,10 +17969,13 @@ bool URigVMController::PrepareToLink(URigVMPin* FirstToResolve, URigVMPin* Secon
 		if (SecondTemplateNode->IsA<URigVMFunctionEntryNode>() || SecondTemplateNode->IsA<URigVMFunctionReturnNode>())
 		{
 			URigVMPin* RootPin = SecondToResolve->GetRootPin();
-			if (!SecondTemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()))
+			if (!RootPin->IsOrphanPin())
 			{
-				ensure(RootPin == SecondToResolve);
-				bShouldPrepare = AddArgumentForPin(SecondToResolve, FirstToResolve, bSetupUndoRedo);
+				if (!SecondTemplateNode->GetTemplate()->FindArgument(RootPin->GetFName()))
+				{
+					ensure(RootPin == SecondToResolve);
+					bShouldPrepare = AddArgumentForPin(SecondToResolve, FirstToResolve, bSetupUndoRedo);
+				}
 			}
 		}
 		if (!SecondTemplateNode->IsSingleton() && bShouldPrepare)
