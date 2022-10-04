@@ -93,6 +93,12 @@ UCameraAnimationSpawnableSystem::UCameraAnimationSpawnableSystem(const FObjectIn
 	SystemCategories = UCameraAnimationSequenceSubsystem::GetCameraAnimationSystemCategory();
 }
 
+bool UCameraAnimationSpawnableSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
+{
+	using namespace UE::MovieScene;
+	return InLinker->GetLinkerRole() == EEntitySystemLinkerRole::CameraAnimations;
+}
+
 void UCameraAnimationSpawnableSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
@@ -132,6 +138,12 @@ UCameraAnimationBoundObjectInstantiator::UCameraAnimationBoundObjectInstantiator
 	}
 }
 
+bool UCameraAnimationBoundObjectInstantiator::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
+{
+	using namespace UE::MovieScene;
+	return InLinker->GetLinkerRole() == EEntitySystemLinkerRole::CameraAnimations;
+}
+
 void UCameraAnimationBoundObjectInstantiator::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
@@ -153,7 +165,6 @@ UCameraAnimationEntitySystemLinker::UCameraAnimationEntitySystemLinker(const FOb
 {
 	using namespace UE::MovieScene;
 
-	AutoLinkMode = EAutoLinkRelevantSystems::Disable;
 	SetLinkerRole(EEntitySystemLinkerRole::CameraAnimations);
 	GetSystemFilter().SetAllowedCategories(
 			// Eval time system, hierarchical bias systems, etc.
@@ -175,14 +186,6 @@ UCameraAnimationEntitySystemLinker::UCameraAnimationEntitySystemLinker(const FOb
 	//       the camera animation system category.
 }
 
-void UCameraAnimationEntitySystemLinker::LinkRequiredSystems()
-{
-	using namespace UE::MovieScene;
-
-	// Link everything we want once and for all.
-	UMovieSceneEntitySystem::LinkAllSystems(this);
-}
-
 UCameraAnimationSequenceSubsystem* UCameraAnimationSequenceSubsystem::GetCameraAnimationSequenceSubsystem(const UWorld* InWorld)
 {
 	if (InWorld)
@@ -195,9 +198,7 @@ UCameraAnimationSequenceSubsystem* UCameraAnimationSequenceSubsystem::GetCameraA
 
 UMovieSceneEntitySystemLinker* UCameraAnimationSequenceSubsystem::CreateLinker(UObject* Outer, FName Name)
 {
-	UCameraAnimationEntitySystemLinker* NewLinker = NewObject<UCameraAnimationEntitySystemLinker>(Outer, Name);
-	NewLinker->LinkRequiredSystems();
-	return NewLinker;
+	return NewObject<UCameraAnimationEntitySystemLinker>(Outer, Name);
 }
 
 UE::MovieScene::EEntitySystemCategory UCameraAnimationSequenceSubsystem::GetCameraAnimationSystemCategory()

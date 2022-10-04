@@ -22,8 +22,7 @@ public:
 	void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 private:
-	// Always make this system irrelevant, so it's never used outside of this camera animation system
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override { return false; }
+	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
 };
 
 UCLASS()
@@ -37,8 +36,7 @@ public:
 	void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 private:
-	// Always make this system irrelevant, so it's never used outside of this camera animation system
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override { return false; }
+	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
 };
 
 UCLASS()
@@ -48,8 +46,6 @@ class UCameraAnimationEntitySystemLinker : public UMovieSceneEntitySystemLinker
 
 public:
 	UCameraAnimationEntitySystemLinker(const FObjectInitializer& ObjInit);
-
-	void LinkRequiredSystems();
 };
 
 /**
