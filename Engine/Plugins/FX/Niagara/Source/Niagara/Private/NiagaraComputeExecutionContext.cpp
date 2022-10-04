@@ -136,6 +136,7 @@ void FNiagaraComputeExecutionContext::DirtyDataInterfaces()
 
 bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance)
 {
+	check(ParentSystemInstance);
 	if (CombinedParamStore.GetInterfacesDirty())
 	{
 #if DO_CHECK
@@ -159,7 +160,7 @@ bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemI
 			}
 		}
 #endif
-		if (ParentSystemInstance && CombinedParamStore.GetPositionDataDirty())
+		if (CombinedParamStore.GetPositionDataDirty())
 		{
 			CombinedParamStore.ResolvePositions(ParentSystemInstance->GetLWCConverter());
 		}
