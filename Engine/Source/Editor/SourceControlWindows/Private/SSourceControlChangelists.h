@@ -72,7 +72,7 @@ private:
 
 	void RequestChangelistsRefresh();
 	void RequestFileStatusRefresh(const IChangelistTreeItem& Changelist);
-	void RequestFileStatusRefresh(const TArray<FString>& Pathnames);
+	void RequestFileStatusRefresh(const TSet<FString>& Pathnames);
 	void OnRefresh();
 	void ClearChangelistsTree();
 

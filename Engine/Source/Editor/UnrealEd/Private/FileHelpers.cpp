@@ -4262,13 +4262,44 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 		if ( AddPackageItemsUnchecked.Num() > 0 || AddPackageItemsChecked.Num() > 0 )
 		{
+			int32 WarningCount = 0;
+			auto AddPackageItem = [&PackagesDialogModule, &WarningCount](UPackage* Package, ECheckBoxState CheckedState)
+			{
+				FString IconName;
+				FString IconTooltip;
+				if (!GUnrealEd->HasMountWritePermissionForPackage(Package->GetName()))
+				{
+					IconName = TEXT("Icons.WarningWithColor");
+					IconTooltip = TEXT("Insufficient writing permission to save");
+					++WarningCount;
+				}
+				else if (ISourceControlModule::Get().IsEnabled())
+				{
+					if (TSharedPtr<ISourceControlState> State = ISourceControlModule::Get().GetProvider().GetState(Package, EStateCacheUsage::Use))
+					{
+						if (TOptional<FText> Warning = State->GetWarningText())
+						{
+							IconName = TEXT("Icons.WarningWithColor");
+							IconTooltip = Warning->ToString();
+							++WarningCount;
+						}
+					}
+				}
+				PackagesDialogModule.AddPackageItem(Package, CheckedState, /*Disabled*/false, IconName, IconTooltip);
+			};
+
 			for (auto Iter = AddPackageItemsChecked.CreateIterator(); Iter; ++Iter)
 			{
-				PackagesDialogModule.AddPackageItem(*Iter, ECheckBoxState::Checked);
+				AddPackageItem(*Iter, ECheckBoxState::Checked);
 			}
 			for (auto Iter = AddPackageItemsUnchecked.CreateIterator(); Iter; ++Iter)
 			{
-				PackagesDialogModule.AddPackageItem(*Iter, ECheckBoxState::Unchecked);
+				AddPackageItem(*Iter, ECheckBoxState::Unchecked);
+			}
+
+			if (WarningCount > 0)
+			{
+				PackagesDialogModule.SetWarning(LOCTEXT("Warning_Notification", "Warning: Assets have conflict in Source Control or cannot be written to disk"));
 			}
 
 			// If valid packages were added to the dialog, display it to the user

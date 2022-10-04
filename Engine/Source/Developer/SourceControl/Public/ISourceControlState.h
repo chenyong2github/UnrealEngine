@@ -178,5 +178,19 @@ public:
 
 	/** Get whether this file can be reverted, i.e. its changes are discarded and the file will no longer be checked-out. */
 	virtual bool CanRevert() const = 0;
+
+	/** Gets the warnings messages associated with this state, if any. Ex 'checkout by other', 'out of date', etc). */
+	virtual TOptional<FText> GetWarningText() const
+	{ 
+		TOptional<FText> WarningText;
+		if (IsConflicted() ||
+			!IsCurrent() ||
+			IsCheckedOutOther() ||
+			(!IsCheckedOut() && (IsCheckedOutInOtherBranch() || IsModifiedInOtherBranch())))
+		{
+			WarningText.Emplace(GetDisplayTooltip()); // The tooltip text usually describe well enough the warning.
+		}
+		return WarningText;
+	}
 };
 

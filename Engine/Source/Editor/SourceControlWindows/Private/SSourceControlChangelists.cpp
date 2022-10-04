@@ -26,6 +26,7 @@
 #include "SSourceControlDescription.h"
 #include "SourceControlWindows.h"
 #include "SourceControlHelpers.h"
+#include "SourceControlFileStatusMonitor.h"
 #include "SourceControlPreferences.h"
 #include "SourceControlMenuContext.h"
 #include "SourceControlSettings.h"
@@ -664,7 +665,7 @@ void SSourceControlChangelistsWidget::RequestChangelistsRefresh()
 
 void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const IChangelistTreeItem& Changelist)
 {
-	TArray<FString> Pathnames;
+	TSet<FString> Pathnames;
 	if (Changelist.GetTreeItemType() == IChangelistTreeItem::Changelist)
 	{
 		const FChangelistTreeItem& ChangelistItem = static_cast<const FChangelistTreeItem&>(Changelist);
@@ -689,32 +690,31 @@ void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const IChangelist
 	}
 }
 
-void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const TArray<FString>& Pathnames)
+void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const TSet<FString>& PathnamesToMonitor)
 {
 	if (!ISourceControlModule::Get().IsEnabled())
 	{
 		return;
 	}
 
+	// NOTE: This is using the file status monitor and the status might be a bit old but not older than the
+	//       update period policy of the monitor. See FSourceControlFileStatusMonitor::SetUpdateStatusPeriodPolicy()
+
 	// If the changelist contains files.
-	if (!Pathnames.IsEmpty())
+	if (!PathnamesToMonitor.IsEmpty())
 	{
-		TSharedRef<FUpdateStatus> UpdateStatus = ISourceControlOperation::Create<FUpdateStatus>();
+		// Request an update only for the files that changed.
+		TSet<FString> MonitoredPathnames = ISourceControlModule::Get().GetSourceControlFileStatusMonitor().GetMonitoredFiles(reinterpret_cast<uintptr_t>(this));
+		TSet<FString> StopMonitoringPathnames = MonitoredPathnames.Difference(PathnamesToMonitor);
+		TSet<FString> StartMonitoringPathnames = PathnamesToMonitor.Difference(MonitoredPathnames);
 
-		if (FUncontrolledChangelistsModule::Get().IsEnabled())
-		{
-			// Uncontrolled CL files are not opened in the P4 client view, force the status update of the files even if not opened to capture who has it in checked out.
-			UpdateStatus->SetForceUpdate(true);
-		}
-
-		OnStartSourceControlOperation(UpdateStatus, LOCTEXT("Updating_Changelist_Files_Status", "Updating changelist files status..."));
-
-		// Check if the source controlled states of those files changed outside the Editor. The Editor prevents a user from checking out assets that are out
-		// of date, but the user can checkout out from P4V directly. This request is meant to detect if a users checkout outdated assets outside the Editor. It will
-		// also detect non-exclusive files that are out of date (.ini files for example). That's an edge case and if this creates bottleneck, this can likely be disabled.
-		ISourceControlModule::Get().GetProvider().Execute(UpdateStatus, Pathnames, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SSourceControlChangelistsWidget::OnEndSourceControlOperation));
-
+		ISourceControlModule::Get().GetSourceControlFileStatusMonitor().StopMonitoringFiles(reinterpret_cast<uintptr_t>(this), StopMonitoringPathnames);
+		ISourceControlModule::Get().GetSourceControlFileStatusMonitor().StartMonitoringFiles(reinterpret_cast<uintptr_t>(this), StartMonitoringPathnames, FSourceControlFileStatusMonitor::FOnSourceControlFileStatus());
 		// NOTE: The updated status are expected to come from OnSourceControlStateChanged() that is invoked when the source control internal state changes.
+	}
+	else
+	{
+		ISourceControlModule::Get().GetSourceControlFileStatusMonitor().StopMonitoringFiles(reinterpret_cast<uintptr_t>(this));
 	}
 }
 

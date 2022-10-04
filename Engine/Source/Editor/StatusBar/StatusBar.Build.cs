@@ -23,6 +23,7 @@ public class StatusBar : ModuleRules
 				"InputCore",
 				"EditorFramework",
 				"SourceControlWindows",
+				"UnsavedAssetsTracker",
 				"ToolMenus",
 				"ToolWidgets",
 				"UnrealEd",

@@ -8,6 +8,7 @@
 #include "ISourceControlWindowsModule.h"
 #include "SourceControlMenuHelpers.h"
 #include "SourceControlWindows.h"
+#include "UnsavedAssetsTrackerModule.h"
 #include "FileHelpers.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
@@ -484,7 +485,16 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SButton)			
+			// NOTE: The unsaved can have its own menu extension in the status bar to decouple it from source control, but putting all the buttons in the right order
+			//       on the status bar is not deterministic, you need to know the name of the menu that is before or after and the menu is dynamic. Having it here
+			//       ensure its position with respect to the source control button.
+			FUnsavedAssetsTrackerModule::Get().MakeUnsavedAssetsStatusBarWidget()
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SButton)
 			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
 			.ToolTipText_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusTooltipText)
 			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusVisibility)

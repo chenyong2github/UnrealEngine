@@ -13,6 +13,7 @@
 #include "SourceControlSettings.h"
 #include "DefaultSourceControlProvider.h"
 
+class FSourceControlFileStatusMonitor;
 class SSourceControlLogin;
 class SWindow;
 
@@ -57,6 +58,7 @@ public:
 	virtual void RegisterSourceControlProjectDirDelegate(const FSourceControlProjectDirDelegate& SourceControlProjectDirDelegate) override;
 	virtual void UnregisterSourceControlProjectDirDelegate() override;
 	virtual FString GetSourceControlProjectDir() const override;
+	virtual FSourceControlFileStatusMonitor& GetSourceControlFileStatusMonitor() override;
 
 	/** Save the settings to the ini file */
 	void SaveSettings();
@@ -125,6 +127,9 @@ private:
 
 	/** The login window control we may be using */
 	TSharedPtr<class SSourceControlLogin> SourceControlLoginPtr;
+
+	/** Monitor the source control status of a collection of files. */
+	TSharedPtr<class FSourceControlFileStatusMonitor> SourceControlFileStatusMonitor;
 
 	/** Files pending a status update */
 	TArray<FString> PendingStatusUpdateFiles;

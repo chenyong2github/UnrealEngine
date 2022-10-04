@@ -6,6 +6,7 @@
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlAssetDataCache.h"
+#include "SourceControlFileStatusMonitor.h"
 #include "Misc/Paths.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
@@ -65,6 +66,8 @@ void FSourceControlModule::StartupModule()
 #endif
 
 	AssetDataCache.Startup();
+
+	SourceControlFileStatusMonitor = MakeShared<FSourceControlFileStatusMonitor>();
 }
 
 void FSourceControlModule::ShutdownModule()
@@ -88,6 +91,8 @@ void FSourceControlModule::ShutdownModule()
 	// we don't care about modular features any more
 	IModularFeatures::Get().OnModularFeatureRegistered().RemoveAll(this);
 	IModularFeatures::Get().OnModularFeatureUnregistered().RemoveAll(this);
+
+	SourceControlFileStatusMonitor.Reset();
 }
 
 void FSourceControlModule::SaveSettings()
@@ -544,6 +549,11 @@ FString FSourceControlModule::GetSourceControlProjectDir() const
 		}
 	}
 	return FPaths::ProjectDir();
+}
+
+FSourceControlFileStatusMonitor& FSourceControlModule::GetSourceControlFileStatusMonitor()
+{
+	return *SourceControlFileStatusMonitor;
 }
 
 IMPLEMENT_MODULE( FSourceControlModule, SourceControl );

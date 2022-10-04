@@ -9,6 +9,7 @@
 
 class ISourceControlProvider;
 class ISourceControlChangelist;
+class FSourceControlFileStatusMonitor;
 
 class FSourceControlAssetDataCache;
 class FSourceControlInitSettings;
@@ -244,11 +245,15 @@ public:
 	 */
 	virtual void UnregisterSourceControlProjectDirDelegate() = 0;
 
-
 	/**
 	 * Returns the project base directory to be used by the source control
 	 */
 	virtual FString GetSourceControlProjectDir() const = 0;
+
+	/**
+	 * Returns the object used to monitor the source control status of a collection of files.
+	 */
+	virtual FSourceControlFileStatusMonitor& GetSourceControlFileStatusMonitor() = 0;
 
 	/**
 	 * Gets a reference to the source control module instance.
