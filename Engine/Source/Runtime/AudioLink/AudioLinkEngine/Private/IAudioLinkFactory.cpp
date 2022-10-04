@@ -7,9 +7,22 @@
 #include "BufferedSubmixListener.h" 
 #include "BufferedSourceListener.h" 
 
+namespace AudioLinkFactory_Private
+{
+	bool IsEnabled()
+	{
+		static bool bAudioLinkEnabled = true;
+		static FAutoConsoleVariableRef CVarAudioLinkEnabled(TEXT("au.audiolink.enabled"), bAudioLinkEnabled, TEXT("Enable AudioLink"), ECVF_Default);
+		return bAudioLinkEnabled;
+	}
+}
+
 IAudioLinkFactory::IAudioLinkFactory()
 {
-	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+	if (AudioLinkFactory_Private::IsEnabled())
+	{
+		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+	}
 }
 
 IAudioLinkFactory::~IAudioLinkFactory()
