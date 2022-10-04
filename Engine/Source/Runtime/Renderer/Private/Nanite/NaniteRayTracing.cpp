@@ -68,6 +68,16 @@ static FAutoConsoleVariableRef CVarNaniteRayTracingMaxBuiltPrimitivesPerFrame(
 
 DECLARE_GPU_STAT(RebuildNaniteBLAS);
 
+DECLARE_STATS_GROUP(TEXT("Nanite RayTracing"), STATGROUP_NaniteRayTracing, STATCAT_Advanced);
+
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("In-flight Updates"), STAT_NaniteRayTracingInFlightUpdates, STATGROUP_NaniteRayTracing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Stream Out Requests"), STAT_NaniteRayTracingStreamOutRequests, STATGROUP_NaniteRayTracing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Failed Stream Out Requests"), STAT_NaniteRayTracingFailedStreamOutRequests, STATGROUP_NaniteRayTracing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Scheduled Builds"), STAT_NaniteRayTracingScheduledBuilds, STATGROUP_NaniteRayTracing);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Scheduled Builds - Num Primitives"), STAT_NaniteRayTracingScheduledBuildsNumPrimitives, STATGROUP_NaniteRayTracing);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Pending Builds"), STAT_NaniteRayTracingPendingBuilds, STATGROUP_NaniteRayTracing);
+DECLARE_MEMORY_STAT(TEXT("Auxiliary Data Buffer"), STAT_NaniteRayTracingAuxiliaryDataBuffer, STATGROUP_NaniteRayTracing);
+
 namespace Nanite
 {
 	static FRDGBufferRef ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, uint32 BytesPerElement, uint32 NumElements, const TCHAR* Name)
@@ -102,6 +112,7 @@ namespace Nanite
 		}
 
 		AuxiliaryDataBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 8), TEXT("NaniteRayTracing.AuxiliaryDataBuffer"));
+		SET_MEMORY_STAT(STAT_NaniteRayTracingAuxiliaryDataBuffer, AuxiliaryDataBuffer->GetSize());
 
 		ReadbackBuffers.AddZeroed(MaxReadbackBuffers);
 
@@ -267,6 +278,8 @@ namespace Nanite
 			BufferRDG = GraphBuilder.CreateBuffer(BufferDesc, TEXT("NaniteRayTracing.AuxiliaryDataBuffer"));
 
 			AddCopyBufferPass(GraphBuilder, BufferRDG, SrcBufferRDG);
+
+			SET_MEMORY_STAT(STAT_NaniteRayTracingAuxiliaryDataBuffer, BufferRDG->GetSize());
 		}
 
 		//ResizeStructuredBufferIfNeeded(GraphBuilder, AuxiliaryDataBuffer, NumAuxiliaryDataEntries * sizeof(uint32), TEXT("NaniteRayTracing.AuxiliaryDataBuffer"));
@@ -367,6 +380,8 @@ namespace Nanite
 				++Index;
 			}
 
+			INC_DWORD_STAT_BY(STAT_NaniteRayTracingInFlightUpdates, ToUpdate.Num());
+
 			RequestBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("NaniteRayTracing.RequestBuffer"), UploadData);
 
 			SegmentMappingBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("NaniteRayTracing.SegmentMappingBuffer"), SegmentMappingUploadData);
@@ -406,6 +421,8 @@ namespace Nanite
 			GNaniteRayTracingMaxNumVertices,
 			IndexBufferRDG,
 			GNaniteRayTracingMaxNumIndices);
+
+		INC_DWORD_STAT_BY(STAT_NaniteRayTracingStreamOutRequests, ToUpdate.Num());
 
 		// readback
 		{
@@ -480,6 +497,8 @@ namespace Nanite
 			// not using RemoveAtSwap to avoid starving requests in the middle
 			// not expecting significant number of elements remaining anyway
 			PendingBuilds.RemoveAt(0, ScheduledBuilds.Num());
+
+			DEC_DWORD_STAT_BY(STAT_NaniteRayTracingPendingBuilds, ScheduledBuilds.Num());
 		}
 
 		while (ReadbackBuffersNumPending > 0)
@@ -506,6 +525,10 @@ namespace Nanite
 						Data.bUpdating = false;
 						Data.BaseMeshDataOffset = -1;
 						UpdateRequests.Add(GeometryId); // request update again
+
+						DEC_DWORD_STAT_BY(STAT_NaniteRayTracingInFlightUpdates, 1);
+						INC_DWORD_STAT_BY(STAT_NaniteRayTracingFailedStreamOutRequests, 1);
+
 						continue;
 
 						// TODO:
@@ -565,6 +588,8 @@ namespace Nanite
 						PendingBuild.GeometryId = GeometryId;
 						PendingBuild.RayTracingGeometryRHI = MoveTemp(RayTracingGeometryRHI);
 						PendingBuilds.Add(MoveTemp(PendingBuild));
+
+						INC_DWORD_STAT_BY(STAT_NaniteRayTracingPendingBuilds, 1);
 					}
 				}
 
@@ -576,6 +601,8 @@ namespace Nanite
 				break;
 			}
 		}
+
+		INC_DWORD_STAT_BY(STAT_NaniteRayTracingScheduledBuildsNumPrimitives, NumPrimitivesScheduled);
 	}
 
 	bool FRayTracingManager::ProcessBuildRequests(FRDGBuilder& GraphBuilder)
@@ -600,7 +627,11 @@ namespace Nanite
 
 			Data.bUpdating = false;
 			Data.BaseMeshDataOffset = -1;
+
+			DEC_DWORD_STAT_BY(STAT_NaniteRayTracingInFlightUpdates, 1);
 		}
+
+		INC_DWORD_STAT_BY(STAT_NaniteRayTracingScheduledBuilds, ScheduledBuilds.Num());
 
 		ScheduledBuilds.Empty();
 
