@@ -194,19 +194,25 @@ void UUVEditorTransformTool::Setup()
 		Factory->GetSelectedUVChannel = [&Target]() { return 0; /*Since we're passing in the unwrap mesh, the UV index is always zero.*/ };
 		if (Selection)
 		{
-			// If we have a selection, it's in the unwrapped mesh. We need both triangles, which are 1:1 between them,
-			// and vertices, which are not, in the applied mesh to pass to the factory.
+			// Generate vertex and edge selection sets for the operation. These are needed to differentiate
+			// between islands, whether they are composed of triangles, edges or isolated points.
 			FUVToolSelection UnwrapVertexSelection;
-			if (Selection->Type == FUVToolSelection::EType::Vertex)
+			FUVToolSelection UnwrapEdgeSelection;
+			switch (Selection->Type)
 			{
-				UnwrapVertexSelection = *Selection;
+			case FUVToolSelection::EType::Vertex:
+				Factory->VertexSelection.Emplace(Selection->SelectedIDs);
+				Factory->EdgeSelection.Emplace(Selection->GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Edge).SelectedIDs);
+				break;
+			case FUVToolSelection::EType::Edge:
+				Factory->VertexSelection.Emplace(Selection->GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Vertex).SelectedIDs);
+				Factory->EdgeSelection.Emplace(Selection->SelectedIDs);
+				break;
+			case FUVToolSelection::EType::Triangle:
+				Factory->VertexSelection.Emplace(Selection->GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Vertex).SelectedIDs);
+				Factory->EdgeSelection.Emplace(Selection->GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Edge).SelectedIDs);
+				break;
 			}
-			else
-			{
-				UnwrapVertexSelection = Selection->GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Vertex);
-			}				
-			Factory->VertexSelection.Emplace(UnwrapVertexSelection.SelectedIDs);
-			Factory->TriangleSelection.Emplace(UnwrapVertexSelection.GetConvertedSelection(*Target.UnwrapCanonical, FUVToolSelection::EType::Triangle).SelectedIDs);
 		}
 
 		Target.UnwrapPreview->ChangeOpFactory(Factory);

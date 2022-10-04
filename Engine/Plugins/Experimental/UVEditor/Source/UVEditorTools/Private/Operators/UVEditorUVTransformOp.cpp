@@ -32,10 +32,10 @@ void FUVEditorUVTransformBaseOp::SetTransform(const FTransformSRT3d& Transform)
 	ResultTransform = Transform;
 }
 
-void FUVEditorUVTransformBaseOp::SetSelection(const TSet<int32>& TriangleSelectionIn, const TSet<int32>& VertexSelectionIn)
+void FUVEditorUVTransformBaseOp::SetSelection(const TSet<int32>& EdgeSelectionIn, const TSet<int32>& VertexSelectionIn)
 {
-		TriangleSelection = TriangleSelectionIn;
-		VertexSelection = VertexSelectionIn;
+	EdgeSelection = EdgeSelectionIn;
+	VertexSelection = VertexSelectionIn;
 }
 
 void FUVEditorUVTransformBaseOp::SortComponentsByBoundingBox(bool bSortXThenY)
@@ -209,9 +209,16 @@ void FUVEditorUVTransformBaseOp::CalculateResult(FProgressCancel* Progress)
 	ActiveUVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerInput);
 	ensure(ActiveUVLayer);
 
-	auto UVIslandPredicate = [this](int32 Triangle0, int32 Triangle1)
+	auto UVIslandPredicate = [this](int32 Vertex0, int32 Vertex1)
 	{
-		return GroupingMode != EUVEditorAlignDistributeGroupingModeBackend::IndividualVertices;
+		
+		if (GroupingMode != EUVEditorAlignDistributeGroupingModeBackend::IndividualVertices
+			&& EdgeSelection.IsSet())
+		{
+			const TSet<int32>& SelectedEdges = EdgeSelection.GetValue();
+			return SelectedEdges.Contains(ResultMesh->FindEdge(Vertex0, Vertex1));
+		}
+		return false;
 	};
 
 	UVComponents = MakeShared<FMeshConnectedComponents>(ResultMesh.Get());
@@ -785,9 +792,9 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		TUniquePtr<FUVEditorUVTransformOp> Op = MakeUnique<FUVEditorUVTransformOp>();
 		Op->OriginalMesh = OriginalMesh;
 		Op->SetTransform(TargetTransform);
-		if (TriangleSelection.IsSet() && VertexSelection.IsSet())
+		if (EdgeSelection.IsSet() && VertexSelection.IsSet())
 		{
-			Op->SetSelection(TriangleSelection.GetValue(), VertexSelection.GetValue());
+			Op->SetSelection(EdgeSelection.GetValue(), VertexSelection.GetValue());
 		}
 		Op->UVLayerIndex = GetSelectedUVChannel();
 
@@ -840,9 +847,9 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		TUniquePtr<FUVEditorUVAlignOp> Op = MakeUnique<FUVEditorUVAlignOp>();
 		Op->OriginalMesh = OriginalMesh;
 		Op->SetTransform(TargetTransform);
-		if (TriangleSelection.IsSet() && VertexSelection.IsSet())
+		if (EdgeSelection.IsSet() && VertexSelection.IsSet())
 		{
-			Op->SetSelection(TriangleSelection.GetValue(), VertexSelection.GetValue());
+			Op->SetSelection(EdgeSelection.GetValue(), VertexSelection.GetValue());
 		}
 		Op->UVLayerIndex = GetSelectedUVChannel();
 
@@ -918,9 +925,9 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorUVTransformOperatorFactory::MakeNewOpe
 		TUniquePtr<FUVEditorUVDistributeOp> Op = MakeUnique<FUVEditorUVDistributeOp>();
 		Op->OriginalMesh = OriginalMesh;
 		Op->SetTransform(TargetTransform);
-		if (TriangleSelection.IsSet() && VertexSelection.IsSet())
+		if (EdgeSelection.IsSet() && VertexSelection.IsSet())
 		{
-			Op->SetSelection(TriangleSelection.GetValue(), VertexSelection.GetValue());
+			Op->SetSelection(EdgeSelection.GetValue(), VertexSelection.GetValue());
 		}
 		Op->UVLayerIndex = GetSelectedUVChannel();
 

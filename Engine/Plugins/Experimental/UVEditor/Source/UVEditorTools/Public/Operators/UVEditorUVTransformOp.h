@@ -338,7 +338,7 @@ public:
 	EUVEditorAlignDistributeGroupingModeBackend GroupingMode;
 
 	void SetTransform(const FTransformSRT3d& Transform);
-	void SetSelection(const TSet<int32>& TriangleSelection, const TSet<int32>& VertexSelection);
+	void SetSelection(const TSet<int32>& EdgeSelection, const TSet<int32>& VertexSelection);
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 	const TArray<FVector2D>& GetPivotLocations() const { return VisualizationPivots; }
@@ -361,8 +361,8 @@ protected:
 	TArray<int32> SpatiallyOrderedComponentIndex;
 	TArray<FVector2D> VisualizationPivots;
 
-	TOptional<TSet<int32>> TriangleSelection;
 	TOptional<TSet<int32>> VertexSelection;
+	TOptional<TSet<int32>> EdgeSelection;
 };
 
 
@@ -445,7 +445,7 @@ public:
 	UPROPERTY()
 	TObjectPtr<UUVEditorUVTransformPropertiesBase> Settings;
 
-	TOptional<TSet<int32>> TriangleSelection;
+	TOptional<TSet<int32>> EdgeSelection;
 	TOptional<TSet<int32>> VertexSelection;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
