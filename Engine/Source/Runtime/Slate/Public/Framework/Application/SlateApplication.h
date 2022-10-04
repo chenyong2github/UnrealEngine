@@ -928,7 +928,15 @@ public:
 	 * 
 	 * @return true if taking the screenshot was successful.
 	 */
-	bool TakeScreenshot(const TSharedRef<SWidget>& Widget, TArray<FColor>&OutColorData, FIntVector& OutSize);
+	bool TakeScreenshot(const TSharedRef<SWidget>& Widget, TArray<FColor>& OutColorData, FIntVector& OutSize);
+	
+	/**
+	 * Takes a screenshot of the widget writing the results into the color buffer provided.  This is to be used with HDR buffers
+	 * the size of the resulting image is also output.
+	 *
+	 * @return true if taking the screenshot was successful.
+	 */
+	bool TakeHDRScreenshot(const TSharedRef<SWidget>& Widget, TArray<FLinearColor>& OutColorData, FIntVector& OutSize);
 
 	/**
 	 * Takes a screenshot of the widget writing the results into the color buffer provided, this version allows you to provide 
@@ -937,6 +945,14 @@ public:
 	 * @return true if taking the screenshot was successful.
 	 */
 	bool TakeScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FColor>& OutColorData, FIntVector& OutSize);
+
+	/**
+	  * Takes a screenshot of the widget writing the results into the color buffer provided, this version allows you to provide
+	  * an inner area to screenshot.  Note that the format is BGRA.  The size of the resulting image is also output.
+	  *
+	  * @return true if taking the screenshot was successful.
+	*/
+	bool TakeHDRScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FLinearColor>& OutColorData, FIntVector& OutSize);
 
 	/** Gets the user at the given index, null if the user does not exist. */
 	FORCEINLINE TSharedPtr<const FSlateUser> GetUser(int32 UserIndex) const

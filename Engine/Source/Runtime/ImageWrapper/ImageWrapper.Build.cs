@@ -4,6 +4,8 @@ using UnrealBuildTool;
 
 public class ImageWrapper : ModuleRules
 {
+	protected virtual bool bEnableMinimalEXR { get => false; }
+
 	public ImageWrapper(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicIncludePathModuleNames.AddRange(new string[] {
@@ -43,6 +45,7 @@ public class ImageWrapper : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "UElibJPG");
 		}
 
+		bool bUseMinimalEXR = bEnableMinimalEXR;
 		// Add openEXR lib for windows builds.
 		if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
@@ -51,11 +54,14 @@ public class ImageWrapper : ModuleRules
 			PublicDefinitions.Add("WITH_UNREALEXR=1");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Imath");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "UEOpenExr");
+			bUseMinimalEXR = false;
 		}
 		else
 		{
 			PublicDefinitions.Add("WITH_UNREALEXR=0");
 		}
+
+		PublicDefinitions.Add("WITH_UNREALEXR_MINIMAL=" + (bUseMinimalEXR ? "1" : "0"));
 
 		// Enable exceptions to allow error handling
 		bEnableExceptions = true;

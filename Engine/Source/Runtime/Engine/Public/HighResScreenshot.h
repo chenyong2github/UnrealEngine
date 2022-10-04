@@ -55,6 +55,7 @@ struct ENGINE_API FHighResScreenshotConfig
 	  * Returns true if the mask was written, and false otherwise.
 	**/
 	bool MergeMaskIntoAlpha(TArray<FColor>& InBitmap, const FIntRect& ViewRect);
+	bool MergeMaskIntoAlpha(TArray<FLinearColor>& InBitmap, const FIntRect& ViewRect);
 
 	/** Enable/disable HDR capable captures **/
 	void SetHDRCapture(bool bCaptureHDRIN);

@@ -6,8 +6,9 @@
 
 #include "ImageWrapperBase.h"
 
-#if WITH_UNREALEXR
+#if WITH_UNREALEXR || WITH_UNREALEXR_MINIMAL
 
+#if WITH_UNREALEXR
 THIRD_PARTY_INCLUDES_START
 	#include "Imath/ImathBox.h"
 	#include "OpenEXR/ImfArray.h"
@@ -20,7 +21,7 @@ THIRD_PARTY_INCLUDES_START
 	#include "OpenEXR/ImfStdIO.h"
 	#include "OpenEXR/ImfVersion.h"
 THIRD_PARTY_INCLUDES_END
-
+#endif
 
 /**
  * OpenEXR implementation of the helper class
