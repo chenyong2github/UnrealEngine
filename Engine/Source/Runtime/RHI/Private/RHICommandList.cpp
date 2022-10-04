@@ -437,7 +437,6 @@ void FRHICommandListBase::Execute(TRHIPipelineArray<IRHIComputeContext*>& InOutC
 void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCommandList> CommandLists, ETranslatePriority ParallelTranslatePriority, int32 MinDrawsPerTranslate)
 {
 	check(IsInRenderingThread());
-	checkf(!Bypass(), TEXT("Parallel execution cannot be used in RHI bypass mode."));
 
 	if (CommandLists.Num() == 0)
 		return;
