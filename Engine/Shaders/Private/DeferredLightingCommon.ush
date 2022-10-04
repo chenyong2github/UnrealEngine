@@ -27,18 +27,6 @@
 	#endif
 #endif
 
-
-/** Data about a single light to be shaded with the simple shading model, designed for speed and limited feature set. */
-struct FSimpleDeferredLightData
-{
-	float3 TranslatedWorldPosition;
-	float  InvRadius;
-	float3 Color;
-	float  FalloffExponent;
-	/** Whether to use inverse squared falloff. */
-	bool bInverseSquared;
-};
-
 #define REFERENCE_QUALITY	0
 
 FRectTexture InitRectTexture(FDeferredLightData In)

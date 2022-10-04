@@ -690,29 +690,7 @@ void LightScatteringCS(
 
 			if (VolumetricScatteringIntensity > 0)
 			{
-				FDeferredLightData LightData = (FDeferredLightData)0;
-				LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
-				LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
-				LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
-				LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
-				LightData.Direction = LocalLight.LightDirectionAndShadowMask.xyz;
-				LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
-				LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
-				LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-				LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-				LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
-				LightData.bInverseSquared = LightData.FalloffExponent == 0;
-				LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.x;
-				LightData.RectLightBarnLength = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.y;
-				LightData.RectLightAtlasUVOffset = 0;
-				LightData.RectLightAtlasUVScale  = 0;
-				LightData.RectLightAtlasMaxLevel = MAX_RECT_ATLAS_MIP;
-
-				LightData.bRadialLight = true;
-				LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-				LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
-
-				float3 LightColor = LightData.Color;
+				const FDeferredLightData LightData = ConvertToDeferredLight(LocalLight);
 
 				float3 L = 0;
 				float3 ToLight = 0;
@@ -735,7 +713,7 @@ void LightScatteringCS(
 
 				float CombinedAttenuation = Lighting * LightMask;
 
-				LightScattering += LightColor * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * VolumetricScatteringIntensity);
+				LightScattering += LightData.Color * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * VolumetricScatteringIntensity);
 
 				// To debug culling
 				//LightScattering += LocalLight.LightColorAndFalloffExponent.xyz * .0000001f;

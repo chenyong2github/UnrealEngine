@@ -314,14 +314,8 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 Translat
 	for (uint LocalLightListIndex = 0; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
 	{
 		const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
-		 
-		FSimpleDeferredLightData LightData = (FSimpleDeferredLightData)0;
-		LightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
-		LightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
-		LightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
-		LightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
-		LightData.bInverseSquared = LightData.FalloffExponent == 0;
-						
+		const FSimpleDeferredLightData LightData = ConvertToSimpleLight(LocalLight);
+
 		// No specular for vertex lighting
 		float3 CameraVector = 0;
 		float3 SpecularColor = 0;

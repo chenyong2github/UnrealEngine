@@ -13,8 +13,37 @@
 #define LIGHT_TYPE_SPOT				2 
 #define LIGHT_TYPE_RECT				3 
 #define LIGHT_TYPE_MAX				4 
+
 #define LIGHTING_CHANNEL_MASK		0x7
 
+#define MAX_RECT_ATLAS_MIP			32
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rect light texture data
+struct FRectTexture
+{
+	half2 AtlasUVOffset;
+	half2 AtlasUVScale;
+	half  AtlasMaxLevel;
+};
+
+FRectTexture InitRectTexture()
+{
+	FRectTexture Out;
+	Out.AtlasUVOffset = 0;
+	Out.AtlasUVScale  = 0;
+	Out.AtlasMaxLevel = MAX_RECT_ATLAS_MIP;
+	return Out;
+}
+
+FRectTexture InitRectTexture(half2 InUVOffset, half2 InUVScale, half InMaxLevel)
+{
+	FRectTexture Out;
+	Out.AtlasUVOffset = InUVOffset;
+	Out.AtlasUVScale  = InUVScale;
+	Out.AtlasMaxLevel = InMaxLevel;
+	return Out;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light data
@@ -48,6 +77,20 @@ struct FLocalLightData
 	bool bIsSimpleLight;
 	/** Virtual shadow map ID or INDEX_NONE if not present. */
 	int  VirtualShadowMapId;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Simple light data
+
+/** Data about a single light to be shaded with the simple shading model, designed for speed and limited feature set. */
+struct FSimpleDeferredLightData
+{
+	float3 TranslatedWorldPosition;
+	float  InvRadius;
+	float3 Color;
+	float  FalloffExponent;
+	/** Whether to use inverse squared falloff. */
+	bool bInverseSquared;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -181,7 +224,11 @@ FDeferredLightData ConvertToDeferredLight(
 	Out.bSpotLight				= LightType == LIGHT_TYPE_SPOT;
 	Out.bRectLight				= LightType == LIGHT_TYPE_RECT;
 	Out.HairTransmittance		= InitHairTransmittanceData();
-
+	Out.RectLightBarnCosAngle	= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.x;
+	Out.RectLightBarnLength		= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.y;
+	Out.RectLightAtlasUVOffset	= 0;
+	Out.RectLightAtlasUVScale	= 0;
+	Out.RectLightAtlasMaxLevel	= MAX_RECT_ATLAS_MIP;
 	// Shadow
 	// * Static shadowing uses ShadowMapChannel, 
 	// * Dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
@@ -285,5 +332,17 @@ FDeferredLightData ConvertToDeferredLight(
 	OutPreviewShadowMapChannelMask	= UnpackShadowMapChannelMask(In.DirectionalLightShadowMapChannelMask >> 4);
 	OutLightingChannelMask			= UnpackLightingChannelMask(In.DirectionalLightShadowMapChannelMask);
 
+	return Out;
+}
+
+// Helper function for converting FLocalLightData into FSimpleDeferredLightData
+FSimpleDeferredLightData ConvertToSimpleLight(FLocalLightData In)
+{
+	FSimpleDeferredLightData Out = (FSimpleDeferredLightData)0;
+	Out.TranslatedWorldPosition = In.LightPositionAndInvRadius.xyz;
+	Out.InvRadius				= In.LightPositionAndInvRadius.w;
+	Out.Color					= In.LightColorAndFalloffExponent.xyz;
+	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
+	Out.bInverseSquared			= Out.FalloffExponent == 0;
 	return Out;
 }

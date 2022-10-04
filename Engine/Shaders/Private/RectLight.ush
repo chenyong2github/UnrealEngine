@@ -5,12 +5,11 @@
 
 #include "CapsuleLight.ush"
 #include "MonteCarlo.ush"
+#include "LightData.ush"
 
 #ifndef USE_SOURCE_TEXTURE
 #define USE_SOURCE_TEXTURE 1
 #endif
-
-#define MAX_RECT_ATLAS_MIP 32
 
 struct FRect
 {
@@ -20,31 +19,6 @@ struct FRect
 	float2		FullExtent;
 	float2		Offset;
 };
-
-struct FRectTexture
-{
-	half2 AtlasUVOffset;
-	half2 AtlasUVScale;
-	half  AtlasMaxLevel;
-};
-
-FRectTexture InitRectTexture()
-{
-	FRectTexture Out;
-	Out.AtlasUVOffset = 0;
-	Out.AtlasUVScale = 0;
-	Out.AtlasMaxLevel = MAX_RECT_ATLAS_MIP;
-	return Out;
-}
-
-FRectTexture InitRectTexture(half2 InUVOffset, half2 InUVScale, half InMaxLevel)
-{
-	FRectTexture Out;
-	Out.AtlasUVOffset = InUVOffset;
-	Out.AtlasUVScale  = InUVScale;
-	Out.AtlasMaxLevel = InMaxLevel;
-	return Out;
-}
 
 float3 SampleRectTexture(FRectTexture RectTexture, float2 RectUV, float Level, bool bIsReference = false)
 {
