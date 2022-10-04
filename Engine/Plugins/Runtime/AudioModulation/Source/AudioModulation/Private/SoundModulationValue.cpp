@@ -10,7 +10,6 @@ FSoundModulationMixValue::FSoundModulationMixValue(float InValue, float InAttack
 	: TargetValue(InValue)
 	, AttackTime(InAttackTime)
 	, ReleaseTime(InReleaseTime)
-	, LerpTime(InAttackTime)
 	, Value(InValue)
 	, ActiveFade(EActiveFade::Attack)
 {
@@ -148,4 +147,3 @@ void FSoundModulationMixValue::UpdateDelta()
 
 	LastTarget = TargetValue;
 }
-
