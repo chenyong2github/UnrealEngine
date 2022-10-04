@@ -326,7 +326,7 @@ void FStaticLightingManager::CreateStaticLightingSystem(const FLightingBuildOpti
 		{
 			if (FEngineBuildSettings::IsSourceDistribution())
 			{
-				FStaticLightingManager::Get()->FailLightingBuild(LOCTEXT("LightmassExecutableOutdatedMessage", "Unreal Lightmass executable is outdated. Recompile UnrealLightmass project in Visual Studio."));
+				FStaticLightingManager::Get()->FailLightingBuild(LOCTEXT("LightmassExecutableOutdatedMessage", "Unreal Lightmass executable is outdated. Recompile UnrealLightmass project with Development configuration in Visual Studio."));
 			}
 			else
 			{
@@ -499,7 +499,7 @@ bool FStaticLightingSystem::CheckLightmassExecutableVersion()
 {
 	FTargetReceipt LightmassReceipt;
 	
-	if (!LightmassReceipt.Read(FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), TEXT("UnrealLightmass"), FPlatformProcess::GetBinariesSubdirectory(), FApp::GetBuildConfiguration(), nullptr)))
+	if (!LightmassReceipt.Read(FTargetReceipt::GetDefaultPath(*FPaths::EngineDir(), TEXT("UnrealLightmass"), FPlatformProcess::GetBinariesSubdirectory(), EBuildConfiguration::Development, nullptr)))
 	{
 		return false;
 	}

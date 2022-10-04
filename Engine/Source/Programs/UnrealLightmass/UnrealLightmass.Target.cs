@@ -4,6 +4,7 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms(UnrealPlatformClass.Desktop)]
+[SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development)]
 public class UnrealLightmassTarget : TargetRules
 {
 	public UnrealLightmassTarget(TargetInfo Target) : base(Target)

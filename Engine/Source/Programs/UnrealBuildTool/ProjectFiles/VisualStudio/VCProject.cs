@@ -436,7 +436,7 @@ namespace UnrealBuildTool
 					foreach (Project ProjectTarget in ProjectTargets)
 					{
 						string TargetName = ProjectTargets[0].TargetRules!.Name;
-						if (TargetName == "ShaderCompileWorker" || TargetName == "UnrealLightmass")
+						if (TargetName == "ShaderCompileWorker")
 						{
 							MatchingProjectTargets.Add(ProjectTarget);
 							break;
