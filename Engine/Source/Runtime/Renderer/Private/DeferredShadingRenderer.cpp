@@ -233,6 +233,40 @@ static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
 	TEXT("Forces all ray tracing geometry instances to be opaque, effectively disabling any-hit shaders. This is useful for debugging and profiling. (default = 0)")
 );
 
+#if RHI_RAYTRACING
+
+static bool bRefreshRayTracingInstances = false;
+
+static void RefreshRayTracingInstancesSinkFunction()
+{
+	static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
+	static const auto RayTracingNaniteProxiesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.NaniteProxies"));
+
+	static int32 CachedRayTracingStaticMeshes = RayTracingStaticMeshesCVar->GetValueOnGameThread();
+	static int32 CachedRayTracingNaniteProxies = RayTracingNaniteProxiesCVar->GetValueOnGameThread();
+
+	const int32 RayTracingStaticMeshes = RayTracingStaticMeshesCVar->GetValueOnGameThread();
+	const int32 RayTracingNaniteProxies = RayTracingNaniteProxiesCVar->GetValueOnGameThread();
+
+	if (RayTracingStaticMeshes != CachedRayTracingStaticMeshes
+		|| RayTracingNaniteProxies != CachedRayTracingNaniteProxies)
+	{
+		ENQUEUE_RENDER_COMMAND(RefreshRayTracingInstancesCmd)(
+			[](FRHICommandListImmediate&)
+			{
+				bRefreshRayTracingInstances = true;
+			}
+		);
+
+		CachedRayTracingStaticMeshes = RayTracingStaticMeshes;
+		CachedRayTracingNaniteProxies = RayTracingNaniteProxies;
+	}
+}
+
+static FAutoConsoleVariableSink CVarRefreshRayTracingInstancesSink(FConsoleCommandDelegate::CreateStatic(&RefreshRayTracingInstancesSinkFunction));
+
+#endif // RHI_RAYTRACING
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	TEXT("r.Test.ForceBlackVelocityBuffer"), 0,
@@ -718,11 +752,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 
 			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::StaticMesh))
 			{
-				//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
-				//Touching the SceneProxy to determine this would simply cost too much
-				static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
-
-				if (View.Family->EngineShowFlags.StaticMeshes && RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0)
+				if (View.Family->EngineShowFlags.StaticMeshes)
 				{
 					Item.bStatic = true;
 					Result.StaticPrimitives.AddElement(Item);
@@ -2143,11 +2173,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged || bNaniteRayTracingModeChanged)
 		{
-			// If we change to or from a path traced render, we need to refresh the cached ray tracing mesh commands
-			// because they contain data about the currently bound shader. This operation is a bit expensive but
-			// only happens once as we transition between modes which should be rare.
+			// In some situations, we need to refresh the cached ray tracing mesh commands because they contain data about the currently bound shader. 
+			// This operation is a bit expensive but only happens once as we transition between modes which should be rare.
 			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
 			Scene->RefreshRayTracingMeshCommandCache();
+		}
+
+		if (bRefreshRayTracingInstances)
+		{
+			// In some situations, we need to refresh the cached ray tracing instance.
+			// eg: Need to update PrimitiveRayTracingFlags
+			// This operation is a bit expensive but only happens once as we transition between modes which should be rare.
+			Scene->RefreshRayTracingInstances();
+			bRefreshRayTracingInstances = false;
 		}
 
 		if (bNaniteRayTracingModeChanged)

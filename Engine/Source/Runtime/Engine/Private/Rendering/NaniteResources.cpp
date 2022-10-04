@@ -76,14 +76,6 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	ECVF_RenderThreadSafe
 );
 
-int32 GRayTracingNaniteProxyMeshes = 1;
-FAutoConsoleVariableRef CVarRayTracingNaniteProxyMeshes(
-	TEXT("r.RayTracing.Geometry.NaniteProxies"),
-	GRayTracingNaniteProxyMeshes,
-	TEXT("Include Nanite proxy meshes in ray tracing effects (default = 1 (Nanite proxy meshes enabled in ray tracing))"),
-	ECVF_RenderThreadSafe
-);
-
 int32 GNaniteErrorOnVertexInterpolator = 0;
 FAutoConsoleVariableRef CVarNaniteErrorOnVertexInterpolator(
 	TEXT("r.Nanite.ErrorOnVertexInterpolator"),
@@ -116,6 +108,13 @@ FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 	ECVF_RenderThreadSafe
 );
 
+#if RHI_RAYTRACING
+
+static TAutoConsoleVariable<int32> CVarRayTracingNaniteProxyMeshes(
+	TEXT("r.RayTracing.Geometry.NaniteProxies"),
+	1,
+	TEXT("Include Nanite proxy meshes in ray tracing effects (default = 1 (Nanite proxy meshes enabled in ray tracing))"));
+
 static int32 GNaniteRayTracingMode = 0;
 static FAutoConsoleVariableRef CVarNaniteRayTracingMode(
 	TEXT("r.RayTracing.Nanite.Mode"),
@@ -132,6 +131,8 @@ static FAutoConsoleVariableRef CVarNaniteRaytracingProceduralPrimitive(
 	GNaniteRaytracingProceduralPrimitive,
 	TEXT("Whether to raytrace nanite meshes using procedural primitives instead of a proxy."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+#endif // RHI_RAYTRACING
 
 namespace Nanite
 {
@@ -1615,7 +1616,7 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 
 void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
-	if (GRayTracingNaniteProxyMeshes == 0 || !bHasRayTracingInstances)
+	if (CVarRayTracingNaniteProxyMeshes.GetValueOnRenderThread() == 0 || !bHasRayTracingInstances)
 	{
 		return;
 	}
@@ -1675,7 +1676,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance)
 {
 	const bool bShouldRender = (IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame()) || IsRayTracingFarField();
-	if (GRayTracingNaniteProxyMeshes == 0 || !bHasRayTracingInstances || !bShouldRender)
+	if (CVarRayTracingNaniteProxyMeshes.GetValueOnRenderThread() == 0 || !bHasRayTracingInstances || !bShouldRender)
 	{
 		return ERayTracingPrimitiveFlags::Excluded;
 	}
