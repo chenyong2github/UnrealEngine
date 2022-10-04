@@ -249,11 +249,24 @@ void FFindInstancedReferenceSubobjectHelper::Duplicate(UObject* OldObject, UObje
 					const bool bNotHandledYet = !ReferenceReplacementMap.Contains(Obj);
 					if (bKeptByOld && bNotHandledYet)
 					{
+						// This name may have been taken by an instanced subobject, since we're copying from
+						// an object we want to recreate it here with a duplicate of the old object. I'm 
+						// using a rename call here to reserve the name for ourself. These objects come from
+						// FObjectInitializer::InstanceSubobjects()
+						UObject* ExistingObject = StaticFindObjectFast(UObject::StaticClass(), NewObject, Obj->GetFName());
+						if (ExistingObject)
+						{
+							ExistingObject->Rename(
+								nullptr,
+								GetTransientPackage(),
+								REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
+						}
+
 						UObject* NewEditInlineSubobject = StaticDuplicateObject(Obj, NewObject, Obj->GetFName());
 						ReferenceReplacementMap.Add(Obj, NewEditInlineSubobject);
 
 						// NOTE: we cannot patch OldObject's linker table here, since we don't 
-						//       know the relation between the  two objects (one could be of a 
+						//       know the relation between the two objects (one could be of a 
 						//       super class, and the other a child)
 
 						// We also need to make sure to fixup any properties here
