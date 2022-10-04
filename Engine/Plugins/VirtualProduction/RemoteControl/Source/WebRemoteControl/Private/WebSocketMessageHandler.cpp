@@ -9,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "IRemoteControlModule.h"
+#include "RCVirtualProperty.h"
 #include "GameFramework/Actor.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlRequest.h"
@@ -168,6 +169,22 @@ namespace WebSocketMessageHandlerStructUtils
 
 		return StructOnScope;
 	}
+	
+	FStructOnScope CreatePresetControllerChangedStructOnScope(const URemoteControlPreset* Preset, const TArray<FStructOnScope*>& PropertyValuesOnScope, int64 SequenceNumber)
+	{
+		UScriptStruct* PropertyValueStruct = (UScriptStruct*)PropertyValuesOnScope[0]->GetStruct();
+		check(PropertyValueStruct);
+
+		UScriptStruct* TopLevelStruct = CreatePresetFieldsChangedStruct(PropertyValueStruct);
+
+		FStructOnScope FieldsChangedOnScope{ TopLevelStruct };
+		SetStringPropertyValue(Prop_Type, FieldsChangedOnScope, TEXT("PresetFieldsChanged"));
+		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetPresetName().ToString());
+		SetStringPropertyValue(Prop_PresetId, FieldsChangedOnScope, *Preset->GetPresetId().ToString());
+		SetStringPropertyValue(Prop_SequenceNumber, FieldsChangedOnScope, FString::Printf(TEXT("%lld"), SequenceNumber));
+
+		return FieldsChangedOnScope;
+	}
 
 	FStructOnScope CreatePresetFieldsChangedStructOnScope(const URemoteControlPreset* Preset, const TArray<FStructOnScope>& PropertyValuesOnScope, int64 SequenceNumber)
 	{
@@ -250,6 +267,24 @@ namespace WebSocketMessageHandlerMiscUtils
 
 					return Property->GetClass();
 				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	void* GetPresetControllerClassPointer(URemoteControlPreset* Preset, const FGuid& ControllerId)
+	{
+		if (const URCVirtualPropertyBase* Controller = Preset->GetController(ControllerId))
+		{
+			if (const FProperty* Property = Controller->GetProperty())
+			{
+				if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				{
+					return StructProperty->Struct;
+				}
+
+				return Property->GetClass();
 			}
 		}
 
@@ -480,6 +515,10 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 		Preset->OnActorPropertyModified().AddRaw(this, &FWebSocketMessageHandler::OnActorPropertyChanged);
 		Preset->OnEntitiesUpdated().AddRaw(this, &FWebSocketMessageHandler::OnEntitiesModified);
 		Preset->OnPresetLayoutModified().AddRaw(this, &FWebSocketMessageHandler::OnLayoutModified);
+		Preset->OnControllerAdded().AddRaw(this, &FWebSocketMessageHandler::OnControllerAdded);
+		Preset->OnControllerRemoved().AddRaw(this, &FWebSocketMessageHandler::OnControllerRemoved);
+		Preset->OnControllerRenamed().AddRaw(this, &FWebSocketMessageHandler::OnControllerRenamed);
+		Preset->OnControllerModified().AddRaw(this, &FWebSocketMessageHandler::OnControllerModified);
 	}
 
 	ClientIds->AddUnique(WebSocketMessage.ClientId);
@@ -796,6 +835,137 @@ void FWebSocketMessageHandler::HandleWebSocketEndEditorTransaction(const FRemote
 
 	EndClientTransaction(WebSocketMessage.ClientId, Body.TransactionId);
 #endif
+}
+
+void FWebSocketMessageHandler::ProcessChangedControllers()
+{
+	// Go over each controller that was changed for each preset
+	for (TTuple<FGuid, TMap<FGuid, TSet<FGuid>>>& Entry : PerFrameModifiedControllers)
+	{
+		if (!ShouldProcessEventForPreset(Entry.Key) || !Entry.Value.Num())
+		{
+			continue;
+		}
+
+		URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key);
+		if (!Preset)
+		{
+			continue;
+		}
+		
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Broadcasting controllers changed event."), *Preset->GetName());
+
+		// Each client will have a custom payload that doesn't contain the events it triggered.
+		for (const TPair<FGuid, TSet<FGuid>>& ClientToModifications : Entry.Value)
+		{
+			TMap<void*, TSet<FGuid>> ControllersIdByType;
+			for (const FGuid& Id : ClientToModifications.Value)
+			{
+				void* ClassPtr = WebSocketMessageHandlerMiscUtils::GetPresetControllerClassPointer(Preset, Id);
+				ControllersIdByType.FindOrAdd(ClassPtr).Emplace(Id);
+			}
+
+			// Send a Controller Change Event for each Type
+			for (const TPair<void*, TSet<FGuid>>& ClassToEventsPair : ControllersIdByType)
+			{
+				const uint64 ClientSequenceNumber = GetSequenceNumber(ClientToModifications.Key);
+				
+				TArray<uint8> WorkingBuffer;
+				if (ClientToModifications.Value.Num() && WriteControllerChangeEventPayload(Preset, ClassToEventsPair.Value, ClientSequenceNumber, WorkingBuffer))
+				{
+					TArray<uint8> Payload;
+					WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
+					Server->Send(ClientToModifications.Key, Payload);
+				}
+			}
+		}
+	}
+
+	PerFrameModifiedControllers.Empty();
+}
+
+void FWebSocketMessageHandler::ProcessAddedControllers()
+{
+	for (const TPair<FGuid, TArray<FGuid>>& Entry : PerFrameAddedControllers)
+	{
+		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
+		{
+			continue;
+		}
+
+		URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key);
+		if (!Preset)
+		{
+			continue;
+		}
+		
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Broadcasting controllers added event."), *Preset->GetName());
+
+		FRCPresetDescription AddedControllerDescription;
+		AddedControllerDescription.Name = Preset->GetName();
+		AddedControllerDescription.Path = Preset->GetPathName();
+		AddedControllerDescription.ID = Preset->GetPresetId().ToString();
+		Algo::Transform(Entry.Value, AddedControllerDescription.Controllers, [Preset](const FGuid& ControllerId){ return Preset->GetController(ControllerId); });
+		
+		TArray<uint8> Payload;
+		WebRemoteControlUtils::SerializeMessage(FRCPresetControllersAddedEvent { Preset->GetPresetName(), Preset->GetPresetId(), AddedControllerDescription }, Payload);
+		BroadcastToPresetListeners(Entry.Key, Payload);
+	}
+
+	PerFrameAddedControllers.Empty();
+}
+
+void FWebSocketMessageHandler::ProcessRemovedControllers()
+{
+	for (const TPair<FGuid, TTuple<TArray<FGuid>, TArray<FName>>>& Entry : PerFrameRemovedControllers)
+	{
+		if (Entry.Value.Key.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
+		{
+			continue;
+		}
+
+		URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key);
+		if (Preset == nullptr)
+		{
+			continue;
+		}
+
+		ensure(Entry.Value.Key.Num() == Entry.Value.Value.Num());
+		
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Broadcasting controllers removed event."), *Preset->GetName());
+		
+		TArray<uint8> Payload;
+		WebRemoteControlUtils::SerializeMessage(FRCPresetControllersRemovedEvent{ Preset->GetPresetName(), Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
+		BroadcastToPresetListeners(Entry.Key, Payload);
+	}
+
+	PerFrameRemovedControllers.Empty();
+}
+
+// Actually not called currently
+void FWebSocketMessageHandler::ProcessRenamedControllers()
+{
+	for (const TPair<FGuid, TArray<TTuple<FName, FName>>>& Entry : PerFrameRenamedControllers)
+	{
+		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
+		{
+			continue;
+		}
+
+		URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry.Key);
+		if (Preset == nullptr)
+		{
+			continue;
+		}
+		
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Broadcasting controllers renamed event."), *Preset->GetName());
+
+		TArray<uint8> Payload;
+		WebRemoteControlUtils::SerializeMessage(FRCPresetControllersRenamedEvent{Preset->GetPresetName(), Preset->GetPresetId(), Entry.Value}, Payload);
+		BroadcastToPresetListeners(Entry.Key, Payload);
+	}
+
+	PerFrameRenamedControllers.Empty();
 }
 
 void FWebSocketMessageHandler::ProcessChangedProperties()
@@ -1150,7 +1320,75 @@ void FWebSocketMessageHandler::OnEndFrame()
 		ProcessModifiedMetadata();
 		ProcessModifiedPresetLayouts();
 		ProcessActorChanges();
+		ProcessAddedControllers();
+		ProcessChangedControllers();
+		ProcessRenamedControllers();
+		ProcessRemovedControllers();
 	}
+}
+
+void FWebSocketMessageHandler::OnControllerAdded(URemoteControlPreset* Owner, FName NewControllerName, const FGuid& EntityId)
+{
+	if (Owner == nullptr)
+	{
+		return;
+	}
+
+	if (PresetNotificationMap.Num() <= 0)
+	{
+		return;
+	}
+
+	PerFrameAddedControllers.FindOrAdd(Owner->GetPresetId()).AddUnique(EntityId);
+}
+
+void FWebSocketMessageHandler::OnControllerRemoved(URemoteControlPreset* Owner, const FGuid& EntityId)
+{
+	if (Owner == nullptr)
+	{
+		return;
+	}
+
+	if (PresetNotificationMap.Num() <= 0)
+	{
+		return;
+	}
+
+	const URCVirtualPropertyBase* Controller = Owner->GetController(EntityId);
+	check(Controller);
+
+	// Cache the Controller which was removed for end of frame notification
+	TTuple<TArray<FGuid>, TArray<FName>>& Entries = PerFrameRemovedControllers.FindOrAdd(Owner->GetPresetId());
+	Entries.Key.AddUnique(EntityId);
+	Entries.Value.AddUnique(Controller->DisplayName);
+}
+
+void FWebSocketMessageHandler::OnControllerRenamed(URemoteControlPreset* Owner, FName OldControllerLabel, FName NewControllerLabel)
+{
+	if (Owner == nullptr)
+	{
+		return;
+	}
+
+	if (PresetNotificationMap.Num() <= 0)
+	{
+		return;
+	}
+
+	PerFrameRenamedControllers.FindOrAdd(Owner->GetPresetId()).AddUnique(TTuple<FName, FName>(OldControllerLabel, NewControllerLabel));
+}
+
+void FWebSocketMessageHandler::OnControllerModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedControllerIds)
+{
+	// We do not need to store these event for the current frame since this was already handled by the preset in this case.
+	if (!Owner || ModifiedControllerIds.Num() == 0)
+	{
+		return;
+	}
+	
+	TArray<uint8> Payload;
+	WebRemoteControlUtils::SerializeMessage(FRCPresetControllersModifiedEvent{Owner, ModifiedControllerIds.Array()}, Payload);
+	BroadcastToPresetListeners(Owner->GetPresetId(), Payload);
 }
 
 #if WITH_EDITOR
@@ -1485,6 +1723,35 @@ void FWebSocketMessageHandler::BroadcastToPresetListeners(const FGuid& TargetPre
 bool FWebSocketMessageHandler::ShouldProcessEventForPreset(const FGuid& PresetId) const
 {
 	return PresetNotificationMap.Contains(PresetId) && PresetNotificationMap[PresetId].Num() > 0;
+}
+
+bool FWebSocketMessageHandler::WriteControllerChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedControllerIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer)
+{
+	bool bHasController = false;
+
+	TArray<FStructOnScope*> ControllerValueOnScope;
+	for (const FGuid& ControllerId : InModifiedControllerIds)
+	{
+		if (const URCVirtualPropertySelfContainer* Controller = Cast<URCVirtualPropertySelfContainer>(InPreset->GetController(ControllerId)))
+		{
+			bHasController = true;
+
+			if (FStructOnScope* ControllerStructOnScope = Controller->CreateStructOnScope().Get())
+			{
+				ControllerValueOnScope.Add(ControllerStructOnScope);
+			}
+		}
+	}
+
+	if (ControllerValueOnScope.Num())
+	{
+		FStructOnScope ValueStructOnScope =	WebSocketMessageHandlerStructUtils::CreatePresetControllerChangedStructOnScope(InPreset, ControllerValueOnScope, InSequenceNumber);
+		
+		FMemoryWriter Writer(OutBuffer);
+		WebRemoteControlInternalUtils::SerializeStructOnScope(ValueStructOnScope, Writer);
+	}
+	
+	return bHasController;
 }
 
 bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer)

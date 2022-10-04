@@ -298,7 +298,6 @@ FString URCSetAssetByPathBehaviour::GetCurrentPath()
 			}
 			
 			PathPart.RemoveFromStart(SetAssetByPathBehaviourHelpers::InputToken);
-			// TODO: Test and rewrite to something better
 			int32 CharIndexStart;
 			int32 CharIndexEnd;
 			PathPart.FindChar('(', CharIndexStart);
@@ -312,7 +311,7 @@ FString URCSetAssetByPathBehaviour::GetCurrentPath()
 
 			PathPart.RemoveAt(CharIndexStart);
 			PathPart.RemoveAt(CharIndexEnd-1);
-			const URCVirtualPropertyBase* TokenController = RemoteControlPreset->GetVirtualPropertyByDisplayName(FName(PathPart));
+			const URCVirtualPropertyBase* TokenController = RemoteControlPreset->GetControllerByDisplayName(FName(PathPart));
 			if (!TokenController)
 			{
 				ensureMsgf(false, TEXT("No Controller with given name found."));
@@ -387,7 +386,6 @@ bool URCSetAssetByPathBehaviour::SetExternalAsset(FString InExternalPath)
 		return false;
 	}
 
-	// TODO: Find better solution.
 	UTexture2D* ImportedTexture = UKismetRenderingLibrary::ImportFileAsTexture2D(this, InExternalPath);
 	if (!ImportedTexture)
 	{

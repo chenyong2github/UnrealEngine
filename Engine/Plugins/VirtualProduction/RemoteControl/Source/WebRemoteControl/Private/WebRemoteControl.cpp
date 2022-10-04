@@ -183,6 +183,26 @@ namespace WebRemoteControl
 		return Preset->GetExposedEntity<EntityType>(Preset->GetExposedEntityId(*PropertyLabelOrId)).Pin();
 	}
 
+	URCVirtualPropertyBase* GetController(URemoteControlPreset* Preset, FString PropertyLabelOrId)
+	{
+		if (!Preset)
+		{
+			return nullptr;
+		}
+		
+		FGuid Id;
+		if (FGuid::ParseExact(PropertyLabelOrId, EGuidFormats::Digits, Id))
+		{
+			if (URCVirtualPropertyBase* Controller = Preset->GetController(Id))
+			{
+        		return Controller;
+			}
+		}
+
+		// Not supporting label, in case Exposed Property and Controller have the same name.
+		return nullptr;
+	}
+
 	URemoteControlPreset* GetPreset(FString PresetNameOrId)
 	{
 		FGuid Id;
@@ -1186,10 +1206,40 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = WebRemoteControl::GetRCEntity<FRemoteControlProperty>(Preset, Args.FieldLabel);
+	const TSharedPtr<FRemoteControlProperty> RemoteControlProperty = WebRemoteControl::GetRCEntity<FRemoteControlProperty>(Preset, Args.FieldLabel);
 
 	if (!RemoteControlProperty.IsValid())
 	{
+		// In case the Property is not found or not valid, see if we do have that Id for the Controllers.
+		if (URCVirtualPropertyBase* Controller = WebRemoteControl::GetController(Preset, *Args.FieldLabel))
+		{
+			TArray<uint8> NewPayload;
+			const FName PropertyValueKey = WebRemoteControlStructUtils::Prop_PropertyValue;
+			const FName PropertyNameInternal = Controller->GetPropertyName();
+
+			// Objrct Ref Method
+			FRCObjectReference ObjectRef;
+			ObjectRef.Property = Controller->GetProperty();
+			ObjectRef.Access = ERCAccess::WRITE_ACCESS;
+
+			RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, PropertyValueKey.ToString(), PropertyNameInternal.ToString(), NewPayload);
+			FMemoryReader Reader(NewPayload);
+			FJsonStructDeserializerBackend Backend(Reader);
+			
+			if (IRemoteControlModule::Get().SetPresetController(*Args.PresetName, Controller, Backend, NewPayload, true))
+			{
+				Response->Code = EHttpServerResponseCodes::Ok;
+			}
+			else
+			{
+				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to set controller %s."), *Args.FieldLabel), Response->Body);
+			}
+
+			OnComplete(MoveTemp(Response));
+
+			return true;
+		}
+		
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
 		OnComplete(MoveTemp(Response));
@@ -1231,9 +1281,45 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	}
 
 	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = WebRemoteControl::GetRCEntity<FRemoteControlProperty>(Preset, Args.FieldLabel);
-
 	if (!RemoteControlProperty)
 	{
+		// In case we do not find a Property, instead go look for a Controller
+		if (URCVirtualPropertyBase* Controller = WebRemoteControl::GetController(Preset, *Args.FieldLabel))
+		{
+			// Define a StructOnScope for representing our generic value output
+			FWebRCGenerateStructArgs StructArgs;
+			FName PropertyValueKey = WebRemoteControlStructUtils::Prop_PropertyValue;
+			StructArgs.GenericProperties.Emplace(PropertyValueKey, Controller->GetProperty());
+
+			FString& StructName = ControllersSerializerStructNameCache.FindOrAdd(Controller->PropertyName);
+			if(StructName.IsEmpty())
+			{
+				StructName = FString::Format(TEXT("{0}_{1}"), { *PropertyValueKey.ToString(), Controller->Id.ToString() });
+				ControllersSerializerStructNameCache.Add(Controller->PropertyName, StructName);
+			}
+			
+			FStructOnScope Result(UE::WebRCReflectionUtils::GenerateStruct(*StructName, StructArgs));
+
+			// Copy raw memory from the controller onto our dynamic struct
+			const FProperty* TargetValueProp = Result.GetStruct()->FindPropertyByName(PropertyValueKey);
+			uint8* DestPtr = TargetValueProp->ContainerPtrToValuePtr<uint8>((void*)Result.GetStructMemory());
+
+			Controller->CopyCompleteValue(TargetValueProp, DestPtr);
+
+			// Serialize to JSON
+			TArray<uint8> JsonBuffer;
+			FMemoryWriter Writer(JsonBuffer);
+			WebRemoteControlInternalUtils::SerializeStructOnScope(Result, Writer);
+
+			// Finalize HTTP Response
+			WebRemoteControlUtils::ConvertToUTF8(JsonBuffer, Response->Body);
+			Response->Code = EHttpServerResponseCodes::Ok;
+
+			OnComplete(MoveTemp(Response));
+
+			return true;
+		}
+		
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed entity."), Response->Body);
 		OnComplete(MoveTemp(Response));
@@ -1822,6 +1908,56 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 
 	if (!Entity.IsValid())
 	{
+		// Test for Controllers
+		if (URCVirtualPropertyBase* Controller = WebRemoteControl::GetController(Preset, Label))
+		{
+			if (Request.Verb == EHttpServerRequestVerbs::VERB_GET)
+			{
+				FString MetadataValue = Controller->GetMetadataValue(*Key);
+				if (!MetadataValue.IsEmpty())
+				{
+					WebRemoteControlUtils::SerializeMessage(FGetMetadataFieldResponse{ *MetadataValue }, Response->Body);
+				}
+				else
+				{
+					WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Metadata entry %s could not be found."), *Key), Response->Body);
+					Response->Code = EHttpServerResponseCodes::NotFound;
+				}
+			}
+			else if (Request.Verb == EHttpServerRequestVerbs::VERB_PUT)
+			{
+				if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+				{
+					return true;
+				}
+				
+				FSetEntityMetadataRequest SetMetadataRequest;
+				if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetMetadataRequest))
+				{
+					return true;
+				}
+
+#if WITH_EDITOR
+				FScopedTransaction Transaction( LOCTEXT("ModifyEntityMetadata", "Modify exposed entity metadata entry"));
+				Preset->Modify();
+#endif
+				Controller->SetMetadataValue(*Key, SetMetadataRequest.Value);
+			}
+			else if (Request.Verb == EHttpServerRequestVerbs::VERB_DELETE)
+			{
+#if WITH_EDITOR
+				FScopedTransaction Transaction( LOCTEXT("DeleteEntityMetadata", "Delete exposed entity metadata entry"));
+				Preset->Modify();
+#endif
+				Controller->RemoveMetadataValue(*Key);
+			}
+
+			Response->Code = EHttpServerResponseCodes::Ok;
+
+			OnComplete(MoveTemp(Response));
+			return true;
+		}
+		
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset entity."), Response->Body);
 		OnComplete(MoveTemp(Response));
@@ -2036,7 +2172,7 @@ bool FWebRemoteControlModule::HandlePresetSetControllerRoute(const FHttpServerRe
 	}
 
 	// 6. Acquire Controller
-	URCVirtualPropertyBase* Controller = Preset->GetVirtualPropertyByDisplayName(*Args.ControllerName);
+	URCVirtualPropertyBase* Controller = Preset->GetControllerByDisplayName(*Args.ControllerName);
 	if (!Controller)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
@@ -2096,7 +2232,7 @@ bool FWebRemoteControlModule::HandlePresetGetControllerRoute(const FHttpServerRe
 	}
 
 	// 4. Acquire Controller
-	URCVirtualPropertyBase* Controller = Preset->GetVirtualPropertyByDisplayName(*Args.ControllerName);
+	URCVirtualPropertyBase* Controller = Preset->GetControllerByDisplayName(*Args.ControllerName);
 	if (!Controller)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;

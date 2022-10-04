@@ -122,6 +122,12 @@ private:
 	void OnEntitiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedEntities);
 	void OnLayoutModified(URemoteControlPreset* Owner);
 
+	//Logic callbacks
+	void OnControllerAdded(URemoteControlPreset* Owner, FName NewControllerName, const FGuid& EntityId);
+	void OnControllerRemoved(URemoteControlPreset* Owner, const FGuid& EntityId);
+	void OnControllerRenamed(URemoteControlPreset* Owner, FName OldControllerLabel, FName NewControllerLabel);
+	void OnControllerModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedControllerIds);
+
 	/** Callback when a websocket connection was closed. Let us clean out registrations */
 	void OnConnectionClosedCallback(FGuid ClientId);
 
@@ -131,6 +137,18 @@ private:
 	/** Check if any transactions have timed out and end them. */
 	void TimeOutTransactions();
 
+	/** If controllers have changed during the frame, send out notifications to listeners */
+	void ProcessChangedControllers();
+
+	/** If a new controller has been added during the frame, send out notifications to listeners */
+	void ProcessAddedControllers();
+
+	/** If controllers has been removed during the frame, send out notifications to listeners */
+	void ProcessRemovedControllers();
+
+	/** If a controller has been renamed during the frame, snd out notifications to listeners */
+	void ProcessRenamedControllers();
+	
 	/** If properties have changed during the frame, send out notifications to listeners */
 	void ProcessChangedProperties();
 
@@ -188,6 +206,11 @@ private:
 	 * Write the provided list of events to a buffer.
 	 */
 	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer);
+
+	/**
+	 * Write the provided list of controller events to a buffer.
+	 */
+	bool WriteControllerChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedControllerIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer);
 
 	/**
 	 * Write the provided list of actor modifications to a buffer.
@@ -352,6 +375,18 @@ private:
 
 	/** Fields that were renamed for a frame, per preset */
 	TMap<FGuid, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
+
+	/** Controllers that were Added for a frame, per preset */
+	TMap<FGuid, TArray<FGuid>> PerFrameAddedControllers;
+
+	/** Controllers that were Removed for a frame, per preset */
+	TMap<FGuid, TTuple<TArray<FGuid>, TArray<FName>>> PerFrameRemovedControllers;
+
+	/** Controllers that were Renamed for a frame, per preset */
+	TMap<FGuid, TArray<TTuple<FName, FName>>> PerFrameRenamedControllers;
+
+	/** Controllers that were Modified for a frame, per preset */
+	TMap<FGuid, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedControllers;
 
 	/** Actors that were added for a frame, per watched class. */
 	FChangedActorMap PerFrameActorsAdded;

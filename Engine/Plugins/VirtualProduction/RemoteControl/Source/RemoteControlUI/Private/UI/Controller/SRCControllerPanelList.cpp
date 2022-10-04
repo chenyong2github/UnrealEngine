@@ -375,7 +375,7 @@ void SRCControllerPanelList::Reset()
 			FProperty* Property = Child->CreatePropertyHandle()->GetProperty();
  			check(Property);
 
-			if (URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(Property->GetFName()))
+			if (URCVirtualPropertyBase* Controller = Preset->GetController(Property->GetFName()))
 			{
 				if(ensureAlways(ControllerItems.IsValidIndex(Controller->DisplayIndex)))
 					ControllerItems[Controller->DisplayIndex] = MakeShared<FRCControllerModel>(Controller, Child, RemoteControlPanel);
@@ -444,7 +444,7 @@ void SRCControllerPanelList::OnFinishedChangingProperties(const FPropertyChanged
 {
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		Preset->OnModifyVirtualProperty(PropertyChangedEvent);
+		Preset->OnModifyController(PropertyChangedEvent);
 	}
 }
 
@@ -502,7 +502,7 @@ int32 SRCControllerPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InM
 					Preset->Modify();
 
 					// Remove Model from Data Container
-					const bool bRemoved = Preset->RemoveVirtualProperty(SelectedController->GetPropertyName());
+					const bool bRemoved = Preset->RemoveController(SelectedController->GetPropertyName());
 					if (bRemoved)
 					{
 						// Shift all display indices higher than the deleted index down by 1
@@ -675,8 +675,8 @@ void SRCControllerPanelList::CreateAutoBindForProperty(TSharedPtr<const FRemoteC
 		if(bSuccess)
 		{
 			// Step 1. Create a Controller of matching type
-			URCController* NewController = Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), PropertyBagType, StructObject));
-			NewController->DisplayIndex = Preset->GetNumVirtualProperties() - 1;
+			URCController* NewController = Cast<URCController>(Preset->AddController(URCController::StaticClass(), PropertyBagType, StructObject));
+			NewController->DisplayIndex = Preset->GetNumControllers() - 1;
 
 			// Transfer property value from Exposed Property to the New Controller.
 			// The goal is to keep values synced for a Controller newly created via "Auto Bind"

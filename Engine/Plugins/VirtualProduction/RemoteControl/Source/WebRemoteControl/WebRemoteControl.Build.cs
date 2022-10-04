@@ -21,6 +21,7 @@ public class WebRemoteControl : ModuleRules
 				"Networking",
 				"RemoteControl",
 				"RemoteControlCommon",
+				"RemoteControlLogic",
 				"Sockets",
 				"WebSocketNetworking"
 			}

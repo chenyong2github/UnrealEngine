@@ -5,6 +5,7 @@
 #include "Algo/Transform.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
+#include "Controller/RCController.h"
 #include "GameFramework/Actor.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
@@ -357,6 +358,93 @@ struct FRCExposedActorDescription
 };
 
 USTRUCT()
+struct FRCControllerDescription
+{
+	GENERATED_BODY()
+
+	FRCControllerDescription() = default;
+
+	FRCControllerDescription(const URCVirtualPropertyBase* InController)
+	{
+		if (!InController || !InController->GetProperty())
+		{
+			return;
+		}
+
+		DisplayName = InController->DisplayName;
+		ID = InController->Id.ToString();
+		Path = InController->GetPathName();
+		Type = InController->GetProperty()->GetCPPType();
+		Metadata = InController->Metadata;
+	}
+	
+	/** The label displayed in the remote control panel for this controller. */
+	UPROPERTY()
+	FName DisplayName;
+	
+	/** Unique identifier for the controller. */
+	UPROPERTY()
+	FString ID;
+
+	/** Type of the Controller */
+	UPROPERTY()
+	FString Type;
+
+	/** Path of the Controller */
+	UPROPERTY()
+	FString Path;
+
+	/** Metadata of the Controller. Initially Empty. */
+	UPROPERTY()
+	TMap<FName, FString> Metadata;
+};
+
+USTRUCT()
+struct FRCControllerModifiedDescription
+{
+	GENERATED_BODY()
+
+	FRCControllerModifiedDescription () = default;
+
+	FRCControllerModifiedDescription(const URemoteControlPreset* InPreset, const TArray<FGuid>& InModifiedControllers)
+	{
+		if (!InPreset)
+		{
+			return;
+		}
+
+		for (const FGuid& ControllerId : InModifiedControllers)
+		{
+			AddModifiedController(InPreset, ControllerId);
+		}
+		
+	}
+
+public:
+	/** The list of modified RC controllers. */
+	UPROPERTY()
+	TArray<FRCControllerDescription> Controllers;
+
+	UPROPERTY()
+	TArray<FString> ChangedValues;
+	
+private:
+	void AddModifiedController(const URemoteControlPreset* InPreset, const FGuid& InControllerId)
+	{
+		if (!InPreset)
+		{
+			return;
+		}
+
+		if (URCVirtualPropertyBase* Controller = InPreset->GetController(InControllerId))
+		{
+			Controllers.Emplace(Controller);
+			ChangedValues.Emplace(Controller->GetDisplayValueAsString());
+		}
+	}
+};
+
+USTRUCT()
 struct FRCPresetLayoutGroupDescription
 {
 	GENERATED_BODY()
@@ -502,6 +590,7 @@ struct FRCPresetDescription
 		ID = Preset->GetPresetId().ToString();
 
 		Algo::Transform(Preset->Layout.GetGroups(), Groups, [Preset](const FRemoteControlPresetGroup& Group) { return FRCPresetLayoutGroupDescription{ Preset, Group }; });
+		Algo::Transform(Preset->GetControllers(), Controllers, [Preset](const URCVirtualPropertyBase* Controller){ return FRCControllerDescription{ Controller };});
 	}
 
 	/**
@@ -527,6 +616,12 @@ struct FRCPresetDescription
 	 */
 	UPROPERTY()
 	TArray<FRCPresetLayoutGroupDescription> Groups;
+
+	/**
+	 * The controllers held by the Preset (no groups)
+	 */
+	UPROPERTY()
+	TArray<FRCControllerDescription> Controllers;
 };
 
 USTRUCT()

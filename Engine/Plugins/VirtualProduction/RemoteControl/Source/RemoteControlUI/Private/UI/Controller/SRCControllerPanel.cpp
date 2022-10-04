@@ -216,7 +216,7 @@ void SRCControllerPanel::DuplicateController(URCController* InController)
 
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		if (URCController* NewController = Cast<URCController>(Preset->DuplicateVirtualProperty(InController)))
+		if (URCController* NewController = Cast<URCController>(Preset->DuplicateController(InController)))
 		{
 			NewController->SetDisplayIndex(ControllerPanelList->NumControllerItems());
 
@@ -344,7 +344,7 @@ void SRCControllerPanel::OnAddControllerClicked(const EPropertyBagPropertyType I
 		FScopedTransaction Transaction(LOCTEXT("AddController", "Add Controller"));
 		Preset->Modify();
 
-		URCVirtualPropertyInContainer* NewVirtualProperty = Preset->AddVirtualProperty(URCController::StaticClass(), InValueType, InValueTypeObject);
+		URCVirtualPropertyInContainer* NewVirtualProperty = Preset->AddController(URCController::StaticClass(), InValueType, InValueTypeObject);
 
 		if (ControllerPanelList.IsValid())
 		{
@@ -373,7 +373,7 @@ FReply SRCControllerPanel::OnClickEmptyButton()
 		FScopedTransaction Transaction(LOCTEXT("EmptyControllers", "Empty Controllers"));
 		Preset->Modify();
 
-		Preset->ResetVirtualProperties();
+		Preset->ResetControllers();
 	}
 
 	if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())

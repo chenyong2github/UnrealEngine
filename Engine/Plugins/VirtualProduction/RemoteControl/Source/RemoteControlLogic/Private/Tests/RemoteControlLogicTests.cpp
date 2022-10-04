@@ -46,17 +46,17 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
  
 	// 3. Add Controllers
 	// 3.1.1 Create Float Property
-	URCController* FloatController =  Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), EPropertyBagPropertyType::Float, nullptr, TEXT("FloatController")) );
+	URCController* FloatController =  Cast<URCController>(Preset->AddController(URCController::StaticClass(), EPropertyBagPropertyType::Float, nullptr, TEXT("FloatController")) );
 	// 3.1.2 Create Second Float Property
-	URCController* FloatController1 = Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), EPropertyBagPropertyType::Float, nullptr, TEXT("FloatController1")) );
+	URCController* FloatController1 = Cast<URCController>(Preset->AddController(URCController::StaticClass(), EPropertyBagPropertyType::Float, nullptr, TEXT("FloatController1")) );
 	// 3.1.3 Create Bool Property
-	URCController* BoolController = Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), EPropertyBagPropertyType::Bool, nullptr, TEXT("BoolController")));
+	URCController* BoolController = Cast<URCController>(Preset->AddController(URCController::StaticClass(), EPropertyBagPropertyType::Bool, nullptr, TEXT("BoolController")));
 	// 3.1.4 Create Int Controller
-	URCController* IntController =  Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), EPropertyBagPropertyType::Int32, nullptr, TEXT("IntController")));
+	URCController* IntController =  Cast<URCController>(Preset->AddController(URCController::StaticClass(), EPropertyBagPropertyType::Int32, nullptr, TEXT("IntController")));
 	// 3.1.5 Create String Controller
-	URCController* StrController =  Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), EPropertyBagPropertyType::String, nullptr, TEXT("StrController")));
+	URCController* StrController =  Cast<URCController>(Preset->AddController(URCController::StaticClass(), EPropertyBagPropertyType::String, nullptr, TEXT("StrController")));
 	// 3.1.6 Create Vector Struct Controller
-	URCController* VectorStructController =  Cast<URCController>(Preset->AddVirtualProperty(URCController::StaticClass(), EPropertyBagPropertyType::Struct, TBaseStructure<FVector>::Get(), TEXT("VectorProperty")));
+	URCController* VectorStructController =  Cast<URCController>(Preset->AddController(URCController::StaticClass(), EPropertyBagPropertyType::Struct, TBaseStructure<FVector>::Get(), TEXT("VectorProperty")));
  
 	// 3.2 Set Float Property Value to controller
 	constexpr float FloatValue = 0.65f;
@@ -151,19 +151,19 @@ bool FRemoteControlLogicTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("After empty actions the count should be = 0"), FloatController->Behaviours.Num(), 0);
  
 	// 9. Remove Controllers
-	const int32 NumPropertiesBeforeRemove = Preset->GetNumVirtualProperties();
+	const int32 NumPropertiesBeforeRemove = Preset->GetNumControllers();
 	float OutFloatValue = 0.f;
 	float OutFloatValue1 = 0.f;
 	FloatController->GetValueFloat(OutFloatValue);
-	Preset->RemoveVirtualProperty(FloatController1->PropertyName);
+	Preset->RemoveController(FloatController1->PropertyName);
 	FloatController->GetValueFloat(OutFloatValue1);
 	TestEqual(TEXT("After remove properties the old value should be the same"), OutFloatValue1, OutFloatValue);
-	Preset->RemoveVirtualProperty(FloatController->PropertyName);
-	Preset->RemoveVirtualProperty(BoolController->PropertyName);
-	Preset->RemoveVirtualProperty(IntController->PropertyName);
-	TestEqual(TEXT("After remove 4 properties the count should be =-4"), Preset->GetNumVirtualProperties(), NumPropertiesBeforeRemove - 4);
-	Preset->ResetVirtualProperties();
-	TestEqual(TEXT("After empty controllers could should be equal 0"), Preset->GetNumVirtualProperties(), 0);
+	Preset->RemoveController(FloatController->PropertyName);
+	Preset->RemoveController(BoolController->PropertyName);
+	Preset->RemoveController(IntController->PropertyName);
+	TestEqual(TEXT("After remove 4 properties the count should be =-4"), Preset->GetNumControllers(), NumPropertiesBeforeRemove - 4);
+	Preset->ResetControllers();
+	TestEqual(TEXT("After empty controllers could should be equal 0"), Preset->GetNumControllers(), 0);
  
 	return true;
 }

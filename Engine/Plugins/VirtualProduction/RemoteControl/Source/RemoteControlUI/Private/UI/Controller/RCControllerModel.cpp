@@ -95,8 +95,10 @@ void FRCControllerModel::OnControllerNameCommitted(const FText& InNewControllerN
 	{
 		if(URCVirtualPropertyBase* Controller = GetVirtualProperty())
 		{
+			FName OldName = Controller->DisplayName;
 			Controller->DisplayName = *InNewControllerName.ToString();
 			ControllerNameTextBox->SetText(InNewControllerName);
+			Preset->OnControllerRenamed().Broadcast(Preset, OldName, *InNewControllerName.ToString());
 		}
 	}
 }

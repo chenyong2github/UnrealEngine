@@ -102,6 +102,23 @@ EPropertyBagPropertyType URCVirtualPropertyBase::GetValueType() const
 	return EPropertyBagPropertyType::None;
 }
 
+FString URCVirtualPropertyBase::GetMetadataValue(FName Key) const
+{
+	const FString* MapString = Metadata.Find(Key);
+	return MapString ? *MapString : "";
+}
+
+void URCVirtualPropertyBase::SetMetadataValue(FName Key, FString Data)
+{
+	Metadata.FindOrAdd(Key) = Data;
+}
+
+void URCVirtualPropertyBase::RemoveMetadataValue(FName Key)
+{
+	FString OutString;
+	Metadata.RemoveAndCopyValue(Key, OutString);
+}
+
 const UObject* URCVirtualPropertyBase::GetValueTypeObjectWeakPtr() const
 {
 	if (const FPropertyBagPropertyDesc* PropertyBagPropertyDesc = GetBagPropertyDesc())
@@ -121,17 +138,29 @@ void URCVirtualPropertyBase::SerializeToBackend(IStructSerializerBackend& OutBac
 
 bool URCVirtualPropertyBase::DeserializeFromBackend(IStructDeserializerBackend& InBackend)
 {
-	FStructDeserializerPolicies Policies;
-	const FProperty* Property = GetProperty();
-	Policies.PropertyFilter = [&Property](const FProperty* CurrentProp, const FProperty* ParentProp)
-	{
-		return CurrentProp == Property;
-	};
-
 	const UPropertyBag* TypeInfo = GetPropertyBagInstance()->GetPropertyBagStruct();
 	UPropertyBag* TypeInfoNonConst = const_cast<UPropertyBag*>(TypeInfo);
 
-	bool bSuccess = FStructDeserializer::DeserializeElement(GetContainerPtr(), *TypeInfoNonConst, INDEX_NONE, InBackend, Policies);
+	bool bSuccess = false;
+	FStructDeserializerPolicies Policies;
+	const FProperty* Property = GetProperty();
+	if (Property->GetClass() == FStructProperty::StaticClass())
+	{
+		Policies.PropertyFilter = [&Property](const FProperty* CurrentProp, const FProperty* ParentProp)
+		{
+			return CurrentProp == Property || ParentProp == Property;
+		};
+		bSuccess = FStructDeserializer::Deserialize(GetContainerPtr(), *TypeInfoNonConst, InBackend, Policies);
+	}
+	else
+	{
+		Policies.PropertyFilter = [&Property](const FProperty* CurrentProp, const FProperty* ParentProp)
+		{
+			return CurrentProp == Property;
+		};
+		bSuccess = FStructDeserializer::DeserializeElement(GetContainerPtr(), *TypeInfoNonConst, INDEX_NONE, InBackend, Policies);
+	}
+
 	if (bSuccess)
 	{
 		OnModifyPropertyValue();

@@ -585,6 +585,18 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetLayoutModified, URemoteControlPreset* /*Preset*/);
 	FOnPresetLayoutModified& OnPresetLayoutModified() { return OnPresetLayoutModifiedDelegate; }
 
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnControllerAdded, URemoteControlPreset* /*Preset*/, const FName /*NewControllerName*/, const FGuid& /*ControllerId*/);
+	FOnControllerAdded& OnControllerAdded() { return OnControllerAddedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnControllerRemoved, URemoteControlPreset* /*Preset*/, const FGuid& /*ControllerId*/);
+	FOnControllerRemoved& OnControllerRemoved() { return OnControllerRemovedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnControllerRenamed, URemoteControlPreset* /*Preset*/, const FName /*OldLabel*/, const FName /*NewLabel*/);
+	FOnControllerRenamed& OnControllerRenamed() { return OnControllerRenamedDelegate; }
+	
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnControllerModified, URemoteControlPreset* /*Preset*/, const TSet<FGuid>& /*ModifiedControllerIds*/);
+	FOnControllerModified& OnControllerModified() { return OnControllerModifiedDelegate; }
+	
 	UE_DEPRECATED(4.27, "This function is deprecated.")
 	void NotifyExposedPropertyChanged(FName PropertyLabel);
 
@@ -620,29 +632,32 @@ public:
 	* The goal is to hide the Controller Container and provide a simple interface for Controller access to UI and Web.
 	*/
 
-	/** Fetches a virtual property by internal property name. */
-	URCVirtualPropertyBase* GetVirtualProperty(const FName InPropertyName) const;
+	/** Fetches a controller by internal property name. */
+	URCVirtualPropertyBase* GetController(const FName InPropertyName) const;
 
-	/** Fetches a virtual property by unique Id. */
-	URCVirtualPropertyBase* GetVirtualProperty(const FGuid& InId) const;
+	/** Fetches a controller by unique Id. */
+	URCVirtualPropertyBase* GetController(const FGuid& InId) const;
+
+	/** Fetches all controller */
+	TArray<URCVirtualPropertyBase*> GetControllers() const;
 
 	/** Fetches a virtual property by specified name. */
-	URCVirtualPropertyBase* GetVirtualPropertyByDisplayName(const FName InDisplayName) const;
+	URCVirtualPropertyBase* GetControllerByDisplayName(const FName InDisplayName) const;
 
 	/** Adds a Virtual Property (Controller) to the Remote Control Preset */
-	URCVirtualPropertyInContainer* AddVirtualProperty(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr, const FName InPropertyName = NAME_None);
+	URCVirtualPropertyInContainer* AddController(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr, const FName InPropertyName = NAME_None);
 
 	/** Removes a given Virtual Property (by Name) from the Remote Control preset */
-	bool RemoveVirtualProperty(const FName& InPropertyName);
+	bool RemoveController(const FName& InPropertyName);
 
 	/** Duplicates a given Virtual Property from the Remote Control preset */
-	URCVirtualPropertyInContainer* DuplicateVirtualProperty(URCVirtualPropertyInContainer* InVirtualProperty);
+	URCVirtualPropertyInContainer* DuplicateController(URCVirtualPropertyInContainer* InVirtualProperty);
 
 	/** Removes all virtual properties held by this Remote Control preset*/
-	void ResetVirtualProperties();
+	void ResetControllers();
 
 	/** Returns the number of Virtual Properties contained in this Remote Control preset*/
-	int32 GetNumVirtualProperties() const;
+	int32 GetNumControllers() const;
 
 	/** Returns the Struct On Scope of the Controller Container (value ptr of the virtual properties)*
 	* Currently used by the UI class SRCControllerPanelList for user value entry via the RC Controllers panel*/
@@ -663,7 +678,7 @@ public:
 	void OnNotifyPreChangeVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	/** Called when a virtual property is modified. This call is routed to the Controller for evaluating associated Logic & Behaviours*/
-	void OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent);
+	void OnModifyController(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 
 	FOnVirtualPropertyContainerModified& OnVirtualPropertyContainerModified() const;
@@ -745,6 +760,9 @@ private:
 	
 	/** Initialize an entity's metadata based on the module's externally registered initializers. */
 	void InitializeEntityMetadata(const TSharedPtr<FRemoteControlEntity>& Entity);
+	
+	/** Initialize an controllers's metadata based on the module's externally registered initializers. */
+	void InitializeEntityMetadata(URCVirtualPropertyBase* Controller);
 
 	/** Register delegates for all exposed entities. */
 	void RegisterEntityDelegates();
@@ -807,6 +825,14 @@ private:
 	FOnActorPropertyModified OnActorPropertyModifiedDelegate;
 	/** Delegate triggered when the layout is modified. */
 	FOnPresetLayoutModified OnPresetLayoutModifiedDelegate;
+	/** Delegate triggered when a controller is added */
+	FOnControllerAdded OnControllerAddedDelegate;
+	/** Delegate triggered when a controller is removed */
+	FOnControllerRemoved OnControllerRemovedDelegate;
+	/** Delegate triggered when a Controller is renamed */
+	FOnControllerRenamed OnControllerRenamedDelegate;
+	/** Delegate triggered when a Controller has been changed */
+	FOnControllerModified OnControllerModifiedDelegate;
 
 	struct FPreObjectsModifiedCache
 	{

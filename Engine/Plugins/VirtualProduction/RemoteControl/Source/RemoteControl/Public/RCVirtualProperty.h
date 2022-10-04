@@ -63,6 +63,15 @@ public:
 	/** Return property bag property type */
 	EPropertyBagPropertyType GetValueType() const;
 
+	/** Get Metadata from the internal PropertyBag */
+	FString GetMetadataValue(FName Key) const;
+
+	/** Add/Set Metadata into the internal PropertyBag */
+	void SetMetadataValue(FName Key, FString Data);
+
+	/** Remove Metadata from the internal PropertyBag */
+	void RemoveMetadataValue(FName Key);
+
 	/** Return pointer to object that defines the Enum, Struct, or Class. */
 	const UObject* GetValueTypeObjectWeakPtr() const;
 
@@ -304,6 +313,9 @@ public:
 	/** User configurable Display Index for this Virtual Property (as Logic Controller) when represented as a row in the RC Logic Controllers list  */
 	UPROPERTY()
 	int32 DisplayIndex;
+
+	UPROPERTY()
+	TMap<FName, FString> Metadata;
 };
 
 /**

@@ -1364,7 +1364,7 @@ bool FRemoteControlModule::SetPresetController(const FName PresetName, const FNa
 		return false;
 	}
 
-	URCVirtualPropertyBase* VirtualProperty = Preset->GetVirtualPropertyByDisplayName(ControllerName);
+	URCVirtualPropertyBase* VirtualProperty = Preset->GetControllerByDisplayName(ControllerName);
 	if (!ensure(VirtualProperty))
 	{
 		return false;

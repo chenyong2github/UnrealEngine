@@ -2,6 +2,8 @@
 
 #include "RCWebInterfaceCustomizations.h"
 
+#include "RCVirtualProperty.h"
+
 #if WITH_EDITOR
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -500,6 +502,11 @@ FString FRCWebInterfaceCustomizations::OnInitializeWidgetMetadata(URemoteControl
 			Metadata = TEXT("Button");
 		}
 	}
+	else if (const URCVirtualPropertyBase* Controller = Preset->GetController(EntityId))
+	{
+		Metadata = RCWebInterface::GetDefaultWidget(const_cast<FProperty*>(Controller->GetProperty()));
+	}
+	
 	return Metadata;
 }
 

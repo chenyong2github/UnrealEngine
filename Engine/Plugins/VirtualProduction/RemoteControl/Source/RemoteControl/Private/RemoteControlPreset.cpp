@@ -509,7 +509,7 @@ FName URemoteControlPreset::GenerateUniqueLabel(const FName InDesiredName) const
 	return Registry->GenerateUniqueLabel(InDesiredName);
 }
 
-URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName InPropertyName) const
+URCVirtualPropertyBase* URemoteControlPreset::GetController(const FName InPropertyName) const
 {
 	if (!ensure(ControllerContainer))
 	{
@@ -519,7 +519,7 @@ URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName InP
 	return ControllerContainer->GetVirtualProperty(InPropertyName);
 }
 
-URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FGuid& InId) const
+URCVirtualPropertyBase* URemoteControlPreset::GetController(const FGuid& InId) const
 {
 	if (!ensure(ControllerContainer))
 	{
@@ -529,7 +529,12 @@ URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FGuid& In
 	return ControllerContainer->GetVirtualProperty(InId);
 }
 
-URCVirtualPropertyBase* URemoteControlPreset::GetVirtualPropertyByDisplayName(const FName InDisplayName) const
+TArray<URCVirtualPropertyBase*> URemoteControlPreset::GetControllers() const
+{
+	return ControllerContainer->VirtualProperties.Array();
+}
+
+URCVirtualPropertyBase* URemoteControlPreset::GetControllerByDisplayName(const FName InDisplayName) const
 {
 	if (!ensure(ControllerContainer))
 	{
@@ -539,7 +544,7 @@ URCVirtualPropertyBase* URemoteControlPreset::GetVirtualPropertyByDisplayName(co
 	return ControllerContainer->GetVirtualPropertyByDisplayName(InDisplayName);
 }
 
-URCVirtualPropertyInContainer* URemoteControlPreset::AddVirtualProperty(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject /*= nullptr*/, const FName InPropertyName /*= NAME_None*/)
+URCVirtualPropertyInContainer* URemoteControlPreset::AddController(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject /*= nullptr*/, const FName InPropertyName /*= NAME_None*/)
 {
 	if (!ensure(ControllerContainer))
 	{
@@ -557,10 +562,17 @@ URCVirtualPropertyInContainer* URemoteControlPreset::AddVirtualProperty(TSubclas
 	ControllerContainer->Modify();
 #endif
 
-	return ControllerContainer->AddProperty(NewPropertyName, InPropertyClass, InValueType, InValueTypeObject);
+	URCVirtualPropertyInContainer* NewController = ControllerContainer->AddProperty(NewPropertyName, InPropertyClass, InValueType, InValueTypeObject);
+	if (NewController)
+	{
+		OnControllerAdded().Broadcast(this, NewPropertyName, NewController->Id);
+		InitializeEntityMetadata(NewController);
+	}
+	
+	return NewController;
 }
 
-bool URemoteControlPreset::RemoveVirtualProperty(const FName& InPropertyName)
+bool URemoteControlPreset::RemoveController(const FName& InPropertyName)
 {
 	if (ensure(ControllerContainer))
 	{
@@ -568,23 +580,29 @@ bool URemoteControlPreset::RemoveVirtualProperty(const FName& InPropertyName)
 		ControllerContainer->Modify();
 #endif
 
-		return ControllerContainer->RemoveProperty(InPropertyName);
+		if (const URCVirtualPropertyBase* ControllerToDelete = ControllerContainer->GetVirtualProperty(InPropertyName))
+		{
+			ControllerContainer->RemoveProperty(ControllerToDelete->GetPropertyName());
+			OnControllerRemoved().Broadcast(this, ControllerToDelete->Id);
+			return true;
+		}
 	}
 
 	return false;
 }
 
-URCVirtualPropertyInContainer* URemoteControlPreset::DuplicateVirtualProperty(URCVirtualPropertyInContainer* InVirtualProperty)
+URCVirtualPropertyInContainer* URemoteControlPreset::DuplicateController(URCVirtualPropertyInContainer* InVirtualProperty)
 {
 	if (ensure(ControllerContainer))
 	{
-		return ControllerContainer->DuplicateVirtualProperty(InVirtualProperty);
+		URCVirtualPropertyInContainer* DuplicatedController = ControllerContainer->DuplicateVirtualProperty(InVirtualProperty);
+		return DuplicatedController;
 	}
 
 	return nullptr;
 }
 
-void URemoteControlPreset::ResetVirtualProperties()
+void URemoteControlPreset::ResetControllers()
 {
 	if (ensure(ControllerContainer))
 	{
@@ -592,11 +610,16 @@ void URemoteControlPreset::ResetVirtualProperties()
 		ControllerContainer->Modify();
 #endif
 
+		// Broadcasting each removal.
+		for (TObjectPtr<URCVirtualPropertyBase> Controller : ControllerContainer->VirtualProperties)
+		{
+			OnControllerRemoved().Broadcast(this, Controller->Id);
+		}
 		ControllerContainer->Reset();
 	}
 }
 
-int32 URemoteControlPreset::GetNumVirtualProperties() const
+int32 URemoteControlPreset::GetNumControllers() const
 {
 	if (ensure(ControllerContainer))
 	{
@@ -631,11 +654,15 @@ void URemoteControlPreset::OnNotifyPreChangeVirtualProperty(const FPropertyChang
 	}
 }
 
-void URemoteControlPreset::OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent)
+void URemoteControlPreset::OnModifyController(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (ensure(ControllerContainer))
 	{
-		ControllerContainer->OnModifyPropertyValue(PropertyChangedEvent);
+		if (URCVirtualPropertyBase* ModifiedController = ControllerContainer->GetVirtualProperty(PropertyChangedEvent.Property->GetFName()))
+		{
+			ControllerContainer->OnModifyPropertyValue(PropertyChangedEvent);
+			OnControllerModified().Broadcast(this, {ModifiedController->Id});
+		}
 	}	
 } 
 #endif
@@ -890,6 +917,11 @@ void URemoteControlPreset::InitializeEntitiesMetadata()
 	{
 		InitializeEntityMetadata(Entity);
 	}
+
+	for (URCVirtualPropertyBase* Controller : GetControllers())
+	{
+		InitializeEntityMetadata(Controller);
+	}
 }
 
 void URemoteControlPreset::InitializeEntityMetadata(const TSharedPtr<FRemoteControlEntity>& Entity)
@@ -908,6 +940,27 @@ void URemoteControlPreset::InitializeEntityMetadata(const TSharedPtr<FRemoteCont
     		if (!Entity->UserMetadata.Contains(Entry.Key))
     		{
     			Entity->UserMetadata.Add(Entry.Key, Entry.Value.Execute(this, Entity->GetId()));
+    		}
+    	}
+    }
+}
+
+void URemoteControlPreset::InitializeEntityMetadata(URCVirtualPropertyBase* Controller)
+{
+	if (!Controller)
+	{
+		return;
+	}
+    	
+    const TMap<FName, FEntityMetadataInitializer>& Initializers = IRemoteControlModule::Get().GetDefaultMetadataInitializers();
+    for (const TPair<FName, FEntityMetadataInitializer>& Entry : Initializers)
+    {
+    	if (Entry.Value.IsBound())
+    	{
+    		// Don't reset the metadata entry if already present.
+    		if (!Controller->Metadata.Contains(Entry.Key))
+    		{
+    			Controller->Metadata.Add(Entry.Key, Entry.Value.Execute(this, Controller->Id));
     		}
     	}
     }
@@ -1295,9 +1348,9 @@ void URemoteControlPreset::Unexpose(const FGuid& EntityId)
 {
 	if (EntityId.IsValid() && Registry->GetExposedEntity(EntityId).IsValid())
 	{
-		OnEntityUnexposedDelegate.Broadcast(this, EntityId);
 		Registry->Modify();
 		Registry->RemoveExposedEntity(EntityId);
+		OnEntityUnexposedDelegate.Broadcast(this, EntityId);
 		FRCCachedFieldData CachedData = FieldCache.FindChecked(EntityId);
 		Layout.RemoveField(CachedData.LayoutGroupId, EntityId);
 		FieldCache.Remove(EntityId);
