@@ -175,7 +175,10 @@ bool FEnhancedInputEditorProcessor::InputKeyToSubsystem(const FInputKeyParams& P
 	{
 		if (UEnhancedInputEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
 		{
-			return Subsystem->InputKey(Params);
+			if (Subsystem->GetWorld())
+			{
+				return Subsystem->InputKey(Params);
+			}
 		}	
 	}
 	
