@@ -25,7 +25,7 @@ namespace Audio
 	};
 
 	// Per-channel analyzer results
-	struct FMeterAnalyzerResults
+	struct AUDIOSYNESTHESIACORE_API FMeterAnalyzerResults
 	{
 		float TimeSec = 0.0f;
 		TArray<float> MeterValues;
@@ -34,7 +34,7 @@ namespace Audio
 		TArray<int32> NumSamplesClipping;
 	};
 
-	class FMeterAnalyzer
+	class AUDIOSYNESTHESIACORE_API FMeterAnalyzer
 	{
 	public:
 

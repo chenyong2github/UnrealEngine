@@ -13,36 +13,57 @@ namespace WaveformTransformNormalizeHelpers
 {
 	float GetRMSPeak(const Audio::FAlignedFloatBuffer& InputAudio, float SampleRate, int32 NumChannels)
 	{
-		Audio::FMeterFactory Analyzer;
+		const float AudioLengthSeconds = InputAudio.Num() / NumChannels / SampleRate;
+		const float RMSAnalysisPeriod = 0.3f;
+		const bool bAnalyzeAsSingleBuffer = RMSAnalysisPeriod > AudioLengthSeconds;
+
 		Audio::FMeterSettings Settings;
-		Settings.AnalysisPeriod = 0.3f;
+		Settings.AnalysisPeriod = bAnalyzeAsSingleBuffer ? AudioLengthSeconds : RMSAnalysisPeriod;
 
-		TUniquePtr<Audio::IAnalyzerResult> Result = Analyzer.NewResult();
-		TUniquePtr<Audio::IAnalyzerWorker> AnalyzerWorker = Analyzer.NewWorker({ (int32)SampleRate, NumChannels }, &Settings);
-
-		if (AnalyzerWorker == nullptr)
+		if (bAnalyzeAsSingleBuffer)
 		{
-			return 0.f;
-		}
-
-		AnalyzerWorker->Analyze(MakeArrayView(InputAudio), Result.Get());
-
-		Audio::FMeterResult* MeterResult = static_cast<Audio::FMeterResult*>(Result.Get());
-
-		if (MeterResult)
-		{
-			const TArray<Audio::FMeterEntry>& LoudnessArray = MeterResult->GetMeterArray();
-			auto MeterEntry = Algo::MaxElement(LoudnessArray, [](const Audio::FMeterEntry& A, const Audio::FMeterEntry& B)
+			Audio::FMeterAnalyzer Analyzer(SampleRate, NumChannels, Settings);
+			Audio::FMeterAnalyzerResults Results = Analyzer.ProcessAudio(InputAudio);
+			const float* MeterValue = Algo::MaxElement(Results.MeterValues, [](const float A, const float B)
 				{
-					return A.MeterValue < B.MeterValue;
+					return A < B;
 				});
 
-			if (MeterEntry)
+			if (MeterValue)
 			{
-				return MeterEntry->MeterValue;
+				return *MeterValue;
 			}
 		}
+		else
+		{
+			Audio::FMeterFactory Analyzer;
+			TUniquePtr<Audio::IAnalyzerResult> Result = Analyzer.NewResult();
+			TUniquePtr<Audio::IAnalyzerWorker> AnalyzerWorker = Analyzer.NewWorker({ (int32)SampleRate, NumChannels }, &Settings);
 
+			if (AnalyzerWorker == nullptr)
+			{
+				return 0.f;
+			}
+
+			AnalyzerWorker->Analyze(MakeArrayView(InputAudio), Result.Get());
+
+			Audio::FMeterResult* MeterResult = static_cast<Audio::FMeterResult*>(Result.Get());
+
+			if (MeterResult)
+			{
+				const TArray<Audio::FMeterEntry>& LoudnessArray = MeterResult->GetMeterArray();
+				auto MeterEntry = Algo::MaxElement(LoudnessArray, [](const Audio::FMeterEntry& A, const Audio::FMeterEntry& B)
+					{
+						return A.MeterValue < B.MeterValue;
+					});
+
+				if (MeterEntry)
+				{
+					return MeterEntry->MeterValue;
+				}
+			}
+		}
+		
 		return 0.f;
 	}
 
