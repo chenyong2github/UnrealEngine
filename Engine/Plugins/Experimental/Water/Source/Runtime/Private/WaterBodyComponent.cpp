@@ -1709,6 +1709,11 @@ AWaterZone* UWaterBodyComponent::FindWaterZone() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWaterBodyComponent::FindWaterZone);
 
+	if (!WaterZoneOverride.IsNull())
+	{
+		return WaterZoneOverride.Get();
+	}
+
 	TArray<AWaterZone*, TInlineAllocator<4>> ViableZones;
 
 	if (const UWorld* World = GetWorld())

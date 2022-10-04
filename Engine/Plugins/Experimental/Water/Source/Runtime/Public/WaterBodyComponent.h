@@ -642,6 +642,9 @@ protected:
 	UPROPERTY()
 	TSoftObjectPtr<AWaterZone> OwningWaterZone;
 
+	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
+	TSoftObjectPtr<AWaterZone> WaterZoneOverride;
+
 	UPROPERTY(Transient)
 	FPostProcessSettings CurrentPostProcessSettings;
 
