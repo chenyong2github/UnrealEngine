@@ -18,7 +18,6 @@
 #include "HeterogeneousVolumesSparseVoxelUniformBufferUtils.ush"
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
-#include "HeterogeneousVolumesRayMarchingUtils.ush"
 
 #ifndef THREADGROUP_SIZE_1D
 #define THREADGROUP_SIZE_1D 1
@@ -418,6 +417,8 @@ FTraceVoxelResult TraceVoxels(float3 LocalRayOrigin, float3 LocalRayDirection, f
 
 	return TraceVoxelResult;
 }
+
+#include "HeterogeneousVolumesRayMarchingUtils.ush"
 
 RWTexture3D<float3> RWLightingCacheTexture;
 
