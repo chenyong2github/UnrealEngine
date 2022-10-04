@@ -31,6 +31,13 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesIndirectLighting(
+	TEXT("r.HeterogeneousVolumes.IndirectLighting"),
+	1,
+	TEXT("Enables indirect lighting (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesJitter(
 	TEXT("r.HeterogeneousVolumes.Jitter"),
 	1,
@@ -281,6 +288,11 @@ namespace HeterogeneousVolumes
 	{
 		return IsRayTracingEnabled()
 			&& (CVarHeterogeneousVolumesHardwareRayTracing.GetValueOnRenderThread() != 0);
+	}
+
+	bool UseIndirectLighting()
+	{
+		return CVarHeterogeneousVolumesIndirectLighting.GetValueOnRenderThread() != 0;
 	}
 
 	// Convenience Utils

@@ -625,10 +625,6 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 	}
 }
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingUniforms, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingParameters, Parameters)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingUniforms, "LumenGIVolumeStruct");
 
 class FVolumetricFogLightScatteringCS : public FGlobalShader

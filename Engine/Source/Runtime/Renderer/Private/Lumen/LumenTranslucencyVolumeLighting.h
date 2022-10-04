@@ -42,6 +42,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingParameters, )
 	SHADER_PARAMETER(FIntVector, TranslucencyGIGridSize)
 END_SHADER_PARAMETER_STRUCT()
 
+// Used by VolumetricFog and HeterogeneousVolumes
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingUniforms, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingParameters, Parameters)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 extern FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenTranslucencyGIVolume& LumenTranslucencyGIVolume,

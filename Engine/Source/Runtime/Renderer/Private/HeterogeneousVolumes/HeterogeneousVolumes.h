@@ -42,6 +42,7 @@ namespace HeterogeneousVolumes
 	bool ShouldJitter();
 	bool ShouldRefineSparseVoxels();
 	bool UseHardwareRayTracing();
+	bool UseIndirectLighting();
 	bool UseSparseVoxelPipeline();
 	bool UseSparseVoxelPerTileCulling();
 	bool UseLightingCacheForInscattering();

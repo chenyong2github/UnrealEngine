@@ -5,6 +5,11 @@
 #include "../ForwardShadowingCommon.ush"
 #include "../VolumeLightingCommon.ush"
 
+#include "../SHCommon.ush"
+#define FrontLayerTranslucencyReflectionsStruct LumenGIVolumeStruct
+#define RadianceCacheInterpolation LumenGIVolumeStruct
+#include "../Lumen/LumenTranslucencyVolumeShared.ush"
+
 #ifndef HARDWARE_RAY_TRACING
 #define HARDWARE_RAY_TRACING 0
 #endif // HARDWARE_RAY_TRACING
@@ -347,6 +352,24 @@ void RayMarchSingleScattering(
 		{
 			float3 Emission = SampleEmission(SampleContext);
 			Radiance += Emission * RayMarchingContext.StepSize * Transmittance;
+
+#if DIM_USE_LUMEN_GI
+			float3 TranslucencyEvaluationPosition = WorldPosition;
+			FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(LWCPromote(TranslucencyEvaluationPosition), PrimaryView.WorldToClip, true);
+
+			FTwoBandSHVector RotatedHGZonalHarmonic;
+			float3 CameraVector = normalize(RayMarchingContext.WorldRayDirection);
+			float PhaseG = 0.0;
+			RotatedHGZonalHarmonic.V = float4(1.0f, CameraVector.y, CameraVector.z, CameraVector.x) * float4(1.0f, PhaseG, PhaseG, PhaseG);
+			float3 IndirectInscattering = max(DotSH(TranslucencyGISH, RotatedHGZonalHarmonic), 0) / PI;
+
+			float3 Extinction = SampleExtinction(SampleContext);
+			float3 Albedo = SampleAlbedo(SampleContext);
+			float3 ScatteringCoefficient = Albedo * Extinction;
+
+			// Note: Phase is accounted for in spherical hamonic calculation
+			Radiance += IndirectInscattering * ScatteringCoefficient * Transmittance * RayMarchingContext.StepSize;
+#endif // DIM_USE_LUMEN_GI
 		}
 
 		float3 Extinction = SampleExtinction(SampleContext);
