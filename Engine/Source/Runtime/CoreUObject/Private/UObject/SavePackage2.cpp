@@ -1003,9 +1003,18 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		SaveContext.UpdatePackageLinkerVersions();
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SaveContext.GetLinker()->Summary.Guid = SaveContext.IsKeepGuid() ? SaveContext.GetPackage()->GetGuid() : SaveContext.GetPackage()->MakeNewGuid();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	if (SaveContext.GetSaveArgs().OutputPackageGuid)
+	{
+		SaveContext.GetLinker()->Summary.Guid = *SaveContext.GetSaveArgs().OutputPackageGuid;
+		
+	}
+	else
+	{
+		SaveContext.GetLinker()->Summary.Guid = SaveContext.IsKeepGuid() ?
+			SaveContext.GetPackage()->GetGuid() : SaveContext.GetPackage()->MakeNewGuid();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 #if WITH_EDITORONLY_DATA
 	SaveContext.GetLinker()->Summary.PersistentGuid = SaveContext.GetPackage()->GetPersistentGuid();
 #endif

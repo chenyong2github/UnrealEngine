@@ -11,6 +11,7 @@
 #include "Delegates/Delegate.h"
 #include "Logging/LogMacros.h"
 #include "Misc/DateTime.h"
+#include "Misc/Optional.h"
 #include "Misc/OutputDeviceError.h"
 #include "ObjectMacros.h"
 #include "Serialization/ArchiveCookData.h"
@@ -89,6 +90,8 @@ struct FSavePackageArgs
 	FSavePackageContext* SavePackageContext = nullptr;
 	UE_DEPRECATED(5.0, "FArchiveDiffMap is no longer used; it is now implemented by DiffPackageWriter.")
 	FArchiveDiffMap* DiffMap = nullptr;
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and it will be removed.")
+	TOptional<FGuid> OutputPackageGuid;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	FSavePackageArgs() = default;
