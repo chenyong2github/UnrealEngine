@@ -88,6 +88,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool SetCustomImportContentType(const EInterchangeSkeletalMeshContentType& AttributeValue);
 
+	/** Query the skeletal mesh UseHighPrecisionSkinWeights. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool GetCustomUseHighPrecisionSkinWeights(bool& AttributeValue) const;
+
+	/** Set the skeletal mesh UseHighPrecisionSkinWeights. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetCustomUseHighPrecisionSkinWeights(const bool& AttributeValue, bool bAddApplyDelegate = true);
+		
 	/** Query the skeletal mesh threshold use to decide if two vertex position are equal. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool GetCustomThresholdPosition(float& AttributeValue) const;
@@ -135,11 +143,14 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomCreatePhysicsAssetKey = UE::Interchange::FAttributeKey(TEXT("CreatePhysicsAsset"));
 	const UE::Interchange::FAttributeKey Macro_CustomPhysicAssetSoftObjectPathKey = UE::Interchange::FAttributeKey(TEXT("PhysicAssetSoftObjectPath"));
 	const UE::Interchange::FAttributeKey Macro_CustomImportContentTypeKey = UE::Interchange::FAttributeKey(TEXT("ImportContentType"));
+	const UE::Interchange::FAttributeKey Macro_CustomUseHighPrecisionSkinWeightsKey = UE::Interchange::FAttributeKey(TEXT("UseHighPrecisionSkinWeights"));
 	const UE::Interchange::FAttributeKey Macro_CustomThresholdPositionKey = UE::Interchange::FAttributeKey(TEXT("ThresholdPosition"));
 	const UE::Interchange::FAttributeKey Macro_CustomThresholdTangentNormalKey = UE::Interchange::FAttributeKey(TEXT("ThresholdTangentNormal"));
 	const UE::Interchange::FAttributeKey Macro_CustomThresholdUVKey = UE::Interchange::FAttributeKey(TEXT("ThresholdUV"));
 	const UE::Interchange::FAttributeKey Macro_CustomMorphThresholdPositionKey = UE::Interchange::FAttributeKey(TEXT("MorphThresholdPosition"));
 
+	bool ApplyCustomUseHighPrecisionSkinWeightsToAsset(UObject* Asset) const;
+	bool FillCustomUseHighPrecisionSkinWeightsFromAsset(UObject* Asset);
 	bool ApplyCustomThresholdPositionToAsset(UObject* Asset) const;
 	bool FillCustomThresholdPositionFromAsset(UObject* Asset);
 	bool ApplyCustomThresholdTangentNormalToAsset(UObject* Asset) const;

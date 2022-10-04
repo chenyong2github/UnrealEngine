@@ -155,6 +155,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (editcondition = "!bCreatePhysicsAsset"))
 	TWeakObjectPtr<UPhysicsAsset> PhysicsAsset;
 
+	/** If Checked, use 16 bits for skin weights instead of 8 bits. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
+	bool bUseHighPrecisionSkinWeights = false;
+
 	/** Threshold use to decide if two vertex position are equal. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
 	float ThresholdPosition = 0.00002f;

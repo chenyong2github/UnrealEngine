@@ -504,6 +504,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 	SkeletalMeshFactoryNode->SetCustomUseBackwardsCompatibleF16TruncUVs(CommonMeshesProperties->bUseBackwardsCompatibleF16TruncUVs);
 	SkeletalMeshFactoryNode->SetCustomRemoveDegenerates(CommonMeshesProperties->bRemoveDegenerates);
 	//Skeletal meshes build options
+	SkeletalMeshFactoryNode->SetCustomUseHighPrecisionSkinWeights(bUseHighPrecisionSkinWeights);
 	SkeletalMeshFactoryNode->SetCustomThresholdPosition(ThresholdPosition);
 	SkeletalMeshFactoryNode->SetCustomThresholdTangentNormal(ThresholdTangentNormal);
 	SkeletalMeshFactoryNode->SetCustomThresholdUV(ThresholdUV);

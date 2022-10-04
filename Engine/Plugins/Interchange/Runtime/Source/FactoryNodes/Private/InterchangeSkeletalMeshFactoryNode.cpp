@@ -110,6 +110,23 @@ bool UInterchangeSkeletalMeshFactoryNode::SetCustomPhysicAssetSoftObjectPath(con
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(PhysicAssetSoftObjectPath, FSoftObjectPath)
 }
 
+bool UInterchangeSkeletalMeshFactoryNode::GetCustomUseHighPrecisionSkinWeights(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(UseHighPrecisionSkinWeights, bool)
+}
+bool UInterchangeSkeletalMeshFactoryNode::SetCustomUseHighPrecisionSkinWeights(const bool& AttributeValue, bool bAddApplyDelegate)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeSkeletalMeshFactoryNode, UseHighPrecisionSkinWeights, bool);
+}
+bool UInterchangeSkeletalMeshFactoryNode::ApplyCustomUseHighPrecisionSkinWeightsToAsset(UObject* Asset) const
+{
+	IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(UseHighPrecisionSkinWeights, bool, bUseHighPrecisionSkinWeights);
+}
+bool UInterchangeSkeletalMeshFactoryNode::FillCustomUseHighPrecisionSkinWeightsFromAsset(UObject* Asset)
+{
+	IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(UseHighPrecisionSkinWeights, bUseHighPrecisionSkinWeights);
+}
+
 bool UInterchangeSkeletalMeshFactoryNode::GetCustomThresholdPosition(float& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ThresholdPosition, float)
