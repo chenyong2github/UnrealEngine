@@ -417,7 +417,15 @@ bool FAssetFolderContextMenu::CanExecuteSCCOpenForAdd() const
 
 bool FAssetFolderContextMenu::CanExecuteSCCCheckIn() const
 {
-	return bCanExecuteSCCCheckIn && SelectedPaths.Num() > 0;
+	bool bUsesFileRevisions = true;
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
+	}
+
+	return bCanExecuteSCCCheckIn && SelectedPaths.Num() > 0 && bUsesFileRevisions;
 }
 
 bool FAssetFolderContextMenu::CanExecuteSCCSync() const

@@ -2346,7 +2346,15 @@ bool FAssetFileContextMenu::CanExecuteSCCOpenForAdd() const
 
 bool FAssetFileContextMenu::CanExecuteSCCCheckIn() const
 {
-	return bCanExecuteSCCCheckIn;
+	bool bUsesFileRevisions = true;
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
+	}
+	
+	return bCanExecuteSCCCheckIn && bUsesFileRevisions;
 }
 
 bool FAssetFileContextMenu::CanExecuteSCCHistory() const
