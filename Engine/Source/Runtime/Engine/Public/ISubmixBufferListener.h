@@ -17,4 +17,17 @@ public:
 	@param AudioClock		Double audio clock value, from start of audio rendering.
 	*/
 	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) = 0;
+
+	/**
+	 * Called if the submix is evaluating disabling itself for the next buffer of audio in FMixerSubmix::IsRenderingAudio()
+	 * if this returns true, FMixerSubmix::IsRenderingAudio() will return true.
+	 * Otherwise the submix will evaluate playing sounds, children submixes, etc to see if it should auto-disable
+	 *
+	 * This is called every evaluation.
+	 * ISubmixListeners that intermittently render audio should only return true when they have work to do.
+	 */
+	virtual bool IsRenderingAudio() const
+	{
+		return false;
+	}
 };

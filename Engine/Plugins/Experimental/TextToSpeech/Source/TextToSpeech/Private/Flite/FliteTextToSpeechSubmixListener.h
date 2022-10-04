@@ -39,8 +39,10 @@ public:
 	float GetVolume() const;
 	/** Sets the volume the speech data should be played at */
 	void SetVolume(float InVolume);
+
 	// ISubmixBufferListener
 	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
+	virtual bool IsRenderingAudio() const override;
 	// ~ISubmixBufferListener
 private:
 	class FSynthesizedSpeechBuffer

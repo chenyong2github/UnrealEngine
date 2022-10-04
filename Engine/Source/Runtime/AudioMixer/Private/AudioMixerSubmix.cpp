@@ -1078,6 +1078,15 @@ namespace Audio
 			return true;
 		}
 
+		// query the SubmixBufferListeners to see if they plan to render audio into this buffer
+		for(const ISubmixBufferListener* listener : BufferListeners)
+		{
+			if(listener->IsRenderingAudio())
+			{
+				return true;
+			}
+		}
+
 		// If this submix is not rendering any sources directly and silence has been detected, we need to check it's children submixes
 		if (MixerSourceVoices.Num() == 0 && SilenceTimeStartSeconds >= 0.0)
 		{

@@ -86,6 +86,11 @@ void FFliteTextToSpeechSubmixListener::OnNewSubmixBuffer(const USoundSubmix* Own
 	}
 }
 
+bool FFliteTextToSpeechSubmixListener::IsRenderingAudio() const
+{
+	return bAllowPlayback;
+}
+
 void FFliteTextToSpeechSubmixListener::StartPlayback_GameThread()
 {
 	ensure(IsInGameThread());
