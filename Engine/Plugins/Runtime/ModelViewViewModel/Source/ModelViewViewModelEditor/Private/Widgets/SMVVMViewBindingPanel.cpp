@@ -413,6 +413,7 @@ TSharedRef<SWidget> SBindingsPanel::GenerateEditViewWidget()
 				.Value(0.25f)
 				[
 					SAssignNew(DetailContainer, SBorder)
+					.Visibility(EVisibility::Collapsed)
 					[
 						DetailsView.ToSharedRef()
 					]
