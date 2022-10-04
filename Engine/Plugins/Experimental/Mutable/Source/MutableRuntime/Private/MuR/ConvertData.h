@@ -955,6 +955,13 @@ namespace mu
 				break;
 			}
 
+			case MBF_NUINT16:
+			{
+				const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>(pSource);
+				pTypedResult[channel] = pTypedSource[channel] / (65535 / 255);
+				break;
+			}
+
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>(pSource);
@@ -1010,6 +1017,13 @@ namespace mu
 			{
 				auto pTypedSource = reinterpret_cast<const uint16_t*>(pSource);
 				pTypedResult[channel] = pTypedSource[channel];
+				break;
+			}
+
+			case MBF_NUINT8:
+			{
+				const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>(pSource);
+				pTypedResult[channel] = pTypedSource[channel] * (65535 / 255);
 				break;
 			}
 

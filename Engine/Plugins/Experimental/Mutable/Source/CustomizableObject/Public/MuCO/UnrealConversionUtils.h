@@ -53,37 +53,27 @@ namespace UnrealConversionUtils
 	
 	/**
 	 * Prepares the render sections found on the InSkeletalMesh and sets them up accordingly what the InMutableMesh requires
-	 * @param InMutableMesh - Mutable mesh to be used as reference for the section data update on the Skeletal Mesh
 	 * @param OutSkeletalMesh - The Skeletal mesh whose sections are ought to be updated
+	 * @param InMutableMesh - Mutable mesh to be used as reference for the section data update on the Skeletal Mesh
 	 * @param MeshLODIndex - The Mesh lod to be working with
-	 * @param NumBoneInfluences - The amount of bones a pixel can be affected by
 	 * @param InBoneMap - The bones to be set as part of the sections.
 	 */
 	CUSTOMIZABLEOBJECT_API void SetupRenderSections(
-		const mu::MeshPtrConst InMutableMesh,
 		const USkeletalMesh* OutSkeletalMesh,
-		const int32 MeshLODIndex,
-		const int32 NumBoneInfluences,
+		const mu::MeshPtrConst InMutableMesh,
+		const int32 InMeshLODIndex,
 		const TArray<uint16>& InBoneMap);
 
 
 	/** Performs a copy of the data found on the vertex buffers on the mutable mesh to the buffers of the skeletal mesh
 	 * @param OutSkeletalMesh - Skeletal Mesh to be updated with new buffer data
-	 * @param NumVerticesLODModel - The amount of vertices on the LODModel.
-	 * @param NumBoneInfluences - The amount of bones that can influence a vertex
-	 * @param BoneIndexBuffer - The buffer containing the indices for the bones.
-	 * @param InMutableMeshVertexBuffers - The mutable buffers to be reading data from
+	 * @param InMutableMesh - Mutable mesh to be used as reference for the section data update on the Skeletal Mesh
 	 * @param MeshLODIndex - The LOD index we are working with.
-	 * @param InBoneIndexFormat - The format of the bone indices on the mutable mesh.
 	 */
 	CUSTOMIZABLEOBJECT_API void CopyMutableVertexBuffers(
 		USkeletalMesh* OutSkeletalMesh,
-		const int32 NumVerticesLODModel,
-		const int32 NumBoneInfluences,
-		const int32 BoneIndexBuffer,
-		const mu::FMeshBufferSet& InMutableMeshVertexBuffers,
-		const int32 MeshLODIndex,
-		const mu::MESH_BUFFER_FORMAT& InBoneIndexFormat);
+		const mu::MeshPtrConst InMutableMesh,
+		const int32 InMeshLODIndex);
 
 	
 	/**

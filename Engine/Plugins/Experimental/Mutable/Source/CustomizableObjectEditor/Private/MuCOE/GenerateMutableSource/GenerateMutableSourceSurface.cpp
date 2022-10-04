@@ -129,7 +129,7 @@ void LayoutOperationUVNormalizedWarning(FMutableGraphGenerationContext& Generati
 }
 
 void SetSurfaceFormat( mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBufferSet& OutIndexBufferFormat, const FMutableGraphMeshGenerationData& MeshData, 
-					   bool bWithExtraBoneInfluences, bool bWithRealTimeMorphs, bool bWithClothing )
+					   bool bWithExtraBoneInfluences, bool bWithRealTimeMorphs, bool bWithClothing, bool bWith16BitWeights )
 {
 	// Limit skinning weights if necessary
 	// \todo: make it more flexible to support 3 or 5 or 1 weight, since there is support for this in 4.25
@@ -180,7 +180,8 @@ void SetSurfaceFormat( mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBuffe
 	// Skin buffer
 	if (MeshData.MaxNumBonesPerVertex > 0 && MeshData.MaxBoneIndexTypeSizeBytes > 0)
 	{
-		MutableMeshBufferUtils::SetupSkinBuffer(CurrentVertexBuffer, MeshData.MaxBoneIndexTypeSizeBytes, MutableBonesPerVertex, OutVertexBufferFormat);
+		const int32 MaxBoneWeightTypeSizeBytes = bWith16BitWeights ? 2 : 1;
+		MutableMeshBufferUtils::SetupSkinBuffer(CurrentVertexBuffer, MeshData.MaxBoneIndexTypeSizeBytes, MaxBoneWeightTypeSizeBytes, MutableBonesPerVertex, OutVertexBufferFormat);
 		++CurrentVertexBuffer;
 	}
 
@@ -393,7 +394,8 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 						MeshFormatNode->GetVertexBuffers(), MeshFormatNode->GetIndexBuffers(), MeshData,
 						GenerationContext.Options.bExtraBoneInfluencesEnabled,
 						GenerationContext.Options.bRealTimeMorphTargetsEnabled, 
-						GenerationContext.Options.bClothingEnabled);
+						GenerationContext.Options.bClothingEnabled,
+						GenerationContext.Options.b16BitBoneWeightsEnabled);
 				MeshFormatNode->SetMessageContext(Node);
 
 				SurfNode->SetMesh(0, MeshFormatNode);
@@ -1013,7 +1015,8 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 						MeshFormat->GetVertexBuffers(), MeshFormat->GetIndexBuffers(), MeshData,
 						GenerationContext.Options.bExtraBoneInfluencesEnabled,
 						GenerationContext.Options.bRealTimeMorphTargetsEnabled, 
-						GenerationContext.Options.bClothingEnabled );
+						GenerationContext.Options.bClothingEnabled,
+						GenerationContext.Options.b16BitBoneWeightsEnabled);
 
 				MeshFormat->SetSource(AddMeshNode.get());
 

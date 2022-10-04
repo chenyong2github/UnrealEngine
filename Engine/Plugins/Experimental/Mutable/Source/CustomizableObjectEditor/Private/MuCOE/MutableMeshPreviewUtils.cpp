@@ -72,6 +72,8 @@ namespace MutableMeshPreviewUtils
 				bool bOriginDoesHaveVertexColorData = false;
 				int32 NumbOfTextCoordChannels = 0;
 				int32 MaxNumBonesPerVertex = 0;
+				int32 BoneIndicesSizeBytes = 0;
+				int32 BoneWeightsSizeBytes = 0;
 
 				// Contingency to avoid mismatches between the ideal semantic indices on the provided mutable mesh against the
 				// ones that should be .
@@ -124,6 +126,14 @@ namespace MutableMeshPreviewUtils
 							{
 								// Store the amount of bones a vertex can be skinned to.
 								MaxNumBonesPerVertex = BufferComponentCount;
+								BoneIndicesSizeBytes = BufferFormat == mu::MESH_BUFFER_FORMAT::MBF_INT16 ? 2 : 1;
+								break;
+							}
+
+							case mu::MESH_BUFFER_SEMANTIC::MBS_BONEWEIGHTS:
+							{
+								// Store the amount of bones a vertex can be skinned to.
+								BoneWeightsSizeBytes = BufferFormat == mu::MESH_BUFFER_FORMAT::MBF_NUINT16 ? 2 : 1;
 								break;
 							}
 
@@ -171,21 +181,8 @@ namespace MutableMeshPreviewUtils
 					CurrentVertexBuffer++;
 				
 					// Skin buffer
-					{
-						// Use the index buffer to know the amount of bones
-						const int32 NumberOfBones = InMutableMesh->GetVertexCount() * MaxNumBonesPerVertex;;
-					
-						// Failing this check would mean that the provided mutable mesh is in very bad shape (missing verts or
-						// the BONE_INDICES buffer channel
-						if (!NumberOfBones)
-						{
-							UE_LOG(LogTemp,Warning,TEXT("Unable to extract the bone count data from the provided mutable mesh. Make sure it has at least buffer data  "))
-						}
-
-						const int32 MaxBoneIndexTypeSizeBytes = NumberOfBones > 256 ? 2 : 1;
-						MutableMeshBufferUtils::SetupSkinBuffer(CurrentVertexBuffer,MaxBoneIndexTypeSizeBytes,MaxNumBonesPerVertex,FormattedVertexBuffers);
-						CurrentVertexBuffer++;
-					}
+					MutableMeshBufferUtils::SetupSkinBuffer(CurrentVertexBuffer, BoneIndicesSizeBytes, BoneWeightsSizeBytes, MaxNumBonesPerVertex, FormattedVertexBuffers);
+					CurrentVertexBuffer++;
 
 					// Colour buffer
 					if (bOriginDoesHaveVertexColorData)
@@ -602,93 +599,44 @@ namespace MutableMeshPreviewUtils
 			OutSkeletalMesh->SetHasBeenSimplified(false);
 			OutSkeletalMesh->SetHasVertexColors(false);
 
-			// Constant values since we are working with a simple mutable mesh (represents only one LOD)
-			constexpr int32 MeshLODIndex = 0;
-			constexpr int32 LODIndex = 0;
-			
-			// Detect if the produced mesh is correct
-			bool bSuccess = true;
-
-			FSkeletalMeshLODRenderData& LODModel = Helper_GetLODData(OutSkeletalMesh)[MeshLODIndex];
-			const mu::FMeshBufferSet& MutableMeshVertexBuffers = InMutableMesh->GetVertexBuffers();
-			
 			// Load buffer data found on the mutable model onto the out skeletal mesh
 			// It includes vertex and index buffers
-			{
-				const int32 NumVerticesLODModel = InMutableMesh->GetVertexCount();
-				//const int32 SurfaceCount = InMutableMesh->GetSurfaceCount();
+			UnrealConversionUtils::SetupRenderSections(
+				OutSkeletalMesh,
+				InMutableMesh,
+				0,
+				InBoneMap);
 
-				mu::MESH_BUFFER_FORMAT boneIndexFormat = mu::MBF_NONE;
-				int32 BoneIndexComponents = 0;
-				int32 BoneIndexOffset = 0;
-				int32 BoneIndexBuffer = -1;
-				int32 BoneIndexChannel = -1;
-				MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, 0, &BoneIndexBuffer, &BoneIndexChannel);
-				if (BoneIndexBuffer >= 0 || BoneIndexChannel >= 0)
+			UnrealConversionUtils::CopyMutableVertexBuffers(
+				OutSkeletalMesh,
+				InMutableMesh,
+				0); 
+			
+			FSkeletalMeshLODRenderData& LODModel = Helper_GetLODData(OutSkeletalMesh)[0];
+
+			// Generate the active bones array based on the bones found on BoneMap
+			TArray<uint16> ActiveBones;
+			{
+				ActiveBones.Reserve(InBoneMap.Num());
+				for (const uint16& BoneMapIndex : InBoneMap)
 				{
-					MutableMeshVertexBuffers.GetChannel(BoneIndexBuffer, BoneIndexChannel,
-					nullptr, nullptr, &boneIndexFormat, &BoneIndexComponents, &BoneIndexOffset);
+					ActiveBones.AddUnique(BoneMapIndex);
 				}
-
-				const int32 NumBoneInfluences = BoneIndexComponents;
-
-				UnrealConversionUtils::SetupRenderSections(
-					InMutableMesh,
-					OutSkeletalMesh,
-					MeshLODIndex,
-					NumBoneInfluences,
-					InBoneMap);
-			
-				UnrealConversionUtils::CopyMutableVertexBuffers(
-					OutSkeletalMesh,
-					NumVerticesLODModel,
-					NumBoneInfluences,
-					BoneIndexBuffer,
-					MutableMeshVertexBuffers,
-					MeshLODIndex,
-					boneIndexFormat);
-			}
-			
-			
-			{
-				MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_SurfaceLoop_UpdateActiveAndRequiredBones);
-
-				// Generate the active bones array based on the bones found on BoneMap
-				TArray<uint16> ActiveBones;
-				{
-					ActiveBones.Reserve(InBoneMap.Num());
-					for (const uint16& BoneMapIndex : InBoneMap)
-					{
-						ActiveBones.AddUnique(BoneMapIndex);
-					}
-					ActiveBones.Sort();
-				}
-				
-				LODModel.ActiveBoneIndices.Append(ActiveBones);
-				LODModel.RequiredBones.Append(ActiveBones);
-			}
-			
-			if (bSuccess)
-			{
-				bSuccess = UnrealConversionUtils::CopyMutableIndexBuffers(InMutableMesh,LODModel);
+				ActiveBones.Sort();
 			}
 
+			LODModel.ActiveBoneIndices.Append(ActiveBones);
+			LODModel.RequiredBones.Append(ActiveBones);
 			
-			// Update LOD and streaming data
-			if (InRefSkeletalMesh && LODIndex >= 0 && LODIndex < Helper_GetLODNum(InRefSkeletalMesh))
+			// Copy index buffers or fail to generate the mesh
+			if (!UnrealConversionUtils::CopyMutableIndexBuffers(InMutableMesh, LODModel))
 			{
-				const FSkeletalMeshLODRenderData& ReferenceLODModel = Helper_GetLODData(InRefSkeletalMesh)[LODIndex];
-
-				LODModel.bIsLODOptional = ReferenceLODModel.bIsLODOptional;
-				LODModel.bStreamedDataInlined = ReferenceLODModel.bStreamedDataInlined;
-			}
-
-
-			if (!bSuccess)
-			{
-				// End with failure
 				return false;
 			}
+			
+			// Update LOD and streaming data
+			LODModel.bIsLODOptional = false;
+			LODModel.bStreamedDataInlined = false;
 
 			if (InRefSkeletalMesh)
 			{

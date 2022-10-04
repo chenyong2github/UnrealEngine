@@ -46,7 +46,8 @@ namespace  MutableMeshBufferUtils
 	 * @param MaxNumBonesPerVertex Amount of bone influences a vertex can have.
 	 * @param OutTargetVertexBuffers Mesh buffer to be set up. 
 	 */
-	CUSTOMIZABLEOBJECT_API void SetupSkinBuffer(const int32& InCurrentVertexBuffer,const int32& MaxBoneIndexTypeSizeBytes, const int32& MaxNumBonesPerVertex, mu::FMeshBufferSet& OutTargetVertexBuffers);
+	CUSTOMIZABLEOBJECT_API void SetupSkinBuffer(const int32& InCurrentVertexBuffer,const int32& MaxBoneIndexTypeSizeBytes, const int32& MaxBoneWeightTypeSizeBytes,
+		const int32& MaxNumBonesPerVertex, mu::FMeshBufferSet& OutTargetVertexBuffers);
 	
 	/**
 	 * Sets up all the channels that ought to be part of the Vertex Color Buffer of the Mutable mesh owning the provided MeshBufferSet

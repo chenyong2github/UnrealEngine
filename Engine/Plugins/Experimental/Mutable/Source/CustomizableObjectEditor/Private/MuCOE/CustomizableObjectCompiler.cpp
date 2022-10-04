@@ -948,6 +948,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	Options.bExtraBoneInfluencesEnabled = bAreExtraBoneInfluencesEnabled;
 	Options.bRealTimeMorphTargetsEnabled = Object->bEnableRealTimeMorphTargets;
 	Options.bClothingEnabled = Object->bEnableClothing;
+	Options.b16BitBoneWeightsEnabled = Object->bEnable16BitBoneWeights;
 
 	if (Object->IsLocked() || !UCustomizableObjectSystem::GetInstance()->LockObject(Object))
 	{

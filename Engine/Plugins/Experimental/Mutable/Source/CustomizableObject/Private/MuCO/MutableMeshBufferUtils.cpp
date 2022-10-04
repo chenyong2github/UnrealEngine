@@ -92,13 +92,14 @@ void MutableMeshBufferUtils::SetupTexCoordinatesBuffer(const int32& InCurrentVer
 }
 
 
-void MutableMeshBufferUtils::SetupSkinBuffer(const int32& InCurrentVertexBuffer, const int32& MaxBoneIndexTypeSizeBytes,
-                                             const int32& MaxNumBonesPerVertex,
-                                             mu::FMeshBufferSet& OutTargetVertexBuffers)
+void MutableMeshBufferUtils::SetupSkinBuffer(const int32& InCurrentVertexBuffer,
+	const int32& MaxBoneIndexTypeSizeBytes,
+	const int32& MaxBoneWeightTypeSizeBytes,
+	const int32& MaxNumBonesPerVertex,
+	mu::FMeshBufferSet& OutTargetVertexBuffers)
 {
 	using namespace mu;
-	const int32 meshWeightTypeSizeBytes = 1;
-	const int32 ElementSize = (meshWeightTypeSizeBytes + MaxBoneIndexTypeSizeBytes) * MaxNumBonesPerVertex;
+	const int32 ElementSize = (MaxBoneWeightTypeSizeBytes + MaxBoneIndexTypeSizeBytes) * MaxNumBonesPerVertex;
 	constexpr int32 ChannelCount = 2;
 	const MESH_BUFFER_SEMANTIC Semantics[ChannelCount] = {MBS_BONEINDICES, MBS_BONEWEIGHTS};
 	const int32 SemanticIndices[ChannelCount] = {0, 0};
@@ -118,7 +119,8 @@ void MutableMeshBufferUtils::SetupSkinBuffer(const int32& InCurrentVertexBuffer,
 		Formats[0] = mu::MBF_NONE;
 		break;
 	}
-	switch (meshWeightTypeSizeBytes)
+
+	switch (MaxBoneWeightTypeSizeBytes)
 	{
 	case 1: Formats[1] = mu::MBF_NUINT8;
 		break;

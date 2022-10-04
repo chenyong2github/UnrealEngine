@@ -197,6 +197,9 @@ struct FCompilationOptions
 	// Used to enable the use of clothing.
 	bool bClothingEnabled = false;
 
+	// Used to enable 16 bit bone weights
+	bool b16BitBoneWeightsEnabled = false;
+
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
 
@@ -1005,23 +1008,27 @@ public:
 	FCompilationOptions CompileOptions;
 
 	// 
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	bool bDisableTextureLayoutManagement = false;
 
 	//
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	bool bEnableRealTimeMorphTargets = false;
 
 	//
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	bool bEnableClothing = false;
 
+	// TODO: Enable 16 bit weights 
+	UPROPERTY(VisibleAnywhere, Category = CompileOptions)
+	bool bEnable16BitBoneWeights = false;
+
 	// Options when compiling this customizable object (see EMutableCompileMeshType declaration for info)
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	EMutableCompileMeshType MeshCompileType = EMutableCompileMeshType::LocalAndChildren;
 
 	// Array of elements to use with compile option CompileType = WorkingSet
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	TArray<TSoftObjectPtr<UCustomizableObject>> WorkingSet;
 
 	// Editor graph
@@ -1125,7 +1132,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 347;
+	static const int32 CurrentSupportedVersion = 348;
 
 public:
 

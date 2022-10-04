@@ -494,7 +494,11 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		const int ChannelCount = 11;
 		const MESH_BUFFER_SEMANTIC Semantics[ChannelCount] = { MBS_POSITION, MBS_TANGENT, MBS_BINORMAL, MBS_NORMAL, MBS_TEXCOORDS, MBS_TEXCOORDS, MBS_TEXCOORDS, MBS_TEXCOORDS, MBS_COLOUR, MBS_BONEINDICES, MBS_BONEWEIGHTS };
 		const int SemanticIndices[ChannelCount] = { 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 0 };
-		const MESH_BUFFER_FORMAT Formats[ChannelCount] = { MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_NUINT8, MBF_UINT16, MBF_NUINT8 };
+
+		// TODO: Remove BoneWeightFormat after merge
+		MESH_BUFFER_FORMAT BoneWeightFormat = sizeof(TDecay<decltype(DeclVal<FSoftSkinVertex>().InfluenceWeights[0])>::Type) == 1 ? MBF_NUINT8 : MBF_NUINT16;
+		const MESH_BUFFER_FORMAT Formats[ChannelCount] = { MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_FLOAT32, MBF_NUINT8, MBF_UINT16, BoneWeightFormat };
+
 		int Components[ChannelCount] = { 3, 3, 3, 4, 2, 2, 2, 2, 4, 4, 4 };
 		if (GenerationContext.Options.bExtraBoneInfluencesEnabled && MaxSectionInfluences > 4)
 		{
@@ -502,7 +506,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			Components[10] = EXTRA_BONE_INFLUENCES;
 		}
 
-        constexpr size_t SoftSkinVertexUVsElemSize = sizeof(TDecay<decltype(DeclVal<FSoftSkinVertex>().UVs[0])>::Type); 
+		constexpr size_t SoftSkinVertexUVsElemSize = sizeof(TDecay<decltype(DeclVal<FSoftSkinVertex>().UVs[0])>::Type);
 		const int Offsets[ChannelCount] =
 		{
 			STRUCT_OFFSET(FSoftSkinVertex, Position),
@@ -518,6 +522,30 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			STRUCT_OFFSET(FSoftSkinVertex, InfluenceWeights),
 		};
 
+		// Fix bone weights if required (uint8 -> uint16)
+		if (BoneWeightFormat == MBF_NUINT16 && Vertices.IsValidIndex(VertexStart))
+		{
+			FSoftSkinVertex FirstVertex = Vertices[VertexStart];
+
+			uint16 TotalWeight = 0;
+			for (int32 InfluenceIndex = 0; InfluenceIndex < MaxSectionInfluences; ++InfluenceIndex)
+			{
+				TotalWeight += FirstVertex.InfluenceWeights[InfluenceIndex];
+			}
+
+			if (TotalWeight <= 255)
+			{
+				for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
+				{
+					FSoftSkinVertex& Vertex = Vertices[VertexIndex];
+					for (int32 InfluenceIndex = 0; InfluenceIndex < MaxSectionInfluences; ++InfluenceIndex)
+					{
+						Vertex.InfluenceBones[InfluenceIndex] = Vertex.InfluenceBones[InfluenceIndex] * (65535 / 255);
+					}
+				}
+			}
+		}
+
 		if (GenerationContext.Options.bExtraBoneInfluencesEnabled && MaxSectionInfluences < EXTRA_BONE_INFLUENCES)
 		{
 			for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
@@ -532,7 +560,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		}
 		else if (!GenerationContext.Options.bExtraBoneInfluencesEnabled)
 		{
-			int32 MaxSectionBoneMapIndex = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
+			const int32 MaxBoneWeightValue = BoneWeightFormat == MBF_NUINT16 ? 65535 : 255;
+			const int32 MaxSectionBoneMapIndex = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
 
 			// Renormalize to 4 weights per vertex
 			for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
@@ -633,7 +662,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 						if (j < MaxMutableWeights)
 						{
 							float Aux = Vertex.InfluenceWeights[j];
-							int32 Res = FMath::RoundToInt(Aux / TotalWeight * 255);
+							int32 Res = FMath::RoundToInt(Aux / TotalWeight * MaxBoneWeightValue);
 							AssignedWeight += Res;
 							Vertex.InfluenceWeights[j] = Res;
 						}
@@ -643,11 +672,11 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 						}
 					}
 
-					Vertex.InfluenceWeights[0] = 255 - AssignedWeight;
+					Vertex.InfluenceWeights[0] = MaxBoneWeightValue - AssignedWeight;
 				}
 				else
 				{
-					Vertex.InfluenceWeights[0] = 255;
+					Vertex.InfluenceWeights[0] = MaxBoneWeightValue;
 
 					for (int32 j = 1; j < MaxMutableWeights; ++j)
 					{

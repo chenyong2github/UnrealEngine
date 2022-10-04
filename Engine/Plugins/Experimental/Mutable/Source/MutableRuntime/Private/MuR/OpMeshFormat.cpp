@@ -632,13 +632,24 @@ namespace mu
 							{
 								if (resultFormat == MBF_NUINT8)
 								{
-									auto pData = (uint8_t*)pResultBuf;
+									uint8_t* pData = (uint8_t*)pResultBuf;
 									uint8_t accum = 0;
 									for (int i = 0; i < resultComponents; ++i)
 									{
 										accum += pData[i];
 									}
 									pData[0] += 255 - accum;
+								}
+
+								else if (resultFormat == MBF_NUINT16)
+								{
+									uint16_t* pData = (uint16_t*)pResultBuf;
+									uint16_t accum = 0;
+									for (int i = 0; i < resultComponents; ++i)
+									{
+										accum += pData[i];
+									}
+									pData[0] += 65535 - accum;
 								}
 							}
 						}

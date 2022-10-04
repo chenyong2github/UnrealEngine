@@ -4325,48 +4325,20 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 			return false;
 		}
 
-		// Detect if the produced mesh is correct
-		bool bSuccess = true;
-
 		SetLastMeshId(Component.Id, LODIndex, Component.Mesh->GetId());
 
-		FSkeletalMeshLODRenderData& LODModel = Helper_GetLODData(SkeletalMesh)[MeshLODIndex];
-		const mu::FMeshBufferSet& MutableMeshVertexBuffers = Component.Mesh->GetVertexBuffers();
-
-		int32 NumVerticesLODModel = Component.Mesh->GetVertexCount();
-		int32 SurfaceCount = Component.Mesh->GetSurfaceCount();
-
-		mu::MESH_BUFFER_FORMAT boneIndexFormat = mu::MBF_NONE;
-		int boneIndexComponents = 0;
-		int boneIndexOffset = 0;
-		int boneIndexBuffer = -1;
-		int boneIndexChannel = -1;
-		MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, 0, &boneIndexBuffer, &boneIndexChannel);
-		if (boneIndexBuffer >= 0 || boneIndexChannel >= 0)
-		{
-			MutableMeshVertexBuffers.GetChannel(boneIndexBuffer, boneIndexChannel,
-				nullptr, nullptr, &boneIndexFormat, &boneIndexComponents, &boneIndexOffset);
-		}
-
-		int NumBoneInfluences = boneIndexComponents;
-
-		TArray<uint16>& BoneMap = Component.BoneMap;
 		UnrealConversionUtils::SetupRenderSections(
-			Component.Mesh,
 			SkeletalMesh,
+			Component.Mesh,
 			MeshLODIndex,
-			NumBoneInfluences,
-			BoneMap);
+			Component.BoneMap);
 
 		UnrealConversionUtils::CopyMutableVertexBuffers(
 			SkeletalMesh,
-			NumVerticesLODModel,
-			NumBoneInfluences,
-			boneIndexBuffer,
-			MutableMeshVertexBuffers,
-			MeshLODIndex,
-			boneIndexFormat);
+			Component.Mesh,
+			MeshLODIndex);
 
+		FSkeletalMeshLODRenderData& LODModel = Helper_GetLODData(SkeletalMesh)[MeshLODIndex];
 
 		if (LODModel.DoesVertexBufferUse16BitBoneIndex() && !UCustomizableObjectSystem::GetInstance()->IsSupport16BitBoneIndexEnabled())
 		{
@@ -4385,29 +4357,21 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 #endif
 		}
 
-
 		// Update active and required bones
-		{
-			MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_SurfaceLoop_UpdateActiveAndRequiredBones);
-			LODModel.ActiveBoneIndices.Append(Component.ActiveBones);
-			LODModel.RequiredBones.Append(Component.ActiveBones);
-		}
+		LODModel.ActiveBoneIndices.Append(Component.ActiveBones);
+		LODModel.RequiredBones.Append(Component.ActiveBones);
 
-		if (bSuccess)
+		// Copy indices.
+		if (!UnrealConversionUtils::CopyMutableIndexBuffers(Component.Mesh, LODModel))
 		{
-			bSuccess = UnrealConversionUtils::CopyMutableIndexBuffers(Component.Mesh,LODModel);
+			// End with failure
+			return false;
 		}
 
 		// Update LOD and streaming data
 		const FMutableRefLODRenderData& RefLODRenderData = CustomizableObject->GetRefSkeletalMeshData(Component.Id)->LODData[LODIndex].RenderData;
 		LODModel.bIsLODOptional = RefLODRenderData.bIsLODOptional;
 		LODModel.bStreamedDataInlined = RefLODRenderData.bStreamedDataInlined;
-
-		if (!bSuccess)
-		{
-			// End with failure
-			return false;
-		}
 
 	}
 	
