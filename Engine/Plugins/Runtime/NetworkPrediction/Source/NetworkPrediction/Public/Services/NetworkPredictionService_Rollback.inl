@@ -5,9 +5,10 @@
 
 namespace NetworkPredictionCVars
 {
-	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile, 0, "np.ForceReconcile", "Force a single reconcile");
-	NETSIM_DEVCVAR_SHIPCONST_INT(SkipReconcile, 0, "np.SkipReconcile", "Skip all reconciles");
-	NETSIM_DEVCVAR_SHIPCONST_INT(PrintReconciles, 0, "np.PrintReconciles", "Print reconciles to log");
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcile,			0, "np.ForceReconcile",				"Force a single reconcile back to the last server-acknoledged frame. When used with np.ForceReconcileExtraFrames, additional frames can be rolled back. No effect on server. Resets after use.");
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceReconcileExtraFrames, 0, "np.ForceReconcileExtraFrames",	"Roll back this extra number of frames during the next targeted reconcile. Must be positive and reasonable given the buffer sizes.");
+	NETSIM_DEVCVAR_SHIPCONST_INT(SkipReconcile,				0, "np.SkipReconcile",				"Skip all reconciles");
+	NETSIM_DEVCVAR_SHIPCONST_INT(PrintReconciles,			0, "np.PrintReconciles",			"Print reconciles to log");
 }
 
 class IFixedRollbackService
@@ -79,7 +80,21 @@ public:
 			typename TInstanceFrameState<ModelDef>::FFrame& LocalFrameData = Frames.Buffer[LocalFrame];
 
 			bool bDoRollback = false;
-			if (FNetworkPredictionDriver<ModelDef>::ShouldReconcile( SyncAuxType(LocalFrameData.SyncState, LocalFrameData.AuxState), SyncAuxType(ClientRecvData.SyncState, ClientRecvData.AuxState) ))
+
+			if (NetworkPredictionCVars::ForceReconcile() > 0)
+			{
+				UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID);
+				bDoRollback = true;
+				RollbackFrame = LocalFrame - FMath::Max(0, NetworkPredictionCVars::ForceReconcileExtraFrames());
+
+				if (NetworkPredictionCVars::PrintReconciles())
+				{				
+					UE_LOG(LogNetworkPrediction, Warning, TEXT("Reconcile activated due to ForceReconcile (to RollbackFrame=%i, including %i extra rollback frames)"), RollbackFrame, -(RollbackFrame-LocalFrame));
+				}
+
+				NetworkPredictionCVars::SetForceReconcile(0); // reset
+			}
+			else if (FNetworkPredictionDriver<ModelDef>::ShouldReconcile( SyncAuxType(LocalFrameData.SyncState, LocalFrameData.AuxState), SyncAuxType(ClientRecvData.SyncState, ClientRecvData.AuxState) ))
 			{
 				UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID);
 				bDoRollback = true;
@@ -121,7 +136,7 @@ public:
 				}
 			}
 
-			if ((bDoRollback || NetworkPredictionCVars::ForceReconcile() > 0) && !NetworkPredictionCVars::SkipReconcile())
+			if (bDoRollback && !NetworkPredictionCVars::SkipReconcile())
 			{
 				RollbackFrame = (RollbackFrame == INDEX_NONE) ? LocalFrame : FMath::Min(RollbackFrame, LocalFrame);
 			}

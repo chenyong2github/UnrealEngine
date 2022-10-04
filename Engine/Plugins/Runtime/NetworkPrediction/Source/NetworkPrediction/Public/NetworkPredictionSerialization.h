@@ -17,6 +17,11 @@
 #define NETSIM_NETCONSTANT_NUM_BITS_FRAME 8	// Allows you to override this setting via UBT, but access via cleaner FActorMotionNetworkingConstants::NUM_BITS_FRAME
 #endif
 
+namespace NetworkPredictionCVars
+{
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceSendDefaultInputCommands, 0, "np.ForceSendDefaultInputCommands", "While enabled on a client, it will send default input cmds to the server, rather than the locally-produced input. This is a way to introduce de-syncs/rollbacks for debugging.");
+}
+
 struct FNetworkPredictionSerialization
 {
 	// How many bits we use to NetSerialize Frame numbers. This is only relevant AP Client <--> Server communication.
@@ -166,7 +171,16 @@ public:
 			}
 			else
 			{
-				FNetworkPredictionDriver<ModelDef>::NetSerialize(Frames->Buffer[Frame].InputCmd, P); // 2. InputCmd
+				if (NetworkPredictionCVars::ForceSendDefaultInputCommands())
+				{
+					// for debugging, send blank default input instead of what we've produced locally
+					static TConditionalState<InputType> DefaultInputCmd;
+					FNetworkPredictionDriver<ModelDef>::NetSerialize(DefaultInputCmd, P); 
+				}
+				else
+				{
+					FNetworkPredictionDriver<ModelDef>::NetSerialize(Frames->Buffer[Frame].InputCmd, P); // 2. InputCmd
+				}
 			}
 		}
 	}
@@ -276,7 +290,17 @@ public:
 			}
 			else
 			{
-				FNetworkPredictionDriver<ModelDef>::NetSerialize(Frames->Buffer[Frame].InputCmd, P); // 2. InputCmd
+				if (NetworkPredictionCVars::ForceSendDefaultInputCommands())
+				{
+					// for debugging, send blank default input instead of what we've produced locally
+					static TConditionalState<InputType> DefaultInputCmd;
+					FNetworkPredictionDriver<ModelDef>::NetSerialize(DefaultInputCmd, P);
+				}
+				else
+				{
+					FNetworkPredictionDriver<ModelDef>::NetSerialize(Frames->Buffer[Frame].InputCmd, P); // 2. InputCmd
+				}
+
 				FNetworkPredictionSerialization::SerializeDeltaMS(P.Ar, TickState->Frames[Frame].DeltaMS); // 3. Delta InputCmd
 			}
 		}
