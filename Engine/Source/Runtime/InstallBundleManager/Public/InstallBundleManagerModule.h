@@ -72,6 +72,8 @@ public:
 			check(LastInstallBundleManager == nullptr);
 			InstallBundleManager = MakeShared<InstallBundleManagerModuleImpl>();
 			LastInstallBundleManager = InstallBundleManager;
+
+			InstallBundleManager->Initialize();
 		}
 	}
 };

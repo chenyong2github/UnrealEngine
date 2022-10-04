@@ -485,6 +485,8 @@ public:
 
 	virtual ~FDefaultInstallBundleManager();
 
+	virtual void Initialize() override;
+
 	//Tick
 protected:
 	bool Tick(float dt);

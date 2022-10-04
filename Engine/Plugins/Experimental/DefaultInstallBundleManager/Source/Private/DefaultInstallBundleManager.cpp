@@ -201,16 +201,6 @@ FDefaultInstallBundleManager::FDefaultInstallBundleManager(const TCHAR* InConfig
 	const TCHAR* DefaultConfigBaseName = TEXT("InstallBundleManager");
 	FConfigContext::ReadIntoGConfig().Load(InConfigBaseName ? InConfigBaseName : DefaultConfigBaseName, GInstallBundleManagerIni);
 
-	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDefaultInstallBundleManager::Tick));
-
-	InitErrorHandlerStack.Push(FInstallBundleManagerInitErrorHandler::CreateLambda(
-		[](EInstallBundleManagerInitResult Error)
-		{
-			// Default Handler, Just keep retrying
-			return EInstallBundleManagerInitErrorHandlerResult::Retry;
-		}
-	));
-
 #if WITH_EDITOR
 	// -UsePaks needs to be specified on the command line for valid pak to be created.
 	// To support mounting pak files in the editor binary add the encryption key.
@@ -221,6 +211,27 @@ FDefaultInstallBundleManager::FDefaultInstallBundleManager(const TCHAR* InConfig
 
 	SetErrorSimulationCommands(FCommandLine::Get());
 	SetCommandLineOverrides(FCommandLine::Get());
+}
+
+FDefaultInstallBundleManager::~FDefaultInstallBundleManager()
+{
+	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	TickHandle.Reset();
+
+	InstallBundleUtil::CleanupInstallBundleAsyncIOTasks(AsyncMountTasks);
+}
+
+void FDefaultInstallBundleManager::Initialize()
+{
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDefaultInstallBundleManager::Tick));
+
+	InitErrorHandlerStack.Push(FInstallBundleManagerInitErrorHandler::CreateLambda(
+		[](EInstallBundleManagerInitResult Error)
+		{
+			// Default Handler, Just keep retrying
+			return EInstallBundleManagerInitErrorHandlerResult::Retry;
+		}
+	));
 
 	if (InitResult == EInstallBundleManagerInitResult::OK)
 		InitResult = Init_DefaultBundleSources();
@@ -230,14 +241,6 @@ FDefaultInstallBundleManager::FDefaultInstallBundleManager(const TCHAR* InConfig
 		LOG_INSTALL_BUNDLE_MAN(Warning, TEXT("Unrecoverable Initialization Failure - %s"), LexToString(InitResult));
 		bUnrecoverableInitError = true;
 	}
-}
-
-FDefaultInstallBundleManager::~FDefaultInstallBundleManager()
-{
-	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
-	TickHandle.Reset();
-
-	InstallBundleUtil::CleanupInstallBundleAsyncIOTasks(AsyncMountTasks);
 }
 
 bool FDefaultInstallBundleManager::Tick(float dt)

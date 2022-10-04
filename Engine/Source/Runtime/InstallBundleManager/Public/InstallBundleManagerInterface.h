@@ -96,6 +96,8 @@ public:
 
 	virtual ~IInstallBundleManager() {}
 
+	virtual void Initialize() {}
+
 	virtual bool HasBundleSource(EInstallBundleSourceType SourceType) const = 0;
 
 	virtual FDelegateHandle PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) = 0;
