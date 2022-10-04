@@ -6,6 +6,7 @@
 
 #include "D3D12RHIPrivate.h"
 #include "TextureProfiler.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
@@ -390,6 +391,10 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 		// This means that we must manually add the tracking here.
 		LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Texture.GetResource(), TextureSize, ELLMTag::GraphicsPlatform));
 		LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Texture.GetResource(), TextureSize, ELLMTag::Textures));
+		{
+			UE_MEMSCOPE_DEFAULT(ELLMTag::Textures);
+			MemoryTrace_Alloc((uint64)Texture.GetResource(), TextureSize, 1024, EMemoryTraceRootHeap::VideoMemory);
+		}
 #endif
 		INC_DWORD_STAT(STAT_D3D12TexturesAllocated);
 	}
@@ -398,6 +403,7 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 #if PLATFORM_WINDOWS
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Texture.GetResource()));
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, Texture.GetResource()));
+		MemoryTrace_Free((uint64)Texture.GetResource(), EMemoryTraceRootHeap::VideoMemory);
 #endif
 		INC_DWORD_STAT(STAT_D3D12TexturesReleased);
 	}

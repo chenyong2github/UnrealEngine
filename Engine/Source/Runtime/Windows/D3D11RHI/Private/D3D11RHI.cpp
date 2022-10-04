@@ -8,6 +8,7 @@
 #include "RHIStaticStates.h"
 #include "StaticBoundShaderState.h"
 #include "Engine/GameViewportClient.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 #if WITH_DX_PERF
 	// For perf events
@@ -728,6 +729,7 @@ void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating)
 		// to hook the actual d3d allocations we can't track the memory in the normal way.
 		// Instead we simply tell LLM the size of these resources.
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, Desc.ByteWidth, ELLMTracker::Platform, ELLMAllocType::None);
+		MemoryTrace_Alloc((uint64)Buffer.GetReference(), Desc.ByteWidth, 0, EMemoryTraceRootHeap::VideoMemory);
 	}
 	else
 	{ //-V523
@@ -752,6 +754,7 @@ void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating)
 		// to hook the actual d3d allocations we can't track the memory in the normal way.
 		// Instead we simply tell LLM the size of these resources.
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)Desc.ByteWidth, ELLMTracker::Platform, ELLMAllocType::None);
+		MemoryTrace_Free((uint64)Buffer.GetReference(), EMemoryTraceRootHeap::VideoMemory);
 	}
 }
 
