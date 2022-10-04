@@ -82,6 +82,10 @@ namespace Metasound
 			FDelegateHandle InputSliderOnValueChangedDelegateHandle;
 			// Handle for on input slider range changed  
 			FDelegateHandle InputSliderOnRangeChangedDelegateHandle;
+
+			// Whether the input widget is currently transacting 
+			// for keeping track of transaction state across delegates to only commit transaction on value commit
+			bool bIsInputWidgetTransacting = false;
 		};
 
 		class SMetaSoundGraphNodeKnot : public SGraphNodeKnot

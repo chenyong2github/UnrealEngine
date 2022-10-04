@@ -180,17 +180,10 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	{
 		SetDefault(Default);
 	}
-	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType)) || PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType)))
+	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType)) ||
+		PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType)))
 	{
-		if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Linear)
-		{
-			SetRange(FVector2D(0.0f, 1.0f));
-		}
-		else if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Frequency)
-		{
-			SetRange(FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY));
-		}
-		else if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
+		if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
 		{
 			SetRange(FVector2D(-100.0f, 0.0f));
 		}
@@ -202,21 +195,25 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	{
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			// if Range.Y < Range.X, set Range.X to Range.Y
-			Range.X = FMath::Min(Range.X, Range.Y);
+			// if Range.X > Range.Y, set Range.Y to Range.X
+			Range.Y = FMath::Max(Range.X, Range.Y);
 			ForceRefresh();
 		}
 	}
 	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault)))
 	{
-		// set range to reasonable limit given current value
-		if (FMath::IsNearlyEqual(Default, 0.0f))
+		// If value is not within current range, keep it, otherwise set it to a reasonable range 
+		if (!(Default >= Range.X && Default <= Range.Y))
 		{
-			SetRange(FVector2D(0.0f, 1.0f));
-		}
-		else
-		{
-			SetRange(FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default)));
+			// set range to reasonable limit given current value
+			if (FMath::IsNearlyEqual(Default, 0.0f))
+			{
+				SetRange(FVector2D(0.0f, 1.0f));
+			}
+			else
+			{
+				SetRange(FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default)));
+			}
 		}
 		OnClampChanged.Broadcast(ClampDefault);
 	}
@@ -224,19 +221,18 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	UMetasoundEditorGraphMember* Member = GetParentMember();
 	if (ensure(Member))
 	{
-		FMetasoundFrontendDocumentModifyContext& ModifyContext = Member->GetOwningGraph()->GetModifyContext();
-
 		// Only update member on non-interactive changes to avoid refreshing the details panel mid-update
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
+			FMetasoundFrontendDocumentModifyContext& ModifyContext = Member->GetOwningGraph()->GetModifyContext();
 			ModifyContext.AddMemberIDsModified({ Member->GetMemberID() });
-		}
 
-		// Mark all nodes as modified to refresh them on synchronization.  This ensures all corresponding widgets get updated.
-		const TArray<UMetasoundEditorGraphMemberNode*> MemberNodes = Member->GetNodes();
-		TSet<FGuid> NodesToRefresh;
-		Algo::Transform(MemberNodes, NodesToRefresh, [](const UMetasoundEditorGraphMemberNode* MemberNode) { return MemberNode->GetNodeID(); });
-		ModifyContext.AddNodeIDsModified({ NodesToRefresh });
+			// Mark all nodes as modified to refresh them on synchronization.  This ensures all corresponding widgets get updated.
+			const TArray<UMetasoundEditorGraphMemberNode*> MemberNodes = Member->GetNodes();
+			TSet<FGuid> NodesToRefresh;
+			Algo::Transform(MemberNodes, NodesToRefresh, [](const UMetasoundEditorGraphMemberNode* MemberNode) { return MemberNode->GetNodeID(); });
+			ModifyContext.AddNodeIDsModified({ NodesToRefresh });
+		}
 	}
 
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);

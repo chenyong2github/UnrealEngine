@@ -667,7 +667,15 @@ namespace Metasound
 						{
 							if (InputWidget.IsValid())
 							{
-								constexpr bool bPostTransaction = false;
+								if (!this->bIsInputWidgetTransacting)
+								{
+									GEditor->BeginTransaction(LOCTEXT("MetasoundSetInputDefault", "Set MetaSound Input Default"));
+									this->bIsInputWidgetTransacting = true;
+								}
+								GraphMember->GetOwningGraph()->GetMetasound()->Modify();
+								DefaultFloat->Modify();
+
+								constexpr bool bPostTransaction = true;
 								float Output = InputWidget->GetOutputValue(Value);
 								DefaultFloat->SetDefault(Output);
 								GraphMember->UpdateFrontendDefaultLiteral(bPostTransaction);
@@ -678,9 +686,21 @@ namespace Metasound
 						{
 							if (InputWidget.IsValid())
 							{
-								constexpr bool bPostTransaction = true;
+								bool bPostTransaction = false;
 								float Output = InputWidget->GetOutputValue(Value);
 								DefaultFloat->SetDefault(Output);
+
+								if (bIsInputWidgetTransacting)
+								{
+									GEditor->EndTransaction();
+									bIsInputWidgetTransacting = false;
+								}
+								else
+								{
+									bPostTransaction = true;
+									UE_LOG(LogMetaSound, Warning, TEXT("Unmatched MetaSound editor widget transaction."));
+								}
+
 								GraphMember->UpdateFrontendDefaultLiteral(bPostTransaction);
 
 								if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
@@ -754,6 +774,7 @@ namespace Metasound
 									+ SHorizontalBox::Slot()
 									.HAlign(HAlign_Fill)
 									.VAlign(VAlign_Center)
+									.Padding(WidgetPadding, 0.0f, WidgetPadding, 0.0f)
 									.AutoWidth()
 									[
 										Slot1.ToSharedRef()
@@ -761,7 +782,6 @@ namespace Metasound
 								+ SHorizontalBox::Slot()
 									.HAlign(HAlign_Center)
 									.VAlign(VAlign_Fill)
-									.Padding(WidgetPadding, 0.0f, 0.0f, WidgetPadding)
 									.AutoWidth()
 									[
 										Slot2.ToSharedRef()
