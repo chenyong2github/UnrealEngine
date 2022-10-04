@@ -450,6 +450,8 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	GameThreadCollection.AddExternalAttribute<TUniquePtr<Chaos::FGeometryParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
 	
 
+	const FVector Scale = Parameters.WorldTransform.GetScale3D();
+
 	TArray<int32> ChildrenToCheckForParentFix;
 	if(ensure(NumTransforms == GameThreadCollection.Implicits.Num() && NumTransforms == GTParticles.Num())) // Implicits are in the transform group so this invariant should always hold
 	{
@@ -466,7 +468,14 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 			P->SetR(T.GetRotation(), false);
 			P->SetUserData(Parameters.UserData);
 			P->SetProxy(this);
-			P->SetGeometry(GameThreadCollection.Implicits[Index]);
+
+			FGeometryDynamicCollection::FSharedImplicit ImplicitGeometry = GameThreadCollection.Implicits[Index];
+			if (!Scale.Equals(FVector::OneVector))
+			{
+				TUniquePtr<Chaos::FImplicitObject> ScaledImplicit = ImplicitGeometry->CopyWithScale(Scale);
+				ImplicitGeometry = FGeometryDynamicCollection::FSharedImplicit(ScaledImplicit.Release());
+			}
+			P->SetGeometry(ImplicitGeometry);
 
 			// this step is necessary for Phase 2 where we need to walk back the hierarchy from children to parent 
 			if (bGeometryCollectionAlwaysGenerateGTCollisionForClusters && GameThreadCollection.Children[Index].Num() == 0)
@@ -1581,6 +1590,84 @@ void FGeometryCollectionPhysicsProxy::DisableParticles_External(TArray<int32>&& 
 				for (int32 TransformIdx : IndicesToDisable)
 				{
 					RBDSolver->GetEvolution()->DisableParticleWithRemovalEvent(SolverParticleHandles[TransformIdx]);
+				}
+			});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyForceAt_External(FVector Force, FVector WorldLocation)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, Force, WorldLocation, RBDSolver]()
+			{
+				Chaos::FReal ClosestDistanceSquared = TNumericLimits<Chaos::FReal>::Max();
+				Chaos::FPBDRigidClusteredParticleHandle* ClosestHandle = nullptr;
+
+				Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+				for (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle : Clustering.GetTopLevelClusterParents())
+				{
+					if (ClusteredHandle && ClusteredHandle->PhysicsProxy() == this)
+					{
+						if (ClusteredHandle->IsDynamic())
+						{
+							const Chaos::FReal DistanceSquared = (WorldLocation - ClusteredHandle->X()).SquaredLength();
+							if (DistanceSquared < ClosestDistanceSquared)
+							{
+								ClosestDistanceSquared = DistanceSquared;
+								ClosestHandle = ClusteredHandle;
+							}
+						}
+					}
+				}
+				if (ClosestHandle)
+				{
+					const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesXR::GetCoMWorldPosition(ClosestHandle);
+					const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(WorldLocation - WorldCOM, Force);
+					ClosestHandle->AddForce(Force);
+					ClosestHandle->AddTorque(WorldTorque);
+				}
+			});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyImpulseAt_External(FVector Impulse, FVector WorldLocation)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, Impulse, WorldLocation, RBDSolver]()
+			{
+				Chaos::FReal ClosestDistanceSquared = TNumericLimits<Chaos::FReal>::Max();
+				Chaos::FPBDRigidClusteredParticleHandle* ClosestHandle = nullptr;
+
+				Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+				for (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle : Clustering.GetTopLevelClusterParents())
+				{
+					if (ClusteredHandle && ClusteredHandle->PhysicsProxy() == this)
+					{
+						if (ClusteredHandle->IsDynamic())
+						{
+							const Chaos::FReal DistanceSquared = (WorldLocation - ClusteredHandle->X()).SquaredLength();
+							if (DistanceSquared < ClosestDistanceSquared)
+							{
+								ClosestDistanceSquared = DistanceSquared;
+								ClosestHandle = ClusteredHandle;
+							}
+						}
+					}
+				}
+				if (ClosestHandle)
+				{
+					const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesXR::GetCoMWorldPosition(ClosestHandle);
+					ClosestHandle->SetLinearImpulseVelocity(ClosestHandle->LinearImpulseVelocity() + (Impulse * ClosestHandle->InvM()), false);
+
+					const Chaos::FMatrix33 WorldInvI = Chaos::Utilities::ComputeWorldSpaceInertia(ClosestHandle->R() * ClosestHandle->RotationOfMass(), ClosestHandle->InvI());
+					const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(WorldLocation - WorldCOM, Impulse);
+					ClosestHandle->SetAngularImpulseVelocity(ClosestHandle->AngularImpulseVelocity() + WorldInvI * AngularImpulse, false);
 				}
 			});
 	}

@@ -281,6 +281,13 @@ namespace CharacterMovementCVars
 		TEXT("To avoid sudden velocity changes when a root motion source moves the pawn from a moving base to free fall, this CVar will enable the FormerBaseVelocityDecayHalfLife property on CharacterMovementComponent."),
 		ECVF_Default);
 
+	static bool bGeometryCollectionImpulseWorkAround = true;
+	FAutoConsoleVariableRef CVarGeometryCollectionImpulseWorkAround(
+		TEXT("p.CVarGeometryCollectionImpulseWorkAround"),
+		bGeometryCollectionImpulseWorkAround,
+		TEXT("This enabled a workaround to allow impulses to be applied to geometry collection.\n"),
+		ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 
 	int32 NetShowCorrections = 0;
@@ -7015,12 +7022,14 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 	{
 		if (UPrimitiveComponent* ImpactComponent = Impact.GetComponent())
 		{
+			FVector ForcePoint = Impact.ImpactPoint;
+			float BodyMass = 1.0f; // set to 1 as this is used as a multiplier
+
+			bool bCanBePushed = true;
 			FBodyInstance* BI = ImpactComponent->GetBodyInstance(Impact.BoneName);
 			if(BI != nullptr && BI->IsInstanceSimulatingPhysics())
 			{
-				FVector ForcePoint = Impact.ImpactPoint;
-
-				const float BodyMass = FMath::Max(BI->GetBodyMass(), 1.0f);
+				BodyMass = FMath::Max(BI->GetBodyMass(), 1.0f);
 
 				if(bPushForceUsingZOffset)
 				{
@@ -7034,7 +7043,29 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 						ForcePoint.Z = Center.Z + Extents.Z * PushForcePointZOffsetFactor;
 					}
 				}
+			}
+			else if (CharacterMovementCVars::bGeometryCollectionImpulseWorkAround)
+			{
+				const FName ClassName = ImpactComponent->GetClass()->GetFName();
+				const FName GeometryCollectionClassName("UGeometryCollectionComponent");
+				if (ClassName == GeometryCollectionClassName && ImpactComponent->BodyInstance.bSimulatePhysics)
+				{
+					// in some case GetBodyInstance can return null while the BodyInstance still exists ( geometry collection component for example )
+					// but we cannot check for its component directly here because of modules cyclic dependencies
+					// todo(chaos): change this logic to be more driven at the primitive component level to avoid the high level classes to have to be aware of the different component
 
+					// because of the above limititation we have to ignore bPushForceUsingZOffset
+
+					bCanBePushed = true; // not necessary as this is already set by default but it's better than leaving this block empty
+				}
+			}
+			else
+			{
+				// no body instance, not a GC, not supported scenario
+				bCanBePushed = false;
+			}
+			if (bCanBePushed)
+			{
 				FVector Force = Impact.ImpactNormal * -1.0f;
 
 				float PushForceModificator = 1.0f;
@@ -7045,7 +7076,7 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 				float Dot = 0.0f;
 
 				if (bScalePushForceToVelocity && !ComponentVelocity.IsNearlyZero())
-				{			
+				{
 					Dot = ComponentVelocity | VirtualVelocity;
 
 					if (Dot > 0.0f && Dot < 1.0f)
