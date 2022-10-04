@@ -58,6 +58,14 @@ static FAutoConsoleVariableRef CVarNaniteRayTracingMaxNumIndices(
 	ECVF_ReadOnly
 );
 
+static int32 GNaniteRayTracingMaxBuiltPrimitivesPerFrame = 8 * 1024 * 1024;
+static FAutoConsoleVariableRef CVarNaniteRayTracingMaxBuiltPrimitivesPerFrame(
+	TEXT("r.RayTracing.Nanite.MaxBuiltPrimitivesPerFrame"),
+	GNaniteRayTracingMaxBuiltPrimitivesPerFrame,
+	TEXT("Limit number of BLAS built per frame based on a budget defined in terms of maximum number of triangles."),
+	ECVF_RenderThreadSafe
+);
+
 DECLARE_GPU_STAT(RebuildNaniteBLAS);
 
 namespace Nanite
@@ -443,6 +451,37 @@ namespace Nanite
 			Swap(PendingRemoves, StillPendingRemoves);
 		}
 
+		int32 NumPrimitivesScheduled = 0;
+
+		// scheduling pending builds
+		{
+			checkf(ScheduledBuilds.IsEmpty(), TEXT("Scheduled builds were not dispacthed last frame."));
+
+			for (const FPendingBuild& PendingBuild : PendingBuilds)
+			{
+				if (NumPrimitivesScheduled >= GNaniteRayTracingMaxBuiltPrimitivesPerFrame)
+				{
+					break;
+				}
+
+				NumPrimitivesScheduled += PendingBuild.RayTracingGeometryRHI->GetInitializer().TotalPrimitiveCount;
+
+				FInternalData& Data = *Geometries[PendingBuild.GeometryId];
+				Data.RayTracingGeometryRHI = PendingBuild.RayTracingGeometryRHI;
+
+				for (auto& Primitive : Data.Primitives)
+				{
+					Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
+				}
+
+				ScheduledBuilds.Add(PendingBuild.GeometryId);
+			}
+
+			// not using RemoveAtSwap to avoid starving requests in the middle
+			// not expecting significant number of elements remaining anyway
+			PendingBuilds.RemoveAt(0, ScheduledBuilds.Num());
+		}
+
 		while (ReadbackBuffersNumPending > 0)
 		{
 			uint32 Index = (ReadbackBuffersWriteIndex + MaxReadbackBuffers - ReadbackBuffersNumPending) % MaxReadbackBuffers;
@@ -505,14 +544,28 @@ namespace Nanite
 						Initializer.TotalPrimitiveCount += Segment.NumPrimitives;
 					}
 
-					Data.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+					FRayTracingGeometryRHIRef RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 
-					for (auto& Primitive : Data.Primitives)
+					if (NumPrimitivesScheduled < GNaniteRayTracingMaxBuiltPrimitivesPerFrame)
 					{
-						Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
-					}
+						NumPrimitivesScheduled += RayTracingGeometryRHI->GetInitializer().TotalPrimitiveCount;
 
-					PendingBuilds.Add(GeometryId);
+						Data.RayTracingGeometryRHI = MoveTemp(RayTracingGeometryRHI);
+
+						for (auto& Primitive : Data.Primitives)
+						{
+							Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
+						}
+
+						ScheduledBuilds.Add(GeometryId);
+					}
+					else
+					{
+						FPendingBuild PendingBuild;
+						PendingBuild.GeometryId = GeometryId;
+						PendingBuild.RayTracingGeometryRHI = MoveTemp(RayTracingGeometryRHI);
+						PendingBuilds.Add(MoveTemp(PendingBuild));
+					}
 				}
 
 				ReadbackData.Entries.Empty();
@@ -529,8 +582,8 @@ namespace Nanite
 	{
 		TArray<FRayTracingGeometryBuildParams> BuildParams;
 		uint32 BLASScratchSize = 0;
-
-		for (uint32 GeometryId : PendingBuilds)
+		
+		for (uint32 GeometryId : ScheduledBuilds)
 		{
 			FInternalData& Data = *Geometries[GeometryId];
 
@@ -545,11 +598,11 @@ namespace Nanite
 			FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingGeometrySize(Initializer);
 			BLASScratchSize = Align(BLASScratchSize + SizeInfo.BuildScratchSize, GRHIRayTracingScratchBufferAlignment);
 
-			Data.BaseMeshDataOffset = -1;
 			Data.bUpdating = false;
+			Data.BaseMeshDataOffset = -1;
 		}
 
-		PendingBuilds.Empty();
+		ScheduledBuilds.Empty();
 
 		bool bAnyBlasRebuilt = false;
 

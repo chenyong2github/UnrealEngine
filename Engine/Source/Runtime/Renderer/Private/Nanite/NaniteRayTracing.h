@@ -87,6 +87,12 @@ namespace Nanite
 			bool bUpdating = false;
 		};
 
+		struct FPendingBuild
+		{
+			FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+			uint32 GeometryId;
+		};
+
 		FRDGBufferRef ResizeAuxiliaryDataBufferIfNeeded(FRDGBuilder& GraphBuilder);
 
 		TMap<uint32, uint32> ResourceToRayTracingIdMap;
@@ -115,7 +121,11 @@ namespace Nanite
 		uint32 ReadbackBuffersWriteIndex;
 		uint32 ReadbackBuffersNumPending;
 
-		TArray<uint32> PendingBuilds;
+		// Geometries to be built this frame
+		TArray<uint32> ScheduledBuilds;
+
+		// Geometries pending BLAS build due to r.RayTracing.Nanite.MaxBlasBuildsPerFrame throttling
+		TArray<FPendingBuild> PendingBuilds;
 
 		TRefCountPtr<FRDGPooledBuffer> NodesAndClusterBatchesBuffer;
 
