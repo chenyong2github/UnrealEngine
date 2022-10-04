@@ -1562,14 +1562,10 @@ void SUsdLayersTreeView::OnNewSubLayer()
 	}
 
 	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
-
+	for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
 	{
-		FScopedUsdAllocs UsdAllocs;
-		for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
-		{
-			SelectedItem->NewSubLayer( *SubLayerFile.GetValue() );
-			break;
-		}
+		SelectedItem->NewSubLayer( *SubLayerFile.GetValue() );
+		break;
 	}
 
 	RequestTreeRefresh();
@@ -1613,23 +1609,19 @@ void SUsdLayersTreeView::OnRemoveSelectedLayers()
 			continue;
 		}
 
+		int32 SubLayerIndex = 0;
+		for ( FUsdLayerViewModelRef Child : SelectedLayer->ParentItem->Children )
 		{
-			FScopedUsdAllocs UsdAllocs;
-
-			int32 SubLayerIndex = 0;
-			for ( FUsdLayerViewModelRef Child : SelectedLayer->ParentItem->Children )
+			if ( Child->LayerIdentifier == SelectedLayer->LayerIdentifier )
 			{
-				if ( Child->LayerIdentifier == SelectedLayer->LayerIdentifier )
+				if ( SelectedLayer->ParentItem )
 				{
-					if ( SelectedLayer->ParentItem )
-					{
-						bLayerRemoved = SelectedLayer->ParentItem->RemoveSubLayer( SubLayerIndex );
-					}
-					break;
+					bLayerRemoved = SelectedLayer->ParentItem->RemoveSubLayer( SubLayerIndex );
 				}
-
-				++SubLayerIndex;
+				break;
 			}
+
+			++SubLayerIndex;
 		}
 	}
 

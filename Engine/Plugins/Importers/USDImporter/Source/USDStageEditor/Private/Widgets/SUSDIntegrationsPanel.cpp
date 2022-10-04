@@ -56,8 +56,6 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 	bool bIsLeftColumn = true;
 	FOptionalSize RowHeight = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 
-	FScopedUsdAllocs Allocs;
-
 	FName AttributeName = Attribute->GetName();
 
 	using DisplayTextForPropertiesEntry = TPairInitializer<const FName&, const FText&>;
