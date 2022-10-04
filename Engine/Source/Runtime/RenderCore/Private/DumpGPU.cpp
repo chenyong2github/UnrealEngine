@@ -136,6 +136,13 @@ static TAutoConsoleVariable<FString> GDumpGPUVisualizeResource(
 	TEXT("Name of RDG output resource to automatically open in the dump viewer."),
 	ECVF_Default);
 
+} // namespace
+
+#endif // RDG_DUMP_RESOURCES
+
+namespace
+{
+
 class FDumpTextureCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDumpTextureCS);
@@ -158,6 +165,13 @@ class FDumpTextureCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDumpTextureCS, "/Engine/Private/Tools/DumpTexture.usf", "MainCS", SF_Compute);
+
+} // namespace
+
+#if RDG_DUMP_RESOURCES
+
+namespace
+{
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDumpTexturePass, )
 	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, Texture)
