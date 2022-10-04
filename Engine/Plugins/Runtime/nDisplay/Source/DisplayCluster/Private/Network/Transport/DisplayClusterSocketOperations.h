@@ -32,7 +32,8 @@ public:
 	// Connect
 	inline bool ConnectSocket(const FInternetAddr& Addr)
 	{
-		if (!IsOpen())
+		// if(!IsOpen()) check was removed from here because of an issue in BSD sockets.
+		if (Socket)
 		{
 			return Socket->Connect(Addr);
 		}
