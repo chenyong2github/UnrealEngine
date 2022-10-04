@@ -924,7 +924,7 @@ public:
 					PackageRef.SetPackage(FoundPackage);
 					FoundPackage->SetCanBeImportedFlag(true);
 					FoundPackage->SetPackageId(PackageId);
-					if (FoundPackage->IsFullyLoaded())
+					if (FoundPackage->bHasBeenFullyLoaded)
 					{
 						PackageRef.SetAllPublicExportsLoaded();
 					}
