@@ -37,6 +37,19 @@ static TAutoConsoleVariable<bool> CVarLazyInitConnections(
 	false,
 	TEXT("When true the VA backends will defer creating their connections until first use"));
 
+//
+#define UE_USE_GLOBAL_CVAR 1
+
+#if UE_USE_GLOBAL_CVAR
+
+static FAutoConsoleVariable CVarAllowPkgVirtualization(
+	TEXT("VA.AllowPkgVirtualization"),
+	true,
+	TEXT("When true submitting packages in the editor will no longer trigger the virtualization process")
+);
+
+#endif // UE_USE_GLOBAL_CVAR
+
 /** Utility struct, similar to FScopeLock but allows the lock to be enabled/disabled more easily */
 struct FConditionalScopeLock
 {
@@ -300,6 +313,14 @@ FVirtualizationManager::FVirtualizationManager()
 
 FVirtualizationManager::~FVirtualizationManager()
 {
+	for (const TPair<IConsoleVariable*, FDelegateHandle>& KV : DebugValues.ConsoleDelegateHandles)
+	{
+		IConsoleVariable* ConsoleVariable = KV.Key;
+		const FDelegateHandle& Handle = KV.Value;
+
+		ConsoleVariable->OnChangedDelegate().Remove(Handle);
+	}
+
 	for (IConsoleObject* ConsoleObject : DebugValues.ConsoleObjects)
 	{
 		IConsoleManager::Get().UnregisterConsoleObject(ConsoleObject);
@@ -1051,6 +1072,39 @@ void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 void FVirtualizationManager::RegisterConsoleCommands()
 {
 	{
+#if UE_USE_GLOBAL_CVAR
+		IConsoleVariable* Handle = IConsoleManager::Get().FindConsoleVariable(TEXT("VA.AllowPkgVirtualization"));
+
+		if (Handle != nullptr)
+		{
+			auto Callback = [this](IConsoleVariable* CVar)
+			{
+				this->bAllowPackageVirtualization = CVar->GetBool();
+
+				if (this->bAllowPackageVirtualization)
+				{
+					UE_LOG(LogVirtualization, Display, TEXT("The virtualization process has been enabled via the cvar 'VA.SkipPkgVirtualization'"));
+				}
+				else
+				{
+					UE_LOG(LogVirtualization, Display, TEXT("The virtualization process has been disabled via the cvar 'VA.SkipPkgVirtualization'"));
+				}
+			};
+
+			FDelegateHandle CallbackHandle = Handle->OnChangedDelegate().AddLambda(MoveTemp(Callback));
+
+			if (bAllowPackageVirtualization != Handle->GetBool())
+			{
+				Callback(Handle);
+			}
+
+			DebugValues.ConsoleDelegateHandles.Add({ Handle, CallbackHandle });
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("CVar VA.AllowPkgVirtualization could not be found and will not function"));
+		}
+#else
 		bool bOriginalValue = bAllowPackageVirtualization;
 
 		IConsoleVariable* Handle = IConsoleManager::Get().RegisterConsoleVariableRef(
@@ -1080,6 +1134,7 @@ void FVirtualizationManager::RegisterConsoleCommands()
 		Handle->OnChangedDelegate().AddLambda(MoveTemp(Callback));
 
 		DebugValues.ConsoleObjects.Add(Handle);
+#endif // UE_USE_GLOBAL_CVAR
 	}
 
 	DebugValues.ConsoleObjects.Add(IConsoleManager::Get().RegisterConsoleCommand(

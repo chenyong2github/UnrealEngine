@@ -275,6 +275,13 @@ private:
 		/** All of the console commands/variables that we register, so they can be unregistered when the manager is destroyed */
 		TArray<IConsoleObject*> ConsoleObjects;
 
+		/** 
+		 * Contains all of the delegate handles that we have bound to IConsoleVariable::OnChangedDelegate and need to be removed
+		 * before it is safe to destroy the manager. Most likely due to having bound a lambda to the delegate that captured the
+		 * FVirtualizationManager this pointer.
+		 */
+		TArray<TPair<IConsoleVariable*, FDelegateHandle>> ConsoleDelegateHandles;
+
 		/** The critical section used to force single threaded access if bForceSingleThreaded is true */
 		FCriticalSection ForceSingleThreadedCS;
 
