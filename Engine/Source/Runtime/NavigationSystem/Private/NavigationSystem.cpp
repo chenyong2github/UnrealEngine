@@ -2209,6 +2209,12 @@ const TSet<FNavigationBounds>& UNavigationSystemV1::GetNavigationBounds() const
 
 void UNavigationSystemV1::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
 {
+	// Move the navmesh bounds by the offset
+	for (FNavigationBounds& Bounds : RegisteredNavBounds)
+	{
+		Bounds.AreaBox = Bounds.AreaBox.ShiftBy(InOffset);
+	}
+
 	// Attempt at generation of new nav mesh after the shift
 	// dynamic navmesh, we regenerate completely
 	if (GetRuntimeGenerationType() == ERuntimeGenerationType::Dynamic)
