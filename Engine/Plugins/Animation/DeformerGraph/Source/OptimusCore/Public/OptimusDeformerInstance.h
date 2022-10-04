@@ -81,11 +81,11 @@ struct FOptimusDeformerInstanceComponentBinding
 	GENERATED_BODY()
 
 	/** Binding name on deformer graph. */
-	UPROPERTY(VisibleAnywhere, Category="Binding", meta = (DisplayName = "Binding"))
+	UPROPERTY(VisibleAnywhere, Category="Deformer", meta = (DisplayName = "Binding"))
 	FName ProviderName;
 
 	/** Component name to bind. This should be sanitized before storage. */
-	UPROPERTY(EditAnywhere, Category = "Binding", meta = (DisplayName = "Component"))
+	UPROPERTY(EditAnywhere, Category="Deformer", meta = (DisplayName = "Component"))
  	FName ComponentName;
 
 	/** Get the component on an actor that matches the stored component name. */
@@ -110,7 +110,7 @@ class OPTIMUSCORE_API UOptimusDeformerInstanceSettings :
 	TWeakObjectPtr<UOptimusDeformer> Deformer;
 
 	/** Array of binding descriptions. This is fixed and used by GetComponentBindings() to resolve final bindings for a given context. */
-	UPROPERTY(EditAnywhere, Category = "Deformer|Settings", EditFixedSize, meta = (EditFixedOrder))
+	UPROPERTY(EditAnywhere, Category="Deformer", EditFixedSize, meta = (DisplayName = "Deformer Bindings", EditFixedOrder))
 	TArray<FOptimusDeformerInstanceComponentBinding> Bindings;
 
 public:
