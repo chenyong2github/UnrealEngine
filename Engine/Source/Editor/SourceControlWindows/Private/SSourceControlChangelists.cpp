@@ -679,8 +679,7 @@ void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const IChangelist
 	else if (Changelist.GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
 	{
 		const FUncontrolledChangelistTreeItem& ChangelistItem = static_cast<const FUncontrolledChangelistTreeItem&>(Changelist);
-		Algo::Transform(ChangelistItem.UncontrolledChangelistState->GetFilesStates(), Pathnames, [](const TSharedRef<ISourceControlState>& FileState) { return FileState->GetFilename(); });
-		Algo::Transform(ChangelistItem.UncontrolledChangelistState->GetOfflineFiles(), Pathnames, [](const FString& Pathname) { return Pathname; });
+		Algo::Transform(ChangelistItem.UncontrolledChangelistState->GetFilenames(), Pathnames, [](const FString& Pathname) { return Pathname; });
 	}
 
 	if (!Pathnames.IsEmpty())
@@ -785,8 +784,7 @@ void SSourceControlChangelistsWidget::OnRefresh()
 
 	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistState : UncontrolledChangelistStates)
 	{
-		ElementsToProcess += UncontrolledChangelistState->GetFilesStates().Num();
-		ElementsToProcess += UncontrolledChangelistState->GetOfflineFiles().Num();
+		ElementsToProcess += UncontrolledChangelistState->GetFileCount();
 	}
 
 	FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Refreshing Tree Items"));

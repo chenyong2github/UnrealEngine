@@ -200,7 +200,7 @@ void SUncontrolledChangelistTableRow::Construct(const FArguments& InArgs, const 
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::Format(INVTEXT("({0})"), TreeItem->GetFileCount() + TreeItem->GetOfflineFileCount()))
+				.Text(FText::Format(INVTEXT("({0})"), TreeItem->GetFileCount()))
 			]
 		], InOwner);
 }

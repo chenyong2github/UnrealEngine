@@ -68,6 +68,28 @@ const TSet<FString>& FUncontrolledChangelistState::GetOfflineFiles() const
 	return OfflineFiles;
 }
 
+const TSet<FString>& FUncontrolledChangelistState::GetDeletedOfflineFiles() const
+{
+	return DeletedOfflineFiles;
+}
+
+int32 FUncontrolledChangelistState::GetFileCount() const
+{
+	// Avoid counting DeletedOfflineFiles.
+	return Files.Num() + OfflineFiles.Num();
+}
+
+TArray<FString> FUncontrolledChangelistState::GetFilenames() const
+{
+	TArray<FString> Filenames;
+	Filenames.Reserve(GetFileCount());
+
+	Algo::Transform(GetFilesStates(), Filenames, [](const TSharedRef<ISourceControlState>& FileState) { return FileState->GetFilename(); });
+	Algo::Transform(GetOfflineFiles(), Filenames, [](const FString& Pathname) { return Pathname; });
+
+	return Filenames;
+}
+
 void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObject) const
 {
 	TArray<TSharedPtr<FJsonValue>> FileValues;
@@ -76,6 +98,7 @@ void FUncontrolledChangelistState::Serialize(TSharedRef<FJsonObject> OutJsonObje
 
 	Algo::Transform(Files, FileValues, [](const FSourceControlStateRef& File) { return MakeShareable(new FJsonValueString(File->GetFilename())); });
 	Algo::Transform(OfflineFiles, FileValues, [](const FString& OfflineFile) { return MakeShareable(new FJsonValueString(OfflineFile)); });
+	Algo::Transform(DeletedOfflineFiles, FileValues, [](const FString& DeletedOfflineFile) { return MakeShareable(new FJsonValueString(DeletedOfflineFile)); });
 
 	OutJsonObject->SetArrayField(FILES_NAME, MoveTemp(FileValues));
 }
@@ -129,11 +152,22 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 	if (!SourceControlProvider.IsAvailable())
 	{
 		int32 OldSize = OfflineFiles.Num();
-		Algo::CopyIf(SourceControlHelpers::AbsoluteFilenames(InFilenames), OfflineFiles, [&FileManager](const FString& Filename)
+		int32 OldDeletedSize = DeletedOfflineFiles.Num();
+
+		for (const FString& Filename : SourceControlHelpers::AbsoluteFilenames(InFilenames))
 		{
-			return FileManager.FileExists(*Filename);
-		});
-		return OldSize != OfflineFiles.Num();
+			if (FileManager.FileExists(*Filename))
+			{
+				OfflineFiles.Add(Filename);
+			}
+			else
+			{
+				// Keep in case we source control provider and can determine this file is source controlled
+				DeletedOfflineFiles.Add(Filename);
+			}
+		}
+				
+		return (OldSize != OfflineFiles.Num()) || (OldDeletedSize != DeletedOfflineFiles.Num());
 	}
 
 	if (bCheckStatus)
@@ -190,14 +224,17 @@ bool FUncontrolledChangelistState::UpdateStatus()
 {
 	TArray<FString> FilesToUpdate;
 	bool bOutChanged = false;
-	int32 InitialFileNumber = Files.Num();
-	int32 InitialOfflineFileNumber = OfflineFiles.Num();
+	const int32 InitialFileNumber = Files.Num();
+	const int32 InitialOfflineFileNumber = OfflineFiles.Num();
+	const int32 InitialDeletedOfflineFiles = DeletedOfflineFiles.Num();
 
 	Algo::Transform(Files, FilesToUpdate, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
 	Algo::Copy(OfflineFiles, FilesToUpdate);
+	Algo::Copy(DeletedOfflineFiles, FilesToUpdate);
 
 	Files.Empty();
 	OfflineFiles.Empty();
+	DeletedOfflineFiles.Empty();
 
 	if (FilesToUpdate.Num() == 0)
 	{
@@ -206,10 +243,11 @@ bool FUncontrolledChangelistState::UpdateStatus()
 
 	bOutChanged |= AddFiles(FilesToUpdate, ECheckFlags::All);
 
-	bool bFileNumberChanged = InitialFileNumber == Files.Num();
-	bool bOfflineFileNumberChanged = InitialOfflineFileNumber == OfflineFiles.Num();
+	const bool bFileNumberChanged = InitialFileNumber == Files.Num();
+	const bool bOfflineFileNumberChanged = InitialOfflineFileNumber == OfflineFiles.Num();
+	const bool bDeletedOfflineFileNumberChanged = InitialDeletedOfflineFiles == DeletedOfflineFiles.Num();
 
-	bOutChanged |= bFileNumberChanged || bOfflineFileNumberChanged;
+	bOutChanged |= bFileNumberChanged || bOfflineFileNumberChanged || bDeletedOfflineFileNumberChanged;
 
 	return bOutChanged;
 }
@@ -237,7 +275,8 @@ void FUncontrolledChangelistState::SetDescription(const FText& InDescription)
 
 bool FUncontrolledChangelistState::ContainsFiles() const
 {
-	return (!Files.IsEmpty()) || (!OfflineFiles.IsEmpty());
+	// Ignore DeletedOfflineFiles
+	return !Files.IsEmpty() || !OfflineFiles.IsEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE

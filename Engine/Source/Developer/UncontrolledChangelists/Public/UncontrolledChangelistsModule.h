@@ -58,6 +58,13 @@ public:
 	bool OnSaveWritable(const FString& InFilename);
 
 	/**
+	 * Called when file has been deleted without an available Provider. Adds the file to the Default Uncontrolled Changelist
+	 * @param	InFilename		The file to be added.
+	 * @return	True if the file have been handled by the Uncontrolled module.
+	 */
+	bool OnDeleteWritable(const FString& InFilename);
+
+	/**
 	 * Called when files should have been marked for add without an available Provider. Adds the files to the Default Uncontrolled Changelist
 	 * @param	InFilenames		The files to be added.
 	 * @return	True if the files have been handled by the Uncontrolled module.

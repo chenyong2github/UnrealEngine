@@ -124,12 +124,7 @@ struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 
 	int32 GetFileCount() const
 	{
-		return UncontrolledChangelistState->GetFilesStates().Num();
-	}
-
-	int32 GetOfflineFileCount() const
-	{
-		return UncontrolledChangelistState->GetOfflineFiles().Num();
+		return UncontrolledChangelistState->GetFileCount();
 	}
 
 	FUncontrolledChangelistStateRef UncontrolledChangelistState;

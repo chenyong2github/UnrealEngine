@@ -132,6 +132,11 @@ bool FUncontrolledChangelistsModule::OnSaveWritable(const FString& InFilename)
 	return AddToUncontrolledChangelist({ InFilename });
 }
 
+bool FUncontrolledChangelistsModule::OnDeleteWritable(const FString& InFilename)
+{
+	return AddToUncontrolledChangelist({ InFilename });
+}
+
 bool FUncontrolledChangelistsModule::AddToUncontrolledChangelist(const TArray<FString>& InFilenames)
 {
 	if (!IsEnabled())
@@ -583,6 +588,9 @@ void FUncontrolledChangelistsModule::DeleteUncontrolledChangelist(const FUncontr
 		UE_LOG(LogSourceControl, Error, TEXT("Cannot delete Uncontrolled Changelist %s while it contains files."), *InUncontrolledChangelist.ToString());
 		return;
 	}
+
+	// Get Deleted Offline files and move them to the Default UCL so that we don't lose them
+	GetDefaultUncontrolledChangelistState()->AddFiles((*UncontrolledChangelistState)->GetDeletedOfflineFiles().Array(), FUncontrolledChangelistState::ECheckFlags::None);
 
 	UncontrolledChangelistsStateCache.Remove(InUncontrolledChangelist);
 

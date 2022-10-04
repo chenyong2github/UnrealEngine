@@ -102,6 +102,7 @@
 #include "Containers/Set.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Logging/LogMacros.h"
+#include "UncontrolledChangelistsModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -2358,6 +2359,7 @@ namespace ObjectTools
 		// Now delete all packages that have become empty
 		bool bMakeWritable = false;
 		bool bSilent = false;
+		bool bDeletedFileLocallyWritable = false;
 		TArray<FString> SCCFilesToRevert;
 		TArray<FString> SCCFilesToDelete;
 
@@ -2391,8 +2393,7 @@ namespace ObjectTools
 					}
 					else if (!bIsCheckedOut && SourceControlProvider.UsesLocalReadOnlyState() && !IFileManager::Get().IsReadOnly(*PackageFilename))
 					{
-						// The file was made writable and deleted, so we delete it on disk.
-						IFileManager::Get().Delete(*PackageFilename);
+						bDeletedFileLocallyWritable = true;
 					}
 					else
 					{
@@ -2433,16 +2434,24 @@ namespace ObjectTools
 					if(bMakeWritable || ReturnType == EAppReturnType::Yes)
 					{
 						FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*PackageFilename, false);
-						IFileManager::Get().Delete(*PackageFilename);
+						bDeletedFileLocallyWritable = true;
 					}
 				}
 				else
 				{
-					IFileManager::Get().Delete(*PackageFilename);
+					bDeletedFileLocallyWritable = true;
 				}
 			}
-		}
+		
+			if (bDeletedFileLocallyWritable)
+			{
+				FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();
+				UncontrolledChangelistsModule.OnDeleteWritable(PackageFilename);
 
+				IFileManager::Get().Delete(*PackageFilename);
+			}
+		}
+				
 		// Handle all source control revert and delete operations as a batched operation.
 		if (ISourceControlModule::Get().IsEnabled())
 		{

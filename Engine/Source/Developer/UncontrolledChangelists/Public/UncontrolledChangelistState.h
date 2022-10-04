@@ -95,6 +95,18 @@ public:
 	
 	const TSet<FString>& GetOfflineFiles() const;
 
+	const TSet<FString>& GetDeletedOfflineFiles() const;
+
+	/**
+	 * Get the number of files in the CL. (Includes file states and offline files) 
+	 */
+	int32 GetFileCount() const;
+
+	/**
+	 * Get the filenames in the CL. (Includes file states and offline files)
+	 */
+	TArray<FString> GetFilenames() const;
+
 	/**
 	 * Serialize the state of the Uncontrolled Changelist to a Json Object.
 	 * @param 	OutJsonObject 	The Json object used to serialize.
@@ -149,6 +161,7 @@ public:
 	FText Description;
 	TSet<FSourceControlStateRef> Files;
 	TSet<FString> OfflineFiles;
+	TSet<FString> DeletedOfflineFiles;
 
 	/** The timestamp of the last update */
 	FDateTime TimeStamp;
