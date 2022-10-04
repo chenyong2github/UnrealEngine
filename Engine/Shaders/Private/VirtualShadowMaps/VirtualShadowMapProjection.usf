@@ -69,31 +69,6 @@ FProjectionShadingInfo GetProjectionShadingInfo(uint2 PixelPos)
 	return Out;
 }
 
-float4 EncodeLightAttenuationFromMask(float ShadowMask, float SSSTransmission)
-{
-	const float ShadowFadeFraction = 1;
-
-	// 0 is shadowed, 1 is unshadowed
-	// RETURN_COLOR not needed unless writing to SceneColor;
-	//float FadedShadow = lerp(1.0f, Square(ShadowMask), ShadowFadeFraction);
-	//float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
-	float FadedShadow = lerp(1.0f, ShadowMask, ShadowFadeFraction);
-	float FadedSSSShadow = lerp(1.0f, SSSTransmission, ShadowFadeFraction);
-
-	// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
-	return EncodeLightAttenuation(float4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
-}
-
-Texture2D<float2> InputShadowFactor;
-
-void VirtualShadowMapCompositePS(
-	in float4 SvPosition : SV_Position,
-	out float4 OutShadowMask : SV_Target)
-{
-	float2 ShadowFactor = InputShadowFactor.Load(int3(SvPosition.xy, 0));
-	OutShadowMask = EncodeLightAttenuationFromMask(ShadowFactor.x, ShadowFactor.y);
-}
-
 
 SCHEDULER_MIN_PRESSURE
 MAX_OCCUPANCY

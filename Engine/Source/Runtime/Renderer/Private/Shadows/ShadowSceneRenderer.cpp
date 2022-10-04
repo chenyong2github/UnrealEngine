@@ -6,6 +6,7 @@
 #include "../ScenePrivate.h"
 #include "../DeferredShadingRenderer.h"
 #include "../VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+#include "../VirtualShadowMaps/VirtualShadowMapProjection.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "DynamicPrimitiveDrawing.h"
@@ -294,4 +295,184 @@ void FShadowSceneRenderer::PostSetupDebugRender()
 		});
 	}
 #endif
+}
+
+extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
+
+void FShadowSceneRenderer::RenderVirtualShadowMapProjectionMaskBits(
+	FRDGBuilder& GraphBuilder,
+	FMinimalSceneTextures& SceneTextures)
+{
+	// VSM one pass projection (done first as it may be needed by clustered shading)
+	bShouldUseVirtualShadowMapOnePassProjection =
+		VirtualShadowMapArray.IsAllocated() &&
+		CVarVirtualShadowOnePassProjection.GetValueOnRenderThread();
+
+	if (!VirtualShadowMapArray.HasAnyShadowData())
+	{
+		return;
+	}
+
+	if (bShouldUseVirtualShadowMapOnePassProjection)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "VirtualShadowMapProjectionMaskBits");
+
+		VirtualShadowMapMaskBits = CreateVirtualShadowMapMaskBits(GraphBuilder, SceneTextures, VirtualShadowMapArray, TEXT("Shadow.Virtual.MaskBits"));
+		VirtualShadowMapMaskBitsHairStrands = CreateVirtualShadowMapMaskBits(GraphBuilder, SceneTextures, VirtualShadowMapArray, TEXT("Shadow.Virtual.MaskBits(HairStrands)"));
+
+		for (int32 ViewIndex = 0; ViewIndex < SceneRenderer.Views.Num(); ++ViewIndex)
+		{
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, SceneRenderer.Views.Num() > 1, "View%d", ViewIndex);
+
+			const FViewInfo& View = SceneRenderer.Views[ViewIndex];
+
+			RenderVirtualShadowMapProjectionOnePass(
+				GraphBuilder,
+				SceneTextures,
+				View, ViewIndex,
+				VirtualShadowMapArray,
+				EVirtualShadowMapProjectionInputType::GBuffer,
+				VirtualShadowMapMaskBits);
+
+			if (HairStrands::HasViewHairStrandsData(View))
+			{
+				RenderVirtualShadowMapProjectionOnePass(
+					GraphBuilder,
+					SceneTextures,
+					View, ViewIndex,
+					VirtualShadowMapArray,
+					EVirtualShadowMapProjectionInputType::HairStrands,
+					VirtualShadowMapMaskBitsHairStrands);
+			}
+		}
+	}
+	else
+	{
+		//FRDGTextureRef Dummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.ZeroUIntDummy);
+		VirtualShadowMapMaskBits = nullptr;//Dummy;
+		VirtualShadowMapMaskBitsHairStrands = nullptr;//Dummy;
+	}
+}
+
+void FShadowSceneRenderer::ApplyVirtualShadowMapProjectionForLight(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FLightSceneInfo* LightSceneInfo,
+	FRDGTextureRef OutputScreenShadowMaskTexture,
+	FRDGTextureRef OutputScreenShadowMaskSubPixelTexture)
+{
+	if (!VirtualShadowMapArray.HasAnyShadowData())
+	{
+		return;
+	}
+
+	const FVisibleLightInfo& VisibleLightInfo = SceneRenderer.VisibleLightInfos[LightSceneInfo->Id];
+	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
+
+	for (int32 ViewIndex = 0; ViewIndex < SceneRenderer.Views.Num(); ViewIndex++)
+	{
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, SceneRenderer.Views.Num() > 1, "View%d", ViewIndex);
+
+		FViewInfo& View = SceneRenderer.Views[ViewIndex];
+		FIntRect ScissorRect;
+		if (!LightSceneInfo->Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
+		{
+			ScissorRect = View.ViewRect;
+		}
+
+		if (ScissorRect.Area() > 0)
+		{
+			int32 VirtualShadowMapId = VisibleLightInfo.GetVirtualShadowMapId(&View);
+			
+			// Some lights can elide the screen shadow mask entirely, in which case they will be sampled directly in the lighting shader
+			if (OutputScreenShadowMaskTexture)
+			{
+				if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
+				{
+					// Project directional light virtual shadow map
+					RenderVirtualShadowMapProjection(
+						GraphBuilder,
+						SceneTextures,
+						View, ViewIndex,
+						VirtualShadowMapArray,
+						ScissorRect,
+						EVirtualShadowMapProjectionInputType::GBuffer,
+						VisibleLightInfo.FindShadowClipmapForView(&View),
+						OutputScreenShadowMaskTexture);
+				}
+				else if (bShouldUseVirtualShadowMapOnePassProjection)
+				{
+					// Copy local light from one pass projection output
+					CompositeVirtualShadowMapFromMaskBits(
+						GraphBuilder,
+						SceneTextures,
+						View,
+						ScissorRect,
+						VirtualShadowMapArray,
+						EVirtualShadowMapProjectionInputType::GBuffer,
+						VirtualShadowMapId,
+						VirtualShadowMapMaskBits,
+						OutputScreenShadowMaskTexture);
+				}
+				else
+				{
+					// Project local light virtual shadow map
+					RenderVirtualShadowMapProjection(
+						GraphBuilder,
+						SceneTextures,
+						View, ViewIndex,
+						VirtualShadowMapArray,
+						ScissorRect,
+						EVirtualShadowMapProjectionInputType::GBuffer,
+						*LightSceneInfo,
+						VirtualShadowMapId,
+						OutputScreenShadowMaskTexture);
+				}
+			}
+
+			// Sub-pixel shadow (no denoising for hair)
+			if (HairStrands::HasViewHairStrandsData(View) && OutputScreenShadowMaskSubPixelTexture)
+			{
+				if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
+				{
+					RenderVirtualShadowMapProjection(
+						GraphBuilder,
+						SceneTextures,
+						View, ViewIndex,
+						VirtualShadowMapArray,
+						ScissorRect,
+						EVirtualShadowMapProjectionInputType::HairStrands,
+						VisibleLightInfo.FindShadowClipmapForView(&View),
+						OutputScreenShadowMaskSubPixelTexture);
+				}
+				else if (bShouldUseVirtualShadowMapOnePassProjection)
+				{
+					// Copy local light from one pass projection output
+					CompositeVirtualShadowMapFromMaskBits(
+						GraphBuilder,
+						SceneTextures,
+						View,
+						ScissorRect,
+						VirtualShadowMapArray,
+						EVirtualShadowMapProjectionInputType::HairStrands,
+						VirtualShadowMapId,
+						VirtualShadowMapMaskBitsHairStrands,
+						OutputScreenShadowMaskSubPixelTexture);
+				}
+				else
+				{
+					RenderVirtualShadowMapProjection(
+						GraphBuilder,
+						SceneTextures,
+						View, ViewIndex,
+						VirtualShadowMapArray,
+						ScissorRect,
+						EVirtualShadowMapProjectionInputType::HairStrands,
+						*LightSceneInfo,
+						VirtualShadowMapId,
+						OutputScreenShadowMaskSubPixelTexture);
+				}
+			}
+		}
+	}
 }

@@ -795,6 +795,14 @@ private:
 		FRDGTextureRef SceneDepthTexture,
 		FTranslucencyPassResourcesMap& TranslucencyResourceMap);
 
+	void CollectLightForTranslucencyLightingVolumeInjection(
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
+		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
+		const FLightSceneInfo* LightSceneInfo,
+		bool bSupportShadowMaps,
+		FTranslucentLightInjectionCollector& Collector);
+
 	/** Renders capsule shadows for all per-object shadows using it for the given light. */
 	bool RenderCapsuleDirectShadows(
 		FRDGBuilder& GraphBuilder,
@@ -807,19 +815,26 @@ private:
 	/** Renders indirect shadows from capsules modulated onto scene color. */
 	void RenderIndirectCapsuleShadows(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures) const;
 
+	void RenderVirtualShadowMapProjections(
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
+		FRDGTextureRef ScreenShadowMaskTexture,
+		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
+		const FLightSceneInfo* LightSceneInfo);
+
 	/** Renders capsule shadows for movable skylights, using the cone of visibility (bent normal) from DFAO. */
 	void RenderCapsuleShadowsForMovableSkylight(
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		FRDGTextureRef& BentNormalOutput) const;
+
 	void RenderDeferredShadowProjections(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskTexture,
-		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
-		bool& bInjectedTranslucentVolume);
+		FRDGTextureRef ScreenShadowMaskSubPixelTexture);
 
 	void RenderForwardShadowProjections(
 		FRDGBuilder& GraphBuilder,

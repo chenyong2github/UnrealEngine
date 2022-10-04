@@ -50,6 +50,41 @@ SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyLightingVolumeDirectionalInn
 SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyLightingVolumeDirectionalOuter)
 END_SHADER_PARAMETER_STRUCT()
 
+/** Utility for batching together multiple lighting injections */
+struct FTranslucentLightInjectionCollector
+{
+public:
+	FTranslucentLightInjectionCollector(
+		FRDGBuilder& GraphBuilder,
+		TArrayView<const FViewInfo> Views);
+
+	/** 
+	* Information about a light to be injected.
+	* Cached in this struct to avoid recomputing multiple times (multiple cascades).
+	*/
+	struct FInjectionData
+	{
+		// must not be 0
+		const FLightSceneInfo* LightSceneInfo;
+		// can be 0
+		const FProjectedShadowInfo* ProjectedShadowInfo;
+		//
+		bool bApplyLightFunction;
+		// must not be 0
+		const FMaterialRenderProxy* LightFunctionMaterialProxy;
+	};
+
+	void AddLightForInjection(
+		const FViewInfo& View,
+		const uint32 ViewIndex,
+		TArrayView<const FVisibleLightInfo> VisibleLightInfos,
+		const FLightSceneInfo& LightSceneInfo,
+		const FProjectedShadowInfo* InProjectedShadowInfo = nullptr);
+
+	typedef TArray<FInjectionData, SceneRenderingAllocator> FInjectionDataArray;
+	TArray<FInjectionDataArray, SceneRenderingAllocator>& InjectionDataPerView;
+};
+
 /** Initializes translucency volume lighting shader parameters from an optional textures struct. If null or uninitialized, fallback textures are used. */
 FTranslucencyLightingVolumeParameters GetTranslucencyLightingVolumeParameters(FRDGBuilder& GraphBuilder, const FTranslucencyLightingVolumeTextures& Textures, const FViewInfo& View);
 
@@ -60,19 +95,7 @@ void InjectTranslucencyLightingVolume(
 	const FScene* Scene,
 	const FSceneRenderer& Renderer,
 	const FTranslucencyLightingVolumeTextures& Textures,
-	const TArrayView<const FVisibleLightInfo> VisibleLightInfos,
-	const FLightSceneInfo& LightSceneInfo,
-	const FProjectedShadowInfo* ProjectedShadowInfo);
-
-void InjectTranslucencyLightingVolumeArray(
-	FRDGBuilder& GraphBuilder,
-	const TArrayView<const FViewInfo> Views,
-	const FScene* Scene,
-	const FSceneRenderer& Renderer,
-	const FTranslucencyLightingVolumeTextures& Textures,
-	const TArrayView<const FVisibleLightInfo> VisibleLightInfos,
-	const TArrayView<const FSortedLightSceneInfo> SortedLights,
-	const TInterval<int32> SortedLightInterval);
+	const FTranslucentLightInjectionCollector& Collector);
 
 void InjectSimpleTranslucencyLightingVolumeArray(
 	FRDGBuilder& GraphBuilder,

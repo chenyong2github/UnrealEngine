@@ -178,65 +178,6 @@ const TCHAR* ToString(EVirtualShadowMapProjectionInputType In)
 	return TEXT("Invalid");
 }
 
-// Composite denoised shadow projection mask onto the light's shadow mask
-// Basically just a copy shader with a special blend mode
-class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS);
-	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositePS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InputShadowFactor)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Required right now due to where the shader function lives, but not actually used
-		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapCompositePS", SF_Pixel);
-
-void CompositeVirtualShadowMapMask(
-	FRDGBuilder& GraphBuilder,
-	const FIntRect ScissorRect,
-	const FRDGTextureRef Input,
-	bool bDirectionalLight,
-	FRDGTextureRef OutputShadowMaskTexture)
-{
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-
-	FVirtualShadowMapProjectionCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositePS::FParameters>();
-	PassParameters->InputShadowFactor = Input;
-
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
-
-	FRHIBlendState* BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
-		0,					// ShadowMapChannel
-		bDirectionalLight,	// bIsWholeSceneDirectionalShadow,
-		false,				// bUseFadePlane
-		false,				// bProjectingForForwardShading, 
-		false				// bMobileModulatedProjections
-	);
-
-	auto PixelShader = ShaderMap->GetShader<FVirtualShadowMapProjectionCompositePS>();
-	ValidateShaderParameters(PixelShader, *PassParameters);
-
-	FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
-		ShaderMap,
-		RDG_EVENT_NAME("MaskComposite"),
-		PixelShader,
-		PassParameters,
-		ScissorRect,
-		BlendState);
-}
-
 
 class FVirtualShadowMapProjectionCS : public FGlobalShader
 {
@@ -464,23 +405,31 @@ static void RenderVirtualShadowMapProjectionCommon(
 	);
 }
 
-FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
+FRDGTextureRef CreateVirtualShadowMapMaskBits(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
-	EVirtualShadowMapProjectionInputType InputType)
+	const TCHAR* Name)
 {
-	FIntRect ProjectionRect = View.ViewRect;
-
 	const FRDGTextureDesc ShadowMaskDesc = FRDGTextureDesc::Create2D(
 		SceneTextures.Config.Extent,
 		VirtualShadowMapArray.GetPackedShadowMaskFormat(),
 		FClearValueBinding::None,
 		TexCreate_ShaderResource | TexCreate_UAV);
 
-	FRDGTextureRef ShadowMaskBits = GraphBuilder.CreateTexture(ShadowMaskDesc, InputType == EVirtualShadowMapProjectionInputType::HairStrands ? TEXT("ShadowMaskBits(HairStrands)") : TEXT("ShadowMaskBits(Gbuffer)"));
-	
+	return GraphBuilder.CreateTexture(ShadowMaskDesc, Name);
+}
+
+void RenderVirtualShadowMapProjectionOnePass(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View, int32 ViewIndex,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	EVirtualShadowMapProjectionInputType InputType,
+	FRDGTextureRef ShadowMaskBits)
+{
+	FIntRect ProjectionRect = View.ViewRect;
+
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		SceneTextures,
@@ -489,8 +438,6 @@ FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 		ProjectionRect,
 		InputType,
 		ShadowMaskBits);
-
-	return ShadowMaskBits;
 }
 
 static FRDGTextureRef CreateShadowMaskTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
@@ -521,7 +468,8 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
-	FProjectedShadowInfo* ShadowInfo,
+	const FLightSceneInfo& LightSceneInfo,
+	int32 VirtualShadowMapId,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
 	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, View.ViewRect.Max);
@@ -534,11 +482,12 @@ void RenderVirtualShadowMapProjection(
 		ScissorRect,
 		InputType,
 		VirtualShadowMaskTexture,
-		ShadowInfo->GetLightSceneInfo().Proxy,
-		ShadowInfo->VirtualShadowMaps[0]->ID);
+		LightSceneInfo.Proxy,
+		VirtualShadowMapId);
 
 	CompositeVirtualShadowMapMask(
 		GraphBuilder,
+		View,
 		ScissorRect,
 		VirtualShadowMaskTexture,
 		false,	// bDirectionalLight
@@ -570,8 +519,146 @@ void RenderVirtualShadowMapProjection(
 	
 	CompositeVirtualShadowMapMask(
 		GraphBuilder,
+		View,
 		ScissorRect,
 		VirtualShadowMaskTexture,
 		true,	// bDirectionalLight
 		OutputShadowMaskTexture);
+}
+
+// Composite denoised shadow projection mask onto the light's shadow mask
+// Basically just a copy shader with a special blend mode
+class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InputShadowFactor)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Required right now due to where the shader function lives, but not actually used
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjectionComposite.usf", "VirtualShadowMapCompositePS", SF_Pixel);
+
+void CompositeVirtualShadowMapMask(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FIntRect ScissorRect,
+	const FRDGTextureRef Input,
+	bool bDirectionalLight,
+	FRDGTextureRef OutputShadowMaskTexture)
+{
+	FVirtualShadowMapProjectionCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositePS::FParameters>();
+	PassParameters->InputShadowFactor = Input;
+
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
+
+	FRHIBlendState* BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
+		0,					// ShadowMapChannel
+		bDirectionalLight,	// bIsWholeSceneDirectionalShadow,
+		false,				// bUseFadePlane
+		false,				// bProjectingForForwardShading, 
+		false				// bMobileModulatedProjections
+	);
+
+	auto PixelShader = View.ShaderMap->GetShader<FVirtualShadowMapProjectionCompositePS>();
+	ValidateShaderParameters(PixelShader, *PassParameters);
+
+	FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("CompositeVirtualShadowMapMask"),
+		PixelShader,
+		PassParameters,
+		ScissorRect,
+		BlendState);
+}
+
+class FVirtualShadowMapProjectionCompositeFromMaskBitsPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositeFromMaskBitsPS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositeFromMaskBitsPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, ShadowMaskBits)
+		SHADER_PARAMETER(FIntVector4, ProjectionRect)
+		SHADER_PARAMETER(int32, CompositeVirtualShadowMapId)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Required right now due to where the shader function lives, but not actually used
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositeFromMaskBitsPS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjectionComposite.usf", "VirtualShadowMapCompositeFromMaskBitsPS", SF_Pixel);
+
+void CompositeVirtualShadowMapFromMaskBits(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	const FIntRect ScissorRect,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	EVirtualShadowMapProjectionInputType InputType,
+	int32 VirtualShadowMapId,
+	FRDGTextureRef ShadowMaskBits,
+	FRDGTextureRef OutputShadowMaskTexture)
+{
+	FIntRect ProjectionRect = View.ViewRect;
+
+	FVirtualShadowMapProjectionCompositeFromMaskBitsPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositeFromMaskBitsPS::FParameters>();
+	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+	PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
+	PassParameters->InputDepthTexture = SceneTextures.UniformBuffer->GetParameters()->SceneDepthTexture;
+	if (InputType == EVirtualShadowMapProjectionInputType::HairStrands)
+	{
+		PassParameters->InputDepthTexture = View.HairStrandsViewData.VisibilityData.HairOnlyDepthTexture;
+	}
+	PassParameters->ShadowMaskBits = ShadowMaskBits;
+	PassParameters->CompositeVirtualShadowMapId = VirtualShadowMapId;
+
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
+
+	FRHIBlendState* BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
+		0,					// ShadowMapChannel
+		false,				// bIsWholeSceneDirectionalShadow,
+		false,				// bUseFadePlane
+		false,				// bProjectingForForwardShading, 
+		false				// bMobileModulatedProjections
+	);
+
+	auto PixelShader = View.ShaderMap->GetShader<FVirtualShadowMapProjectionCompositeFromMaskBitsPS>();
+	ValidateShaderParameters(PixelShader, *PassParameters);
+	FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("CompositeVirtualShadowMapFromMaskBits"),
+		PixelShader,
+		PassParameters,
+		ProjectionRect,
+		BlendState);
 }

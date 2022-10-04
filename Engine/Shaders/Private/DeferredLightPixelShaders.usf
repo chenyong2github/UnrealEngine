@@ -47,6 +47,10 @@
 #include "Strata/StrataEvaluation.ush"
 #include "Strata/StrataDeferredLighting.ush"
 
+#if USE_VIRTUAL_SHADOW_MAP_MASK
+#include "VirtualShadowMaps/VirtualShadowMapMaskBitsCommon.ush"
+#endif
+
 struct FInputParams
 {
 	float2 PixelPos;
@@ -128,6 +132,37 @@ float GetExposure()
 {
 	return View.PreExposure;
 }
+
+#if USE_VIRTUAL_SHADOW_MAP_MASK
+// One pass projection
+Texture2D<uint4> ShadowMaskBits;
+int VirtualShadowMapId;
+#endif
+
+float4 GetLightAttenuationFromShadow(in FInputParams InputParams, float SceneDepth)
+{
+	float4 LightAttenuation = float4(1, 1, 1, 1);
+
+#if USE_VIRTUAL_SHADOW_MAP_MASK
+	if (VirtualShadowMapId != INDEX_NONE)
+	{
+		float ShadowMask = GetVirtualShadowMapMaskForLight(
+			ShadowMaskBits,
+			uint2(InputParams.PixelPos),
+			SceneDepth,
+			0,	// TODO: EyeIndex
+			VirtualShadowMapId);
+
+		// TODO: Subsurface...?
+		return ShadowMask.xxxx;
+	}
+	else
+#endif
+	{
+		return GetPerPixelLightAttenuation(InputParams.ScreenUV);
+	}
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -271,7 +306,7 @@ void DeferredLightPixelMain(
 		if (LightMask > 0)
 		{
 			FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
-			float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
+			float4 LightAttenuation = GetLightAttenuationFromShadow(InputParams, SceneDepth);
 
 			float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
 			const uint FakeShadingModelID = 0;
@@ -325,8 +360,9 @@ void DeferredLightPixelMain(
 		float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
 
 		float SurfaceShadow = 1.0f;
-
-		float4 Radiance = GetDynamicLighting(DerivedParams.TranslatedWorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InputParams.ScreenUV), Dither, uint2(InputParams.PixelPos), SurfaceShadow);
+		
+		float4 LightAttenuation = GetLightAttenuationFromShadow(InputParams, SceneDepth);
+		float4 Radiance = GetDynamicLighting(DerivedParams.TranslatedWorldPosition, DerivedParams.CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, LightAttenuation, Dither, uint2(InputParams.PixelPos), SurfaceShadow);
 
 		OutColor += Radiance;
 	}

@@ -38,19 +38,40 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
-	FProjectedShadowInfo* ShadowInfo,
+	const FLightSceneInfo& LightSceneInfo,
+	int32 VirtualShadowMapId,
 	FRDGTextureRef OutputShadowMaskTexture);
 
-FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
+FRDGTextureRef CreateVirtualShadowMapMaskBits(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	const TCHAR* Name);
+
+void RenderVirtualShadowMapProjectionOnePass(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
-	EVirtualShadowMapProjectionInputType InputType);
+	EVirtualShadowMapProjectionInputType InputType,
+	FRDGTextureRef ShadowMaskBits);
 
 void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
 	const FIntRect ScissorRect,
 	const FRDGTextureRef Input,
 	bool bDirectionalLight,
 	FRDGTextureRef OutputShadowMaskTexture);
+
+void CompositeVirtualShadowMapFromMaskBits(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	const FIntRect ScissorRect,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	EVirtualShadowMapProjectionInputType InputType,
+	int32 VirtualShadowMapId,
+	FRDGTextureRef ShadowMaskBits,
+	FRDGTextureRef OutputShadowMaskTexture);
+

@@ -47,6 +47,33 @@ public:
 	 */
 	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster);
 
+	/* Does any one pass shadow projection and generates screen space shadow mask bits
+	 * Call before beginning light loop/shadow projection, but after shadow map rendering
+	 */
+	void RenderVirtualShadowMapProjectionMaskBits(
+		FRDGBuilder& GraphBuilder,
+		FMinimalSceneTextures& SceneTextures);
+
+	/**
+	 * Renders virtual shadow map projection for a given light into the shadow mask.
+	 * If one pass projection is enabled, this may be a simple composite from the shadow mask bits.
+	 */
+	void ApplyVirtualShadowMapProjectionForLight(
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures,
+		const FLightSceneInfo* LightSceneInfo,
+		FRDGTextureRef OutputScreenShadowMaskTexture,
+		FRDGTextureRef OutputScreenShadowMaskSubPixelTexture);
+
+	// One pass projection stuff. Set up in RenderVitualShadowMapProjectionMaskBits
+	FRDGTextureRef VirtualShadowMapMaskBits = nullptr;
+	FRDGTextureRef VirtualShadowMapMaskBitsHairStrands = nullptr;
+
+	bool UsePackedShadowMaskBits() const
+	{
+		return VirtualShadowMapMaskBits != nullptr;
+	}
+
 private:
 	/**
 	 * Select the budgeted set of distant lights to update this frame.
@@ -72,6 +99,9 @@ private:
 
 	// Priority queue of distant lights to update.
 	FBinaryHeap<int32, uint32> DistantLightUpdateQueue;
+
+	// One pass projection stuff. Set up in RenderVitualShadowMapProjectionMaskBits
+	bool bShouldUseVirtualShadowMapOnePassProjection = false;
 
 	// Links to other systems etc.
 	FDeferredShadingSceneRenderer& SceneRenderer;

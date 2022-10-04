@@ -2977,7 +2977,7 @@ void CullRasterize(
 	FVirtualTargetParameters VirtualTargetParameters;
 	if (VirtualShadowMapArray)
 	{
-		VirtualTargetParameters.VirtualShadowMap = VirtualShadowMapArray->GetUniformBuffer(GraphBuilder);
+		VirtualTargetParameters.VirtualShadowMap = VirtualShadowMapArray->GetUniformBuffer();
 		
 		// HZB (if provided) comes from the previous frame, so we need last frame's page table
 		FRDGBufferRef HZBPageTableRDG = VirtualShadowMapArray->PageTableRDG;	// Dummy data, but matches the expected format

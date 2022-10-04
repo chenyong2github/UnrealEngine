@@ -280,12 +280,14 @@ public:
 	
 	void PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
-	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetUniformBuffer(FRDGBuilder& GraphBuilder) const;
-
 	// Get shader parameters necessary to sample virtual shadow maps
 	// It is safe to bind this buffer even if VSMs are disabled, but the sampling should be branched around in the shader.
 	// This data becomes valid after the shadow depths pass if VSMs are enabled
 	FVirtualShadowMapSamplingParameters GetSamplingParameters(FRDGBuilder& GraphBuilder) const;
+	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetUniformBuffer() const
+	{
+		return CachedUniformBuffer;
+	}
 
 	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr;  }
 
@@ -349,8 +351,15 @@ public:
 	TArray<FVirtualShadowMapVisualizeLightSearch> VisualizeLight;
 
 private:
+	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetUncachedUniformBuffer(FRDGBuilder& GraphBuilder) const;
+	void UpdateCachedUniformBuffer(FRDGBuilder& GraphBuilder);
+
 	TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator> ShadowMaps;
 	int32 NumSinglePageSms = 0;
+
+	// Cached copy of the latest uniform parameters
+	// Gets created in dummy form at initialization time, then updated after VSM data is computed
+	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> CachedUniformBuffer;
 
 	FScene &Scene;
 	//

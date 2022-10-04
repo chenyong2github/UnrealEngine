@@ -996,32 +996,25 @@ FVolumeBounds CalculateLightVolumeBounds(const FSphere& LightBounds, const FView
 	return VolumeBounds;
 }
 
-/** 
- * Information about a light to be injected.
- * Cached in this struct to avoid recomputing multiple times (multiple cascades).
- */
-struct FTranslucentLightInjectionData
+FTranslucentLightInjectionCollector::FTranslucentLightInjectionCollector(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views)
+	// NOTE: This data is directly referenced inside the render pass lamba, so must be allocated in the graph
+	: InjectionDataPerView(*GraphBuilder.AllocObject<TArray<FInjectionDataArray, SceneRenderingAllocator>>())
 {
-	// must not be 0
-	const FLightSceneInfo* LightSceneInfo;
-	// can be 0
-	const FProjectedShadowInfo* ProjectedShadowInfo;
-	//
-	bool bApplyLightFunction;
-	// must not be 0
-	const FMaterialRenderProxy* LightFunctionMaterialProxy;
-};
+	InjectionDataPerView.SetNum(Views.Num());
+}
 
 /**
  * Adds a light to LightInjectionData if it should be injected into the translucent volume, and caches relevant information in a FTranslucentLightInjectionData.
  * @param InProjectedShadowInfo is 0 for unshadowed lights
  */
-static void AddLightForInjection(
+void FTranslucentLightInjectionCollector::AddLightForInjection(
 	const FViewInfo& View,
+	const uint32 ViewIndex,
 	TArrayView<const FVisibleLightInfo> VisibleLightInfos,
 	const FLightSceneInfo& LightSceneInfo,
-	const FProjectedShadowInfo* InProjectedShadowInfo,
-	TArray<FTranslucentLightInjectionData, SceneRenderingAllocator>& LightInjectionData)
+	const FProjectedShadowInfo* InProjectedShadowInfo)
 {
 	if (LightSceneInfo.Proxy->AffectsTranslucentLighting())
 	{
@@ -1039,12 +1032,12 @@ static void AddLightForInjection(
 		// Skip rendering if the DefaultLightFunctionMaterial isn't compiled yet
 		if (MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).IsLightFunction())
 		{
-			FTranslucentLightInjectionData InjectionData;
-			InjectionData.LightSceneInfo = &LightSceneInfo;
-			InjectionData.ProjectedShadowInfo = InProjectedShadowInfo;
-			InjectionData.bApplyLightFunction = bApplyLightFunction;
-			InjectionData.LightFunctionMaterialProxy = MaterialProxy;
-			LightInjectionData.Add(InjectionData);
+			FTranslucentLightInjectionCollector::FInjectionData Data;
+			Data.LightSceneInfo = &LightSceneInfo;
+			Data.ProjectedShadowInfo = InProjectedShadowInfo;
+			Data.bApplyLightFunction = bApplyLightFunction;
+			Data.LightFunctionMaterialProxy = MaterialProxy;
+			InjectionDataPerView[ViewIndex].Add(Data);
 		}
 	}
 }
@@ -1071,15 +1064,23 @@ BEGIN_SHADER_PARAMETER_STRUCT(FInjectTranslucentLightArrayParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 /** Injects all the lights in LightInjectionData into the translucent lighting volume textures. */
-static void InjectTranslucentLightArray(
+void InjectTranslucencyLightingVolume(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const uint32 ViewIndex,
 	const FScene* Scene,
 	const FSceneRenderer& Renderer,
 	const FTranslucencyLightingVolumeTextures& Textures,
-	TArrayView<const FTranslucentLightInjectionData> LightInjectionData)
+	const FTranslucentLightInjectionCollector& Collector)
 {
+	if (!GUseTranslucentLightingVolumes || !GSupportsVolumeTextureRendering)
+	{
+		return;
+	}
+
+	const FTranslucentLightInjectionCollector::FInjectionDataArray& LightInjectionData = Collector.InjectionDataPerView[ViewIndex];
+
+	SCOPE_CYCLE_COUNTER(STAT_TranslucentInjectTime);
 	INC_DWORD_STAT_BY(STAT_NumLightsInjectedIntoTranslucency, LightInjectionData.Num());
 
 	const FVolumetricCloudShadowAOParameters CloudShadowAOParameters = GetCloudShadowAOParameters(GraphBuilder, View, Scene->GetVolumetricCloudSceneInfo());
@@ -1096,7 +1097,7 @@ static void InjectTranslucentLightArray(
 
 		for (int32 LightIndex = 0; LightIndex < LightInjectionData.Num(); LightIndex++)
 		{
-			const FTranslucentLightInjectionData& InjectionData = LightInjectionData[LightIndex];
+			const FTranslucentLightInjectionCollector::FInjectionData& InjectionData = LightInjectionData[LightIndex];
 			const FLightSceneInfo* const LightSceneInfo = InjectionData.LightSceneInfo;
 			const FVisibleLightInfo& VisibleLightInfo = Renderer.VisibleLightInfos[LightSceneInfo->Id];
 			const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
@@ -1132,7 +1133,8 @@ static void InjectTranslucentLightArray(
 
 				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, InjectionData.ProjectedShadowInfo, PassParameters->PS.VolumeShadowingParameters);
 
-				PassParameters->PS.VirtualShadowMapId = Renderer.VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&View);
+				int32 VirtualShadowMapId = bUseVSM ? Renderer.VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&View) : INDEX_NONE;
+				PassParameters->PS.VirtualShadowMapId = VirtualShadowMapId;
 				PassParameters->PS.LightFunctionParameters = FLightFunctionSharedParameters::GetLightFunctionSharedParameters(LightSceneInfo, 1.0f);
 				PassParameters->PS.VolumeCascadeIndex = VolumeCascadeIndex;
 
@@ -1155,7 +1157,11 @@ static void InjectTranslucentLightArray(
 				PassParameters->PS.AtmospherePerPixelTransmittanceEnabled = IsLightAtmospherePerPixelTransmittanceEnabled(Scene, View, LightSceneInfo);
 
 				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("InjectTranslucentLightArray"),
+					RDG_EVENT_NAME("InjectTranslucencyLightingVolume(VolumeCascade=%d%s%s%s)",
+						VolumeCascadeIndex,
+						VirtualShadowMapId != INDEX_NONE ? TEXT(",VirtualShadowMap") : TEXT(""),
+						InjectionData.ProjectedShadowInfo != nullptr ? TEXT(",ShadowMap") : TEXT(""),
+						InjectionData.bApplyLightFunction ? TEXT(",LightFunction") : TEXT("")),
 					PassParameters,
 					ERDGPassFlags::Raster,
 					[PassParameters, VertexShader, GeometryShader, &View, &Renderer, &InjectionData, LightSceneInfo, bDirectionalLight, bUseVSM, VolumeBounds, VolumeCascadeIndex](FRHICommandList& RHICmdList)
@@ -1216,71 +1222,6 @@ static void InjectTranslucentLightArray(
 				});
 			}
 		}
-	}
-}
-
-void InjectTranslucencyLightingVolume(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const uint32 ViewIndex,
-	const FScene* Scene,
-	const FSceneRenderer& Renderer,
-	const FTranslucencyLightingVolumeTextures& Textures,
-	TArrayView<const FVisibleLightInfo> VisibleLightInfos,
-	const FLightSceneInfo& LightSceneInfo,
-	const FProjectedShadowInfo* ProjectedShadowInfo)
-{
-	if (GUseTranslucentLightingVolumes && GSupportsVolumeTextureRendering)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_TranslucentInjectTime);
-
-		auto& LightInjectionData = *GraphBuilder.AllocObject<TArray<FTranslucentLightInjectionData, SceneRenderingAllocator>>();
-		AddLightForInjection(View, VisibleLightInfos, LightSceneInfo, ProjectedShadowInfo, LightInjectionData);
-		InjectTranslucentLightArray(GraphBuilder, View, ViewIndex, Scene, Renderer, Textures, LightInjectionData);
-	}
-}
-
-void InjectTranslucencyLightingVolumeArray(
-	FRDGBuilder& GraphBuilder,
-	const TArrayView<const FViewInfo> Views,
-	const FScene* Scene,
-	const FSceneRenderer& Renderer,
-	const FTranslucencyLightingVolumeTextures& Textures,
-	const TArrayView<const FVisibleLightInfo> VisibleLightInfos,
-	TArrayView<const FSortedLightSceneInfo> SortedLights,
-	TInterval<int32> SortedLightInterval)
-{
-	SCOPE_CYCLE_COUNTER(STAT_TranslucentInjectTime);
-
-	using FLightInjectionData = TArray<TArray<FTranslucentLightInjectionData, SceneRenderingAllocator>>;
-	auto& LightInjectionData = *GraphBuilder.AllocObject<FLightInjectionData>();
-	LightInjectionData.SetNum(Views.Num());
-
-	for (int32 ViewIndex = 0; ViewIndex < LightInjectionData.Num(); ++ViewIndex)
-	{
-		LightInjectionData[ViewIndex].Reserve(SortedLightInterval.Size());
-	}
-
-	for (int32 LightIndex = SortedLightInterval.Min; LightIndex < SortedLightInterval.Max; LightIndex++)
-	{
-		const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
-		const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			if (LightSceneInfo->ShouldRenderLight(View))
-			{
-				AddLightForInjection(View, VisibleLightInfos, *LightSceneInfo, nullptr, LightInjectionData[ViewIndex]);
-			}
-		}
-	}
-
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-
-		// non-shadowed, non-light function lights
-		InjectTranslucentLightArray(GraphBuilder, View, ViewIndex, Scene, Renderer, Textures, LightInjectionData[ViewIndex]);
 	}
 }
 

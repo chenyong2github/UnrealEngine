@@ -468,6 +468,21 @@ int32 FVisibleLightInfo::GetVirtualShadowMapId( const FViewInfo* View ) const
 	}
 }
 
+bool FVisibleLightInfo::ContainsOnlyVirtualShadowMaps() const
+{
+	for (int32 ShadowIndex=0; ShadowIndex < AllProjectedShadows.Num(); ++ShadowIndex)
+	{
+		// Simple test for now, but sufficient
+		const FProjectedShadowInfo* ProjectedShadowInfo = AllProjectedShadows[ShadowIndex];
+		if (ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask && ProjectedShadowInfo->bAllocated &&
+			!(ProjectedShadowInfo->HasVirtualShadowMap() || ProjectedShadowInfo->VirtualShadowMapClipmap))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 #if !UE_BUILD_SHIPPING
 namespace

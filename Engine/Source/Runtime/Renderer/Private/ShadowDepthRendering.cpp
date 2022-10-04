@@ -1100,7 +1100,7 @@ void FProjectedShadowInfo::RenderDepth(
 		CopyCachedShadowMap(GraphBuilder, *ShadowDepthView, SceneRenderer, PassParameters->RenderTargets, DrawRenderState);
 	}
 
-	PassParameters->VirtualShadowMap = SceneRenderer->VirtualShadowMapArray.GetUniformBuffer(GraphBuilder);
+	PassParameters->VirtualShadowMap = SceneRenderer->VirtualShadowMapArray.GetUniformBuffer();
 
 	switch (FSceneInterface::GetShadingPath(FeatureLevel))
 	{

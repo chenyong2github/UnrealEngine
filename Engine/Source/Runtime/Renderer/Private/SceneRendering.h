@@ -197,6 +197,11 @@ public:
 	 */
 	TSharedPtr<FVirtualShadowMapClipmap> FindShadowClipmapForView(const FViewInfo* View) const;
 
+	/** 
+	* Returns true if the light has only virtual shadow maps (or no shadows at all), i.e. no conventional shadow maps that are allocated
+	*/
+	bool ContainsOnlyVirtualShadowMaps() const;
+
 	/**
 	* Prefer this to direct access of the VirtualShadowMapId member when a view is known.
 	* For directional lights this will attempt to find a clipmap associated with the given view,
