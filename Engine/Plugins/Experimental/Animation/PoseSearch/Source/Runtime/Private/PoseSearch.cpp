@@ -399,8 +399,7 @@ void UPoseSearchSchema::PostLoad()
 #if WITH_EDITOR
 void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	SchemaCardinality = -1;
-
+	Finalize();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -432,8 +431,6 @@ bool UPoseSearchSchema::IsValid() const
 
 	bValid &= (BoneReferences.Num() == BoneIndices.Num());
 
-	bValid &= SchemaCardinality > 0;
-	
 	return bValid;
 }
 
@@ -910,7 +907,7 @@ int32 UPoseSearchDatabase::GetNumberOfPrincipalComponents() const
 
 #if WITH_EDITOR
 
-void UPoseSearchDatabase::AddRawSequenceToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+static void AddRawSequenceToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
 {
 	if (Sequence)
 	{
@@ -922,7 +919,7 @@ void UPoseSearchDatabase::AddRawSequenceToWriter(UAnimSequence* Sequence, UE::Po
 	}
 }
 
-void UPoseSearchDatabase::AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+static void AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
 {
 	if (!Sequence)
 	{
@@ -951,31 +948,39 @@ void UPoseSearchDatabase::AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence,
 	}
 }
 
-void UPoseSearchDatabase::AddDbSequenceToWriter(FPoseSearchDatabaseSequence& DbSequence, UE::PoseSearch::FDerivedDataKeyBuilder& InOutWriter)
-{
-	AddRawSequenceToWriter(DbSequence.Sequence, InOutWriter);
-	AddRawSequenceToWriter(DbSequence.LeadInSequence, InOutWriter);
-	AddRawSequenceToWriter(DbSequence.FollowUpSequence, InOutWriter);
 
-	AddPoseSearchNotifiesToWriter(DbSequence.Sequence, InOutWriter);
+void FPoseSearchDatabaseSequence::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+{
+	KeyBuilder << bEnabled;
+	KeyBuilder << SamplingRange;
+	KeyBuilder << MirrorOption;
+
+	AddRawSequenceToWriter(Sequence, KeyBuilder);
+	AddRawSequenceToWriter(LeadInSequence, KeyBuilder);
+	AddRawSequenceToWriter(FollowUpSequence, KeyBuilder);
+
+	AddPoseSearchNotifiesToWriter(Sequence, KeyBuilder);
 }
 
-void UPoseSearchDatabase::AddDbBlendSpaceToWriter(FPoseSearchDatabaseBlendSpace& DbBlendSpace, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+void FPoseSearchDatabaseBlendSpace::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
 {
-	if (IsValid(DbBlendSpace.BlendSpace))
-	{
-		const TArray<FBlendSample>& BlendSpaceSamples = DbBlendSpace.BlendSpace->GetBlendSamples();
-		for (const FBlendSample& Sample : BlendSpaceSamples)
-		{
-			AddRawSequenceToWriter(Sample.Animation, KeyBuilder);
-			FVector SampleValue = Sample.SampleValue;
-			float RateScale = Sample.RateScale;
- 			KeyBuilder << SampleValue;
- 			KeyBuilder << RateScale;
-		}
+	KeyBuilder << bEnabled;
+	KeyBuilder << MirrorOption;
+	KeyBuilder << bUseGridForSampling;
+	KeyBuilder << NumberOfHorizontalSamples;
+	KeyBuilder << NumberOfVerticalSamples;
 
-		KeyBuilder << DbBlendSpace.BlendSpace->bLoop;
+	const TArray<FBlendSample>& BlendSpaceSamples = BlendSpace->GetBlendSamples();
+	for (const FBlendSample& Sample : BlendSpaceSamples)
+	{
+		AddRawSequenceToWriter(Sample.Animation, KeyBuilder);
+		FVector SampleValue = Sample.SampleValue;
+		float RateScale = Sample.RateScale;
+ 		KeyBuilder << SampleValue;
+ 		KeyBuilder << RateScale;
 	}
+
+	KeyBuilder << BlendSpace->bLoop;
 }
 
 void UPoseSearchDatabase::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
@@ -989,15 +994,13 @@ void UPoseSearchDatabase::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBui
 
 	for (FPoseSearchDatabaseSequence& DbSequence : Sequences)
 	{
-		AddDbSequenceToWriter(DbSequence, KeyBuilder);
+		DbSequence.BuildDerivedDataKey(KeyBuilder);
 	}
 
 	for (FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
 	{
-		AddDbBlendSpaceToWriter(DbBlendSpace, KeyBuilder);
+		DbBlendSpace.BuildDerivedDataKey(KeyBuilder);
 	}
-
-	// @todo: add database version if POSESEARCHDB_DERIVEDDATA_VER is not enough
 }
 
 #endif // WITH_EDITOR
@@ -1574,6 +1577,8 @@ void UPoseSearchDatabase::BeginCacheForCookedPlatformData(const ITargetPlatform*
 
 bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
+	check(IsInGameThread());
+
 	if (!PrivateDerivedData)
 	{
 		PrivateDerivedData = new FPoseSearchDatabaseDerivedData();
@@ -2602,7 +2607,7 @@ FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 	FLinearColor Color = FLinearColor::Red;
 
 	const UPoseSearchSchema* Schema = GetSchema();
-	if (!Schema || Schema->SchemaCardinality <= 0)
+	if (!Schema || !Schema->IsValid())
 	{
 		Color = FLinearColor::Red;
 	}

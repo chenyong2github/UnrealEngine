@@ -664,6 +664,9 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
 	virtual ~FPoseSearchDatabaseAnimationAssetBase() {}
 	virtual UAnimationAsset* GetAnimationAsset() const { return nullptr; }
 	virtual bool IsLooping() const { return false; }
+#if WITH_EDITOR
+	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) {}
+#endif
 };
 
 /** An entry in a UPoseSearchDatabase. */
@@ -700,6 +703,9 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 
 	virtual UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
 	virtual bool IsLooping() const override { return Sequence->bLoop; }
+#if WITH_EDITOR
+	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) override;
+#endif
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
@@ -722,15 +728,17 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	bool bUseGridForSampling = true;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (ClampMin = "1", UIMin = "1", UIMax = "25"))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
 	int32 NumberOfHorizontalSamples = 5;
 
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (ClampMin = "1", UIMin = "1", UIMax = "25"))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
 	int32 NumberOfVerticalSamples = 5;
 
 	virtual UAnimationAsset* GetAnimationAsset() const override;
 	virtual bool IsLooping() const override;
-
+#if WITH_EDITOR
+	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) override;
+#endif
 public:
 
 	void GetBlendSpaceParameterSampleRanges(
@@ -984,7 +992,6 @@ public:
 
 	virtual ~UPoseSearchDatabase();
 
-	FPoseSearchIndex* GetSearchIndex();
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const FPoseSearchIndex* GetSearchIndexSafe() const;
 	
@@ -1004,36 +1011,27 @@ public:
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;
 	
-#if WITH_EDITOR
-	void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
-private:
-	static void AddRawSequenceToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
-	static void AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
-	static void AddDbSequenceToWriter(FPoseSearchDatabaseSequence& DbSequence, UE::PoseSearch::FDerivedDataKeyBuilder& InOutWriter);
-	static void AddDbBlendSpaceToWriter(FPoseSearchDatabaseBlendSpace& DbBlendSpace, UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
-#endif // WITH_EDITOR
-
-public: // UObject
+	// UObject
 	virtual void PostLoad() override;
 	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
 	virtual void Serialize(FArchive& Ar) override;
 
+	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
+	bool TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex) const;
+
 #if WITH_EDITOR
+	void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder);
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 #endif // WITH_EDITOR
 
 private:
+	FPoseSearchIndex* GetSearchIndex();
 	void CollectSimpleSequences();
 	void CollectSimpleBlendSpaces();
 	void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, TArray<FFloatRange>& ValidRanges) const;
-
-public:
-	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
-	bool TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex) const;
-
-private:
+	
 	FPoseSearchDatabaseDerivedData* PrivateDerivedData;
 
 #if WITH_EDITOR

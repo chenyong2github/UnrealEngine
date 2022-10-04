@@ -364,6 +364,7 @@ namespace UE::PoseSearch
 		}
 
 		SkeletonView.Pin()->RefreshTreeView(false, true);
+		ViewModelPtr->BuildSearchIndex();
 	}
 
 	FSlateColor SDatabaseAssetListItem::GetNameTextColorAndOpacity() const

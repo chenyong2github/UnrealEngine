@@ -34,7 +34,14 @@ namespace UE::PoseSearch
 
 void FPoseSearchDatabaseDerivedData::Cache(UPoseSearchDatabase& Database, bool bForceRebuild)
 {
+	check(IsInGameThread());
+
 	CancelCache();
+
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+	UE_LOG(LogPoseSearch, Log, TEXT("%s: Cache"), *LexToString(PendingDerivedDataKey));
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+
 	if (Database.IsValidForIndexing())
 	{
 		CreateDatabaseBuildTask(Database, bForceRebuild);
@@ -50,8 +57,14 @@ void FPoseSearchDatabaseDerivedData::Cache(UPoseSearchDatabase& Database, bool b
 
 void FPoseSearchDatabaseDerivedData::CancelCache()
 {
+	check(IsInGameThread());
+
 	if (AsyncTask)
 	{
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		UE_LOG(LogPoseSearch, Log, TEXT("%s: CancelCache"), *LexToString(PendingDerivedDataKey));
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+
 		AsyncTask->Cancel();
 	}
 
@@ -60,8 +73,14 @@ void FPoseSearchDatabaseDerivedData::CancelCache()
 
 void FPoseSearchDatabaseDerivedData::FinishCache()
 {
+	check(IsInGameThread());
+
 	if (AsyncTask)
 	{
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		UE_LOG(LogPoseSearch, Log, TEXT("%s: FinishCache"), *LexToString(PendingDerivedDataKey));
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+
 		AsyncTask->Wait();
 		delete AsyncTask;
 		AsyncTask = nullptr;
@@ -70,6 +89,8 @@ void FPoseSearchDatabaseDerivedData::FinishCache()
 
 void FPoseSearchDatabaseDerivedData::CreateDatabaseBuildTask(UPoseSearchDatabase& Database, bool bForceRebuild)
 {
+	check(IsInGameThread());
+
 	AsyncTask = new UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask(Database, *this, bForceRebuild);
 }
 
@@ -129,6 +150,10 @@ namespace UE::PoseSearch
 	{
 		using namespace UE::DerivedData;
 
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		UE_LOG(LogPoseSearch, Log, TEXT("%s: BeginCache - '%s'"), *LexToString(DerivedData.PendingDerivedDataKey), *Database.GetName());
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+
 		TArray<FCacheGetRequest> CacheRequests;
 		ECachePolicy CachePolicy = ECachePolicy::Default;
 		const FCacheKey CacheKey{ Bucket, DerivedData.PendingDerivedDataKey };
@@ -165,6 +190,10 @@ namespace UE::PoseSearch
 				const bool bIndexReady = BuildIndex(&Database, DerivedData.SearchIndex);
 
 				WriteIndexToCache(NewKey);
+
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+				UE_LOG(LogPoseSearch, Log, TEXT("%s: BuildAndWrite"), *LexToString(DerivedData.PendingDerivedDataKey));
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
 			}
 		});
 	}
@@ -190,6 +219,10 @@ namespace UE::PoseSearch
 	{
 		using namespace UE::DerivedData;
 
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		UE_LOG(LogPoseSearch, Log, TEXT("%s: BuildIndexFromCacheRecord"), *LexToString(DerivedData.PendingDerivedDataKey));
+#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+
 		DerivedData.SearchIndex.Reset();
 		DerivedData.SearchIndex.Schema = Database.Schema;
 
@@ -211,12 +244,15 @@ namespace UE::PoseSearch
 		Database.BuildDerivedDataKey(KeyBuilder);
 		FDerivedDataKeyBuilder::HashDigestType Hash = KeyBuilder.Finalize();
 
+		// Stores a BLAKE3-160 hash, taken from the first 20 bytes of a BLAKE3-256 hash
+		FIoHash IoHash(Hash);
+
 #if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
 		const double TotalTime = FPlatformTime::Seconds() - StartTime;
-		UE_LOG(LogPoseSearch, Log, TEXT("DDC key for '%s': %s (%.0f µs)"), *Database.GetName(), *WriteToString<48>(Hash), TotalTime * 1e6);
+		UE_LOG(LogPoseSearch, Log, TEXT("%s: CreateKey ('%s' - %.0f µs)"), *LexToString(IoHash), *LexToString(Hash), *Database.GetName(), TotalTime * 1e6);
 #endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
 
-		return Hash;
+		return IoHash;
 	}
 
 #endif // WITH_EDITOR
