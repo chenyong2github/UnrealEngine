@@ -3732,8 +3732,6 @@ bool FAsyncLoadEventQueue2::PopAndExecute(FAsyncLoadingThreadState2& ThreadState
 
 bool FAsyncLoadEventQueue2::ExecuteSyncLoadEvents(FAsyncLoadingThreadState2& ThreadState, FAsyncLoadingSyncLoadContext& SyncLoadContext)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteSyncLoadEvents);
-
 	int32 ThisCallCounter = ++ExecuteSyncLoadEventsCallCounter;
 
 	auto ShouldExecuteNode = [&SyncLoadContext](FEventLoadNode2* Node) -> bool
@@ -6064,11 +6062,6 @@ FAsyncLoadingSyncLoadContext* FAsyncLoadingThread2::UpdateSyncLoadContext(FAsync
 	}
 	if (ThreadState.bCanAccessAsyncLoadingThreadData && !SyncLoadContext->bHasFoundRequestedPackage)
 	{
-		if (ThreadState.bIsAsyncLoadingThread)
-		{
-			// Ensure that we've created the package we're waiting for
-			CreateAsyncPackagesFromQueue(ThreadState);
-		}
 		if (FAsyncPackage2* RequestedPackage = RequestIdToPackageMap.FindRef(SyncLoadContext->RequestId))
 		{
 			SyncLoadContext->bHasFoundRequestedPackage = true;
