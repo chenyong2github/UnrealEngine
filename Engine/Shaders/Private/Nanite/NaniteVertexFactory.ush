@@ -739,9 +739,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(float3 RayOrigin, float3 Ray
 	float4 SvPosition;
 	FMaterialPixelParameters Result = FetchNaniteMaterialPixelParameters(InstanceData, InstanceDynamicData, NaniteView, Tri, Cluster, Barycentrics, Interpolants, SvPosition);
 
-	Result.TwoSidedSign = -1.0f; // TODO
-
 	WorldGeoNormal = Result.TangentToWorld[2];
+
+	Result.TwoSidedSign = sign(dot(RayDirection, WorldGeoNormal));
 
 	return Result;
 }
