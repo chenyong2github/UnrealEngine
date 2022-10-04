@@ -73,7 +73,10 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 {
 	FScopeLock Lock(&InternalsSyncScope);
 
-	check(InWorld && ConfigData);
+	if(!InWorld || !ConfigData)
+	{
+		return false;
+	}
 
 	CurrentWorld = InWorld;
 
