@@ -30,32 +30,29 @@ EDecalDBufferMaskTechnique GetDBufferMaskTechnique(EShaderPlatform ShaderPlatfor
 	return EDecalDBufferMaskTechnique::Disabled;
 }
 
-FDBufferTextures CreateDBufferTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, EShaderPlatform ShaderPlatform)
+FDBufferTexturesDesc GetDBufferTexturesDesc(FIntPoint Extent, EShaderPlatform ShaderPlatform)
 {
-	FDBufferTextures DBufferTextures;
+	FDBufferTexturesDesc DBufferTexturesDesc;
 
 	if (IsUsingDBuffers(ShaderPlatform))
 	{
 		const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
 		const ETextureCreateFlags WriteMaskFlags = DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
 		const ETextureCreateFlags BaseFlags = WriteMaskFlags | TexCreate_ShaderResource | TexCreate_RenderTargetable;
-		const ERDGTextureFlags TextureFlags = DBufferMaskTechnique != EDecalDBufferMaskTechnique::Disabled
-			? ERDGTextureFlags::MaintainCompression
-			: ERDGTextureFlags::None;
-
+		
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Extent, PF_B8G8R8A8, FClearValueBinding::None, BaseFlags);
 
 		Desc.Flags = BaseFlags | GFastVRamConfig.DBufferA;
 		Desc.ClearValue = FClearValueBinding::Black;
-		DBufferTextures.DBufferA = GraphBuilder.CreateTexture(Desc, TEXT("DBufferA"), TextureFlags);
+		DBufferTexturesDesc.DBufferADesc = Desc;
 
 		Desc.Flags = BaseFlags | GFastVRamConfig.DBufferB;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1));
-		DBufferTextures.DBufferB = GraphBuilder.CreateTexture(Desc, TEXT("DBufferB"), TextureFlags);
+		DBufferTexturesDesc.DBufferBDesc = Desc;
 
 		Desc.Flags = BaseFlags | GFastVRamConfig.DBufferC;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 1));
-		DBufferTextures.DBufferC = GraphBuilder.CreateTexture(Desc, TEXT("DBufferC"), TextureFlags);
+		DBufferTexturesDesc.DBufferCDesc = Desc;
 
 		if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::PerPixel)
 		{
@@ -65,7 +62,33 @@ FDBufferTextures CreateDBufferTextures(FRDGBuilder& GraphBuilder, FIntPoint Exte
 			check(Desc.Format == PF_B8G8R8A8);
 			Desc.Flags = TexCreate_ShaderResource | TexCreate_RenderTargetable;
 			Desc.ClearValue = FClearValueBinding::Transparent;
-			DBufferTextures.DBufferMask = GraphBuilder.CreateTexture(Desc, TEXT("DBufferMask"));
+			DBufferTexturesDesc.DBufferMaskDesc = Desc;
+		}
+	}
+
+	return DBufferTexturesDesc;
+}
+
+FDBufferTextures CreateDBufferTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, EShaderPlatform ShaderPlatform)
+{
+	FDBufferTextures DBufferTextures;
+
+	if (IsUsingDBuffers(ShaderPlatform))
+	{
+		FDBufferTexturesDesc TexturesDesc = GetDBufferTexturesDesc(Extent, ShaderPlatform);
+
+		const EDecalDBufferMaskTechnique DBufferMaskTechnique = GetDBufferMaskTechnique(ShaderPlatform);
+		const ERDGTextureFlags TextureFlags = DBufferMaskTechnique != EDecalDBufferMaskTechnique::Disabled
+			? ERDGTextureFlags::MaintainCompression
+			: ERDGTextureFlags::None;
+				
+		DBufferTextures.DBufferA = GraphBuilder.CreateTexture(TexturesDesc.DBufferADesc, TEXT("DBufferA"), TextureFlags);
+		DBufferTextures.DBufferB = GraphBuilder.CreateTexture(TexturesDesc.DBufferBDesc, TEXT("DBufferB"), TextureFlags);
+		DBufferTextures.DBufferC = GraphBuilder.CreateTexture(TexturesDesc.DBufferCDesc, TEXT("DBufferC"), TextureFlags);
+
+		if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::PerPixel)
+		{
+			DBufferTextures.DBufferMask = GraphBuilder.CreateTexture(TexturesDesc.DBufferMaskDesc, TEXT("DBufferMask"));
 		}
 	}
 

@@ -66,6 +66,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDeferredDecalPassParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+void GetDeferredDecalRenderTargetsInfo(
+	const FSceneTexturesConfig& Config,
+	EShaderPlatform ShaderPlatform,
+	EDecalRenderTargetMode RenderTargetMode,
+	FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo);
+
 void GetDeferredDecalPassParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,

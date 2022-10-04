@@ -20,6 +20,14 @@ enum class EDecalDBufferMaskTechnique
 
 EDecalDBufferMaskTechnique GetDBufferMaskTechnique(EShaderPlatform ShaderPlatform);
 
+struct FDBufferTexturesDesc
+{
+	FRDGTextureDesc DBufferADesc;
+	FRDGTextureDesc DBufferBDesc;
+	FRDGTextureDesc DBufferCDesc;
+	FRDGTextureDesc DBufferMaskDesc;
+};
+
 struct FDBufferTextures
 {
 	bool IsValid() const;
@@ -30,6 +38,7 @@ struct FDBufferTextures
 	FRDGTextureRef DBufferMask = nullptr;
 };
 
+FDBufferTexturesDesc GetDBufferTexturesDesc(FIntPoint Extent, EShaderPlatform ShaderPlatform);
 FDBufferTextures CreateDBufferTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, EShaderPlatform ShaderPlatform);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDBufferParameters, )

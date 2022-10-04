@@ -52,6 +52,8 @@ enum EGTAOPass
 	EGTAOPass_Upsample					= 0x20,
 };
 
+FRDGTextureDesc GetScreenSpaceAOTextureDesc(FIntPoint Extent);
+
 FRDGTextureRef CreateScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent);
 
 FRDGTextureRef GetScreenSpaceAOFallback(const FRDGSystemTextures& SystemTextures);

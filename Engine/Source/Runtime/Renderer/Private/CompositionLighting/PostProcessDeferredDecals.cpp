@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositionLighting/PostProcessDeferredDecals.h"
+#include "CompositionLighting/PostProcessAmbientOcclusion.h"
 
 #include "ClearQuad.h"
 #include "DBufferTextures.h"
@@ -78,6 +79,58 @@ FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 	PassTextures.DBufferTextures = DBufferTextures;
 
 	return PassTextures;
+}
+
+void GetDeferredDecalRenderTargetsInfo(
+	const FSceneTexturesConfig& Config,
+	EShaderPlatform ShaderPlatform,
+	EDecalRenderTargetMode RenderTargetMode,
+	FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo)
+{
+	switch (RenderTargetMode)
+	{
+	case EDecalRenderTargetMode::SceneColorAndGBuffer:
+		AddRenderTargetInfo(Config.ColorFormat, Config.ColorCreateFlags, RenderTargetsInfo);
+		AddRenderTargetInfo(Config.GBufferA.Format, Config.GBufferA.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Config.GBufferB.Format, Config.GBufferB.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Config.GBufferC.Format, Config.GBufferC.Flags, RenderTargetsInfo);
+		break;
+	case EDecalRenderTargetMode::SceneColorAndGBufferNoNormal:
+		AddRenderTargetInfo(Config.ColorFormat, Config.ColorCreateFlags, RenderTargetsInfo);
+		AddRenderTargetInfo(Config.GBufferB.Format, Config.GBufferB.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Config.GBufferC.Format, Config.GBufferC.Flags, RenderTargetsInfo);
+		break;
+	case EDecalRenderTargetMode::SceneColor:
+		AddRenderTargetInfo(Config.ColorFormat, Config.ColorCreateFlags, RenderTargetsInfo);
+		break;
+
+	case EDecalRenderTargetMode::DBuffer:
+	{
+		const FDBufferTexturesDesc DBufferTexturesDesc = GetDBufferTexturesDesc(Config.Extent, ShaderPlatform);
+
+		AddRenderTargetInfo(DBufferTexturesDesc.DBufferADesc.Format, DBufferTexturesDesc.DBufferADesc.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(DBufferTexturesDesc.DBufferBDesc.Format, DBufferTexturesDesc.DBufferBDesc.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(DBufferTexturesDesc.DBufferCDesc.Format, DBufferTexturesDesc.DBufferCDesc.Flags, RenderTargetsInfo);
+
+		if (DBufferTexturesDesc.DBufferMaskDesc.Format != PF_Unknown)
+		{
+			AddRenderTargetInfo(DBufferTexturesDesc.DBufferMaskDesc.Format, DBufferTexturesDesc.DBufferMaskDesc.Flags, RenderTargetsInfo);
+		}
+		break;
+	}
+	case EDecalRenderTargetMode::AmbientOcclusion:
+	{		
+		const FRDGTextureDesc AOTextureDesc = GetScreenSpaceAOTextureDesc(Config.Extent);
+		AddRenderTargetInfo(AOTextureDesc.Format, AOTextureDesc.Flags, RenderTargetsInfo);
+		break;
+	}
+
+	default:
+		checkNoEntry();
+	}
+
+	SetupDepthStencilInfo(PF_DepthStencil, Config.DepthCreateFlags, ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite, RenderTargetsInfo);
 }
 
 void GetDeferredDecalPassParameters(

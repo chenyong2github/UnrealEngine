@@ -133,6 +133,13 @@ public:
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
+	virtual void CollectPSOInitializers(
+		const FSceneTexturesConfig& SceneTexturesConfig,
+		const FMaterial& Material,
+		const FVertexFactoryType* VertexFactoryType,
+		const FPSOPrecacheParams& PreCacheParams, 
+		TArray<FPSOPrecacheData>& PSOInitializers) override final;
+
 private:
 	bool TryAddMeshBatch(
 		const FMeshBatch& RESTRICT MeshBatch,
@@ -161,12 +168,12 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(DeferredDecals);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDeferredDecalUniformParameters, "DeferredDecal", DeferredDecals);
 
 FMeshDecalMeshProcessor::FMeshDecalMeshProcessor(const FScene* Scene, 
-	ERHIFeatureLevel::Type FeatureLevel,
+	ERHIFeatureLevel::Type InFeatureLevel,
 	const FSceneView* InViewIfDynamicMeshCommand, 
 	EDecalRenderStage InPassDecalStage, 
 	EDecalRenderTargetMode InRenderTargetMode,
 	FMeshPassDrawListContext* InDrawListContext)
-	: FMeshPassProcessor(EMeshPass::Num, Scene, FeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(EMeshPass::MeshDecal, Scene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDecalStage(InPassDecalStage)
 	, RenderTargetMode(InRenderTargetMode)
 {
@@ -314,6 +321,98 @@ bool FMeshDecalMeshProcessor::Process(
 
 	return true;
 }
+
+void FMeshDecalMeshProcessor::CollectPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material,
+	const FVertexFactoryType* VertexFactoryType,
+	const FPSOPrecacheParams& PreCacheParams, 
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	if (!Material.IsDeferredDecal())
+	{
+		return;
+	}
+
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+	const FDecalBlendDesc DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(ShaderPlatform, Material);
+
+	for (uint32 DecalStageIter = 0; DecalStageIter < (uint32)EDecalRenderStage::Num; ++DecalStageIter)
+	{
+		EDecalRenderStage LocalDecalRenderState = EDecalRenderStage(DecalStageIter);
+
+		const bool bShouldRender = DecalRendering::IsCompatibleWithRenderStage(DecalBlendDesc, LocalDecalRenderState);
+		if (!bShouldRender)
+		{
+			continue;
+		}
+		
+		EDecalRenderTargetMode LocalRenderTargetMode = DecalRendering::GetRenderTargetMode(DecalBlendDesc, LocalDecalRenderState);
+		PassDrawRenderState.SetBlendState(DecalRendering::GetDecalBlendState(DecalBlendDesc, LocalDecalRenderState, LocalRenderTargetMode));
+
+		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
+		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
+		ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
+
+		FMaterialShaderTypes ShaderTypes;
+		ShaderTypes.AddShaderType<FMeshDecalsVS>();
+		if (LocalDecalRenderState == EDecalRenderStage::Emissive)
+		{
+			ShaderTypes.AddShaderType<FMeshDecalsEmissivePS>();
+		}
+		else if (LocalDecalRenderState == EDecalRenderStage::AmbientOcclusion)
+		{
+			ShaderTypes.AddShaderType<FMeshDecalsAmbientOcclusionPS>();
+		}
+		else
+		{
+			ShaderTypes.AddShaderType<FMeshDecalsPS>();
+		}
+
+		FMaterialShaders Shaders;
+		if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+		{
+			continue;
+		}
+
+		TMeshProcessorShaders<
+			FMeshDecalsVS,
+			FMeshDecalsPS> MeshDecalPassShaders;
+		Shaders.TryGetVertexShader(MeshDecalPassShaders.VertexShader);
+		Shaders.TryGetPixelShader(MeshDecalPassShaders.PixelShader);
+
+		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+		RenderTargetsInfo.NumSamples = 1;
+		GetDeferredDecalRenderTargetsInfo(SceneTexturesConfig, ShaderPlatform, LocalRenderTargetMode, RenderTargetsInfo);
+		
+		AddGraphicsPipelineStateInitializer(
+			VertexFactoryType,
+			Material,
+			PassDrawRenderState,
+			RenderTargetsInfo,
+			MeshDecalPassShaders,
+			MeshFillMode,
+			MeshCullMode,
+			PT_TriangleList,
+			EMeshPassFeatures::Default,
+			PSOInitializers);
+	}
+}
+
+IPSOCollector* CreateMeshDecalMeshProcessor(ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (DoesPlatformSupportNanite(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	{
+		return new FMeshDecalMeshProcessor(nullptr, FeatureLevel, nullptr, EDecalRenderStage::None, EDecalRenderTargetMode::None, nullptr);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+// Only register for PSO Collection
+FRegisterPSOCollectorCreateFunction RegisterPSOCollectorMeshDecal(&CreateMeshDecalMeshProcessor, EShadingPath::Deferred, (uint32)EMeshPass::MeshDecal);
 
 void DrawDecalMeshCommands(
 	FRDGBuilder& GraphBuilder,

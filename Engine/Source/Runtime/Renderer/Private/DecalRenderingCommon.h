@@ -49,6 +49,8 @@ enum class EDecalRenderStage : uint8
 	// Ambient occlusion decal pass.
 	// A decal can write regular attributes in another pass and then AO in this pass.
 	AmbientOcclusion = 6,
+
+	Num,
 };
 
 /** Enumeration of the render target layouts for decal rendering. */
