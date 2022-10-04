@@ -595,6 +595,7 @@ private:
 	// Called when we change any properties about the underlying audio asset
 #if WITH_EDITOR
 	void UpdateAsset();
+	void UpdateTransformations();
 #endif
 
 public:
