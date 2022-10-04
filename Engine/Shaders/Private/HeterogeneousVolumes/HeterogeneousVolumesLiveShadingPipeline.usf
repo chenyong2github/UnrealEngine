@@ -16,6 +16,10 @@
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
 
+#if VIRTUAL_SHADOW_MAP
+#include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
+#endif
+
 #ifndef THREADGROUP_SIZE_1D
 #define THREADGROUP_SIZE_1D 1
 #endif // THREADGROUP_SIZE_1D
@@ -40,6 +44,9 @@ int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
 int bApplyShadowTransmittance;
 int LightType;
+
+// Shadowing
+uint VirtualShadowMapId;
 float ShadowStepSize;
 
 // Ray data

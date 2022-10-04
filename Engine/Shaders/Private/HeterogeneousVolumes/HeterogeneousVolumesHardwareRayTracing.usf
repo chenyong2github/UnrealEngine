@@ -12,6 +12,10 @@
 #define SHADOW_QUALITY 2
 #define NO_TRANSLUCENCY_AVAILABLE
 
+#if VIRTUAL_SHADOW_MAP
+#include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
+#endif
+
 #include "HeterogeneousVolumesSparseVoxelUniformBufferUtils.ush"
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
@@ -377,6 +381,9 @@ int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
 int bApplyShadowTransmittance;
 int LightType;
+
+// Shadowing
+uint VirtualShadowMapId;
 
 float3 ComputeTransmittanceHardwareRayTracing(
 	float3 Origin,

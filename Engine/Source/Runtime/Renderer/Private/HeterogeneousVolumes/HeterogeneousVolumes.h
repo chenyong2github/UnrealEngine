@@ -102,6 +102,7 @@ void RenderWithLiveShading(
 	const FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -122,6 +123,7 @@ void RenderWithPreshading(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -217,6 +219,7 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 	const FLightSceneInfo* LightSceneInfo,
 	// Shadow data
 	const FVisibleLightInfo* VisibleLightInfo,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data
@@ -241,6 +244,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	const FLightSceneInfo* LightSceneInfo,
 	// Shadow data
 	const FVisibleLightInfo* VisibleLightInfo,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data

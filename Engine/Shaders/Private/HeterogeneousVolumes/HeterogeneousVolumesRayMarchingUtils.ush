@@ -131,6 +131,15 @@ float ComputeHardSurfaceShadowFactor(
 			HardSurfaceShadowFactor *= ShadowFactor;
 		}
 	}
+
+#if VIRTUAL_SHADOW_MAP
+	if (VirtualShadowMapId != INDEX_NONE)
+	{
+		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(VirtualShadowMapId, TranslatedWorldPosition);
+		HardSurfaceShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+	}
+#endif // VIRTUALSHADOW_MAP
+
 #endif // HARD_SURFACE_SHADOWING
 
 	return HardSurfaceShadowFactor;

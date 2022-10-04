@@ -223,6 +223,8 @@ class FRenderLightingCacheWithPreshadingCS : public FGlobalShader
 		// Shadow data
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
+		SHADER_PARAMETER(int32, VirtualShadowMapId)
 
 		// Volume structures
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSparseVoxelUniformBufferParameters, SparseVoxelUniformBuffer)
@@ -255,6 +257,13 @@ class FRenderLightingCacheWithPreshadingCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_3D"), GetThreadGroupSize3D());
+
+		bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		if (bSupportVirtualShadowMap)
+		{
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
 
 		// This shader takes a very long time to compile with FXC, so we pre-compile it with DXC first and then forward the optimized HLSL to FXC.
 		//OutEnvironment.CompilerFlags.Add(CFLAG_PrecompileWithDXC);
@@ -297,6 +306,8 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 		// Shadow data
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
+		SHADER_PARAMETER(int32, VirtualShadowMapId)
 
 		// Volume data
 		SHADER_PARAMETER(int, MipLevel)
@@ -339,6 +350,13 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
 
+		bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		if (bSupportVirtualShadowMap)
+		{
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
+
 		// This shader takes a very long time to compile with FXC, so we pre-compile it with DXC first and then forward the optimized HLSL to FXC.
 		//OutEnvironment.CompilerFlags.Add(CFLAG_PrecompileWithDXC);
 		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
@@ -366,6 +384,7 @@ void RenderLightingCacheWithPreshadingCompute(
 	const FLightSceneInfo* LightSceneInfo,
 	// Shadow data
 	const FVisibleLightInfo* VisibleLightInfo,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data
@@ -421,11 +440,14 @@ void RenderLightingCacheWithPreshadingCompute(
 			{
 				SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
 			}
+			PassParameters->VirtualShadowMapId = VisibleLightInfo->GetVirtualShadowMapId(&View);
 		}
 		else
 		{
 			SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
+			PassParameters->VirtualShadowMapId = -1;
 		}
+		PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 
 		// Output
 		PassParameters->RWLightingCacheTexture = GraphBuilder.CreateUAV(LightingCacheTexture);
@@ -476,6 +498,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 	const FLightSceneInfo* LightSceneInfo,
 	// Shadow data
 	const FVisibleLightInfo* VisibleLightInfo,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Sparse voxel data
@@ -526,11 +549,14 @@ void RenderSingleScatteringWithPreshadingCompute(
 			{
 				SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
 			}
+			PassParameters->VirtualShadowMapId = VisibleLightInfo->GetVirtualShadowMapId(&View);
 		}
 		else
 		{
 			SetVolumeShadowingDefaultShaderParametersGlobal(GraphBuilder, PassParameters->VolumeShadowingShaderParameters);
+			PassParameters->VirtualShadowMapId = -1;
 		}
+		PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 
 		// Volume data
 		PassParameters->MipLevel = HeterogeneousVolumes::GetMipLevel();
@@ -595,6 +621,7 @@ void RenderWithInscatteringVolumePipelineWithPreshadingCompute(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -661,6 +688,7 @@ void RenderWithInscatteringVolumePipelineWithPreshadingCompute(
 			LightSceneInfo,
 			// Shadow data
 			VisibleLightInfo,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			// Volume data
@@ -700,6 +728,7 @@ void RenderWithInscatteringVolumePipelineWithPreshadingCompute(
 			LightSceneInfo,
 			// Shadow
 			VisibleLightInfo,
+			VirtualShadowMapArray,
 			// Object
 			PrimitiveSceneProxy,
 			// Volume data
@@ -726,6 +755,7 @@ void RenderWithTransmittanceVolumePipelineWithPreshadingCompute(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -794,6 +824,7 @@ void RenderWithTransmittanceVolumePipelineWithPreshadingCompute(
 				LightSceneInfo,
 				// Shadow data
 				VisibleLightInfo,
+				VirtualShadowMapArray,
 				// Object data
 				PrimitiveSceneProxy,
 				// Volume data
@@ -823,6 +854,7 @@ void RenderWithTransmittanceVolumePipelineWithPreshadingCompute(
 			LightSceneInfo,
 			// Shadow
 			VisibleLightInfo,
+			VirtualShadowMapArray,
 			// Object
 			PrimitiveSceneProxy,
 			// Volume data
@@ -849,6 +881,7 @@ void RenderWithPreshadingCompute(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -897,6 +930,7 @@ void RenderWithPreshadingCompute(
 			View,
 			// Shadow data
 			VisibleLightInfos,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
@@ -923,6 +957,7 @@ void RenderWithPreshadingCompute(
 			View,
 			// Shadow data
 			VisibleLightInfos,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
@@ -949,6 +984,7 @@ void RenderWithInscatteringVolumePipelineWithPreshadingHardwareRayTracing(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -1013,6 +1049,7 @@ void RenderWithInscatteringVolumePipelineWithPreshadingHardwareRayTracing(
 			LightSceneInfo,
 			// Shadow
 			VisibleLightInfo,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			// Sparse voxel
@@ -1048,6 +1085,7 @@ void RenderWithInscatteringVolumePipelineWithPreshadingHardwareRayTracing(
 			LightSceneInfo,
 			// Shadow
 			VisibleLightInfo,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			// Sparse voxel
@@ -1072,6 +1110,7 @@ void RenderWithTransmittanceVolumePipelineWithPreshadingHardwareRayTracing(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -1138,6 +1177,7 @@ void RenderWithTransmittanceVolumePipelineWithPreshadingHardwareRayTracing(
 				LightSceneInfo,
 				// Shadow
 				VisibleLightInfo,
+				VirtualShadowMapArray,
 				// Object data
 				PrimitiveSceneProxy,
 				// Sparse voxel
@@ -1163,6 +1203,7 @@ void RenderWithTransmittanceVolumePipelineWithPreshadingHardwareRayTracing(
 			LightSceneInfo,
 			// Shadow
 			VisibleLightInfo,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			// Sparse voxel
@@ -1187,6 +1228,7 @@ void RenderWithPreshadingHardwareRayTracing(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -1248,6 +1290,7 @@ void RenderWithPreshadingHardwareRayTracing(
 			View,
 			// Shadow data
 			VisibleLightInfos,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
@@ -1269,6 +1312,7 @@ void RenderWithPreshadingHardwareRayTracing(
 			View,
 			// Shadow data
 			VisibleLightInfos,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
@@ -1412,6 +1456,7 @@ void RenderWithPreshading(
 	FViewInfo& View,
 	// Shadow data
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
+	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMaterialRenderProxy* MaterialRenderProxy,
@@ -1554,6 +1599,7 @@ void RenderWithPreshading(
 			View,
 			// Shadow data
 			VisibleLightInfos,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
@@ -1578,6 +1624,7 @@ void RenderWithPreshading(
 			View,
 			// Shadow data
 			VisibleLightInfos,
+			VirtualShadowMapArray,
 			// Object data
 			PrimitiveSceneProxy,
 			MaterialRenderProxy,
