@@ -463,7 +463,16 @@ namespace Nanite
 
 					if (VertexBufferOffset == 0xFFFFFFFFu || IndexBufferOffset == 0xFFFFFFFFu)
 					{
+						// ran out of space in StreamOut buffers
+						Data.bUpdating = false;
+						Data.BaseMeshDataOffset = -1;
+						UpdateRequests.Add(GeometryId); // request update again
 						continue;
+
+						// TODO:
+						// - Resize VB/IB buffers dynamically instead of always allocating max size
+						// - Warn user if max VB/IB buffer size are not large enough for a specific mesh cut
+						// - Store vertices and indices in the same buffer in a single allocation
 					}
 
 					const uint32 NumVertices = MeshDataReadbackBufferPtr[Data.BaseMeshDataOffset + 2];
