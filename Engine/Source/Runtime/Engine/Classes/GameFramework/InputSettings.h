@@ -79,6 +79,13 @@ class ENGINE_API UInputSettings
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	uint8 bShouldFlushPressedKeysOnViewportFocusLost:1;
+
+	/**
+	 * Should components that are dynamically added via the 'AddComponent' function at runtime have input delegates bound to them?
+	 * @see AActor::FinishAddComponent
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	uint8 bEnableDynamicComponentInputBinding:1;
 	
 	/** Should the touch input interface be shown always, or only when the platform has a touch screen? */
 	UPROPERTY(config, EditAnywhere, Category="Mobile")

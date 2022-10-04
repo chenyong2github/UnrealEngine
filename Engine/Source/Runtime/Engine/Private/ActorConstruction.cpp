@@ -32,6 +32,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Algo/Transform.h"
 #include "Misc/ScopeExit.h"
+#include "Engine/InputDelegateBinding.h"
+#include "GameFramework/InputSettings.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -1260,6 +1262,11 @@ void AActor::FinishAddComponent(UActorComponent* NewActorComp, bool bManualAttac
 			{
 				World->UpdateCullDistanceVolumes(this, NewPrimitiveComponent);
 			}
+		}
+		
+		if (InputComponent && GetDefault<UInputSettings>()->bEnableDynamicComponentInputBinding)
+		{
+			UInputDelegateBinding::BindInputDelegates(NewActorComp->GetClass(), InputComponent, NewActorComp);
 		}
 	}
 }

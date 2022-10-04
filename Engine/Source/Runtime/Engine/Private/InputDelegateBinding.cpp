@@ -69,7 +69,7 @@ void UInputDelegateBinding::BindInputDelegatesWithSubojects(AActor* InActor, UIn
 		for(UActorComponent* Comp : ComponentArray)
 		{
 			const UClass* CompClass = Comp ? Comp->GetClass() : nullptr;
-			if(CompClass && SupportsInputDelegate(CompClass) && Comp != InputComponent)
+			if(CompClass && Comp != InputComponent)
 			{
 				UInputDelegateBinding::BindInputDelegates(CompClass, InputComponent, Comp);	
 			}			
