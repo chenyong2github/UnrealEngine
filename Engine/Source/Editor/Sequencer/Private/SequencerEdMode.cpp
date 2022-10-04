@@ -335,6 +335,7 @@ bool FSequencerEdMode::InputDelta(FEditorViewportClient* InViewportClient, FView
 			InViewportClient->SetCurrentWidgetAxis(EAxisList::None);
 			InViewportClient->PeformDefaultCameraMovement(InDrag, InRot, InScale);
 			GUnrealEd->UpdatePivotLocationForSelection();
+			GUnrealEd->RedrawLevelEditingViewports();
 		}
 
 		return true;
@@ -343,6 +344,7 @@ bool FSequencerEdMode::InputDelta(FEditorViewportClient* InViewportClient, FView
 	{
 		return DragToolHandler.InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
 		GUnrealEd->UpdatePivotLocationForSelection();
+		GUnrealEd->RedrawLevelEditingViewports();
 
 	}
 	return FEdMode::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
