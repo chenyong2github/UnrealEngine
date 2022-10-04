@@ -174,11 +174,11 @@ void URCRangeMapBehaviour::GetLerpActions(TMap<FGuid, TArray<URCAction*>>& OutNu
 		{
 			double A, B;
 			bool bRes1 = GetValueForAction(ActionA, A);
-			bool bRes2 = GetValueForAction(ActionA, B);
+			bool bRes2 = GetValueForAction(ActionB, B);
 
 			if (bRes1 && bRes2)
 			{
-				return A > B;
+				return A < B;
 			}
 
 			return false;
@@ -387,9 +387,9 @@ bool URCRangeMapBehaviour::GetRangeValuePairsForLerp(TMap<FGuid, TTuple<URCActio
 		URCAction* MaxAction = nullptr;
 		URCAction* MinAction = nullptr;
 		
-		for (URCAction* Action : NumericActionTuple.Value)
+		for (URCAction* CurrentAction : NumericActionTuple.Value)
 		{
-			FRCRangeMapInput* RangeMap = RangeMapActionContainer.Find(Action);
+			FRCRangeMapInput* RangeMap = RangeMapActionContainer.Find(CurrentAction);
 			if (!RangeMap)
 			{
 				// Shouldn't happen, but skip if it does
@@ -404,9 +404,9 @@ bool URCRangeMapBehaviour::GetRangeValuePairsForLerp(TMap<FGuid, TTuple<URCActio
 			}
 
 			// Deal with the nullptr
-			if (NormalizedControllerValue >= Value && (!MinRangeMap || NumericActionTuple.Value.Last() != Action))
+			if (Value <= NormalizedControllerValue && NumericActionTuple.Value.Last() != CurrentAction)
 			{
-				MinAction = Action;
+				MinAction = CurrentAction;
 				MinRangeMap = RangeMap;
 				
 				continue;
@@ -414,7 +414,7 @@ bool URCRangeMapBehaviour::GetRangeValuePairsForLerp(TMap<FGuid, TTuple<URCActio
 
 			if (NormalizedControllerValue <= Value)
 			{
-				MaxAction = Action;
+				MaxAction = CurrentAction;
 				MaxRangeMap = RangeMap;
 
 				continue;

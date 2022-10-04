@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "RemoteControlPropertyHandleTestData.generated.h"
 
+class UStaticMeshComponent;
+
 UENUM()
 enum class ERemoteControlEnumClass : uint8
 {
@@ -94,6 +96,7 @@ public:
 		}
 
 		StringColorMap.Add(TEXT("mykey"), FColor{1,2,3,4});
+		StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("StaticMeshComponentStructTest");
 	}
 
 	UPROPERTY(EditAnywhere, Category = "RC")
@@ -119,6 +122,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	TArray<FVector> ArrayOfVectors;
+
+	UPROPERTY(EditAnywhere, Category = "RC")
+	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	int8 Int8Value = 5;

@@ -446,7 +446,14 @@ FRemoteControlPropertyHandle::FRemoteControlPropertyHandle(const TSharedPtr<FRem
 	FString ThisFieldPath = InProperty->GetName();
 	if (InParentProperty == nullptr || InParentProperty->ArrayDim != 1)
 	{
-		FieldPath = ThisFieldPath;
+		if (const UScriptStruct* Struct = Cast<UScriptStruct>(InProperty->GetOwnerUObject()))
+		{
+			FieldPath = FString::Printf(TEXT("%s.%s"), *Struct->GetName(), *ThisFieldPath);
+		}
+		else
+		{
+			FieldPath = ThisFieldPath;
+		}
 	}
 	else
 	{

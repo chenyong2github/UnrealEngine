@@ -4,6 +4,7 @@
 #include "Misc/AutomationTest.h"
 #include "UObject/StrongObjectPtr.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "IRemoteControlModule.h"
 #include "IRemoteControlPropertyHandle.h"
 #include "RemoteControlPropertyHandleTestData.h"
@@ -43,6 +44,7 @@ namespace RemoteControlAPIIntegrationTest
 
 		// Test the property handles
 		{
+			IRemoteControlModule::Get().RegisterEmbeddedPreset(Preset.Get());
 			// 1. Find the Remote Control preset
 			URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(PresetName);
 			if (!ResolvedPreset)
@@ -113,6 +115,7 @@ namespace RemoteControlAPIIntegrationTest
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestObject->Int16Value, SetInt16Value);
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestObject->Int32Value, SetInt32Value);
 		}
+		IRemoteControlModule::Get().UnregisterEmbeddedPreset(PresetName);
 	}
 
 	void TestCreatePropertyHandleStruct(FAutomationTestBase& Test)
@@ -128,6 +131,7 @@ namespace RemoteControlAPIIntegrationTest
 
 		// Test the api property handles
 		{
+			IRemoteControlModule::Get().RegisterEmbeddedPreset(Preset.Get());
 			// 1. Find the Remote Control preset
 			URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(PresetName);
 			if (!ResolvedPreset)
@@ -155,9 +159,9 @@ namespace RemoteControlAPIIntegrationTest
 
 			// 4. Check num Children
 			int32 NumChildren = StructOuterPropertyHandle->GetNumChildren();
-			Test.TestEqual(TEXT("Num children should be equal 4"), 4, NumChildren);
+			Test.TestEqual(TEXT("Num children should be equal 4"), NumChildren, 4);
 			NumChildren = RemoteControlTestStructInnerPropertyHandle->GetNumChildren();
-			Test.TestEqual(TEXT("Num children should be equal 3"), 3, NumChildren);
+			Test.TestEqual(TEXT("Num children should be equal 3"), NumChildren, 3);
 
 			// 5. Get/Set value to the outer struct RemoteControlAPITestObject/RemoteControlTestStructOuter
 			{
@@ -207,6 +211,7 @@ namespace RemoteControlAPIIntegrationTest
 				}
 			}
 		}
+		IRemoteControlModule::Get().UnregisterEmbeddedPreset(PresetName);
 	}
 
 	void TestCreatePropertyHandleArray(FAutomationTestBase& Test)
@@ -777,6 +782,7 @@ namespace RemoteControlAPIIntegrationTest
 		// Test complex path handles
 		{
 			// 1. Find the Remote Control preset
+			IRemoteControlModule::Get().RegisterEmbeddedPreset(Preset.Get());
 			URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(PresetName);
 			if (!ResolvedPreset)
 			{
@@ -861,6 +867,7 @@ namespace RemoteControlAPIIntegrationTest
 					->InnerSimple.Int32Value,
 				SetInt32Value);
 		}
+		IRemoteControlModule::Get().UnregisterEmbeddedPreset(PresetName);
 	}
 
 	void TestGetPropertyHandleByFieldPath(FAutomationTestBase& Test)
@@ -873,6 +880,8 @@ namespace RemoteControlAPIIntegrationTest
 		
 		TStrongObjectPtr<URemoteControlAPITestObject> TestObject{ NewObject<URemoteControlAPITestObject>() };
 		check(TestObject);
+
+		IRemoteControlModule::Get().RegisterEmbeddedPreset(Preset.Get());
 
 		// Set a test value
 		constexpr int32 Int32ValueTest = 14923;
@@ -976,6 +985,72 @@ namespace RemoteControlAPIIntegrationTest
 			IntMap_PropertyHandle_O->SetValue(SetIntValue);
 			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), *TestObject->IntMap.Find(1), SetIntValue);
 		}
+		IRemoteControlModule::Get().UnregisterEmbeddedPreset(PresetName);
+	}
+
+	void TestStructInObjectProperty(FAutomationTestBase& Test)
+	{
+		// Create preset and uobject
+		const TCHAR* PresetName = TEXT("TestComplexPath");
+
+		TStrongObjectPtr<URemoteControlPreset> Preset{ NewObject<URemoteControlPreset>(GetTransientPackage(), PresetName) };
+		check(Preset);
+		
+		TStrongObjectPtr<URemoteControlAPITestObject> TestObject{ NewObject<URemoteControlAPITestObject>() };
+		check(TestObject);
+
+		IRemoteControlModule::Get().RegisterEmbeddedPreset(Preset.Get());
+
+		// Set a test value
+		TestObject->StaticMeshComponent->BodyInstance.LinearDamping = 5.0;
+
+		FProperty* LinearProperty = FBodyInstance::StaticStruct()->FindPropertyByName(PROP_NAME(FBodyInstance, LinearDamping));
+		if(!Test.TestFalse(TEXT("LineaProperty is valid"), LinearProperty == nullptr))
+		{
+			return;
+		}
+
+		FRemoteControlPresetExposeArgs ExposeArgs;
+		ExposeArgs.Label = "LinearDamping";
+		TWeakPtr<FRemoteControlProperty> LinearDampingRC = Preset->ExposeProperty(TestObject->StaticMeshComponent, FRCFieldPathInfo{ "BodyInstance." + LinearProperty->GetName() }, ExposeArgs);
+		
+		{
+			// 1. Find the Remote Control preset
+			URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(PresetName);
+			if (!ResolvedPreset)
+			{
+				Test.AddError(TEXT("ResolvedPreset not valid"));
+				return;
+			}
+
+			// 2. Find exposed properties by label or ID
+			const TSharedPtr<FRemoteControlProperty> RCLinearDampingProperty = ResolvedPreset->GetExposedEntity<FRemoteControlProperty>(ResolvedPreset->GetExposedEntityId(*LinearProperty->GetName())).Pin();
+			if (!RCLinearDampingProperty.IsValid())
+			{
+				Test.AddError(TEXT("RCLinearDampingProperty not valid"));
+				return;
+			}
+
+			// 3. Get property handle
+			const TSharedPtr<IRemoteControlPropertyHandle> RCLinearDampingPropertyHandle = RCLinearDampingProperty->GetPropertyHandle();
+			if (!RCLinearDampingPropertyHandle.IsValid())
+			{
+				Test.AddError(TEXT("RCLinearDampingPropertyHandle not valid"));
+				return;
+			}
+
+			// 4. Get remote control handles values
+			float LinearDampingValue = 0.0;
+			RCLinearDampingPropertyHandle->GetValue(LinearDampingValue);
+			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestObject->StaticMeshComponent->BodyInstance.LinearDamping, LinearDampingValue);
+
+			// 5. Set remote control handles values
+			constexpr float SetLinearDampingValue = 100.0;
+			RCLinearDampingPropertyHandle->SetValue(SetLinearDampingValue);
+			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), TestObject->StaticMeshComponent->BodyInstance.LinearDamping, SetLinearDampingValue);
+		}
+
+		IRemoteControlModule::Get().UnregisterEmbeddedPreset(Preset.Get());
 	}
 }
 
@@ -1001,6 +1076,7 @@ bool FRemoteControlAPIIntegrationTest::RunTest(const FString& Parameters)
 	RemoteControlAPIIntegrationTest::TestLinearColorProperty(*this);
 	RemoteControlAPIIntegrationTest::TestComplexPath(*this);
 	RemoteControlAPIIntegrationTest::TestGetPropertyHandleByFieldPath(*this);
+	RemoteControlAPIIntegrationTest::TestStructInObjectProperty(*this);
 
 	return true;
 }
