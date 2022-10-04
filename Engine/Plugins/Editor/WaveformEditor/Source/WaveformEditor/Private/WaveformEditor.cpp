@@ -35,6 +35,7 @@ bool FWaveformEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<ITool
 	checkf(SoundWaveToEdit, TEXT("Tried to open a Soundwave Editor from a null soundwave"));
 
 	SoundWave = SoundWaveToEdit;
+
 	AddDefaultTransformations();
 
 	bool bIsInitialized = true;
@@ -105,20 +106,7 @@ void FWaveformEditor::AddDefaultTransformations()
 			}
 		}
 
-		FWaveTransformUObjectConfiguration ChainMetadata = FWaveTransformUObjectConfiguration();
-
-		ChainMetadata.NumChannels = SoundWave->NumChannels;
-		ChainMetadata.SampleRate = SoundWave->GetSampleRateForCurrentPlatform();
-		ChainMetadata.StartTime = 0.f;
-		ChainMetadata.EndTime = SoundWave->Duration;
-
-		for (TObjectPtr<UWaveformTransformationBase>& Transform : SoundWave->Transformations)
-		{
-			if (Transform)
-			{
-				Transform->UpdateConfiguration(ChainMetadata);
-			}
-		}
+		TransformationChainConfig = SoundWave->UpdateTransformations();
 	}
 }
 
@@ -438,6 +426,44 @@ void FWaveformEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChan
 	{
 		return;
 	}
+	
+
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		bIsInteractingWithTransformations = true;
+
+		if (TransportController->IsPlaying() || TransportController->IsPaused())
+		{
+			TransformInteractionPlayState = AudioComponent->GetPlayState();
+			PlaybackTimeBeforeTransformInteraction = LastReceivedPlaybackPercent * (TransformationChainConfig.EndTime - TransformationChainConfig.StartTime);
+			StartTimeBeforeTransformInteraction = TransformationChainConfig.StartTime;
+			AudioComponent->Stop();
+		}
+	}
+
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	{
+		if (!TransportController->IsPlaying())
+		{
+			const float StartTimeDifference = StartTimeBeforeTransformInteraction - TransformationChainConfig.StartTime;
+			const float AdjustedPlaybackTime = PlaybackTimeBeforeTransformInteraction + StartTimeDifference;
+
+			switch (TransformInteractionPlayState)
+			{
+			case EAudioComponentPlayState::Playing:
+				TransportController->Play(AdjustedPlaybackTime);
+				TransformInteractionPlayState = EAudioComponentPlayState::Stopped;
+				break;
+			case EAudioComponentPlayState::Paused:
+				TransportController->CacheStartTime(AdjustedPlaybackTime);
+				TransformInteractionPlayState = EAudioComponentPlayState::Stopped;
+			default:
+				break;
+			}
+		}
+
+		bIsInteractingWithTransformations = false;
+	}
 
 	const bool bUpdateTransformationChain = PropertyChangedEvent.GetPropertyName() == TEXT("Transformations");
 
@@ -447,7 +473,10 @@ void FWaveformEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChan
 	}
 
 	TransformationsRenderManager->UpdateRenderElements();
+	TransformationChainConfig = SoundWave->GetTransformationChainConfig();
 }
+
+
 
 void FWaveformEditor::PostUndo(bool bSuccess)
 {
@@ -622,6 +651,7 @@ void FWaveformEditor::HandlePlaybackPercentageChange(const UAudioComponent* InCo
 	const bool bIsStopped = AudioComponent->GetPlayState() == EAudioComponentPlayState::Stopped;
 	const bool bIsPaused = AudioComponent->GetPlayState() == EAudioComponentPlayState::Paused;
 	const bool bPropagatePercentage = !bIsStopped && !bIsPaused;
+	LastReceivedPlaybackPercent = InPlaybackPercentage;
 	
 	if (InComponent == AudioComponent && bPropagatePercentage)
 	{
@@ -645,11 +675,14 @@ void FWaveformEditor::HandleAudioComponentPlayStateChanged(const UAudioComponent
 	default:
 		break;
 	case EAudioComponentPlayState::Stopped:
-		if (!TransportCoordinator->IsScrubbing())
+		const bool bIgnoreStopState = TransportCoordinator->IsScrubbing() || bIsInteractingWithTransformations;
+
+		if (!bIgnoreStopState)
 		{
 			TransportController->CacheStartTime(0.f);
 			TransportCoordinator->Stop();
 		}
+
 		break;
 	}
 }

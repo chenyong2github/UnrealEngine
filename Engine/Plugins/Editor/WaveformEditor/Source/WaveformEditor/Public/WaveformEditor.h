@@ -37,6 +37,7 @@ public:
 	/** FNotifyHook interface */
 	void NotifyPreChange(class FEditPropertyChain* PropertyAboutToChange) override {};
 	void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged) override;
+	
 
 	/** FEditorUndo interface */
 	void PostUndo(bool bSuccess) override;
@@ -127,4 +128,13 @@ private:
 	UAudioComponent* AudioComponent = nullptr;
 
 	bool bWasPlayingBeforeScrubbing = false;
+	bool bIsInteractingWithTransformations = false;
+
+	float LastReceivedPlaybackPercent = 0.f;
+
+	EAudioComponentPlayState TransformInteractionPlayState = EAudioComponentPlayState::Stopped;
+	float PlaybackTimeBeforeTransformInteraction = 0.f;
+	float StartTimeBeforeTransformInteraction = 0.f;
+
+	FWaveTransformUObjectConfiguration TransformationChainConfig;
 };

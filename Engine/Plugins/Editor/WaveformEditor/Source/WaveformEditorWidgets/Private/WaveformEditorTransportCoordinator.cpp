@@ -118,10 +118,8 @@ FReply FWaveformEditorTransportCoordinator::HandleTimeRulerInteraction(const ERe
 
 void FWaveformEditorTransportCoordinator::HandleRenderDataUpdate()
 {
-	PlaybackRange = RenderData->GetTransformedWaveformBounds();
-	ReceivePlayBackRatio(0.f);
+ 	PlaybackRange = RenderData->GetTransformedWaveformBounds();
 }
-
 
 void FWaveformEditorTransportCoordinator::ScrubPlayhead(const float TargetPlayheadPosition, const bool bIsMoving)
 {
@@ -285,7 +283,6 @@ void FWaveformEditorTransportCoordinator::UpdateDisplayRange(const float MinValu
 	{
 		OnDisplayRangeUpdated.Broadcast(DisplayRange);
 	}
-
 }
 
 bool FWaveformEditorTransportCoordinator::IsRatioWithinDisplayRange(const float Ratio) const

@@ -3894,29 +3894,36 @@ void USoundWave::UpdateAsset()
 	}
 }
 
-void USoundWave::UpdateTransformations()
+const FWaveTransformUObjectConfiguration& USoundWave::GetTransformationChainConfig() const
 {
-	FWaveTransformUObjectConfiguration ChainConfiguration = FWaveTransformUObjectConfiguration();
+	return TransformationChainConfig;
+}
+
+const FWaveTransformUObjectConfiguration& USoundWave::UpdateTransformations()
+{
+	TransformationChainConfig = FWaveTransformUObjectConfiguration();
 
 	if (TotalSamples == 0)
 	{
 		UE_LOG(LogAudio, Warning, TEXT("Found %d total samples when updating transformations on soundwave %s"), TotalSamples, *GetNameSafe(this));
 		UE_LOG(LogAudio, Warning, TEXT("Consider reimporting the asset, transformations might not work correctly"));
-		return;
+		return TransformationChainConfig;
 	}
 
-	ChainConfiguration.NumChannels = NumChannels;
-	ChainConfiguration.SampleRate = ImportedSampleRate > 0 ? ImportedSampleRate : GetSampleRateForCurrentPlatform();
-	ChainConfiguration.StartTime = 0.f;
-	ChainConfiguration.EndTime = TotalSamples / ChainConfiguration.SampleRate;
+	TransformationChainConfig.NumChannels = NumChannels;
+	TransformationChainConfig.SampleRate = ImportedSampleRate > 0 ? ImportedSampleRate : GetSampleRateForCurrentPlatform();
+	TransformationChainConfig.StartTime = 0.f;
+	TransformationChainConfig.EndTime = TotalSamples / TransformationChainConfig.SampleRate;
 
 	for (TObjectPtr<UWaveformTransformationBase>& Transformation : Transformations)
 	{
 		if (Transformation)
 		{
-			Transformation->UpdateConfiguration(ChainConfiguration);
+			Transformation->UpdateConfiguration(TransformationChainConfig);
 		}
 	}
+
+	return TransformationChainConfig;
 }
 
 #endif // #if WITH_EDITOR

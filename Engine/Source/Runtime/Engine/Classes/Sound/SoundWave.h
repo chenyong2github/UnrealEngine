@@ -462,7 +462,7 @@ public:
 
 	/** Returns the Runtime format of the wave */
 	FName GetRuntimeFormat() const;
-		
+
 private:
 	// cached proxy
 	FSoundWaveProxyPtr InternalProxy{ nullptr };
@@ -571,6 +571,11 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading")
 	int32 InitialChunkSize;
 
+#if WITH_EDITOR
+	const FWaveTransformUObjectConfiguration& GetTransformationChainConfig() const;
+	const FWaveTransformUObjectConfiguration& UpdateTransformations();
+#endif
+
 private:
 
 	/** Helper functions to search analysis data. Takes starting index to start query. Returns which data index the result was found at. Returns INDEX_NONE if not found. */
@@ -595,7 +600,6 @@ private:
 	// Called when we change any properties about the underlying audio asset
 #if WITH_EDITOR
 	void UpdateAsset();
-	void UpdateTransformations();
 #endif
 
 public:
@@ -1035,6 +1039,8 @@ private:
 
 	void BakeFFTAnalysis();
 	void BakeEnvelopeAnalysis();
+
+	FWaveTransformUObjectConfiguration TransformationChainConfig;
 #endif //WITH_EDITOR
 
 public:
