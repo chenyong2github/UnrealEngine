@@ -1,25 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+using AutomationTool;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
-using AutomationTool;
-using System.Runtime.Serialization;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 using UnrealBuildTool;
-using EpicGames.MCP.Automation;
 
 namespace EpicGames.MCP.Automation
 {
-	using EpicGames.MCP.Config;
-	using System.Threading.Tasks;
 	using EpicGames.Core;
+	using EpicGames.MCP.Config;
 	using System.ComponentModel;
 	using System.Globalization;
+	using System.Threading.Tasks;
 
     /// <summary>
     /// Utility class to provide commit/rollback functionality via an RAII-like functionality.
@@ -1979,7 +1976,7 @@ namespace EpicGames.MCP.Automation
 			}
 
 			DateTime Expiry;
-			string Result = GetClientToken(McpConfig, McpConfig.ClientId, McpConfig.ClientSecret, out Expiry);
+			string Result = GetClientToken(McpConfig, McpConfig.ClientId, McpConfig.ClientSecret.Invoke(), out Expiry);
 
 			lock(CachedTokensLock)
 			{
@@ -2546,6 +2543,7 @@ namespace EpicGames.MCP.Config
                                 McpConfigData Config = Activator.CreateInstance(PotentialConfigType) as McpConfigData;
                                 if (Config != null)
                                 {
+                                    Config.Initialize(PotentialConfigType.Name);
                                     Configs.Add(Config.Name, Config);
                                 }
                             }
@@ -2578,7 +2576,15 @@ namespace EpicGames.MCP.Config
     // Class for storing mcp configuration data
     public class McpConfigData
     {
+		public McpConfigData() { }
+
+		[Obsolete("This constructor is deprecated. Use the alternative which accepts a Func<string> for the client secret.", false)]
 		public McpConfigData(string InName, string InAccountBaseUrl, string InFortniteBaseUrl, string InLauncherBaseUrl, string InBuildInfoV2BaseUrl, string InLauncherV2BaseUrl, string InCatalogBaseUrl, string InClientId, string InClientSecret)
+			: this(InName, InAccountBaseUrl, InFortniteBaseUrl, InLauncherBaseUrl, InBuildInfoV2BaseUrl, InLauncherV2BaseUrl, InCatalogBaseUrl, InClientId, () => InClientSecret)
+		{
+		}
+
+		public McpConfigData(string InName, string InAccountBaseUrl, string InFortniteBaseUrl, string InLauncherBaseUrl, string InBuildInfoV2BaseUrl, string InLauncherV2BaseUrl, string InCatalogBaseUrl, string InClientId, Func<string> InClientSecret)
         {
             Name = InName;
             AccountBaseUrl = InAccountBaseUrl;
@@ -2591,15 +2597,19 @@ namespace EpicGames.MCP.Config
             ClientSecret = InClientSecret;
         }
 
-        public string Name;
-        public string AccountBaseUrl;
-        public string FortniteBaseUrl;
-        public string LauncherBaseUrl;
-		public string BuildInfoV2BaseUrl;
-		public string LauncherV2BaseUrl;
-		public string CatalogBaseUrl;
-        public string ClientId;
-        public string ClientSecret;
+        public string Name { get; set; }
+        public string AccountBaseUrl { get; set; }
+        public string FortniteBaseUrl { get; set; }
+        public string LauncherBaseUrl { get; set; }
+		public string BuildInfoV2BaseUrl { get; set; }
+		public string LauncherV2BaseUrl { get; set; }
+		public string CatalogBaseUrl { get; set; }
+        public string ClientId { get; set; }
+        public Func<string> ClientSecret;
+
+		public virtual void Initialize(string ConfigName)
+		{
+		}
 
         public void SpewValues()
         {
