@@ -286,12 +286,12 @@ void UCinePrestreamingRecorderSetting::CreateAssetsFromData()
 
 				if (bWriteFrameData)
 				{
-					if (bEnableVirtualTexture)
+					if (bVirtualTextures)
 					{
 						VTData.PageIds = FrameData.Value.VTRequests.Array();
 						VTData.PageIds.Sort();
 					}
-					if (bEnableNanite)
+					if (bNanite)
 					{
 						NaniteData.RequestData = FrameData.Value.NaniteRequestData;
 					}
@@ -358,3 +358,18 @@ void UCinePrestreamingRecorderSetting::ModifyTargetSequences(const TArray<FMovie
 		Data.MovieScene->SetReadOnly(bReadOnly);
 	}
 }
+
+
+#if WITH_EDITOR
+
+FText UCinePrestreamingRecorderSetting::GetFooterText(UMoviePipelineExecutorJob* InJob) const
+{
+	if (bDisableAdvanceRenderFeatures)
+	{
+		return NSLOCTEXT("MovieRenderPipeline", "CinePrestreamingSetting_FooterText", "Enabling the bDisableAdvanceRenderFeatures setting will disable rendering features not required to generate the Cinematic Prestreaming data. This makes renders significantly faster but results in a final image that is not useful.");
+	}
+
+	return FText();
+}
+
+#endif
