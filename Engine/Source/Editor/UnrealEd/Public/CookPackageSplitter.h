@@ -65,6 +65,69 @@ public:
 	/** Return the list of packages to generate. */
 	virtual TArray<FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) = 0;
 
+	/** Representation of a generated package that is provided when populating the generator package. */
+	struct FGeneratedPackageForPreSave
+	{
+		/** RelativePath returned from GetGenerateList */
+		FString RelativePath;
+		/** Root returned from GetGenerateList */
+		FString GeneratedRootPath;
+		/**
+		 * Non-null UPackage. Possibly an empty placeholder package. Provided so that the generator package
+		 * can create import references to objects that will be stored in the generated package.
+		 */
+		UPackage* Package = nullptr;
+		/** *GetCreateAsMap returned from GetGenerateList. The package filename extension has already been set based on this. */
+		bool bCreatedAsMap = false;
+	};
+	/**
+	 * Called before presaving the parent generator package, to give the generator a chance to inform the cooker which objects will
+	 * be moved into the generator package that are not already present in it.
+	 * 
+	 * @param OwnerPackage				The generator package being split
+	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
+	 * @param GeneratedPackages			Placeholder UPackage and relative path information for all packages that will be generated
+	 * @param OutObjectsToMove			List of all the objects that will be moved into the Generator package during its save
+	 * @param OutKeepReferencedPackages A list of packages which should be kept referenced until all generated packages for
+	 *                                  the generator have finished saving.
+	 * 
+	 * @return							True if successfully populated, false on error (this will cause a cook error).
+	 */
+	virtual bool PopulateGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove,
+		TArray<UPackage*>& OutKeepReferencedPackages)
+	{
+		return true;
+	}
+
+	/**
+	 * Called before saving the parent generator package, after PopulateGeneratorPackage but before PopulateGeneratedPackage for any
+	 * generated packages. Make any required adjustments to the parent package before it is saved into the target domain.
+	 *
+	 * @param OwnerPackage				The generator package being split
+	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
+	 * @param GeneratedPackages			Placeholder UPackage and relative path information for all packages that will be generated
+	 * @param OutKeepReferencedPackages A list of packages which should be kept referenced until all generated packages for
+	 *                                  the generator have finished saving.
+	 *
+	 * @return							True if successfully presaved, false on error (this will cause a cook error).
+	 */
+	virtual bool PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
+		const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages, TArray<UPackage*>& OutKeepReferencedPackages)
+	{
+		return true;
+	}
+
+	/**
+	 * Called after saving the parent generator package. Undo any required adjustments to the parent package that
+	 * were made in PreSaveGeneratorPackage, so that the package is once again ready for use in the editor or in
+	 * future GetGenerateList or PreSaveGeneratedPackage calls
+	 */
+	virtual void PostSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject)
+	{
+	}
+
+	/** Representation of a generated package when it itself is being populated. */
 	struct FGeneratedPackageForPopulate
 	{
 		/** RelativePath returned from GetGenerateList */
@@ -72,8 +135,8 @@ public:
 		/** Root returned from GetGenerateList */
 		FString GeneratedRootPath;
 		/**
-		 * Non-null, constructed package. May have been previously passed into PreSaveGeneratedPackage,
-		 * or may be completely empty if that previous package was garbage collected before this call.
+		 * The UPackage that has been created for the package. Possibly empty, but may also contain still have modifications
+		 * that were made during PopulateGeneratorPackage.
 		 */
 		UPackage* Package = nullptr;
 		/** *GetCreateAsMap returned from GetGenerateList. The package filename extension has already been set based on this. */
@@ -83,73 +146,54 @@ public:
 	/**
 	 * Try to populate a generated package.
 	 *
-	 * Receive an empty UPackage generated from an element in GetGenerateList and populate it
+	 * Receive an empty UPackage generated from an element in GetGenerateList and populate it.
 	 * Return a list of all the objects that will be moved into the Generated package during its save, so the cooker
 	 * can call BeginCacheForCookedPlatformData on them before the move
 	 * After returning, the given package will be queued for saving into the TargetDomain
-	 * Note that PreSaveGeneratedPackage will not be called for every package on
-	 * an iterative cook; it will only be called for the packages with changed dependencies.
 	 *
 	 * @param OwnerPackage				The parent package being split
 	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
 	 * @param GeneratedPackage			Pointer and information about the package to populate
-	 * @param OutObjectsToMove			List of all the objects that will be moved into the Generated package during its save
-	 * @return							True if successfully populates,  false on error (this will cause a cook error).
+	 * @param OutObjectsToMove			List of all the objects that will be moved into the generated package during its save
+	 * @param OutKeepReferencedPackages A list of packages which should be kept referenced until all generated packages for
+	 *                                  for the generator have finished saving.
+	 * 
+	 * @return							True if successfully populated, false on error (this will cause a cook error).
 	 */
 	virtual bool PopulateGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
 		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove,
-		TArray<UPackage*>& OutModifiedPackages) { return true; }
+		TArray<UPackage*>& OutKeepReferencedPackages)
+	{
+		return true;
+	}
 	
 	/**
-	 * Called before saving the parent generator package, which itself occurs before PreSaveGeneratedPackage is called on the generated packages.
-	 * Make any required adjustments to the parent package before it is saved into the target domain.
+	 * Called before saving a generated package, after PopulateGeneratedPackage. Make any required adjustments to the
+	 * generated package before it is saved into the target domain.
+	 * 
+	 * @param OwnerPackage				The parent package being split
+	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
+	 * @param GeneratedPackage			Pointer and information about the package to populate
+	 * @param OutKeepReferencedPackages A list of packages which should be kept referenced until all generated packages for
+	 *                                  for the generator have finished saving.
+	 * 
+	 * @return							True if successfully presaved, false on error (this will cause a cook error).
 	 */
 	virtual bool PreSaveGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UPackage*>& OutModifiedPackages) { return true; };
+		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UPackage*>& OutKeepReferencedPackages)
+	{
+		return true;
+	};
+
 	/**
-	 * Called after saving the generated package. Undo any required adjustments to the parent package that
-	 * were made in PreSaveGeneratedPackage, so that the package is once again ready for use in the editor or in
-	 * future GetGenerateList or PreSaveGeneratedPackage calls
+	 * Called after saving a generated package. Undo any required adjustments to the parent package that
+	 * were made in PreSaveGeneratedPackage, so that the parent package is once again ready for use in the editor or in
+	 * future PreSaveGeneratedPackage calls.
 	 */
 	virtual void PostSaveGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-		const FGeneratedPackageForPopulate& GeneratedPackage) {}
-
-
-	struct FGeneratedPackageForPreSave
+		const FGeneratedPackageForPopulate& GeneratedPackage)
 	{
-		/** RelativePath returned from GetGenerateList */
-		FString RelativePath;
-		/** Root returned from GetGenerateList */
-		FString GeneratedRootPath;
-		/**
-		 * Non-null, constructed package. May have been previously passed into PreSaveGeneratedPackage,
-		 * or may be completely empty if that previous package was garbage collected before this call.
-		 */
-		UPackage* Package = nullptr;
-		/** *GetCreateAsMap returned from GetGenerateList. The package filename extension has already been set based on this. */
-		bool bCreatedAsMap = false;
-	};
-	/**
-	 * Return a list of all the objects that will be moved into the Generator package during its save, so the cooker
-	 * can call BeginCacheForCookedPlatformData on them before the move
-	 */
-	virtual bool PopulateGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove,
-		TArray<UPackage*>& OutModifiedPackages) { return true; }
-
-	/**
-	 * Called before saving the parent generator package, which itself occurs before PreSaveGeneratedPackage is called on the generated packages.
-	 * Make any required adjustments to the parent package before it is saved into the target domain.
-	 */
-	virtual bool PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject, const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages,
-		TArray<UPackage*>& OutModifiedPackages) { return true; }
-
-	/**
-	 * Called after saving the parent generator package. Undo any required adjustments to the parent package that
-	 * were made in PreSaveGeneratorPackage, so that the package is once again ready for use in the editor or in
-	 * future GetGenerateList or PreSaveGeneratedPackage calls
-	 */
-	virtual void PostSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) {}
+	}
 
 	/** Called when the Owner package needs to be reloaded after a garbage collect in order to populate a generated package. */
 	virtual void OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject) {}

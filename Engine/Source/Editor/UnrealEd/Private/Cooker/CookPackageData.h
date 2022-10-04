@@ -704,7 +704,10 @@ public:
 	EPollStatus RefreshPackageObjects(FGeneratorPackage& Generator, UPackage* Package, bool& bOutFoundNewObjects,
 		ESaveState DemotionState);
 
-	void AddModifiedPackages(TArray<UPackage*>& InModifiedPackages) { ModifiedPackages.Append(InModifiedPackages); }
+	void AddKeepReferencedPackages(TArray<UPackage*>& InKeepReferencedPackages)
+	{
+		KeepReferencedPackages.Append(InKeepReferencedPackages);
+	}
 
 public:
 	FBeginCacheObjects BeginCacheObjects;
@@ -712,7 +715,7 @@ public:
 	FString GeneratedRootPath;
 	TArray<FName> Dependencies;
 	FPackageData* PackageData = nullptr;
-	TArray<UPackage*> ModifiedPackages;
+	TArray<UPackage*> KeepReferencedPackages;
 private:
 	ESaveState GeneratorSaveState = ESaveState::StartGenerate;
 	bool bCreateAsMap : 1;
