@@ -98,9 +98,12 @@ namespace impl
 
 			const FMutableImageReference& ImageRef = OperationData->RequestedImage;
 
+			int32 SurfaceIndex = Instance->FindSurfaceById(ImageRef.LOD, ImageRef.Component, ImageRef.SurfaceId);
+			check(SurfaceIndex>=0);
+
 			// This ID may be different than the ID obtained the first time the image was generated, because the mutable
 			// runtime cannot remember all the resources it has built, and only remembers a fixed amount.
-			mu::RESOURCE_ID MipImageID = Instance->GetImageId(ImageRef.LOD, ImageRef.Component, ImageRef.Surface, ImageRef.Image);
+			mu::RESOURCE_ID MipImageID = Instance->GetImageId(ImageRef.LOD, ImageRef.Component, SurfaceIndex, ImageRef.Image);
 
 			// TODO: Why do we need to do this again? The full size should be stored in the initial image creation.
 			mu::FImageDesc ImageDesc;

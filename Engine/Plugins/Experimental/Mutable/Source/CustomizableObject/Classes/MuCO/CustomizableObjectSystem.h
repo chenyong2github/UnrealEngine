@@ -136,9 +136,11 @@ struct FMutableImageReference
 	uint32 ImageID = 0;
 
 	/** */
+	uint32 SurfaceId = 0;
+
+	/** */
 	uint8 LOD = 0;
 	uint8 Component = 0;
-	uint8 Surface = 0;
 	uint8 Image = 0;
 };
 

@@ -1091,7 +1091,8 @@ namespace impl
 				// Materials and images
 				for (int32 MeshSurfaceIndex = 0; MeshSurfaceIndex < Component.Mesh->GetSurfaceCount(); ++MeshSurfaceIndex)
 				{
-					int32 InstanceSurfaceIndex = Instance->FindSurfaceById(MutableLODIndex, ComponentIndex, Component.Mesh->GetSurfaceId(MeshSurfaceIndex));
+					uint32 SurfaceId = Component.Mesh->GetSurfaceId(MeshSurfaceIndex);
+					int32 InstanceSurfaceIndex = Instance->FindSurfaceById(MutableLODIndex, ComponentIndex, SurfaceId);
 					check(Component.Mesh->GetVertexCount() == 0 || InstanceSurfaceIndex >= 0);
 
 					if (InstanceSurfaceIndex >= 0)
@@ -1101,6 +1102,7 @@ namespace impl
 						++Component.SurfaceCount;
 
 						Surface.MaterialIndex = Instance->GetSurfaceCustomId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex);
+						Surface.SurfaceId = SurfaceId;
 
 						// Images
 						Surface.FirstImage = OperationData->InstanceUpdateData.Images.Num();

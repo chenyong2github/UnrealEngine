@@ -285,6 +285,9 @@ struct FInstanceUpdateData
 		uint16 ScalarCount = 0;
 
 		uint32 MaterialIndex = 0;
+
+		/** Id of the surface in the mutable core instance. */
+		uint32 SurfaceId = 0;
 	};
 
 	struct FComponent

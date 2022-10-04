@@ -5009,7 +5009,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 							UTexture2D* Texture = nullptr;
 
 							// \TODO: Change this key to a struct.
-							FString TextureReuseCacheRef = bReuseTextures ? FString::Printf(TEXT("%d-%d-%d-%d"), LODIndex, ComponentIndex, SurfaceIndex, ImageIndex) : FString();
+							FString TextureReuseCacheRef = bReuseTextures ? FString::Printf(TEXT("%d-%d-%d-%d"), LODIndex, ComponentIndex, Surface.SurfaceId, ImageIndex) : FString();
 
 							// If the mutable image is null, it must be in the cache
 							FMutableImageCacheKey ImageCacheKey = { Image.ImageID };//, OperationData->MipsToSkip }; // Todo: Reenable extended FMutableImageCacheKey
@@ -5120,8 +5120,12 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 														if (MutableMipDataProviderFactory)
 														{
 															MutableMipDataProviderFactory->CustomizableObjectInstance = Public;
-															check(LODIndex<256 && ComponentIndex<256 && SurfaceIndex<256 && ImageIndex<256 );
-															MutableMipDataProviderFactory->ImageRef = { Image.ImageID, uint8(LODIndex), uint8(ComponentIndex), uint8(SurfaceIndex), uint8(ImageIndex) };
+															check(LODIndex < 256 && ComponentIndex < 256 && ImageIndex < 256);
+															MutableMipDataProviderFactory->ImageRef.ImageID = Image.ImageID;
+															MutableMipDataProviderFactory->ImageRef.SurfaceId = Surface.SurfaceId;
+															MutableMipDataProviderFactory->ImageRef.LOD = uint8(LODIndex);
+															MutableMipDataProviderFactory->ImageRef.Component = uint8(ComponentIndex);
+															MutableMipDataProviderFactory->ImageRef.Image = uint8(ImageIndex);
 															MutableMipDataProviderFactory->UpdateContext = UpdateContext;
 															Texture->AddAssetUserData(MutableMipDataProviderFactory);
 														}
