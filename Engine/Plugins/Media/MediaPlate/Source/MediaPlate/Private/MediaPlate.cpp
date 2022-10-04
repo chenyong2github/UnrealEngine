@@ -82,12 +82,6 @@ void AMediaPlate::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-	if (MediaPlateComponent != nullptr)
-	{
-		// Add our media texture to the tracker.
-		MediaPlateComponent->RegisterWithMediaTextureTracker();
-	}
-
 #if WITH_EDITOR
 	AddAssetUserData();
 #endif // WITH_EDITOR
@@ -95,12 +89,6 @@ void AMediaPlate::PostRegisterAllComponents()
 
 void AMediaPlate::BeginDestroy()
 {
-	if (MediaPlateComponent != nullptr)
-	{
-		// Remove our media texture.
-		MediaPlateComponent->UnregisterWithMediaTextureTracker();
-	}
-	
 	Super::BeginDestroy();
 }
 

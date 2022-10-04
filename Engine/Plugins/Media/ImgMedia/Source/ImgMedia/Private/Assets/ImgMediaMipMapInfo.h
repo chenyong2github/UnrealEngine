@@ -185,7 +185,7 @@ private:
 class FImgMediaMipMapObjectInfo
 {
 public:
-	FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias = 0.0f);
+	FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> InTracker);
 	virtual ~FImgMediaMipMapObjectInfo() = default;
 
 	/**
@@ -206,8 +206,8 @@ public:
 protected:
 	/** Mesh component onto which the media is displayed. */
 	TWeakObjectPtr<class UMeshComponent> MeshComponent;
-	/** Mipmap level bias. */
-	float MipMapBias;
+	/** Media texture object tracker. */
+	TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> Tracker;
 };
 
 /**
@@ -223,13 +223,9 @@ public:
 	 * This object is using our img sequence.
 	 *
 	 * @param InActor Object using our img sequence.
-	 * @param InMipMapBias Bias used for mip-level calculations.
-	 * @param InMeshMode Plane, sphere or none mesh type for mip-tile calculations.
-	 * @param MeshRange Arc size in degrees used for visible tiles calculations, specific to the sphere.
+	 * @param InObjectTracker Media texture tracker object with tile calculation information.
 	 */
-	void AddObject(AActor* InActor, float InMipMapBias = 0.0f,
-		EMediaTextureVisibleMipsTiles InMeshMode = EMediaTextureVisibleMipsTiles::None,
-		FVector2D MeshRange = FVector2D(360.0f, 180.0f));
+	void AddObject(AActor* InActor, TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> InObjectTracker = nullptr);
 
 	/**
 	 * This object is no longer using our img sequence.

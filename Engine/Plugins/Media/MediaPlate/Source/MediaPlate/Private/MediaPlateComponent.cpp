@@ -123,6 +123,8 @@ void UMediaPlateComponent::OnRegister()
 			SoundComponent->SetMediaPlayer(MediaPlayer);
 		}
 	}
+
+	RegisterWithMediaTextureTracker();
 }
 
 void UMediaPlateComponent::BeginPlay()
@@ -179,6 +181,13 @@ void UMediaPlateComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 			}
 		}
 	}
+}
+
+void UMediaPlateComponent::OnUnregister()
+{
+	Super::OnUnregister();
+
+	UnregisterWithMediaTextureTracker();
 }
 
 UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
@@ -358,8 +367,14 @@ void UMediaPlateComponent::PlayOnlyWhenVisibleChanged()
 
 void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 {
+	UnregisterWithMediaTextureTracker();
+
 	// Set up object.
-	MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
+	if (MediaTextureTrackerObject == nullptr)
+	{
+		MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
+	}
+
 	MediaTextureTrackerObject->Object = GetOwner();
 	MediaTextureTrackerObject->MipMapLODBias = MipMapBias;
 	MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
@@ -820,8 +835,6 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 			MediaTextureTrackerObject->MipMapLODBias = MipMapBias;
 
 			// Note: Media texture bias and material sampler automatically updated by UMediaPlateComponent::OnRegister().
-
-			RestartPlayer();
 		}
 	}
 }

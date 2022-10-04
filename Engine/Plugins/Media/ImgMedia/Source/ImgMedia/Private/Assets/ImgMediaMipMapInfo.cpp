@@ -264,9 +264,9 @@ namespace {
 }
 
 
-FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias)
+FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> InTracker)
 	: MeshComponent(InMeshComponent)
-	, MipMapBias(InMipMapBias)
+	, Tracker(MoveTemp(InTracker))
 {
 
 }
@@ -357,8 +357,8 @@ namespace {
 	class FPlaneObjectInfo : public FImgMediaMipMapObjectInfo
 	{
 	public:
-		FPlaneObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias = 0.0f)
-			: FImgMediaMipMapObjectInfo(InMeshComponent, InMipMapBias)
+		FPlaneObjectInfo(UMeshComponent* InMeshComponent, TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> InTracker)
+			: FImgMediaMipMapObjectInfo(InMeshComponent, MoveTemp(InTracker))
 			, PlaneSize(FVector::ZeroVector)
 		{
 			// Get size of object.
@@ -379,6 +379,14 @@ namespace {
 			{
 				return;
 			}
+			
+			TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfo = Tracker.Pin();
+			if (!ObjectInfo.IsValid())
+			{
+				return;
+			}
+
+			const float MipMapBias = ObjectInfo->MipMapLODBias;
 			const float MipMapLevelPadding = FMath::Max(CVarImgMediaMipLevelPadding.GetValueOnAnyThread(), 0.0f);
 
 			const FIntPoint& SequenceTileNum = InSequenceInfo.TilingDescription.TileNum;
@@ -595,9 +603,8 @@ namespace {
 	class FSphereObjectInfo : public FImgMediaMipMapObjectInfo
 	{
 	public:
-		FSphereObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias, FVector2D InMeshRange)
-			: FImgMediaMipMapObjectInfo(InMeshComponent, InMipMapBias)
-			, MeshRange(InMeshRange)
+		FSphereObjectInfo(UMeshComponent* InMeshComponent, TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> InTracker)
+			: FImgMediaMipMapObjectInfo(InMeshComponent, MoveTemp(InTracker))
 		{
 		}
 
@@ -609,8 +616,15 @@ namespace {
 				return;
 			}
 
-			const float MipMapLevelPadding = FMath::Max(CVarImgMediaMipLevelPadding.GetValueOnAnyThread(), 0.0f);
+			TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfo = Tracker.Pin();
+			if (!ObjectInfo.IsValid())
+			{
+				return;
+			}
 
+			const FVector2D MeshRange = ObjectInfo->MeshRange;
+			const float MipMapBias = ObjectInfo->MipMapLODBias;
+			const float MipMapLevelPadding = FMath::Max(CVarImgMediaMipLevelPadding.GetValueOnAnyThread(), 0.0f);
 			const FTransform MeshTransform = Mesh->GetComponentTransform();
 			const float DefaultSphereRadius = 50.0f;
 			const int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
@@ -625,7 +639,7 @@ namespace {
 			FVector ApproxTileSizeWS = MeshTransform.GetScale3D() * (UE_TWO_PI * DefaultSphereRadius) / FMath::Max(SequencePartialTileNum.X, SequencePartialTileNum.Y);
 			float ApproxTileRadiusInWS = 0.5f * (float)FMath::Sqrt(2 * FMath::Square(ApproxTileSizeWS.GetAbsMax()));
 
-			auto TransformSphericalUVsToLocationWS = [this, &MeshTransform, DefaultSphereRadius](const FVector2D& InUV) -> FVector
+			auto TransformSphericalUVsToLocationWS = [&MeshRange, &MeshTransform, DefaultSphereRadius](const FVector2D& InUV) -> FVector
 			{
 				// Convert from latlong UV to spherical coordinates
 				FVector2D TileCornerSpherical = FVector2D(
@@ -705,9 +719,6 @@ namespace {
 				}
 			}
 		}
-
-	private:
-		FVector2D MeshRange;
 	};
 
 } //end anonymous namespace
@@ -723,26 +734,27 @@ FImgMediaMipMapInfo::~FImgMediaMipMapInfo()
 	ClearAllObjects();
 }
 
-void FImgMediaMipMapInfo::AddObject(AActor* InActor, float InMipMapBias, EMediaTextureVisibleMipsTiles InMeshMode,
-	FVector2D MeshRange)
+void FImgMediaMipMapInfo::AddObject(AActor* InActor, TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> InTracker)
 {
-	if (InActor != nullptr)
+	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> Tracker = InTracker.Pin();
+
+	if (InActor != nullptr && Tracker.IsValid())
 	{
 		FScopeLock Lock(&ObjectsCriticalSection);
 
 		UMeshComponent* MeshComponent = Cast<UMeshComponent>(InActor->FindComponentByClass(UMeshComponent::StaticClass()));
 		if (MeshComponent != nullptr)
 		{
-			switch (InMeshMode)
+			switch (Tracker->VisibleMipsTilesCalculations)
 			{
 			case EMediaTextureVisibleMipsTiles::Plane:
-				Objects.Add(new FPlaneObjectInfo(MeshComponent, InMipMapBias));
+				Objects.Add(new FPlaneObjectInfo(MeshComponent, InTracker));
 				break;
 			case EMediaTextureVisibleMipsTiles::Sphere:
-				Objects.Add(new FSphereObjectInfo(MeshComponent, InMipMapBias, MeshRange));
+				Objects.Add(new FSphereObjectInfo(MeshComponent, InTracker));
 				break;
 			default:
-				Objects.Add(new FImgMediaMipMapObjectInfo(MeshComponent, InMipMapBias));
+				Objects.Add(new FImgMediaMipMapObjectInfo(MeshComponent, InTracker));
 				break;
 			}
 		}
@@ -794,7 +806,7 @@ void FImgMediaMipMapInfo::AddObjectsUsingThisMediaTexture(UMediaTexture* InMedia
 				AActor* Owner = ObjectInfo->Object.Get();
 				if (Owner != nullptr)
 				{
-					AddObject(Owner,ObjectInfo->MipMapLODBias, ObjectInfo->VisibleMipsTilesCalculations, ObjectInfo->MeshRange);
+					AddObject(Owner, ObjectInfoPtr);
 				}
 			}
 		}

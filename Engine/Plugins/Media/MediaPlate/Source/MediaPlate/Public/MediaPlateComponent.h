@@ -31,10 +31,11 @@ class MEDIAPLATE_API UMediaPlateComponent : public UActorComponent,
 
 public:
 	//~ UActorComponent interface.
-	virtual void OnRegister();
-	virtual void BeginPlay();
-	virtual void BeginDestroy();
+	virtual void OnRegister() override;
+	virtual void BeginPlay() override;
+	virtual void BeginDestroy() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void OnUnregister() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -185,15 +186,6 @@ public:
 	void SetPlayOnlyWhenVisible(bool bInPlayOnlyWhenVisible);
 
 	/**
-	 * Adds our media texture to the media texture tracker.
-	 */
-	void RegisterWithMediaTextureTracker();
-	/**
-	 * Removes our texture from the media texture tracker.
-	 */
-	void UnregisterWithMediaTextureTracker();
-
-	/**
 	 * Call this to get the aspect ratio of the mesh.
 	 */
 	float GetAspectRatio();
@@ -244,6 +236,15 @@ public:
 
 private:
 	/**
+	 * Adds our media texture to the media texture tracker.
+	 */
+	void RegisterWithMediaTextureTracker();
+	/**
+	 * Removes our texture from the media texture tracker.
+	 */
+	void UnregisterWithMediaTextureTracker();
+
+	/**
 	 * Should be called when bPlayOnlyWhenVisible changes.
 	 */
 	void PlayOnlyWhenVisibleChanged();
@@ -273,7 +274,7 @@ private:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 
-	/** Media texture mip map bias shared between the (image sequence) loader and the media texture sampler. (Player restart on change.) */
+	/** Media texture mip map bias shared between the (image sequence) loader and the media texture sampler. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (AllowPrivateAccess = true, UIMin = "-16.0", UIMax = "15.99"))
 	float MipMapBias = 0.0f;
 
