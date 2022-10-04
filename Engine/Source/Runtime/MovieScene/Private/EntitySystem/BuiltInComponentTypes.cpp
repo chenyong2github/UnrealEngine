@@ -267,6 +267,13 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		}
 	}
 
+	{
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DoubleResult); ++Index)
+		{
+			ResultToBase.Add(DoubleResult[Index], BaseDouble[Index]);
+		}
+	}
+
 	// Easing component relationships
 	{
 		// Easing components should be duplicated to children
@@ -346,6 +353,14 @@ FBuiltInComponentTypes* FBuiltInComponentTypes::Get()
 	return GMovieSceneBuiltInComponentTypes.Get();
 }
 
+FComponentTypeID FBuiltInComponentTypes::GetBaseValueComponentType(const FComponentTypeID& InResultComponentType)
+{
+	if (FComponentTypeID* BaseComponentType = ResultToBase.Find(InResultComponentType))
+	{
+		return *BaseComponentType;
+	}
+	return FComponentTypeID::Invalid();
+}
 
 } // namespace MovieScene
 } // namespace UE

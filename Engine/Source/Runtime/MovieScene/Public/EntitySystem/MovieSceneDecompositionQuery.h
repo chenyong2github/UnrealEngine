@@ -46,20 +46,17 @@ namespace MovieScene
 	{
 		double Value = 0.f;
 		float Weight = 0.f;
+		
+		double BaseValue = 0.f;  // Should only be set when the value has additive-from-base blend type
 
 		double WeightedValue() const
 		{
-			return Weight != 0.f ? Value / Weight : 0.f;
+			return Weight != 0.f ? (Value - BaseValue) / Weight : 0.f;
 		}
 
 		FWeightedValue Combine(FWeightedValue Other) const
 		{
-			return FWeightedValue{Value + Other.Value, Weight + Other.Weight};
-		}
-
-		FWeightedValue CombineWeighted(FWeightedValue Other) const
-		{
-			return FWeightedValue{Value + Other.Value * Other.Weight, Weight + Other.Weight};
+			return FWeightedValue{Value + Other.Value, Weight + Other.Weight, BaseValue + Other.BaseValue};
 		}
 	};
 
@@ -75,10 +72,21 @@ namespace MovieScene
 
 		TArray<TTuple<FMovieSceneEntityID, FWeightedValue>> DecomposedAbsolutes;
 		TArray<TTuple<FMovieSceneEntityID, FWeightedValue>> DecomposedAdditives;
+		TArray<TTuple<FMovieSceneEntityID, FWeightedValue>> DecomposedAdditivesFromBase;
 
-		MOVIESCENE_API float Recompose(FMovieSceneEntityID EntityID, float CurrentValue, const float* InitialValue) const;
 		MOVIESCENE_API double Recompose(FMovieSceneEntityID EntityID, double CurrentValue, const double* InitialValue) const;
-		MOVIESCENE_API void Decompose(FMovieSceneEntityID EntityID, FWeightedValue& ThisValue, bool& bOutIsAdditive, FWeightedValue& Absolutes, FWeightedValue& Additives) const;
+
+	private:
+		enum class EDecomposedValueBlendType
+		{
+			Absolute,
+			Additive,
+			AdditiveFromBase
+		};
+
+		void Decompose(
+				FMovieSceneEntityID EntityID, FWeightedValue& ThisValue, EDecomposedValueBlendType& OutBlendType, 
+				FWeightedValue& Absolutes, FWeightedValue& Additives, FWeightedValue& AdditivesFromBase) const;
 	};
 
 	// Align results to cache lines so there's no contention between cores

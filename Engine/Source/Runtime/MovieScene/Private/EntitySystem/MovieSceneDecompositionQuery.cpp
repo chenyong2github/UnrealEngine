@@ -11,14 +11,16 @@ namespace UE
 namespace MovieScene
 {
 
-void FDecomposedValue::Decompose(FMovieSceneEntityID EntityID, FWeightedValue& ThisValue, bool& bOutIsAdditive, FWeightedValue& Absolutes, FWeightedValue& Additives) const
+void FDecomposedValue::Decompose(
+		FMovieSceneEntityID EntityID, FWeightedValue& ThisValue, EDecomposedValueBlendType& OutBlendType, 
+		FWeightedValue& Absolutes, FWeightedValue& Additives, FWeightedValue& AdditivesFromBase) const
 {
 	for (TTuple<FMovieSceneEntityID, FWeightedValue> Pair : DecomposedAbsolutes)
 	{
 		if (Pair.Get<0>() == EntityID)
 		{
 			ThisValue = Pair.Value;
-			bOutIsAdditive = false;
+			OutBlendType = EDecomposedValueBlendType::Absolute;
 		}
 		else
 		{
@@ -31,7 +33,7 @@ void FDecomposedValue::Decompose(FMovieSceneEntityID EntityID, FWeightedValue& T
 		if (Pair.Get<0>() == EntityID)
 		{
 			ThisValue = Pair.Value;
-			bOutIsAdditive = true;
+			OutBlendType = EDecomposedValueBlendType::Additive;
 		}
 		else
 		{
@@ -39,18 +41,18 @@ void FDecomposedValue::Decompose(FMovieSceneEntityID EntityID, FWeightedValue& T
 			Additives.Weight += Pair.Value.Weight;
 		}
 	}
-}
-
-float FDecomposedValue::Recompose(FMovieSceneEntityID EntityID, float CurrentValue, const float* InitialValue) const
-{
-	if (InitialValue)
+	for (TTuple<FMovieSceneEntityID, FWeightedValue> Pair : DecomposedAdditivesFromBase)
 	{
-		double WidenedInitialValue = *InitialValue;
-		return (float)Recompose(EntityID, (double)CurrentValue, &WidenedInitialValue);
-	}
-	else
-	{
-		return (float)Recompose(EntityID, (double)CurrentValue, nullptr);
+		if (Pair.Get<0>() == EntityID)
+		{
+			ThisValue = Pair.Value;
+			OutBlendType = EDecomposedValueBlendType::AdditiveFromBase;
+		}
+		else
+		{
+			AdditivesFromBase.Value += (Pair.Value.Value - Pair.Value.BaseValue) * Pair.Value.Weight;
+			AdditivesFromBase.Weight += Pair.Value.Weight;
+		}
 	}
 }
 
@@ -58,13 +60,15 @@ double FDecomposedValue::Recompose(FMovieSceneEntityID RecomposeEntity, double C
 {
 	FWeightedValue DecomposedAbsolute;
 	FWeightedValue DecomposedAdditive;
+	FWeightedValue DecomposedAdditiveFromBase;
 
 	FWeightedValue Channel;
-	bool bIsAdditive = false;
-	Decompose(RecomposeEntity, Channel, bIsAdditive, DecomposedAbsolute, DecomposedAdditive);
+	EDecomposedValueBlendType BlendType(EDecomposedValueBlendType::Absolute);
+	Decompose(RecomposeEntity, Channel, BlendType, DecomposedAbsolute, DecomposedAdditive, DecomposedAdditiveFromBase);
 
 	FWeightedValue ResultAbsolute = Result.Absolute;
 	float TotalAbsoluteWeight = ResultAbsolute.Weight + DecomposedAbsolute.Weight;
+	const bool bIsAdditive = (BlendType != EDecomposedValueBlendType::Absolute);
 	if (!bIsAdditive)
 	{
 		TotalAbsoluteWeight += Channel.Weight;
@@ -77,12 +81,12 @@ double FDecomposedValue::Recompose(FMovieSceneEntityID RecomposeEntity, double C
 	}
 
 	// If this channel is the only thing we decomposed, that is simple
-	if (DecomposedAbsolute.Weight == 0.f && DecomposedAdditive.Weight == 0.f)
+	if (DecomposedAbsolute.Weight == 0.f && DecomposedAdditive.Weight == 0.f && DecomposedAdditiveFromBase.Weight == 0.f)
 	{
 		if (bIsAdditive)
 		{
 			const double WeightedAdditiveResult = CurrentValue - ResultAbsolute.Combine(DecomposedAbsolute).WeightedValue() - Result.Additive;
-			return Channel.Weight == 0.f ? WeightedAdditiveResult : WeightedAdditiveResult / Channel.Weight;
+			return (Channel.Weight == 0.f ? WeightedAdditiveResult : WeightedAdditiveResult / Channel.Weight) + Channel.BaseValue;
 		}
 		else
 		{
@@ -110,20 +114,20 @@ double FDecomposedValue::Recompose(FMovieSceneEntityID RecomposeEntity, double C
 		CurrentValue -= ResultAbsolute.Combine(DecomposedAbsolute).WeightedValue();
 
 		const double ThisAdditive = Channel.WeightedValue();
-		if (ThisAdditive == 0.f && DecomposedAdditive.WeightedValue() == 0.f)
+		if (ThisAdditive == 0.f && DecomposedAdditive.WeightedValue() == 0.f && DecomposedAdditiveFromBase.WeightedValue() == 0.f)
 		{
 			const float TotalAdditiveWeight = DecomposedAdditive.Weight + Channel.Weight;
-			return CurrentValue * Channel.Weight / TotalAdditiveWeight;
+			return (CurrentValue * Channel.Weight / TotalAdditiveWeight) + Channel.BaseValue;
 		}
 
 		// Use the fractions of the values for the recomposition if we have non-zero values
-		const double DecoposeFactor = ThisAdditive / (DecomposedAdditive.WeightedValue() + ThisAdditive);
-		return CurrentValue * DecoposeFactor / Channel.Weight;
+		const double DecomposeFactor = ThisAdditive / (DecomposedAdditive.WeightedValue() + ThisAdditive);
+		return CurrentValue * DecomposeFactor / Channel.Weight + Channel.BaseValue;
 	}
 	else if (DecomposedAdditives.Num() != 0)
 	{
 		// Absolute channel, but we're keying additives, put the full weight to the additives
-		return Channel.Value;
+		return Channel.Value - Channel.BaseValue;
 	}
 	else
 	{

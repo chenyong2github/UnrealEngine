@@ -679,7 +679,10 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 		return nullptr;
 	}
 
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
 	TComponentTypeID<double> ResultComponentType = Params.ResultComponentType.ReinterpretCast<double>();
+	TComponentTypeID<double> BaseValueComponentType = BuiltInComponents->GetBaseValueComponentType(Params.ResultComponentType).ReinterpretCast<double>();
 
 	struct FChannelResultTask
 	{
@@ -687,20 +690,26 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 		FAlignedDecomposedValue* Result;
 		uint16 DecomposeBlendChannel;
 		FComponentTypeID AdditiveBlendTag;
+		FComponentTypeID AdditiveFromBaseBlendTag;
 
 		explicit FChannelResultTask(const FValueDecompositionParams& Params, FAlignedDecomposedValue* InResult)
 			: Result(InResult)
 			, DecomposeBlendChannel(Params.DecomposeBlendChannel)
 			, AdditiveBlendTag(FBuiltInComponentTypes::Get()->Tags.AdditiveBlend)
+			, AdditiveFromBaseBlendTag(FBuiltInComponentTypes::Get()->Tags.AdditiveFromBaseBlend)
 		{
 			EntitiesToDecompose.Append(Params.Query.Entities.GetData(), Params.Query.Entities.Num());
 		}
 
-		void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityToDecomposeIDs, TRead<FMovieSceneBlendChannelID> BlendChannels, TRead<double> ValueResultComponent, TReadOptional<double> OptionalWeightComponent)
+		void ForEachAllocation(
+				const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityToDecomposeIDs, 
+				TRead<FMovieSceneBlendChannelID> BlendChannels, TRead<double> ValueResultComponent, 
+				TReadOptional<double> OptionalBaseValueComponent, TReadOptional<double> OptionalWeightComponent)
 		{
 			static const FMovieSceneBlenderSystemID BlenderSystemID = UMovieSceneBlenderSystem::GetBlenderSystemID<UMovieScenePiecewiseDoubleBlenderSystem>();
 
 			const bool bAdditive = Allocation->HasComponent(AdditiveBlendTag);
+			const bool bAdditiveFromBase = Allocation->HasComponent(AdditiveFromBaseBlendTag);
 
 			const int32 Num = Allocation->Num();
 			for (int32 EntityIndex = 0; EntityIndex < Num; ++EntityIndex)
@@ -715,14 +724,19 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 
 				// We've found a contributor for this blend channel
 				const FMovieSceneEntityID EntityToDecompose = EntityToDecomposeIDs[EntityIndex];
-				const float               Weight            = OptionalWeightComponent ? OptionalWeightComponent[EntityIndex] : 1.f;
 				const double              ValueResult       = ValueResultComponent[EntityIndex];
+				const double              BaseValue         = OptionalBaseValueComponent ? OptionalBaseValueComponent[EntityIndex] : 0.f;
+				const float               Weight            = OptionalWeightComponent ? OptionalWeightComponent[EntityIndex] : 1.f;
 
 				if (EntitiesToDecompose.Contains(EntityToDecompose))
 				{
 					if (bAdditive)
 					{
 						Result->Value.DecomposedAdditives.Add(MakeTuple(EntityToDecompose, FWeightedValue{ ValueResult, Weight }));
+					}
+					else if (bAdditiveFromBase)
+					{
+						Result->Value.DecomposedAdditivesFromBase.Add(MakeTuple(EntityToDecompose, FWeightedValue{ ValueResult, Weight, BaseValue }));
 					}
 					else
 					{
@@ -733,6 +747,10 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 				{
 					Result->Value.Result.Additive += ValueResult * Weight;
 				}
+				else if (bAdditiveFromBase)
+				{
+					Result->Value.Result.Additive += (ValueResult - BaseValue) * Weight;
+				}
 				else
 				{
 					Result->Value.Result.Absolute.Value  += ValueResult * Weight;
@@ -742,14 +760,13 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 		}
 	};
 
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-
 	if (Params.Query.bConvertFromSourceEntityIDs)
 	{
 		return FEntityTaskBuilder()
 			.Read(BuiltInComponents->ParentEntity)
 			.Read(BuiltInComponents->BlendChannelInput)
 			.Read(ResultComponentType)
+			.ReadOptional(BaseValueComponentType)
 			.ReadOptional(BuiltInComponents->WeightAndEasingResult)
 			.FilterAll({ Params.PropertyTag })
 			.template Dispatch_PerAllocation<FChannelResultTask>(&Linker->EntityManager, FSystemTaskPrerequisites(), nullptr, Params, Output);
@@ -760,6 +777,7 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 			.ReadEntityIDs()
 			.Read(BuiltInComponents->BlendChannelInput)
 			.Read(ResultComponentType)
+			.ReadOptional(BaseValueComponentType)
 			.ReadOptional(BuiltInComponents->WeightAndEasingResult)
 			.FilterAll({ Params.PropertyTag })
 			.template Dispatch_PerAllocation<FChannelResultTask>(&Linker->EntityManager, FSystemTaskPrerequisites(), nullptr, Params, Output);

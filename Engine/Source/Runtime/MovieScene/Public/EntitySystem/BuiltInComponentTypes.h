@@ -406,6 +406,8 @@ public:
 
 	FComponentMask FinishedMask;
 
+public:
+
 	static void Destroy();
 
 	static FBuiltInComponentTypes* Get();
@@ -415,8 +417,13 @@ public:
 		return InObject == nullptr || !IsValidChecked(InObject) || InObject->IsUnreachable();
 	}
 
+	FComponentTypeID GetBaseValueComponentType(const FComponentTypeID& InResultComponentType);
+
 private:
+
 	FBuiltInComponentTypes();
+
+	TMap<FComponentTypeID, FComponentTypeID> ResultToBase;
 };
 
 
