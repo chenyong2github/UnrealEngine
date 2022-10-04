@@ -61,13 +61,18 @@ private:
 
 	struct FCachedStackFunctionInputPins
 	{
+		void SetSource(UNiagaraNodeFunctionCall& InFunctionCallNode);
+		bool IsValid() const;
+
+		TArray<const UEdGraphPin*> InputPins;
+
+	private:
 		TWeakObjectPtr<UNiagaraGraph> SourceGraphWeak;
-		FGuid LastSourceGraphChangeId;
 		TWeakObjectPtr<UNiagaraNodeFunctionCall> FunctionCallNodeWeak;
 		TWeakObjectPtr<UNiagaraGraph> CalledGraphWeak;
+
+		FGuid LastSourceGraphChangeId;
 		FGuid LastCalledGraphChangeId;
-		TArray<const UEdGraphPin*> InputPins;
-		bool IsValid() const;
 	};
 
 	TMap<FGetStackFunctionInputPinsKey, FCachedStackFunctionInputPins> GetStackFunctionInputPinsCache;

@@ -4,6 +4,15 @@
 
 #include "NiagaraNodeFunctionCall.h"
 
+void FNiagaraGraphDataCache::FCachedStackFunctionInputPins::SetSource(UNiagaraNodeFunctionCall& FunctionCallNode)
+{
+	SourceGraphWeak = FunctionCallNode.GetNiagaraGraph();
+	LastSourceGraphChangeId = FunctionCallNode.GetNiagaraGraph()->GetChangeID();
+	FunctionCallNodeWeak = &FunctionCallNode;
+	CalledGraphWeak = FunctionCallNode.GetCalledGraph();
+	LastCalledGraphChangeId = FunctionCallNode.GetCalledGraph() != nullptr ? FunctionCallNode.GetCalledGraph()->GetChangeID() : FGuid();
+}
+
 void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled)
 {
 	FGetStackFunctionInputPinsKey Key(FunctionCallNode, ConstantResolver, Options, bIgnoreDisabled, false);
@@ -18,6 +27,8 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall&
 			Options,
 			bIgnoreDisabled,
 			false /*bFilterForCompilation*/);
+
+		CachedResult.SetSource(FunctionCallNode);
 	}
 
 	OutInputPins = CachedResult.InputPins;
@@ -51,6 +62,8 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall&
 			Options,
 			bIgnoreDisabled,
 			false /*bFilterForCompilation*/);
+
+		CachedResult.SetSource(FunctionCallNode);
 	}
 
 	if (!CompilationCachedResult.IsValid())
@@ -63,6 +76,8 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall&
 			Options,
 			bIgnoreDisabled,
 			true /*bFilterForCompilation*/);
+
+		CompilationCachedResult.SetSource(FunctionCallNode);
 	}
 
 	OutInputPins = CachedResult.InputPins;
