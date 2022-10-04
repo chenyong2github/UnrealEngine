@@ -69,7 +69,7 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			await ExecuteAsync("docker", Parameters.Arguments, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), WorkingDir: Parameters.WorkingDir);
+			await ExecuteAsync(GetDockerExecutablePath(), Parameters.Arguments, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), WorkingDir: Parameters.WorkingDir);
 		}
 
 		/// <summary>
@@ -96,6 +96,16 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			yield break;
+		}
+
+		/// <summary>
+		/// Resolve path to Docker executable by using the optional env var "UE_DOCKER_EXEC_PATH"
+		/// Will default to "docker" if not set. Allows supporting alternative Docker implementations such as Podman.
+		/// </summary>
+		/// <returns>Path to Docker executable</returns>
+		public static string GetDockerExecutablePath()
+		{
+			return Environment.GetEnvironmentVariable("UE_DOCKER_EXEC_PATH") ?? "docker";
 		}
 	}
 }

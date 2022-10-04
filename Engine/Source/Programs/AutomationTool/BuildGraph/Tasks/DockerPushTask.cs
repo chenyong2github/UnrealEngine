@@ -86,17 +86,18 @@ namespace AutomationTool.Tasks
 			Log.TraceInformation("Pushing Docker image");
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
+				string Exe = DockerTask.GetDockerExecutablePath();
 				Dictionary<string, string> Environment = ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile);
 
 				if (Parameters.AwsEcr)
 				{
 					IProcessResult Result = await SpawnTaskBase.ExecuteAsync("aws", "ecr get-login-password", EnvVars: Environment, LogOutput: false);
-					await ExecuteAsync("docker", $"login {Parameters.Repository} --username AWS --password-stdin", Input: Result.Output);
+					await ExecuteAsync(Exe, $"login {Parameters.Repository} --username AWS --password-stdin", Input: Result.Output);
 				}
 
 				string TargetImage = Parameters.TargetImage ?? Parameters.Image;
-				await ExecuteAsync("docker", $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
-				await ExecuteAsync("docker", $"push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
+				await ExecuteAsync(Exe, $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
+				await ExecuteAsync(Exe, $"push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
 			}
 		}
 

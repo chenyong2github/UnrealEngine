@@ -173,7 +173,8 @@ namespace AutomationTool.Tasks
 				}
 				
 				string WorkingDir = isStagingEnabled ? StagingDir.FullName : BaseDir.FullName;
-				await SpawnTaskBase.ExecuteAsync("docker", Arguments.ToString(), EnvVars: EnvVars, WorkingDir: WorkingDir, SpewFilterCallback: FilterOutput);
+				string Exe = DockerTask.GetDockerExecutablePath();
+				await SpawnTaskBase.ExecuteAsync(Exe, Arguments.ToString(), EnvVars: EnvVars, WorkingDir: WorkingDir, SpewFilterCallback: FilterOutput);
 			}
 		}
 
