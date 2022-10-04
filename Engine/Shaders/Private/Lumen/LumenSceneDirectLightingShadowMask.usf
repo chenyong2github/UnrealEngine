@@ -95,7 +95,7 @@ void LumenSceneDirectLightingNonRayTracedShadowsCS(
 
 	if (SurfaceCacheData.bValid)
 	{
-		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
+		const FDeferredLightData LightData = InitDeferredLightFromUniforms(LIGHT_TYPE);
 		float3 WorldNormal = SurfaceCacheData.WorldNormal;
 		float3 WorldPosition = SurfaceCacheData.WorldPosition;
 		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);

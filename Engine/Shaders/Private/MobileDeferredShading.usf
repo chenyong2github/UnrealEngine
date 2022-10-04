@@ -21,6 +21,7 @@
 #if MATERIAL_SHADER
 #include "LightFunctionCommon.ush"
 #endif
+#include "LightDataUniforms.ush"
 
 #if METAL_PROFILE
 #include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
@@ -198,46 +199,6 @@ SamplerState	LocalLightShadowSampler;
 float4			LocalLightShadowBufferSize;
 #endif
 
-FDeferredLightData SetupLightDataForStandardDeferred()
-{
-	// Build the light data struct using the DeferredLightUniforms and light defines
-	// We are heavily relying on the shader compiler to optimize out constant subexpressions in GetDynamicLighting()
-
-	FDeferredLightData LightData = (FDeferredLightData)0;
-	LightData.TranslatedWorldPosition = GetDeferredLightTranslatedWorldPosition();
-	LightData.InvRadius = DeferredLightUniforms.InvRadius;
-	LightData.Color = DeferredLightUniforms.Color;
-	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
-	LightData.Direction = DeferredLightUniforms.Direction;
-//	LightData.Tangent = DeferredLightUniforms.Tangent;
-	LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-//	LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
-//	LightData.SourceLength = DeferredLightUniforms.SourceLength;
-//	LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
-	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
-//	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
-//	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-//	LightData.ContactShadowNonShadowCastingIntensity = DeferredLightUniforms.ContactShadowNonShadowCastingIntensity;
-//	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
-	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
-	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-	LightData.bInverseSquared = DeferredLightUniforms.FalloffExponent == 0; // Directional lights don't use 'inverse squared attenuation'
-	LightData.bRadialLight = true;
-	//@todo - permutation opportunity
-	LightData.bSpotLight = IS_SPOT_LIGHT;
-	LightData.bRectLight = false;
-	
-//	LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
-//	LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
-//	LightData.RectLightAtlasMaxLevel = DeferredLightUniforms.RectLightAtlasMaxLevel;
-//	LightData.RectLightAtlasUVOffset = DeferredLightUniforms.RectLightAtlasUVOffset;
-//	LightData.RectLightAtlasUVScale  = DeferredLightUniforms.RectLightAtlasUVScale;
-
-	LightData.HairTransmittance = InitHairTransmittanceData();
-
-	return LightData;
-}
-
 void MobileRadialLightPS(
 	float4 InScreenPosition : TEXCOORD0,
 	float4 SVPos			: SV_POSITION,
@@ -262,7 +223,7 @@ void MobileRadialLightPS(
 	half3 CameraVector = normalize(TranslatedWorldPosition);
 			
 	FLightAccumulator DirectLighting = (FLightAccumulator)0;
-	FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+	FDeferredLightData LightData = InitDeferredLightFromUniforms_Mobile(IS_SPOT_LIGHT ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT);
 	
 	// Affect the light color by any other shadow/transmittance before the lighting is evaluated
 	{

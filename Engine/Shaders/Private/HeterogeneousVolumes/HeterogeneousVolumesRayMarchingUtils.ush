@@ -102,7 +102,7 @@ uint CalcStepCount(inout FRayMarchingContext Context)
 
 float ComputeHardSurfaceShadowFactor(
 	float3 TranslatedWorldPosition,
-	inout FDeferredLightData LightData,
+	FDeferredLightData LightData,
 	uint LightType
 )
 {
@@ -246,7 +246,7 @@ float3 ComputeTransmittance(
 
 float3 ComputeInscattering(
 	float3 WorldPosition,
-	inout FDeferredLightData LightData,
+	FDeferredLightData LightData,
 	uint LightType,
 	uint MaxStepCount,
 	bool bApplyShadowTransmittance
@@ -321,7 +321,7 @@ void RayMarchEmissionAbsorption(
 
 void RayMarchSingleScattering(
 	inout FRayMarchingContext RayMarchingContext,
-	inout FDeferredLightData LightData,
+	FDeferredLightData LightData,
 	uint LightType,
 	uint StepCount,
 	inout float3 Radiance,

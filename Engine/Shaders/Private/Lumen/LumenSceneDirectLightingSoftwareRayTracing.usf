@@ -189,7 +189,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 
 	if (!ShadowMaskRay.bShadowFactorComplete)
 	{
-		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
+		const FDeferredLightData LightData = InitDeferredLightFromUniforms(LIGHT_TYPE);
 
 		FLumenCardData CardData = GetLumenCardData(CardPage.CardIndex);
 		FLumenSurfaceCacheData SurfaceCacheData = GetSurfaceCacheData(CardData, CardUV, AtlasUV);

@@ -22,7 +22,7 @@ FDeferredLightData GetLumenDirectLightingLightData(uint LightIndex, float3 PreVi
 	FDeferredLightData Out;
 
 #if USE_LIGHT_UNIFORM_BUFFER
-	Out = LoadLightData(LIGHT_TYPE);
+	Out = InitDeferredLightFromUniforms(LIGHT_TYPE);
 #else
 	FLumenLight LumenLight = LoadLumenLight(LightIndex, PreViewTranslation);
 	Out = LumenLight.DeferredLightData;

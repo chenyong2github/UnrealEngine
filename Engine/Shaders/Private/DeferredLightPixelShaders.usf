@@ -27,6 +27,7 @@
 #include "Strata/Strata.ush"
 #include "DeferredShadingCommon.ush"
 #include "DeferredLightingCommon.ush"
+#include "LightDataUniforms.ush"
 
 #if USE_HAIR_LIGHTING == 1
 #include "HairStrands/HairStrandsVisibilityCommon.ush"
@@ -79,45 +80,6 @@ FDerivedParams GetDerivedParams(in FInputParams Input, in float SceneDepth)
 	Out.CameraVector = normalize(Input.ScreenVector);
 #endif
 	return Out;
-}
-
-FDeferredLightData SetupLightDataForStandardDeferred()
-{
-	// Build the light data struct using the DeferredLightUniforms and light defines
-	// We are heavily relying on the shader compiler to optimize out constant subexpressions in GetDynamicLighting()
-
-	FDeferredLightData LightData;
-	LightData.TranslatedWorldPosition = GetDeferredLightTranslatedWorldPosition();
-	LightData.InvRadius = DeferredLightUniforms.InvRadius;
-	LightData.Color = DeferredLightUniforms.Color;
-	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
-	LightData.Direction = DeferredLightUniforms.Direction;
-	LightData.Tangent = DeferredLightUniforms.Tangent;
-	LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-	LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
-	LightData.SourceLength = LIGHT_SOURCE_SHAPE > 0 ? DeferredLightUniforms.SourceLength : 0;
-    LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
-	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
-	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
-	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-	LightData.ContactShadowNonShadowCastingIntensity = DeferredLightUniforms.ContactShadowNonShadowCastingIntensity;
-	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
-	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
-	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-	LightData.bInverseSquared = LIGHT_SOURCE_SHAPE > 0 && DeferredLightUniforms.FalloffExponent == 0; // Directional lights don't use 'inverse squared attenuation'
-	LightData.bRadialLight = LIGHT_SOURCE_SHAPE > 0;
-	//@todo - permutation opportunity
-	LightData.bSpotLight = LIGHT_SOURCE_SHAPE > 0;
-	LightData.bRectLight = LIGHT_SOURCE_SHAPE == 2;
-	
-	LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
-	LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
-	LightData.RectLightAtlasMaxLevel = DeferredLightUniforms.RectLightAtlasMaxLevel;
-	LightData.RectLightAtlasUVOffset = DeferredLightUniforms.RectLightAtlasUVOffset;
-	LightData.RectLightAtlasUVScale  = DeferredLightUniforms.RectLightAtlasUVScale;
-
-	LightData.HairTransmittance = InitHairTransmittanceData();
-	return LightData;
 }
 
 Texture2D<uint> LightingChannelsTexture;
@@ -291,7 +253,7 @@ void DeferredLightPixelMain(
 		const float SceneDepth = CalcSceneDepth(InputParams.ScreenUV);
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 
-		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+		FDeferredLightData LightData = InitDeferredLightFromUniforms(LIGHT_SOURCE_SHAPE);
 		UpdateLightDataColor(LightData, InputParams, DerivedParams);
 
 		float3 V =-DerivedParams.CameraVector;
@@ -347,7 +309,7 @@ void DeferredLightPixelMain(
 		const float SceneDepth = CalcSceneDepth(InputParams.ScreenUV);
 		const FDerivedParams DerivedParams = GetDerivedParams(InputParams, SceneDepth);
 
-		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+		FDeferredLightData LightData = InitDeferredLightFromUniforms(LIGHT_SOURCE_SHAPE);
 		UpdateLightDataColor(LightData, InputParams, DerivedParams);
 
 	 #if USE_HAIR_COMPLEX_TRANSMITTANCE
@@ -430,7 +392,7 @@ void DeferredLightPixelMain(
 	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * HairScreenSpaceData.GBuffer.Depth, HairScreenSpaceData.GBuffer.Depth, 1), View.ScreenToTranslatedWorld).xyz;
 	const float3 CameraVector = normalize(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 
-	FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+	FDeferredLightData LightData = InitDeferredLightFromUniforms(LIGHT_SOURCE_SHAPE);
 
 	// todo add light culling/early out
 

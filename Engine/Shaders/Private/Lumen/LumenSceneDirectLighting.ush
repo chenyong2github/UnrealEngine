@@ -3,6 +3,7 @@
 #pragma once
 
 #include "LumenSceneLighting.ush"
+#include "../LightDataUniforms.ush"
 
 // Must match ELumenLightType in LumenSceneDirectLighting.cpp
 #define LIGHT_TYPE_DIRECTIONAL 0
@@ -93,40 +94,6 @@ void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCar
 	{
 		InterlockedOr(RWShadowMaskTiles[SHADOW_MASK_CARD_TILE_DWORDS * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
 	}
-}
-
-FDeferredLightData LoadLightData(uint LightType)
-{
-	FDeferredLightData LightData = (FDeferredLightData)0;
-
-	LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
-	LightData.InvRadius = DeferredLightUniforms.InvRadius;
-	LightData.Color = DeferredLightUniforms.Color;
-	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
-	LightData.Direction = DeferredLightUniforms.Direction;
-	LightData.Tangent = DeferredLightUniforms.Tangent;
-	LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-	LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
-	LightData.SourceLength = DeferredLightUniforms.SourceLength;
-	LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
-	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
-	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
-	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
-	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
-	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-	LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
-	LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
-	LightData.RectLightAtlasUVOffset = DeferredLightUniforms.RectLightAtlasUVOffset;
-	LightData.RectLightAtlasUVScale  = DeferredLightUniforms.RectLightAtlasUVScale;
-	LightData.RectLightAtlasMaxLevel = DeferredLightUniforms.RectLightAtlasMaxLevel;
-
-	LightData.bInverseSquared = LightData.FalloffExponent == 0.0f;
-	LightData.bRadialLight = LightType != LIGHT_TYPE_DIRECTIONAL;
-	LightData.bSpotLight = LightType == LIGHT_TYPE_SPOT;
-	LightData.bRectLight = LightType == LIGHT_TYPE_RECT;
-
-	return LightData;
 }
 
 struct FLumenPackedLight
