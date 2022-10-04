@@ -30,6 +30,7 @@
 #include "Styling/ISlateStyle.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Sections/MovieSceneConstrainedSection.h"
 
 class FCurveEditor;
 class UObject;
@@ -45,7 +46,7 @@ FConstraintChannelCurveModel::FConstraintChannelCurveModel(TMovieSceneChannelHan
 	ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneConstraintChannel>(InChannel.GetChannelIndex());
 	if (FMovieSceneChannelProxy* ChannelProxy = InChannel.GetChannelProxy())
 	{
-		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FConstraintChannelCurveModel::FixupCurve);
+		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FConstraintChannelCurveModel::NeedNewProxy);
 	}
 
 	WeakSection = OwningSection;
@@ -62,19 +63,32 @@ FConstraintChannelCurveModel::~FConstraintChannelCurveModel()
 		ChannelProxy->OnDestroy.Remove(OnDestroyHandle);
 	}
 }
+void FConstraintChannelCurveModel::NeedNewProxy() const
+{	
+	bNeedNewProxy = true; 
+}
 
-void FConstraintChannelCurveModel::FixupCurve()
+void FConstraintChannelCurveModel::FixupCurve() const
 {
 	if (UMovieSceneSection* Section = WeakSection.Get())
 	{
-		FMovieSceneChannelProxy* NewChannelProxy = &Section->GetChannelProxy();
-		ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneConstraintChannel>(ChannelHandle.GetChannelIndex());
-		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FConstraintChannelCurveModel::FixupCurve);
+		if (bNeedNewProxy)
+		{
+			if (IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(Section))
+			{
+				ConstrainedSection->OnConstraintsChanged();
+			}
+			FMovieSceneChannelProxy* NewChannelProxy = &Section->GetChannelProxy();
+			ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneConstraintChannel>(ChannelHandle.GetChannelIndex());
+			OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FConstraintChannelCurveModel::NeedNewProxy);
+			bNeedNewProxy = false;
+		}
 	}
 }
+
 TArray<FKeyBarCurveModel::FBarRange> FConstraintChannelCurveModel::FindRanges()
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 	TArray<FKeyBarCurveModel::FBarRange> Ranges = FConstraintChannelEditor::GetBarRanges(Channel, Section);
 	return Ranges;
@@ -82,8 +96,16 @@ TArray<FKeyBarCurveModel::FBarRange> FConstraintChannelCurveModel::FindRanges()
 
 const void* FConstraintChannelCurveModel::GetCurve() const
 {
-	return ChannelHandle.Get();
+	return GetChannel();
 }
+
+FMovieSceneConstraintChannel* FConstraintChannelCurveModel::GetChannel() const
+{
+	FixupCurve();
+	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	return Channel;
+}
+
 
 void FConstraintChannelCurveModel::Modify()
 {
@@ -97,7 +119,7 @@ void FConstraintChannelCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyP
 {
 	check(InKeyPositions.Num() == InKeyAttributes.Num() && (!OutKeyHandles || OutKeyHandles->Num() == InKeyPositions.Num()));
 
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 	if (Channel && Section)
 	{
@@ -135,7 +157,7 @@ bool FConstraintChannelCurveModel::Evaluate(double Time, double& OutValue) const
 
 void FConstraintChannelCurveModel::RemoveKeys(TArrayView<const FKeyHandle> InKeys)
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 	if (Channel && Section)
 	{
@@ -161,7 +183,7 @@ void FConstraintChannelCurveModel::DrawCurve(const FCurveEditor& CurveEditor, co
 
 void FConstraintChannelCurveModel::GetKeys(const FCurveEditor& CurveEditor, double MinTime, double MaxTime, double MinValue, double MaxValue, TArray<FKeyHandle>& OutKeyHandles) const
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 
 	if (Channel && Section)
@@ -195,7 +217,7 @@ void FConstraintChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, con
 
 void FConstraintChannelCurveModel::GetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<FKeyPosition> OutKeyPositions) const
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 
 	if (Channel && Section)
@@ -220,7 +242,7 @@ void FConstraintChannelCurveModel::GetKeyPositions(TArrayView<const FKeyHandle> 
 
 void FConstraintChannelCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType)
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 
 	if (Channel && Section)
@@ -269,7 +291,7 @@ void FConstraintChannelCurveModel::CreateKeyProxies(TArrayView<const FKeyHandle>
 
 void FConstraintChannelCurveModel::GetTimeRange(double& MinTime, double& MaxTime) const
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 	UMovieSceneSection* Section = WeakSection.Get();
 
 	if (Channel && Section)
@@ -298,7 +320,7 @@ void FConstraintChannelCurveModel::GetValueRange(double& MinValue, double& MaxVa
 
 int32 FConstraintChannelCurveModel::GetNumKeys() const
 {
-	FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+	FMovieSceneConstraintChannel* Channel = GetChannel();
 
 	if (Channel)
 	{
@@ -318,7 +340,7 @@ void FConstraintChannelCurveModel::BuildContextMenu(const FCurveEditor& CurveEdi
 	{
 		MenuBuilder.BeginSection("SpaceContextMenuSection", NSLOCTEXT("CurveEditor", "Constraint", "Constraint"));
 		{
-			FMovieSceneConstraintChannel* Channel = ChannelHandle.Get();
+			FMovieSceneConstraintChannel* Channel = GetChannel();
 			const FKeyHandle KeyHandle = ClickedPoint.GetValue().KeyHandle;
 			if (Channel && KeyHandle != FKeyHandle::Invalid())
 			{

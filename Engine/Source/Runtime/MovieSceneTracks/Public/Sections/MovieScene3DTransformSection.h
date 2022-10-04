@@ -192,11 +192,13 @@ private:
 * This object contains information needed for constraint channels on the transform section
 */
 UCLASS()
-class MOVIESCENETRACKS_API UMovieScene3dTransformSectionConstraints : public UObject
+class MOVIESCENETRACKS_API UMovieScene3DTransformSectionConstraints : public UObject
 {
 	GENERATED_BODY()
 
 public:
+
+	virtual void Serialize(FArchive& Ar) override;
 
 	/** Constraint Channels*/
 	UPROPERTY()
@@ -309,7 +311,7 @@ private:
 
 	/** Optional pointer to constraint channels*/
 	UPROPERTY()
-	TObjectPtr<UMovieScene3dTransformSectionConstraints> Constraints;
+	TObjectPtr<UMovieScene3DTransformSectionConstraints> Constraints;
 
 	/** Whether to use a quaternion linear interpolation between keys. This finds the 'shortest' rotation between keyed orientations. */
 	UPROPERTY(EditAnywhere, DisplayName = "Use Quaternion Interpolation", Category = "Rotation")
@@ -347,6 +349,12 @@ public:
 	*  Replace the constraint with the specified name with the new one
 	*/
 	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint)  override;
+
+	/*
+	* Clear proxy if changed
+	*/
+	virtual void OnConstraintsChanged() override;
+
 private:
 
 #if WITH_EDITORONLY_DATA

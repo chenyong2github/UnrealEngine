@@ -980,7 +980,7 @@ void UMovieScene3DTransformSection::AddConstraintChannel(UTickableConstraint* In
 	Modify();
 	if (!Constraints)
 	{
-		Constraints = NewObject<UMovieScene3dTransformSectionConstraints>(this, NAME_None, RF_Public| RF_Transactional);
+		Constraints = NewObject<UMovieScene3DTransformSectionConstraints>(this, NAME_None, RF_Public| RF_Transactional);
 	}
 	if (InConstraint && !HasConstraintChannel(InConstraint->GetFName()))
 	{
@@ -1078,8 +1078,29 @@ UE::MovieScene::FChannelOverrideProviderTraitsHandle UMovieScene3DTransformSecti
 	return UE::MovieScene::FChannelOverrideProviderTraitsHandle(Traits);
 }
 
+void UMovieScene3DTransformSection::OnConstraintsChanged()
+{
+	ChannelProxy = nullptr;
+}
+
 void UMovieScene3DTransformSection::OnChannelOverridesChanged()
 {
 	ChannelProxy = nullptr;
+}
+
+void UMovieScene3DTransformSectionConstraints::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	//if we are loading during an undo/redo set the cache to be empty
+	if (Ar.IsLoading() && Ar.IsTransacting())
+	{
+		if (UMovieScene3DTransformSection* Section = GetTypedOuter<UMovieScene3DTransformSection>())
+		{
+			if (IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(Section))
+			{
+				ConstrainedSection->OnConstraintsChanged();
+			}
+		}
+	}
 }
 

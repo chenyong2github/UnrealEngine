@@ -72,6 +72,11 @@ public:
 	*/
 	 FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }
 
+	 /*
+	 *  What to do if the constraint object has been changed, for example by an undo or redo. By default nothing to be overriden if needed.
+	 */
+	 virtual void OnConstraintsChanged() {};
+
 	/*
 	*  Removed delegate that get's added by the track editor
 	*/
