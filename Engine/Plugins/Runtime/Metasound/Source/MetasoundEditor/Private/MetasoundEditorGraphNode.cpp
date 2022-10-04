@@ -211,8 +211,6 @@ void UMetasoundEditorGraphNode::Validate(Metasound::Editor::FGraphNodeValidation
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	OutResult = FGraphNodeValidationResult(*this);
-
 #if WITH_EDITOR
 	// Validate that non-reroute inputs are connected to "real" outputs
 	if (GetClassName() != FRerouteNodeTemplate::ClassName)

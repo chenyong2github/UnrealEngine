@@ -974,7 +974,7 @@ namespace Metasound
 			{
 				if (Pin->Direction == EGPD_Output)
 				{
-					if (!HasRequiredConnections())
+					if (!HasRequiredConnections() || Pin->GetOwningNode()->ErrorType <= static_cast<uint32>(EMessageSeverity::Warning))
 					{
 						return FLinearColor::Yellow;
 					}
@@ -992,7 +992,7 @@ namespace Metasound
 
 			if (UEdGraphPin* Pin = GetPinObj())
 			{
-				if (!HasRequiredConnections())
+				if (!HasRequiredConnections() || Pin->GetOwningNode()->ErrorType <= static_cast<uint32>(EMessageSeverity::Warning))
 				{
 					return &Editor::Style::GetSlateBrushSafe("MetasoundEditor.Graph.InvalidReroute");
 				}

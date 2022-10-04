@@ -43,8 +43,6 @@ namespace Metasound
 
 		class FGraphBuilder
 		{
-			static void InitGraphNode(Frontend::FNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode, UObject& InMetaSound);
-
 		public:
 			static const FName PinCategoryAudio;
 			static const FName PinCategoryBoolean;
@@ -60,6 +58,8 @@ namespace Metasound
 
 			static const FText FunctionMenuName;
 			static const FText GraphMenuName;
+
+			static void InitGraphNode(Frontend::FNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode, UObject& InMetaSound);
 
 			// Adds an EdGraph node to mirror the provided FNodeHandle.
 			static UMetasoundEditorGraphNode* AddNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);

@@ -1894,12 +1894,26 @@ void UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidation
 	using namespace Metasound::Frontend;
 
 	OutResults = FGraphValidationResults();
-
+	TSet<FGuid> NodeGuids; 
 	TArray<UMetasoundEditorGraphNode*> NodesToValidate;
 	GetNodesOfClass<UMetasoundEditorGraphNode>(NodesToValidate);
+	bool bNodeIdFound = false;
 	for (UMetasoundEditorGraphNode* Node : NodesToValidate)
 	{
 		FGraphNodeValidationResult NodeResult(*Node);
+
+		// Validate there is only 1 editor node per guid 
+		// Input nodes are currently not 1:1 with their frontend representation
+		// but when they are, they can be validated here as well 
+		if (!Node->IsA<UMetasoundEditorGraphInputNode>())
+		{
+			NodeGuids.Add(Node->GetNodeID(), &bNodeIdFound);
+			if (bNodeIdFound)
+			{
+				NodeResult.SetMessage(EMessageSeverity::Warning, TEXT("The internal node this represents is referenced multiple times and may have unintended behavior. Please delete and readd this node."));
+			}
+		}
+
 		Node->Validate(NodeResult);
 
 		OutResults.NodeResults.Add(MoveTemp(NodeResult));
