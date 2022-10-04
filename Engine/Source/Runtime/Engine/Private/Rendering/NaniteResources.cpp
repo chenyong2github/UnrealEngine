@@ -108,8 +108,6 @@ FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 	ECVF_RenderThreadSafe
 );
 
-#if RHI_RAYTRACING
-
 static TAutoConsoleVariable<int32> CVarRayTracingNaniteProxyMeshes(
 	TEXT("r.RayTracing.Geometry.NaniteProxies"),
 	1,
@@ -131,8 +129,6 @@ static FAutoConsoleVariableRef CVarNaniteRaytracingProceduralPrimitive(
 	GNaniteRaytracingProceduralPrimitive,
 	TEXT("Whether to raytrace nanite meshes using procedural primitives instead of a proxy."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
-#endif // RHI_RAYTRACING
 
 namespace Nanite
 {
