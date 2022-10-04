@@ -15,11 +15,12 @@
   // 4700 - uninitialized local variable 'xyz' used
   // 4714 - function marked as __forceinline not inlined
   // 4717 - 'function' : recursive on all control paths, function will cause runtime stack overflow
+  // 4789 - EPIC ADDITION : buffer 'buffer' of size N bytes will be overrun (seems to be spurious and only happens with LTCG) 
   // 4800 - 'type' : forcing value to bool 'true' or 'false' (performance warning)
   #ifndef EIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS
     #pragma warning( push )
   #endif
-  #pragma warning( disable : 4100 4101 4181 4211 4244 4273 4324 4503 4512 4522 4700 4714 4717 4800)
+  #pragma warning( disable : 4100 4101 4181 4211 4244 4273 4324 4503 4512 4522 4700 4714 4717 4789 4800)
 
 #elif defined __INTEL_COMPILER
   // 2196 - routine is both "inline" and "noinline" ("noinline" assumed)
