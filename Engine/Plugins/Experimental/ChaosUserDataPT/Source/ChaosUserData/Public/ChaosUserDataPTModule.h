@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FChaosUserDataModule : public IModuleInterface
+class FChaosUserDataPTModule : public IModuleInterface
 {
 public:
 

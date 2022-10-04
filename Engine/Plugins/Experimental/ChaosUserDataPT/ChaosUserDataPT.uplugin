@@ -2,7 +2,7 @@
 	"FileVersion": 1,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "ChaosUserData",
+	"FriendlyName": "ChaosUserDataPT",
 	"Description": "Custom per-particle userdata. Write-only on game thread, read-only on physics thread.",
 	"Category": "Editor",
 	"CreatedBy": "Epic Games, Inc.",
@@ -16,7 +16,7 @@
 	"EnabledByDefault": true,
 	"Modules": [
 		{
-			"Name": "ChaosUserData",
+			"Name": "ChaosUserDataPT",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}

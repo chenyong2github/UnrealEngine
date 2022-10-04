@@ -4,16 +4,15 @@ using UnrealBuildTool;
 
 namespace UnrealBuildTool.Rules
 {
-	public class ChaosUserData : ModuleRules
+	public class ChaosUserDataPT : ModuleRules
 	{
 
-		public ChaosUserData(ReadOnlyTargetRules Target) : base(Target)
+		public ChaosUserDataPT(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
-					"CoreUObject"
 				}
 			);
 
