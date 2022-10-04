@@ -37,8 +37,11 @@ private:
 	void ExecuteAssignSkeleton(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects);
 	
 	/** Certain options are not available for template anim BPs */
-	bool AreAnyNonTemplateAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const;
+	bool AreOnlyNonTemplateAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const;
 
+	/** Certain options are not available for layer interfaces */
+	bool AreOnlyNonInterfaceAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const;
+	
 	/** When skeleton asset is missing, allow replacing skeleton asset */ 
 	bool ReplaceMissingSkeleton(TArray<UObject*> InAnimBlueprints) const;
 };

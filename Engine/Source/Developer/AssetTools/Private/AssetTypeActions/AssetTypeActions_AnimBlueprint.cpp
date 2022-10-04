@@ -30,14 +30,18 @@
 
 void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
-	FAssetTypeActions_Blueprint::GetActions(InObjects, Section);
-
 	TArray<TWeakObjectPtr<UAnimBlueprint>> AnimBlueprints = GetTypedWeakObjectPtrs<UAnimBlueprint>(InObjects);
 
 	if (AnimBlueprints.Num() == 1 && CanCreateNewDerivedBlueprint())
 	{
 		UAnimBlueprint* AnimBlueprint = AnimBlueprints[0].Get();
 
+		if(AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface)
+		{
+			// Call base class for the regular 'create child blueprint' option
+			FAssetTypeActions_Blueprint::GetActions(InObjects, Section);
+		}
+		
 		// Accept (non-interface) template anim BPs or anim BPs with compatible skeletons
 		if(AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface && ((AnimBlueprint->TargetSkeleton == nullptr && AnimBlueprint->bIsTemplate) || (AnimBlueprint->TargetSkeleton != nullptr && AnimBlueprint->TargetSkeleton->GetCompatibleSkeletons().Num() > 0)))
 		{
@@ -129,7 +133,7 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 		}
 	}
 
-	if(AreAnyNonTemplateAnimBlueprintsSelected(AnimBlueprints))
+	if(AreOnlyNonTemplateAnimBlueprintsSelected(AnimBlueprints) && AreOnlyNonInterfaceAnimBlueprintsSelected(AnimBlueprints))
 	{
 		Section.AddMenuEntry(
 			"AnimBlueprint_FindSkeleton",
@@ -258,17 +262,30 @@ void FAssetTypeActions_AnimBlueprint::PerformAssetDiff(UObject* Asset1, UObject*
 	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
 }
 
-bool FAssetTypeActions_AnimBlueprint::AreAnyNonTemplateAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const
+bool FAssetTypeActions_AnimBlueprint::AreOnlyNonTemplateAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const
 {
 	for(TWeakObjectPtr<UAnimBlueprint> WeakAnimBlueprint : Objects)
 	{
-		if(!WeakAnimBlueprint->bIsTemplate)
+		if(WeakAnimBlueprint->bIsTemplate)
 		{
-			return true; 
+			return false; 
 		}
 	}
 
-	return false;
+	return true;
+}
+
+bool FAssetTypeActions_AnimBlueprint::AreOnlyNonInterfaceAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const
+{
+	for(TWeakObjectPtr<UAnimBlueprint> WeakAnimBlueprint : Objects)
+	{
+		if(WeakAnimBlueprint->BlueprintType == BPTYPE_Interface)
+		{
+			return false; 
+		}
+	}
+
+	return true;
 }
 
 void FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects)

@@ -12,5 +12,4 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AnimLayerInterface", "Animation Layer Interface"); }
 	virtual void BuildBackendFilter(FARFilter& InFilter) override;
 	virtual FName GetFilterName() const override;
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override {}
 };
