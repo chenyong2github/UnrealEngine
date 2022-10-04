@@ -1477,8 +1477,16 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 			WorldTimeSeconds = SKC->PrimaryComponentTick.bTickEvenWhenPaused ? World->UnpausedTimeSeconds : World->TimeSeconds;
 
 			if (PhysicsSimulation && bEnableWorldGeometry)
-			{
+			{ 
+				// @todo: this logic can be simplified now. We used to run PurgeExpiredWorldObjects and CollectWorldObjects
+				// in UpdateAnimation, but we can't access the world actor's geometry there
 				UpdateWorldGeometry(*World, *SKC);
+
+				// Remove expired objects from the sim
+				PurgeExpiredWorldObjects();
+
+				// Find nearby world objects to add to the sim (gated on UnsafeWorld - see UpdateWorldGeometry)
+				CollectWorldObjects();
 			}
 
 			PendingRadialForces = SKC->GetPendingRadialForces();
@@ -1541,12 +1549,6 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 		// Node is valid to evaluate. Simulation is starting.
 		bSimulationStarted = true;
 	}
-
-	// Remove expired objects from the sim
-	PurgeExpiredWorldObjects();
-
-	// Find nearby world objects to add to the sim (gated on UnsafeWorld - see UpdateWorldGeometry)
-	CollectWorldObjects();
 
 	// These get set again if our bounds change. Subsequent calls to CollectWorldObjects will early-out until then
 	UnsafeWorld = nullptr;
