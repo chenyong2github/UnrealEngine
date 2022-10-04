@@ -157,12 +157,12 @@ namespace EpicGames.BuildGraph.Expressions
 		public override void Write(BgBytecodeWriter writer)
 		{
 			writer.WriteOpcode(BgOpcode.Call);
+			writer.WriteExprAsFragment(Function.Body);
 			writer.WriteUnsignedInteger((uint)Arguments.Length);
 			foreach (BgExpr argument in Arguments)
 			{
 				argument.Write(writer);
 			}
-			writer.WriteExprAsFragment(Function.Body);
 		}
 
 		public override BgString ToBgString() => throw new InvalidOperationException();
