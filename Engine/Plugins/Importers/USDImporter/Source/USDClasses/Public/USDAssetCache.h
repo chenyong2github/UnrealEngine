@@ -38,6 +38,12 @@ public:
 	/** Returns the first prim path associated with an asset (see TMap::FindKey) */
 	FString GetPrimForAsset( UObject* Asset ) const;
 
+	/**
+	 * Returns the hash used as a key for an asset, in case we own it.
+	 * Returns the empty string otherwise.
+	 */
+	FString GetHashForAsset( UObject* Asset ) const;
+
 	TMap< FString, TWeakObjectPtr<UObject> > GetAssetPrimLinks() const { return PrimPathToAssets; }; // Can't return a reference as it wouldn't be thread-safe
 
 	bool IsAssetOwnedByCache( UObject* Asset ) const { return OwnedAssets.Contains( Asset ); }

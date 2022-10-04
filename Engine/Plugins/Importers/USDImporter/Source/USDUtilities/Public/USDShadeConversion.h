@@ -130,6 +130,7 @@ namespace UsdUtils
 	* Returns whether the material uses UDIMs textures.
 	* This function exists because we need this information *before* we pick the right parent for a material instance and properly convert it.
 	*/
+	UE_DEPRECATED( 5.1, "No longer used: Textures and materials will be upgraded to VT-based on-demand" )
 	USDUTILITIES_API bool IsMaterialUsingUDIMs( const pxr::UsdShadeMaterial& UsdShadeMaterial );
 
 	USDUTILITIES_API FSHAHash HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext );

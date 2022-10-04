@@ -177,6 +177,15 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = nullptr;
 
 	/**
+	 * Sometimes we must upgrade a material from non-VT to VT, and so upgrade all of its textures to VT (and then
+	 * upgrade all materials that use them to VT, etc.).
+	 * This member lets us cache which generated materials use which generated textures in order to help with that.
+	 * Material parsing is synchronous. If we ever upgrade it to paralllel/async-task-based, we'll need a mutex around
+	 * this member.
+	 */
+	TMap<UTexture*, TSet<UMaterialInterface*>> TextureToUserMaterials;
+
+	/**
 	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
 	 * like multiple Mesh prims into a single Static Mesh
 	 */
