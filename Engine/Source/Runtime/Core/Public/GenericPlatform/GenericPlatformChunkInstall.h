@@ -481,37 +481,6 @@ protected:
 	}
 };
 
-// temporary helper base for platform chunk installers to transition from FCustomChunk to named chunks
-class CORE_API FNamedChunkPlatformChunkInstall : public FGenericPlatformChunkInstall
-{
-public:
-	virtual bool SupportsNamedChunkInstall() const override
-	{
-		return true;
-	}
-
-	virtual bool IsNamedChunkInProgress(const FName NamedChunk) override;
-	virtual bool InstallNamedChunk(const FName NamedChunk) override;
-	virtual bool UninstallNamedChunk(const FName NamedChunk) override;
-	virtual bool InstallNamedChunks(const TArrayView<const FName>& NamedChunks) override;
-	virtual bool UninstallNamedChunks(const TArrayView<const FName>& NamedChunks) override;
-
-	virtual EChunkLocation::Type GetNamedChunkLocation(const FName NamedChunk) override;
-	virtual float GetNamedChunkProgress(const FName NamedChunk, EChunkProgressReportingType::Type ReportType) override;
-	virtual bool PrioritizeNamedChunk(const FName NamedChunk, EChunkPriority::Type Priority) override;
-
-	virtual ENamedChunkType GetNamedChunkType(const FName NamedChunk) const override;
-	virtual TArray<FName> GetNamedChunksByType(ENamedChunkType NamedChunkType) const override;
-
-protected:
-	virtual float GetCustomChunkProgress(const FCustomChunk& CustomChunk, EChunkProgressReportingType::Type ReportType) = 0; // platform specializations need to implement this as it's missing in the existing api
-	bool TryGetCustomChunkFromNamedChunk(const FName NamedChunk, FCustomChunk& OutCustomChunk) const;
-	TArray<FCustomChunk> GetCustomChunksFromNamedChunk(const FName NamedChunk) const;
-	TArray<FCustomChunk> GetCustomChunksFromNamedChunks(const TArrayView<const FName>& NamedChunks) const;
-	TArray<FName> GetNamedChunksFromCustomChunks(const TArray<FCustomChunk>& CustomChunks) const;
-	FName GetNamedChunkByPakChunkIndex(int32 InPakchunkIndex) const;
-	FName GetCustomChunkName(const FCustomChunk& CustomChunk) const;
-};
 
 // temporary helper base class for platform chunk installers that have implemented named chunk support to provide FCustomChunk emulation
 class CORE_API FGenericPlatformChunkInstall_WithEmulatedCustomChunks : public FGenericPlatformChunkInstall
