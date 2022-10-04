@@ -255,6 +255,7 @@ TArray<UMaterialInstanceConstant*> AssetUtils::GetSelectedAssets(const FTopLevel
 	for (FAssetData SelectedAsset : AssetDatas)
 	{
 		if (SelectedAsset.AssetClassPath == AssetClass)
+		{
 			ObjectArray.Add(CastChecked<UMaterialInstanceConstant>(UEditorAssetLibrary::LoadAsset(SelectedAsset.GetObjectPathString())));
 		}
 
