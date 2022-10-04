@@ -1146,6 +1146,7 @@ void UGeometryCollectionComponent::SetRestState(TArray<FTransform>&& InRestTrans
 	{
 #if WITH_EDITOR
 			// We need to do this in case we're controlled by Sequencer in editor, which doesn't invoke PostEditChangeProperty
+			UpdateCachedBounds();
 			SendRenderTransform_Concurrent();
 #endif
 		if (SceneProxy->IsNaniteMesh())
