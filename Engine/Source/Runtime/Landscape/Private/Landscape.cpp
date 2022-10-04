@@ -4163,7 +4163,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 				}
 			}
 		}
-		else if (LandscapeActor == Landscape)
+		else if (LandscapeActor != Landscape)
 		{
 			UE_LOG(LogLandscape, Warning, TEXT("Multiple landscapes actors with the same GUID detected: %s vs %s"), * LandscapeActor->GetPathName(), * Landscape->GetPathName());
 		}
