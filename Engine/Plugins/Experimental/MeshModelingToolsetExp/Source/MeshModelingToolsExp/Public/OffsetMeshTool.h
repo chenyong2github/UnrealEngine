@@ -11,10 +11,10 @@
 UENUM()
 enum class EOffsetMeshToolOffsetType : uint8
 {
-	/** Iterative Offseting with N iterations */
+	/** Iterative Offsetting with N iterations */
 	Iterative UMETA(DisplayName = "Iterative"),
 
-	/** Implicit Offseting, produces smoother output and does a better job at preserving UVs, but can be very slow on large meshes */
+	/** Implicit Offsetting, produces smoother output and does a better job at preserving UVs, but can be very slow on large meshes */
 	Implicit UMETA(DisplayName = "Implicit")
 };
 
@@ -27,7 +27,7 @@ class MESHMODELINGTOOLSEXP_API UOffsetMeshToolProperties : public UInteractiveTo
 	GENERATED_BODY()
 
 public:
-	/** Type of Offseting to apply */
+	/** Type of Offsetting to apply */
 	UPROPERTY(EditAnywhere, Category = Offset)
 	EOffsetMeshToolOffsetType OffsetType = EOffsetMeshToolOffsetType::Iterative;
 
@@ -54,14 +54,14 @@ public:
 };
 
 
-/** Properties for Iterative Offseting */
+/** Properties for Iterative Offsetting */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UIterativeOffsetProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 
-	/** Number of Offseting iterations */
+	/** Number of Offsetting iterations */
 	UPROPERTY(EditAnywhere, Category = IterativeOffsetOptions, meta = (UIMin = "1", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	int32 Steps = 10;
 
@@ -79,7 +79,7 @@ public:
 };
 
 
-/** Properties for Implicit Offseting */
+/** Properties for Implicit Offsetting */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UImplicitOffsetProperties : public UInteractiveToolPropertySet
 {
@@ -87,11 +87,11 @@ class MESHMODELINGTOOLSEXP_API UImplicitOffsetProperties : public UInteractiveTo
 
 public:
 	/** How tightly we should constrain the constrained implicit offset to the explicit offset */
-	UPROPERTY(EditAnywhere, Category = ImplicitOffsetingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = ImplicitOffsettingOptions, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
 	float Smoothness = 0.2f;
 
 	/** If this is false, triangles will be reshaped to be more regular, which will distort UVs */
-	UPROPERTY(EditAnywhere, Category = ImplicitOffsetingOptions)
+	UPROPERTY(EditAnywhere, Category = ImplicitOffsettingOptions)
 	bool bPreserveUVs = true;
 };
 
@@ -101,7 +101,7 @@ public:
 
 
 /**
- * Mesh Offseting Tool
+ * Mesh Offsetting Tool
  */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UOffsetMeshTool : public UBaseMeshProcessingTool

@@ -56,7 +56,7 @@ void UOffsetMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 
 FText UOffsetMeshTool::GetToolMessageString() const
 {
-	return LOCTEXT("StartOffsetToolMessage", "Offset the mesh vertex positions using various Offseting methods.");
+	return LOCTEXT("StartOffsetToolMessage", "Offset the mesh vertex positions using various Offsetting methods.");
 }
 
 FText UOffsetMeshTool::GetAcceptTransactionName() const

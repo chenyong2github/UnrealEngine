@@ -177,7 +177,7 @@ public:
 		meta = (ClampMin = "1", EditConditionHides, EditCondition = "DirectionMode == EPolyEditOffsetModeOptions::SelectedTriangleNormalsEven"))
 	double MaxDistanceScaleFactor = 4.0;
 
-	/** Controls whether offseting an entire open-border patch should create a solid or an open shell */
+	/** Controls whether offsetting an entire open-border patch should create a solid or an open shell */
 	UPROPERTY(EditAnywhere, Category = Offset)
 	bool bShellsToSolids = true;
 
@@ -187,7 +187,7 @@ public:
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/**
-	 * When offseting regions that touch the mesh border, assign the side groups (groups on the
+	 * When offsetting regions that touch the mesh border, assign the side groups (groups on the
 	 * stitched side of the extrude) in a way that considers edge colinearity. For instance, when
 	 * true, extruding a flat rectangle will give four different groups on its sides rather than
 	 * one connected group.
@@ -220,7 +220,7 @@ public:
 		meta = (ClampMin = "1", EditConditionHides, EditCondition = "DirectionMode == EPolyEditPushPullModeOptions::SelectedTriangleNormalsEven"))
 	double MaxDistanceScaleFactor = 4.0;
 
-	/** Controls whether offseting an entire open-border patch should create a solid or an open shell */
+	/** Controls whether offsetting an entire open-border patch should create a solid or an open shell */
 	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
 	bool bShellsToSolids = true;
 
@@ -230,7 +230,7 @@ public:
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/**
-	 * When offseting regions that touch the mesh border, assign the side groups (groups on the
+	 * When offsetting regions that touch the mesh border, assign the side groups (groups on the
 	 * stitched side of the extrude) in a way that considers edge colinearity. For instance, when
 	 * true, extruding a flat rectangle will give four different groups on its sides rather than
 	 * one connected group.
