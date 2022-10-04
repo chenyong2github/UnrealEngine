@@ -12,6 +12,7 @@
 #include "CapsuleLightIntegrate.ush"
 #include "RectLightIntegrate.ush"
 #include "Strata/Strata.ush"
+#include "LightData.ush"
 
 // This Strata include assumes that if inline shading is required, it needs to 
 // be defined prior to DeferredLightingCommong.ush
@@ -26,50 +27,6 @@
 	#endif
 #endif
 
-/** 
- * Data about a single light.
- * Putting the light data in this struct allows the same lighting code to be used between standard deferred, 
- * Where many light properties are known at compile time, and tiled deferred, where all light properties have to be fetched from a buffer.
- */
-// TODO: inherit or compose FLightShaderParameters
-struct FDeferredLightData
-{
-	float3 TranslatedWorldPosition;
-	half  InvRadius;
-	/** Premultiplied with light brightness, can be huge. Do not use half precision here */
-	float3 Color;
-	half  FalloffExponent;
-	float3 Direction;
-	float3 Tangent;
-	float SoftSourceRadius;
-	half2 SpotAngles;
-	float SourceRadius;
-	float SourceLength;
-	half SpecularScale;
-	float ContactShadowLength;
-	/** Intensity of non-shadow-casting contact shadows */
-	float ContactShadowNonShadowCastingIntensity;
-	float2 DistanceFadeMAD;
-	half4 ShadowMapChannelMask;
-	/** Whether ContactShadowLength is in World Space or in Screen Space. */
-	bool ContactShadowLengthInWS;
-	/** Whether to use inverse squared falloff. */
-	bool bInverseSquared;
-	/** Whether this is a light with radial attenuation, aka point or spot light. */
-	bool bRadialLight;
-	/** Whether this light needs spotlight attenuation. */
-	bool bSpotLight;
-	bool bRectLight;
-	/** Whether the light should apply shadowing. */
-	uint ShadowedBits;
-	float RectLightBarnCosAngle;
-	float RectLightBarnLength;
-	/** Rect light atlas info. */
-	float2 RectLightAtlasUVOffset;
-	float2 RectLightAtlasUVScale;
-	float  RectLightAtlasMaxLevel;
-	FHairTransmittanceData HairTransmittance;
-};
 
 /** Data about a single light to be shaded with the simple shading model, designed for speed and limited feature set. */
 struct FSimpleDeferredLightData

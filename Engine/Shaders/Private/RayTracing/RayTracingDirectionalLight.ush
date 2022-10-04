@@ -4,7 +4,7 @@
 
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "../MonteCarlo.ush"
-#include "../LightShaderParameters.ush"
+#include "../LightData.ush"
 #include "RayTracingCommon.ush"
 
 // Adapted from "A Low Distortion Map Between Disk and Square." Improved based

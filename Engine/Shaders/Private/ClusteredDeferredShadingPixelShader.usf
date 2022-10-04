@@ -163,7 +163,7 @@ float4 GetSimpleLightLighting(
 		}
 
 	#if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
-		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
+		FDeferredLightData LightData = ConvertToDeferredLight(LocalLight);
 		LightData.ShadowedBits = 1;
 		const FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 
@@ -264,7 +264,7 @@ float4 GetLightGridLocalLighting(
 			continue;
 		}
 
-		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
+		FDeferredLightData LightData = ConvertToDeferredLight(LocalLight);
 		LightData.ShadowedBits = 1;
 		float4 LightAttenuation = float4(1, 1, 1, 1);
 		if (LocalLightListIndex < GetPackedShadowMaskMaxLightCount())

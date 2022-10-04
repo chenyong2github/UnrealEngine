@@ -990,7 +990,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 					if (VolumetricScatteringIntensity > 0)
 					{
-						const FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
+						const FDeferredLightData LightData = ConvertToDeferredLight(LocalLight);
 
 						float3 L = 0;
 						float3 ToLight = 0;

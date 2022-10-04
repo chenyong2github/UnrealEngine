@@ -149,29 +149,20 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 	BRANCH
 	if (DirectionalLightData.HasDirectionalLight)
 	{
-		FDeferredLightData LightData = (FDeferredLightData)0;
-		LightData.Color = DirectionalLightData.DirectionalLightColor;
-		LightData.FalloffExponent = 0;
-		LightData.Direction = DirectionalLightData.DirectionalLightDirection;
-		LightData.DistanceFadeMAD = DirectionalLightData.DirectionalLightDistanceFadeMAD;
-		LightData.bRadialLight = false;
-		LightData.SpecularScale = SpecularScale;
-
-		LightData.ShadowedBits = (DirectionalLightData.DirectionalLightShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
-		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
-		LightData.HairTransmittance = InitHairTransmittanceData();
+		half4 PreviewShadowMapChannelMask = 1;
+		uint  DirLightingChannelMask = LIGHTING_CHANNEL_MASK;
+		FDeferredLightData LightData = ConvertToDeferredLight(DirectionalLightData, SpecularScale, PreviewShadowMapChannelMask, DirLightingChannelMask);
 		#if USE_HAIR_COMPLEX_TRANSMITTANCE
 		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
 		{
 			LightData.HairTransmittance = EvaluateDualScattering(GBufferData, -CameraVector, LightData.Direction);
 		}
 		#endif
+
 		// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
 		#if DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
 			float4 LightAttenuation = float4(1, 1, 1, 1);
 		#elif ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
-			float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask >> 4);
 			float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 
 			// In the forward shading path we can't separate per-object shadows from CSM, since we only spend one light attenuation channel per light
@@ -192,14 +183,14 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 			bool bUnused = false;
 			float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, GBufferData.Depth, bUnused);
 			
-#if VIRTUAL_SHADOW_MAP
+			#if VIRTUAL_SHADOW_MAP
 			BRANCH
 			if ( ForwardLightData.DirectionalLightVSM != INDEX_NONE )
 			{
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld( ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition );
 				DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 			}
-#endif
+			#endif
 
 			float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
 		#endif
@@ -207,7 +198,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), OutDirectionalLightShadow);
 
 		FLATTEN
-		if ((DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8) & LightingChannelMask)
+		if (DirLightingChannelMask & LightingChannelMask)
 		{
 		#if ENABLE_FORWARD_CLOUD_SHADOW
 			// This cannot go into LightAttenuation due to some distance based attenuation math being applied.
@@ -243,9 +234,9 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 	for (uint LocalLightListIndex = 0; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
 	{
 		half4 PreviewShadowMapChannelMask = 1;
-		uint  LocalLightingChannelMask = LIGHING_CHANNEL_MASK;
+		uint  LocalLightingChannelMask = LIGHTING_CHANNEL_MASK;
 		const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
-		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight, SpecularScale, PreviewShadowMapChannelMask, LocalLightingChannelMask);
+		FDeferredLightData LightData = ConvertToDeferredLight(LocalLight, SpecularScale, PreviewShadowMapChannelMask, LocalLightingChannelMask);
 		LightData.bRectLight = false;	// Rect light not supported in forward. Enabling this is causing the max sampler count to be exceeded.
 		#if USE_HAIR_COMPLEX_TRANSMITTANCE
 		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)

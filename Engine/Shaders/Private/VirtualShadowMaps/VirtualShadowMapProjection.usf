@@ -151,23 +151,6 @@ float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, float3 Shading
 	return EstimatedGeoWorldNormal;
 }
 
-FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
-{
-	FLightShaderParameters Light = (FLightShaderParameters)0;
-	Light.TranslatedWorldPosition	= LightData.LightPositionAndInvRadius.xyz;
-	Light.InvRadius					= LightData.LightPositionAndInvRadius.w;
-	Light.Color						= LightData.LightColorAndFalloffExponent.xyz;
-	Light.FalloffExponent			= LightData.LightColorAndFalloffExponent.w;
-	Light.Direction					= LightData.LightDirectionAndShadowMask.xyz;
-	Light.Tangent					= LightData.LightTangentAndSoftSourceRadius.xyz;
-	Light.SpotAngles				= LightData.SpotAnglesAndSourceRadiusPacked.xy;
-	Light.SpecularScale				= LightData.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
-	Light.SourceRadius				= LightData.SpotAnglesAndSourceRadiusPacked.z;
-	Light.SoftSourceRadius			= LightData.LightTangentAndSoftSourceRadius.w;
-	Light.SourceLength				= f16tof32(asuint(LightData.SpotAnglesAndSourceRadiusPacked.w));
-	return Light;
-}
-
 float4 ComputeRandom4(uint2 PixelPosition)
 {
 	const uint InSeed = View.StateFrameIndexMod8;

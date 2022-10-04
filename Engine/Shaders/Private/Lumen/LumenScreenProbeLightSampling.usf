@@ -22,26 +22,6 @@ RWTexture2D<float4> RWScreenProbeLightSampleDirection;
 RWTexture2D<uint> RWScreenProbeLightSampleFlags;
 RWTexture2D<float3> RWScreenProbeLightSampleRadiance;
 
-FLightShaderParameters ConvertToLightShaderParameters(FDeferredLightData DeferredLightData)
-{
-	FLightShaderParameters Light;
-
-	Light.TranslatedWorldPosition = DeferredLightData.TranslatedWorldPosition;
-	Light.InvRadius = DeferredLightData.InvRadius;
-	Light.Color = DeferredLightData.Color;
-	Light.FalloffExponent = DeferredLightData.FalloffExponent;
-	Light.Direction = DeferredLightData.Direction;
-	Light.Tangent = DeferredLightData.Tangent;
-	Light.SpotAngles = DeferredLightData.SpotAngles;
-	Light.SpecularScale = 1;
-	Light.SourceRadius = DeferredLightData.SourceRadius;
-	Light.SoftSourceRadius = DeferredLightData.SoftSourceRadius;
-	Light.SourceLength = DeferredLightData.SourceLength;
-	Light.RectLightBarnCosAngle = DeferredLightData.RectLightBarnCosAngle;
-	Light.RectLightBarnLength = DeferredLightData.RectLightBarnLength;
-	return Light;
-}
-
 bool GenerateShadowRay(
 	FLightShaderParameters LightParameters,
 	bool bSpotLight,
@@ -165,7 +145,7 @@ void ScreenProbeGenerateLightSamplesCS(
 				{
 					const FLocalLightData LocalLight = GetLocalLightData(CulledLightGridData.DataStartIndex + LightIndex, EyeIndex);
 
-					FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
+					FDeferredLightData LightData = ConvertToDeferredLight(LocalLight);
 
 					float3 L = LightData.Direction;
 					float3 ToLight = L;

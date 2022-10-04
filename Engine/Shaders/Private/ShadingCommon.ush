@@ -40,15 +40,6 @@
 #define ZERO_PRECSHADOW_MASK			(1 << 6)
 #define SKIP_VELOCITY_MASK				(1 << 7)
 
-// Hair reflectance component (R, TT, TRT, Local Scattering, Global Scattering, Multi Scattering,...)
-#define HAIR_COMPONENT_R			0x1u
-#define HAIR_COMPONENT_TT			0x2u
-#define HAIR_COMPONENT_TRT			0x4u
-#define HAIR_COMPONENT_LS			0x8u 
-#define HAIR_COMPONENT_GS			0x10u
-#define HAIR_COMPONENT_MULTISCATTER	0x20u
-#define HAIR_COMPONENT_TT_MODEL  	0x40u
-
 #define SSS_PROFILE_ID_INVALID  256
 #define SSS_PROFILE_ID_PERPIXEL 512
 

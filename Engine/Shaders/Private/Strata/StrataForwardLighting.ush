@@ -83,24 +83,14 @@ float3 StrataForwardLighting(
 	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(EyeIndex);
 	FRectTexture RectTexture = InitRectTexture();
 	
-	FDeferredLightData DirLightData = (FDeferredLightData)0;
-	DirLightData.Color = DirectionalLightData.DirectionalLightColor;
-	DirLightData.FalloffExponent = 0;
-	DirLightData.Direction = DirectionalLightData.DirectionalLightDirection;
-	DirLightData.DistanceFadeMAD = DirectionalLightData.DirectionalLightDistanceFadeMAD;
-	DirLightData.bRadialLight = false;
-	DirLightData.SpecularScale = SpecularScale;
-
-	DirLightData.ShadowedBits = (DirectionalLightData.DirectionalLightShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
-	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-	DirLightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
-	DirLightData.HairTransmittance = InitHairTransmittanceData();
+	float4 PreviewShadowMapChannelMask = 1;
+	uint DirLightingChannelMask = LIGHTING_CHANNEL_MASK;
+	FDeferredLightData DirLightData = ConvertToDeferredLight(DirectionalLightData, SpecularScale, PreviewShadowMapChannelMask, DirLightingChannelMask);
 
 	// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
 #if DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
 	float4 DirLightAttenuation = float4(1, 1, 1, 1);
 #elif ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
-	float4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask >> 4);
 	float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 
 	// In the forward shading path we can't separate per-object shadows from CSM, since we only spend one light attenuation channel per light
@@ -368,8 +358,6 @@ float3 StrataForwardLighting(
 					BRANCH
 					if (DirectionalLightData.HasDirectionalLight)
 					{
-						uint LightChannelMask = DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8;
-
 						float DirectionalLightCloudShadow = 1.0f;
 					#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 						DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
@@ -386,7 +374,7 @@ float3 StrataForwardLighting(
 							DirLightMask,
 							DirLightAttenuation,
 							RectTexture,
-							LightChannelMask,
+							DirLightingChannelMask,
 							PrimitiveLightingChannelMask,
 							TranslatedWorldPosition,
 							SceneDepth,
@@ -416,8 +404,8 @@ float3 StrataForwardLighting(
 					const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, EyeIndex);
 
 					half4 PreviewShadowMapChannelMask = 1;
-					uint  LightChannelMask = LIGHING_CHANNEL_MASK;
-					FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight, 1.0f /*SpecularScale*/, PreviewShadowMapChannelMask, LightChannelMask);
+					uint  LocalLightChannelMask = LIGHTING_CHANNEL_MASK;
+					const FDeferredLightData LightData = ConvertToDeferredLight(LocalLight, 1.0f /*SpecularScale*/, PreviewShadowMapChannelMask, LocalLightChannelMask);
 					LightData.bRectLight = false; // Rect light not supported in forward. Enabling this is causing the max sampler count to be exceeded.
 
 					// Skip rect light. This is not done explicitely in the legacy path (resulting in no lighting) but we do it for strata in order to avoid visual artefact.
@@ -451,7 +439,7 @@ float3 StrataForwardLighting(
 						LightMask,
 						LightAttenuation,
 						RectTexture,
-						LightChannelMask,
+						LocalLightChannelMask,
 						PrimitiveLightingChannelMask,
 						TranslatedWorldPosition,
 						SceneDepth,

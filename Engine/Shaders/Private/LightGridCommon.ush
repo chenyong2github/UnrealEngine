@@ -6,13 +6,7 @@
 
 #pragma once 
 
-// TODO: This is clearly not the right place for these defines! Ideally ought to be exposed from engine somehow...
-#define LIGHT_TYPE_DIRECTIONAL		0 
-#define LIGHT_TYPE_POINT			1 
-#define LIGHT_TYPE_SPOT				2 
-#define LIGHT_TYPE_RECT				3 
-#define LIGHT_TYPE_MAX				4 
-#define LIGHING_CHANNEL_MASK		0x7
+#include "LightData.ush"
 
 #if INSTANCED_STEREO
 	#if MATERIALBLENDING_ANY_TRANSLUCENT
@@ -128,15 +122,6 @@ FCulledLightsGridData GetCulledLightsGrid(uint GridIndex, uint EyeIndex)
 	return Result;
 }
 
-struct FDirectionalLightData
-{
-	uint HasDirectionalLight;
-	uint DirectionalLightShadowMapChannelMask;
-	float2 DirectionalLightDistanceFadeMAD;
-	float3 DirectionalLightColor;
-	float3 DirectionalLightDirection;
-};
-
 FDirectionalLightData GetDirectionalLightData(uint EyeIndex)
 {
 	FDirectionalLightData Result;
@@ -147,43 +132,26 @@ FDirectionalLightData GetDirectionalLightData(uint EyeIndex)
 	{
 #endif
 	
-		Result.HasDirectionalLight = ForwardLightData.HasDirectionalLight;
+		Result.HasDirectionalLight					= ForwardLightData.HasDirectionalLight;
 		Result.DirectionalLightShadowMapChannelMask = ForwardLightData.DirectionalLightShadowMapChannelMask;
-		Result.DirectionalLightDistanceFadeMAD = ForwardLightData.DirectionalLightDistanceFadeMAD;
-		Result.DirectionalLightColor = ForwardLightData.DirectionalLightColor;
-		Result.DirectionalLightDirection = ForwardLightData.DirectionalLightDirection;
+		Result.DirectionalLightDistanceFadeMAD		= ForwardLightData.DirectionalLightDistanceFadeMAD;
+		Result.DirectionalLightColor				= ForwardLightData.DirectionalLightColor;
+		Result.DirectionalLightDirection			= ForwardLightData.DirectionalLightDirection;
 
 #if INSTANCED_STEREO
 	}
 	else
 	{
-		Result.HasDirectionalLight = ForwardLightDataISR.HasDirectionalLight;
+		Result.HasDirectionalLight					= ForwardLightDataISR.HasDirectionalLight;
 		Result.DirectionalLightShadowMapChannelMask = ForwardLightDataISR.DirectionalLightShadowMapChannelMask;
-		Result.DirectionalLightDistanceFadeMAD = ForwardLightDataISR.DirectionalLightDistanceFadeMAD;
-		Result.DirectionalLightColor = ForwardLightDataISR.DirectionalLightColor;
-		Result.DirectionalLightDirection = ForwardLightDataISR.DirectionalLightDirection;
+		Result.DirectionalLightDistanceFadeMAD		= ForwardLightDataISR.DirectionalLightDistanceFadeMAD;
+		Result.DirectionalLightColor				= ForwardLightDataISR.DirectionalLightColor;
+		Result.DirectionalLightDirection			= ForwardLightDataISR.DirectionalLightDirection;
 	}
 #endif
 
 	return Result;
 }
-
-struct FLocalLightData
-{
-	float4 LightPositionAndInvRadius;
-	float4 LightColorAndFalloffExponent;
-	float4 SpotAnglesAndSourceRadiusPacked;
-    float4 LightDirectionAndShadowMask;
-    float4 LightTangentAndSoftSourceRadius;
-	float4 RectBarnDoorAndVirtualShadowMapIdAndSpecularScale;
-	/** Flag is true if clustered deferred is supported for this light. They are always first / together.*/
-	bool bClusteredDeferredSupported; 
-	bool bLumenLightSupported;
-	/** Flag is true if it is a simple light. They are always first / together.*/
-	bool bIsSimpleLight;
-	/** Virtual shadow map ID or INDEX_NONE if not present. */
-	int VirtualShadowMapId;
-};
 
 FLocalLightData GetLocalLightData_Internal(
 	uint LocalLightIndex,
@@ -271,35 +239,6 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 	}
 #endif
 	return Out;
-}
-
-/**
- * Helper to unpack the shadow mask part of the FLocalLightData::LightDirectionAndShadowMask.w
- */
-float4 UnpackShadowMapChannelMask(uint In)
-{
-	// 8 ALU
-	return float4((In & 0x1), (In & 0x2) >> 1, (In & 0x4) >> 2, (In & 0x8) >> 3);
-}
-
-uint UnpackLightingChannelMask(uint In)
-{
-	return (In >> 8) & LIGHING_CHANNEL_MASK;
-}
-
-uint UnpackLightType(uint ShadowMapChannelMaskPacked)
-{
-	return (ShadowMapChannelMaskPacked >> 16) & 0x3;
-}
-
-bool UnpackCastShadow(uint ShadowMapChannelMaskPacked)
-{
-	return ((ShadowMapChannelMaskPacked >> 18) & 1) != 0;
-}
-
-float UnpackVolumetricScatteringIntensity(FLocalLightData In )
-{
-	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w) >> 16);
 }
 
 /**
