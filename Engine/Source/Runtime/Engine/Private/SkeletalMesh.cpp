@@ -107,6 +107,7 @@
 #include "RayTracingInstance.h"
 #endif
 #include "Animation/SkinWeightProfileManager.h"
+#include "BoneWeights.h"
 
 #define LOCTEXT_NAMESPACE "SkeltalMesh"
 
@@ -6980,7 +6981,7 @@ FVector GetRefVertexLocationTyped(
 	for (int32 InfluenceIndex = 0; InfluenceIndex < MaxBoneInfluences; InfluenceIndex++)
 #endif
 	{
-		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
+		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) * UE::AnimationCore::InvMaxRawBoneWeightFloat;
 		{
 			const FMatrix BoneTransformMatrix = FMatrix::Identity;
 			SkinnedPos += BoneTransformMatrix.TransformPosition((FVector)PositionBuffer.VertexPosition(BufferVertIndex)) * Weight;
@@ -7021,7 +7022,7 @@ void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSec
 	for (int32 InfluenceIndex = 0; InfluenceIndex < MaxBoneInfluences; InfluenceIndex++)
 #endif
 	{
-		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
+		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) * UE::AnimationCore::InvMaxRawBoneWeightFloat;
 		const FMatrix44f BoneTransformMatrix = FMatrix44f::Identity;
 		OutTangentX += BoneTransformMatrix.TransformVector(VertexTangentX) * Weight;
 		OutTangentY += BoneTransformMatrix.TransformVector(VertexTangentY) * Weight;

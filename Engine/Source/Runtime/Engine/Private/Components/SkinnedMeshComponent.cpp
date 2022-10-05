@@ -4669,7 +4669,7 @@ void GetTypedSkinnedTangentBasis(
 #endif
 	{
 		const int32 MeshBoneIndex = Section.BoneMap[SkinWeightVertexBuffer.GetBoneIndex(BufferVertIndex, InfluenceIndex)];
-		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
+		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) * UE::AnimationCore::InvMaxRawBoneWeightFloat;
 		const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
 		OutTangentX += RefToLocal.TransformVector(VertexTangentX) * Weight;
 		OutTangentY += RefToLocal.TransformVector(VertexTangentY) * Weight;
@@ -4720,7 +4720,7 @@ FVector3f GetTypedSkinnedVertexPosition(
 			TransformBoneIndex = LeaderBoneMap[MeshBoneIndex];
 		}
 
-		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
+		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) * UE::AnimationCore::InvMaxRawBoneWeightFloat;
 		{
 			if (bCachedMatrices)
 			{
