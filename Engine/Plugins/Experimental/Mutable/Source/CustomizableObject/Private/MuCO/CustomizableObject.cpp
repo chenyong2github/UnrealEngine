@@ -1488,6 +1488,15 @@ EDataValidationResult UCustomizableObject::IsDataValid(TArray<FText>& Validation
 		bIsValidationTriggeredBySave = false;
     	return Result;
     }
+
+	// Skip validation when cooking the assets. The validation of the CO is designed to be used explicitly by the user
+	// and not during automated operations like saving or cooking or any other automated action.
+	if (IsRunningCommandlet())
+	{
+		return Result;
+	}
+
+	UE_LOG(LogMutable,Display,TEXT("Running data validation checks for %s CO"),*this->GetName());
 	
 	// Request a compiler to be able to locate the root and to compile it
 	FCustomizableObjectCompilerBase* Compiler = UCustomizableObjectSystem::GetInstance()->GetNewCompiler();
@@ -1525,10 +1534,8 @@ EDataValidationResult UCustomizableObject::IsDataValid(TArray<FText>& Validation
 			break;
 		
 			// Invalid options for this context:
+			// ECustomizableObjectCompilationState::None: would mean we are working with a locked asset, with should not be possible with a sync compilation
 		case ECustomizableObjectCompilationState::None:
-			{
-				// This would mean we are working with a locked asset, with should not be possible with a sync compilation
-			}
 		case ECustomizableObjectCompilationState::InProgress:
 		default:
 			checkNoEntry();
