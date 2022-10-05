@@ -4409,6 +4409,20 @@ void ULandscapeLayerInfoObject::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	}
 }
 
+void ULandscapeLayerInfoObject::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// Force the update of spline data for the (potentially) affected landscapes in case of an undo
+	for (TObjectIterator<ULandscapeInfo> It; It; ++It)
+	{
+		if (ALandscape* Landscape = It->LandscapeActor.Get())
+		{
+			Landscape->OnLayerInfoSplineFalloffModulationChanged(this);
+		}
+	}
+}
+
 void ULandscapeLayerInfoObject::PostLoad()
 {
 	Super::PostLoad();

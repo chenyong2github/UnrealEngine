@@ -15,11 +15,9 @@
 #include "InstancedFoliageActor.h"
 #include "AI/NavigationSystemBase.h"
 #include "Landscape.h"
+#include "LandscapeEditorPrivate.h"
 #include "Logging/LogMacros.h"
 #include "VisualLogger/VisualLogger.h"
-
-
-DECLARE_LOG_CATEGORY_EXTERN(LogLandscapeTools, Log, All);
 
 
 //

@@ -697,7 +697,7 @@ public:
 	void SetPasteMode(ELandscapeToolPasteMode InPasteMode);
 
 	// Alpha/Pattern Brush
-	bool SetAlphaTexture(UTexture2D* InTexture, EColorChannel::Type InTextureChannel);
+	void SetAlphaTexture(UTexture2D* InTexture, EColorChannel::Type InTextureChannel);
 
 	// New Landscape
 	FString LastImportPath;

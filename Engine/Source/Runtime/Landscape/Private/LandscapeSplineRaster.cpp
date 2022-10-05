@@ -16,6 +16,7 @@
 #include "LandscapeEdit.h"
 #include "LandscapeSplinesComponent.h"
 #include "LandscapeSplineControlPoint.h"
+#include "LandscapePrivate.h"
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #include "Raster.h"
@@ -126,8 +127,16 @@ class FModulateAlpha
 public:
 	static TSharedPtr<FModulateAlpha> CreateFromLayerInfo(ULandscapeLayerInfoObject* InLayerInfo, int32 InLandscapeMinX, int32 InLandscapeMinY)
 	{
-		if (CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread() == 0 || InLayerInfo == nullptr || InLayerInfo->SplineFalloffModulationTexture == nullptr)
+		if (CVarLandscapeSplineFalloffModulation.GetValueOnAnyThread() == 0 
+			|| (InLayerInfo == nullptr) 
+			|| (InLayerInfo->SplineFalloffModulationTexture == nullptr))
 		{
+			return nullptr;
+		}
+
+		if (!InLayerInfo->SplineFalloffModulationTexture->Source.IsValid())
+		{
+			UE_LOG(LogLandscape, Error, TEXT("Invalid source data for spline falloff modulation texture (%s). Alpha modulation will be disabled."), *InLayerInfo->SplineFalloffModulationTexture->GetPathName());
 			return nullptr;
 		}
 
@@ -164,7 +173,7 @@ private:
 	{
 		check(InLayerInfo && InLayerInfo->SplineFalloffModulationTexture);
 
-		InLayerInfo->SplineFalloffModulationTexture->Source.GetMipData(MipData, 0);
+		verify(InLayerInfo->SplineFalloffModulationTexture->Source.GetMipData(MipData, 0));
 		TextureWidth = InLayerInfo->SplineFalloffModulationTexture->Source.GetSizeX();
 		TextureHeight = InLayerInfo->SplineFalloffModulationTexture->Source.GetSizeY();
 
