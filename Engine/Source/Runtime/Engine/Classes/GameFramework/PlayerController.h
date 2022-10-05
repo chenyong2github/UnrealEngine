@@ -26,6 +26,7 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "GameFramework/PlayerInput.h"
 #include "Physics/AsyncPhysicsData.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "PlayerController.generated.h"
 
 class ACameraActor;
@@ -236,7 +237,7 @@ struct FAsyncPhysicsTimestamp
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Framework/Controller/PlayerController/
  */
 UCLASS(config=Game, BlueprintType, Blueprintable, meta=(ShortTooltip="A Player Controller is an actor responsible for controlling a Pawn used by the player."))
-class ENGINE_API APlayerController : public AController
+class ENGINE_API APlayerController : public AController, public IWorldPartitionStreamingSourceProvider
 {
 	GENERATED_BODY()
 
@@ -561,6 +562,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta=(EditCondition="bEnableStreamingSource"))
 	EStreamingSourcePriority StreamingSourcePriority;
 
+	/** Color used for debugging. */
+	UPROPERTY(EditAnywhere, Category = WorldPartition, meta = (EditCondition = "bEnableStreamingSource"))
+	FColor StreamingSourceDebugColor;
+
 	/** Scale applied to force feedback values */
 	UPROPERTY(config)
 	float ForceFeedbackScale;
@@ -784,6 +789,8 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
 	virtual EStreamingSourcePriority GetStreamingSourcePriority() const { return StreamingSourcePriority; }
+
+	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) override;
 
 protected:
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */

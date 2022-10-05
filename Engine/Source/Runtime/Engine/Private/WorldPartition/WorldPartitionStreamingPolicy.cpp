@@ -15,8 +15,6 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
-#include "GameFramework/PlayerController.h"
-#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"
@@ -123,31 +121,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 #endif
 		if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsRecordingEnabled(World))
 		{
-			for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
-			{
-				if (APlayerController* PlayerController = It->Get())
-				{
-					if (bIsServer || PlayerController->IsLocalController())
-					{
-						if (PlayerController->IsStreamingSourceEnabled())
-						{
-							FVector ViewLocation;
-							FRotator ViewRotation;
-							PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
-							// Transform to Local
-							ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
-							ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
-							const EStreamingSourceTargetState TargetState = PlayerController->StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
-							const bool bBlockOnSlowLoading = PlayerController->StreamingSourceShouldBlockOnSlowStreaming();
-							const EStreamingSourcePriority StreamingSourcePriority = PlayerController->GetStreamingSourcePriority();
-							const bool bRemote = !PlayerController->IsLocalController();
-							StreamingSources.Add(FWorldPartitionStreamingSource(PlayerController->GetFName(), ViewLocation, ViewRotation, TargetState, bBlockOnSlowLoading, StreamingSourcePriority, bRemote));
-						}
-					}
-				}
-			}
-
 			UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
 			check(WorldPartitionSubsystem);
 
