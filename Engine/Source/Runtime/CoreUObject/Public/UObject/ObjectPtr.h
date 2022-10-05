@@ -154,7 +154,7 @@ public:
 	COREUOBJECT_API FName GetFName() const;
 
 	// Gets the string name of the object without resolving the object reference.
-	FString GetName() const
+	FORCEINLINE FString GetName() const
 	{
 		return GetFName().ToString();
 	}

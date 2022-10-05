@@ -17,7 +17,7 @@ FString FObjectPtr::GetPathName() const
 	}
 }
 
-COREUOBJECT_API FName FObjectPtr::GetFName() const
+FName FObjectPtr::GetFName() const
 {
 	if (IsResolved())
 	{
@@ -31,7 +31,7 @@ COREUOBJECT_API FName FObjectPtr::GetFName() const
 	}
 }
 
-COREUOBJECT_API FString FObjectPtr::GetFullName(EObjectFullNameFlags Flags) const
+FString FObjectPtr::GetFullName(EObjectFullNameFlags Flags) const
 {
 	if (IsResolved())
 	{
