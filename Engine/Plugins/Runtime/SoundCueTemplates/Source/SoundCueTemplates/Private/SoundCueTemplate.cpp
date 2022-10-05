@@ -63,7 +63,7 @@ void USoundCueTemplate::RebuildGraph(USoundCue& SoundCue) const
 	SoundCue.MarkPackageDirty();
 }
 
-void USoundCueTemplate::AddSoundWavesToTemplate(TArray<UObject*>& SelectedObjects)
+void USoundCueTemplate::AddSoundWavesToTemplate(const TArray<UObject*>& SelectedObjects)
 {
 	TArray<TWeakObjectPtr<USoundWave>> Waves(FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(SelectedObjects));
 	AddSoundWaves(Waves);

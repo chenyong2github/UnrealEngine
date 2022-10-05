@@ -40,7 +40,7 @@ public:
 	virtual FString GenerateDefaultNewAssetName(const TArray<TWeakObjectPtr<USoundWave>>& Waves) const { return FString(); }
 
 	UFUNCTION(BlueprintCallable, Category = Config)
-	void AddSoundWavesToTemplate(TArray<UObject*>& SelectedObjects);
+	void AddSoundWavesToTemplate(const TArray<UObject*>& SelectedObjects);
 
 protected:
 	/**
