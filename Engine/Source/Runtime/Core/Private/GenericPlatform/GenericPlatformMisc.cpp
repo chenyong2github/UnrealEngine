@@ -1559,8 +1559,8 @@ void FGenericPlatformMisc::GetConfiguredCoreLimits(int32 PlatformNumPhysicalCore
 	}
 	if (LegacyCoreLimit > 0)
 	{
-		PhysicalCoreLimit = FMath::Min(PhysicalCoreLimit, LegacyCoreLimit);
-		LogicalCoreLimit = FMath::Min(LogicalCoreLimit, LegacyCoreLimit);
+		PhysicalCoreLimit = PhysicalCoreLimit == 0 ? LegacyCoreLimit : FMath::Min(PhysicalCoreLimit, LegacyCoreLimit);
+		LogicalCoreLimit = LogicalCoreLimit == 0 ? LegacyCoreLimit : FMath::Min(LogicalCoreLimit, LegacyCoreLimit);
 	}
 
 	bOutFullyInitialized = true;
