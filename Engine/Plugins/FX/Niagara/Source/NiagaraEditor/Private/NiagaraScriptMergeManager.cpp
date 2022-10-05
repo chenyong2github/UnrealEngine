@@ -1836,11 +1836,11 @@ bool FNiagaraScriptMergeManager::FindBaseModule(const FVersionedNiagaraEmitter& 
 					FVersionedNiagaraEmitterData* EmitterData = BaseEmitter.Emitter->GetEmitterData(BaseEmitter.Version);
 					if (EmitterData)
 					{
-						if (!EmitterData->ScratchPads.IsNull())
+						if (EmitterData->ScratchPads)
 						{
 							IndexToMatch = EmitterData->ScratchPads->FindIndexForScript(Script);
 						}
-						if (INDEX_NONE == IndexToMatch && !EmitterData->ParentScratchPads.IsNull())
+						if (INDEX_NONE == IndexToMatch && EmitterData->ParentScratchPads)
 						{
 							IndexToMatch = EmitterData->ParentScratchPads->FindIndexForScript(Script);
 							bParents = true;

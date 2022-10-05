@@ -273,7 +273,7 @@ protected:
 		bOutEnabled = false;
 		if (!ObjectsBeingCustomized.IsEmpty())
 		{
-			if (!ObjectsBeingCustomized[0].IsNull())
+			if (ObjectsBeingCustomized[0])
 			{
 				TSharedPtr<class IPropertyHandle> ChainHandle = InPropertyHandle;
 				while (ChainHandle.IsValid() && ChainHandle->GetProperty() != nullptr)
@@ -358,9 +358,9 @@ protected:
 			return Result;
 		}
 	
-		for(TObjectPtr<UObject> Object : ObjectsBeingCustomized)
+		for(const TObjectPtr<UObject>& Object : ObjectsBeingCustomized)
 		{
-			if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+			if(Object && InPropertyHandle->IsValidHandle())
 			{
 				static VectorType ZeroVector = VectorType();
 				const VectorType& Vector = ContainerUObjectToValueRef<VectorType>(Object.Get(), ZeroVector, PropertyChain, PropertyArrayIndices);
@@ -396,8 +396,8 @@ protected:
 		TArray<UObject*> ObjectsView;
 		for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 		{
-			TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-			if (!Object.IsNull())
+			const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+			if (Object)
 			{
 				ObjectsView.Add(Object.Get());
 			}
@@ -417,8 +417,8 @@ protected:
 
 		for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 		{
-			TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-			if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+			const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+			if(Object && InPropertyHandle->IsValidHandle())
 			{
 				static VectorType ZeroVector = VectorType();
 				VectorType& Vector = ContainerUObjectToValueRef<VectorType>(Object.Get(), ZeroVector, PropertyChain, PropertyArrayIndices);
@@ -518,9 +518,9 @@ protected:
 			return Result;
 		}
 		
-		for(TObjectPtr<UObject> Object : ObjectsBeingCustomized)
+		for(const TObjectPtr<UObject>& Object : ObjectsBeingCustomized)
 		{
-			if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+			if(Object && InPropertyHandle->IsValidHandle())
 			{
 				static RotationType ZeroRotation = RotationType();
 				const RotationType& Rotation = ContainerUObjectToValueRef<RotationType>(Object.Get(), ZeroRotation, PropertyChain, PropertyArrayIndices);
@@ -555,8 +555,8 @@ protected:
 		TArray<UObject*> ObjectsView;
 		for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 		{
-			TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-			if (!Object.IsNull())
+			const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+			if (Object)
 			{
 				ObjectsView.Add(Object.Get());
 			}
@@ -576,8 +576,8 @@ protected:
 
 		for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 		{
-			TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-			if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+			const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+			if(Object && InPropertyHandle->IsValidHandle())
 			{
 				static RotationType ZeroRotation = RotationType();
 				RotationType& Rotation = ContainerUObjectToValueRef<RotationType>(Object.Get(), ZeroRotation, PropertyChain, PropertyArrayIndices);
@@ -671,9 +671,9 @@ protected:
 				return false;
 			}
 			
-			for(TObjectPtr<UObject> Object : ObjectsBeingCustomized)
+			for(const TObjectPtr<UObject>& Object : ObjectsBeingCustomized)
 			{
-				if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+				if(Object && InPropertyHandle->IsValidHandle())
 				{
 					const TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object.Get(), Identity, PropertyChain, PropertyArrayIndices);
 
@@ -727,9 +727,9 @@ protected:
 				return Result;
 			}
 			
-			for(TObjectPtr<UObject> Object : ObjectsBeingCustomized)
+			for(const TObjectPtr<UObject>& Object : ObjectsBeingCustomized)
 			{
-				if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+				if(Object && InPropertyHandle->IsValidHandle())
 				{
 					const TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object.Get(), Identity, PropertyChain, PropertyArrayIndices);
 					
@@ -779,8 +779,8 @@ protected:
 			TArray<UObject*> ObjectsView;
 			for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 			{
-				TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-				if (!Object.IsNull())
+				const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+				if (Object)
 				{
 					ObjectsView.Add(Object.Get());
 				}
@@ -800,8 +800,8 @@ protected:
 
 			for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 			{
-				TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-				if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+				const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+				if(Object && InPropertyHandle->IsValidHandle())
 				{
 					TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object.Get(), Identity, PropertyChain, PropertyArrayIndices);
 					TransformType PreviousTransform = Transform;
@@ -869,8 +869,8 @@ protected:
 			TArray<UObject*> ObjectsView;
 			for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 			{
-				TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-				if (!Object.IsNull())
+				const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+				if (Object)
 				{
 					ObjectsView.Add(Object.Get());
 				}
@@ -880,8 +880,8 @@ protected:
 			
 			for(int32 Index = 0; Index < ObjectsBeingCustomized.Num(); Index++)
 			{
-				TObjectPtr<UObject> Object = ObjectsBeingCustomized[Index];
-				if(!Object.IsNull() && InPropertyHandle->IsValidHandle())
+				const TObjectPtr<UObject>& Object = ObjectsBeingCustomized[Index];
+				if(Object && InPropertyHandle->IsValidHandle())
 				{
 					TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object.Get(), Identity, PropertyChain, PropertyArrayIndices);
 					TransformType PreviousTransform = Transform;

@@ -141,9 +141,9 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraParameterDefinitions()
 		const TArray<UNiagaraScriptVariable*>& ScriptPtrVars =  NiagaraParameterDefinitions->GetParametersConst();
 		TArray< UNiagaraScriptVariable*> ScriptVars;
 
-		for (TObjectPtr<UNiagaraScriptVariable> Var : ScriptPtrVars)
+		for (UNiagaraScriptVariable* Var : ScriptPtrVars)
 		{
-			if (Var.IsNull())
+			if (!Var)
 				continue;
 			ScriptVars.Add(Var);
 		}
@@ -158,7 +158,7 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraParameterDefinitions()
 		OutputStream->Log(TEXT("<Info>"));
 		OutputStream->Logf(TEXT("\t<Path>%s</Path>"), *GetPathNameSafe(NiagaraParameterDefinitions));
 
-		for (UNiagaraScriptVariable*& ScriptVar : ScriptVars)
+		for (UNiagaraScriptVariable* ScriptVar : ScriptVars)
 		{
 			OutputStream->Log(TEXT("\t<ScriptVar>"));
 			OutputStream->Logf(TEXT("\t\t<Name>%s</Name>"), *ScriptVar->Variable.GetName().ToString());
@@ -264,13 +264,13 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraScripts()
 					TUniquePtr<FOutputDeviceArchiveWrapper> OutputStream(new FOutputDeviceArchiveWrapper(FileArchive.Get()));
 
 					const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& AllVars = FunctionGraph->GetAllMetaData();
-					TArray< TObjectPtr<UNiagaraScriptVariable>> ScriptPtrVars;
+					TArray<TObjectPtr<UNiagaraScriptVariable>> ScriptPtrVars;
 					AllVars.GenerateValueArray(ScriptPtrVars);
-					TArray< UNiagaraScriptVariable*> ScriptVars;
+					TArray<UNiagaraScriptVariable*> ScriptVars;
 
-					for (TObjectPtr<UNiagaraScriptVariable> Var : ScriptPtrVars)
+					for (const TObjectPtr<UNiagaraScriptVariable>& Var : ScriptPtrVars)
 					{
-						if (Var.IsNull())
+						if (!Var)
 							continue;
 						ScriptVars.Add(Var);
 					}
@@ -288,7 +288,7 @@ void UNiagaraDumpModuleInfoCommandlet::ProcessNiagaraScripts()
 					OutputStream->Logf(TEXT("\t<Deprecated>%s</Deprecated>"), bDeprecated ? TEXT("true") : TEXT("false"));
 					OutputStream->Logf(TEXT("\t<Path>%s</Path>"), *GetPathNameSafe(FunctionGraph));
 
-					for (UNiagaraScriptVariable*& ScriptVar : ScriptVars)
+					for (UNiagaraScriptVariable* ScriptVar : ScriptVars)
 					{
 						OutputStream->Log(TEXT("\t<ScriptVar>"));
 						OutputStream->Logf(TEXT("\t\t<Name>%s</Name>"), *ScriptVar->Variable.GetName().ToString());

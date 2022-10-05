@@ -547,7 +547,7 @@ FText FSkeletalAnimationSection::GetSectionTitle() const
 {
 	if (Section.Params.Animation != nullptr)
 	{
-		if (Section.Params.MirrorDataTable.IsNull())
+		if (!Section.Params.MirrorDataTable)
 		{
 			return FText::FromString( Section.Params.Animation->GetName() );
 		}

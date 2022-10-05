@@ -46,7 +46,7 @@ UInterchangeGenericAssetsPipeline::UInterchangeGenericAssetsPipeline()
 
 void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineStackName)
 {
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull())
+	check(CommonSkeletalMeshesAndAnimationsProperties)
 	//We always clean the pipeline skeleton when showing the dialog
 	CommonSkeletalMeshesAndAnimationsProperties->Skeleton = nullptr;
 
@@ -120,7 +120,7 @@ void UInterchangeGenericAssetsPipeline::AdjustSettingsForContext(EInterchangePip
 
 void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
-	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	check(CommonSkeletalMeshesAndAnimationsProperties);
 
 	if (!InBaseNodeContainer)
 	{
@@ -130,7 +130,7 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 
 	//Set the result container to allow error message
 	//The parent Results container should be set at this point
-	ensure(!Results.IsNull());
+	ensure(Results);
 	{
 		if (MaterialPipeline)
 		{

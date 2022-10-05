@@ -413,7 +413,7 @@ void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 				
 				if (GenericAssetPipeline)
 				{
-					if (!GenericAssetPipeline->CommonMeshesProperties.IsNull() && GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
+					if (GenericAssetPipeline->CommonMeshesProperties && GenericAssetPipeline->CommonMeshesProperties->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
 					{
 						GenericAssetPipeline->SetFlags(RF_Transactional);
 						GenericAssetPipeline->Modify();

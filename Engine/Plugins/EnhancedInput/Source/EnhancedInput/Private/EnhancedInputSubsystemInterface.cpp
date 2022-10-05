@@ -604,7 +604,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		PlatformSettings->GetAllMappingContextRedirects(ContextRedirects);
 		for (const TPair<TObjectPtr<const UInputMappingContext>, TObjectPtr<const UInputMappingContext>> Pair : ContextRedirects)
 		{
-			if (Pair.Key.IsNull() || Pair.Value.IsNull())
+			if (!Pair.Key || !Pair.Value)
 			{
 				UE_LOG(LogEnhancedInput, Error, TEXT("An invalid Mappping Context Redirect specified in '%s'"), PlatformSettings->GetConfigOverridePlatform());
 				continue;

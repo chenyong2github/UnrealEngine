@@ -347,7 +347,7 @@ int32 UFractureToolConvert::ExecuteFracture(const FFractureToolContext& Fracture
 		Materials.Reserve(MainMaterials.Num());
 		for (int32 MatIdx = 0; MatIdx + SkipLastMaterialOffset < MainMaterials.Num(); MatIdx++)
 		{
-			if (MatIdx < OverrideMaterials.Num() && !OverrideMaterials[MatIdx].IsNull())
+			if (MatIdx < OverrideMaterials.Num() && OverrideMaterials[MatIdx])
 			{
 				Materials.Add(OverrideMaterials[MatIdx].Get());
 			}

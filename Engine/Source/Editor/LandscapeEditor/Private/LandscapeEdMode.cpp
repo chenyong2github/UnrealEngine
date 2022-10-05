@@ -379,7 +379,7 @@ int32 FEdModeLandscape::GetAccumulatedAllLandscapesResolution() const
 bool FEdModeLandscape::IsLandscapeResolutionCompliant() const
 {
 	const TObjectPtr<const ULandscapeSettings> Settings = GetDefault<ULandscapeSettings>();
-	check(!Settings.IsNull());
+	check(Settings);
 
 	if (Settings->IsLandscapeResolutionRestricted())
 	{
@@ -400,7 +400,7 @@ bool FEdModeLandscape::DoesCurrentToolAffectEditLayers() const
 FText FEdModeLandscape::GetLandscapeResolutionErrorText() const
 {
 	const TObjectPtr<const ULandscapeSettings> Settings = GetDefault<ULandscapeSettings>();
-	check(!Settings.IsNull());
+	check(Settings);
 
 	return FText::Format(LOCTEXT("LandscapeResolutionError", "Total resolution for all Landscape actors cannot exceed the equivalent of {0} x {0}."), Settings->GetSideResolutionLimit());
 }

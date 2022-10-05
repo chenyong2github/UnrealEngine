@@ -1511,7 +1511,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				if(SnapshotHash != 0)
 				{
 					TObjectPtr<URigVM>* InitializedVMSnapshotPtr = CDO->InitializedVMSnapshots.Find(SnapshotHash);
-					if(InitializedVMSnapshotPtr && !InitializedVMSnapshotPtr->IsNull())
+					if(InitializedVMSnapshotPtr && *InitializedVMSnapshotPtr)
 					{
 						const URigVM* InitializedVMSnapshot = InitializedVMSnapshotPtr->Get();
 

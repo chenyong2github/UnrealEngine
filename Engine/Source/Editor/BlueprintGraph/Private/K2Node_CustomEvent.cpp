@@ -119,7 +119,7 @@ public:
 		{
 			auto Predicate_EventGraphs = [Name](const TObjectPtr<UEdGraph>& InEventGraph) -> bool
 			{
-				return !InEventGraph.IsNull() && InEventGraph->HasAnyFlags(RF_Transient) && InEventGraph->GetName() == Name;
+				return InEventGraph && InEventGraph->HasAnyFlags(RF_Transient) && InEventGraph->GetName() == Name;
 			};
 
 			// Allow a transient event subgraph (compiler artifact) that matches the existing name

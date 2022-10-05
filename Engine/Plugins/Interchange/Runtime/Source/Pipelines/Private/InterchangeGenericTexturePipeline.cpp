@@ -111,7 +111,7 @@ void UInterchangeGenericTexturePipeline::AdjustSettingsForContext(EInterchangePi
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
 
 	TArray<FString> HideCategories;
-	bool bIsObjectATexture = ReimportAsset.IsNull() ? false : ReimportAsset.IsA(UTexture::StaticClass());
+	bool bIsObjectATexture = !ReimportAsset ? false : ReimportAsset.IsA(UTexture::StaticClass());
 	if( (!bIsObjectATexture && ImportType == EInterchangePipelineContext::AssetReimport)
 		|| ImportType == EInterchangePipelineContext::AssetCustomLODImport
 		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport

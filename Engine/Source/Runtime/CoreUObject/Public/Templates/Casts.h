@@ -140,11 +140,9 @@ struct TCastImpl
 
 	FORCEINLINE static To* DoCast( const FObjectPtr& Src )
 	{
-		UObject* SrcObj = ResolveObjectHandleNoRead(Src.GetHandleRef());
-		if (SrcObj && Src->GetClass()->HasAnyCastFlag(TCastFlags<To>::Value))
+		if (Src && Src.GetClass()->HasAnyCastFlag(TCastFlags<To>::Value))
 		{
-			ObjectHandle_Private::OnHandleRead(SrcObj);
-			return (To*)SrcObj;
+			return (To*)Src.Get();
 		}
 		return nullptr;
 	}
@@ -182,11 +180,9 @@ struct TCastImpl<From, To, ECastType::UObjectToUObject>
 
 	FORCEINLINE static To* DoCast( const FObjectPtr& Src )
 	{
-		UObject* SrcObj = ResolveObjectHandleNoRead(Src.GetHandleRef());
-		if (SrcObj && SrcObj->IsA<To>())
+		if (Src && Src.IsA<To>())
 		{
-			ObjectHandle_Private::OnHandleRead(SrcObj);
-			return (To*)SrcObj;
+			return (To*)Src.Get();
 		}
 		return nullptr;
 	}
@@ -408,7 +404,7 @@ template <class T, class U> FORCEINLINE T* ExactCast  ( const TObjectPtr<U>& Src
 template <class T, class U> FORCEINLINE T* CastChecked( const TObjectPtr<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked )
 {
 #if DO_CHECK
-	if (!Src.IsNull())
+	if (Src)
 	{
 		T* Result = Cast<T>(Src);
 		if (!Result)

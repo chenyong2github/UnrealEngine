@@ -484,7 +484,7 @@ public:
 
 	static bool IsPtrValid( const TObjectPtr<T>& InPtr )
 	{
-		return !InPtr.IsNull();
+		return InPtr != nullptr;
 	}
 
 	static void ResetPtr(TObjectPtr<T>& InPtr )

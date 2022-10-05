@@ -2366,7 +2366,7 @@ void FRigControlElementDetails::CustomizeValue(IDetailLayoutBuilder& DetailBuild
 	// transform types already got filtered out earlier.
 	// integers with enums don't have limits either
 	if(ControlType != ERigControlType::Bool &&
-		(ControlType != ERigControlType::Integer || FirstControlElement->Settings.ControlEnum.IsNull()))
+		(ControlType != ERigControlType::Integer || !FirstControlElement->Settings.ControlEnum))
 	{
 		Labels.Append({
 			LOCTEXT("Min", "Min"),
@@ -2438,7 +2438,7 @@ void FRigControlElementDetails::CustomizeValue(IDetailLayoutBuilder& DetailBuild
 				{
 					if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
 					{
-						if(!ControlElement->Settings.ControlEnum.IsNull())
+						if(ControlElement->Settings.ControlEnum)
 						{
 							bIsEnum = true;
 							break;

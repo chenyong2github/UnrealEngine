@@ -406,7 +406,7 @@ void UNiagaraGraph::PostLoad()
 	for (FNiagaraVariable OldVarType : OldTypes)
 	{
 		TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = VariableToScriptVariable.Find(OldVarType);
-		if (ScriptVariablePtr != nullptr && !ScriptVariablePtr->IsNull())
+		if (ScriptVariablePtr != nullptr && *ScriptVariablePtr)
 		{
 			UNiagaraScriptVariable& ScriptVar = *ScriptVariablePtr->Get();
 			ScriptVar.Variable.SetType(FNiagaraTypeDefinition::GetPositionDef());
@@ -707,7 +707,7 @@ void UNiagaraGraph::ChangeParameterType(const TArray<FNiagaraVariable>& Paramete
 	for(const FNiagaraVariable& CurrentParameter : ParametersToChange)
 	{		
 		TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = VariableToScriptVariable.Find(CurrentParameter);
-		if (ScriptVariablePtr != nullptr && !ScriptVariablePtr->IsNull())
+		if (ScriptVariablePtr != nullptr && *ScriptVariablePtr)
 		{
 			UNiagaraScriptVariable& ScriptVar = *ScriptVariablePtr->Get();
 			ScriptVar.Modify();

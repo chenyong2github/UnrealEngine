@@ -879,7 +879,7 @@ FReply SReplaceMissingSkeletonDialog::OnButtonClick(EAppReturnType::Type ButtonI
 	}
 
 	const TObjectPtr<UObject> Asset = SelectedAsset.GetAsset();
-	if (Asset.IsNull())
+	if (!Asset)
 	{
 		return FReply::Handled();
 	}

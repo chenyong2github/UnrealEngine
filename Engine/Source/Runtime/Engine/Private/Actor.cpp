@@ -789,7 +789,7 @@ void AActor::Serialize(FArchive& Ar)
 					if (FObjectPtrProperty* ObjPtrProp = CastField<FObjectPtrProperty>(ObjProp))
 					{
 						FObjectPtr& ObjectPtr = (FObjectPtr&)ObjPtrProp->GetPropertyValue_InContainer(this);
-						if (!ObjectPtr.IsNullNoResolve() && ObjectPtr.IsA<UActorComponent>())
+						if (ObjectPtr && ObjectPtr.IsA<UActorComponent>())
 						{
 							ActorComponent = Cast<UActorComponent>(ObjectPtr.Get());
 						}

@@ -14,7 +14,7 @@ void FAnimNode_RetargetPoseFromMesh::Initialize_AnyThread(const FAnimationInitia
 	// Initial update of the node, so we dont have a frame-delay on setup
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	if (Processor.IsNull() && IsInGameThread())
+	if (!Processor && IsInGameThread())
 	{
 		Processor = NewObject<UIKRetargetProcessor>(Context.AnimInstanceProxy->GetSkelMeshComponent());	
 	}
@@ -151,12 +151,12 @@ void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstan
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(PreUpdate)
 	
-	if (IKRetargeterAsset.IsNull())
+	if (!IKRetargeterAsset)
 	{
 		return;
 	}
 	
-	if (Processor.IsNull())
+	if (!Processor)
 	{
 		Processor = NewObject<UIKRetargetProcessor>(InAnimInstance->GetOwningComponent());	
 	}
@@ -250,14 +250,14 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 	// check that both a source and target mesh exist
 	const TObjectPtr<USkeletalMesh> SourceMesh = SourceMeshComponent->GetSkeletalMeshAsset();
 	const TObjectPtr<USkeletalMesh> TargetMesh = TargetMeshComponent->GetSkeletalMeshAsset();
-	if (SourceMesh.IsNull() || TargetMesh.IsNull())
+	if (!SourceMesh || !TargetMesh)
 	{
 		return false; // cannot initialize if components are missing skeletal mesh references
 	}
 	// check that both have skeleton assets (shouldn't get this far without a skeleton)
 	const TObjectPtr<USkeleton> SourceSkeleton = SourceMesh->GetSkeleton();
 	const TObjectPtr<USkeleton> TargetSkeleton = TargetMesh->GetSkeleton();
-	if (SourceSkeleton.IsNull() || TargetSkeleton.IsNull())
+	if (!SourceSkeleton || !TargetSkeleton)
 	{
 		return false;
 	}
@@ -301,7 +301,7 @@ void FAnimNode_RetargetPoseFromMesh::CopyBoneTransformsFromSource(USkeletalMeshC
 
 	// this should not happen as we're guaranteed to be initialized at this stage
 	// but just in case component is lost after initialization, we avoid a crash
-	if (ComponentToCopyFrom.IsNull())
+	if (!ComponentToCopyFrom)
 	{
 		return; 
 	}

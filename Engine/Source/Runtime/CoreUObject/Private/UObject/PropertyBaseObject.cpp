@@ -254,7 +254,7 @@ void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* Pr
 		return;
 	}
 
-	if (Temp.IsNullNoResolve())
+	if (!Temp)
 	{
 		ValueStr += TEXT("None");
 	}

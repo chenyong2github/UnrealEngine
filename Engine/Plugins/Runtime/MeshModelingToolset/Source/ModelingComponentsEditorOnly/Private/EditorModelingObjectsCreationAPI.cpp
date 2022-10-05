@@ -144,7 +144,7 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateVolume(FCreateM
 	FActorSpawnParameters SpawnInfo;
 	FTransform NewActorTransform = FTransform::Identity;
 	UClass* VolumeClass = ABlockingVolume::StaticClass();
-	if (CreateMeshParams.TypeHintClass.IsNull() == false
+	if (CreateMeshParams.TypeHintClass
 		&& Cast<AVolume>(CreateMeshParams.TypeHintClass.Get()->GetDefaultObject(false)) != nullptr )
 	{
 		VolumeClass = CreateMeshParams.TypeHintClass;

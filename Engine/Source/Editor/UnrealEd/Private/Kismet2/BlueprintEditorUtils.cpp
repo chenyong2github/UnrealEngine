@@ -5989,7 +5989,7 @@ namespace UE::Blueprint::Private
 						else if (const UWorld* WorldReferencer = Cast<const UWorld>(AssetReferencer))
 						{
 							const auto& PersistentLevel = WorldReferencer->PersistentLevel;
-							if (!PersistentLevel.IsNull() && PersistentLevel->OwningWorld && Func(PersistentLevel->GetLevelScriptBlueprint()))
+							if (PersistentLevel && PersistentLevel->OwningWorld && Func(PersistentLevel->GetLevelScriptBlueprint()))
 							{
 								GWarn->EndSlowTask();
 								return true;

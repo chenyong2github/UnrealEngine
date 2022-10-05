@@ -249,7 +249,7 @@ const UNiagaraStackModuleItem::FCollectedUsageData& UNiagaraStackModuleItem::Get
 			}
 		}
 
-		if (!LinkedInputCollection.IsNull())
+		if (LinkedInputCollection)
 		{
 			if (LinkedInputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
 				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;
@@ -258,7 +258,7 @@ const UNiagaraStackModuleItem::FCollectedUsageData& UNiagaraStackModuleItem::Get
 		}
 
 
-		if (!InputCollection.IsNull())
+		if (InputCollection)
 		{
 			if (InputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
 				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;
@@ -266,7 +266,7 @@ const UNiagaraStackModuleItem::FCollectedUsageData& UNiagaraStackModuleItem::Get
 				CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = true;
 		}
 
-		if (!OutputCollection.IsNull())
+		if (OutputCollection)
 		{
 			if (OutputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
 				CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = true;

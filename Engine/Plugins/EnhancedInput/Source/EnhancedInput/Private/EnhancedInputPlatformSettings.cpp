@@ -17,7 +17,7 @@ EDataValidationResult UEnhancedInputPlatformData::IsDataValid(TArray<FText>& Val
 
 	for (const TPair<TObjectPtr<const UInputMappingContext>, TObjectPtr<const UInputMappingContext>> Pair : MappingContextRedirects)
 	{
-		if (Pair.Key.IsNull())
+		if (!Pair.Key)
 		{
 			Result = CombineDataValidationResults(Result, EDataValidationResult::Invalid);
 			
@@ -27,7 +27,7 @@ EDataValidationResult UEnhancedInputPlatformData::IsDataValid(TArray<FText>& Val
 			ValidationErrors.Emplace(NullKeyError);
 		}
 		
-		if (Pair.Value.IsNull())
+		if (!Pair.Value)
 		{
 			Result = CombineDataValidationResults(Result, EDataValidationResult::Invalid);
 			

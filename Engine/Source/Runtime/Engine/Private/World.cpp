@@ -8185,7 +8185,7 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 
 			// Don't check null references or objects already visited. Also, skip UWorlds as they will pull in more levels than desired
 			// Also skip StaticMesh as it will cause stalls during async compilation and they do not contain any lightmaps anyway.
-			if (!Obj.IsNull() && !Obj.IsA<UWorld>() && !Obj->IsA<UStaticMesh>())
+			if (Obj && !Obj.IsA<UWorld>() && !Obj.IsA<UStaticMesh>())
 			{
 				if (Obj.IsA<ULightMapTexture2D>() ||
 					Obj.IsA<UShadowMapTexture2D>() ||

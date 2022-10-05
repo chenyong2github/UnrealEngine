@@ -169,7 +169,7 @@ TSharedPtr<SWidget> SNiagaraSystemEffectTypeBar::CreatePropertyValueWidget(FProp
 		{
 			FObjectPtr& ObjectPtr = (FObjectPtr&) ObjectProperty->GetPropertyValue_InContainer(EffectType.Get());
 			
-			if(!ObjectPtr.IsNullNoResolve())
+			if(ObjectPtr)
 			{				
 				if(ObjectProperty->HasMetaData("DisplayClassDisplayName"))
 				{

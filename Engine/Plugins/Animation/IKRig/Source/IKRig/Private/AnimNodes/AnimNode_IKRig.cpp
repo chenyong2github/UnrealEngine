@@ -176,7 +176,7 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	// ensure there is always a processor available
-	if (IKRigProcessor.IsNull() && IsInGameThread())
+	if (!IKRigProcessor && IsInGameThread())
 	{
 		IKRigProcessor = NewObject<UIKRigProcessor>(Context.AnimInstanceProxy->GetSkelMeshComponent());	
 	}

@@ -29,7 +29,7 @@ void UNiagaraEditorParametersAdapter::PostLoad()
 	{
 		for (TObjectPtr<UNiagaraScriptVariable> ScriptVariable : EditorOnlyScriptVars)
 		{
-			if (!ScriptVariable.IsNull() && ScriptVariable->Variable == OldVarType)
+			if (ScriptVariable && ScriptVariable->Variable == OldVarType)
 			{
 				ScriptVariable->Variable.SetType(FNiagaraTypeDefinition::GetPositionDef());
 			}
