@@ -1115,6 +1115,7 @@ namespace UnrealBuildTool
 		public virtual void ExportJson(DirectoryReference? BinaryOutputDir, DirectoryReference? TargetOutputDir, JsonWriter Writer)
 		{
 			Writer.WriteValue("Name", Name);
+			Writer.WriteValue("Type", Rules.Type.ToString());
 			Writer.WriteValue("Directory", ModuleDirectory.FullName);
 			Writer.WriteValue("Rules", RulesFile.FullName);
 			Writer.WriteValue("PCHUsage", Rules.PCHUsage.ToString());
