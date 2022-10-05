@@ -6,7 +6,7 @@
 
 #include "ResonanceAudioAmbisonicsSettings.h"
 
-#include "AudioDevice.h"
+#include "IAudioExtensionPlugin.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ResonanceAudioCommon.h"
 

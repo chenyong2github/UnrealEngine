@@ -67,10 +67,6 @@ struct FAudioComponentParam;
 struct FAudioQualitySettings;
 struct FWaveInstance;
 
-LLM_DECLARE_TAG_API(Audio_SpatializationPlugins, ENGINE_API);
-// Convenience macro for Audio_SpatializationPlugins LLM scope to avoid misspells.
-#define AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
-
 namespace Audio
 {
 	class FAudioDebugger;

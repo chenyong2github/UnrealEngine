@@ -2,8 +2,13 @@
 
 #include "Modules/ModuleManager.h"
 
+#include "HAL/LowLevelMemStats.h"
 #include "IAudioCodecRegistry.h"
+#include "IAudioExtensionPlugin.h"
 #include "PcmCodec.h"
+
+DECLARE_LLM_MEMORY_STAT(TEXT("AudioSpatializationPlugins"), STAT_AudioSpatializationPluginsLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(Audio_SpatializationPlugins, NAME_None, TEXT("Audio"), GET_STATFNAME(STAT_AudioSpatializationPluginsLLM), GET_STATFNAME(STAT_AudioSummaryLLM));
 
 class FAudioExtensionsModule : public IModuleInterface
 {

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "ISoundfieldFormat.h"
 #include "Math/Interval.h"
 #include "Modules/ModuleInterface.h"
@@ -12,7 +13,6 @@
 #include "IAudioProxyInitializer.h"
 
 #include "IAudioExtensionPlugin.generated.h"
-
 
 // Forward Declarations
 class FAudioDevice;
@@ -28,6 +28,9 @@ class IAudioSourceDataOverride;
 class IAudioSpatialization;
 class USoundSubmix;
 
+LLM_DECLARE_TAG_API(Audio_SpatializationPlugins, AUDIOEXTENSIONS_API);
+// Convenience macro for Audio_SpatializationPlugins LLM scope to avoid misspells.
+#define AUDIO_SPATIALIZATION_PLUGIN_LLM_SCOPE LLM_SCOPE_BYTAG(Audio_SpatializationPlugins);
 
 /**
 * Enumeration of audio plugin types

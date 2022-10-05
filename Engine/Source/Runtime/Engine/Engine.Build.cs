@@ -143,7 +143,8 @@ public class Engine : ModuleRules
 				"TraceLog",
 				"ColorManagement",
 				"Icmp",
-				"XmlParser"
+				"XmlParser",
+				"AudioExtensions"
 			}
 		);
 
