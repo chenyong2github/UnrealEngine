@@ -17,13 +17,8 @@ public:
 
 	UFractureRadialSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
-		, Center(FVector(0,0,0))
+		, Center(FVector(0, 0, 0))
 		, Normal(FVector(0, 0, 1))
-		, Radius(50.0f)
-		, AngularSteps(5)
-		, RadialSteps(5)
-		, AngleOffset(0.0f)
-		, Variability(0.0f)
 	{}
 
 	/** Center of generated pattern. Only used when "Use Gizmo" is disabled */
@@ -37,25 +32,50 @@ public:
 	UPROPERTY()
 	bool bPositionedByGizmo = true;
 
-	/** Pattern radius (in cm) */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radius", UIMin = "0.0", ClampMin = "0.0"))
-	float Radius;
-
 	/** Number of angular steps */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angular Steps", UIMin = "1", UIMax = "50", ClampMin = "1"))
-	int AngularSteps;
-
-	/** Number of radial steps */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radial Steps", UIMin = "1", UIMax = "50", ClampMin = "1"))
-	int RadialSteps;
+	int AngularSteps = 5;
 
 	/** Angle offset at each radial step (in degrees) */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angle Offset"))
-	float AngleOffset;
+	float AngleOffset = 0.0f;
 
-	/** Amount to randomly displace each Voronoi site (in cm) */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Variability", UIMin = "0.0", ClampMin = "0.0"))
-	float Variability;
+	/** Amount of global variation to apply to each angular step (in degrees) */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	float AngularNoise = 0.f;
+
+	/** Pattern radius (in cm) */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radius", UIMin = "0.0", ClampMin = "0.0"))
+	float Radius = 50.0f;
+
+	/** Number of radial steps */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radial Steps", UIMin = "1", UIMax = "50", ClampMin = "1"))
+	int RadialSteps = 5;
+
+	/** Radial steps will follow a distribution based on this exponent, i.e., Pow(distance from center, RadialStepExponent) */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (UIMin = ".01", UIMax = "10", ClampMin = ".01", ClampMax = "20"))
+	float RadialStepExponent = 1.f;
+
+	/** Minimum radial separation between any two voronoi points (in cm) */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (UIMin = ".25", ClampMin = ".01"))
+	float RadialMinStep = 1.f;
+
+	/** Amount of global variation to apply to each radial step (in cm) */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (ClampMin = "0"))
+	float RadialNoise = 0.f;
+
+
+	/** Amount to randomly displace each Voronoi site radially (in cm) */
+	UPROPERTY(EditAnywhere, Category = PerPointVariability, meta = (ClampMin = "0.0"))
+	float RadialVariability = 0.f;
+
+	/** Amount to randomly displace each Voronoi site in angle (in degrees) */
+	UPROPERTY(EditAnywhere, Category = PerPointVariability, meta = (ClampMin = "0.0"))
+	float AngularVariability = 0.f;
+
+	/** Amount to randomly displace each Voronoi site in the direction of the rotation axis (in cm) */
+	UPROPERTY(EditAnywhere, Category = PerPointVariability, meta = (ClampMin = "0.0"))
+	float AxialVariability = 0.f;
 };
 
 

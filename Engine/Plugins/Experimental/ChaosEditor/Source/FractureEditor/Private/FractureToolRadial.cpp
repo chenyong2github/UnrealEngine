@@ -65,7 +65,6 @@ TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const
 
 void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites)
 {
- 	const FVector::FReal RadialStep = RadialSettings->Radius / RadialSettings->RadialSteps;
 	const FVector::FReal AngularStep = 2 * PI / RadialSettings->AngularSteps;
 
 	FBox Bounds = Context.GetWorldBounds();
@@ -86,14 +85,76 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Conte
 		Center = Transform.GetTranslation();
 	}
 
-	FVector::FReal Len = RadialStep * .5;
-	for (int32 ii = 0; ii < RadialSettings->RadialSteps; ++ii, Len += RadialStep)
+	// Precompute consistent noise for each angular step
+	TArray<FVector::FReal> AngleStepOffsets;
+	AngleStepOffsets.SetNumUninitialized(RadialSettings->AngularSteps);
+	for (int32 AngleIdx = 0; AngleIdx < RadialSettings->AngularSteps; ++AngleIdx)
 	{
+		AngleStepOffsets[AngleIdx] = FMath::DegreesToRadians(RandStream.FRandRange(-1, 1) * RadialSettings->AngularNoise);
+	}
+
+	// Compute radial positions following an (idx+1)^exp curve, and then re-normalize back to the Radius range
+	TArray<FVector::FReal> RadialPositions;
+	RadialPositions.SetNumUninitialized(RadialSettings->RadialSteps);
+	FVector::FReal StepOffset = 0;
+	for (int32 RadIdx = 0; RadIdx < RadialSettings->RadialSteps; ++RadIdx)
+	{
+		FVector::FReal RadialPos = FMath::Pow(RadIdx + 1, RadialSettings->RadialStepExponent) + StepOffset;
+		if (RadIdx == 0)
+		{
+			// Note we bring the first point a half-step toward the center, and shift all subsequent points accordingly
+			// so that for Exponent==1, the step from center to first boundary is the same distance as the step between each boundary
+			// (this is only necessary because there is no Voronoi site at the center)
+			RadialPos *= .5;
+			StepOffset = -RadialPos;
+		}
+
+		RadialPositions[RadIdx] = RadialPos;
+	}
+	// Normalize positions so that the diagram fits in the target radius
+	FVector::FReal RadialPosNorm = RadialSettings->Radius / RadialPositions.Last();
+	for (FVector::FReal& RadialPos : RadialPositions)
+	{
+		RadialPos = RadialPos * RadialPosNorm;
+	}
+	// Add radial noise 
+	for (int32 RadIdx = 0; RadIdx < RadialSettings->RadialSteps; ++RadIdx)
+	{
+		FVector::FReal& RadialPos = RadialPositions[RadIdx];
+		// Offset by RadialNoise, but don't allow noise to take the value below 0
+		RadialPos += RandStream.FRandRange(-FMath::Min(RadialPos, RadialSettings->RadialNoise), RadialSettings->RadialNoise);
+	}
+	// make sure the positions remain in increasing order
+	RadialPositions.Sort();
+	// Adjust positions so they are never closer than the RadialMinStep
+	FVector::FReal LastRadialPos = 0;
+	for (int32 RadIdx = 0; RadIdx < RadialSettings->RadialSteps; ++RadIdx)
+	{
+		FVector::FReal MinStep = RadialSettings->RadialMinStep;
+		if (RadIdx == 0)
+		{
+			MinStep *= .5;
+		}
+		if (RadialPositions[RadIdx] - LastRadialPos < MinStep)
+		{
+			RadialPositions[RadIdx] = LastRadialPos + MinStep;
+		}
+		LastRadialPos = RadialPositions[RadIdx];
+	}
+
+	// Create the radial Voronoi sites
+	for (int32 ii = 0; ii < RadialSettings->RadialSteps; ++ii)
+	{
+		FVector::FReal Len = RadialPositions[ii];
 		FVector::FReal Angle = FMath::DegreesToRadians(RadialSettings->AngleOffset);
 		for (int32 kk = 0; kk < RadialSettings->AngularSteps; ++kk, Angle += AngularStep)
 		{
-			FVector RotatingOffset = Len * (FMath::Cos(Angle) * BasisX + FMath::Sin(Angle) * BasisY);
-			Sites.Emplace(Center + RotatingOffset + (RandStream.VRand() * RandStream.FRand() * RadialSettings->Variability));
+			// Add the global noise and the per-point noise into the angle
+			FVector::FReal UseAngle = Angle + AngleStepOffsets[kk] + FMath::DegreesToRadians(RandStream.FRand() * RadialSettings->AngularVariability);
+			// Add per point noise into the radial position
+			FVector::FReal UseRadius = Len + RandStream.FRand() * RadialSettings->RadialVariability;
+			FVector RotatingOffset = UseRadius * (FMath::Cos(UseAngle) * BasisX + FMath::Sin(UseAngle) * BasisY);
+			Sites.Emplace(Center + RotatingOffset + UpVector * (RandStream.FRandRange(-1, 1) * RadialSettings->AxialVariability));
 		}
 	}
 }
