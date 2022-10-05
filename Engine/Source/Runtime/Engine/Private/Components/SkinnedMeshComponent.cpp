@@ -553,8 +553,7 @@ void USkinnedMeshComponent::PostLoad()
 
 void USkinnedMeshComponent::PrecachePSOs()
 {
-	if (!FApp::CanEverRender() ||
-		!PipelineStateCache::IsPSOPrecachingEnabled() ||
+	if (!IsComponentPSOPrecachingEnabled() ||
 		GetSkinnedAsset() == nullptr ||
 		GetSkinnedAsset()->GetResourceForRendering() == nullptr)
 	{
@@ -562,66 +561,17 @@ void USkinnedMeshComponent::PrecachePSOs()
 	}
 
 	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
-	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkinnedAsset()->GetResourceForRendering();
 	int32 MinLODIndex = ComputeMinLOD();
+	bool bCPUSkin = bRenderStatic || ShouldCPUSkin();
 
-	bool bAnySectionCastsShadows = false;
-
-	struct VFsPerMaterialData
-	{
-		int16 MaterialIndex;
-		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
-	};
-	TArray<VFsPerMaterialData, TInlineAllocator<4>> VFsPerMaterials;
-
-	for (int32 LODIndex = MinLODIndex; LODIndex < SkelMeshRenderData->LODRenderData.Num(); LODIndex++)
-	{
-		FSkeletalMeshLODRenderData& LODRenderData = SkelMeshRenderData->LODRenderData[LODIndex];
-		const FSkeletalMeshLODInfo& Info = *(GetSkinnedAsset()->GetLODInfo(LODIndex));
-		
-		// Check all render sections for the used material indices
-		for (int32 SectionIndex = 0; SectionIndex < LODRenderData.RenderSections.Num(); SectionIndex++)
-		{
-			FSkelMeshRenderSection& RenderSection = LODRenderData.RenderSections[SectionIndex];
-
-			bAnySectionCastsShadows |= RenderSection.bCastShadow;
-
-			// By default use the material index of the render section
-			uint16 MaterialIndex = RenderSection.MaterialIndex;
-
-			// Can be remapped by the LODInfo
-			if (SectionIndex < Info.LODMaterialMap.Num() && GetSkinnedAsset()->IsValidMaterialIndex(Info.LODMaterialMap[SectionIndex]))
-			{
-				MaterialIndex = Info.LODMaterialMap[SectionIndex];
-				MaterialIndex = FMath::Clamp(MaterialIndex, 0, GetSkinnedAsset()->GetNumMaterials());
-			}
-
-			VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialIndex](const VFsPerMaterialData& Other) { return Other.MaterialIndex == MaterialIndex; });
-			if (VFsPerMaterial == nullptr)
-			{
-				VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
-				VFsPerMaterial->MaterialIndex = MaterialIndex;
-			}
-
-			// Find all the possible used vertex factory types needed to render this render section
-			if (bRenderStatic || ShouldCPUSkin())
-			{
-				// Force static from GPU point of view
-				VFsPerMaterial->VertexFactoryTypes.AddUnique(&FLocalVertexFactory::StaticType);
-			}
-			else if (!SkelMeshRenderData->RequiresCPUSkinning(FeatureLevel, MinLODIndex))
-			{
-				// Add all the vertex factories which can be used for gpu skinning
-				FSkeletalMeshObjectGPUSkin::GetUsedVertexFactories(LODRenderData, RenderSection, FeatureLevel, VFsPerMaterial->VertexFactoryTypes);
-			}
-		}
-	}
+	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> VFsPerMaterials = GetSkinnedAsset()->GetVertexFactoryTypesPerMaterialIndex(MinLODIndex, bCPUSkin, FeatureLevel);
+	bool bAnySectionCastsShadows = GetSkinnedAsset()->GetResourceForRendering()->AnyRenderSectionCastsShadows(MinLODIndex);
 
 	FPSOPrecacheParams PrecachePSOParams;
 	SetupPrecachePSOParams(PrecachePSOParams);
 	PrecachePSOParams.bCastShadow = PrecachePSOParams.bCastShadow && bAnySectionCastsShadows;
 
-	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	for (FSkinnedAssetVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(VFsPerMaterial.MaterialIndex);
 		if (MaterialInterface)

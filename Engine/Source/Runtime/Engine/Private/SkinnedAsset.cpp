@@ -3,6 +3,8 @@
 #include "Engine/SkinnedAsset.h"
 #include "SkinnedAssetCompiler.h"
 #include "Animation/AnimStats.h"
+#include "SkeletalRenderGPUSkin.h"
+#include "PSOPrecache.h"
 
 #if INTEL_ISPC
 #include "SkinnedAsset.ispc.generated.h"
@@ -52,6 +54,84 @@ void USkinnedAsset::PostLoad()
 		ExecutePostLoadInternal(Context);
 		FinishPostLoadInternal(Context);
 	}
+
+	if (IsResourcePSOPrecachingEnabled() &&
+		GetResourceForRendering() != nullptr)
+	{
+		// Assume GPU skinning when precaching PSOs
+		bool bCPUSkin = false;
+		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+		int32 MinLODIndex = GetMinLodIdx();
+		
+		TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> VFsPerMaterials = GetVertexFactoryTypesPerMaterialIndex(MinLODIndex, bCPUSkin, FeatureLevel);
+		bool bAnySectionCastsShadows = GetResourceForRendering()->AnyRenderSectionCastsShadows(MinLODIndex);
+
+		// Precache using default material & PSO precache params but mark movable
+		const TArray<FSkeletalMaterial>& Materials = GetMaterials();
+		FPSOPrecacheParams PrecachePSOParams;
+		PrecachePSOParams.SetMobility(EComponentMobility::Movable);
+		PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
+
+		for (auto VFsPerMaterial : VFsPerMaterials)
+		{
+			UMaterialInterface* MaterialInterface = Materials[VFsPerMaterial.MaterialIndex].MaterialInterface;
+			if (MaterialInterface)
+			{
+				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+			}
+		}
+	}
+}
+
+TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> USkinnedAsset::GetVertexFactoryTypesPerMaterialIndex(
+	int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel)
+{
+	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> VFTypesPerMaterialIndex;
+
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
+	for (int32 LODIndex = MinLODIndex; LODIndex < SkelMeshRenderData->LODRenderData.Num(); LODIndex++)
+	{
+		FSkeletalMeshLODRenderData& LODRenderData = SkelMeshRenderData->LODRenderData[LODIndex];
+		const FSkeletalMeshLODInfo& Info = *(GetLODInfo(LODIndex));
+
+		// Check all render sections for the used material indices
+		for (int32 SectionIndex = 0; SectionIndex < LODRenderData.RenderSections.Num(); SectionIndex++)
+		{
+			FSkelMeshRenderSection& RenderSection = LODRenderData.RenderSections[SectionIndex];
+
+			// By default use the material index of the render section
+			uint16 MaterialIndex = RenderSection.MaterialIndex;
+
+			// Can be remapped by the LODInfo
+			if (SectionIndex < Info.LODMaterialMap.Num() && IsValidMaterialIndex(Info.LODMaterialMap[SectionIndex]))
+			{
+				MaterialIndex = Info.LODMaterialMap[SectionIndex];
+				MaterialIndex = FMath::Clamp(MaterialIndex, 0, GetNumMaterials());
+			}
+
+			FSkinnedAssetVertexFactoryTypesPerMaterialData* VFsPerMaterial = VFTypesPerMaterialIndex.FindByPredicate(
+				[MaterialIndex](const FSkinnedAssetVertexFactoryTypesPerMaterialData& Other) { return Other.MaterialIndex == MaterialIndex; });
+			if (VFsPerMaterial == nullptr)
+			{
+				VFsPerMaterial = &VFTypesPerMaterialIndex.AddDefaulted_GetRef();
+				VFsPerMaterial->MaterialIndex = MaterialIndex;
+			}
+
+			// Find all the possible used vertex factory types needed to render this render section
+			if (bCPUSkin)
+			{
+				// Force static from GPU point of view
+				VFsPerMaterial->VertexFactoryTypes.AddUnique(&FLocalVertexFactory::StaticType);
+			}
+			else if (!SkelMeshRenderData->RequiresCPUSkinning(FeatureLevel, LODIndex))
+			{
+				// Add all the vertex factories which can be used for gpu skinning
+				FSkeletalMeshObjectGPUSkin::GetUsedVertexFactories(LODRenderData, RenderSection, FeatureLevel, VFsPerMaterial->VertexFactoryTypes);
+			}
+		}
+	}
+
+	return VFTypesPerMaterialIndex;
 }
 
 #if WITH_EDITOR

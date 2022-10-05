@@ -734,6 +734,22 @@ int32 FSkeletalMeshRenderData::GetMaxBonesPerSection(int32 MinLODIdx) const
 	return MaxBonesPerSection;
 }
 
+bool FSkeletalMeshRenderData::AnyRenderSectionCastsShadows(int32 MinLODIdx) const
+{
+	for (int32 LODIndex = MinLODIdx; LODIndex < LODRenderData.Num(); LODIndex++)
+	{
+		for (const FSkelMeshRenderSection& RenderSection : LODRenderData[LODIndex].RenderSections)
+		{
+			if (RenderSection.bCastShadow)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 int32 FSkeletalMeshRenderData::GetMaxBonesPerSection() const
 {
 	return GetMaxBonesPerSection(0);

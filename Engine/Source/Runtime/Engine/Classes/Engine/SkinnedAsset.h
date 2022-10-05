@@ -34,6 +34,11 @@ enum class ESkinnedAssetAsyncPropertyLockType
 };
 ENUM_CLASS_FLAGS(ESkinnedAssetAsyncPropertyLockType);
 
+struct FSkinnedAssetVertexFactoryTypesPerMaterialData
+{
+	int16 MaterialIndex;
+	TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+};
 
 UCLASS(hidecategories = Object, config = Engine, editinlinenew, abstract)
 class ENGINE_API USkinnedAsset : public UStreamableRenderAsset, public IInterface_AsyncCompilation
@@ -230,6 +235,8 @@ public:
 
 	virtual void PostLoad() override;
 	//~ End UObject Interface
+		
+	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> GetVertexFactoryTypesPerMaterialIndex(int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel);
 
 #if WITH_EDITOR
 	/** IInterface_AsyncCompilation begin*/

@@ -107,6 +107,9 @@ public:
 		return GetFirstValidLODIdx(FMath::Max<int32>(PendingFirstLODIdx, MinLODIdx));
 	}
 
+	/** Check if any rendersection casts shadows */
+	ENGINE_API bool AnyRenderSectionCastsShadows(int32 MinLODIdx) const;
+
 	/** 
 	 * Return the pending first LOD that can be used for rendering starting at MinLODIdx.
 	 * This takes into account the streaming status from PendingFirstLODIdx, 
