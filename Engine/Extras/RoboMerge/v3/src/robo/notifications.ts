@@ -73,7 +73,7 @@ export function isUserAKnownBot(user: string) {
 export async function postToRobomergeAlerts(message: string) {
 	// 'CBGFJQEN6' is #robomerge_alerts
 	if (!args.devMode) {
-		return postMessageToChannel(message, 'CBGFJQEN6')
+		return postMessageToChannel(message, 'C044ZUSS71S')
 	}
 }
 
