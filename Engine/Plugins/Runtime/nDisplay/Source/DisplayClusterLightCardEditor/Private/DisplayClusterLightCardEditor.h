@@ -286,6 +286,9 @@ private:
 	/** When a property on the actor has changed */
 	void OnActorPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 
+	/** Raised when the user adds an actor to the level */
+	void OnLevelActorAdded(AActor* Actor);
+	
 	/** Raised when the user deletes an actor from the level */
 	void OnLevelActorDeleted(AActor* Actor);
 

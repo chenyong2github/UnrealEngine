@@ -40,6 +40,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Layers/LayersSubsystem.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Styling/SlateIconFinder.h"
@@ -70,6 +71,7 @@ FDisplayClusterLightCardEditor::~FDisplayClusterLightCardEditor()
 
 	if (GEngine != nullptr)
 	{
+		GEngine->OnLevelActorAdded().RemoveAll(this);
 		GEngine->OnLevelActorDeleted().RemoveAll(this);
 	}
 
@@ -100,6 +102,7 @@ void FDisplayClusterLightCardEditor::Initialize(TSharedRef<IDisplayClusterOperat
 	ActiveRootActorChangedHandle = InViewModel->OnActiveRootActorChanged().AddSP(this, &FDisplayClusterLightCardEditor::OnActiveRootActorChanged);
 	if (GEngine != nullptr)
 	{
+		GEngine->OnLevelActorAdded().AddSP(this, &FDisplayClusterLightCardEditor::OnLevelActorAdded);
 		GEngine->OnLevelActorDeleted().AddSP(this, &FDisplayClusterLightCardEditor::OnLevelActorDeleted);
 	}
 	
@@ -232,7 +235,7 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 	}
 	else
 	{
-		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 	}
 	
 	SelectActors({ NewActor });
@@ -496,11 +499,11 @@ void FDisplayClusterLightCardEditor::AddLightCardsToActor(const TArray<ADisplayC
 						return Actor == LightCardSoftObject;
 					});
 
-				RootActorLightCards.Actors.Add(LightCard);
+				LightCard->AddToLightCardLayer(ActiveRootActor.Get());
 			}
 		}
 
-		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 	}
 }
 
@@ -766,9 +769,24 @@ void FDisplayClusterLightCardEditor::RemoveActors(
 					{
 						return InActor.Get() == LightCard;
 					});
-
+				
 				if (!bDeleteActors)
 				{
+					// Remove from any layers shared with the DCRA. If we aren't deleting this has the possibility to
+					// remove from a layer used by another DCRA, but this is rare and acceptable.
+					ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+					TArray<FName> LightCardLayerNames = LightCard->Layers;
+					for (const FName& LightCardLayerName : LightCardLayerNames)
+					{
+						if (RootActorLightCards.ActorLayers.ContainsByPredicate([&](const FActorLayer& LightCardLayer)
+						{
+							return LightCardLayer.Name == LightCardLayerName;
+						}))
+						{
+							LayersSubsystem->RemoveActorFromLayer(LightCard, LightCardLayerName);
+						}
+					}
+					
 					LightCard->ShowLightCardLabel(false, *GetLightCardLabelScale(), ActiveRootActor.Get());
 				}
 			}
@@ -793,7 +811,7 @@ void FDisplayClusterLightCardEditor::RemoveActors(
 		}
 	}
 
-	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 }
 
 bool FDisplayClusterLightCardEditor::CanRemoveSelectedActors() const
@@ -919,7 +937,7 @@ void FDisplayClusterLightCardEditor::ShowLightCardLabels(bool bVisible)
 	
 	LightCardEditorModule.ShowLabels(MoveTemp(Args));
 
-	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 }
 
 bool FDisplayClusterLightCardEditor::ShouldShowLightCardLabels() const
@@ -1676,16 +1694,29 @@ bool FDisplayClusterLightCardEditor::IsOurObject(UObject* InObject,
 	EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All;
 	
 	bool bIsOurActor = IsOurActor(GetActiveRootActor().Get());
-	if (!bIsOurActor && LightCardOutliner.IsValid())
+	if (!bIsOurActor)
 	{
-		for (const TSharedPtr<SDisplayClusterLightCardOutliner::FStageActorTreeItem>& LightCard : LightCardOutliner->GetStageActorTreeItems())
+		if (LightCardOutliner.IsValid())
 		{
-			bIsOurActor = IsOurActor(LightCard->Actor.Get());
-			if (bIsOurActor)
+			for (const TSharedPtr<SDisplayClusterLightCardOutliner::FStageActorTreeItem>& LightCard : LightCardOutliner->GetStageActorTreeItems())
 			{
-				ProxyType = EDisplayClusterLightCardEditorProxyType::LightCards;
-				break;
+				if (LightCard.IsValid())
+				{
+					bIsOurActor = IsOurActor(LightCard->Actor.Get());
+					break;
+				}
 			}
+		}
+
+		// Fallback to generic check
+		if (!bIsOurActor && UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Cast<AActor>(InObject)))
+		{
+			bIsOurActor = true;
+		}
+
+		if (bIsOurActor)
+		{
+			ProxyType = EDisplayClusterLightCardEditorProxyType::StageActor;
 		}
 	}
 
@@ -1770,13 +1801,17 @@ void FDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
 	}
 }
 
+void FDisplayClusterLightCardEditor::OnLevelActorAdded(AActor* Actor)
+{
+	if (UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Actor))
+	{
+		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
+	}
+}
+
 void FDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 {
-	if (LightCardOutliner.IsValid() &&
-		LightCardOutliner->GetStageActorTreeItems().ContainsByPredicate([Actor](const TSharedPtr<SDisplayClusterLightCardOutliner::FStageActorTreeItem>& LightCardTreeItem)
-	{
-		return LightCardTreeItem.IsValid() && Actor == LightCardTreeItem->Actor.Get();
-	}))
+	if (UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Actor))
 	{
 		if (Actor && Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
 		{
@@ -1785,13 +1820,13 @@ void FDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 			return;
 		}
 		
-		if (ViewportView.IsValid())
+		if (GEditor && GEditor->GetWorld())
 		{
-			ViewportView->GetLightCardEditorViewportClient()->GetWorld()->GetTimerManager().SetTimerForNextTick([=]()
+			GEditor->GetWorld()->GetTimerManager().SetTimerForNextTick([=]()
 			{
 				// Schedule for next tick so available selections are properly updated once the
 				// actor is fully deleted.
-				RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+				RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 			});
 		}
 	}
@@ -1800,7 +1835,7 @@ void FDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 void FDisplayClusterLightCardEditor::OnBlueprintCompiled(UBlueprint* Blueprint)
 {
 	// Right now only LightCard blueprints are handled here.
-	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 }
 
 void FDisplayClusterLightCardEditor::OnObjectTransacted(UObject* Object,

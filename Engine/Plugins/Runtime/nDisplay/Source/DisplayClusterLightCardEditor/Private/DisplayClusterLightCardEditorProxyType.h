@@ -8,5 +8,5 @@ enum class EDisplayClusterLightCardEditorProxyType : uint8
 {
 	All,
 	RootActor,
-	LightCards
+	StageActor
 };

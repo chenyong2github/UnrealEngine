@@ -116,8 +116,6 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 
 	//This seems to be needed to get the correct world time in the preview.
 	SetIsSimulateInEditorViewport(true);
-	
-	UpdatePreviewActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get());
 
 	const UDisplayClusterLightCardEditorSettings* Settings = GetDefault<UDisplayClusterLightCardEditorSettings>();
 	
@@ -1428,7 +1426,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 			IDisplayClusterScenePreview::Get().SetRendererRootActor(PreviewRendererId, RootActorProxy.Get());
 
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
-				ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
+				ProxyType == EDisplayClusterLightCardEditorProxyType::StageActor)
 			{
 				SelectActor(nullptr);
 				const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
@@ -1562,7 +1560,7 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 		}
 		break;
 
-	case EDisplayClusterLightCardEditorProxyType::LightCards:
+	case EDisplayClusterLightCardEditorProxyType::StageActor:
 		for (const FActorProxy& ActorProxy : ActorProxies)
 		{
 			if (ActorProxy.Proxy.IsValid())
@@ -1600,7 +1598,7 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 	}
 	
 	if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
-		ProxyType == EDisplayClusterLightCardEditorProxyType::LightCards)
+		ProxyType == EDisplayClusterLightCardEditorProxyType::StageActor)
 	{
 		for (const FActorProxy& ActorProxy : ActorProxies)
 		{

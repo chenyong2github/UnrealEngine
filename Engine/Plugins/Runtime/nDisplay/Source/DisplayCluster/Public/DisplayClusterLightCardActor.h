@@ -103,7 +103,10 @@ public:
 	
 	/** Return the current owner, providing one was set */
 	TWeakObjectPtr<ADisplayClusterRootActor> GetRootActorOwner() const { return RootActorOwner; }
-
+	
+	/** Add this light card to a light card layer on the given root actor */
+	void AddToLightCardLayer(ADisplayClusterRootActor* InRootActor);
+	
 	// ~Begin IDisplayClusterStageActor interface
 	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
 	virtual void UpdateStageActorTransform() override;

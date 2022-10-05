@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterLightCardActor.h"
+
+#include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterRootActor.h"
 #include "IDisplayClusterLightCardActorExtender.h"
 
@@ -10,6 +12,13 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
+
+#if WITH_EDITOR
+
+#include "Editor.h"
+#include "Layers/LayersSubsystem.h"
+
+#endif
 
 #if WITH_OPENCV
 
@@ -456,6 +465,61 @@ void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleV
 void ADisplayClusterLightCardActor::SetRootActorOwner(ADisplayClusterRootActor* InRootActor)
 {
 	RootActorOwner = MakeWeakObjectPtr(InRootActor);
+}
+
+void ADisplayClusterLightCardActor::AddToLightCardLayer(ADisplayClusterRootActor* InRootActor)
+{
+	check(InRootActor);
+
+	UDisplayClusterConfigurationData* ConfigData = InRootActor->GetConfigData();
+	check(ConfigData);
+	
+	// Add light cards to an existing layer or a new layer. This helps with restoring snapshots of a DCRA
+	// so they can be done separately from light cards and still have access to all light cards in the layer.
+				
+	static const FString LightCardPrefix = TEXT("LightCards");
+	FName LightCardLayerName = NAME_None;
+
+	FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
+	
+	if (const FActorLayer* ExistingLightCardLayer = RootActorLightCards.ActorLayers.FindByPredicate([](const FActorLayer& Layer)
+	{
+		return Layer.Name.ToString().StartsWith(LightCardPrefix);
+	}))
+	{
+		LightCardLayerName = ExistingLightCardLayer->Name;
+	}
+	else
+	{
+		// Find a unique name so it's LightCards_XXXX
+		do
+		{
+			const FGuid LayerGuid = FGuid::NewGuid();
+			const FString GuidStr = LayerGuid.ToString().Left(4);
+			LightCardLayerName = *FString::Printf(TEXT("%s_%s"), *LightCardPrefix, *GuidStr);
+		}
+		while (FindObject<UObject>(GetWorld(), *LightCardLayerName.ToString()) != nullptr);
+		
+		ConfigData->Modify();
+		RootActorLightCards.ActorLayers.AddDefaulted_GetRef().Name = LightCardLayerName;
+	}
+	
+	check(!LightCardLayerName.IsNone());
+
+	bool bLayerAdded = false;
+#if WITH_EDITOR
+	ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr;
+	if (LayersSubsystem)
+	{
+		LayersSubsystem->AddActorsToLayer(TArray<AActor*>{ this }, LightCardLayerName);
+		bLayerAdded = true;
+	}
+#endif
+	if (!bLayerAdded)
+	{
+		// Likely -game and we need to add the layer directly
+		Layers.AddUnique(LightCardLayerName);
+	}
 }
 
 void ADisplayClusterLightCardActor::UpdateStageActorTransform()

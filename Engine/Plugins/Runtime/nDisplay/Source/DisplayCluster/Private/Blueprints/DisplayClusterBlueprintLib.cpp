@@ -64,12 +64,13 @@ ADisplayClusterLightCardActor* UDisplayClusterBlueprintLib::CreateLightCard(ADis
 	NewActor->AttachToActor(RootActor, AttachmentRules);
 
 	// Add it to the root actor
-	UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
-	ConfigData->Modify();
-	FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
+	NewActor->AddToLightCardLayer(RootActor);
 
-	RootActorLightCards.Actors.Add(NewActor);
-
+#if WITH_EDITOR
+	// Required so operator panel updates
+	RootActor->PostEditChange();
+#endif
+	
 	return NewActor;
 }
 
@@ -120,11 +121,12 @@ void UDisplayClusterBlueprintLib::DuplicateLightCards(TArray<ADisplayClusterLigh
 		NewLightCard->AttachToActor(RootActor, AttachmentRules);
 
 		// Add it to the root actor
-		UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
-		ConfigData->Modify();
-		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
+		NewLightCard->AddToLightCardLayer(RootActor);
 
-		RootActorLightCards.Actors.Add(NewLightCard);
+#if WITH_EDITOR
+		// Required so operator panel updates
+		RootActor->PostEditChange();
+#endif
 
 #if WITH_EDITOR
 		if (GIsEditor)

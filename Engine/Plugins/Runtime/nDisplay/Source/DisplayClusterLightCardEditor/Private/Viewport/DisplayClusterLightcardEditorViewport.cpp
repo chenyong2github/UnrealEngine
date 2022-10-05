@@ -410,6 +410,13 @@ TSharedRef<FEditorViewportClient> SDisplayClusterLightCardEditorViewport::MakeEd
 	
 	ViewportClient = MakeShareable(new FDisplayClusterLightCardEditorViewportClient(*PreviewScene.Get(),
 		SharedThis(this)));
+
+	if (LightCardEditorPtr.IsValid())
+	{
+		// Call after construction as UpdatePreviewActor will create a weak reference to itself
+		ViewportClient->UpdatePreviewActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get());
+	}
+	
 	return ViewportClient.ToSharedRef();
 }
 
