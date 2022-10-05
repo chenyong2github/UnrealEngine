@@ -967,6 +967,7 @@ namespace AutomationTool
 				try
 				{
 					retryAction();
+					break;
 				}
 				catch
 				{
