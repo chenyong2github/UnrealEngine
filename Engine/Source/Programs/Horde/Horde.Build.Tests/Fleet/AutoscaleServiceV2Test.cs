@@ -193,8 +193,12 @@ namespace Horde.Build.Tests.Fleet
 		[TestMethod]
 		public async Task CreateLeaseUtilizationStrategy()
 		{
-			IPoolSizeStrategy s = await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, "{}"));
+			string config = "{\"SampleTimeSec\": 10, \"NumSamples\": 20, \"NumSamplesForResult\": 30}";
+			IPoolSizeStrategy s = await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, config));
 			Assert.AreEqual(typeof(LeaseUtilizationStrategy), s.GetType());
+			Assert.AreEqual(10, ((LeaseUtilizationStrategy)s).Settings.SampleTimeSec);
+			Assert.AreEqual(20, ((LeaseUtilizationStrategy)s).Settings.NumSamples);
+			Assert.AreEqual(30, ((LeaseUtilizationStrategy)s).Settings.NumSamplesForResult);
 		}
 		
 		[TestMethod]

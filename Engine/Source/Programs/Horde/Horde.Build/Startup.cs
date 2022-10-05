@@ -374,10 +374,6 @@ namespace Horde.Build
 			services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
 			services.AddSingleton<AutoscaleServiceV2>();
-			services.AddSingleton<LeaseUtilizationStrategy>();
-			services.AddSingleton<JobQueueStrategy>();
-			services.AddSingleton<NoOpPoolSizeStrategy>();
-			services.AddSingleton<ComputeQueueAwsMetricStrategy>();
 			
 			// Associate IFleetManager interface with the default implementation from config for convenience
 			// Though most fleet managers are created on a per-pool basis

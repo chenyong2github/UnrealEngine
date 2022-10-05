@@ -349,13 +349,14 @@ namespace Horde.Build.Agents.Fleet
 						switch (info.Type)
 						{
 							case PoolSizeStrategy.JobQueue:
-								JobQueueSettings? settings = JsonSerializer.Deserialize<JobQueueSettings>(info.Config);
-								if (settings == null) throw new ArgumentException("Unable to deserialize pool sizing config");
-								return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, settings);
+								JobQueueSettings? jqSettings = JsonSerializer.Deserialize<JobQueueSettings>(info.Config);
+								if (jqSettings == null) throw new ArgumentException("Unable to deserialize pool sizing config: " + info.Config);
+								return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, jqSettings);
 							
 							case PoolSizeStrategy.LeaseUtilization:
-								// No settings for lease utilization strategy
-								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache);
+								LeaseUtilizationSettings? luSettings = JsonSerializer.Deserialize<LeaseUtilizationSettings>(info.Config);
+								if (luSettings == null) throw new ArgumentException("Unable to deserialize pool sizing config: " + info.Config);
+								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, luSettings);
 							
 							case PoolSizeStrategy.NoOp:
 								return new NoOpPoolSizeStrategy();
@@ -373,7 +374,7 @@ namespace Horde.Build.Agents.Fleet
 				case PoolSizeStrategy.JobQueue:
 					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, pool.JobQueueSettings);
 				case PoolSizeStrategy.LeaseUtilization:
-					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache);
+					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, new());
 				case PoolSizeStrategy.NoOp:
 					return new NoOpPoolSizeStrategy();
 				default:
