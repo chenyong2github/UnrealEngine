@@ -90,15 +90,17 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	);
 
 	// If a new pose is requested, blend into the new asset via BlendStackNode
-	const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
-	const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.GetCurrentSearchIndexAsset();
-
-	if (Database && Database->Schema && SearchIndexAsset && (MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
+	const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.CurrentSearchResult.GetSearchIndexAsset();
+	if (SearchIndexAsset)
 	{
-		const FPoseSearchDatabaseAnimationAssetBase& AnimationAssetBase = Database->GetAnimationSourceAsset(SearchIndexAsset);
-		BlendStackNode.BlendTo(	SearchIndexAsset->Type, AnimationAssetBase.GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
-								AnimationAssetBase.IsLooping(), SearchIndexAsset->bMirrored, Database->Schema->MirrorDataTable.Get(),
-								Settings.MaxActiveBlends, Settings.BlendTime, Settings.BlendProfile, Settings.BlendOption, SearchIndexAsset->BlendParameters);
+		const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
+		if (Database && Database->Schema && EnumHasAnyFlags(MotionMatchingState.Flags, EMotionMatchingFlags::JumpedToPose))
+		{
+			const FPoseSearchDatabaseAnimationAssetBase& AnimationAssetBase = Database->GetAnimationSourceAsset(*SearchIndexAsset);
+			BlendStackNode.BlendTo(SearchIndexAsset->Type, AnimationAssetBase.GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
+				AnimationAssetBase.IsLooping(), SearchIndexAsset->bMirrored, Database->Schema->MirrorDataTable.Get(),
+				Settings.MaxActiveBlends, Settings.BlendTime, Settings.BlendProfile, Settings.BlendOption, SearchIndexAsset->BlendParameters);
+		}
 	}
 
 	Source.Update(Context);

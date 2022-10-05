@@ -39,12 +39,12 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 		return false;
 	}
 
-	const FPoseSearchIndexAsset* SearchIndexAsset = GetCurrentSearchIndexAsset();
+	
+	const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset(true);
 
 	if (SearchIndexAsset->Type == ESearchIndexAssetType::Sequence)
 	{
-		const FPoseSearchDatabaseSequence& DbSequence = 
-			CurrentSearchResult.Database->GetSequenceSourceAsset(SearchIndexAsset);
+		const FPoseSearchDatabaseSequence& DbSequence = CurrentSearchResult.Database->GetSequenceSourceAsset(*SearchIndexAsset);
 		const float AssetLength = DbSequence.Sequence->GetPlayLength();
 
 		float SteppedTime = CurrentSearchResult.AssetTime;
@@ -81,8 +81,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 			{
 				bOutAdvanceToFollowUpAsset = true;
 
-				const FPoseSearchIndexAsset* FollowUpSearchIndexAsset =
-					&CurrentSearchResult.Database->GetSearchIndex()->Assets[FollowUpSearchIndexAssetIdx];
+				const FPoseSearchIndexAsset& FollowUpSearchIndexAsset = CurrentSearchResult.Database->GetSearchIndex()->Assets[FollowUpSearchIndexAssetIdx];
 
 				// Follow up asset time will start slightly before the beginning of the sequence as 
 				// this is essentially what the matching time in the corresponding main sequence is.
@@ -92,8 +91,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 
 				// There is no correspoding pose index when we switch due to what is mentioned above
 				// so for now we just take whatever pose index is associated with the first frame.
-				OutFollowUpAsset.PoseIdx = CurrentSearchResult.Database->GetPoseIndexFromTime(FollowUpSearchIndexAsset->SamplingInterval.Min, FollowUpSearchIndexAsset);
-				OutFollowUpAsset.SearchIndexAsset = FollowUpSearchIndexAsset;
+				OutFollowUpAsset.PoseIdx = CurrentSearchResult.Database->GetPoseIndexFromTime(FollowUpSearchIndexAsset.SamplingInterval.Min, FollowUpSearchIndexAsset);
 				OutFollowUpAsset.AssetTime = FollowUpAssetTime;
 				return true;
 			}
@@ -101,8 +99,7 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 	}
 	else if (SearchIndexAsset->Type == ESearchIndexAssetType::BlendSpace)
 	{
-		const FPoseSearchDatabaseBlendSpace& DbBlendSpace = 
-			CurrentSearchResult.Database->GetBlendSpaceSourceAsset(SearchIndexAsset);
+		const FPoseSearchDatabaseBlendSpace& DbBlendSpace = CurrentSearchResult.Database->GetBlendSpaceSourceAsset(*SearchIndexAsset);
 
 		TArray<FBlendSampleData> BlendSamples;
 		int32 TriangulationIndex = 0;
@@ -191,7 +188,7 @@ static void TraceMotionMatchingState(
 	{
 		const uint64 DatabaseId = FTraceMotionMatchingState::GetIdFromObject(Database);
 
-		int32 DbEntryIdx = -1;
+		int32 DbEntryIdx = INDEX_NONE;
 		for (int32 i = 0; i < DatabaseEntries.Num(); ++i)
 		{
 			if (DatabaseEntries[i].DatabaseId == DatabaseId)
@@ -358,7 +355,7 @@ void UpdateMotionMatchingState(
 			SearchContext.History = &PoseHistoryProvider->GetPoseHistory();
 		}
 
-		if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset())
+		if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.CurrentSearchResult.GetSearchIndexAsset())
 		{
 			SearchContext.QueryMirrorRequest =
 				CurrentIndexAsset->bMirrored ?
@@ -419,28 +416,15 @@ void UpdateMotionMatchingState(
 #endif
 }
 
-const FPoseSearchIndexAsset* FMotionMatchingState::GetCurrentSearchIndexAsset() const
+float FMotionMatchingState::ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const
 {
-	if (CurrentSearchResult.IsValid())
-	{
-		return CurrentSearchResult.SearchIndexAsset;
-	}
-
-	return nullptr;
-}
-
-float FMotionMatchingState::ComputeJumpBlendTime(
-	const UE::PoseSearch::FSearchResult& Result, 
-	const FMotionMatchingSettings& Settings
-) const
-{
-	const FPoseSearchIndexAsset* SearchIndexAsset = GetCurrentSearchIndexAsset();
+	const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset();
 
 	// Use alternate blend time when changing between mirrored and unmirrored
 	float JumpBlendTime = Settings.BlendTime;
 	if ((SearchIndexAsset != nullptr) && (Settings.MirrorChangeBlendTime > 0.0f))
 	{
-		if (Result.SearchIndexAsset->bMirrored != SearchIndexAsset->bMirrored)
+		if (Result.GetSearchIndexAsset(true)->bMirrored != SearchIndexAsset->bMirrored)
 		{
 			JumpBlendTime = Settings.MirrorChangeBlendTime;
 		}

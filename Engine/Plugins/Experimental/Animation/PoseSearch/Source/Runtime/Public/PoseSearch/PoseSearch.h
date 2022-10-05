@@ -374,14 +374,14 @@ private:
 	friend class ::UPoseSearchSchema;
 
 	UPROPERTY()
-	int32 ChannelIdx = -1;
+	int32 ChannelIdx = INDEX_NONE;
 
 protected:
 	UPROPERTY()
-	int32 ChannelDataOffset = -1;
+	int32 ChannelDataOffset = INDEX_NONE;
 
 	UPROPERTY()
-	int32 ChannelCardinality = -1;
+	int32 ChannelCardinality = INDEX_NONE;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -524,6 +524,10 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 	// @todo: consider float16
 	UPROPERTY()
 	float ContinuingPoseCostAddend = 0.0f;
+
+	// @todo: consider int16
+	UPROPERTY()
+	int32 AssetIndex = INDEX_NONE;
 };
 
 /**
@@ -641,16 +645,16 @@ struct POSESEARCH_API FPoseSearchIndex
 	bool IsEmpty() const;
 
 	TConstArrayView<float> GetPoseValues(int32 PoseIdx) const;
+	TConstArrayView<float> GetPoseValuesSafe(int32 PoseIdx) const;
 
-	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
-	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
+	const FPoseSearchIndexAsset& GetAssetForPose(int32 PoseIdx) const;
+	const FPoseSearchIndexAsset* GetAssetForPoseSafe(int32 PoseIdx) const;
+
+	float GetAssetTime(int32 PoseIdx) const;
 
 	void Reset();
 
-	// individual cost addends calculation methods
-	float ComputeMirrorMismatchAddend(int32 PoseIdx, UE::PoseSearch::FSearchContext& SearchContext) const;
-	float ComputeNotifyAddend(int32 PoseIdx) const;
-	float ComputeContinuingPoseCostAddend(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags) const;
+	FPoseSearchCost ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -905,8 +909,6 @@ struct FSearchResult
 	// lerp value to find AssetTime from PrevPoseIdx -> AssetTime -> NextPoseIdx, within range [-0.5, 0.5]
 	float LerpValue = 0.f;
 
-	// @todo: it should be a weak pointer
-	const FPoseSearchIndexAsset* SearchIndexAsset = nullptr;
 	TWeakObjectPtr<const UPoseSearchDatabase> Database = nullptr;
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
@@ -930,6 +932,8 @@ struct FSearchResult
 	bool IsValid() const;
 
 	void Reset();
+
+	const FPoseSearchIndexAsset* GetSearchIndexAsset(bool bMandatory = false) const;
 };
 
 } // namespace UE::PoseSearch
@@ -1000,15 +1004,14 @@ public:
 	bool IsValidForSearch() const;
 	bool IsValidPoseIndex(int32 PoseIdx) const;
 
-	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
-	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	bool GetPoseIndicesAndLerpValueFromTime(float Time, const FPoseSearchIndexAsset* SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const;
+	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	bool GetPoseIndicesAndLerpValueFromTime(float Time, const FPoseSearchIndexAsset& SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const;
 
-	const FPoseSearchDatabaseAnimationAssetBase& GetAnimationSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	const FPoseSearchDatabaseBlendSpace& GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset* SearchIndexAsset) const;
-	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	const FPoseSearchDatabaseAnimationAssetBase& GetAnimationSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	const FPoseSearchDatabaseSequence& GetSequenceSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	const FPoseSearchDatabaseBlendSpace& GetBlendSpaceSourceAsset(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset& SearchIndexAsset) const;
+	const FString GetSourceAssetName(const FPoseSearchIndexAsset& SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;
 	
 	// UObject
@@ -1077,8 +1080,6 @@ public:
 
 	void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& OutQuery) const;
 
-	FPoseSearchCost ComparePoses(UE::PoseSearch::FSearchContext& SearchContext, int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const;
-
 protected:
 	UE::PoseSearch::FSearchResult SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const;
 	UE::PoseSearch::FSearchResult SearchBruteForce(UE::PoseSearch::FSearchContext& SearchContext) const;
@@ -1111,12 +1112,8 @@ public:
 
 	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
 
-protected:
-	FPoseSearchCost ComparePoses(int32 PoseIdx, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const;
-
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1226,7 +1223,7 @@ struct FHistoricalPoseIndex
 		return HashCombineFast(::GetTypeHash(Index.PoseIndex), GetTypeHash(Index.DatabaseKey));
 	}
 
-	int32 PoseIndex = -1;
+	int32 PoseIndex = INDEX_NONE;
 	FObjectKey DatabaseKey;
 };
 

@@ -42,7 +42,7 @@ namespace UE::PoseSearch
 		TWeakObjectPtr<AActor> Actor = nullptr;
 		TWeakObjectPtr<UDebugSkelMeshComponent> Mesh = nullptr;
 		TWeakObjectPtr<UAnimPreviewInstance> AnimInstance = nullptr;
-		FPoseSearchIndexAsset IndexAsset; // keeping a copy since database index can be invalidated
+		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 
 		bool IsValid()
@@ -109,7 +109,7 @@ namespace UE::PoseSearch
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 		void ProcessSelectedActor(AActor* Actor);
 		
-		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const { return SelectedActorIndexAsset; }
+		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const;
 
 		float GetMaxPreviewPlayLength() const;
 		float GetPlayTime() const;
@@ -139,13 +139,13 @@ namespace UE::PoseSearch
 
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes;
 
-		const FPoseSearchIndexAsset* SelectedActorIndexAsset = nullptr;
+		int32 SelectedActorIndexAssetIndex = INDEX_NONE;
 
 		UWorld* GetWorld() const;
 
 		UObject* GetPlaybackContext() const;
 
-		FDatabasePreviewActor SpawnPreviewActor(const FPoseSearchIndexAsset& IndexAsset);
+		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex);
 
 		void UpdatePreviewActors();
 

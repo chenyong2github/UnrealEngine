@@ -79,8 +79,6 @@ struct POSESEARCH_API FMotionMatchingState
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
 	void JumpToPose(const FAnimationUpdateContext& Context, const FMotionMatchingSettings& Settings, const UE::PoseSearch::FSearchResult& Result);
 
-	const FPoseSearchIndexAsset* GetCurrentSearchIndexAsset() const;
-
 	float ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const;
 
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
