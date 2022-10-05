@@ -100,4 +100,12 @@ public:
 	/** Specify if we want to jump to definition in case of double click on native PCG Nodes */
 	UPROPERTY(EditAnywhere, config, Category = Workflow)
 	bool bEnableNavigateToNativeNodes;
+
+	/** Specifies the scale of the volume created on PCG graph drag/drop */
+	UPROPERTY(EditAnywhere, Config, Category = Workflow)
+	FVector VolumeScale = FVector(25, 25, 10);
+
+	/** Whether we want to generate the PCG graph after drag/drop or not */
+	UPROPERTY(EditAnywhere, Config, Category = Workflow)
+	bool bGenerateOnDrop = true;
 };

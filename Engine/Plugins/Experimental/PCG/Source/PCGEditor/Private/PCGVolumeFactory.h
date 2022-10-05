@@ -15,4 +15,9 @@ class UPCGVolumeFactory : public UActorFactoryBoxVolume
 
 public:
 	UPCGVolumeFactory(const FObjectInitializer& ObjectInitializer);
+
+	//~ Begin UActorFactory Interface
+	virtual bool CanCreateActorFrom(const FAssetData& AssetData, FText& OutErrorMsg) override;
+	virtual void PostSpawnActor(UObject* Asset, AActor* NewActor) override;
+	//~ End UActorFactory Interface
 };
