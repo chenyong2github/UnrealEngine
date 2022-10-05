@@ -12,11 +12,11 @@ namespace UE
 		return FInheritedContextScope{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 				InheritedLLMTag
-	#if UE_MEMORY_TAGS_TRACE_ENABLED
+	#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
 				,
 	#endif
 #endif
-#if UE_MEMORY_TAGS_TRACE_ENABLED
+#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
 				InheritedMemTag
 #endif
 		};
