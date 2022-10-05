@@ -56,7 +56,6 @@ public class ORTDefault : ModuleRules
 			{
 				LibFileNames = new string[] {
 					"onnxruntime",
-					"onnxruntime.1.11.1",
 					"custom_op_library"
 				};
 			}
