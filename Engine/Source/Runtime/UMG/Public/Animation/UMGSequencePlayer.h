@@ -65,6 +65,9 @@ public:
 	/** Gets the current time position in the player (in seconds). */
 	bool IsPlayingForward() const { return bIsPlayingForward; }
 
+	/** Check whether this player is currently being stopped */
+	bool IsStopping() const { return bIsStopping; }
+
 	/** IMovieScenePlayer interface */
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
 	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;

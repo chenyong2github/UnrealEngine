@@ -423,7 +423,7 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 		{
 			// We need to make sure we haven't stopped the animation, otherwise it'll get canceled on the next frame.
 			if (Player->GetAnimation() == InAnimation
-			 && !StoppedSequencePlayers.Contains(Player))
+			 && !StoppedSequencePlayers.Contains(Player) && !Player->IsStopping())
 			{
 				FoundPlayer = Player;
 				break;
