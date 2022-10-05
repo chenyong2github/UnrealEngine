@@ -208,12 +208,14 @@ struct ENGINE_API FSkelMeshComponentLODInfo
 
 	void ReleaseOverrideVertexColorsAndBlock();
 	void BeginReleaseOverrideVertexColors();
+	void EndReleaseOverrideVertexColors();
 private:
 	void CleanUpOverrideVertexColors();
 
 public:
 	void ReleaseOverrideSkinWeightsAndBlock();
 	void BeginReleaseOverrideSkinWeights();
+	void EndReleaseOverrideSkinWeights();
 private:
 	void CleanUpOverrideSkinWeights();
 };
