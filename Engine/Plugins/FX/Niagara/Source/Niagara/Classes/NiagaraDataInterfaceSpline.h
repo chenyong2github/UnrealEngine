@@ -237,6 +237,8 @@ public:
 	void GetLocalToWorld(FVectorVMExternalFunctionContext& Context);
 	void GetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
 
+	void VMGetSplineLength(FVectorVMExternalFunctionContext& Context);
+
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return 0;

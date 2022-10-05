@@ -216,3 +216,8 @@ void FindClosestUnitDistanceFromPositionWS_{ParameterName}(float3 PositionWS, ou
 {
 	U = EvaluateFindNearestPosition_{ParameterName}(U * {ParameterName}_SplineLength);
 }
+
+void GetSplineLength_{ParameterName}(out float Length)
+{
+	Length = {ParameterName}_SplineLength;
+}
