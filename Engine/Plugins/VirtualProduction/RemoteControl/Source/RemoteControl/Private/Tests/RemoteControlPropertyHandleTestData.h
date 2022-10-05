@@ -2,9 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/StaticMeshComponent.h"
 #include "RemoteControlPropertyHandleTestData.generated.h"
-
-class UStaticMeshComponent;
 
 UENUM()
 enum class ERemoteControlEnumClass : uint8
