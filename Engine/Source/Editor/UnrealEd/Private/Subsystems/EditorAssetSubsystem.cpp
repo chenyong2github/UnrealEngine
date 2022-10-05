@@ -67,9 +67,6 @@ namespace UE::EditorAssetUtils
 		
 		return MakeValue(AssetData);
 	}
-		
-		return MakeValue(AssetData);
-	}
 
 	TValueOrError<UObject*, FString> LoadAssetFromData(const FAssetData& AssetData)
 	{
