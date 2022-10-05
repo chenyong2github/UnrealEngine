@@ -477,18 +477,6 @@ void FShaderMapResourceCode::NotifyShadersCompiled(FName FormatName)
 	}
 #endif // WITH_ENGINE
 }
-
-void FShaderMapResourceCode::NotifyShadersCooked(const ITargetPlatform* TargetPlatform)
-{
-#if WITH_ENGINE
-	TArray<FName> ShaderFormatNames;
-	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormatNames);
-	for (FName FormatName : ShaderFormatNames)
-	{
-		NotifyShadersCompiled(FormatName);
-	}
-#endif
-}
 #endif // WITH_EDITORONLY_DATA
 
 FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders)

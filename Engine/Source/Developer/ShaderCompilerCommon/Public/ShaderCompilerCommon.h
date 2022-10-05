@@ -224,12 +224,6 @@ extern SHADERCOMPILERCOMMON_API void DumpDebugShaderBinary(const FShaderCompiler
 extern SHADERCOMPILERCOMMON_API void DumpDebugShaderDisassembledSpirv(const FShaderCompilerInput& Input, void* InData, int32 InDataByteSize, const FString& FileExtension);
 extern SHADERCOMPILERCOMMON_API void DumpDebugShaderDisassembledDxil(const FShaderCompilerInput& Input, void* InData, int32 InDataByteSize, const FString& FileExtension);
 
-UE_DEPRECATED(4.26, "SourceLength is no longer needed.")
-inline void DumpDebugUSF(const FShaderCompilerInput& Input, const ANSICHAR* Source, int32 SourceLength, uint32 HlslCCFlags = 0, const TCHAR* OverrideBaseFilename = nullptr)
-{
-	DumpDebugUSF(Input, Source, HlslCCFlags, OverrideBaseFilename);
-}
-
 // calls 'Mali Offline Compiler' to compile the glsl source code and extract the generated instruction count
 extern SHADERCOMPILERCOMMON_API void CompileOfflineMali(const FShaderCompilerInput &Input, FShaderCompilerOutput& ShaderOutput, const ANSICHAR* ShaderSource, const int32 SourceSize, bool bVulkanSpirV, const ANSICHAR* VulkanSpirVEntryPoint = nullptr);
 

@@ -78,9 +78,6 @@ struct FShaderCompiledShaderInitializerType;
 struct FShaderCompilerOutput;
 using FShaderMapAssetPaths = TSet<FName>; // Copied from ShaderCodeLibrary.h
 
-UE_DEPRECATED(4.26, "FShadereCompiledShaderInitializerType is deprecated. Use FShaderCompiledShaderInitializerType.")
-typedef FShaderCompiledShaderInitializerType FShadereCompiledShaderInitializerType;
-
 /** Define a shader permutation uniquely according to its type, and permutation id.*/
 template<typename MetaShaderType>
 struct TShaderTypePermutation
@@ -491,8 +488,6 @@ public:
 	RENDERCORE_API void Serialize(FArchive& Ar, bool bLoadedByCookedMaterial);
 #if WITH_EDITORONLY_DATA
 	RENDERCORE_API void NotifyShadersCompiled(FName FormatName);
-	UE_DEPRECATED(5.0, "NotifyShadersCompiled should be called")
-	RENDERCORE_API void NotifyShadersCooked(const ITargetPlatform* TargetPlatform);
 #endif // WITH_EDITORONLY_DATA
 
 	RENDERCORE_API uint32 GetSizeBytes() const;

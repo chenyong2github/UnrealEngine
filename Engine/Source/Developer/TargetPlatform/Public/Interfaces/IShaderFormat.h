@@ -113,13 +113,6 @@ public:
 	 */
 	virtual void NotifyShaderCompiled(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const { }
 
-	UE_DEPRECATED(5.0, "NotifyShaderCompiled should be called")
-	virtual void NotifyShaderCooked(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const
-	{
-		NotifyShaderCompiled(PlatformDebugData, Format);
-	}
-
-
 	/**
 	 * Appends shader key text to the provided key string for use in DDC unique key construction.
 	 * @param KeyString String that will get shader key text appended to.
