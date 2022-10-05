@@ -18,6 +18,9 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 	virtual void ResetStreamingSourceInfo() const override;
 	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const override;
 	virtual void MergeStreamingSourceInfo() const override;
+	//~ Begin IWorldPartitionCell Interface
+	virtual FBox GetCellBounds() const override;
+	//~ End IWorldPartitionCell Interface
 
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* InOther) const override;
 

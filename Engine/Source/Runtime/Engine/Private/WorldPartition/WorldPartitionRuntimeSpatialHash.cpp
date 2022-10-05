@@ -459,12 +459,6 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 				GetFilteredCellsForDebugDraw(LayerCell, DataLayerSubsystem, FilteredCells);
 				check(FilteredCells.Num());
 
-				FBox2D CellWorldBounds;
-				Helper.Levels[GridLevel].GetCellBounds(FGridCellCoord2(Coords.X, Coords.Y), CellWorldBounds);
-				double CellSizeY = CellWorldBounds.GetSize().Y / FilteredCells.Num();
-				CellWorldBounds.Max.Y = CellWorldBounds.Min.Y + CellSizeY;
-				FTranslationMatrix CellOffsetMatrix(FVector(0.f, CellSizeY, 0.f));
-
 				for (const UWorldPartitionRuntimeCell* Cell : FilteredCells)
 				{
 					bool bIsAlreadyInSet = false;
@@ -475,17 +469,13 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 					}
 
 					// Use cell MinMaxZ to compute effective cell bounds
-					double CellZExtent = 0.5 * (Cell->GetMinMaxZ().Y - Cell->GetMinMaxZ().X);
-					double CellZPosition = Cell->GetMinMaxZ().X + CellZExtent;
-					FVector BoundsExtent(CellWorldBounds.GetExtent(), CellZExtent);
-					FVector BoundsOrigin(CellWorldBounds.GetCenter(), CellZPosition);
-					FBox CellBox = FBox::BuildAABB(BoundsOrigin, BoundsExtent);
+					FBox CellBox = Cell->GetCellBounds();
 
 					// Draw Cell using its debug color
 					FColor CellColor = Cell->GetDebugColor(VisualizeMode).ToFColor(false).WithAlpha(16);
 					DrawDebugSolidBox(World, CellBox, CellColor, Transform, false, -1.f, 255);
 					FVector CellPos = Transform.TransformPosition(CellBox.GetCenter());
-					DrawDebugBox(World, CellPos, BoundsExtent, Transform.GetRotation(), CellColor.WithAlpha(255), false, -1.f, 255, 10.f);
+					DrawDebugBox(World, CellPos, CellBox.GetExtent(), Transform.GetRotation(), CellColor.WithAlpha(255), false, -1.f, 255, 10.f);
 
 					// Draw Cell's DataLayers colored boxes
 					if (DataLayerDebugColors.Num() && Cell->GetDataLayers().Num() > 0)
@@ -501,7 +491,6 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 							DataLayerColoredBox = DataLayerColoredBox.TransformBy(DataLayerOffsetMatrix);
 						}
 					}
-					CellBox = CellBox.TransformBy(CellOffsetMatrix);
 				}
 			});
 		}
@@ -1648,9 +1637,11 @@ bool UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 		int64 CellSize = (1LL << MinGridLevel) * (int64)StreamingGrid->CellSize;
 		const FVector MinExtent(CellSize * GridViewMinimumSizeInCellCount);
 		FBox Region(ForceInit);
+		// Keep rendered region around source location if loading range is zero
+		float LoadingRange = FMath::Max<float>(StreamingGrid->GetLoadingRange(), 1.f);
 		for (const FWorldPartitionStreamingSource& Source : Sources)
 		{
-			Region += Source.CalcBounds(StreamingGrid->GetLoadingRange(), StreamingGrid->GridName, StreamingGrid->HLODLayer, /*bCalcIn2D*/ true);
+			Region += Source.CalcBounds(LoadingRange, StreamingGrid->GridName, StreamingGrid->HLODLayer, /*bCalcIn2D*/ true);
 		}
 		Region += FBox(Region.GetCenter() - MinExtent, Region.GetCenter() + MinExtent);
 		const FVector2D GridReferenceWorldPos = FVector2D(Region.GetCenter());

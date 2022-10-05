@@ -196,6 +196,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
 	virtual const FBox& GetContentBounds() const override { return ContentBounds; }
+	virtual FBox GetCellBounds() const override { return FBox(ForceInit); }
 	// IWorldPartitionCell Interface end
 
 	const FVector2D GetMinMaxZ() const { return FVector2D(ContentBounds.Min.Z, ContentBounds.Max.Z); }

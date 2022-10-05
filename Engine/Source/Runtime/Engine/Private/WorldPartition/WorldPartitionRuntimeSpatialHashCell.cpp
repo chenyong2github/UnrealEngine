@@ -112,6 +112,15 @@ void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWor
 	CachedSourceModulatedDistances.Add(ModulatedSquareDistance);
 }
 
+FBox UWorldPartitionRuntimeSpatialHashCell::GetCellBounds() const
+{
+	FBox Box = FBox::BuildAABB(Position, FVector(Extent));
+	// Use content bounds for the Z extent
+	Box.Min.Z = GetContentBounds().Min.Z;
+	Box.Max.Z = GetContentBounds().Max.Z;
+	return Box;
+}
+
 void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
 {
 	Super::MergeStreamingSourceInfo();
