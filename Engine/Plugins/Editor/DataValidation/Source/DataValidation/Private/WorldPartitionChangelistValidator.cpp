@@ -206,7 +206,8 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 
 		// Invoke static WorldPartition Validation from the ActorDescContainer
 		const bool bIsStreamingDisabled = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetPackageName());
-		UWorldPartition::CheckForErrors(this, ActorDescContainer, !bIsStreamingDisabled);
+		const bool bIsChangelistValidation = true;
+		UWorldPartition::CheckForErrors(this, ActorDescContainer, !bIsStreamingDisabled, bIsChangelistValidation);
 	}
 
 	if (Errors->Num())
