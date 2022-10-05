@@ -443,14 +443,14 @@ namespace EpicGames.BuildGraph
 						jsonWriter.WriteArrayStart("Inputs");
 						foreach (BgNodeOutput input in node.Inputs)
 						{
-							jsonWriter.WriteValue($"{input.ProducingNode.Name}/{input.TagName}");
+							jsonWriter.WriteValue(input.TagName);
 						}
 						jsonWriter.WriteArrayEnd();
 
-						jsonWriter.WriteArrayStart("OutputNames");
+						jsonWriter.WriteArrayStart("Outputs");
 						foreach (BgNodeOutput output in node.Outputs)
 						{
-							jsonWriter.WriteValue($"{output.TagName}");
+							jsonWriter.WriteValue(output.TagName);
 						}
 						jsonWriter.WriteArrayEnd();
 

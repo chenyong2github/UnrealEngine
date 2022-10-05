@@ -13,7 +13,6 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Perforce;
 using Grpc.Core;
 using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Parser;
@@ -34,7 +33,7 @@ namespace Horde.Agent.Execution
 			public bool RunEarly { get; set; }
 			public bool? Warnings { get; set; }
 			public List<string> Inputs { get; set; } = new List<string>();
-			public List<string> OutputNames { get; set; } = new List<string>();
+			public List<string> Outputs { get; set; } = new List<string>();
 			public List<string> InputDependencies { get; set; } = new List<string>();
 			public List<string> OrderDependencies { get; set; } = new List<string>();
 			public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -451,9 +450,9 @@ namespace Horde.Agent.Execution
 					{
 						createNode.Inputs.Add(exportedNode.Inputs);
 					}
-					if (exportedNode.OutputNames != null)
+					if (exportedNode.Outputs != null)
 					{
-						createNode.Outputs.Add(exportedNode.OutputNames);
+						createNode.Outputs.Add(exportedNode.Outputs);
 					}
 					if (exportedNode.InputDependencies != null)
 					{

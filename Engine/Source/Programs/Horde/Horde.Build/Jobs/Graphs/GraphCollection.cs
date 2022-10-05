@@ -255,17 +255,17 @@ namespace Horde.Build.Jobs.Graphs
 							NodeRef[] inputDependencies = (newNodeRequest.InputDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.InputDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							NodeRef[] orderDependencies = (newNodeRequest.OrderDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.OrderDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							orderDependencies = orderDependencies.Union(inputDependencies).ToArray();
-							nodes.Add(new Node(newNodeRequest.Name, inputs, newNodeRequest.OutputNames?.ToArray(), inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
+							nodes.Add(new Node(newNodeRequest.Name, inputs, newNodeRequest.Outputs?.ToArray(), inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
 
 							NodeRef nodeRef = new NodeRef(newGroups.Count, nodeIdx);
 							nodeNameToRef.Add(newNodeRequest.Name, nodeRef);
 
-							if (newNodeRequest.OutputNames != null)
+							if (newNodeRequest.Outputs != null)
 							{
-								for (int outputIdx = 0; outputIdx < newNodeRequest.OutputNames.Count; outputIdx++)
+								for (int outputIdx = 0; outputIdx < newNodeRequest.Outputs.Count; outputIdx++)
 								{
-									string outputName = newNodeRequest.OutputNames[outputIdx];
-									nodeOutputNameToRef[$"{newNodeRequest.Name}/{outputName}"] = new NodeOutputRef(nodeRef, outputIdx);
+									string outputName = newNodeRequest.Outputs[outputIdx];
+									nodeOutputNameToRef[outputName] = new NodeOutputRef(nodeRef, outputIdx);
 								}
 							}
 						}

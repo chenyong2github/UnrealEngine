@@ -826,7 +826,7 @@ namespace Horde.Build.Server
 				List<NewNode> newNodes = new List<NewNode>();
 				foreach (CreateNodeRequest node in group.Nodes)
 				{
-					NewNode newNode = new NewNode(node.Name, node.Inputs.ToList(), node.OutputNames.ToList(), node.InputDependencies.ToList(), node.OrderDependencies.ToList(), node.Priority, node.AllowRetry, node.RunEarly, node.Warnings, new Dictionary<string, string>(node.Credentials), new Dictionary<string, string>(node.Properties), new NodeAnnotations(node.Annotations));
+					NewNode newNode = new NewNode(node.Name, node.Inputs.ToList(), node.Outputs.ToList(), node.InputDependencies.ToList(), node.OrderDependencies.ToList(), node.Priority, node.AllowRetry, node.RunEarly, node.Warnings, new Dictionary<string, string>(node.Credentials), new Dictionary<string, string>(node.Properties), new NodeAnnotations(node.Annotations));
 					newNodes.Add(newNode);
 				}
 				newGroups.Add(new NewGroup(group.AgentType, newNodes));
