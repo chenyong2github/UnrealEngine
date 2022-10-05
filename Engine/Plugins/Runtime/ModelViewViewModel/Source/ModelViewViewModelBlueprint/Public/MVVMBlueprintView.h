@@ -70,6 +70,8 @@ public:
 	void WidgetRenamed(FName OldObjectName, FName NewObjectName);
 #endif
 
+	virtual void PostLoad() override;
+
 	DECLARE_EVENT(UMVVMBlueprintView, FOnBindingsUpdated);
 	FOnBindingsUpdated OnBindingsUpdated;
 

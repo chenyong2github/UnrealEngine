@@ -12,6 +12,7 @@
 #include "Engine/Engine.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "K2Node_BreakStruct.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_FunctionResult.h"
@@ -162,17 +163,9 @@ namespace UE::MVVM::Private
 			WidgetBlueprint->FunctionGraphs.RemoveSingle(Graph);
 		}
 	}
-} //namespace
 
-FName UMVVMEditorSubsystem::GetConversionFunctionWrapperName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const
-{
-	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
-	{
-		return UE::MVVM::ConversionFunctionHelper::GetWrapperName(View, Binding, bSourceToDestination);
-	}
+} //namespace Private
 
-	return FName();
-}
 
 UMVVMBlueprintView* UMVVMEditorSubsystem::RequestView(UWidgetBlueprint* WidgetBlueprint) const
 {
@@ -297,22 +290,40 @@ UEdGraph* UMVVMEditorSubsystem::GetConversionFunctionGraph(const UWidgetBlueprin
 	return UE::MVVM::ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bSourceToDestination);
 }
 
+UK2Node_CallFunction* UMVVMEditorSubsystem::GetConversionFunctionNode(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const
+{
+	if (UEdGraph* Graph = UE::MVVM::ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bSourceToDestination))
+	{
+		return UE::MVVM::ConversionFunctionHelper::GetFunctionNode(Graph);
+	}
+	return nullptr;
+}
+
 UFunction* UMVVMEditorSubsystem::GetConversionFunction(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const
 {
-	if (const UEdGraph* Graph = GetConversionFunctionGraph(WidgetBlueprint, Binding, bSourceToDestination))
+	UK2Node_CallFunction* CallFunctionNode = GetConversionFunctionNode(WidgetBlueprint, Binding, bSourceToDestination);
+	if (CallFunctionNode)
 	{
-		TArray<UK2Node_CallFunction*> FunctionNodes;
-		Graph->GetNodesOfClass<UK2Node_CallFunction>(FunctionNodes);
-
-		if (FunctionNodes.Num() == 1)
-		{
-			return FunctionNodes[0]->GetTargetFunction();
-		}
+		return CallFunctionNode->GetTargetFunction();
 	}
 	
+	// simple conversion functions don't have a wrapper graph
 	FMemberReference ConversionFunctionReference = bSourceToDestination ? Binding.Conversion.SourceToDestinationFunction : Binding.Conversion.DestinationToSourceFunction;
 	return ConversionFunctionReference.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass);
 }
+
+UEdGraphPin* UMVVMEditorSubsystem::GetConversionFunctionArgumentPin(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, FName ParameterName, bool bSourceToDestination)
+{
+	UK2Node_CallFunction* CallFunctionNode = GetConversionFunctionNode(WidgetBlueprint, Binding, bSourceToDestination);
+	if (CallFunctionNode == nullptr)
+	{
+		return nullptr;
+	}
+
+	UEdGraphPin* Pin = CallFunctionNode->FindPin(ParameterName, EGPD_Input);
+	return Pin;
+}
+
 
 UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction, bool bSourceToDestination)
 {
@@ -324,7 +335,7 @@ UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlue
 			TArray<const FProperty*> Arguments = ArgumentsResult.StealValue();
 			if (Arguments.Num() > 1)
 			{
-				const FName WrapperName = GetConversionFunctionWrapperName(WidgetBlueprint, Binding, bSourceToDestination);
+				const FName WrapperName = UE::MVVM::ConversionFunctionHelper::CreateWrapperName(Binding, bSourceToDestination);
 
 				UEdGraph* NewGraph = UE::MVVM::Private::CreateFunctionGraph(
 					WidgetBlueprint,
@@ -341,6 +352,8 @@ UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlue
 				CallFunctionNode->SetFromFunction(ConversionFunction);
 				CallFunctionNode->NodePosX = (FunctionEntry->NodePosX + FunctionResult->NodePosX) / 2;
 				CallFunctionCreator.Finalize();
+
+				UE::MVVM::ConversionFunctionHelper::MarkAsConversionFunction(CallFunctionNode, Binding);
 
 				UEdGraphPin* FunctionEntryThenPin = FunctionEntry->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
 				UEdGraphPin* FunctionResultExecPin = FunctionResult->GetExecPin();
@@ -384,29 +397,6 @@ UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlue
 		}
 	}
 	return nullptr;
-}
-
-UEdGraphPin* UMVVMEditorSubsystem::FindConversionFunctionArgumentPin(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, FName ParameterName, bool bSourceToDestination)
-{
-	const UEdGraph* Graph = GetConversionFunctionGraph(WidgetBlueprint, Binding, bSourceToDestination);
-	if (Graph == nullptr)
-	{
-		return nullptr;
-	}
-
-	TArray<UK2Node_CallFunction*> FunctionNodes;
-	Graph->GetNodesOfClass<UK2Node_CallFunction>(FunctionNodes);
-
-	if (FunctionNodes.Num() != 1)
-	{
-		// ambiguous result, no idea what our function node is
-		return nullptr;
-	}
-
-	UK2Node_CallFunction* CallFunctionNode = FunctionNodes[0];
-	UEdGraphPin* Pin = CallFunctionNode->FindPin(ParameterName, EGPD_Input);
-	
-	return Pin;
 }
 
 void UMVVMEditorSubsystem::SetSourceToDestinationConversionFunction(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction)
@@ -718,74 +708,14 @@ FMVVMBlueprintPropertyPath UMVVMEditorSubsystem::GetPathForConversionFunctionArg
 			return Binding.WidgetPath;
 		}
 	}
-	 
-	UEdGraphNode* ConversionNode = UE::MVVM::Private::FindConversionNode(WrapperGraph);
 
-	const UEdGraphPin* ArgumentPin = ConversionNode->FindPin(ArgumentName, EGPD_Input);
-	if (ArgumentPin == nullptr || ArgumentPin->LinkedTo.Num() == 0)
+	const UK2Node_CallFunction* FunctionNode = GetConversionFunctionNode(WidgetBlueprint, Binding, bSourceToDestination);
+	if (FunctionNode == nullptr)
 	{
 		return FMVVMBlueprintPropertyPath();
 	}
 
-	TArray<FMemberReference> PathParts;
-	TDeque<UEdGraphNode*> NodesToSearch;
-	NodesToSearch.PushLast(ArgumentPin->LinkedTo[0]->GetOwningNode());
-
-	while (NodesToSearch.Num() > 0)
-	{
-		UEdGraphNode* Node = NodesToSearch[0];
-		NodesToSearch.PopFirst();
-
-		if (UK2Node_VariableGet* Getter = Cast<UK2Node_VariableGet>(Node))
-		{
-			PathParts.Add(Getter->VariableReference);
-		}
-
-		for (UEdGraphPin* Pin : Node->Pins)
-		{
-			if (Pin->Direction == EGPD_Input && Pin->LinkedTo.Num() > 0)
-			{
-				NodesToSearch.PushLast(Pin->LinkedTo[0]->GetOwningNode());
-			}
-		}
-	}
-
-	if (PathParts.Num() == 0)
-	{
-		return FMVVMBlueprintPropertyPath();
-	}
-
-	Algo::Reverse(PathParts);
-
-	FMVVMBlueprintPropertyPath ResultPath;
-
-	FMemberReference RootRef = PathParts[0];
-	PathParts.RemoveAt(0);
-
-	if (const FObjectProperty* Property = CastField<FObjectProperty>(RootRef.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass)))
-	{
-		if (Property->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
-		{
-			UE::MVVM::FBindingSource Source = UE::MVVM::FBindingSource::CreateForViewModel(WidgetBlueprint, Property->GetFName());
-			ResultPath.SetViewModelId(Source.ViewModelId);
-		}
-		else if (Property->PropertyClass->IsChildOf<UWidget>() || Property->PropertyClass->IsChildOf<UWidgetBlueprint>())
-		{
-			UE::MVVM::FBindingSource Source = UE::MVVM::FBindingSource::CreateForWidget(WidgetBlueprint, Property->GetFName());
-			ResultPath.SetWidgetName(Source.Name);
-		}
-	}
-
-	if (PathParts.Num() == 0)
-	{
-		return ResultPath;
-	}
-
-	// TODO: This only takes one part, because FMVVMBlueprintPropertyPath only takes one part
-	UE::MVVM::FMVVMConstFieldVariant Variant = UE::MVVM::FMVVMConstFieldVariant(PathParts.Last().ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass));
-	ResultPath.SetBasePropertyPath(Variant);
-
-	return ResultPath;
+	return UE::MVVM::ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, FunctionNode, ArgumentName);
 }
 
 void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FName ArgumentName, const FMVVMBlueprintPropertyPath& Path, bool bSourceToDestination) const
@@ -933,16 +863,19 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 			const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 			if (!bLastField && StructProperty != nullptr)
 			{
-				// TODO: Add struct break node
-				ensureAlwaysMsgf(false, TEXT("Struct nodes in the middle of the path are not yet supported. Path: %s"), *Path.GetBasePropertyPath());
+				FGraphNodeCreator<UK2Node_BreakStruct> BreakCreator(*ConversionFunctionGraph);
+				UK2Node_BreakStruct* BreakNode = BreakCreator.CreateNode();
+				BreakNode->AllocateDefaultPins();
+				BreakCreator.Finalize();
+
+				NewNode = BreakNode;
+
 				PreviousClass = nullptr;
 			}
 			else if (PreviousClass != nullptr)
 			{
 				FGraphNodeCreator<UK2Node_VariableGet> GetterCreator(*ConversionFunctionGraph);
 				UK2Node_VariableGet* GetterNode = GetterCreator.CreateNode();
-				GetterNode->NodePosX = PosX;
-				GetterNode->NodePosY = PosY;
 				GetterNode->SetFromProperty(Property, false, PreviousClass);
 				GetterNode->AllocateDefaultPins();
 				GetterCreator.Finalize();
@@ -965,11 +898,11 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 
 			FGraphNodeCreator<UK2Node_CallFunction> CallFunctionCreator(*ConversionFunctionGraph);
 			UK2Node_CallFunction* FunctionNode = CallFunctionCreator.CreateNode();
-			FunctionNode->NodePosX = PosX;
-			FunctionNode->NodePosY = PosY;
 			FunctionNode->SetFromFunction(Function);
 			FunctionNode->AllocateDefaultPins();
 			CallFunctionCreator.Finalize();
+
+			NewNode = FunctionNode;
 
 			const FProperty* ReturnProperty = UE::MVVM::BindingHelper::GetReturnProperty(Function);
 			if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(ReturnProperty))
@@ -980,8 +913,6 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 			{
 				PreviousClass = nullptr;
 			}
-
-			NewNode = FunctionNode;
 		}
 		else
 		{
@@ -1021,6 +952,9 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 				}
 			}
 		}
+
+		NewNode->NodePosX = PosX;
+		NewNode->NodePosY = PosY;
 
 		PosX += 300; 
 	}

@@ -111,6 +111,12 @@ namespace UE::MVVM::BindingHelper
 	 */
 	UE_NODISCARD MODELVIEWVIEWMODEL_API const FProperty* GetFirstArgumentProperty(const UFunction* InFunction);
 
+
+	/**
+	 * Returns all argument properties of this function.
+	 */
+	UE_NODISCARD MODELVIEWVIEWMODEL_API TArray<const FProperty*> GetAllArgumentProperties(const UFunction* InFunction);
+
 	/**
 	 * Returns true if the given property is a valid function argument property.
 	 */

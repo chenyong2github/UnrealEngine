@@ -472,7 +472,7 @@ private:
 					ErrorItems.Add(MakeShared<FText>(ErrorText));
 				}
 
-				const FText BindingDisplayName = FText::FromString(ViewBinding->GetDisplayNameString(View));
+				const FText BindingDisplayName = FText::FromString(ViewBinding->GetDisplayNameString(WidgetBlueprint));
 				ErrorDialog = SNew(SCustomDialog)
 					.Title(FText::Format(LOCTEXT("Compilation Errors", "Compilation Errors for {0}"), BindingDisplayName))
 					.Buttons({
@@ -865,7 +865,7 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 
 		bool bSimpleConversionFunction = false;
 		
-		if (UEdGraphPin* Pin = EditorSubsystem->FindConversionFunctionArgumentPin(InWidgetBlueprint, *Binding, Entry->GetName(), bSourceToDestination))
+		if (UEdGraphPin* Pin = EditorSubsystem->GetConversionFunctionArgumentPin(InWidgetBlueprint, *Binding, Entry->GetName(), bSourceToDestination))
 		{
 			PrimaryBrush = FBlueprintEditor::GetVarIconAndColorFromPinType(Pin->PinType, PrimaryColor, SecondaryBrush, SecondaryColor);
 			DisplayName = Pin->GetDisplayName();
@@ -1163,6 +1163,8 @@ void SBindingsList::OnDeleteSelected()
 	{
 		if (UMVVMBlueprintView* BlueprintView = MVVMExtensionPtr->GetBlueprintView())
 		{
+			const UWidgetBlueprint* WidgetBlueprint = MVVMExtensionPtr->GetWidgetBlueprint();
+
 			TArray<const FMVVMBlueprintViewBinding*> BindingsToRemove;
 			Private::GatherChildBindings(BlueprintView, Selection, BindingsToRemove);
 
@@ -1174,7 +1176,7 @@ void SBindingsList::OnDeleteSelected()
 			TArray<FText> BindingDisplayNames;
 			for (const FMVVMBlueprintViewBinding* Binding : BindingsToRemove)
 			{
-				BindingDisplayNames.Add(FText::FromString(Binding->GetDisplayNameString(BlueprintView)));
+				BindingDisplayNames.Add(FText::FromString(Binding->GetDisplayNameString(WidgetBlueprint)));
 			}
 
 			const FText Message = FText::Format(BindingDisplayNames.Num() == 1 ?

@@ -54,8 +54,6 @@ public:
 	virtual ~FWidgetBlueprintCompilerContext();
 
 protected:
-	UWidgetBlueprint* WidgetBlueprint() const { return Cast<UWidgetBlueprint>(Blueprint); }
-
 	void ValidateWidgetNames();
 
 	/**
@@ -87,6 +85,8 @@ protected:
 	void VerifyFieldNotifyFunction(FKismetFunctionContext& Context);
 
 public:
+	UWidgetBlueprint* WidgetBlueprint() const { return Cast<UWidgetBlueprint>(Blueprint); }
+
 	void AddExtension(UWidgetBlueprintGeneratedClass* Class, UWidgetBlueprintGeneratedClassExtension* Extension);
 
 	struct UMGEDITOR_API FCreateVariableContext

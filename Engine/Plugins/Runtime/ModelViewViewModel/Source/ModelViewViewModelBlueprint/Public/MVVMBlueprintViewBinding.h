@@ -7,6 +7,7 @@
 
 #include "MVVMBlueprintViewBinding.generated.h"
 
+class UWidgetBlueprint;
 class UMVVMBlueprintView;
 
 /**
@@ -61,6 +62,9 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	UPROPERTY(VisibleAnywhere, Category = "MVVM", Transient)
 	TArray<FText> Errors;
 
+	/** The unique ID of this binding. */
+	FGuid BindingId;
+
 	/** Whether the binding is enabled or disabled by default. The instance may enable the binding at runtime. */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	bool bEnabled = true;
@@ -72,11 +76,11 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	/**
 	 * Get an internal name. For use in the UI, use GetDisplayNameString()
 	 */
-	FName GetFName(const UMVVMBlueprintView* View) const;
+	FName GetFName() const;
 
 	/** 
 	 * Get a string that identifies this binding. 
-	 * This is of the form: ViewModel.Property -> Widget.Property
+	 * This is of the form: Widget.Property <- ViewModel.Property
 	 */
-	FString GetDisplayNameString(const UMVVMBlueprintView* View) const;
+	FString GetDisplayNameString(const UWidgetBlueprint* WidgetBlueprint) const;
 };

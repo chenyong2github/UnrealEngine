@@ -44,7 +44,7 @@ void SFunctionParameter::Construct(const FArguments& InArgs)
 
 	TSharedRef<SWidget> ValueWidget = SNullWidget::NullWidget;
 
-	UEdGraphPin* Pin = EditorSubsystem->FindConversionFunctionArgumentPin(InArgs._WidgetBlueprint, *Binding, ParameterName, bSourceToDestination);
+	UEdGraphPin* Pin = EditorSubsystem->GetConversionFunctionArgumentPin(InArgs._WidgetBlueprint, *Binding, ParameterName, bSourceToDestination);
 	if (Pin != nullptr)
 	{
 		// create a new pin widget so that we can get the default value widget out of it

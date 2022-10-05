@@ -18,9 +18,9 @@
 namespace UE::MVVM::Private
 {
 
-void FMVVMViewBlueprintCompiler::AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* View, const FString& Message) const
+void FMVVMViewBlueprintCompiler::AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UWidgetBlueprint* WidgetBlueprint, const FString& Message) const
 {
-	const FString BindingName = Binding.GetDisplayNameString(View);
+	const FString BindingName = Binding.GetDisplayNameString(WidgetBlueprint);
 	WidgetBlueprintCompilerContext.MessageLog.Error(*(BindingName + TEXT(": ") + Message));
 	Binding.Errors.Add(FText::FromString(BindingName + TEXT(": ") + Message));
 }
@@ -485,6 +485,8 @@ bool FMVVMViewBlueprintCompiler::Compile(UWidgetBlueprintGeneratedClass* Class, 
 
 bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGeneratedClass* Class, UMVVMBlueprintView* BlueprintView)
 {
+	const UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintCompilerContext.WidgetBlueprint();
+
 	const int32 NumBindings = BlueprintView->GetNumBindings();
 	for (int32 Index = 0; Index < NumBindings; ++Index)
 	{
@@ -507,7 +509,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 			const TValueOrError<FBindingSourceContext, FString> CreatedBindingSourceContext = CreateBindingSourceContext(BlueprintView, Class, Binding.ViewModelPath);
 			if (CreatedBindingSourceContext.HasError())
 			{
-				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid. %s")
+				AddErrorForBinding(Binding, WidgetBlueprint, FString::Printf(TEXT("The property path '%s' is invalid. %s")
 					, *PropertyPathToString(BlueprintView, Binding.ViewModelPath)
 					, *CreatedBindingSourceContext.GetError()));
 				bIsBindingsValid = false;
@@ -517,19 +519,19 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 			FBindingSourceContext BindingSourceContext = CreatedBindingSourceContext.GetValue();
 			if (!IsPropertyPathValid(BindingSourceContext.PropertyPath))
 			{
-				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.ViewModelPath)));
+				AddErrorForBinding(Binding, WidgetBlueprint, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.ViewModelPath)));
 				bIsBindingsValid = false;
 				continue;
 			}
 			if (BindingSourceContext.SourceClass == nullptr)
 			{
-				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
+				AddErrorForBinding(Binding, WidgetBlueprint, TEXT("Internal error. The binding could not find its source."));
 				bIsBindingsValid = false;
 				continue;
 			}
 			if (!BindingSourceContext.bIsRootWidget && BindingSourceContext.CompilerSourceContextIndex == INDEX_NONE)
 			{
-				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
+				AddErrorForBinding(Binding, WidgetBlueprint, TEXT("Internal error. The binding could not find its source."));
 				bIsBindingsValid = false;
 				continue;
 			}
@@ -544,7 +546,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 			const TValueOrError<FBindingSourceContext, FString> CreatedBindingSourceContext = CreateBindingSourceContext(BlueprintView, Class, Binding.WidgetPath);
 			if (CreatedBindingSourceContext.HasError())
 			{
-				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid. %s")
+				AddErrorForBinding(Binding, WidgetBlueprint, FString::Printf(TEXT("The property path '%s' is invalid. %s")
 					, *PropertyPathToString(BlueprintView, Binding.ViewModelPath)
 					, *CreatedBindingSourceContext.GetError()));
 				bIsBindingsValid = false;
@@ -554,19 +556,19 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindingSources(UWidgetBlueprintGenera
 			FBindingSourceContext BindingSourceContext = CreatedBindingSourceContext.GetValue();
 			if (!IsPropertyPathValid(BindingSourceContext.PropertyPath))
 			{
-				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.WidgetPath)));
+				AddErrorForBinding(Binding, WidgetBlueprint, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, Binding.WidgetPath)));
 				bIsBindingsValid = false;
 				continue;
 			}
 			if (BindingSourceContext.SourceClass == nullptr)
 			{
-				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
+				AddErrorForBinding(Binding, WidgetBlueprint, TEXT("Internal error. The binding could not find its source."));
 				bIsBindingsValid = false;
 				continue;
 			}
 			if (!BindingSourceContext.bIsRootWidget && BindingSourceContext.CompilerSourceContextIndex == INDEX_NONE)
 			{
-				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
+				AddErrorForBinding(Binding, WidgetBlueprint, TEXT("Internal error. The binding could not find its source."));
 				bIsBindingsValid = false;
 				continue;
 			}
@@ -760,6 +762,8 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		return false;
 	}
 
+	const UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintCompilerContext.WidgetBlueprint();
+
 	for (const FBindingSourceContext& BindingSourceContext : BindingSourceContexts)
 	{
 		FMVVMBlueprintViewBinding* BindingPtr = BlueprintView->GetBindingAt(BindingSourceContext.BindingIndex);
@@ -857,7 +861,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> AddFieldResult = AddFieldId(BindingSourceContext.SourceClass, true, Binding.BindingType, BindingSourceContext.FieldId.GetFieldName());
 		if (AddFieldResult.HasError())
 		{
-			AddErrorForBinding(Binding, BlueprintView, *FString::Printf(TEXT("The binding could not create its source. %s"), *AddFieldResult.GetError()));
+			AddErrorForBinding(Binding, WidgetBlueprint, *FString::Printf(TEXT("The binding could not create its source. %s"), *AddFieldResult.GetError()));
 			bIsBindingsValid = false;
 			continue;
 		}
@@ -868,7 +872,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 			SetterPath = CreateBindingDestinationPath(BlueprintView, Class, DestinationPath);
 			if (!IsPropertyPathValid(SetterPath))
 			{
-				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, DestinationPath)));
+				AddErrorForBinding(Binding, WidgetBlueprint, FString::Printf(TEXT("The property path '%s' is invalid."), *PropertyPathToString(BlueprintView, DestinationPath)));
 				bIsBindingsValid = false;
 				continue;
 			}
@@ -884,7 +888,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		const UFunction* ConversionFunction = ConversionFunctionReference.ResolveMember<UFunction>(Class);
 		if (!ConversionFunctionWrapper.IsNone() && ConversionFunction == nullptr)
 		{
-			AddErrorForBinding(Binding, BlueprintView, TEXT("A complex conversion function was created but could not be found."));
+			AddErrorForBinding(Binding, WidgetBlueprint, TEXT("A complex conversion function was created but could not be found."));
 			bIsBindingsValid = false;
 			continue;
 		}
@@ -892,7 +896,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, BindingSourceContext.PropertyPath, SetterPath, ConversionFunction);
 		if (AddBindingResult.HasError())
 		{
-			AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
+			AddErrorForBinding(Binding, WidgetBlueprint, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
 			bIsBindingsValid = false;
 			continue;
 		}

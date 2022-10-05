@@ -579,6 +579,22 @@ namespace UE::MVVM::BindingHelper
 		return nullptr;
 	}
 
+	TArray<const FProperty*> GetAllArgumentProperties(const UFunction* InFunction)
+	{
+		check(InFunction);
+
+		TArray<const FProperty*> Arguments;
+		for (TFieldIterator<FProperty> It(InFunction); It && (It->PropertyFlags & CPF_Parm); ++It)
+		{
+			if (IsValidArgumentProperty(*It))
+			{
+				Arguments.Add(*It);
+			}
+		}
+
+		return Arguments;
+	}
+
 	void ExecuteBinding_NoCheck(const FFieldContext& Source, const FFieldContext& Destination)
 	{
 		check(!Source.GetObjectVariant().IsNull() && !Destination.GetObjectVariant().IsNull());
@@ -820,3 +836,5 @@ namespace UE::MVVM::BindingHelper
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
