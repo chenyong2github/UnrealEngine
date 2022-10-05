@@ -72,6 +72,9 @@ void UVCamPixelStreamingSession::Activate()
 		MediaOutput = NewObject<UPixelStreamingMediaOutput>(GetTransientPackage(), UPixelStreamingMediaOutput::StaticClass());
 	}
 
+	// We setup custom handling of ARKit transforms coming from iOS devices here
+	SetupCustomInputHandling();
+
 	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
 	bOldThrottleCPUWhenNotForeground = Settings->bThrottleCPUWhenNotForeground;
 	if (PreventEditorIdle)
@@ -80,60 +83,71 @@ void UVCamPixelStreamingSession::Activate()
 		Settings->PostEditChange();
 	}
 
-	if (StartSignallingServer)
-	{
-		if(!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
-		{
-			if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
-			{
-				PixelStreamingSubsystem->LaunchSignallingServer();
-			}
-		}
-		else
-		{
-			StartSignallingServer = false;
-		}
-		
-	}
+	// We need signalling server to be up before we can start streaming
+	SetupSignallingServer();
 
+	// Pass signalling server info to media output, aka the streamer
 	FString SignallingDomain = FPixelStreamingEditorModule::GetModule()->GetSignallingDomain();
 	int32 StreamerPort = FPixelStreamingEditorModule::GetModule()->GetStreamerPort();
 	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort)));
 	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
 
+	SetupCapture();
+	
+	Super::Activate();
+}
+
+void UVCamPixelStreamingSession::SetupCapture()
+{
+	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Create new media capture for Pixel Streaming VCam."));
+
+	if(MediaCapture)
+	{
+		MediaCapture->OnStateChangedNative.RemoveAll(this);
+	}
+
+	// Create a capturer that will capture frames from viewport and send them to streamer
 	MediaCapture = Cast<UPixelStreamingMediaCapture>(MediaOutput->CreateMediaCapture());
+	MediaCapture->OnStateChangedNative.AddUObject(this, &UVCamPixelStreamingSession::OnCaptureStateChanged);
+	StartCapture();
+}
 
-	FMediaCaptureOptions Options;
-	Options.bResizeSourceBuffer = true;
-
-	// If we are rendering from a ComposureOutputProvider, get the requested render target and use that instead of the viewport
-	if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
+void UVCamPixelStreamingSession::OnCaptureStateChanged()
+{
+	if(!MediaCapture || !MediaOutput)
 	{
-		if (ComposureProvider->FinalOutputRenderTarget)
-		{
-			MediaCapture->CaptureTextureRenderTarget2D(ComposureProvider->FinalOutputRenderTarget, Options);
-			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set with ComposureRenderTarget"));
-		}
-		else
-		{
-			UE_LOG(LogPixelStreamingVCam, Warning, TEXT("PixelStreaming Composure usage was requested, but the specified ComposureOutputProvider has no FinalOutputRenderTarget set"));
-		}
+		return;
 	}
-	else
+
+	switch (MediaCapture->GetState())
 	{
-		TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
-		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
-		{
-			// Apply the override resolution if applicable
-			if (bUseOverrideResolution)
+		case EMediaCaptureState::Capturing:
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("Starting media capture and streaming for Pixel Streaming VCam."));
+			MediaOutput->StartStreaming();
+			break;
+		case EMediaCaptureState::Stopped:
+			if(MediaCapture->WasViewportResized())
 			{
-				PinnedSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
+				UE_LOG(LogPixelStreamingVCam, Log, TEXT("Pixel Streaming VCam capture was stopped due to resize, going to restart capture."));
+				// If it was stopped and viewport resized we assume resize caused the stop, so try a restart of capture here.
+				SetupCapture();
 			}
-			MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
-			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set with viewport"));
-		}
+			else
+			{
+				UE_LOG(LogPixelStreamingVCam, Log, TEXT("Stopping media capture and streaming for Pixel Streaming VCam."));
+				MediaOutput->StopStreaming();
+			}
+			break;
+		case EMediaCaptureState::Error:
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("Pixel Streaming VCam capture hit an error, capturing will stop."));
+			break;
+		default:
+			break;
 	}
+}
 
+void UVCamPixelStreamingSession::SetupCustomInputHandling()
+{
 	if(MediaOutput->GetStreamer())
 	{
 		IPixelStreamingModule& PixelStreamingModule = IPixelStreamingModule::Get();
@@ -152,6 +166,12 @@ void UVCamPixelStreamingSession::Activate()
 		});
 
 		const TFunction<void(FMemoryReader)>& Handler = [this](FMemoryReader Ar) { 
+
+			if(!EnableARKitTracking)
+			{
+				return;
+			}
+
 			// The buffer contains the transform matrix stored as 16 floats
 			FMatrix ARKitMatrix;
 			for (int32 Row = 0; Row < 4; ++Row)
@@ -189,7 +209,64 @@ void UVCamPixelStreamingSession::Activate()
 
 		PixelStreamingModule.RegisterMessage(MessageDirection, "ARKitTransform", Message, Handler);
 	}
-	Super::Activate();
+}
+
+void UVCamPixelStreamingSession::StartCapture()
+{
+	if(!MediaCapture)
+	{
+		return;
+	}
+
+	FMediaCaptureOptions Options;
+	Options.bResizeSourceBuffer = true;
+
+	// If we are rendering from a ComposureOutputProvider, get the requested render target and use that instead of the viewport
+	if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
+	{
+		if (ComposureProvider->FinalOutputRenderTarget)
+		{
+			MediaCapture->CaptureTextureRenderTarget2D(ComposureProvider->FinalOutputRenderTarget, Options);
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set with ComposureRenderTarget"));
+		}
+		else
+		{
+			UE_LOG(LogPixelStreamingVCam, Warning, TEXT("PixelStreaming Composure usage was requested, but the specified ComposureOutputProvider has no FinalOutputRenderTarget set"));
+		}
+	}
+	else
+	{
+		TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
+		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
+		{
+			// Apply the override resolution if applicable
+			if (bUseOverrideResolution)
+			{
+				PinnedSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
+			}
+			MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set to capture scene viewport."));
+		}
+	}
+}
+
+void UVCamPixelStreamingSession::SetupSignallingServer()
+{
+	if (StartSignallingServer)
+	{
+		if(!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+		{
+			if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+			{
+				PixelStreamingSubsystem->LaunchSignallingServer();
+			}
+		}
+		else
+		{
+			StartSignallingServer = false;
+		}
+		
+	}
 }
 
 void UVCamPixelStreamingSession::StopSignallingServer()

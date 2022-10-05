@@ -13,7 +13,7 @@
 #endif
 #include "VCamPixelStreamingSession.generated.h"
 
-UCLASS(meta = (DisplayName = "Pixel Streaming Provider (Experimental)"))
+UCLASS(meta = (DisplayName = "Pixel Streaming Provider"))
 class PIXELSTREAMINGVCAM_API UVCamPixelStreamingSession : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
@@ -54,7 +54,12 @@ protected:
 	TObjectPtr<UPixelStreamingMediaCapture> MediaCapture = nullptr;
 
 private:
+	void SetupSignallingServer();
 	void StopSignallingServer();
+	void SetupCapture();
+	void StartCapture();
+	void SetupCustomInputHandling();
+	void OnCaptureStateChanged();
 	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
 
 private:

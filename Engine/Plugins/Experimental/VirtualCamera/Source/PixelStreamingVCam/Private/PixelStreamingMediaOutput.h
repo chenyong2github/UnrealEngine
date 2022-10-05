@@ -5,6 +5,7 @@
 #include "MediaOutput.h"
 #include "IPixelStreamingStreamer.h"
 #include "PixelStreamingMediaCapture.h"
+#include "PixelStreamingVideoInput.h"
 #include "PixelStreamingMediaOutput.generated.h"
 
 
@@ -30,16 +31,17 @@ public:
 
 	void SetSignallingServerURL(FString InURL);
 	void SetSignallingStreamID(FString InStreamID);
+	void StartStreaming();
+	void StopStreaming();
 
 private:
 	UPixelStreamingMediaCapture* Capture = nullptr;
 	TSharedPtr<IPixelStreamingStreamer> Streamer;
+	TSharedPtr<FPixelStreamingVideoInput> VideoInput;
 
 	FString SignallingServerURL;
 	FString StreamID = TEXT("VCam");
 
 	void OnCaptureStateChanged();
 	void OnCaptureViewportInitialized();
-	void StartStreaming();
-	void StopStreaming();
 };

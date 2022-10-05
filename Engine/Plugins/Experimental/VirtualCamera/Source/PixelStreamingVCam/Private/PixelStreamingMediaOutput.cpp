@@ -8,6 +8,7 @@
 #include "CineCameraComponent.h"
 #include "PixelStreamingEditorModule.h"
 #include "PixelStreamingEditorUtils.h"
+#include "PixelStreamingVideoInputRHI.h"
 
 void UPixelStreamingMediaOutput::BeginDestroy()
 {
@@ -29,26 +30,17 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 	{
 		Capture = NewObject<UPixelStreamingMediaCapture>();
 		Capture->SetMediaOutput(this);
-		Capture->OnStateChangedNative.AddUObject(this, &UPixelStreamingMediaOutput::OnCaptureStateChanged);
 		Capture->OnCaptureViewportInitialized.AddUObject(this, &UPixelStreamingMediaOutput::OnCaptureViewportInitialized);
 	}
-	return Capture;
-}
 
-void UPixelStreamingMediaOutput::OnCaptureStateChanged()
-{
-	switch (Capture->GetState())
+	if (!VideoInput)
 	{
-		case EMediaCaptureState::Capturing:
-			StartStreaming();
-			break;
-		case EMediaCaptureState::Stopped:
-		case EMediaCaptureState::Error:
-			StopStreaming();
-			break;
-		default:
-			break;
+		VideoInput = MakeShared<FPixelStreamingVideoInputRHI>();
 	}
+
+	Capture->SetVideoInput(VideoInput);
+
+	return Capture;
 }
 
 void UPixelStreamingMediaOutput::OnCaptureViewportInitialized()
@@ -65,7 +57,16 @@ void UPixelStreamingMediaOutput::StartStreaming()
 	if (Streamer)
 	{
 		FPixelStreamingEditorModule::GetModule()->SetStreamType(UE::EditorPixelStreaming::EStreamTypes::VCam);
-		Streamer->SetVideoInput(Capture->GetVideoInput());
+		
+		// Only update streamer's video input if we don't have one or it is different than the one we already have.
+		if(VideoInput.IsValid())
+		{
+			TSharedPtr<FPixelStreamingVideoInput> StreamerVideoInput = Streamer->GetVideoInput().Pin();
+			if(!StreamerVideoInput.IsValid() || StreamerVideoInput != VideoInput)
+			{
+				Streamer->SetVideoInput(VideoInput);
+			}
+		}
 
 		if (!Streamer->IsStreaming())
 		{
