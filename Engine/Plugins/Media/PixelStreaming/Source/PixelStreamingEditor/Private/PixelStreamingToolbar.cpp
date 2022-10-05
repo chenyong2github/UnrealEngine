@@ -212,7 +212,7 @@ namespace UE::EditorPixelStreaming
 	{
 		FToolMenuOwnerScoped OwnerScoped(this);
 		{
-			UToolMenu* CustomToolBar = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.PlayToolBar");
+			UToolMenu* CustomToolBar = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
 			{
 				FToolMenuSection& Section = CustomToolBar->AddSection("PixelStreaming");
 				Section.AddSeparator("PixelStreamingSeperator");
