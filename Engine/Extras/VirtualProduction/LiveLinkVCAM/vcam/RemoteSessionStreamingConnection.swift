@@ -53,7 +53,7 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
     
     override var name : String {
         get {
-            "RemoteSession"
+            StreamingConnectionType.remoteSession.rawValue
         }
     }
     

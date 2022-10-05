@@ -15,6 +15,11 @@ protocol StreamingConnectionDelegate : AnyObject {
     func streamingConnection(_ connection : StreamingConnection, didDisconnectWithError err: Error?)
 }
 
+enum StreamingConnectionType : String {
+    case remoteSession = "RemoteSession"
+    case webRTC = "WebRTC"
+}
+
 enum StreamingConnectionTouchType : String {
     case began = "Began"
     case moved = "Moved"

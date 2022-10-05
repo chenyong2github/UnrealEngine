@@ -40,13 +40,11 @@ class SettingsViewController : UITableViewController {
             cell.detailTextLabel?.text = Timecode.sourceToString(appSettings.timecodeSourceEnum())
             
         case "connectionType":
-            switch appSettings.connectionType {
-            case "RemoteSession":
+            switch appSettings.connectionTypeEnum() {
+            case .remoteSession:
                 cell.detailTextLabel?.text = "Remote Session"
-            case "WebRTC":
+            case .webRTC:
                 cell.detailTextLabel?.text = "Pixel Streaming"
-            default:
-                cell.detailTextLabel?.text = "Unknown"
             }
 
         default:

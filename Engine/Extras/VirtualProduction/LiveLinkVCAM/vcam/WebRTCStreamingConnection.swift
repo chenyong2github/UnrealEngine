@@ -30,7 +30,7 @@ class WebRTCStreamingConnection : StreamingConnection {
 
     override var name : String {
         get {
-            "WebRTC"
+            StreamingConnectionType.webRTC.rawValue
         }
     }
     override var destination : String {

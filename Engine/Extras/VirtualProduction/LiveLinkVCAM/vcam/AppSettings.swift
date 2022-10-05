@@ -53,7 +53,7 @@ class AppSettings : NSObject {
 
             Keys.showStreamingStats : false,
             
-            Keys.connectionType : "RemoteSession"
+            Keys.connectionType : StreamingConnectionType.webRTC.rawValue
 
         ]
     }
@@ -134,10 +134,18 @@ class AppSettings : NSObject {
         }
     }
     
-    @objc dynamic var connectionType : String = UserDefaults.standard.string(forKey: Keys.connectionType) ?? "RemoteSession" {
+    @objc dynamic var connectionType : String = UserDefaults.standard.string(forKey: Keys.connectionType) ?? StreamingConnectionType.webRTC.rawValue {
         didSet {
             UserDefaults.standard.set(connectionType, forKey: Keys.connectionType)
         }
+    }
+    
+    func connectionTypeEnum() -> StreamingConnectionType {
+        return StreamingConnectionType(rawValue: self.connectionType) ?? .webRTC
+    }
+
+    func setConnectionTypeEnum(_ type : StreamingConnectionType)  {
+        self.connectionType = type.rawValue
     }
     
 
