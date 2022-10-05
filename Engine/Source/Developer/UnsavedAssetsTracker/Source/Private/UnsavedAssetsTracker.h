@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UnrealEdMisc.h"
 
-class UPackage;
 class ISourceControlState;
+class UPackage;
+class UWorld;
+struct FTransactionContext;
 
 /**
  * Tracks assets that has in-memory modification not saved to disk yet and checks
@@ -80,11 +83,28 @@ private:
 	 */
 	void OnPackageDirtyStateUpdated(UPackage* Package);
 
-	/** Starts to track an unsaved package.*/
-	void AddPackage(UPackage* Package);
+	/**
+	 * Invoked when the level editor changes map. Used to track when a temporary 'Untitled' unsaved map is closed without saving.
+	 */
+	void OnMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType);
 
-	/** Stops tracking the specified unsaved package. */
-	void RemovePackage(UPackage* Package);
+	/**
+	 * Invoked when the undo stack changes. Used to track when the undo/redo affect the dirty state of a package.
+	 */
+	void OnUndo(const FTransactionContext& TransactionContext, bool Succeeded);
+	void OnRedo(const FTransactionContext& TransactionContext, bool Succeeded);
+
+	/**
+	 * Invoked when a world is successfully renamed. Used to track when a temporary 'Untitled' unsaved map is saved with a new name.
+	 */
+	void OnWorldPostRename(UWorld* World);
+
+	/** Starts to track an unsaved package.*/
+	void StartTrackingDirtyPackage(UPackage* Package);
+
+	/** Stops tracking the specified unsaved package if the package was previously tracked. */
+	void StopTrackingDirtyPackage(UPackage* Package);
+	void StopTrackingDirtyPackage(const FString& PackagePathname);
 
 	/** Invoked when the status of a source controlled is updated, with the corresponding warning, if any. */
 	void OnSourceControlFileStatusUpdate(const FString& Pathname, const ISourceControlState* Status);
@@ -94,6 +114,9 @@ private:
 
 	/** Show a toast notifications if the warning types hasn't been shown yet. */
 	void ShowWarningNotificationIfNotAlreadyShown(EWarningTypes WarningType, const FText& Msg);
+
+	/** Refresh the list of unsaved files from the list returned by FEditorFileUtils::GetDirtyPackages(). */
+	void SyncWithDirtyPackageList();
 
 private:
 	TMap<FString, FStatus> UnsavedFiles;
