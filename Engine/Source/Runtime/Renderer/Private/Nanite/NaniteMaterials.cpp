@@ -2005,7 +2005,11 @@ void FNaniteVisibility::BeginVisibilityFrame(const FNaniteRasterBinIndexTranslat
 	check(!bCalledBegin);
 	bCalledBegin = true;
 	BinIndexTranslator = InTranslator;
-	PrimitiveReferences.GenerateValueArray(CapturedPrimitiveReferences);
+
+	if (GNaniteMaterialVisibility != 0)
+	{
+		PrimitiveReferences.GenerateValueArray(CapturedPrimitiveReferences);
+	}
 }
 
 void FNaniteVisibility::FinishVisibilityFrame()
