@@ -714,17 +714,17 @@ void FOnlineSessionEOS::OnLobbyUpdateReceived(const EOS_LobbyId& LobbyId)
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] EOS_LobbyDetails_CopyInfo not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(CopyInfoResult)));
+				UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] EOS_LobbyDetails_CopyInfo not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(CopyInfoResult)));
 			}
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] EOS_Lobby_CopyLobbyDetailsHandle not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(CopyLobbyDetailsResult)));
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] EOS_Lobby_CopyLobbyDetailsHandle not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(CopyLobbyDetailsResult)));
 		}
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 	}
 }
 
@@ -764,17 +764,32 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						{
 							RemoveOnlineSessionMember(Session->SessionName, ResolvedUniqueNetId);
 
-							TriggerOnSessionParticipantsChangeDelegates(Session->SessionName, *ResolvedUniqueNetId, false);
+							TriggerOnSessionParticipantLeftDelegates(Session->SessionName, *ResolvedUniqueNetId, EOnSessionParticipantLeftReason::Left);
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_LEFT: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+							UE_LOG_ONLINE_SESSION(VeryVerbose, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_LEFT: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
 			break;
 		case EOS_ELobbyMemberStatus::EOS_LMS_DISCONNECTED:
-			// OSS Session will end
+			{
+				EOSSubsystem->UserManager->ResolveUniqueNetId(TargetUserId, [this, LobbyNetId](FUniqueNetIdEOSRef ResolvedUniqueNetId)
+					{
+						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
+						if (Session)
+						{
+							RemoveOnlineSessionMember(Session->SessionName, ResolvedUniqueNetId);
+
+							TriggerOnSessionParticipantLeftDelegates(Session->SessionName, *ResolvedUniqueNetId, EOnSessionParticipantLeftReason::Disconnected);
+						}
+						else
+						{
+							UE_LOG_ONLINE_SESSION(VeryVerbose, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_DISCONNECTED: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+						}
+					});
+			}
 			break;
 		case EOS_ELobbyMemberStatus::EOS_LMS_KICKED:
 			{
@@ -785,11 +800,11 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						{
 							RemoveOnlineSessionMember(Session->SessionName, ResolvedUniqueNetId);
 
-							TriggerOnSessionParticipantRemovedDelegates(Session->SessionName, *ResolvedUniqueNetId);
+							TriggerOnSessionParticipantLeftDelegates(Session->SessionName, *ResolvedUniqueNetId, EOnSessionParticipantLeftReason::Kicked);
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_KICKED: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+							UE_LOG_ONLINE_SESSION(VeryVerbose, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_KICKED: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
@@ -817,19 +832,34 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_PROMOTED: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+							UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_PROMOTED: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
 			break;
 		case EOS_ELobbyMemberStatus::EOS_LMS_CLOSED:
-			// OSS Session will end
+			{
+				EOSSubsystem->UserManager->ResolveUniqueNetId(TargetUserId, [this, LobbyNetId](FUniqueNetIdEOSRef ResolvedUniqueNetId)
+					{
+						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
+						if (Session)
+						{
+							RemoveOnlineSessionMember(Session->SessionName, ResolvedUniqueNetId);
+
+							TriggerOnSessionParticipantLeftDelegates(Session->SessionName, *ResolvedUniqueNetId, EOnSessionParticipantLeftReason::Closed);
+						}
+						else
+						{
+							UE_LOG_ONLINE_SESSION(VeryVerbose, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] EOS_LMS_CLOSED: Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+						}
+					});
+			}
 			break;
 		}
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 	}
 }
 
@@ -2898,7 +2928,7 @@ void FOnlineSessionEOS::UpdateOrAddLobbyMember(const FUniqueNetIdEOSLobbyRef& Lo
 
 				if (bWasLobbyMemberAdded)
 				{
-					TriggerOnSessionParticipantsChangeDelegates(Session->SessionName, *PlayerId, true);
+					TriggerOnSessionParticipantJoinedDelegates(Session->SessionName, *PlayerId);
 				}
 				else
 				{
@@ -2907,17 +2937,17 @@ void FOnlineSessionEOS::UpdateOrAddLobbyMember(const FUniqueNetIdEOSLobbyRef& Lo
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::UpdateOrAddLobbyMember] EOS_LobbyDetails_CopyLobbyDetailsHandle not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+				UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::UpdateOrAddLobbyMember] EOS_LobbyDetails_CopyLobbyDetailsHandle not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 			}
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::UpdateOrAddLobbyMember] UniqueNetId %s not registered in the session's member settings."), *PlayerId->ToString());
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::UpdateOrAddLobbyMember] UniqueNetId %s not registered in the session's member settings."), *PlayerId->ToString());
 		}
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::UpdateOrAddLobbyMember] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::UpdateOrAddLobbyMember] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 	}
 }
 
@@ -3478,7 +3508,7 @@ void FOnlineSessionEOS::RemovePlayerFromSession(int32 LocalUserNum, FName Sessio
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::RemovePlayerFromSession] Unable to retrieve session named %s"), *SessionName.ToString());
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::RemovePlayerFromSession] Unable to retrieve session named %s"), *SessionName.ToString());
 	}
 }
 
@@ -3701,7 +3731,7 @@ uint32 FOnlineSessionEOS::JoinLobbySession(int32 PlayerNum, FNamedOnlineSession*
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::JoinLobbySession] SessionId not valid"));
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::JoinLobbySession] SessionId not valid"));
 		}
 	}
 	else

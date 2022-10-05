@@ -4,6 +4,20 @@
 #include "OnlineSubsystem.h"
 #include "OnlineError.h"
 
+const TCHAR* ToLogString(EOnSessionParticipantLeftReason LeaveReason)
+{
+	switch (LeaveReason)
+	{
+	case EOnSessionParticipantLeftReason::Left:			return TEXT("Left");
+	case EOnSessionParticipantLeftReason::Disconnected:	return TEXT("Disconnected");
+	case EOnSessionParticipantLeftReason::Kicked:		return TEXT("Kicked");
+	case EOnSessionParticipantLeftReason::Closed:		return TEXT("Closed");
+	}
+
+	checkNoEntry();
+	return TEXT("Invalid");
+}
+
 // Workaround for not being able to clear a delegate handle for a lambda while the lambda is being executed
 void OnOnlineSessionStartMatchmakingBroadcast(FName DelegateSessionName, bool bWasSuccessful, IOnlineSession* OnlineSession, FName RequestedSessionName, FDelegateHandle* DelegateHandle, const FOnStartMatchmakingComplete CompletionDelegate)
 {

@@ -172,8 +172,56 @@ typedef FOnJoinSessionComplete::FDelegate FOnJoinSessionCompleteDelegate;
  * @param UniqueId The ID of the user whose join state has changed
  * @param bJoined If true this is a join event, (if false it is a leave event)
  */
+UE_DEPRECATED(5.2, "FOnSessionParticipantsChange is deprecated, please use FOnSessionParticipantJoined and FOnSessionParticipantLeft instead.")
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSessionParticipantsChange, FName, const FUniqueNetId&, bool);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 typedef FOnSessionParticipantsChange::FDelegate FOnSessionParticipantsChangeDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+/**
+ * Delegate fired when a session's member is removed from the session
+ * @param SessionName The name of the session
+ * @param TargetUniqueNetId The UniqueNetId of the member who was removed
+ */
+UE_DEPRECATED(5.2, "FOnSessionParticipantRemoved is deprecated, please use FOnSessionParticipantLeft instead.")
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionParticipantRemoved, FName, const FUniqueNetId&);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+typedef FOnSessionParticipantRemoved::FDelegate FOnSessionParticipantRemovedDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+/**
+ * Delegate fired when a player has joined a session
+ *
+ * @param SessionName The name of the session that changed
+ * @param UniqueId The ID of the user who joined
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionParticipantJoined, FName, const FUniqueNetId&);
+typedef FOnSessionParticipantJoined::FDelegate FOnSessionParticipantJoinedDelegate;
+
+/** Possible motives for a participant leaving an online session */
+enum class EOnSessionParticipantLeftReason : uint8
+{
+	/** The participant left the session of their own accord */
+	Left,
+	/** The participant got disconnected from a session that is still active */
+	Disconnected,
+	/** The participant was forcefully removed from the session */
+	Kicked,
+	/** The session ended and the participant got removed from it */
+	Closed
+};
+
+ONLINESUBSYSTEM_API const TCHAR* ToLogString(EOnSessionParticipantLeftReason LeaveReason);
+
+/**
+ * Delegate fired when a player has left a session
+ *
+ * @param SessionName The name of the session that changed
+ * @param UniqueId The ID of the user who left
+ * @param LeaveReason An enum defining the motive for the participant's leave
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSessionParticipantLeft, FName, const FUniqueNetId&, EOnSessionParticipantLeftReason);
+typedef FOnSessionParticipantLeft::FDelegate FOnSessionParticipantLeftDelegate;
 
 /**
  * Delegate fired when session is requesting QOS measurements
@@ -181,17 +229,6 @@ typedef FOnSessionParticipantsChange::FDelegate FOnSessionParticipantsChangeDele
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnQosDataRequested, FName);
 typedef FOnQosDataRequested::FDelegate FOnQosDataRequestedDelegate;
-
-/**
- * Delegate fired when a sessions custom data has changed
- * @param The name of the session that had custom data changed
- * @param the updated session data
- */
-UE_DEPRECATED(4.27, "FOnSessionCustomDataChanged is deprecated, please use FOnSessionSettingsUpdated and FOnSessionParticipantSettingsUpdated instead.")
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-typedef FOnSessionCustomDataChanged::FDelegate FOnSessionCustomDataChangedDelegate;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * Delegate fired when a session's settings have changed
@@ -209,14 +246,6 @@ typedef FOnSessionSettingsUpdated::FDelegate FOnSessionSettingsUpdatedDelegate;
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSessionParticipantSettingsUpdated, FName, const FUniqueNetId&, const FOnlineSessionSettings&);
 typedef FOnSessionParticipantSettingsUpdated::FDelegate FOnSessionParticipantSettingsUpdatedDelegate;
-
-/**
- * Delegate fired when a session's member is removed from the session
- * @param SessionName The name of the session
- * @param TargetUniqueNetId The UniqueNetId of the member who was removed
- */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionParticipantRemoved, FName, const FUniqueNetId&);
-typedef FOnSessionParticipantRemoved::FDelegate FOnSessionParticipantRemovedDelegate;
 
 /**
  * Delegate fired once a single search result is returned (ie friend invite / join)
@@ -710,6 +739,7 @@ public:
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnJoinSessionComplete, FName, EOnJoinSessionCompleteResult::Type);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	 * Delegate fired when a player has joined or left a session
 	 * @param SessionName The name of the session that changed
@@ -719,20 +749,34 @@ public:
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnSessionParticipantsChange, FName, const FUniqueNetId&, bool);
 
 	/**
+	* Delegate fired when a session's member is removed from the session
+	*
+	* @param SessionName The name of the session
+	* @param TargetUniqueNetId The UniqueNetId of the member who was removed
+	*/
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionParticipantRemoved, FName, const FUniqueNetId&);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/**
+	* Delegate fired when a player joins a session
+	* @param SessionName The name of the session
+	* @param UniqueId The ID of the user who joined
+	*/
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionParticipantJoined, FName, const FUniqueNetId&);
+
+	/**
+	* Delegate fired when a player leaves a session
+	* @param SessionName The name of the session
+	* @param UniqueId The ID of the user who left
+	* @param LeaveReason An enum defining the motive for the participant's leave
+	*/
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnSessionParticipantLeft, FName, const FUniqueNetId&, EOnSessionParticipantLeftReason);
+
+	/**
 	 * Delegate fired when session is requesting QOS measurements
 	 * @param The name of the session for which the measurements need to be made
 	 */
 	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnQosDataRequested, FName);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	/**
-	 * Delegate fired when a sessions custom data has been updated
-	 *
-	 * @param SessionName The session that had custom session data changed
-	 * @param SessionSettings The session settings for the session that changed
-	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Delegate fired when a session's settings have changed
@@ -750,14 +794,6 @@ public:
 	 * @param SessionSettings The updated member settings
 	 */
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnSessionParticipantSettingsUpdated, FName, const FUniqueNetId&, const FOnlineSessionSettings&);
-
-	/**
-	 * Delegate fired when a session's member is removed from the session
-	 *
-	 * @param SessionName The name of the session
-	 * @param TargetUniqueNetId The UniqueNetId of the member who was removed
-	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionParticipantRemoved, FName, const FUniqueNetId&);
 
 	/**
 	 * Allows the local player to follow a friend into a session

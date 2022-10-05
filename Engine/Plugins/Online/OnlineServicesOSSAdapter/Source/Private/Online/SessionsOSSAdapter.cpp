@@ -317,7 +317,7 @@ void FSessionsOSSAdapter::Initialize()
 		SessionEvents.OnUISessionJoinRequested.Broadcast(Event);
 	}));
 
-	SessionsInterface->AddOnSessionParticipantRemovedDelegate_Handle(FOnSessionParticipantRemovedDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId)
+	SessionsInterface->AddOnSessionParticipantJoinedDelegate_Handle(FOnSessionParticipantJoinedDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId)
 	{
 		// We won't update a session that can't be retrieved from the OSS or doesn't exist in OnlineServices anymore
 		if (UpdateV2Session(SessionName))
@@ -327,7 +327,7 @@ void FSessionsOSSAdapter::Initialize()
 			const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
 			FSessionUpdate SessionUpdate;
-			SessionUpdate.RemovedSessionMembers.Add(TargetAccountId);
+			SessionUpdate.AddedSessionMembers.Emplace(TargetAccountId);
 
 			const FSessionUpdated Event{ SessionName , SessionUpdate };
 
@@ -335,7 +335,7 @@ void FSessionsOSSAdapter::Initialize()
 		}
 	}));
 
-	SessionsInterface->AddOnSessionParticipantsChangeDelegate_Handle(FOnSessionParticipantsChangeDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId, bool bJoined)
+	SessionsInterface->AddOnSessionParticipantLeftDelegate_Handle(FOnSessionParticipantLeftDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId, EOnSessionParticipantLeftReason LeaveReason)
 	{
 		// We won't update a session that can't be retrieved from the OSS or doesn't exist in OnlineServices anymore
 		if (UpdateV2Session(SessionName))
@@ -345,14 +345,7 @@ void FSessionsOSSAdapter::Initialize()
 			const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
 			FSessionUpdate SessionUpdate;
-			if (bJoined)
-			{
-				SessionUpdate.AddedSessionMembers.Emplace(TargetAccountId);
-			}
-			else
-			{
-				SessionUpdate.RemovedSessionMembers.Emplace(TargetAccountId);
-			}
+			SessionUpdate.RemovedSessionMembers.Emplace(TargetAccountId);
 
 			const FSessionUpdated Event{ SessionName , SessionUpdate };
 
@@ -367,8 +360,8 @@ void FSessionsOSSAdapter::Shutdown()
 {
 	SessionsInterface->ClearOnSessionInviteReceivedDelegates(this);
 	SessionsInterface->ClearOnSessionUserInviteAcceptedDelegates(this);
-	SessionsInterface->ClearOnSessionParticipantRemovedDelegates(this);
-	SessionsInterface->ClearOnSessionParticipantsChangeDelegates(this);
+	SessionsInterface->ClearOnSessionParticipantJoinedDelegates(this);
+	SessionsInterface->ClearOnSessionParticipantLeftDelegates(this);
 	SessionsInterface->ClearOnSessionParticipantSettingsUpdatedDelegates(this);
 
 	Super::Shutdown();
