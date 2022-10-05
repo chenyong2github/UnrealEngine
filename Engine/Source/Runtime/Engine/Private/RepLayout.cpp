@@ -31,7 +31,6 @@
 #endif // UE_WITH_IRIS
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("RepLayout BuildShadowOffsets"), STAT_RepLayout_BuildShadowOffsets, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout DeltaSerializeFastArray"), STAT_RepLayout_DeltaSerializeFastArray, STATGROUP_Game);
 
 // LogRepProperties is very spammy, and the logs are in a very hot code path,
@@ -5900,8 +5899,6 @@ static void BuildShadowOffsets(
 	TArray<FRepLayoutCmd>& Cmds,
 	int32& ShadowOffset)
 {
-	SCOPE_CYCLE_COUNTER(STAT_RepLayout_BuildShadowOffsets);
-
 	if (ShadowType == ERepBuildType::Class && !!GUsePackedShadowBuffers)
 	{
 		ShadowOffset = 0;
@@ -6019,7 +6016,6 @@ void FRepLayout::InitFromClass(
 	const ECreateRepLayoutFlags CreateFlags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RepLayout_InitFromObjectClass);
-	SCOPE_CYCLE_UOBJECT(ObjectClass, InObjectClass);
 
 	const bool bIsPushModelEnabled = IS_PUSH_MODEL_ENABLED();
 	const bool bIsObjectActor = InObjectClass->IsChildOf(AActor::StaticClass());

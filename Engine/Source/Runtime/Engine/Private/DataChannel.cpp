@@ -4693,7 +4693,6 @@ FObjectReplicator & UActorChannel::GetActorReplicationData()
 TSharedRef<FObjectReplicator>* UActorChannel::FindReplicator(UObject* Obj, bool* bOutFoundInvalid)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
-	SCOPE_CYCLE_UOBJECT(ActorChannelFindOrCreateRep, Obj);
 
 	// First, try to find it on the channel replication map
 	TSharedRef<FObjectReplicator>* ReplicatorRefPtr = ReplicationMap.Find( Obj );
@@ -4717,7 +4716,6 @@ TSharedRef<FObjectReplicator>* UActorChannel::FindReplicator(UObject* Obj, bool*
 TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, bool bCheckDormantReplicators)
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
-	SCOPE_CYCLE_UOBJECT(ActorChannelFindOrCreateRep, Obj);
 
 	// Try to find in the dormancy map if desired
 	TSharedPtr<FObjectReplicator> NewReplicator;
