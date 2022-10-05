@@ -5,6 +5,7 @@
 
 #include "Algo/AllOf.h"
 #include "Async/AsyncWork.h"
+#include "Async/InheritedContext.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Map.h"
 #include "DDCCleanup.h"
@@ -325,13 +326,14 @@ namespace UE::DerivedData::Private
 
 FQueuedThreadPool* GCacheThreadPool;
 
-class FCacheThreadPoolTaskRequest final : public FRequestBase, private IQueuedWork
+class FCacheThreadPoolTaskRequest final : public FRequestBase, private FInheritedContextBase, private IQueuedWork
 {
 public:
 	inline FCacheThreadPoolTaskRequest(IRequestOwner& InOwner, TUniqueFunction<void ()>&& InTaskBody)
 		: Owner(InOwner)
 		, TaskBody(MoveTemp(InTaskBody))
 	{
+		CaptureInheritedContext();
 		Owner.Begin(this);
 		DoneEvent.Reset();
 		GCacheThreadPool->AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
@@ -340,6 +342,7 @@ public:
 private:
 	inline void Execute()
 	{
+		FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
 		Owner.End(this, [this]
 		{
