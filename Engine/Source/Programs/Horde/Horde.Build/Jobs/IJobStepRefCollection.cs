@@ -10,6 +10,7 @@ using Horde.Build.Logs;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Jobs
 {
@@ -84,7 +85,7 @@ namespace Horde.Build.Jobs
 
 	static class JobStepRefCollectionExtensions
 	{
-		public static async Task UpdateAsync(this IJobStepRefCollection jobStepRefs, IJob job, IJobStepBatch batch, IJobStep step, IGraph graph)
+		public static async Task UpdateAsync(this IJobStepRefCollection jobStepRefs, IJob job, IJobStepBatch batch, IJobStep step, IGraph graph, ILogger? logger = null)
 		{
 			if (job.PreflightChange == 0)
 			{
@@ -118,6 +119,11 @@ namespace Horde.Build.Jobs
 				{
 					outcome = JobStepOutcome.Unspecified;
 				}
+				
+				if (logger != null)
+				{
+					logger.LogInformation("Updating step reference {StepId} for job {JobId}, batch {BatchId}, with outcome {JobStepOutcome}", step.Id, job.Id, batch.Id, outcome);
+				}				
 
 				await jobStepRefs.InsertOrReplaceAsync(new JobStepRefId(job.Id, batch.Id, step.Id), job.Name, nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, batch.PoolId, batch.AgentId, outcome, job.UpdateIssues, lastSuccess, lastWarning, waitTime, initTime, step.StartTimeUtc ?? DateTime.UtcNow, step.FinishTimeUtc);
 			}

@@ -1161,7 +1161,7 @@ namespace Horde.Build.Jobs
 		/// <inheritdoc/>
 		public async Task<IJob?> TryCancelLeaseAsync(IJob job, int batchIdx)
 		{
-			_logger.LogDebug("Cancelling lease {LeaseId} for agent {AgentId}", job.Batches[batchIdx].LeaseId, job.Batches[batchIdx].AgentId);
+			_logger.LogInformation("Cancelling lease {LeaseId} for agent {AgentId}", job.Batches[batchIdx].LeaseId, job.Batches[batchIdx].AgentId);
 
 			JobDocument jobDocument = Clone((JobDocument)job);
 
@@ -1184,7 +1184,7 @@ namespace Horde.Build.Jobs
 		{
 			JobDocument jobDocument = Clone((JobDocument)job);
 			JobStepBatchDocument batch = jobDocument.Batches[batchIdx];
-			_logger.LogDebug("Failing batch {JobId}:{BatchId} with error {Error}", job.Id, batch.Id, error);
+			_logger.LogInformation("Failing batch {JobId}:{BatchId} with error {Error}", job.Id, batch.Id, error);
 
 			UpdateDefinitionBuilder<JobDocument> updateBuilder = new UpdateDefinitionBuilder<JobDocument>();
 			List<UpdateDefinition<JobDocument>> updates = new List<UpdateDefinition<JobDocument>>();

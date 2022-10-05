@@ -1016,7 +1016,7 @@ namespace Horde.Build.Jobs
 				
 				if (oldState != newState || oldOutcome != newOutcome)
 				{
-					_logger.LogDebug("Transitioned job {JobId}, batch {BatchId}, step {StepId} from {OldState} to {NewState}", job.Id, batchId, stepId, oldState, newState);
+					_logger.LogInformation("Transitioned job {JobId}, batch {BatchId}, step {StepId} from {OldState} to {NewState}", job.Id, batchId, stepId, oldState, newState);
 
 					// Send any updates for modified badges
 					if (oldLabelStates != null)

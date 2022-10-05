@@ -1036,7 +1036,7 @@ namespace Horde.Build.Jobs
 					{
 						error = JobStepBatchError.ExecutionError;
 					}
-
+					
 					IGraph graph = await _graphs.GetAsync(job.GraphHash);
 					job = await _jobs.TryFailBatchAsync(job, batchIdx, graph, error);
 
@@ -1044,11 +1044,11 @@ namespace Horde.Build.Jobs
 					{
 						if (batch.Error != JobStepBatchError.None)
 						{
-							logger.LogInformation("Failed job {JobId}, batch {BatchId} with error {Error}", job.Id, batch.Id, batch.Error);
+							logger.LogInformation("Failed lease {LeaseId}, job {JobId}, batch {BatchId} with error {Error}", leaseId, job.Id, batch.Id, batch.Error);
 						}
 						if (runningStepIdx != -1)
 						{
-							await _jobStepRefs.UpdateAsync(job, batch, batch.Steps[runningStepIdx], graph);
+							await _jobStepRefs.UpdateAsync(job, batch, batch.Steps[runningStepIdx], graph, logger);
 						}
 						break;
 					}

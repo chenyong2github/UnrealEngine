@@ -207,7 +207,7 @@ namespace Horde.Build.Tasks
 		/// <inheritdoc cref="ITaskSource.OnLeaseFinishedAsync(IAgent, LeaseId, Any, LeaseOutcome, ReadOnlyMemory{Byte}, ILogger)"/>
 		public virtual Task OnLeaseFinishedAsync(IAgent agent, LeaseId leaseId, TMessage payload, LeaseOutcome outcome, ReadOnlyMemory<byte> output, ILogger logger)
 		{
-			logger.LogInformation("Lease {LeaseId} complete", leaseId);
+			logger.LogInformation("Lease {LeaseId} complete, outcome {LeaseOutcome}", leaseId, outcome);
 			return Task.CompletedTask;
 		}
 
