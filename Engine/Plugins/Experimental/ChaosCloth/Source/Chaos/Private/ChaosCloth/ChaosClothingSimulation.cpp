@@ -82,12 +82,15 @@ bool bChaos_GetSimData_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosGetSimDataISPCEnabled(TEXT("p.Chaos.GetSimData.ISPC"), bChaos_GetSimData_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when getting simulation data"));
 #endif
 
+
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Create Actor"), STAT_ChaosClothCreateActor, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Simulation Data"), STAT_ChaosClothGetSimulationData, STATGROUP_ChaosCloth);
 
 namespace Chaos
 {
+bool bClothUseTimeStepSmoothing = true;
+FAutoConsoleVariableRef CVarClothUseTimeStepSmoothing(TEXT("p.ChaosCloth.UseTimeStepSmoothing"), bClothUseTimeStepSmoothing, TEXT("Use time step smoothing to avoid jitter during drastic changes in time steps."));
 
 #if CHAOS_DEBUG_DRAW
 namespace ClothingSimulationCVar
@@ -544,6 +547,14 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 			return;
 		}
 
+		// Filter delta time to smoothen time variations and prevent unwanted vibrations
+		constexpr Softs::FSolverReal DeltaTimeDecay = (Softs::FSolverReal)0.1;
+		const Softs::FSolverReal DeltaTime = (Softs::FSolverReal)Context->DeltaSeconds;
+		const Softs::FSolverReal PrevDeltaTime = Solver->GetDeltaTime();
+		const Softs::FSolverReal SmoothedDeltaTime = bClothUseTimeStepSmoothing ?
+			PrevDeltaTime + (DeltaTime - PrevDeltaTime) * DeltaTimeDecay :
+			DeltaTime;
+
 		const double StartTime = FPlatformTime::Seconds();
 		const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
 
@@ -562,7 +573,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		Solver->SetWindVelocity(Context->WindVelocity, Context->WindAdaption);
 		Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
 		Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
-		Solver->SetVelocityScale((FReal)Context->VelocityScale);
+		Solver->SetVelocityScale((FReal)Context->VelocityScale * (FReal)SmoothedDeltaTime / DeltaTime);
 
 		// Check teleport modes
 		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
@@ -583,7 +594,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		// Step the simulation
 		if(Solver->GetEnableSolver() || (Context->CachedPositions.Num() == 0 && Context->CachedVelocities.Num() == 0))
 		{
-			Solver->Update((Softs::FSolverReal)Context->DeltaSeconds);
+			Solver->Update(SmoothedDeltaTime);
 		}
 		else
 		{

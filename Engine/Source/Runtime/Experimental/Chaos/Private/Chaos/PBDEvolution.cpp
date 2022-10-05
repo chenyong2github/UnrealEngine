@@ -96,7 +96,6 @@ FPBDEvolution::FPBDEvolution(
 	, MDamping(Damping)
 	, MLocalDamping(LocalDamping)
 	, MTime(0)
-	, MSmoothDt(1.f / 30.f)  // Initialize filtered timestep at 30fps
 {
 	// Add group arrays
 	TArrayCollection::AddArray(&MGroupGravityAccelerations);
@@ -294,7 +293,7 @@ void FPBDEvolution::PreIterationUpdate(
 					}
 
 					// Euler Step Velocity
-					MParticles.V(Index) += MParticles.Acceleration(Index) * MSmoothDt;
+					MParticles.V(Index) += MParticles.Acceleration(Index) * Dt;
 
 					// Damp Velocity Rule
 					if (bDampVelocityRule)
@@ -315,24 +314,13 @@ void FPBDEvolution::PreIterationUpdate(
 	}
 }
 
-void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothDt)
+void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDEvolution_AdvanceOneTimeStep);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVAdvanceTime);
 
 	// Advance time
 	MTime += Dt;
-
-	// Filter delta time to smoothen time variations and prevent unwanted vibrations, works best on Forces
-	if (bSmoothDt && CVarChaosPBDEvolutionUseSmoothTimeStep.GetValueOnAnyThread())
-	{
-		constexpr FSolverReal DeltaTimeDecay = (FSolverReal)0.1;
-		MSmoothDt += (Dt - MSmoothDt) * DeltaTimeDecay;
-	}
-	else
-	{
-		MSmoothDt = Dt;
-	}
 
 	// Don't bother with threaded execution if we don't have enough work to make it worth while.
 	const bool bUseSingleThreadedRange = !CVarChaosPBDEvolutionUseNestedParallelFor.GetValueOnAnyThread();

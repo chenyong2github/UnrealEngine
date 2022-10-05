@@ -44,7 +44,6 @@ static int32 ClothSolverMinParallelBatchSize = 1000;
 static bool bClothSolverParallelClothPreUpdate = true;
 static bool bClothSolverParallelClothUpdate = true;
 static bool bClothSolverParallelClothPostUpdate = true;
-static bool bClothSolverUseImprovedTimeStepSmoothing = true;
 static bool bClothSolverDisableTimeDependentNumIterations = false;
 static bool bClothSolverUseVelocityScale = true;
 
@@ -62,7 +61,6 @@ FAutoConsoleVariableRef CVarClothSolverDebugHitchInterval(TEXT("p.ChaosCloth.Sol
 FAutoConsoleVariableRef CVarClothSolverDisableCollision(TEXT("p.ChaosCloth.Solver.DisableCollision"), bClothSolverDisableCollision, TEXT("Disable all collision particles. Needs reset of the simulation (p.ChaosCloth.Reset)."));
 #endif
 
-FAutoConsoleVariableRef CVarClothSolverUseImprovedTimeStepSmoothing(TEXT("p.ChaosCloth.Solver.UseImprovedTimeStepSmoothing"), bClothSolverUseImprovedTimeStepSmoothing, TEXT("Use the time step smoothing on input forces only rather than on the entire cloth solver, in order to avoid miscalculating velocities."));
 FAutoConsoleVariableRef CVarClothSolverDisableTimeDependentNumIterations(TEXT("p.ChaosCloth.Solver.DisableTimeDependentNumIterations"), bClothSolverDisableTimeDependentNumIterations, TEXT("Make the number of iterations independent from the time step."));
 FAutoConsoleVariableRef CVarClothSolverUseVelocityScale(TEXT("p.ChaosCloth.Solver.UseVelocityScale"), bClothSolverUseVelocityScale, TEXT("Use the velocity scale to compensate for clamping to MaxPhysicsDelta, in order to avoid miscalculating velocities during hitches."));
 
@@ -905,6 +903,9 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 	}
 #endif  // #if !UE_BUILD_SHIPPING
 
+	// Update time step
+	DeltaTime = InDeltaTime;
+
 	// Update Cloths and cloth colliders
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdateCloths);
@@ -946,23 +947,9 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 		EventPreSolve.Broadcast(DeltaTime);
 	}
 
-	const bool bAdvanceTimeStep = (InDeltaTime > Softs::FSolverReal(0.));
+	const bool bAdvanceTimeStep = (DeltaTime > Softs::FSolverReal(0.));
 	if (bAdvanceTimeStep)
 	{
-		if (!bClothSolverUseImprovedTimeStepSmoothing)
-		{
-			// Filter delta time to smoothen time variations and prevent unwanted vibrations
-			// Note: This is now deprecated and replaced by in solver input force timestep smoothing
-			constexpr Softs::FSolverReal DeltaTimeDecay = (Softs::FSolverReal)0.1;
-			const Softs::FSolverReal PrevDeltaTime = DeltaTime;
-			DeltaTime = DeltaTime + (InDeltaTime - DeltaTime) * DeltaTimeDecay;
-		}
-		else
-		{
-			// Update time step
-			DeltaTime = InDeltaTime;
-		}
-
 		// Compute the solver field forces/velocities for future use in the solver force function
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdateSolverFields);
@@ -992,7 +979,7 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 	
 			for (int32 i = 0; i < NumSubsteps; ++i)
 			{
-				Evolution->AdvanceOneTimeStep(SubstepDeltaTime, bClothSolverUseImprovedTimeStepSmoothing);
+				Evolution->AdvanceOneTimeStep(SubstepDeltaTime);
 			}
 
 			Time = Evolution->GetTime();

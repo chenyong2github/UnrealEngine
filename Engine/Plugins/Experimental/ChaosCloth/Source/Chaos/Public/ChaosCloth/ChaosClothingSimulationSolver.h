@@ -66,9 +66,11 @@ namespace Chaos
 
 		TConstArrayView<const FClothingSimulationCloth*> GetCloths() const { return Cloths; }
 
-		// Update solver properties before simulation.
-		
+		/** Advance the simulation. */
 		void Update(FSolverReal InDeltaTime);
+
+		/** Return the last delta time used for advancing the simulation. */
+		FSolverReal GetDeltaTime() const { return DeltaTime; }
 
 		/** Set the cached positions onto the particles */
 		void UpdateFromCache(const TArray<FVector>& CachedPositions, const TArray<FVector>& CachedVelocities);

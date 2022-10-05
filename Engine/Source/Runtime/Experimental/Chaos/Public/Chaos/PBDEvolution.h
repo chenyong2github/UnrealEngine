@@ -29,7 +29,11 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	~FPBDEvolution() {}
 
 	// Advance one time step. Filter the input time step if specified.
-	void AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothDt = true);
+	UE_DEPRECATED(5.1, "Use AdvanceOneTimeStep(const FSolverReal Dt) instead.")
+	void AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothDt) { AdvanceOneTimeStep(Dt); }
+
+	// Advance one time step. Filter the input time step if specified.
+	void AdvanceOneTimeStep(const FSolverReal Dt);
 
 	// Remove all particles, will also reset all rules
 	void ResetParticles();
@@ -216,7 +220,6 @@ private:
 	FSolverReal MDamping;
 	FSolverReal MLocalDamping;
 	FSolverReal MTime;
-	FSolverReal MSmoothDt;
 };
 
 }  // End namespace Chaos::Softs
