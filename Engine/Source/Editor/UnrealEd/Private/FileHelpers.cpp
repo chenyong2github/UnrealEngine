@@ -4554,23 +4554,55 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
-	OutPackages.Empty();
-
 	TArray<FString> Packages;
 	FEditorFileUtils::FindAllPackageFiles(Packages);
 
-	// Handle the project file
-	FSourceControlStatePtr ProjectFileSourceControlState = SourceControlProvider.GetState(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()), EStateCacheUsage::Use);
+	OutPackages.Empty();
+	OutPackages.Reserve(Packages.Num());
 
-	if (ProjectFileSourceControlState.IsValid() && ProjectFileSourceControlState->IsCurrent() &&
-		(ProjectFileSourceControlState->CanCheckIn() || (!ProjectFileSourceControlState->IsSourceControlled() && ProjectFileSourceControlState->CanAdd())))
+	const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+	if (SCCProjectDir.IsEmpty())
 	{
-		OutPackages.Add(FPaths::GetProjectFilePath(), MoveTemp(ProjectFileSourceControlState));
+		// Handle just the project file
+		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()), EStateCacheUsage::Use);
+
+		if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
+			(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())))
+		{
+			// Non-package files are added as an absolute path.
+			OutPackages.Add(FPaths::GetProjectFilePath(), MoveTemp(SourceControlState));
+		}
+	}
+	else
+	{
+		// Handle non-package files in the project directory
+		TArray<FSourceControlStateRef> SourceControlStates = SourceControlProvider.GetCachedStateByPredicate(
+		[SCCProjectDir] (const FSourceControlStateRef& SourceControlState)
+			{
+				return FPaths::IsUnderDirectory(SourceControlState->GetFilename(), SCCProjectDir);
+			}
+		);
+
+		for (FSourceControlStateRef& SourceControlState : SourceControlStates)
+		{
+			const FString& Filename = SourceControlState->GetFilename();
+
+			if (SourceControlState->IsCurrent() &&
+				(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())))
+			{
+				FString PackageName;
+				if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+				{
+					// Non-package files are added as an absolute path.
+					OutPackages.Add(Filename, MoveTemp(SourceControlState));
+				}
+			}
+		}
 	}
 
 	for (TArray<FString>::TConstIterator PackageIter(Packages); PackageIter; ++PackageIter)
 	{
-		const FString Filename = *PackageIter;
+		const FString& Filename = *PackageIter;
 
 		FString PackageName;
 		FString FailureReason;
@@ -4587,6 +4619,7 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 			(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())) &&
 			(bIncludeMaps || !IsMapPackageAsset(*Filename)))
 		{
+			// Package files are added as long package names.
 			OutPackages.Add(MoveTemp(PackageName), MoveTemp(SourceControlState));
 		}
 	}
