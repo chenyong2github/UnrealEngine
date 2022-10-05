@@ -1239,11 +1239,8 @@ void FActivatableTreeRoot::HandleInputMethodChanged(ECommonInputType InputMethod
 {
 	if (IsReceivingInput() && LeafmostActiveNode.IsValid() && ensure(LeafmostActiveNode.Pin()->IsReceivingInput()))
 	{
-		if (InputMethod == ECommonInputType::Gamepad)
-		{
-			FocusLeafmostNode();
-		}
-		else
+		ApplyLeafmostNodeConfig();
+		if (InputMethod != ECommonInputType::Gamepad)
 		{
 			LeafmostActiveNode.Pin()->CacheFocusRestorationTarget();
 		}

@@ -1334,6 +1334,9 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 			{
 				if (APlayerController* PC = LocalPlayer.GetPlayerController(GetWorld()))
 				{
+					PC->SetIgnoreMoveInput(NewConfig.bIgnoreMoveInput);
+					PC->SetIgnoreLookInput(NewConfig.bIgnoreLookInput);
+
 					EMouseCaptureMode PrevCaptureMode = GameViewportClient->GetMouseCaptureMode();
 					const bool bWasPermanentlyCaptured = PrevCaptureMode == EMouseCaptureMode::CapturePermanently || PrevCaptureMode == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown;
 

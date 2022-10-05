@@ -83,6 +83,9 @@ struct FUIInputConfig
 		return !operator==(Other);
 	}
 
+	bool bIgnoreMoveInput = false;
+	bool bIgnoreLookInput = false;
+
 private:
 	ECommonInputMode InputMode;
 	EMouseCaptureMode MouseCaptureMode;
