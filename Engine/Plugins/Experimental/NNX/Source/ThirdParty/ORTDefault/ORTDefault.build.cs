@@ -56,6 +56,7 @@ public class ORTDefault : ModuleRules
 			{
 				LibFileNames = new string[] {
 					"onnxruntime",
+					"onnxruntime.1.11.1",
 					"custom_op_library"
 				};
 			}
@@ -90,9 +91,16 @@ public class ORTDefault : ModuleRules
 				}
 				else if(Target.Platform == UnrealTargetPlatform.Mac)
 				{
-					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, "lib" + LibFileName + ".dylib");
+					string FullLibName = "lib" + LibFileName + ".dylib";
+
+					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, FullLibName);
 					PublicAdditionalLibraries.Add(CurrentLibPath);
 					RuntimeDependencies.Add(CurrentLibPath);
+
+
+					string DistributionFilePath = Path.Combine("$(TargetOutputDir)", FullLibName); 
+					RuntimeDependencies.Add(DistributionFilePath, CurrentLibPath);
+
 				}
 				else
 				{

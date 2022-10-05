@@ -16,68 +16,68 @@
 	"IsExperimentalVersion": true,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win64", "Linux"
+		"Win64", "Linux", "Mac"
 	],
 	"Modules": [
 		{
 			"Name": "NNXCore",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXHlslShaders",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXUtils",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXProfiling",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXQA",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXRuntimeCPU",
-			"Type": "RuntimeAndProgram",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXRuntimeRDG",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNXRuntimeORT",
-			"Type": "EditorAndProgram",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NNX_ONNXRuntime",
-			"Type": "RuntimeAndProgram",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "ORTHelper",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		}
 	]
 }
