@@ -16,7 +16,7 @@ ONLINESUBSYSTEMUTILS_API DECLARE_LOG_CATEGORY_EXTERN(LogPartyBeacon, Log, All);
 UENUM()
 namespace EPartyReservationResult
 {
-	enum Type
+	enum Type : int
 	{
 		/** Empty state. */
 		NoResult,
