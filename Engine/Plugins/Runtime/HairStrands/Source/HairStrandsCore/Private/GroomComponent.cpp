@@ -36,6 +36,7 @@
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "PrimitiveSceneInfo.h"
+#include "PSOPrecache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GroomComponent)
 LLM_DECLARE_TAG(Groom);
@@ -3112,100 +3113,17 @@ void UGroomComponent::PostLoad()
 
 void UGroomComponent::PrecachePSOs()
 {
-	if (GroomAsset == nullptr || !FApp::CanEverRender() || !PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!IsComponentPSOPrecachingEnabled() || GroomAsset == nullptr)
 	{
 		return;
 	}
 
-	struct VFsPerMaterialData
-	{
-		int16 MaterialIndex;
-		EHairGeometryType HairGeometryType;
-		TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
-	};
-	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
-
-	const auto AddVFPerMaterial = [&VFsPerMaterials](int32 InMaterialIndex, EHairGeometryType InHairGeometryType, const FVertexFactoryType* InVFType)
-	{
-		VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([InMaterialIndex, InHairGeometryType](const VFsPerMaterialData& Other) { return (Other.MaterialIndex == InMaterialIndex && Other.HairGeometryType == InHairGeometryType); });
-		if (VFsPerMaterial == nullptr)
-		{
-			VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
-			VFsPerMaterial->MaterialIndex = InMaterialIndex;
-			VFsPerMaterial->HairGeometryType = InHairGeometryType;
-		}
-		VFsPerMaterial->VertexFactoryTypes.AddUnique(InVFType);
-	};
-
-	const EShaderPlatform ShaderPlatform = GetScene() ? GetScene()->GetShaderPlatform() : GMaxRHIShaderPlatform;
-	const int32 GroupCount = GroomAsset->GetNumHairGroups();
-	check(GroomAsset->HairGroupsData.Num() == HairGroupInstances.Num());
-	for (int32 GroupIt = 0; GroupIt < GroupCount; GroupIt++)
-	{
-		const FHairGroupData& InGroupData = GroomAsset->HairGroupsData[GroupIt];
-		FHairGroupInstance* HairInstance = HairGroupInstances[GroupIt];
-		check(HairInstance->HairGroupPublicData);
-
-		// Strands
-		if (HairInstance->Strands.IsValid())
-		{
-			const int32 MaterialIndex = GroomAsset->GetMaterialIndex(GroomAsset->HairGroupsRendering[GroupIt].MaterialSlotName);
-			AddVFPerMaterial(MaterialIndex, EHairGeometryType::Strands, &FHairStrandsVertexFactory::StaticType);
-		}
-
-		// Cards
-		if (HairInstance->Cards.IsValid() && IsHairStrandsEnabled(EHairStrandsShaderType::Cards, ShaderPlatform))
-		{
-			uint32 CardsLODIndex = 0;
-			for (const FHairGroupData::FCards::FLOD& LOD : InGroupData.Cards.LODs)
-			{
-				if (LOD.IsValid())
-				{
-					// Material
-					int32 MaterialIndex = INDEX_NONE;
-					for (const FHairGroupsCardsSourceDescription& Desc : GroomAsset->HairGroupsCards)
-					{
-						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == CardsLODIndex)
-						{
-							MaterialIndex = GroomAsset->GetMaterialIndex(Desc.MaterialSlotName);
-							break;
-						}
-					}
-					AddVFPerMaterial(MaterialIndex, EHairGeometryType::Cards, &FHairCardsVertexFactory::StaticType);
-				}
-				++CardsLODIndex;
-			}
-		}
-
-		// Meshes
-		if (HairInstance->Meshes.IsValid())
-		{
-			uint32 MeshesLODIndex = 0;
-			for (const FHairGroupData::FMeshes::FLOD& LOD : InGroupData.Meshes.LODs)
-			{
-				if (LOD.IsValid())
-				{
-					// Material
-					int32 MaterialIndex = INDEX_NONE;
-					for (const FHairGroupsMeshesSourceDescription& Desc : GroomAsset->HairGroupsMeshes)
-					{
-						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == MeshesLODIndex)
-						{
-							MaterialIndex = GroomAsset->GetMaterialIndex(Desc.MaterialSlotName);
-							break;
-						}
-					}
-					AddVFPerMaterial(MaterialIndex, EHairGeometryType::Meshes, &FHairCardsVertexFactory::StaticType);
-				}
-				++MeshesLODIndex;
-			}
-		}
-	}
+	TArray<FHairVertexFactoryTypesPerMaterialData> VFsPerMaterials = GroomAsset->CollectVertexFactoryTypesPerMaterialData(GMaxRHIShaderPlatform);
 
 	FPSOPrecacheParams PrecachePSOParams;
 	SetupPrecachePSOParams(PrecachePSOParams);
 
-	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+	for (FHairVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(GetMaterialIndexWithFallback(VFsPerMaterial.MaterialIndex), VFsPerMaterial.HairGeometryType, true);
 		if (MaterialInterface)

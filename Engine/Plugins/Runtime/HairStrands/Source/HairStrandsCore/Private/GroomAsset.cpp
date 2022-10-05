@@ -32,6 +32,8 @@
 #include "UObject/ObjectSaveContext.h"
 #include "GroomBindingAsset.h"
 #include "GroomDeformerBuilder.h"
+#include "HairCardsVertexFactory.h"
+#include "PSOPrecache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GroomAsset)
 
@@ -783,6 +785,89 @@ bool UGroomAsset::HasGeometryType(EGroomGeometryType Type) const
 	return false;
 }
 
+TArray<FHairVertexFactoryTypesPerMaterialData> UGroomAsset::CollectVertexFactoryTypesPerMaterialData(EShaderPlatform ShaderPlatform)
+{
+	TArray<FHairVertexFactoryTypesPerMaterialData> VFsPerMaterials;
+
+	const auto AddVFPerMaterial = [&VFsPerMaterials](int32 InMaterialIndex, EHairGeometryType InHairGeometryType, const FVertexFactoryType* InVFType)
+	{
+		if (InMaterialIndex < 0)
+		{
+			return;
+		}
+
+		FHairVertexFactoryTypesPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([InMaterialIndex, InHairGeometryType](const FHairVertexFactoryTypesPerMaterialData& Other) { return (Other.MaterialIndex == InMaterialIndex && Other.HairGeometryType == InHairGeometryType); });
+		if (VFsPerMaterial == nullptr)
+		{
+			VFsPerMaterial = &VFsPerMaterials.AddDefaulted_GetRef();
+			VFsPerMaterial->MaterialIndex = InMaterialIndex;
+			VFsPerMaterial->HairGeometryType = InHairGeometryType;
+		}
+		VFsPerMaterial->VertexFactoryTypes.AddUnique(InVFType);
+	};
+
+	const int32 GroupCount = GetNumHairGroups();
+	for (int32 GroupIt = 0; GroupIt < GroupCount; GroupIt++)
+	{
+		const FHairGroupData& InGroupData = HairGroupsData[GroupIt];
+
+		// Strands
+		{
+			const int32 MaterialIndex = GetMaterialIndex(HairGroupsRendering[GroupIt].MaterialSlotName);
+			AddVFPerMaterial(MaterialIndex, EHairGeometryType::Strands, &FHairStrandsVertexFactory::StaticType);
+		}
+
+		// Cards
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards, ShaderPlatform))
+		{
+			uint32 CardsLODIndex = 0;
+			for (const FHairGroupData::FCards::FLOD& LOD : InGroupData.Cards.LODs)
+			{
+				if (LOD.IsValid())
+				{
+					// Material
+					int32 MaterialIndex = INDEX_NONE;
+					for (const FHairGroupsCardsSourceDescription& Desc : HairGroupsCards)
+					{
+						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == CardsLODIndex)
+						{
+							MaterialIndex = GetMaterialIndex(Desc.MaterialSlotName);
+							break;
+						}
+					}
+					AddVFPerMaterial(MaterialIndex, EHairGeometryType::Cards, &FHairCardsVertexFactory::StaticType);
+				}
+				++CardsLODIndex;
+			}
+		}
+
+		// Meshes
+		{
+			uint32 MeshesLODIndex = 0;
+			for (const FHairGroupData::FMeshes::FLOD& LOD : InGroupData.Meshes.LODs)
+			{
+				if (LOD.IsValid())
+				{
+					// Material
+					int32 MaterialIndex = INDEX_NONE;
+					for (const FHairGroupsMeshesSourceDescription& Desc : HairGroupsMeshes)
+					{
+						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == MeshesLODIndex)
+						{
+							MaterialIndex = GetMaterialIndex(Desc.MaterialSlotName);
+							break;
+						}
+					}
+					AddVFPerMaterial(MaterialIndex, EHairGeometryType::Meshes, &FHairCardsVertexFactory::StaticType);
+				}
+				++MeshesLODIndex;
+			}
+		}
+	}
+
+	return VFsPerMaterials;
+}
+
 enum EGroomAssetChangeType
 {
 	GroomChangeType_Interpolation = 1,
@@ -1188,6 +1273,24 @@ void UGroomAsset::PostLoad()
 #if WITH_EDITORONLY_DATA
 	UpdateCachedSettings();
 #endif // #if WITH_EDITORONLY_DATA
+
+	if (IsResourcePSOPrecachingEnabled())
+	{
+		ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? GetWorld()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+		EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+
+		TArray<FHairVertexFactoryTypesPerMaterialData> VFsPerMaterials = CollectVertexFactoryTypesPerMaterialData(ShaderPlatform);
+
+		FPSOPrecacheParams PrecachePSOParams;
+		for (FHairVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
+		{
+			UMaterialInterface* MaterialInterface = HairGroupsMaterials[VFsPerMaterial.MaterialIndex].Material;
+			if (MaterialInterface)
+			{
+				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+			}
+		}
+	}
 }
 
 void UGroomAsset::PreSave(const class ITargetPlatform* TargetPlatform)

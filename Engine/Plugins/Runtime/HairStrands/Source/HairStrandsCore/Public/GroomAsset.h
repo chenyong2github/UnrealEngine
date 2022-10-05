@@ -403,6 +403,13 @@ enum class EHairAtlasTextureType : uint8
 	Material
 };
 
+struct FHairVertexFactoryTypesPerMaterialData
+{
+	int16 MaterialIndex;
+	EHairGeometryType HairGeometryType;
+	TArray<const FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+};
+
 /**
  * Implements an asset that can be used to store hair strands
  */
@@ -572,6 +579,10 @@ public:
 	void UpdateHairGroupsInfo();
 	bool HasGeometryType(EGroomGeometryType Type) const;
 	bool HasGeometryType(uint32 GroupIndex, EGroomGeometryType Type) const;
+
+	/** Used for PSO precaching of used materials and vertex factories */
+	TArray<FHairVertexFactoryTypesPerMaterialData> CollectVertexFactoryTypesPerMaterialData(EShaderPlatform ShaderPlatform);
+
 //private :
 #if WITH_EDITOR
 	FOnGroomAssetChanged OnGroomAssetChanged;
