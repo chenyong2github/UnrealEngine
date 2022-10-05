@@ -96,6 +96,21 @@ namespace Horde.Build.Tests.Fleet
 			Assert.AreEqual(1, poolSizeDatas.Count);
 			Assert.AreEqual(2, poolSizeDatas[0].Agents.Count);
 		}
+		
+		[TestMethod]
+		public async Task ExceptionsAreSwallowedAndLogged()
+		{
+			using AutoscaleServiceV2 service = GetAutoscaleService(_fleetManagerSpy);
+			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			List<PoolSizeData> poolSizeDatas = new()
+			{
+				new PoolSizeData(null!, new(), null),
+				new PoolSizeData(pool, new(), null),
+			};
+
+			poolSizeDatas = await service.CalculatePoolSizesAsync(poolSizeDatas, CancellationToken.None);
+			Assert.AreEqual(1, poolSizeDatas.Count);
+		}
 
 		[TestMethod]
 		public async Task ScaleOutCooldown()

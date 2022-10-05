@@ -156,9 +156,16 @@ namespace Horde.Build.Agents.Fleet
 
 			await Parallel.ForEachAsync(poolSizeDatas, options, async (input, innerCt) =>
 			{
-				IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(input.Pool);
-				PoolSizeData output = (await sizeStrategy.CalcDesiredPoolSizesAsync(new List<PoolSizeData> { input }))[0];
-				results.Enqueue(output);
+				try
+				{
+					IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(input.Pool);
+					PoolSizeData output = (await sizeStrategy.CalcDesiredPoolSizesAsync(new List<PoolSizeData> { input }))[0];
+					results.Enqueue(output);
+				}
+				catch (Exception e)
+				{
+					_logger.LogError(e, "Failed calculating pool size for pool {PoolId}", input.Pool?.Id);
+				}
 			});
 
 			return results.ToList();
