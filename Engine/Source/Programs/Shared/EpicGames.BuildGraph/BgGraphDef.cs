@@ -447,10 +447,10 @@ namespace EpicGames.BuildGraph
 						}
 						jsonWriter.WriteArrayEnd();
 
-						jsonWriter.WriteArrayStart("Outputs");
+						jsonWriter.WriteArrayStart("OutputNames");
 						foreach (BgNodeOutput output in node.Outputs)
 						{
-							jsonWriter.WriteValue($"{output.ProducingNode.Name}/{output.TagName}");
+							jsonWriter.WriteValue($"{output.TagName}");
 						}
 						jsonWriter.WriteArrayEnd();
 

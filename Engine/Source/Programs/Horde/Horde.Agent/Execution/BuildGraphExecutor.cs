@@ -34,7 +34,7 @@ namespace Horde.Agent.Execution
 			public bool RunEarly { get; set; }
 			public bool? Warnings { get; set; }
 			public List<string> Inputs { get; set; } = new List<string>();
-			public List<string> Outputs { get; set; } = new List<string>();
+			public List<string> OutputNames { get; set; } = new List<string>();
 			public List<string> InputDependencies { get; set; } = new List<string>();
 			public List<string> OrderDependencies { get; set; } = new List<string>();
 			public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -451,9 +451,9 @@ namespace Horde.Agent.Execution
 					{
 						createNode.Inputs.Add(exportedNode.Inputs);
 					}
-					if (exportedNode.Outputs != null)
+					if (exportedNode.OutputNames != null)
 					{
-						createNode.Outputs.Add(exportedNode.Outputs);
+						createNode.Outputs.Add(exportedNode.OutputNames);
 					}
 					if (exportedNode.InputDependencies != null)
 					{

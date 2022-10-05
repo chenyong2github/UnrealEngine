@@ -479,6 +479,8 @@ namespace Horde.Build.Jobs.Graphs
 		/// Constructor
 		/// </summary>
 		/// <param name="name">Name of the node</param>
+		/// <param name="inputs">List of inputs for the node</param>
+		/// <param name="outputNames">List of output names for the node</param>
 		/// <param name="inputDependencies">List of nodes which must have completed succesfully for this node to run</param>
 		/// <param name="orderDependencies">List of nodes which must have completed for this node to run</param>
 		/// <param name="priority">Priority of this node</param>
@@ -488,9 +490,11 @@ namespace Horde.Build.Jobs.Graphs
 		/// <param name="credentials">Credentials required for this node to run</param>
 		/// <param name="properties">Properties for the node</param>
 		/// <param name="annotations">User annotations for this node</param>
-		public NewNode(string name, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null, IReadOnlyNodeAnnotations? annotations = null)
+		public NewNode(string name, List<string>? inputs = null, List<string>? outputNames = null, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null, IReadOnlyNodeAnnotations? annotations = null)
 		{
 			Name = name;
+			Inputs = inputs;
+			OutputNames = outputNames;
 			InputDependencies = inputDependencies;
 			OrderDependencies = orderDependencies;
 			Priority = priority;
