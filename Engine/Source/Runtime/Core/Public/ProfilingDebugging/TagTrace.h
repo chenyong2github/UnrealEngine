@@ -65,7 +65,6 @@ public:
 	FDefaultMemScope(TagType InTag)
 		: FMemScope(InTag, MemoryTrace_GetActiveTag() == 0)
 	{
-		
 	}
 };
 
