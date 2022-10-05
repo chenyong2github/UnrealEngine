@@ -133,7 +133,7 @@ struct STATETREEMODULE_API FStateTreeCompareEnumConditionInstanceData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Input)
+	UPROPERTY(EditAnywhere, Category = Input, meta=(AllowAnyBinding))
 	FStateTreeAnyEnum Left;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)

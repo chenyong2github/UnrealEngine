@@ -22,7 +22,7 @@ namespace UE::StateTree::PropertyBinding
 {
 	
 const FName StateTreeNodeIDName(TEXT("StateTreeNodeID"));
-	
+const FName AllowAnyBindingName(TEXT("AllowAnyBinding"));
 
 UObject* FindEditorBindingsOwner(UObject* InObject)
 {
@@ -192,6 +192,9 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			// Note: AnyEnums will need special handling before they can be used for binding.
 			if (bIsAnyEnum)
 			{
+				// If the AnyEnum has AllowAnyBinding, allow to bind to any enum.
+				const bool bAllowAnyBinding = InPropertyHandle->HasMetaData(UE::StateTree::PropertyBinding::AllowAnyBindingName);
+
 				FStateTreeAnyEnum AnyEnum;
 				UE::StateTree::PropertyHelpers::GetStructValue(InPropertyHandle, AnyEnum);
 
@@ -200,12 +203,12 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 				{
 					if (UEnum* Enum = ByteProperty->GetIntPropertyEnum())
 					{
-						bCanBind = !AnyEnum.Enum || AnyEnum.Enum == Enum;
+						bCanBind = bAllowAnyBinding || AnyEnum.Enum == Enum;
 					}
 				}
 				else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
 				{
-					bCanBind = !AnyEnum.Enum || AnyEnum.Enum == EnumProperty->GetEnum();
+					bCanBind = bAllowAnyBinding || AnyEnum.Enum == EnumProperty->GetEnum();
 				}
 			}
 			else if (bIsDataRef && DataRefBaseStruct != nullptr)

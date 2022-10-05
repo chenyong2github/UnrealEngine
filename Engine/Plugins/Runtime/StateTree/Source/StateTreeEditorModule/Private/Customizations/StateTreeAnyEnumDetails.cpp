@@ -86,7 +86,8 @@ TSharedRef<SWidget> FStateTreeAnyEnumDetails::OnGetComboContent() const
 	{
 		if (StateTreeEnum.Enum)
 		{
-			for (int32 i = 0; i < StateTreeEnum.Enum->NumEnums(); i++)
+			// This is the number of entry in the enum, - 1, because the last item in an enum is the _MAX item
+			for (int32 i = 0; i < StateTreeEnum.Enum->NumEnums() - 1; i++)
 			{
 				const int64 Value = StateTreeEnum.Enum->GetValueByIndex(i);
 				MenuBuilder.AddMenuEntry(StateTreeEnum.Enum->GetDisplayNameTextByIndex(i), TAttribute<FText>(), FSlateIcon(),
@@ -98,6 +99,7 @@ TSharedRef<SWidget> FStateTreeAnyEnumDetails::OnGetComboContent() const
 					}))
 				);
 			}
+			bSuccess = true;
 		}
 	}
 

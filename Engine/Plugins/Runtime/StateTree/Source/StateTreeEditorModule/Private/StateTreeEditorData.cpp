@@ -245,18 +245,59 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 {
 	bool bResult = false;
 
-	VisitHierarchyNodes([&bResult, &OutStructDesc, StructID](const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)
+	// All parameters
+	if (StructID == RootParameters.ID)
+	{
+		OutStructDesc.Struct = RootParameters.Parameters.GetPropertyBagStruct();
+		OutStructDesc.Name = FName(TEXT("Parameters"));
+		OutStructDesc.ID = RootParameters.ID;
+		bResult = true;
+	}
+
+	// All named external data items declared by the schema
+	if (!bResult && Schema != nullptr)
+	{
+		for (const FStateTreeExternalDataDesc& Desc : Schema->GetContextDataDescs())
 		{
-			if (ID == StructID)
+			OutStructDesc.Struct = Desc.Struct;
+			OutStructDesc.Name = Desc.Name;
+			OutStructDesc.ID = Desc.ID;
+			bResult = true;
+			break;
+		}	
+	}
+
+	// Evaluators
+	if (!bResult)
+	{
+		for (const FStateTreeEditorNode& Node : Evaluators)
+		{
+			if (const FStateTreeEvaluatorBase* Evaluator = Node.Node.GetPtr<FStateTreeEvaluatorBase>())
 			{
-				OutStructDesc.Struct = InstanceStruct;
-				OutStructDesc.Name = Name;
-				OutStructDesc.ID = ID;
+				OutStructDesc.Struct = Evaluator->GetInstanceDataType();
+				OutStructDesc.Name = Evaluator->Name;
+				OutStructDesc.ID = Node.ID;
 				bResult = true;
-				return EStateTreeVisitor::Break;
+				break;
 			}
-			return EStateTreeVisitor::Continue;
-		});
+		}
+	}
+
+	if (!bResult)
+	{
+		VisitHierarchyNodes([&bResult, &OutStructDesc, StructID](const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)
+			{
+				if (ID == StructID)
+				{
+					OutStructDesc.Struct = InstanceStruct;
+					OutStructDesc.Name = Name;
+					OutStructDesc.ID = ID;
+					bResult = true;
+					return EStateTreeVisitor::Break;
+				}
+				return EStateTreeVisitor::Continue;
+			});
+	}
 
 	return bResult;
 }
@@ -313,6 +354,15 @@ void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStruc
 		{
 			AllStructs.Emplace(Desc.ID, Desc.Struct);
 		}	
+	}
+
+	// Evaluators
+	for (const FStateTreeEditorNode& Node : Evaluators)
+	{
+		if (const FStateTreeEvaluatorBase* Evaluator = Node.Node.GetPtr<FStateTreeEvaluatorBase>())
+		{
+			AllStructs.Emplace(Node.ID, Evaluator->GetInstanceDataType());
+		}
 	}
 
 	VisitHierarchyNodes([&AllStructs](const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)
@@ -445,27 +495,10 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<EStateTreeVisitor(UStateT
 
 void UStateTreeEditorData::VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const
 {
-	// Evaluators
-	bool bContinue = true;
-	for (const FStateTreeEditorNode& Node : Evaluators)
+	VisitHierarchy([this, &InFunc](const UStateTreeState& State, UStateTreeState* /*ParentState*/)
 	{
-		if (const FStateTreeEvaluatorBase* Evaluator = Node.Node.GetPtr<FStateTreeEvaluatorBase>())
-		{
-			if (InFunc(nullptr, Node.ID, Evaluator->Name, EStateTreeNodeType::Task, Node.Node.GetScriptStruct(), Evaluator->GetInstanceDataType()) == EStateTreeVisitor::Break)
-			{
-				bContinue = false;
-				break;
-			}
-		}
-	}
-
-	if (bContinue)
-	{
-		VisitHierarchy([this, &InFunc](const UStateTreeState& State, UStateTreeState* /*ParentState*/)
-		{
-			return VisitStateNodes(State, InFunc);
-		});
-	}
+		return VisitStateNodes(State, InFunc);
+	});
 }
 
 
