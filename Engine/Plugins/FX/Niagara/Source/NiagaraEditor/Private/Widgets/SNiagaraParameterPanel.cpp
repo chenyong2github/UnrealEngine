@@ -464,7 +464,6 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 			.ButtonStyle(FAppStyle::Get(), "RoundButton")
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ContentPadding(FMargin(2.0f))
-			.Visibility(this, &SNiagaraParameterPanel::GetVisibilityForReferenceCounter)
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.ButtonContent()
@@ -481,18 +480,6 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 	[
 		ItemWidgetHorizontalBox.ToSharedRef()
 	];
-}
-
-EVisibility SNiagaraParameterPanel::GetVisibilityForReferenceCounter() const
-{
-	if (ParameterPanelViewModel->GetShowReferenceCounter())
-	{
-		return EVisibility::Visible;
-	}
-	else
-	{
-		return EVisibility::Collapsed;
-	}
 }
 
 TSharedPtr<SWidget> SNiagaraParameterPanel::OnContextMenuOpening()

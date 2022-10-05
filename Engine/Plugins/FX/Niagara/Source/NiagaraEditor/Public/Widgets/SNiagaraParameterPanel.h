@@ -134,8 +134,6 @@ private:
 
 	FText GetTooltipForSection(FText Section);
 
-	EVisibility GetVisibilityForReferenceCounter() const;
-
 private:
 	mutable bool bPendingRefresh;
 	mutable bool bPendingSelectionRestore;
