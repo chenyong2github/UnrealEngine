@@ -584,6 +584,8 @@ protected:
 	void OnDistributeNodesV();
 
 private:
+	void OnMessageLogLinkActivated(const class TSharedRef<IMessageToken>& Token);
+
 	/** Builds the toolbar widget for the material editor */
 	void ExtendToolbar();
 	void RegisterToolBar();

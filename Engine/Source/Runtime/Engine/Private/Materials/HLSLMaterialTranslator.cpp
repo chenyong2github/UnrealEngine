@@ -3649,23 +3649,24 @@ int32 FHLSLMaterialTranslator::Error(const TCHAR* Text)
 	if (!bUsingErrorProxy)
 	{
 		// Standard error handling, immediately append one-off errors and signal failure
-		CompileErrors.AddUnique(ErrorString);
-	
+		bSuccess = false;
 		if (ExpressionToError)
 		{
-			ErrorExpressions.Add(ExpressionToError);
 			ExpressionToError->LastErrorText = Text;
+			for (int32 i = 0; i < ErrorExpressions.Num(); i++)
+			{
+				if(ErrorExpressions[i] == ExpressionToError && CompileErrors[i] == ErrorString)
+				{
+					return INDEX_NONE;
+				}
+			}
 		}
+	}
 
-		bSuccess = false;
-	}
-	else
-	{
-		// When a proxy is intercepting errors, ignore the failure and match arrays to allow later error type selection
-		CompileErrors.Add(ErrorString);
-		ErrorExpressions.Add(ExpressionToError);		
-	}
-		
+	// When a proxy is intercepting errors, ignore the failure and match arrays to allow later error type selection
+	CompileErrors.Add(ErrorString);
+	ErrorExpressions.Add(ExpressionToError);
+
 	return INDEX_NONE;
 }
 
