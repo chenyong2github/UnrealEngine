@@ -30,13 +30,6 @@ static FAutoConsoleVariableRef CVarStripSkeletalMeshLodsBelowMinLod(
 	TEXT("If set will strip skeletal mesh LODs under the minimum renderable LOD for the target platform during cooking.")
 );
 
-int32 GAllowSkinnedMorphDataStreaming = 0;
-static FAutoConsoleVariableRef CVarAllowSkinnedMorphDataStreaming(
-	TEXT("r.Skinned.AllowSkinnedMorphDataStreaming"),
-	GAllowSkinnedMorphDataStreaming,
-	TEXT("Call BeginInitResource when the morph resources are finish streaming (DoFinishUpdate)")
-);
-
 namespace
 {
 	struct FReverseOrderBitArraysBySetBits
@@ -166,14 +159,6 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	return Ar;
 }
 
-void FSkeletalMeshLODRenderData::InitMorphResources()
-{
-	if (GAllowSkinnedMorphDataStreaming && !MorphTargetVertexInfoBuffers.IsRHIIntialized() && MorphTargetVertexInfoBuffers.IsMorphCPUDataValid() && MorphTargetVertexInfoBuffers.NumTotalBatches > 0)
-	{
-		BeginInitResource(&MorphTargetVertexInfoBuffers);
-	}
-}
-
 void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner)
 {
 	if (bStreamedDataInlined)
@@ -230,8 +215,8 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 		const FSkeletalMeshLODInfo* SkeletalMeshLODInfo = Owner->GetLODInfo(LODIndex);
 		MorphTargetVertexInfoBuffers.InitMorphResources(GMaxRHIShaderPlatform, RenderSections, Owner->GetMorphTargets(), StaticVertexBuffers.StaticMeshVertexBuffer.GetNumVertices(), LODIndex, SkeletalMeshLODInfo->MorphTargetPositionErrorTolerance);
 	}
-	
-	if (!MorphTargetVertexInfoBuffers.IsRHIIntialized() && MorphTargetVertexInfoBuffers.IsMorphCPUDataValid() && MorphTargetVertexInfoBuffers.NumTotalBatches > 0)
+
+	if (!MorphTargetVertexInfoBuffers.IsRHIIntialized() && MorphTargetVertexInfoBuffers.IsMorphCPUDataValid() && (MorphTargetVertexInfoBuffers.NumTotalBatches > 0 || !bStreamedDataInlined))
 	{
 		BeginInitResource(&MorphTargetVertexInfoBuffers);
 	}
