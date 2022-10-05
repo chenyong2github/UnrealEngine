@@ -275,7 +275,7 @@ public:
 	bool bInterpolate = false;
 
 	/** If true, Rotation at each Pattern Element is offset by a uniformly chosen random value in the range of [-RotationJitterRange, RotationJitterRange] */
-	UPROPERTY(EditAnywhere, Category = Rotation)
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (InlineEditConditionToggle))
 	bool bJitter = false;
 
 	/** Rotation at first Pattern Element */
@@ -287,8 +287,8 @@ public:
 	FRotator EndRotation = FRotator::ZeroRotator;
 
 	/** Upper bound of the range which is sampled to randomly rotate each Pattern Element if Jitter is true */
-	UPROPERTY(EditAnywhere, Category = Rotation, meta = (ClampMin = 0, EditCondition = "bJitter", EditConditionHides, HideEditConditionToggle))
-	FRotator RotationJitterRange = FRotator::ZeroRotator;
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (ClampMin = 0, EditCondition = "bJitter"))
+	FRotator Jitter = FRotator::ZeroRotator;
 };
 
 
@@ -305,7 +305,7 @@ public:
 	bool bInterpolate = false;
 
 	/** If true, Translation at each Pattern Element is offset by a uniformly chosen random value in the range of [-TranslationJitterRange, TranslationJitterRange] */
-	UPROPERTY(EditAnywhere, Category = Translation)
+	UPROPERTY(EditAnywhere, Category = Translation, meta = (InlineEditConditionToggle))
 	bool bJitter = false;
 
 	/** Translation at first Pattern Element */
@@ -317,8 +317,8 @@ public:
 	FVector EndTranslation = FVector::ZeroVector;
 
 	/** Upper bound of the range which is sampled to randomly translate each Pattern Element if Jitter is true */
-	UPROPERTY(EditAnywhere, Category = Translation, meta = (ClampMin = 0, EditCondition = "bJitter", EditConditionHides, HideEditConditionToggle))
-	FVector TranslationJitterRange = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = Translation, meta = (ClampMin = 0, EditCondition = "bJitter"))
+	FVector Jitter = FVector::ZeroVector;
 };
 
 
@@ -339,7 +339,7 @@ public:
 	bool bInterpolate = false;
 
 	/** If true, Scale at each Pattern Element is offset by a uniformly chosen random value in the range of [-ScaleJitterRange, ScaleJitterRange] */
-	UPROPERTY(EditAnywhere, Category = Scale)
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (InlineEditConditionToggle))
 	bool bJitter = false;
 	
 	/** Uniform Scale at first Pattern Element */
@@ -349,14 +349,10 @@ public:
 	/** Uniform Scale applied to all Pattern Elements, or at Last Pattern Element for Interpolated scales */
 	UPROPERTY(EditAnywhere, Category = Scale, meta = (EditCondition = "bInterpolate"))
 	FVector EndScale = FVector::OneVector;
-	
-	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0, EditCondition = "bJitter && bUniform", EditConditionHides, HideEditConditionToggle))
-	float ScaleJitterRange = 0.0f;
 
-	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true (Non-Uniform) */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0, DisplayName = "Scale Jitter Range", EditCondition = "bJitter && bUniform == false", EditConditionHides, HideEditConditionToggle))
-	FVector ScaleJitterRangeNonUniform = FVector(0, 0, 0);
+	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true */
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0, EditCondition = "bJitter"))
+	FVector Jitter = FVector::ZeroVector;
 };
 
 
@@ -438,9 +434,11 @@ public:
 	
 	FVector StartScaleDirection;
 	FVector EndScaleDirection;
+	FVector JitterScaleDirection;
 	
 	int32 StartScaleWatcherIdx;
 	int32 EndScaleWatcherIdx;
+	int32 JitterScaleWatcherIdx;
 
 	UPROPERTY()
 	TObjectPtr<UPatternTool_OutputSettings> OutputSettings;

@@ -577,6 +577,7 @@ void UPatternTool::Setup()
 			
 			StartScaleDirection = ScaleSettings->StartScale.GetSafeNormal(Tolerance, DefaultDirection);
 			EndScaleDirection = ScaleSettings->EndScale.GetSafeNormal(Tolerance, DefaultDirection);
+			JitterScaleDirection = ScaleSettings->Jitter.GetSafeNormal(Tolerance, DefaultDirection);
 		}
 	};
 	ScaleSettings->WatchProperty(ScaleSettings->bUniform, OnUniformChanged);
@@ -596,6 +597,15 @@ void UPatternTool::Setup()
 		{
 			ScaleSettings->EndScale = EndScaleDirection * NewEndScale.Size();
 			ScaleSettings->SilentUpdateWatcherAtIndex(EndScaleWatcherIdx);
+		}
+	});
+
+	JitterScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->Jitter, [this](const FVector& NewJitter)
+	{
+		if (ScaleSettings->bUniform)
+		{
+			ScaleSettings->Jitter = JitterScaleDirection * NewJitter.Size();
+			ScaleSettings->SilentUpdateWatcherAtIndex(JitterScaleWatcherIdx);
 		}
 	});
 
@@ -855,7 +865,7 @@ static void InitializeGenerator(FPatternGenerator& Generator, UPatternTool* Tool
 	
 	Generator.bInterpolateRotation = Tool->RotationSettings->bInterpolate;
 	Generator.bJitterRotation = Tool->RotationSettings->bJitter;
-	Generator.RotationJitterRange = Tool->RotationSettings->RotationJitterRange;
+	Generator.RotationJitterRange = Tool->RotationSettings->Jitter;
 	if (Generator.bInterpolateRotation)
 	{
 		Generator.StartRotation = FQuaterniond(Tool->RotationSettings->StartRotation);
@@ -868,7 +878,7 @@ static void InitializeGenerator(FPatternGenerator& Generator, UPatternTool* Tool
 
 	Generator.bInterpolateTranslation = Tool->TranslationSettings->bInterpolate;
 	Generator.bJitterTranslation = Tool->TranslationSettings->bJitter;
-	Generator.TranslationJitterRange = Tool->TranslationSettings->TranslationJitterRange;
+	Generator.TranslationJitterRange = Tool->TranslationSettings->Jitter;
 	if (Generator.bInterpolateTranslation)
 	{
 		Generator.StartTranslation = Tool->TranslationSettings->StartTranslation;
@@ -881,7 +891,7 @@ static void InitializeGenerator(FPatternGenerator& Generator, UPatternTool* Tool
 
 	Generator.bInterpolateScale = Tool->ScaleSettings->bInterpolate;
 	Generator.bJitterScale = Tool->ScaleSettings->bJitter;
-	Generator.ScaleJitterRange = (Tool->ScaleSettings->bUniform) ? (FVector3d::One()*Tool->ScaleSettings->ScaleJitterRange) : Tool->ScaleSettings->ScaleJitterRangeNonUniform;
+	Generator.ScaleJitterRange = Tool->ScaleSettings->Jitter;
 	if (Generator.bInterpolateScale)
 	{
 		Generator.StartScale = Tool->ScaleSettings->StartScale;
