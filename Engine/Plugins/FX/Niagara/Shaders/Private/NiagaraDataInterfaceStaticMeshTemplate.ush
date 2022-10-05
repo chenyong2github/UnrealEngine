@@ -34,6 +34,9 @@ float3			{ParameterName}_InstanceWorldVelocity;
 
 float3			{ParameterName}_PreSkinnedLocalBoundsCenter;
 float3			{ParameterName}_PreSkinnedLocalBoundsExtents;
+float3			{ParameterName}_MeshBoundsWSCenter;
+float3			{ParameterName}_MeshBoundsWSExtents;
+float3			{ParameterName}_OwnerToMeshVector;
 float3			{ParameterName}_SystemLWCTile;
 
 #if DISTATICMESH_ALLOWDISTANCEFIELD
@@ -726,6 +729,26 @@ void GetLocalToWorldInverseTransposed_{ParameterName}(out float4x4 OutMatrix)
 void GetWorldVelocity_{ParameterName}(out float3 Velocity)
 {
 	Velocity = {ParameterName}_InstanceWorldVelocity;
+}
+
+void GetMeshBounds_{ParameterName}(out float3 Center, out float3 ExtentsMin, out float3 ExtentsMax, out float3 Extents, out float3 HalfExtents, out float3 OwnerToMeshVector)
+{
+	Center				= {ParameterName}_PreSkinnedLocalBoundsCenter;
+	HalfExtents			= {ParameterName}_MeshBoundsWSExtents;
+	Extents				= HalfExtents * 2.0f;
+	ExtentsMin			= Center - HalfExtents;
+	ExtentsMax			= Center + HalfExtents;
+	OwnerToMeshVector	= {ParameterName}_OwnerToMeshVector;
+}
+
+void GetMeshBoundsWS_{ParameterName}(out float3 Center, out float3 ExtentsMin, out float3 ExtentsMax, out float3 Extents, out float3 HalfExtents, out float3 OwnerToMeshVector)
+{
+	Center				= {ParameterName}_MeshBoundsWSCenter;
+	HalfExtents			= {ParameterName}_MeshBoundsWSExtents;
+	Extents				= HalfExtents * 2.0f;
+	ExtentsMin			= Center - HalfExtents;
+	ExtentsMax			= Center + HalfExtents;
+	OwnerToMeshVector	= {ParameterName}_OwnerToMeshVector;
 }
 
 //////////////////////////////////////////////////////////////////////////

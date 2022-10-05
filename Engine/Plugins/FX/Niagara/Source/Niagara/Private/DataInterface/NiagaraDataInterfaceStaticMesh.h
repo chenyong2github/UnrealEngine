@@ -256,6 +256,8 @@ protected:
 	void VMIsValid(FVectorVMExternalFunctionContext& Context);
 
 	void VMGetPreSkinnedLocalBounds(FVectorVMExternalFunctionContext& Context);
+	template<bool bLocalSpace>
+	void VMGetMeshBounds(FVectorVMExternalFunctionContext& Context);
 
 	void VMGetLocalToWorld(FVectorVMExternalFunctionContext& Context);
 	void VMGetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
