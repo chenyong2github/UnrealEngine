@@ -43,6 +43,14 @@ FDeferredLightData InitDeferredLightFromUniforms(uint InLightType)
 	return Out;
 }
 
+FDeferredLightData InitDeferredLightFromUniforms()
+{
+	uint LightType = LIGHT_TYPE_POINT;
+	if (DeferredLightUniforms.SpotAngles.x > -2.0f)			{ LightType = LIGHT_TYPE_SPOT; } 
+	if (DeferredLightUniforms.RectLightBarnLength > -2.0f)	{ LightType = LIGHT_TYPE_RECT; }
+	return InitDeferredLightFromUniforms(LightType);
+}
+
 // Special version for mobil. Used only for punctual local light (point or spot)
 FDeferredLightData SetupLightDataForStandardDeferred_Mobile(uint InLightType)
 {

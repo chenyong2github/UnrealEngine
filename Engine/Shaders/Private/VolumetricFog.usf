@@ -15,6 +15,7 @@
 #include "VolumetricLightmapShared.ush"
 #include "ForwardShadowingCommon.ush"
 #include "ParticipatingMediaCommon.ush"
+#include "LightDataUniforms.ush"
 #define FrontLayerTranslucencyReflectionsStruct LumenGIVolumeStruct
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #include "Random.ush"
@@ -279,30 +280,7 @@ void InjectShadowedLocalLightPS(
 	// This triggers the HistoryMissSuperSampleCount path causing significant overhead for shading off-screen pixels.
 	if (all(int3(GridCoordinate) < VolumetricFog.GridSizeInt))
 	{
-		FDeferredLightData LightData;
-		LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
-		LightData.InvRadius = DeferredLightUniforms.InvRadius;
-		LightData.Color = DeferredLightUniforms.Color;
-		LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
-		LightData.Direction = DeferredLightUniforms.Direction;
-        LightData.Tangent = DeferredLightUniforms.Tangent;
-		LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-		LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
-		LightData.SourceLength = DeferredLightUniforms.SourceLength;
-        LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
-		LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
-		LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
-		LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-		LightData.ContactShadowNonShadowCastingIntensity = DeferredLightUniforms.ContactShadowNonShadowCastingIntensity;
-		LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
-		LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
-		LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-		LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
-		LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
-		LightData.bInverseSquared = DeferredLightUniforms.FalloffExponent == 0;
-		LightData.bRadialLight = true;
-		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
-		LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
+		FDeferredLightData LightData = InitDeferredLightFromUniforms();
 
 		float VolumetricScatteringIntensity = DeferredLightUniforms.VolumetricScatteringIntensity;
 
