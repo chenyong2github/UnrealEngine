@@ -5,6 +5,8 @@
 
 DEFINE_LOG_CATEGORY(LogType);
 
+ENUM_CLASS_FLAGS(FPropertyValueIterator::EPropertyValueFlags)
+
 FPropertyValueIterator::FPropertyValueIterator(
 	FFieldClass* InPropertyClass,
 	const UStruct* InStruct,
@@ -26,31 +28,31 @@ FPropertyValueIterator::FPropertyValueIterator(
 	}
 }
 
-uint8 FPropertyValueIterator::GetPropertyValueFlags(const FProperty* Property)
+FPropertyValueIterator::EPropertyValueFlags FPropertyValueIterator::GetPropertyValueFlags(const FProperty* Property) const
 {
-	uint8 Flags = 0;
+	EPropertyValueFlags Flags = EPropertyValueFlags::None;
 	if (RecursionFlags == EPropertyValueIteratorFlags::FullRecursion)
 	{
 		if (Property->IsA(FArrayProperty::StaticClass()))
 		{
-			Flags = (uint8)EPropertyValueFlags::IsArray;
+			Flags = EPropertyValueFlags::IsArray;
 		}
 		else if (Property->IsA(FMapProperty::StaticClass()))
 		{
-			Flags = (uint8)EPropertyValueFlags::IsMap;
+			Flags = EPropertyValueFlags::IsMap;
 		}
 		else if (Property->IsA(FSetProperty::StaticClass()))
 		{
-			Flags = (uint8)EPropertyValueFlags::IsSet;
+			Flags = EPropertyValueFlags::IsSet;
 		}
 		else if (Property->IsA(FStructProperty::StaticClass()))
 		{
-			Flags = (uint8)EPropertyValueFlags::IsStruct;
+			Flags = EPropertyValueFlags::IsStruct;
 		}
 	}
 	if (bMatchAll || Property->IsA(PropertyClass))
 	{
-		Flags |= (uint8)EPropertyValueFlags::IsMatch;
+		Flags |= EPropertyValueFlags::IsMatch;
 	}
 	return Flags;
 }
@@ -61,8 +63,8 @@ void FPropertyValueIterator::FillStructProperties(const UStruct* Struct, FProper
 	for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::IncludeSuper, DeprecatedPropertyFlags, EFieldIteratorFlags::ExcludeInterfaces); It; ++It)
 	{
 		const FProperty* Property  = *It;
-		uint8 PropertyValueFlags = GetPropertyValueFlags(Property);
-		if (PropertyValueFlags)
+		EPropertyValueFlags PropertyValueFlags = GetPropertyValueFlags(Property);
+		if (PropertyValueFlags != EPropertyValueFlags::None)
 		{
 			int32 Num = Property->ArrayDim;
 			ValueArray.Reserve(ValueArray.Num() + Num);
@@ -89,13 +91,13 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 
 		const FProperty* Property = Entry.ValueArray[Entry.ValueIndex].Key.Key;
 		const void* PropertyValue = Entry.ValueArray[Entry.ValueIndex].Key.Value;
-		const uint8 PropertyValueFlags = Entry.ValueArray[Entry.ValueIndex].Value;
-		check(PropertyValueFlags);
+		const EPropertyValueFlags PropertyValueFlags = Entry.ValueArray[Entry.ValueIndex].Value;
+		check(PropertyValueFlags != EPropertyValueFlags::None);
 
 		// Handle matching properties
-		if (!bIsPropertyMatchProcessed && (PropertyValueFlags & EPropertyValueFlags::IsMatch))
+		if (!bIsPropertyMatchProcessed && EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsMatch))
 		{
-			if (PropertyValueFlags & EPropertyValueFlags::ContainerMask)
+			if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::ContainerMask))
 			{
 				// this match is also a container/struct, so recurse into it next time
 				Entry.NextValueIndex = Entry.ValueIndex;
@@ -104,17 +106,17 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 		}
 
 		// Handle container properties
-		check(PropertyValueFlags & EPropertyValueFlags::ContainerMask);
+		check(EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::ContainerMask));
 		if (InRecursionFlags == EPropertyValueIteratorFlags::FullRecursion)
 		{
 			FPropertyValueStackEntry NewEntry(PropertyValue);
 
-			if (PropertyValueFlags & EPropertyValueFlags::IsArray)
+			if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsArray))
 			{
 				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(Property);
 				const FProperty* InnerProperty = ArrayProperty->Inner;
-				uint8 InnerFlags = GetPropertyValueFlags(InnerProperty);
-				if (InnerFlags)
+				EPropertyValueFlags InnerFlags = GetPropertyValueFlags(InnerProperty);
+				if (InnerFlags != EPropertyValueFlags::None)
 				{
 					FScriptArrayHelper Helper(ArrayProperty, PropertyValue);
 					const int32 Num = Helper.Num();
@@ -126,14 +128,14 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 					}
 				}
 			}
-			else if (PropertyValueFlags & EPropertyValueFlags::IsMap)
+			else if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsMap))
 			{
 				const FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(Property);
 				const FProperty* KeyProperty = MapProperty->KeyProp;
 				const FProperty* ValueProperty = MapProperty->ValueProp;
-				uint8 KeyFlags = GetPropertyValueFlags(KeyProperty);
-				uint8 ValueFlags = GetPropertyValueFlags(ValueProperty);
-				if (KeyFlags | ValueFlags)
+				EPropertyValueFlags KeyFlags = GetPropertyValueFlags(KeyProperty);
+				EPropertyValueFlags ValueFlags = GetPropertyValueFlags(ValueProperty);
+				if ((KeyFlags | ValueFlags) != EPropertyValueFlags::None)
 				{
 					FScriptMapHelper Helper(MapProperty, PropertyValue);
 					const int32 Num = Helper.Num();
@@ -141,12 +143,12 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 					{
 						if (Helper.IsValidIndex(DynamicIndex))
 						{
-							if (KeyFlags)
+							if (KeyFlags != EPropertyValueFlags::None)
 							{
 								NewEntry.ValueArray.Emplace(
 									BasePairType(KeyProperty, Helper.GetKeyPtr(DynamicIndex)), KeyFlags);
 							}
-							if (ValueFlags)
+							if (ValueFlags != EPropertyValueFlags::None)
 							{
 								NewEntry.ValueArray.Emplace(
 									BasePairType(ValueProperty, Helper.GetValuePtr(DynamicIndex)), ValueFlags);
@@ -155,12 +157,12 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 					}
 				}
 			}
-			else if (PropertyValueFlags & EPropertyValueFlags::IsSet)
+			else if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsSet))
 			{
 				const FSetProperty* SetProperty = CastFieldChecked<FSetProperty>(Property);
 				const FProperty* InnerProperty = SetProperty->ElementProp;
-				uint8 InnerFlags = GetPropertyValueFlags(InnerProperty);
-				if (InnerFlags)
+				EPropertyValueFlags InnerFlags = GetPropertyValueFlags(InnerProperty);
+				if (InnerFlags != EPropertyValueFlags::None)
 				{
 					FScriptSetHelper Helper(SetProperty, PropertyValue);
 					const int32 Num = Helper.Num();
@@ -174,7 +176,7 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 					}
 				}
 			}
-			else if (PropertyValueFlags & EPropertyValueFlags::IsStruct)
+			else if (EnumHasAnyFlags(PropertyValueFlags, EPropertyValueFlags::IsStruct))
 			{
 				const FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Property);
 				FillStructProperties(StructProperty->Struct, NewEntry);
@@ -225,4 +227,63 @@ void FPropertyValueIterator::GetPropertyChain(TArray<const FProperty*>& Property
 		const FProperty* Property = Entry.ValueArray[Entry.ValueIndex].Key.Key;
 		PropertyChain.Add(Property);
 	}
+}
+
+FString FPropertyValueIterator::GetPropertyPathDebugString() const
+{
+	TStringBuilder<FName::StringBufferSize> PropertyPath;
+	for (int32 StackIndex = 0; StackIndex < PropertyIteratorStack.Num(); StackIndex++)
+	{
+		const FPropertyValueStackEntry& Entry = PropertyIteratorStack[StackIndex];
+
+		// Index should always be valid
+		const BasePairType& PropertyAndValue = Entry.ValueArray[Entry.ValueIndex].Key;
+		const FProperty* Property = PropertyAndValue.Key;
+		const void* ValuePtr = PropertyAndValue.Value;
+
+		PropertyPath.Append(Property->GetAuthoredName());
+
+		int32 NextStackIndex = StackIndex + 1;
+
+		if (NextStackIndex < PropertyIteratorStack.Num())
+		{
+			if (CastField<FArrayProperty>(Property))
+			{
+				const FPropertyValueStackEntry& NextEntry = PropertyIteratorStack[StackIndex+1];
+			
+				PropertyPath.Append(TEXT("["));
+				PropertyPath.Appendf(TEXT("%d"), NextEntry.ValueIndex);
+				PropertyPath.Append(TEXT("]"));
+
+				StackIndex++;
+			}
+			else if (CastField<FSetProperty>(Property))
+			{
+			
+			}
+			else if (CastField<FMapProperty>(Property))
+			{
+				const FPropertyValueStackEntry& NextEntry = PropertyIteratorStack[StackIndex+1];
+
+				const FProperty* NextProperty = NextEntry.GetPropertyValue().Key;
+				const void* NextValuePtr = NextEntry.GetPropertyValue().Value;
+
+				FString KeyStr;
+				NextProperty->ExportText_Direct(KeyStr, NextValuePtr, nullptr, nullptr, PPF_None);
+				
+				PropertyPath.Append(TEXT("["));
+				PropertyPath.Append(KeyStr);
+				PropertyPath.Append(TEXT("]"));
+			}
+
+			NextStackIndex = StackIndex + 1;
+
+			if (NextStackIndex < PropertyIteratorStack.Num())
+			{
+				PropertyPath.Append(TEXT("."));
+			}
+		}
+	}
+
+	return PropertyPath.ToString();
 }

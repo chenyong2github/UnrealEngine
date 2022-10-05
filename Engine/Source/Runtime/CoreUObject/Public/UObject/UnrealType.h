@@ -7033,9 +7033,25 @@ public:
 	 */
 	COREUOBJECT_API void GetPropertyChain(TArray<const FProperty*>& PropertyChain) const;
 
+	/**
+	 * Returns a string of the property chain in a form that makes reading it easy.  The format may change over time,
+	 * do not depend on this being in a specific Unreal path format.  It's primary intention is to aid in debugging
+	 * and in reporting paths to the end developer in an editor environment.
+	 *
+	 * Now for the implementation details, normally paths involving an array, will do things like print the array
+	 * name twice, since an array in the path is actually 2 properties, one for the array and another for the index.
+	 * Maps are similar.  The end result is stuff like seeing, ActionsArray.ActionsArray.ActionIfo.ActionPower.
+	 *
+	 * What this function does is tries to make this stuff a lot more human readable, by printing,
+	 * ActionsArray[3].ActionIfo.ActionPower, so that you know the index it comes from.  Similarly Maps would print
+	 * ActionMap["Action Name"].ActionIfo.ActionPower, so that you know the index it comes from.  Similarly Maps would print
+	 */
+	COREUOBJECT_API FString GetPropertyPathDebugString() const;
+
 private:
-	enum EPropertyValueFlags : uint8
+	enum class EPropertyValueFlags : uint8
 	{
+		None = 0x0,
 		IsMatch = 0x01,
 
 		ContainerMask = 0xF0,
@@ -7044,6 +7060,7 @@ private:
 		IsSet = 0x40,
 		IsStruct = 0x80,
 	};
+	FRIEND_ENUM_CLASS_FLAGS(EPropertyValueFlags)
 
 	struct FPropertyValueStackEntry
 	{
@@ -7051,7 +7068,7 @@ private:
 		const void* Owner = nullptr;
 		
 		/** List of current root property+value pairs for the current top level FProperty */
-		typedef TPair<BasePairType, uint8> BasePairAndFlags;
+		typedef TPair<BasePairType, EPropertyValueFlags> BasePairAndFlags;
 		typedef TArray<BasePairAndFlags, TInlineAllocator<8>> FValueArrayType;
 		FValueArrayType ValueArray;
 
@@ -7100,7 +7117,7 @@ private:
 	bool bMatchAll = false;
 
 	/** Returns EPropertyValueFlags to describe if this Property is a match and/or a container/struct */
-	uint8 GetPropertyValueFlags(const FProperty* Property);
+	EPropertyValueFlags GetPropertyValueFlags(const FProperty* Property) const;
 
 	/** Fills the Entry.ValueArray with all relevant properties found in Struct */
 	void FillStructProperties(const UStruct* Struct, FPropertyValueStackEntry& Entry);
