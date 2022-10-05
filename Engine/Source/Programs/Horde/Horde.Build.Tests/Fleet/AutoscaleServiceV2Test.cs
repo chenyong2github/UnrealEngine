@@ -217,6 +217,16 @@ namespace Horde.Build.Tests.Fleet
 		}
 		
 		[TestMethod]
+		public async Task EmptyOrInvalidJsonConfig()
+		{
+			await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, ""));
+			await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, "{}"));
+			await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, "  {} "));
+			
+			await Assert.ThrowsExceptionAsync<JsonException>(() => CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.LeaseUtilization, null, "BAD_JSON")));
+		}
+		
+		[TestMethod]
 		public async Task CreateNoOpStrategy()
 		{
 			IPoolSizeStrategy s = await CreateStrategy(new PoolSizeStrategyInfo(PoolSizeStrategy.NoOp, null, "{}"));
