@@ -235,7 +235,7 @@ namespace Horde.Storage.Controllers
 
                         IAsyncEnumerable<Attachment> attachments = _referenceResolver.GetAttachments(ns, cb);
 
-                        CbPackageBuilder writer = new CbPackageBuilder();
+                        using CbPackageBuilder writer = new CbPackageBuilder();
                         await writer.AddAttachment(objectRecord.BlobIdentifier.AsIoHash(), CbPackageAttachmentFlags.IsObject, blobMemory);
 
                         await foreach (Attachment attachment in attachments)
