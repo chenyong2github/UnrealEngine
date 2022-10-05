@@ -23,12 +23,9 @@ AControlRigControlActor::AControlRigControlActor(const FObjectInitializer& Objec
 	PrimaryActorTick.bTickEvenWhenPaused = true;
 	PrimaryActorTick.TickGroup = TG_PostUpdateWork;
 
-	if (WITH_EDITOR)
-	{
-		PrimaryActorTick.bStartWithTickEnabled = true;
-		bAllowTickBeforeBeginPlay = true;
-	}
-
+	PrimaryActorTick.bStartWithTickEnabled = true;
+	bAllowTickBeforeBeginPlay = true;
+	
 	SetActorEnableCollision(false);
 	
 
