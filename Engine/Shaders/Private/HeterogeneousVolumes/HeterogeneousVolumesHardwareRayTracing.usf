@@ -381,6 +381,7 @@ int bApplyEmissionAndTransmittance;
 int bApplyDirectLighting;
 int bApplyShadowTransmittance;
 int LightType;
+float VolumetricScatteringIntensity;
 
 // Shadowing
 uint VirtualShadowMapId;
@@ -444,7 +445,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderLightingCacheWithPreshadingRGS)
 		return;
 	}
 
-	const FDeferredLightData LightData = InitDeferredLightFromUniforms(LightType);
+	const FDeferredLightData LightData = InitDeferredLightFromUniforms(LightType, VolumetricScatteringIntensity);
 #if DIM_LIGHTING_CACHE_MODE == LIGHTING_CACHE_TRANSMITTANCE
 	float3 L = LightData.Direction;
 	float3 ToLight = L * GetMaxShadowTraceDistance();
@@ -551,7 +552,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 			DIM_APPLY_SHADOW_TRANSMITTANCE
 		);
 
-		const FDeferredLightData LightData = InitDeferredLightFromUniforms(LightType);
+		const FDeferredLightData LightData = InitDeferredLightFromUniforms(LightType, VolumetricScatteringIntensity);
 		uint StepCount = CalcStepCount(RayMarchingContext);
 
 		RayMarchSingleScattering(

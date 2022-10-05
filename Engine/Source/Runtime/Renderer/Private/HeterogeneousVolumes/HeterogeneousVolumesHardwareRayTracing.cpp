@@ -340,6 +340,7 @@ class FRenderLightingCacheWithPreshadingRGS : public FGlobalShader
 		SHADER_PARAMETER(int, bApplyShadowTransmittance)
 		SHADER_PARAMETER(int, LightType)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
+		SHADER_PARAMETER(float, VolumetricScatteringIntensity)
 
 		// Shadow data
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
@@ -411,6 +412,7 @@ class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 		SHADER_PARAMETER(int, bApplyDirectLighting)
 		SHADER_PARAMETER(int, LightType)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
+		SHADER_PARAMETER(float, VolumetricScatteringIntensity)
 
 		// Shadow data
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
@@ -578,6 +580,7 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 		FDeferredLightUniformStruct DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
 		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
 		PassParameters->LightType = LightType;
+		PassParameters->VolumetricScatteringIntensity = LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
 
 		// Sparse Voxel data
 		PassParameters->SparseVoxelUniformBuffer = SparseVoxelUniformBuffer;
@@ -716,6 +719,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 		if (PassParameters->bApplyDirectLighting && (LightSceneInfo != nullptr))
 		{
 			DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
+			PassParameters->VolumetricScatteringIntensity = LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
 		}
 		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
 		PassParameters->LightType = LightType;
