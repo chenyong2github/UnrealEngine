@@ -167,6 +167,9 @@ public:
 		/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
 		SLATE_EVENT( FOnTextCommitted, OnTextCommitted )
 
+		/** Called whenever the text is changed programmatically or interactively by the user */
+		SLATE_EVENT( FOnVerifyTextChanged, OnVerifyTextChanged )
+
 		/** Called whenever the horizontal scrollbar is moved by the user */
 		SLATE_EVENT( FOnUserScrolled, OnHScrollBarUserScrolled )
 
@@ -473,6 +476,13 @@ public:
 	void ForceScroll(int32 UserIndex, float ScrollAxisMagnitude);
 
 protected:
+	/** Callback for the editable text's OnTextChanged event */
+	void OnEditableTextChanged(const FText& InText);
+
+	/** Callback when the editable text is committed. */
+	void OnEditableTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
+
+protected:
 
 	/** Editable text widget */
 	TSharedPtr< SMultiLineEditableText > EditableText;
@@ -510,7 +520,6 @@ protected:
 	/** Allows for inserting additional widgets that extend the functionality of the text box */
 	TSharedPtr<SHorizontalBox> Box;
 
-
 	/** Whether we have an externally supplied horizontal scrollbar or one created internally */
 	bool bHasExternalHScrollBar;
 
@@ -531,6 +540,15 @@ protected:
 
 	/** SomeWidget reporting */
 	TSharedPtr<class IErrorReportingWidget> ErrorReporting;
+
+	/** Called when the text is changed interactively */
+	FOnTextChanged OnTextChanged;
+
+	/** Called when the user commits their change to the editable text control */
+	FOnTextCommitted OnTextCommitted;
+
+	/** Callback to verify text when changed. Will return an error message to denote problems. */
+	FOnVerifyTextChanged OnVerifyTextChanged;
 
 	const FEditableTextBoxStyle* Style;
 

@@ -45,6 +45,10 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 	FocusedForegroundColorOverride = InArgs._FocusedForegroundColor;
 	bSelectWordOnMouseDoubleClick = InArgs._SelectWordOnMouseDoubleClick;
 
+	OnTextChanged = InArgs._OnTextChanged;
+	OnVerifyTextChanged = InArgs._OnVerifyTextChanged;
+	OnTextCommitted = InArgs._OnTextCommitted;
+
 	bHasExternalHScrollBar = InArgs._HScrollBar.IsValid();
 	HScrollBar = InArgs._HScrollBar;
 	if (!HScrollBar.IsValid())
@@ -99,8 +103,8 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 					.AllowMultiLine( InArgs._AllowMultiLine )
 					.OnContextMenuOpening( InArgs._OnContextMenuOpening )
 					.OnIsTypedCharValid( InArgs._OnIsTypedCharValid )
-					.OnTextChanged( InArgs._OnTextChanged )
-					.OnTextCommitted( InArgs._OnTextCommitted )
+					.OnTextChanged(this, &SMultiLineEditableTextBox::OnEditableTextChanged)
+					.OnTextCommitted(this, &SMultiLineEditableTextBox::OnEditableTextCommitted)
 					.OnCursorMoved( InArgs._OnCursorMoved )
 					.ContextMenuExtender( InArgs._ContextMenuExtender )
 					.CreateSlateTextLayout( InArgs._CreateSlateTextLayout )
@@ -597,6 +601,52 @@ void SMultiLineEditableTextBox::SetOnKeyDownHandler(FOnKeyDown InOnKeyDownHandle
 void SMultiLineEditableTextBox::ForceScroll(int32 UserIndex, float ScrollAxisMagnitude)
 {
 	EditableText->ForceScroll(UserIndex, ScrollAxisMagnitude);
+}
+
+void SMultiLineEditableTextBox::OnEditableTextChanged(const FText& InText)
+{
+	OnTextChanged.ExecuteIfBound(InText);
+
+	if (OnVerifyTextChanged.IsBound())
+	{
+		FText OutErrorMessage;
+		if (!OnVerifyTextChanged.Execute(InText, OutErrorMessage))
+		{
+			// Display as an error.
+			SetError(OutErrorMessage);
+		}
+		else
+		{
+			SetError(FText::GetEmpty());
+		}
+	}
+}
+
+void SMultiLineEditableTextBox::OnEditableTextCommitted(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (OnVerifyTextChanged.IsBound())
+	{
+		FText OutErrorMessage;
+		if (!OnVerifyTextChanged.Execute(InText, OutErrorMessage))
+		{
+			// Display as an error.
+			if (InCommitType == ETextCommit::OnEnter)
+			{
+				SetError(OutErrorMessage);
+			}
+			return;
+		}
+		else
+		{
+			if (InCommitType == ETextCommit::OnEnter)
+			{
+				SetError(FText::GetEmpty());
+			}
+
+		}
+	}
+
+	OnTextCommitted.ExecuteIfBound(InText, InCommitType);
 }
 
 #endif //WITH_FANCY_TEXT
