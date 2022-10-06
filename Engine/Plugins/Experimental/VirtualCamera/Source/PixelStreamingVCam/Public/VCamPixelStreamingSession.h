@@ -34,10 +34,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool EnableARKitTracking = true;
 
-	// Check this if you are not separately running a signalling server for this session
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	bool StartSignallingServer = true;
-
 	// If not selected, when the editor is not the foreground application, input through the vcam session may seem sluggish or unresponsive.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool PreventEditorIdle = true;

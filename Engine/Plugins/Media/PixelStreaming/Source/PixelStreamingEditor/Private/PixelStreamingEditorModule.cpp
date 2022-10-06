@@ -187,7 +187,9 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 	if(!bUseExternalSignallingServer)
 	{
 		Streamer->SetSignallingServerURL(FString::Printf(TEXT("%s:%d"), *SignallingDomain, StreamerPort));
+		StartSignalling();
 	}
+
 	// Use the Pixel Streaming module's start streaming method to start all streamers
 	Module.StartStreaming();
 }
@@ -201,7 +203,13 @@ void FPixelStreamingEditorModule::StopStreaming()
 		return;
 	}
 
+	if(!bUseExternalSignallingServer)
+	{
+		StopSignalling();
+	}
+
 	Streamer->SetTargetViewport(nullptr);
+	Streamer->SetTargetWindow(nullptr);
 	// Use the Pixel Streaming module's stop streaming method to stop all streamers
 	Module.StopStreaming();
 }

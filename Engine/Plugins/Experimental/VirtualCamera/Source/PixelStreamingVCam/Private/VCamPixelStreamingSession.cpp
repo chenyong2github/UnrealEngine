@@ -260,27 +260,17 @@ void UVCamPixelStreamingSession::StartCapture()
 
 void UVCamPixelStreamingSession::SetupSignallingServer()
 {
-	if (StartSignallingServer)
+	// Only start the signalling server if we aren't using an external signalling server
+	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get(); !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
 	{
-		if(!FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
-		{
-			if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
-			{
-				PixelStreamingSubsystem->LaunchSignallingServer();
-			}
-		}
-		else
-		{
-			StartSignallingServer = false;
-		}
-		
+		PixelStreamingSubsystem->LaunchSignallingServer();
 	}
 }
 
 void UVCamPixelStreamingSession::StopSignallingServer()
 {
 	// Only stop the signalling server if we've been the ones to start it
-	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get(); StartSignallingServer)
+	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get(); !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
 	{
 		PixelStreamingSubsystem->StopSignallingServer();
 	}
@@ -300,9 +290,9 @@ void UVCamPixelStreamingSession::Deactivate()
 		{
 			// Shutting streamer down before closing signalling server prevents an ugly websocket disconnect showing in the log
 			MediaOutput->GetStreamer()->StopStreaming();
-			StopSignallingServer();
 		}
 
+		StopSignallingServer();
 		MediaCapture->StopCapture(true);
 		MediaCapture = nullptr;
 	}
@@ -346,9 +336,8 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
-		static FName NAME_StartSignallingServer = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, StartSignallingServer);
 		
-		if (Property->GetFName() == NAME_FromComposureOutputProviderIndex || Property->GetFName() == NAME_StartSignallingServer)
+		if (Property->GetFName() == NAME_FromComposureOutputProviderIndex)
 		{
 			SetActive(false);
 		}
