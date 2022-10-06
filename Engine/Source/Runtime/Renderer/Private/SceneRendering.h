@@ -726,7 +726,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ForwardLocalLightBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumCulledLightsGrid)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledLightDataGrid)
-	SHADER_PARAMETER_TEXTURE(Texture2D, DummyRectLightSourceTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern TRDGUniformBufferRef<FForwardLightData> CreateDummyForwardLightUniformBuffer(FRDGBuilder& GraphBuilder);

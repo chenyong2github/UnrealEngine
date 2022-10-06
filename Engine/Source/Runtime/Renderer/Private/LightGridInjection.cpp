@@ -143,7 +143,6 @@ FForwardLightData::FForwardLightData()
 	ShadowmapSampler = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 	DirectionalLightStaticShadowmap = GBlackTexture->TextureRHI;
 	StaticShadowmapSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
-	DummyRectLightSourceTexture = GWhiteTexture->TextureRHI;
 }
 
 int32 NumCulledLightsGridStride = 2;
@@ -736,9 +735,6 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		const FIntPoint MaxLightGridSizeXY = FIntPoint::DivideAndRoundUp(View.GetSceneTexturesConfig().Extent, GLightGridPixelSize);
 
 		const int32 MaxNumCells = MaxLightGridSizeXY.X * MaxLightGridSizeXY.Y * GLightGridSizeZ * NumCulledGridPrimitiveTypes;
-
-		// Used to pass to the GetDynamicLighting but not actually used, since USE_SOURCE_TEXTURE is 0
-		ForwardLightData->DummyRectLightSourceTexture = GWhiteTexture->TextureRHI;
 
 		const FIntVector NumGroups = FIntVector::DivideAndRoundUp(FIntVector(LightGridSizeXY.X, LightGridSizeXY.Y, GLightGridSizeZ), LightGridInjectionGroupSize);
 
