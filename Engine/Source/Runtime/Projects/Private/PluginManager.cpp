@@ -2112,11 +2112,8 @@ bool FPluginManager::TryLoadModulesForPlugin( const FPlugin& Plugin, const ELoad
 
 	if( !FailureMessage.IsEmpty() )
 	{
-		if (bAllPluginsEnabledViaCommandLine)
-		{
-			UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailureMessage.ToString());
-		}
-		else
+		UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailureMessage.ToString());
+		if (!bAllPluginsEnabledViaCommandLine)
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, FailureMessage);
 			return false;
