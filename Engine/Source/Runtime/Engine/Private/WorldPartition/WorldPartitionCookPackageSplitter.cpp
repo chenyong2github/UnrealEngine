@@ -167,6 +167,11 @@ bool FWorldPartitionCookPackageSplitter::PopulateGeneratorPackage(UPackage* Owne
 		{
 			bIsSuccess &= CookPackageGenerator->PopulateGeneratorPackageForCook(CookContext, *CookPackages, ModifiedPackages);
 		}
+		else
+		{
+			TArray<FWorldPartitionCookPackage*> Temp;
+			bIsSuccess &= CookPackageGenerator->PopulateGeneratorPackageForCook(CookContext, Temp, ModifiedPackages);
+		}
 	}
 
 	UE_LOG(LogWorldPartition, Log, TEXT("[Cook][PopulateGeneratorPackage] Gathered %u modified packages"), ModifiedPackages.Num());
