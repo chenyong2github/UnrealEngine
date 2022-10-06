@@ -314,20 +314,19 @@ void UPCGMetadata::GetAttributes(TArray<FName>& AttributeNames, TArray<EPCGMetad
 	AttributeLock.ReadUnlock();
 }
 
-FName UPCGMetadata::GetSingleAttributeNameOrNone() const
+FName UPCGMetadata::GetLatestAttributeNameOrNone() const
 {
-	FName SingleAttributeName = NAME_None;
+	FName LatestAttributeName = NAME_None;
 	AttributeLock.ReadLock();
-	if (Attributes.Num() == 1)
+	if (!Attributes.IsEmpty())
 	{
-		TArray<FName, TInlineAllocator<1>> Keys;
+		TArray<FName> Keys;
 		Attributes.GenerateKeyArray(Keys);
-		check(Keys.Num() == 1);
-		SingleAttributeName = Keys[0];
+		LatestAttributeName = Keys.Last();
 	}
 	AttributeLock.ReadUnlock();
 
-	return SingleAttributeName;
+	return LatestAttributeName;
 }
 
 bool UPCGMetadata::ParentHasAttribute(FName AttributeName) const
@@ -415,16 +414,27 @@ bool UPCGMetadata::SetAttributeFromProperty(FName AttributeName, PCGMetadataEntr
 			return false;
 		}
 
-		// Check that the property match the attribute type!
-		if (PCG::Private::MetadataTypes<PropertyType>::Id != BaseAttribute->GetTypeId())
-		{
-			return false;
-		}
+		// Allow to set the value if both type matches or if we can construct AttributeType from PropertyType.
+		return PCGMetadataAttribute::CallbackWithRightType(BaseAttribute->GetTypeId(), [&](auto AttributeValue) -> bool
+			{
+				using AttributeType = decltype(AttributeValue);
+				FPCGMetadataAttribute<AttributeType>* Attribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(BaseAttribute);
 
-		FPCGMetadataAttribute<PropertyType>* Attribute = static_cast<FPCGMetadataAttribute<PropertyType>*>(BaseAttribute);
-		Attribute->SetValue(EntryKey, PropertyValue);
-
-		return true;
+				if constexpr (std::is_same_v<AttributeType, PropertyType>)
+				{
+					Attribute->SetValue(EntryKey, PropertyValue);
+					return true;
+				}
+				else if constexpr (std::is_constructible_v<AttributeType, PropertyType>)
+				{
+					Attribute->SetValue(EntryKey, AttributeType(PropertyValue));
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			});
 	};
 
 	return PCGSettingsHelpers::GetPropertyValueWithCallback(Object, InProperty, CreateAttributeAndSet);

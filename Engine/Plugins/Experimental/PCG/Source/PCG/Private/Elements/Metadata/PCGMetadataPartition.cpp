@@ -38,7 +38,7 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		const FName LocalPartitionAttribute = ((PartitionAttribute != NAME_None) ? PartitionAttribute : SpatialInput->ConstMetadata()->GetSingleAttributeNameOrNone());
+		const FName LocalPartitionAttribute = ((PartitionAttribute != NAME_None) ? PartitionAttribute : SpatialInput->ConstMetadata()->GetLatestAttributeNameOrNone());
 
 		if (!SpatialInput->ConstMetadata()->HasAttribute(LocalPartitionAttribute))
 		{

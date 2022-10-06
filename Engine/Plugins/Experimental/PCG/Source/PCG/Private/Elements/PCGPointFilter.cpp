@@ -705,7 +705,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			ThresholdPoints = &TargetPoints;
 		}
 
-		const FName LocalTargetAttributeName = ((TargetAttributeName != NAME_None || !TargetMetadata) ? TargetAttributeName : TargetMetadata->GetSingleAttributeNameOrNone());
+		const FName LocalTargetAttributeName = ((TargetAttributeName != NAME_None || !TargetMetadata) ? TargetAttributeName : TargetMetadata->GetLatestAttributeNameOrNone());
 
 		// Additional validation
 		if (TargetFilterType == EPCGPointTargetFilterType::Metadata)
@@ -722,7 +722,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 
-		const FName LocalThresholdAttributeName = ((ThresholdAttributeName != NAME_None || !ThresholdMetadata) ? ThresholdAttributeName : ThresholdMetadata->GetSingleAttributeNameOrNone());
+		const FName LocalThresholdAttributeName = ((ThresholdAttributeName != NAME_None || !ThresholdMetadata) ? ThresholdAttributeName : ThresholdMetadata->GetLatestAttributeNameOrNone());
 		
 		if (ThresholdFilterType == EPCGPointThresholdType::Metadata)
 		{

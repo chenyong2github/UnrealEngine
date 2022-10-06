@@ -67,25 +67,6 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	const TArray<FPCGTaggedData>& Inputs = Context->InputData.TaggedData;
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	TStaticArray<bool, UPCGMetadataSettingsBase::MaxNumberOfOutputs> ConnectedOutputs;
-	bool AnyOutputConnected = false;
-
-	for (uint32 i = 0; i < NumberOfOutputs; ++i)
-	{
-		ConnectedOutputs[i] = Context->Node && Context->Node->IsOutputPinConnected(Settings->GetOutputPinLabel(i));
-
-#if WITH_EDITOR
-		ConnectedOutputs[i] |= Settings->ForceOutputConnections[i];
-#endif // WITH_EDITOR
-
-		AnyOutputConnected |= ConnectedOutputs[i];
-	}
-
-	if (!AnyOutputConnected)
-	{
-		return true;
-	}
-
 	const TArray<FPCGTaggedData>& ParamData = Context->InputData.GetParamsByPin(PCGPinConstants::DefaultParamsLabel);
 	UPCGParamData* Params = ParamData.IsEmpty() ? nullptr : Cast<UPCGParamData>(ParamData[0].Data);
 
@@ -100,14 +81,13 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	for (uint32 i = 0; i < NumberOfInputs; ++i)
 	{
 		TArray<FPCGTaggedData> InputData = Context->InputData.GetInputsByPin(Settings->GetInputPinLabel(i));
-		if (InputData.IsEmpty())
+		if (InputData.Num() != 1)
 		{
 			PCGE_LOG(Error, "Invalid inputs for pin %d", i);
 			return true;
 		}
 
 		// By construction, there can only be one of then(hence the 0 index)
-		check(InputData.Num() == 1);
 		InputTaggedData[i] = MoveTemp(InputData[0]);
 
 		// Only gather Spacial and Params input. 
@@ -141,7 +121,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		FName SourceAttributeName = Settings->GetInputAttributeNameWithOverride(i, Params);
 		if (SourceAttributeName == NAME_None)
 		{
-			SourceAttributeName = SourceMetadata[i]->GetSingleAttributeNameOrNone();
+			SourceAttributeName = SourceMetadata[i]->GetLatestAttributeNameOrNone();
 		}
 
 		OperationData.SourceAttributes[i] = SourceMetadata[i]->GetConstAttribute(SourceAttributeName);
@@ -224,12 +204,6 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		using AttributeType = decltype(DummyOutValue);
 
 		AttributeType DefaultValue = PCGMetadataAttribute::GetValueWithBroadcast<AttributeType>(OperationData.SourceAttributes[0], PCGDefaultValueKey);
-
-		if (!ConnectedOutputs[OutputIndex])
-		{
-			OperationData.OutputAttributes[OutputIndex] = nullptr;
-			return true;
-		}
 
 		FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[0]);
 		OutputData.Pin = Settings->GetOutputPinLabel(OutputIndex);

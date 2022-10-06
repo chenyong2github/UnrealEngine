@@ -62,7 +62,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetSingleAttributeNameOrNone());
+		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetLatestAttributeNameOrNone());
 
 		if (!Metadata->HasAttribute(LocalAttributeToRename))
 		{
@@ -94,7 +94,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetSingleAttributeNameOrNone());
+		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetLatestAttributeNameOrNone());
 
 		if (!Metadata->HasAttribute(LocalAttributeToRename))
 		{
