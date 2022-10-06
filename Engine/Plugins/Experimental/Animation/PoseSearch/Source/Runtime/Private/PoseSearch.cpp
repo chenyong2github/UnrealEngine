@@ -432,7 +432,7 @@ bool UPoseSearchSchema::IsValid() const
 
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel: Channels)
 	{
-		bValid &= !Channel.IsNull();
+		bValid &= Channel != nullptr;
 	}
 
 	bValid &= (BoneReferences.Num() == BoneIndices.Num());
@@ -2730,7 +2730,7 @@ const FPoseSearchIndexAsset* FSearchResult::GetSearchIndexAsset(bool bMandatory)
 
 static void FillCompactPoseAndComponentRefRotations(FAssetSamplingContext& Context)
 {
-	if (!Context.MirrorDataTable.IsNull())
+	if (Context.MirrorDataTable)
 	{
 		const UMirrorDataTable* MirrorDataTablePtr = Context.MirrorDataTable.Get();
 		MirrorDataTablePtr->FillCompactPoseAndComponentRefRotations(

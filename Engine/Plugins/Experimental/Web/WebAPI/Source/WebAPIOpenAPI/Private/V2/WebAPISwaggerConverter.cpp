@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPISwaggerConverter.h"
 #include "WebAPISwaggerConverter.inl"
@@ -307,7 +307,7 @@ namespace UE::WebAPI::Swagger
 			}
 		}
 
-		check(!Result.IsNull());
+		check(Result);
 
 		return Result;
 	}

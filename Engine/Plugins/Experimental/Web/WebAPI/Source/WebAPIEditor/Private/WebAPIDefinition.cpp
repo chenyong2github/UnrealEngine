@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIDefinition.h"
 
@@ -72,7 +72,7 @@ UWebAPIDefinition::~UWebAPIDefinition()
 UObject* UWebAPIDefinition::AddOrGetImportedDataCache(FName InKey, const TSubclassOf<UObject>& InDataCacheClass)
 {
 	TObjectPtr<UObject>* Result = ImportedDataCache.Find(InKey);
-	if(Result && !Result->IsNull())
+	if(Result && *Result)
 	{
 		return *Result;
 	}
