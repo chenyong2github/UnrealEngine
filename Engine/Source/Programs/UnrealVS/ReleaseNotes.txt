@@ -1,3 +1,6 @@
+1.78
+* fixed race condition when starting async checkout
+
 1.77
 * added File Browser dialog (open with command UnrealVs.FileBrowser)
 * added so Visual Studio title/solution show folder name of UE5.sln when UE5.sln is opened (no other solutions)

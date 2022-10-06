@@ -190,7 +190,14 @@ namespace UnrealVS
 
 			runningDocumentTable.Advise(Interceptor);
 
+			string CheckoutQueueFile = GetCheckoutQueueFileName();
+			if (CheckoutQueueFile != null)
+			{
+				P4OutputPane.OutputString($"UnrealVS started. Using checkout queue: {CheckoutQueueFile}" + Environment.NewLine);
+				PulseCheckoutQueue(CheckoutQueueFile);
+			}
 		}
+
 		// Called when solutions are loaded or unloaded
 		private void SolutionOpened()
 		{
@@ -202,6 +209,7 @@ namespace UnrealVS
 			string CheckoutQueueFile = GetCheckoutQueueFileName();
 			if (CheckoutQueueFile != null)
 			{
+				P4OutputPane.OutputString($"Solution opened. Using checkout queue: {CheckoutQueueFile}" + Environment.NewLine);
 				PulseCheckoutQueue(CheckoutQueueFile);
 			}
 		}
@@ -678,7 +686,7 @@ namespace UnrealVS
 			if (!File.Exists(FileName) ||
  				(CheckOptionsFlag && !File.GetAttributes(FileName).HasFlag(FileAttributes.ReadOnly)))
 			{
-				P4OutputPane.OutputString($"already writeable: {FileName}");
+				P4OutputPane.OutputString($"already writeable: {FileName}" + Environment.NewLine);
 				return;
 			}
 
@@ -701,7 +709,7 @@ namespace UnrealVS
 					}
 					catch (Exception ex)
 					{
-						P4OutputPane.OutputString($"Unable to update {queueFile} ({ex.Message})");
+						P4OutputPane.OutputString($"Unable to update {queueFile} ({ex.Message})" + Environment.NewLine);
 						return;
 					}
 				}
@@ -723,15 +731,19 @@ namespace UnrealVS
 
 		private void PulseCheckoutQueue(string QueueFile)
 		{
+			TaskCompletionSource<bool> StartTask = null;
 			lock (CheckoutQueueLock)
 			{
 				CheckoutQueueFiles.Add(QueueFile);
 
 				if (CheckoutTask == null)
 				{
-					CheckoutTask = ThreadHelper.JoinableTaskFactory.RunAsync(UpdateCheckoutQueueAsync);
+					Logging.WriteLine($"Starting checkout task.");
+					StartTask = new TaskCompletionSource<bool>();
+					CheckoutTask = ThreadHelper.JoinableTaskFactory.RunAsync(async () => { await StartTask.Task; await UpdateCheckoutQueueAsync(); });
 				}
 			}
+			StartTask?.SetResult(true);
 		}
 
 		private async Task UpdateCheckoutQueueAsync()
@@ -750,6 +762,7 @@ namespace UnrealVS
 							QueueFile = CheckoutQueueFiles.FirstOrDefault();
 							if (QueueFile == null)
 							{
+								Logging.WriteLine($"Stopping checkout task; setting CheckoutTask to null.");
 								CheckoutTask = null;
 								return;
 							}
