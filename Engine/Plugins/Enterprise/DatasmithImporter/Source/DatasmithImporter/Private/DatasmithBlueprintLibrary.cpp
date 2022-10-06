@@ -743,7 +743,7 @@ FDatasmithImportFactoryCreateFileResult UDatasmithSceneElement::ReimportScene()
 {
 	FDatasmithImportFactoryCreateFileResult Result;
 
-	if (!ImportContextPtr.IsValid() || ImportContextPtr->Options.IsNull() || !ExternalSourcePtr.IsValid())
+	if (!ImportContextPtr.IsValid() || !ImportContextPtr->Options || !ExternalSourcePtr.IsValid())
 	{
 		UE_LOG(LogDatasmithImport, Error, TEXT("Invalid State. Ensure GetExistingDatasmithScene has been called."));
 		return Result;
@@ -818,7 +818,7 @@ UObject* UDatasmithSceneElement::GetOptions(UClass* OptionType)
 	if (ImportContextPtr.IsValid())
 	{
 		// Standard options from Datasmith
-		if (!ImportContextPtr->Options.IsNull() && ImportContextPtr->Options->GetClass()->IsChildOf(OptionType))
+		if (ImportContextPtr->Options && ImportContextPtr->Options->GetClass()->IsChildOf(OptionType))
 		{
 			return ImportContextPtr->Options.Get();
 		}

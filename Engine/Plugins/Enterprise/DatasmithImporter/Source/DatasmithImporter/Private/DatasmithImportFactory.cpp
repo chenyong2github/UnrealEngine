@@ -186,7 +186,7 @@ namespace DatasmithImportFactoryImpl
 		bOutOperationCancelled = false;
 
 		// Return if the context is not valid
-		if ( InContext.Options.IsNull() )
+		if ( !InContext.Options )
 		{
 			return false;
 		}

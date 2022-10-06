@@ -76,7 +76,7 @@ void UInterchangeDatasmithPipeline::ExecutePreImportPipeline(UInterchangeBaseNod
 		}
 	};
 
-	ensure(!Results.IsNull());
+	ensure(Results);
 	ExecutePreImportPipelineFunc(TexturePipeline);
 	ExecutePreImportPipelineFunc(MaterialPipeline);
 	ExecutePreImportPipelineFunc(MeshPipeline);

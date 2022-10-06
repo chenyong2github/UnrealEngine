@@ -370,7 +370,7 @@ void UPoseSearchSchema::Finalize()
 	using namespace UE::PoseSearch;
 
 	// Discard null channels
-	Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return Channel.IsNull(); });
+	Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return !Channel; });
 
 	BoneReferences.Reset();
 
