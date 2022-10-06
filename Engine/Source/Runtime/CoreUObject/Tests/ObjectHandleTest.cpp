@@ -4,11 +4,10 @@
 
 #include "UObject/ObjectHandle.h"
 #include "UObject/ObjectPtr.h"
-
+#include "UObject/MetaData.h"
 #include "HAL/PlatformProperties.h"
 #include "ObjectRefTrackingTestBase.h"
 #include "IO/IoDispatcher.h"
-
 #include "TestHarness.h"
 
 static_assert(sizeof(FObjectHandle) == sizeof(void*), "FObjectHandle type must always compile to something equivalent to a pointer size.");
@@ -203,6 +202,104 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetC
 {
 	TObjectPtr<UObject> Ptr = nullptr;
 	TEST_TRUE(TEXT("TObjectPtr.GetClass should return null on a null object"), Ptr.GetClass() == nullptr);
+}
+
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior", "[CoreUObject][ObjectHandle]")
+{
+	TObjectPtr<UObject> Ptr = nullptr;
+	UMetaData* TestObject = nullptr;
+
+	uint32 ResolveCount = 0;
+	auto ResolveDelegate = FObjectHandleReferenceResolvedDelegate::CreateLambda([&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
+		{
+			++ResolveCount;
+		});
+	auto Handle = AddObjectHandleReferenceResolvedCallback(ResolveDelegate);
+
+	//compare against all flavours of nullptr, should not try and resolve this pointer
+	CHECK(Ptr == nullptr); CHECK(ResolveCount == 0u);
+	CHECK(nullptr == Ptr); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(Ptr != nullptr); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(nullptr != Ptr); CHECK(ResolveCount == 0u);
+	CHECK(!Ptr); CHECK(ResolveCount == 0u);
+
+	//using an if otherwise the macros try to convert to a pointer and not use the bool operator
+	if (Ptr)
+	{
+		CHECK(false);
+	}
+	else
+	{
+		CHECK(true);
+	}
+	CHECK(ResolveCount == 0u);
+
+	CHECK(Ptr == TestObject); CHECK(ResolveCount == 0u);
+	CHECK(TestObject == Ptr); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(Ptr != TestObject); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(TestObject != Ptr); CHECK(ResolveCount == 0u);
+
+	FObjectRef TargetRef{ FName("SomePackage"), FName("ClassPackageName"), FName("ClassName"), FObjectPathId("ObjectName") };
+	FObjectPtr ObjectPtr(TargetRef);
+	REQUIRE(!ObjectPtr.IsResolved()); //make sure not resolved
+
+	//an unresolved pointers compared against nullptr should still not resolve
+	Ptr = *reinterpret_cast<TObjectPtr<UObject>*>(&ObjectPtr);
+	CHECK_FALSE(Ptr == nullptr); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(nullptr == Ptr); CHECK(ResolveCount == 0u);
+	CHECK(Ptr != nullptr); CHECK(ResolveCount == 0u);
+	CHECK(nullptr != Ptr); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(!Ptr); CHECK(ResolveCount == 0u);
+
+	//using an if otherwise the macros try to convert to a pointer and not use the bool operator
+	if (Ptr)
+	{
+		CHECK(true);
+	}
+	else
+	{
+		CHECK(false);
+	}
+	CHECK(ResolveCount == 0u);
+
+	//test an unresolve pointer against a null raw pointer
+	CHECK_FALSE(Ptr == TestObject); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(TestObject == Ptr);	CHECK(ResolveCount == 0u);
+	CHECK(Ptr != TestObject); CHECK(ResolveCount == 0u);
+	CHECK(TestObject != Ptr); CHECK(ResolveCount == 0u);
+
+	//creating a real object for something that can resolve
+	const FName TestPackageName(TEXT("/Engine/Test/ObjectPtrDefaultSerialize/Transient"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+
+	const FName TestObjectName(TEXT("MyObject"));
+	TestObject = NewObject<UMetaData>(TestPackage, TestObjectName, RF_Transient);
+	TestObject->AddToRoot();
+
+	//ObjectPtr = FObjectPtr(MakePackedObjectRef(TestObject));
+	Ptr = TestObject;
+
+	REQUIRE(Ptr.IsResolved());
+	CHECK(Ptr == TestObject); CHECK(ResolveCount == 0u);
+	CHECK(TestObject == Ptr); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(Ptr != TestObject); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(TestObject != Ptr); CHECK(ResolveCount == 0u);
+
+	TestObject = nullptr;
+	CHECK_FALSE(Ptr == TestObject); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(TestObject == Ptr); CHECK(ResolveCount == 0u);
+	CHECK(Ptr != TestObject); CHECK(ResolveCount == 0u);
+	CHECK(TestObject != Ptr); CHECK(ResolveCount == 0u);
+
+	TestObject = static_cast<UMetaData*>(Ptr.Get());
+	Ptr = nullptr;
+	CHECK_FALSE(Ptr == TestObject); CHECK(ResolveCount == 0u);
+	CHECK_FALSE(TestObject == Ptr); CHECK(ResolveCount == 0u);
+	CHECK(Ptr != TestObject); CHECK(ResolveCount == 0u);
+	CHECK(TestObject != Ptr); CHECK(ResolveCount == 0u);
+
+	RemoveObjectHandleReferenceResolvedCallback(Handle);
 }
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE

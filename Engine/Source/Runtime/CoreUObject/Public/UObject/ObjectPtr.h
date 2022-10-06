@@ -133,12 +133,14 @@ public:
 	FORCEINLINE UObject* operator->() const { return Get(); }
 	FORCEINLINE UObject& operator*() const { return *Get(); }
 
-	// Forcing resolve for null check.  Non null unresolved pointers can become null resolved pointers.
+	UE_DEPRECATED(5.1, "IsNull is deprecated, please use operator bool instead.")
 	FORCEINLINE bool IsNull() const { return ResolveObjectHandleNoRead(Handle) == nullptr; }
+	
+	UE_DEPRECATED(5.1, "IsNullNoResolve is deprecated, please use operator bool instead.")
 	FORCEINLINE bool IsNullNoResolve() const { return IsObjectHandleNull(Handle); }
-
-	FORCEINLINE bool operator!() const { return IsNull(); }
-	explicit FORCEINLINE operator bool() const { return !IsNull(); }
+	
+	FORCEINLINE bool operator!() const { return IsObjectHandleNull(Handle); }
+	explicit FORCEINLINE operator bool() const { return !IsObjectHandleNull(Handle); }
 
 	FORCEINLINE bool IsResolved() const { return IsObjectHandleResolved(Handle); }
 
@@ -350,6 +352,16 @@ public:
 		return ObjectPtr == Other.ObjectPtr;
 	}
 
+	bool operator==(TYPE_OF_NULLPTR) const
+	{
+		return !ObjectPtr.operator bool();
+	}
+
+	bool operator!=(TYPE_OF_NULLPTR) const
+	{
+		return ObjectPtr.operator bool();
+	}
+
 	template <
 		typename U,
 		typename Base = std::decay_t<decltype(false ? std::declval<std::decay_t<T*>>() : std::declval<std::decay_t<U*>>())>
@@ -379,8 +391,12 @@ public:
 	UE_OBJPTR_DEPRECATED(5.0, "Conversion to a mutable pointer is deprecated.  Please pass a TObjectPtr<T>& instead so that assignment can be tracked accurately.")
 	explicit FORCEINLINE operator T*& () { return GetInternalRef(); }
 
-	FORCEINLINE bool IsNull() const { return ObjectPtr.IsNull(); }
-	FORCEINLINE bool IsNullNoResolve() const { return ObjectPtr.IsNullNoResolve(); }
+	UE_DEPRECATED(5.1, "IsNull is deprecated, please use operator bool instead.")
+	FORCEINLINE bool IsNull() const { return !ObjectPtr.operator bool(); }
+
+	UE_DEPRECATED(5.1, "IsNullNoResolve is deprecated, please use operator bool instead.")
+	FORCEINLINE bool IsNullNoResolve() const { return !ObjectPtr.operator bool(); }
+
 	FORCEINLINE bool operator!() const { return ObjectPtr.operator!(); }
 	explicit FORCEINLINE operator bool() const { return ObjectPtr.operator bool(); }
 	FORCEINLINE bool IsResolved() const { return ObjectPtr.IsResolved(); }
@@ -414,7 +430,7 @@ public:
 	template <typename U, typename V> friend bool ObjectPtr_Private::IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<U>& Ptr, const V* Other);
 
 private:
-	FORCEINLINE T* GetNoRead() const { return (T*)(ResolveObjectHandleNoRead(ObjectPtr.GetHandleRef())); }
+	FORCEINLINE T* GetNoReadNoCheck() const { return (T*)(ResolveObjectHandleNoReadNoCheck(ObjectPtr.GetHandleRef())); }
 
 	// @TODO: OBJPTR: There is a risk of a gap in access tracking here.  The caller may get a mutable pointer, write to it, then
 	//			read from it.  That last read would happen without an access being recorded.  Not sure if there is a good way
@@ -433,6 +449,19 @@ private:
 		T* DebugPtr;
 	};
 };
+
+// Equals against nullptr to optimize comparing against nullptr as it avoids resolving
+template <typename U>
+bool operator==(TYPE_OF_NULLPTR, const TObjectPtr<U>& Rhs)
+{
+	return Rhs == nullptr;
+}
+
+template <typename U>
+bool operator!=(TYPE_OF_NULLPTR, const TObjectPtr<U>& Rhs)
+{
+	return Rhs != nullptr;
+}
 
 template <typename T> struct TIsTObjectPtr<               TObjectPtr<T>> { enum { Value = true }; };
 template <typename T> struct TIsTObjectPtr<const          TObjectPtr<T>> { enum { Value = true }; };
@@ -510,7 +539,17 @@ namespace ObjectPtr_Private
 	template <typename T, typename U>
 	FORCEINLINE bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other)
 	{
-		return Ptr.GetNoRead() == Other;
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		if (Ptr.IsResolved())
+		{
+			return Ptr.GetHandle().PointerOrRef == uintptr_t(Other);
+		}
+		else if (!Other) //avoids resolving if Other is null
+		{
+			return !Ptr;
+		}
+#endif
+		return Ptr.GetNoReadNoCheck() == Other;
 	}
 
 	/** Perform shallow equality check between a TObjectPtr and another (non TObjectPtr) type that we can coerce to a pointer. */

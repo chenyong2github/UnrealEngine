@@ -169,6 +169,9 @@ inline FPackedObjectRef ReadObjectHandlePackedObjectRefNoCheck(FObjectHandle Han
 
 inline UObject* ResolveObjectHandle(FObjectHandle& Handle);
 inline UObject* ResolveObjectHandleNoRead(FObjectHandle& Handle);
+
+/** Resolves an ObjectHandle without checking if already resolved. Invalid to call for resolved handles */
+inline UObject* ResolveObjectHandleNoReadNoCheck(FObjectHandle& Handle);
 inline UClass* ResolveObjectHandleClass(FObjectHandle Handle);
 
 /** Read the handle as a pointer if resolved, and otherwise return null. */
@@ -446,6 +449,20 @@ inline UObject* ResolveObjectHandleNoRead(FObjectHandle& Handle)
 		Handle = LocalHandle;
 		return ResolvedObject;
 	}
+#else
+	return ReadObjectHandlePointerNoCheck(Handle);
+#endif
+}
+
+inline UObject* ResolveObjectHandleNoReadNoCheck(FObjectHandle& Handle)
+{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	FObjectHandle LocalHandle = Handle;
+	LocalHandle = MakeObjectHandle(ResolvePackedObjectRef(ReadObjectHandlePackedObjectRefNoCheck(LocalHandle)));
+	UObject* ResolvedObject = ReadObjectHandlePointerNoCheck(LocalHandle);
+	Handle = LocalHandle;
+	return ResolvedObject;
+	
 #else
 	return ReadObjectHandlePointerNoCheck(Handle);
 #endif
