@@ -223,8 +223,8 @@ void FSceneViewport::UpdateCachedCursorPos( const FGeometry& InGeometry, const F
 	if (UserId == FSlateApplication::SlateAppPrimaryPlatformUser)
 	{
 		FVector2D LocalPixelMousePos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-		LocalPixelMousePos.X *= CachedGeometry.Scale;
-		LocalPixelMousePos.Y *= CachedGeometry.Scale;
+		LocalPixelMousePos.X = FMath::Clamp(LocalPixelMousePos.X * CachedGeometry.Scale, (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max());
+		LocalPixelMousePos.Y = FMath::Clamp(LocalPixelMousePos.Y * CachedGeometry.Scale, (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max());
 
 		CachedCursorPos = LocalPixelMousePos.IntPoint();
 	}
