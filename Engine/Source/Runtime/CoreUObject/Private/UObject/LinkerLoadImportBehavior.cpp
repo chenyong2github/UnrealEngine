@@ -146,6 +146,7 @@ static bool TryLazyLoad(const IAssetRegistryInterface& AssetRegistry, const FSof
 
 	FObjectRef ImportRef = { AssetData.PackageName, AssetData.AssetClassPath.GetPackageName(), AssetData.AssetClassPath.GetAssetName(), FObjectPathId(NameBuilder) };
 	FObjectPtr Ptr(ImportRef);
+	OutObjectPtr = Ptr;
 	return true;
 }
 
