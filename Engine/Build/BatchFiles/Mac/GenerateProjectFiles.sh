@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
 echo
-echo Setting up Unreal Engine 5 project files...
+echo Setting up Unreal Engine project files...
 echo
 
 # If ran from somewhere other then the script location we'll have the full base path
@@ -23,7 +23,7 @@ fi
 source "$BASE_PATH/SetupEnvironment.sh" -dotnet "$BASE_PATH"
 # ensure UnrealBuildTool is up to date if the project file exists, but not if running from an installed build
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" -a ! -f "$BASE_PATH/../../../Build/InstalledBuild.txt" ]; then
-	dotnet msbuild /restore /target:build /property:Configuration=Development /nologo "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /verbosity:quiet
+	dotnet build "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" -c Development -v quiet
 
 	if [ $? -ne 0 ]; then
 		echo GenerateProjectFiles ERROR: Failed to build UnrealBuildTool

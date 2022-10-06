@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## Unreal Engine 4 Mono setup script
+## Unreal Engine Mono setup script
 ## Copyright Epic Games, Inc. All Rights Reserved.
 
 ## This script is expecting to exist in the UE4/Engine/Build/BatchFiles directory.  It will not work correctly

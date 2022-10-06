@@ -1,32 +1,79 @@
 @echo off
+
+rem ## Unreal Engine code build script
+rem ## Copyright Epic Games, Inc. All Rights Reserved.
+rem ##
+rem ## This script is expecting to exist in the /Engine/Build/BatchFiles directory.  It will not work correctly
+rem ## if you copy it to a different location and run it.
+rem ##
+rem ##     %1 is the game name
+rem ##     %2 is the platform name
+rem ##     %3 is the configuration name
+rem ##     additional args are passed directly to UnrealBuildTool
+
 setlocal enabledelayedexpansion
 
-REM The %~dp0 specifier resolves to the path to the directory where this .bat is located in.
-REM We use this so that regardless of where the .bat file was executed from, we can change to
-REM directory relative to where we know the .bat is stored.
+rem ## First, make sure the batch file exists in the folder we expect it to.  This is necessary in order to
+rem ## verify that our relative path to the /Engine/Source directory is correct
+if not exist "%~dp0..\..\Source" goto Error_BatchFileInWrongLocation
+
+rem ## Change the CWD to /Engine/Source.  We always need to run UnrealBuildTool from /Engine/Source!
 pushd "%~dp0\..\..\Source"
-
-rem ## Verify that dotnet is present
-call "%~dp0GetDotnetPath.bat"
-
-REM %1 is the game name
-REM %2 is the platform name
-REM %3 is the configuration name
+if not exist ..\Build\BatchFiles\Clean.bat goto Error_BatchFileInWrongLocation
 
 set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll"
 
-IF EXIST %UBTPath% (
-		dotnet %UBTPath% %*
-		popd
+rem ## If this is an installed build, we don't need to rebuild UBT. Go straight to building.
+if exist ..\Build\InstalledBuild.txt goto ReadyToBuild
 
-		REM Ignore exit codes of 2 ("ECompilationResult.UpToDate") from UBT; it's not a failure.
-		if "!ERRORLEVEL!"=="2" (
-			EXIT /B 0
-		)
-		 
-		EXIT /B !ERRORLEVEL!
-) ELSE (
-	ECHO UnrealBuildTool.dll not found in %UBTPath%
-	popd
-	EXIT /B 999
+rem ## Verify that dotnet is present
+call "%~dp0GetDotnetPath.bat"
+if errorlevel 1 goto Error_NoDotnetSDK
+REM ## Skip msbuild detection if using dotnet as this is done for us by dotnet-cli
+
+rem ## Compile UBT if the project file exists
+:ReadyToBuildUBT
+set ProjectFile="Programs\UnrealBuildTool\UnrealBuildTool.csproj"
+if not exist %ProjectFile% goto NoProjectFile
+
+rem ## If this script was called from Visual Studio 2022, build UBT with Visual Studio to prevent unnecessary rebuilds.
+if "%VisualStudioVersion%" GEQ "17.0" (
+	echo Building UnrealBuildTool with %VisualStudioEdition%...
+	"%VSAPPIDDIR%..\..\MSBuild\Current\Bin\MSBuild.exe" %ProjectFile% -t:Build -p:Configuration=Development -verbosity:quiet -noLogo
+	if errorlevel 1 goto Error_UBTCompileFailed
+) else (
+	echo Building UnrealBuildTool with dotnet...
+	dotnet build %ProjectFile% -c Development -v quiet
+	if errorlevel 1 goto Error_UBTCompileFailed
 )
+:NoProjectFile
+
+rem ## Run UBT
+:ReadyToBuild
+if not exist %UBTPath% goto Error_UBTMissing
+echo Running UnrealBuildTool: dotnet %UBTPath% %*
+dotnet %UBTPath% %*
+goto Exit
+
+:Error_BatchFileInWrongLocation
+echo ERROR: The batch file does not appear to be located in the Engine/Build/BatchFiles directory. This script must be run from within that directory.
+pause
+goto Exit
+
+:Error_NoDotnetSDK
+echo ERROR: Unable to find a install of Dotnet SDK.  Please make sure you have it installed and that `dotnet` is a globally available command.
+pause
+goto Exit
+
+:Error_UBTCompileFailed
+echo ERROR: Failed to build UnrealBuildTool.
+pause
+goto Exit
+
+:Error_UBTMissing
+echo ERROR: UnrealBuildTool.dll not found in %UBTPath%
+pause
+goto Exit
+
+:Exit
+

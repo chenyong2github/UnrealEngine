@@ -1,6 +1,6 @@
 #!/bin/sh
 
-## Unreal Engine 4 XBuild setup script
+## Unreal Engine XBuild setup script
 ## Copyright Epic Games, Inc. All Rights Reserved.
 
 ## This script is expecting to exist in the UE4/Engine/Build/BatchFiles directory.  It will not work correctly

@@ -1,13 +1,13 @@
 @echo off
 
-rem ## Unreal Engine 5 Visual Studio project setup script
+rem ## Unreal Engine Visual Studio project setup script
 rem ## Copyright Epic Games, Inc. All Rights Reserved.
 rem ##
 rem ## This script is expecting to exist in the UE5 root directory.  It will not work correctly
 rem ## if you copy it to a different location and run it.
 
 setlocal
-echo Setting up Unreal Engine 5 project files...
+echo Setting up Unreal Engine project files...
 
 rem ## First, make sure the batch file exists in the folder we expect it to.  This is necessary in order to
 rem ## verify that our relative path to the /Engine/Source directory is correct
@@ -48,11 +48,11 @@ fc /b ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\Unrea
 if not errorlevel 1 goto SkipClean
 copy /y ..\Intermediate\Build\UnrealBuildToolFiles.txt ..\Intermediate\Build\UnrealBuildToolPrevFiles.txt >nul
 
-dotnet msbuild /target:clean /property:Configuration=Development /nologo Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:quiet
+dotnet clean Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet
 
 :SkipClean
 echo Building UnrealBuildTool...
-dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:quiet
+dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet
 
 if errorlevel 1 goto Error_UBTCompileFailed
 

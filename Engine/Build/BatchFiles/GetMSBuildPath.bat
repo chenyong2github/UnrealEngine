@@ -1,6 +1,6 @@
 @echo off
 
-rem ## Unreal Engine 4 utility script
+rem ## Unreal Engine utility script
 rem ## Copyright Epic Games, Inc. All Rights Reserved.
 rem ##
 rem ## This script determines the path to MSBuild necessary to compile C# tools for the current version of the engine.

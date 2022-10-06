@@ -1,6 +1,6 @@
 @echo off
 
-rem ## Unreal Engine 4 Visual Studio MSBuild Execution Script
+rem ## Unreal Engine Visual Studio MSBuild Execution Script
 rem ## Copyright Epic Games, Inc. All Rights Reserved.
 rem ##
 rem ## This script is expecting to exist in the UE4 Engine/Build/BatchFiles directory.  It will not work correctly

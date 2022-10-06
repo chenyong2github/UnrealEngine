@@ -29,7 +29,7 @@ fi
 if [[ "$*" != *-SkipUBTBuild* ]]; then
   if [ -f "$BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then 
     echo "Building UBT..."
-    dotnet msbuild /restore /target:build /property:Configuration=Development /nologo $BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj /verbosity:quiet
+    dotnet build $BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
 
     if [ $? -ne 0 ]; then
       echo RunUBT ERROR: Failed to build UnrealBuildTool
