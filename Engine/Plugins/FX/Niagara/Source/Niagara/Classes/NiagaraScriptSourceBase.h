@@ -61,6 +61,7 @@ public:
 	NIAGARA_API static const FString GpuScriptDefine;
 	NIAGARA_API static const FString EventSpawnDefine;
 	NIAGARA_API static const FString EventSpawnInitialAttribWritesDefine;
+	NIAGARA_API static const FString ExperimentalVMDisabled;
 
 	FNiagaraCompileOptions() : TargetUsage(ENiagaraScriptUsage::Function), TargetUsageBitmask(0)
 	{

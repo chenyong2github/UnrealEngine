@@ -69,6 +69,7 @@ public:
 	bool bWaitForCompileJob = false;
 	bool bUsedShaderCompilerWorker = false;
 	bool bFetchedGCObjects = false;
+	bool bExperimentalVMDisabled = true;
 	UNiagaraSystem* OwningSystem;
 	FEmitterCompiledScriptPair ScriptPair;
 	TArray<FNiagaraVariable> EncounteredExposedVars;

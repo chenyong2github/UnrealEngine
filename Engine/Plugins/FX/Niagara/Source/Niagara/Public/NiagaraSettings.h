@@ -118,6 +118,14 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = ( DisplayName = "Enforce strict type checks in the graph" ))
 	bool bEnforceStrictStackTypes = true;
 
+	/**
+	 True indicates that we will generate byte code for the new experimental VM.  Control over whether the new VM will
+	 be used when executing NiagaraScripts will also take into account the overrides on the system (bDisableExperimentalVM) and
+	 the cvars fx.NiagaraScript.StripByteCodeOnLoad and fx.ForceExecVMPath.
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (DisplayName = "Enable building data for Experimental VM"))
+	bool bExperimentalVMEnabled = false;
+
 	/** Default effect type to use for effects that don't define their own. Can be null. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "/Script/Niagara.NiagaraEffectType"))
 	FSoftObjectPath DefaultEffectType;
