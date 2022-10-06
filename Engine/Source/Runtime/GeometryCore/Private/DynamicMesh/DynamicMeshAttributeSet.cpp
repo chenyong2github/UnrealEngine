@@ -535,6 +535,11 @@ void FDynamicMeshAttributeSet::SetNumWeightLayers(int32 Num)
 	ensure(WeightLayers.Num() == Num);
 }
 
+void FDynamicMeshAttributeSet::RemoveWeightLayer(int32 Index)
+{
+	WeightLayers.RemoveAt(Index);
+}
+
 FDynamicMeshWeightAttribute* FDynamicMeshAttributeSet::GetWeightLayer(int Index)
 {
 	return &WeightLayers[Index];

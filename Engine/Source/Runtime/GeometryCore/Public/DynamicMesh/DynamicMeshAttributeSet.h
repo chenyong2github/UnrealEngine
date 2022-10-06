@@ -307,6 +307,9 @@ public:
 	/** Set the number of weight layers */
 	virtual void SetNumWeightLayers(int32 Num);
 
+	/** Remove a weight layer at the specified index */
+	virtual void RemoveWeightLayer(int32 Index);
+
 	/** @return the weight layer at the given Index */
 	FDynamicMeshWeightAttribute* GetWeightLayer(int Index);
 

@@ -142,15 +142,16 @@ void UClothEditorWeightMapPaintTool::Setup()
 
 	WeightMapSetProperties = NewObject<UWeightMapSetProperties>(this);
 	WeightMapSetProperties->RestoreProperties(this, TEXT("ClothEditorWeightMapPaintTool"));
-	TArray<FName> WeightMapNames;
-	for (int32 WeightMapIndex = 0; WeightMapIndex < Mesh->Attributes()->NumWeightLayers(); ++WeightMapIndex)
-	{
-		WeightMapNames.Add(Mesh->Attributes()->GetWeightLayer(WeightMapIndex)->GetName());
-	}
-	WeightMapSetProperties->InitializeWeightMaps(WeightMapNames);
+
+	InitializeWeightMapNames();
+
 	WeightMapSetProperties->WatchProperty(WeightMapSetProperties->WeightMap, [&](FName) { OnSelectedWeightMapChanged(); });
 	UpdateActiveWeightMap();
 	AddToolPropertySource(WeightMapSetProperties);
+
+	ClothEditorWeightMapActions = NewObject<UClothEditorWeightMapActions>(this);
+	ClothEditorWeightMapActions->Initialize(this);
+	AddToolPropertySource(ClothEditorWeightMapActions);
 
 	// initialize other properties
 	FilterProperties = NewObject<UClothEditorWeightMapPaintBrushFilterProperties>(this);
@@ -1218,7 +1219,105 @@ void UClothEditorWeightMapPaintTool::ClearAllWeightsAction()
 }
 
 
+void UClothEditorWeightMapPaintTool::InitializeWeightMapNames()
+{
+	const FDynamicMesh3* const Mesh = GetSculptMesh();
 
+	if (!WeightMapSetProperties || !Mesh || !Mesh->HasAttributes())
+	{
+		return;
+	}
+
+	TArray<FString>& PropWeightMapNames = WeightMapSetProperties->WeightMapsList;
+	PropWeightMapNames.Reset();
+	PropWeightMapNames.Add(TEXT("None"));
+
+	// get names from the mesh attributes
+	for (int32 WeightMapIndex = 0; WeightMapIndex < Mesh->Attributes()->NumWeightLayers(); ++WeightMapIndex)
+	{
+		const FName& MeshWeightMapName = Mesh->Attributes()->GetWeightLayer(WeightMapIndex)->GetName();
+		PropWeightMapNames.Add(MeshWeightMapName.ToString());
+	}
+
+	// if selected weight map name is no longer in the list of valid names, reset it
+	if (!PropWeightMapNames.Contains(WeightMapSetProperties->WeightMap.ToString()))
+	{
+		WeightMapSetProperties->WeightMap = FName(PropWeightMapNames[0]);
+	}
+}
+
+
+void UClothEditorWeightMapPaintTool::AddWeightMapAction(const FName& NewWeightMapName)
+{
+	if (DynamicMeshComponent && DynamicMeshComponent->GetMesh() && DynamicMeshComponent->GetMesh()->HasAttributes())
+	{
+		FDynamicMesh3* const Mesh = DynamicMeshComponent->GetMesh();
+
+		FDynamicMeshAttributeSet* const MeshAttributes = Mesh->Attributes();
+		const int32 NumExistingWeights = MeshAttributes->NumWeightLayers();
+		
+		if (NewWeightMapName.IsNone())
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("InvalidAttributeName", "Invalid weight map name"), EToolMessageLevel::UserWarning);
+			return;
+		}
+
+		// Check for matching name	
+		for (int32 WeightMapIndex = 0; WeightMapIndex < NumExistingWeights; ++WeightMapIndex)
+		{
+			const FDynamicMeshWeightAttribute* const ExistingWeightMap = MeshAttributes->GetWeightLayer(WeightMapIndex);
+			if (ExistingWeightMap->GetName() == NewWeightMapName)
+			{
+				GetToolManager()->DisplayMessage(LOCTEXT("ErrorAddingDuplicateNameMessage", "Weight map with this name already exists"), EToolMessageLevel::UserWarning);
+				return;
+			}
+		}
+
+		MeshAttributes->SetNumWeightLayers(NumExistingWeights + 1);
+
+		const int32 NewWeightMapIndex = NumExistingWeights;
+		FDynamicMeshWeightAttribute* const NewWeightMap = MeshAttributes->GetWeightLayer(NewWeightMapIndex);
+		NewWeightMap->SetName(NewWeightMapName);
+
+		// Refresh the drop down of available weight maps and select the new one
+		InitializeWeightMapNames();
+		WeightMapSetProperties->SetSelectedFromWeightMapIndex(NewWeightMapIndex);
+
+		// Clear the New Name text field
+		ClothEditorWeightMapActions->NewWeightMapName.Empty();
+	}
+}
+
+
+void UClothEditorWeightMapPaintTool::DeleteWeightMapAction(const FName& SelectedWeightMapName)
+{
+	FDynamicMeshAttributeSet* const MeshAttributes = DynamicMeshComponent->GetMesh()->Attributes();
+
+	bool bFoundSelectedWeightMap = false;
+	
+	const int32 NumWeightMaps = MeshAttributes->NumWeightLayers();
+	for (int32 WeightMapIndex = 0; WeightMapIndex < NumWeightMaps; ++WeightMapIndex)
+	{
+		const FDynamicMeshWeightAttribute* const WeightMap = MeshAttributes->GetWeightLayer(WeightMapIndex);
+		if (WeightMap->GetName() == SelectedWeightMapName)
+		{
+			bFoundSelectedWeightMap = true;
+			MeshAttributes->RemoveWeightLayer(WeightMapIndex);		// Hopefully nothing else is holding indices into this...
+			break;
+		}
+	}
+
+	if (!bFoundSelectedWeightMap)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidExistingWeightMapName", "No weight map with the specified name exists"), EToolMessageLevel::UserWarning);
+	}
+	else
+	{
+		InitializeWeightMapNames();
+		UpdateActiveWeightMap();
+		GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+	}
+}
 
 //
 // Change Tracking
@@ -1525,6 +1624,14 @@ void UClothEditorWeightMapPaintTool::ApplyAction(EClothEditorWeightMapPaintToolA
 		ClearAllWeightsAction();
 		break;
 
+	case EClothEditorWeightMapPaintToolActions::AddWeightMap:
+		AddWeightMapAction(FName(ClothEditorWeightMapActions->NewWeightMapName));
+		break;
+
+	case EClothEditorWeightMapPaintToolActions::DeleteWeightMap:
+		DeleteWeightMapAction(WeightMapSetProperties->WeightMap);
+		break;
+
 	}
 }
 
@@ -1532,4 +1639,3 @@ void UClothEditorWeightMapPaintTool::ApplyAction(EClothEditorWeightMapPaintToolA
 
 
 #undef LOCTEXT_NAMESPACE
-

@@ -162,7 +162,10 @@ enum class EClothEditorWeightMapPaintToolActions
 	NoAction,
 
 	FloodFillCurrent,
-	ClearAll
+	ClearAll,
+
+	AddWeightMap,
+	DeleteWeightMap
 };
 
 
@@ -187,17 +190,41 @@ class CHAOSCLOTHASSETEDITORTOOLS_API UMeshWeightMapPaintToolActions : public UCl
 public:
 
 	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 10))
-		void ClearAll()
+	void ClearAll()
 	{
 		PostAction(EClothEditorWeightMapPaintToolActions::ClearAll);
 	}
 
 	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayPriority = 12))
-		void FloodFillCurrent()
+	void FloodFillCurrent()
 	{
 		PostAction(EClothEditorWeightMapPaintToolActions::FloodFillCurrent);
 	}
 
+};
+
+
+UCLASS()
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapActions : public UClothEditorWeightMapPaintToolActionPropertySet
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = AddWeightMap, meta = (DisplayName = "New Weight Map Name"))
+	FString NewWeightMapName;
+
+	UFUNCTION(CallInEditor, Category = AddWeightMap, meta = (DisplayPriority = 2))
+	void AddNewWeightMap()
+	{
+		PostAction(EClothEditorWeightMapPaintToolActions::AddWeightMap);
+	}
+
+	UFUNCTION(CallInEditor, Category = DeleteWeightMap, meta = (DisplayPriority = 3))
+	void DeleteSelectedWeightMap()
+	{
+		PostAction(EClothEditorWeightMapPaintToolActions::DeleteWeightMap);
+	}
 };
 
 /**
@@ -251,6 +278,9 @@ public:
 	void FloodFillCurrentWeightAction();
 	void ClearAllWeightsAction();
 
+	void AddWeightMapAction(const FName& NewWeightMapName);
+	void DeleteWeightMapAction(const FName& SelectedWeightMapName);
+
 	void SetVerticesToWeightMap(const TSet<int32>& Vertices, double WeightValue, bool bIsErase);
 
 	bool HaveVisibilityFilter() const;
@@ -289,6 +319,9 @@ public:
 	
 	UPROPERTY()
 	TObjectPtr<UMeshWeightMapPaintToolActions> ActionsProps;
+
+	UPROPERTY()
+	TObjectPtr<UClothEditorWeightMapActions> ClothEditorWeightMapActions;
 
 protected:
 	bool bHavePendingAction = false;
@@ -385,6 +418,8 @@ protected:
 	TArray<int32> NormalSeamEdges;
 	void PrecomputeFilterData();
 
+	// Populate the drop-down WeightMapsList in WeightMapSetProperties
+	void InitializeWeightMapNames();
 
 protected:
 	virtual bool ShowWorkPlane() const override { return false; }
