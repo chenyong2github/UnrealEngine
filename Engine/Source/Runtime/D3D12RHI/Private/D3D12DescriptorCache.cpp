@@ -263,22 +263,6 @@ void FD3D12DescriptorCache::SetUAVs(const FD3D12RootSignature* RootSignature, FD
 #ifdef VERBOSE_DESCRIPTOR_HEAP_DEBUG
 	FMsg::Logf(__FILE__, __LINE__, TEXT("DescriptorCache"), ELogVerbosity::Log, TEXT("SetUnorderedAccessViewTable [STAGE %d] to slots %d - %d"), (int32)ShaderStage, FirstSlotIndex, FirstSlotIndex + SlotsNeeded - 1);
 #endif
-
-	const int8 DiagnosticBufferSlot = RootSignature->GetDiagnosticBufferSlot();
-	FD3D12Queue& Queue = Context.GetParentDevice()->GetQueue(Context.QueueType);
-	D3D12_GPU_VIRTUAL_ADDRESS DiagnosticBufferAddress = Queue.GetDiagnosticBufferGPUAddress();
-
-	if (DiagnosticBufferSlot >= 0 && DiagnosticBufferAddress)
-	{
-		if (ShaderStage == SF_Compute)
-		{
-			Context.GraphicsCommandList()->SetComputeRootUnorderedAccessView(DiagnosticBufferSlot, DiagnosticBufferAddress);
-		}
-		else
-		{
-			Context.GraphicsCommandList()->SetGraphicsRootUnorderedAccessView(DiagnosticBufferSlot, DiagnosticBufferAddress);
-		}
-	}
 }
 
 void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTargetViewArray, uint32 Count, FD3D12DepthStencilView* DepthStencilTarget)
