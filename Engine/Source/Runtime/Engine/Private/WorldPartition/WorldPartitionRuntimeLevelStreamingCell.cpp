@@ -317,7 +317,9 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	}
 #endif
 
-	if (LevelStreaming)
+	// @todo_ow ContentBundles do not support Hlods and events below are forwarding
+	// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
+	if (LevelStreaming  && !GetContentBundleID().IsValid())
 	{
 		LevelStreaming->OnLevelShown.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown);
 		LevelStreaming->OnLevelHidden.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden);
