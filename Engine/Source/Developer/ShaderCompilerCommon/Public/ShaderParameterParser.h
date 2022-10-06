@@ -10,6 +10,13 @@ struct FShaderCompilerOutput;
 
 enum class EShaderParameterType : uint8;
 
+enum class EBindlessConversionType : uint8
+{
+	None,
+	Resource,
+	Sampler
+};
+
 /** Validates and moves all the shader loose data parameter defined in the root scope of the shader into the root uniform buffer. */
 class SHADERCOMPILERCOMMON_API FShaderParameterParser
 {
@@ -44,11 +51,13 @@ public:
 		int32 ParsedLineOffset = 0;
 
 		/** Character position of the start and end of the parameter decelaration in FParsedShaderParameter::OriginalParsedShader */
-		int32 ParsedCharOffsetStart = 0;
-		int32 ParsedCharOffsetEnd = 0;
+		int32 ParsedCharOffsetStart = INDEX_NONE;
+		int32 ParsedCharOffsetEnd = INDEX_NONE;
 
-		EShaderParameterType BindlessConversionType{};
+		EBindlessConversionType BindlessConversionType{};
 		EShaderParameterType ConstantBufferParameterType{};
+
+		bool bGloballyCoherent = false;
 
 		friend class FShaderParameterParser;
 	};
