@@ -20,6 +20,7 @@ class NIAGARA_API UNiagaraDataInterfaceActorComponent : public UNiagaraDataInter
 		SHADER_PARAMETER(FMatrix44f,	Matrix)
 		SHADER_PARAMETER(FQuat4f,		Rotation)
 		SHADER_PARAMETER(FVector3f,		Scale)
+		SHADER_PARAMETER(FVector3f,		Velocity)
 	END_SHADER_PARAMETER_STRUCT();
 
 public:

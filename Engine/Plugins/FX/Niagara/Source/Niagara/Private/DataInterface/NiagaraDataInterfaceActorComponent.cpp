@@ -253,6 +253,7 @@ void UNiagaraDataInterfaceActorComponent::SetShaderParameters(const FNiagaraData
 	ShaderParameters->Matrix	= (FMatrix44f)InstanceData.CachedTransform.ToMatrixWithScale();
 	ShaderParameters->Rotation	= (FQuat4f)InstanceData.CachedTransform.GetRotation();
 	ShaderParameters->Scale		= (FVector3f)InstanceData.CachedTransform.GetScale3D();
+	ShaderParameters->Velocity	= InstanceData.CachedVelocity;
 }
 
 bool UNiagaraDataInterfaceActorComponent::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
