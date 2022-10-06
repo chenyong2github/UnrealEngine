@@ -330,6 +330,7 @@ namespace ObjectHandle_Private
 		const uint32 PackageIndex = PackageId.ToIndex();
 		if (PackageIndex >= static_cast<uint32>(GObjectHandleIndex.PackageData.Num()))
 		{
+			checkf(false, TEXT("FObjectHandle: PackageIndex invalid.  This ObjectHandle is from malformed data."));
 			return;
 		}
 		FObjectHandlePackageData& FoundPackageData = GObjectHandleIndex.PackageData[PackageIndex];
@@ -338,8 +339,10 @@ namespace ObjectHandle_Private
 		if ((ObjectId.Components.ObjectPathId >= static_cast<uint32>(FoundPackageData.ObjectPaths.Num() + 1)) ||
 			(ObjectId.Components.DataClassDescriptorId >= static_cast<uint32>(FoundPackageData.DataClassDescriptors.Num() + 1)))
 		{
+			checkf(false, TEXT("FObjectHandle: ObjectId.Components.ObjectPathId or ObjectId.Components.DataClassDescriptorId invalid.  This ObjectHandle is from malformed data."));
 			return;
 		}
+
 		OutPackageName = FoundPackageData.PackageName;
 		OutPathId = FoundPackageData.ObjectPaths[ObjectId.Components.ObjectPathId - 1];
 
@@ -348,6 +351,12 @@ namespace ObjectHandle_Private
 			FObjectHandleDataClassDescriptor& Desc = FoundPackageData.DataClassDescriptors[ObjectId.Components.DataClassDescriptorId - 1];
 			OutClassPackageName = Desc.PackageName;
 			OutClassName = Desc.ClassName;
+		}
+		else
+		{
+			//@TODO OBJPTR: Is this an error case we should check on?
+			//checkf(false, TEXT("FObjectHandle: ObjectId.Components.ObjectPathId or ObjectId.Components.DataClassDescriptorId invalid.  This ObjectHandle is from malformed data."));
+			return;
 		}
 	}
 
