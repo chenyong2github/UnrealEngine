@@ -13,6 +13,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.BuildGraph.Expressions;
+using EpicGames.BuildGraph;
+using System.Xml.Linq;
 using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
@@ -631,6 +634,20 @@ namespace Horde.Build.Server
 				}
 
 				response.OutputNames.Add(node.OutputNames);
+
+				foreach (INodeGroup otherGroup in graph.Groups)
+				{
+					if (otherGroup != graph.Groups[batch.GroupIdx])
+					{
+						foreach (NodeOutputRef outputRef in otherGroup.Nodes.SelectMany(x => x.Inputs))
+						{
+							if (outputRef.NodeRef.GroupIdx == batch.GroupIdx && outputRef.NodeRef.NodeIdx == step.NodeIdx && !response.PublishOutputs.Contains(outputRef.OutputIdx))
+							{
+								response.PublishOutputs.Add(outputRef.OutputIdx);
+							}
+						}
+					}
+				}
 
 				string templateName = "<unknown>";
 				if (job.TemplateHash != null)
