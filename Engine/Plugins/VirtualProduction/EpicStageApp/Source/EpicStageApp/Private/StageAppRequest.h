@@ -327,3 +327,56 @@ struct FRCWebSocketNDisplayPreviewActorDragEndBody : public FRCRequest
 	UPROPERTY()
 	int64 SequenceNumber = -1;
 };
+
+/**
+ * Holds a request made via websocket to create a lightcard, optionally positioned relative to the previewed area.
+ */
+USTRUCT()
+struct FRCWebSocketNDisplayPreviewLightCardCreateBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketNDisplayPreviewLightCardCreateBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The ID of the preview renderer returned when it was created.
+	 */
+	UPROPERTY()
+	int32 RendererId = -1;
+
+	/**
+	 * The path of the template to use for the lightcard. If empty, a lightcard will be created with default settings.
+	 */
+	UPROPERTY()
+	FString TemplatePath = "";
+
+	/**
+	 * If true, override the default/template position for the lightcard with the provided Position.
+	 * Otherwise, use the template's position, or if no template, create at viewport center (0.5, 0.5).
+	 */
+	UPROPERTY()
+	bool OverridePosition = false;
+
+	/**
+	 * If OverridePosition is true and PreviewRendererId points to a valid preview renderer, place the
+	 * lightcard at this normalized viewport coordinate (in range [0, 1]).
+	 */
+	UPROPERTY()
+	FVector2D Position = FVector2D::ZeroVector;
+
+	/**
+	 * An optional number that will be passed back in the RequestedActorsCreated response to tell apart
+	 * the results of multiple requests.
+	 */
+	UPROPERTY()
+	int32 RequestId = -1;
+};
+

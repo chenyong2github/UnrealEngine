@@ -6,6 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+class UDisplayClusterLightCardTemplate;
+
 /**
  * Display Cluster Light Card Editor module interface
  */
@@ -64,4 +66,9 @@ public:
 	 * @param InArgs The arguments for displaying labels.
 	 */
 	virtual void ShowLabels(const FLabelArgs& InArgs) = 0;
+
+	/**
+	 * Get the default template to use when creating a new light card
+	 */
+	virtual UDisplayClusterLightCardTemplate* GetDefaultLightCardTemplate() const = 0;
 };

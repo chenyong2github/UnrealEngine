@@ -2,10 +2,10 @@
 
 #include "SDisplayClusterLightCardTemplateList.h"
 
-#include "DisplayClusterLightCardTemplate.h"
 #include "DisplayClusterLightCardTemplateDragDropOp.h"
 #include "DisplayClusterLightCardTemplateHelpers.h"
 #include "DisplayClusterLightCardEditor.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture.h"

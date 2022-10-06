@@ -36,6 +36,7 @@ public class EpicStageApp : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"DisplayClusterLightCardEditor",
 					"UnrealEd",
 				}
 			);

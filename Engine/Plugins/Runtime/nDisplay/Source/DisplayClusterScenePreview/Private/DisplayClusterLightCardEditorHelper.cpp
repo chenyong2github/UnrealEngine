@@ -404,6 +404,8 @@ const UTexture2D* FDisplayClusterLightCardEditorHelper::GetNormalMapTexture(bool
 void FDisplayClusterLightCardEditorHelper::MoveActorsToPixel(
 	const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& SceneView)
 {
+	UpdateProjectionOriginComponent();
+
 	FVector Origin;
 	FVector Direction;
 	CalculateOriginAndDirectionFromPixelPosition(PixelPos, SceneView, FVector::ZeroVector, Origin, Direction);

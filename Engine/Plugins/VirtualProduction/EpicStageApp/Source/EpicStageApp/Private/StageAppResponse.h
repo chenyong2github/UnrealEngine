@@ -127,3 +127,34 @@ struct FRCActorDragCancelled
 	int32 RendererId = -1;
 };
 
+/**
+ * Event sent to a client when light cards were created at the request of the client.
+ */
+USTRUCT()
+struct FRCRequestedActorsCreated
+{
+	GENERATED_BODY()
+
+	FRCRequestedActorsCreated()
+	: Type(TEXT("RequestedActorsCreated"))
+	{
+	}
+
+	/**
+	 * Type of the event.
+	 */
+	UPROPERTY()
+	FString Type;
+
+	/**
+	 * The list of newly-created actors' paths.
+	 */
+	UPROPERTY()
+	TArray<FString> ActorPaths;
+
+	/**
+	 * The ID passed when the actors were created, or -1 if no ID was provided.
+	 */
+	UPROPERTY()
+	int32 RequestId = -1;
+};

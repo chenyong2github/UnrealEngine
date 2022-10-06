@@ -16,6 +16,7 @@ public:
 	virtual void ShutdownModule() override;
 	
 	virtual void ShowLabels(const FLabelArgs& InArgs) override;
+	virtual UDisplayClusterLightCardTemplate* GetDefaultLightCardTemplate() const override;
 	
 private:
 	void RegisterSettings();

@@ -285,6 +285,14 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditor::SpawnLightCardFro
 		AddRecentlyPlacedItem(MoveTemp(RecentlyPlacedItem));
 		SelectActors({NewLightCard});
 	}
+
+#if WITH_EDITOR
+	// Need to call this if spawned from a template since this would normally be called in SpawnActor
+	if (GIsEditor)
+	{
+		GEditor->BroadcastLevelActorAdded(NewLightCard);
+	}
+#endif
 	
 	return NewLightCard;
 }

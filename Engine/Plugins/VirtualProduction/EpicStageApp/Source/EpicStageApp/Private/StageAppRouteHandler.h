@@ -54,7 +54,7 @@ private:
 		void SetPreviewSettings(const FRCWebSocketNDisplayPreviewRendererSettings& NewSettings);
 
 		/** Get the scene view init options to be used for preview renders based on the stored settings. */
-		bool GetSceneViewInitOptions(FSceneViewInitOptions& ViewInitOptions);
+		bool GetSceneViewInitOptions(FSceneViewInitOptions& ViewInitOptions, bool bApplyActorRotation = true);
 
 		/** Update the sequence number if the provided one is higher than the previous. */
 		void UpdateDragSequenceNumber(int64 ReceivedSequenceNumber);
@@ -126,6 +126,9 @@ private:
 
 	/** Handles ending an actor drag operation. */
 	void HandleWebSocketNDisplayPreviewActorDragEnd(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles creating a lightcard. */
+	void HandleWebSocketNDisplayPreviewLightCardCreate(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	/** Called when a client disconnects from the WebSocket server. */
 	void HandleClientDisconnected(FGuid ClientId);

@@ -2,9 +2,9 @@
 
 #include "DisplayClusterLightCardTemplateHelpers.h"
 
-#include "DisplayClusterLightCardTemplate.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 
 TArray<UDisplayClusterLightCardTemplate*> UE::DisplayClusterLightCardTemplateHelpers::GetLightCardTemplates(bool bFavoritesOnly)
 {

@@ -8,6 +8,7 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterLightCardEditor.h"
 #include "DetailCustomizations/DisplayClusterLightCardActorDetails.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
 #include "IDisplayClusterOperator.h"
@@ -68,6 +69,12 @@ void FDisplayClusterLightCardEditorModule::ShowLabels(const FLabelArgs& InArgs)
 			}
 		}
 	}
+}
+
+UDisplayClusterLightCardTemplate* FDisplayClusterLightCardEditorModule::GetDefaultLightCardTemplate() const
+{
+	const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
+	return Settings->DefaultLightCardTemplate.LoadSynchronous();
 }
 
 void FDisplayClusterLightCardEditorModule::RegisterSettings()
