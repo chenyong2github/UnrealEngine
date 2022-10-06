@@ -193,7 +193,15 @@ namespace Chaos
 		}
 		else
 		{
+			// @todo(chaos): this should also call Evolution.SetParticleObjectState, but to do that
+			// we need to change how the ActiveParticlesArray is handled in RigidParticleSOAs.
+			// Instead we manually do the parts of SetParticleObjectState that are still required 
+			// while avoiding the SOA management.
 			RigidHandle->SetObjectStateLowLevel(FieldState);
+			if (!RigidHandle->Disabled())
+			{
+				RigidSolver->GetEvolution()->GetConstraintGraph().AddParticle(RigidHandle);
+			}
 		}
 	}
 

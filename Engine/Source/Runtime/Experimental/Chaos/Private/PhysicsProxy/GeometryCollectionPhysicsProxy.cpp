@@ -939,12 +939,23 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				{
 					Shape->SetMaterial(Parameters.PhysicalMaterialHandle);
 				}
-
-				RigidsSolver->GetEvolution()->EnableParticle(Handle);
 			}
 		},true);
 
+		// Enable the particle (register with graph, add to broadphase, etc)
+		// NOTE: Cannot be called in parallel (do not move this to the above loop)
+		// @todo(chaos): can this be done at the end of the function once we know 
+		// whether we're asleep etc.? (but see calls to UpdateGeometryCollectionViews)
+		for (FClusterHandle* ClusterHandle : SolverParticleHandles)
+		{
+			if ((ClusterHandle != nullptr) && !ClusterHandle->Disabled())
+			{
+				RigidsSolver->GetEvolution()->EnableParticle(ClusterHandle);
+			}
+		}
+
 		// After population, the states of each particle could have changed
+		// @todo(Chaos) Do we really need to maintain the Views while running this function? We do it twice, but there's also a Dirty flag built-in
 		Particles.UpdateGeometryCollectionViews();
 
 		for (FFieldSystemCommand& Cmd : Parameters.InitializationCommands)
