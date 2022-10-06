@@ -4,6 +4,7 @@
 
 #include "GlobalShader.h"
 #include "NNXShaderParameters.h"
+#include "NNXTypes.h"
 
 enum class EConvTransposeAlgorithm : uint8
 {

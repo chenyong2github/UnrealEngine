@@ -223,6 +223,13 @@
 			"targets": [
 				{ "target": "Gemm" }
 			]
+		},
+		{
+			"category": "ConvTranspose",
+			"runtimes": [	{	"name": "NNXRuntimeDml", "skip": true	}	],
+			"targets": [
+				{ "target": "ConvTranspose" }
+			]
 		}
 	],
 
@@ -354,6 +361,13 @@
 				{ "inputs": [ { "shape": [ 3, 4 ] }, { "shape": [ 4, 5 ] } ], "outputs": [ { "shape": [ 3, 5 ] } ]},
 				{ "inputs": [ { "shape": [ 3, 4 ] }, { "shape": [ 4, 5 ] }, { "shape": [ 3, 5 ] } ], "outputs": [ { "shape": [ 3, 5 ] } ]},
 				{ "inputs": [ { "shape": [ 1, 1 ] }, { "shape": [ 1, 5 ] }, { "shape": [ 5 ] } ], "outputs": [ { "shape": [ 1, 5 ] } ]}
+			]
+		},
+		{
+			"name": "ConvTranspose",
+			"datasets": [
+				{	"inputs": [	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1, 1, 1 ] } ],	"outputs": [ { "shape": [ 1, 1, 1 ] } ]},
+				{	"inputs": [	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1 ] } ],	"outputs": [ { "shape": [ 1, 1, 1 ] } ]}
 			]
 		}
 	]

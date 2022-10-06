@@ -7,6 +7,7 @@
 #include "NNXRuntimeHLSLElementWiseUnaryOps.h"
 #include "NNXRuntimeHLSLElementWiseVariadicOps.h"
 #include "NNXRuntimeHLSLGemmOp.h"
+#include "NNXRuntimeHLSLConvTransposeOp.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
 
@@ -153,6 +154,7 @@ public:
 		RegisterElementWiseBinaryOperators(*registry);
 		RegisterElementWiseVariadicOperators(*registry);
 		RegisterGemmOperator(*registry);
+		RegisterConvTransposeOperator(*registry);
 
 		return true;
 	}
