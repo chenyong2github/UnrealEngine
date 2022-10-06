@@ -558,12 +558,12 @@ namespace UE::PoseSearch
 			const FPoseSearchDatabaseSequence& B = Database->Sequences[SequenceIdxB];
 
 			//If its null add it to the end of the list 
-			if (B.Sequence.IsNull())
+			if (!B.Sequence)
 			{
 				return true;
 			}
 
-			if (A.Sequence.IsNull())
+			if (!A.Sequence)
 			{
 				return false;
 			}
@@ -598,12 +598,12 @@ namespace UE::PoseSearch
 			const FPoseSearchDatabaseBlendSpace& B = Database->BlendSpaces[BlendspaceIdxB];
 
 			//If its null add it to the end of the list 
-			if (B.BlendSpace.IsNull())
+			if (!B.BlendSpace)
 			{
 				return true;
 			}
 
-			if (A.BlendSpace.IsNull())
+			if (!A.BlendSpace)
 			{
 				return false;
 			}

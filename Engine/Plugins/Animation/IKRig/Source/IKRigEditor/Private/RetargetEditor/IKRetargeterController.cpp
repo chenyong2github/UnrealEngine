@@ -375,7 +375,7 @@ const URetargetChainSettings* UIKRetargeterController::GetChainMappingByTargetCh
 
 FName UIKRetargeterController::GetChainGoal(const TObjectPtr<URetargetChainSettings> ChainSettings) const
 {
-	if (ChainSettings.IsNull())
+	if (!ChainSettings)
 	{
 		return NAME_None;
 	}

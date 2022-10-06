@@ -101,7 +101,7 @@ void UInterchangeGenericMaterialPipeline::AdjustSettingsForContext(EInterchangeP
 	}
 
 	TArray<FString> HideCategories;
-	bool bIsObjectAMaterial = ReimportAsset.IsNull() ? false : ReimportAsset->IsA(UMaterialInterface::StaticClass());
+	bool bIsObjectAMaterial = !ReimportAsset ? false : ReimportAsset->IsA(UMaterialInterface::StaticClass());
 	if ((!bIsObjectAMaterial && ImportType == EInterchangePipelineContext::AssetReimport)
 		|| ImportType == EInterchangePipelineContext::AssetCustomLODImport
 		|| ImportType == EInterchangePipelineContext::AssetCustomLODReimport
@@ -131,7 +131,7 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 
 	//Set the result container to allow error message
 	//The parent Results container should be set at this point
-	ensure(!Results.IsNull());
+	ensure(Results);
 	{
 		if (TexturePipeline)
 		{

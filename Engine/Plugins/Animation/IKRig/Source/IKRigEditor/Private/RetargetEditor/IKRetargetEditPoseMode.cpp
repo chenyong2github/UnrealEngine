@@ -255,7 +255,7 @@ bool FIKRetargetEditPoseMode::InputDelta(
 	}
 
 	const TObjectPtr<UIKRetargeterController> AssetController = Controller->AssetController;
-	if (AssetController.IsNull())
+	if (!AssetController)
 	{
 		return false; 
 	}

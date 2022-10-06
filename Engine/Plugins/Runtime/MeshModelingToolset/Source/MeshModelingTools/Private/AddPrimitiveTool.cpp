@@ -367,7 +367,7 @@ void UAddPrimitiveTool::UpdatePreviewMesh() const
 
 bool UAddPrimitiveTool::SupportsWorldSpaceFocusBox()
 {
-	return !PreviewMesh.IsNull();
+	return PreviewMesh != nullptr;
 }
 
 FBox UAddPrimitiveTool::GetWorldSpaceFocusBox()
@@ -384,7 +384,7 @@ FBox UAddPrimitiveTool::GetWorldSpaceFocusBox()
 
 bool UAddPrimitiveTool::SupportsWorldSpaceFocusPoint()
 {
-	return !PreviewMesh.IsNull();
+	return PreviewMesh != nullptr;
 
 }
 
