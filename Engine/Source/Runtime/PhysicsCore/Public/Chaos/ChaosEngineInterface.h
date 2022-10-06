@@ -15,7 +15,7 @@
 
 /** Types of surfaces in the game, used by Physical Materials */
 UENUM(BlueprintType)
-enum EPhysicalSurface
+enum EPhysicalSurface : int
 {
 	SurfaceType_Default UMETA(DisplayName="Default"),
 	SurfaceType1 UMETA(Hidden),
