@@ -52,10 +52,7 @@ public:
 	static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB,
 		const NNX::FMLTensorDesc &InputC, float CScalar, FMLGemmCS::FParameters& Parameters);
 
-	static uint32 GetShapeSize(TArray<uint32> Shape);
-	static uint32 GetMatMulOutputSize(TArray<uint32> ShapeA, TArray<uint32> ShapeB);
-
-	static void FillInParametersMatMul(TArray<uint32> ShapeA, TArray<uint32> ShapeB, FMLGemmCS::FParameters& Parameters);
+	static void FillInParametersMatMul(const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB, FMLGemmCS::FParameters& Parameters);
 
 	static FIntVector GetGroupCount(const FMLGemmCS::FParameters& Parameters, EGemmAlgorithm Algorithm, int32 NumStackDimensions);
 	static EGemmAlgorithm GetAlgorithm(const FMLGemmCS::FParameters& Parameters);

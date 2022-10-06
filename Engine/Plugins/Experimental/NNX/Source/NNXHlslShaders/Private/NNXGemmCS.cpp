@@ -19,14 +19,14 @@ namespace
 		uint32 CHeight = 0;
 	};
 
-	static GemmMatrixParameters GetMatrixParameters(TArray<uint32> ShapeA, TArray<uint32> ShapeB, TArray<uint32> ShapeC)
+	static GemmMatrixParameters GetMatrixParameters(const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB, const NNX::FMLTensorDesc &InputC)
 	{
-		check(!ShapeA.IsEmpty());
-		check(!ShapeB.IsEmpty());
+		check(InputA.Dimension != 0);
+		check(InputB.Dimension != 0);
 
 		GemmMatrixParameters Result;
-		int32 NumStackDimensionsA = FMath::Max(ShapeA.Num() - 2, 0);
-		int32 NumStackDimensionsB = FMath::Max(ShapeB.Num() - 2, 0);
+		int32 NumStackDimensionsA = FMath::Max((int32)InputA.Dimension - 2, 0);
+		int32 NumStackDimensionsB = FMath::Max((int32)InputB.Dimension - 2, 0);
 		int32 NumStackDimensions = FMath::Max(NumStackDimensionsA, NumStackDimensionsB);
 
 		check(NumStackDimensions <= NNXRT_GEMM_MAX_NUM_STACK_DIMENSIONS);
@@ -37,29 +37,29 @@ namespace
 			const int32 NumDimToCheck = FMath::Min(NumStackDimensionsA, NumStackDimensionsB);
 			for (int32 i = 0; i < NumDimToCheck; i++)
 			{
-				const uint32 VolumeA = ShapeA[NumStackDimensionsA - 1 - i];
-				const uint32 VolumeB = ShapeB[NumStackDimensionsB - 1 - i];
+				const uint32 VolumeA = InputA.Sizes[NumStackDimensionsA - 1 - i];
+				const uint32 VolumeB = InputB.Sizes[NumStackDimensionsB - 1 - i];
 
 				check(VolumeA == 1 || VolumeB == 1 || VolumeA == VolumeB);
 			}
 		}
 
-		const bool IsVectorA = ShapeA.Num() == 1;
-		const bool IsVectorB = ShapeB.Num() == 1;
-		const bool IsVectorC = ShapeC.Num() == 1;
+		const bool IsVectorA = InputA.Dimension == 1;
+		const bool IsVectorB = InputB.Dimension == 1;
+		const bool IsVectorC = InputC.Dimension == 1;
 
-		Result.M = IsVectorA ? 1 : ShapeA[ShapeA.Num() - 2];
-		Result.N = IsVectorB ? 1 : ShapeB[ShapeB.Num() - 1];
-		Result.K = ShapeA[IsVectorA ? 0 : ShapeA.Num() - 1];
-		check(ShapeB[IsVectorB ? 0 : ShapeB.Num() - 2] == Result.K);
+		Result.M = IsVectorA ? 1 : InputA.Sizes[InputA.Dimension - 2];
+		Result.N = IsVectorB ? 1 : InputB.Sizes[InputB.Dimension - 1];
+		Result.K = InputA.Sizes[IsVectorA ? 0 : InputA.Dimension - 1];
+		check(InputB.Sizes[IsVectorB ? 0 : InputB.Dimension - 2] == Result.K);
 
 		Result.StackShapeA.Init(1, NumStackDimensions);
 		Result.StackShapeB.Init(1, NumStackDimensions);
 
 		for (int32 i = 0; i < NumStackDimensions; i++)
 		{
-			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = i < NumStackDimensionsA ? ShapeA[ShapeA.Num() - 3 - i] : 1;
-			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = i < NumStackDimensionsB ? ShapeB[ShapeB.Num() - 3 - i] : 1;
+			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = i < NumStackDimensionsA ? InputA.Sizes[InputA.Dimension - 3 - i] : 1;
+			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = i < NumStackDimensionsB ? InputB.Sizes[InputB.Dimension - 3 - i] : 1;
 		}
 
 		Result.StackStrideA.Init(1, NumStackDimensions);
@@ -71,8 +71,8 @@ namespace
 			Result.StackStrideB[i] = Result.StackStrideB[i + 1] * Result.StackShapeB[i + 1];
 		}
 
-		Result.CWidth = ShapeC.IsEmpty() ? 0 : ShapeC[ShapeC.Num() - 1];
-		Result.CHeight = ShapeC.IsEmpty() ? 0 : IsVectorC ? 1 : ShapeC[ShapeC.Num() - 2];
+		Result.CWidth = InputC.Dimension == 0 ? 0 : InputC.Sizes[InputC.Dimension - 1];
+		Result.CHeight = InputC.Dimension == 0 ? 0 : IsVectorC ? 1 : InputC.Sizes[InputC.Dimension - 2];
 
 		return Result;
 	}
@@ -87,15 +87,7 @@ void FMLGemmCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParam
 void FMLGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB,
 		const NNX::FMLTensorDesc &InputC, float CScalar, FMLGemmCS::FParameters& Parameters)
 {
-	auto MakeShape = [](const NNX::FMLTensorDesc &InputDesc) {
-		TArray<uint32> Result;
-		for (int32 i = 0; i < (int32)InputDesc.Dimension; i++) {
-			Result.Add(InputDesc.Sizes[i]);
-		}
-		return Result;
-	};
-
-	GemmMatrixParameters Params = GetMatrixParameters(MakeShape(InputA), MakeShape(InputB), MakeShape(InputC));
+	GemmMatrixParameters Params = GetMatrixParameters(InputA, InputB, InputC);
 
 	Parameters.Alpha = Alpha;
 	Parameters.Beta = Beta;
@@ -112,23 +104,9 @@ void FMLGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 Tr
 	Parameters.CScalar = CScalar;
 }
 
-uint32 FMLGemmCS::GetShapeSize(TArray<uint32> Shape)
+void FMLGemmCS::FillInParametersMatMul(const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB, FMLGemmCS::FParameters& Parameters)
 {
-	auto Product = [](uint32 A, uint32 B) { return A * B; };
-
-	return Algo::Accumulate(Shape, 1, Product);
-}
-
-uint32 FMLGemmCS::GetMatMulOutputSize(TArray<uint32> ShapeA, TArray<uint32> ShapeB)
-{
-	GemmMatrixParameters Params = GetMatrixParameters(ShapeA, ShapeB, {});
-
-	return FMath::Max(GetShapeSize(Params.StackShapeA), GetShapeSize(Params.StackShapeB)) * Params.M * Params.N;
-}
-
-void FMLGemmCS::FillInParametersMatMul(TArray<uint32> ShapeA, TArray<uint32> ShapeB, FMLGemmCS::FParameters& Parameters)
-{
-	GemmMatrixParameters Params = GetMatrixParameters(ShapeA, ShapeB, {});
+	GemmMatrixParameters Params = GetMatrixParameters(InputA, InputB, {});
 
 	Parameters.Alpha = 1.0f;
 	Parameters.Beta = 1.0f;

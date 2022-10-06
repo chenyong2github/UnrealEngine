@@ -8,6 +8,7 @@
 #include "NNXRuntimeHLSLElementWiseVariadicOps.h"
 #include "NNXRuntimeHLSLGemmOp.h"
 #include "NNXRuntimeHLSLConvTransposeOp.h"
+#include "NNXRuntimeHLSLMatMulOp.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
 
@@ -155,6 +156,7 @@ public:
 		RegisterElementWiseVariadicOperators(*registry);
 		RegisterGemmOperator(*registry);
 		RegisterConvTransposeOperator(*registry);
+		RegisterMatMulOperator(*registry);
 
 		return true;
 	}
