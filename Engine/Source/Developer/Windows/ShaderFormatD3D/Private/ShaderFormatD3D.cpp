@@ -17,7 +17,7 @@ class FShaderFormatD3D : public IShaderFormat
 {
 	enum EVersion
 	{
-		UE_SHADER_PCD3D_SHARED_VER = 4,
+		UE_SHADER_PCD3D_SHARED_VER = 5,
 
 		/** Version for shader format, this becomes part of the DDC key. */
 		UE_SHADER_PCD3D_SM6_VER = 6,
