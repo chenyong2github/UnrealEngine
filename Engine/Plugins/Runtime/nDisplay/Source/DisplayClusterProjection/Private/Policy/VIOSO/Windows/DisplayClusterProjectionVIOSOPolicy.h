@@ -8,13 +8,13 @@
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
-
+#include "Templates/SharedPointer.h"
 
 /**
- * VIOSO projection policy
+ * VIOSO projection policy data
  */
-class FDisplayClusterProjectionVIOSOPolicy
-	: public FDisplayClusterProjectionPolicyBase
+struct FDisplayClusterProjectionVIOSOPolicyViewData
+	: public TSharedFromThis<FDisplayClusterProjectionVIOSOPolicyViewData, ESPMode::ThreadSafe>
 {
 	enum class ERenderDevice : uint8
 	{
@@ -23,6 +23,36 @@ class FDisplayClusterProjectionVIOSOPolicy
 		D3D12
 	};
 
+	FDisplayClusterProjectionVIOSOPolicyViewData();
+	virtual ~FDisplayClusterProjectionVIOSOPolicyViewData();
+
+public:
+	bool IsValid();
+
+	bool UpdateVIOSO(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP);
+	bool RenderVIOSO_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ShaderResourceTexture, FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
+
+protected:
+	bool InitializeVIOSO_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
+
+public:
+	FVector  ViewLocation;
+	FRotator ViewRotation;
+	FMatrix  ProjectionMatrix;
+
+private:
+	ERenderDevice RenderDevice = ERenderDevice::Unsupported;
+	FViosoWarper Warper;
+
+	bool bInitialized = false;
+};
+
+/**
+ * VIOSO projection policy
+ */
+class FDisplayClusterProjectionVIOSOPolicy
+	: public FDisplayClusterProjectionPolicyBase
+{
 public:
 	FDisplayClusterProjectionVIOSOPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 	virtual ~FDisplayClusterProjectionVIOSOPolicy();
@@ -60,35 +90,7 @@ protected:
 protected:
 	FViosoPolicyConfiguration ViosoConfigData;
 
-	//FIntPoint ViewportSize;
-	ERenderDevice RenderDevice = ERenderDevice::Unsupported;
+	TArray<TSharedPtr<FDisplayClusterProjectionVIOSOPolicyViewData, ESPMode::ThreadSafe>> Views;
 
-	struct FViewData
-	{
-		bool IsValid();
-
-		bool Initialize(ERenderDevice RenderDevice, const FViosoPolicyConfiguration& InConfigData);
-		void DestroyVIOSO();
-
-		bool UpdateVIOSO(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP);
-		bool RenderVIOSO_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ShaderResourceTexture, FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
-
-	protected:
-		bool InitializeVIOSO(FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
-
-	public:
-		FVector  ViewLocation;
-		FRotator ViewRotation;
-		FMatrix  ProjectionMatrix;
-
-	private:
-		ERenderDevice RenderDevice = ERenderDevice::Unsupported;
-		FViosoWarper Warper;
-
-		bool bInitialized = false;
-		bool bDataInitialized = false;
-	};
-
-	TArray<FViewData> Views;
 	FCriticalSection DllAccessCS;
 };
