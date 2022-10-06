@@ -1817,6 +1817,14 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RectLightAtlas.Translucent"));
+		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		{
+			KeyString += TEXT("_RECTTRANS");
+		}
+	}
+
+	{
 		const bool bStrataEnabled = RenderCore_IsStrataEnabled();
 		if (bStrataEnabled)
 		{

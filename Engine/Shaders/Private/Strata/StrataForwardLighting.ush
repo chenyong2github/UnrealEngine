@@ -405,7 +405,6 @@ float3 StrataForwardLighting(
 					half4 PreviewShadowMapChannelMask = 1;
 					uint  LocalLightChannelMask = LIGHTING_CHANNEL_MASK;
 					FDeferredLightData LightData = ConvertToDeferredLight(LocalLight, 1.0f /*SpecularScale*/, PreviewShadowMapChannelMask, LocalLightChannelMask);
-					const FRectTexture LocalRectTexture = ConvertToRectTexture(LightData);
 					
 					// Rect light optionally supported in forward.
 					// * This is not done explicitely in the legacy path (resulting in no lighting) but we do it for strata in order to avoid visual artefact.
@@ -414,6 +413,7 @@ float3 StrataForwardLighting(
 					{
 						continue;
 					}
+					const FRectTexture LocalRectTexture = ConvertToRectTexture(LightData);
 
 					float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 					float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);

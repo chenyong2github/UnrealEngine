@@ -54,8 +54,8 @@ static TAutoConsoleVariable<int32> CVarRectLighForceUpdate(
 static TAutoConsoleVariable<int32> CVarRectLighTranslucent(
 	TEXT("r.RectLightAtlas.Translucent"),
 	0,
-	TEXT("Enable rect light support for translucent surfaces."),
-	ECVF_RenderThreadSafe);
+	TEXT("Enable rect light support for translucent surfaces. When enabled, it will add an extrat sampler to the pixel shader (limited to 16 on dx11 based system)"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 namespace RectLightAtlas
 {
