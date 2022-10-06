@@ -35,7 +35,7 @@ enum class ECurveTableMode : uint8
 /**
  * Imported spreadsheet table as curves.
  */
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Meta = (LoadBehavior = "LazyOnDemand"))
 class UCurveTable
 	: public UObject
 	, public FCurveOwnerInterface

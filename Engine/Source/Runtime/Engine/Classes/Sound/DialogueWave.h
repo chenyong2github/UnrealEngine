@@ -77,7 +77,7 @@ ENGINE_API bool operator!=(const FDialogueContextMapping& LHS, const FDialogueCo
 
 class UDialogueWaveFactory;
 
-UCLASS(hidecategories=Object, editinlinenew, MinimalAPI, BlueprintType)
+UCLASS(hidecategories=Object, editinlinenew, MinimalAPI, BlueprintType, Meta = (LoadBehavior = "LazyOnDemand"))
 class UDialogueWave : public UObject
 {
 	GENERATED_UCLASS_BODY()

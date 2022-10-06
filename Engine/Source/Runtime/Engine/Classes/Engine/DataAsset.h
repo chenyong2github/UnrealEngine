@@ -14,7 +14,7 @@
  * Assets can be made in the Content Browser using any native class that inherits from this.
  * If you want data inheritance or a complicated hierarchy, Data Only Blueprint Classes should be created instead.
  */
-UCLASS(abstract, MinimalAPI)
+UCLASS(abstract, MinimalAPI, Meta = (LoadBehavior = "LazyOnDemand"))
 class UDataAsset : public UObject
 {
 	GENERATED_UCLASS_BODY()
