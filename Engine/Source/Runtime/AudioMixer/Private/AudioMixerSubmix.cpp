@@ -1078,12 +1078,15 @@ namespace Audio
 			return true;
 		}
 
-		// query the SubmixBufferListeners to see if they plan to render audio into this buffer
-		for(const ISubmixBufferListener* listener : BufferListeners)
 		{
-			if(listener->IsRenderingAudio())
+			// query the SubmixBufferListeners to see if they plan to render audio into this buffer
+			FScopeLock Lock(&BufferListenerCriticalSection);
+			for(const ISubmixBufferListener* BufferListener : BufferListeners)
 			{
-				return true;
+				if(BufferListener->IsRenderingAudio())
+				{
+					return true;
+				}
 			}
 		}
 

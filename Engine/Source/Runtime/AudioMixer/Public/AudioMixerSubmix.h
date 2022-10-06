@@ -565,7 +565,7 @@ namespace Audio
 		TArray<ISubmixBufferListener*> BufferListeners;
 
 		// Critical section used for modifying and interacting with buffer listeners
-		FCriticalSection BufferListenerCriticalSection;
+		mutable FCriticalSection BufferListenerCriticalSection;
 
 		// This buffer is used for recorded output of the submix.
 		FAlignedFloatBuffer RecordingData;
