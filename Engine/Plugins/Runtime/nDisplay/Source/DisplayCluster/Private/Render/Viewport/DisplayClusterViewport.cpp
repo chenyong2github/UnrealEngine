@@ -421,6 +421,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 				ContextIt.StereoscopicPass = FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicPass(ContextIt.ContextNum, ViewportContextAmount, InFrameSettings);
 				ContextIt.StereoViewIndex = (int32)(InStereoViewIndex + ContextIt.ContextNum);
 				ContextIt.bDisableRender = true;
+				ContextIt.FrameTargetRect = GetValidRect(DesiredFrameTargetRect, TEXT("Context Frame"));
 			}
 
 			return true;
