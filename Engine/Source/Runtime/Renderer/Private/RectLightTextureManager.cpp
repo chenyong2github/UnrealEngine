@@ -51,6 +51,12 @@ static TAutoConsoleVariable<int32> CVarRectLighForceUpdate(
 	TEXT("Force rect. light atlas update very frame."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRectLighTranslucent(
+	TEXT("r.RectLightAtlas.Translucent"),
+	0,
+	TEXT("Enable rect light support for translucent surfaces."),
+	ECVF_RenderThreadSafe);
+
 namespace RectLightAtlas
 {
 

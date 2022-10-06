@@ -81,7 +81,6 @@ float3 StrataForwardLighting(
 #if FORWARD_PER_PIXEL_SHADING
 	// Create the common directional light data use for all layers
 	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(EyeIndex);
-	FRectTexture RectTexture = InitRectTexture();
 	
 	float4 PreviewShadowMapChannelMask = 1;
 	uint DirLightingChannelMask = LIGHTING_CHANNEL_MASK;
@@ -373,7 +372,7 @@ float3 StrataForwardLighting(
 							ToDirLight,
 							DirLightMask,
 							DirLightAttenuation,
-							RectTexture,
+							InitRectTexture(),
 							DirLightingChannelMask,
 							PrimitiveLightingChannelMask,
 							TranslatedWorldPosition,
@@ -406,11 +405,12 @@ float3 StrataForwardLighting(
 					half4 PreviewShadowMapChannelMask = 1;
 					uint  LocalLightChannelMask = LIGHTING_CHANNEL_MASK;
 					FDeferredLightData LightData = ConvertToDeferredLight(LocalLight, 1.0f /*SpecularScale*/, PreviewShadowMapChannelMask, LocalLightChannelMask);
-					LightData.bRectLight = false; // Rect light not supported in forward. Enabling this is causing the max sampler count to be exceeded.
-
-					// Skip rect light. This is not done explicitely in the legacy path (resulting in no lighting) but we do it for strata in order to avoid visual artefact.
-					// This can be removed when LocalLight properly supports rect lights.
-					if (LightData.bRectLight)
+					const FRectTexture LocalRectTexture = ConvertToRectTexture(LightData);
+					
+					// Rect light optionally supported in forward.
+					// * This is not done explicitely in the legacy path (resulting in no lighting) but we do it for strata in order to avoid visual artefact.
+					// * This can be removed when LocalLight properly supports rect lights.
+					if (LightData.bRectLight && !SUPPORT_RECTLIGHT_ON_FORWARD_LIT_TRANSLUCENT)
 					{
 						continue;
 					}
@@ -438,7 +438,7 @@ float3 StrataForwardLighting(
 						ToLight,
 						LightMask,
 						LightAttenuation,
-						RectTexture,
+						LocalRectTexture,
 						LocalLightChannelMask,
 						PrimitiveLightingChannelMask,
 						TranslatedWorldPosition,
