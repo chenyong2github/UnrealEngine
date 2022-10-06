@@ -58,16 +58,16 @@ public:
 		Params->LHSInput = LHSInputSRV;
 		Params->RHSInput = RHSInputSRV;
 		Params->Output = OutputUAV;
-		FillTensorStrideForBroadcastShaderParameters(LHSInput, Output.Dimension, Params->LHSInfo0, Params->LHSInfo1);
-		FillTensorStrideForBroadcastShaderParameters(RHSInput, Output.Dimension, Params->RHSInfo0, Params->RHSInfo1);
-		FillTensorStrideShaderParameters(Output, Params->OutInfo0, Params->OutInfo1);
-		Params->OutRank = Output.Dimension;
+		FillTensorStrideForBroadcastShaderParameters(LHSInput, Output.Dimension, Params->TensorInfo, 0);
+		FillTensorStrideForBroadcastShaderParameters(RHSInput, Output.Dimension, Params->TensorInfo, 1);
+		FillTensorStrideShaderParameters(Output, Params->TensorInfo, 2);
 		Params->Num = Output.Num();
 		Params->ThreadCountX = ThreadGroupCount.X * FMLElementWiseBinaryCS::THREADGROUP_SIZE_X;
 
 		FMLElementWiseBinaryCS::FPermutationDomain PermutationVector;
 
 		PermutationVector.Set<FMLElementWiseBinaryCS::FOperatorType>(OpType);
+		PermutationVector.Set<FMLElementWiseBinaryCS::FBinaryNumDimensions>(Output.Dimension);
 
 		TShaderMapRef<FMLElementWiseBinaryCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 

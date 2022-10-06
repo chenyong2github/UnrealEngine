@@ -1,28 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Contain the tensor strides padded with 0s
-// tensor shape [2,3,4] have strides [12,4,1]
-// and is stored as:
-// PaddedStrides = {12,4,1,0,0,0,0,0};
-struct FTensorInfo
-{
-	uint PaddedStrides[8];
-};
-
-struct FTensorInfo DecodeTensorInfo(uint4 Info0, uint4 Info1)
-{
-	FTensorInfo Out;
-	Out.PaddedStrides[0] = Info0[0];
-	Out.PaddedStrides[1] = Info0[1];
-	Out.PaddedStrides[2] = Info0[2];
-	Out.PaddedStrides[3] = Info0[3];
-	Out.PaddedStrides[4] = Info1[0];
-	Out.PaddedStrides[5] = Info1[1];
-	Out.PaddedStrides[6] = Info1[2];
-	Out.PaddedStrides[7] = Info1[3];
-	return Out;
-}
-
 void DivMod(uint op1, uint op2, out uint q, out uint r)
 {
 	q = op1 / op2;

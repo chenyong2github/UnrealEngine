@@ -3,14 +3,12 @@
 #pragma once
 
 #include "NNXTypes.h"
+#include "Containers/StaticArray.h"
+#include "NNXShaderParameters.h"
 
 namespace NNX
 {
-	void ComputeTensorStrides(const FMLTensorDesc& TensorDesc, uint32 OutStrides[8], uint32 TargetNumdimensionForBroadcast = -1);
-	void ComputeTensorStridesForBroadcast(const FMLTensorDesc& TensorDesc, uint32 OutputNumdimension, uint32 OutStrides[8]);
-	void FillTensorStrideShaderParameters(uint32 Strides[8], FUint32Vector4& OutShaderParam0, FUint32Vector4& OutShaderParam1);
-	void FillTensorStrideShaderParameters(const FMLTensorDesc& TensorDesc, FUint32Vector4& OutShaderParam0, FUint32Vector4& OutShaderParam1);
-	void FillTensorStrideForBroadcastShaderParameters(const FMLTensorDesc& TensorDesc, uint32 OutputNumdimension, FUint32Vector4& OutShaderParam0, FUint32Vector4& OutShaderParam1);
+	void FillTensorStrideShaderParameters(const FMLTensorDesc& TensorDesc, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, uint32 Idx, uint32 TargetNumdimensionForBroadcast = -1);
+	void FillTensorStrideForBroadcastShaderParameters(const FMLTensorDesc& TensorDesc, uint32 OutputNumdimension, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, uint32 Idx);
 	FIntVector ComputeElementWiseThreadGroups(uint32 ElementCount, uint32 GroupSizeX);
-
 } // NNX

@@ -22,7 +22,8 @@ public:
 	static const uint32 THREADGROUP_SIZE_X;
 
 	class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", EMLElementWiseBinaryOperatorType);
-	using FPermutationDomain = TShaderPermutationDomain<FOperatorType>;
+	class FBinaryNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
+	using FPermutationDomain = TShaderPermutationDomain<FOperatorType, FBinaryNumDimensions>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 

@@ -40,21 +40,20 @@ namespace NNX
 		Params->Input2 = InputsSRV[2];
 		Params->Input3 = InputsSRV[3];
 		Params->Output = OutputUAV;
-		FillTensorStrideForBroadcastShaderParameters(InputDesc[0], OutputDesc.Dimension, Params->Input0Info0, Params->Input0Info1);
+		FillTensorStrideForBroadcastShaderParameters(InputDesc[0], OutputDesc.Dimension, Params->InputTensorInfo, 0);
 		if (InputBindings.Num() >= 2)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[1], OutputDesc.Dimension, Params->Input1Info0, Params->Input1Info1);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[1], OutputDesc.Dimension, Params->InputTensorInfo, 1);
 		}
 		if (InputBindings.Num() >= 3)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[2], OutputDesc.Dimension, Params->Input2Info0, Params->Input2Info1);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[2], OutputDesc.Dimension, Params->InputTensorInfo, 2);
 		}
 		if (InputBindings.Num() >= 4)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.Dimension, Params->Input3Info0, Params->Input3Info1);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.Dimension, Params->InputTensorInfo, 3);
 		}
-		FillTensorStrideShaderParameters(OutputDesc, Params->OutInfo0, Params->OutInfo1);
-		Params->OutRank = OutputDesc.Dimension;
+		FillTensorStrideShaderParameters(OutputDesc, Params->OutputTensorInfo, 0);
 		Params->Num = OutputDesc.Num();
 		Params->ThreadCountX = ThreadGroupCount.X * FMLElementWiseVariadicCS::THREADGROUP_SIZE_X;
 		Params->Scale = Scale;
@@ -66,6 +65,7 @@ namespace NNX
 		PermutationVector.Set<FMLElementWiseVariadicCS::FApplyScale>(Scale != 1.0f);
 		PermutationVector.Set<FMLElementWiseVariadicCS::FOutputAsInput>(OutputAsInput);
 		PermutationVector.Set<FMLElementWiseVariadicCS::FNumInput>(InputBindings.Num());
+		PermutationVector.Set<FMLElementWiseVariadicCS::FVariadicNumDimensions>(OutputDesc.Dimension);
 
 		// Add the pass to RDG
 		TShaderMapRef<FMLElementWiseVariadicCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);

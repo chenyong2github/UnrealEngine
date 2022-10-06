@@ -6,7 +6,7 @@
 
 namespace NNX
 {
-	void ComputeTensorStrides(const FMLTensorDesc& TensorDesc, uint32 OutStrides[8], uint32 TargetNumdimensionForBroadcast)
+	void FillTensorStrideShaderParameters(const FMLTensorDesc& TensorDesc, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, uint32 Idx, uint32 TargetNumdimensionForBroadcast)
 	{
 		if (TargetNumdimensionForBroadcast == -1)
 		{
@@ -15,60 +15,37 @@ namespace NNX
 		checkf(TargetNumdimensionForBroadcast >= TensorDesc.Dimension, TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), TensorDesc.Dimension, TargetNumdimensionForBroadcast);
 		uint32 Offset = TargetNumdimensionForBroadcast - TensorDesc.Dimension;
 
-		static_assert(FMLTensorDesc::MaxTensorDimension <= 8);
+		static_assert(FMLTensorDesc::MaxTensorDimension <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
 		for (int32 i = 7; i >= 0; --i)
 		{
 			if ((uint32)i >= TargetNumdimensionForBroadcast || (uint32)i < Offset)
 			{
-				OutStrides[i] = 0;
+				OutShaderParam[i][Idx] = 0;
 			}
 			else if ((uint32)i == TargetNumdimensionForBroadcast - 1)
 			{
-				OutStrides[i] = 1;
+				OutShaderParam[i][Idx] = 1;
 			}
 			else
 			{
-				OutStrides[i] = OutStrides[i + 1] * TensorDesc.Sizes[i + 1 - Offset];
+				OutShaderParam[i][Idx] = OutShaderParam[i + 1][Idx] * TensorDesc.Sizes[i + 1 - Offset];
 			}
 		}
 	}
 
-	void ComputeTensorStridesForBroadcast(const FMLTensorDesc& TensorDesc, uint32 OutputNumdimension, uint32 OutStrides[8])
+	void FillTensorStrideForBroadcastShaderParameters(const FMLTensorDesc& TensorDesc, uint32 OutputNumdimension, TStaticArray<FUintVector4, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS, 16U>& OutShaderParam, uint32 Idx)
 	{
 		checkf(OutputNumdimension >= TensorDesc.Dimension, TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), TensorDesc.Dimension, OutputNumdimension);
-		ComputeTensorStrides(TensorDesc, OutStrides, OutputNumdimension);
+		FillTensorStrideShaderParameters(TensorDesc, OutShaderParam, Idx, OutputNumdimension);
 		uint32 Offset = OutputNumdimension - TensorDesc.Dimension;
 		for (uint32 i = Offset; i < OutputNumdimension; ++i)
 		{
 			// the stride for broadcast dimension is kept as 0
 			if (TensorDesc.Sizes[i - Offset] == 1)
 			{
-				OutStrides[i] = 0;
+				OutShaderParam[i][Idx] = 0;
 			}
 		}
-	}
-
-	void FillTensorStrideShaderParameters(uint32 Strides[8], FUint32Vector4& OutShaderParam0, FUint32Vector4& OutShaderParam1)
-	{
-		for (uint32 i = 0; i < 4; ++i)
-		{
-			OutShaderParam0[i] = Strides[i];
-			OutShaderParam1[i] = Strides[i + 4];
-		}
-	}
-
-	void FillTensorStrideShaderParameters(const FMLTensorDesc& TensorDesc, FUint32Vector4& OutShaderParam0, FUint32Vector4& OutShaderParam1)
-	{
-		uint32 Strides[8];
-		ComputeTensorStrides(TensorDesc, Strides);
-		FillTensorStrideShaderParameters(Strides, OutShaderParam0, OutShaderParam1);
-	}
-
-	void FillTensorStrideForBroadcastShaderParameters(const FMLTensorDesc& TensorDesc, uint32 OutputNumdimension, FUint32Vector4& OutShaderParam0, FUint32Vector4& OutShaderParam1)
-	{
-		uint32 Strides[8];
-		ComputeTensorStridesForBroadcast(TensorDesc, OutputNumdimension, Strides);
-		FillTensorStrideShaderParameters(Strides, OutShaderParam0, OutShaderParam1);
 	}
 
 	FIntVector ComputeElementWiseThreadGroups(uint32 ElementCount, uint32 GroupSizeX)
