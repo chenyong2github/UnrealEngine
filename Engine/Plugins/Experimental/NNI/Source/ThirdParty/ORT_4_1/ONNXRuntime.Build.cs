@@ -50,12 +50,6 @@ public class ONNXRuntime : ModuleRules
 			Target.Platform == UnrealTargetPlatform.Linux ||
 			Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					System.IO.Path.Combine(ModuleDirectory, "../Deps/eigen")
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
@@ -75,6 +69,7 @@ public class ONNXRuntime : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
+				"Eigen",
 				"FlatBuffers",
 				"ONNX_1_11_0",
 				"ONNXRuntimeProto_1_11_0",

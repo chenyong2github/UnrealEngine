@@ -38,16 +38,10 @@ public class NNX_ONNXRuntime : ModuleRules
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || 
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
 			Target.Platform == UnrealTargetPlatform.Linux ||
 			Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					System.IO.Path.Combine(ModuleDirectory, "../Deps/eigen")
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
@@ -67,6 +61,7 @@ public class NNX_ONNXRuntime : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
+				"Eigen",
 				"NNX_FlatBuffers",
 				"NNX_ONNX_1_11_0",
 				"NNX_ONNXRuntimeProto_1_11_0",
