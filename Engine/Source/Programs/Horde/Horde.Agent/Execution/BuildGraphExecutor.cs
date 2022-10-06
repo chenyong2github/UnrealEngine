@@ -12,11 +12,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.EC2.Model;
 using EpicGames.Core;
 using Grpc.Core;
 using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Parser;
 using Horde.Agent.Utility;
+using Horde.Storage.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
@@ -603,25 +605,234 @@ namespace Horde.Agent.Execution
 				FetchPreprocessedFile(localPreprocessedSchema, sharedStorageDir, logger);
 				arguments.AppendArgument("-ImportSchema=", localPreprocessedSchema.FullName);
 			}
-			else if(_scriptFileName != null)
+			else if (_scriptFileName != null)
 			{
 				arguments.AppendArgument(ScriptArgumentPrefix, _scriptFileName);
 			}
 			arguments.AppendArgument("-SingleNode=", step.Name);
-			if (sharedStorageDir != null)
-			{
-				arguments.AppendArgument("-SharedStorageDir=", sharedStorageDir.FullName);
-			}
 //			Arguments.AppendArgument("-TokenSignature=", JobId.ToString());
+
+			bool manageSharedStorage = false;
 			foreach (string additionalArgument in _additionalArguments)
 			{
-				if (!_preprocessScript || !additionalArgument.StartsWith("-set:", StringComparison.OrdinalIgnoreCase))
+				if (additionalArgument.Equals("-ManageSharedStorage", StringComparison.OrdinalIgnoreCase))
+				{
+					manageSharedStorage = true;
+				}
+				else if (!_preprocessScript || !additionalArgument.StartsWith("-set:", StringComparison.OrdinalIgnoreCase))
 				{
 					arguments.AppendArgument(additionalArgument);
 				}
 			}
 
-			return await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), logger, cancellationToken) == 0;
+			if (manageSharedStorage && sharedStorageDir != null)
+			{
+				return await ExecuteWithTempStorageAsync(step, workspaceDir, sharedStorageDir, arguments.ToString(), logger, cancellationToken);
+			}
+			else
+			{
+				if (sharedStorageDir != null)
+				{
+					arguments.AppendArgument("-SharedStorageDir=", sharedStorageDir.FullName);
+				}
+				return await ExecuteAutomationToolAsync(step, workspaceDir, arguments.ToString(), logger, cancellationToken) == 0;
+			}
+		}
+
+		private async Task<bool> ExecuteWithTempStorageAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference sharedStorageDir, string arguments, ILogger logger, CancellationToken cancellationToken)
+		{
+			TempStorage Storage = new TempStorage(workspaceDir, DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph"), sharedStorageDir, true);
+			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
+
+			// Create the mapping of tag names to file sets
+			Dictionary<string, HashSet<FileReference>> TagNameToFileSet = new Dictionary<string, HashSet<FileReference>>();
+
+			// Read all the input tags for this node, and build a list of referenced input storage blocks
+			HashSet<TempStorageBlock> InputStorageBlocks = new HashSet<TempStorageBlock>();
+			foreach (string Input in step.Inputs)
+			{
+				int slashIdx = Input.IndexOf('/', StringComparison.Ordinal);
+				if (slashIdx == -1)
+				{
+					logger.LogError("Missing slash from node input: {Input}", Input);
+					return false;
+				}
+
+				string nodeName = Input.Substring(0, slashIdx);
+				string tagName = Input.Substring(slashIdx + 1);
+
+				TempStorageFileList? FileList = Storage.ReadFileList(nodeName, tagName, logger);
+				if (FileList == null)
+				{
+					logger.LogError("Unable to read file list for {Node}/{Tag} from shared storage ({SharedStorageDir})", nodeName, tagName, sharedStorageDir);
+					return false;
+				}
+
+				TagNameToFileSet[tagName] = FileList.ToFileSet(workspaceDir);
+				InputStorageBlocks.UnionWith(FileList.Blocks);
+			}
+
+			// Read the manifests for all the input storage blocks
+			Dictionary<TempStorageBlock, TempStorageManifest> InputManifests = new Dictionary<TempStorageBlock, TempStorageManifest>();
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "read").StartActive())
+			{
+				Scope.Span.SetTag("blocks", InputStorageBlocks.Count);
+				foreach (TempStorageBlock InputStorageBlock in InputStorageBlocks)
+				{
+					TempStorageManifest Manifest = Storage.Retrieve(InputStorageBlock.NodeName, InputStorageBlock.OutputName, logger);
+					InputManifests[InputStorageBlock] = Manifest;
+				}
+				Scope.Span.SetTag("size", InputManifests.Sum(x => x.Value.GetTotalSize()));
+			}
+
+			// Read all the input storage blocks, keeping track of which block each file came from
+			Dictionary<FileReference, TempStorageBlock> FileToStorageBlock = new Dictionary<FileReference, TempStorageBlock>();
+			foreach (KeyValuePair<TempStorageBlock, TempStorageManifest> Pair in InputManifests)
+			{
+				TempStorageBlock InputStorageBlock = Pair.Key;
+				foreach (FileReference File in Pair.Value.Files.Select(x => x.ToFileReference(workspaceDir)))
+				{
+					logger.LogInformation("Reading input block: {File}", File);
+
+					TempStorageBlock? CurrentStorageBlock;
+					if (FileToStorageBlock.TryGetValue(File, out CurrentStorageBlock) && !TempStorage.IsDuplicateBuildProduct(File))
+					{
+						logger.LogError("File '{File}' was produced by {InputBlock} and {CurrentBlock}", File, InputStorageBlock.ToString(), CurrentStorageBlock.ToString());
+					}
+					FileToStorageBlock[File] = InputStorageBlock;
+				}
+			}
+
+			if (await ExecuteAutomationToolAsync(step, workspaceDir, arguments, logger, cancellationToken) != 0)
+			{
+				return false;
+			}
+
+			// Check that none of the inputs have been clobbered
+			Dictionary<string, string> ModifiedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			foreach (TempStorageFile File in InputManifests.Values.SelectMany(x => x.Files))
+			{
+				string? Message;
+				if (!ModifiedFiles.ContainsKey(File.RelativePath) && !File.Compare(workspaceDir, out Message))
+				{
+					ModifiedFiles.Add(File.RelativePath, Message);
+				}
+			}
+			if (ModifiedFiles.Count > 0)
+			{
+				string modifiedFileList = "";
+				if (ModifiedFiles.Count < 100)
+				{
+					modifiedFileList = String.Join("\n", ModifiedFiles.Select(x => x.Value));
+				}
+				else
+				{
+					modifiedFileList = String.Join("\n", ModifiedFiles.Take(100).Select(x => x.Value));
+					modifiedFileList += $"{Environment.NewLine}And {ModifiedFiles.Count - 100} more.";
+				}
+
+				logger.LogError("Build product(s) from a previous step have been modified:\n{FileList}", modifiedFileList);
+				return false;
+			}
+			/*
+			// Determine all the output files which are required to be copied to temp storage (because they're referenced by nodes in another agent)
+			HashSet<FileReference> ReferencedOutputFiles = new HashSet<FileReference>();
+			foreach (BgAgentDef Agent in Graph.Agents)
+			{
+				bool bSameAgent = Agent.Nodes.Contains(Node);
+				foreach (BgNodeDef OtherNode in Agent.Nodes)
+				{
+					if (!bSameAgent)
+					{
+						foreach (BgNodeOutput Input in OtherNode.Inputs.Where(x => x.ProducingNode == Node))
+						{
+							ReferencedOutputFiles.UnionWith(TagNameToFileSet[Input.TagName]);
+						}
+					}
+				}
+			}
+			*/
+			// Find a block name for all new outputs
+			Dictionary<FileReference, string> FileToOutputName = new Dictionary<FileReference, string>();
+			foreach (string outputName in step.OutputNames)
+			{
+				string outputNameWithoutHash = outputName.TrimStart('#');
+				bool isDefaultOutput = outputNameWithoutHash.Equals(step.Name, StringComparison.OrdinalIgnoreCase);
+
+				HashSet<FileReference> Files = TagNameToFileSet[outputName];
+				foreach (FileReference File in Files)
+				{
+					if (!FileToStorageBlock.ContainsKey(File) && File.IsUnderDirectory(workspaceDir))
+					{
+						if (isDefaultOutput)
+						{
+							if (!FileToOutputName.ContainsKey(File))
+							{
+								FileToOutputName[File] = "";
+							}
+						}
+						else
+						{
+							string? OutputName;
+							if (FileToOutputName.TryGetValue(File, out OutputName) && OutputName.Length > 0)
+							{
+								FileToOutputName[File] = String.Format("{0}+{1}", OutputName, outputNameWithoutHash);
+							}
+							else
+							{
+								FileToOutputName[File] = outputNameWithoutHash;
+							}
+						}
+					}
+				}
+			}
+
+			// Invert the dictionary to make a mapping of storage block to the files each contains
+			Dictionary<string, HashSet<FileReference>> OutputStorageBlockToFiles = new Dictionary<string, HashSet<FileReference>>();
+			foreach (KeyValuePair<FileReference, string> Pair in FileToOutputName)
+			{
+				HashSet<FileReference>? Files;
+				if (!OutputStorageBlockToFiles.TryGetValue(Pair.Value, out Files))
+				{
+					Files = new HashSet<FileReference>();
+					OutputStorageBlockToFiles.Add(Pair.Value, Files);
+				}
+				Files.Add(Pair.Key);
+			}
+
+			// Write all the storage blocks, and update the mapping from file to storage block
+			using (GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "Write").StartActive())
+			{
+				foreach (KeyValuePair<string, HashSet<FileReference>> Pair in OutputStorageBlockToFiles)
+				{
+					TempStorageBlock OutputBlock = new TempStorageBlock(step.Name, Pair.Key);
+					foreach (FileReference File in Pair.Value)
+					{
+						FileToStorageBlock.Add(File, OutputBlock);
+					}
+					Storage.Archive(step.Name, Pair.Key, Pair.Value.ToArray(), true/*Pair.Value.Any(x => ReferencedOutputFiles.Contains(x))*/, logger);
+				}
+
+				// Publish all the output tags
+				foreach (string outputName in step.OutputNames)
+				{
+					HashSet<FileReference> Files = TagNameToFileSet[outputName];
+
+					HashSet<TempStorageBlock> StorageBlocks = new HashSet<TempStorageBlock>();
+					foreach (FileReference File in Files)
+					{
+						TempStorageBlock? StorageBlock;
+						if (FileToStorageBlock.TryGetValue(File, out StorageBlock))
+						{
+							StorageBlocks.Add(StorageBlock);
+						}
+					}
+
+					Storage.WriteFileList(step.Name, outputName, Files, StorageBlocks.ToArray(), logger);
+				}
+			}
+
+			return true;
 		}
 
 		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse step, DirectoryReference workspaceDir, string arguments, ILogger logger, CancellationToken cancellationToken)
