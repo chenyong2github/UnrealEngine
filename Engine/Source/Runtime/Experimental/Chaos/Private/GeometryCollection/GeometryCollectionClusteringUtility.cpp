@@ -13,6 +13,15 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 {
 	check(GeometryCollection);
 
+	TManagedArray<int32>& Parents = GeometryCollection->Parent;
+	int32 ParentIdx = Parents[InsertAtIndex];
+	return ClusterBonesUnderNewNodeWithParent(GeometryCollection, ParentIdx, SelectedBones, CalcNewLocalTransform, Validate);
+}
+
+void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNodeWithParent(FGeometryCollection* GeometryCollection, const int32 ParentOfNewNode, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate)
+{
+	check(GeometryCollection);
+
 
 	TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
 	TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
@@ -23,9 +32,7 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	// insert a new node between the selected bones and their shared parent
 	int NewBoneIndex = GeometryCollection->AddElements(1, FGeometryCollection::TransformGroup);
 
-	// New Bone Setup takes level/parent from the first of the Selected Bones
-	int32 SourceBoneIndex = InsertAtIndex;
-	int32 OriginalParentIndex = Parents[SourceBoneIndex];
+	int32 OriginalParentIndex = ParentOfNewNode;
 	Parents[NewBoneIndex] = OriginalParentIndex;
 	Children[NewBoneIndex] = TSet<int32>(SelectedBones);
 	SimType[NewBoneIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;

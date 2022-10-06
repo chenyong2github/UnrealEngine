@@ -35,7 +35,10 @@ public:
 	*
 	* Node E has no geometry of its own, only a transform by which to control A & B as a single unit
 	*/
-	static void ClusterBonesUnderNewNode(FGeometryCollection* GeometryCollection, int32 InsertAtIndex, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
+	static void ClusterBonesUnderNewNode(FGeometryCollection* GeometryCollection, const int32 InsertAtIndex, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
+
+	// Same as ClusterBonesUnderNewNode, but specify the parent of the new node instead of a sibling
+	static void ClusterBonesUnderNewNodeWithParent(FGeometryCollection* GeometryCollection, const int32 ParentOfNewNode, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
 
 	/** Cluster all existing bones under a new root node, so there is now only one root node and a completely flat hierarchy underneath it */
 	static void ClusterAllBonesUnderNewRoot(FGeometryCollection* GeometryCollection);
