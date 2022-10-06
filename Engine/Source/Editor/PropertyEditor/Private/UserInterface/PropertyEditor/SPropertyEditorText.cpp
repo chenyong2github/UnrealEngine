@@ -32,10 +32,14 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 {
 	PropertyEditor = InPropertyEditor;
 
-	bIsFNameProperty = InPropertyEditor->PropertyIsA(FNameProperty::StaticClass());
-	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData("MultiLine");
+	static const FName NAME_MaxLength = "MaxLength";
+	static const FName NAME_MultiLine = "MultiLine";
+	static const FName NAME_PasswordField = "PasswordField";
 
-	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData("PasswordField");
+	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData(NAME_MultiLine);
+	MaxLength = InPropertyEditor->PropertyIsA(FNameProperty::StaticClass()) ? NAME_SIZE - 1 : InPropertyEditor->GetPropertyHandle()->GetIntMetaData(NAME_MaxLength);
+
+	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData(NAME_PasswordField);
 	
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 	if(bIsMultiLine)
@@ -52,7 +56,7 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 				.SelectAllTextWhenFocused(false)
 				.ClearKeyboardFocusOnCommit(false)
 				.OnTextCommitted(this, &SPropertyEditorText::OnTextCommitted)
-				.OnTextChanged(this, &SPropertyEditorText::OnMultiLineTextChanged)
+				.OnVerifyTextChanged(this, &SPropertyEditorText::OnVerifyTextChanged)
 				.SelectAllTextOnCommit(false)
 				.IsReadOnly(this, &SPropertyEditorText::IsReadOnly)
 				.AutoWrapText(true)
@@ -77,7 +81,7 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 				.SelectAllTextWhenFocused( true )
 				.ClearKeyboardFocusOnCommit(false)
 				.OnTextCommitted( this, &SPropertyEditorText::OnTextCommitted )
-				.OnTextChanged( this, &SPropertyEditorText::OnSingleLineTextChanged )
+				.OnVerifyTextChanged( this, &SPropertyEditorText::OnVerifyTextChanged )
 				.SelectAllTextOnCommit( true )
 				.IsReadOnly(this, &SPropertyEditorText::IsReadOnly)
 				.IsPassword( bIsPassword )
@@ -144,33 +148,15 @@ void SPropertyEditorText::OnTextCommitted( const FText& NewText, ETextCommit::Ty
 	}
 }
 
-static FText ValidateNameLength( const FText& Text )
+bool SPropertyEditorText::OnVerifyTextChanged(const FText& Text, FText& OutError)
 {
-	if( Text.ToString().Len() >= NAME_SIZE )
+	if (MaxLength > 0 && Text.ToString().Len() > MaxLength)
 	{
-		static FText ErrorString = FText::Format( LOCTEXT("NamePropertySizeTooLongError", "Name properties may only be a maximum of {0} characters"), FText::AsNumber( NAME_SIZE ) );
-		return ErrorString;
+		OutError = FText::Format(LOCTEXT("PropertyTextTooLongError", "This value is too long ({0}/{1} characters)"), Text.ToString().Len(), MaxLength);
+		return false;
 	}
 
-	return FText::GetEmpty();
-}
-
-void SPropertyEditorText::OnMultiLineTextChanged( const FText& NewText )
-{
-	if( bIsFNameProperty )
-	{
-		FText ErrorMessage = ValidateNameLength( NewText );
-		MultiLineWidget->SetError( ErrorMessage );
-	}
-}
-
-void SPropertyEditorText::OnSingleLineTextChanged( const FText& NewText )
-{
-	if( bIsFNameProperty )
-	{
-		FText ErrorMessage = ValidateNameLength( NewText );
-		SingleLineWidget->SetError( ErrorMessage );
-	}
+	return true;
 }
 
 bool SPropertyEditorText::SupportsKeyboardFocus() const

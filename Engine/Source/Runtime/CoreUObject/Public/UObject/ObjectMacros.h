@@ -1369,6 +1369,9 @@ namespace UM
 		/// [PropertyMetadata] Used for numeric properties. Stipulates that the value must be a multiple of the metadata value.
 		Multiple,
 
+		/// [PropertyMetadata] Used for FString and FText properties.  Indicates the maximum length of the value that can be edited, or <=0 for unlimited.
+		MaxLength,
+
 		/// [PropertyMetadata] Used for FString and FText properties.  Indicates that the edit field should be multi-line, allowing entry of newlines.
 		MultiLine,
 
