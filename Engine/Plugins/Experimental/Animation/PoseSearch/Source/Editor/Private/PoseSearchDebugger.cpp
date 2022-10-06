@@ -1152,18 +1152,21 @@ void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(
 
 void SDebuggerDatabaseView::SortDatabaseRows()
 {
-	if (SortMode == EColumnSortMode::Ascending)
+	if (!UnfilteredDatabaseRows.IsEmpty())
 	{
-		UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicate());
-	}
-	else if (SortMode == EColumnSortMode::Descending)
-	{
-		auto DescendingPredicate = [this](const auto& Lhs, const auto& Rhs) -> bool
+		if (SortMode == EColumnSortMode::Ascending)
 		{
-			return !Columns[SortColumn]->GetSortPredicate()(Lhs, Rhs);
-		};
+			UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicate());
+		}
+		else if (SortMode == EColumnSortMode::Descending)
+		{
+			auto DescendingPredicate = [this](const auto& Lhs, const auto& Rhs) -> bool
+			{
+				return !Columns[SortColumn]->GetSortPredicate()(Lhs, Rhs);
+			};
 
-		UnfilteredDatabaseRows.Sort(DescendingPredicate);
+			UnfilteredDatabaseRows.Sort(DescendingPredicate);
+		}
 	}
 }
 

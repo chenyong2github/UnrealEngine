@@ -184,7 +184,7 @@ static void TraceMotionMatchingState(
 
 	const float DeltaTime = UpdateContext.GetDeltaTime();
 
-	auto AddUniqueDatabase = [](TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, const UPoseSearchDatabase* Database, const UE::PoseSearch::FSearchContext& SearchContext) -> int32
+	auto AddUniqueDatabase = [](TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, const UPoseSearchDatabase* Database, UE::PoseSearch::FSearchContext& SearchContext) -> int32
 	{
 		const uint64 DatabaseId = FTraceMotionMatchingState::GetIdFromObject(Database);
 
@@ -201,10 +201,11 @@ static void TraceMotionMatchingState(
 		{
 			DbEntryIdx = DatabaseEntries.Add({ DatabaseId });
 
-			const FPoseSearchFeatureVectorBuilder* CachedQuery = SearchContext.GetCachedQuery(Database);
-			check(CachedQuery);
-
-			DatabaseEntries[DbEntryIdx].QueryVector = CachedQuery->GetValues();
+			// if throttling is on, the continuing pose can be valid, but no actual search occurred, so the query will not be cached, and we need to build it
+			FPoseSearchFeatureVectorBuilder FeatureVectorBuilder;
+			FeatureVectorBuilder.Init(Database->Schema);
+			SearchContext.GetOrBuildQuery(Database, FeatureVectorBuilder);
+			DatabaseEntries[DbEntryIdx].QueryVector = FeatureVectorBuilder.GetValues();
 		}
 
 		return DbEntryIdx;
