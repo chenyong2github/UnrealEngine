@@ -43,7 +43,7 @@ public:
 
 	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
-	TArray<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const { return StreamingSourceProviders; }
+	TSet<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const { return StreamingSourceProviders; }
 	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 
@@ -65,7 +65,7 @@ private:
 
 	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
-	TArray<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
+	TSet<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
 
 	FDelegateHandle	DrawHandle;
 

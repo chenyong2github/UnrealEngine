@@ -218,7 +218,9 @@ void UWorldPartitionSubsystem::OnWorldPartitionUninitialized(UWorldPartition* In
 
 void UWorldPartitionSubsystem::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
 {
-	StreamingSourceProviders.Add(StreamingSource);
+	bool bIsAlreadyInSet = false;
+	StreamingSourceProviders.Add(StreamingSource, &bIsAlreadyInSet);
+	UE_CLOG(bIsAlreadyInSet, LogWorldPartition, Warning, TEXT("Streaming source provider already registered."));
 }
 
 bool UWorldPartitionSubsystem::UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
