@@ -33,11 +33,11 @@ FDeferredLightData InitDeferredLightFromUniforms(uint InLightType)
 	Out.bSpotLight				= InLightType == LIGHT_TYPE_SPOT;
 	Out.bRectLight				= InLightType == LIGHT_TYPE_RECT;
 
-	Out.RectLightBarnCosAngle	= DeferredLightUniforms.RectLightBarnCosAngle;
-	Out.RectLightBarnLength		= DeferredLightUniforms.RectLightBarnLength;
-	Out.RectLightAtlasMaxLevel	= DeferredLightUniforms.RectLightAtlasMaxLevel;
-	Out.RectLightAtlasUVOffset	= DeferredLightUniforms.RectLightAtlasUVOffset;
-	Out.RectLightAtlasUVScale	= DeferredLightUniforms.RectLightAtlasUVScale;
+	Out.RectLightData.BarnCosAngle				= DeferredLightUniforms.RectLightBarnCosAngle;
+	Out.RectLightData.BarnLength				= DeferredLightUniforms.RectLightBarnLength;
+	Out.RectLightData.AtlasData.AtlasMaxLevel	= DeferredLightUniforms.RectLightAtlasMaxLevel;
+	Out.RectLightData.AtlasData.AtlasUVOffset	= DeferredLightUniforms.RectLightAtlasUVOffset;
+	Out.RectLightData.AtlasData.AtlasUVScale	= DeferredLightUniforms.RectLightAtlasUVScale;
 
 	Out.HairTransmittance		= InitHairTransmittanceData();
 	return Out;

@@ -279,15 +279,17 @@ FVector GetLightGridZParams(float NearPlane, float FarPlane)
 	return FVector(B, O, S);
 }
 
+static uint32 PackRG16(float In0, float In1)
+{
+	return uint32(FFloat16(In0).Encoded) | (uint32(FFloat16(In1).Encoded) << 16);
+}
+
 static void PackLocalLightData(
 	FForwardLocalLightData& Out,
 	const FViewInfo& View,
 	const FSimpleLightEntry& SimpleLight,
 	const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 {
-	// Pack both values into a single float to keep float4 alignment
-	const FFloat16 SimpleLightSourceLength16f = FFloat16(0);
-
 	// Put simple lights in all lighting channels
 	FLightingChannels SimpleLightLightingChannels;
 	SimpleLightLightingChannels.bChannel0 = SimpleLightLightingChannels.bChannel1 = SimpleLightLightingChannels.bChannel2 = true;
@@ -300,15 +302,25 @@ static void PackLocalLightData(
 	ShadowMapChannelMask |= SimpleLightLightingChannelMask << 8;
 
 	// Pack both values into a single float to keep float4 alignment
-	const FFloat16 VolumetricScatteringIntensity16f = FFloat16(SimpleLight.VolumetricScatteringIntensity);
-	const uint32 PackedWInt = ((uint32)SimpleLightSourceLength16f.Encoded) | ((uint32)VolumetricScatteringIntensity16f.Encoded << 16);
+	const float SimpleLightSourceLength = 0;
+	const uint32 PackedW = PackRG16(SimpleLightSourceLength, SimpleLight.VolumetricScatteringIntensity);
 
-	Out.LightPositionAndInvRadius							= FVector4f(LightTranslatedWorldPosition, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
-	Out.LightColorAndFalloffExponent						= FVector4f((FVector3f)SimpleLight.Color, SimpleLight.Exponent);
-	Out.LightDirectionAndShadowMapChannelMask				= FVector4f(FVector3f(1, 0, 0), *((float*)&ShadowMapChannelMask));
-	Out.SpotAnglesAndSourceRadiusPacked						= FVector4f(-2, 1, 0, *(float*)&PackedWInt);
-	Out.LightTangentAndSoftSourceRadius						= FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
-	Out.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale	= FVector4f(0, -2, -1, 1);
+	// Pack both values into a single float to keep float4 alignment
+	const float SourceRadius = 0;
+	const float SourceSoftRadius = 0;
+	const uint32 PackedZ = PackRG16(SourceRadius, SourceSoftRadius);
+
+	// Pack both rect light data (barn door length is initialized to -2 
+	const uint32 RectPackedX = 0;
+	const uint32 RectPackedY = 0;
+	const uint32 RectPackedW = FFloat16(-2.f).Encoded;
+
+	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
+	Out.LightColorAndFalloffExponent			= FVector4f((FVector3f)SimpleLight.Color, SimpleLight.Exponent);
+	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(FVector3f(1, 0, 0), FMath::AsFloat(ShadowMapChannelMask));
+	Out.SpotAnglesAndSourceRadiusPacked			= FVector4f(-2, 1, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
+	Out.LightTangentAndSpecularScale			= FVector4f(1.0f, 0.0f, 0.0f, 1.0f);
+	Out.RectDataAndVirtualShadowMapId			= FVector4f(FMath::AsFloat(RectPackedX), FMath::AsFloat(RectPackedY), -1, FMath::AsFloat(RectPackedW));
 }
 
 static void PackLocalLightData(
@@ -322,20 +334,29 @@ static void PackLocalLightData(
 	const FVector3f LightTranslatedWorldPosition(View.ViewMatrices.GetPreViewTranslation() + LightParameters.WorldPosition);
 
 	// Pack both values into a single float to keep float4 alignment
-	const FFloat16 SourceLength16f = FFloat16(LightParameters.SourceLength);
-	const FFloat16 VolumetricScatteringIntensity16f = FFloat16(VolumetricScatteringIntensity);
-	const uint32 PackedWInt = ((uint32)SourceLength16f.Encoded) | ((uint32)VolumetricScatteringIntensity16f.Encoded << 16);
+	const uint32 PackedW = PackRG16(LightParameters.SourceLength, VolumetricScatteringIntensity);
+
+	// Pack both SourceRadius and SoftSourceRadius
+	const uint32 PackedZ = PackRG16(LightParameters.SourceRadius, LightParameters.SoftSourceRadius);
+	
+	// Pack rect light data
+	uint32 RectPackedX = PackRG16(LightParameters.RectLightAtlasUVOffset.X, LightParameters.RectLightAtlasUVOffset.Y);
+	uint32 RectPackedY = PackRG16(LightParameters.RectLightAtlasUVScale.X, LightParameters.RectLightAtlasUVScale.Y);
+	uint32 RectPackedW = 0;
+	RectPackedW |= FFloat16(LightParameters.RectLightBarnLength).Encoded;									// 16 bits
+	RectPackedW |= uint32(FMath::Clamp(LightParameters.RectLightBarnCosAngle,  0.f, 1.0f) * 0x3FF) << 16;	// 10 bits
+	RectPackedW |= uint32(FMath::Clamp(LightParameters.RectLightAtlasMaxLevel, 0.f, 63.f)) << 26;			//  6 bits
 
 	// NOTE: This cast of VirtualShadowMapId to float is not ideal, but bitcast has issues here with INDEX_NONE -> NaN
 	// and 32-bit floats have enough mantissa to cover all reasonable numbers here for now.
-	Out.LightPositionAndInvRadius							= FVector4f(LightTranslatedWorldPosition, LightParameters.InvRadius);
-	Out.LightColorAndFalloffExponent						= FVector4f(LightParameters.Color, LightParameters.FalloffExponent);
-	Out.LightDirectionAndShadowMapChannelMask				= FVector4f(LightParameters.Direction, *((float*)&LightTypeAndShadowMapChannelMaskPacked));
-	Out.SpotAnglesAndSourceRadiusPacked						= FVector4f(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, LightParameters.SourceRadius, *(float*)&PackedWInt);
-	Out.LightTangentAndSoftSourceRadius						= FVector4f(LightParameters.Tangent, LightParameters.SoftSourceRadius);
-	Out.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale	= FVector4f(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength, float(VirtualShadowMapId), LightParameters.SpecularScale);
+	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, LightParameters.InvRadius);
+	Out.LightColorAndFalloffExponent			= FVector4f(LightParameters.Color, LightParameters.FalloffExponent);
+	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(LightParameters.Direction, FMath::AsFloat(LightTypeAndShadowMapChannelMaskPacked));
+	Out.SpotAnglesAndSourceRadiusPacked			= FVector4f(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
+	Out.LightTangentAndSpecularScale			= FVector4f(LightParameters.Tangent, LightParameters.SpecularScale);
+	Out.RectDataAndVirtualShadowMapId			= FVector4f(FMath::AsFloat(RectPackedX), FMath::AsFloat(RectPackedY), float(VirtualShadowMapId), FMath::AsFloat(RectPackedW));
 
-	checkSlow(int32(Out.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.Z) == VirtualShadowMapId);
+	checkSlow(int32(Out.RectDataAndVirtualShadowMapId.Z) == VirtualShadowMapId);
 }
 
 

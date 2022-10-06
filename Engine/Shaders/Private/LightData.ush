@@ -36,12 +36,21 @@ FRectTexture InitRectTexture()
 	return Out;
 }
 
-FRectTexture InitRectTexture(half2 InUVOffset, half2 InUVScale, half InMaxLevel)
+struct FRectLightData
 {
-	FRectTexture Out;
-	Out.AtlasUVOffset = InUVOffset;
-	Out.AtlasUVScale  = InUVScale;
-	Out.AtlasMaxLevel = InMaxLevel;
+	float		 BarnCosAngle;
+	float		 BarnLength;
+	FRectTexture AtlasData;
+};
+
+FRectLightData UnpackRectLightData(uint In0, uint In1, uint In2)
+{
+	FRectLightData Out;
+	Out.BarnLength				= f16tof32(In0 & 0xFFFF);			// 16 bits
+	Out.BarnCosAngle			= ((In0 >> 16) & 0x3FF) / 1024.f;	// 10 bits
+	Out.AtlasData.AtlasMaxLevel =  (In0 >> 26);						//  6 bits
+	Out.AtlasData.AtlasUVOffset	= half2(f16tof32(In1 & 0xFFFF), f16tof32(In1 >> 16));
+	Out.AtlasData.AtlasUVScale	= half2(f16tof32(In2 & 0xFFFF), f16tof32(In2 >> 16));
 	return Out;
 }
 
@@ -66,8 +75,8 @@ struct FLocalLightData
 	float4 LightColorAndFalloffExponent;
 	float4 SpotAnglesAndSourceRadiusPacked;
 	float4 LightDirectionAndShadowMask;
-	float4 LightTangentAndSoftSourceRadius;
-	float4 RectBarnDoorAndVirtualShadowMapIdAndSpecularScale;
+	float4 LightTangentAndSpecularScale;
+	float4 RectDataAndVirtualShadowMapId;
 
 	// Derived terms after unpacking
 	/** Flag is true if clustered deferred is supported for this light. They are always first / together.*/
@@ -112,6 +121,9 @@ struct FLightShaderParameters
 	float  SourceLength;
 	float  RectLightBarnCosAngle;
 	float  RectLightBarnLength;
+	float2 RectLightAtlasUVOffset;
+	float2 RectLightAtlasUVScale;
+	float  RectLightAtlasMaxLevel;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,12 +165,9 @@ struct FDeferredLightData
 	bool   bRectLight;
 	/** Whether the light should apply shadowing. */
 	uint   ShadowedBits;
-	float  RectLightBarnCosAngle;
-	float  RectLightBarnLength;
-	/** Rect light atlas info. */
-	float2 RectLightAtlasUVOffset;
-	float2 RectLightAtlasUVScale;
-	float  RectLightAtlasMaxLevel;
+	/** Rect light data. */
+	FRectLightData RectLightData;
+	/** Hair transmittance data. */
 	FHairTransmittanceData HairTransmittance;
 };
 
@@ -193,9 +202,43 @@ float UnpackVolumetricScatteringIntensity(FLocalLightData In)
 	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w) >> 16);
 }
 
+float UnpackLightSourceRadius(FLocalLightData In)
+{
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.z) & 0xFFFF);
+}
+
+float UnpackLightSoftSourceRadius(FLocalLightData In)
+{
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.z) >> 16);
+}
+
+float UnpackLightSourceLength(FLocalLightData In)
+{
+	return f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w));
+}
+
+float GetLightSourceRadius(FLocalLightData In)
+{	
+	return UnpackLightSourceRadius(In);
+}
+
+float2 GetLightSpotAngles(FLocalLightData In)
+{
+	return In.SpotAnglesAndSourceRadiusPacked.xy;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Conversion functions
  
+FRectTexture ConvertToRectTexture(FDeferredLightData In)
+{
+	FRectTexture Output;
+	Output.AtlasUVOffset = In.RectLightData.AtlasData.AtlasUVOffset;
+	Output.AtlasUVScale  = In.RectLightData.AtlasData.AtlasUVScale;
+	Output.AtlasMaxLevel = In.RectLightData.AtlasData.AtlasMaxLevel;
+	return Output;
+}
+
 // Helper function for converting FLocalLightData into FDeferredLightData
 FDeferredLightData ConvertToDeferredLight(
 	const FLocalLightData In, 
@@ -214,21 +257,20 @@ FDeferredLightData ConvertToDeferredLight(
 	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
 	Out.Direction				= In.LightDirectionAndShadowMask.xyz;
 	Out.SpotAngles				= In.SpotAnglesAndSourceRadiusPacked.xy;
-	Out.SourceRadius			= In.SpotAnglesAndSourceRadiusPacked.z;
-	Out.SourceLength			= f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w));
-	Out.Tangent					= In.LightTangentAndSoftSourceRadius.xyz;
-	Out.SoftSourceRadius		= In.LightTangentAndSoftSourceRadius.w;
+	Out.SourceRadius			= UnpackLightSourceRadius(In);
+	Out.SourceLength			= UnpackLightSourceLength(In);
+	Out.Tangent					= In.LightTangentAndSpecularScale.xyz;
+	Out.SoftSourceRadius		= UnpackLightSoftSourceRadius(In);
 	Out.bInverseSquared			= Out.FalloffExponent == 0;
-	Out.SpecularScale			= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w * InSpecularScale;
+	Out.SpecularScale			= In.LightTangentAndSpecularScale.w * InSpecularScale;
 	Out.bRadialLight			= true;
 	Out.bSpotLight				= LightType == LIGHT_TYPE_SPOT;
 	Out.bRectLight				= LightType == LIGHT_TYPE_RECT;
 	Out.HairTransmittance		= InitHairTransmittanceData();
-	Out.RectLightBarnCosAngle	= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.x;
-	Out.RectLightBarnLength		= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.y;
-	Out.RectLightAtlasUVOffset	= 0;
-	Out.RectLightAtlasUVScale	= 0;
-	Out.RectLightAtlasMaxLevel	= MAX_RECT_ATLAS_MIP;
+	Out.RectLightData			= UnpackRectLightData(
+									asuint(In.RectDataAndVirtualShadowMapId.x),
+									asuint(In.RectDataAndVirtualShadowMapId.y),
+									asuint(In.RectDataAndVirtualShadowMapId.w));
 	// Shadow
 	// * Static shadowing uses ShadowMapChannel, 
 	// * Dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
@@ -282,8 +324,11 @@ FLightShaderParameters ConvertToLightShaderParameters(FDeferredLightData In)
 	Out.SourceRadius			= In.SourceRadius;
 	Out.SoftSourceRadius		= In.SoftSourceRadius;
 	Out.SourceLength			= In.SourceLength;
-	Out.RectLightBarnCosAngle	= In.RectLightBarnCosAngle;
-	Out.RectLightBarnLength		= In.RectLightBarnLength;
+	Out.RectLightBarnCosAngle	= In.RectLightData.BarnCosAngle;
+	Out.RectLightBarnLength		= In.RectLightData.BarnLength;
+	Out.RectLightAtlasUVOffset	= In.RectLightData.AtlasData.AtlasUVOffset;
+	Out.RectLightAtlasUVScale	= In.RectLightData.AtlasData.AtlasUVScale;
+	Out.RectLightAtlasMaxLevel	= In.RectLightData.AtlasData.AtlasMaxLevel;
 	return Out;
 }
 
@@ -295,12 +340,23 @@ FLightShaderParameters ConvertFromLocal(const FLocalLightData In)
 	Out.Color					= In.LightColorAndFalloffExponent.xyz;
 	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
 	Out.Direction				= In.LightDirectionAndShadowMask.xyz;
-	Out.Tangent					= In.LightTangentAndSoftSourceRadius.xyz;
+	Out.Tangent					= In.LightTangentAndSpecularScale.xyz;
 	Out.SpotAngles				= In.SpotAnglesAndSourceRadiusPacked.xy;
-	Out.SpecularScale			= In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
-	Out.SourceRadius			= In.SpotAnglesAndSourceRadiusPacked.z;
-	Out.SoftSourceRadius		= In.LightTangentAndSoftSourceRadius.w;
-	Out.SourceLength			= f16tof32(asuint(In.SpotAnglesAndSourceRadiusPacked.w));
+	Out.SpecularScale			= In.LightTangentAndSpecularScale.w;
+	Out.SourceRadius			= UnpackLightSourceRadius(In);
+	Out.SoftSourceRadius		= UnpackLightSoftSourceRadius(In);
+	Out.SourceLength			= UnpackLightSourceLength(In);
+
+	const FRectLightData RectLightData = UnpackRectLightData(
+									asuint(In.RectDataAndVirtualShadowMapId.x),
+									asuint(In.RectDataAndVirtualShadowMapId.y),
+									asuint(In.RectDataAndVirtualShadowMapId.w));
+	Out.RectLightBarnCosAngle	= RectLightData.BarnCosAngle;
+	Out.RectLightBarnLength		= RectLightData.BarnLength;
+	Out.RectLightAtlasUVOffset	= RectLightData.AtlasData.AtlasUVOffset;
+	Out.RectLightAtlasUVScale	= RectLightData.AtlasData.AtlasUVScale;
+	Out.RectLightAtlasMaxLevel	= RectLightData.AtlasData.AtlasMaxLevel;
+
 	return Out;
 }
 

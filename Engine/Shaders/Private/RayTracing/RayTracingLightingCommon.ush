@@ -131,8 +131,8 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 	LightData.SourceLength = RayTracingLightData.SourceLength;
 	LightData.SoftSourceRadius = RayTracingLightData.SoftSourceRadius;
 	LightData.SpecularScale = RayTracingLightData.SpecularScale;
-	LightData.RectLightBarnCosAngle = RayTracingLightData.RectLightBarnCosAngle;
-	LightData.RectLightBarnLength = RayTracingLightData.RectLightBarnLength;
+	LightData.RectLightData.BarnCosAngle = RayTracingLightData.RectLightBarnCosAngle;
+	LightData.RectLightData.BarnLength = RayTracingLightData.RectLightBarnLength;
 	LightData.DistanceFadeMAD = RayTracingLightData.DistanceFadeMAD;
 
 	LightData.ShadowMapChannelMask = float4(0, 0, 0, 0);
@@ -154,9 +154,9 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 		LightData.bInverseSquared = LightData.FalloffExponent == 0;
 	}
 
-	LightData.RectLightAtlasUVOffset = RayTracingLightData.RectLightAtlasUVOffset;
-	LightData.RectLightAtlasUVScale  = RayTracingLightData.RectLightAtlasUVScale;
-	LightData.RectLightAtlasMaxLevel = RayTracingLightData.RectLightAtlasMaxLevel;
+	LightData.RectLightData.AtlasData.AtlasUVOffset = RayTracingLightData.RectLightAtlasUVOffset;
+	LightData.RectLightData.AtlasData.AtlasUVScale  = RayTracingLightData.RectLightAtlasUVScale;
+	LightData.RectLightData.AtlasData.AtlasMaxLevel = RayTracingLightData.RectLightAtlasMaxLevel;
 
 	OutLightProfileIndex = RayTracingLightData.LightProfileIndex;
 	OutLightType = LightType;
@@ -171,15 +171,6 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 {
 	uint LightMissShaderIndex = 0;
 	return GetRayTracingDeferredLightData(LightIndex, OutLightProfileIndex, OutLightType, LightMissShaderIndex);
-}
-
-FRectTexture GetRayTracingRectTextureData(FDeferredLightData In)
-{
-	FRectTexture Out;
-	Out.AtlasUVOffset = In.RectLightAtlasUVOffset;
-	Out.AtlasUVScale  = In.RectLightAtlasUVScale;
-	Out.AtlasMaxLevel = In.RectLightAtlasMaxLevel;
-	return Out;
 }
 
 float3 GenerateReflectedRayDirection(
@@ -266,7 +257,7 @@ float4 SampleAreaLightDirection(
 
 	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
-		float ShadowSourceAngleFactor = LightData.RectLightBarnCosAngle;
+		float ShadowSourceAngleFactor = LightData.RectLightData.BarnCosAngle;
 		LightParameters.SourceRadius *= ShadowSourceAngleFactor;
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,

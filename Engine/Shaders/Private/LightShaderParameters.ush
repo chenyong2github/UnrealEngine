@@ -31,6 +31,9 @@ float  Light_SoftSourceRadius;
 float  Light_SourceLength;
 float  Light_RectLightBarnCosAngle;
 float  Light_RectLightBarnLength;
+float2 Light_RectLightAtlasUVOffset;
+float2 Light_RectLightAtlasUVScale;
+float  Light_RectLightAtlasMaxLevel;
 
 /** Returns the FLightShaderParameters from the root shader parameters. */
 FLightShaderParameters GetRootLightShaderParameters()
@@ -50,5 +53,8 @@ FLightShaderParameters GetRootLightShaderParameters()
 	Out.SourceLength			= Light_SourceLength;
 	Out.RectLightBarnCosAngle	= Light_RectLightBarnCosAngle;
 	Out.RectLightBarnLength		= Light_RectLightBarnLength;
+	Out.RectLightAtlasUVOffset	= Light_RectLightAtlasUVOffset;
+	Out.RectLightAtlasUVScale	= Light_RectLightAtlasUVScale;
+	Out.RectLightAtlasMaxLevel	= Light_RectLightAtlasMaxLevel;
 	return Out;
 }

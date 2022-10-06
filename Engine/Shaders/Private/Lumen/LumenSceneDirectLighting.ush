@@ -170,11 +170,11 @@ FLumenLight LoadLumenLight(uint LightIndex, float3 PreViewTranslation)
 	DeferredLightData.DistanceFadeMAD = 0.0f;
 	DeferredLightData.ShadowMapChannelMask = 0.0f;
 	DeferredLightData.ShadowedBits = 0;
-	DeferredLightData.RectLightBarnCosAngle = PackedLight.RectLightBarnCosAngle;
-	DeferredLightData.RectLightBarnLength = PackedLight.RectLightBarnLength;
-	DeferredLightData.RectLightAtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
-	DeferredLightData.RectLightAtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
-	DeferredLightData.RectLightAtlasMaxLevel = asfloat(BitFieldExtractU32(PackedLight.bHasShadowMask_RectLightAtlasMaxLevel, 31, 0));
+	DeferredLightData.RectLightData.BarnCosAngle = PackedLight.RectLightBarnCosAngle;
+	DeferredLightData.RectLightData.BarnLength = PackedLight.RectLightBarnLength;
+	DeferredLightData.RectLightData.AtlasData.AtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
+	DeferredLightData.RectLightData.AtlasData.AtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
+	DeferredLightData.RectLightData.AtlasData.AtlasMaxLevel = asfloat(BitFieldExtractU32(PackedLight.bHasShadowMask_RectLightAtlasMaxLevel, 31, 0));
 	DeferredLightData.bInverseSquared = PackedLight.FalloffExponent == 0.0f;
 	DeferredLightData.bRadialLight = PackedLight.LightType != LIGHT_TYPE_DIRECTIONAL;
 	DeferredLightData.bSpotLight = PackedLight.LightType == LIGHT_TYPE_SPOT;

@@ -193,11 +193,11 @@ void MainPS(
 					LightData.bRadialLight				= false;
 					LightData.bSpotLight				= false;
 					LightData.bRectLight				= false;
-					LightData.RectLightBarnCosAngle		= 0.f;
-					LightData.RectLightBarnLength		= 0.f;
-					LightData.RectLightAtlasUVOffset	= 0.f;
-					LightData.RectLightAtlasUVScale		= 0.f;
-					LightData.RectLightAtlasMaxLevel	= 0.f;
+					LightData.RectLightData.BarnCosAngle= 0.f;
+					LightData.RectLightData.BarnLength	= 0.f;
+					LightData.RectLightData.AtlasData.AtlasUVOffset	= 0.f;
+					LightData.RectLightData.AtlasData.AtlasUVScale	= 0.f;
+					LightData.RectLightData.AtlasData.AtlasMaxLevel	= 0.f;
 					LightData.HairTransmittance			= InitHairTransmittanceData();
 					LightData.ShadowedBits				= 0;
 				}

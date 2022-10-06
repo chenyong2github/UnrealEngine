@@ -51,8 +51,8 @@ public:
 	FVector4f LightColorAndFalloffExponent;
 	FVector4f LightDirectionAndShadowMapChannelMask;
 	FVector4f SpotAnglesAndSourceRadiusPacked;
-	FVector4f LightTangentAndSoftSourceRadius;
-	FVector4f RectBarnDoorAndVirtualShadowMapIdAndSpecularScale;
+	FVector4f LightTangentAndSpecularScale;
+	FVector4f RectDataAndVirtualShadowMapId;
 };
 
 struct FForwardBasePassTextures

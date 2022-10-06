@@ -46,7 +46,7 @@ FStrataDeferredLighting StrataDeferredLighting(
 	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
 #endif
 
-	FRectTexture RectTexture = InitRectTexture(LightData);
+	FRectTexture RectTexture = ConvertToRectTexture(LightData);
 
 	Strata_for (uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{

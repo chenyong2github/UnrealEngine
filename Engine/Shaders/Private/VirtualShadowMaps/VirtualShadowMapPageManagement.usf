@@ -355,7 +355,7 @@ void GeneratePageFlagsFromPixels(
 
 			// TODO: Can optimize these tests by fusing them together
 			// Also do precise cone test, since froxels are pretty coarse at times.
-			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < LightData.SpotAnglesAndSourceRadiusPacked.x)
+			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < GetLightSpotAngles(LightData).x)
 			{
 				continue;
 			}
@@ -364,13 +364,13 @@ void GeneratePageFlagsFromPixels(
 
 #if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
 			// Backface test if requested
-			if (bBackfaceCull && IsBackfaceToLocalLight(ToLight, WorldNormal, LightData.SpotAnglesAndSourceRadiusPacked.z))
+			if (bBackfaceCull && IsBackfaceToLocalLight(ToLight, WorldNormal, GetLightSourceRadius(LightData)))
 			{
 				continue;
 			}
 #endif
 			int VirtualShadowMapId = LightData.VirtualShadowMapId;
-			bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
+			bool bSpotLight = GetLightSpotAngles(LightData).x > -2.0f;
 			if( !bSpotLight )
 			{
 				VirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);

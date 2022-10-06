@@ -664,7 +664,7 @@ void LightScatteringCS(
 		{
 			const FLocalLightData LocalLight = GetLocalLightData(CulledLightsGrid.DataStartIndex + LocalLightListIndex, 0);
 
-			float VolumetricScatteringIntensity = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w) >> 16);
+			const float VolumetricScatteringIntensity = UnpackVolumetricScatteringIntensity(LocalLight);
 
 			if (VolumetricScatteringIntensity > 0)
 			{

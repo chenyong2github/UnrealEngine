@@ -66,7 +66,7 @@ float3 GetIrradianceForLight(
 
 			if (IsRectVisible(Rect))
 			{
-				const FRectTexture SourceTexture = InitRectTexture(LightData);
+				const FRectTexture SourceTexture = ConvertToRectTexture(LightData);
 				Context = CreateRectIntegrateContext(Roughness, WorldNormal, V, Rect, SourceTexture);
 			}
 		}

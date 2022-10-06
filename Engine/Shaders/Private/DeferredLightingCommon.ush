@@ -29,15 +29,6 @@
 
 #define REFERENCE_QUALITY	0
 
-FRectTexture InitRectTexture(FDeferredLightData In)
-{
-	FRectTexture Output;
-	Output.AtlasUVOffset = In.RectLightAtlasUVOffset;
-	Output.AtlasUVScale  = In.RectLightAtlasUVScale;
-	Output.AtlasMaxLevel = In.RectLightAtlasMaxLevel;
-	return Output;
-}
-
 /** Returns 0 for positions closer than the fade near distance from the camera, and 1 for positions further than the fade far distance. */
 float DistanceFromCameraFade(float SceneDepth, FDeferredLightData LightData)
 {
@@ -294,8 +285,8 @@ FRect GetRect(float3 ToLight, FDeferredLightData LightData)
 		LightData.Tangent, 
 		LightData.SourceRadius, 
 		LightData.SourceLength, 
-		LightData.RectLightBarnCosAngle, 
-		LightData.RectLightBarnLength,
+		LightData.RectLightData.BarnCosAngle, 
+		LightData.RectLightData.BarnLength,
 		RECLIGHT_BARNDOOR);
 }
 
@@ -398,7 +389,7 @@ FLightAccumulator AccumulateDynamicLighting(
 			if (LightData.bRectLight)
 			{
 				FRect Rect = GetRect( ToLight, LightData );
-				const FRectTexture SourceTexture = InitRectTexture(LightData);
+				const FRectTexture SourceTexture = ConvertToRectTexture(LightData);
 
 				#if REFERENCE_QUALITY
 					Lighting = IntegrateBxDF( GBuffer, N, V, Rect, Shadow, SourceTexture, SVPos );
