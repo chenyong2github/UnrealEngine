@@ -97,6 +97,7 @@ protected:
 	mutable TArray<const UWorldPartitionRuntimeCell*> SortedAddToWorldCells;
 
 	int32 DataLayersStatesServerEpoch;
+	int32 ContentBundleServerEpoch;
 	int32 ServerStreamingEnabledEpoch;
 
 	EWorldPartitionStreamingPerformance StreamingPerformance;

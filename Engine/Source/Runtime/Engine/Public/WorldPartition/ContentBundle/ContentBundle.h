@@ -23,6 +23,8 @@ public:
 	virtual bool IsValid() const override;
 	//~ End IContentBundle Interface
 
+	static int32 GetContentBundleEpoch() { return ContentBundlesEpoch; }
+
 protected:
 	//~ Begin IContentBundle Interface
 	virtual void DoInitialize() override;
@@ -35,6 +37,8 @@ private:
 #if WITH_EDITOR
 	void InitializeForPIE();
 #endif
+
+	static int32 ContentBundlesEpoch;
 
 	UPackage* ExternalStreamingObjectPackage;
 	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject;

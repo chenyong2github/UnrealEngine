@@ -15,10 +15,12 @@
 #include "Editor.h"
 #endif
 
+int32 FContentBundle::ContentBundlesEpoch = 0;
+
 FContentBundle::FContentBundle(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
-	: FContentBundleBase(InClient, InWorld),
-	ExternalStreamingObjectPackage(nullptr),
-	ExternalStreamingObject(nullptr)
+	: FContentBundleBase(InClient, InWorld)
+	, ExternalStreamingObjectPackage(nullptr)
+	, ExternalStreamingObject(nullptr)
 {
 
 }
@@ -66,6 +68,8 @@ void FContentBundle::DoInjectContent()
 		{
 			UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Streaming Object Injected."), *GetDescriptor()->GetDisplayName());
 			SetStatus(EContentBundleStatus::ContentInjected);
+
+			ContentBundlesEpoch++;
 		}
 		else
 		{
@@ -84,7 +88,11 @@ void FContentBundle::DoRemoveContent()
 {
 	if (ExternalStreamingObject != nullptr)
 	{
-		if (!GetInjectedWorld()->GetWorldPartition()->RuntimeHash->RemoveExternalStreamingObject(ExternalStreamingObject))
+		if (GetInjectedWorld()->GetWorldPartition()->RuntimeHash->RemoveExternalStreamingObject(ExternalStreamingObject))
+		{
+			ContentBundlesEpoch++;
+		}
+		else
 		{
 			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Error while removing streaming object."), *GetDescriptor()->GetDisplayName());
 		}

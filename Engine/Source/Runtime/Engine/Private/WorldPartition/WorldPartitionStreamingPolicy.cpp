@@ -14,6 +14,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
+#include "WorldPartition/ContentBundle/ContentBundle.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -70,6 +71,7 @@ UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInit
 	, bCriticalPerformanceRequestedBlockTillOnWorld(false)
 	, CriticalPerformanceBlockTillLevelStreamingCompletedEpoch(0)
 	, DataLayersStatesServerEpoch(INT_MIN)
+	, ContentBundleServerEpoch(INT_MIN)
 	, ServerStreamingEnabledEpoch(INT_MIN)
 	, StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
 #if !UE_BUILD_SHIPPING
@@ -261,6 +263,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
 		if (!bIsServerStreamingEnabled && 
 			(ServerStreamingEnabledEpoch == NewServerStreamingEnabledEpoch) &&
+			(ContentBundleServerEpoch == FContentBundle::GetContentBundleEpoch()) &&
 			(DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))
 		{
 			// Server as nothing to do early out
@@ -495,6 +498,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	if (bUpdateEpoch)
 	{
 		DataLayersStatesServerEpoch = AWorldDataLayers::GetDataLayersStateEpoch();
+		ContentBundleServerEpoch = FContentBundle::GetContentBundleEpoch();
 		ServerStreamingEnabledEpoch = NewServerStreamingEnabledEpoch;
 		UE_LOG(LogWorldPartition, Verbose, TEXT("Server epoch updated"));
 	}
