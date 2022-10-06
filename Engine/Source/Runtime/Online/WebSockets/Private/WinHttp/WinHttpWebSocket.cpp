@@ -76,7 +76,7 @@ void FWinHttpWebSocket::Connect()
 
 	// Check Domain allowedlist if enabled
 	bool bDisableDomainAllowlist = false;
-	GConfig->GetBool(TEXT("WinHttpWebSocket"), TEXT("bDisableDomainWhitelist"), bDisableDomainAllowlist, GEngineIni);
+	GConfig->GetBool(TEXT("WinHttpWebSocket"), TEXT("bDisableDomainAllowlist"), bDisableDomainAllowlist, GEngineIni);
 	if (!bDisableDomainAllowlist)
 	{
 		FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
