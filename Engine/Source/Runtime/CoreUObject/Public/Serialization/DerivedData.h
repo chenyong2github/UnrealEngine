@@ -63,6 +63,9 @@ public:
 	uint64 ChunkSize = 0;
 	/** The FIoChunkId. */
 	uint8 ChunkId[12]{};
+
+	/** The flags that modify how this derived data is saved and how it may be loaded. */
+	EDerivedDataFlags Flags = EDerivedDataFlags::None;
 };
 
 /**
@@ -84,6 +87,9 @@ public:
 	/** Constructs a null reference. */
 	FDerivedData() = default;
 
+	/** Constructs a reference from the private representation of a cooked reference. */
+	inline explicit FDerivedData(const DerivedData::Private::FCookedData& CookedData);
+
 	/** Resets the reference to null. */
 	inline void Reset() { *this = FDerivedData(); }
 
@@ -97,7 +103,7 @@ public:
 	inline bool HasData() const { return !IsNull(); }
 
 	/** Returns the flags, which are mainly relevant for staged references. */
-	inline EDerivedDataFlags GetFlags() const { return Flags; }
+	inline EDerivedDataFlags GetFlags() const { return CookedData.Flags; }
 
 	/** Appends the name and description of this reference to the builder. */
 	UE_API friend FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FDerivedData& DerivedData);
@@ -135,13 +141,15 @@ private:
 private:
 	DerivedData::Private::FCookedData CookedData;
 
-	/** The flags that modify how this derived data is saved and how it may be loaded. */
-	EDerivedDataFlags Flags = EDerivedDataFlags::None;
-
 	friend DerivedData::Private::FIoResponse;
 };
 
 inline const FDerivedData FDerivedData::Null;
+
+inline FDerivedData::FDerivedData(const DerivedData::Private::FCookedData& InCookedData)
+	: CookedData(InCookedData)
+{
+}
 
 inline bool FDerivedData::IsNull() const
 {

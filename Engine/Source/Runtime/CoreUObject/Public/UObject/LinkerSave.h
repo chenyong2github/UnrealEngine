@@ -31,7 +31,6 @@ class UObject;
 class UPackage;
 namespace UE { class FDerivedData; }
 namespace UE { class FPackageTrailerBuilder; }
-namespace UE::DerivedData::Private { class FCookedData; }
 struct FLazyObjectPtr;
 struct FUObjectSerializeContext;
 
@@ -250,9 +249,9 @@ public:
 	/**
 	 * Adds the derived data to the package. This is only supported when saving a cooked package.
 	 *
-	 * @return A cooked reference that can be used to load the derived data from the cooked package.
+	 * @return A reference that can be used to load the derived data from the cooked package.
 	 */
-	UE::DerivedData::Private::FCookedData AddDerivedData(const UE::FDerivedData& Data);
+	UE::FDerivedData AddDerivedData(const UE::FDerivedData& Data);
 #endif // WITH_EDITORONLY_DATA
 
 protected:

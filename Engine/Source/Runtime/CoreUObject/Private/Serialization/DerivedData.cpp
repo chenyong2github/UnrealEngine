@@ -25,6 +25,8 @@
 #include "UObject/LinkerSave.h"
 #endif // WITH_EDITORONLY_DATA
 
+static_assert(sizeof(UE::FDerivedData) == 32 + sizeof(void*) * WITH_EDITORONLY_DATA);
+
 namespace UE::DerivedData::Private { class FIoResponseDispatcher; }
 
 namespace UE::DerivedData::Private
@@ -63,8 +65,9 @@ void FCookedData::Serialize(FArchive& Ar)
 {
 	Ar << ChunkOffset;
 	Ar << ChunkSize;
-	Ar.Serialize(ChunkId, sizeof(ChunkId));
 	static_assert(sizeof(ChunkId) == sizeof(FIoChunkId));
+	Ar.Serialize(ChunkId, sizeof(ChunkId));
+	Ar << Flags;
 }
 
 } // UE::DerivedData::Private
@@ -287,19 +290,13 @@ void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		checkf(Ar.IsSaving() && Ar.IsCooking(),
 			TEXT("FEditorData for FDerivedData only supports saving to cooked packages. %s"), *WriteToString<256>(*this));
-
 		FLinkerSave* Linker = Cast<FLinkerSave>(Ar.GetLinker());
 		checkf(Linker, TEXT("Serializing FDerivedData requires a linker. %s"), *WriteToString<256>(*this));
-
-		FCookedData CookedEditorData = Linker->AddDerivedData(*this);
-		CookedEditorData.Serialize(Ar);
-		Ar << Flags;
-		return;
+		return Linker->AddDerivedData(*this).CookedData.Serialize(Ar);
 	}
 #endif
 
 	CookedData.Serialize(Ar);
-	Ar << Flags;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -307,29 +304,29 @@ void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 FDerivedData::FDerivedData(const DerivedData::FSharedString& Name, const FSharedBuffer& Data)
 	: EditorData(MakePimpl<DerivedData::Private::FEditorData, EPimplPtrMode::DeepCopy>(
 		Name, TInPlaceType<DerivedData::Private::FCompositeBufferWithHash>(), Data))
-	, Flags(EDerivedDataFlags::Required)
 {
+	CookedData.Flags = EDerivedDataFlags::Required;
 }
 
 FDerivedData::FDerivedData(const DerivedData::FSharedString& Name, const FCompositeBuffer& Data)
 	: EditorData(MakePimpl<DerivedData::Private::FEditorData, EPimplPtrMode::DeepCopy>(
 		Name, TInPlaceType<DerivedData::Private::FCompositeBufferWithHash>(), Data))
-	, Flags(EDerivedDataFlags::Required)
 {
+	CookedData.Flags = EDerivedDataFlags::Required;
 }
 
 FDerivedData::FDerivedData(const DerivedData::FSharedString& Name, const FCompressedBuffer& Data)
 	: EditorData(MakePimpl<DerivedData::Private::FEditorData, EPimplPtrMode::DeepCopy>(
 		Name, TInPlaceType<FCompressedBuffer>(), Data))
-	, Flags(EDerivedDataFlags::Required)
 {
+	CookedData.Flags = EDerivedDataFlags::Required;
 }
 
 FDerivedData::FDerivedData(const DerivedData::FSharedString& Name, const DerivedData::FCacheKey& Key)
 	: EditorData(MakePimpl<DerivedData::Private::FEditorData, EPimplPtrMode::DeepCopy>(
 		Name, TInPlaceType<DerivedData::Private::FCacheKeyWithId>(), Key, DerivedData::FValueId::Null))
-	, Flags(EDerivedDataFlags::Required)
 {
+	CookedData.Flags = EDerivedDataFlags::Required;
 }
 
 FDerivedData::FDerivedData(
@@ -338,8 +335,8 @@ FDerivedData::FDerivedData(
 	const DerivedData::FValueId& ValueId)
 	: EditorData(MakePimpl<DerivedData::Private::FEditorData, EPimplPtrMode::DeepCopy>(
 		Name, TInPlaceType<DerivedData::Private::FCacheKeyWithId>(), Key, ValueId))
-	, Flags(EDerivedDataFlags::Required)
 {
+	CookedData.Flags = EDerivedDataFlags::Required;
 }
 
 const DerivedData::FSharedString& FDerivedData::GetName() const
@@ -349,7 +346,7 @@ const DerivedData::FSharedString& FDerivedData::GetName() const
 
 void FDerivedData::SetFlags(EDerivedDataFlags InFlags)
 {
-	Flags = InFlags;
+	CookedData.Flags = InFlags;
 }
 
 #endif // WITH_EDITORONLY_DATA

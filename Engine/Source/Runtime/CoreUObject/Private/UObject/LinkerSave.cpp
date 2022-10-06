@@ -535,7 +535,7 @@ void FLinkerSave::SetFilterEditorOnly(bool bInFilterEditorOnly)
 }
 
 #if WITH_EDITORONLY_DATA
-UE::DerivedData::Private::FCookedData FLinkerSave::AddDerivedData(const UE::FDerivedData& Data)
+UE::FDerivedData FLinkerSave::AddDerivedData(const UE::FDerivedData& Data)
 {
 	UE_LOG(LogLinker, Warning, TEXT("Data will not be able to load because derived data is not saved yet."));
 
@@ -551,6 +551,7 @@ UE::DerivedData::Private::FCookedData FLinkerSave::AddDerivedData(const UE::FDer
 	*reinterpret_cast<uint32*>(&CookedData.ChunkId[7]) = NETWORK_ORDER32(ChunkIndex);
 	*reinterpret_cast<uint64*>(&CookedData.ChunkId[0]) = PackageId.Value();
 
-	return CookedData;
+	CookedData.Flags = Data.GetFlags();
+	return UE::FDerivedData(CookedData);
 }
 #endif // WITH_EDITORONLY_DATA
