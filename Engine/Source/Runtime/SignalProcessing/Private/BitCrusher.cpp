@@ -4,6 +4,8 @@
 
 namespace Audio
 {
+	static constexpr float MaxBitDepth = 32.0f;
+
 	FBitCrusher::FBitCrusher()
 		: SampleRate(0)
 		, BitDepth(16.0f)
@@ -34,8 +36,9 @@ namespace Audio
 
 	void FBitCrusher::SetBitDepthCrush(const float InBitDepth)
 	{
-		BitDepth = FMath::Clamp(InBitDepth, 1.0f, 32.0f);
+		BitDepth = FMath::Clamp(InBitDepth, 1.0f, MaxBitDepth);
 		BitDelta = 1.0f / FMath::Pow(2.0f, BitDepth);
+		ReciprocalBitDelta = 1.0f / BitDelta;
 	}
 
 	void FBitCrusher::ProcessAudioFrame(const float* InFrame, float* OutFrame)
@@ -47,7 +50,7 @@ namespace Audio
 
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 			{
-				LastOutput[ChannelIndex] = BitDelta * (float)FMath::FloorToInt(InFrame[ChannelIndex] / BitDelta + 0.5f);
+				LastOutput[ChannelIndex] = BitDelta * FMath::FloorToFloat(InFrame[ChannelIndex] * ReciprocalBitDelta + 0.5f);
 			}
 		}
 
@@ -63,5 +66,10 @@ namespace Audio
 		{
 			ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex]);
 		}
+	}
+
+	float FBitCrusher::GetMaxBitDepth()
+	{
+		return MaxBitDepth;
 	}
 }

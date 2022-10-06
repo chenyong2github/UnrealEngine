@@ -41,11 +41,12 @@ namespace Metasound
 			, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 			, CrushedSampleRate(InCrushedSampleRate)
 			, CrushedBitDepth(InCrushedBitDepth)
+			, MaxSampleRate(InSettings.GetSampleRate())
 		{
 			// Passing in 1 for NumChannels because the node takes one audio input
 			Bitcrusher.Init(InSettings.GetSampleRate(), 1);
-			Bitcrusher.SetSampleRateCrush(*CrushedSampleRate);
-			Bitcrusher.SetBitDepthCrush(*CrushedBitDepth);
+			Bitcrusher.SetSampleRateCrush(FMath::Clamp(*CrushedSampleRate, 1.0f, MaxSampleRate));
+			Bitcrusher.SetBitDepthCrush(FMath::Clamp(*CrushedBitDepth, 1.0f, Bitcrusher.GetMaxBitDepth()));
 		}
 
 		static const FNodeClassMetadata& GetNodeInfo()
@@ -140,14 +141,14 @@ namespace Metasound
 				return;
 			}
 
-			const float CurrSampleRate = FMath::Clamp(*CrushedSampleRate, 1.0f, 16000.0f);
+			const float CurrSampleRate = FMath::Clamp(*CrushedSampleRate, 1.0f, MaxSampleRate);
 			if (!FMath::IsNearlyEqual(PrevSampleRate, CurrSampleRate))
 			{
 				Bitcrusher.SetSampleRateCrush(CurrSampleRate);
 				PrevSampleRate = CurrSampleRate;
 			}
 
-			const float CurrBitDepth = FMath::Clamp(*CrushedBitDepth, 1.0f, 16.0f);
+			const float CurrBitDepth = FMath::Clamp(*CrushedBitDepth, 1.0f, Bitcrusher.GetMaxBitDepth());
 			if (!FMath::IsNearlyEqual(PrevBitDepth, CurrBitDepth))
 			{
 				Bitcrusher.SetBitDepthCrush(CurrBitDepth);
@@ -175,6 +176,7 @@ namespace Metasound
 		// Cached input parameters
 		float PrevSampleRate;
 		float PrevBitDepth;
+		const float MaxSampleRate;
 	
 	};
 

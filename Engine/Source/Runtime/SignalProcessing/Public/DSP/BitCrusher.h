@@ -31,11 +31,15 @@ namespace Audio
 		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
 		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
+		// Returns the maximum value given bit depths will be clamped to.
+		static float GetMaxBitDepth();
+
 	private:
 		// i.e. 8 bit, etc. But can be float!
 		float SampleRate;
 		float BitDepth;
 		float BitDelta;
+		float ReciprocalBitDelta;
 
 		// The current phase of the bit crusher
 		float Phase;
