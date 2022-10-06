@@ -173,7 +173,7 @@ void FCustomizableObjectPopulationClassEditor::InitCustomizableObjectPopulationC
 		if (PopulationClass->CustomizableObject->IsCompiled() && !PopulationClass->CustomizableObjectInstance)
 		{
 			PopulationClass->CustomizableObjectInstance = PopulationClass->CustomizableObject->CreateInstance();
-			PopulationClass->CustomizableObjectInstance->bBuildParameterDecorations = true;
+			PopulationClass->CustomizableObjectInstance->SetBuildParameterDecorations(true);
 			PopulationClass->CustomizableObjectInstance->UpdateSkeletalMeshAsync(true, true);
 
 			bRefreshDetailsView = true;
@@ -310,7 +310,7 @@ void FCustomizableObjectPopulationClassEditor::Tick(float InDeltaTime)
 		if (PopulationClass->CustomizableObject->IsCompiled() && !PopulationClass->CustomizableObjectInstance)
 		{
 			PopulationClass->CustomizableObjectInstance = PopulationClass->CustomizableObject->CreateInstance();
-			PopulationClass->CustomizableObjectInstance->bBuildParameterDecorations = true;
+			PopulationClass->CustomizableObjectInstance->SetBuildParameterDecorations(true);
 			PopulationClass->CustomizableObjectInstance->UpdateSkeletalMeshAsync(true, true);
 
 			bRefreshDetailsView = true;
@@ -834,7 +834,7 @@ void FCustomizableObjectPopulationClassEditor::TestPopulationClass()
 						// Attaching the Customizable Skeletal Component to the Skeletal Mesh Component
 						if (PreviewCustomizableSkeletalComponent && SkeletalMeshComponent && ColliderComponent)
 						{
-							ViewportInstances[i]->bBuildParameterDecorations = true;
+							ViewportInstances[i]->SetBuildParameterDecorations(true);
 							ViewportInstances[i]->UpdateSkeletalMeshAsync(true, true);
 
 							PreviewCustomizableSkeletalComponent->CustomizableObjectInstance = ViewportInstances[i];

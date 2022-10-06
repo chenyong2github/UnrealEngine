@@ -2423,13 +2423,8 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.CustomizableObjectInstance = InCustomizableObjectInstance;
 	Op.InstanceDescriptorHash = GetTypeHash(InCustomizableObjectInstance->GetDescriptor());
 	Op.bStarted = false;
-	Op.bBuildParameterDecorations = InCustomizableObjectInstance->bBuildParameterDecorations;
+	Op.bBuildParameterDecorations = InCustomizableObjectInstance->GetBuildParameterDecorations();
 	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->ReloadParametersFromObject(InCustomizableObjectInstance, false);
-
-	// TODO: Remove once MTBL-973 is done
-#if WITH_EDITOR
-	Op.bBuildParameterDecorations = true;
-#endif
 
 	InCustomizableObjectInstance->GetCustomizableObject()->ApplyStateForcedValuesToParameters(InCustomizableObjectInstance->GetState(), Op.Parameters.get());
 

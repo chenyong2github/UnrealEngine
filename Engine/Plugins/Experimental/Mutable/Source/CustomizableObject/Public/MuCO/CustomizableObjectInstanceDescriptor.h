@@ -31,7 +31,7 @@ struct FCustomizableObjectInstanceDescriptor
 	
 	FCustomizableObjectInstanceDescriptor(UCustomizableObject& Object);
 
-	FCustomizableObjectInstanceDescriptor(const FCustomizableObjectInstanceDescriptor& Other);
+	FCustomizableObjectInstanceDescriptor(const FCustomizableObjectInstanceDescriptor& Other) = default;
 
 	/** Serialize this object. */
 	void SaveDescriptor(FArchive &Ar);
@@ -40,6 +40,10 @@ struct FCustomizableObjectInstanceDescriptor
 	void LoadDescriptor(FArchive &Ar);
 
 	UCustomizableObject* GetCustomizableObject() const;
+
+	bool GetBuildParameterDecorations() const;
+	
+	void SetBuildParameterDecorations(bool Value);
 	
 	// ------------------------------------------------------------
 	// Parameters
@@ -246,6 +250,10 @@ private:
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters;
 
 	int32 State = 0;
+	
+	/** Flag to control the build of the parameter description images required for customization UI.
+     * These descriptions get generated with every instance update, so it should be disabled when not needed. */
+	bool bBuildParameterDecorations = false;
 
 	TMap<FString, int32> IntParametersLookupTable;
 	

@@ -1314,9 +1314,9 @@ void SCustomizableInstanceProperties::Tick(const FGeometry& AllottedGeometry, co
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
 	// We set this every frame, in case other widgets are also modifying this flag
-	if (!CustomInstance->bBuildParameterDecorations)
+	if (!CustomInstance->GetBuildParameterDecorations())
 	{
-		CustomInstance->bBuildParameterDecorations = true;
+		CustomInstance->SetBuildParameterDecorations(true);
 		CustomInstance->UpdateSkeletalMeshAsync(true);
 	}
 

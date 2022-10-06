@@ -120,11 +120,6 @@ public:
 	UPROPERTY(Transient, VisibleAnywhere, Category = CustomizableSkeletalMesh)
 	TArray< TObjectPtr<USkeletalMesh> > SkeletalMeshes;
 
-	// Flag to control the build of the parameter description images required for customization UI
-	// These descriptions get generated with every instance update, so it should be disabled when not needed.
-	UPROPERTY(Transient, BlueprintReadwrite, Category=CustomizableObjectInstance, EditAnywhere)
-	bool bBuildParameterDecorations = false;
-
 	/** Broadcasts when the Customizable Object Instance is updated. */
 	UPROPERTY(Transient, BlueprintAssignable, Category = CustomizableObjectInstance)
 	FObjectInstanceUpdatedDelegate UpdatedDelegate;
@@ -173,6 +168,12 @@ public:
 	//Get the current CustomizableObject 
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	UCustomizableObject* GetCustomizableObject() const;
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	bool GetBuildParameterDecorations() const;
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	void SetBuildParameterDecorations(bool Value);
 
 	int32 GetState() const;
 	void SetState(int32 InState);
@@ -653,6 +654,9 @@ private:
 
 	UPROPERTY()
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters_DEPRECATED;
+	
+	UPROPERTY()
+	bool bBuildParameterDecorations_DEPRECATED;
 };
 
 #if WITH_EDITOR

@@ -470,6 +470,11 @@ void UCustomizableObjectInstance::Serialize(FArchive& Ar)
 		Descriptor.VectorParameters = VectorParameters_DEPRECATED;
 		Descriptor.ProjectorParameters = ProjectorParameters_DEPRECATED;
 	}
+	
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::DescriptorBuildParameterDecorations)
+	{
+		Descriptor.bBuildParameterDecorations = bBuildParameterDecorations_DEPRECATED;
+	}
 }
 
 
@@ -479,10 +484,6 @@ void UCustomizableObjectInstance::PostLoad()
 	UCustomizableObjectSystem::GetInstance(); 
 
 	Super::PostLoad();
-
-	// This property is transient and should be false unless explicitely set to true. In case old
-	// data still has it, reset it here
-	bBuildParameterDecorations = false;
 
 	Descriptor.CreateParametersLookupTable();
 }
@@ -1143,6 +1144,18 @@ void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 UCustomizableObject* UCustomizableObjectInstance::GetCustomizableObject() const
 {
 	return Descriptor.CustomizableObject;
+}
+
+
+bool UCustomizableObjectInstance::GetBuildParameterDecorations() const
+{
+	return Descriptor.GetBuildParameterDecorations();
+}
+
+
+void UCustomizableObjectInstance::SetBuildParameterDecorations(const bool Value)
+{
+	Descriptor.SetBuildParameterDecorations(Value);
 }
 
 

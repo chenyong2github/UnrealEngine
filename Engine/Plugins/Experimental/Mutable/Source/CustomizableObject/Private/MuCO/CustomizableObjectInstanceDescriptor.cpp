@@ -49,20 +49,6 @@ FCustomizableObjectInstanceDescriptor::FCustomizableObjectInstanceDescriptor(UCu
 }
 
 
-FCustomizableObjectInstanceDescriptor::FCustomizableObjectInstanceDescriptor(const FCustomizableObjectInstanceDescriptor& Other)
-	: FCustomizableObjectInstanceDescriptor(*Other.CustomizableObject)
-{
-	BoolParameters = Other.BoolParameters;
-	IntParameters =	Other.IntParameters;
-	IntParametersLookupTable = Other.IntParametersLookupTable;
-	FloatParameters = Other.FloatParameters;
-	TextureParameters =	Other.TextureParameters;
-	VectorParameters = Other.VectorParameters;
-	ProjectorParameters = Other.ProjectorParameters;
-	State = Other.State;
-}
-
-
 void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar)
 {
 	check(CustomizableObject);
@@ -446,6 +432,18 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 UCustomizableObject* FCustomizableObjectInstanceDescriptor::GetCustomizableObject() const
 {
 	return CustomizableObject;
+}
+
+
+bool FCustomizableObjectInstanceDescriptor::GetBuildParameterDecorations() const
+{
+	return bBuildParameterDecorations;
+}
+
+
+void FCustomizableObjectInstanceDescriptor::SetBuildParameterDecorations(const bool Value)
+{
+	bBuildParameterDecorations = Value;
 }
 
 
@@ -1449,6 +1447,8 @@ uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key)
 	}
 	
 	Hash = HashCombine(Hash, GetTypeHash(Key.State));
+
+	Hash = HashCombine(Hash, GetTypeHash(Key.bBuildParameterDecorations));
 
 	return Hash;
 }
