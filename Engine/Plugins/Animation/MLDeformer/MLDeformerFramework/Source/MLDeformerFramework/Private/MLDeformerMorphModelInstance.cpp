@@ -18,7 +18,7 @@ void UMLDeformerMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshCompone
 void UMLDeformerMorphModelInstance::Release()
 {
 	// Try to unregister the morph target and morph target set.
-	if (!SkeletalMeshComponent.IsNull())
+	if (SkeletalMeshComponent)
 	{
 		const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
 		if (MorphModel)
@@ -92,7 +92,7 @@ void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()
 FExternalMorphSetWeights* UMLDeformerMorphModelInstance::FindWeightData(int32 LOD) const
 {
 	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
-	if (MorphModel == nullptr || SkeletalMeshComponent.IsNull())
+	if (MorphModel == nullptr || !SkeletalMeshComponent)
 	{
 		return nullptr;
 	}

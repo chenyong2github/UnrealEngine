@@ -235,7 +235,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	TimePassed = 0.0;
 	AnimationObject = InAnimationObject;
 
-	if (AnimationObject->BoneCompressionSettings.IsNull())
+	if (!AnimationObject->BoneCompressionSettings)
 	{
 		AnimationObject->BoneCompressionSettings = FAnimationUtils::GetDefaultAnimationRecorderBoneCompressionSettings();
 	}

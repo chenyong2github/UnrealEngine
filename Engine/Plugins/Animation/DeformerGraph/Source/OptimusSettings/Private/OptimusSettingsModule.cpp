@@ -66,11 +66,11 @@ TObjectPtr<UMeshDeformer> FOptimusSettingsModule::GetDefaultMeshDeformer(FDefaul
 		(Settings->DefaultMode == EOptimusDefaultDeformerMode::Always ||
 		(Settings->DefaultMode == EOptimusDefaultDeformerMode::SkinCacheOnly && Setup.bIsUsingSkinCache)))
 	{
-		if (Setup.bIsRequestingRecomputeTangent && !DefaultRecomputeTangentDeformer.IsNull())
+		if (Setup.bIsRequestingRecomputeTangent && DefaultRecomputeTangentDeformer)
 		{
 			return DefaultRecomputeTangentDeformer;
 		}
-		if (!DefaultDeformer.IsNull())
+		if (DefaultDeformer)
 		{ 
 			return DefaultDeformer;
 		}

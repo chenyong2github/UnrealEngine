@@ -172,7 +172,7 @@ namespace UE::NearestNeighborModel
 			const TObjectPtr<UAnimSequence> AnimSequence = NearestNeighborModel->GetNearestNeighborSkeletons(PartId);
 			const TObjectPtr<UGeometryCache> GeometryCache = NearestNeighborModel->GetNearestNeighborCache(PartId);
 
-			if (!SkeletalMeshComponent.IsNull() && !GeometryCacheComponent.IsNull() && !AnimSequence.IsNull() && !GeometryCache.IsNull())
+			if (SkeletalMeshComponent && GeometryCacheComponent && AnimSequence && GeometryCache)
 			{
 				const int32 NumFrames = GeometryCache->GetEndFrame() - GeometryCache->GetStartFrame() + 1;
 				if (AnimSequence->GetDataModel()->GetNumberOfKeys() == NumFrames)
@@ -233,7 +233,7 @@ namespace UE::NearestNeighborModel
 			TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = GeomCacheSampler->GetSkeletalMeshComponent();
 			const TObjectPtr<UAnimSequence> AnimSequence = NearestNeighborModel->GetAnimSequence();
 
-			if (!SkeletalMeshComponent.IsNull() && !AnimSequence.IsNull())
+			if (SkeletalMeshComponent && AnimSequence)
 			{
 				SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 				SkeletalMeshComponent->SetAnimation(AnimSequence);
@@ -304,7 +304,7 @@ namespace UE::NearestNeighborModel
 			TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = GeomCacheSampler->GetSkeletalMeshComponent();
 			TObjectPtr<UGeometryCacheComponent> GeometryCacheComponent = GeomCacheSampler->GetGeometryCacheComponent();
 
-			if(!SkeletalMeshComponent.IsNull() && !GeometryCacheComponent.IsNull())
+			if(SkeletalMeshComponent && GeometryCacheComponent)
 			{
 				UNearestNeighborTrainingModel *TrainingModel = InitTrainingModel<UNearestNeighborTrainingModel>(this);
 				check(TrainingModel != nullptr);

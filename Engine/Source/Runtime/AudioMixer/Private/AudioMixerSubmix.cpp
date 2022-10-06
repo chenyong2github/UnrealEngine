@@ -294,7 +294,7 @@ namespace Audio
 					check(LinkFactory->GetSettingsClass());
 					check(LinkFactory->GetSettingsClass()->GetDefaultObject());
 
-					const UAudioLinkSettingsAbstract* Settings = SoundSubmix->AudioLinkSettings.IsNull() ?
+					const UAudioLinkSettingsAbstract* Settings = !SoundSubmix->AudioLinkSettings ?
 						GetDefault<UAudioLinkSettingsAbstract>(LinkFactory->GetSettingsClass()) : SoundSubmix->AudioLinkSettings.Get();
 
 					AudioLinkInstance = LinkFactory->CreateSubmixAudioLink({ SoundSubmix, MixerDevice, Settings });

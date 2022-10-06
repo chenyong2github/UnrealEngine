@@ -140,7 +140,7 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborGeomCacheSampler::SampleKMeansAnim(const int32 SkeletonId)
 	{
 		UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
-		if (NearestNeighborModel && SkeletonId < NearestNeighborModel->SourceSkeletons.Num() && !SkeletalMeshComponent.IsNull())
+		if (NearestNeighborModel && SkeletonId < NearestNeighborModel->SourceSkeletons.Num() && SkeletalMeshComponent)
 		{
 			const TObjectPtr<UAnimSequence> AnimSequence = NearestNeighborModel->SourceSkeletons[SkeletonId];
 			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);

@@ -202,7 +202,7 @@ const TObjectPtr<UGeometryCache> UNearestNeighborModel::GetNearestNeighborCache(
 int32 UNearestNeighborModel::GetNumNeighborsFromGeometryCache(int32 PartId) const
 {
 	const TObjectPtr<UGeometryCache> Cache = GetNearestNeighborCache(PartId);
-	if (!Cache.IsNull())
+	if (Cache)
 	{
 		const int32 StartFrame = Cache->GetStartFrame();
 		const int32 EndFrame = Cache->GetEndFrame();

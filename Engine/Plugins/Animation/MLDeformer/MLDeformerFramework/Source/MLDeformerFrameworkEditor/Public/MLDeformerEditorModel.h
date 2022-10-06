@@ -86,7 +86,7 @@ namespace UE::MLDeformer
 
 			// Update to the new asset, and mark it as editor only if it isn't yet.
 			Asset = InAsset;
-			if (!Asset.IsNull())
+			if (Asset)
 			{
 				UPackage* Package = Asset->GetPackage();
 				bEditorOnly = static_cast<bool>(Package->GetPackageFlags() & PKG_EditorOnly);
