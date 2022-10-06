@@ -47,6 +47,8 @@ IMPLEMENT_MODULE(FInterchangeImportModule, InterchangeImport)
 
 void FInterchangeImportModule::StartupModule()
 {
+	FInterchangeImportMaterialAsyncHelper& InterchangeMaterialAsyncHelper = FInterchangeImportMaterialAsyncHelper::GetInstance();
+
 	auto RegisterItems = []()
 	{
 		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
@@ -99,7 +101,8 @@ void FInterchangeImportModule::StartupModule()
 
 void FInterchangeImportModule::ShutdownModule()
 {
-
+	FInterchangeImportMaterialAsyncHelper& InterchangeMaterialAsyncHelper = FInterchangeImportMaterialAsyncHelper::GetInstance();
+	InterchangeMaterialAsyncHelper.CleanUp();
 }
 
 

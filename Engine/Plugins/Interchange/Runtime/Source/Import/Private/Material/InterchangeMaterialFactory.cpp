@@ -19,7 +19,6 @@
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
-#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -116,6 +115,7 @@ namespace UE
 
 				void SetupFunctionCallExpression(const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode& ExpressionNode, UMaterialExpressionMaterialFunctionCall* FunctionCallExpression)
 				{
+					FInterchangeImportMaterialAsyncHelper& AsyncHelper = FInterchangeImportMaterialAsyncHelper::GetInstance();
 					if (const UInterchangeMaterialFunctionCallExpressionFactoryNode* FunctionCallFactoryNode = Cast<UInterchangeMaterialFunctionCallExpressionFactoryNode>(&ExpressionNode))
 					{
 						FString MaterialFactoryNodeUid;
@@ -127,13 +127,13 @@ namespace UE
 							MaterialFactoryNode->GetCustomReferenceObject(ReferenceObject);
 							if (UMaterialFunctionInterface* MaterialFunction = Cast<UMaterialFunctionInterface>(ReferenceObject.TryLoad()))
 							{
-								MaterialFunction->UpdateFromFunctionResource();
+								AsyncHelper.UpdateFromFunctionResource(MaterialFunction);
 								FunctionCallExpression->SetMaterialFunction(MaterialFunction);
 							}
 						}
 					}
 
-					FunctionCallExpression->UpdateFromFunctionResource();
+					AsyncHelper.UpdateFromFunctionResource(FunctionCallExpression);
 				}
 
 				void SetupTextureExpression(const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode* ExpressionNode, UMaterialExpressionTextureBase* TextureExpression)
@@ -1275,6 +1275,38 @@ void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* Mater
 	UMaterialEditingLibrary::LayoutMaterialFunctionExpressions(MaterialFunction);
 
 	MaterialFunction->UpdateDependentFunctionCandidates();
+}
+
+FInterchangeImportMaterialAsyncHelper& FInterchangeImportMaterialAsyncHelper::GetInstance()
+{
+	static FInterchangeImportMaterialAsyncHelper Instance;
+	return Instance;
+}
+
+void FInterchangeImportMaterialAsyncHelper::CleanUp()
+{
+	UpdatedMaterialFunctionCalls.Empty();
+	UpdatedMaterialFunctions.Empty();
+}
+
+void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall)
+{
+	FScopeLock Lock(&UpdatedMaterialFunctionCallsLock);
+	if(UpdatedMaterialFunctionCalls.Find(MaterialFunctionCall) == nullptr)
+	{
+		UpdatedMaterialFunctionCalls.Add(MaterialFunctionCall);
+		MaterialFunctionCall->UpdateFromFunctionResource();
+	}
+}
+
+void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterialFunctionInterface* MaterialFunction)
+{
+	FScopeLock Lock(&UpdatedMaterialFunctionsLock);
+	if(UpdatedMaterialFunctions.Find(MaterialFunction) == nullptr)
+	{
+		UpdatedMaterialFunctions.Add(MaterialFunction);
+		MaterialFunction->UpdateFromFunctionResource();
+	}
 }
 
 #endif // #if WITH_EDITOR

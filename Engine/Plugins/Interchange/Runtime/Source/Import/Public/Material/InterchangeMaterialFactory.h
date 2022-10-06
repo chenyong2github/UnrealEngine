@@ -6,6 +6,7 @@
 #include "InterchangeFactoryBase.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "Materials/MaterialFunction.h"
 
 #include "InterchangeMaterialFactory.generated.h"
 
@@ -64,4 +65,33 @@ private:
 #endif
 };
 
+/**
+ * This class intends to avoid a race condition when importing 
+ * several material functions at once, for example when importing the MaterialX file standard_surface_chess_set
+ * Only one instance of a material function can update it
+ */
+class FInterchangeImportMaterialAsyncHelper
+{
+	FInterchangeImportMaterialAsyncHelper() = default;
 
+public:
+
+	FInterchangeImportMaterialAsyncHelper(const FInterchangeImportMaterialAsyncHelper&) = delete;
+	FInterchangeImportMaterialAsyncHelper& operator=(const FInterchangeImportMaterialAsyncHelper&) = delete;
+
+	static FInterchangeImportMaterialAsyncHelper& GetInstance();
+
+	void CleanUp();
+
+	void UpdateFromFunctionResource(UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall);
+
+	void UpdateFromFunctionResource(UMaterialFunctionInterface* MaterialFunction);
+
+private:
+
+	FCriticalSection UpdatedMaterialFunctionCallsLock;
+	TSet<UMaterialExpressionMaterialFunctionCall*> UpdatedMaterialFunctionCalls;
+
+	FCriticalSection UpdatedMaterialFunctionsLock;
+	TSet<UMaterialFunctionInterface*> UpdatedMaterialFunctions;
+};
