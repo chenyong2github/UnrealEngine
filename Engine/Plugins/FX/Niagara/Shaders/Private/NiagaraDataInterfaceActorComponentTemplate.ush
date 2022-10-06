@@ -4,6 +4,7 @@ uint			{ParameterName}_Valid;
 float4x4		{ParameterName}_Matrix;
 float4			{ParameterName}_Rotation;
 float3			{ParameterName}_Scale;
+float3			{ParameterName}_Velocity;
 
 void GetMatrix_{ParameterName}(out bool bOutValid, out float4x4 OutMatrix)
 {
@@ -18,3 +19,10 @@ void GetTransform_{ParameterName}(out bool bOutValid, out float3 OutPosition, ou
 	OutRotation = {ParameterName}_Rotation;
 	OutScale = {ParameterName}_Scale;
 }
+
+void GetVelocity_{ParameterName}(out bool bOutValid, out float3 OutVelocity)
+{
+	bOutValid = {ParameterName}_Valid != 0;
+	OutVelocity = {ParameterName}_Velocity;
+}
+

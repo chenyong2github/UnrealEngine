@@ -76,4 +76,5 @@ public:
 private:
 	void VMGetMatrix(FVectorVMExternalFunctionContext& Context);
 	void VMGetTransform(FVectorVMExternalFunctionContext& Context);
+	void VMGetPhysicsVelocity(FVectorVMExternalFunctionContext& Context);
 };
