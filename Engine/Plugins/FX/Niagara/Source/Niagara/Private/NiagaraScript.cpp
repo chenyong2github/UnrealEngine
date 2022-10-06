@@ -613,6 +613,9 @@ void UNiagaraScript::CheckVersionDataAvailable()
 	Data.DeprecationRecommendation = DeprecationRecommendation_DEPRECATED;
 	Data.NumericOutputTypeSelectionMode = NumericOutputTypeSelectionMode_DEPRECATED;
 
+	// create a stable initial version guid for our versioned data based on the UNiagaraScript
+	Data.Version.VersionGuid = FNiagaraAssetVersion::CreateStableVersionGuid(this);
+
 	ExposedVersion = Data.Version.VersionGuid;
 }
 

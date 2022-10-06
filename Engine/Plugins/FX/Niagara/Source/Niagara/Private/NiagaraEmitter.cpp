@@ -2592,6 +2592,9 @@ void UNiagaraEmitter::CheckVersionDataAvailable()
 		Data.VersionedParentAtLastMerge.Emitter = ParentAtLastMerge_DEPRECATED;
 	}
 
+	// create a stable initial version guid for our versioned data based on the UNiagaraEmitter
+	Data.Version.VersionGuid = FNiagaraAssetVersion::CreateStableVersionGuid(this);
+
 	ExposedVersion = Data.Version.VersionGuid;
 
 	for (UNiagaraRendererProperties* Renderer : Data.RendererProperties)

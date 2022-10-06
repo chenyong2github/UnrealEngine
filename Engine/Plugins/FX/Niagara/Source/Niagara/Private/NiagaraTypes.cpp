@@ -101,6 +101,27 @@ bool FVersionedNiagaraEmitterWeakPtr::IsValid() const
 	return GetEmitterData() != nullptr;
 }
 
+FGuid FNiagaraAssetVersion::CreateStableVersionGuid(UObject* Object)
+{
+	if (Object)
+	{
+		uint32 HashBuffer[]{ 0, 0, 0, 0 };
+
+		{
+			TStringBuilder<256> ObjectPathString;
+			Object->GetPathName(nullptr, ObjectPathString);
+
+			FMD5 ObjectPathHash;
+			ObjectPathHash.Update(reinterpret_cast<uint8*>(GetData(ObjectPathString)), ObjectPathString.Len() * sizeof(TCHAR));
+			ObjectPathHash.Final(reinterpret_cast<uint8*>(&HashBuffer));
+		}
+
+		return FGuid(HashBuffer[0], HashBuffer[1], HashBuffer[2], HashBuffer[3]);
+	}
+
+	return FGuid();
+}
+
 FNiagaraLWCConverter::FNiagaraLWCConverter(FVector InSystemWorldPos)
 {
 	SystemWorldPos = InSystemWorldPos;

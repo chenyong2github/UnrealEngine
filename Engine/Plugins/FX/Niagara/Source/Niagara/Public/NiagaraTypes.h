@@ -201,6 +201,8 @@ struct NIAGARA_API FNiagaraAssetVersion
 	bool operator!=(const FNiagaraAssetVersion& Other) const { return !(*this == Other); }
 	bool operator<(const FNiagaraAssetVersion& Other) const { return MajorVersion < Other.MajorVersion || (MajorVersion == Other.MajorVersion && MinorVersion < Other.MinorVersion); }
 	bool operator<=(const FNiagaraAssetVersion& Other) const { return *this < Other || (MajorVersion == Other.MajorVersion && MinorVersion == Other.MinorVersion); }
+
+	static FGuid CreateStableVersionGuid(UObject* Object);
 };
 
 struct NIAGARA_API FNiagaraLWCConverter
