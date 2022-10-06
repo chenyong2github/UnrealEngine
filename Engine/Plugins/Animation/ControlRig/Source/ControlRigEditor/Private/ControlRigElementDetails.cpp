@@ -2768,7 +2768,7 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 		}));
 	}
 	
-	if(!IsAnyControlNotOfAnimationType(ERigControlAnimationType::ProxyControl))
+	if(IsAnyControlOfAnimationType(ERigControlAnimationType::ProxyControl) || IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationControl))
 	{
 		ControlCategory.AddProperty(SettingsHandle->GetChildHandle(TEXT("DrivenControls")).ToSharedRef())
 		.IsEnabled(bIsEnabled);

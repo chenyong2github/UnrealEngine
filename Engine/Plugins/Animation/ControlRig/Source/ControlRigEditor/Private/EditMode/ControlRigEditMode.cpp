@@ -3554,7 +3554,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 							{
 								ControlProxy->SelectProxy(ControlRig,Key.Name, bSelected);
 
-								if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+								if(ControlElement->CanDriveControls())
 								{
 									const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
@@ -4494,7 +4494,7 @@ void FControlRigEditMode::NotifyDrivenControls(UControlRig* InControlRig, const 
 	// if we are changing a proxy control - we also need to notify the change for the driven controls
 	if (FRigControlElement* ControlElement = InControlRig->GetHierarchy()->Find<FRigControlElement>(InKey))
 	{
-		if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+		if(ControlElement->CanDriveControls())
 		{
 			FRigControlModifiedContext Context;
 			Context.EventName = FRigUnit_BeginExecution::EventName;

@@ -182,7 +182,7 @@ public:
 					}
 					if (const FRigControlElement* ControlElement = Cast<FRigControlElement>(SelectedControl))
 					{
-						if (ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+						if (ControlElement->CanDriveControls())
 						{
 							const TArray<FRigElementKey>& DrivenControls = ControlElement->Settings.DrivenControls;
 							for (const FRigElementKey& DrivenKey : DrivenControls)
