@@ -896,7 +896,14 @@ void UUVEditorMode::InitializeAssetEditorContexts(UContextObjectStore& ContextSt
 				GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut);
 			},
 			[LivePreviewViewportClientPtr = &LivePreviewViewportClient](const FAxisAlignedBox3d& BoundingBox) {
-				LivePreviewViewportClientPtr->FocusViewportOnBox((FBox)BoundingBox, true);
+				// We check for the Viewport here because it might not be open at the time this
+				// method is called, e.g. during startup with an initially closed tab. And since
+				// the FocusViewportOnBox method doesn't check internally that the Viewport is
+				// available, this can crash.
+				if (LivePreviewViewportClientPtr && LivePreviewViewportClientPtr->Viewport)
+				{
+					LivePreviewViewportClientPtr->FocusViewportOnBox((FBox)BoundingBox, true);
+				}
 			}
 			);
 		ContextStore.AddContextObject(LivePreviewAPI);

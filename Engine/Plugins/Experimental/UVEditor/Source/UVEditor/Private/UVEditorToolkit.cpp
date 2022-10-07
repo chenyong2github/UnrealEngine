@@ -457,6 +457,16 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		TabManager->TryInvokeTab(ViewportTabID);
 	}
 
+    // Note: We don't have to force the live viewport to be open, but if we don't, we need to
+	// make sure that any future live preview api functionality does not crash when the viewport
+	// is missing, because some viewport client functions are not robust to that case.For now,
+	// we'll just force it open because it is safer and seems to be more convenient for the user,
+	// since reopening the window can be unintuitive, whereas closing it is easy.
+	if (!TabManager->FindExistingLiveTab(LivePreviewTabID))
+	{
+		TabManager->TryInvokeTab(LivePreviewTabID);
+	}
+
 	// Add the "Apply Changes" button. It should actually be safe to do this almost
 	// any time, even before that toolbar's registration, but it's easier to put most
 	// things into PostInitAssetEditor().
