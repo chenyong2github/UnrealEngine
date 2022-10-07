@@ -490,7 +490,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildLegacyActions(TMap<FString, FInterac
 	{
 		// XR Keys are never blueprint-bindable
 		// 2D Axis keys are supported through paired keys
-		if (Key.IsBindableInBlueprints() || (Key.IsAnalog() && !Key.IsAxis1D()))
+		if (Key.IsDeprecated() || Key.IsBindableInBlueprints() || (Key.IsAnalog() && !Key.IsAxis1D()))
 		{
 			continue;
 		}
@@ -663,12 +663,6 @@ bool FOpenXRInputPlugin::FOpenXRInput::SuggestBindingForKey(TMap<FString, FInter
 	else if (Component == "click")
 	{
 		if (Tokens[0] == "ValveIndex" && (Identifier == "trackpad" || Identifier == "squeeze"))
-		{
-			return false;
-		}
-
-		// The OpenXR spec says that .../input/system/click might not be available for application usage
-		if (Identifier == "system")
 		{
 			return false;
 		}

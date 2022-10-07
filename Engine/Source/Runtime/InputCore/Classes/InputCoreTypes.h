@@ -503,6 +503,7 @@ struct INPUTCORE_API EKeys
 	static const FKey Android_Menu;
 
 	// HTC Vive Controller
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey Vive_Left_System_Click;
 	static const FKey Vive_Left_Grip_Click;
 	static const FKey Vive_Left_Menu_Click;
@@ -517,6 +518,7 @@ struct INPUTCORE_API EKeys
 	static const FKey Vive_Left_Trackpad_Down;
 	static const FKey Vive_Left_Trackpad_Left;
 	static const FKey Vive_Left_Trackpad_Right;
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey Vive_Right_System_Click;
 	static const FKey Vive_Right_Grip_Click;
 	static const FKey Vive_Right_Menu_Click;
@@ -600,6 +602,7 @@ struct INPUTCORE_API EKeys
 	static const FKey OculusTouch_Right_B_Click;
 	static const FKey OculusTouch_Right_A_Touch;
 	static const FKey OculusTouch_Right_B_Touch;
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey OculusTouch_Right_System_Click;
 	static const FKey OculusTouch_Right_Grip_Click;
 	static const FKey OculusTouch_Right_Grip_Axis;
@@ -621,7 +624,9 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Left_B_Click;
 	static const FKey ValveIndex_Left_A_Touch;
 	static const FKey ValveIndex_Left_B_Touch;
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey ValveIndex_Left_System_Click;
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey ValveIndex_Left_System_Touch;
 	static const FKey ValveIndex_Left_Grip_Axis;
 	static const FKey ValveIndex_Left_Grip_Force;
@@ -650,7 +655,9 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Right_B_Click;
 	static const FKey ValveIndex_Right_A_Touch;
 	static const FKey ValveIndex_Right_B_Touch;
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey ValveIndex_Right_System_Click;
+	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
 	static const FKey ValveIndex_Right_System_Touch;
 	static const FKey ValveIndex_Right_Grip_Axis;
 	static const FKey ValveIndex_Right_Grip_Force;
