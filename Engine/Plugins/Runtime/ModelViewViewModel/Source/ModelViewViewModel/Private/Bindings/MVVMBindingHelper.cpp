@@ -6,6 +6,8 @@
 #include "UObject/PropertyAccessUtil.h"
 #include "UObject/UnrealType.h"
 
+#define LOCTEXT_NAMESPACE "MVVMBindingHelper"
+
 #ifndef UE_MVVM_ALLOW_AUTO_INTEGRAL_CONVERSION
 #define UE_MVVM_ALLOW_AUTO_INTEGRAL_CONVERSION 1
 #endif
@@ -185,80 +187,80 @@ namespace UE::MVVM::BindingHelper
 
 	namespace Private
 	{
-		FString TryGetPropertyTypeCommon(const FProperty* InProperty)
+		FText TryGetPropertyTypeCommon(const FProperty* InProperty)
 		{
 			if (InProperty == nullptr)
 			{
-				return TEXT("The property is invalid.");
+				return LOCTEXT("PropertyInvalid", "The property is invalid.");
 			}
 			
 			if (InProperty->ArrayDim != 1)
 			{
-				return FString::Printf(TEXT("The property '%s' is a static array."), *InProperty->GetName());
+				return FText::Format(LOCTEXT("PropertyStaticArray", "The property '{0}' is a static array."), FText::FromString(InProperty->GetName()));
 			}
 
 			if (InProperty->HasAnyPropertyFlags(CPF_Deprecated))
 			{
-				return FString::Printf(TEXT("The property '%s' is depreated."), *InProperty->GetName());
+				return FText::Format(LOCTEXT("PropertyDeprecated", "The property '{0}' is depreated."), FText::FromString(InProperty->GetName()));
 			}
 
 			if (InProperty->HasAnyPropertyFlags(CPF_EditorOnly))
 			{
-				return FString::Printf(TEXT("The property '%s' is only available in the editor."), *InProperty->GetName());
+				return FText::Format(LOCTEXT("PropertyEditorOnly", "The property '{0}' is only available in the editor."), FText::FromString(InProperty->GetName()));
 			}
 			
 			if (!InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
 			{
-				return FString::Printf(TEXT("The property '%s' is not visible to the Blueprint script."), *InProperty->GetName());
+				return FText::Format(LOCTEXT("PropertyNotBlueprintVisible", "The property '{0}' is not visible to the Blueprint script."), FText::FromString(InProperty->GetName()));
 			}
 
-			return FString();
+			return FText();
 		}
 
-		FString TryGetPropertyTypeCommon(const UFunction* InFunction)
+		FText TryGetPropertyTypeCommon(const UFunction* InFunction)
 		{
 			if (InFunction == nullptr)
 			{
-				return (TEXT("The function is invalid."));
+				return LOCTEXT("FunctionInvalid", "The function is invalid.");
 			}
 
 			if (!InFunction->HasAllFunctionFlags(FUNC_BlueprintCallable))
 			{
-				return (FString::Printf(TEXT("The function '%s' is not BlueprintCallable."), *InFunction->GetName()));
+				return FText::Format(LOCTEXT("FunctionNotBlueprintCallable", "The function '{0}' is not BlueprintCallable."), FText::FromString(InFunction->GetName()));
 			}
 
 			if (InFunction->HasAllFunctionFlags(FUNC_Net))
 			{
-				return (FString::Printf(TEXT("The function '%s' is networked."), *InFunction->GetName()));
+				return FText::Format(LOCTEXT("FunctionNetworked", "The function '{0}' is networked."), FText::FromString(InFunction->GetName()));
 			}
 
 			if (InFunction->HasAllFunctionFlags(FUNC_Event))
 			{
 
-				return (FString::Printf(TEXT("The function '%s' is an event."), *InFunction->GetName()));
+				return FText::Format(LOCTEXT("FunctionEvent", "The function '{0}' is an event."), FText::FromString(InFunction->GetName()));
 			}
 
 			if (InFunction->HasAllFunctionFlags(FUNC_EditorOnly))
 			{
-				return (FString::Printf(TEXT("The function '%s' is editor only"), *InFunction->GetName()));
+				return FText::Format(LOCTEXT("FunctionEditorOnly", "The function '{0}' is editor only"), FText::FromString(InFunction->GetName()));
 			}
 
 #if WITH_EDITOR
 			{
 				if (InFunction->HasMetaData(NAME_DeprecatedFunction))
 				{
-					return (FString::Printf(TEXT("The function '%s' is deprecated"), *InFunction->GetName()));
+					return FText::Format(LOCTEXT("FunctionDeprecated", "The function '{0}' is deprecated"), FText::FromString(InFunction->GetName()));
 				}
 			}
 #endif
 
-			return FString();
+			return FText();
 		}
 	} // namespace
 
-	TValueOrError<const FProperty*, FString> TryGetPropertyTypeForSourceBinding(const FProperty* Property)
+	TValueOrError<const FProperty*, FText> TryGetPropertyTypeForSourceBinding(const FProperty* Property)
 	{
-		FString Result = Private::TryGetPropertyTypeCommon(Property);
+		FText Result = Private::TryGetPropertyTypeCommon(Property);
 		if (!Result.IsEmpty())
 		{
 			return MakeError(MoveTemp(Result));
@@ -267,9 +269,9 @@ namespace UE::MVVM::BindingHelper
 		return MakeValue(Property);
 	}
 
-	TValueOrError<const FProperty*, FString> TryGetPropertyTypeForSourceBinding(const UFunction* Function)
+	TValueOrError<const FProperty*, FText> TryGetPropertyTypeForSourceBinding(const UFunction* Function)
 	{
-		FString Result = Private::TryGetPropertyTypeCommon(Function);
+		FText Result = Private::TryGetPropertyTypeCommon(Function);
 		if (!Result.IsEmpty())
 		{
 			return MakeError(MoveTemp(Result));
@@ -277,33 +279,33 @@ namespace UE::MVVM::BindingHelper
 
 		if (!Function->HasAllFunctionFlags(FUNC_Const))
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' is not const."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionNotConst", "The function '{0}' is not const."), FText::FromString(Function->GetName())));
 		}
 
 		//if (!InFunction->HasAllFunctionFlags(FUNC_BlueprintPure))
 		//{
-		//	return MakeError(FString::Printf(TEXT("The function '%s' is not pure."), *InFunction->GetName()));
+		//	return MakeError(FText::Format(LOCTEXT("FunctionNotPure", "The function '{0}' is not pure."), FText::FromString(Function->GetName()));
 		//}
 
 		if (Function->NumParms != 1)
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' doesn't have a return value."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionWithoutReturn", "The function '{0}' doesn't have a return value."), FText::FromString(Function->GetName())));
 		}
 
 		const FProperty* ReturnProperty = GetReturnProperty(Function);
 		if (ReturnProperty == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The return value for function '%s' is invalid."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionReturnInvalid", "The return value for function '{0}' is invalid."), FText::FromString(Function->GetName())));
 		}
 
 		return MakeValue(ReturnProperty);
 	}
 
-	TValueOrError<const FProperty*, FString> TryGetPropertyTypeForSourceBinding(const FMVVMConstFieldVariant& InField)
+	TValueOrError<const FProperty*, FText> TryGetPropertyTypeForSourceBinding(const FMVVMConstFieldVariant& InField)
 	{
 		if (InField.IsEmpty())
 		{
-			return MakeError(TEXT("No source was provided for the binding."));
+			return MakeError(LOCTEXT("NoSourceForBinding", "No source was provided for the binding."));
 		}
 
 		if (InField.IsProperty())
@@ -317,9 +319,9 @@ namespace UE::MVVM::BindingHelper
 		}
 	}
 
-	TValueOrError<const FProperty*, FString> TryGetPropertyTypeForDestinationBinding(const FProperty* Property)
+	TValueOrError<const FProperty*, FText> TryGetPropertyTypeForDestinationBinding(const FProperty* Property)
 	{
-		FString Result = Private::TryGetPropertyTypeCommon(Property);
+		FText Result = Private::TryGetPropertyTypeCommon(Property);
 		if (!Result.IsEmpty())
 		{
 			return MakeError(MoveTemp(Result));
@@ -327,15 +329,15 @@ namespace UE::MVVM::BindingHelper
 
 		if (Property->HasAnyPropertyFlags(CPF_BlueprintReadOnly))
 		{
-			return MakeError(FString::Printf(TEXT("The property '%s' is read only."), *Property->GetName()));
+			return MakeError(FText::Format(LOCTEXT("PropertyReadOnly", "The property '{0}' is read only."), FText::FromString(Property->GetName())));
 		}
 
 		return MakeValue(Property);
 	}
 
-	TValueOrError<const FProperty*, FString> TryGetPropertyTypeForDestinationBinding(const UFunction* Function)
+	TValueOrError<const FProperty*, FText> TryGetPropertyTypeForDestinationBinding(const UFunction* Function)
 	{
-		FString Result = Private::TryGetPropertyTypeCommon(Function);
+		FText Result = Private::TryGetPropertyTypeCommon(Function);
 		if (!Result.IsEmpty())
 		{
 			return MakeError(MoveTemp(Result));
@@ -343,39 +345,39 @@ namespace UE::MVVM::BindingHelper
 
 		if (Function->NumParms != 1)
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' has more than one argument."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionTooManyArguments", "The function '{0}' has more than one argument."), FText::FromString(Function->GetName())));
 		}
 
 		if (Function->HasAllFunctionFlags(FUNC_Const))
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' is const."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionConst", "The function '{0}' is const."), FText::FromString(Function->GetName())));
 		}
 
 		if (Function->HasAllFunctionFlags(FUNC_BlueprintPure))
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' is pure."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionPure", "The function '{0}' is pure."), FText::FromString(Function->GetName())));
 		}
 
 		const FProperty* ReturnProperty = GetReturnProperty(Function);
 		if (ReturnProperty != nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' has a return value."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionHasReturn", "The function '{0}' has a return value."), FText::FromString(Function->GetName())));
 		}
 
 		const FProperty* FirstArgumentProperty = GetFirstArgumentProperty(Function);
 		if (FirstArgumentProperty == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' doesn't not have a valid (single) argument."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionNoArgument", "The function '{0}' doesn't have a valid (single) argument."), FText::FromString(Function->GetName())));
 		}
 
 		return MakeValue(FirstArgumentProperty);
 	}
 
-	TValueOrError<const FProperty*, FString> TryGetPropertyTypeForDestinationBinding(const FMVVMConstFieldVariant& InField)
+	TValueOrError<const FProperty*, FText> TryGetPropertyTypeForDestinationBinding(const FMVVMConstFieldVariant& InField)
 	{
 		if (InField.IsEmpty())
 		{
-			return MakeError(TEXT("No destination was provided for the binding."));
+			return MakeError(LOCTEXT("NoDestinationForBinding", "No destination was provided for the binding."));
 		}
 
 		if (InField.IsProperty())
@@ -389,9 +391,9 @@ namespace UE::MVVM::BindingHelper
 			return TryGetPropertyTypeForDestinationBinding(InField.GetFunction());
 		}
 	}
-	TValueOrError<const FProperty*, FString> TryGetReturnTypeForConversionFunction(const UFunction* InFunction)
+	TValueOrError<const FProperty*, FText> TryGetReturnTypeForConversionFunction(const UFunction* InFunction)
 	{
-		FString CommonResult = Private::TryGetPropertyTypeCommon(InFunction);
+		FText CommonResult = Private::TryGetPropertyTypeCommon(InFunction);
 		if (!CommonResult.IsEmpty())
 		{
 			return MakeError(MoveTemp(CommonResult));
@@ -399,21 +401,21 @@ namespace UE::MVVM::BindingHelper
 
 		if (!InFunction->HasAllFunctionFlags(FUNC_Static) && !InFunction->HasAllFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' is not static or is not const and pure."), *InFunction->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionFlagsWrong", "The function '{0}' is not static or is not const and pure."), FText::FromString(InFunction->GetName())));
 		}
 
 		const FProperty* ReturnProperty = GetReturnProperty(InFunction);
 		if (ReturnProperty == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The return value for function '%s' is invalid."), *InFunction->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionReturnInvalid", "The return value for function '{0}' is invalid."), FText::FromString(InFunction->GetName())));
 		}
 
 		return MakeValue(ReturnProperty);
 	}
 
-	TValueOrError<TArray<const FProperty*>, FString> TryGetArgumentsForConversionFunction(const UFunction* InFunction)
+	TValueOrError<TArray<const FProperty*>, FText> TryGetArgumentsForConversionFunction(const UFunction* InFunction)
 	{
-		FString CommonResult = Private::TryGetPropertyTypeCommon(InFunction);
+		FText CommonResult = Private::TryGetPropertyTypeCommon(InFunction);
 		if (!CommonResult.IsEmpty())
 		{
 			return MakeError(MoveTemp(CommonResult));
@@ -421,18 +423,18 @@ namespace UE::MVVM::BindingHelper
 
 		if (!InFunction->HasAllFunctionFlags(FUNC_Static) && !InFunction->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' is not static or is not const and pure."), *InFunction->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionFlagsWrong", "The function '{0}' is not static or is not const and pure."), FText::FromString(InFunction->GetName())));
 		}
 
 		if (InFunction->NumParms < 2)
 		{
-			return MakeError(FString::Printf(TEXT("The function '%s' does not have the correct number of arguments."), *InFunction->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionWrongNumberOfArgs", "The function '{0}' does not have the correct number of arguments."), FText::FromString(InFunction->GetName())));
 		}
 
 		const FProperty* ReturnProperty = GetReturnProperty(InFunction);
 		if (ReturnProperty == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The return value for function '%s' is invalid."), *InFunction->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionReturnInvalid", "The return value for function '{0}' is invalid."), FText::FromString(InFunction->GetName())));
 		}
 
 		TArray<const FProperty*> Arguments;
@@ -523,7 +525,7 @@ namespace UE::MVVM::BindingHelper
 			return false;
 		}
 
-		return Destination->SameType(Source)
+		return Source->SameType(Destination)
 				|| Private::IsNumericConversionRequired(Source, Destination)
 				|| Private::IsObjectPropertyCompatible(Source, Destination);
 	}

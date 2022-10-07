@@ -152,6 +152,7 @@ FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget,
 FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddDefaultBinding()
 {
 	FMVVMBlueprintViewBinding& NewBinding = Bindings.AddDefaulted_GetRef();
+	NewBinding.BindingId = FGuid::NewGuid();
 
 	OnBindingsUpdated.Broadcast();
 	return NewBinding;
@@ -189,6 +190,14 @@ void UMVVMBlueprintView::PostLoad()
 }
 
 #if WITH_EDITOR
+
+/*
+void UMVVMBlueprintView::PostEditUndo() 
+{
+	OnBindingsUpdated.Broadcast();
+	OnViewModelsUpdated.Broadcast();
+}*/
+
 void UMVVMBlueprintView::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

@@ -89,9 +89,9 @@ public:
 		FDirectionalBindingArgs BackwardArgs;
 	};
 
-	UE_NODISCARD TValueOrError<bool, FString> IsBindingValid(FConstDirectionalBindingArgs Args) const;
-	UE_NODISCARD TValueOrError<bool, FString> IsBindingValid(FDirectionalBindingArgs Args) const;
-	UE_NODISCARD TValueOrError<bool, FString> IsBindingValid(FBindingArgs Args) const;
+	UE_NODISCARD TValueOrError<bool, FText> IsBindingValid(FConstDirectionalBindingArgs Args) const;
+	UE_NODISCARD TValueOrError<bool, FText> IsBindingValid(FDirectionalBindingArgs Args) const;
+	UE_NODISCARD TValueOrError<bool, FText> IsBindingValid(FBindingArgs Args) const;
 
 private:
 	UPROPERTY(Transient)

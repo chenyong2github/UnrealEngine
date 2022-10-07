@@ -329,7 +329,9 @@ public:
 
 	bool operator==(const FMVVMBlueprintPropertyPath& Other) const
 	{
-		return Paths == Other.Paths;
+		return WidgetName == Other.WidgetName && 
+			ContextId == Other.ContextId && 
+			Paths == Other.Paths;
 	}
 
 	bool operator!=(const FMVVMBlueprintPropertyPath& Other) const

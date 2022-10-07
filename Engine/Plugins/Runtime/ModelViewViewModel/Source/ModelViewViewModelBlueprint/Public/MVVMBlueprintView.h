@@ -64,6 +64,8 @@ public:
 	}
 
 #if WITH_EDITOR
+//	virtual void PostEditUndo() override;
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent) override;
 

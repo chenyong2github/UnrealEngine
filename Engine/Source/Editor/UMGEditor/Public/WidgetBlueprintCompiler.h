@@ -11,6 +11,10 @@
 #include "ComponentReregisterContext.h"
 #include "Components/WidgetComponent.h"
 
+class FProperty;
+class UWidget;
+class UWidgetAnimation;
+class UWidgetGraphSchema;
 
 //////////////////////////////////////////////////////////////////////////
 // FWidgetBlueprintCompiler 
@@ -112,13 +116,13 @@ protected:
 
 	TArray<UWidgetAnimation*> OldWidgetAnimations;
 
-	class UWidgetGraphSchema* WidgetSchema;
+	UWidgetGraphSchema* WidgetSchema;
 
 	// Map of properties created for widgets; to aid in debug data generation
-	TMap<class UWidget*, class FProperty*> WidgetToMemberVariableMap;
+	TMap<UWidget*, FProperty*> WidgetToMemberVariableMap;
 
 	// Map of properties created for widget animations; to aid in debug data generation
-	TMap<class UWidgetAnimation*, class FProperty*> WidgetAnimToMemberVariableMap;
+	TMap<UWidgetAnimation*, FProperty*> WidgetAnimToMemberVariableMap;
 
 	///----------------------------------------------------------------
 };

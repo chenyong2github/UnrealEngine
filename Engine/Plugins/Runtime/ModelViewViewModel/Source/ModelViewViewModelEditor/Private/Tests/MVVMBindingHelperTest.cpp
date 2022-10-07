@@ -101,7 +101,7 @@ bool FMVVMBindingHelperTest::RunTest(const FString& Parameters)
 		}
 
 		{
-			TValueOrError<const FProperty*, FString> Result = ::UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Function);
+			TValueOrError<const FProperty*, FText> Result = ::UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Function);
 			if ((PropertyTypeForSourceBinding != nullptr) != Result.HasValue())
 			{
 				AddError(FString::Printf(TEXT("TryGetPropertyTypeForSourceBinding failed for '%s'."), *FunctionName.ToString()));
@@ -112,7 +112,7 @@ bool FMVVMBindingHelperTest::RunTest(const FString& Parameters)
 			}
 		}
 		{
-			TValueOrError<const FProperty*, FString> Result = ::UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Function);
+			TValueOrError<const FProperty*, FText> Result = ::UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Function);
 			if ((PropertyTypeForDestinationBinding != nullptr) != Result.HasValue())
 			{
 				AddError(FString::Printf(TEXT("TryGetPropertyTypeForDestinationBinding failed for '%s'."), *FunctionName.ToString()));

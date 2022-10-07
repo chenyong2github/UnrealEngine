@@ -1074,7 +1074,7 @@ void SBindingsList::Refresh()
 			const UFunction* Function = EditorSubsystem->GetConversionFunction(MVVMExtensionPtr->GetWidgetBlueprint(), Binding, UE::MVVM::IsForwardBinding(Binding.BindingType));
 			if (Function != nullptr)
 			{
-				TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = BindingHelper::TryGetArgumentsForConversionFunction(Function);
+				TValueOrError<TArray<const FProperty*>, FText> ArgumentsResult = BindingHelper::TryGetArgumentsForConversionFunction(Function);
 				if (ArgumentsResult.HasValue())
 				{
 					for (const FProperty* Argument : ArgumentsResult.GetValue())

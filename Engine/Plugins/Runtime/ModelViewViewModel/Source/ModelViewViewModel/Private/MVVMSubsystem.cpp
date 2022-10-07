@@ -10,6 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMSubsystem)
 
+#define LOCTEXT_NAMESPACE "MVVMSubsystem"
 
 void UMVVMSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -255,11 +256,11 @@ FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBinding(const UClass* Class, F
 }
 
 
-TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FBindingArgs Args) const
+TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FBindingArgs Args) const
 {
 	if (UE::MVVM::IsForwardBinding(Args.Mode))
 	{
-		TValueOrError<bool, FString> ForwardDirection = IsBindingValid(Args.ForwardArgs);
+		TValueOrError<bool, FText> ForwardDirection = IsBindingValid(Args.ForwardArgs);
 		if (ForwardDirection.HasError())
 		{
 			return ForwardDirection;
@@ -268,7 +269,7 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FBindingArgs Args) c
 
 	if (UE::MVVM::IsBackwardBinding(Args.Mode))
 	{
-		TValueOrError<bool, FString> BackwardDirection = IsBindingValid(Args.BackwardArgs);
+		TValueOrError<bool, FText> BackwardDirection = IsBindingValid(Args.BackwardArgs);
 		if (BackwardDirection.HasError())
 		{
 			return BackwardDirection;
@@ -278,15 +279,15 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FBindingArgs Args) c
 	return MakeValue(true);
 }
 
-TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FDirectionalBindingArgs Args) const
+TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FDirectionalBindingArgs Args) const
 {
 	return IsBindingValid(Args.ToConst());
 }
 
-TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindingArgs Args) const
+TValueOrError<bool, FText> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindingArgs Args) const
 {
 	// Test Source
-	TValueOrError<const FProperty*, FString> SourceResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Args.SourceBinding);
+	TValueOrError<const FProperty*, FText> SourceResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Args.SourceBinding);
 	if (SourceResult.HasError())
 	{
 		return MakeError(SourceResult.StealError());
@@ -295,11 +296,11 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 	const FProperty* SourceProperty = SourceResult.StealValue();
 	if (SourceProperty == nullptr)
 	{
-		return MakeError(TEXT("There is no value to bind at the source."));
+		return MakeError(LOCTEXT("NoValueToBindAtSource", "There is no value to bind at the source."));
 	}
 
 	// Test Destination
-	TValueOrError<const FProperty*, FString> DestinationResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Args.DestinationBinding);
+	TValueOrError<const FProperty*, FText> DestinationResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Args.DestinationBinding);
 	if (DestinationResult.HasError())
 	{
 		return MakeError(DestinationResult.StealError());
@@ -308,13 +309,13 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 	const FProperty* DestinationProperty = DestinationResult.StealValue();
 	if (DestinationProperty == nullptr)
 	{
-		return MakeError(TEXT("There is no value to bind at the destination."));
+		return MakeError(LOCTEXT("NoValueToBindAtDestination", "There is no value to bind at the destination."));
 	}
 
 	// Test the conversion function
 	if (Args.ConversionFunction)
 	{
-		TValueOrError<const FProperty*, FString> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Args.ConversionFunction);
+		TValueOrError<const FProperty*, FText> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Args.ConversionFunction);
 		if (ReturnResult.HasError())
 		{
 			return MakeError(ReturnResult.StealError());
@@ -324,20 +325,20 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 		const bool bIsComplexConversionFunction = UE::MVVM::BindingHelper::IsValidForComplexRuntimeConversion(Args.ConversionFunction);
 		if (!bIsSimpleConversionFunction && !bIsComplexConversionFunction)
 		{
-			return MakeError(FString::Printf(TEXT("The conversion function '%s' is not valid as a conversion function"), *Args.ConversionFunction->GetName()));
+			return MakeError(FText::Format(LOCTEXT("ConversionFunctionNotValid", "The conversion function '{0}' is not valid as a conversion function"), FText::FromString(Args.ConversionFunction->GetName())));
 		}
 
 		// The simple compiled version look like Setter(Conversion(Getter())).
 		if (bIsSimpleConversionFunction)
 		{
-			TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Args.ConversionFunction);
+			TValueOrError<TArray<const FProperty*>, FText> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Args.ConversionFunction);
 			if (ArgumentsResult.HasError())
 			{
 				return MakeError(ArgumentsResult.StealError());
 			}
 			if (ArgumentsResult.GetValue().Num() != 1)
 			{
-				return MakeError(TEXT("Internal error. The number of arguments should be 1."));
+				return MakeError(LOCTEXT("NumberOfArgumentsWrong", "Internal error. The number of arguments should be 1."));
 			}
 
 			bool bAnyCompatible = false;
@@ -353,9 +354,18 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 
 			if (!bAnyCompatible)
 			{
-				FString ArgumentsString = FString::JoinBy(ArgumentProperties, TEXT(", "), [](const FProperty* Property) { return Property->GetCPPType(); });
+				TArray<FText> ArgumentTypes;
+				ArgumentTypes.Reserve(ArgumentProperties.Num());
+				for (const FProperty* ArgProperty : ArgumentProperties)
+				{
+					ArgumentTypes.Add(FText::FromString(ArgProperty->GetCPPType()));
+				}
 
-				return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match any of the argument types of the conversion function (%s)."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *ArgumentsString));
+				return MakeError(FText::Format(LOCTEXT("SourcePropertyDoesNotMatchArguments", "The source property '{0}' ({1}) does not match any of the argument types of the conversion function ({1})."), 
+					FText::FromString(SourceProperty->GetName()), 
+					FText::FromString(SourceProperty->GetCPPType()),
+					FText::Join(LOCTEXT("CommaDelim", ", "), ArgumentTypes))
+				);
 			}
 		}
 		else
@@ -365,15 +375,25 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 			const FProperty* ReturnProperty = ReturnResult.GetValue();
 			if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ReturnProperty, DestinationProperty))
 			{
-				return MakeError(FString::Printf(TEXT("The destination property '%s' (%s) does not match the return type of the conversion function (%s)."), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType(), *ReturnProperty->GetCPPType()));
+				return MakeError(FText::Format(LOCTEXT("DestinationPropertyDoesNotMatchReturn", "The destination property '{0}' ({1}) does not match the return type of the conversion function ({2})."), 
+					FText::FromString(DestinationProperty->GetName()), 
+					FText::FromString(DestinationProperty->GetCPPType()),
+					FText::FromString(ReturnProperty->GetCPPType()))
+				);
 			}
 		}
 	}
 	else if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, DestinationProperty))
 	{
-		return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match the type of the destination property '%s' (%s). A conversion function is required."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType()));
+		return MakeError(FText::Format(LOCTEXT("SourcePropertyDoesNotMatchDestination", "The source property '{0}' ({1}) does not match the type of the destination property '{2}' ({3}). A conversion function is required."), 
+			FText::FromString(SourceProperty->GetName()),
+			FText::FromString(SourceProperty->GetCPPType()), 
+			FText::FromString(DestinationProperty->GetName()), 
+			FText::FromString(DestinationProperty->GetCPPType()))
+		);
 	}
 
 	return MakeValue(true);
 }
 
+#undef LOCTEXT_NAMESPACE

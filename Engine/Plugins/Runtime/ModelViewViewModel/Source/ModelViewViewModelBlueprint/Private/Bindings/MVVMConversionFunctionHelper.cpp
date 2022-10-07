@@ -113,14 +113,26 @@ void MarkAsConversionFunction(const UK2Node_CallFunction* FunctionNode, const FM
 
 namespace Private
 {
-	FMVVMBlueprintPropertyPath GetPropertyPathForPin(const UWidgetBlueprint* WidgetBlueprint, const UEdGraphPin* StartPin)
+	FMVVMBlueprintPropertyPath GetPropertyPathForPin(const UWidgetBlueprint* WidgetBlueprint, const UEdGraphPin* StartPin, bool bSkipResolve)
 	{
+		if (StartPin->Direction != EGPD_Input || StartPin->PinName == UEdGraphSchema_K2::PN_Self)
+		{
+			return FMVVMBlueprintPropertyPath();
+		}
+		
 		UMVVMWidgetBlueprintExtension_View* ExtensionView = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
 		UMVVMBlueprintView* BlueprintView = ExtensionView->GetBlueprintView();
 
 		TArray<FMemberReference> PathParts;
 		TDeque<UEdGraphNode*> NodesToSearch;
-		NodesToSearch.PushLast(StartPin->LinkedTo[0]->GetOwningNode());
+
+		if (StartPin->LinkedTo.Num() > 0)
+		{
+			if (UEdGraphNode* Node = StartPin->LinkedTo[0]->GetOwningNode())
+			{
+				NodesToSearch.PushLast(Node);
+			}
+		}
 
 		while (NodesToSearch.Num() > 0)
 		{
@@ -129,7 +141,7 @@ namespace Private
 
 			if (UK2Node_VariableGet* Getter = Cast<UK2Node_VariableGet>(Node))
 			{
-				PathParts.Add(Getter->VariableReference);
+				PathParts.Insert(Getter->VariableReference, 0);
 			}
 
 			for (UEdGraphPin* Pin : Node->Pins)
@@ -146,25 +158,38 @@ namespace Private
 			return FMVVMBlueprintPropertyPath();
 		}
 
-		Algo::Reverse(PathParts);
-
 		FMVVMBlueprintPropertyPath ResultPath;
 
 		FMemberReference RootRef = PathParts[0];
 		PathParts.RemoveAt(0);
 
-		if (const FObjectProperty* Property = CastField<FObjectProperty>(RootRef.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass)))
+		if (bSkipResolve)
 		{
-			if (Property->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+			// if the generated class hasn't yet been generated we can blindly forge ahead and try to figure out if it's a widget or a viewmodel
+			if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintView->FindViewModel(RootRef.GetMemberName()))
 			{
-				if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintView->FindViewModel(Property->GetFName()))
-				{
-					ResultPath.SetViewModelId(ViewModel->GetViewModelId());
-				}
+				ResultPath.SetViewModelId(ViewModel->GetViewModelId());
 			}
-			else if (Property->PropertyClass->IsChildOf<UWidget>() || Property->PropertyClass->IsChildOf<UWidgetBlueprint>())
+			else
 			{
-				ResultPath.SetWidgetName(Property->GetFName());
+				ResultPath.SetWidgetName(RootRef.GetMemberName());
+			}
+		}
+		else
+		{
+			if (const FObjectProperty* Property = CastField<FObjectProperty>(RootRef.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass)))
+			{
+				if (Property->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+				{
+					if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintView->FindViewModel(Property->GetFName()))
+					{
+						ResultPath.SetViewModelId(ViewModel->GetViewModelId());
+					}
+				}
+				else if (Property->PropertyClass->IsChildOf<UWidget>() || Property->PropertyClass->IsChildOf<UWidgetBlueprint>())
+				{
+					ResultPath.SetWidgetName(Property->GetFName());
+				}
 			}
 		}
 
@@ -175,11 +200,11 @@ namespace Private
 
 		for (const FMemberReference& MemberReference : PathParts)
 		{
-			if (UFunction* Function = MemberReference.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass))
+			if (UFunction* Function = MemberReference.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass)) 
 			{
 				ResultPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Function));
 			}
-			else if (FProperty* Property = MemberReference.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass))
+			else if (const FProperty* Property = MemberReference.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass))
 			{
 				ResultPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Property));
 			}
@@ -189,7 +214,7 @@ namespace Private
 	}
 }
 
-FMVVMBlueprintPropertyPath GetPropertyPathForArgument(const UWidgetBlueprint* WidgetBlueprint, const UK2Node_CallFunction* FunctionNode, FName ArgumentName)
+FMVVMBlueprintPropertyPath GetPropertyPathForArgument(const UWidgetBlueprint* WidgetBlueprint, const UK2Node_CallFunction* FunctionNode, FName ArgumentName, bool bSkipResolve)
 {
 	const UEdGraphPin* ArgumentPin = FunctionNode->FindPin(ArgumentName, EGPD_Input);
 	if (ArgumentPin == nullptr || ArgumentPin->LinkedTo.Num() == 0)
@@ -197,24 +222,37 @@ FMVVMBlueprintPropertyPath GetPropertyPathForArgument(const UWidgetBlueprint* Wi
 		return FMVVMBlueprintPropertyPath();
 	}
 
-	return Private::GetPropertyPathForPin(WidgetBlueprint, ArgumentPin);
+	return Private::GetPropertyPathForPin(WidgetBlueprint, ArgumentPin, false);
 }
 
-TArray<FMVVMBlueprintPropertyPath> GetAllArgumentPathsForConversionNode(const UWidgetBlueprint* WidgetBlueprint, const UK2Node_CallFunction* FunctionNode)
+TMap<FName, FMVVMBlueprintPropertyPath> GetAllArgumentPropertyPaths(const UWidgetBlueprint* WidgetBlueprint, const UK2Node_CallFunction* FunctionNode, bool bSkipResolve)
 {
 	check(FunctionNode);
 
-	TArray<FMVVMBlueprintPropertyPath> Paths;
+	TMap<FName, FMVVMBlueprintPropertyPath> Paths;
 	for (const UEdGraphPin* Pin : FunctionNode->GetAllPins())
 	{
-		FMVVMBlueprintPropertyPath Path = Private::GetPropertyPathForPin(WidgetBlueprint, Pin);
+		FMVVMBlueprintPropertyPath Path = Private::GetPropertyPathForPin(WidgetBlueprint, Pin, bSkipResolve);
 		if (!Path.IsEmpty())
 		{
-			Paths.Add(Path);
+			Paths.Add(Pin->PinName, Path);
 		}
 	}
 
 	return Paths;
+}
+
+TMap<FName, FMVVMBlueprintPropertyPath> GetAllArgumentPropertyPaths(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination, bool bSkipResolve)
+{
+	if (UEdGraph* ConversionFunctionGraph = ConversionFunctionHelper::GetGraph(WidgetBlueprint, Binding, bSourceToDestination))
+	{
+		if (UK2Node_CallFunction* ConversionNode = ConversionFunctionHelper::GetFunctionNode(ConversionFunctionGraph))
+		{
+			return GetAllArgumentPropertyPaths(WidgetBlueprint, ConversionNode, bSkipResolve);
+		}
+	}
+
+	return TMap<FName, FMVVMBlueprintPropertyPath>();
 }
 
 } //namespace UE::MVVM

@@ -22,6 +22,7 @@
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "ScopedTransaction.h"
 #include "Types/MVVMBindingSource.h"
+#include "UObject/MetaData.h"
 #include "WidgetBlueprint.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMEditorSubsystem)
@@ -156,11 +157,7 @@ namespace UE::MVVM::Private
 	{
 		if (UEdGraph* Graph = FindExistingConversionFunctionWrapper(WidgetBlueprint, WrapperName))
 		{
-			Graph->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
-			Graph->SetFlags(RF_Transient);
-			Graph->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
-			FLinkerLoad::InvalidateExport(Graph);
-			WidgetBlueprint->FunctionGraphs.RemoveSingle(Graph);
+			FBlueprintEditorUtils::RemoveGraph(WidgetBlueprint, Graph);
 		}
 	}
 
@@ -329,7 +326,7 @@ UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlue
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(ConversionFunction);
+		TValueOrError<TArray<const FProperty*>, FText> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(ConversionFunction);
 		if (ArgumentsResult.HasValue())
 		{
 			TArray<const FProperty*> Arguments = ArgumentsResult.StealValue();
@@ -350,7 +347,7 @@ UEdGraph* UMVVMEditorSubsystem::CreateConversionFunctionWrapperGraph(UWidgetBlue
 				FGraphNodeCreator<UK2Node_CallFunction> CallFunctionCreator(*NewGraph);
 				UK2Node_CallFunction* CallFunctionNode = CallFunctionCreator.CreateNode();
 				CallFunctionNode->SetFromFunction(ConversionFunction);
-				CallFunctionNode->NodePosX = (FunctionEntry->NodePosX + FunctionResult->NodePosX) / 2;
+				CallFunctionNode->NodePosX = 0;
 				CallFunctionCreator.Finalize();
 
 				UE::MVVM::ConversionFunctionHelper::MarkAsConversionFunction(CallFunctionNode, Binding);
@@ -561,7 +558,7 @@ void UMVVMEditorSubsystem::SetCompileForBinding(UWidgetBlueprint* WidgetBlueprin
 
 bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const
 {
-	TValueOrError<const FProperty*, FString> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Function);
+	TValueOrError<const FProperty*, FText> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Function);
 	if (ReturnResult.HasError())
 	{
 		return false;
@@ -573,7 +570,7 @@ bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, 
 		return false;
 	}
 
-	TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Function);
+	TValueOrError<TArray<const FProperty*>, FText> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Function);
 	if (ArgumentsResult.HasError())
 	{
 		return false;
@@ -631,7 +628,7 @@ bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, 
 
 bool UMVVMEditorSubsystem::IsSimpleConversionFunction(const UFunction* Function) const
 {
-	TValueOrError<const FProperty*, FString> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Function);
+	TValueOrError<const FProperty*, FText> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Function);
 	if (ReturnResult.HasError())
 	{
 		return false;
@@ -643,7 +640,7 @@ bool UMVVMEditorSubsystem::IsSimpleConversionFunction(const UFunction* Function)
 		return false;
 	}
 
-	TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Function);
+	TValueOrError<TArray<const FProperty*>, FText> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Function);
 	if (ArgumentsResult.HasError())
 	{
 		return false;
@@ -715,7 +712,7 @@ FMVVMBlueprintPropertyPath UMVVMEditorSubsystem::GetPathForConversionFunctionArg
 		return FMVVMBlueprintPropertyPath();
 	}
 
-	return UE::MVVM::ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, FunctionNode, ArgumentName);
+	return UE::MVVM::ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, FunctionNode, ArgumentName, false);
 }
 
 void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FName ArgumentName, const FMVVMBlueprintPropertyPath& Path, bool bSourceToDestination) const
@@ -801,8 +798,8 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 
 	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Path.GetFields();
 
-	float PosX = ConversionNode->NodePosX - (300 * Fields.Num());
-	const float PosY = ConversionNode->NodePosY + ArgumentIndex * 50;
+	float PosX = ConversionNode->NodePosX - 300 * (Fields.Num() + 1);
+	const float PosY = ConversionNode->NodePosY + ArgumentIndex * 100;
 
 	UEdGraphPin* PreviousExecPin = UE::MVVM::Private::FindFunctionEntry(ConversionFunctionGraph)->FindPin(UEdGraphSchema_K2::PN_Then);
 	UEdGraphPin* PreviousDataPin = nullptr;

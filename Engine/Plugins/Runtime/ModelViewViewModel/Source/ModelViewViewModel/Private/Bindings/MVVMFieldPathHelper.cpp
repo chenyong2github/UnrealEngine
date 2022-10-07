@@ -9,6 +9,8 @@
 #include "MVVMSubsystem.h"
 #include "Types/MVVMAvailableBinding.h"
 
+#define LOCTEXT_NAMESPACE "MVVMFieldPathHelper"
+
 namespace UE::MVVM::FieldPathHelper
 {
 
@@ -19,7 +21,7 @@ static const FName NAME_BlueprintGetter = "BlueprintGetter";
 static const FName NAME_BlueprintSetter = "BlueprintSetter";
 
 
-TValueOrError<UStruct*, FString> FindContainer(const FProperty* Property)
+TValueOrError<UStruct*, FText> FindContainer(const FProperty* Property)
 {
 	const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
 	const FStructProperty* StructProperty = CastField<const FStructProperty>(Property);
@@ -32,11 +34,11 @@ TValueOrError<UStruct*, FString> FindContainer(const FProperty* Property)
 	{
 		return MakeValue(StructProperty->Struct);
 	}
-	return MakeError(FString::Printf(TEXT("Only object or struct properties can be used as source paths. '%s' is a '%s'."), *Property->GetName(), *Property->GetClass()->GetName()));
+	return MakeError(FText::Format(LOCTEXT("InvalidPropertyTypeInSourcePath", "Only object or struct properties can be used as source paths. '{0}' is a '{1}'."), FText::FromString(Property->GetName()), FText::FromString(Property->GetClass()->GetName())));
 }
 
 
-TValueOrError<FMVVMConstFieldVariant, FString> TransformWithAccessor(UStruct* CurrentContainer, FMVVMConstFieldVariant CurrentField, bool bForReading)
+TValueOrError<FMVVMConstFieldVariant, FText> TransformWithAccessor(UStruct* CurrentContainer, FMVVMConstFieldVariant CurrentField, bool bForReading)
 {
 #if WITH_EDITORONLY_DATA
 	if (bForReading)
@@ -53,7 +55,10 @@ TValueOrError<FMVVMConstFieldVariant, FString> TransformWithAccessor(UStruct* Cu
 				}
 				else
 				{
-					return MakeError(FString::Printf(TEXT("The BlueprintGetter '%s' could not be found on object '%s'."), *BlueprintGetter, *CurrentContainer->GetName()));
+					return MakeError(FText::Format(LOCTEXT("BlueprintGetterNotFound", "The BlueprintGetter '{0}' could not be found on object '{1}'."), 
+						FText::FromString(BlueprintGetter), 
+						FText::FromString(CurrentContainer->GetName()))
+					);
 				}
 			}
 		}
@@ -72,7 +77,10 @@ TValueOrError<FMVVMConstFieldVariant, FString> TransformWithAccessor(UStruct* Cu
 				}
 				else
 				{
-					return MakeError(FString::Printf(TEXT("The BlueprintSetter '%s' could not be found on object %s."), *BlueprintSetter, *CurrentContainer->GetName()));
+					return MakeError(FText::Format(LOCTEXT("BlueprintSetterNotFound", "The BlueprintSetter '{0}' could not be found on object '{1}'."), 
+						FText::FromString(BlueprintSetter),
+						FText::FromString(CurrentContainer->GetName()))
+					);
 				}
 			}
 		}
@@ -84,19 +92,19 @@ TValueOrError<FMVVMConstFieldVariant, FString> TransformWithAccessor(UStruct* Cu
 } // namespace
 
 
-TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(const UClass* InFrom, FStringView InFieldPath, bool bForReading)
+TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(const UClass* InFrom, FStringView InFieldPath, bool bForReading)
 {
 	if (InFrom == nullptr)
 	{
-		return MakeError(TEXT("The source class is invalid."));
+		return MakeError(LOCTEXT("SourceClassInvalid", "The source class is invalid."));
 	}
 	if (InFieldPath.IsEmpty())
 	{
-		return MakeError(TEXT("The FieldPath is empty."));
+		return MakeError(LOCTEXT("FieldPathEmpty", "The field path is empty."));
 	}
 	if (InFieldPath[InFieldPath.Len() - 1] == TEXT('.'))
 	{
-		return MakeError(TEXT("The field path cannot end with a '.' character."));
+		return MakeError(LOCTEXT("FieldPathEndsInPeriod", "The field path cannot end with a '.' character."));
 	}
 
 	FMemMark Mark(FMemStack::Get());
@@ -112,11 +120,14 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(con
 		FMVVMConstFieldVariant Field = BindingHelper::FindFieldByName(CurrentContainer, FMVVMBindingName(FName(FoundIndex, InFieldPath.GetData())));
 		if (Field.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), *FName(FoundIndex, InFieldPath.GetData()).ToString(), CurrentContainer ? *CurrentContainer->GetName() : TEXT("<none>")));
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '%s' does not exist in the struct '%s'."), 
+				FText::FromName(FName(FoundIndex, InFieldPath.GetData())), 
+				CurrentContainer ? FText::FromString(CurrentContainer->GetName()) : LOCTEXT("None", "<none>"))
+			);
 		}
 		else if (Field.IsProperty())
 		{
-			TValueOrError<UStruct*, FString> FoundContainer = Private::FindContainer(Field.GetProperty());
+			TValueOrError<UStruct*, FText> FoundContainer = Private::FindContainer(Field.GetProperty());
 			if (FoundContainer.HasError())
 			{
 				return MakeError(FoundContainer.StealError());
@@ -127,7 +138,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(con
 		if (Field.IsFunction())
 		{
 			const FProperty* ReturnProperty = BindingHelper::GetReturnProperty(Field.GetFunction());
-			TValueOrError<UStruct*, FString> FoundContainer = Private::FindContainer(ReturnProperty);
+			TValueOrError<UStruct*, FText> FoundContainer = Private::FindContainer(ReturnProperty);
 			if (FoundContainer.HasError())
 			{
 				return MakeError(FoundContainer.StealError());
@@ -145,7 +156,10 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(con
 		FMVVMConstFieldVariant Field = BindingHelper::FindFieldByName(CurrentContainer, FMVVMBindingName(InFieldPath.GetData()));
 		if (Field.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), InFieldPath.GetData(), CurrentContainer ? *CurrentContainer->GetName() : TEXT("<none>")));
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."), 
+				FText::FromStringView(InFieldPath), 
+				CurrentContainer ? FText::FromString(CurrentContainer->GetName()) : LOCTEXT("None", "<none>"))
+			);
 		}
 
 		Result.Add(Field);
@@ -169,11 +183,11 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(con
  *				PropertyD and PropertyE cannot have Getter/BlueprintGetter if they are FStructProperty
  *		* We can only have one Setter/BlueprintSetter in the path
  */
-TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bForSourceBinding)
+TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bForSourceBinding)
 {
 	if (InFieldPath.Num() == 0)
 	{
-		return MakeError(TEXT("The FieldPath is empty."));
+		return MakeError(LOCTEXT("FieldPathEmpty", "The field path is empty."));
 	}
 
 	TArray<FMVVMConstFieldVariant> Result;
@@ -187,24 +201,27 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TAr
 
 		if (Field.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("The field '%d' does not exist."), Index));
+			return MakeError(FText::Format(LOCTEXT("FieldIsEmpty", "The field at index '{0}' is empty."), Index));
 		}
 
 		if (CurrentContainer == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' does not exist."), *Field.GetName().ToString()));
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExist", "The field '{0}' does not exist."), FText::FromName(Field.GetName())));
 		}
 
 		const bool bIsChild = Field.GetOwner()->IsChildOf(CurrentContainer);
 		const bool bIsDownCast = CurrentContainer->IsChildOf(Field.GetOwner());
 		if (!(bIsChild || bIsDownCast))
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), *Field.GetName().ToString(), *CurrentContainer->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."), 
+				FText::FromName(Field.GetName()), 
+				FText::FromString(CurrentContainer->GetName()))
+			);
 		}
 		
 		if (Field.IsProperty())
 		{
-			TValueOrError<FMVVMConstFieldVariant, FString> TransformedField = Private::TransformWithAccessor(CurrentContainer, Field, (bForSourceBinding || !bLastField));
+			TValueOrError<FMVVMConstFieldVariant, FText> TransformedField = Private::TransformWithAccessor(CurrentContainer, Field, (bForSourceBinding || !bLastField));
 			if (TransformedField.HasError())
 			{
 				return MakeError(TransformedField.StealError());
@@ -214,7 +231,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TAr
 
 			if (!bLastField && Field.IsProperty())
 			{
-				TValueOrError<UStruct*, FString> FoundContainer = Private::FindContainer(Field.GetProperty());
+				TValueOrError<UStruct*, FText> FoundContainer = Private::FindContainer(Field.GetProperty());
 				if (FoundContainer.HasError())
 				{
 					return MakeError(FoundContainer.StealError());
@@ -226,7 +243,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TAr
 		if (!bLastField && Field.IsFunction())
 		{
 			const FProperty* ReturnProperty = BindingHelper::GetReturnProperty(Field.GetFunction());
-			TValueOrError<UStruct*, FString> FoundContainer = Private::FindContainer(ReturnProperty);
+			TValueOrError<UStruct*, FText> FoundContainer = Private::FindContainer(ReturnProperty);
 			if (FoundContainer.HasError())
 			{
 				return MakeError(FoundContainer.StealError());
@@ -241,24 +258,24 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TAr
 }
 
 
-TValueOrError<FParsedBindingInfo, FString> GetBindingInfoFromFieldPath(const UClass* InAccessor, TArrayView<const FMVVMConstFieldVariant> InFieldPath)
+TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClass* InAccessor, TArrayView<const FMVVMConstFieldVariant> InFieldPath)
 {
 	if (InAccessor == nullptr)
 	{
-		return MakeError(TEXT("The Accessor is null."));
+		return MakeError(LOCTEXT("AccessorClassNull", "The accessor class is null."));
 	}
 	if (InFieldPath.Num() == 0)
 	{
-		return MakeError(TEXT("The FieldPath is empty."));
+		return MakeError(LOCTEXT("FieldPathEmpty", "The field path is empty."));
 	}
 
 	FParsedBindingInfo Result;
 	FParsedBindingInfo::FFieldVariantArray LocalFullPath;
 	bool bLookForNotifyFieldId = false;
-	UStruct* CurrentContainerType = InFieldPath[0].GetOwner();
+	const UStruct* CurrentContainerType = InFieldPath[0].GetOwner();
 	if (!InAccessor->IsChildOf(CurrentContainerType))
 	{
-		return MakeError(TEXT("FieldPath that doesn't start with the accessor is not supported."));
+		return MakeError(LOCTEXT("FieldPathDoesntStartWithAccessor", "Field path that doesn't start with the accessor is not supported."));
 	}
 
 	for (int32 Index = 0; Index < InFieldPath.Num(); ++Index)
@@ -268,19 +285,24 @@ TValueOrError<FParsedBindingInfo, FString> GetBindingInfoFromFieldPath(const UCl
 
 		if (Field.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("The field '%d' does not exist."), Index));
+			return MakeError(FText::Format(LOCTEXT("FieldIsEmpty", "The field at index '{0}' is empty."), Index));
 		}
 
 		if (CurrentContainerType == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' does not exist."), *Field.GetName().ToString()));
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExist", "The field '{0}' does not exist."), 
+				FText::FromName(Field.GetName()))
+			);
 		}
 
 		const bool bIsChild = Field.GetOwner()->IsChildOf(CurrentContainerType);
 		const bool bIsDownCast = CurrentContainerType->IsChildOf(Field.GetOwner());
 		if (!(bIsChild || bIsDownCast))
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), *Field.GetName().ToString(), *CurrentContainerType->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."), 
+				FText::FromName(Field.GetName()), 
+				FText::FromString(CurrentContainerType->GetName()))
+			);
 		}
 
 		const FProperty* FieldProperty = nullptr;
@@ -295,7 +317,9 @@ TValueOrError<FParsedBindingInfo, FString> GetBindingInfoFromFieldPath(const UCl
 
 		if (FieldProperty == nullptr)
 		{
-			return MakeError(FString::Printf(TEXT("The field '%s' has an invalid property."), *Field.GetName().ToString()));
+			return MakeError(FText::Format(LOCTEXT("FieldHasInvalidProperty", "The field '{0}' has an invalid property."), 
+				FText::FromName(Field.GetName()))
+			);
 		}
 
 
@@ -335,7 +359,7 @@ TValueOrError<FParsedBindingInfo, FString> GetBindingInfoFromFieldPath(const UCl
 
 		if (!bLastField)
 		{
-			TValueOrError<UStruct*, FString> FoundContainer = Private::FindContainer(FieldProperty);
+			TValueOrError<UStruct*, FText> FoundContainer = Private::FindContainer(FieldProperty);
 			if (FoundContainer.HasError())
 			{
 				return MakeError(FoundContainer.StealError());
@@ -346,7 +370,7 @@ TValueOrError<FParsedBindingInfo, FString> GetBindingInfoFromFieldPath(const UCl
 
 	if (Result.ViewModelIndex > 0)
 	{
-		TValueOrError<TArray<FMVVMConstFieldVariant>, FString> FinalPath = GenerateFieldPathList(Result.NotifyFieldInterfacePath, true);
+		TValueOrError<TArray<FMVVMConstFieldVariant>, FText> FinalPath = GenerateFieldPathList(Result.NotifyFieldInterfacePath, true);
 		if (FinalPath.HasError())
 		{
 			return MakeError(FinalPath.StealError());
@@ -387,6 +411,31 @@ FString ToString(TArrayView<const FMVVMConstFieldVariant> Fields)
 	return Builder.ToString();
 }
 
+FText ToText(TArrayView<const FMVVMFieldVariant> Fields)
+{
+	TArray<FText> FieldNames;
+	FieldNames.Reserve(Fields.Num());
+
+	for (const FMVVMFieldVariant& Field : Fields)
+	{
+		FieldNames.Add(FText::FromName(Field.GetName()));
+	}
+
+	return FText::Join(LOCTEXT("PropertyPathDelim", "."), FieldNames);
+}
+
+FText ToText(TArrayView<const FMVVMConstFieldVariant> Fields)
+{
+	TArray<FText> FieldNames;
+	FieldNames.Reserve(Fields.Num());
+
+	for (const FMVVMConstFieldVariant& Field : Fields)
+	{
+		FieldNames.Add(FText::FromName(Field.GetName()));
+	}
+
+	return FText::Join(LOCTEXT("PropertyPathDelim", "."), FieldNames);
+}
 
 TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSource)
 {
@@ -430,3 +479,5 @@ TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSour
 }
 
 } // namespace
+
+#undef LOCTEXT_NAMESPACE

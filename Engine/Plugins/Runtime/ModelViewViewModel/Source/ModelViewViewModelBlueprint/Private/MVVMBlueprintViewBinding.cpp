@@ -14,7 +14,7 @@
 
 FName FMVVMBlueprintViewBinding::GetFName() const
 {
-	return *BindingId.ToString();
+	return *BindingId.ToString(EGuidFormats::DigitsWithHyphensLower);
 }
 
 namespace UE::MVVM::Private
@@ -68,23 +68,28 @@ namespace UE::MVVM::Private
 
 				for (const UEdGraphPin* Pin : CallFunctionNode->Pins)
 				{
-					if (Pin->Direction == EGPD_Input)
+					if (Pin->PinName == UEdGraphSchema_K2::PN_Self || 
+						Pin->Direction != EGPD_Input)
 					{
-						if (!bFirst)
-						{
-							NameBuilder << TEXT(", ");
-						}
-
-						FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName());
-						if (!ArgumentPath.IsEmpty())
-						{
-							AppendViewModelPathString(BlueprintView, ArgumentPath, NameBuilder);
-						}
-						else
-						{
-							NameBuilder << Pin->GetDefaultAsString();
-						}
+						continue;
 					}
+
+					if (!bFirst)
+					{
+						NameBuilder << TEXT(", ");
+					}
+
+					FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName(), true);
+					if (!ArgumentPath.IsEmpty())
+					{
+						AppendViewModelPathString(BlueprintView, ArgumentPath, NameBuilder);
+					}
+					else
+					{
+						NameBuilder << Pin->GetDefaultAsString();
+					}
+
+					bFirst = false;
 				}
 
 				NameBuilder << TEXT(")");
@@ -175,7 +180,7 @@ namespace UE::MVVM::Private
 							NameBuilder << TEXT(", ");
 						}
 
-						FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName());
+						FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName(), true);
 						if (!ArgumentPath.IsEmpty())
 						{
 							AppendWidgetPathString(WidgetBlueprint, ArgumentPath, NameBuilder);
@@ -185,6 +190,8 @@ namespace UE::MVVM::Private
 							NameBuilder << Pin->GetDefaultAsString();
 						}
 					}
+
+					bFirst = false;
 				}
 
 				NameBuilder << TEXT(")");

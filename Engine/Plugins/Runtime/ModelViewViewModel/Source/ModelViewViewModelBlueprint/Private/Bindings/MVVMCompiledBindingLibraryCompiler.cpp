@@ -8,6 +8,7 @@
 #include "Types/MVVMObjectVariant.h"
 #include <limits>
 
+#define LOCTEXT_NAMESPACE "CompiledBindingLibraryCompiler"
 
 namespace UE::MVVM::Private
 {
@@ -135,19 +136,19 @@ FCompiledBindingLibraryCompiler::FCompiledBindingLibraryCompiler()
 
 }
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> FCompiledBindingLibraryCompiler::AddFieldId(TSubclassOf<UObject> SourceClass, FName FieldId)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledBindingLibraryCompiler::AddFieldId(TSubclassOf<UObject> SourceClass, FName FieldId)
 {
 	Impl->bCompiled = false;
 
 	if (FieldId.IsNone())
 	{
-		return MakeError(TEXT("The Field/Property is not defined."));
+		return MakeError(LOCTEXT("FieldNotDefined", "The Field/Property is not defined."));
 	}
 
 	if (!SourceClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 	{
-		return MakeError(FString::Printf(TEXT("'%s' doesn't implement the NotifyFieldValueChanged interface.")
-			, *SourceClass->GetName()));
+		return MakeError(FText::Format(LOCTEXT("ClassDoesNotImplementInterface", "'{0}' doesn't implement the NotifyFieldValueChanged interface.")
+			, SourceClass->GetDisplayNameText()));
 	}
 
 	const TScriptInterface<INotifyFieldValueChanged> ScriptObject = SourceClass->GetDefaultObject();
@@ -156,9 +157,9 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> FCompile
 		UE::FieldNotification::FFieldId FoundFieldId = ScriptObject->GetFieldNotificationDescriptor().GetField(SourceClass, FieldId);
 		if (!FoundFieldId.IsValid())
 		{
-			return MakeError(FString::Printf(TEXT("The FieldNotify '%s' is not support by '%s'.")
-				, *FieldId.ToString()
-				, *SourceClass->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FieldNotifyNotSupported", "The FieldNotify '{0}' is not supported by '{0}'.")
+				, FText::FromName(FieldId)
+				, SourceClass->GetDisplayNameText()));
 		}
 
 		int32 FoundFieldIdIndex = Impl->FieldIds.IndexOfByPredicate([FoundFieldId, SourceClass](const Private::FRawFieldId& Other)
@@ -177,11 +178,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> FCompile
 		return MakeValue(Impl->FieldIds[FoundFieldIdIndex].IdHandle);
 	}
 
-	return MakeError(TEXT("Unexpected case with AddFieldId."));
+	return MakeError(LOCTEXT("UnexpectedCaseInAddFieldId", "Unexpected case with AddFieldId."));
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
 {
 	Impl->bCompiled = false;
 
@@ -189,23 +190,23 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPathImpl(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddFieldPathImpl(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
 {
 	Impl->bCompiled = false;
 
-	auto ValidateContainer = [](const FProperty* Property, bool bShouldBeInsideContainer, bool bIsObjectOrScriptStruct) -> FString
+	auto ValidateContainer = [](const FProperty* Property, bool bShouldBeInsideContainer, bool bIsObjectOrScriptStruct) -> FText
 	{	
 		const UStruct* OwnerStruct = Property->GetOwnerStruct();
 		if (OwnerStruct == nullptr)
 		{
-			return FString::Printf(TEXT("The field %s has an invalid owner struct."), *Property->GetName());
+			return FText::Format(LOCTEXT("FieldHasInvalidOwner", "The field {0} has an invalid owner struct."), Property->GetDisplayNameText());
 		}
 
 		if (bShouldBeInsideContainer)
 		{
 			if (!Cast<UScriptStruct>(OwnerStruct) && !Cast<UClass>(OwnerStruct))
 			{
-				return FString::Printf(TEXT("The field %s doesn't have a valid owner for that path."), *Property->GetName());
+				return FText::Format(LOCTEXT("FieldDoesNotHaveValidOwnerForPath", "The field {0} doesn't have a valid owner for that path."), Property->GetDisplayNameText());
 			}
 		}
 
@@ -213,20 +214,20 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 		{
 			if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property))
 			{
-				return FString();
+				return FText::GetEmpty();
 			}
 			else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 			{
 				if (StructProperty->HasGetter() || Property->HasMetaData(Private::NAME_BlueprintGetter))
 				{
-					return FString::Printf(TEXT("Property %s has getter accessor. Accessor not supported on FStructProperty since it would create a temporary structure and we would not able to return a valid container from that structure."), *StructProperty->GetName());
+					return FText::Format(LOCTEXT("GetterNotSupported", "Property {0} has getter accessor. Accessor not supported on FStructProperty since it would create a temporary structure and we would not able to return a valid container from that structure."), StructProperty->GetDisplayNameText());
 				}
-				return FString();
+				return FText::GetEmpty();
 			}
-			return FString::Printf(TEXT("Field can only be object properties or struct properties. %s is a %s"), *Property->GetName(), *Property->GetClass()->GetName());
+			return FText::Format(LOCTEXT("FieldCanOnlyBeObjectOrStruct", "Field can only be object properties or struct properties. {0} is a {1}"), Property->GetDisplayNameText(), Property->GetClass()->GetDisplayNameText());
 		}
 
-		return FString();
+		return FText::GetEmpty();
 	};
 
 	TArray<int32> RawFieldIndexes;
@@ -243,15 +244,15 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 			{
 				if (!BindingHelper::IsValidForDestinationBinding(FieldVariant.GetProperty()))
 				{
-					return MakeError(FString::Printf(TEXT("Property '%s' is not writable at runtime."), *FieldVariant.GetProperty()->GetName()));
+					return MakeError(FText::Format(LOCTEXT("PropertyNotWritableAtRuntime", "Property '{0}' is not writable at runtime."), FieldVariant.GetProperty()->GetDisplayNameText()));
 				}
 			}
 			else if (!BindingHelper::IsValidForSourceBinding(FieldVariant.GetProperty()))
 			{
-				return MakeError(FString::Printf(TEXT("Property '%s' is not readable at runtime."), *FieldVariant.GetProperty()->GetName()));
+				return MakeError(FText::Format(LOCTEXT("PropertyNotReadableAtRuntime", "Property '{0}' is not readable at runtime."), FieldVariant.GetProperty()->GetDisplayNameText()));
 			}
 
-			FString ValidatedStr = ValidateContainer(FieldVariant.GetProperty(), true, !bIsLast);
+			FText ValidatedStr = ValidateContainer(FieldVariant.GetProperty(), true, !bIsLast);
 			if (!ValidatedStr.IsEmpty())
 			{
 				return MakeError(ValidatedStr);
@@ -265,12 +266,12 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 			{
 				if (!BindingHelper::IsValidForDestinationBinding(FieldVariant.GetFunction()))
 				{
-					return MakeError(FString::Printf(TEXT("Function '%s' is not writable at runtime."), *FieldVariant.GetFunction()->GetName()));
+					return MakeError(FText::Format(LOCTEXT("FunctionNotWritableAtRuntime", "Function '{0}' is not writable at runtime."), FieldVariant.GetFunction()->GetDisplayNameText()));
 				}
 			}
 			else if (!BindingHelper::IsValidForSourceBinding(FieldVariant.GetFunction()))
 			{
-				return MakeError(FString::Printf(TEXT("Function '%s' is not readable at runtime."), *FieldVariant.GetFunction()->GetName()));
+				return MakeError(FText::Format(LOCTEXT("FunctionNotReadableAtRuntime", "Function '{0}' is not readable at runtime."), FieldVariant.GetFunction()->GetDisplayNameText()));
 			}
 
 			if (bIsLast && !bInRead)
@@ -288,7 +289,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 		}
 		else
 		{
-			return MakeError(TEXT("There is an invalid field in the field path."));
+			return MakeError(LOCTEXT("InvalidFieldInPath", "There is an invalid field in the field path."));
 		}
 	}
 
@@ -314,7 +315,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddObjectFieldPath(TArrayView<const UE::MVVM::FMVVMConstFieldVariant> FieldPath, UClass* ExpectedType, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddObjectFieldPath(TArrayView<const UE::MVVM::FMVVMConstFieldVariant> FieldPath, UClass* ExpectedType, bool bInRead)
 {
 	Impl->bCompiled = false;
 
@@ -322,7 +323,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 
 	if (FieldPath.Num() == 0)
 	{
-		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
+		return MakeError(FText::Format(LOCTEXT("FieldDoesNotReturnType", "The field does not return a '{0}'."), ExpectedType->GetDisplayNameText()));
 	}
 
 	const FObjectPropertyBase* ObjectPropertyBase = nullptr;
@@ -337,42 +338,42 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 
 	if (ObjectPropertyBase == nullptr)
 	{
-		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
+		return MakeError(FText::Format(LOCTEXT("FieldDoesNotReturnType", "The field does not return a '{0}'."), ExpectedType->GetDisplayNameText()));
 	}
 	if (ObjectPropertyBase->PropertyClass == nullptr || !ExpectedType->IsChildOf(ObjectPropertyBase->PropertyClass))
 	{
-		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
+		return MakeError(FText::Format(LOCTEXT("FieldDoesNotReturnType", "The field does not return a '{0}'."), ExpectedType->GetDisplayNameText()));
 	}
 
 	return AddFieldPathImpl(FieldPath, bInRead);
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(TSubclassOf<UObject> SourceClass, const UFunction* Function)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(TSubclassOf<UObject> SourceClass, const UFunction* Function)
 {
 	Impl->bCompiled = false;
 
 	if (SourceClass == nullptr)
 	{
-		return MakeError(TEXT("The source class is invalid."));
+		return MakeError(LOCTEXT("SourceClassInvalid", "The source class is invalid."));
 	}
 	if (Function == nullptr)
 	{
-		return MakeError(TEXT("The function path is empty."));
+		return MakeError(LOCTEXT("FunctionPathEmpty", "The function path is empty."));
 	}
 
 	const bool bIsSimpleFunction = BindingHelper::IsValidForSimpleRuntimeConversion(Function);
 	const bool bIsComplexFunction = BindingHelper::IsValidForComplexRuntimeConversion(Function);
 	if (!bIsSimpleFunction && !bIsComplexFunction)
 	{
-		return MakeError(FString::Printf(TEXT("Function %s cannot be used as a runtime conversion function."), *Function->GetName()));
+		return MakeError(FText::Format(LOCTEXT("FunctionCannotBeUsedAsConversionFunction", "Function {0} cannot be used as a runtime conversion function."), Function->GetDisplayNameText()));
 	}
 
 	if (!Function->HasAllFunctionFlags(FUNC_Static))
 	{
 		if (!SourceClass->IsChildOf(Function->GetOuterUClass()))
 		{
-			return MakeError(FString::Printf(TEXT("Function %s is going to be executed with an invalid self."), *Function->GetName()));
+			return MakeError(FText::Format(LOCTEXT("FunctionHasInvalidSelf", "Function {0} is going to be executed with an invalid self."), Function->GetDisplayNameText()));
 		}
 	}
 
@@ -398,19 +399,19 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompiledBindingLibraryCompiler::AddBinding(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle)
+TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBinding(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle)
 {
 	return AddBinding(InSourceHandle, InDestinationHandle, FFieldPathHandle());
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompiledBindingLibraryCompiler::AddBinding(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
+TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBinding(FFieldPathHandle InSourceHandle, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
 {
 	return AddBinding(MakeArrayView(&InSourceHandle, 1), InDestinationHandle, InConversionFunctionHandle);
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompiledBindingLibraryCompiler::AddBinding(TArrayView<const FFieldPathHandle> InSourceHandles, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
+TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledBindingLibraryCompiler::AddBinding(TArrayView<const FFieldPathHandle> InSourceHandles, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
 {
 	Impl->bCompiled = false;
 
@@ -426,23 +427,23 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompile
 			});
 		if (FoundSourceFieldPath == INDEX_NONE)
 		{
-			return MakeError(TEXT("The source handle is invalid."));
+			return MakeError(LOCTEXT("SourceHandleInvalid", "The source handle is invalid."));
 		}
 
 		Private::FRawFieldPath& SourceRawFieldPath = Impl->FieldPaths[FoundSourceFieldPath];
 		if (!SourceRawFieldPath.bIsReadable)
 		{
-			return MakeError(TEXT("The source handle was not constructed as a readable path."));
+			return MakeError(LOCTEXT("SourceHandleNotReadable", "The source handle was not constructed as a readable path."));
 		}
 		if (SourceRawFieldPath.RawFieldIndexes.Num() == 0)
 		{
-			return MakeError(TEXT("The source handle was not registered correctly."));
+			return MakeError(LOCTEXT("SourceHandleNotRegistered", "The source handle was not registered correctly."));
 		}
 
 		Private::FRawField& RawField = Impl->Fields[SourceRawFieldPath.RawFieldIndexes.Last()];
 		if (RawField.Field.IsEmpty())
 		{
-			return MakeError(TEXT("The source handle was not registered correctly."));
+			return MakeError(LOCTEXT("SourceHandleNotRegistered", "The source handle was not registered correctly."));
 		}
 
 		DirectionBindingArgs.SourceBinding = RawField.Field;
@@ -455,23 +456,23 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompile
 			});
 		if (FoundDestinationFieldPath == INDEX_NONE)
 		{
-			return MakeError(TEXT("The destination handle is invalid."));
+			return MakeError(LOCTEXT("DestinationHandleInvalid", "The destination handle is invalid."));
 		}
 
 		Private::FRawFieldPath& DestinationRawFieldPath = Impl->FieldPaths[FoundDestinationFieldPath];
 		if (!DestinationRawFieldPath.bIsWritable)
 		{
-			return MakeError(TEXT("The destination handle was not constructed as a writable path."));
+			return MakeError(LOCTEXT("DestinationHandleNotWritable", "The destination handle was not constructed as a writable path."));
 		}
 		if (DestinationRawFieldPath.RawFieldIndexes.Num() == 0)
 		{
-			return MakeError(TEXT("The destination handle was not registered correctly."));
+			return MakeError(LOCTEXT("DestinationHandleNotRegistered", "The destination handle was not registered correctly."));
 		}
 
 		Private::FRawField& RawField = Impl->Fields[DestinationRawFieldPath.RawFieldIndexes.Last()];
 		if (RawField.Field.IsEmpty())
 		{
-			return MakeError(TEXT("The destination handle was not registered correctly."));
+			return MakeError(LOCTEXT("DestinationHandleNotRegistered", "The destination handle was not registered correctly."));
 		}
 
 		DirectionBindingArgs.DestinationBinding = RawField.Field;
@@ -485,25 +486,25 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompile
 			});
 		if (FoundFunctionFieldPath == INDEX_NONE)
 		{
-			return MakeError(TEXT("The function handle is invalid."));
+			return MakeError(LOCTEXT("FunctionHandleInvalid", "The function handle is invalid."));
 		}
 
 		Private::FRawFieldPath& ConversionFunctinRawFieldPath = Impl->FieldPaths[FoundFunctionFieldPath];
 		if (ConversionFunctinRawFieldPath.RawFieldIndexes.Num() == 0)
 		{
-			return MakeError(TEXT("The function handle was not registered as a function."));
+			return MakeError(LOCTEXT("FunctionHandleNotRegistered", "The function handle was not registered as a function."));
 		}
 
 		Private::FRawField& RawField = Impl->Fields[ConversionFunctinRawFieldPath.RawFieldIndexes.Last()];
 		if (!RawField.Field.IsFunction())
 		{
-			return MakeError(TEXT("The function handle was not registered as a function."));
+			return MakeError(LOCTEXT("FunctionHandleNotRegistered", "The function handle was not registered as a function."));
 		}
 
 		DirectionBindingArgs.ConversionFunction = RawField.Field.GetFunction();
 	}
 
-	TValueOrError<bool, FString> IsValidBinding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->IsBindingValid(DirectionBindingArgs);
+	TValueOrError<bool, FText> IsValidBinding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->IsBindingValid(DirectionBindingArgs);
 	if (IsValidBinding.HasError())
 	{
 		return MakeError(IsValidBinding.StealError());
@@ -532,7 +533,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompile
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompiledBindingLibraryCompiler::Compile()
+TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledBindingLibraryCompiler::Compile()
 {
 	Impl->bCompiled = false;
 
@@ -647,26 +648,26 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompile
 
 		if (PropertyNames.Num() > std::numeric_limits<FMVVMVCompiledBinding::IndexType>::max())
 		{
-			return MakeError(FString::Printf(TEXT("There are too many properties binded to struct '%s'"), *StructCompiledFields.Key->GetName()));
+			return MakeError(FText::Format(LOCTEXT("TooManyPropertiesBound", "There are too many properties bound to struct '{0}'"), StructCompiledFields.Key->GetDisplayNameText()));
 		}
 		CompiledFields.NumberOfProperties = static_cast<int16>(PropertyNames.Num());
 
 		if (FunctionNames.Num() > std::numeric_limits<FMVVMVCompiledBinding::IndexType>::max())
 		{
-			return MakeError(FString::Printf(TEXT("There are too many functions binded to struct '%s'"), *StructCompiledFields.Key->GetName()));
+			return MakeError(FText::Format(LOCTEXT("TooManyFunctionsBound", "There are too many functions bound to struct '{0}'"), StructCompiledFields.Key->GetDisplayNameText()));
 		}
 		CompiledFields.NumberOfFunctions = static_cast<int16>(FunctionNames.Num());
 
 		if (FieldIdNames.Num() > std::numeric_limits<FMVVMVCompiledBinding::IndexType>::max())
 		{
-			return MakeError(FString::Printf(TEXT("There are too many field ids binded to struct '%s'"), *StructCompiledFields.Key->GetName()));
+			return MakeError(FText::Format(LOCTEXT("TooManyFieldIdsBound", "There are too many field IDs bound to struct '{0}'"), StructCompiledFields.Key->GetDisplayNameText()));
 		}
 		CompiledFields.NumberOfFieldIds = static_cast<int16>(FieldIdNames.Num());
 
 		int32 LibraryStartIndex = Result.Library.CompiledFieldNames.Num();
 		if (LibraryStartIndex > std::numeric_limits<FMVVMVCompiledBinding::IndexType>::max())
 		{
-			return MakeError(FString::Printf(TEXT("There are too many properties and functions binded for the library")));
+			return MakeError(LOCTEXT("TooManyPropertiesAndFunctionsBound", "There are too many properties and functions bound in the library."));
 		}
 		CompiledFields.LibraryStartIndex = static_cast<int16>(LibraryStartIndex);
 			
@@ -678,7 +679,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompile
 		FieldIdNames.Reset();
 		if (Result.Library.CompiledFieldNames.Num() > std::numeric_limits<FMVVMVCompiledBinding::IndexType>::max())
 		{
-			return MakeError(FString::Printf(TEXT("There are too many properties binded for the library")));
+			return MakeError(LOCTEXT("TooManyPropertiesBoundInLibrary", "There are too many properties bound in the library."));
 		}
 
 		Result.Library.CompiledFields.Add(CompiledFields);
@@ -772,3 +773,5 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompile
 }
 
 } //namespace
+
+#undef LOCTEXT_NAMESPACE
