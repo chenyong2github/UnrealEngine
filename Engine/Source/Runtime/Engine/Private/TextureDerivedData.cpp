@@ -2132,18 +2132,16 @@ int32 FTexturePlatformData::GetNumNonStreamingMips(bool bIsStreamingPossible) co
 		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, (int32)GetNumMipsInTail());
 		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, UTexture2D::GetStaticMinTextureResidentMipCount());
 		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
-		int32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;
-		int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
-		if (BlockSizeX > 1 || BlockSizeY > 1)
+
+		if ( RequiresBlock4Alignment(PixelFormat) )
 		{
-			// ensure the top non-streamed mip size is >= BlockSize (and a multiple of block size!)
-			// @todo Oodle : only do for BCN, not for ASTC
+			// ensure the top non-streamed mip (and all streamed mips) size is >= BlockSize (and a multiple of block size!)
 			
 			// note: this is not right for non pow 2; NeverStream should set !bIsStreamingPossible in that case
 			if ( FMath::IsPowerOfTwo(Mips[0].SizeX) && FMath::IsPowerOfTwo(Mips[0].SizeY) )
 			{
-				NumNonStreamingMips = FMath::Max<int32>(NumNonStreamingMips, MipCount - FPlatformMath::FloorLog2(Mips[0].SizeX / BlockSizeX));
-				NumNonStreamingMips = FMath::Max<int32>(NumNonStreamingMips, MipCount - FPlatformMath::FloorLog2(Mips[0].SizeY / BlockSizeY));
+				NumNonStreamingMips = FMath::Max<int32>(NumNonStreamingMips, MipCount - FPlatformMath::FloorLog2(Mips[0].SizeX / 4));
+				NumNonStreamingMips = FMath::Max<int32>(NumNonStreamingMips, MipCount - FPlatformMath::FloorLog2(Mips[0].SizeY / 4));
 			}
 			else
 			{
@@ -2683,6 +2681,7 @@ UE::DerivedData::FValueId FTexturePlatformData::MakeMipId(int32 MipIndex)
 void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool bStreamable)
 {
 	EPlatformDataSerializationFlags Flags = EPlatformDataSerializationFlags::Cooked;
+	// @@CB bStreamable may be set to true because of bCookedIsStreamable even if I am NOT actually a streamable texture on this platform
 	if (bStreamable)
 	{
 		Flags |= EPlatformDataSerializationFlags::Streamable;
@@ -2792,9 +2791,12 @@ void UTextureCube::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 	}
 }
 
-void UTexture::UpdateCachedLODBias()
+int32 UTexture::CalculateLODBias(bool bWithCinematicMipBias) const
 {
-	CachedCombinedLODBias = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->CalculateLODBias(this);
+	// Async caching of PlatformData must be done before calling this
+	//	if you call while async CachePlatformData is in progress, you get garbage out
+
+	return UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->CalculateLODBias(this,bWithCinematicMipBias);
 }
 
 #if WITH_EDITOR
@@ -2985,8 +2987,6 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 			// If there is no source art available, create an empty platform data container.
 			PlatformDataLink = new FTexturePlatformData();
 		}
-
-		UpdateCachedLODBias();
 	}
 }
 
@@ -3305,6 +3305,7 @@ void UTexture::FinishCachePlatformData()
 			if ( RunningPlatformData == NULL )
 			{
 				// begin cache never called
+				//  do a non-async cache :
 				CachePlatformData();
 			}
 			else
@@ -3315,7 +3316,8 @@ void UTexture::FinishCachePlatformData()
 		}
 	}
 
-	UpdateCachedLODBias();
+	// FinishCachePlatformData is not reliably called
+	//  this is not a good place to put code that finalizes caching
 }
 
 void UTexture::ForceRebuildPlatformData(uint8 InEncodeSpeedOverride /* =255 ETextureEncodeSpeedOverride::Disabled */)
@@ -3489,6 +3491,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				PlatformDataToSave->FinishCache();
 
 				// Update bCookedIsStreamable for later use in IsCandidateForTextureStreaming
+				// @@CB bCookedIsStreamable is set to true if the texture can be streamed on ANY platform
 				FStreamableRenderResourceState State;
 				if (GetStreamableRenderResourceState(PlatformDataToSave, State))
 				{
@@ -3505,6 +3508,9 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				}
 
 				// Pass streamable flag for inlining mips
+				// @@CB GetTextureIsStreamableOnPlatform checks bCookedIsStreamable which changes while we go through this loop
+				//		that makes behavior dependent on order of platforms
+				// 
 				bool bTextureIsStreamable = GetTextureIsStreamableOnPlatform(*this, *Ar.CookingTarget());
 				PlatformDataToSave->SerializeCooked(Ar, this, bTextureIsStreamable);
 

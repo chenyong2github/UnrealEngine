@@ -1453,7 +1453,25 @@ public:
 	virtual class FTextureResource* CreateResource() PURE_VIRTUAL(UTexture::CreateResource,return NULL;);
 
 	/** Cache the combined LOD bias based on texture LOD group and LOD bias. */
-	ENGINE_API void UpdateCachedLODBias();
+	UE_DEPRECATED(5.2, "UpdateCachedLODBias does nothing, remove call")
+	ENGINE_API void UpdateCachedLODBias()
+	{
+		// no longer cached, now does nothing
+	}
+	
+	ENGINE_API int32 GetCachedLODBias() const override
+	{
+		// this is the combined LOD Bias with cinematic bias
+		return CalculateLODBias(true);
+	}
+
+	/**
+	* Calculate the combined LOD bias based on texture LOD group and LOD bias.
+	*   CalculateLODBias(true) >= CalculateLODBias(false)
+	*   CalculateLODBias(true) == CalculateLODBias(false) + NumCinematicMipLevels , except when a clamp was applied
+	* @return	LOD bias
+	*/
+	ENGINE_API int32 CalculateLODBias(bool bWithCinematicMipBias) const;
 
 	/**
 	 * @return The material value type of this texture.

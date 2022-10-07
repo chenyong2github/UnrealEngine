@@ -240,6 +240,29 @@ FORCEINLINE bool IsInteger(EPixelFormat PixelFormat)
 	return false;
 }
 
+FORCEINLINE bool IsDXTCBlockCompressedTextureFormat(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+	case PF_DXT1:
+	case PF_DXT3:
+	case PF_DXT5:
+	case PF_BC4:
+	case PF_BC5:
+	case PF_BC6H:
+	case PF_BC7:
+		return true;
+	default:
+		return false;
+	}
+}
+
+FORCEINLINE bool RequiresBlock4Alignment(EPixelFormat PixelFormat)
+{
+	// BCN DXTC formats require 4x4 alignment, but ASTC/ETC do not
+	return IsDXTCBlockCompressedTextureFormat(PixelFormat);
+}
+
 /** 
 * Information about a pixel format. The majority of this structure is valid after static init, however RHI does keep
 * some state in here that is initialized by that module and should not be used by general use programs that don't

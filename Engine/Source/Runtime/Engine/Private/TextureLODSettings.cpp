@@ -140,7 +140,10 @@ int32 UTextureLODSettings::CalculateLODBias(const UTexture* Texture, bool bIncCi
 	TextureMaxSize = Texture->MaxTextureSize;
 #endif // #if WITH_EDITORONLY_DATA
 
-	return CalculateLODBias(Texture->GetSurfaceWidth(), Texture->GetSurfaceHeight(), TextureMaxSize, Texture->LODGroup, Texture->LODBias, bIncCinematicMips ? Texture->NumCinematicMipLevels : 0, MipGenSetting, Texture->IsCurrentlyVirtualTextured());
+	float Width = Texture->GetSurfaceWidth();
+	float Height = Texture->GetSurfaceHeight();
+
+	return CalculateLODBias( FMath::RoundToInt(Width), FMath::RoundToInt(Height), TextureMaxSize, Texture->LODGroup, Texture->LODBias, bIncCinematicMips ? Texture->NumCinematicMipLevels : 0, MipGenSetting, Texture->IsCurrentlyVirtualTextured());
 }
 
 int32 UTextureLODSettings::CalculateLODBias(int32 Width, int32 Height, int32 MaxSize, int32 LODGroup, int32 LODBias, int32 NumCinematicMipLevels, TextureMipGenSettings InMipGenSetting, bool bVirtualTexture ) const
@@ -149,6 +152,11 @@ int32 UTextureLODSettings::CalculateLODBias(int32 Width, int32 Height, int32 Max
 
 	// Find LOD group.
 	const FTextureLODGroup& LODGroupInfo = TextureLODGroups[LODGroup];
+
+	// Note: MaxLODSize sort of acts like a max texture size limit
+	//	but it isn't really a good way to limit texture size
+	// because there are various ways in which it can be ignored
+	// eg. on textures set to NoMipmaps
 
 	// Test to see if we have no mip generation as in which case the LOD bias will be ignored
 	// VTs don't respect NoMipmaps, mips are required for VTs
@@ -187,7 +195,13 @@ int32 UTextureLODSettings::CalculateLODBias(int32 Width, int32 Height, int32 Max
 	
 	if (LODGroup == TEXTUREGROUP_UI)
 	{
-		UsedLODBias += GUITextureLODBias;
+		UsedLODBias += GUITextureLODBias;  
+		// @todo Oodle : GUITextureLODBias is applied at both cook time & run time , which is screwy
+		//	this is not inside the if (!FPlatformProperties::RequiresCookedData()) ?
+		//	it should either act like cinematic bias (runtime streaming)
+		//	or like the "drop mip" lod bias (cook time)
+		//	but it's not quite like either
+		// -> this looks broken, probably never used
 	}
 
 	int32 MinLOD = FMath::CeilLogTwo(LODGroupInfo.MinLODSize);

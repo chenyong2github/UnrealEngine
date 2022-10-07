@@ -317,15 +317,22 @@ void UStreamableRenderAsset::UnlinkStreaming()
 
 bool UStreamableRenderAsset::IsFullyStreamedIn()
 {
+	// consider a texture fully streamed when it hits this number of LODs :
+	//	MaxNumLODs has already been reduced by the "drop mip" LOD Bias
+	//	Note that just subtracting off NumCinematicMipLevels is not the right way to get the cinematic lod bias
+	//	it should be CalculateLODBias(false) , but we don't have that information here
+	int32 FullyStreamedNumLODs = CachedSRRState.MaxNumLODs - NumCinematicMipLevels;
+
 	// Note that if CachedSRRState is not valid, then this asset is not streamable and is then at max resolution.
 	if (!CachedSRRState.IsValid() 
 		|| !CachedSRRState.bSupportsStreaming 
-		|| (CachedSRRState.NumResidentLODs >= (CachedSRRState.MaxNumLODs - CachedCombinedLODBias)))
+		|| CachedSRRState.NumResidentLODs >= FullyStreamedNumLODs)
 	{
 		return true;
 	}
 
 	// IsFullyStreamedIn() might be used incorrectly if any logic waits on it to be true.
+	// there could be optional mips which are not available to be loaded, so waiting on IsFullyStreamedIn would never finish
 	ensureMsgf(CachedSRRState.NumResidentLODs != CachedSRRState.NumNonOptionalLODs, TEXT("IsFullyStreamedIn() is being called on (%s) which might not have optional LODs mounted."), *GetFName().ToString());
 
 	return false;

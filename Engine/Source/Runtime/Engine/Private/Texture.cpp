@@ -462,7 +462,7 @@ void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials
 					// VT nonpow2 will fail to build
 					// force it into a state that will succeed? or just let it fail?
 					// you can either pad to pow2 or set MaxTextureSize and turn off VT
-				PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
+					PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
 				}
 				else
 				{
@@ -951,9 +951,6 @@ void UTexture::PostLoad()
 
 	if( !IsTemplate() )
 	{
-		// Update cached LOD bias.
-		UpdateCachedLODBias();
-
 		// The texture will be cached by the cubemap it is contained within on consoles.
 		UTextureCube* CubeMap = Cast<UTextureCube>(GetOuter());
 		if (CubeMap == NULL)
@@ -1257,15 +1254,24 @@ bool UTexture::ForceUpdateTextureStreaming()
 {
 	if (!IStreamingManager::HasShutdown())
 	{
+/*
+		// I'm not sure what the scope of this "ForceUpdate" is supposed to be
+		// but if you are trying to account for config changes that can change LODBias in Editor
+		// then that means the NumMips in the cached FStreamableRenderResourceState may have changed
+		// and they all need to be reset
+
 #if WITH_EDITOR
 		for( TObjectIterator<UTexture2D> It; It; ++It )
 		{
 			UTexture* Texture = *It;
 
-			// Update cached LOD bias.
-			Texture->UpdateCachedLODBias();
+			fill the 
+			FStreamableTextureResource::State
+			by re-calling
+			Texture->GetResourcePostInitState();
 		}
 #endif // #if WITH_EDITOR
+*/
 
 		// Make sure we iterate over all textures by setting it to high value.
 		IStreamingManager::Get().SetNumIterationsForNextFrame( 100 );
@@ -1397,35 +1403,84 @@ bool UTexture::IsCandidateForTextureStreamingOnPlatformDuringCook(const ITargetP
 
 FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount, bool bSkipCanBeLoaded) const
 {
-	// Create the resource with a mip count limit taking in consideration the asset LODBias.
-	// This ensures that the mip count stays constant when toggling asset streaming at runtime.
-	const int32 NumMips = [&]() -> int32 
-	{
-		const int32 ExpectedAssetLODBias = FMath::Clamp<int32>(GetCachedLODBias() - NumCinematicMipLevels, 0, PlatformData->Mips.Num() - 1);
-		const int32 MaxRuntimeMipCount = FMath::Min<int32>(GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
-		if (MaxMipCount > 0)
-		{
-			return FMath::Min3<int32>(PlatformData->Mips.Num() - ExpectedAssetLODBias, MaxMipCount, MaxRuntimeMipCount);
-		}
-		else
-		{
-			return FMath::Min<int32>(PlatformData->Mips.Num() - ExpectedAssetLODBias, MaxRuntimeMipCount);
-		}
-	}();
-	
+	// Async caching of PlatformData must be done before calling this
+	//	if you call while async CachePlatformData is in progress, you get garbage out
+
+	// "FullLODBias" is == NumCincematicMipLevels + also maybe drop mip LODBias
+	//  the LODBias to drop mips is not added in cooked runs, because those mips have been already dropped
+	//  it is added in non-cooked runs because they are still present but we are trying to pretend they are not there
+	// "CinematicLODBias" is typically zero in cooked runs, = drop mip count in non-cooked runs
+
+	int32 FullLODBias = CalculateLODBias(true);
+	int32 CinematicLODBias = CalculateLODBias(false);
+	check( FullLODBias >= CinematicLODBias );
+
 	bool bTextureIsStreamable = IsPossibleToStream();
 
-	const int32 NumOfNonOptionalMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonOptionalMips());
-	const int32 NumOfNonStreamingMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonStreamingMips(bTextureIsStreamable));
+	int32 FullMipCount = PlatformData->Mips.Num();
+	int32 NumOfNonOptionalMips = PlatformData->GetNumNonOptionalMips();
+	int32 NumOfNonStreamingMips = PlatformData->GetNumNonStreamingMips(bTextureIsStreamable);
+	int32 NumMipsInTail = PlatformData->GetNumMipsInTail();
+
 	// Optional mips must be streaming mips :
 	check( NumOfNonOptionalMips >= NumOfNonStreamingMips );
+	// Mips in tail must be nonstreaming :
+	check( NumOfNonStreamingMips >= NumMipsInTail );
 
+	// Create the resource with a mip count limit taking in consideration the asset LODBias.
+	// This ensures that the mip count stays constant when toggling asset streaming at runtime.
+	
+	const int32 ExpectedAssetLODBias = FMath::Clamp<int32>(CinematicLODBias, 0, FullMipCount - 1);
+	// "ExpectedAssetLODBias" is the number of mips that would be dropped in cook
+	//		in a cooked run, it is zero
+
+	// GMaxTextureMipCount is for the current running RHI
+	//  it may be lower than the number of mips we cooked (eg. on mobile)
+	//	we must limit the number of mips to this count.
+	const int32 MaxRuntimeMipCount = FMath::Min<int32>(GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
+
+	int32 NumMips = FMath::Min<int32>( FullMipCount - ExpectedAssetLODBias, MaxRuntimeMipCount );
+	// "NumMips" is the number of mips after drop LOD Bias
+	//	 it should be the same in Editor and Runtime
+
+	if (MaxMipCount > 0 && NumMips > MaxMipCount)
+	{
+		// MaxMipCount is almost always either 0 or == MaxRuntimeMipCount
+		// one exception is :
+		//	MobileReduceLoadedMips(NumMips);
+		// which can cause an additional reduction of NumMips
+		NumMips = MaxMipCount;
+	}
+	
+	// don't allow less than NumOfNonStreamingMips :
+	if ( NumMips < NumOfNonStreamingMips )
+	{
+		// if NumMips went under NumOfNonStreamingMips due to ExpectedAssetLODBias
+		//  then force it back up
+		// but if it went under due to MaxRuntimeMipCount
+		// then that's a problem
+
+		if ( NumOfNonStreamingMips > MaxRuntimeMipCount )
+		{
+			// this should never happen on a PC platform, only on mobile
+			// in that case streaming in the "nonstreaming" may actually be okay
+			// in the old code, this was expected behavior, let the MaxRuntimeMipCount trump the NonStreaming constraint
+			// in new code (with RequiredBlock4Alignment) we do not expect to see this any more, so warn :
+			UE_LOG(LogTexture, Warning, TEXT("NumOfNonStreamingMips > MaxRuntimeMipCount. (%s)"), *GetName());
+			NumOfNonStreamingMips = MaxRuntimeMipCount;
+		}
+
+		NumMips = NumOfNonStreamingMips;
+	}
+
+	check( NumMips >= NumMipsInTail );
+	
 	if ( NumOfNonStreamingMips == NumMips )
 	{
 		bTextureIsStreamable = false;
 	}
 
-	const int32 AssetMipIdxForResourceFirstMip = FMath::Max<int32>(0, PlatformData->Mips.Num() - NumMips);
+	const int32 AssetMipIdxForResourceFirstMip = FullMipCount - NumMips;
 
 	bool bMakeStreamable = false;
 	int32 NumRequestedMips = 0;
@@ -1477,40 +1532,38 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 		// but only if the texture itself is streamable
 
 		// Adjust CachedLODBias so that it takes into account FStreamableRenderResourceState::AssetLODBias.
-		const int32 ResourceLODBias = FMath::Max<int32>(0, GetCachedLODBias() - AssetMipIdxForResourceFirstMip);
-		//  ResourceLODBias almost always = NumCinematicMipLevels
-		//check( ResourceLODBias == NumCinematicMipLevels ); // this will be true unless you hit the MaxRuntimeMipCount clamp in NumMips
-		// if ResourceLODBias == 0 , this always selects NumRequestedMips = NumMips
+		const int32 ResourceLODBias = FMath::Max<int32>(0, FullLODBias - AssetMipIdxForResourceFirstMip);
+		//  ResourceLODBias almost always == NumCinematicMipLevels, unless you hit the MaxRuntimeMipCount clamp in NumMips
 
-		// Ensure NumMipsInTail is within valid range to safeguard on the above expressions. 
-		const int32 NumMipsInTail = FMath::Clamp<int32>(PlatformData->GetNumMipsInTail(), 1, NumMips);
-
-		// Bias is not allowed to shrink the mip count below NumMipsInTail.
-		NumRequestedMips = FMath::Max<int32>(NumMips - ResourceLODBias, NumMipsInTail);
+		// Bias is not allowed to shrink the mip count below NumOfNonStreamingMips.
+		NumRequestedMips = FMath::Max<int32>(NumMips - ResourceLODBias, NumOfNonStreamingMips);
 
 		// If trying to load optional mips, check if the first resource mip is available.
 		if (NumRequestedMips > NumOfNonOptionalMips && !DoesMipDataExist(AssetMipIdxForResourceFirstMip))
 		{
 			NumRequestedMips = NumOfNonOptionalMips;
 		}
-
-		// Ensure we don't request a top mip in the NonStreamingMips
-		NumRequestedMips = FMath::Max(NumRequestedMips,NumOfNonStreamingMips);
 	}
 
-	// @todo Oodle : this looks like a bug; did it mean to be MinRequestMipCount <= NumMips
+	// @todo Oodle : this looks like a bug; did it mean to be MinRequestMipCount <= NumMips ?
 	// typically MinRequestMipCount == 0
-	// the only place it's not zero is from UTexture2D::CreateResource from existing resource mem, where it is == NumMips
-	// but in that case it is ignored here because it is == NumMips, not <
-	if (NumRequestedMips < MinRequestMipCount && MinRequestMipCount < NumMips)
+	// the only place it's not zero is from UTexture2D::CreateResource from existing resource mem, where MinRequestMipCount is == NumMips
+	// but in that case it is ignored here because this branches on < instead of <=
+	if ( NumRequestedMips < MinRequestMipCount && MinRequestMipCount < NumMips )
 	{
+		// as written with < instead of <= this branch is not used
+
 		NumRequestedMips = MinRequestMipCount;
 	}
+
+	check( NumOfNonStreamingMips <= NumMips );
+	check( NumRequestedMips <= NumMips );
+	check( NumRequestedMips >= NumOfNonStreamingMips );
 
 	FStreamableRenderResourceState PostInitState;
 	PostInitState.bSupportsStreaming = bMakeStreamable;
 	PostInitState.NumNonStreamingLODs = (uint8)NumOfNonStreamingMips;
-	PostInitState.NumNonOptionalLODs = (uint8)NumOfNonOptionalMips;
+	PostInitState.NumNonOptionalLODs = (uint8) FMath::Min<int32>(NumOfNonOptionalMips,NumMips);
 	PostInitState.MaxNumLODs = (uint8)NumMips;
 	PostInitState.AssetLODBias = (uint8)AssetMipIdxForResourceFirstMip;
 	PostInitState.NumResidentLODs = (uint8)NumRequestedMips;
@@ -3094,7 +3147,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 #if WITH_EDITORONLY_DATA
 		const UTextureLODSettings& LODSettings = TargetPlatform->GetTextureLODSettings();
- 		const uint32 LODBiasNoCinematics = FMath::Max<uint32>(LODSettings.CalculateLODBias(SizeX, SizeY, Texture->MaxTextureSize, Texture->LODGroup, Texture->LODBias, 0, Texture->MipGenSettings, bVirtualTextureStreaming), 0);
+ 		const uint32 LODBiasNoCinematics = FMath::Max<int32>(LODSettings.CalculateLODBias(SizeX, SizeY, Texture->MaxTextureSize, Texture->LODGroup, Texture->LODBias, 0, Texture->MipGenSettings, bVirtualTextureStreaming), 0);
 		SizeX = FMath::Max<int32>(SizeX >> LODBiasNoCinematics, 1);
 		SizeY = FMath::Max<int32>(SizeY >> LODBiasNoCinematics, 1);
 #endif
