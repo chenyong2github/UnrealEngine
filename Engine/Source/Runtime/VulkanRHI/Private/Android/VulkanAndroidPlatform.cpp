@@ -492,7 +492,8 @@ bool FVulkanAndroidPlatform::FramePace(FVulkanDevice& Device, VkSwapchainKHR Swa
 {
 	bool bVsyncMultiple = true;
 	int32 CurrentFramePace = FAndroidPlatformRHIFramePacer::GetFramePace();
-	if (CurrentFramePace != 0)
+	// give a new swapchain a chance to present some frames before attempting to change refresh rate
+	if (CurrentFramePace != 0 && PresentID > FVulkanViewport::NUM_BUFFERS)
 	{
 		CachedRefreshRate = FAndroidMisc::GetNativeDisplayRefreshRate();
 		

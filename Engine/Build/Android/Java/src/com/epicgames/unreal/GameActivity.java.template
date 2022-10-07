@@ -5399,11 +5399,19 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				@Override
 				public void run()
 				{
-					MySurfaceView.getHolder().getSurface().setFrameRate(FinalRefreshRate, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+					// the window might be gone by the time this code runs
+					try
+					{
+						MySurfaceView.getHolder().getSurface().setFrameRate(FinalRefreshRate, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+					}
+					catch (Exception e)
+					{
+						Log.debug("setFrameRate failed. "+ e.getMessage());
+					}
 				}
 			});
+			
 			Log.debug("SetNativeDisplayRefreshRate - setFrameRate " + RefreshRate);
-
 			return true;
 		}
 		else if(ANDROID_BUILD_VERSION >= 24)
