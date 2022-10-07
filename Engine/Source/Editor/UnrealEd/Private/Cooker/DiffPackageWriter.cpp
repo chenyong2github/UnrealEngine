@@ -259,8 +259,8 @@ void FDiffPackageWriter::ConditionallyDumpObjList()
 			ObjListExec += DumpObjListParams;
 
 			TGuardValue<ELogTimes::Type> GuardLogTimes(GPrintLogTimes, ELogTimes::None);
-			TGuardValue<bool> GuardLogCategory(GPrintLogCategory, false);
-			TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+			TGuardValue GuardLogCategory(GPrintLogCategory, false);
+			TGuardValue GuardPrintLogVerbosity(GPrintLogVerbosity, false);
 
 			GEngine->Exec(nullptr, *ObjListExec);
 		}
@@ -284,8 +284,8 @@ void FDiffPackageWriter::ConditionallyDumpObjects()
 			}
 
 			TGuardValue<ELogTimes::Type> GuardLogTimes(GPrintLogTimes, ELogTimes::None);
-			TGuardValue<bool> GuardLogCategory(GPrintLogCategory, false);
-			TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+			TGuardValue GuardLogCategory(GPrintLogCategory, false);
+			TGuardValue GuardPrintLogVerbosity(GPrintLogVerbosity, false);
 
 			for (const FString& Obj : AllObjects)
 			{

@@ -1686,8 +1686,8 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 		{
 			// Turn off log categories etc as it makes diffing hard
 			TGuardValue<ELogTimes::Type> GuardPrintLogTimes(GPrintLogTimes, ELogTimes::None);
-			TGuardValue<bool> GuardPrintLogCategory(GPrintLogCategory, false);
-			TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+			TGuardValue GuardPrintLogCategory(GPrintLogCategory, false);
+			TGuardValue GuardPrintLogVerbosity(GPrintLogVerbosity, false);
 
 			if (Linker)
 			{

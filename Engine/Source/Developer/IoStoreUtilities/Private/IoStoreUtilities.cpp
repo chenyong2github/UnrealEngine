@@ -4928,8 +4928,8 @@ int32 Describe(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GenerateReport);
 		TGuardValue<ELogTimes::Type> GuardPrintLogTimes(GPrintLogTimes, ELogTimes::None);
-		TGuardValue<bool> GuardPrintLogCategory(GPrintLogCategory, false);
-		TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+		TGuardValue GuardPrintLogCategory(GPrintLogCategory, false);
+		TGuardValue GuardPrintLogVerbosity(GPrintLogVerbosity, false);
 
 		auto PackageObjectIndexToString = [&ScriptObjectByGlobalIdMap, &ExportByKeyMap](const FPackageDesc* Package, const FPackageObjectIndex& PackageObjectIndex, bool bIncludeName) -> FString
 		{
