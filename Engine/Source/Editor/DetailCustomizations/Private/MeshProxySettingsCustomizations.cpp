@@ -2,6 +2,7 @@
 
 #include "MeshProxySettingsCustomizations.h"
 
+#include "Algo/AnyOf.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
@@ -20,6 +21,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 
 #define LOCTEXT_NAMESPACE "MeshProxySettingsCustomizations"
 
@@ -54,6 +56,10 @@ void FMeshProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropertyHan
 		PropertyHandles.Add(PropertyName, ChildHandle);
 	}
 
+	TArray<UObject*> OutersList;
+	StructPropertyHandle->GetOuterObjects(OutersList);
+	bIsEditingHLODLayer = Algo::AnyOf(OutersList, [](UObject* Outer) { return Outer->IsInA(UHLODLayer::StaticClass()); });
+	
 	// Determine if we are using our native module  If so, we will supress some of the options used by the current thirdparty tool (simplygon).
 
 	IMeshReductionManagerModule& ModuleManager = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
@@ -90,6 +96,7 @@ void FMeshProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropertyHan
 	TSharedPtr< IPropertyHandle > MergeDistanceHandle                     = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, MergeDistance));
 	TSharedPtr< IPropertyHandle > UnresolvedGeometryColorHandle           = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, UnresolvedGeometryColor));
 	TSharedPtr< IPropertyHandle > VoxelSizeHandle                         = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, VoxelSize));
+	TSharedPtr< IPropertyHandle > ScreenSizeHandle						  = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, ScreenSize));
 
 	for (auto Iter(PropertyHandles.CreateConstIterator()); Iter; ++Iter)
 	{
@@ -159,6 +166,13 @@ void FMeshProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropertyHan
 			AddResetToDefaultOverrides(MeshProxySettingsRow);
 			
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsVoxelSizeVisible));
+		}
+		else if (Iter.Value() == ScreenSizeHandle)
+		{
+			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+
+			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsScreenSizeVisible));
 		}
 		else
 		{
@@ -238,6 +252,11 @@ EVisibility FMeshProxySettingsCustomizations::IsVoxelSizeVisible() const
 {
 	return IsProxyLODSpecificVisible();
 }
+EVisibility FMeshProxySettingsCustomizations::IsScreenSizeVisible() const
+{
+	return bIsEditingHLODLayer ? EVisibility::Hidden : IsProxyLODSpecificVisible();
+}
+
 
 
 

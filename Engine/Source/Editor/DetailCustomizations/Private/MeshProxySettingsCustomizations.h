@@ -29,10 +29,13 @@ protected:
 	EVisibility IsMergeDistanceVisible() const;
 	EVisibility IsUnresolvedGeometryColorVisible() const;
 	EVisibility IsVoxelSizeVisible() const;
+	EVisibility IsScreenSizeVisible() const;	
 	EVisibility IsNormalCalcMethodVisible() const;
 	EVisibility IsSearchDistanceVisible() const;
 
 	EVisibility IsThirdPartySpecificVisible() const;
 	EVisibility IsProxyLODSpecificVisible() const;
 	bool UseNativeProxyLODTool() const;
+
+	bool bIsEditingHLODLayer;
 };
