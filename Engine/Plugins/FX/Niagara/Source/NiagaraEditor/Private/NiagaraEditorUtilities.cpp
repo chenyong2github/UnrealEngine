@@ -4008,6 +4008,11 @@ void FNiagaraEditorUtilities::GetAllowedPayloadTypes(TArray<FNiagaraTypeDefiniti
 	}
 }
 
+bool FNiagaraEditorUtilities::IsEnumIndexVisible(const UEnum* Enum, int32 Index)
+{
+	return FNiagaraEnumIndexVisibilityCache::GetVisibility(Enum, Index);
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);
@@ -4124,6 +4129,22 @@ void FNiagaraParameterDefinitionsUtilities::TrySubscribeScriptVarToDefinitionByN
 			OwningDefinitionSubscriberViewModel->SetParameterIsSubscribedToDefinitions(ScriptVar->Metadata.GetVariableGuid(), true);
 		}
 	}
+}
+
+TMap<FNiagaraEnumIndexVisibilityCache::FEnumIndexPair, bool> FNiagaraEnumIndexVisibilityCache::Cache;
+FCriticalSection FNiagaraEnumIndexVisibilityCache::CacheLock;
+
+bool FNiagaraEnumIndexVisibilityCache::GetVisibility(const UEnum* InEnum, int32 InIndex)
+{
+	FEnumIndexPair Key(InEnum, InIndex);
+	FScopeLock Lock(&CacheLock);
+	bool* bCachedIsVisible = Cache.Find(Key);
+	if (bCachedIsVisible == nullptr)
+	{
+		bCachedIsVisible = &Cache.Add(Key);
+		*bCachedIsVisible = InEnum->HasMetaData(TEXT("Hidden"), InIndex) == false && InEnum->HasMetaData(TEXT("Spacer"), InIndex) == false;
+	}
+	return *bCachedIsVisible;
 }
 
 #undef LOCTEXT_NAMESPACE

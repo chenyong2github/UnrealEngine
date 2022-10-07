@@ -10,7 +10,6 @@
 #include "NiagaraActions.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"
-#include "UpgradeNiagaraScriptResults.h"
 #include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 
@@ -42,6 +41,8 @@ enum class EScriptSource : uint8;
 struct FNiagaraNamespaceMetadata;
 class FNiagaraParameterHandle;
 class INiagaraParameterDefinitionsSubscriberViewModel;
+struct FNiagaraScriptVersionUpgradeContext;
+class UUpgradeNiagaraEmitterContext;
 
 enum class ENiagaraFunctionDebugState : uint8;
 
@@ -394,6 +395,8 @@ namespace FNiagaraEditorUtilities
 	/** Gets a list of the registered payload types which are allowed in the current editor context.  This API should be
 		called when providing a list types to the user instead of getting the type list directly from the type registry. */
 	void GetAllowedPayloadTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
+
+	bool IsEnumIndexVisible(const UEnum* Enum, int32 Index);
 };
 
 namespace FNiagaraParameterUtilities
@@ -470,3 +473,30 @@ namespace FNiagaraParameterDefinitionsUtilities
 	EParameterDefinitionMatchState GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter);
 	void TrySubscribeScriptVarToDefinitionByName(UNiagaraScriptVariable* ScriptVar, INiagaraParameterDefinitionsSubscriberViewModel* OwningDefinitionSubscriberViewModel);
 };
+
+class FNiagaraEnumIndexVisibilityCache
+{
+public:
+	static bool GetVisibility(const UEnum* InEnum, int32 InIndex);
+
+private:
+	struct FEnumIndexPair
+	{
+		FEnumIndexPair(const UEnum* InEnum, int32 InIndex) : Enum(InEnum), Index(InIndex) { }
+		bool operator==(const FEnumIndexPair& Other) const
+		{
+			return Enum == Other.Enum && Index == Other.Index;
+		}
+		const UEnum* Enum;
+		int32 Index;
+	};
+
+	friend FORCEINLINE uint32 GetTypeHash(const FEnumIndexPair& EnumIndexPair)
+	{
+		return HashCombineFast(GetTypeHash(EnumIndexPair.Enum), GetTypeHash(EnumIndexPair.Index));
+	}
+
+	static TMap<FEnumIndexPair, bool> Cache;
+	static FCriticalSection CacheLock;
+};
+

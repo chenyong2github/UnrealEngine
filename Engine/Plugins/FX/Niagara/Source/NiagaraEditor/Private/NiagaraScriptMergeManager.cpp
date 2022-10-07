@@ -259,36 +259,49 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const FVers
 		TArray<const UEdGraphPin*> FunctionInputPins;
 		GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
 		
+		TArray<FNiagaraVariable> FunctionInputVariables;
+		TArray<FName> FunctionInputVariableNames;
 		for (const UEdGraphPin* FunctionInputPin : FunctionInputPins)
 		{
 			FNiagaraVariable FunctionInputVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputPin);
 			if (FunctionInputVariable.IsValid() && FNiagaraStackGraphUtilities::IsRapidIterationType(FunctionInputVariable.GetType()))
 			{
-				UEdGraphPin* FunctionInputDefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, OwningScript->GetUsage(), ConstantResolver);
-				if (FunctionInputDefaultPin != nullptr)
-				{
-					// Try to get the default value from the default pin.
-					FNiagaraVariable FunctionInputDefaultVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputDefaultPin);
-					if (FunctionInputDefaultVariable.GetData() != nullptr)
-					{
-						FunctionInputVariable.SetData(FunctionInputDefaultVariable.GetData());
-					}
-				}
+				FunctionInputVariables.Add(FunctionInputVariable);
+				FunctionInputVariableNames.Add(FunctionInputVariable.GetName());
+			}
+		}
 
-				if (FunctionInputVariable.GetData() == nullptr)
-				{
-					// If the pin didn't have a default value then use the type default.
-					FNiagaraEditorUtilities::ResetVariableToDefaultValue(FunctionInputVariable);
-				}
+		TArray<UEdGraphPin*> FunctionInputDefaultValuePins;
+		FunctionInputDefaultValuePins.AddZeroed(FunctionInputVariables.Num());
+		FunctionCallNode->FindParameterMapDefaultValuePins(FunctionInputVariableNames, InOwningScript.GetUsage(), ConstantResolver, FunctionInputDefaultValuePins);
 
-				if (FunctionInputVariable.GetData() != nullptr)
+		for (int32 i = 0; i < FunctionInputVariables.Num(); i++)
+		{
+			FNiagaraVariable FunctionInputVariable = FunctionInputVariables[i];
+			UEdGraphPin* FunctionInputDefaultPin = FunctionInputDefaultValuePins[i];
+			if (FunctionInputDefaultPin != nullptr)
+			{
+				// Try to get the default value from the default pin.
+				FNiagaraVariable FunctionInputDefaultVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputDefaultPin);
+				if (FunctionInputDefaultVariable.GetData() != nullptr)
 				{
-					FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(FunctionInputVariable.GetName()), &InFunctionCallNode);
-					FNiagaraVariable FunctionInputRapidIterationParameter =
-						FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OwningScript->GetUsage(), AliasedFunctionInputHandle.GetParameterHandleString(), FunctionInputVariable.GetType());
-					FunctionInputRapidIterationParameter.SetData(FunctionInputVariable.GetData());
-					RapidIterationInputDefaultValues.Add(FunctionInputRapidIterationParameter);
+					FunctionInputVariable.SetData(FunctionInputDefaultVariable.GetData());
 				}
+			}
+
+			if (FunctionInputVariable.GetData() == nullptr)
+			{
+				// If the pin didn't have a default value then use the type default.
+				FNiagaraEditorUtilities::ResetVariableToDefaultValue(FunctionInputVariable);
+			}
+
+			if (FunctionInputVariable.GetData() != nullptr)
+			{
+				FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(FunctionInputVariable.GetName()), &InFunctionCallNode);
+				FNiagaraVariable FunctionInputRapidIterationParameter =
+					FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OwningScript->GetUsage(), AliasedFunctionInputHandle.GetParameterHandleString(), FunctionInputVariable.GetType());
+				FunctionInputRapidIterationParameter.SetData(FunctionInputVariable.GetData());
+				RapidIterationInputDefaultValues.Add(FunctionInputRapidIterationParameter);
 			}
 		}
 	}

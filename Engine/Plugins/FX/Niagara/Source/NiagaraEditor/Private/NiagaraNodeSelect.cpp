@@ -705,8 +705,7 @@ TArray<int32> UNiagaraNodeSelect::GetOptionValues() const
 			int32 ValidEnumEntryCount = 0;
 			for (int32 EnumIndex = 0; EnumIndex < Enum->NumEnums()-1; EnumIndex++)
 			{
-				const bool bShouldHideEnumEntry = ShouldHideEnumEntry(Enum, EnumIndex);
-				if(!bShouldHideEnumEntry)
+				if(FNiagaraEditorUtilities::IsEnumIndexVisible(Enum, EnumIndex))
 				{
 					ValidEnumEntryCount++;
 					SelectorValues.Add(Enum->GetValueByIndex(EnumIndex));

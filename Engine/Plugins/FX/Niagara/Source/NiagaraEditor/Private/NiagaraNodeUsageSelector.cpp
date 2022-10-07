@@ -65,11 +65,6 @@ void UNiagaraNodeUsageSelector::AddOptionPin(const FNiagaraVariable& OutputVaria
 	NewPin->PinFriendlyName = GetOptionPinFriendlyName(OutputVariable);
 }
 
-bool UNiagaraNodeUsageSelector::ShouldHideEnumEntry(UEnum* Enum, int32 Index) const
-{
-	return Enum->HasMetaData(TEXT("Hidden"), Index) || Enum->HasMetaData(TEXT("Spacer"), Index);
-}
-
 TArray<int32> UNiagaraNodeUsageSelector::GetOptionValues() const
 {
 	TArray<int32> OptionValues;

@@ -49,7 +49,6 @@ public:
 
 	/** Helper function to create a variable to add to the OutputVars and FGuid to add to OutputVarGuids. */
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
-	bool ShouldHideEnumEntry(UEnum* Enum, int32 Index) const;
 
 	bool AreInputPinsOutdated() const;
 protected:

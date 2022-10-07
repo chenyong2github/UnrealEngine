@@ -114,9 +114,7 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 
 		for (int32 EnumIndex = 0; EnumIndex < Enum->NumEnums() - 1; ++EnumIndex)
 		{
-			bool const bShouldBeHidden = ShouldHideEnumEntry(Enum, EnumIndex);
-
-			if (!bShouldBeHidden)
+			if (FNiagaraEditorUtilities::IsEnumIndexVisible(Enum, EnumIndex))
 			{
 				OptionValues.Add(Enum->GetValueByIndex(EnumIndex));
 			}
