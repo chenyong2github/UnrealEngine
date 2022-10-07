@@ -28,6 +28,7 @@ namespace ModulesViewColumns
 	static const FName FailedColumnName(TEXT("Failed"));
 	static const FName StatusColumnName(TEXT("Status"));
 	static const FName SymbolsFileColumnName(TEXT("SymbolsFile"));
+	static const FName SizeColumnName(TEXT("Size"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

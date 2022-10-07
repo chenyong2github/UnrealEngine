@@ -122,6 +122,16 @@ public:
 	}
 
 	FText GetToolTipText() const { return FText(); }
+	
+	inline uint32 GetSize() const
+	{
+		return Module->Size;
+	}
+
+	FText GetSizeAsText() const
+	{
+		return FText::AsNumber(GetSize());
+	}
 
 private:
 	const TraceServices::FModule* Module;
@@ -246,6 +256,16 @@ public:
 					SNew(STextBlock)
 					.ColorAndOpacity(this, &SModuleRow::GetStatusColor)
 					.Text(this, &SModuleRow::GetSymbolsFile)
+				];
+		}
+		else if (ColumnName == ModulesViewColumns::SizeColumnName)
+		{
+			return SNew(SBox)
+				.Padding(FMargin(4.0, 0.0))
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(this, &SModuleRow::GetSizeColor)
+					.Text(this, &SModuleRow::GetSizeAsText)
 				];
 		}
 		else
@@ -377,6 +397,19 @@ public:
 		if (ModulePin.IsValid())
 		{
 			return ModulePin->GetToolTipText();
+		}
+		else
+		{
+			return FText();
+		}
+	}
+	
+	FText GetSizeAsText() const
+	{
+		const TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			return ModulePin->GetSizeAsText();
 		}
 		else
 		{
@@ -540,6 +573,11 @@ public:
 			return GetBlackColor();
 		}
 	}
+	
+	FSlateColor GetSizeColor() const
+	{
+		return GetWhileColor();
+	}
 
 private:
 	TWeakPtr<FModule> WeakModule;
@@ -642,6 +680,13 @@ void SModulesView::Construct(const FArguments& InArgs)
 							.DefaultLabel(LOCTEXT("AddressRangeColumn", "Address Range"))
 							.InitialSortMode(EColumnSortMode::Ascending)
 							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::AddressRangeColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
+							
+							+ SHeaderRow::Column(ModulesViewColumns::SizeColumnName)
+							.ManualWidth(76.0f)
+							.DefaultLabel(LOCTEXT("SizeColumn", "Size"))
+							.InitialSortMode(EColumnSortMode::Descending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::SizeColumnName)
 							.OnSort(this, &SModulesView::OnSortModeChanged)
 
 							+ SHeaderRow::Column(ModulesViewColumns::ModuleNameColumnName)
@@ -1086,6 +1131,19 @@ void SModulesView::UpdateSorting()
 					}
 					return FCString::Strcmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) > 0;
 				});
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::SizeColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetSize() < B->GetSize(); });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetSize() > B->GetSize(); });
 		}
 	}
 }
