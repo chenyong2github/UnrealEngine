@@ -34,7 +34,7 @@ public:
 private:
 	// Keep track of which output providers are currently active
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UVCamPixelStreamingSession>> ActiveOutputProviders;
+	TArray<TWeakObjectPtr<UVCamPixelStreamingSession>> ActiveOutputProviders;
 
 	// Signalling/webserver
 	TSharedPtr<UE::PixelStreamingServers::IServer> Server;
