@@ -18,17 +18,18 @@ namespace XRMotionControllerBase_Impl
 		{ TEXT("Pad")                                }, // EControllerHand::Pad
 		{ TEXT("ExternalCamera")                     }, // EControllerHand::ExternalCamera
 		{ TEXT("Gun")                                }, // EControllerHand::Gun
-		{ TEXT("Special_1")                          }, // EControllerHand::Special_1
-		{ TEXT("Special_2")                          }, // EControllerHand::Special_2
-		{ TEXT("Special_3")                          }, // EControllerHand::Special_3
-		{ TEXT("Special_4")                          }, // EControllerHand::Special_4
-		{ TEXT("Special_5")                          }, // EControllerHand::Special_5
-		{ TEXT("Special_6")                          }, // EControllerHand::Special_6
-		{ TEXT("Special_7")                          }, // EControllerHand::Special_7
-		{ TEXT("Special_8")                          }, // EControllerHand::Special_8
-		{ TEXT("Special_9")                          }, // EControllerHand::Special_9
-		{ TEXT("Special_10")                         }, // EControllerHand::Special_10
-		{ TEXT("Special_11")                         }  // EControllerHand::Special_11
+		{ TEXT("HMD")                                }, // EControllerHand::HMD
+		{ TEXT("Chest")                              }, // EControllerHand::Chest
+		{ TEXT("LeftShoulder")                       }, // EControllerHand::LeftShoulder
+		{ TEXT("RightShoulder")                      }, // EControllerHand::RightShoulder
+		{ TEXT("LeftElbow")                          }, // EControllerHand::LeftElbow
+		{ TEXT("RightElbow")                         }, // EControllerHand::RightElbow
+		{ TEXT("Waist")                              }, // EControllerHand::Waist
+		{ TEXT("LeftKnee")                           }, // EControllerHand::LeftKnee
+		{ TEXT("RightKnee")                          }, // EControllerHand::RightKnee
+		{ TEXT("LeftFoot")                           }, // EControllerHand::LeftFoot
+		{ TEXT("RightFoot")                          }, // EControllerHand::RightFoot
+		{ TEXT("Special")                            }  // EControllerHand::Special
 	};
 }
 
@@ -114,17 +115,18 @@ bool FXRMotionControllerBase::GetHandEnumForSourceName(const FName Source, ECont
 		MotionSourceToEControllerHandMap.Add(TEXT("Pad"), EControllerHand::Pad);
 		MotionSourceToEControllerHandMap.Add(TEXT("ExternalCamera"), EControllerHand::ExternalCamera);
 		MotionSourceToEControllerHandMap.Add(TEXT("Gun"), EControllerHand::Gun);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_1"), EControllerHand::Special_1);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_2"), EControllerHand::Special_2);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_3"), EControllerHand::Special_3);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_4"), EControllerHand::Special_4);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_5"), EControllerHand::Special_5);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_6"), EControllerHand::Special_6);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_7"), EControllerHand::Special_7);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_8"), EControllerHand::Special_8);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_9"), EControllerHand::Special_9);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_10"), EControllerHand::Special_10);
-		MotionSourceToEControllerHandMap.Add(TEXT("Special_11"), EControllerHand::Special_11);
+		MotionSourceToEControllerHandMap.Add(TEXT("HMD"), EControllerHand::HMD);
+		MotionSourceToEControllerHandMap.Add(TEXT("Chest"), EControllerHand::Chest);
+		MotionSourceToEControllerHandMap.Add(TEXT("LeftShoulder"), EControllerHand::LeftShoulder);
+		MotionSourceToEControllerHandMap.Add(TEXT("RightShoulder"), EControllerHand::RightShoulder);
+		MotionSourceToEControllerHandMap.Add(TEXT("LeftElbow"), EControllerHand::LeftElbow);
+		MotionSourceToEControllerHandMap.Add(TEXT("RightElbow"), EControllerHand::RightElbow);
+		MotionSourceToEControllerHandMap.Add(TEXT("Waist"), EControllerHand::Waist);
+		MotionSourceToEControllerHandMap.Add(TEXT("LeftKnee"), EControllerHand::LeftKnee);
+		MotionSourceToEControllerHandMap.Add(TEXT("RightKnee"), EControllerHand::RightKnee);
+		MotionSourceToEControllerHandMap.Add(TEXT("LeftFoot"), EControllerHand::LeftFoot);
+		MotionSourceToEControllerHandMap.Add(TEXT("RightFoot"), EControllerHand::RightFoot);
+		MotionSourceToEControllerHandMap.Add(TEXT("Special"), EControllerHand::Special);
 		// EControllerHand enum names mapped to EControllerHand enum values
 		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Left"), EControllerHand::Left);
 		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Right"), EControllerHand::Right);
@@ -132,17 +134,18 @@ bool FXRMotionControllerBase::GetHandEnumForSourceName(const FName Source, ECont
 		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Pad"), EControllerHand::Pad);
 		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::ExternalCamera"), EControllerHand::ExternalCamera);
 		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Gun"), EControllerHand::Gun);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_1"), EControllerHand::Special_1);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_2"), EControllerHand::Special_2);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_3"), EControllerHand::Special_3);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_4"), EControllerHand::Special_4);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_5"), EControllerHand::Special_5);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_6"), EControllerHand::Special_6);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_7"), EControllerHand::Special_7);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_8"), EControllerHand::Special_8);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_9"), EControllerHand::Special_9);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_10"), EControllerHand::Special_10);
-		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special_11"), EControllerHand::Special_11);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::HMD"), EControllerHand::HMD);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Chest"), EControllerHand::Chest);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::LeftShoulder"), EControllerHand::LeftShoulder);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::RightShoulder"), EControllerHand::RightShoulder);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::LeftElbow"), EControllerHand::LeftElbow);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::RightElbow"), EControllerHand::RightElbow);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Waist"), EControllerHand::Waist);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::LeftKnee"), EControllerHand::LeftKnee);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::RightKnee"), EControllerHand::RightKnee);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::LeftFoot"), EControllerHand::LeftFoot);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::RightFoot"), EControllerHand::RightFoot);
+		MotionSourceToEControllerHandMap.Add(TEXT("EControllerHand::Special"), EControllerHand::Special);
 		// Newer source names that can usefully map to legacy EControllerHand values
 		MotionSourceToEControllerHandMap.Add(TEXT("LeftGrip"), EControllerHand::Left);
 		MotionSourceToEControllerHandMap.Add(TEXT("RightGrip"), EControllerHand::Right);

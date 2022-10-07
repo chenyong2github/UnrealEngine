@@ -2,6 +2,67 @@
 
 #include "OpenXRCore.h"
 #include "HeadMountedDisplayTypes.h"
+#include "IOpenXRHMDModule.h"
+
+FOpenXRPath::FOpenXRPath(XrPath InPath)
+	: Path(InPath)
+{
+}
+
+FOpenXRPath::FOpenXRPath(FName InName)
+	: Path(IOpenXRHMDModule::Get().ResolveNameToPath(InName))
+{
+}
+
+FOpenXRPath::FOpenXRPath(const char* PathString)
+	: Path(XR_NULL_PATH)
+{
+	XrInstance Instance = IOpenXRHMDModule::Get().GetInstance();
+	if (ensure(Instance != XR_NULL_HANDLE))
+	{
+		XrResult Result = xrStringToPath(Instance, PathString, &Path);
+		check(XR_SUCCEEDED(Result));
+	}
+}
+
+FOpenXRPath::FOpenXRPath(const FString& PathString)
+	: FOpenXRPath((ANSICHAR*)StringCast<ANSICHAR>(*PathString).Get())
+{
+}
+
+FString FOpenXRPath::ToString() const
+{
+	XrInstance Instance = IOpenXRHMDModule::Get().GetInstance();
+	if (!ensure(Instance != XR_NULL_HANDLE))
+	{
+		return FString();
+	}
+
+	uint32 PathCount = 0;
+	char PathChars[XR_MAX_PATH_LENGTH];
+	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
+	check(XR_SUCCEEDED(Result));
+	return XR_SUCCEEDED(Result) ? FString(PathCount, PathChars) : FString();
+}
+
+uint32 FOpenXRPath::GetStringLength() const
+{
+	XrInstance Instance = IOpenXRHMDModule::Get().GetInstance();
+	if (!ensure(Instance != XR_NULL_HANDLE))
+	{
+		return 0;
+	}
+
+	uint32 PathCount = 0;
+	XrResult Result = xrPathToString(Instance, Path, 0, &PathCount, nullptr);
+	check(XR_SUCCEEDED(Result));
+	return PathCount - 1;
+}
+
+FName FOpenXRPath::ToName() const
+{
+	return IOpenXRHMDModule::Get().ResolvePathToName(Path);
+}
 
 #define DEFINE_XR_ENTRYPOINTS(Type,Func) Type OpenXRDynamicAPI::Func = nullptr;
 ENUM_XR_ENTRYPOINTS_GLOBAL(DEFINE_XR_ENTRYPOINTS);

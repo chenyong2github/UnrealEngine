@@ -38,6 +38,11 @@ public:
 	virtual bool IsExtensionEnabled(const FString& Name) const override { return EnabledExtensions.Contains(Name); }
 	virtual bool IsLayerAvailable(const FString& Name) const override { return EnabledLayers.Contains(Name); }
 	virtual bool IsLayerEnabled(const FString& Name) const override { return EnabledLayers.Contains(Name); }
+	virtual XrInstance GetInstance() const override { return Instance; }
+	virtual XrSystemId GetSystemId() const override { return System; }
+
+	virtual FName ResolvePathToName(XrPath Path) override;
+	virtual XrPath ResolveNameToPath(FName Name) override;
 
 private:
 	void* LoaderHandle;
@@ -50,6 +55,11 @@ private:
 	TArray<class IOpenXRExtensionPlugin*> ExtensionPlugins;
 	TRefCountPtr<class FOpenXRRenderBridge> RenderBridge;
 	TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > VulkanExtensions;
+
+	// We cache all attempts to convert between XrPath and FName to avoid costly resolves
+	FRWLock NameMutex;
+	TSortedMap<XrPath, FName> PathToName;
+	TSortedMap<FName, XrPath, FDefaultAllocator, FNameFastLess> NameToPath;
 
 	bool EnumerateExtensions();
 	bool EnumerateLayers();

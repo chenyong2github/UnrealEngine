@@ -131,6 +131,60 @@ FORCEINLINE uint32 ToXrPriority(int32 Priority)
 	return (uint32)Priority ^ (1 << 31);
 }
 
+/**
+ * XrPath wrapper with convenience functions
+ */
+class OPENXRHMD_API FOpenXRPath
+{
+public:
+	FOpenXRPath(XrPath InPath);
+
+	/**
+	 * Efficiently converts an FName to an XrPath
+	 */
+	FOpenXRPath(FName InName);
+
+	/**
+	 * Converts a string to an XrPath
+	 */
+	FOpenXRPath(const char* PathString);
+	FOpenXRPath(const FString& PathString);
+
+	/**
+	 * Converts an XrPath to a readable format
+	 *
+	 * @return String representation of the path
+	 */
+	FString ToString() const;
+
+	/**
+	 * Get the number of characters, excluding null-terminator, that ToString() would yield
+	 */
+	uint32 GetStringLength() const;
+
+	/**
+	 * Efficiently converts an XrPath to an FName
+	 *
+	 * @return FName representing the path
+	 */
+	FName ToName() const;
+
+	operator bool() const { return Path != XR_NULL_PATH; }
+	operator XrPath() const { return Path; }
+	operator FString() const { return ToString(); }
+	operator FName() const { return ToName(); }
+
+	/**
+	 * Operators to append another path ensuring the / character is used between them
+	 */
+	FOpenXRPath operator/(const char* Suffix) const { return FOpenXRPath(ToString() / Suffix); }
+	FOpenXRPath operator/(FString Suffix) const { return FOpenXRPath(ToString() / Suffix); }
+	FOpenXRPath operator/(FOpenXRPath Suffix) const { return FOpenXRPath(ToString() / Suffix); }
+
+private:
+	XrPath Path;
+};
+
 /** List all OpenXR global entry points used by Unreal. */
 #define ENUM_XR_ENTRYPOINTS_GLOBAL(EnumMacro) \
 	EnumMacro(PFN_xrEnumerateApiLayerProperties,xrEnumerateApiLayerProperties) \
@@ -213,34 +267,16 @@ bool PreInitOpenXRCore(PFN_xrGetInstanceProcAddr InGetProcAddr);
  */
 bool InitOpenXRCore(XrInstance Instance);
 
-FORCEINLINE XrResult OpenXRPathToFString(XrInstance Instance, XrPath Path, FString& OutString)
+FORCEINLINE void FilterActionName(const char* InActionName, char* OutActionName)
 {
-	uint32 PathCount = 0;
-	char PathChars[XR_MAX_PATH_LENGTH];
-	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
-	if (Result == XR_SUCCESS)
-	{
-		OutString = FString(PathCount, PathChars);
-	}
-	else
-	{
-		OutString = "";
-	}	
-	return Result;
-}
+	static_assert(XR_MAX_ACTION_NAME_SIZE == XR_MAX_ACTION_SET_NAME_SIZE);
 
-FORCEINLINE XrResult OpenXRPathToFName(XrInstance Instance, XrPath Path, FName& OutFName)
-{
-	uint32 PathCount = 0;
-	char PathChars[XR_MAX_PATH_LENGTH];
-	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
-	if (Result == XR_SUCCESS)
+	// Ensure the action name is a well-formed path
+	size_t i;
+	for (i = 0; i < XR_MAX_ACTION_NAME_SIZE - 1 && InActionName[i] != '\0'; i++)
 	{
-		OutFName = FName(PathCount, PathChars);
+		unsigned char c = InActionName[i];
+		OutActionName[i] = (c == ' ') ? '-' : isalnum(c) ? tolower(c) : '_';
 	}
-	else
-	{
-		OutFName = NAME_None;
-	}
-	return Result;
+	OutActionName[i] = '\0';
 }

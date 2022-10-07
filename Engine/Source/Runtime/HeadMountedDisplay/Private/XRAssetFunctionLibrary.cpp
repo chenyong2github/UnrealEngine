@@ -71,7 +71,7 @@ static UPrimitiveComponent* XRAssetFunctionLibrary_Impl::AddNamedDeviceVisualiza
 {
 	UPrimitiveComponent* NewComponent = nullptr;
 
-	EControllerHand HandId = EControllerHand::Special_11;
+	EControllerHand HandId = EControllerHand::Special;
 	if (FXRMotionControllerBase::GetHandEnumForSourceName(DeviceName, HandId))
 	{
 		TArray<IXRSystemAssets*> XRAssetSystems = IModularFeatures::Get().GetModularFeatureImplementations<IXRSystemAssets>(IXRSystemAssets::GetModularFeatureName());

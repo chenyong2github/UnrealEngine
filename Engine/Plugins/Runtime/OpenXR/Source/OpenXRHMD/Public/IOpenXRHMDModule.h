@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 #include "IHeadMountedDisplayModule.h"
 
+#include <openxr/openxr.h>
+
 /**
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
@@ -41,4 +43,10 @@ public:
 
 	virtual bool IsLayerAvailable(const FString& Name) const = 0;
 	virtual bool IsLayerEnabled(const FString& Name) const = 0;
+
+	virtual XrInstance GetInstance() const = 0;
+	virtual XrSystemId GetSystemId() const = 0;
+
+	virtual FName ResolvePathToName(XrPath Path) = 0;
+	virtual XrPath ResolveNameToPath(FName Name) = 0;
 };

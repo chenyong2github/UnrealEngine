@@ -161,7 +161,7 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 			if (XR_SUCCEEDED(xrGetCurrentInteractionProfile(Session, GetTrackedDevicePath(Devices[(int32)Hand]), &Profile)) &&
 				Profile.interactionProfile != XR_NULL_PATH)
 			{
-				XR_ENSURE(OpenXRPathToFName(Instance, Profile.interactionProfile, MotionControllerData.DeviceName));
+				MotionControllerData.DeviceName = FOpenXRPath(Profile.interactionProfile);
 			}
 		}
 	}
@@ -271,18 +271,13 @@ bool FOpenXRHMD::GetCurrentInteractionProfile(const EControllerHand Hand, FStrin
 			}
 			else
 			{				
-				XR_ENSURE(OpenXRPathToFString(Instance, Profile.interactionProfile, InteractionProfile));
+				InteractionProfile = FOpenXRPath(Profile.interactionProfile);
 				return true;
 			}
 		}
 		else
 		{
-			FString PathStr;
-			XrResult PathResult = OpenXRPathToFString(Instance, Path, PathStr);
-			if (!XR_SUCCEEDED(PathResult))
-			{
-				PathStr = FString::Printf(TEXT("xrPathToString returned %s"), OpenXRResultToString(Result));
-			}
+			FString PathStr = FOpenXRPath(Path);
 			UE_LOG(LogHMD, Warning, TEXT("GetCurrentInteractionProfile for %i (%s) failed because xrGetCurrentInteractionProfile failed with result %s."), Hand, *PathStr, OpenXRResultToString(Result));
 			return false;
 		}
@@ -1819,7 +1814,7 @@ void FOpenXRHMD::DestroySession()
 	FlushRenderingCommands();
 
 	// Clear all the tracked devices
-	ResetActionDevices();
+	ResetTrackedDevices();
 
 	FWriteScopeLock SessionLock(SessionHandleMutex);
 
@@ -1890,7 +1885,7 @@ void FOpenXRHMD::DestroySession()
 	}
 }
 
-int32 FOpenXRHMD::AddActionDevice(XrAction Action, XrPath Path)
+int32 FOpenXRHMD::AddTrackedDevice(XrAction Action, XrPath Path)
 {
 	FWriteScopeLock DeviceLock(DeviceMutex);
 
@@ -1908,7 +1903,7 @@ int32 FOpenXRHMD::AddActionDevice(XrAction Action, XrPath Path)
 	return DeviceId;
 }
 
-void FOpenXRHMD::ResetActionDevices()
+void FOpenXRHMD::ResetTrackedDevices()
 {
 	FWriteScopeLock DeviceLock(DeviceMutex);
 

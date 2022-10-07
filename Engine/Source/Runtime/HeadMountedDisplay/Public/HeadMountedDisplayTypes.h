@@ -240,6 +240,8 @@ enum class EXRTrackedDeviceType : uint8
 	Controller,
 	/** Represents a static tracking reference device, such as a Lighthouse or tracking camera */
 	TrackingReference,
+	/** Represents trackers, such as a Vive tracker */
+	Tracker,
 	/** Misc. device types, for future expansion */
 	Other,
 	/** DeviceId is invalid */

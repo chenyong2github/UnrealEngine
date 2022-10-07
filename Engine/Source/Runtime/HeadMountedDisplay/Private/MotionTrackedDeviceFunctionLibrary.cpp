@@ -77,7 +77,7 @@ bool UMotionTrackedDeviceFunctionLibrary::EnableMotionTrackingOfDevice(int32 Pla
 
 bool UMotionTrackedDeviceFunctionLibrary::EnableMotionTrackingOfSource(int32 PlayerIndex, FName SourceName)
 {
-	EControllerHand Hand = EControllerHand::Special_11;
+	EControllerHand Hand = EControllerHand::Special;
 	if (FXRMotionControllerBase::GetHandEnumForSourceName(SourceName, Hand))
 	{
 		if (IModularFeatures::Get().IsModularFeatureAvailable(IMotionTrackingSystemManagement::GetModularFeatureName()))
@@ -112,7 +112,7 @@ void UMotionTrackedDeviceFunctionLibrary::DisableMotionTrackingOfDevice(int32 Pl
 
 void UMotionTrackedDeviceFunctionLibrary::DisableMotionTrackingOfSource(int32 PlayerIndex, FName SourceName)
 {
-	EControllerHand Hand = EControllerHand::Special_11;
+	EControllerHand Hand = EControllerHand::Special;
 	if (FXRMotionControllerBase::GetHandEnumForSourceName(SourceName, Hand))
 	{
 		if (IModularFeatures::Get().IsModularFeatureAvailable(IMotionTrackingSystemManagement::GetModularFeatureName()))
@@ -149,7 +149,7 @@ bool UMotionTrackedDeviceFunctionLibrary::IsMotionTrackingEnabledForDevice(int32
 
 bool UMotionTrackedDeviceFunctionLibrary::IsMotionTrackingEnabledForSource(int32 PlayerIndex, FName SourceName)
 {
-	EControllerHand Hand = EControllerHand::Special_11;
+	EControllerHand Hand = EControllerHand::Special;
 	if (FXRMotionControllerBase::GetHandEnumForSourceName(SourceName, Hand))
 	{
 		if (IModularFeatures::Get().IsModularFeatureAvailable(IMotionTrackingSystemManagement::GetModularFeatureName()))

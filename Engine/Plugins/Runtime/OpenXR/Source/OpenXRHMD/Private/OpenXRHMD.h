@@ -346,8 +346,8 @@ public:
 	OPENXRHMD_API bool IsRunning() const;
 	OPENXRHMD_API bool IsFocused() const;
 
-	OPENXRHMD_API int32 AddActionDevice(XrAction Action, XrPath Path);
-	OPENXRHMD_API void ResetActionDevices();
+	OPENXRHMD_API int32 AddTrackedDevice(XrAction Action, XrPath Path);
+	OPENXRHMD_API void ResetTrackedDevices();
 	OPENXRHMD_API XrPath GetTrackedDevicePath(const int32 DeviceId);
 	OPENXRHMD_API XrSpace GetTrackedDeviceSpace(const int32 DeviceId);
 

@@ -158,9 +158,6 @@ namespace SteamVRInputDeviceConstants
 
 	/* Total number of supported tracked devices */
 	static const int32 MaxControllers = k_unMaxTrackedDeviceCount;
-
-	/* The maximum number of "Special" hand designations */
-	static const int32 MaxSpecialDesignations = ((int32)EControllerHand::Special_9 - (int32)EControllerHand::Special_1) + 1;
 }
 
 /* Buttons available on a SteamVR controller */

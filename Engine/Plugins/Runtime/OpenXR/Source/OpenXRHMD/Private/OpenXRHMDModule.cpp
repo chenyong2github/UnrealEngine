@@ -755,3 +755,64 @@ bool FOpenXRHMDModule::InitSystem()
 
 	return true;
 }
+
+FName FOpenXRHMDModule::ResolvePathToName(XrPath Path)
+{
+	{
+		FReadScopeLock Lock(NameMutex);
+		FName* FoundName = PathToName.Find(Path);
+		if (FoundName)
+		{
+			// We've already previously resolved this XrPath to an FName
+			return *FoundName;
+		}
+	}
+
+	uint32 PathCount = 0;
+	char PathChars[XR_MAX_PATH_LENGTH];
+	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
+	check(Result);
+	if (Result == XR_SUCCESS)
+	{
+		// Resolve this XrPath to an FName and store it in the name map
+		FName Name(PathCount, PathChars);
+
+		FWriteScopeLock Lock(NameMutex);
+		PathToName.Add(Path, Name);
+		NameToPath.Add(Name, Path);
+		return Name;
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
+XrPath FOpenXRHMDModule::ResolveNameToPath(FName Name)
+{
+	{
+		FReadScopeLock Lock(NameMutex);
+		XrPath* FoundPath = NameToPath.Find(Name);
+		if (FoundPath)
+		{
+			// We've already previously resolved this FName to an XrPath
+			return *FoundPath;
+		}
+	}
+
+	XrPath Path = XR_NULL_PATH;
+	FString PathString = Name.ToString();
+	XrResult Result = xrStringToPath(Instance, StringCast<ANSICHAR>(*PathString).Get(), &Path);
+	check(XR_SUCCEEDED(Result));
+	if (Result == XR_SUCCESS)
+	{
+		FWriteScopeLock Lock(NameMutex);
+		PathToName.Add(Path, Name);
+		NameToPath.Add(Name, Path);
+		return Path;
+	}
+	else
+	{
+		return XR_NULL_PATH;
+	}
+}
