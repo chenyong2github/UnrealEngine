@@ -57,9 +57,10 @@ private:
 	void SetupCustomInputHandling();
 	void OnCaptureStateChanged();
 	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
+	TWeakPtr<SWindow> GetTargetInputWindow() const;
 
 private:
-	FHitResult LastViewportTouchResult;
-	bool bUsingDummyUMG = false;
-	bool bOldThrottleCPUWhenNotForeground;
+	FHitResult 	LastViewportTouchResult;
+	bool 		bUsingDummyUMG = false;
+	bool 		bOldThrottleCPUWhenNotForeground;	
 };

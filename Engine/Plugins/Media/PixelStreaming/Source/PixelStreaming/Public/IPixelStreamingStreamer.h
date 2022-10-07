@@ -210,6 +210,11 @@ public:
 	virtual TWeakPtr<IPixelStreamingInputHandler> GetInputHandler() = 0;
 
 	/**
+	 * @brief Set the type for this streamers input handler. This controls whether input is routed to widgets or windows
+	 */
+	virtual void SetInputHandlerType(EPixelStreamingInputType InputType) = 0;
+
+	/**
 	 * @brief Get the audio sink associated with a specific peer/player.
 	 */
 	virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) = 0;
@@ -220,14 +225,14 @@ public:
 	virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() = 0;
 
 	/**
-	 * Create an audio input that can be used to push audio into the Pixel Streaming mix.
+	 * @brief Create an audio input that can be used to push audio into the Pixel Streaming mix.
 	 * Note: Requires launching with -PixelStreamingExperimentalAudioInput.
 	 * @return The audio input to push to.
 	 */
 	virtual TSharedPtr<IPixelStreamingAudioInput> CreateAudioInput() = 0;
 
 	/**
-	 * Remove the audio input from the Pixel Streaming mix.
+	 * @brief Remove the audio input from the Pixel Streaming mix.
 	 */
 	virtual void RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput) = 0;
 };

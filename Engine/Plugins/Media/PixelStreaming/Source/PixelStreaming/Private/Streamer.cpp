@@ -314,6 +314,11 @@ namespace UE::PixelStreaming
 		// TODO Delete player session?
 	}
 
+	void FStreamer::SetInputHandlerType(EPixelStreamingInputType InputType)
+	{
+		InputHandler->SetInputType(InputType);
+	}
+
 	IPixelStreamingAudioSink* FStreamer::GetPeerAudioSink(FPixelStreamingPlayerId PlayerId)
 	{
 		if (FPlayerContext* PlayerContext = Players.Find(PlayerId))

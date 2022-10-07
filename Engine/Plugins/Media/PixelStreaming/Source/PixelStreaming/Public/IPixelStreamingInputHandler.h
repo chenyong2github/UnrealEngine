@@ -10,6 +10,12 @@
 #include "PixelStreamingWebRTCIncludes.h"
 #include "Serialization/MemoryReader.h"
 
+enum class PIXELSTREAMING_API EPixelStreamingInputType : uint8
+{
+	RouteToWindow = 0,
+	RouteToWidget = 1
+};
+
 /**
  * IPixelStreamingInputHandler extends the IInputDevice interface. Setting the target viewport allows for
  * scaling of input from browser to application, and setting the target window ensure that if windows are tiled (eg editor)
@@ -76,7 +82,6 @@ public:
 	 */
 	virtual void RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler) = 0;
 
-
 	/**
 	 * @brief Find the function to be called whenever the specified message type is received.
 	 * 
@@ -84,4 +89,9 @@ public:
 	 * @return TFunction<void(FMemoryReader)> The function called when this message type is received.
 	 */
 	virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) = 0;
+
+	/**
+	 * @brief Set the input handlers type. This controls whether input is routed to widgets or windows
+	 */
+	virtual void SetInputType(EPixelStreamingInputType InputType) = 0;
 };

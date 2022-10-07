@@ -37,21 +37,23 @@ namespace UE::PixelStreaming
 
 		virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues& values) override;
 
-		void OnMessage(const webrtc::DataBuffer& Buffer);
+		virtual void OnMessage(const webrtc::DataBuffer& Buffer) override;
 
-		void SetTargetWindow(TWeakPtr<SWindow> InWindow);
-		TWeakPtr<SWindow> GetTargetWindow();
+		virtual void SetTargetWindow(TWeakPtr<SWindow> InWindow) override;
+		virtual TWeakPtr<SWindow> GetTargetWindow() override;
 
-		void SetTargetViewport(TWeakPtr<SViewport> InViewport);
-		TWeakPtr<SViewport> GetTargetViewport();
+		virtual void SetTargetViewport(TWeakPtr<SViewport> InViewport) override;
+		virtual TWeakPtr<SViewport> GetTargetViewport() override;
 
-		void SetTargetScreenSize(TWeakPtr<FIntPoint> InScreenSize);
-		TWeakPtr<FIntPoint> GetTargetScreenSize();
+		virtual void SetTargetScreenSize(TWeakPtr<FIntPoint> InScreenSize) override;
+		virtual TWeakPtr<FIntPoint> GetTargetScreenSize() override;
 
-		bool IsFakingTouchEvents() const { return bFakingTouchEvents; }
+		virtual bool IsFakingTouchEvents() const override { return bFakingTouchEvents; }
 
-        void RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler);
-		TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType);
+        virtual void RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler) override;
+		virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) override;
+
+		virtual void SetInputType(EPixelStreamingInputType InInputType) override { InputType = InInputType; };
 
     protected:
         /**
@@ -92,9 +94,11 @@ namespace UE::PixelStreaming
         virtual void HandleUIInteraction(FMemoryReader Ar);
 
 		FIntPoint ConvertFromNormalizedScreenLocation(const FVector2D& ScreenLocation, bool bIncludeOffset = true);
+		FWidgetPath FindRoutingMessageWidget(const FVector2D& Location) const;
 
 		FGamepadKeyNames::Type ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis);
 		FGamepadKeyNames::Type ConvertButtonIndexToGamepadButton(uint8 ButtonIndex);
+		FKey TranslateMouseButtonToKey(const EMouseButtons::Type Button);
 
 		struct FCachedTouchEvent
 		{
@@ -121,13 +125,15 @@ namespace UE::PixelStreaming
             TArray<uint8> Data;
         };
 
-		TWeakPtr<SWindow> TargetWindow;
-		TWeakPtr<SViewport> TargetViewport;
-		TWeakPtr<FIntPoint> TargetScreenSize; // Manual size override used when we don't have a single window/viewport target
-		uint8 NumActiveTouches;
-		bool bIsMouseActive;
-		TMap<uint8,  TFunction<void(FMemoryReader)>> DispatchTable;
-		TQueue<FMessage> Messages;
+		TWeakPtr<SWindow> 			TargetWindow;
+		TWeakPtr<SViewport> 		TargetViewport;
+		TWeakPtr<FIntPoint> 		TargetScreenSize; // Manual size override used when we don't have a single window/viewport target
+		uint8 						NumActiveTouches;
+		bool 						bIsMouseActive;
+		TQueue<FMessage> 			Messages;
+		EPixelStreamingInputType	InputType = EPixelStreamingInputType::RouteToWindow;
+		FVector2D					LastTouchLocation = FVector2D(EForceInit::ForceInitToZero);
+		TMap<uint8, TFunction<void(FMemoryReader)>> DispatchTable;
 
 		/** Reference to the message handler which events should be passed to. */
 		TSharedPtr<FGenericApplicationMessageHandler> MessageHandler;

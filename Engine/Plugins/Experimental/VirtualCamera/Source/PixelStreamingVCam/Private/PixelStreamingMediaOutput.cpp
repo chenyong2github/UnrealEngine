@@ -30,7 +30,6 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 	{
 		Capture = NewObject<UPixelStreamingMediaCapture>();
 		Capture->SetMediaOutput(this);
-		Capture->OnCaptureViewportInitialized.AddUObject(this, &UPixelStreamingMediaOutput::OnCaptureViewportInitialized);
 	}
 
 	if (!VideoInput)
@@ -41,15 +40,6 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 	Capture->SetVideoInput(VideoInput);
 
 	return Capture;
-}
-
-void UPixelStreamingMediaOutput::OnCaptureViewportInitialized()
-{
-	if(Streamer)
-	{
-		Streamer->SetTargetViewport(Capture->GetViewport()->GetViewportWidget());
-		Streamer->SetTargetWindow(Capture->GetViewport()->FindWindow());
-	}
 }
 
 void UPixelStreamingMediaOutput::StartStreaming()
@@ -80,7 +70,6 @@ void UPixelStreamingMediaOutput::StopStreaming()
 	if (Streamer)
 	{
 		Streamer->StopStreaming();
-		Streamer->SetTargetViewport(nullptr);
 		Streamer->SetTargetWindow(nullptr);
 	}
 }

@@ -58,6 +58,7 @@ namespace UE::PixelStreaming
 
 		virtual void SetInputHandler(TSharedPtr<IPixelStreamingInputHandler> InInputHandler) override { InputHandler = InInputHandler; }
 		virtual TWeakPtr<IPixelStreamingInputHandler> GetInputHandler() override { return InputHandler; }
+		virtual void SetInputHandlerType(EPixelStreamingInputType InputType) override;
 
 		virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) override;
 		virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;

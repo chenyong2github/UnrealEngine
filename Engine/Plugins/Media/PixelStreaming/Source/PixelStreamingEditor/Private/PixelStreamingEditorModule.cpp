@@ -166,6 +166,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 			FSceneViewport* SceneViewport = static_cast<FSceneViewport*>(LevelViewportClient.Viewport);
 			Streamer->SetTargetViewport(SceneViewport->GetViewportWidget());
 			Streamer->SetTargetWindow(SceneViewport->FindWindow());
+			Streamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
 			Streamer->SetVideoInput(FPixelStreamingVideoInputViewport::Create());
 		}	
 		break;
@@ -173,6 +174,7 @@ void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStre
 		{
 			Streamer->SetTargetViewport(nullptr);
 			Streamer->SetTargetWindow(nullptr);
+			Streamer->SetInputHandlerType(EPixelStreamingInputType::RouteToWindow);
 			Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
 		}
 		break;

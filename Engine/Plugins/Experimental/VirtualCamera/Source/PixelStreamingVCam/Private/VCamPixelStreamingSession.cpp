@@ -18,6 +18,11 @@
 #include "PixelStreamingProtocol.h"
 #include "PixelStreamingEditorModule.h"
 #include "VCamComponent.h"
+#include "Input/HittestGrid.h"
+#include "Widgets/SVirtualWindow.h"
+#include "VPFullScreenUserWidget.h"
+#include "InputCoreTypes.h"
+#include "IPixelStreamingInputHandler.h"
 
 namespace VCamPixelStreamingSession
 {
@@ -86,6 +91,9 @@ void UVCamPixelStreamingSession::Activate()
 	// This sets up media capture and streamer
 	SetupCapture();
 
+	// Super::Activate() creates our UMG which we need before setting up our custom input handling
+	Super::Activate();
+
 	// We setup custom handling of ARKit transforms coming from iOS devices here
 	SetupCustomInputHandling();
 
@@ -98,7 +106,6 @@ void UVCamPixelStreamingSession::Activate()
 	MediaOutput->SetSignallingServerURL(FString::Printf(TEXT("%s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort)));
 	UE_LOG(LogPixelStreamingVCam, Log, TEXT("Activating PixelStreaming VCam Session. Endpoint: %s:%s"), *SignallingDomain, *FString::FromInt(StreamerPort));
 	
-	Super::Activate();
 }
 
 void UVCamPixelStreamingSession::SetupCapture()
@@ -152,14 +159,51 @@ void UVCamPixelStreamingSession::OnCaptureStateChanged()
 
 void UVCamPixelStreamingSession::SetupCustomInputHandling()
 {
+	// If we have a UMG, then use it
+	if (UMGWidget)
+	{
+		TSharedPtr<SVirtualWindow> InputWindow;
+		// If we are rendering from a ComposureOutputProvider, we need to get the InputWindow from that UMG, not the one in the PixelStreamingOutputProvider
+		if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
+		{
+			if (UVPFullScreenUserWidget* ComposureUMGWidget = ComposureProvider->GetUMGWidget())
+			{
+				InputWindow = ComposureUMGWidget->PostProcessDisplayType.GetSlateWindow();
+				UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport with Composure UMG"));
+			}
+			else
+			{
+				UE_LOG(LogPixelStreamingVCam, Warning, TEXT("InputChannel callback - Composure usage was requested, but the specified ComposureOutputProvider has no UMG set"));
+			}
+		}
+		else
+		{
+			InputWindow = UMGWidget->PostProcessDisplayType.GetSlateWindow();
+			UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
+		}
+		//
+		MediaOutput->GetStreamer()->SetTargetWindow(InputWindow);
+		MediaOutput->GetStreamer()->SetInputHandlerType(EPixelStreamingInputType::RouteToWidget);
+	}
+	else
+	{
+		MediaOutput->GetStreamer()->SetTargetWindow(GetTargetInputWindow());
+		MediaOutput->GetStreamer()->SetInputHandlerType(EPixelStreamingInputType::RouteToWidget);
+		UE_LOG(LogPixelStreamingVCam, Log, TEXT("InputChannel callback - Routing input to active viewport"));
+	}
+
 	if(MediaOutput)
 	{
 		IPixelStreamingModule& PixelStreamingModule = IPixelStreamingModule::Get();
-		
+		typedef Protocol::EPixelStreamingMessageTypes EType;		
 		Protocol::EPixelStreamingMessageDirection MessageDirection = Protocol::EPixelStreamingMessageDirection::ToStreamer;
-
-		typedef Protocol::EPixelStreamingMessageTypes EType;
-		Protocol::FPixelStreamingInputMessage Message = Protocol::FPixelStreamingInputMessage(100, 72, {
+		TMap<FString, Protocol::FPixelStreamingInputMessage> Protocol = PixelStreamingModule.GetProtocol().ToStreamerProtocol;
+		/*
+		* ====================
+		* ARKit Transform
+		* ====================
+		*/
+		Protocol::FPixelStreamingInputMessage ARKitMessage = Protocol::FPixelStreamingInputMessage(100, 72, {
 			// 4x4 Transform
 			EType::Float, EType::Float, EType::Float, EType::Float,
 			EType::Float, EType::Float, EType::Float, EType::Float,
@@ -168,8 +212,8 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 			// Timestamp
 			EType::Double
 		});
-
-		const TFunction<void(FMemoryReader)>& Handler = [this](FMemoryReader Ar) { 
+		
+		const TFunction<void(FMemoryReader)>& ARKitHandler = [this](FMemoryReader Ar) { 
 
 			if(!EnableARKitTracking)
 			{
@@ -197,21 +241,8 @@ void UVCamPixelStreamingSession::SetupCustomInputHandling()
 			{
 				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
 			}
-
-			/**
-			 * Code to control the level editor viewport
-			 */
-			// for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-			// {
-			// 	if (LevelVC && LevelVC->IsPerspective())
-			// 	{
-			// 		LevelVC->SetViewLocation(Translation);
-			// 		LevelVC->SetViewRotation(ModifiedRotation);
-			// 	}
-			// }
 		};
-
-		PixelStreamingModule.RegisterMessage(MessageDirection, "ARKitTransform", Message, Handler);
+		PixelStreamingModule.RegisterMessage(MessageDirection, "ARKitTransform", ARKitMessage, ARKitHandler);
 	}
 	else
 	{
@@ -261,7 +292,8 @@ void UVCamPixelStreamingSession::StartCapture()
 void UVCamPixelStreamingSession::SetupSignallingServer()
 {
 	// Only start the signalling server if we aren't using an external signalling server
-	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get(); !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+	UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get();
+	if (PixelStreamingSubsystem && !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
 	{
 		PixelStreamingSubsystem->LaunchSignallingServer();
 	}
@@ -270,7 +302,8 @@ void UVCamPixelStreamingSession::SetupSignallingServer()
 void UVCamPixelStreamingSession::StopSignallingServer()
 {
 	// Only stop the signalling server if we've been the ones to start it
-	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get(); !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
+	UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get();
+	if (PixelStreamingSubsystem && !FPixelStreamingEditorModule::GetModule()->bUseExternalSignallingServer)
 	{
 		PixelStreamingSubsystem->StopSignallingServer();
 	}
@@ -345,5 +378,15 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+TWeakPtr<SWindow> UVCamPixelStreamingSession::GetTargetInputWindow() const
+{
+	TWeakPtr<SWindow> InputWindow;
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		InputWindow = OuterComponent->GetTargetInputWindow();
+	}
+	return InputWindow;
+}
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PixelStreamingVCam)
