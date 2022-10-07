@@ -420,7 +420,7 @@ struct FRigUnit_AimConstraint_AdvancedSettings
  * Orients an item such that its aim axis points towards a global target.
  * Note: This node operates in global space!
  */
-USTRUCT(meta=(DisplayName="Aim Constraint", Category="Hierarchy", Keywords="Lookat"))
+USTRUCT(meta=(DisplayName="Aim Constraint", Category="Constraints", Keywords="Lookat, Aim"))
 struct CONTROLRIG_API FRigUnit_AimConstraintLocalSpaceOffset: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
