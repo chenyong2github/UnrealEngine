@@ -61,6 +61,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	TrajectoryPathCap = 250;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
 	bAutoExpandNodesOnSelection = true;
+	TreeViewWidth = 0.3f;
 	bShowTickLines = true;
 	bShowSequencerToolbar = true;
 }
@@ -912,6 +913,15 @@ void USequencerSettings::SetAutoExpandNodesOnSelection(bool bInAutoExpandNodesOn
 	if (bInAutoExpandNodesOnSelection != bAutoExpandNodesOnSelection)
 	{
 		bAutoExpandNodesOnSelection = bInAutoExpandNodesOnSelection;
+		SaveConfig();
+	}
+}
+
+void USequencerSettings::SetTreeViewWidth(float InTreeViewWidth)
+{
+	if (InTreeViewWidth != TreeViewWidth)
+	{
+		TreeViewWidth = InTreeViewWidth;
 		SaveConfig();
 	}
 }

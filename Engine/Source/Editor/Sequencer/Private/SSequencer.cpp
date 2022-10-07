@@ -256,9 +256,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	RootCustomization.AddMenuExtender = InArgs._AddMenuExtender;
 	RootCustomization.ToolbarExtender = InArgs._ToolbarExtender;
 
-	ColumnFillCoefficients[0] = 0.3f;
-	ColumnFillCoefficients[1] = 0.7f;
-
 	TAttribute<float> FillCoefficient_0, FillCoefficient_1;
 	{
 		FillCoefficient_0.Bind(TAttribute<float>::FGetter::CreateSP(this, &SSequencer::GetColumnFillCoefficient, 0));
@@ -2920,6 +2917,17 @@ void SSequencer::OnOutlinerSearchChanged( const FText& Filter )
 	}
 }
 
+float SSequencer::GetColumnFillCoefficient(int32 ColumnIndex) const
+{
+	if (ColumnIndex == 0)
+	{
+		return GetSequencerSettings()->GetTreeViewWidth();
+	}
+	else
+	{
+		return 1.f - GetSequencerSettings()->GetTreeViewWidth();
+	}
+}
 
 void SSequencer::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
@@ -3617,9 +3625,17 @@ EFrameNumberDisplayFormats SSequencer::GetTimeDisplayFormat() const
 {
 	return GetSequencerSettings()->GetTimeDisplayFormat();
 }
+
 void SSequencer::OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex)
 {
-	ColumnFillCoefficients[ColumnIndex] = FillCoefficient;
+	if (ColumnIndex == 0)
+	{
+		GetSequencerSettings()->SetTreeViewWidth(FillCoefficient);
+	}
+	else
+	{
+		GetSequencerSettings()->SetTreeViewWidth(1.f - FillCoefficient);
+	}
 }
 
 void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)

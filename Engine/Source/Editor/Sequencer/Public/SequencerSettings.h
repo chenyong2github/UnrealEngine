@@ -397,6 +397,11 @@ public:
 	/** Sets whether or not to expand the outliner tree view when a child element is selected (from outside of the tree view). */
 	void SetAutoExpandNodesOnSelection(bool bInAutoExpandNodesOnSelection);
 
+	/** Gets the tree view width percentage */
+	float GetTreeViewWidth() const { return TreeViewWidth; }
+	/** Sets the tree view width percentage */
+	void SetTreeViewWidth(float InTreeViewWidth);
+
 protected:
 
 	/** The auto change mode (auto-key, auto-track or none). */
@@ -630,8 +635,12 @@ protected:
 	FString MovieRendererName;
 
 	/** Whether to expand the sequencer tree view when a child element is selected (from outside of the tree view). */
-	UPROPERTY(config, EditAnywhere, Category= General)
+	UPROPERTY(config, EditAnywhere, Category = General)
 	bool bAutoExpandNodesOnSelection;
+
+	/** The tree view width percentage */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	float TreeViewWidth;
 
 	FOnEvaluateSubSequencesInIsolationChanged OnEvaluateSubSequencesInIsolationChangedEvent;
 	FOnShowSelectedNodesOnlyChanged OnShowSelectedNodesOnlyChangedEvent;

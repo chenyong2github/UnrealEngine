@@ -521,10 +521,7 @@ private:
 	/**
 	 * @return The fill percentage of the animation outliner
 	 */
-	float GetColumnFillCoefficient(int32 ColumnIndex) const
-	{
-		return ColumnFillCoefficients[ColumnIndex];
-	}
+	float GetColumnFillCoefficient(int32 ColumnIndex) const;
 
 	/**
 	 * Called when one or more assets are dropped into the widget
@@ -702,10 +699,7 @@ private:
 	/** Container for the toolbar, so that we can re-create it as needed. */
 	TSharedPtr<SBox> ToolbarContainer;
 
-	/** The fill coefficients of each column in the grid. */
-	float ColumnFillCoefficients[2];
-
-	/** Whether the active timer is currently registered */
+	/** Whether the active timer is currently registered */ 
 	bool bIsActiveTimerRegistered;
 
 	/** Whether the user is selecting. Ignore selection changes from the level when the user is selecting. */
