@@ -301,7 +301,7 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 				// FBox::GetExtent returns the radius, SetZoneExtent expects diameter.
 				FVector2D NewExtent = 2 * FVector2D(WaterZoneBounds.GetExtent());
 
-				float ZoneExtentScale = WaterEditorModule::CVarOverrideNewWaterZoneScale.GetValueOnAnyThread();
+				float ZoneExtentScale = WaterEditorModule::CVarOverrideNewWaterZoneScale.GetValueOnGameThread();
 				if (ZoneExtentScale == 0)
 				{
 					ZoneExtentScale = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults.NewWaterZoneScale;
