@@ -71,7 +71,10 @@ public:
 	{
 		if (NodeContainer->IsNodeUidValid(NodeUniqueID))
 		{
-			NodeContainer->GetNode(NodeUniqueID)->AppendAssetRegistryTags(OutTags);
+			if (const UInterchangeBaseNode* Node = NodeContainer->GetNode(NodeUniqueID))
+			{
+				Node->AppendAssetRegistryTags(OutTags);
+			}
 		}
 		Super::AppendAssetRegistryTags(OutTags);
 	}

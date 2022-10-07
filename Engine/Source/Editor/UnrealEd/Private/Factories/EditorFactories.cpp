@@ -3580,6 +3580,14 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 		if (HDRImportShouldBeLongLatCubeMap == EAppReturnType::Yes ||
 			HDRImportShouldBeLongLatCubeMap == EAppReturnType::YesAll)
 		{
+			if (Class && !Class->IsChildOf<UTextureCube>())
+			{
+				//The source use to re-import this texture is not compatible with the
+				//existing texture type.
+				Warn->Logf(ELogVerbosity::Error, TEXT("Cannot re-import a [%s] with a UTextureCube source file"), *Class->GetName());
+				return nullptr;
+			}
+
 			TSharedPtr<IImageWrapper> HdrImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::HDR);
 			if (HdrImageWrapper->SetCompressed(Buffer, Length))
 			{
@@ -3626,6 +3634,14 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 
 		if(IESConverter.IsValid())
 		{
+			if (Class && !Class->IsChildOf<UTextureLightProfile>())
+			{
+				//The source use to re-import this texture is not compatible with the
+				//existing texture type.
+				Warn->Logf(ELogVerbosity::Error, TEXT("Cannot re-import a [%s] with a UTextureLightProfile source file"), *Class->GetName());
+				return nullptr;
+			}
+
 			UTextureLightProfile* Texture = Cast<UTextureLightProfile>( CreateOrOverwriteAsset(UTextureLightProfile::StaticClass(), InParent, Name, Flags) );
 			if ( Texture )
 			{
@@ -3662,6 +3678,14 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	FImportImage Image;
 	if (ImportImage(Buffer, Length, Warn, ImportFlags, Image))
 	{
+		if (Class && !Class->IsChildOf<UTexture2D>())
+		{
+			//The source use to re-import this texture is not compatible with the
+			//existing texture type.
+			Warn->Logf(ELogVerbosity::Error, TEXT("Cannot re-import a [%s] with a UTexture2D source file"), *Class->GetName());
+			return nullptr;
+		}
+
 		UTexture2D* Texture = CreateTexture2D(InParent, Name, Flags);
 		if (Texture)
 		{
