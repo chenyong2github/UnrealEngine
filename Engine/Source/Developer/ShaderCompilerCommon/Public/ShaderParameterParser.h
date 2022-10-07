@@ -28,6 +28,7 @@ public:
 		const FShaderParametersMetadata::FMember* Member = nullptr;
 
 		/** Information found about the member when parsing the preprocessed code. */
+		FStringView ParsedName; /** View into FShaderParameterParser::OriginalParsedShader */
 		FStringView ParsedType; /** View into FShaderParameterParser::OriginalParsedShader */
 		FStringView ParsedArraySize; /** View into FShaderParameterParser::OriginalParsedShader */
 
