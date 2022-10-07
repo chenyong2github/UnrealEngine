@@ -38,4 +38,11 @@ namespace EditorScriptingHelpers
 	 * @note: Object name is inferred from package name when missing
 	 */
 	FString UNREALED_API ConvertAnyPathToObjectPath(const FString& AssetPath, FString& OutFailureReason);
+
+	/*
+	 * From "AssetClass'/Game/Folder/Package.Asset'", "AssetClass /Game/Folder/Package.Asset", "/Game/Folder/Package.Asset", "/Game/Folder/MyAsset" "/Game/Folder/Package.Asset:InnerAsset.2ndInnerAsset"
+	 * and convert to "/Game/Folder/Package.Asset" or "/Game/Folder/Package.Asset:InnerAsset"
+	 * @note: Object name is inferred from package name when missing
+	 */
+	FString UNREALED_API ConvertAnyPathToSubObjectPath(const FString& AssetPath, FString& OutFailureReason);
 }

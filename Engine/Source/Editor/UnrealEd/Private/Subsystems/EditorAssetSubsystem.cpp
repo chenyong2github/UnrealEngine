@@ -52,7 +52,7 @@ namespace UE::EditorAssetUtils
 	TValueOrError<FAssetData, FString> FindAssetDataFromAnyPath(const FString& AnyAssetPath)
 	{
 		FString FailureReason;
-		FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AnyAssetPath, FailureReason);
+		FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToSubObjectPath(AnyAssetPath, FailureReason);
 		if (ObjectPath.IsEmpty())
 		{
 			return MakeError(FailureReason);
@@ -62,7 +62,17 @@ namespace UE::EditorAssetUtils
 		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 		if (!AssetData.IsValid())
 		{
-			return MakeError(FString::Printf(TEXT("The AssetData '%s' could not be found in the Asset Registry."), *ObjectPath));
+			ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AnyAssetPath, FailureReason);
+			if (ObjectPath.IsEmpty())
+			{
+				return MakeError(FailureReason);
+			}
+
+			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+			if (!AssetData.IsValid())
+			{
+				return MakeError(FString::Printf(TEXT("The AssetData '%s' could not be found in the Asset Registry."), *ObjectPath));
+			}
 		}
 		
 		return MakeValue(AssetData);
@@ -445,7 +455,7 @@ bool UEditorAssetSubsystem::DoesAssetExist(const FString& AssetPath)
 	}
 
 	FString FailureReason;
-	FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
+	FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToSubObjectPath(AssetPath, FailureReason);
 	if (ObjectPath.IsEmpty())
 	{
 		UE_LOG(LogEditorAssetSubsystem, Error, TEXT("DoesAssetExist failed: %s"), *FailureReason);
@@ -456,7 +466,18 @@ bool UEditorAssetSubsystem::DoesAssetExist(const FString& AssetPath)
 	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 	if (!AssetData.IsValid())
 	{
-		return false;
+		ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
+		if (ObjectPath.IsEmpty())
+		{
+			UE_LOG(LogEditorAssetSubsystem, Error, TEXT("DoesAssetExist failed: %s"), *FailureReason);
+			return false;
+		}
+
+		AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+		if (!AssetData.IsValid())
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -476,7 +497,7 @@ bool UEditorAssetSubsystem::DoAssetsExist(const TArray<FString>& AssetPaths)
 
 	for (const FString& Path : AssetPaths)
 	{
-		FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(Path, FailureReason);
+		FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToSubObjectPath(Path, FailureReason);
 		if (ObjectPath.IsEmpty())
 		{
 			UE_LOG(LogEditorAssetSubsystem, Error, TEXT("DoAssetsExist failed: %s"), *FailureReason);
@@ -486,7 +507,18 @@ bool UEditorAssetSubsystem::DoAssetsExist(const TArray<FString>& AssetPaths)
 		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
 		if (!AssetData.IsValid())
 		{
-			return false;
+			ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(Path, FailureReason);
+			if (ObjectPath.IsEmpty())
+			{
+				UE_LOG(LogEditorAssetSubsystem, Error, TEXT("DoAssetsExist failed: %s"), *FailureReason);
+				return false;
+			}
+
+			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPath);
+			if (!AssetData.IsValid())
+			{
+				return false;
+			}
 		}
 	}
 	return true;
@@ -503,19 +535,28 @@ TArray<FString> UEditorAssetSubsystem::FindPackageReferencersForAsset(const FStr
 	}
 
 	FString FailureReason;
-	FString AssetPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AnyAssetPath, FailureReason);
+	FString AssetPath = EditorScriptingHelpers::ConvertAnyPathToSubObjectPath(AnyAssetPath, FailureReason);
 	if (AssetPath.IsEmpty())
 	{
 		UE_LOG(LogEditorAssetSubsystem, Error, TEXT("FindAssetPackageReferencers failed: %s"), *FailureReason);
 		return Result;
 	}
 
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AnyAssetPath);
+	if (!AssetData.IsValid())
+	{
+		FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AnyAssetPath, FailureReason);
+		if (ObjectPath.IsEmpty())
+		{
+			UE_LOG(LogEditorAssetSubsystem, Error, TEXT("FindAssetPackageReferencers failed: %s"), *FailureReason);
+			return Result;
+		}
+	}
+
 	// Find the reference in packages. Load them to confirm the reference.
 	TArray<FName> PackageReferencers;
-	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		AssetRegistryModule.Get().GetReferencers(*FPackageName::ObjectPathToPackageName(AssetPath), PackageReferencers, UE::AssetRegistry::EDependencyCategory::Package);
-	}
+	AssetRegistryModule.Get().GetReferencers(*FPackageName::ObjectPathToPackageName(AssetPath), PackageReferencers, UE::AssetRegistry::EDependencyCategory::Package);
 
 	if (bLoadAssetsToConfirm)
 	{
