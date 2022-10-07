@@ -436,4 +436,10 @@ private:
 	// handled correctly during duplication operations (copy/paste etc)
 	UPROPERTY(Transient, DuplicateTransient)
 	TObjectPtr<UInputComponent> InputComponent;
+
+	// Utility functions for registering and unregistering our input component with the correct input system
+	void RegisterInputComponent();
+	void UnregisterInputComponent();
+
+	bool bIsInputRegistered = false;
 };
