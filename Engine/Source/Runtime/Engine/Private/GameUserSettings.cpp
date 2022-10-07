@@ -75,7 +75,7 @@ FIntPoint UGameUserSettings::GetDesktopResolution() const
 
 void UGameUserSettings::SetScreenResolution(FIntPoint Resolution)
 {
-	if (ResolutionSizeX != Resolution.X || ResolutionSizeY != Resolution.Y)
+	if (!FPlatformProperties::HasFixedResolution() && (ResolutionSizeX != Resolution.X || ResolutionSizeY != Resolution.Y))
 	{
 		ResolutionSizeX = Resolution.X;
 		ResolutionSizeY = Resolution.Y;
@@ -102,6 +102,11 @@ EWindowMode::Type UGameUserSettings::GetLastConfirmedFullscreenMode() const
 
 void UGameUserSettings::SetFullscreenMode(EWindowMode::Type InFullscreenMode)
 {
+	if (FPlatformProperties::HasFixedResolution())
+	{
+		return;
+	}
+
 	if (FullscreenMode != InFullscreenMode)
 	{
 		switch (InFullscreenMode)
@@ -478,10 +483,13 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 
 void UGameUserSettings::ApplyResolutionSettings(bool bCheckForCommandLineOverrides)
 {
-#if UE_SERVER
-	return;
-#endif
+#if !UE_SERVER
 	QUICK_SCOPE_CYCLE_COUNTER(GameUserSettings_ApplyResolutionSettings);
+
+	if (FPlatformProperties::HasFixedResolution())
+	{
+		return;
+	}
 
 	ValidateSettings();
 
@@ -496,6 +504,7 @@ void UGameUserSettings::ApplyResolutionSettings(bool bCheckForCommandLineOverrid
 	}
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
+#endif
 }
 
 void UGameUserSettings::ApplySettings(bool bCheckForCommandLineOverrides)
@@ -545,6 +554,11 @@ void UGameUserSettings::LoadSettings(bool bForceReload/*=false*/)
 
 void UGameUserSettings::RequestResolutionChange(int32 InResolutionX, int32 InResolutionY, EWindowMode::Type InWindowMode, bool bInDoOverrides /* = true */)
 {
+	if (FPlatformProperties::HasFixedResolution())
+	{
+		return;
+	}
+
 	if (bInDoOverrides)
 	{
 		UGameEngine::ConditionallyOverrideSettings(InResolutionX, InResolutionY, InWindowMode);
