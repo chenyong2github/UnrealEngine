@@ -5,10 +5,10 @@
 #include "PCGElement.h"
 #include "Elements/PCGCreateAttributeBase.h"
 
-#include "PCGCreateParamData.generated.h"
+#include "PCGCreateAttribute.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGCreateParamDataSettings : public UPCGAttributeCreationBaseSettings
+class PCG_API UPCGCreateAttributeSettings : public UPCGAttributeCreationBaseSettings
 {
 	GENERATED_BODY()
 
@@ -16,19 +16,22 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Param; }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bKeepExistingAttributes = false;
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 };
 
 
-class FPCGCreateParamDataElement : public FSimplePCGElement
+class FPCGCreateAttributeElement : public FSimplePCGElement
 {
 public:
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
