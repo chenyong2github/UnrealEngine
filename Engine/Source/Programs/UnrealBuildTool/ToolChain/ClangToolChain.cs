@@ -320,7 +320,6 @@ namespace UnrealBuildTool
 		protected bool IsAnalyzing(CppCompileEnvironment CompileEnvironment) => 
 				StaticAnalyzer == StaticAnalyzer.Default 
 			&&	CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create 
-			&& !CompileEnvironment.StaticAnalyzerDisabledCheckers.Contains("all") 
 			&& !CompileEnvironment.bDisableStaticAnalysis;
 
 		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
