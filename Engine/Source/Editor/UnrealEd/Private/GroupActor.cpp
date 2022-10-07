@@ -818,6 +818,7 @@ void AGroupActor::PostRemove()
 				FScopedRefreshAllBrowsers LevelRefreshAllBrowsers;
 
 				// Destroy group and clear references.
+				GEditor->SelectActor( this, /*bSelected=*/ false, /*bNotify=*/ false );
 				ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 				LayersSubsystem->DisassociateActorFromLayers( this );
 				MyWorld->EditorDestroyActor( this, false );			
