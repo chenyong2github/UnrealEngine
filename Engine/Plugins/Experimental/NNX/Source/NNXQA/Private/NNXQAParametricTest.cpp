@@ -255,6 +255,7 @@ namespace Test
 								FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset));
 								
 								ApplyRuntimesConfig(Test, TestCategory.Runtimes);
+								ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
 								ApplyTargetConfig(Test, TestTarget);
 								ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
 								Test.IsModelTest = bIsModelCategory;
@@ -403,7 +404,7 @@ namespace Test
 				double EndTime = FPlatformTime::Seconds();
 				double TimeForTest = static_cast<float>(EndTime - StartTime);
 				if (bTestSucceeded)
-				{
+				{ 
 					UE_LOG(LogNNX, Display, TEXT("Tests succeeded in %0.1f seconds."), TimeForTest);
 				}
 				else

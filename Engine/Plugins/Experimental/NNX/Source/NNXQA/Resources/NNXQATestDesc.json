@@ -21,7 +21,7 @@
 						{ "name": "NNXRuntimeORTDml", "absolute_error": 5e-2, "relative_error": 50.0,
 							"comment": "Worst relative error 43.367836 % (epsilon 0.001000 %) at position 112558, got -0.003391 expected -0.002365. TODO we need an automatic balance between relative error and absolute error"
 						},
-						{ "name": "NNXRuntimeCPU", "absolute_error": 1e-3, "relative_error": 3.0 },
+						{ "name": "NNXRuntimeORTCpu", "absolute_error": 1e-3, "relative_error": 3.0 },
 						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
 					]
@@ -72,13 +72,13 @@
 				{	"target": "Acos", "tags": [ "SmokeTest" ], "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeHlsl",   "absolute_error":  2e-4, "relative_error": 0.03}
 					]},
 				{	"target": "Acosh" },
 				{	"target": "Asin", "runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 1.5},
-						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 1.5},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 1.5}
+						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 2.5},
+						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 2.5},
+						{ "name": "NNXRuntimeHlsl",   "absolute_error":  2e-4, "relative_error": 2.5}
 					]},
 				{	"target": "Asinh", "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
@@ -88,7 +88,7 @@
 				{	"target": "Atan", "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "absolute_error":  1e-4, "relative_error": 0.03},
 						{ "name": "NNXRuntimeDml",    "absolute_error":  1e-4, "relative_error": 0.03},
-						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1e-4, "relative_error": 0.03}
+						{ "name": "NNXRuntimeHlsl",   "absolute_error":  1.5e-3, "relative_error": 0.3}
 					]},
 				{	"target": "Atanh" },
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
@@ -378,7 +378,7 @@
 			]
 		},
 		{
-			"name": "MatMul",
+			"name": "MatMul.Regular",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 2 ] }, { "shape": [ 2, 2 ] } ], "outputs": [ { "shape": [ 2, 2 ] } ]},
 				{ "inputs": [ { "shape": [ 3, 4 ] }, { "shape": [ 4, 5 ] } ], "outputs": [ { "shape": [ 3, 5 ] } ]},
@@ -389,7 +389,16 @@
 				{ "inputs": [ { "shape": [ 1, 4 ] }, { "shape": [ 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 1, 3 ] } ]},
 				{ "inputs": [ { "shape": [ 3, 4 ] }, { "shape": [ 4, 1 ] } ], "outputs": [ { "shape": [ 3, 1 ] } ]},
 				{ "inputs": [ { "shape": [ 2, 2, 3, 4 ] }, { "shape": [ 4, 1 ] } ], "outputs": [ { "shape": [ 2, 2, 3, 1 ] } ]},
-				{ "inputs": [ { "shape": [ 1, 6 ] }, { "shape": [ 6, 1 ] } ], "outputs": [ { "shape": [ 1, 1 ] } ]},
+				{ "inputs": [ { "shape": [ 1, 6 ] }, { "shape": [ 6, 1 ] } ], "outputs": [ { "shape": [ 1, 1 ] } ]}
+			]
+		},
+		{
+			"name": "MatMul.Rank5",
+			"runtimes": [	
+				{	"name": "NNXRuntimeORTDml", "skip": true, "comment": "DML metacommand only support 2 to 4 for inputs rank" 	},
+				{ "name": "NNXRuntimeHlsl", "relative_error": 0.01}
+			],
+			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 2, 3, 5, 4 ] }, { "shape": [ 2, 1, 3, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 2, 3, 5, 3 ] } ]},
 				{ "inputs": [ { "shape": [ 2, 1, 2, 5, 4 ] }, { "shape": [ 1, 3, 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 3, 2, 5, 3 ] } ]},
 				{ "inputs": [ { "shape": [ 1, 1, 2, 5, 4 ] }, { "shape": [ 2, 3, 2, 4, 3 ] } ], "outputs": [ { "shape": [ 2, 3, 2, 5, 3 ] } ]},

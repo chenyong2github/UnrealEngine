@@ -219,6 +219,11 @@
 					"description": "Array of inputs/output to test",
 					"items": { "$ref": "#/$defs/test_config_dataset" }
 				},
+				"runtimes": {
+					"type": "array",
+					"description": "Array of runtimes to specialize test behavior for",
+					"items": { "$ref": "#/$defs/test_config_runtime" }
+				},
 				"comment": {
 					"type": "string",
 					"description": "Unused by test system, usefull to add clarification in json file"
