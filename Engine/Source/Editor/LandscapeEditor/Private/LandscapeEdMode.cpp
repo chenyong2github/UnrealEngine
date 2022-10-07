@@ -4245,7 +4245,7 @@ void FEdModeLandscape::UpdateBrushList()
 	for (TObjectIterator<ALandscapeBlueprintBrushBase> BrushIt(RF_Transient|RF_ClassDefaultObject|RF_ArchetypeObject, true, EInternalObjectFlags::Garbage); BrushIt; ++BrushIt)
 	{
 		ALandscapeBlueprintBrushBase* Brush = *BrushIt;
-		if (Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
+		if (Brush->GetPackage() != GetTransientPackage())
 		{
 			BrushList.Add(Brush);
 		}
@@ -4261,7 +4261,7 @@ void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 	}
 
 	ALandscapeBlueprintBrushBase* Brush = Cast<ALandscapeBlueprintBrushBase>(InActor);
-	if (Brush && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
+	if (Brush && Brush->GetPackage() != GetTransientPackage())
 	{
 		if (!GIsReinstancing)
 		{
@@ -4280,7 +4280,7 @@ void FEdModeLandscape::OnLevelActorRemoved(AActor* InActor)
 	}
 
 	ALandscapeBlueprintBrushBase* Brush = Cast<ALandscapeBlueprintBrushBase>(InActor);
-	if (Brush && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
+	if (Brush && Brush->GetPackage() != GetTransientPackage())
 	{
 		UpdateBrushList();
 		RefreshDetailPanel();

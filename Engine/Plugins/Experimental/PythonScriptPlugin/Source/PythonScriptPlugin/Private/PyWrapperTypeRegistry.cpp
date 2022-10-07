@@ -2775,7 +2775,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 
 				if (MetaType)
 				{
-					FSourceCodeNavigation::FindModulePath(MetaType->GetTypedOuter<UPackage>(), ModulePath);
+					FSourceCodeNavigation::FindModulePath(MetaType->GetPackage(), ModulePath);
 				}
 
 				if (!ModulePath.IsEmpty())

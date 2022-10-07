@@ -2007,7 +2007,7 @@ bool FSourceCodeNavigation::FindClassHeaderPath( const UField* InField, FString 
 	}
 
 	// Get the class package, and skip past the "/Script/" portion to get the module name
-	UPackage* ModulePackage = InField->GetTypedOuter<UPackage>();
+	UPackage* ModulePackage = InField->GetPackage();
 
 	// Find the base path for the module
 	FString ModuleBasePath;
@@ -2032,7 +2032,7 @@ bool FSourceCodeNavigation::FindClassSourcePath( const UField* InField, FString 
 	}
 
 	// Get the class package, and skip past the "/Script/" portion to get the module name
-	UPackage *ModulePackage = InField->GetTypedOuter<UPackage>();
+	UPackage *ModulePackage = InField->GetPackage();
 
 	// Find the base path for the module
 	FString ModuleBasePath;

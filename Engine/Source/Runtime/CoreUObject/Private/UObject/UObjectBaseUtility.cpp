@@ -371,6 +371,8 @@ bool UObjectBaseUtility::IsTemplate( EObjectFlags TemplateTypes ) const
  */
 UObject* UObjectBaseUtility::GetTypedOuter(UClass* Target) const
 {
+	ensureMsgf(Target != UPackage::StaticClass(), TEXT("Calling GetTypedOuter to retrieve a package is now invalid, you should use GetPackage() instead."));
+
 	UObject* Result = NULL;
 	for ( UObject* NextOuter = GetOuter(); Result == NULL && NextOuter != NULL; NextOuter = NextOuter->GetOuter() )
 	{

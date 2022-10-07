@@ -1217,7 +1217,7 @@ void FKismetDebugUtilities::RestoreBreakpointsOnLoad(const UBlueprint* Blueprint
 		[Blueprint](const FBlueprintBreakpoint& Breakpoint)
 		{
 			const UEdGraphNode* const Location = Breakpoint.GetLocation();
-			return !Location || Location->GetTypedOuter<UPackage>()->GetPersistentGuid() != Blueprint->GetTypedOuter<UPackage>()->GetPersistentGuid();
+			return !Location || Location->GetPackage()->GetPersistentGuid() != Blueprint->GetPackage()->GetPersistentGuid();
 		}
 	);
 #endif

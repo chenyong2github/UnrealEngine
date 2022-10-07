@@ -31,7 +31,7 @@ namespace UE::RemoteControlBinding
 		return InObject
 			&& !InObject->IsA<UBillboardComponent>()
 			&& InObject->GetName().Find(TEXT("TRASH_")) == INDEX_NONE
-			&& InObject->GetTypedOuter<UPackage>() != GetTransientPackage()
+			&& InObject->GetPackage() != GetTransientPackage()
 			&& InObject->GetWorld() == PresetWorld;
 	}
 

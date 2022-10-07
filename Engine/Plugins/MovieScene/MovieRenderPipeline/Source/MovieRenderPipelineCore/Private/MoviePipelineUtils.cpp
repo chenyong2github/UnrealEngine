@@ -256,7 +256,7 @@ namespace MoviePipeline
 					Node->bOriginalMovieSceneReadOnly = Node->MovieScene->IsReadOnly();
 					Node->bOriginalMovieScenePlaybackRangeLocked = Node->MovieScene->IsPlaybackRangeLocked();
 #endif
-					if (UPackage* OwningPackage = Node->MovieScene->GetTypedOuter<UPackage>())
+					if (UPackage* OwningPackage = Node->MovieScene->GetPackage())
 					{
 						Node->bOriginalMovieScenePackageDirty = OwningPackage->IsDirty();
 					}
@@ -332,7 +332,7 @@ namespace MoviePipeline
 #endif
 					Node->MovieScene->MarkAsChanged();
 
-					if (UPackage* OwningPackage = Node->MovieScene->GetTypedOuter<UPackage>())
+					if (UPackage* OwningPackage = Node->MovieScene->GetPackage())
 					{
 						OwningPackage->SetDirtyFlag(Node->bOriginalMovieScenePackageDirty);
 					}
