@@ -85,6 +85,7 @@ struct IVulkanDynamicRHI : public FDynamicRHI
 
 inline IVulkanDynamicRHI* GetIVulkanDynamicRHI()
 {
+	checkf(GDynamicRHI, TEXT("Tried to fetch RHI too early"));
 	check(GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::Vulkan);
 	return GetDynamicRHI<IVulkanDynamicRHI>();
 }
