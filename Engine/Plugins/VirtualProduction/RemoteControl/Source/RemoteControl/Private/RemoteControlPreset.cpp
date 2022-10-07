@@ -1348,9 +1348,10 @@ void URemoteControlPreset::Unexpose(const FGuid& EntityId)
 {
 	if (EntityId.IsValid() && Registry->GetExposedEntity(EntityId).IsValid())
 	{
+		OnEntityUnexposedDelegate.Broadcast(this, EntityId);
+
 		Registry->Modify();
 		Registry->RemoveExposedEntity(EntityId);
-		OnEntityUnexposedDelegate.Broadcast(this, EntityId);
 		FRCCachedFieldData CachedData = FieldCache.FindChecked(EntityId);
 		Layout.RemoveField(CachedData.LayoutGroupId, EntityId);
 		FieldCache.Remove(EntityId);
