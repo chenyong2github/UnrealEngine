@@ -53,7 +53,13 @@
 
 void FAssetFolderContextMenu::MakeContextMenu(UToolMenu* InMenu, const TArray<FString>& InSelectedPackagePaths)
 {
+	MakeContextMenu(InMenu, InSelectedPackagePaths, TArray<FString>());
+}
+
+void FAssetFolderContextMenu::MakeContextMenu(UToolMenu* InMenu, const TArray<FString>& InSelectedPackagePaths, const TArray<FString>& InSelectedPackages)
+{
 	SelectedPaths = InSelectedPackagePaths;
+	SelectedPackages = InSelectedPackages;
 
 	if (SelectedPaths.Num() > 0)
 	{
@@ -88,21 +94,21 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 			{
 				FToolMenuEntry& Entry = Section.AddMenuEntry(
 					"FixUpRedirectorsInFolder",
-					LOCTEXT("FixUpRedirectorsInFolder", "Fix Up Redirectors in Folder"),
-					LOCTEXT("FixUpRedirectorsInFolderTooltip", "Finds referencers to all redirectors in the selected folders and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
+					LOCTEXT("FixUpRedirectorsInFolder", "Fix Up Redirectors"),
+					LOCTEXT("FixUpRedirectorsInFolderTooltip", "Finds referencers to all redirectors in the selected items and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Adjust"),
 					FUIAction(FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteFixUpRedirectorsInFolder))
 					);
 				Entry.InsertPosition = FToolMenuInsert("Delete", EToolMenuInsertType::After);
 			}
 
-			if (SelectedPaths.Num() > 0)
+			if (!SelectedPaths.IsEmpty() || !SelectedPackages.IsEmpty())
 			{
 				// Migrate Folder
 				FToolMenuEntry& Entry = Section.AddMenuEntry(
 					"MigrateFolder",
 					LOCTEXT("MigrateFolder", "Migrate..."),
-					LOCTEXT("MigrateFolderTooltip", "Copies assets found in this folder and their dependencies to another game content folder."),
+					LOCTEXT("MigrateFolderTooltip", "Copies assets found in the selection and their dependencies to another content folder."),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.Migrate"),
 					FUIAction( FExecuteAction::CreateSP( this, &FAssetFolderContextMenu::ExecuteMigrateFolder ) )
 					);
@@ -124,7 +130,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 					Section,
 					"FolderSCCCheckOut",
 					LOCTEXT("FolderSCCCheckOut", "Check Out"),
-					LOCTEXT("FolderSCCCheckOutTooltip", "Checks out all assets from source control which are in this folder."),
+					LOCTEXT("FolderSCCCheckOutTooltip", "Checks out all assets from source control which are in this selection."),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCCheckOut),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCCheckOut)
@@ -137,7 +143,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 					Section,
 					"FolderSCCOpenForAdd",
 					LOCTEXT("FolderSCCOpenForAdd", "Mark For Add"),
-					LOCTEXT("FolderSCCOpenForAddTooltip", "Adds all assets to source control that are in this folder and not already added."),
+					LOCTEXT("FolderSCCOpenForAddTooltip", "Adds all assets to source control that are in this selection and not already added."),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCOpenForAdd),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCOpenForAdd)
@@ -150,7 +156,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 					Section,
 					"FolderSCCCheckIn",
 					LOCTEXT("FolderSCCCheckIn", "Check In"),
-					LOCTEXT("FolderSCCCheckInTooltip", "Checks in all assets to source control which are in this folder."),
+					LOCTEXT("FolderSCCCheckInTooltip", "Checks in all assets to source control which are in this selection."),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCCheckIn),
 						FCanExecuteAction::CreateSP(this, &FAssetFolderContextMenu::CanExecuteSCCCheckIn)
@@ -162,7 +168,7 @@ void FAssetFolderContextMenu::AddMenuOptions(UToolMenu* Menu)
 				Section.AddMenuEntry(
 					"FolderSCCSync",
 					LOCTEXT("FolderSCCSync", "Sync"),
-					LOCTEXT("FolderSCCSyncTooltip", "Syncs all the assets in this folder to the latest version."),
+					LOCTEXT("FolderSCCSyncTooltip", "Syncs all the assets in this selection to the latest version."),
 					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FAssetFolderContextMenu::ExecuteSCCSync),
@@ -209,6 +215,8 @@ void FAssetFolderContextMenu::ExecuteMigrateFolder()
 			PackageNames.Add((*AssetIt).PackageName);
 		}
 
+		PackageNames.Append(SelectedPackages);
+
 		// Load all the assets in the selected paths
 		FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		AssetToolsModule.Get().MigratePackages( PackageNames );
@@ -222,14 +230,35 @@ void FAssetFolderContextMenu::ExecuteFixUpRedirectorsInFolder()
 	// Form a filter from the paths
 	FARFilter Filter;
 	Filter.bRecursivePaths = true;
+
+	Filter.PackagePaths.Reserve(SelectedPaths.Num());
 	for (const FString& Path : SelectedPaths)
 	{
 		Filter.PackagePaths.Emplace(*Path);
-		Filter.ClassPaths.Emplace(FTopLevelAssetPath(TEXT("/Script/CoreUObject"), TEXT("ObjectRedirector")));
+	}
+
+	if (!SelectedPaths.IsEmpty())
+	{
+		Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
 	}
 	
 	// Query for a list of assets in the selected paths
 	TArray<FAssetData> AssetList;
+	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
+
+	Filter.Clear();
+
+	Filter.PackageNames.Reserve(SelectedPackages.Num());
+	for (const FString& PackageName : SelectedPackages)
+	{
+		Filter.PackageNames.Emplace(*PackageName);
+	}
+
+	if (!SelectedPackages.IsEmpty())
+	{
+		Filter.ClassPaths.Add(UObjectRedirector::StaticClass()->GetClassPathName());
+	}
+
 	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
 
 	if (AssetList.Num() == 0)
@@ -271,6 +300,7 @@ void FAssetFolderContextMenu::ExecuteSCCCheckOut()
 	// Get a list of package names in the selected paths
 	TArray<FString> PackageNames;
 	GetPackageNamesInSelectedPaths(PackageNames);
+	PackageNames.Append(SelectedPackages);
 
 	TArray<UPackage*> PackagesToCheckOut;
 	for ( auto PackageIt = PackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
@@ -301,6 +331,7 @@ void FAssetFolderContextMenu::ExecuteSCCOpenForAdd()
 	// Get a list of package names in the selected paths
 	TArray<FString> PackageNames;
 	GetPackageNamesInSelectedPaths(PackageNames);
+	PackageNames.Append(SelectedPackages);
 
 	TArray<FString> PackagesToAdd;
 	TArray<UPackage*> PackagesToSave;
@@ -355,6 +386,7 @@ void FAssetFolderContextMenu::ExecuteSCCCheckIn()
 	// Get a list of package names in the selected paths
 	TArray<FString> PackageNames;
 	GetPackageNamesInSelectedPaths(PackageNames);
+	PackageNames.Append(SelectedPackages);
 
 	// Form a list of loaded packages to prompt for save
 	TArray<UPackage*> LoadedPackages;
@@ -398,6 +430,7 @@ void FAssetFolderContextMenu::ExecuteSCCCheckIn()
 void FAssetFolderContextMenu::ExecuteSCCSync() const
 {
 	AssetViewUtils::SyncPathsFromSourceControl(SelectedPaths);
+	AssetViewUtils::SyncPackagesFromSourceControl(SelectedPackages);
 }
 
 void FAssetFolderContextMenu::ExecuteSCCConnect() const
@@ -407,12 +440,12 @@ void FAssetFolderContextMenu::ExecuteSCCConnect() const
 
 bool FAssetFolderContextMenu::CanExecuteSCCCheckOut() const
 {
-	return bCanExecuteSCCCheckOut && SelectedPaths.Num() > 0;
+	return bCanExecuteSCCCheckOut && (!SelectedPaths.IsEmpty() || !SelectedPackages.IsEmpty());
 }
 
 bool FAssetFolderContextMenu::CanExecuteSCCOpenForAdd() const
 {
-	return bCanExecuteSCCOpenForAdd && SelectedPaths.Num() > 0;
+	return bCanExecuteSCCOpenForAdd && (!SelectedPaths.IsEmpty() || !SelectedPackages.IsEmpty());
 }
 
 bool FAssetFolderContextMenu::CanExecuteSCCCheckIn() const
@@ -425,12 +458,12 @@ bool FAssetFolderContextMenu::CanExecuteSCCCheckIn() const
 		bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
 	}
 
-	return bCanExecuteSCCCheckIn && SelectedPaths.Num() > 0 && bUsesFileRevisions;
+	return bCanExecuteSCCCheckIn && (!SelectedPaths.IsEmpty() || !SelectedPackages.IsEmpty()) && bUsesFileRevisions;
 }
 
 bool FAssetFolderContextMenu::CanExecuteSCCSync() const
 {
-	if (SelectedPaths.Num() > 0)
+	if (!SelectedPaths.IsEmpty() || !SelectedPackages.IsEmpty())
 	{
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		if (SourceControlProvider.IsEnabled() && SourceControlProvider.UsesFileRevisions())
@@ -475,6 +508,7 @@ void FAssetFolderContextMenu::StartProcessCanExecuteVars()
 	if ( SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable() )
 	{
 		GetPackageNamesInSelectedPaths(PackageNamesToProcess);
+		PackageNamesToProcess.Append(SelectedPackages);
 		CurrentPackageIndex = 0;
 		ProcessCanExecuteVars();
 	}

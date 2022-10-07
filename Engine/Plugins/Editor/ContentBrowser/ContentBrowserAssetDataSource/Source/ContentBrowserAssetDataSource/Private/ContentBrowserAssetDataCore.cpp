@@ -1544,6 +1544,7 @@ void PopulateAssetFolderContextMenu(UContentBrowserDataSource* InOwnerDataSource
 
 	// Extract the internal package paths that belong to this data source from the full list of selected items given in the context
 	TArray<FString> SelectedPackagePaths;
+	TArray<FString> SelectedAssetPackages;
 	for (const FContentBrowserItem& SelectedItem : ContextObject->SelectedItems)
 	{
 		for (const FContentBrowserItemData& SelectedItemData : SelectedItem.GetInternalItems())
@@ -1552,12 +1553,17 @@ void PopulateAssetFolderContextMenu(UContentBrowserDataSource* InOwnerDataSource
 			{
 				SelectedPackagePaths.Add(FolderPayload->GetInternalPath().ToString());
 			}
+			else if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> ItemPayload = GetAssetFileItemPayload(InOwnerDataSource, SelectedItemData))
+			{
+				SelectedAssetPackages.Add(ItemPayload->GetAssetData().PackageName.ToString());
+			}
 		}
 	}
 
 	InAssetFolderContextMenu.MakeContextMenu(
 		InMenu,
-		SelectedPackagePaths
+		SelectedPackagePaths,
+		SelectedAssetPackages
 		);
 }
 

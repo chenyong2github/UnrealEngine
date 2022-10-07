@@ -4075,7 +4075,8 @@ TSharedPtr<SWidget> SContentBrowser::GetItemContextMenu(TArrayView<const FConten
 
 		{
 			UContentBrowserDataMenuContext_FolderMenu* DataContextObject = NewObject<UContentBrowserDataMenuContext_FolderMenu>();
-			DataContextObject->SelectedItems = PathContextMenu->GetSelectedFolders();
+			// Include the items that are not folders to help the batch operations operate on these also.
+			DataContextObject->SelectedItems = SelectedItems;
 			DataContextObject->bCanBeModified = Context->bCanBeModified;
 			DataContextObject->ParentWidget = ViewContext == EContentBrowserViewContext::AssetView ? TSharedPtr<SWidget>(AssetViewPtr) : ViewContext == EContentBrowserViewContext::FavoriteView ? TSharedPtr<SWidget>(FavoritePathViewPtr) : TSharedPtr<SWidget>(PathViewPtr);
 			MenuContext.AddObject(DataContextObject);

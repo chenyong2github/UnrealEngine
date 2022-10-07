@@ -17,10 +17,22 @@ class CONTENTBROWSERASSETDATASOURCE_API FAssetFolderContextMenu : public TShared
 public:
 	virtual ~FAssetFolderContextMenu() = default;
 
-	/** Makes the context menu widget */
+	UE_DEPRECATED(5.1, "Use the new overload.")
 	void MakeContextMenu(
 		UToolMenu* InMenu,
 		const TArray<FString>& InSelectedPackagePaths
+	);
+
+	/** 
+	 * Makes the context menu widget
+	 * @param InMenu The menu in which the entries will be added
+	 * @param InSelectedPackagePaths The path of the selected folders
+	 * @param InSelectedPackages The package names of the selected asset item. Empty if the selection is only some folder items.
+	 */
+	void MakeContextMenu(
+		UToolMenu* InMenu,
+		const TArray<FString>& InSelectedPackagePaths,
+		const TArray<FString>& InSelectedPackages
 		);
 
 private:
@@ -91,6 +103,10 @@ private:
 	void StopProcessCanExecuteVars();
 
 	TArray<FString> SelectedPaths;
+
+	// Not null if the selection contained some assets also
+	TArray<FString> SelectedPackages;
+
 	TWeakPtr<SWidget> ParentWidget;
 
 	/** Cached SCC CanExecute vars */
