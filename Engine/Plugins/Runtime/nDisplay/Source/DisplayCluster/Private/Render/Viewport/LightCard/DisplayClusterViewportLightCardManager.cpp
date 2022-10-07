@@ -123,7 +123,7 @@ void FDisplayClusterViewportLightCardManager::RenderFrame()
 			bool bLoadedPrimitives = false;
 			for (ADisplayClusterLightCardActor* LightCard : UVLightCards)
 			{
-				if (LightCard->IsHidden())
+				if (LightCard->IsHidden() || LightCard->IsActorBeingDestroyed() || LightCard->GetWorld() == nullptr)
 				{
 					continue;
 				}
