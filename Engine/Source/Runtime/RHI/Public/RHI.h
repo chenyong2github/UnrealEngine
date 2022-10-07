@@ -142,6 +142,9 @@ RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelForm
 // helper to check which resource type should be used for clear (UAV) replacement shaders.
 RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatform Platform);
 
+// helper to force dump all RHI resource to CSV file
+RHI_API void RHIDumpResourceMemoryToCSV();
+
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
@@ -957,6 +960,9 @@ extern RHI_API FString GetBufferUsageFlagsName(EBufferUsageFlags BufferUsage);
 /** Returns a string of friendly name bits for the texture create flags enum. */
 extern RHI_API FString GetTextureCreateFlagsName(ETextureCreateFlags TextureCreateFlags);
 
+/** Returns a string of friendly name bits for the texture create flags enum. */
+extern RHI_API const TCHAR* StringFromRHIResourceType(ERHIResourceType ResourceType);
+
 enum class ERHIPipeline : uint8
 {
 	Graphics = 1 << 0,
@@ -1640,6 +1646,7 @@ struct FRHIResourceInfo
 	ERHIResourceType Type{ RRT_None };
 	FVRamAllocation VRamAllocation;
 	bool IsTransient{ false };
+	bool bValid{ true };
 };
 
 enum class EClearBinding
