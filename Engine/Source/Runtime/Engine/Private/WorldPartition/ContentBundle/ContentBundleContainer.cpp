@@ -310,7 +310,7 @@ void FContentBundleContainer::UnregisterContentBundleClientEvents()
 
 bool FContentBundleContainer::ShouldInjectClientContent(const TSharedPtr<FContentBundleClient>& ContentBundleClient) const
 {
-	return ContentBundleClient->GetState() == EContentBundleClientState::ContentInjected || ContentBundleClient->GetState() == EContentBundleClientState::ContentInjectionRequested;
+	return ContentBundleClient->GetState() == EContentBundleClientState::ContentInjectionRequested;
 }
 
 void FContentBundleContainer::InitializeContentBundlesForegisteredClients()

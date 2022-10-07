@@ -3,6 +3,7 @@
 
 #include "WorldPartition/ContentBundle/ContentBundleEngineSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
+#include "WorldPartition/ContentBundle/ContentBundleLog.h"
 #include "Engine/Engine.h"
 
 TSharedPtr<FContentBundleClient> FContentBundleClient::CreateClient(const UContentBundleDescriptor* InContentBundleDescriptor, FString const& InDisplayName)
@@ -11,29 +12,104 @@ TSharedPtr<FContentBundleClient> FContentBundleClient::CreateClient(const UConte
 }
 
 FContentBundleClient::FContentBundleClient(const UContentBundleDescriptor* InContentBundleDescriptor, FString const& InDisplayName)
-	:ContentBundleDescriptor(InContentBundleDescriptor),
-#if WITH_EDITOR
-	DisplayName(InDisplayName),
-#endif
-	ContentInjectionState(EContentBundleClientState::Unregistered)
+	:ContentBundleDescriptor(InContentBundleDescriptor)
+	, DisplayName(InDisplayName)
+	, State(EContentBundleClientState::Unregistered)
 {
-
+	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client Created"), *GetDescriptor()->GetDisplayName());
+	SetState(EContentBundleClientState::Registered);
 }
 
 void FContentBundleClient::RequestContentInjection()
-{
-	GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->RequestContentInjection(*this);
-	ContentInjectionState = EContentBundleClientState::ContentInjectionRequested;
+{ 
+	if (State == EContentBundleClientState::Registered)
+	{
+		SetState(EContentBundleClientState::ContentInjectionRequested);
+		GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->RequestContentInjection(*this);
+	}
+	else
+	{
+		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client failed to request content injection. Its state is %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(State).ToString());
+	}
 }
 
 void FContentBundleClient::RequestRemoveContent()
 {
-	ContentInjectionState = EContentBundleClientState::ContentRemovalRequested;
-	GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->RequestContentRemoval(*this);
+	if (State == EContentBundleClientState::ContentInjectionRequested)
+	{
+		SetState(EContentBundleClientState::ContentRemovalRequested);
+		GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->RequestContentRemoval(*this);
+	}
+	else
+	{
+		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client failed to request content removal. Its state is %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(State).ToString());
+	}
 }
 
 void FContentBundleClient::RequestUnregister()
 {
-	ContentInjectionState = EContentBundleClientState::ContentRemovalRequested;
-	GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->UnregisterContentBundle(*this);
+	if (State != EContentBundleClientState::Unregistered)
+	{
+		GEngine->GetEngineSubsystem<UContentBundleEngineSubsystem>()->UnregisterContentBundle(*this);
+		SetState(EContentBundleClientState::Unregistered);
+	}
+	else
+	{
+		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client failed to request unregister. Its state is %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(State).ToString());
+	}
+}
+	
+
+void FContentBundleClient::OnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld)
+{
+	check(State == EContentBundleClientState::ContentInjectionRequested);
+
+	if (InjectionStatus == EContentBundleStatus::ContentInjected || InjectionStatus == EContentBundleStatus::ReadyToInject)
+	{
+		SetWorldContentState(InjectedWorld, EWorldContentState::ContentBundleInjected);
+	}
+	else if (InjectionStatus == EContentBundleStatus::FailedToInject)
+	{
+		SetWorldContentState(InjectedWorld, EWorldContentState::ContentBundleInjected);
+	}
+	else
+	{
+		// Injection status unhandled
+		check(0);
+	}
+}
+
+void FContentBundleClient::OnContentRemovedFromWorld(EContentBundleStatus RemovalStatus, UWorld* InjectedWorld)
+{
+	if (RemovalStatus == EContentBundleStatus::Registered)
+	{
+		SetWorldContentState(InjectedWorld, EWorldContentState::NoContent);
+	}
+	else
+	{
+		// Removal status unhandled
+		check(0);
+	}
+
+}
+
+void FContentBundleClient::SetWorldContentState(UWorld* World, EWorldContentState NewState)
+{
+	if (EWorldContentState* OldState = WorldContentStates.Find(World))
+	{
+		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client WorldState for world %s changing from %s to %s"), *GetDescriptor()->GetDisplayName(), *World->GetName(), *UEnum::GetDisplayValueAsText(*OldState).ToString(), *UEnum::GetDisplayValueAsText(NewState).ToString());
+		*OldState = NewState;
+		return;
+	}
+	
+	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client WorldState for world %s changing to %s"), *GetDescriptor()->GetDisplayName(), *World->GetName(), *UEnum::GetDisplayValueAsText(NewState).ToString());
+	WorldContentStates.Add(World, NewState);
+}
+
+void FContentBundleClient::SetState(EContentBundleClientState NewState)
+{
+	check(NewState != State);
+
+	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client State changing from %s to %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(State).ToString(), *UEnum::GetDisplayValueAsText(NewState).ToString());
+	State = NewState;
 }

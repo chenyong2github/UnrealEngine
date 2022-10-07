@@ -52,6 +52,11 @@ void FContentBundleBase::InjectContent()
 	DoInjectContent();
 
 	check(GetStatus() == EContentBundleStatus::ReadyToInject || GetStatus() == EContentBundleStatus::ContentInjected || GetStatus() == EContentBundleStatus::FailedToInject);
+
+	if (TSharedPtr<FContentBundleClient> PinnedClient = Client.Pin())
+	{
+		PinnedClient->OnContentInjectedInWorld(GetStatus(), GetInjectedWorld());
+	}
 }
 
 void FContentBundleBase::RemoveContent()
@@ -64,6 +69,11 @@ void FContentBundleBase::RemoveContent()
 	}
 
 	check(GetStatus() == EContentBundleStatus::Registered);
+
+	if (TSharedPtr<FContentBundleClient> PinnedClient = Client.Pin())
+	{
+		PinnedClient->OnContentRemovedFromWorld(GetStatus(), GetInjectedWorld());
+	}
 }
 
 const TWeakPtr<FContentBundleClient>& FContentBundleBase::GetClient() const

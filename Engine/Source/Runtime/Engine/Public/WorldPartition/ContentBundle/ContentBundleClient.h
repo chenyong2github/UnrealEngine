@@ -5,6 +5,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtr.h"
 
+#include "WorldPartition/ContentBundle/ContentBundleStatus.h"
+
 class UContentBundleDescriptor;
 
 UENUM()
@@ -13,17 +15,24 @@ enum class EContentBundleClientState
 	Unregistered,
 	Registered,
 	ContentInjectionRequested,
-	ContentInjected,
 	ContentRemovalRequested,
 	
 	// Failed state
 	RegistrationFailed,
-	ContentInjectionFailed,
+};
+
+UENUM()
+enum class EWorldContentState
+{
+	NoContent,
+	ContentBundleInjected,
+	ContentBundleInjectionFailed
 };
 
 class ENGINE_API FContentBundleClient
 {
 	friend class UContentBundleEngineSubsystem;
+	friend class FContentBundleBase;
 
 public:
 	static TSharedPtr<FContentBundleClient> CreateClient(const UContentBundleDescriptor* InContentBundleDescriptor, FString const& InDisplayName);
@@ -38,14 +47,22 @@ public:
 	
 	void RequestUnregister();
 
-	EContentBundleClientState GetState() const { return ContentInjectionState; }
+	EContentBundleClientState GetState() const { return State; }
 
 	FString const& GetDisplayName() const { return DisplayName; }
 
 private:
+	void SetState(EContentBundleClientState State);
+	void SetWorldContentState(UWorld* World, EWorldContentState State);
+
+	void OnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld);
+	void OnContentRemovedFromWorld(EContentBundleStatus RemovalStatus, UWorld* InjectedWorld);
+
 	TWeakObjectPtr<const UContentBundleDescriptor> ContentBundleDescriptor;
+	
+	TMap<TWeakObjectPtr<UWorld>, EWorldContentState> WorldContentStates;
 
 	FString DisplayName;
 
-	EContentBundleClientState ContentInjectionState;
+	EContentBundleClientState State;
 };
