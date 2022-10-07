@@ -50,7 +50,7 @@ const FString FMLElementWiseBinaryCS::GetOpFunc(EMLElementWiseBinaryOperatorType
 	OP(Mul,              TEXT("((X)*(Y))"));
 	//OP(Or,             TEXT("((X)||(Y))"));
 	OP(Prelu,            TEXT("prelu(X,Y)"));
-	OP(Pow,              TEXT("pow(X,Y)"));
+	OP(Pow,              TEXT("safe_pow(X,Y)"));
 	OP(Sub,              TEXT("((X)-(Y))"));
 	//OP(Or,             TEXT("((X)^=(Y))"));
 

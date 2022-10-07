@@ -165,11 +165,41 @@ namespace Test
 		float WorstRelativeErrorRef = 0.0f;
 		float WorstRelativeErrorOther = 0.0f;
 
+		int32 NumExtraNaNsInResults = 0;
+		int32 FirstExtraNaNIndex = -1;
+		int32 NumMissingNaNsInResults = 0;
+		int32 FirstMissingNaNIndex = -1;
+
 		for (int32 i = 0; i < Volume; ++i)
 		{
 			//All type are converted to float for comparison purpose
 			const float Result = (float)OtherBuffer[i];
 			const float Reference = (float)RefBuffer[i];
+
+			
+			if (FMath::IsNaN(Result) && !FMath::IsNaN(Reference))
+			{
+				bTensorMemMatch = false;
+				++NumExtraNaNsInResults;
+				if (FirstExtraNaNIndex == -1)
+				{
+					FirstExtraNaNIndex = i;
+				}
+			}
+			if (!FMath::IsNaN(Result) && FMath::IsNaN(Reference))
+			{
+				bTensorMemMatch = false;
+				++NumMissingNaNsInResults;
+				if (FirstMissingNaNIndex == -1)
+				{
+					FirstMissingNaNIndex = i;
+				}
+			}
+			
+			if (FMath::IsNaN(Result) || FMath::IsNaN(Reference))
+			{
+				continue;
+			}
 
 			const float AbsoluteError = FMath::Abs<float>(Result - Reference);
 			const float RelativeError = 100.0f * (AbsoluteError / FMath::Abs<float>(Reference));
@@ -195,9 +225,13 @@ namespace Test
 
 		if (!bTensorMemMatch)
 		{
-			UE_LOG(LogNNX, Error, TEXT("Tensor data do not match.\nLogNNX: Worst absolute error %f (epsilon %f) at position %d, got %f expected %f\nLogNNX: Worst relative error %f%% (epsilon %f%%) at position %d, got %f expected %f"),
+			UE_LOG(LogNNX, Error, TEXT("Tensor data do not match.\n"
+				"LogNNX: Worst absolute error %f (epsilon %f) at position %d, got %f expected %f\n"
+				"LogNNX: Worst relative error % f % %(epsilon % f%%) at position % d, got % f expected % f\n"
+				"LogNNX: Num unexpected NaNs %d (First at index %d), Num missing NaNs %d (first at index %d)"),
 				WorstAbsoluteError, AbsoluteErrorEpsilon, WorstAbsoluteErrorIndex, WorstAbsoluteErrorOther, WorstAbsoluteErrorRef,
-				WorstRelativeError, RelativeErrorPercent, WorstRelativeErrorIndex, WorstRelativeErrorOther, WorstRelativeErrorRef);
+				WorstRelativeError, RelativeErrorPercent, WorstRelativeErrorIndex, WorstRelativeErrorOther, WorstRelativeErrorRef,
+				NumExtraNaNsInResults, FirstExtraNaNIndex, NumMissingNaNsInResults, FirstMissingNaNIndex);
 			UE_LOG(LogNNX, Error, TEXT("   Expected : %s"), *TensorToString(RefTensorDesc, RefRawBuffer));
 			UE_LOG(LogNNX, Error, TEXT("   But got  : %s"), *TensorToString(OtherTensorDesc, OtherRawBuffer));
 			return false;
