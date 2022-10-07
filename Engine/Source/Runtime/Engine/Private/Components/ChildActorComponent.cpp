@@ -688,7 +688,13 @@ void UChildActorComponent::OnChildActorDestroyed(AActor* DestroyedActor)
 			}
 		}
 	}
-	ChildActor = nullptr;
+	// While reinstancing we need the reference to remain valid so that we can
+	// overwrite it when references to old instances are updated to references
+	// to new instances:
+	if (!GIsReinstancing)
+	{
+		ChildActor = nullptr;
+	}
 }
 
 void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerFunc)
