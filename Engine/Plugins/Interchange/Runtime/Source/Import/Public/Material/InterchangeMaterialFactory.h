@@ -83,9 +83,11 @@ public:
 
 	void CleanUp();
 
+#if WITH_EDITOR
 	void UpdateFromFunctionResource(UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall);
 
 	void UpdateFromFunctionResource(UMaterialFunctionInterface* MaterialFunction);
+#endif
 
 private:
 

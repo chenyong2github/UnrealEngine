@@ -1277,18 +1277,6 @@ void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* Mater
 	MaterialFunction->UpdateDependentFunctionCandidates();
 }
 
-FInterchangeImportMaterialAsyncHelper& FInterchangeImportMaterialAsyncHelper::GetInstance()
-{
-	static FInterchangeImportMaterialAsyncHelper Instance;
-	return Instance;
-}
-
-void FInterchangeImportMaterialAsyncHelper::CleanUp()
-{
-	UpdatedMaterialFunctionCalls.Empty();
-	UpdatedMaterialFunctions.Empty();
-}
-
 void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall)
 {
 	FScopeLock Lock(&UpdatedMaterialFunctionCallsLock);
@@ -1308,8 +1296,19 @@ void FInterchangeImportMaterialAsyncHelper::UpdateFromFunctionResource(UMaterial
 		MaterialFunction->UpdateFromFunctionResource();
 	}
 }
-
 #endif // #if WITH_EDITOR
+
+FInterchangeImportMaterialAsyncHelper& FInterchangeImportMaterialAsyncHelper::GetInstance()
+{
+	static FInterchangeImportMaterialAsyncHelper Instance;
+	return Instance;
+}
+
+void FInterchangeImportMaterialAsyncHelper::CleanUp()
+{
+	UpdatedMaterialFunctionCalls.Empty();
+	UpdatedMaterialFunctions.Empty();
+}
 
 #undef LOCTEXT_NAMESPACE
 
