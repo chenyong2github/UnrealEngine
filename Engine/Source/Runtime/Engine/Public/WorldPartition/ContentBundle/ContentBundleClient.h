@@ -8,6 +8,7 @@
 #include "WorldPartition/ContentBundle/ContentBundleStatus.h"
 
 class UContentBundleDescriptor;
+class UWorld;
 
 UENUM()
 enum class EContentBundleClientState
