@@ -188,6 +188,11 @@ void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, U
 	ReinitializeDynamicMeshComponents();
 }
 
+void UChaosClothAssetEditorMode::PostUndo()
+{
+	ReinitializeDynamicMeshComponents();
+}
+
 void UChaosClothAssetEditorMode::BindCommands()
 {
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
@@ -258,14 +263,70 @@ void UChaosClothAssetEditorMode::GetRestSpaceMesh(UToolTarget* ToolTarget, UE::G
 	RestSpaceMesh = UE::ToolTarget::GetDynamicMeshCopy(ToolTarget);
 }
 
+namespace ChaosClothAssetEditorModeHelpers
+{
+	TArray<FName> GetClothAssetWeightMapNames(const UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter)
+	{
+		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.FClothConstAdapter::GetClothCollection();
+
+		TArray<FName> OutWeightMapNames;
+		const TArray<FName> SimVerticesAttributeNames = ClothCollection->AttributeNames(UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup);
+		for (const FName& AttributeName : SimVerticesAttributeNames)
+		{
+			if (ClothCollection->FindAttributeTyped<float>(AttributeName, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
+			{
+				OutWeightMapNames.Add(AttributeName);
+			}
+		}
+
+		return OutWeightMapNames;
+	}
+
+	void RemoveClothWeightMaps(UE::Chaos::ClothAsset::FClothAdapter& ClothAdapter, const TArray<FName>& WeightMapNames)
+	{
+		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAdapter.GetClothCollection();
+		for (const FName& RemovedMap : WeightMapNames)
+		{
+			if (ClothCollection->FindAttributeTyped<float>(RemovedMap, UE::Chaos::ClothAsset::FClothCollection::SimVerticesGroup))
+			{
+				ClothAdapter.RemoveWeightMap(RemovedMap);
+			}
+		}
+	}
+
+	TArray<FName> GetDynamicMeshWeightMapNames(const UE::Geometry::FDynamicMesh3& DynamicMesh)
+	{
+		TArray<FName> OutWeightMapNames;
+
+		for (int32 DynamicMeshWeightMapIndex = 0; DynamicMeshWeightMapIndex < DynamicMesh.Attributes()->NumWeightLayers(); ++DynamicMeshWeightMapIndex)
+		{
+			const UE::Geometry::FDynamicMeshWeightAttribute* const WeightMapAttribute = DynamicMesh.Attributes()->GetWeightLayer(DynamicMeshWeightMapIndex);
+			const FName WeightMapName = WeightMapAttribute->GetName();
+			OutWeightMapNames.Add(WeightMapName);
+		}
+
+		return OutWeightMapNames;
+	}
+}
+
 
 void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 {
-	const UChaosClothAsset* ChaosClothAsset = ClothComponent->GetClothAsset();
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("ChaosClothAssetEditorApplyChangesTransaction", "Cloth Editor Apply Changes"));
+
+	UChaosClothAsset* ChaosClothAsset = ClothComponent->GetClothAsset();
+	ChaosClothAsset->Modify();
+
 	UE::Chaos::ClothAsset::FClothAdapter ClothAdapter(ChaosClothAsset->GetClothCollection());
-	
+
 	check(DynamicMeshSourceInfos.Num() == DynamicMeshComponents.Num());
-	
+
+	// Search for weight map names that are in the original cloth asset, but are not in *all* dynamic mesh components. These are weight maps
+	// that have been removed by one of the mesh tools, and so should be removed from the asset.
+	const TSet<FName> ClothAssetWeightMapNames = TSet<FName>(ChaosClothAssetEditorModeHelpers::GetClothAssetWeightMapNames(ClothAdapter));
+	TSet<FName> CommonDynamicMeshWeightMapNames;
+	bool bFirstIteration = true;
+
 	for (int DynamicMeshIndex = 0; DynamicMeshIndex < DynamicMeshComponents.Num(); ++DynamicMeshIndex)
 	{
 		const int32 LodIndex = DynamicMeshSourceInfos[DynamicMeshIndex].LodIndex;
@@ -290,6 +351,17 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 		{
 			continue;
 		}
+		 
+		const TSet<FName> DynamicMeshWeightMapNames(ChaosClothAssetEditorModeHelpers::GetDynamicMeshWeightMapNames(*DynamicMesh));
+		if (bFirstIteration)
+		{
+			CommonDynamicMeshWeightMapNames = DynamicMeshWeightMapNames;
+			bFirstIteration = false;
+		}
+		else
+		{
+			CommonDynamicMeshWeightMapNames = CommonDynamicMeshWeightMapNames.Intersect(DynamicMeshWeightMapNames);
+		}
 
 		const int NumInputWeightElements = DynamicMesh->MaxVertexID();
 
@@ -309,6 +381,11 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 			}
 		}
 	}
+
+	const TSet<FName> WeightMapsToRemove = ClothAssetWeightMapNames.Difference(CommonDynamicMeshWeightMapNames);
+	ChaosClothAssetEditorModeHelpers::RemoveClothWeightMaps(ClothAdapter, WeightMapsToRemove.Array());
+
+	GetToolManager()->EndUndoTransaction();
 }
 
 void UChaosClothAssetEditorMode::CreateToolTargets(const TArray<TObjectPtr<UObject>>& AssetsIn) 

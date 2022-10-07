@@ -65,6 +65,9 @@ namespace UE::Chaos::ClothAsset
 		/** Add a new weight map to this cloth. Access is then done per pattern. */
 		void AddWeightMap(const FName& Name) { GetClothCollection()->AddAttribute<float>(Name, FClothCollection::SimVerticesGroup); }
 
+		/** Remove a weight map from this cloth. */
+		void RemoveWeightMap(const FName& Name) { GetClothCollection()->RemoveAttribute(Name, FClothCollection::SimVerticesGroup); }
+
 		/** Return the underlaying cloth collection this adapter has been created with. */
 		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(FClothConstAdapter::GetClothCollection()); }
 	};
