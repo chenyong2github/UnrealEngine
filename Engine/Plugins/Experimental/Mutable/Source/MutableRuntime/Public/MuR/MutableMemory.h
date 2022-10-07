@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 
+#include <cstring>	// for size_t in some platforms
+
 namespace mu
 {
 	//! \defgroup runtime Run-time classes
