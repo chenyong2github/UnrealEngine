@@ -415,6 +415,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		// Constraint Manager Icons
 		Style->Set("Icons.ConstraintManager.LookAt", new IMAGE_BRUSH_SVG("Starship/Common/LookAt", Icon16x16));
 		Style->Set("Icons.ConstraintManager.ParentHierarchy", new IMAGE_BRUSH_SVG("Starship/Common/ParentHierarchy", Icon16x16));
+
+		Style->Set("Icons.Role", new IMAGE_BRUSH_SVG("Starship/Common/Role", Icon16x16));
 	}
 
 	// Tool panels
