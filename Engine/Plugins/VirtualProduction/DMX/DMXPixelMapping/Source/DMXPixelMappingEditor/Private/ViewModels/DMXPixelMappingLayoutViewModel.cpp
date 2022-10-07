@@ -131,8 +131,30 @@ TArray<UObject*> UDMXPixelMappingLayoutViewModel::GetLayoutScriptsObjectsSlow() 
 	return Result;
 }
 
+void UDMXPixelMappingLayoutViewModel::RequestApplyLayoutScripts()
+{
+	if (!ApplyLayoutScriptTimerHandle.IsValid())
+	{
+		ApplyLayoutScriptTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UDMXPixelMappingLayoutViewModel::ApplyLayoutScripts));
+	}
+}
+
+void UDMXPixelMappingLayoutViewModel::PostUndo(bool bSuccess)
+{
+	RefreshComponents();
+	RefreshLayoutScriptClass();
+}
+
+void UDMXPixelMappingLayoutViewModel::PostRedo(bool bSuccess)
+{
+	RefreshComponents();
+	RefreshLayoutScriptClass();
+}
+
 void UDMXPixelMappingLayoutViewModel::ApplyLayoutScripts()
 {
+	ApplyLayoutScriptTimerHandle.Invalidate();
+
 	const EDMXPixelMappingLayoutViewModelMode LayoutType = GetMode();
 	if (LayoutType == EDMXPixelMappingLayoutViewModelMode::LayoutRendererComponentChildren)
 	{
@@ -150,18 +172,6 @@ void UDMXPixelMappingLayoutViewModel::ApplyLayoutScripts()
 	{
 		ensureAlwaysMsgf(LayoutType == EDMXPixelMappingLayoutViewModelMode::LayoutNone, TEXT("Unhandled Layout Type, layout cannot be applied"));
 	}
-}
-
-void UDMXPixelMappingLayoutViewModel::PostUndo(bool bSuccess)
-{
-	RefreshComponents();
-	RefreshLayoutScriptClass();
-}
-
-void UDMXPixelMappingLayoutViewModel::PostRedo(bool bSuccess)
-{
-	RefreshComponents();
-	RefreshLayoutScriptClass();
 }
 
 void UDMXPixelMappingLayoutViewModel::LayoutRendererComponentChildren()

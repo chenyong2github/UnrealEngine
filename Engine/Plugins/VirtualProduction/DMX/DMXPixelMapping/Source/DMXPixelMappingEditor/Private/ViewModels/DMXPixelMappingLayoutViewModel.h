@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
+#include "TimerManager.h"
 
 #include "DMXPixelMappingLayoutViewModel.generated.h"
 
@@ -57,8 +58,8 @@ public:
 	/** Returns the Layout Scripts of relevant components. Looks up each relevant component and returns its script. */
 	TArray<UObject*> GetLayoutScriptsObjectsSlow() const;
 
-	/** Applies the layouts scripts currently in use */
-	void ApplyLayoutScripts();
+	/** Applies the layouts scripts currently in use on the next tick */
+	void RequestApplyLayoutScripts();
 
 	/** Delegate executed when the Model changed */
 	FSimpleMulticastDelegate OnModelChanged;
@@ -73,6 +74,9 @@ protected:
 	// End of FEditorUndoClient
 
 private:
+	/** Applies the layouts scripts currently in use */
+	void ApplyLayoutScripts();
+
 	/** Lays out children of the Renderer Component */
 	void LayoutRendererComponentChildren();
 
@@ -125,6 +129,9 @@ private:
 	/** The Layout Script class currently in use */
 	UPROPERTY(EditAnywhere, Category = "Layout Script", Meta = (ShowDisplayNames))
 	TSoftClassPtr<UDMXPixelMappingLayoutScript> LayoutScriptClass;
+
+	/** Timer handle to apply the layout script, set when ApplyLayoutScript is requested. */
+	FTimerHandle ApplyLayoutScriptTimerHandle;
 
 	/** The Layout Script class currently before it was changed */
 	TSoftClassPtr<UDMXPixelMappingLayoutScript> PreEditChangeLayoutScriptClass;

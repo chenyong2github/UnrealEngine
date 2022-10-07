@@ -94,7 +94,7 @@ void SDMXPixelMappingLayoutView::PostRedo(bool bSuccess)
 
 void SDMXPixelMappingLayoutView::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
-	Model->ApplyLayoutScripts();
+	Model->RequestApplyLayoutScripts();
 }
 
 void SDMXPixelMappingLayoutView::Refresh()

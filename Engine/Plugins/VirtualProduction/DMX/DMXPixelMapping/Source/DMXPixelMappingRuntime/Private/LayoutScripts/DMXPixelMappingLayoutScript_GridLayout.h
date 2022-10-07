@@ -51,10 +51,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Layout Settings", Meta = (DisplayName = "Vertical Alignment"))
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
-	/** If true, cells are always shaped squares */
-	UPROPERTY(EditAnywhere, Category = "Layout Settings")
-	bool bMakeSquares = true;
-	
 	/** How cells are distributed, compared to their previous distribution */
 	UPROPERTY(EditAnywhere, Category = "Layout Settings")
 	EDMXPixelMappingDistribution Distribution = EDMXPixelMappingDistribution::TopLeftToRight;
