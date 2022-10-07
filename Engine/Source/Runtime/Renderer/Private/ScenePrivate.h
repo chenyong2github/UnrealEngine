@@ -2867,23 +2867,31 @@ public:
 	/** The index of the ConvolvedSkyRenderTarget to use when rendering meshes. -1 when not initialised. */
 	int32 ConvolvedSkyRenderTargetReadyIndex;
 
-	/** We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
-	enum class ERealTimeSlicedReflectionCaptureFirstFrameState
+	struct FRealTimeSlicedReflectionCapture
 	{
-		INIT = 0,
-		FIRST_FRAME = 1,
-		BEYOND_FIRST_FRAME = 2,
-	} RealTimeSlicedReflectionCaptureFirstFrameState;
+		/** We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
+		enum class EFirstFrameState
+		{
+			INIT = 0,
+			FIRST_FRAME = 1,
+			BEYOND_FIRST_FRAME = 2,
+		} FirstFrameState = EFirstFrameState::INIT;
 
-	/** The current progress of the real time reflection capture when time sliced. */
-	int32 RealTimeSlicedReflectionCaptureState;
-	/** The current progress of each sub step of a state capture of the real time reflection capture when time sliced. */
-	int32 RealTimeSlicedReflectionCaptureStateStep;
-	/** When a state is sub divided, StepDone tells us if we can move onto the next step*/
-	bool bRealTimeSlicedReflectionCaptureStateStepDone;
+		/** The current progress of the real time reflection capture when time sliced. */
+		int32 State = -1;
 
-	/** Cache of Frame Number, used to detect first viewfamily */
-	uint64 RealTimeSlicedReflectionCaptureFrameNumber;
+		/** The current progress of each sub step of a state capture of the real time reflection capture when time sliced. */
+		int32 StateSubStep = 0;
+
+		/** Keeps track of which GPUs have been initialized with a full cube map */
+		uint32 GpusWithFullCube = 0;
+
+		/** Keeps track of which GPUs calculations have been done in the frame */
+		uint32 GpusHandledThisFrame = 0;
+
+		/** Cache of Frame Number, used to detect first viewfamily */
+		uint64 FrameNumber = uint64(-1);
+	} RealTimeSlicedReflectionCapture;
 
 	/**
 	 * The path tracer uses its own representation of the skylight. These textures

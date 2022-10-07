@@ -1833,11 +1833,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 #endif
 ,	SkyLight(NULL)
 ,	ConvolvedSkyRenderTargetReadyIndex(-1)
-,	RealTimeSlicedReflectionCaptureFirstFrameState(ERealTimeSlicedReflectionCaptureFirstFrameState::INIT)
-,	RealTimeSlicedReflectionCaptureState(-1)
-,	RealTimeSlicedReflectionCaptureStateStep(0)
-,	bRealTimeSlicedReflectionCaptureStateStepDone(true)
-,	RealTimeSlicedReflectionCaptureFrameNumber(0)
 ,   PathTracingSkylightColor(0, 0, 0, 0)
 ,	SimpleDirectionalLight(NULL)
 ,	ReflectionSceneData(InFeatureLevel)
