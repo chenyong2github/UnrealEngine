@@ -145,29 +145,33 @@ namespace ShaderPrint
 	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShaderPrintCommonParameters, "ShaderPrintData");
 	
 	// Fill the uniform buffer parameters
+	void GetParameters(FShaderPrintSetup const& InSetup, FShaderPrintCommonParameters& OutParameters)
+	{
+		const FVector2D ViewSize(FMath::Max(InSetup.ViewRect.Size().X, 1), FMath::Max(InSetup.ViewRect.Size().Y, 1));
+		const float FontWidth = float(InSetup.FontSize.X) * InSetup.DPIScale / ViewSize.X;
+		const float FontHeight = float(InSetup.FontSize.Y) * InSetup.DPIScale / ViewSize.Y;
+		const float SpaceWidth = float(InSetup.FontSpacing.X) * InSetup.DPIScale / ViewSize.X;
+		const float SpaceHeight = float(InSetup.FontSpacing.Y) * InSetup.DPIScale / ViewSize.Y;
+
+		OutParameters.FontSize = FVector2f(FontWidth, FontHeight);
+		OutParameters.FontSpacing = FVector2f(FontWidth + SpaceWidth, FontHeight + SpaceHeight);
+		OutParameters.Resolution = InSetup.ViewRect.Size();
+		OutParameters.CursorCoord = InSetup.CursorCoord;
+		OutParameters.MaxValueCount = InSetup.MaxValueCount;
+		OutParameters.MaxSymbolCount = GetMaxSymbolCountFromValueCount(InSetup.MaxValueCount);
+		OutParameters.MaxStateCount = InSetup.MaxStateCount;
+		OutParameters.MaxLineCount = InSetup.MaxLineCount;
+		OutParameters.MaxTriangleCount = InSetup.MaxTriangleCount;
+		OutParameters.TranslatedWorldOffset = FVector3f(InSetup.PreViewTranslation);
+	}
+
 	// Return a uniform buffer with values filled and with single frame lifetime
-	static TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> CreateUniformBuffer(const FShaderPrintSetup& Setup)
+	static TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> CreateUniformBuffer(const FShaderPrintSetup& InSetup)
 	{		
-		FShaderPrintCommonParameters Out;
+		FShaderPrintCommonParameters Parameters;
+		GetParameters(InSetup, Parameters);
 
-		const FVector2D ViewSize(FMath::Max(Setup.ViewRect.Size().X, 1), FMath::Max(Setup.ViewRect.Size().Y, 1));
-		const float FontWidth = float(Setup.FontSize.X) * Setup.DPIScale / ViewSize.X;
-		const float FontHeight = float(Setup.FontSize.Y) * Setup.DPIScale / ViewSize.Y;
-		const float SpaceWidth = float(Setup.FontSpacing.X) * Setup.DPIScale / ViewSize.X;
-		const float SpaceHeight = float(Setup.FontSpacing.Y) * Setup.DPIScale / ViewSize.Y;
-		
-		Out.FontSize = FVector2f(FontWidth, FontHeight);
-		Out.FontSpacing = FVector2f(FontWidth + SpaceWidth, FontHeight + SpaceHeight);
-		Out.Resolution = Setup.ViewRect.Size();
-		Out.CursorCoord = Setup.CursorCoord;
-		Out.MaxValueCount = Setup.MaxValueCount;
-		Out.MaxSymbolCount = GetMaxSymbolCountFromValueCount(Setup.MaxValueCount);
-		Out.MaxStateCount = Setup.MaxStateCount;
-		Out.MaxLineCount = Setup.MaxLineCount;
-		Out.MaxTriangleCount = Setup.MaxTriangleCount;
-		Out.TranslatedWorldOffset = FVector3f(Setup.PreViewTranslation);
-
-		return TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters>::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
+		return TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +200,7 @@ namespace ShaderPrint
 
 	bool IsSupported(EShaderPlatform InShaderPlatform)
 	{
-		return !IsHlslccShaderPlatform(InShaderPlatform);
+		return !IsMobilePlatform(InShaderPlatform) && !IsHlslccShaderPlatform(InShaderPlatform);
 	}
 
 	bool IsEnabled()
@@ -562,7 +566,6 @@ namespace ShaderPrint
 			ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			return ShaderPrintData;
 		}
-
 
 		// Characters/Widgets/Primitives/Lines
 		{

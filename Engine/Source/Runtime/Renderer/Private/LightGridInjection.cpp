@@ -1021,7 +1021,7 @@ class FDebugLightGridPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) && ShaderPrint::IsSupported(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1039,29 +1039,32 @@ IMPLEMENT_GLOBAL_SHADER(FDebugLightGridPS, "/Engine/Private/LightGridInjection.u
 
 FScreenPassTexture AddVisualizeLightGridPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor, FRDGTextureRef SceneDepthTexture)
 {
-	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLightGrid");
+	if (ShaderPrint::IsSupported(View.Family->GetShaderPlatform()))
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLightGrid");
 
-	// Force ShaderPrint on.
-	ShaderPrint::SetEnabled(true);
+		// Force ShaderPrint on.
+		ShaderPrint::SetEnabled(true);
 
-	ShaderPrint::RequestSpaceForLines(128);
-	ShaderPrint::RequestSpaceForCharacters(128);
+		ShaderPrint::RequestSpaceForLines(128);
+		ShaderPrint::RequestSpaceForCharacters(128);
 
-	FDebugLightGridPS::FPermutationDomain PermutationVector;
-	TShaderMapRef<FDebugLightGridPS> PixelShader(View.ShaderMap, PermutationVector);
-	FDebugLightGridPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugLightGridPS::FParameters>();
-	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
-	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
-	PassParameters->DepthTexture = SceneDepthTexture ? SceneDepthTexture : GSystemTextures.GetMaxFP16Depth(GraphBuilder);
-	PassParameters->MiniFontTexture = GetMiniFontTexture();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(ScreenPassSceneColor.Texture, ERenderTargetLoadAction::ELoad);
-	PassParameters->DebugMode = GForwardLightGridDebug;
+		FDebugLightGridPS::FPermutationDomain PermutationVector;
+		TShaderMapRef<FDebugLightGridPS> PixelShader(View.ShaderMap, PermutationVector);
+		FDebugLightGridPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugLightGridPS::FParameters>();
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
+		PassParameters->DepthTexture = SceneDepthTexture ? SceneDepthTexture : GSystemTextures.GetMaxFP16Depth(GraphBuilder);
+		PassParameters->MiniFontTexture = GetMiniFontTexture();
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(ScreenPassSceneColor.Texture, ERenderTargetLoadAction::ELoad);
+		PassParameters->DebugMode = GForwardLightGridDebug;
 
-	FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
+		FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 
-	FPixelShaderUtils::AddFullscreenPass<FDebugLightGridPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("DebugLightGridCS"), PixelShader, PassParameters,
-		ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
+		FPixelShaderUtils::AddFullscreenPass<FDebugLightGridPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("DebugLightGridCS"), PixelShader, PassParameters,
+			ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
+	}
 
 	return MoveTemp(ScreenPassSceneColor);
 }

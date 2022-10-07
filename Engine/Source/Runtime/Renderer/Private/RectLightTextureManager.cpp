@@ -256,7 +256,7 @@ class FRectLightAtlasDebugInfoCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return ShaderPrint::IsSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -1624,7 +1624,7 @@ void UpdateRectLightAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLev
 
 void AddRectLightAtlasDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture)
 {
-	if (CVarRectLighTextureDebug.GetValueOnRenderThread() > 0)
+	if (CVarRectLighTextureDebug.GetValueOnRenderThread() > 0 && ShaderPrint::IsSupported(View.Family->GetShaderPlatform()))
 	{
 		if (FRDGTextureRef DebugOutput = AddRectLightDebugInfoPass(GraphBuilder, View, OutputTexture->Desc))
 		{

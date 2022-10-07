@@ -116,6 +116,9 @@ namespace ShaderPrint
 		uint32 MaxTriangleCount = 0;
 	};
 
+	/** Fill the ShaderPrintCommonParameters uniform buffer structure for our setup. */
+	RENDERER_API void GetParameters(FShaderPrintSetup const& InSetup, FShaderPrintCommonParameters& OutParameters);
+
 	/** Create the shader print render data. This allocates and clears the render buffers. */
 	RENDERER_API FShaderPrintData CreateShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintSetup const& InSetup);
 	
