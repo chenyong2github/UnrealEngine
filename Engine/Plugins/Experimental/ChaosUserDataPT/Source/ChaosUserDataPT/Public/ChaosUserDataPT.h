@@ -194,7 +194,10 @@ namespace Chaos
 						// Delete user data that has been removed
 						for (const FUniqueIdx Idx : Input->UserDataToRemove)
 						{
-							UserDataMap_PT.RemoveAt(Idx.Idx);
+							if (UserDataMap_PT.IsValidIndex(Idx.Idx))
+							{
+								UserDataMap_PT.RemoveAt(Idx.Idx);
+							}
 						}
 
 						// Shrink sparse array if we took elements off the end
