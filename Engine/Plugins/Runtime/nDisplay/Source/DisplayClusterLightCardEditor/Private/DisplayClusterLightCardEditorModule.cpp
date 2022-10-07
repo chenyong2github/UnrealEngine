@@ -71,7 +71,7 @@ void FDisplayClusterLightCardEditorModule::ShowLabels(const FLabelArgs& InArgs)
 	}
 }
 
-UDisplayClusterLightCardTemplate* FDisplayClusterLightCardEditorModule::GetDefaultLightCardTemplate() const
+UDisplayClusterStageActorTemplate* FDisplayClusterLightCardEditorModule::GetDefaultLightCardTemplate() const
 {
 	const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
 	return Settings->DefaultLightCardTemplate.LoadSynchronous();

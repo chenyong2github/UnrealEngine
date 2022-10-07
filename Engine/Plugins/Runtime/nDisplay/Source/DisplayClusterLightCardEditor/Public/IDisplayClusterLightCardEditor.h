@@ -6,7 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-class UDisplayClusterLightCardTemplate;
+class UDisplayClusterStageActorTemplate;
 
 /**
  * Display Cluster Light Card Editor module interface
@@ -70,5 +70,5 @@ public:
 	/**
 	 * Get the default template to use when creating a new light card
 	 */
-	virtual UDisplayClusterLightCardTemplate* GetDefaultLightCardTemplate() const = 0;
+	virtual UDisplayClusterStageActorTemplate* GetDefaultLightCardTemplate() const = 0;
 };

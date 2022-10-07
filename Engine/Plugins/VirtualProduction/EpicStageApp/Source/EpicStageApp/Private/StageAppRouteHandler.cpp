@@ -17,13 +17,13 @@
 #include "RemoteControlWebsocketRoute.h"
 #include "StageAppResponse.h"
 #include "WebRemoteControlUtils.h"
+#include "StageActor/DisplayClusterStageActorTemplate.h"
 #include "StageActor/DisplayClusterWeakStageActorPtr.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/TransBuffer.h"
 #include "IDisplayClusterLightCardEditor.h"
-#include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 #include "ScopedTransaction.h"
 #endif
 
@@ -275,9 +275,9 @@ void FStageAppRouteHandler::RegisterRoutes(IWebRemoteControlModule& WebRemoteCon
 	));
 
 	RegisterRoute(MakeUnique<FRemoteControlWebsocketRoute>(
-		TEXT("Create a lightcard positioned relative to the preview renderer's viewport"),
-		TEXT("ndisplay.preview.lightcard.create"),
-		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardCreate)
+		TEXT("Create an actor positioned relative to the preview renderer's viewport"),
+		TEXT("ndisplay.preview.actor.create"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorCreate)
 	));
 }
 
@@ -728,9 +728,9 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorDragEnd(const FRe
 	EndActorDrag(*PerRendererData, WebSocketMessage.ClientId, Body.RendererId, true);
 }
 
-void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardCreate(const FRemoteControlWebSocketMessage& WebSocketMessage)
+void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorCreate(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
-	FRCWebSocketNDisplayPreviewLightCardCreateBody Body;
+	FRCWebSocketNDisplayPreviewActorCreateBody Body;
 	if (!WebRemoteControlUtils::DeserializeMessage(WebSocketMessage.RequestPayload, Body))
 	{
 		return;
@@ -743,96 +743,55 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardCreate(const 
 	}
 
 	ADisplayClusterRootActor* RootActor = PerRendererData->GetRootActor();
+	if (!RootActor || !RootActor->GetWorld())
+	{
+		return;
+	}
+
 	ULevel* Level = RootActor->GetWorld()->GetCurrentLevel();
 	if (!Level)
 	{
 		return;
 	}
 
-	ADisplayClusterLightCardActor* NewLightCard;
-	const bool bIsInUVMode = PerRendererData->GetPreviewSettings().ProjectionType == ERCWebSocketNDisplayPreviewRenderProjectionType::UV;
-
-#if WITH_EDITOR
-	const UDisplayClusterLightCardTemplate* Template;
-
-	if (!Body.TemplatePath.IsEmpty())
+	UClass* ActorClass = StaticLoadClass(UObject::StaticClass(), nullptr, *Body.ActorClass);
+	if (!ActorClass)
 	{
-		Template = Cast<UDisplayClusterLightCardTemplate>(StaticLoadObject(UDisplayClusterLightCardTemplate::StaticClass(), nullptr, *Body.TemplatePath));
-	}
-	else
-	{
-		// Use the default template if available
-		Template = IDisplayClusterLightCardEditor::Get().GetDefaultLightCardTemplate();
-	}
-
-	if (!bIsInUVMode && Template && Template->LightCardActor->bIsUVLightCard)
-	{
-		// Can't spawn a UV lightcard in non-UV mode
 		return;
 	}
 
-	FScopedTransaction Transaction(LOCTEXT("CreateLightCard", "Create Light Card"));
+	const UDisplayClusterStageActorTemplate* Template = nullptr;
 
-	if (Template)
+	if (!Body.TemplatePath.IsEmpty())
 	{
-		// Duplicate the lightcard from its template
-		FName UniqueName = *Template->GetName().Replace(TEXT("Template"), TEXT(""));
-		if (StaticFindObjectFast(Template->LightCardActor->GetClass(), Level, UniqueName))
-		{
-			UniqueName = MakeUniqueObjectName(Level, Template->LightCardActor->GetClass(), UniqueName);
-		}
-
-		// Duplicate, don't copy properties or spawn from a template. Doing so will copy component data incorrectly,
-		// specifically the static mesh override textures. They will be parented to the template, not the level instance
-		// and prevent the map from saving.
-		NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(Template->LightCardActor.Get(), Level, UniqueName));
-		Level->AddLoadedActor(NewLightCard);
-
-		NewLightCard->SetActorLabel(NewLightCard->GetName());
+		Template = Cast<UDisplayClusterStageActorTemplate>(StaticLoadObject(UDisplayClusterStageActorTemplate::StaticClass(), nullptr, *Body.TemplatePath));
 	}
-	else
+#if WITH_EDITOR
+	else if (ActorClass == ADisplayClusterLightCardActor::StaticClass())
+	{
+		// Use the default lightcard template if available
+		Template = IDisplayClusterLightCardEditor::Get().GetDefaultLightCardTemplate();
+	}
 #endif
+
+	FDisplayClusterLightCardEditorHelper::FSpawnActorArgs SpawnArgs;
 	{
-		// Create the light card
-		const FVector SpawnLocation = RootActor->GetDefaultCamera()->GetComponentLocation();
-		FRotator SpawnRotation = RootActor->GetDefaultCamera()->GetComponentRotation();
-		SpawnRotation.Yaw -= 180.f;
-
-		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.bNoFail = true;
-		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-		SpawnParameters.Name = TEXT("LightCard");
-		SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-		SpawnParameters.OverrideLevel = RootActor->GetLevel();
-
-		NewLightCard = CastChecked<ADisplayClusterLightCardActor>(
-			RootActor->GetWorld()->SpawnActor(ADisplayClusterLightCardActor::StaticClass(),
-				&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
-
-		NewLightCard->Color = FLinearColor::Gray;
-
-		// If no position was specified, spawn at center of the viewport
-		if (!Body.OverridePosition)
-		{
-			Body.OverridePosition = true;
-			Body.Position = FVector2D(0.5, 0.5);
-		}
-
-		if (bIsInUVMode)
-		{
-			NewLightCard->Feathering = 0.05f; // Just enough to avoid jagged look on UV lightcards.
-		}
+		SpawnArgs.ActorClass = ActorClass;
+		SpawnArgs.ActorName = FName(Body.ActorName);
+		SpawnArgs.RootActor = RootActor;
+		SpawnArgs.Template = Template;
+		SpawnArgs.Level = Level;
+		SpawnArgs.ProjectionMode = PerRendererData->GetLightCardHelper().GetProjectionMode();
 	}
 
-	// Convert a non-UV LC (or brand new LC) to a UV LC
-	if (bIsInUVMode && !NewLightCard->bIsUVLightCard)
+	AActor* NewActor = FDisplayClusterLightCardEditorHelper::SpawnStageActor(SpawnArgs);
+	if (!NewActor)
 	{
-		NewLightCard->bIsUVLightCard = true;
-		NewLightCard->Scale /= 4;
+		return;
 	}
 
 	// Override the location
-	if (Body.OverridePosition)
+	if (Body.OverridePosition && NewActor->Implements<UDisplayClusterStageActor>())
 	{
 		const FIntPoint& Resolution = PerRendererData->GetPreviewSettings().Resolution;
 
@@ -847,32 +806,14 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardCreate(const 
 		if (PerRendererData->GetSceneViewInitOptions(ViewInitOptions, false))
 		{
 			const FSceneView View(ViewInitOptions);
-			LightCardHelper.MoveActorsToPixel({ NewLightCard }, PixelPos, View);
+			LightCardHelper.MoveActorsToPixel({ NewActor }, PixelPos, View);
 		}
 	}
-
-#if WITH_EDITOR
-	NewLightCard->SetActorLabel(NewLightCard->GetName());
-#endif
-
-	// Add it to the root actor
-	NewLightCard->AddToLightCardLayer(RootActor);
-
-#if WITH_EDITOR
-	// Required so operator panel updates
-	RootActor->PostEditChange();
-
-	// Need to call this if spawned from a template since this would normally be called in SpawnActor
-	if (GIsEditor && Template)
-	{
-		GEditor->BroadcastLevelActorAdded(NewLightCard);
-	}
-#endif
 
 	// Send new actor back to the client
 	FRCRequestedActorsCreated Event;
 	Event.RequestId = Body.RequestId;
-	Event.ActorPaths.Add(NewLightCard->GetPathName());
+	Event.ActorPaths.Add(NewActor->GetPathName());
 
 	TArray<uint8> Payload;
 	WebRemoteControlUtils::SerializeMessage(Event, Payload);

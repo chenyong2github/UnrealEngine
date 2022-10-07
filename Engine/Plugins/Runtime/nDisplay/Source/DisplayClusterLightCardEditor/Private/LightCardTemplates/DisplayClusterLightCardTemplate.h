@@ -10,7 +10,7 @@
 /**
  * A template asset to store appearance settings from Light Card actors.
  */
-UCLASS(NotBlueprintType, NotBlueprintable, NotPlaceable, MinimalAPI)
+UCLASS(NotBlueprintType, NotBlueprintable, NotPlaceable)
 class UDisplayClusterLightCardTemplate : public UDisplayClusterStageActorTemplate
 {
 	GENERATED_BODY()

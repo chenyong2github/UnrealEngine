@@ -127,8 +127,8 @@ private:
 	/** Handles ending an actor drag operation. */
 	void HandleWebSocketNDisplayPreviewActorDragEnd(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
-	/** Handles creating a lightcard. */
-	void HandleWebSocketNDisplayPreviewLightCardCreate(const FRemoteControlWebSocketMessage& WebSocketMessage);
+	/** Handles creating an actor. */
+	void HandleWebSocketNDisplayPreviewActorCreate(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	/** Called when a client disconnects from the WebSocket server. */
 	void HandleClientDisconnected(FGuid ClientId);

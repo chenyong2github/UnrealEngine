@@ -329,14 +329,14 @@ struct FRCWebSocketNDisplayPreviewActorDragEndBody : public FRCRequest
 };
 
 /**
- * Holds a request made via websocket to create a lightcard, optionally positioned relative to the previewed area.
+ * Holds a request made via websocket to create an actor, optionally positioned relative to the previewed area.
  */
 USTRUCT()
-struct FRCWebSocketNDisplayPreviewLightCardCreateBody : public FRCRequest
+struct FRCWebSocketNDisplayPreviewActorCreateBody : public FRCRequest
 {
 	GENERATED_BODY()
 
-	FRCWebSocketNDisplayPreviewLightCardCreateBody()
+	FRCWebSocketNDisplayPreviewActorCreateBody()
 	{
 		AddStructParameter(ParametersFieldLabel());
 	}
@@ -347,10 +347,22 @@ struct FRCWebSocketNDisplayPreviewLightCardCreateBody : public FRCRequest
 	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
 
 	/**
-	 * The ID of the preview renderer returned when it was created.
+	 * The ID of the preview renderer to use when positioning this light card.
 	 */
 	UPROPERTY()
 	int32 RendererId = -1;
+
+	/**
+	 * The name of the actor to spawn. A number will be appended if this conflicts with another name.
+	 */
+	UPROPERTY()
+	FString ActorName = "";
+
+	/**
+	 * The name of the class of the actor to spawn.
+	 */
+	UPROPERTY()
+	FString ActorClass = "";
 
 	/**
 	 * The path of the template to use for the lightcard. If empty, a lightcard will be created with default settings.
