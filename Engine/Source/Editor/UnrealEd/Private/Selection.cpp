@@ -28,8 +28,7 @@ class FObjectSelectionElementBridge : public ISelectionElementBridge
 public:
 	virtual bool IsValidObjectType(const UObject* InObject) const override
 	{
-		check(InObject);
-		return true;
+		return IsValidChecked(InObject);
 	}
 
 	virtual FTypedElementHandle GetElementHandleForObject(const UObject* InObject, const bool bAllowCreate = true) const override
@@ -44,8 +43,7 @@ class FActorSelectionElementBridge : public ISelectionElementBridge
 public:
 	virtual bool IsValidObjectType(const UObject* InObject) const override
 	{
-		check(InObject);
-		return InObject->IsA<AActor>();
+		return IsValidChecked(InObject) && InObject->IsA<AActor>();
 	}
 
 	virtual FTypedElementHandle GetElementHandleForObject(const UObject* InObject, const bool bAllowCreate = true) const override
@@ -60,8 +58,7 @@ class FComponentSelectionElementBridge : public ISelectionElementBridge
 public:
 	virtual bool IsValidObjectType(const UObject* InObject) const override
 	{
-		check(InObject);
-		return InObject->IsA<UActorComponent>();
+		return IsValidChecked(InObject) && InObject->IsA<UActorComponent>();
 	}
 
 	virtual FTypedElementHandle GetElementHandleForObject(const UObject* InObject, const bool bAllowCreate = true) const override
