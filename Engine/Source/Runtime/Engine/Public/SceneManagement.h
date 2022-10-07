@@ -1137,14 +1137,14 @@ inline bool PrimitiveNeedsDistanceFieldSceneData(bool bTrackAllPrimitives,
 	bool bIsDrawnInGame,
 	bool bCastsHiddenShadow,
 	bool bCastsDynamicShadow,
-	bool bAffectsDynamicIndirectLighting)
+	bool bAffectsDynamicIndirectLighting,
+	bool bAffectIndirectLightingWhileHidden)
 {
 	return (bTrackAllPrimitives || bCastsDynamicIndirectShadow)
 		&& bAffectsDistanceFieldLighting
-		&& (bIsDrawnInGame || bCastsHiddenShadow)
+		&& (bIsDrawnInGame || bCastsHiddenShadow || bAffectIndirectLightingWhileHidden)
 		&& (bCastsDynamicShadow || bAffectsDynamicIndirectLighting);
 }
-
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FVector4f, Params) // x - inv average brightness, y - sky cubemap max mip, z - unused, w - brightness of reflection capture

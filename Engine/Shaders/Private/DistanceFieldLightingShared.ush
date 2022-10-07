@@ -160,6 +160,7 @@ struct FDFObjectBounds
 	uint bCastShadow;
 	bool bIsNaniteMesh;
 	uint bEmissiveLightSource;
+	bool bAffectIndirectLightingWhileHidden;
 };
 
 uint NumSceneObjects;
@@ -192,6 +193,7 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 	Bounds.bIsNaniteMesh = (Flags & 4U) != 0U;
 	Bounds.bEmissiveLightSource = (Flags & 8U) != 0U;
 	Bounds.bVisible = (Flags & 16U) != 0U;
+	Bounds.bAffectIndirectLightingWhileHidden = (Flags & 32U) != 0U;
 
 	return Bounds;
 }

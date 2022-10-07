@@ -623,7 +623,7 @@ void UPrimitiveComponent::SendRenderTransform_Concurrent()
 
 	// If the primitive isn't hidden update its transform.
 	const bool bDetailModeAllowsRendering	= DetailMode <= GetCachedScalabilityCVars().DetailMode;
-	if( bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField))
+	if( bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bAffectIndirectLightingWhileHidden || bRayTracingFarField))
 	{
 		// Update the scene info's transform for this primitive.
 		GetWorld()->Scene->UpdatePrimitiveTransform(this);
@@ -1544,7 +1544,7 @@ bool UPrimitiveComponent::ShouldComponentAddToScene() const
 	const bool bIsHiddenInEditor = false;
 #endif
 
-	return bSceneAdd && (ShouldRender() || (bCastHiddenShadow && !bIsHiddenInEditor) || bRayTracingFarField);
+	return bSceneAdd && (ShouldRender() || (bCastHiddenShadow && !bIsHiddenInEditor) || bAffectIndirectLightingWhileHidden || bRayTracingFarField);
 }
 
 bool UPrimitiveComponent::ShouldCreatePhysicsState() const

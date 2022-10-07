@@ -2297,7 +2297,7 @@ void UInstancedStaticMeshComponent::SendRenderInstanceData_Concurrent()
 
 	// If the primitive isn't hidden update its transform.
 	const bool bDetailModeAllowsRendering = DetailMode <= GetCachedScalabilityCVars().DetailMode;
-	if (InstanceUpdateCmdBuffer.NumTotalCommands() && bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField))
+	if (InstanceUpdateCmdBuffer.NumTotalCommands() && bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bAffectIndirectLightingWhileHidden || bRayTracingFarField))
 	{
 		UpdateBounds();
 
@@ -4142,7 +4142,8 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 				true, /* conservatively overestimate DrawInGame - it has complex logic in the Proxy. */
 				InComponent->bCastHiddenShadow,
 				/* bCastsDynamicShadow */ InComponent->bCastDynamicShadow && InComponent->CastShadow && !InComponent->GetShadowIndirectOnly(),
-				InComponent->bAffectDynamicIndirectLighting);
+				InComponent->bAffectDynamicIndirectLighting,
+				InComponent->bAffectIndirectLightingWhileHidden);
 		}
 
 		// Check Nanite

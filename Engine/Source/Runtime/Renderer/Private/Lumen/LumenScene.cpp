@@ -590,7 +590,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 	bool bCanBeTraced = false;
 	if (DoesProjectSupportDistanceFields() 
 		&& (Proxy->SupportsDistanceFieldRepresentation() || Proxy->SupportsHeightfieldRepresentation())
-		&& Proxy->IsDrawnInGame())
+		&& (Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden()))
 	{
 		bCanBeTraced = true;
 	}
@@ -598,8 +598,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && Proxy->HasRayTracingRepresentation())
 	{
-		if (Proxy->IsRayTracingFarField() 
-			|| (Proxy->IsVisibleInRayTracing() && Proxy->IsDrawnInGame()))
+		if ((Proxy->IsVisibleInRayTracing() && (Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden())) || Proxy->IsRayTracingFarField())
 		{
 			bCanBeTraced = true;
 		}

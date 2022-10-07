@@ -597,7 +597,8 @@ bool IncludePrimitiveInDistanceFieldSceneData(bool bTrackAllPrimitives, const FP
 		Proxy->IsDrawnInGame(),  
 		Proxy->CastsHiddenShadow(), 
 		Proxy->CastsDynamicShadow(),
-		Proxy->AffectsDynamicIndirectLighting());
+		Proxy->AffectsDynamicIndirectLighting(),
+		Proxy->AffectsIndirectLightingWhileHidden());
 }
 
 void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)

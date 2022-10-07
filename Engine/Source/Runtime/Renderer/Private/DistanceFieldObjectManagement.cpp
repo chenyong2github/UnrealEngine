@@ -716,6 +716,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 										const bool bIsNaniteMesh = PrimitiveSceneProxy->IsNaniteMesh();
 										const bool bEmissiveLightSource = PrimitiveSceneProxy->IsEmissiveLightSource();
 										const bool bVisible = PrimitiveSceneProxy->IsDrawnInGame(); // Distance field object can be invisible in main view, but cast shadows
+										const bool bAffectIndirectLightingWhileHidden = PrimitiveSceneProxy->AffectsIndirectLightingWhileHidden();
 
 										uint32 Flags = 0;
 										Flags |= bOftenMoving ? 1u : 0;
@@ -723,6 +724,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 										Flags |= bIsNaniteMesh ? 4u : 0;
 										Flags |= bEmissiveLightSource ? 8u : 0;
 										Flags |= bVisible ? 16u : 0;
+										Flags |= bAffectIndirectLightingWhileHidden ? 32u : 0;
 
 										FVector4f ObjectWorldExtentAndFlags((FVector3f)WorldSpaceMeshBounds.GetExtent(), 0.0f);
 										ObjectWorldExtentAndFlags.W = *(const float*)&Flags;

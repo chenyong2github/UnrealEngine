@@ -622,6 +622,7 @@ public:
 	inline bool WritesVirtualTexture(URuntimeVirtualTexture* VirtualTexture) const { return RuntimeVirtualTextures.Find(VirtualTexture) != INDEX_NONE; }
 	inline bool AffectsDynamicIndirectLighting() const { return bAffectDynamicIndirectLighting; }
 	inline bool AffectsDistanceFieldLighting() const { return bAffectDistanceFieldLighting; }
+	inline bool AffectsIndirectLightingWhileHidden() const { return bAffectIndirectLightingWhileHidden; }
 	inline EIndirectLightingCacheQuality GetIndirectLightingCacheQuality() const { return IndirectLightingCacheQuality; }
 	inline bool CastsVolumetricTranslucentShadow() const { return bCastVolumetricTranslucentShadow; }
 	inline bool CastsContactShadow() const { return bCastContactShadow; }
@@ -1156,6 +1157,9 @@ protected:
 
 	/** True if the primitive influences dynamic indirect lighting. */
 	uint8 bAffectDynamicIndirectLighting : 1;
+
+	/** True if the primitive should affect indirect lighting even when hidden. */
+	uint8 bAffectIndirectLightingWhileHidden : 1;
 
 	uint8 bAffectDistanceFieldLighting : 1;
 
