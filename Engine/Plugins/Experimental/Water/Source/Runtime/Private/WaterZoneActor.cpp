@@ -386,8 +386,8 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		for (ALandscapeProxy* LandscapeProxy : TActorRange<ALandscapeProxy>(World))
 		{
 			const FBox LandscapeBox = LandscapeProxy->GetComponentsBoundingBox();
-			// Only consider landscapes which this zone intersects with in XY
-			if (WaterZoneBounds.IntersectXY(LandscapeBox))
+			// Only consider landscapes which this zone intersects with in XY and if the landscape volume is not zero sized
+			if (WaterZoneBounds.IntersectXY(LandscapeBox) && LandscapeBox.GetVolume() > 0.0)
 			{
 				GroundZMin = FMath::Min(GroundZMin, LandscapeBox.Min.Z);
 				GroundZMax = FMath::Max(GroundZMax, LandscapeBox.Max.Z);
