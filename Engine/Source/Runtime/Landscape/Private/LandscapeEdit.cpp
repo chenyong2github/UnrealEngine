@@ -1207,6 +1207,9 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		CollisionComp->RegisterComponent();
 	}
 
+	// Debug display needs to update its representation, so we invalidate the collision component's render state : 
+	CollisionComp->MarkRenderStateDirty();
+
 	// Invalidate rendered physical materials
 	// These are updated in UpdatePhysicalMaterialTasks()
  	PhysicalMaterialHash = 0;
@@ -1618,6 +1621,9 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 
 		// We do not force an update of the physics data here. We don't need the layer information in the editor and it
 		// causes problems if we update it multiple times in a single frame.
+
+		// Debug display needs to update its representation, so we invalidate the collision component's render state : 
+		CollisionComp->MarkRenderStateDirty();
 	}
 }
 
