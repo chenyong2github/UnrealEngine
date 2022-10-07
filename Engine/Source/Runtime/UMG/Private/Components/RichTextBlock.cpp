@@ -323,6 +323,23 @@ UMaterialInstanceDynamic* URichTextBlock::GetDefaultDynamicMaterial()
 	return nullptr;
 }
 
+void URichTextBlock::SetDecorators(const TArray<TSubclassOf<URichTextBlockDecorator>>& InDecoratorClasses)
+{
+	DecoratorClasses = InDecoratorClasses;
+
+	StyleInstance.Reset();
+	UpdateStyleData();
+
+	if (MyRichTextBlock.IsValid())
+	{
+		TArray<TSharedRef<ITextDecorator>> CreatedDecorators;
+		CreateDecorators(CreatedDecorators);
+
+		MyRichTextBlock->SetDecoratorStyleSet(StyleInstance.Get());
+		MyRichTextBlock->SetDecorators(CreatedDecorators);
+	}
+}
+
 void URichTextBlock::SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity)
 {
 	BeginDefaultStyleOverride();

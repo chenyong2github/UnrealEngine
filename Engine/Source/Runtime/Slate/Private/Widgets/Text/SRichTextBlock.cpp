@@ -193,6 +193,15 @@ void SRichTextBlock::SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSe
 	}
 }
 
+void SRichTextBlock::SetDecorators(TArrayView<TSharedRef<ITextDecorator>> InDecorators)
+{
+	if (Marshaller.IsValid())
+	{
+		Marshaller->SetDecorators(InDecorators);
+		Refresh();
+	}
+}
+
 void SRichTextBlock::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
 {
 	TextLayoutCache->SetTextOverflowPolicy(InOverflowPolicy);

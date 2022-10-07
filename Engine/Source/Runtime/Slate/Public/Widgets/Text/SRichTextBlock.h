@@ -222,6 +222,9 @@ public:
 	/**  */
 	void SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSet);
 
+	/** Replaces the decorators for this text block */
+	void SetDecorators(TArrayView<TSharedRef<ITextDecorator>> InDecorators);
+
 	/** Sets the overflow policy for this text block */
 	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 

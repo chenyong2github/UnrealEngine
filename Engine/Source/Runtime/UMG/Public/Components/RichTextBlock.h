@@ -126,6 +126,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	UMaterialInstanceDynamic* GetDefaultDynamicMaterial();
 
+	/**
+	 * Replaces the existing decorators with the list provided
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetDecorators(const TArray<TSubclassOf<URichTextBlockDecorator>>& InDecoratorClasses);
+
 public:
 	URichTextBlock(const FObjectInitializer& ObjectInitializer);
 

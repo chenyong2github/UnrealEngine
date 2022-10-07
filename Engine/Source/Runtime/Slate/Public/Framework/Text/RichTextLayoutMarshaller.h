@@ -39,6 +39,14 @@ public:
 	void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
 
 	/**
+	 * Replace all decorators on this marshaller
+	 */
+	inline void SetDecorators(TArrayView<TSharedRef<ITextDecorator>> InDecorators)
+	{
+		Decorators = InDecorators;
+	}
+
+	/**
 	 * Append an inline decorator to this marshaller
 	 */
 	inline FRichTextLayoutMarshaller& AppendInlineDecorator(const TSharedRef< ITextDecorator >& DecoratorToAdd)
