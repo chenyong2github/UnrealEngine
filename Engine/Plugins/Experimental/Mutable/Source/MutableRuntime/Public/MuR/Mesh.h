@@ -21,8 +21,6 @@
 #include "MuR/Skeleton.h"
 #include "Templates/Tuple.h"
 
-#include <memory>
-
 class FString;
 
 namespace mu
@@ -56,11 +54,11 @@ namespace mu
 			m_id = 0;
 		}
 
-		int32_t m_firstVertex;
-		int32_t m_vertexCount;
-		int32_t m_firstIndex;
-		int32_t m_indexCount;
-		uint32_t m_id;
+		int32 m_firstVertex;
+		int32 m_vertexCount;
+		int32 m_firstIndex;
+		int32 m_indexCount;
+		uint32 m_id;
 
 
 		//!
@@ -179,7 +177,7 @@ namespace mu
 
         //! Return an internal id that can be used to match mesh surfaces and instance surfaces.
         //! Only valid for meshes that are part of instances.
-        uint32_t GetSurfaceId( int surfaceIndex ) const;
+        uint32 GetSurfaceId( int surfaceIndex ) const;
 
         //! \}
 
@@ -281,7 +279,7 @@ namespace mu
 
         //! Get an internal identifier used to reference this mesh in operations like deferred
         //! mesh building, or instance updating.
-        uint32_t GetId() const;
+        uint32 GetId() const;
 
 
     protected:
@@ -294,7 +292,7 @@ namespace mu
 
 		//! Non-persistent internal id unique for a mesh generated for a specific state and
 		//! parameter values.
-		mutable uint32_t m_internalId = 0;
+		mutable uint32 m_internalId = 0;
 
 		//!
 		FMeshBufferSet m_VertexBuffers;
@@ -311,7 +309,7 @@ namespace mu
 		//! This is bit-mask on the STATIC_MESH_FORMATS enumeration, marking what static formats
 		//! are compatible with this one. Usually precalculated at model compilation time.
 		//! It should be reset after any operation that modifies the format.
-		mutable uint32_t m_staticFormatFlags = 0;
+		mutable uint32 m_staticFormatFlags = 0;
 
 		TArray<MESH_SURFACE> m_surfaces;
 
@@ -331,7 +329,7 @@ namespace mu
 
 			inline void Serialise(OutputArchive& arch) const
 			{
-				const int32_t ver = 0;
+				const int32 ver = 0;
 				arch << ver;
 
 				arch << m_name;
@@ -340,7 +338,7 @@ namespace mu
 
 			inline void Unserialise(InputArchive& arch)
 			{
-				int32_t ver = 0;
+				int32 ver = 0;
 				arch >> ver;
 				check(ver == 0);
 
@@ -371,7 +369,7 @@ namespace mu
 
 			inline void Serialise(OutputArchive& arch) const
 			{
-				const int32_t ver = 0;
+				const int32 ver = 0;
 				arch << ver;
 
 				arch << m_boneName;
@@ -381,7 +379,7 @@ namespace mu
 
 			inline void Unserialise(InputArchive& arch)
 			{
-				int32_t ver = 0;
+				int32 ver = 0;
 				arch >> ver;
 				check(ver == 0);
 
@@ -409,7 +407,7 @@ namespace mu
 		//!
 		inline void Serialise(OutputArchive& arch) const
 		{
-			uint32_t ver = 13;
+			uint32 ver = 13;
 			arch << ver;
 
 			arch << m_IndexBuffers;
@@ -433,7 +431,7 @@ namespace mu
 		//!
 		inline void Unserialise(InputArchive& arch)
 		{
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver <= 13);
 
@@ -525,7 +523,7 @@ namespace mu
 		bool IsSimilar(const Mesh& o) const;
 
 		//! Compare the vertex attributes to check if they match.
-		bool IsSameVertex( uint32_t v, const Mesh& other, uint32_t otherVertexIndex, float tolerance = 1e-5f) const;
+		bool IsSameVertex( uint32 v, const Mesh& other, uint32 otherVertexIndex, float tolerance = 1e-5f) const;
 
 
 		//! Make a map from the vertices in this mesh to thefirst matching vertex of the given
@@ -554,7 +552,7 @@ namespace mu
 		bool HasFace( const Mesh& other, int otherFaceIndex, const VERTEX_MATCH_MAP& vertexMap ) const;
 
 		//! Compare the vertex attributes to check if they match.
-		vec3<uint32_t> GetFaceVertexIndices(int f) const;
+		vec3<uint32> GetFaceVertexIndices(int f) const;
 
 		//! Return true if the given mesh has the same vertex and index formats, and in the same
 		//! buffer structure.

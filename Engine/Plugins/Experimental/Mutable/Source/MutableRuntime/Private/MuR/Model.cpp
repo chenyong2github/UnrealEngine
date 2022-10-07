@@ -20,9 +20,6 @@
 #include "MuR/Types.h"
 #include "Templates/Tuple.h"
 
-#include <memory>
-#include <string>
-#include <utility>
 
 namespace mu
 {
@@ -89,7 +86,7 @@ namespace mu
     void PROGRAM::LogHistogram() const
     {
 #if 0
-        uint64_t countPerType[(int)OP_TYPE::COUNT];
+        uint64 countPerType[(int)OP_TYPE::COUNT];
         mutable_memset(countPerType,0,sizeof(countPerType));
 
         for ( const auto& o: m_opAddress )
@@ -98,14 +95,14 @@ namespace mu
             countPerType[(int)type]++;
         }
 
-        vector< pair<uint64_t,OP_TYPE> > sorted((int)OP_TYPE::COUNT);
+        vector< pair<uint64,OP_TYPE> > sorted((int)OP_TYPE::COUNT);
         for (int i=0; i<(int)OP_TYPE::COUNT; ++i)
         {
             sorted[i].second = (OP_TYPE)i;
             sorted[i].first = countPerType[i];
         }
 
-        std::sort(sorted.begin(),sorted.end(), []( const pair<uint64_t,OP_TYPE>& a, const pair<uint64_t,OP_TYPE>& b )
+        std::sort(sorted.begin(),sorted.end(), []( const pair<uint64,OP_TYPE>& a, const pair<uint64,OP_TYPE>& b )
         {
             return a.first>b.first;
         });
@@ -489,21 +486,21 @@ namespace mu
                                   const map< vector<int>, PARAMETER_VALUE >& multi )
     {
         parameterValuesBlob.resize( pos+4 );
-        uint32_t s = uint32_t( multi.size() );
-        memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32_t) );
+        uint32 s = uint32( multi.size() );
+        memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32) );
         pos+=4;
 
         for(const auto& v: multi)
         {
-            uint32_t ds = uint32_t( v.first.size() );
+            uint32 ds = uint32( v.first.size() );
 
             parameterValuesBlob.resize( pos + 4 + ds*4 );
 
-            memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32_t) );
+            memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32) );
             pos+=4;
 
-            memcpy( &parameterValuesBlob[pos],v.first.data(), ds*sizeof(int32_t) );
-            pos += ds*sizeof(int32_t);
+            memcpy( &parameterValuesBlob[pos],v.first.data(), ds*sizeof(int32) );
+            pos += ds*sizeof(int32);
         }
 
         return pos;
@@ -511,7 +508,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    uint32_t Model::Private::GetResourceKey( uint32_t paramListIndex,
+    uint32 Model::Private::GetResourceKey( uint32 paramListIndex,
                                              OP::ADDRESS rootAt,
                                              const Parameters* pParams )
     {
@@ -556,7 +553,7 @@ namespace mu
                 break;
 
             case PARAMETER_TYPE::T_INT:
-                dataSize = sizeof(int32_t);
+                dataSize = sizeof(int32);
                 parameterValuesBlob.resize( pos+dataSize );
                 memcpy( &parameterValuesBlob[pos],
                         &pParams->GetPrivate()->m_values[param].m_int,
@@ -704,7 +701,7 @@ namespace mu
         }
 
         // Generate a new id
-        uint32_t newId = ++m_lastResourceKeyId;
+        uint32 newId = ++m_lastResourceKeyId;
         RESOURCE_KEY newKey;
         newKey.m_id = newId;
         newKey.m_lastRequestId = m_lastResourceResquestId;
@@ -800,14 +797,14 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    int64_t ModelParametersGenerator::GetInstanceCount()
+    int64 ModelParametersGenerator::GetInstanceCount()
     {
         return m_pD->m_instanceCount;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    ParametersPtr ModelParametersGenerator::GetInstance( int64_t index,
+    ParametersPtr ModelParametersGenerator::GetInstance( int64 index,
                                                          float (*randomGenerator )() )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
@@ -852,7 +849,7 @@ namespace mu
         else
         {
             int paramCount = (int)m_pD->m_pModel->GetPrivate()->m_program.m_parameters.size();
-            int64_t currentInstance = index;
+            int64 currentInstance = index;
             for (int i=0;i<paramCount;++i)
             {
                 const PARAMETER_DESC& param = m_pD->m_pModel->GetPrivate()->m_program.m_parameters[ i ];

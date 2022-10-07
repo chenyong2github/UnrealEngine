@@ -482,7 +482,7 @@ namespace mu
 //                m_facts.pop_back();
 
 //                // update op if necessary
-//                if ( mutable_memcmp( &args, &program.m_code[at].args, sizeof(OP::ARGS) ) )
+//                if ( FMemory::Memcmp( &args, &program.m_code[at].args, sizeof(OP::ARGS) ) )
 //                {
 //                    OP op = program.m_code[at];
 //                    op.args = args;
@@ -547,7 +547,7 @@ namespace mu
 ////            }
 
 ////            // update op if necessary
-////            if ( mutable_memcmp( &args, &program.m_code[at].args, sizeof(OP::ARGS) ) )
+////            if ( FMemory::Memcmp( &args, &program.m_code[at].args, sizeof(OP::ARGS) ) )
 ////            {
 ////                m_modified = true;
 ////                OP op = program.m_code[at];

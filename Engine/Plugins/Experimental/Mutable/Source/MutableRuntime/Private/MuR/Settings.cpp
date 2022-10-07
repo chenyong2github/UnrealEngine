@@ -40,7 +40,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void Settings::SetStreamingCache( uint64_t bytes )
+    void Settings::SetStreamingCache( uint64 bytes )
     {
         m_pD->m_streamingCacheBytes = bytes;
     }

@@ -9,8 +9,6 @@
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
 
-#include <stdint.h>
-#include <memory>
 
 namespace mu
 {
@@ -54,7 +52,7 @@ namespace mu
 		//!
 		void Serialise(OutputArchive& arch) const
 		{
-			uint32_t ver = 0;
+			uint32 ver = 0;
 			arch << ver;
 
 			arch << m_value;
@@ -63,7 +61,7 @@ namespace mu
 		//!
 		void Unserialise(InputArchive& arch)
 		{
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver <= 0);
 

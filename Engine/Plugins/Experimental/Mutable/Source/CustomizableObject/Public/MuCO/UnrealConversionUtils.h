@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../Private/MuCO/CustomizableObjectSystemPrivate.h"
+#include "MuCO/CustomizableObjectSystemPrivate.h"
 #include "Containers/Array.h"
 #include "HAL/Platform.h"
 #include "MuR/MeshBufferSet.h"

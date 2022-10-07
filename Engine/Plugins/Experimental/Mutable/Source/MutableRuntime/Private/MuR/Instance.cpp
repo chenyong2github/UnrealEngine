@@ -9,10 +9,6 @@
 #include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 
-#include <memory>
-#include <utility>
-
-
 namespace mu
 {
 

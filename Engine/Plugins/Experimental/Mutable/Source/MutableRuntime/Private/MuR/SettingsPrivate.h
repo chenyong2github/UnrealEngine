@@ -14,8 +14,8 @@ namespace mu
     {
     public:
         bool m_profile = false;
-        uint64_t m_streamingCacheBytes = 0;
-        int m_imageCompressionQuality = 0;
+        uint64 m_streamingCacheBytes = 0;
+        int32 m_imageCompressionQuality = 0;
     };
 
 

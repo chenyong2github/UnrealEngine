@@ -5,19 +5,17 @@
 #include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 
-#include <stdint.h>
-
 
 namespace mu
 {
-class Image;
-struct PROJECTOR;
-template <int NUM_INTERPOLATORS> class RasterVertex;
+	class Image;
+	struct PROJECTOR;
+	template <int NUM_INTERPOLATORS> class RasterVertex;
 
     struct SCRATCH_IMAGE_PROJECT
     {
         vector< RasterVertex<4> > vertices;
-        vector<uint8_t> culledVertex;
+        vector<uint8> culledVertex;
     };
 
 

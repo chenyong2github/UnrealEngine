@@ -5,9 +5,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
-#include <stdint.h>
-
-
 
 namespace mu
 {
@@ -74,17 +71,17 @@ namespace mu
 		int FindColumn( const char* strName ) const;
 
 		//!
-        void AddRow( uint32_t id );
+        void AddRow( uint32 id );
 
 		//! Adds a "NONE" option
 		void SetNoneOption(bool bAddOption);
 
 		//!
-        void SetCell( int column, uint32_t rowId, float value );
-        void SetCell( int column, uint32_t rowId, float r, float g, float b );
-        void SetCell( int column, uint32_t rowId, Image* pImage );
-        void SetCell( int column, uint32_t rowId, Mesh* pMesh );
-        void SetCell( int column, uint32_t rowId, const char* strValue );
+        void SetCell( int column, uint32 rowId, float value );
+        void SetCell( int column, uint32 rowId, float r, float g, float b );
+        void SetCell( int column, uint32 rowId, Image* pImage );
+        void SetCell( int column, uint32 rowId, Mesh* pMesh );
+        void SetCell( int column, uint32 rowId, const char* strValue );
 
 
 		//-----------------------------------------------------------------------------------------

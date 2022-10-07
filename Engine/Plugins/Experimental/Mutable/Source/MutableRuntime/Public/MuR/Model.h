@@ -6,7 +6,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
-#include <stdint.h>
 #include <functional>
 
 namespace mu { class InputArchive; }
@@ -18,8 +17,8 @@ namespace mu { class OutputArchive; }
 //! data structures. Compiled models are not necessarily compatible when the runtime is updated,
 //! so this version number can be used externally to verify this. It is not used internally, and
 //! serializing models from different versions than this runtime will probably result in a crash.
-#define MUTABLE_COMPILED_MODEL_CODE_VERSION		uint32_t( 47 )
-#define MUTABLE_PARAMETERS_VERSION              uint32_t( 1 )
+#define MUTABLE_COMPILED_MODEL_CODE_VERSION		uint32( 47 )
+#define MUTABLE_PARAMETERS_VERSION              uint32( 1 )
 
 
 namespace mu
@@ -149,13 +148,13 @@ namespace mu
         ModelParametersGenerator( const Model* pModel, System* pSystem, bool considerRelevancy=true );
 
         //! Return the number of different possible instances that can be built from the model.
-        int64_t GetInstanceCount();
+        int64 GetInstanceCount();
 
         //! Return the parameters of one of the possible instances of the model.
         //! \param index is an index in the range of 0 to GetInstanceCount-1
         //! \param randomGenerator if not null, this function will be used to generate random values
         //! for the continuous parameters of the instance.
-        ParametersPtr GetInstance( int64_t index, float (*randomGenerator )() );
+        ParametersPtr GetInstance( int64 index, float (*randomGenerator )() );
 
         //! Return the parameters of one of a random instance of the model.
         //! \param randomGenerator This function will be used to generate random values

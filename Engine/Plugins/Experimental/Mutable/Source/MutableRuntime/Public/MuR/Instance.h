@@ -40,7 +40,7 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
         //! Type for the instance unique identifiers.
-        typedef uint32_t ID;
+        typedef uint32 ID;
 
         //! Get a unique identifier for this instance. It doesn't change during the entire
         //! lifecycle of each instance. This identifier can be used in the System methods to update

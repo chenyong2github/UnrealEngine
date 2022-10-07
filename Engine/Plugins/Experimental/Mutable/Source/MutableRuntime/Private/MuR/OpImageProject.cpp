@@ -23,11 +23,8 @@
 #include "MuR/Ptr.h"
 #include "MuR/Raster.h"
 
-#include <functional>
-#include <memory>
 #include <queue>
 #include <unordered_set>
-#include <utility>
 
 
 namespace mu
@@ -43,8 +40,8 @@ namespace
 
 		RaycastPixelProcessor( const PROJECTOR& projector,
 							   const Image* pSource,
-                               const uint8_t* pTargetData,
-                               const uint8_t* pMaskData,
+                               const uint8* pTargetData,
+                               const uint8* pMaskData,
 							   float fadeStart,
 							   float fadeEnd )
 		{
@@ -85,7 +82,7 @@ namespace
 
             if ( factor>0 && m_pMaskData )
 			{
-                uint8_t maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
+                uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
 				factor = float(maskFactor) / 255.0f;
 			}
 
@@ -117,7 +114,7 @@ namespace
 				if ( u>=0 && u<1 && v>=0 && v<1 )
 				{
 
-                    const uint8_t* pPixel = m_pSource->GetData();
+                    const uint8* pPixel = m_pSource->GetData();
 					// TODO: clamp?
 					pPixel += ( m_pSource->GetSizeX() * int(m_pSource->GetSizeY() * v)
 								+ int( m_pSource->GetSizeX() * u ) )
@@ -127,21 +124,21 @@ namespace
 					switch ( m_pSource->GetFormat() )
 					{
 					case EImageFormat::IF_L_UBYTE:
-                        pBufferPos[0] = uint8_t( pPixel[0] * factor );
+                        pBufferPos[0] = uint8( pPixel[0] * factor );
 						break;
 
 					case EImageFormat::IF_RGB_UBYTE:
-                        pBufferPos[0] = uint8_t( pPixel[0] * factor );
-                        pBufferPos[1] = uint8_t( pPixel[1] * factor );
-                        pBufferPos[2] = uint8_t( pPixel[2] * factor );
+                        pBufferPos[0] = uint8( pPixel[0] * factor );
+                        pBufferPos[1] = uint8( pPixel[1] * factor );
+                        pBufferPos[2] = uint8( pPixel[2] * factor );
 						break;
 
                     case EImageFormat::IF_BGRA_UBYTE:
                     case EImageFormat::IF_RGBA_UBYTE:
-                        pBufferPos[0] = uint8_t( pPixel[0] * factor );
-                        pBufferPos[1] = uint8_t( pPixel[1] * factor );
-                        pBufferPos[2] = uint8_t( pPixel[2] * factor );
-                        pBufferPos[3] = uint8_t( pPixel[3] * factor );
+                        pBufferPos[0] = uint8( pPixel[0] * factor );
+                        pBufferPos[1] = uint8( pPixel[1] * factor );
+                        pBufferPos[2] = uint8( pPixel[2] * factor );
+                        pBufferPos[3] = uint8( pPixel[3] * factor );
 						break;
 
 					default:
@@ -164,8 +161,8 @@ namespace
         //! Cosine of the fading angle range
         float m_fadeStartCos, m_fadeEndCos;
 
-        const uint8_t* m_pTargetData;
-        const uint8_t* m_pMaskData;
+        const uint8* m_pTargetData;
+        const uint8* m_pMaskData;
 		int m_pixelSize;
 
 	};
@@ -179,8 +176,8 @@ namespace
 
 		RaycastPixelProcessor_UBYTE( const PROJECTOR& projector,
 									 const Image* pSource,
-                                     const uint8_t* pTargetData,
-                                     const uint8_t* pMaskData,
+                                     const uint8* pTargetData,
+                                     const uint8* pMaskData,
 									 float fadeStart,
 									 float fadeEnd )
 		{
@@ -213,7 +210,7 @@ namespace
 		//-----------------------------------------------------------------------------------------
         inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
 		{
-            int32_t factor_8 = 256;
+            int32 factor_8 = 256;
 
             // depth clamp
             if (varying[2]<0.0f || varying[2]>1.0f)
@@ -231,7 +228,7 @@ namespace
             {
                 if ( factor_8>0 && m_pMaskData )
                 {
-                    uint8_t maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
+                    uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
                     factor_8 = maskFactor;
                 }
 
@@ -241,7 +238,7 @@ namespace
                     {
                         factor_8 = ( factor_8
                                      *
-                                     int32_t( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
+                                     int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
                                      ) >> 8;
                     }
                     else if ( angleCos<=m_fadeEndCos )
@@ -254,7 +251,7 @@ namespace
             {
                 if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
                 {
-                    factor_8 = int32_t( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
+                    factor_8 = int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
                 }
                 else if ( angleCos<=m_fadeEndCos )
                 {
@@ -271,7 +268,7 @@ namespace
 				if ( u>=0 && u<1 && v>=0 && v<1 )
 				{
 
-                    const uint8_t* pPixel = m_pSourceData;
+                    const uint8* pPixel = m_pSourceData;
 					// TODO: clamp?
 					pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v)
 								+ int( m_sourceSizeX * u ) )
@@ -280,14 +277,14 @@ namespace
 					// Write result
 					for ( int i=0; i<PIXEL_SIZE; ++i )
 					{
-						pBufferPos[i] = uint8_t( ( pPixel[i] * factor_8 ) >> 8 );
+						pBufferPos[i] = uint8( ( pPixel[i] * factor_8 ) >> 8 );
 					}
 				}
 			}
 		}
 
 
-        const uint8_t* m_pSourceData;
+        const uint8* m_pSourceData;
 		int m_sourceSizeX, m_sourceSizeY;
 
 		vec3<float> m_direction;
@@ -299,8 +296,8 @@ namespace
         //! Cosine of the fading angle range
         float m_fadeStartCos, m_fadeEndCos;
 
-        const uint8_t* m_pTargetData;
-        const uint8_t* m_pMaskData;
+        const uint8* m_pTargetData;
+        const uint8* m_pMaskData;
 	};
 
 
@@ -310,8 +307,8 @@ namespace
     public:
 
         RasterProjectedPixelProcessor( const Image* pSource,
-                               const uint8_t* pTargetData,
-                               const uint8_t* pMaskData,
+                               const uint8* pTargetData,
+                               const uint8* pMaskData,
                                float fadeStart,
                                float fadeEnd )
         {
@@ -342,7 +339,7 @@ namespace
 
             if ( factor>0 && m_pMaskData )
             {
-                uint8_t maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
+                uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / m_pixelSize ];
                 factor = float(maskFactor) / 255.0f;
             }
 
@@ -370,7 +367,7 @@ namespace
                 if ( u>=0 && u<1 && v>=0 && v<1 )
                 {
 
-                    const uint8_t* pPixel = m_pSource->GetData();
+                    const uint8* pPixel = m_pSource->GetData();
                     // TODO: clamp?
                     pPixel += ( m_pSource->GetSizeX() * int(m_pSource->GetSizeY() * v)
                                 + int( m_pSource->GetSizeX() * u ) )
@@ -380,21 +377,21 @@ namespace
                     switch ( m_pSource->GetFormat() )
                     {
                     case EImageFormat::IF_L_UBYTE:
-                        pBufferPos[0] = uint8_t( pPixel[0] * factor );
+                        pBufferPos[0] = uint8( pPixel[0] * factor );
                         break;
 
                     case EImageFormat::IF_RGB_UBYTE:
-                        pBufferPos[0] = uint8_t( pPixel[0] * factor );
-                        pBufferPos[1] = uint8_t( pPixel[1] * factor );
-                        pBufferPos[2] = uint8_t( pPixel[2] * factor );
+                        pBufferPos[0] = uint8( pPixel[0] * factor );
+                        pBufferPos[1] = uint8( pPixel[1] * factor );
+                        pBufferPos[2] = uint8( pPixel[2] * factor );
                         break;
 
                     case EImageFormat::IF_BGRA_UBYTE:
                     case EImageFormat::IF_RGBA_UBYTE:
-                        pBufferPos[0] = uint8_t( pPixel[0] * factor );
-                        pBufferPos[1] = uint8_t( pPixel[1] * factor );
-                        pBufferPos[2] = uint8_t( pPixel[2] * factor );
-                        pBufferPos[3] = uint8_t( pPixel[3] * factor );
+                        pBufferPos[0] = uint8( pPixel[0] * factor );
+                        pBufferPos[1] = uint8( pPixel[1] * factor );
+                        pBufferPos[2] = uint8( pPixel[2] * factor );
+                        pBufferPos[3] = uint8( pPixel[3] * factor );
                         break;
 
                     default:
@@ -412,8 +409,8 @@ namespace
         //! Cosine of the fading angle range
         float m_fadeStartCos, m_fadeEndCos;
 
-        const uint8_t* m_pTargetData;
-        const uint8_t* m_pMaskData;
+        const uint8* m_pTargetData;
+        const uint8* m_pMaskData;
         int m_pixelSize;
 
     };
@@ -426,8 +423,8 @@ namespace
     public:
 
         RasterProjectedPixelProcessor_UBYTE( const Image* pSource,
-                                     const uint8_t* pTargetData,
-                                     const uint8_t* pMaskData,
+                                     const uint8* pTargetData,
+                                     const uint8* pMaskData,
                                      float fadeStart,
                                      float fadeEnd )
         {
@@ -450,7 +447,7 @@ namespace
         //-----------------------------------------------------------------------------------------
         inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
         {
-            int32_t factor_8 = 256;
+            int32 factor_8 = 256;
 
             // depth clamp
             if (varying[2]<0.0f || varying[2]>1.0f)
@@ -464,7 +461,7 @@ namespace
             {
                 if ( factor_8>0 && m_pMaskData )
                 {
-                    uint8_t maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
+                    uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
                     factor_8 = maskFactor;
                 }
 
@@ -474,7 +471,7 @@ namespace
                     {
                         factor_8 = ( factor_8
                                      *
-                                     int32_t( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
+                                     int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
                                      ) >> 8;
                     }
                     else if ( angleCos<=m_fadeEndCos )
@@ -487,7 +484,7 @@ namespace
             {
                 if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
                 {
-                    factor_8 = int32_t( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
+                    factor_8 = int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
                 }
                 else if ( angleCos<=m_fadeEndCos )
                 {
@@ -504,7 +501,7 @@ namespace
                 if ( u>=0 && u<1 && v>=0 && v<1 )
                 {
 
-                    const uint8_t* pPixel = m_pSourceData;
+                    const uint8* pPixel = m_pSourceData;
                     // TODO: clamp?
                     pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v)
                                 + int( m_sourceSizeX * u ) )
@@ -513,21 +510,21 @@ namespace
                     // Write result
                     for ( int i=0; i<PIXEL_SIZE; ++i )
                     {
-                        pBufferPos[i] = uint8_t( ( pPixel[i] * factor_8 ) >> 8 );
+                        pBufferPos[i] = uint8( ( pPixel[i] * factor_8 ) >> 8 );
                     }
                 }
             }
         }
 
 
-        const uint8_t* m_pSourceData;
+        const uint8* m_pSourceData;
         int m_sourceSizeX, m_sourceSizeY;
 
         //! Cosine of the fading angle range
         float m_fadeStartCos, m_fadeEndCos;
 
-        const uint8_t* m_pTargetData;
-        const uint8_t* m_pMaskData;
+        const uint8* m_pTargetData;
+        const uint8* m_pMaskData;
     };
 
 
@@ -538,8 +535,8 @@ namespace
     public:
 
         RasterCylindricalProjectedPixelProcessor_UBYTE( const Image* pSource,
-                                     const uint8_t* pTargetData,
-                                     const uint8_t* pMaskData,
+                                     const uint8* pTargetData,
+                                     const uint8* pMaskData,
                                      float fadeStart,
                                      float fadeEnd,
                                                         float projectionAngle )
@@ -564,7 +561,7 @@ namespace
         //-----------------------------------------------------------------------------------------
         inline void ProcessPixel( unsigned char* pBufferPos, float varying[4] ) const
         {
-            int32_t factor_8 = 256;
+            int32 factor_8 = 256;
 
             // Position in unit cylinder space
             float x_cyl = varying[0];
@@ -584,7 +581,7 @@ namespace
             {
                 if ( factor_8>0 && m_pMaskData )
                 {
-                    uint8_t maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
+                    uint8 maskFactor = m_pMaskData[ (pBufferPos-m_pTargetData) / PIXEL_SIZE ];
                     factor_8 = maskFactor;
                 }
 
@@ -594,7 +591,7 @@ namespace
                     {
                         factor_8 = ( factor_8
                                      *
-                                     int32_t( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
+                                     int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) )
                                      ) >> 8;
                     }
                     else if ( angleCos<=m_fadeEndCos )
@@ -607,7 +604,7 @@ namespace
             {
                 if ( angleCos<m_fadeStartCos && angleCos>m_fadeEndCos )
                 {
-                    factor_8 = int32_t( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
+                    factor_8 = int32( 256.0f * ( angleCos - m_fadeEndCos ) / ( m_fadeStartCos - m_fadeEndCos ) );
                 }
                 else if ( angleCos<=m_fadeEndCos )
                 {
@@ -625,7 +622,7 @@ namespace
                 if ( u>=0 && u<1 && v>=0 && v<1 )
                 {
 
-                    const uint8_t* pPixel = m_pSourceData;
+                    const uint8* pPixel = m_pSourceData;
                     // TODO: clamp?
                     pPixel += ( m_sourceSizeX * int(m_sourceSizeY * v)
                                 + int( m_sourceSizeX * u ) )
@@ -634,14 +631,14 @@ namespace
                     // Write result
                     for ( int i=0; i<PIXEL_SIZE; ++i )
                     {
-                        pBufferPos[i] = uint8_t( ( pPixel[i] * factor_8 ) >> 8 );
+                        pBufferPos[i] = uint8( ( pPixel[i] * factor_8 ) >> 8 );
                     }
                 }
             }
         }
 
 
-        const uint8_t* m_pSourceData;
+        const uint8* m_pSourceData;
         int m_sourceSizeX, m_sourceSizeY;
 
         //! Cosine of the fading angle range
@@ -649,8 +646,8 @@ namespace
 
         float m_projectionAngle;
 
-        const uint8_t* m_pTargetData;
-        const uint8_t* m_pMaskData;
+        const uint8* m_pTargetData;
+        const uint8* m_pMaskData;
     };
 
 
@@ -721,7 +718,7 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
     UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
     for ( int i=0; i<faceCount*3; ++i )
     {
-        uint32_t index=0;
+        uint32 index=0;
         ConvertData( 0, &index, MBF_UINT32, indIt.ptr(), indIt.GetFormat() );
 
         indices[i] = index;
@@ -833,7 +830,7 @@ struct OPTIMISED_VERTEX_WRAPPING
     vec2<float> uv;
     vec3<float> pos;
     vec3<float> nor;
-    uint32_t layoutBlock;
+    uint32 layoutBlock;
 };
 
 static_assert( sizeof(OPTIMISED_VERTEX_WRAPPING)==36, "UNEXPECTED_STRUCT_SIZE" );
@@ -885,7 +882,7 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
 
     // Get the indices
     check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-    auto pIndices = reinterpret_cast<const uint32_t*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+    auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
 
 
     // The mesh is supposed to contain only the faces in the selected block
@@ -962,7 +959,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
         scratch->culledVertex[v] = pVertices[v].nor[0] < fadeEndCos;
 
         // Cull vertices that don't belong to the current layout block.
-        if (pVertices[v].layoutBlock!=uint32_t(block))
+        if (pVertices[v].layoutBlock!=uint32(block))
         {
             scratch->culledVertex[v] = true;
         }
@@ -970,7 +967,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
 
     // Get the indices
     check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-    auto pIndices = reinterpret_cast<const uint32_t*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+    auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
 
 
     // The mesh is supposed to contain only the faces in the selected block
@@ -1580,7 +1577,7 @@ bool testPointsAreInOppositeSidesOfEdge( const vec2f& pointA, const vec2f& point
 struct PROJECTED_VERTEX
 {   
     float pos0 = 0, pos1 = 0, pos2 = 0;
-    uint32_t mask3 = 0;
+    uint32 mask3 = 0;
 
 	inline vec2<float> xy() const { return vec2<float>(pos0,pos1); }
 };
@@ -1590,16 +1587,16 @@ static_assert( sizeof(PROJECTED_VERTEX)==16, "Unexpected struct size" );
 
 //-------------------------------------------------------------------------------------------------
 void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertexCount,
-                                   const uint32_t* pIndices, int faceCount,
+                                   const uint32* pIndices, int faceCount,
                                    const vec3f& projectorPosition, const vec3f& projectorDirection,
                                    const vec3f& projectorSide, const vec3f& projectorUp,
                                    const vec3f& projectorScale,
                                    OPTIMISED_VERTEX* pResultVertices, int& currentVertex,
-                                   uint32_t* pResultIndices, int& currentIndex  )
+                                   uint32* pResultIndices, int& currentIndex  )
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised_Planar)
 
-    vector<int32_t> oldToNewVertex(vertexCount,-1);
+    vector<int32> oldToNewVertex(vertexCount,-1);
 
     vector<PROJECTED_VERTEX> projectedPositions(vertexCount);
 
@@ -1611,7 +1608,7 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
         float z = dot( pVertices[v].pos-projectorPosition, projectorDirection ) / projectorScale[2];
 
         // Plane mask with bits for each plane discarding the vertex
-        uint32_t planeMask =
+        uint32 planeMask =
                 ((x<0.0f)<<0) |
                 ((x>1.0f)<<1) |
                 ((y<0.0f)<<2) |
@@ -1645,7 +1642,7 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
             // This face is required.
             for (int v=0;v<3;++v)
             {
-                uint32_t i = pIndices[f*3+v];
+                uint32 i = pIndices[f*3+v];
                 if (oldToNewVertex[i]<0)
                 {
                     pResultVertices[currentVertex] = pVertices[i];
@@ -1672,16 +1669,16 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
 
 //-------------------------------------------------------------------------------------------------
 void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int vertexCount,
-                                        const uint32_t* pIndices, int faceCount,
+                                        const uint32* pIndices, int faceCount,
                                         const vec3f& projectorPosition, const vec3f& projectorDirection,
                                         const vec3f& projectorSide, const vec3f& projectorUp,
                                         const vec3f& projectorScale,
                                         OPTIMISED_VERTEX* pResultVertices, int& currentVertex,
-                                        uint32_t* pResultIndices, int& currentIndex  )
+                                        uint32* pResultIndices, int& currentIndex  )
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised_Cylindrical)
 
-	vector<int32_t> oldToNewVertex(vertexCount,-1);
+	vector<int32> oldToNewVertex(vertexCount,-1);
 
     vector<PROJECTED_VERTEX> projectedPositions(vertexCount);
 
@@ -1706,7 +1703,7 @@ void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int v
         projectedPositions[v].pos0 = x;
         projectedPositions[v].pos1 = vertexPos_cylinder.y() / radius;
         projectedPositions[v].pos2 = vertexPos_cylinder.z() / radius;
-        uint32_t planeMask =
+        uint32 planeMask =
                 ((x<0.0f)<<0) |
                 ((x>1.0f)<<1) |
                 ((r2>=(radius*radius))<<2);
@@ -1737,7 +1734,7 @@ void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int v
             // This face is required.
             for (int v=0;v<3;++v)
             {
-                uint32_t i = pIndices[f*3+v];
+                uint32 i = pIndices[f*3+v];
                 if (oldToNewVertex[i]<0)
                 {
                     pResultVertices[currentVertex] = pVertices[i];
@@ -1769,7 +1766,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                                      const vec3f& projectorSide, const vec3f& projectorUp,
                                      const vec3f& projectorScale,
                                      OPTIMISED_VERTEX_WRAPPING* pResultVertices, int& currentVertex,
-                                     uint32_t* pResultIndices, int& currentIndex )
+                                     uint32* pResultIndices, int& currentIndex )
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised_Wrapping)
 
@@ -1780,7 +1777,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
     // Get the indices
     check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-    auto pIndices = reinterpret_cast<const uint32_t*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+    auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
     int faceCount = pMesh->GetFaceCount();
 
     vector<PROJECTED_VERTEX> projectedPositions(vertexCount);
@@ -2434,7 +2431,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
         }
     }
 
-    vector<int32_t> oldToNewVertex(vertexCount,-1);
+    vector<int32> oldToNewVertex(vertexCount,-1);
 
     // Add the projected face
     for(int f : processedFaces)
@@ -2576,7 +2573,7 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
         pResult = CreateMeshOptimisedForProjection( layout );
         pResult->GetVertexBuffers().SetElementCount(vertexCount);
         pResult->GetIndexBuffers().SetElementCount(indexCount);
-        auto pResultIndices = reinterpret_cast<uint32_t*>( pResult->GetIndexBuffers().GetBufferData(0) );
+        auto pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
         auto pResultVertices = reinterpret_cast<OPTIMISED_VERTEX*>( pResult->GetVertexBuffers().GetBufferData(0) );
 
         // Get the vertices
@@ -2585,7 +2582,7 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
 
         // Get the indices
         check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-        auto pIndices = reinterpret_cast<const uint32_t*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+        auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
         int faceCount = pMesh->GetFaceCount();
 
         if (projector.type==PROJECTOR_TYPE::PLANAR)
@@ -2618,7 +2615,7 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
         pResult = CreateMeshOptimisedForWrappingProjection( layout );
         pResult->GetVertexBuffers().SetElementCount(vertexCount);
         pResult->GetIndexBuffers().SetElementCount(indexCount);
-        auto pResultIndices = reinterpret_cast<uint32_t*>( pResult->GetIndexBuffers().GetBufferData(0) );
+        auto pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
         auto pResultVertices = reinterpret_cast<OPTIMISED_VERTEX_WRAPPING*>( pResult->GetVertexBuffers().GetBufferData(0) );
 
         MeshProject_Optimised_Wrapping( pMesh,

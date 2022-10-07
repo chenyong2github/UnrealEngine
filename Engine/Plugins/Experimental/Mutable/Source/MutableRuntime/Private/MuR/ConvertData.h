@@ -25,8 +25,8 @@ namespace mu
 		case MBF_FLOAT64:
 		{
 			double* pTypedResult = reinterpret_cast<double*>(pResult);
-			uint8_t* pByteResult = reinterpret_cast<uint8_t*>(pResult);
-			const uint8_t* pByteSource = reinterpret_cast<const uint8_t*>(pSource);
+			uint8* pByteResult = reinterpret_cast<uint8*>(pResult);
+			const uint8* pByteSource = reinterpret_cast<const uint8*>(pSource);
 
 			switch (sourceFormat)
 			{
@@ -54,49 +54,49 @@ namespace mu
 
 			case MBF_INT32:
 			{
-				const int32_t* pTypedSource = reinterpret_cast<const int32_t*>(pSource);
+				const int32* pTypedSource = reinterpret_cast<const int32*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_UINT32:
 			{
-				const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>(pSource);
+				const uint32* pTypedSource = reinterpret_cast<const uint32*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_INT16:
 			{
-				const int16_t* pTypedSource = reinterpret_cast<const int16_t*>(pSource);
+				const int16* pTypedSource = reinterpret_cast<const int16*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-				const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>(pSource);
+				const uint16* pTypedSource = reinterpret_cast<const uint16*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_INT8:
 			{
-				const int8_t* pTypedSource = reinterpret_cast<const int8_t*>(pSource);
+				const int8* pTypedSource = reinterpret_cast<const int8*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_UINT8:
 			{
-				const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>(pSource);
+				const uint8* pTypedSource = reinterpret_cast<const uint8*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_NINT32:
 			{
-				const int32_t* pTypedSource = reinterpret_cast<const int32_t*>(pSource);
+				const int32* pTypedSource = reinterpret_cast<const int32*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 65536.0f * 65536.0f / 2.0f;
 				break;
@@ -104,7 +104,7 @@ namespace mu
 
 			case MBF_NUINT32:
 			{
-				const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>(pSource);
+				const uint32* pTypedSource = reinterpret_cast<const uint32*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 65536.0f * 65536.0f - 1.0f;
 				break;
@@ -112,7 +112,7 @@ namespace mu
 
 			case MBF_NINT16:
 			{
-				const int16_t* pTypedSource = reinterpret_cast<const int16_t*>(pSource);
+				const int16* pTypedSource = reinterpret_cast<const int16*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 32768.0f;
 				break;
@@ -120,7 +120,7 @@ namespace mu
 
 			case MBF_NUINT16:
 			{
-				const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>(pSource);
+				const uint16* pTypedSource = reinterpret_cast<const uint16*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 65535.0f;
 				break;
@@ -128,7 +128,7 @@ namespace mu
 
 			case MBF_NINT8:
 			{
-				const int8_t* pTypedSource = reinterpret_cast<const int8_t*>(pSource);
+				const int8* pTypedSource = reinterpret_cast<const int8*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 128.0f;
 				break;
@@ -136,7 +136,7 @@ namespace mu
 
 			case MBF_NUINT8:
 			{
-				const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>(pSource);
+				const uint8* pTypedSource = reinterpret_cast<const uint8*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 255.0f;
 				break;
@@ -145,7 +145,7 @@ namespace mu
 			case MBF_PACKEDDIR8:
 			case MBF_PACKEDDIR8_W_TANGENTSIGN:
 			{
-				const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>(pSource);
+				const uint8* pTypedSource = reinterpret_cast<const uint8*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 127.5f;
 				pTypedResult[channel] -= 1.0f;
@@ -155,7 +155,7 @@ namespace mu
 			case MBF_PACKEDDIRS8:
 			case MBF_PACKEDDIRS8_W_TANGENTSIGN:
 			{
-				const int8_t* pTypedSource = reinterpret_cast<const int8_t*>(pSource);
+				const int8* pTypedSource = reinterpret_cast<const int8*>(pSource);
 				pTypedResult[channel] = (double)(pTypedSource[channel]);
 				pTypedResult[channel] /= 127.5f;
 				break;
@@ -171,8 +171,8 @@ namespace mu
 		case MBF_FLOAT32:
 		{
 			float* pTypedResult = reinterpret_cast<float*>( pResult );
-            uint8_t* pByteResult = reinterpret_cast<uint8_t*>( pResult );
-            const uint8_t* pByteSource = reinterpret_cast<const uint8_t*>( pSource );
+            uint8* pByteResult = reinterpret_cast<uint8*>( pResult );
+            const uint8* pByteSource = reinterpret_cast<const uint8*>( pSource );
 
 			switch ( sourceFormat )
 			{
@@ -200,49 +200,49 @@ namespace mu
 
 			case MBF_INT32:
 			{
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_UINT32:
 			{
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_INT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_NINT32:
 			{
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				pTypedResult[channel] /= 65536.0f*65536.0f/2.0f;
 				break;
@@ -250,7 +250,7 @@ namespace mu
 
 			case MBF_NUINT32:
 			{
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				pTypedResult[channel] /= 65536.0f*65536.0f-1.0f;
 				break;
@@ -258,7 +258,7 @@ namespace mu
 
 			case MBF_NINT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				pTypedResult[channel] /= 32768.0f;
 				break;
@@ -266,7 +266,7 @@ namespace mu
 
 			case MBF_NUINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				pTypedResult[channel] /= 65535.0f;
 				break;
@@ -274,7 +274,7 @@ namespace mu
 
 			case MBF_NINT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				pTypedResult[channel] /= 128.0f;
 				break;
@@ -282,7 +282,7 @@ namespace mu
 
 			case MBF_NUINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
 				pTypedResult[channel] = (float)(pTypedSource[channel]);
 				pTypedResult[channel] /= 255.0f;
 				break;
@@ -291,7 +291,7 @@ namespace mu
             case MBF_PACKEDDIR8:
             case MBF_PACKEDDIR8_W_TANGENTSIGN:
             {
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
                 pTypedResult[channel] = (float)(pTypedSource[channel]);
                 pTypedResult[channel] /= 127.5f;
                 pTypedResult[channel] -= 1.0f;
@@ -301,7 +301,7 @@ namespace mu
             case MBF_PACKEDDIRS8:
             case MBF_PACKEDDIRS8_W_TANGENTSIGN:
             {
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
                 pTypedResult[channel] = (float)(pTypedSource[channel]);
                 pTypedResult[channel] /= 127.5f;
                 break;
@@ -337,42 +337,42 @@ namespace mu
 
 			case MBF_UINT32:
 			{
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
 				pTypedResult[channel] = floatToHalf((float)(pTypedSource[channel]));
 				break;
 			}
 
 			case MBF_INT32:
 			{
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
 				pTypedResult[channel] = floatToHalf((float)(pTypedSource[channel]));
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
 				pTypedResult[channel] = floatToHalf((float)(pTypedSource[channel]));
 				break;
 			}
 
 			case MBF_INT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
 				pTypedResult[channel] = floatToHalf((float)(pTypedSource[channel]));
 				break;
 			}
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
 				pTypedResult[channel] = floatToHalf((float)(pTypedSource[channel]));
 				break;
 			}
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
 				pTypedResult[channel] = floatToHalf((float)(pTypedSource[channel]));
 				break;
 			}
@@ -387,19 +387,19 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 		case MBF_UINT8:
 		{
-            uint8_t* pTypedResult = reinterpret_cast<uint8_t*>( pResult );
+            uint8* pTypedResult = reinterpret_cast<uint8*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (uint8_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint8)
+                        std::min<uint32>(
 							0xFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(pTypedSource[channel])
+                                (uint32)(pTypedSource[channel])
 								)
 							);
 				break;
@@ -408,12 +408,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (uint8_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint8)
+                        std::min<uint32>(
 							0xFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)halfToFloat(pTypedSource[channel])
+                                (uint32)halfToFloat(pTypedSource[channel])
 								)
 							);
 				break;
@@ -421,25 +421,25 @@ namespace mu
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
-                pTypedResult[channel] =  (uint8_t)std::max<int8_t>( 0, pTypedSource[channel] );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
+                pTypedResult[channel] =  (uint8)std::max<int8>( 0, pTypedSource[channel] );
 				break;
 			}
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
 				pTypedResult[channel] = pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
-                pTypedResult[channel] =  (uint8_t)
-                        std::min<int16_t>(
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
+                pTypedResult[channel] =  (uint8)
+                        std::min<int16>(
 							0xFF,
-                            std::max<int16_t>(
+                            std::max<int16>(
 								0,
 								pTypedSource[channel]
 								)
@@ -450,11 +450,11 @@ namespace mu
 			case MBF_UINT16:
 			{
 				// Clamp
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
-                pTypedResult[channel] = (uint8_t)
-                        std::min<uint16_t>(
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
+                pTypedResult[channel] = (uint8)
+                        std::min<uint16>(
 							0xFF,
-                            std::max<uint16_t>(
+                            std::max<uint16>(
 								0,
 								pTypedSource[channel]
 								)
@@ -464,11 +464,11 @@ namespace mu
 
 			case MBF_INT32:
 			{
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
-                pTypedResult[channel] =  (uint8_t)
-                        std::min<int32_t>(
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
+                pTypedResult[channel] =  (uint8)
+                        std::min<int32>(
 							0xFF,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -479,11 +479,11 @@ namespace mu
 			case MBF_UINT32:
 			{
 				// Clamp
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
-                pTypedResult[channel] = (uint8_t)
-                        std::min<uint32_t>(
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
+                pTypedResult[channel] = (uint8)
+                        std::min<uint32>(
 							0xFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -509,19 +509,19 @@ namespace mu
 
 		case MBF_UINT16:
 		{
-            uint16_t* pTypedResult = reinterpret_cast<uint16_t*>( pResult );
+            uint16* pTypedResult = reinterpret_cast<uint16*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (uint16_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint16)
+                        std::min<uint32>(
 							0xFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(pTypedSource[channel])
+                                (uint32)(pTypedSource[channel])
 								)
 							);
 				break;
@@ -530,12 +530,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (uint16_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint16)
+                        std::min<uint32>(
 							0xFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)halfToFloat(pTypedSource[channel])
+                                (uint32)halfToFloat(pTypedSource[channel])
 								)
 							);
 				break;
@@ -543,40 +543,40 @@ namespace mu
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
 				pTypedResult[channel] =  pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
-                pTypedResult[channel] =  (uint16_t)std::max<int8_t>( 0, pTypedSource[channel] );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
+                pTypedResult[channel] =  (uint16)std::max<int8>( 0, pTypedSource[channel] );
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
 				pTypedResult[channel] =  pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
-                pTypedResult[channel] =  (uint16_t)std::max<int16_t>( 0, pTypedSource[channel] );
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
+                pTypedResult[channel] =  (uint16)std::max<int16>( 0, pTypedSource[channel] );
 				break;
 			}
 
 			case MBF_UINT32:
 			{
 				// Clamp
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
-                pTypedResult[channel] = (uint16_t)
-                        std::min<uint32_t>(
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
+                pTypedResult[channel] = (uint16)
+                        std::min<uint32>(
 							0xFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -587,11 +587,11 @@ namespace mu
 			case MBF_INT32:
 			{
 				// Clamp
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
-                pTypedResult[channel] = (uint16_t)
-                        std::min<int32_t>(
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
+                pTypedResult[channel] = (uint16)
+                        std::min<int32>(
 							0xFFFF,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -617,7 +617,7 @@ namespace mu
 
 		case MBF_UINT32:
 		{
-            uint32_t* pTypedResult = reinterpret_cast<uint32_t*>( pResult );
+            uint32* pTypedResult = reinterpret_cast<uint32*>( pResult );
 
 			switch ( sourceFormat )
 			{
@@ -625,11 +625,11 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
 				pTypedResult[channel] =
-                        std::min<uint32_t>(
+                        std::min<uint32>(
 							0xFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(pTypedSource[channel])
+                                (uint32)(pTypedSource[channel])
 								)
 							);
 				break;
@@ -639,11 +639,11 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
 				pTypedResult[channel] =
-                        std::min<uint32_t>(
+                        std::min<uint32>(
 							0xFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)halfToFloat(pTypedSource[channel])
+                                (uint32)halfToFloat(pTypedSource[channel])
 								)
 							);
 				break;
@@ -651,35 +651,35 @@ namespace mu
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
 				pTypedResult[channel] =  pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
-                pTypedResult[channel] =  (uint16_t)std::max<int8_t>( 0, pTypedSource[channel] );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
+                pTypedResult[channel] =  (uint16)std::max<int8>( 0, pTypedSource[channel] );
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
 				pTypedResult[channel] =  pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
-                pTypedResult[channel] =  (uint16_t)std::max<int16_t>( 0, pTypedSource[channel] );
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
+                pTypedResult[channel] =  (uint16)std::max<int16>( 0, pTypedSource[channel] );
 				break;
 			}
 
 			case MBF_UINT32:
 			{
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
 				pTypedResult[channel] = pTypedSource[channel];
 				break;
 			}
@@ -687,8 +687,8 @@ namespace mu
 			case MBF_INT32:
 			{
 				// Clamp
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
-                pTypedResult[channel] = (uint32_t)std::max<int32_t>( 0, pTypedSource[channel] );
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
+                pTypedResult[channel] = (uint32)std::max<int32>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -710,19 +710,19 @@ namespace mu
 
 		case MBF_INT8:
 		{
-            int8_t* pTypedResult = reinterpret_cast<int8_t*>( pResult );
+            int8* pTypedResult = reinterpret_cast<int8*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (int8_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int8)
+                        std::min<int32>(
 							127,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-128,
-                                (int32_t)(pTypedSource[channel])
+                                (int32)(pTypedSource[channel])
 								)
 							);
 				break;
@@ -731,12 +731,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (int8_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int8)
+                        std::min<int32>(
 							127,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-128,
-                                (int32_t)halfToFloat(pTypedSource[channel])
+                                (int32)halfToFloat(pTypedSource[channel])
 								)
 							);
 				break;
@@ -744,7 +744,7 @@ namespace mu
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
 				pTypedResult[channel] = pTypedSource[channel];
 				break;
 			}
@@ -767,19 +767,19 @@ namespace mu
 
 		case MBF_INT16:
 		{
-            int16_t* pTypedResult = reinterpret_cast<int16_t*>( pResult );
+            int16* pTypedResult = reinterpret_cast<int16*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
 							32767,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-32768,
-                                (int32_t)(pTypedSource[channel])
+                                (int32)(pTypedSource[channel])
 								)
 							);
 				break;
@@ -788,12 +788,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
 							32767,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-32768,
-                                (int32_t)halfToFloat(pTypedSource[channel])
+                                (int32)halfToFloat(pTypedSource[channel])
 								)
 							);
 				break;
@@ -801,35 +801,35 @@ namespace mu
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
-                pTypedResult[channel] = (int16_t)pTypedSource[channel];
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
+                pTypedResult[channel] = (int16)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
-                pTypedResult[channel] = (int16_t)pTypedSource[channel];
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
+                pTypedResult[channel] = (int16)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
-                            32767, (int32_t)pTypedSource[channel]
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
+                            32767, (int32)pTypedSource[channel]
 							);
 				break;
 			}
 
 			case MBF_INT32:
 			{
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
 							32767,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-32768,
 								pTypedSource[channel]
 								)
@@ -839,9 +839,9 @@ namespace mu
 
 			case MBF_UINT32:
 			{
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
 							32767, pTypedSource[channel]
 							);
 				break;
@@ -865,62 +865,62 @@ namespace mu
 
 		case MBF_INT32:
 		{
-            int32_t* pTypedResult = reinterpret_cast<int32_t*>( pResult );
+            int32* pTypedResult = reinterpret_cast<int32*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (int32_t)(pTypedSource[channel]);
+                pTypedResult[channel] = (int32)(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (int32_t)halfToFloat(pTypedSource[channel]);
+                pTypedResult[channel] = (int32)halfToFloat(pTypedSource[channel]);
 				break;
 			}
 
 			case MBF_INT8:
 			{
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
-                pTypedResult[channel] = (int32_t)pTypedSource[channel];
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
+                pTypedResult[channel] = (int32)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_UINT8:
 			{
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
-                pTypedResult[channel] = (int32_t)pTypedSource[channel];
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
+                pTypedResult[channel] = (int32)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT16:
 			{
-                const int16_t* pTypedSource = reinterpret_cast<const int16_t*>( pSource );
-                pTypedResult[channel] = (int32_t)pTypedSource[channel];
+                const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
+                pTypedResult[channel] = (int32)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_UINT16:
 			{
-                const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>( pSource );
-                pTypedResult[channel] = (int32_t)pTypedSource[channel];
+                const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
+                pTypedResult[channel] = (int32)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_UINT32:
 			{
-                const uint32_t* pTypedSource = reinterpret_cast<const uint32_t*>( pSource );
-                pTypedResult[channel] = (int32_t)pTypedSource[channel];
+                const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
+                pTypedResult[channel] = (int32)pTypedSource[channel];
 				break;
 			}
 
 			case MBF_INT32:
 			{
-                const int32_t* pTypedSource = reinterpret_cast<const int32_t*>( pSource );
+                const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
                 pTypedResult[channel] = pTypedSource[channel];
 				break;
 			}
@@ -944,20 +944,20 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 		case MBF_NUINT8:
 		{
-            uint8_t* pTypedResult = reinterpret_cast<uint8_t*>( pResult );
+            uint8* pTypedResult = reinterpret_cast<uint8*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_NUINT8:
 			{
-				auto pTypedSource = reinterpret_cast<const uint8_t*>(pSource);
+				auto pTypedSource = reinterpret_cast<const uint8*>(pSource);
 				pTypedResult[channel] = pTypedSource[channel];
 				break;
 			}
 
 			case MBF_NUINT16:
 			{
-				const uint16_t* pTypedSource = reinterpret_cast<const uint16_t*>(pSource);
+				const uint16* pTypedSource = reinterpret_cast<const uint16*>(pSource);
 				pTypedResult[channel] = pTypedSource[channel] / (65535 / 255);
 				break;
 			}
@@ -965,12 +965,12 @@ namespace mu
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>(pSource);
-				pTypedResult[channel] = (uint8_t)
-					std::min<uint32_t>(
+				pTypedResult[channel] = (uint8)
+					std::min<uint32>(
 						0xFF,
-						std::max<uint32_t>(
+						std::max<uint32>(
 							0,
-							(uint32_t)(((float)0xFF)*pTypedSource[channel] + 0.5f)
+							(uint32)(((float)0xFF)*pTypedSource[channel] + 0.5f)
 							)
 						);
 				break;
@@ -979,12 +979,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (uint8_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint8)
+                        std::min<uint32>(
 							0xFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(((float)0xFF)*halfToFloat(pTypedSource[channel])+0.5f)
+                                (uint32)(((float)0xFF)*halfToFloat(pTypedSource[channel])+0.5f)
 								)
 							);
 				break;
@@ -1009,20 +1009,20 @@ namespace mu
 
 		case MBF_NUINT16:
 		{
-            uint16_t* pTypedResult = reinterpret_cast<uint16_t*>( pResult );
+            uint16* pTypedResult = reinterpret_cast<uint16*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_NUINT16:
 			{
-				auto pTypedSource = reinterpret_cast<const uint16_t*>(pSource);
+				auto pTypedSource = reinterpret_cast<const uint16*>(pSource);
 				pTypedResult[channel] = pTypedSource[channel];
 				break;
 			}
 
 			case MBF_NUINT8:
 			{
-				const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>(pSource);
+				const uint8* pTypedSource = reinterpret_cast<const uint8*>(pSource);
 				pTypedResult[channel] = pTypedSource[channel] * (65535 / 255);
 				break;
 			}
@@ -1030,12 +1030,12 @@ namespace mu
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (uint16_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint16)
+                        std::min<uint32>(
 							0xFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(((float)0xFFFF)*pTypedSource[channel]+0.5f)
+                                (uint32)(((float)0xFFFF)*pTypedSource[channel]+0.5f)
 								)
 							);
 				break;
@@ -1044,12 +1044,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (uint16_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint16)
+                        std::min<uint32>(
 							0xFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(((float)0xFFFF)*halfToFloat(pTypedSource[channel])+0.5f)
+                                (uint32)(((float)0xFFFF)*halfToFloat(pTypedSource[channel])+0.5f)
 								)
 							);
 				break;
@@ -1074,19 +1074,19 @@ namespace mu
 
 		case MBF_NUINT32:
 		{
-            uint32_t* pTypedResult = reinterpret_cast<uint32_t*>( pResult );
+            uint32* pTypedResult = reinterpret_cast<uint32*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (uint32_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint32)
+                        std::min<uint32>(
 							0xFFFFFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(((float)0xFFFFFFFF)*pTypedSource[channel])
+                                (uint32)(((float)0xFFFFFFFF)*pTypedSource[channel])
 								)
 							);
 				break;
@@ -1095,12 +1095,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (uint32_t)
-                        std::min<uint32_t>(
+                pTypedResult[channel] = (uint32)
+                        std::min<uint32>(
 							0xFFFFFFFF,
-                            std::max<uint32_t>(
+                            std::max<uint32>(
 								0,
-                                (uint32_t)(((float)0xFFFFFFFF)*halfToFloat(pTypedSource[channel])+0.5f)
+                                (uint32)(((float)0xFFFFFFFF)*halfToFloat(pTypedSource[channel])+0.5f)
 								)
 							);
 				break;
@@ -1125,19 +1125,19 @@ namespace mu
 
 		case MBF_NINT8:
 		{
-            int8_t* pTypedResult = reinterpret_cast<int8_t*>( pResult );
+            int8* pTypedResult = reinterpret_cast<int8*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (int8_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int8)
+                        std::min<int32>(
 							127,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-128,
-                                (int32_t)(128.0f*pTypedSource[channel]+0.5f)
+                                (int32)(128.0f*pTypedSource[channel]+0.5f)
 								)
 							);
 				break;
@@ -1146,12 +1146,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (int8_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int8)
+                        std::min<int32>(
 							127,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-128,
-                                (int32_t)(128.0f*halfToFloat(pTypedSource[channel])+0.5f)
+                                (int32)(128.0f*halfToFloat(pTypedSource[channel])+0.5f)
 								)
 							);
 				break;
@@ -1176,19 +1176,19 @@ namespace mu
 
 		case MBF_NINT16:
 		{
-            int16_t* pTypedResult = reinterpret_cast<int16_t*>( pResult );
+            int16* pTypedResult = reinterpret_cast<int16*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
 							32767,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-32768,
-                                (int32_t)(32768.0f*pTypedSource[channel]+0.5f)
+                                (int32)(32768.0f*pTypedSource[channel]+0.5f)
 								)
 							);
 				break;
@@ -1197,12 +1197,12 @@ namespace mu
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (int16_t)
-                        std::min<int32_t>(
+                pTypedResult[channel] = (int16)
+                        std::min<int32>(
 							32767,
-                            std::max<int32_t>(
+                            std::max<int32>(
 								-32768,
-                                (int32_t)(32768.0f*halfToFloat(pTypedSource[channel])+0.5f)
+                                (int32)(32768.0f*halfToFloat(pTypedSource[channel])+0.5f)
 								)
 							);
 				break;
@@ -1228,21 +1228,21 @@ namespace mu
 
 		case MBF_NINT32:
 		{
-            int32_t* pTypedResult = reinterpret_cast<int32_t*>( pResult );
+            int32* pTypedResult = reinterpret_cast<int32*>( pResult );
 
 			switch ( sourceFormat )
 			{
 			case MBF_FLOAT32:
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
-                pTypedResult[channel] = (int32_t)(2147483648.0f*pTypedSource[channel]+0.5f);
+                pTypedResult[channel] = (int32)(2147483648.0f*pTypedSource[channel]+0.5f);
 				break;
 			}
 
 			case MBF_FLOAT16:
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
-                pTypedResult[channel] = (int32_t)(2147483648.0f*halfToFloat(pTypedSource[channel])+0.5f);
+                pTypedResult[channel] = (int32)(2147483648.0f*halfToFloat(pTypedSource[channel])+0.5f);
 				break;
 			}
 
@@ -1266,15 +1266,15 @@ namespace mu
         case MBF_PACKEDDIR8:
         case MBF_PACKEDDIR8_W_TANGENTSIGN:
         {
-            uint8_t* pTypedResult = reinterpret_cast<uint8_t*>( pResult );
+            uint8* pTypedResult = reinterpret_cast<uint8*>( pResult );
 
             switch ( sourceFormat )
             {
             case MBF_PACKEDDIR8:
             case MBF_PACKEDDIR8_W_TANGENTSIGN:
             {
-                const uint8_t* pTypedSource = reinterpret_cast<const uint8_t*>( pSource );
-                uint8_t source = pTypedSource[channel];
+                const uint8* pTypedSource = reinterpret_cast<const uint8*>( pSource );
+                uint8 source = pTypedSource[channel];
                 pTypedResult[channel] = source;
                 break;
             }
@@ -1285,7 +1285,7 @@ namespace mu
                 float source = pTypedSource[channel];
                 source = (source*0.5f+0.5f)*255.0f;
                 pTypedResult[channel] =
-                        (uint8_t)std::min<float>( 255.0f, std::max<float>( 0.0f, source ) );
+                        (uint8)std::min<float>( 255.0f, std::max<float>( 0.0f, source ) );
                 break;
             }
 
@@ -1299,15 +1299,15 @@ namespace mu
         case MBF_PACKEDDIRS8:
         case MBF_PACKEDDIRS8_W_TANGENTSIGN:
         {
-            int8_t* pTypedResult = reinterpret_cast<int8_t*>( pResult );
+            int8* pTypedResult = reinterpret_cast<int8*>( pResult );
 
             switch ( sourceFormat )
             {
             case MBF_PACKEDDIRS8:
             case MBF_PACKEDDIRS8_W_TANGENTSIGN:
             {
-                const int8_t* pTypedSource = reinterpret_cast<const int8_t*>( pSource );
-                int8_t source = pTypedSource[channel];
+                const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
+                int8 source = pTypedSource[channel];
                 pTypedResult[channel] = source;
                 break;
             }
@@ -1318,7 +1318,7 @@ namespace mu
                 float source = pTypedSource[channel];
                 source = source*0.5f*255.0f;
                 pTypedResult[channel] =
-                        (int8_t)std::min<float>( 127.0f, std::max<float>( -128.0f, source ) );
+                        (int8)std::min<float>( 127.0f, std::max<float>( -128.0f, source ) );
                 break;
             }
 

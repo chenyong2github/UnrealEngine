@@ -372,7 +372,7 @@ namespace mu
 
 		//! Copy an element from one position to another, overwriting the other element.
 		//! Both positions must be valid, buffer size won't change.
-		void CopyElement(uint32_t fromIndex, uint32_t toIndex);
+		void CopyElement(uint32 fromIndex, uint32 toIndex);
 
 		//! Compare the format of the two buffers at index buffer and return true if they match.
 		bool HasSameFormat(int32 buffer, const FMeshBufferSet& pOther) const;

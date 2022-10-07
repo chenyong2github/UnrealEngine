@@ -7,8 +7,6 @@
 #include "MuR/Platform.h"
 #include "MuR/OpMeshChartDifference.h"
 
-#include <memory>
-
 
 namespace mu
 {

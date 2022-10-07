@@ -3,8 +3,8 @@
 #pragma once
 
 #include "MuR/Types.h"
-#include "../Private/MuR/SerialisationPrivate.h"
-#include "../Private/MuR/Platform.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuR/Platform.h"
 #include "Math/Matrix.h"
 #include "Math/IntVector.h"
 
@@ -35,17 +35,6 @@ namespace mu
         return r;
     }
 
-    //---------------------------------------------------------------------------------------------
-    //! Base 2 logarithm
-    //---------------------------------------------------------------------------------------------
-    inline int log2( int v )
-    {
-        // TODO: There are one-line asm versions for most architectures.
-        int r = 0;
-        while (v >>= 1) ++r;
-        return r;
-    }
-
 
     //---------------------------------------------------------------------------------------------
     //!
@@ -53,29 +42,17 @@ namespace mu
     template<class T>
     T clamp( const T mi, const T ma, const T v )
     {
-        return std::max( mi, std::min( ma, v ) );
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    // Robust floating point comparisons:
-    // http://realtimecollisiondetection.net/blog/?p=89
-    //---------------------------------------------------------------------------------------------
-    inline bool equal(const float f0, const float f1,
-                      const float epsilon = std::numeric_limits<float>::epsilon() )
-    {
-        //return fabs(f0-f1) <= epsilon;
-        return fabs(f0-f1) <= epsilon * std::max(1.0f, std::max( fabsf(f0), fabsf(f1) ) );
+        return FMath::Max( mi, FMath::Min( ma, v ) );
     }
 
 
 	//---------------------------------------------------------------------------------------------
 	// 16-bit floating point number support.
 	//---------------------------------------------------------------------------------------------
-    typedef uint16_t float16;
+    typedef uint16 float16;
 
 	//---------------------------------------------------------------------------------------------
-    inline uint32_t halfToFloatI( float16 y )
+    inline uint32 halfToFloatI( float16 y )
 	{
 		int s = (y >> 15) & 0x00000001;
 		int e = (y >> 10) & 0x0000001f;
@@ -123,7 +100,7 @@ namespace mu
 		union
 		{
 			float f;
-            uint32_t i;
+            uint32 i;
 		} v;
 
 		v.i = halfToFloatI(y);
@@ -132,7 +109,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    inline float16 floatToHalfI( uint32_t i )
+    inline float16 floatToHalfI( uint32 i )
 	{
 		int s =  (i >> 16) & 0x00008000;
 		int e = ((i >> 23) & 0x000000ff) - (127 - 15);
@@ -183,7 +160,7 @@ namespace mu
 		union
 		{
 			float f;
-            uint32_t i;
+            uint32 i;
 		} v;
 
 		v.f = i;
@@ -388,7 +365,7 @@ namespace mu
             V r;
             for (size_t i = 0; i < DIM; ++i)
             {
-                r.m[i] = std::min<>(a.m[i], b.m[i]);
+                r.m[i] = FMath::Min(a.m[i], b.m[i]);
             }
             return r;
         }
@@ -923,7 +900,7 @@ namespace mu
 	{
 		union MUTABLE_FLOAT_INT
 		{
-            int32_t i;
+            int32 i;
 			float y;
 		} fi;
 		float x2;
@@ -1066,7 +1043,7 @@ namespace mu
             for (int d = 0; d < VECTOR::GetDim(); ++d)
             {
                 result = result &&
-                         std::abs((min[d] * 2 + size[d]) - (other.min[d] * 2 + other.size[d])) <=
+                         FMath::Abs((min[d] * 2 + size[d]) - (other.min[d] * 2 + other.size[d])) <=
                              (size[d] + other.size[d]);
             }
 
@@ -1082,7 +1059,7 @@ namespace mu
             for (int d = 0; d < VECTOR::GetDim(); ++d)
             {
                 result = result &&
-                         std::abs((min[d] * 2 + size[d]) - (other.min[d] * 2 + other.size[d])) <
+                         FMath::Abs((min[d] * 2 + size[d]) - (other.min[d] * 2 + other.size[d])) <
                              (size[d] + other.size[d]);
             }
 
@@ -1097,9 +1074,9 @@ namespace mu
             box<VECTOR> result;
             for (int d = 0; d < VECTOR::GetDim(); ++d)
             {
-                result.min[d] = std::max(min[d], other.min[d]);
+                result.min[d] = FMath::Max(min[d], other.min[d]);
                 result.size[d] =
-                    std::min(typename VECTOR::SCALAR(min[d] + size[d] - result.min[d]),
+                    FMath::Min(typename VECTOR::SCALAR(min[d] + size[d] - result.min[d]),
                              typename VECTOR::SCALAR(other.min[d] + other.size[d] - result.min[d]));
             }
             return result;
@@ -1243,9 +1220,9 @@ namespace mu
 		template<int DIM2>
 		explicit mat( const mat<SCALAR,DIM2>& other )
 		{
-			for (int i=0; i<std::min(DIM,DIM2); ++i)
+			for (int i=0; i<FMath::Min(DIM,DIM2); ++i)
 			{
-				for (int j=0; j<std::min(DIM,DIM2) ;++j)
+				for (int j=0; j<FMath::Min(DIM,DIM2) ;++j)
 				{
 					m[i][j] = other[i][j];
 				}
@@ -1264,7 +1241,7 @@ namespace mu
 		inline static M Scale( const vec<SCALAR,DIM2>& s )
 		{
 			M r;
-			for (int i=0; i<std::min(DIM,DIM2); ++i)
+			for (int i=0; i<FMath::Min(DIM,DIM2); ++i)
 			{
 				r.m[i][i] = s[i];
 			}
@@ -1285,7 +1262,7 @@ namespace mu
 		{
 			M r = Identity();
 
-			for (int i=0; i<std::min(DIM,DIM2); ++i)
+			for (int i=0; i<FMath::Min(DIM,DIM2); ++i)
 			{
 				r.m[i][DIM-1] = pos[i];
 			}

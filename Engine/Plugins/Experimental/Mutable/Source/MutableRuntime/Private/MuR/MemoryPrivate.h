@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../Private/MuR/Platform.h"
+#include "MuR/Platform.h"
 #include "MuR/MutableMemory.h"
 
 #include <unordered_map>

@@ -5,8 +5,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
-#include <stdint.h>
-
 
 namespace mu
 {
@@ -35,7 +33,7 @@ namespace mu
         //! more streaming and higher instance construction times, but will use less memory while
         //! building objects.
         //! Defaults to 0, which disables the limit.
-        void SetStreamingCache( uint64_t bytes );
+        void SetStreamingCache( uint64 bytes );
 
         //! Set the quality for the image compression algorithms.
         //! \param quality Quality level of the compression. Higher quality increases the instance

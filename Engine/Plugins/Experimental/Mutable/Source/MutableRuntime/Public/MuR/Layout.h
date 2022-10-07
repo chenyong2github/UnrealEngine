@@ -21,7 +21,7 @@ namespace mu
 	typedef Ptr<const Layout> LayoutPtrConst;
 
 	//! Types of layout packing strategies 
-	enum class EPackStrategy : uint32_t
+	enum class EPackStrategy : uint32
 	{
 		RESIZABLE_LAYOUT,
 		FIXED_LAYOUT
@@ -136,7 +136,7 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 		struct BLOCK
 		{
-			BLOCK(vec2<uint16_t> min = vec2<uint16_t>(), vec2<uint16_t> size = vec2<uint16_t>())
+			BLOCK(vec2<uint16> min = vec2<uint16>(), vec2<uint16> size = vec2<uint16>())
 			{
 				m_min = min;
 				m_size = size;
@@ -144,14 +144,14 @@ namespace mu
 				m_priority = 0;
 			}
 
-			vec2<uint16_t> m_min;
-			vec2<uint16_t> m_size;
+			vec2<uint16> m_min;
+			vec2<uint16> m_size;
 
 			//! Absolute id used to control merging of various layouts
-			int32_t m_id;
+			int32 m_id;
 
 			//! Priority value to control the shrink texture layout strategy
-			int32_t m_priority;
+			int32 m_priority;
 
 
 			//!
@@ -192,9 +192,9 @@ namespace mu
 
 
 		//!
-		vec2<uint16_t> m_size;
+		vec2<uint16> m_size;
 
-		vec2<uint16_t> m_maxsize;
+		vec2<uint16> m_maxsize;
 
 		//!
 		TArray<BLOCK> m_blocks;
@@ -205,20 +205,20 @@ namespace mu
 		//!
 		void Serialise(OutputArchive& arch) const
 		{
-			uint32_t ver = 3;
+			uint32 ver = 3;
 			arch << ver;
 
 			arch << m_size;
 			arch << m_blocks;
 
 			arch << m_maxsize;
-			arch << uint32_t(m_strategy);
+			arch << uint32(m_strategy);
 		}
 
 		//!
 		void Unserialise(InputArchive& arch)
 		{
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver == 3);
 
@@ -227,7 +227,7 @@ namespace mu
 			arch >> m_blocks;
 			arch >> m_maxsize;
 
-			uint32_t temp;
+			uint32 temp;
 			arch >> temp;
 			m_strategy = EPackStrategy(temp);
 		}
@@ -237,7 +237,7 @@ namespace mu
 
 		//! Find a block by id. This converts the "absolute" id to a relative index to the layout
 		//! blocks. Return -1 if not found.
-		int32 FindBlock(int32_t id) const;
+		int32 FindBlock(int32 id) const;
 
 		//! Return true if the layout is a single block filling all area.
 		bool IsSingleBlockAndFull() const;

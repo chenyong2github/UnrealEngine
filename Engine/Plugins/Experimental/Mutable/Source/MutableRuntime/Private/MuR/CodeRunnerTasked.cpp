@@ -50,10 +50,6 @@
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
 
-#include <functional>
-#include <memory>
-#include <utility>
-
 
 DECLARE_CYCLE_STAT(TEXT("MutableCoreTask"), STAT_MutableCoreTask, STATGROUP_Game);
 
@@ -1101,7 +1097,7 @@ namespace mu
 					});
 			}
 
-			uint32_t RomSize = program.m_roms[RomIndex].Size;
+			uint32 RomSize = program.m_roms[RomIndex].Size;
 			check(RomSize>0);
 
 			CodeRunner::ROM_LOAD_OP* op = nullptr;
@@ -1221,7 +1217,7 @@ namespace mu
 					});
 			}
 
-			uint32_t RomSize = program.m_roms[RomIndex].Size;
+			uint32 RomSize = program.m_roms[RomIndex].Size;
 			check(RomSize > 0);
 
 			CodeRunner::ROM_LOAD_OP* op = nullptr;

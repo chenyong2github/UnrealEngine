@@ -7,7 +7,6 @@
 #include "MuR/MutableMath.h"
 #include "MuR/Ptr.h"
 
-#include <vector>
 
 #define MAX_DIVISIONS 5
 #define MAX_VECTORS 20
@@ -17,7 +16,7 @@ namespace mu
 	struct VertexInfo
 	{
 		vec3f vector;
-		int index;
+		int32 index;
 	};
 
 	class Octree
@@ -47,25 +46,15 @@ namespace mu
 					children[i] = nullptr;
 				}	
 			}
-
-            for (size_t i = 0; i < elements.size(); ++i)
-			{
-				delete elements[i];
-				elements[i] = nullptr;
-			}
 		}
 
 		void InsertElement(vec3f v, int idx)
 		{
 			if (!children[0])
 			{
-				VertexInfo* cur = new VertexInfo();
-				cur->vector = v;
-				cur->index = idx;
+				elements.Add({ v, idx });
 
-				elements.push_back(cur);
-
-				if (elements.size() > MAX_VECTORS && division < MAX_DIVISIONS)
+				if (elements.Num() > MAX_VECTORS && division < MAX_DIVISIONS)
 				{
 					Divide();
 				}
@@ -114,18 +103,12 @@ namespace mu
 				children[3 + i * 4] = new Octree(nMin, nMax, padding, division + 1);
 			}
 
-            for (size_t i = 0; i < elements.size(); ++i)
+            for (size_t i = 0; i < elements.Num(); ++i)
 			{
-				InsertElement(elements[i]->vector, elements[i]->index);
+				InsertElement(elements[i].vector, elements[i].index);
 			}
-			
-            for (size_t i = 0; i < elements.size(); ++i)
-			{
-				delete elements[i];
-				elements[i] = nullptr;
-			}
-
-			elements.clear();
+		            
+			elements.Empty();
 		}
 
 		bool Collides(Octree* child, vec3f v)
@@ -152,13 +135,13 @@ namespace mu
 
 			if (!children[0])
 			{
-                for (size_t i = 0; i < elements.size(); ++i)
+                for (size_t i = 0; i < elements.Num(); ++i)
 				{
-					vec3f r = elements[i]->vector - v;
+					vec3f r = elements[i].vector - v;
 					
-					if (idx > elements[i]->index && dot(r,r) <= dist*dist)
+					if (idx > elements[i].index && dot(r,r) <= dist*dist)
 					{
-						ret = elements[i]->index;
+						ret = elements[i].index;
 						break;
 					}
 				}
@@ -189,7 +172,7 @@ namespace mu
 
 		float padding = 0.0f;
 
-		std::vector<VertexInfo*> elements;
+		TArray<VertexInfo> elements;
 
 		Octree* children[8];
 	};

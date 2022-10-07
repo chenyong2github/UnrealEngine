@@ -83,7 +83,7 @@ namespace mu
         //! Add an optional, opaque id that will be returned in the surfaces of the created
         //! instances. Can be useful to identify surfaces on the application side.
         //! See Instance::GetSurfaceCustomId
-        void SetCustomID( uint32_t id );
+        void SetCustomID( uint32 id );
 
         //! \name Tags
         //! \{

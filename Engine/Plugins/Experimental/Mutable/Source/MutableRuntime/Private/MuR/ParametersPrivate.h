@@ -303,7 +303,7 @@ namespace mu
         //!
         bool operator==( const PARAMETER_VALUE& other ) const
         {
-            return mutable_memcmp(this, &other, sizeof(PARAMETER_VALUE))==0;
+            return FMemory::Memcmp(this, &other, sizeof(PARAMETER_VALUE))==0;
         }
 
     };

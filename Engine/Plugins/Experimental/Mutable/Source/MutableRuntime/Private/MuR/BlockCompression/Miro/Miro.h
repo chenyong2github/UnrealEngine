@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include "HAL/Platform.h"
 
 // Configure the compression library with these defines:
 
@@ -37,41 +37,39 @@ namespace miro
     extern void initialize();
     extern void finalize();
 
-    //!
-    extern const char* GetVersion();
 
 #if MIRO_INCLUDE_BC
 
     //! BC1 support
-    extern void RGB_to_BC1( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGBA_to_BC1( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void BC1_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC1_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void RGB_to_BC1( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGBA_to_BC1( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void BC1_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC1_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
     //! BC2 support
-    extern void RGB_to_BC2( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGBA_to_BC2( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void BC2_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC2_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void RGB_to_BC2( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGBA_to_BC2( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void BC2_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC2_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
     //! BC3 support
-    extern void RGB_to_BC3( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGBA_to_BC3( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void BC3_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC3_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC1_to_BC3( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
+    extern void RGB_to_BC3( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGBA_to_BC3( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void BC3_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC3_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC1_to_BC3( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
 
     //! BC4 support
-    extern void L_to_BC4( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void BC4_to_L( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC4_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC4_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void L_to_BC4( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void BC4_to_L( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC4_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC4_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
     //! BC5 support
-    extern void RGBA_to_BC5( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGB_to_BC5( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void BC5_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void BC5_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void RGBA_to_BC5( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGB_to_BC5( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void BC5_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void BC5_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
 #endif
 
@@ -79,27 +77,27 @@ namespace miro
 #if MIRO_INCLUDE_ASTC
 
     //! ASTC 4x4 RGBA low support
-    extern void RGBA_to_ASTC4x4RGBAL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGB_to_ASTC4x4RGBAL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void ASTC4x4RGBAL_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void ASTC4x4RGBAL_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void RGBA_to_ASTC4x4RGBAL( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGB_to_ASTC4x4RGBAL( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void ASTC4x4RGBAL_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void ASTC4x4RGBAL_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
     //! ASTC 4x4 RGB low support
-    extern void RGB_to_ASTC4x4RGBL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGBA_to_ASTC4x4RGBL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void ASTC4x4RGBL_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void ASTC4x4RGBL_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-	extern void L_to_ASTC4x4RGBL(uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q);
+    extern void RGB_to_ASTC4x4RGBL( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGBA_to_ASTC4x4RGBL( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void ASTC4x4RGBL_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void ASTC4x4RGBL_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+	extern void L_to_ASTC4x4RGBL(uint32 sx, uint32 sy, const uint8* from, uint8* to, int q);
     
 	//! Convenience transforms
-    extern void ASTC4x4RGBL_to_ASTC4x4RGBAL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void ASTC4x4RGBAL_to_ASTC4x4RGBL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void ASTC4x4RGBL_to_ASTC4x4RGBAL( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void ASTC4x4RGBAL_to_ASTC4x4RGBL( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
     //! ASTC 4x4 RG low support
-    extern void RGB_to_ASTC4x4RGL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void RGBA_to_ASTC4x4RGL( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q );
-    extern void ASTC4x4RGL_to_RGB( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
-    extern void ASTC4x4RGL_to_RGBA( uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to );
+    extern void RGB_to_ASTC4x4RGL( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void RGBA_to_ASTC4x4RGL( uint32 sx, uint32 sy, const uint8* from, uint8* to, int q );
+    extern void ASTC4x4RGL_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
+    extern void ASTC4x4RGL_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
 #endif
 

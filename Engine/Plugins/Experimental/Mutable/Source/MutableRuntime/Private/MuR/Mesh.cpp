@@ -10,7 +10,7 @@
 #include "MuR/MeshPrivate.h"
 #include "MuR/MutableTrace.h"
 
-#include <utility>
+#include <limits>
 
 namespace mu
 {
@@ -799,8 +799,8 @@ void Mesh::GetVertexMap
     for ( int ov=0; ov<otherVertexCount; ++ov )
     {
         float v = (*itop)[MUTABLE_BUCKET_CHANNEL];
-        rangeMin = std::min( rangeMin, v );
-        rangeMax = std::max( rangeMax, v );
+        rangeMin = FMath::Min( rangeMin, v );
+        rangeMax = FMath::Max( rangeMax, v );
         ++itop;
     }
     rangeMin -= tolerance;

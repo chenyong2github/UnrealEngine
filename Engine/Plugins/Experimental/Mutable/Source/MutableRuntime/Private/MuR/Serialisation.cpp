@@ -11,8 +11,7 @@
 #include "MuR/MemoryPrivate.h"
 #include "MuR/SerialisationPrivate.h"
 
-#include <memory>
-#include <utility>
+#include <limits>
 
 
 namespace mu
@@ -50,7 +49,7 @@ namespace mu
             check( size<std::numeric_limits<size_t>::max() );
 
             const uint8_t* pSource = ((const uint8_t*)(m_pD->m_pBuffer))+m_pD->m_pos;
-            memcpy( pData, pSource, (size_t)size );
+            FMemory::Memcpy( pData, pSource, (size_t)size );
             m_pD->m_pos += size;
         }
     }
@@ -90,7 +89,7 @@ namespace mu
 
             uint64 pos = m_pD->m_buffer.Num();
             m_pD->m_buffer.SetNum( pos + size, false );
-            memcpy( &m_pD->m_buffer[pos], pData, size );
+			FMemory::Memcpy( &m_pD->m_buffer[pos], pData, size );
         }
     }
 

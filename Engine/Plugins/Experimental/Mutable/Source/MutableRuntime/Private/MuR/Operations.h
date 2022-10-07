@@ -1028,7 +1028,7 @@ namespace mu
         {
             if (o.type!=type) return false;
             //if (o.flags!=flags) return false;
-            if (mutable_memcmp(&o.args, &args, sizeof(ARGS))) return false;
+            if (FMemory::Memcmp(&o.args, &args, sizeof(ARGS))) return false;
             return true;
         }
 
@@ -1038,7 +1038,7 @@ namespace mu
             if (o.type>type) return false;
 //            if (o.flags<flags) return true;
 //            if (o.flags>flags) return false;
-            if (mutable_memcmp(&o.args, &args, sizeof(ARGS))<0) return true;
+            if (FMemory::Memcmp(&o.args, &args, sizeof(ARGS))<0) return true;
             return false;
         }
 

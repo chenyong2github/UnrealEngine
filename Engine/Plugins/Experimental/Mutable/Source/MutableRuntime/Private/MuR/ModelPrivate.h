@@ -49,7 +49,7 @@ namespace mu
     {
         size_t pos = code.size();
         code.resize( code.size()+sizeof(DATA) );
-        memcpy( &code[pos], &data, sizeof(DATA) );
+		FMemory::Memcpy (&code[pos], &data, sizeof(DATA));
     }
 
 
@@ -614,7 +614,7 @@ namespace mu
 
             OP_TYPE result;
             uint64 byteCodeAddress = m_opAddress[at];
-            memcpy( &result, &m_byteCode[byteCodeAddress], sizeof(OP_TYPE) );
+			FMemory::Memcpy( &result, &m_byteCode[byteCodeAddress], sizeof(OP_TYPE) );
             check( result<OP_TYPE::COUNT);
             return result;
         }
@@ -625,7 +625,7 @@ namespace mu
             ARGS result;
             uint64 byteCodeAddress = m_opAddress[at];
             byteCodeAddress += sizeof(OP_TYPE);
-            memcpy( &result, &m_byteCode[byteCodeAddress], sizeof(ARGS));
+			FMemory::Memcpy( &result, &m_byteCode[byteCodeAddress], sizeof(ARGS));
             return result;
         }
 

@@ -16,8 +16,6 @@
 
 #include "Math/UnrealMathUtility.h"
 
-#include <memory>
-
 
 namespace mu
 {

@@ -4,9 +4,6 @@
 
 #include "CoreTypes.h"
 
-#include <cstdint>
-#include <cstring>	// for size_t in some platforms
-
 namespace mu
 {
 	//! \defgroup runtime Run-time classes
@@ -26,7 +23,7 @@ namespace mu
 	//! \ingroup runtime
 	MUTABLERUNTIME_API extern void Initialize
 		(
-            void* (*customMalloc)( size_t, uint32_t ),
+            void* (*customMalloc)( size_t, uint32 ),
             void (*customFree)( void* )
 		);
 
@@ -38,7 +35,7 @@ namespace mu
 	//! Memory management functions to be used inside the library. No other memory allocation is
 	//! allowed.
 	MUTABLERUNTIME_API extern void* mutable_malloc(size_t size);
-	MUTABLERUNTIME_API extern void* mutable_malloc_aligned(size_t size, uint32_t alignment);
+	MUTABLERUNTIME_API extern void* mutable_malloc_aligned(size_t size, uint32 alignment);
 	MUTABLERUNTIME_API extern void mutable_free(void* ptr);
 	MUTABLERUNTIME_API extern void mutable_free(void* ptr, size_t size);
 	MUTABLERUNTIME_API extern void mutable_free_aligned(void* ptr, size_t size);

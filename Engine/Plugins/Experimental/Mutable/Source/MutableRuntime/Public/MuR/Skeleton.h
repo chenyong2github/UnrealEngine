@@ -2,9 +2,8 @@
 
 #pragma once
 
-//#include "MuR/MutableMath.h"
-#include "../Private/MuR/MemoryPrivate.h"
-#include "../Private/MuR/SerialisationPrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/SerialisationPrivate.h"
 #include "Containers/Array.h"
 #include "HAL/PlatformMath.h"
 #include "Math/Transform.h"
@@ -13,8 +12,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-
-#include <memory>
 
 
 namespace mu
@@ -93,7 +90,7 @@ namespace mu
 		//!
 		inline void Serialise(OutputArchive& arch) const
 		{
-			uint32_t ver = 4;
+			uint32 ver = 4;
 			arch << ver;
 
 			arch << m_bones;
@@ -104,7 +101,7 @@ namespace mu
 		//!
 		inline void Unserialise(InputArchive& arch)
 		{
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver >= 3);
 

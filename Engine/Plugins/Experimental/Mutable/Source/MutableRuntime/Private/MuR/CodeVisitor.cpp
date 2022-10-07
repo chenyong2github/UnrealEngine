@@ -6,10 +6,6 @@
 #include "HAL/PlatformCrt.h"
 #include "MuR/MutableTrace.h"
 
-#include <functional>
-#include <memory>
-#include <utility>
-
 namespace mu
 {
 

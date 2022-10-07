@@ -6,24 +6,22 @@
 #include "Misc/AssertionMacros.h"
 #include "MuR/MemoryPrivate.h"
 
-#include <memory>
-#include <utility>
 
 namespace mu
 {
 
     //---------------------------------------------------------------------------------------------
-    uint32_t CompressRLE_L( int32 width, int32 rows, const uint8_t* pBaseData, uint8_t* destData, uint32_t destDataSize )
+    uint32 CompressRLE_L( int32 width, int32 rows, const uint8* pBaseData, uint8* destData, uint32 destDataSize )
     {
-		const uint8_t* InitialBaseData = pBaseData;
+		const uint8* InitialBaseData = pBaseData;
 
-        uint8_t* rle = destData;
+        uint8* rle = destData;
 
         size_t maxSize = destDataSize;
 
-        // The first uint32_t will be the total mip size.
+        // The first uint32 will be the total mip size.
         // Then there is an offset from the initial data pointer for each line.
-        uint32_t offset = sizeof( uint32_t ) * ( rows + 1 );
+        uint32 offset = sizeof( uint32 ) * ( rows + 1 );
 
         // Could happen in an image of 1x100, for example.
         if ( offset >= maxSize )
@@ -33,16 +31,16 @@ namespace mu
 
         for ( int r = 0; r < rows; ++r )
         {
-            uint32_t* pOffset = (uint32_t*)&rle[sizeof( uint32_t ) * ( r + 1 )];
-            FMemory::Memmove( pOffset, &offset, sizeof( uint32_t ) );
+            uint32* pOffset = (uint32*)&rle[sizeof( uint32 ) * ( r + 1 )];
+            FMemory::Memmove( pOffset, &offset, sizeof( uint32 ) );
 
-            const uint8_t* pBaseRowEnd = pBaseData + width;
+            const uint8* pBaseRowEnd = pBaseData + width;
             while ( pBaseData != pBaseRowEnd )
             {
                 // Count equal pixels
-                uint8_t equalPixel = *pBaseData;
+                uint8 equalPixel = *pBaseData;
 
-                uint16_t equal = 0;
+                uint16 equal = 0;
                 while ( pBaseData != pBaseRowEnd && equal < 65535 && pBaseData[0] == equalPixel )
                 {
                     pBaseData++;
@@ -50,8 +48,8 @@ namespace mu
                 }
 
                 // Count different pixels
-                uint8_t different = 0;
-                const uint8_t* pDifferentPixels = pBaseData;
+                uint8 different = 0;
+                const uint8* pDifferentPixels = pBaseData;
                 while ( pBaseData < pBaseRowEnd - 1 && different < 255 &&
                         // Last in the row, or different from next
                         ( pBaseData == pBaseRowEnd || pBaseData[0] != pBaseData[1] ) )
@@ -65,7 +63,7 @@ namespace mu
                 {
                     return 0;
                 }
-                FMemory::Memmove( &rle[offset], &equal, sizeof( uint16_t ) );
+                FMemory::Memmove( &rle[offset], &equal, sizeof( uint16 ) );
                 offset += 2;
                 rle[offset] = different;
                 ++offset;
@@ -87,7 +85,7 @@ namespace mu
             }
         }
 
-        uint32_t* pTotalSize = (uint32_t*)rle;
+        uint32* pTotalSize = (uint32*)rle;
         *pTotalSize = offset;
 
 #ifdef MUTABLE_DEBUG_RLE		
@@ -120,7 +118,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    uint32_t UncompressRLE_L( int32 width, int32 rows, const uint8* pStartBaseData, uint8* pStartDestData )
+    uint32 UncompressRLE_L( int32 width, int32 rows, const uint8* pStartBaseData, uint8* pStartDestData )
     {
 		const uint8* pBaseData = pStartBaseData;
 		uint8* pDestData = pStartDestData;
@@ -137,10 +135,10 @@ namespace mu
                 FMemory::Memmove(&equal, pBaseData, sizeof(uint16));
                 pBaseData += 2;
 
-                uint8_t different = *pBaseData;
+                uint8 different = *pBaseData;
                 ++pBaseData;
 
-                uint8_t equalPixel = *pBaseData;
+                uint8 equalPixel = *pBaseData;
                 ++pBaseData;
 
                 if (equal)
@@ -167,27 +165,27 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    uint32_t CompressRLE_L1( int32 width, int32 rows,
-                             const uint8_t* pBaseData,
-                             uint8_t* destData,
-                             uint32_t destDataSize )
+    uint32 CompressRLE_L1( int32 width, int32 rows,
+                             const uint8* pBaseData,
+                             uint8* destData,
+                             uint32 destDataSize )
     {
         vector<int8_t> rle;
         rle.reserve(  (width * rows) / 2 );
 
-        uint32_t offset = sizeof(uint32_t)*(rows+1);
+        uint32 offset = sizeof(uint32)*(rows+1);
         rle.resize( offset );
 
         for ( int r=0; r<rows; ++r )
         {
-            uint32_t* pOffset = (uint32_t*) &rle[ sizeof(uint32_t)*(r+1) ];
+            uint32* pOffset = (uint32*) &rle[ sizeof(uint32)*(r+1) ];
             *pOffset = offset;
 
-            const uint8_t* pBaseRowEnd = pBaseData + width;
+            const uint8* pBaseRowEnd = pBaseData + width;
             while ( pBaseData!=pBaseRowEnd )
             {
                 // Count 0 pixels
-                uint16_t zeroPixels = 0;
+                uint16 zeroPixels = 0;
                 while ( pBaseData!=pBaseRowEnd
                         && !*pBaseData )
                 {
@@ -196,7 +194,7 @@ namespace mu
                 }
 
                 // Count 1 pixels
-                uint16_t onePixels = 0;
+                uint16 onePixels = 0;
                 while ( pBaseData!=pBaseRowEnd
                         && *pBaseData )
                 {
@@ -206,10 +204,10 @@ namespace mu
 
                 // Copy block
                 rle.resize( rle.size()+4 );
-                FMemory::Memmove(&rle[ offset ], &zeroPixels, sizeof(uint16_t));
+                FMemory::Memmove(&rle[ offset ], &zeroPixels, sizeof(uint16));
                 offset += 2;
 
-                FMemory::Memmove(&rle[ offset ], &onePixels, sizeof(uint16_t));
+                FMemory::Memmove(&rle[ offset ], &onePixels, sizeof(uint16));
                 offset += 2;
             }
         }
@@ -220,7 +218,7 @@ namespace mu
             return 0;
         }
 
-        uint32_t* pTotalSize = (uint32_t*) &rle[ 0 ];
+        uint32* pTotalSize = (uint32*) &rle[ 0 ];
         *pTotalSize = offset;
 
         FMemory::Memmove( destData, &rle[0], offset );
@@ -231,24 +229,24 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    uint32_t UncompressRLE_L1( int width, int rows, const uint8_t* pStartBaseData, uint8_t* pDestData )
+    uint32 UncompressRLE_L1( int width, int rows, const uint8* pStartBaseData, uint8* pDestData )
     {
-        const uint8_t* pBaseData = pStartBaseData;
-        pBaseData += sizeof(uint32_t); // Total mip size
-        pBaseData += rows*sizeof(uint32_t);
+        const uint8* pBaseData = pStartBaseData;
+        pBaseData += sizeof(uint32); // Total mip size
+        pBaseData += rows*sizeof(uint32);
 
         for ( int r=0; r<rows; ++r )
         {
-            const uint8_t* pDestRowEnd = pDestData + width;
+            const uint8* pDestRowEnd = pDestData + width;
             while ( pDestData!=pDestRowEnd )
             {
                 // Decode header
-                uint16_t zeroPixels = 0;
-                FMemory::Memmove(&zeroPixels, pBaseData, sizeof(uint16_t));
+                uint16 zeroPixels = 0;
+                FMemory::Memmove(&zeroPixels, pBaseData, sizeof(uint16));
                 pBaseData += 2;
 
-                uint16_t onePixels = 0;
-                FMemory::Memmove(&onePixels, pBaseData, sizeof(uint16_t));
+                uint16 onePixels = 0;
+                FMemory::Memmove(&onePixels, pBaseData, sizeof(uint16));
                 pBaseData += 2;
 
                 if (zeroPixels)
@@ -266,36 +264,36 @@ namespace mu
         }
 
         size_t totalSize = pBaseData-pStartBaseData;
-        check( totalSize==*(uint32_t*)pStartBaseData );
+        check( totalSize==*(uint32*)pStartBaseData );
 
-        return (uint32_t)totalSize;
+        return (uint32)totalSize;
     }
 
 
     //---------------------------------------------------------------------------------------------
     void CompressRLE_RGBA( int width, int rows,
-                           const uint8_t* pBaseDataByte,
+                           const uint8* pBaseDataByte,
                            TArray<uint8>& destData )
     {
         // TODO: Support for compression from compressed data size, like L_RLE formats.
         vector<int8_t> rle;
         rle.reserve(  (width*rows) );
 
-        const uint32_t* pBaseData = (const uint32_t*)pBaseDataByte;
+        const uint32* pBaseData = (const uint32*)pBaseDataByte;
         rle.resize( rows*4 );
-        uint32_t offset = sizeof(uint32_t)*rows;
+        uint32 offset = sizeof(uint32)*rows;
         for ( int r=0; r<rows; ++r )
         {
-            uint32_t* pOffset = (uint32_t*) &rle[ sizeof(uint32_t)*r ];
-            FMemory::Memmove(pOffset, &offset, sizeof(uint32_t));
+            uint32* pOffset = (uint32*) &rle[ sizeof(uint32)*r ];
+            FMemory::Memmove(pOffset, &offset, sizeof(uint32));
 
-            const uint32_t* pBaseRowEnd = pBaseData + width;
+            const uint32* pBaseRowEnd = pBaseData + width;
             while ( pBaseData!=pBaseRowEnd )
             {
                 // Count equal pixels
-                uint32_t equalPixel = *pBaseData;
+                uint32 equalPixel = *pBaseData;
 
-                uint16_t equal = 0;
+                uint16 equal = 0;
                 while ( pBaseData<pBaseRowEnd-3 && equal<65535
                         && pBaseData[0]==equalPixel && pBaseData[1]==equalPixel
                         && pBaseData[2]==equalPixel && pBaseData[3]==equalPixel )
@@ -305,8 +303,8 @@ namespace mu
                 }
 
                 // Count different pixels
-                uint16_t different = 0;
-                const uint32_t* pDifferentPixels = pBaseData;
+                uint16 different = 0;
+                const uint32* pDifferentPixels = pBaseData;
                 while ( pBaseData!=pBaseRowEnd
                         &&
                         different<65535
@@ -325,18 +323,18 @@ namespace mu
 
                 // Copy header
                 rle.resize( rle.size()+8 );
-                FMemory::Memmove(&rle[ offset ], &equal, sizeof(uint16_t));
+                FMemory::Memmove(&rle[ offset ], &equal, sizeof(uint16));
                 offset += 2;
-                FMemory::Memmove(&rle[ offset ], &different, sizeof(uint16_t));
+                FMemory::Memmove(&rle[ offset ], &different, sizeof(uint16));
                 offset += 2;
-                FMemory::Memmove(&rle[ offset ], &equalPixel, sizeof(uint32_t));
+                FMemory::Memmove(&rle[ offset ], &equalPixel, sizeof(uint32));
                 offset += 4;
 
                 // Copy the different pixels
 				if (different)
 				{
 					// If we are at the end of a row, maybe there isn't a block of 4 pixels
-					uint16_t BytesToCopy = FMath::Min(different * 4 * 4, uint16_t(pBaseRowEnd - pDifferentPixels) * 4);
+					uint16 BytesToCopy = FMath::Min(different * 4 * 4, uint16(pBaseRowEnd - pDifferentPixels) * 4);
 
 					rle.resize( rle.size()+ BytesToCopy);
                     FMemory::Memmove( &rle[offset], pDifferentPixels, BytesToCopy);
@@ -354,30 +352,30 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void UncompressRLE_RGBA( int width, int rows, const uint8_t* pBaseData, uint8_t* pDestDataB )
+    void UncompressRLE_RGBA( int width, int rows, const uint8* pBaseData, uint8* pDestDataB )
     {
-        uint32_t* pDestData = reinterpret_cast<uint32_t*>( pDestDataB );
+        uint32* pDestData = reinterpret_cast<uint32*>( pDestDataB );
 
-        pBaseData += rows*sizeof(uint32_t);
+        pBaseData += rows*sizeof(uint32);
 
         int pendingPixels = width*rows;
 
         for ( int r=0; r<rows; ++r )
         {
-            const uint32_t* pDestRowEnd = pDestData + width;
+            const uint32* pDestRowEnd = pDestData + width;
             while ( pDestData!=pDestRowEnd )
             {
                 // Decode header
-                uint16_t equal = 0;
-                FMemory::Memmove(&equal, pBaseData, sizeof(uint16_t));
+                uint16 equal = 0;
+                FMemory::Memmove(&equal, pBaseData, sizeof(uint16));
                 pBaseData += 2;
 
-                uint16_t different = 0;
-                FMemory::Memmove(&different, pBaseData, sizeof(uint16_t));
+                uint16 different = 0;
+                FMemory::Memmove(&different, pBaseData, sizeof(uint16));
                 pBaseData += 2;
 
-                uint32_t equalPixel = 0;
-                FMemory::Memmove(&equalPixel, pBaseData, sizeof(uint32_t));
+                uint32 equalPixel = 0;
+                FMemory::Memmove(&equalPixel, pBaseData, sizeof(uint32));
                 pBaseData += 4;
 
                 check((equal+different)*4<=pendingPixels);
@@ -392,7 +390,7 @@ namespace mu
 				if (different)
 				{
 					// If we are at the end of a row, maybe there isn't a block of 4 pixels
-					uint16_t PixelsToCopy = FMath::Min(uint16_t(different * 4), uint16_t(pDestRowEnd - pDestData));
+					uint16 PixelsToCopy = FMath::Min(uint16(different * 4), uint16(pDestRowEnd - pDestData));
 
 					FMemory::Memmove( pDestData, pBaseData, PixelsToCopy *4 );
 					pDestData += PixelsToCopy;
@@ -409,7 +407,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     struct UINT24
     {
-        uint8_t d[3];
+        uint8 d[3];
 
         bool operator==( const UINT24& o ) const
         {
@@ -426,7 +424,7 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     void CompressRLE_RGB( int width, int rows,
-                          const uint8_t* pBaseDataByte,
+                          const uint8* pBaseDataByte,
                           TArray<uint8>& destData )
     {
         vector<int8_t> rle;
@@ -434,10 +432,10 @@ namespace mu
 
         const UINT24* pBaseData = (const UINT24*)pBaseDataByte;
         rle.resize( rows*4 );
-        uint32_t offset = sizeof(uint32_t)*rows;
+        uint32 offset = sizeof(uint32)*rows;
         for ( int r=0; r<rows; ++r )
         {
-            uint32_t* pOffset = (uint32_t*) &rle[ sizeof(uint32_t)*r ];
+            uint32* pOffset = (uint32*) &rle[ sizeof(uint32)*r ];
             *pOffset = offset;
 
             const UINT24* pBaseRowEnd = pBaseData + width;
@@ -446,7 +444,7 @@ namespace mu
                 // Count equal pixels
                 UINT24 equalPixel = *pBaseData;
 
-                uint16_t equal = 0;
+                uint16 equal = 0;
                 while ( pBaseData<pBaseRowEnd-3 && equal<65535
                         && pBaseData[0]==equalPixel && pBaseData[1]==equalPixel
                         && pBaseData[2]==equalPixel && pBaseData[3]==equalPixel )
@@ -456,7 +454,7 @@ namespace mu
                 }
 
                 // Count different pixels
-                uint16_t different = 0;
+                uint16 different = 0;
                 const UINT24* pDifferentPixels = pBaseData;
                 while ( pBaseData!=pBaseRowEnd
                         &&
@@ -476,9 +474,9 @@ namespace mu
 
                 // Copy header
                 rle.resize( rle.size()+8 );
-                FMemory::Memmove( &rle[offset], &equal, sizeof(uint16_t) );
+                FMemory::Memmove( &rle[offset], &equal, sizeof(uint16) );
                 offset += 2;
-                FMemory::Memmove( &rle[offset], &different, sizeof(uint16_t) );
+                FMemory::Memmove( &rle[offset], &different, sizeof(uint16) );
                 offset += 2;
                 FMemory::Memmove( &rle[offset], &equalPixel, sizeof(UINT24) );
                 offset += 4;
@@ -487,7 +485,7 @@ namespace mu
 				if (different)
 				{
 					// If we are at the end of a row, maybe there isn't a block of 4 pixels
-					uint16_t BytesToCopy = FMath::Min(different * 4 * 3, uint16_t(pBaseRowEnd- pDifferentPixels)*3 );
+					uint16 BytesToCopy = FMath::Min(different * 4 * 3, uint16(pBaseRowEnd- pDifferentPixels)*3 );
 
 					rle.resize( rle.size()+BytesToCopy );
                     FMemory::Memmove( &rle[offset], pDifferentPixels, BytesToCopy );
@@ -505,11 +503,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void UncompressRLE_RGB( int width, int rows, const uint8_t* pBaseData, uint8_t* pDestDataB )
+    void UncompressRLE_RGB( int width, int rows, const uint8* pBaseData, uint8* pDestDataB )
     {
         UINT24* pDestData = reinterpret_cast<UINT24*>( pDestDataB );
 
-        pBaseData += rows*sizeof(uint32_t);
+        pBaseData += rows*sizeof(uint32);
 
         for ( int r=0; r<rows; ++r )
         {
@@ -517,10 +515,10 @@ namespace mu
             while ( pDestData!=pDestRowEnd )
             {
                 // Decode header
-                uint16_t equal = *(const uint16_t*)pBaseData;
+                uint16 equal = *(const uint16*)pBaseData;
                 pBaseData += 2;
 
-                uint16_t different = *(const uint16_t*)pBaseData;
+                uint16 different = *(const uint16*)pBaseData;
                 pBaseData += 2;
 
                 UINT24 equalPixel = *(const UINT24*)pBaseData;
@@ -535,7 +533,7 @@ namespace mu
 				if (different)
 				{
 					// If we are at the end of a row, maybe there isn't a block of 4 pixels
-					uint16_t PixelsToCopy = FMath::Min(uint16_t(different * 4), uint16_t(pDestRowEnd - pDestData));
+					uint16 PixelsToCopy = FMath::Min(uint16(different * 4), uint16(pDestRowEnd - pDestData));
 
 					FMemory::Memmove( pDestData, pBaseData, PixelsToCopy*3);
 					pDestData += PixelsToCopy;

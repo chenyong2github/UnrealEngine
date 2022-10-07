@@ -19,9 +19,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 
-#include <memory>
-#include <utility>
-
 
 namespace mu
 {

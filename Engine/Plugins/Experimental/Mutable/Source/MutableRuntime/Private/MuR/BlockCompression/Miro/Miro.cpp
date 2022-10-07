@@ -5,20 +5,12 @@
 #include "Async/ParallelFor.h"
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathSSE.h"
+#include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
-
-#include <cmath>
-#include <cstdlib>
-#include <memory>
+#include "Templates/UniquePtr.h"
 
 // debug
 //static bool s_debuglog = false;
-
-#if defined(MIRO_SSE)
-#if MIRO_SSE>=2
-#include <pmmintrin.h>
-#endif
-#endif
 
 #ifdef _MSC_VER
 #define MIRO_ALIGN __declspec(align(16))
@@ -2548,26 +2540,26 @@ namespace impl
 
 		inline vec3i_t floor(vec3f_t color) {
 			vec3i_t result;
-			result.r = static_cast<int>(std::floor(color.r));
-			result.g = static_cast<int>(std::floor(color.g));
-			result.b = static_cast<int>(std::floor(color.b));
+			result.r = static_cast<int>(FMath::Floor(color.r));
+			result.g = static_cast<int>(FMath::Floor(color.g));
+			result.b = static_cast<int>(FMath::Floor(color.b));
 			return result;
 		}
 
 		inline vec3i_t round(vec3f_t color) {
 			vec3i_t result;
-			result.r = static_cast<int>(std::round(color.r));
-			result.g = static_cast<int>(std::round(color.g));
-			result.b = static_cast<int>(std::round(color.b));
+			result.r = static_cast<int>(FMath::RoundToInt32(color.r));
+			result.g = static_cast<int>(FMath::RoundToInt32(color.g));
+			result.b = static_cast<int>(FMath::RoundToInt32(color.b));
 			return result;
 		}
 
 		inline vec4i_t round(vec4f_t color) {
 			vec4i_t result;
-			result.r = static_cast<int>(std::round(color.r));
-			result.g = static_cast<int>(std::round(color.g));
-			result.b = static_cast<int>(std::round(color.b));
-			result.a = static_cast<int>(std::round(color.a));
+			result.r = static_cast<int>(FMath::RoundToInt32(color.r));
+			result.g = static_cast<int>(FMath::RoundToInt32(color.g));
+			result.b = static_cast<int>(FMath::RoundToInt32(color.b));
+			result.a = static_cast<int>(FMath::RoundToInt32(color.a));
 			return result;
 		}
 
@@ -4837,8 +4829,8 @@ namespace impl
 			// stack is to big
 			//        int texels_of_weight[MAX_WEIGHTS_PER_BLOCK][MAX_TEXELS_PER_BLOCK];
 			//        int texelweights_of_weight[MAX_WEIGHTS_PER_BLOCK][MAX_TEXELS_PER_BLOCK];
-			std::unique_ptr<int[]> texels_of_weight(new int[MAX_WEIGHTS_PER_BLOCK * MAX_TEXELS_PER_BLOCK]);
-			std::unique_ptr<int[]> texelweights_of_weight(new int[MAX_WEIGHTS_PER_BLOCK * MAX_TEXELS_PER_BLOCK]);
+			TUniquePtr<int[]> texels_of_weight(new int[MAX_WEIGHTS_PER_BLOCK * MAX_TEXELS_PER_BLOCK]);
+			TUniquePtr<int[]> texelweights_of_weight(new int[MAX_WEIGHTS_PER_BLOCK * MAX_TEXELS_PER_BLOCK]);
 
 			for (i = 0; i < MAX_WEIGHTS_PER_BLOCK; i++)
 			{
@@ -8867,12 +8859,6 @@ namespace miro
 	}
 
 
-	//---------------------------------------------------------------------------------------------
-	const char* GetVersion()
-	{
-		return "0.0.2";
-	}
-
 #if MIRO_INCLUDE_BC
 
 	//---------------------------------------------------------------------------------------------
@@ -10275,7 +10261,7 @@ namespace miro
 
 
 	//---------------------------------------------------------------------------------------------
-	void L_to_ASTC4x4RGBL(uint32_t sx, uint32_t sy, const uint8_t* from, uint8_t* to, int q)
+	void L_to_ASTC4x4RGBL(uint32 sx, uint32 sy, const uint8_t* from, uint8_t* to, int q)
 	{
 		// Almost the same as RGB_to_ASTC4x4RGBL
 		(void)q;

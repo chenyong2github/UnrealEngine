@@ -5,7 +5,7 @@
 #include "MuR/Layout.h"
 #include "MuR/Platform.h"
 
-#include <algorithm>
+#include <limits>
 
 
 namespace mu
@@ -61,7 +61,7 @@ namespace mu
 	// 		int thisArea = blocks[index][0] * blocks[index][1];
 
 	// 		int p;
-	// 		for ( p=0; p<(int)sorted.size(); ++p )
+	// 		for ( p=0; p<(int)sorted.Num(); ++p )
 	// 		{
 	// 			int pos = sorted[p];
 	// 			int posHeight = blocks[pos][1];
@@ -81,7 +81,7 @@ namespace mu
 	// 	vector< vec2<int> > positions( blockCount );
 	// 	maxY = 0;
 
-	// 	for ( int p=0; p<(int)sorted.size(); ++p )
+	// 	for ( int p=0; p<(int)sorted.Num(); ++p )
 	// 	{
 	// 		int index = sorted[p];
 
@@ -195,19 +195,19 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     struct SCRATCH_LAYOUT_PACK
     {
-        vector< vec2<int> > blocks;
-        vector< LAY_BLOCK > sorted;
-        vector< vec2<int> > positions;
-		vector< int > priorities;
-		vector< vec2<int> > reductions;
+        TArray< vec2<int> > blocks;
+		TArray< LAY_BLOCK > sorted;
+		TArray< vec2<int> > positions;
+		TArray< int > priorities;
+		TArray< vec2<int> > reductions;
     };
 
 
     inline string DebugGetBlockAt( const SCRATCH_LAYOUT_PACK& scratch,
-                                   const vector<uint8_t>& packedFlag,
+                                   const TArray<uint8_t>& packedFlag,
                                    int x, int y )
     {
-        for ( size_t b=0; b<packedFlag.size(); ++b )
+        for ( size_t b=0; b<packedFlag.Num(); ++b )
         {
             if (packedFlag[b])
             {
@@ -236,7 +236,7 @@ namespace mu
     //     check( pResult->GetBlockCount() == pSourceLayout->GetBlockCount() );
 
     //     int blockCount = pSourceLayout->GetBlockCount();
-    //     check( (int)scratch->blocks.size()==blockCount );
+    //     check( (int)scratch->blocks.Num()==blockCount );
 
     //     // Look for the maximum block sizes on the layout and the total area
     //     int maxX = 0;
@@ -272,14 +272,14 @@ namespace mu
     //     }
 
     //     // Sort by height, area
-    //     check( (int)scratch->sorted.size()==blockCount );
+    //     check( (int)scratch->sorted.Num()==blockCount );
     //     for ( int index=0; index<blockCount; ++index )
     //     {
     //         scratch->sorted[index] = LAY_BLOCK( index, scratch->blocks[index], scratch->priorities[index] );
     //     }
     //     std::sort( scratch->sorted.begin(), scratch->sorted.end(), CompareBlocks );
 
-    //     check( (int)scratch->sorted.size()==blockCount );
+    //     check( (int)scratch->sorted.Num()==blockCount );
 
     //     bool fits = false;
     //     int iterations = 0;
@@ -294,7 +294,7 @@ namespace mu
     //         mutable_memset( horizon, 0, 256*sizeof(int16_t) );
     //         maxY = 0;
 
-    //         for ( size_t p=0; p<scratch->sorted.size(); ++p )
+    //         for ( size_t p=0; p<scratch->sorted.Num(); ++p )
     //         {
     //             // Seek for the lowest span where the block fits
     //             int currentLevel = std::numeric_limits<int>::max();
@@ -442,7 +442,7 @@ namespace mu
 
 		// Number of blocks alrady packed
 		size_t packed = 0;
-		vector<uint8_t> packedFlag(scratch->sorted.size(), 0);
+		vector<uint8_t> packedFlag(scratch->sorted.Num(), 0);
 
 		// Pack with fixed horizontal size
 		check(*maxX < 256);
@@ -454,7 +454,7 @@ namespace mu
 
 		int iterations = 0;
 
-		while (packed < scratch->sorted.size() || iterations > 5000)
+		while (packed < scratch->sorted.Num() || iterations > 5000)
 		{
 			++iterations;
 
@@ -464,7 +464,7 @@ namespace mu
 			int bestWithHole = -1;
 			int bestWithHoleX = -1;
 			int bestWithHoleLevel = -1;
-			for (size_t candidate = 0; candidate < scratch->sorted.size(); ++candidate)
+			for (size_t candidate = 0; candidate < scratch->sorted.Num(); ++candidate)
 			{
 				// Skip it if we packed it already
 				if (packedFlag[candidate]) continue;
@@ -494,12 +494,12 @@ namespace mu
 					// Does it make an unfillable hole with the top or side?
 					int minX = std::numeric_limits<int>::max();
 					int minY = std::numeric_limits<int>::max();
-					for (size_t b = 0; b < scratch->sorted.size(); ++b)
+					for (size_t b = 0; b < scratch->sorted.Num(); ++b)
 					{
 						if (!packedFlag[b] && b != candidate)
 						{
-							minX = std::min(minX, scratch->sorted[b].size[0]);
-							minY = std::min(minY, scratch->sorted[b].size[1]);
+							minX = FMath::Min(minX, scratch->sorted[b].size[0]);
+							minY = FMath::Min(minY, scratch->sorted[b].size[1]);
 						}
 					}
 
@@ -572,7 +572,7 @@ namespace mu
 
 			// Store
 			scratch->positions[scratch->sorted[best].index] = vec2<int>(bestX, bestLevel);
-			*maxY = std::max(*maxY, bestLevel + scratch->sorted[best].size[1]);
+			*maxY = FMath::Max(*maxY, bestLevel + scratch->sorted[best].size[1]);
 
 			if (packStrategy == EPackStrategy::FIXED_LAYOUT && *maxY > layoutSizeY)
 			{
@@ -595,7 +595,7 @@ namespace mu
 			//                AXE_LOG("layout",Warning,"--------------------------------------------------");
 		}
 
-		if (packed < scratch->sorted.size())
+		if (packed < scratch->sorted.Num())
 		{
 			fits = false;
 		}
@@ -615,7 +615,7 @@ namespace mu
         check( pResult->GetBlockCount() == pSourceLayout->GetBlockCount() );
 
         int blockCount = pSourceLayout->GetBlockCount();
-        check( (int)scratch->blocks.size()==blockCount );
+        check( (int)scratch->blocks.Num()==blockCount );
 
 		//Getting maximum layout grid size:
 		int layoutSizeX, layoutSizeY;
@@ -644,8 +644,8 @@ namespace mu
 				usePriority = true;
 			}
 
-            maxX = std::max( maxX, b.size[0] );
-            maxY = std::max( maxY, b.size[1] );
+            maxX = FMath::Max( maxX, b.size[0] );
+            maxY = FMath::Max( maxY, b.size[1] );
 
             area += b.size[0] * b.size[1];
 
@@ -717,7 +717,7 @@ namespace mu
 				//recalculating area and maximum block sizes
 				for (int index = 0; index < blockCount; ++index)
 				{
-					maxX = std::max(maxX, scratch->blocks[index][0]);
+					maxX = FMath::Max(maxX, scratch->blocks[index][0]);
 					area += scratch->blocks[index][0] * scratch->blocks[index][1];
 				}
 			}
@@ -739,7 +739,7 @@ namespace mu
 				//recalculating area and maximum block sizes
 				for (int index = 0; index < blockCount; ++index)
 				{
-					maxY = std::max(maxY, scratch->blocks[index][1]);
+					maxY = FMath::Max(maxY, scratch->blocks[index][1]);
 					area += scratch->blocks[index][0] * scratch->blocks[index][1];
 				}
 			}
@@ -765,19 +765,19 @@ namespace mu
 		int r_it = 0;
 
         // Sort by height, area
-        check( (int)scratch->sorted.size()==blockCount );
+        check( (int)scratch->sorted.Num()==blockCount );
         for ( int index=0; index<blockCount; ++index )
         {
             scratch->sorted[index] = LAY_BLOCK( index, scratch->blocks[index], scratch->priorities[index] );
         }
 
-		std::sort(scratch->sorted.begin(), scratch->sorted.end(), CompareBlocks);
+		scratch->sorted.Sort( CompareBlocks);
 		
 		if(pSourceLayout->GetLayoutPackingStrategy() == EPackStrategy::FIXED_LAYOUT)
 		{
 			if (usePriority)	//Sort by priority
 			{
-				std::sort(scratch->sorted.begin(), scratch->sorted.end(), CompareBlocksPriority);
+				scratch->sorted.Sort(CompareBlocksPriority);
 			}
 
 			//Shrink blocks in case we do not have enough space to pack everything
@@ -795,7 +795,7 @@ namespace mu
 			//Sort by height&area before packing
 			if (usePriority)
 			{
-				std::sort(scratch->sorted.begin(), scratch->sorted.end(), CompareBlocks);
+				scratch->sorted.Sort(CompareBlocks);
 			}
 
 			//Try to pack everything
@@ -806,7 +806,7 @@ namespace mu
 				//Sort by priority before shrink
 				if (usePriority)
 				{
-					std::sort(scratch->sorted.begin(), scratch->sorted.end(), CompareBlocksPriority);
+					scratch->sorted.Sort(CompareBlocksPriority);
 				}
 
 				ReduceBlock(blockCount, &area, &r_it, scratch);

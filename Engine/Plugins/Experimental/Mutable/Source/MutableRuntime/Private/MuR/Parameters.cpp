@@ -15,9 +15,6 @@
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/System.h"
 
-#include <memory>
-#include <utility>
-
 
 namespace mu
 {

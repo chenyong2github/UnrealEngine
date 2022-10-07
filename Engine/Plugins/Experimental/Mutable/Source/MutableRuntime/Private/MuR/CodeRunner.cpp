@@ -81,8 +81,6 @@
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
 
-#include <memory>
-#include <utility>
 
 namespace mu
 {
@@ -178,7 +176,7 @@ namespace mu
             OP::ADDRESS resultAt = value ? args.yes : args.no;
 
             // Schedule the end of this instruction if necessary
-            AddOp( SCHEDULED_OP( item.at, item, 2, (uint32_t)value),
+            AddOp( SCHEDULED_OP( item.at, item, 2, (uint32)value),
 				SCHEDULED_OP( resultAt, item) );
 
             break;
@@ -224,7 +222,7 @@ namespace mu
 	{
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.at);
 
-		const uint8_t* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+		const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
 
 		OP::ADDRESS VarAddress;
 		FMemory::Memcpy(&VarAddress, data, sizeof(OP::ADDRESS));
@@ -234,9 +232,9 @@ namespace mu
 		FMemory::Memcpy(&DefAddress, data, sizeof(OP::ADDRESS));
 		data += sizeof(OP::ADDRESS);
 
-		uint32_t CaseCount;
-		FMemory::Memcpy(&CaseCount, data, sizeof(uint32_t));
-		data += sizeof(uint32_t);
+		uint32 CaseCount;
+		FMemory::Memcpy(&CaseCount, data, sizeof(uint32));
+		data += sizeof(uint32);
 
 		switch (item.stage)
 		{
@@ -275,11 +273,11 @@ namespace mu
 			int var = GetMemory().GetInt(CACHE_ADDRESS(VarAddress, item));
 
 			OP::ADDRESS valueAt = DefAddress;
-			for (uint32_t C = 0; C < CaseCount; ++C)
+			for (uint32 C = 0; C < CaseCount; ++C)
 			{
-				int32_t Condition;
-				FMemory::Memcpy(&Condition, data, sizeof(int32_t));
-				data += sizeof(int32_t);
+				int32 Condition;
+				FMemory::Memcpy(&Condition, data, sizeof(int32));
+				data += sizeof(int32);
 
 				OP::ADDRESS At;
 				FMemory::Memcpy(&At, data, sizeof(OP::ADDRESS));
@@ -335,7 +333,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void CodeRunner::RunCode_Instance( SCHEDULED_OP& item,
                                   const Model* pModel,
-                                  uint32_t lodMask
+                                  uint32 lodMask
                                   )
     {
         //MUTABLE_CPUPROFILER_SCOPE(RunCode_Instance);
@@ -1507,7 +1505,7 @@ namespace mu
                 Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(args.source,item) );
                 Ptr<const Mesh> pFormat = GetMemory().GetMesh( CACHE_ADDRESS(args.format,item) );
 
-                uint8_t flags = args.buffers;
+                uint8 flags = args.buffers;
                 MeshPtr pResult;
                 pResult = MeshFormat( pSource.get(),
                                       pFormat.get(),
@@ -1537,19 +1535,19 @@ namespace mu
 
         case OP_TYPE::ME_EXTRACTLAYOUTBLOCK:
         {
-            const uint8_t* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+            const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
 
             mu::OP::ADDRESS source;
             memcpy( &source, data, sizeof(OP::ADDRESS) );
             data += sizeof(OP::ADDRESS);
 
-            uint16_t layout;
-            memcpy( &layout, data, sizeof(uint16_t) );
-            data += sizeof(uint16_t);
+            uint16 layout;
+            memcpy( &layout, data, sizeof(uint16) );
+            data += sizeof(uint16);
 
-            uint16_t blockCount;
-            memcpy( &blockCount, data, sizeof(uint16_t) );
-            data += sizeof(uint16_t);
+            uint16 blockCount;
+            memcpy( &blockCount, data, sizeof(uint16) );
+            data += sizeof(uint16);
 
             switch (item.stage)
             {
@@ -1570,8 +1568,8 @@ namespace mu
                 Ptr<const Mesh> pSource = GetMemory().GetMesh( CACHE_ADDRESS(source,item) );
 
                 // Access with memcpy necessary for unaligned arm issues.
-                uint32_t blocks[1024];
-                memcpy( blocks, data, sizeof(uint32_t)*std::min(1024,int(blockCount)) );
+                uint32 blocks[1024];
+                memcpy( blocks, data, sizeof(uint32)*std::min(1024,int(blockCount)) );
 
                 MeshPtr pResult;
                 pResult = MeshExtractLayoutBlock( pSource.get(),
@@ -1715,7 +1713,7 @@ namespace mu
                                     pModel->GetPrivate()->m_program.m_constantStrings.size() );
 
                     SHAPE selectionShape;
-                    selectionShape.type = (uint8_t)SHAPE::Type::None;
+                    selectionShape.type = (uint8)SHAPE::Type::None;
                     const string& selectionBone = pModel->GetPrivate()->m_program.m_constantStrings[args.vertexSelectionShapeOrBone];
 					pResult = MeshClipMorphPlane(pSource.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, selectionBone, args.maxBoneRadius);
                 }
@@ -1723,7 +1721,7 @@ namespace mu
                 {
                     // No vertex selection
                     SHAPE selectionShape;
-                    selectionShape.type = (uint8_t)SHAPE::Type::None;
+                    selectionShape.type = (uint8)SHAPE::Type::None;
                     pResult = MeshClipMorphPlane(pSource.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape);
                 }
 
@@ -1963,7 +1961,7 @@ namespace mu
 		case OP_TYPE::ME_BINDSHAPE:
 		{
 			OP::MeshBindShapeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshBindShapeArgs>(item.at);
-			const uint8_t* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
 
 			switch (item.stage)
 			{
@@ -2209,7 +2207,7 @@ namespace mu
         {
             // Decode op
             // TODO: Partial decode for each stage
-            const uint8_t* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+            const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
 
             OP::ADDRESS source;
             FMemory::Memcpy(&source,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
@@ -2217,10 +2215,10 @@ namespace mu
             vector<SCHEDULED_OP> conditions;
             vector<OP::ADDRESS> masks;
 
-            uint16_t removes;
-			FMemory::Memcpy(&removes,data,sizeof(uint16_t)); data += sizeof(uint16_t);
+            uint16 removes;
+			FMemory::Memcpy(&removes,data,sizeof(uint16)); data += sizeof(uint16);
 
-            for( uint16_t r=0; r<removes; ++r)
+            for( uint16 r=0; r<removes; ++r)
             {
                 OP::ADDRESS condition;
 				FMemory::Memcpy(&condition,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
@@ -2937,8 +2935,8 @@ namespace mu
                 Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.source,item) );
 
                 FImageSize destSize(
-                            uint16_t( pBase->GetSizeX()*args.factor[0] + 0.5f ),
-                            uint16_t( pBase->GetSizeY()*args.factor[1] + 0.5f ) );
+                            uint16( pBase->GetSizeX()*args.factor[0] + 0.5f ),
+                            uint16( pBase->GetSizeY()*args.factor[1] + 0.5f ) );
 
                 //pResult = ImageResize( pBase.get(), destSize );
                 ImagePtr pResult = ImageResizeLinear(
@@ -3655,7 +3653,7 @@ namespace mu
 					{
 						MUTABLE_CPUPROFILER_SCOPE(ImagePatchResize_Emergency);
 
-						FImageSize blockSize((uint16_t)rect.size[0], (uint16_t)rect.size[1]);
+						FImageSize blockSize((uint16)rect.size[0], (uint16)rect.size[1]);
 						pB = ImageResizeLinear(m_pSettings->GetPrivate()->m_imageCompressionQuality,pB.get(), blockSize);
 					}
 
@@ -4966,11 +4964,12 @@ namespace mu
 					pResult = pSource->Clone();
 
 					SCRATCH_LAYOUT_PACK scratch;
-					scratch.blocks.resize(pSource->GetBlockCount());
-					scratch.sorted.resize(pSource->GetBlockCount());
-					scratch.positions.resize(pSource->GetBlockCount());
-					scratch.priorities.resize(pSource->GetBlockCount());
-					scratch.reductions.resize(pSource->GetBlockCount());
+					int32 BlockCount = pSource->GetBlockCount();
+					scratch.blocks.SetNum(BlockCount);
+					scratch.sorted.SetNum(BlockCount);
+					scratch.positions.SetNum(BlockCount);
+					scratch.priorities.SetNum(BlockCount);
+					scratch.reductions.SetNum(BlockCount);
 
 					LayoutPack3(pResult.get(), pSource.get(), &scratch);
 				}
@@ -5032,7 +5031,7 @@ namespace mu
     void CodeRunner::RunCode( SCHEDULED_OP& item,
                               const Parameters* pParams,
                               const Model* pModel,
-                              uint32_t lodMask)
+                              uint32 lodMask)
     {
 		//UE_LOG( LogMutableCore, Log, TEXT("Running :%5d , %d "), item.at, item.stage );
 		check( item.Type == SCHEDULED_OP::EType::Full );
@@ -5134,7 +5133,7 @@ namespace mu
 	void CodeRunner::RunCodeImageDesc(SCHEDULED_OP& item,
 		const Parameters* pParams,
 		const Model* pModel, 
-		uint32_t lodMask
+		uint32 lodMask
 	)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(RunCodeImageDesc);
@@ -5210,7 +5209,7 @@ namespace mu
 
 		case OP_TYPE::IM_SWITCH:
 		{
-			const uint8_t* data = program.GetOpArgsPointer(item.at);
+			const uint8* data = program.GetOpArgsPointer(item.at);
 		
 			OP::ADDRESS VarAddress;
 			FMemory::Memcpy( &VarAddress, data, sizeof(OP::ADDRESS));
@@ -5220,9 +5219,9 @@ namespace mu
 			FMemory::Memcpy( &DefAddress, data, sizeof(OP::ADDRESS));
 			data += sizeof(OP::ADDRESS);
 
-			uint32_t CaseCount;
-			FMemory::Memcpy( &CaseCount, data, sizeof(uint32_t));
-			data += sizeof(uint32_t);
+			uint32 CaseCount;
+			FMemory::Memcpy( &CaseCount, data, sizeof(uint32));
+			data += sizeof(uint32);
 	
 			switch (item.stage)
 			{
@@ -5248,11 +5247,11 @@ namespace mu
 				int var = GetMemory().GetInt(CACHE_ADDRESS(VarAddress, item));
 
 				OP::ADDRESS valueAt = DefAddress;
-				for (uint32_t C = 0; C < CaseCount; ++C)
+				for (uint32 C = 0; C < CaseCount; ++C)
 				{
-					int32_t Condition;
-					FMemory::Memcpy( &Condition, data, sizeof(int32_t) );
-					data += sizeof(int32_t);
+					int32 Condition;
+					FMemory::Memcpy( &Condition, data, sizeof(int32) );
+					data += sizeof(int32);
 					
 					OP::ADDRESS At;
 					FMemory::Memcpy( &At, data, sizeof(OP::ADDRESS) );
@@ -5478,8 +5477,8 @@ namespace mu
 			{
 				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.customState];
 				FImageSize destSize(
-					uint16_t(ResultAndBaseDesc.m_size[0] * args.factor[0] + 0.5f),
-					uint16_t(ResultAndBaseDesc.m_size[1] * args.factor[1] + 0.5f));
+					uint16(ResultAndBaseDesc.m_size[0] * args.factor[0] + 0.5f),
+					uint16(ResultAndBaseDesc.m_size[1] * args.factor[1] + 0.5f));
 				ResultAndBaseDesc.m_size = destSize;
 				GetMemory().SetValidDesc(item);
 				break;
@@ -5515,7 +5514,7 @@ namespace mu
 				FIntPoint ImageSizeInPixels = SizeInBlocks * BlockSizeInPixels;
 
 				FImageDesc& ResultAndBaseDesc = m_heapImageDesc[item.customState];
-				FImageSize destSize(uint16_t(ImageSizeInPixels.X), uint16_t(ImageSizeInPixels.Y));
+				FImageSize destSize(uint16(ImageSizeInPixels.X), uint16(ImageSizeInPixels.Y));
 				ResultAndBaseDesc.m_size = destSize;
 				
 				if (args.generateMipmaps)

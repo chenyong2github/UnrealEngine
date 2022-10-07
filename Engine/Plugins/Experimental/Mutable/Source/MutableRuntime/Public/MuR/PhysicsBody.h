@@ -15,7 +15,6 @@
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 
-#include <memory>
 
 namespace mu
 {
@@ -32,7 +31,7 @@ namespace mu
 		//!
 		inline void Serialise( OutputArchive& arch ) const
 		{
-			const uint32_t ver = 0;
+			const uint32 ver = 0;
 			arch << ver;
 
 			arch << Name;
@@ -42,7 +41,7 @@ namespace mu
 		//!
 		inline void Unserialise( InputArchive& arch )
 		{
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver == 0);
 
@@ -66,7 +65,7 @@ namespace mu
 		{
 			FBodyShape::Serialise(arch);
 
-			const uint32_t ver = 0;
+			const uint32 ver = 0;
 			arch << ver;
 
 			arch << Position;
@@ -78,7 +77,7 @@ namespace mu
 		{
 			FBodyShape::Unserialise(arch);
 
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver == 0);
 
@@ -103,7 +102,7 @@ namespace mu
 		{
 			FBodyShape::Serialise( arch );
 
-			const uint32_t ver = 0;
+			const uint32 ver = 0;
 			arch << ver;
 
 			arch << Position;
@@ -116,7 +115,7 @@ namespace mu
 		{
 			FBodyShape::Unserialise( arch );
 
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver == 0);
 
@@ -147,7 +146,7 @@ namespace mu
 		{
 			FBodyShape::Serialise( arch );
 
-			const uint32_t ver = 0;
+			const uint32 ver = 0;
 			arch << ver;
 
 			arch << Position;
@@ -161,7 +160,7 @@ namespace mu
 		{
 			FBodyShape::Unserialise( arch );
 
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver == 0);
 
@@ -195,7 +194,7 @@ namespace mu
 		{
 			FBodyShape::Serialise( arch );
 
-			const uint32_t ver = 0;
+			const uint32 ver = 0;
 			arch << ver;
 
 			arch << Position;
@@ -210,7 +209,7 @@ namespace mu
 		{
 			FBodyShape::Unserialise( arch );
 			
-			uint32_t ver;
+			uint32 ver;
 			arch >> ver;
 			check(ver == 0);
 
@@ -242,7 +241,7 @@ namespace mu
 		{
 			FBodyShape::Serialise( arch );
 	
-		 	uint32_t ver = 0;
+		 	uint32 ver = 0;
 		 	arch << ver;
 
 		 	arch << Vertices;
@@ -253,7 +252,7 @@ namespace mu
 		  //!
 		inline void Unserialise( InputArchive& arch )
 		{
-		 	uint32_t ver;
+		 	uint32 ver;
 		 	arch >> ver;
 		 	check(ver == 0);
 
@@ -283,7 +282,7 @@ namespace mu
 		 //!
 		inline void Serialise( OutputArchive& arch ) const
 		{
-		 	uint32_t ver = 0;
+		 	uint32 ver = 0;
 		 	arch << ver;
 		
 		 	arch << Spheres;
@@ -296,7 +295,7 @@ namespace mu
 		 //!
 		inline void Unserialise( InputArchive& arch )
 		{
-		 	uint32_t ver;
+		 	uint32 ver;
 		 	arch >> ver;
 		 	check(ver == 0);
 		
@@ -433,7 +432,7 @@ namespace mu
         //!
         inline void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 1;
+            uint32 ver = 1;
 			arch << ver;
         	
         	arch << Bodies;
@@ -445,7 +444,7 @@ namespace mu
         //!
         inline void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
             check(ver <= 1);
         	
