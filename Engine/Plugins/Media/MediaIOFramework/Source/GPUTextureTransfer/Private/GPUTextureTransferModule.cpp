@@ -138,11 +138,30 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 {
 #if DVP_SUPPORTED_PLATFORM
 	bIsGPUTextureTransferAvailable = true;
+
+	static const TArray<FString> SupportedGPUPrefixes = {
+		TEXT("RTX A4"),
+		TEXT("RTX A5"),
+		TEXT("RTX A6"),
+		TEXT("Quadro")
+	};
+
 	// This must be called on game thread 
 	const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-	bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA() && !FModuleManager::Get().IsModuleLoaded("RenderDocPlugin");
-	bIsGPUTextureTransferAvailable = bIsGPUTextureTransferAvailable && !GPUDriverInfo.DeviceDescription.Contains(TEXT("Tesla"));
+	bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA() && !FModuleManager::Get().IsModuleLoaded("RenderDocPlugin") && !GPUDriverInfo.DeviceDescription.Contains(TEXT("Tesla"));
 
+	if (bIsGPUTextureTransferAvailable)
+	{
+		bIsGPUTextureTransferAvailable = false;
+		for (const FString& GPUPrefix : SupportedGPUPrefixes)
+		{
+			if (GPUDriverInfo.DeviceDescription.Contains(GPUPrefix))
+			{
+				bIsGPUTextureTransferAvailable = true;
+				break;
+			}
+		}
+	}
 	if (!bIsGPUTextureTransferAvailable)
 	{
 		return;
@@ -190,6 +209,7 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 #endif
 
 		const uint8 RHIIndex = static_cast<uint8>(RHI);
+		UE_LOG(LogGPUTextureTransfer, Display, TEXT("Initializing GPU Texture transfer"));
 		if (TextureTransfer->Initialize(InitializeArgs))
 		{
 			TransferObjects[RHIIndex] = TextureTransfer;
