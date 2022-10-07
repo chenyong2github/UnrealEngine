@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 				// compiler version of 19.xx).
 				Arguments.Add($"-fms-compatibility-version=19.{EnvVars.ToolChainVersion.GetComponent(1)}");
 				
-				if (Target.StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create && !CompileEnvironment.StaticAnalyzerDisabledCheckers.Contains("all"))
+				if (Target.StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create && !CompileEnvironment.StaticAnalyzerDisabledCheckers.Contains("all") && !CompileEnvironment.bDisableStaticAnalysis)
 				{
 					Arguments.Add("-Wno-unused-command-line-argument");
 
@@ -321,7 +321,7 @@ namespace UnrealBuildTool
 					AddDefinition(Arguments, "__clang_analyzer__");
 				}
 			}
-			else if (Target.StaticAnalyzer == StaticAnalyzer.Default)
+			else if (Target.StaticAnalyzer == StaticAnalyzer.Default && !CompileEnvironment.bDisableStaticAnalysis)
 			{
 				Arguments.Add("/analyze");
 

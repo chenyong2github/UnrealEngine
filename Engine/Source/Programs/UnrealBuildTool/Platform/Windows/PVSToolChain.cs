@@ -669,6 +669,11 @@ namespace UnrealBuildTool
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
+			if (CompileEnvironment.bDisableStaticAnalysis)
+			{
+				return new CPPOutput();
+			}
+
 			// Ignore generated files
 			if (InputFiles.All(x => x.Location.GetFileName().EndsWith(".gen.cpp")))
 			{

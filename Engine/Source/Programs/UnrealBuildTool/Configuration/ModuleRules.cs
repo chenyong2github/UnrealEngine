@@ -806,6 +806,11 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedIdentifierWarnings = true;
 
 		/// <summary>
+		/// Disable all static analysis - clang, msvc, pvs-studio.
+		/// </summary>
+		public bool bDisableStaticAnalysis = false;
+
+		/// <summary>
 		/// The static analyzer checkers that should be enabled rather than the defaults. This is only supported for Clang.
 		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
 		///    'clang -Xclang -analyzer-checker-help' 

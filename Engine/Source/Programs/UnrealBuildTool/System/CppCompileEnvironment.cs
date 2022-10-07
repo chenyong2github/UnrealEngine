@@ -264,6 +264,11 @@ namespace UnrealBuildTool
 		public bool bWarningsAsErrors = false;
 
 		/// <summary>
+		/// Whether to disable all static analysis - Clang, MSVC, PVS-Studio.
+		/// </summary>
+		public bool bDisableStaticAnalysis = false;
+
+		/// <summary>
 		/// The static analyzer checkers that should be enabled rather than the defaults. This is only supported for Clang.
 		/// </summary>
 		public HashSet<string> StaticAnalyzerCheckers = new HashSet<string>();
@@ -528,6 +533,7 @@ namespace UnrealBuildTool
 			bUndefinedIdentifierWarningsAsErrors = Other.bUndefinedIdentifierWarningsAsErrors;
 			bEnableUndefinedIdentifierWarnings = Other.bEnableUndefinedIdentifierWarnings;
 			bWarningsAsErrors = Other.bWarningsAsErrors;
+			bDisableStaticAnalysis = Other.bDisableStaticAnalysis;
 			StaticAnalyzerCheckers = new HashSet<string>(Other.StaticAnalyzerCheckers);
 			StaticAnalyzerDisabledCheckers = new HashSet<string>(Other.StaticAnalyzerDisabledCheckers);
 			StaticAnalyzerAdditionalCheckers = new HashSet<string>(Other.StaticAnalyzerAdditionalCheckers);

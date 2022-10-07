@@ -317,7 +317,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool CompilerVersionLessThan(int Major, int Minor, int Patch) => Info.ClangVersion < new Version(Major, Minor, Patch);
 
-		protected bool IsAnalyzing(CppCompileEnvironment CompileEnvironment) => StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create && !CompileEnvironment.StaticAnalyzerDisabledCheckers.Contains("all");
+		protected bool IsAnalyzing(CppCompileEnvironment CompileEnvironment) => 
+				StaticAnalyzer == StaticAnalyzer.Default 
+			&&	CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create 
+			&& !CompileEnvironment.StaticAnalyzerDisabledCheckers.Contains("all") 
+			&& !CompileEnvironment.bDisableStaticAnalysis;
 
 		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{

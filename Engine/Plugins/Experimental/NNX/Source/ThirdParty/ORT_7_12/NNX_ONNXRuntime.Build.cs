@@ -151,6 +151,6 @@ public class NNX_ONNXRuntime : ModuleRules
 		}
 
 		// Disable all static analysis checkers for this module
-		StaticAnalyzerDisabledCheckers.Add("all");
+		bDisableStaticAnalysis = true;
 	}
 }
