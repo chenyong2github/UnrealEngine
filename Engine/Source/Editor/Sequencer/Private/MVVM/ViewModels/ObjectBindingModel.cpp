@@ -176,9 +176,6 @@ FObjectBindingModel::FObjectBindingModel(FSequenceModel* InOwnerModel, const FMo
 {
 	RegisterChildList(&TrackAreaList);
 
-	// Objects are expanded by default
-	SetExpansion(true);
-
 	SetIdentifier(*ObjectBindingID.ToString());
 }
 
