@@ -765,6 +765,9 @@ private:
 	 */
 	TSet<FNetworkGUID>	DestroyedStartupOrDormantActorGUIDs;
 
+	/** On the server, the package names of streaming levels that the client has told us it is making visible */
+	TSet<FName> ClientMakingVisibleLevelNames;
+
 public:
 
 	/** This holds a list of actor channels that want to fully shutdown, but need to continue processing bunches before doing so */
@@ -815,9 +818,6 @@ private:
 	void ReinjectDelayedPackets();
 
 #endif //#if DO_ENABLE_NET_TEST
-
-	/** On the server, the package names of streaming levels that the client has told us it is making visible */
-	TSet<FName> ClientMakingVisibleLevelNames;
 
 public:
 
