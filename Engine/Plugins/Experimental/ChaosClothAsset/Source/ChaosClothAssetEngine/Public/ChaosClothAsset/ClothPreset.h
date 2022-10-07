@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ChaosClothAsset/ClothPresetCollection.h"
 
 #include "ClothPreset.generated.h"
+
+namespace UE::Chaos::ClothAsset { class FClothPresetCollection; }
 
 /**
  * Preset property categories.

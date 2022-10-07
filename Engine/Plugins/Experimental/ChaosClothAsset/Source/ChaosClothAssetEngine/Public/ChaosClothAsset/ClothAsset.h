@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ChaosClothAsset/ClothCollection.h"
 #include "ChaosClothAsset/ClothPreset.h"
 #include "Engine/SkeletalMesh.h"  // For FSkeletalMeshLODInfo
 #include "Engine/SkinnedAsset.h"
@@ -11,6 +10,7 @@
 #include "RenderCommandFence.h"
 #include "ClothAsset.generated.h"
 
+namespace UE::Chaos::ClothAsset { class FClothCollection; }
 class FSkeletalMeshRenderData;
 class FSkeletalMeshModel;
 
@@ -122,7 +122,7 @@ private:
 	virtual FString GetAsyncPropertyName(uint64 Property) const override;
 	//~ End USkinnedAsset interface
 
-	/** 
+	/**
 	 * Wait for the asset to finish compilation to protect internal skinned asset data from race conditions during async build.
 	 * This should be called before accessing all async accessible properties.
 	 */

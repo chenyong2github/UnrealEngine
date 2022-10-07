@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/ClothPreset.h"
+#include "ChaosClothAsset/ClothPresetCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothPreset)
 
