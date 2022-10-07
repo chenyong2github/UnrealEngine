@@ -46,6 +46,8 @@ public:
 	virtual UWorld* GetOwningWorld() const override { return OwningWorld.Get(); }
 	virtual UWorld* GetOuterWorld() const override { return OuterWorld.Get(); }
 	//~ End IWorldPartitionRuntimeCellOwner Interface
+
+	virtual void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func) {};
 	
 	virtual void OnStreamingObjectLoaded() {};
 

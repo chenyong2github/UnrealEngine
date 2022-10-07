@@ -224,11 +224,15 @@ class URuntimeSpatialHashExternalStreamingObject : public URuntimeHashExternalSt
 	GENERATED_BODY()
 
 public:
+	//~ Begin URuntimeHashExternalStreamingObjectBase Interface
 	virtual void OnStreamingObjectLoaded() override;
+
+	virtual void ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func) override;
 
 #if WITH_EDITOR
 	virtual void PopulateGeneratorPackageForCook() override;
 #endif
+	//~ End URuntimeHashExternalStreamingObjectBase Interface
 
 	UPROPERTY();
 	TArray<FSpatialHashStreamingGrid> StreamingGrids;

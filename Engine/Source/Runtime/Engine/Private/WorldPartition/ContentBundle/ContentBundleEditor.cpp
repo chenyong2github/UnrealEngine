@@ -289,7 +289,6 @@ void FContentBundleEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	FContentBundleBase::AddReferencedObjects(Collector);
 
-	Collector.AddReferencedObjects(ContentBundleCells);
 	Collector.AddReferencedObject(ExternalStreamingObject);
 	Collector.AddReferencedObject(UnsavedActorMonitor);
 }
@@ -305,15 +304,15 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
 	WorldPartition->GenerateContainerStreaming(ActorDescContainer.Get(), OutPackageToGenerate);
 
-	WorldPartition->RuntimeHash->ForEachStreamingCells([this](const UWorldPartitionRuntimeCell* Cell)
+	ExternalStreamingObject = WorldPartition->RuntimeHash->StoreToExternalStreamingObject(GetTransientPackage(), *GetExternalStreamingObjectName());
+
+	uint32 CellCount = 0;
+	ExternalStreamingObject->ForEachStreamingCells([&CellCount](const UWorldPartitionRuntimeCell& Cell)
 	{
-		ContentBundleCells.Add(Cell);
+		CellCount++;
 		return true;
 	});
-
-	ExternalStreamingObject = WorldPartition->RuntimeHash->StoreToExternalStreamingObject(GetInjectedWorld()->GetWorldPartition(), *GetExternalStreamingObjectName());
-
-	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Generated streaming cells. %u cells were generated"), *GetDescriptor()->GetDisplayName(), ContentBundleCells.Num());
+	UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Generated streaming cells. %u cells were generated"), *GetDescriptor()->GetDisplayName(), CellCount);
 
 	if (!IsRunningCookCommandlet())
 	{
@@ -323,8 +322,9 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 		{
 			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Failed to store streaming object for %s. PIE duplication will not work."), *GetDescriptor()->GetDisplayName());
 		}
+
+		// Clear streaming object. It will be kept alive & duplicated by UContentBundleDuplicateForPIEHelper.
 		ExternalStreamingObject = nullptr;
-		ContentBundleCells.Empty();
 	}
 
 	WorldPartition->FlushStreaming();
@@ -344,19 +344,19 @@ bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackage
 
 	if (HasCookedContent())
 	{
-		for (const UWorldPartitionRuntimeCell* RuntimeCell : ContentBundleCells)
+		ExternalStreamingObject->ForEachStreamingCells([this, &bIsSuccess, &CookContext](UWorldPartitionRuntimeCell& RuntimeCell)
 		{
-			if (const FWorldPartitionCookPackage* CookPackage = CookContext.AddLevelStreamingPackageToGenerate(this, ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), RuntimeCell->GetPackageNameToCreate()))
+			if (const FWorldPartitionCookPackage* CookPackage = CookContext.AddLevelStreamingPackageToGenerate(this, ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), RuntimeCell.GetPackageNameToCreate()))
 			{
-				CookPackageIdsToCell.Emplace(CookPackage->PackageId, RuntimeCell);
+				CookPackageIdsToCell.Emplace(CookPackage->PackageId, &RuntimeCell);
 			}
 			else
 			{
-				UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to add cell package %s in cook context."), *ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), *RuntimeCell->GetPackageNameToCreate());
+				UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to add cell package %s in cook context."), *ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), *RuntimeCell.GetPackageNameToCreate());
 				bIsSuccess = false;
 			}
-		}
-
+		});
+		
 		const FWorldPartitionCookPackage* CookPackage = CookContext.AddGenericPackageToGenerate(this, ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), TEXT("StreamingObject"));
 		if (CookPackage == nullptr)
 		{
@@ -372,6 +372,7 @@ bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackage
 bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages)
 {
 	bool bIsSuccess = true;
+
 
 	if (HasCookedContent())
 	{
@@ -399,7 +400,7 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 			}
 			else
 			{
-				if (!ExternalStreamingObject->Rename(nullptr, CookPackage->GetPackage()))
+				if (!ExternalStreamingObject->Rename(nullptr, CookPackage->GetPackage(), REN_DontCreateRedirectors))
 				{
 					UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to set streaming object package %s."), *GetDescriptor()->GetDisplayName());
 					bIsSuccess = false;
@@ -408,6 +409,10 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 		}
 
 		ExternalStreamingObject->PopulateGeneratorPackageForCook();
+
+		// Clear Streaming Object Reference past this point since it is not used.
+		// It's lifetime must be managed by the GeneratedPackage from the CookOntheFlyServer.
+		ExternalStreamingObject = nullptr;
 	}
 	
 
@@ -418,28 +423,25 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 {
 	bool bIsSuccess = true;
 
-	if (HasCookedContent())
+	if (PackageToCook.Type == FWorldPartitionCookPackage::EType::Level)
 	{
-		if (PackageToCook.Type == FWorldPartitionCookPackage::EType::Level)
+		if (UWorldPartitionRuntimeCell** MatchingCell = const_cast<UWorldPartitionRuntimeCell**>(CookPackageIdsToCell.Find(PackageToCook.PackageId)))
 		{
-			if (UWorldPartitionRuntimeCell** MatchingCell = const_cast<UWorldPartitionRuntimeCell**>(CookPackageIdsToCell.Find(PackageToCook.PackageId)))
+			UWorldPartitionRuntimeCell* Cell = *MatchingCell;
+			if (ensure(Cell))
 			{
-				UWorldPartitionRuntimeCell* Cell = *MatchingCell;
-				if (ensure(Cell))
+				TArray<UPackage*> ModifiedPackages;
+				if (!Cell->PopulateGeneratedPackageForCook(PackageToCook.GetPackage(), OutModifiedPackages))
 				{
-					TArray<UPackage*> ModifiedPackages;
-					if (!Cell->PopulateGeneratedPackageForCook(PackageToCook.GetPackage(), OutModifiedPackages))
-					{
-						UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to populate cell package %s."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
-						bIsSuccess = false;
-					}
+					UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to populate cell package %s."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+					bIsSuccess = false;
 				}
 			}
-			else
-			{
-				UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Could not find cell for package %s while populating generated pacakges."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
-				bIsSuccess = false;
-			}
+		}
+		else
+		{
+			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Could not find cell for package %s while populating generated pacakges."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+			bIsSuccess = false;
 		}
 	}
 

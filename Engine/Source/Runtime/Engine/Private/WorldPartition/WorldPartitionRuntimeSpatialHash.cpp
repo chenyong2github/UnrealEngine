@@ -749,33 +749,23 @@ ASpatialHashRuntimeGridInfo::ASpatialHashRuntimeGridInfo(const FObjectInitialize
 
 void URuntimeSpatialHashExternalStreamingObject::OnStreamingObjectLoaded()
 {
-	// Cooked streaming object's Cells do not have LevelStreaming and are outered to the streaming object.
-	// Create their level streaming now and re-outered to the runtime hash.
 	bool bIsACookedObject = !CellToLevelStreamingPackage.IsEmpty();
 	if (bIsACookedObject)
 	{
-		for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		// Cooked streaming object's Cells do not have LevelStreaming and are outered to the streaming object.
+		// Create their level streaming now and re-outered to the runtime hash.
+		ForEachStreamingCells([this](UWorldPartitionRuntimeCell& Cell)
 		{
-			for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
-			{
-				for (FSpatialHashStreamingGridLayerCell& GridLayerCell : GridLevel.LayerCells)
-				{
-					for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
-					{
-						UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(Cell);
+			UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(&Cell);
 
-						FName LevelStreamingPackage = CellToLevelStreamingPackage.FindChecked(RuntimeCell->GetFName());
-						RuntimeCell->Rename(nullptr, GetOuterWorld()->GetWorldPartition()->RuntimeHash);
-						RuntimeCell->CreateAndSetLevelStreaming(*LevelStreamingPackage.ToString());
-					}
-				}
-			}
-		}
+			FName LevelStreamingPackage = CellToLevelStreamingPackage.FindChecked(RuntimeCell->GetFName());
+			RuntimeCell->Rename(nullptr, GetOuterWorld()->GetWorldPartition()->RuntimeHash);
+			RuntimeCell->CreateAndSetLevelStreaming(*LevelStreamingPackage.ToString());
+		});
 	}
 }
 
-#if WITH_EDITOR
-void URuntimeSpatialHashExternalStreamingObject::PopulateGeneratorPackageForCook()
+void URuntimeSpatialHashExternalStreamingObject::ForEachStreamingCells(TFunctionRef<void(UWorldPartitionRuntimeCell&)> Func)
 {
 	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
@@ -785,19 +775,29 @@ void URuntimeSpatialHashExternalStreamingObject::PopulateGeneratorPackageForCook
 			{
 				for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
 				{
-					UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(Cell);
-					RuntimeCell->Rename(nullptr, this);
-					
-					UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = RuntimeCell->GetLevelStreaming();
-					CellToLevelStreamingPackage.Add(RuntimeCell->GetFName(), LevelStreamingDynamic->PackageNameToLoad);
-
-					// Level streaming are outered to the world and would not be saved within the ExternalStreamingObject.
-					// Do not save them, instead they will be created once the external streaming object is loaded at runtime. 
-					LevelStreamingDynamic->SetFlags(RF_Transient);
+					Func(*Cell);
 				}
 			}
 		}
 	}
+
+}
+
+#if WITH_EDITOR
+void URuntimeSpatialHashExternalStreamingObject::PopulateGeneratorPackageForCook()
+{
+	ForEachStreamingCells([this](UWorldPartitionRuntimeCell& Cell)
+	{
+		UWorldPartitionRuntimeLevelStreamingCell* RuntimeCell = CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(&Cell);
+		RuntimeCell->Rename(nullptr, this);
+
+		UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = RuntimeCell->GetLevelStreaming();
+		CellToLevelStreamingPackage.Add(RuntimeCell->GetFName(), LevelStreamingDynamic->PackageNameToLoad);
+
+		// Level streaming are outered to the world and would not be saved within the ExternalStreamingObject.
+		// Do not save them, instead they will be created once the external streaming object is loaded at runtime. 
+		LevelStreamingDynamic->SetFlags(RF_Transient);
+	});
 }
 #endif
 

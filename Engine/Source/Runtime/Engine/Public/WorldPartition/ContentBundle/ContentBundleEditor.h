@@ -92,7 +92,6 @@ private:
 
 	TArray<FWorldPartitionReference> ForceLoadedActors;
 
-	TSet<const UWorldPartitionRuntimeCell*> ContentBundleCells;
 	TMap<uint32, const UWorldPartitionRuntimeCell*> CookPackageIdsToCell;
 	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject;
 
