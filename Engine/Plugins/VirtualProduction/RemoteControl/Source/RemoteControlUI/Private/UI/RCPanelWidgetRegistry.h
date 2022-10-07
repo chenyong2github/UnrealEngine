@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -27,7 +28,7 @@ struct FRCTreeNodeFinderHandler
 	FRCTreeNodeFinderFunction FinderFunction;
 };
 
-class FRCPanelWidgetRegistry
+class FRCPanelWidgetRegistry : public TSharedFromThis<FRCPanelWidgetRegistry>
 {
 public:
 	
@@ -79,6 +80,8 @@ private:
 	bool IsNDisplayObject(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
 	TSharedPtr<IDetailTreeNode> FindNDisplayTreeNode(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
 	void OnRowsRefreshed(TSharedPtr<IPropertyRowGenerator> Generator);
+	/** Create a property row generator */
+	TSharedPtr<IPropertyRowGenerator> CreateGenerator(UObject* InObject);
 
 private:
 	/** Map of objects to row generator, used to have one row generator per object. */
