@@ -95,6 +95,7 @@
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Streaming/ServerStreamingLevelsVisibility.h"
 
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
@@ -2769,6 +2770,40 @@ static void ResetLevelFlagsOnLevelAddedToWorld(ULevel* Level)
 	Level->ResetRouteActorInitializationState();
 }
 
+bool UWorld::SupportsMakingVisibleTransactionRequests() const
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		// We don't support this flag to change dynamically (read ULevelStreaming CVar once)
+		if (!bSupportsMakingVisibleTransactionRequests.IsSet())
+		{
+			bSupportsMakingVisibleTransactionRequests = ULevelStreaming::DefaultAllowClientUseMakingVisibleTransactionRequests() || (IsPartitionedWorld() && UWorldPartition::UseMakingVisibleTransactionRequests());
+		}
+		return bSupportsMakingVisibleTransactionRequests.GetValue();
+	}
+	return false;
+}
+
+bool UWorld::SupportsMakingInvisibleTransactionRequests() const
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		// We don't support this flag to change dynamically (read ULevelStreaming CVar once)
+		if (!bSupportsMakingInvisibleTransactionRequests.IsSet())
+		{
+			bSupportsMakingInvisibleTransactionRequests = ULevelStreaming::DefaultAllowClientUseMakingInvisibleTransactionRequests() || (IsPartitionedWorld() && UWorldPartition::UseMakingInvisibleTransactionRequests());
+		}
+		return bSupportsMakingInvisibleTransactionRequests.GetValue();
+	}
+	return false;
+}
+
+const AServerStreamingLevelsVisibility* UWorld::GetServerStreamingLevelsVisibility() const
+{
+	check(!IsValid(ServerStreamingLevelsVisibility) || SupportsMakingVisibleTransactionRequests());
+	return ServerStreamingLevelsVisibility;
+}
+
 void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool bConsiderTimeLimit, FNetLevelVisibilityTransactionId TransactionId)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AddToWorld);
@@ -2792,7 +2827,8 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 
 	if (bExecuteNextStep)
 	{
-		if (!CanAddLoadedLevelToWorld(Level))
+		// Once CurrentLevelPendingVisibility is set, don't call CanAddLoadedLevelToWorld as we must finish processing CurrentLevelPendingVisibility
+		if ((CurrentLevelPendingVisibility == nullptr) && !CanAddLoadedLevelToWorld(Level))
 		{
 			bExecuteNextStep = false;
 		}
@@ -3019,12 +3055,12 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		// Finished making level visible - allow other levels to be added to the world.
 		CurrentLevelPendingVisibility = nullptr;
 
-		// notify server that the client has finished making this level visible
 		if (!Level->bClientOnlyVisible)
 		{
 			FUpdateLevelVisibilityLevelInfo LevelVisibility(Level, true);
 			const FName UnmappedPackageName = LevelVisibility.PackageName;
-			
+
+			// notify server that the client has finished making this level visible
 			for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 			{
 				if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
@@ -3033,6 +3069,12 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 					LevelVisibility.VisibilityRequestId = TransactionId;
 					LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 				}
+			}
+			// update server's visible levels
+			if (IsValid(ServerStreamingLevelsVisibility))
+			{
+				check(IsNetMode(NM_ListenServer) || IsNetMode(NM_DedicatedServer));
+				ServerStreamingLevelsVisibility->SetIsVisible(UnmappedPackageName, true);
 			}
 		}
 
@@ -3219,12 +3261,12 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 		
 			Level->ClearLevelComponents();
 
-			// notify server that the client has removed this level
 			if (!Level->bClientOnlyVisible)
 			{
 				FUpdateLevelVisibilityLevelInfo LevelVisibility(Level, false);
 				const FName UnmappedPackageName = LevelVisibility.PackageName;
 
+				// notify server that the client has removed this level
 				for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 				{
 					if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
@@ -3233,6 +3275,12 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 						LevelVisibility.VisibilityRequestId = TransactionId;
 						LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 					}
+				}
+				// update server's visible levels
+				if (IsValid(ServerStreamingLevelsVisibility))
+				{
+					check(IsNetMode(NM_ListenServer) || IsNetMode(NM_DedicatedServer));
+					ServerStreamingLevelsVisibility->SetIsVisible(UnmappedPackageName, false);
 				}
 			}
 
@@ -3771,6 +3819,7 @@ void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, b
 				};
 
 				StreamingLevels.Insert(StreamingLevel, Algo::LowerBound(StreamingLevels, StreamingLevel, PrioritySort));
+				StreamingLevel->OnStreamingLevelAddedToConsidered();
 			}
 		}
 	}
@@ -4988,6 +5037,11 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegist
 void UWorld::BeginPlay()
 {
 	const TArray<UWorldSubsystem*>& WorldSubsystems = SubsystemCollection.GetSubsystemArray<UWorldSubsystem>(UWorldSubsystem::StaticClass());
+
+	if (SupportsMakingVisibleTransactionRequests() && (IsNetMode(NM_DedicatedServer) || IsNetMode(NM_ListenServer)))
+	{
+		ServerStreamingLevelsVisibility = AServerStreamingLevelsVisibility::SpawnServerActor(this);
+	}
 
 	for (UWorldSubsystem* WorldSubsystem : WorldSubsystems)
 	{

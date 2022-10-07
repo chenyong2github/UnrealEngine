@@ -859,7 +859,7 @@ public:
 	 * @param TransactionId - TransactionId being acknowledged
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientAckUpdateLevelVisibility(FName PackageName, FNetLevelVisibilityTransactionId TransactionId);
+	void ClientAckUpdateLevelVisibility(FName PackageName, FNetLevelVisibilityTransactionId TransactionId, bool bClientAckCanMakeVisible);
 
 	/** Enable voice chat transmission */
 	void StartTalking();

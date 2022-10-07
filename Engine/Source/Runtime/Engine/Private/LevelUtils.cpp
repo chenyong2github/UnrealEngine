@@ -12,6 +12,7 @@
 #include "Misc/FeedbackContext.h"
 #include "GameFramework/WorldSettings.h"
 #include "Components/ModelComponent.h"
+#include "Streaming/ServerStreamingLevelsVisibility.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
@@ -91,6 +92,32 @@ bool FLevelUtils::IsValidStreamingLevel(UWorld* InWorld, const TCHAR* InPackageN
 		return WorldPartition->IsValidPackageName(InPackageName);
 	}
 #endif
+
+	return false;
+}
+
+bool FLevelUtils::SupportsMakingVisibleTransactionRequests(UWorld* InWorld)
+{
+	return InWorld && InWorld->SupportsMakingVisibleTransactionRequests();
+}
+
+bool FLevelUtils::SupportsMakingInvisibleTransactionRequests(UWorld* InWorld)
+{
+	return InWorld && InWorld->SupportsMakingInvisibleTransactionRequests();
+}
+
+bool FLevelUtils::IsServerStreamingLevelVisible(UWorld* InWorld, const FName& InPackageName)
+{
+	// If there's no implementation for this world to query the server visible streaming levels, return true
+	if (!SupportsMakingVisibleTransactionRequests(InWorld))
+	{
+		return true;
+	}
+
+	if (const AServerStreamingLevelsVisibility* ServerStreamingLevelsVisibility = InWorld->GetServerStreamingLevelsVisibility())
+	{
+		return ServerStreamingLevelsVisibility && ServerStreamingLevelsVisibility->Contains(InPackageName);
+	}
 
 	return false;
 }

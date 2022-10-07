@@ -97,7 +97,29 @@ static FAutoConsoleVariableRef CVarEnableServerStreamingOut(
 	GEnableServerStreamingOut,
 	TEXT("Turn on/off to allow or not the server to stream out levels (only relevant when server streaming is enabled)"));
 
+bool UWorldPartition::bUseMakingVisibleTransactionRequests = false;
+FAutoConsoleVariableRef UWorldPartition::CVarUseMakingVisibleTransactionRequests(
+	TEXT("wp.Runtime.UseMakingVisibleTransactionRequests"),
+	UWorldPartition::bUseMakingVisibleTransactionRequests,
+	TEXT("Whether the client should wait for the server to acknowledge visibility update before making partitioned world streaming levels visible."));
+
+bool UWorldPartition::bUseMakingInvisibleTransactionRequests = false;
+FAutoConsoleVariableRef UWorldPartition::CVarUseMakingInvisibleTransactionRequests(
+	TEXT("wp.Runtime.UseMakingInvisibleTransactionRequests"),
+	UWorldPartition::bUseMakingInvisibleTransactionRequests,
+	TEXT("Whether the client should wait for the server to acknowledge visibility update before making partitioned world streaming levels invisible."));
+
 #define LOCTEXT_NAMESPACE "WorldPartition"
+
+bool UWorldPartition::UseMakingVisibleTransactionRequests()
+{
+	return bUseMakingVisibleTransactionRequests;
+}
+
+bool UWorldPartition::UseMakingInvisibleTransactionRequests()
+{
+	return bUseMakingInvisibleTransactionRequests;
+}
 
 #if WITH_EDITOR
 TMap<FName, FString> GetDataLayersDumpString(const UWorldPartition* WorldPartition)

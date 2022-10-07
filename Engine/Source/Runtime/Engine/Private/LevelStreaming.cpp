@@ -47,14 +47,24 @@ namespace LevelStreamingCVars
 	// starting to replicate data based on an older visibility/streamingstatus update which can lead to broken channels
 	// to mitigate this problem we assign a TransactionId to each request/update to make sure that we are acting on the correct data
 #if UE_WITH_IRIS
-	static bool bShouldClientUseMakingInvisibleTransactionRequest = true;
+	static bool bDefaultAllowClientUseMakingInvisibleTransactionRequests = true;
 #else
-	static bool bShouldClientUseMakingInvisibleTransactionRequest = false;
+	static bool bDefaultAllowClientUseMakingInvisibleTransactionRequests = false;
 #endif
-	FAutoConsoleVariableRef CVarShouldClientUseMakingInvisibleTransactionRequest(
-		TEXT("LevelStreaming.ShouldClientUseMakingInvisibleTransactionRequest"),
-		bShouldClientUseMakingInvisibleTransactionRequest,
-		TEXT("Whether client should wait for server to acknowledge visibility update before making streaming levels invisible.\n")
+	FAutoConsoleVariableRef CVarDefaultAllowClientUseMakingInvisibleTransactionRequests(
+		TEXT("LevelStreaming.DefaultAllowClientUseMakingInvisibleTransactionRequests"),
+		bDefaultAllowClientUseMakingInvisibleTransactionRequests,
+		TEXT("Flag combined with world support to use making invisible transaction requests to the server\n")
+		TEXT("that determines whether the client should wait for the server to acknowledge visibility update before making streaming levels invisible.\n")
+		TEXT("0: Disable, 1: Enable"),
+		ECVF_Default);
+
+	static bool bDefaultAllowClientUseMakingVisibleTransactionRequests = false;
+	FAutoConsoleVariableRef CVarDefaultAllowClientUseMakingVisibleTransactionRequests(
+		TEXT("LevelStreaming.DefaultAllowClientUseMakingVisibleTransactionRequests"),
+		bDefaultAllowClientUseMakingVisibleTransactionRequests,
+		TEXT("Flag combined with world support to use making visible transaction requests to the server\n")
+		TEXT("that determines whether the client should wait for the server to acknowledge visibility update before making streaming levels visible.\n")
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
 
@@ -71,9 +81,36 @@ namespace LevelStreamingCVars
 		ECVF_Default);
 }
 
-bool ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest()
+bool ULevelStreaming::DefaultAllowClientUseMakingInvisibleTransactionRequests()
 {
-	return LevelStreamingCVars::bShouldClientUseMakingInvisibleTransactionRequest;
+	return LevelStreamingCVars::bDefaultAllowClientUseMakingInvisibleTransactionRequests;
+}
+
+bool ULevelStreaming::DefaultAllowClientUseMakingVisibleTransactionRequests()
+{
+	return LevelStreamingCVars::bDefaultAllowClientUseMakingVisibleTransactionRequests;
+}
+
+bool ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		// Rely on the world to decide whether the client should wait for the server to acknowledge
+		// visibility before making streaming levels invisible on the client.
+		return World->SupportsMakingInvisibleTransactionRequests(); 
+	}
+	return false;
+}
+
+bool ULevelStreaming::ShouldClientUseMakingVisibleTransactionRequest() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		// Rely on the world to decide whether the client should wait for the server to acknowledge
+		// visibility before making streaming levels visible on the client.
+		return World->SupportsMakingVisibleTransactionRequests();
+	}
+	return false;
 }
 
 bool ULevelStreaming::ShouldServerUseMakingVisibleTransactionRequest()
@@ -576,93 +613,175 @@ bool ULevelStreaming::DetermineTargetState()
 	return bContinueToConsider;
 }
 
-static bool ShouldWaitForServerAckBeforeMakingInvisible(const UWorld* World, const ULevel* LoadedLevel, const bool bShouldBeVisible, FNetLevelVisibilityState& NetVisibilityState)
+bool ULevelStreaming::IsWaitingForNetVisibilityTransactionAck(ENetLevelVisibilityRequest InRequestType) const
 {
-	if (ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest())
+	auto IsConcernedNetVisibilityTransactionAck = [this]()
 	{
-		if (!LoadedLevel->bClientOnlyVisible && World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open))
-		{
-			if (NetVisibilityState.PendingClientRequestIndex != NetVisibilityState.AckedClientRequestIndex)
-			{
-				// Wait for server to acknowledge the visibility change so that we are sure that we have no incoming data in flight when removing the actors from the world
-				return true;
-			}
-			else if (!bShouldBeVisible && NetVisibilityState.bPendingInvisibleRequest && NetVisibilityState.PendingClientRequestIndex == NetVisibilityState.AckedClientRequestIndex)
-			{
-				// We have a pending request, IncrementTransactionIndex and send ServerUpdateLevelVisibility request to server
-				FNetLevelVisibilityTransactionId TransactionId;
-				TransactionId.SetIsClientInstigator(true);
-				TransactionId.SetTransactionIndex(NetVisibilityState.PendingClientRequestIndex);
-				NetVisibilityState.PendingClientRequestIndex = TransactionId.IncrementTransactionIndex();
-				NetVisibilityState.bPendingInvisibleRequest = false;
+		UWorld* World = GetWorld();
+		return LoadedLevel && !LoadedLevel->bClientOnlyVisible && World && World->IsGameWorld() && World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open);
+	};
 
-				for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-				{
-					if (APlayerController* PlayerController = Iterator->Get())
-					{
-						FUpdateLevelVisibilityLevelInfo LevelVisibility(LoadedLevel, false);
-						LevelVisibility.PackageName = PlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
-						LevelVisibility.VisibilityRequestId = TransactionId;
-							
-						PlayerController->ServerUpdateLevelVisibility(LevelVisibility);
-					}
-				}
-				return true;
-			}
-		}
+	if (NetVisibilityState.PendingRequestType.IsSet() && (NetVisibilityState.PendingRequestType == InRequestType) && IsConcernedNetVisibilityTransactionAck())
+	{
+		check(((NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingInvisible) && ShouldClientUseMakingInvisibleTransactionRequest()) ||
+			  ((NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingVisible) && ShouldClientUseMakingVisibleTransactionRequest()));
+
+		return (NetVisibilityState.ClientPendingRequestIndex != NetVisibilityState.ClientAckedRequestIndex) || NetVisibilityState.bHasClientPendingRequest;
 	}
-
-	// Invalidate request
-	NetVisibilityState.bPendingInvisibleRequest = false;
-	NetVisibilityState.AckedClientRequestIndex = NetVisibilityState.PendingClientRequestIndex;	
 
 	return false;
 }
 
-bool ULevelStreaming::IsWaitingForNetVisibilityTransactionAck() const
+bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType, bool bInShouldBeVisible)
+{
+	if (IsWaitingForNetVisibilityTransactionAck(InRequestType))
+	{
+		const bool bTargetShouldBeVisible = (NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingVisible);
+		const bool bTargetStateMatches = (bInShouldBeVisible == bTargetShouldBeVisible);
+		if (bTargetStateMatches && NetVisibilityState.bHasClientPendingRequest)
+		{
+			// We have a pending request, IncrementTransactionIndex and send ServerUpdateLevelVisibility request to server
+			FNetLevelVisibilityTransactionId TransactionId;
+			TransactionId.SetIsClientInstigator(true);
+			TransactionId.SetTransactionIndex(NetVisibilityState.ClientPendingRequestIndex);
+			NetVisibilityState.ClientAckedRequestIndex = NetVisibilityState.ClientPendingRequestIndex;
+			NetVisibilityState.ClientPendingRequestIndex = TransactionId.IncrementTransactionIndex();
+			NetVisibilityState.ClientAckedRequestCanMakeVisible.Reset();
+			NetVisibilityState.bHasClientPendingRequest = false;
+
+			UWorld* World = GetWorld();
+			const bool bIsVisible = false;
+			const bool bTryMakeVisible = (InRequestType == ENetLevelVisibilityRequest::MakingVisible);
+			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+			{
+				if (APlayerController* PlayerController = Iterator->Get())
+				{
+					FUpdateLevelVisibilityLevelInfo LevelVisibility(LoadedLevel, bIsVisible, bTryMakeVisible);
+					LevelVisibility.PackageName = PlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
+					LevelVisibility.VisibilityRequestId = TransactionId;
+					PlayerController->ServerUpdateLevelVisibility(LevelVisibility);
+				}
+			}
+			return true;
+		}
+		else if (NetVisibilityState.ClientPendingRequestIndex != NetVisibilityState.ClientAckedRequestIndex)
+		{
+			// Wait for server to acknowledge the visibility change
+			return true;
+		}
+
+		// Invalidate request
+		NetVisibilityState.bHasClientPendingRequest = false;
+		NetVisibilityState.PendingRequestType.Reset();
+	}
+	return false;
+};
+
+bool ULevelStreaming::CanMakeInvisible()
 {
 	if (ShouldClientUseMakingInvisibleTransactionRequest())
 	{
-		if (LoadedLevel && !LoadedLevel->bClientOnlyVisible)
+		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingInvisible, bShouldBeVisible))
 		{
-			const UWorld* World = GetWorld();
-			if (World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open) && ((NetVisibilityState.PendingClientRequestIndex != NetVisibilityState.AckedClientRequestIndex) || NetVisibilityState.bPendingInvisibleRequest))
-			{
-				return true;
-			}	
+			return false;
 		}
 	}
+	return true;
+}
 
-	return false;
+bool ULevelStreaming::CanMakeVisible()
+{
+	if (ShouldClientUseMakingVisibleTransactionRequest())
+	{
+		if (ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest::MakingVisible, true))
+		{
+			return false;
+		}
+		else if (NetVisibilityState.ClientAckedRequestCanMakeVisible.IsSet() && !NetVisibilityState.ClientAckedRequestCanMakeVisible.GetValue())
+		{
+			// Server response was negative
+			// Until client and server streaming level state matches, client starts another visibilily request to try to make level visible
+			check(!IsWaitingForNetVisibilityTransactionAck(ENetLevelVisibilityRequest::MakingVisible));
+			BeginClientNetVisibilityRequest(true);
+			return false;
+		}
+	}
+	return true;
 }
 
 void ULevelStreaming::UpdateNetVisibilityTransactionState(bool bInShouldBeVisible, FNetLevelVisibilityTransactionId TransactionId)
 {
-	if (GetCurrentState() != ULevelStreaming::ECurrentState::MakingInvisible)
+	UWorld* World = GetWorld();
+	if (World && World->IsGameWorld())
 	{
-		// If this is a client request to unload, we will conditionally send a notification to the server before we make the level invisible
 		const bool bIsClientTransaction = TransactionId.IsClientTransaction();
+		const ENetLevelVisibilityRequest Target = bInShouldBeVisible ? ENetLevelVisibilityRequest::MakingVisible : ENetLevelVisibilityRequest::MakingInvisible;
+		// Check if client is already waiting
+		if (bIsClientTransaction && IsWaitingForNetVisibilityTransactionAck(Target))
+		{
+			return;
+		}
 
-		NetVisibilityState.bPendingInvisibleRequest = bIsClientTransaction && (bInShouldBeVisible == false);
+		NetVisibilityState.bHasClientPendingRequest = false;
+		NetVisibilityState.PendingRequestType.Reset();
 		NetVisibilityState.ServerRequestIndex = bIsClientTransaction ? FNetLevelVisibilityTransactionId::InvalidTransactionIndex : TransactionId.GetTransactionIndex();
+
+		if (bIsClientTransaction)
+		{
+			if (!bInShouldBeVisible && ShouldClientUseMakingInvisibleTransactionRequest())
+			{
+				// If this is a client request to make invisible, we will conditionally send a notification to the server before we make the level invisible
+				if (!LoadedLevel || (World->GetCurrentLevelPendingInvisibility() != LoadedLevel))
+				{
+					NetVisibilityState.bHasClientPendingRequest = true;
+					NetVisibilityState.PendingRequestType = ENetLevelVisibilityRequest::MakingInvisible;
+				}
+			}
+			else if (bInShouldBeVisible && ShouldClientUseMakingVisibleTransactionRequest())
+			{
+				// If this is a client request to make visible, we will conditionally send a notification to the server before we make the level visible
+				if (!LoadedLevel || (World->GetCurrentLevelPendingVisibility() != LoadedLevel))
+				{
+					NetVisibilityState.bHasClientPendingRequest = true;
+					NetVisibilityState.PendingRequestType = ENetLevelVisibilityRequest::MakingVisible;
+				}
+			}
+		}
 	}
+}
+
+void ULevelStreaming::OnStreamingLevelAddedToConsidered()
+{
+	// When streaming level is added to the next considered streaming levels to be updated,
+	// make sure that it will trigger a visibility request (if necessary)
+	BeginClientNetVisibilityRequest(ShouldBeVisible());
 }
 
 void ULevelStreaming::BeginClientNetVisibilityRequest(bool bInShouldBeVisible)
 {
-	FNetLevelVisibilityTransactionId TransactionId;
-	TransactionId.SetIsClientInstigator(true);
+	UWorld* World = GetWorld();
+	if (World && World->IsGameWorld() && World->IsNetMode(NM_Client))
+	{
+		FNetLevelVisibilityTransactionId TransactionId;
+		TransactionId.SetIsClientInstigator(true);
 
-	UpdateNetVisibilityTransactionState(bInShouldBeVisible, TransactionId);
+		UpdateNetVisibilityTransactionState(bInShouldBeVisible, TransactionId);
+	}
 }
 
-void ULevelStreaming::AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId)
+void ULevelStreaming::AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId InAckedClientTransactionId, bool bInClientAckCanMakeVisible)
 {
-	if (ensure(NetVisibilityState.PendingClientRequestIndex != NetVisibilityState.AckedClientRequestIndex))
+	if (ensure(NetVisibilityState.ClientPendingRequestIndex != NetVisibilityState.ClientAckedRequestIndex))
 	{
-		// Invalidate the pending request as there should only ever be a single one in flight
-		NetVisibilityState.AckedClientRequestIndex = AckedClientTransactionId.GetTransactionIndex();
-		NetVisibilityState.bPendingInvisibleRequest = false;
+		NetVisibilityState.ClientAckedRequestIndex = InAckedClientTransactionId.GetTransactionIndex();
+
+		// If received an ack for MakingVisible, store the server response in ClientAckedRequestCanMakeVisible
+		if ((NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingVisible) &&
+			(NetVisibilityState.ClientPendingRequestIndex == NetVisibilityState.ClientAckedRequestIndex))
+		{
+			check(ShouldClientUseMakingVisibleTransactionRequest());
+			NetVisibilityState.ClientAckedRequestCanMakeVisible = bInClientAckCanMakeVisible;
+		}
 	}
 }
 
@@ -721,6 +840,14 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 				{
 					TransactionId.SetTransactionIndex(NetVisibilityState.ServerRequestIndex);
 				}
+
+				// Calling CanMakeVisible will trigger a request for visibility if necessary
+				if (!CanMakeVisible())
+				{
+					check(LoadedLevel != World->GetCurrentLevelPendingVisibility());
+					break;
+				}
+
 				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad, TransactionId);
 
 				if (LoadedLevel->bIsVisible)
@@ -757,8 +884,9 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			const bool bWasVisible = LoadedLevel->bIsVisible;
 
 			// We do not want to have any changes in flights when ending play, so before making invisible we wait for server acknowledgment
-			if (ShouldWaitForServerAckBeforeMakingInvisible(World, LoadedLevel, bShouldBeVisible, NetVisibilityState))
+			if (!CanMakeInvisible())
 			{
+				check(LoadedLevel != World->GetCurrentLevelPendingInvisibility());
 				break;
 			}
 

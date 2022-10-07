@@ -786,6 +786,8 @@ public:
 
 	/** Called by PlayerController to tell connection about client level visibility change */
 	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
+
+	ENGINE_API const TSet<FName>& GetClientMakingVisibleLevelNames() const { return ClientMakingVisibleLevelNames; }
 	
 #if DO_ENABLE_NET_TEST
 
@@ -813,6 +815,9 @@ private:
 	void ReinjectDelayedPackets();
 
 #endif //#if DO_ENABLE_NET_TEST
+
+	/** On the server, the package names of streaming levels that the client has told us it is making visible */
+	TSet<FName> ClientMakingVisibleLevelNames;
 
 public:
 

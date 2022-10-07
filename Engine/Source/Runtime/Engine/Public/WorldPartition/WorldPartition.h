@@ -38,6 +38,7 @@ class FHLODActorDesc;
 class UHLODLayer;
 class UCanvas;
 class ULevel;
+class FAutoConsoleVariableRef;
 
 struct IWorldPartitionStreamingSourceProvider;
 
@@ -274,6 +275,9 @@ private:
 #endif
 
 public:
+	static bool UseMakingVisibleTransactionRequests();
+	static bool UseMakingInvisibleTransactionRequests();
+
 	UActorDescContainer* GetActorDescContainer() const { return ActorDescContainer; }
 
 	UPROPERTY()
@@ -321,6 +325,11 @@ private:
 
 	FWorldPartitionReference WorldDataLayersActor;
 #endif
+
+	static bool bUseMakingVisibleTransactionRequests;
+	static bool bUseMakingInvisibleTransactionRequests;
+	static FAutoConsoleVariableRef CVarUseMakingVisibleTransactionRequests;
+	static FAutoConsoleVariableRef CVarUseMakingInvisibleTransactionRequests;
 
 	void OnWorldMatchStarting();
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);

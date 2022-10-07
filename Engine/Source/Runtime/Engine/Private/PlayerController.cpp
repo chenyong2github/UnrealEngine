@@ -361,7 +361,7 @@ void APlayerController::ClientUpdateMultipleLevelsStreamingStatus_Implementation
 	}
 }
 
-void APlayerController::ClientAckUpdateLevelVisibility_Implementation(FName PackageName, FNetLevelVisibilityTransactionId TransactionId)
+void APlayerController::ClientAckUpdateLevelVisibility_Implementation(FName PackageName, FNetLevelVisibilityTransactionId TransactionId, bool bClientAckCanMakeVisibleResponse)
 {
 	if (ensureAlwaysMsgf(TransactionId.IsClientTransaction(), TEXT("APlayerController::ClientAckUpdateLevelVisibility Expected TransactionId to be ClientTransaction")))
 	{
@@ -370,7 +370,7 @@ void APlayerController::ClientAckUpdateLevelVisibility_Implementation(FName Pack
 
 		if (ULevelStreaming* LevelStreamingObject = FLevelUtils::FindStreamingLevel(GetWorld(), PackageName))
 		{
-			LevelStreamingObject->AckNetVisibilityTransaction(TransactionId);
+			FAckNetVisibilityTransaction::Call(LevelStreamingObject, TransactionId, bClientAckCanMakeVisibleResponse);
 		}
 	}
 }
@@ -407,7 +407,9 @@ void APlayerController::ServerUpdateLevelVisibility_Implementation(const FUpdate
 		// If this is a client instigated request respond with the request id so that the client knows that we have received the visibility update
 		if (LevelVisibilityCopy.VisibilityRequestId.IsClientTransaction())
 		{
-			ClientAckUpdateLevelVisibility(LevelVisibility.PackageName, LevelVisibilityCopy.VisibilityRequestId);
+			// In case a making visible request was done but querying the server is not supported, reponse true to unblock the client
+			const bool bClientAckCanMakeVisibleResponse = !FLevelUtils::SupportsMakingVisibleTransactionRequests(GetWorld()) || (LevelVisibilityCopy.bTryMakeVisible && Connection->GetClientMakingVisibleLevelNames().Contains(LevelVisibilityCopy.PackageName));
+			ClientAckUpdateLevelVisibility(LevelVisibility.PackageName, LevelVisibilityCopy.VisibilityRequestId, bClientAckCanMakeVisibleResponse);
 		}
 	}
 }

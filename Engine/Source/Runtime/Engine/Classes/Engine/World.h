@@ -39,6 +39,7 @@ class AGameModeBase;
 class AGameStateBase;
 class APhysicsVolume;
 class APlayerController;
+class AServerStreamingLevelsVisibility;
 class AWorldSettings;
 class UWorldPartition;
 class Error;
@@ -1116,7 +1117,19 @@ private:
 	UPROPERTY(Transient, DuplicateTransient)
 	FStreamingLevelsToConsider StreamingLevelsToConsider;
 
+	UPROPERTY(Transient, DuplicateTransient)
+	TObjectPtr<AServerStreamingLevelsVisibility> ServerStreamingLevelsVisibility;
+
 public:
+
+	/** Returns whether the world supports for a client to use "making visible" transaction requests to the server. */
+	bool SupportsMakingVisibleTransactionRequests() const;
+
+	/** Returns whether the world supports for a client to use "making invisible" transaction requests to the server. */
+	bool SupportsMakingInvisibleTransactionRequests() const;
+
+	/** Returns the object used to query server streaming level visibility. */
+	const AServerStreamingLevelsVisibility* GetServerStreamingLevelsVisibility() const;
 
 	/** Return a const version of the streaming levels array */
 	const TArray<ULevelStreaming*>& GetStreamingLevels() const { return StreamingLevels; }
@@ -1196,6 +1209,12 @@ private:
 
 	/** Returns wether AddToWorld should be skipped on a given level */
 	bool CanAddLoadedLevelToWorld(ULevel* Level) const;
+
+	/** Stores whether the game world supports for a client to use "making visible" transaction requests to the server. */
+	mutable TOptional<bool> bSupportsMakingVisibleTransactionRequests;
+
+	/** Stores whether the game world supports for a client to use "making invisible" transaction requests to the server. */
+	mutable TOptional<bool> bSupportsMakingInvisibleTransactionRequests;
 
 	/** Pointer to the current level in the queue to be made visible, NULL if none are pending. */
 	UPROPERTY(Transient)

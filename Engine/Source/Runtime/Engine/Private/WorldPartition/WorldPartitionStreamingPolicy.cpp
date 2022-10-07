@@ -279,6 +279,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			{
 				ClientVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
 				ClientVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
+				ClientVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
 			}
 		}
 

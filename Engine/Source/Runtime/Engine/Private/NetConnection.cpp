@@ -1350,7 +1350,7 @@ FNetLevelVisibilityTransactionId UNetConnection::UpdateLevelStreamStatusChangedT
 	if (bShouldBeVisible == false)
 	{
 		ClientVisibleLevelNames.Remove(PackageName);
-
+		ClientMakingVisibleLevelNames.Remove(PackageName);
 #if UE_WITH_IRIS
 		if (UReplicationSystem* ReplicationSystem = Driver->GetReplicationSystem())
 		{
@@ -1471,6 +1471,10 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 
 		if (bVerifiedTransaction && VisibilityResult.bLevelExists)
 		{
+			// Verify that server knows this package
+			UE_CLOG(!FLevelUtils::IsServerStreamingLevelVisible(GetWorld(), LevelVisibility.PackageName), LogPlayerController, Warning, TEXT("ServerUpdateLevelVisibility() Added '%s', but level is not visible on server."), *LevelVisibility.PackageName.ToString());
+			
+			ClientMakingVisibleLevelNames.Remove(LevelVisibility.PackageName);
 			ClientVisibleLevelNames.Add(LevelVisibility.PackageName);
 			UE_LOG(LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Added '%s'"), *LevelVisibility.PackageName.ToString());
 
@@ -1558,8 +1562,23 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			}
 		}
 	}
+	else if (LevelVisibility.bTryMakeVisible)
+	{
+		if (FLevelUtils::SupportsMakingVisibleTransactionRequests(GetWorld()))
+		{
+			const FNetLevelVisibilityTransactionId VisibilityRequestId = LevelVisibility.VisibilityRequestId;
+			check(VisibilityRequestId.IsValid() && VisibilityRequestId.IsClientTransaction());
+
+			if (FLevelUtils::IsServerStreamingLevelVisible(GetWorld(), LevelVisibility.PackageName))
+			{
+				ClientMakingVisibleLevelNames.Add(LevelVisibility.PackageName);
+				check(!ClientVisibleLevelNames.Contains(LevelVisibility.PackageName));
+			}
+		}
+	}
 	else
 	{
+		ClientMakingVisibleLevelNames.Remove(LevelVisibility.PackageName);
 		ClientVisibleLevelNames.Remove(LevelVisibility.PackageName);
 		UE_LOG(LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Removed '%s'"), *LevelVisibility.PackageName.ToString());
 		if (ReplicationConnectionDriver)
@@ -4686,6 +4705,7 @@ void UNetConnection::ResetGameWorldState()
 	ResetDestructionInfos();
 	ClientPendingStreamingStatusRequest.Empty();
 	ClientVisibleLevelNames.Empty();
+	ClientMakingVisibleLevelNames.Empty();
 	KeepProcessingActorChannelBunchesMap.Empty();
 	DormantReplicatorMap.Empty();
 	CleanupDormantActorState();

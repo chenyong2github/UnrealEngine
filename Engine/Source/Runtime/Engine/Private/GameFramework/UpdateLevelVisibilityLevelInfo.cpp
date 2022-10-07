@@ -19,10 +19,14 @@ namespace PlayerControllerCVars
 	);
 }
 
-FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
+FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible, const bool bInTryMakeVisible)
 	: bIsVisible(bInIsVisible)
+	, bTryMakeVisible(bInTryMakeVisible)
 	, bSkipCloseOnError(false)
 {
+	// For backward compatibility, bTryMakeVisible was added instead of converting bIsVisible to an enum.
+	// Make sure we don't receive the invalid state (bIsVisible == true) && (bTryMakeVisible == true)
+	check(!bTryMakeVisible || (bIsVisible != bTryMakeVisible));
 	const UPackage* const LevelPackage = Level->GetOutermost();
 	PackageName = LevelPackage->GetFName();
 
@@ -36,9 +40,11 @@ bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* Pa
 {
 	bool bArePackageAndFileTheSame = !!((PlayerControllerCVars::LevelVisibilityDontSerializeFileName) || (FileName == PackageName) || (FileName == NAME_None));
 	bool bLocalIsVisible = !!bIsVisible;
+	bool bLocalTryMakeVisible = !!bTryMakeVisible;
 
 	Ar.SerializeBits(&bArePackageAndFileTheSame, 1);
 	Ar.SerializeBits(&bLocalIsVisible, 1);
+	Ar.SerializeBits(&bLocalTryMakeVisible, 1);
 	Ar << PackageName;
 
 	if (!bArePackageAndFileTheSame)
@@ -53,6 +59,7 @@ bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* Pa
 	VisibilityRequestId.NetSerialize(Ar, PackageMap, bOutSuccess);
 
 	bIsVisible = bLocalIsVisible;
+	bTryMakeVisible = bLocalTryMakeVisible;
 
 	bOutSuccess = !Ar.IsError();
 	return true;

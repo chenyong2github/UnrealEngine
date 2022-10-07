@@ -58,15 +58,17 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 		: PackageName(NAME_None)
 		, FileName(NAME_None)
 		, bIsVisible(false)
+		, bTryMakeVisible(false)
 		, bSkipCloseOnError(false)
 	{
 	}
 
 	/**
-	 * @param Level			Level to pull PackageName and FileName from.
-	 * @param bInIsVisible	Default value for bIsVisible.
+	 * @param Level				Level to pull PackageName and FileName from.
+	 * @param bInIsVisible		Default value for bIsVisible.
+	 * @param bInTryMakeVisible	Whether the level is trying to be made visible or not.
 	 */
-	FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible);
+	FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible, const bool bInTryMakeVisible = false);
 
 	/** The name of the package for the level whose status changed. */
 	UPROPERTY()
@@ -83,6 +85,10 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 	/** The new visibility state for this level. */
 	UPROPERTY()
 	uint32 bIsVisible : 1;
+
+	/** Whether the level is in the state of making visible and waits for server to acknowledge. */
+	UPROPERTY()
+	uint32 bTryMakeVisible : 1;
 
 	/** Skip connection close if level can't be found (not net serialized) */
 	uint32 bSkipCloseOnError : 1;
