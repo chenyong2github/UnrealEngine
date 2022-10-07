@@ -21,7 +21,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceField(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GGlobalDistanceFieldOccupancyRatio = 0.4f;
+float GGlobalDistanceFieldOccupancyRatio = 0.3f;
 FAutoConsoleVariableRef CVarAOGlobalDistanceFieldOccupancyRatio(
 	TEXT("r.AOGlobalDistanceField.OccupancyRatio"),
 	GGlobalDistanceFieldOccupancyRatio,

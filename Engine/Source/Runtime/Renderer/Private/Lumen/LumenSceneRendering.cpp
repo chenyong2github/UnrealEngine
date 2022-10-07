@@ -206,11 +206,11 @@ FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneGlobalDFResolution = 224;
+int32 GLumenSceneGlobalDFResolution = 252;
 FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
 	TEXT("r.LumenScene.GlobalSDF.Resolution"),
 	GLumenSceneGlobalDFResolution,
-	TEXT(""),
+	TEXT("Global Distance Field resolution when Lumen is enabled."),
 	ECVF_RenderThreadSafe
 );
 
@@ -218,7 +218,7 @@ float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
 FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	TEXT("r.LumenScene.GlobalSDF.ClipmapExtent"),
 	GLumenSceneGlobalDFClipmapExtent,
-	TEXT(""),
+	TEXT("Global Distance Field first clipmap extent when Lumen is enabled."),
 	ECVF_RenderThreadSafe
 );
 
