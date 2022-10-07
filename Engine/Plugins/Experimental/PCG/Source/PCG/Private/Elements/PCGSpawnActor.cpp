@@ -83,6 +83,31 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
+	TArray<UFunction*> PostSpawnFunctions;
+	for (FName PostSpawnFunctionName : Settings->PostSpawnFunctionNames)
+	{
+		if (PostSpawnFunctionName == NAME_None)
+		{
+			continue;
+		}
+
+		if (UFunction* PostSpawnFunction = Settings->TemplateActorClass->FindFunctionByName(PostSpawnFunctionName))
+		{
+			if (PostSpawnFunction->NumParms != 0)
+			{
+				PCGE_LOG(Warning, "PostSpawnFunction \"%s\" requires parameters. We only support parameter-less functions. Will skip the call.", *PostSpawnFunctionName.ToString());
+			}
+			else
+			{
+				PostSpawnFunctions.Add(PostSpawnFunction);
+			}
+		}
+		else
+		{
+			PCGE_LOG(Warning, "PostSpawnFunction \"%s\" was not found in class \"%s\".", *PostSpawnFunctionName.ToString(), *Settings->TemplateActorClass->GetFName().ToString());
+		}
+	}
+
 	const bool bForceDisableActorParsing = (Settings->bForceDisableActorParsing);
 
 	// Pass-through exclusions & settings
@@ -192,6 +217,11 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 						AActor* GeneratedActor = TargetActor->GetWorld()->SpawnActor(Settings->TemplateActorClass, &Point.Transform, SpawnParams);
 						GeneratedActor->Tags.Append(NewActorTags);
 						GeneratedActor->AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
+
+						for (UFunction* PostSpawnFunction : PostSpawnFunctions)
+						{
+							GeneratedActor->ProcessEvent(PostSpawnFunction, nullptr);
+						}
 
 						ManagedActors->GeneratedActors.Add(GeneratedActor);
 
