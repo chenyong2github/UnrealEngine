@@ -178,7 +178,7 @@ struct FMassVisualizationLODParameters : public FMassSharedFragment
 	float DistanceToFrustumHysteresis = 0.0f;
 
 	/** Filter these settings with specified tag */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (BaseStruct = "MassTag"))
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (BaseStruct = "/Script/MassEntity.MassTag"))
 	TObjectPtr<UScriptStruct> FilterTag = nullptr;
 };
 
