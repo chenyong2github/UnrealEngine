@@ -3026,7 +3026,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 				FString ErrorString = FString::Printf(TEXT("[%s] %s"), *FeatureLevelName, *CompileErrors[ErrorIndex]);
 				TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(ErrorString, FLinearColor::Red)));
 				TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create( EMessageSeverity::Error );
-				if(ensure(FailingExpression.Num() == CompileErrors.Num()) && FailingExpression[ErrorIndex])
+				if(FailingExpression.Num() && ensure(FailingExpression.Num() == CompileErrors.Num()) && FailingExpression[ErrorIndex])
 				{
 					Line->SetMessageLink(FUObjectToken::Create(FailingExpression[ErrorIndex]));
 				}
