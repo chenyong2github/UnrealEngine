@@ -173,46 +173,51 @@ FD3D12CommandList::FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, F
 			IID_PPV_ARGS(Interfaces.GraphicsCommandList.GetInitReference())
 		));
 		Interfaces.CommandList = Interfaces.GraphicsCommandList;
+
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.CopyCommandList.GetInitReference()));
+
+		// Optionally obtain the versioned ID3D12GraphicsCommandList[0-9]+ interfaces, we don't check the HRESULT.
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList1.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList2.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList3.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList4.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList5.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList6.GetInitReference()));
+#endif
+#if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.DebugCommandList.GetInitReference()));
+#endif
 		break;
 
-	default:
+	case ED3D12QueueType::Copy:
 		VERIFYD3D12RESULT(Device->GetDevice()->CreateCommandList(
 			Device->GetGPUMask().GetNative(),
 			GetD3DCommandListType(QueueType),
 			*CommandAllocator,
 			nullptr,
-			IID_PPV_ARGS(Interfaces.CommandList.GetInitReference())
+			IID_PPV_ARGS(Interfaces.CopyCommandList.GetInitReference())
 		));
+		Interfaces.CommandList = Interfaces.CopyCommandList;
 
-		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList.GetInitReference()));
 		break;
+
+	default:
+		checkNoEntry();
+		return;
 	}
 
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
-
-	// Optionally obtain the versioned ID3D12GraphicsCommandList[0-9]+ interfaces, we don't check the HRESULT.
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.CopyCommandList.GetInitReference()));
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList1.GetInitReference()));
-#endif
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList2.GetInitReference()));
-#endif
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList3.GetInitReference()));
-#endif
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList4.GetInitReference()));
-#endif
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList5.GetInitReference()));
-#endif
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList6.GetInitReference()));
-#endif
-#if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
-	Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.DebugCommandList.GetInitReference()));
-#endif
 
 #if NV_AFTERMATH
 	if (GDX12NVAfterMathEnabled)

@@ -280,7 +280,7 @@ FD3D12SyncPointRef FD3D12Buffer::UploadResourceDataViaCopyQueue(FResourceArrayIn
 		SyncPoint = CopyScope.GetSyncPoint();
 
 		// Perform actual copy op
-		CopyScope.Context.GraphicsCommandList()->CopyBufferRegion(
+		CopyScope.Context.CopyCommandList()->CopyBufferRegion(
 			ResourceLocation.GetResource()->GetResource(),
 			ResourceLocation.GetOffsetFromBaseOfResource(),
 			SrcResourceLoc.GetResource()->GetResource(),
