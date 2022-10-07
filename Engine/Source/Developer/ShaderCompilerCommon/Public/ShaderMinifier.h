@@ -15,6 +15,7 @@ enum EMinifyShaderFlags
 	None = 0,
 	OutputReasons = 1 << 1,
 	OutputStats   = 1 << 2,
+	OutputLines   = 1 << 3,
 };
 ENUM_CLASS_FLAGS(EMinifyShaderFlags)
 

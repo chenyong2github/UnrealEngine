@@ -1346,7 +1346,9 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		}
 
 		UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(PreprocessedShaderSource, EntryMain, 
-			UE::ShaderMinifier::EMinifyShaderFlags::OutputReasons | UE::ShaderMinifier::EMinifyShaderFlags::OutputStats);
+			UE::ShaderMinifier::EMinifyShaderFlags::OutputReasons
+			| UE::ShaderMinifier::EMinifyShaderFlags::OutputStats
+			| UE::ShaderMinifier::EMinifyShaderFlags::OutputLines);
 
 		if (Minified.Success())
 		{
