@@ -60,9 +60,9 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	Configuration      = MakeUnique<FDisplayClusterViewportConfiguration>(*this);
 	RenderFrameManager = MakeUnique<FDisplayClusterRenderFrameManager>();
 
-	ViewportManagerProxy = MakeShared<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe>();
+	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy();
 
-	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>(ViewportManagerProxy.Get());
+	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>(ViewportManagerProxy);
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 	LightCardManager = MakeShared<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>(*this);
 
@@ -76,41 +76,30 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 {
 	// Remove viewports
-	Viewports.Reset();
-	ClusterNodeViewports.Reset();
-
-	RenderTargetManager.Reset();
-	PostProcessManager.Reset();
-
-	if (LightCardManager.IsValid())
 	{
-		LightCardManager->Release();
-		LightCardManager.Reset();
+		TArray<FDisplayClusterViewport*> ExistViewports = Viewports;
+		for (FDisplayClusterViewport* Viewport : ExistViewports)
+		{
+			ImplDeleteViewport(Viewport);
+		}
+		ExistViewports.Empty();
 	}
 
-	Configuration.Reset();
-
-	if (ViewportManagerProxy.IsValid())
+	if (ViewportManagerProxy)
 	{
-		// Remove viewport manager proxy on render_thread
-		ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportManagerProxy)(
-			[ViewportManagerProxy = ViewportManagerProxy](FRHICommandListImmediate& RHICmdList)
-			{
-				ViewportManagerProxy->Release_RenderThread();
-			});
-
-		ViewportManagerProxy.Reset();
+		ViewportManagerProxy->ImplSafeRelease();
+		ViewportManagerProxy = nullptr;
 	}
 }
 
 const IDisplayClusterViewportManagerProxy* FDisplayClusterViewportManager::GetProxy() const
 {
-	return ViewportManagerProxy.Get();
+	return ViewportManagerProxy;
 }
 
 IDisplayClusterViewportManagerProxy* FDisplayClusterViewportManager::GetProxy()
 {
-	return ViewportManagerProxy.Get();
+	return ViewportManagerProxy;
 }
 
 UWorld* FDisplayClusterViewportManager::GetCurrentWorld() const
@@ -623,6 +612,13 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 	{
 		case EDisplayClusterViewportCaptureMode::Chromakey:
 		case EDisplayClusterViewportCaptureMode::Lightcard:
+		case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
+
+			if (InFrameTarget.CaptureMode != EDisplayClusterViewportCaptureMode::Lightcard_OCIO)
+			{
+				bResolveScene = false;
+				InEngineShowFlags.PostProcessing = 0;
+			}
 
 			InEngineShowFlags.SetAtmosphere(0);
 			InEngineShowFlags.SetFog(0);
@@ -653,6 +649,7 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 		break;
 
 	case EDisplayClusterViewportCaptureMode::Lightcard:
+	case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
 
 		if (!GDisplayClusterLightcardsAllowNanite)
 		{
@@ -820,7 +817,6 @@ bool FDisplayClusterViewportManager::DeleteViewport(const FString& ViewportId)
 	if (ExistViewport != nullptr)
 	{
 		ImplDeleteViewport(ExistViewport);
-
 		return true;
 	}
 
@@ -844,6 +840,9 @@ FDisplayClusterViewport* FDisplayClusterViewportManager::ImplCreateViewport(cons
 	Viewports.Add(NewViewport);
 	ClusterNodeViewports.Add(NewViewport);
 
+	// Add viewport proxy on renderthread
+	ViewportManagerProxy->ImplCreateViewport(NewViewport->ViewportProxy);
+
 	// Handle start scene for viewport
 	NewViewport->HandleStartScene();
 
@@ -856,8 +855,11 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	ExistViewport->ProjectionPolicy.Reset();
 	ExistViewport->UninitializedProjectionPolicy.Reset();
 
+	// Delete viewport proxy on render thread
+	ViewportManagerProxy->ImplDeleteViewport(ExistViewport->ViewportProxy);
+
 	{
-		// Remove viewport from the whole viewports list
+		// Remove viewport obj from manager
 		int32 ViewportIndex = Viewports.Find(ExistViewport);
 		if (ViewportIndex != INDEX_NONE)
 		{
@@ -867,7 +869,7 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	}
 
 	{
-		// Remove viewport from the cluster viewports list
+		// Remove cluster node viewport
 		int32 ViewportIndex = ClusterNodeViewports.Find(ExistViewport);
 		if (ViewportIndex != INDEX_NONE)
 		{

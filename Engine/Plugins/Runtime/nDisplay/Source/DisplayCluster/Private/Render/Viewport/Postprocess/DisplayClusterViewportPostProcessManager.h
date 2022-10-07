@@ -4,7 +4,6 @@
 
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
 #include "Render/IDisplayClusterRenderManager.h"
-#include "Templates/SharedPointer.h"
 
 class FDisplayClusterViewportManager;
 class FDisplayClusterViewportManagerProxy;
@@ -16,7 +15,6 @@ struct FDisplayClusterConfigurationPostprocess;
  */
 
 class FDisplayClusterViewportPostProcessManager
-	: public TSharedFromThis<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>
 {
 public:
 	FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager);

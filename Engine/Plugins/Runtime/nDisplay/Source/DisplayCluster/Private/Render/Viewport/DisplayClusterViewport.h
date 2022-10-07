@@ -122,11 +122,6 @@ public:
 
 	virtual IDisplayClusterViewportManager& GetOwner() const override;
 
-	FDisplayClusterViewportManager& ImplGetOwner() const
-	{
-		return Owner;
-	}
-
 	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const;
 
 	//////////////////////////////////////////////////////
@@ -251,7 +246,7 @@ protected:
 	friend FDisplayClusterViewportRemap;
 
 	// viewport render thread data
-	TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
+	FDisplayClusterViewportProxy* ViewportProxy = nullptr;
 
 	// Unique viewport name
 	const FString ViewportId;

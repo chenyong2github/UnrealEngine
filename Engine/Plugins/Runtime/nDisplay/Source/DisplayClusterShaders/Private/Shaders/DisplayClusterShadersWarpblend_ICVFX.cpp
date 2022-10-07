@@ -45,14 +45,6 @@ static TAutoConsoleVariable<int32> CVarIcvfxMPCDIShaderType(
 	ECVF_RenderThreadSafe
 );
 
-int32 GDisplayClusterShadersICVFXEnableLightCard = 1;
-static FAutoConsoleVariableRef CVarDisplayClusterShadersICVFXEnableLightCard(
-	TEXT("nDisplay.render.icvfx.lightcard"),
-	GDisplayClusterShadersICVFXEnableLightCard,
-	TEXT("Enable ICVFX lightcards render (0 - disable).\n"),
-	ECVF_RenderThreadSafe
-);
-
 enum class EIcvfxShaderType : uint8
 {
 	Passthrough,  // Viewport frustum (no warpblend, only frustum math)
@@ -329,7 +321,7 @@ private:
 			// 2 - second camera additive pass
 			// N - camera N
 			// N+1 - overlayOver (optional)
-			return (ICVFXParameters.IsLightcardOverUsed() && GDisplayClusterShadersICVFXEnableLightCard) ? ( CameraIndex == (TotalUsedCameras + 1) ) : ( CameraIndex == TotalUsedCameras );
+			return (ICVFXParameters.IsLightcardOverUsed()) ? ( CameraIndex == (TotalUsedCameras + 1) ) : ( CameraIndex == TotalUsedCameras );
 		}
 
 		if (TotalUsedCameras>1)
@@ -339,7 +331,7 @@ private:
 			// 1   - camera2
 			// N-1 - camera N
 			// N   - overlayOver (optional)
-			return (ICVFXParameters.IsLightcardOverUsed() && GDisplayClusterShadersICVFXEnableLightCard) ? ( CameraIndex == TotalUsedCameras ) : ( CameraIndex == (TotalUsedCameras-1) );
+			return (ICVFXParameters.IsLightcardOverUsed()) ? ( CameraIndex == TotalUsedCameras ) : ( CameraIndex == (TotalUsedCameras-1) );
 		}
 
 		// By default render single camera in one pass
@@ -349,7 +341,7 @@ private:
 	inline bool IsOverlayUnderUsed() const
 	{
 		// Render OverlayUnder only on first pass
-		return IsFirstPass() && ICVFXParameters.IsLightcardUnderUsed() && GDisplayClusterShadersICVFXEnableLightCard;
+		return IsFirstPass() && ICVFXParameters.IsLightcardUnderUsed();
 	}
 
 	inline bool IsOverlayOverUsed() const
@@ -357,10 +349,10 @@ private:
 		if (IsMultiPassRender())
 		{
 			// Render OverlayOver only on last additive pass
-			return IsLastPass() && ICVFXParameters.IsLightcardOverUsed() && GDisplayClusterShadersICVFXEnableLightCard;
+			return IsLastPass() && ICVFXParameters.IsLightcardOverUsed();
 		}
 		
-		return ICVFXParameters.IsLightcardOverUsed() && GDisplayClusterShadersICVFXEnableLightCard;
+		return ICVFXParameters.IsLightcardOverUsed();
 	}
 
 	inline int32 GetUsedCameraIndex() const
@@ -529,9 +521,22 @@ public:
 		if (IsOverlayUnderUsed() || IsOverlayOverUsed())
 		{
 
-			RenderPassData.PSParameters.OverlaySampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			RenderPassData.PSParameters.OverlayTexture = ICVFXParameters.Lightcard.Texture;
+			if (ICVFXParameters.Lightcard_OCIO.IsValid())
+			{
+				// use OCIO with separated alpha lightmap texture
+				RenderPassData.PSParameters.OverlaySampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				RenderPassData.PSParameters.OverlayTexture = ICVFXParameters.Lightcard_OCIO.Texture;
 
+				RenderPassData.PSParameters.OverlayAlphaSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				RenderPassData.PSParameters.OverlayAlphaTexture = ICVFXParameters.Lightcard.Texture;
+
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderOverlayAlpha>(true);
+			}
+			else
+			{
+				RenderPassData.PSParameters.OverlaySampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				RenderPassData.PSParameters.OverlayTexture = ICVFXParameters.Lightcard.Texture;
+			}
 			if (IsOverlayUnderUsed())
 			{
 				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderOverlayUnder>(true);
@@ -641,7 +646,7 @@ public:
 
 	bool GetUVLightCardParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		if (ICVFXParameters.UVLightCardMap.IsValid() && GDisplayClusterShadersICVFXEnableLightCard && RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>())
+		if (ICVFXParameters.UVLightCardMap.IsValid() && RenderPassData.PSPermutationVector.Get<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>())
 		{
 			RenderPassData.PSParameters.UVLightCardMapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			RenderPassData.PSParameters.UVLightCardMapTexture = ICVFXParameters.UVLightCardMap;

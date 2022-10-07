@@ -8,7 +8,6 @@
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
-#include "Templates/SharedPointer.h"
 
 class FDisplayClusterRenderTargetManager;
 class FDisplayClusterViewportPostProcessManager;
@@ -23,13 +22,12 @@ class FViewport;
 
 class FDisplayClusterViewportManagerProxy
 	: public IDisplayClusterViewportManagerProxy
-	, public TSharedFromThis<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe>
 {
 public:
 	FDisplayClusterViewportManagerProxy();
 	virtual ~FDisplayClusterViewportManagerProxy();
 
-	void Release_RenderThread();
+	void Release();
 
 public:
 	void DoCrossGPUTransfers_RenderThread(FRHICommandListImmediate& RHICmdList) const;
@@ -44,9 +42,9 @@ public:
 
 	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const override;
 
-	virtual const TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>> GetViewports_RenderThread() const override
+	virtual const TArrayView<IDisplayClusterViewportProxy*> GetViewports_RenderThread() const override
 	{
-		return TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>>((TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>*)(ClusterNodeViewportProxies.GetData()), ClusterNodeViewportProxies.Num());
+		return TArrayView<IDisplayClusterViewportProxy*>((IDisplayClusterViewportProxy**)(ClusterNodeViewportProxies.GetData()), ClusterNodeViewportProxies.Num());
 	}
 
 	virtual bool GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources = nullptr) const override;
@@ -55,9 +53,6 @@ public:
 	virtual TSharedPtr<IDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> GetLightCardManager_RenderThread() const override;
 
 	// internal use only
-	void CreateViewport_RenderThread(const TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>& InViewportProxy);
-	void DeleteViewport_RenderThread(const TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>& InViewportProxy);
-
 	void DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr);
 	void Initialize(FDisplayClusterViewportManager& InViewportManager);
 
@@ -68,7 +63,7 @@ public:
 		return RenderFrameSettings;
 	}
 
-	const TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>>& ImplGetViewportProxies_RenderThread() const
+	const TArray<FDisplayClusterViewportProxy*>& ImplGetViewportProxies_RenderThread() const
 	{
 		check(IsInRenderingThread());
 
@@ -77,8 +72,11 @@ public:
 
 	FDisplayClusterViewportProxy* ImplFindViewport_RenderThread(const FString& InViewportId) const;
 
+	void ImplCreateViewport(FDisplayClusterViewportProxy* InViewportProxy);
+	void ImplDeleteViewport(FDisplayClusterViewportProxy* InViewportProxy);
 	void ImplUpdateRenderFrameSettings(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings);
 	void ImplUpdateViewports(const TArray<FDisplayClusterViewport*>& InViewports);
+	void ImplSafeRelease();
 
 	void ImplRenderFrame(FViewport* InViewport);
 	void ImplClearFrameTargets_RenderThread(FRHICommandListImmediate& RHICmdList) const;
@@ -93,9 +91,6 @@ private:
 
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 
-	TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>> ViewportProxies;
-	TArray<TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>> ClusterNodeViewportProxies;
-
-	// Handle special features
-	TSharedPtr<class FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> ViewportManagerViewExtension;
+	TArray<FDisplayClusterViewportProxy*> ViewportProxies;
+	TArray<FDisplayClusterViewportProxy*> ClusterNodeViewportProxies;
 };

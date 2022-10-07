@@ -113,6 +113,7 @@ public:
 	{
 		Cameras.Empty();
 		Lightcard.Reset();
+		Lightcard_OCIO.Reset();
 
 		UVLightCardMap = nullptr;
 	}
@@ -125,6 +126,7 @@ public:
 		Cameras = InParameters.Cameras;
 
 		Lightcard      = InParameters.Lightcard;
+		Lightcard_OCIO = InParameters.Lightcard_OCIO;
 		LightcardMode = InParameters.LightcardMode;
 
 		UVLightCardMap = InParameters.UVLightCardMap;
@@ -135,6 +137,11 @@ public:
 		if (Lightcard.IsDefined())
 		{
 			Dst.Add(&Lightcard);
+		}
+
+		if (Lightcard_OCIO.IsDefined())
+		{
+			Dst.Add(&Lightcard_OCIO);
 		}
 
 		for (FCameraSettings& CameraIt : Cameras)
@@ -242,6 +249,7 @@ public:
 
 	// Lightcard settings
 	FDisplayClusterShaderParametersICVFX_ViewportResource    Lightcard;
+	FDisplayClusterShaderParametersICVFX_ViewportResource    Lightcard_OCIO;
 	EDisplayClusterShaderParametersICVFX_LightcardRenderMode LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
 
 	/** Texture containing a UV map of the rendered UV light cards */

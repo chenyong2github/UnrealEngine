@@ -4,7 +4,6 @@
 #include "Render/Viewport/DisplayClusterViewportHelpers.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
-#include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 
@@ -38,37 +37,14 @@ FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager&
 	check(UninitializedProjectionPolicy.IsValid());
 
 	// Create scene proxy pair with on game thread. Outside, in ViewportManager added to proxy array on render thread
-	ViewportProxy = MakeShared<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>(*this);
-
-	// Add viewport proxy on renderthread
-	ENQUEUE_RENDER_COMMAND(CreateDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = Owner.GetViewportManagerProxy(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
-		{
-			ViewportManagerProxy->CreateViewport_RenderThread(ViewportProxy);
-		}
-	);
+	ViewportProxy = new FDisplayClusterViewportProxy(Owner.ImplGetProxy(), *this);
 }
 
 FDisplayClusterViewport::~FDisplayClusterViewport()
 {
-	// Handle projection policy event
-	ProjectionPolicy.Reset();
-	UninitializedProjectionPolicy.Reset();
-
-	// Remove viewport proxy on render_thread
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = Owner.GetViewportManagerProxy(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
-		{
-			ViewportManagerProxy->DeleteViewport_RenderThread(ViewportProxy);
-		}
-	);
-
-	ViewportProxy.Reset();
-
 	HandleEndScene();
 
-	// Reset RTT size after viewport delete
-	Owner.ResetSceneRenderTargetSize();
+	// ViewportProxy deleted on render thread from FDisplayClusterViewportManagerProxy::ImplDeleteViewport()
 }
 
 IDisplayClusterViewportManager& FDisplayClusterViewport::GetOwner() const
@@ -244,6 +220,7 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 	{
 	case EDisplayClusterViewportCaptureMode::Chromakey:
 	case EDisplayClusterViewportCaptureMode::Lightcard:
+	case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
 
 		InOutView.bAllowRayTracing = false;
 		break;

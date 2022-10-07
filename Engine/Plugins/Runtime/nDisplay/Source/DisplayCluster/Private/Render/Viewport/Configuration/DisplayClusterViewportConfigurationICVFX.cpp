@@ -279,14 +279,29 @@ FDisplayClusterViewportConfigurationICVFX::~FDisplayClusterViewportConfiguration
 
 bool FDisplayClusterViewportConfigurationICVFX::CreateLightcardViewport(FDisplayClusterViewport& BaseViewport)
 {
-	FDisplayClusterViewport* LightcardViewport = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateLightcardViewport(BaseViewport, RootActor);
+	FDisplayClusterViewport* LightcardViewport = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateLightcardViewport(BaseViewport, RootActor, false);
 	if (LightcardViewport)
 	{
 		// Update lightcard viewport settings
-		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportSetting(*LightcardViewport, BaseViewport, RootActor);
+		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportSetting(*LightcardViewport, BaseViewport, RootActor, false);
 
 		// Support projection policy update
 		FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*LightcardViewport);
+
+		// When lightcard use OCIO or PP for render we need resolve scene. Now get alpha channel by second render pass
+		if ((LightcardViewport->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXLightcardColor) != 0)
+		{
+			// Now OCIO require second vp for alpha
+			FDisplayClusterViewport* LightcardViewportAlpha = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateLightcardViewport(BaseViewport, RootActor, true);
+			if (LightcardViewportAlpha)
+			{
+				// Update lightcard viewport settings
+				FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportSetting(*LightcardViewportAlpha, BaseViewport, RootActor, true);
+
+				// Support projection policy update
+				FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*LightcardViewportAlpha);
+			}
+		}
 
 		return true;
 	}
@@ -396,7 +411,7 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 				// Freeze render for lightcards when outer viewports freezed
 				if (StageSettings.Lightcard.bIgnoreOuterViewportsFreezingForLightcards == false)
 				{
-					const EDisplayClusterViewportRuntimeICVFXFlags LightcardViewportMask = ViewportRuntime_ICVFXLightcard;
+					const EDisplayClusterViewportRuntimeICVFXFlags LightcardViewportMask = ViewportRuntime_ICVFXLightcard | ViewportRuntime_ICVFXLightcardColor | ViewportRuntime_ICVFXLightcardAlpha;
 
 					for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetViewports())
 					{

@@ -369,7 +369,7 @@ void FDisplayClusterViewportPostProcessManager::FinalizeNewFrame()
 	check(IsInGameThread());
 
 	ENQUEUE_RENDER_COMMAND(DisplayClusterViewportPostProcessManager_FinalizeNewFrame)(
-		[PostprocessManager = SharedThis(this), PostprocessData = Postprocess](FRHICommandListImmediate& RHICmdList)
+		[PostprocessManager = this, PostprocessData = Postprocess](FRHICommandListImmediate& RHICmdList)
 	{
 		PostprocessManager->PostprocessProxy.Empty();
 		PostprocessManager->PostprocessProxy.Append(PostprocessData);
@@ -485,12 +485,12 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewBefore
 				// send nullptr viewport first to handle begin
 				It->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, nullptr);
 
-				for (TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
+				for (IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 				{
-					if (ViewportProxyIt.IsValid())
+					if (ViewportProxyIt)
 					{
 						UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess VIEW before WarpBlend - Viewport '%s'"), *ViewportProxyIt->GetId());
-						It->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, ViewportProxyIt.Get());
+						It->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
 					}
 				}
 			}
@@ -515,12 +515,12 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewAfterW
 				// send nullptr viewport first to handle begin
 				It->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, nullptr);
 
-				for (const TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
+				for (IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 				{
-					if (ViewportProxyIt.IsValid())
+					if (ViewportProxyIt)
 					{
 						UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess VIEW after WarpBlend - Viewport '%s'"), *ViewportProxyIt->GetId());
-						It->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, ViewportProxyIt.Get());
+						It->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
 					}
 				}
 			}

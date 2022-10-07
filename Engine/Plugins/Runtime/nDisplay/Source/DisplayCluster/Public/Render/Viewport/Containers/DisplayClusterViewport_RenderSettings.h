@@ -14,6 +14,7 @@ enum class EDisplayClusterViewportCaptureMode : uint8
 
 	// use hi-res float texture with alpha for compisiting
 	Lightcard,
+	Lightcard_OCIO,
 
 	// Special hi-res mode for movie pipeline
 	MoviePipeline,

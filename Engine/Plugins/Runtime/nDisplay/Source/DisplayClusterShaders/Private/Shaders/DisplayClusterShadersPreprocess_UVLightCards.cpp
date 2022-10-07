@@ -146,22 +146,6 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 
 	FEngineShowFlags EngineShowFlags(ESFIM_Game);
 
-	// LightCard settings from the FDisplayClusterViewportManager::ConfigureViewFamily
-	{
-		EngineShowFlags.PostProcessing = 0;
-		EngineShowFlags.SetAtmosphere(0);
-		EngineShowFlags.SetFog(0);
-		EngineShowFlags.SetVolumetricFog(0);
-		EngineShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
-		EngineShowFlags.SetSeparateTranslucency(0);
-		EngineShowFlags.SetHMDDistortion(0);
-		EngineShowFlags.SetOnScreenDebug(0);
-
-		EngineShowFlags.SetLumenReflections(0);
-		EngineShowFlags.SetLumenGlobalIllumination(0);
-		EngineShowFlags.SetGlobalIllumination(0);
-	}
-
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InRenderTarget,
 		InScene,
@@ -209,7 +193,7 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 		);
 	}
 
-	ViewInitOptions.BackgroundColor = FLinearColor::Black;
+	ViewInitOptions.BackgroundColor = FLinearColor::Transparent;
 
 	GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
 	const FSceneView* View = ViewFamily.Views[0];

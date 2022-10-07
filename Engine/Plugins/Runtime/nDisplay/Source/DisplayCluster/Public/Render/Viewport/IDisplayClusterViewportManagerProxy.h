@@ -41,7 +41,7 @@ public:
 	*
 	* @return - arrays with viewport render thread proxy objects refs
 	*/
-	virtual const TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>> GetViewports_RenderThread() const = 0;
+	virtual const TArrayView<IDisplayClusterViewportProxy*> GetViewports_RenderThread() const = 0;
 
 	/**
 	* Return render frame targets for current frame
