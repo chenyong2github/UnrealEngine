@@ -90,7 +90,6 @@ public class ResonanceAudio : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Android)
         {
             PrivateDefinitions.Add("PFFFT_SIMD_DISABLE=1");
-            PrivateDefinitions.Add("EIGEN_HAS_CXX11_MATH=0");
         }
     }
 }
