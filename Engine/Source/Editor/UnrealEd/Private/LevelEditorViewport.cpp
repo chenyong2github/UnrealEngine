@@ -5178,4 +5178,10 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 	return false;
 }
 
+void FLevelEditorViewportClient::SetEditingThroughMovementWidget()
+{
+	bCurrentlyEditingThroughMovementWidget = true;
+}
+
+
 #undef LOCTEXT_NAMESPACE

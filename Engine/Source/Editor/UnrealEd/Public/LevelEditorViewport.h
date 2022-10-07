@@ -648,6 +648,12 @@ public:
 
 	virtual bool UseAppTime() const override { return false; }
 
+	/**
+	 * Informs the renderer that the view is being interactively edited. (ex. rotation/translation gizmo).
+	 * This state is reset on tick.
+	 */
+	void SetEditingThroughMovementWidget();
+
 protected:
 	/**
 	* Sets the state of creating a preview actor in the viewport.
