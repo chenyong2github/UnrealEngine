@@ -313,7 +313,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	}
 
 	// Filter out views that don't match our world
-	if (!WorldPartition->IsServer() &&
+	if (!WorldPartition->GetWorld()->IsNetMode(NM_DedicatedServer) &&
 		Canvas->SceneView->ViewActor != nullptr &&
 		Canvas->SceneView->ViewActor->GetWorld() != GetWorld())
 	{
