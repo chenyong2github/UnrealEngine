@@ -687,6 +687,7 @@ FNiagaraMeshCommonParameters FNiagaraRendererMeshes::CreateCommonShaderParams(co
 
 	Params.SystemLWCTile			= SceneProxy.GetLWCRenderTile();
 	Params.bLocalSpace 				= bUseLocalSpace;
+	Params.AccurateMotionVectors	= bAccurateMotionVectors;
 	Params.DeltaSeconds 			= View.Family->Time.GetDeltaWorldTimeSeconds();
 	Params.FacingMode 				= (uint32)FacingMode;	
 
@@ -1262,19 +1263,11 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				const FStaticMeshLODResources& LODModel = MeshData.RenderData->LODResources[LODIndex];
 				const int32 SectionCount = LODModel.Sections.Num();
 
-				FMeshCollectorResourcesBase* CollectorResources;
-				if (bAccurateMotionVectors)
-				{
-					CollectorResources = &Collector.AllocateOneFrameResource<FMeshCollectorResourcesEx>();
-				}
-				else
-				{
-					CollectorResources = &Collector.AllocateOneFrameResource<FMeshCollectorResources>();
-				}				
+				FMeshCollectorResources* CollectorResources = &Collector.AllocateOneFrameResource<FMeshCollectorResources>();
 
 				// Get the next vertex factory to use
 				// TODO: Find a way to safely pool these such that they won't be concurrently accessed by multiple views
-				FNiagaraMeshVertexFactory& VertexFactory = CollectorResources->GetVertexFactory();
+				FNiagaraMeshVertexFactory& VertexFactory = CollectorResources->VertexFactory;
 				VertexFactory.SetParticleFactoryType(NVFT_Mesh);
 				VertexFactory.SetMeshIndex(MeshIndex);
 				VertexFactory.SetLODIndex(LODIndex);
@@ -1420,19 +1413,11 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		FRayTracingInstance RayTracingInstance;
 		RayTracingInstance.Geometry = &Geometry;
 
-		FMeshCollectorResourcesBase* CollectorResources;
-		if (bAccurateMotionVectors)
-		{
-			CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResourcesEx>();
-		}
-		else
-		{
-			CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResources>();
-		}
+		FMeshCollectorResources* CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResources>();
 
 		// Get the next vertex factory to use
 		// TODO: Find a way to safely pool these such that they won't be concurrently accessed by multiple views
-		FNiagaraMeshVertexFactory& VertexFactory = CollectorResources->GetVertexFactory();
+		FNiagaraMeshVertexFactory& VertexFactory = CollectorResources->VertexFactory;
 		VertexFactory.SetParticleFactoryType(NVFT_Mesh);
 		VertexFactory.SetMeshIndex(MeshIndex);
 		VertexFactory.SetLODIndex(LODIndex);

@@ -62,27 +62,14 @@ private:
 	};
 
 	/* Mesh collector classes */
-	class FMeshCollectorResourcesBase : public FOneFrameResource
+	class FMeshCollectorResources : public FOneFrameResource
 	{
 	public:
-		FNiagaraSpriteUniformBufferRef UniformBuffer;
+		~FMeshCollectorResources() override { VertexFactory.ReleaseResource(); }
 
-		virtual ~FMeshCollectorResourcesBase() {}
-		virtual FNiagaraSpriteVertexFactory& GetVertexFactory() = 0;
+		FNiagaraSpriteVertexFactory		VertexFactory;
+		FNiagaraSpriteUniformBufferRef	UniformBuffer;
 	};
-
-	template <typename TVertexFactory>
-	class TMeshCollectorResources : public FMeshCollectorResourcesBase
-	{
-	public:
-		TVertexFactory VertexFactory;
-
-		virtual ~TMeshCollectorResources() { VertexFactory.ReleaseResource(); }
-		virtual FNiagaraSpriteVertexFactory& GetVertexFactory() override { return VertexFactory; }
-	};
-
-	using FMeshCollectorResources = TMeshCollectorResources<FNiagaraSpriteVertexFactory>;
-	using FMeshCollectorResourcesEx = TMeshCollectorResources<FNiagaraSpriteVertexFactoryEx>;
 
 	void PrepareParticleSpriteRenderData(FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const;
 	void PrepareParticleRenderBuffers(FParticleSpriteRenderData& ParticleSpriteRenderData, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;

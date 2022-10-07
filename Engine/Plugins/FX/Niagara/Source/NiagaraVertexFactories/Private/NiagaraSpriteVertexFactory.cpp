@@ -224,20 +224,3 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraSpriteVertexFactory,"/Plugin/FX/Niagara/Pr
 	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
 	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
-
-/////////////////////////////////////////////////////////////////////////////
-
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactoryEx, SF_Vertex, FNiagaraSpriteVertexFactoryShaderParametersVS);
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactoryEx, SF_Pixel, FNiagaraSpriteVertexFactoryShaderParametersPS);
-#if RHI_RAYTRACING
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactoryEx, SF_Compute, FNiagaraSpriteVertexFactoryShaderParametersVS);
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraSpriteVertexFactoryEx, SF_RayHitGroup, FNiagaraSpriteVertexFactoryShaderParametersVS);
-#endif // RHI_RAYTRACING
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraSpriteVertexFactoryEx,"/Plugin/FX/Niagara/Private/NiagaraSpriteVertexFactory.ush",
-	  EVertexFactoryFlags::UsedWithMaterials
-	| EVertexFactoryFlags::SupportsDynamicLighting
-	| EVertexFactoryFlags::SupportsRayTracing
-	| EVertexFactoryFlags::SupportsRayTracingDynamicGeometry
-	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
-	| EVertexFactoryFlags::SupportsPSOPrecaching
-);

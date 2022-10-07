@@ -22,11 +22,6 @@
 #define USE_PARTICLE_LOCAL_TO_WORLD (NEEDS_PARTICLE_LOCAL_TO_WORLD || NEEDS_INSTANCE_LOCAL_TO_WORLD_PS)
 #define USE_PARTICLE_WORLD_TO_LOCAL (NEEDS_PARTICLE_WORLD_TO_LOCAL || NEEDS_INSTANCE_WORLD_TO_LOCAL_PS)
 
-
-#ifndef ENABLE_PRECISE_MOTION_VECTORS
-#define ENABLE_PRECISE_MOTION_VECTORS 0
-#endif
-
 #ifndef MANUAL_VERTEX_FETCH
 #define MANUAL_VERTEX_FETCH 0
 #endif
@@ -518,11 +513,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Params.ParticleIndex				= Intermediates.ParticleIndex;
 	Params.SystemLWCTile				= NiagaraMeshVF.SystemLWCTile;
 	Params.bLocalSpace					= NiagaraMeshVF.bLocalSpace;
-	#if ENABLE_PRECISE_MOTION_VECTORS
-		Params.bPreciseMotionVectors 	= true;
-	#else
-		Params.bPreciseMotionVectors 	= false;		
-	#endif
+	Params.bPreciseMotionVectors 		= NiagaraMeshVF.AccurateMotionVectors != 0;
 	Params.FacingMode					= NiagaraMeshVF.FacingMode;
 	Params.DeltaSeconds					= NiagaraMeshVF.DeltaSeconds;
 	Params.MeshScale 					= NiagaraMeshVF.MeshScale;

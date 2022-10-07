@@ -90,27 +90,14 @@ protected:
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
 
-	class FMeshCollectorResourcesBase : public FOneFrameResource
+	class FMeshCollectorResources : public FOneFrameResource
 	{
 	public:
+		~FMeshCollectorResources() override { VertexFactory.ReleaseResource(); }
+
+		FNiagaraMeshVertexFactory VertexFactory;
 		FNiagaraMeshUniformBufferRef UniformBuffer;
-
-		virtual ~FMeshCollectorResourcesBase() {}
-		virtual FNiagaraMeshVertexFactory& GetVertexFactory() = 0;
 	};
-
-	template <typename TVertexFactory>
-	class TMeshCollectorResources : public FMeshCollectorResourcesBase
-	{
-	public:
-		TVertexFactory VertexFactory;
-
-		virtual ~TMeshCollectorResources() { VertexFactory.ReleaseResource(); }
-		virtual FNiagaraMeshVertexFactory& GetVertexFactory() override { return VertexFactory; }
-	};
-
-	using FMeshCollectorResources = TMeshCollectorResources<FNiagaraMeshVertexFactory>;
-	using FMeshCollectorResourcesEx = TMeshCollectorResources<FNiagaraMeshVertexFactoryEx>;
 
 	struct FEmitterSourceInstanceData
 	{

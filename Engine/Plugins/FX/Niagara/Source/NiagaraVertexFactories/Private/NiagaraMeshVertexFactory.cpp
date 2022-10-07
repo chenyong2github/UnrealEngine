@@ -228,14 +228,3 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_RayHitGrou
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush",	NIAGARA_MESH_VF_FLAGS);
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Vertex, FNiagaraMeshVertexFactoryShaderParametersVS);
-#if RHI_RAYTRACING
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Compute, FNiagaraMeshVertexFactoryShaderParametersVS);
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_RayHitGroup, FNiagaraMeshVertexFactoryShaderParametersVS);
-#endif
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
-
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEx, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", NIAGARA_MESH_VF_FLAGS_EX);

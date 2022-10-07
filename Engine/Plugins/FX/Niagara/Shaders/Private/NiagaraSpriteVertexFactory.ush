@@ -35,10 +35,6 @@
 /** Blends between FaceCamera and FaceCameraPosition.*/
 #define FACING_MODE_FACECAMERADISTANCEBLEND 4
 
-#ifndef ENABLE_PRECISE_MOTION_VECTORS
-#define ENABLE_PRECISE_MOTION_VECTORS 0
-#endif
-
 struct FVertexFactoryInput
 {
 	float2	TexCoord				: ATTRIBUTE0;
@@ -883,8 +879,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	Intermediates.VertexWorldPosition = LWCAdd(ParticlePosition, VertexOffset);
 		
-	// Prev vertex position (approximated from current velocity unless ENABLE_PRECISE_MOTION_VECTORS)
-#if ENABLE_PRECISE_MOTION_VECTORS
+	// Prev vertex position (approximated from current velocity unless enabled)
+	if ( NiagaraSpriteVF.AccurateMotionVectors != 0 )
 	{
 		const FLWCVector3 PrevParticlePosition = GetNiagaraPreviousParticlePosition(ParticleID);
 		const float PrevParticleRotation = GetNiagaraPreviousParticleRotation(ParticleID);
@@ -910,9 +906,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		
 		Intermediates.PreviousVertexWorldPosition = LWCAdd(PrevParticlePosition, PrevVertexOffset);
 	}
-#else
-	Intermediates.PreviousVertexWorldPosition = LWCSubtract(Intermediates.VertexWorldPosition, LWCPromote(ParticleVelocity * NiagaraSpriteVF.DeltaSeconds));
-#endif
+	else
+	{
+		Intermediates.PreviousVertexWorldPosition = LWCSubtract(Intermediates.VertexWorldPosition, LWCPromote(ParticleVelocity * NiagaraSpriteVF.DeltaSeconds));
+	}
 
 #if USE_PARTICLE_POSITION
 	// Do we really want the camera offset here ? What about when GENERATE_SPHERICAL_PARTICLE_NORMALS

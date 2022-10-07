@@ -598,6 +598,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 		}
 	}
 
+	PerViewUniformParameters.AccurateMotionVectors = false;
 	if (SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
 		TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = ParticleSpriteRenderData.RendererLayout->GetVFVariables_RenderThread();
@@ -620,6 +621,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 		PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraSpriteVFLayout::MaterialRandom].GetGPUOffset();
 		if (bAccurateMotionVectors)
 		{
+			PerViewUniformParameters.AccurateMotionVectors = true;
 			PerViewUniformParameters.PrevPositionDataOffset = VFVariables[ENiagaraSpriteVFLayout::PrevPosition].GetGPUOffset();
 			PerViewUniformParameters.PrevVelocityDataOffset = VFVariables[ENiagaraSpriteVFLayout::PrevVelocity].GetGPUOffset();
 			PerViewUniformParameters.PrevRotationDataOffset = VFVariables[ENiagaraSpriteVFLayout::PrevRotation].GetGPUOffset();
@@ -974,19 +976,11 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 				InitializeSortInfo(ParticleSpriteRenderData, *SceneProxy, *View, ViewIndex, SortInfo);
 			}
 
-			FMeshCollectorResourcesBase* CollectorResources;
-			if ( bAccurateMotionVectors )
-			{
-				CollectorResources = &Collector.AllocateOneFrameResource<FMeshCollectorResourcesEx>();
-			}
-			else
-			{
-				CollectorResources = &Collector.AllocateOneFrameResource<FMeshCollectorResources>();
-			}
+			FMeshCollectorResources* CollectorResources = &Collector.AllocateOneFrameResource<FMeshCollectorResources>();
 
 			// Get the next vertex factory to use
 			// TODO: Find a way to safely pool these such that they won't be concurrently accessed by multiple views
-			FNiagaraSpriteVertexFactory& VertexFactory = CollectorResources->GetVertexFactory();
+			FNiagaraSpriteVertexFactory& VertexFactory = CollectorResources->VertexFactory;
 
 			// Sort/Cull particles if needed.
 			uint32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? ParticleSpriteRenderData.SourceParticleData->GetNumInstances() : 1;
@@ -1061,22 +1055,13 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		InitializeSortInfo(ParticleSpriteRenderData, *SceneProxy, *Context.ReferenceView, 0, SortInfo);
 	}
 
-	FMeshCollectorResourcesBase* CollectorResources;
-	if (bAccurateMotionVectors)
-	{
-		CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResourcesEx>();
-	}
-	else
-	{
-		CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResources>();
-	}
-
-	if (!CollectorResources->GetVertexFactory().GetType()->SupportsRayTracingDynamicGeometry())
+	if (FNiagaraSpriteVertexFactory::StaticType.SupportsRayTracingDynamicGeometry())
 	{
 		return;
 	}
 
-	FNiagaraSpriteVertexFactory& VertexFactory = CollectorResources->GetVertexFactory();
+	FMeshCollectorResources* CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResources>();
+	FNiagaraSpriteVertexFactory& VertexFactory = CollectorResources->VertexFactory;
 
 	// Sort/Cull particles if needed.
 	uint32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? ParticleSpriteRenderData.SourceParticleData->GetNumInstances() : 1;

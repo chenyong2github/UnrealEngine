@@ -128,7 +128,7 @@ void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 
 const FVertexFactoryType* UNiagaraSpriteRendererProperties::GetVertexFactoryType() const
 {
-	return NeedsPreciseMotionVectors() ? &FNiagaraSpriteVertexFactoryEx::StaticType : &FNiagaraSpriteVertexFactory::StaticType;
+	return &FNiagaraSpriteVertexFactory::StaticType;
 }
 
 void UNiagaraSpriteRendererProperties::PostLoad()

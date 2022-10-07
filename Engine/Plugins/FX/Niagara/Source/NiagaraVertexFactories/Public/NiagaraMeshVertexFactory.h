@@ -40,6 +40,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraMeshCommonParameters, NIAGARAVERTEXFACTORI
 	
 	SHADER_PARAMETER(FVector3f, SystemLWCTile)
 	SHADER_PARAMETER(int, bLocalSpace)
+	SHADER_PARAMETER(int, AccurateMotionVectors)
 	SHADER_PARAMETER(float, DeltaSeconds)
 	SHADER_PARAMETER(uint32, FacingMode)
 
@@ -223,25 +224,4 @@ protected:
 
 	/** Uniform buffer with mesh particle parameters. */
 	FRHIUniformBuffer* MeshParticleUniformBuffer;
-};
-
-/**
-* Advanced mesh vertex factory. Used for enabling accurate motion vector output
-*/
-class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactoryEx : public FNiagaraMeshVertexFactory
-{
-	DECLARE_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEx);
-public:
-	FNiagaraMeshVertexFactoryEx(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel)
-		: FNiagaraMeshVertexFactory(InType, InFeatureLevel)
-	{}
-
-	FNiagaraMeshVertexFactoryEx() {}
-
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("ENABLE_PRECISE_MOTION_VECTORS"), TEXT("1"));
-	}
 };
