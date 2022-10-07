@@ -367,61 +367,6 @@ FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, co
 	return bAnyDropped ? FReply::Handled() : FReply::Unhandled();
 }
 
-UMovieSceneSubSection* FCinematicShotTrackEditor::CreateShotInternal(FString& NewShotName, FFrameNumber NewShotStartTime, UMovieSceneCinematicShotSection* ShotToDuplicate)
-{
-	FString NewShotPath;
-	
-	if (ShotToDuplicate != nullptr)
-	{
-		// If duplicating a shot, use that shot's path
-		NewShotPath = FPaths::GetPath(ShotToDuplicate->GetSequence()->GetPathName());
-	}
-	else
-	{
-		NewShotPath = MovieSceneToolHelpers::GenerateNewShotPath(GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), NewShotName);
-	}
-
-	// Create a new level sequence asset with the appropriate name
-	IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	UObject* NewAsset = nullptr;
-	for (TObjectIterator<UClass> It ; It ; ++It)
-	{
-		UClass* CurrentClass = *It;
-		if (CurrentClass->IsChildOf(UFactory::StaticClass()) && !(CurrentClass->HasAnyClassFlags(CLASS_Abstract)))
-		{
-			UFactory* Factory = Cast<UFactory>(CurrentClass->GetDefaultObject());
-			if (Factory->CanCreateNew() && Factory->ImportPriority >= 0 && Factory->SupportedClass == ULevelSequence::StaticClass())
-			{
-				if (ShotToDuplicate != nullptr)
-				{
-					NewAsset = AssetTools.DuplicateAssetWithDialog(NewShotName, NewShotPath, ShotToDuplicate->GetSequence());
-				}
-				else
-				{
-					NewAsset = AssetTools.CreateAssetWithDialog(NewShotName, NewShotPath, ULevelSequence::StaticClass(), Factory);
-				}
-				break;
-			}
-		}
-	}
-
-	if (NewAsset == nullptr)
-	{
-		return nullptr;
-	}
-
-	UMovieSceneSequence* NewSequence = Cast<UMovieSceneSequence>(NewAsset);
-
-	int32 Duration = UE::MovieScene::DiscreteSize(ShotToDuplicate ? ShotToDuplicate->GetRange() : NewSequence->GetMovieScene()->GetPlaybackRange());
-
-	UMovieSceneCinematicShotTrack* CinematicShotTrack = FindOrCreateCinematicShotTrack();
-
-	// Create a cinematic shot section. 
-	UMovieSceneSubSection* NewSection = CinematicShotTrack->AddSequence(NewSequence, NewShotStartTime, Duration);
-	return NewSection;
-}
-
 void FCinematicShotTrackEditor::InsertShot()
 {
 	const FScopedTransaction Transaction(LOCTEXT("InsertShot_Transaction", "Insert Shot"));
@@ -430,8 +375,9 @@ void FCinematicShotTrackEditor::InsertShot()
 
 	UMovieSceneCinematicShotTrack* CinematicShotTrack = FindOrCreateCinematicShotTrack();
 	FString NewShotName = MovieSceneToolHelpers::GenerateNewShotName(CinematicShotTrack->GetAllSections(), NewShotStartTime.FrameNumber);
+	FString NewSequencePath = MovieSceneToolHelpers::GenerateNewShotPath(GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), NewShotName);
 
-	UMovieSceneSubSection* NewShot = CreateShotInternal(NewShotName, NewShotStartTime.FrameNumber);
+	UMovieSceneSubSection* NewShot = MovieSceneToolHelpers::CreateSubSequence(NewShotName, NewSequencePath, NewShotStartTime.FrameNumber, CinematicShotTrack);
 	if (NewShot)
 	{
 		NewShot->SetRowIndex(MovieSceneToolHelpers::FindAvailableRowIndex(CinematicShotTrack, NewShot));
@@ -479,9 +425,10 @@ void FCinematicShotTrackEditor::DuplicateShot(UMovieSceneCinematicShotSection* S
 
 	FFrameNumber StartTime = Section->HasStartFrame() ? Section->GetInclusiveStartFrame() : 0;
 	FString NewShotName = MovieSceneToolHelpers::GenerateNewShotName(CinematicShotTrack->GetAllSections(), StartTime);
+	FString NewSequencePath = FPaths::GetPath(Section->GetSequence()->GetPathName());
 
 	// Duplicate the shot and put it on the next available row
-	UMovieSceneSubSection* NewShot = CreateShotInternal(NewShotName, StartTime, Section);
+	UMovieSceneSubSection* NewShot = MovieSceneToolHelpers::CreateSubSequence(NewShotName, NewSequencePath, StartTime, CinematicShotTrack, Section);
 	if (NewShot)
 	{
 		NewShot->SetRange(Section->GetRange());
@@ -545,11 +492,13 @@ void FCinematicShotTrackEditor::NewTake(UMovieSceneCinematicShotSection* Section
 		int32                NewRowIndex          = Section->GetRowIndex();
 		FFrameNumber         NewShotStartTime     = NewShotRange.GetLowerBound().IsClosed() ? UE::MovieScene::DiscreteInclusiveLower(NewShotRange) : 0;
 
-		UMovieSceneSubSection* NewShot = CreateShotInternal(NewShotName, NewShotStartTime, Section);
+		UMovieSceneCinematicShotTrack* CinematicShotTrack = FindOrCreateCinematicShotTrack();
+		FString NewSequencePath = FPaths::GetPath(Section->GetSequence()->GetPathName());
+
+		UMovieSceneSubSection* NewShot = MovieSceneToolHelpers::CreateSubSequence(NewShotName, NewSequencePath, NewShotStartTime, CinematicShotTrack, Section);
 
 		if (NewShot)
 		{
-			UMovieSceneCinematicShotTrack* CinematicShotTrack = FindOrCreateCinematicShotTrack();
 			CinematicShotTrack->RemoveSection(*Section);
 
 			NewShot->SetRange(NewShotRange);

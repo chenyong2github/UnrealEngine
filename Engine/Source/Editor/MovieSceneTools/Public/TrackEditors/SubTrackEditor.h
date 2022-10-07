@@ -103,6 +103,8 @@ private:
 	/** Callback for executing a menu entry in the "Add Sequence" combo button when enter pressed. */
 	void HandleAddSubSequenceComboButtonMenuEntryEnterPressed(const TArray<FAssetData>& AssetData, UMovieSceneTrack* InTrack);
 
+	void InsertSequence(UMovieSceneTrack* Track);
+
 	/** Delegate for AnimatablePropertyChanged in AddKey */
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, UMovieSceneTrack* InTrack, int32 RowIndex);
 

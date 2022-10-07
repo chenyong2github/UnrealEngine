@@ -28,6 +28,7 @@
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Algo/Accumulate.h"
+#include "AssetToolsModule.h"
 
 #include "CommonMovieSceneTools.h"
 
@@ -494,6 +495,13 @@ TSharedRef<SWidget> FSubTrackEditor::HandleAddSubSequenceComboButtonGetMenuConte
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("InsertSequence", "Insert Sequence"),
+		LOCTEXT("InsertSequenceTooltip", "Insert new sequence at current time"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &FSubTrackEditor::InsertSequence, InTrack))
+	);
+
 	MenuBuilder.BeginSection(TEXT("ChooseSequence"), LOCTEXT("ChooseSequence", "Choose Sequence"));
 	{
 		UMovieSceneSequence* Sequence = GetSequencer() ? GetSequencer()->GetFocusedMovieSceneSequence() : nullptr;
@@ -546,6 +554,36 @@ void FSubTrackEditor::HandleAddSubSequenceComboButtonMenuEntryEnterPressed(const
 	{
 		HandleAddSubSequenceComboButtonMenuEntryExecute(AssetData[0].GetAsset(), InTrack);
 	}
+}
+
+void FSubTrackEditor::InsertSequence(UMovieSceneTrack* Track)
+{
+	const FScopedTransaction Transaction(LOCTEXT("InsertSequence_Transaction", "Insert Sequence"));
+
+	FFrameTime NewSectionStartTime = GetSequencer()->GetLocalTime().Time;
+
+	UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track);
+	if (!SubTrack)
+	{
+		SubTrack = FindOrCreateMasterTrack<UMovieSceneSubTrack>().Track;
+	}
+
+	FString NewSequencePath = FPaths::GetPath(GetSequencer()->GetFocusedMovieSceneSequence()->GetPathName());
+	FString NewSequenceName = TEXT("NewSubSequence");
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+	AssetToolsModule.Get().CreateUniqueAssetName(NewSequencePath + TEXT("/") + NewSequenceName, TEXT(""), NewSequencePath, NewSequenceName);
+
+	UMovieSceneSubSection* NewSection = MovieSceneToolHelpers::CreateSubSequence(NewSequenceName, NewSequencePath, NewSectionStartTime.FrameNumber, SubTrack);
+	if (NewSection)
+	{
+		NewSection->SetRowIndex(MovieSceneToolHelpers::FindAvailableRowIndex(Track, NewSection));
+	}
+
+	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+	GetSequencer()->EmptySelection();
+	GetSequencer()->SelectSection(NewSection);
+	GetSequencer()->ThrobSectionSelection();
 }
 
 FKeyPropertyResult FSubTrackEditor::AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, UMovieSceneTrack* InTrack, int32 RowIndex)

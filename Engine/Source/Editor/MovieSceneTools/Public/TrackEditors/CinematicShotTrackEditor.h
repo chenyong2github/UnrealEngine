@@ -111,16 +111,6 @@ public:
 
 private:
 
-	/*
-	 * Create shot
-	 *
-	 * @param NewShotName The new shot name.
-	 * @param NewShotStartTime The time to start the new shot at.
-	 * @param ShotToDuplicate The shot to duplicate.
-	 * @return The new shot.
-	 */
-	UMovieSceneSubSection* CreateShotInternal(FString& NewShotName, FFrameNumber NewShotStartTime, UMovieSceneCinematicShotSection* ShotToDuplicate = nullptr);
-	
 	/** Callback for determining whether the "Add Shot" menu entry can execute. */
 	bool HandleAddCinematicShotTrackMenuEntryCanExecute() const;
 

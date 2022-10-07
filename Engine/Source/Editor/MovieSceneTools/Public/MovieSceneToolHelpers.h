@@ -38,6 +38,8 @@ enum class EVisibilityBasedAnimTickOption : uint8;
 class ACameraActor;
 struct FActorForWorldTransforms;
 class UMovieScene3DTransformSection;
+class UMovieSceneSubTrack;
+class UMovieSceneSubSection;
 enum class EMovieSceneTransformChannel : uint32;
 
 namespace fbxsdk
@@ -163,6 +165,18 @@ public:
 	 */
 	static FString GenerateNewShotName(const TArray<UMovieSceneSection*>& AllSections, FFrameNumber Time);
 
+	/*
+	 * Create sub sequence
+	 *
+	 * @param NewSequenceName The new sequence name.
+	 * @param NewSequencePath The new sequence path. 
+	 * @param NewSequenceStartTime The time to start the new sequence at.
+	 * @param SubTrack The track to put the sequence onto.
+	 * @param SectionToDuplicate The section to duplicate.
+	 * @return The new subsequence.
+	 */
+	static UMovieSceneSubSection* CreateSubSequence(FString& NewSequenceName, FString& NewSequencePath, FFrameNumber NewSequenceStartTime, UMovieSceneSubTrack* SubTrack, UMovieSceneSubSection* SectionToDuplicate = nullptr);
+
 	/**
 	 * Gather takes - level sequence assets that have the same shot prefix and shot number in the same asset path (directory)
 	 * 
@@ -171,7 +185,6 @@ public:
 	 * @param OutCurrentTakeNumber The current take number of the section
 	 */
 	static void GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber);
-
 
 	/**
 	 * Get the take number for the given asset
