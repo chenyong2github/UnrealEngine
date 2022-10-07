@@ -64,6 +64,11 @@ public:
 	{
 		return Parent;
 	}
+
+	void Swap(FD3D12DeviceChild& Other)
+	{
+		::Swap(*this, Other);
+	}
 };
 
 class FD3D12GPUObject

@@ -571,23 +571,27 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 	if (Other.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
 	{
 		check(GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
-		
-		// Cache the allocator data and reset before swap
-		FD3D12PoolAllocatorPrivateData& PoolData = Other.GetPoolAllocatorPrivateData();
-		FD3D12PoolAllocatorPrivateData TmpPoolData = PoolData;
-		PoolData.Init();
 
-		// Perform swap
-		::Swap(*this, Other);
+		// Swap all members except the pool data because that needs to happen while the pool is taken
+		FD3D12DeviceChild::Swap(Other);
 
-		// Restore allocator data and perform pool aware swap
-		PoolData = TmpPoolData;
+		::Swap(Owner, Other.Owner);
+		::Swap(UnderlyingResource, Other.UnderlyingResource);
+		::Swap(ResidencyHandle, Other.ResidencyHandle);
+				
+		::Swap(MappedBaseAddress, Other.MappedBaseAddress);
+		::Swap(GPUVirtualAddress, Other.GPUVirtualAddress);
+		::Swap(OffsetFromBaseOfResource, Other.OffsetFromBaseOfResource);
 
-		// Reset the tmp pool data again, because it's not needed anymore - all data copied over
-		TmpPoolData.Init();
+		::Swap(Type, Other.Type);
+		::Swap(Size, Other.Size);
+		::Swap(bTransient, Other.bTransient);
+				
+		// We know this allocation is empty so can use transfer instead of full swap
+		Other.GetPoolAllocator()->TransferOwnership(Other, *this);
 
-		Other.SetPoolAllocator(GetPoolAllocator());
-		GetPoolAllocator()->TransferOwnership(Other, *this);
+		::Swap(AllocatorType, Other.AllocatorType);
+		::Swap(PoolAllocator, Other.PoolAllocator);
 	}
 	else
 	{
