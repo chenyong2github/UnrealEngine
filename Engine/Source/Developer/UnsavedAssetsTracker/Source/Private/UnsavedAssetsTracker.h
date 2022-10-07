@@ -55,8 +55,8 @@ private:
 
 	struct FStatus
 	{
-		FStatus(FString InHumanFriendlyAssetName) : HumanFriendlyAssetName(InHumanFriendlyAssetName) {}
-		FString HumanFriendlyAssetName;
+		FStatus(const FString& InAbsFilePathname) : AbsPackageFilePathname(InAbsFilePathname) { }
+		FString AbsPackageFilePathname; // On disk.
 		EWarningTypes WarningType = EWarningTypes::None;
 		FText WarningText;
 	};
@@ -100,10 +100,9 @@ private:
 	void OnWorldPostRename(UWorld* World);
 
 	/** Starts to track an unsaved package.*/
-	void StartTrackingDirtyPackage(UPackage* Package);
+	void StartTrackingDirtyPackage(const UPackage* Package);
 
 	/** Stops tracking the specified unsaved package if the package was previously tracked. */
-	void StopTrackingDirtyPackage(UPackage* Package);
 	void StopTrackingDirtyPackage(const FString& PackagePathname);
 
 	/** Invoked when the status of a source controlled is updated, with the corresponding warning, if any. */
@@ -119,8 +118,18 @@ private:
 	void SyncWithDirtyPackageList();
 
 private:
-	TMap<FString, FStatus> UnsavedFiles;
-	TSet<FString> WarningFiles;
+	/** Maps the package pathname to the status */
+	TMap<FString, FStatus> UnsavedPackages;
+
+	/** Maps the packages absolute file name (on file system) to the package pathname for fast reverse lookup. */
+	TMap<FString, FString> UnsavedAbsFilePathames;
+
+	/** Packages pathname for which a warning was issued. */
+	TSet<FString> WarningPackagePathnames;
+
+	/** Sets of warning shown to the user. */
 	TSet<EWarningTypes> ShownWarnings;
+
+	/** Whether toast notification should be shown when a warning is detected. */
 	bool bWarningNotificationEnabled = true;
 };
