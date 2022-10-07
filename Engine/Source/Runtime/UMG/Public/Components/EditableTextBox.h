@@ -263,11 +263,7 @@ public:
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 #endif
-
-#if WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-#endif
 
 protected:
 	//~ Begin UWidget Interface
@@ -286,4 +282,10 @@ protected:
 
 	PROPERTY_BINDING_IMPLEMENTATION(FText, Text);
 	PROPERTY_BINDING_IMPLEMENTATION(FText, HintText);
+
+private:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bIsFontDeprecationDone;
+#endif
 };

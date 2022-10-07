@@ -62,6 +62,8 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
+
+	bIsFontDeprecationDone = false;
 #endif // WITH_EDITOR
 
 	bIsReadOnly = false;
@@ -70,24 +72,20 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 	AutoWrapText = true;
 }
 
-#if WITH_EDITOR
-void UMultiLineEditableTextBox::PostLoad()
+void UMultiLineEditableTextBox::Serialize(FArchive& Ar)
 {
-	Super::PostLoad();
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
+	Super::Serialize(Ar);
+
+#if WITH_EDITOR
+	if (Ar.IsLoading() && !bIsFontDeprecationDone && GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
 	{
 		TextStyle_DEPRECATED.SetFont(WidgetStyle.Font_DEPRECATED);
 		WidgetStyle.SetTextStyle(TextStyle_DEPRECATED);
+		bIsFontDeprecationDone = true;
 	}
-}
 #endif
-
-void UMultiLineEditableTextBox::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 }
 
 void UMultiLineEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)

@@ -25,7 +25,9 @@ static FEditableTextBoxStyle* EditorEditableTextBoxStyle = nullptr;
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
+#if WITH_EDITOR
+	bIsFontDeprecationDone = false;
+#endif
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	IsReadOnly = false;
 	IsPassword = false;
@@ -74,27 +76,23 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 #endif
 }
 
-#if WITH_EDITORONLY_DATA
-void UEditableTextBox::PostLoad()
-{
-	Super::PostLoad();
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
-	{
-		FTextBlockStyle& TextStyle = WidgetStyle.TextStyle;
-		TextStyle.SetFont(WidgetStyle.Font_DEPRECATED);
-	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void UEditableTextBox::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
-}
+
+#if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (Ar.IsLoading() && !bIsFontDeprecationDone && GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveDuplicatedStyleInfo)
+	{
+		FTextBlockStyle& TextStyle = WidgetStyle.TextStyle;
+		TextStyle.SetFont(WidgetStyle.Font_DEPRECATED);
+		bIsFontDeprecationDone = true;
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
+}
 
 void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)
 {

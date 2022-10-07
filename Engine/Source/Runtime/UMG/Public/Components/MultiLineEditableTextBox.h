@@ -146,9 +146,7 @@ public:
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
-	virtual void PostLoad() override;
 #endif
-
 	virtual void Serialize(FArchive& Ar) override;
 
 protected:
@@ -163,4 +161,10 @@ protected:
 	TSharedPtr<SMultiLineEditableTextBox> MyEditableTextBlock;
 
 	PROPERTY_BINDING_IMPLEMENTATION(FText, HintText);
+
+private:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bIsFontDeprecationDone;
+#endif
 };
