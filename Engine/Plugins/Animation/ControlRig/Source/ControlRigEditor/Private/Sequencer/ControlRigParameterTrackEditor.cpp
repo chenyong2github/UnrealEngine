@@ -3224,7 +3224,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(
 				if (bInConstraintSpace)
 				{
 					const uint32 ControlHash = UTransformableControlHandle::ComputeHash(InControlRig, ControlElement->GetName());
-					TOptional<FTransform> Transform = FTransformConstraintUtils::GetConstraintRelativeTransform(InControlRig->GetWorld(), ControlHash);
+					TOptional<FTransform> Transform = FTransformConstraintUtils::GetRelativeTransform(InControlRig->GetWorld(), ControlHash);
 					if (Transform)
 					{
 						Translation = Transform->GetTranslation();

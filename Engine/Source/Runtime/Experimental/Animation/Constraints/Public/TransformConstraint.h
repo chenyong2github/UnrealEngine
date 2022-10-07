@@ -417,7 +417,13 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		const UTickableTransformConstraint* InConstraint);
 
 	/** Computes the current constraint space local transform. */
-	static TOptional<FTransform> GetConstraintRelativeTransform(UWorld* InWorld, const uint32 InHandleHash);
+	static TOptional<FTransform> GetRelativeTransform(UWorld* InWorld, const uint32 InHandleHash);
+	static TOptional<FTransform> GetConstraintsRelativeTransform(
+		const TArray< TObjectPtr<UTickableConstraint> >& InConstraints,
+		const FTransform& InChildLocal, const FTransform& InChildWorld);
+
+	/** Get the last active constraint that has dynamic offset. */
+	static int32 GetLastActiveConstraintIndex(const TArray< TObjectPtr<UTickableConstraint> >& InConstraints);
 
 	/** Fills a constraint array that InParentHandle is the parent of. */
 	static void GetChildrenConstraints(

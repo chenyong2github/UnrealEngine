@@ -42,23 +42,27 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 		return;
 	}
 
-	const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray< ConstraintPtr > Constraints = GetHandleTransformConstraints(InWorld);
 	if (Constraints.IsEmpty())
 	{
 		return;
 	}
+	
+	const TArray<ConstraintPtr> ConstraintsMinusThis =
+		Constraints.FilterByPredicate([this](const ConstraintPtr& InConstraint)
+		{
+			return InConstraint != Constraint;
+		});
 
 	// find last active constraint in the list that is different than the on we want to compensate for
-	auto GetLastActiveConstraint = [this, Constraints]()
+	auto GetLastActiveConstraint = [ConstraintsMinusThis]()
 	{
-		// find last active constraint in the list that is different than the on we want to compensate for
-		const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
-			{
-				return InConstraint->Active && InConstraint->bDynamicOffset && InConstraint != Constraint;
-			});
+		// find last active constraint in the list that is different than the one we want to compensate for
+		const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(ConstraintsMinusThis);
 
 		// if found, return its parent global transform
-		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
+		return LastActiveIndex > INDEX_NONE ? Cast<UTickableTransformConstraint>(ConstraintsMinusThis[LastActiveIndex]) : nullptr;
 	};
 
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
@@ -83,7 +87,7 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 	// get all constraints to evaluate
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	static constexpr bool bSorted = true;
-	TArray<TObjectPtr<UTickableConstraint>> AllConstraints = Controller.GetAllConstraints(bSorted);
+	const TArray<ConstraintPtr> AllConstraints = Controller.GetAllConstraints(bSorted);
 	
 	for (int32 Index = 0; Index < NumFrames + 1; ++Index)
 	{
@@ -138,8 +142,12 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 				if (LastConstraint)
 				{
 					SpaceGlobal = LastConstraint->GetParentGlobalTransform();
-					ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-						ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
+					TOptional<FTransform> Relative =
+						FTransformConstraintUtils::GetConstraintsRelativeTransform(ConstraintsMinusThis, ChildLocal, ChildGlobal);
+					if (Relative)
+					{
+						ChildLocal = *Relative;
+					}
 				}
 			}
 			else
@@ -164,8 +172,12 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 				if (LastConstraint)
 				{
 					SpaceGlobal = LastConstraint->GetParentGlobalTransform();
-					ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-						ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
+					TOptional<FTransform> Relative =
+						FTransformConstraintUtils::GetConstraintsRelativeTransform(ConstraintsMinusThis, ChildLocal, ChildGlobal);
+					if (Relative)
+					{
+						ChildLocal = *Relative;
+					}
 				}
 			}
 		}
@@ -185,18 +197,22 @@ void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, co
 		return;
 	}
 
-	const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
-
-	auto GetLastActiveConstraint = [this, Constraints]()
-	{
-		// find last active constraint in the list that is different than the on we want to compensate for
-		const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray< ConstraintPtr > Constraints = GetHandleTransformConstraints(InWorld);
+	
+	const TArray< ConstraintPtr > ConstraintsMinusThis =
+		Constraints.FilterByPredicate([this](const ConstraintPtr& InConstraint)
 		{
-			return InConstraint->Active && InConstraint->NeedsCompensation() && InConstraint->bDynamicOffset && InConstraint != Constraint;
+			return InConstraint != Constraint;
 		});
 
+	auto GetLastActiveConstraint = [ConstraintsMinusThis]()
+	{
+		// find last active constraint in the list that is different than the one we want to compensate for
+		const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(ConstraintsMinusThis);
+
 		// if found, return its parent global transform
-		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
+		return LastActiveIndex > INDEX_NONE ? Cast<UTickableTransformConstraint>(ConstraintsMinusThis[LastActiveIndex]) : nullptr;
 	};
 
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
@@ -212,7 +228,7 @@ void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, co
 	// get all constraints for evaluation
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	static constexpr bool bSorted = true;
-	TArray<TObjectPtr<UTickableConstraint>> AllConstraints = Controller.GetAllConstraints(bSorted);
+	const TArray<ConstraintPtr> AllConstraints = Controller.GetAllConstraints(bSorted);
 	
 	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
@@ -268,8 +284,12 @@ void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, co
 		if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
 		{
 			SpaceGlobal = LastConstraint->GetParentGlobalTransform();
-			ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-				ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
+			TOptional<FTransform> Relative =
+				FTransformConstraintUtils::GetConstraintsRelativeTransform(ConstraintsMinusThis, ChildLocal, ChildGlobal);
+			if (Relative)
+			{
+				ChildLocal = *Relative;
+			}
 		}
 	}
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
@@ -291,29 +311,28 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 		return;
 	}
 
-	const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
-	// if (Constraints.IsEmpty())
-	// {
-	// 	return;
-	// }
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray<ConstraintPtr> Constraints = GetHandleTransformConstraints(InWorld);
+	const TArray<ConstraintPtr> ConstraintsMinusThis = Constraints.FilterByPredicate(
+		[this](const ConstraintPtr& InConstraint)
+		{
+			return InConstraint != Constraint;
+		});
 
 	// find last active constraint in the list that is different than the on we want to compensate for
-	auto GetLastActiveConstraint = [this, Constraints]()
+	auto GetLastActiveConstraint = [this, ConstraintsMinusThis]()
 	{
 		// find last active constraint in the list that is different than the on we want to compensate for
-		const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
-			{
-				return InConstraint->Active && InConstraint->bDynamicOffset && InConstraint != Constraint;
-			});
+		const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(ConstraintsMinusThis);
 
 		// if found, return its parent global transform
-		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
+		return LastActiveIndex > INDEX_NONE ? Cast<UTickableTransformConstraint>(ConstraintsMinusThis[LastActiveIndex]) : nullptr;
 	};
 
 	// get all constraints for evaluation
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	static constexpr bool bSorted = true;
-	TArray<TObjectPtr<UTickableConstraint>> AllConstraints = Controller.GetAllConstraints(bSorted);
+	const TArray<ConstraintPtr> AllConstraints = Controller.GetAllConstraints(bSorted);
 	
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
@@ -377,8 +396,12 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 		if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
 		{
 			SpaceGlobal = LastConstraint->GetParentGlobalTransform();
-			ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-				ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
+			TOptional<FTransform> Relative =
+				FTransformConstraintUtils::GetConstraintsRelativeTransform(Constraints, ChildLocal, ChildGlobal);
+			if(Relative)
+			{
+				ChildLocal = *Relative;
+			}
 		}
 	}
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
@@ -392,7 +415,8 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 
 void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const FFrameNumber& InTime)
 {
-	const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray<ConstraintPtr> Constraints = GetHandleTransformConstraints(InWorld);
 	if (Constraints.IsEmpty())
 	{
 		return;
@@ -402,19 +426,16 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 	auto GetLastActiveConstraint = [this, Constraints]()
 	{
 		// find last active constraint in the list that is different than the on we want to compensate for
-		const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
-			{
-				return InConstraint->Active && InConstraint->bDynamicOffset;
-			});
+		const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(Constraints);
 
 		// if found, return its parent global transform
-		return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
+		return LastActiveIndex > INDEX_NONE ? Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]) : nullptr;
 	};
 
 	// get all constraints for evaluation
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	static constexpr bool bSorted = true;
-	TArray<TObjectPtr<UTickableConstraint>> AllConstraints = Controller.GetAllConstraints(bSorted);
+	const TArray<ConstraintPtr> AllConstraints = Controller.GetAllConstraints(bSorted);
 	
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
@@ -488,8 +509,12 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 	if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
 	{
 		SpaceGlobals[0] = LastConstraint->GetParentGlobalTransform();
-		ChildLocals[0] = FTransformConstraintUtils::ComputeRelativeTransform(ChildLocals[0],
-			ChildGlobals[0], SpaceGlobals[0], LastConstraint);
+		TOptional<FTransform> Relative =
+			FTransformConstraintUtils::GetConstraintsRelativeTransform(Constraints, ChildLocals[0], ChildGlobals[0]);
+		if(Relative)
+		{
+			ChildLocals[0] = *Relative;
+		}
 	}
 	else // switch to parent space
 	{
@@ -500,24 +525,24 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 	}
 }
 
-TArray<UTickableTransformConstraint*> FCompensationEvaluator::GetHandleTransformConstraints(UWorld* InWorld) const
+TArray< TObjectPtr<UTickableConstraint> > FCompensationEvaluator::GetHandleTransformConstraints(UWorld* InWorld) const
 {
-	TArray<UTickableTransformConstraint*> TransformConstraints;
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	
 	if (Handle)
 	{
 		// get sorted transform constraints
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 		static constexpr bool bSorted = true;
-		TArray<TObjectPtr<UTickableConstraint>> Constraints = Controller.GetParentConstraints(Handle->GetHash(), bSorted);
-		for (const TObjectPtr<UTickableConstraint>& InConstraint : Constraints)
+		const TArray< ConstraintPtr > Constraints = Controller.GetParentConstraints(Handle->GetHash(), bSorted);
+		return Constraints.FilterByPredicate([](const ConstraintPtr& InConstraint)
 		{
-			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
-			{
-				TransformConstraints.Add(TransformConstraint);
-			}
-		}
+			return IsValid(InConstraint) && InConstraint.IsA<UTickableTransformConstraint>();  
+		});
 	}
-	return TransformConstraints;
+
+	static const TArray< ConstraintPtr > DummyArray;
+	return DummyArray;
 }
 
 bool FMovieSceneConstraintChannelHelper::bDoNotCompensate = false;

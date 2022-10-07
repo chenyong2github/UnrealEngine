@@ -1446,7 +1446,7 @@ FTransform FTransformConstraintUtils::ComputeRelativeTransform(
 	return InChildWorld.GetRelativeTransform(InSpaceWorld);
 }
 
-TOptional<FTransform> FTransformConstraintUtils::GetConstraintRelativeTransform(UWorld* InWorld, const uint32 InHandleHash)
+TOptional<FTransform> FTransformConstraintUtils::GetRelativeTransform(UWorld* InWorld, const uint32 InHandleHash)
 {
 	if (!InWorld || InHandleHash <= 0)
 	{
@@ -1455,23 +1455,15 @@ TOptional<FTransform> FTransformConstraintUtils::GetConstraintRelativeTransform(
 
 	static constexpr bool bSorted = true;
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
-	const TArray<TObjectPtr<UTickableConstraint>> Constraints = Controller.GetParentConstraints(InHandleHash, bSorted);
 
+	const TArray< TObjectPtr<UTickableConstraint> > Constraints = Controller.GetParentConstraints(InHandleHash, bSorted);
 	if (Constraints.IsEmpty())
 	{
 		return TOptional<FTransform>();
 	}
 
 	// get current active transform constraint 	
-	const int32 LastActiveIndex = Constraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
-    {
-    	if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
-    	{
-    		return InConstraint->IsFullyActive() && TransformConstraint->bDynamicOffset;
-    	}
-    	return false;
-    });
-
+	const int32 LastActiveIndex = GetLastActiveConstraintIndex(Constraints);
 	if (!Constraints.IsValidIndex(LastActiveIndex))
 	{
 		return TOptional<FTransform>();
@@ -1481,9 +1473,92 @@ TOptional<FTransform> FTransformConstraintUtils::GetConstraintRelativeTransform(
 	const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]);
 	const FTransform ChildLocal = Constraint->GetChildLocalTransform();
 	const FTransform ChildGlobal = Constraint->GetChildGlobalTransform();
-	const FTransform ParentGlobal = Constraint->GetParentGlobalTransform();
+	
+	return GetConstraintsRelativeTransform(Constraints, ChildLocal, ChildGlobal);
+}
 
-	return ComputeRelativeTransform(ChildLocal, ChildGlobal, ParentGlobal, Constraint);
+TOptional<FTransform> FTransformConstraintUtils::GetConstraintsRelativeTransform(
+	const TArray< TObjectPtr<UTickableConstraint> >& InConstraints,
+	const FTransform& InChildLocal, const FTransform& InChildWorld)
+{
+	if (InConstraints.IsEmpty())
+	{
+		return TOptional<FTransform>();
+	}
+
+	// get current active transform constraint
+	const int32 LastActiveIndex = GetLastActiveConstraintIndex(InConstraints);
+	if (!InConstraints.IsValidIndex(LastActiveIndex))
+	{
+		return TOptional<FTransform>();
+	}
+
+	// get relative transform
+	// if that constraint handles the entire transform then return the relative transform directly
+	const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(InConstraints[LastActiveIndex]);
+	if (EnumHasAllFlags(Constraint->GetChannelsToKey(), EMovieSceneTransformChannel::AllTransform))
+	{
+		const FTransform ParentGlobal = Constraint->GetParentGlobalTransform();
+		return ComputeRelativeTransform(InChildLocal, InChildWorld, ParentGlobal, Constraint);
+	}
+
+	// otherwise, we need to look for constraints on a sub-transform basis so we compute the relative transform for each of them
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	auto GetLastSubTransformIndex = [InConstraints](const EMovieSceneTransformChannel& InChannel)
+	{
+		return InConstraints.FindLastByPredicate([InChannel](const ConstraintPtr& InConstraint)
+		{
+			if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
+			{
+				const bool bHasChannelFlag = EnumHasAllFlags(TransformConstraint->GetChannelsToKey(), InChannel);
+				return InConstraint->IsFullyActive() && TransformConstraint->bDynamicOffset && bHasChannelFlag;
+			}
+			return false;
+		});
+	};
+
+	// look for last constraint index for each channel 
+	static constexpr EMovieSceneTransformChannel SubChannels[3] = {	EMovieSceneTransformChannel::Translation,
+																	EMovieSceneTransformChannel::Rotation,
+																	EMovieSceneTransformChannel::Scale };
+	TArray<int32> SubTransformIndices;
+	for (int32 Index = 0; Index < 3; Index++)
+	{
+		const int32 LastSubIndex = GetLastSubTransformIndex(SubChannels[Index]);
+    	if (InConstraints.IsValidIndex(LastSubIndex))  
+    	{
+    		SubTransformIndices.AddUnique(LastSubIndex);
+    	}
+	}
+	SubTransformIndices.Sort();
+
+	// if none then return 
+	if (SubTransformIndices.IsEmpty())
+	{
+		return TOptional<FTransform>();
+	}
+
+	// iterate thru constraints to compute the relative transform in each of them 
+	FTransform ChildLocal = InChildLocal;
+	for (const int32 SubConstraintIndex: SubTransformIndices)
+	{
+		const UTickableTransformConstraint* SubConstraint = Cast<UTickableTransformConstraint>(InConstraints[SubConstraintIndex]);
+		const FTransform ParentGlobal = SubConstraint->GetParentGlobalTransform();
+		ChildLocal = ComputeRelativeTransform(ChildLocal, InChildWorld, ParentGlobal, SubConstraint);
+	}
+	return ChildLocal;
+}
+
+int32 FTransformConstraintUtils::GetLastActiveConstraintIndex(const TArray< TObjectPtr<UTickableConstraint> >& InConstraints)
+{
+	return InConstraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
+	{
+	   if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
+	   {
+		   return InConstraint->Active && TransformConstraint->bDynamicOffset;
+	   }
+	   return false;
+	});
 }
 
 void FTransformConstraintUtils::GetChildrenConstraints(

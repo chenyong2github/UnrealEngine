@@ -3827,15 +3827,8 @@ void FControlRigEditMode::SetControlShapeTransform(
 	// find the last constraint in the stack (this could be cached on mouse press)
 	TArray< TObjectPtr<UTickableConstraint> > Constraints;
 	FTransformConstraintUtils::GetParentConstraints(ControlRig->GetWorld(), InShapeActor, Constraints);
-	const int32 LastActiveIndex = Constraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
-	{
-		if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
-		{
-			return InConstraint->Active && TransformConstraint->bDynamicOffset;
-		}
-		return false;
-	});
 
+	const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(Constraints);
 	const bool bNeedsConstraintPostProcess = Constraints.IsValidIndex(LastActiveIndex);
 	
 	// set the global space, assumes it's attached to actor
@@ -3852,13 +3845,15 @@ void FControlRigEditMode::SetControlShapeTransform(
 	}
 	
 	// switch to constraint space
-	const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]);
-	const FTransform ParentTransform = Constraint->GetParentGlobalTransform();
-	const FTransform ChildTransform = InGlobalTransform * InToWorldTransform;
+	const FTransform WorldTransform = InGlobalTransform * InToWorldTransform;
 	FTransform LocalTransform = ControlRig->GetControlLocalTransform(InShapeActor->ControlName);
-	
-	LocalTransform = FTransformConstraintUtils::ComputeRelativeTransform(LocalTransform,
-		ChildTransform, ParentTransform, Constraint);
+
+	const TOptional<FTransform> RelativeTransform =
+		FTransformConstraintUtils::GetConstraintsRelativeTransform(Constraints, LocalTransform, WorldTransform);
+	if (RelativeTransform)
+	{
+		LocalTransform = *RelativeTransform; 
+	}
 
 	FRigControlModifiedContext Context = InContext;
 	Context.bConstraintUpdate = false;

@@ -185,6 +185,10 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 	{
 		FScopedTransaction Transaction(LOCTEXT("KeyConstraintaKehy", "Key Constraint Key"));
 		Section->Modify();
+
+		// set constraint as dynamic
+		InConstraint->bDynamicOffset = true;
+		
 		// add the channel
 		Section->AddConstraintChannel(InConstraint);
 
@@ -201,9 +205,6 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				const bool bNeedsCompensation = InConstraint->NeedsCompensation();
 				
 				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
-				
-				// set constraint as dynamic
-				InConstraint->bDynamicOffset = true;
 				
 				UControlRig* ControlRig = ControlHandle->ControlRig.Get();
 				const FName& ControlName = ControlHandle->ControlName;
@@ -313,6 +314,10 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 	{
 		FScopedTransaction Transaction(LOCTEXT("KeyConstraintaKehy", "Key Constraint Key"));
 		Section->Modify();
+
+		// set constraint as dynamic
+		InConstraint->bDynamicOffset = true;
+		
 		// add the channel
 		Section->AddConstraintChannel(InConstraint);
 
@@ -333,9 +338,6 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 				//new for compensation
 
 				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
-
-				// set constraint as dynamic
-				InConstraint->bDynamicOffset = true;
 
 				// store the frames to compensate
 				const TArrayView<FMovieSceneDoubleChannel*> Channels = ComponentHandle->GetDoubleChannels(Section);

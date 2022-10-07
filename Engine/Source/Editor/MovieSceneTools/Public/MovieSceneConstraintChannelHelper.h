@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/SharedPointer.h"
+#include "UObject/ObjectPtr.h"
 
 class UWorld;
 class UTickableConstraint;
@@ -29,7 +30,7 @@ public:
 	void ComputeLocalTransformsForBaking(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
 private:
 
-	TArray<UTickableTransformConstraint*> GetHandleTransformConstraints(UWorld* InWorld) const;
+	TArray< TObjectPtr<UTickableConstraint> > GetHandleTransformConstraints(UWorld* InWorld) const;
 
 	UTickableTransformConstraint* Constraint = nullptr;
 	UTransformableHandle* Handle = nullptr;

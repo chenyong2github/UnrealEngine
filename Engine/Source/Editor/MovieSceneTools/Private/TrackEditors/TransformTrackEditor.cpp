@@ -907,63 +907,17 @@ static void UpdateTransformBasedOnConstraint(FTransform& CurrentTransform, UScen
 	if (ShapeActor)
 	{
 		FTransformConstraintUtils::GetParentConstraints(SceneComponent->GetWorld(), ShapeActor, Constraints);
-		const int32 LastActiveIndex = Constraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
-			{
-				if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
-				{
-					return InConstraint->Active && TransformConstraint->bDynamicOffset;
-				}
-				return false;
-			});
 
+		const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(Constraints);
 		if (Constraints.IsValidIndex(LastActiveIndex))
 		{
 			// switch to constraint space
-			const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]);
-			const FTransform ParentTransform = Constraint->GetParentGlobalTransform();
-			const FTransform OriginalParentTransform = SceneComponent->GetAttachParent() ? SceneComponent->GetAttachParent()->GetSocketTransform(SceneComponent->GetAttachSocketName()) : FTransform::Identity;
-			const FTransform DiffParents = OriginalParentTransform.GetRelativeTransform(ParentTransform);
-
-			const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Constraint->GetType());
-			switch (ConstraintType)
+			const FTransform WorldTransform = SceneComponent->GetSocketTransform(SceneComponent->GetAttachSocketName());
+			const TOptional<FTransform> RelativeTransform =
+				FTransformConstraintUtils::GetConstraintsRelativeTransform(Constraints, CurrentTransform, WorldTransform);
+			if (RelativeTransform)
 			{
-				case ETransformConstraintType::Translation:
-				{
-					CurrentTransform.SetLocation(CurrentTransform.GetLocation() + OriginalParentTransform.GetLocation() - ParentTransform.GetLocation());
-				}
-				break;
-				case ETransformConstraintType::Rotation:
-				{
-					FQuat RelativeRotation = ParentTransform.GetRotation().Inverse() * OriginalParentTransform.GetRotation();
-					RelativeRotation.Normalize();
-					CurrentTransform.SetRotation(CurrentTransform.GetRotation() * RelativeRotation);
-				}
-				break;
-				case ETransformConstraintType::Scale:
-				{
-					CurrentTransform.SetScale3D(CurrentTransform.GetScale3D() * DiffParents.GetScale3D());
-				}
-				break;
-				case ETransformConstraintType::Parent:
-				{
-					TOptional<FVector> Scale3D;
-					if (const UTickableParentConstraint* ParentConstraint = Cast<const UTickableParentConstraint>(Constraint))
-					{
-						if (ParentConstraint->IsScalingEnabled() == false)
-						{
-							Scale3D = CurrentTransform.GetScale3D();
-						}
-					}
-					CurrentTransform = CurrentTransform * DiffParents;
-					if (Scale3D.IsSet())
-					{
-						CurrentTransform.SetScale3D(Scale3D.GetValue());
-					}
-				}
-				break;
-				case ETransformConstraintType::LookAt: //leave current alone
-				default:
-					break;
+				CurrentTransform = *RelativeTransform; 
 			}
 		}
 	}
