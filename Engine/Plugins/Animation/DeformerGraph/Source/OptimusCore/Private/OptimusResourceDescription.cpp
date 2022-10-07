@@ -2,6 +2,7 @@
 
 #include "OptimusResourceDescription.h"
 
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusHelpers.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
@@ -23,6 +24,16 @@ void UOptimusResourceDescription::PostLoad()
 		// Ensure the DI is in sync with this resource description.
 		DataInterface->DataDomain = DataDomain;
 		DataInterface->ComponentSourceBinding = ComponentBinding;
+	}
+	
+	// 64-bit float data type is not supported for resources although they were allowed before. Do an in-place upgrade here. 
+	const FOptimusDataTypeHandle FloatDataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
+	const FOptimusDataTypeHandle DoubleDataType = FOptimusDataTypeRegistry::Get().FindType(*FDoubleProperty::StaticClass());
+	
+	if (DataType == DoubleDataType)
+	{
+		DataType = FloatDataType;
+		(void)MarkPackageDirty();
 	}
 }
 

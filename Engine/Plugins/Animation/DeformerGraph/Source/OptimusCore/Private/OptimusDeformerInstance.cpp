@@ -492,9 +492,15 @@ bool UOptimusDeformerInstance::SetIntVariable(FName InVariableName, int32 InValu
 	return SetVariableValue<int32>(Variables, InVariableName, FIntProperty::StaticClass()->GetFName(), InValue);
 }
 
-bool UOptimusDeformerInstance::SetFloatVariable(FName InVariableName, float InValue)
+bool UOptimusDeformerInstance::SetFloatVariable(FName InVariableName, double InValue)
 {
-	return SetVariableValue<float>(Variables, InVariableName, FFloatProperty::StaticClass()->GetFName(), InValue);
+	if (SetVariableValue<double>(Variables, InVariableName, FDoubleProperty::StaticClass()->GetFName(), InValue))
+	{
+		return true;
+	}
+	
+	// Fall back on float
+	return SetVariableValue<float>(Variables, InVariableName, FFloatProperty::StaticClass()->GetFName(), static_cast<float>(InValue));
 }
 
 bool UOptimusDeformerInstance::SetVectorVariable(FName InVariableName, const FVector& InValue)

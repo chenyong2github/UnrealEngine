@@ -454,7 +454,9 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	}
 
 	// Check for incompatible types.
-	if (DataType != InOtherPin->DataType)
+	if (!((DataType->ShaderValueType.IsValid() && InOtherPin->DataType->ShaderValueType.IsValid() &&
+		  DataType->ShaderValueType == InOtherPin->DataType->ShaderValueType) ||
+		 DataType == InOtherPin->DataType))
 	{
 		// TBD: Automatic conversion.
 		if (OutReason)

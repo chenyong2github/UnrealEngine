@@ -163,22 +163,22 @@ public:
 	void SetupFromDeformer(UOptimusDeformer* InDeformer);
 
 	/** Set the value of a boolean variable. */
-	UFUNCTION(BlueprintPure, Category="Deformer", meta=(DisplayName="Set Variable (bool)"))
+	UFUNCTION(BlueprintPure, Category="Deformer", meta=(DisplayName="Set Variable (Boolean)"))
 	bool SetBoolVariable(FName InVariableName, bool InValue);
 
-	/** Set the value of a boolean variable. */
-	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (int)"))
+	/** Set the value of an integer variable. */
+	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (Integer)"))
 	bool SetIntVariable(FName InVariableName, int32 InValue);
 
-	/** Set the value of a boolean variable. */
-	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (float)"))
-	bool SetFloatVariable(FName InVariableName, float InValue);
+	/** Set the value of a float variable. */
+	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (Float)"))
+	bool SetFloatVariable(FName InVariableName, double InValue);
 
-	/** Set the value of a boolean variable. */
+	/** Set the value of a 3-vector variable. */
 	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (Vector)"))
 	bool SetVectorVariable(FName InVariableName, const FVector& InValue);
 
-	/** Set the value of a boolean variable. */
+	/** Set the value of a 4-vector variable. */
 	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (Vector4)"))
 	bool SetVector4Variable(FName InVariableName, const FVector4& InValue);
 

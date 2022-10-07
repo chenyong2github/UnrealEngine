@@ -146,7 +146,7 @@ UOptimusVariableDescription* UOptimusDeformer::AddVariable(
 	if (!InDataTypeRef.IsValid())
 	{
 		// Default to float.
-		InDataTypeRef.Set(FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass()));
+		InDataTypeRef.Set(FOptimusDataTypeRegistry::Get().FindType(*FDoubleProperty::StaticClass()));
 	}
 
 	// Is this data type compatible with resources?

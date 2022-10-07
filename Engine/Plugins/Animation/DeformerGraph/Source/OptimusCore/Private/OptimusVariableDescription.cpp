@@ -2,6 +2,7 @@
 
 #include "OptimusVariableDescription.h"
 
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusHelpers.h"
 #include "OptimusValueContainer.h"
@@ -31,8 +32,25 @@ UOptimusDeformer* UOptimusVariableDescription::GetOwningDeformer() const
 	return Container ? CastChecked<UOptimusDeformer>(Container->GetOuter()) : nullptr;
 }
 
+void UOptimusVariableDescription::PostLoad()
+{
+	Super::PostLoad();
+
+	// 32-bit float data type is not supported for variables although they were allowed before. Do an in-place upgrade here. 
+	const FOptimusDataTypeHandle FloatDataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
+	const FOptimusDataTypeHandle DoubleDataType = FOptimusDataTypeRegistry::Get().FindType(*FDoubleProperty::StaticClass());
+	
+	if (DataType == FloatDataType)
+	{
+		DataType = DoubleDataType;
+		ResetValueDataSize();
+		(void)MarkPackageDirty();
+	}
+}
+
 
 #if WITH_EDITOR
+
 void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();

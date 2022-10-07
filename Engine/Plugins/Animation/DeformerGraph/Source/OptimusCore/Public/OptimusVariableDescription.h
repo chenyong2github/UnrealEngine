@@ -42,8 +42,6 @@ class OPTIMUSCORE_API UOptimusVariableDescription :
 {
 	GENERATED_BODY()
 public:
-	UOptimusVariableDescription() = default;
-
 	/** 
 	 * Set the value data storage to match the size required by the DataType. 
 	 * If a reallocation is required then the value data will be zeroed.
@@ -74,6 +72,7 @@ public:
 	UPROPERTY()
 	TArray<uint8> ValueData;
 
+	void PostLoad();
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	void PreEditUndo() override;
