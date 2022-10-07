@@ -204,6 +204,8 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetC
 	TEST_TRUE(TEXT("TObjectPtr.GetClass should return null on a null object"), Ptr.GetClass() == nullptr);
 }
 
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior", "[CoreUObject][ObjectHandle]")
 {
 	TObjectPtr<UObject> Ptr = nullptr;
@@ -301,6 +303,8 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 
 	RemoveObjectHandleReferenceResolvedCallback(Handle);
 }
+
+#endif
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
