@@ -63,7 +63,7 @@ namespace Chaos
 	// Based on an algorithm in Real Time Collision Detection - Ericson (very close to that)
 	// Using the same variable name conventions for easy reference
 	template <bool CalculatExtraInformation>
-	FORCEINLINE VectorRegister4Float  TriangleSimplexFindOriginFast(VectorRegister4Float* RESTRICT Simplex, VectorRegister4Int& RESTRICT NumVerts, VectorRegister4Float& RESTRICT OutBarycentric, VectorRegister4Float* RESTRICT As, VectorRegister4Float* RESTRICT Bs)
+	FORCEINLINE_DEBUGGABLE VectorRegister4Float  TriangleSimplexFindOriginFast(VectorRegister4Float* RESTRICT Simplex, VectorRegister4Int& RESTRICT NumVerts, VectorRegister4Float& RESTRICT OutBarycentric, VectorRegister4Float* RESTRICT As, VectorRegister4Float* RESTRICT Bs)
 	{
 		const VectorRegister4Float& A = Simplex[0];
 		const VectorRegister4Float& B = Simplex[1];
@@ -291,7 +291,7 @@ namespace Chaos
 	}
 
 	template <bool CalculatExtraInformation>
-	FORCEINLINE VectorRegister4Float VectorTetrahedronSimplexFindOrigin(VectorRegister4Float* RESTRICT Simplex, VectorRegister4Int& RESTRICT NumVerts, VectorRegister4Float& RESTRICT OutBarycentric, VectorRegister4Float* RESTRICT A, VectorRegister4Float* RESTRICT B)
+	FORCEINLINE_DEBUGGABLE VectorRegister4Float VectorTetrahedronSimplexFindOrigin(VectorRegister4Float* RESTRICT Simplex, VectorRegister4Int& RESTRICT NumVerts, VectorRegister4Float& RESTRICT OutBarycentric, VectorRegister4Float* RESTRICT A, VectorRegister4Float* RESTRICT B)
 	{
 		const VectorRegister4Float& X0 = Simplex[0];
 		const VectorRegister4Float& X1 = Simplex[1];
@@ -347,12 +347,12 @@ namespace Chaos
 													MakeVectorRegisterIntConstant(3, 3, 3, 3)
 		};
 
-		 VectorRegister4Float Eps = VectorMultiply(GlobalVectorConstants::KindaSmallNumber, VectorDivide(DetM, VectorSet1(4.0f)));
+		VectorRegister4Float Eps = VectorMultiply(GlobalVectorConstants::KindaSmallNumber, VectorDivide(DetM, VectorSet1(4.0f)));
 
 		bool bInside = true;
 		for (int Idx = 0; Idx < 4; ++Idx)
 		{
-			bSignMatch[Idx] = VectorSignMatch(DetM, VectorSubtract(Cofactors[Idx], Eps));
+			bSignMatch[Idx] = VectorSignMatch(DetM, Cofactors[Idx]);
 			if (!bSignMatch[Idx])
 			{
 				bInside = false;
@@ -416,7 +416,7 @@ namespace Chaos
 
 	// CalculatExtraHitInformation : Should we calculate the BaryCentric coordinates, As and Bs?
 	template <bool CalculatExtraInformation = true>
-	FORCEINLINE VectorRegister4Float VectorSimplexFindClosestToOrigin(VectorRegister4Float* RESTRICT Simplex, VectorRegister4Int& RESTRICT NumVerts, VectorRegister4Float& RESTRICT OutBarycentric, VectorRegister4Float* RESTRICT A, VectorRegister4Float* RESTRICT B)
+	FORCEINLINE_DEBUGGABLE VectorRegister4Float VectorSimplexFindClosestToOrigin(VectorRegister4Float* RESTRICT Simplex, VectorRegister4Int& RESTRICT NumVerts, VectorRegister4Float& RESTRICT OutBarycentric, VectorRegister4Float* RESTRICT A, VectorRegister4Float* RESTRICT B)
 	{
 		VectorRegister4Float ClosestPoint;
 		alignas(16) int32 NumVertsInt[4];

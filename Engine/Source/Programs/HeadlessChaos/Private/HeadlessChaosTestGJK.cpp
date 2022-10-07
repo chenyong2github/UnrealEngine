@@ -1730,7 +1730,7 @@ namespace ChaosTest
 
 	// This is a know regression test
 	// It is two boxes deeply overlapping in a T-shape
-	GTEST_TEST(GJKTests, TestGJKBoxBoxOverlap)
+	GTEST_TEST(GJKTests, TestGJKBoxBoxOverlapRegression1)
 	{
 		FVec3 MinBox = FVec3(-15.839999675750732, -31.840000152587891, -3.8146972691777137e-07);
 		FVec3 MaxBox = FVec3(15.840000629425049, 31.840000152587891, 19.200000381469728);
@@ -1752,6 +1752,31 @@ namespace ChaosTest
 		EXPECT_TRUE(bSuccess);
 		EXPECT_TRUE(Penetration > 19.0f); // Penetration is the Height of the box
 	}
+
+	// This is a know regression test
+	// Two boxes clearly overlapping
+	// --gtest_filter=*TestGJKBoxBoxOverlapRegression2*
+	GTEST_TEST(GJKTests, TestGJKBoxBoxOverlapRegression2)
+	{
+		
+		FVec3 MinBox1 = FVec3(- 112.00000000000000, -256.00000000000000, -8.0000000000000000);
+		FVec3 MaxBox1 = FVec3(112.00000000000000, 256.00000000000000, 8.0000000000000000);
+
+		FVec3 MinBox2 = FVec3(-64.000000000000000, -64.000000000000000, -64.000000000000000);
+		FVec3 MaxBox2 = FVec3(64.000000000000000, 64.000000000000000, 64.000000000000000);
+
+		FVec3 Translation = FVec3(0.0044999999990977813, -255.99550000000090, -18.000000000000000);
+		FRotation3 Rotation(UE::Math::TQuat<FReal>(0.0000000000000000, 0.0000000000000000, 0.0000000000000000,1.0f));
+
+		FImplicitBox3 ShapeA(MinBox1, MaxBox1, 0);
+		FImplicitBox3 ShapeB(MinBox2, MaxBox2, 0);
+
+		const FRigidTransform3 TransformBtoA = FRigidTransform3(Translation, Rotation);		
+
+		// Run GJK/EPA
+		bool bOverlap = GJKIntersection<FReal>(ShapeA, ShapeB, TransformBtoA, 0.00f, FVec3{ -0.0044999999990977813, 255.99550000000090, 18.000000000000000 });
+		EXPECT_TRUE(bOverlap);
+	}	
 
 	// Two convex shapes, Shape A on top of Shape B and almost touching. ShapeA is rotated 90 degrees about Z.
 	// Check that the contact point lies between Shape A and Shape B with a near zero Phi.
