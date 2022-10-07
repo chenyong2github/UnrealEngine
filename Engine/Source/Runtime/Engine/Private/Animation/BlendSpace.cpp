@@ -418,7 +418,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 			}
 
 			float& NormalizedCurrentTime = *(Instance.TimeAccumulator);
-			if (Context.IsJoiningSyncGroup())
+			if (Context.ShouldResyncToSyncGroup())
 			{
 				// Synchronize the asset player time to the other sync group members when (re)joining the group
 				NormalizedCurrentTime = Context.GetAnimationPositionRatio();

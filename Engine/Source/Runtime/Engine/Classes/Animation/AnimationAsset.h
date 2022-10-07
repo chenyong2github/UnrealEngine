@@ -813,7 +813,7 @@ public:
 		, bIsMarkerPositionValid(ValidMarkerNames.Num() > 0)
 		, bIsLeader(true)
 		, bOnlyOneAnimationInGroup(bInOnlyOneAnimationInGroup)
-		, bIsJoiningSyncGroup(false)
+		, bResyncToSyncGroup(false)
 	{
 	}
 
@@ -826,7 +826,7 @@ public:
 		, bIsMarkerPositionValid(false)
 		, bIsLeader(true)
 		, bOnlyOneAnimationInGroup(bInOnlyOneAnimationInGroup)
-		, bIsJoiningSyncGroup(false)
+		, bResyncToSyncGroup(false)
 	{
 	}
 
@@ -904,15 +904,15 @@ public:
 		return bOnlyOneAnimationInGroup;
 	}
 
-	void SetJoiningSyncGroup(bool bInIsJoiningSyncGroup)
+	void SetResyncToSyncGroup(bool bInResyncToSyncGroup)
 	{
-		bIsJoiningSyncGroup = bInIsJoiningSyncGroup;
+		bResyncToSyncGroup = bInResyncToSyncGroup;
 	}
 
-	// Are we (re)joining the sync group this tick (eg: when initializing or resuming from zero weight)?
-	bool IsJoiningSyncGroup() const
+	// Should we resync to the sync group this tick (eg: when initializing or resuming from zero weight)?
+	bool ShouldResyncToSyncGroup() const
 	{
-		return bIsJoiningSyncGroup;
+		return bResyncToSyncGroup;
 	}
 
 	//Root Motion accumulated from this tick context
@@ -940,8 +940,8 @@ private:
 
 	bool bOnlyOneAnimationInGroup;
 
-	// True if the asset player being ticked was not previously part of the sync group (eg: it was inactive and has now reactivated)
-	bool bIsJoiningSyncGroup;
+	// True if the asset player being ticked should (re)synchronize to the sync group's time (eg: it was inactive and has now reactivated)
+	bool bResyncToSyncGroup;
 };
 
 USTRUCT()
