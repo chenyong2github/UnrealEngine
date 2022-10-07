@@ -2524,7 +2524,7 @@ FVector2D FFeatureVectorHelper::DecodeVector2DInternal(TArrayView<const float> V
 
 void FFeatureVectorHelper::ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality)
 {
-	const int32 NumPoses = MeanDeviations.size();
+	const int32 NumPoses = CenteredPoseMatrix.cols();
 
 	// Construct a submatrix for the feature and find the average distance to the feature's centroid.
 	// Since we've already mean centered the data, the average distance to the centroid is simply the average norm.
