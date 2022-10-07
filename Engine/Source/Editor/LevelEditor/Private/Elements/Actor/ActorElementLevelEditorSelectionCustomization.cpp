@@ -318,8 +318,6 @@ bool FActorElementLevelEditorSelectionCustomization::SelectActorGroup(AGroupActo
 	{
 		FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
 
-		bSelectionChanged |= SelectActorElement(GroupSelectionHandle, InSelectionSet, GroupSelectionOptions);
-
 		TArray<AActor*> GroupActors;
 		InGroupActor->GetGroupActors(GroupActors);
 		for (AActor* Actor : GroupActors)
