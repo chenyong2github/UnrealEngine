@@ -726,25 +726,27 @@ const FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndex() const
 	return PrivateDerivedData ? &PrivateDerivedData->SearchIndex : nullptr;
 }
 
-const FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndexSafe() const
+const FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndexSafe(bool bVerboseLogging) const
 {
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
 
 	if (!SearchIndex || !SearchIndex->IsValid() || SearchIndex->IsEmpty())
 	{
-		if (!Schema)
+		if (bVerboseLogging)
 		{
-			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: no Schema!"), *GetName());
+			if (!Schema)
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: no Schema!"), *GetName());
+			}
+			else if (!Schema->IsValid())
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: Schema %s is invalid"), *GetName(), *Schema->GetName());
+			}
+			else
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: is there any unsaved modified asset?"), *GetName());
+			}
 		}
-		else if (!Schema->IsValid())
-		{
-			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: Schema %s is invalid"), *GetName(), *Schema->GetName());
-		}
-		else
-		{
-			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: is there any unsaved modified asset?"), *GetName());
-		}
-
 		SearchIndex = nullptr;
 	}
 
@@ -1986,40 +1988,14 @@ void FPoseSearchFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
 {
 	check(InSchema && InSchema->IsValid());
 	Schema = InSchema;
-	ResetFeatures();
+	Values.Reset();
+	Values.SetNumZeroed(Schema->SchemaCardinality);
 }
 
 void FPoseSearchFeatureVectorBuilder::Reset()
 {
 	Schema = nullptr;
-	Values.Reset(0);
-}
-
-void FPoseSearchFeatureVectorBuilder::ResetFeatures()
-{
-	Values.Reset(0);
-	Values.SetNumZeroed(Schema->SchemaCardinality);
-}
-
-void FPoseSearchFeatureVectorBuilder::CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx)
-{
-	check(Schema == SearchIndex.Schema);
-	Values = SearchIndex.GetPoseValues(PoseIdx);
-}
-
-bool FPoseSearchFeatureVectorBuilder::IsInitialized() const
-{
-	return (Schema != nullptr) && (Values.Num() == Schema->SchemaCardinality);
-}
-
-bool FPoseSearchFeatureVectorBuilder::IsInitializedForSchema(const UPoseSearchSchema* InSchema) const
-{
-	return (Schema == InSchema) && IsInitialized();
-}
-
-bool FPoseSearchFeatureVectorBuilder::IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const
-{
-	return IsInitialized() && (Schema == OtherBuilder.Schema);
+	Values.Reset();
 }
 
 namespace UE::PoseSearch
@@ -2921,46 +2897,9 @@ static FTransform ExtrapolateRootMotion(
 
 //////////////////////////////////////////////////////////////////////////
 // FSequenceSampler
-
-struct FSequenceSampler : public IAssetSampler
-{
-public:
-	struct FInput
-	{
-		const UAnimSequence* Sequence = nullptr;
-		bool bLoopable = false;
-		int32 RootDistanceSamplingRate = 60;
-		FPoseSearchExtrapolationParameters ExtrapolationParameters;
-	} Input;
-
-	void Init(const FInput& Input);
-	void Process();
-
-	float GetPlayLength() const override { return Input.Sequence->GetPlayLength(); };
-	bool IsLoopable() const override { return Input.bLoopable; };
-
-	float GetTimeFromRootDistance(float Distance) const override;
-
-	float GetTotalRootDistance() const override { return TotalRootDistance; };
-	FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
-
-	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
-	virtual float ExtractRootDistance(float Time) const override;
-	virtual FTransform ExtractRootTransform(float Time) const override;
-	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
-	virtual const UAnimationAsset* GetAsset() const override { return Input.Sequence; }
-
-private:
-	float TotalRootDistance = 0.0f;
-	FTransform TotalRootTransform = FTransform::Identity;
-	TArray<float> AccumulatedRootDistance;
-
-	void ProcessRootDistance();
-};
-
 void FSequenceSampler::Init(const FInput& InInput)
 {
-	check(InInput.Sequence);
+	check(InInput.Sequence.Get());
 
 	Input = InInput;
 }
@@ -2996,6 +2935,11 @@ float FSequenceSampler::GetTimeFromRootDistance(float Distance) const
 	return ClipTime;
 }
 
+bool FSequenceSampler::IsLoopable() const
+{
+	return Input.Sequence->bLoop;
+}
+
 void FSequenceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
 {
 	Input.Sequence->GetAnimationPose(OutAnimPoseData, ExtractionCtx);
@@ -3003,7 +2947,7 @@ void FSequenceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAn
 
 FTransform FSequenceSampler::ExtractRootTransform(float Time) const
 {
-	if (Input.bLoopable)
+	if (IsLoopable())
 	{
 		FTransform LoopableRootTransform = Input.Sequence->ExtractRootMotion(0.0f, Time, true);
 		return LoopableRootTransform;
@@ -3134,62 +3078,16 @@ void FSequenceSampler::ProcessRootDistance()
 	TotalRootDistance = AccumulatedRootDistance.Last();
 }
 
+const UAnimationAsset* FSequenceSampler::GetAsset() const
+{
+	return Input.Sequence.Get();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FBlendSpaceSampler
-
-struct FBlendSpaceSampler : public IAssetSampler
-{
-public:
-	struct FInput
-	{
-		const FAssetSamplingContext* SamplingContext = nullptr;
-		const UBlendSpace* BlendSpace = nullptr;
-		bool bLoopable = false;
-		int32 RootDistanceSamplingRate = 60;
-		int32 RootTransformSamplingRate = 60;
-		FPoseSearchExtrapolationParameters ExtrapolationParameters;
-		FVector BlendParameters;
-	} Input;
-
-	void Init(const FInput& Input);
-
-	void Process();
-
-	float GetPlayLength() const override { return PlayLength; };
-	bool IsLoopable() const override { return Input.bLoopable; };
-
-	float GetTimeFromRootDistance(float Distance) const override;
-
-	float GetTotalRootDistance() const override { return TotalRootDistance; };
-	FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
-
-	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
-	virtual float ExtractRootDistance(float Time) const override;
-	virtual FTransform ExtractRootTransform(float Time) const override;
-	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
-
-	virtual const UAnimationAsset* GetAsset() const override { return Input.BlendSpace; }
-
-private:
-	float PlayLength = 0.0f;
-	float TotalRootDistance = 0.0f;
-	FTransform TotalRootTransform = FTransform::Identity;
-	TArray<float> AccumulatedRootDistance;
-	TArray<FTransform> AccumulatedRootTransform;
-	
-	void ProcessPlayLength();
-	void ProcessRootDistance();
-	void ProcessRootTransform();
-
-	// Extracts the pre-computed blend space root transform. ProcessRootTransform must be run first.
-	FTransform ExtractBlendSpaceRootTrackTransform(float Time) const;
-	FTransform ExtractBlendSpaceRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const;
-	FTransform ExtractBlendSpaceRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const;
-};
-
 void FBlendSpaceSampler::Init(const FInput& InInput)
 {
-	check(InInput.BlendSpace);
+	check(InInput.BlendSpace.Get());
 
 	Input = InInput;
 }
@@ -3229,6 +3127,11 @@ float FBlendSpaceSampler::GetTimeFromRootDistance(float Distance) const
 	return ClipTime;
 }
 
+bool FBlendSpaceSampler::IsLoopable() const
+{
+	return Input.BlendSpace->bLoop;
+}
+
 void FBlendSpaceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
 {
 	TArray<FBlendSampleData> BlendSamples;
@@ -3252,7 +3155,7 @@ void FBlendSpaceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, F
 
 FTransform FBlendSpaceSampler::ExtractRootTransform(float Time) const
 {
-	if (Input.bLoopable)
+	if (IsLoopable())
 	{
 		FTransform LoopableRootTransform = ExtractBlendSpaceRootMotion(0.0f, Time, true);
 		return LoopableRootTransform;
@@ -3461,8 +3364,6 @@ void FBlendSpaceSampler::ProcessPlayLength()
 	Input.BlendSpace->GetSamplesFromBlendInput(Input.BlendParameters, BlendSamples, TriangulationIndex, true);
 
 	PlayLength = Input.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
-
-	checkf(PlayLength > 0.0f, TEXT("Blendspace has zero play length"));
 }
 
 void FBlendSpaceSampler::ProcessRootTransform()
@@ -3487,7 +3388,7 @@ void FBlendSpaceSampler::ProcessRootTransform()
 
 		FDeltaTimeRecord DeltaTimeRecord;
 		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, Input.bLoopable);
+		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, IsLoopable());
 
 		for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
 		{
@@ -3506,8 +3407,8 @@ void FBlendSpaceSampler::ProcessRootTransform()
 		Anim::FStackAttributeContainer StackAttributeContainer;
 		FAnimationPoseData AnimPoseData(Pose, BlendedCurve, StackAttributeContainer);
 
-		Pose.SetBoneContainer(&Input.SamplingContext->BoneContainer);
-		BlendedCurve.InitFrom(Input.SamplingContext->BoneContainer);
+		Pose.SetBoneContainer(&Input.BoneContainer);
+		BlendedCurve.InitFrom(Input.BoneContainer);
 
 		Input.BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, AnimPoseData);
 
@@ -3566,6 +3467,11 @@ void FBlendSpaceSampler::ProcessRootDistance()
 	// FAssetIndexer::GetSampleTimeFromDistance() and FAssetIndexer::GetSampleInfo()
 	TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	TotalRootDistance = AccumulatedRootDistance.Last();
+}
+
+const UAnimationAsset* FBlendSpaceSampler::GetAsset() const
+{
+	return Input.BlendSpace.Get();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -4461,7 +4367,6 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 	FSequenceSampler::FInput SamplerInput;
 	SamplerInput.ExtrapolationParameters = SequenceMetaData->ExtrapolationParameters;
 	SamplerInput.Sequence = Sequence;
-	SamplerInput.bLoopable = false;
 	Sampler.Init(SamplerInput);
 	Sampler.Process();
 
@@ -4531,7 +4436,6 @@ void FDatabaseIndexingContext::PrepareSamplers()
 			FSequenceSampler::FInput Input;
 			Input.ExtrapolationParameters = Database->ExtrapolationParameters;
 			Input.Sequence = Sequence;
-			Input.bLoopable = bLoopable;
 			SequenceSamplers[SequenceSamplerIdx].Init(Input);
 		}
 	};
@@ -4597,10 +4501,9 @@ void FDatabaseIndexingContext::PrepareSamplers()
 						BlendSpaceSamplerMap.Add({ DbBlendSpace.BlendSpace, BlendParameters }, BlendSpaceSamplerIdx);
 
 						FBlendSpaceSampler::FInput Input;
-						Input.SamplingContext = &SamplingContext;
+						Input.BoneContainer = SamplingContext.BoneContainer;
 						Input.ExtrapolationParameters = Database->ExtrapolationParameters;
 						Input.BlendSpace = DbBlendSpace.BlendSpace;
-						Input.bLoopable = DbBlendSpace.BlendSpace->bLoop;
 						Input.BlendParameters = BlendParameters;
 
 						BlendSpaceSamplers[BlendSpaceSamplerIdx].Init(Input);

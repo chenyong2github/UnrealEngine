@@ -241,6 +241,90 @@ public:
 	virtual const UAnimationAsset* GetAsset() const = 0;
 };
 
+struct POSESEARCH_API FSequenceSampler : public IAssetSampler
+{
+public:
+	struct FInput
+	{
+		TWeakObjectPtr<const UAnimSequence> Sequence;
+		int32 RootDistanceSamplingRate = 60;
+		FPoseSearchExtrapolationParameters ExtrapolationParameters;
+	} Input;
+
+	void Init(const FInput& Input);
+	void Process();
+
+	float GetPlayLength() const override { return Input.Sequence->GetPlayLength(); }
+	bool IsLoopable() const override;
+
+	float GetTimeFromRootDistance(float Distance) const override;
+
+	float GetTotalRootDistance() const override { return TotalRootDistance; }
+	FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
+
+	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
+	virtual float ExtractRootDistance(float Time) const override;
+	virtual FTransform ExtractRootTransform(float Time) const override;
+	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
+	virtual const UAnimationAsset* GetAsset() const override;
+
+private:
+	float TotalRootDistance = 0.0f;
+	FTransform TotalRootTransform = FTransform::Identity;
+	TArray<float> AccumulatedRootDistance;
+
+	void ProcessRootDistance();
+};
+
+struct POSESEARCH_API FBlendSpaceSampler : public IAssetSampler
+{
+public:
+	struct FInput
+	{
+		FBoneContainer BoneContainer;
+		TWeakObjectPtr<const UBlendSpace> BlendSpace;
+		int32 RootDistanceSamplingRate = 60;
+		int32 RootTransformSamplingRate = 60;
+		FPoseSearchExtrapolationParameters ExtrapolationParameters;
+		FVector BlendParameters;
+	} Input;
+
+	void Init(const FInput& Input);
+
+	void Process();
+
+	float GetPlayLength() const override { return PlayLength; }
+	bool IsLoopable() const override;
+
+	float GetTimeFromRootDistance(float Distance) const override;
+
+	float GetTotalRootDistance() const override { return TotalRootDistance; }
+	FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
+
+	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
+	virtual float ExtractRootDistance(float Time) const override;
+	virtual FTransform ExtractRootTransform(float Time) const override;
+	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<class UAnimNotifyState_PoseSearchBase*>& NotifyStates) const override;
+
+	virtual const UAnimationAsset* GetAsset() const override;
+
+private:
+	float PlayLength = 0.0f;
+	float TotalRootDistance = 0.0f;
+	FTransform TotalRootTransform = FTransform::Identity;
+	TArray<float> AccumulatedRootDistance;
+	TArray<FTransform> AccumulatedRootTransform;
+
+	void ProcessPlayLength();
+	void ProcessRootDistance();
+	void ProcessRootTransform();
+
+	// Extracts the pre-computed blend space root transform. ProcessRootTransform must be run first.
+	FTransform ExtractBlendSpaceRootTrackTransform(float Time) const;
+	FTransform ExtractBlendSpaceRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const;
+	FTransform ExtractBlendSpaceRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const;
+};
+
 /**
  * Inputs for asset indexing
  */
@@ -730,13 +814,13 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	// If to use the blendspace grid locations as parameter sample locations.
 	// When enabled, NumberOfHorizontalSamples and NumberOfVerticalSamples are ignored.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
-	bool bUseGridForSampling = true;
+	bool bUseGridForSampling = false;
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
-	int32 NumberOfHorizontalSamples = 5;
+	int32 NumberOfHorizontalSamples = 9;
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25"))
-	int32 NumberOfVerticalSamples = 5;
+	int32 NumberOfVerticalSamples = 2;
 
 	virtual UAnimationAsset* GetAnimationAsset() const override;
 	virtual bool IsLooping() const override;
@@ -803,11 +887,10 @@ public:
 };
 
 /**
-* Helper object for writing features into a float buffer according to a feature vector layout.
-* Keeps track of which features are present, allowing the feature vector to be built up piecemeal.
+* float buffer of features according to a UPoseSearchSchema layout.
 * FFeatureVectorBuilder is used to build search queries at runtime and for adding samples during search index construction.
 */
-USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+USTRUCT()
 struct POSESEARCH_API FPoseSearchFeatureVectorBuilder
 {
 	GENERATED_BODY()
@@ -815,23 +898,15 @@ struct POSESEARCH_API FPoseSearchFeatureVectorBuilder
 public:
 	void Init(const UPoseSearchSchema* Schema);
 	void Reset();
-	void ResetFeatures();
 
 	const UPoseSearchSchema* GetSchema() const { return Schema.Get(); }
 
 	TArray<float>& EditValues() { return Values; }
 	TArrayView<const float> GetValues() const { return Values; }
 
-	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
-
-	bool IsInitialized() const;
-	bool IsInitializedForSchema(const UPoseSearchSchema* Schema) const;
-	bool IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const;
-
 private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<const UPoseSearchSchema> Schema = nullptr;
-
 	TArray<float> Values;
 };
 
@@ -997,7 +1072,7 @@ public:
 	virtual ~UPoseSearchDatabase();
 
 	const FPoseSearchIndex* GetSearchIndex() const;
-	const FPoseSearchIndex* GetSearchIndexSafe() const;
+	const FPoseSearchIndex* GetSearchIndexSafe(bool bVerboseLogging = true) const;
 	
 	bool GetSkipSearchIfPossible() const;
 	bool IsValidForIndexing() const;

@@ -45,6 +45,9 @@ namespace UE::PoseSearch
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
 
+		FSequenceSampler SequenceSampler;
+		FBlendSpaceSampler BlendSpaceSampler;
+
 		bool IsValid()
 		{
 			const bool bIsValid = Actor.IsValid() && Mesh.IsValid() && AnimInstance.IsValid();
@@ -147,7 +150,7 @@ namespace UE::PoseSearch
 
 		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex);
 
-		void UpdatePreviewActors();
+		void UpdatePreviewActors(bool bInTickPlayTime = false);
 
 		FTransform MirrorRootMotion(FTransform RootMotion, const class UMirrorDataTable* MirrorDataTable);
 	};
