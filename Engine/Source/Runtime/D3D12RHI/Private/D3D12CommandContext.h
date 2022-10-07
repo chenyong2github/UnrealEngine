@@ -124,6 +124,9 @@ public:
 	// Inserts a command that signals the specified D3D12 fence object.
 	void SignalManualFence(ID3D12Fence* Fence, uint64 Value);
 
+	// Inserts a command that waits the specified D3D12 fence object.
+	void WaitManualFence(ID3D12Fence* Fence, uint64 Value);
+
 	// Inserts a timestamp query command. "Target" specifies the optional 
 	// location the result will be written to by the interrupt handler thread.
 	FD3D12QueryLocation InsertTimestamp(ED3D12Units Units, uint64* Target);

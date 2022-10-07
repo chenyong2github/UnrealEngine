@@ -620,6 +620,24 @@ void FD3D12DynamicRHI::RHITransitionResource(FRHICommandList& RHICmdList, FRHITe
 	FD3D12CommandContext::Get(RHICmdList).TransitionResource(D3D12Texture->GetResource(), D3D12_RESOURCE_STATE_TBD, InState, InSubResource);
 }
 
+void FD3D12DynamicRHI::RHISignalManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value)
+{
+	checkf(FRHIGPUMask::All() == FRHIGPUMask::GPU0(), TEXT("RHISignalManualFence cannot be used by multi-GPU code"));
+	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList);
+	Context.CloseCommandList(false);
+	Context.SignalManualFence(Fence, Value);
+	Context.OpenCommandList();
+}
+
+void FD3D12DynamicRHI::RHIWaitManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value)
+{
+	checkf(FRHIGPUMask::All() == FRHIGPUMask::GPU0(), TEXT("RHIWaitManualFence cannot be used by multi-GPU code"));
+	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList);
+	Context.CloseCommandList(false);
+	Context.WaitManualFence(Fence, Value);
+	Context.OpenCommandList();
+}
+
 bool ID3D12DynamicRHI::IsD3DDebugEnabled()
 {
 	return D3D12RHI_ShouldCreateWithD3DDebug();

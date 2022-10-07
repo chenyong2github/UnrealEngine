@@ -9,7 +9,7 @@
 #endif
 
 // These defines control which threads are enabled in the GPU submission pipeline.
-#define D3D12_USE_SUBMISSION_THREAD (0 && (WITH_MGPU == 0)) // @todo mgpu - fix crashes when submission thread is enabled
+#define D3D12_USE_SUBMISSION_THREAD (1 && (WITH_MGPU == 0)) // @todo mgpu - fix crashes when submission thread is enabled
 #define D3D12_USE_INTERRUPT_THREAD  (1 && D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES)
 
 // When enabled, GPU timestamp queries are adjusted to remove idle time caused by CPU bubbles.
@@ -607,6 +607,13 @@ uint64 FD3D12Queue::ExecutePayload()
 	TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteCommandList);
 	LLM_SCOPE_BYNAME(TEXT("RHIMisc/ExecuteCommandLists"));
 	check(PayloadToSubmit && this == &PayloadToSubmit->Queue);
+
+	// Wait for manual fences.
+	for (auto& [ManualFence, Value] : PayloadToSubmit->FencesToWait)
+	{
+		VERIFYD3D12RESULT(D3DCommandQueue->Wait(ManualFence, Value));
+	}
+
 	PayloadToSubmit->PreExecute();
 
 	if (const int32 NumCommandLists = PayloadToSubmit->CommandListsToExecute.Num())

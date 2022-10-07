@@ -303,6 +303,12 @@ void FD3D12ContextCommon::SignalManualFence(ID3D12Fence* Fence, uint64 Value)
 	GetPayload(EPhase::Signal)->FencesToSignal.Emplace(Fence, Value);
 }
 
+void FD3D12ContextCommon::WaitManualFence(ID3D12Fence* Fence, uint64 Value)
+{
+	checkf(!CommandList, TEXT("Command list must be closed before signaling a manual fence."));
+	GetPayload(EPhase::Wait)->FencesToWait.Emplace(Fence, Value);
+}
+
 FD3D12QueryLocation FD3D12ContextCommon::AllocateQuery(ED3D12QueryType Type, uint64* Target)
 {
 	checkf(CommandList, TEXT("Command list must be open to insert a timestamp."));

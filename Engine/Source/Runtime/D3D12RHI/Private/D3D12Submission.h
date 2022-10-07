@@ -193,6 +193,9 @@ struct FD3D12PayloadBase
 
 	virtual void PreExecute() {}
 
+	// Wait
+	TArray<FManualFence> FencesToWait;
+
 	// Execute
 	bool bResolveQueries = false;
 	TArray<class FD3D12CommandList*> CommandListsToExecute;

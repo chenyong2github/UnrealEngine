@@ -112,6 +112,7 @@ FD3D12ManualFence::FD3D12ManualFence(FD3D12Adapter* InParent)
 		Pair.Context = &Device->GetDefaultCommandContext();
 
 		VERIFYD3D12RESULT(Parent->GetD3DDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(Pair.Fence.GetInitReference())));
+		Pair.Fence->SetName(TEXT("Manual Fence"));
 	}
 }
 
