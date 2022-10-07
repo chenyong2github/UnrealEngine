@@ -68,8 +68,7 @@
 #include "GameMapsSettings.h"
 #include "Particles/EmitterCameraLensEffectBase.h"
 #include "LevelUtils.h"
-#include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "PBDRigidsSolver.h"
@@ -1025,13 +1024,6 @@ void APlayerController::PostInitializeComponents()
 
 	bPlayerIsWaiting = true;
 	StateName = NAME_Spectating; // Don't use ChangeState, because we want to defer spawning the SpectatorPawn until the Player is received
-
-	// Register with WorldParition as a Streaming Source
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-	if (WorldPartitionSubsystem)
-	{
-		WorldPartitionSubsystem->RegisterStreamingSourceProvider(this);
-	}
 }
 
 /// @cond DOXYGEN_WARNINGS
@@ -1593,12 +1585,6 @@ void APlayerController::Destroyed()
 
 	PlayerInput = NULL;
 	CheatManager = NULL;
-
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-	if (WorldPartitionSubsystem)
-	{
-		verify(WorldPartitionSubsystem->UnregisterStreamingSourceProvider(this));
-	}
 
 	Super::Destroyed();
 }
@@ -6112,23 +6098,6 @@ void APlayerController::AsyncPhysicsTickActor(float DeltaTime, float SimTime)
 	}
 }
 
-bool APlayerController::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource)
-{
-	const ENetMode NetMode = GetNetMode();
-	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
-
-	if (IsStreamingSourceEnabled() && (IsLocalController() || bIsServer))
-	{
-		GetPlayerViewPoint(OutStreamingSource.Location, OutStreamingSource.Rotation);
-		OutStreamingSource.Name = GetFName();
-		OutStreamingSource.TargetState = StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
-		OutStreamingSource.bBlockOnSlowLoading = StreamingSourceShouldBlockOnSlowStreaming();
-		OutStreamingSource.DebugColor = StreamingSourceDebugColor;
-		OutStreamingSource.Priority = GetStreamingSourcePriority();
-		return true;
-	}
-	return false;
-}
 
 #undef LOCTEXT_NAMESPACE
 
