@@ -18,29 +18,15 @@ enum class ENativeClassHierarchyNodeType : uint8
 };
 
 /**
- *  Contains high-level information about the plugin module relevant to the native class hierarchy.                                                                      
- */
-struct FNativeClassHierarchyPluginModuleInfo
-{
-	/** Name of the module*/
-	FName Name;
-
-	/** Indicator of where the module was loaded from (Engine or GameProject)*/
-	EPluginLoadedFrom LoadedFrom;
-};
-
-/**
  * Cache to avoid regenerating some necessary data during repeated calls to GetClassPathRootForModule during enumerate
  */
 struct FNativeClassHierarchyGetClassPathCache
 {
 	TSet<FName> GameModules;
-	TMap<FName, FNativeClassHierarchyPluginModuleInfo> PluginModules;
 
 	void Reset()
 	{
 		GameModules.Reset();
-		PluginModules.Reset();
 	}
 };
 
@@ -361,10 +347,9 @@ private:
 	 *
 	 * @param InClass - The class that is to be added
 	 * @param InGameModules - The list of modules that belong to the "/Classes_Game" root
-	 * @param InPluginModules - The list of modules that belong to neither the "/Classes_Game" or "/Classes_Engine" roots
 	 * @param AddClassMetrics - Metrics to update as new classes and folders are added (used to report population performance)
 	 */
-	void AddClass(UClass* InClass, const TSet<FName>& InGameModules, const TMap<FName, FNativeClassHierarchyPluginModuleInfo>& InPluginModules, FAddClassMetrics& AddClassMetrics);
+	void AddClass(UClass* InClass, const TSet<FName>& InGameModules, FAddClassMetrics& AddClassMetrics);
 
 	/**
 	 * Called when we're notified that a module has changed status
@@ -395,22 +380,16 @@ private:
 	 *
 	 * @param InModuleName - The module we want to find the root path for
 	 * @param InGameModules - The list of modules that belong to the "/Classes_Game" root
-	 * @param InPluginModules - The list of modules that belong to neither the "/Classes_Game" or "/Classes_Engine" roots
 	 * @param WhereLoadedFrom - Determine where this class was loaded from.
 	 * 
 	 * @return The name of the root path to use, eg "/Classes_Game"
 	 */
-	static FName GetClassPathRootForModule(const FName& InModuleName, const TSet<FName>& InGameModules, const TMap<FName, FNativeClassHierarchyPluginModuleInfo>& InPluginModules, EPluginLoadedFrom& OutWhereLoadedFrom);
+	static FName GetClassPathRootForModule(const FName& InModuleName, const TSet<FName>& InGameModules, EPluginLoadedFrom& OutWhereLoadedFrom);
 
 	/**
 	 * Calculate the list of modules that belong to the "/Classes_Game" root
 	 */
 	static TSet<FName> GetGameModules();
-
-	/**
-	 * Calculate the list of modules that belong to neither the "/Classes_Game" or "/Classes_Engine" roots
-	 */
-	static TMap<FName, FNativeClassHierarchyPluginModuleInfo> GetPluginModules();
 
 	/** Root level nodes corresponding to the root folders used by the Content Browser, eg) Classes_Engine, Classes_Game, etc */
 	TMap<FName, TSharedPtr<FNativeClassHierarchyNode>> RootNodes;
