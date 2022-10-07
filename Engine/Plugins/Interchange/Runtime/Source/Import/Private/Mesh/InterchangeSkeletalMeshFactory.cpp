@@ -905,7 +905,10 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 	
 	if (!SkeletalMesh)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+		if (!Arguments.ReimportObject)
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+		}
 		return nullptr;
 	}
 	
@@ -968,7 +971,10 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 
 	if (!SkeletalMeshObject)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+		if (!Arguments.ReimportObject)
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
+		}
 		return nullptr;
 	}
 

@@ -89,7 +89,10 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 	
 	if (!StaticMesh)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
+		if (!Arguments.ReimportObject)
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
+		}
 		return nullptr;
 	}
 
@@ -140,7 +143,10 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 	if (!StaticMeshObject)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
+		if (!Arguments.ReimportObject)
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
+		}
 		return nullptr;
 	}
 
