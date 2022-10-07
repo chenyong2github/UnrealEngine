@@ -388,8 +388,12 @@ bool FSourceControlMenuHelpers::SaveDirtyPackages()
 /// Find all packages in Content directory
 TArray<FString> FSourceControlMenuHelpers::ListAllPackages()
 {
+	const FString ProjectContentDir = FPaths::ProjectContentDir();
+	const FString ProjectSourceControlDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+	const FString& Root = ProjectSourceControlDir.IsEmpty() ? ProjectContentDir : ProjectSourceControlDir;
+
 	TArray<FString> PackageRelativePaths;
-	FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(ISourceControlModule::Get().GetSourceControlProjectDir()));
+	FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(Root));
 
 	TArray<FString> PackageNames;
 	PackageNames.Reserve(PackageRelativePaths.Num());
