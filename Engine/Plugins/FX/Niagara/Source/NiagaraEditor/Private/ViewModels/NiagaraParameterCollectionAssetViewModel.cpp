@@ -102,7 +102,7 @@ FName FNiagaraParameterCollectionAssetViewModel::GenerateNewName(FNiagaraTypeDef
 {
 	check(Collection && Instance);
 
-	FName ProposedName = *(TEXT("New") + Type.GetName());
+	FName ProposedName = FName(Type.GetName());
 	TSet<FName> Existing;
 	Existing.Reserve(ParameterViewModels.Num());
 	for (TSharedRef<INiagaraParameterViewModel> ParameterViewModel : ParameterViewModels)
