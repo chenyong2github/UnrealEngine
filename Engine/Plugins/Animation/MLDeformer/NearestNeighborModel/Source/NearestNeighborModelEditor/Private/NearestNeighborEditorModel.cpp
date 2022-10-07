@@ -122,22 +122,7 @@ namespace UE::NearestNeighborModel
 				false);
 			FNearestNeighborEditorModelActor* NearestNeighborActor = static_cast<FNearestNeighborEditorModelActor*>(EditorActors.Last());
 
-			UNearestNeighborModelInstance* ModelInstance = nullptr;
-			const FMLDeformerEditorActor* EditorActor = FindEditorActor(ActorID_Test_MLDeformed);
-			if (EditorActor)
-			{
-				const AActor* Actor = EditorActor->GetActor();
-				if (Actor)
-				{
-					UMLDeformerComponent* Component = Actor->FindComponentByClass<UMLDeformerComponent>();
-					if (Component)
-					{
-						ModelInstance = static_cast<UNearestNeighborModelInstance*>(Component->GetModelInstance());
-					}
-				}
-			}
-
-			NearestNeighborActor->InitNearestNeighborActor(ModelInstance, PartId);
+			NearestNeighborActor->InitNearestNeighborActor(PartId);
 			NearestNeighborActor->SetMeshOffsetFactor(2.0f);
 			NearestNeighborActors[PartId] = NearestNeighborActor;
 		}

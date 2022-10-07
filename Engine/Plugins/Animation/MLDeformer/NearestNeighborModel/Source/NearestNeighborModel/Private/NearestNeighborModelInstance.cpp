@@ -153,7 +153,11 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 				for (int32 NeighborId = 0; NeighborId < NumNeighbors; NeighborId++)
 				{
 					const float W = NeighborId == NearestNeighborId ? ModelWeight * NearestNeighborModel->GetNearestNeighborOffsetWeight() : 0;
-					UpdateWeight(WeightData->Weights, NeighborOffset + NeighborId, W);
+					const int32 Index = NeighborOffset + NeighborId;
+					if (Index < NumMorphTargets)
+					{
+						UpdateWeight(WeightData->Weights, Index, W);
+					}
 				}
 				NeighborOffset += NumNeighbors;
 			}
