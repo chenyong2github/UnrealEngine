@@ -34,6 +34,7 @@
 #include "Selection.h"
 #include "UnrealEdGlobals.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Editor/Transactor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/LayoutExtender.h"
@@ -42,6 +43,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Layers/LayersSubsystem.h"
 #include "Misc/FileHelper.h"
+#include "Misc/ITransaction.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Styling/SlateIconFinder.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -192,109 +194,60 @@ void FDisplayClusterLightCardEditor::CenterActorInView(AActor* Actor)
 	}
 }
 
-AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName, const UDisplayClusterLightCardTemplate* InTemplate)
-{
-	if (InTemplate)
-	{
-		// For now only light card templates are supported
-		check(InActorClass && InActorClass->IsChildOf(ADisplayClusterLightCardActor::StaticClass()));
-		return SpawnLightCardFromTemplate(InTemplate);
-	}
-	
-	if (!ActiveRootActor.IsValid())
-	{
-		return nullptr;
-	}
-
-	FScopedTransaction Transaction(LOCTEXT("SpawnActorTransactionMessage", "Spawn Actor"));
-	
-	check(InActorClass);
-
-	const FVector SpawnLocation = ActiveRootActor->GetDefaultCamera()->GetComponentLocation();
-	FRotator SpawnRotation = ActiveRootActor->GetDefaultCamera()->GetComponentRotation();
-	SpawnRotation.Yaw -= 180.f;
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.bNoFail = true;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	SpawnParameters.Name = InActorName;
-	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-	SpawnParameters.OverrideLevel = ActiveRootActor->GetWorld()->GetCurrentLevel();
-
-	AActor* NewActor = CastChecked<AActor>(
-		ActiveRootActor->GetWorld()->SpawnActor(InActorClass,
-			&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
-
-	NewActor->SetActorLabel(NewActor->GetName());
-
-	if (ADisplayClusterLightCardActor* NewLightCard = Cast<ADisplayClusterLightCardActor>(NewActor))
-	{
-		TryConfigureLightCardForUV(NewLightCard);
-		const TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
-		AddLightCardsToActor(LightCards);
-	}
-	else
-	{
-		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
-	}
-	
-	SelectActors({ NewActor });
-
-	return NewActor;
-}
-
-ADisplayClusterLightCardActor* FDisplayClusterLightCardEditor::SpawnLightCardFromTemplate(
+AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorClass, const FName& InActorName,
 	const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel, bool bIsPreview)
 {
 	if (!ActiveRootActor.IsValid())
 	{
 		return nullptr;
 	}
-
-	FScopedTransaction Transaction(LOCTEXT("SpawnLightCardFromTemplateTransactionMessage", "Spawn Light Card from Template"));
 	
-	check(InTemplate && InTemplate->LightCardActor);
+	FScopedTransaction Transaction(LOCTEXT("SpawnActorTransactionMessage", "Spawn Actor"));
 
-	ULevel* Level = InLevel ? InLevel : ActiveRootActor->GetWorld()->GetCurrentLevel();
+	const UDisplayClusterLightCardEditorProjectSettings* Settings = GetDefault<UDisplayClusterLightCardEditorProjectSettings>();
 	
-	FName UniqueName = *InTemplate->GetName().Replace(TEXT("Template"), TEXT(""));
-	if (StaticFindObjectFast(InTemplate->LightCardActor->GetClass(), Level, UniqueName))
+	FDisplayClusterLightCardEditorHelper::FSpawnActorArgs SpawnArgs;
 	{
-		UniqueName = MakeUniqueObjectName(Level, InTemplate->LightCardActor->GetClass(), UniqueName);
+		SpawnArgs.ActorClass = InActorClass;
+		SpawnArgs.ActorName = InActorName;
+		SpawnArgs.RootActor = ActiveRootActor.Get();
+		SpawnArgs.Template = InTemplate;
+		SpawnArgs.Level = InLevel;
+		SpawnArgs.AddLightCardArgs.bShowLabels = Settings->bDisplayLightCardLabels;
+		SpawnArgs.AddLightCardArgs.LabelScale = Settings->LightCardLabelScale;
+	
+		if (ViewportView.IsValid())
+		{
+			SpawnArgs.ProjectionMode = ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode();
+		}
 	}
 	
-	// Duplicate, don't copy properties or spawn from a template. Doing so will copy component data incorrectly,
-	// specifically the static mesh override textures. They will be parented to the template, not the level instance
-	// and prevent the map from saving.
-	ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(InTemplate->LightCardActor.Get(), Level, UniqueName));
-	Level->AddLoadedActor(NewLightCard);
+	AActor* NewActor = FDisplayClusterLightCardEditorHelper::SpawnStageActor(MoveTemp(SpawnArgs));
+	check(NewActor);
 
-	TryConfigureLightCardForUV(NewLightCard);
+	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
 	
 	if (!bIsPreview)
 	{
-		NewLightCard->SetActorLabel(NewLightCard->GetName());
-	
-		const TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
-		AddLightCardsToActor(LightCards);
-
-		FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
-		RecentlyPlacedItem.ObjectPath = InTemplate;
-		RecentlyPlacedItem.ItemType = FDisplayClusterLightCardEditorRecentItem::Type_LightCardTemplate;
+		if (InTemplate)
+		{
+			// Only template recent items need to be handled, new actor spawning is handled from caller otherwise.
+			FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
+			RecentlyPlacedItem.ObjectPath = InTemplate;
+			RecentlyPlacedItem.ItemType = FDisplayClusterLightCardEditorRecentItem::Type_LightCardTemplate;
 		
-		AddRecentlyPlacedItem(MoveTemp(RecentlyPlacedItem));
-		SelectActors({NewLightCard});
+			AddRecentlyPlacedItem(MoveTemp(RecentlyPlacedItem));
+		}
+		
+		SelectActors({ NewActor });
 	}
-
-#if WITH_EDITOR
-	// Need to call this if spawned from a template since this would normally be called in SpawnActor
-	if (GIsEditor)
-	{
-		GEditor->BroadcastLevelActorAdded(NewLightCard);
-	}
-#endif
 	
-	return NewLightCard;
+	return NewActor;
+}
+
+AActor* FDisplayClusterLightCardEditor::SpawnActor(const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel, bool bIsPreview)
+{
+	return SpawnActor(nullptr, NAME_None, InTemplate, InLevel, bIsPreview);
 }
 
 void FDisplayClusterLightCardEditor::AddNewLightCard()
@@ -1200,7 +1153,7 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
 			{
 				if (TemplateWeakPtr.IsValid())
 				{
-					SpawnLightCardFromTemplate(TemplateWeakPtr.Get());
+					SpawnActor(TemplateWeakPtr.Get());
 				}
 			});
 			
@@ -1262,7 +1215,7 @@ TSharedRef<SWidget> FDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
 					{
 						if (const UDisplayClusterLightCardTemplate* Template = Cast<UDisplayClusterLightCardTemplate>(ObjectWeakPtr.Get()))
 						{
-							SpawnLightCardFromTemplate(Template);
+							SpawnActor(Template);
 						}
 					}
 					else if (RecentlyPlacedItem.ItemType == FDisplayClusterLightCardEditorRecentItem::Type_Dynamic)
@@ -1711,7 +1664,10 @@ bool FDisplayClusterLightCardEditor::IsOurObject(UObject* InObject,
 				if (LightCard.IsValid())
 				{
 					bIsOurActor = IsOurActor(LightCard->Actor.Get());
-					break;
+					if (bIsOurActor)
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -1730,21 +1686,6 @@ bool FDisplayClusterLightCardEditor::IsOurObject(UObject* InObject,
 
 	OutProxyType = ProxyType;
 	return bIsOurActor;
-}
-
-void FDisplayClusterLightCardEditor::TryConfigureLightCardForUV(ADisplayClusterLightCardActor* InLightCard)
-{
-	check(InLightCard);
-	if (ViewportView.IsValid())
-	{
-		const EDisplayClusterMeshProjectionType ProjectionMode = ViewportView->GetLightCardEditorViewportClient()->GetProjectionMode();
-		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
-		{
-			InLightCard->bIsUVLightCard = true;
-			InLightCard->Scale /= 4;
-			InLightCard->Feathering = 0.05; // Just enough to avoid jagged look on UV lightcards.
-		}
-	}
 }
 
 void FDisplayClusterLightCardEditor::BindCompileDelegates()
@@ -1855,6 +1796,30 @@ void FDisplayClusterLightCardEditor::OnObjectTransacted(UObject* Object,
 		// so we can't easily distinguish it. This supports the case where the user deletes
 		// a LightCard actor from the level manually then undoes it.
 		RefreshPreviewActors();
+	}
+	else if (AActor* Actor = Cast<AActor>(Object))
+	{
+		if (TransactionObjectEvent.GetEventType() == ETransactionObjectEventType::Finalized &&
+			TransactionObjectEvent.HasPropertyChanges() && ViewportView.IsValid() && GEditor && GEditor->Trans &&
+			UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Actor))
+		{
+			// Look for level snapshots restore transactions. Snapshots doesn't fire PostEditChange events so we need
+			// to listen for the transaction instead.
+			
+			const int32 TransactionIndex = GEditor->Trans->FindTransactionIndex(TransactionObjectEvent.GetTransactionId());
+			if (const FTransaction* Transaction = GEditor->Trans->GetTransaction(TransactionIndex))
+			{
+				const TOptional<FString> Namespace = FTextInspector::GetNamespace(Transaction->GetTitle());
+				if (Namespace.IsSet() && *Namespace == TEXT("LevelSnapshotsEditor"))
+				{
+					const TOptional<FString> Key = FTextInspector::GetKey(Transaction->GetTitle());
+					if (Key.IsSet() && *Key == TEXT("ApplyToWorldKey"))
+					{
+						ViewportView->GetLightCardEditorViewportClient()->UpdateProxyTransformFromLevelInstance(Actor);
+					}
+				}
+			}
+		}
 	}
 }
 

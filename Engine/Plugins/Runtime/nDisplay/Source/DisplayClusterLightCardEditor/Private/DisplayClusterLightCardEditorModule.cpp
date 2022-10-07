@@ -3,10 +3,14 @@
 #include "DisplayClusterLightCardEditorModule.h"
 
 #include "DisplayClusterConfigurationTypes.h"
+
 #include "DisplayClusterLightCardActor.h"
-#include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterRootActor.h"
+#include "Blueprints/DisplayClusterBlueprintLib.h"
+
 #include "DisplayClusterLightCardEditor.h"
+#include "DisplayClusterLightCardEditorCommands.h"
+
 #include "DetailCustomizations/DisplayClusterLightCardActorDetails.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
@@ -57,17 +61,13 @@ void FDisplayClusterLightCardEditorModule::ShowLabels(const FLabelArgs& InArgs)
 	ProjectSettings->bDisplayLightCardLabels = InArgs.bVisible;
 	ProjectSettings->LightCardLabelScale = InArgs.Scale;
 
-	if (UDisplayClusterConfigurationData* ConfigData = InArgs.RootActor->GetConfigData())
+	TSet<ADisplayClusterLightCardActor*> RootActorLightCardActors;
+	UDisplayClusterBlueprintLib::FindLightCardsForRootActor(InArgs.RootActor, RootActorLightCardActors);
+
+	for (ADisplayClusterLightCardActor* LightCardActor : RootActorLightCardActors)
 	{
-		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
-		for (TSoftObjectPtr<AActor> Actor : RootActorLightCards.Actors)
-		{
-			if (ADisplayClusterLightCardActor* LightCardActor = Cast<ADisplayClusterLightCardActor>(Actor.Get()))
-			{
-				LightCardActor->Modify(false);
-				LightCardActor->ShowLightCardLabel(InArgs.bVisible, InArgs.Scale, InArgs.RootActor);
-			}
-		}
+		LightCardActor->Modify(false);
+		LightCardActor->ShowLightCardLabel(InArgs.bVisible, InArgs.Scale, InArgs.RootActor);
 	}
 }
 

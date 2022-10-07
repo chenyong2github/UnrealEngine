@@ -1039,6 +1039,39 @@ double FDisplayClusterLightCardEditorViewportClient::CalculateFinalActorDistance
 	return FMath::Max(Distance, 0);
 }
 
+const FDisplayClusterLightCardEditorViewportClient::FActorProxy* FDisplayClusterLightCardEditorViewportClient::FindActorProxyFromLevelInstance(
+	AActor* InLevelInstance) const
+{
+	if (InLevelInstance == nullptr)
+	{
+		return nullptr;
+	}
+	
+	return ActorProxies.FindByPredicate([InLevelInstance](const FActorProxy& Proxy)
+	{
+		return Proxy.LevelInstance.AsActor() == InLevelInstance;
+	});
+}
+
+void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms(const FActorProxy& InActorProxy)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms"), STAT_UpdateProxyTransforms, STATGROUP_NDisplayLightCardEditor);
+	
+	if (InActorProxy.LevelInstance.IsValid() && InActorProxy.Proxy.IsValid())
+	{
+		const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
+		const FTransform LCLevelRelativeToRALevel = InActorProxy.LevelInstance.AsActorChecked()->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
+		InActorProxy.Proxy.AsActorChecked()->SetActorTransform(LCLevelRelativeToRALevel);
+				
+		// When dealing with light card actors the transform scale can be set separately from the stage actor 2d scale. When updating the
+		// transform scale on the level instance it won't impact the positional params so the proxy transform scale won't update unless we manually set it
+		InActorProxy.Proxy.AsActorChecked()->SetActorScale3D(InActorProxy.LevelInstance.AsActorChecked()->GetActorScale3D());
+				
+		// Need to update these manually or the proxy's position will be out of sync next update
+		InActorProxy.Proxy->SetPositionalParams(InActorProxy.LevelInstance->GetPositionalParams());
+	}
+}
+
 void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	// Don't select light cards while drawing a new light card
@@ -1287,11 +1320,11 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 	
 	for (UObject* DroppedObject : DroppedObjects)
 	{
-		if (UDisplayClusterLightCardTemplate* Template = Cast<UDisplayClusterLightCardTemplate>(DroppedObject))
+		if (const UDisplayClusterLightCardTemplate* Template = Cast<UDisplayClusterLightCardTemplate>(DroppedObject))
 		{
-			ADisplayClusterLightCardActor* LightCardActor = LightCardEditorPtr.Pin()->SpawnLightCardFromTemplate(Template,
-				bCreateDropPreview ? PreviewWorld->GetCurrentLevel() : nullptr, bCreateDropPreview);
-			check(LightCardActor);
+			ADisplayClusterLightCardActor* LightCardActor =
+				CastChecked<ADisplayClusterLightCardActor>(LightCardEditorPtr.Pin()->SpawnActor(Template,
+					bCreateDropPreview ? PreviewWorld->GetCurrentLevel() : nullptr, bCreateDropPreview));
 
 			ProjectionHelper->VerifyAndFixActorOrigin(LightCardActor);
 			
@@ -1530,20 +1563,16 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms()
 		
 		for (const FActorProxy& ActorProxy : ActorProxies)
 		{
-			if (ActorProxy.LevelInstance.IsValid() && ActorProxy.Proxy.IsValid())
-			{
-				const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
-				const FTransform LCLevelRelativeToRALevel = ActorProxy.LevelInstance.AsActorChecked()->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
-				ActorProxy.Proxy.AsActorChecked()->SetActorTransform(LCLevelRelativeToRALevel);
-				
-				// When dealing with light card actors the transform scale can be set separately from the stage actor 2d scale. When updating the
-				// transform scale on the level instance it won't impact the positional params so the proxy transform scale won't update unless we manually set it
-				ActorProxy.Proxy.AsActorChecked()->SetActorScale3D(ActorProxy.LevelInstance.AsActorChecked()->GetActorScale3D());
-				
-				// Need to update these manually or the proxy's position will be out of sync next update
-				ActorProxy.Proxy->SetPositionalParams(ActorProxy.LevelInstance->GetPositionalParams());
-			}
+			UpdateProxyTransforms(ActorProxy);
 		}
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransformFromLevelInstance(AActor* InLevelInstance)
+{
+	if (const FActorProxy* ActorProxy = FindActorProxyFromLevelInstance(InLevelInstance))
+	{
+		UpdateProxyTransforms(*ActorProxy);
 	}
 }
 

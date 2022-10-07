@@ -17,6 +17,7 @@ public:
 	FDisplayClusterLightCardOutlinerHiddenInGameColumn(ISceneOutliner& SceneOutliner) : FSceneOutlinerGutter(SceneOutliner) {}
 	virtual ~FDisplayClusterLightCardOutlinerHiddenInGameColumn() {}
 	static FName GetID();
+	static FText GetDisplayText();
 	
 	// Begin ISceneOutlinerColumn Implementation
 	virtual FName GetColumnID() override { return GetID(); }

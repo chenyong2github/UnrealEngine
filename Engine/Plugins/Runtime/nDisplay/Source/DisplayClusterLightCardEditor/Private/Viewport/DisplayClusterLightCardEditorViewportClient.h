@@ -88,6 +88,9 @@ public:
 	/** Only update required transform values of proxies */
 	void UpdateProxyTransforms();
 
+	/** Update transforms value for a proxy from a level instance */
+	void UpdateProxyTransformFromLevelInstance(AActor* InLevelInstance);
+	
 	/** Remove proxies of the specified type */
 	void DestroyProxies(EDisplayClusterLightCardEditorProxyType ProxyType);
 	
@@ -241,19 +244,6 @@ private:
 	/** Calculates the final distance from the origin of an actor, given its flush distance and a desired offset */
 	double CalculateFinalActorDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
 
-private:
-	TWeakPtr<FSceneViewport> SceneViewportPtr;
-	TWeakPtr<SDisplayClusterLightCardEditorViewport> LightCardEditorViewportPtr;
-	TWeakPtr<FDisplayClusterLightCardEditor> LightCardEditorPtr;
-	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
-	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
-
-	/** Proxy types that are currently refreshing over 1-2 frames */
-	TSet<EDisplayClusterLightCardEditorProxyType> ProxyTypesRefreshing;
-	
-	/** The radius of the bounding sphere that entirely encapsulates the root actor */
-	float RootActorBoundingRadius = 0.0f;
-
 	struct FActorProxy
 	{
 		FDisplayClusterWeakStageActorPtr LevelInstance;
@@ -285,6 +275,25 @@ private:
 		/** Construct a sprite proxy from a billboard component */
 		static FSpriteProxy FromBillboard(const UBillboardComponent* InBillboardComponent);
 	};
+	
+	/** Find the actor proxy if it exists from a level instance */
+	const FActorProxy* FindActorProxyFromLevelInstance(AActor* InLevelInstance) const;
+
+	/** Update the transforms for the specific proxy */
+	void UpdateProxyTransforms(const FActorProxy& InActorProxy);
+	
+private:
+	TWeakPtr<FSceneViewport> SceneViewportPtr;
+	TWeakPtr<SDisplayClusterLightCardEditorViewport> LightCardEditorViewportPtr;
+	TWeakPtr<FDisplayClusterLightCardEditor> LightCardEditorPtr;
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
+
+	/** Proxy types that are currently refreshing over 1-2 frames */
+	TSet<EDisplayClusterLightCardEditorProxyType> ProxyTypesRefreshing;
+	
+	/** The radius of the bounding sphere that entirely encapsulates the root actor */
+	float RootActorBoundingRadius = 0.0f;
 
 	/** Stores view configuration values (view transform and field of view) for the supported projection modes */
 	struct FProjectionViewConfiguration

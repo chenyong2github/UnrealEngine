@@ -10,6 +10,8 @@
 #include "SortHelper.h"
 #include "Widgets/Input/SCheckBox.h"
 
+#define LOCTEXT_NAMESPACE "DisplayClusterLightCardOutlinerColumns"
+
 /**
  * Sets the 'Hidden in Game' field. Similar to SVisibilityWidget but is implemented as a checkbox
  * and can produce an undetermined state.
@@ -187,6 +189,11 @@ FName FDisplayClusterLightCardOutlinerHiddenInGameColumn::GetID()
 	return HiddenInGame;
 }
 
+FText FDisplayClusterLightCardOutlinerHiddenInGameColumn::GetDisplayText()
+{
+	return LOCTEXT("HiddenInGameColumnText", "Hidden in Game");
+}
+
 SHeaderRow::FColumn::FArguments FDisplayClusterLightCardOutlinerHiddenInGameColumn::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
@@ -237,3 +244,5 @@ void FDisplayClusterLightCardOutlinerHiddenInGameColumn::SortItems(TArray<FScene
 		}, SortMode)
 		.Sort(RootItems);
 }
+
+#undef LOCTEXT_NAMESPACE

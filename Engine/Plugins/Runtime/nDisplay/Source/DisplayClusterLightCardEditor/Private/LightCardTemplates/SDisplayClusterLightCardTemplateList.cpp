@@ -335,7 +335,7 @@ void SDisplayClusterLightCardTemplateList::OnSelectionChanged(TSharedPtr<FLightC
 {
 	if (bSpawnOnSelection && (SelectInfo == ESelectInfo::OnKeyPress || SelectInfo == ESelectInfo::OnMouseClick) && InItem.IsValid() && LightCardEditorPtr.IsValid())
 	{
-		LightCardEditorPtr.Pin()->SpawnLightCardFromTemplate(InItem->LightCardTemplate.Get());
+		LightCardEditorPtr.Pin()->SpawnActor(InItem->LightCardTemplate.Get());
 		// Close the menu containing this widget
 		FSlateApplication::Get().DismissAllMenus();
 	}

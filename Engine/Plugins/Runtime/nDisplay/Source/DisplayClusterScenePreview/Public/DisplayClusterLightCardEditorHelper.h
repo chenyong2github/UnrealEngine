@@ -294,6 +294,60 @@ public:
 	 */
 	DISPLAYCLUSTERSCENEPREVIEW_API FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter CreateDefaultShouldApplyProjectionToPrimitiveFilter() const;
 
+	struct FAddLightCardArgs
+	{
+		bool bShowLabels;
+		float LabelScale;
+
+		FAddLightCardArgs():
+		bShowLabels(false),
+		LabelScale(1.f)
+		{}
+	};
+	
+	struct FSpawnActorArgs
+	{
+		/** [Required] The root actor managing the stage */
+		ADisplayClusterRootActor* RootActor;
+		
+		/** [Required if Template is null] The class to spawn */
+		TSubclassOf<AActor> ActorClass;
+
+		/** [Required if ActorClass is null] The template to use */
+		const class UDisplayClusterStageActorTemplate* Template;
+		
+		/** The name to set for the actor and label */
+		FName ActorName;
+		
+		/** The projection mode the actor should be spawned in under */
+		EDisplayClusterMeshProjectionType ProjectionMode;
+
+		/** An override level for the actor, otherwise the RootActor level is used */
+		ULevel* Level;
+
+		/** Args if this is a light card being added to the root actor */
+		FAddLightCardArgs AddLightCardArgs;
+
+		/** Notify this actor should be used as a preview (such as for drag & drop) */
+		bool bIsPreview;
+
+		FSpawnActorArgs():
+		RootActor(nullptr),
+		Template(nullptr),
+		ActorName(NAME_None),
+		ProjectionMode(),
+		Level(nullptr),
+		bIsPreview(false)
+		{}
+	};
+
+	/** Spawns a new actor for stage use and adds it to the root actor if it is a light card */
+	static DISPLAYCLUSTERSCENEPREVIEW_API AActor* SpawnStageActor(const FSpawnActorArgs& InSpawnArgs);
+	
+	/** Adds the given Light Card to the root actor */
+	static DISPLAYCLUSTERSCENEPREVIEW_API void AddLightCardsToRootActor(const TArray<ADisplayClusterLightCardActor*>& LightCards, ADisplayClusterRootActor* RootActor,
+		const FAddLightCardArgs& AddLightCardArgs = FAddLightCardArgs());
+	
 private:
 	/**
 	 * Update the cached pointer to the root actor from the associated preview renderer and, if the actor has changed, update related data.

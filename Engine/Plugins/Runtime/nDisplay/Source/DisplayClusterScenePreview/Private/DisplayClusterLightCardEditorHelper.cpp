@@ -2,17 +2,24 @@
 
 #include "DisplayClusterLightCardEditorHelper.h"
 
-#include "CanvasTypes.h"
-#include "Containers/ArrayView.h"
-#include "DisplayClusterRootActor.h"
-#include "DisplayClusterLightCardActor.h"
-#include "Engine/StaticMesh.h"
-#include "Engine/Texture2D.h"
 #include "IDisplayClusterScenePreview.h"
+
+#include "DisplayClusterConfigurationTypes.h"
+
+#include "DisplayClusterLightCardActor.h"
+#include "DisplayClusterRootActor.h"
+#include "Components/DisplayClusterCameraComponent.h"
+
+#include "StageActor/DisplayClusterStageActorTemplate.h"
+
+#include "CanvasTypes.h"
 #include "ImageUtils.h"
 #include "KismetProceduralMeshLibrary.h"
 #include "PreviewScene.h"
 #include "ProceduralMeshComponent.h"
+#include "Containers/ArrayView.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
@@ -942,6 +949,150 @@ FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter FDisplayClusterLi
 
 			return true;
 		});
+}
+
+AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorArgs& InSpawnArgs)
+{
+	ADisplayClusterRootActor* RootActor = InSpawnArgs.RootActor;
+	const TSubclassOf<AActor> ActorClass = InSpawnArgs.ActorClass;
+	const UDisplayClusterStageActorTemplate* Template = InSpawnArgs.Template;
+	
+	check(RootActor)
+	check(ActorClass || Template);
+	
+	const FName ActorName = InSpawnArgs.ActorName;
+	const EDisplayClusterMeshProjectionType ProjectionMode = InSpawnArgs.ProjectionMode;
+	ULevel* Level = InSpawnArgs.Level ? InSpawnArgs.Level : RootActor->GetWorld()->GetCurrentLevel();
+	const bool bIsPreview = InSpawnArgs.bIsPreview;
+
+	AActor* NewActor = nullptr;
+	
+	if (Template)
+	{
+		const AActor* TemplateActor = Template->GetTemplateActor();
+		check(TemplateActor);
+
+		// For now only light card templates are supported
+		check(TemplateActor->GetClass()->IsChildOf(ADisplayClusterLightCardActor::StaticClass()));
+		
+		FName UniqueName = *Template->GetName().Replace(TEXT("Template"), TEXT(""));
+		if (StaticFindObjectFast(TemplateActor->GetClass(), Level, UniqueName))
+		{
+			UniqueName = MakeUniqueObjectName(Level, TemplateActor->GetClass(), UniqueName);
+		}
+	
+		// Duplicate, don't copy properties or spawn from a template. Doing so will copy component data incorrectly,
+		// specifically the static mesh override textures. They will be parented to the template, not the level instance
+		// and prevent the map from saving.
+		ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(StaticDuplicateObject(TemplateActor, Level, UniqueName));
+
+#if WITH_EDITOR
+		Level->AddLoadedActor(NewLightCard);
+#endif
+		
+		NewActor = NewLightCard;
+	}
+	else
+	{
+		const FVector SpawnLocation = RootActor->GetDefaultCamera()->GetComponentLocation();
+		FRotator SpawnRotation = RootActor->GetDefaultCamera()->GetComponentRotation();
+		SpawnRotation.Yaw -= 180.f;
+
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.bNoFail = true;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		SpawnParameters.Name = ActorName;
+		SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+		SpawnParameters.OverrideLevel = Level;
+
+		NewActor = CastChecked<AActor>(
+			RootActor->GetWorld()->SpawnActor(ActorClass,
+				&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
+	}
+
+	check(NewActor);
+
+#if WITH_EDITOR
+	if (!bIsPreview)
+	{
+		NewActor->SetActorLabel(NewActor->GetName());
+	}
+#endif
+	
+	if (ADisplayClusterLightCardActor* NewLightCard = Cast<ADisplayClusterLightCardActor>(NewActor))
+	{
+		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
+		{
+			// If this already is a UV light card leave everything alone
+			if (!NewLightCard->bIsUVLightCard)
+			{
+				NewLightCard->bIsUVLightCard = true;
+				NewLightCard->Scale /= 4;
+
+				// Don't override feathering if this was spawned from a template
+				if (!Template)
+				{
+					NewLightCard->Feathering = 0.05; // Just enough to avoid jagged look on UV lightcards.
+				}
+			}
+		}
+
+		if (!bIsPreview)
+		{
+			AddLightCardsToRootActor({ NewLightCard }, RootActor, InSpawnArgs.AddLightCardArgs);
+		}
+	}
+
+#if WITH_EDITOR
+		// Need to call this if spawned from a template since this would normally be called in SpawnActor
+		if (Template && GIsEditor)
+		{
+			GEditor->BroadcastLevelActorAdded(NewActor);
+		}
+#endif
+
+	return NewActor;
+}
+
+void FDisplayClusterLightCardEditorHelper::AddLightCardsToRootActor(
+	const TArray<ADisplayClusterLightCardActor*>& LightCards, ADisplayClusterRootActor* RootActor,
+	const FAddLightCardArgs& AddLightCardArgs)
+{
+	if (LightCards.Num() == 0)
+	{
+		return;
+	}
+
+	check(RootActor);
+	
+	UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
+	ConfigData->Modify();
+	FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
+	
+	for (ADisplayClusterLightCardActor* LightCard : LightCards)
+	{
+		check(LightCard);
+
+		if (!RootActorLightCards.Actors.ContainsByPredicate([&](const TSoftObjectPtr<AActor>& Actor)
+			{
+				// Don't add if a loaded actor is already present.
+				return Actor.Get() == LightCard;
+			}))
+		{
+			LightCard->ShowLightCardLabel(AddLightCardArgs.bShowLabels, AddLightCardArgs.LabelScale, RootActor);
+				
+			const TSoftObjectPtr<AActor> LightCardSoftObject(LightCard);
+
+			// Remove any exact paths to this actor. It's possible invalid actors are present if a light card
+			// was force deleted from a level.
+			RootActorLightCards.Actors.RemoveAll([&](const TSoftObjectPtr<AActor>& Actor)
+				{
+					return Actor == LightCardSoftObject;
+				});
+
+			LightCard->AddToLightCardLayer(RootActor);
+		}
+	}
 }
 
 ADisplayClusterRootActor* FDisplayClusterLightCardEditorHelper::UpdateRootActor()
