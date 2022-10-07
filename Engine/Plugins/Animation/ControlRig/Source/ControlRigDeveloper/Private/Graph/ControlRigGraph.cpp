@@ -437,9 +437,10 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		case ERigVMGraphNotifType::NodeAdded:
 		{
 			ModelNodePathToEdNode.Reset();
-				
+
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
+			
 				if (!ModelNode->IsVisibleInUI())
 				{
 					if (URigVMInjectionInfo* Injection = ModelNode->GetInjectionInfo())
@@ -461,6 +462,14 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 						}
 					}
 					break;
+				}
+				else
+				{
+					// check if the node is already part of the graph
+					if(FindNodeForModelNodeName(ModelNode->GetFName()) != nullptr)
+					{
+						break;
+					}
 				}
 
 				if (URigVMCommentNode* CommentModelNode = Cast<URigVMCommentNode>(ModelNode))
