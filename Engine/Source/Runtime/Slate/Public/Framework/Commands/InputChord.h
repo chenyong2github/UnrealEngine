@@ -227,7 +227,7 @@ public:
 	 */
 	friend uint32 GetTypeHash( const FInputChord& Chord )
 	{
-		return GetTypeHash(Chord.Key) ^ (Chord.bShift | Chord.bCtrl >> 1 | Chord.bAlt >> 2 | Chord.bCmd >> 3);
+		return GetTypeHash(Chord.Key) ^ (Chord.bShift | Chord.bCtrl << 1 | Chord.bAlt << 2 | Chord.bCmd << 3);
 	}
 };
 
