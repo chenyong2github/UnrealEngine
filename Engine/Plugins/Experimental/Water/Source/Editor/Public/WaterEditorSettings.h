@@ -48,6 +48,10 @@ struct WATEREDITOR_API FWaterZoneActorDefaults
 
 	UPROPERTY(EditAnywhere, config, Category = Mesh)
 	float FarDistanceMeshExtent = 4000000.0f;
+
+	UPROPERTY(EditAnywhere, config, Category = Mesh)
+	float NewWaterZoneScale = 1.0f;
+
 protected:
 	UPROPERTY(EditAnywhere, Config, Category = Mesh)
 	TSoftObjectPtr<UMaterialInterface> FarDistanceMaterial;

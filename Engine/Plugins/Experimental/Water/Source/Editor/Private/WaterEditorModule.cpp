@@ -45,6 +45,11 @@ DEFINE_LOG_CATEGORY(LogWaterEditor);
 
 EAssetTypeCategories::Type FWaterEditorModule::WaterAssetCategory;
 
+namespace WaterEditorModule
+{
+	static TAutoConsoleVariable<float> CVarOverrideNewWaterZoneScale(TEXT("r.Water.WaterZoneActor.OverrideNewWaterZoneScale"), 0, TEXT("Multiply WaterZone actor extent beyond landscape by this amount. 0 means do override."));
+}
+
 void FWaterEditorModule::StartupModule()
 {
 	FWaterUIStyle::Initialize();
@@ -292,8 +297,22 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 			if (WaterZoneBounds.IsValid)
 			{
 				WaterZoneActor->SetActorLocation(WaterZoneBounds.GetCenter());
+
 				// FBox::GetExtent returns the radius, SetZoneExtent expects diameter.
-				WaterZoneActor->SetZoneExtent(2 * FVector2D(WaterZoneBounds.GetExtent()));
+				FVector2D NewExtent = 2 * FVector2D(WaterZoneBounds.GetExtent());
+
+				float ZoneExtentScale = WaterEditorModule::CVarOverrideNewWaterZoneScale.GetValueOnAnyThread();
+				if (ZoneExtentScale == 0)
+				{
+					ZoneExtentScale = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults.NewWaterZoneScale;
+				}
+
+				if (ZoneExtentScale != 0)
+				{
+					NewExtent = FMath::Abs(ZoneExtentScale) * NewExtent;
+				}
+
+				WaterZoneActor->SetZoneExtent(NewExtent);
 			}
 
 			// Set the defaults here because the actor factory isn't triggered on manual SpawnActor.
