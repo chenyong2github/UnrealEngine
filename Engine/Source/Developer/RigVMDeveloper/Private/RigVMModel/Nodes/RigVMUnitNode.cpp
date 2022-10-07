@@ -317,11 +317,7 @@ TSharedPtr<FStructOnScope> URigVMUnitNode::ConstructStructInstance(bool bUseDefa
 	{
 		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Struct));
 		FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
-		if (bUseDefault)
-		{
-			Struct->InitializeDefaultValue((uint8*)StructMemory);
-		}
-		else
+		if (!bUseDefault)
 		{
 			FString StructDefaultValue = GetStructDefaultValue();
 			Struct->ImportText(*StructDefaultValue, StructMemory, nullptr, PPF_IncludeTransient, GLog, Struct->GetName());

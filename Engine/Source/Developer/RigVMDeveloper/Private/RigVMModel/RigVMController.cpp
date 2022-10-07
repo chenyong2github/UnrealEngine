@@ -865,7 +865,6 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 
 	FStructOnScope StructOnScope(InScriptStruct);
 	FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope.GetStructMemory();
-	InScriptStruct->InitializeDefaultValue((uint8*)StructMemory);
 	const bool bIsEventNode = (!StructMemory->GetEventName().IsNone());
 	if (bIsEventNode)
 	{
@@ -7555,7 +7554,6 @@ FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* Scr
 	{
 		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ScriptStruct));
 		uint8* Memory = (uint8*)StructOnScope->GetStructMemory();
-		ScriptStruct->InitializeDefaultValue(Memory);
 
 		if (InPin->GetScriptStruct() == ScriptStruct)
 		{
@@ -7598,7 +7596,6 @@ FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* Scr
 					UScriptStruct* InnerStruct = StructProperty->Struct;
 					StructOnScope = MakeShareable(new FStructOnScope(InnerStruct));
 					Memory = (uint8 *)StructOnScope->GetStructMemory();
-					InnerStruct->InitializeDefaultValue(Memory);
 				}
 				continue;
 			}
@@ -13686,7 +13683,6 @@ TObjectPtr<URigVMNode> URigVMController::FindEventNode(const UScriptStruct* InSc
 
 	// construct equivalent default struct
 	FStructOnScope InDefaultStructScope(InScriptStruct);
-	InScriptStruct->InitializeDefaultValue((uint8*)InDefaultStructScope.GetStructMemory());
 	
 	if (URigVMGraph* Graph = GetGraph())
 	{
@@ -18566,7 +18562,6 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 				{
 					const URigVMPin* ParentPin = Pin->GetParentPin();
 					TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ParentPin->GetScriptStruct()));
-					ParentPin->GetScriptStruct()->InitializeDefaultValue((uint8*)StructOnScope->GetStructMemory());
 					const FString StructDefaultValue = FRigVMStruct::ExportToFullyQualifiedText(ParentPin->GetScriptStruct(), StructOnScope->GetStructMemory());
 					Local::ApplyResolvedDefaultValue(this, Pin, Pin->GetName(), StructDefaultValue, bSetupUndoRedo);
 				}
