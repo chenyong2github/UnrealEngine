@@ -2743,9 +2743,6 @@ FGraphEventArray FMaterialShaderMap::CollectPSOs(ERHIFeatureLevel::Type InFeatur
 	SceneTexturesConfig.Init(SceneTexturesConfigInitSettings);
 
 	const FMaterialShaderMapContent* LocalContent = GetContent();
-	const EShaderPlatform Platform = LocalContent->GetShaderPlatform();
-	const FMaterialShaderParameters MaterialParameters(Material);
-
 	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(InFeatureLevel);
 
 	TArray<FPSOPrecacheData> PSOInitializers;
@@ -2766,6 +2763,8 @@ FGraphEventArray FMaterialShaderMap::CollectPSOs(ERHIFeatureLevel::Type InFeatur
 						PSOCollector->CollectPSOInitializers(SceneTexturesConfig, *Material, VFType, PreCacheParams, PSOInitializers);
 					}
 				}
+			
+				delete PSOCollector;
 			}
 		}
 	}
