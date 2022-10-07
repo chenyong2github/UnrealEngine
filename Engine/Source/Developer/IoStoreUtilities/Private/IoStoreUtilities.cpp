@@ -1866,6 +1866,7 @@ bool ConvertToIoStoreShaderLibrary(
 				FMemory::Memcpy(OutCodeIoChunk.Get<1>().GetData(), UncompressedGroupMemory, Group.UncompressedSize);
 				Group.CompressedSize = Group.UncompressedSize;
 			}
+			FMemory::Free(UncompressedGroupMemory);
 		},
 		EParallelForFlags::Unbalanced
 	);
@@ -1985,6 +1986,12 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 					}
 					else
 					{
+						// first, make sure that the code is exactly the same
+						if (ShaderInfo->CodeIoBuffer != CodeChunk.Get<1>())
+						{
+							UE_LOG(LogIoStore, Error, TEXT("Collision of two shader code chunks, same Id (%s), different code. Packaged game will likely crash, not being able to decompress the shaders."), *LexToString(ShaderChunkId) );
+						}
+
 						// If we already exist, then we have two separate LoadOrderFactors,
 						// which one we got first affects build determinism. Take the lower.
 						if (CodeChunk.Get<2>() < ShaderInfo->LoadOrderFactor)

@@ -1426,7 +1426,7 @@ void FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(const FName
 	TArray<TArray<uint32>> StoredGroupShaderIndices;
 
 	/** Third and last stage of processing the shader group. We actually add it here, and do the book-keeping. */
-	auto ProcessShaderGroup_AddNewGroup = [&OutHeader, &SerializedShaders, &StoredGroupShaderIndices, &Stats_TotalUncompressedMemory, &Stats_MinGroupSize, &Stats_MaxGroupSize](TArray<uint32>& ShaderIndicesInGroup)
+	auto ProcessShaderGroup_AddNewGroup = [&Format, &OutHeader, &SerializedShaders, &StoredGroupShaderIndices, &Stats_TotalUncompressedMemory, &Stats_MinGroupSize, &Stats_MaxGroupSize](TArray<uint32>& ShaderIndicesInGroup)
 	{
 		// first, sort the shaders by uncompressed size, as this was found to compress better
 		ShaderIndicesInGroup.Sort(
@@ -1453,11 +1453,19 @@ void FIoStoreShaderCodeArchive::CreateIoStoreShaderCodeArchiveHeader(const FName
 			IoStoreShaderEntry.ShaderGroupIndex = CurrentGroupIdx;
 			IoStoreShaderEntry.UncompressedOffsetInGroup = CurrentGroupSize;
 
-			// group hash is constructed from hashing the shaders in the group
+			// group hash is constructed from hashing the shaders in the group.
 			GroupHasher.Update(SerializedShaders.ShaderHashes[ShaderIndex].Hash, sizeof(FSHAHash));
+			// shader hash as of now excludes optional data, so we cannot rely on it, especially across the shader formats. Make the group hash a bit more robust by including the shader size in it.
+			GroupHasher.Update(reinterpret_cast<const uint8*>(&SerializedShaders.ShaderEntries[ShaderIndex].UncompressedSize), sizeof(FShaderCodeEntry::UncompressedSize));
 
 			CurrentGroupSize += SerializedShaders.ShaderEntries[ShaderIndex].UncompressedSize;
 		}
+		// Shader hashes cannot be used to uniquely identify across shader formats due to aforementioned exclusion of optional data from it.
+		// Include the shader format (in a platform-agnostic way) into the group hash to lower the risk of collision of shaders of different formats.
+		const TStringConversion<TStringConvert<TCHAR, UTF8CHAR>> Utf8Name(Format.ToString());
+		GroupHasher.Update(reinterpret_cast<const uint8*>(Utf8Name.Get()), Utf8Name.Length());
+		static_assert(sizeof(uint8) == sizeof(UTF8CHAR), "Unexpected UTF-8 char size.");
+
 		GroupEntry.UncompressedSize = CurrentGroupSize;
 		OutHeader.ShaderGroupIoHashes.Add(FIoStoreShaderCodeArchive::GetShaderCodeChunkId(GroupHasher.Finalize()));
 
@@ -2063,6 +2071,7 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 	FMemStackBase& MemStack = FMemStack::Get();
 	FMemMark Mark(MemStack);
 	FIoStoreShaderGroupEntry& GroupEntry = Header.ShaderGroupEntries[GroupIndex];
+	ensureMsgf(GroupEntry.CompressedSize == PreloadEntryPtr->IoRequest.GetResultOrDie().DataSize(), TEXT("Shader archive header does not match the actual IoStore buffer size, decompression failure likely imminent."));
 	if (GroupEntry.IsGroupCompressed())
 	{
 		uint8* UncompressedCode = reinterpret_cast<uint8*>(MemStack.Alloc(GroupEntry.UncompressedSize, 16));
