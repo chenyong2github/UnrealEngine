@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Enables runtime ray tracing support.
 		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxPlatform.LinuxTargetSettings")]
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxTargetPlatform.LinuxTargetSettings")]
 		public bool bEnableRayTracing = false;
 	}
 

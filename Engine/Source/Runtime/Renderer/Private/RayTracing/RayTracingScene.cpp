@@ -9,7 +9,7 @@
 #include "RayTracingDefinitions.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
-#include "RayTracingOptions.h"
+#include "RaytracingOptions.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildInstanceBufferPassParams, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstanceBuffer)

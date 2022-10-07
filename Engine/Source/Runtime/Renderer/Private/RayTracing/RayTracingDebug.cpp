@@ -12,7 +12,7 @@
 #include "RenderGraphBuilder.h"
 #include "SceneUtils.h"
 #include "RaytracingDebugDefinitions.h"
-#include "RaytracingDebugTypes.h"
+#include "RayTracingDebugTypes.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingTraversalStatistics.h"
