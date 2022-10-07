@@ -372,11 +372,6 @@ void UNavLinkCustomComponent::BroadcastStateChange()
 	CollectNearbyAgents(NearbyAgents);
 	OnBroadcastFilter.ExecuteIfBound(this, NearbyAgents);
 
-	for (int32 i = 0; i < NearbyAgents.Num(); i++)
-	{
-//		NearbyAgents[i]->OnCustomLinkBroadcast(this);
-	}
-
 	if (BroadcastInterval > 0.0f)
 	{
 		GetWorld()->GetTimerManager().SetTimer(TimerHandle_BroadcastStateChange, this, &UNavLinkCustomComponent::BroadcastStateChange, BroadcastInterval);
