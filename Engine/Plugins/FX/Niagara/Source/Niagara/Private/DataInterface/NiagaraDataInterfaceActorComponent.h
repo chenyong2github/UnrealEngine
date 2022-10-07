@@ -7,6 +7,27 @@
 #include "NiagaraParameterStore.h"
 #include "NiagaraDataInterfaceActorComponent.generated.h"
 
+UENUM()
+enum class ENDIActorComponentSourceMode : uint8
+{
+	/**
+	The default binding mode first we look for a valid binding on the ActorOrComponentParameter.
+	If this it no valid we then look at the SourceActor.
+	If these both fail we are bound to nothing.
+	*/
+	Default,
+	/**
+	We will first look at the attach parent.
+	If this is not valid we fallback to the Default binding mode.
+	*/
+	AttachParent,
+	/**
+	We will look for a ULocalPlayer with the provided index.
+	If this is not valid we fallback to the Default binding mode.
+	*/
+	LocalPlayer,
+};
+
 /**
 Data interface that gives you access to actor & component information.
 */
@@ -29,6 +50,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	bool bRequireCurrentFrameData = true;
 
+	/** Controls how we find the actor / component we want to bind to. */
+	UPROPERTY(EditAnywhere, Category = "ActorComponent")
+	ENDIActorComponentSourceMode SourceMode = ENDIActorComponentSourceMode::Default;
+
+	UPROPERTY(EditAnywhere, Category = "ActorComponent", meta=(EditCondition="SourceMode==ENDIActorComponentSourceMode::LocalPlayer"))//, EditConditionHides))
+	int32 LocalPlayerIndex = 0;
+
 	/** Optional source actor to use, if the user parameter binding is valid this will be ignored. */
 	UPROPERTY(EditAnywhere, Category = "ActorComponent")
 	TLazyObjectPtr<AActor> SourceActor;
@@ -41,7 +69,7 @@ public:
 	virtual void PostInitProperties() override;
 	//UObject Interface End
 
-	class UActorComponent* ResolveComponent(const void* PerInstanceData) const;
+	class UActorComponent* ResolveComponent(FNiagaraSystemInstance* SystemInstance, const void* PerInstanceData) const;
 
 	//UNiagaraDataInterface Interface
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }

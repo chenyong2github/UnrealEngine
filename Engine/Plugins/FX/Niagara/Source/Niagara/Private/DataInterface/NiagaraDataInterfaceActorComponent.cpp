@@ -5,9 +5,12 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraWorldManager.h"
 
 #include "Components/SceneComponent.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/PlayerController.h"
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"
 #include "Misc/LargeWorldRenderPosition.h"
@@ -93,6 +96,36 @@ namespace NDIActorComponentLocal
 
 		TMap<FNiagaraSystemInstanceID, FInstanceData_RenderThread> SystemInstancesToInstanceData_RT;
 	};
+
+	USceneComponent* FindLocalPlayer(UWorld* World, int LocalPlayerIndex)
+	{
+		if ( World == nullptr )
+		{
+			return nullptr;
+		}
+
+		for (FConstPlayerControllerIterator Iterator=World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			APlayerController* PlayerController = Iterator->Get();
+			if ( PlayerController == nullptr || PlayerController->Player == nullptr )
+			{
+				continue;
+			}
+			
+			ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player);
+			if ( LocalPlayer == nullptr )
+			{
+				continue;
+			}
+
+			if (LocalPlayerIndex == LocalPlayer->GetLocalPlayerIndex())
+			{
+				AActor* PlayerPawn = PlayerController->GetPawn();
+				return PlayerPawn ? PlayerPawn->GetRootComponent() : nullptr;
+			}
+		}
+		return nullptr;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -117,9 +150,24 @@ void UNiagaraDataInterfaceActorComponent::PostInitProperties()
 	}
 }
 
-UActorComponent* UNiagaraDataInterfaceActorComponent::ResolveComponent(const void* PerInstanceData) const
+UActorComponent* UNiagaraDataInterfaceActorComponent::ResolveComponent(FNiagaraSystemInstance* SystemInstance, const void* PerInstanceData) const
 {
 	using namespace NDIActorComponentLocal;
+
+	if (SourceMode == ENDIActorComponentSourceMode::AttachParent)
+	{
+		if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
+		{
+			return AttachComponent;
+		}
+	}
+	else if (SourceMode == ENDIActorComponentSourceMode::LocalPlayer)
+	{
+		if (USceneComponent* RootComponent = FindLocalPlayer(SystemInstance->GetWorldManager()->GetWorld(), LocalPlayerIndex))
+		{
+			return RootComponent;
+		}
+	}
 
 	FInstanceData_GameThread* InstanceData = (FInstanceData_GameThread*)PerInstanceData;
 	if (UObject* ObjectBinding = InstanceData->UserParamBinding.GetValue())
@@ -262,7 +310,7 @@ bool UNiagaraDataInterfaceActorComponent::InitPerInstanceData(void* PerInstanceD
 
 	FInstanceData_GameThread* InstanceData = new (PerInstanceData) FInstanceData_GameThread;
 	InstanceData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), ActorOrComponentParameter.Parameter);
-	InstanceData->CachedActorForCalcTickGroup = ResolveComponent(InstanceData);
+	InstanceData->CachedActorForCalcTickGroup = ResolveComponent(SystemInstance, InstanceData);
 
 	return true;
 }
@@ -303,7 +351,7 @@ bool UNiagaraDataInterfaceActorComponent::PerInstanceTick(void* PerInstanceData,
 	InstanceData->CachedTransform = FTransform::Identity;
 	InstanceData->CachedVelocity = FVector3f::ZeroVector;
 
-	UActorComponent* ActorComponent = ResolveComponent(PerInstanceData);
+	UActorComponent* ActorComponent = ResolveComponent(SystemInstance, PerInstanceData);
 	if (ActorComponent)
 	{
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(ActorComponent) )
@@ -376,6 +424,8 @@ bool UNiagaraDataInterfaceActorComponent::Equals(const UNiagaraDataInterface* Ot
 	const UNiagaraDataInterfaceActorComponent* OtherTyped = CastChecked<const UNiagaraDataInterfaceActorComponent>(Other);
 	return OtherTyped->SourceActor == SourceActor
 		&& OtherTyped->ActorOrComponentParameter == ActorOrComponentParameter
+		&& OtherTyped->SourceMode == SourceMode
+		&& OtherTyped->LocalPlayerIndex == LocalPlayerIndex
 		&& OtherTyped->bRequireCurrentFrameData == bRequireCurrentFrameData;
 }
 
@@ -387,6 +437,8 @@ bool UNiagaraDataInterfaceActorComponent::CopyToInternal(UNiagaraDataInterface* 
 	}
 
 	UNiagaraDataInterfaceActorComponent* OtherTyped = CastChecked<UNiagaraDataInterfaceActorComponent>(Destination);
+	OtherTyped->SourceMode = SourceMode;
+	OtherTyped->LocalPlayerIndex = LocalPlayerIndex;
 	OtherTyped->SourceActor = SourceActor;
 	OtherTyped->ActorOrComponentParameter = ActorOrComponentParameter;
 	OtherTyped->bRequireCurrentFrameData = bRequireCurrentFrameData;
