@@ -155,8 +155,11 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	ToolbarExtender = UMGEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders();
 	
 	InWidgetEditor->GetWidgetToolbarBuilder()->AddWidgetBlueprintEditorModesToolbar(ToolbarExtender);
+	InWidgetEditor->RegisterModeToolbarIfUnregistered(GetModeName());
 
-	if (UToolMenu* Toolbar = InWidgetEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	FName OutParentToolbarName;
+	FName ToolBarname = InWidgetEditor->GetToolMenuToolbarNameForMode(GetModeName(), OutParentToolbarName);
+	if (UToolMenu* Toolbar = UToolMenus::Get()->FindMenu(ToolBarname))
 	{
 		InWidgetEditor->GetWidgetToolbarBuilder()->AddWidgetReflector(Toolbar);
 		InWidgetEditor->GetWidgetToolbarBuilder()->AddToolPalettes(Toolbar);

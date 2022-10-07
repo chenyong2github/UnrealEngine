@@ -82,8 +82,11 @@ FWidgetGraphApplicationMode::FWidgetGraphApplicationMode(TSharedPtr<FWidgetBluep
 
 	ToolbarExtender = MakeShareable(new FExtender);
 	InWidgetEditor->GetWidgetToolbarBuilder()->AddWidgetBlueprintEditorModesToolbar(ToolbarExtender);
+	InWidgetEditor->RegisterModeToolbarIfUnregistered(GetModeName());
 
-	if (UToolMenu* Toolbar = InWidgetEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
+	FName OutParentToolbarName;
+	FName ToolBarname = InWidgetEditor->GetToolMenuToolbarNameForMode(GetModeName(), OutParentToolbarName);
+	if (UToolMenu* Toolbar = UToolMenus::Get()->FindMenu(ToolBarname))
 	{
 		InWidgetEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
 		InWidgetEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);

@@ -9,6 +9,7 @@
 #include "AssetTypeCategories.h"
 #include "BlutilityContentBrowserExtensions.h"
 #include "BlutilityLevelEditorExtensions.h"
+#include "BlutilityUMGEditorExtensions.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
@@ -101,6 +102,7 @@ public:
 
 		FBlutilityContentBrowserExtensions::InstallHooks();
 		FBlutilityLevelEditorExtensions::InstallHooks();
+		FBlutilityUMGEditorExtensions::InstallHooks();
 
 		ScriptedEditorWidgetsGroup = WorkspaceMenu::GetMenuStructure().GetToolsCategory()->AddGroup(
 			LOCTEXT("WorkspaceMenu_EditorUtilityWidgetsGroup", "Editor Utility Widgets"),
@@ -204,6 +206,7 @@ public:
 
 		FBlutilityLevelEditorExtensions::RemoveHooks();
 		FBlutilityContentBrowserExtensions::RemoveHooks();
+		FBlutilityUMGEditorExtensions::RemoveHooks();
 
 		// Only unregister if the asset tools module is loaded.  We don't want to forcibly load it during shutdown phase.
 		check( EditorBlueprintAssetTypeActions.IsValid() );
