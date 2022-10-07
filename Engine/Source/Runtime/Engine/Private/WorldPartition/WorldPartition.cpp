@@ -1396,6 +1396,12 @@ bool UWorldPartition::GatherPackagesToCook(IWorldPartitionCookPackageContext& Co
 	return false;
 }
 
+bool UWorldPartition::PrepareGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, TArray<UPackage*>& OutModifiedPackages)
+{
+	check(RuntimeHash);
+	return RuntimeHash->PrepareGeneratorPackageForCook(OutModifiedPackages);
+}
+
 bool UWorldPartition::PopulateGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
 {
 	check(RuntimeHash);

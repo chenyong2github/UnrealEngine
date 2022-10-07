@@ -771,9 +771,7 @@ void URuntimeSpatialHashExternalStreamingObject::OnStreamingObjectLoaded()
 				}
 			}
 		}
-
 	}
-	
 }
 
 #if WITH_EDITOR
@@ -1255,12 +1253,11 @@ TArray<UWorldPartitionRuntimeCell*> UWorldPartitionRuntimeSpatialHash::GetAlways
 	return Result;
 }
 
-bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook(const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
+bool UWorldPartitionRuntimeSpatialHash::PrepareGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages)
 {
 	check(IsRunningCookCommandlet());
 	check(ExternalStreamingObjects.IsEmpty()); // Make sure we don't have external streaming objects grids so we won't gather their cells
 
-	OutModifiedPackages.Reset();
 	for (UWorldPartitionRuntimeCell* Cell : GetAlwaysLoadedCells())
 	{
 		check(Cell->IsAlwaysLoaded());
@@ -1269,6 +1266,13 @@ bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook(const TA
 			return false;
 		}
 	}
+	return true;
+}
+
+bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook(const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
+{
+	check(IsRunningCookCommandlet());
+	check(ExternalStreamingObjects.IsEmpty()); // Make sure we don't have external streaming objects grids so we won't gather their cells
 
 	for (const FWorldPartitionCookPackage* CookPackage : InPackagesToCook)
 	{

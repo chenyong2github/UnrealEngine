@@ -163,14 +163,10 @@ bool FWorldPartitionCookPackageSplitter::PopulateGeneratorPackage(UPackage* Owne
 	TArray<UPackage*> ModifiedPackages;
 	for (IWorldPartitionCookPackageGenerator* CookPackageGenerator : CookContext.GetCookPackageGenerators())
 	{
+		bIsSuccess &= CookPackageGenerator->PrepareGeneratorPackageForCook(CookContext, ModifiedPackages);
 		if (const TArray<FWorldPartitionCookPackage*>* CookPackages = CookContext.GetCookPackages(CookPackageGenerator))
 		{
 			bIsSuccess &= CookPackageGenerator->PopulateGeneratorPackageForCook(CookContext, *CookPackages, ModifiedPackages);
-		}
-		else
-		{
-			TArray<FWorldPartitionCookPackage*> Temp;
-			bIsSuccess &= CookPackageGenerator->PopulateGeneratorPackageForCook(CookContext, Temp, ModifiedPackages);
 		}
 	}
 

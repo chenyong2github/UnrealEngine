@@ -253,6 +253,7 @@ public:
 #if WITH_EDITOR
 	virtual void SetDefaultValues() override;
 	virtual bool SupportsHLODs() const override { return true; }
+	virtual bool PrepareGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) override;
 	virtual bool PopulateGeneratorPackageForCook(const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackage) override;
 	virtual bool PopulateGeneratedPackageForCook(const FWorldPartitionCookPackage& PackageToCook, TArray<UPackage*>& OutModifiedPackages) override;
 	virtual void FlushStreaming() override;
