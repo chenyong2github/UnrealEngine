@@ -176,6 +176,7 @@ namespace Chaos::Softs
 		bool bEnableSolver = true;
 		FSolverReal Time = 0.f;
 		int32 Frame = 0;
+		int32 Iteration = 0;
 		bool bSimulationInitialized = false;
 	};
 

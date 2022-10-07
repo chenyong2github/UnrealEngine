@@ -25,6 +25,7 @@
 #include "Containers/StringConv.h"
 #include "CoreMinimal.h"
 #include "GeometryCollection/Facades/CollectionKinematicBindingFacade.h"
+#include "GeometryCollection/Facades/CollectionVertexBoneWeightsFacade.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -88,6 +89,7 @@ namespace Chaos::Softs
 		InitializeKinematicConstraint();
 		Frame = 0;
 		Time = 0.f;
+		Iteration = 0;
 	}
 
 	void FDeformableSolver::Simulate(FSolverReal DeltaTime)
@@ -146,7 +148,6 @@ namespace Chaos::Softs
 			InitializeTetrahedralConstraint(*Proxy);
 			InitializeGidBasedConstraints(*Proxy);
 		}
-		Time = 0.f;
 	}
 
 	void FDeformableSolver::InitializeDeformableParticles(FFleshThreadingProxy& Proxy)
@@ -181,7 +182,7 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeKinematicParticles(FFleshThreadingProxy& Proxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeKinematicParticles);
 
 		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
 		const FIntVector2& Range = Proxy.GetSolverParticleRange();
@@ -216,7 +217,7 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeTetrahedralConstraint(FFleshThreadingProxy& Proxy)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeSimulationObject);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_InitializeTetrahedralConstraint);
 
 		const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
 
@@ -296,6 +297,8 @@ namespace Chaos::Softs
 
 	void FDeformableSolver::InitializeKinematicConstraint()
 	{
+
+
 		auto MKineticUpdate = [this](FSolverParticles& MParticles, const FSolverReal Dt, const FSolverReal MTime, const int32 Index)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_MKineticUpdate);
@@ -313,9 +316,63 @@ namespace Chaos::Softs
 
 						// @todo(chaos) : reduce conversions
 						auto ChaosVert = [](FVector3f V) { return Chaos::FVec3(V.X, V.Y, V.Z); };
+						auto ChaosVertfloat = [](FVector3f V) { return Chaos::TVector<FSolverReal, 3>(V.X, V.Y, V.Z); };
+						auto SolverParticleToObjectVertexIndex = [&](int32 SolverParticleIndex) {return SolverParticleIndex - Range[0]; };
 
-						MParticles.X(Index) = InitialTransform.TransformPosition(ChaosVert(Vertex[Index - Range[0]]));
-						MParticles.PAndInvM(Index).P = MParticles.X(Index);
+						typedef GeometryCollection::Facades::FVertexBoneWeightsFacade WeightsFacade;
+						if (WeightsFacade::HasFacade(&Rest) )
+						{
+							int32 NumObjectVertices = Rest.NumElements(FGeometryCollection::VerticesGroup);
+							int32 ObjectVertexIndex = SolverParticleToObjectVertexIndex(Index);
+							if (ensure(0 <= ObjectVertexIndex && ObjectVertexIndex < NumObjectVertices))
+							{
+								if (ensure(this->CurrentInputPackage->ObjectMap.Contains(Owner)))
+								{
+									TArray<int32> BoneIndices = (*WeightsFacade::GetBoneIndices(&Rest))[ObjectVertexIndex];
+									TArray<float> BoneWeights = (*WeightsFacade::GetBoneWeights(&Rest))[ObjectVertexIndex];
+
+									FFleshThreadingProxy::FFleshInputBuffer* FleshInputBuffer = this->CurrentInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
+									FFleshThreadingProxy::FFleshInputBuffer* PreviousFleshBuffer = nullptr;
+									if (this->PreviousInputPackage && this->PreviousInputPackage->ObjectMap.Contains(Owner))
+									{
+										PreviousFleshBuffer = this->PreviousInputPackage->ObjectMap[Owner]->As<FFleshThreadingProxy::FFleshInputBuffer>();
+									}
+
+									MParticles.X(Index) = Chaos::TVector<FSolverReal, 3>((FSolverReal)0.);
+									TVector<FSolverReal, 3> TargetPos((FSolverReal)0.);
+									FSolverReal CurrentRatio = FSolverReal(this->Iteration) / FSolverReal(this->Property.NumSolverSubSteps);
+
+									const TManagedArray<FTransform>& RestTransforms = Rest.GetAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
+
+									for (int32 i = BoneIndices.Num()-1; 0<=i; i--)
+									{ 
+										// @todo(flesh) : Add the pre-cached component space rest transforms to the rest collection. 
+										// see  UFleshComponent::NewDeformableData for how its pulled from the SkeletalMesh
+										FVec3 LocalPoint = FleshInputBuffer->RestTransforms[BoneIndices[i]].InverseTransformPosition(ChaosVert(Vertex[Index - Range[0]]));
+										FVec3 ComponentPointAtT = FleshInputBuffer->Transforms[BoneIndices[i]].TransformPosition(LocalPoint);
+										if (PreviousFleshBuffer)
+										{
+											FTransform BonePreviousTransform = PreviousFleshBuffer->Transforms[BoneIndices[i]];
+											ComponentPointAtT = ComponentPointAtT * CurrentRatio + BonePreviousTransform.TransformPosition(LocalPoint) * ((FSolverReal)1. - CurrentRatio);
+										}
+
+										MParticles.X(Index) = InitialTransform.TransformPosition(ComponentPointAtT);
+
+										// @todo(flesh): Add non rigid skinning weights. 
+										// Currently this just grabs the last joint, ideally
+										// we would be using the weighted average for the vertex
+										// positions.
+										break;
+									}
+									MParticles.PAndInvM(Index).P = MParticles.X(Index);
+								}
+							}
+						}
+						else
+						{
+							MParticles.X(Index) = InitialTransform.TransformPosition(ChaosVert(Vertex[Index - Range[0]]));
+							MParticles.PAndInvM(Index).P = MParticles.X(Index);
+						}
 					}
 				}
 			}
@@ -473,6 +530,7 @@ namespace Chaos::Softs
 			{
 				for (int i = 0; i < NumIterations; ++i)
 				{
+					Iteration = i+1;
 					Update(SubDeltaTime);
 				}
 

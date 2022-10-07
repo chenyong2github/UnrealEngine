@@ -16,7 +16,7 @@ namespace GeometryCollection::Facades
 
 	// Attributes
 	const FName FTransformSource::SourceNameAttribute = "Name";
-	const FName FTransformSource::SourceGuidAttribute = "Guid";
+	const FName FTransformSource::SourceGuidAttribute = "GuidID";
 	const FName FTransformSource::SourceRootsAttribute = "Roots";
 
 	FTransformSource::FTransformSource(FManagedArrayCollection* InCollection)
@@ -38,7 +38,7 @@ namespace GeometryCollection::Facades
 			Collection->AddGroup(TransformSourceGroup);
 		}
 		Collection->AddAttribute<FString>(SourceNameAttribute, TransformSourceGroup);
-		Collection->AddAttribute<FGuid>(SourceGuidAttribute, TransformSourceGroup);
+		Collection->AddAttribute<FString>(SourceGuidAttribute, TransformSourceGroup);
 		Collection->AddAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup, TransformDependency);
 	}
 
@@ -46,20 +46,20 @@ namespace GeometryCollection::Facades
 	{
 		return Collection->HasGroup(TransformSourceGroup) &&
 			Collection->FindAttribute<FString>(SourceNameAttribute, TransformSourceGroup) &&
-			Collection->FindAttribute<FGuid>(SourceGuidAttribute, TransformSourceGroup) &&
+			Collection->FindAttribute<FString>(SourceGuidAttribute, TransformSourceGroup) &&
 			Collection->FindAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup);
 	}
 
 	//
 	//  Add Data
 	//
-	void FTransformSource::AddTransformSource(FManagedArrayCollection* Collection, const FString& InName, const FGuid& InGuid, const TSet<int32>& InRoots)
+	void FTransformSource::AddTransformSource(FManagedArrayCollection* Collection, const FString& InName, const FString& InGuid, const TSet<int32>& InRoots)
 	{
 		DefineSchema(Collection);
 
 		int Idx = Collection->AddElements(1, TransformSourceGroup);
 		Collection->ModifyAttribute<FString>(FTransformSource::SourceNameAttribute, TransformSourceGroup)[Idx] = InName;
-		Collection->ModifyAttribute<FGuid>(FTransformSource::SourceGuidAttribute, TransformSourceGroup)[Idx] = InGuid;
+		Collection->ModifyAttribute<FString>(FTransformSource::SourceGuidAttribute, TransformSourceGroup)[Idx] = InGuid;
 		Collection->ModifyAttribute<TSet<int32>>(FTransformSource::SourceRootsAttribute, TransformSourceGroup)[Idx] = InRoots;
 	}
 
@@ -68,12 +68,12 @@ namespace GeometryCollection::Facades
 	//
 
 
-	TSet<int32> FTransformSource::GetTransformSource(const FManagedArrayCollection* Collection, const FString& InName, const FGuid& InGuid)
+	TSet<int32> FTransformSource::GetTransformSource(const FManagedArrayCollection* Collection, const FString& InName, const FString& InGuid)
 	{
 		if (Collection->HasGroup(TransformSourceGroup))
 		{
 			const TManagedArray<TSet<int32>>* Roots = Collection->FindAttribute<TSet<int32>>(SourceRootsAttribute, TransformSourceGroup);
-			const TManagedArray<FGuid>* Guids = Collection->FindAttribute<FGuid>(SourceGuidAttribute, TransformSourceGroup);
+			const TManagedArray<FString>* Guids = Collection->FindAttribute<FString>(SourceGuidAttribute, TransformSourceGroup);
 			const TManagedArray<FString>* Names = Collection->FindAttribute<FString>(SourceNameAttribute, TransformSourceGroup);
 			if (Roots && Guids && Names)
 			{

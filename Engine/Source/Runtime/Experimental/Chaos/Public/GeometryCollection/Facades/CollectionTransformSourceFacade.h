@@ -64,14 +64,14 @@ namespace GeometryCollection::Facades
 		* @param Guid : Guid of the owner of the transform set.
 		* @param Roots : Root indices of the transform set.
 		*/
-		static void AddTransformSource(FManagedArrayCollection* Collection, const FString& Name, const FGuid& Guid, const TSet<int32>& Roots);
+		static void AddTransformSource(FManagedArrayCollection* Collection, const FString& Name, const FString& Guid, const TSet<int32>& Roots);
 
 		/**
 		* Query for root indices.  
 		* @param Name : Name of the owner of the transform set.  
 		* @param Guid : Guid of the owner of the transform set.
 		*/
-		static TSet<int32> GetTransformSource(const FManagedArrayCollection* Collection, const FString& Name, const FGuid& Guid);
+		static TSet<int32> GetTransformSource(const FManagedArrayCollection* Collection, const FString& Name, const FString& Guid);
 
 
 	};

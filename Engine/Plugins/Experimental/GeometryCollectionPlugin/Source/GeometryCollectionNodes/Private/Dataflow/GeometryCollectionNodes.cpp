@@ -145,7 +145,7 @@ void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, 
 		DataType InCollection1 = GetValue<DataType>(Context, &Collection1);
 		DataType InCollection2 = GetValue<DataType>(Context, &Collection2);
 		InCollection1.Append(InCollection2);
-		SetValue<DataType>(Context, Collection1, &Collection1); // prime to avoid ensure
+		SetValue<DataType>(Context, InCollection1, &Collection1);
 	}
 }
 
