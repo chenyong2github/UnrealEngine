@@ -334,20 +334,6 @@ export class CorrectionColorPicker extends React.Component<Props, State> {
                                     value={hue}
                                     onChange={hue => this.onHsvWheelMove(1, hue)} />
                       </div>
-                      {(mode === CCRMode.Shadows) &&
-                        <div className="slider-wheel-container shadow-min-slider">
-                          <span className="title">Shadow Min</span>
-                          <SliderWheel size={200}
-                                      className="infinite-slider" 
-                                      onWheelMove={sign => {}} />
-                          <ValueInput draggable={false}
-                                      precision={1}
-                                      min={0}
-                                      max={360}
-                                      value={0}
-                                      onChange={v => {}} />
-                        </div>
-                      }
                     </div>
                   </div>
                 </div>
