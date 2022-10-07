@@ -267,7 +267,7 @@ namespace mu
         // Free caches
         m_compiled.Reset();
         m_constantMeshes.clear();
-        m_addedLayouts.clear();
+        m_addedLayouts.Empty();
         m_nodeVariables.clear();
         m_generatedMeshes.Reset();
         m_generatedProjectors.Reset();
@@ -512,24 +512,31 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	Ptr<const Layout> CodeGenerator::AddLayout(Ptr<const Layout> pLayout )
+	Ptr<const Layout> CodeGenerator::AddLayout(Ptr<const Layout> SourceLayout )
     {
-        auto it = m_addedLayouts.find( pLayout.get() );
+		// The layout we are adding must be a source layout, without block ids yet.
+		check(SourceLayout->m_blocks.IsEmpty() || SourceLayout->m_blocks[0].m_id == -1);
+		
+		Ptr<const Layout>* it = m_addedLayouts.Find(SourceLayout.get() );
 
 		Ptr<const Layout> pResult;
-        if ( it != m_addedLayouts.end() )
+        if ( it )
         {
-            pResult = it->second;
+            pResult = *it;
         }
         else
         {
-			Ptr<Layout> pCloned = pLayout->Clone();
-            for (int32 b=0;b< pCloned->m_blocks.Num();++b)
+			Ptr<Layout> ClonedLayout = SourceLayout->Clone();
+            for (int32 b=0;b< ClonedLayout->m_blocks.Num();++b)
             {
-				pCloned->m_blocks[b].m_id = m_absoluteLayoutIndex++;
+				// This is a hard limit due to layout block index data being stored in 16 bit.
+				check(m_absoluteLayoutIndex<65536);
+				ClonedLayout->m_blocks[b].m_id = m_absoluteLayoutIndex++;
             }
-            m_addedLayouts[ pLayout.get() ] = pCloned;
-			pResult = pCloned;
+			check(SourceLayout->m_blocks.Num() == ClonedLayout->m_blocks.Num());
+			check(ClonedLayout->m_blocks.IsEmpty() || ClonedLayout->m_blocks[0].m_id != -1);
+			m_addedLayouts.Add(SourceLayout.get(), ClonedLayout);
+			pResult = ClonedLayout;
         }
 
         return pResult;
@@ -834,7 +841,7 @@ namespace mu
         const auto& node = *surfaceNode->GetPrivate();
 
         // Clear the surface generation state
-//        m_addedLayouts.clear();
+//        m_addedLayouts.Empty();
 //        m_absoluteLayoutIndex = 0;
 //        m_currentLayoutMesh = nullptr;
 //        m_currentLayoutChannel = 0;

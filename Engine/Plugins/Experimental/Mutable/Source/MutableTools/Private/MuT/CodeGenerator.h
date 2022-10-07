@@ -50,70 +50,70 @@
 
 namespace mu
 {
-class ASTOpParameter;
-class Layout;
-class NodeColourArithmeticOperation;
-class NodeColourConstant;
-class NodeColourFromScalars;
-class NodeColourParameter;
-class NodeColourSwitch;
-class NodeColourTable;
-class NodeColourVariation;
-class NodeImageBinarise;
-class NodeImageColourMap;
-class NodeImageConditional;
-class NodeImageConstant;
-class NodeImageDifference;
-class NodeImageFormat;
-class NodeImageGradient;
-class NodeImageInterpolate3;
-class NodeImageInterpolate;
-class NodeImageInvert;
-class NodeImageLayer;
-class NodeImageLayerColour;
-class NodeImageLuminance;
-class NodeImageMipmap;
-class NodeImageMultiLayer;
-class NodeImageNormalComposite;
-class NodeImageParameter;
-class NodeImagePlainColour;
-class NodeImageResize;
-class NodeImageSaturate;
-class NodeImageSelectColour;
-class NodeImageSwitch;
-class NodeImageSwizzle;
-class NodeImageTable;
-class NodeImageTransform;
-class NodeImageVariation;
-class NodeMeshApplyPose;
-class NodeMeshClipDeform;
-class NodeMeshClipMorphPlane;
-class NodeMeshClipWithMesh;
-class NodeMeshConstant;
-class NodeMeshFormat;
-class NodeMeshFragment;
-class NodeMeshInterpolate;
-class NodeMeshMakeMorph;
-class NodeMeshMorph;
-class NodeMeshReshape;
-class NodeMeshSubtract;
-class NodeMeshSwitch;
-class NodeMeshTransform;
-class NodeMeshVariation;
-class NodeRange;
-class NodeScalarArithmeticOperation;
-class NodeScalarConstant;
-class NodeScalarCurve;
-class NodeScalarEnumParameter;
-class NodeScalarParameter;
-class NodeScalarSwitch;
-class NodeScalarTable;
-class NodeScalarVariation;
-class NodeStringConstant;
-class NodeStringParameter;
-class TaskManager;
-struct OBJECT_STATE;
-struct PROGRAM;
+	class ASTOpParameter;
+	class Layout;
+	class NodeColourArithmeticOperation;
+	class NodeColourConstant;
+	class NodeColourFromScalars;
+	class NodeColourParameter;
+	class NodeColourSwitch;
+	class NodeColourTable;
+	class NodeColourVariation;
+	class NodeImageBinarise;
+	class NodeImageColourMap;
+	class NodeImageConditional;
+	class NodeImageConstant;
+	class NodeImageDifference;
+	class NodeImageFormat;
+	class NodeImageGradient;
+	class NodeImageInterpolate3;
+	class NodeImageInterpolate;
+	class NodeImageInvert;
+	class NodeImageLayer;
+	class NodeImageLayerColour;
+	class NodeImageLuminance;
+	class NodeImageMipmap;
+	class NodeImageMultiLayer;
+	class NodeImageNormalComposite;
+	class NodeImageParameter;
+	class NodeImagePlainColour;
+	class NodeImageResize;
+	class NodeImageSaturate;
+	class NodeImageSelectColour;
+	class NodeImageSwitch;
+	class NodeImageSwizzle;
+	class NodeImageTable;
+	class NodeImageTransform;
+	class NodeImageVariation;
+	class NodeMeshApplyPose;
+	class NodeMeshClipDeform;
+	class NodeMeshClipMorphPlane;
+	class NodeMeshClipWithMesh;
+	class NodeMeshConstant;
+	class NodeMeshFormat;
+	class NodeMeshFragment;
+	class NodeMeshInterpolate;
+	class NodeMeshMakeMorph;
+	class NodeMeshMorph;
+	class NodeMeshReshape;
+	class NodeMeshSubtract;
+	class NodeMeshSwitch;
+	class NodeMeshTransform;
+	class NodeMeshVariation;
+	class NodeRange;
+	class NodeScalarArithmeticOperation;
+	class NodeScalarConstant;
+	class NodeScalarCurve;
+	class NodeScalarEnumParameter;
+	class NodeScalarParameter;
+	class NodeScalarSwitch;
+	class NodeScalarTable;
+	class NodeScalarVariation;
+	class NodeStringConstant;
+	class NodeStringParameter;
+	class TaskManager;
+	struct OBJECT_STATE;
+	struct PROGRAM;
 
     //---------------------------------------------------------------------------------------------
     //! Code generator
@@ -241,16 +241,13 @@ struct PROGRAM;
 
         //! Map of layouts found in the code already generated. The map is from the source layout
         //! pointer to the cloned layout. The cloned layout will have absolute block ids assigned.
-        map<Ptr<const Layout>,Ptr<const Layout>> m_addedLayouts;
+        TMap<Ptr<const Layout>,Ptr<const Layout>> m_addedLayouts;
 
         //! First free index for a layout block
         int32_t m_absoluteLayoutIndex = 0;
 
         //! First free index to be used to identify mesh vertices.
         uint32_t m_freeVertexIndex = 0;
-
-        //! First free index to be used to identify mesh masks.
-        uint32_t m_freeMaskIndex = 0;
 
         //! When generating images, here we have the entire source image size and the rect of the
         //! image that we are generating.
@@ -324,11 +321,6 @@ struct PROGRAM;
 
         //! Variables added for every node
         map< Ptr<const Node>, Ptr<ASTOpParameter> > m_nodeVariables;
-
-        //! This is a list of nodes that are set to replace the identity nodes found while
-        //! generating code. This is useful when applying object transforms.
-        typedef map< NodePtr, Ptr<ASTOp> > IdentityMap;
-        vector<IdentityMap> m_identityReplacement;
 
 		//-----------------------------------------------------------------------------------------
 
@@ -479,10 +471,8 @@ struct PROGRAM;
 		void GenerateMesh_Reshape(MESH_GENERATION_RESULT&, const NodeMeshReshape*);
 		void GenerateMesh_ClipDeform(MESH_GENERATION_RESULT&, const NodeMeshClipDeform*);
 
-		void GenerateLayout(MESH_GENERATION_RESULT& result, const NodeLayoutBlocksPtrConst& node, uint32 currentLayoutChannel, const MeshPtr currentLayoutMesh);
-
 		//!
-		Ptr<const Layout> AddLayout(Ptr<const Layout> pLayout);
+		Ptr<const Layout> AddLayout(Ptr<const Layout> SourceLayout);
 
         //-----------------------------------------------------------------------------------------
         // Projectors

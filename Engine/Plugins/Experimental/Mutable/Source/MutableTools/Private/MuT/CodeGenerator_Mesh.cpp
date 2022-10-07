@@ -95,7 +95,7 @@ class Node;
             return;
         }
 
-        // TODO: Done twice? Check new component code.
+        // 
 		Ptr<const Layout> pLayout = AddLayout( pSourceLayout );
         currentLayoutMesh->AddLayout( pLayout );
 
@@ -278,28 +278,6 @@ class Node;
                 pLayoutData[i] = 0;
             }
         }
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateLayout( 
-		MESH_GENERATION_RESULT& result, 
-		const NodeLayoutBlocksPtrConst& node,
-		uint32 currentLayoutChannel, const MeshPtr currentLayoutMesh )
-    {
-        if (!currentLayoutMesh)
-        {
-            m_pErrorLog->GetPrivate()->Add( "Generating a layout node without a parent mesh.",
-                                            ELMT_ERROR, node->GetPrivate()->m_errorContext );
-            return;
-        }
-
-        LayoutPtr pSourceLayout = node->GetPrivate()->m_pLayout;
-        result.layouts.push_back( pSourceLayout );
-
-        PrepareForLayout( pSourceLayout,
-                          currentLayoutMesh, currentLayoutChannel,
-                          node->GetPrivate()->m_errorContext  );
     }
 
 
@@ -918,13 +896,15 @@ class Node;
 		result.baseMeshOp = op;
 		result.meshOp = op;
 
+		bool bIsOverridingLayouts = !m_overrideLayoutsStack.empty();
+
         MeshPtr pMesh = node.m_pValue.get();
         if (pMesh)
         {
             // Clone the mesh
             MeshPtr pCloned = pMesh->Clone();
             pCloned->EnsureSurfaceData();
-            if ( m_overrideLayoutsStack.empty() )
+            if ( !bIsOverridingLayouts )
             {
                 // This means that we are processing a base mesh
 
@@ -932,24 +912,37 @@ class Node;
 				result.layouts.clear();
 
                 // Apply whatever transform is necessary for every layout
-                for ( std::size_t l=0; l<node.m_layouts.size();++l )
+                for ( std::size_t LayoutIndex=0; LayoutIndex<node.m_layouts.size(); ++LayoutIndex)
                 {
-					NodeLayoutPtr pLayoutNode = node.m_layouts[l];
+					NodeLayoutPtr pLayoutNode = node.m_layouts[LayoutIndex];
 					// TODO: In a cleanup of the design of the layouts, we should remove this cast.
 					const NodeLayoutBlocks* TypedNode = dynamic_cast<NodeLayoutBlocks*>(pLayoutNode.get());
 					if (TypedNode)
 					{
-						GenerateLayout(result, TypedNode, l, pCloned);
+						if (!pCloned)
+						{
+							m_pErrorLog->GetPrivate()->Add("Generating a layout node without a parent mesh.",
+								ELMT_ERROR, TypedNode->GetPrivate()->m_errorContext);
+							return;
+						}
+
+						LayoutPtr pSourceLayout = TypedNode->GetPrivate()->m_pLayout;
+						result.layouts.push_back(pSourceLayout);
+
+						PrepareForLayout(pSourceLayout,
+							pCloned, LayoutIndex,
+							TypedNode->GetPrivate()->m_errorContext);
+
 					}
                 }
             }
             else
             {
                 // We need to apply the transform of the source layouts
-                for ( std::size_t l=0; l<m_overrideLayoutsStack.back().size(); ++l )
+                for ( std::size_t LayoutIndex=0; LayoutIndex<m_overrideLayoutsStack.back().size(); ++LayoutIndex)
                 {
-                    PrepareForLayout( m_overrideLayoutsStack.back()[l],
-                                      pCloned, l,
+                    PrepareForLayout( m_overrideLayoutsStack.back()[LayoutIndex],
+                                      pCloned, LayoutIndex,
                                       node.m_errorContext  );
 
                 }
@@ -967,41 +960,53 @@ class Node;
 
             // See if we already have a mesh identical to this one, except for the internal data
             // like vertex indices.
-            bool isDuplicated = false;
-            MeshPtrConst pCandidate;
-            for ( size_t i=0; !isDuplicated && i<m_constantMeshes.size(); ++i)
+			// For now we cannot handle the case were we are overriding layouts and reusing meshes at the same time.
+            bool bIsDuplicated = false;
+            MeshPtrConst Candidate;
+            for ( size_t i=0; !bIsOverridingLayouts && !bIsDuplicated && i<m_constantMeshes.size(); ++i)
             {
-                pCandidate = m_constantMeshes[i];
+				Candidate = m_constantMeshes[i];
 
-                if ( pCandidate->IsSimilar(*pCloned) )
+                if (Candidate->IsSimilar(*pCloned) )
                 {
-                    isDuplicated = true;
+					bIsDuplicated = true;
 
-                    // Remap layouts from the source mesh to the the ones created for the mesh we will use instead.
-                    for (int l=0; l<pCandidate->GetLayoutCount(); ++l)
-                    {
-                        check(pCandidate->GetLayoutCount()==pCloned->GetLayoutCount());
+					// We want to reuse the layouts from the similar mesh.					
+					// Remap layouts that we have created in the previosu step from the source mesh to the ones created for the mesh we will reuse instead.
+					for (int l = 0; l < Candidate->GetLayoutCount(); ++l)
+					{
+						check(Candidate->GetLayoutCount() == pCloned->GetLayoutCount());
 
-                        const Layout* pSourceLayoutValue = pCandidate->GetLayout(l);
-                        const Layout* pDestLayoutValue = pCloned->GetLayout(l);
+						const Layout* ClonedMeshLayout = pCloned->GetLayout(l);
 
-                        Ptr<const Layout> pDestLayoutKey = nullptr;
-                        for( const auto& e : m_addedLayouts )
-                        {
-                            if (e.second==pDestLayoutValue)
-                            {
-                                pDestLayoutKey = e.first;
-                            }
-                        }
-                        check(pDestLayoutKey);
-                        m_addedLayouts[pDestLayoutKey] = pSourceLayoutValue;
-                    }
+						Ptr<const Layout> DestLayoutKey = nullptr;
+						for (const auto& e : m_addedLayouts)
+						{
+							if (e.Value == ClonedMeshLayout)
+							{
+								DestLayoutKey = e.Key;
+							}
+						}
+						check(DestLayoutKey);
+
+						const Layout* GeneratedMeshLayout = Candidate->GetLayout(l);
+						if (bIsOverridingLayouts)
+						{
+							const Layout* OverridingLayout = m_overrideLayoutsStack.back()[l].get();
+							check(OverridingLayout->m_blocks.IsEmpty() || OverridingLayout->m_blocks[0].m_id == -1);
+							GeneratedMeshLayout = m_addedLayouts[OverridingLayout].get();
+						}
+
+						check(DestLayoutKey->m_blocks.IsEmpty() || DestLayoutKey->m_blocks[0].m_id == -1);
+						check(GeneratedMeshLayout->m_blocks.IsEmpty() || GeneratedMeshLayout->m_blocks[0].m_id != -1);
+						m_addedLayouts[DestLayoutKey] = GeneratedMeshLayout;
+					}
                 }
             }
 
-            if (isDuplicated)
+            if (bIsDuplicated)
             {
-                op->SetValue( pCandidate, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+                op->SetValue(Candidate, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
             }
             else
             {

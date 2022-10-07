@@ -44,13 +44,15 @@ struct OBJECT_STATE;
         //! Original base mesh before removes, morphs, etc.
         Ptr<ASTOp> baseMeshOp;
 
-        vector<Ptr<const Layout>> layouts;
+		/** Source node layouts to use with these extra mesh. They don't have block ids. */
+		vector<Ptr<const Layout>> layouts;
 
         vector<Ptr<ASTOp>> layoutOps;
 
 
         struct EXTRA_LAYOUTS
         {
+			/** Source node layouts to use with these extra mesh. They don't have block ids. */
             vector<Ptr<const Layout>> layouts;
             Ptr<ASTOp> condition;
             Ptr<ASTOp> meshFragment;

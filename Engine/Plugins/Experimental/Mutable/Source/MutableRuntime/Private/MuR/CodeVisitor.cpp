@@ -5,7 +5,6 @@
 
 #include "HAL/PlatformCrt.h"
 #include "MuR/MutableTrace.h"
-#include "map"
 
 #include <functional>
 #include <memory>
