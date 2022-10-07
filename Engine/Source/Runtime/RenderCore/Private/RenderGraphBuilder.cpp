@@ -477,6 +477,10 @@ bool FRDGBuilder::IsTransient(FRDGBufferRef Buffer) const
 
 bool FRDGBuilder::IsTransient(FRDGTextureRef Texture) const
 {
+	if (EnumHasAnyFlags(Texture->Desc.Flags, ETextureCreateFlags::Shared))
+	{
+		return false;
+	}
 	return IsTransientInternal(Texture, EnumHasAnyFlags(Texture->Desc.Flags, ETextureCreateFlags::FastVRAM));
 }
 

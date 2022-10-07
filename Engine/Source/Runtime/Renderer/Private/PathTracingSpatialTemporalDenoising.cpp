@@ -7,7 +7,8 @@
 #include "RHIDefinitions.h"
 
 PathTracingDenoiserFunction* GPathTracingDenoiserFunc = nullptr;
-
+PathTracingSpatialTemporalDenoiserFunction* GPathTracingSpatialTemporalDenoiserFunc = nullptr;
+PathTracingMotionVectorFunction* GPathTracingMotionVectorFunc = nullptr;
 #if RHI_RAYTRACING
 
 #include "RendererPrivate.h"
@@ -31,6 +32,21 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureParameters, )
 	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureExtParameters, )
+	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(InputAlbedo, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(InputNormal, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(InputFlow, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(InputPreviousOutput, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FMotionVectorParameters, )
+	RDG_TEXTURE_ACCESS(InputFrameTexture, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(ReferenceFrameTexture, ERHIAccess::CopySrc)
+	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
 namespace {
 
 	TAutoConsoleVariable<int32> CVarPathTracingDenoiser(
@@ -40,6 +56,15 @@ namespace {
 		TEXT("-1: inherit from PostProcessVolume\n")
 		TEXT("0: disable denoiser\n")
 		TEXT("1: enable denoiser (if a denoiser plugin is active)\n"),
+		ECVF_RenderThreadSafe
+	);
+
+	TAutoConsoleVariable<int32> CVarPathTracingDenoiserNormalSpace(
+		TEXT("r.PathTracing.Denoiser.NormalSpace"),
+		0,
+		TEXT("The space normal is in\n")
+		TEXT("0: World space (default)\n")
+		TEXT("1: Camera space. Some denoisers require camera space normal\n"),
 		ECVF_RenderThreadSafe
 	);
 
@@ -53,6 +78,15 @@ namespace {
 		ECVF_RenderThreadSafe
 	);
 
+	TAutoConsoleVariable<int32> CVarPathTracingSpatialDenoiserType(
+		TEXT("r.PathTracing.SpatialDenoiser.Type"),
+		0,
+		TEXT("The type of spatial denoiser\n")
+		TEXT("0: Use spatial denoiser only plugin\n")
+		TEXT("1: Use spatial denoiser plugin that also provides temporal denoising\n"),
+		ECVF_RenderThreadSafe
+	);
+
 	TAutoConsoleVariable<int32> CVarPathTracingTemporalDenoiser(
 		TEXT("r.PathTracing.TemporalDenoiser"),
 		0,
@@ -60,6 +94,24 @@ namespace {
 		TEXT("-1: inherit from PostProcessVolume (TODO when out of experimental phase)\n")
 		TEXT("0: disable denoiser\n")
 		TEXT("1: enable denoiser (if a denoiser plugin is active)\n"),
+		ECVF_RenderThreadSafe
+	);
+
+	TAutoConsoleVariable<int32> CVarPathTracingTemporalDenoiserType(
+		TEXT("r.PathTracing.TemporalDenoiser.Type"),
+		0,
+		TEXT("The type of temporal denoiser\n")
+		TEXT("0: Use the built-in temporal denoiser\n")
+		TEXT("1: Use the temporal denoiser from plugin\n"),
+		ECVF_RenderThreadSafe
+	);
+
+	TAutoConsoleVariable<int32> CVarPathTracingTemporalDenoiserMotionVectorType(
+		TEXT("r.PathTracing.TemporalDenoiser.MotionVector.Type"),
+		0,
+		TEXT("The type of motion vecotr estimation algorithm\n")
+		TEXT("0: Built-in motion vector estimator\n")
+		TEXT("1: Motion vector estimator from the plugin\n"),
 		ECVF_RenderThreadSafe
 	);
 
@@ -212,10 +264,24 @@ int GetPathTracingDenoiserMode(const FViewInfo& View)
 bool IsPathTracingDenoiserEnabled(const FViewInfo& View)
 {
 	int DenoiserMode = GetPathTracingDenoiserMode(View);
-	const bool IsDenoiserEnabled = DenoiserMode != 0 && GPathTracingDenoiserFunc != nullptr;
+	const bool IsDenoiserEnabled = DenoiserMode != 0 && (GPathTracingDenoiserFunc != nullptr || GPathTracingSpatialTemporalDenoiserFunc != nullptr);
 
 	return IsDenoiserEnabled;
 }
+
+static bool ShouldDenoiseWithNormalInCameraSpace()
+{
+	int NormalSpace = CVarPathTracingDenoiserNormalSpace.GetValueOnRenderThread();
+	return NormalSpace != 0;
+}
+
+enum class ESpatialDenoiserType : int32
+{
+	NONE = -1,
+	SPATIAL_DENOISER_PLUGIN,
+	SPATIAL_TEMPORAL_DENOISER_PLUGIN,
+	MAX
+};
 
 enum class ETemporalDenoisingMode : uint32 
 {
@@ -223,6 +289,22 @@ enum class ETemporalDenoisingMode : uint32
 	ETDM_OFFLINE,
 	ETDM_ONLINE,
 	ETDM_MAX
+};
+
+enum class ETemporalDenoiserType : int32
+{
+	NONE = -1,
+	BUILTIN_TEMPORAL_DENOISER,
+	SPATIAL_TEMPORAL_DENOISER_PLUGIN,
+	MAX
+};
+
+enum class ETemporalDenoiserMotionVectorType : int32
+{
+	NONE = -1,
+	BUILTIN,
+	PLUGIN,
+	MAX
 };
 
 bool ShouldEnablePathTracingDenoiserRealtimeDebug()
@@ -239,14 +321,107 @@ static bool ShouldApplySpatialDenoiser()
 	return CVarPathTracingSpatialDenoiser.GetValueOnRenderThread() != 0;
 }
 
-static bool ShouldApplyTemporalDenoiser(const FPathTracingSpatialTemporalDenoisingContext& DenoisingContext)
+
+TArray<ESpatialDenoiserType> GetAvailableSpatialDenoiserTypes()
+{
+	TArray<ESpatialDenoiserType> Types;
+	if (GPathTracingSpatialTemporalDenoiserFunc)
+	{
+		Types.Add(ESpatialDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN);
+	}
+
+	if (GPathTracingDenoiserFunc)
+	{
+		Types.Add(ESpatialDenoiserType::SPATIAL_DENOISER_PLUGIN);
+	}
+
+	if (Types.Num() == 0)
+	{
+		Types.Add(ESpatialDenoiserType::NONE);
+	}
+	return Types;
+}
+
+ESpatialDenoiserType GetSpatialDenosierType()
+{
+	int32 Type = CVarPathTracingSpatialDenoiserType.GetValueOnRenderThread();
+
+	Type = FMath::Clamp(Type,
+		static_cast<int32>(ESpatialDenoiserType::NONE) + 1,
+		static_cast<int32>(ESpatialDenoiserType::MAX) - 1);
+
+	ESpatialDenoiserType DenoiserType = static_cast<ESpatialDenoiserType>(Type);
+
+	if (DenoiserType == ESpatialDenoiserType::SPATIAL_DENOISER_PLUGIN && GPathTracingDenoiserFunc)
+	{
+		return DenoiserType;
+	}
+	else if (DenoiserType == ESpatialDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN && GPathTracingSpatialTemporalDenoiserFunc)
+	{
+		return DenoiserType;
+	}
+	else
+	{
+		// Fallback to the one that is available instead of the requested one
+		DenoiserType = GetAvailableSpatialDenoiserTypes()[0];
+	}
+
+	return DenoiserType;
+}
+
+static bool ShouldApplyTemporalDenoiser(const FPathTracingSpatialTemporalDenoisingContext& DenoisingContext, const FViewInfo& View)
 {
 	const bool bApplyTemporalDenoiser =
-		CVarPathTracingTemporalDenoiser.GetValueOnAnyThread() == 1 &&
+		(CVarPathTracingTemporalDenoiser.GetValueOnAnyThread() == 1) &&
 		DenoisingContext.LastDenoisedRadianceTexture &&
 		DenoisingContext.LastDenoisedRadianceTexture != DenoisingContext.RadianceTexture;
 
 	return bApplyTemporalDenoiser;
+}
+
+ETemporalDenoiserType GetTemporalDenoiserType()
+{
+
+	ESpatialDenoiserType SpatialDenoiserType = GetSpatialDenosierType();
+
+	if ( SpatialDenoiserType == ESpatialDenoiserType::SPATIAL_DENOISER_PLUGIN)
+	{
+		return ETemporalDenoiserType::BUILTIN_TEMPORAL_DENOISER;
+	}
+	else if (SpatialDenoiserType == ESpatialDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN)
+	{
+		return ETemporalDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN;
+	}
+
+	return ETemporalDenoiserType::NONE;
+
+}
+
+ETemporalDenoiserMotionVectorType GetTemporalDenoiserMotionVectorType()
+{
+	int32 Type = CVarPathTracingTemporalDenoiserMotionVectorType.GetValueOnRenderThread();
+
+	Type = FMath::Clamp(Type,
+		static_cast<int32>(ETemporalDenoiserMotionVectorType::NONE) + 1,
+		static_cast<int32>(ETemporalDenoiserMotionVectorType::MAX) - 1);
+
+	return static_cast<ETemporalDenoiserMotionVectorType>(Type);
+}
+
+ETextureCreateFlags GetExtraTextureCreateFlagsForDenoiser()
+{
+	ESpatialDenoiserType SpatialDenoiserType = GetSpatialDenosierType();
+	ETemporalDenoiserType TemporalDenoiserType = GetTemporalDenoiserType();
+	ETextureCreateFlags TextureCreateFlags = ETextureCreateFlags::None;
+
+	if (SpatialDenoiserType == ESpatialDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN ||
+		TemporalDenoiserType == ETemporalDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN ||
+		GPathTracingSpatialTemporalDenoiserFunc)
+	{
+		TextureCreateFlags |= TexCreate_Shared | TexCreate_RenderTargetable;
+	}
+
+	return TextureCreateFlags;
 }
 
 static float GetHighFrequencyCutoffDeltaE()
@@ -619,7 +794,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
 		END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompilePathTracingDenoiserShadersForProject(Parameters.Platform);
 	}
@@ -649,7 +824,7 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, TargetViewport)
 	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompilePathTracingDenoiserShadersForProject(Parameters.Platform);
 	}
@@ -662,6 +837,57 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FSpatialDenoiserCS, "/Engine/Private/PathTracing/PathTracingSpatialTemporalDenoising.usf", "SpatialDenoiserCS", SF_Compute);
 
+class FConvertWorldSpaceNormalToCameraSpaceCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FConvertWorldSpaceNormalToCameraSpaceCS);
+	SHADER_USE_PARAMETER_STRUCT(FConvertWorldSpaceNormalToCameraSpaceCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, NormalTexture)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER(float, Width)
+		SHADER_PARAMETER(float, Height)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompilePathTracingDenoiserShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FShaderPermutationParameters&, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("PREPROCESS_BUFFER"), 1);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FConvertWorldSpaceNormalToCameraSpaceCS, "/Engine/Private/PathTracing/PathTracingSpatialTemporalDenoising.usf", "ConvertWorldSpaceNormalToCameraSpaceCS", SF_Compute);
+
+static void ConvertNormalSpace(FRDGBuilder& GraphBuilder,
+	const FViewInfo& View, 
+	FRDGTextureRef NormalTexture)
+{
+	typedef FConvertWorldSpaceNormalToCameraSpaceCS SHADER;
+	SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
+	PassParameters->NormalTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NormalTexture));
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	PassParameters->Width = NormalTexture->Desc.GetSize().X;
+	PassParameters->Height = NormalTexture->Desc.GetSize().Y;
+
+
+	TShaderMapRef<SHADER> ComputeShader(View.ShaderMap);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ConvertWorldSpaceNormalToCameraSpace %dx%d",
+			View.ViewRect.Width(),
+			View.ViewRect.Height()),
+		ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8));
+}
+
 static void PathTracingDenoiserPlugin(FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	int DenoiserMode,
@@ -670,10 +896,28 @@ static void PathTracingDenoiserPlugin(FRDGBuilder& GraphBuilder,
 	FRDGTextureRef NormalTexture,
 	FRDGTextureRef OutputTexture)
 {
+	FRDGTextureRef ProcessedNormalTexture = NormalTexture;
+
+	if (ShouldDenoiseWithNormalInCameraSpace())
+	{
+		const FRDGTextureDesc& Desc = NormalTexture->Desc;
+		ProcessedNormalTexture = GraphBuilder.CreateTexture(Desc, TEXT("PathTracing.CameraSpaceNormal"));
+		{
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size.X = Desc.Extent.X;
+			CopyInfo.Size.Y = Desc.Extent.Y;
+			CopyInfo.Size.Z = 1;
+			CopyInfo.NumMips = Desc.NumMips;
+
+			AddCopyTexturePass(GraphBuilder, NormalTexture, ProcessedNormalTexture, CopyInfo);
+		}
+		ConvertNormalSpace(GraphBuilder, View, ProcessedNormalTexture);
+	}
+
 	FDenoiseTextureParameters* DenoiseParameters = GraphBuilder.AllocParameters<FDenoiseTextureParameters>();
 	DenoiseParameters->InputTexture = InputTexture;
 	DenoiseParameters->InputAlbedo = AlbedoTexture;
-	DenoiseParameters->InputNormal = NormalTexture;
+	DenoiseParameters->InputNormal = ProcessedNormalTexture;
 	DenoiseParameters->OutputTexture = OutputTexture;
 	// Need to read GPU mask outside Pass function, as the value is not refreshed inside the pass
 	GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Denoiser Plugin"), DenoiseParameters, ERDGPassFlags::Readback,
@@ -687,6 +931,111 @@ static void PathTracingDenoiserPlugin(FRDGBuilder& GraphBuilder,
 			GPUMask);
 	}
 	);
+}
+
+static void PathTracingSpatialTemporalDenoiserPlugin(FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	int DenoiserMode,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef AlbedoTexture,
+	FRDGTextureRef NormalTexture,
+	FRDGTextureRef FlowTexture,
+	FRDGTextureRef PreviousOutputFrameTexture,
+	FRDGTextureRef OutputTexture,
+	int DenoisingFrameId,
+	bool bForceSpatialDenoiserOnly)
+{
+
+	FRDGTextureRef ProcessedNormalTexture = NormalTexture;
+
+	if (ShouldDenoiseWithNormalInCameraSpace())
+	{
+		const FRDGTextureDesc& Desc = NormalTexture->Desc;
+		ProcessedNormalTexture = GraphBuilder.CreateTexture(Desc, TEXT("PathTracing.CameraSpaceNormal"));
+		{
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size.X = Desc.Extent.X;
+			CopyInfo.Size.Y = Desc.Extent.Y;
+			CopyInfo.Size.Z = 1;
+			CopyInfo.NumMips = Desc.NumMips;
+
+			AddCopyTexturePass(GraphBuilder, NormalTexture, ProcessedNormalTexture, CopyInfo);
+		}
+		ConvertNormalSpace(GraphBuilder, View, ProcessedNormalTexture);
+	}
+
+	FDenoiseTextureExtParameters* DenoiseParameters = GraphBuilder.AllocParameters<FDenoiseTextureExtParameters>();
+	DenoiseParameters->InputTexture = InputTexture;
+	DenoiseParameters->InputAlbedo = AlbedoTexture;
+	DenoiseParameters->InputNormal = ProcessedNormalTexture;
+	DenoiseParameters->InputFlow = FlowTexture;
+	DenoiseParameters->InputPreviousOutput = PreviousOutputFrameTexture;
+	DenoiseParameters->OutputTexture = OutputTexture;
+
+	// Need to read GPU mask outside Pass function, as the value is not refreshed inside the pass
+	GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Denoiser Ext Plugin"), DenoiseParameters, ERDGPassFlags::Readback,
+		[DenoiseParameters, DenoiserMode, DenoisingFrameId, bForceSpatialDenoiserOnly, GPUMask = View.GPUMask](FRHICommandListImmediate& RHICmdList)
+	{
+		check(GPathTracingSpatialTemporalDenoiserFunc);
+
+		FDenoisingArgumentsExt DenoisingArgumentsExt;
+		DenoisingArgumentsExt.FlowTex = DenoiseParameters->InputFlow ?
+			DenoiseParameters->InputFlow->GetRHI()->GetTexture2D() : nullptr;
+		DenoisingArgumentsExt.PreviousOutputTex = DenoiseParameters->InputPreviousOutput ?
+			DenoiseParameters->InputPreviousOutput->GetRHI()->GetTexture2D() : nullptr;
+		DenoisingArgumentsExt.DenoisingFrameId = DenoisingFrameId;
+		DenoisingArgumentsExt.bForceSpatialDenoiserOnly = bForceSpatialDenoiserOnly;
+
+		GPathTracingSpatialTemporalDenoiserFunc(RHICmdList,
+			DenoiseParameters->InputTexture->GetRHI()->GetTexture2D(),
+			DenoiseParameters->InputAlbedo->GetRHI()->GetTexture2D(),
+			DenoiseParameters->InputNormal->GetRHI()->GetTexture2D(),
+			DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D(),
+			&DenoisingArgumentsExt,
+			GPUMask);
+	});
+}
+
+static bool ShouldApplyPreExposureToMotionVectorEstimation()
+{
+	int32 DenoiserSource = CVarPathTracingTemporalDenoiserSource.GetValueOnRenderThread();
+	if (DenoiserSource == 0 || DenoiserSource == 3)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+static void PathTracingMotionVectorPlugin(FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef InputFrameTexture,
+	FRDGTextureRef ReferenceFrameTexture,
+	FRDGTextureRef OutputTexture)
+{
+	check(GPathTracingMotionVectorFunc);
+
+	FMotionVectorParameters* DenoiseParameters = GraphBuilder.AllocParameters<FMotionVectorParameters>();
+	DenoiseParameters->InputFrameTexture = InputFrameTexture;
+	DenoiseParameters->ReferenceFrameTexture = ReferenceFrameTexture;
+	DenoiseParameters->OutputTexture = OutputTexture;
+	
+	bool bShouldApplyPreExposure = ShouldApplyPreExposureToMotionVectorEstimation();
+	float PreExposure = bShouldApplyPreExposure ? View.PreExposure : 1.0f;
+
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("Path Tracer Motion Vector Plugin"), DenoiseParameters, ERDGPassFlags::Readback,
+		[DenoiseParameters, PreExposure, GPUMask = View.GPUMask](FRHICommandListImmediate& RHICmdList)
+	{
+
+		GPathTracingMotionVectorFunc(RHICmdList,
+			DenoiseParameters->InputFrameTexture->GetRHI()->GetTexture2D(),
+			DenoiseParameters->ReferenceFrameTexture->GetRHI()->GetTexture2D(),
+			DenoiseParameters->OutputTexture->GetRHI()->GetTexture2D(),
+			PreExposure,
+			GPUMask);
+	});
+
 }
 
 class FMotionVectorEstimationContext
@@ -703,6 +1052,7 @@ public:
 
 	FRDGTextureDesc TextureWithNMipsDescriptor;
 	FRDGTextureDesc TextureDescriptor;
+	FRDGTextureDesc TextureDescriptorFinalOutput;
 
 	FRDGTextureRef SourceTexture;
 	FRDGTextureRef TargetTexture;
@@ -754,6 +1104,11 @@ public:
 			FClearValueBinding(),
 			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
+		TextureDescriptorFinalOutput = FRDGTextureDesc::Create2D(
+			TargetViewport.Extent,
+			PF_A32B32G32R32F,
+			FClearValueBinding(),
+			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV | GetExtraTextureCreateFlagsForDenoiser());
 		
 		PixelOffsetTextures[0] = GraphBuilder.CreateTexture(TextureWithNMipsDescriptor, PixelOffsetTextureNames[0]);
 		PixelOffsetTextures[1] = GraphBuilder.CreateTexture(TextureWithNMipsDescriptor, PixelOffsetTextureNames[1]);
@@ -1088,7 +1443,7 @@ static void FuseTemporalFeature(FRDGBuilder& GraphBuilder,
 		TargetViewport.Extent,
 		PF_A32B32G32R32F,
 		FClearValueBinding(),
-		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV | GetExtraTextureCreateFlagsForDenoiser());
 
 	OutSourceTexture = GraphBuilder.CreateTexture(TextureDescriptor, TEXT("PathTracing.Denoising.Feature.Source"));
 	OutTargetTexture = GraphBuilder.CreateTexture(TextureDescriptor, TEXT("PathTracing.Denoising.Feature.Target"));
@@ -1126,7 +1481,7 @@ static void FuseTemporalFeature(FRDGBuilder& GraphBuilder,
 
 }
 
-static void SelectMotionSourceAndTargetTextures(
+static bool SelectMotionSourceAndTargetTextures(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef InSourceTexture,
@@ -1160,6 +1515,7 @@ static void SelectMotionSourceAndTargetTextures(
 		break;
 	}
 
+	return  MotionEstimationSourceTexture->Desc.Extent == MotionEstimationTargetTexture->Desc.Extent;
 }
 
 // Estimate the motion vector from source to target
@@ -1167,21 +1523,10 @@ static FRDGTextureRef TemporalReprojectionWithoutMotionVector(FRDGBuilder& Graph
 	const FViewInfo& View,
 	FRDGTextureRef InSourceTexture,
 	FRDGTextureRef InTargetTexture,
+	FRDGTextureRef MotionEstimationSourceTexture,
+	FRDGTextureRef MotionEstimationTargetTexture,
 	FPathTracingSpatialTemporalDenoisingContext& DenoisingContext)
 {
-
-	FRDGTextureRef MotionEstimationSourceTexture = nullptr;
-	FRDGTextureRef MotionEstimationTargetTexture = nullptr;
-
-	SelectMotionSourceAndTargetTextures(
-		GraphBuilder, View, InSourceTexture, InTargetTexture, DenoisingContext, MotionEstimationSourceTexture, MotionEstimationTargetTexture);
-
-	// TODO: when the source and target texture size is different
-	if (!(MotionEstimationSourceTexture->Desc.Extent == MotionEstimationTargetTexture->Desc.Extent))
-	{
-		UE_LOG(LogPathTracingDenoising, Log, TEXT("TODO: Add motion vector estimation when source and dest dimensions do not match"));
-		return nullptr;
-	}
 
 	FMotionVectorEstimationContext EstimationContext(MotionEstimationSourceTexture, MotionEstimationTargetTexture);
 
@@ -1191,7 +1536,7 @@ static FRDGTextureRef TemporalReprojectionWithoutMotionVector(FRDGBuilder& Graph
 	}
 
 	FRDGTextureRef  HighFrequencyRejectMap = GraphBuilder.CreateTexture(EstimationContext.TextureDescriptor, TEXT("PathTracing.EstimateMotion.HighFrequencyRejectMap"));
-	FRDGTextureRef  FinalAccumulation = GraphBuilder.CreateTexture(EstimationContext.TextureDescriptor, TEXT("PathTracing.EstimateMotion.FinalAccumulation"));
+	FRDGTextureRef  FinalAccumulation = GraphBuilder.CreateTexture(EstimationContext.TextureDescriptorFinalOutput, TEXT("PathTracing.EstimateMotion.FinalAccumulation"));
 	int PatchCount = EstimationContext.GetPatchCount();
 	float HighFrequencyCutoffDeltaE = GetHighFrequencyCutoffDeltaE();
 
@@ -1364,44 +1709,126 @@ void PathTracingSpatialTemporalDenoising(FRDGBuilder& GraphBuilder,
 	RDG_GPU_STAT_SCOPE(GraphBuilder, PathTracingSpatialTemporalDenoising);
 	RDG_EVENT_SCOPE(GraphBuilder, "PathTracingSpatialTemporalDenoising");
 
+	ETextureCreateFlags ExtraFlags = GetExtraTextureCreateFlagsForDenoiser();
+
 	FRDGTextureDesc RadianceTextureDesc = FRDGTextureDesc::Create2D(
 		View.ViewRect.Size(),
 		PF_A32B32G32R32F,
 		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV);
+		TexCreate_ShaderResource | TexCreate_UAV | ExtraFlags);
 
+	const ESpatialDenoiserType SpatialDenoiserType = GetSpatialDenosierType();
+	const ETemporalDenoiserType TemporalDenoiserType = GetTemporalDenoiserType();
 	const bool bApplySpatialDenoiser = ShouldApplySpatialDenoiser();
+	const bool bApplyTemporalDenoiser = ShouldApplyTemporalDenoiser(SpatialTemporalDenoisingContext, View);
+
 	FRDGTextureRef TargetTexture = SpatialTemporalDenoisingContext.RadianceTexture;
-
-	if (bApplySpatialDenoiser)
-	{
-		TargetTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.SpatialDenoiser.Output"));
-		PathTracingDenoiserPlugin(
-			GraphBuilder,
-			View,
-			DenoiserMode,
-			SpatialTemporalDenoisingContext.RadianceTexture,
-			SpatialTemporalDenoisingContext.AlbedoTexture,
-			SpatialTemporalDenoisingContext.NormalTexture,
-			TargetTexture);
-	}
-
-	const bool bApplyTemporalDenoiser = ShouldApplyTemporalDenoiser(SpatialTemporalDenoisingContext);
+	FRDGTextureRef SourceTexture = SpatialTemporalDenoisingContext.LastDenoisedRadianceTexture;
 	FRDGTextureRef TemporalDenoisedTexture = nullptr;
 
-	if (bApplyTemporalDenoiser)
+	if (SpatialDenoiserType == ESpatialDenoiserType::SPATIAL_DENOISER_PLUGIN)
 	{
-		UE_LOG(LogPathTracingDenoising, Log, TEXT("Using temporal denoising for frame %i"), SpatialTemporalDenoisingContext.FrameIndex);
+		if (bApplySpatialDenoiser)
+		{
+			TargetTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracer.SpatialDenoiser.Output"));
+			PathTracingDenoiserPlugin(
+				GraphBuilder,
+				View,
+				DenoiserMode,
+				SpatialTemporalDenoisingContext.RadianceTexture,
+				SpatialTemporalDenoisingContext.AlbedoTexture,
+				SpatialTemporalDenoisingContext.NormalTexture,
+				TargetTexture);
+		}
 
-		// Image space temporal and spatial denoising.
-		// if we have the last available frame, do a fast reprojection to use history for frame stabilization
-		FRDGTextureRef SourceTexture = SpatialTemporalDenoisingContext.LastDenoisedRadianceTexture;
+		if (bApplyTemporalDenoiser)
+		{
+			// Image space temporal and spatial denoising.
+			// 
+			// Select motion source and target for temporal denoising
+			FRDGTextureRef MotionEstimationSourceTexture = nullptr;
+			FRDGTextureRef MotionEstimationTargetTexture = nullptr;
+			bool IsSourceTargetDimensionMatch = SelectMotionSourceAndTargetTextures(
+					GraphBuilder,
+					View,
+					SourceTexture,
+					TargetTexture, SpatialTemporalDenoisingContext, MotionEstimationSourceTexture, MotionEstimationTargetTexture);
 
-		TemporalDenoisedTexture = TemporalReprojectionWithoutMotionVector(GraphBuilder,
-			View,
-			SourceTexture,
-			TargetTexture,
-			SpatialTemporalDenoisingContext);
+
+			if (IsSourceTargetDimensionMatch)
+			{
+				UE_LOG(LogPathTracingDenoising, Log, TEXT("Using temporal denoising for frame %i"), SpatialTemporalDenoisingContext.FrameIndex);
+
+				if (TemporalDenoiserType == ETemporalDenoiserType::BUILTIN_TEMPORAL_DENOISER)
+				{
+					TemporalDenoisedTexture = TemporalReprojectionWithoutMotionVector(GraphBuilder,
+						View,
+						SourceTexture,
+						TargetTexture,
+						MotionEstimationSourceTexture,
+						MotionEstimationTargetTexture,
+						SpatialTemporalDenoisingContext);
+				}
+				else
+				{
+					// not supported
+				}
+			}
+		}
+	}
+	else if (SpatialDenoiserType == ESpatialDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN)
+	{
+		FRDGTextureRef MotionTexture = nullptr;
+		bool bIsInitialFrame = true;
+		
+		MotionTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracing.EstimateMotion.OpticalFlow"));
+
+		if (bApplyTemporalDenoiser)
+		{
+			// Select motion source and target for temporal denoising
+			FRDGTextureRef MotionEstimationSourceTexture = nullptr;
+			FRDGTextureRef MotionEstimationTargetTexture = nullptr;
+			bool IsSourceTargetDimensionMatch = SelectMotionSourceAndTargetTextures(
+					GraphBuilder,
+					View,
+					SourceTexture,
+					TargetTexture, SpatialTemporalDenoisingContext, MotionEstimationSourceTexture, MotionEstimationTargetTexture);
+
+			if (IsSourceTargetDimensionMatch)
+			{
+				if (TemporalDenoiserType == ETemporalDenoiserType::SPATIAL_TEMPORAL_DENOISER_PLUGIN)
+				{
+					FScreenPassTextureViewport TargetViewport = FScreenPassTextureViewport(View.ViewRect);
+					
+
+					PathTracingMotionVectorPlugin(
+						GraphBuilder,
+						View,
+						MotionEstimationSourceTexture,
+						MotionEstimationTargetTexture,
+						MotionTexture);
+					bIsInitialFrame = false;
+					
+				}
+			}
+		}
+		else
+		{
+			FLinearColor ClearColor = FLinearColor::Black;
+			AddClearRenderTargetPass(GraphBuilder, MotionTexture, ClearColor);
+		}
+
+		SpatialTemporalDenoisingContext.MotionVector = MotionTexture;
+
+		TemporalDenoisedTexture = GraphBuilder.CreateTexture(RadianceTextureDesc, TEXT("PathTracing.EstimateMotion.FinalAccumulation"));
+		
+		PathTracingSpatialTemporalDenoiserPlugin(
+			GraphBuilder, View, DenoiserMode, TargetTexture,
+			SpatialTemporalDenoisingContext.AlbedoTexture, SpatialTemporalDenoisingContext.NormalTexture,
+			MotionTexture, SourceTexture, TemporalDenoisedTexture,
+			SpatialTemporalDenoisingContext.FrameIndex,
+			bIsInitialFrame);	// zero frame will denoise without temporal
+
 	}
 
 	SpatialTemporalDenoisedTexture = TemporalDenoisedTexture ? TemporalDenoisedTexture : TargetTexture;

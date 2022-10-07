@@ -45,6 +45,7 @@ struct FPathTracingSpatialTemporalDenoisingContext
 int	GetPathTracingDenoiserMode(const FViewInfo& View);
 bool IsPathTracingDenoiserEnabled(const FViewInfo& View);
 bool ShouldEnablePathTracingDenoiserRealtimeDebug();
+ETextureCreateFlags GetExtraTextureCreateFlagsForDenoiser();
 
 // Calculate the variance per-pixel.
 void PathTracingSpatialTemporalDenoisingPrePass(

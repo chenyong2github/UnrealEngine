@@ -69,6 +69,10 @@ PathTracingSpatialTemporalDenoising.usf: Spatial temporal denoising for path tra
 #define TOTAL_VARIATION					0
 #endif
 
+#ifndef PREPROCESS_BUFFER
+#define PREPROCESS_BUFFER				0
+#endif
+
 // Define the distance metrics to use
 #define METRICS_LUMINANCE				0
 #define METRICS_EUCLIDEAN				1
@@ -93,6 +97,10 @@ PathTracingSpatialTemporalDenoising.usf: Spatial temporal denoising for path tra
 
 // the mip difference is 2 instead of one to make use of coarser mips
 #define MIP_DIFF_DELTA 2
+
+// The motion vector estimation algorithm is inspired from
+// Hanika, J., Tessari, L., & Dachsbacher, C. (2021). 
+// Fast Temporal Reprojection without Motion Vectors. Journal of Computer Graphics Techniques Vol, 10(3).
 
 // Distance type (L1, L2, logL1, logL1^C)
 #define DISTANCE_L1						0
@@ -121,11 +129,6 @@ void Max3(in float3 Value, out float MaxValue, out int MaxIndex)
 	MaxIndex = (Value.x > Value.y) ? 0 : 1;
 	MaxIndex = Value[MaxIndex] > Value.z ? MaxIndex : 2;
 	MaxValue = Value[MaxIndex];
-}
-
-float2 GetPositionScaleFromMipLevel(uint FromMipLevel, uint ToMipLevel)
-{
-	return (float2((uint2)TargetViewport_Extent >> FromMipLevel)) * (float2((uint2)TargetViewport_Extent >> ToMipLevel));
 }
 
 #if K_NUM_OF_TEXTURES_PER_PASS <= 7 && (TEMPORAL_REPROJECTION_ALIGN||TEMPORAL_REPROJECTION_MERGE)
@@ -1274,7 +1277,7 @@ float3 hsv2rgb(float h, float s, float v)
 	return RGB;
 }
 
-//:adaptive from https://www.shadertoy.com/view/MsS3Wc by iq
+//:adapted from https://www.shadertoy.com/view/MsS3Wc by iq
 float3 hsv2rgb_smooth(float3 c)
 {
 	float3 rgb = clamp(abs( (c.x * 6.0 + float3(0.0, 4.0, 2.0)) % 6.0 - 3.0) - 1.0, 0.0, 1.0);
@@ -1322,7 +1325,7 @@ void VisualizePathTracingMotionVector(
 		h = h < 0 ? ((h + 2) / 2) : h / 2.0;
 		s = 1.0f;
 		OutColor = float4(hsv2rgb_smooth(float3(h, s, v)), 1.0f);// float4(s, h, Velocity.b, 1.0f);
-		OutColor.rgb = pow(OutColor.rgb, Velocity.z);
+		OutColor.rgb = pow(OutColor.rgb, Velocity.z == 0? 1.0f: Velocity.z);
 #endif
 	}
 	else
@@ -1473,3 +1476,22 @@ void SpatialDenoiserCS(uint3 DT_ID : SV_DispatchThreadID)
 	}
 }
 #endif // SPATIAL_DENOISING
+
+#if PREPROCESS_BUFFER
+
+RWTexture2D<float4> NormalTexture;
+float Width;
+float Height;
+
+[numthreads(THREAD_SIZE_X, THREAD_SIZE_Y, 1)]
+void ConvertWorldSpaceNormalToCameraSpaceCS(uint3 DT_ID : SV_DispatchThreadID)
+{
+	int2 Position = DT_ID.xy;
+	int2 MaxPosition = int2(Width, Height);
+	if (all(Position < MaxPosition))
+	{
+		float4 Normal = float4(NormalTexture[Position].xyz, 0.0f);
+		NormalTexture[Position] = float4(mul(Normal, View.TranslatedWorldToCameraView).xyz, 0.0f);
+	}
+}
+#endif
