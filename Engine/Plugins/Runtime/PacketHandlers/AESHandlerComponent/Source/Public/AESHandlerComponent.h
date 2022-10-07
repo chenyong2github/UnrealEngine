@@ -10,7 +10,7 @@
 /*
 * AES256 ECB block encryption component.
 */
-class AESHANDLERCOMPONENT_API FAESHandlerComponent : public FEncryptionComponent
+class UE_DEPRECATED(5.1, "No longer supported, please use FAESGCMHandlerComponent instead.") AESHANDLERCOMPONENT_API FAESHandlerComponent : public FEncryptionComponent
 {
 public:
 	/**
@@ -60,7 +60,7 @@ private:
 /**
  * The public interface to this module.
  */
-class FAESHandlerComponentModule : public FPacketHandlerComponentModuleInterface
+class UE_DEPRECATED(5.1, "No longer supported, please use FAESGCMHandlerComponentModule instead.") FAESHandlerComponentModule : public FPacketHandlerComponentModuleInterface
 {
 public:
 	/* Creates an instance of this component */
