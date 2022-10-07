@@ -581,6 +581,10 @@ private:
 	SSplitter::ESizeRule GetPathAreaSizeRule() const;
 	SSplitter::ESizeRule GetCollectionsAreaSizeRule() const;
 
+	/** Gets the min size for various areas. When areas are not visible the min size is 0, otherwise there is a minimum size to prevent overlap */
+	float GetFavoritesAreaMinSize() const;
+	float GetCollectionsAreaMinSize() const;
+
 	/** Called when the layout of the SFilterList is changing */
 	void OnFilterBarLayoutChanging(EFilterBarLayout NewLayout);
 
