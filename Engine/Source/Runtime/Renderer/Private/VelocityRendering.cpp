@@ -27,7 +27,7 @@
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarVelocityOutputPass(
 	TEXT("r.VelocityOutputPass"),
-	0,
+	1,
 	TEXT("When to write velocity buffer.\n") \
 	TEXT(" 0: Renders during the depth pass. This splits the depth pass into 2 phases: with and without velocity.\n") \
 	TEXT(" 1: Renders during the regular base pass. This adds an extra GBuffer target during base pass rendering.") \
