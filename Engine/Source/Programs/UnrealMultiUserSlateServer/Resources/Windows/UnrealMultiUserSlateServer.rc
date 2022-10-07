@@ -8,7 +8,6 @@
 #include <windows.h>
 #include "Runtime/Launch/Resources/Version.h"
 #include "Runtime/Launch/Resources/Windows/resource.h"
-#include "Developer/TraceInsights/Public/Insights/Version.h"
 
 #define UNREAL_MULTI_USER_SLATE_SERVER_VERSION_MAYOR 1
 #define UNREAL_MULTI_USER_SLATE_SERVER_VERSION_MINOR 0
@@ -64,7 +63,7 @@ BEGIN
             VALUE "LegalCopyright",   EPIC_COPYRIGHT_STRING
             VALUE "ProductName",      EPIC_PRODUCT_NAME
             VALUE "ProductVersion",   VER_PRODUCTVERSION_STR
-            VALUE "FileDescription",  "Unreal Insights"
+            VALUE "FileDescription",  "Unreal Multi User Slate Server"
             VALUE "FileVersion",      VER_FILEVERSION_STR
             VALUE "InternalName",     "UnrealMultiUserSlateServer"
             VALUE "OriginalFilename", "UnrealMultiUserSlateServer.exe"
@@ -83,7 +82,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_UNREAL_MULTI_USER_SLATE_SERVER    ICON    "UnrealMultiUserSlateServer.ico"
+IDI_UNREAL_MULTI_USER_SLATE_SERVER    ICON    "UnrealMultiUserSlateServer_2.ico"
 
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////

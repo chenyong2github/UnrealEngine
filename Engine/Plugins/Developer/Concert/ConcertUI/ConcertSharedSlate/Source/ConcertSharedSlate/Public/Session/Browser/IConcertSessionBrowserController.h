@@ -64,7 +64,7 @@ public:
 	virtual void DeleteSessions(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& SessionIds) = 0;
 	virtual bool CanDeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const = 0;
 	virtual bool CanDeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const = 0;
-	virtual bool CanCreateSessions() const = 0;
+	virtual bool CanEverCreateSessions() const = 0;
 
 	virtual ~IConcertSessionBrowserController() = default;
 };

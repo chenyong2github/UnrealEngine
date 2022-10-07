@@ -450,19 +450,21 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar(const FArguments& InAr
 	InArgs._ExtendControllButtons.ExecuteIfBound(Extender.Get());
 	FToolBarBuilder RowBuilder(nullptr, FMultiBoxCustomization::None, Extender);
 	
-	RowBuilder.BeginSection(ControlButtonExtensionHooks::BeforeSeparator);
 	// New Session
-	RowBuilder.AddWidget(
-		ConcertBrowserUtils::MakeIconButton(
-			FConcertFrontendStyle::Get()->GetBrush("Concert.NewSession"),
-			LOCTEXT("NewButtonTooltip", "Create a new session"),
-			TAttribute<bool>(this, &SConcertSessionBrowser::IsNewButtonEnabledInternal),
-			FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnNewButtonClicked)
-		)
-	);
-	RowBuilder.EndSection();
-	
-	RowBuilder.AddSeparator(ControlButtonExtensionHooks::Separator);
+	if (GetController()->CanEverCreateSessions())
+	{
+		RowBuilder.BeginSection(ControlButtonExtensionHooks::BeforeSeparator);
+		RowBuilder.AddWidget(
+			ConcertBrowserUtils::MakeIconButton(
+				FConcertFrontendStyle::Get()->GetBrush("Concert.NewSession"),
+				LOCTEXT("NewButtonTooltip", "Create a new session"),
+				TAttribute<bool>(this, &SConcertSessionBrowser::IsNewButtonEnabledInternal),
+				FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnNewButtonClicked)
+			)
+		);
+		RowBuilder.EndSection();
+		RowBuilder.AddSeparator(ControlButtonExtensionHooks::Separator);
+	}
 	RowBuilder.BeginSection(ControlButtonExtensionHooks::AfterSeparator);
 	
 	// Restore (Share the same slot as Join)
@@ -1051,7 +1053,7 @@ void SConcertSessionBrowser::OnSessionSelectionChanged(TSharedPtr<FConcertSessio
 
 bool SConcertSessionBrowser::IsNewButtonEnabledInternal() const
 {
-	return GetController()->CanCreateSessions() && GetController()->GetServers().Num() > 0;
+	return GetController()->CanEverCreateSessions() && GetController()->GetServers().Num() > 0;
 }
 
 bool SConcertSessionBrowser::IsRestoreButtonEnabledInternal() const

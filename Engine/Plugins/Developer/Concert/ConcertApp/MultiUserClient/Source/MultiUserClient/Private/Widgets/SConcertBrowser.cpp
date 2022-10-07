@@ -148,7 +148,7 @@ public:
 	virtual void DeleteSessions(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& SessionIds) override;
 	virtual bool CanDeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
 	virtual bool CanDeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
-	virtual bool CanCreateSessions() const override { return true; }
+	virtual bool CanEverCreateSessions() const override { return true; }
 	//~ End IConcertSessionBrowserController Interface
 
 private:

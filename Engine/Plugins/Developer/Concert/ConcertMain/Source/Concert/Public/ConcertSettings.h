@@ -353,7 +353,7 @@ public:
 	 *		Slate	-> UnrealMultiUserSlateServer.exe
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Client Settings")
-	EConcertServerType ServerType = EConcertServerType::Console;
+	EConcertServerType ServerType = EConcertServerType::Slate;
 
 	/** 
 	 * Default server url (just a name for now) to look for on auto or default connect. 

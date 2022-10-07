@@ -81,13 +81,13 @@ void FConcertFrontendStyle::Initialize()
 	// Multi-User Browser 
 	StyleSet->Set("Concert.ArchiveSession",			new IMAGE_PLUGIN_BRUSH("Icons/icon_ArchiveSession_48x",			Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.CancelAutoJoin",			new IMAGE_PLUGIN_BRUSH("Icons/icon_CancelAutoJoin_48x",			Icon24x24, IconColorAndOpacity));
-	StyleSet->Set("Concert.CloseServer",				new IMAGE_PLUGIN_BRUSH("Icons/icon_CloseServer_48x",			Icon24x24, IconColorAndOpacity));
+	StyleSet->Set("Concert.CloseServer",				new IMAGE_PLUGIN_BRUSH_SVG("Icons/icon_CloseServer_24",				Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.DeleteSession",			new IMAGE_PLUGIN_BRUSH("Icons/icon_DeleteSession_48x",			Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.JoinDefaultSession",		new IMAGE_PLUGIN_BRUSH("Icons/icon_JoinDefaultSession_48x",		Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.JoinSession",				new IMAGE_PLUGIN_BRUSH("Icons/icon_JoinSelectedSession_48x",	Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.LeaveSession",			new IMAGE_PLUGIN_BRUSH("Icons/icon_LeaveSession_48x",			Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.NewServer",				new IMAGE_PLUGIN_BRUSH("Icons/icon_NewServer_48x",				Icon24x24, IconColorAndOpacity));
-	StyleSet->Set("Concert.NewSession",				new IMAGE_PLUGIN_BRUSH_SVG("Icons/icon_CreateMultiUser_16",		Icon24x24, IconColorAndOpacity));
+	StyleSet->Set("Concert.NewSession",				new IMAGE_PLUGIN_BRUSH_SVG("Icons/icon_CreateMultiUser_24",		Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.PauseSession",			new IMAGE_PLUGIN_BRUSH("Icons/icon_PauseSession_48x",			Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.RestoreSession",			new IMAGE_PLUGIN_BRUSH("Icons/icon_RestoreSession_48x",			Icon24x24, IconColorAndOpacity));
 	StyleSet->Set("Concert.ResumeSession",			new IMAGE_PLUGIN_BRUSH("Icons/icon_ResumeSession_48x",			Icon24x24, IconColorAndOpacity));

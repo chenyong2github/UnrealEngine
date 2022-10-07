@@ -12,4 +12,4 @@ def MakeIcon(folder, output):
     print(f"Creating {output}")
     images[0].save(f"{output}", append_images=images)
 
-MakeIcon("UnrealMultiUserSlateServer", "UnrealMultiUserSlateServer.ico")
+MakeIcon("UnrealMultiUserSlateServer", "UnrealMultiUserSlateServer_2.ico")
