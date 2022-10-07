@@ -1391,7 +1391,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 	}
 #endif // !UE_BUILD_SHIPPING
 
-	if (bNaniteActive)
+	if (bNaniteActive && View->Family->EngineShowFlags.NaniteMeshes)
 	{
 		Result.bShadowRelevance = false;
 		Result.bVelocityRelevance = false;
