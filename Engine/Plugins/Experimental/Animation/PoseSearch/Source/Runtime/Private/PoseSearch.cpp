@@ -413,7 +413,7 @@ void UPoseSearchSchema::ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData
 {
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
 	{
-		if (!Channel.IsNull())
+		if (Channel)
 		{
 			Channel->ComputeCostBreakdowns(CostBreakDownData, this);
 		}
