@@ -31,6 +31,7 @@ class AJAMEDIAOUTPUT_API UAjaMediaCapture : public UMediaCapture
 
 public:
 	UAjaMediaCapture();
+	~UAjaMediaCapture();
 
 	//~ UMediaCapture interface
 	virtual bool HasFinishedProcessing() const override;
@@ -59,6 +60,8 @@ private:
 	void OutputAudio_RenderingThread(const AJA::AJAOutputFrameBufferData& FrameBuffer) const;
 	void ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
 	void RestoreViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
+	bool CleanupPreEditorExit();
+	void OnEnginePreExit();
 
 	struct FAudioBuffer
 	{
@@ -104,4 +107,7 @@ private:
 
 	/** Whether or not GPUTextureTransfer was initialized successfully. */
 	bool bGPUTextureTransferAvailable = false;
+
+	/** Handle for the delegate used to clean up AJA on editor shutdown. */
+	FDelegateHandle CanCloseEditorDelegateHandle;
 };
