@@ -124,6 +124,7 @@ FOptimusEditorShaderTextEditorTabSummoner::FOptimusEditorShaderTextEditorTabSumm
 	EditorPtr(InEditorApp)
 {
 	TabLabel = LOCTEXT("ShaderTextEditorTab_TabLabel", "Shader Text Editor");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.TextEditor");
 	
 	ViewMenuDescription = LOCTEXT("ShaderTextEditorTab_MenuLabel", "Shader Text Editor");
 	ViewMenuTooltip = LOCTEXT("ShaderTextEditorTab_MenuLabel_Tooltip", "Show the Shader Text Editor Tab");	

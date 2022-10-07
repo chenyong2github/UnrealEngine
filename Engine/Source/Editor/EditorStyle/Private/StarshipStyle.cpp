@@ -2576,6 +2576,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralIcons()
 	Set("Debug", new IMAGE_BRUSH_SVG( "Starship/Common/Debug", Icon16x16 ) );
 	Set("Modules", new IMAGE_BRUSH_SVG( "Starship/Common/Modules", Icon16x16 ) );
 	Set("Versions", new IMAGE_BRUSH_SVG("Starship/Common/Versions", Icon20x20));
+
+	Set("Icons.TextEditor", new IMAGE_BRUSH_SVG("Starship/Common/TextEditor_16", Icon16x16));
 }
 
 void FStarshipEditorStyle::FStyle::SetupWindowStyles()
