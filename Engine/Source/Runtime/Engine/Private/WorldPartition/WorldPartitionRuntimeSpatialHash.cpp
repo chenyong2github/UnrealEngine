@@ -1033,7 +1033,7 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellNameString(FName InGridName, c
 
 	if (InContentBundleID.IsValid())
 	{
-		CellName += TEXT("_CB") + InContentBundleID.ToString(EGuidFormats::Short);
+		CellName += FString::Printf(TEXT("CB%X"), GetTypeHash(InContentBundleID));
 	}
 
 	return CellName;
