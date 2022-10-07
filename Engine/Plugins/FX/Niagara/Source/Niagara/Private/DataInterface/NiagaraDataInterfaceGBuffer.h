@@ -6,7 +6,7 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceGBuffer.generated.h"
 
-UCLASS(Experimental, EditInlineNew, Category = "Camera", meta = (DisplayName = "GBuffer"))
+UCLASS(EditInlineNew, Category = "Rendering", meta = (DisplayName = "GBuffer"))
 class NIAGARA_API UNiagaraDataInterfaceGBuffer : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

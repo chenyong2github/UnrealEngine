@@ -69,7 +69,7 @@ struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataIn
 	TMap<FNiagaraSystemInstanceID, FRenderTargetVolumeRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
 };
 
-UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target Volume", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Rendering", meta = (DisplayName = "Render Target Volume"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceRenderTargetVolume : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()

@@ -70,7 +70,7 @@ struct FNiagaraDataInterfaceProxyRenderTargetCubeProxy : public FNiagaraDataInte
 	TMap<FNiagaraSystemInstanceID, FRenderTargetCubeRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
 };
 
-UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target Cube", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Rendering", meta = (DisplayName = "Render Target Cube"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceRenderTargetCube : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()

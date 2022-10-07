@@ -77,7 +77,7 @@ struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataI
 	TMap<FNiagaraSystemInstanceID, FRenderTarget2DArrayRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
 };
 
-UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target 2D Array", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Rendering", meta = (DisplayName = "Render Target 2D Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceRenderTarget2DArray : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()

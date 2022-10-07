@@ -116,7 +116,7 @@ struct FNiagaraDataInterfaceParametersCS_Grid3DCollection : public FNiagaraDataI
 	LAYOUT_FIELD(TMemoryImageArray<uint32>, AttributeChannelCount);
 };
 
-UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid3D Collection", Experimental), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid3D Collection"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceGrid3DCollection : public UNiagaraDataInterfaceGrid3D
 {
 	GENERATED_UCLASS_BODY()
