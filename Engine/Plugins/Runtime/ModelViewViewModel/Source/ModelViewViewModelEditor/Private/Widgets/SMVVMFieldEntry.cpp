@@ -3,6 +3,7 @@
 #include "SMVVMFieldEntry.h"
 #include "SMVVMFieldIcon.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldEntry"
 
@@ -32,13 +33,16 @@ FText GetFieldToolTip(const FMVVMConstFieldVariant& Field)
 {
 	if (!Field.IsEmpty())
 	{
-		if (Field.IsFunction())
+		if (Field.IsFunction() && Field.GetFunction() != nullptr)
 		{
 			return Field.GetFunction()->GetToolTipText();
 		}
-		if (Field.IsProperty())
+		if (Field.IsProperty() && Field.GetProperty() != nullptr)
 		{
-			return FText::Join(FText::FromString(TEXT("\n")), Field.GetProperty()->GetToolTipText(), FText::FromString(Field.GetProperty()->GetCPPType()));
+			return FText::Join(FText::FromString(TEXT("\n")), 
+				Field.GetProperty()->GetToolTipText(), 
+					FText::FromString(Field.GetProperty()->GetCPPType())
+				);
 		}
 	}
 
@@ -50,26 +54,11 @@ FText GetFieldToolTip(const FMVVMConstFieldVariant& Field)
 void SFieldEntry::Construct(const FArguments& InArgs)
 {
 	Field = InArgs._Field;
+	TextStyle = InArgs._TextStyle;
 
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SAssignNew(Icon, SFieldIcon)
-		]
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		.Padding(4, 0, 0, 0)
-		[
-			SAssignNew(Label, STextBlock)
-			.TextStyle(InArgs._TextStyle)
-			.Clipping(EWidgetClipping::OnDemand)
-		]
+		SAssignNew(FieldBox, SHorizontalBox)
 	];
 
 	Refresh();
@@ -77,18 +66,51 @@ void SFieldEntry::Construct(const FArguments& InArgs)
 
 void SFieldEntry::Refresh()
 {
-	UE::MVVM::FMVVMConstFieldVariant Variant;
+	FieldBox->ClearChildren();
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Field.GetFields();
-	if (Fields.Num() > 0)
+	TArray<FMVVMConstFieldVariant> Fields = Field.GetFields();
+	for (int32 Index = 0; Index < Fields.Num(); ++Index)
 	{
-		Variant = Fields.Last();
+		FieldBox->AddSlot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SFieldIcon)
+			.Field(Fields[Index])
+		];
+
+		FieldBox->AddSlot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		.Padding(4, 0, 0, 0)
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.TextStyle(TextStyle)
+			.Clipping(EWidgetClipping::OnDemand)
+			.Text(Private::GetFieldDisplayName(Fields[Index]))
+		];
+
+		// if not the last, then we need to add a chevron separator
+		if (Index != Fields.Num() - 1)
+		{
+			FieldBox->AddSlot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(6, 0)
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
+			];
+		}
 	}
 
-	SetToolTipText(Private::GetFieldToolTip(Variant));
-
-	Icon->RefreshBinding(Variant);
-	Label->SetText(Private::GetFieldDisplayName(Variant));
+	if (Fields.Num() > 0)
+	{
+		SetToolTipText(Private::GetFieldToolTip(Fields.Last()));
+	}
 }
 
 void SFieldEntry::SetField(const FMVVMBlueprintPropertyPath& InField)
@@ -96,7 +118,7 @@ void SFieldEntry::SetField(const FMVVMBlueprintPropertyPath& InField)
 	Field = InField;
 
 	Refresh();
-}
+} 
 
 } // namespace UE::MVVM
 

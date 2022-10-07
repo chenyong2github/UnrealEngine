@@ -11,7 +11,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
-class STextBlock;
+class SHorizontalBox;
 
 namespace UE::MVVM
 {
@@ -36,9 +36,9 @@ public:
 	void SetField(const FMVVMBlueprintPropertyPath& InField);
 
 private:
+	const FTextBlockStyle* TextStyle = nullptr;
 	FMVVMBlueprintPropertyPath Field;
-	TSharedPtr<SFieldIcon> Icon;
-	TSharedPtr<STextBlock> Label;
+	TSharedPtr<SHorizontalBox> FieldBox;
 };
 
 } // namespace UE::MVVM
