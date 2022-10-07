@@ -25,6 +25,10 @@
 		{
 			"Name": "StructUtils",
 			"Enabled": true
+		},
+		{
+			"Name": "ConcertSyncClient",
+			"Enabled": true
 		}
 	],
 	"Modules": [
@@ -67,6 +71,11 @@
 			"Name": "RemoteControlProtocolWidgets",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RemoteControlMultiUser",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }

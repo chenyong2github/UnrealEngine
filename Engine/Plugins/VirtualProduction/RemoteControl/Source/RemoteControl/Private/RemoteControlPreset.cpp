@@ -800,7 +800,7 @@ URemoteControlBinding* URemoteControlPreset::FindOrAddBinding(const TSoftObjectP
 	
 	for (URemoteControlBinding* Binding : Bindings)
 	{
-		if (Binding->IsBound(Object))
+		if (Binding && Binding->IsBound(Object))
 		{
 			return Binding;
 		}
@@ -857,7 +857,8 @@ URemoteControlBinding* URemoteControlPreset::FindMatchingBinding(const URemoteCo
 		URemoteControlLevelDependantBinding* LevelDependantBindingIt = Cast<URemoteControlLevelDependantBinding>(Binding);
 		const URemoteControlLevelDependantBinding* InLevelDependingBinding = Cast<URemoteControlLevelDependantBinding>(InBinding);
 
-		if (InBinding == Binding
+		if (!Binding 
+			|| InBinding == Binding
 			|| Binding->Resolve() != InObject)
 		{
 			continue;
@@ -1352,10 +1353,12 @@ void URemoteControlPreset::Unexpose(const FGuid& EntityId)
 
 		Registry->Modify();
 		Registry->RemoveExposedEntity(EntityId);
-		FRCCachedFieldData CachedData = FieldCache.FindChecked(EntityId);
-		Layout.RemoveField(CachedData.LayoutGroupId, EntityId);
-		FieldCache.Remove(EntityId);
-		PropertyWatchers.Remove(EntityId);
+		if (FRCCachedFieldData* CachedData = FieldCache.Find(EntityId))
+		{
+			Layout.RemoveField(CachedData->LayoutGroupId, EntityId);
+			FieldCache.Remove(EntityId);
+			PropertyWatchers.Remove(EntityId);
+		}
 	}
 }
 
@@ -1721,7 +1724,7 @@ void URemoteControlPreset::OnObjectTransacted(UObject* InObject, const FTransact
 	bool bIsObjectBound = false;
 	for (const URemoteControlBinding* Binding : Bindings)
 	{
-		if (Binding->IsBound(InObject))
+		if (Binding && Binding->IsBound(InObject))
 		{
 			bIsObjectBound = true;
 			break;
@@ -1910,6 +1913,11 @@ void URemoteControlPreset::OnReplaceObjects(const TMap<UObject*, UObject*>& Repl
 
 	for (URemoteControlBinding* Binding : Bindings)
 	{
+		if (!Binding)
+		{
+			continue;
+		}
+
 		UObject* NewObject = nullptr;
 		UObject* ResolvedBinding = Binding->Resolve();
 
