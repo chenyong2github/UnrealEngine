@@ -2,7 +2,7 @@
 
 #include "Net/NetworkGranularMemoryLogging.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_WITH_NETWORK_GRANULAR_MEM_TRACKING
 
 #include "Serialization/ArchiveCountMem.h"
 #include "EngineLogs.h"
@@ -12,7 +12,7 @@
 #include "Stats/Stats.h"
 #include "Containers/Ticker.h"
 
-namespace GranularNetworkMemoryTrackingPrivate
+namespace UE::Net::Private::GranularMemoryTracking
 {
 	static TAutoConsoleVariable<int32> CVarUseGranularNetworkTracking(
 		TEXT("Net.UseGranularNetworkTracking"),
@@ -260,4 +260,4 @@ namespace GranularNetworkMemoryTrackingPrivate
 	}
 };
 
-#endif
+#endif // UE_WITH_NETWORK_GRANULAR_MEM_TRACKING

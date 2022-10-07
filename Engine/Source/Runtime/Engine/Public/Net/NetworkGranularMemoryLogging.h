@@ -4,9 +4,13 @@
 
 #include "CoreMinimal.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#ifndef UE_WITH_NETWORK_GRANULAR_MEM_TRACKING
+#define UE_WITH_NETWORK_GRANULAR_MEM_TRACKING	!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // UE_WITH_NETWORK_GRANULAR_MEM_TRACKING
 
-namespace GranularNetworkMemoryTrackingPrivate
+#if UE_WITH_NETWORK_GRANULAR_MEM_TRACKING
+
+namespace UE::Net::Private::GranularMemoryTracking
 {
 	struct ENGINE_API FScopeMarker
 	{
@@ -41,7 +45,7 @@ namespace GranularNetworkMemoryTrackingPrivate
 	};
 }
 
-#define GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Archive, ScopeName) GranularNetworkMemoryTrackingPrivate::FScopeMarker GranularNetworkMemoryScope(Archive, ScopeName);
+#define GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Archive, ScopeName) UE::Net::Private::GranularMemoryTracking::FScopeMarker GranularNetworkMemoryScope(Archive, ScopeName);
 #define GRANULAR_NETWORK_MEMORY_TRACKING_TRACK(Id, Work) \
 	{ \
 		GranularNetworkMemoryScope.BeginWork(); \
@@ -50,10 +54,10 @@ namespace GranularNetworkMemoryTrackingPrivate
 	}
 #define GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK(Id, Value) GranularNetworkMemoryScope.LogCustomWork(Id, Value);
 
-#else
+#else // UE_WITH_NETWORK_GRANULAR_MEM_TRACKING
 
 #define GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Archive, ScopeName) 
 #define GRANULAR_NETWORK_MEMORY_TRACKING_TRACK(Id, Work) { Work; }
 #define GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK(Id, Work) 
 
-#endif
+#endif // UE_WITH_NETWORK_GRANULAR_MEM_TRACKING
