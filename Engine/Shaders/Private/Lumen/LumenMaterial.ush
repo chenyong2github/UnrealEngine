@@ -18,8 +18,13 @@
 // Strata tile helper function 
 
 #if STRATA_ENABLED
-uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint InBSDFIndex)
+uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint InBSDFIndex, inout bool bIsValid)
 {
+	// First tile is always valid. 
+	// * BSDFIndex is 0-based
+	// * TileIndex is 1-based. This is why there is a -1.
+	bIsValid = InBSDFIndex == 0 || InBSDFIndex < (InTile0.Count + 1); 
+
 	uint2 Out = InTile0Coord;
 	if (InBSDFIndex > 0)
 	{
@@ -41,12 +46,18 @@ uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex, Texture2D<uin
 	if (InBSDFIndex > 0)
 	{
 		const uint2 Tile0Coord = InSvPosition >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
+		bool bIsValid = false;
 
 		// Compute the source pixel corod
 		const FStrataBSDFTile BSDFTile0 = UnpackBSDFTile(InBSDFTileTexture[Tile0Coord]);
 		const uint2 LocalCoord = InSvPosition - Tile0Coord * STRATA_TILE_SIZE;
-		const uint2 TileNCoord = GetTilePositionFlatten(BSDFTile0, Tile0Coord, InBSDFIndex);
-		Out = TileNCoord * STRATA_TILE_SIZE + LocalCoord;
+		const uint2 TileNCoord = GetTilePositionFlatten(BSDFTile0, Tile0Coord, InBSDFIndex, bIsValid);
+
+		// Update coordinate only if the tile is valid
+		if (bIsValid)
+		{
+			Out = TileNCoord * STRATA_TILE_SIZE + LocalCoord;
+		}
 	}
 	return Out;
 }
@@ -148,10 +159,11 @@ FLumenMaterialCoord GetLumenMaterialCoord(in uint2 SvPositionInPrimarySpace, uin
 
 		const FStrataBSDFTile BSDF0Tile = UnpackBSDFTile(Strata.BSDFTileTexture[Tile0Coord]);
 
+		bool bIsValid = true;
 		Out.TileBSDFIndex = InBSDFIndex;
 		Out.TileBSDFCount = BSDF0Tile.Count;
 		Out.SvPosition = SvPositionInPrimarySpace;
-		Out.SvPositionFlatten = GetTilePositionFlatten(BSDF0Tile, Tile0Coord, InBSDFIndex) * STRATA_TILE_SIZE;
+		Out.SvPositionFlatten = GetTilePositionFlatten(BSDF0Tile, Tile0Coord, InBSDFIndex, bIsValid) * STRATA_TILE_SIZE;
 	}
 #endif
 	return Out;

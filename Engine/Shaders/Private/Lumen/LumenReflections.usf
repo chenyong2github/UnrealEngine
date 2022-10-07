@@ -560,7 +560,11 @@ void ReflectionResolveCS(
 					const float2 LocalOffset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f);
 					const float2 Offset = LocalOffset.x * KernelMajorAxis + LocalOffset.y * KernelMinorAxis;
 
+					// When strata is enabled, neighbor pixels are considered valid if their BSDF count is greater or equal to the current one. 
+					// If it is not valid, then it will fallback onto BSDFIndex=0. Neighboor depth is then used to know if that pixel contains
+					// valid reflection data.
 					int2 NeighborTracingCoord = (int2)(ReflectionScreenCoord + Offset);
+					int2 NeighborTracingCoord_ForDepth = NeighborTracingCoord;
 					int2 NeighborTracingCoord_Flatten = NeighborTracingCoord;
 					bool bIsValidNeighboor = all(and (NeighborTracingCoord >= int2(0, 0), NeighborTracingCoord < (int2)ReflectionTracingViewSize));
 				#if STRATA_ENABLED
@@ -568,13 +572,14 @@ void ReflectionResolveCS(
 					{
 						NeighborTracingCoord_Flatten = GetBSDFPositionFlatten(NeighborTracingCoord, Coord.TileBSDFIndex, Strata.BSDFTileTexture);
 						bIsValidNeighboor = IsTileNCoordValid(NeighborTracingCoord_Flatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT);
+						NeighborTracingCoord_ForDepth = NeighborTracingCoord_Flatten;
 					}
 				#endif
 
 					if (bIsValidNeighboor)
 					{
 						float2 NeighborScreenUV = GetScreenUVFromReflectionTracingCoord(NeighborTracingCoord);
-						float NeighborSceneDepth = DownsampledDepth[NeighborTracingCoord].x;
+						float NeighborSceneDepth = DownsampledDepth[NeighborTracingCoord_ForDepth].x;
 
 						if (NeighborSceneDepth > 0.0f)
 						{

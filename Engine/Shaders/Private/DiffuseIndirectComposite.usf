@@ -230,7 +230,8 @@ FStrataDeferredLighting StrataIndirectLighting(
 		// * Lumen integration output indirect lighting per BSDF
 		// * SSGI  integration output a single indirect lighting value for all BSDF
 	#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
-		const uint2 TileCoord = GetTilePositionFlatten(Tile0, Tile0Coord, BSDFIndex);
+		bool bIsValid = true;
+		const uint2 TileCoord = GetTilePositionFlatten(Tile0, Tile0Coord, BSDFIndex, bIsValid);
 		const uint2 InCoord   = TileCoord * STRATA_TILE_SIZE + LocalTileCoord;
 
 		const float3 InDiffuseLighting			= DiffuseIndirect_Textures_0.Load(uint3(InCoord, 0)).rgb;
