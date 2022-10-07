@@ -37,6 +37,12 @@ struct FNetLevelVisibilityState
 	uint32 ClientPendingRequestIndex = 0;
 	uint32 ClientAckedRequestIndex = 0;
 	bool bHasClientPendingRequest = false;
+
+	void InvalidateClientPendingRequest()
+	{
+		bHasClientPendingRequest = false;
+		PendingRequestType.Reset();
+	}
 };
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLevelStreaming, Log, All);
@@ -331,9 +337,6 @@ private:
 	bool IsDesiredLevelLoaded() const;
 
 public:
-
-	/** Called when streaming level is being considered by world for next UpdateStreamingState. */
-	void OnStreamingLevelAddedToConsidered();
 
 	/** Begin a client instigated NetVisibility request */
 	void BeginClientNetVisibilityRequest(bool bInShouldBeVisible);
@@ -648,6 +651,12 @@ private:
 
 	/** State for server handshake of NetLevelVisibilty requests */
 	FNetLevelVisibilityState NetVisibilityState;
+
+	/** Whether streaming level is concerned by net visibility transactions */
+	bool IsConcernedByNetVisibilityTransactionAck() const;
+
+	/** Helper method that updates server level visibility for each player controller of streaming level world */
+	void ServerUpdateLevelVisibility(bool bIsVisible, bool bTryMakeVisible = false, FNetLevelVisibilityTransactionId TransactionId = FNetLevelVisibilityTransactionId());
 
 	friend struct FAckNetVisibilityTransaction;
 	friend struct FStreamingLevelPrivateAccessor;

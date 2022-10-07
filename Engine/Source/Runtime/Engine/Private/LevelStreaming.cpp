@@ -613,15 +613,15 @@ bool ULevelStreaming::DetermineTargetState()
 	return bContinueToConsider;
 }
 
+bool ULevelStreaming::IsConcernedByNetVisibilityTransactionAck() const
+{
+	UWorld* World = GetWorld();
+	return LoadedLevel && !LoadedLevel->bClientOnlyVisible && World && World->IsGameWorld() && World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open);
+}
+
 bool ULevelStreaming::IsWaitingForNetVisibilityTransactionAck(ENetLevelVisibilityRequest InRequestType) const
 {
-	auto IsConcernedNetVisibilityTransactionAck = [this]()
-	{
-		UWorld* World = GetWorld();
-		return LoadedLevel && !LoadedLevel->bClientOnlyVisible && World && World->IsGameWorld() && World->IsNetMode(NM_Client) && (World->NetDriver && World->NetDriver->ServerConnection->GetConnectionState() == USOCK_Open);
-	};
-
-	if (NetVisibilityState.PendingRequestType.IsSet() && (NetVisibilityState.PendingRequestType == InRequestType) && IsConcernedNetVisibilityTransactionAck())
+	if (NetVisibilityState.PendingRequestType.IsSet() && (NetVisibilityState.PendingRequestType == InRequestType) && IsConcernedByNetVisibilityTransactionAck())
 	{
 		check(((NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingInvisible) && ShouldClientUseMakingInvisibleTransactionRequest()) ||
 			  ((NetVisibilityState.PendingRequestType == ENetLevelVisibilityRequest::MakingVisible) && ShouldClientUseMakingVisibleTransactionRequest()));
@@ -630,6 +630,24 @@ bool ULevelStreaming::IsWaitingForNetVisibilityTransactionAck(ENetLevelVisibilit
 	}
 
 	return false;
+}
+
+void ULevelStreaming::ServerUpdateLevelVisibility(bool bIsVisible, bool bTryMakeVisible, FNetLevelVisibilityTransactionId TransactionId)
+{
+	if (IsConcernedByNetVisibilityTransactionAck())
+	{
+		UWorld* World = GetWorld();
+		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			if (APlayerController* PlayerController = Iterator->Get())
+			{
+				FUpdateLevelVisibilityLevelInfo LevelVisibility(LoadedLevel, bIsVisible, bTryMakeVisible);
+				LevelVisibility.PackageName = PlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
+				LevelVisibility.VisibilityRequestId = TransactionId;
+				PlayerController->ServerUpdateLevelVisibility(LevelVisibility);
+			}
+		}
+	}
 }
 
 bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType, bool bInShouldBeVisible)
@@ -649,19 +667,9 @@ bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLe
 			NetVisibilityState.ClientAckedRequestCanMakeVisible.Reset();
 			NetVisibilityState.bHasClientPendingRequest = false;
 
-			UWorld* World = GetWorld();
 			const bool bIsVisible = false;
 			const bool bTryMakeVisible = (InRequestType == ENetLevelVisibilityRequest::MakingVisible);
-			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-			{
-				if (APlayerController* PlayerController = Iterator->Get())
-				{
-					FUpdateLevelVisibilityLevelInfo LevelVisibility(LoadedLevel, bIsVisible, bTryMakeVisible);
-					LevelVisibility.PackageName = PlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
-					LevelVisibility.VisibilityRequestId = TransactionId;
-					PlayerController->ServerUpdateLevelVisibility(LevelVisibility);
-				}
-			}
+			ServerUpdateLevelVisibility(bIsVisible, bTryMakeVisible, TransactionId);
 			return true;
 		}
 		else if (NetVisibilityState.ClientPendingRequestIndex != NetVisibilityState.ClientAckedRequestIndex)
@@ -671,8 +679,7 @@ bool ULevelStreaming::ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLe
 		}
 
 		// Invalidate request
-		NetVisibilityState.bHasClientPendingRequest = false;
-		NetVisibilityState.PendingRequestType.Reset();
+		NetVisibilityState.InvalidateClientPendingRequest();
 	}
 	return false;
 };
@@ -722,8 +729,7 @@ void ULevelStreaming::UpdateNetVisibilityTransactionState(bool bInShouldBeVisibl
 			return;
 		}
 
-		NetVisibilityState.bHasClientPendingRequest = false;
-		NetVisibilityState.PendingRequestType.Reset();
+		NetVisibilityState.InvalidateClientPendingRequest();
 		NetVisibilityState.ServerRequestIndex = bIsClientTransaction ? FNetLevelVisibilityTransactionId::InvalidTransactionIndex : TransactionId.GetTransactionIndex();
 
 		if (bIsClientTransaction)
@@ -748,13 +754,6 @@ void ULevelStreaming::UpdateNetVisibilityTransactionState(bool bInShouldBeVisibl
 			}
 		}
 	}
-}
-
-void ULevelStreaming::OnStreamingLevelAddedToConsidered()
-{
-	// When streaming level is added to the next considered streaming levels to be updated,
-	// make sure that it will trigger a visibility request (if necessary)
-	BeginClientNetVisibilityRequest(ShouldBeVisible());
 }
 
 void ULevelStreaming::BeginClientNetVisibilityRequest(bool bInShouldBeVisible)
@@ -831,6 +830,11 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 				CurrentState = ECurrentState::LoadedNotVisible;
 				bOutUpdateAgain = true;
 				bOutRedetermineTarget = true;
+				// Make sure to update level visibility state (in case the server already acknowledged a Making Visible request)
+				if (ShouldClientUseMakingVisibleTransactionRequest())
+				{
+					ServerUpdateLevelVisibility(false);
+				}
 			}
 			else
 			{
@@ -953,6 +957,9 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 		{
 		case ETargetState::LoadedVisible:
 			CurrentState = ECurrentState::MakingVisible;
+			// Make sure client pending visibility request (if any) matches current state
+			NetVisibilityState.InvalidateClientPendingRequest();
+			BeginClientNetVisibilityRequest(ShouldBeVisible());
 			bOutUpdateAgain = true;
 			break;
 
@@ -998,6 +1005,9 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 		{
 		case ETargetState::LoadedNotVisible:
 			CurrentState = ECurrentState::MakingInvisible;
+			// Make sure client pending visibility request (if any) matches current state
+			NetVisibilityState.InvalidateClientPendingRequest();
+			BeginClientNetVisibilityRequest(ShouldBeVisible());
 			bOutUpdateAgain = true;
 			break;
 
