@@ -3989,7 +3989,7 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 					if (OriginalParentIdx > INDEX_NONE && HasDynamicInternalClusterParent && RemoveOnBreakFacade.IsRemovalActive(OriginalParentIdx))
 					{
 						bool bIsAllowedClusterCrumbling = true;
-						if (bIsReplicatedClient && InitialLevels)
+						if (bIsReplicatedClient && InitialLevels && (InitialLevels->Num() > 0))
 						{
 							if (!bEnableAbandonAfterLevel || (*InitialLevels)[OriginalParentIdx] <= ReplicationAbandonAfterLevel)
 							{
@@ -4008,7 +4008,7 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 				else if (RemoveOnBreakFacade.IsRemovalActive(TransformIdx) && DynamicStateFacade.HasBrokenOff(TransformIdx))
 				{
 					bool bIsAllowedClusterCrumbling = true;
-					if (bIsReplicatedClient && InitialLevels)
+					if (bIsReplicatedClient && InitialLevels && (InitialLevels->Num() > 0))
 					{
 						if (!bEnableAbandonAfterLevel || (*InitialLevels)[TransformIdx] <= ReplicationAbandonAfterLevel)
 						{
