@@ -6,7 +6,7 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
-#include "DataLayerDragDropOp.h"
+#include "DataLayer/DataLayerDragDropOp.h"
 #include "Delegates/Delegate.h"
 #include "Folder.h"
 #include "Framework/Views/ITypedTableView.h"
