@@ -155,7 +155,7 @@ bool FDMXEntityReferenceCustomization::GetEntityIsMultipleValues() const
 {
 	TArray<void*> RawData;
 	StructHandle->AccessRawData(RawData);
-	if (RawData[0] == nullptr)
+	if (RawData.IsEmpty() || RawData[0] == nullptr)
 	{
 		return true;
 	}
