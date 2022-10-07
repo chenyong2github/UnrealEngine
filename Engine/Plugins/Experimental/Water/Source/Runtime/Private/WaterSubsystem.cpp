@@ -24,6 +24,7 @@
 #include "WaterRuntimeSettings.h"
 #include "Engine/StaticMesh.h"
 #include "WaterViewExtension.h"
+#include "Landscape/Public/LandscapeSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSubsystem)
 
@@ -284,10 +285,38 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 }
 
+void UWaterSubsystem::PostInitialize()
+{
+	Super::PostInitialize();
+
+	UWorld* World = GetWorld();
+	check(World);
+
+#if WITH_EDITOR
+	// Register for heightmap streaming notifications
+	ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>();
+	check(LandscapeSubsystem);
+
+	check(!OnHeightmapStreamedHandle.IsValid());
+	OnHeightmapStreamedHandle = LandscapeSubsystem->GetOnHeightmapStreamedDelegate().AddUObject(this, &UWaterSubsystem::OnHeightmapStreamed);
+#endif // WITH_EDITOR
+}
+
 void UWaterSubsystem::Deinitialize()
 {
 	UWorld* World = GetWorld();
 	check(World != nullptr);
+
+#if WITH_EDITOR
+	if (OnHeightmapStreamedHandle.IsValid())
+	{
+		if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+		{
+			LandscapeSubsystem->GetOnHeightmapStreamedDelegate().Remove(OnHeightmapStreamedHandle);
+		}
+		OnHeightmapStreamedHandle.Reset();
+	}
+#endif // WITH_EDITOR
 
 	FConsoleVariableDelegate NullCallback;
 	CVarShallowWaterSimulationRenderTargetSize->SetOnChangedCallback(NullCallback);
@@ -335,6 +364,14 @@ void UWaterSubsystem::ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings
 	}
 #endif // WITH_EDITOR
 }
+
+#if WITH_EDITOR
+void UWaterSubsystem::OnHeightmapStreamed(const FOnHeightmapStreamedContext& InContext)
+{
+	UE_LOG(LogWater, Warning, TEXT("OnHeightmapStreamed!  Rebuilding Water Info Texture..."));
+	MarkWaterZonesInRegionForRebuild(InContext.GetUpdateRegion(), EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+}
+#endif // WITH_EDITOR
 
 FWaterBodyManager& UWaterSubsystem::GetWaterBodyManagerInternal()
 {
@@ -477,6 +514,24 @@ void UWaterSubsystem::MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags Rebuild
 		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World))
 		{
 			WaterZone->MarkForRebuild(RebuildFlags);
+		}
+	}
+}
+
+void UWaterSubsystem::MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateRegion, EWaterZoneRebuildFlags InRebuildFlags)
+{
+	if (UWorld* World = GetWorld())
+	{
+		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World))
+		{
+			FVector2D ZoneExtent = WaterZone->GetZoneExtent();
+			FVector2D ZoneLocation = FVector2D(WaterZone->GetActorLocation());
+			const FBox2D WaterZoneBounds(ZoneLocation - ZoneExtent * 0.5, ZoneLocation + ZoneExtent * 0.5);
+
+			if (WaterZoneBounds.Intersect(InUpdateRegion))
+			{
+				WaterZone->MarkForRebuild(InRebuildFlags);
+			}
 		}
 	}
 }

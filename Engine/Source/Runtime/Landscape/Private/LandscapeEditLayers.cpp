@@ -16,6 +16,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "LandscapeEditReadback.h"
 #include "LandscapeEditResources.h"
 #include "LandscapeUtils.h"
+#include "LandscapeSubsystem.h"
 
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -3353,9 +3354,15 @@ bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
 		[](const TWeakObjectPtr<UTexture2D>& Texture) { return Texture.Get(); });
 	TrackedStreamingInTextures.Empty();
 
-	// Start tracking the new textures :
+	// Textures that are still streaming in (filled out below)
 	TSet<UTexture2D*> StreamingInTexturesAfter;
 	StreamingInTexturesAfter.Reserve(TrackedStreamingInTextures.Num());
+
+	// Textures that have just completed streaming in (filled out below)
+	TSet<UTexture2D*> StreamedInTextures;
+
+	// All components containing heightmaps that have just completed streaming in (filled out below)
+	TSet<ULandscapeComponent*> StreamedInHeightmapComponents;
 
 	bool bIsReady = true;
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
@@ -3370,6 +3377,15 @@ bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
 				{
 					StreamingInTexturesAfter.Add(ComponentHeightmap);
 				}
+				else
+				{
+					// If it was previously streaming in, then it has just completed.
+					if (StreamingInTexturesBefore.Contains(ComponentHeightmap))
+					{
+						StreamedInTextures.Add(ComponentHeightmap);
+						StreamedInHeightmapComponents.Add(Component);
+					}
+				}
 				bIsReady &= bIsTextureReady;
 			}
 
@@ -3381,15 +3397,43 @@ bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
 				{
 					StreamingInTexturesAfter.Add(ComponentWeightmap);
 				}
+				else
+				{
+					// If it was previously streaming in, then it has just completed.
+					if (StreamingInTexturesBefore.Contains(ComponentWeightmap))
+					{
+						StreamedInTextures.Add(ComponentWeightmap);
+					}
+				}
 				bIsReady &= bIsTextureReady;
 			}
 		}
 	});
 
 	// The assets that were streaming in before and are not anymore can be considered streamed in: 
-	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_Difference);
-	TSet<UTexture2D*> StreamedInTextures = StreamingInTexturesBefore.Difference(StreamingInTexturesAfter);
 	InvalidateRVTForTextures(StreamedInTextures);
+
+	// If we streamed in any heightmaps, notify interested parties (i.e. water)
+	if (StreamedInHeightmapComponents.Num() > 0)
+	{
+		// Calculate update region.
+		FBox2D HeightmapUpdateRegion(ForceInit);
+		for (ULandscapeComponent* Component : StreamedInHeightmapComponents)
+		{
+			if (ALandscapeProxy* Proxy = Component->GetLandscapeProxy())
+			{
+				const FBox ProxyBox = Proxy->GetComponentsBoundingBox();
+				HeightmapUpdateRegion += FBox2D(FVector2D(ProxyBox.Min), FVector2D(ProxyBox.Max));
+			}
+		}
+
+		// Notify that heightmaps have been streamed.
+		if (ULandscapeSubsystem* LandscapeSubsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>())
+		{
+			FOnHeightmapStreamedContext Context(HeightmapUpdateRegion, StreamedInHeightmapComponents);
+			LandscapeSubsystem->GetOnHeightmapStreamedDelegate().Broadcast(Context);
+		}
+	}
 
 	// Store as a list of TWeakObjectPtr<UTexture2D> so as not to keep references on the tracked textures :
 	Algo::Transform(StreamingInTexturesAfter, TrackedStreamingInTextures, [](UTexture2D* Texture) { return TWeakObjectPtr<UTexture2D>(Texture); });

@@ -3643,9 +3643,10 @@ float FLandscapeComponentSceneProxy::ComputeLODBias() const
 
 double FLandscapeComponentSceneProxy::ComputeSectionResolution() const
 {
-	// LandscapeComponent Max Extend represents the half-extent of the landscape component. Multiply by two to get the actual size.
-	const double ComponentFullExtent = 2.0 * ComponentMaxExtend;
-	return ComponentFullExtent / (double)(ComponentSizeVerts);
+	// ComponentMaxExtend is the max(length,width) of the component, in world units
+	const double ComponentFullExtent = ComponentMaxExtend;
+	const double ComponentQuads = ComponentSizeVerts - 1.0;		// verts = quads + 1
+	return ComponentFullExtent / ComponentQuads;
 }
 
 //

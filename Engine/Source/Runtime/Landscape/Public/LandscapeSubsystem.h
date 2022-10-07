@@ -11,6 +11,25 @@ class ALandscapeProxy;
 class ULandscapeInfo;
 class FLandscapeNotificationManager;
 
+#if WITH_EDITOR
+struct FOnHeightmapStreamedContext
+{
+private:
+	const FBox2D& UpdateRegion;
+	const TSet<class ULandscapeComponent*>& LandscapeComponentsInvolved;
+
+public:
+	const FBox2D& GetUpdateRegion() const { return UpdateRegion; }
+	const TSet<class ULandscapeComponent*>& GetLandscapeComponentsInvolved() const { return LandscapeComponentsInvolved; }
+
+	FOnHeightmapStreamedContext(const FBox2D& updateRegion, const TSet<class ULandscapeComponent*>& landscapeComponentsInvolved)
+		: UpdateRegion(updateRegion), LandscapeComponentsInvolved(landscapeComponentsInvolved)
+	{}
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeightmapStreamedDelegate, const FOnHeightmapStreamedContext& context);
+#endif // WITH_EDITOR
+
 UCLASS(MinimalAPI)
 class ULandscapeSubsystem : public UTickableWorldSubsystem
 {
@@ -48,7 +67,8 @@ public:
 	LANDSCAPE_API bool HasModifiedLandscapes() const;
 	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
 	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
-#endif
+	FOnHeightmapStreamedDelegate& GetOnHeightmapStreamedDelegate() { return OnHeightmapStreamed; }
+#endif // WITH_EDITOR
 
 private:
 #if WITH_EDITOR
@@ -68,5 +88,6 @@ private:
 	class FLandscapePhysicalMaterialBuilder* PhysicalMaterialBuilder;
 	
 	FLandscapeNotificationManager* NotificationManager;
-#endif
+	FOnHeightmapStreamedDelegate OnHeightmapStreamed;
+#endif // WITH_EDITOR
 };

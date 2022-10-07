@@ -1030,9 +1030,10 @@ public:
 	/** @todo document */
 	LANDSCAPE_API float GetLayerWeightAtLocation( const FVector& InLocation, ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>* LayerCache = NULL, bool bUseEditingWeightmap = false);
 
-	/** Extends passed region with this component section size */
+	/** Extends passed region with this component's 2D bounds (values are in landscape quads) */
 	LANDSCAPE_API void GetComponentExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const;
 
+	/** returns the 2D bounds of this component (in landscape quads) */
 	LANDSCAPE_API FIntRect GetComponentExtent() const;
 
 	/** Updates navigation properties to match landscape actor's */

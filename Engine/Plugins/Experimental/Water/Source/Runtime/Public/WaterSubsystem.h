@@ -90,6 +90,7 @@ public:
 
 	// USubsystem implementation Begin
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void PostInitialize() override;
 	virtual void Deinitialize() override;
 	// USubsystem implementation End
 
@@ -174,6 +175,7 @@ public:
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
 	void MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags RebuildFlags = EWaterZoneRebuildFlags::All);
+	void MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateRegion, EWaterZoneRebuildFlags InRebuildFlags);
 
 #if WITH_EDITOR
 	/** Little scope object to temporarily change the value of bAllowWaterSubsystemOnPreviewWorld */
@@ -253,6 +255,9 @@ private:
 	TSharedPtr<FWaterViewExtension> WaterViewExtension;
 
 #if WITH_EDITOR
+	FDelegateHandle OnHeightmapStreamedHandle;
+	void OnHeightmapStreamed(const struct FOnHeightmapStreamedContext& InContext);
+
 	/** By default, there is no water subsystem allowed on preview worlds except when explicitly requested : */
 	static bool bAllowWaterSubsystemOnPreviewWorld;
 #endif // WITH_EDITOR
