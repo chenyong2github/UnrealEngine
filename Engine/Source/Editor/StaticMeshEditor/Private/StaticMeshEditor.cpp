@@ -547,6 +547,8 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_Viewport( const FSpawnTabArgs& 
 	const FString LayoutId = FString("StaticMeshEditorViewport");
 	ViewportTabContent->Initialize(MakeViewportFunc, DockableTab, LayoutId);
 
+	GetStaticMeshViewport()->SetParentTab(DockableTab);
+
 	return DockableTab;
 }
 
