@@ -79,6 +79,11 @@ public:
 	 */
 	void EmptyOverrideMaterials();
 
+	/**
+	 * Returns true if there are any override materials set for this component
+	 */
+	bool HasOverrideMaterials();
+
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif

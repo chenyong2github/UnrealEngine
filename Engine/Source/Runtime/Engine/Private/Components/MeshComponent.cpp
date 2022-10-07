@@ -187,6 +187,11 @@ void UMeshComponent::EmptyOverrideMaterials()
 	}
 }
 
+bool UMeshComponent::HasOverrideMaterials()
+{
+	return OverrideMaterials.Num() > 0;
+}
+
 int32 UMeshComponent::GetNumMaterials() const
 {
 	return 0;
