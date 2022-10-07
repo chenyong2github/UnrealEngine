@@ -4,6 +4,7 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "ITransportControl.h"
 
 class FNiagaraBakerViewModel;
 class SNiagaraBakerViewport;
@@ -49,6 +50,7 @@ public:
 
 	FReply OnTransportBackwardEnd();
 	FReply OnTransportBackwardStep();
+	FReply OnTransportBackwardPlay();
 	FReply OnTransportForwardPlay();
 	FReply OnTransportForwardStep();
 	FReply OnTransportForwardEnd();
@@ -64,7 +66,7 @@ private:
 	TSharedPtr<IDetailsView>					BakerSettingsDetails;
 	TSharedPtr<SWidget>							TransportControls;
 
-	bool										bIsPlaying = true;
+	EPlaybackMode::Type							PlaybackMode = EPlaybackMode::PlayingForward;
 	float										PreviewRelativeTime = 0.0f;
 
 	FDelegateHandle								OnCurrentOutputIndexChangedHandle;
