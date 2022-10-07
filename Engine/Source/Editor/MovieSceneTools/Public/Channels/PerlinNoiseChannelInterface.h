@@ -5,6 +5,7 @@
 #include "CurveKeyEditors/SequencerKeyEditor.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "ISequencerChannelInterface.h"
+#include "Misc/NotifyHook.h"
 #include "MovieSceneSection.h"
 #include "TimeToPixel.h"
 #include "Widgets/Input/NumericTypeInterface.h"
@@ -50,13 +51,27 @@ struct FPerlinNoiseChannelSectionMenuExtension : TSharedFromThis<FPerlinNoiseCha
 
 private:
 
+	void Initialize();
+
 	void BuildChannelsMenu(FMenuBuilder& MenuBuilder);
 	void BuildParametersMenu(FMenuBuilder& MenuBuilder, int32 ChannelHandleIndex);
 
 private:
 
+	struct FChannelNotifyHook : FNotifyHook
+	{
+		UObject* ObjectToModify = nullptr;
+
+		FChannelNotifyHook(UObject* InObjectToModify) : ObjectToModify(InObjectToModify) {}
+
+		virtual void NotifyPreChange(FProperty* PropertyAboutToChange) override;
+		virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
+	};
+
 	TArray<FMovieSceneChannelHandle> ChannelHandles;
+	TArray<int32> ChannelHandleSectionIndexes;
 	TArray<UMovieSceneSection*> Sections;
+	TArray<FChannelNotifyHook> NotifyHooks;
 };
 
 template<typename ChannelContainerType>
