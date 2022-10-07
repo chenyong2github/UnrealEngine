@@ -796,6 +796,7 @@ void UDeviceProfileManager::LoadProfiles()
 	if( !HasAnyFlags( RF_ClassDefaultObject ) )
 	{
 		TMap<FString, FString> DeviceProfileToPlatformConfigMap;
+		DeviceProfileToPlatformConfigMap.Add(TEXT("GlobalDefaults,None"), FPlatformProperties::IniPlatformName());
 		TArray<FName> ConfidentialPlatforms = FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms();
 		
 #if !ALLOW_OTHER_PLATFORM_CONFIG

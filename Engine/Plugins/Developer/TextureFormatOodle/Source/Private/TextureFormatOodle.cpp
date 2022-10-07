@@ -144,7 +144,7 @@ For example here I have changed "World" LossyCompressionAmount to TLCA_High, and
 "WorldNormalMap" to TLCA_Low :
 
 
-[/Script/Engine.TextureLODSettings]
+[GlobalDefaults DeviceProfile]
 @TextureLODGroups=Group
 TextureLODGroups=(Group=TEXTUREGROUP_World,MinLODSize=1,MaxLODSize=8192,LODBias=0,MinMagFilter=aniso,MipFilter=point,MipGenSettings=TMGS_SimpleAverage,LossyCompressionAmount=TLCA_High)
 +TextureLODGroups=(Group=TEXTUREGROUP_WorldNormalMap,MinLODSize=1,MaxLODSize=8192,LODBias=0,MinMagFilter=aniso,MipFilter=point,MipGenSettings=TMGS_SimpleAverage,LossyCompressionAmount=TLCA_Low)

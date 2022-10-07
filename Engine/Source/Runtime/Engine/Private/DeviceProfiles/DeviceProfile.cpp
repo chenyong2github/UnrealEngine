@@ -90,9 +90,11 @@ UDeviceProfile* UDeviceProfile::GetParentProfile(bool bIncludeDefaultObject) con
 		{
 			ParentProfile = FindObject<UDeviceProfile>(GetTransientPackage(), *BaseProfileName);
 		}
-		if (!ParentProfile && bIncludeDefaultObject)
+		// don't find a parent for GlobalDefaults as it's the implied parent for everything (it would
+		// return itself which is bad)
+		if (!ParentProfile && bIncludeDefaultObject && GetName() != TEXT("GlobalDefaults"))
 		{
-			ParentProfile = CastChecked<UDeviceProfile>(UDeviceProfile::StaticClass()->GetDefaultObject());
+			ParentProfile = FindObject<UDeviceProfile>(GetTransientPackage(), TEXT("GlobalDefaults"));
 		}
 	}
 
