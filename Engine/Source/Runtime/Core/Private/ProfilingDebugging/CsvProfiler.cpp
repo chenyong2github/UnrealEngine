@@ -3169,6 +3169,9 @@ TSharedFuture<FString> FCsvProfiler::EndCapture(FGraphEventRef EventToSignal)
 
 	check(IsInGameThread());
 
+	// Fire before we copy the metadata so it gives other systems a chance to write any final information.
+	OnCSVProfileEndRequestedDelegate.Broadcast();
+
 	TPromise<FString>* Completion = new TPromise<FString>([EventToSignal]()
 	{
 		if (EventToSignal)

@@ -426,6 +426,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileFirstFrame);
 	FOnCSVProfileFirstFrame& OnCSVProfileFirstFrame() { return OnCSVProfileFirstFrameDelegate; }
 
+	/** Called when the capture is requested to end, allowing any final information to be written (eg. metadata). */
+	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEndRequested);
+	FOnCSVProfileEndRequested& OnCSVProfileEndRequested() { return OnCSVProfileEndRequestedDelegate; }
+
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEnd);
 	FOnCSVProfileEnd& OnCSVProfileEnd() { return OnCSVProfileEndDelegate; }
 	
@@ -483,6 +487,7 @@ private:
 
 	FOnCSVProfileStart OnCSVProfileStartDelegate;
 	FOnCSVProfileFirstFrame OnCSVProfileFirstFrameDelegate;
+	FOnCSVProfileEndRequested OnCSVProfileEndRequestedDelegate;
 	FOnCSVProfileEnd OnCSVProfileEndDelegate;
 	
 	FOnCSVProfileFinished OnCSVProfileFinishedDelegate;
