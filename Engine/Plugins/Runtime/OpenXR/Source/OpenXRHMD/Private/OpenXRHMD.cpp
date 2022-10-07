@@ -1856,6 +1856,9 @@ void FOpenXRHMD::DestroySession()
 	// FlushRenderingCommands must be called outside of SessionLock since some rendering threads will also lock this mutex.
 	FlushRenderingCommands();
 
+	// Clear all the tracked devices
+	ResetActionDevices();
+
 	FWriteScopeLock SessionLock(SessionHandleMutex);
 
 	if (Session != XR_NULL_HANDLE)
@@ -1962,6 +1965,16 @@ XrPath FOpenXRHMD::GetTrackedDevicePath(const int32 DeviceId)
 		return DeviceSpaces[DeviceId].Path;
 	}
 	return XR_NULL_PATH;
+}
+
+XrSpace FOpenXRHMD::GetTrackedDeviceSpace(const int32 DeviceId)
+{
+	FReadScopeLock DeviceLock(DeviceMutex);
+	if (DeviceSpaces.IsValidIndex(DeviceId))
+	{
+		return DeviceSpaces[DeviceId].Space;
+	}
+	return XR_NULL_HANDLE;
 }
 
 XrTime FOpenXRHMD::GetDisplayTime() const

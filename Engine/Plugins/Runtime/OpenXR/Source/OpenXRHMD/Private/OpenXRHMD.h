@@ -349,6 +349,7 @@ public:
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action, XrPath Path);
 	OPENXRHMD_API void ResetActionDevices();
 	OPENXRHMD_API XrPath GetTrackedDevicePath(const int32 DeviceId);
+	OPENXRHMD_API XrSpace GetTrackedDeviceSpace(const int32 DeviceId);
 
 	OPENXRHMD_API bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
