@@ -163,7 +163,7 @@ class UMaterialExpressionStrataLegacyConversion : public UMaterialExpressionStra
 	 * Shading models
 	 */
 	UPROPERTY()
-	FExpressionInput ShadingModel;
+	FShadingModelMaterialInput ShadingModel;
 	
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))

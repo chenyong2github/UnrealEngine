@@ -3281,10 +3281,9 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 					//check(EditorOnly->ShadingModelFromMaterialExpression.IsConnected());
 					if (!EditorOnly->ShadingModelFromMaterialExpression.IsConnected())
 					{
-						// Now setup the mean free path with a hard coded transmittance of 0.75 when viewing the surface perpendicularly
-						UMaterialExpressionConstant* DefaultShadingModel = NewObject<UMaterialExpressionConstant>(this);
-						DefaultShadingModel->R = 1; // Default Lit shading model
-						ConvertNode->ShadingModel.Connect(0, DefaultShadingModel);
+						UMaterialExpressionShadingModel* ShadingModelNode = NewObject<UMaterialExpressionShadingModel>(this);
+						ShadingModelNode->ShadingModel = MSM_DefaultLit;
+						ConvertNode->ShadingModel.Connect(0, ShadingModelNode);
 					}
 					else
 					{
@@ -3306,11 +3305,9 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 				else
 				{
 					check(!bHasShadingModelMixture);
-				
-					// Add constant for the shading model
-					UMaterialExpressionConstant* ShadingModelNode = NewObject<UMaterialExpressionConstant>(this);
-					ShadingModelNode->SetParameterName(FName(TEXT("ConstantShadingModel")));
-					ShadingModelNode->R = ShadingModel;
+
+					UMaterialExpressionShadingModel* ShadingModelNode = NewObject<UMaterialExpressionShadingModel>(this);
+					ShadingModelNode->ShadingModel = ShadingModel;
 					ConvertNode->ShadingModel.Connect(0, ShadingModelNode);
 
 					AddStrataShadingModelFromMaterialShadingModel(ConvertNode->ConvertedStrataMaterialInfo, ShadingModels);
@@ -3406,9 +3403,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(EditorOnly->Opacity, ConvertNode, 11);
 
 			// Add constant for the Unlit shading model
-			UMaterialExpressionConstant* ShadingModelNode = NewObject<UMaterialExpressionConstant>(this);
-			ShadingModelNode->SetParameterName(FName(TEXT("ConstantShadingModel")));
-			ShadingModelNode->R = ShadingModel;
+			UMaterialExpressionShadingModel* ShadingModelNode = NewObject<UMaterialExpressionShadingModel>(this);
+			ShadingModelNode->ShadingModel = ShadingModel;
 			ConvertNode->ShadingModel.Connect(0, ShadingModelNode);
 
 			AddStrataShadingModelFromMaterialShadingModel(ConvertNode->ConvertedStrataMaterialInfo, ShadingModels);
