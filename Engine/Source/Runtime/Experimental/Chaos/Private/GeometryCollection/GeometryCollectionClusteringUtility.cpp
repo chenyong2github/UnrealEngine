@@ -14,7 +14,7 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(FGeometryCol
 	check(GeometryCollection);
 
 	TManagedArray<int32>& Parents = GeometryCollection->Parent;
-	int32 ParentIdx = Parents[InsertAtIndex];
+	int32 ParentIdx = InsertAtIndex < Parents.Num() ? Parents[InsertAtIndex] : INDEX_NONE;
 	return ClusterBonesUnderNewNodeWithParent(GeometryCollection, ParentIdx, SelectedBones, CalcNewLocalTransform, Validate);
 }
 
