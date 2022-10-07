@@ -1632,13 +1632,12 @@ FVector FDisplayClusterLightCardEditorHelper::TraceScreenRay(const FVector& Orth
 		}
 		else
 		{
-			// If we didn't hit any stage geometry, try to trace against the normal map mesh. Procedural meshes does not appear to handle inward pointing normals correctly,
-			// so we need to reverse the trace start and end locations to get a useful hit result
+			// If we didn't hit any stage geometry, try to trace against the normal map mesh.
 
 			FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(DisplayClusterStageTrace), true);
 
 			FHitResult HitResult;
-			if (ensure(!bNormalMapInvalid) && NormalMapMeshComponent->LineTraceComponent(HitResult, RayEnd, RayStart, TraceParams))
+			if (ensure(!bNormalMapInvalid) && NormalMapMeshComponent->LineTraceComponent(HitResult, RayStart, RayEnd, TraceParams))
 			{
 				HitLocation = HitResult.Location;
 				Direction = (HitLocation - ViewOrigin).GetSafeNormal();
