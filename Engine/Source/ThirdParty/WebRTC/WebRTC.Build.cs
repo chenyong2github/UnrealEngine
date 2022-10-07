@@ -15,7 +15,7 @@ public class WebRTC : ModuleRules
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
 	}
 
-	private bool bWebRtcVersion96
+	private static bool bWebRtcVersion96
 	{
 		get
 		{
@@ -24,6 +24,14 @@ public class WebRTC : ModuleRules
 			// UE-161176: Temporarily disabled until we can determine why bitrate on FireFox is not starting high and not ramping up.
 			// Uncomment below to turn on M96.
 			// return Target.Platform == UnrealTargetPlatform.Win64;
+		}
+	}
+	public static string WebRtcVersionPath
+	{
+		get
+		{
+			return bWebRtcVersion96 ? Path.Join("WebRTC", "4664") :   // Branch head 4664 is Release 96
+									  Path.Join("WebRTC", "4147");    // Branch head 4147 is Release 84
 		}
 	}
 
@@ -47,9 +55,6 @@ public class WebRTC : ModuleRules
 
 		if (bShouldUseWebRTC)
 		{
-			string WebRtcVersionPath = bWebRtcVersion96 ? 
-				"WebRTC/4664" :   // Branch head 4664 is Release 96
-				"WebRTC/4147";    // Branch head 4147 is Release 84
 			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + WebRtcVersionPath;
 			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory;
 
