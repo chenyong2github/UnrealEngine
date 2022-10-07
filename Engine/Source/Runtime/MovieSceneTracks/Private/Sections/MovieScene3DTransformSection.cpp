@@ -1088,11 +1088,18 @@ void UMovieScene3DTransformSection::OnChannelOverridesChanged()
 	ChannelProxy = nullptr;
 }
 
-void UMovieScene3DTransformSectionConstraints::Serialize(FArchive& Ar)
+#if WITH_EDITOR
+
+void UMovieScene3DTransformSectionConstraints::PreEditUndo()
 {
-	Super::Serialize(Ar);
-	//if we are loading during an undo/redo set the cache to be empty
-	if (Ar.IsLoading() && Ar.IsTransacting())
+	Super::PreEditUndo();
+	PreEditUndoNumChannels = ConstraintsChannels.Num();
+}
+void UMovieScene3DTransformSectionConstraints::PostEditUndo()
+{
+	Super::PostEditUndo();
+	//if number of channels has changed tell parent section we have changed which will recreate the proxy
+	if (PreEditUndoNumChannels != ConstraintsChannels.Num())
 	{
 		if (UMovieScene3DTransformSection* Section = GetTypedOuter<UMovieScene3DTransformSection>())
 		{
@@ -1102,5 +1109,8 @@ void UMovieScene3DTransformSectionConstraints::Serialize(FArchive& Ar)
 			}
 		}
 	}
+	PreEditUndoNumChannels = ConstraintsChannels.Num();
 }
+
+#endif
 

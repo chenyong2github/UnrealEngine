@@ -198,12 +198,16 @@ class MOVIESCENETRACKS_API UMovieScene3DTransformSectionConstraints : public UOb
 
 public:
 
-	virtual void Serialize(FArchive& Ar) override;
-
 	/** Constraint Channels*/
 	UPROPERTY()
 	TArray<FConstraintAndActiveChannel> ConstraintsChannels;
 
+	/** When undo/redoing if we get a different number of channels we need to make sure our parent section recreates it's channel proxies*/
+#if WITH_EDITOR
+	int32 PreEditUndoNumChannels = -1;
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
+#endif
 };
 
 /**
