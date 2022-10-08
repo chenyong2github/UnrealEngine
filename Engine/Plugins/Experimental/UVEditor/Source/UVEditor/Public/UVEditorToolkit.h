@@ -50,6 +50,7 @@ public:
 	virtual FText GetToolkitToolTipText() const override;
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
 	virtual bool OnRequestClose() override;
+	virtual void OnClose() override;
 	virtual void SaveAsset_Execute() override;
 	virtual bool CanSaveAsset() const override;
 	virtual bool CanSaveAssetAs() const override;
