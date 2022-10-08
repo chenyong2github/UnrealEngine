@@ -19,5 +19,6 @@ public class Eigen : ModuleRules
 		PublicDefinitions.Add("EIGEN_HAS_CXX11_ATOMIC");
 		PublicDefinitions.Add("EIGEN_STRONG_INLINE=inline");
 		ShadowVariableWarningLevel = WarningLevel.Off;
+		bDisableStaticAnalysis = true;
 	}
 }
