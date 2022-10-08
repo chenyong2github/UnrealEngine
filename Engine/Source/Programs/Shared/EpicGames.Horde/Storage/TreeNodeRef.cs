@@ -49,7 +49,7 @@ namespace EpicGames.Horde.Storage
 					}
 					else
 					{
-						if (value != null && value.IncomingRef != null)
+						if (value.IncomingRef != null)
 						{
 							throw new ArgumentException("Target node may not be part of an existing tree.");
 						}
