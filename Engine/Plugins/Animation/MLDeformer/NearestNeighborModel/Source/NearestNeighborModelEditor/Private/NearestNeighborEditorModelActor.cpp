@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NearestNeighborEditorModelActor.h"
-#include "MLDeformerComponent.h"
+#include "NearestNeighborModelInstance.h"
 #include "GeometryCacheComponent.h"
 
 namespace UE::NearestNeighborModel
@@ -13,33 +13,22 @@ namespace UE::NearestNeighborModel
 	{
 	}
 
-	void FNearestNeighborEditorModelActor::InitNearestNeighborActor(const int32 InPartId)
+	void FNearestNeighborEditorModelActor::InitNearestNeighborActor(const int32 InPartId, const UMLDeformerComponent* InComponent)
 	{
 		PartId = InPartId;
+		MLDeformerComponent = InComponent;
 	}
 
 	void FNearestNeighborEditorModelActor::TickNearestNeighborActor()
 	{
-		const UNearestNeighborModelInstance* ModelInstance = GetModelInstance();
-		if (GeomCacheComponent && GeomCacheComponent->GetGeometryCache() && ModelInstance && PartId < ModelInstance->NeighborIdNum())
+		if (GeomCacheComponent && GeomCacheComponent->GetGeometryCache() && MLDeformerComponent)
 		{
-			GeomCacheComponent->SetManualTick(true);
-			GeomCacheComponent->TickAtThisTime(GeomCacheComponent->GetTimeAtFrame(ModelInstance->NearestNeighborId(PartId)), false, false, false);
-		}
-	}
-
-	UNearestNeighborModelInstance* FNearestNeighborEditorModelActor::GetModelInstance() const
-	{
-		UNearestNeighborModelInstance* ModelInstance = nullptr;
-		const AActor* MyActor = GetActor();
-		if (MyActor)
-		{
-			UMLDeformerComponent* Component = MyActor->FindComponentByClass<UMLDeformerComponent>();
-			if (Component)
+			const UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(MLDeformerComponent->GetModelInstance());
+			if (ModelInstance && PartId < ModelInstance->NeighborIdNum())
 			{
-				ModelInstance = static_cast<UNearestNeighborModelInstance*>(Component->GetModelInstance());
+				GeomCacheComponent->SetManualTick(true);
+				GeomCacheComponent->TickAtThisTime(GeomCacheComponent->GetTimeAtFrame(ModelInstance->NearestNeighborId(PartId)), false, false, false);
 			}
 		}
-		return ModelInstance;
 	}
 }	// namespace UE::NearestNeighborModel

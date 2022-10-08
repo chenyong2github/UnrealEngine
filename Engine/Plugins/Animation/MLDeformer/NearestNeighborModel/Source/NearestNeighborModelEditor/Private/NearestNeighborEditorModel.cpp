@@ -106,6 +106,18 @@ namespace UE::NearestNeighborModel
 			NearestNeighborActors.Reset();
 		}
 		NearestNeighborActors.SetNumZeroed(NumParts);
+
+		UMLDeformerComponent* MLDeformerComponent = nullptr;
+		FMLDeformerEditorActor* TestActor = FindEditorActor(ActorID_Test_MLDeformed);
+		if (TestActor)
+		{
+			AActor* Actor = TestActor->GetActor();
+			if (Actor)
+			{
+				MLDeformerComponent = Actor->FindComponentByClass<UMLDeformerComponent>();
+			}
+		}
+		
 		for(int32 PartId = StartIndex; PartId < NumParts; PartId++)
 		{
 			UGeometryCache* GeomCache = NearestNeighborModel->GetNearestNeighborCache(PartId);
@@ -122,7 +134,7 @@ namespace UE::NearestNeighborModel
 				false);
 			FNearestNeighborEditorModelActor* NearestNeighborActor = static_cast<FNearestNeighborEditorModelActor*>(EditorActors.Last());
 
-			NearestNeighborActor->InitNearestNeighborActor(PartId);
+			NearestNeighborActor->InitNearestNeighborActor(PartId, MLDeformerComponent);
 			NearestNeighborActor->SetMeshOffsetFactor(2.0f);
 			NearestNeighborActors[PartId] = NearestNeighborActor;
 		}
