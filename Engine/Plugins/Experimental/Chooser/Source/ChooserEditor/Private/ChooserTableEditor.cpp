@@ -552,7 +552,7 @@ void FChooserTableEditor::UpdateTableColumns()
 							UpdateTableRows();
 						}));
 						
-						Builder.AddWidget(Widget, LOCTEXT("", ""));
+						Builder.AddWidget(Widget, FText());
 					}));
 				
 				return MenuBuilder.MakeWidget();
