@@ -12,7 +12,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.EC2.Model;
 using EpicGames.Core;
 using Grpc.Core;
 using Horde.Agent.Execution.Interfaces;
@@ -641,7 +640,7 @@ namespace Horde.Agent.Execution
 
 		private async Task<bool> ExecuteWithTempStorageAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference sharedStorageDir, string arguments, ILogger logger, CancellationToken cancellationToken)
 		{
-			TempStorage storage = new TempStorage(workspaceDir, DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph"), sharedStorageDir, true);
+			TempStorage storage = new TempStorage(workspaceDir, DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph"), sharedStorageDir);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
 
 			// Create the mapping of tag names to file sets
@@ -679,7 +678,7 @@ namespace Horde.Agent.Execution
 				scope.Span.SetTag("blocks", inputStorageBlocks.Count);
 				foreach (TempStorageBlock inputStorageBlock in inputStorageBlocks)
 				{
-					TempStorageManifest manifest = storage.Retrieve(inputStorageBlock.NodeName, inputStorageBlock.OutputName, logger);
+					TempStorageManifest manifest = await storage.RetrieveAsync(inputStorageBlock.NodeName, inputStorageBlock.OutputName, logger, cancellationToken);
 					inputManifests[inputStorageBlock] = manifest;
 				}
 				scope.Span.SetTag("size", inputManifests.Sum(x => x.Value.GetTotalSize()));
@@ -816,7 +815,10 @@ namespace Horde.Agent.Execution
 					{
 						fileToStorageBlock.Add(file, outputBlock);
 					}
-					storage.Archive(step.Name, pair.Key, pair.Value.ToArray(), pair.Value.Any(x => referencedOutputFiles.Contains(x)), logger);
+					if (pair.Value.Any(x => referencedOutputFiles.Contains(x)))
+					{
+						await storage.ArchiveAsync(step.Name, pair.Key, pair.Value.ToArray(), logger, cancellationToken);
+					}
 				}
 
 				// Publish all the output tags
