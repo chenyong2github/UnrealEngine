@@ -88,16 +88,29 @@ namespace ModDestinationLayoutUtils
 		return FName();
 	}
 
-	bool IsParamMismatched(TSharedRef<IPropertyHandle> ModulatorHandle, TSharedRef<IPropertyHandle> StructPropertyHandle, FName* OutModParamName = nullptr, FName* OutDestParamName = nullptr, FName* OutModName = nullptr)
+	FName GetParameterClassFromMetaData(const TSharedRef<IPropertyHandle>& InHandle)
 	{
-		if (OutModParamName)
+		static const FName AudioParamClassFieldName("AudioParamClass");
+
+		if (InHandle->HasMetaData(AudioParamClassFieldName))
 		{
-			*OutModParamName = FName();
+			const FName Param = *(InHandle->GetMetaData(AudioParamClassFieldName));
+			return Param;
 		}
 
-		if (OutDestParamName)
+		return FName();
+	}
+
+	bool IsParamMismatched(TSharedRef<IPropertyHandle> ModulatorHandle, TSharedRef<IPropertyHandle> StructPropertyHandle, FName* OutModParamClassName = nullptr, FName* OutDestParamClassName = nullptr, FName* OutModName = nullptr)
+	{
+		if (OutModParamClassName)
 		{
-			*OutDestParamName = FName();
+			*OutModParamClassName = FName();
+		}
+
+		if (OutDestParamClassName)
+		{
+			*OutDestParamClassName = FName();
 		}
 
 		if (OutModName)
@@ -114,18 +127,18 @@ namespace ModDestinationLayoutUtils
 			return false;
 		}
 
-		const FName ModParamName = ModBase->GetOutputParameter().ParameterName;
-		const FName DestParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
-		if (ModParamName != FName() && DestParamName != FName() && ModParamName != DestParamName)
+		const FName ModParamClassName = ModBase->GetOutputParameter().ClassName;
+		const FName DestParamClassName = ModDestinationLayoutUtils::GetParameterClassFromMetaData(StructPropertyHandle);
+		if (!ModParamClassName.IsNone() && !DestParamClassName.IsNone() && ModParamClassName != DestParamClassName)
 		{
-			if (OutModParamName)
+			if (OutModParamClassName)
 			{
-				*OutModParamName = ModParamName;
+				*OutModParamClassName = ModParamClassName;
 			}
 
-			if (OutDestParamName)
+			if (OutDestParamClassName)
 			{
-				*OutDestParamName = DestParamName;
+				*OutDestParamClassName = DestParamClassName;
 			}
 
 			if (OutModName)
@@ -384,25 +397,25 @@ namespace ModDestinationLayoutUtils
 							uint32 NumElements = 0;
 							ModSet->GetNumElements(NumElements);
 
-							FText MismatchedText = FText::GetEmpty();
+							FString MismatchedText("");
 							for (int32 i = 0; i < (int32)NumElements; ++i)
 							{
 								TSharedRef<IPropertyHandle> SetMemberHandle = ModSet->GetElement(i);
-								FName ModParamName;
-								FName DestName;
+								FName ModParamClassName;
+								FName DestClassName;
 								FName ModName;
-								if (ModDestinationLayoutUtils::IsParamMismatched(SetMemberHandle, StructPropertyHandle, &ModParamName, &DestName, &ModName))
+								if (ModDestinationLayoutUtils::IsParamMismatched(SetMemberHandle, StructPropertyHandle, &ModParamClassName, &DestClassName, &ModName))
 								{
-									MismatchedText = FText::Format(
-										LOCTEXT("ModulationDestinationLayout_UnitMismatchesFormat", "{0}{1} ({2})\n"),
-										MismatchedText,
+									MismatchedText += FText::Format(
+										LOCTEXT("ModulationDestinationLayout_UnitMismatchesFormat", "{0} ({1}), Expected: {2}\n"),
 										FText::FromName(ModName),
-										FText::FromName(ModParamName)
-									);
+										FText::FromName(ModParamClassName),
+										FText::FromName(DestClassName)
+									).ToString();
 								}
 							}
 
-							return MismatchedText;
+							return FText::FromString(MismatchedText);
 						}))
 					]
 			]

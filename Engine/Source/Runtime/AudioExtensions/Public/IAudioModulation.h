@@ -73,6 +73,8 @@ namespace Audio
 
 #if WITH_EDITORONLY_DATA
 		FText UnitDisplayName;
+
+		FName ClassName;
 #endif // WITH_EDITORONLY_DATA
 
 		// Function used to mix normalized values together.

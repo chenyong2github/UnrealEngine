@@ -66,6 +66,7 @@ Audio::FModulationParameter USoundModulationParameter::CreateParameter() const
 
 #if WITH_EDITORONLY_DATA
 	Parameter.UnitDisplayName = Settings.UnitDisplayName;
+	Parameter.ClassName = GetClass()->GetFName();
 #endif // WITH_EDITORONLY_DATA
 
 	return Parameter;
