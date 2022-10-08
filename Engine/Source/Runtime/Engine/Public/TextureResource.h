@@ -236,6 +236,10 @@ public:
 	/** Returns the Texture2DRHI, which can be used for locking/unlocking the mips. */
 	ENGINE_API FTexture2DRHIRef GetTexture2DRHI();
 
+#if !UE_SERVER
+	ENGINE_API void WriteRawToTexture_RenderThread(TArrayView64<const uint8> RawData);
+#endif
+
 private:
 	/** The owner of this resource. */
 	class UTexture2DDynamic* Owner;

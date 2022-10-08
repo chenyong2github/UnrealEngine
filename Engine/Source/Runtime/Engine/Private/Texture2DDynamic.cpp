@@ -90,6 +90,36 @@ FTexture2DRHIRef FTexture2DDynamicResource::GetTexture2DRHI()
 	return Texture2DRHI;
 }
 
+#if !UE_SERVER
+void FTexture2DDynamicResource::WriteRawToTexture_RenderThread(TArrayView64<const uint8> RawData)
+{
+	check(IsInRenderingThread());
+
+	const int32 Width = Texture2DRHI->GetSizeX();
+	const int32 Height = Texture2DRHI->GetSizeY();
+
+	uint32 DestStride = 0;
+	uint8* DestData = reinterpret_cast<uint8*>(RHILockTexture2D(Texture2DRHI, 0, RLM_WriteOnly, DestStride, false, false));
+
+	for (int32 y = 0; y < Height; y++)
+	{
+		uint8* DestPtr = &DestData[((int64)Height - 1 - y) * DestStride];
+
+		const FColor* SrcPtr = &((FColor*)(RawData.GetData()))[((int64)Height - 1 - y) * Width];
+		for (int32 x = 0; x < Width; x++)
+		{
+			*DestPtr++ = SrcPtr->B;
+			*DestPtr++ = SrcPtr->G;
+			*DestPtr++ = SrcPtr->R;
+			*DestPtr++ = SrcPtr->A;
+			SrcPtr++;
+		}
+	}
+
+	RHIUnlockTexture2D(Texture2DRHI, 0, false, false);
+}
+
+#endif
 
 /*-----------------------------------------------------------------------------
 	UTexture2DDynamic
