@@ -108,6 +108,12 @@ namespace Horde.Build.Perforce
 			writer.WriteList(Paths, x => writer.WriteUtf8String(x));
 			writer.WriteRef(Contents);
 		}
+
+		/// <inheritdoc/>
+		public override IEnumerable<TreeNodeRef> EnumerateRefs()
+		{
+			yield return Contents;
+		}
 	}
 
 	/// <summary>

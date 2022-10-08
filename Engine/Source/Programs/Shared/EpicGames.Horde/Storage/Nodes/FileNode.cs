@@ -334,6 +334,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
+		public override IEnumerable<TreeNodeRef> EnumerateRefs() => Enumerable.Empty<TreeNodeRef>();
+
+		/// <inheritdoc/>
 		public override bool IsReadOnly() => _isReadOnly;
 
 		/// <inheritdoc/>
@@ -544,6 +547,9 @@ namespace EpicGames.Horde.Storage.Nodes
 			writer.WriteBoolean(_isReadOnly);
 			writer.WriteList(_children, x => writer.WriteRef(x));
 		}
+
+		/// <inheritdoc/>
+		public override IEnumerable<TreeNodeRef> EnumerateRefs() => _children;
 
 		/// <inheritdoc/>
 		public override async ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)

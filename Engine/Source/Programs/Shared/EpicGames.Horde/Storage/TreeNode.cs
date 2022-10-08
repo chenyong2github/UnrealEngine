@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using EpicGames.Core;
@@ -13,21 +15,15 @@ namespace EpicGames.Horde.Storage
 	public abstract class TreeNode
 	{
 		/// <summary>
-		/// Revision number for the node. Incremented whenever the node is modified; used to detect changes between a serialized ref and live instance.
+		/// The ref which points to this node
 		/// </summary>
-		int _revision;
-
-		/// <summary>
-		/// Revision number for this node. Incremented Whether the node is dirty or not
-		/// </summary>
-		public int Revision => _revision;
+		public TreeNodeRef? IncomingRef { get; internal set; }
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
 		protected TreeNode()
 		{
-			_revision = 1;
 		}
 
 		/// <summary>
@@ -44,7 +40,10 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		protected void MarkAsDirty()
 		{
-			_revision++;
+			if (IncomingRef != null)
+			{
+				IncomingRef.MarkAsDirty();
+			}
 		}
 
 		/// <summary>
@@ -52,6 +51,12 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <returns>Data for the node</returns>
 		public abstract void Serialize(ITreeNodeWriter writer);
+
+		/// <summary>
+		/// Enumerate all outward references from this node
+		/// </summary>
+		/// <returns>References to other nodes</returns>
+		public abstract IEnumerable<TreeNodeRef> EnumerateRefs();
 
 		/// <summary>
 		/// Static instance of the serializer for a particular <see cref="TreeNode"/> type.
@@ -80,7 +85,16 @@ namespace EpicGames.Horde.Storage
 		/// <typeparam name="T"></typeparam>
 		/// <param name="reader">Reader to deserialize data from</param>
 		/// <returns></returns>
-		public static T Deserialize<T>(ITreeNodeReader reader) where T : TreeNode => SerializerInstance<T>.Serializer.Deserialize(reader);
+		public static T Deserialize<T>(ITreeNodeReader reader) where T : TreeNode
+		{
+			T node = SerializerInstance<T>.Serializer.Deserialize(reader);
+			foreach (TreeNodeRef nodeRef in node.EnumerateRefs())
+			{
+				Debug.Assert(nodeRef._owner == null);
+				nodeRef._owner = node;
+			}
+			return node;
+		}
 	}
 
 	/// <summary>
@@ -91,7 +105,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reads a reference to another node
 		/// </summary>
-		void ReadRef(TreeNodeRef target);
+		TreeNodeRefData ReadRef();
 	}
 
 	/// <summary>

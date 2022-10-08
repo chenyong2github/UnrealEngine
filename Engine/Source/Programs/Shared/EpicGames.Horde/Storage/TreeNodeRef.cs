@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -12,6 +13,11 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public class TreeNodeRef
 	{
+		/// <summary>
+		/// Node that owns this ref
+		/// </summary>
+		internal TreeNode? _owner;
+
 		/// <summary>
 		/// Store containing the node data. May be null for nodes in memory.
 		/// </summary>
@@ -28,23 +34,45 @@ namespace EpicGames.Horde.Storage
 		public NodeLocator Locator { get; private set; }
 
 		/// <summary>
-		/// Revision number of the target node
-		/// </summary>
-		private int _revision;
-
-		/// <summary>
-		/// The target node in memory
-		/// </summary>
-		private TreeNode? _target;
-
-		/// <summary>
 		/// The target node, or null if the node is not resident in memory.
 		/// </summary>
 		public TreeNode? Target
 		{
 			get => _target;
-			set => MarkAsDirty(value);
+			set
+			{
+				if (value != _target)
+				{
+					if (value == null)
+					{
+						_target = value;
+					}
+					else
+					{
+						if (value != null && value.IncomingRef != null)
+						{
+							throw new ArgumentException("Target node may not be part of an existing tree.");
+						}
+						if (_target != null)
+						{
+							_target.IncomingRef = null;
+						}
+						_target = value;
+						MarkAsDirty();
+					}
+				}
+			}
 		}
+
+		/// <summary>
+		/// Node pointed to by this ref
+		/// </summary>
+		private TreeNode? _target;
+
+		/// <summary>
+		/// Whether this ref is dirty
+		/// </summary>
+		private bool _dirty;
 
 		/// <summary>
 		/// Creates a reference to a node in memory.
@@ -52,20 +80,28 @@ namespace EpicGames.Horde.Storage
 		/// <param name="target">Node to reference</param>
 		protected internal TreeNodeRef(TreeNode target)
 		{
+			Debug.Assert(target != null);
 			Target = target;
+			_dirty = true;
 		}
 
 		/// <summary>
 		/// Creates a reference to a node with the given hash
 		/// </summary>
-		/// <param name="store">Storage client containing the data</param>
+		/// <param name="owner">Node which owns the ref</param>
+		/// <param name="store">Store to fetch this node from</param>
 		/// <param name="hash">Hash of the referenced node</param>
 		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(IStorageClient store, IoHash hash, NodeLocator locator)
+		internal TreeNodeRef(TreeNode owner, IStorageClient store, IoHash hash, NodeLocator locator)
 		{
+			Debug.Assert(store != null);
+			_owner = owner;
+
 			Store = store;
 			Hash = hash;
 			Locator = locator;
+
+			_dirty = false;
 		}
 
 		/// <summary>
@@ -74,37 +110,40 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader"></param>
 		public TreeNodeRef(ITreeNodeReader reader)
 		{
-			reader.ReadRef(this);
+			TreeNodeRefData data = reader.ReadRef();
+			Store = data.Store;
+			Hash = data.Hash;
+			Locator = data.Locator;
+
+			_dirty = false;
+			Debug.Assert(Hash != IoHash.Zero);
 		}
 
 		/// <summary>
 		/// Determines whether the the referenced node has modified from the last version written to storage
 		/// </summary>
 		/// <returns></returns>
-		public bool IsDirty() => _target != null && _revision != _target.Revision;
+		public bool IsDirty() => _dirty;
 
 		/// <summary>
 		/// Update the reference to refer to a node in memory.
 		/// </summary>
-		/// <param name="target">The target node</param>
-		public void MarkAsDirty(TreeNode? target)
+		public void MarkAsDirty()
 		{
-			if (target == null)
+			Debug.Assert(Target != null);
+
+			Store = null;
+			Hash = default;
+			Locator = default;
+
+			if (!_dirty)
 			{
-				if (!Locator.IsValid())
+				_dirty = true;
+				if (_owner != null && _owner.IncomingRef != null)
 				{
-					throw new InvalidOperationException("Node has not been serialized to disk; cannot clear target reference.");
+					_owner.IncomingRef.MarkAsDirty();
 				}
 			}
-			else
-			{
-				Store = null;
-				Hash = default;
-				Locator = default;
-				_revision = 0;
-			}
-
-			_target = target;
 		}
 
 		/// <summary>
@@ -113,19 +152,14 @@ namespace EpicGames.Horde.Storage
 		/// <param name="store">The storage client</param>
 		/// <param name="hash">Hash of the node</param>
 		/// <param name="locator">Location of the node</param>
-		/// <param name="revision">Revision number for the node</param>
-		public bool MarkAsClean(IStorageClient store, IoHash hash, NodeLocator locator, int revision)
+		internal void MarkAsWritten(IStorageClient store, IoHash hash, NodeLocator locator)
 		{
-			bool result = false;
-			if (_target == null || _target.Revision == revision)
+			if (hash == Hash)
 			{
 				Store = store;
-				Hash = hash;
 				Locator = locator;
-				_revision = revision;
-				result = true;
+				_dirty = false;
 			}
-			return result;
 		}
 
 		/// <summary>
@@ -133,10 +167,10 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="hash">Hash of the node</param>
 		/// <returns></returns>
-		public void MarkAsPendingWrite(IoHash hash)
+		internal void MarkAsPendingWrite(IoHash hash)
 		{
 			Hash = hash;
-			_revision = Target!.Revision;
+			_dirty = false;
 		}
 
 		/// <summary>
@@ -172,11 +206,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="owner">Node which owns the ref</param>
 		/// <param name="store">Storage client containing the node data</param>
 		/// <param name="hash">Hash of the referenced node</param>
 		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(IStorageClient store, IoHash hash, NodeLocator locator) 
-			: base(store, hash, locator)
+		internal TreeNodeRef(TreeNode owner, IStorageClient store, IoHash hash, NodeLocator locator) 
+			: base(owner, store, hash, locator)
 		{
 		}
 
@@ -196,13 +231,27 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public async ValueTask<T> ExpandAsync(CancellationToken cancellationToken = default)
 		{
-			T? result = Target;
-			if (result == null)
+			if (base.Target == null)
 			{
-				Target = await Store!.ReadNodeAsync<T>(Locator, cancellationToken);
-				result = Target;
+				base.Target = await Store!.ReadNodeAsync<T>(Locator, cancellationToken);
+				Target!.IncomingRef = this;
 			}
-			return result;
+			return Target!;
+		}
+
+		/// <summary>
+		/// Resolve this reference to a concrete node
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public async ValueTask<T> ExpandCopyAsync(CancellationToken cancellationToken = default)
+		{
+			return await Store!.ReadNodeAsync<T>(Locator, cancellationToken);
 		}
 	}
+
+	/// <summary>
+	/// Deserialized ref data
+	/// </summary>
+	public record struct TreeNodeRefData(IStorageClient Store, IoHash Hash, NodeLocator Locator);
 }

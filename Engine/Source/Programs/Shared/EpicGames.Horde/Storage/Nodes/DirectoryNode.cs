@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
@@ -149,6 +150,29 @@ namespace EpicGames.Horde.Storage.Nodes
 			Target = await node.AppendAsync(stream, options, writer, cancellationToken);
 		}
 
+		/// <summary>
+		/// Copies the contents of this node and its children to the given output stream
+		/// </summary>
+		/// <param name="outputStream">The output stream to receive the data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
+		{
+			FileNode node = await ExpandAsync(cancellationToken);
+			await node.CopyToStreamAsync(outputStream, cancellationToken);
+		}
+
+		/// <summary>
+		/// Extracts the contents of this node to a file
+		/// </summary>
+		/// <param name="file">File to write with the contents of this node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public async Task CopyToFileAsync(FileInfo file, CancellationToken cancellationToken)
+		{
+			FileNode node = await ExpandAsync(cancellationToken);
+			await node.CopyToFileAsync(file, cancellationToken);
+		}
+
 		/// <inheritdoc/>
 		public override string ToString() => Name.ToString();
 	}
@@ -172,6 +196,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Cached value for the length of this tree
 		/// </summary>
 		readonly long _cachedLength;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public DirectoryEntry(Utf8String name)
+			: this(name, new DirectoryNode())
+		{
+		}
 
 		/// <summary>
 		/// Constructor
@@ -233,7 +265,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Total size of this directory
 		/// </summary>
-		public long Length => Files.Sum(x => x.Length) + Directories.Sum(x => x.Length);
+		public long Length => _nameToFileEntry.Values.Sum(x => x.Length) + _nameToDirectoryEntry.Values.Sum(x => x.Length);
 
 		/// <summary>
 		/// Flags for this directory 
@@ -246,9 +278,19 @@ namespace EpicGames.Horde.Storage.Nodes
 		public IReadOnlyCollection<FileEntry> Files => _nameToFileEntry.Values;
 
 		/// <summary>
+		/// Map of name to file entry
+		/// </summary>
+		public IReadOnlyDictionary<Utf8String, FileEntry> NameToFile => _nameToFileEntry;
+
+		/// <summary>
 		/// All the subdirectories within this directory
 		/// </summary>
 		public IReadOnlyCollection<DirectoryEntry> Directories => _nameToDirectoryEntry.Values;
+
+		/// <summary>
+		/// Map of name to file entry
+		/// </summary>
+		public IReadOnlyDictionary<Utf8String, DirectoryEntry> NameToDirectory => _nameToDirectoryEntry;
 
 		/// <summary>
 		/// Constructor
@@ -299,15 +341,28 @@ namespace EpicGames.Horde.Storage.Nodes
 			writer.WriteUnsignedVarInt((ulong)Flags);
 
 			writer.WriteUnsignedVarInt(Files.Count);
-			foreach (FileEntry fileEntry in Files)
+			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
 			{
 				fileEntry.Serialize(writer);
 			}
 
 			writer.WriteUnsignedVarInt(Directories.Count);
-			foreach (DirectoryEntry directoryEntry in Directories)
+			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
 			{
 				directoryEntry.Serialize(writer);
+			}
+		}
+
+		/// <inheritdoc/>
+		public override IEnumerable<TreeNodeRef> EnumerateRefs()
+		{
+			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
+			{
+				yield return fileEntry;
+			}
+			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
+			{
+				yield return directoryEntry;
 			}
 		}
 
@@ -336,12 +391,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="entry">The entry to add</param>
 		public void AddFile(FileEntry entry)
 		{
-			if (TryGetDirectoryEntry(entry.Name, out _))
-			{
-				throw new ArgumentException($"A directory with the name {entry.Name} already exists");
-			}
-
-			_nameToFileEntry.Add(entry.Name, entry);
+			_nameToFileEntry[entry.Name] = entry;
 			MarkAsDirty();
 		}
 
@@ -513,6 +563,23 @@ namespace EpicGames.Horde.Storage.Nodes
 		public bool TryGetDirectoryEntry(Utf8String name, [NotNullWhen(true)] out DirectoryEntry? entry) => _nameToDirectoryEntry.TryGetValue(name, out entry);
 
 		/// <summary>
+		/// Attempts to get a directory entry with the given name, and adds one if it does not already exist.
+		/// </summary>
+		/// <param name="name">Name of the directory</param>
+		/// <returns>Directory entry with the given name</returns>
+		public DirectoryEntry FindOrAddDirectoryEntry(Utf8String name)
+		{
+			DirectoryEntry? entry;
+			if (!_nameToDirectoryEntry.TryGetValue(name, out entry))
+			{
+				entry = new DirectoryEntry(name);
+				_nameToDirectoryEntry.Add(name, entry);
+				MarkAsDirty();
+			}
+			return entry;
+		}
+
+		/// <summary>
 		/// Tries to get a directory with the given name
 		/// </summary>
 		/// <param name="name">Name of the new directory</param>
@@ -573,12 +640,24 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns></returns>
 		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
 		{
-			const int MaxWriters = 32;
-			const long MinSizePerWriter = 1024 * 1024;
-
 			// Enumerate all the files below this directory
 			List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files = new List<(DirectoryNode, FileInfo)>();
 			FindFilesToCopy(directoryInfo, files);
+			await CopyFromDirectoryAsync(files, options, writer, cancellationToken);
+		}
+
+		/// <summary>
+		/// Adds files from a directory on disk
+		/// </summary>
+		/// <param name="files"></param>
+		/// <param name="options">Options for chunking file content</param>
+		/// <param name="writer">Writer for new node data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public static async Task CopyFromDirectoryAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		{
+			const int MaxWriters = 32;
+			const long MinSizePerWriter = 1024 * 1024;
 
 			// Compute the total size
 			long totalSize = files.Sum(x => x.Item2.Length);
@@ -659,13 +738,13 @@ namespace EpicGames.Horde.Storage.Nodes
 			directoryInfo.Create();
 
 			List<Task> tasks = new List<Task>();
-			foreach (FileEntry fileEntry in Files)
+			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
 			{
 				FileInfo fileInfo = new FileInfo(Path.Combine(directoryInfo.FullName, fileEntry.Name.ToString()));
 				FileNode fileNode = await fileEntry.ExpandAsync(cancellationToken);
 				tasks.Add(Task.Run(() => fileNode.CopyToFileAsync(fileInfo, cancellationToken), cancellationToken));
 			}
-			foreach (DirectoryEntry directoryEntry in Directories)
+			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
 			{
 				DirectoryInfo subDirectoryInfo = directoryInfo.CreateSubdirectory(directoryEntry.Name.ToString());
 				DirectoryNode subDirectoryNode = await directoryEntry.ExpandAsync(cancellationToken);

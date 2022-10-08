@@ -68,6 +68,8 @@ namespace EpicGames.Horde.Tests
 				writer.WriteVariableLengthBytes(Data);
 				writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
 			}
+
+			public override IEnumerable<TreeNodeRef> EnumerateRefs() => Refs;
 		}
 
 		static async Task TestTreeAsync(MemoryStorageClient store, TreeOptions options)
