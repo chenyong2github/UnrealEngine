@@ -78,6 +78,8 @@ namespace UE::ChooserEditor
 		};
 
 		void UpdateTableRows();
+		void SelectColumn(int Index);
+		void DeleteColumn(int Index);
 	private:
 
 		FReply SelectRootProperties();
@@ -117,10 +119,7 @@ namespace UE::ChooserEditor
 		TSharedPtr<SHeaderRow> HeaderRow;
 		TSharedPtr<SListView<TSharedPtr<FChooserTableRow>>> TableView;
 
-		TArray<TSharedPtr<SEditableText>> ColumnText;
-
 		FName SelectedColumn;
-		bool EditColumnName = false;
 	public:
 
 		static TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Column, int Row)>> ColumnWidgetCreators;

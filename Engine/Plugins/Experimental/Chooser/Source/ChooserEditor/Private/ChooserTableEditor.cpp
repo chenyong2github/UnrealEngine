@@ -10,7 +10,6 @@
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboButton.h"
@@ -21,14 +20,15 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "ClassViewerFilter.h"
-#include "IDetailGroup.h"
-#include "SAssetDropTarget.h"
+#include "IPropertyAccessEditor.h"
+#include "LandscapeRender.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "ObjectChooser_Asset.h"
 #include "ObjectChooserClassFilter.h"
 #include "ObjectChooserWidgetFactories.h"
-
+#include "EdGraphSchema_K2.h"
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditor"
 
@@ -54,25 +54,6 @@ void ConvertObjectToText(UObject* Object, FText& OutText)
 	}
 }
 
-// Filter class for things which implement IChooserColumn
-class FInterfaceClassFilter : public IClassViewerFilter
-{
-public:
-	FInterfaceClassFilter(UClass* InInterfaceType) : InterfaceType(InInterfaceType)  { };
-	virtual ~FInterfaceClassFilter() override {};
-	
-	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< class FClassViewerFilterFuncs > InFilterFuncs ) override
-	{
-		return (InClass->ImplementsInterface(InterfaceType) && InClass->HasAnyClassFlags(CLASS_Abstract) == false);
-	}
-
-	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const class IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< class FClassViewerFilterFuncs > InFilterFuncs) override
-	{
-		return false;
-	}
-private:
-	UClass* InterfaceType;
-};
 
 void FChooserTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -401,12 +382,12 @@ public:
 			else if (ColumnName == Result) 
 			{
 				UObject* RowValue = Chooser->Results[RowIndex->RowIndex].GetObject();
-				TSharedPtr<SWidget> ResultWidget = FObjectChooserWidgetFactories::CreateWidget("", RowValue,
+				TSharedPtr<SWidget> ResultWidget = FObjectChooserWidgetFactories::CreateWidget(UObjectChooser::StaticClass(), RowValue,Chooser->ContextObjectType,
 				FOnClassPicked::CreateLambda([this, RowIndex=RowIndex->RowIndex](UClass* ChosenClass)
 				{
 					UObject* RowValue = NewObject<UObject>(Chooser, ChosenClass);
 					Chooser->Results[RowIndex] = RowValue;
-					FObjectChooserWidgetFactories::CreateWidget("", RowValue, FOnClassPicked(), &CacheBorder);
+					FObjectChooserWidgetFactories::CreateWidget(UObjectChooser::StaticClass(), RowValue, Chooser->ContextObjectType, FOnClassPicked(), &CacheBorder);
 				}),
 				&CacheBorder
 				);
@@ -448,7 +429,7 @@ public:
 				CreateRowComboButton->SetOnGetMenuContent(FOnGetContent::CreateLambda([this, CreateRowComboButton]()
 					{
 						FClassViewerInitializationOptions Options;
-						Options.ClassFilters.Add(MakeShared<FObjectChooserClassFilter>("", nullptr));
+						Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(UObjectChooser::StaticClass()) );
 						
 						// Add class filter for columns here
 						TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options,
@@ -456,7 +437,7 @@ public:
 							{
 								CreateRowComboButton->SetIsOpen(false);
 								UObject* ResultObject = NewObject<UObject>(Chooser, ChosenClass);
-								Chooser->Results.Add(ResultObject);
+								Chooser->Results.Add({ResultObject});
 								Editor->UpdateTableRows();
 							}));
 						return Widget;
@@ -511,9 +492,7 @@ void FChooserTableEditor::UpdateTableColumns()
 	
 	HeaderRow->AddColumn(SHeaderRow::Column("Result")
 					.DefaultLabel(LOCTEXT("ResultColumnName", "Result"))
-					.ManualWidth(200));
-
-	ColumnText.SetNum(0);
+					.ManualWidth(300));
 
 	FName ColumnId("ChooserColumn", 1);
 	int NumColumns = Chooser->Columns.Num();	
@@ -521,33 +500,63 @@ void FChooserTableEditor::UpdateTableColumns()
 	{
 		TScriptInterface<IChooserColumn>& Column = Chooser->Columns[ColumnIndex];
 
-		ColumnText.Push(
-			SNew(SEditableText)
-					.Text_Lambda([&Column](){ return FText::FromName(Column->GetDisplayName()); })
-					.OnTextCommitted_Lambda([this, &Column](const FText& Text, ETextCommit::Type CommitType)
-					{
-						Column->SetDisplayName(ToCStr(Text.ToString()));
-						EditColumnName = false;
-					} )
-		);
-
 		HeaderRow->AddColumn(SHeaderRow::FColumn::FArguments()
 			.ColumnId(ColumnId)
 			.ManualWidth(200)
-			.OnGetMenuContent_Lambda([this, ColumnIndex]()
+			.OnGetMenuContent_Lambda([this, &Column, Chooser, ColumnIndex, ColumnId]()
 			{
+				UChooserColumnMenuContext* MenuContext = NewObject<UChooserColumnMenuContext>();
+				MenuContext->Editor = this;
+                MenuContext->Chooser = Chooser;
+                MenuContext->ColumnIndex = ColumnIndex;
+
 				FMenuBuilder MenuBuilder(true,nullptr);
-				MenuBuilder.AddMenuEntry(LOCTEXT("Delete Column","Delete Column"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
+
+				MenuBuilder.AddMenuEntry(LOCTEXT("Column Properties","Properties"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([this,ColumnIndex]()
+						FExecuteAction::CreateLambda([this,ColumnIndex, ColumnId, &Column]()
+						{
+							UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
+							DetailsView->SetObject(Chooser->Columns[ColumnIndex].GetObject());
+							SelectedColumn = ColumnId;
+						})
+						)
+					);
+
+				MenuBuilder.AddMenuEntry(LOCTEXT("Delete Column","Delete"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this,ColumnIndex, &Column]()
 						{
 							UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
 							Chooser->Columns.RemoveAt(ColumnIndex);
 							UpdateTableColumns();
 						})
-						)
-					);
+						));
+				
+					FClassViewerInitializationOptions Options;
+					Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(Column->GetInputValueInterface()));
+
+				MenuBuilder.AddSubMenu(LOCTEXT("Input Type", "Input Type"),
+					LOCTEXT("InputTypeToolTip", "Change input parameter type"),
+					FNewMenuDelegate::CreateLambda([this, &Column](FMenuBuilder& Builder)
+					{
+						FClassViewerInitializationOptions Options;
+						Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(Column->GetInputValueInterface()));
+						
+						// Add class filter for columns here
+						TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateLambda([this, &Column](UClass* ChosenClass)
+						{
+							UObject* Value = NewObject<UObject>(Column.GetObject(), ChosenClass);
+							Column->SetInputValue(Value);
+							UpdateTableColumns();
+							UpdateTableRows();
+						}));
+						
+						Builder.AddWidget(Widget, LOCTEXT("", ""));
+					}));
+				
 				return MenuBuilder.MakeWidget();
+				
 			})
 			.HeaderContent()
 			[
@@ -566,20 +575,8 @@ void FChooserTableEditor::UpdateTableColumns()
 					
 					if (PointerEvent.GetEffectingButton() == EKeys::LeftMouseButton )
 					{
-						// on second click, enable editing, and select all text
-						bool ShouldEditColumn = (SelectedColumn == ColumnId);
-						if (ShouldEditColumn && !EditColumnName)
-						{
-							EditColumnName = ShouldEditColumn;
-							FSlateApplication::Get().SetKeyboardFocus(ColumnText[ColumnIndex]);  // This doesn't work, because it can't find the path to the widget? because it's not active yet
-							ColumnText[ColumnIndex]->SelectAllText();
-						}
-						EditColumnName = ShouldEditColumn;
-						
 						DetailsView->SetObject(Chooser->Columns[ColumnIndex].GetObject());
-						
 						SelectedColumn = ColumnId;
-						
 						return FReply::Handled();
 					}
 					else 
@@ -590,18 +587,7 @@ void FChooserTableEditor::UpdateTableColumns()
 					}
 				})
 				[
-					SNew(SWidgetSwitcher).WidgetIndex_Lambda([this, ColumnId]()
-					{
-						return EditColumnName && SelectedColumn == ColumnId ? 1 : 0;
-					})
-					+ SWidgetSwitcher::Slot()
-					[
-						SNew(STextBlock).Text_Lambda([&Column](){ return FText::FromName(Column->GetDisplayName()); })
-					]
-					+ SWidgetSwitcher::Slot()
-					[
-						ColumnText[ColumnIndex].ToSharedRef()
-					]
+					FObjectChooserWidgetFactories::CreateWidget(Chooser->Columns[ColumnIndex]->GetInputValue(), Chooser->ContextObjectType).ToSharedRef()
 				]
 				
 			]);
@@ -644,17 +630,13 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 			UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
 			UObject* ColumnObject = NewObject<UObject>(Chooser, ChosenClass);
 			TScriptInterface<IChooserColumn> Column;
-			Column.SetObject(ColumnObject);
-			Column.SetInterface(CastChecked<IChooserColumn>(ColumnObject));
+			Column = ColumnObject;
 			Chooser->Columns.Add(TScriptInterface<IChooserColumn>(Column));
 			UpdateTableColumns();
 			UpdateTableRows();
 			SelectedColumn = "ChooserColumn";
-			SelectedColumn.SetNumber(ColumnText.Num());
+			SelectedColumn.SetNumber(Chooser->Columns.Num());
 			DetailsView->SetObject(ColumnObject);
-			EditColumnName = true;
-			FSlateApplication::Get().SetKeyboardFocus(ColumnText[ColumnText.Num() - 1]);
-			ColumnText[ColumnText.Num() - 1]->SelectAllText();
 		}));
 		return Widget;
 	})
@@ -882,68 +864,54 @@ void FChooserTableEditor::PostRegenerateMenusAndToolbars()
 	}
 }
 
+	
+void FChooserTableEditor::SelectColumn(int Index)
+{
+	UChooserTable* Chooser = GetChooser();
+	if (Index < Chooser->Columns.Num())
+	{
+		SelectedColumn = "Column";
+		SelectedColumn.SetNumber(Index);
+		DetailsView->SetObject(Chooser->Columns[Index].GetObject());
+	}
+}
+	
+void FChooserTableEditor::DeleteColumn(int Index)
+{
+	UChooserTable* Chooser = GetChooser();
+	if (Index < Chooser->Columns.Num())
+	{
+		Chooser->Columns.RemoveAt(Index);
+		UpdateTableColumns();
+	}
+}
+
 /// Result widgets
 
 TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Column, int Row)>> FChooserTableEditor::ColumnWidgetCreators;
 
-TSharedRef<SWidget> CreateAssetWidget(UObject* Object)
+TSharedRef<SWidget> CreateAssetWidget(UObject* Object, UClass* ContextClass)
 {
 	UObjectChooser_Asset* DIAsset = Cast<UObjectChooser_Asset>(Object);
 
 	UObject* Asset = DIAsset->Asset;
+
+	UChooserTable* Chooser = Object->GetTypedOuter<UChooserTable>();
 	
-	return
-	SNew(SAssetDropTarget)
-	.OnAssetsDropped_Lambda([DIAsset](const FDragDropEvent& Event, TArrayView<FAssetData> AssetData)
-	{
-		if (AssetData.Num() > 0)
-		{
-			DIAsset->Asset = AssetData[0].GetAsset();
-		}
-	})
-	.Content()
-	[
-		SNew (STextBlock).Text_Lambda([DIAsset]()
-		{
-			if (DIAsset->Asset == nullptr)
-			{
-				return LOCTEXT("NoAsset", "[No Asset]");
-			}
-			else
-			{
-				return FText::FromString(DIAsset->Asset->GetName());
-			}
-		})
-	];
+	return SNew(SObjectPropertyEntryBox)
+		.AllowedClass(Chooser->OutputObjectType!=nullptr ? Chooser->OutputObjectType.Get() : UObject::StaticClass())
+		.ObjectPath_Lambda([DIAsset](){ return DIAsset->Asset ? DIAsset->Asset.GetPath() : "";})
+		.OnObjectChanged_Lambda([DIAsset](const FAssetData& AssetData){ DIAsset->Asset = AssetData.GetAsset(); });
 }
 
-TSharedRef<SWidget> CreateEvaluateChooserWidget(UObject* Object)
+TSharedRef<SWidget> CreateEvaluateChooserWidget(UObject* Object, UClass* ContextObject)
 {
 	UObjectChooser_EvaluateChooser* EvaluateChooser = Cast<UObjectChooser_EvaluateChooser>(Object);
-
-	return
-	SNew(SAssetDropTarget)
-	.OnAssetsDropped_Lambda([EvaluateChooser](const FDragDropEvent& Event, TArrayView<FAssetData> AssetData)
-	{
-		if (AssetData.Num() > 0)
-		{
-			EvaluateChooser->Chooser = Cast<UChooserTable>(AssetData[0].GetAsset());
-		}
-	})
-	.Content()
-	[
-		SNew (STextBlock).Text_Lambda([EvaluateChooser]()
-		{
-			if (EvaluateChooser->Chooser == nullptr)
-			{
-				return LOCTEXT("NoChooser", "[No Chooser]");
-			}
-			else
-			{
-				return FText::FromString(EvaluateChooser->Chooser->GetName());
-			}
-		})
-	];
+	
+	return SNew(SObjectPropertyEntryBox)
+		.AllowedClass(UChooserTable::StaticClass())
+		.ObjectPath_Lambda([EvaluateChooser](){ return EvaluateChooser->Chooser ? EvaluateChooser->Chooser.GetPath() : "";})
+		.OnObjectChanged_Lambda([EvaluateChooser](const FAssetData& AssetData){ EvaluateChooser->Chooser = Cast<UChooserTable>(AssetData.GetAsset()); });
 }
 
 void ConvertToText_Asset(const UObject* Object, FText& OutText)
@@ -972,7 +940,7 @@ void ConvertToText_EvaluateChooser(const UObject* Object, FText& OutText)
 	}
 }
 
-TSharedRef<SWidget> CreateObjectWidget(UObject* Object)
+TSharedRef<SWidget> CreateObjectWidget(UObject* Object, UClass* ContextClass)
 {
 	FText ObjectText = FText::FromString(Object->GetName());
 	ConvertObjectToText(Object, ObjectText);
@@ -997,6 +965,89 @@ TSharedRef<SWidget> CreateBoolColumnWidget(UObject* Column, int Row)
 		const bool value = (Row < BoolColumn->RowValues.Num()) ? BoolColumn->RowValues[Row] : false;
 		return value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	});
+}
+	
+template <typename PropertyType>
+void ConvertToText_ContextProperty(const UObject* Object, FText& OutText)
+{
+	if (const PropertyType* ContextProperty = Cast<PropertyType>(Object))
+	{
+		OutText = FText::FromName(ContextProperty->PropertyName);
+	}
+}
+
+template <typename PropertyType>
+TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
+{
+	TWeakObjectPtr<PropertyType> ContextProperty = Cast<PropertyType>(Object);
+
+	FPropertyBindingWidgetArgs Args;
+	Args.bAllowPropertyBindings = true;
+	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([](FProperty* Property)
+	{
+		return Property == nullptr || Property->GetCPPType() == PropertyType::CPPTypeName();
+	});
+	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([ContextClass ](UClass* InClass)
+	{
+		return ContextClass->IsChildOf(InClass);
+	});
+	
+	Args.CurrentBindingColor = MakeAttributeLambda([ContextProperty, ContextClass]() {
+		if (ContextProperty.IsValid())
+		{
+			if (const FProperty* Property = FindFProperty<FProperty>(ContextClass, ContextProperty->PropertyName))
+			{
+				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+				FEdGraphPinType VariablePinType;
+				Schema->ConvertPropertyToPinType(Property, VariablePinType);
+				return Schema->GetPinTypeColor(VariablePinType);
+			}
+		}
+		return FLinearColor::Gray;
+	});
+
+	Args.OnCanAcceptPropertyOrChildren = FOnCanBindProperty::CreateLambda([](FProperty* InProperty)
+		{
+			// Make only editor visible properties visible for binding.
+			return InProperty->HasAnyPropertyFlags(CPF_Edit);
+		});	
+
+	Args.OnAddBinding = FOnAddBinding::CreateLambda([ContextProperty](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+		{
+			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+			if (ContextProperty.IsValid())
+			{
+				if (InBindingChain.Num() == 1)
+			 	{
+					TArray<FString> PropertyPath; 
+					PropertyAccessEditor.MakeStringPath(InBindingChain, PropertyPath);
+					ContextProperty->PropertyName = FName(PropertyPath[0]);
+					// do this better so undo will work?
+				}
+			}
+		});
+
+	Args.CurrentBindingText = MakeAttributeLambda([ContextProperty]()
+			{
+				const FText Bind = LOCTEXT("Bind", "Bind");
+				FText CurrentValue = Bind;
+
+				if (ContextProperty.IsValid())
+				{
+					CurrentValue = FText::FromName(ContextProperty->PropertyName);
+				}
+
+				return CurrentValue;
+			});
+
+	Args.CurrentBindingImage = MakeAttributeLambda([]() -> const FSlateBrush*
+		{
+			static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
+			return FAppStyle::GetBrush(PropertyIcon);
+		});
+
+	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
+	return PropertyAccessEditor.MakePropertyBindingWidget((UBlueprint*)ContextClass, Args);
 }
 
 TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
@@ -1107,7 +1158,12 @@ void FChooserRowDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				TSharedRef<IPropertyHandle> CellData = ColumnDataProperty->AsArray()->GetElement(Row->Row);
 	
 				IDetailPropertyRow& NewColumnProperty = PropertiesCategory.AddProperty(CellData);
-				NewColumnProperty.DisplayName(FText::FromName(Column.GetInterface()->GetDisplayName()));
+				FText DisplayName = LOCTEXT("No Input Value", "No Input Value");
+				if (UObject* InputValue = Column.GetInterface()->GetInputValue())
+				{
+					ConvertObjectToText(InputValue, DisplayName);
+				}
+				NewColumnProperty.DisplayName(DisplayName);
 				NewColumnProperty.ShowPropertyButtons(false); // hide array add button
 				NewColumnProperty.ShouldAutoExpand(true);
 			}
@@ -1123,6 +1179,11 @@ void FChooserTableEditor::RegisterWidgets()
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObject::StaticClass(), CreateObjectWidget);
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_Asset::StaticClass(), CreateAssetWidget);
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_EvaluateChooser::StaticClass(), CreateEvaluateChooserWidget);
+	
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterBool_ContextProperty::StaticClass(), CreatePropertyWidget<UChooserParameterBool_ContextProperty>);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterFloat_ContextProperty::StaticClass(), CreatePropertyWidget<UChooserParameterFloat_ContextProperty>);
+	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterBool_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterBool_ContextProperty>);
+	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterFloat_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterFloat_ContextProperty>);
 
 	ColumnWidgetCreators.Add(UChooserColumnBool::StaticClass(), CreateBoolColumnWidget);
 	ColumnWidgetCreators.Add(UChooserColumnFloatRange::StaticClass(), CreateFloatRangeColumnWidget);

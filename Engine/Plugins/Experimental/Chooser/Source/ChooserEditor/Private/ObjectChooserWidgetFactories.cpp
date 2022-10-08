@@ -28,24 +28,30 @@ void ConvertToText(UObject* Object, FText& OutText)
 		Class = Class->GetSuperClass();
 	}
 }
-
-TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(FName DataInterfaceTypeName, UObject* Value, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget)
+	
+TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UObject* Value, UClass* ContextClass)
 {
-	TSharedPtr<SWidget> LeftWidget;
-
 	if (Value)
 	{
 		UClass* Class = Value->GetClass();
-		while (Class && !LeftWidget.IsValid())
+		while (Class)
 		{
 			if (FChooserWidgetCreator* Creator = FObjectChooserWidgetFactories::ChooserWidgetCreators.Find(Class))
 			{
-				LeftWidget = (*Creator)(Value);
+				return (*Creator)(Value, ContextClass);
 				break;
 			}
 			Class = Class->GetSuperClass();
 		}
 	}
+
+	return nullptr;
+}
+
+TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UClass* InterfaceType, UObject* Value, UClass* ContextClass, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget)
+{
+	TSharedPtr<SWidget> LeftWidget = CreateWidget(Value, ContextClass);
+
 	
 	if (!LeftWidget.IsValid())
 	{
@@ -57,10 +63,10 @@ TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(FName DataInterf
 	TSharedPtr<SComboButton> Button = SNew(SComboButton)
 			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton");
 	
-	Button->SetOnGetMenuContent(FOnGetContent::CreateLambda([DataInterfaceTypeName, Button, CreateClassCallback]()
+	Button->SetOnGetMenuContent(FOnGetContent::CreateLambda([InterfaceType, Button, CreateClassCallback]()
 	{
 		FClassViewerInitializationOptions Options;
-		Options.ClassFilters.Add(MakeShared<FObjectChooserClassFilter>(DataInterfaceTypeName, nullptr));
+		Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(InterfaceType));
 		
 		// Add class filter for columns here
 		TSharedRef<SWidget>  ClassMenu = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").
@@ -90,11 +96,11 @@ TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(FName DataInterf
 	Border->SetContent(LeftWidget.ToSharedRef());
 
 	TSharedPtr<SWidget> Widget = SNew(SHorizontalBox)
-		+SHorizontalBox::Slot().FillWidth(75)
+		+SHorizontalBox::Slot().FillWidth(100)
 		[
 			Border.ToSharedRef()
 		]
-		+SHorizontalBox::Slot().FillWidth(25)
+		+SHorizontalBox::Slot().AutoWidth()
 		[
 			Button.ToSharedRef()
 		]

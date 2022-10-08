@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "InterfacePropertyTypeCustomization.h"
 
 namespace UE::ChooserEditor
 {
@@ -17,6 +17,7 @@ private:
 	virtual void ShutdownModule() override;
 
 	TSharedPtr<FAssetTypeActions_ChooserTable> AssetTypeActions_ChooserTable;
+	TSharedPtr<UE::ChooserEditor::FPropertyTypeIdentifier> InterfacePropertyTypeIdentifier;
 };
 
 }

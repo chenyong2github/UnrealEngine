@@ -9,6 +9,69 @@
 #include "Chooser.generated.h"
 
 UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class CHOOSER_API UChooserParameterBool : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class CHOOSER_API IChooserParameterBool
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) { return false; }
+};
+
+UCLASS()
+class CHOOSER_API UChooserParameterBool_ContextProperty :  public UObject, public IChooserParameterBool
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+ 	FName PropertyName;
+	
+	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) override;
+
+	static const FString& CPPTypeName()
+	{
+		static FString TypeName = "bool";
+		return TypeName;
+	}
+};
+
+
+UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class CHOOSER_API UChooserParameterFloat : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class CHOOSER_API IChooserParameterFloat
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool GetValue(const UObject* ContextObject, float& OutResult) { return false; }
+};
+
+UCLASS()
+class CHOOSER_API UChooserParameterFloat_ContextProperty :  public UObject, public IChooserParameterFloat
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	FName PropertyName;
+	
+	virtual bool GetValue(const UObject* ContextObject, float& OutResult) override;
+	
+	static const FString& CPPTypeName()
+	{
+		static FString TypeName = "double";
+		return TypeName;
+	}
+};
+
+UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class CHOOSER_API UChooserColumn : public UInterface
 {
 	GENERATED_BODY()
@@ -20,10 +83,11 @@ class CHOOSER_API IChooserColumn
 
 public:
 	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) {};
-	virtual FName GetDisplayName() { return "ChooserColumn"; }
-	virtual void SetDisplayName(FName Name) { }
 	virtual void SetNumRows(uint32 NumRows) {}
 	virtual void DeleteRows(const TArray<uint32> & RowIndices) {}
+	virtual UClass* GetInputValueInterface() {return nullptr;};
+	virtual UObject* GetInputValue() {return nullptr;}
+	virtual void SetInputValue(UObject* InputValue) {}
 };
 
 UCLASS()
@@ -31,10 +95,11 @@ class CHOOSER_API UChooserColumnBool : public UObject, public IChooserColumn
 {
 	GENERATED_BODY()
 	public:
-	UChooserColumnBool() { }
+	UChooserColumnBool() {};
+	UChooserColumnBool(const FObjectInitializer& ObjectInitializer);
 	
-	UPROPERTY(EditAnywhere, Category = "Input")
-	FName InputPropertyName;
+	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Input")
+	TScriptInterface<IChooserParameterBool> InputValue;
 
 	UPROPERTY(EditAnywhere, Category=Runtime)
 	// array of results (cells for this column for each row in the table)
@@ -45,8 +110,6 @@ class CHOOSER_API UChooserColumnBool : public UObject, public IChooserColumn
 
 	// todo: macro boilerplate
 	virtual void SetNumRows(uint32 NumRows) override { RowValues.SetNum(NumRows); }
-	virtual FName GetDisplayName() override { return InputPropertyName; }
-	virtual void SetDisplayName(FName Name) override { InputPropertyName = Name; }
 	virtual void DeleteRows(const TArray<uint32> & RowIndices )
 	{
 		for(uint32 Index : RowIndices)
@@ -54,6 +117,9 @@ class CHOOSER_API UChooserColumnBool : public UObject, public IChooserColumn
 			RowValues.RemoveAt(Index);
 		}
 	}
+	virtual UClass* GetInputValueInterface() override { return UChooserParameterBool::StaticClass(); };
+	virtual UObject* GetInputValue() override { return InputValue.GetObject(); };
+	virtual void SetInputValue(UObject* Value) override { InputValue = Value; };
 };
 
 USTRUCT()
@@ -73,11 +139,12 @@ class CHOOSER_API UChooserColumnFloatRange : public UObject, public IChooserColu
 {
 	GENERATED_BODY()
 	public:
-	UChooserColumnFloatRange() { }
+	UChooserColumnFloatRange() {}
+	UChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer);
 		
-	UPROPERTY(EditAnywhere, Category = "Input")
-		FName InputPropertyName;
-
+	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Input")
+	TScriptInterface<IChooserParameterFloat> InputValue;
+	
 	UPROPERTY(EditAnywhere, Category=Runtime)
 	// array of results (cells for this column for each row in the table)
 	// should match the length of the Results array 
@@ -85,8 +152,6 @@ class CHOOSER_API UChooserColumnFloatRange : public UObject, public IChooserColu
 	
 	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) override;
 	virtual void SetNumRows(uint32 NumRows) { RowValues.SetNum(NumRows); }
-	virtual FName GetDisplayName() override { return InputPropertyName; }
-	virtual void SetDisplayName(FName Name) override { InputPropertyName = Name; }
 	virtual void DeleteRows(const TArray<uint32> & RowIndices )
 	{
 		for(uint32 Index : RowIndices)
@@ -94,6 +159,9 @@ class CHOOSER_API UChooserColumnFloatRange : public UObject, public IChooserColu
 			RowValues.RemoveAt(Index);
 		}
 	}
+	virtual UClass* GetInputValueInterface() { return UChooserParameterFloat::StaticClass(); };
+	virtual UObject* GetInputValue() override { return InputValue.GetObject(); };
+	virtual void SetInputValue(UObject* Value) override { InputValue = Value; };
 };
 
 UCLASS(MinimalAPI)
@@ -102,13 +170,20 @@ class UChooserTable : public UObject
 	GENERATED_UCLASS_BODY()
 public:
 	UChooserTable() {}
+
+	// each possible result
+	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category = "Hidden")
+	TArray<TScriptInterface<IObjectChooser>> Results;
 	
-	UPROPERTY(EditAnywhere, Meta=(EditInline="true"), Category = "Runtime")
+	// columns which filter results
+	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category="Hidden")
 	TArray<TScriptInterface<IChooserColumn>> Columns;
 
-	// array of results (rows of table)
-	UPROPERTY(EditAnywhere, Meta = (EditInline = "true"), Category = "Runtime")
-	TArray<TScriptInterface<IObjectChooser>> Results;
+	UPROPERTY(EditAnywhere, Category="Input")
+	TObjectPtr<UClass> ContextObjectType;
+	
+	UPROPERTY(EditAnywhere, Category="Output")
+	TObjectPtr<UClass> OutputObjectType;
 };
 
 UCLASS()
@@ -122,4 +197,15 @@ class CHOOSER_API UObjectChooser_EvaluateChooser : public UObject, public IObjec
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
 	TObjectPtr<UChooserTable> Chooser;
+};
+
+
+UCLASS()
+class CHOOSER_API UChooserColumnMenuContext : public UObject
+{
+	GENERATED_BODY()
+public:
+	class FAssetEditorToolkit* Editor;
+	TWeakObjectPtr<UChooserTable> Chooser;
+	int ColumnIndex;
 };

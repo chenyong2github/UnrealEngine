@@ -2,58 +2,90 @@
 #include "Chooser.h"
 #include "ChooserFunctionLibrary.h"
 
+bool UChooserParameterBool_ContextProperty::GetValue(const UObject* ContextObject, bool& OutResult)
+{
+	if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(ContextObject->GetClass(), PropertyName))
+	{
+		OutResult = *Property->ContainerPtrToValuePtr<bool>(ContextObject);
+	}
+	
+	return false;
+}
+
+bool UChooserParameterFloat_ContextProperty::GetValue(const UObject* ContextObject, float& OutResult)
+{
+	if (const FDoubleProperty* Property = FindFProperty<FDoubleProperty>(ContextObject->GetClass(), PropertyName))
+	{
+		OutResult = *Property->ContainerPtrToValuePtr<double>(ContextObject);
+	}
+	
+	return false;
+}
+
 UChooserTable::UChooserTable(const FObjectInitializer& Initializer)
 	:Super(Initializer)
 {
 
 }
 
+UChooserColumnBool::UChooserColumnBool(const FObjectInitializer& ObjectInitializer)
+{
+	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterBool_ContextProperty>(this, "InputValue");
+}
+
 void UChooserColumnBool::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
 {
-	bool Result = false;
-
-	if (ContextObject)
+	if (ContextObject && InputValue)
 	{
-		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(ContextObject->GetClass(), InputPropertyName))
+		bool Result = false;
+		InputValue->GetValue(ContextObject,Result);
+		
+		for (uint32 Index : IndexListIn)
 		{
-			Result = *Property->ContainerPtrToValuePtr<bool>(ContextObject);
-			for (uint32 Index : IndexListIn)
+			if (RowValues.Num() > (int)Index)
 			{
-				if (RowValues.Num() > (int)Index)
+				if (Result == RowValues[Index])
 				{
-					if (Result == RowValues[Index])
-					{
-						IndexListOut.Push(Index);
-					}
+					IndexListOut.Push(Index);
 				}
 			}
 		}
 	}
+	else
+	{
+		// passthrough fallback (behaves better during live editing)
+		IndexListOut = IndexListIn;
+	}
+}
+
+UChooserColumnFloatRange::UChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer)
+{
+	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterFloat_ContextProperty>(this, "InputValue");
 }
 
 void UChooserColumnFloatRange::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
 {
-	float Result = 0.0f;
-
-	Result = 0.0f;
-	if (ContextObject)
+	if (ContextObject && InputValue)
 	{
-		if (const FDoubleProperty* Property = FindFProperty<FDoubleProperty>(ContextObject->GetClass(), InputPropertyName))
+		float Result = 0.0f;
+		InputValue->GetValue(ContextObject, Result);
+
+		for(uint32 Index : IndexListIn)
 		{
-			Result = *Property->ContainerPtrToValuePtr<double>(ContextObject);
-	
-			for(uint32 Index : IndexListIn)
+			if (RowValues.Num() > (int)Index)
 			{
-				if (RowValues.Num() > (int)Index)
+				const FChooserFloatRangeRowData& RowValue = RowValues[Index];
+				if (Result >= RowValue.Min && Result <= RowValue.Max)
 				{
-					const FChooserFloatRangeRowData& RowValue = RowValues[Index];
-					if (Result >= RowValue.Min && Result <= RowValue.Max)
-					{
-						IndexListOut.Push(Index);
-					}
+					IndexListOut.Push(Index);
 				}
 			}
 		}
+	}
+	else
+	{
+		// passthrough fallback (behaves better during live editing)
+		IndexListOut = IndexListIn;
 	}
 }
 
@@ -91,7 +123,7 @@ static UObject* StaticEvaluateChooser(const UObject* ContextObject, const UChoos
 	{
 		if (Chooser->Results.Num() > (int32)SelectedIndex)
 		{
-			const TScriptInterface<IObjectChooser>& SelectedResult = Chooser->Results[SelectedIndex];
+			const IObjectChooser* SelectedResult = Chooser->Results[SelectedIndex].GetInterface();
 
 			if(UObject* Result = SelectedResult->ChooseObject(ContextObject))
 			{

@@ -6,22 +6,16 @@
 
 namespace UE::ChooserEditor
 {
-	// Filter class for things which implement IChooserColumn
-	class FObjectChooserClassFilter : public IClassViewerFilter
+	// Filter class for things which implement a particular interface
+	class FInterfaceClassFilter : public IClassViewerFilter
 	{
 	public:
-		FObjectChooserClassFilter(FName InTypeName, const UScriptStruct* InStructType) : TypeName(InTypeName), StructType(InStructType) { };
-		virtual ~FObjectChooserClassFilter() override {};
-	
+		FInterfaceClassFilter(UClass* InInterfaceType) : InterfaceType(InInterfaceType)  { };
+		virtual ~FInterfaceClassFilter() override {};
+		
 		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< class FClassViewerFilterFuncs > InFilterFuncs ) override
 		{
-			if (InClass->ImplementsInterface(UObjectChooser::StaticClass()))
-			{
-				// for now, just return true if the class implements IObjectChooser
-				return true;
-			}
-
-			return false;
+			return (InClass->ImplementsInterface(InterfaceType) && InClass->HasAnyClassFlags(CLASS_Abstract) == false);
 		}
 
 		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const class IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< class FClassViewerFilterFuncs > InFilterFuncs) override
@@ -29,7 +23,7 @@ namespace UE::ChooserEditor
 			return false;
 		}
 	private:
-		FName TypeName;
-		const UScriptStruct* StructType;
+		UClass* InterfaceType;
 	};
+		
 }
