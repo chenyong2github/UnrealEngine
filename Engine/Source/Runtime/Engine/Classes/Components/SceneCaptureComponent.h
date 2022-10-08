@@ -215,7 +215,6 @@ protected:
 	void RegisterDelegates();
 	void UnregisterDelegates();
 	void ReleaseGarbageReferences();
-	bool bDelegatesRegistered = false;
 
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) {};
 
