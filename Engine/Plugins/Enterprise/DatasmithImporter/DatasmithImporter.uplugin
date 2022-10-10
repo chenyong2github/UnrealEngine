@@ -86,6 +86,10 @@
 		{
 			"Name": "VariantManager",
 			"Enabled": true
+		},
+		{
+			"Name": "ChaosClothAsset",
+			"Enabled": true
 		}
 	]
 }

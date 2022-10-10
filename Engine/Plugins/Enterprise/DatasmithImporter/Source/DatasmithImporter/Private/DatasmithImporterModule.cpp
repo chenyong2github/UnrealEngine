@@ -60,8 +60,6 @@
 
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
 
-static class IDatasmithImporterExt* GClothImporterExtInstance = nullptr;
-
 /**
  * DatasmithImporter module implementation (private)
  */
@@ -126,18 +124,6 @@ public:
 	bool IsInOfflineMode() const
 	{
 		return GetDefault< UDatasmithImporterEditorSettings >() && GetDefault< UDatasmithImporterEditorSettings >()->bOfflineImporter;
-	}
-
-
-	virtual void SetClothImporterExtension(class IDatasmithImporterExt* InInstance) override
-	{
-		GClothImporterExtInstance = InInstance;
-	}
-
-
-	virtual class IDatasmithImporterExt* GetClothImporterExtension() override
-	{
-		return GClothImporterExtInstance;
 	}
 
 private:

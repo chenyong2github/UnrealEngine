@@ -362,7 +362,6 @@ void FDatasmithSceneXmlWriterImpl::WriteMeshElement(const TSharedPtr< IDatasmith
 
 void FDatasmithSceneXmlWriterImpl::WriteClothElement(const TSharedPtr<IDatasmithClothElement>& Element, FArchive& Archive, int32 Indent)
 {
-	// #ue_ds_cloth_note: FDatasmithSceneXmlWriterImpl::WriteClothElement
 	WriteIndent(Archive, Indent);
 	FString XmlString = TEXT("<") DATASMITH_CLOTH;
 	XmlString += TEXT(" name=\"") + SanitizeXMLText( Element->GetName() ) + TEXT("\"");

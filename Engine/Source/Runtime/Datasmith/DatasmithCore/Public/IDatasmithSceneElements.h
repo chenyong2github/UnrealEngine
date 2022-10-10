@@ -238,7 +238,7 @@ protected:
 };
 
 /**
-* #ue_ds_cloth_doc IDatasmithClothElement class: experimental class that describes a cloth asset
+* IDatasmithClothElement class: experimental class that describes a cloth asset
 */
 class DATASMITHCORE_API IDatasmithClothElement : public IDatasmithElement
 {
@@ -1610,7 +1610,7 @@ public:
 	*/
 	virtual void EmptyMeshes() = 0;
 
-	// #ue_ds_cloth_doc IDatasmithScene API
+	// #ue_ds_todo cloth api doc
 	virtual void AddCloth(const TSharedPtr< IDatasmithClothElement >& InElement) = 0;
 	virtual int32 GetClothesCount() const = 0;
 	virtual TSharedPtr< IDatasmithClothElement > GetCloth(int32 InIndex) = 0;

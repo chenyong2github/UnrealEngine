@@ -439,7 +439,6 @@ void FDatasmithSceneXmlReader::ParseMesh(FXmlNode* InNode, TSharedPtr<IDatasmith
 
 void FDatasmithSceneXmlReader::ParseCloth(FXmlNode* InNode, TSharedPtr<IDatasmithClothElement>& OutElement) const
 {
-	// #ue_ds_cloth_note: xml read
 	ParseElement( InNode, OutElement.ToSharedRef() );
 
 	for (const FXmlNode* Node : InNode->GetChildrenNodes())

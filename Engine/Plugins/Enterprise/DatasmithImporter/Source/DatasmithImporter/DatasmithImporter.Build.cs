@@ -7,12 +7,14 @@ namespace UnrealBuildTool.Rules
 		public DatasmithImporter(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Analytics",
 					"ApplicationCore",
+					"Chaos",
+					"ChaosClothAsset",
+					"ChaosClothAssetEngine",
 					"CinematicCamera",
 					"ContentBrowser",
 					"Core",

@@ -9,7 +9,6 @@
 #include "DatasmithAssetUserData.h"
 #include "DatasmithCameraImporter.h"
 #include "DatasmithCloth.h"
-#include "DatasmithClothImporter.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithImporterModule.h"
 #include "DatasmithLevelSequenceImporter.h"
@@ -79,6 +78,13 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "UnrealEdGlobals.h"
+
+#include "Animation/Skeleton.h"
+#include "ChaosClothAsset/ClothPreset.h"
+#include "ChaosClothAsset/ClothAsset.h"
+#include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/ClothLodAdapter.h"
+#include "ChaosClothAsset/ClothPatternAdapter.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -371,7 +377,6 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 
 void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 {
-	// #ue_ds_cloth_note: FDatasmithImporter::ImportClothes: experimental import code
 	const int32 ClothesCount = ImportContext.FilteredScene->GetClothesCount();
 
 	if (!ImportContext.Options->BaseOptions.bIncludeGeometry
@@ -407,99 +412,123 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 
 		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Importing cloth %d/%d (%s) ..."), ClothIndex + 1, ClothesCount, ClothElement->GetLabel())));
 
-		UObject* ExistingCloth = nullptr;
+		int32 MaxNameCharCount = FDatasmithImporterUtils::GetAssetNameMaxCharCount(ImportContext.AssetsContext.StaticMeshesFinalPackage.Get());
+		FString ClothName = ImportContext.AssetsContext.StaticMeshNameProvider.GenerateUniqueName(ClothElement->GetLabel(), MaxNameCharCount);
+		ClothName = ObjectTools::SanitizeObjectName(ClothName);
+
+		FDatasmithClothElementPayload Payload;
+		// #ue_ds_cloth_todo: async parallel support
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportClothes:TranslatorLoadCloth);
+			if (!ImportContext.SceneTranslator->LoadCloth(ClothElement, Payload))
+			{
+				UE_LOG(LogDatasmithImport, Warning, TEXT("Cloth %s: load failed, translator issue."), ClothElement->GetName());
+				return;
+			}
+		}
+		FDatasmithCloth DsCloth = MoveTemp(Payload.Cloth);
+
+		UPackage* ImportPackage = ImportContext.AssetsContext.StaticMeshesImportPackage.Get();
+		EObjectFlags ObjectFlags = ImportContext.ObjectFlags & ~RF_Public; // not RF_Public yet, the publicized asset will be.
+
+		UChaosClothAsset* ClothAsset = nullptr;
+		TArray<UObject*> ClothPresetAssets;
+
+		for (const FDatasmithClothPresetPropertySet& PropertySet : DsCloth.PropertySets)
+		{
+			FString PresetAssetName = ObjectTools::SanitizeObjectName(PropertySet.SetName);
+			if (UChaosClothPreset* PropertySetAsset = NewObject<UChaosClothPreset>(ImportPackage, *PresetAssetName, ObjectFlags))
+			{
+				ClothPresetAssets.Add(PropertySetAsset);
+				for (const FDatasmithClothPresetProperty& Property : PropertySet.Properties)
+				{
+					// #ue_ds_cloth_todo fill property values, min/max,
+					PropertySetAsset->AddProperty(Property.Name, EChaosClothPresetPropertyType::String);
+				}
+			}
+		}
+
+		UObject* ExistingClothObj = nullptr;
 		if (ImportContext.SceneAsset)
 		{
 			if (TSoftObjectPtr<UObject>* ExistingAssetPtr = ImportContext.SceneAsset->Clothes.Find(ClothElement->GetName()))
 			{
-				ExistingCloth = ExistingAssetPtr->LoadSynchronous();
+				ExistingClothObj = ExistingAssetPtr->LoadSynchronous();
+			}
+		}
+		UChaosClothAsset* ExistingCloth = Cast<UChaosClothAsset>(ExistingClothObj);
+		if (ExistingCloth)
+		{
+			if (ExistingCloth->GetOuter() != ImportPackage)
+			{
+				// Temporary flag to skip PostLoad during DuplicateObject
+				ExistingCloth->SetFlags(RF_ArchetypeObject);
+				ClothAsset = DuplicateObject<UChaosClothAsset>(ExistingCloth, ImportPackage, *ClothName);
+				ExistingCloth->ClearFlags(RF_ArchetypeObject);
+				ClothAsset->ClearFlags(RF_ArchetypeObject);
+
+				IDatasmithImporterModule::Get().ResetOverrides(ClothAsset);
+			}
+			else
+			{
+				ClothAsset = ExistingCloth;
+			}
+
+			ExistingCloth->SetFlags(ObjectFlags);
+		}
+		else
+		{
+			ClothAsset = NewObject<UChaosClothAsset>(ImportPackage, *ClothName, ObjectFlags);
+
+			// Setup a default skeleton
+			if (ClothAsset && !ClothAsset->GetSkeleton())
+			{
+				USkeleton* const DefaultSkeleton = LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr);
+				check(DefaultSkeleton);
+				ClothAsset->SetSkeleton(DefaultSkeleton);
 			}
 		}
 
-		{ // copy of FDatasmithImporter::ImportStaticMesh
-
-			{ // copy of FDatasmithStaticMeshImporter::ImportStaticMesh
-// 				// 2. get destination asset
-// 				// 2.1. FDatasmithImporterUtils::CanCreateAsset<UStaticMesh>
-				int32 MaxNameCharCount = FDatasmithImporterUtils::GetAssetNameMaxCharCount(ImportContext.AssetsContext.StaticMeshesFinalPackage.Get());
-				FString ClothName = ImportContext.AssetsContext.StaticMeshNameProvider.GenerateUniqueName(ClothElement->GetLabel(), MaxNameCharCount);
-				ClothName = ObjectTools::SanitizeObjectName(ClothName);
-
-				UPackage* Outer = ImportContext.AssetsContext.StaticMeshesImportPackage.Get();
-				EObjectFlags ObjectFlags = ImportContext.ObjectFlags & ~RF_Public; // not RF_Public yet, the publicized asset will be.
-
-				FDatasmithClothElementPayload Payload;
-				// #ue_ds_cloth_todo: async parallel support
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::ImportClothes:TranslatorLoadCloth);
-					if (!ImportContext.SceneTranslator->LoadCloth(ClothElement, Payload))
-					{
-						UE_LOG(LogDatasmithImport, Warning, TEXT("Cloth %s: load failed, translator issue."), ClothElement->GetName());
-						return;
-					}
-				}
-				FDatasmithCloth DsCloth = MoveTemp(Payload.Cloth);
-
-				UObject* ClothAsset = nullptr;
-				TArray<UObject*> ClothPresetAssets;
-
-				// #ue_ds_cloth_arch The ImporterExtension code is expected to be temporary
-				if (IDatasmithImporterExt* Ext = IDatasmithImporterModule::Get().GetClothImporterExtension())
-				{
-					for (const FDatasmithClothPresetPropertySet& PS : DsCloth.PropertySets)
-					{
-						FString PresetAssetName = ObjectTools::SanitizeObjectName(PS.SetName);
-						if (UObject* PropertySetObject = Ext->MakeClothPropertyAsset(Outer, *PresetAssetName, ObjectFlags))
-						{
-							ClothPresetAssets.Add(PropertySetObject);
-							Ext->FillPropertySet(PropertySetObject, ClothElement, PS);
-						}
-					}
-
-					bool bShouldBuildAsset = false;
-					if (ExistingCloth)
-					{
-						if (ExistingCloth->GetOuter() != Outer)
-						{
-							// #ue_ds_todo why do we duplicate assets here ?
-							// We create a new asset from an existing instead of a new one, but we strip it from template information... Why ?
-
-							// Temporary flag to skip PostLoad during DuplicateObject
-							ExistingCloth->SetFlags(RF_ArchetypeObject);
-							ClothAsset = ::DuplicateObject<UObject>(ExistingCloth, Outer, *ClothName);
-							ExistingCloth->ClearFlags(RF_ArchetypeObject);
-							ClothAsset->ClearFlags(RF_ArchetypeObject);
-
-							IDatasmithImporterModule::Get().ResetOverrides(ClothAsset);
-						}
-						else
-						{
-							ClothAsset = ExistingCloth;
-						}
-
-						ExistingCloth->SetFlags(ObjectFlags);
-					}
-					else
-					{
-						ClothAsset = Ext->MakeClothAsset(Outer, *ClothName, ObjectFlags);
-						bShouldBuildAsset = true;
-					}
-
-					Ext->FillCloth(ClothAsset, ClothElement, DsCloth); // , bShouldBuildAsset);
-				}
-
-				ImportContext.ImportedClothes.Add(ClothElement, ClothAsset);
-				for (UObject* ClothPresetAsset : ClothPresetAssets)
-				{
-					ImportContext.ImportedClothPresets.Add(ClothPresetAsset);
-				}
-			}
-
-			// #ue_ds_cloth_todo: CreateStaticMeshAssetImportData
-			// #ue_ds_cloth_todo: ImportMetaDataForObject
+		if (!ensure(ClothAsset))
+		{
+			continue;
 		}
 
-		// #ue_ds_cloth_todo: ImportContext.ImportedStaticMeshesByName.Add(MeshElement->GetName(), MeshElement); // see FDatasmithFindAssetTypeHelper
+		TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> Collection = ClothAsset->GetClothCollection();
+		UE::Chaos::ClothAsset::FClothAdapter Adapter(Collection);
+		UE::Chaos::ClothAsset::FClothLodAdapter LODAdapter = Adapter.GetNumLods() ? Adapter.GetLod(0) : Adapter.AddGetLod();
+
+		for (FDatasmithClothPattern& Pattern : DsCloth.Patterns)
+		{
+			if (Pattern.IsValid())
+			{
+				UE::Chaos::ClothAsset::FClothPatternAdapter ClothPattern = LODAdapter.AddGetPattern();
+				ClothPattern.Initialize(Pattern.SimPosition, Pattern.SimRestPosition, Pattern.SimTriangleIndices);
+			}
+		}
+
+		// Add a default material
+		ClothAsset->GetMaterials().Reset(1);
+		UMaterial* DefaultMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);
+		const int32 MaterialId = ClothAsset->GetMaterials().Emplace(DefaultMaterial, true, false, DefaultMaterial->GetFName());
+
+		// Set a default skeleton
+		USkeleton* DefaultSkeleton = LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr);
+		ClothAsset->SetSkeleton(DefaultSkeleton);
+
+		// Set the render mesh to duplicate the sim mesh
+		ClothAsset->CopySimMeshToRenderMesh(MaterialId);
+
+		ClothAsset->Build();
+
+		// #ue_ds_cloth_todo this step should not be necessary
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({ClothAsset});
+
+		ImportContext.ImportedClothes.Add(ClothElement, ClothAsset);
+		for (UObject* ClothPresetAsset : ClothPresetAssets)
+		{
+			ImportContext.ImportedClothPresets.Add(ClothPresetAsset);
+		}
 	}
 }
 
@@ -2057,7 +2086,6 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 	FDatasmithStaticMeshImporter::BuildStaticMeshes(StaticMeshes.Array(), ProgressFunction);
 
-	// #ue_ds_cloth_note: experimental FinalizeImport code
 	for (auto& SourcePresetObj : ImportContext.ImportedClothPresets)
 	{
 		if (!SourcePresetObj || (ValidAssets.Num() > 0 && !ValidAssets.Contains(SourcePresetObj)))
@@ -2067,7 +2095,6 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 
 		FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Cloth Preset %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourcePresetObj->GetName())));
 
-		// #ue_ds_cloth_existing presets
 		UObject* ExistingPreset = nullptr; // Cloth = ImportContext.SceneAsset ? ImportContext.SceneAsset->Clothes.FindOrAdd(StaticMeshId).Get() : nullptr;
 
 		FString SourcePackagePath = SourcePresetObj->GetOutermost()->GetName();
