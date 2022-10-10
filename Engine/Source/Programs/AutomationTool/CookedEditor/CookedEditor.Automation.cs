@@ -14,7 +14,7 @@ public class ConfigHelper
 {
 	private string SpecificConfigSection;
 	private string SharedConfigSection;
-	private ConfigHierarchy GameConfig;
+	public ConfigHierarchy GameConfig { get; }
 
 	public ConfigHelper(UnrealTargetPlatform Platform, FileReference ProjectFile, bool bIsCookedCooker)
 	{
@@ -463,6 +463,21 @@ public class MakeCookedEditor : BuildCommand
 		if (bIsCookedCooker)
 		{
 			GatherTargetDependencies(Params, SC, Context, "UnrealPak");
+		}
+
+		// Stage the editor localization targets
+		if (!bIsCookedCooker)
+		{
+			List<string> CulturesToStage = Project.GetCulturesToStage(Params, ConfigHelper.GameConfig);
+
+			string[] EditorLocalizationTargetsToStage = { "Category", "Editor", "EditorTutorials", "Keywords", "PropertyNames", "ToolTips" };
+			foreach (string EditorLocalizationTargetToStage in EditorLocalizationTargetsToStage)
+			{
+				if (Project.ShouldStageLocalizationTarget(SC, null, EditorLocalizationTargetToStage))
+				{
+					Project.StageLocalizationDataForTarget(SC, CulturesToStage, DirectoryReference.Combine(Unreal.EngineDirectory, "Content", "Localization", EditorLocalizationTargetToStage));
+				}
+			}
 		}
 
 		StageIniPathArray(Params, SC, "EngineExtraStageFiles", Unreal.EngineDirectory, Context);
