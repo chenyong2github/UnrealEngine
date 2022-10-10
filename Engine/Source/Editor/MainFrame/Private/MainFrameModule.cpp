@@ -219,7 +219,7 @@ void FMainFrameModule::CreateDefaultMainFrameAuxiliary(const bool bStartImmersiv
 			FDisplayMetrics DisplayMetrics;
 			FSlateApplication::Get().GetDisplayMetrics( DisplayMetrics );
 
-			const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
+			const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint((float)DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, (float)DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
 
 			// Setup a position and size for the main frame window that's centered in the desktop work area
 			const float CenterScale = 0.65f;

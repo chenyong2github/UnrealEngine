@@ -661,7 +661,7 @@ void FDefaultGameMoviePlayer::BlockingTick()
 			HttpManager.Tick(0.0f);
 
 			// Callbacks.
-			OnMoviePlaybackTick().Broadcast(DeltaTime);
+			OnMoviePlaybackTick().Broadcast((float)DeltaTime);
 
 			UE_LOG(LogMoviePlayer, VeryVerbose, TEXT("BlockingTick deltatime:%f"), DeltaTime);
 		}
@@ -846,8 +846,8 @@ FVector2D FDefaultGameMoviePlayer::GetMovieSize() const
 	const FVector2D ScreenSize = MainWindow.Pin()->GetClientSizeInScreen();
 	if (MovieStreamingIsPrepared() && ActiveMovieStreamer.IsValid())
 	{
-		const float MovieAspectRatio = ActiveMovieStreamer->GetAspectRatio();
-		const float ScreenAspectRatio = ScreenSize.X / ScreenSize.Y;
+		const double MovieAspectRatio = ActiveMovieStreamer->GetAspectRatio();
+		const double ScreenAspectRatio = ScreenSize.X / ScreenSize.Y;
 		if (MovieAspectRatio < ScreenAspectRatio)
 		{
 			return FVector2D(ScreenSize.Y * MovieAspectRatio, ScreenSize.Y);
@@ -864,12 +864,12 @@ FVector2D FDefaultGameMoviePlayer::GetMovieSize() const
 
 FOptionalSize FDefaultGameMoviePlayer::GetMovieWidth() const
 {
-	return GetMovieSize().X;
+	return (float)GetMovieSize().X;
 }
 
 FOptionalSize FDefaultGameMoviePlayer::GetMovieHeight() const
 {
-	return GetMovieSize().Y;
+	return (float)GetMovieSize().Y;
 }
 
 EVisibility FDefaultGameMoviePlayer::GetSlateBackgroundVisibility() const

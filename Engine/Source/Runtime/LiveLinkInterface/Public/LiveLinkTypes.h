@@ -599,8 +599,8 @@ struct
 
 	FLiveLinkTimeCode& operator=(const FQualifiedFrameTime& InFrameTime)
 	{
-		const int32 NumberOfFramesInSecond = FMath::CeilToInt(InFrameTime.Rate.AsDecimal());
-		const int32 NumberOfFrames = FMath::RoundToZero(InFrameTime.Time.AsDecimal());
+		const int32 NumberOfFramesInSecond = FMath::CeilToInt32(InFrameTime.Rate.AsDecimal());
+		const int32 NumberOfFrames = (int32)(FMath::RoundToZero(InFrameTime.Time.AsDecimal()));
 
 		Seconds = (int32)FMath::RoundToZero(NumberOfFrames / (double)NumberOfFramesInSecond);
 		Frames = NumberOfFrames % NumberOfFramesInSecond;

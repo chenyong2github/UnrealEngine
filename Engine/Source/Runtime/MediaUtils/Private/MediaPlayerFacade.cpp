@@ -2250,7 +2250,7 @@ void FMediaPlayerFacade::PostSampleProcessingTimeHandling(FTimespan DeltaTime)
 				if (Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UseRealtimeWithVideoOnly))
 				{
 					double NewBaseTime = FPlatformTime::Seconds();
-					NextEstVideoTimeAtFrameStart.TimeStamp.Time += (NewBaseTime - NextEstVideoTimeAtFrameStart.SampledAtTime) * Rate;
+					NextEstVideoTimeAtFrameStart.TimeStamp.Time += FMath::TruncToInt64((NewBaseTime - NextEstVideoTimeAtFrameStart.SampledAtTime) * Rate);
 					NextEstVideoTimeAtFrameStart.SampledAtTime = NewBaseTime;
 				}
 				else

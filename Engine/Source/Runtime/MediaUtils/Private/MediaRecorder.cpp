@@ -238,8 +238,8 @@ void FMediaRecorder::TickRecording()
 				const FIntPoint Size = Sample->GetDim();
 				EImagePixelType PixelType = EImagePixelType::Color;
 				ERGBFormat PixelLayout = ERGBFormat::BGRA;
-				int32 BitDepth = 8;
-				int32 NumChannels = 4;
+				uint8 BitDepth = 8;
+				uint8 NumChannels = 4;
 
 				if (Sample->GetFormat() == EMediaTextureSampleFormat::FloatRGBA)
 				{

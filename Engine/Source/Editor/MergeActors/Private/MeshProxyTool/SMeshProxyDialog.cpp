@@ -426,12 +426,12 @@ void SThirdPartyMeshProxyDialog::HardAngleThresholdChanged(float NewValue)
 //Merge Distance
 TOptional<int32> SThirdPartyMeshProxyDialog::GetMergeDistance() const
 {
-	return Tool->ProxySettings.MergeDistance;
+	return UE::LWC::FloatToIntCastChecked<int32>(Tool->ProxySettings.MergeDistance);
 }
 
 void SThirdPartyMeshProxyDialog::MergeDistanceChanged(int32 NewValue)
 {
-	Tool->ProxySettings.MergeDistance = NewValue;
+	Tool->ProxySettings.MergeDistance = (float)NewValue;
 }
 
 //Texture Resolution

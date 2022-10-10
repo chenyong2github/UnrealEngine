@@ -135,7 +135,7 @@ void FSlateLoadingSynchronizationMechanism::SlateThreadRunMainLoop()
 
 		if( TimeToWait > 0 )
 		{
-			FPlatformProcess::Sleep(TimeToWait);
+			FPlatformProcess::Sleep((float)TimeToWait);
 			CurrentTime = FPlatformTime::Seconds();
 			DeltaTime = CurrentTime - LastTime;
 		}
@@ -152,7 +152,7 @@ void FSlateLoadingSynchronizationMechanism::SlateThreadRunMainLoop()
 			FSlateRenderer* MainSlateRenderer = FSlateApplication::Get().GetRenderer();
 			FScopeLock ScopeLock(MainSlateRenderer->GetResourceCriticalSection());
 
-			WidgetRenderer->DrawWindow(DeltaTime);
+			WidgetRenderer->DrawWindow((float)DeltaTime);
 
 			SetSlateDrawPassEnqueued();
 

@@ -275,7 +275,7 @@ void SSaveLayoutDialog::Construct(const FArguments& InArgs, const TSharedRef<FSa
 				[
 					// Constant height, whether the label is visible or not
 					SNew(SBox)
-					.HeightOverride(20)
+					.HeightOverride(20.f)
 					[
 						SNew(SBorder)
 						.Visibility( this, &SSaveLayoutDialog::GetNameErrorLabelVisibility )
