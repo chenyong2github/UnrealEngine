@@ -389,28 +389,4 @@ namespace Horde.Storage.Implementation
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<string> Buckets { get; set; } = new List<string>();
     }
-
-    [Cassandra.Mapping.Attributes.Table("object_last_access")]
-    public class ScyllaObjectLastAccessAt
-    {
-        public ScyllaObjectLastAccessAt()
-        {
-
-        }
-
-        [Cassandra.Mapping.Attributes.PartitionKey(0)]
-        public string? Namespace { get; set; }
-
-        [Cassandra.Mapping.Attributes.PartitionKey(1)]
-        [Cassandra.Mapping.Attributes.Column("partition_index")]
-        public sbyte? PartitionIndex { get;set; }
-
-        [Cassandra.Mapping.Attributes.PartitionKey(2)]
-        [Cassandra.Mapping.Attributes.Column("accessed_at")]
-        public LocalDate? AccessedAt { get; set; }
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
-        public List<string> Objects { get; set; } = new List<string>();
-
-    }
 }

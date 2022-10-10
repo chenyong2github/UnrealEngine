@@ -75,7 +75,6 @@ namespace Horde.Storage.FunctionalTests.References
 
             ISession replicatedKeyspace = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS objects"));
-            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS object_last_access"));
             await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS content_id"));
 
             // we need to clear out the state we modified in the replication log, otherwise the replication log tests will fail
