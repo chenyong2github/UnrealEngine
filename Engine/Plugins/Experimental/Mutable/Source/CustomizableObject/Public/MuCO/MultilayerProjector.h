@@ -12,6 +12,7 @@
 
 #include "MultilayerProjector.generated.h"
 
+struct FCustomizableObjectInstanceDescriptor;
 class UCustomizableObjectInstance;
 struct FMultilayerProjector;
 
@@ -26,17 +27,19 @@ struct FMultilayerProjectorLayer
 	
 	/** Read the Layer from the Instance Parameters.
 	 *
+	 * @param Descriptor Instance Descriptor.
 	 * @param MultilayerProjector Multilayer Projector helper.
 	 * @param Index Index where to read the Layer in the Instance Parameters.
 	 */
-	void Read(const FMultilayerProjector& MultilayerProjector, int32 Index);
+	void Read(const FCustomizableObjectInstanceDescriptor& Descriptor, const FMultilayerProjector& MultilayerProjector, int32 Index);
 
 	/** Write to Layer to the Instance Parameters.
 	 *
+ 	 * @param Descriptor Instance Descriptor.
 	 * @param MultilayerProjector Multilayer Projector helper.
 	 * @param Index Index where to write the Layer in the Instance Parameters.
 	 */
-	void Write(const FMultilayerProjector& MultilayerProjector, int32 Index) const;
+	void Write(FCustomizableObjectInstanceDescriptor& Descriptor, const FMultilayerProjector& MultilayerProjector, int32 Index) const;
 	
 	/** Layer position. */
 	FVector Position;
@@ -59,6 +62,9 @@ struct FMultilayerProjectorLayer
 	/** Layer image opacity. */
 	float Opacity;
 };
+
+
+uint32 GetTypeHash(const FMultilayerProjectorLayer& Key);
 
 
 /** Data structure representing a Multilayer Projector Virtual Layer. */
@@ -93,8 +99,10 @@ struct CUSTOMIZABLEOBJECT_API FMultilayerProjector
 {
 	GENERATED_BODY()
 
-	friend UCustomizableObjectInstance;
+	friend FCustomizableObjectInstanceDescriptor;
 	friend FMultilayerProjectorLayer;
+	friend uint32 GetTypeHash(const FMultilayerProjector& Key);
+
 
 	// Parameters encoding
 	static const FString NUM_LAYERS_PARAMETER_POSTFIX;
@@ -105,24 +113,24 @@ struct CUSTOMIZABLEOBJECT_API FMultilayerProjector
 	// Constructors
 	FMultilayerProjector() = default;
 
-	FMultilayerProjector(UCustomizableObjectInstance& Instance, const FName& ParamName);
+	explicit FMultilayerProjector(const FName& InParamName);
 
 	// Layers
 	
 	/** Returns the number of layers. */
-	int32 NumLayers() const;
+	int32 NumLayers(const FCustomizableObjectInstanceDescriptor& Descriptor) const;
 
 	/** Insert the Layer at the given index moving all the following layers one position. */
-	void CreateLayer(int32 Index) const;
+	void CreateLayer(FCustomizableObjectInstanceDescriptor& Descriptor, int32 Index) const;
 
 	/** Remove the Layer at the given index moving all the following layers one position. */
-	void RemoveLayerAt(int32 Index) const;
+	void RemoveLayerAt(FCustomizableObjectInstanceDescriptor& Descriptor, int32 Index) const;
 
 	/** Get the properties of the Layer at the given index. */
-	FMultilayerProjectorLayer GetLayer(int32 Index) const;
+	FMultilayerProjectorLayer GetLayer(const FCustomizableObjectInstanceDescriptor& Descriptor, int32 Index) const;
 
 	/** Update the Layer properties at the given index. */
-	void UpdateLayer(int32 Index, const FMultilayerProjectorLayer& Layer) const;
+	void UpdateLayer(FCustomizableObjectInstanceDescriptor& Descriptor, int32 Index, const FMultilayerProjectorLayer& Layer) const;
 
 	// Virtual layers
 
@@ -130,28 +138,24 @@ struct CUSTOMIZABLEOBJECT_API FMultilayerProjector
 	TArray<FName> GetVirtualLayers() const;
 	
 	/** Given a new identifier, create a new Virtual Layer (if non-existent).*/
-	void CreateVirtualLayer(const FName& Id);
+	void CreateVirtualLayer(FCustomizableObjectInstanceDescriptor& Descriptor, const FName& Id);
 
 	/** Given a new identifier, find or create a new Virtual Layer.*/
-	FMultilayerProjectorVirtualLayer FindOrCreateVirtualLayer(const FName& Id);
+	FMultilayerProjectorVirtualLayer FindOrCreateVirtualLayer(FCustomizableObjectInstanceDescriptor& Descriptor, const FName& Id);
 
 	/** Given its identifier, remove the Virtual Layer. */
-	void RemoveVirtualLayer(const FName& Id);
+	void RemoveVirtualLayer(FCustomizableObjectInstanceDescriptor& Descriptor, const FName& Id);
 
 	/** Given its identifier, get the Virtual Layer properties. */
-	FMultilayerProjectorVirtualLayer GetVirtualLayer(const FName& Id) const;
+	FMultilayerProjectorVirtualLayer GetVirtualLayer(const FCustomizableObjectInstanceDescriptor& Descriptor, const FName& Id) const;
 
 	/** Given its identifier, update a Virtual Layer properties. */
-	void UpdateVirtualLayer(const FName& Id, const FMultilayerProjectorVirtualLayer& Layer);
+	void UpdateVirtualLayer(FCustomizableObjectInstanceDescriptor& Descriptor, const FName& Id, const FMultilayerProjectorVirtualLayer& Layer);
 
 private:
-	/** Always valid. */
-	UPROPERTY()
-	TObjectPtr<UCustomizableObjectInstance> Instance = nullptr;
-
 	/** Multilayer Projector Parameter name. */
 	UPROPERTY()
-	FName ParamName;	
+	FName ParamName;
 	
 	/** Maps a Virtual Layer to a Layer.
 	 *
@@ -196,10 +200,13 @@ private:
 	 */
 	void UpdateMappingVirtualLayerDisabled(const FName& Id, int32 Index);
 
-	/** Rise an assert if the instance does not contain the necessary Instance Parameters. */
-	void CheckInstanceParameters() const;
+	/** Rise an assert if the Instance Descriptor does not contain the necessary Parameters. */
+	void CheckDescriptorParameters(const FCustomizableObjectInstanceDescriptor& Descriptor) const;
 	
 	/** Return false if the Instance does not contain the necessary Instance Parameters. */
-	static bool AreInstanceParametersValid(const UCustomizableObjectInstance& Instance, const FName& ParamName);
+	static bool AreDescriptorParametersValid(const FCustomizableObjectInstanceDescriptor& Descriptor, const FName& ParamName);
 };
+
+
+uint32 GetTypeHash(const FMultilayerProjector& Key);
 

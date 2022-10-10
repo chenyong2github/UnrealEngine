@@ -8,6 +8,8 @@
 #include "Math/Color.h"
 #include "Math/UnrealMathSSE.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCo/MultilayerProjector.h"
 #include "UObject/ObjectPtr.h"
 
 #include "CustomizableObjectInstanceDescriptor.generated.h"
@@ -17,19 +19,27 @@ class UCustomizableInstancePrivateData;
 class UCustomizableObject;
 class UCustomizableObjectInstance;
 
+namespace mu
+{
+	class Parameters;
+	
+	template<typename Type>
+	class Ptr;
+}
+
 
 /** Set of parameters + state that defines a CustomizableObjectInstance.
  *
  * This object has the same parameters + state interfice as UCustomizableObjectInstance.
- * Be aware that current implementation does not support Multilayer Projector helpers! */
+ * UCustomizableObjectInstance must share the same interface. Any public methods added here should also end up in the Instance. */
 USTRUCT()
-struct FCustomizableObjectInstanceDescriptor
+struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 {
 	GENERATED_BODY()
 
 	FCustomizableObjectInstanceDescriptor() = default;
 	
-	FCustomizableObjectInstanceDescriptor(UCustomizableObject& Object);
+	explicit FCustomizableObjectInstanceDescriptor(UCustomizableObject& Object);
 
 	FCustomizableObjectInstanceDescriptor(const FCustomizableObjectInstanceDescriptor& Other) = default;
 
@@ -45,6 +55,10 @@ struct FCustomizableObjectInstanceDescriptor
 	
 	void SetBuildParameterDecorations(bool Value);
 	
+	void SetCustomizableObject(UCustomizableObject* InCustomizableObject);
+
+	mu::Ptr<mu::Parameters> ReloadParametersFromObject(); // TODO Split function in 2: 1. Load parameters from model, 2. Get mu::ParametersPtr
+    
 	// ------------------------------------------------------------
 	// Parameters
 	// ------------------------------------------------------------
@@ -227,6 +241,56 @@ struct FCustomizableObjectInstanceDescriptor
 	
 	void SetRandomValues();
 
+	// ------------------------------------------------------------
+	// Multilayer Projectors
+	// ------------------------------------------------------------
+	
+	/** Given Multilayer Projector name, create a new Multilayer Projector Helper (if non-existent). See FMultilayerProjector.
+	 *
+	 * @return ture if successfully created (or was already created).
+	 */
+	bool CreateMultiLayerProjector(const FName& ProjectorParamName);
+	
+	/** Given Multilayer Projector name, remove a Multilayer Projector Helper. See FMultilayerProjector. */
+	void RemoveMultilayerProjector(const FName& ProjectorParamName);
+	
+	// Layers
+
+	/** See FMultilayerProjector::NumLayers. */
+	int32 MultilayerProjectorNumLayers(const FName& ProjectorParamName) const;
+
+	/** See FMultilayerProjector::CreateLayer. */
+	void MultilayerProjectorCreateLayer(const FName& ProjectorParamName, int32 Index);
+
+	/** See FMultilayerProjector::RemoveLayerAt. */
+	void MultilayerProjectorRemoveLayerAt(const FName& ProjectorParamName, int32 Index);
+
+	/** See FMultilayerProjector::GetLayer. */
+	FMultilayerProjectorLayer MultilayerProjectorGetLayer(const FName& ProjectorParamName, int32 Index) const;
+
+	/** See FMultilayerProjector::UpdateLayer. */
+	void MultilayerProjectorUpdateLayer(const FName& ProjectorParamName, int32 Index, const FMultilayerProjectorLayer& Layer);
+
+	// Virtual layers
+
+	/** See FMultilayerProjector::GetVirtualLayers. */
+	TArray<FName> MultilayerProjectorGetVirtualLayers(const FName& ProjectorParamName) const;
+	
+	/** See FMultilayerProjector::VirtualLayer. */
+	void MultilayerProjectorCreateVirtualLayer(const FName& ProjectorParamName, const FName& Id);
+
+	/** See FMultilayerProjector::FindOrCreateVirtualLayer. */
+	FMultilayerProjectorVirtualLayer MultilayerProjectorFindOrCreateVirtualLayer(const FName& ProjectorParamName, const FName& Id);
+
+	/** See FMultilayerProjector::RemoveVirtualLayer. */
+	void MultilayerProjectorRemoveVirtualLayer(const FName& ProjectorParamName, const FName& Id);
+
+	/** See FMultilayerProjector::GetVirtualLayer. */
+	FMultilayerProjectorVirtualLayer MultilayerProjectorGetVirtualLayer(const FName& ProjectorParamName, const FName& Id) const;
+
+	/** See FMultilayerProjector::UpdateVirtualLayer. */
+	void MultilayerProjectorUpdateVirtualLayer(const FName& ProjectorParamName, const FName& Id, const FMultilayerProjectorVirtualLayer& Layer);
+
 private:
 	UPROPERTY()
 	TObjectPtr<UCustomizableObject> CustomizableObject = nullptr;
@@ -257,13 +321,20 @@ private:
 
 	TMap<FString, int32> IntParametersLookupTable;
 	
-	void CreateParametersLookupTable();
+	/** Multilayer Projector helpers. See FMultilayerProjector.*/
+	UPROPERTY()
+	TMap<FName, FMultilayerProjector> MultilayerProjectors;
+	
+	void Init();
 
+	void CreateParametersLookupTable();
+	
 	// Friends
-	friend uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key);
+	friend CUSTOMIZABLEOBJECT_API uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key);
 	friend UCustomizableObjectInstance;
 	friend UCustomizableInstancePrivateData;
+	friend FMultilayerProjector;
 };
 
 
-uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key);
+CUSTOMIZABLEOBJECT_API uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key);

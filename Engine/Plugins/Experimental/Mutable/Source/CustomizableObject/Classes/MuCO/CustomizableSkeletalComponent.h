@@ -18,7 +18,8 @@ class UCustomizableSkeletalComponent;
 class UObject;
 class USkeletalMesh;
 struct FFrame;
-
+class UCustomizableObjectInstance;
+enum class EUpdateResult : uint8;
 
 DECLARE_DELEGATE_TwoParams(FCustomizableSkeletalComponentPreUpdateDelegate, UCustomizableSkeletalComponent* Component, USkeletalMesh* NextMesh);
 DECLARE_DELEGATE(FCustomizableSkeletalComponentUpdatedDelegate);
@@ -41,14 +42,16 @@ public:
 	float SkippedLastRenderTime;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = CustomizableSkeletalMesh)
-	TObjectPtr<class UCustomizableObjectInstance> CustomizableObjectInstance;
+	TObjectPtr<UCustomizableObjectInstance> CustomizableObjectInstance;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = CustomizableSkeletalMesh)
 	int32 ComponentIndex;
 
 	FCustomizableSkeletalComponentPreUpdateDelegate PreUpdateDelegate;
 	FCustomizableSkeletalComponentUpdatedDelegate UpdatedDelegate;
-
+	
+	void Updated(EUpdateResult Result) const;
+	
 	USkeletalMesh* GetSkeletalMesh() const;
 	USkeletalMesh* GetAttachedSkeletalMesh() const;
 
@@ -61,7 +64,10 @@ public:
 
 	void SetVisibilityOfSkeletalMeshSectionWithMaterialName(bool bVisible, const FString& MaterialName, int32 LOD);
 
+	// USceneComponent interface
 	virtual void BeginDestroy() override;
+
+	// UObject interface
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 #if WITH_EDITOR

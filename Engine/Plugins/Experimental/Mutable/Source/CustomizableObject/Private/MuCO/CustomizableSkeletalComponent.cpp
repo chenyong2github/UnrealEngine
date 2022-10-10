@@ -40,6 +40,15 @@ UCustomizableSkeletalComponent::UCustomizableSkeletalComponent()
 }
 
 
+void UCustomizableSkeletalComponent::Updated(EUpdateResult Result) const
+{
+	if (Result == EUpdateResult::Success)
+	{
+		UpdatedDelegate.ExecuteIfBound();
+	}	
+}
+
+
 USkeletalMesh* UCustomizableSkeletalComponent::GetSkeletalMesh() const
 {
 	return CustomizableObjectInstance ? CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex) : nullptr;
@@ -149,6 +158,7 @@ void UCustomizableSkeletalComponent::PreSave(FObjectPreSaveContext ObjectSaveCon
 
 	Super::PreSave(ObjectSaveContext);
 }
+
 
 #if WITH_EDITOR
 
@@ -321,11 +331,11 @@ void UCustomizableSkeletalComponent::TickComponent(float DeltaTime, ELevelTick T
 
 			bPendingSetSkeletalMesh = true;
 
-			if (CustomizableObjectInstance && CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex))
+			if (CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex))
 			{
 				Parent->SetSkeletalMesh(CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex));
 			}
-			else if (!bSkipSetReferenceSkeletalMesh && CustomizableObjectInstance && CustomizableObject)
+			else if (!bSkipSetReferenceSkeletalMesh && CustomizableObject)
 			{
 				Parent->SetSkeletalMesh(CustomizableObject->GetRefSkeletalMesh(ComponentIndex));
 			}

@@ -92,12 +92,19 @@ namespace ESkeletalMeshState
 };
 
 
-class USkeletalMesh;
+/** Instance Update Result. */
+enum class EUpdateResult : uint8
+{
+	Success,
+	Error
+};
+
 
 DECLARE_DELEGATE(FObjectInstanceUpdateBeginDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FObjectInstanceUpdatedDelegate, UCustomizableObjectInstance*, Instance);
 DECLARE_MULTICAST_DELEGATE_OneParam(FObjectInstanceUpdatedNativeDelegate, UCustomizableObjectInstance*);
 DECLARE_DELEGATE_OneParam( FProjectorStateChangedDelegate, FString );
+DECLARE_MULTICAST_DELEGATE_OneParam(FBeginDestroyDelegate, UCustomizableObjectInstance*);
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FEachComponentAnimInstanceClassDelegate, int32, SlotIndex, TSubclassOf<UAnimInstance>, AnimInstClass);
 DECLARE_DELEGATE_TwoParams(FEachComponentAnimInstanceClassNativeDelegate, int32 /*SlotIndex*/, TSubclassOf<UAnimInstance> /*AnimInstClass*/);
@@ -105,9 +112,11 @@ DECLARE_DELEGATE_TwoParams(FEachComponentAnimInstanceClassNativeDelegate, int32 
 UCLASS( Blueprintable, BlueprintType, HideCategories=(CustomizableObjectInstance) )
 class CUSTOMIZABLEOBJECT_API UCustomizableObjectInstance : public UObject
 {
-public:
-	 GENERATED_BODY()
+	GENERATED_BODY()
 
+	friend UCustomizableInstancePrivateData;
+
+public:
 	UCustomizableObjectInstance();
 
 	FCustomizableObjectInstanceDescriptor& GetDescriptor();
@@ -131,6 +140,9 @@ public:
 	// NOTE: this delegate can be called outside the main thread, make sure operations done in the
 	//       callbacks are safe, avoid using it outside editor functionality
 	FObjectInstanceUpdateBeginDelegate UpdateBeginDelegate;
+
+	/** Broadcast when UObject::BeginDestroy is being called. */
+	FBeginDestroyDelegate BeginDestroyDelegate;
 
 	TMap<FString, bool> ParamNameToExpandedMap; // Used to check whether a mutable param is expanded in the editor to show its child params
 
@@ -558,10 +570,13 @@ public:
 	bool GetUseCurrentMinLODAsBaseLOD() const;
 
 	/** Instance updated. */
-	void Updated();
+	void Updated(EUpdateResult Result);
 	
-	/** Hash representing the actual state of the instance. */
-	uint32 GetLastUpdateDescriptorHash() const;
+	/** Hash representing the actual state of the instance (meshes, textures...). This does not include the parameters. */
+	uint32 GetDescriptorHash() const;
+
+	/** Hash representing the state of the instance when the update was requested. */
+	uint32 GetUpdateDescriptorHash() const;
 
 	// --------------------------------------------------------------------
 
@@ -624,13 +639,12 @@ private:
 
 	UPROPERTY( Transient )
 	TObjectPtr<UCustomizableInstancePrivateData> PrivateData;
-	
-	/** Multilayer Projector helpers. See FMultilayerProjector.*/
-	UPROPERTY()
-	TMap<FName, FMultilayerProjector> MultilayerProjectors;
 
-	/** Hash of the UCustomizableObjectInstance::Descriptor on the last update. */
-	uint32 LastUpdateDescriptorHash = 0;
+	/** Hash of the UCustomizableObjectInstance::Descriptor when UpdateSkeletalMeshAsync has been called. */
+	uint32 UpdateDescriptorHash = 0;
+	
+	/** Hash of the UCustomizableObjectInstance::Descriptor on the last successful update. */
+	uint32 DescriptorHash = 0;
 
 	// Deprecated properties
 	
@@ -655,6 +669,9 @@ private:
 	UPROPERTY()
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters_DEPRECATED;
 	
+   	UPROPERTY()
+   	TMap<FName, FMultilayerProjector> MultilayerProjectors_DEPRECATED;
+
 	UPROPERTY()
 	bool bBuildParameterDecorations_DEPRECATED;
 };

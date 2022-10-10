@@ -359,6 +359,8 @@ bool UCustomizableObjectInstance::IsEditorOnly() const
 
 void UCustomizableObjectInstance::BeginDestroy()
 {
+	BeginDestroyDelegate.Broadcast(this);
+
 	if (PrivateData && PrivateData->StreamingHandle)
 	{
 		PrivateData->StreamingHandle->CancelHandle();
@@ -475,6 +477,11 @@ void UCustomizableObjectInstance::Serialize(FArchive& Ar)
 	{
 		Descriptor.bBuildParameterDecorations = bBuildParameterDecorations_DEPRECATED;
 	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::DescriptorMultilayerProjectors)
+	{
+		Descriptor.MultilayerProjectors = MultilayerProjectors_DEPRECATED;
+	}
 }
 
 
@@ -552,7 +559,7 @@ FCustomizableObjectProjector UCustomizableObjectInstance::GetProjectorDefaultVal
 
 mu::ParametersPtr UCustomizableInstancePrivateData::ReloadParametersFromObject(UCustomizableObjectInstance* Public, bool ClearLastMeshIds)
 {
-	UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
+	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 	if (!CustomizableObject)
 	{
 		// May happen when deleting assets in editor, while they are still open.
@@ -577,566 +584,25 @@ mu::ParametersPtr UCustomizableInstancePrivateData::ReloadParametersFromObject(U
 		NumMaxLODsToStream = 0;
 	}
 	
-	int32 OldState = Public->GetState();
-	TArray<FCustomizableObjectBoolParameterValue> OldBoolParameters = Public->GetBoolParameters();
-	TArray<FCustomizableObjectIntParameterValue> OldIntParameters = Public->GetIntParameters();
-	TArray<FCustomizableObjectFloatParameterValue> OldFloatParameters = Public->GetFloatParameters();
-	TArray<FCustomizableObjectTextureParameterValue> OldTextureParameters = Public->GetTextureParameters();
-	TArray<FCustomizableObjectVectorParameterValue> OldVectorParameters = Public->GetVectorParameters();
-	TArray<FCustomizableObjectProjectorParameterValue> OldProjectorParameters = Public->GetProjectorParameters();
-	TMap<TPair<FString, int32>, EProjectorState::Type> OldProjectorStates = ProjectorStates;
-
-	if (ClearLastMeshIds)
-	{
-		ClearAllLastMeshIds();
-	}
-
-	mu::ParametersPtr MutableParameters;
-	Public->SetState(FMath::Clamp(OldState, 0, CustomizableObject->GetStateCount() - 1));
-	Public->GetBoolParameters().Reset();
-	Public->GetIntParameters().Reset();
-	Public->GetFloatParameters().Reset();
-	Public->GetTextureParameters().Reset();
-	Public->GetVectorParameters().Reset();
-	Public->GetProjectorParameters().Reset();
-
 #if WITH_EDITOR
 	if(!Public->ProjectorAlphaChange)
 #endif
 	{
 		ProjectorStates.Reset();
 	}
-
-	if (CustomizableObject && CustomizableObject->GetPrivate()->GetModel())
+	
+	if (ClearLastMeshIds)
 	{
-		TArray<bool> OldIntParametersUsed;
-		OldIntParametersUsed.SetNumUninitialized(OldIntParameters.Num());
-		FMemory::Memzero(OldIntParametersUsed.GetData(), OldIntParametersUsed.GetAllocatedSize());
-
-		MutableParameters = CustomizableObject->GetPrivate()->GetModel()->NewParameters();
-		int32 paramCount = MutableParameters->GetCount();
-
-		for (int32 paramIndex = 0; paramIndex<paramCount; ++paramIndex)
-		{
-			FString Name = MutableParameters->GetName(paramIndex);
-			FString Uid = MutableParameters->GetUid(paramIndex);
-			mu::PARAMETER_TYPE mutableType = MutableParameters->GetType(paramIndex);
-
-			switch (mutableType)
-			{
-			case mu::PARAMETER_TYPE::T_BOOL:
-			{
-				FCustomizableObjectBoolParameterValue param;
-				param.ParameterName = Name;
-				param.Uid = Uid;
-
-				bool found = false;
-				for (int32 i = 0; i < OldBoolParameters.Num(); ++i)
-				{
-					if (OldBoolParameters[i].ParameterName == Name)
-					{
-						found = true;
-						param.ParameterValue = OldBoolParameters[i].ParameterValue;
-						MutableParameters->SetBoolValue(paramIndex, param.ParameterValue);
-
-						if (OldBoolParameters[i].Uid.IsEmpty())
-						{
-							Public->Modify();
-						}
-
-						break;
-					}
-				}
-
-				if (!found)
-				{
-					for (int32 i = 0; i < OldBoolParameters.Num(); ++i)
-					{
-						if (!Uid.IsEmpty() && OldBoolParameters[i].Uid == Uid)
-						{
-							found = true;
-							param.ParameterValue = OldBoolParameters[i].ParameterValue;
-							MutableParameters->SetBoolValue(paramIndex, param.ParameterValue);
-
-							if (OldBoolParameters[i].Uid.IsEmpty())
-							{
-								Public->Modify();
-							}
-
-							break;
-						}
-					}
-				}
-
-				if (!found)
-				{
-					param.ParameterValue = MutableParameters->GetBoolValue(paramIndex);
-				}
-
-				Public->GetBoolParameters().Add(param);
-				break;
-			}
-
-			case mu::PARAMETER_TYPE::T_INT:
-			{
-				FString ParameterValueName;
-				TArray<FString> ParameterRangeValueNames;
-
-				bool found = false;
-				for (int32 i = 0; i < OldIntParameters.Num(); ++i)
-				{
-					if (OldIntParametersUsed[i] == false && OldIntParameters[i].ParameterName.Equals(Name, ESearchCase::CaseSensitive))
-					{
-						found = true;
-						OldIntParametersUsed[i] = true;
-
-						mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-						if (!RangeIdxPtr)
-						{
-						ParameterValueName = OldIntParameters[i].ParameterValueName;
-						int32 Value = CustomizableObject->FindIntParameterValue(paramIndex, ParameterValueName);
-						MutableParameters->SetIntValue(paramIndex, Value);
-						}
-						else
-						{
-							for (int RangeIndex = 0; RangeIndex < OldIntParameters[i].ParameterRangeValueNames.Num(); ++RangeIndex)
-							{
-								FString AuxParameterValueName = OldIntParameters[i].ParameterRangeValueNames[RangeIndex];
-								ParameterRangeValueNames.Add(AuxParameterValueName);
-								int32 Value = CustomizableObject->FindIntParameterValue(paramIndex, AuxParameterValueName);
-								RangeIdxPtr->SetPosition(0, RangeIndex);
-								MutableParameters->SetIntValue(paramIndex, Value, RangeIdxPtr);
-							}
-						}
-
-						if (OldIntParameters[i].Uid.IsEmpty())
-						{
-							Public->Modify();
-						}
-
-						break;
-					}
-				}
-
-				if (!found)
-				{
-					for (int32 i = 0; i < OldIntParameters.Num(); ++i)
-					{
-						if (!Uid.IsEmpty() && OldIntParametersUsed[i] == false && OldIntParameters[i].Uid == Uid)
-						{
-							found = true;
-							OldIntParametersUsed[i] = true;
-
-							mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-							if (!RangeIdxPtr)
-							{
-							ParameterValueName = OldIntParameters[i].ParameterValueName;
-							int32 Value = CustomizableObject->FindIntParameterValue(paramIndex, ParameterValueName);
-							MutableParameters->SetIntValue(paramIndex, Value);
-							}
-							else
-							{
-								for (int RangeIndex = 0; RangeIndex < OldIntParameters[i].ParameterRangeValueNames.Num(); ++RangeIndex)
-								{
-									FString AuxParameterValueName = OldIntParameters[i].ParameterRangeValueNames[RangeIndex];
-									ParameterRangeValueNames.Add(AuxParameterValueName);
-									int32 Value = CustomizableObject->FindIntParameterValue(paramIndex, AuxParameterValueName);
-									RangeIdxPtr->SetPosition(0, RangeIndex);
-									MutableParameters->SetIntValue(paramIndex, Value, RangeIdxPtr);
-								}
-							}
-
-							if (OldIntParameters[i].Uid.IsEmpty())
-							{
-								Public->Modify();
-							}
-
-							break;
-						}
-					}
-				}
-
-				if (!found)
-				{
-					mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-					if (!RangeIdxPtr.get())
-					{
-					int32 Value = MutableParameters->GetIntValue(paramIndex);
-					ParameterValueName = CustomizableObject->FindIntParameterValueName(paramIndex, Value);
-					}
-					else
-					{
-						int32 ValueCount = MutableParameters->GetValueCount(paramIndex);
-
-						for (int32 ValueIterator = 0; ValueIterator < ValueCount; ++ValueIterator)
-						{
-							mu::RangeIndexPtr RangeValueIdxPtr = MutableParameters->GetValueIndex(paramIndex, ValueIterator);
-							int32 ValueIndex = RangeValueIdxPtr->GetPosition(0);
-
-							//if (!param.RangeValues.IsValidIndex(ValueIndex))
-							//{
-							//	param.RangeValues.AddDefaulted(ValueIndex + 1 - param.RangeValues.Num());
-							//}
-
-							int32 Value = MutableParameters->GetIntValue(paramIndex, RangeValueIdxPtr);
-							FString AuxParameterValueName = CustomizableObject->FindIntParameterValueName(paramIndex, Value);
-							//param.RangeValues[ValueIndex] = AuxParameterValueName;
-
-							if (!ParameterRangeValueNames.IsValidIndex(ValueIndex))
-							{
-								ParameterRangeValueNames.AddDefaulted(ValueIndex + 1 - ParameterRangeValueNames.Num());
-							}
-
-							ParameterRangeValueNames[ValueIndex] = AuxParameterValueName;
-						}
-					}
-
-					Public->Modify();
-				}
-
-				//Public->IntParameters.Add(param);
-				Public->GetIntParameters().Emplace(Name, ParameterValueName, Uid, ParameterRangeValueNames);
-
-				break;
-			}
-
-			case mu::PARAMETER_TYPE::T_FLOAT:
-			{
-				FCustomizableObjectFloatParameterValue param;
-				param.ParameterName = Name;
-				param.Uid = Uid;
-
-				bool found = false;
-				for (int32 i = 0; i < OldFloatParameters.Num(); ++i)
-				{
-					if (OldFloatParameters[i].ParameterName == Name || (!Uid.IsEmpty() && OldFloatParameters[i].Uid == Uid))
-					{
-						found = true;
-						param.ParameterValue = OldFloatParameters[i].ParameterValue;
-						param.ParameterRangeValues = OldFloatParameters[i].ParameterRangeValues;
-
-						mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-						if (!RangeIdxPtr)
-						{
-							MutableParameters->SetFloatValue(paramIndex, param.ParameterValue);
-						}
-						else
-						{
-							for (int RangeIndex = 0; RangeIndex < OldFloatParameters[i].ParameterRangeValues.Num(); ++RangeIndex)
-							{
-								RangeIdxPtr->SetPosition(0, RangeIndex);
-								MutableParameters->SetFloatValue(paramIndex, param.ParameterRangeValues[RangeIndex], RangeIdxPtr);
-							}
-						}
-
-						if (OldFloatParameters[i].Uid.IsEmpty())
-						{
-							Public->Modify();
-						}
-					}
-				}
-
-				if (!found)
-				{
-					mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-					if (!RangeIdxPtr.get())
-					{
-					param.ParameterValue = MutableParameters->GetFloatValue(paramIndex);
-				}
-					else
-					{
-					param.ParameterValue = MutableParameters->GetFloatValue(paramIndex);
-
-						int32 ValueCount = MutableParameters->GetValueCount(paramIndex);
-
-						for (int32 ValueIterator = 0; ValueIterator < ValueCount; ++ValueIterator)
-						{
-							mu::RangeIndexPtr RangeValueIdxPtr = MutableParameters->GetValueIndex(paramIndex, ValueIterator);
-							int32 ValueIndex = RangeValueIdxPtr->GetPosition(0);
-
-							float Value = MutableParameters->GetFloatValue(paramIndex, RangeValueIdxPtr);
-
-							if (!param.ParameterRangeValues.IsValidIndex(ValueIndex))
-							{
-								param.ParameterRangeValues.AddDefaulted(ValueIndex + 1 - param.ParameterRangeValues.Num());
-							}
-
-							param.ParameterRangeValues[ValueIndex] = Value;
-						}
-					}
-				}
-
-				Public->GetFloatParameters().Add(param);
-				break;
-			}
-
-			case mu::PARAMETER_TYPE::T_COLOUR:
-			{
-				FCustomizableObjectVectorParameterValue param;
-				param.ParameterName = Name;
-				param.Uid = Uid;
-
-				bool found = false;
-				for (int32 i = 0; i < OldVectorParameters.Num(); ++i)
-				{
-					if (OldVectorParameters[i].ParameterName == Name || (!Uid.IsEmpty() && OldVectorParameters[i].Uid == Uid))
-					{
-						found = true;
-						param.ParameterValue = OldVectorParameters[i].ParameterValue;
-						MutableParameters->SetColourValue(paramIndex, param.ParameterValue.R, param.ParameterValue.G, param.ParameterValue.B);
-
-						if (OldVectorParameters[i].Uid.IsEmpty())
-						{
-							Public->Modify();
-						}
-					}
-				}
-
-				if (!found)
-				{
-					MutableParameters->GetColourValue(paramIndex, &param.ParameterValue.R, &param.ParameterValue.G, &param.ParameterValue.B);
-					param.ParameterValue.A = 1.0f;
-				}
-
-				Public->GetVectorParameters().Add(param);
-				break;
-			}
-
-			case mu::PARAMETER_TYPE::T_PROJECTOR:
-			{
-				FCustomizableObjectProjectorParameterValue param;
-				param.ParameterName = Name;
-				param.Uid = Uid;
-
-				bool found = false;
-				for (int32 i = 0; i < OldProjectorParameters.Num(); ++i)
-				{
-					if (OldProjectorParameters[i].ParameterName == Name || (!Uid.IsEmpty() && OldProjectorParameters[i].Uid == Uid))
-					{
-						found = true;
-
-						param.Value = OldProjectorParameters[i].Value;
-						param.RangeValues = OldProjectorParameters[i].RangeValues;
-
-						mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-						TArray<FCustomizableObjectProjector> AuxValuesArray;
-						AuxValuesArray.Add(param.Value);
-						TArray<FCustomizableObjectProjector>& Values = RangeIdxPtr.get() ? param.RangeValues : AuxValuesArray;
-						int32 ArrayIndex = 0;
-
-						for (FCustomizableObjectProjector& Value : Values)
-						{
-							if (RangeIdxPtr.get())
-							{
-								check(RangeIdxPtr->GetRangeCount() == 1);
-								RangeIdxPtr->SetPosition(0, ArrayIndex);
-							}
-
-							switch (Value.ProjectionType)
-							{
-							case ECustomizableObjectProjectorType::Planar:
-							case ECustomizableObjectProjectorType::Wrapping:
-							{
-								MutableParameters->SetProjectorValue(paramIndex,
-									Value.Position[0], Value.Position[1], Value.Position[2],
-									Value.Direction[0], Value.Direction[1], Value.Direction[2],
-									Value.Up[0], Value.Up[1], Value.Up[2],
-									Value.Scale[0], Value.Scale[1], Value.Scale[2],
-									Value.Angle,
-									RangeIdxPtr);
-								break;
-							}
-
-							case ECustomizableObjectProjectorType::Cylindrical:
-							{
-								// Apply strange swizzle for scales
-								// TODO: try to avoid this
-									float Radius = FMath::Abs(Value.Scale[0] / 2.0f);
-									float Height = Value.Scale[2];
-								// TODO: try to avoid this
-								MutableParameters->SetProjectorValue(paramIndex,
-										Value.Position[0], Value.Position[1], Value.Position[2],
-										-Value.Direction[0], -Value.Direction[1], -Value.Direction[2],
-										-Value.Up[0], -Value.Up[1], -Value.Up[2],
-										-Height, Radius, Radius,
-										Value.Angle,
-										RangeIdxPtr);
-								break;
-							}
-
-							default:
-								// Not implemented.
-								check(false);
-							}
-							
-							ArrayIndex++;
-						}
-					}
-
-					if (OldProjectorParameters[i].Uid.IsEmpty())
-					{
-						Public->Modify();
-					}
-				}
-
-				if (!found)
-				{
-					mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(paramIndex);
-
-					if (!RangeIdxPtr.get())
-					{
-					mu::PROJECTOR_TYPE type;
-					MutableParameters->GetProjectorValue(paramIndex,
-						&type,
-						&param.Value.Position[0], &param.Value.Position[1], &param.Value.Position[2],
-						&param.Value.Direction[0], &param.Value.Direction[1], &param.Value.Direction[2],
-						&param.Value.Up[0], &param.Value.Up[1], &param.Value.Up[2],
-						&param.Value.Scale[0], &param.Value.Scale[1], &param.Value.Scale[2],
-						&param.Value.Angle );
-					switch (type)
-					{
-					case mu::PROJECTOR_TYPE::PLANAR:
-						param.Value.ProjectionType = ECustomizableObjectProjectorType::Planar;
-						break;
-
-					case mu::PROJECTOR_TYPE::CYLINDRICAL:
-						// Unapply strange swizzle for scales.
-						// TODO: try to avoid this
-						param.Value.ProjectionType = ECustomizableObjectProjectorType::Cylindrical;
-						param.Value.Direction = -param.Value.Direction;
-						param.Value.Up = -param.Value.Up;
-						param.Value.Scale[2] = -param.Value.Scale[0];
-						param.Value.Scale[0] = param.Value.Scale[1] = param.Value.Scale[1] * 2.0f;
-						break;
-
-					case mu::PROJECTOR_TYPE::WRAPPING:
-						param.Value.ProjectionType = ECustomizableObjectProjectorType::Wrapping;
-						break;
-					default:
-						// not implemented
-						check(false);
-					}
-				}
-					else
-					{
-						int32 ValueCount = MutableParameters->GetValueCount(paramIndex);
-
-						for (int32 ValueIterator = 0; ValueIterator < ValueCount; ++ValueIterator)
-						{
-							mu::RangeIndexPtr RangeValueIdxPtr = MutableParameters->GetValueIndex(paramIndex, ValueIterator);
-							int32 ValueIndex = RangeValueIdxPtr->GetPosition(0);
-
-							if (!param.RangeValues.IsValidIndex(ValueIndex))
-							{
-								param.RangeValues.AddDefaulted(ValueIndex + 1 - param.RangeValues.Num());
-							}
-
-							mu::PROJECTOR_TYPE type;
-							MutableParameters->GetProjectorValue(paramIndex,
-							&type,
-							&param.RangeValues[ValueIndex].Position[0], &param.RangeValues[ValueIndex].Position[1], &param.RangeValues[ValueIndex].Position[2],
-							&param.RangeValues[ValueIndex].Direction[0], &param.RangeValues[ValueIndex].Direction[1], &param.RangeValues[ValueIndex].Direction[2],
-							&param.RangeValues[ValueIndex].Up[0], &param.RangeValues[ValueIndex].Up[1], &param.RangeValues[ValueIndex].Up[2],
-							&param.RangeValues[ValueIndex].Scale[0], &param.RangeValues[ValueIndex].Scale[1], &param.RangeValues[ValueIndex].Scale[2],
-							&param.RangeValues[ValueIndex].Angle,
-							RangeValueIdxPtr);
-
-							switch (type)
-							{
-							case mu::PROJECTOR_TYPE::PLANAR:
-								param.RangeValues[ValueIndex].ProjectionType = ECustomizableObjectProjectorType::Planar;
-								break;
-
-							case mu::PROJECTOR_TYPE::CYLINDRICAL:
-								// Unapply strange swizzle for scales.
-								// TODO: try to avoid this
-								param.RangeValues[ValueIndex].ProjectionType = ECustomizableObjectProjectorType::Cylindrical;
-								param.RangeValues[ValueIndex].Direction = -param.RangeValues[ValueIndex].Direction;
-								param.RangeValues[ValueIndex].Up = -param.RangeValues[ValueIndex].Up;
-								param.RangeValues[ValueIndex].Scale[2] = -param.RangeValues[ValueIndex].Scale[0];
-								param.RangeValues[ValueIndex].Scale[0] = param.RangeValues[ValueIndex].Scale[1] = param.RangeValues[ValueIndex].Scale[1] * 2.0f;
-								break;
-
-							case mu::PROJECTOR_TYPE::WRAPPING:
-								param.RangeValues[ValueIndex].ProjectionType = ECustomizableObjectProjectorType::Wrapping;
-								break;
-							default:
-								// not implemented
-								check(false);
-							}
-						}
-					}
-				}
-
-				Public->GetProjectorParameters().Add(param);
-				break;
-			}
-
-			case mu::PARAMETER_TYPE::T_IMAGE:
-			{
-				FCustomizableObjectTextureParameterValue param;
-				param.ParameterName = Name;
-				param.Uid = Uid;
-
-				bool found = false;
-				for (int32 i = 0; i < OldTextureParameters.Num(); ++i)
-				{
-					if (OldTextureParameters[i].ParameterName == Name || (!Uid.IsEmpty() && OldTextureParameters[i].Uid == Uid))
-					{
-						found = true;
-						param.ParameterValue = OldTextureParameters[i].ParameterValue;
-						MutableParameters->SetImageValue(paramIndex, param.ParameterValue);
-					}
-
-					if (OldTextureParameters[i].Uid.IsEmpty())
-					{
-						Public->Modify();
-					}
-				}
-
-				if (!found)
-				{
-					param.ParameterValue = MutableParameters->GetImageValue(paramIndex);
-				}
-
-				Public->GetTextureParameters().Add(param);
-				break;
-			}
-
-			default:
-				// TODO
-				break;
-
-			}
-		}
-	}
-	else
-	{
-		if (!CustomizableObject)
-		{
-			UE_LOG(LogMutable, Warning, TEXT("[ReloadParametersFromObject] No CustomizableObject, generated empty parameters for [%s] "), *GetName());
-		}
-		else if (!CustomizableObject->GetPrivate()->GetModel())
-		{
-			UE_LOG(LogMutable, Warning, TEXT("[ReloadParametersFromObject] No model in object [%s], generated empty parameters for [%s] "), *CustomizableObject->GetName(), *GetName());
-		}
+		ClearAllLastMeshIds();
 	}
 	
-	Public->GetDescriptor().CreateParametersLookupTable();
-
-	return MutableParameters;
+	return Public->GetDescriptor().ReloadParametersFromObject();
 }
 
 
 void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 {
-	Descriptor.CustomizableObject = InObject;
+	Descriptor.SetCustomizableObject(InObject);
 	PrivateData->ReloadParametersFromObject(this, true);
 }
 
@@ -1346,6 +812,8 @@ void UCustomizableInstancePrivateData::DoUpdateSkeletalMesh(UCustomizableObjectI
 
 	check(IsInGameThread());
 	check(bAsync);
+
+	CustomizableInstance->UpdateDescriptorHash = GetTypeHash(CustomizableInstance->Descriptor);
 
 	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 	
@@ -2156,114 +1624,79 @@ int32 UCustomizableObjectInstance::RemoveValueFromProjectorRange(const FString& 
 
 bool UCustomizableObjectInstance::CreateMultiLayerProjector(const FName& ProjectorParamName)
 {
-	if (const FMultilayerProjector* Result = MultilayerProjectors.Find(ProjectorParamName))
-	{
-		checkCode(Result->CheckInstanceParameters());
-	}
-	else
-	{
-		if (!FMultilayerProjector::AreInstanceParametersValid(*this, ProjectorParamName))
-		{
-			return false;
-		}
-		
-		const FMultilayerProjector MultilayerProjector(*this, ProjectorParamName);
-		MultilayerProjectors.Add(ProjectorParamName, MultilayerProjector);
-	}
-
-	return true;
+	return Descriptor.CreateMultiLayerProjector(ProjectorParamName);
 }
 
 
 void UCustomizableObjectInstance::RemoveMultilayerProjector(const FName& ProjectorParamName)
 {
-	MultilayerProjectors.Remove(ProjectorParamName);
+	Descriptor.RemoveMultilayerProjector(ProjectorParamName);
 }
 
 
 int32 UCustomizableObjectInstance::MultilayerProjectorNumLayers(const FName& ProjectorParamName) const
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	return MultilayerProjectors[ProjectorParamName].NumLayers();
+	return Descriptor.MultilayerProjectorNumLayers(ProjectorParamName);
 }
 
 
 void UCustomizableObjectInstance::MultilayerProjectorCreateLayer(const FName& ProjectorParamName, int32 Index)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	MultilayerProjectors[ProjectorParamName].CreateLayer(Index);
+	Descriptor.MultilayerProjectorCreateLayer(ProjectorParamName, Index);
 }
 
 
 void UCustomizableObjectInstance::MultilayerProjectorRemoveLayerAt(const FName& ProjectorParamName, int32 Index)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	MultilayerProjectors[ProjectorParamName].RemoveLayerAt(Index);
+	Descriptor.MultilayerProjectorRemoveLayerAt(ProjectorParamName, Index);
 }
 
 
 FMultilayerProjectorLayer UCustomizableObjectInstance::MultilayerProjectorGetLayer(const FName& ProjectorParamName, int32 Index) const
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	return MultilayerProjectors[ProjectorParamName].GetLayer(Index);
+	return Descriptor.MultilayerProjectorGetLayer(ProjectorParamName, Index);
 }
 
 
 void UCustomizableObjectInstance::MultilayerProjectorUpdateLayer(const FName& ProjectorParamName, int32 Index, const FMultilayerProjectorLayer& Layer)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	MultilayerProjectors[ProjectorParamName].UpdateLayer(Index, Layer);
+	Descriptor.MultilayerProjectorUpdateLayer(ProjectorParamName, Index, Layer);
 }
 
 
 TArray<FName> UCustomizableObjectInstance::MultilayerProjectorGetVirtualLayers(const FName& ProjectorParamName) const
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	return MultilayerProjectors[ProjectorParamName].GetVirtualLayers();
+	return Descriptor.MultilayerProjectorGetVirtualLayers(ProjectorParamName);
 }
 
 
 void UCustomizableObjectInstance::MultilayerProjectorCreateVirtualLayer(const FName& ProjectorParamName, const FName& Id)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	MultilayerProjectors[ProjectorParamName].CreateVirtualLayer(Id);
+	Descriptor.MultilayerProjectorCreateVirtualLayer(ProjectorParamName, Id);
 }
 
 
 FMultilayerProjectorVirtualLayer UCustomizableObjectInstance::MultilayerProjectorFindOrCreateVirtualLayer(const FName& ProjectorParamName, const FName& Id)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	return MultilayerProjectors[ProjectorParamName].FindOrCreateVirtualLayer(Id);
+	return Descriptor.MultilayerProjectorFindOrCreateVirtualLayer(ProjectorParamName, Id);
 }
 
 
 void UCustomizableObjectInstance::MultilayerProjectorRemoveVirtualLayer(const FName& ProjectorParamName, const FName& Id)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	MultilayerProjectors[ProjectorParamName].RemoveVirtualLayer(Id);
+	Descriptor.MultilayerProjectorRemoveVirtualLayer(ProjectorParamName, Id);
 }
+
 
 FMultilayerProjectorVirtualLayer UCustomizableObjectInstance::MultilayerProjectorGetVirtualLayer(const FName& ProjectorParamName, const FName& Id) const
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	return MultilayerProjectors[ProjectorParamName].GetVirtualLayer(Id);
+	return Descriptor.MultilayerProjectorGetVirtualLayer(ProjectorParamName, Id);
 }
+
 
 void UCustomizableObjectInstance::MultilayerProjectorUpdateVirtualLayer(const FName& ProjectorParamName, const FName& Id, const FMultilayerProjectorVirtualLayer& Layer)
 {
-	check(MultilayerProjectors.Contains(ProjectorParamName)); // Multilayer Projector not created.
-	
-	MultilayerProjectors[ProjectorParamName].UpdateVirtualLayer(Id, Layer);
+	Descriptor.MultilayerProjectorUpdateVirtualLayer(ProjectorParamName, Id, Layer);
 }
 
 
@@ -2837,16 +2270,39 @@ void SetTexturePropertiesFromMutableImageProps(UTexture2D* Texture, const FMutab
 }
 
 
-void UCustomizableObjectInstance::Updated()
+void UCustomizableObjectInstance::Updated(EUpdateResult Result)
 {
-	UpdatedDelegate.Broadcast(this);
-	UpdatedNativeDelegate.Broadcast(this);
+	// Call Customizable Skeletal Components updated callbacks.
+	for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
+	{
+		if (const UCustomizableSkeletalComponent* CustomizableSkeletalComponent = *It;
+			CustomizableSkeletalComponent &&
+			CustomizableSkeletalComponent->CustomizableObjectInstance == this)
+		{
+			CustomizableSkeletalComponent->Updated(Result);
+		}
+	}
+
+	// Call Instance updated (this) callbacks.
+	DescriptorHash = UpdateDescriptorHash;
+
+	if (Result == EUpdateResult::Success)
+	{
+		UpdatedDelegate.Broadcast(this);
+		UpdatedNativeDelegate.Broadcast(this);
+	}	
 }
 
 
-uint32 UCustomizableObjectInstance::GetLastUpdateDescriptorHash() const
+uint32 UCustomizableObjectInstance::GetDescriptorHash() const
 {
-	return LastUpdateDescriptorHash;
+	return DescriptorHash;	
+}
+
+
+uint32 UCustomizableObjectInstance::GetUpdateDescriptorHash() const
+{
+	return UpdateDescriptorHash;
 }
 
 

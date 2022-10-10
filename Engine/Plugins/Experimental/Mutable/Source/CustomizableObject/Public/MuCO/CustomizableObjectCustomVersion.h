@@ -57,6 +57,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		CustomizableObjectInstanceDescriptor,
 		
 		DescriptorBuildParameterDecorations,
+
+		DescriptorMultilayerProjectors,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
