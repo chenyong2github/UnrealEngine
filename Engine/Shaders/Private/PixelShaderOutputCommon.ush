@@ -154,6 +154,10 @@ void MainPS
 	OutTarget2 = PixelShaderOut.MRT[2];
 #endif
 
+#if PIXELSHADEROUTPUT_MRT3
+	OutTarget3 = PixelShaderOut.MRT[3];
+#endif
+
 #if STRATA_OPAQUE_DEFERRED
 
 	// In this case, here is the gbuffer pattern
@@ -185,10 +189,6 @@ void MainPS
 #endif
 
 #else // STRATA_OPAQUE_DEFERRED
-
-#if PIXELSHADEROUTPUT_MRT3
-	OutTarget3 = PixelShaderOut.MRT[3];
-#endif
 
 #if PIXELSHADEROUTPUT_MRT4
 	OutTarget4 = PixelShaderOut.MRT[4];
