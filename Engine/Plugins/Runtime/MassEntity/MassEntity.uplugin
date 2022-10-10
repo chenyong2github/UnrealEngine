@@ -11,8 +11,7 @@
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": true,
+	"IsBetaVersion": true,
 	"Installed": false,
 	"EnabledByDefault": false,
 	"Modules": [
