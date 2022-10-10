@@ -568,6 +568,12 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 	}
 #endif
 
+	if (Other.Type == ResourceLocationType::eStandAlone)
+	{
+		bool bIncrement = false;
+		Other.UpdateStandAloneStats(bIncrement);
+	}
+
 	if (Other.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
 	{
 		check(GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
@@ -596,6 +602,12 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 	else
 	{
 		::Swap(*this, Other);
+	}
+
+	if (Type == ResourceLocationType::eStandAlone)
+	{
+		bool bIncrement = true;
+		UpdateStandAloneStats(bIncrement);
 	}
 }
 
