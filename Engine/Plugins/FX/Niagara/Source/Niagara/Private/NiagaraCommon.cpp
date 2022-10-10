@@ -149,10 +149,13 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 	}
 }
 
-void FNiagaraSystemUpdateContext::Add(UNiagaraComponent* Component, bool bReInit)
+void FNiagaraSystemUpdateContext::AddSoloComponent(UNiagaraComponent* Component, bool bReInit)
 {
 	check(Component);
-	AddInternal(Component, bReInit);
+	if (ensureMsgf(Component->GetForceSolo(), TEXT("A component must have a solo system simulation when used with an update context.")))
+	{
+		AddInternal(Component, bReInit);
+	}
 }
 
 void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit)
@@ -228,15 +231,17 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 		}
 	}
 
-	if (bReInit || bDestroySystemSim)
+	if (Comp->GetForceSolo() == false)
 	{
-		SystemSimsToRecache.AddUnique(Comp->GetAsset());
-	}
+		if (bReInit || bDestroySystemSim)
+		{
+			SystemSimsToRecache.AddUnique(Comp->GetAsset());
+		}
 
-	if (bReInit && bDestroySystemSim)
-	{
-		//Always destroy the system sims on a reinit, even if we're not reactivating the component.
-		SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+		if (bReInit && bDestroySystemSim)
+		{
+			SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+		}
 	}
 
 	bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();

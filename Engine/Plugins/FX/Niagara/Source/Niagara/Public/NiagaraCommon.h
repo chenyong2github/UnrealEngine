@@ -750,7 +750,6 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 {
 	GENERATED_BODY()
 
-	FNiagaraSystemUpdateContext(UNiagaraComponent* Component, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false, bool bInDestroySystemSim = true) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive), bDestroySystemSim(bInDestroySystemSim) { Add(Component, bReInit); }
 	FNiagaraSystemUpdateContext(const UNiagaraSystem* System, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false, bool bInDestroySystemSim = true) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive), bDestroySystemSim(bInDestroySystemSim) { Add(System, bReInit); }
 #if WITH_EDITORONLY_DATA
 	FNiagaraSystemUpdateContext(const FVersionedNiagaraEmitter& Emitter, bool bReInit, bool bInDestroyOnAdd = false, bool bInOnlyActive = false, bool bInDestroySystemSim = true) :bDestroyOnAdd(bInDestroyOnAdd), bOnlyActive(bInOnlyActive), bDestroySystemSim(bInDestroySystemSim) { Add(Emitter, bReInit); }
@@ -766,7 +765,7 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 	void SetOnlyActive(bool bInOnlyActive) { bOnlyActive = bInOnlyActive; }
 	void SetDestroySystemSim(bool bInDestroySystemSim) { bDestroySystemSim = bInDestroySystemSim; }
 
-	void Add(UNiagaraComponent* Component, bool bReInit);
+	void AddSoloComponent(UNiagaraComponent* Component, bool bReInit);
 	void Add(const UNiagaraSystem* System, bool bReInit);
 #if WITH_EDITORONLY_DATA
 	void Add(const FVersionedNiagaraEmitter& Emitter, bool bReInit);

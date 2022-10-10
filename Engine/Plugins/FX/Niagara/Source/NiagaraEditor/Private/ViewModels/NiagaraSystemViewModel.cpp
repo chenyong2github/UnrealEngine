@@ -2040,9 +2040,11 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 
 	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
 	{
+		// Resetting the single preview instance is only valid when the change causing the reset hasn't invalidated any cached simulation data.
+		// Examples of these changes are bounds changes or preview changes such as resetting on loop or changing the preview quality level.
 		if (PreviewComponent != nullptr)
 		{
-			UpdateContext.Add(PreviewComponent, ReinitMode == EReinitMode::ReinitializeSystem);
+			UpdateContext.AddSoloComponent(PreviewComponent, ReinitMode == EReinitMode::ReinitializeSystem);
 		}
 	}
 	else
