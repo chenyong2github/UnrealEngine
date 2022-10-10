@@ -19,7 +19,6 @@
 #include "SceneTypes.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
-#include "MaterialRestrictiveMode.h"
 
 struct FExportMaterialCompiler : public FProxyMaterialCompiler
 {
@@ -355,8 +354,6 @@ public:
 	/** helper for CompilePropertyAndSetMaterialProperty() */
 	int32 CompilePropertyAndSetMaterialPropertyWithoutCast(EMaterialProperty Property, FMaterialCompiler* Compiler) const
 	{
-		FScopedHLSLMaterialTranslatorRestrictiveModeChange HLSLMaterialTranslatorRestrictiveModeChangeScope(false);
-
 		if (Property == MP_EmissiveColor)
 		{
 			const EBlendMode BlendMode = MaterialInterface->GetBlendMode();

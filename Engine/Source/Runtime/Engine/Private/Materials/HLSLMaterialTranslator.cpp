@@ -5,23 +5,27 @@
 #include "HLSLMaterialTranslator.h"
 #include "VT/VirtualTextureScalability.h"
 #include "Materials/MaterialExpressionCustom.h"
-#include "MaterialRestrictiveMode.h"
+#include "MaterialExpressionSettings.h"
 #include "Engine/RendererSettings.h"
 
 bool IsExpressionClassPermitted(const UClass* const Class)
 {
 	if (Class)
 	{
-		if (Class == UMaterialExpressionCustom::StaticClass())
+		// Always allow cooked content
+		if (Class->bCooked)
 		{
-			// If custom HLSL expressions are restricted, they can only be used in cooked content
-			return
-				Class->bCooked
-#if WITH_EDITORONLY_DATA
-				|| !FHLSLMaterialTranslator::InRestrictiveMode()
-#endif
-			;
+			return true;
 		}
+
+#if WITH_EDITOR
+		// Uncooked content must be explicitly allowed if in restrictive mode
+		const bool bIsClassPathAllowed = FMaterialExpressionSettings::Get()->IsClassPathAllowed(FTopLevelAssetPath(Class->GetPathName()));
+		if (!bIsClassPathAllowed)
+		{
+			return false;
+		}
+#endif
 	}
 	return true;
 }
@@ -2569,29 +2573,6 @@ FString FHLSLMaterialTranslator::GetParameterCodeRaw(int32 Index, const TCHAR* D
 		check(CodeChunk.SymbolName.Len() > 0);
 		return CodeChunk.SymbolName;
 	}
-}
-
-// Public interface for restrictive mode.
-bool GetHLSLMaterialTranslatorRestrictiveMode()
-{
-	return FHLSLMaterialTranslator::InRestrictiveMode();
-}
-
-void SetHLSLMaterialTranslatorRestrictiveMode(bool bRestrictiveMode)
-{
-	FHLSLMaterialTranslator::SetRestrictiveMode(bRestrictiveMode);
-}
-
-static bool GIsMaterialTranslatorInRestrictiveMode = false;
-
-void FHLSLMaterialTranslator::SetRestrictiveMode(bool bRestrictiveMode)
-{
-	GIsMaterialTranslatorInRestrictiveMode = bRestrictiveMode;
-}
-
-bool FHLSLMaterialTranslator::InRestrictiveMode()
-{
-	return GIsMaterialTranslatorInRestrictiveMode;
 }
 
 uint64 FHLSLMaterialTranslator::GetParameterHash(int32 Index)
@@ -11243,18 +11224,20 @@ int32 FHLSLMaterialTranslator::AccessMaterialAttribute(int32 CodeIndex, const FG
 		*AttributeName);
 }
 
-static bool IsMaterialPathExemptFromRestrictiveMode(FString& OutPathName)
+static bool IsMaterialPathExemptFromRestrictiveMode(FStringBuilderBase& PathName)
 {
+	const FStringView PathNameView = PathName;
+
 	// Anything currently being edited is NOT exempt from restrictive mode
-	const TCHAR* EngineTransientPath = TEXT("/Engine/Transient.");
-	if (OutPathName.StartsWith(EngineTransientPath))
+	const FStringView EngineTransientPath = TEXT("/Engine/Transient.");
+	if (PathNameView.StartsWith(EngineTransientPath))
 	{
-		OutPathName.RightChopInline(FCString::Strlen(EngineTransientPath));
+		PathName.RemoveAt(0, EngineTransientPath.Len());
 		return false;
 	}
 
 	// Anything else in /Engine/ and /Game/ folders is exempt
-	if (OutPathName.StartsWith(TEXT("/Engine/")) || OutPathName.StartsWith(TEXT("/Game/")))
+	if (PathNameView.StartsWith(TEXT("/Engine/")) || PathNameView.StartsWith(TEXT("/Game/")))
 	{
 		return true;
 	}
@@ -11262,30 +11245,47 @@ static bool IsMaterialPathExemptFromRestrictiveMode(FString& OutPathName)
 	return false;
 }
 
-static bool IsMaterialExpressionExemptFromRestrictiveMode(const UMaterialExpression* Expression, FString& OutPathName)
+static bool IsMaterialExpressionExemptFromRestrictiveMode(const UMaterialExpression* Expression, FStringBuilderBase& PathName)
 {
 	if (Expression)
 	{
 		if (Expression->Material)
 		{
-			OutPathName = Expression->Material->GetPathName();
-			return IsMaterialPathExemptFromRestrictiveMode(OutPathName);
+			Expression->Material->GetPathName(nullptr, PathName);
+			return IsMaterialPathExemptFromRestrictiveMode(PathName);
 		}
 		if (Expression->Function)
 		{
-			OutPathName = Expression->Function->GetPathName();
-			return IsMaterialPathExemptFromRestrictiveMode(OutPathName);
+			Expression->Function->GetPathName(nullptr, PathName);
+			return IsMaterialPathExemptFromRestrictiveMode(PathName);
 		}
 	}
 	return false;
 }
 
+bool FHLSLMaterialTranslator::ValidateMaterialExpressionPermission(const UMaterialExpression* Expression)
+{
+	FNameBuilder MaterialPathName;
+	if (!IsExpressionClassPermitted(Expression->GetClass()) && !IsMaterialExpressionExemptFromRestrictiveMode(Expression, MaterialPathName))
+	{
+		if (MaterialPathName.Len() > 0)
+		{
+			Errorf(TEXT("Material expression %s not permitted in %s"), *Expression->GetCreationName().ToString(), *MaterialPathName);
+		}
+		else
+		{
+			Errorf(TEXT("Material expression %s not permitted"), *Expression->GetCreationName().ToString());
+		}
+		return false;
+	}
+	return true;
+}
+
 int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs )
 {
-	FString MaterialPathName;
-	if (!IsExpressionClassPermitted(Custom->GetClass()) && !IsMaterialExpressionExemptFromRestrictiveMode(Custom, MaterialPathName))
+	if (!ValidateMaterialExpressionPermission(Custom))
 	{
-		return Errorf(TEXT("Custom HLSL expressions are not permitted in %s"), *MaterialPathName);
+		return INDEX_NONE;
 	}
 
 	const FMaterialCustomExpressionEntry* CustomEntry = nullptr;

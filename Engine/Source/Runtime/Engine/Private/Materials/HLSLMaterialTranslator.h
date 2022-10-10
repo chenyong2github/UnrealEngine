@@ -521,11 +521,6 @@ public:
 	// Must always be valid
 	virtual FString GetParameterCodeDeriv(int32 Index, ECompiledPartialDerivativeVariation Variation);
 
-	// Puts the translator into restrictive mode.
-	static void SetRestrictiveMode(bool bRestrictiveMode);
-	// Returns whether the material translator is in restrictive mode. If true, custom HLSL expressions are only allowed for cooked content.
-	static bool InRestrictiveMode();
-
 protected:
 
 	uint64 GetParameterHash(int32 Index);
@@ -672,6 +667,8 @@ protected:
 	bool StrataGenerateDerivedMaterialOperatorData();
 	void StrataEvaluateSharedLocalBases(uint8& UsedSharedLocalBasesCount, FString* OutStrataPixelNormalInitializerValues, FShaderCompilerEnvironment* OutEnvironment);
 	FString StrataGetCastParameterCode(int32 Index, EMaterialValueType DestType);
+
+	bool ValidateMaterialExpressionPermission(const UMaterialExpression* Expression);
 
 	// FMaterialCompiler interface.
 
