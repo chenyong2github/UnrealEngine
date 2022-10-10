@@ -8,6 +8,7 @@
 #include "SmartObjectComponent.h"
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
+#include "Engine/LevelStreaming.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectCollection)
 
@@ -46,6 +47,16 @@ ASmartObjectCollection::ASmartObjectCollection(const FObjectInitializer& ObjectI
 	PrimaryActorTick.bCanEverTick = false;
 	bNetLoadOnClient = false;
 	SetCanBeDamaged(false);
+}
+
+void ASmartObjectCollection::PostLoad()
+{
+	Super::PostLoad();
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	bBuildCollectionAutomatically = !bBuildOnDemand_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITORONLY_DATA
 }
 
 void ASmartObjectCollection::Destroyed()
@@ -300,9 +311,12 @@ void ASmartObjectCollection::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	if (PropertyChangedEvent.Property)
 	{
 		const FName PropName = PropertyChangedEvent.Property->GetFName();
-		if (PropName == GET_MEMBER_NAME_CHECKED(ASmartObjectCollection, bBuildOnDemand))
+		if (PropName == GET_MEMBER_NAME_CHECKED(ASmartObjectCollection, bBuildCollectionAutomatically))
 		{
-			if (!bBuildOnDemand)
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			bBuildOnDemand_DEPRECATED = !bBuildCollectionAutomatically;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			if (bBuildCollectionAutomatically)
 			{
 				RebuildCollection();
 			}
@@ -332,12 +346,35 @@ void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjec
 
 	ResetCollection(Components.Num());
 
+	// the incoming Components collection represents all the smart objects currently registered with the SmartObjectsSubsystem,
+	// but we don't want to register all of them - some of the SmartObjectComponents in the collection come from levels 
+	// added to the editor world, but at runtime will be procedurally loaded with a BP function call, which means those
+	// components might never get loaded, so we don't really want to store them in the persistent collection.
+	// The collection we're building here represents all the smart objects the level will start with, not the ones that will
+	// eventually get added. 
+	auto LevelTester = [](const ULevel* Level) -> bool
+	{
+		const ULevelStreaming* LevelStreaming = ULevelStreaming::FindStreamingLevel(Level);
+		return (LevelStreaming && LevelStreaming->ShouldBeAlwaysLoaded()) || Level->IsPersistentLevel();
+	};
+
+	ULevel* PreviousLevel = nullptr;
+	bool bPreviousLevelValid = false;
 	bool bAlreadyInCollection = false;
 	for (USmartObjectComponent* const Component : Components)
 	{
 		if (Component != nullptr)
 		{
-			AddSmartObject(*Component, bAlreadyInCollection);
+			ULevel* OwnerLevel = Component->GetComponentLevel();
+			const bool bValid = (OwnerLevel == PreviousLevel) ? bPreviousLevelValid : LevelTester(OwnerLevel);
+
+			if (bValid)
+			{	
+				AddSmartObject(*Component, bAlreadyInCollection);
+			}
+
+			bPreviousLevelValid = bValid;
+			PreviousLevel = OwnerLevel;
 		}
 	}
 

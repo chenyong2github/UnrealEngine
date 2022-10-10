@@ -301,7 +301,7 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, co
 
 bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
-	if (!RegisteredSOComponents.Contains(&SmartObjectComponent))
+		if (!RegisteredSOComponents.Contains(&SmartObjectComponent))
 	{
 		return RegisterSmartObjectInternal(SmartObjectComponent);
 	}
@@ -329,8 +329,8 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 #if WITH_EDITOR
 		if (!World.IsGameWorld())
 		{
-			// For "build on demand collections" we wait an explicit build request to clear and repopulate
-			if (MainCollection->IsBuildOnDemand())
+			// For collections not built automatically we wait an explicit build request to clear and repopulate
+			if (MainCollection->ShouldBuildCollectionAutomatically() == false)
 			{
 				bAddToCollection = false;
 				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection that is built on demand only."), *GetNameSafe(SmartObjectComponent.GetOwner()));
@@ -372,6 +372,10 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 				}
 			}
 		}
+
+		ensureMsgf(RegisteredSOComponents.Find(&SmartObjectComponent) == INDEX_NONE
+			, TEXT("Adding %s to RegisteredSOColleciton, but it has already been added. Missing unregister call?"), *SmartObjectComponent.GetName());
+		RegisteredSOComponents.Add(&SmartObjectComponent);
 	}
 	else
 	{
@@ -385,12 +389,10 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 		}
 		else
 		{
-			UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set yet."), *GetNameSafe(SmartObjectComponent.GetOwner()));	
+			UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set yet. Storing SOComponent instance for registration once a collection is set."), *GetNameSafe(SmartObjectComponent.GetOwner()));	
+			PendingSmartObjectRegistration.Add(&SmartObjectComponent);
 		}
 	}
-
-	check(RegisteredSOComponents.Find(&SmartObjectComponent) == INDEX_NONE);
-	RegisteredSOComponents.Add(&SmartObjectComponent);
 
 	return true;
 }
@@ -423,14 +425,14 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 #if WITH_EDITOR
 		if (!World.IsGameWorld())
 		{
-			// For "build on demand collections" we wait an explicit build request to clear and repopulate
-			if (MainCollection->IsBuildOnDemand())
+			// For collections not built automatically we wait an explicit build request to clear and repopulate
+			if (MainCollection->ShouldBuildCollectionAutomatically() == false)
 			{
 				bRemoveFromCollection = false;
 				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is built on demand only."), *GetNameSafe(SmartObjectComponent.GetOwner()));
 			}
 			// For partition world we never remove from the collection since it is built incrementally
-			else if(World.IsPartitionedWorld())
+			else if (World.IsPartitionedWorld())
 			{
 				bRemoveFromCollection = false;
 				UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not removed from collection that is owned by partitioned world."), *GetNameSafe(SmartObjectComponent.GetOwner()));
@@ -1094,12 +1096,22 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 		UE_VLOG_UELOG(&InCollection, LogSmartObject, Log, TEXT("Main collection '%s' registered with %d entries"), *InCollection.GetName(), InCollection.GetEntries().Num());
 		MainCollection = &InCollection;
 
+		for (TObjectPtr<USmartObjectComponent>& SOComponent : PendingSmartObjectRegistration)
+		{
+			// ensure the SOComponent is still valid - things could have happened to it between adding to PendingSmartObjectRegistration and it beind processed here
+			if (SOComponent && IsValid(SOComponent))
+			{
+				RegisterSmartObject(*SOComponent);
+			}
+		}
+		PendingSmartObjectRegistration.Empty();
+
 #if WITH_EDITOR
 		// For a collection that is automatically updated, it gets rebuilt on registration in the Edition world.
 		const UWorld& World = GetWorldRef();
 		if (!World.IsGameWorld() &&
 			!World.IsPartitionedWorld() &&
-			!MainCollection->IsBuildOnDemand())
+			MainCollection->ShouldBuildCollectionAutomatically())
 		{
 			RebuildCollection(InCollection);
 		}

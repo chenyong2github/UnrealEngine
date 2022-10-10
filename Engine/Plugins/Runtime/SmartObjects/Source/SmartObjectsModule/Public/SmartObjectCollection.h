@@ -80,6 +80,7 @@ protected:
 
 	explicit ASmartObjectCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
 	virtual void Destroyed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -92,7 +93,7 @@ protected:
 	virtual bool SupportsExternalPackaging() const override { return false; }
 	virtual bool ShouldExport() override { return false; }
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
-	bool IsBuildOnDemand() const { return bBuildOnDemand; }
+	bool ShouldBuildCollectionAutomatically() const { return bBuildCollectionAutomatically; }
 
 	/** Removes all entries from the collection. */
 	UFUNCTION(CallInEditor, Category = SmartObject)
@@ -137,8 +138,14 @@ protected:
 	bool bRegistered = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = SmartObject)
-	bool bBuildOnDemand = true;
+private:
+	/** This property used to be exposed to the UI editor. It was replaced with bBuildCollectionAutomatically for greater readability. */
+	UPROPERTY()
+	bool bBuildOnDemand_DEPRECATED = true;
+
+protected:
+	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	bool bBuildCollectionAutomatically = false;
 
 	bool bBuildingForWorldPartition = false;
 #endif // WITH_EDITORONLY_DATA

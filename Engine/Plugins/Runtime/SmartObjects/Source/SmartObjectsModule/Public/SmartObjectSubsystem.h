@@ -627,6 +627,10 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USmartObjectComponent>> RegisteredSOComponents;
 
+	/** smart objects that attempted to register while no collection was being present */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USmartObjectComponent>> PendingSmartObjectRegistration;
+
 	uint32 NextFreeUserID = 1;
 
 	/** Flag to indicate that all entries from the baked collection are registered and new registrations will be considered runtime entries (i.e. no persistence) */
