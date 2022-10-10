@@ -10,13 +10,14 @@
 
 class FDMXPixelMappingToolkit;
 struct FDMXCellAttributeGroup;
-class UDMXPixelMappingMatrixComponent;
 class UDMXEntityFixturePatch;
+class UDMXPixelMappingMatrixComponent;
 
 enum class EDMXColorMode : uint8;
 class ITableRow;
 class IPropertyHandle;
 class IPropertyUtilities;
+class SDMXPixelMappingAttributeNamesComboBox;
 class STableViewBase;
 template <typename ItemType> class SListView;
 
@@ -30,7 +31,6 @@ private:
 		TSharedPtr<IPropertyHandle> Handle;
 		TSharedPtr<IPropertyHandle> ExposeHandle;
 		TSharedPtr<IPropertyHandle> InvertHandle;
-		TAttribute<EVisibility> Visibility;
 
 		/** Returns true if the Attribute Handle has multiple values */
 		bool HasMultipleAttributeValues() const;
@@ -57,16 +57,11 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	EVisibility GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
-
 	EVisibility GetRGBAttributesVisibility() const;
-
-	EVisibility GetMonochromeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
 
 	EVisibility GetMonochromeAttributesVisibility() const;
 
 	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FDMXCellAttributeGroup> InAtribute, const TSharedRef<STableViewBase>& OwnerTable);
-
 
 private:	
 	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
@@ -74,8 +69,8 @@ private:
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
 
-	/** Creates the Details for the Attributes */
-	void CreateAttributeDetails(IDetailLayoutBuilder& InDetailLayout);
+	/** Gets an array of Fixture Patches from Matrix Components */
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> GetFixturePatchFromMatrixComponents(const TArray<TWeakObjectPtr<UDMXPixelMappingMatrixComponent>>& InMatrixComponents);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();

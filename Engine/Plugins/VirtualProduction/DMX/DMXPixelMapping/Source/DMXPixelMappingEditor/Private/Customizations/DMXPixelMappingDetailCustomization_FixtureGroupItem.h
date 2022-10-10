@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DMXAttribute.h"
 #include "IDetailCustomization.h"
 #include "PropertyHandle.h"
 #include "Misc/Attribute.h"
@@ -16,6 +15,7 @@ class IDetailLayoutBuilder;
 class ITableRow;
 class STableViewBase;
 class IPropertyHandle;
+class UDMXEntityFixturePatch;
 class UDMXPixelMappingFixtureGroupItemComponent;
 enum class EDMXColorMode : uint8;
 
@@ -32,7 +32,6 @@ private:
 		TSharedPtr<IPropertyHandle> Handle;
 		TSharedPtr<IPropertyHandle> ExposeHandle;
 		TSharedPtr<IPropertyHandle> InvertHandle;
-		TAttribute<EVisibility> Visibility;
 
 		/** Returns true if the Attribute Handle has multiple values */
 		bool HasMultipleAttributeValues() const;
@@ -60,24 +59,19 @@ public:
 	//~ IPropertyTypeCustomization interface end
 
 private:
-	EVisibility GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const;
-
 	EVisibility GetRGBAttributesVisibility() const;
-
-	EVisibility GetMonochromeRowVisibilty(FFunctionAttribute* Attribute) const;
 
 	EVisibility GetMonochromeAttributesVisibility() const;
 
 	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable);
 
-private:
 	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
 
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
 
-	/** Creates the Details for the Attributes */
-	void CreateAttributeDetails(IDetailLayoutBuilder& InDetailLayout);
+	/** Gets an array of Fixture Patches from Group Item Components */
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> GetFixturePatchFromGroupItemComponents(const TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>>& GroupItemComponents);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();

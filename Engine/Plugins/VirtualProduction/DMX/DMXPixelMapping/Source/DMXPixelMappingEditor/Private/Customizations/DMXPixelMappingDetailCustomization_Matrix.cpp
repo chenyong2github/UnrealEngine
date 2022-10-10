@@ -2,6 +2,7 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
 
+#include "DMXAttribute.h"
 #include "DMXEditorStyle.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorUtils.h"
@@ -9,10 +10,10 @@
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
+#include "Customizations/DMXPixelMappingAttributeNamesDetails.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Modules/ModuleManager.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
-#include "Widgets/SDMXPixelMappingAttributeNamesComboBox.h"
 
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
@@ -104,17 +105,7 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 		MatrixComponents.Add(Cast<UDMXPixelMappingMatrixComponent>(SelectedObject));
 	}
 
-	// Get editing categories
-	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
-
-	// Hide the Layout Script property (shown in its own panel, see SDMXPixelMappingLayoutView)
-	InDetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, LayoutScript));
-
-	// Add color mode property
-	ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, ColorMode), UDMXPixelMappingMatrixComponent::StaticClass());
-	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
-
-	// Register attributes
+	// Gather attribute property handles
 	TSharedPtr<FDMXCellAttributeGroup> AttributeR = MakeShared<FDMXCellAttributeGroup>();
 	AttributeR->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeR));
 	AttributeR->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeRExpose));
@@ -134,14 +125,33 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 	RGBAttributes.Add(AttributeG);
 	RGBAttributes.Add(AttributeB);
 
-	// Register Monochrome attribute
 	TSharedPtr<FDMXCellAttributeGroup> MonochromeAttribute = MakeShared<FDMXCellAttributeGroup>();
 	MonochromeAttribute->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, MonochromeIntensity));
 	MonochromeAttribute->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, bMonochromeExpose));
 	MonochromeAttribute->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, bMonochromeInvert));
 	MonochromeAttributes.Add(MonochromeAttribute);
 
+	// Hide the Layout Script property (shown in its own panel, see SDMXPixelMappingLayoutView)
+	InDetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, LayoutScript));
+
+	// Add color mode property
+	ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, ColorMode), UDMXPixelMappingMatrixComponent::StaticClass());
+	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
+	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
+
 	// Generate all RGB Expose and Invert rows
+	for (TSharedPtr<FDMXCellAttributeGroup> Attribute : RGBAttributes)
+	{
+		InDetailLayout.HideProperty(Attribute->ExposeHandle);
+		InDetailLayout.HideProperty(Attribute->InvertHandle);
+	};
+
+	for (TSharedPtr<FDMXCellAttributeGroup> Attribute : MonochromeAttributes)
+	{
+		InDetailLayout.HideProperty(Attribute->ExposeHandle);
+		InDetailLayout.HideProperty(Attribute->InvertHandle);
+	};
+
 	OutputSettingsCategory.AddCustomRow(FText::GetEmpty())
 		.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributesVisibility))
 		.NameContent()
@@ -169,8 +179,37 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_Matrix::GenerateExposeAndInvertRow)
 		];
 
+	// Register a property type customization for the attributes as we can display the attributes of the fixture patches
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches = GetFixturePatchFromMatrixComponents(MatrixComponents);
+	FOnGetPropertyTypeCustomizationInstance OnGetPropertyTypeCustomizationInstance = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXPixelMappingAttributeNamesDetails::MakeInstance, FixturePatches);
+	InDetailLayout.GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), OnGetPropertyTypeCustomizationInstance);
+
+	// Add RGB attributes 
+	const FName RGBCategoryName = AttributeR->Handle->GetDefaultCategoryName();
+	const TAttribute<EVisibility> RGBVisibilityAttribute = TAttribute<EVisibility>::CreateLambda([this]()
+		{
+			return GetRGBAttributesVisibility();
+		});
+	InDetailLayout.EditCategory(RGBCategoryName)
+		.AddProperty(AttributeR->Handle)
+		.Visibility(RGBVisibilityAttribute);
+	InDetailLayout.EditCategory(RGBCategoryName)
+		.AddProperty(AttributeG->Handle)
+		.Visibility(RGBVisibilityAttribute);
+	InDetailLayout.EditCategory(RGBCategoryName)
+		.AddProperty(AttributeB->Handle)
+		.Visibility(RGBVisibilityAttribute);
+
+	// Add Monochrome attribute
+	InDetailLayout.EditCategory(MonochromeAttribute->Handle->GetDefaultCategoryName())
+		.AddProperty(MonochromeAttribute->Handle)
+		.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
+			{
+				return GetMonochromeAttributesVisibility();
+			}));
+
+
 	CreateModulatorDetails(InDetailLayout);
-	CreateAttributeDetails(InDetailLayout);
 }
 
 bool FDMXPixelMappingDetailCustomization_Matrix::CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const
@@ -186,49 +225,9 @@ bool FDMXPixelMappingDetailCustomization_Matrix::CheckComponentsDMXColorMode(con
 	return false;
 }
 
-EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const
-{
-	bool bIsVisible = false;
-
-	// 1. Check if current attribute is sampling now
-	FPropertyAccess::Result Result = Attribute->ExposeHandle->GetValue(bIsVisible);
-	if (Result == FPropertyAccess::Result::MultipleValues)
-	{
-		bIsVisible = true;
-	}
-
-	// 2. Check if current color mode is RGB
-	if (!CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB))
-	{
-		bIsVisible = false;
-	}
-
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
 EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributesVisibility() const
 {	
 	return CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeRowVisibilty(FDMXCellAttributeGroup* Attribute) const
-{
-	bool bIsVisible = false;
-
-	// 1. Check if current attribute is sampling now
-	FPropertyAccess::Result Result = Attribute->ExposeHandle->GetValue(bIsVisible);
-	if (Result == FPropertyAccess::Result::MultipleValues)
-	{
-		bIsVisible = true;
-	}
-
-	// 2. Check if current color mode is Monochrome
-	if (!CheckComponentsDMXColorMode(EDMXColorMode::CM_Monochrome))
-	{
-		bIsVisible = false;
-	}
-
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeAttributesVisibility() const
@@ -354,6 +353,13 @@ void FDMXPixelMappingDetailCustomization_Matrix::CreateModulatorDetails(IDetailL
 					TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 					DetailsView->SetObjects(ModulatorsToEdit);
 
+					TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches = GetFixturePatchFromMatrixComponents(MatrixComponents);
+					FOnGetPropertyTypeCustomizationInstance OnGetPropertyTypeCustomizationInstance = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXPixelMappingAttributeNamesDetails::MakeInstance, FixturePatches);
+					DetailsView->RegisterInstancedCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), OnGetPropertyTypeCustomizationInstance);
+
+					PropertyEditorModule.NotifyCustomizationModuleChanged();
+
+
 					ModualtorsCategory.AddCustomRow(FText::GetEmpty())
 						.WholeRowContent()
 						[
@@ -377,133 +383,21 @@ void FDMXPixelMappingDetailCustomization_Matrix::CreateModulatorDetails(IDetailL
 	}
 }
 
-void FDMXPixelMappingDetailCustomization_Matrix::CreateAttributeDetails(IDetailLayoutBuilder& InDetailLayout)
+TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FDMXPixelMappingDetailCustomization_Matrix::GetFixturePatchFromMatrixComponents(const TArray<TWeakObjectPtr<UDMXPixelMappingMatrixComponent>>& InMatrixComponents)
 {
-	TArray<TWeakObjectPtr<UObject>> Objects;
-	DetailLayout->GetObjectsBeingCustomized(Objects);
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches;
 
-	TArray<UDMXPixelMappingMatrixComponent*> StrongMatrixComponents;
-	for (TWeakObjectPtr<UObject> SelectedObject : Objects)
+	for (TWeakObjectPtr<UDMXPixelMappingMatrixComponent> GroupItemComponent : InMatrixComponents)
 	{
-		UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(SelectedObject);
-		if (MatrixComponent)
-		{
-			StrongMatrixComponents.Add(MatrixComponent);
-		}
-	}
-
-	// Gather attribute names present in Patches of all selected components
-	TArray<FName> FixtureMatrixAttributes;
-	for (UDMXPixelMappingMatrixComponent* MatrixComponent : StrongMatrixComponents)
-	{
-		const UDMXEntityFixturePatch* FixturePatch = MatrixComponent->FixturePatchRef.GetFixturePatch();
+		UDMXEntityFixturePatch* FixturePatch = GroupItemComponent->FixturePatchRef.GetFixturePatch();
 		if (!FixturePatch)
 		{
 			continue;
 		}
-
-		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
-		if (!ModePtr)
-		{
-			continue;
-		}
-
-		const TArray<FDMXFixtureCellAttribute> CellAttributes = ModePtr->FixtureMatrixConfig.CellAttributes;
-		for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
-		{
-			FixtureMatrixAttributes.AddUnique(CellAttribute.Attribute.Name);
-		}
+		FixturePatches.Add(TWeakObjectPtr<UDMXEntityFixturePatch>(FixturePatch));
 	}
 
-	for (UDMXPixelMappingMatrixComponent* MatrixComponent : StrongMatrixComponents)
-	{
-		FixtureMatrixAttributes.RemoveAll([MatrixComponent](const FName& AttributeName)
-			{
-				const UDMXEntityFixturePatch* FixturePatch = MatrixComponent->FixturePatchRef.GetFixturePatch();
-				if (!FixturePatch)
-				{
-					return true;
-				}
-
-				const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
-				if (!ModePtr)
-				{
-					return true;
-				}
-
-				const TArray<FDMXFixtureCellAttribute> AttributeNamesOfPatch = ModePtr->FixtureMatrixConfig.CellAttributes;
-				return !AttributeNamesOfPatch.ContainsByPredicate([AttributeName](const FDMXFixtureCellAttribute& AttributeNameOfPatch)
-					{
-						return AttributeNameOfPatch.Attribute == AttributeName;
-					});
-			});
-	}
-
-	// Lambda to add a single attribute property row
-	auto CreateAttributePropertyRowLambda = [&InDetailLayout, &FixtureMatrixAttributes](const TSharedRef<FDMXCellAttributeGroup>& Attribute, const TAttribute<EVisibility>& VisibilityAttribute)
-		{
-			InDetailLayout.HideProperty(Attribute->ExposeHandle);
-			InDetailLayout.HideProperty(Attribute->InvertHandle);
-			InDetailLayout.HideProperty(Attribute->Handle);
-
-			const TSharedRef<SDMXPixelMappingAttributeNamesComboBox> AttributeNameComboBox =
-				SNew(SDMXPixelMappingAttributeNamesComboBox, FixtureMatrixAttributes)
-				.OnSelectionChanged_Lambda([Attribute](const FName& NewValue)
-					{
-						Attribute->SetAttributeValue(NewValue);
-					});
-
-			if (Attribute->HasMultipleAttributeValues())
-			{
-				AttributeNameComboBox->SetHasMultipleValues();
-			}
-			else
-			{
-				FName InitialSelection = Attribute->GetAttributeValue();
-
-				// Set a valid attribute, or name none if none is available
-				if (!FixtureMatrixAttributes.Contains(InitialSelection))
-				{
-					if (FixtureMatrixAttributes.IsEmpty())
-					{
-						Attribute->SetAttributeValue(NAME_None);
-					}
-					else
-					{
-						Attribute->SetAttributeValue(FixtureMatrixAttributes[0]);
-						InitialSelection = FixtureMatrixAttributes[0];
-					}
-				}
-				AttributeNameComboBox->SetSelection(InitialSelection);
-			}
-
-			InDetailLayout.EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important)
-				.AddCustomRow(FText::GetEmpty())
-				.Visibility(VisibilityAttribute)
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(Attribute->Handle->GetPropertyDisplayName())
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-				]
-				.ValueContent()
-				[
-					AttributeNameComboBox
-				];
-		};
-
-	// Create a row for each attribute
-	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : RGBAttributes)
-	{
-		const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Matrix::GetRGBAttributesVisibility);
-		CreateAttributePropertyRowLambda(Attribute.ToSharedRef(), VisibilityAttribute);
-	}
-
-	for (TSharedPtr<FDMXCellAttributeGroup>& Attribute : MonochromeAttributes)
-	{
-		const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Matrix::GetMonochromeAttributesVisibility);
-		CreateAttributePropertyRowLambda(Attribute.ToSharedRef(), VisibilityAttribute);
-	}
+	return FixturePatches;
 }
 
 void FDMXPixelMappingDetailCustomization_Matrix::ForceRefresh()
