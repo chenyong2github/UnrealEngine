@@ -403,7 +403,8 @@ void FD3D12Viewport::EnableHDR()
 
 void FD3D12Viewport::ShutdownHDR()
 {
-	if (GRHISupportsHDROutput)
+	// Make sure to set the appropriate color space even if GRHISupportsHDROutput is false because we 
+	// might have toggled HDR on and off in the windows settings
 	{
 		// Ensure we have the correct color space set.
 		EnsureColorSpace(EDisplayColorGamut::sRGB_D65, EDisplayOutputFormat::SDR_sRGB);

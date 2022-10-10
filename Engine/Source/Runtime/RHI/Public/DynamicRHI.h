@@ -894,6 +894,7 @@ public:
 
 	// Tests the viewport to see if its HDR status has changed. This is usually tested after a window has been moved
 	virtual void RHICheckViewportHDRStatus(FRHIViewport* Viewport);
+	virtual void RHIHandleDisplayChange() {}
 
 	//  must be called from the main thread.
 	// FlushType: Thread safe
@@ -1522,6 +1523,11 @@ FORCEINLINE EColorSpaceAndEOTF RHIGetColorSpace(FRHIViewport* Viewport)
 FORCEINLINE void RHICheckViewportHDRStatus(FRHIViewport* Viewport)
 {
 	GDynamicRHI->RHICheckViewportHDRStatus(Viewport);
+}
+
+FORCEINLINE void RHIHandleDisplayChange()
+{
+	GDynamicRHI->RHIHandleDisplayChange();
 }
 
 FORCEINLINE void RHITick(float DeltaTime)

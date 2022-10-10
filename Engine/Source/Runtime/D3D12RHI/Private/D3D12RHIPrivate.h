@@ -516,6 +516,9 @@ public:
 	virtual FViewportRHIRef RHICreateViewport(void* WindowHandle, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat) final override;
 	virtual void RHIResizeViewport(FRHIViewport* Viewport, uint32 SizeX, uint32 SizeY, bool bIsFullscreen) final override;
 	virtual void RHIResizeViewport(FRHIViewport* ViewportRHI, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat) final override;
+#if PLATFORM_WINDOWS
+	virtual void RHIHandleDisplayChange() final override;
+#endif
 	virtual void RHITick(float DeltaTime) final override;
 	virtual void RHIBlockUntilGPUIdle() final override;
 	virtual void RHISubmitCommandsAndFlushGPU() final override;
@@ -761,6 +764,10 @@ protected:
 	/** A buffer in system memory containing all zeroes of the specified size. */
 	void* ZeroBuffer;
 	uint32 ZeroBufferSize;
+
+#if PLATFORM_WINDOWS
+	TRefCountPtr<IDXGIFactory2> DXGIFactoryForDisplayList;
+#endif
 
 public:
 

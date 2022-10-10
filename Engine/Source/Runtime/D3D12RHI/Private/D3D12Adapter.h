@@ -263,6 +263,7 @@ public:
 	FORCEINLINE uint32 GetVRSTileSize() const { return VRSTileSize; }
 
 	void CreateDXGIFactory(bool bWithDebug);
+	static void CreateDXGIFactory(TRefCountPtr<IDXGIFactory2>& DxgiFactory2, bool bWithDebug, HMODULE DxgiDllHandle);
 	void InitDXGIFactoryVariants(IDXGIFactory2* InDxgiFactory2);
 	HRESULT EnumAdapters(IDXGIAdapter** TempAdapter) const;
 
@@ -432,6 +433,10 @@ public:
 	void FindReleasedAllocationData(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FReleasedAllocationData>& OutAllocationData);
 
 	void SetResidencyPriority(ID3D12Pageable* Pageable, D3D12_RESIDENCY_PRIORITY HeapPriority, uint32 GPUIndex);
+
+#if PLATFORM_WINDOWS
+	HMODULE GetDxgiDllHandle() const { return DxgiDllHandle; };
+#endif
 
 protected:
 

@@ -520,14 +520,49 @@ bool FD3D12DynamicRHI::SetupDisplayHDRMetaData()
 	// Determines if any displays support HDR
 	check(GetNumAdapters() >= 1);
 
-	DisplayList.Empty();
+	TArray<TRefCountPtr<IDXGIAdapter> > DXGIAdapters;
+	bool bStaleAdapters = false;
 
-	bool bSupportsHDROutput = false;
 	const int32 NumAdapters = GetNumAdapters();
 	for (int32 AdapterIndex = 0; AdapterIndex < NumAdapters; ++AdapterIndex)
 	{
-		FD3D12Adapter& Adapter = GetAdapter(AdapterIndex);
-		IDXGIAdapter* DXGIAdapter = Adapter.GetAdapter();
+		FD3D12Adapter& CurrentAdapter = GetAdapter(AdapterIndex);
+		DXGIAdapters.Add(GetAdapter(AdapterIndex).GetAdapter());
+		if (CurrentAdapter.GetDXGIFactory2() != nullptr && !CurrentAdapter.GetDXGIFactory2()->IsCurrent())
+		{
+			bStaleAdapters = true;
+		}
+	}
+
+#if PLATFORM_WINDOWS
+	// if we found that the list of adapters is stale (changed windows HDR setting), try to update it with the new list
+	if (bStaleAdapters)
+	{
+		if (!DXGIFactoryForDisplayList.IsValid() || !DXGIFactoryForDisplayList->IsCurrent())
+		{
+			FD3D12Adapter::CreateDXGIFactory(DXGIFactoryForDisplayList, false, GetAdapter(0).GetDxgiDllHandle());
+		}
+
+		if (DXGIFactoryForDisplayList.IsValid() && DXGIFactoryForDisplayList->IsCurrent())
+		{
+			DXGIAdapters.Empty();
+			TRefCountPtr<IDXGIAdapter> TempAdapter;
+			for (uint32 AdapterIndex = 0; DXGIFactoryForDisplayList->EnumAdapters(AdapterIndex, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
+			{
+				DXGIAdapters.Add(TempAdapter);
+			}
+		}
+
+	}
+#endif
+
+	DisplayList.Empty();
+
+	bool bSupportsHDROutput = false;
+	const int32 NumDXGIAdapters = DXGIAdapters.Num();
+	for (int32 AdapterIndex = 0; AdapterIndex < NumDXGIAdapters; ++AdapterIndex)
+	{
+		IDXGIAdapter* DXGIAdapter = DXGIAdapters[AdapterIndex];
 
 		for (uint32 DisplayIndex = 0; true; ++DisplayIndex)
 		{
@@ -564,6 +599,15 @@ bool FD3D12DynamicRHI::SetupDisplayHDRMetaData()
 	}
 
 	return bSupportsHDROutput;
+}
+
+extern void HDRSettingChangedSinkCallback();
+void FD3D12DynamicRHI::RHIHandleDisplayChange()
+{
+	RHIBlockUntilGPUIdle();
+	GRHISupportsHDROutput = SetupDisplayHDRMetaData();
+	// make sure CVars are being updated properly
+	HDRSettingChangedSinkCallback();
 }
 
 static bool IsAdapterBlocked(FD3D12Adapter* InAdapter)

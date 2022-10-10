@@ -269,6 +269,8 @@ private:
 	 */
 	void CleanUpdatableTextures();
 
+	virtual void OnVirtualDesktopSizeChanged(const FDisplayMetrics& NewDisplayMetric);
+
 private:
 	/** A mapping of SWindows to their RHI implementation */
 	TMap< const SWindow*, FViewportInfo*> WindowToViewportInfo;
@@ -302,6 +304,7 @@ private:
 
 	bool bIsStandaloneStereoOnlyDevice;
 	bool bTakingAScreenShot;
+	bool bUpdateHDRDisplayInformation;
 	FIntRect ScreenshotRect;
 	FViewportInfo* ScreenshotViewportInfo;
 	TArray<FColor>* OutScreenshotData;

@@ -1392,16 +1392,12 @@ FD3D12Adapter::~FD3D12Adapter()
 #endif
 }
 
-void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
+void FD3D12Adapter::CreateDXGIFactory(TRefCountPtr<IDXGIFactory2>& DxgiFactory2, bool bWithDebug, HMODULE DxgiDllHandle)
 {
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	typedef HRESULT(WINAPI FCreateDXGIFactory2)(UINT, REFIID, void**);
 
 #if PLATFORM_WINDOWS
-	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
-	DxgiDllHandle = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
-	check(DxgiDllHandle);
-
 	FCreateDXGIFactory2* CreateDXGIFactory2FnPtr = (FCreateDXGIFactory2*)(void*)::GetProcAddress(DxgiDllHandle, "CreateDXGIFactory2");
 #else
 	FCreateDXGIFactory2* CreateDXGIFactory2FnPtr = &CreateDXGIFactory2;
@@ -1411,6 +1407,21 @@ void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 
 	const uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
 	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+}
+
+void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
+{
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	HMODULE UsedDxgiDllHandle = (HMODULE)0;
+#if PLATFORM_WINDOWS
+	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
+	DxgiDllHandle = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
+	check(DxgiDllHandle);
+	UsedDxgiDllHandle = DxgiDllHandle;
+#endif
+
+	CreateDXGIFactory(DxgiFactory2, bWithDebug, UsedDxgiDllHandle);
 
 	InitDXGIFactoryVariants(DxgiFactory2);
 #endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS

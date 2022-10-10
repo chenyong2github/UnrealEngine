@@ -6974,6 +6974,8 @@ void FSlateApplication::OnVirtualDesktopSizeChanged(const FDisplayMetrics& NewDi
 		VirtualDisplayRect.Top,
 		VirtualDisplayRect.Right,
 		VirtualDisplayRect.Bottom);
+
+	Renderer->OnVirtualDesktopSizeChanged(NewDisplayMetric);
 }
 
 

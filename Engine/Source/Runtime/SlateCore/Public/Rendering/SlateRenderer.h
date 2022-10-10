@@ -572,6 +572,8 @@ public:
 	virtual void AddWidgetRendererUpdate(const struct FRenderThreadUpdateContext& Context, bool bDeferredRenderTargetUpdate) {}
 
 	virtual EPixelFormat GetSlateRecommendedColorFormat() { return PF_B8G8R8A8; }
+
+	virtual void OnVirtualDesktopSizeChanged(const FDisplayMetrics& NewDisplayMetric) {}
 private:
 
 	// Non-copyable

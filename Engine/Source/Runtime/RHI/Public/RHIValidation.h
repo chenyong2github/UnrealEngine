@@ -1113,6 +1113,11 @@ public:
 		RHI->RHICheckViewportHDRStatus(Viewport);
 	}
 
+	virtual void RHIHandleDisplayChange() override final
+	{
+		RHI->RHIHandleDisplayChange();
+	}
+
 	//  must be called from the main thread.
 	// FlushType: Thread safe
 	virtual void RHITick(float DeltaTime) override final
