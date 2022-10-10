@@ -409,10 +409,6 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 		}
 
 		ExternalStreamingObject->PopulateGeneratorPackageForCook();
-
-		// Clear Streaming Object Reference past this point since it is not used.
-		// It's lifetime must be managed by the GeneratedPackage from the CookOntheFlyServer.
-		ExternalStreamingObject = nullptr;
 	}
 	
 
