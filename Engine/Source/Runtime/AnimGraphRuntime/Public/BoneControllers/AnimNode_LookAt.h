@@ -9,6 +9,7 @@
 #include "BonePose.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "CommonAnimTypes.h"
+#include "EngineDefines.h"
 #include "AnimNode_LookAt.generated.h"
 
 class FPrimitiveDrawInterface;

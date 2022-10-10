@@ -15,7 +15,6 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Animation/BlendProfile.h"
 #endif
-#include "Animation/Skeleton.h"
 #include "Animation/AnimationAsset.h"
 #include "AlphaBlend.h"
 #include "Animation/AnimCompositeBase.h"
