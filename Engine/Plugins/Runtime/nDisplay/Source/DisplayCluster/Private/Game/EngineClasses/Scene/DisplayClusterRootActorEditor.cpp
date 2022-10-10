@@ -197,6 +197,12 @@ void ADisplayClusterRootActor::EnableEditorRender(bool bValue)
 
 bool ADisplayClusterRootActor::IsPreviewEnabled() const
 {
+	if (bMoviePipelineRenderPass)
+	{
+		// Disable preview rendering for MRQ
+		return false;
+	}
+
 	//@todo: (GUI) Scene preview can be disabled when the configuration window with internal preview is open.
 #if 0
 	bool bIsScenePreview = true; //@todo: handle GUI logic

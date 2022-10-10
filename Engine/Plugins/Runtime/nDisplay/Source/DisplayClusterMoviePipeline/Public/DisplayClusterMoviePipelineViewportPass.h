@@ -55,9 +55,8 @@ public:
 
 protected:
 	bool GetViewportId(int32 InViewportIndex, FString& OutViewportId) const;
-	ADisplayClusterRootActor* GetRootActor(const class UDisplayClusterMoviePipelineSettings& InDCSettings);
 
-	bool CalculateDisplayClusterViewport(const FMoviePipelineRenderPassMetrics& InSampleState, const FString& InViewportId, const FIntPoint& InDestSize, const uint32 InContextNum, FDisplayClusterViewInfo& OutView);
+	class IDisplayClusterViewport* GetAndCalculateDisplayClusterViewport(const FMoviePipelineRenderPassMetrics& InSampleState, const FString& InViewportId, const FIntPoint& InDestSize, const uint32 InContextNum, FDisplayClusterViewInfo& OutView);
 
 	bool InitializeDisplayCluster();
 	void ReleaseDisplayCluster();
@@ -74,7 +73,7 @@ private:
 	const FString RenderPassName;
 
 	// DCRA for current shot
-	ADisplayClusterRootActor* DisplayClusterRootActorPtr = nullptr;
+	ADisplayClusterRootActor* DCRootActor = nullptr;
 
 	// Names of viewports to render in the current shot
 	TArray<FString> DisplayClusterViewports;
@@ -85,9 +84,7 @@ private:
 	TMap<int32, FDisplayClusterViewInfo> DCPrevViews;
 
 	// Runtime flags
-	bool bFrameInitialized = true;
 	bool bFrameWarpBlend = false;
-	bool bDisplayClusterInitialized = false;
 };
 
 /**

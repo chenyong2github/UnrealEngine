@@ -304,6 +304,10 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA
 public:
+	/** When the MRQ is rendered, this flag is raised. */
+	UPROPERTY()
+	bool bMoviePipelineRenderPass = false;
+
 	/** Render the scene and display it as a preview on the nDisplay root actor in the editor.  This will impact editor performance. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Enable Editor Preview"))
 	bool bPreviewEnable = true;

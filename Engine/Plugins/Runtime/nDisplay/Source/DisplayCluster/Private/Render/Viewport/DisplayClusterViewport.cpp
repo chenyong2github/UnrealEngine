@@ -204,7 +204,16 @@ bool FDisplayClusterViewport::ShouldUseFullSizeFrameTargetableResource() const
 void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* World, FSceneViewFamily& InOutViewFamily, FSceneView& InOutView) const
 {
 	check(IsInGameThread());
-	check(ContextNum < (uint32)Contexts.Num());
+	check(Contexts.IsValidIndex(ContextNum));
+
+	// MRQ only uses viewport visibility settings
+	if(RenderSettings.CaptureMode == EDisplayClusterViewportCaptureMode::MoviePipeline)
+	{
+		// Apply visibility settigns to view
+		VisibilitySettings.SetupSceneView(World, InOutView);
+
+		return;
+	}
 
 	// Setup MGPU features:
 	if(Contexts[ContextNum].GPUIndex >= 0)
