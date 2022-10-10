@@ -216,7 +216,7 @@ void FUnsavedAssetsTracker::SyncWithDirtyPackageList()
 	DirtyPackagePathnames.Reserve(DirtyPackages.Num());
 	for (UPackage* DirtyPackage : DirtyPackages)
 	{
-		DirtyPackagePathnames.Add(Package->GetPathName());
+		DirtyPackagePathnames.Add(DirtyPackage->GetPathName());
 	}
 
 	TArray<FString> ToRemove;
