@@ -4170,22 +4170,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		// - Set up acceleration structure pointers and make them resident.
 		// - Generate HitGroupSystemParametersCache.
 
-		// make a copy of system parameters to they can optimized fetch during SBT building (only done for GPU0)
-		if(GPUIndex == 0)
-		{
-			HitGroupSystemParametersCache.Reserve(Initializer.NumTotalSegments);
-			HitGroupSystemParametersCache.Empty(Initializer.NumTotalSegments);
-
-			const int32 NumSceneInstances = Initializer.PerInstanceGeometries.Num();
-			for (int32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
-			{
-				FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Initializer.PerInstanceGeometries[InstanceIndex]);
-
-				check(Geometry->HitGroupSystemParameters[GPUIndex].Num() > 0);
-				HitGroupSystemParametersCache.Append(Geometry->HitGroupSystemParameters[GPUIndex]);
-			}
-		}
-
 		CommandContext.UpdateResidency(InstanceBuffer->GetResource());
 
 		{
@@ -4237,6 +4221,22 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 						AddResidencyHandleForResource(VertexBuffer->GetResource());
 					}
 				}
+			}
+		}
+
+		// make a copy of system parameters to they can optimized fetch during SBT building (only done for GPU0)
+		if (GPUIndex == 0)
+		{
+			HitGroupSystemParametersCache.Reserve(Initializer.NumTotalSegments);
+			HitGroupSystemParametersCache.Empty(Initializer.NumTotalSegments);
+
+			const int32 NumSceneInstances = Initializer.PerInstanceGeometries.Num();
+			for (int32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
+			{
+				FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Initializer.PerInstanceGeometries[InstanceIndex]);
+
+				check(Geometry->HitGroupSystemParameters[GPUIndex].Num() > 0);
+				HitGroupSystemParametersCache.Append(Geometry->HitGroupSystemParameters[GPUIndex]);
 			}
 		}
 	}
