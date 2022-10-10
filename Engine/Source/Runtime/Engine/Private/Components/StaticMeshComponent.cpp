@@ -2049,21 +2049,9 @@ void UStaticMeshComponent::PostLoad()
 	NotifyIfStaticMeshChanged();
 
 	// need to postload the StaticMesh because super initializes variables based on GetStaticLightingType() which we override and use from the StaticMesh
-	UStaticMesh* ReferencedStaticMesh = GetStaticMesh();
-	if (ReferencedStaticMesh)
+	if (GetStaticMesh())
 	{
-#if WITH_EDITOR
-		// Preload the referenced static mesh here if it hasn't yet been serialized, prior to the ConditionalPostLoad call.
-		// This is temporary fix, pending a more robust solution for async loading in editor.
-		if (ReferencedStaticMesh->HasAnyFlags(RF_NeedLoad))
-		{
-			if (FLinkerLoad* Linker = ReferencedStaticMesh->GetLinker())
-			{
-				Linker->Preload(ReferencedStaticMesh);
-			}
-		}
-#endif // WITH_EDITOR
-		ReferencedStaticMesh->ConditionalPostLoad();
+		GetStaticMesh()->ConditionalPostLoad();
 	}
 
 	Super::PostLoad();
