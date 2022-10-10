@@ -25,7 +25,9 @@ class COMMONUI_API UCommonUISettings : public UObject
 	GENERATED_BODY()
 
 public:
-	UCommonUISettings(const FObjectInitializer& Initializer);
+	UCommonUISettings(const FObjectInitializer& Initializer = FObjectInitializer::Get());
+	UCommonUISettings(FVTableHelper& Helper);
+	~UCommonUISettings();
 
 	// Called to load CommonUISetting data, if bAutoLoadData if set to false then game code must call LoadData().
 	void LoadData();

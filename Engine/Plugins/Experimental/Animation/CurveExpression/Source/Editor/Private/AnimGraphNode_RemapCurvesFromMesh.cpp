@@ -3,6 +3,7 @@
 #include "AnimGraphNode_RemapCurvesFromMesh.h"
 
 #include "Animation/AnimAttributes.h"
+#include "Animation/AnimInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimGraphNode_RemapCurvesFromMesh)
 

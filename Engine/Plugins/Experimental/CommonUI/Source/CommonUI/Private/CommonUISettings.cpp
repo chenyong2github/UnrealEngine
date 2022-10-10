@@ -19,6 +19,12 @@ UCommonUISettings::UCommonUISettings(const FObjectInitializer& Initializer)
 	, bDefaultDataLoaded(false)
 {}
 
+UCommonUISettings::UCommonUISettings(FVTableHelper& Helper) : Super(Helper)
+{
+}
+
+UCommonUISettings::~UCommonUISettings() = default;
+
 void UCommonUISettings::LoadData()
 {
 	LoadEditorData();
