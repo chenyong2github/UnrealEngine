@@ -56,7 +56,7 @@ uint32 UPCGMetadataBooleanSettings::GetInputPinNum() const
 bool UPCGMetadataBooleanSettings::IsSupportedInputType(uint16 TypeId, uint32 InputIndex, bool& bHasSpecialRequirement) const
 {
 	bHasSpecialRequirement = false;
-	return TypeId == (uint16)EPCGMetadataTypes::Boolean;
+	return PCG::Private::IsOfTypes<bool>(TypeId);
 }
 
 FName UPCGMetadataBooleanSettings::GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const
@@ -77,15 +77,22 @@ uint16 UPCGMetadataBooleanSettings::GetOutputType(uint16 InputTypeId) const
 	return (uint16)EPCGMetadataTypes::Boolean;
 }
 
+FName UPCGMetadataBooleanSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataBooleanOperation"), true))
+	{
+		return FName(FString("Boolean: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
 #if WITH_EDITOR
 FName UPCGMetadataBooleanSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataBooleanOperation"), true))
-	{ 
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation)); 
-	}
-
-	return TEXT("Metadata Boolean Node");
+	return TEXT("Attribute Boolean Op");
 }
 #endif // WITH_EDITOR
 

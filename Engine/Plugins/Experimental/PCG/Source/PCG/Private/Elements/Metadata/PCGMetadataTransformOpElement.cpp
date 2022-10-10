@@ -111,12 +111,12 @@ bool UPCGMetadataTransformSettings::IsSupportedInputType(uint16 TypeId, uint32 I
 	if (InputIndex == 2)
 	{
 		bHasSpecialRequirement = true;
-		return TypeId == (uint16)EPCGMetadataTypes::Float || TypeId == (uint16)EPCGMetadataTypes::Double;
+		return PCG::Private::IsOfTypes<float, double>(TypeId);
 	}
 	else
 	{
 		bHasSpecialRequirement = false;
-		return TypeId == (uint16)EPCGMetadataTypes::Transform;
+		return PCG::Private::IsOfTypes<FTransform>(TypeId);
 	}
 }
 
@@ -135,15 +135,22 @@ FName UPCGMetadataTransformSettings::GetInputAttributeNameWithOverride(uint32 In
 	}
 }
 
+FName UPCGMetadataTransformSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataTransformOperation"), true))
+	{
+		return FName(FString("Transform: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
 #if WITH_EDITOR
 FName UPCGMetadataTransformSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataTransformOperation"), true))
-	{ 
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation)); 
-	}
-
-	return TEXT("Metadata Transform Node");
+	return TEXT("Attribute Transform Op");
 }
 #endif // WITH_EDITOR
 

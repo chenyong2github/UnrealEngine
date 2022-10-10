@@ -73,7 +73,7 @@ uint32 UPCGMetadataCompareSettings::GetInputPinNum() const
 bool UPCGMetadataCompareSettings::IsSupportedInputType(uint16 TypeId, uint32 InputIndex, bool& bHasSpecialRequirement) const
 {
 	bHasSpecialRequirement = false;
-	return TypeId <= (uint16)EPCGMetadataTypes::Integer64;
+	return PCG::Private::IsOfTypes<int32, int64, float, double>(TypeId);
 }
 
 FName UPCGMetadataCompareSettings::GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const
@@ -94,15 +94,22 @@ uint16 UPCGMetadataCompareSettings::GetOutputType(uint16 InputTypeId) const
 	return (uint16)EPCGMetadataTypes::Boolean;
 }
 
+FName UPCGMetadataCompareSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataCompareOperation"), true))
+	{
+		return FName(FString("Compare: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
 #if WITH_EDITOR
 FName UPCGMetadataCompareSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataCompareOperation"), true))
-	{ 
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation)); 
-	}
-
-	return TEXT("Metadata Compare Node");
+	return TEXT("Attribute Compare Op");
 }
 #endif // WITH_EDITOR
 
@@ -122,7 +129,7 @@ bool FPCGMetadataCompareElement::DoOperation(FOperationData& OperationData) cons
 		using AttributeType = decltype(DummyValue);
 
 		// Need to remove types that would not compile
-		if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Integer64)
+		if constexpr (!PCG::Private::IsOfTypes<AttributeType, int32, int64, float, double>())
 		{
 			return;
 		}

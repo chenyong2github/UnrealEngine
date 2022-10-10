@@ -11,10 +11,10 @@
 UENUM()
 enum class EPCGMedadataBitwiseOperation : uint16
 {
-	BitwiseAnd,
-	BitwiseNot,
-	BitwiseOr,
-	BitwiseXor
+	And,
+	Not,
+	Or,
+	Xor
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -27,6 +27,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
 #endif
+	virtual FName AdditionalTaskName() const override;
 	//~End UPCGSettings interface
 
 	//~Begin UPCGMetadataSettingsBase interface
@@ -46,12 +47,12 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGMedadataBitwiseOperation Operation = EPCGMedadataBitwiseOperation::BitwiseAnd;
+	EPCGMedadataBitwiseOperation Operation = EPCGMedadataBitwiseOperation::And;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
 	FName Input1AttributeName = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition = "Operation != EPCGMedadataBitwiseOperation::BitwiseNot", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition = "Operation != EPCGMedadataBitwiseOperation::Not", EditConditionHides))
 	FName Input2AttributeName = NAME_None;
 };
 

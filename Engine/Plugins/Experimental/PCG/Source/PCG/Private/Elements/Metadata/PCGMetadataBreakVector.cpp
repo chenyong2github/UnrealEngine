@@ -134,6 +134,13 @@ FName UPCGMetadataBreakVectorSettings::GetOutputAttributeName(FName BaseName, ui
 	}
 }
 
+#if WITH_EDITOR
+FName UPCGMetadataBreakVectorSettings::GetDefaultNodeName() const
+{
+	return TEXT("Break Vector Attribute");
+}
+#endif // WITH_EDITOR
+
 FPCGElementPtr UPCGMetadataBreakVectorSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataBreakVectorElement>();

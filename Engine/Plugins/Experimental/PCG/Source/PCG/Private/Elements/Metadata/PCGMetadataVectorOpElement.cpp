@@ -35,12 +35,6 @@ namespace PCGMetadataVectorSettings
 		return (uint16)Operation >= (uint16)EPCGMedadataVectorOperation::TransformOp;
 	}
 
-	template <typename InType>
-	inline constexpr bool IsInvalidInType()
-	{
-		return PCG::Private::MetadataTypes<InType>::Id < (uint16)EPCGMetadataTypes::Vector2 || PCG::Private::MetadataTypes<InType>::Id > (uint16)EPCGMetadataTypes::Vector4;
-	}
-
 	// Mimic KismetMathLibrary
 	template <typename InType>
 	inline InType ApplyTransformOperation(const InType& Value, const FTransform& Transform, EPCGMedadataVectorOperation Operation)
@@ -276,16 +270,16 @@ bool UPCGMetadataVectorSettings::IsSupportedInputType(uint16 TypeId, uint32 Inpu
 	if (Operation == EPCGMedadataVectorOperation::RotateAroundAxis && InputIndex == 2)
 	{
 		bHasSpecialRequirement = true;
-		return (TypeId == (uint16)EPCGMetadataTypes::Double) || (TypeId == (uint16)EPCGMetadataTypes::Float);
+		return PCG::Private::IsOfTypes<double, float>(TypeId);
 	}
 	else if (PCGMetadataVectorSettings::IsTransformOp(Operation) && InputIndex == 1)
 	{
 		bHasSpecialRequirement = true;
-		return TypeId == (uint16)EPCGMetadataTypes::Transform;
+		return PCG::Private::IsOfTypes<FTransform>(TypeId);
 	}
 	else
 	{
-		return (TypeId == (uint16)EPCGMetadataTypes::Vector2) || (TypeId == (uint16)EPCGMetadataTypes::Vector) || (TypeId == (uint16)EPCGMetadataTypes::Vector4);
+		return PCG::Private::IsOfTypes<FVector2D, FVector, FVector4>(TypeId);
 	}
 }
 
@@ -304,15 +298,22 @@ FName UPCGMetadataVectorSettings::GetInputAttributeNameWithOverride(uint32 Index
 	}
 }
 
+FName UPCGMetadataVectorSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataVectorOperation"), true))
+	{
+		return FName(FString("Vector: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
 #if WITH_EDITOR
 FName UPCGMetadataVectorSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataVectorOperation"), true))
-	{
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation));
-	}
-
-	return TEXT("Metadata Vector Node");
+	return TEXT("Attribute Vector Op");
 }
 #endif // WITH_EDITOR
 
@@ -348,7 +349,7 @@ bool FPCGMetadataVectorElement::DoOperation(FOperationData& OperationData) const
 	{
 		using AttributeType = decltype(DummyValue);
 
-		if constexpr (PCGMetadataVectorSettings::IsInvalidInType<AttributeType>())
+		if constexpr (!PCG::Private::IsOfTypes<AttributeType, FVector2D, FVector, FVector4>())
 		{
 			return;
 		}
@@ -358,7 +359,7 @@ bool FPCGMetadataVectorElement::DoOperation(FOperationData& OperationData) const
 			{
 				DoBinaryOp<AttributeType, FTransform>(OperationData, [Operation](const AttributeType& Value, const FTransform& Transform) -> AttributeType { return PCGMetadataVectorSettings::ApplyTransformOperation(Value, Transform, Operation);});
 			}
-			else if (OperationData.OutputType == (uint16)EPCGMetadataTypes::Double)
+			else if (PCG::Private::IsOfTypes<double>(OperationData.OutputType))
 			{
 				if (PCGMetadataVectorSettings::IsUnaryOp(Operation))
 				{

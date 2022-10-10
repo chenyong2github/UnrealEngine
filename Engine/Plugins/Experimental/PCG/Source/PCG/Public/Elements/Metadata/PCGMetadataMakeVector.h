@@ -46,7 +46,7 @@ class PCG_API UPCGMetadataMakeVectorSettings : public UPCGMetadataSettingsBase
 public:
 #if WITH_EDITOR
 	//~Begin UPCGSettings interface
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MetadataMakeVectorNode")); }
+	virtual FName GetDefaultNodeName() const override;
 	//~End UPCGSettings interface
 #endif
 

@@ -24,7 +24,7 @@ class PCG_API UPCGMetadataMakeTransformSettings : public UPCGMetadataSettingsBas
 public:
 #if WITH_EDITOR
 	//~Begin UPCGSettings interface
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MetadataMakeTransformNode")); }
+	virtual FName GetDefaultNodeName() const override;
 	//~End UPCGSettings interface
 #endif
 

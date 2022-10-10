@@ -25,8 +25,6 @@ TArray<FPCGPinProperties> UPCGMetadataSettingsBase::InputPinProperties() const
 		}
 	}
 
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bAllowMultipleConnections=*/false);
-
 	return PinProperties;
 }
 
@@ -67,6 +65,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	const TArray<FPCGTaggedData>& Inputs = Context->InputData.TaggedData;
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
+	// We disabled param pin, but we let the logic of attribute name override, if we need to re-enable it in the future.
 	const TArray<FPCGTaggedData>& ParamData = Context->InputData.GetParamsByPin(PCGPinConstants::DefaultParamsLabel);
 	UPCGParamData* Params = ParamData.IsEmpty() ? nullptr : Cast<UPCGParamData>(ParamData[0].Data);
 

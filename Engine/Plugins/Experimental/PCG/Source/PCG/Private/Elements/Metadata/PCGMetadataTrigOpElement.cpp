@@ -66,7 +66,7 @@ uint32 UPCGMetadataTrigSettings::GetInputPinNum() const
 bool UPCGMetadataTrigSettings::IsSupportedInputType(uint16 TypeId, uint32 InputIndex, bool& bHasSpecialRequirement) const
 {
 	bHasSpecialRequirement = false;
-	return TypeId <= (uint16)EPCGMetadataTypes::Integer64;
+	return PCG::Private::IsOfTypes<int32, int64, float, double>(TypeId);
 }
 
 FName UPCGMetadataTrigSettings::GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const
@@ -84,25 +84,25 @@ FName UPCGMetadataTrigSettings::GetInputAttributeNameWithOverride(uint32 Index, 
 
 uint16 UPCGMetadataTrigSettings::GetOutputType(uint16 InputTypeId) const
 {
-	if (InputTypeId == (uint16)EPCGMetadataTypes::Integer32 || InputTypeId == (uint16)EPCGMetadataTypes::Integer64)
+	return (uint16)EPCGMetadataTypes::Double;
+}
+
+FName UPCGMetadataTrigSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataTrigOperation"), true))
 	{
-		return (uint16)EPCGMetadataTypes::Double;
+		return FName(FString("Trig: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
 	}
 	else
 	{
-		return InputTypeId;
+		return NAME_None;
 	}
 }
 
 #if WITH_EDITOR
 FName UPCGMetadataTrigSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataTrigOperation"), true))
-	{ 
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation)); 
-	}
-
-	return TEXT("Metadata Trig Node");
+	return TEXT("Attribute Trig Op");
 }
 #endif // WITH_EDITOR
 

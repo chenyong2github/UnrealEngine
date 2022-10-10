@@ -188,7 +188,7 @@ uint32 UPCGMetadataMathsSettings::GetInputPinNum() const
 bool UPCGMetadataMathsSettings::IsSupportedInputType(uint16 TypeId, uint32 InputIndex, bool& bHasSpecialRequirement) const
 {
 	bHasSpecialRequirement = false;
-	return TypeId <= (uint16)EPCGMetadataTypes::Vector4;
+	return PCG::Private::IsOfTypes<float, double, int32, int64, FVector2D, FVector, FVector4>(TypeId);
 }
 
 FName UPCGMetadataMathsSettings::GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const
@@ -206,15 +206,22 @@ FName UPCGMetadataMathsSettings::GetInputAttributeNameWithOverride(uint32 Index,
 	}
 }
 
+FName UPCGMetadataMathsSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataMathsOperation"), true))
+	{
+		return FName(FString("Maths: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
 #if WITH_EDITOR
 FName UPCGMetadataMathsSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataMathsOperation"), true))
-	{ 
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation)); 
-	}
-
-	return TEXT("Metadata Maths Node");
+	return TEXT("Attribute Maths Op");
 }
 #endif // WITH_EDITOR
 
@@ -234,7 +241,7 @@ bool FPCGMetadataMathsElement::DoOperation(FOperationData& OperationData) const
 		using AttributeType = decltype(DummyOutValue);
 
 		// Need to remove types that would not compile
-		if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id > (uint16)EPCGMetadataTypes::Vector4)
+		if constexpr (!PCG::Private::IsOfTypes<AttributeType, float, double, int32, int64, FVector2D, FVector, FVector4>())
 		{
 			return;
 		}

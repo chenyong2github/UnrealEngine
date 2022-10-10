@@ -81,6 +81,13 @@ uint16 UPCGMetadataMakeTransformSettings::GetOutputType(uint16 InputTypeId) cons
 	return (uint16)EPCGMetadataTypes::Transform;
 }
 
+#if WITH_EDITOR
+FName UPCGMetadataMakeTransformSettings::GetDefaultNodeName() const
+{
+	return TEXT("Make Transform Attribute");
+}
+#endif // WITH_EDITOR
+
 FPCGElementPtr UPCGMetadataMakeTransformSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataMakeTransformElement>();

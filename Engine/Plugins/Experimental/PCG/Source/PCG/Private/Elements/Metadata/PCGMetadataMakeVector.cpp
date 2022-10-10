@@ -151,6 +151,13 @@ uint16 UPCGMetadataMakeVectorSettings::GetOutputType(uint16 InputTypeId) const
 	return (uint16)OutputType;
 }
 
+#if WITH_EDITOR
+FName UPCGMetadataMakeVectorSettings::GetDefaultNodeName() const
+{
+	return TEXT("Make Vector Attribute");
+}
+#endif // WITH_EDITOR
+
 FPCGElementPtr UPCGMetadataMakeVectorSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataMakeVectorElement>();

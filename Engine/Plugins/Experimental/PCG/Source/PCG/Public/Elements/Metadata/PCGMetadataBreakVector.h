@@ -25,7 +25,7 @@ class PCG_API UPCGMetadataBreakVectorSettings : public UPCGMetadataSettingsBase
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("MetadataBreakVectorNode")); }
+	virtual FName GetDefaultNodeName() const override;
 #endif
 
 	virtual FName GetInputAttributeNameWithOverride(uint32 Index, UPCGParamData* Params) const override;

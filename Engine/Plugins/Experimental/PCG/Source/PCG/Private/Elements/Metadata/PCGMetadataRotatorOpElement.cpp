@@ -137,17 +137,17 @@ bool UPCGMetadataRotatorSettings::IsSupportedInputType(uint16 TypeId, uint32 Inp
 	if (InputIndex == 2)
 	{
 		bHasSpecialRequirement = true;
-		return TypeId == (uint16)EPCGMetadataTypes::Float || TypeId == (uint16)EPCGMetadataTypes::Double;
+		return PCG::Private::IsOfTypes<float, double>(TypeId);
 	}
 	else if (InputIndex == 1 && PCGMetadataRotatorSettings::IsTransfromOp(Operation))
 	{
 		bHasSpecialRequirement = true;
-		return TypeId == (uint16)EPCGMetadataTypes::Transform;
+		return PCG::Private::IsOfTypes<FTransform>(TypeId);
 	}
 	else
 	{
 		bHasSpecialRequirement = false;
-		return TypeId == (uint16)EPCGMetadataTypes::Rotator || TypeId == (uint16)EPCGMetadataTypes::Quaternion;
+		return PCG::Private::IsOfTypes<FRotator, FQuat>(TypeId);
 	}
 }
 
@@ -166,15 +166,22 @@ FName UPCGMetadataRotatorSettings::GetInputAttributeNameWithOverride(uint32 Inde
 	}
 }
 
+FName UPCGMetadataRotatorSettings::AdditionalTaskName() const
+{
+	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataRotatorOperation"), true))
+	{
+		return FName(FString("Rotator: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
+
 #if WITH_EDITOR
 FName UPCGMetadataRotatorSettings::GetDefaultNodeName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("EPCGMedadataRotatorOperation"), true))
-	{ 
-		return EnumPtr->GetNameByValue(static_cast<int>(Operation)); 
-	}
-
-	return TEXT("Metadata Rotator Node");
+	return TEXT("Attribute Rotator Op");
 }
 #endif // WITH_EDITOR
 
@@ -193,8 +200,7 @@ bool FPCGMetadataRotatorElement::DoOperation(FOperationData& OperationData) cons
 	{
 		using AttributeType = decltype(DummyValue);
 
-		if constexpr (PCG::Private::MetadataTypes<AttributeType>::Id != (uint16)EPCGMetadataTypes::Quaternion &&
-					PCG::Private::MetadataTypes<AttributeType>::Id != (uint16)EPCGMetadataTypes::Rotator)
+		if constexpr (!PCG::Private::IsOfTypes<AttributeType, FQuat, FRotator>())
 		{
 			return;
 		}

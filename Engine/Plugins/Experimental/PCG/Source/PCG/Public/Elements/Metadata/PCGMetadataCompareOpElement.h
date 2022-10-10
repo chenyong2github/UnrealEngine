@@ -29,6 +29,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
 #endif
+	virtual FName AdditionalTaskName() const override;
 	//~End UPCGSettings interface
 
 	//~Begin UPCGMetadataSettingsBase interface

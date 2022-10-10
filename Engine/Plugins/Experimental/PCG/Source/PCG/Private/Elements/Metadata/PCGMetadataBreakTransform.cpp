@@ -81,6 +81,13 @@ FName UPCGMetadataBreakTransformSettings::GetOutputAttributeName(FName BaseName,
 	}
 }
 
+#if WITH_EDITOR
+FName UPCGMetadataBreakTransformSettings::GetDefaultNodeName() const
+{
+	return TEXT("Break Transform Attribute");
+}
+#endif // WITH_EDITOR
+
 FPCGElementPtr UPCGMetadataBreakTransformSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataBreakTransformElement>();
