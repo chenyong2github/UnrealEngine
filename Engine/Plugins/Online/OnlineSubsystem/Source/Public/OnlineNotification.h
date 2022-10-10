@@ -26,7 +26,8 @@ struct ONLINESUBSYSTEM_API FOnlineNotification
 		const FString& InTypeStr,
 		const TSharedPtr<FJsonValue>& InPayload,
 		FUniqueNetIdPtr InToUserId = nullptr,
-		FUniqueNetIdPtr InFromUserId = nullptr
+		FUniqueNetIdPtr InFromUserId = nullptr,
+		const FString & InClientRequestIdStr = TEXT("")
 	);
 
 	/**
@@ -37,12 +38,14 @@ struct ONLINESUBSYSTEM_API FOnlineNotification
 		const FString& InTypeStr,
 		const TSharedPtr<FJsonObject>& InPayload,
 		FUniqueNetIdPtr InToUserId = nullptr,
-		FUniqueNetIdPtr InFromUserId = nullptr
+		FUniqueNetIdPtr InFromUserId = nullptr,
+		const FString& InClientRequestIdStr = TEXT("")
 	)
 	: TypeStr(InTypeStr)
 	, Payload(InPayload)
 	, ToUserId(InToUserId)
 	, FromUserId(InFromUserId)
+	, ClientRequestIdStr(InClientRequestIdStr)
 	{
 	}
 
@@ -74,6 +77,11 @@ struct ONLINESUBSYSTEM_API FOnlineNotification
 	 */
 	void SetTypeFromPayload();
 
+	/**
+	 * Set up the ClientRequestIdStr for the case where it is embedded in the payload
+	 */
+	void SetClientRequestIdFromPayload();
+
 	/** A string defining the type of this notification, used to determine how to parse the payload */
 	FString TypeStr;
 
@@ -85,4 +93,7 @@ struct ONLINESUBSYSTEM_API FOnlineNotification
 
 	/** User who sent the notification, optional. */
 	FUniqueNetIdPtr FromUserId;
+
+	/** String representing the client_request_id for this notification. Used to tie a server request back to the client. Can be empty. */
+	FString ClientRequestIdStr;
 };
