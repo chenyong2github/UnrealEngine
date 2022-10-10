@@ -38,10 +38,10 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category = ModifyCurve, meta = (PinHiddenByDefault))
 	TMap<FName, float> CurveMap;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category = ModifyCurve, meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category = ModifyCurve, meta = (BlueprintCompilerGeneratedDefaults, PinShownByDefault))
 	TArray<float> CurveValues;
 
-	UPROPERTY()
+	UPROPERTY(meta = (BlueprintCompilerGeneratedDefaults))
 	TArray<FName> CurveNames;
 
 	TArray<float> LastCurveValues;

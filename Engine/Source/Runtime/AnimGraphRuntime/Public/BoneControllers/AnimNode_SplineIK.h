@@ -71,7 +71,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_SplineIK : public FAnimNode_SkeletalContro
 	int32 PointCount;
 
 	/** Transforms applied to spline points **/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, EditFixedSize, Category = "Parameters", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, EditFixedSize, Category = "Parameters", meta = (BlueprintCompilerGeneratedDefaults, PinHiddenByDefault))
 	TArray<FTransform> ControlPoints;
 
 	/** Overall roll of the spline, applied on top of other rotations along the direction of the spline */

@@ -28,7 +28,7 @@ public:
 	FPoseLink BasePose;
 
 	/** Each layer's blended pose */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category=Links)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category=Links, meta=(BlueprintCompilerGeneratedDefaults))
 	TArray<FPoseLink> BlendPoses;
 
 	/** Whether to use branch filters or a blend mask to specify an input pose per-bone influence */
@@ -51,7 +51,7 @@ public:
 	TArray<FInputBlendPose> LayerSetup;
 
 	/** The weights of each layer */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category=Runtime, meta=(PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, editfixedsize, Category=Runtime, meta=(BlueprintCompilerGeneratedDefaults, PinShownByDefault))
 	TArray<float> BlendWeights;
 
 	/** Whether to blend bone rotations in mesh space or in local space */
