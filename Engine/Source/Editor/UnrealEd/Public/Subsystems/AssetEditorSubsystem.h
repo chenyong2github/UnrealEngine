@@ -117,9 +117,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	int32 CloseAllEditorsForAsset(UObject* Asset);
 
-	/** Close all active editors for the supplied asset and its external referencers and return the number of asset editors that were closed */
-	int32 CloseAllEditorsForAssetAndReferencedAssets(UObject* Asset, TArray<TWeakObjectPtr<UObject>>& AssetsThatNeedToReopen);
-
 	/** Close any editor which is not this one */
 	void CloseOtherEditors(UObject* Asset, IAssetEditorInstance* OnlyEditor);
 
