@@ -1141,11 +1141,6 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 	return Intermediates.TangentToWorld[2];
 }
 
-#if SUPPORT_GPUSKIN_PASSTHROUGH
-// Information when using pass through to get the previous position, as no matrix is available/needed
-Buffer<float> GPUSkinCachePreviousPositionBuffer;
-#endif
-
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
@@ -1155,11 +1150,11 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 #if SUPPORT_GPUSKIN_PASSTHROUGH
 	if (IsGPUSkinPassThrough())
 	{
-	uint Offset = Input.VertexId * 3;
-	float3 PreviousPos;
-	PreviousPos.x = GPUSkinCachePreviousPositionBuffer[Offset + 0];
-	PreviousPos.y = GPUSkinCachePreviousPositionBuffer[Offset + 1];
-	PreviousPos.z = GPUSkinCachePreviousPositionBuffer[Offset + 2];
+		uint Offset = Input.VertexId * 3;
+		float3 PreviousPos;
+		PreviousPos.x = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 0];
+		PreviousPos.y = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 1];
+		PreviousPos.z = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 2];
 		PrevLocalPosition = float4(PreviousPos, 1);	
 	}
 	else

@@ -26,6 +26,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryUniformShaderParameters,
 	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_ColorComponentsBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryLooseParameters,)
+	SHADER_PARAMETER_SRV(Buffer<float>, GPUSkinPassThroughPreviousPositionBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 extern ENGINE_API TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUniformBuffer(
 	const class FLocalVertexFactory* VertexFactory, 
 	uint32 LODLightmapDataIndex, 
@@ -86,6 +90,7 @@ public:
 	virtual void ReleaseRHI() override
 	{
 		UniformBuffer.SafeRelease();
+		LooseParametersUniformBuffer.SafeRelease();
 		FVertexFactory::ReleaseRHI();
 	}
 
@@ -157,11 +162,13 @@ public:
 
 protected:
 	friend class FLocalVertexFactoryShaderParameters;
+	friend class FSkeletalMeshSceneProxy;
 
 	const FDataType& GetData() const { return Data; }
 
 	FDataType Data;
 	TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> UniformBuffer;
+	TUniformBufferRef<FLocalVertexFactoryLooseParameters> LooseParametersUniformBuffer;
 
 	int32 ColorStreamIndex;
 
@@ -249,17 +256,14 @@ private:
 	void GetElementShaderBindingsSkinCache(
 		class FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
 		struct FGPUSkinBatchElementUserData* BatchUserData,
-		bool bVerticesInMotion,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
 
 	void GetElementShaderBindingsMeshDeformer(
 		class FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
-		bool bVerticesInMotion,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
 
 	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePositionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePreviousPositionBuffer);
 	LAYOUT_FIELD(FShaderParameter, IsGPUSkinPassThrough);
 };

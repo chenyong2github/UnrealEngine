@@ -1757,10 +1757,8 @@ void FGPUSkinCache::Release(FGPUSkinCacheEntry*& SkinCacheEntry)
 void FGPUSkinCache::GetShaderBindings(
 	const FGPUSkinCacheEntry* Entry, 
 	int32 Section,
-	bool bVerticesInMotion,
 	const FGPUSkinPassthroughVertexFactory* VertexFactory,
 	FShaderResourceParameter GPUSkinCachePositionBuffer,
-	FShaderResourceParameter GPUSkinCachePreviousPositionBuffer,
 	FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams)
 {
@@ -1781,9 +1779,6 @@ void FGPUSkinCache::GetShaderBindings(
 	}
 
 	ShaderBindings.Add(GPUSkinCachePositionBuffer, DispatchData.GetPositionRWBuffer()->Buffer.SRV);
-
-	// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
-	ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, bVerticesInMotion ? DispatchData.GetPreviousPositionRWBuffer()->Buffer.SRV : DispatchData.GetPositionRWBuffer()->Buffer.SRV);
 }
 
 void FGPUSkinCache::PrepareUpdateSkinning(FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber, TArray<FSkinCacheRWBuffer*>* OverlappedUAVs)

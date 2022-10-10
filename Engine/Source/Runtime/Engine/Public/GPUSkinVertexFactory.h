@@ -560,6 +560,7 @@ public:
 
 protected:
 	friend class FLocalVertexFactoryShaderParameters;
+	friend class FSkeletalMeshSceneProxy;
 
 	// Reference holders for RDG buffers
 	TRefCountPtr<FRDGPooledBuffer> PositionRDG;

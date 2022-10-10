@@ -6231,6 +6231,43 @@ void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const 
 #endif
 	BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 	BatchElement.NumPrimitives = LODData.RenderSections[SectionIndex].NumTriangles;
+
+	UpdateLooseParametersUniformBuffer(View, SectionIndex, Mesh, BatchElement);
+}
+
+void FSkeletalMeshSceneProxy::UpdateLooseParametersUniformBuffer(const FSceneView* View, const int32 SectionIndex, const FMeshBatch& Mesh, const FMeshBatchElement& BatchElement) const
+{
+	// Loose parameters uniform buffer is only needed for PassThroughVF
+	if (!Mesh.VertexFactory || Mesh.VertexFactory->GetType() != &FGPUSkinPassthroughVertexFactory::StaticType)
+	{
+		return;
+	}
+	
+	FLocalVertexFactoryLooseParameters Parameters;
+
+	FVertexFactory* NonConstVertexFactory = const_cast<FVertexFactory*>(Mesh.VertexFactory);
+	FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory*>(NonConstVertexFactory);
+	// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
+	// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
+	bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == PassthroughVertexFactory->GetUpdatedFrameNumber());
+	// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
+	bool bVerticesInMotion = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
+
+	const bool bUsesSkinCache = BatchElement.VertexFactoryUserData != nullptr;
+	if (bUsesSkinCache)
+	{
+		Parameters.GPUSkinPassThroughPreviousPositionBuffer = bVerticesInMotion ?
+			FGPUSkinCache::GetPreviousPositionBuffer(MeshObject->SkinCacheEntry, SectionIndex)->SRV :
+			FGPUSkinCache::GetPositionBuffer(MeshObject->SkinCacheEntry, SectionIndex)->SRV;
+	}
+	else // Mesh deformer
+	{
+		Parameters.GPUSkinPassThroughPreviousPositionBuffer = (bVerticesInMotion && PassthroughVertexFactory->PrevPositionRDG) ?
+			PassthroughVertexFactory->PrevPositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) :
+			PassthroughVertexFactory->GetPositionsSRV();
+	}
+
+	PassthroughVertexFactory->LooseParametersUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 
 uint8 FSkeletalMeshSceneProxy::GetCurrentFirstLODIdx_Internal() const

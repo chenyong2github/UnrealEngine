@@ -43,6 +43,7 @@ void FLocalVertexFactoryShaderParametersBase::Bind(const FShaderParameterMap& Pa
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryUniformShaderParameters, "LocalVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryLooseParameters, "LocalVFLooseParameters");
 
 TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> CreateLocalVFUniformBuffer(
 	const FLocalVertexFactory* LocalVertexFactory, 
@@ -162,7 +163,6 @@ void FLocalVertexFactoryShaderParameters::Bind(const FShaderParameterMap& Parame
 {
 	FLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
 	GPUSkinCachePositionBuffer.Bind(ParameterMap, TEXT("GPUSkinCachePositionBuffer"));
-	GPUSkinCachePreviousPositionBuffer.Bind(ParameterMap, TEXT("GPUSkinCachePreviousPositionBuffer"));
 	IsGPUSkinPassThrough.Bind(ParameterMap, TEXT("bIsGPUSkinPassThrough"));
 }
 
@@ -195,9 +195,6 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 	}
 	else
 	{
-		// Bind null SRV as not used by non-passthrough vertex factory
-		ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, GNullVertexBuffer.VertexBufferSRV);
-
 		// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
 		FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
 
@@ -213,6 +210,8 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 			ShaderBindings,
 			VertexStreams);
 	}
+
+	ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryLooseParameters>(), LocalVertexFactory->LooseParametersUniformBuffer);
 }
 
 void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsGPUSkinPassThrough(
@@ -236,40 +235,31 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsGPUSkinPassThr
 
 	check(VertexFactory->GetType() == &FGPUSkinPassthroughVertexFactory::StaticType);
 	FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory const*>(VertexFactory);
-
-	// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
-	// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
-	bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == PassthroughVertexFactory->GetUpdatedFrameNumber());
-	// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
-	bool bVerticesInMotion = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
-
 	if (bUsesSkinCache)
 	{
-		GetElementShaderBindingsSkinCache(PassthroughVertexFactory, BatchUserData, bVerticesInMotion, ShaderBindings, VertexStreams);
+		GetElementShaderBindingsSkinCache(PassthroughVertexFactory, BatchUserData, ShaderBindings, VertexStreams);
 	}
 	else
 	{
-		GetElementShaderBindingsMeshDeformer(PassthroughVertexFactory, bVerticesInMotion, ShaderBindings, VertexStreams);
+		GetElementShaderBindingsMeshDeformer(PassthroughVertexFactory, ShaderBindings, VertexStreams);
 	}
 }
 
 void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsSkinCache(
 	FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
 	FGPUSkinBatchElementUserData* BatchUserData,
-	bool bVerticesInMotion,
 	FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams) const
 {
 	FGPUSkinCache::GetShaderBindings(
-		BatchUserData->Entry, BatchUserData->Section, bVerticesInMotion,
+		BatchUserData->Entry, BatchUserData->Section,
 		PassthroughVertexFactory,
-		GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer,
+		GPUSkinCachePositionBuffer,
 		ShaderBindings, VertexStreams);
 }
 
 void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsMeshDeformer(
 	FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
-	bool bVerticesInMotion,
 	FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams) const
 {
@@ -281,15 +271,6 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsMeshDeformer(
 	if (PassthroughVertexFactory->TangentRDG.IsValid() && PassthroughVertexFactory->GetTangentStreamIndex() > -1)
 	{
 		VertexStreams.Add(FVertexInputStream(PassthroughVertexFactory->GetTangentStreamIndex(), 0, PassthroughVertexFactory->TangentRDG->GetRHI()));
-	}
-
-	if (bVerticesInMotion && PassthroughVertexFactory->PrevPositionRDG)
-	{
-		ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, PassthroughVertexFactory->PrevPositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)));
-	}
-	else
-	{
-		ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, PassthroughVertexFactory->GetPositionsSRV());
 	}
 }
 
@@ -544,6 +525,10 @@ void FLocalVertexFactory::InitRHI()
 		SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI_CreateLocalVFUniformBuffer);
 		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
 	}
+
+	FLocalVertexFactoryLooseParameters LooseParameters;
+	LooseParameters.GPUSkinPassThroughPreviousPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
+	LooseParametersUniformBuffer = TUniformBufferRef<FLocalVertexFactoryLooseParameters>::CreateUniformBufferImmediate(LooseParameters, UniformBuffer_MultiFrame);
 
 	check(IsValidRef(GetDeclaration()));
 }
