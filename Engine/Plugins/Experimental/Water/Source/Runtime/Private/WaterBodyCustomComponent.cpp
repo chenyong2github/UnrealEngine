@@ -72,7 +72,11 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 		MeshComp = NewObject<UStaticMeshComponent>(OwnerActor, TEXT("CustomMeshComponent"), RF_Transactional);
 		MeshComp->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
 		MeshComp->SetupAttachment(this);
-		MeshComp->RegisterComponent();
+
+		if(IsRegistered())
+		{
+			MeshComp->RegisterComponent();
+		}
 	}
 
 	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
