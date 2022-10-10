@@ -120,6 +120,9 @@ void FContentBundleEditor::DoRemoveContent()
 		ActorDescContainer = nullptr;
 	}
 
+	ExternalStreamingObject = nullptr;
+	CookPackageIdsToCell.Empty();
+
 	SetStatus(EContentBundleStatus::Registered);
 
 	BroadcastChanged();
@@ -398,14 +401,6 @@ bool FContentBundleEditor::PopulateGeneratorPackageForCook(class IWorldPartition
 					bIsSuccess = false;
 				}
 			}
-			else
-			{
-				if (!ExternalStreamingObject->Rename(nullptr, CookPackage->GetPackage(), REN_DontCreateRedirectors))
-				{
-					UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to set streaming object package %s."), *GetDescriptor()->GetDisplayName());
-					bIsSuccess = false;
-				}
-			}
 		}
 
 		ExternalStreamingObject->PopulateGeneratorPackageForCook();
@@ -437,6 +432,14 @@ bool FContentBundleEditor::PopulateGeneratedPackageForCook(class IWorldPartition
 		else
 		{
 			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Could not find cell for package %s while populating generated pacakges."), *GetDescriptor()->GetDisplayName(), *PackageToCook.RelativePath);
+			bIsSuccess = false;
+		}
+	}
+	else
+	{
+		if (!ExternalStreamingObject->Rename(nullptr, PackageToCook.GetPackage(), REN_DontCreateRedirectors))
+		{
+			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to set streaming object package %s."), *GetDescriptor()->GetDisplayName());
 			bIsSuccess = false;
 		}
 	}
