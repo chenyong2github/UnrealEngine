@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 
+#include "CalibratedMapFormat.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/Texture.h"
 #include "Models/LensModel.h"
@@ -95,13 +96,13 @@ struct CAMERACALIBRATIONCORE_API FSTMapInfo
 	GENERATED_BODY()
 
 public:
-	/** 
-	 * Pre calibrated UVMap/STMap
-	 * RG channels are expected to have undistortion map (from distorted to undistorted)
-	 * BA channels are expected to have distortion map (from undistorted (CG) to distorted)
-	 */
+	/** Pre calibrated UVMap/STMap */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	TObjectPtr<UTexture> DistortionMap = nullptr;
+
+	/** Calibrated map format */
+	UPROPERTY(EditAnywhere, Category = "Format", meta = (ShowOnlyInnerProperties))
+	FCalibratedMapFormat MapFormat;
 };
 
 /**

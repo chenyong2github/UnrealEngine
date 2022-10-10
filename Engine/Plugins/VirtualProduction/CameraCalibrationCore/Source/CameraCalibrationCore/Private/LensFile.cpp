@@ -1347,10 +1347,17 @@ void ULensFile::UpdateDerivedData()
 			{
 				if (ZoomPoint.DerivedDistortionData.bIsDirty)
 				{
-					//Early exit if source data is invalid
+					//Early exit if source map does not exist
 					if (ZoomPoint.STMapInfo.DistortionMap == nullptr)
 					{
 						ZoomPoint.DerivedDistortionData.bIsDirty = false;
+						continue;
+					}
+
+					//Early exit it the source map is not yet loaded (but leave it marked dirty so it tries again later)
+					if (ZoomPoint.STMapInfo.DistortionMap->GetResource() == nullptr ||
+						ZoomPoint.STMapInfo.DistortionMap->GetResource()->IsProxy())
+					{
 						continue;
 					}
 
@@ -1379,6 +1386,7 @@ void ULensFile::UpdateDerivedData()
 					FDerivedDistortionDataJobArgs JobArgs;
 					JobArgs.Focus = FocusPoint.Focus;
 					JobArgs.Zoom = ZoomPoint.Zoom;
+					JobArgs.Format = ZoomPoint.STMapInfo.MapFormat;
 					JobArgs.SourceDistortionMap = ZoomPoint.STMapInfo.DistortionMap;
 					JobArgs.OutputUndistortionDisplacementMap = ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
 					JobArgs.OutputDistortionDisplacementMap = ZoomPoint.DerivedDistortionData.DistortionDisplacementMap;

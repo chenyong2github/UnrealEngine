@@ -2,21 +2,26 @@
 
 #include "CalibratedMapProcessor.h"
 
+#include "CameraCalibrationCoreLog.h"
 #include "Engine/Texture.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GlobalShader.h"		
-#include "CameraCalibrationCoreLog.h"
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"
-#include "ShaderParameterStruct.h"
 #include "ScreenPass.h"
-
+#include "ShaderParameterStruct.h"
 
 
 class FCalibratedMapDerivedDataCS : public FGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FCalibratedMapDerivedDataCS);
+
+	class FMapPixelOrigin : SHADER_PERMUTATION_ENUM_CLASS("PIXEL_ORIGIN", ECalibratedMapPixelOrigin);
+	class FUndistortionChannels : SHADER_PERMUTATION_ENUM_CLASS("UNDISTORTION_CHANNELS", ECalibratedMapChannels);
+	class FDistortionChannels : SHADER_PERMUTATION_ENUM_CLASS("DISTORTION_CHANNELS", ECalibratedMapChannels);
+
+	using FPermutationDomain = TShaderPermutationDomain<FMapPixelOrigin, FUndistortionChannels, FDistortionChannels>;
 
 	SHADER_USE_PARAMETER_STRUCT(FCalibratedMapDerivedDataCS, FGlobalShader);
 
@@ -27,7 +32,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistortionSTMap)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistortionSTMapSampler)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector2D>, OutDistortedUV)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector2f>, OutDistortedUV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, OutUndistortionDisplacementMap)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, OutDistortionDisplacementMap)
 		END_SHADER_PARAMETER_STRUCT()
@@ -159,7 +164,7 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
 			CompletedJobs.Enqueue(Job);
 			return;
 		}
-		
+	
 		FTextureResource* SourceDistortionMap = SourceTexture->GetResource();
 		FTextureResource* DestinationUndistortionDisplacementMap = DestinationUndistortionTexture->GetResource();
 		FTextureResource* DestinationDistortionDisplacementMap = DestinationDistortionTexture->GetResource();
@@ -195,8 +200,13 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
 			Parameters->OutUndistortionDisplacementMap = GraphBuilder.CreateUAV(UndistortionDisplacementMap);
 			Parameters->OutDistortionDisplacementMap = GraphBuilder.CreateUAV(DistortionDisplacementMap);
 
+			FCalibratedMapDerivedDataCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FCalibratedMapDerivedDataCS::FMapPixelOrigin>(Job->JobArgs.Format.PixelOrigin);
+			PermutationVector.Set<FCalibratedMapDerivedDataCS::FUndistortionChannels>(Job->JobArgs.Format.UndistortionChannels);
+			PermutationVector.Set<FCalibratedMapDerivedDataCS::FDistortionChannels>(Job->JobArgs.Format.DistortionChannels);
+
             FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-			TShaderMapRef<FCalibratedMapDerivedDataCS> ComputeShader(GlobalShaderMap);
+			TShaderMapRef<FCalibratedMapDerivedDataCS> ComputeShader(GlobalShaderMap, PermutationVector);
 
             GraphBuilder.AddPass(
             			RDG_EVENT_NAME("LensFileSTMapConversion"),
@@ -247,13 +257,14 @@ void FCalibratedMapProcessor::Update_RenderThread()
 	{
 		constexpr int32 EntriesCount = FDerivedDistortionDataJobOutput::EdgePointCount;
 		const int32 ReadbackDataByteCount = CompletedJob->Output.EdgePointsDistortedUVs.GetTypeSize();
-		const FVector2D* EdgePointsDistortedUV = static_cast<const FVector2D*>(CompletedJob->Readback->Lock(EntriesCount * ReadbackDataByteCount));
+		const FVector2f* EdgePointsDistortedUV = static_cast<const FVector2f*>(CompletedJob->Readback->Lock(EntriesCount * ReadbackDataByteCount));
 
 		if (EdgePointsDistortedUV)
 		{
 			for (int32 Index = 0; Index < CompletedJob->Output.EdgePointsDistortedUVs.Num(); ++Index)
 			{
-				CompletedJob->Output.EdgePointsDistortedUVs[Index] = EdgePointsDistortedUV[Index];
+				const FVector2f DistortedUV = EdgePointsDistortedUV[Index];
+				CompletedJob->Output.EdgePointsDistortedUVs[Index] = FVector2D(DistortedUV.X, DistortedUV.Y);
 				CompletedJob->Output.Result = EDerivedDistortionDataResult::Success;
 			}
 		}

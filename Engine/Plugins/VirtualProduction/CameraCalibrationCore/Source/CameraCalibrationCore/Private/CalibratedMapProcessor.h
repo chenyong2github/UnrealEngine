@@ -3,6 +3,8 @@
 #pragma once
 
 #include "ICalibratedMapProcessor.h"
+
+#include "CalibratedMapFormat.h"
 #include "Containers/Queue.h"
 #include "Templates/PimplPtr.h"
 #include "UObject/WeakObjectPtr.h"
@@ -31,6 +33,9 @@ struct FDerivedDistortionDataJobArgs
 	
 	/** Zoom point this is associated with */
 	float Zoom = 0.0f;
+
+	/** Formating information, such as pixel origin and the channels used for each displacement map */
+	FCalibratedMapFormat Format;
 
 	/** Source calibrated map */
 	//When coefficient route is supported, we might look at how we can have a mutual interface

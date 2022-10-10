@@ -523,7 +523,44 @@ TSharedRef<SWidget> SLensDataAddPointDialog::MakeLensDataWidget()
 		{
 			STMapData->InitializeAs<FSTMapInfo>();
 			TSharedPtr<IStructureDetailsView> StructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, STMapData);
-			LensDataWidget = StructureDetailsView->GetWidget();
+
+			FocalLengthData->InitializeAs<FFocalLengthInfo>();
+			TSharedPtr<IStructureDetailsView> FocalLengthStructDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, FocalLengthData);
+			FFocalLengthInfo* FocalLengthInstanceData = FocalLengthData->Cast<FFocalLengthInfo>();
+			FocalLengthInstanceData->FxFy = GetDefaultFocalLengthValue();
+
+			LensDataWidget =
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(5.0f, 5.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FxFyDisplayUnitHelpText",
+						"Choose the units that should be used for the value of FxFy below.\n"
+						"If using mm or pixels, check that the sensor and image dimensions are set correctly in the Lens Information."
+					))
+					.AutoWrapText(true)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 5.0f)
+				[
+					UnitWidget.ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 5.0f)
+				[
+					StructureDetailsView->GetWidget().ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 5.0f)
+				[
+					FocalLengthStructDetailsView->GetWidget().ToSharedRef()
+				];
+
 			break;
 		}
 		default:
@@ -818,6 +855,10 @@ void SLensDataAddPointDialog::AddDataToLensFile() const
 		case ELensDataCategory::STMap:
 		{
 			LensFile->AddSTMapPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, *STMapData->Get());
+
+			FFocalLengthInfo FocalLengthValue = *FocalLengthData->Get();
+			NormalizeValue(FocalLengthValue.FxFy);
+			LensFile->AddFocalLengthPoint(TrackingInputData[0].Value, TrackingInputData[1].Value, FocalLengthValue);
 			break;
 		}
 		default:
