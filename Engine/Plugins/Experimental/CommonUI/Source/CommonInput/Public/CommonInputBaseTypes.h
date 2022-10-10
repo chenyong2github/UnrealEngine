@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CommonInputTypeEnum.h"
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPath.h"
 #include "Templates/SubclassOf.h"
@@ -26,17 +27,6 @@ struct COMMONINPUT_API FCommonInputDefaults
 	static const FName PlatformPC;
 	static const FName GamepadGeneric;
 };
-
-UENUM(BlueprintType)
-enum class ECommonInputType : uint8
-{
-	MouseAndKeyboard,
-	Gamepad,
-	Touch,
-	Count
-};
-
-ENUM_RANGE_BY_COUNT(ECommonInputType, ECommonInputType::Count);
 
 USTRUCT(Blueprintable)
 struct COMMONINPUT_API FCommonInputKeyBrushConfiguration
