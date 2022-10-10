@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundNodeDetailCustomization.h"
 
+#include "Analysis/MetasoundFrontendAnalyzerAddress.h"
 #include "Components/AudioComponent.h"
 #include "Containers/Set.h"
 #include "Delegates/Delegate.h"
@@ -51,7 +52,8 @@ namespace Metasound
 			static const TSet<FName> HiddenInputTypeNames =
 			{
 				"Audio:Mono",
-				"Audio:Stereo"
+				"Audio:Stereo",
+				GetMetasoundDataTypeName<Frontend::FAnalyzerAddress>()
 			};
 
 			static const FText OverrideInputDefaultText = LOCTEXT("OverridePresetInputDefault", "Override Inherited Default");

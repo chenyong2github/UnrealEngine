@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Analysis/MetasoundFrontendAnalyzerAddress.h"
+#include "MetasoundArrayNodesRegistration.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundFrontendDataTypeTraits.h"
 #include "Misc/AssertionMacros.h"
 
 
@@ -84,6 +86,30 @@ namespace Metasound
 			}, *PathSeparator);
 		}
 	} // namespace Frontend
+
+	template<>
+	struct TEnableArrayNodes<Frontend::FAnalyzerAddress>
+	{
+		static constexpr bool Value = false;
+	};
+
+	template<>
+	struct TEnableTransmissionNodeRegistration<Frontend::FAnalyzerAddress>
+	{
+		static constexpr bool Value = false;
+	};
+
+	template<typename FromDataType>
+	struct TEnableAutoConverterNodeRegistration<FromDataType, Frontend::FAnalyzerAddress>
+	{
+		static constexpr bool Value = false;
+	};
+
+	template<>
+	struct TEnableConstructorVertex<Frontend::FAnalyzerAddress>
+	{
+		static constexpr bool Value = false;
+	};
 
 	REGISTER_METASOUND_DATATYPE(Frontend::FAnalyzerAddress, "AnalyzerAddress");
 } // namespace Metasound
