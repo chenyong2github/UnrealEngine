@@ -64,7 +64,6 @@ namespace Nanite
 		struct FInternalData
 		{
 			TSet<FPrimitiveSceneInfo*> Primitives;
-			uint32 AuxiliaryDataOffset;
 			uint32 ResourceId;
 			uint32 HierarchyOffset;
 			uint32 NumClusters;
@@ -76,14 +75,17 @@ namespace Nanite
 
 			uint32 PrimitiveId;
 
-			int32 BaseMeshDataOffset = -1;
-
 			TArray<uint32> SegmentMapping;
-
-			FRayTracingGeometryRHIRef RayTracingGeometryRHI;
 
 			FDebugName DebugName;
 
+			FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+
+			uint32 AuxiliaryDataOffset = INDEX_NONE;
+			uint32 AuxiliaryDataSize = 0;
+
+			uint32 StagingAuxiliaryDataOffset = INDEX_NONE;
+			int32 BaseMeshDataOffset = -1;
 			bool bUpdating = false;
 		};
 
@@ -105,6 +107,8 @@ namespace Nanite
 
 		TRefCountPtr<FRDGPooledBuffer> AuxiliaryDataBuffer;
 		FGrowOnlySpanAllocator AuxiliaryDataAllocator;
+
+		TRefCountPtr<FRDGPooledBuffer> StagingAuxiliaryDataBuffer;
 
 		TRefCountPtr<FRDGPooledBuffer> VertexBuffer;
 		TRefCountPtr<FRDGPooledBuffer> IndexBuffer;
