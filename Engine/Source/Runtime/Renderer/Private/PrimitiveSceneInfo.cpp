@@ -22,8 +22,8 @@
 #include "Nanite/Nanite.h"
 #include "Nanite/NaniteRayTracing.h"
 #include "Rendering/NaniteResources.h"
-#include "Lumen/LumenSceneRendering.h"
 #include "NaniteSceneProxy.h"
+#include "Lumen/LumenSceneRendering.h"
 #include "RayTracingDefinitions.h"
 
 extern int32 GGPUSceneInstanceClearList;
@@ -580,6 +580,9 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 
 void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo, FNaniteDrawListContext& DrawListContext)
 {
+	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterial"));
+	static const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnAnyThread() != 0);
+
 	FPrimitiveSceneProxy* Proxy = PrimitiveSceneInfo->Proxy;
 	if (Proxy->IsNaniteMesh())
 	{
@@ -613,17 +616,26 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 					{
 						Nanite::FSceneProxyBase::FMaterialSection& MaterialSection = NaniteMaterialSections[MaterialSectionIndex];
 						check(MaterialSection.RasterMaterialProxy != nullptr);
+						check(MaterialSection.ShadingMaterialProxy != nullptr);
 
-						FNaniteRasterPipeline& Pipeline = PipelinesCommand.Pipelines.Emplace_GetRef();
-						Pipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
-						Pipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
-						Pipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked ||
-												  MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
+						FNaniteRasterPipeline& RasterPipeline = PipelinesCommand.RasterPipelines.Emplace_GetRef();
+						RasterPipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
+						RasterPipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
+						RasterPipeline.bPerPixelEval = MaterialSection.MaterialRelevance.bMasked ||
+													   MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
 
 						float WPODisableDistance;
-						Pipeline.bWPODisableDistance =
+						RasterPipeline.bWPODisableDistance =
 							MaterialSection.MaterialRelevance.bUsesWorldPositionOffset &&
 							NaniteProxy->GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
+
+						if (bAllowComputeMaterials)
+						{
+							FNaniteShadingPipeline& ShadingPipeline = PipelinesCommand.ShadingPipelines.Emplace_GetRef();
+							ShadingPipeline.ShadingMaterial = MaterialSection.ShadingMaterialProxy;
+							ShadingPipeline.bIsTwoSided = !!MaterialSection.MaterialRelevance.bTwoSided;
+							ShadingPipeline.bIsMasked = MaterialSection.MaterialRelevance.bMasked;
+						}
 					}
 				}
 			};
@@ -663,6 +675,7 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 	{
 		FNaniteMaterialCommands& ShadingCommands = Scene->NaniteMaterials[NaniteMeshPassIndex];
 		FNaniteRasterPipelines& RasterPipelines = Scene->NaniteRasterPipelines[NaniteMeshPassIndex];
+		FNaniteShadingPipelines& ShadingPipelines = Scene->NaniteShadingPipelines[NaniteMeshPassIndex];
 		FNaniteVisibility& Visibility = Scene->NaniteVisibility[NaniteMeshPassIndex];
 
 		TArray<FNaniteCommandInfo>& NanitePassCommandInfo = NaniteCommandInfos[NaniteMeshPassIndex];
@@ -679,9 +692,17 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 			RasterPipelines.Unregister(RasterBin);
 		}
 
+		TArray<FNaniteShadingBin>& NanitePassShadingBins = NaniteShadingBins[NaniteMeshPassIndex];
+		for (int32 ShadingBinIndex = 0; ShadingBinIndex < NanitePassShadingBins.Num(); ++ShadingBinIndex)
+		{
+			const FNaniteShadingBin& ShadingBin = NanitePassShadingBins[ShadingBinIndex];
+			ShadingPipelines.Unregister(ShadingBin);
+		}
+
 		Visibility.RemoveReferences(this);
 
 		NanitePassRasterBins.Reset();
+		NanitePassShadingBins.Reset();
 		NanitePassCommandInfo.Reset();
 		NaniteMaterialSlots[NaniteMeshPassIndex].Reset();
 	}

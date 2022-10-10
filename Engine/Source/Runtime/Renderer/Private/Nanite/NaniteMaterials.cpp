@@ -1744,6 +1744,92 @@ void FNaniteRasterPipelines::Unregister(const FNaniteRasterBin& InRasterBin)
 	}
 }
 
+/// TODO: Work in progress / experimental
+
+FNaniteShadingPipelines::FNaniteShadingPipelines()
+{
+	PipelineBins.Reserve(256);
+	PipelineMap.Reserve(256);
+}
+
+FNaniteShadingPipelines::~FNaniteShadingPipelines()
+{
+	PipelineBins.Reset();
+	PipelineMap.Empty();
+}
+
+uint16 FNaniteShadingPipelines::AllocateBin()
+{
+	TBitArray<>& BinUsageMask = PipelineBins;
+	int32 BinIndex = BinUsageMask.FindAndSetFirstZeroBit();
+	if (BinIndex == INDEX_NONE)
+	{
+		BinIndex = BinUsageMask.Add(true);
+	}
+
+	check(int32(uint16(BinIndex)) == BinIndex && PipelineBins.Num() <= int32(MAX_uint16));
+	return uint16(BinIndex);
+}
+
+void FNaniteShadingPipelines::ReleaseBin(uint16 BinIndex)
+{
+	check(IsBinAllocated(BinIndex));
+	if (BinIndex < PipelineBins.Num())
+	{
+		PipelineBins[BinIndex] = false;
+	}
+}
+
+bool FNaniteShadingPipelines::IsBinAllocated(uint16 BinIndex) const
+{
+	return BinIndex < PipelineBins.Num() ? PipelineBins[BinIndex] : false;
+}
+
+uint32 FNaniteShadingPipelines::GetBinCount() const
+{
+	return PipelineBins.FindLast(true) + 1;
+}
+
+FNaniteShadingBin FNaniteShadingPipelines::Register(const FNaniteShadingPipeline& InShadingPipeline)
+{
+	FNaniteShadingBin ShadingBin;
+
+	const FShadingHash ShadingPipelineHash = PipelineMap.ComputeHash(InShadingPipeline);
+	FShadingId ShadingBinId = PipelineMap.FindOrAddIdByHash(ShadingPipelineHash, InShadingPipeline, FNaniteShadingEntry());
+	ShadingBin.BinId = ShadingBinId.GetIndex();
+
+	FNaniteShadingEntry& ShadingEntry = PipelineMap.GetByElementId(ShadingBinId).Value;
+	if (ShadingEntry.ReferenceCount == 0)
+	{
+		// First reference
+		ShadingEntry.ShadingPipeline = InShadingPipeline;
+		ShadingEntry.BinIndex = AllocateBin();
+	}
+
+	++ShadingEntry.ReferenceCount;
+
+	ShadingBin.BinIndex = ShadingEntry.BinIndex;
+	return ShadingBin;
+}
+
+void FNaniteShadingPipelines::Unregister(const FNaniteShadingBin& InShadingBin)
+{
+	FShadingId ShadingBinId(InShadingBin.BinId);
+	check(ShadingBinId.IsValid());
+
+	FNaniteShadingEntry& ShadingEntry = PipelineMap.GetByElementId(ShadingBinId).Value;
+	
+	check(ShadingEntry.ReferenceCount > 0);
+	--ShadingEntry.ReferenceCount;
+	if (ShadingEntry.ReferenceCount == 0)
+	{
+		ReleaseBin(ShadingEntry.BinIndex);
+		PipelineMap.RemoveByElementId(ShadingBinId);
+	}
+}
+
+/// END-TODO: Work in progress / experimental
+
 struct FNaniteVisibilityQuery
 {
 	FGraphEventRef			CompletedEvent;

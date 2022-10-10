@@ -50,6 +50,7 @@ void FNaniteDrawListContext::BeginPrimitiveSceneInfo(FPrimitiveSceneInfo& Primit
 	{
 		check(PrimitiveSceneInfo.NaniteCommandInfos[NaniteMeshPassIndex].Num() == 0);
 		check(PrimitiveSceneInfo.NaniteRasterBins[NaniteMeshPassIndex].Num() == 0);
+		check(PrimitiveSceneInfo.NaniteShadingBins[NaniteMeshPassIndex].Num() == 0);
 
 		TArray<FNaniteMaterialSlot>& MaterialSlots = PrimitiveSceneInfo.NaniteMaterialSlots[NaniteMeshPassIndex];
 		check(MaterialSlots.Num() == 0);
@@ -101,6 +102,18 @@ void FNaniteDrawListContext::AddShadingCommand(FPrimitiveSceneInfo& PrimitiveSce
 	FNaniteMaterialSlot& MaterialSlot = MaterialSlots[SectionIndex];
 	check(MaterialSlot.ShadingId == 0xFFFFu);
 	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId = uint16(ShadingCommand.GetMaterialSlot());
+}
+
+void FNaniteDrawListContext::AddShadingBin(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteShadingBin& ShadingBin, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex)
+{
+	PrimitiveSceneInfo.NaniteShadingBins[MeshPass].Add(ShadingBin);
+
+	TArray<FNaniteMaterialSlot>& MaterialSlots = PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass];
+	check(SectionIndex < uint32(MaterialSlots.Num()));
+
+	FNaniteMaterialSlot& MaterialSlot = MaterialSlots[SectionIndex];
+	//check(MaterialSlot.ShadingId == 0xFFFFu);
+	// TODO: PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId = ShadingBin.BinIndex;
 }
 
 void FNaniteDrawListContext::AddRasterBin(
@@ -187,10 +200,14 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 {
 	check(IsInRenderingThread());
 
+	static const auto AllowComputeMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowComputeMaterial"));
+	const bool bAllowComputeMaterials = (AllowComputeMaterials && AllowComputeMaterials->GetValueOnRenderThread() != 0);
+
 	for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
 	{
 		FNaniteMaterialCommands& ShadingCommands = Scene.NaniteMaterials[MeshPass];
 		FNaniteRasterPipelines& RasterPipelines  = Scene.NaniteRasterPipelines[MeshPass];
+		FNaniteShadingPipelines& ShadingPipelines = Scene.NaniteShadingPipelines[MeshPass];
 		FNaniteVisibility& Visibility = Scene.NaniteVisibility[MeshPass];
 
 		for (auto& Command : DeferredCommands[MeshPass])
@@ -212,22 +229,34 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PipelinesCommand.PrimitiveSceneInfo;
 			FNaniteVisibility::PrimitiveBinsType& RasterBins = Visibility.GetRasterBinReferences(PrimitiveSceneInfo);
 
-			for (int32 MaterialSectionIndex = 0; MaterialSectionIndex < PipelinesCommand.Pipelines.Num(); ++MaterialSectionIndex)
+			check(!bAllowComputeMaterials || (PipelinesCommand.RasterPipelines.Num() == PipelinesCommand.ShadingPipelines.Num()));
+			const int32 MaterialSectionCount = PipelinesCommand.RasterPipelines.Num();
+			for (int32 MaterialSectionIndex = 0; MaterialSectionIndex < MaterialSectionCount; ++MaterialSectionIndex)
 			{
-				const FNaniteRasterPipeline& Pipeline = PipelinesCommand.Pipelines[MaterialSectionIndex];
-				FNaniteRasterBin PrimaryRasterBin = RasterPipelines.Register(Pipeline);
-
-				// Check to register a secondary bin (used to disable WPO at a distance)
-				FNaniteRasterBin SecondaryRasterBin;
-				FNaniteRasterPipeline SecondaryPipeline;
-				if (GNaniteAllowWPODistanceDisable && Pipeline.GetSecondaryPipeline(SecondaryPipeline))
+				// Register raster bin
 				{
-					SecondaryRasterBin = RasterPipelines.Register(SecondaryPipeline);
+					const FNaniteRasterPipeline& RasterPipeline = PipelinesCommand.RasterPipelines[MaterialSectionIndex];
+					FNaniteRasterBin PrimaryRasterBin = RasterPipelines.Register(RasterPipeline);
+
+					// Check to register a secondary bin (used to disable WPO at a distance)
+					FNaniteRasterBin SecondaryRasterBin;
+					FNaniteRasterPipeline SecondaryRasterPipeline;
+					if (GNaniteAllowWPODistanceDisable && RasterPipeline.GetSecondaryPipeline(SecondaryRasterPipeline))
+					{
+						SecondaryRasterBin = RasterPipelines.Register(SecondaryRasterPipeline);
+					}
+
+					AddRasterBin(*PrimitiveSceneInfo, PrimaryRasterBin, SecondaryRasterBin, ENaniteMeshPass::Type(MeshPass), uint8(MaterialSectionIndex));
+					RasterBins.Add(FNaniteVisibility::FPrimitiveBins{ PrimaryRasterBin.BinIndex, SecondaryRasterBin.BinIndex });
 				}
 
-				AddRasterBin(*PrimitiveSceneInfo, PrimaryRasterBin, SecondaryRasterBin, ENaniteMeshPass::Type(MeshPass), uint8(MaterialSectionIndex));
-
-				RasterBins.Add(FNaniteVisibility::FPrimitiveBins{ PrimaryRasterBin.BinIndex, SecondaryRasterBin.BinIndex });
+				// Register shading bin
+				if (bAllowComputeMaterials)
+				{
+					const FNaniteShadingPipeline& ShadingPipeline = PipelinesCommand.ShadingPipelines[MaterialSectionIndex];
+					const FNaniteShadingBin ShadingBin = ShadingPipelines.Register(ShadingPipeline);
+					AddShadingBin(*PrimitiveSceneInfo, ShadingBin, ENaniteMeshPass::Type(MeshPass), uint8(MaterialSectionIndex));
+				}
 			}
 		}
 	}
@@ -378,7 +407,7 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	PassShaders.PixelShader = BasePassPixelShader;
 
 	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(MeshBatch.LCI);
-	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, nullptr, MeshBatch, -1, false);
+	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, nullptr, MeshBatch, INDEX_NONE, false);
 
 	BuildMeshDrawCommands(
 		MeshBatch,

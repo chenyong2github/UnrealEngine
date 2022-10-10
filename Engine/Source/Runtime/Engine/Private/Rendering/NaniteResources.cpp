@@ -61,10 +61,9 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Local Bounds Instances"), STAT_InstanceHasL
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Hierarchy Offset Instances"), STAT_InstanceHasHierarchyOffset, STATGROUP_Nanite);
 
 // TODO: Work in progress / experimental - do not use
-static int32 GNaniteAllowComputeMaterials = 0;
-static FAutoConsoleVariableRef CVarNaniteAllowComputeMaterials(
+static TAutoConsoleVariable<int32> CVarNaniteAllowComputeMaterials(
 	TEXT("r.Nanite.AllowComputeMaterials"),
-	GNaniteAllowComputeMaterials,
+	0, // Off by default
 	TEXT("Whether to enable support for Nanite compute materials"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
@@ -2063,7 +2062,7 @@ void FVertexFactoryResource::InitRHI()
 		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
 		VertexFactory->InitResource();
 
-		if (GNaniteAllowComputeMaterials != 0)
+		if (CVarNaniteAllowComputeMaterials.GetValueOnRenderThread() != 0)
 		{
 			VertexFactory2 = new FNaniteVertexFactory(ERHIFeatureLevel::SM6);
 			VertexFactory2->InitResource();
@@ -2080,7 +2079,7 @@ void FVertexFactoryResource::ReleaseRHI()
 		delete VertexFactory;
 		VertexFactory = nullptr;
 
-		if (GNaniteAllowComputeMaterials != 0)
+		if (CVarNaniteAllowComputeMaterials.GetValueOnRenderThread() != 0)
 		{
 			delete VertexFactory2;
 			VertexFactory2 = nullptr;
@@ -2110,13 +2109,15 @@ void FNaniteVertexFactory::InitRHI()
 
 bool FNaniteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
+	static const bool bAllowComputeMaterials = CVarNaniteAllowComputeMaterials.GetValueOnAnyThread() != 0;
+
 	bool bShouldCompile =
+		bAllowComputeMaterials &&
+		Parameters.ShaderType->GetFrequency() == SF_Compute &&
 		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		Nanite::IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
 		Nanite::IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
-		Parameters.ShaderType->GetFrequency() == SF_Compute &&
-		DoesPlatformSupportNanite(Parameters.Platform) &&
-		GNaniteAllowComputeMaterials != 0;
+		DoesPlatformSupportNanite(Parameters.Platform);
 
 	return bShouldCompile;
 }

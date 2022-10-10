@@ -433,15 +433,16 @@ struct FNaniteRasterBin
 	int32  BinId = INDEX_NONE;
 	uint16 BinIndex = 0xFFFFu;
 
-	inline bool operator==(const FNaniteRasterBin Other) const
+	inline bool operator==(const FNaniteRasterBin& Other) const
 	{
 		return Other.BinId == BinId && Other.BinIndex == BinIndex;
 	}
 	
-	inline bool operator!=(const FNaniteRasterBin Other) const
+	inline bool operator!=(const FNaniteRasterBin& Other) const
 	{
 		return !(*this == Other);
 	}
+
 	inline bool IsValid() const
 	{
 		return *this != FNaniteRasterBin();
@@ -517,13 +518,12 @@ public:
 	FNaniteRasterBin Register(const FNaniteRasterPipeline& InRasterPipeline);
 	void Unregister(const FNaniteRasterBin& InRasterBin);
 
-	const FNaniteRasterPipelineMap& GetRasterPipelineMap() const
+	inline const FNaniteRasterPipelineMap& GetRasterPipelineMap() const
 	{
-		// Make sure this is only called between BeginRaster() and FinishRaster()
 		return PipelineMap;
 	}
 
-	FNaniteRasterBinIndexTranslator GetBinIndexTranslator() const
+	inline FNaniteRasterBinIndexTranslator GetBinIndexTranslator() const
 	{
 		return FNaniteRasterBinIndexTranslator(GetRegularBinCount());
 	}
@@ -533,6 +533,121 @@ private:
 	TBitArray<> PerPixelEvalPipelineBins;
 	FNaniteRasterPipelineMap PipelineMap;
 };
+
+/// TODO: Work in progress / experimental
+
+struct FNaniteShadingBin
+{
+	int32  BinId = INDEX_NONE;
+	uint16 BinIndex = 0xFFFFu;
+
+	inline bool operator==(const FNaniteShadingBin& Other) const
+	{
+		return Other.BinId == BinId && Other.BinIndex == BinIndex;
+	}
+
+	inline bool operator!=(const FNaniteShadingBin& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	inline bool IsValid() const
+	{
+		return *this != FNaniteShadingBin();
+	}
+};
+
+struct FNaniteShadingPipeline
+{
+	const FMaterialRenderProxy* ShadingMaterial = nullptr;
+	bool bIsTwoSided = false;
+	bool bIsMasked = false;
+
+	inline uint32 GetPipelineHash() const
+	{
+		struct FHashKey
+		{
+			uint32 MaterialFlags;
+			uint32 MaterialHash;
+
+			static inline uint32 PointerHash(const void* Key)
+			{
+			#if PLATFORM_64BITS
+				// Ignoring the lower 4 bits since they are likely zero anyway.
+				// Higher bits are more significant in 64 bit builds.
+				return reinterpret_cast<UPTRINT>(Key) >> 4;
+			#else
+				return reinterpret_cast<UPTRINT>(Key);
+			#endif
+			};
+
+		} HashKey;
+
+		HashKey.MaterialFlags  = 0;
+		HashKey.MaterialFlags |= bIsTwoSided ? 0x1u : 0x0u;
+		HashKey.MaterialHash   = FHashKey::PointerHash(ShadingMaterial);
+		return uint32(CityHash64((char*)&HashKey, sizeof(FHashKey)));
+	}
+
+	FORCENOINLINE friend uint32 GetTypeHash(const FNaniteShadingPipeline& Other)
+	{
+		return Other.GetPipelineHash();
+	}
+};
+
+struct FNaniteShadingEntry
+{
+	FNaniteShadingPipeline ShadingPipeline{};
+	uint32 ReferenceCount = 0;
+	uint16 BinIndex = 0xFFFFu;
+};
+
+struct FNaniteShadingEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FNaniteShadingPipeline, FNaniteShadingEntry, false>
+{
+	static inline bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A.GetPipelineHash() == B.GetPipelineHash();
+	}
+
+	static inline uint32 GetKeyHash(KeyInitType Key)
+	{
+		return Key.GetPipelineHash();
+	}
+};
+
+using FNaniteShadingPipelineMap = Experimental::TRobinHoodHashMap<FNaniteShadingPipeline, FNaniteShadingEntry, FNaniteShadingEntryKeyFuncs>;
+
+class FNaniteShadingPipelines
+{
+public:
+	typedef Experimental::FHashType FShadingHash;
+	typedef Experimental::FHashElementId FShadingId;
+
+public:
+	FNaniteShadingPipelines();
+	~FNaniteShadingPipelines();
+
+	uint16 AllocateBin();
+	void ReleaseBin(uint16 BinIndex);
+
+	bool IsBinAllocated(uint16 BinIndex) const;
+
+	uint32 GetBinCount() const;
+
+	FNaniteShadingBin Register(const FNaniteShadingPipeline& InShadingPipeline);
+	void Unregister(const FNaniteShadingBin& InShadingBin);
+
+	inline const FNaniteShadingPipelineMap& GetShadingPipelineMap() const
+	{
+		return PipelineMap;
+	}
+
+private:
+	TBitArray<> PipelineBins;
+	FNaniteShadingPipelineMap PipelineMap;
+};
+
+/// END-TODO: Work in progress / experimental
 
 struct FNaniteVisibilityQuery;
 

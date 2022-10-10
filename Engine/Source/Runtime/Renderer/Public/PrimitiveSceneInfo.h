@@ -30,6 +30,7 @@ template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 class FNaniteCommandInfo;
 struct FNaniteRasterBin;
+struct FNaniteShadingBin;
 struct FNaniteMaterialSlot;
 struct FRayTracingInstance;
 
@@ -315,6 +316,7 @@ public:
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
 	TArray<FNaniteRasterBin> NaniteRasterBins[ENaniteMeshPass::Num];
+	TArray<FNaniteShadingBin> NaniteShadingBins[ENaniteMeshPass::Num];
 	TArray<FNaniteCommandInfo> NaniteCommandInfos[ENaniteMeshPass::Num];
 	TArray<FNaniteMaterialSlot> NaniteMaterialSlots[ENaniteMeshPass::Num];
 
