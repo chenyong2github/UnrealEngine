@@ -47,24 +47,41 @@ void FLocalizationResourceTextSource::GetLocalizedCultureNames(const ELocalizati
 
 void FLocalizationResourceTextSource::LoadLocalizedResources(const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource)
 {
-	auto GetGameLocalizationPaths = [this]()
+	auto AppendChunkedLocalizationPaths = [this](TArray<FString>& OutLocalizationPaths)
 	{
-		TArray<FString> LocalizationPaths = FPaths::GetGameLocalizationPaths();
-
 		if (ChunkIds.Num() > 0)
 		{
-			const TArray<FString> ChunkedLocalizationTargets = GetChunkedLocalizationTargets();
+			// Filter the list of chunked targets against the list of targets we're actually loading data for
+			TArray<FString> ChunkedLocalizationTargets = GetChunkedLocalizationTargets();
+			ChunkedLocalizationTargets.RemoveAll([&OutLocalizationPaths](const FString& LocalizationTarget)
+			{
+				// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
+				return !OutLocalizationPaths.Contains(FPaths::ProjectContentDir() / TEXT("Localization") / LocalizationTarget);
+			});
+
 			for (const FString& LocalizationTarget : ChunkedLocalizationTargets)
 			{
 				for (const int32 ChunkId : ChunkIds)
 				{
 					// Note: We only allow game localization targets to be chunked, and the layout is assumed to follow our standard pattern (as used by the localization dashboard and FLocTextHelper)
 					const FString LocalizationTargetForChunk = TextLocalizationResourceUtil::GetLocalizationTargetNameForChunkId(LocalizationTarget, ChunkId);
-					LocalizationPaths.Add(FPaths::ProjectContentDir() / TEXT("Localization") / LocalizationTargetForChunk);
+					OutLocalizationPaths.Add(FPaths::ProjectContentDir() / TEXT("Localization") / LocalizationTargetForChunk);
 				}
 			}
 		}
+	};
 
+	auto GetGameLocalizationPaths = [&AppendChunkedLocalizationPaths]()
+	{
+		TArray<FString> LocalizationPaths = FPaths::GetGameLocalizationPaths();
+		AppendChunkedLocalizationPaths(LocalizationPaths);
+		return LocalizationPaths;
+	};
+
+	auto GetCookedEditorLocalizationPaths = [&AppendChunkedLocalizationPaths]()
+	{
+		TArray<FString> LocalizationPaths = FPaths::GetCookedEditorLocalizationPaths();
+		AppendChunkedLocalizationPaths(LocalizationPaths);
 		return LocalizationPaths;
 	};
 
@@ -85,6 +102,9 @@ void FLocalizationResourceTextSource::LoadLocalizedResources(const ELocalization
 	if (ShouldLoadEditor(InLoadFlags))
 	{
 		EditorLocalizationPaths += FPaths::GetEditorLocalizationPaths();
+#if UE_IS_COOKED_EDITOR
+		EditorLocalizationPaths += GetCookedEditorLocalizationPaths();
+#endif
 		EditorLocalizationPaths += FPaths::GetToolTipLocalizationPaths();
 
 		bool bShouldUseLocalizedPropertyNames = false;
@@ -226,7 +246,7 @@ void FLocalizationResourceTextSource::LoadLocalizedResourcesFromPaths(TArrayView
 				}
 
 				const FString LocResFilename = FPaths::GetBaseFilename(LocalizationPath) + TEXT(".locres");
-				LoadLocalizationResourcesForCulture(InOutLocalizedResource, LocalizationPath, PrioritizedCultureName, LocResFilename, BaseResourcePriority + CultureIndex);
+				LoadLocalizationResourcesForCulture(InOutLocalizedResource, LocalizationPath, PrioritizedCultureName, LocResFilename, BaseResourcePriority + CultureIndex + 1);
 			}
 		}
 	}

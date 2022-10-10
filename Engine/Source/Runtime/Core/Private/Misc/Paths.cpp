@@ -37,6 +37,7 @@ struct FPaths::FStaticData
 	FString         UserFolder;
 	TArray<FString> EngineLocalizationPaths;
 	TArray<FString> EditorLocalizationPaths;
+	TArray<FString> CookedEditorLocalizationPaths;
 	TArray<FString> PropertyNameLocalizationPaths;
 	TArray<FString> ToolTipLocalizationPaths;
 	TArray<FString> GameLocalizationPaths;
@@ -51,6 +52,7 @@ struct FPaths::FStaticData
 	bool bUserFolderInitialized                    = false;
 	bool bEngineLocalizationPathsInitialized       = false;
 	bool bEditorLocalizationPathsInitialized       = false;
+	bool bCookedEditorLocalizationPathsInitialized = false;
 	bool bPropertyNameLocalizationPathsInitialized = false;
 	bool bToolTipLocalizationPathsInitialized      = false;
 	bool bGameLocalizationPathsInitialized         = false;
@@ -562,6 +564,22 @@ const TArray<FString>& FPaths::GetEditorLocalizationPaths()
 	}
 
 	return StaticData.EditorLocalizationPaths;
+}
+
+const TArray<FString>& FPaths::GetCookedEditorLocalizationPaths()
+{
+	FStaticData& StaticData = TLazySingleton<FStaticData>::Get();
+
+	if (!StaticData.bCookedEditorLocalizationPathsInitialized)
+	{
+		if (GConfig && GConfig->IsReadyForUse())
+		{
+			GConfig->GetArray(TEXT("Internationalization"), TEXT("CookedLocalizationPaths"), StaticData.CookedEditorLocalizationPaths, GEditorIni);
+			StaticData.bCookedEditorLocalizationPathsInitialized = true;
+		}
+	}
+
+	return StaticData.CookedEditorLocalizationPaths;
 }
 
 const TArray<FString>& FPaths::GetPropertyNameLocalizationPaths()

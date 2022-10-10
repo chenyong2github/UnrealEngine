@@ -356,6 +356,11 @@ public:
 	 */
 	static const TArray<FString>& GetEditorLocalizationPaths();
 
+	/**
+	 * Returns a list of cooked editor-specific localization paths
+	 */
+	static const TArray<FString>& GetCookedEditorLocalizationPaths();
+
 	/** 
 	 * Returns a list of property name localization paths
 	 */
