@@ -678,7 +678,7 @@ void FNetHandleManager::RemoveDependentObject(FNetHandle ParentHandle, FNetHandl
 	FInternalNetHandle ParentInternalIndex = GetInternalIndex(ParentHandle);
 	FInternalNetHandle DependentInternalIndex = GetInternalIndex(DependentHandle);
 
-	if (!(ParentInternalIndex != InvalidInternalIndex) && (DependentInternalIndex != InvalidInternalIndex))
+	if ((ParentInternalIndex == InvalidInternalIndex) || (DependentInternalIndex == InvalidInternalIndex))
 	{
 		return;
 	}
