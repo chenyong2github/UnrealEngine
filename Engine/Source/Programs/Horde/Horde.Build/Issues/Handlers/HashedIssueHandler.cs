@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Horde.Build.Jobs;
 using Horde.Build.Jobs.Graphs;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Issues.Handlers
 {
@@ -23,6 +24,21 @@ namespace Horde.Build.Issues.Handlers
 		/// <inheritdoc/>
 		public override int Priority => 1;
 
+		/// <summary>
+		///  Known general events
+		/// </summary>
+		static readonly HashSet<EventId> s_knownGeneralEvents = new HashSet<EventId> { KnownLogEvents.Generic, KnownLogEvents.ExitCode, KnownLogEvents.Horde, KnownLogEvents.Horde_InvalidPreflight };
+
+		/// <summary>
+		/// Determines if the given event is general and should be salted to make it unique
+		/// </summary>
+		/// <param name="eventId">The event id to compare</param>
+		/// <returns>True if the given event id matches</returns>
+		public static bool IsGeneralEventId(EventId eventId)
+		{
+			return s_knownGeneralEvents.Contains(eventId) || (eventId.Id >= KnownLogEvents.Systemic.Id && eventId.Id <= KnownLogEvents.Systemic_Max.Id);
+		}
+
 		/// <inheritdoc/>
 		public override void TagEvents(IJob job, INode node, IReadOnlyNodeAnnotations annotations, IReadOnlyList<IssueEvent> stepEvents)
 		{
@@ -33,7 +49,18 @@ namespace Horde.Build.Issues.Handlers
 
 			foreach (IssueEvent stepEvent in stepEvents)
 			{
-				if (hashes.Count < 25 && TryGetHash(stepEvent.Message, out Md5Hash hash))
+				string hashSource = stepEvent.Message;
+				
+				if (stepEvent.EventId != null)
+				{
+					// If the event is general, salt the hash with the stream id, template, and node name, otherwise it will be aggressively matched
+					if (IsGeneralEventId(stepEvent.EventId.Value))
+					{
+						hashSource += $"step:{job.StreamId}:{job.TemplateId}:{node.Name}";
+					}					
+				}
+
+				if (hashes.Count < 25 && TryGetHash(hashSource, out Md5Hash hash))
 				{
 					hashes.Add(hash);
 					stepEvent.Fingerprint = new NewIssueFingerprint(Type, new[] { $"hash:{hash}" }, null, metadata);

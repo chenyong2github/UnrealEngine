@@ -2136,6 +2136,140 @@ namespace Horde.Build.Tests
 
 		}
 
+		[TestMethod]
+		public async Task MultipleStreamIssueTest()
+		{
+
+			int hours = 0;
+
+			IUser bob = await UserCollection.FindOrAddUserByLoginAsync("Bob");
+			IUser anne = await UserCollection.FindOrAddUserByLoginAsync("Anne");
+
+			// Main Stream
+
+			// last success
+			_perforce.AddChange(_mainStreamId, 22136421, bob, "Description", new string[] { "a/b.cpp" });
+
+			// unrelated change, no job run on it, merges to release between breakages in that stream
+			_perforce.AddChange(_mainStreamId, 22136521, anne, "Description", new string[] { "a/b.cpp" });
+
+			// change with a breakage in main
+			_perforce.AddChange(_mainStreamId, 22145160, bob, "Description", new string[] { "a/b.cpp" });
+
+			// success
+			_perforce.AddChange(_mainStreamId, 22151893, bob, "Description", new string[] { "a/b.cpp" });
+
+			// breaking change merged from release
+			_perforce.AddChange(_mainStreamId, 22166000, 22165119, bob, bob, "Description", new string[] { "a/b.cpp" });
+
+			// Release Stream
+
+			// last success
+			_perforce.AddChange(_releaseStreamId, 22133008, bob, "Description", new string[] { "a/b.cpp" });
+
+			// unrelated change originating in main, no job run on it
+			_perforce.AddChange(_releaseStreamId, 22152050, 22136521, anne, anne, "Description", new string[] { "a/b.cpp" });
+
+			// unrelated breaking change
+			_perforce.AddChange(_releaseStreamId, 22165119, bob, "Description", new string[] { "a/b.cpp" });
+
+			string[] breakage1 =
+			{
+					"Error executing d:\\build\\AutoSDK\\Sync\\HostWin64\\Win64\\VS2019\\14.29.30146\\bin\\HostX64\\x64\\link.exe (tool returned code: 1123)",
+					"LINK : fatal error LNK1123: failure during conversion to COFF: file invalid or corrupt"
+			};
+
+			string[] breakage2 =
+			{
+					"Error executing d:\\build\\AutoSDK\\Sync\\HostWin64\\Win64\\VS2019\\14.29.30146\\bin\\HostX64\\x64\\link.exe (tool returned code: 1169)",
+					"D:\\build\\++UE5\\Sync\\QAGame\\Binaries\\Win64\\QAGameEditor.exe : fatal error LNK1169: one or more multiply defined symbols found",
+					"Module.Core.1_of_20.cpp.obj : error LNK2005: \"int GNumForegroundWorkers\" (?GNumForegroundWorkers@@3HA) already defined in Module.UnrealEd.20_of_42.cpp.obj"
+			};
+
+			// #1
+			// Job runs successfully in release stream
+			{
+				IJob job = CreateJob(_releaseStreamId, 22133008, "Test Build", _graph, TimeSpan.FromHours(hours++));
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
+				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Success);
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+			}
+
+			// #2
+			// Job runs successfully in main stream at a latest CL
+			{
+				IJob job = CreateJob(_mainStreamId, 22136421, "Test Build", _graph, TimeSpan.FromHours(hours++));
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
+				await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Success);
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+			}
+
+
+			// #3
+			// Scenario: Job step encounters a hashed issue at CL 22145160
+			// Expected: Hashed issue type is created
+			{
+				IJob job = CreateJob(_mainStreamId, 22145160, "Test Build", _graph, TimeSpan.FromHours(hours++));				
+				await ParseEventsAsync(job, 0, 0, breakage1);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(1, issues[0].Id);
+				Assert.AreEqual("Errors in Update Version Files", issues[0].Summary);
+			}
+
+			// #4
+			// Scenario: Job succeeds an hour later in CL 22151893
+			// Expected: Existing issue is closed
+			{
+				IJob job = CreateJob(_mainStreamId, 22151893, "Test Build", _graph, TimeSpan.FromHours(hours++));
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+			}
+
+			// #5
+			// Scenario: Job step encounters a failure on CL 22165119
+			// Expected:New issue is created, and does not reopen the one in main
+			{
+
+				IJob job = CreateJob(_releaseStreamId, 22165119, "Test Build", _graph, TimeSpan.FromHours(hours++));
+				await ParseEventsAsync(job, 0, 0, breakage2);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				
+				// Check that new issue was created
+				Assert.AreEqual(2, issues[0].Id);
+				Assert.AreEqual("Errors in Update Version Files", issues[0].Summary);
+
+			}
+
+			// #6
+			// Scenario: Job step in main encounters a failure on CL 22166000 originating from 22165119 breakage
+			// Expected: Step is added to existing issue and summary is updated
+			{
+
+				IJob job = CreateJob(_mainStreamId, 22166000, "Test Build", _graph, TimeSpan.FromHours(hours++));
+				await ParseEventsAsync(job, 0, 1, breakage2);
+				await UpdateCompleteStep(job, 0,1, JobStepOutcome.Failure);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+
+				// Check that new issue was created
+				Assert.AreEqual(2, issues[0].Id);
+				Assert.AreEqual("Errors in Update Version Files and Compile UnrealHeaderTool Win64", issues[0].Summary);
+
+			}
+
+		}
 
 
 		private async Task ParseAsync(LogId logId, string[] lines)
