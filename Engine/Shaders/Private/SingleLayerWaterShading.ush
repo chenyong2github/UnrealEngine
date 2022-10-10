@@ -8,6 +8,13 @@
 #include "DistortionCommon.ush"
 #include "SingleLayerWaterCommon.ush"
 
+#if SINGLE_LAYER_WATER_SHADING_QUALITY != SINGLE_LAYER_WATER_SHADING_QUALITY_FULL && SINGLE_LAYER_WATER_SHADING_QUALITY != SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_TEXTURE && SINGLE_LAYER_WATER_SHADING_QUALITY != SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_BUFFER
+#error SINGLE_LAYER_WATER_SHADING_QUALITY has an invalid value!
+#endif
+
+// Helper define for all shading qualities using mobile shading
+#define SINGLE_LAYER_WATER_MOBILE_SHADING (SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_TEXTURE) || (SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_BUFFER) 
+
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// We need the water base pass to be allowed to use masking (if blend mode is Masked) because it doesn't rely on a depth pre-pass (where clipping would normally occur)
 	#undef EARLY_Z_PASS_ONLY_MATERIAL_MASKING
@@ -25,19 +32,16 @@ struct WaterVolumeLightingOutput
 WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, ViewState ResolvedView,
 	float DirectionalLightShadow,
-#if SINGLE_LAYER_WATER_SIMPLE_FORWARD
+#if SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_FULL || SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_TEXTURE
 	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
 	float2 SceneDepthWithoutSingleLayerWaterTextureSize,
 	float2 SceneDepthWithoutSingleLayerWaterTextureInvSize,
 #endif
-#if !SIMPLE_SINGLE_LAYER_WATER
+#if SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_FULL
 	Texture2D SceneColorWithoutSingleLayerWaterTexture, SamplerState SceneColorWithoutSingleLayerWaterSampler,
-	Texture2D SceneDepthWithoutSingleLayerWaterTexture, SamplerState SceneDepthWithoutSingleLayerWaterSampler,
 	float2 SceneWithoutSingleLayerWaterMinUV,
 	float2 SceneWithoutSingleLayerWaterMaxUV,
-	float2 SceneDepthWithoutSingleLayerWaterTextureSize,
-	float2 SceneDepthWithoutSingleLayerWaterTextureInvSize,
-#endif // SIMPLE_SINGLE_LAYER_WATER
+#endif
 	float Specular, const float4 DistortionParams,
 	float3 SunIlluminance, float3 AmbiantIlluminance, float3 EnvBrdf,
 	bool CameraIsUnderWater, float WaterVisibility, uint EyeIndex,
@@ -53,9 +57,9 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 	if (WaterVisibility > 0.0f)
 	{
 		float WaterDepth = MaterialParameters.ScreenPosition.w; // Scene depth with Pixel-Depth-Offset taken into account is in ScreenPosition.w already
-#if SIMPLE_SINGLE_LAYER_WATER
+#if SINGLE_LAYER_WATER_MOBILE_SHADING
 
-#if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
+#if SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_TEXTURE 
 
 		float PixelSceneDeviceZ = WaterSampleSceneDepthWithoutWater(
 			SceneDepthWithoutSingleLayerWaterTexture,
@@ -76,7 +80,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		float SceneDeviceZ = PixelSceneDeviceZ;
 		float SceneDepth = PixelSceneDepth;
 
-#else  // !SIMPLE_SINGLE_LAYER_WATER
+#else  // !SINGLE_LAYER_WATER_MOBILE_SHADING
 
 		ViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
@@ -120,7 +124,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			ViewportUV = DistortedUV;
 		}
 
-#endif // !SIMPLE_SINGLE_LAYER_WATER
+#endif // !SINGLE_LAYER_WATER_MOBILE_SHADING
 
 		const float BehindWaterDeltaDepth = CameraIsUnderWater ? WaterDepth : max(0.0f, SceneDepth - WaterDepth);
 
@@ -149,7 +153,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		
 		float DirLightPhaseValue = 0.0f; // Default when Total Internal Reflection happens.
 		{
-#if SIMPLE_SINGLE_LAYER_WATER
+#if SINGLE_LAYER_WATER_MOBILE_SHADING
 			DirLightPhaseValue = IsotropicPhase();
 #else
 			float IorFrom = 1.0f; // assumes we come from air
@@ -170,7 +174,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float DistanceFromScenePixelToWaterTop = max(0.0, LWCToFloat(LWCSubtract(MaterialParameters.AbsoluteWorldPosition, BehindWaterSceneWorldPos)).z);
 		const float3 MeanTransmittanceToLightSources = exp(-DistanceFromScenePixelToWaterTop * ExtinctionCoeff);
 
-#if SIMPLE_SINGLE_LAYER_WATER
+#if SINGLE_LAYER_WATER_MOBILE_SHADING
 		const float3 BehindWaterSceneLuminance = 0.0f; // Cannot read back the scene color in this case
 #else
 		// We use the pixel SvPosition instead of the scene one pre refraction/distortion to avoid those extra ALUs.
@@ -208,3 +212,5 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 	return Output;
 }
+
+#undef SINGLE_LAYER_WATER_MOBILE_SHADING

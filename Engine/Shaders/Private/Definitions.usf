@@ -211,8 +211,9 @@
 #define DISABLE_FORWARD_LOCAL_LIGHTS					0
 #endif
 
-#ifndef SINGLE_LAYER_WATER_SIMPLE_FORWARD
-#define SINGLE_LAYER_WATER_SIMPLE_FORWARD				0
+// 0: Full quality, 1: mobile shading, sampling underwater depth from a texture 2: mobile shading, sampling underwater depth from the depth buffer
+#ifndef SINGLE_LAYER_WATER_SHADING_QUALITY
+#define SINGLE_LAYER_WATER_SHADING_QUALITY				0
 #endif
 
 #ifndef CLOUD_LAYER_PIXEL_SHADER

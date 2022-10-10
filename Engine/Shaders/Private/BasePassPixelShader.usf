@@ -136,12 +136,9 @@
 
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
-#if SINGLE_LAYER_WATER_SIMPLE_FORWARD
+#if SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_TEXTURE
 
 	// Use mobile like simple shading
-	#undef SIMPLE_SINGLE_LAYER_WATER
-	#define SIMPLE_SINGLE_LAYER_WATER 1
-
 	// Remove forward lighting directional light shadow
 	#define DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW 1
 
@@ -1463,7 +1460,7 @@ void FPixelShaderInOut_MainPS(
 		const float3 V = MaterialParameters.CameraVector;
 		const float3 EnvBrdf = EnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, max(0.0, dot(N, V)));
 
-#if SINGLE_LAYER_WATER_SIMPLE_FORWARD 
+#if SINGLE_LAYER_WATER_SHADING_QUALITY == SINGLE_LAYER_WATER_SHADING_QUALITY_MOBILE_WITH_DEPTH_TEXTURE
 		const float4 NullDistortionParams = 1.0f;
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
@@ -1484,12 +1481,12 @@ void FPixelShaderInOut_MainPS(
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			DirectionalLightShadow * DirectionalLightCloudShadow,
-			SingleLayerWater.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
 			SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
-			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy,
-			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.zw,
 			SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize,
 			SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize,
+			SingleLayerWater.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
+			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy,
+			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.zw,
 			Specular, SingleLayerWater.DistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex,
