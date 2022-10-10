@@ -9,7 +9,7 @@
 #include "Math/UnrealMathSSE.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObject.h"
-#include "MuCo/MultilayerProjector.h"
+#include "MuCO/MultilayerProjector.h"
 #include "UObject/ObjectPtr.h"
 
 #include "CustomizableObjectInstanceDescriptor.generated.h"
