@@ -189,10 +189,18 @@ public:
 
 	void CountBytes(FArchive& Ar) const;
 
+	/** Marks any actors in the given package/level active if they were fully dormant or dormant for the passed in connection */
+	void FlushDormantActors(UNetConnection* const Connection, const FName& PackageName);
+
 private:
+	bool MarkActiveInternal(const TSharedPtr<FNetworkObjectInfo>& ObjectInfo, UNetConnection* const Connection, UNetDriver* NetDriver);
+
 	FNetworkObjectSet AllNetworkObjects;
 	FNetworkObjectSet ActiveNetworkObjects;
 	FNetworkObjectSet ObjectsDormantOnAllConnections;
 
 	TMap<TWeakObjectPtr<UNetConnection>, int32 > NumDormantObjectsPerConnection;
+
+	TMap<FName, FNetworkObjectSet> FullyDormantObjectsByLevel;
+	TMap<TObjectKey<UNetConnection>, TMap<FName, FNetworkObjectSet>> DormantObjectsPerConnection;
 };

@@ -226,6 +226,11 @@ static SIZE_T CountBytes(FWrittenChannelsRecord& WrittenChannelsRecord);
 
 };
 
+namespace UE::Net::Private
+{
+	extern bool bTrackDormantObjectsByLevel;
+}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const int32 UNetConnection::DEFAULT_MAX_CHANNEL_SIZE = 32767;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1516,14 +1521,19 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			}
 			else 
 #endif // UE_WITH_IRIS
-			if (VisibilityResult.Package)
 			{
-				LevelWorld = (UWorld*)FindObjectWithOuter(VisibilityResult.Package, UWorld::StaticClass());
-				if (LevelWorld)
+				LevelWorld = VisibilityResult.Package ? (UWorld*)FindObjectWithOuter(VisibilityResult.Package, UWorld::StaticClass()) : nullptr;
+
+				FNetworkObjectList& NetworkObjectList = Driver->GetNetworkObjectList();
+
+				if (UE::Net::Private::bTrackDormantObjectsByLevel)
 				{
-					if (LevelWorld->PersistentLevel)
+					NetworkObjectList.FlushDormantActors(this, LevelVisibility.PackageName);
+				}
+				else
+				{
+					if (LevelWorld && LevelWorld->PersistentLevel)
 					{
-						FNetworkObjectList& NetworkObjectList = Driver->GetNetworkObjectList();
 						for (AActor* Actor : LevelWorld->PersistentLevel->Actors)
 						{
 							// Dormant Initial actors have no changes. Dormant Never and Awake will be sent normal, so we only need
