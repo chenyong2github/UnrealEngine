@@ -161,13 +161,6 @@ namespace AVEncoder
 			}
 
 			check(ActiveFrames.Num() == 0);
-
-			while (!AvailableFrames.IsEmpty())
-			{
-				FVideoEncoderInputFrameImpl* Frame = nullptr;
-				AvailableFrames.Dequeue(Frame);
-				delete Frame;
-			}
 		}
 #if PLATFORM_WINDOWS
 		//	DEBUG_D3D11_REPORT_LIVE_DEVICE_OBJECT(FrameInfoD3D.EncoderDeviceD3D11);
@@ -482,9 +475,9 @@ namespace AVEncoder
 
 	// --- encoder input frames -----------------------------------------------------------------------
 
-	FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
+	TSharedPtr<FVideoEncoderInputFrame> FVideoEncoderInputImpl::ObtainInputFrame()
 	{
-		FVideoEncoderInputFrameImpl* Frame = nullptr;
+		TSharedPtr<FVideoEncoderInputFrameImpl> Frame;
 		FScopeLock						Guard(&ProtectFrames);
 
 		if (!AvailableFrames.IsEmpty())
@@ -495,7 +488,7 @@ namespace AVEncoder
 		}
 		else
 		{
-			Frame = CreateFrame();
+			Frame = MakeShareable(CreateFrame());
 			UE_LOG(LogVideoEncoder, Verbose, TEXT("Created new frame total frames: %d"), NumBuffers);
 		}
 
@@ -508,7 +501,8 @@ namespace AVEncoder
 			++NextFrameID; // skip 0 id
 		}
 
-		return const_cast<FVideoEncoderInputFrame*>(Frame->Obtain());
+		Frame->Obtain();
+		return Frame;
 	}
 
 	FVideoEncoderInputFrameImpl* FVideoEncoderInputImpl::CreateFrame()
@@ -557,7 +551,15 @@ namespace AVEncoder
 			}
 		}
 
-		int32 NumRemoved = ActiveFrames.Remove(InFrameImpl);
+		TSharedPtr<FVideoEncoderInputFrameImpl>* InFramePtrPtr = ActiveFrames.FindByPredicate([InFrameImpl](TSharedPtr<FVideoEncoderInputFrameImpl> ActiveFrame) { return ActiveFrame.Get() == InFrameImpl; });
+		if (!InFramePtrPtr)
+		{
+			// releasing a non active frame. might be after we flushed or something. ignore it.
+			return;
+		}
+
+		TSharedPtr<FVideoEncoderInputFrameImpl> InFramePtr = *InFramePtrPtr;
+		int32 NumRemoved = ActiveFrames.Remove(InFramePtr);
 		check(NumRemoved == 1);
 		if (NumRemoved > 0)
 		{
@@ -565,7 +567,6 @@ namespace AVEncoder
 			if (InFrame->GetFormat() != FrameFormat)
 			{
 				ProtectFrames.Unlock();
-				delete InFrameImpl;
 				NumBuffers--;
 				UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (format mismatch) total remaining: %d"), NumBuffers);
 				return;
@@ -574,29 +575,20 @@ namespace AVEncoder
 			if (!AvailableFrames.IsEmpty() && NumBuffers > MaxNumBuffers)
 			{
 				ProtectFrames.Unlock();
-				delete InFrameImpl;
 				NumBuffers--;
 				UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (too many) total frames: %d"), NumBuffers);
 				return;
 			}
 
-			AvailableFrames.Enqueue(InFrameImpl);
+			AvailableFrames.Enqueue(InFramePtr);
 		}
 	}
 
 	void FVideoEncoderInputImpl::Flush()
 	{
-		ProtectFrames.Lock();
-		while (!AvailableFrames.IsEmpty())
-		{
-			FVideoEncoderInputFrameImpl* Frame = nullptr;
-			AvailableFrames.Dequeue(Frame);
-			ProtectFrames.Unlock();
-			delete Frame;
-			NumBuffers--;
-			ProtectFrames.Lock();
-		}
-		ProtectFrames.Unlock();
+		FScopeLock ScopeLock(&ProtectFrames);
+		AvailableFrames.Empty();
+		NumBuffers = 0;
 	}
 
 	void FVideoEncoderInputImpl::SetupFrameYUV420P(FVideoEncoderInputFrameImpl* Frame)

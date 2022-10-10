@@ -87,7 +87,7 @@ namespace AVEncoder
 		// --- encoder input frames - managed by this object
 
 		// obtain a video frame that can be used as a buffer for input to a video encoder
-		virtual FVideoEncoderInputFrame* ObtainInputFrame() = 0;
+		virtual TSharedPtr<FVideoEncoderInputFrame> ObtainInputFrame() = 0;
 
 		// release (free) an input frame and make it available for future use
 		virtual void ReleaseInputFrame(FVideoEncoderInputFrame* InFrame) = 0;

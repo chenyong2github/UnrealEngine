@@ -68,7 +68,7 @@ public:
 	// --- encoder input frames - managed by this object
 
 	// obtain a video frame that can be used as a buffer for input to a video encoder
-	FVideoEncoderInputFrame* ObtainInputFrame() override;
+	TSharedPtr<FVideoEncoderInputFrame> ObtainInputFrame() override;
 
 	// release (free) an input frame and make it available for future use
 	void ReleaseInputFrame(FVideoEncoderInputFrame* InFrame) override;
@@ -136,8 +136,8 @@ private:
 #endif
 
 	mutable FCriticalSection				ProtectFrames;
-	TQueue<FVideoEncoderInputFrameImpl*>	AvailableFrames;
-	TArray<FVideoEncoderInputFrameImpl*>	ActiveFrames;
+	TQueue<TSharedPtr<FVideoEncoderInputFrameImpl>>	AvailableFrames;
+	TArray<TSharedPtr<FVideoEncoderInputFrameImpl>>	ActiveFrames;
 	using UserManagedFrame = TPair<FVideoEncoderInputFrameImpl*, OnFrameReleasedCallback>;
 	TArray<UserManagedFrame>				UserManagedFrames;
 };

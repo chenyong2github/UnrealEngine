@@ -576,8 +576,9 @@ void FGameplayMediaEncoder::ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffe
 
 TSharedPtr<AVEncoder::FVideoEncoderInputFrame> FGameplayMediaEncoder::ObtainInputFrame()
 {
-	AVEncoder::FVideoEncoderInputFrame* Frame = VideoEncoderInput->ObtainInputFrame();
-	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame = MakeShareable(Frame);
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame = VideoEncoderInput->ObtainInputFrame();
+	InputFrame->SetWidth(VideoConfig.Width);
+	InputFrame->SetHeight(VideoConfig.Height);
 
 	if(!BackBuffers.Contains(InputFrame))
 	{
