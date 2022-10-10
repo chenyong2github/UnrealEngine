@@ -1093,7 +1093,10 @@ namespace Chaos
 				Handle->GTGeometryParticle() = Proxy->GetParticle_LowLevel();
 
 				// Track proxies
-				SingleParticlePhysicsProxies_PT.EmplaceAt(UniqueIdx->Idx, Proxy);
+				if (UniqueIdx)
+				{
+					SingleParticlePhysicsProxies_PT.EmplaceAt(UniqueIdx->Idx, Proxy);
+				}
 			}
 
 			if(Proxy->GetHandle_LowLevel())
