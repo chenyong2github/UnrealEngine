@@ -228,4 +228,19 @@ namespace Metasound
 
 			virtual ~FInvalidConnectionDataTypeError() = default;
 	};
-}
+
+	/** FInputReceiverInitializationError
+	 *
+	 * Caused by Inputs that are set to enable transmission fail to create a receiver.
+	 */
+	class METASOUNDGRAPHCORE_API FInputReceiverInitializationError : public FBuildErrorBase
+	{
+		public:
+
+			static const FName ErrorType;
+			
+			FInputReceiverInitializationError(const INode& InInputNode, const FName& InVertexKey, const FName& InDataType);
+
+			virtual ~FInputReceiverInitializationError() = default;
+	};
+} // namespace Metasound

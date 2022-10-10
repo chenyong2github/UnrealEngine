@@ -3,18 +3,23 @@
 
 #include "Internationalization/Text.h"
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundBuildError.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundFrontendDataTypeTraits.h"
+#include "MetasoundNodeConstructorParams.h"
 #include "MetasoundLiteral.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundParameterTransmitter.h"
+#include "MetasoundRouter.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertexData.h"
 #include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontend"
+
 
 namespace Metasound
 {
@@ -78,14 +83,6 @@ namespace Metasound
 				TExecutableDataType<DataType>::Execute(*InputValue, *OutputValue);
 			}
 
-			void ExecutPassThrough()
-			{
-				if (TExecutableDataType<DataType>::bIsExecutable)
-				{
-					*OutputValue = *InputValue;
-				}
-			}
-
 			static void ExecuteFunction(IOperator* InOperator)
 			{
 				static_cast<TInputOperator<DataType>*>(InOperator)->Execute();
@@ -120,21 +117,16 @@ namespace Metasound
 
 		TPassThroughOperator(const FVertexName& InDataReferenceName, FDataReadReference InDataReference)
 		: TInputOperator<DataType>(InDataReferenceName, WriteCast(InDataReference)) // Write cast is safe because `GetExecuteFunction() and Bind() are overridden, ensuring that data is not written.
-		, DataReferenceName(InDataReferenceName)
 		{
 		}
 
 		virtual ~TPassThroughOperator() = default;
 
-		virtual void Bind(FVertexInterfaceData& InOutVertexData) const override
-		{
-			InOutVertexData.GetInputs().BindReadVertex(DataReferenceName, Super::InputValue);
-			InOutVertexData.GetOutputs().BindReadVertex(DataReferenceName, Super::OutputValue);
-		}
-
 		static void ExecuteFunction(IOperator* InOperator)
 		{
-			static_cast<TPassThroughOperator<DataType>*>(InOperator)->ExecutPassThrough();
+			using FPassThroughOperator = TPassThroughOperator<DataType>;
+			FPassThroughOperator* PassThroughOperator = static_cast<FPassThroughOperator*>(InOperator);
+			*(PassThroughOperator->OutputValue) = *(PassThroughOperator->InputValue);
 		}
 
 		virtual IOperator::FExecuteFunction GetExecuteFunction() override
@@ -184,11 +176,73 @@ namespace Metasound
 			{
 				return &TPassThroughOperator<DataType>::ExecuteFunction;
 			}
+
 			return nullptr;
+		}
+	};
+
+	/** FInputValueOperator provides support for transmittable inputs. */
+	template<typename DataType>
+	class TInputReceiverOperator : public TInputOperator<DataType>
+	{
+	public:
+		using FDataReadReference = TDataReadReference<DataType>;
+		using FInputReceiverOperator = TInputReceiverOperator<DataType>;
+		using Super = TInputOperator<DataType>;
+
+		/** Construct an TInputReceiverOperator with the name of the vertex, value reference associated with input, SendAddress, & Receiver
+		 */
+		TInputReceiverOperator(const FVertexName& InDataReferenceName, FDataReadReference InDataReference, FSendAddress&& InSendAddress, TReceiverPtr<DataType>&& InReceiver)
+			: Super(InDataReferenceName, WriteCast(InDataReference)) // Write cast is safe because `GetExecuteFunction() and Bind() are overridden, ensuring that data is not written.
+			, SendAddress(MoveTemp(InSendAddress))
+			, Receiver(MoveTemp(InReceiver))
+		{
+		}
+
+		virtual ~TInputReceiverOperator()
+		{
+			Receiver.Reset();
+			FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(SendAddress);
+		}
+
+		void Execute()
+		{
+			DataType& OutputData = *Super::OutputValue;
+
+			bool bHasNewData = false;
+			bHasNewData = Receiver->CanPop();
+			if (bHasNewData)
+			{
+				Receiver->Pop(OutputData);
+				bHasNotReceivedData = false;
+			}
+
+			if (bHasNotReceivedData)
+			{
+				OutputData = *Super::InputValue;
+				bHasNewData = true;
+			}
+
+			if constexpr (TExecutableDataType<DataType>::bIsExecutable)
+			{
+				TExecutableDataType<DataType>::ExecuteInline(OutputData, bHasNewData);
+			}
+		}
+
+		static void ExecuteFunction(IOperator* InOperator)
+		{
+			static_cast<FInputReceiverOperator*>(InOperator)->Execute();
+		}
+
+		IOperator::FExecuteFunction GetExecuteFunction()
+		{
+			return &FInputReceiverOperator::ExecuteFunction;
 		}
 
 	private:
-		FVertexName DataReferenceName;
+		FSendAddress SendAddress;
+		TReceiverPtr<DataType> Receiver;
+		bool bHasNotReceivedData = true;
 	};
 
 	/** FInputValueOperator provides an input for value references. */
@@ -382,14 +436,9 @@ namespace Metasound
 			};
 
 		public:
-
-			FInputNodeOperatorFactory(const DataType& InValue)
-			: ReferenceCreator(MakeUnique<FCreateWithCopy>(InValue))
-			{
-			}
-
-			explicit FInputNodeOperatorFactory(FLiteral&& InLiteral)
+			explicit FInputNodeOperatorFactory(FLiteral&& InLiteral, bool bInEnableTransmission)
 			: ReferenceCreator(MakeUnique<FCreateWithLiteral>(MoveTemp(InLiteral)))
+			, bEnableTransmission(bInEnableTransmission)
 			{
 			}
 
@@ -399,6 +448,8 @@ namespace Metasound
 				using FOwnedInputOperatorType = std::conditional_t<bIsReferenceVertexAccess, TInputOperator<DataType>, FInputValueOperator>;
 				using FPassThroughInputOperatorType = std::conditional_t<bIsReferenceVertexAccess, TPassThroughOperator<DataType>, FInputValueOperator>;
 
+				checkf(!(bEnableTransmission && bIsValueVertexAccess), TEXT("Input cannot enable transmission for vertex with access 'EVertexAccessType::Reference'"));
+
 				const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InParams.Node);
 				const FVertexName& VertexKey = InputNode.GetVertexName();
 
@@ -407,15 +458,31 @@ namespace Metasound
 					// Pass through input value
 					return MakeUnique<FPassThroughInputOperatorType>(VertexKey, ReferenceCreator->CreateDataReference(*Ref));
 				}
-				else
+
+				FDataReference DataRef = ReferenceCreator->CreateDataReference(InParams.OperatorSettings);
+
+				if (bEnableTransmission)
 				{
-					// Owned input value
-					return MakeUnique<FOwnedInputOperatorType>(VertexKey, ReferenceCreator->CreateDataReference(InParams.OperatorSettings));
+					const FName DataTypeName = GetMetasoundDataTypeName<DataType>();
+					FSendAddress SendAddress = FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment(InParams.Environment, VertexKey, DataTypeName);
+					TReceiverPtr<DataType> Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver<DataType>(SendAddress, FReceiverInitParams{ InParams.OperatorSettings });
+					if (Receiver.IsValid())
+					{
+						// Transmittable input value
+						return MakeUnique<TInputReceiverOperator<DataType>>(VertexKey, DataRef, MoveTemp(SendAddress), MoveTemp(Receiver));
+					}
+
+					AddBuildError<FInputReceiverInitializationError>(OutResults.Errors, InParams.Node, VertexKey, DataTypeName);
+					return nullptr;
 				}
+
+				// Owned input value
+				return MakeUnique<FOwnedInputOperatorType>(VertexKey, DataRef);
 			}
 
 		private:
 			TUniquePtr<FDataReferenceCreatorBase> ReferenceCreator;
+			bool bEnableTransmission = false;
 		};
 
 
@@ -449,7 +516,7 @@ namespace Metasound
 
 			return Info;
 		}
-		
+
 		template<typename... ArgTypes>
 		UE_DEPRECATED(5.1, "Moved to internal implementation.")
 		static FOperatorFactorySharedRef CreateOperatorFactoryWithArgs(ArgTypes&&... Args)
@@ -483,11 +550,11 @@ namespace Metasound
 
 		/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 		 * InParam to the TInputOperatorLiteralFactory constructor.*/
-		explicit TInputNode(const FVertexName& InNodeName, const FGuid& InInstanceID, const FVertexName& InVertexName, FLiteral&& InParam)
-		:	FNode(InNodeName, InInstanceID, GetNodeInfo(InVertexName))
-		,	VertexName(InVertexName)
-		,	Interface(DeclareVertexInterface(InVertexName))
-		, 	Factory(MakeShared<FInputNodeOperatorFactory>(MoveTemp(InParam)))
+		explicit TInputNode(FInputNodeConstructorParams&& InParams)
+		:	FNode(InParams.NodeName, InParams.InstanceID, GetNodeInfo(InParams.VertexName))
+		,	VertexName(InParams.VertexName)
+		,	Interface(DeclareVertexInterface(InParams.VertexName))
+		,	Factory(MakeShared<FInputNodeOperatorFactory>(MoveTemp(InParams.InitParam), InParams.bEnableTransmission))
 		{
 		}
 

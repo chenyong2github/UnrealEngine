@@ -19,7 +19,6 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendDocumentVersioning.h"
 #include "MetasoundFrontendGraph.h"
-#include "MetasoundFrontendInjectReceiveNodes.h"
 #include "MetasoundFrontendNodeTemplateRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
@@ -61,6 +60,40 @@ namespace Metasound
 						Visited.Add(CurrentNode);
 					}
 				}
+			}
+
+			// Remove all inputs from the provided array of public inputs which are of non-transmittable data types.
+			TArray<FMetasoundFrontendClassInput> GetTransmittableInputsFromPublicInputs(const TArray<FMetasoundFrontendClassInput>& InPublicInputs)
+			{
+				using namespace Metasound::Frontend;
+
+				TArray<FMetasoundFrontendClassInput> TransmittableInputs;
+
+				IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
+				Algo::TransformIf(InPublicInputs, TransmittableInputs,
+					[&Registry](const FMetasoundFrontendClassInput& Input)
+					{
+						if (Input.AccessType != EMetasoundFrontendVertexAccessType::Reference)
+						{
+							return false;
+						}
+
+						FDataTypeRegistryInfo Info;
+						if (!Registry.GetDataTypeInfo(Input.TypeName, Info))
+						{
+							return false;
+						}
+
+						if (!Info.bIsTransmittable)
+						{
+							return false;
+						}
+
+						return true;
+					}, [](const FMetasoundFrontendClassInput& Input) { return Input; }
+					);
+
+				return TransmittableInputs;
 			}
 		} // namespace AssetBasePrivate
 
@@ -179,7 +212,8 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 
 		virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
 		{
-			return FFrontendGraphBuilder().CreateGraph(*PreprocessedDoc, Name);
+			static const TSet<FName> ReferencedGraphTransmissibleInputNames; // Empty as referenced graphs do not support transmission
+			return FFrontendGraphBuilder().CreateGraph(*PreprocessedDoc, ReferencedGraphTransmissibleInputNames, Name);
 		}
 
 		virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&&) const override
@@ -234,6 +268,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	TSharedPtr<FMetasoundFrontendDocument> PreprocessedDocument = MakeShared<FMetasoundFrontendDocument>(GetDocumentChecked());
 	FDocumentTemplatePreprocessTransform TemplatePreprocessor;
 	TemplatePreprocessor.Transform(*PreprocessedDocument);
+	CacheRuntimeData(*PreprocessedDocument);
 
 	TUniquePtr<INodeRegistryEntry> RegistryEntry = MakeUnique<FNodeRegistryEntry>(AssetName, PreprocessedDocument, AssetClassInfo.AssetPath);
 	RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MoveTemp(RegistryEntry));
@@ -271,10 +306,6 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 		}
 		UE_LOG(LogMetaSound, Error, TEXT("Registration failed for MetaSound node class '%s' of UObject class '%s'"), *AssetName, *ClassName);
 	}
-
-	// Triggers the existing runtime data to be out-of-date.
-	CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
-	CacheRuntimeData(*PreprocessedDocument);
 }
 
 void FMetasoundAssetBase::UnregisterGraphWithFrontend()
@@ -545,7 +576,7 @@ const FMetasoundFrontendDocumentModifyContext& FMetasoundAssetBase::GetModifyCon
 }
 #endif // WITH_EDITOR
 
-TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessedDoc, const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const
+TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessedDoc, const TSet<FName>& InTransmittableInputNames) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -553,19 +584,8 @@ TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMet
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::BuildMetasoundDocument);
 
 	// Create graph which can spawn instances. 
-	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(InPreprocessedDoc, GetOwningAssetName());
-	if (FrontendGraph.IsValid())
-	{
-		TSet<FVertexName> TransmittableInputNames;
-		Algo::Transform(InTransmittableInputs, TransmittableInputNames, [](const FMetasoundFrontendClassInput& Input) { return Input.Name; });
-
-		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment, TransmittableInputNames);
-		if (!bSuccessfullyInjectedReceiveNodes)
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Error while injecting async communication hooks. Instance communication may not function properly [Name:%s]."), *GetOwningAssetName());
-		}
-	}
-	else
+	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(InPreprocessedDoc, InTransmittableInputNames, GetOwningAssetName());
+	if (!FrontendGraph.IsValid())
 	{
 		UE_LOG(LogMetaSound, Error, TEXT("Failed to build MetaSound graph in asset '%s'"), *GetOwningAssetName());
 	}
@@ -817,21 +837,6 @@ FString FMetasoundAssetBase::GetOwningAssetName() const
 	return FString();
 }
 
-TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassInputs() const
-{
-	using namespace Metasound;
-	using namespace Metasound::Frontend;
-
-	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundAssetBase::GetTransmittableClassInputs);
-
-	check(IsInGameThread() || IsInAudioThread());
-
-	TArray<FMetasoundFrontendClassInput> TransmittableInputs = GetPublicClassInputs();
-	RemoveNonTransmittableClassInputs(TransmittableInputs);
-
-	return TransmittableInputs;
-}
-
 TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetPublicClassInputs() const
 {
 	using namespace Metasound;
@@ -870,31 +875,6 @@ TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetPublicClassInputs()
 	return PublicInputs;
 }
 
-void FMetasoundAssetBase::RemoveNonTransmittableClassInputs(TArray<FMetasoundFrontendClassInput>& InOutClassInputs) const
-{
-	using namespace Metasound::Frontend;
-
-	// Do not transmit vertices which are not transmittable. Async communication
-	// is not supported without transmission.
-	IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
-	auto IsNotTransmittable = [&Registry](const FMetasoundFrontendClassVertex& InVertex)
-	{
-		// Don't transmit constructor inputs 
-		if (InVertex.AccessType == EMetasoundFrontendVertexAccessType::Reference)
-		{
-			FDataTypeRegistryInfo Info;
-			if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
-			{
-				return !Info.bIsTransmittable;
-			}
-		}
-
-		return true;
-	};
-
-	InOutClassInputs.RemoveAllSwap(IsNotTransmittable);
-}
-
 void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
 {
 	using namespace Metasound::Frontend;
@@ -905,33 +885,27 @@ void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
 
 const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::CacheRuntimeData(const FMetasoundFrontendDocument& InPreprocessedDoc)
 {
+	using namespace Metasound::Frontend;
+
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::CacheRuntimeData);
 
-	// Check if a ChangeID has been generated before.
-	if (!CurrentCachedRuntimeDataChangeID.IsValid())
+	CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
+	CachedRuntimeData.ChangeID = CurrentCachedRuntimeDataChangeID;
+
+	TArray<FMetasoundFrontendClassInput> PublicInputs = GetPublicClassInputs();
+	TArray<FMetasoundFrontendClassInput> TransmittableInputs = AssetBasePrivate::GetTransmittableInputsFromPublicInputs(PublicInputs);
+
+	TSet<FName> TransmittableInputNames;
+	Algo::Transform(TransmittableInputs, TransmittableInputNames, [](const FMetasoundFrontendClassInput& Input) { return Input.Name; });
+	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(InPreprocessedDoc, TransmittableInputNames);
+
+	CachedRuntimeData =
 	{
-		CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
-	}
-
-	// Check if CachedRuntimeData is out-of-date.
-	if (CachedRuntimeData.ChangeID != CurrentCachedRuntimeDataChangeID)
-	{
-		// Update CachedRuntimeData.
-
-		TArray<FMetasoundFrontendClassInput> PublicInputs = GetPublicClassInputs();
-		TArray<FMetasoundFrontendClassInput> TransmittableInputs = PublicInputs;
-		RemoveNonTransmittableClassInputs(TransmittableInputs);
-
-		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(InPreprocessedDoc, TransmittableInputs);
-
-		CachedRuntimeData =
-		{
-			CurrentCachedRuntimeDataChangeID,
-			MoveTemp(PublicInputs),
-			MoveTemp(TransmittableInputs),
-			MoveTemp(Graph)
-		};
-	}
+		CurrentCachedRuntimeDataChangeID,
+		MoveTemp(PublicInputs),
+		MoveTemp(TransmittableInputs),
+		MoveTemp(Graph)
+	};
 
 	return CachedRuntimeData;
 }

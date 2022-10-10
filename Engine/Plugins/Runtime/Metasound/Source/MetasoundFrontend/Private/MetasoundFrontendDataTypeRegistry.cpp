@@ -178,7 +178,14 @@ namespace Metasound
 
 				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const override
 				{
-					return DataTypeEntry->CreateInputNode(MoveTemp(InParams));
+					FInputNodeConstructorParams InputParams;
+					InputParams.InitParam = MoveTemp(InParams.InitParam);
+					InputParams.InstanceID = InParams.InstanceID;
+					InputParams.NodeName = InParams.NodeName;
+					InputParams.VertexName = InParams.VertexName;
+					InputParams.bEnableTransmission = false;
+
+					return DataTypeEntry->CreateInputNode(MoveTemp(InputParams));
 				}
 
 				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
@@ -212,7 +219,14 @@ namespace Metasound
 
 				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const override
 				{
-					return DataTypeEntry->CreateConstructorInputNode(MoveTemp(InParams));
+					FInputNodeConstructorParams InputParams;
+					InputParams.InitParam = MoveTemp(InParams.InitParam);
+					InputParams.InstanceID = InParams.InstanceID;
+					InputParams.NodeName = InParams.NodeName;
+					InputParams.VertexName = InParams.VertexName;
+					InputParams.bEnableTransmission = false;
+
+					return DataTypeEntry->CreateConstructorInputNode(MoveTemp(InputParams));
 				}
 
 				virtual TUniquePtr<INodeRegistryEntry> Clone() const override

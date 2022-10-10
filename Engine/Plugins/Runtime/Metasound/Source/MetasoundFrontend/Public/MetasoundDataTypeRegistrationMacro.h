@@ -296,7 +296,7 @@ namespace Metasound
 
 					if constexpr (bIsParsable)
 					{
-						TInputNode<TDataType, EVertexAccessType::Reference> InputPrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
+						TInputNode<TDataType, EVertexAccessType::Reference> InputPrototype(FInputNodeConstructorParams { });
 						InputClass = Metasound::Frontend::GenerateClass(InputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
 
 						TOutputNode<TDataType, EVertexAccessType::Reference> OutputPrototype(TEXT(""), FGuid(), TEXT(""));
@@ -319,7 +319,7 @@ namespace Metasound
 
 						if constexpr (bIsConstructorType)
 						{
-							TInputNode<TDataType, EVertexAccessType::Value> ConstructorInputPrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
+							TInputNode<TDataType, EVertexAccessType::Value> ConstructorInputPrototype(FInputNodeConstructorParams { });
 							ConstructorInputClass = Metasound::Frontend::GenerateClass(ConstructorInputPrototype.GetMetadata(), EMetasoundFrontendClassType::Input);
 							TOutputNode<TDataType, EVertexAccessType::Value> ConstructorOutputPrototype(TEXT(""), FGuid(), TEXT(""));
 							ConstructorOutputClass = Metasound::Frontend::GenerateClass(ConstructorOutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
@@ -388,7 +388,7 @@ namespace Metasound
 				{
 					if constexpr (bIsParsable)
 					{
-						return MakeUnique<TInputNode<TDataType, EVertexAccessType::Reference>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+						return MakeUnique<TInputNode<TDataType, EVertexAccessType::Reference>>(MoveTemp(InParams));
 					}
 					else
 					{
@@ -400,7 +400,8 @@ namespace Metasound
 				{
 					if constexpr (bIsParsable && bIsConstructorType)
 					{
-						return MakeUnique<TInputNode<TDataType, EVertexAccessType::Value>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+						checkf(!InParams.bEnableTransmission, TEXT("Cannot enable transmission on a constructor input."));
+						return MakeUnique<TInputNode<TDataType, EVertexAccessType::Value>>(MoveTemp(InParams));
 					}
 					else
 					{

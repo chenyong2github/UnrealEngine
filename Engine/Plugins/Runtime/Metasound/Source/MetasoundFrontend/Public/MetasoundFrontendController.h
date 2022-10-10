@@ -978,7 +978,7 @@ namespace Metasound
 			 */
 			virtual FNodeHandle CreateEmptySubgraph(const FMetasoundFrontendClassMetadata& InInfo) = 0;
 
-			/** Creates a runtime operator for the given graph.
+			/** Creates a runtime operator for the given graph. Does not support input value manipulation via transmission.
 			 *
 			 * @param InSettings - Settings to use when creating operators.
 			 * @param InEnvironment - Environment variables available during creation.

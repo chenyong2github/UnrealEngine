@@ -6,45 +6,15 @@
 #include "MetasoundEnum.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundLiteral.h"
+#include "MetasoundNodeConstructorParams.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundRouter.h"
 #include "MetasoundVertex.h"
 #include "Templates/Function.h"
 
-
 namespace Metasound
 {
-	// Base implementation for NodeConstructorCallbacks
-	struct FDefaultNamedVertexNodeConstructorParams
-	{
-		// the instance name and name of the specific connection that should be used.
-		FVertexName NodeName;
-		FGuid InstanceID;
-		FVertexName VertexName;
-	};
-
-	struct FDefaultNamedVertexWithLiteralNodeConstructorParams
-	{
-		// the instance name and name of the specific connection that should be used.
-		FVertexName NodeName;
-		FGuid InstanceID;
-		FVertexName VertexName;
-		FLiteral InitParam = FLiteral::CreateInvalid();
-	};
-
-	struct FDefaultLiteralNodeConstructorParams
-	{
-		FVertexName NodeName;
-		FGuid InstanceID;
-		FLiteral Literal = FLiteral::CreateInvalid();
-	};
-
-	using FInputNodeConstructorParams = FDefaultNamedVertexWithLiteralNodeConstructorParams;
-	using FOutputNodeConstructorParams = FDefaultNamedVertexNodeConstructorParams;
-	using FLiteralNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-
 	using FIterateMetasoundFrontendClassFunction = TFunctionRef<void(const FMetasoundFrontendClass&)>;
 
 	namespace Frontend

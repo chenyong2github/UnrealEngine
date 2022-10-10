@@ -347,10 +347,10 @@ namespace Metasound
 	public:
 		static constexpr bool bCanRegister = true;
 
-		TInputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName, FLiteral&& InLiteral)
-		:	FNode(InInstanceName, InInstanceID, GetNodeClassMetadata(InVertexName))
-		,	VertexInterface(GetVertexInterface(InVertexName))
-		,	Factory(MakeShared<FInputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
+		TInputNode(FInputNodeConstructorParams&& InParams)
+			: FNode(InParams.NodeName, InParams.InstanceID, GetNodeClassMetadata(InParams.VertexName))
+			, VertexInterface(GetVertexInterface(InParams.VertexName))
+			, Factory(MakeShared<FInputOperatorFactory, ESPMode::ThreadSafe>(InParams.VertexName))
 		{
 		}
 
@@ -614,10 +614,10 @@ namespace Metasound
 	public:
 		static constexpr bool bCanRegister = true;
 
-		TInputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName, FLiteral&& InLiteral)
-		:	FNode(InInstanceName, InInstanceID, GetNodeClassMetadata(InVertexName))
-		,	VertexInterface(GetVertexInterface(InVertexName))
-		,	Factory(MakeShared<FInputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
+		TInputNode(FInputNodeConstructorParams&& InParams)
+			: FNode(InParams.NodeName, InParams.InstanceID, GetNodeClassMetadata(InParams.VertexName))
+			, VertexInterface(GetVertexInterface(InParams.VertexName))
+			, Factory(MakeShared<FInputOperatorFactory, ESPMode::ThreadSafe>(InParams.VertexName))
 		{
 		}
 

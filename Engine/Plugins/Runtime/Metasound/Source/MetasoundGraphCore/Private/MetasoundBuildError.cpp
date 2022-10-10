@@ -203,6 +203,17 @@ namespace Metasound
 	{
 		AddDataEdge(InEdge);
 	}
+
+	const FName FInputReceiverInitializationError::ErrorType = "InputReceiverInitializationError";
+
+	FInputReceiverInitializationError::FInputReceiverInitializationError(const INode& InInputNode, const FName& InVertexKey, const FName& InDataType)
+		: FBuildErrorBase(ErrorType, FText::Format(LOCTEXT("InputReceiverInitializationError", "Failed to create transmission receiever for input '{0}' of type '{1}'.")
+			, FText::FromName(InVertexKey)
+			, FText::FromName(InDataType)
+		))
+	{
+		AddNode(InInputNode);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

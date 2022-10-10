@@ -194,9 +194,6 @@ protected:
 		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph;
 	};
 
-	// Returns the cached runtime data. Call updates cached data if out-of-date.
-	const FRuntimeData& CacheRuntimeData(const FMetasoundFrontendDocument& InPreprocessedDoc);
-
 	// Returns the cached runtime data.
 	const FRuntimeData& GetRuntimeData() const;
 
@@ -204,13 +201,9 @@ protected:
 	// Prefer accessing public class inputs using CacheRuntimeData.
 	TArray<FMetasoundFrontendClassInput> GetPublicClassInputs() const;
 
-	// Returns all transmissible class inputs.  This is a potentially expensive.
-	// Prefer accessing transmissible class inputs using CacheRuntimeData.
-	TArray<FMetasoundFrontendClassInput> GetTransmittableClassInputs() const;
-
 private:
-	// Remove all inputs from the array which are of non-transmittable data types. 
-	void RemoveNonTransmittableClassInputs(TArray<FMetasoundFrontendClassInput>& InOutClassInputs) const;
+	// Returns the cached runtime data. Call updates cached data if out-of-date.
+	const FRuntimeData& CacheRuntimeData(const FMetasoundFrontendDocument& InPreprocessedDoc);
 
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
@@ -218,7 +211,7 @@ private:
 	FGuid CurrentCachedRuntimeDataChangeID;
 	FRuntimeData CachedRuntimeData;
 
-	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessDoc, const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const;
+	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessDoc, const TSet<FName>& InTransmittableInputNames) const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 };

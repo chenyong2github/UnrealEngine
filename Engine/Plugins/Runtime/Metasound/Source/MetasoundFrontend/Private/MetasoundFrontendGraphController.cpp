@@ -1600,7 +1600,8 @@ namespace Metasound
 				const TArray<FMetasoundFrontendClass>& Dependencies = OwningDocument->GetDependencies();
 
 				FString UnknownAsset = TEXT("UnknownAsset");
-				TUniquePtr<FFrontendGraph> Graph = FFrontendGraphBuilder::CreateGraph(*GraphClass, Subgraphs, Dependencies, UnknownAsset);
+				TSet<FName> TransmittableInputNames;
+				TUniquePtr<FFrontendGraph> Graph = FFrontendGraphBuilder::CreateGraph(*GraphClass, Subgraphs, Dependencies, TransmittableInputNames, UnknownAsset);
 
 				if (!Graph.IsValid())
 				{
