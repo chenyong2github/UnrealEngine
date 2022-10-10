@@ -1246,7 +1246,8 @@ void SDetailsView::RebuildSectionSelector()
 	const TMap<FName, FText> AllSections = GetAllSections();
 	if (AllSections.IsEmpty())
 	{
-		// we've selected something that has no sections - rather than show just "All", hide the box
+		// we've selected something that has no sections - rather than show just "All", hide the box and clear visible sections
+		CurrentFilter.VisibleSections.Reset();
 		return;
 	}
 
