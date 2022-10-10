@@ -247,6 +247,18 @@ void UNearestNeighborModel::UpdateMorphTargetSize()
 		MorphDataSize = 0.0f;
 	}
 }
+
+FString UNearestNeighborModel::GetModelDir() const
+{
+	if (bUseFileCache)
+	{
+		return FileCacheDirectory;
+	}
+	else
+	{
+		return FPaths::ProjectIntermediateDir() + TEXT("NearestNeighborModel/");
+	}
+}
 #endif
 
 void UNearestNeighborModel::InitInputInfo()

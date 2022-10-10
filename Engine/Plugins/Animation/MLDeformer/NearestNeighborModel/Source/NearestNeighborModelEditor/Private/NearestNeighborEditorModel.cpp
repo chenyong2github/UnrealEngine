@@ -75,6 +75,19 @@ namespace UE::NearestNeighborModel
 		GetNearestNeighborModel()->InitPreviousWeights();
 	}
 
+	FString FNearestNeighborEditorModel::GetTrainedNetworkOnnxFile() const
+	{
+		const UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
+		if (NearestNeighborModel)
+		{
+			return NearestNeighborModel->GetModelDir() + TEXT("/NearestNeighborModel.onnx");
+		}
+		else
+		{
+			return FMLDeformerEditorModel::GetTrainedNetworkOnnxFile();
+		}
+	}
+
 	void FNearestNeighborEditorModel::CreateActors(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 	{
 		FMLDeformerMorphModelEditorModel::CreateActors(InPersonaPreviewScene);
@@ -282,8 +295,8 @@ namespace UE::NearestNeighborModel
 		UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
-			const FString SavePath = FPaths::ProjectIntermediateDir() + "NearestNeighborModel/NearestNeighborModel.onnx";
-			if (!FPaths::FileExists(SavePath))
+			const FString SavePath = GetTrainedNetworkOnnxFile();
+			if (!FPaths::FileExists(SavePath) || !NearestNeighborModel->GetUseFileCache())
 			{
 				UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
 				NeuralNetwork->Save(SavePath);
@@ -321,8 +334,8 @@ namespace UE::NearestNeighborModel
 		UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
-			const FString SavePath = FPaths::ProjectIntermediateDir() + "NearestNeighborModel/NearestNeighborModel.onnx";
-			if (!FPaths::FileExists(SavePath))
+			const FString SavePath = GetTrainedNetworkOnnxFile();
+			if (!FPaths::FileExists(SavePath) || !NearestNeighborModel->GetUseFileCache())
 			{
 				UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
 				NeuralNetwork->Save(SavePath);

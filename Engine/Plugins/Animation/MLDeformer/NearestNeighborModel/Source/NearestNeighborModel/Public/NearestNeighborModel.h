@@ -265,6 +265,15 @@ public:
 
 	static FName GetSavedNetworkSizePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, SavedNetworkSize); }
 	static FName GetMorphDataSizePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, MorphDataSize); }
+
+	bool GetUseFileCache() const { return bUseFileCache; }
+	static FName GetUseFileCachePropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bUseFileCache); }
+	static FName GetFileCacheDirectoryPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, FileCacheDirectory); }
+	static FName GetRecomputeDeltasPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bRecomputeDeltas); }
+	static FName GetRecomputePCAPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModel, bRecomputePCA); }
+
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	FString GetModelDir() const;
 #endif
 
 
@@ -305,6 +314,18 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Morph Targets", meta = (ClampMin = "0.0"))
 	float MorphDataSize = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
+	bool bUseFileCache = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
+	FString FileCacheDirectory = FPaths::ProjectIntermediateDir() + "NearestNeighborModel";
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
+	bool bRecomputeDeltas = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
+	bool bRecomputePCA = true;
 #endif
 
 public:

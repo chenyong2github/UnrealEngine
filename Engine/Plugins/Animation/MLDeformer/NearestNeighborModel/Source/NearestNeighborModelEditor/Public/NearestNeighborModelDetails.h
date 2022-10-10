@@ -30,6 +30,7 @@ namespace UE::NearestNeighborModel
 		UNearestNeighborModel* NearestNeighborModel = nullptr;
 		FNearestNeighborEditorModel* NearestNeighborEditorModel = nullptr;
 
+		IDetailCategoryBuilder* FileCacheCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* ClothPartCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* NearestNeighborCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* KMeansCategoryBuilder = nullptr;
