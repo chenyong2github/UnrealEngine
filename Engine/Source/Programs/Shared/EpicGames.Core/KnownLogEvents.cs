@@ -260,6 +260,13 @@ namespace EpicGames.Core
 		public static EventId Systemic_SignTool { get; } = new EventId(766);
 
 		/// <summary>
+		/// Missing file list error
+		/// 
+		/// Usually due to a volume that is not mounted or some of other IO error
+		/// </summary>
+		public static EventId Systemic_MissingFileList { get; } = new EventId(767);
+
+		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
 		/// </summary>
 		public static EventId Systemic_Max { get; } = new EventId(799);

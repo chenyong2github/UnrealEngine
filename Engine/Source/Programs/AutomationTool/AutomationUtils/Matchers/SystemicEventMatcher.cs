@@ -19,6 +19,8 @@ namespace AutomationUtils.Matchers
 
 		static readonly Regex s_hostDown = new Regex(@"ERROR: System\.IO\.IOException: Host is down");
 
+		static readonly Regex s_missingFileList = new Regex(@"^\s*ERROR: Missing local or shared file list.*\.xml");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			if (cursor.IsMatch(s_ddc))
@@ -45,6 +47,11 @@ namespace AutomationUtils.Matchers
 			if (cursor.Contains("LogXGEController: Warning: XGEControlWorker.exe does not exist"))
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MissingXgeControlWorker);
+			}
+
+			if (cursor.IsMatch(s_missingFileList))
+			{
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Error, KnownLogEvents.Systemic_MissingFileList);
 			}
 
 			if (cursor.Contains("SignTool Error: The specified timestamp server either could not be reached or"))
