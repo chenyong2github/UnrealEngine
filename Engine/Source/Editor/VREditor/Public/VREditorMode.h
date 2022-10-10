@@ -49,7 +49,7 @@ namespace VRActionTypes
 /**
  * VR Editor Mode. Extends editor viewports with functionality for VR controls and object manipulation
  */
-UCLASS( BlueprintType, Blueprintable, Transient )
+UCLASS( Abstract, BlueprintType, Blueprintable, Transient )
 class VREDITOR_API UVREditorMode : public UEditorWorldExtension
 {
 	GENERATED_BODY()

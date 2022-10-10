@@ -71,6 +71,8 @@ public:
 
 private:
 	void ExtendToolbarMenu();
+	void HandleModeClassAdded(const FTopLevelAssetPath& ClassPath);
+	void AssignModeClassAndSave(const FTopLevelAssetPath& ClassPath);
 
 private:
 	TSharedPtr<class FExtender> RadialMenuExtender;
@@ -93,6 +95,8 @@ void FVREditorModule::StartupModule()
 	LLM_SCOPE_BYNAME(TEXT("VREditor"));
 
 	RadialMenuExtender = MakeShareable(new FExtender());
+
+	ModeManager.OnModeClassAdded.AddRaw(this, &FVREditorModule::HandleModeClassAdded);
 
 	// UToolMenus::RegisterStartupCallback is still too early.
 	DeferredInitDelegate = FCoreDelegates::OnBeginFrame.AddLambda(
@@ -134,7 +138,7 @@ bool FVREditorModule::IsVREditorEnabled() const
 {
 	return ModeManager.IsVREditorActive();
 }
-													
+
 bool FVREditorModule::IsVREditorAvailable() const
 {
 	return ModeManager.IsVREditorAvailable();
@@ -285,23 +289,10 @@ void FVREditorModule::ExtendToolbarMenu()
 			{
 				FToolUIAction SelectModeAction;
 				SelectModeAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda(
-					[Mode, WeakSettingsSection = WeakSettingsSection]
+					[this, Mode]
 					(const FToolMenuContext&)
 					{
-						UVRModeSettings* Settings = GetMutableDefault<UVRModeSettings>();
-						Settings->ModeClass = Mode;
-
-						if (FProperty* ModeClassProperty = FindFProperty<FProperty>(Settings->GetClass(),
-							GET_MEMBER_NAME_CHECKED(UVRModeSettings, ModeClass)))
-						{
-							FPropertyChangedEvent PropertyUpdateStruct(ModeClassProperty, EPropertyChangeType::ValueSet);
-							Settings->PostEditChangeProperty(PropertyUpdateStruct);
-						}
-
-						if (TSharedPtr<ISettingsSection> SettingsSection = WeakSettingsSection.Pin())
-						{
-							SettingsSection->Save();
-						}
+						AssignModeClassAndSave(Mode->GetClassPathName());
 					});
 				SelectModeAction.CanExecuteAction = FToolMenuCanExecuteAction::CreateLambda(
 					[](const FToolMenuContext&)
@@ -334,6 +325,33 @@ void FVREditorModule::ExtendToolbarMenu()
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.GameSettings"),
 		FUIAction(FExecuteAction::CreateLambda([]() { FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "VR Mode"); }))
 	);
+}
+
+void FVREditorModule::HandleModeClassAdded(const FTopLevelAssetPath& ClassPath)
+{
+	// If we don't have a mode class yet, assign the first one we discover.
+	if (GetDefault<UVRModeSettings>()->ModeClass.IsNull())
+	{
+		AssignModeClassAndSave(ClassPath);
+	}
+}
+
+void FVREditorModule::AssignModeClassAndSave(const FTopLevelAssetPath& ClassPath)
+{
+	UVRModeSettings* Settings = GetMutableDefault<UVRModeSettings>();
+	Settings->ModeClass = FSoftObjectPath(ClassPath);
+
+	if (FProperty* ModeClassProperty = FindFProperty<FProperty>(Settings->GetClass(),
+		GET_MEMBER_NAME_CHECKED(UVRModeSettings, ModeClass)))
+	{
+		FPropertyChangedEvent PropertyUpdateStruct(ModeClassProperty, EPropertyChangeType::ValueSet);
+		Settings->PostEditChangeProperty(PropertyUpdateStruct);
+	}
+
+	if (TSharedPtr<ISettingsSection> SettingsSection = WeakSettingsSection.Pin())
+	{
+		SettingsSection->Save();
+	}
 }
 
 

@@ -176,10 +176,8 @@ bool FVREditorModeManager::IsVREditorAvailable() const
 
 bool FVREditorModeManager::IsVREditorButtonActive() const
 {
-	const bool bHasHMDDevice = GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();
-	const bool bDerivedModeAvailable = CachedModeClassPaths.Num() > 1;
-
-	return bHasHMDDevice || bDerivedModeAvailable;
+	const bool bAnyModeAvailable = CachedModeClassPaths.Num() > 0;
+	return bAnyModeAvailable;
 }
 
 
@@ -314,17 +312,25 @@ void FVREditorModeManager::GetConcreteModeClasses(TArray<UClass*>& OutModeClasse
 {
 	for (const FTopLevelAssetPath& ClassPath : CachedModeClassPaths)
 	{
-		TSoftClassPtr<UVREditorMode> SoftClass = TSoftClassPtr<UVREditorMode>(FSoftObjectPath(ClassPath));
-		if (UClass* Class = SoftClass.LoadSynchronous())
+		if (UClass* Class = TryGetConcreteModeClass(ClassPath))
 		{
-			if (Class->HasAnyClassFlags(CLASS_Abstract) || (Class->GetAuthoritativeClass() != Class))
-			{
-				continue;
-			}
-
 			OutModeClasses.Add(Class);
 		}
 	}
+}
+
+UClass* FVREditorModeManager::TryGetConcreteModeClass(const FTopLevelAssetPath& ClassPath) const
+{
+	TSoftClassPtr<UVREditorMode> SoftClass = TSoftClassPtr<UVREditorMode>(FSoftObjectPath(ClassPath));
+	if (UClass* Class = SoftClass.LoadSynchronous())
+	{
+		if (!Class->HasAnyClassFlags(CLASS_Abstract) || (Class->GetAuthoritativeClass() != Class))
+		{
+			return Class;
+		}
+	}
+
+	return nullptr;
 }
 
 void FVREditorModeManager::GetModeClassPaths(TSet<FTopLevelAssetPath>& OutModeClasses) const
@@ -338,7 +344,33 @@ void FVREditorModeManager::GetModeClassPaths(TSet<FTopLevelAssetPath>& OutModeCl
 
 void FVREditorModeManager::UpdateCachedModeClassPaths()
 {
-	GetModeClassPaths(CachedModeClassPaths);
+	TSet<FTopLevelAssetPath> UpdatedModeClassPaths;
+	GetModeClassPaths(UpdatedModeClassPaths);
+
+	// Exclude any ineligible (abstract, failed to load, etc) modes
+	for (TSet<FTopLevelAssetPath>::TIterator It = UpdatedModeClassPaths.CreateIterator(); It; ++It)
+	{
+		if (!TryGetConcreteModeClass(*It))
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// Issue update events.
+	TSet<FTopLevelAssetPath> Union = CachedModeClassPaths.Union(UpdatedModeClassPaths);
+	for (const FTopLevelAssetPath& Path : Union)
+	{
+		if (!CachedModeClassPaths.Contains(Path))
+		{
+			OnModeClassAdded.Broadcast(Path);
+		}
+		else if (!UpdatedModeClassPaths.Contains(Path))
+		{
+			OnModeClassRemoved.Broadcast(Path);
+		}
+	}
+
+	CachedModeClassPaths = MoveTemp(UpdatedModeClassPaths);
 }
 
 void FVREditorModeManager::HandleAssetFilesLoaded()

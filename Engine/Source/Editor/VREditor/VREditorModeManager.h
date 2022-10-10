@@ -9,17 +9,17 @@
 #include "HeadMountedDisplayTypes.h"
 #include "IVREditorModule.h"
 
+
 class UVREditorMode;
 enum class EMapChangeType : uint8;
+
 
 /**
  * Manages starting and closing the VREditor mode
  */
 class FVREditorModeManager : public FGCObject, public FTickableEditorObject
 {
-
 public:
-
 	/** Default constructor */
 	FVREditorModeManager();
 
@@ -68,7 +68,15 @@ public:
 	 * those which are suitable for use (not abstract, etc.) to the provided array. */
 	void GetConcreteModeClasses(TArray<UClass*>& OutModeClasses) const;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FModeClassAdded, const FTopLevelAssetPath&);
+	FModeClassAdded OnModeClassAdded;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FModeClassRemoved, const FTopLevelAssetPath&);
+	FModeClassRemoved OnModeClassRemoved;
+
 private:
+	UClass* TryGetConcreteModeClass(const FTopLevelAssetPath& ClassPath) const;
+
 	/** Queries the asset registry for asset paths of all classes derived from UVREditorMode. */
 	void GetModeClassPaths(TSet<FTopLevelAssetPath>& OutModeClassPaths) const;
 
