@@ -1493,7 +1493,7 @@ TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControl
 	FRigControlSettings& Settings = Control->Settings;
 	FString SettingsStr;
 	{
-		FString ControlNamePythonized = RigVMPythonUtils::NameToPep8(Control->GetName().ToString());
+		FString ControlNamePythonized = RigVMPythonUtils::PythonizeName(Control->GetName().ToString());
 		SettingsStr = FString::Printf(TEXT("control_settings_%s"),
 			*ControlNamePythonized);
 			
@@ -1538,7 +1538,7 @@ TArray<FString> URigHierarchyController::GetAddRigidBodyPythonCommands(FRigRigid
 		ParentKeyStr = RigidBody->ParentElement->GetKey().ToPythonString();
 	}
 
-	FString RigidBodyNamePythonized = RigVMPythonUtils::NameToPep8(RigidBody->GetName().ToString());
+	FString RigidBodyNamePythonized = RigVMPythonUtils::PythonizeName(RigidBody->GetName().ToString());
 	FRigRigidBodySettings& Settings = RigidBody->Settings;
 	FString SettingsStr;
 	{

@@ -2192,10 +2192,10 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 				{						
 					// Add Function
 					InternalCommands.Add(FString::Printf(TEXT("function_%s = library_controller.add_function_to_library('%s', mutable=%s)\ngraph = function_%s.get_contained_graph()"),
-							*RigVMPythonUtils::NameToPep8(Graph->GetGraphName()),
+							*RigVMPythonUtils::PythonizeName(Graph->GetGraphName()),
 							*Graph->GetGraphName(),
 							Graph->GetEntryNode()->IsMutable() ? TEXT("True") : TEXT("False"),
-							*RigVMPythonUtils::NameToPep8(Graph->GetGraphName())));
+							*RigVMPythonUtils::PythonizeName(Graph->GetGraphName())));
 
 					URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
 

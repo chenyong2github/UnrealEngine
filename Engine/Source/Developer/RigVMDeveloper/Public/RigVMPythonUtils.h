@@ -15,7 +15,16 @@ class UEnum;
 
 namespace RigVMPythonUtils
 {
-	RIGVMDEVELOPER_API FString NameToPep8(const FString& Name);
+	/** How should PythonizeName adjust the final name? */
+	enum EPythonizeNameCase : uint8
+	{
+		/** lower_snake_case */
+		Lower,
+		/** UPPER_SNAKE_CASE */
+		Upper,
+	};
+	
+	RIGVMDEVELOPER_API FString PythonizeName(FStringView InName, const EPythonizeNameCase InNameCase = EPythonizeNameCase::Lower);
 
 	RIGVMDEVELOPER_API FString TransformToPythonString(const FTransform& Transform);
 

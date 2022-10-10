@@ -671,7 +671,7 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 		{
 			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_function_reference_node(function_%s, %s, '%s')"),
 						*GraphName,
-						*RigVMPythonUtils::NameToPep8(ContainedGraphName),
+						*RigVMPythonUtils::PythonizeName(ContainedGraphName),
 						*RigVMPythonUtils::Vector2DToPythonString(LibraryNode->GetPosition()), 
 						*NodeName));
 		}

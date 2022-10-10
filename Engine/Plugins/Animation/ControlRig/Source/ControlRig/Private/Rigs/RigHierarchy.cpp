@@ -3311,7 +3311,7 @@ void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRi
 		}
 		if (!BlueprintName.IsEmpty())
 		{
-			FString ControlNamePythonized = RigVMPythonUtils::NameToPep8(InControlElement->GetName().ToString());
+			FString ControlNamePythonized = RigVMPythonUtils::PythonizeName(InControlElement->GetName().ToString());
 			FString SettingsName = FString::Printf(TEXT("control_settings_%s"),
 				*ControlNamePythonized);
 			TArray<FString> Commands = ControlSettingsToPythonCommands(InControlElement->Settings, SettingsName);
