@@ -657,7 +657,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 
 			if (ENABLE_TRANSMISSION)
 			{
-				TransmissionParameters = GetTransmissionProfileParams(GBufferData);
+				TransmissionParameters = GetTransmissionProfileParams(ExtractSubsurfaceProfileInt(GBufferData));
 			}
 
 			if (ShadingParameters.bIsSubsurface)

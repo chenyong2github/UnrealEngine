@@ -8,6 +8,7 @@
 
 #include "PixelQuadMessagePassing.ush"
 #include "FastMath.ush"
+#include "TransmissionCommon.ush"
 
 struct FPCFSamplerSettings
 {
@@ -151,13 +152,10 @@ float4 CalculateOcclusion(float4 ShadowmapDepth, FPCFSamplerSettings Settings)
 {
 	if (Settings.bSubsurface)
 	{
-		// Determine the distance that the light traveled through the subsurface object
-		// This assumes that anything between this subsurface pixel and the light was also a subsurface material,
-		// As a result, subsurface materials receive leaked light based on how transparent they are
-		float4 Thickness = max(Settings.SceneDepth - ShadowmapDepth, 0);
-		float4 Occlusion = saturate(FastExp(-Thickness * Settings.DensityMulConstant));
+		float4 OccluderDistance = max(Settings.SceneDepth - ShadowmapDepth, 0);
+		float4 Occlusion = GetSubSurfaceTransmission(OccluderDistance, Settings.DensityMulConstant);
 		// Never shadow from depths that were never written to (max depth value)
-		return select(ShadowmapDepth > .99f, 1.0, Occlusion);
+		return select(ShadowmapDepth > .99f, 1.0f, Occlusion);
 	}
 	else
 	{

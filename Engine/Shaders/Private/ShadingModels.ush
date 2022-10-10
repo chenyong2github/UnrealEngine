@@ -11,6 +11,8 @@
 #include "TransmissionCommon.ush"
 #include "HairBsdf.ush"
 #include "ShadingEnergyConservation.ush"
+#include "ParticipatingMediaCommon.ush"
+#include "ColorSpace.ush"
 
 #if SHADING_PATH_MOBILE
 #include "MobileGGX.ush"
@@ -711,12 +713,13 @@ FDirectLighting SubsurfaceProfileBxDF( FGBufferData GBuffer, half3 N, half3 V, h
 
 #if USE_TRANSMISSION
 
-	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams( GBuffer );
+	const uint ProfileId = ExtractSubsurfaceProfileInt(GBuffer);
+	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ProfileId);
 
 	float Thickness = Shadow.TransmissionThickness;
 	Thickness = DecodeThickness(Thickness);
 	Thickness *= SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
-	float3 Profile = GetTransmissionProfile(GBuffer, Thickness).rgb;
+	float3 Profile = GetTransmissionProfile(ProfileId, Thickness).rgb;
 
 	float3 RefracV = refract(V, -N, TransmissionParams.OneOverIOR);
 	float PhaseFunction = ApproximateHG( dot(-L, RefracV), TransmissionParams.ScatteringDistribution );
@@ -776,25 +779,38 @@ FDirectLighting ClothBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, floa
 	return Lighting;
 }
 
-FDirectLighting SubsurfaceBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, half NoL, FAreaLight AreaLight, FShadowTerms Shadow )
+FDirectLighting SubsurfaceBxDF(FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, half NoL, FAreaLight AreaLight, FShadowTerms Shadow 
 {
-	FDirectLighting Lighting = DefaultLitBxDF( GBuffer, N, V, L, Falloff, NoL, AreaLight, Shadow );
-	
+	FDirectLighting Lighting = DefaultLitBxDF( GBuffer, N, V, L, Falloff, NoL, AreaLight, Shadow);
+
 	half3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
 	half Opacity = GBuffer.CustomData.a;
-
-	half3 H = normalize(V + L);
 
 	// to get an effect when you see through the material
 	// hard coded pow constant
 	half InScatter = pow(saturate(dot(L, -V)), 12) * lerp(3, .1f, Opacity);
-	// wrap around lighting, /(PI*2) to be energy consistent (hack do get some view dependnt and light dependent effect)
-	// Opacity of 0 gives no normal dependent lighting, Opacity of 1 gives strong normal contribution
-	half NormalContribution = saturate(dot(N, H) * Opacity + 1 - Opacity);
-	half BackScatter = GBuffer.GBufferAO * NormalContribution / (PI * 2);
-	
+
+	// Wrap around lighting, 
+	// * /(PI*2) to be energy consistent (hack do get some view dependnt and light dependent effect)
+	// * Opacity of 0 gives no normal dependent lighting, Opacity of 1 gives strong normal contribution	
+	// * Simplified version (with w=.5,  n=1.5): 
+	//     half WrappedDiffuse = 2 * pow(saturate((dot(N, L) + w) / (1.0f + w)), n) * (n + 1) / (2 * (1 + w));
+	//     NormalContribution = WrappedDiffuse * Opacity + 1 - Opacity;
+	const half WrappedDiffuse = pow(saturate(dot(N, L) * (1.f / 1.5f) + (0.5f / 1.5f)), 1.5f) * (2.5f / 1.5f);
+	const half NormalContribution = lerp(1.f, WrappedDiffuse, Opacity);
+	const half BackScatter = GBuffer.GBufferAO * NormalContribution / (PI * 2);
+
+	// Transmission
+	// * Emulate Beer-Lambert absorption by retrieving extinction coefficient from SubSurfaceColor. Subsurface is interpreted as a 'transmittance color' 
+	//   at a certain 'normalized' distance (SubSurfaceColorAsTransmittanceAtDistanceInMeters). This is a coarse approximation for getting hue-shiting. 
+	// * TransmittedColor is computed for the 1-normalized distance, and then transformed back-and-forth in HSV space to preserving the luminance value 
+	//   of the original color, but getting hue shifting
+	const half3 ExtinctionCoefficients = TransmittanceToExtinction(SubsurfaceColor, View.SubSurfaceColorAsTransmittanceAtDistanceInMeters);
+	const half3 RawTransmittedColor = ExtinctionToTransmittance(ExtinctionCoefficients, 1.0f /*At 1 meters, as we use normalized units*/);
+	const half3 TransmittedColor = HSV_2_LinearRGB(half3(LinearRGB_2_HSV(RawTransmittedColor).xy, LinearRGB_2_HSV(SubsurfaceColor).z));
+
 	// lerp to never exceed 1 (energy conserving)
-	Lighting.Transmission = AreaLight.FalloffColor * ( Falloff * lerp(BackScatter, 1, InScatter) ) * SubsurfaceColor;
+	Lighting.Transmission = AreaLight.FalloffColor * (Falloff * lerp(BackScatter, 1, InScatter)) * lerp(TransmittedColor, SubsurfaceColor, Shadow.TransmissionThickness);
 
 	return Lighting;
 }

@@ -164,6 +164,7 @@ float4 ComputeRandom4(uint2 PixelPosition)
 int4 ProjectionRect;
 float ScreenRayLength;
 float NormalBias;
+float SubsurfaceMinSourceRadius;
 int SubsurfaceShadowMode;			// Temp for testing and A/B comparison
 int SMRTRayCount;					// 0 = off
 int SMRTSamplesPerRay;
@@ -533,22 +534,6 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 	}
 }
 
-// TODO: Refactor/move this to transmission common
-float GetShadowFactorSubsurface(float ShadowFactor, float OccluderDistance, float SubsurfaceOpacity)
-{
-	if ( ShadowFactor < 1.0f )
-	{
-		float Density = SubsurfaceDensityFromOpacity( SubsurfaceOpacity );
-		float Occlusion = 1.0f - saturate( exp( -Density * OccluderDistance ) );
-		float NewShadowFactor = 1.0f - Occlusion * ( 1.0f - ShadowFactor );
-
-		// NOTE: This square is arbitrary, but we have to be consistent with the PCF path
-		// TODO: This might be the time to remove this...
-		return SubsurfaceShadowMode > 1 ? Square( NewShadowFactor ) : NewShadowFactor;
-	}
-	return ShadowFactor;
-}
-
 [numthreads(8, 8, 1)]
 void VirtualShadowMapProjection(
 	uint3	GroupId				: SV_GroupID,
@@ -636,6 +621,14 @@ void VirtualShadowMapProjection(
 		int VirtualShadowMapId = LightUniformVirtualShadowMapId;
 		FLightShaderParameters Light = GetRootLightShaderParameters();
 
+		// Subsurface approximation
+		// Increases light source radius for subsurface material as the opacity reduces to emulates light diffusion.
+		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
+		if (SubsurfaceOpacity < 1.0f)
+		{
+			Light.SourceRadius = max(Light.SourceRadius, (1-SubsurfaceOpacity)*SubsurfaceMinSourceRadius);
+		}
+
 		FVirtualShadowMapSampleResult Result = ProjectLight(
 			VirtualShadowMapId,
 			Light,
@@ -647,7 +640,6 @@ void VirtualShadowMapProjection(
 			Noise);
 		
 		float TransmissionShadow = Result.ShadowFactor;
-		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
 		if ( SubsurfaceOpacity < 1.0f )
 		{
 			if (SubsurfaceShadowMode > 0)

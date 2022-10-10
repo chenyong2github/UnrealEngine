@@ -172,7 +172,10 @@ float3 TransmittanceToMeanFreePath(in float3 TransmittanceColor, in float Thickn
 	return 1.0f / max(PARTICIPATING_MEDIA_MIN_EXTINCTION, TransmittanceToExtinction(TransmittanceColor, ThicknessMeters));
 }
 
-
+float3 ExtinctionToTransmittance(in float3 Extinction, in float ThicknessMeters)
+{
+	return exp(-Extinction * ThicknessMeters);
+}
 
 //---------------------------------------------
 // Lighting evaluation function for an Isotropic participating media a slab of 1 meter

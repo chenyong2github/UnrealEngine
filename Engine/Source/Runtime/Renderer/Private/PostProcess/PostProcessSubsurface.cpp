@@ -138,7 +138,12 @@ namespace
 		TEXT("4000. (default) The minimal number of tiles to trigger subsurface radiance mip generation. Set to zero to always generate mips (Experimental value)"),
 		ECVF_RenderThreadSafe);
 
-	
+	TAutoConsoleVariable<float> CVarSubSurfaceColorAsTannsmittanceAtDistance(
+		TEXT("r.SSS.SubSurfaceColorAsTansmittanceAtDistance"),
+		0.15f,
+		TEXT("Normalized distance (0..1) at which the surface color is interpreted as transmittance color to compute extinction coefficients."),
+		ECVF_RenderThreadSafe);
+
 	DECLARE_GPU_STAT(SubsurfaceScattering)
 }
 

@@ -42,13 +42,6 @@ FTransmissionProfileParams GetTransmissionProfileParams(uint SubsurfaceProfileIn
 	return Result;
 }
 
-FTransmissionProfileParams GetTransmissionProfileParams(FGBufferData GBufferData)
-{
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-	return GetTransmissionProfileParams(SubsurfaceProfileInt);
-}
-
 float4 GetTransmissionProfile(uint SubsurfaceProfileInt, float Thickness)
 {
 	// 0..255, which SubSurface profile to pick
@@ -56,12 +49,6 @@ float4 GetTransmissionProfile(uint SubsurfaceProfileInt, float Thickness)
 	float ProfileOffset = BSSS_TRANSMISSION_PROFILE_OFFSET;
 	float2 uv = float2((ProfileOffset + Thickness / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (BSSS_TRANSMISSION_PROFILE_SIZE - 1) + 0.5f), SubsurfaceProfileInt + 0.5f) / (TextureSize.xy);
 	return Texture2DSampleLevel(View.SSProfilesTexture, View.SSProfilesTransmissionSampler, uv, 0);
-}
-
-float4 GetTransmissionProfile(FGBufferData GBufferData, float Thickness)
-{
-	// 0..255, which SubSurface profile to pick
-	return GetTransmissionProfile(ExtractSubsurfaceProfileInt(GBufferData), Thickness);
 }
 
 float EncodeThickness(float Thickness)
@@ -74,3 +61,18 @@ float DecodeThickness(float Thickness)
 	return 1 - Thickness;
 }
 
+// TODO Remove and include FastMath.ush 
+// Use fast approximation of exp(x)
+// http://www.humus.name/Articles/Persson_LowLevelThinking.pdf p.27
+#define FastExpGeneric(T) T FastExp(T x) { return exp2(1.442695f * x); }
+FastExpGeneric(float4)
+FastExpGeneric(float3)
+FastExpGeneric(float)
+// End TODO
+
+// Determine the distance that the light traveled through the subsurface object
+// This assumes that anything between this subsurface pixel and the light was also a subsurface material,
+// As a result, subsurface materials receive leaked light based on how transparent they are
+#define GetSubSurfaceTransmissionGeneric(T) T GetSubSurfaceTransmission(T OccluderDistance, float SubsurfaceDensity) { return saturate(FastExp(-OccluderDistance * SubsurfaceDensity)); }
+GetSubSurfaceTransmissionGeneric(float)
+GetSubSurfaceTransmissionGeneric(float4)
