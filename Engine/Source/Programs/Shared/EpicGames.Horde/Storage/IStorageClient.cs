@@ -87,6 +87,9 @@ namespace EpicGames.Horde.Storage
 		/// Determines if this locator points to a valid entry
 		/// </summary>
 		public bool IsValid() => Blob.IsValid();
+
+		/// <inheritdoc/>
+		public override string ToString() => $"{Blob}#{ExportIdx}";
 	}
 
 	/// <summary>
