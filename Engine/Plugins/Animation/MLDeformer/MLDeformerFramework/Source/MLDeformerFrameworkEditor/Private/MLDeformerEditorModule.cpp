@@ -13,7 +13,7 @@
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModule"
 
-IMPLEMENT_MODULE(UE::MLDeformer::FMLDeformerEditorModule, MLDeformerEditor)
+IMPLEMENT_MODULE(UE::MLDeformer::FMLDeformerEditorModule, MLDeformerFrameworkEditor)
 
 namespace UE::MLDeformer
 {
