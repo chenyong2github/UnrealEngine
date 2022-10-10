@@ -257,7 +257,7 @@ struct FReplicationStateDescriptor
 	// Function to destruct external state representation
 	DestructReplicationStateFunc DestructReplicationState;
 
-	// Function used to construct FastArrays
+	// Function used to construct custom replication fragments
 	CreateAndRegisterReplicationFragmentFunc CreateAndRegisterReplicationFragmentFunction;
 
 	EReplicationStateTraits Traits;

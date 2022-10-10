@@ -263,33 +263,4 @@ bool FFastArrayReplicationFragmentHelper::InternalCompareArrayElement(const FRep
 	return InternalCompareStructProperty(ArrayElementDescriptor, Dst, Src);
 }
 
-TRefCountPtr<const FReplicationStateDescriptor> FFastArrayReplicationFragmentHelper::GetOrCreateDescriptorForFastArrayProperty(UObject* Object, FFragmentRegistrationContext& Context, int32 RepIndex)
-{
-	UClass* ObjectClass = Object->GetClass();
-
-	// If we already have created descriptors for the class this will be a lookup in the registry, if not we will explicitly create a state for the 
-	// given property only and do not register it
-	FReplicationStateDescriptorBuilder::FParameters BuilderParameters;
-	BuilderParameters.SinglePropertyIndex = RepIndex;
-	BuilderParameters.DefaultStateSource = Object->GetArchetype();
-	BuilderParameters.DescriptorRegistry = Context.GetReplicationStateRegistry();
-	
-	FReplicationStateDescriptorBuilder::FResult Result;
-	FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(Result, ObjectClass, BuilderParameters);
-
-	// Find the descriptor for the fast array
-	for (auto& Desc : Result)
-	{
-		if (EnumHasAnyFlags(Desc->Traits, EReplicationStateTraits::IsFastArrayReplicationState))
-		{
-			if (Desc->MemberProperties[0]->RepIndex == RepIndex)
-			{
-				return Desc;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 }

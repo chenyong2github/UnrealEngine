@@ -54,7 +54,7 @@ uint32 FReplicationFragmentUtil::CreateAndRegisterFragmentsForObject(UObject* Ob
 		{
 			Fragment = FPropertyReplicationFragment::CreateAndRegisterFragment(Object, Desc.GetReference(), Context);
 		}
-		if (OutCreatedFragments)
+		if (Fragment && OutCreatedFragments)
 		{
 			OutCreatedFragments->Add(Fragment);
 			++NumCreatedReplicationFragments;
