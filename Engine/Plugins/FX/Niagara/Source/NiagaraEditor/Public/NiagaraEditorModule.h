@@ -102,10 +102,10 @@ struct NIAGARAEDITOR_API FNiagaraRendererCreationInfo
 	GENERATED_BODY()
 
 	FNiagaraRendererCreationInfo() = default;
-	FNiagaraRendererCreationInfo(FText InDisplayName, FRendererFactory InFactory) : DisplayName(InDisplayName), RendererFactory(InFactory)
+	FNiagaraRendererCreationInfo(FText InDisplayName, const FTopLevelAssetPath& InRendererClassPath, FRendererFactory InFactory) : DisplayName(InDisplayName), RendererClassPath(InRendererClassPath), RendererFactory(InFactory)
 	{}
 
-	FNiagaraRendererCreationInfo(FText InDisplayName, FText InDescription, FRendererFactory InFactory) : DisplayName(InDisplayName), Description(InDescription),RendererFactory(InFactory)
+	FNiagaraRendererCreationInfo(FText InDisplayName, FText InDescription, const FTopLevelAssetPath& InRendererClassPath, FRendererFactory InFactory) : DisplayName(InDisplayName), Description(InDescription), RendererClassPath(InRendererClassPath), RendererFactory(InFactory)
 	{}
 
 	UPROPERTY()
@@ -113,6 +113,9 @@ struct NIAGARAEDITOR_API FNiagaraRendererCreationInfo
 
 	UPROPERTY()
 	FText Description;
+
+	UPROPERTY()
+	FTopLevelAssetPath RendererClassPath;
 	
 	FRendererFactory RendererFactory;
 };

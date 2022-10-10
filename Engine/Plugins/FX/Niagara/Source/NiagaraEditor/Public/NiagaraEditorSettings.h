@@ -361,12 +361,19 @@ public:
 	FNiagaraParameterPanelSectionStorage& FindOrAddParameterPanelSectionStorage(FGuid PanelSectionId, bool& bOutAdded);
 
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassAllowed, const UClass* /*InClass*/);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassPathAllowed, const FTopLevelAssetPath& /*InClassPath*/);
 	
 	/** Sets a delegate that allows external code to restrict which features can be used within the niagara editor by filtering which classes are allowed. */
 	void SetOnIsClassAllowed(const FOnIsClassAllowed& InOnIsClassAllowed);
 
+	/** Sets a delegate that allows external code to restrict which features can be used within the niagara editor by filtering which classes are allowed by class path. */
+	void SetOnIsClassPathAllowed(const FOnIsClassPathAllowed& InOnIsClassPathAllowed);
+
 	/** Returns whether or not the supplied class can be used in the current editor context. */
 	bool IsAllowedClass(const UClass* InClass) const;
+
+	/** Returns whether or not the class referenced by the supplied class path can be used in the current editor context. */
+	bool IsAllowedClassPath(const FTopLevelAssetPath& InClassPath) const;
 
 	/** Returns whether or not the supplied niagara type definition can be used in the current editor context. */
 	bool IsAllowedTypeDefinition(const FNiagaraTypeDefinition& InTypeDefinition) const;
@@ -460,6 +467,7 @@ private:
 	TArray<FNiagaraParameterPanelSectionStorage> SystemParameterPanelSectionData;
 
 	FOnIsClassAllowed OnIsClassAllowedDelegate;
+	FOnIsClassPathAllowed OnIsClassPathAllowedDelegate;
 
 public:
 	bool IsShowInstructionsCount() const;

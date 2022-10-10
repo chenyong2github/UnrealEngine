@@ -651,9 +651,19 @@ void UNiagaraEditorSettings::SetOnIsClassAllowed(const FOnIsClassAllowed& InOnIs
 	OnIsClassAllowedDelegate = InOnIsClassAllowed;
 }
 
+void UNiagaraEditorSettings::SetOnIsClassPathAllowed(const FOnIsClassPathAllowed& InOnIsClassPathAllowed)
+{
+	OnIsClassPathAllowedDelegate = InOnIsClassPathAllowed;
+}
+
 bool UNiagaraEditorSettings::IsAllowedClass(const UClass* InClass) const
 {
 	return OnIsClassAllowedDelegate.IsBound() == false || OnIsClassAllowedDelegate.Execute(InClass);
+}
+
+bool UNiagaraEditorSettings::IsAllowedClassPath(const FTopLevelAssetPath& InClassPath) const
+{
+	return OnIsClassPathAllowedDelegate.IsBound() == false || OnIsClassPathAllowedDelegate.Execute(InClassPath);
 }
 
 bool UNiagaraEditorSettings::IsAllowedTypeDefinition(const FNiagaraTypeDefinition& InTypeDefinition) const

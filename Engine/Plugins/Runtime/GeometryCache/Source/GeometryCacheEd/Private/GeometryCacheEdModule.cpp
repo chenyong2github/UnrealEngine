@@ -34,6 +34,7 @@ void FGeometryCacheEdModule::StartupModule()
 	NiagaraEditorModule.RegisterRendererCreationInfo(FNiagaraRendererCreationInfo(
 		UNiagaraGeometryCacheRendererProperties::StaticClass()->GetDisplayNameText(),
 		FText::FromString(UNiagaraGeometryCacheRendererProperties::StaticClass()->GetDescription()),
+		UNiagaraGeometryCacheRendererProperties::StaticClass()->GetClassPathName(),
 		FNiagaraRendererCreationInfo::FRendererFactory::CreateLambda([](UObject* OuterEmitter)
 		{
 			UNiagaraGeometryCacheRendererProperties* NewRenderer = NewObject<UNiagaraGeometryCacheRendererProperties>(OuterEmitter, NAME_None, RF_Transactional);
