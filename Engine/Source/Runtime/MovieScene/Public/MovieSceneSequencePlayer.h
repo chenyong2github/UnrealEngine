@@ -16,6 +16,7 @@
 #include "MovieSceneSequenceTickManager.h"
 #include "Evaluation/MovieScenePlayback.h"
 #include "MovieSceneSequenceTickManager.h"
+#include "IMovieSceneSequencePlayerObserver.h"
 #include "MovieSceneSequencePlayer.generated.h"
 
 class UMovieSceneSequenceTickManager;
@@ -264,6 +265,10 @@ class MOVIESCENE_API UMovieSceneSequencePlayer
 {
 public:
 	GENERATED_BODY()
+
+	/** Obeserver interface used for controlling whether the effects of this sequence can be seen even when it is playing back. */
+	UPROPERTY(replicated)
+	TScriptInterface<IMovieSceneSequencePlayerObserver> Observer;
 
 	UMovieSceneSequencePlayer(const FObjectInitializer&);
 	virtual ~UMovieSceneSequencePlayer();

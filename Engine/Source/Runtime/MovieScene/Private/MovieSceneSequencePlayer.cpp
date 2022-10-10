@@ -155,6 +155,7 @@ void UMovieSceneSequencePlayer::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME(UMovieSceneSequencePlayer, DurationFrames);
 	DOREPLIFETIME(UMovieSceneSequencePlayer, DurationSubFrames);
 	DOREPLIFETIME(UMovieSceneSequencePlayer, PlaybackSettings);
+	DOREPLIFETIME(UMovieSceneSequencePlayer, Observer);
 }
 
 EMovieScenePlayerStatus::Type UMovieSceneSequencePlayer::GetPlaybackStatus() const
@@ -343,8 +344,12 @@ void UMovieSceneSequencePlayer::Pause()
 			}
 		};
 
+		if (Observer && !Observer->CanObserveSequence())
+		{
+			FinishPause();
+		}
 		// Evaluate the sequence at its current time, with a status of 'stopped' to ensure that animated state pauses correctly. (ie. audio sounds should stop/pause)
-		if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
+		else if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 		{
 			FMovieSceneEvaluationRange CurrentTimeRange = PlayPosition.GetCurrentPositionAsRange();
 			const FMovieSceneContext Context(CurrentTimeRange, EMovieScenePlayerStatus::Stopped);
@@ -443,7 +448,12 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 		};
 
 		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner();
-		if (Runner)
+
+		if (Observer && !Observer->CanObserveSequence())
+		{
+			OnFlushed();
+		}
+		else if (Runner)
 		{
 			// Finish but do not destroy
 			if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle(), FSimpleDelegate::CreateWeakLambda(this, OnFlushed)))
@@ -1155,6 +1165,11 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 
 void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args)
 {
+	if (Observer && !Observer->CanObserveSequence())
+	{
+		return;
+	}
+
 	UMovieSceneSequence* MovieSceneSequence = RootTemplateInstance.GetSequence(MovieSceneSequenceID::Root);
 	if (!MovieSceneSequence)
 	{
