@@ -57,9 +57,12 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, DepthTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DepthTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, ColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilationTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ColorTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, DilationTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DilationTextureSampler)
 		SHADER_PARAMETER(FVector2f, WaterHeightExtents)
 		SHADER_PARAMETER(float, GroundZMin)
 		SHADER_PARAMETER(float, CaptureZ)
@@ -103,8 +106,11 @@ static void MergeWaterInfoAndDepth(
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 		PassParameters->SceneTextures = SceneTextures.GetSceneTextureShaderParameters(ViewFamily.GetFeatureLevel());
 		PassParameters->DepthTexture = DepthTexture;
+		PassParameters->DepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->ColorTexture = ColorTexture;
+		PassParameters->ColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->DilationTexture = DilationTexture;
+		PassParameters->DilationTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->CaptureZ = Params.CaptureZ;
 		PassParameters->WaterHeightExtents = Params.WaterHeightExtents;
 		PassParameters->GroundZMin = Params.GroundZMin;

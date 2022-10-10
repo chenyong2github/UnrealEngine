@@ -4,8 +4,11 @@
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
 Texture2D<float4> DepthTexture;
+SamplerState DepthTextureSampler;
 Texture2D<float4> ColorTexture;
+SamplerState ColorTextureSampler;
 Texture2D<float4> DilationTexture;
+SamplerState DilationTextureSampler;
 
 
 float2 WaterHeightExtents;
@@ -49,11 +52,12 @@ void Main(
 	out float4 OutColor : SV_Target0
 	)
 {
-	const float4 SVPos = Input.Position;
-	uint2 TextureCoordinates = floor(SVPos.xy);
+	float4 ColorSample = ColorTexture.SampleLevel(ColorTextureSampler, Input.UV, 0);
+	float4 DepthSample = DepthTexture.SampleLevel(DepthTextureSampler, Input.UV, 0);
+	float4 DilationSample = DilationTexture.SampleLevel(DilationTextureSampler, Input.UV, 0);
 	
-	const FWaterColorPassResult WaterInfo = MakeWaterColorPassResult(ColorTexture.Load(int3(TextureCoordinates, 0)));
-	const float GroundDeviceDepth = DecodeFloatRGB(DepthTexture.Load(int3(TextureCoordinates, 0)).rgb);
+	const FWaterColorPassResult WaterInfo = MakeWaterColorPassResult(ColorSample);
+	const float GroundDeviceDepth = DecodeFloatRGB(DepthSample.rgb);
 	const float GroundSceneDepth = ConvertFromDeviceZ(GroundDeviceDepth);
 	
 	const float WaterSceneDepth = WaterInfo.SceneDepth;
@@ -87,7 +91,7 @@ void Main(
 	}
 	else
 	{
-		const float DilationDeviceDepth = DecodeFloatRGB(DilationTexture.Load(int3(TextureCoordinates, 0)).rgb);
+		const float DilationDeviceDepth = DecodeFloatRGB(DilationSample.rgb);
 		const float DilationSceneDepth = ConvertFromDeviceZ(DilationDeviceDepth);
 		const bool bPixelHasDilationData = DilationSceneDepth != 0.0;
 		
