@@ -101,7 +101,7 @@ public:
 	 * Create a platform handle for a platform config name. Config is loaded from .ini files if it was not added with AddPlatformConfig.
 	 * If a platform handle already exists for the config name, this will return a shared pointer to that handle and not create a new one.
 	 */
-	virtual IEOSPlatformHandlePtr CreatePlatform(const FString& PlatformConfigName) = 0;
+	virtual IEOSPlatformHandlePtr CreatePlatform(const FString& PlatformConfigName, FName InstanceName = NAME_None) = 0;
 
 	/** Create a platform handle using EOSSDK options directly. */
 	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions) = 0;

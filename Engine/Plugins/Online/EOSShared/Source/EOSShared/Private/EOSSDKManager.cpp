@@ -345,7 +345,7 @@ void FEOSSDKManager::SetDefaultPlatformConfigName(const FString& PlatformConfigN
 	}
 }
 
-IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const FString& PlatformConfigName)
+IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const FString& PlatformConfigName, FName InstanceName)
 {
 	if (PlatformConfigName.IsEmpty())
 	{
@@ -353,23 +353,31 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const FString& PlatformConf
 		return IEOSPlatformHandlePtr();
 	}
 
-	IEOSPlatformHandleWeakPtr* WeakPlatformHandle = PlatformHandles.Find(PlatformConfigName);
-	if (WeakPlatformHandle)
-	{
-		if (WeakPlatformHandle->IsValid())
-		{
-			UE_LOG(LogEOSSDK, Verbose, TEXT("Found existing platform handle: %s"), *PlatformConfigName);
-			return WeakPlatformHandle->Pin();
-		}
-
-		UE_LOG(LogEOSSDK, Verbose, TEXT("Removing stale platform handle pointer: %s"), *PlatformConfigName);
-		PlatformHandles.Remove(PlatformConfigName);
-	}
-
 	const FEOSSDKPlatformConfig* const PlatformConfig = GetPlatformConfig(PlatformConfigName, true);
 	if (!PlatformConfig)
 	{
 		return IEOSPlatformHandlePtr();
+	}
+
+	TMap<FName, IEOSPlatformHandleWeakPtr>* PlatformMap = PlatformHandles.Find(PlatformConfigName);
+	if (PlatformMap)
+	{
+		IEOSPlatformHandleWeakPtr* WeakPlatformHandle = PlatformMap->Find(InstanceName);
+		if (WeakPlatformHandle)
+		{
+			if (IEOSPlatformHandlePtr Pinned = WeakPlatformHandle->Pin())
+			{
+				UE_LOG(LogEOSSDK, Verbose, TEXT("Found existing platform handle: PlatformConfigName=%s InstanceName=%s"), *PlatformConfigName, *InstanceName.ToString());
+				return Pinned;
+			}
+
+			UE_LOG(LogEOSSDK, Verbose, TEXT("Removing stale platform handle pointer: PlatformConfigName=%s InstanceName=%s"), *PlatformConfigName, *InstanceName.ToString());
+			PlatformMap->Remove(InstanceName);
+		}
+	}
+	else
+	{
+		PlatformMap = &PlatformHandles.Emplace(PlatformConfigName);
 	}
 
 	const FTCHARToUTF8 Utf8ProductId(*PlatformConfig->ProductId);
@@ -415,8 +423,8 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const FString& PlatformConf
 	IEOSPlatformHandlePtr PlatformHandle = CreatePlatform(*PlatformConfig, PlatformOptions);
 	if (PlatformHandle.IsValid())
 	{
-		UE_LOG(LogEOSSDK, Verbose, TEXT("Created platform handle: %s"), *PlatformConfigName);
-		PlatformHandles.Emplace(PlatformConfigName, PlatformHandle);
+		UE_LOG(LogEOSSDK, Verbose, TEXT("Created platform handle: PlatformConfigName=%s InstanceName=%s"), *PlatformConfigName, *InstanceName.ToString());
+		PlatformMap->Emplace(InstanceName, PlatformHandle);
 	}
 
 	return PlatformHandle;

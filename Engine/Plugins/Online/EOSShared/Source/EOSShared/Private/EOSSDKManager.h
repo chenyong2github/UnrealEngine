@@ -37,7 +37,7 @@ public:
 	virtual const FString& GetDefaultPlatformConfigName() override;
 	virtual void SetDefaultPlatformConfigName(const FString& PlatformConfigName) override;
 
-	virtual IEOSPlatformHandlePtr CreatePlatform(const FString& PlatformConfigName) override;
+	virtual IEOSPlatformHandlePtr CreatePlatform(const FString& PlatformConfigName, FName InstanceName = NAME_None) override;
 	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions) override;
 
 	virtual FString GetProductName() const override;
@@ -103,7 +103,7 @@ protected:
 	/** Default platform config name to use. */
 	FString DefaultPlatformConfigName;
 	/** Cache of named platform handles that have been created. */
-	TMap<FString, IEOSPlatformHandleWeakPtr> PlatformHandles;
+	TMap<FString, TMap<FName, IEOSPlatformHandleWeakPtr>> PlatformHandles;
 
 	// Config
 	/** Interval between platform ticks. 0 means we tick every frame. */
