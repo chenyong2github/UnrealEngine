@@ -92,9 +92,9 @@ float3 LinearRGB_2_LAB( float3 LinearRGB, float3 ReferenceWhite )
 	float t_Y = XYZ.y / ReferenceWhite.y;
 	float t_Z = XYZ.z / ReferenceWhite.z;
 
-	float f_X = (t_X > XYZ_2_LAB_DELTA_CUBED) ? pow(t_X, 1.0 / 3.0) : xyz_otherwise(t_X);
-	float f_Y = (t_Y > XYZ_2_LAB_DELTA_CUBED) ? pow(t_Y, 1.0 / 3.0) : xyz_otherwise(t_Y);
-	float f_Z = (t_Z > XYZ_2_LAB_DELTA_CUBED) ? pow(t_Z, 1.0 / 3.0) : xyz_otherwise(t_Z);
+	float f_X = (t_X > XYZ_2_LAB_DELTA_CUBED) ? pow(max(t_X, XYZ_2_LAB_DELTA_CUBED), 1.0 / 3.0) : xyz_otherwise(t_X);
+	float f_Y = (t_Y > XYZ_2_LAB_DELTA_CUBED) ? pow(max(t_Y, XYZ_2_LAB_DELTA_CUBED), 1.0 / 3.0) : xyz_otherwise(t_Y);
+	float f_Z = (t_Z > XYZ_2_LAB_DELTA_CUBED) ? pow(max(t_Z, XYZ_2_LAB_DELTA_CUBED), 1.0 / 3.0) : xyz_otherwise(t_Z);
 
 	float L = ( 116.0 * f_Y ) - 16.0;
 	float a = 500.0 * ( f_X - f_Y );

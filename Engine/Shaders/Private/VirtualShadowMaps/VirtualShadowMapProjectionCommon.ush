@@ -107,7 +107,7 @@ FVirtualShadowMapSample SampleVirtualShadowMap(int VirtualShadowMapId, float2 Sh
 	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);
 	if (Page.bValid)
 	{
-		FVirtualShadowMapSample Result;
+		FVirtualShadowMapSample Result = InitVirtualShadowMapSample();
 		Result.bValid = true;
 		Result.MipLevel = Page.LODOffset;
 		Result.VirtualShadowMapId = VirtualShadowMapId;
@@ -382,7 +382,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 			{
 				int SampledClipmapIndex = SmSample.VirtualShadowMapId - VirtualShadowMapId;
 
-				FVirtualShadowMapSampleResult Result;
+				FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 				Result.bValid = true;
 				Result.ShadowFactor = 1.0f;
 				Result.OccluderDistance = -1.0f;
@@ -428,7 +428,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 		FVirtualShadowMapSample SmSample = SampleVirtualShadowMap(VirtualShadowMapId, ShadowUVz.xy);
 		if (SmSample.bValid)
 		{
-			FVirtualShadowMapSampleResult Result;
+			FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 			Result.bValid = true;
 			Result.ShadowFactor = 1.0f;
 			Result.OccluderDistance = -1.0f;

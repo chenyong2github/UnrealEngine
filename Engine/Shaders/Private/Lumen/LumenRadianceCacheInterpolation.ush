@@ -173,14 +173,21 @@ struct FRadianceCacheCoverage
 	bool bValid;
 };
 
+FRadianceCacheCoverage InitRadianceCacheCoverage()
+{
+	FRadianceCacheCoverage Out;
+	Out.ClipmapIndex = 0;
+	Out.MinTraceDistanceBeforeInterpolation = 10000000.0f;
+	Out.bValid = false;
+	return Out;
+}
+
 // Only positions that were marked during FMarkUsedRadianceCacheProbes can be queried, this version does not check if the position was marked correctly
 // See UnmappedDebugColor for visualizing these errors
 // GetRadianceCacheCoverageWithUncertainCoverage can be used for interpolating to positions with uncertain coverage
 FRadianceCacheCoverage GetRadianceCacheCoverage(float3 RayOrigin, float3 RayDirection, float ClipmapDitherRandom)
 {
-	FRadianceCacheCoverage Coverage;
-	Coverage.bValid = false;
-	Coverage.MinTraceDistanceBeforeInterpolation = 10000000.0f;
+	FRadianceCacheCoverage Coverage = InitRadianceCacheCoverage();
 
 	Coverage.ClipmapIndex = GetRadianceProbeClipmap(RayOrigin, ClipmapDitherRandom);
 

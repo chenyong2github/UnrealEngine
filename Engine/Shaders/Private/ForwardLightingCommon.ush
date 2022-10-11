@@ -362,7 +362,7 @@ half3 GetImageBasedReflectionSpecular(FMaterialPixelParameters MaterialParameter
 	
 	bUseLumenFrontLayerReflection = UseFrontLayerReflection(MaterialParameters.ViewBufferUV, MaterialParameters.ScreenPosition.w);
 
-	FRadianceCacheCoverage LumenRadianceCacheCoverage;
+	FRadianceCacheCoverage LumenRadianceCacheCoverage = InitRadianceCacheCoverage();
 	LumenRadianceCacheCoverage.bValid = false;
 
 	// Lumen Radiance Cache for reflections on translucency
