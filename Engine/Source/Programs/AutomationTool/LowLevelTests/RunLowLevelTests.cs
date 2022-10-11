@@ -84,7 +84,7 @@ namespace LowLevelTests
 
 		private bool ExecuteTest(LowLevelTestExecutorOptions Options, ITestNode LowLevelTestNode)
 		{
-			var Executor = new TextExecutor();
+			var Executor = new TestExecutor(ToString());
 
 			try
 			{

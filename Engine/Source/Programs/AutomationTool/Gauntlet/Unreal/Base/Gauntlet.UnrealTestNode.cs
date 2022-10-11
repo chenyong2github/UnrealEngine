@@ -279,14 +279,19 @@ namespace Gauntlet
 		}
 
 		/// <summary>
-		/// Used to track how much of our app log has been written out
+		/// Used to track how much of our server log has been written out
 		/// </summary>
-		private int LastAppLogCount;
+		private int LastServerLogCount = 0;
+
+		/// <summary>
+		/// Used to track how much of our client log has been written out
+		/// </summary>
+		private int LastClientLogCount = 0;
 
 		/// <summary>
 		/// Used to track how much of our editor log has been written out
 		/// </summary>
-		private int LastEditorLogCount;
+		private int LastEditorLogCount = 0;
 
 		private int CurrentPass;
 
@@ -367,7 +372,8 @@ namespace Gauntlet
 
 			UnrealTestResult = TestResult.Invalid;
 			TimeToWaitForProcesses = 5;
-			LastAppLogCount = 0;
+			LastServerLogCount = 0;
+			LastClientLogCount = 0;
 			LastEditorLogCount = 0;
 			CurrentPass = 0;
 			NumPasses = 0;
@@ -762,7 +768,8 @@ namespace Gauntlet
 			UnrealTestResult = TestResult.Invalid;
 			CurrentPass = Pass;
 			NumPasses = InNumPasses;
-			LastAppLogCount = 0;
+			LastServerLogCount = 0;
+			LastClientLogCount = 0;
 			LastEditorLogCount = 0;
 			LastHeartbeatTime = DateTime.MinValue;
 			LastActiveHeartbeatTime = DateTime.MinValue;
@@ -853,6 +860,59 @@ namespace Gauntlet
 			});
 		}
 
+		public override string GetRunLocalCommand(string LaunchingBuildCommand)
+		{
+			string[] ArgsToNotDisplay =
+			{
+					"test",
+					"tests",
+					"tempdir",
+					"logdir",
+					"branch",
+					"changelist",
+					"JobDetails",
+					"RecordDeviceUsage",
+					"uploadreport",
+					"skipdashboardsubmit",
+			};
+
+			bool ShouldArgBeDisplayed(string InArg)
+			{
+				return !ArgsToNotDisplay.Any(str => InArg.StartsWith(str));
+			}
+			
+			string WrapParameterInQuotes(string InString)
+			{
+				var positionOfEqual = InString.IndexOf("=");
+				if (positionOfEqual > 0)
+				{
+					var ParamStrName = InString.Substring(0, positionOfEqual);
+					var ParamStrValue = InString.Substring(positionOfEqual+1);
+					int n;
+					if (int.TryParse(ParamStrValue, out n))
+					{
+						return InString;
+					}
+					else
+					{
+						return string.Format("{0}=\"{1}\"", ParamStrName, ParamStrValue);
+					}
+				}
+				else
+				{
+					return InString;
+				}
+			}
+
+			var CleanedArgs = Context.TestParams.AllArguments.Where(arg => ShouldArgBeDisplayed(arg));
+			CleanedArgs = CleanedArgs.Select(str => WrapParameterInQuotes(str));
+
+			string StringOfCleanedArguments = string.Format("-{0}", string.Join(" -", CleanedArgs));
+			string CommandToRunLocally =
+				string.Format("RunUAT {0} {1} {2}", LaunchingBuildCommand, GetType(), StringOfCleanedArguments);
+			return CommandToRunLocally;
+		}
+
 		/// <summary>
 		/// Cleanup all resources
 		/// </summary>
@@ -892,7 +952,8 @@ namespace Gauntlet
 			SessionArtifacts = Enumerable.Empty<UnrealRoleArtifacts>();
 			RoleResults = Enumerable.Empty<UnrealRoleResult>();
 
-			LastAppLogCount = 0;
+			LastServerLogCount = 0;
+			LastClientLogCount = 0;
 			LastEditorLogCount = 0;
 			LastHeartbeatTime = DateTime.MinValue;
 			LastActiveHeartbeatTime = DateTime.MinValue;
@@ -921,22 +982,6 @@ namespace Gauntlet
 		/// <param name="InInstance">The Unrealnstance being tested</param>
 		public virtual void TickTest(UnrealSessionInstance InInstance)
 		{
-			IAppInstance App = null;
-			string AppInfoPrefix = "App";
-			if (InInstance.ClientApps == null)
-			{
-				App = InInstance.ServerApp;
-				AppInfoPrefix = "Server";
-			}
-			else
-			{
-				if (InInstance.ClientApps.Length > 0)
-				{
-					App = InInstance.ClientApps.First();
-					AppInfoPrefix = "Client";
-				}
-			}
-
 			List<string> LogCategories = new List<string>();
 			LogCategories.Add("Gauntlet");
 			{
@@ -946,50 +991,56 @@ namespace Gauntlet
 			}
 			LogCategories = LogCategories.Distinct().ToList();
 
-
-			if (App != null)
+			void LogHeartbeatCategories(ref int LastLogCount, IAppInstance App, string AppPrefix, bool bUpdateHeartbeatTime)
 			{
-				UnrealLogParser Parser = new UnrealLogParser(App.StdOut);
-				List<string> TestLines = new List<string>();
-				// ONLY ADD RANGE ONCE. Ordering is important and will be skewed if multiple ranges are added which can skew how logs are pulled out.
-				TestLines.AddRange(Parser.GetLogChannels(LogCategories, true));
-
-				for (int i = LastAppLogCount; i < TestLines.Count(); i++)
+				if (App != null)
 				{
-					Log.Info(string.Format("{0}: {1}", AppInfoPrefix, TestLines[i]));
+					UnrealLogParser Parser = new UnrealLogParser(App.StdOut);
+					List<string> TestLines = new List<string>();
+					// ONLY ADD RANGE ONCE. Ordering is important and will be skewed if multiple ranges are added which can skew how logs are pulled out.
+					TestLines.AddRange(Parser.GetLogChannels(LogCategories, true));
 
-					if (Regex.IsMatch(TestLines[i], @".*GauntletHeartbeat\: Active.*"))
+					for (int i = LastLogCount; i < TestLines.Count(); i++)
 					{
-						LastHeartbeatTime = DateTime.Now;
-						LastActiveHeartbeatTime = DateTime.Now;
+						Log.Info(string.Format("{0}: {1}", AppPrefix, TestLines[i]));
+
+						if (bUpdateHeartbeatTime)
+						{
+							if (Regex.IsMatch(TestLines[i], @".*GauntletHeartbeat\: Active.*"))
+							{
+								LastHeartbeatTime = DateTime.Now;
+								LastActiveHeartbeatTime = DateTime.Now;
+							}
+							else if (Regex.IsMatch(TestLines[i], @".*GauntletHeartbeat\: Idle.*"))
+							{
+								LastHeartbeatTime = DateTime.Now;
+							}
+						}
 					}
-					else if (Regex.IsMatch(TestLines[i], @".*GauntletHeartbeat\: Idle.*"))
-					{
-						LastHeartbeatTime = DateTime.Now;
-					}
+
+					LastLogCount = TestLines.Count();
 				}
-
-				LastAppLogCount = TestLines.Count();
-
-				// Detect missed heartbeats and fail the test
-				CheckHeartbeat();
 			}
 
-			IAppInstance EditorApp = InInstance.EditorApp;
-			if (EditorApp != null)
+			if (InInstance.ServerApp != null)
 			{
-				UnrealLogParser Parser = new UnrealLogParser(EditorApp.StdOut);
-				List<string> TestLines = new List<string>();
-				// ONLY ADD RANGE ONCE. Ordering is important and will be skewed if multiple ranges are added which can skew how logs are pulled out.
-				TestLines.AddRange(Parser.GetLogChannels(LogCategories, true));
+				bool bUpdateHeartbeat = InInstance.ClientApps == null;
+				LogHeartbeatCategories(ref LastServerLogCount, InInstance.ServerApp, "Server", bUpdateHeartbeat);
+			}
+			if (InInstance.ClientApps.Length > 0)
+			{
+				bool bUpdateHeartbeat = true;
+				LogHeartbeatCategories(ref LastClientLogCount, InInstance.ClientApps.First(), "Client", bUpdateHeartbeat);
+			}
 
-				for (int i = LastEditorLogCount; i < TestLines.Count(); i++)
-				{
-					Log.Info(string.Format("Editor: {0}", TestLines[i]));
-				}
+			if (InInstance.EditorApp != null)
+			{
+				bool bUpdateHeartbeat = false;
+				LogHeartbeatCategories(ref LastEditorLogCount, InInstance.EditorApp, "Editor", bUpdateHeartbeat);
+			}
 
-				LastEditorLogCount = TestLines.Count();
-			}			
+			// Detect missed heartbeats and fail the test
+			CheckHeartbeat();		
 		}
 
 		/// <summary>

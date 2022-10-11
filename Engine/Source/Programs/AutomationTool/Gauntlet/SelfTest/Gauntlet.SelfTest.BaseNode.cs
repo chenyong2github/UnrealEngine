@@ -87,6 +87,12 @@ namespace Gauntlet.SelfTest
 			return new string[0];
 		}
 
+		public virtual string GetRunLocalCommand(string LaunchingBuildCommand)
+		{
+			string CommandToRunLocally =
+				string.Format("RunUAT {0} -Test={1} ", LaunchingBuildCommand, GetType());
+			return CommandToRunLocally;
+		}
 
 		public virtual ITestNode[] GetSubTests()
 		{

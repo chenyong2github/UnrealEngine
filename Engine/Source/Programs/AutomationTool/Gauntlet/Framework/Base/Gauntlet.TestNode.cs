@@ -217,6 +217,11 @@ namespace Gauntlet
 		IEnumerable<string> GetErrors();
 
 		/// <summary>
+		/// returns a string that will be how to run this test locally with RunUAT.bat
+		/// </summary>
+		string GetRunLocalCommand(string LaunchingBuildCommand);
+
+		/// <summary>
 		/// Called to request any that any necessary cleanup be performed. After CleanupTest is called no further calls will be
 		/// made to this test and thus all resources should be released.
 		/// </summary>

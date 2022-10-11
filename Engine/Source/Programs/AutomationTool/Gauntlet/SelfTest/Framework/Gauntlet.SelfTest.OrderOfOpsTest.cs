@@ -175,6 +175,13 @@ namespace Gauntlet.SelfTest
 		{
 		}
 
+		public virtual string GetRunLocalCommand(string LaunchingBuildCommand)
+		{
+			string CommandToRunLocally =
+				string.Format("RunUAT {0} -Test={1} ", LaunchingBuildCommand, GetType());
+			return CommandToRunLocally;
+		}
+
 		public void CleanupTest()
 		{
 			SetNewStage(TestStages.CleanupTest);

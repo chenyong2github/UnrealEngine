@@ -34,7 +34,7 @@ namespace Gauntlet
 	/// <summary>
 	/// Class that is manages the creation and execution of one or more tests
 	/// </summary>
-	public class TextExecutor
+	public class TestExecutor
 	{
 		class TestExecutionInfo
 		{
@@ -54,7 +54,7 @@ namespace Gauntlet
 			public ExecutionResult	Result;
 			public TestResult		FinalResult;
 			public string			CancellationReason;
-
+			
 			/// <summary>
 			/// Time the test had to wait before running
 			/// </summary>
@@ -91,15 +91,20 @@ namespace Gauntlet
 
 		TestExecutorOptions Options;
 
+		protected string BuildCommandThatLaunchedExecutor;
+
 		public bool IsRunning { get; private set; }
 		public bool IsCancelled { get; private set; }
 		protected bool HaveReceivedPostAbort { get; private set; }
 
 		/// <summary>
 		/// Constructor that fills in some member variables
+		/// @Param the BuildCommand that was used to start this Test Executor.
+		/// Useful to log out or know where this test executor came from.
 		/// </summary>
-		public TextExecutor()
+		public TestExecutor(string InBuildCommand)
 		{
+			BuildCommandThatLaunchedExecutor = InBuildCommand;
 			RunningTests = new List<TestExecutionInfo>();
 		}
 
@@ -612,6 +617,9 @@ namespace Gauntlet
 				}
 			}
 
+			// display how the test could be ran locally
+			string RunLocalString = TestInfo.TestNode.GetRunLocalCommand(BuildCommandThatLaunchedExecutor);
+			Log.Info("How to run locally: ({0})", RunLocalString);
 		}
 
 		/// <summary>

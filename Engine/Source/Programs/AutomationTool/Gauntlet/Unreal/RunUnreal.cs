@@ -4,15 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using AutomationTool;
 using AutomationTool.DeviceReservation;
 using UnrealBuildTool;
-using Gauntlet;
 using System.IO;
-using Newtonsoft.Json;
-using System.Reflection;
-using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 
@@ -65,7 +60,6 @@ namespace Gauntlet
 	[ParamHelp("Namespaces", "Comma-separated list of namespaces to check for tests.", MultiSelectSeparator = ",")]
 	public class RunUnreal : BuildCommand
 	{
-
 		/// <summary>
 		/// Test node to create if none were specified
 		/// </summary>
@@ -322,8 +316,8 @@ namespace Gauntlet
 		bool ExecuteTests(UnrealTestOptions Options, IEnumerable<ITestNode> TestList)
 		{
 			// Create the test executor
-			var Executor = new TextExecutor();
-			
+			var Executor = new TestExecutor(ToString());
+
 			try
 			{
 				bool Result = Executor.ExecuteTests(Options, TestList);
