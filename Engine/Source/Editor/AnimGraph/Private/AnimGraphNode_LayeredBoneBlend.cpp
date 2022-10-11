@@ -221,8 +221,10 @@ void UAnimGraphNode_LayeredBoneBlend::PostLoad()
 		int32 NumBlendMasks = Node.BlendMasks.Num();
 		for (int32 MaskIndex = 0; MaskIndex < NumBlendMasks; ++MaskIndex)
 		{
-			UBlendProfile* BlendMask = Node.BlendMasks[MaskIndex];
-			BlendMask->ConditionalPostLoad();
+			if(UBlendProfile* BlendMask = Node.BlendMasks[MaskIndex])
+			{
+				BlendMask->ConditionalPostLoad();
+			}
 		}
 	}
 }
