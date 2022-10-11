@@ -279,10 +279,8 @@ void UVCamPixelStreamingSession::StartCapture()
 		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
 		{
 			// Apply the override resolution if applicable
-			if (bUseOverrideResolution)
-			{
-				PinnedSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
-			}
+			UpdateOverrideResolution(bUseOverrideResolution, PinnedSceneViewport);
+			
 			MediaCapture->CaptureSceneViewport(PinnedSceneViewport, Options);
 			UE_LOG(LogPixelStreamingVCam, Log, TEXT("PixelStreaming set to capture scene viewport."));
 		}
@@ -336,14 +334,7 @@ void UVCamPixelStreamingSession::Deactivate()
 	}
 
 	// Remove the override resolution
-	if (bUseOverrideResolution)
-	{
-		TWeakPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
-		if (TSharedPtr<FSceneViewport> PinnedSceneViewport = SceneViewport.Pin())
-		{
-			PinnedSceneViewport->SetFixedViewportSize(0, 0);
-		}
-	}
+	UpdateOverrideResolution(false);
 
 	Super::Deactivate();
 	if (bUsingDummyUMG)
@@ -366,13 +357,19 @@ void UVCamPixelStreamingSession::Tick(const float DeltaTime)
 void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
+	const FName PropertyName = Property->GetFName();
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
+		static FName NAME_UseOverrideResolution = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, bUseOverrideResolution);
 		
-		if (Property->GetFName() == NAME_FromComposureOutputProviderIndex)
+		if (PropertyName == NAME_FromComposureOutputProviderIndex)
 		{
 			SetActive(false);
+		}
+		else if (PropertyName == NAME_UseOverrideResolution)
+		{
+			UpdateOverrideResolution(bUseOverrideResolution);
 		}
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -387,6 +384,27 @@ TWeakPtr<SWindow> UVCamPixelStreamingSession::GetTargetInputWindow() const
 		InputWindow = OuterComponent->GetTargetInputWindow();
 	}
 	return InputWindow;
+}
+
+void UVCamPixelStreamingSession::UpdateOverrideResolution(bool bApplyOverride) const
+{
+	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetTargetSceneViewport())
+	{
+		UpdateOverrideResolution(bApplyOverride, TargetSceneViewport);
+	}
+}
+
+void UVCamPixelStreamingSession::UpdateOverrideResolution(bool bApplyOverride, const TSharedPtr<FSceneViewport>& SceneViewport) const
+{
+	// Apply the override resolution if requested otherwise remove any existing override
+	if (bApplyOverride)
+	{
+		SceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
+	}
+	else
+	{
+		SceneViewport->SetFixedViewportSize(0, 0);
+	}
 }
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PixelStreamingVCam)
