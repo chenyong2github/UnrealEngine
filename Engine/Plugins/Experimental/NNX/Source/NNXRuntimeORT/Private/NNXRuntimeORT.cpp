@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NNXRuntimeORT.h"
 
+#include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
+
 #include "NeuralTimer.h"
 #include "NNXRuntimeORTUtils.h"
 #include "RedirectCoutAndCerrToUeLog.h"
@@ -455,4 +458,38 @@ bool FMLInferenceModelORTDml::InitializedAndConfigureMembers()
 
 	return true;
 }
+
+IRuntime* NNX::FRuntimeORTDMLStartup()
+{
+	if (!GORTDMLRuntime)
+	{
+		// In order to register DirectML we need D3D12
+		bool	bHasD3D12Config = false;
+		bool	bHasD3D12RHI = false;
+		FString DefaultGraphicsRHI;
+
+		if (GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI, GEngineIni))
+		{
+			bHasD3D12Config = DefaultGraphicsRHI == TEXT("DefaultGraphicsRHI_DX12");
+		}
+
+		// We need to check if RHI is forced to D3D12
+		if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12)
+		{
+			bHasD3D12RHI = true;
+		}
+
+		if (bHasD3D12Config && bHasD3D12RHI)
+		{
+			GORTDMLRuntime = FRuntimeORTDMLCreate();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	return GORTDMLRuntime.Get();
+};
+
 #endif

@@ -140,14 +140,7 @@ namespace NNX
 		return GORTCUDARuntime.Get();
 	};
 
-	inline IRuntime* FRuntimeORTDMLStartup()
-	{
-		if (!GORTDMLRuntime)
-		{
-			GORTDMLRuntime = FRuntimeORTDMLCreate();
-		}
-		return GORTDMLRuntime.Get();
-	};
+	extern IRuntime* FRuntimeORTDMLStartup();
 #endif
 
 	inline void FRuntimeORTCPUShutdown()
