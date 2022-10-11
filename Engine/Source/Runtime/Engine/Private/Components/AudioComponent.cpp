@@ -466,7 +466,9 @@ void UAudioComponent::PlayQuantized(
 	//Initialize the tickable object portion of the Audio Component, if it hasn't been initialized already
 	if (!FQuartzTickableObject::IsInitialized())
 	{
-		Init(GetWorld());
+		// if the WorldContextObject is null, attempt to fallback on our world
+		// (call to Init() will ensure on a valid world)
+		Init(WorldContextObject ? WorldContextObject->GetWorld() : GetWorld());
 	}
 	check(FQuartzTickableObject::IsInitialized());
 
