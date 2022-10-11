@@ -609,7 +609,7 @@ void UPatternTool::Setup()
 		}
 	});
 
-	// Initialize StartScaleDirection and EndScaleDirection
+	// Initialize StartScaleDirection, EndScaleDirection, and JitterScaleDirection
 	OnUniformChanged(true);
 	
 	OutputSettings = NewObject<UPatternTool_OutputSettings>();
