@@ -240,16 +240,24 @@ static bool bRefreshRayTracingInstances = false;
 static void RefreshRayTracingInstancesSinkFunction()
 {
 	static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
+	static const auto RayTracingHISMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.HierarchicalInstancedStaticMesh"));
 	static const auto RayTracingNaniteProxiesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.NaniteProxies"));
+	static const auto RayTracingLandscapeGrassCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.LandscapeGrass"));
 
 	static int32 CachedRayTracingStaticMeshes = RayTracingStaticMeshesCVar->GetValueOnGameThread();
+	static int32 CachedRayTracingHISM = RayTracingHISMCVar->GetValueOnGameThread();
 	static int32 CachedRayTracingNaniteProxies = RayTracingNaniteProxiesCVar->GetValueOnGameThread();
+	static int32 CachedRayTracingLandscapeGrass = RayTracingLandscapeGrassCVar->GetValueOnGameThread();
 
 	const int32 RayTracingStaticMeshes = RayTracingStaticMeshesCVar->GetValueOnGameThread();
+	const int32 RayTracingHISM = RayTracingHISMCVar->GetValueOnGameThread();
 	const int32 RayTracingNaniteProxies = RayTracingNaniteProxiesCVar->GetValueOnGameThread();
+	const int32 RayTracingLandscapeGrass = RayTracingLandscapeGrassCVar->GetValueOnGameThread();
 
 	if (RayTracingStaticMeshes != CachedRayTracingStaticMeshes
-		|| RayTracingNaniteProxies != CachedRayTracingNaniteProxies)
+		|| RayTracingHISM != CachedRayTracingHISM
+		|| RayTracingNaniteProxies != CachedRayTracingNaniteProxies
+		|| RayTracingLandscapeGrass != CachedRayTracingLandscapeGrass)
 	{
 		ENQUEUE_RENDER_COMMAND(RefreshRayTracingInstancesCmd)(
 			[](FRHICommandListImmediate&)
@@ -259,7 +267,9 @@ static void RefreshRayTracingInstancesSinkFunction()
 		);
 
 		CachedRayTracingStaticMeshes = RayTracingStaticMeshes;
+		CachedRayTracingHISM = RayTracingHISM;
 		CachedRayTracingNaniteProxies = RayTracingNaniteProxies;
+		CachedRayTracingLandscapeGrass = RayTracingLandscapeGrass;
 	}
 }
 

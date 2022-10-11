@@ -236,6 +236,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer(false)
 ,	bVFRequiresPrimitiveUniformBuffer(true)
 ,	bIsNaniteMesh(false)
+,	bIsHierarchicalInstancedStaticMesh(false)
+,	bIsLandscapeGrass(false)
 ,	bSupportsGPUScene(false)
 ,	bHasDeformableMesh(true)
 ,	bSupportsInstanceDataBuffer(false)
@@ -1481,18 +1483,29 @@ ERayTracingPrimitiveFlags FPrimitiveSceneProxy::GetCachedRayTracingInstance(FRay
 		return ERayTracingPrimitiveFlags::UnsupportedProxyType;
 	}
 
-	bool bShouldBeVisibleInRayTracing = (IsVisibleInRayTracing() && ShouldRenderInMainPass() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) || IsRayTracingFarField();
+	if (!(IsVisibleInRayTracing() && ShouldRenderInMainPass() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) && !IsRayTracingFarField())
+	{
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
 
 	static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
 
 	if (IsRayTracingStaticRelevant() && RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() <= 0)
 	{
-		bShouldBeVisibleInRayTracing = false;
+		return ERayTracingPrimitiveFlags::Excluded;
 	}
 
-	if (!bShouldBeVisibleInRayTracing)
+	static const auto RayTracingHISMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.HierarchicalInstancedStaticMesh"));
+
+	if (bIsHierarchicalInstancedStaticMesh && RayTracingHISMCVar && RayTracingHISMCVar->GetValueOnRenderThread() <= 0)
 	{
-		// Exclude this proxy
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	static const auto RayTracingLandscapeGrassCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.LandscapeGrass"));
+
+	if (bIsLandscapeGrass && RayTracingLandscapeGrassCVar && RayTracingLandscapeGrassCVar->GetValueOnRenderThread() <= 0)
+	{
 		return ERayTracingPrimitiveFlags::Excluded;
 	}
 

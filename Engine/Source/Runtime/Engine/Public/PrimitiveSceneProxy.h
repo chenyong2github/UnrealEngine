@@ -1235,6 +1235,12 @@ protected:
 	/** Whether this proxy is a Nanite mesh. */
 	uint8 bIsNaniteMesh : 1;
 
+	/** Whether the primitive is a HierarchicalInstancedStaticMesh. */
+	uint8 bIsHierarchicalInstancedStaticMesh : 1;
+
+	/** Whether the primitive is landscape grass. */
+	uint8 bIsLandscapeGrass : 1;
+
 	/** True if all meshes (AKA all vertex factories) drawn by this proxy support GPU scene (default is false). */
 	uint8 bSupportsGPUScene : 1;
 

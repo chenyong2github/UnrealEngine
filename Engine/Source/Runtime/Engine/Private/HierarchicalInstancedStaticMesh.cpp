@@ -133,6 +133,13 @@ static TAutoConsoleVariable<int32> CVarFoliageUseInstanceRuns(
 	0,
 	TEXT("Whether to use the InstanceRuns feature of FMeshBatch to compress foliage draw call data sent to the renderer.  Not supported by the Mesh Draw Command pipeline."));
 
+#if RHI_RAYTRACING
+static TAutoConsoleVariable<int32> CVarRayTracingHISM(
+	TEXT("r.RayTracing.Geometry.HierarchicalInstancedStaticMesh"),
+	1,
+	TEXT("Include HISM in ray tracing effects (default = 1)"));
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Traversal Time"),STAT_FoliageTraversalTime,STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Build Time"), STAT_FoliageBuildTime, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Batch Time"),STAT_FoliageBatchTime,STATGROUP_Foliage);
@@ -847,6 +854,9 @@ FHierarchicalStaticMeshSceneProxy::FHierarchicalStaticMeshSceneProxy(UHierarchic
 {
 	SetupOcclusion(InComponent);
 	bSupportsMeshCardRepresentation = false;
+
+	bIsHierarchicalInstancedStaticMesh = true;
+	bIsLandscapeGrass = (ViewRelevance == EHISMViewRelevanceType::Grass);
 }
 
 void FHierarchicalStaticMeshSceneProxy::SetupOcclusion(UHierarchicalInstancedStaticMeshComponent* InComponent)

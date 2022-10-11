@@ -885,10 +885,13 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 : FSceneProxy(static_cast<UInstancedStaticMeshComponent*>(Component))
 {
+	bIsHierarchicalInstancedStaticMesh = true;
+
 	switch (Component->GetViewRelevanceType())
 	{
 	case EHISMViewRelevanceType::Grass:
 		FilterFlags = EFilterFlags::Grass;
+		bIsLandscapeGrass = true;
 		break;
 	case EHISMViewRelevanceType::Foliage:
 		FilterFlags = EFilterFlags::Foliage;
@@ -1670,8 +1673,26 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance)
 {
-	const bool bShouldRender = (IsVisibleInRayTracing() && ShouldRenderInMainPass() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) || IsRayTracingFarField();
-	if (CVarRayTracingNaniteProxyMeshes.GetValueOnRenderThread() == 0 || !bHasRayTracingInstances || !bShouldRender)
+	if (!(IsVisibleInRayTracing() && ShouldRenderInMainPass() && (IsDrawnInGame() || AffectsIndirectLightingWhileHidden())) && !IsRayTracingFarField())
+	{
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	if (CVarRayTracingNaniteProxyMeshes.GetValueOnRenderThread() == 0 || !bHasRayTracingInstances)
+	{
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	static const auto RayTracingHISMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.HierarchicalInstancedStaticMesh"));
+
+	if (bIsHierarchicalInstancedStaticMesh && RayTracingHISMCVar && RayTracingHISMCVar->GetValueOnRenderThread() <= 0)
+	{
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	static const auto RayTracingLandscapeGrassCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.LandscapeGrass"));
+
+	if (bIsLandscapeGrass && RayTracingLandscapeGrassCVar && RayTracingLandscapeGrassCVar->GetValueOnRenderThread() <= 0)
 	{
 		return ERayTracingPrimitiveFlags::Excluded;
 	}

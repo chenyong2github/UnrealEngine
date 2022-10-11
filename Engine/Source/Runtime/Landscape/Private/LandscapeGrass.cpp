@@ -192,6 +192,13 @@ static FAutoConsoleVariableRef CVarCaptureNextGrassUpdate(
 	GCaptureNextGrassUpdate,
 	TEXT("Trigger a renderdoc capture for the next X grass updates (calls to RenderGrassMap or RenderGrassMaps"));
 
+#if RHI_RAYTRACING
+static TAutoConsoleVariable<int32> CVarRayTracingLandscapeGrass(
+	TEXT("r.RayTracing.Geometry.LandscapeGrass"),
+	1,
+	TEXT("Include landscapes grass in ray tracing effects (default = 1)"));
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Grass Async Build Time"), STAT_FoliageGrassAsyncBuildTime, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass Start Comp"), STAT_FoliageGrassStartComp, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass End Comp"), STAT_FoliageGrassEndComp, STATGROUP_Foliage);
