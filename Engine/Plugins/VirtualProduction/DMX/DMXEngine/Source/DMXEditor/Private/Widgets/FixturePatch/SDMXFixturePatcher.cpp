@@ -248,6 +248,7 @@ void SDMXFixturePatcher::OnDragEnterChannel(int32 UniverseID, int32 ChannelID, c
 					return ClampStartingChannel(StartingChannel, ChannelSpan);
 				}();
 
+
 				// Patch the node but do not transact it (transact on drop instead)
 				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
 
@@ -480,23 +481,12 @@ void SDMXFixturePatcher::OnUniverseSelectionChanged()
 {
 	if (IsUniverseSelectionEnabled())
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
-			{
-				ShowSelectedUniverse();
-			}));
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXFixturePatcher::ShowSelectedUniverse));
 	}
 	else 
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
-			{
-				ShowAllPatchedUniverses();
-
-				const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
-				if (PatchedUniversesByID.Contains(SelectedUniverse))
-				{
-					PatchedUniverseScrollBox->ScrollDescendantIntoView(PatchedUniversesByID[SelectedUniverse]);
-				}
-			}));
+		constexpr bool bReconstructWidgets = false;
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXFixturePatcher::ShowAllPatchedUniverses, bReconstructWidgets));
 	}
 }
 
@@ -598,6 +588,12 @@ void SDMXFixturePatcher::ShowAllPatchedUniverses(bool bForceReconstructWidget)
 	
 		int32 FirstEmptyUniverse = LastPatchedUniverseID + 1;
 		AddUniverse(FirstEmptyUniverse);
+
+		const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
+		if (PatchedUniversesByID.Contains(SelectedUniverse))
+		{
+			PatchedUniverseScrollBox->ScrollDescendantIntoView(PatchedUniversesByID[SelectedUniverse]);
+		}
 	}
 }
 

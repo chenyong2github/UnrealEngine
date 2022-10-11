@@ -112,24 +112,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SDMXPatchedUniverse::RequestRefresh()
 {
-	GEditor->GetTimerManager()->SetTimerForNextTick(
-		FTimerDelegate::CreateLambda([this]()
-			{
-				RefreshInternal();
-			})
-	);
-}
-
-void SDMXPatchedUniverse::SetShowUniverseName(bool bShow)
-{
-	if (bShow)
-	{
-		UniverseName->SetVisibility(EVisibility::Visible);
-	}
-	else
-	{
-		UniverseName->SetVisibility(EVisibility::Collapsed);
-	}
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXPatchedUniverse::RefreshInternal));
 }
 
 void SDMXPatchedUniverse::CreateChannelConnectors()
@@ -175,19 +158,10 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 		return false;
 	}
 
+	PatchedNodes.AddUnique(Node);
+
 	const int32 NewChannelSpan = FixturePatch->GetChannelSpan();
-
-	// Unpatch from the old universe
-	if (const TSharedPtr<SDMXPatchedUniverse>& OldUniverseWidget = Node->GetUniverseWidget())
-	{
-		OldUniverseWidget->Unpatch(Node);
-	}
-
-	// Assign the node to this universe
-	check(!PatchedNodes.Contains(Node));
-	PatchedNodes.Add(Node);
-
-	Node->SetAddresses(SharedThis(this), NewStartingChannel, NewChannelSpan, bCreateTransaction);
+	Node->SetAddresses(UniverseID, NewStartingChannel, NewChannelSpan, bCreateTransaction);
 	RequestRefresh();
 
 	return true;
@@ -294,6 +268,28 @@ TSharedPtr<FDMXFixturePatchNode> SDMXPatchedUniverse::FindPatchNodeOfType(UDMXEn
 	return nullptr;
 }
 
+void SDMXPatchedUniverse::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) 
+{
+	TArray<TSharedPtr<FDMXFixturePatchNode>> RemovedNodes;
+	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
+	{
+		if (Node->GetUniverseID() != UniverseID)
+		{
+			RemovedNodes.Add(Node);
+		}
+		else if (Node->NeedsUpdateGrid())
+		{
+			RequestRefresh();
+			break;
+		}
+	}
+
+	for (const TSharedPtr<FDMXFixturePatchNode>& RemovedNode : RemovedNodes)
+	{
+		Unpatch(RemovedNode);
+	}
+}
+
 void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
 {
 	check(Node.IsValid());
@@ -316,31 +312,24 @@ void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
 
 void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
-	// Keep track of Universe Changes
-	const TSharedPtr<FDMXFixturePatchNode>* NodePtr = PatchedNodes.FindByPredicate([FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node)
-		{
-			return Node->GetFixturePatch() == FixturePatch;
-		});
-	if (!NodePtr)
+	if (!FixturePatch)
 	{
 		return;
 	}
 
-	const bool bMovedToOtherUniverse = FixturePatch->GetUniverseID() != UniverseID;
-	const bool bExceedsUniverse = FixturePatch->GetChannelSpan() > DMX_MAX_ADDRESS;
-	if (bMovedToOtherUniverse || bExceedsUniverse)
+	const int32 UniverseIDOfFixturePatch = FixturePatch->GetUniverseID();
+	if (UniverseIDOfFixturePatch == UniverseID)
 	{
-		// Patch was moved out of this universe
-		Unpatch(*NodePtr);
-	}
-	else if (UniverseID == FixturePatch->GetUniverseID())
-	{
-		// Patch was moved to this universe
-		SharedData->SelectUniverse(UniverseID);
-	}
-	else if ((*NodePtr)->NeedsUpdateGrid())
-	{
-		RequestRefresh();
+		const TSharedPtr<FDMXFixturePatchNode>* NodePtr = PatchedNodes.FindByPredicate([FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node)
+			{
+				return Node->GetFixturePatch() == FixturePatch;
+			});
+
+		// Redraw all if the patch cannot be found.
+		if (!NodePtr)
+		{
+			SetUniverseIDInternal(UniverseID);
+		}
 	}
 }
 
@@ -419,6 +408,12 @@ void SDMXPatchedUniverse::RefreshInternal()
 	TMap<int32, TArray<TSharedPtr<FDMXFixturePatchNode>>> AddressToNodeGroupMap;
 	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
 	{
+		if (Node->GetChannelSpan() == 0 || Node->GetChannelSpan() > DMX_MAX_ADDRESS)
+		{
+			// Ignore nodes without or with excess channelspan, they're not displayed in UI either
+			continue;
+		}
+
 		const int32 Address = Node->GetStartingChannel();
 		AddressToNodeGroupMap.FindOrAdd(Address).Add(Node);
 	}
@@ -543,7 +538,7 @@ FText SDMXPatchedUniverse::GetHeaderText() const
 	switch (PatchedUniverseReachability)
 	{
 		case EDMXPatchedUniverseReachability::Reachable:
-			return FText::GetEmpty();
+			return FText::Format(LOCTEXT("UniverseIDLabel", "Universe {0}"), UniverseID);
 
 		case EDMXPatchedUniverseReachability::UnreachableForInputPorts:
 			return FText::Format(LOCTEXT("UnreachableForInputPorts", "Universe {0} - Unreachable by Input Ports"), UniverseID);

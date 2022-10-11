@@ -109,6 +109,11 @@ public:
 	/** Gets all nodes patched to this universe */
 	const TArray<TSharedPtr<FDMXFixturePatchNode>>& GetPatchedNodes() const { return PatchedNodes; }
 
+protected:
+	//~ Begin SWidget Interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	//~ End SWidget Interface
+
 private:
 	/** Removes the node. Should be called when the node is Patched in another instance */
 	void Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node);

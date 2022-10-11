@@ -111,6 +111,9 @@ private:
 	/** Auto assigns selected Fixture Patches */
 	void AutoAssignFixturePatches();
 
+	/** Sets keyboard focus on this widget */
+	void SetKeyboardFocus();
+
 	/** Generates the Header Row of the List */
 	TSharedRef<SHeaderRow> GenerateHeaderRow();
 

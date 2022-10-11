@@ -57,12 +57,16 @@ public:
 
 			do
 			{
-				TSharedPtr<FDMXFixturePatchFragment> NewFragment = MakeShared<FDMXFixturePatchFragment>();
-
 				const int32 Row = ChannelIndex / FDMXChannelGridSpecs::NumColumns;
 				const int32 Column = ChannelIndex % FDMXChannelGridSpecs::NumColumns;
 				int32 ColumnSpan = Column + ChannelSpan < FDMXChannelGridSpecs::NumColumns ? ChannelSpan : FDMXChannelGridSpecs::NumColumns - Column;
+				if (ColumnSpan == 0)
+				{
+					// No empty fragments
+					break;
+				}
 
+				const TSharedPtr<FDMXFixturePatchFragment> NewFragment = MakeShared<FDMXFixturePatchFragment>();
 				NewFragment->FixturePatch = InFixturePatch;
 				NewFragment->ChannelIndex = ChannelIndex;
 				NewFragment->Column = Column;
@@ -335,14 +339,14 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 	return NewNode;
 }
 
-void FDMXFixturePatchNode::SetAddresses(const TSharedRef<SDMXPatchedUniverse>& OwningUniverseWidget, int32 NewStartingChannel, int32 NewChannelSpan, bool bTransacted)
+void FDMXFixturePatchNode::SetAddresses(int32 NewUniverseID, int32 NewStartingChannel, int32 NewChannelSpan, bool bTransacted)
 {
 	if (!FixturePatch.IsValid())
 	{
 		return;
 	}
 
-	UniverseWidget = OwningUniverseWidget;
+	UniverseID = NewUniverseID;
 	StartingChannel = NewStartingChannel;
 	ChannelSpan = NewChannelSpan;
 
@@ -353,20 +357,20 @@ void FDMXFixturePatchNode::SetAddresses(const TSharedRef<SDMXPatchedUniverse>& O
 		FixturePatch->SetUniverseID(LastTransactedUniverseID);
 		FixturePatch->SetStartingChannel(LastTransactedChannelID);
 
-		LastTransactedUniverseID = UniverseWidget->GetUniverseID();
+		LastTransactedUniverseID = UniverseID;
 		LastTransactedChannelID = StartingChannel;
 
 		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("FixturePatchAssigned", "Patched Fixture"));
 		FixturePatch->PreEditChange(nullptr);
 
-		FixturePatch->SetUniverseID(UniverseWidget->GetUniverseID());
+		FixturePatch->SetUniverseID(NewUniverseID);
 		FixturePatch->SetStartingChannel(StartingChannel);
 
 		FixturePatch->PostEditChange();
 	}
 	else
 	{
-		FixturePatch->SetUniverseID(UniverseWidget->GetUniverseID());
+		FixturePatch->SetUniverseID(NewUniverseID);
 		FixturePatch->SetStartingChannel(StartingChannel);
 	}
 }
@@ -455,6 +459,7 @@ int32 FDMXFixturePatchNode::GetChannelSpan() const
 bool FDMXFixturePatchNode::NeedsUpdateGrid() const
 {
 	return 
+		UniverseID != GetUniverseID() ||
 		StartingChannel != GetStartingChannel() ||
 		ChannelSpan != GetChannelSpan();
 }

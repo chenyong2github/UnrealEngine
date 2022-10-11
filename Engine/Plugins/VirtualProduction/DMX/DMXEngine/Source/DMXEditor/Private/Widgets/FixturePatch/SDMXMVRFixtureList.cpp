@@ -407,13 +407,7 @@ void SDMXMVRFixtureList::RequestListRefresh()
 		return;
 	}
 
-	RequestListRefreshTimerHandle =
-		GEditor->GetTimerManager()->SetTimerForNextTick(
-			FTimerDelegate::CreateLambda([this]()
-				{
-					RefreshList();
-				})
-		);
+	RequestListRefreshTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXMVRFixtureList::RefreshList));
 }
 
 void SDMXMVRFixtureList::EnterFixturePatchNameEditingMode()
@@ -642,10 +636,7 @@ void SDMXMVRFixtureList::OnFixturePatchSharedDataSelectedFixturePatches()
 		}
 	}
 
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
-		{
-			FSlateApplication::Get().SetKeyboardFocus(AsShared());
-		}));
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXMVRFixtureList::SetKeyboardFocus));
 }
 
 void SDMXMVRFixtureList::OnFixturePatchSharedDataSelectedUniverse()
@@ -798,6 +789,12 @@ TSharedRef<SHeaderRow> SDMXMVRFixtureList::GenerateHeaderRow()
 	RestoresHeaderRowSettings();
 
 	return HeaderRow.ToSharedRef();
+}
+
+
+void SDMXMVRFixtureList::SetKeyboardFocus()
+{
+	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
 void SDMXMVRFixtureList::SaveHeaderRowSettings()

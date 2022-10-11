@@ -25,7 +25,7 @@ public:
 	static TSharedPtr<FDMXFixturePatchNode> Create(TWeakPtr<FDMXEditor> InDMXEditor, const TWeakObjectPtr<UDMXEntityFixturePatch>& InFixturePatch);
 
 	/** Sets the Addresses of the Node */
-	void SetAddresses(const TSharedRef<SDMXPatchedUniverse>& OwningUniverseWidget, int32 NewStartingChannel, int32 NewChannelSpan, bool bTransacted);
+	void SetAddresses(int32 UniverseID, int32 NewStartingChannel, int32 NewChannelSpan, bool bTransacted);
 
 	/** Generates widgets. Requires Addresses to be set via SetAddresses */
 	TArray<TSharedPtr<SDMXFixturePatchFragment>> GenerateWidgets(const TArray<TSharedPtr<FDMXFixturePatchNode>>& FixturePatchNodeGroup);
@@ -72,6 +72,9 @@ private:
 
 	/** Universe the patch is assigned to */
 	TSharedPtr<SDMXPatchedUniverse> UniverseWidget;
+
+	/** Cached Universe of the patch */
+	int32 UniverseID = 0;
 
 	/** Cached starting channel of the patch */	
 	int32 StartingChannel = 0;

@@ -535,6 +535,10 @@ void UDMXEntityFixtureType::SetFixtureMatrixEnabled(int32 ModeIndex, bool bEnabl
 		{
 			Mode.bFixtureMatrixEnabled = bEnableMatrix;
 
+			// Some old assets may have a 0x0 matrix stored, but we expect it to be always at least one cell.
+			Mode.FixtureMatrixConfig.XCells = FMath::Max(Mode.FixtureMatrixConfig.XCells, 1);
+			Mode.FixtureMatrixConfig.YCells = FMath::Max(Mode.FixtureMatrixConfig.YCells, 1);
+
 			AlignFunctionChannels(ModeIndex);
 		}
 	}
