@@ -4,23 +4,10 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "IObjectChooser.h"
-#include "UObject/Interface.h"
+#include "IChooserColumn.h"
+#include "IChooserColumnParameter.h"
 
 #include "Chooser.generated.h"
-
-UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class CHOOSER_API UChooserParameterBool : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class CHOOSER_API IChooserParameterBool
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) { return false; }
-};
 
 UCLASS()
 class CHOOSER_API UChooserParameterBool_ContextProperty :  public UObject, public IChooserParameterBool
@@ -39,21 +26,6 @@ public:
 	}
 };
 
-
-UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class CHOOSER_API UChooserParameterFloat : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class CHOOSER_API IChooserParameterFloat
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool GetValue(const UObject* ContextObject, float& OutResult) { return false; }
-};
-
 UCLASS()
 class CHOOSER_API UChooserParameterFloat_ContextProperty :  public UObject, public IChooserParameterFloat
 {
@@ -69,25 +41,6 @@ public:
 		static FString TypeName = "double";
 		return TypeName;
 	}
-};
-
-UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class CHOOSER_API UChooserColumn : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class CHOOSER_API IChooserColumn 
-{
-	GENERATED_BODY()
-
-public:
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) {};
-	virtual void SetNumRows(uint32 NumRows) {}
-	virtual void DeleteRows(const TArray<uint32> & RowIndices) {}
-	virtual UClass* GetInputValueInterface() {return nullptr;};
-	virtual UObject* GetInputValue() {return nullptr;}
-	virtual void SetInputValue(UObject* InputValue) {}
 };
 
 UCLASS()
