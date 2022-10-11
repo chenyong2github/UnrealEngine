@@ -595,17 +595,17 @@ void VisualizeMaterialPS(
 	float4 SVPos : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	const uint2 PixelPos = uint2(SVPos.xy);
-	float2 BufferUV = SvPositionToBufferUV(float4(PixelPos, SVPos.zw));
+	const uint2 PixelPosDynRes = uint2(float2(SVPos.xy) * View.ViewResolutionFraction);
+	float2 BufferUV = SvPositionToBufferUV(float4(PixelPosDynRes, SVPos.zw));
 
 	const float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
-	const float2 ScreenMaterialPosition = SvPositionToScreenPosition(float4(PixelPos, 0.5f, 1)).xy;
+	const float2 ScreenMaterialPosition = SvPositionToScreenPosition(float4(PixelPosDynRes, 0.5f, 1)).xy;
 	float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 	const float3 WorldPosition = mul(float4(ScreenMaterialPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 	const float3 V = -normalize(WorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPosDynRes, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	bool bStrataMaterial = Header.BSDFCount > 0;
 

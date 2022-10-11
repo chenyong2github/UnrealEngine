@@ -908,7 +908,7 @@ void AddStrataInternalClassificationTilePass(
 	const bool bDebug = false)
 {
 	EPrimitiveType StrataTilePrimitiveType = PT_TriangleList;
-	const FIntPoint OutputResolution = View.ViewRect.Size();
+	FIntPoint DebugOutputResolution = FIntPoint(View.UnscaledViewRect.Width(), View.UnscaledViewRect.Height());
 	const FIntRect ViewRect = View.ViewRect;
 
 	FStrataMaterialStencilTaggingPassPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FStrataMaterialStencilTaggingPassPS::FParameters>();
@@ -923,6 +923,13 @@ void AddStrataInternalClassificationTilePass(
 	// For debug purpose
 	if (bDebug)
 	{
+		// ViewRect contains the scaled resolution according to TSR screen percentage.
+		// The ColorTexture can be larger than the screen resolution if the screen percentage has be manipulated to be >100%.
+		// So we simply re-use the previously computed ViewResolutionFraction to recover the targeted resolution in the editor.
+		// TODO fix this for split screen.
+		const float InvViewResolutionFraction = 1.0f / View.CachedViewUniformShaderParameters->ViewResolutionFraction;
+		DebugOutputResolution = FIntPoint(float(ViewRect.Width()) * InvViewResolutionFraction, float(ViewRect.Height()) * InvViewResolutionFraction);
+
 		check(ColorTexture);
 		ParametersPS->RenderTargets[0] = FRenderTargetBinding(*ColorTexture, ERenderTargetLoadAction::ELoad);
 		switch (TileMaterialType)
@@ -955,7 +962,7 @@ void AddStrataInternalClassificationTilePass(
 		RDG_EVENT_NAME("Strata::%sClassificationPass(%s)", bDebug ? TEXT("Debug") : TEXT("Stencil"), ToString(TileMaterialType)),
 		ParametersPS,
 		ERDGPassFlags::Raster,
-		[ParametersPS, VertexShader, PixelShader, ViewRect, OutputResolution, StrataTilePrimitiveType, TileMaterialType, bDebug](FRHICommandList& RHICmdList)
+		[ParametersPS, VertexShader, PixelShader, ViewRect, DebugOutputResolution, StrataTilePrimitiveType, TileMaterialType, bDebug](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -1018,7 +1025,7 @@ void AddStrataInternalClassificationTilePass(
 			{
 				// Debug rendering is aways done during the post-processing stage, which has an ViewMinRect set to (0,0)
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
-				RHICmdList.SetViewport(0, 0, 0.0f, OutputResolution.X, OutputResolution.Y, 1.0f);
+				RHICmdList.SetViewport(0, 0, 0.0f, DebugOutputResolution.X, DebugOutputResolution.Y, 1.0f);
 			}
 			else
 			{
