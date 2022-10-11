@@ -776,6 +776,19 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 				}
 			}
 
+			// @todo - working around DXC issue https://github.com/microsoft/DirectXShaderCompiler/issues/4715
+			if (LibraryDesc.FunctionCount > 0)
+			{
+				if (Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources))
+				{
+					ShaderRequiresFlags |= D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING;
+				}
+				if (Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers))
+				{
+					ShaderRequiresFlags |= D3D_SHADER_REQUIRES_SAMPLER_DESCRIPTOR_HEAP_INDEXING;
+				}
+			}
+
 			if (NumFoundEntryPoints == MangledEntryPoints.Num())
 			{
 				Output.bSucceeded = true;
