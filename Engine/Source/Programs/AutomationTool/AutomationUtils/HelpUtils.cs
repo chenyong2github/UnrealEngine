@@ -74,7 +74,7 @@ namespace AutomationTool
 		}
 	}
 
-	[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true)]
 	public class ParamHelpAttribute : HelpAttribute
 	{
 		public enum ParamAction
