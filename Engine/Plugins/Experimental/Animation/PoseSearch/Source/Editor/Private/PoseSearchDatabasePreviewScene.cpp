@@ -60,8 +60,7 @@ namespace UE::PoseSearch
 		const FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
 		const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 
-		if (Database && Database->IsValidForSearch() &&
-			ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All))
+		if (Database && Database->IsValidForSearch() && ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All | EFeaturesDrawMode::Detailed))
 		{
 			for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
 			{
@@ -74,6 +73,11 @@ namespace UE::PoseSearch
 					DrawParams.DefaultLifeTime = 0.f;
 					DrawParams.PointSize = 5.f;
 					DrawParams.Mesh = PreviewActor.Mesh;
+
+					if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::Detailed))
+					{
+						EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawBoneNames);
+					}
 
 					EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
 					DrawFeatureVector(DrawParams, PreviewActor.CurrentPoseIndex);

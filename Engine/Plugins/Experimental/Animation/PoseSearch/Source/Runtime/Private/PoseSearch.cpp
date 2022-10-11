@@ -57,22 +57,6 @@ namespace UE::PoseSearch
 //////////////////////////////////////////////////////////////////////////
 // Constants and utilities
 
-// @todo: set UE_POSE_SEARCH_FORCE_SINGLE_THREAD to 0
-// Temporarily disable parallel indexing due to a bug
-// A single BoneContainer is being used while indexing assets, but some
-// const BoneContainer methods change mutable lookup tables.
-#define UE_POSE_SEARCH_FORCE_SINGLE_THREAD 1
-
-#ifndef UE_POSE_SEARCH_FORCE_SINGLE_THREAD
-#define UE_POSE_SEARCH_FORCE_SINGLE_THREAD 0
-#endif
-
-#if UE_POSE_SEARCH_FORCE_SINGLE_THREAD
-	constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::ForceSingleThread;
-#else
-	constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
-#endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
-
 static inline float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
 {
 	float Sum = 0.f;
@@ -1156,46 +1140,47 @@ UAnimationAsset* FPoseSearchDatabaseBlendSpace::GetAnimationAsset() const
 
 bool FPoseSearchDatabaseBlendSpace::IsLooping() const
 {
+	check(BlendSpace);
+
 	return BlendSpace->bLoop;
 }
 
-void FPoseSearchDatabaseBlendSpace::GetBlendSpaceParameterSampleRanges(
-	int32& HorizontalBlendNum,
-	int32& VerticalBlendNum,
-	float& HorizontalBlendMin,
-	float& HorizontalBlendMax,
-	float& VerticalBlendMin,
-	float& VerticalBlendMax) const
+void FPoseSearchDatabaseBlendSpace::GetBlendSpaceParameterSampleRanges(int32& HorizontalBlendNum, int32& VerticalBlendNum) const
 {
+	check(BlendSpace);
+
 	HorizontalBlendNum = bUseGridForSampling ? BlendSpace->GetBlendParameter(0).GridNum + 1 : FMath::Max(NumberOfHorizontalSamples, 1);
-	VerticalBlendNum = bUseGridForSampling ? BlendSpace->GetBlendParameter(1).GridNum + 1 : FMath::Max(NumberOfVerticalSamples, 1);
+	VerticalBlendNum = BlendSpace->IsA<UBlendSpace1D>() ? 1 : bUseGridForSampling ? BlendSpace->GetBlendParameter(1).GridNum + 1 : FMath::Max(NumberOfVerticalSamples, 1);
 
 	check(HorizontalBlendNum >= 1 && VerticalBlendNum >= 1);
-
-	HorizontalBlendMin = BlendSpace->GetBlendParameter(0).Min;
-	HorizontalBlendMax = BlendSpace->GetBlendParameter(0).Max;
-
-	VerticalBlendMin = BlendSpace->GetBlendParameter(1).Min;
-	VerticalBlendMax = BlendSpace->GetBlendParameter(1).Max;
-
-	if (BlendSpace->IsA<UBlendSpace1D>())
-	{
-		VerticalBlendNum = 1;
-		VerticalBlendMin = 0.0;
-		VerticalBlendMax = 0.0;
-	}
 }
 
-static FVector BlendParameterForSampleRanges(
-	int32 HorizontalBlendIndex,
-	int32 VerticalBlendIndex,
-	int32 HorizontalBlendNum,
-	int32 VerticalBlendNum,
-	float HorizontalBlendMin,
-	float HorizontalBlendMax,
-	float VerticalBlendMin,
-	float VerticalBlendMax)
+FVector FPoseSearchDatabaseBlendSpace::BlendParameterForSampleRanges(int32 HorizontalBlendIndex, int32 VerticalBlendIndex) const
 {
+	check(BlendSpace);
+
+	const bool bWrapInputOnHorizontalAxis = BlendSpace->GetBlendParameter(0).bWrapInput;
+	const bool bWrapInputOnVerticalAxis = BlendSpace->GetBlendParameter(1).bWrapInput;
+
+	int32 HorizontalBlendNum, VerticalBlendNum;
+	GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
+
+	if (bWrapInputOnHorizontalAxis)
+	{
+		++HorizontalBlendNum;
+	}
+
+	if (bWrapInputOnVerticalAxis)
+	{
+		++VerticalBlendNum;
+	}
+
+	const float HorizontalBlendMin = BlendSpace->GetBlendParameter(0).Min;
+	const float HorizontalBlendMax = BlendSpace->GetBlendParameter(0).Max;
+
+	const float VerticalBlendMin = BlendSpace->GetBlendParameter(1).Min;
+	const float VerticalBlendMax = BlendSpace->GetBlendParameter(1).Max;
+
 	return FVector(
 		HorizontalBlendNum > 1 ? 
 			HorizontalBlendMin + (HorizontalBlendMax - HorizontalBlendMin) * 
@@ -1278,29 +1263,15 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIn
 			BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
 
 		int32 HorizontalBlendNum, VerticalBlendNum;
-		float HorizontalBlendMin, HorizontalBlendMax, VerticalBlendMin, VerticalBlendMax;
+		BlendSpace.GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
 
-		BlendSpace.GetBlendSpaceParameterSampleRanges(
-			HorizontalBlendNum,
-			VerticalBlendNum,
-			HorizontalBlendMin,
-			HorizontalBlendMax,
-			VerticalBlendMin,
-			VerticalBlendMax);
-
+		const bool bWrapInputOnHorizontalAxis = BlendSpace.BlendSpace->GetBlendParameter(0).bWrapInput;
+		const bool bWrapInputOnVerticalAxis = BlendSpace.BlendSpace->GetBlendParameter(1).bWrapInput;
 		for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
 		{
 			for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
 			{
-				FVector BlendParameters = BlendParameterForSampleRanges(
-					HorizontalIndex,
-					VerticalIndex,
-					HorizontalBlendNum,
-					VerticalBlendNum,
-					HorizontalBlendMin,
-					HorizontalBlendMax,
-					VerticalBlendMin,
-					VerticalBlendMax);
+				const FVector BlendParameters = BlendSpace.BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
 						
 				int32 TriangulationIndex = 0;
 				BlendSpace.BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true);
@@ -2704,28 +2675,19 @@ const FPoseSearchIndexAsset* FSearchResult::GetSearchIndexAsset(bool bMandatory)
 //////////////////////////////////////////////////////////////////////////
 // FAssetSamplerContext
 
-static void FillCompactPoseAndComponentRefRotations(FAssetSamplingContext& Context)
+void FAssetSamplingContext::Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer)
 {
-	if (Context.MirrorDataTable)
+	MirrorDataTable = InMirrorDataTable;
+
+	if (InMirrorDataTable)
 	{
-		const UMirrorDataTable* MirrorDataTablePtr = Context.MirrorDataTable.Get();
-		MirrorDataTablePtr->FillCompactPoseAndComponentRefRotations(
-			Context.BoneContainer,
-			Context.CompactPoseMirrorBones,
-			Context.ComponentSpaceRefRotations);
+		InMirrorDataTable->FillCompactPoseAndComponentRefRotations(BoneContainer, CompactPoseMirrorBones, ComponentSpaceRefRotations);
 	}
 	else
 	{
-		Context.CompactPoseMirrorBones.Reset();
-		Context.ComponentSpaceRefRotations.Reset();
+		CompactPoseMirrorBones.Reset();
+		ComponentSpaceRefRotations.Reset();
 	}
-}
-
-void FAssetSamplingContext::Init(const UPoseSearchSchema* Schema)
-{
-	MirrorDataTable = Schema->MirrorDataTable;
-	BoneContainer.InitializeTo(Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Schema->Skeleton);
-	FillCompactPoseAndComponentRefRotations(*this);
 }
 
 FTransform FAssetSamplingContext::MirrorTransform(const FTransform& InTransform) const
@@ -3550,7 +3512,7 @@ public:
 	} Output;
 
 	void Reset();
-	void Init(const FAssetIndexingContext& IndexingContext);
+	void Init(const FAssetIndexingContext& IndexingContext, const FBoneContainer& InBoneContainer);
 	bool Process();
 
 public: // IAssetIndexer
@@ -3563,6 +3525,7 @@ public: // IAssetIndexer
 	FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) override;
 
 private:
+	FBoneContainer BoneContainer;
 	FAssetIndexingContext IndexingContext;
 	TArray<FPoseSearchFeatureVectorBuilder> FeatureVectorBuilders;
 	FPoseSearchPoseMetadata Metadata;
@@ -3598,19 +3561,19 @@ void FAssetIndexer::Reset()
 	Output.AllFeaturesNotAdded.Reset();
 }
 
-void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext)
+void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const FBoneContainer& InBoneContainer)
 {
 	check(InIndexingContext.Schema);
 	check(InIndexingContext.Schema->IsValid());
 	check(InIndexingContext.MainSampler);
 
+	BoneContainer = InBoneContainer;
 	IndexingContext = InIndexingContext;
 
 	Reset();
 
 	Output.FirstIndexedSample = FMath::FloorToInt(IndexingContext.RequestedSamplingRange.Min * IndexingContext.Schema->SampleRate);
-	Output.LastIndexedSample = 
-		FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
+	Output.LastIndexedSample = FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
 	Output.NumIndexedPoses = Output.LastIndexedSample - Output.FirstIndexedSample + 1;
 	
 	Output.FeatureVectorTable.SetNumZeroed(IndexingContext.Schema->SchemaCardinality * Output.NumIndexedPoses);
@@ -3962,19 +3925,19 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 		Entry->SampleTime = SampleTime;
 		Entry->OriginTime = OriginTime;
 
-		if (!SamplingContext->BoneContainer.IsValid())
+		if (!BoneContainer.IsValid())
 		{
 			UE_LOG(LogPoseSearch,
 				Warning, 
 				TEXT("Invalid BoneContainer encountered in FAssetIndexer::GetTransformAndCacheResults. Asset: %s. Schema: %s. BoneContainerAsset: %s. NumBoneIndices: %d"),
 				*GetNameSafe(IndexingContext.MainSampler->GetAsset()),
 				*GetNameSafe(IndexingContext.Schema),
-				*GetNameSafe(SamplingContext->BoneContainer.GetAsset()),
-				SamplingContext->BoneContainer.GetCompactPoseNumBones());
+				*GetNameSafe(BoneContainer.GetAsset()),
+				BoneContainer.GetCompactPoseNumBones());
 		}
 
-		Entry->Pose.SetBoneContainer(&SamplingContext->BoneContainer);
-		Entry->UnusedCurve.InitFrom(SamplingContext->BoneContainer);
+		Entry->Pose.SetBoneContainer(&BoneContainer);
+		Entry->UnusedCurve.InitFrom(BoneContainer);
 
 		IAssetIndexer::FSampleInfo Origin = GetSampleInfo(OriginTime);
 		IAssetIndexer::FSampleInfo Sample = GetSampleInfoRelative(SampleTime, Origin);
@@ -4005,7 +3968,7 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 	}
 
 	const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[SchemaBoneIdx];
-	FCompactPoseBoneIndex CompactBoneIndex = SamplingContext->BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
+	FCompactPoseBoneIndex CompactBoneIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
 
 	const FTransform BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * MirrorTransform(Entry->RootTransform);
 	Clamped = Entry->Clamped;
@@ -4360,8 +4323,10 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 		return false;
 	}
 
+	FBoneContainer BoneContainer;
+	BoneContainer.InitializeTo(SequenceMetaData->Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *SequenceMetaData->Schema->Skeleton);
 	FAssetSamplingContext SamplingContext;
-	SamplingContext.Init(SequenceMetaData->Schema);
+	SamplingContext.Init(SequenceMetaData->Schema->MirrorDataTable, BoneContainer);
 
 	FSequenceSampler Sampler;
 	FSequenceSampler::FInput SamplerInput;
@@ -4376,7 +4341,8 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 	IndexerContext.MainSampler = &Sampler;
 	IndexerContext.Schema = SequenceMetaData->Schema;
 	IndexerContext.RequestedSamplingRange = GetEffectiveSamplingRange(Sequence, SequenceMetaData->SamplingRange);
-	Indexer.Init(IndexerContext);
+
+	Indexer.Init(IndexerContext, BoneContainer);
 	if (!Indexer.Process())
 	{
 		return false;
@@ -4413,19 +4379,18 @@ struct FDatabaseIndexingContext
 
 	TArray<FAssetIndexer> Indexers;
 
-	void PrepareSamplers();
-	void PrepareIndexers();
+	void PrepareSamplers(const FBoneContainer& BoneContainer);
+	void PrepareIndexers(const FBoneContainer& BoneContainer);
 	bool IndexAssets();
 	void JoinIndex();
 	float CalculateMinCostAddend() const;
 };
 
-void FDatabaseIndexingContext::PrepareSamplers()
+void FDatabaseIndexingContext::PrepareSamplers(const FBoneContainer& BoneContainer)
 {
-	SamplingContext.Init(Database->Schema);
+	SamplingContext.Init(Database->Schema->MirrorDataTable, BoneContainer);
 
 	// Prepare samplers for all sequences
-
 	auto AddSequenceSampler = [&](const UAnimSequence* Sequence, bool bLoopable)
 	{
 		if (!SequenceSamplerMap.Contains(Sequence))
@@ -4457,43 +4422,20 @@ void FDatabaseIndexingContext::PrepareSamplers()
 			AddSequenceSampler(DbSequence.FollowUpSequence, DbSequence.FollowUpSequence->bLoop);
 		}
 	}
-
-	ParallelFor(
-		SequenceSamplers.Num(),
-		[this](int32 SamplerIdx) { SequenceSamplers[SamplerIdx].Process(); },
-		ParallelForFlags
-	);
-
+		
 	// Prepare samplers for all blend spaces
-
 	for (const FPoseSearchDatabaseBlendSpace& DbBlendSpace : Database->BlendSpaces)
 	{
 		if (DbBlendSpace.BlendSpace)
 		{
 			int32 HorizontalBlendNum, VerticalBlendNum;
-			float HorizontalBlendMin, HorizontalBlendMax, VerticalBlendMin, VerticalBlendMax;
-
-			DbBlendSpace.GetBlendSpaceParameterSampleRanges(
-				HorizontalBlendNum,
-				VerticalBlendNum,
-				HorizontalBlendMin,
-				HorizontalBlendMax,
-				VerticalBlendMin,
-				VerticalBlendMax);
+			DbBlendSpace.GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
 
 			for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
 			{
 				for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
 				{
-					FVector BlendParameters = BlendParameterForSampleRanges(
-						HorizontalIndex,
-						VerticalIndex,
-						HorizontalBlendNum,
-						VerticalBlendNum,
-						HorizontalBlendMin,
-						HorizontalBlendMax,
-						VerticalBlendMin,
-						VerticalBlendMax);
+					const FVector BlendParameters = DbBlendSpace.BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
 
 					if (!BlendSpaceSamplerMap.Contains({ DbBlendSpace.BlendSpace, BlendParameters }))
 					{
@@ -4501,7 +4443,7 @@ void FDatabaseIndexingContext::PrepareSamplers()
 						BlendSpaceSamplerMap.Add({ DbBlendSpace.BlendSpace, BlendParameters }, BlendSpaceSamplerIdx);
 
 						FBlendSpaceSampler::FInput Input;
-						Input.BoneContainer = SamplingContext.BoneContainer;
+						Input.BoneContainer = BoneContainer;
 						Input.ExtrapolationParameters = Database->ExtrapolationParameters;
 						Input.BlendSpace = DbBlendSpace.BlendSpace;
 						Input.BlendParameters = BlendParameters;
@@ -4513,14 +4455,22 @@ void FDatabaseIndexingContext::PrepareSamplers()
 		}
 	}
 
-	ParallelFor(
-		BlendSpaceSamplers.Num(),
-		[this](int32 SamplerIdx) { BlendSpaceSamplers[SamplerIdx].Process(); },
-		ParallelForFlags
-	);
+	TArray<IAssetSampler*, TInlineAllocator<512>> AssetSampler;
+	AssetSampler.SetNumUninitialized(SequenceSamplers.Num() + BlendSpaceSamplers.Num());
+	
+	for (int i = 0; i < SequenceSamplers.Num(); ++i)
+	{
+		AssetSampler[i] = &SequenceSamplers[i];
+	}
+	for (int i = 0; i < BlendSpaceSamplers.Num(); ++i)
+	{
+		AssetSampler[i + SequenceSamplers.Num()] = &BlendSpaceSamplers[i];
+	}
+
+	ParallelFor(AssetSampler.Num(), [AssetSampler](int32 SamplerIdx) { AssetSampler[SamplerIdx]->Process(); }, ParallelForFlags);
 }
 
-void FDatabaseIndexingContext::PrepareIndexers()
+void FDatabaseIndexingContext::PrepareIndexers(const FBoneContainer& BoneContainer)
 {
 	Indexers.Reserve(Database->GetSearchIndex()->Assets.Num());
 
@@ -4535,6 +4485,7 @@ void FDatabaseIndexingContext::PrepareIndexers()
 	};
 
 	Indexers.Reserve(Database->GetSearchIndex()->Assets.Num());
+
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndex->Assets.Num(); ++AssetIdx)
 	{
 		const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex->Assets[AssetIdx];
@@ -4564,18 +4515,14 @@ void FDatabaseIndexingContext::PrepareIndexers()
 		}
 
 		FAssetIndexer& Indexer = Indexers.AddDefaulted_GetRef();
-		Indexer.Init(IndexerContext);
+		Indexer.Init(IndexerContext, BoneContainer);
 	}
 }
 
 bool FDatabaseIndexingContext::IndexAssets()
 {
 	// Index asset data
-	ParallelFor(
-		Indexers.Num(),
-		[this](int32 AssetIdx) { Indexers[AssetIdx].Process(); },
-		ParallelForFlags
-	);
+	ParallelFor(Indexers.Num(), [this](int32 AssetIdx) { Indexers[AssetIdx].Process(); }, ParallelForFlags);
 	return true;
 }
 
@@ -4666,8 +4613,11 @@ bool BuildIndex(const UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearch
 	DbIndexingContext.Database = Database;
 	DbIndexingContext.SearchIndex = &OutSearchIndex;
 
-	DbIndexingContext.PrepareSamplers();
-	DbIndexingContext.PrepareIndexers();
+	FBoneContainer BoneContainer;
+	BoneContainer.InitializeTo(Database->Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Database->Schema->Skeleton);
+
+	DbIndexingContext.PrepareSamplers(BoneContainer);
+	DbIndexingContext.PrepareIndexers(BoneContainer);
 	bSuccess &= DbIndexingContext.IndexAssets();
 	DbIndexingContext.JoinIndex();
 

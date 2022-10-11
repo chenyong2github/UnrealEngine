@@ -25,8 +25,10 @@ namespace UE::PoseSearch
 	enum class EFeaturesDrawMode : uint8
 	{
 		None,
-		All
+		All,
+		Detailed
 	};
+	ENUM_CLASS_FLAGS(EFeaturesDrawMode);
 
 	enum class EAnimationPreviewMode : uint8
 	{
@@ -34,7 +36,7 @@ namespace UE::PoseSearch
 		OriginalOnly,
 		OriginalAndMirrored
 	};
-
+	ENUM_CLASS_FLAGS(EAnimationPreviewMode);
 
 	struct FDatabasePreviewActor
 	{
@@ -47,12 +49,12 @@ namespace UE::PoseSearch
 
 		FSequenceSampler SequenceSampler;
 		FBlendSpaceSampler BlendSpaceSampler;
+		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
 
-		bool IsValid()
-		{
-			const bool bIsValid = Actor.IsValid() && Mesh.IsValid() && AnimInstance.IsValid();
-			return  bIsValid;
-		}
+		bool IsValid() const;
+		void Process();
+		const IAssetSampler* GetSampler() const;
+		float GetScaledTime(float Time) const;
 	};
 
 	class FDatabaseViewModel : public TSharedFromThis<FDatabaseViewModel>, public FGCObject
@@ -66,9 +68,7 @@ namespace UE::PoseSearch
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		virtual FString GetReferencerName() const override { return TEXT("FPoseSearchDatabaseViewModel"); }
 
-		void Initialize(
-			UPoseSearchDatabase* InPoseSearchDatabase,
-			const TSharedRef<FDatabasePreviewScene>& InPreviewScene);
+		void Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene);
 
 		void RemovePreviewActors();
 		void ResetPreviewActors();
@@ -130,7 +130,7 @@ namespace UE::PoseSearch
 
 		/** Actors to be displayed in the preview viewport */
 		TArray<FDatabasePreviewActor> PreviewActors;
-
+		
 		/** From zero to the play length of the longest preview */
 		float MaxPreviewPlayLength = 0.0f;
 
@@ -148,7 +148,7 @@ namespace UE::PoseSearch
 
 		UObject* GetPlaybackContext() const;
 
-		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex);
+		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, const FBoneContainer& BoneContainer);
 
 		void UpdatePreviewActors(bool bInTickPlayTime = false);
 

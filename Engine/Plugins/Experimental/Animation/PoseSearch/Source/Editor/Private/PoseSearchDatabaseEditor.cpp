@@ -472,7 +472,8 @@ namespace UE::PoseSearch
 
 	void FDatabaseEditor::OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
-		ViewModel->BuildSearchIndex();
+		// @todo: BuildSearchIndex is already called, but it'd be better to perform it from here
+		//ViewModel->BuildSearchIndex();
 	}
 
 	void FDatabaseEditor::OnAssetTreeSelectionChanged(

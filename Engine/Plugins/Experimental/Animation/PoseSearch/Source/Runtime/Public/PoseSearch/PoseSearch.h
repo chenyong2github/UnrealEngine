@@ -42,6 +42,18 @@ class UAnimNotifyState_PoseSearchBase;
 class UPoseSearchSchema;
 class FBlake3;
 
+#ifndef UE_POSE_SEARCH_FORCE_SINGLE_THREAD
+#define UE_POSE_SEARCH_FORCE_SINGLE_THREAD 0
+#endif
+
+#if UE_POSE_SEARCH_FORCE_SINGLE_THREAD
+constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::ForceSingleThread;
+#else
+constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
+#endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
+
+
+
 namespace UE::PoseSearch
 {
 class FPoseHistory;
@@ -139,7 +151,6 @@ enum class EPoseSearchMirrorOption : int32
 	Invalid = Num UMETA(Hidden)
 };
 
-
 //////////////////////////////////////////////////////////////////////////
 // Common structs
 
@@ -187,10 +198,8 @@ struct POSESEARCH_API FAssetSamplingContext
 	// Time delta used for computing pose derivatives
 	static constexpr float FiniteDelta = 1 / 60.0f;
 
-	FBoneContainer BoneContainer;
-
 	// Mirror data table pointer copied from Schema for convenience
-	TObjectPtr<UMirrorDataTable> MirrorDataTable = nullptr;
+	TObjectPtr<const UMirrorDataTable> MirrorDataTable = nullptr;
 
 	// Compact pose format of Mirror Bone Map
 	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
@@ -199,7 +208,7 @@ struct POSESEARCH_API FAssetSamplingContext
 	// Only initialized and used when a mirroring table is specified
 	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
 
-	void Init(const UPoseSearchSchema* Schema);
+	void Init(const UMirrorDataTable* InMirrorDataTable, const FBoneContainer& BoneContainer);
 	FTransform MirrorTransform(const FTransform& Transform) const;
 };
 
@@ -239,6 +248,8 @@ public:
 	virtual void ExtractPoseSearchNotifyStates(float Time, TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const = 0;
 
 	virtual const UAnimationAsset* GetAsset() const = 0;
+
+	virtual void Process() = 0;
 };
 
 struct POSESEARCH_API FSequenceSampler : public IAssetSampler
@@ -252,15 +263,15 @@ public:
 	} Input;
 
 	void Init(const FInput& Input);
-	void Process();
+	virtual void Process() override;
 
-	float GetPlayLength() const override { return Input.Sequence->GetPlayLength(); }
-	bool IsLoopable() const override;
+	virtual float GetPlayLength() const override { return Input.Sequence->GetPlayLength(); }
+	virtual bool IsLoopable() const override;
 
-	float GetTimeFromRootDistance(float Distance) const override;
+	virtual float GetTimeFromRootDistance(float Distance) const override;
 
-	float GetTotalRootDistance() const override { return TotalRootDistance; }
-	FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
+	virtual float GetTotalRootDistance() const override { return TotalRootDistance; }
+	virtual FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
 
 	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
 	virtual float ExtractRootDistance(float Time) const override;
@@ -290,16 +301,15 @@ public:
 	} Input;
 
 	void Init(const FInput& Input);
+	virtual void Process() override;
 
-	void Process();
+	virtual float GetPlayLength() const override { return PlayLength; }
+	virtual bool IsLoopable() const override;
 
-	float GetPlayLength() const override { return PlayLength; }
-	bool IsLoopable() const override;
+	virtual float GetTimeFromRootDistance(float Distance) const override;
 
-	float GetTimeFromRootDistance(float Distance) const override;
-
-	float GetTotalRootDistance() const override { return TotalRootDistance; }
-	FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
+	virtual float GetTotalRootDistance() const override { return TotalRootDistance; }
+	virtual FTransform GetTotalRootTransform() const override { return TotalRootTransform; }
 
 	virtual void ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const override;
 	virtual float ExtractRootDistance(float Time) const override;
@@ -827,15 +837,9 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 #if WITH_EDITOR
 	virtual void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) override;
 #endif
-public:
 
-	void GetBlendSpaceParameterSampleRanges(
-		int32& HorizontalBlendNum,
-		int32& VerticalBlendNum,
-		float& HorizontalBlendMin,
-		float& HorizontalBlendMax,
-		float& VerticalBlendMin,
-		float& VerticalBlendMax) const;
+	void GetBlendSpaceParameterSampleRanges(int32& HorizontalBlendNum, int32& VerticalBlendNum) const;
+	FVector BlendParameterForSampleRanges(int32 HorizontalBlendIndex, int32 VerticalBlendIndex) const;
 };
 
 USTRUCT()

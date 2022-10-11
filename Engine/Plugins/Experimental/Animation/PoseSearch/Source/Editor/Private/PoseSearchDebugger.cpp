@@ -2751,11 +2751,12 @@ const USkinnedMeshComponent* FDebuggerViewModel::GetMeshComponent() const
 
 void FDebuggerViewModel::FillCompactPoseAndComponentRefRotations()
 {
+	bool bResetMirrorBonesAndRotations = true;
 	const UPoseSearchDatabase* Database = GetCurrentDatabase();
 	if (Database)
 	{
 		UMirrorDataTable* MirrorDataTable = Database->Schema->MirrorDataTable;
-		if (MirrorDataTable != nullptr)
+		if (MirrorDataTable != nullptr && Skeletons[ActivePose].Component->RequiredBones.IsValid())
 		{
 			if (CompactPoseMirrorBones.Num() == 0 || ComponentSpaceRefRotations.Num() == 0)
 			{
@@ -2764,13 +2765,15 @@ void FDebuggerViewModel::FillCompactPoseAndComponentRefRotations()
 					CompactPoseMirrorBones,
 					ComponentSpaceRefRotations);
 			}
-
-			return;
+			bResetMirrorBonesAndRotations = false;
 		}
 	}
 
-	CompactPoseMirrorBones.Reset();
-	ComponentSpaceRefRotations.Reset();
+	if (bResetMirrorBonesAndRotations)
+	{
+		CompactPoseMirrorBones.Reset();
+		ComponentSpaceRefRotations.Reset();
+	}
 }
 
 void FDebuggerViewModel::PlaySelection(int32 PoseIdx, float Time)

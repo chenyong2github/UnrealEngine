@@ -924,6 +924,7 @@ namespace UE::PoseSearch
 			}
 		}
 
+		// @todo: investigate if we should call a TreeView->ClearSelection() before TreeView->SetItemSelection
 		TreeView->SetItemSelection(NewSelectedNodes, true, ESelectInfo::Direct);
 	}
 

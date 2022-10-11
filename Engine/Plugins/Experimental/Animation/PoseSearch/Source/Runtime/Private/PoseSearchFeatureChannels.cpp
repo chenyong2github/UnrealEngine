@@ -338,7 +338,6 @@ void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexe
 	using namespace UE::PoseSearch;
 
 	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{
@@ -461,7 +460,6 @@ void UPoseSearchFeatureChannel_Heading::IndexAsset(UE::PoseSearch::IAssetIndexer
 	using namespace UE::PoseSearch;
 
 	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{

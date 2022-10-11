@@ -40,6 +40,7 @@ namespace UE::PoseSearch
 				{
 					SubMenuBuilder.AddMenuEntry(Commands.ShowPoseFeaturesNone);
 					SubMenuBuilder.AddMenuEntry(Commands.ShowPoseFeaturesAll);
+					SubMenuBuilder.AddMenuEntry(Commands.ShowPoseFeaturesDetailed);
 				}
 				SubMenuBuilder.EndSection();
 			})
