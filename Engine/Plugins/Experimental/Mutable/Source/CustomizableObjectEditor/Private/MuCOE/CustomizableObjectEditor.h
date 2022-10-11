@@ -367,8 +367,13 @@ private:
 	/** Searches a node that contains the inserted word */
 	void OnEnterText(const FText& NewText, ETextCommit::Type TextType);
 
-	/** Logs the sersults of the search */
-	void LogSearchResult(UEdGraphNode* Node, FString Type, bool IsFirst, FString result) const;
+	/** Logs the search results of the search
+	 * @param Node The Customizable Object Node we have found to be related with the searched string.
+	 * @param Type The type of relation with the searched word. It is a node, a value or maybe a variable?
+	 * @param bIsFirst Is this the first time we encountered something during our search?
+	 * @param Result The string containing the search word we are looking for in Node
+	 */
+	void LogSearchResult(UCustomizableObjectNode* Node, FString Type, bool bIsFirst, FString Result) const;
 
 	/** Open the Texture Analyzer tab */
 	void OpenTextureAnalyzerTab();
