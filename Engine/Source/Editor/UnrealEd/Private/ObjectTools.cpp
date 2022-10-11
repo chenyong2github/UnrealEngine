@@ -2982,7 +2982,12 @@ namespace ObjectTools
 		{
 			GEditor->GetSelectedObjects()->Deselect(ObjectToDelete);
 		}
-		
+
+		if (ObjectToDelete->IsAsset())
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(ObjectToDelete);
+		}
+
 		{
 			// @todo Animation temporary HACK to allow deleting of UMorphTargets. This will be removed when UMorphTargets are subobjects of USkeleton.
 			// Get the base skeleton and unregister this morphtarget

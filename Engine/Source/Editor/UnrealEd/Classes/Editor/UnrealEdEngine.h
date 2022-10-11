@@ -866,9 +866,6 @@ public:
 	/** Gets the project default map templates without any runtime overrides */
 	const TArray<FTemplateMapInfo>& GetProjectDefaultMapTemplates() const;
 
-	/** Called after files are deleted to perform necessary cleanups. */
-	void OnSourceControlFilesDeleted(const TArray<FString>& InDeletedFiles);
-
 protected:
 
 	/** Called when global editor selection changes */
