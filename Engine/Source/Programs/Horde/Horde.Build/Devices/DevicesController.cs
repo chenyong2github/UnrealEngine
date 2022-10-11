@@ -915,26 +915,19 @@ namespace Horde.Build.Devices
 				}
 				else
 				{
-					string? model = platform.Models?.FirstOrDefault(x => x == constraint);
-					if (model == null)
-					{
-						return NotFound($"Platform {platform.Id} has no model {model}");
-					}
+					string[] requestedModels = constraint.Split(';');
 
-					string modelPerfSpec = "Minimum";
-					string? specModel = null;
-
-					if (mapV1.PerfSpecHighMap.TryGetValue(platform.Id, out specModel))
+					if (requestedModels.Length > 0)
 					{
-						if (model == specModel)
+						List<string>? models = platform.Models?.Where(x => requestedModels.Contains(x, StringComparer.OrdinalIgnoreCase)).ToList();
+
+						if (models == null || models.Count == 0)
 						{
-							modelPerfSpec = "High";
+							return NotFound($"Invalid model constraint for platform {platform.Id}: {constraint}");
 						}
+
+						includeModels = models;
 					}
-
-					perfSpecs.Add(modelPerfSpec);
-
-					includeModels.Add(constraint);
 				}
 
 				requestedDevices.Add(new DeviceRequestData(platformId, platformName, includeModels, excludeModels));
