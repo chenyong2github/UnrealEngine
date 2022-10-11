@@ -526,8 +526,8 @@ bool FUnixPlatformProcess::CreatePipe(void*& ReadPipe, void*& WritePipe, bool bW
 		return false;
 	}
 
-	ReadPipe = new FPipeHandle(PipeFd[ 0 ]);
-	WritePipe = new FPipeHandle(PipeFd[ 1 ]);
+	ReadPipe = new FPipeHandle(PipeFd[ 0 ], PipeFd[ 1 ]);
+	WritePipe = new FPipeHandle(PipeFd[ 1 ], PipeFd[ 0 ]);
 
 	return true;
 }
@@ -958,13 +958,27 @@ FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parm
 
 		if (PipeWriteChild)
 		{
+			const FPipeHandle* PipeReadHandle = reinterpret_cast<const FPipeHandle*>(PipeReadChild);
 			const FPipeHandle* PipeWriteHandle = reinterpret_cast<const FPipeHandle*>(PipeWriteChild);
+
+			// If using unique read and write pipes, close the other end of the write pipe
+			if (PipeReadChild && PipeWriteHandle->GetPairHandle() != PipeReadHandle->GetHandle())
+			{
+				posix_spawn_file_actions_addclose(&FileActions, PipeWriteHandle->GetPairHandle());
+			}
 			posix_spawn_file_actions_adddup2(&FileActions, PipeWriteHandle->GetHandle(), STDOUT_FILENO);
 		}
 
 		if (PipeReadChild)
 		{
 			const FPipeHandle* PipeReadHandle = reinterpret_cast<const FPipeHandle*>(PipeReadChild);
+			const FPipeHandle* PipeWriteHandle = reinterpret_cast<const FPipeHandle*>(PipeWriteChild);
+
+			// If using unique read and write pipes, close the other end of the read pipe
+			if (PipeWriteChild && PipeReadHandle->GetPairHandle() != PipeWriteHandle->GetHandle())
+			{
+				posix_spawn_file_actions_addclose(&FileActions, PipeReadHandle->GetPairHandle());
+			}
 			posix_spawn_file_actions_adddup2(&FileActions, PipeReadHandle->GetHandle(), STDIN_FILENO);
 		}
 

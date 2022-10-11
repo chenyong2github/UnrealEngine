@@ -162,8 +162,9 @@ struct FProcHandle
 /** Wrapper around Unix file descriptors */
 struct FPipeHandle
 {
-	FPipeHandle(int Fd)
+	FPipeHandle(int Fd, int PairFd)
 		:	PipeDesc(Fd)
+		,	PairDesc(PairFd)
 	{
 	}
 
@@ -187,9 +188,18 @@ struct FPipeHandle
 		return PipeDesc;
 	}
 
+	/**
+	 * Returns the raw file handle of the other endpoint of PipeDesc
+	 */
+	int GetPairHandle() const
+	{
+		return PairDesc;
+	}
+
 protected:
 
 	int	PipeDesc;
+	int	PairDesc;
 };
 
 /**
