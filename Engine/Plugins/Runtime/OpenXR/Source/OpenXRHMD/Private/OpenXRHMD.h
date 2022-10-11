@@ -245,6 +245,9 @@ protected:
 	// Used with FCoreDelegates
 	void VRHeadsetRecenterDelegate();
 
+	void SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHICmdList);
+	void DrawEmulatedQuadLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView);
+
 public:
 	/** IXRTrackingSystem interface */
 	virtual bool DoesSupportLateProjectionUpdate() const override { return true; }
@@ -296,6 +299,7 @@ public:
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override;
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override;
+	virtual void PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override; // for non-face locked compositing
 	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
 	virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
 
@@ -421,4 +425,8 @@ private:
 	bool					bUseCustomReferenceSpace;
 	FQuat					BaseOrientation;
 	FVector					BasePosition;
+
+	bool					bNativeWorldQuadLayerSupport;
+	TArray<IStereoLayers::FLayerDesc> EmulatedSceneLayers;
+	TArray<FOpenXRLayer>			  NativeQuadLayers;
 };

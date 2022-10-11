@@ -34,6 +34,7 @@
 #include "HDRHelper.h"
 #include "Shader.h"
 #include "ScreenRendering.h"
+#include "DefaultStereoLayers.h"
 
 #if WITH_EDITOR
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
@@ -1050,6 +1051,11 @@ void FOpenXRHMD::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneVie
 	check(IsInRenderingThread());
 }
 
+void FOpenXRHMD::PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
+{
+	DrawEmulatedQuadLayers_RenderThread(GraphBuilder, InView);
+}
+
 void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 {
 	check(IsInRenderingThread());
@@ -1203,6 +1209,10 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
 	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
 	SystemProperties.next = nullptr;
+
+	// Some runtimes aren't compliant with their number of layers supported.
+	// We support a fallback by emulating non-facelocked layers
+	bNativeWorldQuadLayerSupport = SystemProperties.graphicsProperties.maxLayerCount >= XR_MIN_COMPOSITION_LAYERS_SUPPORTED;
 
 	bSpaceAccellerationSupported = IsExtensionEnabled(XR_EPIC_SPACE_ACCELERATION_NAME);
 
@@ -1835,6 +1845,8 @@ void FOpenXRHMD::DestroySession()
 			Layer.LeftEye.Swapchain.Reset();
 		});
 
+		NativeQuadLayers.Reset();
+
 		PipelinedLayerStateRendering.ColorSwapchain.Reset();
 		PipelinedLayerStateRendering.DepthSwapchain.Reset();
 		PipelinedLayerStateRendering.QuadSwapchains.Reset();
@@ -2168,6 +2180,225 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	return true;
 }
 
+void CreateNativeLayerSwapchain(FOpenXRLayer& Layer, TRefCountPtr<FOpenXRRenderBridge>& RenderBridge, XrSession Session)
+{
+	auto CreateSwapchain = [&](FRHITexture2D* Texture, ETextureCreateFlags Flags)
+	{
+		return RenderBridge->CreateSwapchain(Session,
+			IStereoRenderTargetManager::GetStereoLayerPixelFormat(),
+			Texture->GetSizeX(),
+			Texture->GetSizeY(),
+			1,
+			Texture->GetNumMips(),
+			Texture->GetNumSamples(),
+			Texture->GetFlags() | Flags | TexCreate_RenderTargetable,
+			Texture->GetClearBinding());
+	};
+
+	const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
+		TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
+
+	if (Layer.NeedReallocateRightTexture())
+	{
+		FRHITexture2D* Texture = Layer.Desc.Texture->GetTexture2D();
+		Layer.RightEye.SetSwapchain(CreateSwapchain(Texture, Flags), Texture->GetSizeXY());
+	}
+
+	if (Layer.NeedReallocateLeftTexture())
+	{
+		FRHITexture2D* Texture = Layer.Desc.LeftTexture->GetTexture2D();
+		Layer.LeftEye.SetSwapchain(CreateSwapchain(Texture, Flags), Texture->GetSizeXY());
+	}
+}
+
+void FOpenXRHMD::SetupFrameQuadLayers_RenderThread(FRHICommandListImmediate& RHICmdList)
+{
+	ensure(IsInRenderingThread());
+
+	if (GetStereoLayersDirty())
+	{
+		// Go over the dirtied layers to bin them into either native or emulated
+		EmulatedSceneLayers.Reset();
+		NativeQuadLayers.Reset();
+
+		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
+		{
+			// We use native layer for facelocked and when world-locked has proper support
+			if ((Layer.Desc.PositionType == ELayerType::FaceLocked) || bNativeWorldQuadLayerSupport)
+			{
+				if (Layer.Desc.IsVisible() && Layer.Desc.HasShape<FQuadLayer>())
+				{
+					CreateNativeLayerSwapchain(Layer, RenderBridge, Session);
+					NativeQuadLayers.Add(Layer);
+				}
+				else
+				{
+					// We retain references in FPipelinedLayerState to avoid premature destruction
+					Layer.RightEye.Swapchain.Reset();
+					Layer.LeftEye.Swapchain.Reset();
+				}
+			}
+			else if (Layer.Desc.IsVisible())
+			{
+				EmulatedSceneLayers.Add(Layer.Desc);
+			}
+		});
+
+		auto LayerCompare = [](const auto& A, const auto& B)
+		{
+			FLayerDesc DescA, DescB;
+			if (GetLayerDescMember(A, DescA) && GetLayerDescMember(B, DescB))
+			{
+				if (DescA.Priority < DescB.Priority)
+				{
+					return true;
+				}
+				if (DescA.Priority > DescB.Priority)
+				{
+					return false;
+				}
+				return DescA.Id < DescB.Id;
+			}
+			return false;
+		};
+
+		EmulatedSceneLayers.Sort(LayerCompare);
+		NativeQuadLayers.Sort(LayerCompare);
+	}
+
+	const FTransform InvTrackingToWorld = GetTrackingToWorldTransform().Inverse();
+	const float WorldToMeters = GetWorldToMetersScale();
+
+	// Set up our OpenXR info per native quad layer. Emulated layers have everything in FLayerDesc
+	PipelinedLayerStateRendering.QuadLayers.Reset(NativeQuadLayers.Num());
+	PipelinedLayerStateRendering.QuadSwapchains.Reset(NativeQuadLayers.Num());
+	{
+		FReadScopeLock DeviceLock(DeviceMutex);
+
+		for (const FOpenXRLayer& Layer : NativeQuadLayers)
+		{
+			const bool bNoAlpha = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
+			const bool bIsStereo = Layer.Desc.LeftTexture.IsValid();
+			const FTransform PositionTransform = Layer.Desc.PositionType == ELayerType::WorldLocked ?
+				InvTrackingToWorld : FTransform::Identity;
+
+			XrCompositionLayerQuad Quad = { XR_TYPE_COMPOSITION_LAYER_QUAD, nullptr };
+			Quad.layerFlags = bNoAlpha ? 0 : XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT |
+				XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
+			Quad.space = Layer.Desc.PositionType == ELayerType::FaceLocked ?
+				DeviceSpaces[HMDDeviceId].Space : PipelinedFrameStateRendering.TrackingSpace->Handle;
+			Quad.subImage.imageArrayIndex = 0;
+			Quad.pose = ToXrPose(Layer.Desc.Transform * PositionTransform, WorldToMeters);
+
+			// We need to copy each layer into an OpenXR swapchain so they can be displayed by the compositor
+			if (Layer.RightEye.Swapchain.IsValid() && Layer.Desc.Texture.IsValid())
+			{
+				if (Layer.RightEye.bUpdateTexture && bIsRunning)
+				{
+					FRHITexture2D* SrcTexture = Layer.Desc.Texture->GetTexture2D();
+					const FIntRect DstRect(FIntPoint(0, 0), Layer.RightEye.SwapchainSize.IntPoint());
+					CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.RightEye.Swapchain, DstRect, false, bNoAlpha);
+				}
+
+				Quad.eyeVisibility = bIsStereo ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_BOTH;
+
+				Quad.subImage.imageRect = ToXrRect(Layer.GetRightViewportSize());
+				Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.RightEye.Swapchain.Get())->GetHandle();
+				Quad.size = ToXrExtent2D(Layer.GetRightQuadSize(), WorldToMeters);
+				PipelinedLayerStateRendering.QuadLayers.Add(Quad);
+				PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.RightEye.Swapchain);
+			}
+
+			if (Layer.LeftEye.Swapchain.IsValid() && Layer.Desc.LeftTexture.IsValid())
+			{
+				if (Layer.LeftEye.bUpdateTexture && bIsRunning)
+				{
+					FRHITexture2D* SrcTexture = Layer.Desc.LeftTexture->GetTexture2D();
+					const FIntRect DstRect(FIntPoint(0, 0), Layer.LeftEye.SwapchainSize.IntPoint());
+					CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.LeftEye.Swapchain, DstRect, false, bNoAlpha);
+				}
+
+				Quad.eyeVisibility = XR_EYE_VISIBILITY_LEFT;
+				Quad.subImage.imageRect = ToXrRect(Layer.GetLeftViewportSize());
+				Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.LeftEye.Swapchain.Get())->GetHandle();
+				Quad.size = ToXrExtent2D(Layer.GetLeftQuadSize(), WorldToMeters);
+				PipelinedLayerStateRendering.QuadLayers.Add(Quad);
+				PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.LeftEye.Swapchain);
+			}
+		}
+	}
+}
+
+void FOpenXRHMD::DrawEmulatedQuadLayers_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& InView)
+{
+	check(IsInRenderingThread());
+
+	if (bNativeWorldQuadLayerSupport || !IStereoRendering::IsStereoEyeView(InView))
+	{
+		return;
+	}
+
+	// Partially borrowed from FDefaultStereoLayers
+	AddPass(GraphBuilder, RDG_EVENT_NAME("OpenXREmulatedLayerRender"), [this, &InView](FRHICommandListImmediate& RHICmdList)
+	{
+		FViewMatrices ModifiedViewMatrices = InView.ViewMatrices;
+		ModifiedViewMatrices.HackRemoveTemporalAAProjectionJitter();
+		const FMatrix& ProjectionMatrix = ModifiedViewMatrices.GetProjectionMatrix();
+		const FMatrix& ViewProjectionMatrix = ModifiedViewMatrices.GetViewProjectionMatrix();
+
+		// Calculate a view matrix that only adjusts for eye position, ignoring head position, orientation and world position.
+		FVector EyeShift;
+		FQuat EyeOrientation;
+		GetRelativeEyePose(IXRTrackingSystem::HMDDeviceId, InView.StereoViewIndex, EyeOrientation, EyeShift);
+
+		FMatrix EyeMatrix = FTranslationMatrix(-EyeShift) * FInverseRotationMatrix(EyeOrientation.Rotator()) * FMatrix(
+			FPlane(0, 0, 1, 0),
+			FPlane(1, 0, 0, 0),
+			FPlane(0, 1, 0, 0),
+			FPlane(0, 0, 0, 1));
+
+		FQuat HmdOrientation = FQuat::Identity;
+		FVector HmdLocation = FVector::ZeroVector;
+		GetCurrentPose(IXRTrackingSystem::HMDDeviceId, HmdOrientation, HmdLocation);
+
+		FMatrix TrackerMatrix = FTranslationMatrix(-HmdLocation) * FInverseRotationMatrix(HmdOrientation.Rotator()) * EyeMatrix;
+
+		FDefaultStereoLayers::FLayerRenderParams RenderParams{
+			InView.UnscaledViewRect, // Viewport
+			{
+				ViewProjectionMatrix,				// WorldLocked,
+				TrackerMatrix * ProjectionMatrix,	// TrackerLocked,
+				EyeMatrix * ProjectionMatrix		// FaceLocked
+			}
+		};
+
+		TArray<FRHITransitionInfo, TInlineAllocator<16>> Infos;
+		for (const FLayerDesc& Layer : EmulatedSceneLayers)
+		{
+			Infos.Add(FRHITransitionInfo(Layer.Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+		}
+		if (Infos.Num())
+		{
+			RHICmdList.Transition(Infos);
+		}
+
+		FTexture2DRHIRef RenderTarget = InView.Family->RenderTarget->GetRenderTargetTexture();
+
+		FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("EmulatedStereoLayerRender"));
+		RHICmdList.SetViewport((float)RenderParams.Viewport.Min.X, (float)RenderParams.Viewport.Min.Y, 0.0f, (float)RenderParams.Viewport.Max.X, (float)RenderParams.Viewport.Max.Y, 1.0f);
+
+		if (bSplashIsShown || !IsBackgroundLayerVisible())
+		{
+			DrawClearQuad(RHICmdList, FLinearColor::Black);
+		}
+
+		FDefaultStereoLayers::StereoLayerRender(RHICmdList, EmulatedSceneLayers, RenderParams);
+
+		RHICmdList.EndRenderPass();
+	});
+}
+
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
 	ensure(IsInRenderingThread());
@@ -2183,7 +2414,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 
 	const float WorldToMeters = GetWorldToMetersScale();
-	const FTransform InvTrackingToWorld = GetTrackingToWorldTransform().Inverse();
 
 	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
 	{
@@ -2204,109 +2434,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Projection.fov = View.fov;
 	}
 
-	// Manage the swapchains in the stereo layers
-	auto CreateSwapchain = [this](FRHITexture2D* Texture, ETextureCreateFlags Flags)
-	{
-		return RenderBridge->CreateSwapchain(Session,
-			IStereoRenderTargetManager::GetStereoLayerPixelFormat(),
-			Texture->GetSizeX(),
-			Texture->GetSizeY(),
-			1,
-			Texture->GetNumMips(),
-			Texture->GetNumSamples(),
-			Texture->GetFlags() | Flags | TexCreate_RenderTargetable,
-			Texture->GetClearBinding());
-	};
-	if (GetStereoLayersDirty())
-	{
-		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
-		{
-			if (Layer.Desc.IsVisible() && Layer.Desc.HasShape<FQuadLayer>())
-			{
-				const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
-					TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
-
-				if (Layer.NeedReallocateRightTexture())
-				{
-					FRHITexture2D* Texture = Layer.Desc.Texture->GetTexture2D();
-					Layer.RightEye.SetSwapchain(CreateSwapchain(Texture, Flags), Texture->GetSizeXY());
-				}
-
-				if (Layer.NeedReallocateLeftTexture())
-				{
-					FRHITexture2D* Texture = Layer.Desc.LeftTexture->GetTexture2D();
-					Layer.LeftEye.SetSwapchain(CreateSwapchain(Texture, Flags), Texture->GetSizeXY());
-				}
-			}
-			else
-			{
-				// We retain references in FPipelinedLayerState to avoid premature destruction
-				Layer.RightEye.Swapchain.Reset();
-				Layer.LeftEye.Swapchain.Reset();
-			}
-		});
-	}
-
-	// Gather all active quad layers for composition sorted by priority
-	TArray<FOpenXRLayer> StereoLayers;
-	CopySortedLayers(StereoLayers);
-	PipelinedLayerStateRendering.QuadLayers.Reset(StereoLayers.Num());
-	PipelinedLayerStateRendering.QuadSwapchains.Reset(StereoLayers.Num());
-	{
-		FReadScopeLock DeviceLock(DeviceMutex);
-
-		for (const FOpenXRLayer& Layer : StereoLayers)
-		{
-			const bool bNoAlpha = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL;
-			const bool bIsStereo = Layer.Desc.LeftTexture.IsValid();
-			FTransform PositionTransform = Layer.Desc.PositionType == ELayerType::WorldLocked ?
-				InvTrackingToWorld : FTransform::Identity;
-
-			XrCompositionLayerQuad Quad = { XR_TYPE_COMPOSITION_LAYER_QUAD, nullptr };
-			Quad.layerFlags = bNoAlpha ? 0 : XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT |
-				XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
-			Quad.space = Layer.Desc.PositionType == ELayerType::FaceLocked ?
-				DeviceSpaces[HMDDeviceId].Space : PipelinedFrameStateRendering.TrackingSpace->Handle;
-			Quad.subImage.imageArrayIndex = 0;
-			Quad.pose = ToXrPose(Layer.Desc.Transform * PositionTransform, WorldToMeters);
-
-			// We need to copy each layer into an OpenXR swapchain so they can be displayed by the compositor
-			if (Layer.RightEye.Swapchain.IsValid() && Layer.Desc.Texture.IsValid())
-			{
-				if (Layer.RightEye.bUpdateTexture && bIsRunning)
-				{
-					FRHITexture2D* SrcTexture = Layer.Desc.Texture->GetTexture2D();
-					FIntRect DstRect(FIntPoint(0, 0), Layer.RightEye.SwapchainSize.IntPoint());
-					CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.RightEye.Swapchain, DstRect, false, bNoAlpha);
-				}
-
-				Quad.eyeVisibility = bIsStereo ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_BOTH;
-
-				Quad.subImage.imageRect = ToXrRect(Layer.GetRightViewportSize());
-				Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.RightEye.Swapchain.Get())->GetHandle();
-				Quad.size = ToXrExtent2D(Layer.GetRightQuadSize(), WorldToMeters);
-				PipelinedLayerStateRendering.QuadLayers.Add(Quad);
-				PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.RightEye.Swapchain);
-			}
-
-			if (Layer.LeftEye.Swapchain.IsValid() && Layer.Desc.LeftTexture.IsValid())
-			{
-				if (Layer.LeftEye.bUpdateTexture && bIsRunning)
-				{
-					FRHITexture2D* SrcTexture = Layer.Desc.LeftTexture->GetTexture2D();
-					FIntRect DstRect(FIntPoint(0, 0), Layer.LeftEye.SwapchainSize.IntPoint());
-					CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.LeftEye.Swapchain, DstRect, false, bNoAlpha);
-				}
-
-				Quad.eyeVisibility = XR_EYE_VISIBILITY_LEFT;
-				Quad.subImage.imageRect = ToXrRect(Layer.GetLeftViewportSize());
-				Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.LeftEye.Swapchain.Get())->GetHandle();
-				Quad.size = ToXrExtent2D(Layer.GetLeftQuadSize(), WorldToMeters);
-				PipelinedLayerStateRendering.QuadLayers.Add(Quad);
-				PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.LeftEye.Swapchain);
-			}
-		}
-	}
+	SetupFrameQuadLayers_RenderThread(RHICmdList);
 
 #if !PLATFORM_HOLOLENS
 	if (bHiddenAreaMaskSupported && bNeedReBuildOcclusionMesh)

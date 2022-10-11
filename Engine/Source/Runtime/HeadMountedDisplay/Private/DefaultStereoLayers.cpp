@@ -56,7 +56,9 @@ FDefaultStereoLayers::FDefaultStereoLayers(const FAutoRegister& AutoRegister, FH
 }
 
 //=============================================================================
-void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdList, const TArray<uint32> & LayersToRender, const FLayerRenderParams& RenderParams) const
+
+// static
+void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdList, const TArray<FLayerDesc>& LayersToRender, const FLayerRenderParams& RenderParams)
 {
 	check(IsInRenderingThread());
 	if (!LayersToRender.Num())
@@ -89,13 +91,12 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 	// Force initialization of pipeline state on first iteration:
-	bool bLastWasOpaque = (RenderThreadLayers[LayersToRender[0]].Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) == 0;
-	bool bLastWasExternal = (RenderThreadLayers[LayersToRender[0]].Flags & LAYER_FLAG_TEX_EXTERNAL) == 0;
+	bool bLastWasOpaque = (LayersToRender[0].Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) == 0;
+	bool bLastWasExternal = (LayersToRender[0].Flags & LAYER_FLAG_TEX_EXTERNAL) == 0;
 
 	// For each layer
-	for (uint32 LayerIndex : LayersToRender)
+	for (const FLayerDesc& Layer : LayersToRender)
 	{
-		const FLayerDesc& Layer = RenderThreadLayers[LayerIndex];
 		check(Layer.IsVisible());
 		const bool bIsOpaque = (Layer.Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) != 0;
 		const bool bIsExternal = (Layer.Flags & LAYER_FLAG_TEX_EXTERNAL) != 0;
@@ -175,33 +176,30 @@ void FDefaultStereoLayers::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBu
 	{
 		return;
 	}
-
-	CopyLayers(RenderThreadLayers);
-
+	
 	// Sort layers
 	SortedSceneLayers.Reset();
 	SortedOverlayLayers.Reset();
-	uint32 LayerCount = RenderThreadLayers.Num();
-	for (uint32 LayerIndex = 0; LayerIndex < LayerCount; ++LayerIndex)
+
+	ForEachLayer([&](uint32 /* unused */, const FLayerDesc& Layer)
 	{
-		const auto& Layer = RenderThreadLayers[LayerIndex];
 		if (!Layer.IsVisible())
 		{
-			continue;
+			return;
 		}
 		if (Layer.PositionType == ELayerType::FaceLocked)
 		{
-			SortedOverlayLayers.Add(LayerIndex);
+			SortedOverlayLayers.Add(Layer);
 		}
 		else
 		{
-			SortedSceneLayers.Add(LayerIndex);
+			SortedSceneLayers.Add(Layer);
 		}
-	}
+	});
 
-	auto SortLayersPredicate = [&](const uint32& A, const uint32& B)
+	auto SortLayersPredicate = [&](const FLayerDesc& A, const FLayerDesc& B)
 	{
-		return RenderThreadLayers[A].Priority < RenderThreadLayers[B].Priority;
+		return A.Priority < B.Priority;
 	};
 	SortedSceneLayers.Sort(SortLayersPredicate);
 	SortedOverlayLayers.Sort(SortLayersPredicate);
@@ -247,13 +245,13 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRDGBuilder& GraphBuilder
 		};
 
 		TArray<FRHITransitionInfo, TInlineAllocator<16>> Infos;
-		for (uint32 LayerIndex : SortedSceneLayers)
+		for (const FLayerDesc& SceneLayer : SortedSceneLayers)
 		{
-			Infos.Add(FRHITransitionInfo(RenderThreadLayers[LayerIndex].Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+			Infos.Add(FRHITransitionInfo(SceneLayer.Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 		}
-		for (uint32 LayerIndex : SortedOverlayLayers)
+		for (const FLayerDesc& OverlayLayer : SortedOverlayLayers)
 		{
-			Infos.Add(FRHITransitionInfo(RenderThreadLayers[LayerIndex].Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+			Infos.Add(FRHITransitionInfo(OverlayLayer.Texture, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
 		}
 		if (Infos.Num())
 		{
