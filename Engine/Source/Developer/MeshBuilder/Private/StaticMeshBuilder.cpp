@@ -258,6 +258,8 @@ static bool BuildNanite(
 
 			BuildAllBufferOptimizations(ProxyLOD, BuildSettings, ProxyMeshData.TriangleIndices, bNeeds32BitIndices, ProxyMeshData.Vertices);
 
+			ProxyLOD.MaxDeviation = ProxyMeshData.MaxDeviation;
+
 			ValidLODCount++;
 		}
 	}

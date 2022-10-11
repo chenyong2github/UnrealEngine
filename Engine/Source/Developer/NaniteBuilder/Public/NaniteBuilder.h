@@ -60,6 +60,7 @@ public:
 		TArray<uint32> TriangleIndices;
 		FStaticMeshSectionArray Sections;
 		float PercentTriangles;
+		float MaxDeviation;
 	};
 
 	virtual bool Build(

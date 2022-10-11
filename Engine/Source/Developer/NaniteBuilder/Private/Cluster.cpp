@@ -257,7 +257,7 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& Merge
 	ensure( NumTris == Indexes.Num() / 3 );
 }
 
-float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitNumTris )
+float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitNumTris, bool bForNaniteFallback )
 {
 	if( ( TargetNumTris >= NumTris && TargetError == 0.0f ) || LimitNumTris >= NumTris )
 	{
@@ -299,7 +299,9 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 	int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
 	FloatScale.Components.Exponent = Exponent + 127;	//ExpBias
 	// Scale ~= DesiredSize / CurrentSize
-	float PositionScale = FloatScale.FloatValue;
+	// When generating nanite fallback meshes, use the same weights as in FQuadricSimplifierMeshReduction::ReduceMeshDescription
+	// to ensure consistent LOD transition screen size.
+	float PositionScale = bForNaniteFallback ? 1.f : FloatScale.FloatValue;
 
 	for( uint32 i = 0; i < NumVerts; i++ )
 	{
@@ -311,17 +313,17 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 	float* AttributeWeights = (float*)FMemory_Alloca( NumAttributes * sizeof( float ) );
 
 	// Normal
-	AttributeWeights[0] = 1.0f;
-	AttributeWeights[1] = 1.0f;
-	AttributeWeights[2] = 1.0f;
+	AttributeWeights[0] = bForNaniteFallback ? 16.f : 1.0f;
+	AttributeWeights[1] = bForNaniteFallback ? 16.f : 1.0f;
+	AttributeWeights[2] = bForNaniteFallback ? 16.f : 1.0f;
 
 	if( bHasColors )
 	{
 		float* ColorWeights = AttributeWeights + 3;
-		ColorWeights[0] = 0.0625f;
-		ColorWeights[1] = 0.0625f;
-		ColorWeights[2] = 0.0625f;
-		ColorWeights[3] = 0.0625f;
+		ColorWeights[0] = bForNaniteFallback ? 0.1f : 0.0625f;
+		ColorWeights[1] = bForNaniteFallback ? 0.1f : 0.0625f;
+		ColorWeights[2] = bForNaniteFallback ? 0.1f : 0.0625f;
+		ColorWeights[3] = bForNaniteFallback ? 0.1f : 0.0625f;
 	}
 	
 	uint32 TexCoordOffset = 3 + ( bHasColors ? 4 : 0 );
@@ -330,11 +332,47 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 	// Normalize UVWeights
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
-		float TriangleUVSize = FMath::Sqrt( UVArea[ UVIndex ] / NumTris );
-		TriangleUVSize = FMath::Max( TriangleUVSize, THRESH_UVS_ARE_SAME );
+		if (bForNaniteFallback)
+		{
+			float MinUV = +FLT_MAX;
+			float MaxUV = -FLT_MAX;
 
-		UVWeights[ 2 * UVIndex + 0 ] = 1.0f / ( 128.0f * TriangleUVSize );
-		UVWeights[ 2 * UVIndex + 1 ] = 1.0f / ( 128.0f * TriangleUVSize );
+			for (uint32 TriIndex = 0; TriIndex < NumTris; TriIndex++)
+			{
+				uint32 Index0 = Indexes[TriIndex * 3 + 0];
+				uint32 Index1 = Indexes[TriIndex * 3 + 1];
+				uint32 Index2 = Indexes[TriIndex * 3 + 2];
+
+				FVector2f UV0 = GetUVs(Index0)[UVIndex];
+				FVector2f UV1 = GetUVs(Index1)[UVIndex];
+				FVector2f UV2 = GetUVs(Index2)[UVIndex];
+
+				MinUV = FMath::Min(MinUV, UV0.X);
+				MinUV = FMath::Min(MinUV, UV0.Y);
+				MinUV = FMath::Min(MinUV, UV1.X);
+				MinUV = FMath::Min(MinUV, UV1.Y);
+				MinUV = FMath::Min(MinUV, UV2.X);
+				MinUV = FMath::Min(MinUV, UV2.Y);
+
+				MaxUV = FMath::Max(MaxUV, UV0.X);
+				MaxUV = FMath::Max(MaxUV, UV0.Y);
+				MaxUV = FMath::Max(MaxUV, UV1.X);
+				MaxUV = FMath::Max(MaxUV, UV1.Y);
+				MaxUV = FMath::Max(MaxUV, UV2.X);
+				MaxUV = FMath::Max(MaxUV, UV2.Y);
+			}
+
+			UVWeights[2 * UVIndex + 0] = 0.5f / FMath::Max(1.f, MaxUV - MinUV);
+			UVWeights[2 * UVIndex + 1] = 0.5f / FMath::Max(1.f, MaxUV - MinUV);
+		}
+		else
+		{
+			float TriangleUVSize = FMath::Sqrt(UVArea[UVIndex] / NumTris);
+			TriangleUVSize = FMath::Max(TriangleUVSize, THRESH_UVS_ARE_SAME);
+
+			UVWeights[2 * UVIndex + 0] = 1.0f / (128.0f * TriangleUVSize);
+			UVWeights[2 * UVIndex + 1] = 1.0f / (128.0f * TriangleUVSize);
+		}
 	}
 
 	FMeshSimplifier Simplifier( Verts.GetData(), NumVerts, Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
@@ -360,7 +398,14 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 
 	Simplifier.SetAttributeWeights( AttributeWeights );
 	Simplifier.SetCorrectAttributes( bHasColors ? CorrectAttributesColor : CorrectAttributes );
-	Simplifier.SetEdgeWeight( 2.0f );
+	Simplifier.SetEdgeWeight(bForNaniteFallback ? 512.f : 2.0f );
+
+	if (bForNaniteFallback)
+	{
+		Simplifier.SetLimitErrorToSurfaceArea(false);
+		Simplifier.DegreePenalty = 100.0f;
+		Simplifier.InversionPenalty = 1000000.0f;
+	}
 
 	float MaxErrorSqr = Simplifier.Simplify(
 		NumVerts, TargetNumTris, FMath::Square( TargetError ),

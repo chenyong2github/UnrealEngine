@@ -176,7 +176,7 @@ void CalcTangents(
 #endif //WITH_MIKKTSPACE
 }
 
-static void BuildCoarseRepresentation(
+static float BuildCoarseRepresentation(
 	const TArray<FClusterGroup>& Groups,
 	const TArray<FCluster>& Clusters,
 	TArray<FStaticMeshBuildVertex>& Verts,
@@ -206,7 +206,8 @@ static void BuildCoarseRepresentation(
 		} );
 
 	FCluster CoarseRepresentation( MergeList );
-	CoarseRepresentation.Simplify( TargetNumTris, TargetError, FMath::Min( TargetNumTris, 256u ) );
+	// FindDAGCut also produces error when TargetError is non-zero but this only happens for LOD0 whose MaxDeviation is always zero
+	float OutError = CoarseRepresentation.Simplify( TargetNumTris, TargetError, FMath::Min( TargetNumTris, 256u ), true );
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -294,6 +295,8 @@ static void BuildCoarseRepresentation(
 	}
 
 	CalcTangents(Verts, Indexes);
+
+	return OutError;
 }
 
 static void ClusterTriangles(
@@ -630,11 +633,14 @@ static bool BuildNaniteData(
 		{
 			Swap( FallbackLODMeshData.Vertices,			InputMeshData.Vertices );
 			Swap( FallbackLODMeshData.TriangleIndices,	InputMeshData.TriangleIndices );
+			FallbackLODMeshData.MaxDeviation = 0.f;
 		}
 		else
 		{
 			TArray<FStaticMeshSection, TInlineAllocator<1>> FallbackSections = InputMeshData.Sections;
-			BuildCoarseRepresentation(Groups, Clusters, FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices, FallbackSections, NumTexCoords, FallbackTargetNumTris, FallbackTargetError);
+			const float ReductionError = BuildCoarseRepresentation(Groups, Clusters, FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices, FallbackSections, NumTexCoords, FallbackTargetNumTris, FallbackTargetError);
+
+			FallbackLODMeshData.MaxDeviation = FallbackLODIndex == 0 ? 0.f : ReductionError / 8.f;
 
 			// Fixup mesh section info with new coarse mesh ranges, while respecting original ordering and keeping materials
 			// that do not end up with any assigned triangles (due to decimation process).
