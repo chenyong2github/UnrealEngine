@@ -382,6 +382,7 @@ namespace Audio
 		, int32 InSourceID
 	)
 		: ClockName(RHS.ClockName)
+		, OtherClockName(RHS.OtherClockName)
 		, QuantizedCommandPtr(RHS.QuantizedCommandPtr)
 		, QuantizationBoundary(RHS.QuantizationBoundary)
 		, GameThreadSubscribers(RHS.GameThreadSubscribers)
