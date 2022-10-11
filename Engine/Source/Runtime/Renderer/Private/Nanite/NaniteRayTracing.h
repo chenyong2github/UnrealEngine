@@ -141,6 +141,7 @@ namespace Nanite
 		ERayTracingMode bCurrentMode = ERayTracingMode::Fallback;
 
 		bool bUpdating = false;
+		bool bInitialized = false;
 	};
 
 	extern TGlobalResource<FRayTracingManager> GRayTracingManager;

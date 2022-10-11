@@ -159,7 +159,7 @@ namespace Nanite
 		StagingAuxiliaryDataBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 8), TEXT("NaniteRayTracing.StagingAuxiliaryDataBuffer"));
 		SET_MEMORY_STAT(STAT_NaniteRayTracingStagingAuxiliaryDataBuffer, StagingAuxiliaryDataBuffer->GetSize());
 
-		ReadbackBuffers.AddZeroed(MaxReadbackBuffers);
+		ReadbackBuffers.SetNum(MaxReadbackBuffers);
 
 		for (auto& ReadbackData : ReadbackBuffers)
 		{
@@ -174,14 +174,33 @@ namespace Nanite
 		Params.RayTracingDataBuffer = AuxiliaryDataBuffer->GetSRV();
 
 		UniformBuffer = TUniformBufferRef<FNaniteRayTracingUniformParameters>::CreateUniformBufferImmediate(Params, UniformBuffer_MultiFrame);
+
+		bInitialized = true;
 	}
 
 	void FRayTracingManager::ReleaseRHI()
 	{
-		if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+		if (!bInitialized)
 		{
 			return;
 		}
+
+		bInitialized = false;
+
+		VertexBuffer.SafeRelease();
+		IndexBuffer.SafeRelease();
+
+		UniformBuffer.SafeRelease();
+
+		for (auto& ReadbackData : ReadbackBuffers)
+		{
+			delete ReadbackData.MeshDataReadbackBuffer;
+			ReadbackData.MeshDataReadbackBuffer = nullptr;
+		}
+
+		ReadbackBuffers.Empty();
+		StagingAuxiliaryDataBuffer.SafeRelease();
+		AuxiliaryDataBuffer.SafeRelease();
 	}
 
 	void FRayTracingManager::Add(FPrimitiveSceneInfo* SceneInfo)
