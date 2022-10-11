@@ -820,8 +820,15 @@ static bool ShouldCompileProgrammablePermutation(const FMaterialShaderParameters
 	}
 
 	// Custom materials should compile only the specific combination that is actually used
-	return	IsVertexProgrammable(MaterialParameters, bPermutationPrimitiveShader) == bPermutationVertexProgrammable &&
-			IsPixelProgrammable(MaterialParameters) == bPermutationPixelProgrammable;
+	// TODO: The status of material attributes on the FMaterialShaderParameters is determined without knowledge of any static
+	// switches' values, and therefore when true could represent the set of materials that both enable them and do not. We could
+	// isolate a narrower set of required shaders if FMaterialShaderParameters reflected the status after static switches are
+	// applied.
+	//return IsVertexProgrammable(MaterialParameters, bPermutationPrimitiveShader) == bPermutationVertexProgrammable &&	
+	//		IsPixelProgrammable(MaterialParameters) == bPermutationPixelProgrammable;
+	return	(IsVertexProgrammable(MaterialParameters, bPermutationPrimitiveShader) || !bPermutationVertexProgrammable) &&
+			(IsPixelProgrammable(MaterialParameters) || !bPermutationPixelProgrammable) &&
+			(bPermutationVertexProgrammable || bPermutationPixelProgrammable);
 }
 
 class FMicropolyRasterizeCS : public FNaniteMaterialShader
