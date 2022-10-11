@@ -90,6 +90,65 @@ namespace Horde.Storage.FunctionalTests.References
 
         }
     }
+    
+    [TestClass]
+    public class CassandraReferencesTests : ReferencesTests
+    {
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new[]
+            {
+                new KeyValuePair<string, string>("Horde_Storage:ReferencesDbImplementation", HordeStorageSettings.ReferencesDbImplementations.Scylla.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:ContentIdStoreImplementation", HordeStorageSettings.ContentIdStoreImplementations.Scylla.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:ReplicationLogWriterImplementation", HordeStorageSettings.ReplicationLogWriterImplementations.Scylla.ToString()),
+                new KeyValuePair<string, string>("Scylla:UseAzureCosmosDB", "true"),
+                new KeyValuePair<string, string>("Scylla:UseSSL", "false"),
+            };
+        }
+
+        protected override async Task SeedDb(IServiceProvider provider)
+        {
+            IReferencesStore referencesStore = provider.GetService<IReferencesStore>()!;
+            //verify we are using the expected store
+            Assert.IsTrue(referencesStore.GetType() == typeof(ScyllaReferencesStore));
+
+            IContentIdStore contentIdStore = provider.GetService<IContentIdStore>()!;
+            //verify we are using the expected store
+            if (contentIdStore is MemoryCachedContentIdStore memoryStore)
+            {
+                memoryStore.Clear();
+                contentIdStore = memoryStore.GetUnderlyingContentIdStore();
+            }
+            Assert.IsTrue(contentIdStore.GetType() == typeof(ScyllaContentIdStore));
+
+            IReplicationLog replicationLog = provider.GetService<IReplicationLog>()!;
+            //verify we are using the replication log writer
+            Assert.IsTrue(replicationLog.GetType() == typeof(ScyllaReplicationLog));
+
+            await SeedTestData();
+        }
+
+        protected override async Task TeardownDb(IServiceProvider provider)
+        {
+            IScyllaSessionManager scyllaSessionManager = provider.GetService<IScyllaSessionManager>()!;
+
+            ISession replicatedKeyspace = scyllaSessionManager.GetSessionForReplicatedKeyspace();
+            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS objects"));
+            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS content_id"));
+
+            // we need to clear out the state we modified in the replication log, otherwise the replication log tests will fail
+            ISession localKeyspace = scyllaSessionManager.GetSessionForLocalKeyspace();
+            await Task.WhenAll(
+                // remove replication log table as we expect it to be empty when starting the tests
+                localKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS replication_log;")),
+                // remove the snapshots
+                localKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS replication_snapshot;")),
+                // remove the namespaces
+                localKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS replication_namespace;"))
+            );
+
+        }
+    }
 
     [TestClass]
     public class MongoReferencesTests : ReferencesTests

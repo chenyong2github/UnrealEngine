@@ -275,8 +275,8 @@ namespace Horde.Storage
             {
                 store = ActivatorUtilities.CreateInstance<MemoryCachedContentIdStore>(provider, store);
             }
-			return store;
-		}
+            return store;
+        }
 
         private IScyllaSessionManager ScyllaFactory(IServiceProvider provider)
         {
@@ -309,41 +309,44 @@ namespace Horde.Storage
                 string[] contactPoints = connectionStringBuilder.ContactPoints;
 
                 // Connect to cassandra cluster using TLSv1.2.
-                SSLOptions sslOptions = new SSLOptions(SslProtocols.None, false,
-                    (sender, certificate, chain, sslPolicyErrors) =>
-                    {
-                        if (sslPolicyErrors == SslPolicyErrors.None)
+                if (settings.UseSSL)
+                {
+                    SSLOptions sslOptions = new SSLOptions(SslProtocols.None, false,
+                        (sender, certificate, chain, sslPolicyErrors) =>
                         {
-                            return true;
-                        }
+                            if (sslPolicyErrors == SslPolicyErrors.None)
+                            {
+                                return true;
+                            }
 
-                        Logger.Error("Certificate error: {0}", sslPolicyErrors);
-                        // Do not allow this client to communicate with unauthenticated servers.
-                        return false;
+                            Logger.Error("Certificate error: {0}", sslPolicyErrors);
+                            // Do not allow this client to communicate with unauthenticated servers.
+                            return false;
+                        });
+
+                    // Prepare a map to resolve the host name from the IP address.
+                    Dictionary<IPAddress, string> hostNameByIp = new Dictionary<IPAddress, string>();
+                    foreach (string contactPoint in contactPoints)
+                    {
+                        IPAddress[] resolvedIps = Dns.GetHostAddresses(contactPoint);
+                        foreach (IPAddress resolvedIp in resolvedIps)
+                        {
+                            hostNameByIp[resolvedIp] = contactPoint;
+                        }
+                    }
+
+                    sslOptions.SetHostNameResolver((ipAddress) =>
+                    {
+                        if (hostNameByIp.TryGetValue(ipAddress, out string? resolvedName))
+                        {
+                            return resolvedName;
+                        }
+                        IPHostEntry hostEntry = Dns.GetHostEntry(ipAddress.ToString());
+                        return hostEntry.HostName;
                     });
 
-                // Prepare a map to resolve the host name from the IP address.
-                Dictionary<IPAddress, string> hostNameByIp = new Dictionary<IPAddress, string>();
-                foreach (string contactPoint in contactPoints)
-                {
-                    IPAddress[] resolvedIps = Dns.GetHostAddresses(contactPoint);
-                    foreach (IPAddress resolvedIp in resolvedIps)
-                    {
-                        hostNameByIp[resolvedIp] = contactPoint;
-                    }
+                    clusterBuilder = clusterBuilder.WithSSL(sslOptions);
                 }
-
-                sslOptions.SetHostNameResolver((ipAddress) =>
-                {
-                    if (hostNameByIp.TryGetValue(ipAddress, out string? resolvedName))
-                    {
-                        return resolvedName;
-                    }
-                    IPHostEntry hostEntry = Dns.GetHostEntry(ipAddress.ToString());
-                    return hostEntry.HostName;
-                });
-
-                clusterBuilder = clusterBuilder.WithSSL(sslOptions);
             }
             Cluster cluster = clusterBuilder.Build();
 

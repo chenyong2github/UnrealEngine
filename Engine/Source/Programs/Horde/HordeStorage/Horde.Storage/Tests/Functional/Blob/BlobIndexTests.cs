@@ -246,6 +246,36 @@ namespace Horde.Storage.FunctionalTests.Storage
     }
 
     [TestClass]
+    public class CassandraBlobIndexTests : BlobIndexTests
+    {
+        protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+        {
+            return new[]
+            {
+                new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Scylla.ToString()),
+                new KeyValuePair<string, string>("Scylla:UseAzureCosmosDB", "true"),
+                new KeyValuePair<string, string>("Scylla:UseSSL", "false"),
+            };
+        }
+
+        protected override Task Seed(IServiceProvider provider)
+        {
+            IScyllaSessionManager scyllaSessionManager = provider.GetService<IScyllaSessionManager>()!;
+
+            Assert.IsTrue(scyllaSessionManager.IsCassandra);
+            return Task.CompletedTask;
+        }
+
+        protected override async Task Teardown(IServiceProvider provider)
+        {
+            IScyllaSessionManager scyllaSessionManager = provider.GetService<IScyllaSessionManager>()!;
+
+            ISession replicatedKeyspace = scyllaSessionManager.GetSessionForReplicatedKeyspace();
+            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index"));
+        }
+    }
+
+    [TestClass]
     public class MongoBlobIndexTests : BlobIndexTests
     {
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()

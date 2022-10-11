@@ -17,18 +17,21 @@ namespace Horde.Storage.Implementation
         private readonly ISession _session;
         private readonly IBlobService _blobStore;
         private readonly Mapper _mapper;
+        private readonly IScyllaSessionManager _scyllaSessionManager;
 
         public ScyllaContentIdStore(IScyllaSessionManager scyllaSessionManager, IBlobService blobStore)
         {
+            _scyllaSessionManager = scyllaSessionManager;
             _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             _blobStore = blobStore;
 
             _mapper = new Mapper(_session);
 
-            _session.Execute(new SimpleStatement(@"CREATE TABLE IF NOT EXISTS content_id (
-                content_id frozen<blob_identifier>,
+            string blobType = scyllaSessionManager.IsCassandra ? "blob" : "frozen<blob_identifier>";
+            _session.Execute(new SimpleStatement(@$"CREATE TABLE IF NOT EXISTS content_id (
+                content_id {blobType},
                 content_weight int, 
-                chunks set<frozen<blob_identifier>>, 
+                chunks set<{blobType}>, 
                 PRIMARY KEY ((content_id), content_weight)
             );"
             ));
@@ -50,26 +53,53 @@ namespace Horde.Storage.Implementation
                 using IScope contentIdFetchScope = Tracer.Instance.StartActive("ScyllaContentIdStore.FetchContentId");
                 scope.Span.ResourceName = contentId.ToString();
 
-                // lower content_weight means its a better candidate to resolve to
-                foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
+                if (_scyllaSessionManager.IsScylla)
                 {
-                    if (resolvedContentId == null)
+                    // lower content_weight means its a better candidate to resolve to
+                    foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
                     {
-                        throw new InvalidContentIdException(contentId);
-                    }
-
-                    BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
-
-                    {
-                        using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
-
-                        BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
-                        if (missingBlobs.Length == 0)
+                        if (resolvedContentId == null)
                         {
-                            return blobs;
+                            throw new InvalidContentIdException(contentId);
                         }
+
+                        BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
+
+                        {
+                            using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
+
+                            BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
+                            if (missingBlobs.Length == 0)
+                            {
+                                return blobs;
+                            }
+                        }
+                        // blobs are missing continue testing with the next content id in the weighted list as that might exist
                     }
-                    // blobs are missing continue testing with the next content id in the weighted list as that might exist
+                }
+                else
+                {
+                    // lower content_weight means its a better candidate to resolve to
+                    foreach (CassandraContentId? resolvedContentId in await _mapper.FetchAsync<CassandraContentId>("WHERE content_id = ? ORDER BY content_weight DESC", contentId.HashData))
+                    {
+                        if (resolvedContentId == null)
+                        {
+                            throw new InvalidContentIdException(contentId);
+                        }
+
+                        BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
+
+                        {
+                            using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
+
+                            BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
+                            if (missingBlobs.Length == 0)
+                            {
+                                return blobs;
+                            }
+                        }
+                        // blobs are missing continue testing with the next content id in the weighted list as that might exist
+                    }
                 }
             }
             
@@ -91,7 +121,15 @@ namespace Horde.Storage.Implementation
 
         public async Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
-            await _mapper.UpdateAsync<ScyllaContentId>("SET chunks = ? WHERE content_id = ? AND content_weight = ?", new [] {new ScyllaBlobIdentifier(blobIdentifier)}, new ScyllaBlobIdentifier(contentId), contentWeight);
+            if (_scyllaSessionManager.IsScylla)
+            {
+                await _mapper.UpdateAsync<ScyllaContentId>("SET chunks = ? WHERE content_id = ? AND content_weight = ?", new [] {new ScyllaBlobIdentifier(blobIdentifier)}, new ScyllaBlobIdentifier(contentId), contentWeight);
+
+            }
+            else
+            {
+                await _mapper.UpdateAsync<CassandraContentId>("SET chunks = ? WHERE content_id = ? AND content_weight = ?", new [] {new ScyllaBlobIdentifier(blobIdentifier)}, contentId.HashData, contentWeight);
+            }
         }
     }
 
@@ -113,6 +151,33 @@ namespace Horde.Storage.Implementation
         [Cassandra.Mapping.Attributes.PartitionKey]
         [Cassandra.Mapping.Attributes.Column("content_id")]
         public ScyllaBlobIdentifier? ContentId { get; set; }
+
+        [Cassandra.Mapping.Attributes.ClusteringKey]
+        [Cassandra.Mapping.Attributes.Column("content_weight")]
+        public int? ContentWeight { get; set; }
+
+        public ScyllaBlobIdentifier[] Chunks { get; set; } = Array.Empty<ScyllaBlobIdentifier>();
+    }
+
+    
+    [Cassandra.Mapping.Attributes.Table("content_id")]
+    public class CassandraContentId
+    {
+        public CassandraContentId()
+        {
+
+        }
+
+        public CassandraContentId(BlobIdentifier contentId, BlobIdentifier[] chunks, int contentWeight)
+        {
+            ContentId = contentId.HashData;
+            ContentWeight = contentWeight;
+            Chunks = chunks.Select(b => new ScyllaBlobIdentifier(b)).ToArray();
+        }
+
+        [Cassandra.Mapping.Attributes.PartitionKey]
+        [Cassandra.Mapping.Attributes.Column("content_id")]
+        public byte[]? ContentId { get; set; }
 
         [Cassandra.Mapping.Attributes.ClusteringKey]
         [Cassandra.Mapping.Attributes.Column("content_weight")]

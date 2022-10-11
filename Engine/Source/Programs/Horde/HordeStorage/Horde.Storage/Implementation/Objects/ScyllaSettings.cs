@@ -52,4 +52,10 @@ public class ScyllaSettings
     /// Whether a Cosmos DB Cassandra layer from Azure should be used.
     /// </summary>
     public bool UseAzureCosmosDB { get; set; } = false;
+
+    /// <summary>
+    /// Set to false to disable use of SSL, this is only used when connecting to a CosmosDB instance
+    /// </summary>
+    public bool UseSSL { get; set; } = true;
+
 }
