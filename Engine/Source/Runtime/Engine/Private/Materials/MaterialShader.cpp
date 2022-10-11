@@ -21,6 +21,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/PathViews.h"
 #include "SceneTexturesConfig.h"
 #include "PSOPrecache.h"
 
@@ -31,6 +32,14 @@ static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
 	TEXT("if != 0, standalone shaders that are also part of FShaderPipeline will not be compiled (default)."),
 	ECVF_ReadOnly
 );
+
+static TAutoConsoleVariable<FString> CVarMaterialShaderMapDump(
+	TEXT("r.Material.ShaderMapDump"),
+	"",
+	TEXT("Outputs a textual dump of all shader maps found for the given named material (specified by path).\n")
+	TEXT("Note that this will include any instances of said material created by a MaterialInstance.\n")
+	TEXT("Files (.txt extension) will be dumped to Saved\\MaterialShaderMaps named with the DDC key hash.\n"),
+	ECVF_ReadOnly);
 
 #if ENABLE_COOK_STATS
 namespace MaterialShaderCookStats
@@ -208,18 +217,8 @@ static UE::DerivedData::FSharedString GetMaterialShaderMapName(const FStringView
 	return UE::DerivedData::FSharedString(WriteToString<256>(MaterialPath,
 		TEXTVIEW(" ["), LegacyShaderPlatformToShaderFormat(Platform),
 		TEXTVIEW(", "), FeatureLevelName,
-		TEXTVIEW(", "), GetMaterialQualityLevelFName(ShaderMapId.QualityLevel),
+		TEXTVIEW(", "), LexToString(ShaderMapId.QualityLevel),
 		TEXTVIEW("]")));
-}
-
-static FString FSHA1_HashString(const FString& Key)
-{
-	FSHAHash DDCKeyHash;
-	FSHA1 HashState;
-	HashState.UpdateWithString(*Key, Key.Len());
-	HashState.Final();
-	HashState.GetHash(&DDCKeyHash.Hash[0]);
-	return DDCKeyHash.ToString();
 }
 
 #endif // WITH_EDITOR
@@ -1547,7 +1546,8 @@ TSharedRef<FMaterialShaderMap::FAsyncLoadContext> FMaterialShaderMap::BeginLoadF
 
 				GShaderCompilerStats->AddDDCHit(1);
 
-				UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *AssetName, *FSHA1_HashString(DataKey));
+				FCacheKey DdcKey = GetMaterialShaderMapKey(DataKey);
+				UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *AssetName, *LexToString(DdcKey.Hash));
 			}
 			else
 			{
@@ -1582,7 +1582,8 @@ TSharedRef<FMaterialShaderMap::FAsyncLoadContext> FMaterialShaderMap::BeginLoadF
 			COOK_STAT(Timer.TrackCyclesOnly());
 
 			Result->DataKey = GetMaterialShaderMapKeyString(ShaderMapId, InPlatform);
-			OutDDCKeyDesc = FSHA1_HashString(Result->DataKey);
+			FCacheKey CacheKey = GetMaterialShaderMapKey(Result->DataKey);
+			OutDDCKeyDesc = LexToString(CacheKey.Hash);
 
 			if (UNLIKELY(ShouldDumpShaderDDCKeys()))
 			{
@@ -1656,12 +1657,28 @@ void FMaterialShaderMap::SaveToDerivedDataCache()
 	COOK_STAT(Timer.AddMiss(SaveData.Num()));
 
 	const FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, GetShaderPlatform());
-	UE_LOG(LogMaterial, Verbose, TEXT("Saved shaders for %s to DDC (key hash: %s)"), GetMaterialPath(), *FSHA1_HashString(DataKey));
 
 	using namespace UE::DerivedData;
 	FCachePutValueRequest Request;
 	Request.Name = GetMaterialShaderMapName(GetMaterialPath(), ShaderMapId, GetShaderPlatform());
 	Request.Key = GetMaterialShaderMapKey(DataKey);
+
+	UE_LOG(LogMaterial, Verbose, TEXT("Saved shaders for %s to DDC (key hash: %s)"), *Request.Name, *LexToString(Request.Key.Hash));
+	UE_LOG(LogMaterial, VeryVerbose, TEXT("Full DDC data key for %s: %s"), *Request.Name, *DataKey);
+
+	if (!CVarMaterialShaderMapDump->GetString().IsEmpty() && CVarMaterialShaderMapDump->GetString() == GetMaterialPath())
+	{
+		TStringBuilder<256> Path;
+		FPathViews::Append(Path, FPaths::ProjectSavedDir(), TEXT("MaterialShaderMaps"), TEXT(""));
+		Path << Request.Key.Hash << ".txt";
+		FArchive* DumpAr = IFileManager::Get().CreateFileWriter(*Path, FILEWRITE_Silent);
+		if (DumpAr)
+		{
+			FTCHARToUTF8 Converter(*ToString());
+			DumpAr->Serialize(const_cast<UTF8CHAR*>(reinterpret_cast<const UTF8CHAR*>(Converter.Get())), Converter.Length());
+		}
+	}
+
 	Request.Value = FValue::Compress(MakeSharedBufferFromArray(MoveTemp(SaveData)));
 	FRequestOwner AsyncOwner(EPriority::Normal);
 	FRequestBarrier AsyncBarrier(AsyncOwner);
@@ -2310,9 +2327,16 @@ void FMaterialShaderMap::Compile(
 	}
 }
 
-static FHashedName PreprocessedSourceKeyFromName(FName VertexFactoryName, FName VertexTypeName)
+static FHashedName GetPreprocessedSourceKey(const FVertexFactoryType* VertexFactoryType, const FShaderType* ShaderType, int32 PermutationId)
 {
-	return FHashedName(FString::Printf(TEXT("%s/%s"), *VertexFactoryName.ToString(), *VertexTypeName.ToString()));
+	if (VertexFactoryType)
+	{
+		return FHashedName(FString::Printf(TEXT("%s/%s/%d"), VertexFactoryType->GetName(), ShaderType->GetName(), PermutationId));
+	}
+	else
+	{
+		return FHashedName(FString::Printf(TEXT("%s/%d"), ShaderType->GetName(), PermutationId));
+	}
 }
 
 FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob* SingleJob, const FShaderPipelineType* ShaderPipeline, const FSHAHash& MaterialShaderMapHash)
@@ -2363,11 +2387,14 @@ FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompil
 #if WITH_EDITOR
 	// add shader source
 	{
-		// Keep the preprocessed source list sorted by type name
-		const FHashedName Key = CurrentJob.Key.VFType ? PreprocessedSourceKeyFromName(CurrentJob.Key.VFType->GetFName(), CurrentJob.Key.ShaderType->GetFName()) : FHashedName(CurrentJob.Key.ShaderType->GetFName());
+		// Keep the preprocessed source list sorted by a name constructed from VF/ShaderType/PermutationId and deduplicate entries
+		const FHashedName Key = GetPreprocessedSourceKey(CurrentJob.Key.VFType, CurrentJob.Key.ShaderType, CurrentJob.Key.PermutationId);
 
 		const int32 Index = Algo::LowerBoundBy(GetMutableContent()->ShaderProcessedSource, Key, [](const FMaterialProcessedSource& Value) { return Value.Name; });
-		GetMutableContent()->ShaderProcessedSource.EmplaceAt(Index, Key, *CurrentJob.Output.OptionalFinalShaderSource);
+		if (Index >= GetMutableContent()->ShaderProcessedSource.Num() || GetMutableContent()->ShaderProcessedSource[Index].Name != Key)
+		{
+			GetMutableContent()->ShaderProcessedSource.EmplaceAt(Index, Key, *CurrentJob.Output.OptionalFinalShaderSource);
+		}
 	}
 #endif
 
@@ -2875,10 +2902,9 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FName VertexFactoryName, const FName ShaderTypeName) const
+const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FVertexFactoryType* VertexFactoryType, const FShaderType* ShaderType, int32 PermutationId) const
 {
-	const FHashedName Key = PreprocessedSourceKeyFromName(VertexFactoryName, ShaderTypeName);
-
+	FHashedName Key = GetPreprocessedSourceKey(VertexFactoryType, ShaderType, PermutationId);
 	for (const FMaterialProcessedSource& Source : GetContent()->ShaderProcessedSource)
 	{
 		if (Source.Name == Key)
@@ -2888,6 +2914,11 @@ const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FName Vertex
 	}
 
 	return nullptr;
+}
+
+const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FName VertexFactoryName, const FName ShaderTypeName) const
+{
+	return GetShaderSource(FindVertexFactoryType(VertexFactoryName), FindShaderTypeByName(ShaderTypeName), /* PermutationId */ 0);
 }
 #endif // WITH_EDITOR
 

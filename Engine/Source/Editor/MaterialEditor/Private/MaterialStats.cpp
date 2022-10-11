@@ -123,12 +123,7 @@ FText FShaderPlatformSettings::GetShaderCode(const EMaterialQualityLevel::Type Q
 		if (Entry != nullptr)
 		{
 			const TShaderRef<FShader>& Shader = *Entry;
-
-			static FName NAME_NullVF(TEXT("NullVF"));
-			FVertexFactoryType* VertexFactory = Shader.GetVertexFactoryType();
-			const FName VertexFactoryName = VertexFactory ? VertexFactory->GetFName() : NAME_NullVF;
-			const FName ShaderTypeName = Shader.GetType()->GetFName();
-			const FMemoryImageString* ShaderSource = MaterialShaderMap->GetShaderSource(VertexFactoryName, ShaderTypeName);
+			const FMemoryImageString* ShaderSource = MaterialShaderMap->GetShaderSource(Shader.GetVertexFactoryType(), Shader.GetType(), ShaderId.PermutationId);
 			if (ShaderSource != nullptr)
 			{
 				PlatformData[QualityType].bUpdateShaderCode = false;

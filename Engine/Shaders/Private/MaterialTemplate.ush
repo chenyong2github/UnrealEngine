@@ -31,7 +31,7 @@
 
 // Update this GUID to force all material shaders to recompile
 // Merge conflicts on this line should be resolved by generating a new GUID
-// GUID = 5F290441-5611-4232-B26D-613F5E421262_A
+// GUID = 4BCB6F1E-5842-441E-934D-F999D009CCB5
 
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
