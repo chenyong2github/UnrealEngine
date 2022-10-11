@@ -1929,7 +1929,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 	if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast<UCustomizableObjectNodeTable>(Pin->GetOwningNode()))
 	{
 		// Generate a new Column for each morph
-		int32 NumRows = TypedNodeTable->Table->GetRowNames().Num();
+		int32 NumRows = TypedNodeTable->GetRowNames().Num();
 
 		// Should exist
 		mu::TablePtr Table = GenerationContext.GeneratedTables[TypedNodeTable->Table->GetName()];

@@ -522,7 +522,7 @@ FString UCustomizableObjectNodeTable::GetRefreshMessage() const
 }
 
 
-void UCustomizableObjectNodeTable::RemapPins(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap)
+void UCustomizableObjectNodeTable::RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap)
 {
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
@@ -530,20 +530,37 @@ void UCustomizableObjectNodeTable::RemapPins(const TMap<UEdGraphPin*, UEdGraphPi
 	{
 		if (Pair.Key->PinType.PinCategory == Schema->PC_Mesh)
 		{
-			UCustomizableObjectNodeTableMeshPinData* PinDataOldPin =Cast<UCustomizableObjectNodeTableMeshPinData>(GetPinData(*(Pair.Key)));
-			UCustomizableObjectNodeTableMeshPinData* PinDataNewPin =Cast<UCustomizableObjectNodeTableMeshPinData>(GetPinData(*(Pair.Value)));
-			
+			UCustomizableObjectNodeTableMeshPinData* PinDataOldPin = Cast<UCustomizableObjectNodeTableMeshPinData>(GetPinData(*(Pair.Key)));
+			UCustomizableObjectNodeTableMeshPinData* PinDataNewPin = Cast<UCustomizableObjectNodeTableMeshPinData>(GetPinData(*(Pair.Value)));
+
 			if (PinDataOldPin && PinDataNewPin)
 			{
 				PinDataOldPin->ColumnName = PinDataNewPin->ColumnName;
 				PinDataOldPin->MutableColumnName = PinDataNewPin->MutableColumnName;
 				PinDataOldPin->LOD = PinDataNewPin->LOD;
 				PinDataOldPin->Material = PinDataNewPin->Material;
+
+				// Keeping information added in layout editor if the layout is the same
+				for (TObjectPtr<UCustomizableObjectLayout>& NewLayout : PinDataNewPin->Layouts)
+				{
+					for (TObjectPtr<UCustomizableObjectLayout>& OldLayout : PinDataOldPin->Layouts)
+					{
+						if (NewLayout->GetLayoutName() == OldLayout->GetLayoutName())
+						{
+							NewLayout->Blocks = OldLayout->Blocks;
+							NewLayout->SetGridSize(OldLayout->GetGridSize());
+							NewLayout->SetMaxGridSize(OldLayout->GetMaxGridSize());
+							NewLayout->SetPackingStrategy(OldLayout->GetPackingStrategy());
+
+							break;
+						}
+					}
+				}
+
+				PinDataOldPin->Layouts = PinDataNewPin->Layouts;
 			}
 		}
 	}
-
-	Super::RemapPins(PinsToRemap);
 }
 
 
@@ -873,6 +890,58 @@ USkeletalMesh* UCustomizableObjectNodeTable::GetSkeletalMeshAt(const UEdGraphPin
 	}
 
 	return nullptr;
+}
+
+
+TArray<FName> UCustomizableObjectNodeTable::GetRowNames() const
+{
+	TArray<FName> RowNames;
+
+	if (Table)
+	{
+		const UScriptStruct* TableStruct = Table->GetRowStruct();
+
+		if (!TableStruct)
+		{
+			return RowNames;
+		}
+
+		TArray<FName> TableRowNames = Table->GetRowNames();
+		FBoolProperty* BoolProperty = nullptr;
+
+		for (TFieldIterator<FProperty> PropertyIt(TableStruct); PropertyIt; ++PropertyIt)
+		{
+			BoolProperty = CastField<FBoolProperty>(*PropertyIt);
+
+			if (BoolProperty)
+			{
+				for (const FName& RowName : TableRowNames)
+				{
+					if (uint8* RowData = Table->FindRowUnchecked(RowName))
+					{
+						if (uint8* CellData = BoolProperty->ContainerPtrToValuePtr<uint8>(RowData, 0))
+						{
+							if (!BoolProperty->GetPropertyValue(CellData))
+							{
+								RowNames.Add(RowName);
+							}
+						}
+					}
+				}
+
+				// There should be only one Bool column
+				break;
+			}
+		}
+
+		// There is no Bool column
+		if (!BoolProperty)
+		{
+			return TableRowNames;
+		}
+	}
+
+	return RowNames;
 }
 
 

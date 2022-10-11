@@ -94,14 +94,14 @@ public:
 	GENERATED_BODY()
 
 	// Name of the property parameter
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = TableProperties)
 	FString ParameterName = "Default Name";
 
-	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = TableProperties)
 	bool bAddNoneOption;
 
 	// Pointer to the Data Table Asset represented in this node
-	UPROPERTY(EditAnywhere, Category = CustomizableObject, meta = (DontUpdateWhileEditing))
+	UPROPERTY(EditAnywhere, Category = TableProperties, meta = (DontUpdateWhileEditing))
 	TObjectPtr<UDataTable> Table = nullptr;
 	
 	UPROPERTY(EditAnywhere, Category = UI, meta = (DisplayName = "Parameter UI Metadata"))
@@ -122,9 +122,11 @@ public:
 	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
 	bool IsNodeOutDatedAndNeedsRefresh() override;
 	FString GetRefreshMessage() const override;
-	virtual void RemapPins(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap) override;
 	virtual bool ProvidesCustomPinRelevancyTest() const override;
 	virtual bool IsPinRelevant(const UEdGraphPin* Pin) const override;
+
+	/*** Allows to perform work when remapping the pin data. */
+	virtual void RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap) override;
 	
 	// Own interface
 	/** Given an Image pin, return the PinMode. */
@@ -229,12 +231,16 @@ public:
 	// We should do this in a template!
 	USkeletalMesh* GetSkeletalMeshAt(const UEdGraphPin* Pin, int32 RowIndex) const;
 
+	// Return the name of the enabled rows in the data table.
+	// Returns the name if the row has a bool column set as false (true == disabled)
+	TArray<FName> GetRowNames() const;
+
 private:
-	
+
 	/** Number of properties to know when the node needs an update */
 	UPROPERTY()
 	int32 NumProperties;
-
+	
 	FDelegateHandle OnTableChangedDelegateHandle;
 	
 	// Generates a mesh pin for each LOD and Material Surface of the reference SkeletalMesh
