@@ -409,7 +409,7 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 
 		EPixelFormat Format = PF_R8G8;
 		// for low roughness we would get banding with PF_R8G8 but for low spec it could be used, for now we don't do this optimization
-		if (GPixelFormats[PF_G16R16].Supported)
+		if (GPixelFormats[PF_G16R16].Supported && RHIPixelFormatHasCapabilities(PF_G16R16, EPixelFormatCapabilities::TextureFilterable))
 		{
 			Format = PF_G16R16;
 		}

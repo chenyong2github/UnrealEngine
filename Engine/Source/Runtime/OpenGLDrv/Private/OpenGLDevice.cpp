@@ -493,12 +493,190 @@ static void APIENTRY OpenGLDebugMessageCallbackAMD(
 PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT_ProcAddress = NULL;
 #endif
 
+// Information from OpenGLES specification 3.2 Table 8.10
+// Qualcomm Adreno OpenGLES Developer Guide 4.1.4 section and Table 9-1
+enum class EOpenGLFormatCapabilities : uint32
+{
+	None = 0,
+	Texture = 1ull << 0,
+	Render = 1ull << 1,
+	Filterable = 1ull << 2,
+	Image = 1ull << 3,
+	DepthStencil = 1ull << 4,
+};
+ENUM_CLASS_FLAGS(EOpenGLFormatCapabilities);
+
+static EOpenGLFormatCapabilities GetOpenGLFormatCapabilities(const FOpenGLTextureFormat& GLFormat)
+{
+	EOpenGLFormatCapabilities Capabilities = EOpenGLFormatCapabilities::None;
+	
+	switch (GLFormat.InternalFormat[0])
+	{
+	default: checkNoEntry();
+	case GL_NONE:
+		break;
+
+	case GL_R8:
+	case GL_RG8:
+	case GL_RGB8:
+	case GL_RGBA4:
+	case GL_RGB10_A2:
+	case GL_SRGB8_ALPHA8:
+	case GL_R16F:
+	case GL_RG16F:
+	case GL_RGBA16:
+	case GL_RGB565:
+	case GL_RGB5_A1:
+	case GL_R11F_G11F_B10F:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Render | EOpenGLFormatCapabilities::Filterable;
+		break;
+
+	case GL_RGBA8:
+	case GL_RGBA16F:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Render | EOpenGLFormatCapabilities::Filterable | EOpenGLFormatCapabilities::Image;
+		break;
+
+	case GL_R16:
+	case GL_RG16:
+	case GL_RGB10_A2UI:
+	case GL_RG32F:
+	case GL_R8I:
+	case GL_R8UI:
+	case GL_R16I:
+	case GL_R16UI:
+	case GL_RG8I:
+	case GL_RG8UI:
+	case GL_RG16I:
+	case GL_RG16UI:
+	case GL_RG32I:
+	case GL_RG32UI:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Render;
+		break;
+
+	case GL_R32I:
+	case GL_R32F:
+	case GL_R32UI:
+	case GL_RGBA8I:
+	case GL_RGBA8UI:
+	case GL_RGBA16I:
+	case GL_RGBA16UI:
+	case GL_RGBA32I:
+	case GL_RGBA32F:
+	case GL_RGBA32UI:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Render | EOpenGLFormatCapabilities::Image;
+		break;
+
+	case GL_RGB32F:
+	case GL_RGB8I:
+	case GL_RGB8UI:
+	case GL_RGB16I:
+	case GL_RGB16UI:
+	case GL_RGB32I:
+	case GL_RGB32UI:
+		Capabilities |= EOpenGLFormatCapabilities::Texture;
+		break;
+
+	case GL_DEPTH24_STENCIL8:
+	case GL_DEPTH_COMPONENT16:
+	case GL_DEPTH_COMPONENT24:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Render | EOpenGLFormatCapabilities::Filterable | EOpenGLFormatCapabilities::DepthStencil;
+		break;
+
+#if PLATFORM_ANDROID
+	case GL_COMPRESSED_RGB8_ETC2:
+	case GL_COMPRESSED_RGBA8_ETC2_EAC:
+	case GL_COMPRESSED_R11_EAC:
+	case GL_COMPRESSED_RG11_EAC:
+#endif
+
+#if PLATFORM_DESKTOP
+	case GL_COMPRESSED_RG_RGTC2:
+	case GL_COMPRESSED_RED_RGTC1:
+#endif
+
+	case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+	case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+	case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+
+	case GL_COMPRESSED_RGBA_ASTC_4x4_KHR:
+	case GL_COMPRESSED_RGBA_ASTC_6x6_KHR:
+	case GL_COMPRESSED_RGBA_ASTC_8x8_KHR:
+	case GL_COMPRESSED_RGBA_ASTC_10x10_KHR:
+	case GL_COMPRESSED_RGBA_ASTC_12x12_KHR:
+
+	case GL_R8_SNORM:
+	case GL_RG8_SNORM:
+	case GL_RGB8_SNORM:
+	case GL_RGB9_E5:
+	case GL_RGB16F:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Filterable;
+		break;
+
+	case GL_RGBA8_SNORM:
+		Capabilities |= EOpenGLFormatCapabilities::Texture | EOpenGLFormatCapabilities::Filterable | EOpenGLFormatCapabilities::Image;
+		break;
+	}
+
+	return Capabilities;
+}
 
 static inline void SetupTextureFormat( EPixelFormat Format, const FOpenGLTextureFormat& GLFormat)
 {
 	GOpenGLTextureFormats[Format] = GLFormat;
 	GPixelFormats[Format].Supported = (GLFormat.Format != GL_NONE && (GLFormat.InternalFormat[0] != GL_NONE || GLFormat.InternalFormat[1] != GL_NONE));
 	GPixelFormats[Format].PlatformFormat = GLFormat.InternalFormat[0];
+	
+	if (GPixelFormats[Format].Supported)
+	{
+		EPixelFormatCapabilities& Capabilities = GPixelFormats[Format].Capabilities;
+		EOpenGLFormatCapabilities OpenGLCapabilities = GetOpenGLFormatCapabilities(GLFormat);
+
+		if (EnumHasAllFlags(OpenGLCapabilities, EOpenGLFormatCapabilities::Texture))
+		{
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::Texture1D);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::Texture2D);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::Texture3D);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureCube);
+
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureMipmaps);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureLoad);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureSample);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureGather);
+		}
+
+		if (EnumHasAllFlags(OpenGLCapabilities, EOpenGLFormatCapabilities::Filterable))
+		{
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureFilterable);
+		}
+
+		if (EnumHasAllFlags(OpenGLCapabilities, EOpenGLFormatCapabilities::Render))
+		{
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::RenderTarget);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureBlendable);
+		}
+
+		if (EnumHasAllFlags(OpenGLCapabilities, EOpenGLFormatCapabilities::DepthStencil))
+		{
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::DepthStencil);
+		}
+
+		if (EnumHasAllFlags(OpenGLCapabilities, EOpenGLFormatCapabilities::Image))
+		{
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureAtomics);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureStore);
+
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::Buffer);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::VertexBuffer);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::IndexBuffer);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::BufferLoad);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::BufferStore);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::BufferAtomics);
+
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::UAV);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
+			EnumAddFlags(Capabilities, EPixelFormatCapabilities::TypedUAVStore);
+		}
+	}
 }
 
 

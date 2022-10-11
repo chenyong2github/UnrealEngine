@@ -2816,7 +2816,7 @@ void RHIInitDefaultPixelFormatCapabilities()
 			if (IsBlockCompressedFormat(PixelFormat))
 			{
 				// Block compressed formats should have limited capabilities
-				EnumAddFlags(Info.Capabilities, EPixelFormatCapabilities::AnyTexture | EPixelFormatCapabilities::TextureMipmaps | EPixelFormatCapabilities::TextureLoad | EPixelFormatCapabilities::TextureSample | EPixelFormatCapabilities::TextureGather);
+				EnumAddFlags(Info.Capabilities, EPixelFormatCapabilities::AnyTexture | EPixelFormatCapabilities::TextureMipmaps | EPixelFormatCapabilities::TextureLoad | EPixelFormatCapabilities::TextureSample | EPixelFormatCapabilities::TextureGather | EPixelFormatCapabilities::TextureFilterable);
 			}
 			else
 			{

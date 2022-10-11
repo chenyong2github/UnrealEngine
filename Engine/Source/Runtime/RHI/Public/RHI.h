@@ -856,6 +856,8 @@ enum class EPixelFormatCapabilities : uint32
     TypedUAVLoad     = 1ull << 21,
 	TypedUAVStore    = 1ull << 22,
 
+	TextureFilterable = 1ull << 23,
+
 	AnyTexture       = Texture1D | Texture2D | Texture3D | TextureCube,
 
 	AllTextureFlags  = AnyTexture | RenderTarget | DepthStencil | TextureMipmaps | TextureLoad | TextureSample | TextureGather | TextureAtomics | TextureBlendable | TextureStore,
