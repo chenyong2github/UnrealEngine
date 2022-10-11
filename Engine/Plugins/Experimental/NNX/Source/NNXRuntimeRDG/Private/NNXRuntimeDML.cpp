@@ -1068,6 +1068,7 @@ bool FMLRuntimeDml::RegisterElementWiseBinaryOperators()
 //
 FMLInferenceModelDml::FMLInferenceModelDml()
 {
+	bUseManualTransitions = true;
 }
 
 //

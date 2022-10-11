@@ -5,6 +5,7 @@
 #include "NNXCore.h"
 #include "NNXRuntime.h"
 #include "ShaderParameterUtils.h"
+#include "RHIGPUReadback.h"
 
 #include "Containers/Map.h"
 
@@ -44,7 +45,17 @@ using FMLIntArray = TArray<int32, TInlineAllocator<16>>;
  */
 class FMLInferenceModelRDG : public FMLInferenceModel
 {
+	struct FReadbackEntry
+	{
+		FRHIGPUBufferReadback*	RHI;
+		void*					CpuMemory;
+		size_t					Offset;
+		size_t					Size;
+	};
+
 public:
+
+	~FMLInferenceModelRDG();
 
 	virtual int Run(TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override;
 	virtual int EnqueueRDG(FRDGBuilder& Builder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override;
@@ -61,6 +72,9 @@ protected:
 
 	virtual void AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InUploadIndices, TArrayView<FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
 	virtual void AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InReadbackIndices, TArrayView<const FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
+
+	FReadbackEntry	Readback;
+	bool			bUseManualTransitions;
 };
 
 
