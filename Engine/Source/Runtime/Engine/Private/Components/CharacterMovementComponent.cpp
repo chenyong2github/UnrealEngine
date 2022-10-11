@@ -2730,7 +2730,8 @@ void UCharacterMovementComponent::SaveBaseLocation()
 		if (MovementBaseUtility::UseRelativeLocation(MovementBase))
 		{
 			// Relative Location
-			const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
+			FVector RelativeLocation;
+			MovementBaseUtility::GetLocalMovementBaseLocation(MovementBase, CharacterOwner->GetBasedMovement().BoneName, UpdatedComponent->GetComponentLocation(), RelativeLocation);
 
 			// Rotation
 			if (bIgnoreBaseRotation)
@@ -9327,10 +9328,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 	FVector ClientLoc = RelativeClientLoc;
 	if (MovementBaseUtility::UseRelativeLocation(ClientMovementBase))
 	{
-		FVector BaseLocation;
-		FQuat BaseRotation;
-		MovementBaseUtility::GetMovementBaseTransform(ClientMovementBase, ClientBaseBoneName, BaseLocation, BaseRotation);
-		ClientLoc += BaseLocation;
+		MovementBaseUtility::GetLocalMovementBaseLocationInWorldSpace(ClientMovementBase, ClientBaseBoneName, RelativeClientLoc, ClientLoc);
 	}
 	else
 	{
@@ -9436,12 +9434,8 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 				// To improve position syncing, use old base for take-off
 				if (MovementBaseUtility::UseRelativeLocation(LastServerMovementBasePtr))
 				{
-					FVector BaseLocation;
-					FQuat BaseQuat;
-					MovementBaseUtility::GetMovementBaseTransform(LastServerMovementBasePtr, LastServerMovementBaseBoneName, BaseLocation, BaseQuat);
-
 					// Relative Location
-					RelativeLocation = UpdatedComponent->GetComponentLocation() - BaseLocation;
+					MovementBaseUtility::GetLocalMovementBaseLocation(LastServerMovementBasePtr, LastServerMovementBaseBoneName, UpdatedComponent->GetComponentLocation(), RelativeLocation);
 					bUseLastBase = true;
 				}
 			}
@@ -10295,10 +10289,7 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 	//  Received Location is relative to dynamic base
 	if (bBaseRelativePosition)
 	{
-		FVector BaseLocation;
-		FQuat BaseRotation;
-		MovementBaseUtility::GetMovementBaseTransform(NewBase, NewBaseBoneName, BaseLocation, BaseRotation); // TODO: error handling if returns false		
-		WorldShiftedNewLocation = NewLocation + BaseLocation;
+		MovementBaseUtility::GetLocalMovementBaseLocationInWorldSpace(NewBase, NewBaseBoneName, NewLocation, WorldShiftedNewLocation); // TODO: error handling if returns false	
 	}
 	else
 	{
@@ -11870,9 +11861,9 @@ FVector FSavedMove_Character::GetRevertedLocation() const
 	const UPrimitiveComponent* MovementBase = StartBase.Get();
 	if (MovementBaseUtility::UseRelativeLocation(MovementBase))
 	{
-		FVector BaseLocation; FQuat BaseRotation;
-		MovementBaseUtility::GetMovementBaseTransform(MovementBase, StartBoneName, BaseLocation, BaseRotation);
-		return BaseLocation + StartRelativeLocation;
+		FVector WorldSpacePosition;
+		MovementBaseUtility::GetLocalMovementBaseLocationInWorldSpace(MovementBase, StartBoneName, StartRelativeLocation, WorldSpacePosition);
+		return WorldSpacePosition;
 	}
 
 	return StartLocation;
