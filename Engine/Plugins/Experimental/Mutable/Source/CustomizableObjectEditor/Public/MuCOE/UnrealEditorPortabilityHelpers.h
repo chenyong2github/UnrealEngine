@@ -17,7 +17,7 @@
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/DataTable.h"
-
+#include <functional>
 
 //---------------------------------------------------------------
 // Helpers to ease portability across unreal engine versions

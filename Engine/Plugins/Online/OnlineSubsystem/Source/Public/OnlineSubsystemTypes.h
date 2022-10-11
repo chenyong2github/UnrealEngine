@@ -228,7 +228,7 @@ namespace EFeaturePrivilegeLevel
 /** The state of an async task (read friends, read content, write cloud file, etc) request */
 namespace EOnlineAsyncTaskState
 {
-	enum Type
+	enum Type : int
 	{
 		/** The task has not been started */
 		NotStarted,
