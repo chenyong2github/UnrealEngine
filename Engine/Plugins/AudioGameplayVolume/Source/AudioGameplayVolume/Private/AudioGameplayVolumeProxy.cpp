@@ -10,6 +10,17 @@
 #include "Components/BrushComponent.h"
 #include "Components/PrimitiveComponent.h"
 
+namespace AudioGameplayVolumeConsoleVariables
+{
+	int32 bProxyDistanceCulling = 1;
+	FAutoConsoleVariableRef CVarProxyDistanceCulling(
+		TEXT("au.AudioGameplayVolumes.PrimitiveProxy.DistanceCulling"),
+		bProxyDistanceCulling,
+		TEXT("Skips physics body queries for proxies that are not close to the listener.\n0: Disable, 1: Enable (default)"),
+		ECVF_Default);
+
+} // namespace AudioGameplayVolumeConsoleVariables
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioGameplayVolumeProxy)
 
 UAudioGameplayVolumeProxy::UAudioGameplayVolumeProxy(const FObjectInitializer& ObjectInitializer)
@@ -122,12 +133,12 @@ bool UAGVPrimitiveComponentProxy::ContainsPosition(const FVector& Position) cons
 	FBodyInstance* BodyInstancePointer = nullptr;
 	if (UPrimitiveComponent* PrimitiveComponent = WeakPrimative.Get())
 	{
-		if (PrimitiveComponent->IsPhysicsStateCreated() && PrimitiveComponent->HasValidPhysicsState())
+		if (NeedsPhysicsQuery(PrimitiveComponent, Position))
 		{
 			BodyInstancePointer = PrimitiveComponent->GetBodyInstance();
 		}
 	}
-	
+
 	if (!BodyInstancePointer)
 	{
 		return false;
@@ -157,6 +168,28 @@ void UAGVPrimitiveComponentProxy::InitFromComponent(const UAudioGameplayVolumeCo
 			WeakPrimative = PrimitiveComponents[0];
 		}
 	}
+}
+
+bool UAGVPrimitiveComponentProxy::NeedsPhysicsQuery(UPrimitiveComponent* PrimitiveComponent, const FVector& Position) const
+{
+	check(PrimitiveComponent);
+
+	if (!PrimitiveComponent->IsPhysicsStateCreated() || !PrimitiveComponent->HasValidPhysicsState())
+	{
+		return false;
+	}
+
+	// Temporary kill switch for distance culling
+	if (AudioGameplayVolumeConsoleVariables::bProxyDistanceCulling == 0)
+	{
+		return true;
+	}
+
+	// Early distance culling
+	const float BoundsRadiusSq = FMath::Square(PrimitiveComponent->Bounds.SphereRadius);
+	const float DistanceSq = FVector::DistSquared(PrimitiveComponent->Bounds.Origin, Position);
+
+	return DistanceSq <= BoundsRadiusSq;
 }
 
 UAGVConditionProxy::UAGVConditionProxy(const FObjectInitializer& ObjectInitializer)
