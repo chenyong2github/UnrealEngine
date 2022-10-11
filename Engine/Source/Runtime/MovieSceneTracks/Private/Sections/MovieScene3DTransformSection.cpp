@@ -1090,26 +1090,16 @@ void UMovieScene3DTransformSection::OnChannelOverridesChanged()
 
 #if WITH_EDITOR
 
-void UMovieScene3DTransformSectionConstraints::PreEditUndo()
-{
-	Super::PreEditUndo();
-	PreEditUndoNumChannels = ConstraintsChannels.Num();
-}
 void UMovieScene3DTransformSectionConstraints::PostEditUndo()
 {
 	Super::PostEditUndo();
-	//if number of channels has changed tell parent section we have changed which will recreate the proxy
-	if (PreEditUndoNumChannels != ConstraintsChannels.Num())
+	if (UMovieScene3DTransformSection* Section = GetTypedOuter<UMovieScene3DTransformSection>())
 	{
-		if (UMovieScene3DTransformSection* Section = GetTypedOuter<UMovieScene3DTransformSection>())
+		if (IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(Section))
 		{
-			if (IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(Section))
-			{
-				ConstrainedSection->OnConstraintsChanged();
-			}
+			ConstrainedSection->OnConstraintsChanged();
 		}
 	}
-	PreEditUndoNumChannels = ConstraintsChannels.Num();
 }
 
 #endif
