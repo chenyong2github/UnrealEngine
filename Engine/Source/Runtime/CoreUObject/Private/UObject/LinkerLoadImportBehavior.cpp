@@ -158,10 +158,12 @@ bool TryLazyImport(const IAssetRegistryInterface& AssetRegistry, const FObjectIm
 		return false;
 	}
 
+	static const FName Name_CoreUObjectPackage("/Script/CoreUObject");
+
 	ObjectPtr = nullptr;
 
 	//packages need to handles differently since the can't be found by object path in the AssetRegistry
-	if (Import.ClassPackage == TEXT("/Script/CoreUObject") && Import.ClassName == TEXT("Package"))
+	if (Import.ClassPackage == Name_CoreUObjectPackage && Import.ClassName == NAME_Package)
 	{
 		FAssetPackageData PackageData;
 		UE::AssetRegistry::EExists Exists = AssetRegistry.TryGetAssetPackageData(Import.ObjectName, PackageData);
@@ -200,12 +202,12 @@ bool TryLazyLoad(const UClass& Class, const FSoftObjectPath& ObjectPath, TObject
 		return false;
 	}
 
-	EImportBehavior Behavior = FindLoadBehavior(Class);
+	const EImportBehavior Behavior = FindLoadBehavior(Class);
 	if (Behavior != EImportBehavior::LazyOnDemand)
 	{
 		return false;
 	}
-	auto AssetRegistry = IAssetRegistryInterface::GetPtr();
+	const IAssetRegistryInterface* AssetRegistry = IAssetRegistryInterface::GetPtr();
 	if (!AssetRegistry)
 	{
 		return false;

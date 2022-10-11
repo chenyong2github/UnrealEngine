@@ -391,10 +391,10 @@ public:
 	UE_OBJPTR_DEPRECATED(5.0, "Conversion to a mutable pointer is deprecated.  Please pass a TObjectPtr<T>& instead so that assignment can be tracked accurately.")
 	explicit FORCEINLINE operator T*& () { return GetInternalRef(); }
 
-	UE_DEPRECATED(5.1, "IsNull is deprecated, please use operator bool instead.")
+	UE_DEPRECATED(5.1, "IsNull is deprecated, please use operator bool instead.  if (!MyObjectPtr) { ... }")
 	FORCEINLINE bool IsNull() const { return !ObjectPtr.operator bool(); }
 
-	UE_DEPRECATED(5.1, "IsNullNoResolve is deprecated, please use operator bool instead.")
+	UE_DEPRECATED(5.1, "IsNullNoResolve is deprecated, please use operator bool instead.  if (!MyObjectPtr) { ... }")
 	FORCEINLINE bool IsNullNoResolve() const { return !ObjectPtr.operator bool(); }
 
 	FORCEINLINE bool operator!() const { return ObjectPtr.operator!(); }
