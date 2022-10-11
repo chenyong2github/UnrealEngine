@@ -770,7 +770,6 @@ SRemoteControlPanel::~SRemoteControlPanel()
 {
 	SaveSettings();
 
-	UnbindRemoteControlCommands();
 	UnregisterPanels();
 	UnregisterEvents();
 
@@ -1383,25 +1382,6 @@ void SRemoteControlPanel::BindRemoteControlCommands()
 		Commands.DuplicateItem,
 		FExecuteAction::CreateSP(this, &SRemoteControlPanel::DuplicateItem_Execute),
 		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanDuplicateItem));
-}
-
-void SRemoteControlPanel::UnbindRemoteControlCommands()
-{
-	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
-	{
-		const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
-
-		IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
-
-		FUICommandList& ActionList = *MainFrame.GetMainFrameCommandBindings();
-
-		ActionList.UnmapAction(Commands.SavePreset);
-		ActionList.UnmapAction(Commands.FindPresetInContentBrowser);
-		ActionList.UnmapAction(Commands.ToggleProtocolMappings);
-		ActionList.UnmapAction(Commands.ToggleLogicEditor);
-		ActionList.UnmapAction(Commands.DeleteEntity);
-		ActionList.UnmapAction(Commands.RenameEntity);
-	}
 }
 
 void SRemoteControlPanel::RegisterEvents()

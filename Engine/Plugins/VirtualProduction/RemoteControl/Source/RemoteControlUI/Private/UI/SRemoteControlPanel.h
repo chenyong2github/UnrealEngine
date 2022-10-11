@@ -166,7 +166,6 @@ private:
 
 	//~ Remote Control Commands
 	void BindRemoteControlCommands();
-	void UnbindRemoteControlCommands();
 
 	/** Register editor events needed to handle reloading objects and blueprint libraries. */
 	void RegisterEvents();
