@@ -65,6 +65,10 @@ void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingCont
 			RequestRebuildControlMappings(Options);
 		}
 	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Called AddMappingContext with a null Mapping Context! No changes have been applied."));
+	}
 }
 
 void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options)
