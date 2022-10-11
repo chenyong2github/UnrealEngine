@@ -344,7 +344,7 @@ void AddRowForUserParameter(TSharedPtr<FNiagaraParameterProxy> ParameterProxy, I
 		FAddPropertyParams Params = FAddPropertyParams()
 			.UniqueId(Parameter.GetName())
 			.AllowChildren(true)
-			.CreateCategoryNodes(true);
+			.CreateCategoryNodes(false);
 	
 		Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
 
