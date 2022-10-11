@@ -302,9 +302,15 @@ inline RHI_API bool RHISupportsConservativeRasterization(const FStaticShaderPlat
 }
 
 /** True if the given shader platform supports bindless resources/views. */
+inline ERHIBindlessSupport RHIGetBindlessSupport(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetBindlessSupport(Platform);
+}
+
+UE_DEPRECATED(5.2, "You must use RHIGetBindlessSupport instead.")
 inline bool RHISupportsBindless(EShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetSupportsBindless(Platform);
+	return RHIGetBindlessSupport(Platform) == ERHIBindlessSupport::AllShaderTypes;
 }
 
 inline bool RHISupportsVolumeTextureAtomics(EShaderPlatform Platform)
@@ -817,6 +823,9 @@ extern RHI_API FVector2f GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
 extern RHI_API bool GRHISupportsAsyncPipelinePrecompile;
 
 /** Whether dynamic (bindless) resources are supported */
+extern RHI_API ERHIBindlessSupport GRHIBindlessSupport;
+
+UE_DEPRECATED(5.2, "You must use GRHIBindlessSupport instead.")
 extern RHI_API bool GRHISupportsBindless;
 
 // Calculate the index of the sample in GRHIDefaultMSAASampleOffsets

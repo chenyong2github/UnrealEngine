@@ -1080,9 +1080,7 @@ void FVulkanDevice::InitGPU()
 	DescriptorPoolsManager = new FVulkanDescriptorPoolsManager();
 	DescriptorPoolsManager->Init(this);
 
-	if (RHISupportsBindless(GMaxRHIShaderPlatform) &&
-		OptionalDeviceExtensions.HasEXTDescriptorIndexing &&
-		(GpuProps.limits.maxBoundDescriptorSets >= VulkanBindless::MaxNumSets))
+	if (OptionalDeviceExtensions.HasEXTDescriptorIndexing && GpuProps.limits.maxBoundDescriptorSets >= VulkanBindless::MaxNumSets)
 	{
 		const bool bBindlessResources = RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
 		const bool bBindlessSamplers = RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;

@@ -1364,9 +1364,16 @@ static FAutoConsoleVariableRef CVarEnableBindlessSamplers(
 
 static ERHIBindlessConfiguration DetermineBindlessConfiguration(EShaderPlatform Platform, int32 BindlessConfigSetting)
 {
-	if (!RHISupportsBindless(Platform) || BindlessConfigSetting == 0)
+	const ERHIBindlessSupport BindlessSupport = RHIGetBindlessSupport(Platform);
+
+	if (BindlessSupport == ERHIBindlessSupport::Unsupported || BindlessConfigSetting == 0)
 	{
 		return ERHIBindlessConfiguration::Disabled;
+	}
+
+	if (BindlessSupport == ERHIBindlessSupport::RayTracingOnly)
+	{
+		return ERHIBindlessConfiguration::RayTracingShaders;
 	}
 
 	return BindlessConfigSetting == 2 ? ERHIBindlessConfiguration::RayTracingShaders : ERHIBindlessConfiguration::AllShaders;
@@ -1561,6 +1568,7 @@ bool GRHISupportsMapWriteNoOverwrite = false;
 
 bool GRHISupportsSeparateDepthStencilCopyAccess = true;
 
+ERHIBindlessSupport GRHIBindlessSupport = ERHIBindlessSupport::Unsupported;
 bool GRHISupportsBindless = false;
 
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
@@ -2456,6 +2464,33 @@ static inline uint32 GetSectionFeatureSupport(const FConfigSection& Section, FNa
 	return OriginalValue;
 }
 
+static inline uint32 GetSectionBindlessSupport(const FConfigSection& Section, FName Key, uint32 OriginalValue)
+{
+	const FConfigValue* ConfigValue = Section.Find(Key);
+	if (ConfigValue != nullptr)
+	{
+		FString Value = ConfigValue->GetValue();
+		if (Value == TEXT("Unsupported"))
+		{
+			return uint32(ERHIBindlessSupport::Unsupported);
+		}
+		if (Value == TEXT("RayTracingOnly"))
+		{
+			return uint32(ERHIBindlessSupport::RayTracingOnly);
+		}
+		else if (Value == TEXT("AllShaderTypes"))
+		{
+			return uint32(ERHIBindlessSupport::AllShaderTypes);
+		}
+		else
+		{
+			checkf(false, TEXT("Unknown ERHIBindlessSupport value \"%s\" for %s"), *Value, *Key.ToString());
+		}
+	}
+
+	return OriginalValue;
+}
+
 FRHIViewableResource* GetViewableResource(const FRHITransitionInfo& Info)
 {
 	switch (Info.Type)
@@ -2509,6 +2544,10 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 
 #define GET_SECTION_SUPPORT_HELPER(SettingName)	\
 	Info.SettingName = GetSectionFeatureSupport(Section, #SettingName, Info.SettingName); \
+	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
+
+#define GET_SECTION_BINDLESS_SUPPORT_HELPER(SettingName) \
+	Info.SettingName = GetSectionBindlessSupport(Section, #SettingName, Info.SettingName); \
 	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
 
 	GET_SECTION_BOOL_HELPER(bIsMobile);
@@ -2589,7 +2628,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsMobileDistanceField);
 	GET_SECTION_BOOL_HELPER(bSupportsFFTBloom);
 	GET_SECTION_BOOL_HELPER(bSupportsVertexShaderLayer);
-	GET_SECTION_BOOL_HELPER(bSupportsBindless);
+	GET_SECTION_BINDLESS_SUPPORT_HELPER(BindlessSupport);
 	GET_SECTION_BOOL_HELPER(bSupportsVolumeTextureAtomics);
 	GET_SECTION_BOOL_HELPER(bSupportsROV);
 	GET_SECTION_BOOL_HELPER(bSupportsOIT);

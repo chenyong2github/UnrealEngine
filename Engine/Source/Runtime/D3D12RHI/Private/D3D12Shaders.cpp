@@ -68,9 +68,13 @@ static bool ValidateShaderIsUsable(FD3D12ShaderData* InShader, EShaderFrequency 
 		return false;
 	}
 
-	if (EnumHasAnyFlags(InShader->Features, EShaderCodeFeatures::BindlessResources | EShaderCodeFeatures::BindlessSamplers) && !GRHISupportsBindless)
+	if (EnumHasAnyFlags(InShader->Features, EShaderCodeFeatures::BindlessResources | EShaderCodeFeatures::BindlessSamplers))
 	{
-		return false;
+		if (GRHIBindlessSupport == ERHIBindlessSupport::Unsupported ||
+			(GRHIBindlessSupport == ERHIBindlessSupport::RayTracingOnly && !IsRayTracingShaderFrequency(InFrequency)))
+		{
+			return false;
+		}
 	}
 #endif
 
