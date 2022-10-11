@@ -355,7 +355,7 @@ public:
 	{
 		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(InternalIndex);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		checkf(!(FlagsToSet & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) || int32(FlagsToSet & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) == (ObjectItem->Flags & int32(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)), TEXT("SetInternalFlags should not set the PendingKill or Garbage flag. Use MarkPendingKill or MarkAsGarbage instead"));
+		checkf(!(FlagsToSet & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) || (FlagsToSet & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) == (ObjectItem->GetFlags() & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)), TEXT("SetInternalFlags should not set the PendingKill or Garbage flag. Use MarkPendingKill or MarkAsGarbage instead"));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ObjectItem->SetFlags(FlagsToSet);
 	}
@@ -392,7 +392,7 @@ public:
 	{
 		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(InternalIndex);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		checkf(!(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) || (ObjectItem->Flags & int32(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))) == 0, TEXT("ClearInternalFlags should not clear PendingKill or Garbage flag. Use ClearGarbage() instead"));
+		checkf(!(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) || (ObjectItem->GetFlags() & (FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))) == EInternalObjectFlags::None, TEXT("ClearInternalFlags should not clear PendingKill or Garbage flag. Use ClearGarbage() instead"));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ObjectItem->ClearFlags(FlagsToClear);
 	}
@@ -407,7 +407,7 @@ public:
 	{
 		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(InternalIndex);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		checkf((ObjectItem->Flags & int32(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))) == 0, TEXT("ClearInternalFlags should not clear PendingKill or Garbage flag. Use ClearGarbage() instead"));
+		checkf((ObjectItem->GetFlags() & (FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))) == EInternalObjectFlags::None, TEXT("ClearInternalFlags should not clear PendingKill or Garbage flag. Use ClearGarbage() instead"));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ObjectItem->ThisThreadAtomicallyClearedFlag(FlagsToClear);
 	}
