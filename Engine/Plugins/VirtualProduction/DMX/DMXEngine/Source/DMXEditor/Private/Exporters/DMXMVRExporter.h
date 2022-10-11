@@ -37,6 +37,9 @@ private:
 	/** Creates an General Scene Description Xml File from the MVR Source, as it was imported */
 	const TSharedPtr<FXmlFile> CreateSourceGeneralSceneDescriptionXmlFile(const UDMXMVRGeneralSceneDescription* GeneralSceneDescription) const;
 
+	/** Writes transforms from level to the MVR Fixture Actors where applicable */
+	void WriteMVRFixtureTransformsFromLevel(UDMXMVRGeneralSceneDescription* GeneralSceneDescription);
+
 	/** 
 	 * Gets raw source data or creates (possibly empty) source data where the source data is not present. 
 	 * Prior 5.1 there was no source data stored. Offers a dialog to load missing data 
