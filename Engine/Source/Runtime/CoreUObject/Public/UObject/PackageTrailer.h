@@ -234,7 +234,7 @@ public:
 		return FPackageTrailerBuilder::CreateReferenceToTrailer(Trailer, PackageName.ToString());
 	}
 
-	FPackageTrailerBuilder() = delete;
+	FPackageTrailerBuilder() = default;
 	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName")
 	FPackageTrailerBuilder(const FName& InPackageName);
 	FPackageTrailerBuilder(FString&& DebugContext);
@@ -288,6 +288,14 @@ public:
 	[[nodiscard]] bool IsLocalPayloadEntry(const FIoHash& Identifier) const;
 	[[nodiscard]] bool IsReferencedPayloadEntry(const FIoHash& Identifier) const;
 	[[nodiscard]] bool IsVirtualizedPayloadEntry(const FIoHash& Identifier) const;
+
+	/** 
+	 * Returns the length of the trailer (in bytes) that the builder would currently create.
+	 * 
+	 * NOTE: At the moment this is not const as we need to check for and remove duplicate
+	 * payload entries as we do this before building the trailer not when gathering the entry info.
+	 */
+	[[nodiscard]] uint64 CalculateTrailerLength();
 
 	/** Returns the total number of payload entries in the builder */
 	[[nodiscard]] int32 GetNumPayloads() const;
@@ -355,6 +363,11 @@ private:
 
 		int64 RawSize = INDEX_NONE;
 	};
+
+	/** Returns the total length of the header if we were to build a trailer right now */
+	uint32 CalculatePotentialHeaderSize() const;
+	/** Returns the total length of all payloads combined if we were to build a trailer right now */
+	uint64 CalculatePotentialPayloadSize() const;
 
 	void RemoveDuplicateEntries();
 

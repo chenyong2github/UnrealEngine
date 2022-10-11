@@ -264,9 +264,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 	Trailer.Header.Tag = FPackageTrailer::FHeader::HeaderTag;
 	Trailer.Header.Version = (int32)EPackageTrailerVersion::AUTOMATIC_VERSION;
 
-	const uint32 DynamicHeaderSizeOnDisk = (GetNumPayloads() * Private::FLookupTableEntry::SizeOnDisk); // Add the length of the lookup table
-	
-	Trailer.Header.HeaderLength = FPackageTrailer::FHeader::StaticHeaderSizeOnDisk + DynamicHeaderSizeOnDisk;
+	Trailer.Header.HeaderLength = CalculatePotentialHeaderSize();
 	
 	Trailer.Header.PayloadsDataLength = 0;
 	Trailer.Header.PayloadLookupTable.Reserve(LocalEntries.Num() + ReferencedEntries.Num() + VirtualizedEntries.Num());
@@ -352,6 +350,9 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		}
 	}
 
+	// Minor sanity check that ::GetTrailerLength works
+	check(CalculateTrailerLength() == (DataArchive.Tell() - Trailer.TrailerPositionInFile) || DataArchive.IsError());
+
 	return !DataArchive.IsError();
 }
 
@@ -375,6 +376,19 @@ bool FPackageTrailerBuilder::IsVirtualizedPayloadEntry(const FIoHash& Identifier
 	return VirtualizedEntries.Find(Identifier) != nullptr;
 }
 
+uint64 FPackageTrailerBuilder::CalculateTrailerLength()
+{
+	// For now we need to call ::RemoveDuplicateEntries to make sure that we are calculating
+	// the correct length, hence the method not being const
+	RemoveDuplicateEntries();
+
+	const uint64 HeaderLength = (uint64)CalculatePotentialHeaderSize();
+	const uint64 PayloadsLength = CalculatePotentialPayloadSize();
+	const uint64 FooterLength = FPackageTrailer::FFooter::SizeOnDisk;
+
+	return HeaderLength + PayloadsLength + FooterLength;
+}
+
 int32 FPackageTrailerBuilder::GetNumPayloads() const
 {
 	return GetNumLocalPayloads() + GetNumReferencedPayloads() + GetNumVirtualizedPayloads();
@@ -393,6 +407,26 @@ int32 FPackageTrailerBuilder::GetNumReferencedPayloads() const
 int32 FPackageTrailerBuilder::GetNumVirtualizedPayloads() const
 {
 	return VirtualizedEntries.Num();
+}
+
+uint32 FPackageTrailerBuilder::CalculatePotentialHeaderSize() const
+{
+	const uint32 DynamicHeaderSizeOnDisk = (GetNumPayloads() * Private::FLookupTableEntry::SizeOnDisk); // Add the length of the lookup table
+
+	return FPackageTrailer::FHeader::StaticHeaderSizeOnDisk + DynamicHeaderSizeOnDisk;
+}
+
+uint64 FPackageTrailerBuilder::CalculatePotentialPayloadSize() const
+{
+	uint64 PayloadsLength = 0;
+	for (const TPair<FIoHash, LocalEntry>& KV : LocalEntries)
+	{
+		const FCompressedBuffer& Payload = KV.Value.Payload;
+
+		PayloadsLength += Payload.GetCompressedSize();
+	}
+
+	return PayloadsLength;
 }
 
 void FPackageTrailerBuilder::RemoveDuplicateEntries()
