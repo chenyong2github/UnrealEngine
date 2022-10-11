@@ -768,7 +768,8 @@ public:
 		const TSet<FKey>& InPressedButtons,
 		FKey InEffectingButton,
 		float InWheelDelta,
-		const FModifierKeysState& InModifierKeys
+		const FModifierKeysState& InModifierKeys,
+		const TOptional<int32> InOptionalSlateUserIndex = TOptional<int32>()
 	)
 		: FInputEvent(InModifierKeys, InDeviceId, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
@@ -785,7 +786,12 @@ public:
 		, bIsDirectionInvertedFromDevice(false)
 		, bIsTouchForceChanged(false)
 		, bIsTouchFirstMove(false)
-	{ }
+	{
+		if (InOptionalSlateUserIndex.IsSet())
+		{
+			UserIndex = InOptionalSlateUserIndex.GetValue();
+		}
+	}
 
 	FPointerEvent(
 		uint32 InUserIndex,

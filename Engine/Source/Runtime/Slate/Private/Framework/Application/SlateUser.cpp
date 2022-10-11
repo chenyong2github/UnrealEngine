@@ -671,26 +671,26 @@ bool FSlateUser::SynthesizeCursorMoveIfNeeded()
 		
 		FInputDeviceId InputDeviceId = IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser(GetPlatformUserId());
 		
-		if (!InputDeviceId.IsValid())
-		{
-			UE_LOG(LogSlate, Warning, TEXT("SynthesizeCursorMoveIfNeeded had an invalid Input Device! Falling back to the default mouse input device ID."));
-			InputDeviceId = SlateApp.GetInputDeviceIdForMouse();
+		// The input device might be invalid if a split screen player has logged off but still has their controller plugged in
+		if (InputDeviceId.IsValid())
+		{			
+			const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
+			const TSet<FKey> EmptySet;
+			FPointerEvent SyntheticCursorMoveEvent(
+				InputDeviceId,
+				FSlateApplication::CursorPointerIndex,
+				GetCursorPosition(),
+				GetPreviousCursorPosition(),
+				bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : EmptySet,
+				EKeys::Invalid,
+				0,
+				bHasHardwareCursor ? SlateApp.GetPlatformApplication()->GetModifierKeys() : FModifierKeysState(),
+				UserIndex);
+
+			SlateApp.ProcessMouseMoveEvent(SyntheticCursorMoveEvent, true);
+			return true;
+
 		}		
-
-		const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
-		const TSet<FKey> EmptySet;
-		FPointerEvent SyntheticCursorMoveEvent(
-			InputDeviceId,
-			FSlateApplication::CursorPointerIndex,
-			GetCursorPosition(),
-			GetPreviousCursorPosition(),
-			bHasHardwareCursor ? SlateApp.GetPressedMouseButtons() : EmptySet,
-			EKeys::Invalid,
-			0,
-			bHasHardwareCursor ? SlateApp.GetPlatformApplication()->GetModifierKeys() : FModifierKeysState());
-
-		SlateApp.ProcessMouseMoveEvent(SyntheticCursorMoveEvent, true);
-		return true;
 	}
 	return false;
 }
