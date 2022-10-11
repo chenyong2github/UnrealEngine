@@ -1,7 +1,7 @@
 import React from 'react';
 import { _api } from 'src/reducers';
 import _ from 'lodash';
-import { Button, ColorPicker, Search, Slider, TabPane, Tabs, VectorControl, TimeControl, SliderWheel, ValueInput } from '../../controls';
+import { Button, ColorPicker, Search, Slider, TabPane, Tabs, VectorControl, SliderWheel, ValueInput } from '../../controls';
 import { AlertModal } from '../../../components';
 import { AssetWidget } from '../../Widgets';
 import { CorrectionColorPicker, PaginationContent } from './';
@@ -180,6 +180,18 @@ export class ColorCorrection extends React.Component<Props, State> {
     );
 
     await this.onRefreshActors();
+  }
+
+  onDeleteActor = async() => {
+    const { selected, section } = this.state;
+    if (!selected)
+      return;
+
+    if (!await AlertModal.show(`Delete ${section === Section.ColorCorrection ? 'Color Correct Region' : 'Light Card'}?`))
+      return;
+
+    await _api.proxy.function(selected, 'DestroyActor');
+    this.onRefreshActors();
   }
 
   onRefreshActors = async () => {
@@ -856,7 +868,10 @@ export class ColorCorrection extends React.Component<Props, State> {
         </div>
         <div className="group">
           <div className="cc-group shotbox cc-panel">
-            <Tabs rightIcon={<Search placeholder="Search" onSearch={search => this.setState({ search })} />}
+            <Tabs rightIcon={<>
+              <div className="trash-icon" onClick={this.onDeleteActor}><FontAwesomeIcon icon={['fas', 'trash']} /></div>
+              <Search placeholder="Search" onSearch={search => this.setState({ search })} />
+            </>}
                   onTabChange={(actorsGroup: ActorsGroup) => this.setState({ actorsGroup })}
                   defaultActiveKey={actorsGroup}>
               <TabPane id={ActorsGroup.All} tab="All" icon={['fas', 'square']}>
