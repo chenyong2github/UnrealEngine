@@ -85,6 +85,7 @@ void SMutableLayoutViewer::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		[
 			SAssignNew(LayoutViewer, SCustomizableObjectLayoutGrid)
+			.Mode(ELayoutGridMode::ELGM_Show)
 		]
 	];
 

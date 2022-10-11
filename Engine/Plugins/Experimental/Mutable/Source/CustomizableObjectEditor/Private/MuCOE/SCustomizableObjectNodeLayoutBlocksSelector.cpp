@@ -180,7 +180,16 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksSelector::BuildLayoutTool
 
 	LayoutToolbarBuilder.BeginSection("Label");
 	{
-		LayoutToolbarBuilder.AddWidget(BlocksLabel.ToSharedRef());
+		LayoutToolbarBuilder.AddWidget
+		(
+			SNew(SBox)
+			.WidthOverride(125.0f)
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			.HAlign(EHorizontalAlignment::HAlign_Center)
+			[
+				BlocksLabel.ToSharedRef()
+			]
+		);
 	}
 	LayoutToolbarBuilder.EndSection();
 
@@ -189,7 +198,6 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksSelector::BuildLayoutTool
 
 		+SHorizontalBox::Slot()
 		.Padding(4,0)
-		.AutoWidth()
 		[
 			SNew(SBorder)
 			.Padding(0)

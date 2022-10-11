@@ -86,8 +86,22 @@ public:
 		return ViewRect;
 	}
 
+	/** Sets the clipping rect for the render target */
+	void SetClippingRect(const FIntRect& InClippingRect)
+	{
+		ClippingRect = InClippingRect;
+	}
+
+	/** Gets the clipping rect for the render target */
+	const FIntRect& GetClippingRect() const
+	{
+		return ClippingRect;
+	}
+
 private:
+
 	FIntRect ViewRect;
+	FIntRect ClippingRect;
 };
 
 
@@ -104,10 +118,18 @@ public:
 	 * 
 	 * All data will be copied.
 	 */
-	void Initialize(const FIntRect& InCanvasRect, const FVector2D& InOrigin, const FVector2D& InSize, const TArray<FVector2f>& InUVLayout);
-	
+	void Initialize(const FIntRect& InCanvasRect, const FIntRect& InClippingRect, const FVector2D& InOrigin, const FVector2D& InSize, const FIntPoint& InGridSize, const float InCellSize);
+	void InitializeDrawingData(const TArray<FVector2f>& InUVLayout, const TArray<FVector2f>& InUnassignedUVs, const TArray<FCustomizableObjectLayoutBlock>& InBlocks, const TArray<FGuid>& InSelectedBlocks);
+
+	/** Sets the layout mode to know what to draw */
+	void SetLayoutMode(ELayoutGridMode Mode);
+
 private:
+
 	void DrawRenderThread(FRHICommandListImmediate& RHICmdList, const void* RenderTarget) override;
+
+	/** Basic function to draw a block in the canvas */
+	void DrawBlock(FBatchedElements* BatchedElements, const FHitProxyId HitProxyId, const FRect2D& BlockRect, FColor Color);
 
 	/** SlateElement initialized, can Draw during the DrawRenderThread call. */
 	bool Initialized = false;
@@ -118,8 +140,20 @@ private:
 	/** Drawing size. */
 	FVector2D Size;
 
-	/** Drawing UVLayout. */
+	/** Size of the Layout Grid */
+	FIntPoint GridSize;
+
+	/** Cell Size */
+	float CellSize;
+
+	/** Drawing Data. */
 	TArray<FVector2D> UVLayout;
+	TArray<FVector2D> UnassignedUVs;
+	TArray<FCustomizableObjectLayoutBlock> Blocks;
+	TArray<FGuid> SelectedBlocks;
+
+	/** Layout Mode */
+	ELayoutGridMode LayoutMode;
 
 	FSlateCanvasRenderTarget* RenderTarget = new FSlateCanvasRenderTarget();
 };
@@ -150,6 +184,7 @@ void SCustomizableObjectLayoutGrid::Construct( const FArguments& InArgs )
 	Zoom = 1;
 
 	UVCanvasDrawer = TSharedPtr<FUVCanvasDrawer, ESPMode::ThreadSafe>(new FUVCanvasDrawer());
+	UVCanvasDrawer->SetLayoutMode(Mode);
 }
 
 
@@ -198,136 +233,38 @@ int32 SCustomizableObjectLayoutGrid::OnPaint(const FPaintArgs& Args, const FGeom
 	float AuxCellSize = Size.X / GridSizePoint.X;
 	
 	// Drawing Offsets
-	FVector2D Offset = (AreaSize-Size)/2.0f;
+	FVector2D Offset = FVector2D((AreaSize - Size).X / 2.0f, 0.0f);
 	FVector2D ZoomOffset = ((Size - OldSize) / 2.0f);
 	
 	// Drawing Origin
 	FVector2D Origin = BorderPadding + Offset + PaddingAmount - DistanceFromOrigin;
 
-	// Create line points
-	TArray< FVector2D > LinePoints;
-	LinePoints.SetNum(2);
+	// Setting Canvas Drawing Rectangles
+	FSlateRect SlateCanvasRect = AllottedGeometry.GetLayoutBoundingRect();
+	FSlateRect ClippedCanvasRect = SlateCanvasRect.IntersectionWith(MyClippingRect);
+
+	FIntRect CanvasRect(
+		FMath::TruncToInt(FMath::Max(0.0f, SlateCanvasRect.Left)),
+		FMath::TruncToInt(FMath::Max(0.0f, SlateCanvasRect.Top)),
+		FMath::TruncToInt(FMath::Max(0.0f, SlateCanvasRect.Right)),
+		FMath::TruncToInt(FMath::Max(0.0f, SlateCanvasRect.Bottom)));
+
+	FIntRect ClippingRect(
+		FMath::TruncToInt(FMath::Max(0.0f, ClippedCanvasRect.Left)),
+		FMath::TruncToInt(FMath::Max(0.0f, ClippedCanvasRect.Top)),
+		FMath::TruncToInt(FMath::Max(0.0f, ClippedCanvasRect.Right)),
+		FMath::TruncToInt(FMath::Max(0.0f, ClippedCanvasRect.Bottom)));
+
 	
-	// Drawing Vertical Lines
-	for( int32 LineIndex = 0; LineIndex < GridSizePoint.X + 1; LineIndex++ )
-	{
-		LinePoints[0] = FVector2D( Origin.X + LineIndex * AuxCellSize, Origin.Y );
-		LinePoints[1] = FVector2D( Origin.X + LineIndex * AuxCellSize, Origin.Y + Size.Y );
-
-		FSlateDrawElement::MakeLines( OutDrawElements,RetLayerId,AllottedGeometry.ToPaintGeometry(),
-			LinePoints, ESlateDrawEffect::None,	FColor(150, 150, 150, 64), false, 2.0);
-	}
-
-	// Drawing Horizontal Lines
-	for( int32 LineIndex = 0; LineIndex < GridSizePoint.Y + 1; LineIndex++ )
-	{
-		LinePoints[0] = FVector2D( Origin.X, Origin.Y + LineIndex * AuxCellSize );
-		LinePoints[1] = FVector2D( Origin.X + Size.X, Origin.Y + LineIndex * AuxCellSize );
-
-		FSlateDrawElement::MakeLines( OutDrawElements, RetLayerId, AllottedGeometry.ToPaintGeometry(),
-			LinePoints,	ESlateDrawEffect::None, FColor(150, 150, 150, 64), false, 2.0);
-	}
-
-	RetLayerId++;
-
-	// Draw UV using a CustomSlateElement on the RenderThread
-	const float CanvasMinX = FMath::Max(0.0f, AllottedGeometry.AbsolutePosition.X);
-	const float CanvasMinY = FMath::Max(0.0f, AllottedGeometry.AbsolutePosition.Y);
-	const FIntRect CanvasRect(
-		FMath::RoundToInt(CanvasMinX),
-		FMath::RoundToInt(CanvasMinY),
-		FMath::RoundToInt(CanvasMinX + AllottedGeometry.GetLocalSize().X * AllottedGeometry.Scale),
-		FMath::RoundToInt(CanvasMinY + AllottedGeometry.GetLocalSize().Y * AllottedGeometry.Scale));
-	
-	UVCanvasDrawer->Initialize(CanvasRect, Origin * AllottedGeometry.Scale, Size * AllottedGeometry.Scale, UVLayout);
+	UVCanvasDrawer->InitializeDrawingData(UVLayout, UnassignedUVLayoutVertices, Blocks.Get(), SelectedBlocks);
+	UVCanvasDrawer->Initialize(CanvasRect, ClippingRect, Origin * AllottedGeometry.Scale, Size * AllottedGeometry.Scale, GridSizePoint, AuxCellSize * AllottedGeometry.Scale);
 	FSlateDrawElement::MakeCustom(OutDrawElements, RetLayerId, UVCanvasDrawer);
 
 	const auto MakeYellowSquareLine = [&](const TArray<FVector2D>& Points) -> void
 	{
-		FSlateDrawElement::MakeLines( OutDrawElements, RetLayerId, AllottedGeometry.ToPaintGeometry(),
-			Points,	ESlateDrawEffect::None,	FColor(250, 230, 43, 255), true, 2.0);
+		FSlateDrawElement::MakeLines(OutDrawElements, RetLayerId, AllottedGeometry.ToPaintGeometry(),
+			Points, ESlateDrawEffect::None, FColor(250, 230, 43, 255), true, 2.0);
 	};
-
-	TArray<FVector2D> SquareLinePoints;
-	SquareLinePoints.SetNum(2);
-
-	const FVector2D CrossSize = Size*0.01;
-	for (const FVector2f& Vertex : UnassignedUVLayoutVertices)
-	{
-		SquareLinePoints[0] = (Origin + FVector2D(Vertex) * Size + FVector2D(CrossSize));
-		SquareLinePoints[1]	= (Origin + FVector2D(Vertex) * Size - FVector2D(CrossSize) * FVector2D(1.0f, -1.0f));
-		MakeYellowSquareLine(SquareLinePoints);
-		
-		SquareLinePoints[0]	= (Origin + FVector2D(Vertex) * Size - FVector2D(CrossSize));
-		MakeYellowSquareLine(SquareLinePoints);
-
-		SquareLinePoints[1]	= (Origin + FVector2D(Vertex) * Size + FVector2D(CrossSize) * FVector2D(1.0f, -1.0f));
-		MakeYellowSquareLine(SquareLinePoints);
-		
-		SquareLinePoints[0]	= (Origin + FVector2D(Vertex) * Size + FVector2D(CrossSize));
-		MakeYellowSquareLine(SquareLinePoints);
-	}
-
-
-	// Blocks
-	const FSlateBrush* BlockBrush = FAppStyle::GetBrush("TextBlock.HighlightShape");
-	const FVector2f PaintGeomPosition = AllottedGeometry.ToPaintGeometry().DrawPosition;
-	const float PaintGeomScale = AllottedGeometry.ToPaintGeometry().DrawScale;
-	
-	for (const FCustomizableObjectLayoutBlock& Block : Blocks.Get())
-	{
-		FSlateRenderTransform GeomTransform = FSlateRenderTransform(1.0f, FVector2D(PaintGeomPosition + BlockRects[Block.Id].Rect.Min * PaintGeomScale));
-		FPaintGeometry Geom(FSlateLayoutTransform(), GeomTransform, FVector2D(BlockRects[Block.Id].Rect.Size * PaintGeomScale), false );
-		
-		FSlateDrawElement::MakeBox(	OutDrawElements, RetLayerId, Geom, BlockBrush,
-			DrawEffects, SelectedBlocks.Find(Block.Id)>=0? SelectionColor :FColor(230,199,75,155) );	
-
-		if (Mode==ELGM_Edit)
-		{
-			FSlateRenderTransform HandleGeomTransform = FSlateRenderTransform(1.0f, FVector2D(PaintGeomPosition + BlockRects[Block.Id].HandleRect.Min * PaintGeomScale));
-			FPaintGeometry HandleGeom(FSlateLayoutTransform(), HandleGeomTransform, FVector2D(BlockRects[Block.Id].HandleRect.Size * PaintGeomScale), false);
-			
-			FColor HandleRectColor = FColor(255, 96, 96, 255);
-			bool bCanResize = SelectedBlocks.Num() == 1 && SelectedBlocks.Contains(Block.Id) && MouseOnBlock(Block.Id, CurrentMousePosition, true);
-
-			if (bCanResize)
-			{
-				HandleRectColor = FColor(200, 0, 0, 255);
-			}
-
-			FSlateDrawElement::MakeBox(	OutDrawElements, RetLayerId, HandleGeom, BlockBrush,
-				DrawEffects, HandleRectColor);
-
-
-			//Selected block outline
-			if (SelectedBlocks.Find(Block.Id) >= 0)
-			{
-				TArray<FVector2D> SelectionSquarePoints;
-				SelectionSquarePoints.SetNum(2);
-
-				FVector2D RectMin = FVector2D(BlockRects[Block.Id].Rect.Min);
-				FVector2D RectMax = FVector2D(BlockRects[Block.Id].Rect.Min + BlockRects[Block.Id].Rect.Size);
-
-				FVector2D TopRightCorner = FVector2D(RectMax.X, RectMin.Y);
-				FVector2D BottomLeftCorner = FVector2D(RectMin.X, RectMax.Y);
-
-				SelectionSquarePoints[0] = RectMin;
-				SelectionSquarePoints[1] = TopRightCorner;
-				MakeYellowSquareLine(SelectionSquarePoints);
-
-				SelectionSquarePoints[0] = RectMax;
-				MakeYellowSquareLine(SelectionSquarePoints);
-				
-				SelectionSquarePoints[1] = BottomLeftCorner;
-				MakeYellowSquareLine(SelectionSquarePoints);
-				
-				SelectionSquarePoints[0] = RectMin;
-				MakeYellowSquareLine(SelectionSquarePoints);
-			}
-		}
-	}
-
-	RetLayerId++;
 
 	// Drawing Multi-Selection rect
 	if (Mode == ELGM_Edit && Selecting)
@@ -383,7 +320,7 @@ void SCustomizableObjectLayoutGrid::Tick( const FGeometry& AllottedGeometry, con
 	FVector2D OldSize = Size;
 	Size *= Zoom;
 	CellSize = Size.X/GridSize.Get().X;
-	FVector2D Offset = (AreaSize-Size)/2.0f;
+	FVector2D Offset = FVector2D((AreaSize - Size).X / 2.0f, 0.0f);
 	FVector2D ZoomOffset = (Size - OldSize) / 2.0f;
 	FVector2D Origin = BorderPadding + Offset + PaddingAmount - DistanceFromOrigin;
 	DrawOrigin = Origin;
@@ -404,7 +341,7 @@ void SCustomizableObjectLayoutGrid::Tick( const FGeometry& AllottedGeometry, con
 		BlockData.HandleRect.Size = FVector2f(CellSize) * HandleRectSize;
 		BlockData.HandleRect.Min = BlockData.Rect.Min + BlockData.Rect.Size - BlockData.HandleRect.Size;
 
-		BlockRects.Add(Block.Id, BlockData );
+		BlockRects.Add(Block.Id, BlockData);
 	}
 
 	// Update selection list
@@ -527,14 +464,14 @@ FReply SCustomizableObjectLayoutGrid::OnMouseButtonDown( const FGeometry& MyGeom
 						[
 							SNew(SNumericEntryBox<int32>)
 							.MinValue(0)
-						.MaxValue(INT_MAX)
-						.MaxSliderValue(100)
-						.AllowSpin(SelectedBlocks.Num() == 1)
-						.Value(this, &SCustomizableObjectLayoutGrid::GetBlockPriortyValue)
-						.UndeterminedString(LOCTEXT("MultipleValues", "Multiples Values"))
-						.OnValueChanged(this, &SCustomizableObjectLayoutGrid::OnBlockPriorityChanged)
-						.ToolTipText(LOCTEXT("SetBlockPriorityTooltip", "Sets the block priority for a Fixed Layout Strategy"))
-						.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
+							.MaxValue(INT_MAX)
+							.MaxSliderValue(100)
+							.AllowSpin(SelectedBlocks.Num() == 1)
+							.Value(this, &SCustomizableObjectLayoutGrid::GetBlockPriortyValue)
+							.UndeterminedString(LOCTEXT("MultipleValues", "Multiples Values"))
+							.OnValueChanged(this, &SCustomizableObjectLayoutGrid::OnBlockPriorityChanged)
+							.ToolTipText(LOCTEXT("SetBlockPriorityTooltip", "Sets the block priority for a Fixed Layout Strategy"))
+							.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
 						]
 					, FText::FromString("Block Priority"), true);
 				}
@@ -948,6 +885,10 @@ FReply SCustomizableObjectLayoutGrid::OnKeyDown(const FGeometry& MyGeometry, con
 			FVector2D MouseToCellPosition = (CurrentMousePosition - DrawOrigin) / CellSize;
 			GenerateNewBlock(MouseToCellPosition);
 		}
+		else if (InKeyEvent.GetKey() == EKeys::F)
+		{
+			SetBlockSizeToMax();
+		}
 	}
 
 	if (InKeyEvent.GetKey() == EKeys::Delete)
@@ -1028,6 +969,26 @@ void SCustomizableObjectLayoutGrid::DuplicateBlocks()
 			if (SelectedBlocks.Find(Block.Id) != INDEX_NONE)
 			{
 				AddBlockAtDelegate.ExecuteIfBound(Block.Min, Block.Max);
+			}
+		}
+	}
+}
+
+
+void SCustomizableObjectLayoutGrid::SetBlockSizeToMax()
+{
+	if (SelectedBlocks.Num())
+	{
+		for (const FCustomizableObjectLayoutBlock& Block : Blocks.Get())
+		{
+			if (SelectedBlocks.Find(Block.Id) != INDEX_NONE)
+			{
+				FIntRect FinalBlock;
+
+				FinalBlock.Min = FIntPoint(0, 0);
+				FinalBlock.Max = GridSize.Get();
+
+				BlockChangedDelegate.ExecuteIfBound(Block.Id, FinalBlock);
 			}
 		}
 	}
@@ -1153,30 +1114,51 @@ void SCustomizableObjectLayoutGrid::SetLayoutStrategy(ECustomizableObjectTexture
 
 // Canvas Drawer --------------------------------------------------------------
 
-void FUVCanvasDrawer::Initialize(const FIntRect& InCanvasRect, const FVector2D& InOrigin, const FVector2D& InSize, const TArray<FVector2f>& InUVLayout)
+void FUVCanvasDrawer::Initialize(const FIntRect& InCanvasRect, const FIntRect& InClippingRect, const FVector2D& InOrigin, const FVector2D& InSize, const FIntPoint& InGridSize, const float InCellSize)
 {
 	Initialized = InCanvasRect.Size().X > 0 && InCanvasRect.Size().Y > 0;
 	if (Initialized)
 	{
 		RenderTarget->SetViewRect(InCanvasRect);
+		RenderTarget->SetClippingRect(InClippingRect);
 
 		Origin = InOrigin;
 		Size = InSize;
-
-		// Convert data
-		UVLayout.SetNum(InUVLayout.Num());
-		for (int32 Index=0; Index<InUVLayout.Num(); ++Index)
-		{
-			UVLayout[Index] = FVector2D(InUVLayout[Index]);
-		}
+		CellSize = InCellSize;
+		GridSize = InGridSize;
 	}
+}
+
+
+void FUVCanvasDrawer::InitializeDrawingData(const TArray<FVector2f>& InUVLayout, const TArray<FVector2f>& InUnassignedUVs, const TArray<FCustomizableObjectLayoutBlock>& InBlocks, const TArray<FGuid>& InSelectedBlocks)
+{
+	Blocks = InBlocks;
+	SelectedBlocks = InSelectedBlocks;
+
+	// Convert data
+	UVLayout.SetNum(InUVLayout.Num());
+	for (int32 Index = 0; Index < InUVLayout.Num(); ++Index)
+	{
+		UVLayout[Index] = FVector2D(InUVLayout[Index]);
+	}
+
+	UnassignedUVs.SetNum(InUnassignedUVs.Num());
+	for (int32 Index = 0; Index < UnassignedUVs.Num(); ++Index)
+	{
+		UnassignedUVs[Index] = FVector2D(InUnassignedUVs[Index]);
+	}
+}
+
+
+void FUVCanvasDrawer::SetLayoutMode(ELayoutGridMode Mode)
+{
+	LayoutMode = Mode;
 }
 
 
 void FUVCanvasDrawer::DrawRenderThread(class FRHICommandListImmediate& RHICmdList, const void* InWindowBackBuffer)
 {
-	//UE crashes if there are no UVs to draw due to DX
-	if (Initialized && UVLayout.Num())
+	if (Initialized)
 	{
 		RenderTarget->SetRenderTargetTexture(*(FTexture2DRHIRef*)InWindowBackBuffer);
 
@@ -1185,29 +1167,143 @@ void FUVCanvasDrawer::DrawRenderThread(class FRHICommandListImmediate& RHICmdLis
 #else
 		FCanvas Canvas(RenderTarget, nullptr, 0, 0, 0, GMaxRHIFeatureLevel);
 #endif
-
-		const uint32 NumEdges = UVLayout.Num() / 2;
-
+		
 		Canvas.SetRenderTargetRect(RenderTarget->GetViewRect());
+		Canvas.SetRenderTargetScissorRect(RenderTarget->GetClippingRect());
+
+		// Num Lines
+		const uint32 NumEdges = UVLayout.Num() / 2;
+		const uint32 NumGridLines = GridSize.X + GridSize.Y + 2;
+		const uint32 NumUnasignedUVs = UnassignedUVs.Num() * 4;
+
+		// Num Vertices
+		const uint32 NumVertices = LayoutMode == ELayoutGridMode::ELGM_Edit ? Blocks.Num() * 8 : Blocks.Num() * 4;
+
+		// Num Triangles
+		const uint32 NumTriangles = LayoutMode == ELayoutGridMode::ELGM_Edit ? Blocks.Num() * 4 : Blocks.Num() * 2;
 
 		FBatchedElements* BatchedElements = Canvas.GetBatchedElements(FCanvas::ET_Line);
-		BatchedElements->AddReserveLines(NumEdges);
+		BatchedElements->AddReserveLines(NumEdges + NumGridLines + NumUnasignedUVs);
+		BatchedElements->AddReserveVertices(NumVertices);
+		BatchedElements->AddReserveTriangles(NumTriangles, GWhiteTexture, ESimpleElementBlendMode::SE_BLEND_Translucent);
 
-		const FLinearColor LineColor = FLinearColor::White;
+		// Color Definitions
+		const FColor GridLineColor = FColor(150, 150, 150, 64);
+		const FColor UVLineColor = FColor(255, 255, 255, 255);
+		const FColor UnassignedUVsColor = FColor::Yellow;
+		const FColor ResizeBlockColor = FColor(255, 96, 96, 255);
+
 		const FHitProxyId HitProxyId = Canvas.GetHitProxyId();
 
+		// Create line points
 		FVector LinePoints[2];
+
+		// Drawing Vertical Lines
+		for (int32 LineIndex = 0; LineIndex < GridSize.X + 1; LineIndex++)
+		{
+			LinePoints[0] = FVector(FVector2D(Origin.X + LineIndex * CellSize, Origin.Y), 0.0f);
+			LinePoints[1] = FVector(FVector2D(Origin.X + LineIndex * CellSize, Origin.Y + Size.Y), 0.0f);
+
+			BatchedElements->AddTranslucentLine(LinePoints[0], LinePoints[1], GridLineColor, HitProxyId, 2.0f);
+		}
+
+		// Drawing Horizontal Lines
+		for (int32 LineIndex = 0; LineIndex < GridSize.Y + 1; LineIndex++)
+		{
+			LinePoints[0] = FVector(FVector2D(Origin.X, Origin.Y + LineIndex * CellSize), 0.0f);
+			LinePoints[1] = FVector(FVector2D(Origin.X + Size.X, Origin.Y + LineIndex * CellSize), 0.0f);
+
+			BatchedElements->AddTranslucentLine(LinePoints[0], LinePoints[1], GridLineColor, HitProxyId, 2.0f);
+		}
+
+		// Drawing UV Lines
 		for (uint32 LineIndex = 0; LineIndex < NumEdges; ++LineIndex)
 		{
 			LinePoints[0] = FVector(Origin + UVLayout[LineIndex * 2 + 0] * Size, 0.0f);
 			LinePoints[1] = FVector(Origin + UVLayout[LineIndex * 2 + 1] * Size, 0.0f);
 
-			BatchedElements->AddLine(LinePoints[0], LinePoints[1], LineColor, HitProxyId);
+			BatchedElements->AddLine(LinePoints[0], LinePoints[1], UVLineColor, HitProxyId);
+		}
+
+		// Drawing Unassigned UVs
+		const FVector2D CrossSize = Size * 0.01;
+		for (const FVector2d& Vertex : UnassignedUVs)
+		{
+			LinePoints[0] = FVector(Origin + FVector2D(Vertex) * Size + FVector2D(CrossSize), 0.0f);
+			LinePoints[1] = FVector(Origin + FVector2D(Vertex) * Size - FVector2D(CrossSize) * FVector2D(1.0f, -1.0f), 0.0f);
+			BatchedElements->AddLine(LinePoints[0], LinePoints[1], UVLineColor, HitProxyId);
+
+			LinePoints[0] = FVector(Origin + FVector2D(Vertex) * Size - FVector2D(CrossSize), 0.0f);
+			BatchedElements->AddLine(LinePoints[0], LinePoints[1], UVLineColor, HitProxyId);
+
+			LinePoints[1] = FVector(Origin + FVector2D(Vertex) * Size + FVector2D(CrossSize) * FVector2D(1.0f, -1.0f), 0.0f);
+			BatchedElements->AddLine(LinePoints[0], LinePoints[1], UVLineColor, HitProxyId);
+
+			LinePoints[0] = FVector(Origin + FVector2D(Vertex) * Size + FVector2D(CrossSize), 0.0f);
+			BatchedElements->AddLine(LinePoints[0], LinePoints[1], UVLineColor, HitProxyId);
+		}
+
+		// Drawing Blocks
+		for (const FCustomizableObjectLayoutBlock& Block : Blocks)
+		{
+			const FColor SelectionBlockColor = SelectedBlocks.Contains(Block.Id) ? FColor(75, 106, 230, 155) : FColor(230, 199, 75, 155);
+
+			const FVector2f BlockMin(Block.Min);
+			const FVector2f BlockMax(Block.Max);
+
+			// Selection Block
+			FRect2D SelectionBlock;
+			SelectionBlock.Min = FVector2f(Origin) + BlockMin * CellSize + CellSize * 0.1f;
+			SelectionBlock.Size = (BlockMax - BlockMin) * CellSize - CellSize * 0.2f;
+
+			DrawBlock(BatchedElements, HitProxyId, SelectionBlock, SelectionBlockColor);
+
+			if (LayoutMode == ELayoutGridMode::ELGM_Edit)
+			{
+				// Resize Block
+				FRect2D ResizeBlock;;
+				float HandleRectSize = FMath::Log2(float(GridSize.X)) / 10.0f;
+				ResizeBlock.Size = FVector2f(CellSize) * HandleRectSize;
+				ResizeBlock.Min = SelectionBlock.Min + SelectionBlock.Size - ResizeBlock.Size;
+
+				DrawBlock(BatchedElements, HitProxyId, ResizeBlock, ResizeBlockColor);
+			}
 		}
 
 		Canvas.Flush_RenderThread(RHICmdList, true);
 
 		RenderTarget->ClearRenderTargetTexture();
+		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+	}
+}
+
+
+void FUVCanvasDrawer::DrawBlock(FBatchedElements* BatchedElements, const FHitProxyId HitProxyId, const FRect2D& BlockRect, FColor Color)
+{
+	// Vertex positions
+	FVector4 Vert0(BlockRect.Min.X, BlockRect.Min.Y, 0, 1);
+	FVector4 Vert1(BlockRect.Min.X, BlockRect.Min.Y + BlockRect.Size.Y, 0, 1);
+	FVector4 Vert2(BlockRect.Min.X + BlockRect.Size.X, BlockRect.Min.Y, 0, 1);
+	FVector4 Vert3(BlockRect.Min.X + BlockRect.Size.X, BlockRect.Min.Y + BlockRect.Size.Y, 0, 1);
+
+	// Brush Paint triangle
+	{
+		int32 V0 = BatchedElements->AddVertex(Vert0, FVector2d(0.0f, 0.0f), Color, HitProxyId);
+		int32 V1 = BatchedElements->AddVertex(Vert1, FVector2d(0.0f, 1.0f), Color, HitProxyId);
+		int32 V2 = BatchedElements->AddVertex(Vert2, FVector2d(1.0f, 0.0f), Color, HitProxyId);
+		int32 V3 = BatchedElements->AddVertex(Vert3, FVector2d(1.0f, 1.0f), Color, HitProxyId);
+
+		BatchedElements->AddTriangle(V0, V1, V2, GWhiteTexture, EBlendMode::BLEND_Translucent);
+		BatchedElements->AddTriangle(V1, V3, V2, GWhiteTexture, EBlendMode::BLEND_Translucent);
+	}
+
+	// Drawing Outline to selected Blocks
+	if (Color == FColor(75, 106, 230, 155))
+	{
+		BatchedElements->AddLine(Vert0, Vert1, FColor(230, 199, 75, 155), HitProxyId, 4.0f);
+		BatchedElements->AddLine(Vert1, Vert3, FColor(230, 199, 75, 155), HitProxyId, 4.0f);
+		BatchedElements->AddLine(Vert3, Vert2, FColor(230, 199, 75, 155), HitProxyId, 4.0f);
+		BatchedElements->AddLine(Vert2, Vert0, FColor(230, 199, 75, 155), HitProxyId, 4.0f);
 	}
 }
 

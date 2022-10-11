@@ -1735,36 +1735,7 @@ void FCustomizableObjectEditor::OnSelectedGraphNodesChanged(const FGraphPanelSel
 		// Set the size of the child widget to show properly the node widgets
 		FVector2D SplitWeights = { 0.15f,0.85f };
 		
-		// Create the specialised user interface for each node type
-		if ( UCustomizableObjectNodeLayoutBlocks* CustomizableObjectNodeLayoutBlocks = Cast<UCustomizableObjectNodeLayoutBlocks>(FirstNode) )
-		{
-			if (!LayoutBlocksEditor.IsValid())
-			{
-				LayoutBlocksEditor = SNew(SCustomizableObjectNodeLayoutBlocksEditor)
-					.CustomizableObjectEditor(SharedThis(this));
-			}
-
-			LayoutBlocksEditor->SetCurrentLayout(CustomizableObjectNodeLayoutBlocks->Layout);
-			SplitWeights = { 0.0f,1.0f };
-
-			ChildWidget = LayoutBlocksEditor;
-		}
-
-		else if (UCustomizableObjectNodeTable* CustomizableObjectNodeTable = Cast<UCustomizableObjectNodeTable>(FirstNode))
-		{
-			if (!LayoutBlocksEditor.IsValid())
-			{
-				LayoutBlocksEditor = SNew(SCustomizableObjectNodeLayoutBlocksEditor)
-					.CustomizableObjectEditor(SharedThis(this));
-			}
-
-			LayoutBlocksEditor->SetCurrentLayout(nullptr);
-			SplitWeights = { 0.32f,0.68f };
-
-			ChildWidget = LayoutBlocksEditor;
-		}
-
-		else if ( UCustomizableObjectNodeEditMaterial* CustomizableObjectNodeEditMaterial = Cast<UCustomizableObjectNodeEditMaterial>(FirstNode) )
+		if ( UCustomizableObjectNodeEditMaterial* CustomizableObjectNodeEditMaterial = Cast<UCustomizableObjectNodeEditMaterial>(FirstNode) )
 		{
 			if (!LayoutBlocksSelector.IsValid())
 			{

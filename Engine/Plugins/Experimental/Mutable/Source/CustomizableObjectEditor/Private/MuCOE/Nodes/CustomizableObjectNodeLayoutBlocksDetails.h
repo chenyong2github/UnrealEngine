@@ -26,6 +26,10 @@ public:
 private:
 
 	class UCustomizableObjectNodeLayoutBlocks* Node;
+
+	// Layout block editor widget
+	TSharedPtr<class SCustomizableObjectNodeLayoutBlocksEditor> LayoutBlocksEditor;
+
 	TArray< TSharedPtr<FString> > GridComboOptions;
 
 	void OnGridComboBoxSelectionChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo);

@@ -36,6 +36,8 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/SToolTip.h"
 
 class ISlateStyle;
 class SWidget;
@@ -77,10 +79,13 @@ public:
 };
 
 
+SCustomizableObjectNodeLayoutBlocksEditor::SCustomizableObjectNodeLayoutBlocksEditor() : UICommandList(new FUICommandList())
+{
+}
+
 
 void SCustomizableObjectNodeLayoutBlocksEditor::Construct(const FArguments& InArgs)
 {
-	CustomizableObjectEditorPtr = InArgs._CustomizableObjectEditor;
 	CurrentLayout = 0;
 	
 	BindCommands();
@@ -112,14 +117,20 @@ void SCustomizableObjectNodeLayoutBlocksEditor::SetCurrentLayout(UCustomizableOb
 		SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot()
-		.Padding( 2.0f )
+		.Padding(0.0f,2.0f,0.0f,0.0f )
 		.AutoHeight()
 		[
 			BuildLayoutToolBar()
 		]
+
+		+ SVerticalBox::Slot()
+		.HAlign(EHorizontalAlignment::HAlign_Left)
 		.AutoHeight()
+		.Padding(3.0f,5.0f,0.0f,5.0f)
 		[
-			BuildLayoutToolBar()
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush(TEXT("Icons.Info")))
+			.ToolTip(GenerateInfoToolTip())
 		]
 
 		+ SVerticalBox::Slot()
@@ -159,8 +170,7 @@ void SCustomizableObjectNodeLayoutBlocksEditor::AddReferencedObjects( FReference
 
 TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutToolBar()
 {
-	TSharedPtr<FUICommandList> CommandList = CustomizableObjectEditorPtr.Pin()->GetToolkitCommands();
-	FToolBarBuilder LayoutToolbarBuilder(CommandList, FMultiBoxCustomization::None);
+	FToolBarBuilder LayoutToolbarBuilder(UICommandList, FMultiBoxCustomization::None);
 
 	//Getting toolbar style
 	const ISlateStyle* const StyleSet = &FCoreStyle::Get();
@@ -272,8 +282,8 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 
 	LayoutPackingStrategies.Empty();
-	LayoutPackingStrategies.Add(MakeShareable(new FString("Resizable Layout")));
-	LayoutPackingStrategies.Add(MakeShareable(new FString("Fixed Layout")));
+	LayoutPackingStrategies.Add(MakeShareable(new FString("Resizable")));
+	LayoutPackingStrategies.Add(MakeShareable(new FString("Fixed")));
 
 	LayoutPackingStrategyCombo = SNew(STextComboBox)
 		.OptionsSource(&LayoutPackingStrategies)
@@ -286,7 +296,7 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("Layout Strategy:", "Layout Strategy:"))
-			.ToolTipText(LOCTEXT("LayoutStrategyTooltup","Selects the packing strategy."))
+			.ToolTipText(LOCTEXT("LayoutStrategyTooltup","Selects the packing strategy: Resizable Layout or Fixed Layout"))
 			.Margin(FMargin(0, 4, 0, 0))
 			.ShadowOffset(FVector2D::UnitVector)
 			.ColorAndOpacity(FLinearColor::Gray)
@@ -301,7 +311,6 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 				LayoutPackingStrategyCombo.ToSharedRef()
 			]
 		];
-
 
 	FixedLayoutWidget = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().Padding(2.0f).AutoWidth()
@@ -341,7 +350,7 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutStrate
 
 	return SNew(SVerticalBox)
 		//.IsEnabled(CurrentLayout ? !CurrentLayout->GetNode()->GetGraphEditor()->GetCustomizableObject()->bDisableTextureLayoutManagement : false)
-		+ SVerticalBox::Slot()
+		+ SVerticalBox::Slot().VAlign(EVerticalAlignment::VAlign_Center)
 		[
 			LayoutStrategyWidget.ToSharedRef()
 		]
@@ -567,8 +576,6 @@ void SCustomizableObjectNodeLayoutBlocksEditor::BindCommands()
 
 	const FLayoutEditorCommands& Commands = FLayoutEditorCommands::Get();
 
-	const TSharedRef<FUICommandList>& UICommandList = CustomizableObjectEditorPtr.Pin()->GetToolkitCommands();
-
 	UICommandList->MapAction(
 		Commands.AddBlock,
 		FExecuteAction::CreateSP( this, &SCustomizableObjectNodeLayoutBlocksEditor::OnAddBlock ),
@@ -586,6 +593,46 @@ void SCustomizableObjectNodeLayoutBlocksEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &SCustomizableObjectNodeLayoutBlocksEditor::OnGenerateBlocks),
 		FCanExecuteAction(),
 		FIsActionChecked());
+}
+
+
+TSharedPtr<IToolTip> SCustomizableObjectNodeLayoutBlocksEditor::GenerateInfoToolTip() const
+{
+	TSharedPtr<SGridPanel> ToolTipWidget = SNew(SGridPanel);
+	int32 SlotCount = 0;
+
+	auto BuildShortcutAndTooltip = [ToolTipWidget, &SlotCount](const FText& Shortcut, const FText& Tooltip)
+	{
+		// Command Shortcut
+		ToolTipWidget->AddSlot(0, SlotCount)
+		[
+			SNew(STextBlock)
+			.Text(Shortcut)
+		];
+
+		// Command Explanation
+		ToolTipWidget->AddSlot(1, SlotCount)
+		.Padding(15.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(STextBlock)
+			.Text(Tooltip)
+		];
+
+		++SlotCount;
+	};
+
+	// Duplicate command
+	BuildShortcutAndTooltip(LOCTEXT("ShortCut_DuplicateBlocks", "CTRL + D"), LOCTEXT("Tooltip_DuplicateBlocks", "Duplicate selected block/s"));
+	BuildShortcutAndTooltip(LOCTEXT("ShortCut_CreateNewBlock", "CTRL + N"), LOCTEXT("Tooltip_CreateNewBlock", "Create new block"));
+	BuildShortcutAndTooltip(LOCTEXT("ShortCut_FillGridSize", "CTRL + F"), LOCTEXT("Tooltip_FillGridSize", "Resize selected block/s to grid size"));
+	BuildShortcutAndTooltip(LOCTEXT("ShortCut_DeleteSelectedBlock","DEL"), LOCTEXT("Tooltip_DeleteSelectedBlock","Delete selected block/s"));
+	BuildShortcutAndTooltip(LOCTEXT("ShortCut_SelectMultipleBlocksOneByOne","SHIFT + L Click"), LOCTEXT("Tooltip_SelectMultipleBlocksOneByOne","Select multiple blocks one by one"));
+	BuildShortcutAndTooltip(LOCTEXT("ShortCut_SelectMultipleBlocks","L Click + Drag"), LOCTEXT("Tooltip_SelectMultipleBlocks","Select blocks that intersect with the yellow rectangle"));
+
+	return SNew(SToolTip)
+	[
+		ToolTipWidget.ToSharedRef()
+	];
 }
 
 

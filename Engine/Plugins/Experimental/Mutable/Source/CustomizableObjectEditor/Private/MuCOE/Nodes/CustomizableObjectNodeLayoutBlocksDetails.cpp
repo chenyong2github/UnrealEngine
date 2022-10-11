@@ -11,6 +11,7 @@
 #include "Math/IntRect.h"
 #include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeLayoutBlocks.h"
+#include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
 #include "Templates/Casts.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
@@ -43,11 +44,19 @@ void FCustomizableObjectNodeLayoutBlocksDetails::CustomizeDetails( IDetailLayout
 
 	if (Node)
 	{
+		LayoutBlocksEditor = SNew(SCustomizableObjectNodeLayoutBlocksEditor);
+
 		BlocksCategory.AddCustomRow( LOCTEXT("BlocksDetails_BlockInstructions", "BlockInstructions") )
 		[
-			SNew( STextBlock )
-			.Text(  LOCTEXT("Use the node preview panel to set up the blocks.","Use the node preview panel to set up the blocks.") )
+			SNew(SBox)
+			.HeightOverride(700.0f)
+			.WidthOverride(700.0f)
+			[
+				LayoutBlocksEditor.ToSharedRef()
+			]
 		];
+		
+		LayoutBlocksEditor->SetCurrentLayout(Node->Layout);
 	}
 	else
 	{

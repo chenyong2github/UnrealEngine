@@ -16,6 +16,12 @@ class FReferenceCollector;
 class ICustomizableObjectInstanceEditor;
 class ISlateStyle;
 class SWidget;
+class STextComboBox;
+class SVerticalBox;
+class SHorizontalBox;
+class FUICommandList;
+class SCustomizableObjectLayoutGrid;
+
 struct FCustomizableObjectLayoutBlock;
 struct FGuid;
 
@@ -27,11 +33,12 @@ class SCustomizableObjectNodeLayoutBlocksEditor : public SCompoundWidget, public
 {
 public:
 	SLATE_BEGIN_ARGS( SCustomizableObjectNodeLayoutBlocksEditor ){}
-		SLATE_ARGUMENT(TWeakPtr<ICustomizableObjectInstanceEditor>, CustomizableObjectEditor)
 	SLATE_END_ARGS()
 
+	SCustomizableObjectNodeLayoutBlocksEditor();
+	virtual ~SCustomizableObjectNodeLayoutBlocksEditor();
+
 	void Construct(const FArguments& InArgs);
-	~SCustomizableObjectNodeLayoutBlocksEditor();
 	
 	// FSerializableObject interface
 	void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -50,20 +57,17 @@ public:
 
 private:
 
-	/** Pointer back to the editor tool that owns us */
-	TWeakPtr<ICustomizableObjectInstanceEditor> CustomizableObjectEditorPtr;
-
 	/** */
 	class UCustomizableObjectLayout* CurrentLayout;
 
 	/** */
-	TSharedPtr<class SCustomizableObjectLayoutGrid> LayoutGridWidget;
+	TSharedPtr<SCustomizableObjectLayoutGrid> LayoutGridWidget;
 
-	TSharedPtr< class SVerticalBox > LayoutGridSizeWidget;
+	TSharedPtr< SVerticalBox > LayoutGridSizeWidget;
 
 	/** Widget for displaying the available layout block grid sizes. */
-	TSharedPtr< class STextComboBox > LayoutGridSizeCombo;
-	TSharedPtr< class STextComboBox > MaxLayoutGridSizeCombo;
+	TSharedPtr< STextComboBox > LayoutGridSizeCombo;
+	TSharedPtr< STextComboBox > MaxLayoutGridSizeCombo;
 
 	/** List of available layout grid sizes. */
 	TArray< TSharedPtr< FString > > LayoutGridSizes;
@@ -75,15 +79,20 @@ private:
 	TArray< TSharedPtr< FString > > LayoutPackingStrategies;
 
 	/** Widget for displaying the available layout packing strategies. */
-	TSharedPtr< class STextComboBox > LayoutPackingStrategyCombo;
+	TSharedPtr< STextComboBox > LayoutPackingStrategyCombo;
 
 	/** Widget to select the layout packing strategy */
-	TSharedPtr<class SHorizontalBox> LayoutStrategyWidget;
+	TSharedPtr< SHorizontalBox> LayoutStrategyWidget;
 
 	/** Widget to select the fixed layout properties */
-	TSharedPtr<class SHorizontalBox> FixedLayoutWidget;
+	TSharedPtr< SHorizontalBox> FixedLayoutWidget;
 
 	TSharedPtr<SWidget> StrategyWidget;
+
+	/** The list of UI Commands executable */
+	TSharedRef< FUICommandList> UICommandList;
+
+private:
 
 	/** */
 	FIntPoint GetGridSize() const;
@@ -109,5 +118,7 @@ private:
 
 	/** Called when the packing strategy has changed. */
 	void OnLayoutPackingStrategyChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
+
+	TSharedPtr<IToolTip> GenerateInfoToolTip() const;
 
 };

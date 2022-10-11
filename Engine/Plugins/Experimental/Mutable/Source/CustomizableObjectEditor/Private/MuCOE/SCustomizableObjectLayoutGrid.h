@@ -42,6 +42,11 @@ typedef enum
 	ELGM_Select
 } ELayoutGridMode;
 
+struct FBlockWidgetData
+{
+	FRect2D Rect;
+	FRect2D HandleRect;
+};
 
 /** */
 class SCustomizableObjectLayoutGrid : public SCompoundWidget
@@ -106,6 +111,9 @@ public:
 	/** Duplicates the selected blocks */
 	void DuplicateBlocks();
 
+	/** Sets the size of the selected blocks to the size of the Grid */
+	void SetBlockSizeToMax();
+
 	void CalculateSelectionRect();
 
 	FColor SelectionColor;
@@ -152,11 +160,7 @@ private:
 
 	float CellSize;
 
-	struct FBlockWidgetData
-	{
-		FRect2D Rect;
-		FRect2D HandleRect;
-	};
+	/** Map to relate Block ids with blocks data */
 	TMap<FGuid,FBlockWidgetData> BlockRects;
 
 	/** Interaction status. */
