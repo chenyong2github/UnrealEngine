@@ -4,6 +4,7 @@
 
 #include "UGSLog.h"
 #include "ChangeInfo.h"
+#include "CreateClientTask.h"
 #include "FindStreamsTask.h"
 #include "UGSTabManager.h"
 
@@ -220,8 +221,6 @@ TArray<FString> UGSTab::GetAllStreamNames() const
 		return TArray<FString>();
 	}
 
-	Result.Sort();
-
 	return Result;
 }
 
@@ -386,6 +385,28 @@ void UGSTab::OnOpenEditor()
 
 	Log->Logf(TEXT("Running Editor %s %s"), *EditorPath, *ProjectFileName);
 	EditorProcessHandle = FPlatformProcess::CreateProc(*EditorPath, *ProjectFileName, true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
+}
+
+void UGSTab::OnCreateWorkspace(const FString& WorkspaceName, const FString& Stream, const FString& RootDirectory) const
+{
+	const TSharedRef<FLineWriter> CreateWorkspaceLog = MakeShared<FLineWriter>();
+	FEvent* AbortEvent = FPlatformProcess::GetSynchEventFromPool(true);
+
+	TSharedPtr<UGSCore::FPerforceInfoRecord> PerforceInfo;
+	PerforceClient->Info(PerforceInfo, AbortEvent, *CreateWorkspaceLog);
+
+	TMap<FString, FString> Tags;
+	Tags.Add(TEXT("client"), WorkspaceName);
+	Tags.Add(TEXT("Owner"), PerforceInfo->UserName);
+	Tags.Add(TEXT("Host"), PerforceInfo->HostName);
+	Tags.Add(TEXT("Root"), RootDirectory);
+	const UGSCore::FPerforceClientRecord ClientRecord(Tags);
+
+	const TSharedRef<UGSCore::FModalTaskResult> TaskResult = ExecuteModalTask(
+		FSlateApplication::Get().GetActiveModalWindow(),
+		MakeShared<UGSCore::FCreateClientTask>(PerforceClient.ToSharedRef(), MakeShared<FLineWriter>(), ClientRecord, Stream),
+		LOCTEXT("OpeningProjectTitle", "Creating Project"),
+		LOCTEXT("OpeningProjectCaption", "Creating project, please wait..."));
 }
 
 void UGSTab::QueueMessageForMainThread(TFunction<void()> Function)

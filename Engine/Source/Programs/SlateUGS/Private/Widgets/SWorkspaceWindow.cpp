@@ -68,7 +68,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 					.Padding(10.0f, 0.0f)
 					.FillWidth(7)
 					[
-						SAssignNew(LocalFileText, SEditableTextBox)
+						SAssignNew(LocalFileTextBox, SEditableTextBox)
 						.HintText(LOCTEXT("FilePathHint", "Path/To/ProjectFile.uproject")) // Todo: Make hint text use backslash for Windows, forward slash for Unix
 			 			.OnTextChanged_Lambda([this](const FText& InText)
 						{
@@ -127,7 +127,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 						.Padding(10.0f, 0.0f)
 						.FillWidth(5)
 						[
-							SNew(SEditableTextBox)
+							SAssignNew(WorkspaceNameTextBox, SEditableTextBox)
 							.HintText(LOCTEXT("NameHint", "WorkspaceName"))
 						]
 						+SHorizontalBox::Slot()
@@ -209,6 +209,11 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 	]);
 }
 
+void SWorkspaceWindow::SetWorkspaceTextBox(FText Text) const
+{
+	WorkspaceNameTextBox->SetText(Text);
+}
+
 FReply SWorkspaceWindow::OnOkClicked()
 {
 	bool bIsWorkspaceValid = Tab->OnWorkspaceChosen(WorkspacePathText);
@@ -249,7 +254,7 @@ FReply SWorkspaceWindow::OnBrowseClicked()
 	if (!OutOpenFilenames.IsEmpty())
 	{
 		PreviousProjectPath = OutOpenFilenames[0];
-		LocalFileText->SetText(FText::FromString(FPaths::ConvertRelativePathToFull(PreviousProjectPath)));
+		LocalFileTextBox->SetText(FText::FromString(FPaths::ConvertRelativePathToFull(PreviousProjectPath)));
 	}
 
 	return FReply::Handled();
@@ -257,7 +262,7 @@ FReply SWorkspaceWindow::OnBrowseClicked()
 
 FReply SWorkspaceWindow::OnNewClicked()
 {
-	FSlateApplication::Get().AddModalWindow(SNew(SNewWorkspaceWindow, Tab), SharedThis(this), false);
+	FSlateApplication::Get().AddModalWindow(SNew(SNewWorkspaceWindow, SharedThis(this), Tab), SharedThis(this), false);
 
 	return FReply::Handled();
 }

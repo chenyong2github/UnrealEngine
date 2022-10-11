@@ -2,6 +2,7 @@
 
 #include "SNewWorkspaceWindow.h"
 
+#include "DesktopPlatformModule.h"
 #include "SlateUGSStyle.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -13,9 +14,10 @@
 
 #define LOCTEXT_NAMESPACE "UGSNewWorkspaceWindow"
 
-void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
+void SNewWorkspaceWindow::Construct(const FArguments& InArgs, TSharedPtr<SWorkspaceWindow> InParent, UGSTab* InTab)
 {
 	Tab = InTab;
+	Parent = InParent;
 
 	SWindow::Construct(SWindow::FArguments()
 	.Title(LOCTEXT("WindowTitle", "New Workspace"))
@@ -100,7 +102,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 					]
 					+SVerticalBox::Slot()
 					[
-						SAssignNew(FileNameTextBox, SEditableTextBox)
+						SAssignNew(WorkspaceNameTextBox, SEditableTextBox)
 					]
 				]
 			]
@@ -119,6 +121,7 @@ void SNewWorkspaceWindow::Construct(const FArguments& InArgs, UGSTab* InTab)
 						SNew(SPrimaryButton)
 						.Text(LOCTEXT("CreateButtonText", "Create"))
 						.OnClicked(this, &SNewWorkspaceWindow::OnCreateClicked)
+						.IsEnabled(this, &SNewWorkspaceWindow::IsCreateButtonEnabled)
 					]
 					+SHorizontalBox::Slot()
 					[
@@ -144,11 +147,33 @@ FReply SNewWorkspaceWindow::OnBrowseStreamClicked()
 
 FReply SNewWorkspaceWindow::OnBrowseRootDirectoryClicked()
 {
+	bool bFolderSelected = FDesktopPlatformModule::Get()->OpenDirectoryDialog(
+		FSlateApplication::Get().FindBestParentWindowHandleForDialogs(AsShared()),
+		LOCTEXT("OpenDialogTitle", "Select a parent folder for your workspace").ToString(),
+		RootDirPreviousFolder,
+		RootDirPreviousFolder
+	);
+	
+	if (bFolderSelected)
+	{
+		RootDirTextBox->SetText(FText::FromString(FPaths::ConvertRelativePathToFull(RootDirPreviousFolder)));
+	}
+
 	return FReply::Handled();
 }
 
 FReply SNewWorkspaceWindow::OnCreateClicked()
 {
+	Tab->OnCreateWorkspace(
+		WorkspaceNameTextBox->GetText().ToString(),
+		StreamTextBox->GetText().ToString(),
+		RootDirTextBox->GetText().ToString()
+	);
+
+	Parent->SetWorkspaceTextBox(WorkspaceNameTextBox->GetText());
+
+	FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow();
+
 	return FReply::Handled();
 }
 
@@ -156,6 +181,19 @@ FReply SNewWorkspaceWindow::OnCancelClicked()
 {
 	FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow();
 	return FReply::Handled();
+}
+
+bool SNewWorkspaceWindow::IsCreateButtonEnabled() const
+{
+	const FString StreamPath = StreamTextBox->GetText().ToString();
+	const bool bStreamIsValid = StreamPath.Contains(TEXT("//")) && StreamPath.RightChop(2).Contains("/");
+
+	const bool bIsValidRootDir = FPaths::DirectoryExists(RootDirTextBox->GetText().ToString());
+
+	const FString WorkspaceFolderName = FPaths::ConvertRelativePathToFull(WorkspaceNameTextBox->GetText().ToString());
+	const bool bIsNameValid = !WorkspaceFolderName.IsEmpty();
+
+	return bStreamIsValid && bIsValidRootDir && bIsNameValid;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -62,6 +62,7 @@ public:
 	void OnBuildWorkspace();
 	void OnOpenExplorer();
 	void OnOpenEditor();
+	void OnCreateWorkspace(const FString& WorkspaceName, const FString& Stream, const FString& RootDirectory) const;
 
 	// Accessors
 	bool IsSyncing() const;

@@ -15,6 +15,8 @@ public:
 
 	void Construct(const FArguments& InArgs, UGSTab* InTab);
 
+	void SetWorkspaceTextBox(FText Text) const;
+
 private:
 	FReply OnOkClicked();
 	FReply OnCancelClicked();
@@ -25,8 +27,10 @@ private:
 	FReply OnNewClicked();
 
 	bool bIsLocalFileSelected = true;
-	TSharedPtr<SEditableTextBox> LocalFileText = nullptr;
+	TSharedPtr<SEditableTextBox> LocalFileTextBox = nullptr;
 	FString WorkspacePathText;
+
+	TSharedPtr<SEditableTextBox> WorkspaceNameTextBox = nullptr;
 
 	UGSTab* Tab = nullptr;
 };
