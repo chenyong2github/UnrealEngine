@@ -16,7 +16,8 @@ class UDMXEntityFixtureType;
 
 struct FPropertyAndParent;
 class IStructureDetailsView;
-class SBorder;
+class STextBlock;
+class SWidget;
 
 
 /** Editor for a single Function struct inside a UDMXEntityFixtureType. */
@@ -70,8 +71,14 @@ private:
 	/** The current transaction or nullptr if there's no transaction ongoing */
 	TUniquePtr<FScopedTransaction> Transaction;
 	
-	/** Border that holds the content of the editor */
-	TSharedPtr<SBorder> ContentBorder;
+	/** Details view for the Function Struct being edited */
+	TSharedPtr<IStructureDetailsView> StructDetailsView;
+
+	/** Widget of the Details view  */
+	TSharedPtr<SWidget> StructDetailsViewWidget;
+
+	/** Text block that displays info in case the struct details view cannot be shown */
+	TSharedPtr<STextBlock> InfoTextBlock;
 
 	/** Shared Data for */
 	TSharedPtr<FDMXFixtureTypeSharedData> FixtureTypeSharedData;

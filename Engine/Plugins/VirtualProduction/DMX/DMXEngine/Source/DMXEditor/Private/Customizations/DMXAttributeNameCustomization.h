@@ -10,6 +10,8 @@
 #include "IPropertyUtilities.h"
 #include "Widgets/SNameListPicker.h"
 
+class IPropertyUtilities;
+
 
 /**  
  * Customization for FDMXAttributeName struct
@@ -36,7 +38,15 @@ private:
 	/** True if the customization displays multiple values */
 	bool HasMultipleValues() const;
 
-private:
+	/** Forces a refresh of the customization */
+	void ForceRefresh();
+
+	/** Property handle for the Name property */
+	TSharedPtr<IPropertyHandle> NameHandle;
+
 	/** Handle for the FDMXAttributeName struct self */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
+
+	/** Property utlities for this customization */
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };

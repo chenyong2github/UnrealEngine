@@ -8,6 +8,7 @@
 #include "DetailWidgetRow.h"
 #include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
+#include "ScopedTransaction.h"
 #include "Widgets/SNameListPicker.h"
 
 
@@ -21,7 +22,9 @@ void FDMXAttributeNameCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 	StructPropertyHandle = InPropertyHandle;
 	check(CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty())->Struct == FDMXAttributeName::StaticStruct());
 
-	TSharedPtr<IPropertyUtilities> PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
+	PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
+
+	NameHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXAttributeName, Name));
 
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 	if (!ProtocolSettings)
@@ -57,10 +60,7 @@ void FDMXAttributeNameCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 			.OnValueChanged(this, &FDMXAttributeNameCustomization::SetValue)
 		];
 
-	ProtocolSettings->GetOnDefaultAttributesChanged().AddLambda([PropertyUtilities]()
-		{
-			PropertyUtilities->ForceRefresh();
-		});
+	ProtocolSettings->GetOnDefaultAttributesChanged().AddSP(this, &FDMXAttributeNameCustomization::ForceRefresh);
 }
 
 void FDMXAttributeNameCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -87,24 +87,9 @@ FName FDMXAttributeNameCustomization::GetValue() const
 
 void FDMXAttributeNameCustomization::SetValue(FName NewValue)
 {
-	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(StructPropertyHandle->GetProperty());
+	const FScopedTransaction SetAttributeValueTransaction(NSLOCTEXT("DMXAttributeNameCustomization", "SetAttributeValueTransaction", "Set Fixture Function Attribute Name"));
 
-	TArray<void*> RawData;
-	StructPropertyHandle->AccessRawData(RawData);
-
-	for (void* SingleRawData : RawData)
-	{
-		FDMXAttributeName* PreviousValue = reinterpret_cast<FDMXAttributeName*>(SingleRawData);
-		FDMXAttributeName NewAttributeName;
-		NewAttributeName.SetFromName(NewValue);
-
-		// Export new value to text format that can be imported later
-		FString TextValue;
-		StructProperty->Struct->ExportText(TextValue, &NewAttributeName, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-
-		// Set values on edited property handle from exported text
-		ensure(StructPropertyHandle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
-	}
+	NameHandle->SetValue(NewValue);
 }
 
 bool FDMXAttributeNameCustomization::HasMultipleValues() const
@@ -142,4 +127,9 @@ bool FDMXAttributeNameCustomization::HasMultipleValues() const
 	}
 
 	return false;
+}
+
+void FDMXAttributeNameCustomization::ForceRefresh()
+{
+	PropertyUtilities->ForceRefresh();
 }
