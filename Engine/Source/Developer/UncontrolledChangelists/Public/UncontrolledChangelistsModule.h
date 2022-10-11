@@ -191,6 +191,11 @@ private:
 	 * Restores the previously saved state from Json.
 	 */
 	void LoadState();
+		
+	/**
+	 * Called on End of frame. Calls SaveState if needed.
+	 */
+	void OnEndFrame();
 
 	/**
 	 * Helper returning the location of the file used for persistency.
@@ -250,5 +255,7 @@ private:
 	TSet<FString>						AddedAssetsCache;
 	FDelegateHandle						OnAssetAddedDelegateHandle;
 	FDelegateHandle						OnObjectPreSavedDelegateHandle;
+	FDelegateHandle						OnEndFrameDelegateHandle;
 	bool								bIsEnabled = false;
+	bool								bIsStateDirty = false;
 };
