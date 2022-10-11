@@ -2,8 +2,6 @@
 
 #pragma once
 
-struct FActorInitStateChangedParams;
-
 #include "GameplayTagContainer.h"
 #include "GameFrameworkComponentDelegates.generated.h"
 
