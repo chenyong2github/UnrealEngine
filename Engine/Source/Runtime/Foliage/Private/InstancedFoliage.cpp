@@ -4370,31 +4370,63 @@ void AInstancedFoliageActor::ExitEditMode()
 	}
 }
 
+void AInstancedFoliageActor::RegisterDelegates()
+{
+	ensureMsgf(IsInGameThread(), TEXT("Potential race condition in AInstancedFoliageActor registering to delegates from non game-thread"));
+
+	GEngine->OnActorMoved().Remove(OnLevelActorMovedDelegateHandle);
+	OnLevelActorMovedDelegateHandle = GEngine->OnActorMoved().AddUObject(this, &AInstancedFoliageActor::OnLevelActorMoved);
+
+	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
+	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &AInstancedFoliageActor::OnLevelActorDeleted);
+
+	if (GetLevel())
+	{
+		OnApplyLevelTransformDelegateHandle = GetLevel()->OnApplyLevelTransform.AddUObject(this, &AInstancedFoliageActor::OnApplyLevelTransform);
+	}
+
+	GEngine->OnLevelActorOuterChanged().Remove(OnLevelActorOuterChangedDelegateHandle);
+	OnLevelActorOuterChangedDelegateHandle = GEngine->OnLevelActorOuterChanged().AddUObject(this, &AInstancedFoliageActor::OnLevelActorOuterChanged);
+
+	FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
+	OnPostApplyLevelOffsetDelegateHandle = FWorldDelegates::PostApplyLevelOffset.AddUObject(this, &AInstancedFoliageActor::OnPostApplyLevelOffset);
+
+	FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
+	OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &AInstancedFoliageActor::OnPostWorldInitialization);
+}
+
+void AInstancedFoliageActor::UnregisterDelegates()
+{
+	ensureMsgf(IsInGameThread(), TEXT("Potential race condition in AInstancedFoliageActor registering to delegates from non game-thread"));
+
+	GEngine->OnActorMoved().Remove(OnLevelActorMovedDelegateHandle);
+	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
+	GEngine->OnLevelActorOuterChanged().Remove(OnLevelActorOuterChangedDelegateHandle);
+
+	if (GetLevel())
+	{
+		GetLevel()->OnApplyLevelTransform.Remove(OnApplyLevelTransformDelegateHandle);
+	}
+
+	FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
+
+	FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
+}
+
 void AInstancedFoliageActor::PostInitProperties()
 {
 	Super::PostInitProperties();
 
 	if (!IsTemplate())
 	{
-		GEngine->OnActorMoved().Remove(OnLevelActorMovedDelegateHandle);
-		OnLevelActorMovedDelegateHandle = GEngine->OnActorMoved().AddUObject(this, &AInstancedFoliageActor::OnLevelActorMoved);
-
-		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
-		OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &AInstancedFoliageActor::OnLevelActorDeleted);
-
-		if (GetLevel())
+		if (HasAnyFlags(RF_NeedPostLoad) || GetOuter()->HasAnyFlags(RF_NeedPostLoad))
 		{
-			OnApplyLevelTransformDelegateHandle = GetLevel()->OnApplyLevelTransform.AddUObject(this, &AInstancedFoliageActor::OnApplyLevelTransform);
+			// Delegate registration is not thread-safe, so we postpone it on PostLoad when coming from loading which could be on another thread
 		}
-
-		GEngine->OnLevelActorOuterChanged().Remove(OnLevelActorOuterChangedDelegateHandle);
-		OnLevelActorOuterChangedDelegateHandle = GEngine->OnLevelActorOuterChanged().AddUObject(this, &AInstancedFoliageActor::OnLevelActorOuterChanged);
-
-		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
-		OnPostApplyLevelOffsetDelegateHandle = FWorldDelegates::PostApplyLevelOffset.AddUObject(this, &AInstancedFoliageActor::OnPostApplyLevelOffset);
-
-		FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
-		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &AInstancedFoliageActor::OnPostWorldInitialization);
+		else
+		{
+			RegisterDelegates();
+		}
 	}
 }
 
@@ -4404,18 +4436,7 @@ void AInstancedFoliageActor::BeginDestroy()
 
 	if (!IsTemplate())
 	{
-		GEngine->OnActorMoved().Remove(OnLevelActorMovedDelegateHandle);
-		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
-		GEngine->OnLevelActorOuterChanged().Remove(OnLevelActorOuterChangedDelegateHandle);
-
-		if (GetLevel())
-		{
-			GetLevel()->OnApplyLevelTransform.Remove(OnApplyLevelTransformDelegateHandle);
-		}
-
-		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
-
-		FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationDelegateHandle);
+		UnregisterDelegates();
 
 		FoliageInfos.Empty();
 	}
@@ -4432,6 +4453,13 @@ bool AInstancedFoliageActor::IsListedInSceneOutliner() const
 void AInstancedFoliageActor::PostLoad()
 {
 	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (!IsTemplate())
+	{
+		RegisterDelegates();
+	}
+#endif
 
 	ULevel* OwningLevel = GetLevel();
 	// We can't check the ActorPartitionSubsystem here because World is not initialized yet. So we fallback on the bIsPartitioned

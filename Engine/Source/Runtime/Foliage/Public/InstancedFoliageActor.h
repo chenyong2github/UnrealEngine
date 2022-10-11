@@ -80,6 +80,9 @@ public:
 
 protected:
 #if WITH_EDITOR
+	void RegisterDelegates();
+	void UnregisterDelegates();
+
 	void HandleFoliageInstancePreMove(const FFoliageInstanceId& InstanceId);
 	void HandleFoliageInstancePostMove(const FFoliageInstanceId& InstanceId);
 #endif
