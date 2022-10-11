@@ -22,32 +22,32 @@ namespace UE::Chaos::ClothAsset
 
 		// Sim Vertices Group
 		// Note: Use the FClothLodConstAdapter accessors instead of these for the array indices to match the SimIndices values
-		int32 GetNumSimVertices() const { return GetNumElements(GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
-		TConstArrayView<FVector2f> GetSimPosition() const { return GetElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
-		TConstArrayView<FVector3f> GetSimRestPosition() const { return GetElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
-		TConstArrayView<FVector3f> GetSimRestNormal() const { return GetElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
+		int32 GetNumSimVertices() const { return GetClothCollection()->GetNumElements(GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector2f> GetSimPosition() const { return GetClothCollection()->GetElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector3f> GetSimRestPosition() const { return GetClothCollection()->GetElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector3f> GetSimRestNormal() const { return GetClothCollection()->GetElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 
 		// Sim Faces Group, note: SimIndices points to the LOD arrays, not the pattern arrays
-		int32 GetNumSimFaces() const { return GetNumElements(GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd); }
-		TConstArrayView<FIntVector3> GetSimIndices() const { return GetElements(GetClothCollection()->SimIndices, GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd); }
+		int32 GetNumSimFaces() const { return GetClothCollection()->GetNumElements(GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
+		TConstArrayView<FIntVector3> GetSimIndices() const { return GetClothCollection()->GetElements(GetClothCollection()->SimIndices, GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
 
 		// Render Vertices Group
 		// Note: Use the FClothLodConstAdapter accessors instead of these for the array indices to match the RenderIndices values
-		int32 GetNumRenderVertices() const { return GetNumElements(GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TConstArrayView<FVector3f> GetRenderPosition() const { return GetElements(GetClothCollection()->RenderPosition, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TConstArrayView<FVector3f> GetRenderNormal() const { return GetElements(GetClothCollection()->RenderNormal, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TConstArrayView<FVector3f> GetRenderTangentU() const { return GetElements(GetClothCollection()->RenderTangentU, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TConstArrayView<FVector3f> GetRenderTangentV() const { return GetElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TConstArrayView<TArray<FVector2f>> GetRenderUVs() const { return GetElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TConstArrayView<FLinearColor> GetRenderColor() const { return GetElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
+		int32 GetNumRenderVertices() const { return ClothCollection->GetNumElements(GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector3f> GetRenderPosition() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderPosition, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector3f> GetRenderNormal() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderNormal, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector3f> GetRenderTangentU() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderTangentU, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FVector3f> GetRenderTangentV() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<FVector2f>> GetRenderUVs() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<FLinearColor> GetRenderColor() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 
 		// Render Faces Group, note: RenderIndices points to the LOD arrays, not the pattern arrays
-		int32 GetNumRenderFaces() const { return GetNumElements(GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd); }
-		TConstArrayView<FIntVector3> GetRenderIndices() const { return GetElements(GetClothCollection()->RenderIndices, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd); }
-		TConstArrayView<int32> GetRenderMaterialIndex() const { return GetElements(GetClothCollection()->RenderMaterialIndex, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd); }
+		int32 GetNumRenderFaces() const { return GetClothCollection()->GetNumElements(GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
+		TConstArrayView<FIntVector3> GetRenderIndices() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderIndices, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
+		TConstArrayView<int32> GetRenderMaterialIndex() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderMaterialIndex, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
 
 		// Wrap Deformers Group
-		int32 GetNumWrapDeformers() const { return GetNumElements(GetClothCollection()->WrapDeformerStart, GetClothCollection()->WrapDeformerEnd); }
+		int32 GetNumWrapDeformers() const { return GetClothCollection()->GetNumElements(GetClothCollection()->WrapDeformerStart, GetClothCollection()->WrapDeformerEnd, GetElementIndex()); }
 
 		/** Return the element index within the cloth collection. */
 		int32 GetElementIndex() const { return ClothCollection->PatternStart[LodIndex] + PatternIndex; }
@@ -69,10 +69,6 @@ namespace UE::Chaos::ClothAsset
 		const TSharedPtr<const FClothCollection>& GetClothCollection() const { return ClothCollection; }
 
 	private:
-		int32 GetNumElements(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const;
-		template<typename T>
-		TConstArrayView<T> GetElements(const TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const;
-
 		TSharedPtr<const FClothCollection> ClothCollection;
 		int32 LodIndex;
 		int32 PatternIndex;
@@ -81,7 +77,7 @@ namespace UE::Chaos::ClothAsset
 	/**
 	 * Cloth pattern adapter object to provide a more convenient object oriented access to the cloth collection.
 	 */
-	class CHAOSCLOTHASSET_API FClothPatternAdapter: public FClothPatternConstAdapter
+	class CHAOSCLOTHASSET_API FClothPatternAdapter final : public FClothPatternConstAdapter
 	{
 	public:
 		FClothPatternAdapter(const TSharedPtr<FClothCollection>& InClothCollection, int32 InLodIndex, int32 InPatternIndex);
@@ -112,25 +108,25 @@ namespace UE::Chaos::ClothAsset
 
 		// Sim Vertices Group
 		// Note: Use the FClothLodAdapter accessors instead of these for the array indices to match the SimIndices values
-		TArrayView<FVector2f> GetSimPosition() { return GetElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
-		TArrayView<FVector3f> GetSimRestPosition() { return GetElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
-		TArrayView<FVector3f> GetSimRestNormal() { return GetElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd); }
+		TArrayView<FVector2f> GetSimPosition() { return GetClothCollection()->GetElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<FVector3f> GetSimRestPosition() { return GetClothCollection()->GetElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<FVector3f> GetSimRestNormal() { return GetClothCollection()->GetElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 
 		// Sim Faces Group, note: SimIndices points to the LOD arrays, not the pattern arrays
-		TArrayView<FIntVector3> GetSimIndices() { return GetElements(GetClothCollection()->SimIndices, GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd); }
+		TArrayView<FIntVector3> GetSimIndices() { return GetClothCollection()->GetElements(GetClothCollection()->SimIndices, GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
 
 		// Render Vertices Group
 		// Note: Use the FClothLodAdapter accessors instead of these for the array indices to match the RenderIndices values
-		TArrayView<FVector3f> GetRenderPosition() { return GetElements(GetClothCollection()->RenderPosition, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TArrayView<FVector3f> GetRenderNormal() { return GetElements(GetClothCollection()->RenderNormal, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TArrayView<FVector3f> GetRenderTangentU() { return GetElements(GetClothCollection()->RenderTangentU, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TArrayView<FVector3f> GetRenderTangentV() { return GetElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TArrayView<TArray<FVector2f>> GetRenderUVs() { return GetElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
-		TArrayView<FLinearColor> GetRenderColor() { return GetElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd); }
+		TArrayView<FVector3f> GetRenderPosition() { return GetClothCollection()->GetElements(GetClothCollection()->RenderPosition, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<FVector3f> GetRenderNormal() { return GetClothCollection()->GetElements(GetClothCollection()->RenderNormal, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<FVector3f> GetRenderTangentU() { return GetClothCollection()->GetElements(GetClothCollection()->RenderTangentU, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<FVector3f> GetRenderTangentV() { return GetClothCollection()->GetElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<FVector2f>> GetRenderUVs() { return GetClothCollection()->GetElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<FLinearColor> GetRenderColor() { return GetClothCollection()->GetElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 
 		// Render Faces Group, note: RenderIndices points to the LOD arrays, not the pattern arrays
-		TArrayView<FIntVector3> GetRenderIndices() { return GetElements(GetClothCollection()->RenderIndices, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd); }
-		TArrayView<int32> GetRenderMaterialIndex() { return GetElements(GetClothCollection()->RenderMaterialIndex, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd); }
+		TArrayView<FIntVector3> GetRenderIndices() { return GetClothCollection()->GetElements(GetClothCollection()->RenderIndices, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
+		TArrayView<int32> GetRenderMaterialIndex() { return GetClothCollection()->GetElements(GetClothCollection()->RenderMaterialIndex, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
 
 		/**
 		 * Return a view on the specified vertex weightmap.
@@ -146,10 +142,5 @@ namespace UE::Chaos::ClothAsset
 		friend class FClothLodAdapter;
 
 		void SetDefaults();
-
-		int32 SetNumElements(int32 InNumElements, const FName& GroupName, TManagedArray<int32>& StartArray, TManagedArray<int32>& EndArray);
-
-		template<typename T>
-		TArrayView<T> GetElements(TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const;
 	};
 }  // End namespace UE::Chaos::ClothAsset

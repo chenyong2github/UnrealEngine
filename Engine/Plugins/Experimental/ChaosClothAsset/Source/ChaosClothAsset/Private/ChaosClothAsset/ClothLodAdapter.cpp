@@ -5,11 +5,13 @@
 // Utility functions to unwrap a 3d sim mesh into a tailored cloth
 namespace UE::Chaos::ClothAsset::Private
 {
+	// Triangle islands to become patterns, although in this case all the seams are internal (same pattern)
 	struct FIsland
 	{
 		TArray<uint32> Indices;  // 3x number of triangles
 		TArray<FVector2f> Positions;
 		TArray<FVector3f> RestPositions;  // Same size as Positions
+		TArray<uint32> SourceIndices;  // Index in the original welded position array
 	};
 
 	enum class EIntersectCirclesResult
@@ -59,6 +61,37 @@ namespace UE::Chaos::ClothAsset::Private
 
 		return EIntersectCirclesResult::DoubleIntersect;
 	}
+;
+	static FUintVector2 MakeSortedUintVector2(uint32 Index0, uint32 Index1)
+	{
+		return Index0 < Index1 ? FUintVector2(Index0, Index1) : FUintVector2(Index1, Index0);
+	}
+
+	static void BuildEdgeMap(const TArray<uint32>& Indices, TMap<FUintVector2, TArray<uint32>>& OutEdgeToTriangles)
+	{
+		ensure(Indices.Num() % 3 == 0);
+		const uint32 NumTriangles = (uint32)Indices.Num() / 3;
+		OutEdgeToTriangles.Empty(NumTriangles * 2);  // Rough estimate for the number of edges
+		if (!NumTriangles)
+		{
+			return;
+		}
+
+		for (uint32 Triangle = 0; Triangle < NumTriangles; ++Triangle)
+		{
+			const uint32 Index0 = Indices[Triangle * 3 + 0];
+			const uint32 Index1 = Indices[Triangle * 3 + 1];
+			const uint32 Index2 = Indices[Triangle * 3 + 2];
+
+			const FUintVector2 Edge0 = MakeSortedUintVector2(Index0, Index1);
+			const FUintVector2 Edge1 = MakeSortedUintVector2(Index1, Index2);
+			const FUintVector2 Edge2 = MakeSortedUintVector2(Index2, Index0);
+
+			OutEdgeToTriangles.FindOrAdd(Edge0).Add(Triangle);
+			OutEdgeToTriangles.FindOrAdd(Edge1).Add(Triangle);
+			OutEdgeToTriangles.FindOrAdd(Edge2).Add(Triangle);
+		}
+	}
 
 	static void UnwrapMesh(const TArray<FVector3f>& Positions, const TArray<uint32>& Indices, TArray<FIsland>& OutIslands)
 	{
@@ -72,28 +105,8 @@ namespace UE::Chaos::ClothAsset::Private
 		}
 
 		// Gather edge information
-		TMap<FUintVector2, TArray<uint32>> EdgeToTriangles;
-		EdgeToTriangles.Reserve(NumTriangles * 2);  // Rough estimate for the number of edges
-
-		auto MakeSortedEdge = [](uint32 Index0, uint32 Index1)->FUintVector2
-		{
-			return Index0 < Index1 ? FUintVector2(Index0, Index1) : FUintVector2(Index1, Index0);
-		};
-
-		for (uint32 Triangle = 0; Triangle < NumTriangles; ++Triangle)
-		{
-			const uint32 Index0 = Indices[Triangle * 3 + 0];
-			const uint32 Index1 = Indices[Triangle * 3 + 1];
-			const uint32 Index2 = Indices[Triangle * 3 + 2];
-
-			const FUintVector2 Edge0 = MakeSortedEdge(Index0, Index1);
-			const FUintVector2 Edge1 = MakeSortedEdge(Index1, Index2);
-			const FUintVector2 Edge2 = MakeSortedEdge(Index2, Index0);
-
-			EdgeToTriangles.FindOrAdd(Edge0).Add(Triangle);
-			EdgeToTriangles.FindOrAdd(Edge1).Add(Triangle);
-			EdgeToTriangles.FindOrAdd(Edge2).Add(Triangle);
-		}
+		TMap<FUintVector2, TArray<uint32>> EdgeToTrianglesMap;
+		BuildEdgeMap(Indices, EdgeToTrianglesMap);
 
 		// Build pattern islands
 		TSet<uint32> VisitedTriangles;
@@ -160,7 +173,7 @@ namespace UE::Chaos::ClothAsset::Private
 					(OldIndex0 != TriangleIndex0 && OldIndex1 != TriangleIndex0) ? TriangleIndex0 :
 					(OldIndex0 != TriangleIndex1 && OldIndex1 != TriangleIndex1) ? TriangleIndex1 : TriangleIndex2;
 
-				// Find the 2D interesection of the two connecting adjacent edges using the 3D reference length
+				// Find the 2D intersection of the two connecting adjacent edges using the 3D reference length
 				const FVector3f& P0 = Positions[OldIndex0];
 				const FVector3f& P1 = Positions[OldIndex1];
 				const FVector3f& P2 = Positions[OldIndex2];
@@ -215,6 +228,9 @@ namespace UE::Chaos::ClothAsset::Private
 					Island.Indices.Add(NewIndex0);
 					Island.Indices.Add(NewIndex1);
 					Island.Indices.Add(NewIndex2);
+					Island.SourceIndices.Add(OldIndex0);
+					Island.SourceIndices.Add(OldIndex1);
+					Island.SourceIndices.Add(OldIndex2);
 				}
 
 				// Add neighbor triangles to the queue
@@ -235,7 +251,7 @@ namespace UE::Chaos::ClothAsset::Private
 					const uint32 EdgeIndex0 = OldEdgeList[Edge].X;
 					const uint32 EdgeIndex1 = OldEdgeList[Edge].Y;
 
-					const TArray<uint32>& NeighborTriangles = EdgeToTriangles.FindChecked(MakeSortedEdge(EdgeIndex0, EdgeIndex1));
+					const TArray<uint32>& NeighborTriangles = EdgeToTrianglesMap.FindChecked(MakeSortedUintVector2(EdgeIndex0, EdgeIndex1));
 
 					for (const uint32 NeighborTriangle : NeighborTriangles)
 					{
@@ -256,6 +272,84 @@ namespace UE::Chaos::ClothAsset::Private
 					}
 				}
 			} while (Visitors.Dequeue(Visitor));
+		}
+	}
+
+	struct FSeam
+	{
+		TSet<FIntVector2> Stitches;
+		FIntVector2 Patterns;
+	};
+
+	// Rebuild the seam information from the torn/unwrapped mesh islands data
+	// Note that the isolated mesh islands are not technically patterns despite being considered so, 
+	// since they aren't sewed together in the source welded mesh.
+	// The algorithm will have to be slightly modified to be used with provided UV panels.
+	static void BuildSeams(const TArray<FIsland>& Islands, TArray<FSeam>& OutSeams)
+	{
+		OutSeams.Reset();
+
+		for (int32 IslandIndex = 0; IslandIndex < Islands.Num(); ++IslandIndex)
+		{
+			const FIsland& Island = Islands[IslandIndex];
+			
+			FSeam Seam;
+			Seam.Patterns = FIntVector2(IslandIndex);  // Just patching an unwrap here, will only do pattern to same
+
+			// Gather edge information for the source mesh
+			TMap<FUintVector2, TArray<uint32>> SourceEdgeToTrianglesMap;
+			BuildEdgeMap(Island.SourceIndices, SourceEdgeToTrianglesMap);
+
+			auto GetTriangleEdgeMatchingSourceEdge = [&Island](uint32 Triangle, const FUintVector2& SourceEdge) -> FUintVector2
+				{
+					const uint32 TriangleBase = Triangle * 3;
+					const uint32 TriangleIndex0 = Island.SourceIndices[TriangleBase + 0];
+					const uint32 TriangleIndex1 = Island.SourceIndices[TriangleBase + 1];
+					return
+						(SourceEdge[0] == TriangleIndex0 || SourceEdge[1] == TriangleIndex0) ?
+						(SourceEdge[0] == TriangleIndex1 || SourceEdge[1] == TriangleIndex1) ?
+						MakeSortedUintVector2(Island.Indices[TriangleBase + 0], Island.Indices[TriangleBase + 1]) :  // Edge 01
+						MakeSortedUintVector2(Island.Indices[TriangleBase + 2], Island.Indices[TriangleBase + 0]) :  // Edge 20
+						MakeSortedUintVector2(Island.Indices[TriangleBase + 1], Island.Indices[TriangleBase + 2]);   // Edge 12
+				};
+
+			// Look for disconnected triangles
+			for (const TPair<FUintVector2, TArray<uint32>>& SourceEdgeToTriangles : SourceEdgeToTrianglesMap)
+			{
+				const TArray<uint32>& Triangles = SourceEdgeToTriangles.Value;
+				const uint32 NumTriangles = (uint32)Triangles.Num();
+				if (NumTriangles > 1)
+				{
+					const FUintVector2& SourceEdge = SourceEdgeToTriangles.Key;
+
+					for (uint32 TriangleIndex0 = 0; TriangleIndex0 < NumTriangles - 1; ++TriangleIndex0)
+					{
+						const FUintVector2 Edge0 = GetTriangleEdgeMatchingSourceEdge(TriangleIndex0, SourceEdge);
+						check(Edge0[0] <= (uint32)TNumericLimits<int32>::Max() && Edge0[1] <= (uint32)TNumericLimits<int32>::Max());
+
+						for (uint32 TriangleIndex1 = TriangleIndex0 + 1; TriangleIndex1 < NumTriangles; ++TriangleIndex1)
+						{
+							const FUintVector2 Edge1 = GetTriangleEdgeMatchingSourceEdge(TriangleIndex1, SourceEdge);
+							check(Edge1[0] <= (uint32)TNumericLimits<int32>::Max() && Edge1[1] <= (uint32)TNumericLimits<int32>::Max());
+
+							if (Edge0[0] != Edge1[0])
+							{
+								Seam.Stitches.Emplace(FIntVector2(MakeSortedUintVector2(Edge0[0], Edge1[0])));
+							}
+							if (Edge0[1] != Edge1[1])
+							{
+								Seam.Stitches.Emplace(FIntVector2(MakeSortedUintVector2(Edge0[1], Edge1[1])));
+							}
+						}
+					}
+				}
+			}
+
+			// Add this island's seams
+			if (Seam.Stitches.Num())
+			{
+				OutSeams.Emplace(Seam);
+			}
 		}
 	}
 }  // End namespace UE::ClothAsset::Private
@@ -282,70 +376,115 @@ namespace UE::Chaos::ClothAsset
 		return FClothPatternConstAdapter(ClothCollection, LodIndex, PatternIndex);
 	}
 
-	int32 FClothLodConstAdapter::GetNumElements(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
+	void FClothLodConstAdapter::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices) const
 	{
-		const int32 ElementIndex = GetElementIndex();
-		const int32 Start = StartArray[ElementIndex];
-		const int32 End = EndArray[ElementIndex];
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
+		const int32 NumSimVertices = GetPatternsNumSimVertices();
 
-		return Start == INDEX_NONE ? 0 : End - Start + 1;
-	}
-
-	template<typename T>
-	TConstArrayView<T> FClothLodConstAdapter::GetElements(const TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const int32 ElementIndex = GetElementIndex();
-		const int32 Start = StartArray[ElementIndex];
-		const int32 End = EndArray[ElementIndex];
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-
-		return Start == INDEX_NONE ? TConstArrayView<T>() : TConstArrayView<T>(ElementArray.GetData() + Start, End - Start + 1);
-	}
-
-	template<bool bStart, bool bEnd>
-	TTuple<int32, int32> FClothLodConstAdapter::GetPatternsElementsStartEnd(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const int32 ElementIndex = GetElementIndex();
-		const int32 PatternStart = ClothCollection->PatternStart[ElementIndex];
-		const int32 PatternEnd = ClothCollection->PatternEnd[ElementIndex];
-
-		// Find Start and End indices for the entire LOD minding empty patterns on the way
-		int32 Start = INDEX_NONE;
-		int32 End = INDEX_NONE;
-		for (int32 PatternIndex = PatternStart; PatternIndex <= PatternEnd; ++PatternIndex)
+		// Initialize welding map
+		TArray<int32> WeldingMap;
+		WeldingMap.SetNumUninitialized(NumSimVertices);
+		for (int32 SimVertexIndex = 0; SimVertexIndex < NumSimVertices; ++SimVertexIndex)
 		{
-			if (bStart && StartArray[PatternIndex] != INDEX_NONE)
+			WeldingMap[SimVertexIndex] = SimVertexIndex;
+		}
+
+		TMap<int32, TSet<int32>> WeldingGroups;
+
+		auto UpdateWeldingMap =
+			[&WeldingMap, &WeldingGroups](int32 Index0, int32 Index1)
+		{
+			if (WeldingMap[Index0] != WeldingMap[Index1])
 			{
-				Start = (Start == INDEX_NONE) ? StartArray[PatternIndex] : FMath::Min(Start, StartArray[PatternIndex]);
+				if (WeldingMap[Index0] > WeldingMap[Index1])
+				{
+					Swap(Index0, Index1);
+				}
+
+				TSet<int32>* WeldingGroup0 = WeldingGroups.Find(WeldingMap[Index0]);
+				if (!WeldingGroup0)
+				{
+					WeldingGroup0 = &WeldingGroups.Add(WeldingMap[Index0]);
+					WeldingGroup0->Add(Index0);
+				}
+
+				if (TSet<int32>* const WeldingGroup1 = WeldingGroups.Find(WeldingMap[Index1]))
+				{
+					// Update group1 mapped indices
+					for (int32 Index : *WeldingGroup1)
+					{
+						WeldingMap[Index] = WeldingMap[Index0];
+					}
+
+					// Merge group0 & group1
+					WeldingGroup0->Append(*WeldingGroup1);
+
+					// Remove group1
+					WeldingGroups.Remove(WeldingMap[Index1]);
+				}
+				else
+				{
+					WeldingMap[Index1] = WeldingMap[Index0];
+					WeldingGroup0->Add(Index1);
+				}
 			}
-			if (bEnd && EndArray[PatternIndex] != INDEX_NONE)
+		};
+
+		// Apply all seams
+		const int32 NumSeams = GetNumSeams();
+		const TConstArrayView<TArray<FIntVector2>> SeamStitches = GetSeamStitches();
+		const TConstArrayView<FIntVector2> SeamPatternFirst = GetSeamPatterns();
+		for (int32 SeamIndex = 0; SeamIndex < NumSeams; ++SeamIndex)
+		{
+			for (const FIntVector2& Stitch : SeamStitches[SeamIndex])
 			{
-				End = (End == INDEX_NONE) ? EndArray[PatternIndex] : FMath::Max(End, EndArray[PatternIndex]);
+				UpdateWeldingMap(Stitch[0], Stitch[1]);
 			}
 		}
-		return TTuple<int32, int32>(Start, End);
-	}
 
-	int32 FClothLodConstAdapter::GetPatternsNumElements(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const TTuple<int32, int32> StartEnd = GetPatternsElementsStartEnd<true, true>(StartArray, EndArray);
-		const int32 Start = StartEnd.Get<0>();
-		const int32 End = StartEnd.Get<1>();
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
+		// Calculate the number of welded vertices
+		int32 NumWeldedVertices = NumSimVertices;
+		for (const TPair<int32, TSet<int32>>& WeldingGroup : WeldingGroups)
+		{
+			NumWeldedVertices -= WeldingGroup.Value.Num() - 1;
+		}
 
-		return Start == INDEX_NONE ? 0 : End - Start + 1;
-	}
+		// Fill up the vertex arrays
+		Positions.SetNumUninitialized(NumWeldedVertices);
+		Normals.SetNumUninitialized(NumWeldedVertices);
 
-	template<typename T>
-	TConstArrayView<T> FClothLodConstAdapter::GetPatternsElements(const TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const TTuple<int32, int32> StartEnd = GetPatternsElementsStartEnd<true, true>(StartArray, EndArray);
-		const int32 Start = StartEnd.Get<0>();
-		const int32 End = StartEnd.Get<1>();
+		const TConstArrayView<FVector3f> SimRestPosition = GetPatternsSimRestPosition();
+		const TConstArrayView<FVector3f> SimRestNormal = GetPatternsSimRestNormal();
 
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-		return Start == INDEX_NONE ? TConstArrayView<T>() : TConstArrayView<T>(ElementArray.GetData() + Start, End - Start + 1);
+		TArray<uint32> WeldedIndices;
+		WeldedIndices.SetNumUninitialized(NumSimVertices);
+
+		uint32 WeldedIndex = 0;
+		for (int32 VertexIndex = 0; VertexIndex < NumSimVertices; ++VertexIndex)
+		{
+			if (WeldingMap[VertexIndex] == VertexIndex)
+			{
+				Positions[WeldedIndex] = SimRestPosition[VertexIndex];
+				Normals[WeldedIndex] = SimRestNormal[VertexIndex];
+				WeldedIndices[VertexIndex] = WeldedIndex++;
+			}
+			else
+			{
+				WeldedIndices[VertexIndex] = WeldedIndices[WeldingMap[VertexIndex]];
+			}
+		}
+
+		// Fill up the face array
+		const int32 NumSimFaces = GetPatternsNumSimFaces();
+		Indices.SetNumUninitialized(NumSimFaces * 3);
+
+		const TConstArrayView<FIntVector3> SimIndices = GetPatternsSimIndices();
+
+		for (int32 FaceIndex = 0; FaceIndex < NumSimFaces; ++FaceIndex)
+		{
+			Indices[FaceIndex * 3 + 0] = WeldedIndices[SimIndices[FaceIndex][0]];
+			Indices[FaceIndex * 3 + 1] = WeldedIndices[SimIndices[FaceIndex][1]];
+			Indices[FaceIndex * 3 + 2] = WeldedIndices[SimIndices[FaceIndex][2]];
+		}
 	}
 
 	FClothLodAdapter::FClothLodAdapter(const TSharedPtr<FClothCollection>& InClothCollection, int32 InLodIndex)
@@ -389,12 +528,12 @@ namespace UE::Chaos::ClothAsset
 		}
 		GetClothCollection()->RemoveElements(FClothCollection::PatternsGroup, NumPatterns, GetClothCollection()->PatternStart[ElementIndex]);
 
-		const int32 NumStitchings = GetNumStitchings();
+		const int32 NumStitchings = GetNumSeams();
 		for (int32 StitchingIndex = 0; StitchingIndex < NumStitchings; ++StitchingIndex)
 		{
 			//GetStitching(StitchingIndex).Reset();  // TODO
 		}
-		GetClothCollection()->RemoveElements(FClothCollection::StitchingsGroup, NumStitchings, GetClothCollection()->StitchingStart[ElementIndex]);
+		GetClothCollection()->RemoveElements(FClothCollection::SeamsGroup, NumStitchings, GetClothCollection()->SeamStart[ElementIndex]);
 
 		const int32 NumTetherBatches = GetNumTetherBatches();
 		for (int32 TetherBatchIndex = 0; TetherBatchIndex < NumTetherBatches; ++TetherBatchIndex)
@@ -412,22 +551,21 @@ namespace UE::Chaos::ClothAsset
 
 		GetClothCollection()->PatternStart[ElementIndex] = INDEX_NONE;
 		GetClothCollection()->PatternEnd[ElementIndex] = INDEX_NONE;
-		GetClothCollection()->StitchingStart[ElementIndex] = INDEX_NONE;
-		GetClothCollection()->StitchingEnd[ElementIndex] = INDEX_NONE;
+		GetClothCollection()->SeamStart[ElementIndex] = INDEX_NONE;
+		GetClothCollection()->SeamEnd[ElementIndex] = INDEX_NONE;
 		GetClothCollection()->TetherBatchStart[ElementIndex] = INDEX_NONE;
 		GetClothCollection()->TetherBatchEnd[ElementIndex] = INDEX_NONE;
 		GetClothCollection()->LodBiasDepth[ElementIndex] = 0;
 	}
 
-	template<typename T>
-	TArrayView<T> FClothLodAdapter::GetPatternsElements(TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray)
+	int32 FClothLodAdapter::SetNumSeams(int32 NumSeams)
 	{
-		const TTuple<int32, int32> StartEnd = GetPatternsElementsStartEnd<true, true>(StartArray, EndArray);
-		const int32 Start = StartEnd.Get<0>();
-		const int32 End = StartEnd.Get<1>();
-
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-		return Start == INDEX_NONE ? TArrayView<T>() : TArrayView<T>(ElementArray.GetData() + Start, End - Start + 1);
+		return GetClothCollection()->SetNumElements(
+			NumSeams,
+			FClothCollection::SeamsGroup,
+			GetClothCollection()->SeamStart,
+			GetClothCollection()->SeamEnd,
+			GetElementIndex());
 	}
 
 	void FClothLodAdapter::Initialize(const TArray<FVector3f>& Positions, const TArray<uint32>& Indices)
@@ -444,6 +582,19 @@ namespace UE::Chaos::ClothAsset
 				FClothPatternAdapter Pattern = AddGetPattern();
 				Pattern.Initialize(Island.Positions, Island.RestPositions, Island.Indices);
 			}
+		}
+
+		TArray<FSeam> Seams;
+		BuildSeams(Islands, Seams);  // Build the seam information as to be able to re-weld the mesh for simulation
+
+		SetNumSeams(Seams.Num());
+
+		const TArrayView<TArray<FIntVector2>> SeamStitches = GetSeamStitches();
+		const TArrayView<FIntVector2> SeamPatterns = GetSeamPatterns();
+		for (int32 SeamIndex = 0; SeamIndex < Seams.Num(); ++SeamIndex)
+		{
+			SeamPatterns[SeamIndex] = Seams[SeamIndex].Patterns;
+			SeamStitches[SeamIndex] = Seams[SeamIndex].Stitches.Array();
 		}
 	}
 }  // End namespace UE::Chaos::ClothAsset

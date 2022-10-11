@@ -18,8 +18,8 @@ namespace UE::Chaos::ClothAsset
 		FClothPresetCollection();
 		FClothPresetCollection(FClothPresetCollection&) = delete;
 		FClothPresetCollection& operator=(const FClothPresetCollection&) = delete;
-		FClothPresetCollection(FClothPresetCollection&&) = default;
-		FClothPresetCollection& operator=(FClothPresetCollection&&) = default;
+		FClothPresetCollection(FClothPresetCollection&&) = delete;
+		FClothPresetCollection& operator=(FClothPresetCollection&&) = delete;
 
 		using Super::Serialize;
 		void Serialize(FArchive& Ar);

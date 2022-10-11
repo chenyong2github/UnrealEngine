@@ -32,27 +32,6 @@ namespace UE::Chaos::ClothAsset
 		return TConstArrayView<float>();
 	}
 
-	int32 FClothPatternConstAdapter::GetNumElements(const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const int32 ElementIndex = GetElementIndex();
-		const int32 Start = StartArray[ElementIndex];
-		const int32 End = EndArray[ElementIndex];
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-
-		return Start == INDEX_NONE ? 0 : End - Start + 1;
-	}
-
-	template<typename T>
-	TConstArrayView<T> FClothPatternConstAdapter::GetElements(const TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const int32 ElementIndex = GetElementIndex();
-		const int32 Start = StartArray[ElementIndex];
-		const int32 End = EndArray[ElementIndex];
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-
-		return Start == INDEX_NONE ? TConstArrayView<T>() : TConstArrayView<T>(ElementArray.GetData() + Start, End - Start + 1);
-	}
-
 	FClothPatternAdapter::FClothPatternAdapter(const TSharedPtr<FClothCollection>& InClothCollection, int32 InLodIndex, int32 InPatternIndex)
 		: FClothPatternConstAdapter(InClothCollection, InLodIndex, InPatternIndex)
 	{
@@ -75,38 +54,42 @@ namespace UE::Chaos::ClothAsset
 
 	int32 FClothPatternAdapter::SetNumSimVertices(int32 InNumSimVertices)
 	{
-		return SetNumElements(
+		return GetClothCollection()->SetNumElements(
 			InNumSimVertices,
 			FClothCollection::SimVerticesGroup,
 			GetClothCollection()->SimVerticesStart,
-			GetClothCollection()->SimVerticesEnd);
+			GetClothCollection()->SimVerticesEnd,
+			GetElementIndex());
 	}
 
 	int32 FClothPatternAdapter::SetNumSimFaces(int32 InNumSimFaces)
 	{
-		return SetNumElements(
+		return GetClothCollection()->SetNumElements(
 			InNumSimFaces,
 			FClothCollection::SimFacesGroup,
 			GetClothCollection()->SimFacesStart,
-			GetClothCollection()->SimFacesEnd);
+			GetClothCollection()->SimFacesEnd,
+			GetElementIndex());
 	}
 
 	int32 FClothPatternAdapter::SetNumRenderVertices(int32 InNumRenderVertices)
 	{
-		return SetNumElements(
+		return GetClothCollection()->SetNumElements(
 			InNumRenderVertices,
 			FClothCollection::RenderVerticesGroup,
 			GetClothCollection()->RenderVerticesStart,
-			GetClothCollection()->RenderVerticesEnd);
+			GetClothCollection()->RenderVerticesEnd,
+			GetElementIndex());
 	}
 
 	int32 FClothPatternAdapter::SetNumRenderFaces(int32 InNumRenderFaces)
 	{
-		return SetNumElements(
+		return GetClothCollection()->SetNumElements(
 			InNumRenderFaces,
 			FClothCollection::RenderFacesGroup,
 			GetClothCollection()->RenderFacesStart,
-			GetClothCollection()->RenderFacesEnd);
+			GetClothCollection()->RenderFacesEnd,
+			GetElementIndex());
 	}
 
 	void FClothPatternAdapter::SetDefaults()
@@ -124,77 +107,6 @@ namespace UE::Chaos::ClothAsset
 		GetClothCollection()->NumWeights[ElementIndex] = 0;
 		GetClothCollection()->StatusFlags[ElementIndex] = 0;
 		GetClothCollection()->SimMaterialIndex[ElementIndex] = 0;
-	}
-
-	int32 FClothPatternAdapter::SetNumElements(int32 InNumElements, const FName& GroupName, TManagedArray<int32>& StartArray, TManagedArray<int32>& EndArray)
-	{
-		check(InNumElements >= 0);
-
-		const int32 ElementIndex = GetElementIndex();
-
-		int32& Start = StartArray[ElementIndex];
-		int32& End = EndArray[ElementIndex];
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-
-		const int32 NumElements = (Start == INDEX_NONE) ? 0 : End - Start + 1;
-
-		if (const int32 Delta = InNumElements - NumElements)
-		{
-			if (Delta > 0)
-			{
-				// Find a previous valid index range to insert after when the range is empty
-				auto ComputeEnd = [&EndArray](int32 ElementIndex)->int32
-				{
-					for (int32 Index = ElementIndex; Index >= 0; --Index)
-					{
-						if (EndArray[Index] != INDEX_NONE)
-						{
-							return EndArray[Index];
-						}
-					}
-					return INDEX_NONE;
-				};
-
-				// Grow the array
-				const int32 Position = ComputeEnd(ElementIndex) + 1;
-				GetClothCollection()->InsertElements(Delta, Position, GroupName);
-
-				// Update Start/End
-				if (!NumElements)
-				{
-					Start = Position;
-				}
-				End = Start + InNumElements - 1;
-			}
-			else
-			{
-				// Shrink the array
-				const int32 Position = Start + InNumElements;
-				GetClothCollection()->RemoveElements(GroupName, -Delta, Position);
-
-				// Update Start/End
-				if (InNumElements)
-				{
-					End = Position - 1;
-				}
-				else
-				{
-					End = Start = INDEX_NONE;  // It is important to set the start & end to INDEX_NONE so that they never get automatically re-indexed by the managed array collection
-				}
-			}
-		}
-		return Start;
-	}
-
-	template<typename T>
-	TArrayView<T> FClothPatternAdapter::GetElements(TManagedArray<T>& ElementArray, const TManagedArray<int32>& StartArray, const TManagedArray<int32>& EndArray) const
-	{
-		const int32 ElementIndex = GetElementIndex();
-		const int32 Start = StartArray[ElementIndex];
-		const int32 End = EndArray[ElementIndex];
-		check(Start != INDEX_NONE || End == INDEX_NONE);  // Best to avoid situations where only one boundary of the range is set to INDEX_NONE
-
-		return Start == INDEX_NONE ? TArrayView<T>() : TArrayView<T>(ElementArray.GetData() + Start, End - Start + 1);
 	}
 
 	void FClothPatternAdapter::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<uint32>& Indices)

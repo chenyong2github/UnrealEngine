@@ -39,7 +39,7 @@ namespace UE::Chaos::ClothAsset
 	/**
 	 * Cloth adapter object to provide a more convenient object oriented access to the cloth collection.
 	 */
-	class CHAOSCLOTHASSET_API FClothAdapter : public FClothConstAdapter
+	class CHAOSCLOTHASSET_API FClothAdapter final : public FClothConstAdapter
 	{
 	public:
 		FClothAdapter(const TSharedPtr<FClothCollection>& InClothCollection);
