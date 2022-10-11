@@ -1431,6 +1431,12 @@ namespace UnrealBuildTool
 					AppendCLArguments_CPP(CompileEnvironment, CompileAction.Arguments);
 				}
 
+				List<FileItem>? InlinedFiles;
+				if (CompileEnvironment.FileInlineGenCPPMap.TryGetValue(SourceFile, out InlinedFiles))
+				{
+					CompileAction.AdditionalPrerequisiteItems.AddRange(InlinedFiles);
+				}
+
 				CompileAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 				if (!String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments))

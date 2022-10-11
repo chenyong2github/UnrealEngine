@@ -420,6 +420,11 @@ namespace UnrealBuildTool
 		public List<FileItem> AdditionalPrerequisites = new List<FileItem>();
 
 		/// <summary>
+		/// A dictionary of the source file items and the inlined gen.cpp files contained in it
+		/// </summary>
+		public Dictionary<FileItem, List<FileItem>> FileInlineGenCPPMap = new();
+
+		/// <summary>
 		/// The C++ preprocessor definitions to use.
 		/// </summary>
 		public List<string> Definitions = new List<string>();

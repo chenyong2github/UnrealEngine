@@ -878,6 +878,12 @@ namespace UnrealBuildTool
 			CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 			CompileAction.PrerequisiteItems.Add(SourceFile);
 
+			List<FileItem>? InlinedFiles;
+			if (CompileEnvironment.FileInlineGenCPPMap.TryGetValue(SourceFile, out InlinedFiles))
+			{
+				CompileAction.PrerequisiteItems.AddRange(InlinedFiles);
+			}
+
 			string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 			{

@@ -1302,6 +1302,12 @@ namespace UnrealBuildTool
 					// Add the C++ source file and its included files to the prerequisite item list.
 					CompileAction.PrerequisiteItems.Add(SourceFile);
 
+					List<FileItem>? InlinedFiles;
+					if (CompileEnvironment.FileInlineGenCPPMap.TryGetValue(SourceFile, out InlinedFiles))
+					{
+						CompileAction.PrerequisiteItems.AddRange(InlinedFiles);
+					}
+
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create && !bIsPlainCFile)
 					{
 						// Add the precompiled header file to the produced item list.

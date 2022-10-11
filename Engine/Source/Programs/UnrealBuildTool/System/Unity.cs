@@ -275,6 +275,8 @@ namespace UnrealBuildTool
 				}
 				FileReference UnityCPPFilePath = FileReference.Combine(IntermediateDirectory, UnityCPPFileName);
 
+				List<FileItem> InlinedGenCPPFilesInUnity = new();
+
 				// Add source files to the unity file
 				foreach (FileItem CPPFile in UnityFile.Files)
 				{
@@ -284,11 +286,20 @@ namespace UnrealBuildTool
 						CPPFileString = CPPFile.Location.MakeRelativeTo(Unreal.EngineSourceDirectory);
 					}
 					OutputUnityCPPWriter.WriteLine("#include \"{0}\"", CPPFileString.Replace('\\', '/'));
+
+					List<FileItem>? InlinedGenCPPFiles;
+					if (CompileEnvironment.FileInlineGenCPPMap.TryGetValue(CPPFile, out InlinedGenCPPFiles))
+					{
+						InlinedGenCPPFilesInUnity.AddRange(InlinedGenCPPFiles);
+					}
 				}
 
 				// Write the unity file to the intermediate folder.
 				FileItem UnityCPPFile = Graph.CreateIntermediateTextFile(UnityCPPFilePath, OutputUnityCPPWriter.ToString());
 				NewCPPFiles.Add(UnityCPPFile);
+
+				// Store all the inlined gen.cpp files
+				CompileEnvironment.FileInlineGenCPPMap[UnityCPPFile] = InlinedGenCPPFilesInUnity;
 
 				// Store the mapping of source files to unity files in the makefile
 				foreach(FileItem SourceFile in UnityFile.Files)

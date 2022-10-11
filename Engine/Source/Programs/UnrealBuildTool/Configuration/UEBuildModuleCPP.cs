@@ -580,6 +580,12 @@ namespace UnrealBuildTool
 								if (FoundGenCppFile != null)
 								{
 									GeneratedFiles.Remove(FoundGenCppFile);
+
+									if (!CompileEnvironment.FileInlineGenCPPMap.ContainsKey(CPPFileItem))
+									{
+										CompileEnvironment.FileInlineGenCPPMap[CPPFileItem] = new List<FileItem>();
+									}
+									CompileEnvironment.FileInlineGenCPPMap[CPPFileItem].Add(FileItem.GetItemByPath(FoundGenCppFile));
 								}
 								else
 								{
