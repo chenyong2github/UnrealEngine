@@ -537,7 +537,6 @@ static EOpenGLFormatCapabilities GetOpenGLFormatCapabilities(const FOpenGLTextur
 		break;
 
 	case GL_R16:
-	case GL_RG16:
 	case GL_RGB10_A2UI:
 	case GL_RG32F:
 	case GL_R8I:
