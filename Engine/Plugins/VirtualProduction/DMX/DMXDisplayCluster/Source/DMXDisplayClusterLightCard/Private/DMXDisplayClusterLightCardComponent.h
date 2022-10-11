@@ -33,6 +33,9 @@ struct FDMXDisplayClusterLightCardActorDataValueRanges
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	double MinLatitude = -90.0;
+	
+	UPROPERTY(EditAnywhere, Category = "DMX")
+	double MaxLatitude = 90.0;
 
 	/** Min longitude when the light card uses UV Mode */
 	UPROPERTY(EditAnywhere, Category = "DMX")
@@ -49,9 +52,6 @@ struct FDMXDisplayClusterLightCardActorDataValueRanges
 	/** Max latitude when the light card uses UV Mode */
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	float MaxLatitudeV = 2.f;
-
-	UPROPERTY(EditAnywhere, Category = "DMX")
-	double MaxLatitude = 90.0;
 
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	double MinSpin = 0.0;
