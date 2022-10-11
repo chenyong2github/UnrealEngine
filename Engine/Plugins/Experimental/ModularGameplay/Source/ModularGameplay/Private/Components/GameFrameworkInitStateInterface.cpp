@@ -2,6 +2,7 @@
 
 #include "Components/GameFrameworkInitStateInterface.h"
 #include "Components/GameFrameworkComponent.h"
+#include "Components/GameFrameworkComponentManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"

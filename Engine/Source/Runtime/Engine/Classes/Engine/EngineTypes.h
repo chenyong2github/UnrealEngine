@@ -2830,7 +2830,7 @@ enum class EAutoPossessAI : uint8
 UENUM(BlueprintType)
 namespace EEndPlayReason
 {
-	enum Type
+	enum Type : int
 	{
 		/** When the Actor or Component is explicitly destroyed. */
 		Destroyed,

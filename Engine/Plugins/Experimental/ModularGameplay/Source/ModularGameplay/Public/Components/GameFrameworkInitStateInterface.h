@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "GameFrameworkComponentManager.h"
+#include "UObject/Interface.h"
+#include "GameFrameworkComponentDelegates.h"
 #include "GameFrameworkInitStateInterface.generated.h"
+
+class UGameFrameworkComponentManager;
 
 /** Interface that can be implemented by actors/components to make interacting with the init state system easier */
 UINTERFACE(MinimalAPI, NotBlueprintable)

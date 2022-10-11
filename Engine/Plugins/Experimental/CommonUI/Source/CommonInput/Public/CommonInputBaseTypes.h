@@ -8,7 +8,6 @@
 #include "UObject/SoftObjectPath.h"
 #include "Templates/SubclassOf.h"
 #include "InputCoreTypes.h"
-#include "Engine/StreamableManager.h"
 #include "Engine/UserDefinedEnum.h"
 #include "Templates/SharedPointer.h"
 #include "Styling/SlateBrush.h"

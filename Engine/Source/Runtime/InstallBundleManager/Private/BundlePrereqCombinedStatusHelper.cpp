@@ -3,8 +3,25 @@
 #include "BundlePrereqCombinedStatusHelper.h"
 #include "Containers/Ticker.h"
 #include "InstallBundleManagerPrivate.h"
+#include "InstallBundleUtils.h"
 #include "Stats/Stats.h"
 #include "Algo/Transform.h"
+
+const TCHAR* LexToString(FInstallBundleCombinedProgressTracker::ECombinedBundleStatus Status)
+{
+	static const TCHAR* Strings[] =
+	{
+		TEXT("Unknown"),
+		TEXT("Initializing"),
+		TEXT("Updating"),
+		TEXT("Finishing"),
+		TEXT("Finished"),
+		TEXT("Count")
+	};
+
+	static_assert(InstallBundleUtil::CastToUnderlying(FInstallBundleCombinedProgressTracker::ECombinedBundleStatus::Count) == UE_ARRAY_COUNT(Strings) - 1, "");
+	return Strings[InstallBundleUtil::CastToUnderlying(Status)];
+}
 
 FInstallBundleCombinedProgressTracker::FInstallBundleCombinedProgressTracker(bool bAutoTick /*= true*/)
 {

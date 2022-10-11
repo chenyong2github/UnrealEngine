@@ -9,6 +9,7 @@
 #include "Engine/AssetManager.h"
 #include "IPlatformFilePak.h"
 #include "InstallBundleManagerInterface.h"
+#include "InstallBundleUtils.h"
 #include "BundlePrereqCombinedStatusHelper.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/CoreDelegates.h"
