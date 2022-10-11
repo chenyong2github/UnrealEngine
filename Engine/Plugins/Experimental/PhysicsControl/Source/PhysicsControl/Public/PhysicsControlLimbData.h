@@ -38,7 +38,7 @@ struct PHYSICSCONTROL_API FPhysicsControlLimbSetupData
 	 * of spine_01) in the spine limb.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl)
-	bool bIncludeParentBone;
+	bool bIncludeParentBone = false;
 };
 
 /**

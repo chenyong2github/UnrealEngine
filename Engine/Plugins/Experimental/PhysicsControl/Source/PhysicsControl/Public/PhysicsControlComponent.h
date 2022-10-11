@@ -434,7 +434,7 @@ public:
 		const FRotator   Orientation,
 		float            VelocityDeltaTime,
 		bool             bEnableControl = true,
-		bool             bApplyControlPointToTarget = true);
+		bool             bApplyControlPointToTarget = false);
 
 	/**
 	 * Modifies an existing control target - i.e. what it is driving towards, relative to the parent object
@@ -459,7 +459,7 @@ public:
 		const FVector Position, 
 		float         VelocityDeltaTime, 
 		bool          bEnableControl = true,
-		bool          bApplyControlPointToTarget = true);
+		bool          bApplyControlPointToTarget = false);
 
 	/**
 	 * Modifies an existing control target - i.e. what it is driving towards, relative to the parent object
@@ -484,7 +484,7 @@ public:
 		const FRotator Orientation, 
 		float          AngularVelocityDeltaTime, 
 		bool           bEnableControl = true,
-		bool           bApplyControlPointToTarget = true);
+		bool           bApplyControlPointToTarget = false);
 
 	/**
 	 * Calculates and sets an existing control target. This takes the "virtual" position/orientation of the parent 

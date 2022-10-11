@@ -158,7 +158,7 @@ struct PHYSICSCONTROL_API FPhysicsControlTarget
 		, TargetVelocity(ForceInitToZero)
 		, TargetOrientation(ForceInitToZero)
 		, TargetAngularVelocity(ForceInitToZero)
-		, bApplyControlPointToTarget(true)
+		, bApplyControlPointToTarget(false)
 	{
 	}
 
