@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Quartz/AudioMixerClockManager.h"
 #include "Sound/QuartzQuantizationUtilities.h"
@@ -21,6 +19,7 @@ namespace Audio
 
 	template<class ListenerType>
 	class TQuartzShareableCommandQueue;
+
 }
 
 class FQuartzTickableObject;
@@ -57,6 +56,8 @@ public:
 	virtual ~UQuartzSubsystem() override = default;
 
 	//~ Begin UWorldSubsystem Interface
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	void virtual BeginDestroy() override;
 	//~ End UWorldSubsystem Interface
@@ -180,15 +181,12 @@ private:
 	void PruneStaleProxies();
 	static void PruneStaleProxiesInternal(TArray<Audio::FQuartzClockProxy>& ContainerToPrune);
 
-	// internal clock manager for game-thread-ticked clocks
-	Audio::FQuartzClockManager SubsystemClockManager;
 
 	// sharable tickable object manager to allow for non-UObject subscription / un-subscription
 	TSharedPtr<FQuartzTickableObjectsManager> TickableObjectManagerPtr { MakeShared<FQuartzTickableObjectsManager>() };
 
-	// array of active clock handles (update FindProxyByName() if more are added later)
-	TArray<Audio::FQuartzClockProxy> ActiveExternalClockProxies;
-	TArray<Audio::FQuartzClockProxy> ActiveAudioMixerClockProxies;
+	// Clock manager/proxy-related data that lives on the AudioDevice for persistence.
+	TSharedPtr<Audio::FPersistentQuartzSubsystemData> ClockManagerDataPtr { nullptr };
 
 	// helpers
 	Audio::FQuartzClockProxy* FindProxyByName(const FName& ClockName);

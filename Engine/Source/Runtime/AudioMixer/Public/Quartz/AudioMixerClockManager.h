@@ -10,6 +10,7 @@ namespace Audio
 	// forwards
 	class FMixerDevice;
 	class FQuartzClock;
+	class FQuartzClockManager;
 
 	// Class that owns, updates, and provides access to all active clocks
 	// All methods are thread-safe. The method locks if it returns a value, and stages a command if it returns void
@@ -130,5 +131,16 @@ namespace Audio
 
 		// allow a clock that is queuing a command directly use FindClock() to retrieve the TSharedPtr<FQuartzClock>
 		friend void FQuartzClock::AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
+	};
+
+	// data that the UQuartzSubsystem needs to persist on the AudioDevice across UWorld shutdown/startup
+	struct AUDIOMIXER_API FPersistentQuartzSubsystemData
+	{
+		// internal clock manager for game-thread-ticked clocks
+		FQuartzClockManager SubsystemClockManager;
+
+		// array of active clock handles (update FindProxyByName() if more are added later)
+		TArray<Audio::FQuartzClockProxy> ActiveExternalClockProxies;
+		TArray<Audio::FQuartzClockProxy> ActiveAudioMixerClockProxies;
 	};
 } // namespace Audio

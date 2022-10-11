@@ -305,6 +305,14 @@ namespace Audio
 		// Clock Manager for quantized event handling on Audio Render Thread
 		FQuartzClockManager QuantizedEventClockManager;
 
+		// Keep a reference alive to UQuartzSubsystem state that needs to persist across level transitions (UWorld destruction
+		TSharedPtr<FPersistentQuartzSubsystemData, ESPMode::ThreadSafe> QuartzSubsystemData { nullptr };
+
+		// Technically, in editor, multiple UQuartz(World)Subsystem's will reference the same FMixerDevice object.
+		// We need to protect around mutation/access of the "shared" state.
+		// (in practice this should be low/zero contention)
+		FCriticalSection QuartzPersistentStateCritSec;
+
 		// Pushes the command to a audio render thread command queue to be executed on render thread
 		void AudioRenderThreadCommand(TFunction<void()> Command);
 
