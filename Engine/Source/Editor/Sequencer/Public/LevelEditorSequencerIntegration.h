@@ -105,6 +105,12 @@ private:
 	/** Called after any number of external actors has been saved. The sequencer puts everything back to its initial state. */
 	void OnPostSaveExternalActors(UWorld* World);
 
+	/** Called before asset validation is run on assets. The sequencer puts everything back to its initial state. */
+	void OnPreAssetValidation();
+	
+	/** Called after asset validation has finished. The sequencer re-evaluates to hide the fact we did this from users. */
+	void OnPostAssetValidation();
+
 	/** Called after a level has been added */
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);
 

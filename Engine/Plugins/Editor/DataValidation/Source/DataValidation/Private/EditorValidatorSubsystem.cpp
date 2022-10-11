@@ -20,6 +20,7 @@
 #include "DataValidationChangelist.h"
 #include "DataValidationModule.h"
 #include "Engine/Level.h"
+#include "Editor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditorValidatorSubsystem)
 
@@ -217,6 +218,13 @@ int32 UEditorValidatorSubsystem::ValidateAssetsWithSettings(const TArray<FAssetD
 	SlowTask.Visibility = ESlowTaskVisibility::ForceVisible;
 	SlowTask.MakeDialogDelayed(.1f);
 
+	// Broadcast the Editor event before we start validating. This lets other systems (such as Sequencer) restore the state
+	// of the level to what is actually saved on disk before performing validation.
+	if (FEditorDelegates::OnPreAssetValidation.IsBound())
+	{
+		FEditorDelegates::OnPreAssetValidation.Broadcast();
+	}
+
 	FMessageLog DataValidationLog("AssetCheck");
 
 	int32 NumAdded = 0;
@@ -347,6 +355,12 @@ int32 UEditorValidatorSubsystem::ValidateAssetsWithSettings(const TArray<FAssetD
 		DataValidationLog.Info()->AddToken(FTextToken::Create(FText::Format(LOCTEXT("ResultsSummary", "Files Checked: {NumChecked}, Passed: {NumValid}, Failed: {NumInvalid}, Skipped: {NumSkipped}, Unable to validate: {NumUnableToValidate}"), Arguments)));
 
 		DataValidationLog.Open(EMessageSeverity::Info, true);
+	}
+
+	// Broadcast now that we're complete so other systems can go back to their previous state.
+	if (FEditorDelegates::OnPostAssetValidation.IsBound())
+	{
+		FEditorDelegates::OnPostAssetValidation.Broadcast();
 	}
 
 	return NumInvalidFiles + NumFilesWithWarnings;

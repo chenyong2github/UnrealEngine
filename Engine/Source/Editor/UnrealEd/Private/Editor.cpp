@@ -118,6 +118,8 @@ FEditorDelegates::FOnPreSaveWorldWithContext			FEditorDelegates::PreSaveWorldWit
 FEditorDelegates::FOnPostSaveWorldWithContext			FEditorDelegates::PostSaveWorldWithContext;
 FEditorDelegates::FOnPreSaveExternalActors				FEditorDelegates::PreSaveExternalActors;
 FEditorDelegates::FOnPostSaveExternalActors				FEditorDelegates::PostSaveExternalActors;
+FSimpleMulticastDelegate								FEditorDelegates::OnPreAssetValidation;
+FSimpleMulticastDelegate								FEditorDelegates::OnPostAssetValidation;
 FEditorDelegates::FOnFinishPickingBlueprintClass		FEditorDelegates::OnFinishPickingBlueprintClass;
 FEditorDelegates::FOnNewAssetCreation					FEditorDelegates::OnConfigureNewAssetProperties;
 FEditorDelegates::FOnNewAssetCreation					FEditorDelegates::OnNewAssetCreated;

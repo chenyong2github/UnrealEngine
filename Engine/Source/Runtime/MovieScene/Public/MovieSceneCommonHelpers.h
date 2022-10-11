@@ -25,6 +25,23 @@ class MOVIESCENE_API MovieSceneHelpers
 {
 public:
 
+	/*
+	* Helper struct to cache the package dirty state and then to restore it
+	* after this leaves scope. This is for a few minor areas where calling
+	* functions on actors dirties them, but Sequencer doesn't actually want
+	* the package to be dirty as it causes Sequencer to unnecessairly dirty
+	* actors.
+	*/
+	struct MOVIESCENE_API FMovieSceneScopedPackageDirtyGuard
+	{
+		FMovieSceneScopedPackageDirtyGuard(class USceneComponent* InComponent);
+		virtual ~FMovieSceneScopedPackageDirtyGuard();
+
+	private:
+		class USceneComponent* Component;
+		bool bPackageWasDirty;
+	};
+
 	/** 
 	 * @return Whether the section is keyable (active, on a track that is not muted, etc 
 	 */

@@ -16,6 +16,7 @@
 #include "Sound/SoundNodeWavePlayer.h"
 #include "MovieSceneTrack.h"
 #include "Engine/Engine.h"
+#include "UObject/Package.h"
 
 bool MovieSceneHelpers::IsSectionKeyable(const UMovieSceneSection* Section)
 {
@@ -549,6 +550,24 @@ UObject* MovieSceneHelpers::MakeSpawnableTemplateFromInstance(UObject& InSourceO
 	}
 
 	return NewInstance;
+}
+
+
+MovieSceneHelpers::FMovieSceneScopedPackageDirtyGuard::FMovieSceneScopedPackageDirtyGuard(USceneComponent* InComponent)
+{
+	Component = InComponent;
+	if (Component && Component->GetPackage())
+	{
+		bPackageWasDirty = Component->GetPackage()->IsDirty();
+	}
+}
+
+MovieSceneHelpers::FMovieSceneScopedPackageDirtyGuard::~FMovieSceneScopedPackageDirtyGuard()
+{
+	if (Component && Component->GetPackage())
+	{
+		Component->GetPackage()->SetDirtyFlag(bPackageWasDirty);
+	}
 }
 
 FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath )

@@ -347,8 +347,11 @@ void FComponentAttachParams::ApplyAttach(USceneComponent* ChildComponentToAttach
 {
 	if (ChildComponentToAttach->GetAttachParent() != NewAttachParent || ChildComponentToAttach->GetAttachSocketName() != SocketName)
 	{
-		FAttachmentTransformRules AttachmentRules(AttachmentLocationRule, AttachmentRotationRule, AttachmentScaleRule, false);
+		// Attachment changes may try to mark a package as dirty but this prevents us from restoring the level to the pre-animated
+		// state correctly which causes issues with validation.
+		MovieSceneHelpers::FMovieSceneScopedPackageDirtyGuard DirtyFlagGuard(ChildComponentToAttach);
 
+		FAttachmentTransformRules AttachmentRules(AttachmentLocationRule, AttachmentRotationRule, AttachmentScaleRule, false);
 		ChildComponentToAttach->AttachToComponent(NewAttachParent, AttachmentRules, SocketName);
 	}
 
@@ -365,11 +368,15 @@ void FComponentDetachParams::ApplyDetach(USceneComponent* ChildComponentToAttach
 	// Detach if there was no pre-existing parent
 	if (!NewAttachParent)
 	{
+		MovieSceneHelpers::FMovieSceneScopedPackageDirtyGuard DirtyFlagGuard(ChildComponentToAttach);
+
 		FDetachmentTransformRules DetachmentRules(DetachmentLocationRule, DetachmentRotationRule, DetachmentScaleRule, false);
 		ChildComponentToAttach->DetachFromComponent(DetachmentRules);
 	}
 	else
 	{
+		MovieSceneHelpers::FMovieSceneScopedPackageDirtyGuard DirtyFlagGuard(ChildComponentToAttach);
+
 		ChildComponentToAttach->AttachToComponent(NewAttachParent, FAttachmentTransformRules::KeepRelativeTransform, SocketName);
 	}
 }

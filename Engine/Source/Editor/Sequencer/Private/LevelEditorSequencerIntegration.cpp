@@ -51,6 +51,8 @@
 #include "UnrealEdMisc.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorSupportDelegates.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
+
 
 #define LOCTEXT_NAMESPACE "LevelEditorSequencerIntegration"
 
@@ -193,6 +195,14 @@ void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerInt
 	{
 		FDelegateHandle Handle = FEditorDelegates::PostSaveExternalActors.AddRaw(this, &FLevelEditorSequencerIntegration::OnPostSaveExternalActors);
 		AcquiredResources.Add([=]{ FEditorDelegates::PostSaveExternalActors.Remove(Handle); });
+	}
+	{
+		FDelegateHandle Handle = FEditorDelegates::OnPreAssetValidation.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreAssetValidation);
+		AcquiredResources.Add([=] { FEditorDelegates::OnPreAssetValidation.Remove(Handle); });
+	}
+	{
+		FDelegateHandle Handle = FEditorDelegates::OnPostAssetValidation.AddRaw(this, &FLevelEditorSequencerIntegration::OnPostAssetValidation);
+		AcquiredResources.Add([=] { FEditorDelegates::OnPostAssetValidation.Remove(Handle); });
 	}
 	{
 		FDelegateHandle Handle = FEditorDelegates::PreBeginPIE.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreBeginPIE);
@@ -358,6 +368,25 @@ void FLevelEditorSequencerIntegration::OnPreSaveExternalActors(UWorld* World)
 void FLevelEditorSequencerIntegration::OnPostSaveExternalActors(UWorld* World)
 {
 	ResetToAnimatedState(World);
+}
+
+void FLevelEditorSequencerIntegration::OnPreAssetValidation()
+{
+	// Asset validation doesn't have a world context, so we'll just use the editor world.
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+	if(UnrealEditorSubsystem && UnrealEditorSubsystem->GetEditorWorld())
+	{
+		RestoreToSavedState(UnrealEditorSubsystem->GetEditorWorld());
+	}
+}
+
+void FLevelEditorSequencerIntegration::OnPostAssetValidation()
+{
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+	if(UnrealEditorSubsystem && UnrealEditorSubsystem->GetEditorWorld())
+	{
+		ResetToAnimatedState(UnrealEditorSubsystem->GetEditorWorld());
+	}
 }
 
 void FLevelEditorSequencerIntegration::OnNewCurrentLevel()

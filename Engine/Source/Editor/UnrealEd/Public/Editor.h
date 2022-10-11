@@ -239,6 +239,10 @@ struct UNREALED_API FEditorDelegates
 	static FOnPreSaveExternalActors PreSaveExternalActors;
 	/** Called after any number of external actors has been saved */
 	static FOnPostSaveExternalActors PostSaveExternalActors;
+	/** Called before any asset validation happens via the Asset Validation subsystem. */
+	static FSimpleMulticastDelegate OnPreAssetValidation;
+	/** Called after asset validation happens by the Asset Validation subsystem. */
+	static FSimpleMulticastDelegate OnPostAssetValidation;
 	/** Called when finishing picking a new blueprint class during construction */
 	static FOnFinishPickingBlueprintClass OnFinishPickingBlueprintClass;
 	/** Called when beginning configuration of a new asset */
