@@ -415,10 +415,11 @@ private:
 		AddPathPair(ContentPathToRoot, GameRootPath,   GameContentPath);
 		AddPathPair(ContentPathToRoot, ScriptRootPath, GameScriptPath);
 		AddPathPair(ContentPathToRoot, TempRootPath,   GameSavedPath);
+		AddPathPair(ContentPathToRoot, ConfigRootPath, GameConfigPath);
 		AddPathPair(ContentPathToRoot, GameRootPath,   GameContentPathRebased);
 		AddPathPair(ContentPathToRoot, ScriptRootPath, GameScriptPathRebased);
 		AddPathPair(ContentPathToRoot, TempRootPath,   GameSavedPathRebased);
-		AddPathPair(ContentPathToRoot, ConfigRootPath, GameConfigPath);
+		AddPathPair(ContentPathToRoot, ConfigRootPath, GameConfigPathRebased);
 
 		ContentRootToPath.Empty(11);
 		AddPathPair(ContentRootToPath, EngineRootPath, EngineContentPath);
@@ -426,6 +427,7 @@ private:
 		AddPathPair(ContentRootToPath, GameRootPath,   GameContentPath);
 		AddPathPair(ContentRootToPath, ScriptRootPath, GameScriptPath);
 		AddPathPair(ContentRootToPath, TempRootPath,   GameSavedPath);
+		AddPathPair(ContentRootToPath, ConfigRootPath, GameConfigPath);
 		AddPathPair(ContentRootToPath, GameRootPath,   GameContentPathRebased);
 		AddPathPair(ContentRootToPath, ScriptRootPath, GameScriptPathRebased);
 		AddPathPair(ContentRootToPath, TempRootPath,   GameSavedPathRebased);
