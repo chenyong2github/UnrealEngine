@@ -47,8 +47,12 @@ SamplerState DBufferCTextureSampler;
 #error STENCIL_STRATA_RECEIVE_DBUFFER_ROUGHNESS_BIT_ID needs to be defined
 #endif
 
+// Sanity check
+#if !defined(USE_DBUFFER) || USE_DBUFFER != 1
+#error This shader should only be compiled when USE_DBUFFER == 1
+#endif
+
 #define MATERIALDECALRESPONSEMASK 0x7
-#define USE_DBUFFER 1
 #define ENABLE_DBUFFER_TEXTURES 1
 #define DBUFFER_BASEPASS_RESOURCE 0
 

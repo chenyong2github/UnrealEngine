@@ -512,7 +512,11 @@ void AddDeferredDecalPass(
 		// Sanity check - Strata only support DBuffer, SceneColor, or AO decals
 		if (Strata::IsStrataEnabled())
 		{
-			check(RenderTargetMode == EDecalRenderTargetMode::DBuffer || RenderTargetMode == EDecalRenderTargetMode::SceneColor || RenderTargetMode == EDecalRenderTargetMode::AmbientOcclusion);
+			const bool bSupported = RenderTargetMode == EDecalRenderTargetMode::DBuffer || RenderTargetMode == EDecalRenderTargetMode::SceneColor || RenderTargetMode == EDecalRenderTargetMode::AmbientOcclusion;
+			if (!bSupported)
+			{
+				return;
+			}
 		}
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();

@@ -384,9 +384,9 @@ void SetDepthStencilStateForBasePass_Internal(FMeshPassProcessorRenderState& InD
 }
 
 template<bool bDepthTest, ECompareFunction CompareFunction>
-void SetDepthStencilStateForBasePass_Internal(FMeshPassProcessorRenderState& InDrawRenderState)
+void SetDepthStencilStateForBasePass_Internal(FMeshPassProcessorRenderState& InDrawRenderState, ERHIFeatureLevel::Type FeatureLevel)
 {	
-	const static bool bStrataDufferPassEnabled = Strata::IsStrataEnabled() && Strata::IsStrataDbufferPassEnabled();
+	const static bool bStrataDufferPassEnabled = Strata::IsStrataEnabled() && Strata::IsStrataDbufferPassEnabled(GShaderPlatformForFeatureLevel[FeatureLevel]);
 	if (bStrataDufferPassEnabled)
 	{
 		SetDepthStencilStateForBasePass_Internal<bDepthTest, CompareFunction, GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_NORMAL, 1) | GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_DIFFUSE, 1) | GET_STENCIL_BIT_MASK(STRATA_RECEIVE_DBUFFER_ROUGHNESS, 1) | GET_STENCIL_BIT_MASK(DISTANCE_FIELD_REPRESENTATION, 1) | STENCIL_LIGHTING_CHANNELS_MASK(0x7)>(InDrawRenderState);
@@ -410,15 +410,15 @@ void SetDepthStencilStateForBasePass(
 	{
 		if (bMaskedInEarlyPass)
 		{
-			SetDepthStencilStateForBasePass_Internal<false, CF_Equal>(DrawRenderState);
+			SetDepthStencilStateForBasePass_Internal<false, CF_Equal>(DrawRenderState, FeatureLevel);
 		}
 		else if (DrawRenderState.GetDepthStencilAccess() & FExclusiveDepthStencil::DepthWrite)
 		{
-			SetDepthStencilStateForBasePass_Internal<true, CF_GreaterEqual>(DrawRenderState);
+			SetDepthStencilStateForBasePass_Internal<true, CF_GreaterEqual>(DrawRenderState, FeatureLevel);
 		}
 		else
 		{
-			SetDepthStencilStateForBasePass_Internal<false, CF_GreaterEqual>(DrawRenderState);
+			SetDepthStencilStateForBasePass_Internal<false, CF_GreaterEqual>(DrawRenderState, FeatureLevel);
 		}
 	}
 	else if (bMaskedInEarlyPass)
@@ -428,7 +428,7 @@ void SetDepthStencilStateForBasePass(
 
 	if (bForceEnableStencilDitherState)
 	{
-		SetDepthStencilStateForBasePass_Internal<false, CF_Equal>(DrawRenderState);
+		SetDepthStencilStateForBasePass_Internal<false, CF_Equal>(DrawRenderState, FeatureLevel);
 	}
 }
 
@@ -1583,7 +1583,7 @@ bool FBasePassMeshProcessor::Process(
 	
 	if (bEnableReceiveDecalOutput)
 	{
-		static const bool bStrataDufferPassEnabled = Strata::IsStrataEnabled() && Strata::IsStrataDbufferPassEnabled();
+		static const bool bStrataDufferPassEnabled = Strata::IsStrataEnabled() && Strata::IsStrataDbufferPassEnabled(GShaderPlatformForFeatureLevel[FeatureLevel]);
 
 		// Set stencil value for this draw call
 		// This is effectively extending the GBuffer using the stencil bits

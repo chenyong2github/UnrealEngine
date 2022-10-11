@@ -143,9 +143,9 @@ bool IsStrataEnabled()
 	return CVarStrata.GetValueOnAnyThread() > 0;
 }
 
-bool IsStrataDbufferPassEnabled()
+bool IsStrataDbufferPassEnabled(const EShaderPlatform InPlatform)
 {
-	return IsStrataEnabled() && CVarStrataDBufferPass.GetValueOnAnyThread() > 0;
+	return IsStrataEnabled() && IsUsingDBuffers(InPlatform) && CVarStrataDBufferPass.GetValueOnAnyThread() > 0;
 }
 
 enum EStrataTileSpace
@@ -235,7 +235,7 @@ static void InitialiseStrataViewData(FRDGBuilder& GraphBuilder, FViewInfo& View,
 
 			// Separated subsurface & rough refraction textures (tile data)
 			const uint32 RoughTileCount = IsStrataOpaqueMaterialRoughRefractionEnabled() ? TileResolution.X * TileResolution.Y : 4;
-			const uint32 DecalTileCount = IsStrataDbufferPassEnabled() ? TileResolution.X * TileResolution.Y : 4;
+			const uint32 DecalTileCount = IsStrataDbufferPassEnabled(View.GetShaderPlatform()) ? TileResolution.X * TileResolution.Y : 4;
 			const uint32 RegularTileCount = TileResolution.X * TileResolution.Y;
 
 			const EPixelFormat ClassificationTileFormat = GetClassificationTileFormat(ViewResolution);
@@ -711,7 +711,7 @@ class FStrataDBufferPassCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled() && IsUsingDBuffers(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
