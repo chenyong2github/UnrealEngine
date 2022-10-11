@@ -3230,6 +3230,9 @@ export type GetDeviceResponse = {
 	/// The last time the device was checked out
 	checkOutTime?: Date | string;
 
+	/// The time the device checkout will expire
+	checkOutExpirationTime?: Date | string;
+
 	/** Id of the user which last modified this device */
 	modifiedByUser?: string;
 

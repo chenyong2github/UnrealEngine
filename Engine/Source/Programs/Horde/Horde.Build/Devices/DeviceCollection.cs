@@ -1246,7 +1246,7 @@ namespace Horde.Build.Devices
 
 			if (results.Count > 0)
 			{
-				_logger.LogInformation("Found {Count} device douments to upgrade", results.Count);
+				_logger.LogInformation("Found {Count} device documents to upgrade", results.Count);
 			}			
 
 			foreach (DeviceDocument device in results)

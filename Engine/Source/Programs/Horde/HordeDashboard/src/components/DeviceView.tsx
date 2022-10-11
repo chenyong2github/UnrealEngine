@@ -97,7 +97,6 @@ const customStyles = mergeStyleSets({
 
 const pivotKeyAutomation = "pivot-key-automation";
 const pivotKeyShared = "pivot-key-shared";
-const checkoutDays = 7;
 
 const DevicePanel: React.FC = observer(() => {
 
@@ -334,8 +333,8 @@ const DevicePanel: React.FC = observer(() => {
       const device = item.device;
       let notes = device.notes ?? "";
 
-      if (device.checkOutTime && device.checkedOutByUserId) {
-         notes = `Checked out until ${getNiceTime(moment(new Date(device.checkOutTime)).add(checkoutDays, 'd').toDate())}.  ` + notes;
+      if (device.checkOutExpirationTime && device.checkedOutByUserId) {
+         notes = `Checked out until ${getNiceTime(device.checkOutExpirationTime)}.  ` + notes;
       }
 
       return <Stack verticalFill={true} verticalAlign="center">
@@ -599,8 +598,8 @@ export const CheckoutConfirmModal: React.FC<{ check: "in" | "out" | "error", dev
          case 'Name':
             return <Text variant="medium" styles={{ root: { fontFamily: "Horde Open Sans SemiBold" } }}>{platform} : {device.name}</Text>
          case 'Date':
-            if (device.checkOutTime) {
-               return <Text variant="medium">{`Checked out until ${getNiceTime(moment(new Date(device.checkOutTime!)).add(checkoutDays, 'd').toDate())}`}</Text>
+            if (device.checkOutExpirationTime) {
+               return <Text variant="medium">{`Checked out until ${getNiceTime(device.checkOutExpirationTime)}`}</Text>
             }
             return null;
       }

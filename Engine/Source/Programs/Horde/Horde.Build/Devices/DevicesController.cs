@@ -12,6 +12,7 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -48,15 +49,18 @@ namespace Horde.Build.Devices
 		/// </summary>
 		private readonly ILogger<DevicesController> _logger;
 
+		readonly IOptionsMonitor<ServerSettings> _settings;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DevicesController(DeviceService deviceService, AclService aclService, IUserCollection userCollection, ILogger<DevicesController> logger)
+		public DevicesController(DeviceService deviceService, AclService aclService, IUserCollection userCollection, ILogger<DevicesController> logger, IOptionsMonitor<ServerSettings> settings)
 		{
 			UserCollection = userCollection;
 			_deviceService = deviceService;
 			_logger = logger;
 			_aclService = aclService;
+			_settings = settings;
 		}
 
 		// DEVICES
@@ -147,7 +151,13 @@ namespace Horde.Build.Devices
 					continue;
 				}
 
-				responses.Add(new GetDeviceResponse(device.Id.ToString(), device.PlatformId.ToString(), device.PoolId.ToString(), device.Name, device.Enabled, device.Address, device.ModelId?.ToString(), device.ModifiedByUser, device.Notes, device.ProblemTimeUtc, device.MaintenanceTimeUtc, device.Utilization, device.CheckedOutByUser, device.CheckOutTime));
+				DateTime? checkoutExpiration = null;
+				if (device.CheckOutTime != null)
+				{
+					checkoutExpiration = device.CheckOutTime.Value.AddDays(_settings.CurrentValue.SharedDeviceCheckoutDays);
+				}
+
+				responses.Add(new GetDeviceResponse(device.Id.ToString(), device.PlatformId.ToString(), device.PoolId.ToString(), device.Name, device.Enabled, device.Address, device.ModelId?.ToString(), device.ModifiedByUser, device.Notes, device.ProblemTimeUtc, device.MaintenanceTimeUtc, device.Utilization, device.CheckedOutByUser, device.CheckOutTime, checkoutExpiration));
 			}
 
 			return responses;
@@ -179,7 +189,13 @@ namespace Horde.Build.Devices
 				return Forbid();
 			}
 
-			return new GetDeviceResponse(device.Id.ToString(), device.PlatformId.ToString(), device.PoolId.ToString(), device.Name, device.Enabled, device.Address, device.ModelId?.ToString(), device.ModifiedByUser?.ToString(), device.Notes, device.ProblemTimeUtc, device.MaintenanceTimeUtc, device.Utilization, device.CheckedOutByUser, device.CheckOutTime);
+			DateTime? checkoutExpiration = null;
+			if (device.CheckOutTime != null)
+			{
+				checkoutExpiration = device.CheckOutTime.Value.AddDays(_settings.CurrentValue.SharedDeviceCheckoutDays);
+			}
+
+			return new GetDeviceResponse(device.Id.ToString(), device.PlatformId.ToString(), device.PoolId.ToString(), device.Name, device.Enabled, device.Address, device.ModelId?.ToString(), device.ModifiedByUser?.ToString(), device.Notes, device.ProblemTimeUtc, device.MaintenanceTimeUtc, device.Utilization, device.CheckedOutByUser, device.CheckOutTime, checkoutExpiration);
 		}
 
 		/// <summary>
