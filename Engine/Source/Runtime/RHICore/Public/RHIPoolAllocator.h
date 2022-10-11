@@ -40,19 +40,13 @@ public:
 	// Initialize options
 	void InitAsHead(int16 InPoolIndex);
 	void InitAsFree(int16 InPoolIndex, uint32 InSize, uint32 InAlignment, uint32 InOffset);
-	void InitAsAllocated(uint32 InSize, uint32 InAlignment, FRHIPoolAllocationData* InFree);
+	void InitAsAllocated(uint32 InSize, uint32 InPoolAlignment, uint32 InAllocationAlignment, FRHIPoolAllocationData* InFree);
 	void MoveFrom(FRHIPoolAllocationData& InAllocated, bool InLocked);
 
-	// Free block operation
-	void MarkFree(uint32 InAlignment);
-	void Merge(FRHIPoolAllocationData* InOther);
+	// Free block operation (TODO: make internal)
+	void MarkFree(uint32 InPoolAlignment, uint32 InAllocationAlignment);
 
-	// Linked list operation
-	void RemoveFromLinkedList();
-	void AddBefore(FRHIPoolAllocationData* InOther);
-	void AddAfter(FRHIPoolAllocationData* InOther);
-
-	// Alias operations
+	// Alias operations (NOTE: currently not accessed when pool lock is taken, needs to be fixed)
 	void AddAlias(FRHIPoolAllocationData* InOther);
 	void RemoveAlias();
 	FRHIPoolAllocationData* GetFirstAlias() const { return AliasAllocation; }
@@ -87,6 +81,13 @@ private:
 	friend class FRHIPoolAllocator;
 	void Lock() { check(Locked == 0); Locked = 1; }
 
+	void Merge(FRHIPoolAllocationData* InOther);
+
+	// Linked list operation
+	void RemoveFromLinkedList();
+	void AddBefore(FRHIPoolAllocationData* InOther);
+	void AddAfter(FRHIPoolAllocationData* InOther);
+		
 	enum class EAllocationType : uint8
 	{
 		Unknown,
