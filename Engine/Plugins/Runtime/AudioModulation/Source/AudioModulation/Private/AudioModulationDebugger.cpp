@@ -464,25 +464,31 @@ namespace AudioModulation
 			DebugInfo.Categories = Proxy->GetDebugCategories();
 		}
 
-		FFunctionGraphTask::CreateAndDispatchWhenReady([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredGenerators]()
+		FFunctionGraphTask::CreateAndDispatchWhenReady([DebuggerPtr = AsWeak(), RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredGenerators]()
 		{
-			FilteredBuses = RefreshedFilteredBuses;
-			FilteredBuses.Sort(&Debug::CompareNames<FControlBusDebugInfo>);
+			TSharedPtr<FAudioModulationDebugger> ThisDebugger = DebuggerPtr.Pin();
+			if (!ThisDebugger.IsValid())
+			{
+				return;
+			}
 
-			FilteredMixes = RefreshedFilteredMixes;
-			FilteredMixes.Sort(&Debug::CompareNames<FControlBusMixDebugInfo>);
+			ThisDebugger->FilteredBuses = RefreshedFilteredBuses;
+			ThisDebugger->FilteredBuses.Sort(&Debug::CompareNames<FControlBusDebugInfo>);
+
+			ThisDebugger->FilteredMixes = RefreshedFilteredMixes;
+			ThisDebugger->FilteredMixes.Sort(&Debug::CompareNames<FControlBusMixDebugInfo>);
 
 			FGeneratorSortMap NewFilteredMap;
-			if (bShowGenerators)
+			if (ThisDebugger->bShowGenerators)
 			{
 				NewFilteredMap = RefreshedFilteredGenerators;
 				for (TPair<FString, FGeneratorDebugInfo>& NewInfoPair : NewFilteredMap)
 				{
-					FGeneratorDebugInfo* LastDebugInfo = FilteredGeneratorsMap.Find(NewInfoPair.Key);
-					NewInfoPair.Value.bEnabled = bEnableAllGenerators
+					FGeneratorDebugInfo* LastDebugInfo = ThisDebugger->FilteredGeneratorsMap.Find(NewInfoPair.Key);
+					NewInfoPair.Value.bEnabled = ThisDebugger->bEnableAllGenerators
 						|| (LastDebugInfo && LastDebugInfo->bEnabled);
 
-					if (bool* Value = RequestedGeneratorUpdate.Find(NewInfoPair.Key))
+					if (bool* Value = ThisDebugger->RequestedGeneratorUpdate.Find(NewInfoPair.Key))
 					{
 						NewInfoPair.Value.bEnabled = *Value;
 					}
@@ -492,11 +498,11 @@ namespace AudioModulation
 						NewInfoPair.Value.FilteredInstances.Reset();
 					}
 				}
-				bEnableAllGenerators = 0;
-				RequestedGeneratorUpdate.Reset();
+				ThisDebugger->bEnableAllGenerators = 0;
+				ThisDebugger->RequestedGeneratorUpdate.Reset();
 			}
 
-			FilteredGeneratorsMap = MoveTemp(NewFilteredMap);
+			ThisDebugger->FilteredGeneratorsMap = MoveTemp(NewFilteredMap);
 		}, TStatId(), nullptr, ENamedThreads::GameThread);
 	}
 

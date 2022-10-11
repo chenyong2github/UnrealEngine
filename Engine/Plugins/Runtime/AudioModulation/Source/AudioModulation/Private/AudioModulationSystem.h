@@ -248,7 +248,7 @@ namespace AudioModulation
 		bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 
 	private:
-		FAudioModulationDebugger Debugger;
+		TSharedPtr<FAudioModulationDebugger> Debugger;
 #endif // !UE_BUILD_SHIPPING
 
 		friend FControlBusProxy;

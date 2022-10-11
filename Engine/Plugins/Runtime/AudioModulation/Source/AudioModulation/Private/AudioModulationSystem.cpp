@@ -47,6 +47,10 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::Initialize(const FAudioPluginInitializationParams& InitializationParams)
 	{
+#if !UE_BUILD_SHIPPING
+		Debugger = MakeShared<FAudioModulationDebugger>();
+#endif // !UE_BUILD_SHIPPING
+
 		AudioDeviceId = InitializationParams.AudioDevicePtr->DeviceID;
 	}
 
@@ -59,19 +63,19 @@ namespace AudioModulation
 	bool FAudioModulationSystem::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
 		check(IsInGameThread());
-		return ViewportClient ? Debugger.OnPostHelp(*ViewportClient, Stream) : true;
+		return ViewportClient ? Debugger->OnPostHelp(*ViewportClient, Stream) : true;
 	}
 
 	int32 FAudioModulationSystem::OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation)
 	{
 		check(IsInGameThread());
-		return Canvas ? Debugger.OnRenderStat(*Canvas, X, Y, Font) : Y;
+		return Canvas ? Debugger->OnRenderStat(*Canvas, X, Y, Font) : Y;
 	}
 
 	bool FAudioModulationSystem::OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
 		check(IsInGameThread());
-		return ViewportClient ? Debugger.OnToggleStat(*ViewportClient, Stream) : true;
+		return ViewportClient ? Debugger->OnToggleStat(*ViewportClient, Stream) : true;
 	}
 #endif // !UE_BUILD_SHIPPING
 
@@ -193,32 +197,32 @@ namespace AudioModulation
 #if !UE_BUILD_SHIPPING
 	void FAudioModulationSystem::SetDebugBusFilter(const FString* InFilter)
 	{
-		Debugger.SetDebugBusFilter(InFilter);
+		Debugger->SetDebugBusFilter(InFilter);
 	}
 
 	void FAudioModulationSystem::SetDebugGeneratorsEnabled(bool bInIsEnabled)
 	{
-		Debugger.SetDebugGeneratorsEnabled(bInIsEnabled);
+		Debugger->SetDebugGeneratorsEnabled(bInIsEnabled);
 	}
 
 	void FAudioModulationSystem::SetDebugGeneratorFilter(const FString* InFilter)
 	{
-		Debugger.SetDebugGeneratorFilter(InFilter);
+		Debugger->SetDebugGeneratorFilter(InFilter);
 	}
 
 	void FAudioModulationSystem::SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInEnabled)
 	{
-		Debugger.SetDebugGeneratorTypeFilter(InFilter, bInEnabled);
+		Debugger->SetDebugGeneratorTypeFilter(InFilter, bInEnabled);
 	}
 
 	void FAudioModulationSystem::SetDebugMatrixEnabled(bool bInIsEnabled)
 	{
-		Debugger.SetDebugMatrixEnabled(bInIsEnabled);
+		Debugger->SetDebugMatrixEnabled(bInIsEnabled);
 	}
 
 	void FAudioModulationSystem::SetDebugMixFilter(const FString* InNameFilter)
 	{
-		Debugger.SetDebugMixFilter(InNameFilter);
+		Debugger->SetDebugMixFilter(InNameFilter);
 	}
 #endif // !UE_BUILD_SHIPPING
 
@@ -489,7 +493,7 @@ namespace AudioModulation
 		SET_DWORD_STAT(STAT_AudioModulationProcQueueCount, CommandsProcessed);
 
 #if !UE_BUILD_SHIPPING
- 		Debugger.UpdateDebugData(InElapsed, RefProxies);
+ 		Debugger->UpdateDebugData(InElapsed, RefProxies);
 #endif // !UE_BUILD_SHIPPING
 	}
 

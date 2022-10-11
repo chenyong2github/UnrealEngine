@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/Build.h"
 
 #if WITH_AUDIOMODULATION
 #if !UE_BUILD_SHIPPING
@@ -9,6 +9,7 @@
 #include "SoundControlBusMix.h"
 #include "SoundModulationGenerator.h"
 #include "SoundModulationProxy.h"
+#include "Templates/SharedPointer.h"
 
 
 namespace AudioModulation
@@ -70,7 +71,7 @@ namespace AudioModulation
 		TArray<FInstanceValues> FilteredInstances;
 	};
 
-	class FAudioModulationDebugger
+	class FAudioModulationDebugger : public TSharedFromThis<FAudioModulationDebugger, ESPMode::ThreadSafe>
 	{
 	public:
 		FAudioModulationDebugger();
