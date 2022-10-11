@@ -1239,7 +1239,7 @@ void UNiagaraStackScriptItemGroup::ChildRequestDeprecatedRecommendation(UNiagara
 	}
 	TargetChild->Copy(ClipboardContent);
 
-	// Step 2: Disable the old master so that end users can use it as reference and inheritance isn't wiped out.
+	// Step 2: Disable the old owner so that end users can use it as reference and inheritance isn't wiped out.
 	//TargetChild->Rename();
 	//TargetChild->GetModuleNode().SuggestName(TEXT("Deprecated Original " + TargetChild->GetModuleNode().GetFunctionName()), true);
 	TargetChild->OnRenamed(FText::Format(LOCTEXT("NewDeprecationName", "Deprecated Original {0}"), TargetChild->GetDisplayName()));

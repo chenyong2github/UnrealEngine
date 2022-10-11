@@ -476,7 +476,7 @@ FNiagaraCompileHash GetFileContentHash(const FString& FileContents)
 	return FNiagaraCompileHash(DataHash);
 }
 
-void UNiagaraNodeCustomHlsl::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
+void UNiagaraNodeCustomHlsl::GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
 {
 	for (const auto& [IncludePath] : AbsoluteIncludeFilePaths)
 	{

@@ -48,10 +48,10 @@ FNiagaraScratchPadScriptViewModel::~FNiagaraScratchPadScriptViewModel()
 	}
 }
 
-void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<FNiagaraSystemViewModel> InMasterViewModel)
+void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<FNiagaraSystemViewModel> InSystemViewModel)
 {
 	OriginalScript = Script;
-	SystemViewModel = InMasterViewModel;
+	SystemViewModel = InSystemViewModel;
 
 	// Copy over the old edited graph, as this initialize might be incoming from inheritance changes and we want to maintain
 	// the edits to the old graph we were working on.

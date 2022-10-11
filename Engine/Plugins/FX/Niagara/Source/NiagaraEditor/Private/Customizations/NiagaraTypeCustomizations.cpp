@@ -1980,14 +1980,14 @@ void FNiagaraSystemScalabilityOverrideCustomization::CustomizeHeader(TSharedRef<
 
 void FNiagaraSystemScalabilityOverrideCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	auto AddOverrideProperties = [&](FName MasterPropertyName, TArray<FName> OverrideProperties)
+	auto AddOverrideProperties = [&](FName MainPropertyName, TArray<FName> OverrideProperties)
 	{
-		if (TSharedPtr<IPropertyHandle> MasterProperty = PropertyHandle->GetChildHandle(MasterPropertyName))
+		if (TSharedPtr<IPropertyHandle> MainProperty = PropertyHandle->GetChildHandle(MainPropertyName))
 		{
-			TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::CreateLambda([MasterProperty]
+			TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::CreateLambda([MainProperty]
 			{
-				bool bMasterProp = false;
-				if(MasterProperty->GetValue(bMasterProp) == FPropertyAccess::Success && bMasterProp)
+				bool bMainProp = false;
+				if(MainProperty->GetValue(bMainProp) == FPropertyAccess::Success && bMainProp)
 				{
 					return EVisibility::Visible;
 				}
@@ -1995,11 +1995,11 @@ void FNiagaraSystemScalabilityOverrideCustomization::CustomizeChildren(TSharedRe
 				return EVisibility::Collapsed;
 			});
 			
-			bool bMasterProp;
-			if (MasterProperty->GetValue(bMasterProp) == FPropertyAccess::Success)
+			bool bMainProp;
+			if (MainProperty->GetValue(bMainProp) == FPropertyAccess::Success)
 			{
-				IDetailGroup& PropGroup = ChildBuilder.AddGroup(MasterPropertyName, MasterProperty->GetPropertyDisplayName());
-				PropGroup.HeaderProperty(MasterProperty.ToSharedRef());
+				IDetailGroup& PropGroup = ChildBuilder.AddGroup(MainPropertyName, MainProperty->GetPropertyDisplayName());
+				PropGroup.HeaderProperty(MainProperty.ToSharedRef());
 				for (FName OverridePropName : OverrideProperties)
 				{
 					if (TSharedPtr<IPropertyHandle> OverrideProp = PropertyHandle->GetChildHandle(OverridePropName))
@@ -2011,7 +2011,7 @@ void FNiagaraSystemScalabilityOverrideCustomization::CustomizeChildren(TSharedRe
 			}
 			else
 			{
-				ChildBuilder.AddProperty(MasterProperty.ToSharedRef());
+				ChildBuilder.AddProperty(MainProperty.ToSharedRef());
 			}
 		}
 	}; 

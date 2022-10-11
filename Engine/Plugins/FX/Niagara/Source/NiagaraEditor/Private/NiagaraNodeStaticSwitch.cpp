@@ -594,16 +594,16 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeStaticSwitch::GetNumericOutpu
 
 void UNiagaraNodeStaticSwitch::ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache)
 {	
-	FPinCollectorArray MasterInputPins;
-	GetInputPins(MasterInputPins);
-	FPinCollectorArray MasterOutputPins;
-	GetOutputPins(MasterOutputPins);
+	FPinCollectorArray MainInputPins;
+	GetInputPins(MainInputPins);
+	FPinCollectorArray MainOutputPins;
+	GetOutputPins(MainOutputPins);
 
 	TArray<int32> OptionValues = GetOptionValues();
 	int32 VarIdx = 0;
-	for (int i = 0; i < MasterOutputPins.Num(); i++)
+	for (int i = 0; i < MainOutputPins.Num(); i++)
 	{
-		UEdGraphPin* OutPin = MasterOutputPins[i];
+		UEdGraphPin* OutPin = MainOutputPins[i];
 		if (IsAddPin(OutPin))
 		{
 			continue;
@@ -616,14 +616,14 @@ void UNiagaraNodeStaticSwitch::ResolveNumerics(const UEdGraphSchema_Niagara* Sch
 		for (int32 j = 0; j < OptionValues.Num(); j++)
 		{
 			const int TargetIdx = OutputVars.Num() * j + VarIdx;
-			if (MasterInputPins.IsValidIndex(TargetIdx))
+			if (MainInputPins.IsValidIndex(TargetIdx))
 			{
-				UEdGraphPin* InputPin = MasterInputPins[TargetIdx];
+				UEdGraphPin* InputPin = MainInputPins[TargetIdx];
 				InputPins.Add(InputPin);
 			}
 			else
 			{
-				UE_LOG(LogNiagaraEditor, Warning, TEXT("Invalid index on UNiagaraNodeStaticSwitch::ResolveNumerics %s, OptionIdx: %d VarIdx: %d MaxIndex: %d"), *GetPathName(), j, VarIdx, MasterInputPins.Num())
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Invalid index on UNiagaraNodeStaticSwitch::ResolveNumerics %s, OptionIdx: %d VarIdx: %d MaxIndex: %d"), *GetPathName(), j, VarIdx, MainInputPins.Num())
 			}
 		}
 
@@ -803,13 +803,13 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 	return LocallyOwnedOutputPin;
 }
 
-UEdGraphPin* UNiagaraNodeStaticSwitch::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin,	ENiagaraScriptUsage MasterUsage) const
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin,	ENiagaraScriptUsage InUsage) const
 {
 	if (IsValueSet)
 	{
 		return GetTracedOutputPin(const_cast<UEdGraphPin*>(LocallyOwnedOutputPin), true);
 	}
-	return Super::GetPassThroughPin(LocallyOwnedOutputPin, MasterUsage);
+	return Super::GetPassThroughPin(LocallyOwnedOutputPin, InUsage);
 }
 
 void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const

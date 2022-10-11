@@ -331,12 +331,12 @@ void UNiagaraNodeUsageSelector::Compile(class FHlslNiagaraTranslator* Translator
 	}
 }
 
-UEdGraphPin* UNiagaraNodeUsageSelector::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage MasterUsage) const 
+UEdGraphPin* UNiagaraNodeUsageSelector::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage InUsage) const
 {
 	check(Pins.Contains(LocallyOwnedOutputPin) && LocallyOwnedOutputPin->Direction == EGPD_Output);
 
 	ENiagaraScriptGroup UsageGroup = ENiagaraScriptGroup::Max;
-	if (UNiagaraScript::ConvertUsageToGroup(MasterUsage, UsageGroup))
+	if (UNiagaraScript::ConvertUsageToGroup(InUsage, UsageGroup))
 	{
 		int32 VarIdx = 0;
 		for (int64 i = 0; i < (int64)ENiagaraScriptGroup::Max; i++)

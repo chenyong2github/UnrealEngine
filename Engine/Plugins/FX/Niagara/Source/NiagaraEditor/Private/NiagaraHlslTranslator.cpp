@@ -7236,7 +7236,7 @@ void FHlslNiagaraTranslator::CullMapSetInputPin(UEdGraphPin* InputPin)
 	}
 }
 
-// From a valid list of namespaces, resolve any aliased tokens and promote namespaced variables without a master namespace to the input parameter map instance namespace
+// From a valid list of namespaces, resolve any aliased tokens and promote namespaced variables without a main namespace to the input parameter map instance namespace
 void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& ParameterMapInstanceNamespace, TArray<FString>& Tokens, TArray<FString>& ValidChildNamespaces, FNiagaraParameterMapHistoryBuilder& Builder, TArray<FNiagaraVariable>& UniqueParameterMapEntriesAliasesIntact, TArray<FNiagaraVariable>& UniqueParameterMapEntries, int32 ParamMapHistoryIdx)
 {
 	for (int32 i = 0; i < Tokens.Num(); i++)
@@ -7248,7 +7248,7 @@ void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& Paramet
 				FNiagaraVariable Var;
 
 				// There are two possible paths here, one where we're using the namespace as-is from the valid list and one where we've already
-				// prepended with the master parameter map instance namespace but may not have resolved any internal aliases yet.
+				// prepended with the main parameter map instance namespace but may not have resolved any internal aliases yet.
 				if (Tokens[i].StartsWith(ValidNamespace, ESearchCase::CaseSensitive))
 				{
 					FNiagaraVariable TempVar(FNiagaraTypeDefinition::GetFloatDef(), *Tokens[i]); // Declare a dummy name here that we will convert aliases for and use later

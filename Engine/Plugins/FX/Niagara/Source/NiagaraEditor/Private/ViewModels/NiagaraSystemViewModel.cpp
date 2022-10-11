@@ -1741,12 +1741,12 @@ void FNiagaraSystemViewModel::ResetEmitterHandleViewModelsAndTracks()
 	if (NiagaraSequence)
 	{
 		TGuardValue<bool> UpdateGuard(bResetingSequencerTracks, true);
-		TArray<UMovieSceneTrack*> MasterTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
-		for (UMovieSceneTrack* MasterTrack : MasterTracks)
+		TArray<UMovieSceneTrack*> MainTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
+		for (UMovieSceneTrack* MainTrack : MainTracks)
 		{
-			if (MasterTrack != nullptr)
+			if (MainTrack != nullptr)
 			{
-				NiagaraSequence->GetMovieScene()->RemoveMasterTrack(*MasterTrack);
+				NiagaraSequence->GetMovieScene()->RemoveMasterTrack(*MainTrack);
 			}
 		}
 	}
@@ -1856,12 +1856,12 @@ void FNiagaraSystemViewModel::RefreshSequencerTracks()
 
 	if (Sequencer.IsValid())
 	{
-		TArray<UMovieSceneTrack*> MasterTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
-		for (UMovieSceneTrack* MasterTrack : MasterTracks)
+		TArray<UMovieSceneTrack*> MainTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
+		for (UMovieSceneTrack* MainTrack : MainTracks)
 		{
-			if (MasterTrack != nullptr)
+			if (MainTrack != nullptr)
 			{
-				NiagaraSequence->GetMovieScene()->RemoveMasterTrack(*MasterTrack);
+				NiagaraSequence->GetMovieScene()->RemoveMasterTrack(*MainTrack);
 			}
 		}
 
@@ -2605,9 +2605,9 @@ void FNiagaraSystemViewModel::UpdateSequencerFromEmitterHandleSelection()
 	Sequencer->EmptySelection();
 	for (FGuid SelectedEmitterHandleId : SelectionViewModel->GetSelectedEmitterHandleIds())
 	{
-		for (UMovieSceneTrack* MasterTrack : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		for (UMovieSceneTrack* MainTrack : NiagaraSequence->GetMovieScene()->GetMasterTracks())
 		{
-			UMovieSceneNiagaraEmitterTrack* EmitterTrack = Cast<UMovieSceneNiagaraEmitterTrack>(MasterTrack);
+			UMovieSceneNiagaraEmitterTrack* EmitterTrack = Cast<UMovieSceneNiagaraEmitterTrack>(MainTrack);
 			if (EmitterTrack != nullptr && EmitterTrack->GetEmitterHandleViewModel()->GetId() == SelectedEmitterHandleId)
 			{
 				Sequencer->SelectTrack(EmitterTrack);
