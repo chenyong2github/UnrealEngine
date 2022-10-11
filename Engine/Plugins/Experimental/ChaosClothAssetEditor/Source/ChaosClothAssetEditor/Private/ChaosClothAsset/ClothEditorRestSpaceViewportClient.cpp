@@ -90,7 +90,14 @@ void FChaosClothEditorRestSpaceViewportClient::AddReferencedObjects(FReferenceCo
 
 bool FChaosClothEditorRestSpaceViewportClient::ShouldOrbitCamera() const
 {
-	return !b2DMode;
+	if (b2DMode)
+	{
+		return false;
+	}
+	else
+	{
+		return FEditorViewportClient::ShouldOrbitCamera();
+	}
 }
 
 bool FChaosClothEditorRestSpaceViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
