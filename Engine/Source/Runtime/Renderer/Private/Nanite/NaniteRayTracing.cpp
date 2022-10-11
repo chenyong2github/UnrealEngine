@@ -689,6 +689,11 @@ namespace Nanite
 
 	bool FRayTracingManager::ProcessBuildRequests(FRDGBuilder& GraphBuilder)
 	{
+		if (!bInitialized)
+		{
+			return false;
+		}
+
 		// resize AuxiliaryDataBuffer if necessary
 		FRDGBufferRef AuxiliaryDataBufferRDG;
 		{
