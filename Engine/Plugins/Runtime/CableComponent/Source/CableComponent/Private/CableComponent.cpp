@@ -310,6 +310,10 @@ public:
 		FPrimitiveViewRelevance Result;
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
+		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+		Result.bRenderInMainPass = ShouldRenderInMainPass();
+		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+		Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
 		Result.bDynamicRelevance = true;
 
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
