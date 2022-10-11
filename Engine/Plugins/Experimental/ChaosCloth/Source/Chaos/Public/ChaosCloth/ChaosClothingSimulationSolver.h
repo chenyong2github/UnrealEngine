@@ -27,6 +27,10 @@ namespace Chaos
 		FClothingSimulationSolver();
 		~FClothingSimulationSolver();
 		
+		FClothingSimulationSolver(const FClothingSimulationSolver&) = delete;
+		FClothingSimulationSolver(FClothingSimulationSolver&&) = delete;
+		FClothingSimulationSolver& operator=(const FClothingSimulationSolver&) = delete;
+		FClothingSimulationSolver& operator=(FClothingSimulationSolver&&) = delete;
 
 		// ---- Animatable property setters ----
 		void SetLocalSpaceLocation(const FVec3& InLocalSpaceLocation, bool bReset = false);

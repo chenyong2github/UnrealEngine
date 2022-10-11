@@ -3,11 +3,14 @@
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
-#include "Chaos/PBDSoftsSolverParticles.h" // Needed for PAndInvM in WrapDeformLOD
 #include "ClothingSimulation.h"
-#include "ClothingAsset.h"
-#include "Containers/ArrayView.h"
+#if !defined(CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT) || !CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 #include "Components/SkeletalMeshComponent.h"
+#include "ClothingAsset.h"
+#else
+#include "Components/SkinnedMeshComponent.h"
+#endif
+#include "Containers/ArrayView.h"
 #include "Async/ParallelFor.h"
 #if INTEL_ISPC
 #include "ChaosClothingSimulationMesh.ispc.generated.h"
@@ -31,14 +34,27 @@ DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Cloth LOD"), STAT_ChaosClothWra
 namespace Chaos
 {
 
-FClothingSimulationMesh::FClothingSimulationMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent)
-	: Asset(InAsset)
-	, SkeletalMeshComponent(InSkeletalMeshComponent)
+#if !defined(CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT) || !CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
+
+FClothingSimulationMesh::FClothingSimulationMesh(const USkinnedMeshComponent* InSkinnedMeshComponent)
+	: Asset(nullptr)
+	, SkinnedMeshComponent(InSkinnedMeshComponent)
 {
 }
 
-FClothingSimulationMesh::~FClothingSimulationMesh()
+FClothingSimulationMesh::FClothingSimulationMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent)
+	: Asset(InAsset)
+	, SkinnedMeshComponent(InSkeletalMeshComponent)
 {
+}
+
+FClothingSimulationMesh::~FClothingSimulationMesh() = default;
+
+const USkeletalMeshComponent* FClothingSimulationMesh::GetSkeletalMeshComponent() const
+{
+	return Cast<USkeletalMeshComponent>(SkinnedMeshComponent);
 }
 
 int32 FClothingSimulationMesh::GetNumLODs() const
@@ -50,9 +66,9 @@ int32 FClothingSimulationMesh::GetLODIndex() const
 {
 	int32 LODIndex = INDEX_NONE;
 
-	if (Asset && SkeletalMeshComponent)
+	if (Asset && SkinnedMeshComponent)
 	{
-		const int32 MeshLODIndex = SkeletalMeshComponent->GetPredictedLODLevel();
+		const int32 MeshLODIndex = SkinnedMeshComponent->GetPredictedLODLevel();
 		if (Asset->LodMap.IsValidIndex(MeshLODIndex))
 		{
 			const int32 ClothLODIndex = Asset->LodMap[MeshLODIndex];
@@ -65,16 +81,47 @@ int32 FClothingSimulationMesh::GetLODIndex() const
 	return LODIndex;
 }
 
+bool FClothingSimulationMesh::IsValidLODIndex(int32 LODIndex) const
+{
+	return Asset && Asset->LodData.IsValidIndex(LODIndex);
+}
+
+int32 FClothingSimulationMesh::GetOwnerLODIndex(int32 LODIndex) const
+{
+	const int32 OwnerLODIndex = Asset ? Asset->LodMap.Find(LODIndex) : INDEX_NONE;
+	return OwnerLODIndex != INDEX_NONE ? OwnerLODIndex : 0;  // Safer to return the default LOD 0 than INDEX_NONE in this case
+}
+
 int32 FClothingSimulationMesh::GetNumPoints(int32 LODIndex) const
 {
-	return (Asset && Asset->LodData.IsValidIndex(LODIndex)) ?
-		Asset->LodData[LODIndex].PhysicalMeshData.Vertices.Num() :
-		0;
+	return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].PhysicalMeshData.Vertices.Num() : 0;
+}
+
+TConstArrayView<FVector3f> FClothingSimulationMesh::GetPositions(int32 LODIndex) const
+{
+	if (IsValidLODIndex(LODIndex))
+	{
+		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
+		const FClothPhysicalMeshData& ClothPhysicalMeshData = ClothLODData.PhysicalMeshData;
+		return TConstArrayView<FVector3f>(ClothPhysicalMeshData.Vertices);
+	}
+	return TConstArrayView<FVector3f>();
+}
+
+TConstArrayView<FVector3f> FClothingSimulationMesh::GetNormals(int32 LODIndex) const
+{
+	if (IsValidLODIndex(LODIndex))
+	{
+		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
+		const FClothPhysicalMeshData& ClothPhysicalMeshData = ClothLODData.PhysicalMeshData;
+		return TConstArrayView<FVector3f>(ClothPhysicalMeshData.Normals);
+	}
+	return TConstArrayView<FVector3f>();
 }
 
 TConstArrayView<uint32> FClothingSimulationMesh::GetIndices(int32 LODIndex) const
 {
-	return (Asset && Asset->LodData.IsValidIndex(LODIndex)) ?
+	return IsValidLODIndex(LODIndex) ?
 		TConstArrayView<uint32>(Asset->LodData[LODIndex].PhysicalMeshData.Indices) :
 		TConstArrayView<uint32>();
 }
@@ -82,7 +129,7 @@ TConstArrayView<uint32> FClothingSimulationMesh::GetIndices(int32 LODIndex) cons
 TArray<TConstArrayView<FRealSingle>> FClothingSimulationMesh::GetWeightMaps(int32 LODIndex) const
 {
 	TArray<TConstArrayView<FRealSingle>> WeightMaps;
-	if (Asset && Asset->LodData.IsValidIndex(LODIndex))
+	if (IsValidLODIndex(LODIndex))
 	{
 		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
 		const FClothPhysicalMeshData& ClothPhysicalMeshData = ClothLODData.PhysicalMeshData;
@@ -107,7 +154,7 @@ TArray<TConstArrayView<FRealSingle>> FClothingSimulationMesh::GetWeightMaps(int3
 TArray<TConstArrayView<TTuple<int32, int32, float>>> FClothingSimulationMesh::GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const
 {
 	TArray<TConstArrayView<TTuple<int32, int32, float>>> Tethers;
-	if (Asset && Asset->LodData.IsValidIndex(LODIndex))
+	if (IsValidLODIndex(LODIndex))
 	{
 		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
 		const FClothPhysicalMeshData& ClothPhysicalMeshData = ClothLODData.PhysicalMeshData;
@@ -130,33 +177,80 @@ int32 FClothingSimulationMesh::GetReferenceBoneIndex() const
 
 FRigidTransform3 FClothingSimulationMesh::GetReferenceBoneTransform() const
 {
-	if (SkeletalMeshComponent)
+	if (const FClothingSimulationContextCommon* const Context = GetContext())
 	{
-		if (const FClothingSimulationContextCommon* const Context =
-			static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()))
-		{
-			const int32 ReferenceBoneIndex = GetReferenceBoneIndex();
-			const TArray<FTransform>& BoneTransforms = Context->BoneTransforms;
+		const int32 ReferenceBoneIndex = GetReferenceBoneIndex();
+		const TArray<FTransform>& BoneTransforms = Context->BoneTransforms;
 
-			return BoneTransforms.IsValidIndex(ReferenceBoneIndex) ?
-				BoneTransforms[ReferenceBoneIndex] * Context->ComponentToWorld :
-				Context->ComponentToWorld;
-		}
+		return BoneTransforms.IsValidIndex(ReferenceBoneIndex) ?
+			BoneTransforms[ReferenceBoneIndex] * Context->ComponentToWorld :
+			Context->ComponentToWorld;
 	}
 	return FRigidTransform3::Identity;
 }
 
+const FTransform& FClothingSimulationMesh::GetComponentToWorldTransform() const
+{
+	return GetContext() ? GetContext()->ComponentToWorld : FTransform::Identity;
+}
+
+const TArray<FMatrix44f>& FClothingSimulationMesh::GetRefToLocalMatrices() const
+{
+	static TArray<FMatrix44f> EmptyArray;
+	return GetContext() ? GetContext()->RefToLocals : EmptyArray;
+}
+
+TConstArrayView<int32> FClothingSimulationMesh::GetBoneMap() const
+{
+	return Asset ? Asset->UsedBoneIndices : TConstArrayView<int32>();
+}
+
+TConstArrayView<FClothVertBoneData> FClothingSimulationMesh::GetBoneData(int32 LODIndex) const
+{
+	if (IsValidLODIndex(LODIndex))
+	{
+		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
+		const FClothPhysicalMeshData& ClothPhysicalMeshData = ClothLODData.PhysicalMeshData;
+		UE_CLOG(ClothPhysicalMeshData.MaxBoneWeights > 12, LogChaosCloth, Warning, TEXT("The cloth physics mesh skinning code can't cope with more than 12 bone influences."));
+		return ClothPhysicalMeshData.BoneData;
+	}
+	static TArray<FClothVertBoneData> EmptyArray;
+	return EmptyArray;
+}
+
+const TArray<FMeshToMeshVertData>& FClothingSimulationMesh::GetTransitionUpSkinData(int32 LODIndex) const
+{
+	static TArray<FMeshToMeshVertData> EmptyArray;
+	return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].TransitionUpSkinData : EmptyArray;
+}
+
+const TArray<FMeshToMeshVertData>& FClothingSimulationMesh::GetTransitionDownSkinData(int32 LODIndex) const
+{
+	static TArray<FMeshToMeshVertData> EmptyArray;
+	return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].TransitionDownSkinData : EmptyArray;
+}
+
+const FClothingSimulationContextCommon* FClothingSimulationMesh::GetContext() const
+{
+	return GetSkeletalMeshComponent() ?
+		static_cast<const FClothingSimulationContextCommon*>(GetSkeletalMeshComponent()->GetClothingSimulationContext()) :
+		nullptr;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#else
+FClothingSimulationMesh::FClothingSimulationMesh(const USkinnedMeshComponent* InSkinnedMeshComponent)
+	: SkinnedMeshComponent(InSkinnedMeshComponent)
+{
+}
+
+FClothingSimulationMesh::~FClothingSimulationMesh() = default;
+#endif
+
 Softs::FSolverReal FClothingSimulationMesh::GetScale() const
 {
-	if (SkeletalMeshComponent)
-	{
-		if (const FClothingSimulationContextCommon* const Context =
-			static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()))
-		{
-			return (Softs::FSolverReal)Context->ComponentToWorld.GetScale3D().GetMax();
-		}
-	}
-	return (Softs::FSolverReal)1.;
+	return GetComponentToWorldTransform().GetScale3D().GetMax();
 }
 
 bool FClothingSimulationMesh::WrapDeformLOD(
@@ -170,16 +264,15 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformMesh);
 
 	const int32 NumLODsPassed = FMath::Abs(LODIndex - PrevLODIndex);
-	if (NumLODsPassed != 1 || !Asset || !Asset->LodData.IsValidIndex(PrevLODIndex) || !Asset->LodData.IsValidIndex(LODIndex))
+	if (NumLODsPassed != 1 || !IsValidLODIndex(PrevLODIndex) || !IsValidLODIndex(LODIndex))
 	{
 		return false;
 	}
 
-	const FClothLODDataCommon& LODData = Asset->LodData[LODIndex];
-	const int32 NumPoints = LODData.PhysicalMeshData.Vertices.Num();
+	const int32 NumPoints = GetNumPoints(LODIndex);
 	const TArray<FMeshToMeshVertData>& SkinData = (PrevLODIndex < LODIndex) ?
-		LODData.TransitionUpSkinData :
-		LODData.TransitionDownSkinData;
+		GetTransitionUpSkinData(LODIndex) :
+		GetTransitionDownSkinData(LODIndex);
 
 	for (int32 Index = 0; Index < NumPoints; ++Index)  // TODO: Profile for parallel for
 	{
@@ -212,16 +305,15 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformClothLOD);
 
 	const int32 NumLODsPassed = FMath::Abs(LODIndex - PrevLODIndex);
-	if (NumLODsPassed != 1 || !Asset || !Asset->LodData.IsValidIndex(PrevLODIndex) || !Asset->LodData.IsValidIndex(LODIndex))
+	if (NumLODsPassed != 1 || !IsValidLODIndex(PrevLODIndex) || !IsValidLODIndex(LODIndex))
 	{
 		return false;
 	}
 
-	const FClothLODDataCommon& LODData = Asset->LodData[LODIndex];
-	const int32 NumPoints = LODData.PhysicalMeshData.Vertices.Num();
+	const int32 NumPoints = GetNumPoints(LODIndex);
 	const TArray<FMeshToMeshVertData>& SkinData = (PrevLODIndex < LODIndex) ?
-		LODData.TransitionUpSkinData :
-		LODData.TransitionDownSkinData;
+		GetTransitionUpSkinData(LODIndex) :
+		GetTransitionDownSkinData(LODIndex);
 
 	for (int32 Index = 0; Index < NumPoints; ++Index)  // TODO: Profile for parallel for
 	{
@@ -258,32 +350,30 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSkinPhysicsMesh);
 	SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
 
-	check(Asset && Asset->LodData.IsValidIndex(LODIndex));
-	const FClothPhysicalMeshData& PhysicalMeshData = Asset->LodData[LODIndex].PhysicalMeshData;
-	UE_CLOG(PhysicalMeshData.MaxBoneWeights > 12, LogChaosCloth, Warning, TEXT("The cloth physics mesh skinning code can't cope with more than 12 bone influences."));
-
-	const uint32 NumPoints = PhysicalMeshData.Vertices.Num();
-
-	check(SkeletalMeshComponent && SkeletalMeshComponent->GetClothingSimulationContext());
-	const FClothingSimulationContextCommon* const Context = static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext());
-	FTransform ComponentToLocalSpaceReal = Context->ComponentToWorld;
+	FTransform ComponentToLocalSpaceReal = GetComponentToWorldTransform();
 	ComponentToLocalSpaceReal.AddToTranslation(-LocalSpaceLocation);
 	const FTransform3f ComponentToLocalSpace(ComponentToLocalSpaceReal);  // LWC: Now in local space, therefore it is safe to use single precision which is the asset data format
 
-	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();
-	const FMatrix44f* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
-		
+	const int32* const RESTRICT BoneMap = GetBoneMap().GetData();
+	const FMatrix44f* const RESTRICT RefToLocalMatrices = GetRefToLocalMatrices().GetData();
+
+	check(IsValidLODIndex(LODIndex));
+	const uint32 NumPoints = GetNumPoints(LODIndex);
+	const TConstArrayView<FClothVertBoneData> BoneData = GetBoneData(LODIndex);
+	const TConstArrayView<FVector3f> Positions = GetPositions(LODIndex);
+	const TConstArrayView<FVector3f> Normals = GetNormals(LODIndex);
+
 #if INTEL_ISPC
 	if (bChaos_SkinPhysicsMesh_ISPC_Enabled)
 	{
 		ispc::SkinPhysicsMesh(
 			(ispc::FVector3f*)OutPositions,
 			(ispc::FVector3f*)OutNormals,
-			(ispc::FVector3f*)PhysicalMeshData.Vertices.GetData(),
-			(ispc::FVector3f*)PhysicalMeshData.Normals.GetData(),
-			(ispc::FClothVertBoneData*)PhysicalMeshData.BoneData.GetData(),
+			(ispc::FVector3f*)Positions.GetData(),
+			(ispc::FVector3f*)Normals.GetData(),
+			(ispc::FClothVertBoneData*)BoneData.GetData(),
 			BoneMap,
-			(ispc::FMatrix44f*)BoneMatrices,
+			(ispc::FMatrix44f*)RefToLocalMatrices,
 			(ispc::FTransform3f&)ComponentToLocalSpace,
 			NumPoints);
 	}
@@ -292,36 +382,36 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	{
 		static const uint32 MinParallelVertices = 500;  // 500 seems to be the lowest threshold still giving gains even on profiled assets that are only using a small number of influences
 
-		ParallelFor(NumPoints, [&PhysicalMeshData, &ComponentToLocalSpace, BoneMap, BoneMatrices, &OutPositions, &OutNormals](uint32 VertIndex)
+		ParallelFor(NumPoints, [&BoneData, &Positions, &Normals, &ComponentToLocalSpace, BoneMap, RefToLocalMatrices, &OutPositions, &OutNormals](uint32 VertIndex)
 		{
-			const uint16* const RESTRICT BoneIndices = PhysicalMeshData.BoneData[VertIndex].BoneIndices;
-			const float* const RESTRICT BoneWeights = PhysicalMeshData.BoneData[VertIndex].BoneWeights;
+			const uint16* const RESTRICT BoneIndices = BoneData[VertIndex].BoneIndices;
+			const float* const RESTRICT BoneWeights = BoneData[VertIndex].BoneWeights;
 	
 			// WARNING - HORRIBLE UNROLLED LOOP + JUMP TABLE BELOW
 			// done this way because this is a pretty tight and performance critical loop. essentially
 			// rather than checking each influence we can just jump into this switch and fall through
 			// everything to compose the final skinned data
-			const FVector3f& RefParticle = PhysicalMeshData.Vertices[VertIndex];
-			const FVector3f& RefNormal = PhysicalMeshData.Normals[VertIndex];
+			const FVector3f& RefParticle = Positions[VertIndex];
+			const FVector3f& RefNormal = Normals[VertIndex];
 
 			FVector3f Position(ForceInitToZero);
 			FVector3f Normal(ForceInitToZero);
-
-			switch (PhysicalMeshData.BoneData[VertIndex].NumInfluences)
+			switch (BoneData[VertIndex].NumInfluences)
 			{
-			case 12: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[11]]], BoneWeights[11]);  // Intentional fall through
-			case 11: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[10]]], BoneWeights[10]);  // Intentional fall through
-			case 10: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 9]]], BoneWeights[ 9]);  // Intentional fall through
-			case  9: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 8]]], BoneWeights[ 8]);  // Intentional fall through
-			case  8: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 7]]], BoneWeights[ 7]);  // Intentional fall through
-			case  7: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 6]]], BoneWeights[ 6]);  // Intentional fall through
-			case  6: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 5]]], BoneWeights[ 5]);  // Intentional fall through
-			case  5: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 4]]], BoneWeights[ 4]);  // Intentional fall through
-			case  4: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 3]]], BoneWeights[ 3]);  // Intentional fall through
-			case  3: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 2]]], BoneWeights[ 2]);  // Intentional fall through
-			case  2: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 1]]], BoneWeights[ 1]);  // Intentional fall through
-			case  1: AddInfluence(Position, Normal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 0]]], BoneWeights[ 0]);  // Intentional fall through
-			default: break;
+			default:  // Intentional fall through
+			case 12: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[11]]], BoneWeights[11]);  // Intentional fall through
+			case 11: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[10]]], BoneWeights[10]);  // Intentional fall through
+			case 10: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 9]]], BoneWeights[ 9]);  // Intentional fall through
+			case  9: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 8]]], BoneWeights[ 8]);  // Intentional fall through
+			case  8: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 7]]], BoneWeights[ 7]);  // Intentional fall through
+			case  7: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 6]]], BoneWeights[ 6]);  // Intentional fall through
+			case  6: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 5]]], BoneWeights[ 5]);  // Intentional fall through
+			case  5: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 4]]], BoneWeights[ 4]);  // Intentional fall through
+			case  4: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 3]]], BoneWeights[ 3]);  // Intentional fall through
+			case  3: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 2]]], BoneWeights[ 2]);  // Intentional fall through
+			case  2: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 1]]], BoneWeights[ 1]);  // Intentional fall through
+			case  1: AddInfluence(Position, Normal, RefParticle, RefNormal, RefToLocalMatrices[BoneMap[BoneIndices[ 0]]], BoneWeights[ 0]);  // Intentional fall through
+			case  0: break;
 			}
 
 			OutPositions[VertIndex] = FSolverVec3(ComponentToLocalSpace.TransformPosition(Position));
@@ -341,7 +431,7 @@ void FClothingSimulationMesh::Update(
 	check(Solver);
 
 	// Exit if any inputs are missing or not ready, and if the LOD is invalid
-	if (!Asset || !Asset->LodData.IsValidIndex(LODIndex) || !SkeletalMeshComponent || !SkeletalMeshComponent->GetClothingSimulationContext())
+	if (!IsValidLODIndex(LODIndex) || !SkinnedMeshComponent)
 	{
 		return;
 	}
@@ -366,8 +456,7 @@ void FClothingSimulationMesh::Update(
 		if (!bValidWrap)
 		{
 			// The previous LOD is invalid, reset old positions with the new LOD
-			const FClothPhysicalMeshData& PhysicalMeshData = Asset->LodData[LODIndex].PhysicalMeshData;
-			const int32 NumPoints = PhysicalMeshData.Vertices.Num();
+			const int32 NumPoints = GetNumPoints(LODIndex);
 
 			for (int32 Index = 0; Index < NumPoints; ++Index)
 			{

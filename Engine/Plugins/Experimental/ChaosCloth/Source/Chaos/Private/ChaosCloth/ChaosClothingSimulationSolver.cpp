@@ -87,6 +87,7 @@ namespace ClothingSimulationSolverConstant
 FClothingSimulationSolver::FClothingSimulationSolver()
 	: OldLocalSpaceLocation(0.)
 	, LocalSpaceLocation(0.)
+	, LocalSpaceRotation(FRotation3::Identity)
 	, VelocityScale(1.)
 	, Time(0.)
 	, DeltaTime(ClothingSimulationSolverConstant::StartDeltaTime)

@@ -18,7 +18,7 @@ namespace Chaos
 	class FLevelSet;
 
 	// Collider simulation node
-	class FClothingSimulationCollider final
+	class CHAOSCLOTH_API FClothingSimulationCollider final
 	{
 	public:
 		enum class ECollisionDataType : int32
@@ -35,7 +35,12 @@ namespace Chaos
 			int32 InLODIndexOverride);
 		~FClothingSimulationCollider();
 
-		int32 GetNumGeometries() const { int32 NumGeometries = 0; for (const FLODData& LODDatum : LODData) { NumGeometries += LODDatum.NumGeometries; } return NumGeometries; }
+		FClothingSimulationCollider(const FClothingSimulationCollider&) = delete;
+		FClothingSimulationCollider(FClothingSimulationCollider&&) = delete;
+		FClothingSimulationCollider& operator=(const FClothingSimulationCollider&) = delete;
+		FClothingSimulationCollider& operator=(FClothingSimulationCollider&&) = delete;
+
+		int32 GetNumGeometries() const;
 
 		// Return source (untransformed) collision data for LODless, external and active LODs.
 		FClothCollisionData GetCollisionData(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth) const;
@@ -72,7 +77,6 @@ namespace Chaos
 		// ---- End of the debugging and visualization functions ----
 
 	private:
-
 		struct FLevelSetCollisionData
 		{
 			const TSharedPtr<Chaos::FLevelSet, ESPMode::ThreadSafe> LevelSet;
@@ -93,34 +97,7 @@ namespace Chaos
 	private:
 		typedef TPair<const FClothingSimulationSolver*, const FClothingSimulationCloth*> FSolverClothPair;
 
-		struct FLODData
-		{
-			FClothCollisionData ClothCollisionData;
-			int32 NumGeometries;  // Number of collision bodies
-			TMap<FSolverClothPair, int32> Offsets;  // Solver particle offset
-
-			FLODData() : NumGeometries(0) {}
-
-			void Add(
-				FClothingSimulationSolver* Solver,
-				FClothingSimulationCloth* Cloth,
-				const FClothCollisionData& InClothCollisionData,
-				const TArray<FLevelSetCollisionData>& InLevelSetCollisionData,
-				const FReal InScale = 1.f,
-				const TArray<int32>& UsedBoneIndices = TArray<int32>());
-			void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
-
-			void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, const FClothingSimulationContextCommon* Context);
-
-			void Enable(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, bool bEnable);
-
-			void ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
-
-			FORCEINLINE static int32 GetMappedBoneIndex(const TArray<int32>& UsedBoneIndices, int32 BoneIndex)
-			{
-				return UsedBoneIndices.IsValidIndex(BoneIndex) ? UsedBoneIndices[BoneIndex] : INDEX_NONE;
-			}
-		};
+		struct FLODData;
 
 		const UClothingAssetCommon* Asset;
 		const USkeletalMeshComponent* SkeletalMeshComponent;
@@ -130,7 +107,7 @@ namespace Chaos
 		bool bHasExternalCollisionChanged;
 
 		// Collision primitives
-		TArray<FLODData> LODData;  // Actual LODs start at LODStart
+		TArray<TUniquePtr<FLODData>> LODData;  // Actual LODs start at ECollisionDataType::LODs
 		TMap<FSolverClothPair, int32> LODIndices;
 
 		// Initial scale

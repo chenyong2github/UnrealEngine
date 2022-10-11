@@ -143,7 +143,9 @@ namespace Chaos
 	private:
 		// Simulation objects
 		TUniquePtr<FClothingSimulationSolver> Solver;  // Default solver
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		TArray<TUniquePtr<FClothingSimulationMesh>> Meshes;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<TUniquePtr<FClothingSimulationCloth>> Cloths;
 		TArray<TUniquePtr<FClothingSimulationCollider>> Colliders;
 

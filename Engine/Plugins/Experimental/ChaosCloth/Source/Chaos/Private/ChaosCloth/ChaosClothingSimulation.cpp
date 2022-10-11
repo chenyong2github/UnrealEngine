@@ -8,7 +8,7 @@
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
-#include "ChaosCloth/ChaosClothingSimulationMesh.h"
+#include "ChaosCloth/ChaosClothingSimulationSkeletalMesh.h"
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
 
@@ -81,7 +81,6 @@ static_assert(sizeof(ispc::FTransform) == sizeof(Chaos::FRigidTransform3), "size
 bool bChaos_GetSimData_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosGetSimDataISPCEnabled(TEXT("p.Chaos.GetSimData.ISPC"), bChaos_GetSimData_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when getting simulation data"));
 #endif
-
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Create Actor"), STAT_ChaosClothCreateActor, STATGROUP_ChaosCloth);
@@ -385,7 +384,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	}
 
 	// Create mesh node
-	const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothingSimulationMesh>(
+	const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothingSimulationSkeletalMesh>(
 		Asset,
 		InOwnerComponent));
 
@@ -401,7 +400,9 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 
 	// Create cloth node
 	const int32 ClothIndex = Cloths.Emplace(MakeUnique<FClothingSimulationCloth>(
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		Meshes[MeshIndex].Get(),
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<FClothingSimulationCollider*>({ Colliders[ColliderIndex].Get() }),
 		InSimDataIndex,
 		(FClothingSimulationCloth::EMassMode)ClothConfig->MassMode,
@@ -682,7 +683,9 @@ void FClothingSimulation::GetSimulationData(
 		}
 
 		// If the LOD has changed while the simulation is suspended, the cloth still needs to be updated with the correct LOD data
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		const int32 LODIndex = Cloth->GetMesh()->GetLODIndex();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (LODIndex != Cloth->GetLODIndex(Solver.Get()))
 		{
 			Solver->Update(FSolverReal(0.));  // Update for LOD switching, but do not simulate
@@ -751,14 +754,9 @@ void FClothingSimulation::GetSimulationData(
 		}
 
 		// Set the current LOD these data apply to, so that the correct deformer mappings can be applied
-		if (const UClothingAssetCommon* const ClothingAsset = Cloth->GetMesh()->GetAsset())
-		{
-			Data.LODIndex = ClothingAsset->LodMap.Find(LODIndex);  // Store the mesh LOD index, which is different to the cloth asset's LOD index
-		}
-		else
-		{
-			Data.LODIndex = 0;
-		}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
+		Data.LODIndex = Cloth->GetMesh()->GetOwnerLODIndex(LODIndex);  // The owner component LOD index can be different to the cloth mesh LOD index
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -841,7 +839,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 	// Recreate all cloths
 	for (TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 	{
-		FClothingSimulationMesh* const Mesh = Cloth->GetMesh();
+		FClothingSimulationSkeletalMesh* const Mesh = static_cast<FClothingSimulationSkeletalMesh*>(Cloth->GetMesh());
 		TArray<FClothingSimulationCollider*> ClothColliders = Cloth->GetColliders();
 		const uint32 GroupId = Cloth->GetGroupId();
 		const UChaosClothConfig* const ClothConfig = Mesh->GetAsset()->GetClothConfig<UChaosClothConfig>();

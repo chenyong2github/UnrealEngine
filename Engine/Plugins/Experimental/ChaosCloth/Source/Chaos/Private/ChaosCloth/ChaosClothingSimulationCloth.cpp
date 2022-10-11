@@ -17,6 +17,44 @@ namespace ClothingSimulationClothConsoleVariables
 	TAutoConsoleVariable<bool> CVarLegacyDisablesAccurateWind(TEXT("p.ChaosCloth.LegacyDisablesAccurateWind"), true, TEXT("Whether using the Legacy wind model switches off the accurate wind model, or adds up to it"));
 }
 
+struct FClothingSimulationCloth::FLODData
+{
+	// Input mesh
+	const int32 NumParticles;
+	const TConstArrayView<uint32> Indices;
+	const TArray<TConstArrayView<FRealSingle>> WeightMaps;
+	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>> Tethers;
+
+	// Per Solver data
+	struct FSolverData
+	{
+		int32 Offset;
+		FTriangleMesh TriangleMesh;  // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
+	};
+	TMap<FClothingSimulationSolver*, FSolverData> SolverData;
+
+	// Stats
+	int32 NumKinenamicParticles;
+	int32 NumDynammicParticles;
+
+	FLODData(
+		int32 InNumParticles,
+		const TConstArrayView<uint32>& InIndices,
+		const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
+		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers);
+
+	void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, int32 LODIndex);
+	void Remove(FClothingSimulationSolver* Solver);
+
+	void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+
+	void Enable(FClothingSimulationSolver* Solver, bool bEnable) const;
+
+	void ResetStartPose(FClothingSimulationSolver* Solver) const;
+
+	void UpdateNormals(FClothingSimulationSolver* Solver) const;
+};
+
 FClothingSimulationCloth::FLODData::FLODData(
 	int32 InNumParticles,
 	const TConstArrayView<uint32>& InIndices,
@@ -50,7 +88,9 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	Offset = Solver->AddParticles(NumParticles, Cloth->GroupId);  // TODO: Have a per solver map of offset
 
 	// Update source mesh for this LOD, this is required prior to reset the start pose
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	Cloth->Mesh->Update(Solver, INDEX_NONE, InLODIndex, 0, Offset);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Reset the particles start pose before setting up mass and constraints
 	ResetStartPose(Solver);
@@ -206,7 +246,9 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		const TConstArrayView<FRealSingle>& TetherScaleMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherScale];
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		const Softs::FSolverReal MeshScale = Cloth->Mesh->GetScale();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		ClothConstraints.SetLongRangeConstraints(
 			Tethers,
@@ -276,7 +318,9 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	const int32 Offset = SolverData.FindChecked(Solver).Offset;
 	check(Offset != INDEX_NONE);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	const Softs::FSolverReal MeshScale = Cloth->Mesh->GetScale();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
@@ -334,7 +378,9 @@ void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver
 }
 
 FClothingSimulationCloth::FClothingSimulationCloth(
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	FClothingSimulationMesh* InMesh,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<FClothingSimulationCollider*>&& InColliders,
 	uint32 InGroupId,
 	EMassMode InMassMode,
@@ -442,6 +488,7 @@ FClothingSimulationCloth::~FClothingSimulationCloth()
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 {
 	Mesh = InMesh;
@@ -452,11 +499,11 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 	const bool bUseGeodesicTethers = (TetherMode == ETetherMode::Geodesic);
 	for (int32 Index = 0; Index < NumLODs; ++Index)
 	{
-		LODData.Emplace(
+		LODData.Add(MakeUnique<FLODData>(
 			Mesh->GetNumPoints(Index),
 			Mesh->GetIndices(Index),
 			Mesh->GetWeightMaps(Index),
-			Mesh->GetTethers(Index, bUseGeodesicTethers));
+			Mesh->GetTethers(Index, bUseGeodesicTethers)));
 	}
 
 	// Iterate all known solvers
@@ -468,6 +515,7 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 		Solver->RefreshCloth(this);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FClothingSimulationCloth::SetColliders(TArray<FClothingSimulationCollider*>&& InColliders)
 {
@@ -573,7 +621,7 @@ void FClothingSimulationCloth::Add(FClothingSimulationSolver* Solver)
 	// Add LODs
 	for (int32 Index = 0; Index < LODData.Num(); ++Index)
 	{
-		LODData[Index].Add(Solver, this, Index);
+		LODData[Index]->Add(Solver, this, Index);
 	}
 
 	// Add Colliders
@@ -593,20 +641,20 @@ void FClothingSimulationCloth::Remove(FClothingSimulationSolver* Solver)
 
 	// Remove solver from maps
 	LODIndices.Remove(Solver);
-	for (FLODData& LODDatum: LODData)
+	for (TUniquePtr<FLODData>& LODDatum: LODData)
 	{
-		LODDatum.Remove(Solver);
+		LODDatum->Remove(Solver);
 	}
 }
 
 int32 FClothingSimulationCloth::GetNumParticles(int32 InLODIndex) const
 {
-	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].NumParticles : 0;
+	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex]->NumParticles : 0;
 }
 
 int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solver, int32 InLODIndex) const
 {
-	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].SolverData.FindChecked(Solver).Offset : 0;
+	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex]->SolverData.FindChecked(Solver).Offset : 0;
 }
 
 TVec3<FRealSingle> FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solver) const
@@ -642,26 +690,28 @@ const FTriangleMesh& FClothingSimulationCloth::GetTriangleMesh(const FClothingSi
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	static const FTriangleMesh EmptyTriangleMesh;
-	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SolverData.FindChecked(Solver).TriangleMesh : EmptyTriangleMesh;
+	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex]->SolverData.FindChecked(Solver).TriangleMesh : EmptyTriangleMesh;
 }
 
 const TArray<TConstArrayView<FRealSingle>>& FClothingSimulationCloth::GetWeightMaps(const FClothingSimulationSolver* Solver) const
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	static const TArray<TConstArrayView<FRealSingle>> EmptyWeightMaps;
-	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].WeightMaps : EmptyWeightMaps;
+	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex]->WeightMaps : EmptyWeightMaps;
 }
 
 const TArray<TConstArrayView<TTuple<int32, int32, float>>>& FClothingSimulationCloth::GetTethers(const FClothingSimulationSolver* Solver) const
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	static const TArray<TConstArrayView<TTuple<int32, int32, float>>> EmptyTethers;
-	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].Tethers : EmptyTethers;
+	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex]->Tethers : EmptyTethers;
 }
 
 int32 FClothingSimulationCloth::GetReferenceBoneIndex() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	return Mesh ? Mesh->GetReferenceBoneIndex() : INDEX_NONE;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FClothingSimulationCloth::PreUpdate(FClothingSimulationSolver* Solver)
@@ -699,11 +749,13 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	int32& LODIndex = LODIndices.FindChecked(Solver);  // Must be added to solver first
 
 	const int32 PrevLODIndex = LODIndex;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	LODIndex = bUseLODIndexOverride && LODData.IsValidIndex(LODIndexOverride) ? LODIndexOverride : Mesh->GetLODIndex();
 
 	// Update reference space transform from the mesh's reference bone transform  TODO: Add override in the style of LODIndexOverride
 	const FRigidTransform3 OldReferenceSpaceTransform = ReferenceSpaceTransform;
 	ReferenceSpaceTransform = Mesh->GetReferenceBoneTransform();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ReferenceSpaceTransform.SetScale3D(FVec3(1.f));
 
 	// Update Cloth Colliders
@@ -721,7 +773,9 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	const int32 Offset = GetOffset(Solver, LODIndex);
 	check(PrevOffset != INDEX_NONE && Offset != INDEX_NONE);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 	Mesh->Update(Solver, PrevLODIndex, LODIndex, PrevOffset, Offset);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// LOD Switching
 	if (LODIndex != PrevLODIndex)
@@ -729,17 +783,19 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		if (PrevLODIndex != INDEX_NONE)
 		{
 			// Disable previous LOD's particles
-			LODData[PrevLODIndex].Enable(Solver, false);
+			LODData[PrevLODIndex]->Enable(Solver, false);
 		}
 		if (LODIndex != INDEX_NONE)
 		{
 			// Enable new LOD's particles
-			LODData[LODIndex].Enable(Solver, true);
-			NumActiveKinematicParticles = LODData[LODIndex].NumKinenamicParticles;
-			NumActiveDynamicParticles = LODData[LODIndex].NumDynammicParticles;
+			LODData[LODIndex]->Enable(Solver, true);
+			NumActiveKinematicParticles = LODData[LODIndex]->NumKinenamicParticles;
+			NumActiveDynamicParticles = LODData[LODIndex]->NumDynammicParticles;
 
 			// Wrap new LOD based on previous LOD if possible (can only do 1 level LOD at a time, and if previous LOD exists)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 			bNeedsReset = bNeedsReset || !Mesh->WrapDeformLOD(
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				PrevLODIndex,
 				LODIndex,
 				Solver->GetNormals(PrevOffset),
@@ -750,9 +806,9 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 				Solver->GetParticleVs(Offset));
 
 				// Update the wind velocity field for the new LOD mesh
-				const TConstArrayView<FRealSingle>& DragMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Drag];
-				const TConstArrayView<FRealSingle>& LiftMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Lift];
-				const TConstArrayView<FRealSingle>& PressureMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Pressure];
+				const TConstArrayView<FRealSingle>& DragMultipliers = LODData[LODIndex]->WeightMaps[(int32)EChaosWeightMapTarget::Drag];
+				const TConstArrayView<FRealSingle>& LiftMultipliers = LODData[LODIndex]->WeightMaps[(int32)EChaosWeightMapTarget::Lift];
+				const TConstArrayView<FRealSingle>& PressureMultipliers = LODData[LODIndex]->WeightMaps[(int32)EChaosWeightMapTarget::Pressure];
 
 				Solver->SetWindAndPressureGeometry(GroupId, GetTriangleMesh(Solver), DragMultipliers, LiftMultipliers, PressureMultipliers);
 		}
@@ -766,7 +822,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	if (LODIndex != INDEX_NONE)
 	{
 		// Update Cloth group parameters  TODO: Cloth groups should exist as their own node object so that they can be used by several cloth objects
-		LODData[LODIndex].Update(Solver, this);
+		LODData[LODIndex]->Update(Solver, this);
 
 		// TODO: Move all groupID updates out of the cloth update to allow to use of the same GroupId with different cloths
 
@@ -781,7 +837,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 			OutAngularVelocityScale = 1.f;
 
 			// Reset to start pose
-			LODData[LODIndex].ResetStartPose(Solver);
+			LODData[LODIndex]->ResetStartPose(Solver);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs reset."), GroupId);
 		}
 		else if (bNeedsTeleport)
@@ -845,7 +901,7 @@ void FClothingSimulationCloth::PostUpdate(FClothingSimulationSolver* Solver)
 	if (LODIndex != INDEX_NONE)
 	{
 		// Update normals
-		LODData[LODIndex].UpdateNormals(Solver);
+		LODData[LODIndex]->UpdateNormals(Solver);
 	}
 }
 
