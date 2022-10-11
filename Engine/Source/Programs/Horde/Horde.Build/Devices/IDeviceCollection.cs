@@ -227,12 +227,14 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Deletes user device checkouts
 		/// </summary>
-		public Task<List<(UserId, IDevice)>?> ExpireCheckedOutAsync();
+		/// <param name="checkoutDays"></param>
+		public Task<List<(UserId, IDevice)>?> ExpireCheckedOutAsync(int checkoutDays);
 
 		/// <summary>
 		/// Gets a list of users to notify whose device checkout is about to expire
 		/// </summary>
-		public Task<List<(UserId, IDevice)>?> ExpireNotificatonsAsync();
+		/// <param name="checkoutDays"></param>
+		public Task<List<(UserId, IDevice)>?> ExpireNotificatonsAsync(int checkoutDays);
 
 		/// <summary>
 		/// Find device telemetry
@@ -260,5 +262,11 @@ namespace Horde.Build.Devices
 		/// <param name="count"></param>
 		/// <returns></returns>
 		public Task<List<IDevicePoolTelemetry>> FindPoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, int? index = null, int? count = null);
+
+		/// <summary>
+		/// Upgrades the collection
+		/// </summary>
+		public Task UpgradeAsync();
+
 	}
 }

@@ -18,6 +18,7 @@ using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using OpenTracing;
 using OpenTracing.Util;
@@ -94,22 +95,24 @@ namespace Horde.Build.Devices
 		readonly JobService _jobService;
 		readonly StreamService _streamService;
 		readonly ProjectService _projectService;
-		readonly MongoService _mongoService;
 		IUserCollection UserCollection { get; set; }
 		readonly ILogger<DeviceService> _logger;
 		readonly IDeviceCollection _devices;
 		readonly ITicker _ticker;
 		readonly ITicker _telemetryTicker;
+		readonly IOptionsMonitor<ServerSettings> _settings;
 
 		/// <summary>
 		/// Platform map V1 singleton
 		/// </summary>
 		readonly ISingletonDocument<DevicePlatformMapV1> _platformMapSingleton;
 
+		bool runUpgrade = true;
+
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(GlobalsService globalsService, IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, MongoService mongoService, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
+		public DeviceService(GlobalsService globalsService, IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, IOptionsMonitor<ServerSettings> settings, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
 		{
 			UserCollection = userCollection;
 			_globalsService = globalsService;
@@ -122,8 +125,7 @@ namespace Horde.Build.Devices
 			_ticker = clock.AddSharedTicker<DeviceService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 			_telemetryTicker = clock.AddSharedTicker("DeviceService.Telemetry", TimeSpan.FromMinutes(10.0), TickTelemetryAsync, logger);
 			_logger = logger;
-			_mongoService = mongoService;
-
+			_settings = settings;
 			_platformMapSingleton = platformMapSingleton;
 
 		}
@@ -204,6 +206,20 @@ namespace Horde.Build.Devices
 			{
 				using IScope scope = GlobalTracer.Instance.BuildSpan("DeviceService.TickAsync").StartActive();
 
+				if (runUpgrade)
+				{
+					try
+					{
+						await _devices.UpgradeAsync();
+						runUpgrade = false;
+					}
+					catch (Exception ex)
+					{
+						_logger.LogError(ex, "Exception while upgrading device collection: {Message}", ex.Message);
+					}
+
+				}
+
 				try
 				{
 					_logger.LogInformation("Expiring reservations");
@@ -219,7 +235,7 @@ namespace Horde.Build.Devices
 				{
 
 					_logger.LogInformation("Sending shared device notifications");
-					List<(UserId, IDevice)>? expireNotifications = await _devices.ExpireNotificatonsAsync();
+					List<(UserId, IDevice)>? expireNotifications = await _devices.ExpireNotificatonsAsync(_settings.CurrentValue.SharedDeviceCheckoutDays);
 					if (expireNotifications != null && expireNotifications.Count > 0)
 					{
 						foreach ((UserId, IDevice) expiredDevice in expireNotifications)
@@ -229,7 +245,7 @@ namespace Horde.Build.Devices
 					}
 
 					_logger.LogInformation("Expiring shared device checkouts");
-					List<(UserId, IDevice)>? expireCheckouts = await _devices.ExpireCheckedOutAsync();
+					List<(UserId, IDevice)>? expireCheckouts = await _devices.ExpireCheckedOutAsync(_settings.CurrentValue.SharedDeviceCheckoutDays);
 					if (expireCheckouts != null && expireCheckouts.Count > 0)
 					{
 						foreach ((UserId, IDevice) expiredDevice in expireCheckouts)

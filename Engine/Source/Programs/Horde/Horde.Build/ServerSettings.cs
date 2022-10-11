@@ -511,6 +511,11 @@ namespace Horde.Build
 		public Uri? JiraUrl { get; set; }
 
 		/// <summary>
+		/// The number of days shared device checkouts are held
+		/// </summary>
+		public int SharedDeviceCheckoutDays { get; set; } = 3;
+
+		/// <summary>
 		/// Default agent pool sizing strategy for pools that doesn't have one explicitly configured
 		/// </summary>
 		public PoolSizeStrategy DefaultAgentPoolSizeStrategy { get; set; } = PoolSizeStrategy.LeaseUtilization;
