@@ -569,7 +569,11 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 		// Skip this check if file manager has not yet been initialized
 		if (FPaths::FileExists(ModuleFileToLoad))
 		{
-			ModuleInfo->Handle = FPlatformProcess::GetDllHandle(*ModuleFileToLoad);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FPlatformProcess::GetDllHandle);
+				ModuleInfo->Handle = FPlatformProcess::GetDllHandle(*ModuleFileToLoad);
+			}
+			
 			if (ModuleInfo->Handle != nullptr)
 			{
 				{
