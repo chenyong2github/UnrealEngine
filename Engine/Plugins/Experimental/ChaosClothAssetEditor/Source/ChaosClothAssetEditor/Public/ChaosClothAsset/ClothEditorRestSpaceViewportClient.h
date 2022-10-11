@@ -31,6 +31,7 @@ public:
 	void Set2DMode(bool In2DMode);
 
 	void SetEditorViewportWidget(TWeakPtr<SEditorViewport> InEditorViewportWidget);
+	void SetToolCommandList(TWeakPtr<FUICommandList> ToolCommandList);
 
 private:
 
@@ -42,5 +43,7 @@ private:
 
 	TUniquePtr<FEditor2DScrollBehaviorTarget> ScrollBehaviorTarget;
 	TUniquePtr<FEditor2DMouseWheelZoomBehaviorTarget> ZoomBehaviorTarget;
+
+	TWeakPtr<FUICommandList> ToolCommandList;
 };
 

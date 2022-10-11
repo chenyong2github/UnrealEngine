@@ -10,8 +10,9 @@ public:
 
 	FExampleCharacterFXEditorCommands();
 
-	// TCommands<> interface
+	// TInteractiveToolCommands<> interface
 	virtual void RegisterCommands() override;
+	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override {}
 
 public:
 

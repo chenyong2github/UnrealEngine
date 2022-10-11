@@ -2,22 +2,24 @@
 
 #pragma once
 
-#include "Framework/Commands/Commands.h"
+#include "Tools/InteractiveToolsCommands.h"
 
 /**
 * Home for FUICommandInfos used by the editor
 */
 
 template<typename CommandContextType>
-class TBaseCharacterFXEditorCommands : public TCommands<CommandContextType>
+class TBaseCharacterFXEditorCommands : public TInteractiveToolCommands<CommandContextType>
 {
 
 public:
 
-	// TCommands<> interface
+	// TInteractiveToolCommands<> interface
 	// If you override this function, call this base version to set up Accept/Cancel buttons
 	virtual void RegisterCommands() override
 	{
+		TInteractiveToolCommands<CommandContextType>::RegisterCommands();
+
 #define LOCTEXT_NAMESPACE "TBaseCharacterFXEditorCommands"
 		// These allow us to link up to pressed keys
 		UI_COMMAND(AcceptOrCompleteActiveTool, "Accept", "Accept the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Enter));
@@ -32,7 +34,7 @@ protected:
 
 	// Call this from subclass default constructor
 	TBaseCharacterFXEditorCommands(const FName InContextName, const FText& InContextDesc, const FName InContextParent, const FName InStyleSetName) :
-		TCommands<CommandContextType>(InContextName, InContextDesc, InContextParent, InStyleSetName)
+		TInteractiveToolCommands<CommandContextType>(InContextName, InContextDesc, InContextParent, InStyleSetName)
 	{}
 
 };

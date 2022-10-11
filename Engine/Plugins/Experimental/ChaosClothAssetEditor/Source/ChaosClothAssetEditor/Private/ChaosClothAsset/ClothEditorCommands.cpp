@@ -2,6 +2,7 @@
 
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "ChaosClothAsset/ClothEditorStyle.h"
+#include "ChaosClothAsset/ClothWeightMapPaintTool.h"
 
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorCommands"
 
@@ -36,6 +37,26 @@ void FChaosClothAssetEditorCommands::RegisterCommands()
 
 	UI_COMMAND(ToggleSimMeshWireframe, "ToggleSimMeshWireframe", "Toggle simulation mesh wireframe", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ToggleRenderMeshWireframe, "ToggleRenderMeshWireframe", "Toggle render mesh wireframe", EUserInterfaceActionType::Button, FInputChord());
+}
+
+void FChaosClothAssetEditorCommands::GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs)
+{
+	ToolCDOs.Add(GetMutableDefault<UClothEditorWeightMapPaintTool>());
+}
+
+void FChaosClothAssetEditorCommands::UpdateToolCommandBinding(UInteractiveTool* Tool, TSharedPtr<FUICommandList> UICommandList, bool bUnbind)
+{
+	if (FChaosClothAssetEditorCommands::IsRegistered())
+	{
+		if (bUnbind)
+		{
+			FChaosClothAssetEditorCommands::Get().UnbindActiveCommands(UICommandList);
+		}
+		else
+		{
+			FChaosClothAssetEditorCommands::Get().BindCommandsForCurrentTool(UICommandList, Tool);
+		}
+	}
 }
 
 

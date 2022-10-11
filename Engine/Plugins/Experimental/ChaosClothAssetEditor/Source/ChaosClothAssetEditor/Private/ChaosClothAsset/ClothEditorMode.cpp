@@ -177,11 +177,15 @@ void UChaosClothAssetEditorMode::CreateToolkit()
 
 void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, false);
+
 	bCanTogglePattern2DMode = false;
 }
 
 void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
+
 	bCanTogglePattern2DMode = true;
 
 	UpdateSimulationMeshes();
@@ -806,6 +810,7 @@ void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<FChaosCloth
 	if (VC.IsValid())
 	{
 		VC->Set2DMode(bPattern2DMode);
+		VC->SetToolCommandList(ToolCommandList);
 	}
 }
 

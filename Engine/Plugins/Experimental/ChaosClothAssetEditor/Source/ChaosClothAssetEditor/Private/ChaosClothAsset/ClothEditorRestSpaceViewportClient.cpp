@@ -95,6 +95,17 @@ bool FChaosClothEditorRestSpaceViewportClient::ShouldOrbitCamera() const
 
 bool FChaosClothEditorRestSpaceViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
+	// See if any tool commands want to handle the key event
+	const TSharedPtr<FUICommandList> PinnedToolCommandList = ToolCommandList.Pin();
+	if (EventArgs.Event != IE_Released && PinnedToolCommandList.IsValid())
+	{
+		const FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
+		if (PinnedToolCommandList->ProcessCommandBindings(EventArgs.Key, KeyState, (EventArgs.Event == IE_Repeat)))
+		{
+			return true;
+		}
+	}
+
 	if (!b2DMode)
 	{
 		return FEditorViewportClient::InputKey(EventArgs);
@@ -209,4 +220,9 @@ void FChaosClothEditorRestSpaceViewportClient::ProcessClick(FSceneView& View, HH
 void FChaosClothEditorRestSpaceViewportClient::SetEditorViewportWidget(TWeakPtr<SEditorViewport> InEditorViewportWidget)
 {
 	EditorViewportWidget = InEditorViewportWidget;
+}
+
+void FChaosClothEditorRestSpaceViewportClient::SetToolCommandList(TWeakPtr<FUICommandList> InToolCommandList)
+{
+	ToolCommandList = InToolCommandList;
 }

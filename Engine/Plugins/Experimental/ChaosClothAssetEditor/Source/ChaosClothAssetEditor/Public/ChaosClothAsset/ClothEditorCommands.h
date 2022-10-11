@@ -13,6 +13,17 @@ public:
 	// TBaseCharacterFXEditorCommands<> interface
 	virtual void RegisterCommands() override;
 
+	// TInteractiveToolCommands<>
+	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) override;
+
+	/**
+	 * Add or remove commands relevant to Tool to the given UICommandList.
+	 * Call this when the active tool changes (eg on ToolManager.OnToolStarted / OnToolEnded)
+	 * @param bUnbind if true, commands are removed, otherwise added
+	 */
+	static void UpdateToolCommandBinding(UInteractiveTool* Tool, TSharedPtr<FUICommandList> UICommandList, bool bUnbind = false);
+
+
 public:
 
 	TSharedPtr<FUICommandInfo> OpenClothEditor;
