@@ -110,6 +110,11 @@ namespace Horde.Build.Devices
 		bool runUpgrade = true;
 
 		/// <summary>
+		/// The number of days shared device sheckouts are held
+		/// </summary>
+		public int sharedDeviceCheckoutDays => _settings.CurrentValue.SharedDeviceCheckoutDays;
+
+		/// <summary>
 		/// Device service constructor
 		/// </summary>
 		public DeviceService(GlobalsService globalsService, IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, ProjectService projectService, StreamService streamService, AclService aclService, IOptionsMonitor<ServerSettings> settings, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
