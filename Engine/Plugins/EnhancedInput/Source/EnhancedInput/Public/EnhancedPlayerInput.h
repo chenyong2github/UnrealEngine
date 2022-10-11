@@ -47,15 +47,15 @@ public:
 	/**
 	* Returns the action instance data for the given input action if there is any. Returns nullptr if the action is not available.
 	*/
-	const FInputActionInstance* FindActionInstanceData(const UInputAction* ForAction) const { return ActionInstanceData.Find(ForAction); }
+	const FInputActionInstance* FindActionInstanceData(TObjectPtr<const UInputAction> ForAction) const { return ActionInstanceData.Find(ForAction); }
 
 	/** Retrieve the current value of an action for this player.
 	* Note: If the action is not currently triggering this will return a zero value of the appropriate value type, ignoring any ongoing inputs.
 	*/
-	FInputActionValue GetActionValue(const UInputAction* ForAction) const;
+	FInputActionValue GetActionValue(TObjectPtr<const UInputAction> ForAction) const;
 
 	// Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys. Applies action modifiers and triggers on top.
-	void InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers = {}, const TArray<UInputTrigger*>& Triggers = {});
+	void InjectInputForAction(TObjectPtr<const UInputAction> Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers = {}, const TArray<UInputTrigger*>& Triggers = {});
 
 	virtual bool InputKey(const FInputKeyParams& Params) override;
 	
@@ -93,12 +93,12 @@ private:
 	FInputActionValue ApplyModifiers(const TArray<UInputModifier*>& Modifiers, FInputActionValue RawValue, float DeltaTime) const;						// Pre-modified (raw) value
 	ETriggerEventInternal GetTriggerStateChangeEvent(ETriggerState LastTriggerState, ETriggerState NewTriggerState) const;
 	ETriggerEvent ConvertInternalTriggerEvent(ETriggerEventInternal Event) const;	// Collapse a detailed internal trigger event into a friendly representation
-	void ProcessActionMappingEvent(const UInputAction* Action, float DeltaTime, bool bGamePaused, FInputActionValue RawValue, EKeyEvent KeyEvent, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+	void ProcessActionMappingEvent(TObjectPtr<const UInputAction> Action, float DeltaTime, bool bGamePaused, FInputActionValue RawValue, EKeyEvent KeyEvent, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
-	FInputActionInstance& FindOrAddActionEventData(const UInputAction* Action) const;
+	FInputActionInstance& FindOrAddActionEventData(TObjectPtr<const UInputAction> Action) const;
 
 	template<typename T>
-	void GatherActionEventDataForActionMap(const T& ActionMap, TMap<const UInputAction*, FInputActionInstance>& FoundActionEventData) const;
+	void GatherActionEventDataForActionMap(const T& ActionMap, TMap<TObjectPtr<const UInputAction>, FInputActionInstance>& FoundActionEventData) const;
 
 	/** Currently applied key mappings
 	 * Note: Source reference only. Use EnhancedActionMappings for the actual mappings (with properly instanced triggers/modifiers)
@@ -118,7 +118,7 @@ private:
 	mutable TMap<TObjectPtr<const UInputAction>, FInputActionInstance> ActionInstanceData;
 
 	/** Actions which had actuated events at the last call to ProcessInputStack (held/pressed/released) */
-	TSet<const UInputAction*> ActionsWithEventsThisTick;
+	TSet<TObjectPtr<const UInputAction>> ActionsWithEventsThisTick;
 
 	/** Actions that have been triggered this tick and have a delegate that may be fired */
 	TSet<TObjectPtr<const UInputAction>> TriggeredActionsThisTick;
@@ -132,11 +132,11 @@ private:
 
 	/** Inputs injected since the last call to ProcessInputStack */
 	UPROPERTY(Transient)
-	TMap<const UInputAction*, FInjectedInputArray> InputsInjectedThisTick;
+	TMap<TObjectPtr<const UInputAction>, FInjectedInputArray> InputsInjectedThisTick;
 
 	/** Last frame's injected inputs */
 	UPROPERTY(Transient)
-	TSet<const UInputAction*> LastInjectedActions;
+	TSet<TObjectPtr<const UInputAction>> LastInjectedActions;
 
 	/** Used to keep track of Input Actions that have UInputTriggerChordAction triggers on them */
 	struct FDependentChordTracker
