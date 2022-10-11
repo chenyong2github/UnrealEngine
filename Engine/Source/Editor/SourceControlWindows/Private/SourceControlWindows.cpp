@@ -498,21 +498,21 @@ void FSourceControlWindows::ChoosePackagesToCheckInCallback(const FSourceControl
 	{
 		const FString PackageName = *PackageIter.Key();
 
-		if (FPaths::IsRelative(PackageName))
+		UPackage* Package = FindPackage(nullptr, *PackageName);
+		if (Package != nullptr)
 		{
-			UPackage* Package = FindPackage(nullptr, *PackageName);
-			if (Package != nullptr)
-			{
-				LoadedPackages.Add(Package);
-			}
+			LoadedPackages.Add(Package);
+		}
 
-			PackageNames.Add(PackageName);
-		}
-		else
-		{
-			// An example of this would be the project file.
-			ConfigFilesToSubmit.Add(PackageName);
-		}
+		PackageNames.Add(PackageName);
+	}
+
+	// Get a list of all the checked out project files
+	TMap<FString, FSourceControlStatePtr> ProjectFileStates;
+	FEditorFileUtils::FindAllSubmittableProjectFiles(ProjectFileStates);
+	for (TMap<FString, FSourceControlStatePtr>::TConstIterator It(ProjectFileStates); It; ++It)
+	{
+		ConfigFilesToSubmit.Add(It.Key());
 	}
 
 	// Get a list of all the checked out config files

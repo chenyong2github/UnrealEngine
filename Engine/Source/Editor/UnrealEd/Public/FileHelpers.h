@@ -571,6 +571,13 @@ public:
 	UNREALED_API static void FindAllSubmittablePackageFiles(TMap<FString, FSourceControlStatePtr>& OutPackages, const bool bIncludeMaps);
 
 	/**
+	 * Looks for source control submittable non-package project files for the current project.
+	 *
+	 * @param	OutProjectFiles	All found project filenames and their source control state.
+	 */
+	UNREALED_API static void FindAllSubmittableProjectFiles(TMap<FString, FSourceControlStatePtr>& OutProjectFiles);
+
+	/**
 	 * Looks for config files for the current project.
 	 *
 	 * @param	OutConfigFiles	All found config filenames.
@@ -578,7 +585,7 @@ public:
 	UNREALED_API static void FindAllConfigFiles(TArray<FString>& OutConfigFiles);
 
 	/**
-	 * Looks for source control submittable config files for the current project.
+	 * Looks for source control submittable non-package config files for the current project.
 	 *
 	 * @param	OutConfigFiles	All found config filenames and their source control state.
 	 */
