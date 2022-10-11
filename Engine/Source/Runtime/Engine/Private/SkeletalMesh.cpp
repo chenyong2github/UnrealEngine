@@ -6225,17 +6225,18 @@ void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const 
 	BatchElement.MinVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex();
 	BatchElement.MaxVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex() + LODData.RenderSections[SectionIndex].GetNumVertices() - 1;
 #if RHI_RAYTRACING
-	BatchElement.VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(VFMode == ESkinVertexFactoryMode::RayTracing ? MeshObject->GetSkinCacheEntryForRayTracing() : MeshObject->SkinCacheEntry, SectionIndex);
+	FGPUSkinBatchElementUserData* VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(VFMode == ESkinVertexFactoryMode::RayTracing ? MeshObject->GetSkinCacheEntryForRayTracing() : MeshObject->SkinCacheEntry, SectionIndex);
 #else
-	BatchElement.VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(MeshObject->SkinCacheEntry, SectionIndex);
+	FGPUSkinBatchElementUserData* VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(MeshObject->SkinCacheEntry, SectionIndex);
 #endif
+	BatchElement.VertexFactoryUserData = VertexFactoryUserData;
 	BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 	BatchElement.NumPrimitives = LODData.RenderSections[SectionIndex].NumTriangles;
 
-	UpdateLooseParametersUniformBuffer(View, SectionIndex, Mesh, BatchElement);
+	UpdateLooseParametersUniformBuffer(View, SectionIndex, Mesh, VertexFactoryUserData);
 }
 
-void FSkeletalMeshSceneProxy::UpdateLooseParametersUniformBuffer(const FSceneView* View, const int32 SectionIndex, const FMeshBatch& Mesh, const FMeshBatchElement& BatchElement) const
+void FSkeletalMeshSceneProxy::UpdateLooseParametersUniformBuffer(const FSceneView* View, const int32 SectionIndex, const FMeshBatch& Mesh, const FGPUSkinBatchElementUserData* BatchUserData) const
 {
 	// Loose parameters uniform buffer is only needed for PassThroughVF
 	if (!Mesh.VertexFactory || Mesh.VertexFactory->GetType() != &FGPUSkinPassthroughVertexFactory::StaticType)
@@ -6253,12 +6254,12 @@ void FSkeletalMeshSceneProxy::UpdateLooseParametersUniformBuffer(const FSceneVie
 	// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
 	bool bVerticesInMotion = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
 
-	const bool bUsesSkinCache = BatchElement.VertexFactoryUserData != nullptr;
+	const bool bUsesSkinCache = BatchUserData != nullptr;
 	if (bUsesSkinCache)
 	{
 		Parameters.GPUSkinPassThroughPreviousPositionBuffer = bVerticesInMotion ?
-			FGPUSkinCache::GetPreviousPositionBuffer(MeshObject->SkinCacheEntry, SectionIndex)->SRV :
-			FGPUSkinCache::GetPositionBuffer(MeshObject->SkinCacheEntry, SectionIndex)->SRV;
+			FGPUSkinCache::GetPreviousPositionBuffer(BatchUserData->Entry, SectionIndex)->SRV :
+			FGPUSkinCache::GetPositionBuffer(BatchUserData->Entry, SectionIndex)->SRV;
 	}
 	else // Mesh deformer
 	{
