@@ -836,7 +836,7 @@ namespace mu
 					format);
 			}
 
-			FImageSize blockSize((uint16_t)size[0], (uint16_t)size[1]);
+			FImageSize blockSize((uint16)size[0], (uint16)size[1]);
 			Result = ImageResizeLinear(imageCompressionQuality, pImage, blockSize);
 		}
 

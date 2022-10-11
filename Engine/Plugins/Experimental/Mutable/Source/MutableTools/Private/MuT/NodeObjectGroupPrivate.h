@@ -34,7 +34,7 @@ namespace mu
 		//! Set the child selection type
 		void SetSelectionType( CHILD_SELECTION );
 
-		vector<NodeObjectPtr> m_children;
+		TArray<NodeObjectPtr> m_children;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

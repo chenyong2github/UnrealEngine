@@ -13,7 +13,7 @@ namespace mu
 	{
 		// Clamp the factor
 		// TODO: See what happens if we don't
-		factor = std::max( 0.0f, factor );
+		factor = FMath::Max( 0.0f, factor );
         int32_t f_8 = (int32_t)(factor*255);
 
         ImagePtr pDest = new Image( pA->GetSizeX(), pA->GetSizeY(),
@@ -38,7 +38,7 @@ namespace mu
 				{
                     int32_t d_16 = (pABuf[3*i+c]<<8) - l_16;
                     int32_t r_16 = l_16 + ( (d_16 * f_8) >> 8 );
-                    pDestBuf[3*i+c] = (uint8_t)std::min( (uint32_t)r_16>>8, 255u );
+                    pDestBuf[3*i+c] = (uint8_t)FMath::Min( (uint32_t)r_16>>8, 255u );
 				}
 			}
 			break;
@@ -54,7 +54,7 @@ namespace mu
                 {
                     int32_t d_16 = (pABuf[4*i+c]<<8) - l_16;
                     int32_t r_16 = l_16 + ( (d_16 * f_8) >> 8 );
-                    pDestBuf[4*i+c] = (uint8_t)std::min( (uint32_t)r_16>>8, 255u );
+                    pDestBuf[4*i+c] = (uint8_t)FMath::Min( (uint32_t)r_16>>8, 255u );
                 }
 
                 pDestBuf[4*i+3] = pABuf[4*i+3];
@@ -72,7 +72,7 @@ namespace mu
                 {
                     int32_t d_16 = (pABuf[4*i+c]<<8) - l_16;
                     int32_t r_16 = l_16 + ( (d_16 * f_8) >> 8 );
-                    pDestBuf[4*i+c] = (uint8_t)std::min( (uint32_t)r_16>>8, 255u );
+                    pDestBuf[4*i+c] = (uint8_t)FMath::Min( (uint32_t)r_16>>8, 255u );
                 }
 
                 pDestBuf[4*i+3] = pABuf[4*i+3];

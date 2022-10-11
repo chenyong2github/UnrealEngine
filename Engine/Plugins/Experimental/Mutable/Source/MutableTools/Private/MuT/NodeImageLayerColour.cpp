@@ -9,9 +9,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	3
-
-
 namespace mu
 {
 
@@ -34,14 +31,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageLayerColour::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 3;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeImageLayerColour::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		Node* pResult = 0;
 
@@ -59,7 +56,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageLayerColour::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		switch (i)
 		{
@@ -123,6 +120,4 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT
 

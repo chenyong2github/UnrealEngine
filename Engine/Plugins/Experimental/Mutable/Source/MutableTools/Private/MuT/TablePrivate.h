@@ -40,7 +40,7 @@ namespace mu
 	struct TABLE_ROW
 	{
         uint32_t m_id;
-		vector<TABLE_VALUE> m_values;
+		TArray<TABLE_VALUE> m_values;
 	};
 
 
@@ -50,8 +50,8 @@ namespace mu
 	public:
 
 		string m_name;
-		vector<TABLE_COLUMN> m_columns;
-		vector<TABLE_ROW> m_rows;
+		TArray<TABLE_COLUMN> m_columns;
+		TArray<TABLE_ROW> m_rows;
 		bool m_NoneOption = false;
 
 
@@ -61,19 +61,19 @@ namespace mu
             uint32_t ver = 1;
 			arch << ver;
 
-            arch << (uint32_t)m_columns.size();
-			for ( std::size_t c=0; c<m_columns.size(); ++c )
+            arch << (uint32_t)m_columns.Num();
+			for ( int32 c=0; c<m_columns.Num(); ++c )
 			{
 				arch << m_columns[c].m_name;
 				arch << m_columns[c].m_type;
 			}
 
-            arch << (uint32_t)m_rows.size();
-			for ( std::size_t r=0; r<m_rows.size(); ++r )
+            arch << (uint32_t)m_rows.Num();
+			for (int32 r=0; r<m_rows.Num(); ++r )
 			{
 				arch << m_rows[r].m_id;
 
-				for ( std::size_t c=0; c<m_columns.size(); ++c )
+				for (int32 c=0; c<m_columns.Num(); ++c )
 				{
 					const TABLE_VALUE& v = m_rows[r].m_values[c];
 
@@ -112,7 +112,7 @@ namespace mu
 
             uint32_t columnCount;
 			arch >> columnCount;
-			m_columns.resize( columnCount );
+			m_columns.SetNum( columnCount );
             for (uint32_t c=0; c<columnCount; ++c )
 			{
 				arch >> m_columns[c].m_name;
@@ -121,11 +121,11 @@ namespace mu
 
             uint32_t rowCount;
 			arch >> rowCount;
-			m_rows.resize( rowCount );
+			m_rows.SetNum( rowCount );
             for ( uint32_t r=0; r<rowCount; ++r )
 			{
 				arch >> m_rows[r].m_id;
-				m_rows[r].m_values.resize( columnCount );
+				m_rows[r].m_values.SetNum( columnCount );
 
                 for (uint32_t c=0; c<columnCount; ++c )
 				{
@@ -167,7 +167,7 @@ namespace mu
 		{
 			int res = -1;
 
-			for ( std::size_t r=0; res<0 && r<m_rows.size(); ++r )
+			for ( std::size_t r=0; res<0 && r<m_rows.Num(); ++r )
 			{
 				if ( m_rows[r].m_id==id )
 				{

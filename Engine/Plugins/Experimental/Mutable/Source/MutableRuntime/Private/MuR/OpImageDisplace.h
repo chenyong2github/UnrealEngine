@@ -264,7 +264,7 @@ namespace mu
                     while ( x<sizeX )
                     {
                         // Decode header
-                        uint16_t equal = *(const uint16_t*)pMapData;
+                        uint16 equal = *(const uint16*)pMapData;
                         pMapData += 2;
 
                         uint8_t different = *pMapData;

@@ -20,7 +20,7 @@ namespace mu
 				? 255 - ( ( ( 255 - base ) * ( 255 - 2*(blended - 128 ) ) ) >> 8 )
 				: ( base * (2 * blended) ) >> 8;
 
-		hardlight = std::min( 255u, hardlight );
+		hardlight = FMath::Min( 255u, hardlight );
 
 		return hardlight;
 	}

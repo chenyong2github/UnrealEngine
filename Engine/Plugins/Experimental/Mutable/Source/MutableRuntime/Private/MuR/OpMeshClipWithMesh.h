@@ -19,77 +19,6 @@
 
 namespace mu
 {
-    const static float vert_collapse_eps = 0.0001f;
-
-    //---------------------------------------------------------------------------------------------
-    //! Create a map from vertices into vertices, collapsing vertices that have the same position
-    //---------------------------------------------------------------------------------------------
-    inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
-                                       mu::vector<int>& collapsedVertexMap,
-                                       mu::vector<vec3f>& vertices
-                                       )
-    {
-        MUTABLE_CPUPROFILER_SCOPE(MeshCreateCollapsedVertexMap);
-    	
-        int vcount = pMesh->GetVertexCount();
-        collapsedVertexMap.resize(vcount);
-        vertices.resize(vcount);
-
-        const FMeshBufferSet& MBSPriv = pMesh->GetVertexBuffers();
-        for (int32 b = 0; b < MBSPriv.m_buffers.Num(); ++b)
-        {
-            for (int32 c = 0; c < MBSPriv.m_buffers[b].m_channels.Num(); ++c)
-            {
-                MESH_BUFFER_SEMANTIC sem = MBSPriv.m_buffers[b].m_channels[c].m_semantic;
-                int semIndex = MBSPriv.m_buffers[b].m_channels[c].m_semanticIndex;
-
-                UntypedMeshBufferIteratorConst it(pMesh->GetVertexBuffers(), sem, semIndex);
-
-                switch (sem)
-                {
-                case MBS_POSITION:
-                    // First create a cache of the vertices in the vertices array
-                    for (int v = 0; v < vcount; ++v)
-                    {
-                        vec3f vertex(0.0f, 0.0f, 0.0f);
-                        for (int i = 0; i < 3; ++i)
-                        {
-                            ConvertData(i, &vertex[0], MBF_FLOAT32, it.ptr(), it.GetFormat());
-                        }
-
-                        vertices[v] = vertex;
-
-                        ++it;
-                    }
-
-                    // Create map to store which vertices are the same (collapse nearby vertices)
-                    for (std::size_t v = 0; v < vertices.size(); ++v)
-                    {
-                        collapsedVertexMap[v] = (int32_t)v;
-
-                        for (std::size_t candidate_v = 0; candidate_v < v; ++candidate_v)
-                        {
-                            int collapsed_candidate_v_idx = collapsedVertexMap[candidate_v];
-
-                            // Test whether v and the collapsed candidate are close enough to be collapsed
-                            vec3f r = vertices[collapsed_candidate_v_idx] - vertices[v];
-
-                            if (dot(r, r) <= vert_collapse_eps * vert_collapse_eps)
-                            {
-                                collapsedVertexMap[v] = collapsed_candidate_v_idx;
-                                break;
-                            }
-                        }
-                    }
-
-                    break;
-
-                default:
-                    break;
-                }
-            }
-        }
-    }
 
     //---------------------------------------------------------------------------------------------
     //! Create a map from vertices into vertices, collapsing vertices that have the same position, 
@@ -172,16 +101,15 @@ namespace mu
         int vcount = pMesh->GetVertexCount();
         int fcount = pMesh->GetFaceCount();
 
-        mu::vector<vec3f> vertices(vcount);
+        TArray<FVector3f> vertices;
 
         // Map in ClipMesh from vertices to the one they are collapsed to because they are very similar, if they aren't collapsed then they are mapped to themselves
-        mu::vector<int> collapsedVertexMap(vcount);
+		TArray<int> collapsedVertexMap;
 
         MeshCreateCollapsedVertexMap( pMesh, collapsedVertexMap, vertices );
 
-
         // Acumulate edges
-        mu::map< mu::pair<int,int>, int > faceCountPerEdge;
+        TMap< TPair<int,int>, int > faceCountPerEdge;
 
         UntypedMeshBufferIteratorConst itClipMesh(pMesh->GetIndexBuffers(), MBS_VERTEXINDEX);
         for (int f = 0; f < fcount; ++f)
@@ -202,11 +130,18 @@ namespace mu
                     return false;
                 }
 
-                mu::pair<int,int> edge;
-                edge.first = std::min( v0, v1 );
-                edge.second = std::max( v0, v1 );
+                TPair<int,int> edge;
+                edge.Key = FMath::Min( v0, v1 );
+                edge.Value = FMath::Max( v0, v1 );
 
-                faceCountPerEdge[edge]++;
+				if (faceCountPerEdge.Contains(edge))
+				{
+					faceCountPerEdge[edge]++;
+				}
+				else
+				{
+					faceCountPerEdge.Add(edge,1);
+				}
             }
         }
 
@@ -214,7 +149,7 @@ namespace mu
         // See if every edge has 2 faces
         for( const auto& e: faceCountPerEdge)
         {
-            if (e.second!=2)
+            if (e.Value!=2)
             {
                 return false;
             }
@@ -232,20 +167,22 @@ namespace mu
         MUTABLE_CPUPROFILER_SCOPE(MeshRemoveUnusedVertices);
 
         // Mark used vertices
-        mu::vector<uint8_t> used( pMesh->GetVertexCount(), false );
+		TArray<uint8> used;
+		used.SetNumZeroed(pMesh->GetVertexCount());
         UntypedMeshBufferIteratorConst iti(pMesh->GetIndexBuffers(), MBS_VERTEXINDEX);
         int IndexCount = pMesh->GetIndexCount();
         for (int i = 0; i < IndexCount; ++i)
         {
-            uint32_t Index = iti.GetAsUINT32();
+            uint32 Index = iti.GetAsUINT32();
             ++iti;
             used[Index] = true;
         }
 
         // Build vertex map
-        mu::vector<int32_t> oldToNewVertex(pMesh->GetVertexCount());
-        int totalNewVertices = 0;
-        for (int v = 0; v<pMesh->GetVertexCount(); ++v)
+		TArray<int32> oldToNewVertex;
+		oldToNewVertex.SetNumUninitialized(pMesh->GetVertexCount());
+        int32 totalNewVertices = 0;
+        for (int32 v = 0; v<pMesh->GetVertexCount(); ++v)
         {
             if (used[v])
             {
@@ -262,14 +199,14 @@ namespace mu
         for (int b = 0; b<pMesh->GetVertexBuffers().GetBufferCount(); ++b)
         {
             int elemSize = pMesh->GetVertexBuffers().GetElementSize(b);
-            const uint8_t* pSourceData = pMesh->GetVertexBuffers().GetBufferData(b);
-            uint8_t* pData = pMesh->GetVertexBuffers().GetBufferData(b);
+            const uint8* pSourceData = pMesh->GetVertexBuffers().GetBufferData(b);
+            uint8* pData = pMesh->GetVertexBuffers().GetBufferData(b);
             for (int v = 0; v<pMesh->GetVertexCount(); ++v)
             {
                 if (oldToNewVertex[v]!=-1)
                 {
-                    uint8_t* pElemData = pData + elemSize*oldToNewVertex[v];
-                    const uint8_t* pElemSourceData = pSourceData + elemSize*v;
+                    uint8* pElemData = pData + elemSize*oldToNewVertex[v];
+                    const uint8* pElemSourceData = pSourceData + elemSize*v;
                     // Avoid warning for overlapping memcpy in valgrind
                     if (pElemData != pElemSourceData)
                     {
@@ -286,10 +223,10 @@ namespace mu
         {
             for (int i = 0; i < IndexCount; ++i)
             {
-                uint32_t Index = *(uint32_t*)ito.ptr();
-                int32_t NewIndex = oldToNewVertex[Index];
+                uint32 Index = *(uint32*)ito.ptr();
+                int32 NewIndex = oldToNewVertex[Index];
                 check(NewIndex >= 0);
-                *(uint32_t*)ito.ptr() = (uint32_t)NewIndex;
+                *(uint32*)ito.ptr() = (uint32)NewIndex;
                 ++ito;
             }
         }
@@ -297,10 +234,10 @@ namespace mu
         {
             for (int i = 0; i < IndexCount; ++i)
             {
-                uint16_t Index = *(uint16_t*)ito.ptr();
-                int32_t NewIndex = oldToNewVertex[Index];
+                uint16 Index = *(uint16*)ito.ptr();
+                int32 NewIndex = oldToNewVertex[Index];
                 check(NewIndex >= 0);
-                *(uint16_t*)ito.ptr() = (uint16_t)NewIndex;
+                *(uint16*)ito.ptr() = (uint16)NewIndex;
                 ++ito;
             }
         }
@@ -319,11 +256,11 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     inline int get_num_intersections( const vec3f& vertex,
                                       const vec3f& ray,
-                                      const mu::vector<vec3f>& vertices,
-                                      const mu::vector<uint32_t>& faces,
-                                      mu::vector<int>& collapsedVertexMap,
-                                      mu::vector<uint8_t>& vertex_already_intersected,
-                                      mu::map<mu::pair<int, int>, bool>& edge_already_intersected,
+                                      const TArray<vec3f>& vertices,
+                                      const TArray<uint32>& faces,
+                                      TArray<int>& collapsedVertexMap,
+									  TArray<uint8>& vertex_already_intersected,
+                                      TMap<TPair<int, int>, bool>& edge_already_intersected,
 									  float dynamic_epsilon
                                       )
     {
@@ -333,18 +270,18 @@ namespace mu
         int num_intersections = 0;
         vec3f intersection;
 
-		FMemory::Memzero( vertex_already_intersected.data(), vertex_already_intersected.size() );
+		FMemory::Memzero( vertex_already_intersected.GetData(), vertex_already_intersected.Num());
 
-        edge_already_intersected.clear();
+        edge_already_intersected.Empty();
 
     #define get_collapsed_vertex(vertex_idx) (vertices[collapsedVertexMap[vertex_idx]])
 
-        size_t fcount = faces.size()/3;
+        size_t fcount = faces.Num()/3;
 
         // Check vertex against all ClipMorph faces
-        for (uint32_t face = 0; face < fcount; ++face)
+        for (uint32 face = 0; face < fcount; ++face)
         {
-            uint32_t vertex_indexs[3] = { faces[3 * face], faces[3 * face + 1], faces[3 * face + 2] };
+            uint32 vertex_indexs[3] = { faces[3 * face], faces[3 * face + 1], faces[3 * face + 2] };
 
             vec3f v0 = get_collapsed_vertex(vertex_indexs[0]);
             vec3f v1 = get_collapsed_vertex(vertex_indexs[1]);
@@ -370,14 +307,14 @@ namespace mu
                     int collapsed_edge_vert_index0 = collapsedVertexMap[vertex_indexs[out_intersected_edge_v0]];
                     int collapsed_edge_vert_index1 = collapsedVertexMap[vertex_indexs[out_intersected_edge_v1]];
 
-                    mu::pair<int, int> key;
-                    key.first = collapsed_edge_vert_index0 <= collapsed_edge_vert_index1 ? collapsed_edge_vert_index0 : collapsed_edge_vert_index1;
-                    key.second = collapsed_edge_vert_index1 > collapsed_edge_vert_index0 ? collapsed_edge_vert_index1 : collapsed_edge_vert_index0;
-                    edge_not_intersected_before = edge_already_intersected.find(key) == edge_already_intersected.end();
+                    TPair<int, int> key;
+                    key.Key = collapsed_edge_vert_index0 <= collapsed_edge_vert_index1 ? collapsed_edge_vert_index0 : collapsed_edge_vert_index1;
+                    key.Value = collapsed_edge_vert_index1 > collapsed_edge_vert_index0 ? collapsed_edge_vert_index1 : collapsed_edge_vert_index0;
+                    edge_not_intersected_before = edge_already_intersected.Find(key) != nullptr;
 
                     if (edge_not_intersected_before)
                     {
-                        edge_already_intersected[key] = true;
+                        edge_already_intersected.Add( key, true );
                     }
                 }
 
@@ -389,190 +326,6 @@ namespace mu
         }
 
         return num_intersections;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    //! Reference version
-    //---------------------------------------------------------------------------------------------
-    inline void MeshClipMeshClassifyVertices(mu::vector<uint8_t>& vertex_in_clip_mesh,
-                                             const Mesh* pBase, const Mesh* pClipMesh)
-    {
-        MUTABLE_CPUPROFILER_SCOPE(MeshClipMeshClassifyVertices);
-
-        // TODO: this fails in bro for some object. do it at graph construction time to report it 
-        // nicely.
-        //check( MeshIsClosed(pClipMesh) );
-
-        int vcount = pClipMesh->GetVertexBuffers().GetElementCount();
-        int fcount = pClipMesh->GetFaceCount();
-
-        int orig_vcount = pBase->GetVertexBuffers().GetElementCount();
-
-        // Stores whether each vertex in the original mesh in the clip mesh volume
-        vertex_in_clip_mesh.resize(orig_vcount);
-        std::fill(vertex_in_clip_mesh.begin(), vertex_in_clip_mesh.end(), false);
-
-        if (!vcount)
-        {
-            return;
-        }
-
-        mu::vector<vec3f> vertices(vcount); // ClipMesh vertex cache
-        mu::vector<uint32_t> faces(fcount * 3); // ClipMesh face cache
-
-        // Map in ClipMesh from vertices to the one they are collapsed to because they are very 
-        // similar, if they aren't collapsed then they are mapped to themselves
-        mu::vector<int> collapsedVertexMap(vcount);
-
-        MeshCreateCollapsedVertexMap( pClipMesh, collapsedVertexMap, vertices );
-
-
-        // Create cache of the faces
-        UntypedMeshBufferIteratorConst itClipMesh(pClipMesh->GetIndexBuffers(), MBS_VERTEXINDEX);
-
-        for (int f = 0; f < fcount; ++f)
-        {
-            faces[3 * f]     = itClipMesh.GetAsUINT32(); ++itClipMesh;
-            faces[3 * f + 1] = itClipMesh.GetAsUINT32(); ++itClipMesh;
-            faces[3 * f + 2] = itClipMesh.GetAsUINT32(); ++itClipMesh;
-        }
-
-
-        // Create a bounding box of the clip mesh
-        box<vec3f> clipMeshBoundingBox;
-        clipMeshBoundingBox.min = vertices[0];
-        clipMeshBoundingBox.size = vec3f(0.0f,0.0f,0.0f);
-        for (size_t i=1; i<vertices.size(); ++i)
-        {
-            clipMeshBoundingBox.Bound(vertices[i]);
-        }
-
-		// Dynamic distance epsilon to support different engines
-		float maxDimensionBoundingBox = length(clipMeshBoundingBox.size);
-		// 0.000001 is the value that helps to achieve the dynamic epsilon, do not change it
-		float dynamicEpsilon = 0.000001f * maxDimensionBoundingBox * (maxDimensionBoundingBox < 1.0f ? maxDimensionBoundingBox : 1.0f);
-
-        // Z-direction. Don't change this without reviewing the acceleration structures below.
-        const vec3f ray = vec3f(0.f, 0.f, 203897203.f);
-
-        // Create an acceleration grid to avoid testing all clip-mesh triangles.
-        // This assumes that the testing ray direction is Z
-        const int GRID_SIZE = 8;
-        std::unique_ptr<mu::vector<uint32_t>[]> gridFaces( new mu::vector<uint32_t>[GRID_SIZE*GRID_SIZE] );
-        vec2f gridCellSize = clipMeshBoundingBox.size.xy() / (float)GRID_SIZE;
-        for ( int i=0; i<GRID_SIZE; ++i)
-        {
-            for ( int j=0; j<GRID_SIZE; ++j)
-            {
-                box<vec2f> cellBox;
-                cellBox.size = gridCellSize;
-                cellBox.min = clipMeshBoundingBox.min.xy() + gridCellSize * vec2f((float)i,(float)j);
-
-                mu::vector<uint32_t>& cellFaces = gridFaces[i+j*GRID_SIZE];
-                cellFaces.reserve(fcount/GRID_SIZE);
-                for (int f = 0; f < fcount; ++f)
-                {
-                    // Imprecise, conservative classification of faces.
-                    box<vec2f> faceBox;
-                    faceBox.size = vec2f(0.0f,0.0f);
-                    faceBox.min = vertices[ faces[3 * f + 0] ].xy();
-                    faceBox.Bound(vertices[ faces[3 * f + 1] ].xy());
-                    faceBox.Bound(vertices[ faces[3 * f + 2] ].xy());
-
-                    if (cellBox.Intersects(faceBox))
-                    {
-                        cellFaces.push_back(faces[3 * f + 0]);
-                        cellFaces.push_back(faces[3 * f + 1]);
-                        cellFaces.push_back(faces[3 * f + 2]);
-                    }
-                }
-            }
-        }
-
-
-        // Now go through all vertices in the mesh and record whether they are inside or outside of the ClipMesh
-        uint32_t dest_vertex_count = pBase->GetVertexCount();
-
-        const FMeshBufferSet& MBSPriv2 = pBase->GetVertexBuffers();
-        for (int32 b = 0; b < MBSPriv2.m_buffers.Num(); ++b)
-        {
-            for (int32 c = 0; c < MBSPriv2.m_buffers[b].m_channels.Num(); ++c)
-            {
-                MESH_BUFFER_SEMANTIC sem = MBSPriv2.m_buffers[b].m_channels[c].m_semantic;
-                int semIndex = MBSPriv2.m_buffers[b].m_channels[c].m_semanticIndex;
-
-                UntypedMeshBufferIteratorConst it(pBase->GetVertexBuffers(), sem, semIndex);
-
-                mu::vector<uint8_t> vertex_already_intersected(vcount);
-                mu::map<mu::pair<int, int>, bool> edge_already_intersected;
-
-                switch (sem)
-                {
-                case MBS_POSITION:
-                    for (uint32_t v = 0; v < dest_vertex_count; ++v)
-                    {
-                        vec3f vertex(0.0f, 0.0f, 0.0f);
-                        for (int i = 0; i < 3; ++i)
-                        {
-                            ConvertData(i, &vertex[0], MBF_FLOAT32, it.ptr(), it.GetFormat());
-                        }
-
-                        // Find out grid cell
-                        vec2f hPos = (vertex.xy()-clipMeshBoundingBox.min.xy()) / clipMeshBoundingBox.size.xy() * (float)GRID_SIZE;
-                        int i = std::min( std::max( (int)hPos.x(), 0 ), GRID_SIZE-1 );
-                        int j = std::min( std::max( (int)hPos.y(), 0 ), GRID_SIZE-1 );
-
-                        // Early discard test: if the vertex is not inside the bounding box of the clip mesh, it won't be clipped.
-                        bool contains = (clipMeshBoundingBox.ContainsInclusive(vertex));
-
-                        if (contains)
-                        {
-                            // Optimised test
-                            int cellIndex = i+j*GRID_SIZE;
-                            mu::vector<uint32_t>& thisCell = gridFaces[cellIndex];
-                            int num_intersections = get_num_intersections(
-                                        vertex,
-                                        ray,
-                                        vertices,
-                                        thisCell,
-                                        collapsedVertexMap,
-                                        vertex_already_intersected,
-                                        edge_already_intersected,
-										dynamicEpsilon
-                                        );
-
-                            // Full test BLEH, debug
-//                            int full_num_intersections = get_num_intersections(
-//                                        vertex,
-//                                        ray,
-//                                        vertices,
-//                                        faces,
-//                                        collapsedVertexMap,
-//                                        vertex_already_intersected,
-//                                        edge_already_intersected
-//                                        );
-
-
-                            vertex_in_clip_mesh[v] = num_intersections % 2 == 1;
-
-                            // This may be used to debug degenerated cases if the conditional above is also removed.
-                            // \todo: make sure it works well
-//                            if (!contains && vertex_in_clip_mesh[v])
-//                            {
-//                                assert(false);
-//                            }
-                        }
-
-                        ++it;
-                    }
-                    break;
-
-                default:
-                    break;
-                }
-            }
-        }
     }
 
 
@@ -862,13 +615,13 @@ namespace mu
         
 		MeshPtr pDest = pBase->Clone();
 
-        uint32_t vcount = pClipMesh->GetVertexBuffers().GetElementCount();
+        uint32 vcount = pClipMesh->GetVertexBuffers().GetElementCount();
         if (!vcount)
         {
             return pDest; // Since there's nothing to clip against return a copy of the original base mesh
         }
 
-        mu::vector<uint8_t> vertex_in_clip_mesh;  // Stores whether each vertex in the original mesh in in the clip mesh volume
+        TArray<uint8> vertex_in_clip_mesh;  // Stores whether each vertex in the original mesh in in the clip mesh volume
         MeshClipMeshClassifyVertices( vertex_in_clip_mesh, pBase, pClipMesh );
 
         // Now remove all the faces from the result mesh that have all the vertices outside the clip volume
@@ -879,7 +632,7 @@ namespace mu
         UntypedMeshBufferIteratorConst ito(pDest->GetIndexBuffers(), MBS_VERTEXINDEX);
         for (int f = 0; f < aFaceCount; ++f)
         {
-            vec3<uint32_t> ov;
+            vec3<uint32> ov;
             ov[0] = ito.GetAsUINT32(); ++ito;
             ov[1] = ito.GetAsUINT32(); ++ito;
             ov[2] = ito.GetAsUINT32(); ++ito;
@@ -899,7 +652,7 @@ namespace mu
             itBase += 3;
         }
 
-        std::size_t removedIndices = itBase - itDest;
+        SIZE_T removedIndices = itBase - itDest;
         check(removedIndices % 3 == 0);
 
         pDest->GetFaceBuffers().SetElementCount(aFaceCount - (int)removedIndices / 3);
@@ -929,7 +682,7 @@ namespace mu
 
         MeshPtr pDest = pBase->Clone();
 
-        uint32_t VCount = pClipMesh->GetVertexBuffers().GetElementCount();
+        uint32 VCount = pClipMesh->GetVertexBuffers().GetElementCount();
         if (!VCount)
         {
             return pDest; // Since there's nothing to clip against return a copy of the original base mesh
@@ -991,11 +744,11 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //!
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr CreateMask( MeshPtrConst pBase, const mu::vector<uint8_t>& excludedVertices )
+    inline MeshPtr CreateMask( MeshPtrConst pBase, const TArray<uint8>& excludedVertices )
     {
 
         int maskVertexCount = 0;
-        for( uint8_t b: excludedVertices )
+        for( uint8 b: excludedVertices )
         {
             if (!b) ++maskVertexCount;
         }
@@ -1007,101 +760,32 @@ namespace mu
             pMask->GetVertexBuffers().SetElementCount( maskVertexCount );
             pMask->GetVertexBuffers().SetBufferCount( 1 );
 
-            vector<MESH_BUFFER_SEMANTIC> semantic;
-            vector<int> semanticIndex;
-            vector<MESH_BUFFER_FORMAT> format;
-            vector<int> components;
-            vector<int> offsets;
-
-            // Vertex index channel
-            semantic.push_back( MBS_VERTEXINDEX );
-            semanticIndex.push_back( 0 );
-            format.push_back( MBF_UINT32 );
-            components.push_back( 1 );
-            offsets.push_back( 0 );
+			// Vertex index channel
+			MESH_BUFFER_SEMANTIC semantic = MBS_VERTEXINDEX;
+			int semanticIndex = 0;
+			MESH_BUFFER_FORMAT format = MBF_UINT32;
+			int components = 1;
+			int offsets = 0;
 
             pMask->GetVertexBuffers().SetBuffer
                 (
                     0,
                     4,
                     1,
-                    &semantic[0],
-                    &semanticIndex[0],
-                    &format[0],
-                    &components[0],
-                    &offsets[0]
+                    &semantic,
+                    &semanticIndex,
+                    &format,
+                    &components,
+                    &offsets
                 );
         }
 
-        MeshBufferIterator<MBF_UINT32,uint32_t,1> itMask( pMask->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
+        MeshBufferIterator<MBF_UINT32,uint32,1> itMask( pMask->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
         UntypedMeshBufferIteratorConst itBase( pBase->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
 
-        for (size_t v = 0; v<excludedVertices.size(); ++v)
+        for (size_t v = 0; v<excludedVertices.Num(); ++v)
         {
             if (!excludedVertices[v])
-            {
-                (*itMask)[0] = itBase.GetAsUINT32();
-                ++itMask;
-            }
-
-            ++itBase;
-        }
-
-        return pMask;
-    }
-
-    //---------------------------------------------------------------------------------------------
-    //!
-    //---------------------------------------------------------------------------------------------
-    inline MeshPtr CreateMask( MeshPtrConst pBase, const TArray<uint8>& ExcludedVertices )
-    {
-
-        int32 MaskVertexCount = 0;
-        for( uint8 B: ExcludedVertices )
-        {
-            MaskVertexCount += (int32)(!B);
-        }
-
-        MeshPtr pMask = new Mesh();
-
-        // Create the vertex buffer
-        {
-            pMask->GetVertexBuffers().SetElementCount( MaskVertexCount );
-            pMask->GetVertexBuffers().SetBufferCount( 1 );
-
-            vector<MESH_BUFFER_SEMANTIC> semantic;
-            vector<int> semanticIndex;
-            vector<MESH_BUFFER_FORMAT> format;
-            vector<int> components;
-            vector<int> offsets;
-
-            // Vertex index channel
-            semantic.push_back( MBS_VERTEXINDEX );
-            semanticIndex.push_back( 0 );
-            format.push_back( MBF_UINT32 );
-            components.push_back( 1 );
-            offsets.push_back( 0 );
-
-            pMask->GetVertexBuffers().SetBuffer
-                (
-                    0,
-                    4,
-                    1,
-                    &semantic[0],
-                    &semanticIndex[0],
-                    &format[0],
-                    &components[0],
-                    &offsets[0]
-                );
-        }
-
-        MeshBufferIterator<MBF_UINT32,uint32_t,1> itMask( pMask->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
-        UntypedMeshBufferIteratorConst itBase( pBase->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
-
-		const int32 ExcludedVerticesNum = ExcludedVertices.Num();
-        for ( int32 V = 0; V < ExcludedVerticesNum; ++V )
-        {
-            if (!ExcludedVertices[V])
             {
                 (*itMask)[0] = itBase.GetAsUINT32();
                 ++itMask;
@@ -1167,23 +851,24 @@ namespace mu
     {
         MUTABLE_CPUPROFILER_SCOPE(MeshMaskClipMesh_Reference);
 
-        uint32_t vcount = pClipMesh->GetVertexBuffers().GetElementCount();
+        uint32 vcount = pClipMesh->GetVertexBuffers().GetElementCount();
         if (!vcount)
         {
             return nullptr; // Since there's nothing to clip against return a copy of the original base mesh
         }
 
-        mu::vector<uint8_t> vertex_in_clip_mesh;  // Stores whether each vertex in the original mesh in in the clip mesh volume
+        TArray<uint8> vertex_in_clip_mesh;  // Stores whether each vertex in the original mesh in in the clip mesh volume
         MeshClipMeshClassifyVertices( vertex_in_clip_mesh, pBase, pClipMesh );
 
         // We only remove vertices if all their faces are clipped
-        mu::vector<uint8_t> vertex_with_face_not_clipped(vertex_in_clip_mesh.size(),0);
+		TArray<uint8> vertex_with_face_not_clipped;
+		vertex_with_face_not_clipped.SetNumZeroed(vertex_in_clip_mesh.Num());
 
         UntypedMeshBufferIteratorConst ito(pBase->GetIndexBuffers(), MBS_VERTEXINDEX);
         int aFaceCount = pBase->GetFaceCount();
         for (int f = 0; f < aFaceCount; ++f)
         {
-            vec3<uint32_t> ov;
+            vec3<uint32> ov;
             ov[0] = ito.GetAsUINT32(); ++ito;
             ov[1] = ito.GetAsUINT32(); ++ito;
             ov[2] = ito.GetAsUINT32(); ++ito;
@@ -1212,7 +897,7 @@ namespace mu
     {
         MUTABLE_CPUPROFILER_SCOPE(MeshMaskDiff);
 
-        uint32_t vcount = pFragment->GetVertexBuffers().GetElementCount();
+        uint32 vcount = pFragment->GetVertexBuffers().GetElementCount();
         if (!vcount)
         {
             return nullptr;
@@ -1247,7 +932,7 @@ namespace mu
         // Classify the target faces in buckets along the Y axis
 #define NUM_BUCKETS	128
 #define AXIS		1
-        vector<int> buckets[ NUM_BUCKETS ];
+        TArray<int> buckets[ NUM_BUCKETS ];
         float bucketStart = aabbox.min[AXIS];
         float bucketSize = aabbox.size[AXIS] / NUM_BUCKETS;
 
@@ -1256,22 +941,22 @@ namespace mu
         MeshBufferIteratorConst<MBF_FLOAT32,float,3> itp( pFragment->GetVertexBuffers(), MBS_POSITION );
         for ( int tf=0; tf<fragmentFaceCount; tf++ )
         {
-            uint32_t index0 = iti.GetAsUINT32(); ++iti;
-            uint32_t index1 = iti.GetAsUINT32(); ++iti;
-            uint32_t index2 = iti.GetAsUINT32(); ++iti;
+            uint32 index0 = iti.GetAsUINT32(); ++iti;
+            uint32 index1 = iti.GetAsUINT32(); ++iti;
+            uint32 index2 = iti.GetAsUINT32(); ++iti;
             float y = ( (*(itp+index0))[AXIS] + (*(itp+index1))[AXIS] + (*(itp+index2))[AXIS] ) / 3;
             float fbucket = (y-bucketStart) / bucketSize;
-            int bucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)fbucket ) );
-            buckets[bucket].push_back(tf);
-            int hibucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)(fbucket+bucketThreshold) ) );
+            int bucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)fbucket ) );
+            buckets[bucket].Add(tf);
+            int hibucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)(fbucket+bucketThreshold) ) );
             if (hibucket!=bucket)
             {
-                buckets[hibucket].push_back(tf);
+                buckets[hibucket].Add(tf);
             }
-            int lobucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)(fbucket-bucketThreshold) ) );
+            int lobucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)(fbucket-bucketThreshold) ) );
             if (lobucket!=bucket)
             {
-                buckets[lobucket].push_back(tf);
+                buckets[lobucket].Add(tf);
             }
         }
 
@@ -1283,7 +968,8 @@ namespace mu
 //			LogDebug("bucket : %d\n", buckets[b].size() );
 //		}
 
-        vector<uint8_t> faceClipped(sourceFaceCount,false);
+		TArray<uint8> faceClipped;
+		faceClipped.SetNumZeroed(sourceFaceCount);
 
         UntypedMeshBufferIteratorConst ito( pBase->GetIndexBuffers(), MBS_VERTEXINDEX );
         MeshBufferIteratorConst<MBF_FLOAT32,float,3> itop( pBase->GetVertexBuffers(), MBS_POSITION );
@@ -1291,7 +977,7 @@ namespace mu
         for ( int f=0; f<sourceFaceCount; ++f )
         {
             bool hasFace = false;
-            vec3<uint32_t> ov;
+            vec3<uint32> ov;
             ov[0] = ito.GetAsUINT32(); ++ito;
             ov[1] = ito.GetAsUINT32(); ++ito;
             ov[2] = ito.GetAsUINT32(); ++ito;
@@ -1299,13 +985,13 @@ namespace mu
             // find the bucket for this face
             float y = ( (*(itop+ov[0]))[AXIS] + (*(itop+ov[1]))[AXIS] + (*(itop+ov[2]))[AXIS] ) / 3;
             float fbucket = (y-bucketStart) / bucketSize;
-            int bucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)fbucket ) );
+            int bucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)fbucket ) );
 
-            for ( std::size_t btf=0; !hasFace && btf<buckets[bucket].size(); btf++ )
+            for ( int32 btf=0; !hasFace && btf<buckets[bucket].Num(); btf++ )
             {
                 int tf =  buckets[bucket][btf];
 
-                vec3<uint32_t> v;
+                vec3<uint32> v;
                 v[0] = (itti+3*tf+0).GetAsUINT32();
                 v[1] = (itti+3*tf+1).GetAsUINT32();
                 v[2] = (itti+3*tf+2).GetAsUINT32();
@@ -1326,13 +1012,14 @@ namespace mu
         }
 
         // We only remove vertices if all their faces are clipped
-        mu::vector<uint8_t> vertex_with_face_not_clipped(sourceVertexCount,0);
+		TArray<uint8> vertex_with_face_not_clipped;
+		vertex_with_face_not_clipped.SetNumZeroed(sourceVertexCount);
 
         UntypedMeshBufferIteratorConst itoi(pBase->GetIndexBuffers(), MBS_VERTEXINDEX);
         int aFaceCount = pBase->GetFaceCount();
         for (int f = 0; f < aFaceCount; ++f)
         {
-            vec3<uint32_t> ov;
+            vec3<uint32> ov;
             ov[0] = itoi.GetAsUINT32(); ++itoi;
             ov[1] = itoi.GetAsUINT32(); ++itoi;
             ov[2] = itoi.GetAsUINT32(); ++itoi;

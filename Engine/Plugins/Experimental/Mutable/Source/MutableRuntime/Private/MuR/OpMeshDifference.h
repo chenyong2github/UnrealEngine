@@ -53,8 +53,8 @@ struct MORPH_VERTEX
 		uint32_t vcount = pBase->GetVertexBuffers().GetElementCount();		
 
 		// If no channels were specified, get them all
-		vector<MESH_BUFFER_SEMANTIC> allSemantics;		
-		vector<int> allSemanticIndices;
+		TArray<MESH_BUFFER_SEMANTIC> allSemantics;		
+		TArray<int> allSemanticIndices;
 		if ( !numChannels )
 		{
 			for ( int vb=0; vb<pBase->GetVertexBuffers().GetBufferCount(); ++vb )
@@ -74,8 +74,8 @@ struct MORPH_VERTEX
 					     sem != MBS_OTHER && 
 					     ( !ignoreTexCoords || sem!=MBS_TEXCOORDS ) )
 					{
-						allSemantics.push_back( sem );
-						allSemanticIndices.push_back( semIndex );
+						allSemantics.Add( sem );
+						allSemanticIndices.Add( semIndex );
 						++numChannels;
 					}
 				}
@@ -90,8 +90,10 @@ struct MORPH_VERTEX
 		// TODO: Not always 4 components
 		// TODO: Not always floats
 		int differentVertexCount = 0;
-		vector<bool> isVertexDifferent( vcount, false );
-		vector< vec4<float> > deltas( vcount*numChannels );
+		TArray<bool> isVertexDifferent;
+		isVertexDifferent.SetNumZeroed(vcount);
+		TArray< vec4<float> > deltas;
+		deltas.SetNum(vcount * numChannels);
 
 		for ( int c=0; c<numChannels; ++c )
 		{
@@ -129,28 +131,28 @@ struct MORPH_VERTEX
 			pDest->GetVertexBuffers().SetElementCount( differentVertexCount );			
 			pDest->GetVertexBuffers().SetBufferCount( 1 );								
 
-			vector<MESH_BUFFER_SEMANTIC> semantic;				
-			vector<int> semanticIndex;							
-			vector<MESH_BUFFER_FORMAT> format;					
-			vector<int> components;								
-			vector<int> offsets;								
+			TArray<MESH_BUFFER_SEMANTIC> semantic;
+			TArray<int> semanticIndex;
+			TArray<MESH_BUFFER_FORMAT> format;
+			TArray<int> components;
+			TArray<int> offsets;
 			int offset = 0;										
 
 			// Vertex index channel
-			semantic.push_back( MBS_VERTEXINDEX );					
-			semanticIndex.push_back( 0 );
-			format.push_back( MBF_UINT32 );		
-			components.push_back( 1 );
-			offsets.push_back( offset );
+			semantic.Add( MBS_VERTEXINDEX );					
+			semanticIndex.Add( 0 );
+			format.Add( MBF_UINT32 );
+			components.Add( 1 );
+			offsets.Add( offset );
 			offset += 4;						
 
 			for ( int c=0; c<numChannels; ++c )
 			{
-				semantic.push_back( semantics[c] );
-				semanticIndex.push_back( semanticIndices[c] );
-				format.push_back( MBF_FLOAT32 );
-				components.push_back( 4 );
-				offsets.push_back( offset );
+				semantic.Add( semantics[c] );
+				semanticIndex.Add( semanticIndices[c] );
+				format.Add( MBF_FLOAT32 );
+				components.Add( 4 );
+				offsets.Add( offset );
 				offset += 16;				
 			}
 

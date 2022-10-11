@@ -38,7 +38,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeLOD::GetInputCount() const
 	{
-		return int(m_pD->m_components.size()+m_pD->m_modifiers.size());
+		return m_pD->m_components.Num()+m_pD->m_modifiers.Num();
 	}
 
 
@@ -47,14 +47,14 @@ namespace mu
 	{
         check(i >= 0 && i < GetInputCount());
 
-        if (i < int(m_pD->m_components.size()))
+        if (i < int(m_pD->m_components.Num()))
         {
             return m_pD->m_components[i].get();
 		}
 
-        i -= int(m_pD->m_components.size());
+        i -= int(m_pD->m_components.Num());
 
-        if (i < int(m_pD->m_modifiers.size()))
+        if (i < int(m_pD->m_modifiers.Num()))
         {
             return m_pD->m_modifiers[i].get();
         }
@@ -68,14 +68,14 @@ namespace mu
 	{
         check(i >= 0 && i < GetInputCount());
 
-        if (i<int(m_pD->m_components.size()))
+        if (i<int(m_pD->m_components.Num()))
 		{
             m_pD->m_components[i] = dynamic_cast<NodeComponent*>(pNode.get());
             return;
         }
 
-        i -= int(m_pD->m_components.size());
-        if (i < int(m_pD->m_modifiers.size()))
+        i -= int(m_pD->m_components.Num());
+        if (i < int(m_pD->m_modifiers.Num()))
         {
             m_pD->m_modifiers[i] = dynamic_cast<NodeModifier*>(pNode.get());
         }
@@ -87,7 +87,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeLOD::GetComponentCount() const
 	{
-		return (int)m_pD->m_components.size();
+		return (int)m_pD->m_components.Num();
 	}
 
 
@@ -95,14 +95,14 @@ namespace mu
 	void NodeLOD::SetComponentCount(int num)
 	{
 		check(num >= 0);
-		m_pD->m_components.resize(num);
+		m_pD->m_components.SetNum(num);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeComponentPtr NodeLOD::GetComponent(int index) const
 	{
-		check(index >= 0 && index < (int)m_pD->m_components.size());
+		check(index >= 0 && index < m_pD->m_components.Num());
 
 		return m_pD->m_components[index].get();
 	}
@@ -111,7 +111,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeLOD::SetComponent(int index, NodeComponentPtr pComponent)
 	{
-		check(index >= 0 && index < (int)m_pD->m_components.size());
+		check(index >= 0 && index < m_pD->m_components.Num());
 
 		m_pD->m_components[index] = pComponent;
 	}
@@ -120,7 +120,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeLOD::GetModifierCount() const
 	{
-		return (int)m_pD->m_modifiers.size();
+		return (int)m_pD->m_modifiers.Num();
 	}
 
 
@@ -128,14 +128,14 @@ namespace mu
 	void NodeLOD::SetModifierCount(int num)
 	{
 		check(num >= 0);
-		m_pD->m_modifiers.resize(num);
+		m_pD->m_modifiers.SetNum(num);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void NodeLOD::SetModifier(int index, NodeModifierPtr pModifier)
 	{
-		check(index >= 0 && index < (int)m_pD->m_modifiers.size());
+		check(index >= 0 && index < m_pD->m_modifiers.Num());
 
 		m_pD->m_modifiers[index] = pModifier;
 	}

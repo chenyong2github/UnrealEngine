@@ -125,7 +125,7 @@ namespace mu
 
 		// Generate the block size in case we are generating an expression whose root is an image
 		bool addedImageState = false;
-		if ( m_imageState.empty() )
+		if ( m_imageState.IsEmpty() )
 		{
 
 			FImageDesc desc = CalculateImageDesc(*Untyped->GetBasePrivate());
@@ -136,7 +136,7 @@ namespace mu
 			newState.m_imageRect.min[0] = 0;
 			newState.m_imageRect.min[1] = 0;
 			newState.m_layoutBlock = -1;
-			m_imageState.push_back(newState);
+			m_imageState.Add(newState);
 			addedImageState = true;
 		}
 
@@ -191,7 +191,7 @@ namespace mu
 		// Restore the modified image state
 		if (addedImageState)
 		{
-			m_imageState.pop_back();
+			m_imageState.Pop();
 		}
 
 	}
@@ -232,14 +232,14 @@ namespace mu
 
         // Order of the operations is important: multiply first to avoid losing precision.
         // It will not overflow since image sizes are limited to 16 bit
-        cropRect.min = ( m_imageState.back().m_imageRect.min * imageSize )
-                / m_imageState.back().m_imageSize;
-        cropRect.size = ( m_imageState.back().m_imageRect.size * imageSize )
-                / m_imageState.back().m_imageSize;
+        cropRect.min = ( m_imageState.Last().m_imageRect.min * imageSize )
+                / m_imageState.Last().m_imageSize;
+        cropRect.size = ( m_imageState.Last().m_imageRect.size * imageSize )
+                / m_imageState.Last().m_imageSize;
 
         //check( cropRect.size[0]>0 && cropRect.size[1]>0 );
-        cropRect.size[0] = std::max( cropRect.size[0], 1 );
-        cropRect.size[1] = std::max( cropRect.size[1], 1 );
+        cropRect.size[0] = FMath::Max( cropRect.size[0], 1 );
+        cropRect.size[1] = FMath::Max( cropRect.size[1], 1 );
 
         //
         if ( pImage->GetSizeX()!=cropRect.size[0] || pImage->GetSizeY()!=cropRect.size[1] )
@@ -315,8 +315,8 @@ namespace mu
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
         //base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                   (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                   (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageLayer.base, base);
 
         // Mask of the effect
@@ -326,8 +326,8 @@ namespace mu
             mask = Generate( pMask );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             mask = GenerateImageSize
-                    ( mask, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                       (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                    ( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                       (uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
         op->SetChild( op->op.args.ImageLayer.mask, mask);
 
@@ -345,8 +345,8 @@ namespace mu
         //blended = GenerateImageFormat( blended, EImageFormat::IF_RGB_UBYTE );
         blended = GenerateImageFormat( blended, baseFormat );
         blended = GenerateImageSize
-                ( blended, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                      (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( blended, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                      (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageLayer.blended, blended);
 
         result.op = op;
@@ -377,7 +377,7 @@ namespace mu
         }
         base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageLayerColour.base, base);
 
         // Mask of the effect
@@ -387,7 +387,7 @@ namespace mu
             mask = Generate( pMask );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             mask = GenerateImageSize
-                    ( mask, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                    ( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
         op->SetChild( op->op.args.ImageLayerColour.mask, mask);
 
@@ -434,8 +434,8 @@ namespace mu
 
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                   (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                   (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->base = base;
 
         // Mask of the effect
@@ -445,8 +445,8 @@ namespace mu
             mask = Generate( pMask );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             mask = GenerateImageSize
-                    ( mask, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                       (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                    ( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                       (uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
         op->mask = mask;
 
@@ -464,8 +464,8 @@ namespace mu
         //blended = GenerateImageFormat( blended, EImageFormat::IF_RGB_UBYTE );
         blended = GenerateImageFormat( blended, baseFormat );
         blended = GenerateImageSize
-                ( blended, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                      (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( blended, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                      (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->blend = blended;
 
         // Range of iteration
@@ -511,8 +511,8 @@ namespace mu
 
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                   (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                   (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->Base = base;
 
         Ptr<ASTOp> normal;
@@ -521,8 +521,8 @@ namespace mu
             normal = Generate( pNormal );
             normal = GenerateImageFormat( normal, EImageFormat::IF_RGB_UBYTE );
             normal = GenerateImageSize
-                    ( normal, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-                                         (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                    ( normal, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+                                         (uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
 		else
 		{
@@ -596,8 +596,8 @@ namespace mu
 
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-									  (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+									  (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->base = base;
 
         result.op = op; 
@@ -629,7 +629,7 @@ namespace mu
         int numTargets = 0;
 
         for ( std::size_t t=0
-            ; t< node.m_targets.size() && numTargets<MUTABLE_OP_MAX_INTERPOLATE_COUNT
+            ; t< node.m_targets.Num() && numTargets<MUTABLE_OP_MAX_INTERPOLATE_COUNT
             ; ++t )
         {
             if ( Node* pA = node.m_targets[t].get() )
@@ -639,7 +639,7 @@ namespace mu
                 // TODO: Support other formats
                 target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
                 target = GenerateImageSize
-                        ( target, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                        ( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
 
                 op->SetChild( op->op.args.ImageInterpolate.targets[numTargets], target);
                 numTargets++;
@@ -652,7 +652,7 @@ namespace mu
             Ptr<ASTOp> target = GenerateMissingImageCode( "First interpolation image", EImageFormat::IF_RGB_UBYTE,
                                                        node.m_errorContext );
             target = GenerateImageSize
-                    ( target, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                    ( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
             op->SetChild( op->op.args.ImageInterpolate.targets[0], target);
         }
 
@@ -707,7 +707,7 @@ namespace mu
         }
         target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
         target = GenerateImageSize
-                ( target, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageInterpolate3.target0, target);
 
         // Target 1
@@ -723,8 +723,8 @@ namespace mu
         }
         target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
         target = GenerateImageSize
-                ( target, FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                      (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( target, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                      (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageInterpolate3.target1, target);
 
         // Target 2
@@ -740,8 +740,8 @@ namespace mu
         }
         target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
         target = GenerateImageSize
-                ( target, FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                      (uint16_t)m_imageState.back().m_imageRect.size[1] ) );
+                ( target, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                      (uint16)m_imageState.Last().m_imageRect.size[1] ) );
         op->SetChild( op->op.args.ImageInterpolate3.target2, target);
 
 
@@ -802,11 +802,11 @@ namespace mu
 		check(node.m_format != EImageFormat::IF_NONE);
 
 		// Source images and channels
-		check(node.m_sources.size() == node.m_sourceChannels.size());
+		check(node.m_sources.Num() == node.m_sourceChannels.Num());
 
 		// First source, for reference in the size
         Ptr<ASTOp> first = 0;
-		for (std::size_t t = 0; t< node.m_sources.size(); ++t)
+		for (std::size_t t = 0; t< node.m_sources.Num(); ++t)
 		{
 			if (Node* pChannel = node.m_sources[t].get())
 			{
@@ -911,7 +911,7 @@ namespace mu
         }
         base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageSaturate.base, base);
 
 
@@ -980,7 +980,7 @@ namespace mu
                                              node.m_errorContext );
         }
         base = GenerateImageSize
-                ( base, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageSelectColour.base, base);
 
 
@@ -1021,8 +1021,8 @@ namespace mu
         }
         a = GenerateImageFormat( a, EImageFormat::IF_RGB_UBYTE );
         a = GenerateImageSize( a,
-                               FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                           (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                               FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                           (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageDifference.a, a);
 
         // B image
@@ -1038,7 +1038,7 @@ namespace mu
         }
         b = GenerateImageFormat( b, EImageFormat::IF_RGB_UBYTE );
         b = GenerateImageSize
-                ( b, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],(uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( b, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageDifference.b, b);
 
         result.op = op;
@@ -1066,8 +1066,8 @@ namespace mu
                                              node.m_errorContext );
         }
         base = GenerateImageSize
-                ( base, FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                    (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( base, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                    (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageColourMap.base, base);
 
         // Mask of the effect
@@ -1084,8 +1084,8 @@ namespace mu
         }
         mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
         mask = GenerateImageSize
-                ( mask, FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                    (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( mask, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                    (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageColourMap.mask, mask);
 
         // Map image
@@ -1101,8 +1101,8 @@ namespace mu
         }
         mapImage = GenerateImageFormat( mapImage, EImageFormat::IF_RGB_UBYTE );
         mapImage = GenerateImageSize
-                ( mapImage, FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                        (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( mapImage, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                        (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageColourMap.map, mapImage);
 
         result.op = op;
@@ -1143,8 +1143,8 @@ namespace mu
         }
         op->SetChild( op->op.args.ImageGradient.colour1, colour1);
 
-        op->op.args.ImageGradient.size[0] = (uint16_t)std::max( 2, std::min( 1024, node.m_size[0] ) );
-        op->op.args.ImageGradient.size[1] = (uint16_t)std::max( 1, std::min( 1024, node.m_size[1] ) );
+        op->op.args.ImageGradient.size[0] = (uint16)FMath::Max( 2, FMath::Min( 1024, node.m_size[0] ) );
+        op->op.args.ImageGradient.size[1] = (uint16)FMath::Max( 1, FMath::Min( 1024, node.m_size[1] ) );
 
         result.op = op;
     }
@@ -1172,8 +1172,8 @@ namespace mu
         }
         a = GenerateImageFormat( a, EImageFormat::IF_RGB_UBYTE );
         a = GenerateImageSize
-                ( a, FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                 (uint16_t)m_imageState.back().m_imageRect.size[1]) );
+                ( a, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                 (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->SetChild( op->op.args.ImageBinarise.base, a );
 
         // Threshold
@@ -1206,7 +1206,7 @@ namespace mu
         Ptr<ASTOp> base = 0;
         if ( Node* pSource = node.m_pBase.get() )
         {
-            IMAGE_STATE newState = m_imageState.back();
+            IMAGE_STATE newState = m_imageState.Last();
             if ( node.m_relative )
             {
                 newState.m_imageSize[0]=(int)std::roundf(newState.m_imageSize[0]/node.m_sizeX);
@@ -1217,11 +1217,11 @@ namespace mu
                 newState.m_imageRect.size[1]=(int)std::roundf(newState.m_imageRect.size[1]/node.m_sizeY);
             }
 
-            m_imageState.push_back(newState);
+            m_imageState.Add(newState);
 
             base = Generate( pSource );
 
-            m_imageState.pop_back();
+            m_imageState.Pop();
         }
         else
         {
@@ -1243,8 +1243,8 @@ namespace mu
         {
             Ptr<ASTOpFixed> op = new ASTOpFixed();
             op->op.type = OP_TYPE::IM_RESIZE;
-            op->op.args.ImageResize.size[0] = (uint16_t)node.m_sizeX;
-            op->op.args.ImageResize.size[1] = (uint16_t)node.m_sizeY;
+            op->op.args.ImageResize.size[0] = (uint16)node.m_sizeX;
+            op->op.args.ImageResize.size[1] = (uint16)node.m_sizeY;
             op->SetChild( op->op.args.ImageResize.source, base);
             at = op;
         }
@@ -1274,20 +1274,20 @@ namespace mu
         op->op.type = OP_TYPE::IM_PLAINCOLOUR;
         op->SetChild( op->op.args.ImagePlainColour.colour, base);
         op->op.args.ImagePlainColour.format = EImageFormat::IF_RGB_UBYTE;
-        op->op.args.ImagePlainColour.size[0] = uint16_t(node.m_sizeX);
-        op->op.args.ImagePlainColour.size[1] = uint16_t(node.m_sizeY);
+        op->op.args.ImagePlainColour.size[0] = uint16(node.m_sizeX);
+        op->op.args.ImagePlainColour.size[1] = uint16(node.m_sizeY);
 
         Ptr<ASTOpFixed> opSize = new ASTOpFixed();
         opSize->op.type = OP_TYPE::IM_RESIZE;
-        if (m_imageState.size())
+        if (m_imageState.Num())
         {
-            opSize->op.args.ImageResize.size[0] = (uint16_t)m_imageState.back().m_imageRect.size[0];
-            opSize->op.args.ImageResize.size[1] = (uint16_t)m_imageState.back().m_imageRect.size[1];
+            opSize->op.args.ImageResize.size[0] = (uint16)m_imageState.Last().m_imageRect.size[0];
+            opSize->op.args.ImageResize.size[1] = (uint16)m_imageState.Last().m_imageRect.size[1];
         }
         else
         {
-            opSize->op.args.ImageResize.size[0] = (uint16_t)node.m_sizeX;
-            opSize->op.args.ImageResize.size[1] = (uint16_t)node.m_sizeY;
+            opSize->op.args.ImageResize.size[0] = (uint16)node.m_sizeX;
+            opSize->op.args.ImageResize.size[1] = (uint16)node.m_sizeY;
         }
         opSize->SetChild( opSize->op.args.ImageResize.source, op);
 
@@ -1302,7 +1302,7 @@ namespace mu
 
 		MUTABLE_CPUPROFILER_SCOPE(NodeImageSwitch);
 
-        if (node.m_options.size() == 0)
+        if (node.m_options.Num() == 0)
 		{
 			// No options in the switch!
             Ptr<ASTOp> missingOp = GenerateMissingImageCode("Switch option",
@@ -1327,7 +1327,7 @@ namespace mu
 		}
 
 		// Options
-        for ( std::size_t t=0; t< node.m_options.size(); ++t )
+        for ( std::size_t t=0; t< node.m_options.Num(); ++t )
         {
             Ptr<ASTOp> branch;
 
@@ -1343,7 +1343,7 @@ namespace mu
                                                     node.m_errorContext);
             }
 
-            op->cases.emplace_back((int16_t)t,op,branch);
+            op->cases.Emplace((int16_t)t,op,branch);
         }
 
         Ptr<ASTOp> switchAt = op;
@@ -1441,7 +1441,7 @@ namespace mu
         if ( node.m_pMesh )
         {
             MESH_GENERATION_RESULT MeshResult;
-			check(m_overrideLayoutsStack.empty());
+			check(m_overrideLayoutsStack.IsEmpty());
             GenerateMesh(MeshResult, node.m_pMesh );
 
             pop->SetChild( pop->op.args.MeshProject.mesh, MeshResult.meshOp );
@@ -1467,12 +1467,12 @@ namespace mu
             else
             {
                 // Extract the mesh layout block
-                if ( m_imageState.size() && m_imageState.back().m_layoutBlock>=0 )
+                if ( m_imageState.Num() && m_imageState.Last().m_layoutBlock>=0 )
                 {
                     Ptr<ASTOpMeshExtractLayoutBlocks> eop = new ASTOpMeshExtractLayoutBlocks();
                     eop->source = pop->children[pop->op.args.MeshProject.mesh].child();
                     eop->layout = node.m_layout;
-                    eop->blocks.push_back( m_imageState.back().m_layoutBlock );
+                    eop->blocks.Add( m_imageState.Last().m_layoutBlock );
 
                     pop->SetChild( pop->op.args.MeshProject.mesh, eop );
                 }
@@ -1526,13 +1526,13 @@ namespace mu
             newState.m_imageRect.min[1] = 0;
             newState.m_imageRect.size = desc.m_size;
             newState.m_layoutBlock = -1;
-            m_imageState.push_back( newState );
+            m_imageState.Add( newState );
 
             // Generate
             op->SetChild( op->op.args.ImageRasterMesh.image, Generate( node.m_pImage.get() ) );
 
             // Restore rect
-            m_imageState.pop_back();
+            m_imageState.Pop();
 
         }
         else
@@ -1543,9 +1543,9 @@ namespace mu
         }
 
         // Image size, from the current block being generated
-        op->op.args.ImageRasterMesh.sizeX = (uint16_t)m_imageState.back().m_imageRect.size[0];
-        op->op.args.ImageRasterMesh.sizeY = (uint16_t)m_imageState.back().m_imageRect.size[1];
-        op->op.args.ImageRasterMesh.blockIndex = m_imageState.back().m_layoutBlock;
+        op->op.args.ImageRasterMesh.sizeX = (uint16)m_imageState.Last().m_imageRect.size[0];
+        op->op.args.ImageRasterMesh.sizeY = (uint16)m_imageState.Last().m_imageRect.size[1];
+        op->op.args.ImageRasterMesh.blockIndex = m_imageState.Last().m_layoutBlock;
 
         // Fading properties are optional, and stored in a colour
         if (node.m_pAngleFadeStart||node.m_pAngleFadeEnd)
@@ -1571,8 +1571,8 @@ namespace mu
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             op->SetChild( op->op.args.ImageRasterMesh.mask, GenerateImageSize
                     ( mask,
-                      FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                  (uint16_t)m_imageState.back().m_imageRect.size[1]) )
+                      FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                  (uint16)m_imageState.Last().m_imageRect.size[1]) )
                               );
         }
 
@@ -1648,7 +1648,7 @@ namespace mu
         {
             int mipsX = (int)ceilf( logf( (float)blockX )/logf(2.0f) );
             int mipsY = (int)ceilf( logf( (float)blockY )/logf(2.0f) );
-            op->BlockLevels = (uint8_t)std::max( mipsX, mipsY );
+            op->BlockLevels = (uint8_t)FMath::Max( mipsX, mipsY );
         }
         else
         {
@@ -1689,8 +1689,8 @@ namespace mu
 		}
 		a = GenerateImageFormat(a, EImageFormat::IF_RGB_UBYTE);
 		a = GenerateImageSize
-		(a, FImageSize((uint16_t)m_imageState.back().m_imageRect.size[0],
-			(uint16_t)m_imageState.back().m_imageRect.size[1]));
+		(a, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
+			(uint16)m_imageState.Last().m_imageRect.size[1]));
 		op->SetChild(op->op.args.ImageInvert.base, a);
 
 		result.op = op;
@@ -1718,11 +1718,11 @@ namespace mu
         }
 
         // Process variations in reverse order, since conditionals are built bottom-up.
-        for ( int t = int( node.m_variations.size() ) - 1; t >= 0; --t )
+        for ( int t = int( node.m_variations.Num() ) - 1; t >= 0; --t )
         {
             int tagIndex = -1;
             const string& tag = node.m_variations[t].m_tag;
-            for ( int i = 0; i < int( m_firstPass.m_tags.size() ); ++i )
+            for ( int i = 0; i < int( m_firstPass.m_tags.Num() ); ++i )
             {
                 if ( m_firstPass.m_tags[i].tag == tag )
                 {
@@ -1946,9 +1946,9 @@ namespace mu
         uint8_t* pData = pImage->GetData();
         for ( int p=0; p<size*size; ++p )
         {
-            pData[0] = (uint8_t)std::min( 255.0f, std::max( 0.0f, 255*colour[0] ) );
-            pData[1] = (uint8_t)std::min( 255.0f, std::max( 0.0f, 255*colour[1] ) );
-            pData[2] = (uint8_t)std::min( 255.0f, std::max( 0.0f, 255*colour[2] ) );
+            pData[0] = (uint8_t)FMath::Min( 255.0f, FMath::Max( 0.0f, 255*colour[0] ) );
+            pData[1] = (uint8_t)FMath::Min( 255.0f, FMath::Max( 0.0f, 255*colour[1] ) );
+            pData[2] = (uint8_t)FMath::Min( 255.0f, FMath::Max( 0.0f, 255*colour[2] ) );
             pData += 3;
         }
 

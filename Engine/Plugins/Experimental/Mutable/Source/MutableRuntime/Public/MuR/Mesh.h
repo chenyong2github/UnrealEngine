@@ -531,10 +531,10 @@ namespace mu
 		struct VERTEX_MATCH_MAP
 		{
 			//! One for every vertex
-			vector<int> m_firstMatch;
+			TArray<int> m_firstMatch;
 
 			//! The matches of every vertex in a sequence
-			vector<int> m_matches;
+			TArray<int> m_matches;
 
 			//!
 			bool Matches(int v, int ov) const;

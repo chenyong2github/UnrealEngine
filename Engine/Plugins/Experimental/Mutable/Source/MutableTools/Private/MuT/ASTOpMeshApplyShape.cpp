@@ -55,7 +55,7 @@ uint64 ASTOpMeshApplyShape::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshApplyShape::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshApplyShape::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshApplyShape> n = new ASTOpMeshApplyShape();
 	n->Mesh = mapChild(Mesh.child());
@@ -67,7 +67,7 @@ mu::Ptr<ASTOp> ASTOpMeshApplyShape::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshApplyShape::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshApplyShape::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
 	f(Mesh);
 	f(Shape);
@@ -101,8 +101,8 @@ void ASTOpMeshApplyShape::Link( PROGRAM& program, const FLinkerOptions* )
 		if (Mesh) args.mesh = Mesh->linkedAddress;
 		if (Shape) args.shape = Shape->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_APPLYSHAPE);
         AppendCode(program.m_byteCode,args);
     }

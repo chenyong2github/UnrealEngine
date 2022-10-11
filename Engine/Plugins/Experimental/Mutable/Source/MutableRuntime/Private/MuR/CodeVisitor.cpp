@@ -16,10 +16,10 @@ namespace mu
 	void SubtreeParametersVisitor::Run(OP::ADDRESS root, PROGRAM& program)
 	{
 		// Cached?
-		auto it = m_resultCache.find(root);
-		if (it != m_resultCache.end())
+		auto it = m_resultCache.Find(root);
+		if (it)
 		{
-			m_params = it->second;
+			m_params = *it;
 			return;
 		}
 
@@ -27,25 +27,24 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(SubtreeParametersVisitor);
 
-			m_visited.resize(program.m_opAddress.size());
-			if (program.m_opAddress.size())
+			m_visited.SetNum(program.m_opAddress.Num());
+			if (program.m_opAddress.Num())
 			{
-				FMemory::Memzero(&m_visited[0], m_visited.size());
+				FMemory::Memzero(&m_visited[0], m_visited.Num());
 			}
 
-			m_currentParams.resize(program.m_parameters.size());
-			if (m_currentParams.size())
+			m_currentParams.SetNum(program.m_parameters.Num());
+			if (m_currentParams.Num())
 			{
-				FMemory::Memzero(&m_currentParams[0], sizeof(int) * m_currentParams.size());
+				FMemory::Memzero(&m_currentParams[0], sizeof(int) * m_currentParams.Num());
 			}
 
-			m_pending.reserve(program.m_opAddress.size() / 4);
-			m_pending.push_back(root);
+			m_pending.Reserve(program.m_opAddress.Num() / 4);
+			m_pending.Add(root);
 
-			while (m_pending.size())
+			while (m_pending.Num())
 			{
-				OP::ADDRESS at = m_pending.back();
-				m_pending.pop_back();
+				OP::ADDRESS at = m_pending.Pop();
 
 				if (!m_visited[at])
 				{
@@ -70,7 +69,7 @@ namespace mu
 						{
 							if (ref)
 							{
-								m_pending.push_back(ref);
+								m_pending.Add(ref);
 							}
 						});
 				}
@@ -78,16 +77,16 @@ namespace mu
 
 
 			// Build result
-			m_params.clear();
-			for (size_t i = 0; i < m_currentParams.size(); ++i)
+			m_params.Empty();
+			for (size_t i = 0; i < m_currentParams.Num(); ++i)
 			{
 				if (m_currentParams[i])
 				{
-					m_params.push_back(int(i));
+					m_params.Add(int(i));
 				}
 			}
 
-			m_resultCache[root] = m_params;
+			m_resultCache.Add(root, m_params);
 		}
 	}
 

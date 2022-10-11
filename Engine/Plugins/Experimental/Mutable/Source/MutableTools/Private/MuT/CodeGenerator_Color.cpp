@@ -156,12 +156,11 @@ void CodeGenerator::GenerateColor_Parameter( COLOR_GENERATION_RESULT& result, co
 		op->parameter = param;
 
 		// Generate the code for the ranges
-		for (std::size_t a = 0; a < node.m_ranges.size(); ++a)
+		for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 		{
 			RANGE_GENERATION_RESULT rangeResult;
 			GenerateRange(rangeResult, node.m_ranges[a]);
-			op->ranges.emplace_back
-			(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
+			op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 		}
 
 		m_nodeVariables[node.m_pNode] = op;
@@ -182,7 +181,7 @@ void CodeGenerator::GenerateColor_Switch(COLOR_GENERATION_RESULT& result, const 
 
 	MUTABLE_CPUPROFILER_SCOPE(NodeColourSwitch);
 
-	if (node.m_options.size() == 0)
+	if (node.m_options.Num() == 0)
 	{
 		// No options in the switch!
 		Ptr<ASTOp> missingOp = GenerateMissingColourCode("Switch option",
@@ -206,7 +205,7 @@ void CodeGenerator::GenerateColor_Switch(COLOR_GENERATION_RESULT& result, const 
 	}
 
 	// Options
-	for (std::size_t t = 0; t < node.m_options.size(); ++t)
+	for (std::size_t t = 0; t < node.m_options.Num(); ++t)
 	{
 		Ptr<ASTOp> branch;
 		if (node.m_options[t])
@@ -219,7 +218,7 @@ void CodeGenerator::GenerateColor_Switch(COLOR_GENERATION_RESULT& result, const 
 			branch = GenerateMissingColourCode("Switch option",
 				node.m_errorContext);
 		}
-		op->cases.push_back(ASTOpSwitch::CASE((int16_t)t, op, branch));
+		op->cases.Emplace((int16)t, op, branch);
 	}
 
 	result.op = op;
@@ -246,11 +245,11 @@ void CodeGenerator::GenerateColor_Variation(COLOR_GENERATION_RESULT& result, con
 	}
 
 	// Process variations in reverse order, since conditionals are built bottom-up.
-	for (int t = int(node.m_variations.size()) - 1; t >= 0; --t)
+	for (int t = node.m_variations.Num() - 1; t >= 0; --t)
 	{
 		int tagIndex = -1;
 		const string& tag = node.m_variations[t].m_tag;
-		for (int i = 0; i < int(m_firstPass.m_tags.size()); ++i)
+		for (int i = 0; i < m_firstPass.m_tags.Num(); ++i)
 		{
 			if (m_firstPass.m_tags[i].tag == tag)
 			{
@@ -314,13 +313,13 @@ void CodeGenerator::GenerateColor_SampleImage(COLOR_GENERATION_RESULT& result, c
 		newState.m_imageRect.min[0] = 0;
 		newState.m_imageRect.min[1] = 0;
 		newState.m_imageRect.size = desc.m_size;
-		m_imageState.push_back(newState);
+		m_imageState.Add(newState);
 
 		// Generate
 		base = Generate(pSource);
 
 		// Restore rect
-		m_imageState.pop_back();
+		m_imageState.Pop();
 	}
 	else
 	{

@@ -743,10 +743,10 @@ bool Mesh::IsSameVertex
 //---------------------------------------------------------------------------------------------
 bool Mesh::VERTEX_MATCH_MAP::Matches(int v, int ov) const
 {
-	if (v >= 0 && v < (int)m_firstMatch.size())
+	if (v >= 0 && v < (int)m_firstMatch.Num())
 	{
 		int start = m_firstMatch[v];
-		int end = v + 1 < (int)m_firstMatch.size() ? m_firstMatch[v + 1] : (int)m_matches.size();
+		int end = v + 1 < m_firstMatch.Num() ? m_firstMatch[v + 1] : m_matches.Num();
 		bool res = false;
 
 		while (!res && start < end)
@@ -774,8 +774,8 @@ void Mesh::GetVertexMap
     ) const
 {
     int vertexCount = m_VertexBuffers.GetElementCount();
-    vertexMap.m_firstMatch.resize( vertexCount );
-    vertexMap.m_matches.reserve( vertexCount+(vertexCount>>2) );
+    vertexMap.m_firstMatch.SetNum( vertexCount );
+    vertexMap.m_matches.SetNum( vertexCount+(vertexCount>>2) );
 
     int otherVertexCount = other.m_VertexBuffers.GetElementCount();
 
@@ -806,10 +806,10 @@ void Mesh::GetVertexMap
     rangeMin -= tolerance;
     rangeMax += tolerance;
 
-    vector<int> buckets[MUTABLE_NUM_BUCKETS];
+    TArray<int> buckets[MUTABLE_NUM_BUCKETS];
     for ( int b=0; b<MUTABLE_NUM_BUCKETS; ++b )
     {
-        buckets[b].reserve( otherVertexCount/MUTABLE_NUM_BUCKETS*2 );
+        buckets[b].Reserve( otherVertexCount/MUTABLE_NUM_BUCKETS*2 );
     }
 
     float bucketSize = (rangeMax-rangeMin)/float(MUTABLE_NUM_BUCKETS);
@@ -819,15 +819,15 @@ void Mesh::GetVertexMap
         float v = (*itop)[MUTABLE_BUCKET_CHANNEL];
 
         int bucket0 = int( floor( (v-tolerance-rangeMin)/bucketSize ) );
-        bucket0 = std::min( MUTABLE_NUM_BUCKETS-1, std::max( 0, bucket0 ) );
-        buckets[bucket0].push_back(ov);
+        bucket0 = FMath::Min( MUTABLE_NUM_BUCKETS-1, FMath::Max( 0, bucket0 ) );
+        buckets[bucket0].Add(ov);
 
         int bucket1 = int( floor( (v+tolerance-rangeMin)/bucketSize ) );
-        bucket1 = std::min( MUTABLE_NUM_BUCKETS-1, std::max( 0, bucket1 ) );
+        bucket1 = FMath::Min( MUTABLE_NUM_BUCKETS-1, FMath::Max( 0, bucket1 ) );
 
         if (bucket1!=bucket0)
         {
-            buckets[bucket1].push_back(ov);
+            buckets[bucket1].Add(ov);
         }
 
         ++itop;
@@ -868,14 +868,14 @@ void Mesh::GetVertexMap
         // Use buckets
         for ( int v=0; v<vertexCount; ++v )
         {
-            vertexMap.m_firstMatch[v] = (int)vertexMap.m_matches.size();
+            vertexMap.m_firstMatch[v] = (int)vertexMap.m_matches.Num();
 
             float vbucket = (*itp)[MUTABLE_BUCKET_CHANNEL];
             int bucket = int( floor( (vbucket-rangeMin)/bucketSize ) );
 
             if (bucket>=0 && bucket<MUTABLE_NUM_BUCKETS)
             {
-                int bucketVertexCount = (int)buckets[bucket].size();
+                int bucketVertexCount = (int)buckets[bucket].Num();
                 for ( int ov=0; ov<bucketVertexCount; ++ov )
                 {
                     int otherVertexIndex = buckets[bucket][ov];
@@ -890,7 +890,7 @@ void Mesh::GetVertexMap
 
                     if ( same )
                     {
-                        vertexMap.m_matches.push_back( otherVertexIndex );
+                        vertexMap.m_matches.Add( otherVertexIndex );
                     }
                 }
             }
@@ -904,13 +904,13 @@ void Mesh::GetVertexMap
         // Slow generic way
         for ( int v=0; v<vertexCount; ++v )
         {
-            vertexMap.m_firstMatch[v] = (int)vertexMap.m_matches.size();
+            vertexMap.m_firstMatch[v] = (int)vertexMap.m_matches.Num();
             for ( int ov=0; ov<otherVertexCount; ++ov )
             {
                 // TODO: Optimize this by not using IsSameVertex
                 if ( IsSameVertex( v, other, ov, tolerance ) )
                 {
-                    vertexMap.m_matches.push_back(ov);
+                    vertexMap.m_matches.Add(ov);
                 }
             }
         }
@@ -1056,8 +1056,8 @@ void Mesh::CheckIntegrity() const
                         }
                         case MBF_UINT16:
                         {
-                            uint16_t index = *(const uint16_t*)pData;
-                            check( index < uint16_t( elemCount ) );
+                            uint16 index = *(const uint16*)pData;
+                            check( index < uint16( elemCount ) );
                             break;
                         }
                         case MBF_UINT8:
@@ -1135,7 +1135,7 @@ void Mesh::CheckIntegrity() const
                     {
                         for ( int d = 0; d < components; ++d )
                         {
-                            uint16_t index = *(uint16_t*)pData;
+                            uint16 index = *(uint16*)pData;
                             check( index < uint64_t( boneCount ) );
                             pData+=2;
                         }
@@ -1378,11 +1378,11 @@ namespace
                         case MBF_UINT32:
                         case MBF_NUINT32: out += FString::Printf(TEXT("%d"), *(const uint32_t*)pChanData); pChanData +=4; break;
                         case MBF_UINT16:
-                        case MBF_NUINT16: out += FString::Printf(TEXT("%d"), *(const uint16_t*)pChanData); pChanData +=2; break;
+                        case MBF_NUINT16: out += FString::Printf(TEXT("%d"), *(const uint16*)pChanData); pChanData +=2; break;
                         case MBF_UINT8:
                         case MBF_NUINT8: out += FString::Printf(TEXT("%d"), *(const uint8_t*)pChanData); pChanData +=1; break;
 						case MBF_FLOAT32: out += FString::Printf(TEXT("%.3f"), *(const float*)pChanData); pChanData += 4; break;
-                        case MBF_FLOAT16: out += FString::Printf(TEXT("%d"), *(const uint16_t*)pChanData); pChanData +=2; break;
+                        case MBF_FLOAT16: out += FString::Printf(TEXT("%d"), *(const uint16*)pChanData); pChanData +=2; break;
                         default: break;
                         }
                         out += ",";

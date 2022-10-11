@@ -8,8 +8,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 1
-
 namespace mu
 {
 
@@ -28,7 +26,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageInvert::SetInputNode(int i, NodePtr pNode)
 	{
-		check(i >= 0 && i < NODE_INPUT_COUNT);
+		check(i >= 0 && i < GetInputCount());
 
 		m_pD->m_pBase = dynamic_cast<NodeImage*>(pNode.get());
 	}
@@ -36,13 +34,13 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageInvert::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeImageInvert::GetInputNode(int i)const
 	{
-		check(i >= 0 && i < NODE_INPUT_COUNT);
+		check(i >= 0 && i < GetInputCount());
 
 		Node* pResult = 0;
 		pResult = m_pD->m_pBase.get();
@@ -64,5 +62,3 @@ namespace mu
 	}
 	
 }
-
-#undef NODE_INPUT_COUNT

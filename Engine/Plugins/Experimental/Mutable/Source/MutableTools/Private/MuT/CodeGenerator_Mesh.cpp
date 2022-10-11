@@ -109,7 +109,7 @@ class Node;
         check( channel>=0 );
 
         // Create the layout block vertex buffer
-        uint16_t* pLayoutData = 0;
+        uint16* pLayoutData = 0;
         {
             int layoutBuf = currentLayoutMesh->GetVertexBuffers().GetBufferCount();
             currentLayoutMesh->GetVertexBuffers().SetBufferCount( layoutBuf+1 );
@@ -124,13 +124,13 @@ class Node;
             currentLayoutMesh->GetVertexBuffers().SetBuffer
                     (
                         layoutBuf,
-                        sizeof(uint16_t),
+                        sizeof(uint16),
                         1,
                         &semantic, &semanticIndex,
                         &format, &components,
                         &offset
                     );
-            pLayoutData = (uint16_t*)currentLayoutMesh->GetVertexBuffers().GetBufferData( layoutBuf );
+            pLayoutData = (uint16*)currentLayoutMesh->GetVertexBuffers().GetBufferData( layoutBuf );
         }
 
         // Get the information about the texture coordinates channel
@@ -187,7 +187,7 @@ class Node;
 
                         // Set the value to the unique block id
                         check( pLayout->m_blocks[b].m_id < 65535 );
-                        pLayoutData[v] =(uint16_t) pLayout->m_blocks[b].m_id;
+                        pLayoutData[v] =(uint16) pLayout->m_blocks[b].m_id;
 
                         inside++;
                     }
@@ -213,7 +213,7 @@ class Node;
 
                         // Set the value to the unique block id
                         check( pLayout->m_blocks[b].m_id < 65535 );
-                        pLayoutData[v] = (uint16_t)pLayout->m_blocks[b].m_id;
+                        pLayoutData[v] = (uint16)pLayout->m_blocks[b].m_id;
 
                         inside++;
 
@@ -232,13 +232,13 @@ class Node;
                 (
                     buf, 256,
                     "Source mesh has %d vertices not assigned to any layout block in LOD %d",
-					outside, m_currentParents.back().m_lod
+					outside, m_currentParents.Last().m_lod
                 );
 			int blockCount = pLayout->GetBlockCount();
         
             //m_pErrorLog->GetPrivate()->Add( buf, blockCount==1?ELMT_INFO:ELMT_WARNING, errorContext );
-            vector< float > unassignedUVs;
-            unassignedUVs.reserve(64);           
+            TArray< float > unassignedUVs;
+            unassignedUVs.Reserve(64);           
             
             const uint8_t* pVertices = pData;
             for (int i=0; i<currentLayoutMesh->GetVertexBuffers().GetElementCount(); ++i)
@@ -258,14 +258,14 @@ class Node;
 
                 if (pLayoutData[i]==65535)
                 {
-                    unassignedUVs.push_back(UV[0]);
-                    unassignedUVs.push_back(UV[1]);
+                    unassignedUVs.Add(UV[0]);
+                    unassignedUVs.Add(UV[1]);
                 }
             }
 
             ErrorLogMessageAttachedDataView attachedDataView;
-            attachedDataView.m_unassignedUVs = unassignedUVs.data();
-            attachedDataView.m_unassignedUVsSize = unassignedUVs.size();
+            attachedDataView.m_unassignedUVs = unassignedUVs.GetData();
+            attachedDataView.m_unassignedUVsSize = (size_t)unassignedUVs.Num();
 
             m_pErrorLog->GetPrivate()->Add( buf, attachedDataView, blockCount==1?ELMT_INFO:ELMT_WARNING, errorContext );
         }
@@ -367,22 +367,22 @@ class Node;
         }
 
         // TODO: Support more than MUTABLE_OP_MAX_MORPH2_TARGETS targets
-        if ( node.m_morphs.size()>MUTABLE_OP_MAX_MORPH2_TARGETS )
+        if ( node.m_morphs.Num()>MUTABLE_OP_MAX_MORPH2_TARGETS )
         {
             char temp[256];
             mutable_snprintf( temp, 256,
                               "A morph node has more targets [%d] than currently supported [%d].",
-                              node.m_morphs.size(),
+                              node.m_morphs.Num(),
                               MUTABLE_OP_MAX_MORPH2_TARGETS );
             m_pErrorLog->GetPrivate()->Add( temp, ELMT_WARNING, node.m_errorContext );
         }
 
-        m_overrideLayoutsStack.push_back( baseResult.layouts );
-		m_activeTags.push_back({});
+        m_overrideLayoutsStack.Add( baseResult.layouts );
+		m_activeTags.Add({});
 
         int count = 0;
         for ( std::size_t t=0
-            ; t<node.m_morphs.size() && t<MUTABLE_OP_MAX_MORPH2_TARGETS
+            ; t<node.m_morphs.Num() && t<MUTABLE_OP_MAX_MORPH2_TARGETS
             ; ++t )
         {
             if ( auto pA = node.m_morphs[t].get() )
@@ -441,8 +441,8 @@ class Node;
             OpMorphReshape->Reshape = OpApply;
         }
 
-        m_overrideLayoutsStack.pop_back();
-		m_activeTags.pop_back();
+        m_overrideLayoutsStack.Pop();
+		m_activeTags.Pop();
 
 		if (OpMorphReshape)
 		{
@@ -486,8 +486,8 @@ class Node;
         }
 
         // Target
-        m_overrideLayoutsStack.push_back( baseResult.layouts );
-		m_activeTags.push_back({});
+        m_overrideLayoutsStack.Add( baseResult.layouts );
+		m_activeTags.Add({});
 		if ( node.m_pTarget )
         {
             MESH_GENERATION_RESULT targetResult;
@@ -501,8 +501,8 @@ class Node;
             m_pErrorLog->GetPrivate()->Add( "Mesh make morph target node is not set.",
                                             ELMT_ERROR, node.m_errorContext );
         }
-        m_overrideLayoutsStack.pop_back();
-		m_activeTags.pop_back();
+        m_overrideLayoutsStack.Pop();
+		m_activeTags.Pop();
 
         result.meshOp = op;
         result.baseMeshOp = baseResult.baseMeshOp;
@@ -527,18 +527,18 @@ class Node;
 
                 op->source = baseResult.meshOp;
 
-                if ( baseResult.layouts.size()>(size_t)node.m_layoutOrGroup )
+                if ( baseResult.layouts.Num()>node.m_layoutOrGroup )
                 {
                     LayoutPtrConst pSourceLayout = baseResult.layouts[ node.m_layoutOrGroup ];
                     const Layout* pLayout = m_addedLayouts[ pSourceLayout.get() ].get();
-                    op->layout = (uint16_t)node.m_layoutOrGroup;
+                    op->layout = (uint16)node.m_layoutOrGroup;
 
-                    for ( size_t i=0; i<node.m_blocks.size(); ++i )
+                    for ( int32 i=0; i<node.m_blocks.Num(); ++i )
                     {
                         if (node.m_blocks[i]>=0 && node.m_blocks[i]<pLayout->m_blocks.Num() )
                         {
                             int bid = pLayout->m_blocks[ node.m_blocks[i] ].m_id;
-                            op->blocks.push_back(bid);
+                            op->blocks.Add(bid);
                         }
                         else
                         {
@@ -605,15 +605,15 @@ class Node;
         //
         Ptr<ASTOp> base = 0;
         int count = 0;
-        for ( std::size_t t=0
-            ; t<node.m_targets.size() && t<MUTABLE_OP_MAX_INTERPOLATE_COUNT-1
+        for ( int32 t=0
+            ; t<node.m_targets.Num() && t<MUTABLE_OP_MAX_INTERPOLATE_COUNT-1
             ; ++t )
         {
             if ( NodeMesh* pA = node.m_targets[t].get() )
             {
                 if ( count>0 )
                 {
-                    m_overrideLayoutsStack.push_back( result.layouts );
+                    m_overrideLayoutsStack.Add( result.layouts );
                 }
 
                 MESH_GENERATION_RESULT targetResult;
@@ -621,7 +621,7 @@ class Node;
 
                 if ( count>0 )
                 {
-                    m_overrideLayoutsStack.pop_back();
+                    m_overrideLayoutsStack.Pop();
                 }
 
                 // The first target is the base
@@ -643,18 +643,18 @@ class Node;
                     // \todo Texcoords are broken?
                     dop->op.args.MeshDifference.ignoreTextureCoords = 1;
 
-                    if ( node.m_channels.size()>MUTABLE_OP_MAX_MORPH_CHANNELS )
+                    if ( node.m_channels.Num()>MUTABLE_OP_MAX_MORPH_CHANNELS )
                     {
                         char temp[256];
                         mutable_snprintf( temp, 256,
                                           "Morph uses too many channels [%d]. The maximum is [%d].",
-                                          node.m_channels.size(),
+                                          node.m_channels.Num(),
                                           MUTABLE_OP_MAX_MORPH_CHANNELS );
                         m_pErrorLog->GetPrivate()->Add( temp, ELMT_ERROR, node.m_errorContext );
                     }
 
                     for ( size_t c=0;
-                          c<node.m_channels.size() && c<MUTABLE_OP_MAX_MORPH_CHANNELS;
+                          c<node.m_channels.Num() && c<MUTABLE_OP_MAX_MORPH_CHANNELS;
                           ++c)
                     {
                         check( node.m_channels[c].semantic<256 );
@@ -689,7 +689,7 @@ class Node;
     {
         NodeMeshSwitch::Private& node = *sw->GetPrivate();
 
-        if (node.m_options.size() == 0)
+        if (node.m_options.Num() == 0)
         {
             // No options in the switch!
             // TODO
@@ -712,11 +712,11 @@ class Node;
         }
 
         // Options
-        for ( std::size_t t=0; t< node.m_options.size(); ++t )
+        for ( std::size_t t=0; t< node.m_options.Num(); ++t )
         {
             if (t!=0)
             {
-                m_overrideLayoutsStack.push_back( result.layouts );
+                m_overrideLayoutsStack.Add( result.layouts );
             }
 
             if ( node.m_options[t] )
@@ -725,7 +725,7 @@ class Node;
                 GenerateMesh( branchResults, node.m_options[t] );
 
                 auto branch = branchResults.meshOp;
-                op->cases.emplace_back((int16_t)t,op,branch);
+                op->cases.Emplace((int16)t,op,branch);
 
                 if (t==0)
                 {
@@ -735,7 +735,7 @@ class Node;
 
             if (t!=0)
             {
-                m_overrideLayoutsStack.pop_back();
+                m_overrideLayoutsStack.Pop();
             }
         }
 
@@ -767,7 +767,7 @@ class Node;
 				pCell->SetValue(pMesh);
 
 				// TODO Take into account layout strategy
-				int numLayouts = (int)node.m_layouts.size();
+				int numLayouts = node.m_layouts.Num();
 				pCell->SetLayoutCount(numLayouts);
 				for (int i = 0; i < numLayouts; ++i)
 				{
@@ -776,7 +776,7 @@ class Node;
 
 				if (t != 0)
 				{
-					m_overrideLayoutsStack.push_back(NewResult.layouts);
+					m_overrideLayoutsStack.Add(NewResult.layouts);
 				}
 
 				MESH_GENERATION_RESULT branchResults;
@@ -788,7 +788,7 @@ class Node;
 				}
 				else
 				{
-					m_overrideLayoutsStack.pop_back();
+					m_overrideLayoutsStack.Pop();
 				}
 
 				++t;
@@ -823,11 +823,11 @@ class Node;
         }
 
         // Process variations in reverse order, since conditionals are built bottom-up.
-        for ( int t = int(node.m_variations.size())-1; t >= 0; --t )
+        for ( int32 t = node.m_variations.Num()-1; t >= 0; --t )
         {
             int tagIndex = -1;
             const string& tag = node.m_variations[t].m_tag;
-            for ( int i = 0; i < int( m_firstPass.m_tags.size() ); ++i )
+            for ( int i = 0; i < m_firstPass.m_tags.Num(); ++i )
             {
                 if ( m_firstPass.m_tags[i].tag==tag)
                 {
@@ -850,7 +850,7 @@ class Node;
             {
                 if (firstOptionProcessed)
                 {
-                    m_overrideLayoutsStack.push_back( currentResult.layouts );
+                    m_overrideLayoutsStack.Add( currentResult.layouts );
                 }
          
                 MESH_GENERATION_RESULT branchResults;
@@ -860,7 +860,7 @@ class Node;
 
 				if (firstOptionProcessed )
 				{
-					m_overrideLayoutsStack.pop_back();
+					m_overrideLayoutsStack.Pop();
 				}
 
                 if ( !firstOptionProcessed )
@@ -896,7 +896,7 @@ class Node;
 		result.baseMeshOp = op;
 		result.meshOp = op;
 
-		bool bIsOverridingLayouts = !m_overrideLayoutsStack.empty();
+		bool bIsOverridingLayouts = !m_overrideLayoutsStack.IsEmpty();
 
         MeshPtr pMesh = node.m_pValue.get();
         if (pMesh)
@@ -909,10 +909,10 @@ class Node;
                 // This means that we are processing a base mesh
 
                 // We will redefine the layouts
-				result.layouts.clear();
+				result.layouts.Empty();
 
                 // Apply whatever transform is necessary for every layout
-                for ( std::size_t LayoutIndex=0; LayoutIndex<node.m_layouts.size(); ++LayoutIndex)
+                for ( std::size_t LayoutIndex=0; LayoutIndex<node.m_layouts.Num(); ++LayoutIndex)
                 {
 					NodeLayoutPtr pLayoutNode = node.m_layouts[LayoutIndex];
 					// TODO: In a cleanup of the design of the layouts, we should remove this cast.
@@ -927,7 +927,7 @@ class Node;
 						}
 
 						LayoutPtr pSourceLayout = TypedNode->GetPrivate()->m_pLayout;
-						result.layouts.push_back(pSourceLayout);
+						result.layouts.Add(pSourceLayout);
 
 						PrepareForLayout(pSourceLayout,
 							pCloned, LayoutIndex,
@@ -939,15 +939,15 @@ class Node;
             else
             {
                 // We need to apply the transform of the source layouts
-                for ( std::size_t LayoutIndex=0; LayoutIndex<m_overrideLayoutsStack.back().size(); ++LayoutIndex)
+                for ( int32 LayoutIndex=0; LayoutIndex<m_overrideLayoutsStack.Last().Num(); ++LayoutIndex)
                 {
-                    PrepareForLayout( m_overrideLayoutsStack.back()[LayoutIndex],
+                    PrepareForLayout( m_overrideLayoutsStack.Last()[LayoutIndex],
                                       pCloned, LayoutIndex,
                                       node.m_errorContext  );
 
                 }
 
-				result.layouts = m_overrideLayoutsStack.back();
+				result.layouts = m_overrideLayoutsStack.Last();
 
                 // Disabled: lots of misleading messages (when not using layouts?).
                 // Warn about unnecessary layouts
@@ -963,7 +963,7 @@ class Node;
 			// For now we cannot handle the case were we are overriding layouts and reusing meshes at the same time.
             bool bIsDuplicated = false;
             MeshPtrConst Candidate;
-            for ( size_t i=0; !bIsOverridingLayouts && !bIsDuplicated && i<m_constantMeshes.size(); ++i)
+            for ( int32 i=0; !bIsOverridingLayouts && !bIsDuplicated && i<m_constantMeshes.Num(); ++i)
             {
 				Candidate = m_constantMeshes[i];
 
@@ -992,14 +992,14 @@ class Node;
 						const Layout* GeneratedMeshLayout = Candidate->GetLayout(l);
 						if (bIsOverridingLayouts)
 						{
-							const Layout* OverridingLayout = m_overrideLayoutsStack.back()[l].get();
+							const Layout* OverridingLayout = m_overrideLayoutsStack.Last()[l].get();
 							check(OverridingLayout->m_blocks.IsEmpty() || OverridingLayout->m_blocks[0].m_id == -1);
 							GeneratedMeshLayout = m_addedLayouts[OverridingLayout].get();
 						}
 
 						check(DestLayoutKey->m_blocks.IsEmpty() || DestLayoutKey->m_blocks[0].m_id == -1);
 						check(GeneratedMeshLayout->m_blocks.IsEmpty() || GeneratedMeshLayout->m_blocks[0].m_id != -1);
-						m_addedLayouts[DestLayoutKey] = GeneratedMeshLayout;
+						m_addedLayouts.Add(DestLayoutKey, GeneratedMeshLayout);
 					}
                 }
             }
@@ -1042,18 +1042,18 @@ class Node;
                 }
 
                 // Add the constant data
-                m_constantMeshes.push_back(pCloned);
+                m_constantMeshes.Add(pCloned);
                 op->SetValue( pCloned.get(), m_compilerOptions->m_optimisationOptions.m_useDiskCache );
             }
         }
         else
         {
-			result.layouts.clear();
+			result.layouts.Empty();
 
             // This data is required
             MeshPtr pTempMesh = new Mesh();
             op->SetValue( pTempMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
-            m_constantMeshes.push_back(pTempMesh);
+            m_constantMeshes.Add(pTempMesh);
 
             // Log an error message
             m_pErrorLog->GetPrivate()->Add( "Constant mesh not set.",
@@ -1062,14 +1062,14 @@ class Node;
 
 		// Apply the modifier for the pre-normal operations stage.
 		BOTTOM_UP_STATE temp = m_currentBottomUpState;
-		if (!m_activeTags.empty())
+		if (!m_activeTags.IsEmpty())
 		{
 			// Clearing layout stack to avoid unwanted information
-			vector< vector<Ptr<const Layout>> > m_overrideLayoutsStackCopy = m_overrideLayoutsStack;
-			m_overrideLayoutsStack.clear();
+			TArray< TArray<Ptr<const Layout>> > m_overrideLayoutsStackCopy = m_overrideLayoutsStack;
+			m_overrideLayoutsStack.Empty();
 
 			bool bModifiersForBeforeOperations = true;
-			result.meshOp = ApplyMeshModifiers(op, m_activeTags.back(),
+			result.meshOp = ApplyMeshModifiers(op, m_activeTags.Last(),
 				bModifiersForBeforeOperations, node.m_errorContext);
 
 			// Retrieving stack information
@@ -1097,11 +1097,6 @@ class Node;
             op->Source = baseResult.meshOp;
             op->Buffers = 0;
 
-            if ( node.m_rebuildTangents )
-            {
-                op->Buffers |= OP::MeshFormatArgs::BT_REBUILD_TANGENTS;
-            }
-
             MeshPtr pFormatMesh = new Mesh();
 
             if (node.m_VertexBuffers.GetBufferCount())
@@ -1127,7 +1122,7 @@ class Node;
             cop->SetValue( pFormatMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
             op->Format = cop;
 
-            m_constantMeshes.push_back(pFormatMesh);
+            m_constantMeshes.Add(pFormatMesh);
 
             result.meshOp = op;
             result.baseMeshOp = baseResult.baseMeshOp;
@@ -1273,13 +1268,13 @@ class Node;
         // Clipping mesh
         if (node.m_pClipMesh)
         {
-			m_activeTags.push_back({});
+			m_activeTags.Add({});
 
             MESH_GENERATION_RESULT clipResult;
             GenerateMesh( clipResult, node.m_pClipMesh);
             op->SetChild( op->op.args.MeshClipWithMesh.clipMesh, clipResult.meshOp );
 
-			m_activeTags.pop_back();
+			m_activeTags.Pop();
 		}
         else
         {
@@ -1352,15 +1347,15 @@ class Node;
         if (node.m_pPose)
         {
             // We don't need layouts for the pose mesh
-            m_overrideLayoutsStack.push_back( vector<LayoutPtrConst>() );
-			m_activeTags.push_back({});
+            m_overrideLayoutsStack.Add( TArray<LayoutPtrConst>() );
+			m_activeTags.Add({});
 
             MESH_GENERATION_RESULT poseResult;
             GenerateMesh( poseResult, node.m_pPose );
             op->pose = poseResult.meshOp;
 
-            m_overrideLayoutsStack.pop_back();
-			m_activeTags.pop_back();
+            m_overrideLayoutsStack.Pop();
+			m_activeTags.Pop();
 		}
         else
         {
@@ -1443,8 +1438,8 @@ class Node;
 		}
 
 		// Base and target shapes shouldn't have layouts or modifiers.
-		m_overrideLayoutsStack.push_back({});
-		m_activeTags.push_back({});
+		m_overrideLayoutsStack.Add({});
+		m_activeTags.Add({});
 
 		// Base Shape
 		if (node.m_pBaseShape)
@@ -1464,8 +1459,8 @@ class Node;
 			opApply->Shape = targetResult.meshOp;
 		}
 
-		m_overrideLayoutsStack.pop_back();
-		m_activeTags.pop_back();
+		m_overrideLayoutsStack.Pop();
+		m_activeTags.Pop();
 
 		result.meshOp = opApply;
 	}

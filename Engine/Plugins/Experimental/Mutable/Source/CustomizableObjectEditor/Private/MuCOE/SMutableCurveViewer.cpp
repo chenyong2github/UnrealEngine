@@ -484,7 +484,7 @@ void SMutableCurveViewer::SetCurve(const mu::Curve& InMutableCurve)
 
 void SMutableCurveViewer::SetupMutableCurveListView()
 {
-	const int32 KeyFrameCount = MutableCurve.keyFrames.size() ;
+	const int32 KeyFrameCount = MutableCurve.keyFrames.Num() ;
 	CurveElements.SetNum(KeyFrameCount);
 	for	(int32 KeyFrameIndex = 0; KeyFrameIndex < KeyFrameCount; KeyFrameIndex++)
 	{
@@ -524,8 +524,8 @@ void SMutableCurveViewer::SetupMutableCurveGraph() const
 	float PreviousFrameTime =  TNumericLimits<float>::Lowest();
 	
 	// Fill the curve with data
-	const uint32 KeyFrameCount = MutableCurve.keyFrames.size() ;
-	for (uint32 KeyframeIndex = 0; KeyframeIndex < KeyFrameCount; KeyframeIndex++)
+	const int32 KeyFrameCount = MutableCurve.keyFrames.Num() ;
+	for (int32 KeyframeIndex = 0; KeyframeIndex < KeyFrameCount; KeyframeIndex++)
 	{
 		// Load the mutable data
 		const mu::CurveKeyFrame& CurrentKeyframe = MutableCurve.keyFrames[KeyframeIndex];

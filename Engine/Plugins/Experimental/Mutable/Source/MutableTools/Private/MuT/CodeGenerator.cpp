@@ -92,7 +92,7 @@ namespace mu
         //UE_LOG(LogMutableCore, Verbose, " Begin partial optimisation.");
 
         ASTOpList roots;
-        roots.push_back( lastCompOp );
+        roots.Add( lastCompOp );
 
         //size_t initialOps = ASTOp::CountNodes(roots);
         //(void)initialOps;
@@ -219,7 +219,7 @@ namespace mu
         m_pErrorLog = new ErrorLog;
 
         // Add the parent at the top of the hierarchy
-        m_currentParents.push_back( PARENT_KEY() );
+        m_currentParents.Add( PARENT_KEY() );
     }
 
     //---------------------------------------------------------------------------------------------
@@ -256,7 +256,7 @@ namespace mu
                 MUTABLE_CPUPROFILER_SCOPE(MainPassState);
 
                 Ptr<ASTOp> stateRoot = Generate(pNode);
-                m_states.emplace_back( s.first, stateRoot );
+                m_states.Emplace( s.Key, stateRoot );
 
                 ++m_currentStateIndex;
             }
@@ -266,7 +266,7 @@ namespace mu
 
         // Free caches
         m_compiled.Reset();
-        m_constantMeshes.clear();
+        m_constantMeshes.Empty();
         m_addedLayouts.Empty();
         m_nodeVariables.clear();
         m_generatedMeshes.Reset();
@@ -275,10 +275,10 @@ namespace mu
         m_generatedTables.clear();
         m_firstPass = FirstPassGenerator();
         m_currentBottomUpState = BOTTOM_UP_STATE();
-        m_overrideLayoutsStack.clear();
-        m_imageState.clear();
-        m_currentParents.clear();
-        m_currentObject.clear();
+        m_overrideLayoutsStack.Empty();
+        m_imageState.Empty();
+        m_currentParents.Empty();
+        m_currentObject.Empty();
         m_additionalComponents.clear();
 
 
@@ -352,7 +352,7 @@ namespace mu
         {
             // This happens only if we generate a node graph that has a NodeSurfaceNew at the root.
             SURFACE_GENERATION_RESULT surfResult;
-            const vector<FirstPassGenerator::SURFACE::EDIT> edits;
+            const TArray<FirstPassGenerator::SURFACE::EDIT> edits;
             GenerateSurface( surfResult, surfNode, edits );
             return surfResult.surfaceOp;
         }
@@ -463,12 +463,12 @@ namespace mu
             // See if there is a string column. If there is one, we will use it as names for the
             // options. Only the first string column will be used.
             int nameCol = -1;
-            std::size_t cols = pTable->GetPrivate()->m_columns.size();
-            for ( std::size_t c=0; c<cols && nameCol<0; ++c )
+            int32 cols = pTable->GetPrivate()->m_columns.Num();
+            for ( int32 c=0; c<cols && nameCol<0; ++c )
             {
                 if ( pTable->GetPrivate()->m_columns[c].m_type==TCT_STRING )
                 {
-                    nameCol = (int)c;
+                    nameCol = c;
                 }
             }
 
@@ -477,12 +477,12 @@ namespace mu
 				PARAMETER_DESC::INT_VALUE_DESC nullValue;
 				nullValue.m_value = -1;
 				nullValue.m_name = "None";
-				param.m_possibleValues.push_back(nullValue);
+				param.m_possibleValues.Add(nullValue);
 				param.m_defaultValue.m_int = nullValue.m_value;
 			}
 
             // Add every row
-            std::size_t rows = pTable->GetPrivate()->m_rows.size();
+            int32 rows = pTable->GetPrivate()->m_rows.Num();
 			for (size_t i = 0; i<rows; ++i)
             {
                 PARAMETER_DESC::INT_VALUE_DESC value;
@@ -493,7 +493,7 @@ namespace mu
                     value.m_name = pTable->GetPrivate()->m_rows[i].m_values[nameCol].m_string;
                 }
 
-                param.m_possibleValues.push_back( value );
+                param.m_possibleValues.Add( value );
 
                 // The first row is the default one
                 if (i==0)
@@ -580,8 +580,8 @@ namespace mu
              blend = GenerateImageSize
                  (
                      blend,
-                     FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                 (uint16_t)m_imageState.back().m_imageRect.size[1] )
+                     FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                 (uint16)m_imageState.Last().m_imageRect.size[1] )
                  );
              op->SetChild(op->op.args.ImageLayer.blended, blend );
 
@@ -601,8 +601,8 @@ namespace mu
              mask = GenerateImageSize
                  (
                      mask,
-                     FImageSize( (uint16_t)m_imageState.back().m_imageRect.size[0],
-                                 (uint16_t)m_imageState.back().m_imageRect.size[1] )
+                     FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
+                                 (uint16)m_imageState.Last().m_imageRect.size[1] )
                  );
              op->SetChild(op->op.args.ImageLayer.mask, mask );
 
@@ -658,7 +658,7 @@ namespace mu
 		}
         else if ( auto pTypedSV = dynamic_cast<const NodeSurfaceVariation*>(pNode) )
 		{
-            if (pTypedSV->GetPrivate()->m_defaultSurfaces.size())
+            if (pTypedSV->GetPrivate()->m_defaultSurfaces.Num())
 			{
                 pResult = FindSourceMesh(pTypedSV->GetPrivate()->m_defaultSurfaces[0].get());
 			}
@@ -722,9 +722,9 @@ namespace mu
     {
         // Get the parent component layout
         const NodeObjectNew::Private* pParent = nullptr;
-        if (m_currentParents.size()>2)
+        if (m_currentParents.Num()>2)
         {
-            pParent = (m_currentParents.end()-2)->m_pObject;
+            pParent = m_currentParents[m_currentParents.Num()-2].m_pObject;
         }
 
         const NodeLayout* pNodeLayout = nullptr;
@@ -732,10 +732,10 @@ namespace mu
         {
             pNodeLayout = pParent->GetLayout
                 (
-                    m_currentParents.back().m_lod,
-                    m_currentParents.back().m_component,
-                    m_currentParents.back().m_surface,
-                    m_currentParents.back().m_texture
+                    m_currentParents.Last().m_lod,
+                    m_currentParents.Last().m_component,
+                    m_currentParents.Last().m_surface,
+                    m_currentParents.Last().m_texture
                 ).get();
         }
 
@@ -746,7 +746,7 @@ namespace mu
                 (
                     buf, 256,
                     "In object [%s] NodePatchImage couldn't find the layout in parent.",
-                    m_currentParents.rbegin()->m_pObject->m_name.c_str()
+                    m_currentParents.Last().m_pObject->m_name.c_str()
                 );
 
             m_pErrorLog->GetPrivate()->Add( buf, ELMT_ERROR, node.m_errorContext );
@@ -764,11 +764,11 @@ namespace mu
 
         // Create the expression for each component in this object
         // TODO: More components per operation
-        for ( std::size_t t=0; t<node.m_components.size(); ++t )
+        for ( int32 t=0; t<node.m_components.Num(); ++t )
         {
             if ( const NodeComponent* pComponentNode = node.m_components[t].get() )
             {
-                m_currentParents.back().m_component = (int)t;
+                m_currentParents.Last().m_component = (int)t;
 
                 Ptr<ASTOp> componentOp = Generate( pComponentNode );
 
@@ -788,8 +788,8 @@ namespace mu
 
         // Add components from child objects
         ADDITIONAL_COMPONENT_KEY thisKey;
-        thisKey.m_lod = m_currentParents.back().m_lod;
-        thisKey.m_pObject = m_currentParents.back().m_pObject;
+        thisKey.m_lod = m_currentParents.Last().m_lod;
+        thisKey.m_pObject = m_currentParents.Last().m_pObject;
         auto addIt = m_additionalComponents.find( thisKey );
         if (addIt!=m_additionalComponents.end())
         {
@@ -817,13 +817,13 @@ namespace mu
 
         // Store for possible parent objects if necessary
         // 2 is because there must be a parent and there is always a null element as well.
-        if (lastCompOp && m_currentParents.size()>2)
+        if (lastCompOp && m_currentParents.Num()>2)
         {
-            const auto& parentObjectKey = m_currentParents[ m_currentParents.size()-2 ];
+            const auto& parentObjectKey = m_currentParents[ m_currentParents.Num()-2 ];
             ADDITIONAL_COMPONENT_KEY parentKey;
-            parentKey.m_lod = m_currentParents.back().m_lod;
+            parentKey.m_lod = m_currentParents.Last().m_lod;
             parentKey.m_pObject = parentObjectKey.m_pObject;
-            m_additionalComponents[parentKey].push_back( lastCompOp );
+            m_additionalComponents[parentKey].Add( lastCompOp );
         }
 
         return lastCompOp;
@@ -834,7 +834,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void CodeGenerator::GenerateSurface( SURFACE_GENERATION_RESULT& result,
                                          NodeSurfaceNewPtrConst surfaceNode,
-                                         const vector<FirstPassGenerator::SURFACE::EDIT>& edits )
+                                         const TArray<FirstPassGenerator::SURFACE::EDIT>& edits )
     {
         //MUTABLE_CPUPROFILER_SCOPE(GenerateSurface);
 
@@ -853,12 +853,12 @@ namespace mu
         // Generate the mesh
         //------------------------------------------------------------------------
         NodeMeshPtr pMesh;
-        if ( node.m_meshes.size()>0 )
+        if ( node.m_meshes.Num()>0 )
         {
             pMesh = node.m_meshes[0].m_pMesh;
 
             // TODO: Support more meshes
-            check( node.m_meshes.size()==1 );
+            check( node.m_meshes.Num()==1 );
         }
 
 
@@ -873,30 +873,28 @@ namespace mu
 		// Do we need to generate the mesh? Or was it already generated for state conditions 
 		// accepting the current state?
 		FirstPassGenerator::SURFACE* targetSurface = nullptr;
-		for (vector<FirstPassGenerator::SURFACE>::iterator its = m_firstPass.surfaces.begin()
-			; its != m_firstPass.surfaces.end()
-			; ++its)
+		for (FirstPassGenerator::SURFACE& its : m_firstPass.surfaces)
 		{
-            if (its->node->GetPrivate() == &node)
+            if (its.node->GetPrivate() == &node)
             {
                 // Check state conditions
                 bool surfaceValidForThisState =
-                    m_currentStateIndex >= int(its->stateCondition.size())
+                    m_currentStateIndex >= its.stateCondition.Num()
                     ||
-                    its->stateCondition[m_currentStateIndex];
+                    its.stateCondition[m_currentStateIndex];
 
                 if (surfaceValidForThisState)
                 {
-                    if (its->resultSurfaceOp)
+                    if (its.resultSurfaceOp)
                     {
                         // Reuse the entire surface
-                        result.surfaceOp = its->resultSurfaceOp;
+                        result.surfaceOp = its.resultSurfaceOp;
                         return;
                     }
                     else
                     {
                         // Not already generated, we will generate this
-                        targetSurface = &(*its);
+                        targetSurface = &its;
                     }
                 }
             }
@@ -914,14 +912,14 @@ namespace mu
             Ptr<ASTOp> lastMeshOp;
 
 			// Store the data necessary to apply modifiers for the pre-normal operations stage.
-			m_activeTags.push_back(node.m_tags);
+			m_activeTags.Add(node.m_tags);
 
             // Generate the mesh
             GenerateMesh( meshResults, pMesh );
             lastMeshOp = meshResults.meshOp;
-            meshResults.extraMeshLayouts.resize( edits.size() );
+            meshResults.extraMeshLayouts.SetNum( edits.Num() );
 
-			m_activeTags.pop_back();
+			m_activeTags.Pop();
 
             // Let's remember the base mesh of each added mesh, so that we can use them for the
             // "remove mesh" operations that apply to them instead of the base.
@@ -929,7 +927,7 @@ namespace mu
 
 
             // Apply mesh merges from child objects "edit surface" nodes
-            for ( size_t editIndex=0; editIndex<edits.size(); ++editIndex )
+            for ( int32 editIndex=0; editIndex<edits.Num(); ++editIndex )
             {
                 const auto& e = edits[editIndex];
 
@@ -938,12 +936,12 @@ namespace mu
                     if ( NodeMeshPtr pAdd = e.node->m_pMesh->GetAdd() )
                     {
 						// Store the data necessary to apply modifiers for the pre-normal operations stage.
-						m_activeTags.push_back(e.node->m_tags);
+						m_activeTags.Add(e.node->m_tags);
 						
 						MESH_GENERATION_RESULT addResults;
                         GenerateMesh( addResults, pAdd );
 
-						m_activeTags.pop_back();
+						m_activeTags.Pop();
 
                         baseMeshesForEachAddedMesh[e.node] = addResults.baseMeshOp;
 
@@ -1129,7 +1127,7 @@ namespace mu
 				bModifiersForBeforeOperations, node.m_errorContext);
 
             // Layouts
-            for ( int l=0; l<(int)meshResults.layouts.size(); ++l )
+            for ( int32 l=0; l<meshResults.layouts.Num(); ++l )
             {
                 Ptr<ASTOp> layoutOp = nullptr;
 
@@ -1156,11 +1154,11 @@ namespace mu
                         if ( !data.meshFragment )
                         {
                             // No mesh to add, we assume there are no layouts to add either.
-                            check(data.layouts.empty());
+                            check(data.layouts.IsEmpty());
                             continue;
                         }
 
-                        if ( data.layouts.size() != meshResults.layouts.size() )
+                        if ( data.layouts.Num() != meshResults.layouts.Num() )
                         {
                             m_pErrorLog->GetPrivate()->Add
                                 ( "Merged layout has been ignored because the number of layouts"
@@ -1235,14 +1233,14 @@ namespace mu
                             op->op.type = OP_TYPE::ME_APPLYLAYOUT;
                             op->SetChild(op->op.args.MeshApplyLayout.mesh, lastMeshOp );
                             op->SetChild(op->op.args.MeshApplyLayout.layout, layoutOp );
-                            op->op.args.MeshApplyLayout.channel = (uint16_t)l;
+                            op->op.args.MeshApplyLayout.channel = (uint16)l;
                             lastMeshOp = op;
                         }
                     }
 
                 }
 
-                meshResults.layoutOps.push_back( layoutOp );
+                meshResults.layoutOps.Add( layoutOp );
             }
 
             // Store in the surface for later use.
@@ -1252,7 +1250,7 @@ namespace mu
 
         // Create the expression for each texture
         //------------------------------------------------------------------------
-        for ( std::size_t t=0; t<node.m_images.size(); ++t )
+        for ( int32 t=0; t<node.m_images.Num(); ++t )
         {
             //MUTABLE_CPUPROFILER_SCOPE(SurfaceTexture);
 
@@ -1300,7 +1298,7 @@ namespace mu
 
 				if (desc.m_size[0] == 0 || desc.m_size[1] == 0)
 				{
-					int currentLOD = m_currentParents.back().m_lod;
+					int currentLOD = m_currentParents.Last().m_lod;
 					char buf[256];
 					mutable_snprintf(buf, 256, "An image block for [%s] [%s] [%s] at lod [%d] has zero size and will not be generated. ", 
 						node.m_images[t].m_name.c_str(),
@@ -1333,15 +1331,15 @@ namespace mu
                     newState.m_imageRect = box<vec2<int>>::FromMinSize( vec2<int>(0,0), desc.m_size );
                     newState.m_layoutBlock = -1;
                     newState.m_pLayout = nullptr;
-                    m_imageState.push_back( newState );
+                    m_imageState.Add( newState );
 
                     Ptr<ASTOp> imageAd = Generate( pImageNode );
 
                     // Look for patches to this block
-                    for( size_t editIndex=0; editIndex<edits.size(); ++editIndex )
+                    for( int32 editIndex=0; editIndex<edits.Num(); ++editIndex )
                     {
                         const auto& e = edits[editIndex];
-                        if ( t<e.node->m_textures.size() )
+                        if ( t<e.node->m_textures.Num() )
                         {
                             if ( const NodePatchImage* pPatch = e.node->m_textures[t].m_pPatch.get() )
                             {
@@ -1353,7 +1351,7 @@ namespace mu
 
                     check(imageAd);
 
-                    m_imageState.pop_back();
+                    m_imageState.Pop();
 
                     if (mipmapNode)
                     {
@@ -1408,8 +1406,8 @@ namespace mu
                           ==
                           CompilerOptions::TextureLayoutStrategy::Pack )
                 {
-                    if( layout >= (int)meshResults.layouts.size() ||
-                        layout >= (int)meshResults.layoutOps.size() )
+                    if( layout >= meshResults.layouts.Num() ||
+                        layout >= meshResults.layoutOps.Num() )
                     {
                         m_pErrorLog->GetPrivate()->Add("Missing layout in object, or its parent.",
                                                        ELMT_ERROR, node.m_errorContext);
@@ -1443,7 +1441,7 @@ namespace mu
 							//UE_LOG( LogMutableCore, Warning, TEXT("A texture [%s] has been resized from [%d x %d] to [%d x %d] because it didn't fit the layout [%d x %d]. "),
 							//	ANSI_TO_TCHAR(node.m_images[t].m_name.c_str()), oldSize[0], oldSize[1], desc.m_size[0], desc.m_size[1], grid[0], grid[1] );
 
-							int currentLOD = m_currentParents.back().m_lod;
+							int currentLOD = m_currentParents.Last().m_lod;
 							char buf[256];
 							mutable_snprintf(buf, 256, "A texture [%s] for material [%s] parameter [%s] in LOD [%d] has been resized from [%d x %d] to [%d x %d] because it didn't fit the layout [%d x %d]. ",
 								node.m_images[t].m_name.c_str(), 
@@ -1454,8 +1452,8 @@ namespace mu
 							m_pErrorLog->GetPrivate()->Add(buf, ELMT_INFO, node.m_errorContext);
 						}
 
-                        int blockSizeX = std::max( 1, desc.m_size[0] / grid[0]);
-                        int blockSizeY = std::max( 1, desc.m_size[1] / grid[1]);
+                        int blockSizeX = FMath::Max( 1, desc.m_size[0] / grid[0]);
+                        int blockSizeY = FMath::Max( 1, desc.m_size[1] / grid[1]);
 
 						bool bBlocksHaveMips = desc.m_lods > 1;
 
@@ -1465,8 +1463,8 @@ namespace mu
                             Ptr<ASTOpFixed> bop = new ASTOpFixed();
                             bop->op.type = OP_TYPE::IM_BLANKLAYOUT;
                             bop->SetChild(bop->op.args.ImageBlankLayout.layout, meshResults.layoutOps[ layout ] );
-                            bop->op.args.ImageBlankLayout.blockSize[0] = uint16_t(blockSizeX);
-                            bop->op.args.ImageBlankLayout.blockSize[1] = uint16_t(blockSizeY);
+                            bop->op.args.ImageBlankLayout.blockSize[0] = uint16(blockSizeX);
+                            bop->op.args.ImageBlankLayout.blockSize[1] = uint16(blockSizeY);
                             // We support block compression directly here, but not non-block compression
                             if ( GetImageFormatData(desc.m_format).m_pixelsPerBlockX == 0 )
                             {
@@ -1507,23 +1505,20 @@ namespace mu
                             newState.m_imageRect = rect;
                             newState.m_layoutBlock = pLayout->m_blocks[b].m_id;
                             newState.m_pLayout = pLayout;
-                            m_imageState.push_back( newState );
+                            m_imageState.Add( newState );
 
                             Ptr<ASTOp> blockAd = Generate( pImageNode );
 
                             // Look for patches to this block
-                            for( size_t editIndex=0; editIndex<edits.size(); ++editIndex )
+                            for( int32 editIndex=0; editIndex<edits.Num(); ++editIndex )
                             {
                                 const auto& e = edits[editIndex];
-                                if ( t<e.node->m_textures.size() )
+                                if ( t<e.node->m_textures.Num() )
                                 {
                                     if ( const NodePatchImage* pPatch = e.node->m_textures[t].m_pPatch.get() )
                                     {
                                         // Is the current block to be patched?
-                                        if ( std::find( pPatch->GetPrivate()->m_blocks.begin(),
-                                                        pPatch->GetPrivate()->m_blocks.end(),
-                                                        b )
-                                             != pPatch->GetPrivate()->m_blocks.end() )
+                                        if (pPatch->GetPrivate()->m_blocks.Contains(b))
                                         {
                                             blockAd = GenerateImageBlockPatch(blockAd,pPatch,e.condition);
                                         }
@@ -1546,20 +1541,20 @@ namespace mu
 
                             imageAd = composeOp;
 
-                            m_imageState.pop_back();
+                            m_imageState.Pop();
                         }
                         check(imageAd);
 
                         // Apply composition of blocks coming from child objects
-                        for( size_t editIndex=0; editIndex<edits.size(); ++editIndex )
+                        for( int32 editIndex=0; editIndex<edits.Num(); ++editIndex )
                         {
                             const auto& e = edits[editIndex];
-                            if ( t<e.node->m_textures.size() )
+                            if ( t<e.node->m_textures.Num() )
                             {
                                 auto pExtend = e.node->m_textures[t].m_pExtend;
                                 if (pExtend)
                                 {
-                                    if ( layout>=int(meshResults.extraMeshLayouts[editIndex].layouts.size())
+                                    if ( layout>=meshResults.extraMeshLayouts[editIndex].layouts.Num()
                                          ||
                                          !meshResults.extraMeshLayouts[editIndex].layouts[layout] )
                                     {
@@ -1568,7 +1563,7 @@ namespace mu
                                             (
                                                 buf, 256,
                                                 "Trying to extend a layout that doesn't exist in object [%s].",
-                                                m_currentParents.rbegin()->m_pObject->m_name.c_str()
+                                                m_currentParents.Last().m_pObject->m_name.c_str()
                                             );
 
                                         m_pErrorLog->GetPrivate()->Add( buf, ELMT_ERROR, node.m_errorContext );
@@ -1612,17 +1607,17 @@ namespace mu
                                             newState.m_imageRect = rect;
                                             newState.m_layoutBlock = pExtendLayout->m_blocks[b].m_id;
                                             newState.m_pLayout = pExtendLayout;
-                                            m_imageState.push_back( newState );
+                                            m_imageState.Add( newState );
 
                                             Ptr<ASTOp> fragmentAd = Generate( pExtend );
 
-                                            m_imageState.pop_back();
+                                            m_imageState.Pop();
 
                                             // Adjust the format and size of the block to be added
                                             Ptr<ASTOp> formatted = GenerateImageFormat( fragmentAd, GetUncompressedFormat(desc.m_format) );
                                             FImageSize expectedSize;
-                                            expectedSize[0] = (uint16_t)(blockSizeX * blockRect.size[0]);
-                                            expectedSize[1] = (uint16_t)(blockSizeY * blockRect.size[1]);
+                                            expectedSize[0] = (uint16)(blockSizeX * blockRect.size[0]);
+                                            expectedSize[1] = (uint16)(blockSizeY * blockRect.size[1]);
                                             formatted = GenerateImageSize( formatted, expectedSize );
                                             // Direct compression support
                                             // formatted = GenerateImageUncompressed( formatted );
@@ -1685,7 +1680,7 @@ namespace mu
 
                             int mipsX = (int)ceilf( logf( (float)blockSizeX/finfo.m_pixelsPerBlockX )/logf(2.0f) );
                             int mipsY = (int)ceilf( logf( (float)blockSizeY/finfo.m_pixelsPerBlockY )/logf(2.0f) );
-                            mop->BlockLevels = (uint8_t)std::max( mipsX, mipsY );
+                            mop->BlockLevels = (uint8_t)FMath::Max( mipsX, mipsY );
 
 							mop->AddressMode	   = mipmapNode->GetPrivate()->m_settings.m_addressMode;
 							mop->FilterType		   = mipmapNode->GetPrivate()->m_settings.m_filterType;
@@ -1712,7 +1707,7 @@ namespace mu
 
 							int mipsX = (int)ceilf(logf((float)blockSizeX / finfo.m_pixelsPerBlockX) / logf(2.0f));
 							int mipsY = (int)ceilf(logf((float)blockSizeY / finfo.m_pixelsPerBlockY) / logf(2.0f));
-							mop->BlockLevels = (uint8_t)std::max(mipsX, mipsY);
+							mop->BlockLevels = (uint8_t)FMath::Max(mipsX, mipsY);
 
 							// Not important for the end of the mip tail?
 							mop->AddressMode = EAddressMode::AM_CLAMP;
@@ -1768,7 +1763,7 @@ namespace mu
 
         // Create the expression for each vector
         //------------------------------------------------------------------------
-        for (std::size_t t = 0; t<node.m_vectors.size(); ++t)
+        for (int32 t = 0; t<node.m_vectors.Num(); ++t)
         {
             //MUTABLE_CPUPROFILER_SCOPE(SurfaceVector);
 
@@ -1791,7 +1786,7 @@ namespace mu
 
         // Create the expression for each scalar
         //------------------------------------------------------------------------
-        for ( std::size_t t = 0; t < node.m_scalars.size(); ++t )
+        for ( int32 t = 0; t < node.m_scalars.Num(); ++t )
         {
             // MUTABLE_CPUPROFILER_SCOPE(SurfaceScalar);
 
@@ -1814,7 +1809,7 @@ namespace mu
 
         // Create the expression for each string
         //------------------------------------------------------------------------
-        for ( std::size_t t = 0; t < node.m_strings.size(); ++t )
+        for ( int32 t = 0; t < node.m_strings.Num(); ++t )
         {
             if ( NodeStringPtr pStringNode = node.m_strings[t].m_pString )
             {
@@ -1872,21 +1867,20 @@ namespace mu
         int surfaceID=1;
 
         // Look for all surfaces that belong to this component
-		for (vector<FirstPassGenerator::SURFACE>::const_iterator its = m_firstPass.surfaces.begin()
-			; its != m_firstPass.surfaces.end()
-            ; ++its, ++surfaceID)
+		for (int32 i = 0; i<m_firstPass.surfaces.Num(); ++i, ++surfaceID)
 		{
-			if (its->component==&node)
+			const auto& its = m_firstPass.surfaces[i];
+			if (its.component==&node)
 			{
                 // Apply state conditions: only generate it if it enabled in this state
                 {
                     bool enabledInThisState = true;
-                    if (its->stateCondition.size() && m_currentStateIndex >= 0)
+                    if (its.stateCondition.Num() && m_currentStateIndex >= 0)
                     {
                         enabledInThisState =
-                                ( m_currentStateIndex < int(its->stateCondition.size()) )
+                                ( m_currentStateIndex < its.stateCondition.Num() )
                                 &&
-                                ( its->stateCondition[m_currentStateIndex] );
+                                ( its.stateCondition[m_currentStateIndex] );
                     }
                     if (!enabledInThisState)
                     {
@@ -1896,22 +1890,22 @@ namespace mu
 
                 Ptr<ASTOpInstanceAdd> sop = new ASTOpInstanceAdd();
                 sop->type = OP_TYPE::IN_ADDSURFACE;
-                sop->name = its->node->GetPrivate()->m_name;
+                sop->name = its.node->GetPrivate()->m_name;
                 sop->instance = lastCompOp;
 
 				SURFACE_GENERATION_RESULT surfaceGenerationResult;
-                GenerateSurface( surfaceGenerationResult, its->node, its->edits );
+                GenerateSurface( surfaceGenerationResult, its.node, its.edits );
                 sop->value = surfaceGenerationResult.surfaceOp;
 
                 sop->id = surfaceID;
-                sop->externalId = its->node->GetPrivate()->m_customID;
+                sop->externalId = its.node->GetPrivate()->m_customID;
                 Ptr<ASTOp> surfaceAt = sop;
 
 				// TODO: This could be done earlier?
                 Ptr<ASTOpFixed> surfCondOp = new ASTOpFixed();
                 surfCondOp->op.type = OP_TYPE::BO_AND;
-                surfCondOp->SetChild(surfCondOp->op.args.BoolBinary.a, its->objectCondition );
-                surfCondOp->SetChild(surfCondOp->op.args.BoolBinary.b, its->surfaceCondition );
+                surfCondOp->SetChild(surfCondOp->op.args.BoolBinary.a, its.objectCondition );
+                surfCondOp->SetChild(surfCondOp->op.args.BoolBinary.b, its.surfaceCondition );
                 Ptr<ASTOp> surfaceCondition = surfCondOp;
 
                 if (surfaceCondition)
@@ -1930,16 +1924,16 @@ namespace mu
 
                 // Add the mesh with its condition
                 Ptr<ASTOp> mergeAd;
-                if (!lastMeshOp && its->node->GetPrivate()->m_meshes.size())
+                if (!lastMeshOp && its.node->GetPrivate()->m_meshes.Num())
                 {
                     // \todo: mesh index in case of multiple meshes.
                     const int meshIndex = 0;
-                    lastMeshName = its->node->GetPrivate()->m_meshes[ meshIndex ].m_name;
+                    lastMeshName = its.node->GetPrivate()->m_meshes[ meshIndex ].m_name;
                 }
 
                 // We add the merge op even for the first mesh, so that we set the surface id.
                 {
-                    Ptr<ASTOp> added = its->resultMeshOp;
+                    Ptr<ASTOp> added = its.resultMeshOp;
                     // if (added && m_compilerOptions->m_enablePartialOptimise)
                     // {
                     //     if (m_pTaskManager->HasRunner())
@@ -2039,11 +2033,11 @@ namespace mu
     {
         MUTABLE_CPUPROFILER_SCOPE(NodeObjectNew);
 
-        m_currentParents.push_back( PARENT_KEY() );
-        m_currentParents.back().m_pObject = &node;
+        m_currentParents.Add( PARENT_KEY() );
+        m_currentParents.Last().m_pObject = &node;
 
         // Parse the child objects first, which will accumulate operations in the patching lists
-        for ( std::size_t t=0; t<node.m_children.size(); ++t )
+        for ( int32 t=0; t<node.m_children.Num(); ++t )
         {
             if ( const NodeObject* pChildNode = node.m_children[t].get() )
             {
@@ -2051,9 +2045,9 @@ namespace mu
 
                 // If there are parent objects, the condition of this object depends on the
                 // condition of the parent object
-                if ( m_currentObject.size() )
+                if ( m_currentObject.Num() )
                 {
-                    paramOp = m_currentObject.back().m_condition;
+                    paramOp = m_currentObject.Last().m_condition;
                 }
                 else
                 {
@@ -2066,32 +2060,32 @@ namespace mu
 
                 OBJECT_GENERATION_DATA data;
                 data.m_condition = paramOp;
-                m_currentObject.push_back( data );
+                m_currentObject.Add( data );
 
                 // This op is ignored: everything is stored as patches to apply to the parent when
                 // it is compiled.
                 Generate( pChildNode );
 
-                m_currentObject.pop_back();
+                m_currentObject.Pop();
             }
         }
 
         // Create the expression for each lod
         Ptr<ASTOpAddLOD> lodsOp = new ASTOpAddLOD();
-        for ( std::size_t t=0; t<node.m_lods.size(); ++t )
+        for ( int32 t=0; t<node.m_lods.Num(); ++t )
         {
             if ( const NodeLOD* pLODNode = node.m_lods[t].get() )
             {
-                m_currentParents.back().m_lod = (int)t;
+                m_currentParents.Last().m_lod = (int)t;
 
                 Ptr<ASTOp> lodOp = Generate( pLODNode );
 
-                lodsOp->lods.emplace_back( lodsOp, lodOp );
+                lodsOp->lods.Emplace( lodsOp, lodOp );
             }
         }
         Ptr<ASTOp> rootOp = lodsOp;
 
-        m_currentParents.pop_back();
+        m_currentParents.Pop();
 
         return rootOp;
     }
@@ -2103,19 +2097,20 @@ namespace mu
 		vector<string> usedNames;
 
         // Parse the child objects first, which will accumulate operations in the patching lists
-        for ( std::size_t t=0; t<node.m_children.size(); ++t )
+        for ( int32 t=0; t<node.m_children.Num(); ++t )
         {
             if ( const NodeObject* pChildNode = node.m_children[t].get() )
             {
 				// Look for the child condition in the first pass
                 Ptr<ASTOp> conditionOp;
 				bool found = false;
-                for( auto it = m_firstPass.objects.begin(); !found && it != m_firstPass.objects.end(); it++ )
+                for( int32 i = 0; !found && i != m_firstPass.objects.Num(); i++ )
 				{
-					if (it->node == pChildNode->GetBasePrivate())
+					auto& it = m_firstPass.objects[i];
+					if (it.node == pChildNode->GetBasePrivate())
 					{
 						found = true;
-						conditionOp = it->condition;
+						conditionOp = it.condition;
 					}
 				}
 
@@ -2126,13 +2121,13 @@ namespace mu
 
                 OBJECT_GENERATION_DATA data;
                 data.m_condition = conditionOp;
-                m_currentObject.push_back( data );
+                m_currentObject.Add( data );
 
                 // This op is ignored: everything is stored as patches to apply to the parent when
                 // it is compiled.
                 Generate( pChildNode );
 
-                m_currentObject.pop_back();
+                m_currentObject.Pop();
 
 				// Check for duplicated child names
 				const char* strChildName = pChildNode->GetName();
@@ -2186,13 +2181,13 @@ namespace mu
 
 	//---------------------------------------------------------------------------------------------
 	void CodeGenerator::GetModifiersFor(
-		const vector<string>& tags,
+		const TArray<string>& tags,
 		int LOD, bool bModifiersForBeforeOperations,
-		vector<FirstPassGenerator::MODIFIER>& modifiers)
+		TArray<FirstPassGenerator::MODIFIER>& modifiers)
 	{
         MUTABLE_CPUPROFILER_SCOPE(GetModifiersFor);
 
-		if (tags.size())
+		if (tags.Num())
 		{
 			for (const auto& m: m_firstPass.modifiers)
 			{
@@ -2209,9 +2204,10 @@ namespace mu
 				}
 
 				// Already there?
-				bool alreadyAdded = std::find_if(modifiers.begin(), modifiers.end(),
-					[&m](const FirstPassGenerator::MODIFIER& c) {return c.node == m.node; })
-					!= modifiers.end();
+				bool alreadyAdded = 
+					modifiers.FindByPredicate( [&m](const FirstPassGenerator::MODIFIER& c) {return c.node == m.node; })
+					!= 
+					nullptr;
 
 				if (alreadyAdded)
 				{
@@ -2222,12 +2218,12 @@ namespace mu
 				bool found = false;
 				for (auto it = m.node->m_tags.begin(); !found && it != m.node->m_tags.end(); ++it)
 				{
-					found = std::find(tags.begin(), tags.end(), *it) != tags.end();
+					found = tags.Contains(*it);
 				}
 
 				if (found)
 				{
-					modifiers.push_back(m);
+					modifiers.Add(m);
 				}
 			}
 		}
@@ -2236,21 +2232,21 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	Ptr<ASTOp> CodeGenerator::ApplyMeshModifiers(
 		const Ptr<ASTOp>& sourceOp,
-		const vector<string>& tags,
+		const TArray<string>& tags,
 		bool bModifiersForBeforeOperations,
 		const void* errorContext )
 	{
 		Ptr<ASTOp> lastMeshOp = sourceOp;
 
 		// Apply mesh modifiers
-		vector<FirstPassGenerator::MODIFIER> modifiers;
+		TArray<FirstPassGenerator::MODIFIER> modifiers;
 
-		int currentLOD = m_currentParents.back().m_lod;
+		int currentLOD = m_currentParents.Last().m_lod;
 		GetModifiersFor(tags, currentLOD, bModifiersForBeforeOperations, modifiers);
 
 		Ptr<ASTOp> preModifiersMesh = lastMeshOp;
 
-		m_activeTags.push_back({});
+		m_activeTags.Add({});
 
 		// Process clip-with-mesh modifiers
 		Ptr<ASTOpMeshRemoveMask> removeOp;
@@ -2423,7 +2419,7 @@ namespace mu
 			}
 		}
 			
-		m_activeTags.pop_back();
+		m_activeTags.Pop();
 
 		return lastMeshOp;
 	}

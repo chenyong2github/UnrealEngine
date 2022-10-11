@@ -24,7 +24,7 @@ namespace mu
 		case EImageFormat::IF_L_UBYTE:
 		{
             uint8_t c;
-            c = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[0] * 255.0f ) )+0.5f);
+            c = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[0] * 255.0f ) )+0.5f);
 
 			for ( int i=0; i<pixelCount; ++i )
 			{
@@ -43,9 +43,9 @@ namespace mu
 		case EImageFormat::IF_RGB_UBYTE:
 		{
             uint8_t c[3];
-            c[0] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[0] * 255.0f ) )+0.5f);
-            c[1] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[1] * 255.0f ) )+0.5f);
-            c[2] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[2] * 255.0f ) )+0.5f);
+            c[0] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[0] * 255.0f ) )+0.5f);
+            c[1] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[1] * 255.0f ) )+0.5f);
+            c[2] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[2] * 255.0f ) )+0.5f);
 
 			for ( int i=0; i<pixelCount; ++i )
 			{
@@ -64,9 +64,9 @@ namespace mu
         case EImageFormat::IF_RGBA_UBYTE:
         {
             uint8_t c[3];
-            c[0] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[0] * 255.0f ) )+0.5f);
-            c[1] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[1] * 255.0f ) )+0.5f);
-            c[2] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[2] * 255.0f ) )+0.5f);
+            c[0] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[0] * 255.0f ) )+0.5f);
+            c[1] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[1] * 255.0f ) )+0.5f);
+            c[2] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[2] * 255.0f ) )+0.5f);
 
             for ( int i=0; i<pixelCount; ++i )
             {
@@ -85,9 +85,9 @@ namespace mu
         case EImageFormat::IF_BGRA_UBYTE:
         {
             uint8_t c[3];
-            c[0] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[2] * 255.0f ) )+0.5f);
-            c[1] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[1] * 255.0f ) )+0.5f);
-            c[2] = (uint8_t)(std::max( 0.0f, std::min( 255.0f, colour[0] * 255.0f ) )+0.5f);
+            c[0] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[2] * 255.0f ) )+0.5f);
+            c[1] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[1] * 255.0f ) )+0.5f);
+            c[2] = (uint8_t)(FMath::Max( 0.0f, FMath::Min( 255.0f, colour[0] * 255.0f ) )+0.5f);
 
             for ( int i=0; i<pixelCount; ++i )
             {

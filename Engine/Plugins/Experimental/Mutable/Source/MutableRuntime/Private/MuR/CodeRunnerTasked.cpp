@@ -67,7 +67,7 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Unserialise);
 
-			InputMemoryStream stream(o.m_streamBuffer.data(), o.m_streamBuffer.size());
+			InputMemoryStream stream(o.m_streamBuffer.GetData(), o.m_streamBuffer.Num());
 			InputArchive arch(&stream);
 
 			int32 ResIndex = program.m_roms[o.m_romIndex].ResourceIndex;
@@ -93,7 +93,7 @@ namespace mu
 			}
 
 			o.m_romIndex = -1;
-			o.m_streamBuffer = vector<uint8_t>();
+			o.m_streamBuffer.Empty();
 		}
 	}
 
@@ -1014,7 +1014,7 @@ namespace mu
 						// This now happens more often since the generation of specific mips on request. For this reason
 						// this warning is usually acceptable.
 						//UE_LOG(LogMutableCore, Log, TEXT("Required image resize for ImageCompose: performance warning."));
-						FImageSize blockSize((uint16_t)rect.size[0], (uint16_t)rect.size[1]);
+						FImageSize blockSize((uint16)rect.size[0], (uint16)rect.size[1]);
 						m_block = ImageResizeLinear(m_imageCompressionQuality, m_block.get(), blockSize);
 					}
 
@@ -1111,22 +1111,22 @@ namespace mu
 
 			if (!op)
 			{
-				runner->m_romLoadOps.push_back(CodeRunner::ROM_LOAD_OP());
-				op = &runner->m_romLoadOps.back();
+				runner->m_romLoadOps.Add(CodeRunner::ROM_LOAD_OP());
+				op = &runner->m_romLoadOps.Last();
 			}
 
 			op->m_romIndex = RomIndex;
 			op->ConstantType = DT_MESH;
 
-			if (op->m_streamBuffer.size() < RomSize)
+			if (uint32(op->m_streamBuffer.Num()) < RomSize)
 			{
 				// This could happen in 32-bit platforms
 				check(RomSize < std::numeric_limits<size_t>::max());
-				op->m_streamBuffer.resize((size_t)RomSize);
+				op->m_streamBuffer.SetNum((size_t)RomSize);
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
-			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel, RomId, op->m_streamBuffer.data(), RomSize);
+			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel, RomId, op->m_streamBuffer.GetData(), RomSize);
 			if (op->m_streamID < 0)
 			{
 				bOutFailed = true;
@@ -1231,22 +1231,22 @@ namespace mu
 
 			if (!op)
 			{
-				runner->m_romLoadOps.push_back(CodeRunner::ROM_LOAD_OP());
-				op = &runner->m_romLoadOps.back();
+				runner->m_romLoadOps.Add(CodeRunner::ROM_LOAD_OP());
+				op = &runner->m_romLoadOps.Last();
 			}
 
 			op->m_romIndex = RomIndex;
 			op->ConstantType = DT_IMAGE;
 
-			if (op->m_streamBuffer.size() < RomSize)
+			if (uint32(op->m_streamBuffer.Num()) < RomSize)
 			{
 				// This could happen in 32-bit platforms
 				check(RomSize < std::numeric_limits<size_t>::max());
-				op->m_streamBuffer.resize((size_t)RomSize);
+				op->m_streamBuffer.SetNum(RomSize);
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
-			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel, RomId, op->m_streamBuffer.data(), RomSize);
+			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel, RomId, op->m_streamBuffer.GetData(), RomSize);
 			if (op->m_streamID < 0)
 			{
 				bOutFailed = true;

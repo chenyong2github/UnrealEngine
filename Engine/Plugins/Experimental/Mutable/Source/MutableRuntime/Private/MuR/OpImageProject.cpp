@@ -2,12 +2,6 @@
 
 
 #include "MuR/OpImageProject.h"
-
-#include "Async/ParallelFor.h"
-#include "Containers/Array.h"
-#include "Math/IntPoint.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/AssertionMacros.h"
 #include "MuR/ConvertData.h"
 #include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
@@ -23,8 +17,11 @@
 #include "MuR/Ptr.h"
 #include "MuR/Raster.h"
 
-#include <queue>
-#include <unordered_set>
+#include "Async/ParallelFor.h"
+#include "Containers/Array.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 
 
 namespace mu
@@ -680,7 +677,8 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
 
     // Get the vertices
     int vertexCount = pMesh->GetVertexCount();
-    vector< RasterVertex<4> > vertices( vertexCount );
+	TArray< RasterVertex<4> > vertices;
+	vertices.SetNum(vertexCount);
 
     UntypedMeshBufferIteratorConst texIt( pMesh->GetVertexBuffers(), MBS_TEXCOORDS, layout );
     UntypedMeshBufferIteratorConst posIt( pMesh->GetVertexBuffers(), MBS_POSITION, 0 );
@@ -713,7 +711,8 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
 
     // Get the indices
     int faceCount = pMesh->GetFaceCount();
-    vector<int> indices( faceCount*3 );
+	TArray<int> indices;
+	indices.SetNum(faceCount * 3);
 
     UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
     for ( int i=0; i<faceCount*3; ++i )
@@ -726,14 +725,15 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
     }
 
     // Get the block per face
-    vector<int> blocks( vertexCount );
+	TArray<int> blocks;
+	blocks.SetNum(vertexCount);
 
     UntypedMeshBufferIteratorConst bloIt( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, layout );
     if (bloIt.ptr())
     {
         for ( int i=0; i<vertexCount; ++i )
         {
-            uint16_t index=0;
+            uint16 index=0;
             ConvertData( 0, &index, MBF_UINT16, bloIt.ptr(), bloIt.GetFormat() );
 
             blocks[i] = index;
@@ -748,7 +748,8 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
         const Layout* pLayout = layout<pMesh->GetLayoutCount() ? pMesh->GetLayout( layout ) : nullptr;
         if (pLayout && bloIt.ptr())
         {
-            vector< box< vec2<float> > > transforms( pLayout->GetBlockCount() );
+			TArray< box< vec2<float> > > transforms;
+			transforms.SetNum(pLayout->GetBlockCount());
             for ( int b=0; b<pLayout->GetBlockCount(); ++b )
             {
                 FIntPoint grid = pLayout->GetGridSize();
@@ -860,8 +861,8 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh,
     // Get the vertices
     int vertexCount = pMesh->GetVertexCount();
 
-    check( (int)scratch->vertices.size()==vertexCount );
-    check( (int)scratch->culledVertex.size()==vertexCount );
+    check( (int)scratch->vertices.Num()==vertexCount );
+    check( (int)scratch->culledVertex.Num()==vertexCount );
 
     check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX) );
     auto pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>( pMesh->GetVertexBuffers().GetBufferData(0) );
@@ -939,8 +940,8 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh,
     // Get the vertices
     int vertexCount = pMesh->GetVertexCount();
 
-    check( (int)scratch->vertices.size()==vertexCount );
-    check( (int)scratch->culledVertex.size()==vertexCount );
+    check( (int)scratch->vertices.Num()==vertexCount );
+    check( (int)scratch->culledVertex.Num()==vertexCount );
 
     check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX_WRAPPING) );
     auto pVertices = reinterpret_cast<const OPTIMISED_VERTEX_WRAPPING*>( pMesh->GetVertexBuffers().GetBufferData(0) );
@@ -1275,20 +1276,23 @@ int* assert_aux = 0;
 #define assert(x) if((x) == 0) assert_aux[0] = 1;
 #endif
 
+constexpr float vert_collapse_eps = 0.0001f;
+
+
 //---------------------------------------------------------------------------------------------
 //! Create a map from vertices into vertices, collapsing vertices that have the same position
 //---------------------------------------------------------------------------------------------
 inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
-                                    mu::vector<int>& collapsedVertexMap,
-                                    mu::vector<vec3f>& vertices,
-									std::multimap<int, int>& collapsedVertsMap
-                                    )
+	TArray<int>& collapsedVertexMap,
+	TArray<vec3f>& vertices,
+	TMultiMap<int, int>& collapsedVertsMap
+)
 {
 	MUTABLE_CPUPROFILER_SCOPE(CreateCollapseMap);
 
     int vcount = pMesh->GetVertexCount();
-    collapsedVertexMap.resize(vcount);
-    vertices.resize(vcount);
+    collapsedVertexMap.SetNum(vcount);
+    vertices.SetNum(vcount);
 
     const FMeshBufferSet& MBSPriv = pMesh->GetVertexBuffers();
     for (int32 b = 0; b < MBSPriv.m_buffers.Num(); ++b)
@@ -1324,27 +1328,27 @@ inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
 				//Initializing Octree boundingbox
 				meshBoundingBox.min = vertices[0];
 				meshBoundingBox.size = vec3f(0.0f, 0.0f, 0.0f);
-				for (size_t i = 1; i < vertices.size(); ++i)
+				for (int32 i = 1; i < vertices.Num(); ++i)
 				{
 					meshBoundingBox.Bound(vertices[i]);
 				}
 
 				//Initializing and filling Octree
 				pOctree = new Octree(meshBoundingBox.min, meshBoundingBox.min + meshBoundingBox.size,0.001f);
-				for (size_t itr = 0; itr < vertices.size(); ++itr)
+				for (int32 itr = 0; itr < vertices.Num(); ++itr)
 				{
 					pOctree->InsertElement(vertices[itr], int(itr));
 				}
 
 				// Create map to store which vertices are the same (collapse nearby vertices)
-				for (size_t itr = 0; itr < vertices.size(); ++itr)
+				for (int32 itr = 0; itr < vertices.Num(); ++itr)
 				{
 					int collapsed_candidate_v_idx = pOctree->GetNearests(vertices[itr], vert_collapse_eps, int(itr));
 					collapsedVertexMap[itr] = collapsed_candidate_v_idx;
 
 					if (collapsed_candidate_v_idx != int(itr))
 					{
-						collapsedVertsMap.insert(std::make_pair<>(collapsed_candidate_v_idx, (int)itr));
+						collapsedVertsMap.Add(collapsed_candidate_v_idx, itr);
 					}
 				}
                 break;
@@ -1499,7 +1503,7 @@ struct NeighborFace
 	{
 		//if (a.numUVIslandChanges == b.numUVIslandChanges)
 		//{
-			return a.step > b.step;
+			return a.step < b.step;
 		//}
 
 		//return a.numUVIslandChanges > b.numUVIslandChanges;
@@ -1596,9 +1600,11 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised_Planar)
 
-    vector<int32> oldToNewVertex(vertexCount,-1);
+	TArray<int32> oldToNewVertex;
+	oldToNewVertex.Init(-1,vertexCount);
 
-    vector<PROJECTED_VERTEX> projectedPositions(vertexCount);
+	TArray<PROJECTED_VERTEX> projectedPositions;
+	projectedPositions.SetNumZeroed(vertexCount);
 
     for ( int v=0; v<vertexCount; ++v )
     {
@@ -1678,9 +1684,11 @@ void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int v
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised_Cylindrical)
 
-	vector<int32> oldToNewVertex(vertexCount,-1);
+	TArray<int32> oldToNewVertex;
+	oldToNewVertex.Init( -1, vertexCount);
 
-    vector<PROJECTED_VERTEX> projectedPositions(vertexCount);
+	TArray<PROJECTED_VERTEX> projectedPositions;
+	projectedPositions.SetNumZeroed(vertexCount);
 
     // TODO: support for non uniform scale?
     float radius = projectorScale[1];
@@ -1780,30 +1788,33 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     auto pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
     int faceCount = pMesh->GetFaceCount();
 
-    vector<PROJECTED_VERTEX> projectedPositions(vertexCount);
+	TArray<PROJECTED_VERTEX> projectedPositions;
+	projectedPositions.SetNum(vertexCount);
 
     // Iterate the faces and trace a ray to find the origin face of the projection
     const float maxDist = 100000.f;
     float min_t = maxDist;
     float rayLength = maxDist;
     int intersectedFace = -1;
-    std::set<int> processedVertices;
+	TSet<int> processedVertices;
     vec3f projectionPlaneNormal;
     vec3f out_intersection;
 
-    vector<AdjacentFaces> faceConnectivity(faceCount);
-    std::set<int> processedFaces;
-    std::set<int> discardedWrapAroundFaces;
-    vector<int> faceStep(faceCount, 0);
+	TArray<AdjacentFaces> faceConnectivity;
+	faceConnectivity.SetNum(faceCount);
+    TSet<int> processedFaces;
+	TSet<int> discardedWrapAroundFaces;
+	TArray<int> faceStep;
+	faceStep.SetNum(faceCount);
 
     // Map vertices to the one they are collapsed to because they are very similar, if they aren't collapsed then they are mapped to themselves
-    vector<int> collapsedVertexMap;
-    vector<vec3f> vertices;
-    std::multimap<int, int> collapsedVertsMap; // Maps a collapsed vertex to all the vertices that collapse to it
+    TArray<int> collapsedVertexMap;
+	TArray<vec3f> vertices;
+    TMultiMap<int, int> collapsedVertsMap; // Maps a collapsed vertex to all the vertices that collapse to it
     MeshCreateCollapsedVertexMap(pMesh, collapsedVertexMap, vertices, collapsedVertsMap);
 
     // Used to speed up connectivity building
-    std::multimap<int, int> vertToFacesMap;
+	TMultiMap<int, int> vertToFacesMap;
 
     for (int f = 0; f < faceCount; ++f)
     {
@@ -1811,9 +1822,9 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
         int i1 = pIndices[f * 3 + 1];
         int i2 = pIndices[f * 3 + 2];
 
-        vertToFacesMap.insert(std::pair<int, int>(collapsedVertexMap[i0], f));
-        vertToFacesMap.insert(std::pair<int, int>(collapsedVertexMap[i1], f));
-        vertToFacesMap.insert(std::pair<int, int>(collapsedVertexMap[i2], f));
+        vertToFacesMap.Add(collapsedVertexMap[i0], f);
+        vertToFacesMap.Add(collapsedVertexMap[i1], f);
+        vertToFacesMap.Add(collapsedVertexMap[i2], f);
         //vertToFacesMap.insert(std::pair<int, int>(i0, f));
         //vertToFacesMap.insert(std::pair<int, int>(i1, f));
         //vertToFacesMap.insert(std::pair<int, int>(i2, f));
@@ -1856,15 +1867,10 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
             int v = collapsedVertexMap[pIndices[f * 3 + i]];
             //int v = pIndices[f * 3 + i];
 
-            for (auto it = vertToFacesMap.find(v); it != vertToFacesMap.end(); ++it)
+			TArray<int> FoundValues;
+			vertToFacesMap.MultiFind(v, FoundValues);
+            for (int f2 : FoundValues )
             {
-                if (it->first != v) // The return iterator points at the first instance of v, but will iterate to the end of the map
-                {
-                    break;
-                }
-
-                int f2 = it->second;
-
                 if (f != f2 && f2 >= 0)
                 {
                     int commonVertices = 0;
@@ -1960,8 +1966,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     // Do a BFS walk of the mesh, unfolding a face at each step
     if (intersectedFace >= 0)
     {
-        std::priority_queue<NeighborFace> pendingFaces; // Queue of pending face + new vertex
-        std::unordered_set<int> pendingFacesUnique; // Used to quickly check uniqueness in the pendingFaces queue
+        TArray<NeighborFace> pendingFaces; // Queue of pending face + new vertex
+        
+		// \TODO: Bool array to speed up?
+		TSet<int> pendingFacesUnique; // Used to quickly check uniqueness in the pendingFaces queue
+
         //vec3f hitFaceProjectedNormal;
         bool hitFaceHasPositiveArea = false;
 
@@ -1972,25 +1981,25 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
         neighborFace.numUVIslandChanges = 0;
         neighborFace.step = 0;
         neighborFace.changesUVIsland = false;
-        pendingFaces.push(neighborFace);
-        pendingFacesUnique.insert(intersectedFace);
+        pendingFaces.HeapPush(neighborFace);
+        pendingFacesUnique.Add(intersectedFace);
 
         int step = 0;
         float totalUVAreaCovered = 0.f;
-        vector<int> oldVertices;
-        oldVertices.reserve(3);
+        TArray<int> oldVertices;
+        oldVertices.Reserve(3);
 
-        while (!pendingFaces.empty())
+        while (!pendingFaces.IsEmpty())
         {
-            NeighborFace currentFaceStruct = pendingFaces.top();
+			NeighborFace currentFaceStruct;
+			pendingFaces.HeapPop(currentFaceStruct);
             int currentFace = currentFaceStruct.neighborFace;
 #ifdef DEBUG_PROJECTION
             int newVertexFromQueue = currentFaceStruct.newVertex;
 #endif
-            pendingFaces.pop();
-            pendingFacesUnique.erase(currentFace);
+            pendingFacesUnique.Remove(currentFace);
 
-            processedFaces.insert(currentFace);
+            processedFaces.Add(currentFace);
             faceStep[currentFace] = step;
             float currentTriangleArea = -2.f;
 
@@ -2059,7 +2068,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
                     int collapsedVert = collapsedVertexMap[v];
 
-                    processedVertices.insert(collapsedVert);
+                    processedVertices.Add(collapsedVert);
 
                     //PlanarlyProjectVertex(pVertices[collapsedVert].pos, projectedPositions[collapsedVert], projector2, projectorPosition2, projectorDirection2, s2, u2);
                     vec2f projectedVertex = ChangeBase2D(pVertices[v].uv, OrigUVs_Origin, OrigUVs_BaseU, OrigUVs_BaseV);
@@ -2096,15 +2105,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                                                            projectedPositions[collapsedVert].pos1 >= 0.0f && projectedPositions[collapsedVert].pos1 <= 1.0f;
 
                     // Copy the new info to all the vertices that collapse to the same vertex
-                    for (auto it = collapsedVertsMap.find(collapsedVert); it != collapsedVertsMap.end(); ++it)
+					TArray<int> FoundValues;
+					collapsedVertsMap.MultiFind(collapsedVert,FoundValues);
+                    for (int otherVert:FoundValues)
                     {
-                        if (it->first != collapsedVert)
-                        {
-                            break;
-                        }
-
-                        int otherVert = it->second;
-                        processedVertices.insert(otherVert);
+                        processedVertices.Add(otherVert);
 
                         projectedPositions[otherVert] = projectedPositions[collapsedVert];
                     }
@@ -2130,14 +2135,14 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 #endif
                 int newVertex = -1;
                 //int oldVertices[2] = { -1, -1 };
-                oldVertices.clear();
+                oldVertices.Empty();
                 bool reverseOrder = false;
 
                 for (int i = 0; i < 3; ++i)
                 {
                     int v = pIndices[currentFace * 3 + i];
 
-                    if (processedVertices.count(collapsedVertexMap[v]) == 0)
+                    if (!processedVertices.Contains(collapsedVertexMap[v]))
                     {
                         newVertex = v;
 
@@ -2151,11 +2156,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                         //int index = oldVertices[0] == -1 ? 0 : 1;
                         //oldVertices[index] = v;
                         //oldVertices.push_back(collapsedVertexMap[v]);
-                        oldVertices.push_back(v);
+                        oldVertices.Add(v);
                     }
                 }
 
-                if (reverseOrder && oldVertices.size() == 2)
+                if (reverseOrder && oldVertices.Num() == 2)
                 {
                     int aux = oldVertices[0];
                     oldVertices[0] = oldVertices[1];
@@ -2168,7 +2173,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                     assert(newVertex >= 0);
                     //assert(collapsedVertexMap[newVertex] == newVertexFromQueue);
                     assert(oldVertices[0] >= 0 && oldVertices[1] >= 0);
-                    assert(oldVertices.size() == 2);
+                    assert(oldVertices.Num() == 2);
                     assert(newVertex < vertexCount && oldVertices[0] < vertexCount && oldVertices[1] < vertexCount);
 #endif
 
@@ -2301,7 +2306,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 #endif
 
                     int collapsedNewVertex = collapsedVertexMap[newVertex];
-                    processedVertices.insert(collapsedNewVertex);
+                    processedVertices.Add(collapsedNewVertex);
 
                     projectedPositions[collapsedNewVertex].pos0 = newVertex_proj[0];
                     projectedPositions[collapsedNewVertex].pos1 = newVertex_proj[1];
@@ -2310,15 +2315,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                                                                 newVertex_proj[1] >= 0.0f && newVertex_proj[1] <= 1.0f;
 
                     // Copy the new info to all the vertices that collapse to the same vertex
-                    for (auto it = collapsedVertsMap.find(collapsedNewVertex); it != collapsedVertsMap.end(); ++it)
+					TArray<int> FoundValues;
+					collapsedVertsMap.MultiFind(collapsedNewVertex,FoundValues);
+                    for (int otherVert : FoundValues)
                     {
-                        if (it->first != collapsedNewVertex)
-                        {
-                            break;
-                        }
-
-                        int otherVert = it->second;
-                        processedVertices.insert(otherVert);
+                        processedVertices.Add(otherVert);
 
                         projectedPositions[otherVert] = projectedPositions[collapsedNewVertex];
                     }
@@ -2334,7 +2335,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                 else
                 {
 #ifdef DEBUG_PROJECTION
-                    assert(oldVertices.size() == 3);
+                    assert(oldVertices.Num() == 3);
 #endif
                 }
 
@@ -2352,7 +2353,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                 //if (hitFaceProjectedNormal.z() * currentFaceNormal.z() < 0)
                 if(hitFaceHasPositiveArea != currentTriangleHasPositiveArea) // Is the current face wound in the opposite direction?
                 {
-                    discardedWrapAroundFaces.insert(currentFace); // If so, discard it since it's probably a wrap-around face
+                    discardedWrapAroundFaces.Add(currentFace); // If so, discard it since it's probably a wrap-around face
                 }
             }
 
@@ -2384,7 +2385,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                 }
             }
 
-            if (anyVertexInUVSpace && anyVertexInObjSpaceRange && discardedWrapAroundFaces.count(currentFace) == 0)
+            if (anyVertexInUVSpace && anyVertexInObjSpaceRange && !discardedWrapAroundFaces.Contains(currentFace) )
             {
 #ifdef DEBUG_PROJECTION
                 assert(currentTriangleArea != -2.f);
@@ -2397,7 +2398,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                     int newVertex = faceConnectivity[currentFace].newVertices[i];
                     bool changesUVIsland = faceConnectivity[currentFace].changesUVIsland[i];
 
-                    if (neighborFace2 >= 0 && processedFaces.count(neighborFace2) == 0 && pendingFacesUnique.count(neighborFace2) == 0)
+                    if (neighborFace2 >= 0 && !processedFaces.Contains(neighborFace2) && pendingFacesUnique.Contains(neighborFace2) == 0)
                     {
                         NeighborFace neighborFaceStruct;
                         neighborFaceStruct.neighborFace = neighborFace2;
@@ -2407,14 +2408,14 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                                                                                                    : currentFaceStruct.numUVIslandChanges;
                         neighborFaceStruct.step = step;
                         neighborFaceStruct.changesUVIsland = changesUVIsland;
-                        pendingFaces.push(neighborFaceStruct);
-                        pendingFacesUnique.insert(neighborFace2);
+                        pendingFaces.Add(neighborFaceStruct);
+                        pendingFacesUnique.Add(neighborFace2);
                     }
                 }
             }
             else
             {
-                discardedWrapAroundFaces.insert(currentFace);
+                discardedWrapAroundFaces.Add(currentFace);
             }
 
             //if(step == 1000)
@@ -2431,12 +2432,13 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
         }
     }
 
-    vector<int32> oldToNewVertex(vertexCount,-1);
+	TArray<int32> oldToNewVertex;
+	oldToNewVertex.Init(-1,vertexCount);
 
     // Add the projected face
     for(int f : processedFaces)
     {
-        if (discardedWrapAroundFaces.count(f) > 0)
+        if (discardedWrapAroundFaces.Contains(f))
         {
             continue;
         }

@@ -14,8 +14,8 @@ namespace mu
 
     struct SCRATCH_IMAGE_PROJECT
     {
-        vector< RasterVertex<4> > vertices;
-        vector<uint8> culledVertex;
+        TArray< RasterVertex<4> > vertices;
+		TArray<uint8> culledVertex;
     };
 
 

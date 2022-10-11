@@ -51,18 +51,18 @@ namespace mu
 	}
 
 
-	mu::Ptr<ASTOp> ASTOpAddLOD::Clone(MapChildFunc& mapChild) const
+	mu::Ptr<ASTOp> ASTOpAddLOD::Clone(MapChildFuncRef mapChild) const
 	{
 		Ptr<ASTOpAddLOD> n = new ASTOpAddLOD();
 		for (auto& c : lods)
 		{
-			n->lods.emplace_back(n, mapChild(c.child()));
+			n->lods.Emplace(n, mapChild(c.child()));
 		}
 		return n;
 	}
 
 
-	void ASTOpAddLOD::ForEachChild(const std::function<void(ASTChild&)>& f)
+	void ASTOpAddLOD::ForEachChild(const TFunctionRef<void(ASTChild&)> f)
 	{
 		for (auto& l : lods)
 		{
@@ -93,8 +93,8 @@ namespace mu
 				}
 			}
 
-			linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-			program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
 			AppendCode(program.m_byteCode, OP_TYPE::IN_ADDLOD);
 			AppendCode(program.m_byteCode, args);
 		}

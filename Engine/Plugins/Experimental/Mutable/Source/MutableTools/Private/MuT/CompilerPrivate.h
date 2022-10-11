@@ -6,7 +6,6 @@
 
 #include "MuT/AST.h"
 #include "MuT/ErrorLogPrivate.h"
-#include "MuT/ModelReport.h"
 
 #include "MuR/Operations.h"
 #include "MuR/MemoryPrivate.h"
@@ -95,7 +94,7 @@ namespace mu
         STATE_OPTIMIZATION_OPTIONS m_optimisation;
 
         //! List of names of the runtime parameters in this state
-        vector<string> m_runtimeParams;
+        TArray<string> m_runtimeParams;
 
         void Serialise( OutputArchive& arch ) const
         {
@@ -130,11 +129,11 @@ namespace mu
         STATE_OPTIMIZATION_OPTIONS optimisationFlags;
 
         //! List of instructions that need to be cached to efficiently update this state
-        vector<Ptr<ASTOp>> m_updateCache;
+        TArray<Ptr<ASTOp>> m_updateCache;
 
         //! List of root instructions for the dynamic resources that depend on the runtime
         //! parameters of this state.
-        vector< std::pair<Ptr<ASTOp>, std::unordered_set<string> > > m_dynamicResources;
+		TArray< TPair<Ptr<ASTOp>, TArray<string> > > m_dynamicResources;
     };
 
 
@@ -149,7 +148,6 @@ namespace mu
         }
 
         ErrorLogPtr m_pErrorLog;
-        ModelReportPtr m_pModelReport;
 
         //! Detailed options
         CompilerOptionsPtr m_options;

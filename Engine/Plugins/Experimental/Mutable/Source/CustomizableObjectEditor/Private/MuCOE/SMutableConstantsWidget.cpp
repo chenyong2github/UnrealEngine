@@ -1151,7 +1151,7 @@ void SMutableConstantsWidget::LoadConstantStrings()
 	ConstantStringElements.Empty();
 	uint32 ConstantStringsAccumulatedSize = 0;
 	
-	for (uint32 StringAddressIndex = 0; StringAddressIndex < MutableProgramPtr->m_constantStrings.size(); StringAddressIndex++)
+	for (int32 StringAddressIndex = 0; StringAddressIndex < MutableProgramPtr->m_constantStrings.Num(); StringAddressIndex++)
 	{
 		TSharedPtr<FMutableConstantStringElement> ConstantStringElement = MakeShared<FMutableConstantStringElement>();
 		ConstantStringElement->MutableString = &(MutableProgramPtr->m_constantStrings[StringAddressIndex]);
@@ -1226,7 +1226,7 @@ void SMutableConstantsWidget::LoadConstantLayouts()
 	ConstantLayoutElements.Empty();
 	uint32 ConstantLayoutsAccumulatedSize = 0;
 	
-	for (uint32 LayoutIndex = 0; LayoutIndex < MutableProgramPtr->m_constantLayouts.size(); LayoutIndex++)
+	for (int32 LayoutIndex = 0; LayoutIndex < MutableProgramPtr->m_constantLayouts.Num(); LayoutIndex++)
 	{		
 		TSharedPtr<FMutableConstantLayoutElement> ConstantLayoutElement = MakeShared<FMutableConstantLayoutElement>();
 		ConstantLayoutElement->Layout = MutableProgramPtr->m_constantLayouts[LayoutIndex];
@@ -1247,7 +1247,7 @@ void SMutableConstantsWidget::LoadConstantSkeletons()
 	ConstantSkeletonElements.Empty();
 	uint32 ConstantSkeletonsAccumulatedSize = 0;
 	
-	for (uint32 SkeletonIndex = 0; SkeletonIndex < MutableProgramPtr->m_constantSkeletons.size(); SkeletonIndex++)
+	for (int32 SkeletonIndex = 0; SkeletonIndex < MutableProgramPtr->m_constantSkeletons.Num(); SkeletonIndex++)
 	{
 		TSharedPtr<FMutableConstantSkeletonElement> ConstantSkeletonElement = MakeShared<FMutableConstantSkeletonElement>();
 		ConstantSkeletonElement->Skeleton = MutableProgramPtr->m_constantSkeletons[SkeletonIndex];
@@ -1267,7 +1267,7 @@ void SMutableConstantsWidget::LoadConstantProjectors()
 	ConstantProjectorElements.Empty();
 	uint32 ConstantProjectorsAccumulatedSize = 0;
 	
-	for (uint32 ProjectorIndex = 0; ProjectorIndex < MutableProgramPtr->m_constantProjectors.size(); ProjectorIndex++)
+	for (int32 ProjectorIndex = 0; ProjectorIndex < MutableProgramPtr->m_constantProjectors.Num(); ProjectorIndex++)
 	{
 		TSharedPtr<FMutableConstantProjectorElement> ConstantProjectorElement = MakeShared<FMutableConstantProjectorElement>();
 		ConstantProjectorElement->Projector = &(MutableProgramPtr->m_constantProjectors[ProjectorIndex]);
@@ -1288,7 +1288,7 @@ void SMutableConstantsWidget::LoadConstantMatrices()
 	ConstantMatrixElements.Empty();
 	uint32 ConstantMatricesAccumulatedSize = 0;
 	
-	for (uint32 MatrixIndex = 0; MatrixIndex < MutableProgramPtr->m_constantMatrices.size(); MatrixIndex++)
+	for (int32 MatrixIndex = 0; MatrixIndex < MutableProgramPtr->m_constantMatrices.Num(); MatrixIndex++)
 	{
 		TSharedPtr<FMutableConstantMatrixElement> ConstantMatrixElement = MakeShared<FMutableConstantMatrixElement>();
 		ConstantMatrixElement->Matrix = &(MutableProgramPtr->m_constantMatrices[MatrixIndex]);
@@ -1309,7 +1309,7 @@ void SMutableConstantsWidget::LoadConstantShapes()
 	ConstantShapeElements.Empty();
 	uint32 ConstantShapesAccumulatedSize = 0;
 	
-	for (uint32 ShapeIndex = 0; ShapeIndex < MutableProgramPtr->m_constantShapes.size(); ShapeIndex++)
+	for (int32 ShapeIndex = 0; ShapeIndex < MutableProgramPtr->m_constantShapes.Num(); ShapeIndex++)
 	{
 		TSharedPtr<FMutableConstantShapeElement> ConstantShapeElement = MakeShared<FMutableConstantShapeElement>();
 		ConstantShapeElement->Shape = &(MutableProgramPtr->m_constantShapes[ShapeIndex]);
@@ -1330,7 +1330,7 @@ void SMutableConstantsWidget::LoadConstantCurves()
 	ConstantCurveElements.Empty();
 	uint32 ConstantCurvesAccumulatedSize = 0;
 	
-	for (uint32 CurveIndex = 0; CurveIndex < MutableProgramPtr->m_constantCurves.size(); CurveIndex++)
+	for (int32 CurveIndex = 0; CurveIndex < MutableProgramPtr->m_constantCurves.Num(); CurveIndex++)
 	{
 		TSharedPtr<FMutableConstantCurveElement> ConstantCurveElement = MakeShared<FMutableConstantCurveElement>();
 		ConstantCurveElement->Curve = &(MutableProgramPtr->m_constantCurves[CurveIndex]);

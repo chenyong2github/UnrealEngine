@@ -53,7 +53,7 @@ uint64 ASTOpMeshApplyPose::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshApplyPose::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshApplyPose::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshApplyPose> n = new ASTOpMeshApplyPose();
     n->base = mapChild(base.child());
@@ -62,7 +62,7 @@ mu::Ptr<ASTOp> ASTOpMeshApplyPose::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshApplyPose::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshApplyPose::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( base );
     f( pose );
@@ -80,9 +80,9 @@ void ASTOpMeshApplyPose::Link( PROGRAM& program, const FLinkerOptions* )
         if (base) args.base = base->linkedAddress;
         if (pose) args.pose = pose->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_APPLYPOSE);
         AppendCode(program.m_byteCode,args);
     }

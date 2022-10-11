@@ -25,8 +25,8 @@ namespace mu
 
 		static NODE_TYPE s_type;
 
-		vector<NodeComponentPtr> m_components;
-		vector<NodeModifierPtr> m_modifiers;
+		TArray<NodeComponentPtr> m_components;
+		TArray<NodeModifierPtr> m_modifiers;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

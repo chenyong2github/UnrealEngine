@@ -11,8 +11,6 @@
 #include "MuR/Types.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <memory>
-#include <utility>
 
 using namespace mu;
 
@@ -53,7 +51,7 @@ uint64 ASTOpImageNormalComposite::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpImageNormalComposite::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImageNormalComposite::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpImageNormalComposite> N = new ASTOpImageNormalComposite();
 	N->Base = mapChild(Base.child());
@@ -65,7 +63,7 @@ mu::Ptr<ASTOp> ASTOpImageNormalComposite::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpImageNormalComposite::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpImageNormalComposite::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
 	f( Base );
 	f( Normal );
@@ -93,8 +91,8 @@ void ASTOpImageNormalComposite::Link( PROGRAM& program, const FLinkerOptions* )
 		args.power = Power;
 		args.mode = Mode;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::IM_NORMALCOMPOSITE);
         AppendCode(program.m_byteCode,args);
     }

@@ -34,8 +34,7 @@ ASTOpMeshRemoveMask::~ASTOpMeshRemoveMask()
 //---------------------------------------------------------------------------------------------
 void ASTOpMeshRemoveMask::AddRemove( const Ptr<ASTOp>& condition, const Ptr<ASTOp>& mask  )
 {
-    removes.push_back( std::make_pair<>( ASTChild(this,condition),
-                                         ASTChild(this,mask) ) );
+	removes.Add({ ASTChild(this,condition), ASTChild(this,mask) });
 }
 
 
@@ -51,15 +50,13 @@ bool ASTOpMeshRemoveMask::IsEqual(const ASTOp& otherUntyped) const
 
 
 //---------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpMeshRemoveMask::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshRemoveMask::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshRemoveMask> n = new ASTOpMeshRemoveMask();
     n->source = mapChild(source.child());
     for(const auto& r:removes)
     {
-        n->removes.push_back( std::make_pair<>( ASTChild(n,mapChild(r.first.child())),
-                                                ASTChild(n,mapChild(r.second.child()))
-                                                ) );
+		n->removes.Add({ ASTChild(n,mapChild(r.Key.child())), ASTChild(n,mapChild(r.Value.child())) });
     }
     return n;
 }
@@ -73,13 +70,13 @@ void ASTOpMeshRemoveMask::Assert()
 
 
 //---------------------------------------------------------------------------------------------
-void ASTOpMeshRemoveMask::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshRemoveMask::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f(source);
     for(auto& r:removes)
     {
-        f(r.first);
-        f(r.second);
+        f(r.Key);
+        f(r.Value);
     }
 }
 
@@ -90,8 +87,8 @@ uint64 ASTOpMeshRemoveMask::Hash() const
 	uint64 res = std::hash<ASTOp*>()( source.child().get() );
     for(const auto& r:removes)
     {
-        hash_combine( res, r.first.child().get() );
-        hash_combine( res, r.second.child().get() );
+        hash_combine( res, r.Key.child().get() );
+        hash_combine( res, r.Value.child().get() );
     }
     return res;
 }
@@ -103,19 +100,19 @@ void ASTOpMeshRemoveMask::Link( PROGRAM& program, const FLinkerOptions*)
     // Already linked?
     if (!linkedAddress)
     {
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode, OP_TYPE::ME_REMOVEMASK);
         OP::ADDRESS sourceAt = source ? source->linkedAddress : 0;
         AppendCode(program.m_byteCode, sourceAt );
-        AppendCode(program.m_byteCode, (uint16_t)removes.size() );
+        AppendCode(program.m_byteCode, (uint16)removes.Num() );
         for ( const auto& b: removes )
         {
-            OP::ADDRESS condition = b.first ? b.first->linkedAddress : 0;
+            OP::ADDRESS condition = b.Key ? b.Key->linkedAddress : 0;
             AppendCode(program.m_byteCode, condition );
 
-            OP::ADDRESS remove = b.second ? b.second->linkedAddress : 0;
+            OP::ADDRESS remove = b.Value ? b.Value->linkedAddress : 0;
             AppendCode(program.m_byteCode, remove );
         }
     }
@@ -136,7 +133,7 @@ namespace
 		mu::Ptr<ASTOp> Apply( const ASTOpMeshRemoveMask* root )
         {
             m_root = root;
-            m_oldToNew.clear();
+            m_oldToNew.Empty();
 
             m_initialSource = root->source.child();
 			mu::Ptr<ASTOp> newSource = Visit( m_initialSource );
@@ -154,24 +151,24 @@ namespace
 
         const ASTOpMeshRemoveMask* m_root;
 		mu::Ptr<ASTOp> m_initialSource;
-        std::unordered_map<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
-        vector<mu::Ptr<ASTOp>> m_newOps;
+        TMap<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
+        TArray<mu::Ptr<ASTOp>> m_newOps;
 
 		mu::Ptr<ASTOp> Visit( const mu::Ptr<ASTOp>& at )
         {
             if (!at) return nullptr;
 
             // Newly created?
-            if (std::find(m_newOps.begin(), m_newOps.end(), at )!=m_newOps.end())
+            if (m_newOps.Contains( at ))
             {
                 return at;
             }
 
             // Already visited?
-            auto cacheIt = m_oldToNew.find(at);
-            if (cacheIt!=m_oldToNew.end())
+            auto cacheIt = m_oldToNew.Find(at);
+            if (cacheIt)
             {
-                return cacheIt->second;
+                return *cacheIt;
             }
 
 			mu::Ptr<ASTOp> newAt = at;
@@ -222,7 +219,7 @@ namespace
 
             }
 
-            m_oldToNew[at] = newAt;
+            m_oldToNew.Add(at, newAt);
 
             return newAt;
         }

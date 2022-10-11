@@ -26,10 +26,10 @@
 #include "MuT/Compiler.h"
 #include "MuT/CompilerPrivate.h"
 #include "MuT/DataPacker.h"
+#include "MuT/Platform.h"
 #include "Trace/Detail/Channel.h"
 
 #include <array>
-#include <functional>
 #include <memory>
 #include <utility>
 
@@ -50,7 +50,7 @@ class TaskManager;
 
     bool RuntimeParameterVisitorAST::HasAny( const Ptr<ASTOp>& root )
     {
-        if (!m_pState->nodeState.m_runtimeParams.size())
+        if (!m_pState->nodeState.m_runtimeParams.Num())
         {
             return false;
         }
@@ -142,9 +142,9 @@ class TaskManager;
                     {
                         auto typed = dynamic_cast<const ASTOpParameter*>(at.get());
                         const auto& params = m_pState->nodeState.m_runtimeParams;
-                        if ( std::find(params.cbegin(), params.cend(), typed->parameter.m_name)
+                        if ( params.Find( typed->parameter.m_name)
                              !=
-                             params.cend() )
+                             INDEX_NONE )
                         {
                             found = true;
                             m_visited[at] = OP_STATE::VISITED_HASRUNTIME;
@@ -633,7 +633,7 @@ class TaskManager;
 
 //                bool branchHasAny = false;
 //                OP_TYPE branchType = (OP_TYPE)program.m_code[program.m_code[at].args.Switch.values[0]].type;
-//                for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                      it != chain.cases.end();
 //                      ++it )
 //                {
@@ -667,7 +667,7 @@ class TaskManager;
 //                    {
 //                        // Move the switch down the base
 //                        OP::ADDRESS baseAt = 0;
-//                        for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                        for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                              it != chain.cases.end();
 //                              )
 //                        {
@@ -691,7 +691,7 @@ class TaskManager;
 
 //                        // Move the switch down the mask
 //                        OP::ADDRESS maskAt = 0;
-//                        for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                        for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                              it != chain.cases.end();
 //                              )
 //                        {
@@ -715,7 +715,7 @@ class TaskManager;
 
 //                        // Move the switch down the blended
 //                        OP::ADDRESS blendedAt = 0;
-//                        for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                        for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                              it != chain.cases.end();
 //                              )
 //                        {
@@ -753,7 +753,7 @@ class TaskManager;
 //                    {
 //                        // Move the switch down the base
 //                        OP::ADDRESS baseAt = 0;
-//                        for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                        for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                              it != chain.cases.end();
 //                              )
 //                        {
@@ -777,7 +777,7 @@ class TaskManager;
 
 //                        // Move the switch down the mask
 //                        OP::ADDRESS maskAt = 0;
-//                        for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                        for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                              it != chain.cases.end();
 //                              )
 //                        {
@@ -801,7 +801,7 @@ class TaskManager;
 
 //                        // Move the switch down the colour
 //                        OP::ADDRESS colourAt = 0;
-//                        for ( map<uint16_t,OP::ADDRESS>::const_iterator it=chain.cases.begin();
+//                        for ( map<uint16,OP::ADDRESS>::const_iterator it=chain.cases.begin();
 //                              it != chain.cases.end();
 //                              )
 //                        {
@@ -1521,19 +1521,19 @@ class TaskManager;
             // Remove unsupported formats
             if (GetOpDataType( at->GetOpType() )==DT_IMAGE)
             {
-                auto it = m_supportedFormats.find(at);
-                if (it==m_supportedFormats.end())
+                auto it = m_supportedFormats.Find(at);
+                if (!it)
                 {
                     // Default to all supported
-                    m_supportedFormats[at] = m_allSupported;
-                    it = m_supportedFormats.find(at);
+                    m_supportedFormats.Add(at, m_allSupported);
+                    it = m_supportedFormats.Find(at);
                 }
 
                 for ( unsigned f=0; f< (unsigned)EImageFormat::IF_COUNT; ++f )
                 {
                     if ( !currentFormats[f] )
                     {
-                        it->second[f] = 0;
+                        (*it)[f] = 0;
                     }
                 }
             }
@@ -1606,13 +1606,13 @@ class TaskManager;
 
         bool IsSupportedFormat( Ptr<ASTOp> at, EImageFormat format ) const
         {
-            auto it = m_supportedFormats.find(at);
-            if (it==m_supportedFormats.end())
+            auto it = m_supportedFormats.Find(at);
+            if (!it)
             {
                 return false;
             }
 
-            return it->second[(size_t)format]!=0;
+            return (*it)[(size_t)format]!=0;
         }
 
 
@@ -1620,7 +1620,7 @@ class TaskManager;
 
         //! Formats known to be supported for every instruction.
         //! IF_COUNT*code.size() entries
-        std::unordered_map< Ptr<ASTOp>, std::array<uint8_t, (size_t)EImageFormat::IF_COUNT> > m_supportedFormats;
+        TMap< Ptr<ASTOp>, std::array<uint8_t, (size_t)EImageFormat::IF_COUNT> > m_supportedFormats;
 
         //! Constant convenience initial value
         std::array<uint8_t, (size_t)EImageFormat::IF_COUNT> m_initialState;
@@ -1650,7 +1650,7 @@ class TaskManager;
 
             // The state is the onlyLayoutRelevant flag
             ASTOp::Traverse_TopDown_Unique_Imprecise_WithState<bool>( root, false,
-                [&]( Ptr<ASTOp>& at, bool& state, vector<pair<Ptr<ASTOp>,bool>>& pending )
+                [&]( Ptr<ASTOp>& at, bool& state, TArray<TPair<Ptr<ASTOp>,bool>>& pending )
             {
                 (void)state;
 
@@ -1679,13 +1679,13 @@ class TaskManager;
 
                     if ( auto& source = pTyped->children[pTyped->op.args.LayoutRemoveBlocks.source] )
                     {
-                        pending.push_back( std::make_pair<>(source.m_child, state) );
+						pending.Add({ source.m_child, state });
                     }
 
                     // For that mesh we only want to know about the layouts
                     if ( auto& mesh = pTyped->children[pTyped->op.args.LayoutRemoveBlocks.mesh] )
                     {
-                        pending.push_back( std::make_pair<>(mesh.m_child, true) );
+						pending.Add({ mesh.m_child, true });
                     }
 
                     return false;
@@ -1698,7 +1698,7 @@ class TaskManager;
 
                     if ( auto& base = pTyped->children[pTyped->op.args.MeshMorph2.base] )
                     {
-                        pending.push_back( std::make_pair<>(base.m_child, state) );
+						pending.Add({ base.m_child, state });
                     }
 
                     // Mesh morphs don't modify the layouts, so we can ignore the factor and morphs
@@ -1706,14 +1706,14 @@ class TaskManager;
                     {
                         if ( auto& factor = pTyped->children[pTyped->op.args.MeshMorph2.factor] )
                         {
-                            pending.push_back( std::make_pair<>(factor.m_child, state) );
+							pending.Add({ factor.m_child, state });
                         }
 
                         for (int t=0;t<MUTABLE_OP_MAX_MORPH2_TARGETS;++t)
                         {
                             if ( auto& target = pTyped->children[pTyped->op.args.MeshMorph2.targets[t]] )
                             {
-                                pending.push_back( std::make_pair<>(target.m_child, state) );
+								pending.Add({ target.m_child, state });
                             }
                         }
                     }
@@ -1741,7 +1741,7 @@ class TaskManager;
     //!   .first IsResourceRoot
     //!   .second ParentIsRuntime
     //---------------------------------------------------------------------------------------------
-    class StateCacheDetectorAST : public Visitor_TopDown_Unique_Const< std::pair<bool,bool> >
+    class StateCacheDetectorAST : public Visitor_TopDown_Unique_Const< TPair<bool,bool> >
     {
     public:
 
@@ -1749,33 +1749,36 @@ class TaskManager;
             : m_hasRuntimeParamVisitor( pState )
         {
             ASTOpList roots;
-            roots.push_back(pState->root);
-            Traverse( roots, std::make_pair<>(false,false) );
+            roots.Add(pState->root);
+			Traverse(roots, { false,false });
 
-            pState->m_updateCache.clear();
-            pState->m_dynamicResources.clear();
+            pState->m_updateCache.Empty();
+            pState->m_dynamicResources.Empty();
 
-            for( auto i=m_cache.cbegin();
-                 i != m_cache.cend();
-                 ++i )
+            for( const auto& i : m_cache )
             {
-                if ( i->second )
+                if ( i.Value )
                 {
-                    pState->m_updateCache.push_back( i->first );
+                    pState->m_updateCache.Add( i.Key );
                 }
             }
 
-            for( auto i=m_dynamicResourceRoot.cbegin();
-                 i != m_dynamicResourceRoot.cend();
-                 ++i )
+            for(const auto& i : m_dynamicResourceRoot )
             {
-                if ( i->second )
+                if ( i.Value )
                 {
                     // Generate the list of relevant parameters
                     SubtreeRelevantParametersVisitorAST subtreeParams;
-                    subtreeParams.Run( i->first );
+                    subtreeParams.Run( i.Key );
 
-                    pState->m_dynamicResources.emplace_back( i->first, std::move(subtreeParams.m_params) );
+					// Temp copy
+					TArray<mu::string> ParamCopy;
+					for ( const auto& e: subtreeParams.m_params )
+					{
+						ParamCopy.Add(e);
+					}
+
+                    pState->m_dynamicResources.Emplace( i.Key, MoveTemp(ParamCopy) );
                 }
             }
         }
@@ -1785,8 +1788,10 @@ class TaskManager;
         {
             bool thisIsRuntime = m_hasRuntimeParamVisitor.HasAny( at );
 
-            bool resourceRoot = GetCurrentState().first;
-            bool parentIsRuntime = GetCurrentState().second;
+            bool resourceRoot = GetCurrentState().Key;
+            bool parentIsRuntime = GetCurrentState().Value;
+
+			m_cache.FindOrAdd(at, false);
 
             OP_TYPE type = at->GetOpType();
             if ( GetOpDesc( type ).cached )
@@ -1800,13 +1805,13 @@ class TaskManager;
                 {
                     // We want to cache this result to update the instances.
                     // Mark this as update cache
-                    m_cache[at] = true;
+                    m_cache.Add(at, true);
                 }
             }
 
             if ( !m_cache[at] && resourceRoot && thisIsRuntime )
             {
-                m_dynamicResourceRoot[at] = true;
+                m_dynamicResourceRoot.Add(at, true);
             }
 
             if ( !m_cache[at] && thisIsRuntime )
@@ -1821,15 +1826,15 @@ class TaskManager;
                 {
                     auto typedAt = dynamic_cast<const ASTOpInstanceAdd*>(at.get());
 
-                    std::pair<bool,bool> newState;
-                    newState.first = false; //resource root
-                    newState.second = thisIsRuntime;
+                    TPair<bool,bool> newState;
+                    newState.Key = false; //resource root
+                    newState.Value = thisIsRuntime;
                     RecurseWithState( typedAt->instance.child(), newState );
 
                     if ( typedAt->value )
                     {
-                        newState.first = true; //resource root
-                        newState.second = thisIsRuntime;
+                        newState.Key = true; //resource root
+                        newState.Value = thisIsRuntime;
                         RecurseWithState( typedAt->value.child(), newState );
                     }
                     return false;
@@ -1837,9 +1842,9 @@ class TaskManager;
 
                 default:
                 {
-                    std::pair<bool,bool> newState;
-                    newState.first = false; //resource root
-                    newState.second = thisIsRuntime;
+                    TPair<bool,bool> newState;
+                    newState.Key = false; //resource root
+                    newState.Value = thisIsRuntime;
                     SetCurrentState(newState);
                     return true;
                 }
@@ -1853,8 +1858,8 @@ class TaskManager;
     private:
 
         //!
-        std::map<Ptr<ASTOp>,bool> m_cache;
-        std::map<Ptr<ASTOp>,bool> m_dynamicResourceRoot;
+        TMap<Ptr<ASTOp>,bool> m_cache;
+		TMap<Ptr<ASTOp>,bool> m_dynamicResourceRoot;
 
         RuntimeParameterVisitorAST m_hasRuntimeParamVisitor;
     };
@@ -1883,8 +1888,7 @@ class TaskManager;
         {
             processChildren = true;
 
-            auto it = std::find(m_state.m_updateCache.cbegin(), m_state.m_updateCache.cend(), at);
-            bool isUpdateCache = it!=m_state.m_updateCache.cend();
+            bool isUpdateCache = m_state.m_updateCache.Contains(at);
 
             if ( isUpdateCache )
             {
@@ -1998,12 +2002,12 @@ class TaskManager;
         {
             auto* typedAt = dynamic_cast<ASTOpAddLOD*>(at.get());
 
-            if (typedAt->lods.size()>(size_t)m_lodCount)
+            if (typedAt->lods.Num()>(size_t)m_lodCount)
             {
                 Ptr<ASTOpAddLOD> newAt = mu::Clone<ASTOpAddLOD>(at);
-                while( newAt->lods.size()>(size_t)m_lodCount )
+                while( newAt->lods.Num()>(size_t)m_lodCount )
                 {
-                    newAt->lods.pop_back();
+                    newAt->lods.Pop();
                 }
                 at = newAt;
             }
@@ -2031,7 +2035,7 @@ class TaskManager;
             }
 
             // If a state has no runtime parameters, skip its optimisation alltogether
-            if (m_states[s].nodeState.m_runtimeParams.size())
+            if (m_states[s].nodeState.m_runtimeParams.Num())
             {
                 // Remove unnecessary image compression
                 if (m_states[s].optimisationFlags.m_avoidRuntimeCompression)
@@ -2059,8 +2063,8 @@ class TaskManager;
                                                  m_options->GetPrivate()->m_optimisationOptions );
                     modified = param.Apply();
 
-                    vector<Ptr<ASTOp>> roots;
-                    roots.push_back(m_states[s].root);
+                    TArray<Ptr<ASTOp>> roots;
+                    roots.Add(m_states[s].root);
 
                     UE_LOG(LogMutableCore, Verbose, TEXT(" - after parameter optimiser"));
 					UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
@@ -2087,8 +2091,8 @@ class TaskManager;
                     //modified |= log.Apply( program, s );
                 }
 
-                vector<Ptr<ASTOp>> roots;
-                roots.push_back(m_states[s].root);
+                TArray<Ptr<ASTOp>> roots;
+                roots.Add(m_states[s].root);
 
                 UE_LOG(LogMutableCore, Verbose, TEXT(" - duplicated data remover"));
                 DuplicatedDataRemoverAST( roots );
@@ -2098,17 +2102,17 @@ class TaskManager;
                 DuplicatedCodeRemoverAST( roots );
 				//UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 
-                m_states[s].root = roots.front();
+                m_states[s].root = roots[0];
             }
         }
 
         // Mark the instructions that don't depend on runtime parameters to be cached. This is
         // necessary at this stage before GPU optimisation.
         {
-            vector<Ptr<ASTOp>> roots;
+            TArray<Ptr<ASTOp>> roots;
             for(const auto& s:m_states)
             {
-                roots.push_back(s.root);
+                roots.Add(s.root);
             }
 
             AccumulateAllImageFormatsOpAST opFormats;
@@ -2157,10 +2161,10 @@ class TaskManager;
             int numIterations = 0;
             while (modified && (!m_optimizeIterationsMax || m_optimizeIterationsLeft>0 || !numIterations ))
             {
-                vector<Ptr<ASTOp>> roots;
+                TArray<Ptr<ASTOp>> roots;
                 for(const auto& s:m_states)
                 {
-                    roots.push_back(s.root);
+                    roots.Add(s.root);
                 }
 
                 ++numIterations;
@@ -2187,10 +2191,10 @@ class TaskManager;
                 ConstantGeneratorAST( m_options->GetPrivate(), s.root, pTaskManager );
             }
 
-            vector<Ptr<ASTOp>> roots;
+            TArray<Ptr<ASTOp>> roots;
             for(const auto& s:m_states)
             {
-                roots.push_back(s.root);
+                roots.Add(s.root);
             }
 			UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 
@@ -2204,10 +2208,10 @@ class TaskManager;
 		}
 
         // Gather all the current roots
-        vector<Ptr<ASTOp>> roots;
+        TArray<Ptr<ASTOp>> roots;
         for(const auto& s:m_states)
         {
-            roots.push_back(s.root);
+            roots.Add(s.root);
         }
 
         // Optimise the data formats

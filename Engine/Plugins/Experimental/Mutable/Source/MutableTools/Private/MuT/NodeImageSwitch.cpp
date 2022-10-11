@@ -35,7 +35,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageSwitch::GetInputCount() const
 	{
-		return 1 + (int)m_pD->m_options.size();
+		return 1 + (int)m_pD->m_options.Num();
 	}
 
 
@@ -98,21 +98,21 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageSwitch::SetOptionCount( int t )
 	{
-		m_pD->m_options.resize(t);
+		m_pD->m_options.SetNum(t);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	int NodeImageSwitch::GetOptionCount() const 
 	{
-		return int(m_pD->m_options.size());
+		return int(m_pD->m_options.Num());
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeImagePtr NodeImageSwitch::GetOption( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<(int)m_pD->m_options.Num() );
 		return m_pD->m_options[t].get();
 	}
 
@@ -120,7 +120,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageSwitch::SetOption( int t, NodeImagePtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<(int)m_pD->m_options.Num() );
 		m_pD->m_options[t] = pNode;
 	}
 

@@ -34,7 +34,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeColourSwitch::GetInputCount() const
 	{
-		return 1 + (int)m_pD->m_options.size();
+		return 1 + m_pD->m_options.Num();
 	}
 
 
@@ -97,14 +97,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeColourSwitch::SetOptionCount( int t )
 	{
-		m_pD->m_options.resize(t);
+		m_pD->m_options.SetNum(t);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     NodeColourPtr NodeColourSwitch::GetOption( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<m_pD->m_options.Num() );
 		return m_pD->m_options[t].get();
 	}
 
@@ -112,7 +112,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeColourSwitch::SetOption( int t, NodeColourPtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<m_pD->m_options.Num() );
 		m_pD->m_options[t] = pNode;
 	}
 

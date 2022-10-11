@@ -65,7 +65,7 @@ uint64 ASTOpImageMultiLayer::Hash() const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpImageMultiLayer::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImageMultiLayer::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpImageMultiLayer> n = new ASTOpImageMultiLayer();
     n->base = mapChild(base.child());
@@ -80,7 +80,7 @@ mu::Ptr<ASTOp> ASTOpImageMultiLayer::Clone(MapChildFunc& mapChild) const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpImageMultiLayer::ForEachChild( const std::function<void(ASTChild&)>& f )
+void ASTOpImageMultiLayer::ForEachChild( const TFunctionRef<void(ASTChild&)> f )
 {
     f( base );
     f( blend );
@@ -98,7 +98,7 @@ void ASTOpImageMultiLayer::Link( PROGRAM& program, const FLinkerOptions*)
         OP::ImageMultiLayerArgs args;
         memset( &args,0, sizeof(args) );
 
-        args.blendType = (uint16_t)blendType;
+        args.blendType = (uint16)blendType;
 
         if (base) args.base = base->linkedAddress;
         if (blend) args.blended = blend->linkedAddress;
@@ -108,8 +108,8 @@ void ASTOpImageMultiLayer::Link( PROGRAM& program, const FLinkerOptions*)
             LinkRange( program, range, args.rangeSize, args.rangeId );
         }
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::IM_MULTILAYER);
         AppendCode(program.m_byteCode,args);
     }

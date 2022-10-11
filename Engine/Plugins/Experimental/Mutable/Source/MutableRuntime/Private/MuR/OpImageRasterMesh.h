@@ -33,7 +33,8 @@ namespace mu
 
 		// Get the vertices
 		int vertexCount = pMesh->GetVertexCount();
-		vector< RasterVertex<1> > vertices( vertexCount );
+		TArray< RasterVertex<1> > vertices;
+		vertices.SetNumZeroed(vertexCount);
 
 		UntypedMeshBufferIteratorConst texIt( pMesh->GetVertexBuffers(), MBS_TEXCOORDS, 0 );
 		for ( int v=0; v<vertexCount; ++v )
@@ -49,7 +50,8 @@ namespace mu
 
 		// Get the indices
 		int faceCount = pMesh->GetFaceCount();
-		vector<int> indices( faceCount*3 );
+		TArray<int> indices;
+		indices.SetNumZeroed(faceCount * 3);
 
 		UntypedMeshBufferIteratorConst indIt( pMesh->GetIndexBuffers(), MBS_VERTEXINDEX, 0 );
 		for ( int i=0; i<faceCount*3; ++i )
@@ -89,11 +91,12 @@ namespace mu
 			// Raster only the faces in the selected block
 
 			// Get the block per face
-			vector<int> blocks( vertexCount );
+			TArray<int> blocks;
+			blocks.SetNumZeroed(vertexCount);
 
 			for ( int i=0; i<vertexCount; ++i )
 			{
-                uint16_t index=0;
+                uint16 index=0;
 				ConvertData( 0, &index, MBF_UINT16, bloIt.ptr(), bloIt.GetFormat() );
 
 				blocks[i] = index;

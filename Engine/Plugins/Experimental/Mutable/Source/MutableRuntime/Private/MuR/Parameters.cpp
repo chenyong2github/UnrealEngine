@@ -66,7 +66,7 @@ namespace mu
         const int32_t ver = 0;
         arch << ver;
 
-        uint32_t valueCount = uint32_t(params->GetPrivate()->m_values.size());
+        uint32 valueCount = params->GetPrivate()->m_values.Num();
         arch << valueCount;
 
         for (size_t p=0; p<valueCount; ++p)
@@ -86,7 +86,7 @@ namespace mu
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         ParametersPtr pResult = pModel->NewParameters();
-        size_t modelParameters = pModel->GetPrivate()->m_program.m_parameters.size();
+        size_t modelParameters = pModel->GetPrivate()->m_program.m_parameters.Num();
 
         int32_t ver;
         arch >> ver;
@@ -190,7 +190,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int Parameters::GetCount() const
 	{
-		return (int)m_pD->m_values.size();
+		return (int)m_pD->m_values.Num();
 	}
 
 
@@ -198,7 +198,7 @@ namespace mu
 	const char* Parameters::GetName( int index ) const
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( index>=0 && index<(int)program.m_parameters.size() );
+		check( index>=0 && index<(int)program.m_parameters.Num() );
 
 		return program.m_parameters[index].m_name.c_str();
 	}
@@ -208,7 +208,7 @@ namespace mu
 	const char* Parameters::GetUid( int index ) const
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( index>=0 && index<(int)program.m_parameters.size() );
+		check( index>=0 && index<(int)program.m_parameters.Num() );
 
 		return program.m_parameters[index].m_uid.c_str();
 	}
@@ -225,7 +225,7 @@ namespace mu
 	PARAMETER_TYPE Parameters::GetType( int index ) const
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( index>=0 && index<(int)program.m_parameters.size() );
+		check( index>=0 && index<(int)program.m_parameters.Num() );
 
 		return program.m_parameters[index].m_type;
 	}
@@ -235,7 +235,7 @@ namespace mu
 	PARAMETER_DETAILED_TYPE Parameters::GetDetailedType( int index ) const
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( index>=0 && index<(int)program.m_parameters.size() );
+		check( index>=0 && index<(int)program.m_parameters.Num() );
 
 		return program.m_parameters[index].m_detailedType;
 	}
@@ -247,18 +247,18 @@ namespace mu
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-        check( paramIndex>=0 && paramIndex<int(program.m_parameters.size()) );
+        check( paramIndex>=0 && paramIndex<int(program.m_parameters.Num()) );
         Ptr<RangeIndex> range;
 
-        if ( paramIndex>=0 && paramIndex<int(program.m_parameters.size()) )
+        if ( paramIndex>=0 && paramIndex<int(program.m_parameters.Num()) )
         {
-            size_t rangeCount = program.m_parameters[paramIndex].m_ranges.size();
+            size_t rangeCount = program.m_parameters[paramIndex].m_ranges.Num();
             if ( rangeCount>0 )
             {
                 range = new RangeIndex;
                 range->m_pD->m_pParameters = this;
                 range->m_pD->m_parameter = paramIndex;
-                range->m_pD->m_values.resize( rangeCount, 0 );
+                range->m_pD->m_values.SetNumZeroed( rangeCount );
             }
         }
 
@@ -269,24 +269,24 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int Parameters::GetValueCount( int paramIndex ) const
     {
-        if (paramIndex<0 || paramIndex >= int(m_pD->m_multiValues.size()) )
+        if (paramIndex<0 || paramIndex >= int(m_pD->m_multiValues.Num()) )
         {
             return 0;
         }
 
-        return int( m_pD->m_multiValues[paramIndex].size() );
+        return int( m_pD->m_multiValues[paramIndex].Num() );
     }
 
 
     //---------------------------------------------------------------------------------------------
     Ptr<RangeIndex> Parameters::GetValueIndex( int paramIndex, int valueIndex ) const
     {
-        if (paramIndex<0 || paramIndex >= int(m_pD->m_multiValues.size()) )
+        if (paramIndex<0 || paramIndex >= int(m_pD->m_multiValues.Num()) )
         {
             return nullptr;
         }
 
-        if (valueIndex<0 || valueIndex >= int(m_pD->m_multiValues[paramIndex].size()) )
+        if (valueIndex<0 || valueIndex >= int(m_pD->m_multiValues[paramIndex].Num()) )
         {
             return nullptr;
         }
@@ -298,7 +298,7 @@ namespace mu
         }
 
         Ptr<RangeIndex> result = NewRangeIndex( paramIndex );
-        result->m_pD->m_values = it->first;
+        result->m_pD->m_values = it->Key;
 
         return result;
     }
@@ -307,12 +307,12 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void Parameters::ClearAllValues( int paramIndex )
     {
-        if (paramIndex<0 || paramIndex >= int(m_pD->m_multiValues.size()) )
+        if (paramIndex<0 || paramIndex >= int(m_pD->m_multiValues.Num()) )
         {
             return;
         }
 
-        m_pD->m_multiValues[paramIndex].clear();
+        m_pD->m_multiValues[paramIndex].Empty();
     }
 
 
@@ -320,8 +320,8 @@ namespace mu
 	int Parameters::GetAdditionalImageCount( int index ) const
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( index>=0 && index<(int)program.m_parameters.size() );
-		return (int)program.m_parameters[index].m_descImages.size();
+		check( index>=0 && index<(int)program.m_parameters.Num() );
+		return (int)program.m_parameters[index].m_descImages.Num();
 	}
 
 
@@ -329,13 +329,13 @@ namespace mu
     bool Parameters::GetBoolValue( int index,
                                    const Ptr<const RangeIndex>& pos ) const
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
         check( GetType(index)==PARAMETER_TYPE::T_BOOL );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_BOOL )
         {
@@ -352,13 +352,13 @@ namespace mu
         // Multivalue case
         check( pos->m_pD->m_parameter==index );
 
-        if ( index<int(m_pD->m_multiValues.size()))
+        if ( index<int(m_pD->m_multiValues.Num()))
         {
             const auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                return it->second.m_bool;
+                return it->m_bool;
             }
         }
 
@@ -371,13 +371,13 @@ namespace mu
     void Parameters::SetBoolValue( int index, bool value,
                                    const Ptr<const RangeIndex>& pos )
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_BOOL );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_BOOL )
         {
@@ -388,9 +388,9 @@ namespace mu
         if (!pos)
         {
             // Clear multivalue, if set.
-            if (index<int(m_pD->m_multiValues.size()))
+            if (index<int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues[index].clear();
+                m_pD->m_multiValues[index].Empty();
             }
 
             m_pD->m_values[index].m_bool = value;
@@ -401,22 +401,22 @@ namespace mu
         {
             check( pos->m_pD->m_parameter==index );
 
-            if ( index>=int(m_pD->m_multiValues.size()))
+            if ( index>=int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues.resize(index+1);
+                m_pD->m_multiValues.SetNum(index+1);
             }
 
             auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                it->second.m_bool = value;
+                it->m_bool = value;
             }
             else
             {
                 PARAMETER_VALUE valueData;
                 valueData.m_bool = value;
-                m.insert( std::make_pair<>( pos->m_pD->m_values, valueData ) );
+                m.Add( pos->m_pD->m_values, valueData );
             }
         }
 	}
@@ -426,8 +426,8 @@ namespace mu
 	int Parameters::GetIntPossibleValueCount( int paramIndex ) const
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( paramIndex>=0 && paramIndex<(int)program.m_parameters.size() );
-		return (int)program.m_parameters[paramIndex].m_possibleValues.size();
+		check( paramIndex>=0 && paramIndex<(int)program.m_parameters.Num() );
+		return (int)program.m_parameters[paramIndex].m_possibleValues.Num();
 	}
 
 
@@ -436,9 +436,9 @@ namespace mu
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
 		check( paramIndex>=0
-				&& paramIndex<(int)program.m_parameters.size() );
+				&& paramIndex<(int)program.m_parameters.Num() );
 		check( valueIndex>=0
-				&& valueIndex<(int)program.m_parameters[paramIndex].m_possibleValues.size() );
+				&& valueIndex<(int)program.m_parameters[paramIndex].m_possibleValues.Num() );
 
 		return (int)program.m_parameters[paramIndex].m_possibleValues[valueIndex].m_value;
 	}
@@ -449,10 +449,10 @@ namespace mu
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
 		check(paramIndex >= 0
-			&& paramIndex < (int)program.m_parameters.size());
+			&& paramIndex < (int)program.m_parameters.Num());
 
 		int result = -1;
-		for (size_t v = 0; v < program.m_parameters[paramIndex].m_possibleValues.size(); ++v)
+		for (size_t v = 0; v < program.m_parameters[paramIndex].m_possibleValues.Num(); ++v)
 		{
 			if (program.m_parameters[paramIndex].m_possibleValues[v].m_name == valueName)
 			{
@@ -469,9 +469,9 @@ namespace mu
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
 		check(paramIndex >= 0
-			&& paramIndex < (int)program.m_parameters.size());
+			&& paramIndex < (int)program.m_parameters.Num());
 
-		for (size_t v = 0; v < program.m_parameters[paramIndex].m_possibleValues.size(); ++v)
+		for (size_t v = 0; v < program.m_parameters[paramIndex].m_possibleValues.Num(); ++v)
 		{
 			if (program.m_parameters[paramIndex].m_possibleValues[v].m_value == Value)
 			{
@@ -487,9 +487,9 @@ namespace mu
 	{
 		const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
 		check( paramIndex>=0
-				&& paramIndex<(int)program.m_parameters.size() );
+				&& paramIndex<(int)program.m_parameters.Num() );
 		check( valueIndex>=0
-				&& valueIndex<(int)program.m_parameters[paramIndex].m_possibleValues.size() );
+				&& valueIndex<(int)program.m_parameters[paramIndex].m_possibleValues.Num() );
 
 		return program.m_parameters[paramIndex].m_possibleValues[valueIndex].m_name.c_str();
 	}
@@ -499,13 +499,13 @@ namespace mu
     int Parameters::GetIntValue( int index,
                                  const Ptr<const RangeIndex>& pos ) const
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_INT );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_INT )
         {
@@ -522,13 +522,13 @@ namespace mu
         // Multivalue case
         check( pos->m_pD->m_parameter==index );
 
-        if ( index<int(m_pD->m_multiValues.size()))
+        if ( index<int(m_pD->m_multiValues.Num()))
         {
             const auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                return it->second.m_int;
+                return it->m_int;
             }
         }
 
@@ -541,13 +541,13 @@ namespace mu
     void Parameters::SetIntValue( int index, int value,
                                   const Ptr<const RangeIndex>& pos )
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_INT );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_INT )
         {
@@ -558,9 +558,9 @@ namespace mu
         if (!pos)
         {
             // Clear multivalue, if set.
-            if (index<int(m_pD->m_multiValues.size()))
+            if (index<int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues[index].clear();
+                m_pD->m_multiValues[index].Empty();
             }
 
             m_pD->m_values[index].m_int = value;
@@ -571,22 +571,22 @@ namespace mu
         {
             check( pos->m_pD->m_parameter==index );
 
-            if ( index>=int(m_pD->m_multiValues.size()))
+            if ( index>=int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues.resize(index+1);
+                m_pD->m_multiValues.SetNum(index+1);
             }
 
             auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                it->second.m_int = value;
+                it->m_int = value;
             }
             else
             {
                 PARAMETER_VALUE valueData;
                 valueData.m_int = value;
-                m.insert( std::make_pair<>( pos->m_pD->m_values, valueData ) );
+                m.Add( pos->m_pD->m_values, valueData );
             }
         }
     }
@@ -596,13 +596,13 @@ namespace mu
     float Parameters::GetFloatValue( int index,
                                      const Ptr<const RangeIndex>& pos ) const
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_FLOAT );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_FLOAT )
         {
@@ -619,13 +619,13 @@ namespace mu
         // Multivalue case
         check( pos->m_pD->m_parameter==index );
 
-        if ( index<int(m_pD->m_multiValues.size()))
+        if ( index<int(m_pD->m_multiValues.Num()))
         {
             const auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                return it->second.m_float;
+                return it->m_float;
             }
         }
 
@@ -638,13 +638,13 @@ namespace mu
     void Parameters::SetFloatValue( int index, float value,
                                     const Ptr<const RangeIndex>& pos )
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_FLOAT );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_FLOAT )
         {
@@ -655,9 +655,9 @@ namespace mu
         if (!pos)
         {
             // Clear multivalue, if set.
-            if (index<int(m_pD->m_multiValues.size()))
+            if (index<int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues[index].clear();
+                m_pD->m_multiValues[index].Empty();
             }
 
             m_pD->m_values[index].m_float = value;
@@ -668,22 +668,22 @@ namespace mu
         {
             check( pos->m_pD->m_parameter==index );
 
-            if ( index>=int(m_pD->m_multiValues.size()))
+            if ( index>=int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues.resize(index+1);
+                m_pD->m_multiValues.SetNum(index+1);
             }
 
             auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                it->second.m_float = value;
+                it->m_float = value;
             }
             else
             {
                 PARAMETER_VALUE valueData;
                 valueData.m_float = value;
-                m.insert( std::make_pair<>( pos->m_pD->m_values, valueData ) );
+                m.Add( pos->m_pD->m_values, valueData );
             }
         }
     }
@@ -693,13 +693,13 @@ namespace mu
     void Parameters::GetColourValue( int index, float* pR, float* pG, float* pB,
                                      const Ptr<const RangeIndex>& pos ) const
     {
-        check( index>=0 && index<(int)m_pD->m_values.size() );
+        check( index>=0 && index<(int)m_pD->m_values.Num() );
         check( GetType(index)== PARAMETER_TYPE::T_COLOUR );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_COLOUR )
         {
@@ -719,15 +719,15 @@ namespace mu
         // Multivalue case
         check( pos->m_pD->m_parameter==index );
 
-        if ( index<int(m_pD->m_multiValues.size()))
+        if ( index<int(m_pD->m_multiValues.Num()))
         {
             const auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                if (pR) *pR = it->second.m_colour[0];
-                if (pG) *pG = it->second.m_colour[1];
-                if (pB) *pB = it->second.m_colour[2];
+                if (pR) *pR = it->m_colour[0];
+                if (pG) *pG = it->m_colour[1];
+                if (pB) *pB = it->m_colour[2];
                 return;
             }
         }
@@ -744,13 +744,13 @@ namespace mu
     void Parameters::SetColourValue( int index, float r, float g, float b,
                                      const Ptr<const RangeIndex>& pos )
     {
-        check( index>=0 && index<(int)m_pD->m_values.size() );
+        check( index>=0 && index<(int)m_pD->m_values.Num() );
         check( GetType(index)== PARAMETER_TYPE::T_COLOUR );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_COLOUR )
         {
@@ -761,9 +761,9 @@ namespace mu
         if (!pos)
         {
             // Clear multivalue, if set.
-            if (index<int(m_pD->m_multiValues.size()))
+            if (index<int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues[index].clear();
+                m_pD->m_multiValues[index].Empty();
             }
 
             m_pD->m_values[index].m_colour[0] = r;
@@ -776,18 +776,18 @@ namespace mu
         {
             check( pos->m_pD->m_parameter==index );
 
-            if ( index>=int(m_pD->m_multiValues.size()))
+            if ( index>=int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues.resize(index+1);
+                m_pD->m_multiValues.SetNum(index+1);
             }
 
             auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+            auto it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                it->second.m_colour[0] = r;
-                it->second.m_colour[1] = g;
-                it->second.m_colour[2] = b;
+                it->m_colour[0] = r;
+                it->m_colour[1] = g;
+                it->m_colour[2] = b;
             }
             else
             {
@@ -795,7 +795,7 @@ namespace mu
                 valueData.m_colour[0] = r;
                 valueData.m_colour[1] = g;
                 valueData.m_colour[2] = b;
-                m.insert( std::make_pair<>( pos->m_pD->m_values, valueData ) );
+                m.Add( pos->m_pD->m_values, valueData );
             }
         }
     }
@@ -804,7 +804,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     EXTERNAL_IMAGE_ID Parameters::GetImageValue( int index ) const
     {
-        check( index >= 0 && index < (int)m_pD->m_values.size() );
+        check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
 
         return m_pD->m_values[index].m_image;
@@ -814,7 +814,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void Parameters::SetImageValue( int index, EXTERNAL_IMAGE_ID id )
     {
-        check( index >= 0 && index < (int)m_pD->m_values.size() );
+        check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
 
         m_pD->m_values[index].m_image = id;
@@ -824,11 +824,11 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     const char* Parameters::GetStringValue( int index, const Ptr<const RangeIndex>& pos ) const
     {
-        check( index >= 0 && index < (int)m_pD->m_values.size() );
+        check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_STRING );
 
         // Early out in case of invalid parameters
-        if ( index < 0 || index >= (int)m_pD->m_values.size() ||
+        if ( index < 0 || index >= (int)m_pD->m_values.Num() ||
              GetType( index ) != PARAMETER_TYPE::T_STRING )
         {
             return "";
@@ -844,13 +844,13 @@ namespace mu
         // Multivalue case
         check( pos->m_pD->m_parameter == index );
 
-        if ( index < int( m_pD->m_multiValues.size() ) )
+        if ( index < int( m_pD->m_multiValues.Num() ) )
         {
             const auto& m = m_pD->m_multiValues[index];
-            auto it = m.find( pos->m_pD->m_values );
-            if ( it != m.end() )
+            auto it = m.Find( pos->m_pD->m_values );
+            if ( it )
             {
-                return it->second.m_text;
+                return it->m_text;
             }
         }
 
@@ -864,26 +864,26 @@ namespace mu
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        check( index >= 0 && index < (int)m_pD->m_values.size() );
+        check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_FLOAT );
 
         // Early out in case of invalid parameters
-        if ( index < 0 || index >= (int)m_pD->m_values.size() ||
+        if ( index < 0 || index >= (int)m_pD->m_values.Num() ||
              GetType( index ) != PARAMETER_TYPE::T_FLOAT )
         {
             return;
         }
 
-        int len = std::min( MUTABLE_MAX_STRING_PARAM_LENGTH,
+        int len = FMath::Min( MUTABLE_MAX_STRING_PARAM_LENGTH,
                             int( strnlen( value, MUTABLE_MAX_STRING_PARAM_LENGTH ) ) );
 
         // Single value case
         if ( !pos )
         {
             // Clear multivalue, if set.
-            if ( index < int( m_pD->m_multiValues.size() ) )
+            if ( index < int( m_pD->m_multiValues.Num() ) )
             {
-                m_pD->m_multiValues[index].clear();
+                m_pD->m_multiValues[index].Empty();
             }
 
             //m_pD->m_values[index].m_float = value;
@@ -896,18 +896,18 @@ namespace mu
         {
             check( pos->m_pD->m_parameter == index );
 
-            if ( index >= int( m_pD->m_multiValues.size() ) )
+            if ( index >= int( m_pD->m_multiValues.Num() ) )
             {
-                m_pD->m_multiValues.resize( index + 1 );
+                m_pD->m_multiValues.SetNum( index + 1 );
             }
 
             auto& m = m_pD->m_multiValues[index];
-            auto it = m.find( pos->m_pD->m_values );
-            if ( it != m.end() )
+            auto it = m.Find( pos->m_pD->m_values );
+            if ( it )
             {
                 //it->second.m_float = value;
-				FMemory::Memcpy( it->second.m_text, value, len );
-                it->second.m_text[len] = 0;
+				FMemory::Memcpy( it->m_text, value, len );
+                it->m_text[len] = 0;
             }
             else
             {
@@ -915,7 +915,7 @@ namespace mu
                 //valueData.m_float = value;
 				FMemory::Memcpy( valueData.m_text, value, len );
                 valueData.m_text[len] = 0;
-                m.insert( std::make_pair<>( pos->m_pD->m_values, valueData ) );
+                m.Add( pos->m_pD->m_values, valueData );
             }
         }
     }
@@ -931,9 +931,9 @@ namespace mu
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_values.size()
+             index >= (int)m_values.Num()
 			 || 
-			 index >= (int)program.m_parameters.size()
+			 index >= (int)program.m_parameters.Num()
              ||
              program.m_parameters[index].m_type != PARAMETER_TYPE::T_PROJECTOR )
         {
@@ -955,13 +955,12 @@ namespace mu
         {
             check( pos->m_pD->m_parameter==index );
 
-            if ( index<int(m_multiValues.size()))
+            if ( index<m_multiValues.Num())
             {
-                const auto& m = m_multiValues[index];
-                auto it = m.find(pos->m_pD->m_values);
-                if (it!=m.end())
+                const PARAMETER_VALUE* it = m_multiValues[index].Find(pos->m_pD->m_values);
+                if (it)
                 {
-                    result = &it->second.m_projector;
+                    result = &it->m_projector;
                 }
             }
         }
@@ -986,13 +985,13 @@ namespace mu
                                         float* pProjectionAngle,
                                         const Ptr<const RangeIndex>& pos ) const
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_PROJECTOR );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_PROJECTOR )
         {
@@ -1033,13 +1032,13 @@ namespace mu
                                         float projectionAngle,
                                         const Ptr<const RangeIndex>& pos )
 	{
-		check( index>=0 && index<(int)m_pD->m_values.size() );
+		check( index>=0 && index<(int)m_pD->m_values.Num() );
 		check( GetType(index)== PARAMETER_TYPE::T_PROJECTOR );
 
         // Early out in case of invalid parameters
         if ( index < 0
              ||
-             index >= (int)m_pD->m_values.size()
+             index >= (int)m_pD->m_values.Num()
              ||
              GetType(index) != PARAMETER_TYPE::T_PROJECTOR )
         {
@@ -1052,9 +1051,9 @@ namespace mu
         if (!pos)
         {
             // Clear multivalue, if set.
-            if (index<int(m_pD->m_multiValues.size()))
+            if (index<int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues[index].clear();
+                m_pD->m_multiValues[index].Empty();
             }
 
             result = &m_pD->m_values[index].m_projector;
@@ -1065,21 +1064,21 @@ namespace mu
         {
             check( pos->m_pD->m_parameter==index );
 
-            if ( index>=int(m_pD->m_multiValues.size()))
+            if ( index>=int(m_pD->m_multiValues.Num()))
             {
-                m_pD->m_multiValues.resize(index+1);
+                m_pD->m_multiValues.SetNum(index+1);
             }
 
-            auto& m = m_pD->m_multiValues[index];
-            auto it = m.find(pos->m_pD->m_values);
-            if (it!=m.end())
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
+            if (it)
             {
-                result = &it->second.m_projector;
+                result = &it->m_projector;
             }
             else
             {
-                auto it2 = m.insert( std::make_pair<>( pos->m_pD->m_values, PARAMETER_VALUE() ) );
-                result = &it2.first->second.m_projector;
+                PARAMETER_VALUE& it2 = m.Add( pos->m_pD->m_values, PARAMETER_VALUE() );
+                result = &it2.m_projector;
             }
         }
 
@@ -1089,7 +1088,7 @@ namespace mu
         result->type = PROJECTOR_TYPE::COUNT;
         if (m_pD->m_pModel)
         {
-            const auto& program = m_pD->m_pModel->GetPrivate()->m_program;
+            const PROGRAM& program = m_pD->m_pModel->GetPrivate()->m_program;
             result->type = program.m_parameters[index].m_defaultValue.m_projector.type;
         }
 
@@ -1129,17 +1128,17 @@ namespace mu
         }
 
         size_t thisNumMultiValues = 0;
-        bool thisHasMultiValues = int(m_pD->m_multiValues.size()) > thisParamIndex;
+        bool thisHasMultiValues = int(m_pD->m_multiValues.Num()) > thisParamIndex;
         if (thisHasMultiValues)
         {
-            thisNumMultiValues = m_pD->m_multiValues[thisParamIndex].size();
+            thisNumMultiValues = m_pD->m_multiValues[thisParamIndex].Num();
         }
 
         size_t otherNumMultiValues = 0;
-        bool otherHasMultiValues = int(other->m_pD->m_multiValues.size()) > otherParamIndex;
+        bool otherHasMultiValues = int(other->m_pD->m_multiValues.Num()) > otherParamIndex;
         if (otherHasMultiValues)
         {
-            otherNumMultiValues = other->m_pD->m_multiValues[otherParamIndex].size();
+            otherNumMultiValues = other->m_pD->m_multiValues[otherParamIndex].Num();
         }
 
         if ( thisNumMultiValues != otherNumMultiValues )
@@ -1151,7 +1150,7 @@ namespace mu
              &&
              otherHasMultiValues
              &&
-             m_pD->m_multiValues[thisParamIndex]!=other->m_pD->m_multiValues[otherParamIndex] )
+             !(m_pD->m_multiValues[thisParamIndex]==other->m_pD->m_multiValues[otherParamIndex] ))
         {
             return false;
         }
@@ -1167,7 +1166,7 @@ namespace mu
 
 		int result = -1;
 
-		for( int i=0; result<0 && i<(int)program.m_parameters.size(); ++i )
+		for( int i=0; result<0 && i<(int)program.m_parameters.Num(); ++i )
 		{
 			const PARAMETER_DESC& p = program.m_parameters[i];
 
@@ -1209,7 +1208,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int RangeIndex::GetRangeCount() const
     {
-        return int( m_pD->m_values.size() );
+        return int( m_pD->m_values.Num() );
     }
 
 
@@ -1217,10 +1216,10 @@ namespace mu
     const char* RangeIndex::GetRangeName( int index ) const
     {
         check( index >= 0 && index < GetRangeCount() );
-        check( index < int(m_pD->m_pParameters->GetPrivate()->m_values.size()) );
+        check( index < int(m_pD->m_pParameters->GetPrivate()->m_values.Num()) );
         ModelPtrConst m_pModel = m_pD->m_pParameters->GetPrivate()->m_pModel;
         check( m_pModel );
-        check( index < int(m_pModel->GetPrivate()->m_program.m_ranges.size()) );
+        check( index < int(m_pModel->GetPrivate()->m_program.m_ranges.Num()) );
 
         return m_pModel->GetPrivate()->m_program.m_ranges[index].m_name.c_str();
     }
@@ -1230,10 +1229,10 @@ namespace mu
     const char* RangeIndex::GetRangeUid( int index ) const
     {
         check( index >= 0 && index < GetRangeCount() );
-        check( index < int(m_pD->m_pParameters->GetPrivate()->m_values.size()) );
+        check( index < int(m_pD->m_pParameters->GetPrivate()->m_values.Num()) );
         ModelPtrConst m_pModel = m_pD->m_pParameters->GetPrivate()->m_pModel;
         check( m_pModel );
-        check( index < int(m_pModel->GetPrivate()->m_program.m_ranges.size()) );
+        check( index < int(m_pModel->GetPrivate()->m_program.m_ranges.Num()) );
 
         return m_pModel->GetPrivate()->m_program.m_ranges[index].m_uid.c_str();
     }

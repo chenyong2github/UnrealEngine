@@ -127,12 +127,11 @@ void CodeGenerator::GenerateProjector_Parameter( PROJECTOR_GENERATION_RESULT& re
         op->parameter = param;
 
         // Generate the code for the ranges
-        for ( std::size_t a=0; a<node.m_ranges.size(); ++a )
+        for ( int32 a=0; a<node.m_ranges.Num(); ++a )
         {
             RANGE_GENERATION_RESULT rangeResult;
             GenerateRange( rangeResult, node.m_ranges[a] );
-            op->ranges.emplace_back
-                    ( op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID );
+            op->ranges.Emplace( op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID );
         }
 
         m_nodeVariables[node.m_pNode] = op;

@@ -82,7 +82,7 @@ uint64 ASTOpMeshBindShape::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshBindShape::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshBindShape::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshBindShape> n = new ASTOpMeshBindShape();
 	n->Mesh = mapChild(Mesh.child());
@@ -101,7 +101,7 @@ mu::Ptr<ASTOp> ASTOpMeshBindShape::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshBindShape::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshBindShape::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
 	f(Mesh);
 	f(Shape);
@@ -163,8 +163,8 @@ void ASTOpMeshBindShape::Link( PROGRAM& program, const FLinkerOptions*)
 			args.shape = Shape->linkedAddress;
 		}
 		
-		linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-		program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+		linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+		program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
 		AppendCode(program.m_byteCode, OP_TYPE::ME_BINDSHAPE);
 		AppendCode(program.m_byteCode, args);
 
@@ -234,7 +234,7 @@ mu::Ptr<ASTOp> ASTOpMeshBindShape::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS
 			}
 
 			// We need to copy the options because we change them
-			for (size_t v = 0; v < NewSwitch->cases.size(); ++v)
+			for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
 			{
 				if (NewSwitch->cases[v].branch)
 				{
@@ -276,7 +276,7 @@ mu::Ptr<ASTOp> ASTOpMeshBindShape::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS
 			}
 
 			// We need to copy the options because we change them
-			for (size_t v = 0; v < NewSwitch->cases.size(); ++v)
+			for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
 			{
 				if (NewSwitch->cases[v].branch)
 				{
@@ -316,7 +316,7 @@ mu::Ptr<ASTOp> ASTOpMeshBindShape::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS
 			}
 
 			// We need to copy the options because we change them
-			for (size_t v = 0; v < NewSwitch->cases.size(); ++v)
+			for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
 			{
 				if (NewSwitch->cases[v].branch)
 				{

@@ -15,8 +15,6 @@
 #include <utility>
 
 
-#define NODE_INPUT_COUNT 	1
-
 
 namespace mu
 {
@@ -40,14 +38,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeMeshClipMorphPlane::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     Node* NodeMeshClipMorphPlane::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
         return m_pD->m_pSource.get();
 	}
@@ -56,7 +54,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeMeshClipMorphPlane::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 		if (i==0)
 		{
 			m_pD->m_pSource = dynamic_cast<NodeMesh*>( pNode.get() );
@@ -67,7 +65,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     const char* NodeMeshClipMorphPlane::GetInputName( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
         return "Source";
 	}
@@ -76,7 +74,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     const NODE_TYPE* NodeMeshClipMorphPlane::GetInputType( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
         return NodeMesh::GetStaticType();
 	}
@@ -156,8 +154,6 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshClipMorphPlane::AddTag(const char* tagName)
 	{
-		m_pD->m_tags.push_back(tagName);
+		m_pD->m_tags.Add(tagName);
 	}
 }
-
-#undef NODE_INPUT_COUNT

@@ -18,7 +18,7 @@ namespace mu
     };
 
 
-    inline void ExtractVertexIndexIntervals( vector<ID_INTERVAL>& intervals, const Mesh* pSource )
+    inline void ExtractVertexIndexIntervals( TArray<ID_INTERVAL>& intervals, const Mesh* pSource )
     {
         MeshBufferIteratorConst<MBF_UINT32,uint32_t,1> itVI( pSource->GetVertexBuffers(), MBS_VERTEXINDEX );
         ID_INTERVAL current;
@@ -44,7 +44,7 @@ namespace mu
                 }
                 else
                 {
-                    intervals.push_back(current);
+                    intervals.Add(current);
                     current.idStart = id;
                     current.idPosition = sv;
                     current.size = 1;
@@ -54,12 +54,12 @@ namespace mu
 
         if (current.idStart>=0)
         {
-            intervals.push_back(current);
+            intervals.Add(current);
         }
     }
 
 
-    inline int FindPositionInIntervals( const vector<ID_INTERVAL>& intervals, int id )
+    inline int FindPositionInIntervals( const TArray<ID_INTERVAL>& intervals, int id )
     {
         for( const auto& interval: intervals )
         {
@@ -98,7 +98,7 @@ namespace mu
         uint8_t* removedVertices = (uint8_t*)mutable_malloc_aligned( resultVertexCount, 16 );
 		FMemory::Memzero(removedVertices,resultVertexCount);
         {
-            vector<ID_INTERVAL> intervals;
+			TArray<ID_INTERVAL> intervals;
             ExtractVertexIndexIntervals( intervals, pResult.get() );
 
             for ( int mv=0; mv<pMask->GetVertexBuffers().GetElementCount(); ++mv )
@@ -119,7 +119,8 @@ namespace mu
         // Map from source vertex index, to new vertex index for used vertices.
         // These are indices as in the index buffer, not the absoulte vertex index as in the
         // vertexbuffer MBS_VERTEXINDEX buffers.
-        vector<int> usedVertices( pResult->GetVertexCount(), -1 );
+		TArray<int> usedVertices;
+		usedVertices.Init( -1, pResult->GetVertexCount() );
         {
             size_t removedIndices = 0;
 
@@ -168,13 +169,13 @@ namespace mu
 
             else if ( pResult->GetIndexBuffers().GetElementSize(0)==2 )
             {
-                MeshBufferIteratorConst<MBF_UINT16,uint16_t,1> itSource( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
-                MeshBufferIterator<MBF_UINT16,uint16_t,1> itDest( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
+                MeshBufferIteratorConst<MBF_UINT16,uint16,1> itSource( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
+                MeshBufferIterator<MBF_UINT16,uint16,1> itDest( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
 
                 int indexCount = pResult->GetIndexCount();
                 for ( int f=0; f<indexCount/3; ++f )
                 {
-                    uint16_t sourceIndices[3];
+                    uint16 sourceIndices[3];
                     sourceIndices[0] = itSource[0][0];
                     sourceIndices[1] = itSource[1][0];
                     sourceIndices[2] = itSource[2][0];
@@ -188,7 +189,7 @@ namespace mu
                     {
                         for (int i=0;i<3;++i)
                         {
-                            uint16_t sourceIndex = sourceIndices[i];
+                            uint16 sourceIndex = sourceIndices[i];
 
                             if ( usedVertices[ sourceIndex ] < 0 )
                             {
@@ -196,8 +197,8 @@ namespace mu
                                 firstFreeVertex++;
                             }
 
-                            uint16_t destIndex = (uint16_t)usedVertices[ sourceIndex ];
-                            *(uint16_t*)itDest.ptr() = destIndex;
+                            uint16 destIndex = (uint16)usedVertices[ sourceIndex ];
+                            *(uint16*)itDest.ptr() = destIndex;
 
                             itDest++;
                         }

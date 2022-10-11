@@ -31,9 +31,8 @@
 
 namespace mu
 {
-class Layout;
-struct OBJECT_STATE;
-
+	class Layout;
+	struct OBJECT_STATE;
 
     //! Store the results of the code generation of a mesh.
     struct MESH_GENERATION_RESULT
@@ -45,19 +44,19 @@ struct OBJECT_STATE;
         Ptr<ASTOp> baseMeshOp;
 
 		/** Source node layouts to use with these extra mesh. They don't have block ids. */
-		vector<Ptr<const Layout>> layouts;
+		TArray<Ptr<const Layout>> layouts;
 
-        vector<Ptr<ASTOp>> layoutOps;
+		TArray<Ptr<ASTOp>> layoutOps;
 
 
         struct EXTRA_LAYOUTS
         {
 			/** Source node layouts to use with these extra mesh. They don't have block ids. */
-            vector<Ptr<const Layout>> layouts;
+			TArray<Ptr<const Layout>> layouts;
             Ptr<ASTOp> condition;
             Ptr<ASTOp> meshFragment;
         };
-        vector< EXTRA_LAYOUTS > extraMeshLayouts;
+		TArray< EXTRA_LAYOUTS > extraMeshLayouts;
 
     };
 
@@ -105,13 +104,13 @@ struct OBJECT_STATE;
 			const NodeObjectNew::Private* node;
             Ptr<ASTOp> condition;
 		};
-		vector<OBJECT> objects;
+		TArray<OBJECT> objects;
 
         //! Type used to represent the activation conditions regarding states
         //! This is the state mask for the states in which this surface must be added. If it
         //! is empty it means the surface is valid for all states. Otherwise it is only valid
         //! for the states whose index is true.
-        using StateCondition = std::vector<uint8_t>;
+        using StateCondition = TArray<uint8_t>;
 
 		//! Store information about every surface including
 		//! - the component it may be added to
@@ -128,10 +127,10 @@ struct OBJECT_STATE;
             const NodeComponentNew::Private* component = nullptr;
 
             // List of tags that are required for the presence of this surface
-            vector<string> positiveTags;
+			TArray<string> positiveTags;
 
             // List of tags that block the presence of this surface
-            vector<string> negativeTags;
+			TArray<string> negativeTags;
 
 			// This conditions is the condition of the object defining this surface which may not
 			// be the parent object where this surface will be added.
@@ -153,13 +152,13 @@ struct OBJECT_STATE;
                 //! Weak reference to the edit node, used during compilation.
                 const NodeSurfaceEdit::Private* node = nullptr;
             };
-            vector<EDIT> edits;
+			TArray<EDIT> edits;
 
             // This is filled in the final code generation pass
             Ptr<ASTOp> resultSurfaceOp;
             Ptr<ASTOp> resultMeshOp;
         };
-		vector<SURFACE> surfaces;
+		TArray<SURFACE> surfaces;
 
 		//! Store the conditions that enable every modifier.
 		struct MODIFIER
@@ -167,10 +166,10 @@ struct OBJECT_STATE;
             const NodeModifier::Private* node = nullptr;
 
             // List of tags that are required for the presence of this surface
-            vector<string> positiveTags;
+			TArray<string> positiveTags;
 
             // List of tags that block the presence of this surface
-            vector<string> negativeTags;
+			TArray<string> negativeTags;
 
             // This conditions is the condition of the object defining this modifier which may not
             // be the parent object where this surface will be added.
@@ -187,7 +186,7 @@ struct OBJECT_STATE;
             //
             int lod = 0;
         };
-		vector<MODIFIER> modifiers;
+		TArray<MODIFIER> modifiers;
 
 		//! Info about all found tags.
 		struct TAG
@@ -196,22 +195,22 @@ struct OBJECT_STATE;
 
             // Surfaces that activate the tag. These are indices to the FirstPassGenerator::surfaces
             // vector.
-            vector<int> surfaces;
+			TArray<int> surfaces;
 
             // Edit Surfaces that activate the tag. These first element of the pair are indices to
             // the FirstPassGenerator::surfaces vector. The second element are indices to the
             // "edits" in the specific surface.
-            vector<std::pair<int,int>> edits;
+			TArray<TPair<int,int>> edits;
 
             // This conditions is the condition for this tag to be enabled considering no other
             // condition. This is filled in CodeGenerator_SecondPass.
             Ptr<ASTOp> genericCondition;
         };
-        vector<TAG> m_tags;
+        TArray<TAG> m_tags;
 
         //! Accumulate the model states found while generating code, with their generated root
         //! nodes.
-        typedef vector< std::pair<OBJECT_STATE, const Node::Private*> > StateList;
+        typedef TArray< TPair<OBJECT_STATE, const Node::Private*> > StateList;
         StateList m_states;
 
 	public:
@@ -236,17 +235,17 @@ struct OBJECT_STATE;
         {
             Ptr<ASTOp> objectCondition;
         };
-        vector< CONDITION_CONTEXT > m_currentCondition;
+		TArray< CONDITION_CONTEXT > m_currentCondition;
 
         //!
-        vector< StateCondition > m_currentStateCondition;
+		TArray< StateCondition > m_currentStateCondition;
 
 		//! When processing surfaces, this is the parent component the surfaces may be added to
         const NodeComponentNew::Private* m_currentComponent = nullptr;
 
         //! Current relevant tags so far. Used during traversal.
-        vector<string> m_currentPositiveTags;
-        vector<string> m_currentNegativeTags;
+		TArray<string> m_currentPositiveTags;
+		TArray<string> m_currentNegativeTags;
 
 		//! Index of the LOD we are processing
         int m_currentLOD = -1;

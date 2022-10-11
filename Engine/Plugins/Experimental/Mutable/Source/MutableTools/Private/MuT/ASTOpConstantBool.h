@@ -7,8 +7,6 @@
 #include "MuR/Ptr.h"
 #include "MuT/AST.h"
 
-#include <functional>
-
 
 namespace mu
 {
@@ -31,9 +29,9 @@ struct PROGRAM;
 
 		OP_TYPE GetOpType() const override { return OP_TYPE::BO_CONSTANT; }
 		uint64 Hash() const override;
-		void ForEachChild(const std::function<void(ASTChild&)>&) override;
+		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
-		Ptr<ASTOp> Clone(MapChildFunc& mapChild) const override;
+		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
 		BOOL_EVAL_RESULT EvaluateBool(ASTOpList& facts, EVALUATE_BOOL_CACHE* cache) const override;
 	};

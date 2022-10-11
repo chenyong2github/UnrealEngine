@@ -153,7 +153,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void ForEachReference( OP& op, const std::function<void(OP::ADDRESS*)>& f )
+    void ForEachReference( OP& op, const TFunctionRef<void(OP::ADDRESS*)> f )
     {
         switch ( op.type )
         {
@@ -462,7 +462,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void ForEachReference( const PROGRAM& program, OP::ADDRESS at, const std::function<void(OP::ADDRESS)>& f )
+    void ForEachReference( const PROGRAM& program, OP::ADDRESS at, const TFunctionRef<void(OP::ADDRESS)> f )
     {
         OP_TYPE type = program.GetOpType(at);
         switch ( type )
@@ -995,9 +995,9 @@ namespace mu
             memcpy( &source, data, sizeof(OP::ADDRESS) ); data+=sizeof(OP::ADDRESS);
             f(source);
 
-            uint16_t removes = 0;
-            memcpy( &removes, data, sizeof(uint16_t) ); data+=sizeof(uint16_t);
-            for (uint16_t r=0; r<removes; ++r)
+            uint16 removes = 0;
+            memcpy( &removes, data, sizeof(uint16) ); data+=sizeof(uint16);
+            for (uint16 r=0; r<removes; ++r)
             {
                 mu::OP::ADDRESS condition;
                 memcpy( &condition, data, sizeof(OP::ADDRESS) ); data+=sizeof(OP::ADDRESS);

@@ -9,8 +9,6 @@
 #include "MuR/RefCounted.h"
 #include "MuT/AST.h"
 
-#include <functional>
-
 
 namespace mu
 {
@@ -57,15 +55,14 @@ template <class SCALAR> class vec4;
 		Ptr<const RefCounted> GetValue() const;
 
 		//! Set the value to store in this op
-		void SetValue(const Ptr<const RefCounted>& v,
-			bool useDiskCache);
+		void SetValue(const Ptr<const RefCounted>& v, bool useDiskCache);
 
 
 		// ASTOp interface
 		OP_TYPE GetOpType() const override { return type; }
-		void ForEachChild(const std::function<void(ASTChild&)>&) override;
+		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
-		Ptr<ASTOp> Clone(MapChildFunc& mapChild) const override;
+		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		uint64 Hash() const override;
 		void Link(PROGRAM& program, const FLinkerOptions*) override;
 		FImageDesc GetImageDesc(bool, class GetImageDescContext*) override;

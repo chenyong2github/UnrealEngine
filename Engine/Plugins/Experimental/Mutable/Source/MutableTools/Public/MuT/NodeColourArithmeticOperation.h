@@ -38,8 +38,6 @@ namespace mu
 		// Node Interface
 		//-----------------------------------------------------------------------------------------
 
-		virtual NodePtr Clone( NodeMapPtr pMap = 0 ) const override;
-
 		virtual const NODE_TYPE* GetType() const override;
 		static const NODE_TYPE* GetStaticType();
 

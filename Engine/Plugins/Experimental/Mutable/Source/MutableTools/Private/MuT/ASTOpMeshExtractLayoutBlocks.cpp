@@ -40,7 +40,7 @@ bool ASTOpMeshExtractLayoutBlocks::IsEqual(const ASTOp& otherUntyped) const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshExtractLayoutBlocks::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshExtractLayoutBlocks::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshExtractLayoutBlocks> n = new ASTOpMeshExtractLayoutBlocks();
     n->source = mapChild(source.child());
@@ -52,12 +52,12 @@ mu::Ptr<ASTOp> ASTOpMeshExtractLayoutBlocks::Clone(MapChildFunc& mapChild) const
 
 void ASTOpMeshExtractLayoutBlocks::Assert()
 {
-    check( blocks.size()<std::numeric_limits<uint16_t>::max() );
+    check( blocks.Num()<std::numeric_limits<uint16>::max() );
     ASTOp::Assert();
 }
 
 
-void ASTOpMeshExtractLayoutBlocks::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshExtractLayoutBlocks::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f(source);
 }
@@ -75,18 +75,18 @@ void ASTOpMeshExtractLayoutBlocks::Link( PROGRAM& program, const FLinkerOptions*
     // Already linked?
     if (!linkedAddress)
     {
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32)program.m_byteCode.Num());
         AppendCode(program.m_byteCode, OP_TYPE::ME_EXTRACTLAYOUTBLOCK);
         OP::ADDRESS sourceAt = source ? source->linkedAddress : 0;
         AppendCode(program.m_byteCode, sourceAt );
-        AppendCode(program.m_byteCode, (uint16_t)layout );
-        AppendCode(program.m_byteCode, (uint16_t)blocks.size() );
+        AppendCode(program.m_byteCode, (uint16)layout );
+        AppendCode(program.m_byteCode, (uint16)blocks.Num() );
 
         for ( auto b: blocks )
         {
-            AppendCode(program.m_byteCode, (uint32_t)b );
+            AppendCode(program.m_byteCode, (uint32)b );
         }
     }
 }

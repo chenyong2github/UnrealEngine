@@ -26,7 +26,7 @@ namespace mu
         NodeImagePtr m_pImage;
         NodeImagePtr m_pMask;
 
-        vector<int> m_blocks;
+        TArray<int> m_blocks;
 
         EBlendType m_blendType = EBlendType::BT_BLEND;
 

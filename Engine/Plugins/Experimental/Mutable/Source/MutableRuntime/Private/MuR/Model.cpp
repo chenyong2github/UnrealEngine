@@ -95,7 +95,7 @@ namespace mu
             countPerType[(int)type]++;
         }
 
-        vector< pair<uint64,OP_TYPE> > sorted((int)OP_TYPE::COUNT);
+		TArray< TPair<uint64,OP_TYPE> > sorted((int)OP_TYPE::COUNT);
         for (int i=0; i<(int)OP_TYPE::COUNT; ++i)
         {
             sorted[i].second = (OP_TYPE)i;
@@ -107,10 +107,10 @@ namespace mu
             return a.first>b.first;
         });
 
-        UE_LOG(LogMutableCore,Log, TEXT("Op histogram (%llu ops):"), m_opAddress.size());
+        UE_LOG(LogMutableCore,Log, TEXT("Op histogram (%llu ops):"), m_opAddress.Num());
         for(int i=0; i<8; ++i)
         {
-            float p = sorted[i].first/float(m_opAddress.size())*100.0f;
+            float p = sorted[i].first/float(m_opAddress.Num())*100.0f;
             UE_LOG(LogMutableCore,Log, TEXT("  %3.2f%% : %d"), p, (int)sorted[i].second );
         }
 #endif
@@ -332,7 +332,7 @@ namespace mu
 
         if (m_pD)
         {
-            m_pD->m_generatedResources.clear();
+            m_pD->m_generatedResources.Empty();
         }
     }
 
@@ -346,8 +346,8 @@ namespace mu
 
         pRes->GetPrivate()->m_pModel = this;
 
-        pRes->GetPrivate()->m_values.resize( m_pD->m_program.m_parameters.size() );
-        for ( std::size_t p=0; p<m_pD->m_program.m_parameters.size(); ++p )
+        pRes->GetPrivate()->m_values.SetNum( m_pD->m_program.m_parameters.Num() );
+        for ( int32 p=0; p<m_pD->m_program.m_parameters.Num(); ++p )
         {
             pRes->GetPrivate()->m_values[p] = m_pD->m_program.m_parameters[p].m_defaultValue;
         }
@@ -414,7 +414,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int Model::GetStateCount() const
     {
-        return (int)m_pD->m_program.m_states.size();
+        return (int)m_pD->m_program.m_states.Num();
     }
 
 
@@ -423,7 +423,7 @@ namespace mu
     {
         const char* strRes = 0;
 
-        if ( index>=0 && index<(int)m_pD->m_program.m_states.size() )
+        if ( index>=0 && index<(int)m_pD->m_program.m_states.Num() )
         {
             strRes = m_pD->m_program.m_states[index].m_name.c_str();
         }
@@ -437,7 +437,7 @@ namespace mu
     {
         int res = -1;
 
-        for ( int i=0; res<0 && i<(int)m_pD->m_program.m_states.size(); ++i )
+        for ( int i=0; res<0 && i<(int)m_pD->m_program.m_states.Num(); ++i )
         {
             if ( m_pD->m_program.m_states[i].m_name == strName )
             {
@@ -454,9 +454,9 @@ namespace mu
     {
         int res = -1;
 
-        if ( stateIndex>=0 && stateIndex<(int)m_pD->m_program.m_states.size() )
+        if ( stateIndex>=0 && stateIndex<(int)m_pD->m_program.m_states.Num() )
         {
-            res = (int)m_pD->m_program.m_states[stateIndex].m_runtimeParameters.size();
+            res = (int)m_pD->m_program.m_states[stateIndex].m_runtimeParameters.Num();
         }
 
         return res;
@@ -468,10 +468,10 @@ namespace mu
     {
         int res = -1;
 
-        if ( stateIndex>=0 && stateIndex<(int)m_pD->m_program.m_states.size() )
+        if ( stateIndex>=0 && stateIndex<(int)m_pD->m_program.m_states.Num() )
         {
             const PROGRAM::STATE& state = m_pD->m_program.m_states[stateIndex];
-            if ( paramIndex>=0 && paramIndex<(int)state.m_runtimeParameters.size() )
+            if ( paramIndex>=0 && paramIndex<(int)state.m_runtimeParameters.Num() )
             {
                 res = (int)state.m_runtimeParameters[paramIndex];
             }
@@ -482,24 +482,24 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    static size_t AddMultiValueKeys( vector<uint8_t>& parameterValuesBlob, size_t pos,
-                                  const map< vector<int>, PARAMETER_VALUE >& multi )
+    static size_t AddMultiValueKeys(TArray<uint8_t>& parameterValuesBlob, size_t pos,
+                                  const TMap< TArray<int>, PARAMETER_VALUE >& multi )
     {
-        parameterValuesBlob.resize( pos+4 );
-        uint32 s = uint32( multi.size() );
-        memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32) );
+        parameterValuesBlob.SetNum( pos+4 );
+        uint32 s = uint32( multi.Num() );
+        FMemory::Memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32) );
         pos+=4;
 
         for(const auto& v: multi)
         {
-            uint32 ds = uint32( v.first.size() );
+            uint32 ds = uint32( v.Key.Num() );
 
-            parameterValuesBlob.resize( pos + 4 + ds*4 );
+            parameterValuesBlob.SetNum( pos + 4 + ds*4 );
 
-            memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32) );
+			FMemory::Memcpy( &parameterValuesBlob[pos], &s, sizeof(uint32) );
             pos+=4;
 
-            memcpy( &parameterValuesBlob[pos],v.first.data(), ds*sizeof(int32) );
+			FMemory::Memcpy( &parameterValuesBlob[pos],v.Key.GetData(), ds*sizeof(int32) );
             pos += ds*sizeof(int32);
         }
 
@@ -513,8 +513,8 @@ namespace mu
                                              const Parameters* pParams )
     {
         // Find the list of relevant parameters
-        const vector<uint16_t>* params = nullptr;
-        if (paramListIndex<m_program.m_parameterLists.size())
+        const TArray<uint16>* params = nullptr;
+        if (paramListIndex<(uint32)m_program.m_parameterLists.Num())
         {
             params = &m_program.m_parameterLists[paramListIndex];
         }
@@ -525,28 +525,28 @@ namespace mu
         }
 
         // Generate the relevant parameters blob
-        vector<uint8_t> parameterValuesBlob;
-		parameterValuesBlob.reserve(1024);
+		TArray<uint8_t> parameterValuesBlob;
+		parameterValuesBlob.Reserve(1024);
         for (int param: *params)
         {
-            size_t pos = parameterValuesBlob.size();
+            size_t pos = parameterValuesBlob.Num();
             size_t dataSize = 0;
 
             switch(m_program.m_parameters[param].m_type)
             {
             case PARAMETER_TYPE::T_BOOL:
                 dataSize = 1;
-                parameterValuesBlob.push_back( pParams->GetPrivate()->m_values[param].m_bool ? 1 : 0 );
+                parameterValuesBlob.Add( pParams->GetPrivate()->m_values[param].m_bool ? 1 : 0 );
                 pos += dataSize;
 
                 // Multi-values
-                if ( param < int(pParams->GetPrivate()->m_multiValues.size()) )
+                if ( param < int(pParams->GetPrivate()->m_multiValues.Num()) )
                 {
                     const auto& multi = pParams->GetPrivate()->m_multiValues[param];
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
                     for(const auto& v: multi)
                     {
-                        parameterValuesBlob.push_back( v.second.m_bool ? 1 : 0 );
+                        parameterValuesBlob.Add( v.Value.m_bool ? 1 : 0 );
                         pos += dataSize;
                     }
                 }
@@ -554,21 +554,21 @@ namespace mu
 
             case PARAMETER_TYPE::T_INT:
                 dataSize = sizeof(int32);
-                parameterValuesBlob.resize( pos+dataSize );
-                memcpy( &parameterValuesBlob[pos],
+                parameterValuesBlob.SetNum( pos+dataSize );
+                FMemory::Memcpy( &parameterValuesBlob[pos],
                         &pParams->GetPrivate()->m_values[param].m_int,
                         dataSize );
                 pos += dataSize;
 
                 // Multi-values
-                if ( param < int(pParams->GetPrivate()->m_multiValues.size()) )
+                if ( param < int(pParams->GetPrivate()->m_multiValues.Num()) )
                 {
                     const auto& multi = pParams->GetPrivate()->m_multiValues[param];
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
-                    parameterValuesBlob.resize( pos+multi.size()*dataSize );
+                    parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-                        memcpy( &parameterValuesBlob[pos], &v.second.m_int, dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_int, dataSize );
                         pos += dataSize;
                     }
                 }
@@ -577,21 +577,21 @@ namespace mu
             //! Floating point value in the range of 0.0 to 1.0
             case PARAMETER_TYPE::T_FLOAT:
                 dataSize = sizeof(float);
-                parameterValuesBlob.resize( pos+dataSize );
-                memcpy( &parameterValuesBlob[pos],
+                parameterValuesBlob.SetNum( pos+dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos],
                         &pParams->GetPrivate()->m_values[param].m_float,
                         dataSize );
                 pos += dataSize;
 
                 // Multi-values
-                if ( param < int(pParams->GetPrivate()->m_multiValues.size()) )
+                if ( param < pParams->GetPrivate()->m_multiValues.Num() )
                 {
                     const auto& multi = pParams->GetPrivate()->m_multiValues[param];
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
-                    parameterValuesBlob.resize( pos+multi.size()*dataSize );
+                    parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-                        memcpy( &parameterValuesBlob[pos], &v.second.m_float,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_float,dataSize );
                         pos += dataSize;
                     }
                 }
@@ -600,21 +600,21 @@ namespace mu
             //! Floating point RGBA colour, with each channel ranging from 0.0 to 1.0
             case PARAMETER_TYPE::T_COLOUR:
                 dataSize = 4*sizeof(float);
-                parameterValuesBlob.resize( pos+dataSize );
-                memcpy( &parameterValuesBlob[pos],
+                parameterValuesBlob.SetNum( pos+dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos],
                         &pParams->GetPrivate()->m_values[param].m_colour,
                         dataSize );
                 pos += dataSize;
 
                 // Multi-values
-                if ( param < int(pParams->GetPrivate()->m_multiValues.size()) )
+                if ( param < int(pParams->GetPrivate()->m_multiValues.Num()) )
                 {
                     const auto& multi = pParams->GetPrivate()->m_multiValues[param];
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
-                    parameterValuesBlob.resize( pos+multi.size()*dataSize );
+                    parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-                        memcpy( &parameterValuesBlob[pos], &v.second.m_colour,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_colour,dataSize );
                         pos += dataSize;
                     }
                 }
@@ -626,21 +626,21 @@ namespace mu
                 dataSize = sizeof(PROJECTOR);
 
                 // \todo: padding will be random?
-                parameterValuesBlob.resize( pos+dataSize );
-                memcpy( &parameterValuesBlob[pos],
+                parameterValuesBlob.SetNum( pos+dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos],
                         &pParams->GetPrivate()->m_values[param].m_projector,
                         dataSize );
 				pos += dataSize;
 
                 // Multi-values
-                if ( param < int(pParams->GetPrivate()->m_multiValues.size()) )
+                if ( param < int(pParams->GetPrivate()->m_multiValues.Num()) )
                 {
                     const auto& multi = pParams->GetPrivate()->m_multiValues[param];
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
-                    parameterValuesBlob.resize( pos+multi.size()*dataSize );
+                    parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-                        memcpy( &parameterValuesBlob[pos], &v.second.m_projector,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_projector,dataSize );
                         pos += dataSize;
                     }
                 }
@@ -648,21 +648,21 @@ namespace mu
 
             case PARAMETER_TYPE::T_IMAGE:
                 dataSize = sizeof(EXTERNAL_IMAGE_ID);
-                parameterValuesBlob.resize( pos+dataSize );
-                memcpy( &parameterValuesBlob[pos],
+                parameterValuesBlob.SetNum( pos+dataSize );
+				FMemory::Memcpy( &parameterValuesBlob[pos],
                         &pParams->GetPrivate()->m_values[param].m_image,
                         dataSize );
 				pos += dataSize;
 
                 // Multi-values
-                if ( param < int(pParams->GetPrivate()->m_multiValues.size()) )
+                if ( param < int(pParams->GetPrivate()->m_multiValues.Num()) )
                 {
                     const auto& multi = pParams->GetPrivate()->m_multiValues[param];
                     pos = AddMultiValueKeys( parameterValuesBlob, pos, multi );
-                    parameterValuesBlob.resize( pos+multi.size()*dataSize );
+                    parameterValuesBlob.SetNum( pos+multi.Num()*dataSize );
                     for(const auto& v: multi)
                     {
-                        memcpy( &parameterValuesBlob[pos], &v.second.m_image,dataSize );
+						FMemory::Memcpy( &parameterValuesBlob[pos], &v.Value.m_image,dataSize );
                         pos += dataSize;
                     }
                 }
@@ -679,7 +679,7 @@ namespace mu
 
         // See if we already have this id
         size_t oldestCachePosition = 0;
-        for (size_t i=0; i<m_generatedResources.size(); ++i)
+        for (size_t i=0; i<m_generatedResources.Num(); ++i)
         {
             auto& key = m_generatedResources[i];
             if (key.m_rootAddress==rootAt
@@ -710,13 +710,13 @@ namespace mu
 
         // TODO: Move the constant to settings?
         const size_t maxGeneratedResourcesIDCacheSize = 1024;
-        if (m_generatedResources.size()>=maxGeneratedResourcesIDCacheSize)
+        if (m_generatedResources.Num()>=maxGeneratedResourcesIDCacheSize)
         {
             m_generatedResources[oldestCachePosition] = std::move(newKey);
         }
         else
         {
-            m_generatedResources.push_back(std::move(newKey));
+            m_generatedResources.Add(MoveTemp(newKey));
         }
 
         return newId;
@@ -739,12 +739,13 @@ namespace mu
         m_pD->m_pModel = pModel;
         m_pD->m_pSystem = pSystem;
 
-        size_t paramCount = pModel->GetPrivate()->m_program.m_parameters.size();
+        size_t paramCount = pModel->GetPrivate()->m_program.m_parameters.Num();
         m_pD->m_considerRelevancy = considerRelevancy;
         if (m_pD->m_considerRelevancy)
         {
-            vector<int> currentValues( paramCount, 0 );
-            m_pD->m_intervals.resize( paramCount );
+			TArray<int> currentValues;
+			currentValues.SetNumZeroed(paramCount, 0);
+            m_pD->m_intervals.SetNum( paramCount );
             m_pD->m_instanceCount = (int)m_pD->BuildIntervals( 0, 0, currentValues );
         }
         else
@@ -759,7 +760,7 @@ namespace mu
 
                 case PARAMETER_TYPE::T_INT:
                 {
-                    m_pD->m_instanceCount *= param.m_possibleValues.size();
+                    m_pD->m_instanceCount *= param.m_possibleValues.Num();
                     break;
                 }
 
@@ -813,30 +814,30 @@ namespace mu
 
         if (m_pD->m_considerRelevancy)
         {
-            vector<int> values = m_pD->GetParameters( (int)index );
-            for ( size_t p=0; p<values.size(); ++p )
+			TArray<int> values = m_pD->GetParameters( (int)index );
+            for ( int32 p=0; p<values.Num(); ++p )
             {
-                switch ( res->GetType( (int)p ) )
+                switch ( res->GetType( p ) )
                 {
                 case PARAMETER_TYPE::T_BOOL:
-                    res->SetBoolValue( (int)p, values[p]!=0 );
+                    res->SetBoolValue( p, values[p]!=0 );
                     break;
 
                 case PARAMETER_TYPE::T_INT:
-                    res->SetIntValue( (int)p, res->GetIntPossibleValue( (int)p, values[p] ) );
+                    res->SetIntValue( p, res->GetIntPossibleValue( p, values[p] ) );
                     break;
 
                 case PARAMETER_TYPE::T_FLOAT:
                     if ( randomGenerator )
                     {
-                        res->SetFloatValue( (int)p, randomGenerator() );
+                        res->SetFloatValue( p, randomGenerator() );
                     }
                     break;
 
                 case PARAMETER_TYPE::T_COLOUR:
                     if ( randomGenerator )
                     {
-                        res->SetColourValue( (int)p,
+                        res->SetColourValue( p,
                                              randomGenerator(), randomGenerator(), randomGenerator() );
                     }
                     break;
@@ -848,7 +849,7 @@ namespace mu
         }
         else
         {
-            int paramCount = (int)m_pD->m_pModel->GetPrivate()->m_program.m_parameters.size();
+            int paramCount = (int)m_pD->m_pModel->GetPrivate()->m_program.m_parameters.Num();
             int64 currentInstance = index;
             for (int i=0;i<paramCount;++i)
             {
@@ -897,13 +898,13 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ParametersPtr ModelParametersGenerator::GetRandomInstance( std::function<float()> randomGenerator)
+    ParametersPtr ModelParametersGenerator::GetRandomInstance( TFunctionRef<float()> randomGenerator)
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         ParametersPtr res = m_pD->m_pModel->NewParameters();
 
-        int paramCount = (int)m_pD->m_pModel->GetPrivate()->m_program.m_parameters.size();
+        int paramCount = (int)m_pD->m_pModel->GetPrivate()->m_program.m_parameters.Num();
 
         for (int i=0;i<paramCount;++i)
         {
@@ -914,7 +915,7 @@ namespace mu
             case PARAMETER_TYPE::T_INT:
             {
                 int numOptions = res->GetIntPossibleValueCount( i );
-                int valueIndex = (int)(std::min(numOptions-1,int(randomGenerator()*numOptions)));
+                int valueIndex = (int)(FMath::Min(numOptions-1,int(randomGenerator()*numOptions)));
                 int value = res->GetIntPossibleValue( i, valueIndex );
                 res->SetIntValue( i, value );
                 break;
@@ -927,17 +928,11 @@ namespace mu
             }
 
             case PARAMETER_TYPE::T_FLOAT:
-                if ( randomGenerator )
-                {
-                    res->SetFloatValue( i, randomGenerator() );
-                }
+                res->SetFloatValue( i, randomGenerator() );
                 break;
 
             case PARAMETER_TYPE::T_COLOUR:
-                if ( randomGenerator )
-                {
-                    res->SetColourValue( i, randomGenerator(), randomGenerator(), randomGenerator() );
-                }
+                res->SetColourValue( i, randomGenerator(), randomGenerator(), randomGenerator() );
                 break;
 
             default:
@@ -967,7 +962,7 @@ namespace mu
 //            )
 //            : PartialDiscreteCoveredCodeVisitor( pSystem, pModel, pParams, relevantParameters )
 //        {
-//            m_visited.resize( pModel->GetPrivate()->m_program.m_opAddress.size(), false );
+//            m_visited.resize( pModel->GetPrivate()->m_program.m_opAddress.Num(), false );
 //            m_thisParameter = thisParameter;
 //            m_relevant = false;
 
@@ -1014,16 +1009,17 @@ namespace mu
 //        int m_thisParameter;
 
 //        //! Flags for visited instructions.
-//        vector<bool> m_visited;
+//        TArray<bool> m_visited;
 //    };
 
 
     //---------------------------------------------------------------------------------------------
-    size_t ModelParametersGenerator::Private::BuildIntervals( size_t currentInstanceIndex,
-                                                              size_t currentParameter,
-                                                              vector<int>& currentValues )
+	uint32 ModelParametersGenerator::Private::BuildIntervals(
+		uint32 currentInstanceIndex,
+		uint32 currentParameter,
+		TArray<int>& currentValues )
     {
-        size_t paramCount = m_pModel->GetPrivate()->m_program.m_parameters.size();
+        size_t paramCount = m_pModel->GetPrivate()->m_program.m_parameters.Num();
 
         if ( currentParameter>=paramCount )
         {
@@ -1078,7 +1074,7 @@ namespace mu
                     PARAMETER_INTERVAL_VALUE falseValue;
                     falseValue.m_minIndex = (int)currentInstanceIndex;
                     falseValue.m_value = 0;
-                    m_intervals[ currentParameter ].m_intervalValue.push_back( falseValue );
+                    m_intervals[ currentParameter ].m_intervalValue.Add( falseValue );
                     currentValues[ currentParameter ] = 0;
                     currentInstanceIndex = BuildIntervals( currentInstanceIndex,
                                                            currentParameter+1,
@@ -1088,7 +1084,7 @@ namespace mu
                     PARAMETER_INTERVAL_VALUE trueValue;
                     trueValue.m_minIndex = (int)currentInstanceIndex;
                     trueValue.m_value = 1;
-                    m_intervals[ currentParameter ].m_intervalValue.push_back( trueValue );
+                    m_intervals[ currentParameter ].m_intervalValue.Add( trueValue );
                     currentValues[ currentParameter ] = 1;
                     currentInstanceIndex = BuildIntervals( currentInstanceIndex,
                                                            currentParameter+1,
@@ -1098,13 +1094,13 @@ namespace mu
 
                 case PARAMETER_TYPE::T_INT:
                 {
-                    for ( size_t v=0; v<param.m_possibleValues.size(); ++v )
+                    for ( int32 v=0; v<param.m_possibleValues.Num(); ++v )
                     {
                         PARAMETER_INTERVAL_VALUE value;
                         value.m_minIndex = (int)currentInstanceIndex;
-                        value.m_value = (int)v;
-                        m_intervals[ currentParameter ].m_intervalValue.push_back( value );
-                        currentValues[ currentParameter ] = (int)v;
+                        value.m_value = v;
+                        m_intervals[ currentParameter ].m_intervalValue.Add( value );
+                        currentValues[ currentParameter ] = v;
                         currentInstanceIndex = BuildIntervals( currentInstanceIndex,
                                                                currentParameter+1,
                                                                currentValues);
@@ -1134,14 +1130,15 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    vector<int> ModelParametersGenerator::Private::GetParameters( int instanceIndex )
+	TArray<int> ModelParametersGenerator::Private::GetParameters( int instanceIndex )
     {
-        vector<int> res( m_pModel->GetPrivate()->m_program.m_parameters.size(), 0 );
+		TArray<int> res;
+		res.SetNumZeroed(m_pModel->GetPrivate()->m_program.m_parameters.Num());
 
-        for ( size_t p=0; p<res.size(); ++p )
+        for ( size_t p=0; p<res.Num(); ++p )
         {
             size_t e = 0;
-            while ( m_intervals[p].m_intervalValue.size()>e+1
+            while ( m_intervals[p].m_intervalValue.Num()>e+1
                     &&
                     m_intervals[p].m_intervalValue[e+1].m_minIndex<=instanceIndex )
             {
@@ -1149,7 +1146,7 @@ namespace mu
             }
 
             // Avoid degenerated case (parameter always irrelevant?)
-            if ( m_intervals[p].m_intervalValue.size()>e )
+            if ( m_intervals[p].m_intervalValue.Num()>e )
             {
                 res[p] = m_intervals[p].m_intervalValue[e].m_value;
             }

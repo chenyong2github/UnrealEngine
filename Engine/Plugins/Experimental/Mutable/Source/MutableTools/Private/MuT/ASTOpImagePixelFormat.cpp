@@ -61,7 +61,7 @@ uint64 ASTOpImagePixelFormat::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpImagePixelFormat::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImagePixelFormat::Clone(MapChildFuncRef mapChild) const
 {
 	mu::Ptr<ASTOpImagePixelFormat> n = new ASTOpImagePixelFormat();
     n->Source = mapChild(Source.child());
@@ -71,7 +71,7 @@ mu::Ptr<ASTOp> ASTOpImagePixelFormat::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpImagePixelFormat::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpImagePixelFormat::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( Source );
 }
@@ -89,9 +89,9 @@ void ASTOpImagePixelFormat::Link( PROGRAM& program, const FLinkerOptions* )
 		args.formatIfAlpha = FormatIfAlpha;
 		if (Source) args.source = Source->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::IM_PIXELFORMAT);
         AppendCode(program.m_byteCode,args);
     }
@@ -279,8 +279,8 @@ mu::Ptr<ImageSizeExpression> ASTOpImagePixelFormat::GetImageSizeExpression() con
 mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Apply(const ASTOp* root)
 {
 	m_root = dynamic_cast<const ASTOpImagePixelFormat*>(root);
-	m_oldToNew.clear();
-	m_newOps.clear();
+	m_oldToNew.Empty();
+	m_newOps.Empty();
 
 	check(root->GetOpType() == OP_TYPE::IM_PIXELFORMAT);
 
@@ -305,7 +305,7 @@ mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(mu::Ptr<ASTOp> at, const ASTOpIma
 	if (!at) return nullptr;
 
 	// Newly created?
-	if (std::find(m_newOps.begin(), m_newOps.end(), at) != m_newOps.end())
+	if (m_newOps.Find(at)!=INDEX_NONE)
 	{
 		return at;
 	}
@@ -315,10 +315,13 @@ mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(mu::Ptr<ASTOp> at, const ASTOpIma
 	bool isBlockFormat = GetImageFormatData(format).m_pixelsPerBlockX != 0;
 
 	// Already visited?
-	auto cacheIt = m_oldToNew[currentFormatOp].find(at);
-	if (cacheIt != m_oldToNew[currentFormatOp].end())
 	{
-		return cacheIt->second;
+		auto& CurrentSet = m_oldToNew.FindOrAdd(currentFormatOp);
+		auto cacheIt = CurrentSet.find(at);
+		if (cacheIt != CurrentSet.end())
+		{
+			return cacheIt->second;
+		}
 	}
 
 	mu::Ptr<ASTOp> newAt = at;

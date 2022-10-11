@@ -195,7 +195,7 @@ namespace mu
         case EImageFormat::IF_L_UBYTE:
         {
             uint8* pData = pImage->GetData();
-            uint8 v = std::min<uint8>( 255, std::max<uint8>( 0, uint8( 255.0f * c[0] ) ) );
+            uint8 v = FMath::Min<uint8>( 255, FMath::Max<uint8>( 0, uint8( 255.0f * c[0] ) ) );
             FMemory::Memset( pData, v, pixelCount );
             break;
         }

@@ -10,8 +10,6 @@
 #include "MuR/Ptr.h"
 #include "MuT/AST.h"
 
-#include <functional>
-
 
 namespace mu
 {
@@ -32,10 +30,10 @@ struct PROGRAM;
 		PARAMETER_DESC parameter;
 
 		//! Ranges adding dimensions to this parameter
-		vector<RANGE_DATA> ranges;
+		TArray<RANGE_DATA> ranges;
 
 		//! Additional images attached to the parameter
-		vector<ASTChild> additionalImages;
+		TArray<ASTChild> additionalImages;
 
 	public:
 
@@ -43,9 +41,9 @@ struct PROGRAM;
 
 		OP_TYPE GetOpType() const override { return type; }
 		uint64 Hash() const override;
-		void ForEachChild(const std::function<void(ASTChild&)>&) override;
+		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
-		Ptr<ASTOp> Clone(MapChildFunc& mapChild) const override;
+		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void Assert() override;
 		void Link(PROGRAM& program, const FLinkerOptions*) override;
 		int EvaluateInt(ASTOpList& facts, bool& unknown) const override;

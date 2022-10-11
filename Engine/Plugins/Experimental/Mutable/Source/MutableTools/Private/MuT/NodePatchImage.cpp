@@ -109,21 +109,21 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodePatchImage::SetBlockCount( int c )
     {
-        m_pD->m_blocks.resize( c );
+        m_pD->m_blocks.SetNum( c );
     }
 
 
     //---------------------------------------------------------------------------------------------
     int NodePatchImage::GetBlockCount() const
     {
-        return (int)m_pD->m_blocks.size();
+        return (int)m_pD->m_blocks.Num();
     }
 
 
     //---------------------------------------------------------------------------------------------
     void NodePatchImage::SetBlock( int index, int block )
     {
-        check( index>=0 && index<(int)m_pD->m_blocks.size() );
+        check( index>=0 && index<(int)m_pD->m_blocks.Num() );
         m_pD->m_blocks[ index ] = block;
     }
 
@@ -131,7 +131,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int NodePatchImage::GetBlock( int index ) const
     {
-        check( index>=0 && index<(int)m_pD->m_blocks.size() );
+        check( index>=0 && index<(int)m_pD->m_blocks.Num() );
         return m_pD->m_blocks[ index ];
     }
 

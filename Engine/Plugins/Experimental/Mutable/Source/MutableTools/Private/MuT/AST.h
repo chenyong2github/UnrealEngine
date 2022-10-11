@@ -2,12 +2,7 @@
 
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/ContainerAllocationPolicies.h"
-#include "Containers/Map.h"
-#include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
-#include "Misc/AssertionMacros.h"
+#include "MuT/Platform.h"
 #include "MuR/Image.h"
 #include "MuR/MemoryPrivate.h"
 #include "MuR/ModelPrivate.h"
@@ -17,15 +12,23 @@
 #include "MuR/ParametersPrivate.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
+
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/TypeHash.h"
+#include "Templates/Function.h"
 
 #include <array>
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <set>
 
 namespace mu { class ASTOp; }
 namespace mu { class ASTOpFixed; }
@@ -81,7 +84,7 @@ namespace mu
 
         // For layout factor sizes
         Ptr<class ASTOp> layout;
-        uint16_t factor[2];
+        uint16 factor[2];
 
         // For conditionals
         Ptr<class ASTOp> condition;
@@ -171,8 +174,8 @@ namespace mu
     };
 
 
-    typedef vector<Ptr<ASTOp>> ASTOpList;
-    typedef std::unordered_set<Ptr<ASTOp>> ASTOpSet;
+    typedef TArray<Ptr<ASTOp>> ASTOpList;
+    typedef TSet<Ptr<ASTOp>> ASTOpSet;
 
 
     //! Detailed optimization flags
@@ -220,8 +223,8 @@ namespace mu
 		const ASTOp* m_root = nullptr;
 		Ptr<ASTOp> m_initialSource;
 		//! For each operation we sink, the map from old instructions to new instructions.
-		map<Ptr<const class ASTOpFixed>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
-		vector<Ptr<ASTOp>> m_newOps;
+		TMap<Ptr<const class ASTOpFixed>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
+		TArray<Ptr<ASTOp>> m_newOps;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const ASTOpFixed* currentCropOp);
 	};
@@ -241,8 +244,8 @@ namespace mu
 		const class ASTOpImagePixelFormat* m_root = nullptr;
 		Ptr<ASTOp> m_initialSource;
 		//! For each operation we sink, the map from old instructions to new instructions.
-		map<Ptr<const ASTOp>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
-		vector<Ptr<ASTOp>> m_newOps;
+		TMap<Ptr<const ASTOp>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
+		TArray<Ptr<ASTOp>> m_newOps;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const class ASTOpImagePixelFormat* currentFormatOp);
 	};
@@ -262,8 +265,8 @@ namespace mu
 
 		const class ASTOpMeshFormat* m_root = nullptr;
 		mu::Ptr<ASTOp> m_initialSource;
-		std::unordered_map<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
-		vector<mu::Ptr<ASTOp>> m_newOps;
+		TMap<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
+		TArray<mu::Ptr<ASTOp>> m_newOps;
 
 		mu::Ptr<ASTOp> Visit(const mu::Ptr<ASTOp>& at, const class ASTOpMeshFormat* currentFormatOp);
 	};
@@ -284,8 +287,8 @@ namespace mu
 		Ptr<ASTOp> m_initialSource;
 
 		//! For each operation we sink, the map from old instructions to new instructions.
-		std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>> m_oldToNew;
-		vector<Ptr<ASTOp>> m_newOps;
+		TMap<Ptr<ASTOp>, Ptr<ASTOp>> m_oldToNew;
+		TArray<Ptr<ASTOp>> m_newOps;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const class ASTOpImageMipmap* currentMipmapOp);
 
@@ -373,7 +376,7 @@ namespace mu
     private:
 
         //! Operations referring to this one. They may be null: elements are never removed
-        //! from this vector.
+        //! from this TArray.
 		TArray<ASTOp*, TInlineAllocator<4> > m_parents;
 
     public:
@@ -395,10 +398,10 @@ namespace mu
         virtual void Assert();
 
         //! Run something for each child operation, with a chance to modify it.
-        virtual void ForEachChild( const std::function<void(ASTChild&)>& ) = 0;
+        virtual void ForEachChild( const TFunctionRef<void(ASTChild&)> ) = 0;
 
         //! Run something for each parent operation+.
-        void ForEachParent( const std::function<void(ASTOp*)>& );
+        void ForEachParent( const TFunctionRef<void(ASTOp*)> );
 
         //! Run something for each child operation, with a chance to modify it.
         virtual bool operator==( const ASTOp& other ) const;
@@ -407,8 +410,9 @@ namespace mu
         virtual uint64 Hash() const = 0;
 
         //! Shallow clone. New node will have no parents but reference to the same children.
-        using MapChildFunc=std::function<Ptr<ASTOp>(const Ptr<ASTOp>&)>;
-		virtual Ptr<ASTOp> Clone(MapChildFunc& mapChild) const = 0;
+		using MapChildFunc = TFunction<Ptr<ASTOp>(const Ptr<ASTOp>&)>;
+		using MapChildFuncRef = TFunctionRef<Ptr<ASTOp>(const Ptr<ASTOp>&)>;
+		virtual Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const = 0;
 
     protected:
 
@@ -419,9 +423,9 @@ namespace mu
     public:
 
         //---------------------------------------------------------------------------------------------
-        static void FullAssert( const vector<Ptr<ASTOp>>& roots );
+        static void FullAssert( const TArray<Ptr<ASTOp>>& roots );
 
-        static size_t CountNodes( const vector<Ptr<ASTOp>>& roots );
+        static size_t CountNodes( const TArray<Ptr<ASTOp>>& roots );
 
         //! Deep clone. New node will have no parents and reference new children
         static Ptr<ASTOp> DeepClone( const Ptr<ASTOp>& );
@@ -511,21 +515,21 @@ namespace mu
         static void LinkRange( PROGRAM& program,
                                const RANGE_DATA& range,
                                OP::ADDRESS& rangeSize,
-                               uint16_t& rangeId )
+                               uint16& rangeId )
         {
             if (range.rangeSize)
             {
                 if (range.rangeSize->linkedRange<0)
                 {
-                    check( program.m_ranges.size()<255 );
-                    range.rangeSize->linkedRange = int8_t( program.m_ranges.size() );
+                    check( program.m_ranges.Num()<255 );
+                    range.rangeSize->linkedRange = int8( program.m_ranges.Num() );
                     RANGE_DESC rangeData;
                     rangeData.m_name = range.rangeName;
                     rangeData.m_uid = range.rangeUID;
-                    program.m_ranges.push_back( rangeData );
+                    program.m_ranges.Add( rangeData );
                 }
                 rangeSize = range.rangeSize->linkedAddress;
-                rangeId = uint16_t(range.rangeSize->linkedRange);
+                rangeId = uint16(range.rangeSize->linkedRange);
             }
         }
 
@@ -535,20 +539,18 @@ namespace mu
         //---------------------------------------------------------------------------------------------
 
         //!
-        static void Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
-                                             std::function<bool(Ptr<ASTOp>&)> f );
+        static void Traverse_TopDown_Unique( const TArray<Ptr<ASTOp>>& roots, TFunctionRef<bool(Ptr<ASTOp>&)> f );
 
         //! \todo: it is not strictly top down.
-        static void Traverse_TopDown_Unique_Imprecise( const vector<Ptr<ASTOp>>& roots,
-                                             std::function<bool(Ptr<ASTOp>&)> f );
+        static void Traverse_TopDown_Unique_Imprecise( const TArray<Ptr<ASTOp>>& roots, TFunctionRef<bool(Ptr<ASTOp>&)> f );
 
         //! Kind of top-down, but really not.
         //! This version is slighlty faster, but doesn't support recursive traversals so
         //! use it only in controlled cases.
         static void Traverse_TopRandom_Unique_NonReentrant
             (
-                const vector<Ptr<ASTOp>>& roots,
-                std::function<bool(Ptr<ASTOp>&)> f
+                const TArray<Ptr<ASTOp>>& roots,
+				TFunctionRef<bool(Ptr<ASTOp>&)> f
             );
 
         //! Kind of top-down, but really not.
@@ -558,48 +560,45 @@ namespace mu
         static inline void Traverse_TopDown_Unique_Imprecise_WithState
             (
                 Ptr<ASTOp>& root, const STATE& initialState,
-                std::function<bool(Ptr<ASTOp>&, STATE&, vector<pair<Ptr<ASTOp>,STATE>>&)> f
+				TFunctionRef<bool(Ptr<ASTOp>&, STATE&, TArray<TPair<Ptr<ASTOp>,STATE>>&)> f
             )
         {
             if (!root) { return; }
 
-            vector<pair<Ptr<ASTOp>,STATE>> pending;
-            pending.push_back( std::make_pair<>( root, initialState ) );
+            TArray<TPair<Ptr<ASTOp>,STATE>> pending;
+			pending.Emplace( root, initialState );
 
 
             struct custom_partial_hash
             {
-				uint64 operator()(const pair<Ptr<ASTOp>,STATE>& k) const
+				uint64 operator()(const std::pair<Ptr<ASTOp>,STATE>& k) const
                 {
                     return std::hash<const void*>()(k.first.get());
                 }
             };
 
-            std::unordered_set<pair<Ptr<ASTOp>,STATE>, custom_partial_hash> traversed;
+            std::unordered_set<std::pair<Ptr<ASTOp>,STATE>, custom_partial_hash> traversed;
 
-            while (pending.size())
+            while (!pending.IsEmpty())
             {
-                pair<Ptr<ASTOp>,STATE> current = pending.back();
-                pending.pop_back();
+				TPair<Ptr<ASTOp>,STATE> current = pending.Pop();
 
                 // It could have been completed in another branch
-                auto iti = traversed.insert( current );
+				auto iti = traversed.insert({ current.Key,current.Value });
                 if (iti.second)
                 {
-                    // It has been inserted, so it wasn't there before.
-
-                    // Process. State in current.second may change
-                    bool recurse = f(current.first,current.second,pending);
+                    // Process. State in current.Value may change
+                    bool recurse = f(current.Key,current.Value,pending);
 
                     // Recurse children
                     if (recurse)
                     {
-                        current.first->ForEachChild([&]( ASTChild& c )
+                        current.Key->ForEachChild([&]( ASTChild& c )
                         {
-                            auto child = std::make_pair<>(c.m_child, current.second);
-                            if ( c.m_child && !traversed.count(child) )
+							std::pair<Ptr<ASTOp>, STATE> TraverseKey(c.m_child, current.Value);
+							if (c.m_child && !traversed.count(TraverseKey))
                             {
-                                pending.push_back( child );
+								pending.Emplace( c.m_child, current.Value );
                             }
                         });
                     }
@@ -609,40 +608,35 @@ namespace mu
 
 
         //! Kind of top-down, but really not.
-        static void Traverse_TopDown_Repeat( const vector<Ptr<ASTOp>>& roots,
-                                             std::function<bool(Ptr<ASTOp>& node)> f );
+        static void Traverse_TopDown_Repeat( const TArray<Ptr<ASTOp>>& roots, TFunctionRef<bool(Ptr<ASTOp>& node)> f );
+
+        //! This version is slighlty faster, but doesn't support recursive traversals so
+        //! use it only in controlled cases.
+        static void Traverse_BottomUp_Unique_NonReentrant( ASTOpList& roots, TFunctionRef<void(Ptr<ASTOp>&)> f );
 
         //! This version is slighlty faster, but doesn't support recursive traversals so
         //! use it only in controlled cases.
         static void Traverse_BottomUp_Unique_NonReentrant
         (
-                ASTOpList& roots,
-                std::function<void(Ptr<ASTOp>&)> f
-        );
-
-        //! This version is slighlty faster, but doesn't support recursive traversals so
-        //! use it only in controlled cases.
-        static void Traverse_BottomUp_Unique_NonReentrant
-        (
-                ASTOpList& roots,
-                std::function<void(Ptr<ASTOp>&)> f,
-                std::function<bool(const ASTOp*)> accept
+            ASTOpList& roots,
+			TFunctionRef<void(Ptr<ASTOp>&)> f,
+			TFunctionRef<bool(const ASTOp*)> accept
         );
 
         //!
         static void Traverse_BottomUp_Unique
         (
-                ASTOpList& roots,
-                std::function<void(Ptr<ASTOp>&)> f,
-                std::function<bool(const ASTOp*)> accept = [](const ASTOp*){return true;}
+            ASTOpList& roots,
+			TFunctionRef<void(Ptr<ASTOp>&)> f,
+			TFunctionRef<bool(const ASTOp*)> accept = [](const ASTOp*){return true;}
         );
 
         //!
         static void Traverse_BottomUp_Unique
         (
-                Ptr<ASTOp>& root,
-                std::function<void(Ptr<ASTOp>&)> f,
-                std::function<bool(const ASTOp*)> accept = [](const ASTOp*){return true;}
+            Ptr<ASTOp>& root,
+			TFunctionRef<void(Ptr<ASTOp>&)> f,
+			TFunctionRef<bool(const ASTOp*)> accept = [](const ASTOp*){return true;}
         );
 
         //!
@@ -650,20 +644,20 @@ namespace mu
 
         //! Generic traverse control counter. It should always be left to 0 after any process for all
         //! nodes in the hierarchy.
-        uint32_t m_traverseIndex = 0;
-        static std::atomic<uint32_t> s_lastTraverseIndex;
+        uint32 m_traverseIndex = 0;
+        static std::atomic<uint32> s_lastTraverseIndex;
 
         //!
-        int8_t linkedRange = -1;
+        int8 linkedRange = -1;
 
         //! special flag for Traverse_TopDown_Adaptative traversal.
-        uint8_t m_traversedTopDownAdapative : 1;
+        uint8 m_traversedTopDownAdapative : 1;
 
         //! Embedded node data for the constant subtree detection. This flag is only valid if the
         //! constant detection process has been executed and no relevant AST transformations have
         //! happened.
-        uint8_t m_constantSubtree : 1;
-        uint8_t m_hasSpecialOpInSubtree : 1;
+        uint8 m_constantSubtree : 1;
+        uint8 m_hasSpecialOpInSubtree : 1;
 
     private:
         friend class ASTChild;
@@ -772,9 +766,9 @@ namespace mu
     private:
 
         //! States found so far
-        vector<STATE> m_states;
+        TArray<STATE> m_states;
 
-        //! Index of the current state, from the m_states vector.
+        //! Index of the current state, from the m_states TArray.
         int m_currentState;
 
         struct PENDING
@@ -793,10 +787,10 @@ namespace mu
             int stateIndex;
         };
 
-        std::vector<PENDING> m_pending;
+        TArray<PENDING> m_pending;
 
         //! List of traversed nodes with the state in which they were traversed.
-        std::unordered_multimap<Ptr<ASTOp>,int> m_traversed;
+        std::multimap<Ptr<ASTOp>,int> m_traversed;
 
     protected:
 
@@ -817,15 +811,14 @@ namespace mu
         {
             if(at)
             {
-                auto it = std::find(m_states.begin(),m_states.end(),newState);
-                if (it==m_states.end())
+                auto it = m_states.Find(newState);
+                if (it==INDEX_NONE)
                 {
-                    m_states.push_back(newState);
-                    it = m_states.end() - 1;
+                    m_states.Add(newState);
                 }
-                int stateIndex = (int)(it - m_states.begin());
+                int stateIndex = m_states.Find(newState);
 
-                m_pending.push_back( PENDING(at,stateIndex) );
+                m_pending.Add( PENDING(at,stateIndex) );
             }
         }
 
@@ -834,20 +827,19 @@ namespace mu
         {
             if(at)
             {
-                m_pending.emplace_back( at, m_currentState );
+                m_pending.Emplace( at, m_currentState );
             }
         }
 
         //! Can be called from visit to set the state to visit all children ops
         void SetCurrentState(const STATE& newState)
         {
-            auto it = std::find(m_states.begin(),m_states.end(),newState);
-            if (it==m_states.end())
+            auto it = m_states.Find(newState);
+            if (it==INDEX_NONE)
             {
-                m_states.push_back(newState);
-                it = m_states.end() - 1;
+                m_states.Add(newState);
             }
-            m_currentState = (int)(it - m_states.begin());
+            m_currentState = m_states.Find(newState);
         }
 
     public:
@@ -858,23 +850,22 @@ namespace mu
         //!
         void Traverse(const ASTOpList& roots, const STATE& initialState)
         {
-            m_pending.clear();
-            m_states.clear();
-            m_states.push_back(initialState);
+            m_pending.Empty();
+            m_states.Empty();
+            m_states.Add(initialState);
             m_currentState = 0;
 
             for( const auto& r: roots)
             {
                 if (r)
                 {
-                    m_pending.push_back( PENDING(r,m_currentState) );
+                    m_pending.Add( PENDING(r,m_currentState) );
                 }
             }
 
-            while (m_pending.size())
+            while (m_pending.Num())
             {
-                PENDING item = m_pending.back();
-                m_pending.pop_back();
+                PENDING item = m_pending.Pop();
 
                 auto thisNodeRange = m_traversed.equal_range(item.at);
                 bool visitedInThisState = false;
@@ -903,7 +894,7 @@ namespace mu
                         {
                             if (c)
                             {
-                                m_pending.push_back( PENDING(c.child(),m_currentState) );
+                                m_pending.Add( PENDING(c.child(),m_currentState) );
                             }
                         });
                     }
@@ -936,7 +927,7 @@ namespace mu
     private:
 
         //! Operations to be processed
-        vector< std::pair<bool,Ptr<ASTOp>> > m_pending;
+        TArray< TPair<bool,Ptr<ASTOp>> > m_pending;
 
         //! Map for visited operations
         std::unordered_map<Ptr<ASTOp>,Ptr<ASTOp>> m_oldToNew;
@@ -974,13 +965,13 @@ namespace mu
     {
     public:
 
-        //! Fixed size op structure. Any code ADDRESS in it, refers to the children vector below.
+        //! Fixed size op structure. Any code ADDRESS in it, refers to the children TArray below.
         OP op;
 
         //! Operations used by this one. To be indexed with the ADDRESSes in the m_op.
-        //vector<ASTChild> children;
+        //TArray<ASTChild> children;
         std::array<ASTChild,8> children;
-        uint8_t childCount = 1;
+        uint8 childCount = 1;
 
     public:
         ASTOpFixed();
@@ -989,8 +980,8 @@ namespace mu
 
         OP_TYPE GetOpType() const override { return op.type; }
 
-        Ptr<ASTOp> Clone( MapChildFunc& mapChild ) const override;
-        void ForEachChild( const std::function<void(ASTChild&)>& f ) override;
+        Ptr<ASTOp> Clone( MapChildFuncRef mapChild ) const override;
+        void ForEachChild( const TFunctionRef<void(ASTChild&)> f ) override;
         void Link( PROGRAM& program, const FLinkerOptions* Options) override;
         bool IsEqual(const ASTOp& otherUntyped) const override;
 		uint64 Hash() const override;
@@ -1013,9 +1004,9 @@ namespace mu
         inline void SetChild( OP::ADDRESS& at, const Ptr<ASTOp>& child )
         {
             // hack check
-            check( ((uint8_t*)&at)>=((uint8_t*)&op.args)
+            check( ((uint8*)&at)>=((uint8*)&op.args)
                             &&
-                            ((uint8_t*)&at)<=((uint8_t*)&op.args)+sizeof(op.args));
+                            ((uint8*)&at)<=((uint8*)&op.args)+sizeof(op.args));
 
             if (!at)
             {

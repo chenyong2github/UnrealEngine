@@ -58,12 +58,12 @@ namespace mu
 		inline void BuildGaussianBlurKernel(float(&kernel)[N], float variance)
 		{
 			constexpr float sqrtTau = 2.5066282746310002f;
-			const auto normalDist = [sdSqrtTauInv = 1.0f / (std::sqrt(variance) * sqrtTau),
+			const auto normalDist = [sdSqrtTauInv = 1.0f / (FMath::Sqrt(variance) * sqrtTau),
 				twoVInv = 1.0f / (2.0f * variance)]
 				(float x)
 				-> float
 			{
-				return std::exp(-x * x * twoVInv) * sdSqrtTauInv;
+				return FMath::Exp(-x * x * twoVInv) * sdSqrtTauInv;
 			};
 
 			const float center = static_cast<float>(N) * 0.5f;
@@ -270,26 +270,26 @@ namespace mu
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(0, 0), vec2<int32_t>(destSize.x(), std::min(2, destSize.y())));
+					vec2<int32_t>(0, 0), vec2<int32_t>(destSize.x(), FMath::Min(2, destSize.y())));
 
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(0, std::max(destSize.y() - 2, 0)), vec2<int32_t>(destSize.x(), destSize.y()));
+					vec2<int32_t>(0, FMath::Max(destSize.y() - 2, 0)), vec2<int32_t>(destSize.x(), destSize.y()));
 
 				// Vertical borders
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(0, std::min(2, destSize.y())), vec2<int32_t>(std::min(2, destSize.x()), destSize.y() - 2));
+					vec2<int32_t>(0, FMath::Min(2, destSize.y())), vec2<int32_t>(FMath::Min(2, destSize.x()), destSize.y() - 2));
 
 				GenerateMipSharpenedRegion(
 					kernel,
 					sourceSampler,
 					pDest, destSize,
-					vec2<int32_t>(destSize.x() - 2, std::min(2, destSize.y())), vec2<int32_t>(destSize.x(), destSize.y() - 2));
+					vec2<int32_t>(destSize.x() - 2, FMath::Min(2, destSize.y())), vec2<int32_t>(destSize.x(), destSize.y() - 2));
 
 				sourceSize = destSize;
 
@@ -545,22 +545,22 @@ namespace mu
 			// Uncompress the last mip that we already have
 			vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
 			scratch->pUncompressed = new Image(
-				(uint16_t)uncompressedSize[0],
-				(uint16_t)uncompressedSize[1],
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
 				1,
 				EImageFormat::IF_RGBA_UBYTE);
 
 			// Generate the mipmaps from there on
 			scratch->pUncompressedMips = new Image(
-				(uint16_t)uncompressedSize[0],
-				(uint16_t)uncompressedSize[1],
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
 				levelCount - startLevel,
 				EImageFormat::IF_RGBA_UBYTE);
 
 			// Compress the mipmapped image
 			scratch->pCompressedMips = new Image(
-				(uint16_t)uncompressedSize[0],
-				(uint16_t)uncompressedSize[1],
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
 				scratch->pUncompressedMips->GetLODCount(),
 				pBase->GetFormat());
 
@@ -573,22 +573,22 @@ namespace mu
 			// Uncompress the last mip that we already have
 			vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
 			scratch->pUncompressed = new Image(
-				(uint16_t)uncompressedSize[0],
-				(uint16_t)uncompressedSize[1],
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
 				1,
 				EImageFormat::IF_L_UBYTE);
 
 			// Generate the mipmaps from there on
 			scratch->pUncompressedMips = new Image(
-				(uint16_t)uncompressedSize[0],
-				(uint16_t)uncompressedSize[1],
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
 				levelCount - startLevel,
 				EImageFormat::IF_L_UBYTE);
 
 			// Compress the mipmapped image
 			scratch->pCompressedMips = new Image(
-				(uint16_t)uncompressedSize[0],
-				(uint16_t)uncompressedSize[1],
+				(uint16)uncompressedSize[0],
+				(uint16)uncompressedSize[1],
 				scratch->pUncompressedMips->GetLODCount(),
 				pBase->GetFormat());
 

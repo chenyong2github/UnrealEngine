@@ -12,9 +12,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	1
-
-
 namespace mu
 {
 
@@ -37,14 +34,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeMeshTransform::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     Node* NodeMeshTransform::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
         return m_pD->m_pSource.get();
 	}
@@ -53,7 +50,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeMeshTransform::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 		if (i==0)
 		{
 			m_pD->m_pSource = dynamic_cast<NodeMesh*>( pNode.get() );
@@ -109,5 +106,3 @@ namespace mu
 
 
 }
-
-#undef NODE_INPUT_COUNT

@@ -25,7 +25,7 @@ namespace mu
 			for ( int i=0; i<pixelCount; ++i )
 			{
                 uint32_t l_16 = 76 * pABuf[3*i+0] + 150 * pABuf[3*i+1] + 29 * pABuf[3*i+2];
-                pDestBuf[i] = (uint8_t)std::min( l_16>>8, 255u );
+                pDestBuf[i] = (uint8_t)FMath::Min( l_16>>8, 255u );
 			}
 			break;
 		}
@@ -35,7 +35,7 @@ namespace mu
             for ( int i=0; i<pixelCount; ++i )
             {
                 uint32_t l_16 = 76 * pABuf[4*i+0] + 150 * pABuf[4*i+1] + 29 * pABuf[4*i+2];
-                pDestBuf[i] = (uint8_t)std::min( l_16>>8, 255u );
+                pDestBuf[i] = (uint8_t)FMath::Min( l_16>>8, 255u );
             }
             break;
         }
@@ -45,7 +45,7 @@ namespace mu
             for ( int i=0; i<pixelCount; ++i )
             {
                 uint32_t l_16 = 76 * pABuf[4*i+2] + 150 * pABuf[4*i+1] + 29 * pABuf[4*i+0];
-                pDestBuf[i] = (uint8_t)std::min( l_16>>8, 255u );
+                pDestBuf[i] = (uint8_t)FMath::Min( l_16>>8, 255u );
             }
             break;
         }

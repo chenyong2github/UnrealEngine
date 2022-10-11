@@ -32,7 +32,8 @@ namespace mu
 
         // Prepare the skin matrices. They may be in different order, and we only need the ones
         // relevant for the base mesh deformation.
-        vector<FTransform3f> skinTransforms(pSkeleton->GetBoneCount());
+		TArray<FTransform3f> skinTransforms;
+		skinTransforms.SetNum(pSkeleton->GetBoneCount());
         for ( int32 b=0; b< pSkeleton->GetBoneCount(); ++b )
         {
             int32 poseBoneIndex = pPose->FindBonePose(pSkeleton->GetBoneName(b));

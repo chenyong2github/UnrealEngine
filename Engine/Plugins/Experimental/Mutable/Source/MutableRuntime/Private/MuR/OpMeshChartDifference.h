@@ -93,7 +93,7 @@ namespace mu
 		// Classify the target faces in buckets along the Y axis
 #define NUM_BUCKETS	128
 #define AXIS		1
-		vector<int> buckets[ NUM_BUCKETS ];
+		TArray<int> buckets[ NUM_BUCKETS ];
 		float bucketStart = aabbox.min[AXIS];
 		float bucketSize = aabbox.size[AXIS] / NUM_BUCKETS;
 
@@ -107,17 +107,17 @@ namespace mu
             uint32_t index2 = iti.GetAsUINT32(); ++iti;
 			float y = ( (*(itp+index0))[AXIS] + (*(itp+index1))[AXIS] + (*(itp+index2))[AXIS] ) / 3;
 			float fbucket = (y-bucketStart) / bucketSize;
-			int bucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)fbucket ) );
-			buckets[bucket].push_back(tf);
-			int hibucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)(fbucket+bucketThreshold) ) );
+			int bucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)fbucket ) );
+			buckets[bucket].Add(tf);
+			int hibucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)(fbucket+bucketThreshold) ) );
 			if (hibucket!=bucket)
 			{
-				buckets[hibucket].push_back(tf);
+				buckets[hibucket].Add(tf);
 			}
-			int lobucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)(fbucket-bucketThreshold) ) );
+			int lobucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)(fbucket-bucketThreshold) ) );
 			if (lobucket!=bucket)
 			{
-				buckets[lobucket].push_back(tf);
+				buckets[lobucket].Add(tf);
 			}
 		}
 
@@ -143,9 +143,9 @@ namespace mu
 			// find the bucket for this face
 			float y = ( (*(itop+ov[0]))[AXIS] + (*(itop+ov[1]))[AXIS] + (*(itop+ov[2]))[AXIS] ) / 3;
 			float fbucket = (y-bucketStart) / bucketSize;
-			int bucket = std::min( NUM_BUCKETS-1, std::max( 0, (int)fbucket ) );
+			int bucket = FMath::Min( NUM_BUCKETS-1, FMath::Max( 0, (int)fbucket ) );
 
-			for ( std::size_t btf=0; !hasFace && btf<buckets[bucket].size(); btf++ )
+			for ( int32 btf=0; !hasFace && btf<buckets[bucket].Num(); btf++ )
 			{
 				int tf =  buckets[bucket][btf];
 

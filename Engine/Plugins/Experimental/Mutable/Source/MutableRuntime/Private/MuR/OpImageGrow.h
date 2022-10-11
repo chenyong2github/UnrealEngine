@@ -29,9 +29,9 @@ namespace mu
 
 		for ( int y=0; y<sizeY; ++y )
 		{
-			int y0 = std::max( 0, std::min( sizeY-1, y-1 ) );
-			int y1 = std::max( 0, std::min( sizeY-1, y   ) );
-			int y2 = std::max( 0, std::min( sizeY-1, y+1 ) );
+			int y0 = FMath::Max( 0, FMath::Min( sizeY-1, y-1 ) );
+			int y1 = FMath::Max( 0, FMath::Min( sizeY-1, y   ) );
+			int y2 = FMath::Max( 0, FMath::Min( sizeY-1, y+1 ) );
 
             const uint8_t* pS0 = pSource->GetData() + y0 * rowSize;
             const uint8_t* pS1 = pSource->GetData() + y1 * rowSize;

@@ -39,22 +39,22 @@ namespace mu
 
 	struct vertex_bone_info
 	{
-		mu::vector<int32_t> bone_indices;
-		mu::vector<int32_t> bone_weights;
+		TArray<int32> bone_indices;
+		TArray<int32> bone_weights;
 	};
 
-	inline bool VertexIsAffectedByBone(int32_t vertex_idx, const mu::vector<bool>& bone_is_affected, const mu::vector<vertex_bone_info>& vertex_info)
+	inline bool VertexIsAffectedByBone(int32 vertex_idx, const TArray<bool>& bone_is_affected, const TArray<vertex_bone_info>& vertex_info)
 	{
-		if (vertex_idx >= (int)vertex_info.size())
+		if (vertex_idx >= (int)vertex_info.Num())
 		{
 			return false;
 		}
 
-		check(vertex_info[vertex_idx].bone_indices.size() == vertex_info[vertex_idx].bone_weights.size());		
+		check(vertex_info[vertex_idx].bone_indices.Num() == vertex_info[vertex_idx].bone_weights.Num());		
 
-        for (size_t i = 0; i < vertex_info[vertex_idx].bone_indices.size(); ++i)
+        for (size_t i = 0; i < vertex_info[vertex_idx].bone_indices.Num(); ++i)
 		{			
-            check(vertex_info[vertex_idx].bone_indices[i] <= (int)bone_is_affected.size());
+            check(vertex_info[vertex_idx].bone_indices[i] <= (int)bone_is_affected.Num());
 
 			if (bone_is_affected[vertex_info[vertex_idx].bone_indices[i]] && vertex_info[vertex_idx].bone_weights[i] > 0)
 			{
@@ -88,24 +88,24 @@ namespace mu
 
 		MeshPtr pDest = pBase->Clone();
 
-        uint32_t vcount = pBase->GetVertexBuffers().GetElementCount();
+        uint32 vcount = pBase->GetVertexBuffers().GetElementCount();
 
 		if (!vcount)
 		{
 			return pDest;
 		}
 
-		mu::vector<bool> bone_is_affected;
-		mu::vector<vertex_bone_info> vertex_info;
+		TArray<bool> bone_is_affected;
+		TArray<vertex_bone_info> vertex_info;
 
         auto pBaseSkeleton = pBase->GetSkeleton();
         if (!boneName.empty() && pBaseSkeleton )
 		{
-            bone_is_affected.resize(pBaseSkeleton->GetBoneCount());
+            bone_is_affected.SetNum(pBaseSkeleton->GetBoneCount());
 
-            for (int32_t bone_idx = 0; bone_idx < pBaseSkeleton->GetBoneCount(); ++bone_idx)
+            for (int32 bone_idx = 0; bone_idx < pBaseSkeleton->GetBoneCount(); ++bone_idx)
 			{
-				int32_t current_idx = bone_idx;
+				int32 current_idx = bone_idx;
 				bool found_bone = false;
 
 				while (current_idx >= 0)
@@ -125,7 +125,7 @@ namespace mu
 			}
 
 			// Look for affected vertex indices
-			vertex_info.resize(vcount);
+			vertex_info.SetNum(vcount);
 			//int firstCount = pBase->GetVertexBuffers().GetElementCount();
 
 			for (int32 vb = 0; vb < pBase->GetVertexBuffers().m_buffers.Num(); ++vb)
@@ -161,7 +161,7 @@ namespace mu
 								
 								for (int j = 0; j < components; ++j)
 								{
-									vertex_info[i].bone_indices.push_back(pD[j]);
+									vertex_info[i].bone_indices.Add(pD[j]);
 								}
 
 								secondOffset += elemSize;
@@ -171,11 +171,11 @@ namespace mu
 							case MBF_INT16:
 							case MBF_UINT16:
 							{
-								const uint16_t* pD = reinterpret_cast<const uint16_t*>(&result.m_data[secondOffset]);
+								const uint16* pD = reinterpret_cast<const uint16*>(&result.m_data[secondOffset]);
 
 								for (int j = 0; j < components; ++j)
 								{
-									vertex_info[i].bone_indices.push_back(pD[j]);
+									vertex_info[i].bone_indices.Add(pD[j]);
 								}
 
 								secondOffset += elemSize;
@@ -185,11 +185,11 @@ namespace mu
 							case MBF_INT32:
 							case MBF_UINT32:
 							{
-								const uint32_t* pD = reinterpret_cast<const uint32_t*>(&result.m_data[secondOffset]);
+								const uint32* pD = reinterpret_cast<const uint32*>(&result.m_data[secondOffset]);
 
 								for (int j = 0; j < components; ++j)
 								{
-									vertex_info[i].bone_indices.push_back(pD[j]);
+									vertex_info[i].bone_indices.Add(pD[j]);
 								}
 
 								secondOffset += elemSize;
@@ -215,7 +215,7 @@ namespace mu
 
 								for (int j = 0; j < components; ++j)
 								{
-                                    vertex_info[i].bone_weights.push_back(pD[j]);
+                                    vertex_info[i].bone_weights.Add(pD[j]);
 								}
 
 								secondOffset += elemSize;
@@ -226,11 +226,11 @@ namespace mu
 							case MBF_UINT16:
 							case MBF_NUINT16:
 							{
-								const uint16_t* pD = reinterpret_cast<const uint16_t*>(&result.m_data[secondOffset]);
+								const uint16* pD = reinterpret_cast<const uint16*>(&result.m_data[secondOffset]);
 
 								for (int j = 0; j < components; ++j)
 								{
-									vertex_info[i].bone_weights.push_back(pD[j]);
+									vertex_info[i].bone_weights.Add(pD[j]);
 								}
 
 								secondOffset += elemSize;
@@ -241,11 +241,11 @@ namespace mu
 							case MBF_UINT32:
 							case MBF_NUINT32:
 							{
-								const uint32_t* pD = reinterpret_cast<const uint32_t*>(&result.m_data[secondOffset]);
+								const uint32* pD = reinterpret_cast<const uint32*>(&result.m_data[secondOffset]);
 
 								for (int j = 0; j < components; ++j)
 								{
-									vertex_info[i].bone_weights.push_back(pD[j]);
+									vertex_info[i].bone_weights.Add(pD[j]);
 								}
 
 								secondOffset += elemSize;
@@ -258,7 +258,7 @@ namespace mu
 
                                 for (int j = 0; j < components; ++j)
                                 {
-                                    vertex_info[i].bone_weights.push_back(pD[j]>0.0f);
+                                    vertex_info[i].bone_weights.Add(pD[j]>0.0f);
                                 }
 
                                 secondOffset += elemSize;
@@ -274,7 +274,9 @@ namespace mu
 			}
 		}
 
-        mu::map<uint32_t, bool> removed_vertexs;
+		// TODO: Replace with an array of bools?
+        TArray<bool> RemovedVertices;
+		RemovedVertices.Init(false,pDest->GetVertexCount());
 
 		const FMeshBufferSet& MBSPriv = pDest->GetVertexBuffers();
 		for (int32 b = 0; b < MBSPriv.m_buffers.Num(); ++b)
@@ -289,7 +291,7 @@ namespace mu
 				switch (sem)
 				{
 				case MBS_POSITION:
-                    for (uint32_t v = 0; v < vcount; ++v)
+                    for (uint32 v = 0; v < vcount; ++v)
 					{
 						vec3f vertex(0.0f, 0.0f, 0.0f);
 						for (int i = 0; i < 3; ++i)
@@ -343,7 +345,7 @@ namespace mu
 								{
 									vec3f vert_displ = normal * -dot_cut;
 									vertex = vertex + vert_displ;
-									removed_vertexs[v] = true;
+									RemovedVertices[v] = true;
 								}
 							}
 						}
@@ -371,12 +373,12 @@ namespace mu
 		UntypedMeshBufferIteratorConst ito(pDest->GetIndexBuffers(), MBS_VERTEXINDEX);
 		for (int f = 0; f < aFaceCount; ++f)
 		{
-            vec3<uint32_t> ov;
+            vec3<uint32> ov;
 			ov[0] = ito.GetAsUINT32(); ++ito;
 			ov[1] = ito.GetAsUINT32(); ++ito;
 			ov[2] = ito.GetAsUINT32(); ++ito;
-
-			bool all_vertexs_removed = removed_vertexs[ov[0]] && removed_vertexs[ov[1]] && removed_vertexs[ov[2]];
+		
+			bool all_vertexs_removed = RemovedVertices[ov[0]] && RemovedVertices[ov[1]] && RemovedVertices[ov[2]];
 
 			if (!all_vertexs_removed)
 			{
@@ -405,7 +407,7 @@ namespace mu
             // We assume there will be only one.
             check(pDest->m_surfaces.Num()==1);
 
-            pDest->m_surfaces[0].m_indexCount -= (int32_t)removedIndices;
+            pDest->m_surfaces[0].m_indexCount -= (int32)removedIndices;
         }
 
 		return pDest;

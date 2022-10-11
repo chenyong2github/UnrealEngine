@@ -45,10 +45,10 @@ namespace mu
 
     //!
     template<typename DATA>
-    inline void AppendCode( vector<uint8>& code, const DATA& data )
+    inline void AppendCode(TArray<uint8>& code, const DATA& data )
     {
-        size_t pos = code.size();
-        code.resize( code.size()+sizeof(DATA) );
+        int32 pos = code.Num();
+        code.SetNum( pos+sizeof(DATA) );
 		FMemory::Memcpy (&code[pos], &data, sizeof(DATA));
     }
 
@@ -71,7 +71,7 @@ namespace mu
             // Add the null instruction at address 0.
             // TODO: Will do it in the linker
             AppendCode( m_byteCode, OP_TYPE::NONE );
-            m_opAddress.push_back(0);
+            m_opAddress.Add(0);
         }
 
         struct STATE
@@ -84,16 +84,16 @@ namespace mu
 
             //! List of parameters index (to PROGRAM::m_parameters) of the runtime parameters of
             //! this state.
-            vector<int> m_runtimeParameters;
+			TArray<int> m_runtimeParameters;
 
             //! List of instructions that need to be cached to efficiently update this state
-            vector<OP::ADDRESS> m_updateCache;
+			TArray<OP::ADDRESS> m_updateCache;
 
             //! List of root instructions for the dynamic resources that depend on the runtime
             //! parameters of this state, with a mask of relevant runtime parameters.
             //! The mask has a bit on for every runtime parameter in the m_runtimeParameters
             //! vector.
-            vector< std::pair<OP::ADDRESS,uint64> > m_dynamicResources;
+			TArray< TPair<OP::ADDRESS,uint64> > m_dynamicResources;
 
             //!
             inline void Serialise( OutputArchive& arch ) const
@@ -120,11 +120,11 @@ namespace mu
             {
                 uint64 res = 0;
 
-                for ( size_t i=0; !res && i<m_dynamicResources.size(); ++i )
+                for ( int32 i=0; !res && i<m_dynamicResources.Num(); ++i )
                 {
-                    if ( m_dynamicResources[i].first==at )
+                    if ( m_dynamicResources[i].Key==at )
                     {
-                        res = m_dynamicResources[i].second;
+                        res = m_dynamicResources[i].Value;
                     }
                 }
 
@@ -136,7 +136,7 @@ namespace mu
             {
                 bool res = false;
 
-                for ( size_t i=0; !res && i<m_updateCache.size(); ++i )
+                for ( size_t i=0; !res && i<m_updateCache.Num(); ++i )
                 {
                     if ( m_updateCache[i]==at )
                     {
@@ -152,19 +152,19 @@ namespace mu
             {
                 if ( !IsUpdateCache(at) )
                 {
-                    m_updateCache.push_back( at );
+                    m_updateCache.Add( at );
                 }
             }
         };
 
         //! Location in the m_byteCode of the beginning of each operation
-        vector<uint32> m_opAddress;
+		TArray<uint32> m_opAddress;
 
         //! Byte-coded representation of the program, using flexible-sized ops.
-        vector<uint8> m_byteCode;
+		TArray<uint8> m_byteCode;
 
         //!
-        vector<STATE> m_states;
+		TArray<STATE> m_states;
 
 		//! Data for every rom.
 		TArray<FRomData> m_roms;
@@ -182,40 +182,40 @@ namespace mu
 		TArray<TPair<int32, Ptr<const Mesh>>> m_constantMeshes;
 
         //! Constant string data
-        vector<string> m_constantStrings;
+		TArray<string> m_constantStrings;
 
         //! Constant layout data
-        vector<Ptr<const Layout>> m_constantLayouts;
+		TArray<Ptr<const Layout>> m_constantLayouts;
 
         //! Constant projectors
-        vector<PROJECTOR> m_constantProjectors;
+		TArray<PROJECTOR> m_constantProjectors;
 
         //! Constant matrices, usually used for transforms
-        vector<mat4f> m_constantMatrices;
+		TArray<mat4f> m_constantMatrices;
 
 		//! Constant projectors
-		vector<SHAPE> m_constantShapes;
+		TArray<SHAPE> m_constantShapes;
 
         //! Constant curves
-        vector<Curve> m_constantCurves;
+		TArray<Curve> m_constantCurves;
 
         //! Constant curves
-        vector<Ptr<const Skeleton>> m_constantSkeletons;
+		TArray<Ptr<const Skeleton>> m_constantSkeletons;
 
 		//! Constant Physics Bodies
-		vector<Ptr<const PhysicsBody>> m_constantPhysicsBodies;
+		TArray<Ptr<const PhysicsBody>> m_constantPhysicsBodies;
 
         //! Parameters of the model.
         //! The value stored here is the default value.
-        vector<PARAMETER_DESC> m_parameters;
+		TArray<PARAMETER_DESC> m_parameters;
 
         //! Ranges for interation of the model operations.
-        vector<RANGE_DESC> m_ranges;
+		TArray<RANGE_DESC> m_ranges;
 
         //! List of parameter lists. These are used in several places, like storing the
         //! pregenerated list of parameters influencing a resource.
         //! The parameter lists are sorted.
-        vector<vector<uint16>> m_parameterLists;
+		TArray<TArray<uint16>> m_parameterLists;
 
 
         //!
@@ -403,7 +403,7 @@ namespace mu
 		OP::ADDRESS AddConstant( Ptr<const Layout> pLayout )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantLayouts.size(); ++i)
+            for ( size_t i=0; i<m_constantLayouts.Num(); ++i)
             {
                 if (m_constantLayouts[i]==pLayout)
                 {
@@ -411,15 +411,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantLayouts.size() );
-            m_constantLayouts.push_back( pLayout );
+            OP::ADDRESS index = OP::ADDRESS( m_constantLayouts.Num() );
+            m_constantLayouts.Add( pLayout );
             return index;
         }
 
         OP::ADDRESS AddConstant( Ptr<const Skeleton> pSkeleton )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantSkeletons.size(); ++i)
+            for ( size_t i=0; i<m_constantSkeletons.Num(); ++i)
             {
                 if ( m_constantSkeletons[i]==pSkeleton
                      ||
@@ -430,15 +430,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantSkeletons.size() );
-            m_constantSkeletons.push_back( pSkeleton );
+            OP::ADDRESS index = OP::ADDRESS( m_constantSkeletons.Num() );
+            m_constantSkeletons.Add( pSkeleton );
             return index;
         }
 
         OP::ADDRESS AddConstant( Ptr<const PhysicsBody> pPhysicsBody )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantPhysicsBodies.size(); ++i)
+            for ( size_t i=0; i<m_constantPhysicsBodies.Num(); ++i)
             {
                 if ( m_constantPhysicsBodies[i]==pPhysicsBody
                      ||
@@ -449,15 +449,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantPhysicsBodies.size() );
-            m_constantPhysicsBodies.push_back( pPhysicsBody );
+            OP::ADDRESS index = OP::ADDRESS( m_constantPhysicsBodies.Num() );
+            m_constantPhysicsBodies.Add( pPhysicsBody );
             return index;
         }
 
         OP::ADDRESS AddConstant( const string& str )
         {            
             // Ensure unique
-            for ( size_t i=0; i<m_constantStrings.size(); ++i)
+            for ( size_t i=0; i<m_constantStrings.Num(); ++i)
             {
                 if (m_constantStrings[i]==str)
                 {
@@ -465,15 +465,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantStrings.size() );
-            m_constantStrings.push_back( str );
+            OP::ADDRESS index = OP::ADDRESS( m_constantStrings.Num() );
+            m_constantStrings.Add( str );
             return index;
         }
 
         OP::ADDRESS AddConstant( const mat4f& m )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantMatrices.size(); ++i)
+            for ( size_t i=0; i<m_constantMatrices.Num(); ++i)
             {
                 if (m_constantMatrices[i]==m)
                 {
@@ -481,15 +481,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantMatrices.size() );
-            m_constantMatrices.push_back( m );
+            OP::ADDRESS index = OP::ADDRESS( m_constantMatrices.Num() );
+            m_constantMatrices.Add( m );
             return index;
         }
 
         OP::ADDRESS AddConstant( const SHAPE& m )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantShapes.size(); ++i)
+            for ( size_t i=0; i<m_constantShapes.Num(); ++i)
             {
                 if (m_constantShapes[i]==m)
                 {
@@ -497,15 +497,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantShapes.size() );
-            m_constantShapes.push_back( m );
+            OP::ADDRESS index = OP::ADDRESS( m_constantShapes.Num() );
+            m_constantShapes.Add( m );
             return index;
         }
 
         OP::ADDRESS AddConstant( const PROJECTOR& m )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantProjectors.size(); ++i)
+            for ( size_t i=0; i<m_constantProjectors.Num(); ++i)
             {
                 if (m_constantProjectors[i]==m)
                 {
@@ -513,15 +513,15 @@ namespace mu
                 }
             }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantProjectors.size() );
-            m_constantProjectors.push_back( m );
+            OP::ADDRESS index = OP::ADDRESS( m_constantProjectors.Num() );
+            m_constantProjectors.Add( m );
             return index;
         }
 
         OP::ADDRESS AddConstant( const Curve& m )
         {
             // Ensure unique
-//            for ( size_t i=0; i<m_constantCurves.size(); ++i)
+//            for ( size_t i=0; i<m_constantCurves.Num(); ++i)
 //            {
 //                if (m_constantCurves[i]==m)
 //                {
@@ -529,8 +529,8 @@ namespace mu
 //                }
 //            }
 
-            OP::ADDRESS index = OP::ADDRESS( m_constantCurves.size() );
-            m_constantCurves.push_back( m );
+            OP::ADDRESS index = OP::ADDRESS( m_constantCurves.Num() );
+            m_constantCurves.Add( m );
             return index;
         }
 
@@ -610,7 +610,7 @@ namespace mu
 
         inline OP_TYPE GetOpType( OP::ADDRESS at ) const
         {
-            if (at>=OP::ADDRESS(m_opAddress.size())) return OP_TYPE::NONE;
+            if (at>=OP::ADDRESS(m_opAddress.Num())) return OP_TYPE::NONE;
 
             OP_TYPE result;
             uint64 byteCodeAddress = m_opAddress[at];
@@ -693,7 +693,7 @@ namespace mu
             OP::ADDRESS m_rootAddress;
 
             //! An opaque blob with the values of the relevant parameters
-            vector<uint8> m_parameterValuesBlob;
+			TArray<uint8> m_parameterValuesBlob;
         };
 
         //! The last id generated for a resource
@@ -705,7 +705,7 @@ namespace mu
 
         //! Cached ids for returned assets
         //! This is non-persistent runtime data
-        vector<RESOURCE_KEY> m_generatedResources;
+		TArray<RESOURCE_KEY> m_generatedResources;
 
         //! Get a resource key for a given resource with given parameter values.
         uint32 GetResourceKey( uint32 paramListIndex, OP::ADDRESS rootAt, const Parameters* pParams );
@@ -742,22 +742,20 @@ namespace mu
         {
             //! As many entries as necessary
             //! Sorted by PARAMETER_INCREMENTS_PER_VALUE::m_minIndex
-            vector<PARAMETER_INTERVAL_VALUE> m_intervalValue;
+			TArray<PARAMETER_INTERVAL_VALUE> m_intervalValue;
         };
 
         //! An entry for every parameter in the model
-        vector< PARAMETER_INTERVALS > m_intervals;
+		TArray< PARAMETER_INTERVALS > m_intervals;
 
         //! Whether to use brute force, or consider the parameter relevancy
         bool m_considerRelevancy;
 
         //! Build the interval information
-        size_t BuildIntervals( size_t currentInstanceIndex,
-                               size_t currentParameter,
-                               vector<int>& currentValues );
+		uint32 BuildIntervals( uint32 currentInstanceIndex, uint32 currentParameter, TArray<int>& currentValues );
 
         //! Get the parameter values for a particular instance index
-        vector<int> GetParameters( int instanceIndex );
+		TArray<int> GetParameters( int instanceIndex );
     };
 
 }

@@ -23,7 +23,6 @@
 #include "MuT/CodeOptimiser.h"
 #include "MuT/Table.h"
 
-#include <functional>
 #include <memory>
 #include <utility>
 
@@ -411,7 +410,7 @@ namespace mu
                 FImageRect maskUsage;
                 maskUsage.min[0] = (sourceMaskUsage.min[0]/blockSize)*blockSize;
                 maskUsage.min[1] = (sourceMaskUsage.min[1]/blockSize)*blockSize;
-                vec2<uint16_t> minOffset = sourceMaskUsage.min - maskUsage.min;
+                vec2<uint16> minOffset = sourceMaskUsage.min - maskUsage.min;
                 maskUsage.size[0] = ((sourceMaskUsage.size[0]+minOffset[0]+blockSize-1)/blockSize)*blockSize;
                 maskUsage.size[1] = ((sourceMaskUsage.size[1]+minOffset[1]+blockSize-1)/blockSize)*blockSize;
 
@@ -547,7 +546,7 @@ namespace mu
                 }
 
                 // We need to copy the options because we change them
-                for ( size_t v=0; v<nop->cases.size(); ++v )
+                for ( int32 v=0; v<nop->cases.Num(); ++v )
                 {
                     if ( nop->cases[v].branch )
                     {
@@ -1030,8 +1029,8 @@ namespace mu
     Ptr<ASTOp> Sink_ImageCropAST::Apply( const ASTOp* root )
     {
         m_root = root;
-        m_oldToNew.clear();
-		m_newOps.clear();
+        m_oldToNew.Empty();
+		m_newOps.Empty();
 
         check(root->GetOpType()==OP_TYPE::IM_CROP);
 
@@ -1055,17 +1054,20 @@ namespace mu
         if (!at) return nullptr;
 
         // Newly created?
-        if (std::find(m_newOps.begin(), m_newOps.end(), at )!=m_newOps.end())
+        if (m_newOps.Find( at )!=INDEX_NONE)
         {
             return at;
         }
 
         // Already visited?
-        auto cacheIt = m_oldToNew[currentCropOp].find(at);
-        if (cacheIt!=m_oldToNew[currentCropOp].end())
-        {
-            return cacheIt->second;
-        }
+		{
+			auto& CurrentSet = m_oldToNew.FindOrAdd(currentCropOp);
+			auto cacheIt = CurrentSet.find(at);
+			if (cacheIt != CurrentSet.end())
+			{
+				return cacheIt->second;
+			}
+		}
 
         bool skipSinking=false;
         Ptr<ASTOp> newAt = at;
@@ -1358,7 +1360,7 @@ namespace mu
                     }
 
                     // We need to copy the options because we change them
-                    for ( size_t v=0; v<nop->cases.size(); ++v )
+                    for ( int32 v=0; v<nop->cases.Num(); ++v )
                     {
                         if ( nop->cases[v].branch )
                         {
@@ -1530,7 +1532,7 @@ namespace mu
                 }
 
                 // We need to copy the options because we change them
-                for ( size_t o=0; o<nop->cases.size(); ++o )
+                for ( size_t o=0; o<nop->cases.Num(); ++o )
                 {
                     if ( nop->cases[o].branch )
                     {
@@ -1588,7 +1590,7 @@ namespace mu
 					}
 
 					// We need to copy the options because we change them
-					for (size_t o = 0; o < nop->cases.size(); ++o)
+					for (size_t o = 0; o < nop->cases.Num(); ++o)
 					{
 						if (nop->cases[o].branch)
 						{
@@ -1682,7 +1684,7 @@ namespace mu
 //                    nop->def = defOp;
 //                }
 
-//                for ( size_t v=0; v<nop->cases.size(); ++v )
+//                for ( size_t v=0; v<nop->cases.Num(); ++v )
 //                {
 //                    if ( nop->cases[v].branch )
 //                    {
@@ -1804,7 +1806,7 @@ namespace mu
                 }
 
                 // We need to copy the options because we change them
-                for ( size_t v=0; v<nop->cases.size(); ++v )
+                for ( size_t v=0; v<nop->cases.Num(); ++v )
                 {
                     if ( nop->cases[v].branch )
                     {
@@ -1887,7 +1889,7 @@ namespace mu
                         }
 
                         // We need to copy the options because we change them
-                        for ( size_t v=0; v<nop->cases.size(); ++v )
+                        for ( size_t v=0; v<nop->cases.Num(); ++v )
                         {
                             if ( nop->cases[v].branch )
                             {
@@ -1916,7 +1918,7 @@ namespace mu
 					}
 
 					// We need to copy the options because we change them
-					for (size_t o = 0; o < nop->cases.size(); ++o)
+					for (size_t o = 0; o < nop->cases.Num(); ++o)
 					{
 						if (nop->cases[o].branch)
 						{
@@ -2128,8 +2130,8 @@ namespace mu
                 newOp->patch = Visit( newOp->patch.child(), currentSinkingOp);
 
                 // todo: review if this is always correct, or we need some "divisible" check
-                newOp->location[0] = uint16_t( newOp->location[0] *  scaleX );
-                newOp->location[1] = uint16_t( newOp->location[1] *  scaleY );
+                newOp->location[0] = uint16( newOp->location[0] *  scaleX );
+                newOp->location[1] = uint16( newOp->location[1] *  scaleY );
 
                 newAt = newOp;
 
@@ -2263,8 +2265,8 @@ namespace mu
 				//auto imageOp = nop->children[nop->op.args.ImageRasterMesh.image].child();
 				//nop->SetChild(nop->op.args.ImageRasterMesh.image, Visit(imageOp, currentSinkingOp));
 
-                nop->op.args.ImageRasterMesh.sizeX = uint16_t( nop->op.args.ImageRasterMesh.sizeX * scaleX + 0.5f );
-                nop->op.args.ImageRasterMesh.sizeY = uint16_t( nop->op.args.ImageRasterMesh.sizeY * scaleY + 0.5f );
+                nop->op.args.ImageRasterMesh.sizeX = uint16( nop->op.args.ImageRasterMesh.sizeX * scaleX + 0.5f );
+                nop->op.args.ImageRasterMesh.sizeY = uint16( nop->op.args.ImageRasterMesh.sizeY * scaleY + 0.5f );
                 newAt = nop;
                 break;
             }
@@ -2579,11 +2581,11 @@ namespace mu
                     auto newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
                     newOp->op.args.ImageBlankLayout.blockSize[0] =
-                            uint16_t( newOp->op.args.ImageBlankLayout.blockSize[0]
+                            uint16( newOp->op.args.ImageBlankLayout.blockSize[0]
                                     * op.args.ImageResizeRel.factor[0]
                                     + 0.5f );
                     newOp->op.args.ImageBlankLayout.blockSize[1] =
-                            uint16_t( newOp->op.args.ImageBlankLayout.blockSize[1]
+                            uint16( newOp->op.args.ImageBlankLayout.blockSize[1]
                                     * op.args.ImageResizeRel.factor[1]
                                     + 0.5f );
                     at = newOp;

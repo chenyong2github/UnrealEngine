@@ -10,9 +10,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	1
-
-
 namespace mu
 {
 
@@ -35,14 +32,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshTangents::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeMeshTangents::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
 		return m_pD->m_pSource.get();
 	}
@@ -51,7 +48,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshTangents::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
         if (i==0)
 		{
@@ -94,5 +91,3 @@ namespace mu
 
 
 }
-
-#undef NODE_INPUT_COUNT

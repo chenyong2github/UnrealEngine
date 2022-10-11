@@ -14,9 +14,6 @@
 #include <utility>
 
 
-#define NODE_INPUT_COUNT 	1
-
-
 namespace mu
 {
 
@@ -40,7 +37,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeScalarCurve::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 
@@ -69,7 +66,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeScalarCurve::GetKeyFrameCount() const
 	{
-		return (int)m_pD->m_curve.keyFrames.size();
+		return (int)m_pD->m_curve.keyFrames.Num();
 	}
 
 
@@ -77,7 +74,7 @@ namespace mu
     void NodeScalarCurve::SetKeyFrameCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_curve.keyFrames.resize( num );
+		m_pD->m_curve.keyFrames.SetNum( num );
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -94,7 +91,7 @@ namespace mu
             float out_tangent, float out_tangent_weight,
             uint8_t interp_mode, uint8_t tangent_mode, uint8_t tangent_weight_mode )
 	{
-		check( index >=0 && index < (int)m_pD->m_curve.keyFrames.size() );
+		check( index >=0 && index < m_pD->m_curve.keyFrames.Num() );
 
 		CurveKeyFrame& key_frame = m_pD->m_curve.keyFrames[index];
 
@@ -125,6 +122,4 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT
 

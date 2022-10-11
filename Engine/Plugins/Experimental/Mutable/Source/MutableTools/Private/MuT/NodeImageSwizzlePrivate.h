@@ -22,8 +22,8 @@ namespace mu
 		static NODE_TYPE s_type;
 
 		EImageFormat m_format;
-		vector<NodeImagePtr> m_sources;
-		vector<int> m_sourceChannels;
+		TArray<NodeImagePtr> m_sources;
+		TArray<int> m_sourceChannels;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

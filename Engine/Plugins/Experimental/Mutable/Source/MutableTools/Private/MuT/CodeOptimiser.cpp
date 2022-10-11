@@ -336,10 +336,10 @@ bool FindOpTypeVisitor::Apply( PROGRAM& program, OP::ADDRESS rootAt )
     bool found = false;
 
     // If the program added new operations, we haven't visited them.
-    m_visited.resize( program.m_opAddress.size(), 0 );
+    m_visited.resize( program.m_opAddress.Num(), 0 );
 
     m_pending.clear();
-    m_pending.reserve( program.m_opAddress.size()/4 );
+    m_pending.reserve( program.m_opAddress.Num()/4 );
     m_pending.push_back( std::make_pair(false,rootAt) );
 
     // Don't early out to be able to complete parent op cached flags
@@ -473,7 +473,7 @@ public:
 
         PROGRAM::STATE state;
         state.m_root = at;
-        model->GetPrivate()->m_program.m_states.push_back(state);
+        model->GetPrivate()->m_program.m_states.Add(state);
 
         ParametersPtr localParams = model->NewParameters();
         pSystem->GetPrivate()->BeginBuild( model );
@@ -669,8 +669,8 @@ bool mu::ConstantGeneratorAST( const CompilerOptions::Private* options, Ptr<ASTO
 
     std::shared_timed_mutex codeAccessMutex;
 
-    vector< Ptr<ASTOp> > roots;
-    roots.push_back(root);
+    TArray< Ptr<ASTOp> > roots;
+    roots.Add(root);
 
     // Generate constant operations
     ASTOp::Traverse_TopDown_Unique_Imprecise( roots, [&](Ptr<ASTOp>& n)
@@ -813,7 +813,6 @@ CodeOptimiser::CodeOptimiser( CompilerOptionsPtr options, vector<STATE_COMPILATI
     : m_states( states )
 {
     m_options = options;
-    m_pModelReport = new ModelReport;
 }
 
 
@@ -854,7 +853,7 @@ void CodeOptimiser::FullOptimiseAST( ASTOpList& roots,
         // TODO: Conservative logic optimiser
         if (!modified)
         {
-//                AXE_INT_VALUE("Mutable", Verbose, "program size", (int64_t)program.m_opAddress.size());
+//                AXE_INT_VALUE("Mutable", Verbose, "program size", (int64_t)program.m_opAddress.Num());
 //                UE_LOG(LogMutableCore, Verbose, " - logic optimiser");
 //                LocalLogicOptimiser log;
 //                modified |= log.Apply( program, (int)s );
@@ -1039,11 +1038,11 @@ private:
 struct ADDMESH_SKELETON
 {
 	mu::Ptr<ASTOp> m_pAddMeshOp;
-    vector<mu::Ptr<ASTOpConstantResource>> m_contributingMeshes;
+	TArray<mu::Ptr<ASTOpConstantResource>> m_contributingMeshes;
 	mu::Ptr<Skeleton> m_pFinalSkeleton;
 
     ADDMESH_SKELETON( const mu::Ptr<ASTOp>& pAddMeshOp,
-                      vector<mu::Ptr<ASTOpConstantResource>>& contributingMeshes,
+                      TArray<mu::Ptr<ASTOpConstantResource>>& contributingMeshes,
                       const mu::Ptr<Skeleton>& pFinalSkeleton )
     {
         m_pAddMeshOp = pAddMeshOp;
@@ -1054,13 +1053,13 @@ struct ADDMESH_SKELETON
 
 
 //---------------------------------------------------------------------------------------------
-void SkeletonCleanerAST( vector<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION_OPTIONS& options )
+void SkeletonCleanerAST( TArray<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION_OPTIONS& options )
 {
     // This collects all the meshes that require a skeleton because they are used in operations
     // that require it.
     CollectAllMeshesForSkeletonVisitorAST requireSkeletonCollector( roots );
 
-    vector<ADDMESH_SKELETON> replacementsFound;
+    TArray<ADDMESH_SKELETON> replacementsFound;
 
     ASTOp::Traverse_TopDown_Unique_Imprecise( roots, [&](mu::Ptr<ASTOp>& at )
     {
@@ -1075,9 +1074,9 @@ void SkeletonCleanerAST( vector<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION
             if (meshRoot)
             {
                 // Gather constant meshes contributing to the final mesh
-                vector<mu::Ptr<ASTOpConstantResource>> subtreeMeshes;
-                vector<mu::Ptr<ASTOp>> tempRoots;
-                tempRoots.push_back(meshRoot);
+                TArray<mu::Ptr<ASTOpConstantResource>> subtreeMeshes;
+				TArray<mu::Ptr<ASTOp>> tempRoots;
+                tempRoots.Add(meshRoot);
                 ASTOp::Traverse_TopDown_Unique_Imprecise( tempRoots, [&](mu::Ptr<ASTOp>& lat )
                 {
                     // \todo: refine to avoid instruction branches with irrelevant skeletons.
@@ -1086,11 +1085,11 @@ void SkeletonCleanerAST( vector<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION
 						mu::Ptr<ASTOpConstantResource> typedOp = dynamic_cast<ASTOpConstantResource*>(lat.get());
                         check(typedOp);
 
-                        if ( std::find(subtreeMeshes.begin(), subtreeMeshes.end(), typedOp)
+                        if ( subtreeMeshes.Find(typedOp)
                              ==
-                             subtreeMeshes.end() )
+                             INDEX_NONE )
                         {
-                            subtreeMeshes.push_back(typedOp);
+                            subtreeMeshes.Add(typedOp);
                         }
                     }
                     return true;
@@ -1108,7 +1107,7 @@ void SkeletonCleanerAST( vector<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION
                     }
                 }
 
-                replacementsFound.emplace_back( at, subtreeMeshes, pFinalSkeleton );
+                replacementsFound.Emplace( at, subtreeMeshes, pFinalSkeleton );
             }
         }
 
@@ -1130,11 +1129,7 @@ void SkeletonCleanerAST( vector<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION
 
             for( auto& rep: replacementsFound )
             {
-                if ( std::find( rep.m_contributingMeshes.begin(),
-                                rep.m_contributingMeshes.end(),
-                                at)
-                     !=
-                     rep.m_contributingMeshes.end() )
+                if ( rep.m_contributingMeshes.Contains(at) )
                 {
 					mu::Ptr<const Mesh> pMesh =  static_cast<const Mesh*>(typedOp->GetValue().get());
                     pMesh->CheckIntegrity();
@@ -1191,10 +1186,10 @@ void CodeOptimiser::OptimiseAST( TaskManager* pTaskManager )
     MUTABLE_CPUPROFILER_SCOPE(OptimiseAST);
 
     // Gather all the roots
-    vector<Ptr<ASTOp>> roots;
+    TArray<Ptr<ASTOp>> roots;
     for(const auto& s:m_states)
     {
-        roots.push_back(s.root);
+        roots.Add(s.root);
     }
 
 	UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
@@ -1266,7 +1261,7 @@ void CodeOptimiser::OptimiseAST( TaskManager* pTaskManager )
 //                // TODO: We have disable this since the new operation "layout remove block" is used.
 //                // Proper support needs to be implemented for this case.
 //    //                MUTABLE_CPUPROFILER_SCOPE(ImageComposeConditionGenerator);
-//    //                AXE_INT_VALUE("Mutable", Verbose, "program size", (int64_t)program.m_opAddress.size());
+//    //                AXE_INT_VALUE("Mutable", Verbose, "program size", (int64_t)program.m_opAddress.Num());
 //    //                UE_LOG(LogMutableCore, Verbose, " - image compose conditions generator");
 //    //                ImageComposeConditionGenerator composeGen( program );
 //            }
@@ -1298,8 +1293,7 @@ void CodeOptimiser::OptimiseAST( TaskManager* pTaskManager )
         // Make sure we didn't lose track of pointers
         for ( size_t s=0;  s<m_states.size(); ++s )
         {
-            check( std::find(roots.begin(), roots.end(), m_states[s].root )
-                            != roots.end() );
+            check( roots.Contains( m_states[s].root ) );
         }
 
         ASTOp::LogHistogram(roots);
@@ -1350,8 +1344,7 @@ void CodeOptimiser::OptimiseAST( TaskManager* pTaskManager )
         // Make sure we didn't lose track of pointers
         for ( size_t s=0;  s<m_states.size(); ++s )
         {
-            check( std::find(roots.begin(), roots.end(), m_states[s].root )
-                            != roots.end() );
+            check( roots.Contains( m_states[s].root ) );
         }
     }
 

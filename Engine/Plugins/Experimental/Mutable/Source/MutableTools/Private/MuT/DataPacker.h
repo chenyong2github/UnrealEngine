@@ -44,7 +44,7 @@ namespace mu
         //! 0: not visited
         //! 1: visited and not found
         //! 2: visited and found
-        vector<uint8_t> m_visited;
+        TArray<uint8> m_visited;
     };
 
 }

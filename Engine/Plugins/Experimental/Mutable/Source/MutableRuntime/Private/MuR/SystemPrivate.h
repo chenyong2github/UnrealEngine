@@ -73,7 +73,7 @@ namespace mu
 	{
 	public:
 		//! Set or add a value to the index
-		void SetFromModelRangeIndex(uint16_t rangeIndex, int rangeValue)
+		void SetFromModelRangeIndex(uint16 rangeIndex, int rangeValue)
 		{
 			auto Index = IndexOfByPredicate([=](const ElementType& v) { return v.Key >= rangeIndex; });
 			if (Index != INDEX_NONE && (*this)[Index].Key == rangeIndex)
@@ -861,12 +861,12 @@ namespace mu
 
         //! Make sure the cached memory is below the internal budget, even counting with the
         //! passed additional memory.
-        uint64 EnsureCacheBelowBudget( uint64 additionalMemory,
-                                         std::function<bool(const Model*,int)> isRomLockedFunc = nullptr );
+		uint64 EnsureCacheBelowBudget(uint64 AdditionalMemory, 
+			TFunctionRef<bool(const Model*, int)> IsRomLockedFunc = [](const Model*, int) {return false;});
 
         //!
         void UpdateForLoad( int romIndex, const Model* pModel,
-                            std::function<bool(const Model*,int)> isRomLockedFunc = nullptr );
+                            TFunctionRef<bool(const Model*,int)> isRomLockedFunc );
         void MarkRomUsed( int romIndex, const Model* pModel );
 
         //! Private helper

@@ -11,9 +11,6 @@
 #include "MuT/NodeScalar.h"
 
 
-#define NODE_INPUT_COUNT 	1
-
-
 namespace mu
 {
 
@@ -36,14 +33,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeRangeFromScalar::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     Node* NodeRangeFromScalar::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
         Node* pResult = nullptr;
 
@@ -59,7 +56,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeRangeFromScalar::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		switch (i)
 		{
@@ -105,6 +102,4 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT
 

@@ -114,7 +114,7 @@ namespace mu
 
     public:
 
-        typedef map<const Node::Private*,FImageDesc> VisitedMap;
+        typedef TMap<const Node::Private*,FImageDesc> VisitedMap;
         VisitedMap m_compiled;
 
         //! Result

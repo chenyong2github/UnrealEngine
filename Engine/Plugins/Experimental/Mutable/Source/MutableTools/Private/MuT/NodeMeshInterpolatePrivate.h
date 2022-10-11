@@ -25,7 +25,7 @@ namespace mu
 		static NODE_TYPE s_type;
 
 		NodeScalarPtr m_pFactor;
-		vector<NodeMeshPtr> m_targets;
+		TArray<NodeMeshPtr> m_targets;
 
 		//!
 		struct CHANNEL
@@ -68,7 +68,7 @@ namespace mu
 			}
 		};
 
-		vector<CHANNEL> m_channels;
+		TArray<CHANNEL> m_channels;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

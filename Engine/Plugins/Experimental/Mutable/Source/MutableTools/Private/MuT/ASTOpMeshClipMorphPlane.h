@@ -9,8 +9,6 @@
 #include "MuR/Ptr.h"
 #include "MuT/AST.h"
 
-#include <functional>
-
 
 namespace mu
 {
@@ -42,8 +40,8 @@ struct PROGRAM;
 		OP_TYPE GetOpType() const override { return OP_TYPE::ME_CLIPMORPHPLANE; }
 		uint64 Hash() const override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
-		Ptr<ASTOp> Clone(MapChildFunc& mapChild) const override;
-		void ForEachChild(const std::function<void(ASTChild&)>&) override;
+		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
+		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
 	};
 

@@ -28,8 +28,8 @@ namespace mu
 	// 		box< vec2<int> > b;
 	// 		pSource->GetBlock( index, &b.min[0], &b.min[1], &b.size[0], &b.size[1] );
 
-	// 		maxX = std::max( maxX, b.size[0] );
-	// 		maxY = std::max( maxY, b.size[1] );
+	// 		maxX = FMath::Max( maxX, b.size[0] );
+	// 		maxY = FMath::Max( maxY, b.size[1] );
 
 	// 		area += b.size[0] * b.size[1];
 
@@ -93,7 +93,7 @@ namespace mu
 	// 			int level = 0;
 	// 			for( int xs=x; xs<x+blocks[index][0]; ++xs )
 	// 			{
-	// 				level = std::max( level, horizon[xs] );
+	// 				level = FMath::Max( level, horizon[xs] );
 	// 			}
 
 	// 			if (level<currentLevel)
@@ -114,7 +114,7 @@ namespace mu
 
 	// 		// Store
 	// 		positions[ index ] = vec2<int>( currentX, currentLevel );
-	// 		maxY = std::max( maxY, currentLevel+blocks[index][1] );
+	// 		maxY = FMath::Max( maxY, currentLevel+blocks[index][1] );
 	// 	}
 
     //     // Set data in the result
@@ -247,8 +247,8 @@ namespace mu
     //         box< vec2<int> > b;
     //         pSourceLayout->GetBlock( index, &b.min[0], &b.min[1], &b.size[0], &b.size[1] );
 
-    //         maxX = std::max( maxX, b.size[0] );
-    //         maxY = std::max( maxY, b.size[1] );
+    //         maxX = FMath::Max( maxX, b.size[0] );
+    //         maxY = FMath::Max( maxY, b.size[1] );
 
     //         area += b.size[0] * b.size[1];
 
@@ -304,7 +304,7 @@ namespace mu
     //                 int level = 0;
     //                 for( int xs=x; xs<x+scratch->sorted[p].size[0]; ++xs )
     //                 {
-    //                     level = std::max( level, (int)horizon[xs] );
+    //                     level = FMath::Max( level, (int)horizon[xs] );
     //                 }
 
     //                 if (level<currentLevel)
@@ -320,12 +320,12 @@ namespace mu
     //             // Update horizon
     //             for( int xs=currentX; xs<currentX+scratch->sorted[p].size[0]; ++xs )
     //             {
-    //                 horizon[xs] = (uint16_t)(currentLevel+scratch->sorted[p].size[1]);
+    //                 horizon[xs] = (uint16)(currentLevel+scratch->sorted[p].size[1]);
     //             }
 
     //             // Store
     //             scratch->positions[ scratch->sorted[p].index ] = vec2<int>( currentX, currentLevel );
-    //             maxY = std::max( maxY, currentLevel+scratch->sorted[p].size[1] );
+    //             maxY = FMath::Max( maxY, currentLevel+scratch->sorted[p].size[1] );
     //         }
 
     //         maxY = ceilPow2( maxY );
@@ -442,7 +442,8 @@ namespace mu
 
 		// Number of blocks alrady packed
 		size_t packed = 0;
-		vector<uint8_t> packedFlag(scratch->sorted.Num(), 0);
+		TArray<uint8_t> packedFlag;
+		packedFlag.SetNumZeroed(scratch->sorted.Num());
 
 		// Pack with fixed horizontal size
 		check(*maxX < 256);
@@ -482,7 +483,7 @@ namespace mu
 					int level = 0;
 					for (int xs = x; xs < x + candidateSizeX; ++xs)
 					{
-						level = std::max(level, (int)horizon[xs]);
+						level = FMath::Max(level, (int)horizon[xs]);
 					}
 
 					if (level < currentLevel)
@@ -566,7 +567,7 @@ namespace mu
 				// Update horizon
 				for (int xs = bestX; xs < bestX + scratch->sorted[best].size[0]; ++xs)
 				{
-					horizon[xs] = (uint16_t)(bestLevel + scratch->sorted[best].size[1]);
+					horizon[xs] = (uint16)(bestLevel + scratch->sorted[best].size[1]);
 				}
 			}
 

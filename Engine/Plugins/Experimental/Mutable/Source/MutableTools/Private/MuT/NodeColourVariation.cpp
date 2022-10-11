@@ -30,7 +30,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    int NodeColourVariation::GetInputCount() const { return 1 + int( m_pD->m_variations.size() ); }
+    int NodeColourVariation::GetInputCount() const { return 1 + m_pD->m_variations.Num(); }
 
 
     //---------------------------------------------------------------------------------------------
@@ -44,11 +44,11 @@ namespace mu
         }
         i -= 1;
 
-        if ( i < int( m_pD->m_variations.size() ) )
+        if ( i < int( m_pD->m_variations.Num() ) )
         {
             return m_pD->m_variations[i].m_colour.get();
         }
-        i -= int( m_pD->m_variations.size() );
+        i -= int( m_pD->m_variations.Num() );
 
         return nullptr;
     }
@@ -66,13 +66,13 @@ namespace mu
         }
 
         i -= 1;
-        if ( i < int( m_pD->m_variations.size() ) )
+        if ( i < int( m_pD->m_variations.Num() ) )
         {
 
             m_pD->m_variations[i].m_colour = dynamic_cast<NodeColour*>( pNode.get() );
             return;
         }
-        i -= (int)m_pD->m_variations.size();
+        i -= (int)m_pD->m_variations.Num();
     }
 
 
@@ -83,20 +83,20 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    int NodeColourVariation::GetVariationCount() const { return int( m_pD->m_variations.size() ); }
+    int NodeColourVariation::GetVariationCount() const { return m_pD->m_variations.Num(); }
 
 
     //---------------------------------------------------------------------------------------------
     void NodeColourVariation::SetVariationCount( int num )
     {
         check( num >= 0 );
-        m_pD->m_variations.resize( num );
+        m_pD->m_variations.SetNum( num );
     }
 
     //---------------------------------------------------------------------------------------------
     void NodeColourVariation::SetVariationTag( int index, const char* strTag )
     {
-        check( index >= 0 && index < (int)m_pD->m_variations.size() );
+        check( index >= 0 && index < m_pD->m_variations.Num() );
         check( strTag );
 
         if ( strTag )
@@ -113,7 +113,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeColourVariation::SetVariationColour( int index, NodeColour* pNode )
     {
-        check( index >= 0 && index < (int)m_pD->m_variations.size() );
+        check( index >= 0 && index < m_pD->m_variations.Num() );
 
         m_pD->m_variations[index].m_colour = pNode;
     }

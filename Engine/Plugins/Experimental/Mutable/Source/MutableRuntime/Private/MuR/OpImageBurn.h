@@ -12,8 +12,8 @@ namespace mu
 	{
 		// R = 1 - (1-Base) / Blend
 		unsigned burn =
-				std::min( 255,
-						  std::max( 0,
+				FMath::Min( 255,
+						  FMath::Max( 0,
 									255 - ( ( ( 255 - (int)base  ) << 8 ) / ((int)blended+1) )
 									)
 						  );

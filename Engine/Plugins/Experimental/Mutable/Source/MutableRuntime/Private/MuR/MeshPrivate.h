@@ -92,7 +92,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	class UntypedMeshBufferIteratorConst;
 
-	class MUTABLERUNTIME_API UntypedMeshBufferIterator : public Base
+	class MUTABLERUNTIME_API UntypedMeshBufferIterator 
 	{
 	public:
 		inline UntypedMeshBufferIterator()
@@ -364,7 +364,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! Class to iterate a specific buffer channel of unknown type
 	//---------------------------------------------------------------------------------------------
-	class MUTABLERUNTIME_API UntypedMeshBufferIteratorConst : public Base
+	class MUTABLERUNTIME_API UntypedMeshBufferIteratorConst
 	{
 	public:
 

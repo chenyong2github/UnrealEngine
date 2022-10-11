@@ -30,7 +30,7 @@ namespace mu
                                 const Image* pBase,
                                 const Image* pMask,
                                 vec3<float> col,
-                                vector< std::pair<uint8_t,uint8_t*> >* pTables )
+                                TArray< TPair<uint8_t,uint8_t*> >* pTables )
 	{
         check( pResult->GetFormat() == pBase->GetFormat() );
         check( pResult->GetSizeX() == pBase->GetSizeX() );
@@ -54,15 +54,15 @@ namespace mu
 
 				for ( int t=0; t<3; ++t )
 				{
-                    uint8_t c = uint8_t( std::min( 255.0f, std::max( 0.0f, col[t]*255.0f ) ) );
+                    uint8_t c = uint8_t( FMath::Min( 255.0f, FMath::Max( 0.0f, col[t]*255.0f ) ) );
 
 					// Try to find an existing table
 					tables[t] = 0;
-					for ( size_t j=0; !tables[t] && j<pTables->size(); ++j )
+					for ( size_t j=0; !tables[t] && j<pTables->Num(); ++j )
 					{
-						if ( (*pTables)[j].first==c )
+						if ( (*pTables)[j].Key==c )
 						{
-							tables[t] = (*pTables)[j].second;
+							tables[t] = (*pTables)[j].Value;
 						}
 					}
 
@@ -73,7 +73,7 @@ namespace mu
 						{
                             tables[t][i] = (uint8_t)SoftLightChannel( i, c );
 						}
-                        pTables->push_back(std::pair<uint8_t,uint8_t*>( c, tables[t] ) );
+                        pTables->Add(TPair<uint8_t,uint8_t*>( c, tables[t] ) );
 					}
 				}
 
@@ -95,7 +95,7 @@ namespace mu
                 uint8_t tables[256*3];
                 for ( int t=0; t<3; ++t )
                 {
-                    uint8_t c = uint8_t( std::min( 255.0f, std::max( 0.0f, col[t]*255.0f ) ) );
+                    uint8_t c = uint8_t( FMath::Min( 255.0f, FMath::Max( 0.0f, col[t]*255.0f ) ) );
                     for ( int i=0; i<256;++i )
                     {
                         tables[t*256+i] = (uint8_t)SoftLightChannel( i, c );

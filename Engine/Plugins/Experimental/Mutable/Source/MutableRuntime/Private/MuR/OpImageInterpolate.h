@@ -26,7 +26,7 @@ namespace mu
         check( pA->GetFormat() == pB->GetFormat() );
 
 		// Clamp the factor
-		factor = std::max( 0.0f, std::min( 1.0f, factor ) );
+		factor = FMath::Max( 0.0f, FMath::Min( 1.0f, factor ) );
 
         uint8_t* pDestBuf = pDest->GetData();
         const uint8_t* pABuf = pA->GetData();
@@ -100,9 +100,9 @@ namespace mu
 		check( p0->GetFormat() == p2->GetFormat() );
 
 		// Clamp the factor
-		factor1 = std::max( 0.0f, std::min( 1.0f, factor1 ) );
-		factor2 = std::max( 0.0f, std::min( 1.0f-factor1, factor2 ) );
-		float factor0 = std::max( 0.0f, 1.0f-factor1-factor2 );
+		factor1 = FMath::Max( 0.0f, FMath::Min( 1.0f, factor1 ) );
+		factor2 = FMath::Max( 0.0f, FMath::Min( 1.0f-factor1, factor2 ) );
+		float factor0 = FMath::Max( 0.0f, 1.0f-factor1-factor2 );
 
         ImagePtr pDest = new Image( p0->GetSizeX(), p0->GetSizeY(),
                                     p0->GetLODCount(),

@@ -49,7 +49,7 @@ bool ASTOpSwitch::IsEqual(const ASTOp& otherUntyped) const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpSwitch::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpSwitch::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpSwitch> n = new ASTOpSwitch();
     n->type = type;
@@ -57,7 +57,7 @@ mu::Ptr<ASTOp> ASTOpSwitch::Clone(MapChildFunc& mapChild) const
     n->def = mapChild(def.child());
     for(const auto& c:cases)
     {
-        n->cases.emplace_back(c.condition, n, mapChild(c.branch.child()));
+        n->cases.Emplace(c.condition, n, mapChild(c.branch.child()));
     }
     return n;
 }
@@ -102,7 +102,7 @@ uint64 ASTOpSwitch::Hash() const
 //-------------------------------------------------------------------------------------------------
 mu::Ptr<ASTOp> ASTOpSwitch::GetFirstValidValue()
 {
-    for ( size_t i=0; i<cases.size(); ++i )
+    for ( int32 i=0; i<cases.Num(); ++i )
     {
         if ( cases[i].branch )
         {
@@ -118,7 +118,7 @@ bool ASTOpSwitch::IsCompatibleWith( const ASTOpSwitch* other ) const
 {
     if (!other) return false;
     if (variable.child()!=other->variable.child()) return false;
-    if (cases.size()!=other->cases.size()) return false;
+    if (cases.Num()!=other->cases.Num()) return false;
     for (const auto& c: cases)
     {
         bool found = false;
@@ -156,7 +156,7 @@ mu::Ptr<ASTOp> ASTOpSwitch::FindBranch( int32_t condition ) const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpSwitch::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpSwitch::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f(variable);
     f(def);
@@ -173,8 +173,8 @@ void ASTOpSwitch::Link( PROGRAM& program, const FLinkerOptions* )
     // Already linked?
     if (!linkedAddress)
     {        
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
  
         OP::ADDRESS VarAddress = variable ? variable->linkedAddress : 0;
         OP::ADDRESS DefAddress = def ? def->linkedAddress : 0;
@@ -182,7 +182,7 @@ void ASTOpSwitch::Link( PROGRAM& program, const FLinkerOptions* )
         AppendCode( program.m_byteCode, type );
         AppendCode( program.m_byteCode, VarAddress );
         AppendCode( program.m_byteCode, DefAddress );
-        AppendCode( program.m_byteCode, (uint32_t)cases.size() );
+        AppendCode( program.m_byteCode, (uint32_t)cases.Num() );
 
         for ( const CASE& Case : cases )
         {
@@ -233,7 +233,7 @@ FImageDesc ASTOpSwitch::GetImageDesc( bool returnBestOption, class GetImageDescC
         first = false;
     }
 
-    for ( int i=0; i<(int)cases.size(); ++i )
+    for ( int i=0; i<cases.Num(); ++i )
     {
         if ( cases[i].branch )
         {
@@ -419,7 +419,7 @@ mu::Ptr<ASTOp> ASTOpSwitch::OptimiseSemantic( const MODEL_OPTIMIZATION_OPTIONS& 
         Ptr<ASTOp> branch = def.child();
 
         auto typedCondition = dynamic_cast<const ASTOpFixed*>(variable.child().get());
-        for ( size_t o=0; o<cases.size(); ++o )
+        for ( int32 o=0; o<cases.Num(); ++o )
         {
             if ( cases[o].branch &&
                 typedCondition->op.args.IntConstant.value

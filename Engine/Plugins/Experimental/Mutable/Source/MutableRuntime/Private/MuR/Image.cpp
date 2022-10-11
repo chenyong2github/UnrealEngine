@@ -70,7 +70,7 @@ namespace mu
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         m_format = format;
-        m_size = FImageSize( (uint16_t)sizeX, (uint16_t)sizeY );
+        m_size = FImageSize( (uint16)sizeX, (uint16)sizeY );
         m_lods = (uint8_t)lods;
         m_internalId = 0;
 
@@ -142,14 +142,14 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    uint16_t Image::GetSizeX() const
+    uint16 Image::GetSizeX() const
     {
         return m_size[0];
     }
 
 
     //---------------------------------------------------------------------------------------------
-    uint16_t Image::GetSizeY() const
+    uint16 Image::GetSizeY() const
     {
         return m_size[1];
     }
@@ -230,13 +230,13 @@ namespace mu
 
             for ( int l=0; l<FMath::Max(1,(int)m_lods); ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16_t)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16_t)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
 
                 res += (blocksX*blocksY) * fdata.m_bytesPerBlock;
 
-                s[0] = FMath::DivideAndRoundUp( s[0], (uint16_t)2 );
-                s[1] = FMath::DivideAndRoundUp( s[1], (uint16_t)2 );
+                s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
+                s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
             }
         }
 
@@ -256,8 +256,8 @@ namespace mu
 
             for ( int l=0; l< FMath::Max(1,(int)m_lods); ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16_t)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16_t)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
 
                 if ( mip==l )
                 {
@@ -265,8 +265,8 @@ namespace mu
                     break;
                 }
 
-                s[0] = FMath::DivideAndRoundUp( s[0], (uint16_t)2 );
-                s[1] = FMath::DivideAndRoundUp( s[1], (uint16_t)2 );
+                s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
+                s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
             }
         }
 
@@ -286,13 +286,13 @@ namespace mu
 
             for ( int l=0; l<FMath::Max(1,(int)m_lods); ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16_t)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16_t)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
 
                 res += (blocksX*blocksY) * fdata.m_pixelsPerBlockX * fdata.m_pixelsPerBlockY;
 
-                s[0] = FMath::DivideAndRoundUp( s[0], (uint16_t)2 );
-                s[1] = FMath::DivideAndRoundUp( s[1], (uint16_t)2 );
+                s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
+                s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
             }
         }
         else
@@ -321,16 +321,16 @@ namespace mu
 
             for ( int l=0; l<mip+1; ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16_t)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16_t)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
 
                 if ( l==mip )
                 {
                     res = (blocksX*blocksY) * fdata.m_pixelsPerBlockX * fdata.m_pixelsPerBlockY;
                 }
 
-                s[0] = FMath::DivideAndRoundUp( s[0], (uint16_t)2 );
-                s[1] = FMath::DivideAndRoundUp( s[1], (uint16_t)2 );
+                s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
+                s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
             }
         }
         else
@@ -360,8 +360,8 @@ namespace mu
                 return res;
             }
 
-            s[0] = FMath::DivideAndRoundUp( s[0], (uint16_t)2 );
-            s[1] = FMath::DivideAndRoundUp( s[1], (uint16_t)2 );
+            s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
+            s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
         }
 
         return res;
@@ -397,13 +397,13 @@ namespace mu
 
 			for (int l = 0; l < mip; ++l)
 			{
-				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16_t)fdata.m_pixelsPerBlockX);
-				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16_t)fdata.m_pixelsPerBlockY);
+				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16)fdata.m_pixelsPerBlockX);
+				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16)fdata.m_pixelsPerBlockY);
 
 				pResult += (blocksX * blocksY) * fdata.m_bytesPerBlock;
 
-				s[0] = FMath::DivideAndRoundUp(s[0], (uint16_t)2);
-				s[1] = FMath::DivideAndRoundUp(s[1], (uint16_t)2);
+				s[0] = FMath::DivideAndRoundUp(s[0], (uint16)2);
+				s[1] = FMath::DivideAndRoundUp(s[1], (uint16)2);
 			}
 		}
 
@@ -442,13 +442,13 @@ namespace mu
 
 			for (int l = 0; l < mip; ++l)
 			{
-				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16_t)fdata.m_pixelsPerBlockX);
-				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16_t)fdata.m_pixelsPerBlockY);
+				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16)fdata.m_pixelsPerBlockX);
+				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16)fdata.m_pixelsPerBlockY);
 
 				pResult += (blocksX * blocksY) * fdata.m_bytesPerBlock;
 
-				s[0] = FMath::DivideAndRoundUp(s[0], (uint16_t)2);
-				s[1] = FMath::DivideAndRoundUp(s[1], (uint16_t)2);
+				s[0] = FMath::DivideAndRoundUp(s[0], (uint16)2);
+				s[1] = FMath::DivideAndRoundUp(s[1], (uint16)2);
 			}
 		}
 
@@ -639,18 +639,18 @@ namespace mu
              return;
 
          bool first = true;
-         uint16_t sx = m_size[0];
-         uint16_t sy = m_size[1];
+         uint16 sx = m_size[0];
+         uint16 sy = m_size[1];
 
          // Slow reference implementation
-         uint16_t top = 0;
-         uint16_t left = 0;
-         uint16_t right = sx - 1;
-         uint16_t bottom = sy - 1;
+         uint16 top = 0;
+         uint16 left = 0;
+         uint16 right = sx - 1;
+         uint16 bottom = sy - 1;
 
-         for ( uint16_t y=0; y<sy; ++y )
+         for ( uint16 y=0; y<sy; ++y )
          {
-             for ( uint16_t x=0; x<sx; ++x )
+             for ( uint16 x=0; x<sx; ++x )
              {
                  bool black = false;
                  switch( m_format )
@@ -734,14 +734,14 @@ namespace mu
   //      if ( !rect.size[0] || !rect.size[1] )
   //          return;
 
-  //      uint16_t sx = m_size[0];
-  //      uint16_t sy = m_size[1];
+  //      uint16 sx = m_size[0];
+  //      uint16 sy = m_size[1];
 
   //      // Somewhat faster implementation
-  //      uint16_t top = 0;
-  //      uint16_t left = 0;
-  //      uint16_t right = sx - 1;
-  //      uint16_t bottom = sy - 1;
+  //      uint16 top = 0;
+  //      uint16 left = 0;
+  //      uint16 right = sx - 1;
+  //      uint16 bottom = sy - 1;
 
   //      switch ( m_format )
   //      {
@@ -776,7 +776,7 @@ namespace mu
   //          pRow = m_data.GetData() + rowStride * currentRow;
   //          while ( currentRow <= bottom && ( left > 0 || right < ( sx - 1 ) ) )
   //          {
-  //              for ( uint16_t x = 0; x < left; ++x )
+  //              for ( uint16 x = 0; x < left; ++x )
   //              {
   //                  if ( pRow[x] )
   //                  {
@@ -784,7 +784,7 @@ namespace mu
   //                      break;
   //                  }
   //              }
-  //              for ( uint16_t x = sx - 1; x > right; --x )
+  //              for ( uint16 x = sx - 1; x > right; --x )
   //              {
   //                  if ( pRow[x] )
   //                  {
@@ -835,7 +835,7 @@ namespace mu
   //          check(bytesPerPixel<16);
   //          while ( currentRow <= bottom && (left > 0 || right<(sx-1)) )
   //          {
-  //              for ( uint16_t x = 0; x < left; ++x )
+  //              for ( uint16 x = 0; x < left; ++x )
   //              {
   //                  if ( memcmp( pRow + x * bytesPerPixel, zeroPixel, bytesPerPixel ) )
   //                  {
@@ -843,7 +843,7 @@ namespace mu
   //                      break;
   //                  }
   //              }
-  //              for ( uint16_t x = sx - 1; x > right; --x )
+  //              for ( uint16 x = sx - 1; x > right; --x )
   //              {
   //                  if ( memcmp( pRow + x * bytesPerPixel, zeroPixel, bytesPerPixel ) )
   //                  {
@@ -897,8 +897,8 @@ namespace mu
 			}
 
 			vec2<int> FinalSize = CalculateMipSize(LODSToSkip);
-			m_size[0] = uint16_t(FinalSize[0]);
-			m_size[1] = uint16_t(FinalSize[1]);
+			m_size[0] = uint16(FinalSize[0]);
+			m_size[1] = uint16(FinalSize[1]);
 			m_lods = NewLODCount;
 
 			int32 FinalDataSize = m_data.Num() - int32(DataToSkip);
@@ -924,8 +924,8 @@ namespace mu
 			}
 
 			vec2<int> FinalSize = CalculateMipSize(LODSToSkip);
-			m_size[0] = uint16_t(FinalSize[0]);
-			m_size[1] = uint16_t(FinalSize[1]);
+			m_size[0] = uint16(FinalSize[0]);
+			m_size[1] = uint16(FinalSize[1]);
 			m_lods -= LODSToSkip;
 
 			int32 FinalDataSize = m_data.Num() - int32(DataToSkip);

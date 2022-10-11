@@ -45,7 +45,7 @@ class Parameters;
         UniqueConstCodeVisitorIterative( bool skipResources=false )
         {
             // Default state
-            m_states.push_back(STATE());
+            m_states.Add(STATE());
             m_currentState = 0;
             m_skipResources = skipResources;
         }
@@ -77,52 +77,50 @@ class Parameters;
         //! For manual recursion that changes the state for a specific path.
         void RecurseWithState(OP::ADDRESS at, const STATE& newState)
         {
-            auto it = std::find(m_states.begin(),m_states.end(),newState);
-            if (it==m_states.end())
+            auto it = m_states.Find(newState);
+            if (it==INDEX_NONE)
             {
-                m_states.push_back(newState);
-                it = m_states.end() - 1;
+                m_states.Add(newState);
             }
-            int stateIndex = (int)(it - m_states.begin());
+            int stateIndex = m_states.IndexOfByKey(newState);
 
-            m_pending.push_back( PENDING(at,stateIndex) );
+            m_pending.Add( PENDING(at,stateIndex) );
         }
 
         //! For manual recursion that doesn't change the state for a specific path.
         void RecurseWithCurrentState(OP::ADDRESS at)
         {
-            m_pending.push_back( PENDING(at,m_currentState) );
+            m_pending.Add( PENDING(at,m_currentState) );
         }
 
         //! Can be called from visit to set the state to visit all children ops
         void SetCurrentState(const STATE& newState)
         {
-            auto it = std::find(m_states.begin(),m_states.end(),newState);
-            if (it==m_states.end())
+            auto it = m_states.Find(newState);
+            if (it==INDEX_NONE)
             {
-                m_states.push_back(newState);
-                it = m_states.end() - 1;
+                m_states.Add(newState);
             }
-            m_currentState = (int)(it - m_states.begin());
+            m_currentState = m_states.Find(newState);
         }
 
 
         void Traverse( OP::ADDRESS root, PROGRAM& program, bool visitDecorators = true )
         {
-            m_pending.reserve( program.m_opAddress.size() );
+            m_pending.Reserve( program.m_opAddress.Num() );
 
             // Visit the given root
-            m_pending.push_back( PENDING(root,0) );
+            m_pending.Add( PENDING(root,0) );
             Recurse( program );
 
             if (visitDecorators)
             {
                 // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.size(); ++p )
+                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
                 {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.size(); ++d )
+                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
                     {
-                        m_pending.push_back(PENDING(program.m_parameters[p].m_descImages[d],0) );
+                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
                         Recurse( program );
                     }
                 }
@@ -132,20 +130,20 @@ class Parameters;
         void FullTraverse( PROGRAM& program, bool visitDecorators = true )
         {
             // Visit all the state roots
-            for ( std::size_t p=0; p<program.m_states.size(); ++p )
+            for ( std::size_t p=0; p<program.m_states.Num(); ++p )
             {
-                m_pending.push_back(PENDING(program.m_states[p].m_root,0) );
+                m_pending.Add(PENDING(program.m_states[p].m_root,0) );
                 Recurse( program );
             }
 
             if (visitDecorators)
             {
                 // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.size(); ++p )
+                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
                 {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.size(); ++d )
+                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
                     {
-                        m_pending.push_back(PENDING(program.m_parameters[p].m_descImages[d],0) );
+                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
                         Recurse( program );
                     }
                 }
@@ -176,10 +174,10 @@ class Parameters;
             OP::ADDRESS at;
             int stateIndex;
         };
-        vector<PENDING> m_pending;
+		TArray<PENDING> m_pending;
 
         //! States found so far
-        vector<STATE> m_states;
+		TArray<STATE> m_states;
 
         //! Index of the current state, from the m_states vector.
         int m_currentState;
@@ -190,27 +188,26 @@ class Parameters;
 
         //! Array of states visited for each operation.
         //! Empty vector means operation not visited at all.
-        vector<vector<int>> m_visited;
+		TArray<TArray<int>> m_visited;
 
         //! Process all the pending operations and visit all children if necessary
         void Recurse( PROGRAM& program )
         {
-            m_visited = vector<vector<int>>(program.m_opAddress.size());
+			m_visited.Empty();
+			m_visited.SetNum(program.m_opAddress.Num());
 
-            while ( m_pending.size() )
+            while ( m_pending.Num() )
             {
-                OP::ADDRESS at = m_pending.back().at;
-                m_currentState = m_pending.back().stateIndex;
-                m_pending.pop_back();
+                OP::ADDRESS at = m_pending.Last().at;
+                m_currentState = m_pending.Last().stateIndex;
+                m_pending.Pop();
 
                 bool recurse = false;
 
-                bool visitedInThisState = std::find(m_visited[at].begin(), m_visited[at].end(), m_currentState)
-                    !=
-                    m_visited[at].end();
+                bool visitedInThisState = m_visited[at].Contains(m_currentState);
                 if (!visitedInThisState)
                 {
-                    m_visited[at].push_back(m_currentState);
+                    m_visited[at].Add(m_currentState);
 
                     // Visit may change current state
                     recurse = Visit( at, program );
@@ -222,7 +219,7 @@ class Parameters;
                     {
                         if (ref)
                         {
-                            m_pending.push_back( PENDING(ref,m_currentState) );
+                            m_pending.Add( PENDING(ref,m_currentState) );
                         }
                     });
                 }
@@ -247,7 +244,7 @@ class Parameters;
         RepeatConstCodeVisitorIterative( bool skipResources=false )
         {
             // Default state
-            m_states.push_back(STATE());
+            m_states.Add(STATE());
             m_currentState = 0;
             m_skipResources = skipResources;
         }
@@ -282,20 +279,20 @@ class Parameters;
             auto it = std::find(m_states.begin(),m_states.end(),newState);
             if (it==m_states.end())
             {
-                m_states.push_back(newState);
+                m_states.Add(newState);
                 it = m_states.end() - 1;
             }
             int stateIndex = (int)(it - m_states.begin());
 
             //check(at<1000000);
-            m_pending.push_back( PENDING(at,stateIndex) );
+            m_pending.Add( PENDING(at,stateIndex) );
         }
 
         //! For manual recursion that doesn't change the state for a specific path.
         void RecurseWithCurrentState(OP::ADDRESS at)
         {
             //check(at<1000000);
-            m_pending.push_back( PENDING(at,m_currentState) );
+            m_pending.Add( PENDING(at,m_currentState) );
         }
 
         //! Can be called from visit to set the state to visit all children ops
@@ -304,7 +301,7 @@ class Parameters;
             auto it = std::find(m_states.begin(),m_states.end(),newState);
             if (it==m_states.end())
             {
-                m_states.push_back(newState);
+                m_states.Add(newState);
                 it = m_states.end() - 1;
             }
             m_currentState = (int)(it - m_states.begin());
@@ -313,20 +310,20 @@ class Parameters;
 
         void Traverse( OP::ADDRESS root, PROGRAM& program, bool visitDecorators = true )
         {
-            m_pending.reserve( program.m_opAddress.size() );
+            m_pending.reserve( program.m_opAddress.Num() );
 
             // Visit the given root
-            m_pending.push_back( PENDING(root,0) );
+            m_pending.Add( PENDING(root,0) );
             Recurse( program );
 
             if (visitDecorators)
             {
                 // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.size(); ++p )
+                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
                 {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.size(); ++d )
+                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
                     {
-                        m_pending.push_back(PENDING(program.m_parameters[p].m_descImages[d],0) );
+                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
                         Recurse( program );
                     }
                 }
@@ -336,20 +333,20 @@ class Parameters;
         void FullTraverse( PROGRAM& program, bool visitDecorators = true )
         {
             // Visit all the state roots
-            for ( std::size_t p=0; p<program.m_states.size(); ++p )
+            for ( std::size_t p=0; p<program.m_states.Num(); ++p )
             {
-                m_pending.push_back(PENDING(program.m_states[p].m_root,0) );
+                m_pending.Add(PENDING(program.m_states[p].m_root,0) );
                 Recurse( program );
             }
 
             if (visitDecorators)
             {
                 // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.size(); ++p )
+                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
                 {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.size(); ++d )
+                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
                     {
-                        m_pending.push_back(PENDING(program.m_parameters[p].m_descImages[d],0) );
+                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
                         Recurse( program );
                     }
                 }
@@ -380,10 +377,10 @@ class Parameters;
             OP::ADDRESS at;
             int stateIndex;
         };
-        vector<PENDING> m_pending;
+        TArray<PENDING> m_pending;
 
         //! States found so far
-        vector<STATE> m_states;
+		TArray<STATE> m_states;
 
         //! Index of the current state, from the m_states vector.
         int m_currentState;
@@ -396,7 +393,7 @@ class Parameters;
         //! Process all the pending operations and visit all children if necessary
         void Recurse( PROGRAM& program )
         {
-            while ( m_pending.size() )
+            while ( m_pending.Num() )
             {
                 OP::ADDRESS at = m_pending.back().at;
                 m_currentState = m_pending.back().stateIndex;
@@ -417,8 +414,8 @@ class Parameters;
                         OP::ADDRESS base = args.instance;
                         if (base)
                         {
-							check(base<program.m_opAddress.size());
-                            m_pending.push_back( PENDING(base,m_currentState) );
+							check(base<program.m_opAddress.Num());
+                            m_pending.Add( PENDING(base,m_currentState) );
                         }
                     }
                     else
@@ -427,8 +424,8 @@ class Parameters;
                         {
                             if (ref)
                             {
-								check(ref<program.m_opAddress.size());
-                                m_pending.push_back( PENDING(ref,m_currentState) );
+								check(ref<program.m_opAddress.Num());
+                                m_pending.Add( PENDING(ref,m_currentState) );
                             }
                         });
                     }
@@ -449,7 +446,7 @@ class Parameters;
     //---------------------------------------------------------------------------------------------
     struct COVERED_CODE_VISITOR_STATE
     {
-        uint16_t m_underResourceCount = 0;
+        uint16 m_underResourceCount = 0;
 
         bool operator==(const COVERED_CODE_VISITOR_STATE& o) const
         {
@@ -714,16 +711,16 @@ class Parameters;
         void Run( OP::ADDRESS root, PROGRAM& program );
 
         //! After Run, list of relevant parameters.
-        vector<int> m_params;
+		TArray<int> m_params;
 
     private:
 
-        vector<int> m_currentParams;
-        vector<uint8_t> m_visited;
-        vector<OP::ADDRESS> m_pending;
+		TArray<int> m_currentParams;
+		TArray<uint8_t> m_visited;
+		TArray<OP::ADDRESS> m_pending;
 
         // Result cache
-        map< OP::ADDRESS, vector<int> > m_resultCache;
+        TMap< OP::ADDRESS, TArray<int> > m_resultCache;
     };
 
 

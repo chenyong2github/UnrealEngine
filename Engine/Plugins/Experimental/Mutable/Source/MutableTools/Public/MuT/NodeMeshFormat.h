@@ -39,7 +39,7 @@ namespace mu
 		// Node Interface
 		//-----------------------------------------------------------------------------------------
 
-		NodePtr Clone( NodeMapPtr pMap = 0 ) const override;
+		
 
 		const NODE_TYPE* GetType() const override;
 		static const NODE_TYPE* GetStaticType();
@@ -70,10 +70,6 @@ namespace mu
 		//! buffers don't really contain any data (they have 0 elements) but they define the
 		//! structure. If this is null, the vertex buffers will not be changed.
 		FMeshBufferSet& GetFaceBuffers();
-
-		//! Enable or disable the rebuilding of the tangent space of the mesh.
-		//! By default it is disabled.
-		void SetRebuildTangents( bool );
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

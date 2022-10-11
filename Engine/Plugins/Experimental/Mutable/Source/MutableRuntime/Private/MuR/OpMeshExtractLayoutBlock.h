@@ -13,10 +13,10 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     inline void MeshExtractFromVertices( const Mesh* pSource,
                                          Mesh* pResult,
-                                         const vector<int>& oldToNew,
-                                         const vector<int>& newToOld )
+                                         const TArray<int>& oldToNew,
+                                         const TArray<int>& newToOld )
     {
-        int resultVertices = (int)newToOld.size();
+        int resultVertices = newToOld.Num();
 
         // Assemble the new vertex buffer
         pResult->GetVertexBuffers().SetElementCount( resultVertices );
@@ -34,7 +34,8 @@ namespace mu
         }
 
         // Assemble the new index buffers
-        vector<bool> usedSourceFaces( pSource->GetFaceCount(), false );
+		TArray<bool> usedSourceFaces;
+		usedSourceFaces.SetNumZeroed(pSource->GetFaceCount());
         UntypedMeshBufferIteratorConst itIndex( pSource->GetIndexBuffers(), MBS_VERTEXINDEX );
         UntypedMeshBufferIterator itResultIndex( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
         int indexCount = 0;
@@ -53,16 +54,16 @@ namespace mu
                     usedSourceFaces[i] = true;
 
                     // Clamp in case triangles go across blocks
-                    pDestIndices[ indexCount++ ] = std::max( 0, oldToNew[ pIndices[i*3+0] ] );
-                    pDestIndices[ indexCount++ ] = std::max( 0, oldToNew[ pIndices[i*3+1] ] );
-                    pDestIndices[ indexCount++ ] = std::max( 0, oldToNew[ pIndices[i*3+2] ] );
+                    pDestIndices[ indexCount++ ] = FMath::Max( 0, oldToNew[ pIndices[i*3+0] ] );
+                    pDestIndices[ indexCount++ ] = FMath::Max( 0, oldToNew[ pIndices[i*3+1] ] );
+                    pDestIndices[ indexCount++ ] = FMath::Max( 0, oldToNew[ pIndices[i*3+2] ] );
                 }
             }
         }
         else if ( itIndex.GetFormat()==MBF_UINT16 )
         {
-            const uint16_t* pIndices = reinterpret_cast<const uint16_t*>( itIndex.ptr() );
-            uint16_t* pDestIndices = reinterpret_cast<uint16_t*>( itResultIndex.ptr() );
+            const uint16* pIndices = reinterpret_cast<const uint16*>( itIndex.ptr() );
+            uint16* pDestIndices = reinterpret_cast<uint16*>( itResultIndex.ptr() );
             for ( int i=0; i<pSource->GetIndexCount()/3; ++i )
             {
                 if ( oldToNew[ pIndices[i*3+0] ]>=0
@@ -74,9 +75,9 @@ namespace mu
                     usedSourceFaces[i] = true;
 
                     // Clamp in case triangles go across blocks
-                    pDestIndices[ indexCount++ ] = (uint16_t)std::max( 0, oldToNew[ pIndices[i*3+0] ] );
-                    pDestIndices[ indexCount++ ] = (uint16_t)std::max( 0, oldToNew[ pIndices[i*3+1] ] );
-                    pDestIndices[ indexCount++ ] = (uint16_t)std::max( 0, oldToNew[ pIndices[i*3+2] ] );
+                    pDestIndices[ indexCount++ ] = (uint16)FMath::Max( 0, oldToNew[ pIndices[i*3+0] ] );
+                    pDestIndices[ indexCount++ ] = (uint16)FMath::Max( 0, oldToNew[ pIndices[i*3+1] ] );
+                    pDestIndices[ indexCount++ ] = (uint16)FMath::Max( 0, oldToNew[ pIndices[i*3+2] ] );
                 }
             }
         }
@@ -114,7 +115,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     inline MeshPtr MeshExtractLayoutBlock( const Mesh* pSource,
                                            uint32_t layout,
-                                           uint16_t blockCount,
+                                           uint16 blockCount,
                                            const uint32_t* pExtractBlocks )
 	{
 		// TODO: Optimise
@@ -129,13 +130,14 @@ namespace mu
         if (itBlocks.GetFormat()!=MBF_NONE)
         {
             int resultVertices = 0;
-            vector<int> oldToNew( pSource->GetVertexCount(), -1 );
-            vector<int> newToOld;
-            newToOld.reserve( pSource->GetVertexCount() );
+			TArray<int> oldToNew;
+			oldToNew.Init(-1,pSource->GetVertexCount());
+			TArray<int> newToOld;
+            newToOld.Reserve( pSource->GetVertexCount() );
 
             if ( itBlocks.GetFormat()==MBF_UINT16 )
             {
-                const uint16_t* pBlocks = reinterpret_cast<const uint16_t*>( itBlocks.ptr() );
+                const uint16* pBlocks = reinterpret_cast<const uint16*>( itBlocks.ptr() );
                 for ( int i=0; i<pSource->GetVertexCount(); ++i )
                 {
                     uint32_t vertexBlock = pBlocks[i];
@@ -153,7 +155,7 @@ namespace mu
                     if ( found )
                     {
                         oldToNew[i] = resultVertices++;
-                        newToOld.push_back( i );
+                        newToOld.Add( i );
                     }
                 }
             }
@@ -184,9 +186,10 @@ namespace mu
         MeshPtr pResult = pSource->Clone();
 
         int resultVertices = 0;
-        vector<int> oldToNew( pSource->GetVertexCount(), -1 );
-        vector<int> newToOld;
-        newToOld.reserve( pSource->GetVertexCount() );
+		TArray<int> oldToNew;
+		oldToNew.Init(-1,pSource->GetVertexCount());
+		TArray<int> newToOld;
+        newToOld.Reserve( pSource->GetVertexCount() );
 
         UntypedMeshBufferIteratorConst itIndex( pSource->GetIndexBuffers(), MBS_VERTEXINDEX );
         for ( int32 f=0; f<pSource->m_faceGroups[group].m_faces.Num(); ++f )
@@ -199,7 +202,7 @@ namespace mu
                 if ( oldToNew[vertexIndex]<0 )
                 {
                     oldToNew[vertexIndex] = resultVertices++;
-                    newToOld.push_back( vertexIndex );
+                    newToOld.Add( vertexIndex );
                 }
             }
         }

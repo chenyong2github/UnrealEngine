@@ -22,9 +22,6 @@ namespace mu
     {
     public:
 
-        //!
-        static void CloneChildren( const Node* pSource, NodePtr pTarget, NodeMapPtr pMap );
-
         //! This is an opaque context used to attach to reported error messages.
 		const void* m_errorContext = nullptr;
 
@@ -32,14 +29,6 @@ namespace mu
 		const Node* m_pNode = nullptr;
     };
 
-
-    class NodeMap::Private : public Base
-    {
-    public:
-
-        map< const void*, NodePtr > m_map;
-
-    };
 
 
 #define MUTABLE_IMPLEMENT_NODE( N, T, PN, PT )				\
@@ -68,28 +57,11 @@ namespace mu
 		N::Serialise(this, arch);							\
 	}														\
                                                             \
-    Ptr<N> N::StaticUnserialise( InputArchive& arch )				\
+    Ptr<N> N::StaticUnserialise( InputArchive& arch )		\
     {														\
         Ptr<N> pResult = new N();							\
         arch >> *pResult->m_pD;								\
         return pResult;										\
-    }														\
-                                                            \
-    NodePtr N::Clone( NodeMapPtr pMap ) const				\
-    {														\
-        Ptr<N> pCloned = new N();							\
-                                                            \
-        *pCloned->m_pD = *m_pD;								\
-                                                            \
-        if (!pMap)											\
-        {													\
-            pMap = new NodeMap;								\
-        }													\
-        pMap->Add( this, pCloned );							\
-                                                            \
-        Private::CloneChildren( this, pCloned, pMap );		\
-                                                            \
-        return pCloned;										\
     }														\
                                                             \
     N::Private* N::GetPrivate() const						\

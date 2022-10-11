@@ -5,8 +5,7 @@
 #include "MuR/Parameters.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
-
-#include <functional>
+#include "Templates/Function.h"
 
 namespace mu { class InputArchive; }
 namespace mu { class ModelStreamer; }
@@ -159,7 +158,7 @@ namespace mu
         //! Return the parameters of one of a random instance of the model.
         //! \param randomGenerator This function will be used to generate random values
         //! for the continuous parameters of the instance.
-        ParametersPtr GetRandomInstance( std::function<float()> randomGenerator );
+        ParametersPtr GetRandomInstance(TFunctionRef<float()> randomGenerator );
 
         //-----------------------------------------------------------------------------------------
         // Interface pattern

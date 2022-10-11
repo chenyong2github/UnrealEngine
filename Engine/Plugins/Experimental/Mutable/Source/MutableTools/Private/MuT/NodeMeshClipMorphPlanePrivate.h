@@ -67,7 +67,7 @@ namespace mu
 		vec3f m_selectionBoxRadius;
 		string m_vertexSelectionBone;
 
-		vector<mu::string> m_tags;
+		TArray<mu::string> m_tags;
 
 		// Max distance a vertex can have to the bone in order to be affected. A negative value
 		// means no limit.

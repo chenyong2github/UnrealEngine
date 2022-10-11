@@ -26,9 +26,6 @@ namespace mu
         //! Optimise the virtual machine code, using several transforms.
         void OptimiseAST( TaskManager* );
 
-        //! Report about states external gpu usage
-        ModelReportPtr m_pModelReport;
-
     private:
 
         CompilerOptionsPtr m_options;

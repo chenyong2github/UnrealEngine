@@ -43,7 +43,7 @@ namespace mu
 		return
 			3 	// Extend mesh, morph, factor
 			+
-			(int)m_pD->m_textures.size()*2
+			m_pD->m_textures.Num()*2
 			;
 	}
 
@@ -136,14 +136,14 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceEdit::AddTag(const char* tagName)
     {
-        m_pD->m_tags.push_back(tagName);
+        m_pD->m_tags.Add(tagName);
     }
 
 
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceEdit::GetTagCount() const
     {
-        return int( m_pD->m_tags.size());
+        return m_pD->m_tags.Num();
     }
 
 
@@ -203,7 +203,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeSurfaceEdit::GetImageCount() const
 	{
-		return (int)m_pD->m_textures.size();
+		return m_pD->m_textures.Num();
 	}
 
 
@@ -211,14 +211,14 @@ namespace mu
     void NodeSurfaceEdit::SetImageCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_textures.resize( num );
+		m_pD->m_textures.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     NodeImagePtr NodeSurfaceEdit::GetImage( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_textures.size() );
+		check( index >=0 && index < m_pD->m_textures.Num() );
 
 		return m_pD->m_textures[ index ].m_pExtend.get();
 	}
@@ -227,7 +227,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceEdit::SetImage( int index, NodeImagePtr pNode )
 	{
-		check( index >=0 && index < (int)m_pD->m_textures.size() );
+		check( index >=0 && index < m_pD->m_textures.Num() );
 
 		m_pD->m_textures[ index ].m_pExtend = pNode;
 	}
@@ -236,7 +236,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     NodePatchImagePtr NodeSurfaceEdit::GetPatch( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_textures.size() );
+		check( index >=0 && index < m_pD->m_textures.Num() );
 
 		return m_pD->m_textures[ index ].m_pPatch.get();
 	}
@@ -245,7 +245,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceEdit::SetPatch( int index, NodePatchImagePtr pNode )
 	{
-		check( index >=0 && index < (int)m_pD->m_textures.size() );
+		check( index >=0 && index < m_pD->m_textures.Num() );
 
 		m_pD->m_textures[ index ].m_pPatch = pNode;
 	}

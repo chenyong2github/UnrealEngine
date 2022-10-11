@@ -95,11 +95,6 @@ namespace mu
 		// Own Interface
 		//-----------------------------------------------------------------------------------------
 
-		//! Clone the node tree.
-		//! \param pMap is an optional parameter that will return a map from the source tree nodes
-		//! to the cloned tree nodes.
-        virtual NodePtr Clone( NodeMapPtr pMap = nullptr ) const = 0;
-
 		//! Node type hierarchy data.
         virtual const NODE_TYPE* GetType() const;
 		static const NODE_TYPE* GetStaticType();
@@ -124,44 +119,6 @@ namespace mu
 
 		//!
 		EType Type = EType::None;
-
-	};
-
-
-	//! Container mapping nodes to nodes.
-	class MUTABLETOOLS_API NodeMap : public RefCounted
-	{
-	public:
-
-		NodeMap();
-
-		//-----------------------------------------------------------------------------------------
-		// Own Interface
-		//-----------------------------------------------------------------------------------------
-
-		//! Return the number of elements in the map
-		int GetSize() const;
-
-		//! Insert a new key-value pair or overwrite the previews value with that key
-		void Add( const void* key, NodePtr value );
-
-		//! Get the value for a particular key. Returns 0 if the key is not in the map.
-		NodePtr Get( const void* key ) const;
-
-		//-----------------------------------------------------------------------------------------
-		// Interface pattern
-		//-----------------------------------------------------------------------------------------
-		class Private;
-		virtual Private* GetPrivate() const;
-
-	protected:
-
-		//! Forbidden. Manage with the Ptr<> template.
-		~NodeMap();
-
-	private:
-
-		Private* m_pD;
 
 	};
 

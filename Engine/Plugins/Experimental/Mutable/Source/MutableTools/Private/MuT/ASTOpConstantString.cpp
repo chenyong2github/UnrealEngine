@@ -7,9 +7,7 @@
 #include "MuR/RefCounted.h"
 #include "MuR/Types.h"
 
-#include <memory>
 #include <string>
-#include <utility>
 
 
 using namespace mu;
@@ -18,7 +16,7 @@ using namespace mu;
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ASTOpConstantString::ForEachChild(const std::function<void(ASTChild&)>& )
+void ASTOpConstantString::ForEachChild(const TFunctionRef<void(ASTChild&)> )
 {
 }
 
@@ -40,7 +38,7 @@ bool ASTOpConstantString::IsEqual(const ASTOp& otherUntyped) const
 }
 
 
-mu::Ptr<ASTOp> ASTOpConstantString::Clone(MapChildFunc&) const
+mu::Ptr<ASTOp> ASTOpConstantString::Clone(MapChildFuncRef) const
 {
     Ptr<ASTOpConstantString> n = new ASTOpConstantString();
     n->value = value;
@@ -56,8 +54,8 @@ void ASTOpConstantString::Link( PROGRAM& program, const FLinkerOptions* )
         memset( &args,0, sizeof(args) );
         args.value = program.AddConstant(value);
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ST_CONSTANT);
         AppendCode(program.m_byteCode,args);
     }

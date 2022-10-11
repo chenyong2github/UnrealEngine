@@ -99,13 +99,13 @@ namespace
 	{
 		uint32_t temp, code;
 
-		uint16_t color0, color1;
+		uint16 color0, color1;
 		uint8_t r0, g0, b0, r1, g1, b1;
 
 		int i, j;
 
-		color0 = *(const uint16_t*)(block);
-		color1 = *(const uint16_t*)(block + 2);
+		color0 = *(const uint16*)(block);
+		color1 = *(const uint16*)(block + 2);
 
 		temp = (color0 >> 11) * 255 + 16;
 		r0 = (uint8_t)((temp / 32 + temp) / 32);
@@ -204,7 +204,7 @@ namespace
 		uint8_t alpha0, alpha1;
 		uint8_t alphaIndices[16];
 
-		uint16_t color0, color1;
+		uint16 color0, color1;
 		uint8_t r0, g0, b0, r1, g1, b1;
 
 		int i, j;
@@ -216,8 +216,8 @@ namespace
 
 		Decompress16x3bitIndices(blockStorage + 2, alphaIndices);
 
-		color0 = *(const uint16_t*)(blockStorage + 8);
-		color1 = *(const uint16_t*)(blockStorage + 10);
+		color0 = *(const uint16*)(blockStorage + 8);
+		color1 = *(const uint16*)(blockStorage + 10);
 
 		temp = (color0 >> 11) * 255 + 16;
 		r0 = (uint8_t)((temp / 32 + temp) / 32);
@@ -299,7 +299,7 @@ namespace
 		uint8_t alphaValues[16] = { 0 };
 
 		for (i = 0; i < 4; ++i) {
-			const uint16_t* alphaData = (const uint16_t*)(blockStorage);
+			const uint16* alphaData = (const uint16*)(blockStorage);
 
 			alphaValues[i * 4 + 0] = (((*alphaData) >> 0) & 0xF) * 17;
 			alphaValues[i * 4 + 1] = (((*alphaData) >> 4) & 0xF) * 17;

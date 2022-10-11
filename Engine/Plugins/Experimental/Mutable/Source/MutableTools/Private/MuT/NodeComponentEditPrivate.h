@@ -29,15 +29,11 @@ namespace mu
 
 	public:
 
-		Private()
-		{
-		}
-
 		static NODE_TYPE s_type;
 
         NodeComponentPtr m_pParent;
 
-        vector<NodeSurfacePtr> m_surfaces;
+        TArray<NodeSurfacePtr> m_surfaces;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

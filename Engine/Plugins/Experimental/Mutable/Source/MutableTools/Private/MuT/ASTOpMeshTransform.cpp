@@ -51,7 +51,7 @@ uint64 ASTOpMeshTransform::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshTransform::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshTransform::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshTransform> n = new ASTOpMeshTransform();
     n->matrix = matrix;
@@ -60,7 +60,7 @@ mu::Ptr<ASTOp> ASTOpMeshTransform::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshTransform::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshTransform::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( source );
 }
@@ -78,9 +78,9 @@ void ASTOpMeshTransform::Link( PROGRAM& program, const FLinkerOptions*)
 
         args.matrix = program.AddConstant(matrix);
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_TRANSFORM);
         AppendCode(program.m_byteCode,args);
     }

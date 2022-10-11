@@ -3,6 +3,7 @@
 #include "MuT/AST.h"
 
 #include "Containers/Set.h"
+#include "Containers/Queue.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 #include "MuR/Mesh.h"
@@ -10,133 +11,18 @@
 #include "MuR/Platform.h"
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
-#include "MuT/ErrorLogPrivate.h"
 #include "MuT/StreamsPrivate.h"
+#include "MuT/Platform.h"
 #include "Trace/Detail/Channel.h"
-#include "array"
-#include "atomic"
-#include "cstdint"
-#include "iosfwd"
-#include "unordered_map"
-#include "unordered_set"
 
-#include <queue>
+#include <atomic>
 
 
-std::atomic<uint32_t> mu::ASTOp::s_lastTraverseIndex(1);
+std::atomic<uint32> mu::ASTOp::s_lastTraverseIndex(1);
 
 
 namespace mu
 {
-
-void DebugLogAST(const Ptr<ASTOp>& at, int indent, ASTOpList* done, const char* label )
-{
-    if (!at) return;
-
-    static int s_logTree = 0;
-
-    if (indent==0)
-    {
-		UE_LOG(LogMutableCore, Warning, TEXT("ASTOp tree [%d]:"), s_logTree );
-        ++s_logTree;
-    }
-
-    ASTOpList localDone;
-    if (!done) done = &localDone;
-
-    int index = -1;
-    for ( size_t s=0; s<done->size(); ++s )
-    {
-        if ((*done)[s]==at)
-        {
-            index = int(s);
-            break;
-        }
-    }
-
-    std::string pre;
-    for (int i=0; i<indent; ++i) pre +=" ";
-    if (label)
-    {
-        pre += label;
-    }
-
-    auto opType = at->GetOpType();
-    if (index>=0)
-    {
-        if ( GetOpDataType(opType)==DT_MESH)
-        {
-			UE_LOG(LogMutableCore, Warning, TEXT("%srepeated : %d"),
-                     pre.c_str(), index );
-        }
-        return;
-    }
-    index = (int)done->size();
-    done->push_back(at);
-
-    bool childrenAdded = false;
-    if ( GetOpDataType(opType)==DT_MESH)
-    {
-        if (opType==OP_TYPE::ME_CONSTANT)
-        {
-            ASTOpConstantResource* opc = dynamic_cast<ASTOpConstantResource*>(at.get());
-            auto value = opc->GetValue();
-            auto mesh = (const Mesh*)( value.get());
-            if (!mesh)
-            {
-                UE_LOG(LogMutableCore, Warning, TEXT("%s%s [%d]"),
-                         pre.c_str(),
-                         "mesh-null", index );
-            }
-            else if (mesh->GetIndexCount()==0)
-            {
-                UE_LOG(LogMutableCore, Warning, TEXT("%s%s [%d]"),
-                         pre.c_str(),
-                         "mesh-mask", index );
-            }
-            else
-            {
-                UE_LOG(LogMutableCore, Warning, TEXT("%s%s [%d]"),
-                         pre.c_str(),
-                         "mesh", index );
-            }
-        }
-
-        else if (opType==OP_TYPE::ME_REMOVEMASK)
-        {
-            UE_LOG(LogMutableCore, Warning, TEXT("%s%s [%d]"),
-                     pre.c_str(),
-                     mu::s_opNames[int(opType)], index );
-
-            ASTOpMeshRemoveMask* opc = dynamic_cast<ASTOpMeshRemoveMask*>(at.get());
-
-            DebugLogAST( opc->source.child(), indent+2, done, "source : " );
-
-            for ( const auto& m : opc->removes )
-            {
-                DebugLogAST( m.first.child(), indent+2, done, "condition : " );
-                DebugLogAST( m.second.child(), indent+2, done, "mask : ");
-            }
-            childrenAdded = true;
-        }
-
-        else
-        {
-            UE_LOG(LogMutableCore, Warning, TEXT("%s%s [%d]"),
-                     pre.c_str(),
-                     mu::s_opNames[int(opType)], index );
-        }
-    }
-
-    if (!childrenAdded)
-    {
-        at->ForEachChild([indent,done]( ASTChild& c )
-        {
-            DebugLogAST( c.m_child, indent+2, done );
-        });
-    }
-}
-
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -200,7 +86,7 @@ ASTChild& ASTChild::operator=( ASTChild&& rhs )
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ASTOp::ForEachParent(const std::function<void(ASTOp*)>& f )
+void ASTOp::ForEachParent(const TFunctionRef<void(ASTOp*)> f )
 {
     for( auto& p: m_parents )
     {
@@ -216,7 +102,7 @@ void ASTOp::ForEachParent(const std::function<void(ASTOp*)>& f )
 void ASTOp::RemoveChildren()
 {
     // Actually destroyed when running out of scope
-    vector<Ptr<ASTOp>> toDestroy;
+    TArray<Ptr<ASTOp>> toDestroy;
 
     // Try to make children destruction iterative
     TArray<ASTOp*> pending;
@@ -234,7 +120,7 @@ void ASTOp::RemoveChildren()
                 // Are we clearing the last reference?
                 if (c.child()->GetRefCount()==1)
                 {
-                    toDestroy.push_back(c.child());
+                    toDestroy.Add(c.child());
                     pending.Add(c.child().get());
                 }
 
@@ -301,7 +187,7 @@ bool ASTOp::operator==( const ASTOp& other ) const
 
 
 //---------------------------------------------------------------------------------------------
-void ASTOp::FullAssert( const vector<Ptr<ASTOp>>& roots )
+void ASTOp::FullAssert( const TArray<Ptr<ASTOp>>& roots )
 {
     MUTABLE_CPUPROFILER_SCOPE(AST_FullAssert);
     Traverse_TopDown_Unique_Imprecise( roots, [](const Ptr<ASTOp>& n)
@@ -312,7 +198,7 @@ void ASTOp::FullAssert( const vector<Ptr<ASTOp>>& roots )
 }
 
 //-------------------------------------------------------------------------------------------------
-size_t ASTOp::CountNodes( const vector<Ptr<ASTOp>>& roots )
+size_t ASTOp::CountNodes( const TArray<Ptr<ASTOp>>& roots )
 {
     MUTABLE_CPUPROFILER_SCOPE(AST_CountNodes);
     size_t count=0;
@@ -368,7 +254,7 @@ void ASTOp::ClearLinkData( Ptr<ASTOp>& root )
 {
     MUTABLE_CPUPROFILER_SCOPE(AST_ClearLinkData);
     ASTOpList roots;
-    roots.push_back(root);
+    roots.Add(root);
     Traverse_TopDown_Unique_Imprecise( roots,
                              [&](const Ptr<ASTOp>& n){ n->linkedAddress = 0; return true; });
 }
@@ -417,13 +303,16 @@ void ASTOp::LogHistogram( ASTOpList& roots )
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOp::Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
-                                     std::function<bool(Ptr<ASTOp>&)> f )
+void ASTOp::Traverse_TopDown_Unique( const TArray<Ptr<ASTOp>>& roots,
+                                     TFunctionRef<bool(Ptr<ASTOp>&)> f )
 {
-    std::queue<Ptr<ASTOp>> pending;
-    for (auto& r:roots) pending.push( r );
+    TQueue<Ptr<ASTOp>> pending;
+	for (auto& r : roots)
+	{
+		pending.Enqueue(r);
+	}
 
-    std::unordered_set<Ptr<const ASTOp>> traversed;
+    TSet<Ptr<const ASTOp>> traversed;
 
     // We record the parents of all roots as traversed
     for ( const auto& r: roots )
@@ -431,17 +320,17 @@ void ASTOp::Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
         r->ForEachParent( [&]( const ASTOp* parent )
         {
             // If the parent is also a root, we will want to process it.
-            if ( std::find(roots.begin(), roots.end(), parent) == roots.end() )
+            if ( !roots.Contains(parent) )
             {
-                traversed.insert( parent );
+                traversed.Add( parent );
             }
         });
     }
 
-    while (pending.size())
+    while (!pending.IsEmpty())
     {
-        Ptr<ASTOp> pCurrent = pending.front();
-        pending.pop();
+		Ptr<ASTOp> pCurrent;
+		pending.Dequeue(pCurrent);
         if (!pCurrent)
         {
             continue;
@@ -452,7 +341,7 @@ void ASTOp::Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
 
         pCurrent->ForEachParent( [&]( const ASTOp* parent )
         {
-            if (traversed.find(parent)==traversed.end())
+            if (!traversed.Contains(parent))
             {
                 // \todo Is the parent in the relevant subtree?
 
@@ -463,11 +352,11 @@ void ASTOp::Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
 
         if (!parentsTraversed)
         {
-            pending.push(pCurrent);
+            pending.Enqueue(pCurrent);
         }
-        else if (traversed.find(pCurrent)==traversed.end())
+        else if (!traversed.Contains(pCurrent))
         {
-            traversed.insert(pCurrent);
+            traversed.Add(pCurrent);
 
             // Process
             bool recurse = f(pCurrent);
@@ -477,9 +366,9 @@ void ASTOp::Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
             {
                 pCurrent->ForEachChild([&]( ASTChild& c )
                 {
-                    if (c && traversed.find(c.m_child)==traversed.end())
+                    if (c && !traversed.Contains(c.m_child))
                     {
-                        pending.push( c.m_child );
+                        pending.Enqueue( c.m_child );
                     }
                 });
             }
@@ -489,23 +378,26 @@ void ASTOp::Traverse_TopDown_Unique( const vector<Ptr<ASTOp>>& roots,
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOp::Traverse_TopDown_Unique_Imprecise( const vector<Ptr<ASTOp>>& roots,
-                                     std::function<bool(Ptr<ASTOp>&)> f )
+void ASTOp::Traverse_TopDown_Unique_Imprecise( const TArray<Ptr<ASTOp>>& roots,
+                                     TFunctionRef<bool(Ptr<ASTOp>&)> f )
 {
-    std::queue<Ptr<ASTOp>> pending;
-    for (auto& r:roots) pending.push( r );
+    TQueue<Ptr<ASTOp>> pending;
+	for (auto& r : roots)
+	{
+		pending.Enqueue(r);
+	}
 
-    std::unordered_set<Ptr<const ASTOp>> traversed;
+    TSet<Ptr<const ASTOp>> traversed;
 
-    while (pending.size())
+    while (!pending.IsEmpty())
     {
-        Ptr<ASTOp> pCurrent = pending.front();
-        pending.pop();
+		Ptr<ASTOp> pCurrent;
+		pending.Dequeue(pCurrent);
 
         // It could have been completed in another branch
-        if (pCurrent && traversed.find(pCurrent)==traversed.end())
+        if (pCurrent && !traversed.Contains(pCurrent))
         {
-            traversed.insert(pCurrent);
+            traversed.Add(pCurrent);
 
             // Process
             bool recurse = f(pCurrent);
@@ -515,9 +407,9 @@ void ASTOp::Traverse_TopDown_Unique_Imprecise( const vector<Ptr<ASTOp>>& roots,
             {
                 pCurrent->ForEachChild([&]( ASTChild& c )
                 {
-                    if (c && traversed.find(c.m_child)==traversed.end())
+                    if (c && !traversed.Contains(c.m_child))
                     {
-                        pending.push( c.m_child );
+                        pending.Enqueue( c.m_child );
                     }
                 });
             }
@@ -527,19 +419,19 @@ void ASTOp::Traverse_TopDown_Unique_Imprecise( const vector<Ptr<ASTOp>>& roots,
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOp::Traverse_TopRandom_Unique_NonReentrant( const vector<Ptr<ASTOp>>& roots,
-                                                  std::function<bool(Ptr<ASTOp>&)> f )
+void ASTOp::Traverse_TopRandom_Unique_NonReentrant( const TArray<Ptr<ASTOp>>& roots,
+	TFunctionRef<bool(Ptr<ASTOp>&)> f )
 {
     ASTOpList pending;
 
-    uint32_t traverseIndex = s_lastTraverseIndex++;
+    uint32 traverseIndex = s_lastTraverseIndex++;
 
     for (auto& r:roots)
     {
         if (r && r->m_traverseIndex!=traverseIndex )
         {
             r->m_traverseIndex = traverseIndex;
-            pending.push_back( r );
+            pending.Add( r );
         }
     }
     for( auto& p : pending)
@@ -547,10 +439,9 @@ void ASTOp::Traverse_TopRandom_Unique_NonReentrant( const vector<Ptr<ASTOp>>& ro
         p->m_traverseIndex = traverseIndex-1;
     }
 
-    while (pending.size())
+    while (pending.Num())
     {
-        Ptr<ASTOp> pCurrent = pending.back();
-        pending.pop_back();
+        Ptr<ASTOp> pCurrent = pending.Pop();
 
         // It could have been completed in another branch
         if (pCurrent->m_traverseIndex!=traverseIndex)
@@ -567,7 +458,7 @@ void ASTOp::Traverse_TopRandom_Unique_NonReentrant( const vector<Ptr<ASTOp>>& ro
                 {
                     if (c && c.m_child->m_traverseIndex!=traverseIndex)
                     {
-                        pending.push_back( c.m_child );
+                        pending.Add( c.m_child );
                     }
                 });
             }
@@ -585,7 +476,7 @@ void Visitor_TopDown_Unique_Cloning::Traverse( Ptr<ASTOp>& root )
     // Visit the given root
     if (root)
     {
-        m_pending.push_back( std::make_pair(false,root) );
+		m_pending.Add({ false,root });
 
         Process();
 
@@ -597,16 +488,15 @@ void Visitor_TopDown_Unique_Cloning::Traverse( Ptr<ASTOp>& root )
 
 void Visitor_TopDown_Unique_Cloning::Process()
 {
-    while ( m_pending.size() )
+    while ( m_pending.Num() )
     {
-        std::pair<bool,Ptr<ASTOp>> item = m_pending.back();
-        m_pending.pop_back();
+        TPair<bool,Ptr<ASTOp>> item = m_pending.Pop();
 
-        Ptr<ASTOp> at = item.second;
+        Ptr<ASTOp> at = item.Value;
 
 		ASTOp::MapChildFunc Identity = [](const Ptr<ASTOp>& o) {return o; };
 		
-		if (item.first)
+		if (item.Key)
         {
             // Item indicating we finished with all the children of this instruction
 			auto cop = at->Clone(Identity);
@@ -680,13 +570,13 @@ void Visitor_TopDown_Unique_Cloning::Process()
                 if (processChildren)
                 {
                     // TODO: Shouldn't we recurse newAt?
-                    m_pending.push_back( std::make_pair(true,at) );
+					m_pending.Add({ true,at });
 
                     at->ForEachChild( [&](ASTChild& ref)
                     {
                         if (ref && m_oldToNew.find(ref.m_child)==m_oldToNew.end())
                         {
-                            m_pending.push_back( std::make_pair(false,ref.m_child) );
+							m_pending.Add({ false,ref.m_child });
                         }
                     });
                 }
@@ -700,15 +590,14 @@ void Visitor_TopDown_Unique_Cloning::Process()
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ASTOp::Traverse_TopDown_Repeat( const vector<Ptr<ASTOp>>& roots,
-                                     std::function<bool(Ptr<ASTOp>& node)> f )
+void ASTOp::Traverse_TopDown_Repeat( const TArray<Ptr<ASTOp>>& roots,
+                                     TFunctionRef<bool(Ptr<ASTOp>& node)> f )
 {
     ASTOpList pending = roots;
 
-    while (pending.size())
+    while (pending.Num())
     {
-        Ptr<ASTOp> pCurrent = pending.back();
-        pending.pop_back();
+        Ptr<ASTOp> pCurrent = pending.Pop();
 
         if (pCurrent)
         {
@@ -722,7 +611,7 @@ void ASTOp::Traverse_TopDown_Repeat( const vector<Ptr<ASTOp>>& roots,
                 {
                     if (c)
                     {
-                        pending.push_back( c.m_child );
+                        pending.Add( c.m_child );
                     }
                 });
             }
@@ -737,18 +626,18 @@ void ASTOp::Traverse_TopDown_Repeat( const vector<Ptr<ASTOp>>& roots,
 void ASTOp::Traverse_BottomUp_Unique_NonReentrant
 (
         ASTOpList& roots,
-        std::function<void(Ptr<ASTOp>&)> f
+        TFunctionRef<void(Ptr<ASTOp>&)> f
 )
 {
-    uint32_t traverseIndex = s_lastTraverseIndex++;
+    uint32 traverseIndex = s_lastTraverseIndex++;
 
-    vector< std::pair<Ptr<ASTOp>,int> > pending;
+    TArray< std::pair<Ptr<ASTOp>,int> > pending;
     for (auto& r:roots)
     {
         if (r && r->m_traverseIndex!=traverseIndex )
         {
             r->m_traverseIndex=traverseIndex;
-            pending.push_back( std::make_pair<>(r,0) );
+            pending.Add( std::make_pair<>(r,0) );
         }
     }
     for(auto& p : pending)
@@ -756,11 +645,11 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
         p.first->m_traverseIndex = traverseIndex-1;
     }
 
-    while (pending.size())
+    while (pending.Num())
     {
-        int phase = pending.back().second;
-        Ptr<ASTOp> pCurrent = pending.back().first;
-        pending.pop_back();
+        int phase = pending.Last().second;
+        Ptr<ASTOp> pCurrent = pending.Last().first;
+        pending.Pop();
 
         // It could have been completed in another branch
         if (pCurrent->m_traverseIndex!=traverseIndex)
@@ -768,7 +657,7 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
             if (phase==0)
             {
                 // Process this again...
-                pending.push_back( std::make_pair<>(pCurrent,1) );
+                pending.Add( std::make_pair<>(pCurrent,1) );
 
                 // ...after the children are processed
                 pCurrent->ForEachChild([&]( ASTChild& c )
@@ -776,7 +665,7 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
                     if (c && c.m_child->m_traverseIndex!=traverseIndex )
                     {
                         auto e = std::make_pair<>(c.m_child,0);
-                        pending.push_back( e );
+                        pending.Add( e );
                     }
                 });
             }
@@ -798,19 +687,19 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
 void ASTOp::Traverse_BottomUp_Unique_NonReentrant
 (
         ASTOpList& roots,
-        std::function<void(Ptr<ASTOp>&)> f,
-        std::function<bool(const ASTOp*)> accept
+        TFunctionRef<void(Ptr<ASTOp>&)> f,
+        TFunctionRef<bool(const ASTOp*)> accept
 )
 {
-    uint32_t traverseIndex = s_lastTraverseIndex++;
+    uint32 traverseIndex = s_lastTraverseIndex++;
 
-    vector< std::pair<Ptr<ASTOp>,int> > pending;
+    TArray< std::pair<Ptr<ASTOp>,int> > pending;
     for (auto& r:roots)
     {
         if (r && r->m_traverseIndex!=traverseIndex)
         {
             r->m_traverseIndex=traverseIndex;
-            pending.push_back( std::make_pair<>(r,0) );
+            pending.Add( std::make_pair<>(r,0) );
         }
     }
     for(auto& p : pending)
@@ -818,11 +707,11 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
         p.first->m_traverseIndex = traverseIndex-1;
     }
 
-    while (pending.size())
+    while (pending.Num())
     {
-        int phase = pending.back().second;
-        Ptr<ASTOp> pCurrent = pending.back().first;
-        pending.pop_back();
+        int phase = pending.Last().second;
+        Ptr<ASTOp> pCurrent = pending.Last().first;
+        pending.Pop();
 
         // It could have been completed in another branch
         if (pCurrent->m_traverseIndex!=traverseIndex && accept(pCurrent.get()))
@@ -830,14 +719,14 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
             if (phase==0)
             {
                 // Process this again...
-                pending.push_back( std::make_pair<>(pCurrent,1) );
+                pending.Add( std::make_pair<>(pCurrent,1) );
 
                 // ...after the children are processed
                 pCurrent->ForEachChild([&]( ASTChild& c )
                 {
                     if (c && accept(c.m_child.get()) && c.m_child->m_traverseIndex!=traverseIndex )
                     {
-                        pending.push_back( std::make_pair<>(c.m_child,0) );
+                        pending.Add( std::make_pair<>(c.m_child,0) );
                     }
                 });
             }
@@ -859,8 +748,8 @@ void ASTOp::Traverse_BottomUp_Unique_NonReentrant
 void ASTOp::Traverse_BottomUp_Unique
 (
         ASTOpList& roots,
-        std::function<void(Ptr<ASTOp>&)> f,
-        std::function<bool(const ASTOp*)> accept
+        TFunctionRef<void(Ptr<ASTOp>&)> f,
+        TFunctionRef<bool(const ASTOp*)> accept
 )
 {
     TSet<Ptr<ASTOp>> Traversed;
@@ -921,14 +810,14 @@ void ASTOp::Traverse_BottomUp_Unique
 void ASTOp::Traverse_BottomUp_Unique
 (
         Ptr<ASTOp>& root,
-        std::function<void(Ptr<ASTOp>&)> f,
-        std::function<bool(const ASTOp*)> accept
+        TFunctionRef<void(Ptr<ASTOp>&)> f,
+        TFunctionRef<bool(const ASTOp*)> accept
 )
 {
     if (root)
     {
         ASTOpList roots;
-        roots.push_back(root);
+        roots.Add(root);
         Traverse_BottomUp_Unique(roots,f,accept);
     }
 }
@@ -1046,7 +935,7 @@ ASTOpFixed::~ASTOpFixed()
 }
 
 
-void ASTOpFixed::ForEachChild( const std::function<void(ASTChild&)>& f )
+void ASTOpFixed::ForEachChild( const TFunctionRef<void(ASTChild&)> f )
 {
     // ugly but temporary while ASTOpFixed exists
     ForEachReference( op, [&](OP::ADDRESS* pAt)
@@ -1080,8 +969,8 @@ void ASTOpFixed::Link( PROGRAM& program, const FLinkerOptions* )
             }
         });
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();        
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();        
+        program.m_opAddress.Add((uint32)program.m_byteCode.Num());
 
         AppendCode(program.m_byteCode,lop.type);
         if (lop.type==OP_TYPE::ME_MERGE)
@@ -1107,7 +996,7 @@ bool ASTOpFixed::IsEqual(const ASTOp& otherUntyped) const
 }
 
 
-mu::Ptr<ASTOp> ASTOpFixed::Clone( MapChildFunc& mapChild ) const
+mu::Ptr<ASTOp> ASTOpFixed::Clone( MapChildFuncRef mapChild ) const
 {
     Ptr<ASTOpFixed> n = new ASTOpFixed();
     n->op = op;
@@ -1232,8 +1121,8 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, GetImageDescContext*
 
     case OP_TYPE::IM_RESIZEREL:
         res = GetImageDesc( op.args.ImageResizeRel.source, returnBestOption, context );
-        res.m_size[0] = (uint16_t)( res.m_size[0]*op.args.ImageResizeRel.factor[0] );
-        res.m_size[1] = (uint16_t)( res.m_size[1]*op.args.ImageResizeRel.factor[1] );
+        res.m_size[0] = (uint16)( res.m_size[0]*op.args.ImageResizeRel.factor[0] );
+        res.m_size[1] = (uint16)( res.m_size[1]*op.args.ImageResizeRel.factor[1] );
         break;
 
     case OP_TYPE::IM_RESIZELIKE:
@@ -1510,7 +1399,7 @@ ASTOp::BOOL_EVAL_RESULT ASTOpFixed::EvaluateBool( ASTOpList& facts, EVALUATE_BOO
         const auto& b = children[op.args.BoolBinary.b].child();
         BOOL_EVAL_RESULT resultA = BET_UNKNOWN;
         BOOL_EVAL_RESULT resultB = BET_UNKNOWN;
-        for ( size_t f=0; f<facts.size(); ++f )
+        for ( size_t f=0; f<facts.Num(); ++f )
         {
             if ( a && resultA == BET_UNKNOWN )
             {
@@ -1552,7 +1441,7 @@ ASTOp::BOOL_EVAL_RESULT ASTOpFixed::EvaluateBool( ASTOpList& facts, EVALUATE_BOO
         const auto& b = children[op.args.BoolBinary.b].child();
         BOOL_EVAL_RESULT resultA = BET_UNKNOWN;
         BOOL_EVAL_RESULT resultB = BET_UNKNOWN;
-        for ( size_t f=0; f<facts.size(); ++f )
+        for ( size_t f=0; f<facts.Num(); ++f )
         {
             if ( a && resultA == BET_UNKNOWN )
             {
@@ -1616,7 +1505,7 @@ int ASTOpFixed::EvaluateInt( ASTOpList& /*facts*/, bool &unknown ) const
 
         // TODO
 //    case IntExpression::IET_PARAMETER:
-//        for ( size_t f=0; (result==BET_UNKNOWN) && f<facts.size(); ++f )
+//        for ( size_t f=0; (result==BET_UNKNOWN) && f<facts.Num(); ++f )
 //        {
 //            result = EvaluateIntEquality(facts[f].get(),intExp,value);
 //        }
@@ -1763,8 +1652,8 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
             pRes = children[op.args.ImageResizeRel.source].child()->GetImageSizeExpression();
             if (pRes->type == ImageSizeExpression::ISET_CONSTANT)
             {
-                pRes->size[0] = uint16_t( pRes->size[0] * op.args.ImageResizeRel.factor[0] );
-                pRes->size[1] = uint16_t( pRes->size[1] * op.args.ImageResizeRel.factor[1] );
+                pRes->size[0] = uint16( pRes->size[0] * op.args.ImageResizeRel.factor[0] );
+                pRes->size[1] = uint16( pRes->size[1] * op.args.ImageResizeRel.factor[1] );
             }
             else
             {

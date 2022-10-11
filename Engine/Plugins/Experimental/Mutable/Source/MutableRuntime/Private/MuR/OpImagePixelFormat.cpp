@@ -39,7 +39,7 @@ ImagePtr ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
         resultLODCount = 1;
     }
 
-    ImagePtr result = new Image( (uint16_t)resultSize[0], (uint16_t)resultSize[1], resultLODCount, targetFormat );
+    ImagePtr result = new Image( (uint16)resultSize[0], (uint16)resultSize[1], resultLODCount, targetFormat );
 	result->m_flags = pBase->m_flags;
 	bool bSuccess = ImagePixelFormatInPlace( imageCompressionQuality, result.get(), pBase, onlyLOD );
 	int32 OriginalDataSize = FMath::Max(result->m_data.Num(), pBase->m_data.Num());
@@ -150,7 +150,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                     unsigned result = 76 * pBaseBuf[3*i+0]
                             + 150 * pBaseBuf[3*i+1]
                             + 29 * pBaseBuf[3*i+2];
-                    pDestBuf[i] = (uint8_t)std::min( 255u, result >> 8 );
+                    pDestBuf[i] = (uint8_t)FMath::Min( 255u, result >> 8 );
                 }
                 break;
             }
@@ -172,7 +172,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                     unsigned result = 76 * pBaseBuf[3*i+0]
                             + 150 * pBaseBuf[3*i+1]
                             + 29 * pBaseBuf[3*i+2];
-                    pDestBuf[i] = (uint8_t)std::min( 255u, result >> 8 );
+                    pDestBuf[i] = (uint8_t)FMath::Min( 255u, result >> 8 );
                 }
                 break;
             }
@@ -184,7 +184,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                     unsigned result = 76 * pBaseBuf[4*i+0]
                             + 150 * pBaseBuf[4*i+1]
                             + 29 * pBaseBuf[4*i+2];
-                    pDestBuf[i] = (uint8_t)std::min( 255u, result >> 8 );
+                    pDestBuf[i] = (uint8_t)FMath::Min( 255u, result >> 8 );
                 }
                 break;
             }
@@ -206,7 +206,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                     unsigned result = 76 * pBaseBuf[4*i+0]
                             + 150 * pBaseBuf[4*i+1]
                             + 29 * pBaseBuf[4*i+2];
-                    pDestBuf[i] = (uint8_t)std::min( 255u, result >> 8 );
+                    pDestBuf[i] = (uint8_t)FMath::Min( 255u, result >> 8 );
                 }
                 break;
             }
@@ -218,7 +218,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                     unsigned result = 76 * pBaseBuf[4*i+2]
                             + 150 * pBaseBuf[4*i+1]
                             + 29 * pBaseBuf[4*i+0];
-                    pDestBuf[i] = (uint8_t)std::min( 255u, result >> 8 );
+                    pDestBuf[i] = (uint8_t)FMath::Min( 255u, result >> 8 );
                 }
                 break;
             }
@@ -243,7 +243,7 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                     {
                         unsigned result = 76 * pBaseBuf[3 * i + 0] + 150 * pBaseBuf[3 * i + 1] +
                                           29 * pBaseBuf[3 * i + 2];
-                        pDestBuf[i] = (uint8_t)std::min(255u, result >> 8);
+                        pDestBuf[i] = (uint8_t)FMath::Min(255u, result >> 8);
                     }
                 }
                 break;

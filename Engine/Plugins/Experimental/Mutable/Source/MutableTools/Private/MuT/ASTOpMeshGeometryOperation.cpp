@@ -51,7 +51,7 @@ namespace mu
 	}
 
 
-	mu::Ptr<ASTOp> ASTOpMeshGeometryOperation::Clone(MapChildFunc& mapChild) const
+	mu::Ptr<ASTOp> ASTOpMeshGeometryOperation::Clone(MapChildFuncRef mapChild) const
 	{
 		Ptr<ASTOpMeshGeometryOperation> n = new ASTOpMeshGeometryOperation();
 		n->meshA = mapChild(meshA.child());
@@ -62,7 +62,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshGeometryOperation::ForEachChild(const std::function<void(ASTChild&)>& f)
+	void ASTOpMeshGeometryOperation::ForEachChild(const TFunctionRef<void(ASTChild&)> f)
 	{
 		f(meshA);
 		f(meshB);
@@ -84,9 +84,9 @@ namespace mu
 			if (scalarA) args.scalarA = scalarA->linkedAddress;
 			if (scalarB) args.scalarB = scalarB->linkedAddress;
 
-			linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 			//program.m_code.push_back(op);
-			program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
 			AppendCode(program.m_byteCode, OP_TYPE::ME_GEOMETRYOPERATION);
 			AppendCode(program.m_byteCode, args);
 		}

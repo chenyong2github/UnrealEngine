@@ -94,7 +94,7 @@ namespace mu
 		NodeModifier::Private* pD = dynamic_cast<NodeModifier::Private*>(GetBasePrivate());
 		check(pD);
 
-		pD->m_tags.push_back(tagName);
+		pD->m_tags.Add(tagName);
 	}
 
 
@@ -104,7 +104,7 @@ namespace mu
         NodeModifier::Private* pD = dynamic_cast<NodeModifier::Private*>(GetBasePrivate());
         check(pD);
 
-        return int( pD->m_tags.size());
+        return pD->m_tags.Num();
     }
 
 

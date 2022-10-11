@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "../Private/MuR/MutableMath.h"
-#include "Containers/Array.h"
-#include "Math/UnrealMathSSE.h"
-#include "Misc/AssertionMacros.h"
+#include "MuR/MutableMath.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
+#include "Containers/Array.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 
 namespace mu
 {

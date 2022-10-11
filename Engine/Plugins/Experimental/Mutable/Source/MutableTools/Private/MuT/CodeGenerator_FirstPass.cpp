@@ -40,8 +40,8 @@ namespace mu
 	{
 		// Default conditions when there is no restriction accumulated.
 		CONDITION_CONTEXT noCondition;
-        m_currentCondition.push_back(noCondition);
-        m_currentStateCondition.push_back(StateCondition());
+        m_currentCondition.Add(noCondition);
+        m_currentStateCondition.Add(StateCondition());
 	}
 
 
@@ -78,14 +78,14 @@ namespace mu
 		}
 
 		// Step 2: Collect all tags and a list of the surfaces that activate them
-		for (std::size_t s=0; s<surfaces.size(); ++s)
+		for (int32 s=0; s<surfaces.Num(); ++s)
 		{
             // \todo: edit surfaces should also be able to activate tags. T1245
-            for (std::size_t t=0; t<surfaces[s].node->GetPrivate()->m_tags.size(); ++t)
+            for (int32 t=0; t<surfaces[s].node->GetPrivate()->m_tags.Num(); ++t)
 			{
 				int tag = -1;
                 auto tagStr = surfaces[s].node->GetPrivate()->m_tags[t];
-                for (std::size_t i = 0; i<m_tags.size() && tag<0; ++i)
+                for (std::size_t i = 0; i<m_tags.Num() && tag<0; ++i)
 				{
                     if (m_tags[i].tag == tagStr)
 					{
@@ -96,30 +96,28 @@ namespace mu
 				// New tag?
 				if (tag < 0)
 				{
-                    tag = (int)m_tags.size();
+                    tag = (int)m_tags.Num();
 					TAG newTag;
                     newTag.tag = tagStr;
-                    m_tags.push_back(newTag);
+                    m_tags.Add(newTag);
 				}
 
-                if (std::find(m_tags[tag].surfaces.begin(), m_tags[tag].surfaces.end(),s)
-					== 
-                    m_tags[tag].surfaces.end())
+                if (m_tags[tag].surfaces.Find(s)==INDEX_NONE)
 				{
-                    m_tags[tag].surfaces.push_back((int)s);
+                    m_tags[tag].surfaces.Add((int)s);
 				}
 			}
 
             // Collect the tags in edit surfaces
-            for (std::size_t e=0; e<surfaces[s].edits.size(); ++e)
+            for (std::size_t e=0; e<surfaces[s].edits.Num(); ++e)
             {
                 const auto& edit = surfaces[s].edits[e];
-                for (std::size_t t=0; t<edit.node->m_tags.size(); ++t)
+                for (int32 t=0; t<edit.node->m_tags.Num(); ++t)
                 {
                     int tag = -1;
                     auto tagStr = edit.node->m_tags[t];
 
-                    for (std::size_t i = 0; i<m_tags.size() && tag<0; ++i)
+                    for (int32 i = 0; i<m_tags.Num() && tag<0; ++i)
                     {
                         if (m_tags[i].tag == tagStr)
                         {
@@ -130,18 +128,15 @@ namespace mu
                     // New tag?
                     if (tag < 0)
                     {
-                        tag = (int)m_tags.size();
+                        tag = (int)m_tags.Num();
                         TAG newTag;
                         newTag.tag = tagStr;
-                        m_tags.push_back(newTag);
+                        m_tags.Add(newTag);
                     }
 
-                    auto key = std::make_pair(int(s),int(e));
-                    if (std::find(m_tags[tag].edits.begin(), m_tags[tag].edits.end(),key)
-                        ==
-                        m_tags[tag].edits.end())
+                    if (m_tags[tag].edits.Find({int(s),int(e)}) == INDEX_NONE)
                     {
-                        m_tags[tag].edits.push_back(key);
+                        m_tags[tag].edits.Add({ int(s),int(e) });
                     }
                 }
             }
@@ -152,14 +147,14 @@ namespace mu
         // Step 3: Create default state if necessary
         if ( ignoreStates )
         {
-            m_states.clear();
+            m_states.Empty();
         }
 
-        if ( m_states.empty() )
+        if ( m_states.IsEmpty() )
         {
             OBJECT_STATE data;
             data.m_name = "Default";
-            m_states.emplace_back( data, root );
+            m_states.Emplace( data, root );
         }
 	}
 
@@ -170,12 +165,12 @@ namespace mu
         // Add the data about this modifier
         MODIFIER thisData;
         thisData.node = &node;
-        thisData.objectCondition = m_currentCondition.back().objectCondition;
-        thisData.stateCondition = m_currentStateCondition.back();
+        thisData.objectCondition = m_currentCondition.Last().objectCondition;
+        thisData.stateCondition = m_currentStateCondition.Last();
         thisData.lod = m_currentLOD;
         thisData.positiveTags = m_currentPositiveTags;
         thisData.negativeTags = m_currentNegativeTags;
-        modifiers.push_back(thisData);
+        modifiers.Add(thisData);
 
         return nullptr;
     }
@@ -187,12 +182,12 @@ namespace mu
         // Add the data about this modifier
 		MODIFIER thisData;
 		thisData.node = &node;
-        thisData.objectCondition = m_currentCondition.back().objectCondition;
-        thisData.stateCondition = m_currentStateCondition.back();
+        thisData.objectCondition = m_currentCondition.Last().objectCondition;
+        thisData.stateCondition = m_currentStateCondition.Last();
         thisData.lod = m_currentLOD;
         thisData.positiveTags = m_currentPositiveTags;
         thisData.negativeTags = m_currentNegativeTags;
-        modifiers.push_back(thisData);
+        modifiers.Add(thisData);
 
         return nullptr;
 	}
@@ -204,12 +199,12 @@ namespace mu
         // Add the data about this modifier
 		MODIFIER thisData;
 		thisData.node = &node;
-        thisData.objectCondition = m_currentCondition.back().objectCondition;
-        thisData.stateCondition = m_currentStateCondition.back();
+        thisData.objectCondition = m_currentCondition.Last().objectCondition;
+        thisData.stateCondition = m_currentStateCondition.Last();
         thisData.lod = m_currentLOD;
         thisData.positiveTags = m_currentPositiveTags;
         thisData.negativeTags = m_currentNegativeTags;
-        modifiers.push_back(thisData);
+        modifiers.Add(thisData);
 
         return nullptr;
 	}
@@ -221,11 +216,11 @@ namespace mu
 		SURFACE thisData;
 		thisData.node = dynamic_cast<const NodeSurfaceNew*>(node.m_pNode);
 		thisData.component = m_currentComponent;
-        thisData.objectCondition = m_currentCondition.back().objectCondition;
-        thisData.stateCondition = m_currentStateCondition.back();
+        thisData.objectCondition = m_currentCondition.Last().objectCondition;
+        thisData.stateCondition = m_currentStateCondition.Last();
         thisData.positiveTags = m_currentPositiveTags;
         thisData.negativeTags = m_currentNegativeTags;
-        surfaces.push_back(thisData);
+        surfaces.Add(thisData);
 
         return nullptr;
 	}
@@ -236,8 +231,7 @@ namespace mu
 	{
 		// Store a reference to this node in the surface data for the surface that this node is
 		// editing.
-		auto its = std::find_if(surfaces.begin(), surfaces.end(), 
-            [&node](const FirstPassGenerator::SURFACE& s)
+		auto its = surfaces.FindByPredicate([&node](const FirstPassGenerator::SURFACE& s)
         {
             // Are we editing the main surface node of this surface?
             if (s.node.get() == node.m_pParent.get()) return true;
@@ -256,14 +250,14 @@ namespace mu
 		
 		// The surface could be missing if the parent is not in the hierarchy. This could happen
 		// with wrong input or in case of partial models for preview.
-		if (its != surfaces.end())
+		if (its)
 		{
 			SURFACE& surface = *its;
 
             SURFACE::EDIT edit;
             edit.node = &node;
-            edit.condition = m_currentCondition.back().objectCondition;
-            surface.edits.push_back(edit);
+            edit.condition = m_currentCondition.Last().objectCondition;
+            surface.edits.Add(edit);
 		}
 		else
 		{
@@ -285,9 +279,9 @@ namespace mu
         {
             // Any of the tags in the variations would prevent the default surface
             auto oldNegativeTags = m_currentNegativeTags;
-            for (size_t v=0; v<node.m_variations.size(); ++v)
+            for (int32 v=0; v<node.m_variations.Num(); ++v)
             {
-                m_currentNegativeTags.push_back(node.m_variations[v].m_tag);
+                m_currentNegativeTags.Add(node.m_variations[v].m_tag);
             }
 
             for(const auto& n:node.m_defaultSurfaces)
@@ -301,9 +295,9 @@ namespace mu
 
             m_currentNegativeTags = oldNegativeTags;
 
-            for (size_t v=0; v<node.m_variations.size(); ++v)
+            for (int32 v=0; v<node.m_variations.Num(); ++v)
             {
-                m_currentPositiveTags.push_back(node.m_variations[v].m_tag);
+                m_currentPositiveTags.Add(node.m_variations[v].m_tag);
                 for (const auto& s : node.m_variations[v].m_surfaces)
                 {
                     s->GetBasePrivate()->Accept(*this);
@@ -314,11 +308,11 @@ namespace mu
                     s->GetBasePrivate()->Accept(*this);
                 }
 
-                m_currentPositiveTags.pop_back();
+                m_currentPositiveTags.Pop();
 
                 // Tags have an order in a variation node: the current tag should prevent any following
                 // variation surface
-                m_currentNegativeTags.push_back(node.m_variations[v].m_tag);
+                m_currentNegativeTags.Add(node.m_variations[v].m_tag);
             }
 
             m_currentNegativeTags = oldNegativeTags;
@@ -329,22 +323,24 @@ namespace mu
 
         case NodeSurfaceVariation::VariationType::State:
         {
-            size_t stateCount = m_states.size();
+            size_t stateCount = m_states.Num();
 
             // Default
             {
                 // Store the states for the default branch here
                 StateCondition defaultStates;
                 {
-                    defaultStates = m_currentStateCondition.back().empty()
-                            ? StateCondition( stateCount, true )
-                            : m_currentStateCondition.back();
+					StateCondition AllTrue;
+					AllTrue.Init(true,stateCount);
+                    defaultStates = m_currentStateCondition.Last().IsEmpty()
+                            ? AllTrue
+                            : m_currentStateCondition.Last();
 
                     for (const auto& v:node.m_variations)
                     {
                         for( size_t s=0; s<stateCount; ++s )
                         {
-                            if (m_states[s].first.m_name==v.m_tag)
+                            if (m_states[s].Key.m_name==v.m_tag)
                             {
                                 // Remove this state from the default options, since it has its own variation
                                 defaultStates[s] = false;
@@ -353,7 +349,7 @@ namespace mu
                     }
                 }
 
-                m_currentStateCondition.push_back(defaultStates);
+                m_currentStateCondition.Add(defaultStates);
 
                 for (const auto& n : node.m_defaultSurfaces)
                 {
@@ -364,7 +360,7 @@ namespace mu
                     n->GetBasePrivate()->Accept(*this);
                 }
 
-                m_currentStateCondition.pop_back();
+                m_currentStateCondition.Pop();
             }
 
 
@@ -372,17 +368,18 @@ namespace mu
             for (const auto& v:node.m_variations)
             {
                 // Store the states for this variation here
-                StateCondition variationStates( stateCount, false );
+				StateCondition variationStates;
+				variationStates.Init(false,stateCount);
 
                 for( size_t s=0; s<stateCount; ++s )
                 {
-                    if (m_states[s].first.m_name==v.m_tag)
+                    if (m_states[s].Key.m_name==v.m_tag)
                     {
                         variationStates[s] = true;
                     }
                 }
 
-                m_currentStateCondition.push_back(variationStates);
+                m_currentStateCondition.Add(variationStates);
 
                 for (const auto& n : v.m_surfaces)
                 {
@@ -393,7 +390,7 @@ namespace mu
                     n->GetBasePrivate()->Accept(*this);
                 }
 
-                m_currentStateCondition.pop_back();
+                m_currentStateCondition.Pop();
             }
 
             break;
@@ -476,16 +473,16 @@ namespace mu
 		// Add the data about this object
 		OBJECT thisData;
 		thisData.node = &node;
-        thisData.condition = m_currentCondition.back().objectCondition;
-		objects.push_back(thisData);
+        thisData.condition = m_currentCondition.Last().objectCondition;
+		objects.Add(thisData);
 
         // Accumulate the model states
         for ( const auto& s: node.m_states )
         {
-            m_states.emplace_back( s, &node );
+            m_states.Emplace( s, &node );
 
             // \todo move this 32 constant to a macro or constexpr with a meaningful name and location
-            if ( s.m_runtimeParams.size() > 32 )
+            if ( s.m_runtimeParams.Num() > 32 )
             {
                 char temp[256];
                 mutable_snprintf( temp, 256,
@@ -542,7 +539,7 @@ namespace mu
                 PARAMETER_DESC::INT_VALUE_DESC nullValue;
                 nullValue.m_value = -1;
                 nullValue.m_name = "None";
-                op->parameter.m_possibleValues.push_back( nullValue );
+                op->parameter.m_possibleValues.Add( nullValue );
                 op->parameter.m_defaultValue.m_int = nullValue.m_value;
             }
 
@@ -551,7 +548,7 @@ namespace mu
 
 
         // Parse the child objects
-		for ( std::size_t t=0; t<node.m_children.size(); ++t )
+		for ( int32 t=0; t<node.m_children.Num(); ++t )
         {
             if ( const NodeObject* pChildNode = node.m_children[t].get() )
             {
@@ -591,7 +588,7 @@ namespace mu
                         PARAMETER_DESC::INT_VALUE_DESC value;
                         value.m_value = (int16_t)t;
                         value.m_name = pChildNode->GetName();
-                        enumOp->parameter.m_possibleValues.push_back( value );
+                        enumOp->parameter.m_possibleValues.Add( value );
 
                         // Set as default if none has been set.
                         if ( enumOp->parameter.m_defaultValue.m_int == -1 )
@@ -616,22 +613,22 @@ namespace mu
                 }
 
                 // Combine the new condition with previous conditions coming from parent objects
-                if (m_currentCondition.back().objectCondition)
+                if (m_currentCondition.Last().objectCondition)
                 {
                     Ptr<ASTOpFixed> op = new ASTOpFixed();
                     op->op.type = OP_TYPE::BO_AND;
-                    op->SetChild( op->op.args.BoolBinary.a,m_currentCondition.back().objectCondition);
+                    op->SetChild( op->op.args.BoolBinary.a,m_currentCondition.Last().objectCondition);
                     op->SetChild( op->op.args.BoolBinary.b,paramOp);
                     paramOp = op;
                 }
 
 				CONDITION_CONTEXT data;
                 data.objectCondition = paramOp;
-                m_currentCondition.push_back( data );
+                m_currentCondition.Add( data );
 
 				pChildNode->GetBasePrivate()->Accept(*this);
 
-                m_currentCondition.pop_back();
+                m_currentCondition.Pop();
             }
         }
 
@@ -653,7 +650,7 @@ namespace mu
             if (node.m_pRoot)
             {
                 // Remember the new state with the new root.
-                m_states.emplace_back( node.m_state, node.m_pRoot->GetBasePrivate() );
+                m_states.Emplace( node.m_state, node.m_pRoot->GetBasePrivate() );
             }
         }
 

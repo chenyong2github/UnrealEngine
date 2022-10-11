@@ -21,7 +21,7 @@ namespace mu
 		static NODE_TYPE s_type;
 
 		NodeScalarPtr m_pFactor;
-		vector<NodeImagePtr> m_targets;
+		TArray<NodeImagePtr> m_targets;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

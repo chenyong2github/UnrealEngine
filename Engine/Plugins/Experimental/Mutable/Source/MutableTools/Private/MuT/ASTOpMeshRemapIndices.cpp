@@ -54,7 +54,7 @@ uint64 ASTOpMeshRemapIndices::Hash() const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpMeshRemapIndices::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshRemapIndices::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshRemapIndices> n = new ASTOpMeshRemapIndices();
     n->source = mapChild(source.child());
@@ -64,7 +64,7 @@ mu::Ptr<ASTOp> ASTOpMeshRemapIndices::Clone(MapChildFunc& mapChild) const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpMeshRemapIndices::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshRemapIndices::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( source );
     f( reference );
@@ -83,8 +83,8 @@ void ASTOpMeshRemapIndices::Link( PROGRAM& program, const FLinkerOptions* )
         if (source) args.source = source->linkedAddress;
         if (reference) args.reference = reference->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_REMAPINDICES);
         AppendCode(program.m_byteCode,args);
     }

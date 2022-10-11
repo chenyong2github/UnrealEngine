@@ -49,7 +49,7 @@ uint64 ASTOpMeshMorphReshape::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshMorphReshape::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshMorphReshape::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshMorphReshape> n = new ASTOpMeshMorphReshape();
 	n->Morph = mapChild(Morph.child());
@@ -58,7 +58,7 @@ mu::Ptr<ASTOp> ASTOpMeshMorphReshape::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshMorphReshape::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshMorphReshape::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
 	f(Morph);
 	f(Reshape);
@@ -83,8 +83,8 @@ void ASTOpMeshMorphReshape::Link( PROGRAM& program, const FLinkerOptions*)
 			Args.Reshape = Reshape->linkedAddress;
 		}
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode, OP_TYPE::ME_MORPHRESHAPE);
         AppendCode(program.m_byteCode, Args);
     }

@@ -8,8 +8,6 @@
 #include "MuR/Ptr.h"
 #include "MuT/AST.h"
 
-#include <functional>
-
 
 namespace mu
 {
@@ -41,10 +39,10 @@ struct PROGRAM;
 		OP_TYPE GetOpType() const override { return type; }
 
 		bool IsEqual(const ASTOp& otherUntyped) const override;
-		Ptr<ASTOp> Clone(MapChildFunc& mapChild) const override;
+		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		uint64 Hash() const override;
 		void Assert() override;
-		void ForEachChild(const std::function<void(ASTChild&)>& f) override;
+		void ForEachChild(const TFunctionRef<void(ASTChild&)> f) override;
 		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
 		FImageDesc GetImageDesc(bool returnBestOption, class GetImageDescContext* context) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;

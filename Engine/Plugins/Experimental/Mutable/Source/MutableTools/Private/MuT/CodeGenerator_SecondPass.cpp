@@ -145,7 +145,7 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateTagCondition( size_t tagIndex,
     // Condition expression for all the edit-surfaces that activate the tag
     for ( auto editKey: t.edits )
     {
-        if ( negSurf.find(editKey.first) != negSurf.end() )
+        if ( negSurf.find(editKey.Key) != negSurf.end() )
         {
             // The surface in the edit is a negative requirement higher up in the condition so
             // this branch never be true.
@@ -153,7 +153,7 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateTagCondition( size_t tagIndex,
         }
 
         Ptr<ASTOp> surfCondition;
-        if ( posSurf.find(editKey.first) != posSurf.end() )
+        if ( posSurf.find(editKey.Key) != posSurf.end() )
         {
             // This surface in the edit is already a positive requirement higher up in the condition
             // so we don't need that part of the condition
@@ -163,15 +163,15 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateTagCondition( size_t tagIndex,
             auto positiveTags = posTag;
             positiveTags.insert( tagIndex );
 
-            surfCondition = GenerateSurfaceCondition( editKey.first,
+            surfCondition = GenerateSurfaceCondition( editKey.Key,
                                                       posSurf,
                                                       negSurf,
                                                       positiveTags,
                                                       negTag );
         }
 
-        const auto& surface = m_pFirstPass->surfaces[editKey.first];
-        const auto& edit = surface.edits[editKey.second];
+        const auto& surface = m_pFirstPass->surfaces[editKey.Key];
+        const auto& edit = surface.edits[editKey.Value];
 
         // Combine object and surface conditions
         Ptr<ASTOp> fullCondition;
@@ -248,16 +248,15 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateSurfaceCondition( size_t surfIndex,
 
     for (const auto& t: surf.positiveTags)
     {
-        auto it = std::find_if( m_pFirstPass->m_tags.begin(), m_pFirstPass->m_tags.end(),
-                                [&](const FirstPassGenerator::TAG& e) { return e.tag==t; } );
-        if (it==m_pFirstPass->m_tags.end())
+        auto it = m_pFirstPass->m_tags.FindByPredicate([&](const FirstPassGenerator::TAG& e) { return e.tag == t; } );
+        if (!it)
         {
             // This could happen if a tag is in a variation but noone defines it.
             // This surface depends on a tag that will never be active, so it will never be used.
             return m_opPool.Add( new ASTOpConstantBool(false) );
         }
 
-        size_t tagIndex = it - m_pFirstPass->m_tags.begin();
+        size_t tagIndex = it - &m_pFirstPass->m_tags[0];
 
         set<size_t> positiveSurfacesVisited = posSurf;
         positiveSurfacesVisited.insert( surfIndex );
@@ -313,15 +312,14 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateSurfaceCondition( size_t surfIndex,
 
     for (const auto& t: surf.negativeTags)
     {
-        auto it = std::find_if( m_pFirstPass->m_tags.begin(), m_pFirstPass->m_tags.end(),
-                                [&](const FirstPassGenerator::TAG& e) { return e.tag==t; } );
-        if (it==m_pFirstPass->m_tags.end())
+        auto it = m_pFirstPass->m_tags.FindByPredicate([&](const FirstPassGenerator::TAG& e) { return e.tag == t; } );
+        if (!it)
         {
             // This could happen if a tag is in a variation but noone defines it.
             continue;
         }
 
-        size_t tagIndex = it - m_pFirstPass->m_tags.begin();
+        size_t tagIndex = it - &m_pFirstPass->m_tags[0];
 
         set<size_t> positiveSurfacesVisited = negSurf;
         set<size_t> negativeSurfacesVisited = posSurf;
@@ -389,9 +387,8 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateModifierCondition( size_t modIndex )
     bool done = false;
     for (const auto& t: mod.positiveTags)
     {
-        auto it = std::find_if( m_pFirstPass->m_tags.begin(), m_pFirstPass->m_tags.end(),
-                                [&](const FirstPassGenerator::TAG& e) { return e.tag==t; } );
-        if (it==m_pFirstPass->m_tags.end())
+        auto it = m_pFirstPass->m_tags.FindByPredicate([&](const FirstPassGenerator::TAG& e) { return e.tag == t; } );
+        if (!it)
         {
             // This could happen if a tag is in a variation but noone defines it.
 
@@ -403,7 +400,7 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateModifierCondition( size_t modIndex )
             continue;
         }
 
-        size_t tagIndex = it - m_pFirstPass->m_tags.begin();
+        size_t tagIndex = it - &m_pFirstPass->m_tags[0];
 
         set<size_t> empty;
         Ptr<ASTOp> tagCondition = GenerateTagCondition( tagIndex, empty, empty, empty, empty );
@@ -454,15 +451,14 @@ mu::Ptr<ASTOp> SecondPassGenerator::GenerateModifierCondition( size_t modIndex )
     {
         for (const auto& t: mod.negativeTags)
         {
-            auto it = std::find_if( m_pFirstPass->m_tags.begin(), m_pFirstPass->m_tags.end(),
-                                    [&](const FirstPassGenerator::TAG& e) { return e.tag==t; } );
-            if (it==m_pFirstPass->m_tags.end())
+            auto it = m_pFirstPass->m_tags.FindByPredicate( [&](const FirstPassGenerator::TAG& e) { return e.tag == t; } );
+            if (!it)
             {
                 // This could happen if a tag is in a variation but noone defines it.
                 continue;
             }
 
-            size_t tagIndex = it - m_pFirstPass->m_tags.begin();
+            size_t tagIndex = it - &m_pFirstPass->m_tags[0];
 
             set<size_t> empty;
             Ptr<ASTOp> tagCondition = GenerateTagCondition( tagIndex, empty, empty, empty, empty );
@@ -529,10 +525,10 @@ bool SecondPassGenerator::Generate(
 
     // Find the list of surfaces every tag depends on
 	m_surfacesPerTag.clear();
-    m_surfacesPerTag.resize(m_pFirstPass->m_tags.size());
+    m_surfacesPerTag.resize(m_pFirstPass->m_tags.Num());
 	m_tagsPerTag.clear();
-    m_tagsPerTag.resize(m_pFirstPass->m_tags.size());
-    for( size_t t=0; t<m_pFirstPass->m_tags.size(); ++t )
+    m_tagsPerTag.resize(m_pFirstPass->m_tags.Num());
+    for( size_t t=0; t<m_pFirstPass->m_tags.Num(); ++t )
     {
         set<size_t> pendingSurfs;
         for( size_t s: m_pFirstPass->m_tags[t].surfaces )
@@ -559,15 +555,14 @@ bool SecondPassGenerator::Generate(
             auto& csurf = m_pFirstPass->surfaces[cs];
             for ( auto sct: csurf.positiveTags )
             {
-                auto it = std::find_if( m_pFirstPass->m_tags.begin(), m_pFirstPass->m_tags.end(),
-                                        [&](const FirstPassGenerator::TAG& e) { return e.tag==sct; } );
-                if (it==m_pFirstPass->m_tags.end())
+                auto it = m_pFirstPass->m_tags.FindByPredicate( [&](const FirstPassGenerator::TAG& e) { return e.tag == sct; } );
+                if (!it)
                 {
                     // This could happen if a tag is in a variation but noone defines it.
                     continue;
                 }
 
-                size_t ct = it - m_pFirstPass->m_tags.begin();
+                size_t ct = it - &m_pFirstPass->m_tags[0];
 
 				m_tagsPerTag[t].insert(ct);
 
@@ -581,15 +576,14 @@ bool SecondPassGenerator::Generate(
             }
             for ( auto sct: csurf.negativeTags )
             {
-                auto it = std::find_if( m_pFirstPass->m_tags.begin(), m_pFirstPass->m_tags.end(),
-                                        [&](const FirstPassGenerator::TAG& e) { return e.tag==sct; } );
-                if (it==m_pFirstPass->m_tags.end())
+                auto it = m_pFirstPass->m_tags.FindByPredicate([&](const FirstPassGenerator::TAG& e) { return e.tag == sct; } );
+                if (!it)
                 {
                     // This could happen if a tag is in a variation but noone defines it.
                     continue;
                 }
 
-                size_t ct = it - m_pFirstPass->m_tags.begin();
+                size_t ct = it - &m_pFirstPass->m_tags[0];
 
 				m_tagsPerTag[t].insert(ct);
 
@@ -607,20 +601,20 @@ bool SecondPassGenerator::Generate(
     // Create the conditions for every surface, modifier and individual tag.
     m_tagConditionGenerationCache.clear();
 
-    for ( size_t s=0; s<m_pFirstPass->surfaces.size(); ++s )
+    for ( int32 s=0; s<m_pFirstPass->surfaces.Num(); ++s )
     {
         set<size_t> empty;
         Ptr<ASTOp> c = GenerateSurfaceCondition( s, empty, empty, empty, empty );
         m_pFirstPass->surfaces[s].surfaceCondition = c;
     }
 
-    for ( size_t m=0; m<m_pFirstPass->modifiers.size(); ++m )
+    for ( int32 m=0; m<m_pFirstPass->modifiers.Num(); ++m )
     {
         Ptr<ASTOp> c = GenerateModifierCondition( m );
         m_pFirstPass->modifiers[m].surfaceCondition = c;
     }
 
-    for ( size_t s = 0; s < m_pFirstPass->m_tags.size(); ++s )
+    for ( int32  s = 0; s < m_pFirstPass->m_tags.Num(); ++s )
     {
         set<size_t> empty;
         Ptr<ASTOp> c = GenerateTagCondition( s, empty, empty, empty, empty );

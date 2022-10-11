@@ -70,7 +70,7 @@ uint64 ASTOpImageTransform::Hash() const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpImageTransform::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImageTransform::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpImageTransform> n = new ASTOpImageTransform();
     n->base = mapChild(base.child());
@@ -84,7 +84,7 @@ mu::Ptr<ASTOp> ASTOpImageTransform::Clone(MapChildFunc& mapChild) const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpImageTransform::ForEachChild( const std::function<void(ASTChild&)>& f )
+void ASTOpImageTransform::ForEachChild( const TFunctionRef<void(ASTChild&)> f )
 {
     f( base );
     f( offsetX );
@@ -110,8 +110,8 @@ void ASTOpImageTransform::Link( PROGRAM& program, const FLinkerOptions*)
 		Args.scaleY = scaleY ? scaleY->linkedAddress : 0;
 		Args.rotation = rotation ? rotation->linkedAddress : 0;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode, OP_TYPE::IM_TRANSFORM);
 		AppendCode(program.m_byteCode, Args);
     }

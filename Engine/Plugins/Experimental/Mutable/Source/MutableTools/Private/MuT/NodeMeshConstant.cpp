@@ -35,14 +35,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshConstant::GetInputCount() const
 	{
-		return (int)m_pD->m_layouts.size();
+		return m_pD->m_layouts.Num();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeMeshConstant::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<(int)m_pD->m_layouts.size() );
+		check( i>=0 && i<m_pD->m_layouts.Num() );
 		return m_pD->m_layouts[i].get();
 	}
 
@@ -50,7 +50,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshConstant::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<(int)m_pD->m_layouts.size() );
+		check( i>=0 && i<m_pD->m_layouts.Num() );
 
 		m_pD->m_layouts[i] = dynamic_cast<NodeLayout*>( pNode.get() );
 	}
@@ -81,7 +81,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshConstant::GetLayoutCount() const
 	{
-		return (int)m_pD->m_layouts.size();
+		return m_pD->m_layouts.Num();
 	}
 
 
@@ -89,14 +89,14 @@ namespace mu
 	void NodeMeshConstant::SetLayoutCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_layouts.resize( num );
+		m_pD->m_layouts.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeLayoutPtr NodeMeshConstant::GetLayout( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_layouts.size() );
+		check( index >=0 && index < m_pD->m_layouts.Num() );
 
 		return m_pD->GetLayout( index );
 	}
@@ -107,7 +107,7 @@ namespace mu
 	{
 		NodeLayoutPtr pResult;
 
-		if ( index >=0 && index < (int)m_layouts.size() )
+		if ( index >=0 && index < m_layouts.Num() )
 		{
 			pResult = m_layouts[ index ].get();
 		}
@@ -119,7 +119,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshConstant::SetLayout( int index, NodeLayoutPtr pLayout )
 	{
-		check( index >=0 && index < (int)m_pD->m_layouts.size() );
+		check( index >=0 && index < m_pD->m_layouts.Num() );
 
 		m_pD->m_layouts[ index ] = pLayout;
 	}

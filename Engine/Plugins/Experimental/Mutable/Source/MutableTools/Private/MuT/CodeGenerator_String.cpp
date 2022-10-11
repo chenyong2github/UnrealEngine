@@ -94,7 +94,7 @@ void CodeGenerator::GenerateString_Parameter( STRING_GENERATION_RESULT& result, 
 		param.m_type = PARAMETER_TYPE::T_FLOAT;
 		param.m_detailedType = node.m_detailedType;
 		// param.m_defaultValue.m_text = node.m_defaultValue;
-		int len = std::min(MUTABLE_MAX_STRING_PARAM_LENGTH, int(node.m_defaultValue.size()));
+		int len = FMath::Min(MUTABLE_MAX_STRING_PARAM_LENGTH, int(node.m_defaultValue.size()));
 		FMemory::Memcpy(param.m_defaultValue.m_text, node.m_defaultValue.c_str(), len);
 		param.m_defaultValue.m_text[len] = 0;
 
@@ -104,12 +104,11 @@ void CodeGenerator::GenerateString_Parameter( STRING_GENERATION_RESULT& result, 
 		op->parameter = param;
 
 		// Generate the code for the ranges
-		for (std::size_t a = 0; a < node.m_ranges.size(); ++a)
+		for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 		{
 			RANGE_GENERATION_RESULT rangeResult;
 			GenerateRange(rangeResult, node.m_ranges[a]);
-			op->ranges.emplace_back(
-				op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
+			op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 		}
 
 		m_nodeVariables[node.m_pNode] = op;

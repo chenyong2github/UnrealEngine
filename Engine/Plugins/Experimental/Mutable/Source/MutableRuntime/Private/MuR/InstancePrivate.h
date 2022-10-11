@@ -33,7 +33,7 @@ namespace mu
 			string m_name;
 		};
 
-		vector<IMAGE> m_images;
+		TArray<IMAGE> m_images;
 
 		struct VECTOR
 		{
@@ -50,7 +50,7 @@ namespace mu
 			string m_name;
 		};
 
-		vector<VECTOR> m_vectors;
+		TArray<VECTOR> m_vectors;
 
         struct SCALAR
         {
@@ -67,7 +67,7 @@ namespace mu
             string m_name;
         };
 
-        vector<SCALAR> m_scalars;
+		TArray<SCALAR> m_scalars;
 
         struct STRING
         {
@@ -84,7 +84,7 @@ namespace mu
             string m_name;
         };
 
-        vector<STRING> m_strings;
+		TArray<STRING> m_strings;
     };
 
 
@@ -108,16 +108,16 @@ namespace mu
             RESOURCE_ID m_meshId;
 			string m_name;
 		};
-		vector<MESH> m_meshes;
+		TArray<MESH> m_meshes;
 
 		// The order must match the meshes surfaces
-		vector<INSTANCE_SURFACE> m_surfaces;
+		TArray<INSTANCE_SURFACE> m_surfaces;
 	};
 
 
     struct INSTANCE_LOD
     {
-        vector<INSTANCE_COMPONENT> m_components;
+		TArray<INSTANCE_COMPONENT> m_components;
     };
 
 
@@ -129,7 +129,7 @@ namespace mu
         Instance::ID m_id;
 
 		//!
-		vector<INSTANCE_LOD> m_lods;
+		TArray<INSTANCE_LOD> m_lods;
 
         Private()
         {

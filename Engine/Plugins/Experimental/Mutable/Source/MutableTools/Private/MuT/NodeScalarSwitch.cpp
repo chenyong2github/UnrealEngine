@@ -35,7 +35,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeScalarSwitch::GetInputCount() const
 	{
-		return 1 + (int)m_pD->m_options.size();
+		return 1 + (int)m_pD->m_options.Num();
 	}
 
 
@@ -98,14 +98,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeScalarSwitch::SetOptionCount( int t )
 	{
-		m_pD->m_options.resize(t);
+		m_pD->m_options.SetNum(t);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     NodeScalarPtr NodeScalarSwitch::GetOption( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<(int)m_pD->m_options.Num() );
 		return m_pD->m_options[t].get();
 	}
 
@@ -113,7 +113,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeScalarSwitch::SetOption( int t, NodeScalarPtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<(int)m_pD->m_options.Num() );
 		m_pD->m_options[t] = pNode;
 	}
 

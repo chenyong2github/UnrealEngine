@@ -41,8 +41,8 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::GetInputCount() const
 	{
-        return (int)( m_pD->m_meshes.size() + m_pD->m_images.size() + m_pD->m_vectors.size() +
-                      m_pD->m_scalars.size() + m_pD->m_strings.size() );
+        return m_pD->m_meshes.Num() + m_pD->m_images.Num() + m_pD->m_vectors.Num() +
+                      m_pD->m_scalars.Num() + m_pD->m_strings.Num();
     }
 
 
@@ -51,51 +51,51 @@ namespace mu
 	{
 		check( i >=0 && i < GetInputCount() );
 
-        std::size_t index = size_t(i);
+        int32 index = i;
 
-        if ( index < m_pD->m_meshes.size() )
+        if ( index < m_pD->m_meshes.Num() )
         {
             return m_pD->m_meshes[index].m_pMesh.get();
         }
 		else
 		{
-            index -= m_pD->m_meshes.size();
+            index -= m_pD->m_meshes.Num();
         }
 
-        if ( index < m_pD->m_images.size() )
+        if ( index < m_pD->m_images.Num() )
         {
             return m_pD->m_images[index].m_pImage.get();
         }
         else 
 		{
-            index -= m_pD->m_images.size();
+            index -= m_pD->m_images.Num();
         }
 
-        if ( index < m_pD->m_vectors.size() )
+        if ( index < m_pD->m_vectors.Num() )
         {
             return m_pD->m_vectors[index].m_pVector.get();
         }
         else
         {
-            index -= m_pD->m_vectors.size();
+            index -= m_pD->m_vectors.Num();
         }
 
-        if ( index < m_pD->m_scalars.size() )
+        if ( index < m_pD->m_scalars.Num() )
         {
             return m_pD->m_scalars[index].m_pScalar.get();
         }
         else
         {
-            index -= m_pD->m_scalars.size();
+            index -= m_pD->m_scalars.Num();
         }
 
-        if ( index < m_pD->m_strings.size() )
+        if ( index < m_pD->m_strings.Num() )
         {
             return m_pD->m_strings[index].m_pString.get();
         }
         else
         {
-            index -= m_pD->m_strings.size();
+            index -= m_pD->m_strings.Num();
         }
 
         return nullptr;
@@ -109,55 +109,55 @@ namespace mu
 
         std::size_t index = size_t( i );
 
-        if ( index<m_pD->m_meshes.size() )
+        if ( index<m_pD->m_meshes.Num() )
 		{
 			m_pD->m_meshes[ index ].m_pMesh = dynamic_cast<NodeMesh*>(pNode.get());
             return;
         }
 		else
 		{
-            index -= m_pD->m_meshes.size();
+            index -= m_pD->m_meshes.Num();
         }
 
 
-        if ( index < m_pD->m_images.size())
+        if ( index < m_pD->m_images.Num())
         {
 			m_pD->m_images[index].m_pImage = dynamic_cast<NodeImage*>(pNode.get());
             return;
         }
         else
         {
-            index -= m_pD->m_images.size();
+            index -= m_pD->m_images.Num();
         }
         
-		if ( index < m_pD->m_vectors.size() )
+		if ( index < m_pD->m_vectors.Num() )
         {
             m_pD->m_vectors[index].m_pVector = dynamic_cast<NodeColour*>(pNode.get());
             return;
         }
         else
         {
-            index -= m_pD->m_vectors.size();
+            index -= m_pD->m_vectors.Num();
         }
 
-        if ( index < m_pD->m_scalars.size() )
+        if ( index < m_pD->m_scalars.Num() )
         {
             m_pD->m_scalars[index].m_pScalar = dynamic_cast<NodeScalar*>( pNode.get() );
             return;
         }
         else
         {
-            index -= m_pD->m_scalars.size();
+            index -= m_pD->m_scalars.Num();
         }
 
-        if ( index < m_pD->m_strings.size() )
+        if ( index < m_pD->m_strings.Num() )
         {
             m_pD->m_strings[index].m_pString = dynamic_cast<NodeString*>( pNode.get() );
             return;
         }
         else
         {
-            index -= m_pD->m_strings.size();
+            index -= m_pD->m_strings.Num();
         }
     }
 
@@ -197,7 +197,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::GetMeshCount() const
 	{
-		return (int)m_pD->m_meshes.size();
+		return (int)m_pD->m_meshes.Num();
 	}
 
 
@@ -205,14 +205,14 @@ namespace mu
     void NodeSurfaceNew::SetMeshCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_meshes.resize( num );
+		m_pD->m_meshes.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     NodeMeshPtr NodeSurfaceNew::GetMesh( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_meshes.size() );
+		check( index >=0 && index < (int)m_pD->m_meshes.Num() );
 
 		return m_pD->m_meshes[ index ].m_pMesh.get();
 	}
@@ -221,7 +221,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetMesh( int index, NodeMeshPtr pNode )
 	{
-		check( index >=0 && index < (int)m_pD->m_meshes.size() );
+		check( index >=0 && index < (int)m_pD->m_meshes.Num() );
 
 		m_pD->m_meshes[ index ].m_pMesh = pNode;
 	}
@@ -230,7 +230,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     const char* NodeSurfaceNew::GetMeshName( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_meshes.size() );
+		check( index >=0 && index < (int)m_pD->m_meshes.Num() );
 
 		const char* strResult = m_pD->m_meshes[ index ].m_name.c_str();
 
@@ -241,7 +241,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetMeshName( int index, const char* strName )
 	{
-		check( index >=0 && index < (int)m_pD->m_meshes.size() );
+		check( index >=0 && index < (int)m_pD->m_meshes.Num() );
 
 		if (strName)
 		{
@@ -257,7 +257,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::GetImageCount() const
 	{
-		return (int)m_pD->m_images.size();
+		return (int)m_pD->m_images.Num();
 	}
 
 
@@ -265,14 +265,14 @@ namespace mu
     void NodeSurfaceNew::SetImageCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_images.resize( num );
+		m_pD->m_images.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     NodeImagePtr NodeSurfaceNew::GetImage( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_images.size() );
+		check( index >=0 && index < (int)m_pD->m_images.Num() );
 
 		return m_pD->m_images[ index ].m_pImage.get();
 	}
@@ -281,7 +281,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetImage( int index, NodeImagePtr pNode )
 	{
-		check( index >=0 && index < (int)m_pD->m_images.size() );
+		check( index >=0 && index < (int)m_pD->m_images.Num() );
 
 		m_pD->m_images[ index ].m_pImage = pNode;
 	}
@@ -290,7 +290,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     const char* NodeSurfaceNew::GetImageName( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_images.size() );
+		check( index >=0 && index < (int)m_pD->m_images.Num() );
 
 		const char* strResult = m_pD->m_images[ index ].m_name.c_str();
 
@@ -301,7 +301,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetImageName( int index, const char* strName )
 	{
-		check( index >=0 && index < (int)m_pD->m_images.size() );
+		check( index >=0 && index < (int)m_pD->m_images.Num() );
 
 		if (strName)
 		{
@@ -317,7 +317,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::GetImageLayoutIndex( int index ) const
     {
-        check( index >= 0 && index < (int)m_pD->m_images.size() );
+        check( index >= 0 && index < (int)m_pD->m_images.Num() );
 
         return int(m_pD->m_images[index].m_layoutIndex);
     }
@@ -326,7 +326,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeSurfaceNew::SetImageLayoutIndex(int index, int layoutIndex)
 	{
-		check(index >= 0 && index < (int)m_pD->m_images.size());
+		check(index >= 0 && index < (int)m_pD->m_images.Num());
 
 		m_pD->m_images[index].m_layoutIndex = int8_t(layoutIndex);
 	}
@@ -335,7 +335,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeSurfaceNew::SetImageAdditionalNames(int index, const char* strMaterialName, const char* strMaterialParameterName )
 	{
-		if (index >= 0 && index < (int)m_pD->m_images.size())
+		if (index >= 0 && index < (int)m_pD->m_images.Num())
 		{
 			m_pD->m_images[index].m_materialName = strMaterialName;
 			m_pD->m_images[index].m_materialParameterName = strMaterialParameterName;
@@ -350,7 +350,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
 	int NodeSurfaceNew::GetVectorCount() const
 	{
-		return (int)m_pD->m_vectors.size();
+		return (int)m_pD->m_vectors.Num();
 	}
 
 
@@ -358,14 +358,14 @@ namespace mu
 	void NodeSurfaceNew::SetVectorCount(int num)
 	{
 		check(num >= 0);
-		m_pD->m_vectors.resize(num);
+		m_pD->m_vectors.SetNum(num);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeColourPtr NodeSurfaceNew::GetVector(int index) const
 	{
-		check(index >= 0 && index < (int)m_pD->m_vectors.size());
+		check(index >= 0 && index < (int)m_pD->m_vectors.Num());
 
 		return m_pD->m_vectors[index].m_pVector.get();
 	}
@@ -374,7 +374,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeSurfaceNew::SetVector(int index, NodeColourPtr pNode)
 	{
-		check(index >= 0 && index < (int)m_pD->m_vectors.size());
+		check(index >= 0 && index < (int)m_pD->m_vectors.Num());
 
 		m_pD->m_vectors[index].m_pVector = pNode;
 	}
@@ -383,7 +383,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	const char* NodeSurfaceNew::GetVectorName(int index) const
 	{
-        check(index >= 0 && index < (int)m_pD->m_vectors.size());
+        check(index >= 0 && index < (int)m_pD->m_vectors.Num());
 
 		const char* strResult = m_pD->m_vectors[index].m_name.c_str();
 
@@ -394,7 +394,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeSurfaceNew::SetVectorName(int index, const char* strName)
 	{
-        check(index >= 0 && index < (int)m_pD->m_vectors.size());
+        check(index >= 0 && index < (int)m_pD->m_vectors.Num());
 
 		if (strName)
 		{
@@ -410,7 +410,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::GetScalarCount() const
     {
-        return (int)m_pD->m_scalars.size();
+        return (int)m_pD->m_scalars.Num();
     }
 
 
@@ -418,14 +418,14 @@ namespace mu
     void NodeSurfaceNew::SetScalarCount(int num)
     {
         check(num >= 0);
-        m_pD->m_scalars.resize(num);
+        m_pD->m_scalars.SetNum(num);
     }
 
 
     //---------------------------------------------------------------------------------------------
     NodeScalarPtr NodeSurfaceNew::GetScalar(int index) const
     {
-        check(index >= 0 && index < (int)m_pD->m_scalars.size());
+        check(index >= 0 && index < (int)m_pD->m_scalars.Num());
 
         return m_pD->m_scalars[index].m_pScalar.get();
     }
@@ -434,7 +434,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetScalar(int index, NodeScalarPtr pNode)
     {
-        check(index >= 0 && index < (int)m_pD->m_scalars.size());
+        check(index >= 0 && index < (int)m_pD->m_scalars.Num());
 
         m_pD->m_scalars[index].m_pScalar = pNode;
     }
@@ -443,7 +443,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     const char* NodeSurfaceNew::GetScalarName(int index) const
     {
-        check(index >= 0 && index < (int)m_pD->m_scalars.size());
+        check(index >= 0 && index < (int)m_pD->m_scalars.Num());
 
         const char* strResult = m_pD->m_scalars[index].m_name.c_str();
 
@@ -454,7 +454,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetScalarName(int index, const char* strName)
     {
-        check(index >= 0 && index < (int)m_pD->m_scalars.size());
+        check(index >= 0 && index < (int)m_pD->m_scalars.Num());
 
         if (strName)
         {
@@ -468,21 +468,21 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    int NodeSurfaceNew::GetStringCount() const { return (int)m_pD->m_strings.size(); }
+    int NodeSurfaceNew::GetStringCount() const { return (int)m_pD->m_strings.Num(); }
 
 
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetStringCount( int num )
     {
         check( num >= 0 );
-        m_pD->m_strings.resize( num );
+        m_pD->m_strings.SetNum( num );
     }
 
 
     //---------------------------------------------------------------------------------------------
     NodeStringPtr NodeSurfaceNew::GetString( int index ) const
     {
-        check( index >= 0 && index < (int)m_pD->m_strings.size() );
+        check( index >= 0 && index < (int)m_pD->m_strings.Num() );
 
         return m_pD->m_strings[index].m_pString.get();
     }
@@ -491,7 +491,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetString( int index, NodeStringPtr pNode )
     {
-        check( index >= 0 && index < (int)m_pD->m_strings.size() );
+        check( index >= 0 && index < (int)m_pD->m_strings.Num() );
 
         m_pD->m_strings[index].m_pString = pNode;
     }
@@ -500,7 +500,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     const char* NodeSurfaceNew::GetStringName( int index ) const
     {
-        check( index >= 0 && index < (int)m_pD->m_strings.size() );
+        check( index >= 0 && index < (int)m_pD->m_strings.Num() );
 
         const char* strResult = m_pD->m_strings[index].m_name.c_str();
 
@@ -511,7 +511,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetStringName( int index, const char* strName )
     {
-        check( index >= 0 && index < (int)m_pD->m_strings.size() );
+        check( index >= 0 && index < (int)m_pD->m_strings.Num() );
 
         if ( strName )
         {
@@ -526,13 +526,10 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::Private::FindImage( const char* strName ) const
-	{
-		int i = 0;
-		for ( vector<IMAGE>::const_iterator it = m_images.begin()
-			; it!=m_images.end()
-			; ++it, ++i )
+	{		
+		for ( int32 i = 0; i<m_images.Num(); ++i )
 		{
-			if ( it->m_name == strName )
+			if ( m_images[i].m_name == strName)
 			{
 				return i;
 			}
@@ -545,12 +542,9 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeSurfaceNew::Private::FindMesh(const char* strName) const
 	{
-		int i = 0;
-		for (vector<MESH>::const_iterator it = m_meshes.begin()
-			; it != m_meshes.end()
-			; ++it, ++i)
+		for ( int32 i = 0; i < m_meshes.Num(); ++i)
 		{
-			if (it->m_name == strName)
+			if (m_meshes[i].m_name == strName)
 			{
 				return i;
 			}
@@ -563,12 +557,9 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::Private::FindVector(const char* strName) const
     {
-        int i = 0;
-        for (vector<VECTOR>::const_iterator it = m_vectors.begin()
-            ; it != m_vectors.end()
-            ; ++it, ++i)
+        for ( int32 i = 0; i < m_vectors.Num(); ++i)
         {
-            if (it->m_name == strName)
+            if (m_vectors[i].m_name == strName)
             {
                 return i;
             }
@@ -581,11 +572,9 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::Private::FindScalar( const char* strName ) const
     {
-        int i = 0;
-        for ( vector<SCALAR>::const_iterator it = m_scalars.begin(); it != m_scalars.end();
-              ++it, ++i )
+        for (int32 i = 0; i < m_scalars.Num(); ++i)
         {
-            if ( it->m_name == strName )
+            if ( m_scalars[i].m_name == strName )
             {
                 return i;
             }
@@ -598,11 +587,9 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::Private::FindString( const char* strName ) const
     {
-        int i = 0;
-        for ( vector<STRING>::const_iterator it = m_strings.begin(); it != m_strings.end();
-              ++it, ++i )
+        for (int32 i = 0; i < m_strings.Num(); ++i)
         {
-            if ( it->m_name == strName )
+            if ( m_strings[i].m_name == strName )
             {
                 return i;
             }
@@ -615,14 +602,14 @@ namespace mu
     //---------------------------------------------------------------------------------------------
 	void NodeSurfaceNew::AddTag(const char* tagName)
 	{
-		m_pD->m_tags.push_back(tagName);
+		m_pD->m_tags.Add(tagName);
 	}
 
 
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceNew::GetTagCount() const
     {
-        return int( m_pD->m_tags.size());
+        return m_pD->m_tags.Num();
     }
 
 

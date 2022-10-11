@@ -52,7 +52,7 @@ namespace mu
             }
         };
 
-        vector<VARIATION> m_variations;
+		TArray<VARIATION> m_variations;
 
         //!
         void Serialise( OutputArchive& arch ) const

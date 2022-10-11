@@ -66,7 +66,7 @@ namespace mu
 		string m_name;
 		string m_uid;
 
-        vector<Ptr<NodeRange>> m_ranges;
+        TArray<Ptr<NodeRange>> m_ranges;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

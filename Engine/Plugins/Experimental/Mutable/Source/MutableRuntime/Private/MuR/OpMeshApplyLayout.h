@@ -54,7 +54,8 @@ namespace mu
 		{
 			FVector2f min, size;
 		};
-		vector< Box > transforms( pLayout->GetBlockCount() );
+		TArray< Box > transforms;
+		transforms.SetNum(pLayout->GetBlockCount());
 		for ( int b=0; b<pLayout->GetBlockCount(); ++b )
 		{
 			FIntPoint grid = pLayout->GetGridSize();
@@ -135,7 +136,7 @@ namespace mu
                     uint64_t u_32 = pUV[c];
                     uint64_t u_48 = u_32 * ((uint64_t)(((float)0xffff) * transforms[ relBlock ].size[c]));
                     u_48 += (uint64_t)(((float)0xffffffffffULL) * transforms[ relBlock ].min[c]);
-                    pUV[c] = (uint16_t)( u_48 >> 16 );
+                    pUV[c] = (uint16)( u_48 >> 16 );
 				}
 			}
 
@@ -146,14 +147,14 @@ namespace mu
 						)
 			{
 				// TODO: Optimise
-                uint16_t* pUV = reinterpret_cast<uint16_t*>( pVertices );
+                uint16* pUV = reinterpret_cast<uint16*>( pVertices );
 
 				for ( int c=0; c<2; ++c )
 				{
                     uint32_t u_16 = pUV[c];
                     uint32_t u_32 = u_16 * ((uint8_t)(((float)0xffff) * transforms[ relBlock ].size[c]));
                     u_32 += (uint32_t)(((float)0xffffffff) * transforms[ relBlock ].min[c]);
-                    pUV[c] = (uint16_t)( u_32 >> 16 );
+                    pUV[c] = (uint16)( u_32 >> 16 );
 				}
 			}
 

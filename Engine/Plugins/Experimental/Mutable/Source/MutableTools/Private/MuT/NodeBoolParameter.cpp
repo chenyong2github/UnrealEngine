@@ -37,7 +37,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeBoolParameter::GetInputCount() const
 	{
-        return int( m_pD->m_ranges.size() );
+        return int( m_pD->m_ranges.Num() );
     }
 
 
@@ -105,15 +105,15 @@ namespace mu
     void NodeBoolParameter::SetRangeCount( int i )
     {
         check(i>=0);
-        m_pD->m_ranges.resize(i);
+        m_pD->m_ranges.SetNum(i);
     }
 
 
     //---------------------------------------------------------------------------------------------
     void NodeBoolParameter::SetRange( int i, NodeRangePtr pRange )
     {
-        check( i>=0 && i<int(m_pD->m_ranges.size()) );
-        if ( i>=0 && i<int(m_pD->m_ranges.size()) )
+        check( i>=0 && i<int(m_pD->m_ranges.Num()) );
+        if ( i>=0 && i<int(m_pD->m_ranges.Num()) )
         {
             m_pD->m_ranges[i] = pRange;
         }

@@ -16,7 +16,7 @@ namespace mu
 	public:
 
 		// Tags that target surface need to have enabled to receive this modifier.
-		vector<mu::string> m_tags;
+		TArray<mu::string> m_tags;
 
 		// Wether the modifier has to be applied after the normal node operations or before
 		bool m_applyBeforeNormalOperations = true;

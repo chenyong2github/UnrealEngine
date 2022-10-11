@@ -8,9 +8,6 @@
 #include "MuR/RefCounted.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <memory>
-#include <utility>
-
 
 namespace mu
 {
@@ -19,7 +16,7 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpConstantProjector::ForEachChild(const std::function<void(ASTChild&)>&)
+	void ASTOpConstantProjector::ForEachChild(const TFunctionRef<void(ASTChild&)>)
 	{
 	}
 
@@ -42,7 +39,7 @@ namespace mu
 	}
 
 
-	mu::Ptr<ASTOp> ASTOpConstantProjector::Clone(MapChildFunc&) const
+	mu::Ptr<ASTOp> ASTOpConstantProjector::Clone(MapChildFuncRef) const
 	{
 		Ptr<ASTOpConstantProjector> n = new ASTOpConstantProjector();
 		n->value = value;
@@ -58,9 +55,9 @@ namespace mu
 			memset(&args, 0, sizeof(args));
 			args.value = program.AddConstant(value);
 
-			linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 			//program.m_code.push_back(op);
-			program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
 			AppendCode(program.m_byteCode, OP_TYPE::PR_CONSTANT);
 			AppendCode(program.m_byteCode, args);
 		}

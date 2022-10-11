@@ -8,9 +8,6 @@
 #include "MuR/Ptr.h"
 #include "MuT/AST.h"
 
-#include <functional>
-#include <utility>
-
 
 namespace mu
 {
@@ -28,7 +25,7 @@ struct PROGRAM;
 		ASTChild source;
 
 		//! Pairs of remove candidates: condition + mesh to remove
-		vector< std::pair<ASTChild, ASTChild> > removes;
+		TArray< TPair<ASTChild, ASTChild> > removes;
 
 	public:
 
@@ -39,9 +36,9 @@ struct PROGRAM;
 		// ASTOp interface
 		OP_TYPE GetOpType() const override { return OP_TYPE::ME_REMOVEMASK; }
 		uint64 Hash() const override;
-		void ForEachChild(const std::function<void(ASTChild&)>&) override;
+		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
-		Ptr<ASTOp> Clone(MapChildFunc& mapChild) const override;
+		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void Assert() override;
 		void Link(PROGRAM& program, const FLinkerOptions*) override;
 		Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;

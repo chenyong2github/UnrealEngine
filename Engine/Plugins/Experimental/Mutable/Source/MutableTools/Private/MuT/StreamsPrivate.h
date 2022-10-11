@@ -137,13 +137,14 @@ namespace mu
             }
             else if (!m_fileName.IsEmpty())
             {
-                std::vector<char> buf(m_fileSize);
+				TArray<char> buf;
+				buf.SetNumUninitialized(m_fileSize);
                 auto resourceFile = FPlatformFileManager::Get().GetPlatformFile().OpenRead( *m_fileName );
                 check(resourceFile);
-                resourceFile->Read((uint8*)buf.data(), m_fileSize);
+                resourceFile->Read((uint8*)buf.GetData(), m_fileSize);
                 delete resourceFile;
 
-                InputMemoryStream stream( buf.data(), m_fileSize );
+                InputMemoryStream stream( buf.GetData(), m_fileSize );
                 InputArchive arch(&stream);
                 r =  R::StaticUnserialise( arch );
             }

@@ -203,7 +203,7 @@ namespace mu
     class InputArchiveWithProxies::Private : public Base
     {
     public:
-        vector< Ptr<ResourceProxy<Image>> > m_proxyHistory;
+        TArray< Ptr<ResourceProxy<Image>> > m_proxyHistory;
         ProxyFactory* m_pFactory = nullptr;
     };
 
@@ -250,7 +250,7 @@ namespace mu
             }
             else
             {
-                if ( (std::size_t)id < m_pD->m_proxyHistory.size() )
+                if ( (std::size_t)id < m_pD->m_proxyHistory.Num() )
                 {
                     p = m_pD->m_proxyHistory[id];
 
@@ -261,7 +261,7 @@ namespace mu
                 else
                 {
                     // Ids come in order.
-                    m_pD->m_proxyHistory.resize(id+1);
+                    m_pD->m_proxyHistory.SetNum(id+1);
 
                     p = m_pD->m_pFactory->NewImageProxy(*this);
                     m_pD->m_proxyHistory[id] = p;

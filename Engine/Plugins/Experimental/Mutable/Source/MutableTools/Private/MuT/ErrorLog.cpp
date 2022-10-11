@@ -25,7 +25,6 @@
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
 
-#include <functional>
 #include <memory>
 #include <utility>
 
@@ -60,7 +59,7 @@ namespace mu
     int ErrorLog::GetMessageCount( ErrorLogMessageType ) const
 	{
         // \todo: by type argument
-		return (int)m_pD->m_messages.size();
+		return (int)m_pD->m_messages.Num();
 	}
 
 
@@ -69,7 +68,7 @@ namespace mu
 	{
 		const char* strResult = "";
 
-		if ( index >=0 && index<(int)m_pD->m_messages.size() )
+		if ( index >=0 && index<(int)m_pD->m_messages.Num() )
 		{
 			strResult = m_pD->m_messages[index].m_text.c_str();
 		}
@@ -83,7 +82,7 @@ namespace mu
 	{
 		const void* result = 0;
 
-		if ( index >=0 && index<(int)m_pD->m_messages.size() )
+		if ( index >=0 && index<(int)m_pD->m_messages.Num() )
 		{
 			result = m_pD->m_messages[index].m_context;
 		}
@@ -97,7 +96,7 @@ namespace mu
 	{
 		ErrorLogMessageType result = ELMT_NONE;
 
-		if ( index >=0 && index<(int)m_pD->m_messages.size() )
+		if ( index >=0 && index<(int)m_pD->m_messages.Num() )
 		{
 			result = m_pD->m_messages[index].m_type;
 		}
@@ -110,14 +109,14 @@ namespace mu
 	{
         ErrorLogMessageAttachedDataView result;
 
-		if ( index >=0 && index<(int)m_pD->m_messages.size() )
+		if ( index >=0 && index<(int)m_pD->m_messages.Num() )
 		{
 			const Private::MSG& message = m_pD->m_messages[index];
             
             if ( message.m_data ) 
             {
-                result.m_unassignedUVs = message.m_data->m_unassignedUVs.data();
-			    result.m_unassignedUVsSize = message.m_data->m_unassignedUVs.size();
+                result.m_unassignedUVs = message.m_data->m_unassignedUVs.GetData();
+			    result.m_unassignedUVsSize = message.m_data->m_unassignedUVs.Num();
             }
 		}
 
@@ -128,10 +127,10 @@ namespace mu
 	void ErrorLog::Private::Add( const char* strMessage, ErrorLogMessageType type,
 								 const void* context )
 	{
-		m_messages.push_back( MSG() );
-		m_messages.back().m_type = type;
-		m_messages.back().m_text = strMessage;
-		m_messages.back().m_context = context;
+		m_messages.Add( MSG() );
+		m_messages.Last().m_type = type;
+		m_messages.Last().m_text = strMessage;
+		m_messages.Last().m_context = context;
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -139,29 +138,26 @@ namespace mu
                                  const ErrorLogMessageAttachedDataView& dataView,
                                  ErrorLogMessageType type, const void* context )
 	{
-		m_messages.push_back( MSG() );
-		m_messages.back().m_type = type;
-		m_messages.back().m_text = strMessage;
-		m_messages.back().m_context = context;
-		m_messages.back().m_data = std::make_shared< DATA >();
+		m_messages.Add( MSG() );
+		m_messages.Last().m_type = type;
+		m_messages.Last().m_text = strMessage;
+		m_messages.Last().m_context = context;
+		m_messages.Last().m_data = std::make_shared< DATA >();
 
         if ( dataView.m_unassignedUVs && dataView.m_unassignedUVsSize > 0 )
         {
-            m_messages.back().m_data->m_unassignedUVs = vector<float>(
-                dataView.m_unassignedUVs, dataView.m_unassignedUVs + dataView.m_unassignedUVsSize);
+			// \TODO: Review
+			m_messages.Last().m_data->m_unassignedUVs.Append(dataView.m_unassignedUVs, dataView.m_unassignedUVsSize);
         }
 	}
+	
 	//---------------------------------------------------------------------------------------------
 	void ErrorLog::Log() const
 	{
 		UE_LOG(LogMutableCore, Log, TEXT(" Error Log :\n"));
 
-		for ( vector<Private::MSG>::const_iterator it = m_pD->m_messages.begin()
-			; it != m_pD->m_messages.end()
-			; ++it )
+		for ( const Private::MSG& msg : m_pD->m_messages )
 		{
-			const Private::MSG& msg = *it;
-
 			switch ( msg.m_type )
 			{
 			case ELMT_ERROR: 	UE_LOG(LogMutableCore, Log, TEXT("  ERR  %s\n"), msg.m_text.c_str()); break;
@@ -176,12 +172,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void ErrorLog::Merge( const ErrorLog* pOther )
 	{
-		m_pD->m_messages.insert
-			(
-				m_pD->m_messages.end(),
-				pOther->GetPrivate()->m_messages.begin(),
-				pOther->GetPrivate()->m_messages.end()
-			);
+		m_pD->m_messages.Append(pOther->GetPrivate()->m_messages);
 	}
 
 
@@ -581,17 +572,6 @@ namespace mu
 			break;
 		}
 
-
-		//-----------------------------------------------------------------------------------------
-//        case OP_TYPE::ME_REMOVEMASK:
-//        {
-//            auto args = program.GetOpArgs<OP::MeshRemoveMaskArgs>(at);
-//            mutable_snprintf( temp, 1024,
-//                              "source : %3d    mask : %3d",
-//                    (int)args.source,
-//                    (int)args.mask );
-//            break;
-//        }
         case OP_TYPE::ME_MERGE:
         {
             auto args = program.GetOpArgs<OP::MeshMergeArgs>(at);
@@ -625,224 +605,5 @@ namespace mu
 		temp[1023] = 0;
 		return temp;
 	}
-
-
-	//---------------------------------------------------------------------------------------------
-    void LogOp( const PROGRAM& prog, int at )
-	{
-        OP_TYPE type = prog.GetOpType(at);
-		UE_LOG(LogMutableCore, Log, TEXT("  @%3d  %s %s"), (int)at, s_opNames[(int)type], *GetOpDesc(prog, at));
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void Log( ModelPtrConst pModel )
-	{
-		const PROGRAM& prog = pModel->GetPrivate()->m_program;
-
-		for ( vector<PROGRAM::STATE>::const_iterator it = prog.m_states.begin()
-			; it != prog.m_states.end()
-			; ++it )
-		{
-			UE_LOG(LogMutableCore, Log, TEXT( "state name : % s\n      root : %d" ),
-					  *FString(it->m_name.c_str()),
-					  (int)it->m_root );
-		}
-
-		UE_LOG(LogMutableCore, Log, TEXT("code : ") );
-
-//		int at = 0;
-//		for ( vector<OP>::const_iterator it = prog.m_code.begin()
-//			; it != prog.m_code.end()
-//			; ++it )
-//		{
-//            LogOp( prog, at, *it );
-//			++at;
-//		}
-
-		UE_LOG(LogMutableCore, Log, TEXT("parameters : ") );
-		for ( vector<PARAMETER_DESC>::const_iterator it = prog.m_parameters.begin()
-			; it != prog.m_parameters.end()
-			; ++it )
-		{
-			UE_LOG(LogMutableCore, Log, TEXT("    [%s] : %2d"), *FString(it->m_name.c_str()), (int)it->m_type  );
-		}
-
-
-//		LogDebug( "constant images : \n" );
-//		for ( vector<ImagePtr>::const_iterator it = prog.m_constantImages.begin()
-//			; it != prog.m_constantImages.end()
-//			; ++it )
-//		{
-//			LogDebug( "    image : %2d", (int)(*it)->GetFormat() );
-//			LogDebug( "\t %4d x %4d\n", (int)(*it)->GetSizeX(), (int)(*it)->GetSizeY() );
-//		}
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant meshes : ") );
-        for ( const TPair<int32, mu::MeshPtrConst>& at: prog.m_constantMeshes )
-        {
-            const Mesh* m = at.Value.get();
-			UE_LOG(LogMutableCore, Log, TEXT("    mesh : %6d vertices \t %6d indices "),
-                    (int)m->GetVertexCount(), (int)m->GetIndexCount());
-        }
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant layouts : ") );
-        for ( vector<LayoutPtrConst>::const_iterator it = prog.m_constantLayouts.begin()
-			; it != prog.m_constantLayouts.end()
-			; ++it )
-		{
-            auto pLayout = *it;
-			UE_LOG(LogMutableCore, Log, TEXT("    layout : %3d x %3d"),
-					pLayout->m_size[0],
-					pLayout->m_size[1]
-					);
-			for ( int b=0; b<pLayout->GetBlockCount(); ++b )
-			{
-				UE_LOG(LogMutableCore, Log, TEXT("        block : %3d x %3d"),
-						pLayout->m_blocks[b].m_size[0],
-						pLayout->m_blocks[b].m_size[1]
-						);
-			}
-		}
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant skeletons : ") );
-        for ( auto it = prog.m_constantSkeletons.begin()
-            ; it != prog.m_constantSkeletons.end()
-            ; ++it )
-        {
-            auto pSkeleton = *it;
-			UE_LOG(LogMutableCore, Log, TEXT("    skeleton : %3d bones"), pSkeleton->GetBoneCount() );
-            for ( int b=0; b<pSkeleton->GetBoneCount(); ++b )
-            {
-				UE_LOG(LogMutableCore, Log, TEXT("        bone : %s"), *FString(pSkeleton->GetBoneName(b)) );
-            }
-        }
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant strings : ") );
-		for ( vector<string>::const_iterator it = prog.m_constantStrings.begin()
-			; it != prog.m_constantStrings.end()
-			; ++it )
-		{
-			UE_LOG(LogMutableCore, Log, TEXT("    string : [%s]"), *FString(it->c_str()) );
-		}
-
-	}
-
-
-    //---------------------------------------------------------------------------------------------
-    void RecurseLogOp( int indent, int at, PROGRAM& prog, vector<uint8_t>& done )
-    {
-        OP_TYPE type = prog.GetOpType(at);
-
-        if (done[at])
-        {
-			UE_LOG(LogMutableCore, Log, TEXT("%*s@%3d  %s [repeated]"), indent, " ", (int)at, s_opNames[(int)type] );
-        }
-        else
-        {
-            done[at] = 1;
-
-            string desc = "";//GetOpDesc(prog,op);
-			UE_LOG(LogMutableCore, Log, TEXT("%*s@%3d  %s %s"), indent, " ", (int)at, s_opNames[(int)type], desc.c_str() );
-
-            ForEachReference( prog, at, [&]( OP::ADDRESS ref )
-            {
-                if (ref)
-                {
-                    RecurseLogOp( indent+2, ref, prog, done );
-                }
-            });
-        }
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void LogSubtree( PROGRAM& prog, OP::ADDRESS root )
-    {
-        for ( vector<PROGRAM::STATE>::const_iterator it = prog.m_states.begin()
-            ; it != prog.m_states.end()
-            ; ++it )
-        {
-			UE_LOG(LogMutableCore, Log, TEXT("state name : % s\n      root : %d"),
-                      it->m_name.c_str(),
-                      (int)it->m_root );
-        }
-
-		UE_LOG(LogMutableCore, Log, TEXT("code : ") );
-
-        vector<uint8_t> done( prog.m_opAddress.size(), 0 );
-        RecurseLogOp( 0, root, prog, done );
-
-		UE_LOG(LogMutableCore, Log, TEXT("parameters : ") );
-        for ( vector<PARAMETER_DESC>::const_iterator it = prog.m_parameters.begin()
-            ; it != prog.m_parameters.end()
-            ; ++it )
-        {
-			UE_LOG(LogMutableCore, Log, TEXT("    [%s] : %2d"), it->m_name.c_str(), (int)it->m_type  );
-        }
-
-
-//		LogDebug( "constant images : \n" );
-//		for ( vector<ImagePtr>::const_iterator it = prog.m_constantImages.begin()
-//			; it != prog.m_constantImages.end()
-//			; ++it )
-//		{
-//			LogDebug( "    image : %2d", (int)(*it)->GetFormat() );
-//			LogDebug( "\t %4d x %4d\n", (int)(*it)->GetSizeX(), (int)(*it)->GetSizeY() );
-//		}
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant meshes : ") );
-        int meshIndex = 0;
-        for ( const auto & at: prog.m_constantMeshes )
-        {
-            const Mesh* m = at.Value.get();
-			UE_LOG(LogMutableCore, Log, TEXT("    %4d mesh : %6d vertices \t %6d indices "),
-                      ++meshIndex,
-                      (int)m->GetVertexCount(), (int)m->GetIndexCount() );
-        }
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant layouts : ") );
-        for ( vector<LayoutPtrConst>::const_iterator it = prog.m_constantLayouts.begin()
-            ; it != prog.m_constantLayouts.end()
-            ; ++it )
-        {
-            auto pLayout = *it;
-			UE_LOG(LogMutableCore, Log, TEXT("    layout : %3d x %3d"),
-                    pLayout->m_size[0],
-                    pLayout->m_size[1]
-                    );
-            for ( int b=0; b<pLayout->GetBlockCount(); ++b )
-            {
-				UE_LOG(LogMutableCore, Log, TEXT("        block : %3d x %3d"),
-                        pLayout->m_blocks[b].m_size[0],
-                        pLayout->m_blocks[b].m_size[1]
-                        );
-            }
-        }
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant skeletons : ") );
-        for ( auto it = prog.m_constantSkeletons.begin()
-            ; it != prog.m_constantSkeletons.end()
-            ; ++it )
-        {
-            auto pSkeleton = *it;
-			UE_LOG(LogMutableCore, Log, TEXT("    skeleton : %3d bones"), pSkeleton->GetBoneCount() );
-            for ( int b=0; b<pSkeleton->GetBoneCount(); ++b )
-            {
-				UE_LOG(LogMutableCore, Log, TEXT("        bone : %s"), pSkeleton->GetBoneName(b) );
-            }
-        }
-
-		UE_LOG(LogMutableCore, Log, TEXT("constant strings : ") );
-        for ( vector<string>::const_iterator it = prog.m_constantStrings.begin()
-            ; it != prog.m_constantStrings.end()
-            ; ++it )
-        {
-			UE_LOG(LogMutableCore, Log, TEXT("    string : [%s]"), it->c_str() );
-        }
-
-    }
-
-
 
 }

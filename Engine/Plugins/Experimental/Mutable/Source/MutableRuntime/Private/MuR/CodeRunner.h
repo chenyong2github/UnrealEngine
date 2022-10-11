@@ -250,7 +250,7 @@ class RangeIndex;
 			AddChildren(dep4);
 		}
 
-		void AddOp(const SCHEDULED_OP& op, const vector<SCHEDULED_OP>& deps)
+		void AddOp(const SCHEDULED_OP& op, const TArray<SCHEDULED_OP>& deps)
 		{
 			FTask Task(op);
 			for (const auto& d : deps)
@@ -312,12 +312,12 @@ class RangeIndex;
 			int32 m_romIndex = 0;
 			DATATYPE ConstantType = DT_NONE;
 			ModelStreamer::OPERATION_ID m_streamID;
-			vector<uint8> m_streamBuffer;
+			TArray<uint8> m_streamBuffer;
 		};
-		vector<ROM_LOAD_OP> m_romLoadOps;
+		TArray<ROM_LOAD_OP> m_romLoadOps;
 
 		//! Count of pending operations for every rom index
-		vector<uint16> m_romPendingOps;
+		TArray<uint16> m_romPendingOps;
 
 	private:
 

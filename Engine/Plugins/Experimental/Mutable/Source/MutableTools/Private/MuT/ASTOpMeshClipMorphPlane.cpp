@@ -56,7 +56,7 @@ uint64 ASTOpMeshClipMorphPlane::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshClipMorphPlane::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshClipMorphPlane::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshClipMorphPlane> n = new ASTOpMeshClipMorphPlane();
     n->source = mapChild(source.child());
@@ -70,7 +70,7 @@ mu::Ptr<ASTOp> ASTOpMeshClipMorphPlane::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshClipMorphPlane::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshClipMorphPlane::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( source );
 }
@@ -86,8 +86,8 @@ void ASTOpMeshClipMorphPlane::Link( PROGRAM& program, const FLinkerOptions* )
 
         if (source) args.source = source->linkedAddress;
 
-        args.morphShape = (OP::ADDRESS)program.m_constantShapes.size();
-        program.m_constantShapes.push_back(morphShape);
+        args.morphShape = (OP::ADDRESS)program.m_constantShapes.Num();
+        program.m_constantShapes.Add(morphShape);
 
         args.vertexSelectionType = (uint8_t)vertexSelectionType;
         if (vertexSelectionType==OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
@@ -103,9 +103,9 @@ void ASTOpMeshClipMorphPlane::Link( PROGRAM& program, const FLinkerOptions* )
         args.factor = factor;
 		args.maxBoneRadius = vertexSelectionBoneMaxRadius;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_CLIPMORPHPLANE);
         AppendCode(program.m_byteCode,args);
     }

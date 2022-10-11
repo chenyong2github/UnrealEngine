@@ -395,9 +395,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (uint8)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(pTypedSource[channel])
 								)
@@ -409,9 +409,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (uint8)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)halfToFloat(pTypedSource[channel])
 								)
@@ -422,7 +422,7 @@ namespace mu
 			case MBF_INT8:
 			{
                 const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
-                pTypedResult[channel] =  (uint8)std::max<int8>( 0, pTypedSource[channel] );
+                pTypedResult[channel] =  (uint8)FMath::Max<int8>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -437,9 +437,9 @@ namespace mu
 			{
                 const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
                 pTypedResult[channel] =  (uint8)
-                        std::min<int16>(
+                        FMath::Min<int16>(
 							0xFF,
-                            std::max<int16>(
+                            FMath::Max<int16>(
 								0,
 								pTypedSource[channel]
 								)
@@ -452,9 +452,9 @@ namespace mu
 				// Clamp
                 const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
                 pTypedResult[channel] = (uint8)
-                        std::min<uint16>(
+                        FMath::Min<uint16>(
 							0xFF,
-                            std::max<uint16>(
+                            FMath::Max<uint16>(
 								0,
 								pTypedSource[channel]
 								)
@@ -466,9 +466,9 @@ namespace mu
 			{
                 const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
                 pTypedResult[channel] =  (uint8)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							0xFF,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -481,9 +481,9 @@ namespace mu
 				// Clamp
                 const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
                 pTypedResult[channel] = (uint8)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -517,9 +517,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (uint16)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(pTypedSource[channel])
 								)
@@ -531,9 +531,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (uint16)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)halfToFloat(pTypedSource[channel])
 								)
@@ -551,7 +551,7 @@ namespace mu
 			case MBF_INT8:
 			{
                 const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
-                pTypedResult[channel] =  (uint16)std::max<int8>( 0, pTypedSource[channel] );
+                pTypedResult[channel] =  (uint16)FMath::Max<int8>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -565,7 +565,7 @@ namespace mu
 			case MBF_INT16:
 			{
                 const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
-                pTypedResult[channel] =  (uint16)std::max<int16>( 0, pTypedSource[channel] );
+                pTypedResult[channel] =  (uint16)FMath::Max<int16>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -574,9 +574,9 @@ namespace mu
 				// Clamp
                 const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
                 pTypedResult[channel] = (uint16)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -589,9 +589,9 @@ namespace mu
 				// Clamp
                 const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
                 pTypedResult[channel] = (uint16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							0xFFFF,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								0,
 								pTypedSource[channel]
 								)
@@ -625,9 +625,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
 				pTypedResult[channel] =
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(pTypedSource[channel])
 								)
@@ -639,9 +639,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
 				pTypedResult[channel] =
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)halfToFloat(pTypedSource[channel])
 								)
@@ -659,7 +659,7 @@ namespace mu
 			case MBF_INT8:
 			{
                 const int8* pTypedSource = reinterpret_cast<const int8*>( pSource );
-                pTypedResult[channel] =  (uint16)std::max<int8>( 0, pTypedSource[channel] );
+                pTypedResult[channel] =  (uint16)FMath::Max<int8>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -673,7 +673,7 @@ namespace mu
 			case MBF_INT16:
 			{
                 const int16* pTypedSource = reinterpret_cast<const int16*>( pSource );
-                pTypedResult[channel] =  (uint16)std::max<int16>( 0, pTypedSource[channel] );
+                pTypedResult[channel] =  (uint16)FMath::Max<int16>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -688,7 +688,7 @@ namespace mu
 			{
 				// Clamp
                 const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
-                pTypedResult[channel] = (uint32)std::max<int32>( 0, pTypedSource[channel] );
+                pTypedResult[channel] = (uint32)FMath::Max<int32>( 0, pTypedSource[channel] );
 				break;
 			}
 
@@ -718,9 +718,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (int8)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							127,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-128,
                                 (int32)(pTypedSource[channel])
 								)
@@ -732,9 +732,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (int8)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							127,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-128,
                                 (int32)halfToFloat(pTypedSource[channel])
 								)
@@ -775,9 +775,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							32767,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-32768,
                                 (int32)(pTypedSource[channel])
 								)
@@ -789,9 +789,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							32767,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-32768,
                                 (int32)halfToFloat(pTypedSource[channel])
 								)
@@ -817,7 +817,7 @@ namespace mu
 			{
                 const uint16* pTypedSource = reinterpret_cast<const uint16*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
                             32767, (int32)pTypedSource[channel]
 							);
 				break;
@@ -827,9 +827,9 @@ namespace mu
 			{
                 const int32* pTypedSource = reinterpret_cast<const int32*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							32767,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-32768,
 								pTypedSource[channel]
 								)
@@ -841,7 +841,7 @@ namespace mu
 			{
                 const uint32* pTypedSource = reinterpret_cast<const uint32*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							32767, pTypedSource[channel]
 							);
 				break;
@@ -966,9 +966,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>(pSource);
 				pTypedResult[channel] = (uint8)
-					std::min<uint32>(
+					FMath::Min<uint32>(
 						0xFF,
-						std::max<uint32>(
+						FMath::Max<uint32>(
 							0,
 							(uint32)(((float)0xFF)*pTypedSource[channel] + 0.5f)
 							)
@@ -980,9 +980,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (uint8)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(((float)0xFF)*halfToFloat(pTypedSource[channel])+0.5f)
 								)
@@ -1031,9 +1031,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (uint16)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(((float)0xFFFF)*pTypedSource[channel]+0.5f)
 								)
@@ -1045,9 +1045,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (uint16)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(((float)0xFFFF)*halfToFloat(pTypedSource[channel])+0.5f)
 								)
@@ -1082,9 +1082,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (uint32)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFFFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(((float)0xFFFFFFFF)*pTypedSource[channel])
 								)
@@ -1096,9 +1096,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (uint32)
-                        std::min<uint32>(
+                        FMath::Min<uint32>(
 							0xFFFFFFFF,
-                            std::max<uint32>(
+                            FMath::Max<uint32>(
 								0,
                                 (uint32)(((float)0xFFFFFFFF)*halfToFloat(pTypedSource[channel])+0.5f)
 								)
@@ -1133,9 +1133,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (int8)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							127,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-128,
                                 (int32)(128.0f*pTypedSource[channel]+0.5f)
 								)
@@ -1147,9 +1147,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (int8)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							127,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-128,
                                 (int32)(128.0f*halfToFloat(pTypedSource[channel])+0.5f)
 								)
@@ -1184,9 +1184,9 @@ namespace mu
 			{
 				const float* pTypedSource = reinterpret_cast<const float*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							32767,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-32768,
                                 (int32)(32768.0f*pTypedSource[channel]+0.5f)
 								)
@@ -1198,9 +1198,9 @@ namespace mu
 			{
 				const float16* pTypedSource = reinterpret_cast<const float16*>( pSource );
                 pTypedResult[channel] = (int16)
-                        std::min<int32>(
+                        FMath::Min<int32>(
 							32767,
-                            std::max<int32>(
+                            FMath::Max<int32>(
 								-32768,
                                 (int32)(32768.0f*halfToFloat(pTypedSource[channel])+0.5f)
 								)
@@ -1285,7 +1285,7 @@ namespace mu
                 float source = pTypedSource[channel];
                 source = (source*0.5f+0.5f)*255.0f;
                 pTypedResult[channel] =
-                        (uint8)std::min<float>( 255.0f, std::max<float>( 0.0f, source ) );
+                        (uint8)FMath::Min<float>( 255.0f, FMath::Max<float>( 0.0f, source ) );
                 break;
             }
 
@@ -1318,7 +1318,7 @@ namespace mu
                 float source = pTypedSource[channel];
                 source = source*0.5f*255.0f;
                 pTypedResult[channel] =
-                        (int8)std::min<float>( 127.0f, std::max<float>( -128.0f, source ) );
+                        (int8)FMath::Min<float>( 127.0f, FMath::Max<float>( -128.0f, source ) );
                 break;
             }
 

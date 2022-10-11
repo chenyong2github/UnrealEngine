@@ -36,7 +36,7 @@ namespace mu
                     uint8_t b = pBBuf[3*i+c];
 					if ( abs(a-b)>3 )
 					{
-                        diff = std::max( diff, (uint8_t)255 );
+                        diff = FMath::Max( diff, (uint8_t)255 );
 					}
 				}
 				pDestBuf[i] = diff;
@@ -54,7 +54,7 @@ namespace mu
                     uint8_t b = pBBuf[4*i+c];
 					if ( abs(a-b)>3 )
 					{
-                        diff = std::max( diff, (uint8_t)255 );
+                        diff = FMath::Max( diff, (uint8_t)255 );
 					}
 				}
 				pDestBuf[i] = diff;

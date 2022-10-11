@@ -24,7 +24,7 @@ namespace mu
 
 		MeshPtr m_pValue;
 
-		vector<NodeLayoutPtr> m_layouts;
+		TArray<NodeLayoutPtr> m_layouts;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

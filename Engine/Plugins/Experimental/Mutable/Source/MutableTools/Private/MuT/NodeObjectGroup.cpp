@@ -38,7 +38,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeObjectGroup::GetInputCount() const
 	{
-		return (int)m_pD->m_children.size();
+		return m_pD->m_children.Num();
 	}
 
 
@@ -49,7 +49,7 @@ namespace mu
 
 		Node* pResult = 0;
 
-		if ( i<(int)m_pD->m_children.size() )
+		if ( i<m_pD->m_children.Num() )
 		{
 			pResult = m_pD->m_children[i].get();
 		}
@@ -63,7 +63,7 @@ namespace mu
 	{
 		check( i>=0 && i<GetInputCount() );
 
-		if ( i<(int)m_pD->m_children.size() )
+		if ( i<m_pD->m_children.Num() )
 		{
 			m_pD->m_children[i] = dynamic_cast<NodeObject*>( pNode.get() );
 		}
@@ -130,7 +130,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeObjectGroup::GetChildCount() const
 	{
-		return (int)m_pD->m_children.size();
+		return m_pD->m_children.Num();
 	}
 
 
@@ -138,14 +138,14 @@ namespace mu
 	void NodeObjectGroup::SetChildCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_children.resize( num );
+		m_pD->m_children.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeObjectPtr NodeObjectGroup::GetChild( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_children.size() );
+		check( index >=0 && index < m_pD->m_children.Num() );
 
 		return m_pD->m_children[ index ].get();
 	}
@@ -154,7 +154,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeObjectGroup::SetChild( int index, NodeObjectPtr pObject )
 	{
-		check( index >=0 && index < (int)m_pD->m_children.size() );
+		check( index >=0 && index < m_pD->m_children.Num() );
 
 		m_pD->m_children[ index ] = pObject;
 	}
@@ -165,7 +165,7 @@ namespace mu
 	{
 		NodeLayoutPtr pLayout;
 
-		for ( size_t i=0; !pLayout && i<m_children.size(); ++i )
+		for ( int32 i=0; !pLayout && i<m_children.Num(); ++i )
 		{
 			if (m_children[i])
 			{

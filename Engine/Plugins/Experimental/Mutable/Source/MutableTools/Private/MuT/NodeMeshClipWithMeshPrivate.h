@@ -22,21 +22,17 @@ namespace mu
 
 	public:
 
-		Private()
-		{
-		}
-
 		static NODE_TYPE s_type;
 
 		NodeMeshPtr m_pSource;
 		NodeMeshPtr m_pClipMesh;
 
-		vector<mu::string> m_tags;
+		TArray<mu::string> m_tags;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 1;
+            uint32 ver = 1;
 			arch << ver;
 
 			arch << m_pSource;
@@ -47,7 +43,7 @@ namespace mu
 		//!
 		void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
 
 			arch >> m_pSource;

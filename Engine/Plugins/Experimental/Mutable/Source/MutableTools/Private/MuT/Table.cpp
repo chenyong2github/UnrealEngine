@@ -77,7 +77,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int Table::AddColumn( const char* strName, TABLE_COLUMN_TYPE type )
 	{
-		int result = (int)m_pD->m_columns.size();
+		int result = m_pD->m_columns.Num();
 
 		TABLE_COLUMN c;
 
@@ -87,12 +87,12 @@ namespace mu
 		}
 		c.m_type = type;
 
-		m_pD->m_columns.push_back(c);
+		m_pD->m_columns.Add(c);
 
 		// Add it to all rows
-		for ( std::size_t r=0; r<m_pD->m_rows.size(); ++r )
+		for ( std::size_t r=0; r<m_pD->m_rows.Num(); ++r )
 		{
-			m_pD->m_rows[r].m_values.push_back( TABLE_VALUE() );
+			m_pD->m_rows[r].m_values.Add( TABLE_VALUE() );
 		}
 
 		return result;
@@ -104,7 +104,7 @@ namespace mu
 	{
 		int res = -1;
 
-		for ( std::size_t c=0; c<m_pD->m_columns.size(); ++c )
+		for ( std::size_t c=0; c<m_pD->m_columns.Num(); ++c )
 		{
 			if ( m_pD->m_columns[c].m_name == strName )
 			{
@@ -123,8 +123,8 @@ namespace mu
 
 		TABLE_ROW r;
 		r.m_id = id;
-		r.m_values.resize( m_pD->m_columns.size() );
-		m_pD->m_rows.push_back( r );
+		r.m_values.SetNum( m_pD->m_columns.Num() );
+		m_pD->m_rows.Add( r );
 	}
 
 
@@ -140,8 +140,8 @@ namespace mu
 	{
 		int row = m_pD->FindRow(rowId);
 		check( row>=0 );
-		check( column < (int)m_pD->m_columns.size() );
-		check( column < (int)m_pD->m_rows[row].m_values.size() );
+		check( column < (int)m_pD->m_columns.Num() );
+		check( column < (int)m_pD->m_rows[row].m_values.Num() );
 		check( m_pD->m_columns[column].m_type == TCT_SCALAR );
 
 		m_pD->m_rows[ row ].m_values[column].m_scalar = value;
@@ -153,8 +153,8 @@ namespace mu
 	{
 		int row = m_pD->FindRow(rowId);
 		check( row>=0 );
-		check( column < (int)m_pD->m_columns.size() );
-		check( column < (int)m_pD->m_rows[row].m_values.size() );
+		check( column < (int)m_pD->m_columns.Num() );
+		check( column < (int)m_pD->m_rows[row].m_values.Num() );
 		check( m_pD->m_columns[column].m_type == TCT_COLOUR );
 
 		m_pD->m_rows[ row ].m_values[column].m_colour = vec3<float>( r, g, b );
@@ -166,8 +166,8 @@ namespace mu
 	{
 		int row = m_pD->FindRow(rowId);
 		check( row>=0 );
-		check( column < (int)m_pD->m_columns.size() );
-		check( column < (int)m_pD->m_rows[row].m_values.size() );
+		check( column < (int)m_pD->m_columns.Num() );
+		check( column < (int)m_pD->m_rows[row].m_values.Num() );
 		check( m_pD->m_columns[column].m_type == TCT_IMAGE );
 
 		m_pD->m_rows[ row ].m_values[column].m_pProxyImage = new ResourceProxyMemory<Image>(pImage);
@@ -179,8 +179,8 @@ namespace mu
 	{
 		int row = m_pD->FindRow(rowId);
 		check( row>=0 );
-		check( column < (int)m_pD->m_columns.size() );
-		check( column < (int)m_pD->m_rows[row].m_values.size() );
+		check( column < (int)m_pD->m_columns.Num() );
+		check( column < (int)m_pD->m_rows[row].m_values.Num() );
 		check( m_pD->m_columns[column].m_type == TCT_MESH );
 
 		m_pD->m_rows[ row ].m_values[column].m_pMesh = pMesh;
@@ -192,8 +192,8 @@ namespace mu
 	{
 		int row = m_pD->FindRow(rowId);
 		check( row>=0 );
-		check( column < (int)m_pD->m_columns.size() );
-		check( column < (int)m_pD->m_rows[row].m_values.size() );
+		check( column < (int)m_pD->m_columns.Num() );
+		check( column < (int)m_pD->m_rows[row].m_values.Num() );
 		check( m_pD->m_columns[column].m_type == TCT_STRING );
 
 		m_pD->m_rows[ row ].m_values[column].m_string = strValue;

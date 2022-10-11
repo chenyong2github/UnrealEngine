@@ -37,7 +37,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshSwitch::GetInputCount() const
 	{
-		return 1 + (int)m_pD->m_options.size();
+		return 1 + m_pD->m_options.Num();
 	}
 
 
@@ -100,14 +100,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshSwitch::SetOptionCount( int t )
 	{
-		m_pD->m_options.resize(t);
+		m_pD->m_options.SetNum(t);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeMeshPtr NodeMeshSwitch::GetOption( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<m_pD->m_options.Num() );
 		return m_pD->m_options[t].get();
 	}
 
@@ -115,7 +115,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshSwitch::SetOption( int t, NodeMeshPtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_options.size() );
+		check( t>=0 && t<m_pD->m_options.Num() );
 		m_pD->m_options[t] = pNode;
 	}
 
@@ -125,7 +125,7 @@ namespace mu
 	{
 		NodeLayoutPtr pResult;
 
-		if (m_options.size()>0 && m_options[0] )
+		if (m_options.Num()>0 && m_options[0] )
 		{
 			NodeMesh::Private* pPrivate =
 					dynamic_cast<NodeMesh::Private*>( m_options[0]->GetBasePrivate() );

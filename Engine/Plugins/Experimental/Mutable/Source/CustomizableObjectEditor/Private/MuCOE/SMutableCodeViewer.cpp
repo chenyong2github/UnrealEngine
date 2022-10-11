@@ -82,8 +82,6 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
-#include <functional>
-
 class FExtender;
 class FReferenceCollector;
 class FUICommandList;
@@ -351,7 +349,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr&
 	//TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab.ToSharedRef());
 
 	const mu::Model::Private* ModelPrivate = MutableModel->GetPrivate();
-	const int32 StateCount = int32( ModelPrivate->m_program.m_states.size() );
+	const int32 StateCount = ModelPrivate->m_program.m_states.Num();
 	for ( int32 StateIndex=0; StateIndex<StateCount; ++StateIndex )
 	{
 		const mu::PROGRAM::STATE& State = ModelPrivate->m_program.m_states[StateIndex];
@@ -1811,7 +1809,7 @@ void SMutableCodeViewer::CacheRootNodeAddresses()
 	TArray<mu::OP::ADDRESS> FoundRootNodeAddresses;
 	
 	const mu::Model::Private* ModelPrivate = MutableModel->GetPrivate();
-	const int32 StateCount = int32( ModelPrivate->m_program.m_states.size() );
+	const int32 StateCount = ModelPrivate->m_program.m_states.Num();
 	for ( int32 StateIndex=0; StateIndex < StateCount; ++StateIndex )
 	{
 		const mu::PROGRAM::STATE& State = ModelPrivate->m_program.m_states[StateIndex];

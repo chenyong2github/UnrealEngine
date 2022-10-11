@@ -17,7 +17,6 @@
 #include <utility>
 
 
-
 namespace mu
 {
 
@@ -40,7 +39,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshMorph::GetInputCount() const
 	{
-		return 2 + (int)m_pD->m_morphs.size();
+		return 2 + m_pD->m_morphs.Num();
 	}
 
 
@@ -125,7 +124,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	NodeMeshPtr NodeMeshMorph::GetMorph( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_morphs.size() );
+		check( t>=0 && t<m_pD->m_morphs.Num() );
 
 		return m_pD->m_morphs[t].get();
 	}
@@ -134,20 +133,20 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::SetMorph( int t, NodeMeshPtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_morphs.size() );
+		check( t>=0 && t<m_pD->m_morphs.Num() );
 		m_pD->m_morphs[t] = pNode;
 	}
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::SetMorphCount( int t )
 	{
-		m_pD->m_morphs.resize(t);
+		m_pD->m_morphs.SetNum(t);
 	}
 
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshMorph::GetMorphCount() const
 	{
-		return (int)m_pD->m_morphs.size();
+		return m_pD->m_morphs.Num();
 	}
 
 	//---------------------------------------------------------------------------------------------

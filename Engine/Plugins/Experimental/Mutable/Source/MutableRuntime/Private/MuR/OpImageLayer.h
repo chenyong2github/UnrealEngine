@@ -53,7 +53,7 @@ namespace mu
 					unsigned result = BLEND_FUNC(base, top[c]);
 					if (CLAMP)
 					{
-						pDestBuf[3 * i + c] = (uint8)std::min(255u, result);
+						pDestBuf[3 * i + c] = (uint8)FMath::Min(255u, result);
 					}
 					else
 					{
@@ -87,7 +87,7 @@ namespace mu
 					unsigned result = BLEND_FUNC(base, top[c]);
 					if (CLAMP)
 					{
-						pDestBuf[4 * i + c] = (uint8)std::min(255u, result);
+						pDestBuf[4 * i + c] = (uint8)FMath::Min(255u, result);
 					}
 					else
 					{
@@ -122,7 +122,7 @@ namespace mu
 						unsigned result = BLEND_FUNC(base, top[2 - c]);
 						if (CLAMP)
 						{
-							pDestBuf[4 * i + c] = (uint8)std::min(255u, result);
+							pDestBuf[4 * i + c] = (uint8)FMath::Min(255u, result);
 						}
 						else
 						{
@@ -155,7 +155,7 @@ namespace mu
 					unsigned result = BLEND_FUNC(base, top[0]);
 					if (CLAMP)
 					{
-						pDestBuf[i] = (uint8)std::min(255u, result);
+						pDestBuf[i] = (uint8)FMath::Min(255u, result);
 					}
 					else
 					{
@@ -831,7 +831,7 @@ namespace mu
 									unsigned result = BLEND_FUNC_MASKED( base, blended, mask );
 									if ( CLAMP )
 									{
-										pDestBuf[NC*i+c] = (uint8)std::min( 255u, result );
+										pDestBuf[NC*i+c] = (uint8)FMath::Min( 255u, result );
 									}
 									else
 									{
@@ -851,7 +851,7 @@ namespace mu
 									unsigned result = BLEND_FUNC_MASKED( base, blended, mask );
 									if ( CLAMP )
 									{
-										pDestBuf[NC*i+c] = (uint8)std::min( 255u, result );
+										pDestBuf[NC*i+c] = (uint8)FMath::Min( 255u, result );
 									}
 									else
 									{

@@ -29,13 +29,13 @@ namespace mu
 		string m_name;
 		string m_uid;
 
-		vector<NodeLODPtr> m_lods;
+		TArray<NodeLODPtr> m_lods;
 
-		vector<NodeObjectPtr> m_children;
+		TArray<NodeObjectPtr> m_children;
 
 
 		//! List of states
-        vector<OBJECT_STATE> m_states;
+        TArray<OBJECT_STATE> m_states;
 
 
 		//!

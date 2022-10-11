@@ -1455,7 +1455,7 @@ namespace impl
 							{
 								for (int32 i = 0; i < boneIndexComponents; ++i)
 								{
-									size_t SectionBoneIndex = ((uint16_t*)VertexBoneIndexPtr)[i];
+									size_t SectionBoneIndex = ((uint16*)VertexBoneIndexPtr)[i];
 									UsedBones[SectionBoneIndex] = true;
 								}
 								VertexBoneIndexPtr += elemSize;

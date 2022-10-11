@@ -10,9 +10,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	2
-
-
 namespace mu
 {
 
@@ -35,14 +32,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeMeshMakeMorph::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 2;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     Node* NodeMeshMakeMorph::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 		return i == 0 ? m_pD->m_pBase.get() : m_pD->m_pTarget.get();
 	}
 
@@ -50,7 +47,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeMeshMakeMorph::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 		if (i==0)
 		{
 			m_pD->m_pBase = dynamic_cast<NodeMesh*>( pNode.get() );
@@ -111,5 +108,3 @@ namespace mu
 
 
 }
-
-#undef NODE_INPUT_COUNT

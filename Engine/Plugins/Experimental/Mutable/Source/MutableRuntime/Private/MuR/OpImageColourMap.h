@@ -31,10 +31,10 @@ namespace mu
 		for ( int i=0; i<256; ++i )
 		{
 			vec4<float> c = pMap->Sample( vec2<float>( float(i)/256.0f, 0.0f ) );
-            palette[i][0] = (uint8_t)std::max( 0, std::min( 255, int(c[0]*255.0f) ) );
-            palette[i][1] = (uint8_t)std::max( 0, std::min( 255, int(c[1]*255.0f) ) );
-            palette[i][2] = (uint8_t)std::max( 0, std::min( 255, int(c[2]*255.0f) ) );
-            palette[i][3] = (uint8_t)std::max( 0, std::min( 255, int(c[3]*255.0f) ) );
+            palette[i][0] = (uint8_t)FMath::Max( 0, FMath::Min( 255, int(c[0]*255.0f) ) );
+            palette[i][1] = (uint8_t)FMath::Max( 0, FMath::Min( 255, int(c[1]*255.0f) ) );
+            palette[i][2] = (uint8_t)FMath::Max( 0, FMath::Min( 255, int(c[2]*255.0f) ) );
+            palette[i][3] = (uint8_t)FMath::Max( 0, FMath::Min( 255, int(c[3]*255.0f) ) );
 		}
 
 		switch ( pSource->GetFormat() )

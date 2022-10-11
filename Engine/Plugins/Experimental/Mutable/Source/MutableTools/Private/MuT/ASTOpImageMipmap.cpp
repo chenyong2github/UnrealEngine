@@ -67,7 +67,7 @@ uint64 ASTOpImageMipmap::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpImageMipmap::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImageMipmap::Clone(MapChildFuncRef mapChild) const
 {
 	mu::Ptr<ASTOpImageMipmap> n = new ASTOpImageMipmap();
     n->Source = mapChild(Source.child());
@@ -83,7 +83,7 @@ mu::Ptr<ASTOp> ASTOpImageMipmap::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpImageMipmap::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpImageMipmap::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( Source );
 }
@@ -106,9 +106,9 @@ void ASTOpImageMipmap::Link( PROGRAM& program, const FLinkerOptions* )
 		args.ditherMipmapAlpha = DitherMipmapAlpha;
 		if (Source) args.source = Source->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::IM_MIPMAP);
         AppendCode(program.m_byteCode,args);
     }
@@ -260,8 +260,8 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
 	check(root->GetOpType() == OP_TYPE::IM_MIPMAP);
 
 	m_root = dynamic_cast<const ASTOpImageMipmap*>(root);
-	m_oldToNew.clear();
-	m_newOps.clear();
+	m_oldToNew.Empty();
+	m_newOps.Empty();
 
 	if (m_root->bOnlyTail)
 	{
@@ -321,16 +321,16 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 	if (!at) return nullptr;
 
 	// Newly created?
-	if (std::find(m_newOps.begin(), m_newOps.end(), at) != m_newOps.end())
+	if (m_newOps.Contains(at))
 	{
 		return at;
 	}
 
 	// Already visited?
-	auto cacheIt = m_oldToNew.find(at);
-	if (cacheIt != m_oldToNew.end())
+	auto cacheIt = m_oldToNew.Find(at);
+	if (cacheIt)
 	{
-		return cacheIt->second;
+		return *cacheIt;
 	}
 
 	mu::Ptr<ASTOp> newAt = at;
@@ -400,10 +400,10 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 
 			uint8_t blockLevels = 0;
 			{
-				uint16_t minX = typedSource->location[0];
-				uint16_t minY = typedSource->location[1];
-				uint16_t sizeX = patchDesc.m_size[0];
-				uint16_t sizeY = patchDesc.m_size[1];
+				uint16 minX = typedSource->location[0];
+				uint16 minY = typedSource->location[1];
+				uint16 sizeX = patchDesc.m_size[0];
+				uint16 sizeY = patchDesc.m_size[1];
 				while (minX && minY && sizeX && sizeY
 					&&
 					minX % 2 == 0 && minY % 2 == 0 && sizeX % 2 == 0 && sizeY % 2 == 0)
@@ -453,7 +453,7 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 		newAt = newOp;
 	}
 
-	m_oldToNew[at] = newAt;
+	m_oldToNew.Add(at, newAt);
 
 	return newAt;
 }

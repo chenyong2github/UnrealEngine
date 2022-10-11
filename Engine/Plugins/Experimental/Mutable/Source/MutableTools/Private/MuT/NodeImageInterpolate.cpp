@@ -35,7 +35,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageInterpolate::GetInputCount() const
 	{
-		return 1 + (int)m_pD->m_targets.size();
+		return 1 + (int)m_pD->m_targets.Num();
 	}
 
 
@@ -98,7 +98,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	NodeImagePtr NodeImageInterpolate::GetTarget( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_targets.size() );
+		check( t>=0 && t<(int)m_pD->m_targets.Num() );
 		return m_pD->m_targets[t].get();
 	}
 
@@ -106,7 +106,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageInterpolate::SetTarget( int t, NodeImagePtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_targets.size() );
+		check( t>=0 && t<(int)m_pD->m_targets.Num() );
 		m_pD->m_targets[t] = pNode;
 	}
 
@@ -114,14 +114,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageInterpolate::SetTargetCount( int t )
 	{
-		m_pD->m_targets.resize(t);
+		m_pD->m_targets.SetNum(t);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	int NodeImageInterpolate::GetTargetCount() const
 	{
-		return int(m_pD->m_targets.size());
+		return int(m_pD->m_targets.Num());
 	}
 
 

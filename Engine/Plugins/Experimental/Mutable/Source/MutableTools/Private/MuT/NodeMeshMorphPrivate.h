@@ -23,7 +23,7 @@ namespace mu
 
 		NodeScalarPtr m_pFactor;
 		NodeMeshPtr m_pBase;
-		vector<NodeMeshPtr> m_morphs;
+		TArray<NodeMeshPtr> m_morphs;
         bool m_vertexIndicesAreRelative = false;
 		
 		bool m_reshapeSkeleton = false;

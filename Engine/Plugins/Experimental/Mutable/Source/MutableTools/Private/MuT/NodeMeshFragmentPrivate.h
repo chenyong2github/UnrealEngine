@@ -29,7 +29,7 @@ namespace mu
 
 		NodeMeshPtr m_pMesh;
         int m_layoutOrGroup;
-		vector<int> m_blocks;
+		TArray<int> m_blocks;
 
         FRAGMENT_TYPE m_fragmentType;
 

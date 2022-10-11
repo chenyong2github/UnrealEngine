@@ -12,7 +12,6 @@
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeOptimiser.h"
 
-#include <functional>
 #include <memory>
 #include <utility>
 
@@ -113,9 +112,9 @@ namespace mu
 
 //        if (cache)
 //        {
-//            if (cache->m_values.size()<program.m_opAddress.size())
+//            if (cache->m_values.size()<program.m_opAddress.Num())
 //            {
-//                cache->m_values.resize(program.m_opAddress.size());
+//                cache->m_values.resize(program.m_opAddress.Num());
 //            }
 //            cache->m_values[at]=pRes;
 //        }
@@ -403,7 +402,7 @@ namespace mu
 //    //---------------------------------------------------------------------------------------------
 //    bool LogicOptimiser::Apply( PROGRAM& program, int state )
 //    {
-//        m_initialCodeSize = program.m_opAddress.size();
+//        m_initialCodeSize = program.m_opAddress.Num();
 //        m_modified = false;
 //        Traverse( program.m_states[state].m_root, program );
 
@@ -416,7 +415,7 @@ namespace mu
 //    {
 //        // Sanity stop
 //        const int sanityFactor = 4;
-//        if ( program.m_opAddress.size()>m_initialCodeSize*sanityFactor)
+//        if ( program.m_opAddress.Num()>m_initialCodeSize*sanityFactor)
 //        {
 //            return at;
 //        }
@@ -1042,7 +1041,7 @@ namespace mu
                                 bool conditionaAreExclusive = false;
 
                                 ASTOpList facts;
-                                facts.push_back(topConditional->condition.child());
+                                facts.Add(topConditional->condition.child());
 
                                 // Check if the child condition has a value with the current facts
                                 Ptr<ASTOp> pChildCond = bottomConditional->condition.child();
@@ -1101,7 +1100,7 @@ namespace mu
                                 bool conditionaAreExclusive = false;
 
                                 ASTOpList facts;
-                                facts.push_back(topConditional->condition.child());
+                                facts.Add(topConditional->condition.child());
 
                                 // Check if the child condition has a value with the current facts
 								Ptr<ASTOp> pChildCond = bottomConditional->condition.child();
@@ -1241,7 +1240,7 @@ namespace mu
                                     check(compare);
                                     if ( compareValue == switchOp->variable.child() )
                                     {
-                                        switchOp->cases.emplace_back( compare->op.args.BoolEqualScalarConst.constant,
+                                        switchOp->cases.Emplace( compare->op.args.BoolEqualScalarConst.constant,
                                                                       switchOp,
                                                                       conditional->yes.child() );
 
@@ -1259,7 +1258,7 @@ namespace mu
                         }
 
                         const int MIN_CONDITIONS_TO_CREATE_SWITCH = 3;
-                        if (switchOp->cases.size()>=MIN_CONDITIONS_TO_CREATE_SWITCH)
+                        if (switchOp->cases.Num()>=MIN_CONDITIONS_TO_CREATE_SWITCH)
                         {
                             ASTOp::Replace(n,switchOp);
                             n = switchOp;

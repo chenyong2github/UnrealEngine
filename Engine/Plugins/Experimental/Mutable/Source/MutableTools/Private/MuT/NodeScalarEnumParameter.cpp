@@ -32,7 +32,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeScalarEnumParameter::GetInputCount() const
 	{
-        return int( m_pD->m_ranges.size() );
+        return m_pD->m_ranges.Num();
 	}
 
 
@@ -117,21 +117,21 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeScalarEnumParameter::SetValueCount( int i )
 	{
-		m_pD->m_options.resize(i);
+		m_pD->m_options.SetNum(i);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	int NodeScalarEnumParameter::GetValueCount() const
 	{
-		return (int)m_pD->m_options.size();
+		return (int)m_pD->m_options.Num();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void NodeScalarEnumParameter::SetValue( int i, float value, const char* strName )
 	{
-		check( i>=0 && i<(int)m_pD->m_options.size() );
+		check( i>=0 && i<(int)m_pD->m_options.Num() );
 		m_pD->m_options[i].name = strName;
 		m_pD->m_options[i].value = value;
 	}
@@ -141,15 +141,15 @@ namespace mu
     void NodeScalarEnumParameter::SetRangeCount( int i )
     {
         check(i>=0);
-        m_pD->m_ranges.resize(i);
+        m_pD->m_ranges.SetNum(i);
     }
 
 
     //---------------------------------------------------------------------------------------------
     void NodeScalarEnumParameter::SetRange( int i, NodeRangePtr pRange )
     {
-        check( i>=0 && i<int(m_pD->m_ranges.size()) );
-        if ( i>=0 && i<int(m_pD->m_ranges.size()) )
+        check( i>=0 && i<int(m_pD->m_ranges.Num()) );
+        if ( i>=0 && i<int(m_pD->m_ranges.Num()) )
         {
             m_pD->m_ranges[i] = pRange;
         }

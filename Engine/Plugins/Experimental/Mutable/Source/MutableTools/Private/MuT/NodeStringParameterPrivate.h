@@ -30,9 +30,9 @@ namespace mu
 		string m_uid;
 		PARAMETER_DETAILED_TYPE m_detailedType = PARAMETER_DETAILED_TYPE::UNKNOWN;
 
-        vector<Ptr<NodeImage>> m_additionalImages;
+        TArray<Ptr<NodeImage>> m_additionalImages;
 
-        vector<Ptr<NodeRange>> m_ranges;
+		TArray<Ptr<NodeRange>> m_ranges;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

@@ -207,7 +207,6 @@ namespace MutableMeshPreviewUtils
 				true,
 				true,
 				false,
-				false,
 				false );
 			
 			return ResultMutableMesh;
@@ -412,7 +411,7 @@ namespace MutableMeshPreviewUtils
 							{
 								for (int32 i = 0; i < BoneIndexComponents; ++i)
 								{
-									const size_t SectionBoneIndex = ((uint16_t*)VertexBoneIndexPtr)[i];
+									const size_t SectionBoneIndex = ((uint16*)VertexBoneIndexPtr)[i];
 									UsedBones[SectionBoneIndex] = true;
 								}
 								VertexBoneIndexPtr += ElementSize;

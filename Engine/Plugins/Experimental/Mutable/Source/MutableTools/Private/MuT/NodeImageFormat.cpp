@@ -8,9 +8,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	4
-
-
 namespace mu
 {
 
@@ -88,5 +85,3 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT

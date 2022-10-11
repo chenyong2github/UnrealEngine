@@ -48,7 +48,7 @@ uint64 ASTOpMeshClipDeform::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshClipDeform::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshClipDeform::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpMeshClipDeform> n = new ASTOpMeshClipDeform();
 	n->Mesh = mapChild(Mesh.child());
@@ -57,7 +57,7 @@ mu::Ptr<ASTOp> ASTOpMeshClipDeform::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshClipDeform::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshClipDeform::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
 	f(Mesh);
 	f(ClipShape);
@@ -82,8 +82,8 @@ void ASTOpMeshClipDeform::Link( PROGRAM& program, const FLinkerOptions*)
 			 args.clipShape = ClipShape->linkedAddress;
 		}	
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_CLIPDEFORM);
         AppendCode(program.m_byteCode,args);
     }

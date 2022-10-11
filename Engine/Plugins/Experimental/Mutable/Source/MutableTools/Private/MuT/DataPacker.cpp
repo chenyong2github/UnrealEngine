@@ -24,7 +24,6 @@
 #include "MuT/ASTOpMeshRemoveMask.h"
 
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <utility>
 
@@ -42,10 +41,10 @@ namespace mu
           m_constant( constant ),
           m_opType( optype )
     {
-        m_visited.resize( program.m_opAddress.size() );
-        if ( m_visited.size() )
+        m_visited.SetNum( program.m_opAddress.Num() );
+        if ( m_visited.Num() )
         {
-            memset( &m_visited[0], 0, m_visited.size() );
+            memset( &m_visited[0], 0, m_visited.Num() );
         }
     }
 
@@ -59,64 +58,63 @@ namespace mu
 
         bool found = false;
 
-        vector< std::pair<bool,int> > pending;
-        pending.reserve(m_program.m_opAddress.size()/4);
+        TArray< TPair<bool,int> > pending;
+        pending.Reserve(m_program.m_opAddress.Num()/4);
 
-        pending.push_back( std::make_pair(false,root) );
+		pending.Add({ false,root });
 
-        while( pending.size() )
+        while( pending.Num() )
         {
-            std::pair<bool,int> item = pending.back();
-            pending.pop_back();
+			TPair<bool,int> item = pending.Pop();
 
-            if (item.first)
+            if (item.Key)
             {
                 // Item indicating we finished with all the children of a parent.
 
                 // Propagate the "found" state upwards
-                m_visited[item.second]=1;
+                m_visited[item.Value]=1;
 
-                //OP cop = m_program.m_code[item.second];
-                ForEachReference( m_program, (OP::ADDRESS)item.second, [&](OP::ADDRESS ref)
+                //OP cop = m_program.m_code[item.Value];
+                ForEachReference( m_program, (OP::ADDRESS)item.Value, [&](OP::ADDRESS ref)
                 {
                     if (ref && m_visited[ref]==2)
                     {
-                        m_visited[item.second]=2;
+                        m_visited[item.Value]=2;
                     }
                 });
             }
             else
             {
-                if ( !m_visited[item.second] )
+                if ( !m_visited[item.Value] )
                 {
-                    OP_TYPE thisOpType = m_program.GetOpType(item.second);
+                    OP_TYPE thisOpType = m_program.GetOpType(item.Value);
                     if ( m_opType == thisOpType )
                     {
-                        auto args = m_program.GetOpArgs<OP::ResourceConstantArgs>(item.second);
+                        auto args = m_program.GetOpArgs<OP::ResourceConstantArgs>(item.Value);
                         if ( m_constant == args.value )
                         {
                             found = true;
-                            m_visited[item.second] = 2;
+                            m_visited[item.Value] = 2;
                         }
                     }
 
                     if (!found)
                     {
-                        pending.push_back( std::make_pair(true,item.second) );
+						pending.Add({ true,item.Value });
 
-                        //OP cop = m_program.m_code[item.second];
-                        ForEachReference( m_program, item.second, [&](OP::ADDRESS ref)
+                        //OP cop = m_program.m_code[item.Value];
+                        ForEachReference( m_program, item.Value, [&](OP::ADDRESS ref)
                         {
                             if (ref && !m_visited[ref])
                             {
-                                pending.push_back( std::make_pair(false,ref) );
+								pending.Add({ false,ref });
                             }
                         });
                     }
                 }
                 else
                 {
-                    found = (m_visited[item.second]==2);
+                    found = (m_visited[item.Value]==2);
                 }
             }
         }
@@ -130,7 +128,7 @@ namespace mu
     //! Get all the parameters that affect the constant.
     //! "Affect" means that the constant may be used or not depending on the parameter.
     //---------------------------------------------------------------------------------------------
-    class GatherParametersVisitor : public UniqueConstCodeVisitorIterative< vector<int> >
+    class GatherParametersVisitor : public UniqueConstCodeVisitorIterative< TArray<int> >
     {
     public:
 
@@ -139,22 +137,22 @@ namespace mu
         {
             MUTABLE_CPUPROFILER_SCOPE(GatherParametersVisitor);
 
-            vector<int> currentParams;
-            currentParams.resize( program.m_parameters.size(), 0 );
+			TArray<int> currentParams;
+            currentParams.SetNumZeroed( program.m_parameters.Num() );
             SetDefaultState(currentParams);
 
             // TODO: we can optimize by precalculating what ops have the required optype below
             m_opType = opType;
             m_constant = constant;
 
-            m_allParams.resize( program.m_parameters.size(), 0 );
+            m_allParams.SetNumZeroed( program.m_parameters.Num() );
             FullTraverse( program );
 
-            for (size_t i=0; i<m_allParams.size(); ++i )
+            for (size_t i=0; i<m_allParams.Num(); ++i )
             {
                 if ( m_allParams[i] )
                 {
-                    m_sortedParams.push_back( int(i) );
+                    m_sortedParams.Add( int(i) );
                 }
             }
         }
@@ -186,8 +184,8 @@ namespace mu
                     {
                         m_conditionVisitor.Run( args.condition, program );
 
-                        vector<int> currentParams = GetCurrentState();
-                        for (size_t p=0; p<m_conditionVisitor.m_params.size(); ++p )
+                        TArray<int> currentParams = GetCurrentState();
+                        for (size_t p=0; p<m_conditionVisitor.m_params.Num(); ++p )
                         {
                             currentParams[ m_conditionVisitor.m_params[p] ]++;
                         }
@@ -213,8 +211,8 @@ namespace mu
 
                     m_conditionVisitor.Run( VarAddress, program );
 
-                    vector<int> currentParams = GetCurrentState();
-                    for (size_t p=0; p<m_conditionVisitor.m_params.size(); ++p )
+					TArray<int> currentParams = GetCurrentState();
+                    for (size_t p=0; p<m_conditionVisitor.m_params.Num(); ++p )
                     {
                         currentParams[ m_conditionVisitor.m_params[p] ]++;
                     }
@@ -236,8 +234,8 @@ namespace mu
                         if ( args.value == m_constant )
                         {
                             // Accumulate the currently relevant parameters
-                            const vector<int>& currentParams = GetCurrentState();
-                            for (size_t i=0; i<currentParams.size(); ++i )
+                            const TArray<int>& currentParams = GetCurrentState();
+                            for (size_t i=0; i<currentParams.Num(); ++i )
                             {
                                 m_allParams[i] += currentParams[i];
                             }
@@ -249,8 +247,8 @@ namespace mu
                         if ( args.value == m_constant )
                         {
                             // Accumulate the currently relevant parameters
-                            const vector<int>& currentParams = GetCurrentState();
-                            for (size_t i=0; i<currentParams.size(); ++i )
+                            const TArray<int>& currentParams = GetCurrentState();
+                            for (size_t i=0; i<currentParams.Num(); ++i )
                             {
                                 m_allParams[i] += currentParams[i];
                             }
@@ -270,14 +268,14 @@ namespace mu
     public:
 
         //! Output result
-        vector<int> m_sortedParams;
+		TArray<int> m_sortedParams;
 
     private:
 
         OP::ADDRESS m_constant;
         OP_TYPE m_opType;
 
-        vector<int> m_allParams;
+		TArray<int> m_allParams;
 
         SubtreeParametersVisitor m_conditionVisitor;
         SubtreeSearchConstantVisitor m_constSearch;
@@ -288,7 +286,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-    class AccumulateImageFormatsAST : public Visitor_TopDown_Unique_Const< vector<bool> >
+    class AccumulateImageFormatsAST : public Visitor_TopDown_Unique_Const< TArray<bool> >
     {
     public:
 
@@ -300,7 +298,8 @@ namespace mu
             //vector<bool> initial( IF_COUNT, true );
             //std::fill( m_supportedFormats.begin(), m_supportedFormats.end(), initial );
 
-            vector<bool> defaultState(size_t(EImageFormat::IF_COUNT), false);
+			TArray<bool> defaultState;
+			defaultState.SetNumZeroed(size_t(EImageFormat::IF_COUNT));
 
             Traverse( roots, defaultState );
         }
@@ -310,8 +309,11 @@ namespace mu
         {
             bool recurse = true;
 
-            const vector<bool>& currentFormats = GetCurrentState();
-            bool allFalse = currentFormats == vector<bool>(size_t(EImageFormat::IF_COUNT), false );
+            const TArray<bool>& currentFormats = GetCurrentState();
+
+			TArray<bool> defaultState;
+			defaultState.SetNumZeroed(size_t(EImageFormat::IF_COUNT));
+			bool allFalse = currentFormats == defaultState;
 
             // Can we use the cache?
             if (allFalse)
@@ -332,7 +334,8 @@ namespace mu
                 auto op = dynamic_cast<const ASTOpConstantResource*>(node.get());
                 if (!m_supportedFormats.count(op))
                 {
-                    vector<bool> initial(size_t(EImageFormat::IF_COUNT), true );
+					TArray<bool> initial;
+					initial.Init( true, size_t(EImageFormat::IF_COUNT) );
                     m_supportedFormats.insert( std::make_pair(op, std::move(initial)) );
                 }
 
@@ -357,7 +360,8 @@ namespace mu
                 recurse = false;
 				const ASTOpImageCompose* op = dynamic_cast<const ASTOpImageCompose*>(node.get());
 
-                vector<bool> newState = vector<bool>(size_t(EImageFormat::IF_COUNT), false);
+				TArray<bool> newState;
+				newState.Init(false, size_t(EImageFormat::IF_COUNT));
                 RecurseWithState( op->Layout.child(), newState );
                 RecurseWithState( op->Base.child(), newState );
                 RecurseWithState( op->BlockImage.child(), newState );
@@ -374,8 +378,9 @@ namespace mu
             {
                 recurse = false;
 				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
-                vector<bool> newState = vector<bool>(size_t(EImageFormat::IF_COUNT), false);
-                RecurseWithState( op->children[op->op.args.ImageLayerColour.base].child(), newState );
+				TArray<bool> newState;
+				newState.Init(false, size_t(EImageFormat::IF_COUNT));
+				RecurseWithState( op->children[op->op.args.ImageLayerColour.base].child(), newState );
                 RecurseWithState( op->children[op->op.args.ImageLayerColour.colour].child(), newState );
 
                 if ( op->children[op->op.args.ImageLayerColour.mask] )
@@ -392,8 +397,9 @@ namespace mu
             {
                 recurse = false;
 				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
-                vector<bool> newState = vector<bool>(size_t(EImageFormat::IF_COUNT), false);
-                RecurseWithState( op->children[op->op.args.ImageLayer.base].child(), newState );
+				TArray<bool> newState;
+				newState.Init(false, size_t(EImageFormat::IF_COUNT));
+				RecurseWithState( op->children[op->op.args.ImageLayer.base].child(), newState );
                 RecurseWithState( op->children[op->op.args.ImageLayer.blended].child(), newState );
 
                 if (op->children[op->op.args.ImageLayer.mask])
@@ -410,8 +416,9 @@ namespace mu
             {
                 recurse = false;
 				const ASTOpImageMultiLayer* op = dynamic_cast<const ASTOpImageMultiLayer*>(node.get());
-                vector<bool> newState = vector<bool>(size_t(EImageFormat::IF_COUNT), false);
-                RecurseWithState( op->base.child(), newState );
+				TArray<bool> newState;
+				newState.Init(false, size_t(EImageFormat::IF_COUNT));
+				RecurseWithState( op->base.child(), newState );
                 RecurseWithState( op->blend.child(), newState );
 
                 if (op->mask)
@@ -428,8 +435,9 @@ namespace mu
             {
                 recurse = false;
 				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
-                vector<bool> newState = vector<bool>(size_t(EImageFormat::IF_COUNT), false);
-                RecurseWithState( op->children[op->op.args.ImageDisplace.source].child(), newState );
+				TArray<bool> newState;
+				newState.Init(false, size_t(EImageFormat::IF_COUNT));
+				RecurseWithState( op->children[op->op.args.ImageDisplace.source].child(), newState );
 
                 newState[(size_t)EImageFormat::IF_L_UBYTE ] = true;
                 newState[(size_t)EImageFormat::IF_L_UBYTE_RLE ] = true;
@@ -440,12 +448,13 @@ namespace mu
 
             default:
             {
-                //m_currentFormats.push_back(vector<bool>(IF_COUNT, false));
+                //m_currentFormats.Add(vector<bool>(IF_COUNT, false));
                 //Recurse(at, program);
                 //m_currentFormats.pop_back();
 
-                vector<bool> newState = vector<bool>(size_t(EImageFormat::IF_COUNT), false);
-                if (currentFormats != newState)
+				TArray<bool> newState;
+				newState.Init(false, size_t(EImageFormat::IF_COUNT));
+				if (currentFormats != newState)
                 {
                     RecurseWithState(node, newState);
                     recurse = false;
@@ -466,7 +475,7 @@ namespace mu
 
         //! Result of this visitor:
         //! Formats known to be supported by every constant image.
-        std::unordered_map< Ptr<const ASTOpConstantResource>, vector<bool> > m_supportedFormats;
+        std::unordered_map< Ptr<const ASTOpConstantResource>, TArray<bool> > m_supportedFormats;
 
     private:
 
@@ -559,7 +568,7 @@ namespace mu
                 RecurseWithState( op->source.child(), newState );
                 for( auto& r: op->removes )
                 {
-                    RecurseWithState( r.second.child(), newState );
+                    RecurseWithState( r.Value.child(), newState );
                 }
                 break;
              }

@@ -27,7 +27,7 @@ ASTOpParameter::~ASTOpParameter()
 }
 
 
-void ASTOpParameter::ForEachChild(const std::function<void(ASTChild&)>& f)
+void ASTOpParameter::ForEachChild(const TFunctionRef<void(ASTChild&)> f)
 {
     for (auto &c: ranges)
     {
@@ -53,18 +53,18 @@ bool ASTOpParameter::IsEqual(const ASTOp& otherUntyped) const
 }
 
 
-mu::Ptr<ASTOp> ASTOpParameter::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpParameter::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpParameter> n = new ASTOpParameter();
     n->type = type;
     n->parameter = parameter;
     for(const auto& c:ranges)
     {
-        n->ranges.emplace_back( n.get(), mapChild(c.rangeSize.child()), c.rangeName, c.rangeUID );
+        n->ranges.Emplace( n.get(), mapChild(c.rangeSize.child()), c.rangeName, c.rangeUID );
     }
     for(const auto& c:additionalImages)
     {
-        n->additionalImages.emplace_back(n,mapChild(c.child()));
+        n->additionalImages.Emplace(n,mapChild(c.child()));
     }
     return n;
 }
@@ -93,27 +93,27 @@ void ASTOpParameter::Link( PROGRAM& program, const FLinkerOptions* )
         OP::ParameterArgs args;
         memset( &args,0, sizeof(args) );
 
-        args.variable = (OP::ADDRESS)program.m_parameters.size();
-        program.m_parameters.push_back(parameter);
+        args.variable = (OP::ADDRESS)program.m_parameters.Num();
+        program.m_parameters.Add(parameter);
 
         for( const auto& d: ranges)
         {
             OP::ADDRESS sizeAt = 0;
-            uint16_t rangeId = 0;
+            uint16 rangeId = 0;
             LinkRange( program, d, sizeAt, rangeId );
-            program.m_parameters.back().m_ranges.push_back(rangeId);
+            program.m_parameters.Last().m_ranges.Add(rangeId);
         }
 
         for( const auto& d: additionalImages)
         {
             OP::ADDRESS descAt = d ? d->linkedAddress : 0;
-            program.m_parameters.back().m_descImages.push_back(descAt);
+            program.m_parameters.Last().m_descImages.Add(descAt);
         }
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
 
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,type);
         AppendCode(program.m_byteCode,args);
     }

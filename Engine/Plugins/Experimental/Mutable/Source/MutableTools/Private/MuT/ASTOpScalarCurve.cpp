@@ -32,7 +32,7 @@ ASTOpScalarCurve::~ASTOpScalarCurve()
 }
 
 
-void ASTOpScalarCurve::ForEachChild(const std::function<void(ASTChild&)>& f)
+void ASTOpScalarCurve::ForEachChild(const TFunctionRef<void(ASTChild&)> f)
 {
     f( time );
 }
@@ -41,7 +41,7 @@ void ASTOpScalarCurve::ForEachChild(const std::function<void(ASTChild&)>& f)
 uint64 ASTOpScalarCurve::Hash() const
 {
 	uint64 res = std::hash<uint64>()(size_t(OP_TYPE::SC_CURVE));
-    hash_combine( res, curve.keyFrames.size() );
+    hash_combine( res, curve.keyFrames.Num() );
     return res;
 }
 
@@ -56,7 +56,7 @@ bool ASTOpScalarCurve::IsEqual(const ASTOp& otherUntyped) const
 }
 
 
-mu::Ptr<ASTOp> ASTOpScalarCurve::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpScalarCurve::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpScalarCurve> n = new ASTOpScalarCurve();
     n->curve = curve;
@@ -74,9 +74,9 @@ void ASTOpScalarCurve::Link( PROGRAM& program, const FLinkerOptions* )
         args.time = time->linkedAddress;
         args.curve = program.AddConstant(curve);
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::SC_CURVE);
         AppendCode(program.m_byteCode,args);
     }

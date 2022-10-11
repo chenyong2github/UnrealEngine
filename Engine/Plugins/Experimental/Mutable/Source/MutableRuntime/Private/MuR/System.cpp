@@ -239,7 +239,7 @@ namespace mu
 
 		PROGRAM& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
 
-		bool validState = stateIndex >= 0 && stateIndex < (int)program.m_states.size();
+		bool validState = stateIndex >= 0 && stateIndex < (int)program.m_states.Num();
 		if (!validState)
 		{
 			UE_LOG(LogMutableCore, Error, TEXT("Invalid state in mutable update."));
@@ -365,7 +365,7 @@ namespace mu
 					m_pD->m_memory->m_descCache.Reset();
 				}
 
-				m_pD->m_memory->m_descCache.SetNum(program.m_opAddress.size());
+				m_pD->m_memory->m_descCache.SetNum(program.m_opAddress.Num());
 
 				OP::ADDRESS at = res.m_rootAddress;
 				mu::OP_TYPE opType = program.GetOpType(at);
@@ -432,7 +432,7 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(EndUpdate);
 
 		// Reduce the cache until it fits the limit.
-		uint64 totalMemory = m_pD->m_modelCache.EnsureCacheBelowBudget(0);
+		uint64 totalMemory = m_pD->m_modelCache.EnsureCacheBelowBudget(0, [](const Model*, int) {return false;});
 		m_pD->m_profileMetrics[size_t(System::ProfileMetric::StreamingCacheBytes)] = totalMemory;
 
 
@@ -471,11 +471,11 @@ namespace mu
 
 		check(parameter >= 0
 			&&
-			parameter < (int)pModel->GetPrivate()->m_program.m_parameters.size());
+			parameter < (int)pModel->GetPrivate()->m_program.m_parameters.Num());
 
 		const PARAMETER_DESC& param =
 			pModel->GetPrivate()->m_program.m_parameters[parameter];
-		check(image >= 0 && image < (int)param.m_descImages.size());
+		check(image >= 0 && image < (int)param.m_descImages.Num());
 
 		OP::ADDRESS imageAddress = param.m_descImages[image];
 
@@ -581,27 +581,21 @@ namespace mu
         // check what parameters have changed
         updatedParameters = 0;
         const PROGRAM& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
-        const vector<int>& runtimeParams = program.m_states[ pLiveInstance->m_state ].m_runtimeParameters;
+        const TArray<int>& runtimeParams = program.m_states[ pLiveInstance->m_state ].m_runtimeParameters;
 
-        check( pParams->GetCount() == (int)program.m_parameters.size() );
+        check( pParams->GetCount() == (int)program.m_parameters.Num() );
         check( !pLiveInstance->m_pOldParameters
                         ||
                         pParams->GetCount() == pLiveInstance->m_pOldParameters->GetCount() );
 
-        for ( int p=0; p<(int)program.m_parameters.size() && !fullBuild; ++p )
+        for ( int p=0; p<(int)program.m_parameters.Num() && !fullBuild; ++p )
         {
-            bool isRuntime = std::find( runtimeParams.begin(), runtimeParams.end(), p )
-                    !=
-                    runtimeParams.end() ;
-
+            bool isRuntime = runtimeParams.Contains( p );
             bool changed = !pParams->HasSameValue( p, pLiveInstance->m_pOldParameters, p );
 
             if (changed && isRuntime)
             {
-				uint64 runtimeIndex =
-                        std::find( runtimeParams.begin(), runtimeParams.end(), p )
-                        -
-                        runtimeParams.begin();
+				uint64 runtimeIndex = runtimeParams.IndexOfByKey(p);
                 updatedParameters |= uint64(1) << runtimeIndex;
             }
             else if (changed)
@@ -631,7 +625,7 @@ namespace mu
 		// We don't have a FLiveInstance, let's create the memory
 		// \TODO: There is no clear moment to remove this... EndBuild?
 		m_memory = MakeShared<FProgramCache>();
-		m_memory->Init(pModel->GetPrivate()->m_program.m_opAddress.size());
+		m_memory->Init(pModel->GetPrivate()->m_program.m_opAddress.Num());
 
 		PrepareCache(pModel, -1);
 	}
@@ -840,7 +834,7 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(PrepareCache);
 
 		PROGRAM& program = pModel->GetPrivate()->m_program;
-		size_t opCount = program.m_opAddress.size();
+		size_t opCount = program.m_opAddress.Num();
 		m_memory->m_opHitCount.clear();
 		m_memory->Init(opCount);
 
@@ -890,7 +884,7 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     uint64 FModelCache::EnsureCacheBelowBudget( uint64 additionalMemory,
-                                              std::function<bool(const Model*,int)> isRomLockedFunc )
+												TFunctionRef<bool(const Model*,int)> isRomLockedFunc )
     {
 
 		uint64 totalMemory = 0;
@@ -935,7 +929,7 @@ namespace mu
 
                             if (bIsLoaded
                                 &&
-                                (!isRomLockedFunc || !isRomLockedFunc(pCacheModel.get(),RomIndex)) )
+                                (!isRomLockedFunc(pCacheModel.get(),RomIndex)) )
                             {
                                 constexpr float factorWeight = 100.0f;
                                 constexpr float factorTime = -1.0f;
@@ -1009,7 +1003,7 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     void FModelCache::UpdateForLoad( int romIndex, const Model* pModel,
-                                     std::function<bool(const Model*,int)> isRomLockedFunc )
+                                     TFunctionRef<bool(const Model*,int)> isRomLockedFunc )
     {
 		MarkRomUsed( romIndex, pModel);
 

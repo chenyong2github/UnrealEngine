@@ -72,7 +72,7 @@ uint64 ASTOpImageCompose::Hash() const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpImageCompose::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImageCompose::Clone(MapChildFuncRef mapChild) const
 {
 	mu::Ptr<ASTOpImageCompose> n = new ASTOpImageCompose();
     n->Layout = mapChild(Layout.child());
@@ -85,7 +85,7 @@ mu::Ptr<ASTOp> ASTOpImageCompose::Clone(MapChildFunc& mapChild) const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpImageCompose::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpImageCompose::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
 	f(Layout);
 	f(Base);
@@ -109,8 +109,8 @@ void ASTOpImageCompose::Link( PROGRAM& program, const FLinkerOptions*)
 		if (Mask) args.mask = Mask->linkedAddress;
         args.blockIndex = BlockIndex;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::IM_COMPOSE);
         AppendCode(program.m_byteCode,args);
     }
@@ -237,7 +237,7 @@ mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTI
 		// Constant single-block full layout?
 		if (pLayout->GetBlockCount() == 1
 			&&
-			pLayout->m_blocks[0].m_min == vec2<uint16_t>(0, 0)
+			pLayout->m_blocks[0].m_min == vec2<uint16>(0, 0)
 			&&
 			pLayout->m_blocks[0].m_size == pLayout->m_size
 			&&

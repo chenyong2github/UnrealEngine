@@ -106,14 +106,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshTable::GetLayoutCount() const
 	{
-		return (int)m_pD->m_layouts.size();
+		return m_pD->m_layouts.Num();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshTable::SetLayoutCount( int i )
 	{
-		m_pD->m_layouts.resize( i );
+		m_pD->m_layouts.SetNum( i );
 	}
 
 
@@ -138,7 +138,7 @@ namespace mu
 	{
 		NodeLayoutPtr pResult;
 
-		if ( i>=0 && i<(int)m_layouts.size() )
+		if ( i>=0 && i<m_layouts.Num() )
 		{
 			pResult = m_layouts[i];
 		}

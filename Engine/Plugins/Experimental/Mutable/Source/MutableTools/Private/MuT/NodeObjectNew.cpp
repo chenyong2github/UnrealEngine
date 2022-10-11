@@ -46,7 +46,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeObjectNew::GetInputCount() const
 	{
-		return (int)(m_pD->m_lods.size() + m_pD->m_children.size());
+		return (m_pD->m_lods.Num() + m_pD->m_children.Num());
 	}
 
 
@@ -57,13 +57,13 @@ namespace mu
 
 		Node* pResult = 0;
 
-		if ( i<(int)m_pD->m_lods.size() )
+		if ( i<(int)m_pD->m_lods.Num() )
 		{
 			pResult = m_pD->m_lods[i].get();
 		}
 		else
 		{
-			i -= (int)m_pD->m_lods.size();
+			i -= (int)m_pD->m_lods.Num();
 			pResult = m_pD->m_children[i].get();
 		}
 
@@ -76,13 +76,13 @@ namespace mu
 	{
 		check( i>=0 && i<GetInputCount() );
 
-		if ( i<(int)m_pD->m_lods.size() )
+		if ( i<(int)m_pD->m_lods.Num() )
 		{
 			m_pD->m_lods[i] = dynamic_cast<NodeLOD*>( pNode.get() );
 		}
 		else
 		{
-			i -= (int)m_pD->m_lods.size();
+			i -= (int)m_pD->m_lods.Num();
 			m_pD->m_children[i] = dynamic_cast<NodeObject*>( pNode.get() );
 		}
 	}
@@ -134,7 +134,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeObjectNew::GetLODCount() const
 	{
-		return (int)m_pD->m_lods.size();
+		return m_pD->m_lods.Num();
 	}
 
 
@@ -142,14 +142,14 @@ namespace mu
 	void NodeObjectNew::SetLODCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_lods.resize( num );
+		m_pD->m_lods.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeLODPtr NodeObjectNew::GetLOD( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_lods.size() );
+		check( index >=0 && index < m_pD->m_lods.Num() );
 
 		return m_pD->m_lods[ index ].get();
 	}
@@ -158,7 +158,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeObjectNew::SetLOD( int index, NodeLODPtr pLOD )
 	{
-		check( index >=0 && index < (int)m_pD->m_lods.size() );
+		check( index >=0 && index < m_pD->m_lods.Num() );
 
 		m_pD->m_lods[ index ] = pLOD;
 	}
@@ -167,7 +167,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeObjectNew::GetChildCount() const
 	{
-		return (int)m_pD->m_children.size();
+		return m_pD->m_children.Num();
 	}
 
 
@@ -175,14 +175,14 @@ namespace mu
 	void NodeObjectNew::SetChildCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_children.resize( num );
+		m_pD->m_children.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeObjectPtr NodeObjectNew::GetChild( int index ) const
 	{
-		check( index >=0 && index < (int)m_pD->m_children.size() );
+		check( index >=0 && index < m_pD->m_children.Num() );
 
 		return m_pD->m_children[ index ].get();
 	}
@@ -191,7 +191,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeObjectNew::SetChild( int index, NodeObjectPtr pObject )
 	{
-		check( index >=0 && index < (int)m_pD->m_children.size() );
+		check( index >=0 && index < m_pD->m_children.Num() );
 
 		m_pD->m_children[ index ] = pObject;
 	}
@@ -204,7 +204,7 @@ namespace mu
                                                      int //texture
                                                      ) const
 	{
-		check( lod>=0 && lod<(int)m_lods.size() );
+		check( lod>=0 && lod<m_lods.Num() );
 
 		NodeLayoutPtr pLayout;
 
@@ -245,12 +245,9 @@ namespace mu
     bool NodeObjectNew::Private::HasComponent( const NodeComponent* pComponent ) const
     {
         bool found = false;
-        for ( size_t l=0; !found && l<m_lods.size(); ++l )
+        for ( int32 l=0; !found && l<m_lods.Num(); ++l )
         {
-            found = std::find( m_lods[l]->GetPrivate()->m_components.begin(),
-                               m_lods[l]->GetPrivate()->m_components.end(),
-                               pComponent )
-                    != m_lods[l]->GetPrivate()->m_components.end();
+			found = m_lods[l]->GetPrivate()->m_components.FindByPredicate([pComponent](const NodeComponentPtr& e) { return e.get() == pComponent; }) != nullptr;
         }
 
         return found;
@@ -260,14 +257,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeObjectNew::GetStateCount() const
 	{
-		return (int)m_pD->m_states.size();
+		return m_pD->m_states.Num();
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void NodeObjectNew::SetStateCount( int c )
 	{
-		m_pD->m_states.resize( c );
+		m_pD->m_states.SetNum( c );
 	}
 
 
@@ -291,11 +288,7 @@ namespace mu
 	bool NodeObjectNew::HasStateParam( int s, const char* param ) const
 	{
 		check( s>=0 && s<GetStateCount() );
-		return std::find( m_pD->m_states[s].m_runtimeParams.begin(),
-						  m_pD->m_states[s].m_runtimeParams.end(),
-						  param )
-				!=
-				m_pD->m_states[s].m_runtimeParams.end();
+		return m_pD->m_states[s].m_runtimeParams.Contains( param );
 	}
 
 
@@ -306,7 +299,7 @@ namespace mu
 
 		if (!HasStateParam(s,param))
 		{
-			m_pD->m_states[s].m_runtimeParams.push_back( param );
+			m_pD->m_states[s].m_runtimeParams.Add( param );
 		}
 	}
 
@@ -316,12 +309,10 @@ namespace mu
 	{
 		check( s>=0 && s<GetStateCount() );
 
-		vector<string>::iterator it = std::find( m_pD->m_states[s].m_runtimeParams.begin(),
-														   m_pD->m_states[s].m_runtimeParams.end(),
-														   param );
-		if ( it != m_pD->m_states[s].m_runtimeParams.end() )
+		int32 it = m_pD->m_states[s].m_runtimeParams.Find( param );
+		if ( it != INDEX_NONE )
 		{
-			m_pD->m_states[s].m_runtimeParams.erase( it );
+			m_pD->m_states[s].m_runtimeParams.RemoveAt( it );
 		}
 	}
 

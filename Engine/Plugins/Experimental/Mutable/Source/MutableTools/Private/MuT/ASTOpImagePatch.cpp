@@ -9,9 +9,6 @@
 #include "MuR/Types.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <memory>
-#include <utility>
-
 
 using namespace mu;
 
@@ -58,7 +55,7 @@ uint64 ASTOpImagePatch::Hash() const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpImagePatch::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpImagePatch::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpImagePatch> n = new ASTOpImagePatch();
     n->base = mapChild(base.child());
@@ -69,7 +66,7 @@ mu::Ptr<ASTOp> ASTOpImagePatch::Clone(MapChildFunc& mapChild) const
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpImagePatch::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpImagePatch::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( base );
     f( patch );
@@ -90,8 +87,8 @@ void ASTOpImagePatch::Link( PROGRAM& program, const FLinkerOptions*)
         args.minX = location[0];
         args.minY = location[1];
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::IM_PATCH);
         AppendCode(program.m_byteCode,args);
     }

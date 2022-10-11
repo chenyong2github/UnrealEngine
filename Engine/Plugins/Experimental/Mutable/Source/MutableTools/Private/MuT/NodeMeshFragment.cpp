@@ -118,14 +118,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshFragment::SetBlockCount( int t )
 	{
-		m_pD->m_blocks.resize(t);
+		m_pD->m_blocks.SetNum(t);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	int NodeMeshFragment::GetBlock( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_blocks.size() );
+		check( t>=0 && t<m_pD->m_blocks.Num() );
 		return m_pD->m_blocks[t];
 	}
 
@@ -133,7 +133,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshFragment::SetBlock( int t, int b )
 	{
-		check( t>=0 && t<(int)m_pD->m_blocks.size() );
+		check( t>=0 && t<m_pD->m_blocks.Num() );
 		m_pD->m_blocks[t] = b;
 	}
 

@@ -67,8 +67,8 @@ namespace mu {
 	void Layout::SetGridSize( int sizeX, int sizeY )
 	{
 		check( sizeX>=0 && sizeY>=0 );
-		m_size[0] = (uint16_t)sizeX;
-		m_size[1] = (uint16_t)sizeY;
+		m_size[0] = (uint16)sizeX;
+		m_size[1] = (uint16)sizeY;
 	}
 
 
@@ -89,8 +89,8 @@ namespace mu {
 	void Layout::SetMaxGridSize(int sizeX, int sizeY)
 	{
 		check(sizeX >= 0 && sizeY >= 0);
-		m_maxsize[0] = (uint16_t)sizeX;
-		m_maxsize[1] = (uint16_t)sizeY;
+		m_maxsize[0] = (uint16)sizeX;
+		m_maxsize[1] = (uint16)sizeY;
 	}
 
 
@@ -145,8 +145,8 @@ namespace mu {
 		check( index >=0 && index < m_blocks.Num() );
 
 		// Keeps the id
-		m_blocks[index].m_min = vec2<uint16_t>((uint16_t)minx, (uint16_t)miny);
-		m_blocks[index].m_size = vec2<uint16_t>((uint16_t)sizex, (uint16_t)sizey);
+		m_blocks[index].m_min = vec2<uint16>((uint16)minx, (uint16)miny);
+		m_blocks[index].m_size = vec2<uint16>((uint16)sizex, (uint16)sizey);
 	}
 
 
@@ -211,7 +211,7 @@ namespace mu {
 	bool Layout::IsSingleBlockAndFull() const
 	{
 		if (m_blocks.Num() == 1
-			&& m_blocks[0].m_min == vec2<uint16_t>(0, 0)
+			&& m_blocks[0].m_min == vec2<uint16>(0, 0)
 			&& m_blocks[0].m_size == m_size)
 		{
 			return true;

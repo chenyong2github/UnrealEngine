@@ -5,12 +5,12 @@
 #include "MuR/Platform.h"
 #include "MuR/MemoryPrivate.h"
 
+#include <vector>
+#include <map>
+#include <set>
+#include <unordered_map>
 #include <sys/stat.h>
 
-//#if defined(_MSC_VER) || defined(__MINGW32__)
-    //#include <windef.h>
-    //#include <winbase.h>
-//#endif
 
 // This file contains some hacks to solve differences between platforms necessary for the tools
 // library and not present in the run-time library.
@@ -18,6 +18,28 @@
 
 namespace mu
 {
+
+
+	//! STL-like containers using this allocator
+	template< typename T >
+	using vector = std::vector<T>;
+
+	template< typename T >
+	using basic_string = std::basic_string<T, std::char_traits<T>>;
+
+	using string = std::basic_string<char, std::char_traits<char> >;
+
+	template< typename K, typename T >
+	using map = std::map< K, T, std::less<K> >;
+
+	template< typename T >
+	using set = std::set< T, std::less<T> >;
+
+	template< typename T >
+	using multiset = std::multiset< T, std::less<T> >;
+
+	template< typename K, typename T >
+	using pair = std::pair<K, T>;
 
     //-------------------------------------------------------------------------------------------------
     inline FILE* mutable_fopen
@@ -68,22 +90,5 @@ namespace mu
     }
 
 
-    //-------------------------------------------------------------------------------------------------
-    inline string mutable_path_separator()
-    {
-    #ifdef _WIN32
-        return "\\";
-    #else
-        return "/";
-    #endif
-    }
-
-
-    //-------------------------------------------------------------------------------------------------
-    inline bool mutable_file_exists( const string& path )
-    {
-        struct stat buffer;
-        return (stat (path.c_str(), &buffer) == 0);
-    }
-
 }
+

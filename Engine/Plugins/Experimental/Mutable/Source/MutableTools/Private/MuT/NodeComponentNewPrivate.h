@@ -35,7 +35,7 @@ namespace mu
 
 		uint16 m_id = 0;
 
-        vector<NodeSurfacePtr> m_surfaces;
+        TArray<NodeSurfacePtr> m_surfaces;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

@@ -91,7 +91,7 @@ namespace mu
         uint8_t* pDest = (uint8_t*) pData;
         while (size && m_pD->m_pFile )
 		{			
-			int available = std::min( int(m_pD->m_size) - int(m_pD->m_pos), int(size) );
+			int available = FMath::Min( int(m_pD->m_size) - int(m_pD->m_pos), int(size) );
 
 			// Copy from what is already loaded
 			if ( available>0 )
@@ -137,7 +137,7 @@ namespace mu
 
 		while (size)
 		{
-            int available = std::min( int(MUTABLE_STREAM_BUFFER_SIZE) - int(m_pD->m_pos), int(size) );
+            int available = FMath::Min( int(MUTABLE_STREAM_BUFFER_SIZE) - int(m_pD->m_pos), int(size) );
 
 			// Copy from what fits in the current buffer
 			if ( available>0 )

@@ -9,9 +9,6 @@
 #include "MuR/Types.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <memory>
-#include <utility>
-
 
 using namespace mu;
 
@@ -25,7 +22,7 @@ ASTOpConstantBool::ASTOpConstantBool( bool v )
 }
 
 
-void ASTOpConstantBool::ForEachChild(const std::function<void(ASTChild&)>& )
+void ASTOpConstantBool::ForEachChild(const TFunctionRef<void(ASTChild&)> )
 {
 }
 
@@ -48,7 +45,7 @@ uint64 ASTOpConstantBool::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpConstantBool::Clone(MapChildFunc&) const
+mu::Ptr<ASTOp> ASTOpConstantBool::Clone(MapChildFuncRef) const
 {
     Ptr<ASTOpConstantBool> n = new ASTOpConstantBool();
     n->value = value;
@@ -64,9 +61,9 @@ void ASTOpConstantBool::Link( PROGRAM& program, const FLinkerOptions*)
         memset( &args,0, sizeof(args) );
         args.value = value;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 //        program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::BO_CONSTANT);
         AppendCode(program.m_byteCode,args);
     }

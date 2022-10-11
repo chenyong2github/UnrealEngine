@@ -10,9 +10,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	2
-
-
 namespace mu
 {
 
@@ -35,14 +32,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageGradient::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 2;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeImageGradient::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		Node* pResult = 0;
 
@@ -59,7 +56,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageGradient::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		switch (i)
 		{
@@ -121,4 +118,3 @@ namespace mu
 
 }
 
-#undef NODE_INPUT_COUNT

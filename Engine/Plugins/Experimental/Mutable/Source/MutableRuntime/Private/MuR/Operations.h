@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "HAL/PlatformMath.h"
-#include "HAL/UnrealMemory.h"
-#include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
 #include "MuR/Platform.h"
 #include "MuR/SerialisationPrivate.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Function.h"
 
-#include <functional>
 
 #define MUTABLE_OP_MAX_INTERPOLATE_COUNT	6
 #define MUTABLE_OP_MAX_ADD_COUNT			7
@@ -21,7 +21,7 @@ namespace mu
 {
 
     //!
-    enum class OP_TYPE : uint16_t
+    enum class OP_TYPE : uint16
     {
         //-----------------------------------------------------------------------------------------
         // No operation
@@ -401,11 +401,11 @@ namespace mu
 
             // If not negative, index of the skeleton to set to the mesh from the skeleton
             // constant array.
-            int32_t skeleton;
+            int32 skeleton;
 
             // If not negative, index of the physics body to set to the mesh from the physics body
             // constant array.
-			int32_t physicsBody;
+			int32 physicsBody;
         };
 
         struct ParameterArgs
@@ -427,7 +427,7 @@ namespace mu
         struct BoolEqualScalarConstArgs
         {
             ADDRESS value;
-            int16_t constant;
+            int16 constant;
         };
 
         struct BoolBinaryArgs
@@ -457,12 +457,12 @@ namespace mu
         {
             ADDRESS image;
             ADDRESS x,y;
-            uint8_t filter;
+            uint8 filter;
         };
 
         struct ColourSwizzleArgs
         {
-            uint8_t sourceChannels[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
+            uint8 sourceChannels[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
             ADDRESS sources[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
         };
 
@@ -474,7 +474,7 @@ namespace mu
         struct ColourLayoutBlockTransformArgs
         {
             ADDRESS layout;
-            uint16_t block;
+            uint16 block;
         };
 
         struct ColourMultiplyArgs
@@ -497,7 +497,7 @@ namespace mu
 				MULTIPLY,
 				DIVIDE
 			} OPERATION;
-            uint8_t operation;
+            uint8 operation;
 
 			ADDRESS a, b;
 		};
@@ -509,8 +509,8 @@ namespace mu
             ADDRESS base;
             ADDRESS mask;
             ADDRESS blended;
-			uint8_t blendType;	// One of BLEND_TYPE
-			uint8_t flags;
+			uint8 blendType;	// One of BLEND_TYPE
+			uint8 flags;
 			typedef enum
             {
                 F_NONE              =	0,
@@ -527,8 +527,8 @@ namespace mu
             ADDRESS mask;
             ADDRESS blended;
             ADDRESS rangeSize;
-            uint16_t rangeId;
-            uint16_t blendType; // One of BLEND_TYPE
+            uint16 rangeId;
+            uint16 blendType; // One of BLEND_TYPE
         };
 
         struct ImageLayerColourArgs
@@ -537,7 +537,7 @@ namespace mu
             ADDRESS mask;
             ADDRESS colour;
             EImageFormat reformat;
-			uint8_t blendType;	// One of BLEND_TYPE
+			uint8 blendType;	// One of BLEND_TYPE
         };
 
         struct ImagePixelFormatArgs
@@ -552,10 +552,10 @@ namespace mu
             ADDRESS source;
 
             //! Number of mipmaps to build. If zero, it means all.
-            uint8_t levels;
+            uint8 levels;
 
             //! Number of mipmaps that can be generated for a single layout block.
-            uint8_t blockLevels;
+            uint8 blockLevels;
 
             //! This is true if this operation is supposed to build only the tail mipmaps.
             //! It is used during the code optimisation phase, and to validate the code.
@@ -571,9 +571,9 @@ namespace mu
         struct ImageResizeArgs
         {
             ADDRESS source;
-            uint16_t size[2];
+            uint16 size[2];
 
-            inline uint16_t GetSize(int i) const { return size[i]; }
+            inline uint16 GetSize(int i) const { return size[i]; }
         };
 
         struct ImageResizeLikeArgs
@@ -608,21 +608,21 @@ namespace mu
             ADDRESS layout;
 
             //! Size of a layout block in pixels.
-            uint16_t blockSize[2];
+            uint16 blockSize[2];
 			EImageFormat format;
 
             //! If true, generate all the mipmaps except the ones in skipMipmaps
-            uint8_t generateMipmaps;
+            uint8 generateMipmaps;
 
             //! Mipmaps to generate if mipmaps are to be generated. 0 means all.
-            uint8_t mipmapCount;
+            uint8 mipmapCount;
         };
 
         struct ImageComposeArgs
         {
             ADDRESS layout, base, blockImage;
             ADDRESS mask;
-            uint32_t blockIndex;
+            uint32 blockIndex;
         };
 
         struct ImageDifferenceArgs
@@ -662,7 +662,7 @@ namespace mu
         struct ImageSwizzleArgs
         {
 			EImageFormat format;
-            uint8_t sourceChannels[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
+            uint8 sourceChannels[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
             ADDRESS sources[ MUTABLE_OP_MAX_SWIZZLE_CHANNELS ];
         };
 
@@ -683,7 +683,7 @@ namespace mu
         {
             ADDRESS colour0;
             ADDRESS colour1;
-            uint16_t size[2];
+            uint16 size[2];
         };
 
         struct ImageBinariseArgs
@@ -696,7 +696,7 @@ namespace mu
         {
             ADDRESS colour;
 			EImageFormat format;
-            uint16_t size[2];
+            uint16 size[2];
         };
 
         struct ImageGPUArgs
@@ -707,21 +707,21 @@ namespace mu
         struct ImageCropArgs
         {
             ADDRESS source;
-            uint16_t minX, minY, sizeX, sizeY;
+            uint16 minX, minY, sizeX, sizeY;
         };
 
         struct ImagePatchArgs
         {
             ADDRESS base;
             ADDRESS patch;
-            uint16_t minX, minY;
+            uint16 minX, minY;
         };
 
         struct ImageRasterMeshArgs
         {
             ADDRESS mesh;
-            uint16_t sizeX, sizeY;
-            int32_t blockIndex;
+            uint16 sizeX, sizeY;
+            int32 blockIndex;
 
             // These are used in case of projected mesh raster.
             ADDRESS image;
@@ -738,7 +738,7 @@ namespace mu
         struct ImageMakeGrowMapArgs
         {
             ADDRESS mask;
-            int32_t border;
+            int32 border;
         };
 
         struct ImageDisplaceArgs
@@ -776,7 +776,7 @@ namespace mu
         {
             ADDRESS mesh;
             ADDRESS layout;
-            uint16_t channel;
+            uint16 channel;
         };
 
         struct MeshDifferenceArgs
@@ -786,12 +786,12 @@ namespace mu
 
             //! If true the texture coordinates will not be morphed. This is only relevant if the list
             //! in channelSemantic is empty.
-            uint8_t ignoreTextureCoords;
+            uint8 ignoreTextureCoords;
 
             //! Channels to diff. Meaningful until the first null channel. If all are null, it means
             //! that all the channels should be diff-ed
-            uint8_t channelSemantic[MUTABLE_OP_MAX_MORPH_CHANNELS];
-            uint8_t channelSemanticIndex[MUTABLE_OP_MAX_MORPH_CHANNELS];
+            uint8 channelSemantic[MUTABLE_OP_MAX_MORPH_CHANNELS];
+            uint8 channelSemanticIndex[MUTABLE_OP_MAX_MORPH_CHANNELS];
         };
 
         struct MeshMergeArgs
@@ -801,7 +801,7 @@ namespace mu
 
             // If 0, it merges the surfaces, otherwise, add a new surface
             // for the added mesh.
-            uint32_t newSurfaceID;
+            uint32 newSurfaceID;
         };
 
         struct MeshInterpolateArgs
@@ -852,7 +852,6 @@ namespace mu
                 BT_VERTEX			= 1,
                 BT_INDEX			= 2,
                 BT_FACE				= 4,
-                BT_REBUILD_TANGENTS = 8,
                 //! This flag will not add blank channels for the channels in the format mesh but not
                 //! in the source mesh.
                 BT_IGNORE_MISSING	= 16,
@@ -861,7 +860,7 @@ namespace mu
             } BUFFER_TYPE;
 
             //! Flag combination, selecting the buffers to reformat. The rest are left untouched.
-            uint8_t buffers;
+            uint8 buffers;
 
         };
 
@@ -869,7 +868,7 @@ namespace mu
         struct MeshExtractFaceGroupArgs
         {
             ADDRESS source;
-            uint32_t group;
+            uint32 group;
         };
 
 		struct MeshTransformArgs
@@ -891,7 +890,7 @@ namespace mu
 				VS_SHAPE,
 				VS_BONE_HIERARCHY
 			} VERTEX_SELECTION_TYPE;
-            uint8_t vertexSelectionType;
+            uint8 vertexSelectionType;
 
 			float dist, factor, maxBoneRadius;
 		};
@@ -928,7 +927,7 @@ namespace mu
 			ADDRESS scalarB;
 		};
 
-		enum class EMeshBindShapeFlags : uint32_t
+		enum class EMeshBindShapeFlags : uint32
 		{
 			None				   = 0,
 			ReshapeSkeleton		   = 1 << 0,
@@ -944,7 +943,7 @@ namespace mu
 		{
 			ADDRESS mesh;
 			ADDRESS shape;
-			uint32_t flags;
+			uint32 flags;
 			uint32 bindingMethod;
 		};
 
@@ -952,7 +951,7 @@ namespace mu
 		{
 			ADDRESS mesh;
 			ADDRESS shape;
-			uint32_t flags;
+			uint32 flags;
 		};
 
 		struct MeshMorphReshapeArgs
@@ -976,8 +975,8 @@ namespace mu
         {
             ADDRESS instance;
             ADDRESS value;
-            uint32_t id;
-            uint32_t externalId;
+            uint32 id;
+            uint32 externalId;
             ADDRESS name;
 
             // Index in the PROGRAM::m_parameterLists with the parameters that are relevant
@@ -1010,7 +1009,7 @@ namespace mu
 
             // Source mesh to scan for active blocks
             ADDRESS mesh;            
-            uint8_t meshLayoutIndex;
+            uint8 meshLayoutIndex;
         };
 
 
@@ -1053,7 +1052,7 @@ namespace mu
         } FLAGS;
 
         //! Bitmask of FLAGS values
-        uint16_t unused;
+        uint16 unused;
 
         //! Constant arguments per operation type
 		//! Everything in this union needs to be converted to their own AST class eventually.
@@ -1133,7 +1132,7 @@ namespace mu
         ARGS args;
     };
 
-    typedef t_OP<uint32_t> OP;
+    typedef t_OP<uint32> OP;
 
     // OP is not serialisable anymore, we link code now.
     MUTABLE_DEFINE_POD_SERIALISABLE( OP );
@@ -1199,10 +1198,10 @@ namespace mu
     }
 
     //! Utility function to apply a function to all operation references to other operations.
-	MUTABLERUNTIME_API extern void ForEachReference( OP& op, const std::function<void(OP::ADDRESS*)>& );
+	MUTABLERUNTIME_API extern void ForEachReference( OP& op, const TFunctionRef<void(OP::ADDRESS*)> );
 
     //! Utility function to apply a function to all operation references to other operations.
-	MUTABLERUNTIME_API extern void ForEachReference( const struct PROGRAM& program, OP::ADDRESS at, const std::function<void(OP::ADDRESS)>& );
+	MUTABLERUNTIME_API extern void ForEachReference( const struct PROGRAM& program, OP::ADDRESS at, const TFunctionRef<void(OP::ADDRESS)> );
 
 	//!
 	MUTABLERUNTIME_API inline OP_TYPE GetSwitchForType( DATATYPE d )

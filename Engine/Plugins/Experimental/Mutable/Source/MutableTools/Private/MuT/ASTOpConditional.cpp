@@ -13,9 +13,6 @@
 #include "MuT/ASTOpConstantBool.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <memory>
-#include <utility>
-
 
 using namespace mu;
 
@@ -52,7 +49,7 @@ bool ASTOpConditional::IsEqual(const ASTOp& otherUntyped) const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpConditional::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpConditional::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpConditional> n = new ASTOpConditional();
     n->type = type;
@@ -97,7 +94,7 @@ void ASTOpConditional::Assert()
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpConditional::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpConditional::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f(condition);
     f(yes);
@@ -118,9 +115,9 @@ void ASTOpConditional::Link( PROGRAM& program, const FLinkerOptions*)
         if (yes) args.yes = yes->linkedAddress;
         if (no) args.no = no->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,type);
         AppendCode(program.m_byteCode,args);
 

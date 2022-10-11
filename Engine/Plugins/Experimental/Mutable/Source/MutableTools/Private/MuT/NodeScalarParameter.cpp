@@ -34,9 +34,9 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeScalarParameter::GetInputCount() const
 	{
-        return int( m_pD->m_additionalImages.size()
+        return int( m_pD->m_additionalImages.Num()
                     +
-                    m_pD->m_ranges.size() );
+                    m_pD->m_ranges.Num() );
 	}
 
 
@@ -45,8 +45,8 @@ namespace mu
 	{
         check( i<GetInputCount() );
 
-        int imageCount = int(m_pD->m_additionalImages.size());
-        int rangeCount = int(m_pD->m_ranges.size());
+        int imageCount = int(m_pD->m_additionalImages.Num());
+        int rangeCount = int(m_pD->m_ranges.Num());
         if (i<imageCount)
         {
             return m_pD->m_additionalImages[i].get();
@@ -64,8 +64,8 @@ namespace mu
     void NodeScalarParameter::SetInputNode( int i, NodePtr n )
 	{
         check( i<GetInputCount() );
-        int imageCount = int(m_pD->m_additionalImages.size());
-        int rangeCount = int(m_pD->m_ranges.size());
+        int imageCount = int(m_pD->m_additionalImages.Num());
+        int rangeCount = int(m_pD->m_ranges.Num());
         if (i<imageCount)
         {
             m_pD->m_additionalImages[i] = dynamic_cast<NodeImage*>(n.get());
@@ -151,14 +151,14 @@ namespace mu
 	void NodeScalarParameter::SetDescImageCount( int i )
 	{
         check(i>=0);
-        m_pD->m_additionalImages.resize(i);
+        m_pD->m_additionalImages.SetNum(i);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void NodeScalarParameter::SetDescImage( int i, NodeImagePtr pImage )
 	{
-		check( i>=0 && i<(int)m_pD->m_additionalImages.size() );
+		check( i>=0 && i<(int)m_pD->m_additionalImages.Num() );
 		m_pD->m_additionalImages[i] = pImage;
 	}
 
@@ -167,15 +167,15 @@ namespace mu
     void NodeScalarParameter::SetRangeCount( int i )
     {
         check(i>=0);
-        m_pD->m_ranges.resize(i);
+        m_pD->m_ranges.SetNum(i);
     }
 
 
     //---------------------------------------------------------------------------------------------
     void NodeScalarParameter::SetRange( int i, NodeRangePtr pRange )
     {
-        check( i>=0 && i<int(m_pD->m_ranges.size()) );
-        if ( i>=0 && i<int(m_pD->m_ranges.size()) )
+        check( i>=0 && i<int(m_pD->m_ranges.Num()) );
+        if ( i>=0 && i<int(m_pD->m_ranges.Num()) )
         {
             m_pD->m_ranges[i] = pRange;
         }

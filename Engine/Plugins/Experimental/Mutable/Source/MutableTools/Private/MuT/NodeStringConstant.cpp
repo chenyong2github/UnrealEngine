@@ -9,9 +9,6 @@
 #include "MuT/NodeStringConstantPrivate.h"
 
 
-#define NODE_INPUT_COUNT 	0
-
-
 namespace mu
 {
 
@@ -34,7 +31,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeStringConstant::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 0;
 	}
 
 
@@ -69,6 +66,4 @@ namespace mu
 
 
 }
-
-#undef NODE_INPUT_COUNT
 

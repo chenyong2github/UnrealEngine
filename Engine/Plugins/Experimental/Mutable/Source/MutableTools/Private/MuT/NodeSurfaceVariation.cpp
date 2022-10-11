@@ -37,12 +37,12 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeSurfaceVariation::GetInputCount() const
 	{
-        size_t c = m_pD->m_defaultSurfaces.size();
-        c += m_pD->m_defaultModifiers.size();
+        int32 c = m_pD->m_defaultSurfaces.Num();
+        c += m_pD->m_defaultModifiers.Num();
         for (const auto& v : m_pD->m_variations)
 		{
-            c += v.m_surfaces.size();
-            c += v.m_modifiers.size();
+            c += v.m_surfaces.Num();
+            c += v.m_modifiers.Num();
         }
 
 		return (int)c;
@@ -54,31 +54,31 @@ namespace mu
 	{
 		check( i >=0 && i < GetInputCount() );
 
-        if ( i<(int)m_pD->m_defaultSurfaces.size())
+        if ( i<m_pD->m_defaultSurfaces.Num())
 		{
             return m_pD->m_defaultSurfaces[i].get();
 		}
-        i -= (int)m_pD->m_defaultSurfaces.size();
+        i -= m_pD->m_defaultSurfaces.Num();
 
-        if ( i<(int)m_pD->m_defaultModifiers.size())
+        if ( i<m_pD->m_defaultModifiers.Num())
         {
             return m_pD->m_defaultModifiers[i].get();
         }
-        i -= (int)m_pD->m_defaultModifiers.size();
+        i -= m_pD->m_defaultModifiers.Num();
 
         for (const auto& v : m_pD->m_variations)
         {
-            if (i < (int)v.m_surfaces.size())
+            if (i < (int)v.m_surfaces.Num())
             {
                 return v.m_surfaces[i].get();
             }
-            i -= (int)v.m_surfaces.size();
+            i -= (int)v.m_surfaces.Num();
 
-            if (i < (int)v.m_modifiers.size())
+            if (i < (int)v.m_modifiers.Num())
             {
                 return v.m_modifiers[i].get();
             }
-            i -= (int)v.m_modifiers.size();
+            i -= (int)v.m_modifiers.Num();
         }
 
 		return nullptr;
@@ -90,36 +90,36 @@ namespace mu
 	{
 		check( i >=0 && i <  GetInputCount());
 
-        if (i<(int)m_pD->m_defaultSurfaces.size())
+        if (i<m_pD->m_defaultSurfaces.Num())
 		{
             m_pD->m_defaultSurfaces[i] = dynamic_cast<NodeSurface*>(pNode.get());
 			return;
 		}
 
-        i -= (int)m_pD->m_defaultSurfaces.size();
-        if (i<(int)m_pD->m_defaultModifiers.size())
+        i -= m_pD->m_defaultSurfaces.Num();
+        if (i<m_pD->m_defaultModifiers.Num())
         {
 
             m_pD->m_defaultModifiers[i] = dynamic_cast<NodeModifier*>(pNode.get());
             return;
         }
-        i -= (int)m_pD->m_defaultModifiers.size();
+        i -= m_pD->m_defaultModifiers.Num();
 
         for (auto& v : m_pD->m_variations)
         {
-            if (i < (int)v.m_surfaces.size())
+            if (i < (int)v.m_surfaces.Num())
             {
                 v.m_surfaces[i] = dynamic_cast<NodeSurface*>(pNode.get());
                 return;
             }
-            i -= (int)v.m_surfaces.size();
+            i -= (int)v.m_surfaces.Num();
 
-            if (i < (int)v.m_modifiers.size())
+            if (i < (int)v.m_modifiers.Num())
             {
                 v.m_modifiers[i] = dynamic_cast<NodeModifier*>(pNode.get());
                 return;
             }
-            i -= (int)v.m_modifiers.size();
+            i -= (int)v.m_modifiers.Num();
         }
 	}
 
@@ -129,21 +129,21 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeSurfaceVariation::AddDefaultSurface( NodeSurface* p )
     {
-        m_pD->m_defaultSurfaces.push_back(p);
+        m_pD->m_defaultSurfaces.Add(p);
     }
 
 
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceVariation::AddDefaultModifier( NodeModifier* p )
     {
-        m_pD->m_defaultModifiers.push_back(p);
+        m_pD->m_defaultModifiers.Add(p);
     }
 
 
     //---------------------------------------------------------------------------------------------
     int NodeSurfaceVariation::GetVariationCount() const
 	{
-		return (int)m_pD->m_variations.size();
+		return m_pD->m_variations.Num();
 	}
 
 
@@ -151,7 +151,7 @@ namespace mu
     void NodeSurfaceVariation::SetVariationCount( int num )
 	{
 		check( num >=0 );
-		m_pD->m_variations.resize( num );
+		m_pD->m_variations.SetNum( num );
 	}
 
 
@@ -165,7 +165,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeSurfaceVariation::SetVariationTag(int index, const char* strTag)
 	{
-		check(index >= 0 && index < (int)m_pD->m_variations.size());
+		check(index >= 0 && index < m_pD->m_variations.Num());
 		check(strTag);
 
         if (strTag)
@@ -182,18 +182,18 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeSurfaceVariation::AddVariationSurface(int index, NodeSurface* pNode)
 	{
-		check(index >= 0 && index < (int)m_pD->m_variations.size());
+		check(index >= 0 && index < m_pD->m_variations.Num());
 
-		m_pD->m_variations[index].m_surfaces.push_back(pNode);
+		m_pD->m_variations[index].m_surfaces.Add(pNode);
 	}
 
 
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceVariation::AddVariationModifier(int index, NodeModifier* pModifier)
     {
-        check(index >= 0 && index < (int)m_pD->m_variations.size());
+        check(index >= 0 && index < m_pD->m_variations.Num());
 
-        m_pD->m_variations[index].m_modifiers.push_back(pModifier);
+        m_pD->m_variations[index].m_modifiers.Add(pModifier);
     }
 
 }

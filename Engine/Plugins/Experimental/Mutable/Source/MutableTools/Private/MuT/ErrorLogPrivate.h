@@ -25,7 +25,7 @@ namespace mu
 
         struct DATA
         {
-            vector< float > m_unassignedUVs;
+            TArray< float > m_unassignedUVs;
         };
 
 		struct MSG
@@ -42,7 +42,7 @@ namespace mu
 			const void* m_context;
 		};
 
-		vector< MSG > m_messages;
+		TArray< MSG > m_messages;
 
 
 		//-----------------------------------------------------------------------------------------
@@ -61,13 +61,8 @@ namespace mu
 	typedef Ptr<Model> ModelPtr;
 	typedef Ptr<const Model> ModelPtrConst;
 
-	extern void Log( ModelPtrConst pModel );
     extern const TCHAR* GetOpName( OP_TYPE type );
     extern FString GetOpDesc( const PROGRAM& program, OP::ADDRESS at );
-    extern void LogSubtree( PROGRAM& program, OP::ADDRESS root );
-
-    // Log in a graphviz/dot format
-	MUTABLETOOLS_API extern void LogSubtreeGraph( PROGRAM& program, OP::ADDRESS root );
 
 }
 

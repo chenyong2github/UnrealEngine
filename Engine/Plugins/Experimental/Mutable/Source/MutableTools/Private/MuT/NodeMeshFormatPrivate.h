@@ -21,11 +21,6 @@ namespace mu
 
 	public:
 
-		Private()
-		{
-			m_rebuildTangents = false;
-		}
-
 
 		static NODE_TYPE s_type;
 
@@ -38,19 +33,16 @@ namespace mu
 		FMeshBufferSet m_IndexBuffers;
 		FMeshBufferSet m_FaceBuffers;
 
-		bool m_rebuildTangents;
-
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 3;
+            uint32_t ver = 4;
 			arch << ver;
 
 			arch << m_pSource;
 			arch << m_VertexBuffers;
 			arch << m_IndexBuffers;
 			arch << m_FaceBuffers;
-			arch << m_rebuildTangents;
 		}
 
 		//!
@@ -58,13 +50,17 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-            check(ver==3);
+            check(ver>=3 && ver<=4);
 
 			arch >> m_pSource;
 			arch >> m_VertexBuffers;
 			arch >> m_IndexBuffers;
 			arch >> m_FaceBuffers;
-			arch >> m_rebuildTangents;
+			if (ver == 3)
+			{
+				bool bDummy;
+				arch >> bDummy;
+			}
 		}
 
 		// NodeMesh::Private interface

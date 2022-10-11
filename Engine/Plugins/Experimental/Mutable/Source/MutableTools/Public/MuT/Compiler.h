@@ -155,14 +155,6 @@ namespace mu
         //! Compile the expression into a run-time model.
         ModelPtr Compile( const Ptr<Node>& pNode );
 
-        //! After a call to compile a model, this method will return the additional information on
-        //! the result. See the ModelReport class for more information.
-        //! If called without calling Compile first, a null pointer is returned.
-        ModelReportPtrConst GetModelReport() const;
-
-        //! Compile the transform object into a Transform that can be applied to a model expression.
-        TransformPtr Compile( const NodeTransformedObject* pNode );
-
         //! Return the log of messages of all the compile operations executed so far.
         ErrorLogPtrConst GetLog() const;
 

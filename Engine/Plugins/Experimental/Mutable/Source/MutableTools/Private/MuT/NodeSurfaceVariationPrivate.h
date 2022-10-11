@@ -27,13 +27,13 @@ namespace mu
 
 		static NODE_TYPE s_type;
 
-        vector<NodeSurfacePtr> m_defaultSurfaces;
-        vector<NodeModifierPtr> m_defaultModifiers;
+        TArray<NodeSurfacePtr> m_defaultSurfaces;
+		TArray<NodeModifierPtr> m_defaultModifiers;
 
 		struct VARIATION
 		{
-            vector<NodeSurfacePtr> m_surfaces;
-            vector<NodeModifierPtr> m_modifiers;
+			TArray<NodeSurfacePtr> m_surfaces;
+			TArray<NodeModifierPtr> m_modifiers;
             string m_tag;
 
 			//!
@@ -61,7 +61,7 @@ namespace mu
 
         NodeSurfaceVariation::VariationType m_type = NodeSurfaceVariation::VariationType::Tag;
 
-		vector<VARIATION> m_variations;
+		TArray<VARIATION> m_variations;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

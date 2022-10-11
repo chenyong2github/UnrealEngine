@@ -173,7 +173,7 @@ namespace mu
 			chan.m_semantic = pSemantics ? pSemantics[c] : MBS_NONE;
 			chan.m_semanticIndex = pSemanticIndices ? ((uint8_t)pSemanticIndices[c]) : 0;
 			chan.m_format = pFormats ? pFormats[c] : MBF_NONE;
-			chan.m_componentCount = pComponentCount ? ((uint16_t)pComponentCount[c]) : 0;
+			chan.m_componentCount = pComponentCount ? ((uint16)pComponentCount[c]) : 0;
 			chan.m_offset = pOffsets ? ((uint8_t)pOffsets[c]) : 0;
 
 			minElemSize = FMath::Max
@@ -222,7 +222,7 @@ namespace mu
 		chan.m_semantic = semantic;
 		chan.m_semanticIndex = uint8_t(semanticIndex);
 		chan.m_format = format;
-		chan.m_componentCount = uint16_t(componentCount);
+		chan.m_componentCount = uint16(componentCount);
 		chan.m_offset = uint8(offset);
 	}
 

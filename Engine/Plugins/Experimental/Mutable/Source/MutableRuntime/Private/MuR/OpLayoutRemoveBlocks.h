@@ -14,18 +14,19 @@ namespace mu
     inline LayoutPtr LayoutRemoveBlocks( const Layout* pSource, const Mesh* pMesh, int layoutIndex )
     {
         // Create the list of blocks in the mesh
-        vector<bool> blocksFound(1024, false);
+		TArray<bool> blocksFound;
+		blocksFound.SetNumZeroed(1024);
 
         UntypedMeshBufferIteratorConst itBlocks( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK,
                                                  layoutIndex );
         if ( itBlocks.GetFormat()==MBF_UINT16 )
         {
-            const uint16_t* pBlocks = reinterpret_cast<const uint16_t*>( itBlocks.ptr() );
+            const uint16* pBlocks = reinterpret_cast<const uint16*>( itBlocks.ptr() );
             for ( int i=0; i<pMesh->GetVertexCount(); ++i )
             {
-                if (pBlocks[i]>=blocksFound.size())
+                if (pBlocks[i]>=blocksFound.Num())
                 {
-                    blocksFound.resize(pBlocks[i]+1024,false);
+                    blocksFound.SetNumZeroed(pBlocks[i]+1024);
                 }
 
                 blocksFound[ pBlocks[i] ] = true;
@@ -49,7 +50,7 @@ namespace mu
 		for ( int32 b=0; b<pResult->m_blocks.Num(); ++b )
 		{
             int blockIndex = pResult->m_blocks[b].m_id;
-            if ( blockIndex<(int)blocksFound.size() && blocksFound[blockIndex] )
+            if ( blockIndex<(int)blocksFound.Num() && blocksFound[blockIndex] )
 			{
 				// keep
 				pResult->m_blocks[dest] = pResult->m_blocks[b];

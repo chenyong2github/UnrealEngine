@@ -42,8 +42,6 @@
 #include "MuT/Visitor.h"
 #include "Templates/TypeHash.h"
 
-#include <functional>
-#include <memory>
 #include <shared_mutex>
 #include <utility>
 
@@ -176,7 +174,7 @@ namespace mu
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageRect.size[0]));
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.imageRect.size[1]));
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.state));
-				KeyHash = HashCombine(KeyHash, ::GetTypeHash((uint64)InKey.activeTags.size()));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash((uint64)InKey.activeTags.Num()));
 				return KeyHash;
 			}
 
@@ -198,8 +196,8 @@ namespace mu
             vec2<int> imageSize;
             box< vec2<int> > imageRect;
             int state = -1;
-			vector<mu::string> activeTags;
-			vector<LayoutPtrConst> overrideLayouts;
+			TArray<mu::string> activeTags;
+			TArray<LayoutPtrConst> overrideLayouts;
         };
 
         //! This struct contains additional state propagated from bottom to top of the object node graph.
@@ -222,13 +220,13 @@ namespace mu
         int m_currentStateIndex = -1;
 
         //! After the entire code generation this contains the information about all the states
-        typedef vector< std::pair<OBJECT_STATE, Ptr<ASTOp>> > StateList;
+        typedef TArray< std::pair<OBJECT_STATE, Ptr<ASTOp>> > StateList;
         StateList m_states;
 
     private:
 
         //! List of meshes generated to be able to reuse them
-        vector<MeshPtr> m_constantMeshes;
+		TArray<MeshPtr> m_constantMeshes;
 
         //! List of image resources for every image formata that have been generated so far as
         //! palceholders for missing images.
@@ -237,7 +235,7 @@ namespace mu
         //! If this has something, while generating meshes, the layouts will be ignored, because
         //! they are supposed to match some other set of layouts. If the vector is empty, layouts
         //! are generated normally.
-        vector< vector<Ptr<const Layout>> > m_overrideLayoutsStack;
+		TArray< TArray<Ptr<const Layout>> > m_overrideLayoutsStack;
 
         //! Map of layouts found in the code already generated. The map is from the source layout
         //! pointer to the cloned layout. The cloned layout will have absolute block ids assigned.
@@ -258,10 +256,10 @@ namespace mu
             int32_t m_layoutBlock;
             LayoutPtrConst m_pLayout;
         };
-        vector<IMAGE_STATE> m_imageState;
+		TArray<IMAGE_STATE> m_imageState;
 
 		// (top-down) Tags that are active when generating nodes.
-		vector< vector<mu::string> > m_activeTags;
+		TArray< TArray<mu::string> > m_activeTags;
 
         struct PARENT_KEY
         {
@@ -285,7 +283,7 @@ namespace mu
             int m_block;
         };
 
-        vector< PARENT_KEY > m_currentParents;
+		TArray< PARENT_KEY > m_currentParents;
 
         // List of additional components to add to an object that come from child objects.
         // The index is the object and lod that should receive the components.
@@ -307,7 +305,7 @@ namespace mu
                 return m_lod < o.m_lod;
             }
         };
-        std::map< ADDITIONAL_COMPONENT_KEY, vector<Ptr<ASTOp>> > m_additionalComponents;
+        std::map< ADDITIONAL_COMPONENT_KEY, TArray<Ptr<ASTOp>> > m_additionalComponents;
 
 
         struct OBJECT_GENERATION_DATA
@@ -315,7 +313,7 @@ namespace mu
             // Condition that enables a specific object
             Ptr<ASTOp> m_condition;
         };
-        vector< OBJECT_GENERATION_DATA > m_currentObject;
+		TArray< OBJECT_GENERATION_DATA > m_currentObject;
 
         map< std::pair<TablePtr,string>, std::pair<TablePtr,Ptr<ASTOp>> > m_generatedTables;
 
@@ -325,11 +323,11 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		// Get the modifiers that have to be applied to elements with a specific tag.
-		void GetModifiersFor(const vector<string>& tags, int LOD,
-			bool bModifiersForBeforeOperations, vector<FirstPassGenerator::MODIFIER>& modifiers);
+		void GetModifiersFor(const TArray<string>& tags, int LOD,
+			bool bModifiersForBeforeOperations, TArray<FirstPassGenerator::MODIFIER>& modifiers);
 
 		// Apply the required mesh modifiers to the given operation.
-		Ptr<ASTOp> ApplyMeshModifiers( const Ptr<ASTOp>& sourceOp, const vector<string>& tags,
+		Ptr<ASTOp> ApplyMeshModifiers( const Ptr<ASTOp>& sourceOp, const TArray<string>& tags,
 			bool bModifiersForBeforeOperations, const void* errorContext);
 
 		// Get the modifiers that have to be applied to elements with a specific tag.
@@ -369,17 +367,17 @@ namespace mu
 			VISITED_MAP_KEY key;
 			key.pNode = InNode;
 			key.state = m_currentStateIndex;
-			if (!m_imageState.empty())
+			if (!m_imageState.IsEmpty())
 			{
-				key.imageSize = m_imageState.back().m_imageSize;
-				key.imageRect = m_imageState.back().m_imageRect;
+				key.imageSize = m_imageState.Last().m_imageSize;
+				key.imageRect = m_imageState.Last().m_imageRect;
 			}
-			if (!m_activeTags.empty())
+			if (!m_activeTags.IsEmpty())
 			{
-				key.activeTags = m_activeTags.back();
-				if (!m_overrideLayoutsStack.empty())
+				key.activeTags = m_activeTags.Last();
+				if (!m_overrideLayoutsStack.IsEmpty())
 				{
-					key.overrideLayouts = m_overrideLayoutsStack.back();
+					key.overrideLayouts = m_overrideLayoutsStack.Last();
 				}
 			}
 			return key;
@@ -591,7 +589,7 @@ namespace mu
 
         void GenerateSurface( SURFACE_GENERATION_RESULT& result,
                               NodeSurfaceNewPtrConst node,
-                              const vector<FirstPassGenerator::SURFACE::EDIT>& edits );
+                              const TArray<FirstPassGenerator::SURFACE::EDIT>& edits );
 
         TaskManager* m_pTaskManager = nullptr;
     };
@@ -657,7 +655,7 @@ namespace mu
 
         // Create the switch to cover all the options
         Ptr<ASTOp> lastSwitch;
-        std::size_t rows = pTable->GetPrivate()->m_rows.size();
+        std::size_t rows = pTable->GetPrivate()->m_rows.Num();
 
         Ptr<ASTOpSwitch> SwitchOp = new ASTOpSwitch();
 		SwitchOp->type = OPTYPE;
@@ -667,9 +665,9 @@ namespace mu
 		for (size_t i = 0; i < rows; ++i)
         {
             check( pTable->GetPrivate()->m_rows[i].m_id <= 0xFFFF);
-            auto condition = (uint16_t)pTable->GetPrivate()->m_rows[i].m_id;
+            auto condition = (uint16)pTable->GetPrivate()->m_rows[i].m_id;
             Ptr<ASTOp> Branch = GenerateOption( node, colIndex, (int)i, m_pErrorLog.get() );
-			SwitchOp->cases.push_back(ASTOpSwitch::CASE(condition, SwitchOp, Branch ));
+			SwitchOp->cases.Add(ASTOpSwitch::CASE(condition, SwitchOp, Branch ));
         }
 
         return SwitchOp;

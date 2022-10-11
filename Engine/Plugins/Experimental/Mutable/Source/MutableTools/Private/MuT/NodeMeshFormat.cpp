@@ -93,13 +93,6 @@ class FMeshBufferSet;
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshFormat::SetRebuildTangents( bool enabled )
-	{
-		m_pD->m_rebuildTangents = enabled;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
 	NodeLayoutPtr NodeMeshFormat::Private::GetLayout( int index ) const
 	{
 		NodeLayoutPtr pResult;

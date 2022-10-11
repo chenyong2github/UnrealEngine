@@ -11,13 +11,14 @@
 #include "MuR/RefCounted.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Types.h"
-#include "../Private/MuR/MemoryPrivate.h"
+#include "MuR/MemoryPrivate.h"
 
-#include <vector>
+#include <string>
 
 
 namespace mu
 {
+	typedef std::string string;
 
     //!
     class MUTABLERUNTIME_API InputMemoryStream : public InputStream
@@ -213,30 +214,6 @@ namespace mu
 			t = (T)v;													\
 		}
 
-	//---------------------------------------------------------------------------------------------
-	template< typename T >
-	inline void operator<< ( OutputArchive& arch, const vector<T>& v )
-	{
-		// TODO: Optimise for vectors of PODs
-        arch << (uint32)v.size();
-        for( std::size_t i=0; i<v.size(); ++i )
-		{
-			arch << v[i];
-		}
-	}
-
-	template< typename T >
-	inline void operator>> ( InputArchive& arch, vector<T>& v )
-	{
-		// TODO: Optimise for vectors of PODs
-        uint32 size;
-		arch >> size;
-		v.resize( size );
-        for( uint32 i=0; i<size; ++i )
-		{
-			arch >> v[i];
-		}
-	}
 
     //---------------------------------------------------------------------------------------------
     template< typename T0, typename T1 >
@@ -254,40 +231,12 @@ namespace mu
     }
 
 
-    //---------------------------------------------------------------------------------------------
-    template< typename K, typename T >
-    inline void operator<< ( OutputArchive& arch, const map<K,T>& v )
-    {
-        arch << (uint32_t)v.size();
-        for( const auto& p: v )
-        {
-            arch << p.first;
-            arch << p.second;
-        }
-    }
-
-    template< typename K, typename T >
-    inline void operator>> ( InputArchive& arch, map<K,T>& v )
-    {
-        uint32_t size;
-        arch >> size;
-
-        for( uint32_t i=0; i<size; ++i )
-        {
-            K k;
-            T t;
-            arch >> k;
-            arch >> t;
-            v.insert( std::make_pair<>(k,t) );
-        }
-    }
-
 	
 	//---------------------------------------------------------------------------------------------
 	template<typename T> inline void operator<<(OutputArchive& arch, const TArray<T>& v)
 	{
 		// TODO: Optimise for vectors of PODs
-		arch << (uint32_t)v.Num();
+		arch << (uint32)v.Num();
 		for (std::size_t i = 0; i < v.Num(); ++i)
 		{
 			arch << v[i];
@@ -297,7 +246,7 @@ namespace mu
 	template<typename T> inline void operator>>(InputArchive& arch, TArray<T>& v)
 	{
 		// TODO: Optimise for vectors of PODs
-		uint32_t size;
+		uint32 size;
 		arch >> size;
 		v.SetNum(size);
 		for (std::size_t i = 0; i < size; ++i)
@@ -306,31 +255,37 @@ namespace mu
 		}
 	}
 
+	//---------------------------------------------------------------------------------------------
+	template< typename K, typename T >
+	inline void operator<< (OutputArchive& arch, const TMap<K, T>& v)
+	{
+		arch << (uint32)v.Num();
+		for (const auto& p : v)
+		{
+			arch << p.Key;
+			arch << p.Value;
+		}
+	}
+
+	template< typename K, typename T >
+	inline void operator>> (InputArchive& arch, TMap<K, T>& v)
+	{
+		uint32 size;
+		arch >> size;
+
+		for (uint32 i = 0; i < size; ++i)
+		{
+			K k;
+			T t;
+			arch >> k;
+			arch >> t;
+			v.Add(k, t);
+		}
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 #define MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(T)										\
-	template<>																			\
-	inline void operator<< <T>( OutputArchive& arch, const vector<T>& v )				\
-	{																					\
-        arch << (uint32_t)v.size();														\
-		if (v.size())																	\
-		{																				\
-            arch.GetPrivate()->m_pStream->Write( &v[0], (uint32_t)v.size()*sizeof(T) );	\
-		}																				\
-	}																					\
-																						\
-	template<>																			\
-	inline void operator>> <T>( InputArchive& arch, vector<T>& v )						\
-	{																					\
-        uint32_t size;																	\
-		arch >> size;																	\
-		v.resize( size );																\
-		if (size)																		\
-		{																				\
-            arch.GetPrivate()->m_pStream->Read( &v[0], (uint32_t)size*sizeof(T) );		\
-		}																				\
-	}																					\
-																						\
 	template<> inline void operator<<<T>(OutputArchive& arch, const TArray<T>& v)		\
 	{                                                                                   \
 		uint32 Num = uint32(v.Num());													\
@@ -366,9 +321,9 @@ namespace mu
 
 	//---------------------------------------------------------------------------------------------
 	template<>
-	inline void operator<< <string>( OutputArchive& arch, const string& v )
+	inline void operator<< <std::string>( OutputArchive& arch, const std::string& v )
 	{
-        arch << (uint32_t)v.size();
+        arch << (uint32)v.size();
 		if ( v.size() )
 		{
 			arch.GetPrivate()->m_pStream->Write( &v[0], (unsigned)v.size()*sizeof(char) );
@@ -376,9 +331,9 @@ namespace mu
 	}
 
 	template<>
-	inline void operator>> <string>( InputArchive& arch, string& v )
+	inline void operator>> <std::string>( InputArchive& arch, std::string& v )
 	{
-        uint32_t size;
+        uint32 size;
 		arch >> size;
 		v.resize( size );
 		if (size)

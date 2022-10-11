@@ -171,11 +171,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	bool NodeObjectState::HasStateParam( const char* param ) const
 	{
-		return std::find( m_pD->m_state.m_runtimeParams.begin(),
-						  m_pD->m_state.m_runtimeParams.end(),
-						  param )
-				!=
-				m_pD->m_state.m_runtimeParams.end();
+		return m_pD->m_state.m_runtimeParams.Contains( param );
 	}
 
 
@@ -184,7 +180,7 @@ namespace mu
 	{
 		if (!HasStateParam(param))
 		{
-			m_pD->m_state.m_runtimeParams.push_back( param );
+			m_pD->m_state.m_runtimeParams.Add( param );
 		}
 	}
 
@@ -192,12 +188,10 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeObjectState::RemoveStateParam( const char* param )
 	{
-		vector<string>::iterator it = std::find( m_pD->m_state.m_runtimeParams.begin(),
-														   m_pD->m_state.m_runtimeParams.end(),
-														   param );
-		if ( it != m_pD->m_state.m_runtimeParams.end() )
+		int32 it = m_pD->m_state.m_runtimeParams.Find( param );
+		if ( it != INDEX_NONE )
 		{
-			m_pD->m_state.m_runtimeParams.erase( it );
+			m_pD->m_state.m_runtimeParams.RemoveAt( it );
 		}
 	}
 

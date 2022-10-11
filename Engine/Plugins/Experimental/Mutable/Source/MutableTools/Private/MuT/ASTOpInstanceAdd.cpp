@@ -53,7 +53,7 @@ bool ASTOpInstanceAdd::IsEqual(const ASTOp& otherUntyped) const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpInstanceAdd::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpInstanceAdd::Clone(MapChildFuncRef mapChild) const
 {
     Ptr<ASTOpInstanceAdd> n = new ASTOpInstanceAdd();
     n->type = type;
@@ -101,7 +101,7 @@ void ASTOpInstanceAdd::Assert()
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOpInstanceAdd::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpInstanceAdd::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( instance );
     f( value );
@@ -132,39 +132,37 @@ void ASTOpInstanceAdd::Link( PROGRAM& program, const FLinkerOptions* )
             SubtreeRelevantParametersVisitorAST visitor;
             visitor.Run( value.child() );
 
-            vector<uint16_t> params;
+            TArray<uint16> params;
             for(const string& paramName: visitor.m_params)
             {
-                for( size_t i=0; i<program.m_parameters.size(); ++i )
+                for( int32 i=0; i<program.m_parameters.Num(); ++i )
                 {
                     const auto& param = program.m_parameters[i];
                     if (param.m_name==paramName)
                     {
-                        params.push_back( uint16_t(i) );
+                        params.Add( uint16(i) );
                         break;
                     }
                 }
             }
 
-            std::sort(params.begin(),params.end());
+            params.Sort();
 
-            auto it = std::find( program.m_parameterLists.begin(),
-                                 program.m_parameterLists.end(),
-                                 params );
+            auto it = program.m_parameterLists.Find( params );
 
-            if (it!=program.m_parameterLists.end())
+            if (it!=INDEX_NONE)
             {
-                args.relevantParametersListIndex = uint32_t(it - program.m_parameterLists.begin());
+                args.relevantParametersListIndex = it;
             }
             else
             {
-                args.relevantParametersListIndex = uint32_t(program.m_parameterLists.size());
-                program.m_parameterLists.push_back( params );
+                args.relevantParametersListIndex = uint32_t(program.m_parameterLists.Num());
+                program.m_parameterLists.Add( params );
             }
         }
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,type);
         AppendCode(program.m_byteCode,args);
     }

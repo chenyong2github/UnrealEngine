@@ -10,9 +10,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	0
-
-
 namespace mu
 {
 
@@ -35,14 +32,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeModifierMeshClipMorphPlane::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 0;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     Node* NodeModifierMeshClipMorphPlane::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
 		return nullptr;
 	}
@@ -51,7 +48,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeModifierMeshClipMorphPlane::SetInputNode( int i, NodePtr )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
         (void)i;
     }
 
@@ -99,6 +96,4 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT
 

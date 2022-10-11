@@ -29,12 +29,12 @@ namespace mu
 		TablePtr m_pTable;
 		string m_columnName;
 
-		vector<NodeLayoutPtr> m_layouts;
+		TArray<NodeLayoutPtr> m_layouts;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 1;
+            uint32 ver = 1;
 			arch << ver;
 
 			arch << m_parameterName;
@@ -46,7 +46,7 @@ namespace mu
 		//!
 		void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
             check(ver==1);
 

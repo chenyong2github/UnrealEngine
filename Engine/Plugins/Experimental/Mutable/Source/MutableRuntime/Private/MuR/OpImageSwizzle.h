@@ -27,8 +27,8 @@ namespace mu
 
         // Pixelcount should already match, but due to bugs it may not be the case. Try to detect it,
         // but avoid crashing below:
-        uint16_t numChannels = GetImageFormatData(format).m_channels;
-        for (uint16_t c=0;c<numChannels; ++c)
+        uint16 numChannels = GetImageFormatData(format).m_channels;
+        for (uint16 c=0;c<numChannels; ++c)
         {
             if (pSources[c])
             {

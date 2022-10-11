@@ -94,13 +94,13 @@ namespace mu
 		uint32 lodMask, uint8 executionOptions, SCHEDULED_OP::EType Type )
 		: m_pSettings(pSettings), m_pSystem(s), m_pModel(pModel), m_pParams(pParams), m_lodMask(lodMask)
 	{
-		ScheduledStagePerOp.resize(m_pModel->GetPrivate()->m_program.m_opAddress.size());
+		ScheduledStagePerOp.resize(m_pModel->GetPrivate()->m_program.m_opAddress.Num());
 
 		// We will read this in the end, so make sure we keep it.
 		m_pSystem->m_memory->IncreaseHitCount(CACHE_ADDRESS(at, 0, executionOptions));
 
 		PROGRAM& program = m_pModel->GetPrivate()->m_program;
-		m_romPendingOps.resize(program.m_roms.Num(), 0);
+		m_romPendingOps.SetNum(program.m_roms.Num());
 
 		// Push the root operation
 		SCHEDULED_OP rootOp;
@@ -372,7 +372,7 @@ namespace mu
                     vec4f value = GetMemory().GetColour( CACHE_ADDRESS(args.value,item) );
 
                     OP::ADDRESS nameAd = args.name;
-                    check(  nameAd < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                     const char* strName = pModel->GetPrivate()->m_program.m_constantStrings[ nameAd ].c_str();
 
                     pResult->GetPrivate()->AddVector( 0, 0, 0, value, strName );
@@ -417,7 +417,7 @@ namespace mu
                     float value = GetMemory().GetScalar( CACHE_ADDRESS(args.value,item) );
 
                     OP::ADDRESS nameAd = args.name;
-                    check(  nameAd < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                     const char* strName = pModel->GetPrivate()->m_program.m_constantStrings[ nameAd ].c_str();
 
                     pResult->GetPrivate()->AddScalar( 0, 0, 0, value, strName );
@@ -463,8 +463,7 @@ namespace mu
                         GetMemory().GetString( CACHE_ADDRESS( args.value, item ) );
 
                     OP::ADDRESS nameAd = args.name;
-                    check( nameAd <
-                                    pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check( nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                     const char* strName =
                         pModel->GetPrivate()->m_program.m_constantStrings[nameAd].c_str();
 
@@ -511,11 +510,11 @@ namespace mu
 
                     int cindex = pResult->GetPrivate()->AddComponent( 0 );
 
-                    if ( !pComp->GetPrivate()->m_lods.empty()
+                    if ( !pComp->GetPrivate()->m_lods.IsEmpty()
                          &&
-                         !pResult->GetPrivate()->m_lods.empty()
+                         !pResult->GetPrivate()->m_lods.IsEmpty()
                          &&
-                         !pComp->GetPrivate()->m_lods[0].m_components.empty() )
+                         !pComp->GetPrivate()->m_lods[0].m_components.IsEmpty() )
                     {
                         pResult->GetPrivate()->m_lods[0].m_components[cindex] =
                                 pComp->GetPrivate()->m_lods[0].m_components[0];
@@ -524,7 +523,7 @@ namespace mu
                     	
                         // Name
                         OP::ADDRESS nameAd = args.name;
-                        check( nameAd < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                        check( nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                         const char* strName = pModel->GetPrivate()->m_program.m_constantStrings[ nameAd ].c_str();
                         pResult->GetPrivate()->SetComponentName( 0, cindex, strName );
                     }
@@ -570,22 +569,22 @@ namespace mu
                     // Surface data
                     if (pSurf
                             &&
-                            pSurf->GetPrivate()->m_lods.size()
+                            pSurf->GetPrivate()->m_lods.Num()
                             &&
-                            pSurf->GetPrivate()->m_lods[0].m_components.size()
+                            pSurf->GetPrivate()->m_lods[0].m_components.Num()
                             &&
-                            pSurf->GetPrivate()->m_lods[0].m_components[0].m_surfaces.size())
+                            pSurf->GetPrivate()->m_lods[0].m_components[0].m_surfaces.Num())
                     {
                         pResult->GetPrivate()->m_lods[0].m_components[0].m_surfaces[sindex] =
                             pSurf->GetPrivate()->m_lods[0].m_components[0].m_surfaces[0];
 
                         // Meshes must be added later.
-                        check(!pSurf->GetPrivate()->m_lods[0].m_components[0].m_meshes.size());
+                        check(!pSurf->GetPrivate()->m_lods[0].m_components[0].m_meshes.Num());
                     }
 
                     // Name
                     OP::ADDRESS nameAd = args.name;
-                    check( nameAd < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check( nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                     const char* strName = pModel->GetPrivate()->m_program.m_constantStrings[ nameAd ].c_str();
                     pResult->GetPrivate()->SetSurfaceName( 0, 0, sindex, strName );
 
@@ -611,7 +610,7 @@ namespace mu
             {
             case 0:
             {                
-                    vector<SCHEDULED_OP> deps;
+                    TArray<SCHEDULED_OP> deps;
                     for ( int i=0; i<MUTABLE_OP_MAX_ADD_COUNT; ++i )
                     {
                         if ( args.lod[i] )
@@ -620,7 +619,7 @@ namespace mu
 
                             if ( selectedLod )
                             {
-                                deps.emplace_back(args.lod[i], item);
+                                deps.Emplace(args.lod[i], item);
                             }
                         }
                     }
@@ -648,7 +647,7 @@ namespace mu
                             int lindex = pResult->GetPrivate()->AddLOD();
 
                             // In a degenerated case, the returned pLOD may not have an LOD inside
-                            if ( pLOD && !pLOD->GetPrivate()->m_lods.empty() )
+                            if ( pLOD && !pLOD->GetPrivate()->m_lods.IsEmpty() )
                             {
                                 pResult->GetPrivate()->m_lods[lindex] = pLOD->GetPrivate()->m_lods[0];
                             }
@@ -723,7 +722,7 @@ namespace mu
                                 args.value,
                                 pParams);
                     OP::ADDRESS nameAd = args.name;
-                    check(  nameAd < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                     const char* strName = pModel->GetPrivate()->m_program.m_constantStrings[ nameAd ].c_str();
                     pResult->GetPrivate()->AddMesh( 0, 0, meshId, strName );
                 }
@@ -767,7 +766,7 @@ namespace mu
                                 args.value,
                                 pParams);
                     OP::ADDRESS nameAd = args.name;
-                    check(  nameAd < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
                     const char* strName = pModel->GetPrivate()->m_program.m_constantStrings[ nameAd ].c_str();
                     pResult->GetPrivate()->AddImage( 0, 0, 0, imageId, strName );
                 }
@@ -815,14 +814,14 @@ namespace mu
             // Set the separate skeleton if necessary
             if (args.skeleton>=0)
             {
-                check( program.m_constantSkeletons.size()>size_t(args.skeleton)  );
+                check( program.m_constantSkeletons.Num()>size_t(args.skeleton)  );
                 Ptr<const Skeleton> pSkeleton = program.m_constantSkeletons[args.skeleton];
                 pSource->SetSkeleton(pSkeleton);
             }
 
 			if (args.physicsBody >= 0)
 			{
-                check( program.m_constantPhysicsBodies.size()>size_t(args.physicsBody)  );
+                check( program.m_constantPhysicsBodies.Num()>size_t(args.physicsBody)  );
                 Ptr<const PhysicsBody> pPhysicsBody = program.m_constantPhysicsBodies[args.physicsBody];
                 pSource->SetPhysicsBody(pPhysicsBody);
 			}
@@ -1075,7 +1074,6 @@ namespace mu
                         Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[min],item) );
                         if (pMorph)
                         {
-                            //pResult = MeshMorphReference( pBase.get(), pMorph.get() );
 							pResult = MeshMorph(pBase.get(), pMorph.get());
                         }
                     }
@@ -1086,7 +1084,6 @@ namespace mu
                         Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max],item) );
                         if (pMorph)
                         {
-                            //pResult = MeshMorphReference( pBase.get(), pMorph.get() );
 							pResult = MeshMorph(pBase.get(), pMorph.get());
                         }
                     }
@@ -1097,7 +1094,6 @@ namespace mu
 						Ptr<const Mesh> pMorph = GetMemory().GetMesh(CACHE_ADDRESS(args.targets[max], item));
 						if (pMorph)
 						{
-							//pResult = MeshMorphReference(pBase.get(), pMorph.get(), bifactor);
 							pResult = MeshMorph(pBase.get(), pMorph.get(), bifactor);
 						}
 					}
@@ -1108,7 +1104,6 @@ namespace mu
                         Ptr<const Mesh> pMax = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max],item) );
                         if (pMin && pMax)
                         {
-						    //pResult = MeshMorph2Reference( pBase.get(), pMin.get(), pMax.get(), bifactor );
                             pResult = MeshMorph2( pBase.get(), pMin.get(), pMax.get(), bifactor );
                         }
                     }
@@ -1513,7 +1508,6 @@ namespace mu
                                       (flags & OP::MeshFormatArgs::BT_VERTEX) != 0,
                                       (flags & OP::MeshFormatArgs::BT_INDEX) != 0,
                                       (flags & OP::MeshFormatArgs::BT_FACE) != 0,
-                                      (flags & OP::MeshFormatArgs::BT_REBUILD_TANGENTS) != 0,
                                       (flags & OP::MeshFormatArgs::BT_IGNORE_MISSING) != 0
                                       );
 
@@ -1569,7 +1563,7 @@ namespace mu
 
                 // Access with memcpy necessary for unaligned arm issues.
                 uint32 blocks[1024];
-                memcpy( blocks, data, sizeof(uint32)*std::min(1024,int(blockCount)) );
+                memcpy( blocks, data, sizeof(uint32)*FMath::Min(1024,int(blockCount)) );
 
                 MeshPtr pResult;
                 pResult = MeshExtractLayoutBlock( pSource.get(),
@@ -1684,9 +1678,7 @@ namespace mu
 
                 MeshPtr pResult;
 
-                check( args.morphShape
-                                <
-                                pModel->GetPrivate()->m_program.m_constantShapes.size() );
+                check( args.morphShape < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num() );
 
                 // Should be an ellipse
                 const SHAPE& morphShape = pModel->GetPrivate()->m_program.
@@ -1697,9 +1689,7 @@ namespace mu
 
                 if (args.vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_SHAPE)
                 {
-                    check( args.vertexSelectionShapeOrBone
-                                    <
-                                    pModel->GetPrivate()->m_program.m_constantShapes.size() );
+                    check( args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num() );
 
                     // Should be None or an axis aligned box
                     const SHAPE& selectionShape = pModel->GetPrivate()->m_program.m_constantShapes[args.vertexSelectionShapeOrBone];
@@ -1708,9 +1698,7 @@ namespace mu
 
                 else if (args.vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
                 {
-                    check( args.vertexSelectionShapeOrBone
-                                    <
-                                    pModel->GetPrivate()->m_program.m_constantStrings.size() );
+                    check( args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
 
                     SHAPE selectionShape;
                     selectionShape.type = (uint8)SHAPE::Type::None;
@@ -2212,8 +2200,8 @@ namespace mu
             OP::ADDRESS source;
             FMemory::Memcpy(&source,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
 
-            vector<SCHEDULED_OP> conditions;
-            vector<OP::ADDRESS> masks;
+            TArray<SCHEDULED_OP> conditions;
+			TArray<OP::ADDRESS> masks;
 
             uint16 removes;
 			FMemory::Memcpy(&removes,data,sizeof(uint16)); data += sizeof(uint16);
@@ -2222,11 +2210,11 @@ namespace mu
             {
                 OP::ADDRESS condition;
 				FMemory::Memcpy(&condition,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-                conditions.emplace_back( condition, item );
+                conditions.Emplace( condition, item );
 
                 OP::ADDRESS mask;
 				FMemory::Memcpy(&mask,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-                masks.push_back( mask );
+                masks.Add( mask );
             }
 
 
@@ -2249,9 +2237,9 @@ namespace mu
             {
                 // Request the source and the necessary masks
                 // \todo: store condition values in heap?
-                vector<SCHEDULED_OP> deps;
-                deps.push_back( SCHEDULED_OP( source, item ) );
-                for( size_t r=0; source && r<conditions.size(); ++r )
+                TArray<SCHEDULED_OP> deps;
+                deps.Emplace( source, item );
+                for( size_t r=0; source && r<conditions.Num(); ++r )
                 {
                     // If there is no expression, we'll assume true.
                     bool value = true;
@@ -2262,7 +2250,7 @@ namespace mu
 
                     if (value)
                     {
-                        deps.emplace_back( masks[r], item );
+                        deps.Emplace( masks[r], item );
                     }
                 }
 
@@ -2280,7 +2268,7 @@ namespace mu
 
                 MeshPtrConst pResult = pSource;
 
-                for( size_t r=0; pResult && r<conditions.size(); ++r )
+                for( size_t r=0; pResult && r<conditions.Num(); ++r )
                 {
                     // If there is no expression, we'll assume true.
                     bool value = true;
@@ -2478,19 +2466,20 @@ namespace mu
                 SCHEDULED_OP itemCopy = item;
                 ExecutionIndex index = GetMemory().GetRageIndex( item.executionIndex );
 
-                    vector<SCHEDULED_OP> deps(iterations*2+1);
-                    int d=0;
-                    deps[d++] = SCHEDULED_OP( args.base, item );
-                    for (int i=0; i<iterations; ++i)
-                    {
-                        index.SetFromModelRangeIndex( args.rangeId, i );
+				TArray<SCHEDULED_OP> deps;
+				deps.SetNumUninitialized(iterations * 2 + 1);
+                int d=0;
+                deps[d++] = SCHEDULED_OP( args.base, item );
+                for (int i=0; i<iterations; ++i)
+                {
+                    index.SetFromModelRangeIndex( args.rangeId, i );
 
-                        itemCopy.executionIndex = GetMemory().GetRageIndexIndex(index);
+                    itemCopy.executionIndex = GetMemory().GetRageIndexIndex(index);
 
-                        deps[d++] = SCHEDULED_OP( args.blended, itemCopy );
-                        deps[d++] = SCHEDULED_OP( args.mask, itemCopy );
-                    }
-                    AddOp( SCHEDULED_OP( item.at, item, 2, iterations), deps );
+                    deps[d++] = SCHEDULED_OP( args.blended, itemCopy );
+                    deps[d++] = SCHEDULED_OP( args.mask, itemCopy );
+                }
+                AddOp( SCHEDULED_OP( item.at, item, 2, iterations), deps );
 
                 break;
             }
@@ -3807,8 +3796,8 @@ namespace mu
 
                     // Allocate memory for the temporary buffers
                     SCRATCH_IMAGE_PROJECT scratch;
-                    scratch.vertices.resize( pMesh->GetVertexCount() );
-                    scratch.culledVertex.resize( pMesh->GetVertexCount() );
+                    scratch.vertices.SetNum( pMesh->GetVertexCount() );
+                    scratch.culledVertex.SetNum( pMesh->GetVertexCount() );
 
                     // Layout is always 0 because the previous mesh project operations take care of
                     // moving the right layout channel to the 0.
@@ -4047,7 +4036,7 @@ namespace mu
         const auto& program = pModel->GetPrivate()->m_program;
         const PARAMETER_DESC& paramDesc = program.m_parameters[ parameterIndex ];
         for( size_t rangeIndexInParam=0;
-             rangeIndexInParam<paramDesc.m_ranges.size();
+             rangeIndexInParam<paramDesc.m_ranges.Num();
              ++rangeIndexInParam )
         {
             auto rangeIndexInModel = paramDesc.m_ranges[rangeIndexInParam];
@@ -4491,9 +4480,8 @@ namespace mu
 
         case OP_TYPE::ST_CONSTANT:
         {
-            auto args =
-                pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>( item.at );
-            check( args.value < pModel->GetPrivate()->m_program.m_constantStrings.size() );
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>( item.at );
+            check( args.value < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
 
             auto result = pModel->GetPrivate()->m_program.m_constantStrings[args.value];
             GetMemory().SetString( item, new String(result.c_str()) );
@@ -4503,7 +4491,7 @@ namespace mu
 
         case OP_TYPE::ST_PARAMETER:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>( item.at );
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>( item.at );
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             string result = pParams->GetStringValue( args.variable, index );
             GetMemory().SetString( item, new String( result.c_str() ) );
@@ -4891,9 +4879,7 @@ namespace mu
         case OP_TYPE::LA_CONSTANT:
         {
             auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
-            check( args.value
-                            <
-                            pModel->GetPrivate()->m_program.m_constantLayouts.size() );
+            check( args.value < (uint32)pModel->GetPrivate()->m_program.m_constantLayouts.Num() );
 
             LayoutPtrConst pResult = pModel->GetPrivate()->m_program.m_constantLayouts
                     [ args.value ];
@@ -5396,7 +5382,7 @@ namespace mu
 
 				// At least keep the levels we already have.
 				int startLevel = BaseDesc.m_lods;
-				levelCount = std::max(startLevel, levelCount);
+				levelCount = FMath::Max(startLevel, levelCount);
 
 				// Update result.
 				m_heapImageDesc[item.customState].m_lods = levelCount;

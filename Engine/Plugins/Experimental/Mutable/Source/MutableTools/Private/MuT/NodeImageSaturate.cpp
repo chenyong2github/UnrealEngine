@@ -9,9 +9,6 @@
 #include "MuT/NodeScalar.h"
 
 
-#define NODE_INPUT_COUNT 	2
-
-
 namespace mu
 {
 
@@ -34,14 +31,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageSaturate::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 2;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeImageSaturate::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		Node* pResult = 0;
 
@@ -58,7 +55,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageSaturate::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		switch (i)
 		{
@@ -100,6 +97,4 @@ namespace mu
 
 
 }
-
-#undef NODE_INPUT_COUNT
 

@@ -47,8 +47,6 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 
-#include <functional>
-
 class UCustomizableObjectNodeRemapPinsByName;
 class UObject;
 struct FSlateBrush;

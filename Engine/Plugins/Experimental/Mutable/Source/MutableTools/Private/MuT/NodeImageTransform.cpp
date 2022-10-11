@@ -9,9 +9,6 @@
 #include "MuT/NodeScalar.h"
 
 
-#define NODE_INPUT_COUNT 	6
-
-
 namespace mu
 {
 
@@ -31,7 +28,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageTransform::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		switch (i)
 		{
@@ -48,14 +45,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageTransform::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 6;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeImageTransform::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		Node* pResult = 0;
 
@@ -148,6 +145,4 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT
 

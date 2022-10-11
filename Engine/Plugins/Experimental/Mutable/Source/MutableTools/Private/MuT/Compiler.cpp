@@ -200,7 +200,7 @@ namespace mu
 
             gen.GenerateRoot( pNode, pTaskManager );
 
-            check( !gen.m_states.empty() );
+            check( !gen.m_states.IsEmpty() );
 
             for ( const auto& s: gen.m_states )
             {
@@ -253,10 +253,10 @@ namespace mu
         // Set the runtime parameter indices.
         for( auto& s: states )
         {
-            for ( size_t p=0; p<s.nodeState.m_runtimeParams.size(); ++p )
+            for ( int32 p=0; p<s.nodeState.m_runtimeParams.Num(); ++p )
             {
                 int paramIndex = -1;
-                for ( size_t i=0; paramIndex<0 && i<program.m_parameters.size(); ++i )
+                for ( size_t i=0; paramIndex<0 && i<program.m_parameters.Num(); ++i )
                 {
                     if ( program.m_parameters[i].m_name
                          ==
@@ -268,7 +268,7 @@ namespace mu
 
                 if (paramIndex>=0)
                 {
-                    s.state.m_runtimeParameters.push_back( paramIndex );
+                    s.state.m_runtimeParameters.Add( paramIndex );
                 }
                 else
                 {
@@ -288,21 +288,21 @@ namespace mu
             // Generate the mask of update cache ops
             for ( const auto& a: s.m_updateCache )
             {
-                s.state.m_updateCache.emplace_back(a->linkedAddress);
+                s.state.m_updateCache.Emplace(a->linkedAddress);
             }
 
             // Sort the update cache addresses for performance and determinism
-            std::sort( s.state.m_updateCache.begin(), s.state.m_updateCache.end() );
+            s.state.m_updateCache.Sort();
 
             // Generate the mask of dynamic resources
             for ( const auto& a: s.m_dynamicResources )
             {
                 uint64_t relevantMask = 0;
-                for ( const auto& b: a.second )
+                for ( const auto& b: a.Value )
                 {
                     // Find the index in the model parameter list
                     int paramIndex = -1;
-                    for ( size_t i=0; paramIndex<0 && i<program.m_parameters.size(); ++i )
+                    for ( int32 i=0; paramIndex<0 && i<program.m_parameters.Num(); ++i )
                     {
                         if ( program.m_parameters[i].m_name == b )
                         {
@@ -312,14 +312,11 @@ namespace mu
                     check(paramIndex>=0);
 
                     // Find the position in the state data vector.
-                    auto it = std::find( s.state.m_runtimeParameters.cbegin(),
-                                         s.state.m_runtimeParameters.cend(),
-                                         paramIndex );
+                    int32 it = s.state.m_runtimeParameters.Find( paramIndex );
 
-                    if ( it!=s.state.m_runtimeParameters.end() )
+                    if ( it!=INDEX_NONE )
                     {
-                        size_t pos = it - s.state.m_runtimeParameters.begin();
-                        relevantMask |= uint64_t(1) << pos;
+                        relevantMask |= uint64_t(1) << it;
                     }
                 }
 
@@ -329,27 +326,17 @@ namespace mu
                 //check(relevantMask!=0);
                 if (relevantMask!=0)
                 {
-                    s.state.m_dynamicResources.emplace_back( a.first->linkedAddress, relevantMask );
+                    s.state.m_dynamicResources.Emplace( a.Key->linkedAddress, relevantMask );
                 }
             }            
 
             // Sort for performance and determinism
-            std::sort( s.state.m_dynamicResources.begin(), s.state.m_dynamicResources.end() );
+            s.state.m_dynamicResources.Sort();
 
-            program.m_states.push_back(s.state);
+            program.m_states.Add(s.state);
         }
 
-        //
-        if ( m_pD->m_options->GetPrivate()->m_log )
-        {
-			UE_LOG(LogMutableCore, Log, TEXT("----------------------------------------------------------------------\n") );
-			UE_LOG(LogMutableCore, Log, TEXT("non-optimised size : %d\n"), program.m_opAddress.size() );
-			UE_LOG(LogMutableCore, Log, TEXT("----------------------------------------------------------------------\n") );
-            Log( pResult );
-			UE_LOG(LogMutableCore, Log, TEXT("----------------------------------------------------------------------\n") );
-        }
-
-		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.size()));
+		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.Num()));
 
         // Optimize the generated code
         {        
@@ -369,18 +356,9 @@ namespace mu
 		int32 MinimumBytesPerRom = 1024; // \TODO: compilation parameter
 		m_pD->GenerateRoms(pResult.get(),MinimumBytesPerRom);
 
-		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.size()));
+		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.Num()));
 
         delete pTaskManager;
-
-        // Finish logging
-        if ( m_pD->m_options->GetPrivate()->m_log )
-        {
-            Log( pResult );
-			UE_LOG(LogMutableCore, Log, TEXT("----------------------------------------------------------------------") );
-            m_pD->m_pErrorLog->Log();
-			UE_LOG(LogMutableCore, Log, TEXT("----------------------------------------------------------------------") );
-        }
 
         return pResult;
     }
@@ -390,13 +368,6 @@ namespace mu
     ErrorLogPtrConst Compiler::GetLog() const
     {
         return m_pD->m_pErrorLog;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    ModelReportPtrConst Compiler::GetModelReport() const
-    {
-        return m_pD->m_pModelReport;
     }
 
 

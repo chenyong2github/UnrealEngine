@@ -30,7 +30,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    int NodeMeshVariation::GetInputCount() const { return 1 + int( m_pD->m_variations.size() ); }
+    int NodeMeshVariation::GetInputCount() const { return 1 + m_pD->m_variations.Num(); }
 
 
     //---------------------------------------------------------------------------------------------
@@ -44,11 +44,11 @@ namespace mu
         }
         i -= 1;
 
-        if ( i < int( m_pD->m_variations.size() ) )
+        if ( i < m_pD->m_variations.Num() )
         {
             return m_pD->m_variations[i].m_mesh.get();
         }
-        i -= int( m_pD->m_variations.size() );
+        i -= m_pD->m_variations.Num();
 
         return nullptr;
     }
@@ -66,37 +66,43 @@ namespace mu
         }
 
         i -= 1;
-        if ( i < int( m_pD->m_variations.size() ) )
+        if ( i < m_pD->m_variations.Num() )
         {
 
             m_pD->m_variations[i].m_mesh = dynamic_cast<NodeMesh*>( pNode.get() );
             return;
         }
-        i -= (int)m_pD->m_variations.size();
+        i -= m_pD->m_variations.Num();
     }
 
 
     //---------------------------------------------------------------------------------------------
     // Own Interface
     //---------------------------------------------------------------------------------------------
-    void NodeMeshVariation::SetDefaultMesh( NodeMesh* p ) { m_pD->m_defaultMesh = p; }
+    void NodeMeshVariation::SetDefaultMesh( NodeMesh* p ) 
+	{ 
+		m_pD->m_defaultMesh = p; 
+	}
 
 
     //---------------------------------------------------------------------------------------------
-    int NodeMeshVariation::GetVariationCount() const { return int( m_pD->m_variations.size() ); }
+    int NodeMeshVariation::GetVariationCount() const 
+	{ 
+		return  m_pD->m_variations.Num(); 
+	}
 
 
     //---------------------------------------------------------------------------------------------
     void NodeMeshVariation::SetVariationCount( int num )
     {
         check( num >= 0 );
-        m_pD->m_variations.resize( num );
+        m_pD->m_variations.SetNum( num );
     }
 
     //---------------------------------------------------------------------------------------------
     void NodeMeshVariation::SetVariationTag( int index, const char* strTag )
     {
-        check( index >= 0 && index < (int)m_pD->m_variations.size() );
+        check( index >= 0 && index < m_pD->m_variations.Num() );
         check( strTag );
 
         if ( strTag )
@@ -113,7 +119,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void NodeMeshVariation::SetVariationMesh( int index, NodeMesh* pNode )
     {
-        check( index >= 0 && index < (int)m_pD->m_variations.size() );
+        check( index >= 0 && index < m_pD->m_variations.Num() );
 
         m_pD->m_variations[index].m_mesh = pNode;
     }

@@ -13,9 +13,6 @@
 #include <utility>
 
 
-#define NODE_INPUT_COUNT 	4
-
-
 namespace mu
 {
 
@@ -38,7 +35,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageSwizzle::GetInputCount() const
 	{
-		return (int)m_pD->m_sources.size();
+		return (int)m_pD->m_sources.Num();
 	}
 
 
@@ -79,15 +76,15 @@ namespace mu
 		m_pD->m_format = format;
 
 		int channelCount = GetImageFormatData( format ).m_channels;
-		m_pD->m_sources.resize( channelCount );
-		m_pD->m_sourceChannels.resize( channelCount );
+		m_pD->m_sources.SetNum( channelCount );
+		m_pD->m_sourceChannels.SetNum( channelCount );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	NodeImagePtr NodeImageSwizzle::GetSource( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_sources.size() );
+		check( t>=0 && t<(int)m_pD->m_sources.Num() );
 		return m_pD->m_sources[t].get();
 	}
 
@@ -95,7 +92,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageSwizzle::SetSource( int t, NodeImagePtr pNode )
 	{
-		check( t>=0 && t<(int)m_pD->m_sources.size() );
+		check( t>=0 && t<(int)m_pD->m_sources.Num() );
 		m_pD->m_sources[t] = pNode;
 	}
 
@@ -103,7 +100,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageSwizzle::GetSourceChannel( int t ) const
 	{
-		check( t>=0 && t<(int)m_pD->m_sourceChannels.size() );
+		check( t>=0 && t<(int)m_pD->m_sourceChannels.Num() );
 		return m_pD->m_sourceChannels[t];
 	}
 
@@ -111,12 +108,10 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageSwizzle::SetSourceChannel( int t, int channel )
 	{
-		check( t>=0 && t<(int)m_pD->m_sourceChannels.size() );
+		check( t>=0 && t<(int)m_pD->m_sourceChannels.Num() );
 		m_pD->m_sourceChannels[t] = channel;
 	}
 
 
 
 }
-
-#undef NODE_INPUT_COUNT

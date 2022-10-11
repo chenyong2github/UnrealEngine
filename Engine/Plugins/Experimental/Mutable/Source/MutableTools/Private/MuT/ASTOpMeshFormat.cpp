@@ -61,7 +61,7 @@ uint64 ASTOpMeshFormat::Hash() const
 }
 
 
-mu::Ptr<ASTOp> ASTOpMeshFormat::Clone(MapChildFunc& mapChild) const
+mu::Ptr<ASTOp> ASTOpMeshFormat::Clone(MapChildFuncRef mapChild) const
 {
 	mu::Ptr<ASTOpMeshFormat> n = new ASTOpMeshFormat();
     n->Source = mapChild(Source.child());
@@ -71,7 +71,7 @@ mu::Ptr<ASTOp> ASTOpMeshFormat::Clone(MapChildFunc& mapChild) const
 }
 
 
-void ASTOpMeshFormat::ForEachChild(const std::function<void(ASTChild&)>& f )
+void ASTOpMeshFormat::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 {
     f( Source );
     f( Format );
@@ -90,9 +90,9 @@ void ASTOpMeshFormat::Link( PROGRAM& program, const FLinkerOptions* )
         if (Source) args.source = Source->linkedAddress;
         if (Format) args.format = Format->linkedAddress;
 
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
+        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
         //program.m_code.push_back(op);
-        program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
         AppendCode(program.m_byteCode,OP_TYPE::ME_FORMAT);
         AppendCode(program.m_byteCode,args);
     }
@@ -115,7 +115,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Apply(const ASTOp* root)
 	m_root = dynamic_cast<const ASTOpMeshFormat*>(root);
 	check(m_root);
 
-	m_oldToNew.clear();
+	m_oldToNew.Empty();
 
 	m_initialSource = m_root->Source.child();
 	mu::Ptr<ASTOp> newSource = Visit(m_initialSource, m_root);
@@ -165,18 +165,18 @@ namespace
 
 		int offset = 0;
 		int numChannels = 0;
-		vector<MESH_BUFFER_SEMANTIC> semantics;
-		vector<int> semanticIndices;
-		vector<MESH_BUFFER_FORMAT> formats;
-		vector<int> components;
-		vector<int> offsets;
+		TArray<MESH_BUFFER_SEMANTIC> semantics;
+		TArray<int> semanticIndices;
+		TArray<MESH_BUFFER_FORMAT> formats;
+		TArray<int> components;
+		TArray<int> offsets;
 
 		// Add the vertex index channel
-		semantics.push_back(MBS_VERTEXINDEX);
-		semanticIndices.push_back(0);
-		formats.push_back(MBF_UINT32);
-		components.push_back(1);
-		offsets.push_back(offset);
+		semantics.Add(MBS_VERTEXINDEX);
+		semanticIndices.Add(0);
+		formats.Add(MBF_UINT32);
+		components.Add(1);
+		offsets.Add(offset);
 		offset += components[numChannels] * GetMeshFormatData(formats[numChannels]).m_size;
 		numChannels++;
 
@@ -194,11 +194,11 @@ namespace
 				(vb, c, &semantic, &semanticIndex, &format, &component, nullptr);
 
 				// TODO: Filter useless semantics for morphing.
-				semantics.push_back(semantic);
-				semanticIndices.push_back(semanticIndex);
-				formats.push_back(format);
-				components.push_back(component);
-				offsets.push_back(offset);
+				semantics.Add(semantic);
+				semanticIndices.Add(semanticIndex);
+				formats.Add(format);
+				components.Add(component);
+				offsets.Add(offset);
 				offset += components[numChannels]
 					* GetMeshFormatData(formats[numChannels]).m_size;
 				numChannels++;
@@ -230,16 +230,16 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 	if (!at) return nullptr;
 
 	// Newly created?
-	if (std::find(m_newOps.begin(), m_newOps.end(), at) != m_newOps.end())
+	if (m_newOps.Find(at) != INDEX_NONE)
 	{
 		return at;
 	}
 
 	// Already visited?
-	auto cacheIt = m_oldToNew.find(at);
-	if (cacheIt != m_oldToNew.end())
+	auto cacheIt = m_oldToNew.Find(at);
+	if (cacheIt)
 	{
-		return cacheIt->second;
+		return *cacheIt;
 	}
 
 	mu::Ptr<ASTOp> newAt = at;
@@ -406,7 +406,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 
 	}
 
-	m_oldToNew[at] = newAt;
+	m_oldToNew.Add(at, newAt);
 
 	return newAt;
 }

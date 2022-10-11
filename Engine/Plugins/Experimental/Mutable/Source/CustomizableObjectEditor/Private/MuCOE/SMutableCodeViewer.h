@@ -32,8 +32,6 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
 
-#include <utility>
-
 class FMutableCodeTreeElement;
 class FReferenceCollector;
 class ITableRow;
@@ -614,7 +612,7 @@ public:
 				for (auto& DynamicResource : CurrentState.m_dynamicResources)
 				{
 					// If the operation gets located then mark it as dynamic resource
-					if (DynamicResource.first == MutableOperation)
+					if (DynamicResource.Key == MutableOperation)
 					{
 						bIsDynamicResource = true;
 						break;
@@ -628,15 +626,7 @@ public:
 				}
 				
 				// Check if it is a state constant
-				for (auto& CachedOperation : CurrentState.m_updateCache)
-				{
-					// If the operation gets located then mark it as dynamic resource
-					if (CachedOperation == MutableOperation)
-					{
-						bIsStateConstant = true;
-						break;
-					}
-				}
+				bIsStateConstant = CurrentState.m_updateCache.Contains(MutableOperation);
 			}
 		}
 		

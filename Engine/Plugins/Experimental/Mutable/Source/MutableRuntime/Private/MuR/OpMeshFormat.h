@@ -23,7 +23,6 @@ class FMeshBufferSet;
 			bool formatVertices,
 			bool formatIndices,
 			bool formatFaces,
-			bool rebuildTangents,
 			bool ignoreMissingChannels
 		);
 

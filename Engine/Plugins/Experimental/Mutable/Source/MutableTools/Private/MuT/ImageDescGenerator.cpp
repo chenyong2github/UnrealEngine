@@ -53,16 +53,16 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void ImageDescGenerator::Generate( const Node::Private& node )
     {
-        VisitedMap::const_iterator it = m_compiled.find(&node);
-        if ( it != m_compiled.end() )
+        auto it = m_compiled.Find(&node);
+        if ( it )
         {
-            m_desc = it->second;
+            m_desc = *it;
         }
         else
         {
             // The result will be stored in m_size
             node.Accept( *this );
-            m_compiled[ &node ] = m_desc;
+            m_compiled.Add( &node, m_desc );
         }
     }
 
@@ -125,7 +125,7 @@ namespace mu
         Ptr<const Image> pImage;
 
         std::size_t i = 0;
-        while ( !pImage && i<node.m_pTable->GetPrivate()->m_rows.size() )
+        while ( !pImage && i<node.m_pTable->GetPrivate()->m_rows.Num() )
         {
             pImage = node.m_pTable->GetPrivate()->m_rows[i].m_values[ colIndex ].m_pProxyImage->Get();
             ++i;
@@ -155,13 +155,13 @@ namespace mu
 
             if ( node.m_relative )
             {
-                m_desc.m_size[0] = uint16_t( m_desc.m_size[0] * node.m_sizeX );
-                m_desc.m_size[1] = uint16_t( m_desc.m_size[1] * node.m_sizeY );
+                m_desc.m_size[0] = uint16( m_desc.m_size[0] * node.m_sizeX );
+                m_desc.m_size[1] = uint16( m_desc.m_size[1] * node.m_sizeY );
             }
             else
             {
-                m_desc.m_size[0] = uint16_t( node.m_sizeX );
-                m_desc.m_size[1] = uint16_t( node.m_sizeY );
+                m_desc.m_size[0] = uint16( node.m_sizeX );
+                m_desc.m_size[1] = uint16( node.m_sizeY );
             }
         }
 
@@ -192,12 +192,12 @@ namespace mu
         {
             Generate( *pSource->GetBasePrivate() );
 
-            int mipLevel = std::max(
+            int mipLevel = FMath::Max(
                         (int)ceilf( logf( (float)m_desc.m_size[0] )/logf(2.0f) ),
                             (int)ceilf( logf( (float)m_desc.m_size[1] )/logf(2.0f) )
                             );
 
-            m_desc.m_lods = std::max( m_desc.m_lods, (uint8_t)mipLevel );
+            m_desc.m_lods = FMath::Max( m_desc.m_lods, (uint8_t)mipLevel );
         }
 
         return 0;
@@ -226,7 +226,7 @@ namespace mu
         m_desc = MUTABLE_MISSING_IMAGE_DESC;
 
         bool found = false;
-        for ( std::size_t t=0; !found && t<node.m_targets.size(); ++t )
+        for ( int32 t=0; !found && t<node.m_targets.Num(); ++t )
         {
             if ( NodeImage* pB = node.m_targets[t].get() )
             {
@@ -272,7 +272,7 @@ namespace mu
 
 		// The base image size has higher priority
 		bool found = false;
-		for (std::size_t t = 0; !found && t<node.m_sources.size(); ++t)
+		for (int32 t = 0; !found && t<node.m_sources.Num(); ++t)
 		{
 			if (NodeImage* pB = node.m_sources[t].get())
 			{
@@ -388,8 +388,8 @@ namespace mu
     Ptr<ASTOp> ImageDescGenerator::Visit( const NodeImageGradient::Private& node )
     {
         m_desc.m_format = EImageFormat::IF_RGB_UBYTE;
-        m_desc.m_size[0] = (uint16_t)node.m_size[0];
-        m_desc.m_size[1] = (uint16_t)node.m_size[1];
+        m_desc.m_size[0] = (uint16)node.m_size[0];
+        m_desc.m_size[1] = (uint16)node.m_size[1];
         m_desc.m_lods = 1;
         return 0;
     }
@@ -471,7 +471,7 @@ namespace mu
     {
         m_desc = MUTABLE_MISSING_IMAGE_DESC;
 
-        if ( node.m_options.size() > 0 && node.m_options[0] )
+        if ( node.m_options.Num() > 0 && node.m_options[0] )
         {
             Generate( *node.m_options[0]->GetBasePrivate() );
         }
@@ -489,7 +489,7 @@ namespace mu
         {
             Generate( *node.m_defaultImage->GetBasePrivate() );
         }
-        else if ( node.m_variations.size() > 0 && node.m_variations[0].m_image )
+        else if ( node.m_variations.Num() > 0 && node.m_variations[0].m_image )
         {
             Generate( *node.m_variations[0].m_image->GetBasePrivate() );
         }
@@ -533,8 +533,8 @@ namespace mu
 		// Size override?
 		if (node.m_imageSize.X > 0 && node.m_imageSize.Y > 0)
 		{
-			m_desc.m_size[0] = uint16_t(node.m_imageSize[0]);
-			m_desc.m_size[1] = uint16_t(node.m_imageSize[1]);
+			m_desc.m_size[0] = uint16(node.m_imageSize[0]);
+			m_desc.m_size[1] = uint16(node.m_imageSize[1]);
 		}
 
         // Size from the mask

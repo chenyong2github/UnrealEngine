@@ -31,7 +31,7 @@ namespace mu
 	inline float EvalCurve(const Curve& curve, float time)
 	{
 		float interpolated_value = curve.defaultValue;
-        const int32_t numKeyFrames = (int32_t)curve.keyFrames.size();
+        const int32_t numKeyFrames = curve.keyFrames.Num();
 
 		if (numKeyFrames < 1)
 		{

@@ -153,206 +153,6 @@ namespace mu
 
 		};
 
-
-		void RebuildTangents
-		(
-			const FMeshBufferSet& IndexBuffers,
-			FMeshBufferSet& VertexBuffers
-		)
-		{
-			// Because of these, this method only works for a specific mesh format
-			UntypedMeshBufferIteratorConst vertex(VertexBuffers, MBS_POSITION, 0);
-			UntypedMeshBufferIteratorConst normal(VertexBuffers, MBS_NORMAL, 0);
-			UntypedMeshBufferIteratorConst texcoord(VertexBuffers, MBS_TEXCOORDS, 0);
-
-			int vertexCount = VertexBuffers.GetElementCount();
-
-			// Group similar vertices
-			vector< TVertex > vertexData;
-			vertexData.reserve(vertexCount);
-			vector< uint32_t > lVertexGroups(vertexCount, 0);
-
-			//Agrupamos los vertices por posicion, normal, texcoord
-			for (int32_t i = 0; i < vertexCount; ++i)
-			{
-				TVertex v((vertex + i).GetAsVec4f().xyz(),
-					(normal + i).GetAsVec4f().xyz(),
-					(texcoord + i).GetAsVec4f().xy());
-				vector<TVertex>::const_iterator it = std::find(vertexData.begin(),
-					vertexData.end(),
-					v);
-
-				size_t pos = 0;
-				if (it != vertexData.end())
-				{
-					pos = it - vertexData.begin();
-				}
-				else
-				{
-					pos = vertexData.size();
-					vertexData.push_back(v);
-				}
-
-				lVertexGroups[i] = (int)pos;
-			}
-
-			// Calculate the tangent space
-			MeshBufferIterator<MBF_FLOAT32, float, 3> tangent(VertexBuffers, MBS_TANGENT, 0);
-			MeshBufferIterator<MBF_FLOAT32, float, 3> bitangent(VertexBuffers, MBS_BINORMAL, 0);
-			UntypedMeshBufferIteratorConst indices(IndexBuffers, MBS_VERTEXINDEX, 0);
-			int indexCount = IndexBuffers.GetElementCount();
-
-			vector<TFace> vertexFaces(indexCount);
-
-			// Worst case: a group for every vertex
-			vector< vector< TFace > > grp_faces(indexCount);
-
-			for (long faceidx = 0, count = indexCount / 3; faceidx < count; faceidx++)
-			{
-				long i1 = 0;
-				long i2 = 0;
-				long i3 = 0;
-
-				if (indices.GetFormat() == MBF_UINT16)
-				{
-					auto pIndices = reinterpret_cast<const uint16_t*>(indices.ptr());
-					i1 = pIndices[faceidx * 3];
-					i2 = pIndices[faceidx * 3 + 1];
-					i3 = pIndices[faceidx * 3 + 2];
-				}
-				else if (indices.GetFormat() == MBF_UINT32)
-				{
-					auto pIndices = reinterpret_cast<const uint32_t*>(indices.ptr());
-					i1 = pIndices[faceidx * 3];
-					i2 = pIndices[faceidx * 3 + 1];
-					i3 = pIndices[faceidx * 3 + 2];
-				}
-				else
-				{
-					check(false);
-				}
-
-				TFace face;
-
-				const vec3<float> v1 = (vertex + (int)i1).GetAsVec4f().xyz();
-				const vec3<float> v2 = (vertex + (int)i2).GetAsVec4f().xyz();
-				const vec3<float> v3 = (vertex + (int)i3).GetAsVec4f().xyz();
-
-				// Compute face t & b
-				const vec2<float> w1 = (texcoord + (int)i1).GetAsVec4f().xy();
-				const vec2<float> w2 = (texcoord + (int)i2).GetAsVec4f().xy();
-				const vec2<float> w3 = (texcoord + (int)i3).GetAsVec4f().xy();
-				face = TFace(v1, v2, v3, w1, w2, w3);
-
-				if (length(face.N) != 0)
-				{
-					vertexFaces[i1] = vertexFaces[i2] = vertexFaces[i3] = face;
-
-					grp_faces[lVertexGroups[i1]].push_back(face);
-					grp_faces[lVertexGroups[i2]].push_back(face);
-					grp_faces[lVertexGroups[i3]].push_back(face);
-				}
-			}
-
-			for (long vtxidx = 0; vtxidx < vertexCount; vtxidx++)
-			{
-				const vec3<float> n = (normal + (int)vtxidx).GetAsVec4f().xyz();
-				const uint32_t group = lVertexGroups[vtxidx];
-
-				vec3<float> lTangent(0, 0, 0);
-				vec3<float> lBiTangent(0, 0, 0);
-
-				const vector< TFace >& faces = grp_faces[group];
-
-				const TFace& vFace = vertexFaces[vtxidx];
-
-				// Ignore mirrors
-				for (unsigned i = 0; i < faces.size(); ++i)
-				{
-					const float DN = dot(vFace.N, faces[i].N);
-					const float DT = dot(vFace.T, faces[i].T);
-					const float DB = dot(vFace.B, faces[i].B);
-
-					if (DN > 0 && DT > 0 && DB > 0)
-					{
-						lTangent += faces[i].T;
-						lBiTangent += faces[i].B;
-					}
-				}
-
-				vec3<float> ortogonalizedTangent
-					= normalise(lTangent
-						- (n * dot(n, lTangent)));
-
-				vec3<float> ortogonalizedBiTangent
-					= normalise(lBiTangent
-						- (n * dot(n, lBiTangent))
-						- (ortogonalizedTangent * dot(ortogonalizedTangent, lBiTangent)));
-
-				// this is where we can do a final check for zero length vectors
-				// and set them to something appropriate
-				float lenTan = length(ortogonalizedTangent);
-				float lenBin = length(ortogonalizedBiTangent);
-
-				if ((lenTan <= MUTABLE_TANGENT_GENERATION_EPSILON_2)
-					|| (lenBin <= MUTABLE_TANGENT_GENERATION_EPSILON_2)) //should be approx 1.0f
-				{
-					// the tangent space is ill defined at this vertex
-					// so we can generate a valid one based on the normal vector,
-					// which I'm assuming is valid!
-					if (lenTan > 0.5f)
-					{
-						// the tangent is valid, so we can just use that to calculate the binormal
-						ortogonalizedBiTangent = cross(n, ortogonalizedTangent);
-					}
-					else if (lenBin > 0.5)
-					{
-						// the binormal is good and we can use it to calculate the tangent
-						ortogonalizedTangent = cross(ortogonalizedBiTangent, n);
-					}
-					else
-					{
-						// both vectors are invalid, so we should create something
-						// that is at least valid if not correct
-						// I'm checking two possible axis, because the normal could be one of them,
-						// and we want to chose a different one to start making our valid basis.
-						// I can find out which is further away from it by checking the dot product
-						vec3<float> startAxis;
-
-						if (dot(vec3<float>(1, 0, 0), n) < dot(vec3<float>(0, 1, 0), n))
-						{
-							//the xAxis is more different than the yAxis when compared to the normal
-							startAxis = vec3<float>(1, 0, 0);
-						}
-						else
-						{
-							// the yAxis is more different than the xAxis when compared to the normal
-							startAxis = vec3<float>(0, 1, 0);
-						}
-
-						ortogonalizedTangent = cross(n, startAxis);
-						ortogonalizedBiTangent = cross(n, ortogonalizedTangent);
-					}
-				}
-				else
-				{
-					// one final sanity check, make sure that they tangent and binormal are different
-					// enough
-					if (dot(ortogonalizedTangent, ortogonalizedBiTangent)
-						>
-						MUTABLE_TANGENT_MIN_AXIS_DIFFERENCE)
-					{
-						// then they are too similar lets make them more different
-						ortogonalizedBiTangent = cross(n, ortogonalizedTangent);
-					}
-				}
-
-				tangent[vtxidx] = ortogonalizedTangent;
-				bitangent[vtxidx] = ortogonalizedBiTangent;
-			}
-
-		}
-
 	}
 
 
@@ -481,7 +281,7 @@ namespace mu
 						{
 							for (int v = 0; v < vCount; ++v)
 							{
-								auto pTypedResultBuf = (uint16_t*)pResultBuf;
+								auto pTypedResultBuf = (uint16*)pResultBuf;
 								for (int i = 0; i < resultComponents; ++i)
 								{
 									pTypedResultBuf[i] = 65535;
@@ -640,8 +440,8 @@ namespace mu
 
 								else if (resultFormat == MBF_NUINT16)
 								{
-									uint16_t* pData = (uint16_t*)pResultBuf;
-									uint16_t accum = 0;
+									uint16* pData = (uint16*)pResultBuf;
+									uint16 accum = 0;
 									for (int i = 0; i < resultComponents; ++i)
 									{
 										accum += pData[i];
@@ -676,11 +476,11 @@ namespace mu
 			// offsets.
 			for (int b = 0; b < Result.GetBufferCount(); ++b)
 			{
-				vector<MESH_BUFFER_SEMANTIC> resultSemantics;
-				vector<int> resultSemanticIndexs;
-				vector<MESH_BUFFER_FORMAT> resultFormats;
-				vector<int> resultComponentss;
-				vector<int> resultOffsets;
+				TArray<MESH_BUFFER_SEMANTIC> resultSemantics;
+				TArray<int> resultSemanticIndexs;
+				TArray<MESH_BUFFER_FORMAT> resultFormats;
+				TArray<int> resultComponentss;
+				TArray<int> resultOffsets;
 				int offset = 0;
 
 				// For every channel in this buffer
@@ -707,23 +507,23 @@ namespace mu
 
 					if (sourceBuffer >= 0)
 					{
-						resultSemantics.push_back(resultSemantic);
-						resultSemanticIndexs.push_back(resultSemanticIndex);
-						resultFormats.push_back(resultFormat);
-						resultComponentss.push_back(resultComponents);
-						resultOffsets.push_back(offset);
+						resultSemantics.Add(resultSemantic);
+						resultSemanticIndexs.Add(resultSemanticIndex);
+						resultFormats.Add(resultFormat);
+						resultComponentss.Add(resultComponents);
+						resultOffsets.Add(offset);
 
 						offset += GetMeshFormatData(resultFormat).m_size * resultComponents;
 					}
 				}
 
-				if (resultSemantics.empty())
+				if (resultSemantics.IsEmpty())
 				{
 					Result.SetBuffer(b, 0, 0, nullptr, nullptr, nullptr, nullptr, nullptr);
 				}
 				else
 				{
-					Result.SetBuffer(b, offset, (int)resultSemantics.size(),
+					Result.SetBuffer(b, offset, resultSemantics.Num(),
 						&resultSemantics[0],
 						&resultSemanticIndexs[0],
 						&resultFormats[0],
@@ -788,7 +588,6 @@ namespace mu
 		bool formatVertices,
 		bool formatIndices,
 		bool formatFaces,
-		bool rebuildTangents,
 		bool ignoreMissingChannels
 	)
 	{
@@ -798,52 +597,6 @@ namespace mu
 		if (!pFormat) { return pPureSource->Clone(); }
 
 		MeshPtrConst pSource = pPureSource;
-
-		// Rebuild the tangent space if necessary
-		if (rebuildTangents)
-		{
-			MeshPtr pClonedSource = pPureSource->Clone();
-			pSource = pClonedSource;
-
-			// Make sure there are the tangents and binormal channels.
-			int tanBuf, tanChan, binBuf, binChan;
-			pSource->GetVertexBuffers().FindChannel(MBS_TANGENT, 0, &tanBuf, &tanChan);
-			pSource->GetVertexBuffers().FindChannel(MBS_BINORMAL, 0, &binBuf, &binChan);
-
-			if (tanBuf <= 0 || binBuf <= 0)
-			{
-				MESH_BUFFER buffer;
-
-				if (tanBuf <= 0)
-				{
-					MESH_BUFFER_CHANNEL channel;
-					channel.m_semantic = MBS_TANGENT;
-					channel.m_format = MBF_FLOAT32;
-					channel.m_componentCount = 3;
-					channel.m_semanticIndex = 0;
-					channel.m_offset = 0;
-					buffer.m_channels.Add(channel);
-					buffer.m_elementSize += 3 * sizeof(float);
-				}
-
-				if (binBuf <= 0)
-				{
-					MESH_BUFFER_CHANNEL channel;
-					channel.m_semantic = MBS_BINORMAL;
-					channel.m_format = MBF_FLOAT32;
-					channel.m_componentCount = 3;
-					channel.m_semanticIndex = 0;
-					channel.m_offset = (uint8)buffer.m_elementSize;
-					buffer.m_channels.Add(channel);
-					buffer.m_elementSize += 3 * sizeof(float);
-				}
-
-				buffer.m_data.SetNum(buffer.m_elementSize * pClonedSource->GetVertexCount());
-				pClonedSource->GetVertexBuffers().m_buffers.Add(buffer);
-			}
-
-			RebuildTangents(pClonedSource->GetIndexBuffers(), pClonedSource->GetVertexBuffers());
-		}
 
 		MeshPtr pResult = pFormat->Clone();
 
@@ -874,7 +627,7 @@ namespace mu
 						auto va = it.GetAsVec8i();
 						for (int c = 0; c < it.GetComponents(); ++c)
 						{
-							maxBoneIndex = std::max(maxBoneIndex, va[c]);
+							maxBoneIndex = FMath::Max(maxBoneIndex, va[c]);
 						}
 						++it;
 					}

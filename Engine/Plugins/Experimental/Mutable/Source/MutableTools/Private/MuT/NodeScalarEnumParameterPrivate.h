@@ -56,9 +56,9 @@ namespace mu
 			}
 		};
 
-		vector<OPTION> m_options;
+		TArray<OPTION> m_options;
 
-        vector<Ptr<NodeRange>> m_ranges;
+		TArray<Ptr<NodeRange>> m_ranges;
 
 		//!
 		void Serialise( OutputArchive& arch ) const

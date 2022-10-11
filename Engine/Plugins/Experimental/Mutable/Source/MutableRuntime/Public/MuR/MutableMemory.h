@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 
 #include <cstring>	// for size_t in some platforms
+#include <new>
 
 namespace mu
 {

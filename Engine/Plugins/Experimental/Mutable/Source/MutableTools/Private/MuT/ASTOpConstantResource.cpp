@@ -27,7 +27,7 @@ using namespace mu;
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ASTOpConstantResource::ForEachChild(const std::function<void (ASTChild&)>& )
+void ASTOpConstantResource::ForEachChild(const TFunctionRef<void (ASTChild&)> )
 {
 }
 
@@ -45,7 +45,7 @@ bool ASTOpConstantResource::IsEqual(const ASTOp& otherUntyped) const
 
 
 //-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpConstantResource::Clone(MapChildFunc&) const
+mu::Ptr<ASTOp> ASTOpConstantResource::Clone(MapChildFuncRef) const
 {
     Ptr<ASTOpConstantResource> n = new ASTOpConstantResource();
     n->type = type;
@@ -115,8 +115,8 @@ void ASTOpConstantResource::Link( PROGRAM& program, const FLinkerOptions* Option
 
             args.value = program.AddConstant(pTyped.get());
 
-            linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-            program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+            linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+            program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
             AppendCode(program.m_byteCode,type);
             AppendCode(program.m_byteCode,args);
         }
@@ -160,8 +160,8 @@ void ASTOpConstantResource::Link( PROGRAM& program, const FLinkerOptions* Option
 
 			if (bValidData)
 			{
-				linkedAddress = (OP::ADDRESS)program.m_opAddress.size();
-				program.m_opAddress.push_back((uint32_t)program.m_byteCode.size());
+				linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
+				program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
 				AppendCode(program.m_byteCode, type);
 				AppendCode(program.m_byteCode, args);
 			}

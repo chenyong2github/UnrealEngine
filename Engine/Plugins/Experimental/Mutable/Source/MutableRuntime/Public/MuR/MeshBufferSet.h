@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../Private/MuR/SerialisationPrivate.h"
+#include "MuR/SerialisationPrivate.h"
 #include "Containers/Array.h"
 #include "HAL/PlatformMath.h"
 #include "MuR/MutableMemory.h"

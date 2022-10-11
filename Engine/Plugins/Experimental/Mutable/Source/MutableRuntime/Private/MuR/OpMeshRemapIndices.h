@@ -63,11 +63,11 @@ namespace mu
                 case MBF_UINT16:
                     for ( uint32_t v = 0; v < vcountBase;  ++v)
                     {
-                        uint16_t* pIndex = (uint16_t*)pData;
-                        uint16_t oldIndex = *pIndex;
+                        uint16* pIndex = (uint16*)pData;
+                        uint16 oldIndex = *pIndex;
                         check( *pIndex < vcountReference );
                         uint32_t newIndex = ( itReferenceId + oldIndex ).GetAsUINT32();
-                        *pIndex = uint16_t(newIndex);
+                        *pIndex = uint16(newIndex);
                         pData += buf.m_elementSize;
                     }
                     break;

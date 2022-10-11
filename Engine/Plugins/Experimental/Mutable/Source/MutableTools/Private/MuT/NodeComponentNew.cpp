@@ -36,7 +36,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeComponentNew::GetInputCount() const
 	{
-        return (int) m_pD->m_surfaces.size();
+        return m_pD->m_surfaces.Num();
 	}
 
 
@@ -47,7 +47,7 @@ namespace mu
 
 		NodePtr pResult;
 
-        if ( i<(int)m_pD->m_surfaces.size() )
+        if ( i<m_pD->m_surfaces.Num() )
 		{
             pResult = m_pD->m_surfaces[i];
 		}
@@ -61,7 +61,7 @@ namespace mu
 	{
         check( i >=0 && i < GetInputCount() );
 
-        if ( i<(int)m_pD->m_surfaces.size() )
+        if ( i<m_pD->m_surfaces.Num() )
 		{
             m_pD->m_surfaces[ i ] = dynamic_cast<NodeSurface*>(pNode.get());
 		}
@@ -110,7 +110,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     int NodeComponentNew::GetSurfaceCount() const
 	{
-        return (int)m_pD->m_surfaces.size();
+        return m_pD->m_surfaces.Num();
 	}
 
 
@@ -118,14 +118,14 @@ namespace mu
     void NodeComponentNew::SetSurfaceCount( int num )
 	{
 		check( num >=0 );
-        m_pD->m_surfaces.resize( num );
+        m_pD->m_surfaces.SetNum( num );
 	}
 
 
 	//---------------------------------------------------------------------------------------------
     NodeSurface* NodeComponentNew::GetSurface( int index ) const
 	{
-        check( index >=0 && index < (int)m_pD->m_surfaces.size() );
+        check( index >=0 && index < m_pD->m_surfaces.Num() );
 
         return m_pD->m_surfaces[ index ].get();
 	}
@@ -134,7 +134,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     void NodeComponentNew::SetSurface( int index, NodeSurface* pNode )
 	{
-        check( index >=0 && index < (int)m_pD->m_surfaces.size() );
+        check( index >=0 && index < m_pD->m_surfaces.Num() );
 
         m_pD->m_surfaces[ index ] = pNode;
 	}

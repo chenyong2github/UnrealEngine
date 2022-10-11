@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "../Private/MuR/MutableMath.h"
-#include "Containers/Array.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
+#include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
+#include "Containers/Array.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 
 namespace mu
 {

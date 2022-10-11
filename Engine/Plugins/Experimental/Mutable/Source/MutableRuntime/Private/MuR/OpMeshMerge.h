@@ -136,7 +136,7 @@ namespace mu
                             {
                                 for ( int v=0; v<firstCount; ++v )
                                 {
-                                    *(uint32_t*)pDest = *(const uint16_t*)pSource;
+                                    *(uint32_t*)pDest = *(const uint16*)pSource;
                                     pSource+=first.m_elementSize;
                                     pDest+=result.m_elementSize;
                                 }
@@ -170,7 +170,7 @@ namespace mu
                             {
                                 for ( int v=0; v<firstCount; ++v )
                                 {
-                                    *(uint16_t*)pDest = *(const uint8_t*)pSource;
+                                    *(uint16*)pDest = *(const uint8_t*)pSource;
                                     pSource+=first.m_elementSize;
                                     pDest+=result.m_elementSize;
                                 }
@@ -225,7 +225,7 @@ namespace mu
                         {
                             for ( int v=0; v<secondCount; ++v )
                             {
-                                *(uint16_t*)pDest = uint16_t(firstVertexCount) + *(const uint16_t*)pSource;
+                                *(uint16*)pDest = uint16(firstVertexCount) + *(const uint16*)pSource;
                                 pSource+=second.m_elementSize;
                                 pDest+=result.m_elementSize;
                             }
@@ -268,7 +268,7 @@ namespace mu
                             {
                                 for ( int v=0; v<secondCount; ++v )
                                 {
-                                    *(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint16_t*)pSource;
+                                    *(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint16*)pSource;
                                     pSource+=second.m_elementSize;
                                     pDest+=result.m_elementSize;
                                 }
@@ -308,7 +308,7 @@ namespace mu
                             {
                                 for ( int v=0; v<secondCount; ++v )
                                 {
-                                    *(uint16_t*)pDest = uint16_t(firstVertexCount) + *(const uint8_t*)pSource;
+                                    *(uint16*)pDest = uint16(firstVertexCount) + *(const uint8_t*)pSource;
                                     pSource+=second.m_elementSize;
                                     pDest+=result.m_elementSize;
                                 }
@@ -500,7 +500,7 @@ namespace mu
                 int16_t secondMeshIndex = pResultSkeleton->m_boneParents[ob];
                 if (secondMeshIndex != INDEX_NONE)
                 {
-                    pResultSkeleton->m_boneParents[ob] = (uint16_t)secondToFirstBones[secondMeshIndex];
+                    pResultSkeleton->m_boneParents[ob] = (uint16)secondToFirstBones[secondMeshIndex];
                 }
             }
         }
@@ -788,7 +788,7 @@ namespace mu
                 }
                 else
                 {
-                    pVFirst = MeshFormat( pFirst, pResult.get(), false, true, false, false, false, false );
+                    pVFirst = MeshFormat( pFirst, pResult.get(), false, true, false, false, false );
                 }
 
 
@@ -798,7 +798,7 @@ namespace mu
                 }
                 else
                 {
-                    pVSecond = MeshFormat( pSecond, pResult.get(), false, true, false, false, false, false );
+                    pVSecond = MeshFormat( pSecond, pResult.get(), false, true, false, false, false );
                 }
 
 				check( pVFirst->GetVertexBuffers().HasSameFormat
@@ -897,18 +897,18 @@ namespace mu
 								case MBF_INT16:
 								case MBF_UINT16:
 								{
-                                    uint16_t* pD = reinterpret_cast<uint16_t*>
+                                    uint16* pD = reinterpret_cast<uint16*>
 											( &result.m_data[resultOffset] );
 
                                     int comp=0;
                                     for ( ; comp<components; ++comp )
 									{
-                                        uint16_t bone = pD[comp];
+                                        uint16 bone = pD[comp];
 
                                         // be defensive
                                         if (bone<secondToFirstBones.Num())
                                         {
-                                            pD[comp] = (uint16_t)secondToFirstBones[ bone ];
+                                            pD[comp] = (uint16)secondToFirstBones[ bone ];
                                         }
                                         else
                                         {
@@ -986,7 +986,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     inline void ExtendSkeleton( Skeleton* pBase, const Skeleton* pOther )
     {
-        map<int,int> otherToResult;
+        TMap<int,int> otherToResult;
 
         int initialBones = pBase->GetBoneCount();
         for ( int b=0; pOther && b<pOther->GetBoneCount(); ++b)
@@ -995,7 +995,7 @@ namespace mu
             if ( resultBoneIndex<0 )
             {
                 int32 newIndex = pBase->m_bones.Num();
-                otherToResult[b] = int(newIndex);
+                otherToResult.Add(b,newIndex);
                 pBase->m_bones.Add( pOther->m_bones[b] );
 
                 // Will be remapped below
@@ -1006,7 +1006,7 @@ namespace mu
             }
             else
             {
-                otherToResult[b] = resultBoneIndex;
+                otherToResult.Add(b,resultBoneIndex);
             }
         }
 
@@ -1042,10 +1042,10 @@ namespace mu
         pResult->SetSkeleton( pSkeleton );
 
         // Build a skeleton map
-        vector<int> sourceToSkeleton;
+        TArray<int> sourceToSkeleton;
         for ( const auto& boneName: pSourceSkeleton->m_bones )
         {
-            sourceToSkeleton.push_back( pResult->GetSkeleton()->FindBone(boneName.c_str()) );
+            sourceToSkeleton.Add( pResult->GetSkeleton()->FindBone(boneName.c_str()) );
         }
 
         bool somethingRemapped = false;
@@ -1073,7 +1073,7 @@ namespace mu
                             {
                                 size_t boneIndex = size_t( pTypedData[c] );
                                 //check( boneIndex < sourceToSkeleton.Num() );
-                                if ( boneIndex < sourceToSkeleton.size() )
+                                if ( boneIndex < sourceToSkeleton.Num() )
                                 {
                                     int bone = sourceToSkeleton[pTypedData[c]];
                                     if ( pTypedData[c] != uint8_t( bone ) )
@@ -1098,18 +1098,18 @@ namespace mu
                     {
                         for (uint32_t v=0;v<BufSet.m_elementCount; ++v)
                         {
-                            uint16_t* pTypedData = (uint16_t*)pData;
+                            uint16* pTypedData = (uint16*)pData;
 
                             for (int c=0; c<chan.m_componentCount; ++c)
                             {
                                 size_t boneIndex = size_t(pTypedData[c]);
                                 //check( boneIndex < sourceToSkeleton.size() );
-                                if ( boneIndex < sourceToSkeleton.size() )
+                                if ( boneIndex < sourceToSkeleton.Num() )
                                 {
                                     int bone = sourceToSkeleton[boneIndex];
-                                    if ( pTypedData[c] != uint16_t(bone) )
+                                    if ( pTypedData[c] != uint16(bone) )
                                     {
-                                        pTypedData[c] = uint16_t(bone);
+                                        pTypedData[c] = uint16(bone);
                                         somethingRemapped = true;
                                     }
                                 }
@@ -1135,7 +1135,7 @@ namespace mu
                             {
                                 size_t boneIndex = size_t( pTypedData[c] );
                                 //check( boneIndex < sourceToSkeleton.size() );
-                                if ( boneIndex < sourceToSkeleton.size() )
+                                if ( boneIndex < sourceToSkeleton.Num() )
                                 {
                                     int bone = sourceToSkeleton[pTypedData[c]];
                                     if ( pTypedData[c] != uint32_t( bone ) )

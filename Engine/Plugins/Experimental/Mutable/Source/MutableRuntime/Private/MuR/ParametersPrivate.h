@@ -4,10 +4,10 @@
 
 #include "MuR/Parameters.h"
 
-#include "../Private/MuR/SerialisationPrivate.h"
-#include "../Private/MuR/MemoryPrivate.h"
-#include "../Private/MuR/Operations.h"
-#include "../Private/MuR/ImagePrivate.h"
+#include "MuR/SerialisationPrivate.h"
+#include "MuR/MemoryPrivate.h"
+#include "MuR/Operations.h"
+#include "MuR/ImagePrivate.h"
 
 #include "MuR/Model.h"
 
@@ -253,7 +253,7 @@ namespace mu
 
 	struct Curve
 	{
-		vector<CurveKeyFrame> keyFrames;
+		TArray<CurveKeyFrame> keyFrames;
 		float defaultValue = 0.f;
 
         //!
@@ -326,10 +326,10 @@ namespace mu
 
         //! Ranges, if the parameter is multi-dimensional. The indices refer to the Model's program
         //! vector of range descriptors.
-        vector<uint32_t> m_ranges;
+		TArray<uint32_t> m_ranges;
 
         //! Additional parameter description information
-        vector<OP::ADDRESS> m_descImages;
+		TArray<OP::ADDRESS> m_descImages;
 
         //! Possible values of the parameter in case of being an integer, and its names
         struct INT_VALUE_DESC
@@ -361,7 +361,7 @@ namespace mu
 
         //! For integer parameters, this contains the description of the possible values.
         //! If empty, the integer may have any value.
-        vector<INT_VALUE_DESC> m_possibleValues;
+		TArray<INT_VALUE_DESC> m_possibleValues;
 
         //!
         bool operator==( const PARAMETER_DESC& other ) const
@@ -452,7 +452,7 @@ namespace mu
         int m_parameter = -1;
 
         //! Position in the several dimension of the range, as defined in m_pParameters
-        vector<int> m_values;
+		TArray<int> m_values;
     };
 
 
@@ -466,11 +466,11 @@ namespace mu
         ModelPtrConst m_pModel;
 
         //! Values for the parameters if they are not multidimensional.
-        vector<PARAMETER_VALUE> m_values;
+		TArray<PARAMETER_VALUE> m_values;
 
         //! If the parameter is multidemensional, the values are stored here.
         //! The key of the map is the vector of values stored in a RangeIndex
-        vector< map< vector<int32_t>, PARAMETER_VALUE > > m_multiValues;
+		TArray< TMap< TArray<int32_t>, PARAMETER_VALUE > > m_multiValues;
 
 
         //!
@@ -491,7 +491,7 @@ namespace mu
             check( ver == 1 );
 
             arch >> m_values;
-            arch>>m_multiValues;
+            arch >> m_multiValues;
         }
 
         //!

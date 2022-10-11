@@ -58,10 +58,10 @@ namespace mu
 			}
 		};
 
-		vector<TEXTURE> m_textures;
+		TArray<TEXTURE> m_textures;
 
         //! Tags in this surface edit
-        vector<mu::string> m_tags;
+		TArray<mu::string> m_tags;
 
 		//! Factor of the morph
 		NodeScalarPtr m_pFactor;

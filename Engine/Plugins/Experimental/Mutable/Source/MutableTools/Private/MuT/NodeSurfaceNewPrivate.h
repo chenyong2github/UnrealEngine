@@ -54,7 +54,7 @@ namespace mu
 			}
 		};
 
-		vector<MESH> m_meshes;
+		TArray<MESH> m_meshes;
 
 		struct IMAGE
 		{
@@ -86,7 +86,7 @@ namespace mu
             }
         };
 
-		vector<IMAGE> m_images;
+		TArray<IMAGE> m_images;
 
 		struct VECTOR
 		{
@@ -107,7 +107,7 @@ namespace mu
 			}
 		};
 
-		vector<VECTOR> m_vectors;
+		TArray<VECTOR> m_vectors;
 
         struct SCALAR
         {
@@ -128,7 +128,7 @@ namespace mu
             }
         };
 
-        vector<SCALAR> m_scalars;
+        TArray<SCALAR> m_scalars;
 
         struct STRING
         {
@@ -149,10 +149,10 @@ namespace mu
             }
         };
 
-        vector<STRING> m_strings;
+		TArray<STRING> m_strings;
 
         //! Tags in this surface
-		vector<mu::string> m_tags;
+		TArray<mu::string> m_tags;
 
 		//! Find an image node index by name or return -1
 		int FindImage( const char* strName ) const;

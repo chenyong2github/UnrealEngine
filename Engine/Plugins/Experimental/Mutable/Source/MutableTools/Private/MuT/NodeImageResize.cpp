@@ -8,9 +8,6 @@
 #include "MuT/NodePrivate.h"
 
 
-#define NODE_INPUT_COUNT 	1
-
-
 namespace mu
 {
 
@@ -30,7 +27,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImageResize::SetInputNode( int i, NodePtr pNode )
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		switch (i)
 		{
@@ -42,14 +39,14 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeImageResize::GetInputCount() const
 	{
-		return NODE_INPUT_COUNT;
+		return 1;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	Node* NodeImageResize::GetInputNode( int i ) const
 	{
-		check( i>=0 && i<NODE_INPUT_COUNT );
+		check( i>=0 && i< GetInputCount());
 
 		Node* pResult = 0;
 
@@ -93,5 +90,3 @@ namespace mu
 	}
 
 }
-
-#undef NODE_INPUT_COUNT
