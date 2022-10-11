@@ -576,8 +576,6 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 
 	if (Other.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
 	{
-		check(GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
-
 		// Swap all members except the pool data because that needs to happen while the pool is taken
 		FD3D12DeviceChild::Swap(Other);
 
@@ -593,11 +591,23 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 		::Swap(Size, Other.Size);
 		::Swap(bTransient, Other.bTransient);
 				
-		// We know this allocation is empty so can use transfer instead of full swap
-		Other.GetPoolAllocator()->TransferOwnership(Other, *this);
+		// Also pool allocated, then perform full swap with lock
+		if (GetAllocatorType() == EAllocatorType::AT_Pool)
+		{
+			check(PoolAllocator == Other.PoolAllocator);
+			GetPoolAllocator()->Swap(*this, Other);
+		}
+		else
+		{
+			// Assume unallocated
+			check(GetAllocatorType() == FD3D12ResourceLocation::AT_Unknown);
 
-		::Swap(AllocatorType, Other.AllocatorType);
-		::Swap(PoolAllocator, Other.PoolAllocator);
+			// We know this allocation is empty so can use transfer instead of full swap
+			Other.GetPoolAllocator()->TransferOwnership(Other, *this);
+
+			::Swap(AllocatorType, Other.AllocatorType);
+			::Swap(PoolAllocator, Other.PoolAllocator);
+		}
 	}
 	else
 	{
