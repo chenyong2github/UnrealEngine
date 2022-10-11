@@ -25,7 +25,7 @@ AConstraintsActor::~AConstraintsActor()
 
 void AConstraintsActor::BeginDestroy()
 {
-	if (ConstraintsManager)
+	if (IsValid(ConstraintsManager))
 	{
 		ConstraintsManager->Clear(GetWorld());
 	}
@@ -35,6 +35,10 @@ void AConstraintsActor::BeginDestroy()
 
 void AConstraintsActor::Destroyed()
 {
+	if (IsValid(ConstraintsManager))
+	{
+		ConstraintsManager->Clear(GetWorld());
+	}
 	Super::Destroyed();
 }
 
@@ -81,3 +85,17 @@ void AConstraintsActor::RegisterConstraintsTickFunctions() const
 		}
 	}
 }
+
+#if WITH_EDITOR
+void AConstraintsActor::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (IsValid(ConstraintsManager))
+	{
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(GetWorld());
+		Controller.Notify(EConstraintsManagerNotifyType::ManagerUpdated, ConstraintsManager);
+		ConstraintsManager->Init(GetWorld());
+	}
+}
+#endif

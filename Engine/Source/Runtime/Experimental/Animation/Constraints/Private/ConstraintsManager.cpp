@@ -284,14 +284,35 @@ void UConstraintsManager::SetConstraintDependencies(
 	InFunctionToTickAfter->AddPrerequisite(this, *InFunctionToTickBefore);
 }
 
-void UConstraintsManager::Clear(UWorld* World)
+void UConstraintsManager::Clear(UWorld* InWorld)
 {
-	UnregisterDelegates(World);
-	for (UTickableConstraint* Constraint : Constraints)
+	UnregisterDelegates(InWorld);
+
+	if (!Constraints.IsEmpty())
 	{
-		OnConstraintRemoved_BP.Broadcast(this, Constraint, true);
+		static constexpr bool bDoNoCompensate = false;
+		static constexpr EConstraintsManagerNotifyType RemovalNotification =
+						EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation;
+	
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+		for (UTickableConstraint* Constraint : Constraints)
+		{
+			if ( IsValid(Constraint) )
+			{
+				// notify deletion
+				Controller.Notify(RemovalNotification, Constraint);
+				OnConstraintRemoved_BP.Broadcast(this, Constraint, bDoNoCompensate);
+
+				// disable constraint
+				Constraint->Modify();
+				Constraint->ConstraintTick.UnRegisterTickFunction();
+				Constraint->SetActive(false);
+			}
+		}
+
+		Modify();
+		Constraints.Empty();
 	}
-	Constraints.Empty();
 }
 
 void UConstraintsManager::Dump() const
@@ -407,6 +428,8 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 	InConstraint->ConstraintTick.RegisterFunction(InConstraint->GetFunction());
 	InConstraint->ConstraintTick.RegisterTickFunction(World->GetCurrentLevel());
 
+	// notify
+	Notify(EConstraintsManagerNotifyType::ConstraintAdded, InConstraint);
 	Manager->OnConstraintAdded_BP.Broadcast(Manager, InConstraint);
 
 	return true;
@@ -475,9 +498,17 @@ bool FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	UTickableConstraint* Constraint = Manager->Constraints[InConstraintIndex];
 	
 	// notify deletion
-
-	ConstraintRemoved.Broadcast(ConstraintName, bDoNotCompensate);
+	auto GetRemoveNotifyType = [bDoNotCompensate]()
+	{
+		if(bDoNotCompensate)
+		{
+			return EConstraintsManagerNotifyType::ConstraintRemoved;	
+		}
+		return EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation;
+	};
+	Notify(GetRemoveNotifyType(), Constraint);	
 	Manager->OnConstraintRemoved_BP.Broadcast(Manager, Constraint, bDoNotCompensate);
+	
 	Manager->Constraints[InConstraintIndex]->Modify();
 	Manager->Modify();
 
@@ -644,4 +675,25 @@ void FConstraintsManagerController::EvaluateAllConstraints() const
 	{
 		InConstraint->Evaluate(true);
 	}
+}
+
+void FConstraintsManagerController::Notify(EConstraintsManagerNotifyType InNotifyType, UObject* InObject) const
+{
+	switch (InNotifyType)
+	{
+		case EConstraintsManagerNotifyType::ConstraintAdded: 
+		case EConstraintsManagerNotifyType::ConstraintRemoved:
+		case EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation:
+			checkSlow(Cast<UTickableConstraint>(InObject) != nullptr);
+			break;
+
+		case EConstraintsManagerNotifyType::ManagerUpdated:
+			checkSlow(Cast<UConstraintsManager>(InObject) != nullptr);
+			break;
+		default:
+			checkfSlow(false, TEXT("Unchecked EConstraintsManagerNotifyType!"));
+			break;
+	}
+
+	NotifyDelegate.Broadcast(InNotifyType, InObject);
 }

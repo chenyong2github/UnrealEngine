@@ -1408,6 +1408,11 @@ void UMovieSceneControlRigParameterSection::ReplaceConstraint(const FName InCons
 	}
 }
 
+void UMovieSceneControlRigParameterSection::OnConstraintsChanged()
+{
+	ReconstructChannelProxy();
+}
+
 void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstraint* InConstraint)
 {
 	

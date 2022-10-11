@@ -292,6 +292,10 @@ public:
 	*/
 	virtual void ReplaceConstraint(const FName InName, UTickableConstraint* InConstraint)  override;
 
+	/*
+	*  What to do if the constraint object has been changed, for example by an undo or redo.
+	*/
+	virtual void OnConstraintsChanged() override;
 
 	//not override but needed
 	const TArray<FConstraintAndActiveChannel>& GetConstraintsChannels() const;

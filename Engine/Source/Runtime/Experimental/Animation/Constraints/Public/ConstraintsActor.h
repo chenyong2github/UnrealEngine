@@ -26,6 +26,10 @@ public:
 	virtual void Destroyed() override;
 
 	virtual void PostRegisterAllComponents() override;
+
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
 	
 protected:
 	// Called when the game starts or when spawned

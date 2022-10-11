@@ -2565,7 +2565,7 @@ void FControlRigParameterTrackEditor::ClearOutAllSpaceAndConstraintDelegates(con
 						if (const UControlRig* ControlRig = CRSection->GetControlRig())
 						{
 							FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
-							Controller.OnConstraintRemoved().Remove(CRSection->OnConstraintRemovedHandle);
+							Controller.GetNotifyDelegate().Remove(CRSection->OnConstraintRemovedHandle);
 							CRSection->OnConstraintRemovedHandle.Reset();
 						}
 					}
@@ -2730,25 +2730,47 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 		if (!InSection->OnConstraintRemovedHandle.IsValid())
 		{
 			InSection->OnConstraintRemovedHandle =
-			Controller.OnConstraintRemoved().AddLambda([InSection, Section, this](FName InConstraintName, bool bDoNotCompensate)
+			Controller.GetNotifyDelegate().AddLambda(
+				[InSection,Section, this](EConstraintsManagerNotifyType InNotifyType, UObject *InObject)
 			{
-				const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(InConstraintName);
-				if (!ConstraintChannel)
+				switch (InNotifyType)
 				{
-					return;
-				}
-				
-				if (bDoNotCompensate == false && ConstraintChannel->Constraint.IsValid())
-				{
-					FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
-						ConstraintChannel->Constraint.Get(),
-						&ConstraintChannel->ActiveChannel,
-						GetSequencer(),
-						Section);
-				}
+					case EConstraintsManagerNotifyType::ConstraintAdded:
+						break;
+					case EConstraintsManagerNotifyType::ConstraintRemoved:
+					case EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation:
+						{
+							const UTickableConstraint* Constraint = Cast<UTickableConstraint>(InObject);
+							if (!IsValid(Constraint))
+							{
+								return;
+							}
 
-				InSection->RemoveConstraintChannel(InConstraintName);
-		   });
+							const FName ConstraintName = Constraint->GetFName();
+							const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(ConstraintName);
+							if (!ConstraintChannel)
+							{
+								return;
+							}
+
+							const bool bCompensate = (InNotifyType == EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation);
+							if (bCompensate && ConstraintChannel->Constraint.IsValid())
+							{
+								FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
+									ConstraintChannel->Constraint.Get(),
+									&ConstraintChannel->ActiveChannel,
+									GetSequencer(),
+									Section);
+							}
+
+							InSection->RemoveConstraintChannel(ConstraintName);
+						}
+						break;
+					case EConstraintsManagerNotifyType::ManagerUpdated:
+						InSection->OnConstraintsChanged();
+						break;		
+				}
+			});
 		}
 	}
 }

@@ -186,7 +186,6 @@ private:
 	/** All of the constraints*/
 	UPROPERTY()
 	TArray< TObjectPtr<UTickableConstraint> > Constraints;
-	
 
 	friend class FConstraintsManagerController;
 	friend class AConstraintsActor;
@@ -196,6 +195,16 @@ private:
  * FConstraintsManagerController
  * Basic controller to add / remove / get constraints
  **/
+
+enum class EConstraintsManagerNotifyType
+{
+	ConstraintAdded,					/** A new constraint has been added. */
+	ConstraintRemoved,					/** A constraint has been removed. */
+	ConstraintRemovedWithCompensation,	/** A constraint has been removed and needs compensation. */
+	ManagerUpdated,						/** The manager has been updated/reset. */
+};
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FConstraintsManagerNotifyDelegate, EConstraintsManagerNotifyType /* type */, UObject* /* subject */);
 
 class CONSTRAINTS_API FConstraintsManagerController
 {
@@ -266,9 +275,8 @@ private:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSceneComponentConstrained, USceneComponent* /*InSceneComponent*/);
 	FOnSceneComponentConstrained SceneComponentConstrained;
 
-	/** @todo document */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConstraintRemoved, FName /*InConstraintName*/, bool /*bDoNotCompensate*/);
-	FOnConstraintRemoved ConstraintRemoved;
+	/** Delegate to trigger changes in the constraints manager. */
+	FConstraintsManagerNotifyDelegate NotifyDelegate;
 	
 	/** Find the existing Constraints Manager in World or create a new one. */
 	UConstraintsManager* GetManager() const;
@@ -285,6 +293,10 @@ private:
 public:
 	/** Delegate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/
 	FOnSceneComponentConstrained& OnSceneComponentConstrained() { return SceneComponentConstrained; }
-	/** @todo document */
-	FOnConstraintRemoved& OnConstraintRemoved(){ return ConstraintRemoved; };
+
+	/** Delegate to trigger changes in the constraints manager. */
+	FConstraintsManagerNotifyDelegate& GetNotifyDelegate() { return NotifyDelegate; }
+
+	/** Notify from changes in the constraints manager. */
+	void Notify(EConstraintsManagerNotifyType InNotifyType, UObject* InObject) const;
 };

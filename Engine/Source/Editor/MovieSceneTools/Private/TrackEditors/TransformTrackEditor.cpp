@@ -1541,24 +1541,45 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 	if (!InSection->OnConstraintRemovedHandle.IsValid())
 	{
 		InSection->OnConstraintRemovedHandle =
-			Controller.OnConstraintRemoved().AddLambda([InSection,Section, this](FName InConstraintName, bool bDoNotCompensate)
+			Controller.GetNotifyDelegate().AddLambda([InSection,Section, this](EConstraintsManagerNotifyType InNotifyType, UObject *InObject)
 				{
-					const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(InConstraintName);
-					if (!ConstraintChannel)
+					switch (InNotifyType)
 					{
-						return;
-					}
+						case EConstraintsManagerNotifyType::ConstraintAdded:
+							break;
+						case EConstraintsManagerNotifyType::ConstraintRemoved:
+						case EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation:
+							{
+								const UTickableConstraint* Constraint = Cast<UTickableConstraint>(InObject);
+								if (!IsValid(Constraint))
+								{
+									return;
+								}
 
-					if (bDoNotCompensate == false && ConstraintChannel->Constraint.IsValid())
-					{
-						FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
-							ConstraintChannel->Constraint.Get(),
-							&ConstraintChannel->ActiveChannel,
-							GetSequencer(),
-							Section);
-					}
+								const FName ConstraintName = Constraint->GetFName();
+								const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(ConstraintName);
+								if (!ConstraintChannel)
+								{
+									return;
+								}
 
-					InSection->RemoveConstraintChannel(InConstraintName);
+								const bool bCompensate = (InNotifyType == EConstraintsManagerNotifyType::ConstraintRemovedWithCompensation);
+								if (bCompensate && ConstraintChannel->Constraint.IsValid())
+								{
+									FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
+										ConstraintChannel->Constraint.Get(),
+										&ConstraintChannel->ActiveChannel,
+										GetSequencer(),
+										Section);
+								}
+
+								InSection->RemoveConstraintChannel(ConstraintName);
+							}
+							break;
+						case EConstraintsManagerNotifyType::ManagerUpdated:
+							InSection->OnConstraintsChanged();
+							break;		
+					}
 				});
 	}
 }
@@ -1595,7 +1616,7 @@ void F3DTransformTrackEditor::ClearOutConstraintDelegates() const
 
 					if (CRSection->OnConstraintRemovedHandle.IsValid())
 					{
-						Controller.OnConstraintRemoved().Remove(CRSection->OnConstraintRemovedHandle);
+						Controller.GetNotifyDelegate().Remove(CRSection->OnConstraintRemovedHandle);
 						CRSection->OnConstraintRemovedHandle.Reset();
 					}
 				}
