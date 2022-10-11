@@ -544,7 +544,7 @@ public:
 	TArray<FString> CompressedChunkWildcard;
 
 	UE_DEPRECATED(5.1, "This property is no longer supported. Use IniKeyDenylist.")
-	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	UPROPERTY(config /*, EditAnywhere, Category = Packaging */, meta = (DeprecatedProperty, DeprecationMessage = "This property is no longer supported. Use IniKeyDenylist."))
 	TArray<FString> IniKeyBlacklist;
 
 	/** List of ini file keys to strip when packaging */
@@ -552,7 +552,7 @@ public:
 	TArray<FString> IniKeyDenylist;
 
 	UE_DEPRECATED(5.1, "This property is no longer supported. Use IniSectionDenylist.")
-	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	UPROPERTY(config /*, EditAnywhere, Category = Packaging */, meta = (DeprecatedProperty, DeprecationMessage = "This property is no longer supported. Use IniSectionDenylist."))
 	TArray<FString> IniSectionBlacklist;
 
 	/** List of ini file sections to strip when packaging */

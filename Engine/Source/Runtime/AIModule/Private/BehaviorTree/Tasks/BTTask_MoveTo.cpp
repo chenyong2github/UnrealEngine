@@ -120,56 +120,37 @@ EBTNodeResult::Type UBTTask_MoveTo::PerformMoveTask(UBehaviorTreeComponent& Owne
 
 		if (MoveReq.IsValid())
 		{
-			if (GET_AI_CONFIG_VAR(bEnableBTAITasks))
+			UAITask_MoveTo* MoveTask = MyMemory->Task.Get();
+			const bool bReuseExistingTask = (MoveTask != nullptr);
+
+			MoveTask = PrepareMoveTask(OwnerComp, MoveTask, MoveReq);
+			if (MoveTask)
 			{
-				UAITask_MoveTo* MoveTask = MyMemory->Task.Get();
-				const bool bReuseExistingTask = (MoveTask != nullptr);
+				MyMemory->bObserverCanFinishTask = false;
 
-				MoveTask = PrepareMoveTask(OwnerComp, MoveTask, MoveReq);
-				if (MoveTask)
+				if (bReuseExistingTask)
 				{
-					MyMemory->bObserverCanFinishTask = false;
-
-					if (bReuseExistingTask)
+					if (MoveTask->IsActive())
 					{
-						if (MoveTask->IsActive())
-						{
-							UE_VLOG(MyController, LogBehaviorTree, Verbose, TEXT("\'%s\' reusing AITask %s"), *GetNodeName(), *MoveTask->GetName());
-							MoveTask->ConditionalPerformMove();
-						}
-						else
-						{
-							UE_VLOG(MyController, LogBehaviorTree, Verbose, TEXT("\'%s\' reusing AITask %s, but task is not active - handing over move performing to task mechanics"), *GetNodeName(), *MoveTask->GetName());
-						}
+						UE_VLOG(MyController, LogBehaviorTree, Verbose, TEXT("\'%s\' reusing AITask %s"), *GetNodeName(), *MoveTask->GetName());
+						MoveTask->ConditionalPerformMove();
 					}
 					else
 					{
-						MyMemory->Task = MoveTask;
-						UE_VLOG(MyController, LogBehaviorTree, Verbose, TEXT("\'%s\' task implementing move with task %s"), *GetNodeName(), *MoveTask->GetName());
-						MoveTask->ReadyForActivation();
+						UE_VLOG(MyController, LogBehaviorTree, Verbose, TEXT("\'%s\' reusing AITask %s, but task is not active - handing over move performing to task mechanics"), *GetNodeName(), *MoveTask->GetName());
 					}
-
-					MyMemory->bObserverCanFinishTask = true;
-					NodeResult = (MoveTask->GetState() != EGameplayTaskState::Finished) ? EBTNodeResult::InProgress :
-						MoveTask->WasMoveSuccessful() ? EBTNodeResult::Succeeded :
-						EBTNodeResult::Failed;
 				}
-			}
-			else
-			{
-				const FPathFollowingRequestResult RequestResult = MyController->MoveTo(MoveReq);
-				if (RequestResult.Code == EPathFollowingRequestResult::RequestSuccessful)
+				else
 				{
-					MyMemory->MoveRequestID = RequestResult.MoveId;
-					WaitForMessage(OwnerComp, UBrainComponent::AIMessage_MoveFinished, RequestResult.MoveId);
-					WaitForMessage(OwnerComp, UBrainComponent::AIMessage_RepathFailed);
+					MyMemory->Task = MoveTask;
+					UE_VLOG(MyController, LogBehaviorTree, Verbose, TEXT("\'%s\' task implementing move with task %s"), *GetNodeName(), *MoveTask->GetName());
+					MoveTask->ReadyForActivation();
+				}
 
-					NodeResult = EBTNodeResult::InProgress;
-				}
-				else if (RequestResult.Code == EPathFollowingRequestResult::AlreadyAtGoal)
-				{
-					NodeResult = EBTNodeResult::Succeeded;
-				}
+				MyMemory->bObserverCanFinishTask = true;
+				NodeResult = (MoveTask->GetState() != EGameplayTaskState::Finished) ? EBTNodeResult::InProgress :
+					MoveTask->WasMoveSuccessful() ? EBTNodeResult::Succeeded :
+					EBTNodeResult::Failed;
 			}
 		}
 	}

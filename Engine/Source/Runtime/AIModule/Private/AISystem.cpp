@@ -29,8 +29,6 @@ UAISystem::UAISystem(const FObjectInitializer& ObjectInitializer)
 	bAllowStrafing = false;
 	DefaultSightCollisionChannel = ECC_Visibility;
 
-	bEnableBTAITasks = true;
-
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// game-wise config

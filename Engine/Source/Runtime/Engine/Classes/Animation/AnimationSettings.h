@@ -48,7 +48,7 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 
 	/** If true and the existing compression error is greater than Alternative Compression Threshold, then Alternative Compression Threshold will be effectively raised to the existing error level */
 	UE_DEPRECATED(5.1, "This is being removed because it is unused")
-	UPROPERTY(config, EditAnywhere, Category = Compression)
+	UPROPERTY(config /*, EditAnywhere, Category = Compression*/, meta = (DeprecatedProperty, DeprecationMessage = "No longer used."))
 	bool bRaiseMaxErrorToExisting;
 
 	/** If true, recompression will log performance information */
