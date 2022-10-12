@@ -4,6 +4,7 @@
 
 #include "DNAToSkelMeshMap.h"
 #include "Engine/SkeletalMesh.h"
+#include "DNAAsset.h"
 #include "SkelMeshDNAUtils.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDNAUtils, Log, All);
@@ -52,6 +53,8 @@ public:
 	/** Update joint behavior **/
 	/*  NOTE: DNAAsset->SetBehaviorReader needs to be called before this */
 	static void UpdateJointBehavior(USkeletalMeshComponent* InSkelMeshComponent);
+	/** Gets the DNA asset embedded in the mesh */
+	static UDNAAsset* GetMeshDNA(USkeletalMesh* InSkelMesh);
 #endif // WITH_EDITORONLY_DATA
 	/** Converts DNA vertex coordinates to UE4 coordinate system **/
 	inline static FVector ConvertDNAVertexToUE4CoordSystem(FVector InVertexPositionInDNA)

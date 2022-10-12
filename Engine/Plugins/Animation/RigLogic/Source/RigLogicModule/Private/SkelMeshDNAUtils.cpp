@@ -463,4 +463,24 @@ void USkelMeshDNAUtils::UpdateSourceData(USkeletalMesh* InSkelMesh)
 	MeshUtilities.CreateImportDataFromLODModel(InSkelMesh);
 }
 
+UDNAAsset* USkelMeshDNAUtils::GetMeshDNA(USkeletalMesh* InSkelMesh)
+{
+	if (InSkelMesh && InSkelMesh->GetAssetUserDataArray())
+	{
+		for (UAssetUserData* UserData : *InSkelMesh->GetAssetUserDataArray())
+		{
+			if (UserData && UserData->IsA<UDNAAsset>())
+			{
+				UDNAAsset* DNAAsset = Cast<UDNAAsset>(UserData);
+				if (DNAAsset->GetBehaviorReader() && DNAAsset->GetGeometryReader())
+				{
+					return DNAAsset;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 #endif // WITH_EDITORONLY_DATA
