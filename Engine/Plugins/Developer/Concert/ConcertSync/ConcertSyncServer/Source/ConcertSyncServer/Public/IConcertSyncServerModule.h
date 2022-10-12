@@ -11,6 +11,8 @@ class UConcertServerConfig;
 
 struct FConcertSessionFilter;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertSyncServerCreated, TWeakPtr<IConcertSyncServer>);
+
 /**
  * Interface for the Concert Sync Server module.
  */
@@ -54,4 +56,9 @@ public:
 	 * @return The server
 	 */
 	virtual TSharedRef<IConcertSyncServer> CreateServer(const FString& InRole, const FConcertSessionFilter& InAutoArchiveSessionFilter) = 0;
+
+	/**
+	 * Callback for when a ConcertSyncServer has been created.
+	 */
+	virtual FOnConcertSyncServerCreated& OnServerCreated() = 0;
 };

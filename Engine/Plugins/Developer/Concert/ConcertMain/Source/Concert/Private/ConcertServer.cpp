@@ -280,6 +280,8 @@ void FConcertServer::Startup()
 
 		// Try to mount the default session repository configured (if one is configured) to lock the non-sharable session files away from concurrent processes.
 		MountDefaultSessionRepository(Settings.Get());
+
+		OnConcertServerStartupDelegate.Broadcast();
 	}
 }
 
@@ -677,6 +679,16 @@ bool FConcertServer::DestroySession(const FGuid& SessionId, FText& OutFailureRea
 	FConcertAdmin_DeleteSessionResponse Response = DeleteSessionInternal(Request, bCheckPermissions);
 	OutFailureReason = Response.Reason;
 	return Response.ResponseCode == EConcertResponseCode::Success;
+}
+
+FOnConcertServerSessionStartup& FConcertServer::OnConcertServerSessionStartup()
+{
+	return OnConcertServerSessionStartupDelegate;
+}
+
+FOnConcertServerStartup& FConcertServer::OnConcertServerStartup()
+{
+	return OnConcertServerStartupDelegate;
 }
 
 TArray<FConcertSessionInfo> FConcertServer::GetLiveSessionInfos() const
@@ -1569,6 +1581,7 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 	{
 		LiveSessions.Add(LiveSessionInfo.SessionId, LiveSession);
 		LiveSession->Startup();
+		OnConcertServerSessionStartupDelegate.Broadcast(LiveSession);
 		return LiveSession;
 	}
 

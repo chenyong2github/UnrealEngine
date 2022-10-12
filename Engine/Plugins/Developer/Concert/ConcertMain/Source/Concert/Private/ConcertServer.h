@@ -51,6 +51,13 @@ public:
 	virtual bool ExportSession(const FGuid& SessionId, const FConcertSessionFilter& SessionFilter, const FString& DestDir, bool bAnonymizeData, FText& OutFailureReason) override;
 	virtual bool RenameSession(const FGuid& SessionId, const FString& NewName, FText& OutFailureReason) override;
 	virtual bool DestroySession(const FGuid& SessionId, FText& OutFailureReason) override;
+	virtual FOnConcertServerSessionStartup& OnConcertServerSessionStartup() override;
+	virtual FOnConcertServerStartup& OnConcertServerStartup() override;
+
+protected:
+
+	FOnConcertServerSessionStartup OnConcertServerSessionStartupDelegate;
+	FOnConcertServerStartup OnConcertServerStartupDelegate;
 
 private:
 	/** Returns the root dir where the servers keeps the its internally created repositories (When the caller doesn't provide the paths). */

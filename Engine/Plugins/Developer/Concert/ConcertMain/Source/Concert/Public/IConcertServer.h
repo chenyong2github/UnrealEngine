@@ -8,6 +8,9 @@
 
 class UConcertServerConfig;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertServerSessionStartup, TWeakPtr<IConcertServerSession>);
+DECLARE_MULTICAST_DELEGATE(FOnConcertServerStartup);
+
 /** Interface for Concert server */
 class IConcertServer
 {
@@ -191,4 +194,14 @@ public:
 	 * @return true if the session was found and destroyed
 	 */
 	virtual bool DestroySession(const FGuid& SessionId, FText& OutFailureReason) = 0;
+
+	/**
+	 * Callback for when a concert server session has been created.
+	 */
+	virtual FOnConcertServerSessionStartup& OnConcertServerSessionStartup() = 0;
+
+	/**
+	 * Callback for when a concert server has been created.
+	 */
+	virtual FOnConcertServerStartup& OnConcertServerStartup() = 0;
 };
