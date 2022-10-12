@@ -95,6 +95,22 @@ void UControlRigComponent::BeginDestroy()
 	gPendingSkeletalMeshes.Remove(this);
 }
 
+void UControlRigComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	// after compile, we have to reinitialize
+	// because it needs new execution code
+	// since memory has changed, similar to FAnimNode_ControlRig::PostSerialize
+	if (Ar.IsObjectReferenceCollector())
+	{
+		if (ControlRig)
+		{
+			ControlRig->Initialize();
+		}
+	}
+}
+
 #if WITH_EDITOR
 void UControlRigComponent::InitializeComponent()
 {

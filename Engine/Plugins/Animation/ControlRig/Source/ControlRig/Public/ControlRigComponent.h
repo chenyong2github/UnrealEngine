@@ -212,6 +212,8 @@ public:
 #endif
 
 	virtual void BeginDestroy() override;
+
+	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 	
 	//~ Begin UActorComponent Interface
