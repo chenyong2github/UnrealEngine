@@ -36,7 +36,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Caching, meta=(ClampMin=0))
 	float CacheSizeGB;
 
-	/** Maximum number of image caching threads to use (0 = number of cores, default = 8). */
+	/** Maximum number of image caching threads to use (0 = number of cores, default = 2). */
 	UPROPERTY(config, EditAnywhere, Category=Caching, meta=(ClampMin=0))
 	int32 CacheThreads;
 
