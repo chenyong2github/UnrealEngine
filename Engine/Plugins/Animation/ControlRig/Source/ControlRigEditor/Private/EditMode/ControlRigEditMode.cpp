@@ -564,17 +564,11 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		ControlRigsToRecreate.SetNum(0);
 	}
 
-	// We need to tick here since changing a bone for example
-	// might have changed the transform of the Control
 	{
-		if (IsInLevelEditor())
-		{
-			TickManipulatableObjects(0.f);
-		}
-		else
-		{
-			PostPoseUpdate();
-		}
+		// We need to tick here since changing a bone for example
+		// might have changed the transform of the Control
+		PostPoseUpdate();
+		
 		if (IsInLevelEditor() == false) //only do this check if not in level editor
 		{
 			for (TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
@@ -3612,6 +3606,11 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 					break;
 				}
 			}
+		}
+		case ERigHierarchyNotification::ParentWeightsChanged:
+		{
+			TickManipulatableObjects(0.f);
+			break;
 		}
 		case ERigHierarchyNotification::InteractionBracketOpened:
 		case ERigHierarchyNotification::InteractionBracketClosed:
