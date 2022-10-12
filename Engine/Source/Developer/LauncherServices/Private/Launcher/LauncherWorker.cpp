@@ -141,6 +141,11 @@ uint32 FLauncherWorker::Run( )
 	// wait for tasks to be canceled
 	if (Status == ELauncherWorkerStatus::Canceling)
 	{
+		// kill the uat process tree
+		FPlatformProcess::TerminateProc(ProcHandle, true);
+		// kill any lingering target processes left after killing uat
+		TerminateLaunchedProcess();
+
 		TaskChain->Cancel();
 
 		while (!TaskChain->IsChainFinished())
@@ -185,10 +190,6 @@ void FLauncherWorker::Cancel( )
 	if (Status == ELauncherWorkerStatus::Busy)
 	{
 		Status = ELauncherWorkerStatus::Canceling;
-		// kill the uat process tree
-		FPlatformProcess::TerminateProc(ProcHandle, true);
-		// kill any lingering target processes left after killing uat
-		TerminateLaunchedProcess();
 	}
 }
 
