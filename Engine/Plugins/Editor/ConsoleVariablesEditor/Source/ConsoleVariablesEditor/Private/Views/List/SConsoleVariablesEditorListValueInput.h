@@ -47,6 +47,7 @@ public:
 	virtual FString GetInputValueAsString() override;
 
 	float GetInputValue() const;
+	void OnSliderAffected(const float InValue, const bool bPrintCommand);
 
 private:
 	
@@ -71,6 +72,7 @@ public:
 	virtual FString GetInputValueAsString() override;
 
 	int32 GetInputValue() const;
+	void OnSliderAffected(const int32 InValue, const bool bPrintCommand);
 
 private:
 	

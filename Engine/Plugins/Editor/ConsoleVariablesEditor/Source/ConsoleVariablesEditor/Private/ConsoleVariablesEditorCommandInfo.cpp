@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConsoleVariablesEditorCommandInfo.h"
-#include "Algo/Find.h"
-#include "CoreMinimal.h"
+
 #include "ConsoleVariablesEditorLog.h"
+
+#include "Algo/Find.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/GameEngine.h"
@@ -12,22 +13,41 @@
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
 void FConsoleVariablesEditorCommandInfo::ExecuteCommand(
-	const FString& NewValueAsString, const bool bShouldTransactInConcert, const bool bSetInSession)
+	const FString& NewValueAsString, const bool bShouldTransactInConcert,
+	const bool bSetInSession, const bool bIsInteractiveChange)
 {
+	const FString FullCommand = FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString).TrimStartAndEnd();
 	if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
 	{
 		AsVariable->Set(*NewValueAsString, GetSource());
 		bSetInCurrentSession = bSetInSession;
+
+		if (!bIsInteractiveChange)
+		{
+			PrintCommandOrVariable();
+		}
 	}
 	else
 	{
-		GEngine->Exec(GetCurrentWorld(),
-			*FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString).TrimStartAndEnd());
+		GEngine->Exec(GetCurrentWorld(), *FullCommand);
 	}
-	if (bShouldTransactInConcert)
+	if (!bIsInteractiveChange && bShouldTransactInConcert)
 	{
 		FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(ERemoteCVarChangeType::Update, Command, NewValueAsString);
 	}
+}
+
+void FConsoleVariablesEditorCommandInfo::PrintCommandOrVariable()
+{
+	FString FullCommand = FString::Printf(TEXT("%s"), *Command).TrimStartAndEnd();
+	
+	FString Value;
+	if (GetCurrentValueAsString(Value))
+	{
+		FullCommand = FString::Printf(TEXT("%s %s"), *FullCommand, *Value).TrimStartAndEnd();
+	}
+
+	UE_LOG(LogConsoleVariablesEditor, Log, TEXT("Cmd: %s"), *FullCommand);
 }
 
 /** Get a reference to the cached console object. May return nullptr if unregistered. */
@@ -176,6 +196,18 @@ FText FConsoleVariablesEditorCommandInfo::ConvertConsoleVariableSetByFlagToText(
 	}
 	
 	return ReturnValue;
+}
+
+bool FConsoleVariablesEditorCommandInfo::GetCurrentValueAsString(FString& OutValueAsString)
+{
+	if (const IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+	{
+		OutValueAsString = AsVariable->GetString();
+
+		return true;
+	}
+
+	return false;
 }
 
 bool FConsoleVariablesEditorCommandInfo::IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare)

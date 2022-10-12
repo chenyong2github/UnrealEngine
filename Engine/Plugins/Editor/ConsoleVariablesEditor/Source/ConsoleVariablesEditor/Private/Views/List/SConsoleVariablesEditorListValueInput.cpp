@@ -99,18 +99,12 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 
 			return FCString::Atof(*Item.Pin()->GetCachedValue());
 		})
-		.OnValueChanged_Lambda([this] (const float InValue)
+		.OnValueChanged(this, &SConsoleVariablesEditorListValueInput_Float::OnSliderAffected, false)
+		.OnValueCommitted_Lambda([this] (const float InValue, ETextCommit::Type CommitType)
 		{
-			check (Item.IsValid());
-					
-			const FString ValueAsString = FString::SanitizeFloat(InValue);
-					
-			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin();
-				!PinnedItem->GetCachedValue().Equals(ValueAsString))
-			{				
-				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
-					
-				PinnedItem->SetCachedValue(ValueAsString);
+			if (CommitType != ETextCommit::Default)
+			{
+				OnSliderAffected(InValue, true);
 			}
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
@@ -137,6 +131,18 @@ FString SConsoleVariablesEditorListValueInput_Float::GetInputValueAsString()
 float SConsoleVariablesEditorListValueInput_Float::GetInputValue() const
 {
 	return InputWidget->GetValue();
+}
+
+void SConsoleVariablesEditorListValueInput_Float::OnSliderAffected(const float InValue, const bool bPrintCommand)
+{
+	check (Item.IsValid());
+	const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin();
+					
+	const FString ValueAsString = FString::SanitizeFloat(InValue);
+					
+	PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString, true, true, !bPrintCommand);
+					
+	PinnedItem->SetCachedValue(ValueAsString);
 }
 
 void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InArgs,
@@ -168,18 +174,12 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 
 			return FCString::Atoi(*Item.Pin()->GetCachedValue());
 		})
-		.OnValueChanged_Lambda([this] (const int32 InValue)
+		.OnValueChanged(this, &SConsoleVariablesEditorListValueInput_Int::OnSliderAffected, false)
+		.OnValueCommitted_Lambda([this] (const int32 InValue, ETextCommit::Type CommitType)
 		{
-			check (Item.IsValid());
-			
-			const FString ValueAsString = FString::FromInt(InValue);
-			
-			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin();
-				!PinnedItem->GetCachedValue().Equals(ValueAsString))
-			{				
-				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
-
-				PinnedItem->SetCachedValue(ValueAsString);
+			if (CommitType != ETextCommit::Default)
+			{
+				OnSliderAffected(InValue, true);
 			}
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
@@ -232,6 +232,30 @@ FString SConsoleVariablesEditorListValueInput_Int::GetInputValueAsString()
 int32 SConsoleVariablesEditorListValueInput_Int::GetInputValue() const
 {
 	return InputWidget->GetValue();
+}
+
+void SConsoleVariablesEditorListValueInput_Int::OnSliderAffected(const int32 InValue, const bool bPrintCommand)
+{
+	check (Item.IsValid());
+	const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin();
+					
+	const FString ValueAsString = FString::FromInt(InValue);
+					
+	if (!PinnedItem->GetCachedValue().Equals(ValueAsString))
+	{				
+		PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString, true, true, !bPrintCommand);
+					
+		PinnedItem->SetCachedValue(ValueAsString);
+
+		return;
+	}
+
+	// If the new value and cached value aren't different the command won't be executed.
+	// If we still want to print the command, do it here
+	if (bPrintCommand)
+	{
+		PinnedItem->GetCommandInfo().Pin()->PrintCommandOrVariable();
+	}
 }
 
 void SConsoleVariablesEditorListValueInput_String::Construct(const FArguments& InArgs,

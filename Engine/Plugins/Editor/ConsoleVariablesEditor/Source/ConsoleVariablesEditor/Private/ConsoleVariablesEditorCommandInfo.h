@@ -2,12 +2,13 @@
 
 #pragma once
  
-#include "CoreMinimal.h"
 #include "ConsoleVariablesEditorModule.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDetectConsoleObjectUnregistered, FString)
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
+
+class IConsoleObject;
 
 struct FConsoleVariablesEditorCommandInfo
 {
@@ -62,12 +63,21 @@ struct FConsoleVariablesEditorCommandInfo
 		bSetInCurrentSession = bNewSetting;
 	}
 	
-	/** Sets a variable to the specified value whilst maintaining its SetBy flag.
+	/**
+	  * Sets a variable to the specified value whilst maintaining its SetBy flag.
 	  * Non-variables will be executed through the console.
-	  * If bSetInSession is true, this CommandInfo's associated variable row will display "Session" in the UI.
+	  * @param bShouldTransactInConcert If true, send this value to multi-user.
+	  * @param bSetInSession If true, this CommandInfo's associated variable row will display "Session" in the UI.
+	  * @param bIsInteractiveChange If true, don't print the command or send it to multi-user/concert.
 	 */
 	void ExecuteCommand(
-		const FString& NewValueAsString, const bool bShouldTransactInConcert = true, const bool bSetInSession = true);
+		const FString& NewValueAsString, const bool bShouldTransactInConcert = true,
+		const bool bSetInSession = true, const bool bIsInteractiveChange = false);
+
+	/**
+	 * Prints the current value or state of the command, similar to the text generated in teh output log when entering a command manually.
+	 */
+	void PrintCommandOrVariable();
  
 	/** Get a reference to the cached console object. May return nullptr if unregistered. */
 	IConsoleObject* GetConsoleObjectPtr();
@@ -94,6 +104,12 @@ struct FConsoleVariablesEditorCommandInfo
 	FText GetSourceAsText();
 
 	static FText ConvertConsoleVariableSetByFlagToText(const EConsoleVariableFlags InFlag);
+
+	/**
+	 * If this console object is a variable, get its value as string via OutValueAsString.
+	 * If it's not a variable type (such as a command) then this function will return false.
+	 */
+	bool GetCurrentValueAsString(FString& OutValueAsString);
  
 	bool IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare);
  
@@ -134,4 +150,5 @@ struct FConsoleVariablesEditorCommandInfo
 		{ EConsoleVariableFlags::ECVF_SetByConsole, LOCTEXT("Source_SetByConsole", "Console") }
 	};
 };
+
 #undef LOCTEXT_NAMESPACE
