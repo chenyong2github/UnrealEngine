@@ -1,34 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Datadog.Trace;
-using Datadog.Trace.Configuration;
-using Datadog.Trace.OpenTracing;
 using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using Horde.Agent.Execution;
-using Horde.Agent.Execution.Interfaces;
-using Horde.Agent.Leases;
-using Horde.Agent.Leases.Handlers;
-using Horde.Agent.Services;
-using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using OpenTracing;
-using OpenTracing.Util;
-using Polly;
 using Serilog.Events;
 
 namespace Horde.Agent.Modes.Service
 {
-	using ITracer = OpenTracing.ITracer;
 
 	/// <summary>
 	/// 
@@ -36,18 +18,6 @@ namespace Horde.Agent.Modes.Service
 	[Command("Service", "Run", "Runs the service in listen mode")]
 	class RunCommand : Command
 	{
-		/// <summary>
-		/// Override for the server to use
-		/// </summary>
-		[CommandLine("-Server=")]
-		string? Server { get; set; } = null;
-
-		/// <summary>
-		/// Override the working directory
-		/// </summary>
-		[CommandLine("-WorkingDir=")]
-		string? WorkingDir { get; set; } = null;
-
 		/// <summary>
 		/// Log verbosity level (use normal Serilog levels such as debug, warning or info)
 		/// </summary>
@@ -96,18 +66,6 @@ namespace Horde.Agent.Modes.Service
 				.ConfigureAppConfiguration(builder =>
 				{
 					builder.AddConfiguration(_defaultServices.Configuration);
-
-					Dictionary<string, string> overrides = new Dictionary<string, string>();
-					if (Server != null)
-					{
-						overrides.Add($"{AgentSettings.SectionName}:{nameof(AgentSettings.Server)}", Server);
-					}
-					if (WorkingDir != null)
-					{
-						overrides.Add($"{AgentSettings.SectionName}:{nameof(AgentSettings.WorkingDir)}", WorkingDir);
-					}
-
-					builder.AddInMemoryCollection(overrides);
 				})
 				.ConfigureLogging(builder =>
 				{

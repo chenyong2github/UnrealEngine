@@ -96,12 +96,31 @@ namespace Horde.Agent
 
 			using Logging.HordeLoggerProvider loggerProvider = new Logging.HordeLoggerProvider();
 
+			string? environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+			if (String.IsNullOrEmpty(environment))
+			{
+				environment = "Production";
+			}
+
+			CommandLineArguments arguments = new CommandLineArguments(args);
+
+			Dictionary<string, string> configOverrides = new Dictionary<string, string>();
+			if (arguments.TryGetValue("-Server=", out string? serverOverride))
+			{
+				configOverrides.Add($"{AgentSettings.SectionName}:{nameof(AgentSettings.Server)}", serverOverride);
+			}
+			if (arguments.TryGetValue("-WorkingDir=", out string? workingDirOverride))
+			{
+				configOverrides.Add($"{AgentSettings.SectionName}:{nameof(AgentSettings.WorkingDir)}", workingDirOverride);
+			}
+
 			IConfiguration config = new ConfigurationBuilder()
 				.SetBasePath(AppDir.FullName)
 				.AddJsonFile("appsettings.json", optional: false)
 				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
-				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
+				.AddJsonFile($"appsettings.{environment}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
 				.AddJsonFile("appsettings.User.json", optional: true)
+				.AddInMemoryCollection(configOverrides)
 				.AddEnvironmentVariables()
 				.Build();
 
