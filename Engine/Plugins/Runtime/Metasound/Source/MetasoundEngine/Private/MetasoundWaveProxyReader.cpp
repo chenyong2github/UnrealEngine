@@ -521,7 +521,7 @@ namespace Metasound
 			const int32 MinLoopDurationInFrames = FMath::CeilToInt(MinLoopDurationInSeconds * SampleRate);
 			const float LoopEndTime = Settings.LoopStartTimeInSeconds + Settings.LoopDurationInSeconds;
 			const int32 MinLoopEndFrameIndex = LoopStartFrameIndex + MinLoopDurationInFrames;
-			const int32 MaxLoopEndFrameIndex = NumFramesInWave + 1;
+			const int32 MaxLoopEndFrameIndex = NumFramesInWave;
 
 			LoopStartFrameIndex = FMath::FloorToInt(Settings.LoopStartTimeInSeconds * SampleRate);
 			LoopEndFrameIndex = FMath::Clamp(LoopEndTime * SampleRate, MinLoopEndFrameIndex, MaxLoopEndFrameIndex);
@@ -529,7 +529,7 @@ namespace Metasound
 		else
 		{
 			LoopStartFrameIndex = 0;
-			LoopEndFrameIndex = NumFramesInWave + 1;
+			LoopEndFrameIndex = NumFramesInWave;
 		}
 	}
 }
