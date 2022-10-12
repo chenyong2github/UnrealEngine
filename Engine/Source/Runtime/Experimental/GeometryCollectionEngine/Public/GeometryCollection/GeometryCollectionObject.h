@@ -38,7 +38,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	bool bAddInternalMaterials = true;
 
-	/** Whether connected components in the source object should be added as separate pieces of geometry. */
+	/** Whether individual source mesh components should be split into separate pieces of geometry based on mesh connectivity. If checked, triangles that are not topologically connected will be assigned separate bones. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	bool bSplitComponents = false;
 };

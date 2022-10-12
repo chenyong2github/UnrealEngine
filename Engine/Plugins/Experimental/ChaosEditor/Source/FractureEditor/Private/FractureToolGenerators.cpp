@@ -305,7 +305,7 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("SplitComponentsLabel", "Split Components"))
-						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, connected components will be split into separate bones on import."))
+						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, triangles that are not topologically connected will be assigned separate bones on import."))
 					]
 
 				+ SHorizontalBox::Slot()
@@ -324,7 +324,7 @@ void SCreateGeometryCollectionFromObject::Construct(const FArguments& InArgs, TS
 							}
 							bSplitIslands = NewState == ECheckBoxState::Checked;
 						})
-						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, connected components will be split into separate bones on import."))
+						.ToolTipText(LOCTEXT("SplitComponentsToolTip", "If checked, triangles that are not topologically connected will be assigned separate bones on import."))
 					]
 				]
 			]
