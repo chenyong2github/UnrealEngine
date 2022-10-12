@@ -391,7 +391,12 @@ bool IsIterativeEnabled(FName PackageName)
 	FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
 	for (FName ClassName : PackageData.ImportedClasses)
 	{
-		UE::EditorDomain::FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassName);
+		FTopLevelAssetPath ClassPath(WriteToString<256>(ClassName).ToView());
+		UE::EditorDomain::FClassDigestData* ExistingData = nullptr;
+		if (ClassPath.IsValid())
+		{
+			ExistingData = ClassDigests.Map.Find(ClassPath);
+		}
 		if (!ExistingData)
 		{
 			// All allowlisted classes are added to ClassDigests at startup, so if the class is not in ClassDigests,

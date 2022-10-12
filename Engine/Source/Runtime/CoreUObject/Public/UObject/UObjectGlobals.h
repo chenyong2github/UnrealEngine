@@ -2718,6 +2718,9 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAssetLoaded, UObject*);
 	static FOnAssetLoaded OnAssetLoaded;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectConstructed, UObject*);
+	static FOnObjectConstructed OnObjectConstructed;
+
 	/** Callback when packages end loading in LoadPackage or AsyncLoadPackage. All packages loaded recursively due to imports are included in the single call of the explicitly-loaded package. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEndLoadPackage, const FEndLoadPackageContext&);
 	static FOnEndLoadPackage OnEndLoadPackage;

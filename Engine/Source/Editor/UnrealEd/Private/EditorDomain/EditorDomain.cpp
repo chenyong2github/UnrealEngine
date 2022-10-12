@@ -282,7 +282,18 @@ void FEditorDomain::PrecachePackageDigest(FName PackageName)
 	TOptional<FAssetPackageData> PackageData = AssetRegistry->GetAssetPackageDataCopy(PackageName);
 	if (PackageData)
 	{
-		UE::EditorDomain::PrecacheClassDigests(PackageData->ImportedClasses);
+		TArray<FTopLevelAssetPath> ImportedClassPaths;
+		ImportedClassPaths.Reserve(PackageData->ImportedClasses.Num());
+		for (FName ClassPathName : PackageData->ImportedClasses)
+		{
+			FTopLevelAssetPath ClassPath(WriteToString<256>(ClassPathName).ToView());
+			if (ClassPath.IsValid())
+			{
+				ImportedClassPaths.Add(ClassPath);
+			}
+		}
+
+		UE::EditorDomain::PrecacheClassDigests(ImportedClassPaths);
 	}
 }
 

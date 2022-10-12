@@ -21,10 +21,12 @@ bool IsBuildOpName(FName OpName)
 		;
 }
 
-FTrackedData::FTrackedData(FName InPackageName, FName InOpName, const ITargetPlatform* InTargetPlatform)
+FTrackedData::FTrackedData(FName InPackageName, FName InOpName, const ITargetPlatform* InTargetPlatform,
+	const UObject* InObject)
 	: PackageName(InPackageName)
 	, OpName(InOpName)
 	, BuildOpName(IsBuildOpName(InOpName) ? InOpName : NAME_None)
+	, Object(InObject)
 	, TargetPlatform(InTargetPlatform)
 {
 }
@@ -40,7 +42,7 @@ FTrackedData::FTrackedData(FTrackedData& DirectData, FTrackedData* OuterAccumula
 		// but we want to record that B depends on C, not that A depends on C.  The InnermostThreadScope will have a package name of B and an OpName of PostLoad
 		// and so we want the package name from the InnermostThreadScope while having searched upwards for a scope with an OpName == Load.
 
-		// Make sure this line matches the PackageName line in the FTrackedData accumulating constructor
+		// The accumulated PackageName is the most recent non-empty PackageName
 		PackageName = !DirectData.PackageName.IsNone() ? DirectData.PackageName : OuterAccumulatedData->PackageName;
 
 		// The accumulated OpName is the most recent non-empty OpName
@@ -57,6 +59,9 @@ FTrackedData::FTrackedData(FTrackedData& DirectData, FTrackedData* OuterAccumula
 			BuildOpName = !DirectData.BuildOpName.IsNone() ? DirectData.BuildOpName : OuterAccumulatedData->BuildOpName;
 		}
 
+		// The accumulated object is the most recent non-null Object
+		Object = DirectData.Object ? DirectData.Object : OuterAccumulatedData->Object;
+
 		// The accumulated TargetPlatform is the most recent non-empty TargetPlatform
 		TargetPlatform = DirectData.TargetPlatform ? DirectData.TargetPlatform : OuterAccumulatedData->TargetPlatform;
 	}
@@ -65,20 +70,22 @@ FTrackedData::FTrackedData(FTrackedData& DirectData, FTrackedData* OuterAccumula
 		PackageName = DirectData.PackageName;
 		OpName = DirectData.OpName;
 		BuildOpName = DirectData.BuildOpName;
+		Object = DirectData.Object;
 		TargetPlatform = DirectData.TargetPlatform;
 	}
 }
 
-FPackageAccessRefScope::FPackageAccessRefScope(FName InPackageName, FName InOpName, const ITargetPlatform* InTargetPlatform)
-	: DirectData(InPackageName, InOpName, InTargetPlatform)
+FPackageAccessRefScope::FPackageAccessRefScope(FName InPackageName, FName InOpName,
+	const ITargetPlatform* InTargetPlatform, const UObject* InObject)
+	: DirectData(InPackageName, InOpName, InTargetPlatform, InObject)
 	, AccumulatedData(DirectData, GetCurrentThreadAccumulatedData())
 	, Outer(CurrentThreadScope)
 {
 	CurrentThreadScope = this;
 }
 
-FPackageAccessRefScope::FPackageAccessRefScope(const UPackage* InPackage, FName InOpName)
-	: FPackageAccessRefScope(InPackage->GetFName(), InOpName, nullptr)
+FPackageAccessRefScope::FPackageAccessRefScope(const UObject* InObject, FName InOpName)
+	: FPackageAccessRefScope(InObject->GetPackage()->GetFName(), InOpName, nullptr, InObject)
 {
 }
 

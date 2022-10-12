@@ -30,6 +30,7 @@ struct FAppendToClassSchemaContext;
 struct FFrame;
 struct FObjectInstancingGraph;
 struct FPropertyChangedChainEvent;
+struct FTopLevelAssetPath;
 class UClass;
 #if UE_WITH_IRIS
 namespace UE::Net
@@ -391,6 +392,15 @@ public:
 	 * invalidate previous results because serialization changed and no custom version was udpated.
 	 */
 	static void AppendToClassSchema(FAppendToClassSchemaContext& Context);
+	/**
+	 * Declare classes that can be constructed by this class during loading. This declaration is implicitly transitive;
+	 * the caller is responsible for following the graph of ConstructClasses to find all transitive ConstructClasses.
+	 * 
+	 * @param OutConstructClasses Output list of classes that this class can construct.
+	 * @param SpecificSubclass The class on which DeclaredConstructClasses was called. This can differ from the current
+	 *        class because each class calls Super::DeclareConstructClasses.
+	 */
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */

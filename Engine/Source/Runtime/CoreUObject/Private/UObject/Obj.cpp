@@ -1077,7 +1077,7 @@ void UObject::ConditionalPostLoad()
 	{
 
 		check(IsInGameThread() || HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject) || IsPostLoadThreadSafe() || IsA(UClass::StaticClass()))
-		UE_TRACK_REFERENCING_PACKAGE_SCOPED(GetOutermost(), PackageAccessTrackingOps::NAME_PostLoad);
+		UE_TRACK_REFERENCING_PACKAGE_SCOPED(this, PackageAccessTrackingOps::NAME_PostLoad);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
@@ -1542,7 +1542,7 @@ void UObject::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass
 		{
 			FProperty* InnerProperty = Property;
 			Property = Property->PropertyLinkNext;
-			FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+			FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InnerProperty);
 			if (ArrayProperty)
 			{
 				InnerProperty = ArrayProperty->Inner;
@@ -1588,6 +1588,10 @@ void UObject::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass
 }
 
 void UObject::AppendToClassSchema(FAppendToClassSchemaContext& Context)
+{
+}
+
+void UObject::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass) 
 {
 }
 #endif

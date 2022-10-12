@@ -15,7 +15,7 @@ class UPackage;
 #define UE_WITH_PACKAGE_ACCESS_TRACKING UE_WITH_OBJECT_HANDLE_TRACKING
 
 #if UE_WITH_PACKAGE_ACCESS_TRACKING
-#define UE_TRACK_REFERENCING_PACKAGE_SCOPED(Package, OpName) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(Package, OpName);
+#define UE_TRACK_REFERENCING_PACKAGE_SCOPED(Object, OpName) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(Object, OpName);
 #define UE_TRACK_REFERENCING_PACKAGE_DELAYED_SCOPED(TrackerName, OpName) TOptional<PackageAccessTracking_Private::FPackageAccessRefScope> TrackerName; FName TrackerName##_OpName(OpName);
 #define UE_TRACK_REFERENCING_PACKAGE_DELAYED(TrackerName, Package) if (TrackerName) TrackerName->SetPackageName(Package->GetFName()); else TrackerName.Emplace(Package->GetFName(), TrackerName##_OpName);
 #define UE_TRACK_REFERENCING_PLATFORM_SCOPED(TargetPlatform) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(TargetPlatform);
@@ -36,21 +36,24 @@ namespace PackageAccessTracking_Private
 	struct FTrackedData
 	{
 		/** Standard constructor; sets variables from DirectData passed to a FPackageAccessRefScope. */
-		COREUOBJECT_API FTrackedData(FName PackgeName, FName OpName, const ITargetPlatform* InTargetPlatform);
+		COREUOBJECT_API FTrackedData(FName PackageName, FName OpName, const ITargetPlatform* InTargetPlatform,
+			const UObject* InObject);
 		/** Accumulating constructor; sets new AccumulatedData by combining DirectData with Outer's AccumulatedData. */
 		COREUOBJECT_API FTrackedData(FTrackedData& DirectData, FTrackedData* OuterAccumulatedData);
 
 		FName PackageName;
 		FName OpName;
 		FName BuildOpName;
+		const UObject* Object = nullptr;
 		const ITargetPlatform* TargetPlatform = nullptr;
 	};
 
 	class FPackageAccessRefScope
 	{
 	public:
-		COREUOBJECT_API FPackageAccessRefScope(FName InPackageName, FName InOpName, const ITargetPlatform* InTargetPlatform = nullptr);
-		COREUOBJECT_API FPackageAccessRefScope(const UPackage* InPackage, FName InOpName);
+		COREUOBJECT_API FPackageAccessRefScope(FName InPackageName, FName InOpName,
+			const ITargetPlatform* InTargetPlatform=nullptr, const UObject* InObject=nullptr);
+		COREUOBJECT_API FPackageAccessRefScope(const UObject* InObject, FName InOpName);
 		COREUOBJECT_API FPackageAccessRefScope(FName InOpName);
 		COREUOBJECT_API FPackageAccessRefScope(const ITargetPlatform* InTargetPlatform);
 

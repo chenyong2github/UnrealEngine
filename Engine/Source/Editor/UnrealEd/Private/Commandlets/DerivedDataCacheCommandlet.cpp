@@ -291,7 +291,7 @@ bool UDerivedDataCacheCommandlet::ProcessCachingObjects()
 				}
 
 				{
-					UE_TRACK_REFERENCING_PACKAGE_SCOPED(Object->GetPackage(), PackageAccessTrackingOps::NAME_CookerBuildObject);
+					UE_TRACK_REFERENCING_PACKAGE_SCOPED(Object, PackageAccessTrackingOps::NAME_CookerBuildObject);
 					for (int32 PlatformIndex = 0; PlatformIndex < Platforms.Num(); ++PlatformIndex)
 					{
 						// IsCachedCookedPlatformDataLoaded can be quite slow for some objects

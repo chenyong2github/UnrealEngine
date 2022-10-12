@@ -20,6 +20,7 @@
 
 class IPakFile;
 class UClass;
+struct FTopLevelAssetPath;
 
 #define WITH_COREREDIRECTS_MULTITHREAD_WARNING !UE_BUILD_SHIPPING && !IS_PROGRAM && !WITH_EDITOR
 
@@ -97,6 +98,8 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 	{
 
 	}
+
+	FCoreRedirectObjectName(const FTopLevelAssetPath& TopLevelAssetPath);
 
 	/** Construct from a path string, this handles full paths with packages, or partial paths without */
 	FCoreRedirectObjectName(const FString& InString);

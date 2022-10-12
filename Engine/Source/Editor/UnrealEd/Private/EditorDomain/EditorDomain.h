@@ -2,26 +2,26 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "Misc/EnumClassFlags.h"
-#include "Misc/PackageSegment.h"
-#include "Stats/Stats2.h"
-#include "Tickable.h"
-#include "UObject/UnrealNames.h"
-#include "AssetRegistry/AssetData.h"
-#include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "IO/IoHash.h"
 #include "Logging/LogMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/PackageSegment.h"
+#include "Stats/Stats2.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
+#include "Tickable.h"
 #include "TickableEditorObject.h"
 #include "UObject/NameTypes.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/UnrealNames.h"
 
 class FArchive;
 class FEditorDomainSaveClient;
@@ -31,8 +31,8 @@ class FScopeLock;
 class IAssetRegistry;
 class IMappedFileHandle;
 class UPackage;
-namespace UE::DerivedData { class FRequestOwner; }
 struct FEndLoadPackageContext;
+namespace UE::DerivedData { class FRequestOwner; }
 
 namespace UE::EditorDomain
 {
@@ -47,6 +47,7 @@ enum class EDomainUse : uint8
 	SaveEnabled = 0x2,
 };
 ENUM_CLASS_FLAGS(EDomainUse);
+FStringBuilderBase& operator<<(FStringBuilderBase& Writer, UE::EditorDomain::EDomainUse DomainUse);
 
 /** Information about a package's loading from the EditorDomain. */
 struct FPackageDigest
@@ -71,8 +72,6 @@ struct FPackageDigest
 	 * created from properties that change if the saved version would change (package bytes, serialization versions).
 	 */
 	FIoHash Hash;
-	/** Classes used by the resaved package: imports or instances that can be created by PostLoad/PreSave */
-	TArray<FName> ImportedClasses;
 	/** List of CustomVersions used to save the package. */
 	UE::AssetRegistry::FPackageCustomVersionsHandle CustomVersions;
 	/** Allow flags for whether the package can be saved/loaded from EditorDomain. */

@@ -23,6 +23,11 @@ DEFINE_LOG_CATEGORY(LogCoreRedirects);
 #	define UE_WITH_CORE_REDIRECTS 1
 #endif
 
+FCoreRedirectObjectName::FCoreRedirectObjectName(const FTopLevelAssetPath& TopLevelAssetPath)
+	: FCoreRedirectObjectName(TopLevelAssetPath.GetAssetName(), NAME_None, TopLevelAssetPath.GetPackageName())
+{
+}
+
 FCoreRedirectObjectName::FCoreRedirectObjectName(const FString& InString)
 {
 	if (!ExpandNames(InString, ObjectName, OuterName, PackageName))

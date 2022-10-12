@@ -17,6 +17,7 @@
 #include "Serialization/CustomVersion.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 
@@ -35,13 +36,14 @@ namespace UE::EditorDomain
 struct FClassDigestData
 {
 public:
-	FBlake3Hash SchemaHash;
-	/** CustomVersions used by the class */
+	/** Inclusive schemahash for the class and all of its transitively constructible classes */
+	FBlake3Hash InclusiveSchemaHash;
+	/** CustomVersions used by the class or its constructed classes*/
 	TArray<int32> CustomVersionHandles;
-	/** Classes that can be created by the class during PostLoad/PreSave (parsed from ini) */
-	TArray<FName> ConstructClasses;
+	/** Classes that can be created by the class during PostLoad/PreSave (reported by DeclareConstructClasses) */
+	TArray<FTopLevelAssetPath> ConstructClasses;
 	/** The closest native parent of (the possibly CoreRedirected target of) the class */
-	FName ResolvedClosestNative;
+	FTopLevelAssetPath ClosestNative;
 	/** EditorDomainEnabled allows everything and uses only a blocklist, so DomainUse by default is enabled. */
 	EDomainUse EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
 
@@ -56,7 +58,7 @@ public:
 /** Threadsafe cache of ClassName -> Digest data for calculating EditorDomain Digests */
 struct FClassDigestMap
 {
-	TMap<FName, FClassDigestData> Map;
+	TMap<FTopLevelAssetPath, FClassDigestData> Map;
 	FRWLock Lock;
 };
 
@@ -84,7 +86,7 @@ ESaveStorageResult SaveStorageResultFromString(FUtf8StringView Text);
 FPackageDigest CalculatePackageDigest(IAssetRegistry& AssetRegistry, FName PackageName);
 
 /** For any ClassNames not already in ClassDigests, look up their UStruct and add them. */
-void PrecacheClassDigests(TConstArrayView<FName> ClassNames);
+void PrecacheClassDigests(TConstArrayView<FTopLevelAssetPath> ClassNames);
 
 /** Get the CacheRequest for the given package from the EditorDomain cache bucket. */
 void RequestEditorDomainPackage(const FPackagePath& PackagePath,
