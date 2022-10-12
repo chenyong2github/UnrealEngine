@@ -52,7 +52,7 @@ void FIKRetargetEditor::InitAssetEditor(
 	PersonaToolkitArgs.OnPreviewSceneSettingsCustomized = FOnPreviewSceneSettingsCustomized::FDelegate::CreateSP(this, &FIKRetargetEditor::HandleOnPreviewSceneSettingsCustomized);
 	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	EditorController->PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAsset, PersonaToolkitArgs);
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InAsset, PersonaToolkitArgs);
 	
 	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InAsset);
 	AssetFamily->RecordAssetOpened(FAssetData(InAsset));
@@ -71,7 +71,7 @@ void FIKRetargetEditor::InitAssetEditor(
 	// this sets the application mode which defines the tab factory that builds the editor layout
 	AddApplicationMode(
 		IKRetargetApplicationModes::IKRetargetApplicationMode,
-		MakeShareable(new FIKRetargetApplicationMode(SharedThis(this),EditorController->PersonaToolkit->GetPreviewScene())));
+		MakeShareable(new FIKRetargetApplicationMode(SharedThis(this), PersonaToolkit->GetPreviewScene())));
 	SetCurrentMode(IKRetargetApplicationModes::IKRetargetApplicationMode);
 
 	// set the default editing mode to use in the editor

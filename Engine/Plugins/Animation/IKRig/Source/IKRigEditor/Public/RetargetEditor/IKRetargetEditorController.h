@@ -88,9 +88,6 @@ public:
 	/** all modifications to the data model should go through this controller */
 	TObjectPtr<UIKRetargeterController> AssetController;
 
-	/** Preview scene to be supplied by IHasPersonaToolkit::GetPersonaToolkit */
-	TSharedPtr<IPersonaToolkit> PersonaToolkit;
-
 	/** the persona toolkit */
 	TWeakPtr<FIKRetargetEditor> Editor;
 

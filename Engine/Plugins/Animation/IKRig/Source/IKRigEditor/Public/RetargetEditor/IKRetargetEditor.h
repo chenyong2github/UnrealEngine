@@ -70,7 +70,7 @@ public:
 	//~ END FTickableEditorObject Interface
 
 	/** IHasPersonaToolkit interface */
-	virtual TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override { return EditorController->PersonaToolkit.ToSharedRef(); }
+	virtual TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override { return PersonaToolkit.ToSharedRef(); }
 	/** END IHasPersonaToolkit interface */
 
 	/** FSelfRegisteringEditorUndoClient interface */
@@ -99,6 +99,9 @@ private:
 	
 	/** centralized management across all views */
 	TSharedRef<FIKRetargetEditorController> EditorController;
+
+	/** Preview scene to be supplied by IHasPersonaToolkit::GetPersonaToolkit */
+	TSharedPtr<IPersonaToolkit> PersonaToolkit;
 
 	/** record previous playback time of source anim instance to trigger reset when scrubbing / looping */
 	float PreviousTime;
