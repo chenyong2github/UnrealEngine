@@ -18,7 +18,7 @@ static FString SkinWeightAttributeNamePrefix()
 
 void FSkeletalMeshAttributes::Register()
 {
-	MeshDescription.VertexAttributes().RegisterAttribute<int32[]>(MeshAttribute::Vertex::SkinWeights, 1, 0.0f, EMeshAttributeFlags::Mandatory);
+	MeshDescription.VertexAttributes().RegisterAttribute<int32[]>(MeshAttribute::Vertex::SkinWeights, 1, 0, EMeshAttributeFlags::Mandatory);
 
 	// Call super class
 	FStaticMeshAttributes::Register();
