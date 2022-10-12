@@ -51,6 +51,11 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	}
 
 	WidgetStyle = *DefaultEditableTextBoxStyle;
+	if (!IsRunningDedicatedServer())
+	{
+		static ConstructorHelpers::FObjectFinder<UFont> defaultFontObj(*UWidget::GetDefaultFontName());
+		WidgetStyle.SetFont(FSlateFontInfo(defaultFontObj.Object, 24, FName("Regular")));
+	}
 
 #if WITH_EDITOR 
 	if (EditorEditableTextBoxStyle == nullptr)
