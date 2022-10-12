@@ -139,7 +139,6 @@ TSharedRef<SWidget> UE::RCUIHelpers::GetGenericFieldWidget(const TSharedPtr<IDet
 		FieldWidget->AddSlot()
 			.Padding(FMargin(3.0f, 2.0f))
 			.VAlign(VAlign_Center)
-			.AutoWidth()
 			[
 				NodeWidgets.ValueWidget.ToSharedRef()
 			];
@@ -153,7 +152,6 @@ TSharedRef<SWidget> UE::RCUIHelpers::GetGenericFieldWidget(const TSharedPtr<IDet
 		FieldWidget->AddSlot()
 			.Padding(FMargin(3.0f, 2.0f))
 			.VAlign(VAlign_Center)
-			.AutoWidth()
 			[
 				NodeWidgets.WholeRowWidget.ToSharedRef()
 			];

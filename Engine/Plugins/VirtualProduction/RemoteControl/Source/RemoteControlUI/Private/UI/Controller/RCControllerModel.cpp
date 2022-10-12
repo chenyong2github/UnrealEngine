@@ -37,8 +37,7 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 	{
 		FieldWidget->AddSlot()
 			.Padding(FMargin(10.0f, 2.0f))
-			.HAlign(HAlign_Right)
-			.AutoWidth()
+			.HAlign(HAlign_Left)
 			[
 				NodeWidgets.ValueWidget.ToSharedRef()
 			];
@@ -47,7 +46,6 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 	{
 		FieldWidget->AddSlot()
 			.Padding(FMargin(10.0f, 2.0f))
-			.AutoWidth()
 			[
 				NodeWidgets.WholeRowWidget.ToSharedRef()
 			];

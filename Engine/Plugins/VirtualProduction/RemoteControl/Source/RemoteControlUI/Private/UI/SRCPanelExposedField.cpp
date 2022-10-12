@@ -44,8 +44,7 @@ namespace ExposedFieldUtils
 		{
 			FieldWidget->AddSlot()
 				.Padding(FMargin(3.0f, 2.0f))
-				.HAlign(HAlign_Right)
-				.AutoWidth()
+				.HAlign(HAlign_Left)
 				[
 					NodeWidgets.ValueWidget.ToSharedRef()
 				];
@@ -54,7 +53,6 @@ namespace ExposedFieldUtils
 		{
 			FieldWidget->AddSlot()
 				.Padding(FMargin(3.0f, 2.0f))
-				.AutoWidth()
 				[
 					NodeWidgets.WholeRowWidget.ToSharedRef()
 				];
