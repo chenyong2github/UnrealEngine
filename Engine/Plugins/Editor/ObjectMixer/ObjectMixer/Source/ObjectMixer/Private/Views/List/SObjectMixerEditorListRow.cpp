@@ -275,7 +275,7 @@ bool SObjectMixerEditorListRow::IsVisible() const
 {
 	if (const TSharedPtr<FObjectMixerEditorListRow> PinnedItem = Item.Pin())
 	{
-		return PinnedItem->GetObjectVisibility();
+		return PinnedItem->GetCurrentEditorObjectVisibility();
 	}
 
 	return false;
@@ -303,11 +303,12 @@ FSlateColor SObjectMixerEditorListRow::GetVisibilityIconForegroundColor() const
 FSlateColor SObjectMixerEditorListRow::GetSoloIconForegroundColor() const
 {
 	check(Item.IsValid());
+	const FObjectMixerEditorListRowPtr RowPtr = GetHybridChildOrRowItemIfNull();
 
-	const bool bIsSelected = Item.Pin()->GetIsSelected();
+	const bool bIsSelected = RowPtr->GetIsSelected();
 
 	// make the foreground brush transparent if it is not selected, hovered or solo
-	if (!Item.Pin()->IsThisRowSolo() && !bIsHovered && !bIsSelected)
+	if (!RowPtr->GetRowSoloState() && !bIsHovered && !bIsSelected)
 	{
 		return FLinearColor::Transparent;
 	}
@@ -317,6 +318,49 @@ FSlateColor SObjectMixerEditorListRow::GetSoloIconForegroundColor() const
 	}
 
 	return FSlateColor::UseForeground();
+}
+
+void SObjectMixerEditorListRow::OnClickSoloIcon(const FObjectMixerEditorListRowPtr& RowPtr)
+{
+	check (RowPtr.IsValid());
+							
+	if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = RowPtr->GetListViewPtr().Pin();
+		PinnedListView->GetTreeViewItemCount() > 0)
+	{
+		const bool bNewSolo = !RowPtr->GetRowSoloState();
+								
+		using LambdaType = void(*)(const FObjectMixerEditorListRowPtr&, const bool);
+		
+		static LambdaType SetSoloPerRowRecursively =
+			[](const FObjectMixerEditorListRowPtr& RowPtr, const bool bNewSolo)
+		{
+			if (bNewSolo)
+			{
+				RowPtr->SetUserHiddenInEditor(false);
+			}
+			
+			RowPtr->SetRowSoloState(bNewSolo);
+								
+			for (const FObjectMixerEditorListRowPtr& SelectedItem : RowPtr->GetChildRows())
+			{
+				SetSoloPerRowRecursively(SelectedItem, bNewSolo);
+			}
+		};
+								
+		if (PinnedListView->GetSelectedTreeViewItemCount() > 0 && RowPtr->GetIsSelected())
+		{
+			for (const FObjectMixerEditorListRowPtr& SelectedItem : PinnedListView->GetSelectedTreeViewItems())
+			{
+				SetSoloPerRowRecursively(SelectedItem, bNewSolo);
+			}
+		}
+		else
+		{
+			SetSoloPerRowRecursively(RowPtr, bNewSolo);
+		}
+								
+		PinnedListView->EvaluateAndSetEditorVisibilityPerRow();
+	}
 }
 
 const FSlateBrush* SObjectMixerEditorListRow::GetVisibilityBrush() const
@@ -332,14 +376,70 @@ const FSlateBrush* SObjectMixerEditorListRow::GetVisibilityBrush() const
 const FSlateBrush* SObjectMixerEditorListRow::GetSoloBrush() const
 {
 	check(Item.IsValid());
+	const FObjectMixerEditorListRowPtr RowPtr = GetHybridChildOrRowItemIfNull();
 
-	// make the foreground brush transparent if it is not selected, hovered or solo
-	if (Item.Pin()->IsThisRowSolo())
+	if (RowPtr->GetRowType() == FObjectMixerEditorListRow::Folder)
+	{
+		if (RowPtr->HasAtLeastOneChildThatIsNotSolo())
+		{
+			return SoloOffHoveredBrush;
+		}
+
+		return SoloOnBrush;
+	}
+	
+	if (RowPtr->GetRowSoloState())
 	{
 		return SoloOnBrush;
 	}
 
 	return SoloOffHoveredBrush;
+}
+
+void SObjectMixerEditorListRow::OnClickVisibilityIcon(const FObjectMixerEditorListRowPtr& RowPtr)
+{
+	check (RowPtr.IsValid());
+							
+	if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = RowPtr->GetListViewPtr().Pin();
+		PinnedListView->GetTreeViewItemCount() > 0)
+	{
+		const bool bNewHidden = !RowPtr->IsUserSetHiddenInEditor();
+		const bool bIsListInSoloState = PinnedListView->IsListInSoloState();
+								
+		using LambdaType = void(*)(const FObjectMixerEditorListRowPtr&, const bool, const bool);
+		
+		static LambdaType SetVisibilityPerRowRecursively = [](
+			const FObjectMixerEditorListRowPtr& RowPtr, const bool bNewHidden, const bool bIsListInSoloState)
+		{
+			if (bIsListInSoloState)
+			{
+				RowPtr->SetRowSoloState(!RowPtr->GetRowSoloState());
+			}
+			else
+			{
+				RowPtr->SetUserHiddenInEditor(bNewHidden);
+			}
+								
+			for (const FObjectMixerEditorListRowPtr& SelectedItem : RowPtr->GetChildRows())
+			{
+				SetVisibilityPerRowRecursively(SelectedItem, bNewHidden, bIsListInSoloState);
+			}
+		};
+								
+		if (PinnedListView->GetSelectedTreeViewItemCount() > 0 && RowPtr->GetIsSelected())
+		{
+			for (const FObjectMixerEditorListRowPtr& SelectedItem : PinnedListView->GetSelectedTreeViewItems())
+			{
+				SetVisibilityPerRowRecursively(SelectedItem, bNewHidden, bIsListInSoloState);
+			}
+		}
+		else
+		{
+			SetVisibilityPerRowRecursively(RowPtr, bNewHidden, bIsListInSoloState);
+		}
+								
+		PinnedListView->EvaluateAndSetEditorVisibilityPerRow();
+	}
 }
 
 TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
@@ -446,24 +546,10 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 					.ColorAndOpacity(this, &SObjectMixerEditorListRow::GetVisibilityIconForegroundColor)
 					.Image_Raw(this, &SObjectMixerEditorListRow::GetVisibilityBrush)
 					.OnMouseButtonDown_Lambda(
-						[RowPtr] (const FGeometry& MyGeometry, const FPointerEvent& Event)
+						[this] (const FGeometry&, const FPointerEvent&)
 						{
-							check (RowPtr);
-
-							FScopedTransaction Transaction( LOCTEXT("VisibilityChanged", "Object Mixer - Visibility Changed") );
-
-							const bool bIsVisible = RowPtr->GetObjectVisibility();
-							
-							if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = RowPtr->GetListViewPtr().Pin();
-								RowPtr->GetIsSelected() && PinnedListView->GetSelectedTreeViewItemCount() > 0)
-							{
-								PinnedListView->SetSelectedTreeViewItemActorsEditorVisible(!bIsVisible);
-
-								return FReply::Handled();
-							}
-
-							// Set Visibility Recursively
-							RowPtr->SetObjectVisibility(!bIsVisible, true);
+							// Pass in actual row item even if hybrid row
+							OnClickVisibilityIcon(Item.Pin());
 
 							return FReply::Handled();
 						}
@@ -489,33 +575,12 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 					.ColorAndOpacity(this, &SObjectMixerEditorListRow::GetSoloIconForegroundColor)
 					.Image(this, &SObjectMixerEditorListRow::GetSoloBrush)
 					.OnMouseButtonDown_Lambda(
-						[this] (const FGeometry& MyGeometry, const FPointerEvent& Event)
+						[this] (const FGeometry&, const FPointerEvent&)
 						{
-							check (Item.IsValid());
+							// Pass in actual row item even if hybrid row
+							OnClickSoloIcon(Item.Pin());
 
-							const FObjectMixerEditorListRowPtr PinnedItem = Item.Pin();
-							
-							if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = PinnedItem->GetListViewPtr().Pin();
-								PinnedListView->GetTreeViewItemCount() > 0)
-							{
-								const bool bIsRowSolo = PinnedItem->IsThisRowSolo();
-								for (const TSharedPtr<FObjectMixerEditorListRow>& TreeItem : PinnedListView->GetTreeViewItems())
-								{
-									TreeItem->SetObjectVisibility(bIsRowSolo, true);
-								}
-
-								if (!bIsRowSolo)
-								{
-									PinnedItem->SetObjectVisibility(true, true);
-									PinnedItem->ClearSoloRows();
-								}
-								
-								PinnedItem->SetRowSoloState(!bIsRowSolo);
-
-								return FReply::Handled();
-							}
-
-							return FReply::Unhandled();
+							return FReply::Handled();
 						}
 					)
 				]
@@ -570,36 +635,33 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 void SObjectMixerEditorListRow::OnPropertyChanged(const FName PropertyName) const
 {
 	check(Item.IsValid());
-
-	struct Local
+	
+	auto SetValueOnSelectedItems = [](
+		const FString& ValueAsString, const TArray<FObjectMixerEditorListRowPtr>& OtherSelectedItems,
+		const FName& PropertyName, const FObjectMixerEditorListRowPtr PinnedItem)
 	{
-		static void SetValueOnSelectedItems(
-			const FString& ValueAsString, const TArray<FObjectMixerEditorListRowPtr>& OtherSelectedItems,
-			const FName& PropertyName, const FObjectMixerEditorListRowPtr PinnedItem)
+		if (!ValueAsString.IsEmpty())
 		{
-			if (!ValueAsString.IsEmpty())
+			FScopedTransaction Transaction(
+				LOCTEXT("OnPropertyChangedTransaction", "Object Mixer - Bulk Edit Selected Row Properties") );
+					
+			for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : OtherSelectedItems)
 			{
-				FScopedTransaction Transaction(
-					LOCTEXT("OnPropertyChangedTransaction", "Object Mixer - Bulk Edit Selected Row Properties") );
-						
-				for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : OtherSelectedItems)
-				{
-					const FObjectMixerEditorListRowPtr SelectedHybridRow = SelectedRow->GetHybridChild();
-					const FObjectMixerEditorListRowPtr RowToUse = SelectedHybridRow.IsValid() ? SelectedHybridRow : SelectedRow;
+				const FObjectMixerEditorListRowPtr SelectedHybridRow = SelectedRow->GetHybridChild();
+				const FObjectMixerEditorListRowPtr RowToUse = SelectedHybridRow.IsValid() ? SelectedHybridRow : SelectedRow;
 
-					if (RowToUse != PinnedItem)
+				if (RowToUse != PinnedItem)
+				{
+					if (const TWeakPtr<IPropertyHandle>* SelectedHandlePtr = RowToUse->PropertyNamesToHandles.Find(PropertyName))
 					{
-						if (const TWeakPtr<IPropertyHandle>* SelectedHandlePtr = RowToUse->PropertyNamesToHandles.Find(PropertyName))
+						if (SelectedHandlePtr->IsValid())
 						{
-							if (SelectedHandlePtr->IsValid())
+							if (UObject* ObjectToModify = RowToUse->GetObject())
 							{
-								if (UObject* ObjectToModify = RowToUse->GetObject())
-								{
-									ObjectToModify->Modify();
-								}
-										
-								SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString);
+								ObjectToModify->Modify();
 							}
+									
+							SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString);
 						}
 					}
 				}
@@ -621,7 +683,7 @@ void SObjectMixerEditorListRow::OnPropertyChanged(const FName PropertyName) cons
 						if (TSharedPtr<IPropertyHandle> PinnedHandle = HandlePtr->Pin())
 						{
 							PinnedHandle->GetValueAsFormattedString(ValueAsString);
-							Local::SetValueOnSelectedItems(ValueAsString, OtherSelectedItems, PropertyName, PinnedItem);
+							SetValueOnSelectedItems(ValueAsString, OtherSelectedItems, PropertyName, PinnedItem);
 						}
 					}
 				}
@@ -649,8 +711,9 @@ void SObjectMixerEditorListRow::OnClickBlueprintLink(UBlueprint* AsBlueprint, UO
 FText SObjectMixerEditorListRow::GetHighlightText() const
 {
 	check (Item.IsValid());
+	const FObjectMixerEditorListRowPtr RowPtr = GetHybridChildOrRowItemIfNull();
 
-	if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = Item.Pin()->GetListViewPtr().Pin())
+	if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = RowPtr->GetListViewPtr().Pin())
 	{
 		return PinnedListView->GetSearchTextFromSearchInputField();
 	}

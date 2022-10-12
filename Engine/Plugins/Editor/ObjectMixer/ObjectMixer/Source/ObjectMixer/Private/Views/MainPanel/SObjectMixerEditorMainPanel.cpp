@@ -407,6 +407,22 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::BuildShowOptionsMenu()
 		}
 
 		ShowOptionsMenuBuilder.AddMenuEntry(
+			LOCTEXT("ClearSoloStatesMenuOption","Clear Solo States"), 
+			LOCTEXT("ClearSoloStatesMenuOptionTooltip","Remove the solo state from all rows in this list."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda(
+				[this]()
+				{
+					if (const TSharedPtr<FObjectMixerEditorList> ListModel = MainPanelModel.Pin()->GetEditorListModel().Pin())
+					{
+						ListModel->ClearSoloRows();
+						ListModel->EvaluateAndSetEditorVisibilityPerRow();
+					}
+				})
+			)
+		);
+
+		ShowOptionsMenuBuilder.AddMenuEntry(
 			LOCTEXT("RebuildListMenuOption","Rebuild List"), 
 			LOCTEXT("RebuildListMenuOptionTooltip","Force the active list to be rebuilt. Useful if the list doesn't automatically refresh."),
 			FSlateIcon(),

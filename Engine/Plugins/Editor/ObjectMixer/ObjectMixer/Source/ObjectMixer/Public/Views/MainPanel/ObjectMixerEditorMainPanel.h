@@ -111,38 +111,6 @@ public:
 	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetListFilters() const;
 	TArray<TWeakPtr<IObjectMixerEditorListFilter>> GetWeakActiveListFiltersSortedByName() const;
 
-	/**
-	 * Get the rows that have solo visibility. All other rows should be set to temporarily invisible in editor.
-	 */
-	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows()
-	{
-		return SoloRows;
-	}
-
-	/**
-	 * Add a row that has solo visibility. This does not set temporary editor invisibility for other rows.
-	 */
-	void AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
-	{
-		SoloRows.Add(InRow);
-	}
-
-	/**
-	 * Remove a row that does not have solo visibility. This does not set temporary editor invisibility for other rows.
-	 */
-	void RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
-	{
-		SoloRows.Remove(InRow);
-	}
-
-	/**
-	 * Clear the rows that have solo visibility. This does not remove temporary editor invisibility for other rows.
-	 */
-	void ClearSoloRows()
-	{
-		SoloRows.Empty();
-	}
-
 	TSubclassOf<UObjectMixerObjectFilter> GetObjectFilterClass() const
 	{
 		return ObjectFilterClass;
@@ -205,8 +173,6 @@ private:
 	 * Determines the style of the tree (flat list or hierarchy)
 	 */
 	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::Folders;
-
-	TSet<TWeakPtr<FObjectMixerEditorListRow>> SoloRows = {};
 
 	FName ModuleName = NAME_None;
 };

@@ -119,12 +119,17 @@ public:
 		return TreeViewRootObjects.Num();
 	}
 	
-	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows();
-
-	void AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
-	void RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
-
+	TSet<TWeakPtr<FObjectMixerEditorListRow>> GetSoloRows() const;
 	void ClearSoloRows();
+
+	/** Returns true if at least one row is set to Solo. */
+	bool IsListInSoloState() const;
+
+	/**
+	 * Determines whether rows' objects should be temporarily hidden in editor based on each row's visibility rules,
+	 * then sets each object's visibility in editor.
+	 */
+	void EvaluateAndSetEditorVisibilityPerRow();
 
 	FText GetSearchTextFromSearchInputField() const;
 	FString GetSearchStringFromSearchInputField() const;
@@ -245,6 +250,7 @@ protected:
 		FString RowName = "";
 		bool bIsExpanded = false;
 		bool bIsSelected = false;
+		FObjectMixerEditorListRow::FTransientEditorVisibilityRules VisibilityRules;
 	};
 
 	struct FFilterComboToStateCaches

@@ -112,27 +112,43 @@ void FObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefresh
 	}
 }
 
-TWeakPtr<FObjectMixerEditorMainPanel> FObjectMixerEditorList::GetMainPanelModel()
+TSet<TWeakPtr<FObjectMixerEditorListRow>> FObjectMixerEditorList::GetSoloRows() const
 {
-	return MainPanelModelPtr;
-}
-
-TSet<TWeakPtr<FObjectMixerEditorListRow>> FObjectMixerEditorList::GetSoloRows()
-{
-	return GetMainPanelModel().Pin()->GetSoloRows();
-}
-
-void FObjectMixerEditorList::AddSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
-{
-	GetMainPanelModel().Pin()->AddSoloRow(InRow);
-}
-
-void FObjectMixerEditorList::RemoveSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
-{
-	GetMainPanelModel().Pin()->RemoveSoloRow(InRow);
+	if (ListWidget.IsValid())
+	{
+		return ListWidget->GetSoloRows();
+	}
+	
+	return {};
 }
 
 void FObjectMixerEditorList::ClearSoloRows()
 {
-	GetMainPanelModel().Pin()->ClearSoloRows();
+	if (ListWidget.IsValid())
+	{
+		ListWidget->ClearSoloRows();
+	}
+}
+
+bool FObjectMixerEditorList::IsListInSoloState() const
+{
+	if (ListWidget.IsValid())
+	{
+		return ListWidget->IsListInSoloState();
+	}
+	
+	return false;
+}
+
+void FObjectMixerEditorList::EvaluateAndSetEditorVisibilityPerRow()
+{
+	if (ListWidget.IsValid())
+	{
+		ListWidget->EvaluateAndSetEditorVisibilityPerRow();
+	}
+}
+
+TWeakPtr<FObjectMixerEditorMainPanel> FObjectMixerEditorList::GetMainPanelModel()
+{
+	return MainPanelModelPtr;
 }

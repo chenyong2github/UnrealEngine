@@ -327,14 +327,27 @@ EVisibility FObjectMixerEditorListRow::GetDesiredRowWidgetVisibility() const
 
 bool FObjectMixerEditorListRow::HasVisibleChildRowWidgets() const
 {
-	if (ChildRows.Num() == 0)
-	{
-		return false;
-	}
-
-	for (const auto& ChildRow : ChildRows)
+	for (const FObjectMixerEditorListRowPtr& ChildRow : ChildRows)
 	{
 		if (ChildRow->ShouldRowWidgetBeVisible())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FObjectMixerEditorListRow::HasAtLeastOneChildThatIsNotSolo(const bool bRecursive) const
+{
+	for (const FObjectMixerEditorListRowPtr& ChildRow : ChildRows)
+	{
+		if (!ChildRow->GetRowSoloState())
+		{
+			return true;
+		}
+
+		if (bRecursive && ChildRow->HasAtLeastOneChildThatIsNotSolo())
 		{
 			return true;
 		}
@@ -418,14 +431,14 @@ const FSlateBrush* FObjectMixerEditorListRow::GetObjectIconBrush()
 	return nullptr;
 }
 
-bool FObjectMixerEditorListRow::GetObjectVisibility()
+bool FObjectMixerEditorListRow::GetCurrentEditorObjectVisibility()
 {
 	if (GetRowType() == EObjectMixerEditorListRowType::Folder)
 	{
 		// If any child returns true, the folder returns true
 		for (const FObjectMixerEditorListRowPtr& Child : GetChildRows())
 		{
-			if (Child->GetObjectVisibility())
+			if (Child->GetCurrentEditorObjectVisibility())
 			{
 				return true;
 			}
@@ -443,7 +456,7 @@ bool FObjectMixerEditorListRow::GetObjectVisibility()
 	return false;
 }
 
-void FObjectMixerEditorListRow::SetObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive)
+void FObjectMixerEditorListRow::SetCurrentEditorObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive)
 {
 	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 	{
@@ -453,27 +466,30 @@ void FObjectMixerEditorListRow::SetObjectVisibility(const bool bNewIsVisible, co
 		{
 			for (const FObjectMixerEditorListRowPtr& Child : GetChildRows())
 			{
-				Child->SetObjectVisibility(bNewIsVisible, true);
+				Child->SetCurrentEditorObjectVisibility(bNewIsVisible, true);
 			}
 		}
 	}
 }
 
-bool FObjectMixerEditorListRow::IsThisRowSolo()
+bool FObjectMixerEditorListRow::IsUserSetHiddenInEditor() const
 {
-	return GetListViewPtr().Pin()->GetSoloRows().Contains(SharedThis(this));
+	return VisibilityRules.bShouldBeHiddenInEditor;
+}
+
+void FObjectMixerEditorListRow::SetUserHiddenInEditor(const bool bNewHidden)
+{
+	VisibilityRules.bShouldBeHiddenInEditor = bNewHidden;
+}
+
+bool FObjectMixerEditorListRow::GetRowSoloState() const
+{
+	return VisibilityRules.bShouldBeSolo;
 }
 
 void FObjectMixerEditorListRow::SetRowSoloState(const bool bNewSolo)
 {
-	if (bNewSolo)
-	{
-		GetListViewPtr().Pin()->AddSoloRow(SharedThis(this));
-	}
-	else
-	{
-		GetListViewPtr().Pin()->RemoveSoloRow(SharedThis(this));
-	}
+	VisibilityRules.bShouldBeSolo = bNewSolo;
 }
 
 void FObjectMixerEditorListRow::ClearSoloRows() const
@@ -484,4 +500,14 @@ void FObjectMixerEditorListRow::ClearSoloRows() const
 FObjectMixerEditorListRowPtr FObjectMixerEditorListRow::GetAsShared()
 {
 	return SharedThis(this);
+}
+
+const FObjectMixerEditorListRow::FTransientEditorVisibilityRules& FObjectMixerEditorListRow::GetVisibilityRules() const
+{
+	return VisibilityRules;
+}
+
+void FObjectMixerEditorListRow::SetVisibilityRules(const FTransientEditorVisibilityRules& InVisibilityRules)
+{
+	VisibilityRules = InVisibilityRules;
 }

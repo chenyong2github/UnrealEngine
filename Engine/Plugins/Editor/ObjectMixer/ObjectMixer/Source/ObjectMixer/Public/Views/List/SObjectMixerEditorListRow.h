@@ -47,10 +47,12 @@ private:
 
 	FSlateColor GetVisibilityIconForegroundColor() const;
 	FSlateColor GetSoloIconForegroundColor() const;
+	void OnClickSoloIcon(const FObjectMixerEditorListRowPtr& RowPtr);
 	
 	/** Get the brush for this widget */
 	const FSlateBrush* GetVisibilityBrush() const;
 	const FSlateBrush* GetSoloBrush() const;
+	void OnClickVisibilityIcon(const FObjectMixerEditorListRowPtr& RowPtr);
 
 	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> RowPtr);
 

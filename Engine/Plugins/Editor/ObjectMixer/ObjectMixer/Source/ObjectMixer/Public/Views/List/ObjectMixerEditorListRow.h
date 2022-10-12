@@ -43,6 +43,22 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 		MatchingObject // The object that has the properties we wish to affect
 	};
 
+	struct FTransientEditorVisibilityRules
+	{
+		/**
+		 * If true, the user wants the row to be hidden temporarily in the editor.
+		 * This is transient visibility like the eye icon in the Scene Outliner, not the bVisible or bHiddenInGame properties.
+		 */
+		bool bShouldBeHiddenInEditor = false;
+
+		/**
+		 * If true, the user wants the row to have solo visibility. Multiple rows at once can be set to solo.
+		 * Solo rows' objects are exclusively visible,
+		 * so all other objects found in the panel will be invisible while at least one row is in a solo state.
+		 */
+		bool bShouldBeSolo = false;
+	};
+
 	~FObjectMixerEditorListRow();
 
 	bool operator==(const TSharedPtr<FObjectMixerEditorListRow>& Other) const
@@ -149,6 +165,8 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	[[nodiscard]] bool HasVisibleChildRowWidgets() const;
 
+	[[nodiscard]] bool HasAtLeastOneChildThatIsNotSolo(const bool bRecursive = true) const;
+
 	[[nodiscard]] FText GetDisplayName(const bool bIsHybridRow = false) const;
 
 	[[nodiscard]] const FText& GetDisplayNameOverride() const
@@ -175,10 +193,16 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	const FSlateBrush* GetObjectIconBrush();
 
-	bool GetObjectVisibility();
-	void SetObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive = false);
+	bool GetCurrentEditorObjectVisibility();
+	void SetCurrentEditorObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive = false);
+	
+	[[nodiscard]] const FTransientEditorVisibilityRules& GetVisibilityRules() const;
+	void SetVisibilityRules(const FTransientEditorVisibilityRules& InVisibilityRules);
 
-	bool IsThisRowSolo();
+	bool IsUserSetHiddenInEditor() const;
+	void SetUserHiddenInEditor(const bool bNewHidden);
+	
+	bool GetRowSoloState() const;
 	void SetRowSoloState(const bool bNewSolo);
 
 	void ClearSoloRows() const;
@@ -195,6 +219,8 @@ private:
 	TArray<FObjectMixerEditorListRowPtr> ChildRows;
 	
 	TWeakPtr<SObjectMixerEditorList> ListViewPtr;
+
+	FTransientEditorVisibilityRules VisibilityRules;
 
 	FText DisplayNameOverride;
 
