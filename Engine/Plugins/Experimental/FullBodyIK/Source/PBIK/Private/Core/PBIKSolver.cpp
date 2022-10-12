@@ -752,7 +752,9 @@ PBIK::FBoneSettings* FPBIKSolver::GetBoneSettings(const int32 Index)
 
 	if (!Bones[Index].Body)
 	{
-		UE_LOG(LogPBIKSolver, Warning, TEXT("PBIK: trying to apply Bone Settings to bone, %s, that is not simulated (not between root and effector)."), *Bones[Index].Name.ToString());
+		// Bone is not part of the simulation. This happens if the bone is not located between an effector and the
+		// root of the solver. Not necessarily an error, as some systems dynamically disable effectors which can leave
+		// orphaned Bone Settings, so we simply ignore them.
 		return nullptr;
 	}
 
