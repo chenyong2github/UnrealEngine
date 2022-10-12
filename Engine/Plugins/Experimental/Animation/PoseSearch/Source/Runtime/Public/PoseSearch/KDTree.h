@@ -17,7 +17,7 @@ struct POSESEARCH_API FKDTree
 	struct DataSource
 	{
 		DataSource(int32 pointCount, int32 pointDim, const float* data)
-		: PointCount(pointCount)
+		: PointCount(pointDim > 0 ? pointCount : 0)
 		, PointDim(pointDim)
 		, Data(data)
 		{

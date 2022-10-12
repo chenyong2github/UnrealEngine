@@ -307,9 +307,6 @@ namespace UE::PoseSearch
 		Ar << Index.Mean;
 		Ar << Index.PCAProjectionMatrix;
 
-		check(Index.PCAProjectionMatrix.Num() > 0 && Index.Mean.Num() > 0);
-		check(Index.PCAProjectionMatrix.Num() % Index.Mean.Num() == 0);
-		const int NumberOfPrincipalComponents = Index.PCAProjectionMatrix.Num() / Index.Mean.Num();
 		Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
 
 		return Ar;
