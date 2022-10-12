@@ -15,6 +15,13 @@ UE::Net::CreateAndRegisterReplicationFragmentFunc FastArrayType::GetFastArrayCre
 	return CreateFastArrayReplicationFragmentFunction; \
 }
 
+#define UE_NET_IMPLEMENT_FASTARRAY_STUB(FastArrayType) \
+UE::Net::CreateAndRegisterReplicationFragmentFunc FastArrayType::GetFastArrayCreateReplicationFragmentFunction() \
+{ \
+	return nullptr; \
+}
+
 #else
 #define UE_NET_IMPLEMENT_FASTARRAY(...)
+#define UE_NET_IMPLEMENT_FASTARRAY_STUB(...)
 #endif

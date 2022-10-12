@@ -13199,6 +13199,15 @@ namespace UE::Private
 				});
 		}
 
+		// Only use Iris if the module is loaded (this happens automatically if the Iris plugin is enabled)
+		if (IrisConfig && IrisConfig->bEnableIris)
+		{
+			if (!ensureMsgf(FModuleManager::Get().IsModuleLoaded("IrisCore"), TEXT("%s is not using Iris because the IrisCore module isn't loaded. Check whether the Iris plugin is enabled."), *InNetDriverName.ToString()))
+			{
+				return false;
+			}
+		}
+
 		return IrisConfig ? IrisConfig->bEnableIris : false;
 #else
 		return false;

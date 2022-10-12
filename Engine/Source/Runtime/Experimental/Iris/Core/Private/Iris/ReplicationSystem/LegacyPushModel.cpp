@@ -17,7 +17,7 @@ namespace UE::Net::Private
 {
 
 bool bIsIrisPushModelForceEnabled = false;
-int IrisPushModelMode = 1;
+int IrisPushModelMode = 2;
 static FAutoConsoleVariableRef CVarIrisPushModelMode(
 		TEXT("net.Iris.PushModelMode"),
 		IrisPushModelMode,

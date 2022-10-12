@@ -1327,6 +1327,7 @@ namespace UnrealBuildTool
 			if (Target.bUseIris == true)
 			{
 				PublicDefinitions.Add("UE_WITH_IRIS=1");
+				PrivateDefinitions.Add("UE_NET_HAS_IRIS_FASTARRAY_BINDING=1");
 
 				if (bAddAsPublicDependency)
 				{

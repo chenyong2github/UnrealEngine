@@ -3636,7 +3636,13 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		if (bGenerateFastArraySerializerTypeDefinition)
 		{
 			OutFlags |= EExportClassOutFlags::NeedsFastArrayHeaders;
-			Out.Logf(TEXT("UE_NET_IMPLEMENT_FASTARRAY(%s);\r\n"), *StructNameCPP);
+			// The preprocessor conditional is written here instead of in FastArraySerializerImplementation.h
+			// since it may evaluate differently in different modules, triggering warnings in IncludeTool.
+			Out.Logf(TEXT("#if defined(UE_NET_HAS_IRIS_FASTARRAY_BINDING) && UE_NET_HAS_IRIS_FASTARRAY_BINDING\r\n"));
+			Out.Logf(TEXT("\tUE_NET_IMPLEMENT_FASTARRAY(%s);\r\n"), *StructNameCPP);
+			Out.Logf(TEXT("#else\r\n"));
+			Out.Logf(TEXT("\tUE_NET_IMPLEMENT_FASTARRAY_STUB(%s);\r\n"), *StructNameCPP);
+			Out.Logf(TEXT("#endif\r\n"));
 		}
 	}
 

@@ -597,7 +597,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				// Inject implementation needed to support auto bindings of fast arrays
 				if (ObjectInfos[scriptStruct.ObjectTypeIndex].FastArrayProperty != null)
 				{
-					builder.Append("UE_NET_IMPLEMENT_FASTARRAY(").Append(scriptStruct.SourceName).Append(");\r\n");
+					// The preprocessor conditional is written here instead of in FastArraySerializerImplementation.h
+					// since it may evaluate differently in different modules, triggering warnings in IncludeTool.
+					builder.Append("#if defined(UE_NET_HAS_IRIS_FASTARRAY_BINDING) && UE_NET_HAS_IRIS_FASTARRAY_BINDING\r\n");
+					builder.Append("\tUE_NET_IMPLEMENT_FASTARRAY(").Append(scriptStruct.SourceName).Append(");\r\n");
+					builder.Append("#else\r\n");
+					builder.Append("\tUE_NET_IMPLEMENT_FASTARRAY_STUB(").Append(scriptStruct.SourceName).Append(");\r\n");
+					builder.Append("#endif\r\n");
 				}
 			}
 
