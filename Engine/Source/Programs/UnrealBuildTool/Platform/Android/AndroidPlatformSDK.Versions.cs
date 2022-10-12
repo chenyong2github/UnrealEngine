@@ -8,18 +8,18 @@ namespace UnrealBuildTool
 	{
 		public override string GetMainVersion()
 		{
-			return "r21e";
+			return "r25b";
 		}
 		
 		public override string GetAutoSDKDirectoryForMainVersion()
 		{
-			return "-24";
+			return "-25";
 		}
 
 		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			MinVersion = "r21a";
-			MaxVersion = "r25";
+			MaxVersion = "r25b";
 		}
 
 		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
@@ -31,10 +31,10 @@ namespace UnrealBuildTool
 		{
 			switch (VersionType.ToLower())
 			{
-				case "platforms": return "android-28";
-				case "build-tools": return "28.0.3";
+				case "platforms": return "android-32";
+				case "build-tools": return "30.0.3";
 				case "cmake": return "3.10.2.4988404";
-				case "ndk": return "21.4.7075529";
+				case "ndk": return "25.1.8937393";
 			}
 
 			return "";

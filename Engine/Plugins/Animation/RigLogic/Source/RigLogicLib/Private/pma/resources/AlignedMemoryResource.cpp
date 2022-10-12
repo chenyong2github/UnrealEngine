@@ -13,7 +13,10 @@
     #include <malloc.h>
 #endif
 
-#if defined(__cplusplus) && (__cplusplus >= 201703L) && (defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) || \
+#if defined(__ANDROID__)
+    #define ALIGNED_ALLOC(ptr, alignment, size) ptr = ::memalign(alignment, size)
+    #define ALIGNED_FREE(ptr) ::free(ptr)
+#elif defined(__cplusplus) && (__cplusplus >= 201703L) && (defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) || \
     defined(_LIBCPP_HAS_ALIGNED_ALLOC) || defined(_LIBCPP_HAS_C11_FEATURES))
     #define ALIGNED_ALLOC(ptr, alignment, size) ptr = std::aligned_alloc(alignment, size)
     #define ALIGNED_FREE(ptr) std::free(ptr)
@@ -24,9 +27,6 @@
 #elif defined(_MSC_VER)
     #define ALIGNED_ALLOC(ptr, alignment, size) ptr = _aligned_malloc(size, alignment)
     #define ALIGNED_FREE(ptr) _aligned_free(ptr)
-#elif defined(__ANDROID__)
-    #define ALIGNED_ALLOC(ptr, alignment, size) ptr = ::memalign(alignment, size)
-    #define ALIGNED_FREE(ptr) ::free(ptr)
 #else
     inline std::uintptr_t alignAddress(std::uintptr_t address, std::size_t alignment) {
         const std::size_t mask = alignment - 1ul;

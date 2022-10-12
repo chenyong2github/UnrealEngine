@@ -17,10 +17,10 @@ SET CMAKE_VERSION=%3
 SET NDK_VERSION=%4
 
 rem hardcoded versions for compatibility with non-Turnkey manual running
-if "%PLATFORMS_VERSION%" == "" SET PLATFORMS_VERSION=android-30
+if "%PLATFORMS_VERSION%" == "" SET PLATFORMS_VERSION=android-32
 if "%BUILDTOOLS_VERSION%" == "" SET BUILDTOOLS_VERSION=30.0.3
 if "%CMAKE_VERSION%" == "" SET CMAKE_VERSION=3.10.2.4988404
-if "%NDK_VERSION%" == "" SET NDK_VERSION=21.4.7075529
+if "%NDK_VERSION%" == "" SET NDK_VERSION=25.1.8937393
 
 
 FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_PATH=%%B)
