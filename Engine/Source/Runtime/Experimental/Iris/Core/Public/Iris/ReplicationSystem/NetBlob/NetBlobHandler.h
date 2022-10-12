@@ -39,7 +39,7 @@ public:
  * @see UReplicationSystem::RegisterNetBlobHandler
  * @note Certain handlers such as NetRPCHandler, PartialNetObjectAttachmentHandler and NetObjectBlobHandler will be registered automatically.
  */
-UCLASS(transient, MinimalApi)
+UCLASS(transient, MinimalApi, Abstract)
 class UNetBlobHandler : public UObject, public INetBlobReceiver
 {
 	GENERATED_BODY()

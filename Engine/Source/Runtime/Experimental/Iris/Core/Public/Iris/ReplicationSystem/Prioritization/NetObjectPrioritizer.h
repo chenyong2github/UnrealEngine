@@ -138,7 +138,7 @@ struct FNetObjectPrioritizerUpdateParams
  * object to still not be replicated to a particular connection a certain frame. There is no mechanism to force an object to be replicated a 
  * certain frame, but the priority is a major factor in the decision.
  */
-UCLASS()
+UCLASS(Abstract)
 class UNetObjectPrioritizer : public UObject
 {
 	GENERATED_BODY()

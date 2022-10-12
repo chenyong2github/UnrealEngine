@@ -83,7 +83,7 @@ private:
 		// Multicast
 		void Enqueue(FInternalNetHandle OwnerIndex, FInternalNetHandle SubObjectIndex, const TRefCountPtr<FNetObjectAttachment>& Attachment);
 
-		void PrepareProcessQueue(FReplicationConnections* InConnections, const FNetHandleManager* NetHandleManager);
+		void PrepareProcessQueue(FReplicationConnections* InConnections, const FNetHandleManager* InNetHandleManager);
 		void ProcessQueue(EProcessMode ProcessMode);
 		void ResetProcessQueue();
 	

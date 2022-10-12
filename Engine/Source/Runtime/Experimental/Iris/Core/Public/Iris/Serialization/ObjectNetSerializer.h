@@ -3,7 +3,7 @@
 #pragma once
 
 #include "NetSerializer.h"
-#include "Iris/ReplicationSystem//NetHandle.h"
+#include "Iris/ReplicationSystem/NetHandle.h"
 #include "UObject/ObjectMacros.h"
 
 #include "ObjectNetSerializer.generated.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Iris/ReplicationSystem/ReplicationFragment.h"
-
 #pragma once
+
+#include "Iris/ReplicationSystem/ReplicationFragment.h"
 
 namespace UE::Net::Private
 {

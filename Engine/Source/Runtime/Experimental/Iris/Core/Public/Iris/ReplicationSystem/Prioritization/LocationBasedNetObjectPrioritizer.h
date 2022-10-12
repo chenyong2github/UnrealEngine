@@ -13,7 +13,7 @@ namespace UE::Net
 	class FWorldLocations;
 }
 
-UCLASS(Transient, MinimalAPI)
+UCLASS(Transient, MinimalAPI, Abstract)
 class ULocationBasedNetObjectPrioritizer : public UNetObjectPrioritizer
 {
 	GENERATED_BODY()

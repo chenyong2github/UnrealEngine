@@ -339,7 +339,7 @@ void FNetBlobManager::FNetObjectAttachmentSendQueue::Enqueue(FInternalNetHandle 
 	bHasMulticastAttachments = true;
 }
 
-void FNetBlobManager::FNetObjectAttachmentSendQueue::PrepareProcessQueue(FReplicationConnections* InConnections, const FNetHandleManager* NetHandleManager)
+void FNetBlobManager::FNetObjectAttachmentSendQueue::PrepareProcessQueue(FReplicationConnections* InConnections, const FNetHandleManager* InNetHandleManager)
 {
 	if (ProcessContext.IsValid())
 	{
@@ -347,7 +347,7 @@ void FNetBlobManager::FNetObjectAttachmentSendQueue::PrepareProcessQueue(FReplic
 	}
 
 	ProcessContext.Connections = InConnections;
-	ProcessContext.NetHandleManager = NetHandleManager;
+	ProcessContext.NetHandleManager = InNetHandleManager;
 
 	ProcessContext.AttachmentsToObjectsGoingOutOfScope.Init(AttachmentQueue.Num());
 	ProcessContext.AttachmentsToObjectsInScope.Init(AttachmentQueue.Num());
@@ -367,8 +367,8 @@ void FNetBlobManager::FNetObjectAttachmentSendQueue::PrepareProcessQueue(FReplic
 	}
 
 	// Figure out if we have any attachments to objects going out of scope.
-	const FNetBitArray& ScopableObjects = NetHandleManager->GetScopableInternalIndices();
-	const FNetBitArray& PrevScopableObjects = NetHandleManager->GetPrevFrameScopableInternalIndices();
+	const FNetBitArray& ScopableObjects = InNetHandleManager->GetScopableInternalIndices();
+	const FNetBitArray& PrevScopableObjects = InNetHandleManager->GetPrevFrameScopableInternalIndices();
 	
 	uint32 CurrentEntryIndex = 0U;
 	for (const FNetObjectAttachmentQueueEntry& Entry : MakeArrayView(AttachmentQueue))

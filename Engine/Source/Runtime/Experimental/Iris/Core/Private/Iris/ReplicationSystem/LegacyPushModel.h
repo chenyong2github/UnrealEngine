@@ -83,7 +83,7 @@ private:
 namespace UE::Net::Private
 {
 
-inline constexpr bool IsIrisPushModelEnabled(bool bIsPushModelEnabled = false) { return false; }
+inline constexpr bool IsIrisPushModelEnabled(bool /* bIsPushModelEnabled */ = false) { return false; }
 
 }
 

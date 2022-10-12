@@ -164,7 +164,7 @@ struct FNetObjectFilterUpdateParams
 	FNetObjectFilteringInfo* FilteringInfos;
 };
 
-UCLASS()
+UCLASS(Abstract)
 class UNetObjectFilter : public UObject
 {
 	GENERATED_BODY()
