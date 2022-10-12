@@ -253,6 +253,9 @@ FEditableTextBoxStyle::FEditableTextBoxStyle()
 	, BackgroundImageFocused()
 	, BackgroundImageReadOnly()
 	, Padding(FMargin(4.0f, 2.0f))
+#if WITH_EDITORONLY_DATA
+	, Font_DEPRECATED(FStyleDefaults::GetFontInfo(9))
+#endif
 	, TextStyle(FTextBlockStyle().SetFont(FStyleDefaults::GetFontInfo(9))
 				.SetColorAndOpacity(FSlateColor::UseForeground())
 				.SetSelectedBackgroundColor(FStyleColors::Highlight)
