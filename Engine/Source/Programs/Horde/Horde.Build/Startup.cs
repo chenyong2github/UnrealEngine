@@ -1007,6 +1007,16 @@ namespace Horde.Build
 					return LogEventLevel.Debug;
 				}
 
+				if (requestPath.StartsWith("/health", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Debug;
+				}
+
+				if (requestPath.StartsWith("/grpc.health", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Debug;
+				}
+
 				if (requestPath.StartsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
 				{
 					return LogEventLevel.Debug;
