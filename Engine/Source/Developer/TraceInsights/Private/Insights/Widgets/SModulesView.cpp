@@ -6,15 +6,14 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
 #include "Textures/SlateIcon.h"
+#include "TraceServices/Model/Modules.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 // Insights
-//#include "Insights/InsightsManager.h"
 #include "DesktopPlatformModule.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
-#include "Model/ModuleProvider.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
