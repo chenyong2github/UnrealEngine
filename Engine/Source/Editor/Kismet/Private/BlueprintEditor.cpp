@@ -4055,6 +4055,13 @@ void FBlueprintEditor::Compile()
 			CompileOptions |= (EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing | EBlueprintCompileOptions::SkipNewVariableDefaultsDetection);
 		}
 
+		// If compilation is enabled during PIE/simulation, references to the CDO might be held by a script variable.
+		// Thus, we set the flag to direct the compiler to allow those references to be replaced during reinstancing.
+		if (IsPlayInEditorActive())
+		{
+			CompileOptions |= EBlueprintCompileOptions::IncludeCDOInReferenceReplacement;
+		}
+
 		FKismetEditorUtilities::CompileBlueprint(BlueprintObj, CompileOptions, &LogResults);
 
 		LogResults.EndEvent();

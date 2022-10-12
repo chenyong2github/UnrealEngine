@@ -1585,14 +1585,12 @@ namespace ObjectTools
 						UClass* OldClass = BlueprintToConsolidate->GeneratedClass;
 						UClass* OldSkeletonClass = BlueprintToConsolidate->SkeletonGeneratedClass;
 
-						FReplaceInstancesOfClassParameters ReplaceInstanceParams = FReplaceInstancesOfClassParameters(OldClass, BlueprintToConsolidateTo->GeneratedClass);
-						ReplaceInstanceParams.OriginalCDO = nullptr;
+						FReplaceInstancesOfClassParameters ReplaceInstanceParams;
 						ReplaceInstanceParams.ObjectsThatShouldUseOldStuff = &ObjectsToNotConsolidateWithin;
-						ReplaceInstanceParams.bClassObjectReplaced = true;
 						ReplaceInstanceParams.bPreserveRootComponent = true;
 						ReplaceInstanceParams.InstancesThatShouldUseOldClass = &ObjectsToNotConsolidateWithin;
 
-						FBlueprintCompileReinstancer::ReplaceInstancesOfClassEx(ReplaceInstanceParams);
+						FBlueprintCompileReinstancer::ReplaceInstancesOfClass(OldClass, BlueprintToConsolidateTo->GeneratedClass, ReplaceInstanceParams);
 						BlueprintToConsolidate->GeneratedClass = OldClass;
 						BlueprintToConsolidate->SkeletonGeneratedClass = OldSkeletonClass;
 					}

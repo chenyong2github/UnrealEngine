@@ -58,6 +58,8 @@ enum class EBlueprintCompileOptions
 	UseDeltaSerializationDuringReinstancing = 0x400,
 	/** Skips the new variable defaults detection - in some cases we do not want to use the defaults from the generated class such as during a reparent */
 	SkipNewVariableDefaultsDetection = 0x800,
+	/** Directs reinstancing to find and replace external references to the regenerated CDO during reference replacement - in general, this is not needed */
+	IncludeCDOInReferenceReplacement = 0x1000,
 };
 
 ENUM_CLASS_FLAGS(EBlueprintCompileOptions)

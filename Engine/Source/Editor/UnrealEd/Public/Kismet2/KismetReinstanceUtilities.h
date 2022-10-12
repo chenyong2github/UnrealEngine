@@ -39,41 +39,67 @@ public:
 
 struct UNREALED_API FReplaceInstancesOfClassParameters
 {
-	FReplaceInstancesOfClassParameters(UClass* InOldClass, UClass* InNewClass);
+	FReplaceInstancesOfClassParameters() = default;
+
+	UE_DEPRECATED(5.2, "Please use the default constructor instead.")
+	FReplaceInstancesOfClassParameters(UClass* InOldClass, UClass* InNewClass) {}
 
 	/** The old class, instances of which will be replaced */
-	UClass* OldClass;
+	UE_DEPRECATED(5.2, "This member is no longer in use.")
+	UClass* OldClass = nullptr;
 
 	/** The new class, used to create new instances to replace instances of the old class */
-	UClass* NewClass;
+	UE_DEPRECATED(5.2, "This member is no longer in use.")
+	UClass* NewClass = nullptr;
 
-	/** OriginalCDO, use if OldClass->ClassDefaultObject has been overwritten */
-	UObject* OriginalCDO; 
+	/** OriginalCDO, use if OldClass->ClassDefaultObject has been overwritten (non-batch only, legacy) */
+	UObject* OriginalCDO = nullptr; 
 
 	/** Set of objects that should not have their references updated if they refer to instances that are replaced */
-	TSet<UObject*>* ObjectsThatShouldUseOldStuff;
+	TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr;
 
 	/** Set of objects for which new objects should not be created, useful if client has created new instances themself */
-	const TSet<UObject*>* InstancesThatShouldUseOldClass;
-
-	/** Set to true if class object has been replaced*/
-	bool bClassObjectReplaced; 
-
-	/** Defaults to true, indicates whether root component should be preserved */
-	bool bPreserveRootComponent; 
-};
-
-struct UNREALED_API FBatchReplaceInstancesOfClassParameters
-{
-	TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr;
-	
 	const TSet<UObject*>* InstancesThatShouldUseOldClass = nullptr;
 
-	bool bArchetypesAreUpToDate = false; 
-	
-	/** 
-	 * Blueprints reuses its UClass* from compile to compile, but it's more 
-	 * intuitive to just replace a UClass* with a new instance (e.g. from a 
+	/** Set to true if class object has been replaced (non-batch only, legacy) */
+	bool bClassObjectReplaced = false; 
+
+	/** Defaults to true, indicates whether root components should be preserved */
+	bool bPreserveRootComponent = true;
+
+	bool bArchetypesAreUpToDate = false;
+
+	/**
+	 * Blueprints reuses its UClass* from compile to compile, but it's more
+	 * intuitive to just replace a UClass* with a new instance (e.g. from a
+	 * package reload). This flag tells the reinstancer to replace references
+	 * to old classes with references to new classes.
+	 */
+	bool bReplaceReferencesToOldClasses = false;
+
+	/**
+	 * Indicates whether CDOs should be included in reference replacement.
+	 * Disabled by default since this can increase search cost, because this
+	 * effectively means replacement will require us to do a referencer search
+	 * for at least one instance of every remapped class (i.e. - the CDO). In
+	 * most cases (e.g. load time), incurring this cost is unnecessary because
+	 * the CDO is not expected to be referenced outside of its own class type,
+	 * so we treat it as an opt-in behavior rather than enabling it by default.
+	 * 
+	 * Note: This flag is implied to be 'true' if 'OriginalCDO' is non-NULL. In
+	 * that case, the value of this flag will not be used in order to maintain
+	 * backwards-compatibility with existing code paths.
+	 */
+	bool bReplaceReferencesToOldCDOs = false;
+};
+
+struct UNREALED_API UE_DEPRECATED(5.2, "This type is no longer in use.") FBatchReplaceInstancesOfClassParameters
+{
+	bool bArchetypesAreUpToDate = false;
+
+	/**
+	 * Blueprints reuses its UClass* from compile to compile, but it's more
+	 * intuitive to just replace a UClass* with a new instance (e.g. from a
 	 * package reload). This flag tells the reinstancer to replace references
 	 * to old classes with references to new classes.
 	 */
@@ -171,12 +197,23 @@ public:
 	/** Consumes the set and map populated by calls to UpdateBytecodeReferences */
 	static void FinishUpdateBytecodeReferences( const TSet<UBlueprint*>& DependentBPs, const TMap<FFieldVariant, FFieldVariant>& FieldMappings);
 
-	/** Worker function to replace all instances of OldClass with a new instance of NewClass */
+	// @todo_deprecated - To be removed in a future release.
+	UE_DEPRECATED(5.2, "Please use the version that takes an FReplaceInstancesOfClassParameters input instead.")
 	static void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, UObject* OriginalCDO = nullptr, TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true);
+	UE_DEPRECATED(5.2, "Please use ReplaceInstancesOfClass() instead.")
 	static void ReplaceInstancesOfClassEx(const FReplaceInstancesOfClassParameters& Parameters );
+	UE_DEPRECATED(5.2, "Please use the version that takes an FReplaceInstancesOfClassParameters input instead.")
+	static void BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const FBatchReplaceInstancesOfClassParameters& BatchParams = FBatchReplaceInstancesOfClassParameters()
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	);
 
-	/** Batch replaces a mapping of one or more classes to their new class by leveraging ReplaceInstancesOfClass */
-	static void BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap, const FBatchReplaceInstancesOfClassParameters& Options = FBatchReplaceInstancesOfClassParameters());
+	/** Replace all instances of OldClass with a new instance of NewClass */
+	static void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, const FReplaceInstancesOfClassParameters& Params);
+
+	/** Batch replaces a mapping of one or more classes to their new class */
+	static void BatchReplaceInstancesOfClass(const TMap<UClass*, UClass*>& InOldToNewClassMap, const FReplaceInstancesOfClassParameters& Params);
 	
 	/** Function used to safely discard a CDO, so that the class can have its layout changed, callers must move parent CDOs aside before moving child CDOs aside: */
 	static UClass* MoveCDOToNewClass(UClass* OwnerClass, const TMap<UClass*, UClass*>& OldToNewMap, bool bAvoidCDODuplication);
@@ -261,7 +298,7 @@ protected:
 
 private:
 	/** Handles the work of ReplaceInstancesOfClass, handling both normal replacement of instances and batch */
-	static void ReplaceInstancesOfClass_Inner(TMap<UClass*, UClass*>& InOldToNewClassMap, UObject* InOriginalCDO, TSet<UObject*>* ObjectsThatShouldUseOldStuff = NULL, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true, bool bArchetypesAreUpToDate = false, const TSet<UObject*>* InstancesThatShouldUseOldClass = nullptr, bool bReplaceReferencesToOldClasses = false);
+	static void ReplaceInstancesOfClass_Inner(const TMap<UClass*, UClass*>& InOldToNewClassMap, const FReplaceInstancesOfClassParameters& Params);
 
 	/** Returns true if A is higher up the class hierarchy  */
 	static bool ReinstancerOrderingFunction(UClass* A, UClass* B);

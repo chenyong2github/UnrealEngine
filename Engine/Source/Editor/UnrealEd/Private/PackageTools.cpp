@@ -1073,9 +1073,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 							);
 
 							TSet<UObject*> InstancesToLeaveAlone(OldInstances);
-							FReplaceInstancesOfClassParameters ReplaceInstancesParameters(OldBlueprint->GeneratedClass, CastChecked<UBlueprint>(NewObject)->GeneratedClass);
+							FReplaceInstancesOfClassParameters ReplaceInstancesParameters;
 							ReplaceInstancesParameters.InstancesThatShouldUseOldClass = &InstancesToLeaveAlone;
-							FBlueprintCompileReinstancer::ReplaceInstancesOfClassEx(ReplaceInstancesParameters);
+							FBlueprintCompileReinstancer::ReplaceInstancesOfClass(OldBlueprint->GeneratedClass, CastChecked<UBlueprint>(NewObject)->GeneratedClass, ReplaceInstancesParameters);
 						}
 						else
 						{
