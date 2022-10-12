@@ -5,6 +5,7 @@
 #include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CapsuleConvexContactPoint.h"
+#include "Chaos/Collision/CapsuleTriangleContactPoint.h"
 #include "Chaos/Collision/ContactPointsMiscShapes.h"
 #include "Chaos/Collision/ContactTriangles.h"
 #include "Chaos/Collision/SphereConvexContactPoint.h"
@@ -38,6 +39,8 @@ namespace Chaos
 
 	extern bool bChaos_Collision_OneSidedTriangleMesh;
 	extern bool bChaos_Collision_OneSidedHeightField;
+
+	extern bool bChaos_Collision_UseCapsuleTriMesh2;
 
 	namespace Collisions
 	{
@@ -622,9 +625,16 @@ namespace Chaos
 		}
 
 		template<>
-		void GenerateConvexTriangleOneShotManifold<FCapsule>(const FCapsule& Convex, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
+		void GenerateConvexTriangleOneShotManifold<FCapsule>(const FCapsule& Capsule, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
 		{
-			ConstructCapsuleTriangleOneShotManifold(Convex, Triangle, CullDistance, OutContactPoints);
+			if (bChaos_Collision_UseCapsuleTriMesh2)
+			{
+				ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, OutContactPoints);
+			}
+			else
+			{
+				ConstructCapsuleTriangleOneShotManifold(Capsule, Triangle, CullDistance, OutContactPoints);
+			}
 		}
 
 		/**
@@ -640,7 +650,6 @@ namespace Chaos
 		template<typename ConvexType, typename MeshType>
 		void GenerateConvexMeshContactPoints(const ConvexType& Convex, const MeshType& Mesh, const FAABB3& MeshQueryBounds, const FRigidTransform3& MeshToConvexTransform, const FReal CullDistance, FContactTriangleCollector& MeshContacts)
 		{
-			FContactTriangles ContactTriangles;
 			TCArray<FContactPoint, 4> TriangleManifoldPoints;
 
 			// Loop over all the triangles, build a manifold and add the points to the total manifold
@@ -659,7 +668,7 @@ namespace Chaos
 				}
 			});
 
-			// Reduce contacts to a minimum manifold abd transform contact data back into shape-local space
+			// Reduce contacts to a minimum manifold and transform contact data back into shape-local space
 			MeshContacts.ProcessContacts(MeshToConvexTransform);
 		}
 

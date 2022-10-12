@@ -542,10 +542,15 @@ namespace Chaos
 			const int32 DrawPriority = 10;
 			for (const FTriangleContactPoint& ContactPoint : TriangleContactPoints)
 			{
+				const FVec3 P0 = ConvexTransform.TransformPosition(ContactPoint.ShapeContactPoints[0]);
 				const FVec3 P1 = ConvexTransform.TransformPosition(ContactPoint.ShapeContactPoints[1]);
 				const FVec3 N = ConvexTransform.TransformVectorNoScale(ContactPoint.ShapeContactNormal);
 
+				// Draw the normal from the triangle face
 				FDebugDrawQueue::GetInstance().DrawDebugLine(P1, P1 + FReal(15) * N, Color, false, FRealSingle(Duration), DrawPriority, FRealSingle(LineThickness));
+
+				// Draw a thin black line connecting the two contact points (triangle face to convex surface)
+				FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, FColor::Black, false, FRealSingle(Duration), DrawPriority, 0.5f * FRealSingle(LineThickness));
 			}
 		}
 #endif
