@@ -671,13 +671,9 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	FText Category;
 
-	/** Internal: The thumbnail image.*/
+	///** Internal: The thumbnail image.*/
 	UPROPERTY()
 	TObjectPtr<UTexture2D> ThumbnailImage;
-
-	/** Internal: Indicates the thumbnail image is out of date.*/
-	UPROPERTY()
-	uint32 ThumbnailImageOutOfDate : 1;
 	
 	/** If this emitter is exposed to the library, or should be explicitly hidden. */
     UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)

@@ -14,33 +14,21 @@ bool UNiagaraThumbnailRendererBase::CanVisualizeAsset(UObject* Object)
 
 void UNiagaraThumbnailRendererBase::GetThumbnailSize(UObject* Object, float Zoom, uint32& OutWidth, uint32& OutHeight) const
 {
-	UTexture2D* ObjectTexture = GetThumbnailTextureFromObject(Object);
-	if (ObjectTexture != nullptr)
-	{
-		OutWidth = Zoom * ObjectTexture->GetSizeX();
-		OutHeight = Zoom * ObjectTexture->GetSizeY();
-	}
-	else
-	{
-		OutWidth = 0;
-		OutHeight = 0;
-	}
+	Super::GetThumbnailSize(GetThumbnailTextureFromObject(Object), Zoom, OutWidth, OutHeight);
 }
 
 void UNiagaraThumbnailRendererBase::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
-	UTexture2D* ObjectTexture = GetThumbnailTextureFromObject(Object);
-	if (ObjectTexture != nullptr)
-	{
-		Super::Draw(ObjectTexture, X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
-	}
+	Super::Draw(GetThumbnailTextureFromObject(Object), X, Y, Width, Height, RenderTarget, Canvas, bAdditionalViewFamily);
 }
 
 UTexture2D* UNiagaraEmitterThumbnailRenderer::GetThumbnailTextureFromObject(UObject* Object) const
 {
 	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Object);
-	if (Emitter != nullptr)
+	if (Emitter && Emitter->ThumbnailImage)
 	{
+		Emitter->ThumbnailImage->FinishCachePlatformData();
+		Emitter->ThumbnailImage->UpdateResource();
 		return Emitter->ThumbnailImage;
 	}
 	return nullptr;
@@ -49,8 +37,10 @@ UTexture2D* UNiagaraEmitterThumbnailRenderer::GetThumbnailTextureFromObject(UObj
 UTexture2D* UNiagaraSystemThumbnailRenderer::GetThumbnailTextureFromObject(UObject* Object) const
 {
 	UNiagaraSystem* System = Cast<UNiagaraSystem>(Object);
-	if (System != nullptr)
+	if (System && System->ThumbnailImage)
 	{
+		System->ThumbnailImage->FinishCachePlatformData();
+		System->ThumbnailImage->UpdateResource();
 		return System->ThumbnailImage;
 	}
 	return nullptr;

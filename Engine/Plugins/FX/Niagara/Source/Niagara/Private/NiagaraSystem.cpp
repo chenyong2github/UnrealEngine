@@ -324,9 +324,6 @@ bool UNiagaraSystem::ChangeEmitterVersion(const FVersionedNiagaraEmitter& Versio
 void UNiagaraSystem::PostInitProperties()
 {
 	Super::PostInitProperties();
-#if WITH_EDITORONLY_DATA
-	ThumbnailImageOutOfDate = true;
-#endif
 	if (HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
 	{
 		SystemSpawnScript = NewObject<UNiagaraScript>(this, "SystemSpawnScript", RF_Transactional);
@@ -768,8 +765,6 @@ void UNiagaraSystem::PreEditChange(FProperty* PropertyThatWillChange)
 void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	ThumbnailImageOutOfDate = true;
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{

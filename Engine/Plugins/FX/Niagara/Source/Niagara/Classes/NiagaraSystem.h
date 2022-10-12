@@ -411,10 +411,6 @@ public:
 	UPROPERTY()
 	TObjectPtr<class UTexture2D> ThumbnailImage;
 
-	/** Internal: Indicates the thumbnail image is out of date.*/
-	UPROPERTY()
-	uint32 ThumbnailImageOutOfDate : 1;
-
 	/** Deprecated library exposure bool. Use the LibraryVisibility enum instead. FNiagaraEditorUtilities has accessor functions that takes deprecation into account */
 	UPROPERTY()
 	bool bExposeToLibrary_DEPRECATED;

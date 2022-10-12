@@ -165,7 +165,6 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 #endif
 {
 #if WITH_EDITORONLY_DATA
-	ThumbnailImageOutOfDate = true;
 	IsCooked = false;
 #endif
 }
@@ -1102,7 +1101,6 @@ void UNiagaraEmitter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		Data.RuntimeEstimation.Init();
 		Data.UpdateDebugName(*this, nullptr);
 	}
-	ThumbnailImageOutOfDate = true;
 	UpdateChangeId(TEXT("PostEditChangeProperty"));
 	
 	OnPropertiesChangedDelegate.Broadcast();
@@ -1210,7 +1208,6 @@ void UNiagaraEmitter::PostEditChangeVersionedProperty(FPropertyChangedEvent& Pro
 
 	ResolveScalabilitySettings();
 
-	ThumbnailImageOutOfDate = true;
 	UpdateChangeId(TEXT("PostEditChangeProperty"));
 	OnPropertiesChangedDelegate.Broadcast();
 
