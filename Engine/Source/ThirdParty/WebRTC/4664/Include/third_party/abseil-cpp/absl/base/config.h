@@ -289,6 +289,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
+#elif defined(ABSL_DONT_HAVE_THREAD_LOCAL)
 #else  // !defined(__APPLE__)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
@@ -379,6 +380,10 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
       !defined(__cpp_exceptions)) &&                                      \
     !(defined(_MSC_VER) && !defined(_CPPUNWIND))
 #define ABSL_HAVE_EXCEPTIONS 1
+#endif
+
+#ifdef ABSL_HAVE_NO_EXCEPTIONS
+#undef ABSL_HAVE_EXCEPTIONS
 #endif
 
 // -----------------------------------------------------------------------------

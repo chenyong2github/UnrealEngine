@@ -19,11 +19,7 @@ public class WebRTC : ModuleRules
 	{
 		get
 		{
-			return false;
-
-			// UE-161176: Temporarily disabled until we can determine why bitrate on FireFox is not starting high and not ramping up.
-			// Uncomment below to turn on M96.
-			// return Target.Platform == UnrealTargetPlatform.Win64;
+			return true;
 		}
 	}
 	public static string WebRtcVersionPath

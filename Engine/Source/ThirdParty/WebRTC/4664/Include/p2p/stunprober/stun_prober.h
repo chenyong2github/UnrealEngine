@@ -242,6 +242,9 @@ class RTC_EXPORT StunProber : public sigslot::has_slots<> {
 
   webrtc::ScopedTaskSafety task_safety_;
 
+  // The in-use async resolver instance
+  rtc::AsyncResolverInterface* resolver_ = nullptr;
+
   RTC_DISALLOW_COPY_AND_ASSIGN(StunProber);
 };
 

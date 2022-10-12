@@ -20,13 +20,6 @@
 
 namespace rtc {
 
-enum class ThreadPriority {
-  kLow = 1,
-  kNormal,
-  kHigh,
-  kRealtime,
-};
-
 struct ThreadAttributes {
   ThreadPriority priority = ThreadPriority::kNormal;
   ThreadAttributes& SetPriority(ThreadPriority priority_param) {
@@ -49,6 +42,9 @@ class PlatformThread final {
   // TODO(bugs.webrtc.org/12727) Look into if default and move support can be
   // removed.
   PlatformThread() = default;
+
+  explicit PlatformThread(const absl::string_view& name);
+  PlatformThread(Handle handle, bool joinable, const absl::string_view& name, std::unique_ptr<PlatformThread>&& personal_id);
 
   // Moves `rhs` into this, storing an empty state in `rhs`.
   // TODO(bugs.webrtc.org/12727) Look into if default and move support can be
@@ -101,10 +97,6 @@ class PlatformThread final {
 #endif
 
  private:
-  explicit PlatformThread(const absl::string_view& name);
-  friend std::unique_ptr<PlatformThread> std::make_unique<PlatformThread, absl::string_view&>(absl::string_view&);
-
-  PlatformThread(Handle handle, bool joinable, const absl::string_view& name, std::unique_ptr<PlatformThread>&& personal_id);
   static PlatformThread SpawnThread(std::function<void()> thread_function,
                                     absl::string_view name,
                                     ThreadAttributes attributes,
@@ -114,6 +106,7 @@ class PlatformThread final {
   bool joinable_ = false;
   std::string name_;
   std::unique_ptr<PlatformThread> personal_id_;
+  bool internal_ = false;
 };
 
 }  // namespace rtc

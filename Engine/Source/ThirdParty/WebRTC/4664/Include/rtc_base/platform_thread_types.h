@@ -57,6 +57,32 @@ bool IsThreadRefEqual(const PlatformThreadRef& a, const PlatformThreadRef& b);
 // Sets the current thread name.
 void SetCurrentThreadName(const char* name);
 
+
+enum class ThreadPriority : int {
+#ifdef WEBRTC_WIN
+  kLow = THREAD_PRIORITY_BELOW_NORMAL,
+  kNormal = THREAD_PRIORITY_NORMAL,
+  kHigh = THREAD_PRIORITY_ABOVE_NORMAL,
+  kHighest = THREAD_PRIORITY_HIGHEST,
+  kRealtime = THREAD_PRIORITY_TIME_CRITICAL
+#else
+  kLow = 1,
+  kNormal = 2,
+  kHigh = 3,
+  kHighest = 4,
+  kRealtime = 5
+#endif
+};
+
+#if defined(WEBRTC_WIN)
+using ThreadHandle = HANDLE;
+#else
+using ThreadHandle = pthread_t;
+#endif  // defined(WEBRTC_WIN)
+
+// Sets the thread priority.
+bool SetThreadPriority(const ThreadHandle& thread_handle, ThreadPriority thread_priority);
+
 }  // namespace rtc
 
 #endif  // RTC_BASE_PLATFORM_THREAD_TYPES_H_

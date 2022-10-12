@@ -605,6 +605,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
   // value. Must be called on this thread.
   bool SetAllowBlockingCalls(bool allow);
 
+  bool SetPriority(ThreadPriority priority);
 #if defined(WEBRTC_WIN)
   static DWORD WINAPI PreRun(LPVOID context);
 #else
@@ -662,6 +663,8 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
 #if WEBRTC_EXTENSION_THREAD_OBSERVER
   std::atomic<bool> is_real_thread_created_{ false };
 #endif
+  // all new threads will use this priority instead of using a platform-specific default priority
+  const ThreadPriority priority_ = ThreadPriority::kNormal;
 
   // TODO(tommi): Add thread checks for proper use of control methods.
   // Ideally we should be able to just use PlatformThread.

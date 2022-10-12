@@ -46,7 +46,7 @@
 // for more information.
 #ifdef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
 #error ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING cannot be directly set
-#elif defined(_WIN32) || defined(__asmjs__) || defined(__wasm__)
+#elif defined(_WIN32) || defined(__asmjs__) || defined(__wasm__) || defined(ABSL_USE_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING)
 #define ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING 1
 #endif
 

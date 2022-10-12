@@ -126,6 +126,9 @@ RTC_EXPORT extern const char kAv1CodecName[];
 // TODO(bugs.webrtc.org/13166): Delete after all dependent projects updated.
 RTC_EXPORT extern const char kAv1xCodecName[];
 RTC_EXPORT extern const char kH264CodecName[];
+#ifndef DISABLE_H265
+RTC_EXPORT extern const char kH265CodecName[];
+#endif
 
 // RFC 6184 RTP Payload Format for H.264 video
 RTC_EXPORT extern const char kH264FmtpProfileLevelId[];
@@ -135,6 +138,14 @@ extern const char kH264FmtpSpropParameterSets[];
 extern const char kH264FmtpSpsPpsIdrInKeyframe[];
 extern const char kH264ProfileLevelConstrainedBaseline[];
 extern const char kH264ProfileLevelConstrainedHigh[];
+
+#ifndef DISABLE_H265
+// RFC 7798 RTP Payload Format for H.265 video
+RTC_EXPORT extern const char kH265FmtpProfileSpace[];
+RTC_EXPORT extern const char kH265FmtpProfileId[];
+RTC_EXPORT extern const char kH265FmtpTierFlag[];
+RTC_EXPORT extern const char kH265FmtpLevelId[];
+#endif
 
 extern const int kDefaultVideoMaxFramerate;
 

@@ -543,6 +543,7 @@ class RTC_EXPORT RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
   // TODO(https://crbug.com/webrtc/10635): This is only implemented for video;
   // implement it for audio as well.
   RTCStatsMember<double> total_packet_send_delay;
+  RTCStatsMember<uint64_t> avg_send_delay;
   // Enum type RTCQualityLimitationReason
   RTCStatsMember<std::string> quality_limitation_reason;
   RTCStatsMember<std::map<std::string, double>> quality_limitation_durations;
