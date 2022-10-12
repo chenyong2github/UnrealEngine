@@ -44,7 +44,7 @@ namespace UE::LevelSnapshots::Private
 		}
 		
 		UObject* CDO = NewObject<UObject>(
-			GetTransientPackage(),
+			WorldData.SnapshotWorld->GetPackage(),
 			Class,
 			*FString("SnapshotCDO_").Append(*MakeUniqueObjectName(GetTransientPackage(), Class).ToString())
 			// TODO: Set RF_Archetype
@@ -69,6 +69,11 @@ namespace UE::LevelSnapshots::Private
 		}
 
 		UClass* Class = ArchetypeData->ClassPath.TryLoadClass<UObject>();
+		if (!Class)
+		{
+			return {};
+		}
+		
 		UObject* Archetype = NewObject<UObject>(
 			GetTransientPackage(),
 			Class,
@@ -106,8 +111,15 @@ namespace UE::LevelSnapshots::Private
 			return { &FallbackData.GetValue() };
 		}
 
+		UClass* Class = SavedClassData.ClassPath.TryLoadClass<UObject>();
+		if (!Class)
+		{
+			UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to load class %s"), *SavedClassData.ClassPath.ToString());
+			return {};
+		}
+		
 		// 2. First time encountering this class, get the real archetype
-		UObject* RealArchetype = UObject::GetArchetypeFromRequiredInfo(SavedClassData.ClassPath.TryLoadClass<UObject>(), FallbackInfo.SubobjectOuter, FallbackInfo.SubobjectName, FallbackInfo.SubobjectFlags);
+		UObject* RealArchetype = UObject::GetArchetypeFromRequiredInfo(Class, FallbackInfo.SubobjectOuter, FallbackInfo.SubobjectName, FallbackInfo.SubobjectFlags);
 		if (ensure(RealArchetype))
 		{
 			FallbackData = FClassSnapshotData(); // Optional needs to be assigned
