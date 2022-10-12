@@ -46,6 +46,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickableInEditor() const override { return true; }
 	virtual ETickableTickType GetTickableTickType() const override;
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 	virtual TStatId GetStatId() const override;
 	// End FTickableGameObject overrides
 

@@ -90,6 +90,13 @@ ETickableTickType ULandscapeSubsystem::GetTickableTickType() const
 	return HasAnyFlags(RF_ClassDefaultObject) || !GetWorld() || GetWorld()->IsNetMode(NM_DedicatedServer) ? ETickableTickType::Never : ETickableTickType::Always;
 }
 
+bool ULandscapeSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	// we also support inactive worlds -- they are used when the world is already saved, but SaveAs renames it:
+	// then it duplicates the world (producing an inactive world), which we then need to update Landscapes in during OnPreSave()
+	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive;
+}
+
 void ULandscapeSubsystem::Tick(float DeltaTime)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeSubsystemTick);
