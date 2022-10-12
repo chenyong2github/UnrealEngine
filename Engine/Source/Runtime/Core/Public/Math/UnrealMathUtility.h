@@ -2510,6 +2510,8 @@ namespace LWC
 	template<>
 	FORCEINLINE int32 FloatToIntCastChecked(float FloatValue)
 	{
+		// floats over 2^31 - 1 - 64 overflow int32 after conversion.
+		checkf(FloatValue >= float(TNumericLimits<int32>::Lowest()) && FloatValue <= float(TNumericLimits<int32>::Max() - 64), TEXT("Input value %f will exceed int32 limits"), FloatValue);
 		return FMath::TruncToInt32(FloatValue);
 	}
 
@@ -2517,6 +2519,8 @@ namespace LWC
 	template<>
 	FORCEINLINE int64 FloatToIntCastChecked(float FloatValue)
 	{
+		// floats over 2^63 - 1 - 2^39 overflow int64 after conversion.
+		checkf(FloatValue >= float(TNumericLimits<int64>::Lowest()) && FloatValue <= float(TNumericLimits<int64>::Max() - (int64)549755813888), TEXT("Input value %f will exceed int64 limits"), FloatValue);
 		return FMath::TruncToInt64(FloatValue);
 	}
 
@@ -2524,6 +2528,7 @@ namespace LWC
 	template<>
 	FORCEINLINE int32 FloatToIntCastChecked(double FloatValue)
 	{
+		checkf(FloatValue >= double(TNumericLimits<int32>::Lowest()) && FloatValue <= double(TNumericLimits<int32>::Max()), TEXT("Input value %f will exceed int32 limits"), FloatValue);
 		return FMath::TruncToInt32(FloatValue);
 	}
 
@@ -2531,6 +2536,8 @@ namespace LWC
 	template<>
 	FORCEINLINE int64 FloatToIntCastChecked(double FloatValue)
 	{
+		// doubles over 2^63 - 1 - 512 overflow int64 after conversion.
+		checkf(FloatValue >= double(TNumericLimits<int64>::Lowest()) && FloatValue <= double(TNumericLimits<int64>::Max() - 512), TEXT("Input value %f will exceed int64 limits"), FloatValue);
 		return FMath::TruncToInt64(FloatValue);
 	}
 
