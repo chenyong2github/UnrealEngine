@@ -21748,14 +21748,17 @@ static int32 CompileWithDefaultNormalWS(class FMaterialCompiler* Compiler, FExpr
 			{
 				*bDefaultIsUsed = true;
 			}
+			// Nothing is plug in from the linked input, so specify world space normal the BSDF node expects.
 			return Compiler->VertexNormal();
 		}
+		// Transform into world space normal if needed. BSDF nodes always expects world space normal as input.
 		return Compiler->TransformNormalFromRequestedBasisToWorld(NormalCodeChunk);
 	}
 	if (bDefaultIsUsed)
 	{
 		*bDefaultIsUsed = true;
 	}
+	// Nothing is plug in on the BSDF node, so specify world space normal the node expects.
 	return Compiler->VertexNormal();
 }
 static int32 CompileWithDefaultTangentWS(class FMaterialCompiler* Compiler, FExpressionInput& Input, bool* bDefaultIsUsed = nullptr)
@@ -21770,14 +21773,17 @@ static int32 CompileWithDefaultTangentWS(class FMaterialCompiler* Compiler, FExp
 			{
 				*bDefaultIsUsed = true;
 			}
+			// Nothing is plug in from the linked input, so specify world space tangent the BSDF node expects.
 			return Compiler->VertexTangent();
 		}
+		// Transform into world space tangent if needed. BSDF nodes always expects world space tangent as input.
 		return Compiler->TransformNormalFromRequestedBasisToWorld(TangentCodeChunk);
 	}
 	if (bDefaultIsUsed)
 	{
 		*bDefaultIsUsed = true;
 	}
+	// Nothing is plug in on the BSDF node, so specify world space tangent the node expects.
 	return Compiler->VertexTangent();
 }
 
