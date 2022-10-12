@@ -44,12 +44,24 @@ public:
 
 	using IImageWrapper::GetRaw;
 private:
+	// Helpers for error exits. Set error messages and return false.
+	void SetAndLogError(const FText& InText);
+	bool FailHeaderParsing(); // also calls FreeCompressData.
+	bool FailUnexpectedEOB();
+	bool FailMalformedScanline();
+
 	bool GetHeaderLine(const uint8*& BufferPos, char Line[256]);
 
-	/** @param Out order in bytes: RGBE */
-	bool DecompressScanline(uint8* Out, const uint8*& In);
+	static bool ParseMatchString(const char*& InOutCursor, const char* InExpected);
+	static bool ParsePositiveInt(const char*& InOutCursor, int* OutValue);
+	static bool ParseImageSize(const char* InLine, int* OutWidth, int* OutHeight);
 
-	bool OldDecompressScanline(uint8* Out, const uint8*& In, int32 Lenght);
+	static bool HaveBytes(const uint8* InCursor, const uint8* InEnd, int InAmount);
+
+	/** @param Out order in bytes: RGBE */
+	bool DecompressScanline(uint8* Out, const uint8*& In, const uint8* InEnd);
+
+	bool OldDecompressScanline(uint8* Out, const uint8*& In, const uint8* InEnd, int32 Length, bool bInitialRunAllowed);
 
 	bool IsCompressedImageValid() const;
 
