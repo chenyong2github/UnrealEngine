@@ -24,7 +24,7 @@
 
 #elif DIM_UPDATE_QUALITY == 3 // Epic
 	#define CONFIG_SAMPLES 6
-	#define CONFIG_INTERPOLATE_VELOCITY 1
+	#define CONFIG_INTERPOLATE_VELOCITY 0
 	#define CONFIG_REJECTION_ANTI_ALIASING 1
 
 	// To support sg.AntiAliasingQuality=4 with same temporal response as sg.AntiAliasingQuality=3
@@ -36,7 +36,6 @@
 
 #if 1
 	#define CONFIG_HIGH_FREQUENCY_ONLY 1
-	#define CONFIG_HIGH_FREQUENCY_YCOCG 0
 #endif
 
 #if DIM_SEPARATE_TRANSLUCENCY
@@ -57,6 +56,8 @@
 #ifndef CONFIG_TRANSLUCENCY_REJECTION
 	#define CONFIG_TRANSLUCENCY_REJECTION 1
 #endif
+
+#define CONFIG_GRAND_REPROJECTION (DIM_GRAND_REPROJECTION)
 
 #define CONFIG_RESPONSIVE_STENCIL 1
 #define CONFIG_TAA_RESPONSIVE_BEHAVIOR 1
@@ -105,6 +106,9 @@ Texture2D<tsr_ushort> AntiAliasingTexture;
 Texture2D<tsr_half> NoiseFilteringTexture;
 Texture2D<tsr_half2> HoleFilledVelocityMaskTexture;
 
+Texture2D<float2> GrandDilatedVelocityTexture;
+Texture2DArray<tsr_halfC> GrandPrevColorArray;
+
 float2 TranslucencyInfo_Extent;
 float2 TranslucencyInfo_ExtentInverse;
 float2 TranslucencyInfo_ScreenPosToViewportScale;
@@ -125,11 +129,13 @@ int2   TranslucencyPixelPosMax;
 FScreenTransform HistoryPixelPosToScreenPos;
 FScreenTransform HistoryPixelPosToInputPPCo;
 FScreenTransform HistoryPixelPosToTranslucencyPPCo;
+FScreenTransform ScreenPosToGrandPrevHistoryBufferUV;
 float3 HistoryQuantizationError;
 float MinTranslucencyRejection;
 float InvWeightClampingPixelSpeed;
 float InputToHistoryFactor;
 float InputContributionMultiplier;
+float GrandPrevPreExposureCorrection;
 uint ResponsiveStencilMask;
 uint bGenerateOutputMip1;
 uint bHasSeparateTranslucency;
@@ -140,11 +146,18 @@ Texture2D<tsr_half3> PrevHistory_Translucency;
 Texture2D<tsr_half>  PrevHistory_TranslucencyAlpha;
 Texture2D<tsr_subpixel_details> PrevHistory_SubpixelDetails;
 
+Texture2D<tsr_halfC> PrevHistory_PrevHighFrequency;
+Texture2D<tsr_halfC> PrevHistory_PrevHighFrequencyResultant;
+Texture2D<tsr_halfC> PrevHistory_HighFrequencyOverblur;
+
 RWTexture2D<tsr_halfC> SceneColorOutputMip0;
 RWTexture2D<tsr_halfC> SceneColorOutputMip1;
 
 uint HistoryOutput_ArrayIndices_HighFrequency;
 uint HistoryOutput_ArrayIndices_Translucency;
+uint HistoryOutput_ArrayIndices_PrevHighFrequency;
+uint HistoryOutput_ArrayIndices_PrevHighFrequencyResultant;
+uint HistoryOutput_ArrayIndices_HighFrequencyOverblur;
 
 RWTexture2DArray<tsr_halfC> HistoryOutput_ColorArray;
 RWTexture2D<tsr_half2> HistoryOutput_Metadata;
@@ -348,6 +361,9 @@ void MainCS(
 
 	// Fetch reprojections related informations.
 	float2x2 PrevScreenPos = ScreenPos;
+	#if CONFIG_GRAND_REPROJECTION
+		float2x2 GrandPrevScreenPos = ScreenPos;
+	#endif
 	tsr_half2 LowFrequencyRejection = tsr_half(1.0).xx;
 	tsr_half2 TranslucencyRejection = tsr_half(1.0).xx;
 	tsr_half2 OutputPixelVelocity = tsr_half(0.0).xx;
@@ -367,6 +383,10 @@ void MainCS(
 			float2 RawEncodedVelocityNeighborhood[4][DPV_PIXEL_PER_LANE];
 		#else
 			float2 RawEncodedVelocity[DPV_PIXEL_PER_LANE];
+		#endif
+		
+		#if CONFIG_GRAND_REPROJECTION
+			float2 RawEncodedGrandVelocity[DPV_PIXEL_PER_LANE];
 		#endif
 
 		tsr_half RawParallaxRejectionMask[DPV_PIXEL_PER_LANE];
@@ -395,6 +415,11 @@ void MainCS(
 				#if !CONFIG_INTERPOLATE_VELOCITY
 					RawEncodedVelocity[PixelId]   = DilatedVelocityTexture[LocalInputPixelPos];
 				#endif
+				
+				#if CONFIG_GRAND_REPROJECTION
+					RawEncodedGrandVelocity[PixelId] = GrandDilatedVelocityTexture[LocalInputPixelPos];
+				#endif
+
 				RawParallaxRejectionMask[PixelId] = ParallaxRejectionMaskTexture[LocalInputPixelPos];
 				RawParallaxFactorBits[PixelId]    = ParallaxFactorTexture[LocalInputPixelPos];
 				RawSceneStencilRef[PixelId]       = InputSceneStencilTexture.Load(int3(LocalInputPixelPos, 0)) STENCIL_COMPONENT_SWIZZLE;
@@ -497,6 +522,16 @@ void MainCS(
 
 				PrevScreenPos = ScreenPos - ScreenVelocity;
 				OutputPixelVelocity = tsr_half2(dpv_length(dpv_mul(ScreenVelocity, HistoryInfo_ViewportSize)));
+				
+				#if CONFIG_GRAND_REPROJECTION
+				{
+					float2x2 GrandScreenVelocity = dpv_interleave_registers(
+						DecodeVelocityFromTexture(float4(RawEncodedGrandVelocity[0], 0.0, 0.0)).xy,
+						DecodeVelocityFromTexture(float4(RawEncodedGrandVelocity[1], 0.0, 0.0)).xy);
+					
+					GrandPrevScreenPos = ScreenPos - GrandScreenVelocity;
+				}
+				#endif
 			}
 			
 			// Detect whether the history reprojection is successful
@@ -571,6 +606,13 @@ void MainCS(
 	tsr_halfCx2 PrevHistoryMommentMax;
 
 	tsr_half4x2 PrevHistoryTranslucency;
+	
+	#if CONFIG_GRAND_REPROJECTION
+		tsr_halfCx2 GrandPrevToPrev;
+		tsr_halfCx2 GrandPrevToPrevResultant;
+		tsr_halfCx2 PrevHighFrequencyOverblur;
+		tsr_halfCx2 GrandReprojection;
+	#endif
 
 	PLATFORM_SPECIFIC_ISOLATE
 	{
@@ -581,6 +623,13 @@ void MainCS(
 
 		tsr_halfCx2 HighFrequencyMin = INFINITE_FLOAT;
 		tsr_halfCx2 HighFrequencyMax = -INFINITE_FLOAT;
+		
+		#if CONFIG_GRAND_REPROJECTION
+			tsr_halfCx2 AccumulateGrandPrevToPrev = tsr_half(0);
+			tsr_halfCx2 AccumulateGrandPrevToPrevResultant = tsr_half(0);
+			tsr_halfCx2 AccumulatePrevHighFrequencyOverblur = tsr_half(0);
+			tsr_halfCx2 AccumulateGrandReprojection = tsr_half(0);
+		#endif
 
 		// Sample raw history
 		{
@@ -593,12 +642,32 @@ void MainCS(
 			FCatmullRomSamples Samples1 = GetBicubic2DCatmullRomSamples(
 				dpv_hi(PrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
 			
+			#if CONFIG_GRAND_REPROJECTION
+				float2x2 GrandPrevHistoryBufferUV = ApplyScreenTransform(GrandPrevScreenPos, ScreenPosToGrandPrevHistoryBufferUV);
+				GrandPrevHistoryBufferUV[0] = clamp(GrandPrevHistoryBufferUV[0], PrevHistoryInfo_UVViewportBilinearMin[0], PrevHistoryInfo_UVViewportBilinearMax[0]);
+				GrandPrevHistoryBufferUV[1] = clamp(GrandPrevHistoryBufferUV[1], PrevHistoryInfo_UVViewportBilinearMin[1], PrevHistoryInfo_UVViewportBilinearMax[1]);
+
+				FCatmullRomSamples GrandSamples0 = GetBicubic2DCatmullRomSamples(
+					dpv_lo(GrandPrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
+				FCatmullRomSamples GrandSamples1 = GetBicubic2DCatmullRomSamples(
+					dpv_hi(GrandPrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
+			#endif
+
 			tsr_halfC RawHighFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 			tsr_half2 RawMetadata[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 			tsr_half3 RawTranslucencyColor[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 			tsr_half  RawTranslucencyAlpha[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 
 			tsr_half2 RawKernelWeight[BICUBIC_CATMULL_ROM_SAMPLES];
+			
+			#if CONFIG_GRAND_REPROJECTION
+				tsr_halfC RawGrandPrevToPrev[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+				tsr_halfC RawGrandPrevToPrevResultant[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+				tsr_halfC RawPrevHighFrequencyOverblur[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+				tsr_halfC RawGrandReprojection[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+
+				tsr_half2 RawGrandKernelWeight[BICUBIC_CATMULL_ROM_SAMPLES];
+			#endif
 
 			// Issues texture fetches.
 			PLATFORM_SPECIFIC_ISOLATE
@@ -612,6 +681,10 @@ void MainCS(
 					tsr_half2 KernelWeight = dpv_force_interleave_registers(tsr_half(Samples0.Weight[i]), tsr_half(Samples1.Weight[i]));
 
 					RawKernelWeight[i] = KernelWeight;
+					
+					#if CONFIG_GRAND_REPROJECTION
+						RawGrandKernelWeight[i] = dpv_force_interleave_registers(tsr_half(GrandSamples0.Weight[i]), tsr_half(GrandSamples1.Weight[i]));
+					#endif
 
 					UNROLL_N(2)
 					for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)
@@ -625,6 +698,22 @@ void MainCS(
 						#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 							RawTranslucencyColor[i][PixelId] = BilinearSampleColorHistory(PrevHistory_Translucency, SampleUV);
 							RawTranslucencyAlpha[i][PixelId] = PrevHistory_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+						#endif
+						
+						#if CONFIG_GRAND_REPROJECTION
+							RawGrandPrevToPrev[i][PixelId] = PrevHistory_PrevHighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+							RawGrandPrevToPrevResultant[i][PixelId] = PrevHistory_PrevHighFrequencyResultant.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+							RawPrevHighFrequencyOverblur[i][PixelId] = PrevHistory_HighFrequencyOverblur.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+
+							{
+								float2 GrandSampleUV0 = clamp(GrandSamples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+								float2 GrandSampleUV1 = clamp(GrandSamples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+					
+								float2 GrandSampleUV = PixelId == 0 ? GrandSampleUV0 : GrandSampleUV1;
+						
+								RawGrandReprojection[i][PixelId] = GrandPrevColorArray.SampleLevel(GlobalBilinearClampedSampler, float3(GrandSampleUV, 0.0), 0);
+							
+							}
 						#endif
 					}
 
@@ -643,6 +732,13 @@ void MainCS(
 						tsr_half4(RawTranslucencyColor[i][0], RawTranslucencyAlpha[i][0]),
 						tsr_half4(RawTranslucencyColor[i][1], RawTranslucencyAlpha[i][1]));
 					
+					#if CONFIG_GRAND_REPROJECTION
+						tsr_halfCx2 SampleGrandPrevious = dpv_interleave_registers_array(RawGrandPrevToPrev[i]);
+						tsr_halfCx2 SampleGrandPreviousResultant = dpv_interleave_registers_array(RawGrandPrevToPrevResultant[i]);
+						tsr_halfCx2 SamplePrevHighFrequencyOverblur = dpv_interleave_registers_array(RawPrevHighFrequencyOverblur[i]) - SampleHighFrequency;
+						tsr_halfCx2 SampleGrandReprojection = dpv_interleave_registers_array(RawGrandReprojection[i]);
+					#endif
+
 					tsr_half2 KernelWeight = RawKernelWeight[i];
 
 					tsr_half2 InvWeight = SafeRcp(SampleMetadata[0]);
@@ -656,6 +752,13 @@ void MainCS(
 					#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 						AccumulateTranslucency  += dpv_scale(SampleTranslucency, KernelWeight);
 					#endif
+
+					#if CONFIG_GRAND_REPROJECTION
+						AccumulateGrandPrevToPrev  += dpv_scale(SampleGrandPrevious, KernelWeight);
+						AccumulateGrandPrevToPrevResultant  += dpv_scale(SampleGrandPreviousResultant, KernelWeight);
+						AccumulatePrevHighFrequencyOverblur  += dpv_scale(SamplePrevHighFrequencyOverblur, KernelWeight);
+						AccumulateGrandReprojection  += dpv_scale(SampleGrandReprojection, RawGrandKernelWeight[i]);
+					#endif
 				}
 				
 				tsr_half2 FinalMultiplier = dpv_force_interleave_registers(tsr_half(Samples0.FinalMultiplier), tsr_half(Samples1.FinalMultiplier));
@@ -663,6 +766,15 @@ void MainCS(
 				AccumulateHighFrequency = dpv_scale(AccumulateHighFrequency, FinalMultiplier);
 				AccumulateMetadata      = dpv_scale(AccumulateMetadata, FinalMultiplier);
 				AccumulateTranslucency  = dpv_scale(AccumulateTranslucency, FinalMultiplier);
+
+				#if CONFIG_GRAND_REPROJECTION
+					tsr_half2 GrandFinalMultiplier = dpv_interleave_registers(tsr_half(GrandSamples0.FinalMultiplier), tsr_half(GrandSamples1.FinalMultiplier));
+
+					AccumulateGrandPrevToPrev          = dpv_scale(AccumulateGrandPrevToPrev, FinalMultiplier);
+					AccumulateGrandPrevToPrevResultant = dpv_scale(AccumulateGrandPrevToPrevResultant, FinalMultiplier);
+					AccumulatePrevHighFrequencyOverblur = dpv_scale(AccumulatePrevHighFrequencyOverblur, FinalMultiplier);
+					AccumulateGrandReprojection        = dpv_scale(AccumulateGrandReprojection, GrandFinalMultiplier);
+				#endif
 			}
 			
 			#if CONFIG_SCENE_COLOR_APLHA
@@ -684,6 +796,13 @@ void MainCS(
 			PrevHistoryValidity = AccumulateMetadata[1];
 
 			PrevHistoryTranslucency = AccumulateTranslucency;
+
+			#if CONFIG_GRAND_REPROJECTION
+				GrandPrevToPrev          = AccumulateGrandPrevToPrev;
+				GrandPrevToPrevResultant = AccumulateGrandPrevToPrevResultant;
+				PrevHighFrequencyOverblur = AccumulatePrevHighFrequencyOverblur;
+				GrandReprojection        = AccumulateGrandReprojection;
+			#endif
 		}
 
 		// Correct history
@@ -697,6 +816,22 @@ void MainCS(
 			CorrectExposure(PrevHighFrequencyColor[0]);
 			CorrectExposure(PrevHighFrequencyColor[1]);
 			CorrectExposure(PrevHighFrequencyColor[2]);
+			
+			#if CONFIG_GRAND_REPROJECTION
+				CorrectExposure(GrandPrevToPrev[0]);
+				CorrectExposure(GrandPrevToPrev[1]);
+				CorrectExposure(GrandPrevToPrev[2]);
+				CorrectExposure(GrandPrevToPrevResultant[0]);
+				CorrectExposure(GrandPrevToPrevResultant[1]);
+				CorrectExposure(GrandPrevToPrevResultant[2]);
+				CorrectExposure(PrevHighFrequencyOverblur[0]);
+				CorrectExposure(PrevHighFrequencyOverblur[1]);
+				CorrectExposure(PrevHighFrequencyOverblur[2]);
+				
+				GrandReprojection[0] *= tsr_half(GrandPrevPreExposureCorrection);
+				GrandReprojection[1] *= tsr_half(GrandPrevPreExposureCorrection);
+				GrandReprojection[2] *= tsr_half(GrandPrevPreExposureCorrection);
+			#endif
 
 			// Fixes negative validity that can happen due to negative lobes of Catrom.
 			PrevHistoryValidity = max(PrevHistoryValidity, tsr_half(0.0).xx);
@@ -864,13 +999,8 @@ void MainCS(
 				FilteredTranslucencyColor = TranslucencyColor;
 			}
 
-			#if CONFIG_HIGH_FREQUENCY_YCOCG
-				InputMinColor = min(InputMinColor, TransformColorForClampingBox(InputColor));
-				InputMaxColor = max(InputMaxColor, TransformColorForClampingBox(InputColor));
-			#else
-				InputMinColor = min(InputMinColor, InputColor);
-				InputMaxColor = max(InputMaxColor, InputColor);
-			#endif
+			InputMinColor = min(InputMinColor, InputColor);
+			InputMaxColor = max(InputMaxColor, InputColor);
 
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 			{
@@ -983,30 +1113,35 @@ void MainCS(
 		#endif
 	}
 	#endif
-
+	
 	// Contribute current frame input into the predictor for next frame.
 	const tsr_half Histeresis = rcp(tsr_half(MAX_SAMPLE_COUNT));
 	const tsr_half PredictionOnlyValidity = Histeresis * tsr_half(2.0);
 	
 	tsr_halfCx2 FinalHighFrequencyColor;
 	tsr_half2 FinalHistoryValidity;
+	
+	#if CONFIG_GRAND_REPROJECTION
+		tsr_halfCx2 FinalPrevHighFrequencyColor;
+		tsr_halfCx2 FinalPrevHighFrequencyColorResultant;
+		tsr_halfCx2 FinalOverblur = tsr_half(0.0);
+		tsr_halfCx2 FinalHighFrequencyColorOverblurCorrection = tsr_half(0.0);
+	#endif
+
 	{
-		#if CONFIG_HIGH_FREQUENCY_YCOCG
-			tsr_halfCx2 ClampedPrevHighFrequencyColor = YCoCgToRGB(clamp(TransformColorForClampingBox(PrevHighFrequencyColor), dpv_scale(InputMinColor, PrevHistoryWeight), dpv_scale(InputMaxColor, PrevHistoryWeight)));
-		#else
-			tsr_halfCx2 ClampedPrevHighFrequencyColor = clamp(PrevHighFrequencyColor, dpv_scale(InputMinColor, PrevHistoryWeight), dpv_scale(InputMaxColor, PrevHistoryWeight));
-		#endif
-		
+		tsr_half2 InvPrevHistoryWeight = SafeRcp(PrevHistoryWeight);
+		tsr_half2 InvPrevHistoryValidity = SafeRcp(PrevHistoryValidity);
+
 		tsr_half2 TotalRejection = select(or(bIsOffScreen, bIsDisoccluded), tsr_half(0.0).xx, saturate(LowFrequencyRejection * tsr_half(4.0)));
 
 		tsr_half2 BlendClamp = TotalRejection * HoleFilledVelocityMask[1];
-
-		PrevHighFrequencyColor[0] = lerp(ClampedPrevHighFrequencyColor[0], PrevHighFrequencyColor[0], BlendClamp);
-		PrevHighFrequencyColor[1] = lerp(ClampedPrevHighFrequencyColor[1], PrevHighFrequencyColor[1], BlendClamp);
-		PrevHighFrequencyColor[2] = lerp(ClampedPrevHighFrequencyColor[2], PrevHighFrequencyColor[2], BlendClamp);
-
-		tsr_half2 InvPrevHistoryWeight = SafeRcp(PrevHistoryWeight);
-		tsr_half2 InvPrevHistoryValidity = SafeRcp(PrevHistoryValidity);
+		
+		tsr_halfCx2 UnpremultipliedPrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, InvPrevHistoryWeight);
+		tsr_halfCx2 ClampedPrevHighFrequencyColor = clamp(UnpremultipliedPrevHighFrequencyColor, InputMinColor, InputMaxColor);
+		tsr_halfCx2 BlendedPrevHighFrequencyColor = UnpremultipliedPrevHighFrequencyColor;
+		BlendedPrevHighFrequencyColor[0] = lerp(ClampedPrevHighFrequencyColor[0], UnpremultipliedPrevHighFrequencyColor[0], BlendClamp);
+		BlendedPrevHighFrequencyColor[1] = lerp(ClampedPrevHighFrequencyColor[1], UnpremultipliedPrevHighFrequencyColor[1], BlendClamp);
+		BlendedPrevHighFrequencyColor[2] = lerp(ClampedPrevHighFrequencyColor[2], UnpremultipliedPrevHighFrequencyColor[2], BlendClamp);
 
 		// Compute how much the history needs to be rejected, based on the completeness.
 		tsr_half2 PrevHistoryRejectionWeight = select(bIsOffScreen, tsr_half(0.0), LowFrequencyRejection);
@@ -1018,14 +1153,19 @@ void MainCS(
 		
 		// Clamp the validity due to motion to maintain better sharpness in history reprojection under motion.
 		tsr_half2 ClampedPrevHistoryValidity;
-		#if 1
+		#if CONFIG_GRAND_REPROJECTION
+		{
+			tsr_half2 MaxValidity = lerp(PredictionOnlyValidity, tsr_half(1.0), TotalRejection);
+			ClampedPrevHistoryValidity = min(PrevHistoryValidity, MaxValidity);
+		}
+		#elif 1
 		{
 			tsr_half2 MaxValidity = tsr_half(1.0) - (tsr_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * tsr_half(InvWeightClampingPixelSpeed));
 
 			// Clamp up the max validity to favorise stability under motion on high contrast edges.
 			#if 1
 			{
-				tsr_half2 PrevHistoryLuma = Luma4(PrevHighFrequencyColor) * InvPrevHistoryWeight;
+				tsr_half2 PrevHistoryLuma = Luma4(BlendedPrevHighFrequencyColor);
 				tsr_half2 FilteredLuma = Luma4(FilteredInputColor);
 
 				tsr_half2 MinValidityForStability = abs(FilteredLuma - PrevHistoryLuma) / max(FilteredLuma, PrevHistoryLuma);
@@ -1056,7 +1196,7 @@ void MainCS(
 		tsr_half2 PrevMomentWeight = max(OutputValidity2 - DesiredCurrentContribution, tsr_half(0.0));
 		tsr_half2 CurrentMomentWeight = min(DesiredCurrentContribution, OutputValidity2);
 
-		tsr_half2 PrevHistoryToneWeight = HdrWeightY(Luma4(PrevHighFrequencyColor) * InvPrevHistoryWeight);
+		tsr_half2 PrevHistoryToneWeight = HdrWeightY(Luma4(BlendedPrevHighFrequencyColor));
 		tsr_half2 FilteredInputToneWeight = HdrWeight4(FilteredInputColor);
 			
 		tsr_half2 BlendPrevHistory = PrevMomentWeight * PrevHistoryToneWeight;
@@ -1065,11 +1205,53 @@ void MainCS(
 		tsr_half2 CommonWeight = SafeRcp(BlendPrevHistory + BlendFilteredInput);
 
 		FinalHighFrequencyColor = (
-			dpv_scale(PrevHighFrequencyColor, CommonWeight * BlendPrevHistory * InvPrevHistoryWeight) +
+			dpv_scale(BlendedPrevHighFrequencyColor, CommonWeight * BlendPrevHistory) +
 			dpv_scale(FilteredInputColor, CommonWeight * BlendFilteredInput));
 				
 		// Quantize validity for the 8bit encoding to avoid numerical shift between color and validity.
 		FinalHistoryValidity = ceil(tsr_half(255.0) * OutputValidity) * rcp(tsr_half(255.0));
+
+		#if CONFIG_GRAND_REPROJECTION
+		{
+			tsr_half2 FinalHistoryWeight = max(FinalHistoryValidity, MIN_IMPLICIT_HISTORY_WEIGHT);
+
+			tsr_halfCx2 BoxSize = dpv_scale(PrevHistoryMommentMax - PrevHistoryMommentMin, tsr_half(0.5) * PrevHistoryWeight);
+
+			// Compute MeasuredResultant of the previous frame
+			//tsr_halfCx2 PrevResultant = -dpv_min(-GrandPrevToPrevResultant / GrandPrevToPrev, tsr_half(0.0).xxx);
+			tsr_halfCx2 PrevResultant;
+			PrevResultant[0] = clamp(GrandPrevToPrevResultant[0] * SafeRcp(GrandPrevToPrev[0]), tsr_half(0.0), tsr_half(1.1));
+			PrevResultant[1] = clamp(GrandPrevToPrevResultant[1] * SafeRcp(GrandPrevToPrev[1]), tsr_half(0.0), tsr_half(1.1));
+			PrevResultant[2] = clamp(GrandPrevToPrevResultant[2] * SafeRcp(GrandPrevToPrev[2]), tsr_half(0.0), tsr_half(1.1));
+			#if CONFIG_SCENE_COLOR_APLHA
+				PrevResultant[3] = clamp(GrandPrevToPrevResultant[3] * SafeRcp(GrandPrevToPrev[3]), tsr_half(0.0), tsr_half(1.1));
+			#endif
+			
+			// Compute how much frame N-2 got overblur by reprojecting into N-1 and N versus directly to N.
+			tsr_halfCx2 PrevReprojectionOverblur = GrandReprojection - GrandPrevToPrev;
+
+			// Clamp error imprecision.
+			bool2 bIsOverblurLegal = (
+				and(clamp(PrevReprojectionOverblur[0], -BoxSize[0], BoxSize[0]) == PrevReprojectionOverblur[0],
+				and(clamp(PrevReprojectionOverblur[1], -BoxSize[1], BoxSize[1]) == PrevReprojectionOverblur[1],
+				    clamp(PrevReprojectionOverblur[2], -BoxSize[2], BoxSize[2]) == PrevReprojectionOverblur[2])));
+
+			tsr_half2 PrevReprojectionOverblurScale = select(bIsOverblurLegal, tsr_half(1.0), tsr_half(0.0));
+
+			FinalOverblur = dpv_scale(PrevResultant, BlendClamp * TotalRejection) * (PrevHighFrequencyOverblur + dpv_scale(PrevReprojectionOverblur, PrevReprojectionOverblurScale));
+
+			//tsr_half2 Rejection = MeasureRejectionFactor(
+			//	UnpremultipliedPrevHighFrequencyColor, BlendedPrevHighFrequencyColor,
+			//	FilteredInputColor, InputMinColor, InputMaxColor,
+			//	MeasureBackbufferLDRQuantizationError());
+
+			tsr_half2 MeasuredResultant = saturate(CommonWeight * BlendPrevHistory * BlendClamp);
+
+			FinalPrevHighFrequencyColor = PrevHighFrequencyColor;
+			FinalPrevHighFrequencyColorResultant = dpv_scale(PrevHighFrequencyColor, MeasuredResultant * InvPrevHistoryWeight * FinalHistoryWeight);
+			FinalHighFrequencyColorOverblurCorrection = dpv_scale(FinalOverblur, MeasuredResultant * InvPrevHistoryWeight);
+		}
+		#endif
 	}
 	
 	// Compute the low frequency history
@@ -1165,7 +1347,11 @@ void MainCS(
 	// Compute final output
 	tsr_halfCx2 FinalOutputColor;
 	{
-		FinalOutputColor = FinalHighFrequencyColor;
+		#if CONFIG_GRAND_REPROJECTION
+			FinalOutputColor = FinalHighFrequencyColor + FinalHighFrequencyColorOverblurCorrection;
+		#else
+			FinalOutputColor = FinalHighFrequencyColor;
+		#endif
 
 		#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 			FinalOutputColor[0] = FinalOutputColor[0] * FinalTranslucencyColor[3] + FinalTranslucencyColor[0];
@@ -1263,6 +1449,11 @@ void MainCS(
 					#endif 
 					HistoryOutput_TranslucencyAlpha[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).a;
 				#endif
+				#if CONFIG_GRAND_REPROJECTION
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_PrevHighFrequency)] = dpv_lo(FinalPrevHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_PrevHighFrequencyResultant)] = dpv_lo(FinalPrevHighFrequencyColorResultant);
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequencyOverblur)] = dpv_lo(FinalOverblur) + dpv_lo(PremultipliedHighFrequencyColor);
+				#endif
 			}
 		
 			// Output final history hi pixel.
@@ -1277,6 +1468,11 @@ void MainCS(
 						HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_Translucency)] = dpv_hi(FinalTranslucencyColor).rgb;
 					#endif
 					HistoryOutput_TranslucencyAlpha[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).a;
+				#endif
+				#if CONFIG_GRAND_REPROJECTION
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_PrevHighFrequency)] = dpv_hi(FinalPrevHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_PrevHighFrequencyResultant)] = dpv_hi(FinalPrevHighFrequencyColorResultant);
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequencyOverblur)] = dpv_hi(FinalOverblur) + dpv_hi(PremultipliedHighFrequencyColor);
 				#endif
 			}
 			#endif // !CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION

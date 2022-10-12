@@ -11,6 +11,8 @@
 
 #define CONFIG_MANUAL_LDS_SPILL 1
 
+#define CONFIG_GRAND_REPROJECTION (DIM_GRAND_REPROJECTION)
+
 #define CONFIG_VELOCITY_SAMPLES 9
 #if CONFIG_VELOCITY_SAMPLES != 1
 	#define CONFIG_VELOCITY_SAMPLE_PAIRS ((CONFIG_VELOCITY_SAMPLES - 1) / 2)
@@ -33,6 +35,7 @@
 //------------------------------------------------------- PARAMETERS
 
 float4x4 RotationalClipToPrevClip;
+float2 CurrentToPrevInputJitter;
 
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
@@ -44,6 +47,7 @@ Texture2D<tsr_subpixel_details> PrevHistorySubpixelDetails;
 
 Texture2D<tsr_halfC> PrevHistoryGuide;
 Texture2D<tsr_half4> PrevHistoryMoire;
+Texture2D<float2> PrevVelocityTexture;
 float2 PrevGuideInfo_Extent;
 float2 PrevGuideInfo_ExtentInverse;
 uint2  PrevGuideInfo_ViewportMin;
@@ -61,6 +65,7 @@ RWTexture2D<tsr_halfC> ReprojectedHistoryGuideOutput;
 RWTexture2D<tsr_half4> ReprojectedHistoryMoireOutput;
 
 RWTexture2D<float2> HoleFilledVelocityOutput;
+RWTexture2D<float2> GrandHoleFilledVelocityOutput;
 RWTexture2D<tsr_half2> HoleFilledVelocityMaskOutput;
 RWTexture2D<tsr_half> ParallaxRejectionMaskOutput;
 RWTexture2D<tsr_subpixel_payload> HistorySubpixelDetailsOutput;
@@ -560,6 +565,51 @@ void MainCS(
 			FinalSubpixelDetails = UpdatedFinalSubpixelDetails;
 		}
 	}
+	
+	#if CONFIG_GRAND_REPROJECTION
+	float2 EncodedGrandScreenVelocity;
+	{
+		tsr_ushort2 InputPixelPos = (
+			Map8x8Tile2x2Lane(GroupThreadIndex) +
+			(tsr_ushort2(InputInfo_ViewportMin) + tsr_ushort2(GroupId) * tsr_ushort2(TILE_SIZE, TILE_SIZE)));
+			
+		float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
+		float2 ScreenVelocity = DecodeVelocityFromTexture(float4(EncodedScreenVelocity, 0.0, 0.0)).xy;
+
+		float2 PrevScreenPos = ScreenPos - ScreenVelocity;
+		float2 KernelHistoryBufferUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevHistoryGuideBufferUV) + CurrentToPrevInputJitter * PrevGuideInfo_ExtentInverse;
+		//float2 KernelHistoryBufferUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevHistoryGuideBufferUV);
+		
+		FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(KernelHistoryBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
+		
+		float2 PrevVelocity = 0.0;
+		float PrevVelocityWeight = 0.0;
+
+		UNROLL_N(4)
+		for (uint i = 0; i < 4; i++)
+		{
+			float BilinearWeight = GetSampleWeight(BilinearInter, i);
+			uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
+
+			bool bValidPixelPos = all(and(PixelPos >= InputInfo_ViewportMin, PixelPos < InputInfo_ViewportMax));
+			BilinearWeight = bValidPixelPos ? BilinearWeight : 0.0;
+
+			float2 EncodedPrevVelocity = PrevVelocityTexture[PixelPos];
+
+			float2 PrevScreenVelocity = DecodeVelocityFromTexture(float4(EncodedPrevVelocity, 0.0, 0.0)).xy;
+
+			PrevVelocity += BilinearWeight * PrevScreenVelocity;
+			PrevVelocityWeight += BilinearWeight;
+		}
+
+		PrevVelocity *= SafeRcp(PrevVelocityWeight);
+
+		EncodedGrandScreenVelocity = EncodeVelocityToTexture(float3(ScreenVelocity + PrevVelocity, 0.0)).xy;
+
+		//Debug.r = abs(ScreenVelocity.x) * ScreenVelocityToInputPixelVelocity.x;
+		Debug.g = abs(PrevVelocity.x) * ScreenVelocityToInputPixelVelocity.x;
+	}
+	#endif // CONFIG_GRAND_REPROJECTION
 
 	// Correct exposure of ReprojectedHistoryGuideColor
 	{
@@ -590,6 +640,9 @@ void MainCS(
 			ReprojectedHistoryMoireOutput[OutputPixelPos] = ReprojectedHistoryMoireColor;
 		#endif
 		HoleFilledVelocityOutput[OutputPixelPos] = EncodedScreenVelocity;
+		#if CONFIG_GRAND_REPROJECTION
+			GrandHoleFilledVelocityOutput[OutputPixelPos] = EncodedGrandScreenVelocity;
+		#endif
 		HoleFilledVelocityMaskOutput[InputPixelPos] = tsr_half2(0.0, RejectHighFrequency);
 		ParallaxRejectionMaskOutput[OutputPixelPos] = ParallaxRejectionMask;
 		HistorySubpixelDetailsOutput[OutputPixelPos] = FinalSubpixelDetails;

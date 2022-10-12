@@ -900,22 +900,32 @@ struct FTemporalAAHistory
 // Structure in charge of storing all information about TSR's history.
 struct FTSRHistory
 {
-	// Filterable output resolution.
+	// Output resolution.
 	TRefCountPtr<IPooledRenderTarget> ColorArray;
 	TRefCountPtr<IPooledRenderTarget> Metadata;
 	TRefCountPtr<IPooledRenderTarget> TranslucencyAlpha;
 
-	// Non-filterable output resolution
+	// Input resolution representation of the output
 	TRefCountPtr<IPooledRenderTarget> SubpixelDetails;
-
-	// Filterable input resolution representation of the output
 	TRefCountPtr<IPooledRenderTarget> Guide;
 	TRefCountPtr<IPooledRenderTarget> Moire;
+	TRefCountPtr<IPooledRenderTarget> Velocity;
 
+	// Previous frame's history.
+	TRefCountPtr<IPooledRenderTarget> PrevColorArray;
+
+	// Frame's input and output resolution.
 	FIntRect InputViewportRect;
 	FIntRect OutputViewportRect;
 
+	// Previous frame's informations.
+	FIntRect PrevOutputViewportRect;
+	FVector2f PrevTemporalJitterPixels;
+	float PrevSceneColorPreExposure = 1.0f;
+
+	// Format of the history for auto camera cut when setting change.
 	uint32 FormatBit = 0;
+
 
 	void SafeRelease()
 	{
