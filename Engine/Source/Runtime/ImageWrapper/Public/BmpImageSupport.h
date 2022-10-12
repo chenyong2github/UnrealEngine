@@ -27,6 +27,7 @@ enum class EBitmapHeaderVersion : uint8
 	BHV_BITMAPV3INFOHEADER = 2,
 	BHV_BITMAPV4HEADER     = 3,
 	BHV_BITMAPV5HEADER     = 4,
+	BHV_INVALID = 0xFF
 };
 
 // Color space type of the bitmap, property introduced in Bitmap header version 4.
@@ -54,27 +55,6 @@ struct FBitmapFileHeader
 		Ar << H.bfType << H.bfSize << H.bfReserved1 << H.bfReserved2 << H.bfOffBits;
 		return Ar;
 	}
-
-public:
-	EBitmapHeaderVersion GetHeaderVersion() const
-	{
-		// Since there is no field indicating the header version of the bitmap in the FileHeader,
-		// the only way to know the format version is to check the header offbits size.
-		switch (bfOffBits - sizeof(FBitmapFileHeader))
-		{
-			case 40:
-			default:
-				return EBitmapHeaderVersion::BHV_BITMAPINFOHEADER;
-			case 52:
-				return EBitmapHeaderVersion::BHV_BITMAPV2INFOHEADER;
-			case 56:
-				return EBitmapHeaderVersion::BHV_BITMAPV3INFOHEADER;
-			case 108:
-				return EBitmapHeaderVersion::BHV_BITMAPV4HEADER;
-			case 124:
-				return EBitmapHeaderVersion::BHV_BITMAPV5HEADER;
-		}
-	}
 };
 #pragma pack(pop)
 
@@ -101,6 +81,33 @@ struct FBitmapInfoHeader
 		Ar << H.biXPelsPerMeter << H.biYPelsPerMeter;
 		Ar << H.biClrUsed << H.biClrImportant;
 		return Ar;
+	}
+	
+public:
+	EBitmapHeaderVersion GetHeaderVersion() const
+	{
+		// Since there is no field indicating the header version of the bitmap in the FileHeader,
+		// the only way to know the format version is to check the header size.
+		//
+		// note that Adobe (incorrectly) writes biSize as 40 and then BMFH bfOffBits will be 52 or 56
+		//	so this code does not detect those variant headers
+		switch (biSize)
+		{
+			case 40:
+				return EBitmapHeaderVersion::BHV_BITMAPINFOHEADER;
+			case 52:
+				// + RGB 32 bit masks
+				return EBitmapHeaderVersion::BHV_BITMAPV2INFOHEADER;
+			case 56:
+				// + RGBA 32 bit masks
+				return EBitmapHeaderVersion::BHV_BITMAPV3INFOHEADER;
+			case 108:
+				return EBitmapHeaderVersion::BHV_BITMAPV4HEADER;
+			case 124:
+				return EBitmapHeaderVersion::BHV_BITMAPV5HEADER;
+			default:
+				return EBitmapHeaderVersion::BHV_INVALID;
+		}
 	}
 };
 #pragma pack(pop)
@@ -163,13 +170,5 @@ struct FBmiColorsMask
 {
 	// RGBA, in header pre-version 4, Alpha was only used as padding.
 	uint32 RGBAMask[4];
-
-public: 
-	bool IsMaskRGB8() const
-	{
-		return FMath::CountLeadingZeros(RGBAMask[0]) + FMath::CountTrailingZeros(RGBAMask[0]) == 24
-			&& FMath::CountLeadingZeros(RGBAMask[1]) + FMath::CountTrailingZeros(RGBAMask[1]) == 24
-			&& FMath::CountLeadingZeros(RGBAMask[2]) + FMath::CountTrailingZeros(RGBAMask[2]) == 24;
-	}
 };
 #pragma pack(pop)

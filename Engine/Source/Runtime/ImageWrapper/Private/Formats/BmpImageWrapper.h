@@ -20,7 +20,7 @@ public:
 public:
 
 	/** Helper function used to uncompress BMP data from a buffer */
-	void UncompressBMPData(const ERGBFormat InFormat, const int32 InBitDepth);
+	bool UncompressBMPData(const ERGBFormat InFormat, const int32 InBitDepth);
 
 	/** 
 	 * Load the header information, returns true if successful.
@@ -34,7 +34,7 @@ public:
 	 *
 	 * @return true if successful
 	 */
-	bool LoadBMPInfoHeader();
+	bool LoadBMPInfoHeader(int64 HeaderOffset);
 
 public:
 

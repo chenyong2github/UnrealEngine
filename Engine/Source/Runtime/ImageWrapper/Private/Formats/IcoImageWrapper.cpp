@@ -93,6 +93,9 @@ void FIcoImageWrapper::Uncompress( const ERGBFormat InFormat, const int32 InBitD
 	if (ImageOffset != 0 && ImageSize != 0)
 	{
 		SubImageWrapper->Uncompress(InFormat, InBitDepth);
+		// Uncompress has no return value
+		//  we can tell it failed if it set an error, or has no rawdata
+		LastError = SubImageWrapper->GetLastError();
 	}
 }
 
@@ -113,6 +116,10 @@ bool FIcoImageWrapper::GetRaw( const ERGBFormat InFormat, int32 InBitDepth, TArr
 	if (LastError.IsEmpty())
 	{
 		SubImageWrapper->MoveRawData(OutRawData);
+		if ( OutRawData.IsEmpty() )
+		{
+			return false;
+		}
 	}
 
 	return LastError.IsEmpty();
@@ -164,7 +171,7 @@ bool FIcoImageWrapper::LoadICOHeader()
 				{
 					// otherwise this should be a BMP icon
 					Width = BmpWrapper->GetWidth();
-					Height = BmpWrapper->GetHeight() / 2;	// ICO file spec says to divide by 2 here as height refers to combined image & mask height
+					Height = BmpWrapper->GetHeight();
 					Format = BmpWrapper->GetFormat();
 					BitDepth = BmpWrapper->GetBitDepth();
 					LargestWidth = RealWidth;

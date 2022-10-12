@@ -64,6 +64,14 @@ public:
 	 * @param ErrorMessage The error message to set.
 	 */
 	void SetError(const TCHAR* ErrorMessage);
+	
+	/**
+	 * Gets last error message.
+	 */
+	const FString & GetLastError() const
+	{
+		return LastError;
+	}
 
 	/**  
 	 * Function to uncompress our data 
