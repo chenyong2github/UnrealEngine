@@ -32,13 +32,14 @@ class USoundCueTemplateFactory : public UFactory
 	UPROPERTY(EditAnywhere, Category = SoundCueTemplateFacotry)
 	TSubclassOf<USoundCueTemplate> SoundCueTemplateClass;
 
+	UPROPERTY(EditAnywhere, Category = SoundCueTemplateFactory)
+	TArray<TWeakObjectPtr<USoundWave>> SoundWaves;
+
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	virtual FString GetDefaultNewAssetName() const override;
 	//~ End UFactory Interface
-
-	TArray<TWeakObjectPtr<USoundWave>> SoundWaves;
 };
 
 UCLASS()

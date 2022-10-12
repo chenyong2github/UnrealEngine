@@ -18,7 +18,7 @@ class UMetaSoundBaseFactory : public UFactory
 
 	// Set to initialize MetaSound type as Preset,
 	// using the provided MetaSound as a Reference
-	UPROPERTY(Transient)
+	UPROPERTY(EditAnywhere, Transient, Category = Factory)
 	TObjectPtr<UObject> ReferencedMetaSoundObject;
 };
 
