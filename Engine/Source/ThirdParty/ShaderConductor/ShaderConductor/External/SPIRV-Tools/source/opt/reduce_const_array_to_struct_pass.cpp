@@ -136,16 +136,16 @@ bool ReduceConstArrayToStructPass::ReduceArray(Instruction* inst) {
       if (user->GetOperand(2).words[0] == variableType->GetOperand(1).words[0]) {
 		if (user->NumOperands() < 5) {
           bInvalid = true;
-        }
-
-        Operand constOperand = user->GetOperand(4);
-        const Instruction* ConstInst = context()->get_def_use_mgr()->GetDef(constOperand.words[0]);
-        if (ConstInst->opcode() != SpvOpConstant) {
-          bInvalid = true;
         } else {
-          uint32_t ConstVal = ConstInst->GetOperand(2).words[0];
-          accessChains.push_back({ConstVal, ConstVal * 4 * 4, user});
-        }
+          Operand constOperand = user->GetOperand(4);
+          const Instruction* ConstInst = context()->get_def_use_mgr()->GetDef(constOperand.words[0]);
+          if (ConstInst->opcode() != SpvOpConstant) {
+            bInvalid = true;
+          } else {
+            uint32_t ConstVal = ConstInst->GetOperand(2).words[0];
+            accessChains.push_back({ConstVal, ConstVal * 4 * 4, user});
+          }
+		}
       }
     } else if (user->opcode() == SpvOpInBoundsAccessChain || user->opcode() == SpvOpPtrAccessChain) {
       bInvalid = true;
