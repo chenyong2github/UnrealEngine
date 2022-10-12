@@ -234,4 +234,6 @@ private:
 	FName ActiveProtocol;
 	/** Columns to be present by default in protocols mode. */
 	static TSet<FName> DefaultProtocolColumns;
+	/** Holds identifier of the selected group. */
+	FGuid CurrentlySelectedGroup;
 };
