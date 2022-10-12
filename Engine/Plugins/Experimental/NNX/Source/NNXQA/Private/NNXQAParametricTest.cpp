@@ -303,8 +303,14 @@ namespace Test
 		}
 		else
 		{
+			//TODO add support for attribute in json schema
+			FMLAttributeMap AttributeMap;
+			if (TestSetup.TestName == TEXT("System.Engine.MachineLearning.NNX.Operator.Elementwise.Unary.LeakyRelu.[4]=>[4]"))
+			{
+				AttributeMap.SetAttribute("alpha", FMLAttributeValue(0.5f));
+			}
 			// Operator test, create model in memory
-			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, ModelData))
+			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, AttributeMap, ModelData))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;

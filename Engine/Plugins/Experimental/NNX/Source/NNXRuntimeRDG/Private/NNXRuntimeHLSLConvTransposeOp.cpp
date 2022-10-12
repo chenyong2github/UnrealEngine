@@ -6,6 +6,7 @@
 
 namespace NNX
 {
+    DECLARE_GPU_STAT_NAMED(FMLHLSLOperatorConvTranspose, TEXT("FML.HLSL.Operator.ConvTranspose"));
 
 	/**
 	 * ConvTranspose ML operator implementation
@@ -45,7 +46,7 @@ namespace NNX
 
 	public:
 
-		virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors) override
+		virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
@@ -107,9 +108,12 @@ namespace NNX
 			PermutationVector.Set<FMLConvTransposeCS::FConvTransposeHasB>(HasBias);
 			TShaderMapRef<FMLConvTransposeCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
+			RDG_EVENT_SCOPE(GraphBuilder, "FML.HLSL.Operator.ConvTranspose");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FMLHLSLOperatorConvTranspose);
+
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("FMLOperatorHlslConvTranspose_Dispatch"),
+				RDG_EVENT_NAME("FML.HLSL.Operator.ConvTranspose.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,

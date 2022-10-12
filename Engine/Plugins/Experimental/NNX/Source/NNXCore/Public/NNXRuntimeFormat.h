@@ -16,6 +16,19 @@ enum class EMLFormatTensorType : uint8
 	Intermediate
 };
 
+// Required by LoadModel() when loading operators in HLSL and DirectML runtime
+USTRUCT()
+struct FMLFormatAttributeDesc
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	FString Name;
+
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	FMLAttributeValue Value;
+};
+
 USTRUCT()
 struct FMLFormatOperatorDesc
 {
@@ -29,6 +42,9 @@ struct FMLFormatOperatorDesc
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	TArray<uint32> OutTensors;
+
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	TArray<FMLFormatAttributeDesc> Attributes;
 
 	//UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	//FString InstanceName;		//!< For example "Relu1"

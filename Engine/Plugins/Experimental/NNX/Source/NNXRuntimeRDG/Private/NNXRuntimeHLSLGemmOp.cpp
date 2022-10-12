@@ -6,6 +6,7 @@
 
 namespace NNX
 {
+	DECLARE_GPU_STAT_NAMED(FMLHLSLOperatorGemm, TEXT("FML.HLSL.Operator.Gemm"));
 
 	/**
 	 * Gemm ML operator implementation
@@ -45,7 +46,7 @@ namespace NNX
 
 	public:
 
-		virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors) override
+		virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
@@ -93,9 +94,12 @@ namespace NNX
 
 			FIntVector ThreadGroupCount = FMLGemmCS::GetGroupCount(*Parameters, Algorithm, 0);
 
+			RDG_EVENT_SCOPE(GraphBuilder, "FML.HLSL.Operator.Gemm");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FMLHLSLOperatorGemm);
+
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("FMLHlslGemmOperatorHlsl_Dispatch"),
+				RDG_EVENT_NAME("FML.HLSL.Operator.Gemm.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Parameters,

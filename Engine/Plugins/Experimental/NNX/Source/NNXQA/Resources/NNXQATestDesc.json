@@ -116,7 +116,7 @@
 				{	"target": "IsNan", "skip": true, "comment": "TODO add flexibility in test data setup + bool tensors" },
 				{	"target": "HardSigmoid",         "comment": "TODO test with not-default attribute" },
 				{	"target": "HardSwish", "runtimes": [ { "name": "NNXRuntimeDml", "skip": true, "comment": "Not implemented atm on NNXRuntimeDML."} ]},
-				{	"target": "LeakyRelu",           "comment": "TODO test with not-default attribute" },
+				{	"target": "LeakyRelu", "additional_datasets": [ "Elementwise.LeakyRelu.HackedAttributeTest" ], "comment": "TODO test with not-default attribute" },
 				{	"target": "Log", "runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 0.15},
 						{ "name": "NNXRuntimeDml",    "relative_error": 0.15},
@@ -271,6 +271,16 @@
 			"datasets": [
 				{
 					"inputs": [ { "shape": [ 65536, 513 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.LeakyRelu.HackedAttributeTest",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 4 ] } ],
+					"runtimes": [ { "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG DML does not support attribute yet" } ],
+					"comment": "for now there is no way to set attribute using the json test desc, this dataset is a special temporary case to test LeakyRelu with attribute not defaulted. See RunParametricTest() in NNQAParametricTest.cpp"
 				}
 			]
 		},

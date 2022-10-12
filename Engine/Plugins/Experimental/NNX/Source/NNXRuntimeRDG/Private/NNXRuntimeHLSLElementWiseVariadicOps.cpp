@@ -6,7 +6,7 @@
 
 namespace NNX
 {
-	DECLARE_GPU_STAT_NAMED(VariadicElementWiseOperatorHlsl, TEXT("NNX VariadicElementWiseOperatorHlsl"));
+	DECLARE_GPU_STAT_NAMED(FMLHLSLOperatorElementWiseVariadic, TEXT("FML.HLSL.Operator.ElementWise.Variadic"));
 
 	void AddOneVariadicOpPass(FRDGBuilder& GraphBuilder, 
 		TArrayView<const FMLTensorBinding> InputBindings,
@@ -71,7 +71,7 @@ namespace NNX
 		TShaderMapRef<FMLElementWiseVariadicCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("FMLVariadicElementWiseOperatorHlsl_Dispatch"),
+			RDG_EVENT_NAME("FML.HLSL.Operator.ElementWise.Variadic.Dispatch"),
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			ComputeShader,
 			Params,
@@ -102,7 +102,7 @@ private:
 
 public:
 
-	virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors) override
+	virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() > 0);
 		check(OutputTensors.Num() == 1);
@@ -118,8 +118,8 @@ public:
 		check(OutOutputBindings.Num() == 1);
 		check(InInputBindings.Num() == InputDescs.Num());
 
-		RDG_EVENT_SCOPE(GraphBuilder, "VariadicElementWiseOperatorHlsl");
-		RDG_GPU_STAT_SCOPE(GraphBuilder, VariadicElementWiseOperatorHlsl);
+		RDG_EVENT_SCOPE(GraphBuilder, "FML.HLSL.Operator.ElementWise.Variadic");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, FMLHLSLOperatorElementWiseVariadic);
 
 		FMLTensorBinding PassInputBindings[FMLElementWiseVariadicCS::MAX_NUM_INPUT];
 		FMLTensorDesc PassInputDescs[FMLElementWiseVariadicCS::MAX_NUM_INPUT];

@@ -35,7 +35,7 @@ protected:
 
 private:
 
-	FMLOperatorHlsl* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs);
+	FMLOperatorHlsl* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& Attributes);
 
 	TArray<FMLOperatorHlsl*>	Operators;
 };
@@ -83,7 +83,14 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 		TArray<FMLTensorDesc> OpInputTensors = InputTensors;
 		TArray<FMLTensorDesc> OpOutputTensors = OutputTensors;
 
-		FMLOperatorHlsl* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors);
+		// Attributes
+		FMLAttributeMap AttributeMap;
+		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
+		{
+			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
+		}
+
+		FMLOperatorHlsl* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, AttributeMap);
 
 		if (!Op) //Op.Shader.IsNull())
 		{
@@ -102,7 +109,7 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 //
 //
 //
-FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs)
+FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& AttributeMap)
 {
 	FMLOperatorRegistryHlsl::MLOperatorCreateFunc CreateFn = FMLOperatorRegistryHlsl::Get()->OpFind(OpName);
 
@@ -114,7 +121,7 @@ FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayVi
 
 	FMLOperatorHlsl* Op = CreateFn();
 
-	Op->Initialize(InputTensorDescs, OutputTensorDescs);
+	Op->Initialize(InputTensorDescs, OutputTensorDescs, AttributeMap);
 
 	return Op;
 }

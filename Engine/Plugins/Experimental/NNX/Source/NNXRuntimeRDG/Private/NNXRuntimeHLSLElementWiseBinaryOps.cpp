@@ -6,6 +6,7 @@
 
 namespace NNX
 {
+DECLARE_GPU_STAT_NAMED(FMLHLSLOperatorElementWiseBinary, TEXT("FML.HLSL.Operator.ElementWise.Binary"));
 
 /**
  * Binary Element-wise ML operator implementation
@@ -32,7 +33,7 @@ private:
 
 public:
 
-	virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors) override
+	virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() == 2);
 		check(OutputTensors.Num() == 1);
@@ -70,10 +71,13 @@ public:
 		PermutationVector.Set<FMLElementWiseBinaryCS::FBinaryNumDimensions>(Output.Dimension);
 
 		TShaderMapRef<FMLElementWiseBinaryCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+		
+		RDG_EVENT_SCOPE(GraphBuilder, "FML.HLSL.Operator.ElementWise.Binary");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, FMLHLSLOperatorElementWiseBinary);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("FMLBinaryElementWiseOperatorHlsl_Dispatch"),
+			RDG_EVENT_NAME("FML.HLSL.Operator.ElementWise.Binary.Dispatch"),
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			ComputeShader,
 			Params,

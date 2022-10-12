@@ -63,6 +63,9 @@ public:
 	/** Add operator input */
 	virtual bool AddOperatorInput(HOperator Op, HTensor Tensor) = 0;
 
+	/** Add operator attribute */
+	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FMLAttributeValue& Value) = 0;
+	
 	/** Add operator output */
 	virtual bool AddOperatorOutput(HOperator Op, HTensor Tensor) = 0;
 };
@@ -79,9 +82,10 @@ static constexpr int64 OnnxOpsetVersion = 15;
 NNXUTILS_API IMLModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVersion, int64 OpsetVersion = OnnxOpsetVersion);
 
 /**
- * Utility function to create single layer NN for operator testing
+ * Utility functions to create single layer NN for operator testing with optional attributes
  */
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TArrayView<FMLTensorDesc> InputTensors, TArrayView<FMLTensorDesc> OutputTensors, TArray<uint8>& ModelData);
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<const FMLTensorDesc> InInputTensors, TConstArrayView<const FMLTensorDesc> InOutputTensors, TArray<uint8>& ModelData);
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<const FMLTensorDesc> InInputTensors, TConstArrayView<const FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, TArray<uint8>& ModelData);
 
 /**
  * Create an instance of NNX model builder that creates NNX model/format in memory

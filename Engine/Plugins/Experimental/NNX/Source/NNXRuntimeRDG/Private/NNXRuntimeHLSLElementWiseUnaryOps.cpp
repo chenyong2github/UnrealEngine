@@ -6,6 +6,7 @@
 
 namespace NNX
 {
+DECLARE_GPU_STAT_NAMED(FMLHLSLOperatorElementWiseUnary, TEXT("FML.HLSL.Operator.ElementWise.Unary"));
 
 /**
  * Unary Element-wise ML operator implementation
@@ -33,7 +34,7 @@ private:
 
 public:
 
-	virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors) override
+	virtual bool Initialize(TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() == 1);
 		check(OutputTensors.Num() == 1);
@@ -41,7 +42,9 @@ public:
 		Input = InputTensors[0];
 		Output = OutputTensors[0];
 
-		/*TODO attributes*/
+		Alpha = Attributes.GetOptionalFloat(TEXT("alpha"), Alpha);
+		Beta = Attributes.GetOptionalFloat(TEXT("beta"), Beta);
+		Gamma = Attributes.GetOptionalFloat(TEXT("gamma"), Gamma);
 
 		return true;
 	}
@@ -70,9 +73,12 @@ public:
 
 		TShaderMapRef<FMLElementWiseCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
+		RDG_EVENT_SCOPE(GraphBuilder, "FML.HLSL.Operator.ElementWise.Unary");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, FMLHLSLOperatorElementWiseUnary);
+		
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("FMLUnaryElementWiseOperatorHlsl_Dispatch"),
+			RDG_EVENT_NAME("FML.HLSL.Operator.ElementWise.Unary.Dispatch"),
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			ComputeShader,
 			Params,

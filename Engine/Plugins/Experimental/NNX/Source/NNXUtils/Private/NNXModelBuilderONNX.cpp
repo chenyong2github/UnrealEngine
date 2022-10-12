@@ -199,6 +199,31 @@ public:
 		return true;
 	}
 
+	/** Add operator attribute */
+	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FMLAttributeValue& Value) override
+	{
+		auto NodeOp = OnnxOperatorCast(Op);
+		onnx::AttributeProto* Attribute = NodeOp->mutable_attribute()->Add();
+
+		Attribute->set_name(TCHAR_TO_ANSI(*Name));
+		if (Value.GetType() == EMLAttributeDataType::Float)
+		{
+			Attribute->set_type(onnx::AttributeProto::FLOAT);
+			Attribute->set_f(Value.AsFloat());
+		}
+		else if (Value.GetType() == EMLAttributeDataType::Int32)
+		{
+			Attribute->set_type(onnx::AttributeProto::INT);
+			Attribute->set_i(Value.AsInt32());
+		}
+		else
+		{
+			checkf(false, TEXT("not implemented"))
+		}
+		
+		return true;
+	}
+
 private:
 
 	bool SetValue(onnx::ValueInfoProto* Value, const FString& Name, EMLTensorDataType DataType, const TArrayView<const int32>& InShape)
@@ -249,7 +274,16 @@ private:
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TArrayView<FMLTensorDesc> InInputTensors, TArrayView<FMLTensorDesc> InOutputTensors, TArray<uint8>& ModelData)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, TArray<uint8>& ModelData)
+{
+	FMLAttributeMap EmptyAttributeMap;
+	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, ModelData);
+}
+
+//
+//
+//
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, TArray<uint8>& ModelData)
 {
 	TUniquePtr<IMLModelBuilder> Builder(CreateONNXModelBuilder());
 
@@ -287,6 +321,11 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TArray
 	for (int32 Idx = 0; Idx < OutputTensors.Num(); ++Idx)
 	{
 		Builder->AddOperatorOutput(Op, OutputTensors[Idx]);
+	}
+
+	for (int32 Idx = 0; Idx < Attributes.Num(); ++Idx)
+	{
+		Builder->AddOperatorAttribute(Op, Attributes.GetName(Idx), Attributes.GetAttributeValue(Idx));
 	}
 
 	Builder->End(ModelData);

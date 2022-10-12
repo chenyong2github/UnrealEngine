@@ -170,7 +170,6 @@ public:
 
 		Format.Operators[OpIdx].InTensors.Emplace(TensorIdx);
 
-
 		return true;
 	}
 
@@ -184,6 +183,18 @@ public:
 
 		Format.Operators[OpIdx].OutTensors.Emplace(TensorIdx);
 
+		return true;
+	}
+
+	/** Add operator attribute */
+	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FMLAttributeValue& Value) override
+	{
+		int OpIdx = NNXOperatorCast(Op);
+
+		FMLFormatAttributeDesc& Attribute = Format.Operators[OpIdx].Attributes.Emplace_GetRef();
+		Attribute.Name = Name;
+		Attribute.Value = Value;
+		
 		return true;
 	}
 

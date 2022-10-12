@@ -344,6 +344,26 @@ public:
 
 			auto Op = Builder->AddOperator(NodeInfo.opName);
 
+			for (int InIdx = 0; InIdx < NodeInfo.attributeCount; ++InIdx)
+			{
+				Ort::GraphAttributeInfo AttrInfo = Graph->GetNodeAttribute(Node, InIdx);
+				Ort::GraphAttributeValue AttrValue = Graph->GetNodeAttributeValue(Node, InIdx);
+
+				if (AttrInfo.type == Ort::GraphAttributeType::kFloat)
+				{
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FMLAttributeValue(AttrValue.f));
+				}
+				else if (AttrInfo.type == Ort::GraphAttributeType::kInt)
+				{
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FMLAttributeValue((int)AttrValue.i));
+				}
+				else
+				{
+					//TODO: better error reporting add type (example: sparse tensor) and name of the actual node if any (not the op name but the node one)
+					UE_LOG(LogNNX, Warning, TEXT("Unsupported attribute type for attribute '%s' in node '%s'"), ANSI_TO_TCHAR(AttrInfo.name), ANSI_TO_TCHAR(NodeInfo.opName));
+				}
+			}
+
 			for (int InIdx = 0; InIdx < NodeInfo.inputCount; ++InIdx)
 			{
 				Ort::GraphTensorInfo		TensorInfo = Graph->GetNodeInput(Node, InIdx);
