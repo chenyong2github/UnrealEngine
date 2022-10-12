@@ -321,7 +321,6 @@ public:
 	FVector Jitter = FVector::ZeroVector;
 };
 
-
 /**
  * Settings for Per Element Scale in the Pattern Tool
  */
@@ -330,9 +329,12 @@ class MESHMODELINGTOOLSEXP_API UPatternTool_ScaleSettings : public UInteractiveT
 {
 	GENERATED_BODY()
 public:
+	/** Initial value for Jitter and referenced in FPatternGenerator when applying scale jitter. Can't be used for ClampMin. */
+	static constexpr double MinScale = 0.001;
+	
 	/** If true, changes to Start Scale, End Scale, and Jitter are proportional along all the axes */
 	UPROPERTY(EditAnywhere, Category = Scale)
-	bool bUniform = true;
+	bool bProportional = true;
 	
 	/** If true, Scale is linearly interpolated between StartScale and Scale values */
 	UPROPERTY(EditAnywhere, Category = Scale, meta = (InlineEditConditionToggle))
@@ -343,16 +345,16 @@ public:
 	bool bJitter = false;
 	
 	/** Scale applied to all Pattern Elements, or to first Pattern Element for Interpolated scale */
-	UPROPERTY(EditAnywhere, Category = Scale)
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001))
 	FVector StartScale = FVector::OneVector;
 	
 	/** Scale applied to last Pattern Element for Interpolated scale */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (EditCondition = "bInterpolate"))
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, EditCondition = "bInterpolate"))
 	FVector EndScale = FVector::OneVector;
 
 	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0, EditCondition = "bJitter"))
-	FVector Jitter = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, EditCondition = "bJitter"))
+	FVector Jitter = FVector(MinScale);
 };
 
 
@@ -432,9 +434,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UPatternTool_ScaleSettings> ScaleSettings;
 	
-	FVector StartScaleDirection;
-	FVector EndScaleDirection;
-	FVector JitterScaleDirection;
+	FVector CachedStartScale;
+	FVector CachedEndScale;
+	FVector CachedJitterScale;
 	
 	int32 StartScaleWatcherIdx;
 	int32 EndScaleWatcherIdx;

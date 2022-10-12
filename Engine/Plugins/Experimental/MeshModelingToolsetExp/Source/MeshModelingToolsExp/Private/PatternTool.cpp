@@ -127,7 +127,7 @@ public:
 	FVector3d ScaleJitterRange = FVector3d::Zero();
 	bool bInterpolateScale = false;							// if false, only StartScale is used
 	bool bJitterScale = false;
-
+	
 	FAxisAlignedBox3d Dimensions = FAxisAlignedBox3d(FVector3d::Zero(), 10.0);
 
 public:
@@ -197,10 +197,9 @@ public:
 			FVector3d ScaleJitter;
 			FVector3d TransformScale = Transform.GetScale();
 
-			constexpr double MIN_SCALE = 0.001f;
-			ScaleJitter.X = FMath::Max(MIN_SCALE, TransformScale.X + FMath::Lerp(-ScaleJitterRange.X, ScaleJitterRange.X, ScaleRandomStream.GetFraction()));
-			ScaleJitter.Y = FMath::Max(MIN_SCALE, TransformScale.Y + FMath::Lerp(-ScaleJitterRange.Y, ScaleJitterRange.Y, ScaleRandomStream.GetFraction()));
-			ScaleJitter.Z = FMath::Max(MIN_SCALE, TransformScale.Z + FMath::Lerp(-ScaleJitterRange.Z, ScaleJitterRange.Z, ScaleRandomStream.GetFraction()));
+			ScaleJitter.X = FMath::Max(UPatternTool_ScaleSettings::MinScale, TransformScale.X + FMath::Lerp(-ScaleJitterRange.X, ScaleJitterRange.X, ScaleRandomStream.GetFraction()));
+			ScaleJitter.Y = FMath::Max(UPatternTool_ScaleSettings::MinScale, TransformScale.Y + FMath::Lerp(-ScaleJitterRange.Y, ScaleJitterRange.Y, ScaleRandomStream.GetFraction()));
+			ScaleJitter.Z = FMath::Max(UPatternTool_ScaleSettings::MinScale, TransformScale.Z + FMath::Lerp(-ScaleJitterRange.Z, ScaleJitterRange.Z, ScaleRandomStream.GetFraction()));
 				
 			Transform.SetScale( ScaleJitter );
 		}
@@ -568,49 +567,71 @@ void UPatternTool::Setup()
 	AddToolPropertySource(ScaleSettings);
 	ScaleSettings->RestoreProperties(this);
 
-	auto OnUniformChanged = [this](bool bNewValue)
+	auto OnProportionalChanged = [this](bool bNewValue)
 	{
 		if (bNewValue)
 		{
-			constexpr float Tolerance = 1E-08;
-			const FVector DefaultDirection = FVector::OneVector.GetUnsafeNormal();
-			
-			StartScaleDirection = ScaleSettings->StartScale.GetSafeNormal(Tolerance, DefaultDirection);
-			EndScaleDirection = ScaleSettings->EndScale.GetSafeNormal(Tolerance, DefaultDirection);
-			JitterScaleDirection = ScaleSettings->Jitter.GetSafeNormal(Tolerance, DefaultDirection);
+			CachedStartScale = ScaleSettings->StartScale;
+			CachedEndScale = ScaleSettings->EndScale;
+			CachedJitterScale = ScaleSettings->Jitter;
 		}
 	};
-	ScaleSettings->WatchProperty(ScaleSettings->bUniform, OnUniformChanged);
-	
-	StartScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->StartScale, [this](const FVector& NewStartScale)
+	ScaleSettings->WatchProperty(ScaleSettings->bProportional, OnProportionalChanged);
+	OnProportionalChanged(true);	// Initialize StartScaleDirection and EndScaleDirection
+
+	auto ApplyProportionalScale = [this](FVector& NewVector, FVector& CachedVector)
 	{
-		if (ScaleSettings->bUniform)
+		// Determines which component of the vector is being changed by looking at which component is
+		// most different from the previous values
+		FVector Difference = NewVector - CachedVector;
+		int32 DifferenceMaxElementIndex = MaxAbsElementIndex(Difference);
+		
+		// This approach to proportional scaling is desirable because when a user manually enters data
+		// numerically, we scale the other two components such that the entered value is unchanged unless
+		// doing so would result in component values less than MinScale, in which case the the resulting
+		// vector will be in the correct direction but lengthened to a degree to ensure all components are
+		// greater than or equal to MinScale.
+		double ScaleFactor = FMath::Max(NewVector[DifferenceMaxElementIndex] / CachedVector[DifferenceMaxElementIndex], UPatternTool_ScaleSettings::MinScale / CachedVector[MinElementIndex(CachedVector)]);
+		
+		NewVector = CachedVector * ScaleFactor;
+		CachedVector = NewVector;
+	};
+	
+	StartScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->StartScale, [this, &ApplyProportionalScale](const FVector& NewStartScale)
+	{
+		if (ScaleSettings->bProportional)
 		{
-			ScaleSettings->StartScale = StartScaleDirection * NewStartScale.Size();
+			ApplyProportionalScale(ScaleSettings->StartScale, CachedStartScale);
 			ScaleSettings->SilentUpdateWatcherAtIndex(StartScaleWatcherIdx);
+
+			// This is needed in addition to the call in OnPropertyModified due to the fact that these watchers are
+			// called after OnPropertyModified and in some cases the scale values used were inconsistent with the scale
+			// values being displayed in the details panel.
+			OnParametersUpdated();
 		}
 	});
 	
-	EndScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->EndScale, [this](const FVector& NewEndScale)
+	EndScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->EndScale, [this, &ApplyProportionalScale](const FVector& NewEndScale)
 	{
-		if (ScaleSettings->bUniform)
+		if (ScaleSettings->bProportional)
 		{
-			ScaleSettings->EndScale = EndScaleDirection * NewEndScale.Size();
+			ApplyProportionalScale(ScaleSettings->EndScale, CachedEndScale);
 			ScaleSettings->SilentUpdateWatcherAtIndex(EndScaleWatcherIdx);
+			
+			OnParametersUpdated();
 		}
 	});
 
-	JitterScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->Jitter, [this](const FVector& NewJitter)
+	JitterScaleWatcherIdx = ScaleSettings->WatchProperty(ScaleSettings->Jitter, [this, &ApplyProportionalScale](const FVector& NewJitterScale)
 	{
-		if (ScaleSettings->bUniform)
+		if (ScaleSettings->bProportional)
 		{
-			ScaleSettings->Jitter = JitterScaleDirection * NewJitter.Size();
+			ApplyProportionalScale(ScaleSettings->Jitter, CachedJitterScale);
 			ScaleSettings->SilentUpdateWatcherAtIndex(JitterScaleWatcherIdx);
+			
+			OnParametersUpdated();
 		}
 	});
-
-	// Initialize StartScaleDirection, EndScaleDirection, and JitterScaleDirection
-	OnUniformChanged(true);
 	
 	OutputSettings = NewObject<UPatternTool_OutputSettings>();
 	AddToolPropertySource(OutputSettings);
@@ -786,15 +807,31 @@ void UPatternTool::InitializeElements()
 
 void UPatternTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (PropertySet == RadialSettings 
-		|| PropertySet == LinearSettings 
-		|| PropertySet == GridSettings
-		|| PropertySet == RotationSettings
-		|| PropertySet == TranslationSettings
-		|| PropertySet == ScaleSettings )
+	if (PropertySet == Settings || PropertySet == OutputSettings)
 	{
-		OnParametersUpdated();
+		return;
 	}
+
+	if (PropertySet == ScaleSettings && ScaleSettings->bProportional)
+	{
+		// We are silencing all watchers if Property corresponds to an FVector UProperty because this indicates that
+		// the "Reset to Default" button was pressed. If individual components are modified instead, then Property will
+		// not be castable to an FStructProperty
+		
+		const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+		if (StructProperty != nullptr && StructProperty->Struct->GetName() == FString("Vector"))
+		{
+			CachedStartScale = ScaleSettings->StartScale;
+			CachedEndScale = ScaleSettings->EndScale;
+			CachedJitterScale = ScaleSettings->Jitter;
+			
+			ScaleSettings->SilentUpdateWatcherAtIndex(StartScaleWatcherIdx);
+			ScaleSettings->SilentUpdateWatcherAtIndex(EndScaleWatcherIdx);
+			ScaleSettings->SilentUpdateWatcherAtIndex(JitterScaleWatcherIdx);
+		}
+	}
+
+	OnParametersUpdated();
 }
 
 
