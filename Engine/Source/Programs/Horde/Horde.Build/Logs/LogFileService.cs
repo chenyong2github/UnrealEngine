@@ -407,7 +407,7 @@ namespace Horde.Build.Logs
 			_logFileCache = new MemoryCache(new MemoryCacheOptions());
 			_builder = builder;
 			_storage = storage;
-			_ticker = clock.AddTicker<LogFileService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
+			_ticker = clock.AddSharedTicker<LogFileService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
 			_settings = settings;
 			_logger = logger;
 		}
