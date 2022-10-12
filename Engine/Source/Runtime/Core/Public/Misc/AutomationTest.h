@@ -935,6 +935,14 @@ public:
 	void DequeueAllCommands();
 
 	/**
+	 * Whether there is no latent command in queue
+	 */
+	bool IsLatentCommandQueueEmpty() const
+	{
+		return LatentCommands.IsEmpty();
+	}
+
+	/**
 	 * Load any modules that are not loaded by default and have test classes in them
 	 */
 	void LoadTestModules();
