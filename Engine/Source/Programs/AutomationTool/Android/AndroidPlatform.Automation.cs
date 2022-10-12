@@ -132,6 +132,11 @@ public class AndroidPlatform : Platform
 			StopProcess();
 		}
 
+		public FileReference WriteOutputToFile(string FileName)
+		{
+			return AdbLogProcess.WriteOutputToFile(FileName);
+		}
+
 		private bool IsPackageRunningOnDevice()
 		{
 			ERunOptions Options = ERunOptions.Default | ERunOptions.SpewIsVerbose | ERunOptions.NoLoggingOfRunCommand;

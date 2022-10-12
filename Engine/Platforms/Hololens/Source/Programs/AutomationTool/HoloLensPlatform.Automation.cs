@@ -167,6 +167,11 @@ namespace HoloLens.Automation
 			}
 		}
 
+		public FileReference WriteOutputToFile(string FileName)
+		{
+			throw new NotImplementedException();
+		}
+
 		private void TailLogFile(string LogFilePath)
 		{
 			string LogName = GetProcessName();
@@ -347,6 +352,11 @@ namespace HoloLens.Automation
 			{
 				System.Threading.Thread.Sleep(1000);
 			}
+		}
+
+		public FileReference WriteOutputToFile(string FileName)
+		{
+			throw new NotImplementedException();
 		}
 	}
 

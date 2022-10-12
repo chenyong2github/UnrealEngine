@@ -311,6 +311,11 @@ namespace Gauntlet
 			}
 		}
 
+		public FileReference WriteOutputToFile(string FileName)
+		{
+			throw new NotImplementedException();
+		}
+
 		private void TailLogFile(string LogFilePath)
 		{
 			string LogName = GetProcessName();
@@ -579,6 +584,16 @@ namespace Gauntlet
 			{
 				System.Threading.Thread.Sleep(1000);
 			}
+		}
+
+		public FileReference WriteOutputToFile(string FileName)
+		{
+			using (StreamWriter writer = new StreamWriter(FileName))
+			{
+				writer.Write(OutputLog);
+			}
+
+			return new FileReference(FileName);
 		}
 	}
 #endif

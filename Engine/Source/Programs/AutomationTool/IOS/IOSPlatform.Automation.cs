@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -109,6 +109,11 @@ class IOSClientProcess : IProcessResult
 	public void WaitForExit()
 	{
 		childProcess.WaitForExit();
+	}
+
+	public FileReference WriteOutputToFile(string FileName)
+	{
+		return childProcess.WriteOutputToFile(FileName);
 	}
 
 	private void StopConsoleOutput()
