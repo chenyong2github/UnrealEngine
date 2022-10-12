@@ -291,12 +291,12 @@ namespace DatasmithSolidworks
 			return ComponentMaterials;
 		}
 
-		public static ConcurrentDictionary<string, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocument InAsmDoc, HashSet<string> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
+		public static ConcurrentDictionary<FComponentName, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocument InAsmDoc, HashSet<FComponentName> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
 			IModelDocExtension Ext = InAsmDoc.SwDoc.Extension;
 			int NumMaterials = Ext.GetRenderMaterialsCount2((int)InDisplayState, InDisplayStateNames);
 
-			ConcurrentDictionary<string, FObjectMaterials> DocMaterials = new ConcurrentDictionary<string, FObjectMaterials>();
+			ConcurrentDictionary<FComponentName, FObjectMaterials> DocMaterials = new ConcurrentDictionary<FComponentName, FObjectMaterials>();
 
 			if (NumMaterials > 0)
 			{
@@ -322,7 +322,7 @@ namespace DatasmithSolidworks
 							{
 								FObjectMaterials ComponentMaterials = new FObjectMaterials(InAsmDoc, CompDoc, ref InAsmDoc.ExportedMaterialsMap);
 								ComponentMaterials.SetComponentMaterial(RenderMat, InAsmDoc.SwDoc);
-								DocMaterials[Comp.Name2] = ComponentMaterials;
+								DocMaterials[new FComponentName(Comp)] = ComponentMaterials;
 							}
 							continue;
 						}
@@ -332,7 +332,9 @@ namespace DatasmithSolidworks
 							FObjectMaterials PartMaterials = LoadPartMaterials(InAsmDoc, Doc as PartDoc, InDisplayState, InDisplayStateNames);
 							if (PartMaterials != null)
 							{
-								DocMaterials[(Doc as ModelDoc2).GetPathName()] = PartMaterials;
+								// xxx: why trying to present PahtName as component name?
+								// xxx: how it can be a PartDoc in Assembly function
+								DocMaterials[FComponentName.FromCustomString((Doc as ModelDoc2).GetPathName())] = PartMaterials;
 							}
 							continue;
 						}

@@ -2,6 +2,7 @@
 
 using SolidWorks.Interop.sldworks;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -41,7 +42,7 @@ namespace DatasmithSolidworks
 		// A node contains all the configuration data for a single component
 		public class FComponentTreeNode
 		{
-			public string ComponentName;
+			public FComponentName ComponentName;
 			public int ComponentID;
 
 			// Common configuration data
@@ -54,6 +55,9 @@ namespace DatasmithSolidworks
 			public bool bVisibilitySame = true;
 			public bool bSuppressionSame = true;
 			public bool bMaterialSame = true;
+			public bool bGeometrySame = true;
+
+			public HashSet<FActorName> Meshes = null;
 
 			public List<FComponentTreeNode> Children;
 
@@ -158,7 +162,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		static public void Compress(FComponentTreeNode InNode)
+		static public void Compress(FComponentTreeNode InNode, FConfigurationExporter ConfigurationExporter)
 		{
 			bool CheckMaterialsEqual(List<FComponentConfig> ConfigList)
 			{
@@ -224,6 +228,8 @@ namespace DatasmithSolidworks
 				bool bSuppressed = InNode.Configurations[0].bSuppressed;
 				bool bVisibilitySame = true;
 				bool bSuppressionSame = true;
+				bool bGeometrySame = true;
+
 				for (int Idx = 1; Idx < InNode.Configurations.Count; Idx++)
 				{
 					if (InNode.Configurations[Idx].bVisible != bVisible)
@@ -235,11 +241,30 @@ namespace DatasmithSolidworks
 					{
 						bSuppressionSame = false;
 					}
+
+					if (!ConfigurationExporter.IsSameMesh(InNode.ComponentName, InNode.Configurations[0].ConfigName, InNode.Configurations[Idx].ConfigName))
+					{
+						bGeometrySame = false;
+					}
 				}
+
+				if (!bGeometrySame)
+				{
+					Debug.Assert(InNode.Meshes == null);
+					InNode.Meshes = new HashSet<FActorName>();
+
+					foreach (FComponentConfig ComponentConfig in InNode.Configurations)
+					{
+						InNode.Meshes.Add(ConfigurationExporter.GetMeshActorName(InNode.ComponentName,
+							ComponentConfig.ConfigName));
+					}
+				}
+
 				// Propagate common values
 				InNode.bMaterialSame = bAllMaterialsAreSame;
 				InNode.bVisibilitySame = bVisibilitySame;
 				InNode.bSuppressionSame = bSuppressionSame;
+				InNode.bGeometrySame = bGeometrySame;
 
 				if (bVisibilitySame)
 				{
@@ -253,7 +278,7 @@ namespace DatasmithSolidworks
 				//todo: store bAll...Same in ConfigData
 
 				// If EVERYTHING is same, just remove all configurations at all
-				if (bAllTransformsAreSame && bAllMaterialsAreSame && bVisibilitySame && bSuppressionSame)
+				if (bAllTransformsAreSame && bAllMaterialsAreSame && bVisibilitySame && bSuppressionSame && bGeometrySame)
 				{
 					InNode.Configurations = null;
 				}
@@ -276,16 +301,16 @@ namespace DatasmithSolidworks
 			{
 				foreach (FComponentTreeNode Child in InNode.Children)
 				{
-					Compress(Child);
+					Compress(Child, ConfigurationExporter);
 				}
 			}
 		}
 
-		static public void FillConfigurationData(FComponentTreeNode InNode, string InConfigurationName, FConfigurationData OutData, bool bIsDisplayState)
+		static public void FillConfigurationData(FConfigurationExporter ConfigurationExporter, FComponentTreeNode InNode, string InConfigurationName, FConfigurationData OutData, bool bIsDisplayState)
 		{
 			FComponentConfig NodeConfig = InNode.GetConfiguration(InConfigurationName, bIsDisplayState);
 
-			// Visibility or suppression flags are set per node, and not propagated to childre.
+			// Visibility or suppression flags are set per node, and not propagated to children.
 			// Also, suppression doesn't mark node as invisible. We should process these separately
 			// to exclude any variant information from invisible nodes and their children.
 			if ((InNode.bVisibilitySame && !InNode.CommonConfig.bVisible) || (NodeConfig != null && !NodeConfig.bVisible) ||
@@ -313,6 +338,15 @@ namespace DatasmithSolidworks
 				{
 					OutData.ComponentVisibility.Add(InNode.ComponentName, !NodeConfig.bSuppressed);
 				}
+				if (!InNode.bGeometrySame)
+				{
+					OutData.ComponentGeometry.Add(InNode.ComponentName, new FConfigurationData.FComponentGeometryVariant
+						{
+							VisibleActor = ConfigurationExporter.GetMeshActorName(InNode.ComponentName, InConfigurationName),
+							All = InNode.Meshes.ToList()
+						}
+					);
+				}
 				if (!InNode.bMaterialSame)
 				{
 					FObjectMaterials Materials = NodeConfig.Materials;
@@ -333,7 +367,7 @@ namespace DatasmithSolidworks
 			{
 				foreach (FComponentTreeNode Child in InNode.Children)
 				{
-					FillConfigurationData(Child, InConfigurationName, OutData, bIsDisplayState);
+					FillConfigurationData(ConfigurationExporter, Child, InConfigurationName, OutData, bIsDisplayState);
 				}
 			}
 		}

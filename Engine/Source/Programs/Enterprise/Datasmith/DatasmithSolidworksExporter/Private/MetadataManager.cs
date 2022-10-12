@@ -56,7 +56,7 @@ namespace DatasmithSolidworks
 			None
 		}
 
-		public string OwnerName { get; set; } = "";
+		public FActorName OwnerName { get; set; }
 		public EOwnerType OwnerType = EOwnerType.None;
 		public List<IMetadataPair> Pairs = new List<IMetadataPair>();
 

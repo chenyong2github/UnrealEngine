@@ -169,7 +169,8 @@ namespace DatasmithSolidworks
 #if DEBUG
 				Stopwatch Watch = Stopwatch.StartNew();
 #endif
-				ExportToDatasmithScene();
+				FMeshes Meshes = new FMeshes();
+				ExportToDatasmithScene(Meshes);
 
 				ExportLights();
 
@@ -200,10 +201,14 @@ namespace DatasmithSolidworks
 
 				Exporter = new FDatasmithExporter(DatasmithScene);
 
-				List<FConfigurationData> Configs = FConfigurationExporter.ExportConfigurations(this);
+				FMeshes Meshes = new FMeshes();
+
+				PreExport(Meshes);
+
+				List<FConfigurationData> Configs = new FConfigurationExporter(Meshes).ExportConfigurations(this);
 				bHasConfigurations = (Configs != null) && (Configs.Count != 0);
 
-				ExportToDatasmithScene();
+				ExportToDatasmithScene(Meshes);
 			
 				ExportLights();
 				ExportConfigurations(Configs);
@@ -233,7 +238,8 @@ namespace DatasmithSolidworks
 		}
 
 		public abstract bool HasMaterialUpdates();
-		public abstract void ExportToDatasmithScene();
+		public abstract void ExportToDatasmithScene(FMeshes Meshes);
+		public abstract void PreExport(FMeshes Meshes);  // Called before configurations are parsed to prepare meshes needed to identify if they create different configurations
 
 		public virtual void Init()
 		{

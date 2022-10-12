@@ -59,9 +59,29 @@ namespace DatasmithSolidworks
 			Z = (float)Data[2];
         }
 
-        public override bool Equals(object InObj)
+        public static bool operator ==(FVec3 A, FVec3 B)
         {
-            return base.Equals(InObj);
+	        if (ReferenceEquals(A, B))
+	        {
+				return true;
+	        }
+
+	        if (A is null || B is null)
+	        {
+		        return false;
+	        }
+
+	        return A.X == B.X && A.Y == B.Y && A.Z == B.Z;
+        }
+
+        public static bool operator !=(FVec3 A, FVec3 B)
+        {
+	        return !(A == B);
+        }
+
+        public override bool Equals(object Obj)
+        {
+            return Obj is FVec3 Other && this == Other;
         }
 
         public override int GetHashCode()

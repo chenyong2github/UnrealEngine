@@ -29,9 +29,46 @@ namespace DatasmithSolidworks
 			MaterialID = InMaterialID;
 		}
 
+		public static bool operator ==(FTriangle A, FTriangle B)
+		{
+			if (ReferenceEquals(A, B))
+			{
+				return true;
+			}
+
+			if (A is null || B is null)
+			{
+				return false;
+			}
+
+			return A.Index1 == B.Index1 && A.Index2 == B.Index2 && A.Index3 == B.Index3 && A.MaterialID == B.MaterialID;
+		}
+
+		public static bool operator !=(FTriangle A, FTriangle B)
+		{
+			return !(A == B);
+		}
+
+		public override bool Equals(object Obj)
+		{
+			return Obj is FTriangle Other && this == Other;
+		}
+
 		public FTriangle Offset(int InOffset)
 		{
 			return new FTriangle(Indices[0] + InOffset, Indices[1] + InOffset, Indices[2] + InOffset, MaterialID);
+		}
+
+		public override int GetHashCode() 
+		{
+			int Hash = 7;
+
+			foreach (int Index in Indices)
+			{
+				Hash = Hash * 17 + Index.GetHashCode();
+			}
+
+			return Hash;
 		}
 
 		public override string ToString()

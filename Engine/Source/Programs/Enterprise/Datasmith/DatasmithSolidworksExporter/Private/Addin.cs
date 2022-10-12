@@ -294,7 +294,7 @@ namespace DatasmithSolidworks
 			{
 				switch (InDoc.GetType())
 				{
-					case (int)swDocumentTypes_e.swDocPART: CurrentDocument = new FPartDocument(DocId, InDoc as PartDoc, null, null, null); break;
+					case (int)swDocumentTypes_e.swDocPART: CurrentDocument = new FPartDocument(DocId, InDoc as PartDoc, null, null, new FComponentName()); break;
 					case (int)swDocumentTypes_e.swDocASSEMBLY: CurrentDocument = new FAssemblyDocument(DocId, InDoc as AssemblyDoc, null); break;
 					default: throw new Exception("Unsupported document type");
 				}

@@ -6,30 +6,195 @@ using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace DatasmithSolidworks
 {
+	[ComVisible(false)]
 	public class FConfigurationData
 	{
 		public string Name;
 		public bool bIsDisplayStateConfiguration = false;
-		public Dictionary<string, float[]> ComponentTransform = new Dictionary<string, float[]>();
-		public Dictionary<string, bool> ComponentVisibility = new Dictionary<string, bool>();
-		public Dictionary<string, FObjectMaterials> ComponentMaterials = new Dictionary<string, FObjectMaterials>();
+		public Dictionary<FComponentName, float[]> ComponentTransform = new Dictionary<FComponentName, float[]>();
+		public Dictionary<FComponentName, bool> ComponentVisibility = new Dictionary<FComponentName, bool>();
+		public Dictionary<FComponentName, FObjectMaterials> ComponentMaterials = new Dictionary<FComponentName, FObjectMaterials>();
+
+		[ComVisible(false)]
+		public struct FComponentGeometryVariant
+		{
+			public FActorName VisibleActor; // Actor enabled for this variant
+			public List<FActorName> All; // All actors used for this component in variants
+		}
+
+		public Dictionary<FComponentName, FComponentGeometryVariant> ComponentGeometry = new Dictionary<FComponentName, FComponentGeometryVariant>();
 
 		public bool IsEmpty()
 		{
-			return (
-				ComponentTransform.Count == 0 && 
-				ComponentVisibility.Count == 0 && 
-				ComponentMaterials.Count == 0);
+			return (ComponentTransform.Count == 0
+			        && ComponentVisibility.Count == 0 
+			        && ComponentMaterials.Count == 0
+			        && ComponentGeometry.Count == 0);
 		}
 	};
 
 	[ComVisible(false)]
+	public class FMeshes
+	{
+		private Dictionary<string, IConfiguration> Configurations = new Dictionary<string, IConfiguration>();
+
+		private HashSet<FMesh> Meshes = new HashSet<FMesh>();
+
+		[ComVisible(false)]
+		public struct FMesh
+		{
+			public FMeshData MeshData;
+
+			private readonly int Hash;
+
+			public FMesh(FMeshData InMeshData)
+			{
+
+				MeshData = InMeshData;
+
+				Hash = 0;
+
+				foreach (FVec3 Vertex in MeshData.Vertices)
+				{
+					Hash ^= Vertex.GetHashCode();
+				}
+
+				foreach (FVec3 Normal in MeshData.Normals)
+				{
+					Hash ^= Normal.GetHashCode();
+				}
+
+				foreach (FVec2 TexCoord in MeshData.TexCoords)
+				{
+					Hash ^= TexCoord.GetHashCode();
+				}
+
+				foreach (FTriangle Triangle in MeshData.Triangles)
+				{
+					Hash ^= Triangle.GetHashCode();
+				}
+			}
+
+			public override bool Equals(object Obj)
+			{
+				return Obj is FMesh Other && Equals(Other);
+			}
+
+			public bool Equals(FMesh Other)
+			{
+				
+				if (Hash != Other.Hash)
+				{
+					return false;
+				}
+
+				if (!MeshData.Vertices.SequenceEqual(Other.MeshData.Vertices))
+				{
+					return false;
+				}
+
+				if (!MeshData.Normals.SequenceEqual(Other.MeshData.Normals))
+				{
+					return false;
+				}
+
+				if (!MeshData.TexCoords.SequenceEqual(Other.MeshData.TexCoords))
+				{
+					return false;
+				}
+
+				if (!MeshData.Triangles.SequenceEqual(Other.MeshData.Triangles))
+				{
+					return false;
+				}
+
+				return true;
+			}
+
+			public static bool operator ==(FMesh A, FMesh B)
+			{
+				return A.Equals(B);
+			}
+
+			public static bool operator !=(FMesh A, FMesh B)
+			{
+				return !(A == B);
+			}
+
+			public override int GetHashCode()
+			{
+				return Hash;
+			}
+		}
+
+		[ComVisible(false)]
+		public interface IConfiguration
+		{
+			void AddMesh(Component2 Component, FMeshData Mesh);
+			bool GetMeshForComponent(FComponentName ComponentName, out FMesh Result);
+		}
+
+		public IConfiguration GetMeshesConfiguration(string ConfigurationName)
+		{
+			if (Configurations.TryGetValue(ConfigurationName, out var Configuration))
+			{
+				return Configuration;
+			}			
+
+			Configuration = new FConfigurationImpl(this, ConfigurationName);
+			Configurations.Add(ConfigurationName, Configuration);
+			return Configuration;
+		}
+
+		public bool IsSameMesh(FComponentName ComponentName, string ConfigNameA, string ConfigNameB)
+		{
+			return GetMeshesConfiguration(ConfigNameA).GetMeshForComponent(ComponentName, out FMesh MeshA)
+			       && GetMeshesConfiguration(ConfigNameB).GetMeshForComponent(ComponentName, out FMesh MeshB)
+			       && MeshA == MeshB;
+		}
+
+
+		public FMeshData GetMeshData(string ConfigName, FComponentName ComponentName)
+		{
+			return GetMeshesConfiguration(ConfigName).GetMeshForComponent(ComponentName, out FMesh Mesh) ? Mesh.MeshData : null;
+		}
+
+		private class FConfigurationImpl : IConfiguration
+		{
+			private Dictionary<FComponentName, FMesh> MeshForComponent = new Dictionary<FComponentName, FMesh>();
+
+			public FConfigurationImpl(FMeshes Meshes, string Name)
+			{
+			}
+
+			public void AddMesh(Component2 Component, FMeshData Mesh)
+			{
+				MeshForComponent.Add(new FComponentName(Component), new FMesh(Mesh));
+			}
+
+			public bool GetMeshForComponent(FComponentName ComponentName, out FMesh Result)
+			{
+				return MeshForComponent.TryGetValue(ComponentName, out Result);
+			}
+
+		}
+	}
+
+	[ComVisible(false)]
 	public class FConfigurationExporter
 	{
-		public static List<FConfigurationData> ExportConfigurations(FDocument InDoc)
+		private readonly FMeshes Meshes;
+
+		public FConfigurationExporter(FMeshes Meshes)
+		{
+			this.Meshes = Meshes;
+		}
+
+		public List<FConfigurationData> ExportConfigurations(FDocument InDoc)
 		{
 			string[] CfgNames = InDoc.SwDoc?.GetConfigurationNames();
 
@@ -39,7 +204,7 @@ namespace DatasmithSolidworks
 			}
 
 			FConfigurationTree.FComponentTreeNode CombinedTree = new FConfigurationTree.FComponentTreeNode();
-			CombinedTree.ComponentName = "CombinedTree";
+			CombinedTree.ComponentName = FComponentName.FromCustomString("CombinedTree");
 
 			// Ensure recursion will not stop on the root node (this may happen if it is not explicitly marked as visible)
 			CombinedTree.bVisibilitySame = true;
@@ -69,15 +234,17 @@ namespace DatasmithSolidworks
 
 				FConfigurationTree.FComponentTreeNode ConfigNode = new FConfigurationTree.FComponentTreeNode();
 				ConfigNode.Children = new List<FConfigurationTree.FComponentTreeNode>();
-				ConfigNode.ComponentName = ConfigName;
+				ConfigNode.ComponentName = FComponentName.FromCustomString(ConfigName);
+
 
 				// Build the tree and get default materials (which aren't affected by any configuration)
 				// Use GetRootComponent3() with Resolve = true to ensure suppressed components will be loaded
+				// todo: docs says that Part document SW returns null. Not the case. But probably better to add a guard
 				CollectComponentsRecursive(InDoc, swConfiguration.GetRootComponent3(true), ConfigNode);
 
 				ExportedConfigurationNames.Add(ConfigName);
 
-				Dictionary<string, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayStates != null ? DisplayStates[0] : null, swConfiguration);
+				Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayStates != null ? DisplayStates[0] : null, swConfiguration);
 				SetComponentTreeMaterials(ConfigNode, MaterialsMap, null, false);
 
 				if (DisplayStates != null)
@@ -113,14 +280,14 @@ namespace DatasmithSolidworks
 				{
 					string DisplayStateConfigName = $"DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
 					DisplayStateConfigurations.Add(DisplayStateConfigName);
-					Dictionary<string, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayState, OriginalConfiguration);
+					Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayState, OriginalConfiguration);
 
 					SetComponentTreeMaterials(CombinedTree, MaterialsMap, DisplayStateConfigName, true);
 				}
 			}
 
 			// Remove configuration data when it's the same
-			FConfigurationTree.Compress(CombinedTree);
+			FConfigurationTree.Compress(CombinedTree, this);
 
 			List<FConfigurationData> FlatConfigurationData = new List<FConfigurationData>();
 
@@ -130,7 +297,7 @@ namespace DatasmithSolidworks
 				FConfigurationData CfgData = new FConfigurationData();
 				CfgData.Name = CfgName;
 				CfgData.bIsDisplayStateConfiguration = false;
-				FConfigurationTree.FillConfigurationData(CombinedTree, CfgName, CfgData, false);
+				FConfigurationTree.FillConfigurationData(this, CombinedTree, CfgName, CfgData, false);
 
 				if (!CfgData.IsEmpty())
 				{
@@ -142,7 +309,7 @@ namespace DatasmithSolidworks
 				FConfigurationData CfgData = new FConfigurationData();
 				CfgData.Name = DisplayStateConfigName;
 				CfgData.bIsDisplayStateConfiguration = true;
-				FConfigurationTree.FillConfigurationData(CombinedTree, DisplayStateConfigName, CfgData, true);
+				FConfigurationTree.FillConfigurationData(this, CombinedTree, DisplayStateConfigName, CfgData, true);
 
 				if (!CfgData.IsEmpty())
 				{
@@ -153,9 +320,9 @@ namespace DatasmithSolidworks
 			return FlatConfigurationData;
 		}
 
-		private static Dictionary<string, FObjectMaterials> GetComponentMaterials(FDocument InDoc, string InDisplayState, IConfiguration InConfiguration)
+		private static Dictionary<FComponentName, FObjectMaterials> GetComponentMaterials(FDocument InDoc, string InDisplayState, IConfiguration InConfiguration)
 		{
-			Dictionary<string, FObjectMaterials> MaterialsMap = new Dictionary<string, FObjectMaterials>();
+			Dictionary<FComponentName, FObjectMaterials> MaterialsMap = new Dictionary<FComponentName, FObjectMaterials>();
 
 			swDisplayStateOpts_e Option = InDisplayState != null ? swDisplayStateOpts_e.swSpecifyDisplayState : swDisplayStateOpts_e.swThisDisplayState;
 			string[] DisplayStates = InDisplayState != null ? new string[] { InDisplayState } : null;
@@ -164,14 +331,14 @@ namespace DatasmithSolidworks
 			{
 				FAssemblyDocument AsmDoc = InDoc as FAssemblyDocument;
 
-				HashSet<string> InComponentsSet = new HashSet<string>();
+				HashSet<FComponentName> InComponentsSet = new HashSet<FComponentName>();
 
-				foreach (string CompName in AsmDoc.SyncState.ExportedComponentsMap.Keys)
+				foreach (FComponentName CompName in AsmDoc.SyncState.ExportedComponentsMap.Keys)
 				{
 					InComponentsSet.Add(CompName);
 				}
 
-				ConcurrentDictionary<string, FObjectMaterials> ComponentMaterials =
+				ConcurrentDictionary<FComponentName, FObjectMaterials> ComponentMaterials =
 					FObjectMaterials.LoadAssemblyMaterials(AsmDoc, InComponentsSet, Option, DisplayStates);
 
 				if (ComponentMaterials != null)
@@ -187,13 +354,14 @@ namespace DatasmithSolidworks
 				FPartDocument PartDocument = InDoc as FPartDocument;
 				FObjectMaterials PartMaterials = FObjectMaterials.LoadPartMaterials(InDoc, PartDocument.SwPartDoc, Option, DisplayStates);
 				Component2 Comp = InConfiguration.GetRootComponent3(true);
-				MaterialsMap.Add(Comp?.Name2 ?? "", PartMaterials);
+
+				MaterialsMap.Add(FComponentName.FromCustomString(Comp?.Name2 ?? ""), PartMaterials);
 			}
 
 			return MaterialsMap;
 		}
 
-		private static void SetComponentTreeMaterials(FConfigurationTree.FComponentTreeNode InComponentTree, Dictionary<string, FObjectMaterials> InComponentMaterialsMap, string InConfigurationName, bool bIsDisplayState)
+		private static void SetComponentTreeMaterials(FConfigurationTree.FComponentTreeNode InComponentTree, Dictionary<FComponentName, FObjectMaterials> InComponentMaterialsMap, string InConfigurationName, bool bIsDisplayState)
 		{
 			FConfigurationTree.FComponentConfig TargetConfig = null;
 
@@ -231,7 +399,7 @@ namespace DatasmithSolidworks
 			InParentNode.Children.Add(NewNode);
 
 			// Basic properties
-			NewNode.ComponentName = InComponent.Name2;
+			NewNode.ComponentName = new FComponentName(InComponent);
 			NewNode.ComponentID = InComponent.GetID();
 			NewNode.CommonConfig.bVisible = InComponent.Visible != (int)swComponentVisibilityState_e.swComponentHidden;
 			NewNode.CommonConfig.bSuppressed = InComponent.IsSuppressed();
@@ -263,7 +431,7 @@ namespace DatasmithSolidworks
 
 			// Process children components
 			var Children = (Object[])InComponent.GetChildren();
-			if (Children != null && Children.Length > 0)
+			if (Children != null && Children.Length > 0)  // Children can be null sometimes and sometimes zero-length array
 			{
 				NewNode.Children = new List<FConfigurationTree.FComponentTreeNode>();
 				foreach (object ObjChild in Children)
@@ -277,6 +445,16 @@ namespace DatasmithSolidworks
 					return InA.ComponentID - InB.ComponentID;
 				});
 			}
+		}
+
+		public bool IsSameMesh(FComponentName ComponentName, string ConfigNameA, string ConfigNameB)
+		{
+			return Meshes.IsSameMesh(ComponentName, ConfigNameA, ConfigNameB);
+		}
+
+		public FActorName GetMeshActorName(FComponentName ComponentName, string ConfigName)
+		{
+			return FActorName.FromString(ComponentName.GetString() + "_" + ConfigName);
 		}
 	}
 }
