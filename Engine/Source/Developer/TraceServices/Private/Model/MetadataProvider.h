@@ -28,13 +28,14 @@ public:
 private:
 	FRWLock RWLock;
 };
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMetadataProvider : public IMetadataProvider
 {
 public:
 	static constexpr uint32 MaxMetadataSize = 0xFFFF;
+	static constexpr uint32 MaxLogMessagesPerErrorType = 100;
 
 private:
 	static constexpr uint32 MaxInlinedMetadataSize = 12;
@@ -78,6 +79,16 @@ private:
 		uint32 ThreadId;
 		TArray<FMetadataStackEntry> CurrentStack;
 		TPagedArray<FMetadataEntry> Metadata; // a metadata id is an index in this array
+		bool bIsClearStackScope;
+		bool bIsRestoreSavedStackScope;
+		uint32 RestoreSavedStackId;
+		uint32 RestoreSavedStackSize;
+	};
+
+	struct FMetadataSavedStackInfo
+	{
+		uint32 ThreadId;
+		uint32 MetadataId;
 	};
 
 public:
@@ -100,8 +111,17 @@ public:
 	void PushScopedMetadata(uint32 InThreadId, uint16 InType, const void* InData, uint32 InSize);
 	void PopScopedMetadata(uint32 InThreadId, uint16 InType);
 
+	void BeginClearStackScope(uint32 InThreadId);
+	void EndClearStackScope(uint32 InThreadId);
+
+	void SaveStack(uint32 InThreadId, uint32 InSavedStackId);
+	void BeginRestoreSavedStackScope(uint32 InThreadId, uint32 InSavedStackId);
+	void EndRestoreSavedStackScope(uint32 InThreadId);
+
 	// Pins the metadata stack and returns an id for it.
 	uint32 PinAndGetId(uint32 InThreadId);
+
+	void OnAnalysisCompleted();
 
 	//////////////////////////////////////////////////
 	// Read operations
@@ -134,6 +154,12 @@ private:
 	TPagedArray<FMetadataStoreEntry> MetadataStore; // stores individual metadata values
 
 	TMap<uint32, FMetadataThread*> Threads;
+
+	TMap<uint32, FMetadataSavedStackInfo> SavedStackMap; // SavedStackId --> (ThreadId, MetadataId)
+
+	uint32 MetaScopeErrors = 0; // debug
+	uint32 ClearScopeErrors = 0; // debug
+	uint32 RestoreScopeErrors = 0; // debug
 
 	uint64 EventCount = 0; // debug
 	uint64 AllocationEventCount = 0; // debug

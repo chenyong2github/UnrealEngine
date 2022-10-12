@@ -12,11 +12,11 @@
 
 namespace TraceServices
 {
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 template<typename ArrayType>
 static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData& EventData, uint16 MetadataTypeId, const FMetadataProvider* MetadataProvider, IAnalysisSession& Session);
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 FMetadataAnalysis::FMetadataAnalysis(IAnalysisSession& InSession, FMetadataProvider* InProvider)
 	: Session(InSession)
@@ -28,7 +28,7 @@ FMetadataAnalysis::FMetadataAnalysis(IAnalysisSession& InSession, FMetadataProvi
 FMetadataAnalysis::~FMetadataAnalysis()
 {
 }
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void FMetadataAnalysis::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
@@ -46,6 +46,8 @@ void FMetadataAnalysis::OnAnalysisBegin(const FOnAnalysisContext& Context)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void FMetadataAnalysis::OnAnalysisEnd()
 {
+	FProviderEditScopeLock _(*MetadataProvider);
+	MetadataProvider->OnAnalysisCompleted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,38 +58,37 @@ bool FMetadataAnalysis::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	{
 	case RouteId_ClearScope:
 		{
-			//todo: Add method in provider to add a clear scope
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
 			if (Style == EStyle::EnterScope)
 			{
+				MetadataProvider->BeginClearStackScope(ThreadId);
 			}
-			else
+			else if (ensure(Style == EStyle::LeaveScope))
 			{
+				MetadataProvider->EndClearStackScope(ThreadId);
 			}
 		}
 		break;
 
 	case RouteId_SaveStack:
 		{
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
 			const uint32 RuntimeId = Context.EventData.GetValue<uint32>("Id");
-			// todo: This should pin into a temporary buffer which can be released on analysis end
-			//auto AnalysisId = MetadataProvider->PinAndGetId(Context.ThreadInfo.GetSystemId());
-			//todo: Store RuntimeId <-> AnalysisId in map
-			//todo: Handle wrapping?
+			MetadataProvider->SaveStack(ThreadId, RuntimeId);
 		}
 		break;
 
 	case RouteId_RestoreStack:
 		{
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
 			if (Style == EStyle::EnterScope)
 			{
 				const uint32 RuntimeId = Context.EventData.GetValue<uint32>("Id");
-				//todo: Find analysis id in map
+				MetadataProvider->BeginRestoreSavedStackScope(ThreadId, RuntimeId);
 			}
-			else
+			else if (ensure(Style == EStyle::LeaveScope))
 			{
-				//MetadataProvider->PopScopedMetadata(Context.ThreadInfo.GetSystemId(), 0xFF /* All */);
-				//todo: At this point the mapping can be released, we can maintain a per thread memory of which saved
-				// stack is active. There can never be two restored stacks on top of each other.
+				MetadataProvider->EndRestoreSavedStackScope(ThreadId);
 			}
 		}
 		break;
@@ -101,19 +102,19 @@ bool FMetadataAnalysis::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 			// for this event type and register it with the provider.
 			const uint16 MetadataTypeId = GetOrRegisterType(EventInfo);
 
+			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
+
 			// Push the actual data of the scope to the provider or pop if we are leaving the scope.
 			if (Style == EStyle::EnterScope)
 			{
 				TArray<uint8, TInlineAllocator<32>> Data;
 				WriteData(Data, EventData, MetadataTypeId, MetadataProvider, Session);
 
-				MetadataProvider->PushScopedMetadata(Context.ThreadInfo.GetSystemId(), MetadataTypeId, Data.GetData(),
-													Data.Num());
+				MetadataProvider->PushScopedMetadata(ThreadId, MetadataTypeId, Data.GetData(), Data.Num());
 			}
-			else
+			else if (ensure(Style == EStyle::LeaveScope))
 			{
-				//todo: Check that event type info is available on pop scope
-				MetadataProvider->PopScopedMetadata(Context.ThreadInfo.GetSystemId(), MetadataTypeId);
+				MetadataProvider->PopScopedMetadata(ThreadId, MetadataTypeId);
 			}
 		}
 		break;
@@ -290,6 +291,6 @@ static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData
 		}
 	}
 }
-	
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 } // namespace TraceServices
