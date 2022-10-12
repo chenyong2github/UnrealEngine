@@ -2929,9 +2929,12 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		UpdateRenderingMethod();
 	}
 
-	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+	if (LandscapeGuid.IsValid())
 	{
-		LandscapeInfo->OnModifiedPackageSaved(GetPackage());
+		if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+		{
+			LandscapeInfo->OnModifiedPackageSaved(GetPackage());
+		}
 	}
 #endif // WITH_EDITOR
 }
