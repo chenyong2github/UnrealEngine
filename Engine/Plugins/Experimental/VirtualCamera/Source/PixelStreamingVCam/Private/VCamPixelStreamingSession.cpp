@@ -357,11 +357,12 @@ void UVCamPixelStreamingSession::Tick(const float DeltaTime)
 void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
-	const FName PropertyName = Property->GetFName();
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
 		static FName NAME_UseOverrideResolution = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, bUseOverrideResolution);
+
+		const FName PropertyName = Property->GetFName();
 		
 		if (PropertyName == NAME_FromComposureOutputProviderIndex)
 		{
