@@ -155,6 +155,10 @@ UScriptStruct* UK2Node_GetDataTableRow::GetDataTableRowStructType() const
 		if (ResultPin && ResultPin->LinkedTo.Num() > 0)
 		{
 			RowStructType = Cast<UScriptStruct>(ResultPin->LinkedTo[0]->PinType.PinSubCategoryObject.Get());
+			if (RowStructType == nullptr)
+			{
+				RowStructType = GetFallbackStruct();
+			}
 			for (int32 LinkIndex = 1; LinkIndex < ResultPin->LinkedTo.Num(); ++LinkIndex)
 			{
 				UEdGraphPin* Link = ResultPin->LinkedTo[LinkIndex];

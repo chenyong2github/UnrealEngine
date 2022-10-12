@@ -206,8 +206,8 @@ FConversion GetFloatingPointConversion(const UEdGraphPin& SourcePin, const UEdGr
 		}
 		else if ((SourcePin.PinType.PinValueType.TerminalCategory == UEdGraphSchema_K2::PC_Struct) && (DestinationPin.PinType.PinValueType.TerminalCategory == UEdGraphSchema_K2::PC_Struct))
 		{
-			UScriptStruct* SourceStruct = CastChecked<UScriptStruct>(SourcePin.PinType.PinValueType.TerminalSubCategoryObject.Get());
-			UScriptStruct* DestinationStruct = CastChecked<UScriptStruct>(DestinationPin.PinType.PinValueType.TerminalSubCategoryObject.Get());
+			UScriptStruct* SourceStruct = Cast<UScriptStruct>(SourcePin.PinType.PinValueType.TerminalSubCategoryObject.Get());
+			UScriptStruct* DestinationStruct = Cast<UScriptStruct>(DestinationPin.PinType.PinValueType.TerminalSubCategoryObject.Get());
 
 			if (FStructConversionTable::Get().GetConversionFunction(SourceStruct, DestinationStruct).IsSet())
 			{
