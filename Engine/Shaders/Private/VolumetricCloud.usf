@@ -39,6 +39,15 @@
 #define CLOUD_CONSERVATIVE_DENSITY_DEBUG 0
 #endif
 
+#ifndef CLOUD_DEBUG_SAMPLES
+#define CLOUD_DEBUG_SAMPLES 0
+#endif
+
+// Draw debug sample positions
+#if CLOUD_DEBUG_SAMPLES
+#include "ShaderPrint.ush"
+#endif
+
 #if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
@@ -614,6 +623,11 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		// TRACING LOOP
 		//
 
+	#if CLOUD_DEBUG_SAMPLES
+		int2 DebugPixelCoord = float2(ResolvedView.CursorPosition - RenderVolumetricCloudParameters.TracingCoordToFullResPixelCoordScaleBias.zw) / float2(RenderVolumetricCloudParameters.TracingCoordToFullResPixelCoordScaleBias.xy);
+		const bool bDrawDebugEnabled = all(int2(SvPosition.xy) == DebugPixelCoord);
+	#endif
+
 		float t = TMin + 0.5 * StepT;
 		if (RenderVolumetricCloudParameters.IsReflectionRendering == 0)
 		{
@@ -644,8 +658,18 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				i += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity - 1;
 				t += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity * StepT;
 #endif
+
+			#if CLOUD_DEBUG_SAMPLES
+				if (bDrawDebugEnabled) AddCrossTWS(LWCToFloat(SampleTranslatedWorldPosition), 60000.0f, float4(1, 0, 0, 0.5));
+			#endif
 				continue; // Conservative density is 0 so skip and go to the next sample
 			}
+			#if CLOUD_DEBUG_SAMPLES
+			else
+			{
+				if(bDrawDebugEnabled) AddCrossTWS(LWCToFloat(SampleTranslatedWorldPosition), 60000.0f, float4(0, 1, 0, 0.5));
+			}
+			#endif // CLOUD_DEBUG_SAMPLES
 #endif
 
 
@@ -841,7 +865,8 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					const float DetlaNormT = CurrentNormT - PreviousNormT;
 					const float ExtinctionFactor = DetlaNormT;
 					const float ShadowSampleDistance = ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm);
-					UpdateMaterialCloudParam(MaterialParameters, LWCAdd(SampleWorldPosition, LWCPromote(Light0Direction * ShadowSampleDistance)),
+					const FLWCVector3 ShadowSampleWorldPos = LWCAdd(SampleWorldPosition, LWCPromote(Light0Direction * ShadowSampleDistance));
+					UpdateMaterialCloudParam(MaterialParameters, ShadowSampleWorldPos,
 						ResolvedView, CloudLayerParams, ShadowSampleDistance);
 					PreviousNormT = CurrentNormT;
 #endif
@@ -849,8 +874,17 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 					{
+					#if CLOUD_DEBUG_SAMPLES
+						if (bDrawDebugEnabled) AddCrossWS(LWCToFloat(ShadowSampleWorldPos), 30000.0f, float4(1, 0, 1, 0.5));
+					#endif
 						continue; // Conservative density is 0 so skip and go to the next sample
 					}
+					#if CLOUD_DEBUG_SAMPLES
+					else
+					{
+						if (bDrawDebugEnabled) AddCrossWS(LWCToFloat(ShadowSampleWorldPos), 30000.0f, float4(0, 1, 1, 0.5));
+					}
+					#endif // CLOUD_DEBUG_SAMPLES
 #endif
 
 					if (MaterialParameters.CloudSampleNormAltitudeInLayer < 0.0f || MaterialParameters.CloudSampleNormAltitudeInLayer > 1.0f)

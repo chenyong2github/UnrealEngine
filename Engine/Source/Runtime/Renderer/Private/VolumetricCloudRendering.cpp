@@ -26,9 +26,8 @@
 #include "SkyAtmosphereRendering.h"
 #include "BasePassRendering.h"
 
-
-//PRAGMA_DISABLE_OPTIMIZATION
-
+//  If this is enabled, you also need to touch VolumetricCloud.usf for shaders to be recompiled.
+#define CLOUD_DEBUG_SAMPLES 0 /*!Never check in enabled!*/
 
 ////////////////////////////////////////////////////////////////////////// Cloud rendering and tracing
 
@@ -524,7 +523,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, CloudBilinearTextureSampler)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 	SHADER_PARAMETER(int32, VirtualShadowMapId0)
-//	SHADER_PARAMETER_STRUCT(FBlueNoise, BlueNoise)
 	SHADER_PARAMETER(FUintVector4, TracingCoordToZbufferCoordScaleBias)
 	SHADER_PARAMETER(FUintVector4, TracingCoordToFullResPixelCoordScaleBias)
 	SHADER_PARAMETER(FUintVector4, SceneDepthTextureMinMaxCoord)
@@ -565,13 +563,6 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRDGBuilder& GraphBuilder
 	VolumetricCloudParams.CloudBilinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	// Light0Shadow
 	VolumetricCloudParams.VirtualShadowMapId0 = INDEX_NONE;
-/*#if RHI_RAYTRACING
-	VolumetricCloudParams.BlueNoise = GetBlueNoiseParameters();
-#else
-	// Blue noise texture is undified for some configuration so replace by other noise for now.
-	VolumetricCloudParams.BlueNoise.Dimensions = FIntVector(16, 16, 4); // 16 is the size of the tile, so 4 dimension for the 64x64 HighFrequencyNoiseTexture.
-	VolumetricCloudParams.BlueNoise.Texture = GEngine->HighFrequencyNoiseTexture->Resource->TextureRHI;
-#endif*/
 	VolumetricCloudParams.TracingCoordToZbufferCoordScaleBias = FUintVector4(1, 1, 0, 0);
 	VolumetricCloudParams.TracingCoordToFullResPixelCoordScaleBias = FUintVector4(1, 1, 0, 0);
 	VolumetricCloudParams.NoiseFrameIndexModPattern = 0;
@@ -788,6 +779,9 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColor)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColorCube)
+#if CLOUD_DEBUG_SAMPLES
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+#endif
 	END_SHADER_PARAMETER_STRUCT()
 
 	static const int32 ThreadGroupSizeX = 8;
@@ -821,6 +815,9 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), TEXT("1"));
 		}
+
+		// If this is enabled
+		OutEnvironment.SetDefine(TEXT("CLOUD_DEBUG_SAMPLES"), CLOUD_DEBUG_SAMPLES);
 
 		// This shader must support typed UAV load and we are testing if it is supported at runtime using RHIIsTypedUAVLoadSupported
 		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
@@ -2076,6 +2073,12 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		PassParameters->OutCloudColor = GraphBuilder.CreateUAV(CloudColorTexture);
 		PassParameters->OutCloudDepth = GraphBuilder.CreateUAV(CloudDepthTexture);
 		PassParameters->OutCloudColorCube = GraphBuilder.CreateUAV(CloudColorCubeTexture);
+
+#if CLOUD_DEBUG_SAMPLES
+		ShaderPrint::SetEnabled(true);
+		ShaderPrint::RequestSpaceForLines(65536);
+		ShaderPrint::SetParameters(GraphBuilder, MainView.ShaderPrintData, PassParameters->ShaderPrintParameters);
+#endif
 
 		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
 		const FMaterial* MaterialResource = &CloudVolumeMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), MaterialRenderProxy);
