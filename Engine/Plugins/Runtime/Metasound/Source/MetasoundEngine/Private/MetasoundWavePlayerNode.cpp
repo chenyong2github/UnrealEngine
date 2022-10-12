@@ -1181,26 +1181,6 @@ namespace Metasound
 	using FQuadWavePlayerNode = TWavePlayerNode<FQuadAudioChannelConfigurationInfo>;
 	METASOUND_REGISTER_NODE(FQuadWavePlayerNode);
 
-	struct FFiveDotZeroAudioChannelConfigurationInfo
-	{
-		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerFiveDotZeroNodeDisplayName", "Wave Player (5.0)"); }
-		static FName GetVariantName() { return Metasound::EngineNodes::FiveDotZeroVariant; }
-
-		static TArray<FOutputDataVertex> GetAudioOutputs()
-		{
-			using namespace WavePlayerVertexNames;
-			return {
-				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioFrontLeft)),
-				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioFrontRight)),
-				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioFrontCenter)),
-				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioSideLeft)),
-				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioSideRight))
-			};
-		}
-	};
-	using FFiveDotZeroWavePlayerNode = TWavePlayerNode<FFiveDotZeroAudioChannelConfigurationInfo>;
-	METASOUND_REGISTER_NODE(FFiveDotZeroWavePlayerNode);
-
 	struct FFiveDotOneAudioChannelConfigurationInfo
 	{
 		static FText GetNodeDisplayName() { return METASOUND_LOCTEXT("Metasound_WavePlayerFiveDotOneNodeDisplayName", "Wave Player (5.1)"); }

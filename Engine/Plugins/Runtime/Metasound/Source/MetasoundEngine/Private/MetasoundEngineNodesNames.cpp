@@ -11,7 +11,6 @@ namespace Metasound
 		const FName MonoVariant = "Mono";
 		const FName StereoVariant = "Stereo";
 		const FName QuadVariant = "Quad";
-		const FName FiveDotZeroVariant = "5dot0";
 		const FName FiveDotOneVariant = "5dot1";
 		const FName SevenDotOneVariant = "7dot1";
 	}

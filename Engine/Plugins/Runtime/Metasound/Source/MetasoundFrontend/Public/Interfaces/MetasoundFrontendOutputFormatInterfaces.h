@@ -49,21 +49,6 @@ namespace Metasound
 			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
 		} // namespace OutputFormatQuadInterface
 
-		namespace OutputFormatFiveDotZeroInterface
-		{
-			namespace Outputs
-			{
-				METASOUNDFRONTEND_API const extern FName FrontLeftOut;
-				METASOUNDFRONTEND_API const extern FName FrontRightOut;
-				METASOUNDFRONTEND_API const extern FName FrontCenterOut;
-				METASOUNDFRONTEND_API const extern FName SideLeftOut;
-				METASOUNDFRONTEND_API const extern FName SideRightOut;
-			} // namespace Outputs
-
-			METASOUNDFRONTEND_API const FMetasoundFrontendVersion& GetVersion();
-			METASOUNDFRONTEND_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
-		} // namespace OutputFormatFiveDotZeroInterface
-
 		namespace OutputFormatFiveDotOneInterface
 		{
 			namespace Outputs

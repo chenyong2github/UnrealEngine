@@ -96,19 +96,6 @@ namespace Metasound
 						}
 					},
 					{
-						EMetasoundSourceAudioFormat::FiveDotZero,
-						{
-							OutputFormatFiveDotZeroInterface::GetVersion(),
-							{
-								OutputFormatFiveDotZeroInterface::Outputs::FrontLeftOut,
-								OutputFormatFiveDotZeroInterface::Outputs::FrontRightOut,
-								OutputFormatFiveDotZeroInterface::Outputs::FrontCenterOut,
-								OutputFormatFiveDotZeroInterface::Outputs::SideLeftOut,
-								OutputFormatFiveDotZeroInterface::Outputs::SideRightOut
-							}
-						}
-					},
-					{
 						EMetasoundSourceAudioFormat::FiveDotOne,
 						{
 							OutputFormatFiveDotOneInterface::GetVersion(),

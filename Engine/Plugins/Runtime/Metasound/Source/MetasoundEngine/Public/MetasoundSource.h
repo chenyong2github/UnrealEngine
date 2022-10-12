@@ -25,7 +25,6 @@ enum class EMetasoundSourceAudioFormat : uint8
 	Mono,
 	Stereo,
 	Quad,
-	FiveDotZero UMETA(DisplayName="5.0"),
 	FiveDotOne UMETA(DisplayName="5.1"),
 	SevenDotOne UMETA(DisplayName="7.1"),
 

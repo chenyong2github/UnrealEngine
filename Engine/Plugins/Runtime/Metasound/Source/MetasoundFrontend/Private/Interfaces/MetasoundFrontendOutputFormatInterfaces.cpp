@@ -253,48 +253,6 @@ namespace Metasound
 		} // namespace OutputFormatQuadInterface
 #undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
 
-#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.OutputFormat.5dot0"
-		namespace OutputFormatFiveDotZeroInterface
-		{
-			const FMetasoundFrontendVersion& GetVersion()
-			{
-				static const FMetasoundFrontendVersion Version = { AUDIO_PARAMETER_INTERFACE_NAMESPACE, { 1, 0 } };
-				return Version;
-			}
-
-			namespace Outputs
-			{
-				const FName FrontLeftOut = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Audio:0");
-				const FName FrontRightOut = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Audio:1");
-				const FName FrontCenterOut = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Audio:2");
-				const FName SideLeftOut = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Audio:4");
-				const FName SideRightOut = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Audio:5");
-			}
-
-			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
-			{
-				struct FInterface : public Audio::FParameterInterface
-				{
-					FInterface(const UClass& InAssetClass)
-						: FParameterInterface(OutputFormatFiveDotZeroInterface::GetVersion().Name, OutputFormatFiveDotZeroInterface::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
-					{
-						using namespace MetasoundOutputFormatInterfacesPrivate;
-						Outputs =
-						{
-							GetFrontLeftOutput(Outputs::FrontLeftOut),
-							GetFrontRightOutput(Outputs::FrontRightOut),
-							GetFrontCenterOutput(Outputs::FrontCenterOut),
-							GetSideLeftOutput(Outputs::SideLeftOut),
-							GetSideRightOutput(Outputs::SideRightOut)
-						};
-					}
-				};
-
-				return MakeShared<FInterface>(InUClass);
-			}
-		} // namespace OutputFormatFiveDotZeroInterface
-#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
-
 #define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.OutputFormat.5dot1"
 		namespace OutputFormatFiveDotOneInterface
 		{
