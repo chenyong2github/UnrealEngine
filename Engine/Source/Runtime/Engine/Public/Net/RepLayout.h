@@ -733,6 +733,8 @@ enum class ERepLayoutCmdType : uint8
 	NetSerializeStructWithObjectReferences = 25,
 };
 
+const TCHAR* LexToString(ERepLayoutCmdType CmdType);
+
 /** Various flags that describe how a Top Level Property should be handled. */
 enum class ERepParentFlags : uint32
 {
