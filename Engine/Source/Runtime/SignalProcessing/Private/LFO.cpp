@@ -3,6 +3,7 @@
 #include "DSP/LFO.h"
 #include "DSP/Dsp.h"
 
+
 namespace Audio
 {
 	FLFO::FLFO()
@@ -14,11 +15,9 @@ namespace Audio
 		, ModScale(1.0f)
 		, ModAdd(0.0f)
 		, LastOutput(0.0f)
+		, LoopCount(0.0f)
 		, QuadLastOutput(0.0f)
-	{
-	}
-
-	FLFO::~FLFO()
+		, bBipolar(true)
 	{
 	}
 
@@ -44,6 +43,10 @@ namespace Audio
 		{
 			Reset();
 		}
+		else if (!bIsPlaying)
+		{
+			ResetPhase();
+		}
 
 		bIsPlaying = true;
 	}
@@ -58,13 +61,101 @@ namespace Audio
 		// reset base class first
 		IOscBase::Reset();
 
+		ResetPhase();
+
 		RSHValue = 0.0f;
 		RSHCounter = INDEX_NONE;
 	}
-	
+
+	void FLFO::ResetPhase()
+	{
+		// Reset loop count
+		LoopCount = 0.0f;
+
+		// Set initial default phase to zero crossing and rising edge where
+		// possible (omits "phase offset" input to allow for client system
+		// to set to non-zero if desired).
+		switch (LFOType)
+		{
+			case ELFO::Sine:
+			case ELFO::Triangle:
+			{
+				Phase = bBipolar ? 0.25f : 0.0f;
+			}
+			break;
+
+			case ELFO::DownSaw:
+			case ELFO::UpSaw:
+			{
+				Phase = bBipolar ? 0.5f : 0.0f;
+			}
+			break;
+
+			case ELFO::Exponential:
+			{
+				Phase = bBipolar ? FMath::Pow(0.5f, 1.0f / ExponentialFactor) : 0.0f;
+			}
+			break;
+
+			case ELFO::RandomSampleHold:
+			case ELFO::Square:
+			default:
+			{
+				static_assert(static_cast<int32>(ELFO::NumLFOTypes) == 7, "Possible missing switch case coverage");
+				Phase = 0.0f;
+			}
+			break;
+		};
+	}
+
+	void FLFO::SetBipolar(const bool bInBipolar)
+	{
+		bBipolar = bInBipolar;
+	}
+
+	void FLFO::SetPhaseOffset(const float InOffset)
+	{
+		PhaseOffset = FMath::Fmod(FMath::Max(0.0f, InOffset), 1.0f);
+	}
+
+	void FLFO::SetType(const ELFO::Type InLFOType)
+	{
+		LFOType = InLFOType;
+	}
+
+	ELFO::Type FLFO::GetType() const
+	{
+		return LFOType;
+	}
+
+	void FLFO::SetMode(const ELFOMode::Type InLFOMode)
+	{
+		LFOMode = InLFOMode;
+	}
+
+	ELFOMode::Type FLFO::GetMode() const
+	{
+		return LFOMode;
+	}
+
+	void FLFO::SetExponentialFactor(const float InExpFactor)
+	{
+		ExponentialFactor = FMath::Max(InExpFactor, UE_SMALL_NUMBER);
+	}
+
+	FPatchSource FLFO::GetModSourceNormalPhase() const
+	{
+		return ModNormalPhase;
+	}
+
+	FPatchSource FLFO::GetModSourceQuadPhase() const
+	{
+		return ModQuadPhase;
+	}
+
 	float FLFO::Generate(float* QuadPhaseOutput)
 	{
-		// If the LFO isn't playing, return 0.0 for quad phase and for normal output
+		// If the LFO isn't playing, return last computed value for both output & quad.
 		if (!bIsPlaying)
 		{
 			if (QuadPhaseOutput)
@@ -75,26 +166,22 @@ namespace Audio
 			return LastOutput;
 		}
 
-		const bool bWrapped = WrapPhase();
-
-		// If we're in the oneshot mode, check if we've wrapped
-		// and if so, turn the LFO off and return 0.0s
-		if (LFOMode == ELFOMode::OneShot && bWrapped)
-		{
-			bIsPlaying = false;
-
-			if (QuadPhaseOutput)
-			{
-				*QuadPhaseOutput = QuadLastOutput;
-			}
-
-			return LastOutput;
-		}
-
+		WrapPhase();
 		LastOutput = ComputeLFO(GetPhase(), QuadPhaseOutput);
 
 		// Update the LFO phase after computing LFO values
+		LoopCount += PhaseInc;
 		UpdatePhase();
+
+		// If in oneshot mode, check if wrapped and if so, turn the LFO off and compute last value.
+		if (LFOMode == ELFOMode::OneShot)
+		{
+			if (LoopCount >= 1.0f)
+			{
+				bIsPlaying = false;
+				LoopCount = 0.0f;
+			}
+		}
 
 		// Return the output
 		return LastOutput;
@@ -105,62 +192,60 @@ namespace Audio
 		float Output = 0.0f;
 		float QuadOutput = 0.0f;
 
-		float QuadPhase = InPhase + 0.25f;
-		if (QuadPhase >= 1.0f)
-		{
-			QuadPhase -= 1.0f;
-		}
+		const float CurPhase = FMath::Fmod(InPhase + PhaseOffset, 1.0f);
+		const float QuadPhase = FMath::Fmod(InPhase + PhaseOffset + 0.25f , 1.0f);
 
 		switch (LFOType)
 		{
 			case ELFO::Sine:
 			{
-				float Angle = 2.0f * InPhase * PI - PI;
-				Output = Audio::FastSin(Angle);
-
-				Angle = 2.0f * QuadPhase * PI - PI;
-				QuadOutput = Audio::FastSin(Angle);
+				// Must subtract pi and flip sign to guarantee in valid range for FastSin function,
+				// yet still starts on rising edge from 0 crossing.
+				auto ComputeSine = [](float InputPhase)
+				{
+					if (InputPhase > 0.5f)
+					{
+						InputPhase -= 1.0f;
+					}
+					const float Angle = 2.0f * InputPhase * PI;
+					return 0.5f * Audio::FastSin(Angle) + 0.5f;
+				};
+				Output = ComputeSine(CurPhase);
+				QuadOutput = ComputeSine(QuadPhase);
 			}
 			break;
 
 			case ELFO::UpSaw:
 			{
-				Output = GetBipolar(InPhase);
-				QuadOutput = GetBipolar(QuadPhase);
+				Output = CurPhase;
+				QuadOutput = QuadPhase;
 			}
 			break;
 
 			case ELFO::DownSaw:
 			{
-				Output = -1.0f * GetBipolar(InPhase);
-				QuadOutput = -1.0f * GetBipolar(QuadPhase);
+				Output = 1.0f - CurPhase;
+				QuadOutput = 1.0f - QuadPhase;
 			}
 			break;
 
 			case ELFO::Square:
 			{
-				Output = InPhase > PulseWidth ? -1.0f : 1.0f;
-				QuadOutput = QuadPhase > PulseWidth ? -1.0f : 1.0f;
+				Output = CurPhase > PulseWidth ? 0.0f : 1.0f;
+				QuadOutput = QuadPhase > PulseWidth ? 0.0f : 1.0f;
 			}
 			break;
 
 			case ELFO::Triangle:
 			{
-				Output = FMath::Abs(GetBipolar(InPhase));
-				QuadOutput = FMath::Abs(GetBipolar(QuadPhase));;
-
-				// If not one-shot, we need to convert to bipolar
-				if (LFOMode != ELFOMode::OneShot)
-				{
-					Output = GetBipolar(Output);
-					QuadOutput = GetBipolar(QuadOutput);
-				}
+				Output = 1.0f - FMath::Abs(GetBipolar(CurPhase));
+				QuadOutput = 1.0f - FMath::Abs(GetBipolar(QuadPhase));
 			}
 			break;
 
 			case ELFO::Exponential:
 			{
-				Output = FMath::Pow(InPhase, ExponentialFactor);
+				Output = FMath::Pow(CurPhase, ExponentialFactor);
 				QuadOutput = FMath::Pow(QuadPhase, ExponentialFactor);
 			}
 			break;
@@ -171,7 +256,7 @@ namespace Audio
 				if (RSHCounter > (uint32)FrequencyThreshold)
 				{
 					RSHCounter = 0;
-					RSHValue = FMath::FRandRange(-1.0f, 1.0f);
+					RSHValue = FMath::FRand();
 				}
 				else
 				{
@@ -182,6 +267,12 @@ namespace Audio
 				QuadOutput = RSHValue;
 			}
 			break;
+		}
+
+		if (bBipolar)
+		{
+			Output = GetBipolar(Output);
+			QuadOutput = GetBipolar(QuadOutput);
 		}
 
 		const float MaxGain = Gain * ExternalGainMod;
@@ -212,4 +303,4 @@ namespace Audio
 
 		return Output;
 	}
-}
+} // namespace Audio

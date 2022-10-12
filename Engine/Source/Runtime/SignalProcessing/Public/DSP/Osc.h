@@ -84,6 +84,9 @@ namespace Audio
 		// Resets the oscillator
 		virtual void Reset();
 
+		// Resets the phase of this oscillator to 0.0f
+		virtual void ResetPhase();
+
 		// Sets the gain of the oscillator
 		void SetGain(const float InGain) { Gain = InGain; }
 
@@ -115,9 +118,6 @@ namespace Audio
 
 		// Sets the LFO pulse width for square-wave type oscillators
 		void SetPulseWidth(const float InPulseWidth);
-
-		// Resets the phase of this oscillator to 0.0
-		void ResetPhase();
 
 		// Returns whether or not this oscillator is playing
 		bool IsPlaying() const { return bIsPlaying; }

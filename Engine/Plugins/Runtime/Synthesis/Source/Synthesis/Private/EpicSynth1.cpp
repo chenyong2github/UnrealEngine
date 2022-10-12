@@ -49,6 +49,7 @@ namespace Audio
 		for (int32 i = 0; i < NumLFOs; ++i)
 		{
 			LFO[i].Init(ControlSampleRate, VoiceId, ModMatrix);
+			LFO[i].SetBipolar(false);
 		}
 		GainEnv.Init(ControlSampleRate, VoiceId, ModMatrix);
 		ModEnv.Init(ControlSampleRate, VoiceId, ModMatrix);

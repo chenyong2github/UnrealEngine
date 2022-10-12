@@ -33,30 +33,31 @@ namespace Audio
 
 			// LFO
 			PosLfo.Init(OutputSampleRate);
-			PosLfo.Start();
+			PosLfo.SetBipolar(false);
 			PosLfo.SetType(Audio::ELFO::Sine);
-			PosLfo.SetFrequency(0.0);
-			PosLfo.SetGainMod(0.0);
+			PosLfo.SetFrequency(0.0f);
+			PosLfo.SetGainMod(0.0f);
+			PosLfo.Start();
 
 			// Envelopes
 			AmpEnv.SetAttackTime(1);
-			AmpEnv.SetSustainGain(1.0);
+			AmpEnv.SetSustainGain(1.0f);
 			AmpEnv.SetReleaseTime(4000);
-			AmpEnv.SetDepth(1.0);	
+			AmpEnv.SetDepth(1.0f);	
 			AmpEnv.SetLegato(true);
 			AmpEnv.SetRetrigger(true);
 
 			LPFEnv.SetAttackTime(1);
-			LPFEnv.SetSustainGain(1.0);
+			LPFEnv.SetSustainGain(1.0f);
 			LPFEnv.SetReleaseTime(4000);
-			LPFEnv.SetDepth(1.0);
+			LPFEnv.SetDepth(1.0f);
 			LPFEnv.SetLegato(true);
 			LPFEnv.SetRetrigger(true);
 
 			// Filters
 			LPFBaseFreqHz = 1000;
 			LPFMaxModOffsetOctaves = 9;
-			LPFCeilingHz = 8'000;
+			LPFCeilingHz = 8000;
 			LastLPFFreqHz = LPFBaseFreqHz;
 			LPF.Init(OutputSampleRate, 1);
 			LPF.SetFrequency(LPFBaseFreqHz);

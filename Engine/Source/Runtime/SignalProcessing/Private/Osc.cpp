@@ -174,12 +174,21 @@ namespace Audio
 
 	void IOscBase::SetPulseWidth(const float InPulseWidth)
 	{
-		PulseWidthBase = FMath::Clamp(InPulseWidth, 0.0f, 1.0f);
+		if (InPulseWidth != PulseWidthBase)
+		{
+			PulseWidthBase = FMath::Clamp(InPulseWidth, 0.0f, 1.0f);
+			bChanged = true;
+		}
 	}
 
 	void IOscBase::ResetPhase()
 	{
 		Phase = 0.0f;
+	}
+
+	void IOscBase::SetSlaveOsc(IOscBase* InSlaveOsc)
+	{
+		FollowerOsc = InSlaveOsc;
 	}
 
 	void IOscBase::SetFollowerOsc(IOscBase* InFollowerOsc)

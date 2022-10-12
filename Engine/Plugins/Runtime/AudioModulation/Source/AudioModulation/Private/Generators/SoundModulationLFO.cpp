@@ -41,13 +41,16 @@ namespace AudioModulation
 			FLFOGenerator(const FSoundModulationLFOParams& InParams)
 				: Params(InParams)
 			{
-				LFO.SetGain(Params.Amplitude);
+				LFO.SetBipolar(false);
+				LFO.SetExponentialFactor(Params.ExponentialFactor);
 				LFO.SetFrequency(Params.Frequency);
+				LFO.SetGain(Params.Amplitude);
 				LFO.SetMode(Params.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot);
-
-				static_assert(static_cast<int32>(ESoundModulationLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
+				LFO.SetPulseWidth(Params.Width);
 				LFO.SetType(static_cast<Audio::ELFO::Type>(Params.Shape));
 				LFO.Start();
+
+				static_assert(static_cast<int32>(ESoundModulationLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
 			}
 
 			virtual ~FLFOGenerator() = default;
@@ -90,8 +93,11 @@ namespace AudioModulation
 					const FLFOGenerator* Generator = static_cast<const FLFOGenerator*>(NewGenerator.Get());
 					Params = Generator->Params;
 
-					LFO.SetGain(Params.Amplitude);
+					LFO.SetExponentialFactor(Params.ExponentialFactor);
 					LFO.SetFrequency(Params.Frequency);
+					LFO.SetGain(Params.Amplitude);
+					LFO.SetPhaseOffset(Params.Phase);
+					LFO.SetPulseWidth(Params.Width);
 
 					static_assert(static_cast<int32>(ESoundModulationLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
 					LFO.SetType(static_cast<Audio::ELFO::Type>(Params.Shape));
