@@ -184,7 +184,8 @@ static float BuildCoarseRepresentation(
 	TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 	uint32& NumTexCoords,
 	uint32 TargetNumTris,
-	float TargetError )
+	float TargetError,
+	int32 FallbackLODIndex)
 {
 	TargetNumTris = FMath::Max( TargetNumTris, 64u );
 
@@ -206,8 +207,9 @@ static float BuildCoarseRepresentation(
 		} );
 
 	FCluster CoarseRepresentation( MergeList );
-	// FindDAGCut also produces error when TargetError is non-zero but this only happens for LOD0 whose MaxDeviation is always zero
-	float OutError = CoarseRepresentation.Simplify( TargetNumTris, TargetError, FMath::Min( TargetNumTris, 256u ), true );
+	// FindDAGCut also produces error when TargetError is non-zero but this only happens for LOD0 whose MaxDeviation is always zero.
+	// Don't use the old weights for LOD0 since they change the error calculation and hence, change the meaning of TargetError.
+	float OutError = CoarseRepresentation.Simplify( TargetNumTris, TargetError, FMath::Min( TargetNumTris, 256u ), FallbackLODIndex > 0 );
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -638,7 +640,7 @@ static bool BuildNaniteData(
 		else
 		{
 			TArray<FStaticMeshSection, TInlineAllocator<1>> FallbackSections = InputMeshData.Sections;
-			const float ReductionError = BuildCoarseRepresentation(Groups, Clusters, FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices, FallbackSections, NumTexCoords, FallbackTargetNumTris, FallbackTargetError);
+			const float ReductionError = BuildCoarseRepresentation(Groups, Clusters, FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices, FallbackSections, NumTexCoords, FallbackTargetNumTris, FallbackTargetError, FallbackLODIndex);
 
 			FallbackLODMeshData.MaxDeviation = FallbackLODIndex == 0 ? 0.f : ReductionError / 8.f;
 
