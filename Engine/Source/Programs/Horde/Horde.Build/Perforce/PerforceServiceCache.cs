@@ -188,6 +188,7 @@ namespace Horde.Build.Perforce
 
 			_streamCollection = streamCollection;
 			_logger = logger;
+
 			_updateCommitsTicker = clock.AddSharedTicker<PerforceServiceCache>(TimeSpan.FromSeconds(10.0), UpdateCommitsAsync, logger);
 		}
 

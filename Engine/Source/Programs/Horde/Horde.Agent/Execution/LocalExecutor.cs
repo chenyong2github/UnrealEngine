@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Execution
 {
@@ -43,6 +46,21 @@ namespace Horde.Agent.Execution
 				logger.LogInformation("**** SKIPPING NODE {StepName} ****", step.Name);
 				return Task.FromResult(true);
 			}
+		}
+	}
+
+	class LocalExecutorFactory : IExecutorFactory
+	{
+		readonly LocalExecutorSettings _settings;
+
+		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings)
+		{
+			_settings = settings.Value;
+		}
+
+		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		{
+			return new LocalExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings);
 		}
 	}
 }

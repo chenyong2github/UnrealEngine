@@ -68,7 +68,7 @@ namespace Horde.Agent.Utility
 		}
 	}
 
-	internal interface IRpcConnection : IAsyncDisposable
+	interface IRpcConnection : IAsyncDisposable
 	{
 		/// <summary>
 		/// Attempts to get a client reference, returning immediately if there's not one available

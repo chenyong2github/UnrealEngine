@@ -8,9 +8,11 @@ using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -227,5 +229,17 @@ namespace Horde.Agent.Tests
 			logger.LogDebug("SimpleTestExecutor.FinalizeAsync()");
 			return Task.CompletedTask;
 		}
+	}
+
+	class SimpleTestExecutorFactory : IExecutorFactory
+	{
+		readonly IExecutor _executor;
+
+		public SimpleTestExecutorFactory(IExecutor executor)
+		{
+			_executor = executor;
+		}
+
+		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse) => _executor;
 	}
 }

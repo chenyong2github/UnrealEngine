@@ -14,10 +14,20 @@ namespace Horde.Agent.Commands.Utilities
 	[Command("Caps", "Lists detected capabilities of this agent")]
 	class CapsCommand : Command
 	{
+		readonly CapabilitiesService _capabilitiesService;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public CapsCommand(CapabilitiesService capabilitiesService)
+		{
+			_capabilitiesService = capabilitiesService;
+		}
+
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			AgentCapabilities capabilities = await WorkerService.GetAgentCapabilities(DirectoryReference.GetCurrentDirectory(), logger);
+			AgentCapabilities capabilities = await _capabilitiesService.GetCapabilitiesAsync(null);
 			foreach (DeviceCapabilities device in capabilities.Devices)
 			{
 				logger.LogInformation("Device: {Name}", device.Handle);

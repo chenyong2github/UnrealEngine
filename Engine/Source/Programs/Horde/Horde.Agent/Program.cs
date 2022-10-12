@@ -4,15 +4,57 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Datadog.Trace;
+using Datadog.Trace.Configuration;
+using Datadog.Trace.OpenTracing;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using Horde.Agent.Execution;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Leases;
+using Horde.Agent.Leases.Handlers;
+using Horde.Agent.Services;
+using Horde.Agent.Utility;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using OpenTracing.Util;
+using Polly;
 
 namespace Horde.Agent
 {
+	using ITracer = OpenTracing.ITracer;
+
+	/// <summary>
+	/// Injectable list of existing services
+	/// </summary>
+	class DefaultServices
+	{
+		/// <summary>
+		/// The base configuration object
+		/// </summary>
+		public IConfiguration Configuration { get; }
+
+		/// <summary>
+		/// List of service descriptors
+		/// </summary>
+		public IEnumerable<ServiceDescriptor> Descriptors { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public DefaultServices(IConfiguration configuration, IEnumerable<ServiceDescriptor> descriptors)
+		{
+			Configuration = configuration;
+			Descriptors = descriptors;
+		}
+	}
+
 	/// <summary>
 	/// Entry point
 	/// </summary>
@@ -52,9 +94,20 @@ namespace Horde.Agent
 		{
 			Program.Args = args;
 
+			using Logging.HordeLoggerProvider loggerProvider = new Logging.HordeLoggerProvider();
+
+			IConfiguration config = new ConfigurationBuilder()
+				.SetBasePath(AppDir.FullName)
+				.AddJsonFile("appsettings.json", optional: false)
+				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
+				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
+				.AddJsonFile("appsettings.User.json", optional: true)
+				.AddEnvironmentVariables()
+				.Build();
+
 			IServiceCollection services = new ServiceCollection();
 			services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
-			services.AddLogging(builder => builder.AddProvider(new Logging.HordeLoggerProvider()));
+			services.AddLogging(builder => builder.AddProvider(loggerProvider));
 
 			// Enable unencrypted HTTP/2 for gRPC channel without TLS
 			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -70,10 +123,86 @@ namespace Horde.Agent
 				}
 			}
 
+			// Add all the default 
+			IConfigurationSection configSection = config.GetSection(AgentSettings.SectionName);
+			services.AddOptions<AgentSettings>().Configure(options => configSection.Bind(options)).ValidateDataAnnotations();
+
+			AgentSettings settings = new AgentSettings();
+			configSection.Bind(settings);
+
+			ServerProfile serverProfile = settings.GetCurrentServerProfile();
+			ConfigureTracing(serverProfile.Environment, Program.Version);
+
+			Logging.SetEnv(serverProfile.Environment);
+
+			ILogger certificateLogger = loggerProvider.CreateLogger(typeof(CertificateHelper).FullName!);
+			services.AddHttpClient(Program.HordeServerClientName, config =>
+			{
+				config.BaseAddress = serverProfile.Url;
+				config.DefaultRequestHeaders.Add("Accept", "application/json");
+				config.Timeout = TimeSpan.FromSeconds(300); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
+			})
+			.ConfigurePrimaryHttpMessageHandler(() =>
+			{
+				HttpClientHandler handler = new HttpClientHandler();
+				handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(certificateLogger, sender, cert, chain, errors, serverProfile);
+				return handler;
+			})
+			.AddTransientHttpErrorPolicy(builder =>
+			{
+				return builder.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) });
+			});
+
+			services.AddHordeStorage(settings => configSection.GetCurrentServerProfile().GetSection(nameof(serverProfile.Storage)).Bind(settings));
+
+			services.AddSingleton<GrpcService>();
+
+			services.AddTransient<PerforceExecutorFactory>();
+			services.AddTransient<LocalExecutorFactory>();
+			services.AddTransient<TestExecutorFactory>();
+
+			services.AddTransient<IExecutorFactory>(sp =>
+				sp.GetRequiredService<IOptions<AgentSettings>>().Value.Executor switch
+				{
+					ExecutorType.Test => sp.GetRequiredService<TestExecutorFactory>(),
+					ExecutorType.Local => sp.GetRequiredService<LocalExecutorFactory>(),
+					ExecutorType.Perforce => sp.GetRequiredService<PerforceExecutorFactory>(),
+					_ => throw new NotImplementedException()
+				});
+
+			services.AddSingleton<LeaseHandler, ComputeHandler>();
+			services.AddSingleton<LeaseHandler, ConformHandler>();
+			services.AddSingleton<LeaseHandler, JobHandler>();
+			services.AddSingleton<LeaseHandler, RestartHandler>();
+			services.AddSingleton<LeaseHandler, ShutdownHandler>();
+			services.AddSingleton<LeaseHandler, UpgradeHandler>();
+
+			services.AddSingleton<CapabilitiesService>();
+			services.AddSingleton<SessionFactoryService>();
+			services.AddHostedService<WorkerService>();
+
+			// Allow commands to augment the service collection for their own DI service providers
+			services.AddSingleton<DefaultServices>(x => new DefaultServices(config, services));
+
 			// Execute all the commands
 			IServiceProvider serviceProvider = services.BuildServiceProvider();
 			return await CommandHost.RunAsync(new CommandLineArguments(args), serviceProvider, typeof(Horde.Agent.Modes.Service.RunCommand));
 		}
+
+		static void ConfigureTracing(string environment, string version)
+		{
+			TracerSettings settings = TracerSettings.FromDefaultSources();
+			settings.Environment = environment;
+			settings.ServiceName = "hordeagent";
+			settings.ServiceVersion = version;
+			settings.LogsInjectionEnabled = true;
+
+			Tracer.Configure(settings);
+
+			ITracer openTracer = OpenTracingTracerFactory.WrapTracer(Tracer.Instance);
+			GlobalTracer.Register(openTracer);
+		}
+
 
 		/// <summary>
 		/// Gets the version of the current assembly

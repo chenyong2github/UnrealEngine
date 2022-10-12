@@ -6,12 +6,16 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.SimpleSystemsManagement.Model;
 using EpicGames.Core;
 using EpicGames.Perforce;
+using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Parser;
+using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Execution
@@ -178,6 +182,14 @@ namespace Horde.Agent.Execution
 		{
 			logger.LogInformation("Finalizing");
 			return Task.CompletedTask;
+		}
+	}
+
+	class TestExecutorFactory : IExecutorFactory
+	{
+		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		{
+			return new TestExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType);
 		}
 	}
 }

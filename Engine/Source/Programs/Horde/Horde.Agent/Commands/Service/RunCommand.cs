@@ -9,12 +9,18 @@ using Datadog.Trace.Configuration;
 using Datadog.Trace.OpenTracing;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using Horde.Agent.Execution;
+using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Leases;
+using Horde.Agent.Leases.Handlers;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 using Polly;
@@ -47,7 +53,17 @@ namespace Horde.Agent.Modes.Service
 		/// </summary>
 		[CommandLine("-LogLevel")]
 		public string LogLevelStr { get; set; } = "information";
-		
+
+		readonly DefaultServices _defaultServices;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public RunCommand(DefaultServices defaultServices)
+		{
+			_defaultServices = defaultServices;
+		}
+
 		/// <summary>
 		/// Runs the service indefinitely
 		/// </summary>
@@ -79,6 +95,8 @@ namespace Horde.Agent.Modes.Service
 			hostBuilder = hostBuilder
 				.ConfigureAppConfiguration(builder =>
 				{
+					builder.AddConfiguration(_defaultServices.Configuration);
+
 					Dictionary<string, string> overrides = new Dictionary<string, string>();
 					if (Server != null)
 					{
@@ -88,13 +106,13 @@ namespace Horde.Agent.Modes.Service
 					{
 						overrides.Add($"{AgentSettings.SectionName}:{nameof(AgentSettings.WorkingDir)}", WorkingDir);
 					}
+
 					builder.AddInMemoryCollection(overrides);
 				})
 				.ConfigureLogging(builder =>
 				{
+					// We add our logger through ConfigureServices, inherited from _defaultServices
 					builder.ClearProviders();
-					builder.AddProvider(new Logging.HordeLoggerProvider());
-					builder.AddFilter<Logging.HordeLoggerProvider>(null, LogLevel.Trace);
 				})
 				.ConfigureServices((hostContext, services) =>
 				{
@@ -104,38 +122,10 @@ namespace Horde.Agent.Modes.Service
 						options.ShutdownTimeout = TimeSpan.FromSeconds(30);
 					});
 
-					IConfigurationSection configSection = hostContext.Configuration.GetSection(AgentSettings.SectionName);
-					services.AddOptions<AgentSettings>().Configure(options => configSection.Bind(options)).ValidateDataAnnotations();
-
-					AgentSettings settings = new AgentSettings();
-					configSection.Bind(settings);
-
-					ServerProfile serverProfile = settings.GetCurrentServerProfile();
-					ConfigureTracing(serverProfile.Environment, Program.Version);
-
-					Logging.SetEnv(serverProfile.Environment);
-
-					services.AddHttpClient(Program.HordeServerClientName, config =>
+					foreach (ServiceDescriptor descriptor in _defaultServices.Descriptors)
 					{
-						config.BaseAddress = serverProfile.Url;
-						config.DefaultRequestHeaders.Add("Accept", "application/json");
-						config.Timeout = TimeSpan.FromSeconds(300); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
-					})
-					.ConfigurePrimaryHttpMessageHandler(() =>
-					{
-						HttpClientHandler handler = new HttpClientHandler();
-						handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(logger, sender, cert, chain, errors, serverProfile);
-						return handler;
-					})
-					.AddTransientHttpErrorPolicy(builder =>
-					{
-						return builder.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) });
-					});
-
-					services.AddHordeStorage(settings => configSection.GetCurrentServerProfile().GetSection(nameof(serverProfile.Storage)).Bind(settings));
-
-					services.AddSingleton<GrpcService>();
-					services.AddHostedService<WorkerService>();
+						services.Add(descriptor);
+					}
 				});
 
 			try
@@ -148,20 +138,6 @@ namespace Horde.Agent.Modes.Service
 			}
 
 			return 0;
-		}
-
-		static void ConfigureTracing(string environment, string version)
-		{
-			TracerSettings settings = TracerSettings.FromDefaultSources();
-			settings.Environment = environment;
-			settings.ServiceName = "hordeagent";
-			settings.ServiceVersion = version;
-			settings.LogsInjectionEnabled = true;
-
-			Tracer.Configure(settings);
-
-			ITracer openTracer = OpenTracingTracerFactory.WrapTracer(Tracer.Instance);
-			GlobalTracer.Register(openTracer);
 		}
 	}
 }

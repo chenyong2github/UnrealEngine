@@ -4,21 +4,29 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Amazon.EC2.Model;
+using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Leases;
+using Horde.Agent.Leases.Handlers;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages;
 using HordeCommon.Rpc.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel.DataCollection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
@@ -27,10 +35,8 @@ namespace Horde.Agent.Tests
 	[TestClass]
 	public class WorkerServiceTest
 	{
-		private readonly ILogger<WorkerService> _workerLogger;
-		private readonly ILogger<GrpcService> _grpcServiceLogger;
-		private readonly ILogger<FakeHordeRpcServer> _hordeRpcServerLogger;
-		
+		private ServiceCollection _serviceCollection;
+
 		internal static IExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 		{
 			await Task.Delay(1, cancellationToken);
@@ -39,52 +45,32 @@ namespace Horde.Agent.Tests
 
 		public WorkerServiceTest()
 		{
-			using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+			_serviceCollection = new ServiceCollection();
+			_serviceCollection.AddLogging();
+
+			_serviceCollection.Configure<AgentSettings>(settings =>
 			{
-				builder.AddSimpleConsole(consoleLoggerOptions => consoleLoggerOptions.TimestampFormat = "[HH:mm:ss] ");
+				ServerProfile profile = new();
+				profile.Name = "test";
+				profile.Environment = "test-env";
+				profile.Token = "bogus-token";
+				profile.Url = new Uri("http://localhost");
+
+				settings.ServerProfiles.Add(profile);
+				settings.Server = "test";
+				settings.WorkingDir = Path.GetTempPath();
+				settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
 			});
 
-			_workerLogger = loggerFactory.CreateLogger<WorkerService>();
-			_grpcServiceLogger = loggerFactory.CreateLogger<GrpcService>();
-			_hordeRpcServerLogger = loggerFactory.CreateLogger<FakeHordeRpcServer>();
-		}
+			_serviceCollection.AddSingleton<WorkerService>();
 
-		internal static WorkerService GetWorkerService(
-			ILogger<GrpcService> grpcServiceLogger,
-			ILogger<WorkerService> workerServiceLogger,
-			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
-			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
-		{
-			AgentSettings settings = new ();
-			ServerProfile profile = new ();
-			profile.Name = "test";
-			profile.Environment = "test-env";
-			profile.Token = "bogus-token";
-			profile.Url = new Uri("http://localhost");
-			settings.ServerProfiles.Add(profile);
-			settings.Server = "test";
-			settings.WorkingDir = Path.GetTempPath();
-			settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
-			IOptions<AgentSettings> settingsMonitor = new TestOptionsMonitor<AgentSettings>(settings);
-
-			GrpcService grpcService = new (settingsMonitor, grpcServiceLogger);
-			WorkerService ws = new (workerServiceLogger, settingsMonitor, grpcService, null!, createExecutor, createHordeRpcClient);
-			ws._rpcConnectionRetryDelay = TimeSpan.FromSeconds(0.1);
-			return ws;
-		}
-
-		private WorkerService GetWorkerService(
-			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
-			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
-		{
-			return GetWorkerService(_grpcServiceLogger, _workerLogger, createExecutor, createHordeRpcClient);
+			_serviceCollection.AddSingleton<JobHandler>();
+			_serviceCollection.AddSingleton<LeaseHandler>(sp => sp.GetRequiredService<JobHandler>());
 		}
 
 		[TestMethod]
 		public async Task AbortExecuteStepTest()
 		{
-			using WorkerService ws = GetWorkerService();
-
 			{
 				using CancellationTokenSource cancelSource = new CancellationTokenSource();
 				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
@@ -95,8 +81,9 @@ namespace Horde.Agent.Tests
 					await Task.Delay(5000, cancelToken);
 					return JobStepOutcome.Success;
 				});
-				await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => WorkerService.ExecuteStepAsync(executor,
-					new BeginStepResponse(), _workerLogger, cancelSource.Token, stepCancelSource.Token));
+
+				await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => JobHandler.ExecuteStepAsync(executor,
+					new BeginStepResponse(), NullLogger.Instance, cancelSource.Token, stepCancelSource.Token));
 			}
 
 			{
@@ -109,7 +96,7 @@ namespace Horde.Agent.Tests
 					await Task.Delay(5000, cancelToken);
 					return JobStepOutcome.Success;
 				});
-				(JobStepOutcome stepOutcome, JobStepState stepState) = await WorkerService.ExecuteStepAsync(executor, new BeginStepResponse(), _workerLogger,
+				(JobStepOutcome stepOutcome, JobStepState stepState) = await JobHandler.ExecuteStepAsync(executor, new BeginStepResponse(), NullLogger.Instance,
 					cancelSource.Token, stepCancelSource.Token);
 				Assert.AreEqual(JobStepOutcome.Failure, stepOutcome);
 				Assert.AreEqual(JobStepState.Aborted, stepState);
@@ -130,8 +117,10 @@ namespace Horde.Agent.Tests
 			executeJobTask.AutoSdkWorkspace = new AgentWorkspace();
 			executeJobTask.Workspace = new AgentWorkspace();
 
-			HordeRpcClientStub client = new HordeRpcClientStub(_workerLogger);
+			HordeRpcClientStub client = new HordeRpcClientStub(NullLogger.Instance);
 			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
+
+			await using ISession session = FakeServerSessionFactory.CreateSession(rpcConnection);
 
 			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName1", StepId = "stepId1"});
 			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName2", StepId = "stepId2"});
@@ -147,10 +136,14 @@ namespace Horde.Agent.Tests
 				return JobStepOutcome.Success;
 			});
 
-			using WorkerService ws = GetWorkerService((a, b, c) => executor);
-			ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(1);
-			LeaseOutcome outcome = (await ws.ExecuteJobAsync(rpcConnection, "leaseId1", executeJobTask,
-				_workerLogger, token)).Outcome;
+			_serviceCollection.AddSingleton<IExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
+
+			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
+			jobHandler._stepAbortPollInterval = TimeSpan.FromMilliseconds(1);
+
+			LeaseOutcome outcome = (await jobHandler.ExecuteAsync(session, "leaseId1", executeJobTask,
+				token)).Outcome;
 
 			Assert.AreEqual(LeaseOutcome.Success, outcome);
 			Assert.AreEqual(4, client.UpdateStepRequests.Count);
@@ -175,10 +168,13 @@ namespace Horde.Agent.Tests
 				return JobStepOutcome.Success;
 			});
 
-			using WorkerService ws = GetWorkerService((a, b, c) => executor);
-			ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
-			
-			HordeRpcClientStub client = new HordeRpcClientStub(_workerLogger);
+			_serviceCollection.AddSingleton<IExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
+
+			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
+			jobHandler._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
+
+			HordeRpcClientStub client = new HordeRpcClientStub(NullLogger.Instance);
 			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
 
 			int c = 0;
@@ -197,7 +193,7 @@ namespace Horde.Agent.Tests
 			using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 			TaskCompletionSource<bool> stepFinishedSource = new TaskCompletionSource<bool>();
 
-			await ws.PollForStepAbort(rpcConnection, "jobId1", "batchId1", "logId1", stepCancelSource, stepFinishedSource.Task, stepPollCancelSource.Token);
+			await jobHandler.PollForStepAbort(rpcConnection, "jobId1", "batchId1", "logId1", stepCancelSource, stepFinishedSource.Task, stepPollCancelSource.Token);
 			Assert.IsTrue(stepCancelSource.IsCancellationRequested);
 		}
 
@@ -209,18 +205,47 @@ namespace Horde.Agent.Tests
 				await Task.Delay(50, cancellationToken);
 				return JobStepOutcome.Success;
 			});
-			
+
+			_serviceCollection.AddSingleton<IExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
+
 			using CancellationTokenSource cts = new ();
 			cts.CancelAfter(20000);
 
-			FakeHordeRpcServer fakeServer = new("bogusServerName", _hordeRpcServerLogger, cts.Token);
-			using WorkerService ws = GetWorkerService((a, b, c) => executor,(c) => fakeServer.GetClient());
+			FakeHordeRpcServer fakeServer = new();// ("bogusServerName", cts.Token);
 
-			Task handleSessionTask = ws.HandleSessionAsync(false, false, cts.Token);
-			await fakeServer.CreateSessionReceived.Task.WaitAsync(cts.Token);
+			await using ISession session = FakeServerSessionFactory.CreateSession(fakeServer.GetConnection());
+
+			LeaseManager manager = new LeaseManager(session, null!, serviceProvider.GetRequiredService<IEnumerable<LeaseHandler>>(), serviceProvider.GetRequiredService<IOptions<AgentSettings>>(), NullLogger.Instance);
+
+			Task handleSessionTask = Task.Run(() => manager.RunAsync(false, cts.Token), cts.Token);
 			await fakeServer.UpdateSessionReceived.Task.WaitAsync(cts.Token);
-			await ws.ShutdownAsync(_workerLogger);
+			cts.Cancel();
 			await handleSessionTask; // Ensure it runs to completion and no exceptions are raised
+		}
+	}
+
+	internal class FakeServerSessionFactory : ISessionFactoryService
+	{
+		readonly FakeHordeRpcServer _fakeServer;
+
+		public FakeServerSessionFactory(FakeHordeRpcServer fakeServer) => _fakeServer = fakeServer;
+
+		public Task<ISession> CreateAsync(CancellationToken cancellationToken)
+		{
+			return Task.FromResult(CreateSession(_fakeServer.GetConnection()));
+		}
+
+		public static ISession CreateSession(IRpcConnection rpcConnection)
+		{
+			Mock<ISession> fakeSession = new Mock<ISession>();
+			fakeSession.Setup(x => x.AgentId).Returns("LocalAgent");
+			fakeSession.Setup(x => x.SessionId).Returns("Session");
+			fakeSession.Setup(x => x.RpcConnection).Returns(rpcConnection);
+			fakeSession.Setup(x => x.TerminateProcessesAsync(It.IsAny<ILogger>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+			fakeSession.Setup(x => x.DisposeAsync()).Returns(new ValueTask());
+			fakeSession.Setup(x => x.WorkingDir).Returns(DirectoryReference.GetCurrentDirectory());
+			return fakeSession.Object;
 		}
 	}
 
@@ -235,15 +260,17 @@ namespace Horde.Agent.Tests
 		private bool _isStopping = false;
 		private Dictionary<string, Lease> _leases = new();
 		private readonly Mock<HordeRpc.HordeRpcClient> _mockClient;
+		private readonly Mock<IRpcClientRef> _mockClientRef;
+		private readonly Mock<IRpcConnection> _mockConnection;
 		private readonly ILogger<FakeHordeRpcServer> _logger;
 		public readonly TaskCompletionSource<bool> CreateSessionReceived = new();
 		public readonly TaskCompletionSource<bool> UpdateSessionReceived = new();
 
-		public FakeHordeRpcServer(string serverName,ILogger<FakeHordeRpcServer> logger, CancellationToken cancellationToken)
+		public FakeHordeRpcServer()
 		{
-			_serverName = serverName;
+			_serverName = "FakeServer";
 			_mockClient = new (MockBehavior.Strict);
-			_logger = logger;
+			_logger = NullLogger<FakeHordeRpcServer>.Instance;
 
 			_mockClient
 				.Setup(m => m.CreateSessionAsync(It.IsAny<CreateSessionRequest>(), null, null, It.IsAny<CancellationToken>()))
@@ -251,11 +278,27 @@ namespace Horde.Agent.Tests
 			
 			_mockClient
 				.Setup(m => m.QueryServerStateV2(null, null, It.IsAny<CancellationToken>()))
-				.Returns(() => GetQueryServerStateCall(cancellationToken));
+				.Returns(() => GetQueryServerStateCall(CancellationToken.None));
 			
 			_mockClient
 				.Setup(m => m.UpdateSession(null, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-				.Returns(() => GetUpdateSessionCall(cancellationToken));
+				.Returns(() => GetUpdateSessionCall(CancellationToken.None));
+
+			_mockClientRef = new Mock<IRpcClientRef>();
+			_mockClientRef
+				.Setup(m => m.Client)
+				.Returns(() => _mockClient.Object);
+
+			_mockConnection = new(MockBehavior.Strict);
+			_mockConnection
+				.Setup(m => m.TryGetClientRef(It.IsAny<RpcContext>()))
+				.Returns<RpcContext>(x => _mockClientRef.Object);
+			_mockConnection
+				.Setup(m => m.GetClientRef(It.IsAny<RpcContext>(), It.IsAny<CancellationToken>()))
+				.Returns(() => Task.FromResult(_mockClientRef.Object));
+			_mockConnection
+				.Setup(m => m.DisposeAsync())
+				.Returns(() => new ValueTask());
 		}
 
 		public void AddTestLease(string leaseId)
@@ -282,6 +325,11 @@ namespace Horde.Agent.Tests
 		public HordeRpc.HordeRpcClient GetClient()
 		{
 			return _mockClient.Object;
+		}
+
+		public IRpcConnection GetConnection()
+		{
+			return _mockConnection.Object;
 		}
 
 		public CreateSessionResponse OnCreateSessionRequest(CreateSessionRequest request)
@@ -451,8 +499,14 @@ namespace Horde.Agent.Tests
 		/// <inheritdoc/>
 		public async Task WriteAsync(T message)
 		{
-			if (_isCompleted) throw new InvalidOperationException("Stream is marked as complete");
-			if (_onWrite != null) await _onWrite(message);
+			if (_isCompleted)
+			{
+				throw new InvalidOperationException("Stream is marked as complete");
+			}
+			if (_onWrite != null)
+			{
+				await _onWrite(message);
+			}
 		}
 
 		/// <inheritdoc/>
@@ -462,7 +516,10 @@ namespace Horde.Agent.Tests
 		public async Task CompleteAsync()
 		{
 			_isCompleted = true;
-			if (_onComplete != null) await _onComplete();
+			if (_onComplete != null)
+			{
+				await _onComplete();
+			}
 		}
 	}
 }

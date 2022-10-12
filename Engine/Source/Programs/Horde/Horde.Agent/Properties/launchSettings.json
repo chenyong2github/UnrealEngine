@@ -4,7 +4,7 @@
       "commandName": "Project",
       "commandLineArgs": "service run",
       "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development"
+        "DOTNET_ENVIRONMENT": "Local"
       }
     }
   }

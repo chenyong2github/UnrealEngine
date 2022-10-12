@@ -15,8 +15,10 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
 using Google.Protobuf;
 using Grpc.Core;
+using Horde.Agent.Leases;
 using Horde.Agent.Services;
 using HordeCommon.Rpc.Messages;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -34,11 +36,11 @@ namespace Horde.Agent.Commands.Compute
 	/// </summary>
 	class WorkerServiceLambda : IAwsLambdaFunction
 	{
-		private readonly Func<string, WorkerService> _createWorkerService;
+		readonly IServiceProvider _serviceProvider;
 		
-		public WorkerServiceLambda(Func<string, WorkerService> createWorkerService)
+		public WorkerServiceLambda(IServiceProvider serviceProvider)
 		{
-			_createWorkerService = createWorkerService;
+			_serviceProvider = serviceProvider;
 		}
 
 		/// <inheritdoc />
@@ -50,9 +52,12 @@ namespace Horde.Agent.Commands.Compute
 				AwsLambdaListenRequest.Parser.ParseFrom(requestData.Span);
 
 			TimeSpan maxWaitTime = TimeSpan.FromMilliseconds(request.MaxWaitTimeForLeaseMs);
-			using WorkerService service = _createWorkerService(requestId);
+
+			await using ISession session = await _serviceProvider.GetRequiredService<ISessionFactoryService>().CreateAsync(cancellationToken);
+
+			LeaseManager manager = new LeaseManager(session, _serviceProvider);
 			bool isLeaseActive = false;
-			service.OnLeaseActive += lease => isLeaseActive = true;
+			manager.OnLeaseActive += lease => isLeaseActive = true;
 			using CancellationTokenSource maxWaitTimeCts = new();
 
 			Task _ = Task.Run(async () =>
@@ -68,7 +73,7 @@ namespace Horde.Agent.Commands.Compute
 			using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, maxWaitTimeCts.Token);
 			try
 			{
-				await service.HandleSessionAsync(true, false, linkedCts.Token);
+				await manager.RunAsync(true, linkedCts.Token);
 			}
 			catch (RpcException e)
 			{
@@ -79,7 +84,7 @@ namespace Horde.Agent.Commands.Compute
 				}
 			}
 			
-			AwsLambdaListenResponse response = new () { DidAcceptLease = service.NumLeasesCompleted > 0 };
+			AwsLambdaListenResponse response = new () { DidAcceptLease = manager.NumLeasesCompleted > 0 };
 			byte[] responseData = isProtobufCompatibleJson ?
 				Encoding.UTF8.GetBytes(JsonFormatter.Default.Format(response)) :
 				response.ToByteArray();
@@ -97,6 +102,9 @@ namespace Horde.Agent.Commands.Compute
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
+			ServiceCollection serviceCollection = new ServiceCollection();
+			using ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
+
 			LogLevel logLevel;
 			string logLevelStr = Environment.GetEnvironmentVariable("UE_HORDE_LOG_LEVEL") ?? "debug";
 
@@ -150,11 +158,7 @@ namespace Horde.Agent.Commands.Compute
 					cts.Cancel();
 				};
 
-				WorkerServiceLambda lambdaFunction = new ((requestId) =>
-				{
-					agentSettingsOptions.Value.Name = "lambda-" + requestId;
-					return new WorkerService(workerServiceLogger, agentSettingsOptions, grpcService, storageClient);
-				});
+				WorkerServiceLambda lambdaFunction = new(serviceProvider);
 				bool success = await lambdaClient.ListenForInvocationsAsync(lambdaFunction, cts.Token);
 				return success ? 1 : 0;
 			}

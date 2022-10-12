@@ -203,6 +203,11 @@ namespace Horde.Agent
 		public bool WriteStepOutputToLogger { get; set; }
 
 		/// <summary>
+		/// Queries information about the current agent through the AWS EC2 interface
+		/// </summary>
+		public bool EnableAwsEc2Support { get; set; } = true;
+
+		/// <summary>
 		/// Key/value properties in addition to those set internally by the agent
 		/// </summary>
 		public Dictionary<string, string> Properties { get; } = new();

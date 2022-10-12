@@ -5,10 +5,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Horde.Agent.Commands.Compute;
+using Horde.Agent.Leases;
 using Horde.Agent.Services;
 using HordeCommon;
 using HordeCommon.Rpc.Messages;
-using Microsoft.Extensions.Logging;
+using HordeCommon.Rpc.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Agent.Tests
@@ -16,44 +18,50 @@ namespace Horde.Agent.Tests
 	[TestClass]
 	public class AwsLambdaListenerCommandTest
 	{
-		private readonly ILogger<WorkerService> _workerLogger;
-		private readonly ILogger<GrpcService> _grpcServiceLogger;
-		private readonly ILogger<FakeHordeRpcServer> _hordeRpcServerLogger;
+		class TestTaskHandler : LeaseHandler<TestTask>
+		{
+			public override Task<LeaseResult> ExecuteAsync(ISession session, string leaseId, TestTask message, CancellationToken cancellationToken)
+			{
+				return Task.FromResult(LeaseResult.Success);
+			}
+		}
+
+		private readonly FakeHordeRpcServer _fakeServer = new();
+		private readonly ServiceCollection _serviceCollection;
 
 		public AwsLambdaListenerCommandTest()
 		{
-			using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-			{
-				builder.AddSimpleConsole(consoleLoggerOptions => consoleLoggerOptions.TimestampFormat = "[HH:mm:ss] ");
-			});
-
-			_workerLogger = loggerFactory.CreateLogger<WorkerService>();
-			_grpcServiceLogger = loggerFactory.CreateLogger<GrpcService>();
-			_hordeRpcServerLogger = loggerFactory.CreateLogger<FakeHordeRpcServer>();
+			_serviceCollection = new ServiceCollection();
+			_serviceCollection.AddLogging();
+			_serviceCollection.AddSingleton<CapabilitiesService>();
+			_serviceCollection.AddSingleton<LeaseHandler, TestTaskHandler>();
+			_serviceCollection.AddSingleton<ISessionFactoryService>(sp => new FakeServerSessionFactory(_fakeServer));
 		}
-		
+
 		[TestMethod]
 		public async Task ShutdownIfNoLeasesArriveWithinMaxWaitTime()
 		{
-			using CancellationTokenSource cts = new (10000);
-			FakeHordeRpcServer fakeServer = new("testServerName", _hordeRpcServerLogger, cts.Token);
-			WorkerServiceLambda lambdaFunc = new((_) => WorkerServiceTest.GetWorkerService(_grpcServiceLogger, _workerLogger, (a, b, c) => WorkerServiceTest.NullExecutor,(c) => fakeServer.GetClient()));
+			using CancellationTokenSource cts = new(10000);
+			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
-			AwsLambdaListenResponse response = await InvokeProtoAsync(lambdaFunc, new() { MaxWaitTimeForLeaseMs = 1000 }, cts.Token);
+			WorkerServiceLambda lambdaFunc = new(serviceProvider);
+
+			AwsLambdaListenResponse response = await InvokeProtoAsync(lambdaFunc, new AwsLambdaListenRequest { MaxWaitTimeForLeaseMs = 1000 }, cts.Token);
 			Assert.IsFalse(response.DidAcceptLease);
 		}
-		
+
 		[TestMethod]
 		public async Task HandleOneLeaseAndShutdown()
 		{
-			using CancellationTokenSource cts = new (10000);
-			FakeHordeRpcServer fakeServer = new("testServerName", _hordeRpcServerLogger, cts.Token);
-			WorkerServiceLambda lambdaFunc = new((_) => WorkerServiceTest.GetWorkerService(_grpcServiceLogger, _workerLogger, (a, b, c) => WorkerServiceTest.NullExecutor,(c) => fakeServer.GetClient()));
+			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
-			fakeServer.AddTestLease("testLeaseId");
-			AwsLambdaListenResponse response = await InvokeProtoAsync(lambdaFunc, new() { MaxWaitTimeForLeaseMs = 5000 }, cts.Token);
-			Assert.AreEqual(LeaseState.Completed, fakeServer.GetLease("testLeaseId").State);
-			Assert.AreEqual(LeaseOutcome.Success, fakeServer.GetLease("testLeaseId").Outcome);
+			using CancellationTokenSource cts = new (10000);
+			WorkerServiceLambda lambdaFunc = new(serviceProvider);
+
+			_fakeServer.AddTestLease("testLeaseId");
+			AwsLambdaListenResponse response = await InvokeProtoAsync(lambdaFunc, new AwsLambdaListenRequest { MaxWaitTimeForLeaseMs = 5000 }, cts.Token);
+			Assert.AreEqual(LeaseState.Completed, _fakeServer.GetLease("testLeaseId").State);
+			Assert.AreEqual(LeaseOutcome.Success, _fakeServer.GetLease("testLeaseId").Outcome);
 			Assert.IsTrue(response.DidAcceptLease);
 		}
 

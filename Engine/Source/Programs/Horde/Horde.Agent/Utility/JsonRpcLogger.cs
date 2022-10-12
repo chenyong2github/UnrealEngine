@@ -135,6 +135,29 @@ namespace Horde.Agent.Parser
 		/// </summary>
 		/// <param name="rpcClient">RPC client to use for server requests</param>
 		/// <param name="logId">The log id to write to</param>
+		/// <param name="inner">Additional logger to write to</param>
+		public JsonRpcLogger(IRpcConnection rpcClient, string logId, ILogger inner)
+			: this(rpcClient, logId, null, null, null, null, inner)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="rpcClient">RPC client to use for server requests</param>
+		/// <param name="logId">The log id to write to</param>
+		/// <param name="warnings">Whether to include warnings in the output</param>
+		/// <param name="inner">Additional logger to write to</param>
+		public JsonRpcLogger(IRpcConnection rpcClient, string logId, bool? warnings, ILogger inner)
+			: this(rpcClient, logId, null, null, null, warnings, inner)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="rpcClient">RPC client to use for server requests</param>
+		/// <param name="logId">The log id to write to</param>
 		/// <param name="jobId">Id of the job being executed</param>
 		/// <param name="jobBatchId">Batch being executed</param>
 		/// <param name="jobStepId">Id of the step being executed</param>
