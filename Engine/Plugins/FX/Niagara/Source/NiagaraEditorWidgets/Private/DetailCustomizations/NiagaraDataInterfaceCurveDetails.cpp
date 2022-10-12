@@ -1442,7 +1442,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 	}
 
 	IDetailCategoryBuilder& CurveCategory = DetailBuilder.EditCategory("Curve");
-	CurveCategory.HeaderContent(ToolBarBuilder.MakeWidget());
+	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveOptions", "Options")).WholeRowContent() [ ToolBarBuilder.MakeWidget() ];
 	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveFilterText", "Curve")).WholeRowContent() [ CurveDataInterfaceEditor.ToSharedRef() ];
 }
 
