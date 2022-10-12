@@ -68,7 +68,7 @@ UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 InputNamesMaterialX2UE
 {
 	{{TEXT(""),                         TEXT("bg")},		TEXT("B")},
-	{{TEXT(""),                         TEXT("center")},		TEXT("Center")},
+	{{TEXT(""),                         TEXT("center")},	TEXT("Center")},
 	{{TEXT(""),                         TEXT("fg")},		TEXT("A")},
 	{{TEXT(""),                         TEXT("high")},		TEXT("Max")},
 	{{TEXT(""),                         TEXT("in")},		TEXT("Input")},
@@ -80,7 +80,7 @@ InputNamesMaterialX2UE
 	{{TEXT(""),                         TEXT("inhigh")},    TEXT("InputHigh")},
 	{{TEXT(""),                         TEXT("low")},		TEXT("Min")},
 	{{TEXT(""),                         TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
-	{{TEXT(""),                         TEXT("mix")},		TEXT("Factor")},
+	{{TEXT(""),                         TEXT("mix")},		TEXT("Alpha")},
 	{{TEXT(""),                         TEXT("texcoord")},  TEXT("Coordinates")},
 	{{TEXT(""),                         TEXT("outlow")},    TEXT("TargetLow")},
 	{{TEXT(""),                         TEXT("outhigh")},   TEXT("TargetHigh")},
@@ -99,13 +99,18 @@ InputNamesMaterialX2UE
 	{{MaterialX::Category::IfEqual,     TEXT("value1")},    TEXT("A")},
 	{{MaterialX::Category::IfEqual,     TEXT("value2")},    TEXT("B")},
 	{{MaterialX::Category::IfEqual,     TEXT("in1")},       TEXT("AEqualsB")},
-	{{MaterialX::Category::IfEqual,     TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case greater see ConnectIfEqual
+	{{MaterialX::Category::IfEqual,     TEXT("in2")},       TEXT("ALessThanB")},  // another input is added for the case greater see ConnectIfEqual
+	{{MaterialX::Category::Inside,      TEXT("in")},        TEXT("A")},			  // Inside is treated as a Multiply node
+	{{MaterialX::Category::Inside,      TEXT("mask")},      TEXT("B")},			  // Inside is treated as a Multiply node
 	{{MaterialX::Category::Invert,      TEXT("amount")},    TEXT("A")},
 	{{MaterialX::Category::Invert,      TEXT("in")},        TEXT("B")},
 	{{MaterialX::Category::Magnitude,   TEXT("in")},        TEXT("A")},
 	{{MaterialX::Category::Mix,         TEXT("fg")},        TEXT("B")},
 	{{MaterialX::Category::Mix,         TEXT("bg")},        TEXT("A")},
+	{{MaterialX::Category::Mix,         TEXT("mix")},		TEXT("Factor")},
 	{{MaterialX::Category::Normalize,   TEXT("in")},        TEXT("VectorInput")},
+	{{MaterialX::Category::Outside,     TEXT("in")},        TEXT("A")},				// Outside is treated as Multiply node
+	{{MaterialX::Category::Outside,     TEXT("mask")},      TEXT("B")},				// Outside is treated as Multiply node
 	{{MaterialX::Category::Power,       TEXT("in1")},       TEXT("Base")},
 	{{MaterialX::Category::Power,	    TEXT("in2")},       TEXT("Exponent")},
 	{{MaterialX::Category::Rotate2D,    TEXT("amount")},    TEXT("RotationAngle")},
@@ -150,7 +155,23 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::Sub,          TEXT("Subtract")},
 	{MaterialX::Category::Tan,          TEXT("Tangent")},
 	// Compositing nodes
+	{MaterialX::Category::Burn,         TEXT("Burn")},
+	{MaterialX::Category::Difference,   TEXT("Difference")},
+	{MaterialX::Category::Disjointover, TEXT("Disjointover")},
+	{MaterialX::Category::Dodge,        TEXT("Dodge")},
+	{MaterialX::Category::In,           TEXT("In")},
+	{MaterialX::Category::Inside,       TEXT("Multiply")},
+	{MaterialX::Category::Mask,         TEXT("Mask")},
+	{MaterialX::Category::Matte,        TEXT("Matte")},
+	{MaterialX::Category::Minus,        TEXT("Minus")},
 	{MaterialX::Category::Mix,          TEXT("Lerp")},
+	{MaterialX::Category::Out,          TEXT("Out")},
+	{MaterialX::Category::Over,         TEXT("Over")},
+	{MaterialX::Category::Overlay,      TEXT("Overlay")},
+	{MaterialX::Category::Plus,         TEXT("Plus")},
+	{MaterialX::Category::Premult,      TEXT("Premult")},
+	{MaterialX::Category::Screen,       TEXT("Screen")},
+	{MaterialX::Category::Unpremult,    TEXT("Unpremult")},
 	// Channel nodes
 	{MaterialX::Category::Combine2,     TEXT("AppendVector")},
 	{MaterialX::Category::Combine3,     TEXT("Append3Vector")},
@@ -168,6 +189,7 @@ NodeNamesMaterialX2UE{
 UEInputs
 {
     TEXT("A"),
+	TEXT("Alpha"),
 	TEXT("B"),
     TEXT("Base"),
     TEXT("C"),
@@ -985,6 +1007,10 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				{
 					ConnectIfEqualInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
 				}
+				else if(UpstreamNode->getCategory() == mx::Category::Outside)
+				{
+					ConnectOutsideInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
 				else
 				{
 					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
@@ -1733,6 +1759,18 @@ void UInterchangeMaterialXTranslator::ConnectIfEqualInputToOutput(MaterialX::Nod
 			RenameInput(Input3, "AGreaterThanB");
 		}
 	}
+}
+
+void UInterchangeMaterialXTranslator::ConnectOutsideInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	//in * (1 - mask)
+	UInterchangeShaderNode* NodeMultiply = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("Multiply"), NamesToShaderNodes, NodeContainer);
+	AddAttributeFromValueOrInterface(UpstreamNode->getInput("in"), TEXT("A"), NodeMultiply);
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NodeMultiply->GetUniqueID());
+
+	UInterchangeShaderNode* NodeOneMinus = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_OneMinus")), TEXT("OneMinus"), NamesToShaderNodes, NodeContainer);
+	AddAttributeFromValueOrInterface(UpstreamNode->getInput("mask"), TEXT("Input"), NodeOneMinus);
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeMultiply, TEXT("B"), NodeOneMinus->GetUniqueID());
 }
 
 UInterchangeShaderNode* UInterchangeMaterialXTranslator::CreateMaskShaderNode(uint8 RGBA, const FString& NodeName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const

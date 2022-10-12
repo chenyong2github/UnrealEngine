@@ -206,9 +206,26 @@ MATERIALX_NAMESPACE_BEGIN
 		static constexpr const char* TransformNormal = "transformnormal";
 		static constexpr const char* TransformPoint = "transformpoint";
 		static constexpr const char* TransformVector = "transformvector";
-		static constexpr const char* Transpose = "transpose";
+		static constexpr const char* Transpose = "transpose";		
 		// Compositing nodes
+		static constexpr const char* Burn = "burn";
+		static constexpr const char* Difference = "difference";
+		static constexpr const char* Disjointover = "disjointover";
+		static constexpr const char* Dodge = "dodge";
+		static constexpr const char* In = "in";
+		static constexpr const char* Inside = "inside";
+		static constexpr const char* Mask = "mask";
+		static constexpr const char* Matte = "matte";
+		static constexpr const char* Minus = "minus";
 		static constexpr const char* Mix = "mix";
+		static constexpr const char* Out = "out";
+		static constexpr const char* Outside = "outside";
+		static constexpr const char* Over = "over";
+		static constexpr const char* Overlay = "overlay";
+		static constexpr const char* Plus = "plus";
+		static constexpr const char* Premult = "premult";
+		static constexpr const char* Screen = "screen";
+		static constexpr const char* Unpremult = "unpremult";
 		// Conditional nodes
 		static constexpr const char* IfGreater = "ifgreater";
 		static constexpr const char* IfGreaterEq = "ifgreatereq";
