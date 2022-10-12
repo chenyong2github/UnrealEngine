@@ -246,7 +246,7 @@ public:
 	 *
 	 * @param  NewTextStyle	The new text style to use
 	 */
-	void SetEditableTextStyle( const FEditableTextStyle& InNewTextStyle );
+	void SetTextStyle( const FEditableTextStyle& InNewTextStyle );
 
 	/** @See TextStyle */
 	/**

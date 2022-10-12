@@ -104,7 +104,7 @@ FSlateFontInfo SEditableText::GetFont() const
 	return Font.Get();
 }
 
-void SEditableText::SetEditableTextStyle( const FEditableTextStyle& InNewTextStyle )
+void SEditableText::SetTextStyle( const FEditableTextStyle& InNewTextStyle )
 {
 	Font = InNewTextStyle.Font;
 	ColorAndOpacity = InNewTextStyle.ColorAndOpacity;

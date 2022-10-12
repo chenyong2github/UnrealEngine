@@ -123,7 +123,7 @@ void UEditableText::SynchronizeProperties()
 	TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
 
 	MyEditableText->SetText(TextBinding);
-	MyEditableText->SetEditableTextStyle(WidgetStyle);
+	MyEditableText->SetTextStyle(WidgetStyle);
 	MyEditableText->SetHintText(HintTextBinding);
 	MyEditableText->SetIsReadOnly(IsReadOnly);
 	MyEditableText->SetIsPassword(IsPassword);
@@ -348,7 +348,7 @@ void UEditableText::SetFont(FSlateFontInfo InFontInfo)
 
 	if (MyEditableText.IsValid())
 	{
-		MyEditableText->SetEditableTextStyle(WidgetStyle);
+		MyEditableText->SetTextStyle(WidgetStyle);
 	}
 }
 
@@ -358,7 +358,7 @@ void UEditableText::SetFontMaterial(UMaterialInterface* InMaterial)
 
 	if (MyEditableText.IsValid())
 	{
-		MyEditableText->SetEditableTextStyle(WidgetStyle);
+		MyEditableText->SetTextStyle(WidgetStyle);
 	}
 }
 
@@ -368,7 +368,7 @@ void UEditableText::SetFontOutlineMaterial(UMaterialInterface* InMaterial)
 
 	if (MyEditableText.IsValid())
 	{
-		MyEditableText->SetEditableTextStyle(WidgetStyle);
+		MyEditableText->SetTextStyle(WidgetStyle);
 	}
 }
 
