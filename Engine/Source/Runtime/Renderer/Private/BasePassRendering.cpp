@@ -185,7 +185,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 	{
 		if (Material.IsDualBlendingEnabled(Platform))
 		{
-			if (InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency || InTranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency)
+			if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandard || InTranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency)
 			{
 				// If we are in the transparancy pass (before DoF) we do standard dual blending, and the alpha gets ignored
 				// Blend by putting add in target 0 and multiply by background in target 1.
@@ -197,7 +197,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 				// Alpha is BF_Zero for source and BF_One for dest, which leaves alpha unchanged
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Source1Color, BO_Add, BF_Zero, BF_One>::GetRHI());
 			}
-			else if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate || InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucencyModulate)
+			else if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate || InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandardModulate)
 			{
 				// In the separate pass (after DoF) modulate, we want to only darken the target by our multiplication term, and ignore the addition term.
 				// For regular dual blending, our function is:
@@ -237,7 +237,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 		// Special case for dual blending, which is not exposed as a parameter in the material editor
 		if (Material.IsDualBlendingEnabled(Platform))
 		{
-			if (InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency || InTranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency)
+			if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandard || InTranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency)
 			{
 				// If we are in the transparancy pass (before DoF) we do standard dual blending, and the alpha gets ignored
 
@@ -250,7 +250,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 				// Alpha is BF_Zero for source and BF_One for dest, which leaves alpha unchanged
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Source1Color, BO_Add, BF_Zero, BF_One>::GetRHI());
 			}
-			else if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate || InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucencyModulate)
+			else if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate || InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandardModulate)
 			{
 				// In the separate pass (after DoF) modulate, we want to only darken the target by our multiplication term, and ignore the addition term.
 				// For regular dual blending, our function is:
@@ -313,7 +313,7 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 	const bool bIsPostMotionBlur = Material.IsTranslucencyAfterMotionBlurEnabled();
 
 	// When separate standard translucent are used, we must mark the distoprtion bit for the composition to happen correctly for any BeforeDoF translucent.
-	const bool bSeparatedStandardTranslucent = (InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency || InTranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency) && IsStandardTranslucenyPassSeparated();
+	const bool bSeparatedStandardTranslucent = (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandard || InTranslucencyPassType == ETranslucencyPass::TPT_AllTranslucency) && IsStandardTranslucenyPassSeparated();
 
 	if (bEnableResponsiveAA && !bIsPostMotionBlur)
 	{
@@ -1695,11 +1695,11 @@ bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 		{
 			switch (TranslucencyPassType)
 			{
-			case ETranslucencyPass::TPT_StandardTranslucency:
+			case ETranslucencyPass::TPT_TranslucencyStandard:
 				bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled();
 				break;
 
-			case ETranslucencyPass::TPT_StandardTranslucencyModulate:
+			case ETranslucencyPass::TPT_TranslucencyStandardModulate:
 				bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() 
 					&& (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly);
 				break;
@@ -2166,7 +2166,7 @@ FMeshPassProcessor* CreateTranslucencyStandardPassProcessor(ERHIFeatureLevel::Ty
 
 	const FBasePassMeshProcessor::EFlags Flags = FBasePassMeshProcessor::EFlags::CanUseDepthStencil;
 
-	return new FBasePassMeshProcessor(EMeshPass::TranslucencyStandard, Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_StandardTranslucency);
+	return new FBasePassMeshProcessor(EMeshPass::TranslucencyStandard, Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_TranslucencyStandard);
 }
 
 FMeshPassProcessor* CreateTranslucencyStandardModulatePassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
@@ -2176,7 +2176,7 @@ FMeshPassProcessor* CreateTranslucencyStandardModulatePassProcessor(ERHIFeatureL
 
 	const FBasePassMeshProcessor::EFlags Flags = FBasePassMeshProcessor::EFlags::CanUseDepthStencil;
 
-	return new FBasePassMeshProcessor(EMeshPass::TranslucencyStandardModulate, Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_StandardTranslucencyModulate);
+	return new FBasePassMeshProcessor(EMeshPass::TranslucencyStandardModulate, Scene, FeatureLevel, InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext, Flags, ETranslucencyPass::TPT_TranslucencyStandardModulate);
 }
 
 FMeshPassProcessor* CreateTranslucencyAfterDOFProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)

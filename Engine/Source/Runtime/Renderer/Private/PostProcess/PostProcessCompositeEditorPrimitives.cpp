@@ -173,9 +173,9 @@ void RenderForegroundTranslucentEditorPrimitives(FRHICommandList& RHICmdList, co
 	const auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 
 	// Force all translucent editor primitives to standard translucent rendering
-	const ETranslucencyPass::Type TranslucencyPass = ETranslucencyPass::TPT_StandardTranslucency;
+	const ETranslucencyPass::Type TranslucencyPass = ETranslucencyPass::TPT_TranslucencyStandard;
 
-	if (TranslucencyPass == ETranslucencyPass::TPT_StandardTranslucency)
+	if (TranslucencyPass == ETranslucencyPass::TPT_TranslucencyStandard)
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 	}

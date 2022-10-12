@@ -834,7 +834,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 			// Fetch the separated before dof translucent data if available for composition
-			FTranslucencyPassResources& TranslucencyPassResources = TranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_StandardTranslucency);
+			FTranslucencyPassResources& TranslucencyPassResources = TranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyStandard);
 			PassParameters->StandardTranslucentColorAlphaTexture = TranslucencyPassResources.GetColorForRead(GraphBuilder);
 			PassParameters->StandardTranslucentColorAlphaMSAATexture = TranslucencyPassResources.ColorTexture.Target;
 			PassParameters->StandardTranslucentTransmittanceTexture = TranslucencyPassResources.GetColorModulateForRead(GraphBuilder);

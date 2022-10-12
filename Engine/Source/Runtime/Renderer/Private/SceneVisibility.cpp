@@ -2429,12 +2429,12 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 				{
 					if (ViewRelevance.bNormalTranslucency)
 					{
-						TranslucentPrimCount.Add(ETranslucencyPass::TPT_StandardTranslucency, ViewRelevance.bUsesSceneColorCopy);
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyStandard, ViewRelevance.bUsesSceneColorCopy);
 					}
 
 					if (ViewRelevance.bNormalTranslucency && ViewRelevance.bTranslucencyModulate && View.Family->AllowStandardTranslucencySeparated())
 					{
-						TranslucentPrimCount.Add(ETranslucencyPass::TPT_StandardTranslucencyModulate, ViewRelevance.bUsesSceneColorCopy);
+						TranslucentPrimCount.Add(ETranslucencyPass::TPT_TranslucencyStandardModulate, ViewRelevance.bUsesSceneColorCopy);
 					}
 
 					if (ViewRelevance.bSeparateTranslucency)

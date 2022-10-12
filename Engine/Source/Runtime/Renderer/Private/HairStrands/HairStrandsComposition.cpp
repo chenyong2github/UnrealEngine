@@ -622,7 +622,7 @@ void RenderHairComposition(
 	{		
 		if (View.Family && HairStrands::HasViewHairStrandsData(View))
 		{
-			FTranslucencyPassResources& TranslucencyPassResources = TranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_StandardTranslucency);
+			FTranslucencyPassResources& TranslucencyPassResources = TranslucencyResourceMap.Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyStandard);
 			FRDGTextureRef SceneColorTarget = TranslucencyPassResources.ColorTexture.IsValid() ? TranslucencyPassResources.ColorTexture.Target : SceneColorTexture;
 
 			InternalRenderHairComposition(
