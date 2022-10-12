@@ -1240,6 +1240,37 @@ void UUserWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	}
 }
 
+void UUserWidget::AssignGUIDToBindings()
+{
+	if (UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
+	{
+		for (int32 BindingIndex = 0; BindingIndex < NamedSlotBindings.Num(); BindingIndex++)
+		{
+			FNamedSlotBinding& Binding = NamedSlotBindings[BindingIndex];
+			if (BGClass->NamedSlotsWithID.Contains(Binding.Name))
+			{
+				Binding.Guid = BGClass->NamedSlotsWithID[Binding.Name];
+			}
+		}
+	}
+}
+
+void UUserWidget::UpdateBindingForSlot(FName SlotName)
+{
+	if (UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
+	{
+		if (BGClass->NamedSlotsWithID.Contains(SlotName))
+		{
+			for (FNamedSlotBinding& Binding : NamedSlotBindings)
+			{
+				if (BGClass->NamedSlotsWithID[SlotName] == Binding.Guid && !BGClass->NamedSlotsWithID.Contains(Binding.Name))
+				{
+					Binding.Name = SlotName;
+				}
+			}
+		}
+	}
+}
 #endif
 
 void UUserWidget::OnAnimationStarted_Implementation(const UWidgetAnimation* Animation)

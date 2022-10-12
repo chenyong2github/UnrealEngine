@@ -157,6 +157,12 @@ public:
 	UPROPERTY()
 	FName Name;
 
+#if WITH_EDITORONLY_DATA
+	// GUID of the NamedSlot is used as a secondary identifier to find a binding in case the name of NamedSlot has changed.
+	UPROPERTY()
+	FGuid Guid;
+#endif
+
 	UPROPERTY(Instanced)
 	TObjectPtr<UWidget> Content;
 };
@@ -1134,6 +1140,12 @@ public:
 	virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags) override;
 	virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	/** Update the binding for this namedslot if the name is not found but GUID is matched. */
+	void UpdateBindingForSlot(FName SlotName);
+
+	/** Add the GUID of each Namedslot widget to its corresponding binding, if any. */
+	void AssignGUIDToBindings();
 
 	/**
 	 * Final step of Widget Blueprint compilation. Allows widgets to perform custom validation and trigger compiler outputs as needed.

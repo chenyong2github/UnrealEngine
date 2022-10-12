@@ -96,6 +96,10 @@ const FText UNamedSlot::GetPaletteCategory()
 	return LOCTEXT("Common", "Common");
 }
 
+FGuid UNamedSlot::GetSlotGUID() const
+{
+	return SlotGuid;
+}
 #endif
 
 void UNamedSlot::Serialize(FArchive& Ar)

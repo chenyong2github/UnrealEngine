@@ -32,6 +32,7 @@ public:
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
+	FGuid GetSlotGUID() const;
 #endif
 
 public:
@@ -56,4 +57,12 @@ protected:
 
 protected:
 	TSharedPtr<SBox> MyBox;
+
+private:	
+#if WITH_EDITORONLY_DATA
+
+	UPROPERTY()
+	FGuid SlotGuid = FGuid::NewGuid();
+#endif
+
 };

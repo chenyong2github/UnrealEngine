@@ -105,6 +105,12 @@ public:
 	UPROPERTY()
 	TArray<FName> NamedSlots;
 
+#if WITH_EDITORONLY_DATA
+	/** All named slots mapped the assigned GUID of their UNamedSlot widget. **/
+	UPROPERTY()
+	TMap<FName, FGuid> NamedSlotsWithID;
+#endif
+
 	/**
 	 * Available Named Slots for content in a subclass.  These are slots that are accumulated from all super
 	 * classes on compile.  They will exclude any named slots that are filled by a parent class.

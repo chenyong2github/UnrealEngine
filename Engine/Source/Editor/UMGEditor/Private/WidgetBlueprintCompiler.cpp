@@ -906,6 +906,9 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 		// Add all the names of the named slot widgets to the slot names structure.
 		{
+		#if WITH_EDITOR
+			BPGClass->NamedSlotsWithID.Reset();
+		#endif
 			BPGClass->NamedSlots.Reset();
 			BPGClass->InstanceNamedSlots.Reset();
 			UWidgetBlueprint* WidgetBPIt = WidgetBP;
@@ -915,6 +918,10 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 					if (const UNamedSlot* NamedSlot = Cast<UNamedSlot>(Widget))
 					{
 						BPGClass->NamedSlots.Add(Widget->GetFName());
+
+					#if WITH_EDITOR
+						BPGClass->NamedSlotsWithID.Add(TPair<FName, FGuid>(Widget->GetFName(), NamedSlot->GetSlotGUID()));
+					#endif
 
 						if (NamedSlot->bExposeOnInstanceOnly)
 						{
