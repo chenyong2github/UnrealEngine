@@ -985,6 +985,7 @@ namespace Horde.Build
 			if (context.Request != null && context.Request.Path.HasValue)
 			{
 				string requestPath = context.Request.Path;
+
 				if (requestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
 				{
 					return LogEventLevel.Verbose;
@@ -998,6 +999,20 @@ namespace Horde.Build
 					return LogEventLevel.Verbose;
 				}
 				if (requestPath.Equals("/Horde.HordeRpc/WriteOutput", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Verbose;
+				}
+				if (requestPath.StartsWith("/Horde.HordeRpc", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Debug;
+				}
+
+				if (requestPath.StartsWith("/api/v1", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Debug;
+				}
+
+				if (requestPath.StartsWith("/ugs/api", StringComparison.OrdinalIgnoreCase))
 				{
 					return LogEventLevel.Verbose;
 				}
