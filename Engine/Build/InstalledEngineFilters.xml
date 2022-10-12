@@ -65,6 +65,7 @@
 		Templates/TP_TopDownBP/TP_TopDownBP.uproject
 		Templates/TP_VehicleAdvBP/TP_VehicleAdvBP.uproject
 		Templates/TP_VirtualRealityBP/TP_VirtualRealityBP.uproject
+		Templates/TP_SIM_BlankBP/TP_SIM_BlankBP.uproject
 		Samples/StarterContent/StarterContent.uproject
 	</Property>
 	<!-- Win64 specific DDC -->
@@ -130,6 +131,9 @@
 
 		Templates/TP_AEC_HandheldARBP/...
 		Templates/TP_MFG_HandheldARBP/...
+
+		Templates/TP_SIM_Blank/...
+		Templates/TP_SIM_BlankBP/...
 
 		<!-- Shared template resources -->
 		Templates/TemplateResources/...
