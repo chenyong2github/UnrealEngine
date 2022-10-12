@@ -8,8 +8,11 @@
 #include "DatasmithUtils.h"
 
 #include "AssetRegistry/AssetData.h"
+#include "Chaos/ChaosScene.h"
 #include "Engine/StaticMesh.h"
 #include "IStaticMeshEditor.h"
+#include "Physics/PhysScene.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
 #include "Toolkits/ToolkitManager.h"
 
@@ -62,7 +65,12 @@ bool UParametricSurfaceBlueprintLibrary::RetessellateStaticMeshWithNotification(
 					FDatasmithStaticMeshImporter::BuildStaticMesh(StaticMesh);
 
 					StaticMesh->PostEditChange();
-					StaticMesh->MarkPackageDirty();
+
+					UStaticMesh::FCommitMeshDescriptionParams Params;
+					Params.bMarkPackageDirty = true;
+					Params.bUseHashAsGuid = true;
+					StaticMesh->CommitMeshDescription(0, Params);
+					StaticMesh->ClearMeshDescription(0);
 
 					// Refresh associated editor
 					TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
@@ -74,10 +82,25 @@ bool UParametricSurfaceBlueprintLibrary::RetessellateStaticMeshWithNotification(
 				// No posting required, just make sure the new tessellation is committed
 				else
 				{
+					// Invalidate physics data as the mesh is rebuild.
+					StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+
 					UStaticMesh::FCommitMeshDescriptionParams Params;
 					Params.bMarkPackageDirty = false;
 					Params.bUseHashAsGuid = true;
 					StaticMesh->CommitMeshDescription( LODIndex, Params );
+					StaticMesh->ClearMeshDescription(0); // important
+
+					// Workaround to force to clean all references to the physics data and so to release old physics data.
+					// https://jira.it.epicgames.com/browse/UE-166555
+					for (int32 idx = 0; idx < GEditor->GetWorldContexts().Num(); ++idx)
+					{
+						const FWorldContext& Context = GEditor->GetWorldContexts()[idx];
+						if (FPhysScene* PhysScene = Context.World()->GetPhysicsScene())
+						{
+							PhysScene->Flush();
+						}
+					}
 				}
 
 				// Save last tessellation settings

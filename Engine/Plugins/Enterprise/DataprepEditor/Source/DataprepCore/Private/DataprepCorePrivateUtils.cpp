@@ -134,6 +134,10 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 					SourceModel.BuildSettings.DistanceFieldResolutionScale = 0;
 					//SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 				}
+				
+				// As soon as StaticMeshes are built, the mesh description can be released
+				// This generate a significant freeing of memory
+				StaticMesh->ClearMeshDescription(Index);
 			}
 
 			StaticMeshesSettings.Add(MoveTemp(BuildSettings));				

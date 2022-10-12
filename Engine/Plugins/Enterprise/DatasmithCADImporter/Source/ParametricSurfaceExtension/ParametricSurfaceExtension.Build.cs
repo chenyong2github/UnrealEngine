@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"DataprepCore",
 					"DatasmithContent",
 					"ParametricSurface",
+					"PhysicsCore",
 					"DatasmithImporter",
 					"Engine",
 					"StaticMeshEditor",

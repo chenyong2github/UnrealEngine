@@ -12,18 +12,20 @@
 #include "MeshDescriptionHelper.h"
 
 #include "Algo/AnyOf.h"
+#include "Algo/Transform.h"
 #include "AssetRegistry/AssetData.h"
 #include "Async/ParallelFor.h"
+#include "Chaos/ChaosScene.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/PlatformFileManager.h"
 #include "IStaticMeshEditor.h"
-#include "StaticMeshAttributes.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
+#include "StaticMeshAttributes.h"
 #include "Toolkits/IToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Algo/Transform.h"
+
 
 #define LOCTEXT_NAMESPACE "ParametricRetessellateAction"
 
@@ -52,7 +54,7 @@ void UParametricRetessellateAction::ApplyOnAssets(const TArray<FAssetData>& Sele
 
 bool FParametricRetessellateAction_Impl::CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
 {
-	return Algo::AnyOf(SelectedAssets, [](const FAssetData& Asset){ return Datasmith::GetAdditionalData<UParametricSurfaceData>(Asset) != nullptr; });
+	return Algo::AnyOf(SelectedAssets, [](const FAssetData& Asset) { return Datasmith::GetAdditionalData<UParametricSurfaceData>(Asset) != nullptr; });
 }
 
 void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
@@ -60,9 +62,13 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 	TFunction<void(UStaticMesh*)> FinalizeChanges = [](UStaticMesh* StaticMesh) -> void
 	{
 		StaticMesh->PostEditChange();
-		StaticMesh->MarkPackageDirty();
+		UStaticMesh::FCommitMeshDescriptionParams Params;
+		Params.bMarkPackageDirty = true;
+		Params.bUseHashAsGuid = true;
+		StaticMesh->CommitMeshDescription(0, Params);
+		StaticMesh->ClearMeshDescription(0);
 
-		// Refresh associated editor
+		// Refresh associated editor 
 		TSharedPtr<IToolkit> EditingToolkit = FToolkitManager::Get().FindEditorForAsset(StaticMesh);
 		if (IStaticMeshEditor* StaticMeshEditorInUse = StaticCastSharedPtr<IStaticMeshEditor>(EditingToolkit).Get())
 		{
@@ -77,7 +83,7 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 	bool bAskForSameOption = NumAssetsToProcess > 1;
 
 	TArray<UStaticMesh*> TessellatedMeshes;
-	TessellatedMeshes.Reserve( SelectedAssets.Num() );
+	TessellatedMeshes.Reserve(SelectedAssets.Num());
 
 	TUniquePtr<FScopedSlowTask> Progress;
 	int32 AssetIndex = -1;
@@ -134,17 +140,17 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 						Progress->EnterProgressFrame(1, Text);
 					}
 
-					if( StaticMesh->GetMeshDescription(0) == nullptr)
+					if (StaticMesh->GetMeshDescription(0) == nullptr)
 					{
-						StaticMesh->CreateMeshDescription( 0 );
+						StaticMesh->CreateMeshDescription(0);
 					}
 
-					if(StaticMesh->GetMeshDescription(0) != nullptr)
+					if (StaticMesh->GetMeshDescription(0) != nullptr)
 					{
 						StaticMesh->Modify();
-						StaticMesh->PreEditChange( nullptr );
+						StaticMesh->PreEditChange(nullptr);
 
-						if(ParametricSurfaceData != nullptr && ParametricSurfaceData->Tessellate(*StaticMesh, RetessellateOptions->Options))
+						if (ParametricSurfaceData != nullptr && ParametricSurfaceData->Tessellate(*StaticMesh, RetessellateOptions->Options))
 						{
 							TessellatedMeshes.Add(StaticMesh);
 						}
@@ -159,24 +165,28 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 	}
 
 	// Make sure lightmap settings are valid
-	if(TessellatedMeshes.Num() > 1)
+	if (TessellatedMeshes.Num() > 1)
 	{
 		ParallelFor(TessellatedMeshes.Num(), [&](int32 Index)
-		{
-			FDatasmithStaticMeshImporter::PreBuildStaticMesh(TessellatedMeshes[Index]); 
-		});
+			{
+				FDatasmithStaticMeshImporter::PreBuildStaticMesh(TessellatedMeshes[Index]);
+			});
 	}
-	else if(TessellatedMeshes.Num() > 0)
+	else if (TessellatedMeshes.Num() > 0)
 	{
-		FDatasmithStaticMeshImporter::PreBuildStaticMesh( TessellatedMeshes[0] );
+		FDatasmithStaticMeshImporter::PreBuildStaticMesh(TessellatedMeshes[0]);
 	}
 
-	FDatasmithStaticMeshImporter::BuildStaticMeshes( TessellatedMeshes );
+	FDatasmithStaticMeshImporter::BuildStaticMeshes(TessellatedMeshes);
 
-	for(UStaticMesh* StaticMesh : TessellatedMeshes)
+	for (UStaticMesh* StaticMesh : TessellatedMeshes)
 	{
 		FinalizeChanges(StaticMesh);
 	}
+
+	// Workaround to force to clean all references to the physics data and so to release old physics data.
+	// https://jira.it.epicgames.com/browse/UE-166555
+	GWorld->GetPhysicsScene()->Flush();
 }
 
 TSet<UStaticMesh*> GetReferencedStaticMeshes(const TArray<AActor*>& SelectedActors)
@@ -203,13 +213,13 @@ TSet<UStaticMesh*> GetReferencedStaticMeshes(const TArray<AActor*>& SelectedActo
 bool UParametricRetessellateAction::CanApplyOnActors(const TArray<AActor*>& SelectedActors)
 {
 	const TSet<UStaticMesh*> ReferencedStaticMeshes = GetReferencedStaticMeshes(SelectedActors);
-	return Algo::AnyOf(ReferencedStaticMeshes, [](const UStaticMesh* Mesh){ return Datasmith::GetAdditionalData<UParametricSurfaceData>(FAssetData(Mesh)); });
+	return Algo::AnyOf(ReferencedStaticMeshes, [](const UStaticMesh* Mesh) { return Datasmith::GetAdditionalData<UParametricSurfaceData>(FAssetData(Mesh)); });
 }
 
 void UParametricRetessellateAction::ApplyOnActors(const TArray<AActor*>& SelectedActors)
 {
 	TArray<FAssetData> AssetData;
-	Algo::Transform(GetReferencedStaticMeshes(SelectedActors), AssetData, [](UStaticMesh* Mesh){ return FAssetData(Mesh);});
+	Algo::Transform(GetReferencedStaticMeshes(SelectedActors), AssetData, [](UStaticMesh* Mesh) { return FAssetData(Mesh); });
 	return ApplyOnAssets(AssetData);
 }
 
