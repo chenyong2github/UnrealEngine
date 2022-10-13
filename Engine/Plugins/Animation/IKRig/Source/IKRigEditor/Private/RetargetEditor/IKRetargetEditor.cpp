@@ -435,7 +435,8 @@ void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& P
 		EditorController->ClearOutputLog();
 		EditorController->BindToIKRigAssets(AssetController->GetAsset());
 		EditorController->AssetController->CleanChainMapping();
-		EditorController->AssetController->AutoMapChains();
+		constexpr bool bForceRemap = false;
+		EditorController->AssetController->AutoMapChains(EAutoMapChainType::Fuzzy, bForceRemap);
 	}
 
 	// if either the source or target meshes are possibly modified, update scene components, anim instance and UI

@@ -128,8 +128,9 @@ private:
 	FReply OnRootSettingsButtonClicked() const;
 
 	/** auto-map chain button*/
+	TSharedRef<SWidget> CreateChainMapMenuWidget();
 	EVisibility IsAutoMapButtonVisible() const;
-	FReply OnAutoMapButtonClicked() const;
+	void AutoMapChains(const EAutoMapChainType AutoMapType, const bool bSetUnmatchedToNone);
 	/** END auto-map chain button*/
 
 	/** filtering the list with search box */

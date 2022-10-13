@@ -14,6 +14,13 @@ class UIKRigDefinition;
 class UIKRetargeter;
 class USkeletalMesh;
 
+enum class EAutoMapChainType : uint8
+{
+	Exact, // map chains that have exactly the same name (case insensitive)
+	Fuzzy, // map chains to the chain with the closest name (levenshtein distance)
+	Clear, // clear all mappings, set them to None
+};
+
 /** A singleton (per-asset) class used to make modifications to a UIKRetargeter asset.
 * Call the static GetController(UIKRetargeter* Asset) function to get the controller for the asset you want to modify. */ 
 UCLASS(config = Engine, hidecategories = UObject)
@@ -57,7 +64,7 @@ public:
 	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets) */
 	void CleanChainMapping(const bool bForceReinitialization=true) const;
 	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
-	void AutoMapChains() const;
+	void AutoMapChains(const EAutoMapChainType AutoMapType, const bool bForceRemap) const;
 	/** Callback when IK Rig chain is added or removed. */
 	void OnRetargetChainAdded(UIKRigDefinition* IKRig) const;
 	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
@@ -153,7 +160,4 @@ private:
 
 	/** The actual asset that this Controller modifies. */
 	TObjectPtr<UIKRetargeter> Asset = nullptr;
-
-	/** The editor controller for this asset. */
-	TSharedPtr<FIKRetargetEditorController> EditorController = nullptr;
 };

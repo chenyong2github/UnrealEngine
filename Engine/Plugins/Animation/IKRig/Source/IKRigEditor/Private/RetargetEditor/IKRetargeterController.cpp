@@ -237,40 +237,77 @@ void UIKRetargeterController::CleanPoseList(const ERetargetSourceOrTarget& Sourc
 	}
 }
 
-void UIKRetargeterController::AutoMapChains() const
+void UIKRetargeterController::AutoMapChains(const EAutoMapChainType AutoMapType, const bool bForceRemap) const
 {
+	FScopedTransaction Transaction(LOCTEXT("AutoMapRetargetChains", "Auto-Map Retarget Chains"));
+	
+	CleanChainMapping();
+
+	// get names of all the potential chains we could map to on the source
 	TArray<FName> SourceChainNames;
 	GetChainNames(ERetargetSourceOrTarget::Source, SourceChainNames);
 	
-	// auto-map any chains that have no value using a fuzzy string search
+	// iterate over all the chain mappings and find matching source chain
 	for (URetargetChainSettings* ChainMap : Asset->ChainSettings)
 	{
-		if (ChainMap->SourceChain != NAME_None)
+		const bool bIsMappedAlready = ChainMap->SourceChain != NAME_None;
+		if (bIsMappedAlready && !bForceRemap)
 		{
 			continue; // already set by user
 		}
 
-		// find "best match" automatically as a convenience for the user
-		FString TargetNameLowerCase = ChainMap->TargetChain.ToString().ToLower();
-		float HighestScore = 0.2f;
-		int32 HighestScoreIndex = -1;
-		for (int32 ChainIndex=0; ChainIndex<SourceChainNames.Num(); ++ChainIndex)
+		ChainMap->Modify();
+
+		// find a source chain to map to
+		int32 SourceChainIndexToMapTo = -1;
+
+		switch (AutoMapType)
 		{
-			FString SourceNameLowerCase = SourceChainNames[ChainIndex].ToString().ToLower();
-			float WorstCase = TargetNameLowerCase.Len() + SourceNameLowerCase.Len();
-			WorstCase = WorstCase < 1.0f ? 1.0f : WorstCase;
-			const float Score = 1.0f - (Algo::LevenshteinDistance(TargetNameLowerCase, SourceNameLowerCase) / WorstCase);
-			if (Score > HighestScore)
+		case EAutoMapChainType::Fuzzy:
 			{
-				HighestScore = Score;
-				HighestScoreIndex = ChainIndex;
+				// auto-map chains using a fuzzy string comparison
+				FString TargetNameLowerCase = ChainMap->TargetChain.ToString().ToLower();
+				float HighestScore = 0.2f;
+				for (int32 ChainIndex=0; ChainIndex<SourceChainNames.Num(); ++ChainIndex)
+				{
+					FString SourceNameLowerCase = SourceChainNames[ChainIndex].ToString().ToLower();
+					float WorstCase = TargetNameLowerCase.Len() + SourceNameLowerCase.Len();
+					WorstCase = WorstCase < 1.0f ? 1.0f : WorstCase;
+					const float Score = 1.0f - (Algo::LevenshteinDistance(TargetNameLowerCase, SourceNameLowerCase) / WorstCase);
+					if (Score > HighestScore)
+					{
+						HighestScore = Score;
+						SourceChainIndexToMapTo = ChainIndex;
+					}
+				}
+				break;
 			}
+		case EAutoMapChainType::Exact:
+			{
+				// auto-map chains with same name
+				for (int32 ChainIndex=0; ChainIndex<SourceChainNames.Num(); ++ChainIndex)
+				{
+					if (SourceChainNames[ChainIndex] == ChainMap->TargetChain)
+					{
+						SourceChainIndexToMapTo = ChainIndex;
+						break;
+					}
+				}
+				break;
+			}
+		case EAutoMapChainType::Clear:
+			{
+				ChainMap->SourceChain = NAME_None;
+				break;
+			}
+		default:
+			checkNoEntry();
 		}
 
 		// apply source if any decent matches were found
-		if (SourceChainNames.IsValidIndex(HighestScoreIndex))
+		if (SourceChainNames.IsValidIndex(SourceChainIndexToMapTo))
 		{
-			ChainMap->SourceChain = SourceChainNames[HighestScoreIndex];
+			ChainMap->SourceChain = SourceChainNames[SourceChainIndexToMapTo];
 		}
 	}
 
