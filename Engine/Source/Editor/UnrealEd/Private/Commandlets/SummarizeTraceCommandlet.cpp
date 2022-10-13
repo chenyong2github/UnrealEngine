@@ -2160,6 +2160,7 @@ bool USummarizeTraceCommandlet::GenerateTelemetryCSV(const FString& TestName,
 		{
 			UE_LOG(LogSummarizeTrace, Display, TEXT("Loading project statistics from %s"), *ProjectStatisticsFileName);
 			bool bCSVOk = StatisticDefinition::LoadFromCSV(ProjectStatisticsFileName, NameToDefinitionMap, CpuScopeNamesWithWildcards);
+			check(bCSVOk);
 		}
 	}
 
