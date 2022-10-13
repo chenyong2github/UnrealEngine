@@ -620,7 +620,7 @@ struct FCompressedFileBuffer
 
 	FString GetDDCKeyString(const uint8* UncompressedFile, const int64& UncompressedFileSize, FName CompressionFormat, const int64& BlockSize);
 
-	TArray<uint8>		UncompressedBuffer;
+	TArray64<uint8>		UncompressedBuffer;
 	int64				OriginalSize;
 	int64				TotalCompressedSize;
 	int32				FileCompressionBlockSize;
