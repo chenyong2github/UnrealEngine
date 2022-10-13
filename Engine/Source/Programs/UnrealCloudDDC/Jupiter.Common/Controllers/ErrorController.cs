@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using Datadog.Trace;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -29,6 +30,9 @@ namespace Jupiter.Controllers
                     return Ok();
                 }
             }
+
+            // add the error to our trace
+            Tracer.Instance.ActiveScope.Span.SetException(context.Error);
 
             return Problem(
                 detail: context.Error.StackTrace,
