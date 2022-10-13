@@ -158,8 +158,8 @@ public:
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
 
-	virtual float GetPixelDenity() const override { return PixelDensity; }
-	virtual void SetPixelDensity(const float NewDensity) override { PixelDensity = NewDensity; }
+	virtual float GetPixelDenity() const override;
+	virtual void SetPixelDensity(const float NewDensity) override;
 	virtual FIntPoint GetIdealRenderTargetSize() const override { return IdealRenderTargetSize; }
 
 	/** IStereoRendering interface */
@@ -475,6 +475,7 @@ private:
 
 		/** World units (UU) to Meters scale.  Read from the level, and used to transform positional tracking data */
 		float WorldToMetersScale;
+		float PixelDensity;
 
 		vr::HmdMatrix34_t RawPoses[vr::k_unMaxTrackedDeviceCount];
 
@@ -482,6 +483,7 @@ private:
 			: FrameNumber(0)
 			, bHaveVisionTracking(false)
 			, WorldToMetersScale(100.0f)
+			, PixelDensity(1.0f)
 		{
 			const uint32 MaxDevices = vr::k_unMaxTrackedDeviceCount;
 
@@ -556,7 +558,6 @@ private:
 	uint32 WindowMirrorBoundsHeight;
 
 	FIntPoint IdealRenderTargetSize;
-	float PixelDensity;
 
 	/** How far the HMD has to move before it's considered to be worn */
 	float HMDWornMovementThreshold;

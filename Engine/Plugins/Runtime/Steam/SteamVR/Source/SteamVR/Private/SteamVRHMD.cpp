@@ -1433,6 +1433,8 @@ bool FSteamVRHMD::EnableStereo(bool bStereo)
 
 void FSteamVRHMD::AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
+	const float PixelDensity = GetPixelDenity();
+
 	SizeX = FMath::CeilToInt(IdealRenderTargetSize.X * PixelDensity);
 	SizeY = FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity);
 
@@ -1544,6 +1546,24 @@ bool FSteamVRHMD::GetHMDDistortionEnabled(EShadingPath /* ShadingPath */) const
 	return false;
 }
 
+float FSteamVRHMD::GetPixelDenity() const
+{
+	const FTrackingFrame& TrackingFrame = GetTrackingFrame();
+	return TrackingFrame.PixelDensity;
+}
+
+void FSteamVRHMD::SetPixelDensity(const float NewDensity)
+{
+	check(IsInGameThread());
+	GameTrackingFrame.PixelDensity = NewDensity;
+
+	ENQUEUE_RENDER_COMMAND(UpdatePixelDensity)(
+		[this, PixelDensity = GameTrackingFrame.PixelDensity](FRHICommandListImmediate&)
+		{
+			RenderTrackingFrame.PixelDensity = PixelDensity;
+		});
+}
+
 void FSteamVRHMD::OnBeginRendering_GameThread()
 {
 	check(IsInGameThread());
@@ -1576,12 +1596,12 @@ FXRRenderBridge* FSteamVRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSepar
 
 void FSteamVRHMD::CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY)
 {
-	check(IsInGameThread());
-
 	if (!IsStereoEnabled())
 	{
 		return;
 	}
+
+	const float PixelDensity = GetPixelDenity();
 
 	InOutSizeX = FMath::CeilToInt(IdealRenderTargetSize.X * PixelDensity);
 	InOutSizeY = FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity);
@@ -1758,7 +1778,6 @@ FSteamVRHMD::FSteamVRHMD(const FAutoRegister& AutoRegister, ISteamVRPlugin* InSt
 	bOcclusionMeshesBuilt(false),
 	WindowMirrorBoundsWidth(2160),
 	WindowMirrorBoundsHeight(1200),
-	PixelDensity(1.0f),
 	HMDWornMovementThreshold(50.0f),
 	HMDStartLocation(FVector::ZeroVector),
 	BaseOrientation(FQuat::Identity),
@@ -1818,7 +1837,7 @@ bool FSteamVRHMD::Startup()
 		static const auto PixelDensityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vr.PixelDensity"));
 		if (PixelDensityCVar)
 		{ 
-			PixelDensity = FMath::Clamp(PixelDensityCVar->GetFloat(), PixelDensityMin, PixelDensityMax);
+			SetPixelDensity(FMath::Clamp(PixelDensityCVar->GetFloat(), PixelDensityMin, PixelDensityMax));
 		}
 
 		// enforce finishcurrentframe
