@@ -30,8 +30,9 @@ namespace Chaos
 	public:
 		using FHandleID = FUniqueIdx;
 		using FDeactivationSet = TSet<FUniqueIdx>;
-		using FActiveMap = TMap<FHandleID, TArray<FHandleID> >;
-		using FPendingMap = TMap<FHandleID, TArray<FHandleID> >;
+		using FActiveMap UE_DEPRECATED(5.1, "This type is no longer used") = TMap<FHandleID, TArray<FHandleID>>;
+		using FPendingMap = TMap<FHandleID, TArray<FHandleID>>;
+
 		struct FStorageData
 		{
 			FPendingMap PendingActivations;
@@ -52,15 +53,22 @@ namespace Chaos
 			StorageDataProducer = GetNewStorageData();
 		}
 
-		bool ContainsHandle(FHandleID Body0);
+		bool ContainsHandle(FHandleID Body0) const;
 
-		bool IgnoresCollision(FHandleID Body0, FHandleID Body1);
+		bool IgnoresCollision(FHandleID Body0, FHandleID Body1) const;
 
-		int32 NumIgnoredCollision(FHandleID Body0);
+		int32 NumIgnoredCollision(FHandleID Body0) const;
 
 		void AddIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1);
 
-		void RemoveIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1);
+		/**
+		 * Remove an ignore entry for collisions of Body0->Body1
+		 * Note, a reversed ignore entry could exist
+		 * @param Body0 First body in the collision
+		 * @param Body1 Second body in the collision
+		 * @return Number of collisions Body0 ignores after the removal
+		 */
+		int32 RemoveIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1);
 
 		FPendingMap& GetPendingActivationsForGameThread(int32 ExternalTimestamp) 
 		{
@@ -112,6 +120,21 @@ namespace Chaos
 
 	private:
 
+		// Multiple sources can request an ignore pair, so we handle a simple count of
+		// ignore requests to ensure we don't prematurely remove an ignore pair
+		// #CHAOSTODO replace bi-directional map to pair hash to reduce required storage and dependency
+		struct FIgnoreEntry
+		{
+			FIgnoreEntry() = delete;
+			explicit FIgnoreEntry(FHandleID InId)
+				: Id(InId)
+				, Count(1) // Begin at 1 for convenience when adding entries
+			{}
+
+			FHandleID Id;
+			int32 Count;
+		};
+
 		FStorageData* GetNewStorageData()
 		{
 			FStorageData* StorageData;
@@ -130,7 +153,9 @@ namespace Chaos
 			StorageDataFreePool.Enqueue(InStorageData);
 		}
 
-		FActiveMap IgnoreCollisionsList;
+		// Maps collision body0 to a list of other bodies and a count for how many
+		// sources have requested for this pair to be ignored
+		TMap<FHandleID, TArray<FIgnoreEntry>> IgnoreCollisionsList;
 
 		FPendingMap PendingActivations;
 		FDeactivationSet PendingDeactivations;

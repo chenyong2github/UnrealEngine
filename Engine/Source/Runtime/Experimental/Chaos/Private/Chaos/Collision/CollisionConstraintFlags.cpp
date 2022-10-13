@@ -7,44 +7,83 @@
 namespace Chaos
 {
 
-	bool FIgnoreCollisionManager::ContainsHandle(FHandleID Body0)
+	bool FIgnoreCollisionManager::ContainsHandle(FHandleID Body0) const
 	{
 		return IgnoreCollisionsList.Contains(Body0);
 	}
 
-	bool FIgnoreCollisionManager::IgnoresCollision(FHandleID Body0, FHandleID Body1)
+	bool FIgnoreCollisionManager::IgnoresCollision(FHandleID Body0, FHandleID Body1) const
 	{
-		if (IgnoreCollisionsList.Contains(Body0))
+		const TArray<FIgnoreEntry>* Entries = IgnoreCollisionsList.Find(Body0);
+
+		if(Entries)
 		{
-			return IgnoreCollisionsList[Body0].Contains(Body1);
+			return Entries->ContainsByPredicate([&Body1](const FIgnoreEntry& Entry)
+			{
+				return Entry.Id == Body1;
+			});
 		}
+
 		return false;
 	}
 
-	int32 FIgnoreCollisionManager::NumIgnoredCollision(FHandleID Body0)
+	int32 FIgnoreCollisionManager::NumIgnoredCollision(FHandleID Body0) const
 	{
-		if (IgnoreCollisionsList.Contains(Body0))
-		{
-			return IgnoreCollisionsList[Body0].Num();
-		}
-		return 0;
+		const TArray<FIgnoreEntry>* Entries = IgnoreCollisionsList.Find(Body0);
+
+		return Entries ? Entries->Num() : 0;
 	}
 
 	void FIgnoreCollisionManager::AddIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1)
 	{
-		if (!IgnoreCollisionsList.Contains(Body0))
+		TArray<FIgnoreEntry>& Entries = IgnoreCollisionsList.FindOrAdd(Body0);
+		FIgnoreEntry* Entry = Entries.FindByPredicate([&Body1](const FIgnoreEntry& Entry)
 		{
-			IgnoreCollisionsList.Add(Body0, TArray<FHandleID>());
-		}
-		IgnoreCollisionsList[Body0].Add(Body1);
+			return Entry.Id == Body1;
+		});
 
-	}
-	void FIgnoreCollisionManager::RemoveIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1)
-	{
-		if (IgnoreCollisionsList.Contains(Body0))
+		if(Entry)
 		{
-			IgnoreCollisionsList[Body0].Remove(Body1);
+			Entry->Count++;
 		}
+		else
+		{
+			Entries.Add(FIgnoreEntry(Body1));
+		}
+	}
+
+	int32 FIgnoreCollisionManager::RemoveIgnoreCollisionsFor(FHandleID Body0, FHandleID Body1)
+	{
+		TArray<FIgnoreEntry>* Entries = IgnoreCollisionsList.Find(Body0);
+
+		if(Entries)
+		{
+			int32 EntryIndex = Entries->IndexOfByPredicate([&Body1](const FIgnoreEntry& FindEntry)
+			{
+				return FindEntry.Id == Body1;
+			});
+
+			if(EntryIndex != INDEX_NONE)
+			{
+				(*Entries)[EntryIndex].Count--;
+
+				if((*Entries)[EntryIndex].Count <= 0)
+				{
+					Entries->RemoveAtSwap(EntryIndex);
+				}
+			}
+
+			if(Entries->Num() == 0)
+			{
+				IgnoreCollisionsList.Remove(Body0);
+			}
+			else
+			{
+				return Entries->Num();
+			}
+		}
+
+		return 0;
 	}
 
 	void FIgnoreCollisionManager::PopStorageData_Internal(int32 ExternalTimestamp)
@@ -91,7 +130,8 @@ namespace Chaos
 		if (PendingActivations.Num() && PendingDeactivations.Num())
 		{
 			TArray<FHandleID> DeletionList;
-			for (auto& Elem : PendingActivations)
+			
+			for (const TPair<FHandleID, TArray<FHandleID>>& Elem : PendingActivations)
 			{
 				if (PendingDeactivations.Remove(Elem.Key))
 				{
@@ -99,8 +139,11 @@ namespace Chaos
 					PreculledParticles.Add(Elem.Key);
 				}
 			}
-			for (FHandleID Del : DeletionList)
+
+			for(FHandleID Del : DeletionList)
+			{
 				PendingActivations.Remove(Del);
+			}
 		}
 
 		// add collision relationships for particles that have valid
@@ -109,7 +152,7 @@ namespace Chaos
 		if (PendingActivations.Num())
 		{
 			TArray<FHandleID> DeletionList;
-			for (auto& Elem : PendingActivations)
+			for (TPair<FHandleID, TArray<FHandleID>>& Elem : PendingActivations)
 			{
 				for (int Index = Elem.Value.Num() - 1; Index >= 0; Index--)
 				{
@@ -121,20 +164,24 @@ namespace Chaos
 					{
 						FUniqueIdx ID0 = Elem.Key;
 						FUniqueIdx ID1 = Elem.Value[Index];
-						if (!IgnoresCollision(ID0, ID1))
-						{
-							AddIgnoreCollisionsFor(ID0, ID1);
-							AddIgnoreCollisionsFor(ID1, ID0);
-						}
+						
+						AddIgnoreCollisionsFor(ID0, ID1);
+						AddIgnoreCollisionsFor(ID1, ID0);
 
 						Elem.Value.RemoveAtSwap(Index, 1);
 					}
 				}
-				if (!Elem.Value.Num())
+
+				if(!Elem.Value.Num())
+				{
 					DeletionList.Add(Elem.Key);
+				}
 			}
-			for (FHandleID Del : DeletionList)
+
+			for(FHandleID Del : DeletionList)
+			{
 				PendingActivations.Remove(Del);
+			}
 		}
 
 		// remove relationships that exist and have been initialized. 
