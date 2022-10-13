@@ -8,7 +8,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Impl;
-using Horde.Agent.Execution;
+using Horde.Agent.Leases.Handlers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -19,13 +19,13 @@ namespace Horde.Agent.Tests
 	{
 		private readonly MemoryStorageClient _storageClient = new ();
 		private readonly FakeCompressor _compressor = new ();
-		private readonly ComputeTaskExecutor _executor;
+		private readonly ComputeHandler _executor;
 		private readonly NamespaceId _namespaceId = new ("my-namespace");
 		private readonly DirectoryReference _sandboxDir;
 		
 		public ComputeTaskExecutorTest()
 		{
-			_executor = new (_storageClient, NullLogger.Instance);
+			_executor = new (_storageClient, NullLogger<ComputeHandler>.Instance);
 			_sandboxDir = new (Path.Join(Path.GetTempPath(), "horde-agent", Guid.NewGuid().ToString()));
 			DirectoryReference.CreateDirectory(_sandboxDir);
 		}
