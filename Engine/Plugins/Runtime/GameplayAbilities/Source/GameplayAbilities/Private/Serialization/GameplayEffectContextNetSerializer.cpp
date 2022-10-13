@@ -291,10 +291,11 @@ bool FGameplayEffectContextNetSerializer::IsEqual(FNetSerializationContext& Cont
 		}
 
 		{
-			FNetIsEqualArgs GEIsEqualArgs = {};
+			FNetIsEqualArgs GEIsEqualArgs = Args;
 			GEIsEqualArgs.NetSerializerConfig = &StructNetSerializerConfigForGE;
 			GEIsEqualArgs.Source0 = NetSerializerValuePointer(&Value0.EffectContext);
 			GEIsEqualArgs.Source1 = NetSerializerValuePointer(&Value1.EffectContext);
+
 			if (!StructNetSerializer->IsEqual(Context, GEIsEqualArgs))
 			{
 				return false;
@@ -303,10 +304,11 @@ bool FGameplayEffectContextNetSerializer::IsEqual(FNetSerializationContext& Cont
 
 		if (Value0.ReplicationFlags & EReplicationFlags::ReplicateHitResult)
 		{
-			FNetIsEqualArgs HitResultIsEqualArgs = {};
+			FNetIsEqualArgs HitResultIsEqualArgs = Args;
 			HitResultIsEqualArgs.NetSerializerConfig = &StructNetSerializerConfigForHitResult;
 			HitResultIsEqualArgs.Source0 = NetSerializerValuePointer(&Value0.HitResult);
 			HitResultIsEqualArgs.Source1 = NetSerializerValuePointer(&Value1.HitResult);
+
 			if (!StructNetSerializer->IsEqual(Context, HitResultIsEqualArgs))
 			{
 				return false;
@@ -332,10 +334,11 @@ bool FGameplayEffectContextNetSerializer::IsEqual(FNetSerializationContext& Cont
 		const FHitResult* HitResult1 = SourceValue1.GetHitResult();
 		if ((HitResult0 != nullptr) && (HitResult1 != nullptr))
 		{
-			FNetIsEqualArgs HitEffectIsEqualArgs ={};
+			FNetIsEqualArgs HitEffectIsEqualArgs = Args;
 			HitEffectIsEqualArgs.NetSerializerConfig = &StructNetSerializerConfigForHitResult;
 			HitEffectIsEqualArgs.Source0 = NetSerializerValuePointer(HitResult0);
 			HitEffectIsEqualArgs.Source1 = NetSerializerValuePointer(HitResult1);
+
 			if (!StructNetSerializer->IsEqual(Context, HitEffectIsEqualArgs))
 			{
 				return false;
@@ -355,10 +358,11 @@ bool FGameplayEffectContextNetSerializer::IsEqual(FNetSerializationContext& Cont
 			TempGE0.CopyReplicatedFieldsFrom(SourceValue0);
 			TempGE1.CopyReplicatedFieldsFrom(SourceValue1);
 
-			FNetIsEqualArgs GEIsEqualArgs ={};
+			FNetIsEqualArgs GEIsEqualArgs = Args;
 			GEIsEqualArgs.NetSerializerConfig = &StructNetSerializerConfigForGE;
 			GEIsEqualArgs.Source0 = NetSerializerValuePointer(&TempGE0);
 			GEIsEqualArgs.Source1 = NetSerializerValuePointer(&TempGE1);
+
 			if (!StructNetSerializer->IsEqual(Context, GEIsEqualArgs))
 			{
 				return false;

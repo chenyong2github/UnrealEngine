@@ -326,7 +326,7 @@ bool FGameplayAbilityRepAnimMontageNetSerializer::IsEqual(FNetSerializationConte
 		}
 
 		// Forward to normal StructNetSerializer
-		FNetIsEqualArgs IsEqualArgs = {};
+		FNetIsEqualArgs IsEqualArgs = Args;
 		IsEqualArgs.NetSerializerConfig = &StructNetSerializerConfigForBase;
 		IsEqualArgs.Source0 = NetSerializerValuePointer(&Value0.GameplayAbilityRepAnimMontage);
 		IsEqualArgs.Source1 = NetSerializerValuePointer(&Value1.GameplayAbilityRepAnimMontage);
@@ -347,10 +347,11 @@ bool FGameplayAbilityRepAnimMontageNetSerializer::IsEqual(FNetSerializationConte
 		const SourceType& SourceValue1 = *reinterpret_cast<const SourceType*>(Args.Source1);
 
 		// Forward to normal StructNetSerializer
-		FNetIsEqualArgs IsEqualArgs ={};
+		FNetIsEqualArgs IsEqualArgs = Args;
 		IsEqualArgs.NetSerializerConfig = &StructNetSerializerConfigForBase;
 		IsEqualArgs.Source0 = Args.Source0;
 		IsEqualArgs.Source1 = Args.Source1;
+
 		if (!StructNetSerializer->IsEqual(Context, IsEqualArgs))
 		{
 			return false;
