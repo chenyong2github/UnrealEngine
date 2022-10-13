@@ -78,8 +78,10 @@ public:
 	// Sets/overwrites the root class metadata
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
 
-	// Rebuild the asset class dependency key array.
-	void RebuildReferencedAssetClassKeys();
+#if WITH_EDITOR
+	// Rebuild dependent asset classes
+	void RebuildReferencedAssetClasses();
+#endif // WITH_EDITOR
 
 	// Returns the interface entries declared by the given asset's document from the InterfaceRegistry.
 	bool GetDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const;
@@ -93,13 +95,16 @@ public:
 	// Returns all the class keys of this asset's referenced assets
 	virtual const TSet<FString>& GetReferencedAssetClassKeys() const = 0;
 
-	// Returns set of cached class references set on last registration
-	// prior to serialize. Used at runtime to hint where to load referenced
-	// class if sound loads before AssetManager scan is completed.  When registered
-	// hint paths to classes here can be superseded by another asset class if it shares
-	// the same key and has already been registered in the MetaSoundAssetManager.
-	virtual TSet<FSoftObjectPath>& GetReferencedAssetClassCache() = 0;
-	virtual const TSet<FSoftObjectPath>& GetReferencedAssetClassCache() const = 0;
+	// Returns set of class references set call to serialize in the editor
+	// Used at runtime load register referenced classes.
+	virtual TArray<FMetasoundAssetBase*> GetReferencedAssets() = 0;
+
+	// Return all dependent asset paths to load asynchronously
+	virtual const TSet<FSoftObjectPath>& GetAsyncReferencedAssetClassPaths() const = 0;
+
+	// Called when async assets have finished loading.
+	virtual void OnAsyncReferencedAssetsLoaded(const TArray<FMetasoundAssetBase*>& InAsyncReferences) = 0;
+
 
 	bool AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath) const;
 	bool IsReferencedAsset(const FMetasoundAssetBase& InAssetToCheck) const;
@@ -162,7 +167,9 @@ public:
 	FString GetOwningAssetName() const;
 
 protected:
-	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) = 0;
+#if WITH_EDITOR
+	virtual void SetReferencedAssetClasses(TSet<Metasound::Frontend::IMetaSoundAssetManager::FAssetInfo>&& InAssetClasses) = 0;
+#endif
 
 	// Get information for communicating asynchronously with MetaSound running instance.
 	TArray<FSendInfoAndVertexName> GetSendInfos(uint64 InInstanceID) const;
@@ -201,7 +208,14 @@ protected:
 	// Prefer accessing public class inputs using CacheRuntimeData.
 	TArray<FMetasoundFrontendClassInput> GetPublicClassInputs() const;
 
+
+	bool AutoUpdate(bool bInLogWarningsOnDroppedConnection);
+	void RegisterAssetDependencies(const Metasound::Frontend::FMetaSoundAssetRegistrationOptions& InRegistrationOptions);
+	TSharedPtr<FMetasoundFrontendDocument> PreprocessDocument();
 private:
+#if WITH_EDITORONLY_DATA
+	void UpdateAssetRegistry();
+#endif
 	// Returns the cached runtime data. Call updates cached data if out-of-date.
 	const FRuntimeData& CacheRuntimeData(const FMetasoundFrontendDocument& InPreprocessedDoc);
 

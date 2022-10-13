@@ -454,7 +454,7 @@ namespace Metasound
 				NewGraphNode->SetNodeLocation(InLocation);
 
 				// Adding external node may introduce referenced asset so rebuild referenced keys.
-				MetaSoundAsset->RebuildReferencedAssetClassKeys();
+				MetaSoundAsset->RebuildReferencedAssetClasses();
 			}
 
 			return NewGraphNode;
@@ -1769,7 +1769,7 @@ namespace Metasound
 					{
 						if (FMetasoundAssetBase* EditedMetaSound = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Asset))
 						{
-							EditedMetaSound->RebuildReferencedAssetClassKeys();
+							EditedMetaSound->RebuildReferencedAssetClasses();
 							if (EditedMetaSound->IsReferencedAsset(*MetaSoundAsset))
 							{
 								EditedReferencingMetaSounds.Add(EditedMetaSound);
@@ -1816,7 +1816,7 @@ namespace Metasound
 					{
 						if (FMetasoundAssetBase* EditedMetaSound = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Asset))
 						{
-							EditedMetaSound->RebuildReferencedAssetClassKeys();
+							EditedMetaSound->RebuildReferencedAssetClasses();
 							if (EditedMetaSound->IsReferencedAsset(*MetaSoundAsset))
 							{
 								EditedMetaSound->GetModifyContext().SetDocumentModified();

@@ -12,6 +12,7 @@
 #include "MetasoundAssetManager.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundEngineArchetypes.h"
+#include "MetasoundEngineAsset.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundFrontendController.h"
@@ -181,7 +182,7 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 void UMetaSoundSource::PostEditUndo()
 {
 	Super::PostEditUndo();
-	Metasound::PostEditUndo(*this);
+	Metasound::FMetaSoundEngineAssetHelper::PostEditUndo(*this);
 }
 
 void UMetaSoundSource::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
@@ -292,31 +293,39 @@ void UMetaSoundSource::BeginDestroy()
 void UMetaSoundSource::PreSave(FObjectPreSaveContext InSaveContext)
 {
 	Super::PreSave(InSaveContext);
-	Metasound::PreSaveAsset(*this, InSaveContext);
+	Metasound::FMetaSoundEngineAssetHelper::PreSaveAsset(*this, InSaveContext);
 }
 
 void UMetaSoundSource::Serialize(FArchive& InArchive)
 {
 	Super::Serialize(InArchive);
-	Metasound::SerializeToArchive(*this, InArchive);
+	Metasound::FMetaSoundEngineAssetHelper::SerializeToArchive(*this, InArchive);
 }
 
-void UMetaSoundSource::SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys)
+#if WITH_EDITOR
+void UMetaSoundSource::SetReferencedAssetClasses(TSet<Metasound::Frontend::IMetaSoundAssetManager::FAssetInfo>&& InAssetClasses)
 {
-	ReferencedAssetClassKeys = MoveTemp(InKeys);
+	Metasound::FMetaSoundEngineAssetHelper::SetReferencedAssetClasses(*this, MoveTemp(InAssetClasses));
+}
+#endif // WITH_EDITOR
+
+TArray<FMetasoundAssetBase*> UMetaSoundSource::GetReferencedAssets()
+{
+	return Metasound::FMetaSoundEngineAssetHelper::GetReferencedAssets(*this);
 }
 
-TSet<FSoftObjectPath>& UMetaSoundSource::GetReferencedAssetClassCache()
+const TSet<FSoftObjectPath>& UMetaSoundSource::GetAsyncReferencedAssetClassPaths() const 
 {
 	return ReferenceAssetClassCache;
 }
 
-const TSet<FSoftObjectPath>& UMetaSoundSource::GetReferencedAssetClassCache() const
+void UMetaSoundSource::OnAsyncReferencedAssetsLoaded(const TArray<FMetasoundAssetBase*>& InAsyncReferences)
 {
-	return ReferenceAssetClassCache;
+	Metasound::FMetaSoundEngineAssetHelper::OnAsyncReferencedAssetsLoaded(*this, InAsyncReferences);
 }
 
 #if WITH_EDITORONLY_DATA
+
 UEdGraph* UMetaSoundSource::GetGraph()
 {
 	return Graph;
@@ -345,19 +354,21 @@ FText UMetaSoundSource::GetDisplayName() const
 	return FMetasoundAssetBase::GetDisplayName(MoveTemp(TypeName));
 }
 
+
+void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo)
+{
+	Metasound::FMetaSoundEngineAssetHelper::SetMetaSoundRegistryAssetClassInfo(*this, InNodeInfo);
+}
+#endif // WITH_EDITORONLY_DATA
+
 void UMetaSoundSource::PostLoad()
 {
 	Super::PostLoad();
+	Metasound::FMetaSoundEngineAssetHelper::PostLoad(*this);
 
 	Duration = GetDuration();
 	bLooping = IsLooping();
 }
-
-void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo)
-{
-	Metasound::SetMetaSoundRegistryAssetClassInfo(*this, InNodeInfo);
-}
-#endif // WITH_EDITORONLY_DATA
 
 void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName)
 {

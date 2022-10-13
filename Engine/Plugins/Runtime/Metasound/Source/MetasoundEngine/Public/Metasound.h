@@ -13,10 +13,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "Serialization/Archive.h"
 #include "UObject/ObjectSaveContext.h"
-
-#if WITH_EDITORONLY_DATA
-#include "Algo/Transform.h"
-#endif // WITH_EDITORONLY_DATA
+#include "UObject/SoftObjectPath.h"
 
 #include "Metasound.generated.h"
 
@@ -46,96 +43,9 @@ public:
 
 namespace Metasound
 {
-#if WITH_EDITOR
-	template <typename TMetaSoundObject>
-	void PostEditUndo(TMetaSoundObject& InMetaSound)
-	{
-		InMetaSound.GetModifyContext().SetForceRefreshViews();
-		if (UMetasoundEditorGraphBase* Graph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
-		{
-			Graph->RegisterGraphWithFrontend();
-		}
-	}
-#endif // WITH_EDITOR
-
-	template <typename TMetaSoundObject>
-	void PreSaveAsset(TMetaSoundObject& InMetaSound, FObjectPreSaveContext InSaveContext)
-	{
-		using namespace Metasound::Frontend;
-
-#if WITH_EDITORONLY_DATA
-		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
-		{
-			// Cooked data must be deterministic, so do not call register graph as this can
-			// initiate an auto-update and/or local registry data cache and modify serialized data.
-			if (!InSaveContext.IsCooking())
-			{
-				MetaSoundGraph->RegisterGraphWithFrontend();
-				MetaSoundGraph->GetModifyContext().SetForceRefreshViews();
-			}
-		}
-#endif // WITH_EDITORONLY_DATA
-	}
-
-	template <typename TMetaSoundObject>
-	void SerializeToArchive(TMetaSoundObject& InMetaSound, FArchive& InArchive)
-	{
-		if (InArchive.IsLoading())
-		{
-			if (InMetaSound.VersionAsset())
-			{
-#if WITH_EDITORONLY_DATA
-				if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
-				{
-					MetaSoundGraph->SetVersionedOnLoad();
-				}
-#endif // WITH_EDITORONLY_DATA
-			}
-		}
-	}
-
-#if WITH_EDITORONLY_DATA
-	template <typename TMetaSoundObject>
-	void SetMetaSoundRegistryAssetClassInfo(TMetaSoundObject& InMetaSound, const Metasound::Frontend::FNodeClassInfo& InClassInfo)
-	{
-		using namespace Metasound;
-		using namespace Metasound::Frontend;
-
-		check(AssetTags::AssetClassID == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, AssetClassID));
-		check(AssetTags::RegistryInputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryInputTypes));
-		check(AssetTags::RegistryOutputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryOutputTypes));
-		check(AssetTags::RegistryVersionMajor == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryVersionMajor));
-		check(AssetTags::RegistryVersionMinor == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryVersionMinor));
-
-		bool bMarkDirty = InMetaSound.AssetClassID != InClassInfo.AssetClassID;
-		bMarkDirty |= InMetaSound.RegistryVersionMajor != InClassInfo.Version.Major;
-		bMarkDirty |= InMetaSound.RegistryVersionMinor != InClassInfo.Version.Minor;
-
-		InMetaSound.AssetClassID = InClassInfo.AssetClassID;
-		InMetaSound.RegistryVersionMajor = InClassInfo.Version.Major;
-		InMetaSound.RegistryVersionMinor = InClassInfo.Version.Minor;
-
-		{
-			TArray<FString> InputTypes;
-			Algo::Transform(InClassInfo.InputTypes, InputTypes, [](const FName& Name) { return Name.ToString(); });
-
-			const FString TypeString = FString::Join(InputTypes, *AssetTags::ArrayDelim);
-			bMarkDirty |= InMetaSound.RegistryInputTypes != TypeString;
-			InMetaSound.RegistryInputTypes = TypeString;
-		}
-
-		{
-			TArray<FString> OutputTypes;
-			Algo::Transform(InClassInfo.OutputTypes, OutputTypes, [](const FName& Name) { return Name.ToString(); });
-
-			const FString TypeString = FString::Join(OutputTypes, *AssetTags::ArrayDelim);
-			bMarkDirty |= InMetaSound.RegistryOutputTypes != TypeString;
-			InMetaSound.RegistryOutputTypes = TypeString;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-} // namespace Metasound
-
+	// Forward declare
+	struct FMetaSoundEngineAssetHelper;
+}
 
 /**
  * This asset type is used for Metasound assets that can only be used as nodes in other Metasound graphs.
@@ -146,9 +56,19 @@ class METASOUNDENGINE_API UMetaSoundPatch : public UObject, public FMetasoundAss
 {
 	GENERATED_BODY()
 
+	friend struct Metasound::FMetaSoundEngineAssetHelper;
 protected:
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendDocument RootMetaSoundDocument;
+
+	UPROPERTY()
+	TSet<FString> ReferencedAssetClassKeys;
+
+	UPROPERTY()
+	TSet<TObjectPtr<UObject>> ReferencedAssetClassObjects;
+
+	UPROPERTY()
+	TSet<FSoftObjectPath> ReferenceAssetClassCache;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -157,12 +77,6 @@ protected:
 
 public:
 	UMetaSoundPatch(const FObjectInitializer& ObjectInitializer);
-
-	UPROPERTY()
-	TSet<FString> ReferencedAssetClassKeys;
-
-	UPROPERTY()
-	TSet<FSoftObjectPath> ReferenceAssetClassCache;
 
 	UPROPERTY(AssetRegistrySearchable)
 	FGuid AssetClassID;
@@ -208,7 +122,9 @@ public:
 	{
 		Graph = CastChecked<UMetasoundEditorGraphBase>(InGraph);
 	}
+
 #endif // #if WITH_EDITORONLY_DATA
+
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
@@ -218,13 +134,10 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 	virtual void Serialize(FArchive& InArchive) override;
-
-	virtual TSet<FSoftObjectPath>& GetReferencedAssetClassCache() override;
-	virtual const TSet<FSoftObjectPath>& GetReferencedAssetClassCache() const override;
+	virtual void PostLoad() override;
 
 	// Returns Asset Metadata associated with this MetaSound
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
-
 
 	virtual bool ConformObjectDataToInterfaces() override { return false; }
 
@@ -232,6 +145,9 @@ public:
 	{
 		return ReferencedAssetClassKeys;
 	}
+	virtual TArray<FMetasoundAssetBase*> GetReferencedAssets() override;
+	virtual const TSet<FSoftObjectPath>& GetAsyncReferencedAssetClassPaths() const override;
+	virtual void OnAsyncReferencedAssetsLoaded(const TArray<FMetasoundAssetBase*>& InAsyncReferences) override;
 
 	UObject* GetOwningAsset() override
 	{
@@ -244,7 +160,9 @@ public:
 	}
 
 protected:
-	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
+#if WITH_EDITOR
+	virtual void SetReferencedAssetClasses(TSet<Metasound::Frontend::IMetaSoundAssetManager::FAssetInfo>&& InAssetClasses) override;
+#endif // #if WITH_EDITOR
 
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
