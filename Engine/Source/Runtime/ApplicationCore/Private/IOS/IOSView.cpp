@@ -1050,9 +1050,9 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 		return View->SupportedInterfaceOrientations;
 	}
 	else
-	{	
-		return 0;
-	}	
+	{
+		return UIInterfaceOrientationMaskAll;
+	}
 }
 
 /**
