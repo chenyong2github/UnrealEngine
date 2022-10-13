@@ -863,6 +863,37 @@ public:
 	/** Interface to template to manage dynamic access to C++ struct construction and destruction **/
 	struct COREUOBJECT_API ICppStructOps
 	{
+		/** Filled by implementation classes to report their capabilities */
+		struct FCapabilities
+		{
+			EPropertyFlags ComputedPropertyFlags;
+			bool HasNoopConstructor : 1;
+			bool HasZeroConstructor : 1;
+			bool HasDestructor : 1;
+			bool HasSerializer : 1;
+			bool HasStructuredSerializer : 1;
+			bool HasPostSerialize : 1;
+			bool HasNetSerializer : 1;
+			bool HasNetSharedSerialization : 1;
+			bool HasNetDeltaSerializer : 1;
+			bool HasPostScriptConstruct : 1;
+			bool IsPlainOldData : 1;
+			bool IsUECoreType : 1;
+			bool IsUECoreVariant : 1;
+			bool HasCopy : 1;
+			bool HasIdentical : 1;
+			bool HasExportTextItem : 1;
+			bool HasImportTextItem : 1;
+			bool HasAddStructReferencedObjects : 1;
+			bool HasSerializeFromMismatchedTag : 1;
+			bool HasStructuredSerializeFromMismatchedTag : 1;
+			bool HasGetTypeHash : 1;
+			bool IsAbstract : 1;
+#if WITH_EDITOR
+			bool HasCanEditChange : 1;
+#endif
+		};
+
 		/**
 		 * Constructor
 		 * @param InSize: sizeof() of the structure
@@ -873,33 +904,52 @@ public:
 		{
 		}
 		virtual ~ICppStructOps() {}
+
+		/** returns struct capabilities */
+		virtual FCapabilities GetCapabilities() const = 0;
+
 		/** return true if this class has a no-op constructor and takes EForceInit to init **/
-		virtual bool HasNoopConstructor() = 0;
+		bool HasNoopConstructor() const
+		{
+			return GetCapabilities().HasNoopConstructor;
+		}
 		/** return true if memset can be used instead of the constructor **/
-		virtual bool HasZeroConstructor() = 0;
+		bool HasZeroConstructor() const
+		{
+			return GetCapabilities().HasZeroConstructor;
+		}
 		/** Call the C++ constructor **/
 		virtual void Construct(void *Dest) = 0;
 		/** Call the C++ constructor without value-init (new T instead of new T()) **/
 		virtual void ConstructForTests(void* Dest) = 0;
 		/** return false if this destructor can be skipped **/
-		virtual bool HasDestructor() = 0;
+		bool HasDestructor() const
+		{
+			return GetCapabilities().HasDestructor;
+		}
 		/** Call the C++ destructor **/
 		virtual void Destruct(void *Dest) = 0;
 		/** return the sizeof() of this structure **/
-		FORCEINLINE int32 GetSize()
+		FORCEINLINE int32 GetSize() const
 		{
 			return Size;
 		}
 		/** return the alignof() of this structure **/
-		FORCEINLINE int32 GetAlignment()
+		FORCEINLINE int32 GetAlignment() const
 		{
 			return Alignment;
 		}
 
 		/** return true if this class can serialize **/
-		virtual bool HasSerializer() = 0;
+		bool HasSerializer() const
+		{
+			return GetCapabilities().HasSerializer;
+		}
 		/** return true if this class can serialize to a structured archive**/
-		virtual bool HasStructuredSerializer() = 0;
+		bool HasStructuredSerializer() const
+		{
+			return GetCapabilities().HasStructuredSerializer;
+		}
 		/** 
 		 * Serialize this structure 
 		 * @return true if the package is new enough to support this, if false, it will fall back to ordinary script struct serialization
@@ -908,15 +958,24 @@ public:
 		virtual bool Serialize(FStructuredArchive::FSlot Slot, void *Data) = 0;
 
 		/** return true if this class implements a post serialize call **/
-		virtual bool HasPostSerialize() = 0;
+		bool HasPostSerialize() const
+		{
+			return GetCapabilities().HasPostSerialize;
+		}
 		/** Call PostSerialize on this structure */
 		virtual void PostSerialize(const FArchive& Ar, void *Data) = 0;
 
 		/** return true if this struct can net serialize **/
-		virtual bool HasNetSerializer() = 0;
+		bool HasNetSerializer() const
+		{
+			return GetCapabilities().HasNetSerializer;
+		}
 		
 		/** return true if this can share net serialization across connections */
-		virtual bool HasNetSharedSerialization() = 0;
+		bool HasNetSharedSerialization() const
+		{
+			return GetCapabilities().HasNetSharedSerialization;
+		}
 		/** 
 		 * Net serialize this structure 
 		 * @return true if the struct was serialized, otherwise it will fall back to ordinary script struct net serialization
@@ -924,7 +983,10 @@ public:
 		virtual bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, void *Data) = 0;
 
 		/** return true if this struct can net delta serialize delta (serialize a network delta from a base state) **/
-		virtual bool HasNetDeltaSerializer() = 0;
+		bool HasNetDeltaSerializer() const
+		{
+			return GetCapabilities().HasNetDeltaSerializer;
+		}
 		/** 
 		 * Net serialize delta this structure. Serialize a network delta from a base state
 		 * @return true if the struct was serialized, otherwise it will fall back to ordinary script struct net delta serialization
@@ -932,7 +994,10 @@ public:
 		virtual bool NetDeltaSerialize(FNetDeltaSerializeInfo & DeltaParms, void *Data) = 0;
 
 		/** return true if this class implements a post script construct call **/
-		virtual bool HasPostScriptConstruct() = 0;
+		bool HasPostScriptConstruct() const
+		{
+			return GetCapabilities().HasPostScriptConstruct;
+		}
 		/** Call PostScriptConstruct on this structure */
 		virtual void PostScriptConstruct(void *Data) = 0;
 
@@ -940,16 +1005,28 @@ public:
 		virtual void GetPreloadDependencies(void* Data, TArray<UObject*>& OutDeps) = 0;
 
 		/** return true if this struct should be memcopied **/
-		virtual bool IsPlainOldData() = 0;
+		bool IsPlainOldData() const
+		{
+			return GetCapabilities().IsPlainOldData;
+		}
 
 		/** return true if this struct is one of the UE Core types (and is include in CoreMinimal.h) **/
-		virtual bool IsUECoreType() = 0;
+		bool IsUECoreType() const
+		{
+			return GetCapabilities().IsUECoreType;
+		}
 
 		/** return true if this struct is one of the UE Core types (and is include in CoreMinimal.h) **/
-		virtual bool IsUECoreVariant() = 0;		
+		bool IsUECoreVariant() const
+		{
+			return GetCapabilities().IsUECoreVariant;
+		}
 
 		/** return true if this struct can copy **/
-		virtual bool HasCopy() = 0;
+		bool HasCopy() const
+		{
+			return GetCapabilities().HasCopy;
+		}
 		/** 
 		 * Copy this structure 
 		 * @return true if the copy was handled, otherwise it will fall back to CopySingleValue
@@ -957,7 +1034,10 @@ public:
 		virtual bool Copy(void* Dest, void const* Src, int32 ArrayDim) = 0;
 
 		/** return true if this struct can compare **/
-		virtual bool HasIdentical() = 0;
+		bool HasIdentical() const
+		{
+			return GetCapabilities().HasIdentical;
+		}
 		/** 
 		 * Compare this structure 
 		 * @return true if the copy was handled, otherwise it will fall back to FStructProperty::Identical
@@ -965,7 +1045,10 @@ public:
 		virtual bool Identical(const void* A, const void* B, uint32 PortFlags, bool& bOutResult) = 0;
 
 		/** return true if this struct can export **/
-		virtual bool HasExportTextItem() = 0;
+		bool HasExportTextItem() const
+		{
+			return GetCapabilities().HasExportTextItem;
+		}
 		/** 
 		 * export this structure 
 		 * @return true if the copy was exported, otherwise it will fall back to FStructProperty::ExportTextItem
@@ -973,7 +1056,10 @@ public:
 		virtual bool ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) = 0;
 
 		/** return true if this struct can import **/
-		virtual bool HasImportTextItem() = 0;
+		bool HasImportTextItem() const
+		{
+			return GetCapabilities().HasImportTextItem;
+		}
 		/** 
 		 * import this structure 
 		 * @return true if the copy was imported, otherwise it will fall back to FStructProperty::ImportText
@@ -981,7 +1067,10 @@ public:
 		virtual bool ImportTextItem(const TCHAR*& Buffer, void* Data, int32 PortFlags, class UObject* OwnerObject, FOutputDevice* ErrorText) = 0;
 
 		/** return true if this struct has custom GC code **/
-		virtual bool HasAddStructReferencedObjects() = 0;
+		bool HasAddStructReferencedObjects() const
+		{
+			return GetCapabilities().HasAddStructReferencedObjects;
+		}
 		/** 
 		 * return a pointer to a function that can add referenced objects
 		 * @return true if the copy was imported, otherwise it will fall back to FStructProperty::ImportText
@@ -990,8 +1079,14 @@ public:
 		virtual TPointerToAddStructReferencedObjects AddStructReferencedObjects() = 0;
 
 		/** return true if this class wants to serialize from some other tag (usually for conversion purposes) **/
-		virtual bool HasSerializeFromMismatchedTag() = 0;
-		virtual bool HasStructuredSerializeFromMismatchedTag() = 0;
+		bool HasSerializeFromMismatchedTag() const
+		{
+			return GetCapabilities().HasSerializeFromMismatchedTag;
+		}
+		bool HasStructuredSerializeFromMismatchedTag() const
+		{
+			return GetCapabilities().HasStructuredSerializeFromMismatchedTag;
+		}
 
 		/** 
 		 * Serialize this structure, from some other tag
@@ -1001,20 +1096,32 @@ public:
 		virtual bool StructuredSerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot, void *Data) = 0;
 
 		/** return true if this struct has a GetTypeHash */
-		virtual bool HasGetTypeHash() = 0;
+		bool HasGetTypeHash() const
+		{
+			return GetCapabilities().HasGetTypeHash;
+		}
 
 		/** Calls GetTypeHash if enabled */
 		virtual uint32 GetStructTypeHash(const void* Src) = 0;
 
 		/** Returns property flag values that can be computed at compile time */
-		virtual EPropertyFlags GetComputedPropertyFlags() const = 0;
+		EPropertyFlags GetComputedPropertyFlags() const
+		{
+			return GetCapabilities().ComputedPropertyFlags;
+		}
 
 		/** return true if this struct is abstract **/
-		virtual bool IsAbstract() const = 0;
+		bool IsAbstract() const
+		{
+			return GetCapabilities().IsAbstract;
+		}
 
 #if WITH_EDITOR
 		/** Returns true if this struct wants to indicate whether a property can be edited in the details panel */
-		virtual bool HasCanEditChange() const = 0;
+		bool HasCanEditChange() const
+		{
+			return GetCapabilities().HasCanEditChange;
+		}
 		/** Returns true if this struct would allow the given property to be edited in the details panel. */
 		virtual bool CanEditChange(const FEditPropertyChain& PropertyChain, const void* Data) const = 0;
 #endif
@@ -1036,13 +1143,41 @@ public:
 			: ICppStructOps(sizeof(CPPSTRUCT), alignof(CPPSTRUCT))
 		{
 		}
-		virtual bool HasNoopConstructor() override
+
+		virtual FCapabilities GetCapabilities() const override
 		{
-			return TTraits::WithNoInitConstructor;
-		}		
-		virtual bool HasZeroConstructor() override
-		{
-			return TTraits::WithZeroConstructor;
+			constexpr FCapabilities Capabilities {
+				(TIsPODType<CPPSTRUCT>::Value ? CPF_IsPlainOldData : CPF_None)
+				| (TIsTriviallyDestructible<CPPSTRUCT>::Value ? CPF_NoDestructor : CPF_None)
+				| (TIsZeroConstructType<CPPSTRUCT>::Value ? CPF_ZeroConstructor : CPF_None)
+				| (TModels<CGetTypeHashable, CPPSTRUCT>::Value ? CPF_HasGetValueTypeHash : CPF_None),
+				TTraits::WithNoInitConstructor,
+				TTraits::WithZeroConstructor,
+				!(TTraits::WithNoDestructor || TIsPODType<CPPSTRUCT>::Value),
+				TTraits::WithSerializer,
+				TTraits::WithStructuredSerializer,
+				TTraits::WithPostSerialize,
+				TTraits::WithNetSerializer,
+				TTraits::WithNetSharedSerialization,
+				TTraits::WithNetDeltaSerializer,
+				TTraits::WithPostScriptConstruct,
+				TIsPODType<CPPSTRUCT>::Value,
+				TIsUECoreType<CPPSTRUCT>::Value,
+				TIsUECoreVariant<CPPSTRUCT>::Value,
+				TTraits::WithCopy,
+				TTraits::WithIdentical || TTraits::WithIdenticalViaEquality,
+				TTraits::WithExportTextItem,
+				TTraits::WithImportTextItem,
+				TTraits::WithAddStructReferencedObjects,
+				TTraits::WithSerializeFromMismatchedTag,
+				TTraits::WithStructuredSerializeFromMismatchedTag,
+				TModels<CGetTypeHashable, CPPSTRUCT>::Value,
+				TIsAbstract<CPPSTRUCT>::Value,
+#if WITH_EDITOR
+				TTraits::WithCanEditChange,
+#endif
+			};
+			return Capabilities;
 		}
 		virtual void Construct(void* Dest) override
 		{
@@ -1082,24 +1217,12 @@ public:
 				}
 			}
 		}
-		virtual bool HasDestructor() override
-		{
-			return !(TTraits::WithNoDestructor || TIsPODType<CPPSTRUCT>::Value);
-		}
 		virtual void Destruct(void *Dest) override
 		{
 			check(!(TTraits::WithNoDestructor || TIsPODType<CPPSTRUCT>::Value)); // don't call this if we have indicated it is not necessary
 			// that could have been an if statement, but we might as well force optimization above the virtual call
 			// could also not attempt to call the destructor for types where this is not possible, but I didn't do that here
 			((CPPSTRUCT*)Dest)->~CPPSTRUCT();
-		}
-		virtual bool HasSerializer() override
-		{
-			return TTraits::WithSerializer;
-		}
-		virtual bool HasStructuredSerializer() override
-		{
-			return TTraits::WithStructuredSerializer;
 		}
 		virtual bool Serialize(FArchive& Ar, void *Data) override
 		{
@@ -1125,10 +1248,6 @@ public:
 				return false;
 			}
 		}
-		virtual bool HasPostSerialize() override
-		{
-			return TTraits::WithPostSerialize;
-		}
 		virtual void PostSerialize(const FArchive& Ar, void *Data) override
 		{
 			check(TTraits::WithPostSerialize); // don't call this if we have indicated it is not necessary
@@ -1136,18 +1255,6 @@ public:
 			{
 				((CPPSTRUCT*)Data)->PostSerialize(Ar);
 			}
-		}
-		virtual bool HasNetSerializer() override
-		{
-			return TTraits::WithNetSerializer;
-		}
-		virtual bool HasNetSharedSerialization() override
-		{
-			return TTraits::WithNetSharedSerialization;
-		}
-		virtual bool HasNetDeltaSerializer() override
-		{
-			return TTraits::WithNetDeltaSerializer;
 		}
 		virtual bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, void *Data) override
 		{
@@ -1171,10 +1278,6 @@ public:
 				return false;
 			}
 		}
-		virtual bool HasPostScriptConstruct() override
-		{
-			return TTraits::WithPostScriptConstruct;
-		}
 		virtual void PostScriptConstruct(void *Data) override
 		{
 			check(TTraits::WithPostScriptConstruct); // don't call this if we have indicated it is not necessary
@@ -1189,22 +1292,6 @@ public:
 			{
 				((CPPSTRUCT*)Data)->GetPreloadDependencies(OutDeps);
 			}
-		}
-		virtual bool IsPlainOldData() override
-		{
-			return TIsPODType<CPPSTRUCT>::Value;
-		}
-		virtual bool IsUECoreType() override
-		{
-			return TIsUECoreType<CPPSTRUCT>::Value;
-		}
-		virtual bool IsUECoreVariant() override
-		{
-			return TIsUECoreVariant<CPPSTRUCT>::Value;
-		}		
-		virtual bool HasCopy() override
-		{
-			return TTraits::WithCopy;
 		}
 		virtual bool Copy(void* Dest, void const* Src, int32 ArrayDim) override
 		{
@@ -1226,10 +1313,6 @@ public:
 				return false;
 			}
 		}
-		virtual bool HasIdentical() override
-		{
-			return TTraits::WithIdentical || TTraits::WithIdenticalViaEquality;
-		}
 		virtual bool Identical(const void* A, const void* B, uint32 PortFlags, bool& bOutResult) override
 		{
 			check((TTraits::WithIdentical || TTraits::WithIdenticalViaEquality)); // don't call this if we have indicated it is not necessary
@@ -1250,10 +1333,6 @@ public:
 				bOutResult = false;
 				return false;
 			}
-		}
-		virtual bool HasExportTextItem() override
-		{
-			return TTraits::WithExportTextItem;
 		}
 		virtual bool ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) override
 		{
@@ -1288,10 +1367,6 @@ public:
 				return false;
 			}
 		}
-		virtual bool HasImportTextItem() override
-		{
-			return TTraits::WithImportTextItem;
-		}
 		virtual bool ImportTextItem(const TCHAR*& Buffer, void* Data, int32 PortFlags, class UObject* OwnerObject, FOutputDevice* ErrorText) override
 		{
 			check(TTraits::WithImportTextItem); // don't call this if we have indicated it is not necessary
@@ -1304,18 +1379,10 @@ public:
 				return false;
 			}
 		}
-		virtual bool HasAddStructReferencedObjects() override
-		{
-			return TTraits::WithAddStructReferencedObjects;
-		}
 		virtual TPointerToAddStructReferencedObjects AddStructReferencedObjects() override
 		{
 			check(TTraits::WithAddStructReferencedObjects); // don't call this if we have indicated it is not necessary
 			return &AddStructReferencedObjectsOrNot<CPPSTRUCT>;
-		}
-		virtual bool HasSerializeFromMismatchedTag() override
-		{
-			return TTraits::WithSerializeFromMismatchedTag;
 		}
 		virtual bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FArchive& Ar, void *Data) override
 		{
@@ -1336,10 +1403,6 @@ public:
 			{
 				return false;
 			}
-		}
-		virtual bool HasStructuredSerializeFromMismatchedTag() override
-		{
-			return TTraits::WithStructuredSerializeFromMismatchedTag;
 		}
 		virtual bool StructuredSerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot, void *Data) override
 		{
@@ -1364,10 +1427,6 @@ public:
 
 		static_assert(!(TTraits::WithSerializeFromMismatchedTag && TTraits::WithStructuredSerializeFromMismatchedTag), "Structs cannot have both WithSerializeFromMismatchedTag and WithStructuredSerializeFromMismatchedTag set");
 
-		virtual bool HasGetTypeHash() override
-		{
-			return TModels<CGetTypeHashable, CPPSTRUCT>::Value;
-		}
 		uint32 GetStructTypeHash(const void* Src) override
 		{
 			ensure(HasGetTypeHash());
@@ -1381,24 +1440,8 @@ public:
 				return 0;
 			}
 		}
-		virtual EPropertyFlags GetComputedPropertyFlags() const override
-		{
-			return 
-				  (TIsPODType<CPPSTRUCT>::Value ? CPF_IsPlainOldData : CPF_None)
-				| (TIsTriviallyDestructible<CPPSTRUCT>::Value ? CPF_NoDestructor : CPF_None)
-				| (TIsZeroConstructType<CPPSTRUCT>::Value ? CPF_ZeroConstructor : CPF_None)
-				| (TModels<CGetTypeHashable, CPPSTRUCT>::Value ? CPF_HasGetValueTypeHash : CPF_None);
-		}
-		bool IsAbstract() const override
-		{
-			return TIsAbstract<CPPSTRUCT>::Value;
-		}
 
 #if WITH_EDITOR
-		virtual bool HasCanEditChange() const override
-		{
-			return TTraits::WithCanEditChange;
-		}
 
 		virtual bool CanEditChange(const FEditPropertyChain& PropertyChain, const void* Data) const override
 		{
