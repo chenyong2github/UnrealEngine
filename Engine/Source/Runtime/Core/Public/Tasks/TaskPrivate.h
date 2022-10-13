@@ -398,7 +398,7 @@ namespace UE::Tasks
 			TaskTrace::FId GetTraceId() const
 			{
 #if UE_TASK_TRACE_ENABLED
-				return TraceId;
+				return TraceId.load(std::memory_order_relaxed);
 #else
 				return TaskTrace::InvalidId;
 #endif
@@ -614,7 +614,7 @@ namespace UE::Tasks
 			std::atomic<uint32> NumLocks{ NumInitialLocks };
 
 #if UE_TASK_TRACE_ENABLED
-			TaskTrace::FId TraceId = TaskTrace::GenerateTaskId();
+			std::atomic<TaskTrace::FId> TraceId { TaskTrace::GenerateTaskId() };
 #endif
 
 			// the task is completed when its subsequents list is closed
