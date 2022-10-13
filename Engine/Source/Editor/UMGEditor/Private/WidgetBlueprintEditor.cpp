@@ -1227,8 +1227,6 @@ void FWidgetBlueprintEditor::OnWidgetAnimDrawerSequencerOpened(FName StatusBarWi
 
 void FWidgetBlueprintEditor::OnWidgetAnimDrawerSequencerDismissed(const TSharedPtr<SWidget>& NewlyFocusedWidget)
 {
-	bIsSequencerDrawerOpen = false;
-
 	if (TSharedPtr<ISequencer>& ActiveSequencer = GetSequencer())
 	{
 		UWidgetAnimation* WidgetAnimation = Cast<UWidgetAnimation>(ActiveSequencer->GetFocusedMovieSceneSequence());
@@ -1239,6 +1237,7 @@ void FWidgetBlueprintEditor::OnWidgetAnimDrawerSequencerDismissed(const TSharedP
 		ActiveSequencer->GetSequencerWidget()->SetEnabled(false);
 		ActiveSequencer->SetAutoChangeMode(EAutoChangeMode::None);
 	}
+	bIsSequencerDrawerOpen = false;
 
 	for (TWeakPtr<ISequencer> SequencerPtr : Sequencers)
 	{
@@ -1471,6 +1470,7 @@ void FWidgetBlueprintEditor::ChangeViewedAnimation( UWidgetAnimation& InAnimatio
 	ToggleSequencerInteraction(DrawerSequencerOverlay, NoAnimationTextBlockDrawer, InAnimationToView);
 
 	InvalidatePreview();
+	OnSelectedAnimationChanged.Broadcast();
 }
 
 void FWidgetBlueprintEditor::RefreshPreview()

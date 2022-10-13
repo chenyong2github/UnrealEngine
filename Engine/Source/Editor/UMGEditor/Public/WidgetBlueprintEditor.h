@@ -53,6 +53,9 @@ public:
 	/** Called when animation list changes */
 	DECLARE_MULTICAST_DELEGATE(FOnWidgetAnimationsUpdated)
 
+	/** Called when animation selection changes */
+	DECLARE_MULTICAST_DELEGATE(FOnSelectedAnimationChanged)
+
 	DECLARE_EVENT(FWidgetBlueprintEditor, FOnEnterWidgetDesigner)
 
 public:
@@ -266,6 +269,9 @@ public:
 
 	/** Fires whenever the selected set of widgets changes */
 	FOnSelectedWidgetsChanged OnSelectedWidgetsChanged;
+
+	/** Fires whenever the selected animation changes */
+	FOnSelectedAnimationChanged OnSelectedAnimationChanged;
 
 	/** Notification for when the preview widget has been updated */
 	FOnWidgetPreviewUpdated OnWidgetPreviewUpdated;

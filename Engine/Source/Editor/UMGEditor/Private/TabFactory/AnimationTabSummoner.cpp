@@ -259,6 +259,11 @@ private:
 					Blueprint->Modify();
 					Blueprint->Animations.Add(WidgetAnimation);
 					ListItem.Pin()->bNewAnimation = false;
+
+					if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditorPin = BlueprintEditor.Pin())
+					{
+						WidgetBlueprintEditorPin->NotifyWidgetAnimListChanged();
+					}
 				}
 			}
 
@@ -359,6 +364,7 @@ public:
 		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditorPin = BlueprintEditor.Pin())
 		{
 			WidgetBlueprintEditorPin->OnWidgetAnimationsUpdated.RemoveAll(this);
+			WidgetBlueprintEditorPin->OnSelectedAnimationChanged.RemoveAll(this);
 		}
 	}
 
@@ -370,6 +376,7 @@ public:
 		InBlueprintEditor->GetOnWidgetBlueprintTransaction().AddSP( this, &SUMGAnimationList::OnWidgetBlueprintTransaction );
 		InBlueprintEditor->OnEnterWidgetDesigner.AddSP(this, &SUMGAnimationList::OnEnteringDesignerMode);
 		InBlueprintEditor->OnWidgetAnimationsUpdated.AddSP(this, &SUMGAnimationList::OnUpdatedAnimationList);
+		InBlueprintEditor->OnSelectedAnimationChanged.AddSP(this, &SUMGAnimationList::AnimationListSelelctionSync);
 
 		SAssignNew(AnimationListView, SWidgetAnimationListView)
 			.ItemHeight(20.0f)
@@ -474,6 +481,34 @@ private:
 		}
 
 		AnimationListView->RequestListRefresh();
+	}
+
+	void AnimationListSelelctionSync()
+	{
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditorPin = BlueprintEditor.Pin())
+		{
+			UWidgetAnimation* CurrentSelectedAnimation = WidgetBlueprintEditorPin->GetCurrentAnimation();
+
+			// This is to avoid looping calls to this function due to broadcast.
+			for (const TSharedPtr<FWidgetAnimationListItem>& SelectedAnimItem : AnimationListView->GetSelectedItems())
+			{
+				if (SelectedAnimItem->Animation == CurrentSelectedAnimation)
+				{
+					return;
+				}
+			}
+
+			// Find the list item containing the selected animation.
+			for (const TSharedPtr<FWidgetAnimationListItem>& AnimItem : Animations)
+			{
+				if (AnimItem->Animation == CurrentSelectedAnimation)
+				{
+					AnimationListView->SetSelection(AnimItem);
+					return;
+				}
+			}
+			AnimationListView->ClearSelection();
+		}
 	}
 
 	void UpdateAnimationList()
