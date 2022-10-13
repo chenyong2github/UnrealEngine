@@ -24,7 +24,7 @@ using OpenTracing.Util;
 
 namespace Horde.Agent.Execution
 {
-	class PerforceExecutor : BuildGraphExecutor
+	class PerforceExecutor : JobExecutor
 	{
 		protected AgentWorkspace? _autoSdkWorkspaceInfo;
 		protected AgentWorkspace _workspaceInfo;
@@ -390,9 +390,9 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	class PerforceExecutorFactory : IExecutorFactory
+	class PerforceExecutorFactory : JobExecutorFactory
 	{
-		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
 			return new PerforceExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, executeJobTask.AutoSdkWorkspace, executeJobTask.Workspace, session.WorkingDir);
 		}

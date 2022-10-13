@@ -14,7 +14,7 @@ using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Execution
 {
-	class LocalExecutor : BuildGraphExecutor
+	class LocalExecutor : JobExecutor
 	{
 		private readonly LocalExecutorSettings _settings;
 		private readonly DirectoryReference _localWorkspaceDir;
@@ -49,7 +49,7 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	class LocalExecutorFactory : IExecutorFactory
+	class LocalExecutorFactory : JobExecutorFactory
 	{
 		readonly LocalExecutorSettings _settings;
 
@@ -58,7 +58,7 @@ namespace Horde.Agent.Execution
 			_settings = settings.Value;
 		}
 
-		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
 			return new LocalExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings);
 		}

@@ -16,17 +16,19 @@ using EpicGames.Core;
 using Grpc.Core;
 using Horde.Agent.Execution.Interfaces;
 using Horde.Agent.Parser;
+using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using Horde.Storage.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
 
 namespace Horde.Agent.Execution
 {
-	abstract class BuildGraphExecutor : IExecutor
+	abstract class JobExecutor
 	{
 		protected class ExportedNode
 		{
@@ -154,7 +156,7 @@ namespace Horde.Agent.Execution
 
 		protected Dictionary<string, string> _envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-		public BuildGraphExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName)
+		public JobExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName)
 		{
 			_rpcConnection = rpcConnection;
 
@@ -1328,5 +1330,10 @@ namespace Horde.Agent.Execution
 			}
 			return true;
 		}
+	}
+
+	abstract class JobExecutorFactory
+	{
+		public abstract JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse);
 	}
 }

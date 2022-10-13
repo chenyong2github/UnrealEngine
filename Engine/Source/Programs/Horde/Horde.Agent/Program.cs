@@ -176,11 +176,11 @@ namespace Horde.Agent
 
 			services.AddSingleton<GrpcService>();
 
-			services.AddTransient<PerforceExecutorFactory>();
-			services.AddTransient<LocalExecutorFactory>();
-			services.AddTransient<TestExecutorFactory>();
+			services.AddSingleton<PerforceExecutorFactory>();
+			services.AddSingleton<LocalExecutorFactory>();
+			services.AddSingleton<TestExecutorFactory>();
 
-			services.AddTransient<IExecutorFactory>(sp =>
+			services.AddSingleton<JobExecutorFactory>(sp =>
 				sp.GetRequiredService<IOptions<AgentSettings>>().Value.Executor switch
 				{
 					ExecutorType.Test => sp.GetRequiredService<TestExecutorFactory>(),

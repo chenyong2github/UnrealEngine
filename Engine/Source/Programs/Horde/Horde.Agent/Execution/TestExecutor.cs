@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Execution
 {
-	class TestExecutor : BuildGraphExecutor
+	class TestExecutor : JobExecutor
 	{
 		public TestExecutor(IRpcConnection rpcClient, string jobId, string batchId, string agentTypeName)
 			: base(rpcClient, jobId, batchId, agentTypeName)
@@ -185,9 +185,9 @@ namespace Horde.Agent.Execution
 		}
 	}
 
-	class TestExecutorFactory : IExecutorFactory
+	class TestExecutorFactory : JobExecutorFactory
 	{
-		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
+		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
 			return new TestExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType);
 		}

@@ -185,7 +185,7 @@ namespace Horde.Agent.Services
 				primaryDevice.Properties.Add($"User={Environment.UserName}");
 				primaryDevice.Properties.Add($"Domain={Environment.UserDomainName}");
 				primaryDevice.Properties.Add($"Interactive={Environment.UserInteractive}");
-				primaryDevice.Properties.Add($"Elevated={BuildGraphExecutor.IsUserAdministrator()}");
+				primaryDevice.Properties.Add($"Elevated={JobExecutor.IsUserAdministrator()}");
 			}
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
@@ -256,7 +256,7 @@ namespace Horde.Agent.Services
 				primaryDevice.Properties.Add($"User={Environment.UserName}");
 				primaryDevice.Properties.Add($"Domain={Environment.UserDomainName}");
 				primaryDevice.Properties.Add($"Interactive={Environment.UserInteractive}");
-				primaryDevice.Properties.Add($"Elevated={BuildGraphExecutor.IsUserAdministrator()}");
+				primaryDevice.Properties.Add($"Elevated={JobExecutor.IsUserAdministrator()}");
 			}
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
