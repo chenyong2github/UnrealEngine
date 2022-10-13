@@ -912,7 +912,7 @@ private:
 };
 
 
-UCLASS( config=Engine )
+UCLASS( BlueprintType, config=Engine )
 class CUSTOMIZABLEOBJECT_API UCustomizableObject : public UObject
 {
 public:
