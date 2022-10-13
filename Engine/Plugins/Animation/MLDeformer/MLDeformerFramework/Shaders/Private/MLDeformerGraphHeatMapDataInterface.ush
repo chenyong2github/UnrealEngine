@@ -6,7 +6,7 @@ uint {DataInterfaceName}_HeatMapMode;
 float {DataInterfaceName}_HeatMapMax;
 float {DataInterfaceName}_GroundTruthLerp;
 uint {DataInterfaceName}_GroundTruthBufferSize;
-StructuredBuffer<float3> {DataInterfaceName}_PositionGroundTruthBuffer;
+StructuredBuffer<float> {DataInterfaceName}_PositionGroundTruthBuffer;
 Buffer<uint> {DataInterfaceName}_VertexMapBuffer;
 
 uint ReadNumVertices_{DataInterfaceName}()
@@ -21,7 +21,8 @@ float3 ReadPositionGroundTruth_{DataInterfaceName}(uint VertexIndex)
 	{
 		return float3(0, 0, 0);
 	}
-	return {DataInterfaceName}_PositionGroundTruthBuffer[BufferIndex];
+	BufferIndex *= 3;
+	return float3({DataInterfaceName}_PositionGroundTruthBuffer[BufferIndex], {DataInterfaceName}_PositionGroundTruthBuffer[BufferIndex + 1], {DataInterfaceName}_PositionGroundTruthBuffer[BufferIndex + 2]);
 }
 
 uint ReadHeatMapMode_{DataInterfaceName}()

@@ -23,7 +23,7 @@ class USkeletalMeshComponent;
 	SHADER_PARAMETER(float, HeatMapMax) \
 	SHADER_PARAMETER(float, GroundTruthLerp) \
 	SHADER_PARAMETER(uint32, GroundTruthBufferSize) \
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float3>, PositionGroundTruthBuffer) \
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float>, PositionGroundTruthBuffer) \
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 
 #define MLDEFORMER_GRAPH_DISPATCH_DEFAULT_DEBUG_PARAMETERS() \
