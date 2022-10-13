@@ -89,8 +89,8 @@ namespace ImgMediaLoader
 		return true;
 	}
 
-	// Check if [CurrentFrame] is contained in the [OffsetCount] number of frames following [OriginFrame], also taking into account looping and play direction.
-	bool IsFrameInRange(int32 CurrentFrame, int32 OriginFrame, int32 OffsetCount, int32 TotalNumFrames, float PlayRate)
+	// Check if [CurrentFrame] is contained in the [OffsetCount] number of frames after [OriginFrame], also taking into account looping and play direction.
+	bool IsCachedFrameInRange(int32 CurrentFrame, int32 OriginFrame, int32 OffsetCount, int32 TotalNumFrames, float PlayRate)
 	{
 		if (OffsetCount <= 0)
 		{
@@ -102,7 +102,8 @@ namespace ImgMediaLoader
 
 		const int32 PlayRateSign = (PlayRate >= 0.0f) ? 1 : -1;
 
-		for (int32 Offset = 0; Offset < OffsetCount; ++Offset)
+		// We start one frame away, since it's generally to late to enqueue additional update work for the current cached frame.
+		for (int32 Offset = 1; Offset <= OffsetCount; ++Offset)
 		{
 			int32 OffsetFrame = FMath::Wrap(OriginFrame + PlayRateSign * Offset, 0, TotalNumFrames - 1);
 			if (OffsetFrame == CurrentFrame)
@@ -1348,7 +1349,7 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 			// No, we need one.
 			NeedFrame = true;
 		}
-		else if(ImgMediaLoader::IsFrameInRange(FrameNumber, PlayHeadFrame, FrameInvalidationMaxCount, NumImagePaths, PlayRate))
+		else if(ImgMediaLoader::IsCachedFrameInRange(FrameNumber, PlayHeadFrame, FrameInvalidationMaxCount, NumImagePaths, PlayRate))
 		{
 			// Yes. Check if we have all the desired tiles per mip level.
 			TMap<int32, FImgMediaTileSelection> DesiredMipsAndTiles;
