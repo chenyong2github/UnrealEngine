@@ -5357,6 +5357,9 @@ void FBlueprintEditor::OnAddParentNode()
 			UEdGraph* TargetGraph = FunctionFromNode.Node->GetGraph();
 			if (ValidParent && TargetGraph)
 			{
+				const FScopedTransaction Transaction(LOCTEXT("AddParentNode", "Add Parent Node"));
+				TargetGraph->Modify();
+
 				FGraphNodeCreator<UK2Node_CallParentFunction> FunctionNodeCreator(*TargetGraph);
 				UK2Node_CallParentFunction* ParentFunctionNode = FunctionNodeCreator.CreateNode();
 				ParentFunctionNode->SetFromFunction(ValidParent);
