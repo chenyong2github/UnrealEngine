@@ -26,7 +26,7 @@ while : ; do
         echo "Result: $RESULT"
         # quit if not crashed
         [[ $RESULT -lt 129 ]] && break
-        echo "mono GitDependencies $ARGS crashed with return code $RESULT" >> GitDependencies.crash.log
+        echo "./Engine/Binaries/DotNET/GitDependencies/linux-x64/GitDependencies $ARGS crashed with return code $RESULT" >> GitDependencies.crash.log
 done
 
 exit $RESULT
