@@ -48,6 +48,7 @@ struct FMetalShaderBytecodeJob
 	FString OutputObjectFile;
 	FString CompilerVersion;
 	FString MinOSVersion;
+	FString PreserveInvariance;
 	FString DebugInfo;
 	FString MathMode;
 	FString Standard;

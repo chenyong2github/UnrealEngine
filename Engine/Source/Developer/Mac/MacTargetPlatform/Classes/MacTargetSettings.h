@@ -13,8 +13,12 @@
 UENUM()
 enum class EMacMetalShaderStandard : uint8
 {
-    /** Metal Shader 2.4 is the minimum as of UE5.1*/
-    MacMetalSLStandard_Minimum = 0 UMETA(DisplayName="Minimum, Currently v2.4 (12+)"),
+    /** Metal Shader 2.2 is the minimum*/
+    MacMetalSLStandard_Minimum = 0 UMETA(DisplayName="Minimum, Currently v2.2 (10.15+)"),
+    /** Metal Shaders Compatible With macOS 10.15 or later (std=osx-metal2.2) */
+    MacMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (10.15+)"),
+    /** Metal Shaders Compatible With macOS 11.0 or later (std=osx-metal2.3) */
+    MacMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (11.0+)"),
     /** Metal Shaders Compatible With macOS 12.0 or later (std=osx-metal2.4) */
     MacMetalSLStandard_2_4 = 7 UMETA(DisplayName="Metal v2.4 (12.0+)"),
     /** Metal Shaders Compatible With macOS 13.0 or later (std=metal3.0) */

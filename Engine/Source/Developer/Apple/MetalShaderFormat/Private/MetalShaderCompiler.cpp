@@ -677,6 +677,7 @@ void BuildMetalShaderOutput(
 			Job.OutputObjectFile = AIRFileName;
 			Job.CompilerVersion = CompilerVersionString;
 			Job.MinOSVersion = MinOSVersion;
+			Job.PreserveInvariance = Frequency == SF_Vertex && Version > 5 ? TEXT("-fpreserve-invariance") : TEXT("");
 			Job.DebugInfo = DebugInfo;
 			Job.MathMode = MathMode;
 			Job.Standard = Standard;
@@ -933,6 +934,19 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			MinOSVersion = TEXT("-mmacosx-version-min=12");
 		}
 		break;
+#if PLATFORM_MAC
+	case 6:
+		StandardVersion = TEXT("2.3");
+		MinOSVersion = TEXT("-mmacosx-version-min=11");
+		break;
+	case 5:
+		// Fall through
+	case 0:
+		StandardVersion = TEXT("2.2");
+		MinOSVersion = TEXT("-mmacosx-version-min=10.15");
+		//EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+		break;
+#else
 	case 0:
 		StandardVersion = TEXT("2.4");
 		if (bAppleTV)
@@ -948,8 +962,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			MinOSVersion = TEXT("-mmacosx-version-min=12");
 		}
 		//EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum
-		//EMacMetalShaderStandard::MacMetalSLStandard_Minimum
 		break;
+#endif
 	default:
 		Output.bSucceeded = false;
 		{

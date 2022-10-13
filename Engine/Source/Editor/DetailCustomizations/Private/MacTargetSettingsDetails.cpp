@@ -394,11 +394,11 @@ void FMacTargetSettingsDetails::SetShaderStandard(int32 Value)
     }
     
     ShaderVersionWarningTextBox->SetError(TEXT(""));
-    if (Value < 7 && Value != 0) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
+    if (Value < 5 && Value != 0) // EMacMetalShaderStandard::MacMetalSLStandard_Minimum
     {
         FString EngineIdentifier = FEngineVersion::Current().ToString(EVersionComponent::Minor);
         
-        ShaderVersionWarningTextBox->SetError(FString::Printf(TEXT("Minimum Metal Version is 2.4 in UE %s"), *EngineIdentifier));
+        ShaderVersionWarningTextBox->SetError(FString::Printf(TEXT("Minimum Metal Version is 2.2 in UE %s"), *EngineIdentifier));
     }
 }
 
