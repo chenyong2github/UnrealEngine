@@ -730,7 +730,7 @@ FAutoConsoleCommandWithWorldAndArgs CVarAudioVisualizeAttenuation(
 	TEXT("0: Not Enabled, 1: Enabled"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic([](const TArray<FString>& Args, UWorld* InWorld)
 	{
-		if (Args.Num() < 0)
+		if (Args.Num() <= 0)
 		{
 			return;
 		}
