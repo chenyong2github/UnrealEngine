@@ -280,9 +280,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 				return true;
 			});
-
-			// Activation superseeds Loading
-			FrameLoadCells = FrameLoadCells.Difference(FrameActivateCells);
 		}
 	}
 
@@ -432,6 +429,9 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			}
 		}
 	};
+
+	// Activation superseeds Loading
+	FrameLoadCells = FrameLoadCells.Difference(FrameActivateCells);
 
 	// Sort cells by importance
 	auto SortStreamingCells = [this](const TArray<FWorldPartitionStreamingSource>& Sources, const TSet<const UWorldPartitionRuntimeCell*>& InCells, TArray<const UWorldPartitionRuntimeCell*>& OutCells)
