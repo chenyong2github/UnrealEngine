@@ -188,7 +188,7 @@ void FWaveformEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabMa
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(TransformationsTabId, FOnSpawnTab::CreateSP(this, &FWaveformEditor::SpawnTab_Transformations))
-		.SetDisplayName(LOCTEXT("TransformationsTab", "Transformations"))
+		.SetDisplayName(LOCTEXT("ProcessingTab", "Processing"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
@@ -604,7 +604,7 @@ TSharedRef<SDockTab> FWaveformEditor::SpawnTab_Transformations(const FSpawnTabAr
 	check(Args.GetTabId() == TransformationsTabId);
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("SoundWaveTransformationsTitle", "Transformations"))
+		.Label(LOCTEXT("SoundWaveProcessingTitle", "Processing"))
 		[
 			TransformationsDetails.ToSharedRef()
 		];

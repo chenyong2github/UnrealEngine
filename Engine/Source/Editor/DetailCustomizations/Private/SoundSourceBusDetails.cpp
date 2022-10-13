@@ -14,8 +14,7 @@ TSharedRef<IDetailCustomization> FSoundSourceBusDetails::MakeInstance()
 void FSoundSourceBusDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	// Hide details of sound base that aren't relevant for buses
-	DetailBuilder.HideCategory("Transformations");
-
+	DetailBuilder.HideCategory("Waveform Processing");
 }
 
 #undef LOCTEXT_NAMESPACE

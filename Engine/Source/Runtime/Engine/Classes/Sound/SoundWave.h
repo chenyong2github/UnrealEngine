@@ -817,7 +817,8 @@ public:
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
 	UE::Serialization::FEditorBulkData RawData;
 
-	UPROPERTY(EditAnywhere, Instanced, Category = "Transformations")
+	/** Waveform edits to be applied to this SoundWave on cook (editing transformations will trigger a cook) */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Waveform Processing")
 	TArray<TObjectPtr<class UWaveformTransformationBase>> Transformations;
 #endif
 

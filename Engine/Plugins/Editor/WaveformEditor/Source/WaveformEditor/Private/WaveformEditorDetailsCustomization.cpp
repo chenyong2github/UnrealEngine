@@ -6,7 +6,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Sound/SoundWave.h"
 
-static const FLazyName TransformationsCategoryName("Transformations");
+static const FLazyName TransformationsCategoryName("Waveform Processing");
 
 void FWaveformTransformationsDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {	
@@ -21,7 +21,7 @@ void FWaveformTransformationsDetailsCustomization::CustomizeDetails(IDetailLayou
 		}
 	}
 
-	IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("Transformations");
+	IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("Waveform Processing");
 	CategoryBuilder.InitiallyCollapsed(false);
 	CategoryBuilder.RestoreExpansionState(true);
 }

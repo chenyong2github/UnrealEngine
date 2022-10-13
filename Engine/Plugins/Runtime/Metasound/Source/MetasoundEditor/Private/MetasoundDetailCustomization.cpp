@@ -317,7 +317,7 @@ namespace Metasound
 			DetailLayout.HideCategory("Loading");
 			DetailLayout.HideCategory("Playback");
 			DetailLayout.HideCategory("Subtitles");
-			DetailLayout.HideCategory("Transformations");
+			DetailLayout.HideCategory("Waveform Processing");;
 		}
 
 		FMetasoundInterfacesDetailCustomization::FMetasoundInterfacesDetailCustomization()

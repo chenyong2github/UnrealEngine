@@ -45,6 +45,11 @@ TSharedRef<IDetailCustomization> FSoundWaveDetails::MakeInstance()
 void FSoundWaveDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	CustomizeCurveDetails(DetailBuilder);
+
+	if(!FModuleManager::Get().IsModuleLoaded("WaveformTransformations"))
+	{
+		DetailBuilder.HideCategory("Waveform Processing");
+	}
 }
 
 void FSoundWaveDetails::CustomizeCurveDetails(IDetailLayoutBuilder& DetailBuilder)
