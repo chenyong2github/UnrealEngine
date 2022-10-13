@@ -702,6 +702,20 @@ struct FMutableGraphGenerationContext
 
 	// Stores the parameters generated in the node tables
 	TMap<const class UCustomizableObjectNodeTable*, TArray<FGuid>> GeneratedParametersInTables;
+
+	struct FMeshWithBoneRemovalApplied
+	{
+		TObjectPtr<class USkeletalMesh> Mesh;
+		
+		// Key is LOD index
+		//
+		// This is a cache. Entries are added on demand. A processed LOD with no bones removed will have an empty entry.
+		TMap<int32, TMap<int32, int32>> RemovedBonesActiveParentIndicesPerLOD;
+
+		bool bHasBonesToRemove = false;
+	};
+
+	TMap<TObjectPtr<class USkeletalMesh>, FMeshWithBoneRemovalApplied> MeshesWithBoneRemovalApplied;
 };
 
 /** Pin Data scope wrapper. Pops the pin data on scope exit. */
