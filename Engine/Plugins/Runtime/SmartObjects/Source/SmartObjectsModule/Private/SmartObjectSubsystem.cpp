@@ -301,7 +301,14 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, co
 
 bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
-		if (!RegisteredSOComponents.Contains(&SmartObjectComponent))
+	if (SmartObjectComponent.GetDefinition() == nullptr)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset is not set. Bailing out."),
+			*GetFullNameSafe(&SmartObjectComponent));
+		return false;
+	}
+
+	if (!RegisteredSOComponents.Contains(&SmartObjectComponent))
 	{
 		return RegisterSmartObjectInternal(SmartObjectComponent);
 	}
