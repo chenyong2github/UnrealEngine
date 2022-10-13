@@ -1414,7 +1414,7 @@ bool FLandscapeComponentGrassData::HasData() const
 
 TArrayView<uint8> FLandscapeComponentGrassData::GetWeightData(const ULandscapeGrassType* GrassType)
 {
-	if (HasData())
+	if (!HeightWeightData.IsEmpty())
 	{
 		if (int32* OffsetPtr = WeightOffsets.Find(GrassType))
 		{
@@ -1435,7 +1435,7 @@ bool FLandscapeComponentGrassData::Contains(ULandscapeGrassType* GrassType) cons
 
 TArrayView<uint16> FLandscapeComponentGrassData::GetHeightData()
 {
-	if (!HasData())
+	if (HeightWeightData.IsEmpty())
 	{
 		return TArrayView<uint16>();
 	}
