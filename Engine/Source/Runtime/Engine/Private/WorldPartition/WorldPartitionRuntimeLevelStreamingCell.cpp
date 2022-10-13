@@ -375,9 +375,15 @@ bool UWorldPartitionRuntimeLevelStreamingCell::CanUnload() const
 	// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
 	if (LevelStreaming && !GetContentBundleID().IsValid())
 	{
-		if (UHLODSubsystem* HLODSubsystem = LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>())
+		const UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition();
+		check(WorldPartition);
+
+		if (WorldPartition->IsStreamingEnabled())
 		{
-			return HLODSubsystem->RequestUnloading(this);
+			if (UHLODSubsystem* HLODSubsystem = LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>())
+			{
+				return HLODSubsystem->RequestUnloading(this);
+			}
 		}
 	}
 
