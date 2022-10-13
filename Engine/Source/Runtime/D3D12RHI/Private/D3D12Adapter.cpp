@@ -1336,16 +1336,22 @@ FD3D12Adapter::~FD3D12Adapter()
 
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
-		UploadHeapAllocator[GPUIndex]->Destroy();
-		delete(UploadHeapAllocator[GPUIndex]);
-		UploadHeapAllocator[GPUIndex] = nullptr;
+		if (UploadHeapAllocator[GPUIndex])
+		{
+			UploadHeapAllocator[GPUIndex]->Destroy();
+			delete(UploadHeapAllocator[GPUIndex]);
+			UploadHeapAllocator[GPUIndex] = nullptr;
+		}
 	}
 
 	FrameFence = {};
 
 	TransientMemoryCache.Reset();
 
-	PipelineStateCache.Close();
+	if (RootDevice)
+	{
+		PipelineStateCache.Close();
+	}
 	RootSignatureManager.Destroy();
 
 	DrawIndirectCommandSignature.SafeRelease();
