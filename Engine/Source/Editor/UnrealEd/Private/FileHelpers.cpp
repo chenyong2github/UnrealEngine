@@ -4554,6 +4554,8 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
+	const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+
 	TArray<FString> Packages;
 	FEditorFileUtils::FindAllPackageFiles(Packages);
 
@@ -4575,12 +4577,26 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FPaths::ConvertRelativePathToFull(Filename), EStateCacheUsage::Use);
 
 		// Only include non-map packages that are currently checked out or packages not under source control
-		if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
-			(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())) &&
-			(bIncludeMaps || !IsMapPackageAsset(*Filename)))
+		if (SCCProjectDir.IsEmpty())
 		{
-			OutPackages.Add(MoveTemp(PackageName), MoveTemp(SourceControlState));
+			if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
+				(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())) &&
+				(bIncludeMaps || !IsMapPackageAsset(*Filename)))
+			{
+				OutPackages.Add(MoveTemp(PackageName), MoveTemp(SourceControlState));
+			}
 		}
+		else
+		{
+			if (SourceControlState.IsValid() && 
+				(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())) &&
+				(bIncludeMaps || !IsMapPackageAsset(*Filename)))
+			{
+				OutPackages.Add(MoveTemp(PackageName), MoveTemp(SourceControlState));
+			}
+		}
+
+		
 	}
 }
 
@@ -4610,12 +4626,12 @@ void FEditorFileUtils::FindAllSubmittableProjectFiles(TMap<FString, FSourceContr
 			}
 		);
 
+		OutProjectFiles.Reserve(SourceControlStates.Num());
 		for (FSourceControlStateRef& SourceControlState : SourceControlStates)
 		{
 			const FString& Filename = SourceControlState->GetFilename();
 
-			if (SourceControlState->IsCurrent() &&
-				(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())))
+			if (SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd()))
 			{
 				FString PackageName;
 				if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))

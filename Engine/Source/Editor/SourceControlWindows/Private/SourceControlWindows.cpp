@@ -260,17 +260,26 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 	{
 		SourceControlHelpers::RevertUnchangedFiles(SourceControlProvider, Description.FilesForSubmit);
 
-		// Make sure all files are still checked out
-		for (int32 VerifyIndex = Description.FilesForSubmit.Num()-1; VerifyIndex >= 0; --VerifyIndex)
+		const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+
+		if (SCCProjectDir.IsEmpty())
 		{
-			FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(Description.FilesForSubmit[VerifyIndex], EStateCacheUsage::Use);
-			if( SourceControlState.IsValid() && !SourceControlState->IsCheckedOut() && !SourceControlState->IsAdded() && !SourceControlState->IsDeleted() )
+			// Make sure all files are still checked out
+			for (int32 VerifyIndex = Description.FilesForSubmit.Num() - 1; VerifyIndex >= 0; --VerifyIndex)
 			{
-				Description.FilesForSubmit.RemoveAt(VerifyIndex);
+				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(Description.FilesForSubmit[VerifyIndex], EStateCacheUsage::Use);
+				if (SourceControlState.IsValid() && !SourceControlState->IsCheckedOut() && !SourceControlState->IsAdded() && !SourceControlState->IsDeleted())
+				{
+					Description.FilesForSubmit.RemoveAt(VerifyIndex);
+				}
 			}
 		}
+		else
+		{
+			// For project-based source control, we want to go through with a check in attempt even when 
+			// files are not checked out by the current user, and generate a warning dialog
+		}
 	}
-
 
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// Mark files for add as needed
@@ -426,7 +435,9 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 		return;
 	}
 
-	TArray<FString> PendingDeletePaths;	
+	TArray<FString> PendingDeletePaths;
+
+	bool bUseSourceControlStateCache = true;
 	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
 	if (SourceControlProjectDir.IsEmpty())
 	{
@@ -435,9 +446,9 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 	else
 	{
 		PendingDeletePaths.Add(SourceControlProjectDir);
+		bUseSourceControlStateCache = false;
 	}
 
-	const bool bUseSourceControlStateCache = true;
 	PromptForCheckin(OutResultInfo, PackageNames, PendingDeletePaths, ConfigFiles, bUseSourceControlStateCache);
 }
 
