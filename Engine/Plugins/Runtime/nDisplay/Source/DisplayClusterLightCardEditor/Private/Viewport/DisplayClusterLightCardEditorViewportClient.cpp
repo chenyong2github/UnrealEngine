@@ -1513,10 +1513,13 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 							BillboardComponentProxies.Append(BillboardComponents);
 						}
-						
-						ActorProxies.Add(FActorProxy(Actor, ActorProxy));
+
+						FActorProxy ActorProxyStruct(Actor, ActorProxy);
+						ActorProxies.Add(ActorProxyStruct);
 						ProjectionHelper->VerifyAndFixActorOrigin(Actor);
 						ProjectionHelper->VerifyAndFixActorOrigin(ActorProxy);
+
+						UpdateProxyTransforms(ActorProxyStruct);
 					}
 				}
 

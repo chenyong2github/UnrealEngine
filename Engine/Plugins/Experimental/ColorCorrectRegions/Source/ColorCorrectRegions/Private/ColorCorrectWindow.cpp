@@ -257,7 +257,6 @@ FVector2D AColorCorrectionWindow::GetScale() const
 void AColorCorrectionWindow::SetOrigin(const FTransform& InOrigin)
 {
 	Origin = InOrigin;
-	NOTIFY_PARAM_SETTER()
 }
 
 FTransform AColorCorrectionWindow::GetOrigin() const
