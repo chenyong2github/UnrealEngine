@@ -654,14 +654,14 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 	return EQueryResult::Success;
 }
 
-EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
+EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
 {
 	OutDescriptionTags.Reset();
 	OutErrors.Reset();
 
 	if (IsEnabled() && IsPushingEnabled(EStorageType::Persistent))
 	{
-		UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutErrors);
+		UE::Virtualization::VirtualizePackages(PackagePaths, OutErrors);
 
 		if (OutErrors.IsEmpty() && !VirtualizationProcessTag.IsEmpty())
 		{
@@ -673,11 +673,20 @@ EVirtualizationResult FVirtualizationManager::TryVirtualizePackages(const TArray
 	return OutErrors.IsEmpty() ? EVirtualizationResult::Success : EVirtualizationResult::Failed;
 }
 
-ERehydrationResult FVirtualizationManager::TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors)
+ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
 {
 	OutErrors.Reset();
 
-	UE::Virtualization::RehydratePackages(Packages, OutErrors);
+	UE::Virtualization::RehydratePackages(PackagePaths, OutErrors);
+
+	return OutErrors.IsEmpty() ? ERehydrationResult::Success : ERehydrationResult::Failed;
+}
+
+ERehydrationResult FVirtualizationManager::TryRehydratePackages(TConstArrayView<FString> PackagePaths, uint64 PaddingAlignment, TArray<FText>& OutErrors, TArray<FSharedBuffer>& OutPackages, TArray<FRehydrationInfo>* OutInfo)
+{
+	OutErrors.Reset();
+
+	UE::Virtualization::RehydratePackages(PackagePaths, PaddingAlignment, OutErrors, OutPackages, OutInfo);
 
 	return OutErrors.IsEmpty() ? ERehydrationResult::Success : ERehydrationResult::Failed;
 }

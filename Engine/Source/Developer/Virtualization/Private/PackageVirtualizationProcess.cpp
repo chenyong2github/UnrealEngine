@@ -154,7 +154,7 @@ private:
 	TMap<FIoHash, FPayloadData> PayloadLookupTable;
 };
 
-void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutErrors)
+void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::VirtualizePackages);
 
@@ -181,10 +181,10 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		bool bWasTrailerUpdated = false;
 	};
 
-	UE_LOG(LogVirtualization, Display, TEXT("Considering %d file(s) for virtualization"), FilesToSubmit.Num());
+	UE_LOG(LogVirtualization, Display, TEXT("Considering %d file(s) for virtualization"), PackagePaths.Num());
 
 	TArray<FPackageInfo> Packages;
-	Packages.Reserve(FilesToSubmit.Num());
+	Packages.Reserve(PackagePaths.Num());
 
 	Progress.EnterProgressFrame(1.0f);
 
@@ -193,7 +193,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 	int64 TotalPackagesFound = 0;
 	int64 TotalPackageTrailersFound = 0;
 	int64 TotalPayloadsToVirtualize = 0;
-	for (const FString& AbsoluteFilePath : FilesToSubmit)
+	for (const FString& AbsoluteFilePath : PackagePaths)
 	{
 		FPackagePath PackagePath = FPackagePath::FromLocalPath(AbsoluteFilePath);
 

@@ -9,6 +9,6 @@
 namespace UE::Virtualization
 {
 
-void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutErrors);
+void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors);
 
 } // namespace UE::Virtualization

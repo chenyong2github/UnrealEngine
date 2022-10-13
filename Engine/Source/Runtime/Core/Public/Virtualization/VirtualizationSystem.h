@@ -102,6 +102,17 @@ enum class ERehydrationResult : uint8
 	Failed,
 };
 
+/** Info about a rehydration operation */
+struct FRehydrationInfo
+{
+	/** Size of the package before it was rehydrated */
+	uint64 OriginalSize = 0;
+	/** Size of the package after rehydration, this does not including padding if any was applied */
+	uint64 RehydratedSize = 0;
+	/** The number of payloads that needed to be rehydrated */
+	int32 NumPayloadsRehydrated = 0;
+};
+
 /** 
  * This interface can be implemented and passed to a FPushRequest as a way of providing the payload 
  * to the virtualization system for a push operation but deferring the loading of the payload from 
@@ -582,7 +593,7 @@ public:
 	 * Runs the virtualization process on a set of packages. All of the packages will be parsed and any found to be containing locally stored
 	 * payloads will have them removed but before they are removed they will be pushed to persistent storage.
 	 * 
-	 * @param FilesToVirtualize		An array of file paths to packages that should be virtualized. If a path resolves to a file that is not 
+	 * @param PackagePaths			An array of file paths to packages that should be virtualized. If a path resolves to a file that is not 
 	 *								a valid package then it will be silently skipped and will not be considered an error.
 	 * @param OutDescriptionTags	The process may produce description tags associated with the packages which will be placed in this array.
 	 *								These tags can be used to improve logging, or be appended to change list descriptions etc. Note that the 
@@ -595,22 +606,40 @@ public:
 	 * @return						A EVirtualizationResult enum with the status of the process. If the status is not EVirtualizationResult::Success
 	 *								then the parameter OutErrors should contain at least one entry.
 	 */
-	virtual EVirtualizationResult TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
+	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
 	
 	/**
-	 * Runs the re-hydration process on a set of packages. This involves downloading virtualized payloads and placing them back in the trailer of
+	 * Runs the rehydration process on a set of packages. This involves downloading virtualized payloads and placing them back in the trailer of
 	 * the given packages.
 	 * 
-	 * @param Packages	An array containing the absolute file paths of packages. It is assumed that the packages have already been checked out
-	 *					of source control (if applicable) and will be writable.
-	 * @param OutErrors	Any error encountered during the process will be added here. If any error is added to the array then it
-	 *					can be assumed that the process will return false. Note that the array will be emptied before the process
-	 *					is run and will not contain any pre-existing entries.
+	 * @param PackagePaths	An array containing the absolute file paths of packages. It is assumed that the packages have already been checked out
+	 *						of source control (if applicable) and will be writable.
+	 * @param OutErrors		Any error encountered during the process will be added here. If any error is added to the array then it
+	 *						can be assumed that the process will return false. Note that the array will be emptied before the process
+	 *						is run and will not contain any pre-existing entries.
 	 * 
 	 * @return	A ERehydrationResult enum with the status of the process. If the status indicates any sort of failure then OutErrors should
 	 *			contain at least one entry.
 	 */
-	virtual ERehydrationResult TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) = 0;
+	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors) = 0;
+
+	/**
+	 * Rehydrates a number of packages into memory buffers.
+	 * Note that if a package does not require rehydration we will still return the package in a memory buffer but it will be the same
+	 * as the package on disk.
+	 * 
+	 * @param PackagePaths		An array containing the absolute file paths of packages.
+	 * @param PaddingAlignment	Byte alignment to pad each package buffer too, a value of 0 will result in the buffers being the same size as the packages
+	 * @param OutErrors			Any errors encountered while rehydration will be added here
+	 * @param OutPackages		The rehydrated packages as memory buffers. Each entry should match the corresponding entry in PackagePaths. This array is
+	 *							only guaranteed to be correct if the method returns ERehydrationResult::Success.
+	 * @param OutInfo			Information about thge rehydration process, each entry should match the corresponding entry in PackagePaths assuming that
+	 *							the method returns ERehydrationResult::Success. This parameter is optional, if the information is not required then
+	 *							pass in nullptr to skip.
+	 * @return					ERehydrationResult::Success if the rehydration suceeeds and OutPackages/OutInfocan be trued, otherwise it will return an
+	 *							error value. @see ERehydrationResult
+	 */
+	virtual ERehydrationResult TryRehydratePackages(TConstArrayView<FString> PackagePaths, uint64 PaddingAlignment, TArray<FText>& OutErrors, TArray<FSharedBuffer>& OutPackages, TArray<FRehydrationInfo>* OutInfo) = 0;
 
 	/** When called the system should write any performance stats that it has been gathering to the log file */
 	virtual void DumpStats() const = 0;
