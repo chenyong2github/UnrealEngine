@@ -8,7 +8,6 @@ using Cassandra;
 using Cassandra.Mapping;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -58,6 +57,7 @@ namespace Jupiter.Implementation
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name, IReferencesStore.FieldFlags flags)
         {
             using IScope scope = Tracer.Instance.StartActive("scylla.get");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
 
             ScyllaObject? o;
@@ -93,6 +93,7 @@ namespace Jupiter.Implementation
         public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
             using IScope scope = Tracer.Instance.StartActive("scylla.put");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
 
             if (blob.LongLength > _settings.CurrentValue.InlineBlobMaxSize)
@@ -111,6 +112,7 @@ namespace Jupiter.Implementation
         public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobIdentifier)
         {
             using IScope scope = Tracer.Instance.StartActive("scylla.finalize");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             scope.Span.ResourceName = $"{ns}.{bucket}.{name}";
 
             await _mapper.UpdateAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=?", ns.ToString(), bucket.ToString(), name.ToString());
@@ -118,15 +120,16 @@ namespace Jupiter.Implementation
 
         public async Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey name, DateTime lastAccessTime)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.update_last_access_time");
+            using IScope scope = Tracer.Instance.StartActive("scylla.update_last_access_time");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
 
             await _mapper.UpdateAsync<ScyllaObject>("SET last_access_time = ? WHERE namespace = ? AND bucket = ? AND name = ?", lastAccessTime, ns.ToString(), bucket.ToString(), name.ToString());
         }
 
         public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.get_records");
-
+            using IScope scope = Tracer.Instance.StartActive("scylla.get_records");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             int retryAttempts = 0;
             const int MaxRetryAttempts = 3;
             RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
@@ -172,7 +175,8 @@ namespace Jupiter.Implementation
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.get_namespaces");
+            using IScope scope = Tracer.Instance.StartActive("scylla.get_namespaces");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             RowSet rowSet = await _session.ExecuteAsync(_getNamespacesStatement.Bind());
 
             foreach (Row row in rowSet)
@@ -189,6 +193,7 @@ namespace Jupiter.Implementation
         public async Task<bool> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             using IScope scope = Tracer.Instance.StartActive("scylla.delete_record");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             scope.Span.ResourceName = $"{ns}.{bucket}.{key}";
 
             AppliedInfo<ScyllaObject> info = await _mapper.DeleteIfAsync<ScyllaObject>("WHERE namespace=? AND bucket=? AND name=? IF EXISTS", ns.ToString(), bucket.ToString(), key.ToString());
@@ -203,7 +208,8 @@ namespace Jupiter.Implementation
 
         public async Task<long> DropNamespace(NamespaceId ns)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.delete_namespace");
+            using IScope scope = Tracer.Instance.StartActive("scylla.delete_namespace");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT bucket, name FROM objects WHERE namespace = ? ALLOW FILTERING;", ns.ToString()));
             long deletedCount = 0;
             foreach (Row row in rowSet)
@@ -224,7 +230,8 @@ namespace Jupiter.Implementation
 
         public async Task<long> DeleteBucket(NamespaceId ns, BucketId bucket)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.delete_bucket");
+            using IScope scope = Tracer.Instance.StartActive("scylla.delete_bucket");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT name FROM objects WHERE namespace = ? AND bucket = ? ALLOW FILTERING;", ns.ToString(), bucket.ToString()));
             long deletedCount = 0;
             foreach (Row row in rowSet)
@@ -243,7 +250,8 @@ namespace Jupiter.Implementation
 
         private async Task MaybeAddBucket(NamespaceId ns, BucketId bucket)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.add_bucket");
+            using IScope scope = Tracer.Instance.StartActive("scylla.add_bucket");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             await _mapper.UpdateAsync<ScyllaBucket>("SET bucket = bucket + ? WHERE namespace = ?", new string[] {bucket.ToString()}, ns.ToString());
         }
     }

@@ -51,7 +51,8 @@ namespace Jupiter.Implementation
 
             {
                 using IScope contentIdFetchScope = Tracer.Instance.StartActive("ScyllaContentIdStore.FetchContentId");
-                scope.Span.ResourceName = contentId.ToString();
+                contentIdFetchScope.Span.ResourceName = contentId.ToString();
+                contentIdFetchScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
 
                 if (_scyllaSessionManager.IsScylla)
                 {
@@ -121,6 +122,9 @@ namespace Jupiter.Implementation
 
         public async Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
+            using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.PutContentId");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+
             if (_scyllaSessionManager.IsScylla)
             {
                 await _mapper.UpdateAsync<ScyllaContentId>("SET chunks = ? WHERE content_id = ? AND content_weight = ?", new [] {new ScyllaBlobIdentifier(blobIdentifier)}, new ScyllaBlobIdentifier(contentId), contentWeight);

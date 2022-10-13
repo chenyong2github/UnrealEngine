@@ -18,6 +18,8 @@ namespace Jupiter.Implementation
         /// True when using a base cassandra protocol
         /// </summary>
         bool IsCassandra { get; }
+
+        public const string DatadogScyllaServiceName = "ScyllaDB";
     }
 
     public class ScyllaSessionManager : IScyllaSessionManager

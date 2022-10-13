@@ -75,7 +75,8 @@ namespace Jupiter.Implementation
 
         public async Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.insert_add_event");
+            using IScope scope = Tracer.Instance.StartActive("scylla.insert_add_event");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.UtcNow);
             ScyllaReplicationLogEvent log = new ScyllaReplicationLogEvent(ns.ToString(), bucket.ToString(), key.ToString(), timeBucket, ScyllaReplicationLogEvent.OpType.Added, objectBlob);
@@ -87,7 +88,8 @@ namespace Jupiter.Implementation
 
         public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime? timestamp)
         {
-            using IScope _ = Tracer.Instance.StartActive("scylla.insert_delete_event");
+            using IScope scope = Tracer.Instance.StartActive("scylla.insert_delete_event");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.UtcNow);
             ScyllaReplicationLogEvent log = new ScyllaReplicationLogEvent(ns.ToString(), bucket.ToString(), key.ToString(), timeBucket, ScyllaReplicationLogEvent.OpType.Deleted, null);
@@ -105,7 +107,7 @@ namespace Jupiter.Implementation
         public async IAsyncEnumerable<ReplicationLogEvent> Get(NamespaceId ns, string? lastBucket, Guid? lastEvent)
         {
             using IScope getReplicationLogScope = Tracer.Instance.StartActive("scylla.get_replication_log");
-
+            getReplicationLogScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             if (lastBucket == "now")
             {
                 // for debug purposes we allow you to list the latest bucket
@@ -119,6 +121,7 @@ namespace Jupiter.Implementation
             await foreach (long bucketField in buckets)
             {
                 using IScope readReplicationScope = Tracer.Instance.StartActive("scylla.read_replication_bucket");
+                readReplicationScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
                 DateTime t = DateTime.FromFileTimeUtc(bucketField);
                 string bucket = t.ToReplicationBucketIdentifier();
                 readReplicationScope.Span.ResourceName = bucket;
@@ -180,7 +183,7 @@ namespace Jupiter.Implementation
         private async IAsyncEnumerable<long> FindReplicationBuckets(NamespaceId ns, string? lastBucket)
         {
             using IScope findReplicationBucketScope = Tracer.Instance.StartActive("scylla.find_replication_buckets");
-
+            findReplicationBucketScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
             // ignore any bucket that is older then a cutoff, as that can cause us to end up scanning thru a lot of hours that will never exist (incremental logs are deleted after 7 days)
             DateTime oldCutoff = DateTime.UtcNow.AddDays(-14);
 
@@ -200,8 +203,8 @@ namespace Jupiter.Implementation
             }
             else
             {
-                using IScope _ = Tracer.Instance.StartActive("scylla.determine_first_replication_bucket");
-
+                using IScope firstReplicationBucketScope = Tracer.Instance.StartActive("scylla.determine_first_replication_bucket");
+                firstReplicationBucketScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
                 // we should have no data older then the ttl to lets just assume that the bucket to start searching from is now - time to live
                 DateTime oldestTimestamp = DateTime.UtcNow.AddSeconds(-1 * _settings.CurrentValue.ReplicationLogTimeToLive.TotalSeconds);
                 startBucketTime = oldestTimestamp;
@@ -211,7 +214,8 @@ namespace Jupiter.Implementation
             DateTime bucketTime = startBucketTime.AddHours(1.0).ToHourlyBucket();
             while(bucketTime < DateTime.UtcNow && bucketTime > oldCutoff)
             {
-                using IScope _ = Tracer.Instance.StartActive("scylla.determine_replication_bucket_exists");
+                using IScope determineBucketExistsScope = Tracer.Instance.StartActive("scylla.determine_replication_bucket_exists");
+                determineBucketExistsScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
                 // fetch all the buckets that exists and sort them based on time
                 IEnumerable<ScyllaReplicationLogEvent> logEvent = await _mapper.FetchAsync<ScyllaReplicationLogEvent>("WHERE namespace = ? AND replication_bucket = ? LIMIT 1", ns.ToString(), bucketTime.ToFileTimeUtc());
                 ScyllaReplicationLogEvent? e = logEvent.FirstOrDefault();
@@ -286,6 +290,9 @@ namespace Jupiter.Implementation
 
         public async Task<ReplicatorState?> GetReplicatorState(NamespaceId ns, string name)
         {
+            using IScope scope = Tracer.Instance.StartActive("scylla.get_replicator_state");
+            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+
             ScyllaReplicationState? replicationState = await _mapper.FirstOrDefaultAsync<ScyllaReplicationState>("WHERE namespace = ? AND name = ?", ns.ToString(), name);
 
             return replicationState?.ToReplicatorState();
