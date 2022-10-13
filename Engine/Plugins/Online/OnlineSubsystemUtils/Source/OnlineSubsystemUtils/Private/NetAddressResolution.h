@@ -194,6 +194,16 @@ public:
 	}
 
 	/**
+	 * Whether or not address resolution has completed.
+	 *
+	 * @return		Whether or not address resolution has completed
+	 */
+	bool IsAddressResolutionComplete() const
+	{
+		return ResolutionState == EAddressResolutionState::Done;
+	}
+
+	/**
 	 * Whether or not address resolution has failed
 	 *
 	 * @return	Returns whether or not address resolution has failed
@@ -280,16 +290,6 @@ private:
 	bool IsAddressResolutionConnecting() const
 	{
 		return ResolutionState == EAddressResolutionState::Connecting;
-	}
-
-	/**
-	 * Whether or not address resolution has completed.
-	 *
-	 * @return		Whether or not address resolution has completed
-	 */
-	bool IsAddressResolutionComplete() const
-	{
-		return ResolutionState == EAddressResolutionState::Done;
 	}
 
 	/**

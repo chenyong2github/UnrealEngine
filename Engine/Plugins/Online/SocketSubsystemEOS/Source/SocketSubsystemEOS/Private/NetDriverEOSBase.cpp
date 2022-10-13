@@ -60,8 +60,12 @@ bool UNetDriverEOSBase::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, c
 		return false;
 	}
 
-	// Create our socket
-	SetSocketAndLocalAddress(SocketSubsystem->CreateSocket(NAME_DGram, TEXT("UE4"), NAME_None));
+
+	FUniqueSocket NewSocket = SocketSubsystem->CreateUniqueSocket(NAME_DGram, TEXT("UE4"), NAME_None);
+	TSharedPtr<FSocket> SharedSocket(NewSocket.Release(), FSocketDeleter(NewSocket.GetDeleter()));
+
+	SetSocketAndLocalAddress(SharedSocket);
+
 	if (GetSocket() == nullptr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Could not create socket"));

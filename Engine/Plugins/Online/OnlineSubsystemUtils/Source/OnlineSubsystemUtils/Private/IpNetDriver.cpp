@@ -173,6 +173,26 @@ namespace IPNetDriverInternal
 	}
 }
 
+namespace UE::Net
+{
+	const TCHAR* LexToString(ERecreateSocketResult Value)
+	{
+		switch (Value)
+		{
+		case ERecreateSocketResult::NoAction: return TEXT("NoAction");
+		case ERecreateSocketResult::NotReady: return TEXT("NotReady");
+		case ERecreateSocketResult::AlreadyInProgress: return TEXT("AlreadyInProgress");
+		case ERecreateSocketResult::BeganRecreate: return TEXT("BeganRecreate");
+		case ERecreateSocketResult::Error: return TEXT("Error");
+
+		default:
+			check(false);
+
+			return TEXT("Unknown");
+		}
+	}
+}
+
 /**
  * FPacketItrator
  *
@@ -715,6 +735,11 @@ private:
 	{
 		Connection->CleanupDeprecatedSocket();
 	}
+
+	static void SetSocket_Local(UIpConnection* Connection, const TSharedPtr<FSocket>& InSocket)
+	{
+		Connection->SetSocket_Local(InSocket);
+	}
 };
 
 
@@ -847,7 +872,8 @@ void UIpNetDriver::SetSocketAndLocalAddress(FSocket* NewSocket)
 
 void UIpNetDriver::SetSocketAndLocalAddress(const TSharedPtr<FSocket>& SharedSocket)
 {
-	SocketPrivate = SharedSocket;
+	// Must be called even if the current socket is already SharedSocket (for when Net Address Resolution resolves the current socket)
+	SetSocket_Internal(SharedSocket);
 
 	if (SocketPrivate.IsValid())
 	{
@@ -904,8 +930,6 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 		return false;
 	}
 
-
-	SetSocketAndLocalAddress(Resolver->GetFirstSocket());
 	
 	// If the cvar is set and the socket subsystem supports it, create the receive thread.
 	if (CVarNetIpNetDriverUseReceiveThread.GetValueOnAnyThread() != 0 && SocketSubsystem->IsSocketWaitSupported())
@@ -913,6 +937,8 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 		SocketReceiveThreadRunnable = MakeUnique<FReceiveThreadRunnable>(this);
 		SocketReceiveThread.Reset(FRunnableThread::Create(SocketReceiveThreadRunnable.Get(), *FString::Printf(TEXT("IpNetDriver Receive Thread"), *NetDriverName.ToString())));
 	}
+
+	SetSocketAndLocalAddress(Resolver->GetFirstSocket());
 
 	bool bRecvMultiEnabled = CVarNetUseRecvMulti.GetValueOnAnyThread() != 0;
 	bool bRecvThreadEnabled = CVarNetIpNetDriverUseReceiveThread.GetValueOnAnyThread() != 0;
@@ -958,6 +984,8 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 
 bool UIpNetDriver::InitConnect( FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error )
 {
+	using namespace UE::Net::Private;
+
 	ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
 	if (SocketSubsystem == nullptr)
 	{
@@ -977,6 +1005,16 @@ bool UIpNetDriver::InitConnect( FNetworkNotify* InNotify, const FURL& ConnectURL
 	ServerConnection->InitLocalConnection(this, SocketPrivate.Get(), ConnectURL, USOCK_Pending);
 
 	Resolver->InitConnect(ServerConnection, SocketSubsystem, GetSocket(), ConnectURL);
+
+	UIpConnection* IpServerConnection = Cast<UIpConnection>(ServerConnection);
+
+	if (FNetConnectionAddressResolution* ConnResolver = FNetDriverAddressResolution::GetConnectionResolver(IpServerConnection))
+	{
+		if (ConnResolver->IsAddressResolutionEnabled() && !ConnResolver->IsAddressResolutionComplete())
+		{
+			SocketState = ESocketState::Resolving;
+		}
+	}
 	
 	UE_LOG(LogNet, Log, TEXT("Game client on port %i, rate %i"), ConnectURL.Port, ServerConnection->CurrentNetSpeed );
 	CreateInitialClientChannels();
@@ -1007,6 +1045,13 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	LLM_SCOPE_BYTAG(NetDriver);
 
 	Super::TickDispatch( DeltaTime );
+
+	const bool bUsingReceiveThread = SocketReceiveThreadRunnable.IsValid();
+
+	if (bUsingReceiveThread)
+	{
+		SocketReceiveThreadRunnable->PumpOwnerEventQueue();
+	}
 
 #if !UE_BUILD_SHIPPING
 	PauseReceiveEnd = (PauseReceiveEnd != 0.f && PauseReceiveEnd - (float)FPlatformTime::Seconds() > 0.f) ? PauseReceiveEnd : 0.f;
@@ -1613,6 +1658,25 @@ bool UIpNetDriver::HandlePauseReceiveCommand(const TCHAR* Cmd, FOutputDevice& Ar
 	return true;
 }
 
+// Doubles as an inbuilt restart handshake test
+bool UIpNetDriver::HandleRecreateSocketCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)
+{
+	using namespace UE::Net;
+
+	ERecreateSocketResult Result = RecreateSocket();
+
+	if (Result == ERecreateSocketResult::BeganRecreate)
+	{
+		Ar.Logf(TEXT("Began socket recreation."));
+	}
+	else
+	{
+		Ar.Logf(TEXT("Failed to trigger socket recreation. Result: %s"), ToCStr(LexToString(Result)));
+	}
+
+	return true;
+}
+
 #if !UE_BUILD_SHIPPING
 void UIpNetDriver::TestSuddenPortChange(uint32 NumConnections)
 {
@@ -1655,6 +1719,10 @@ bool UIpNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Command(&Cmd, TEXT("PauseReceive")))
 	{
 		return HandlePauseReceiveCommand(Cmd, Ar, InWorld);
+	}
+	else if (FParse::Command(&Cmd, TEXT("RecreateSocket")))
+	{
+		return HandleRecreateSocketCommand(Cmd, Ar, InWorld);
 	}
 
 	return UNetDriver::Exec( InWorld, Cmd,Ar);
@@ -1808,6 +1876,123 @@ void UIpNetDriver::TickNewIPTracking(float DeltaTime)
 	}
 }
 
+UE::Net::ERecreateSocketResult UIpNetDriver::RecreateSocket()
+{
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
+	ERecreateSocketResult Result = ERecreateSocketResult::NoAction;
+
+	LastRecreateSocketTime = GetElapsedTime();
+
+	// Only clients can recreate the socket on-the-fly
+	if (bSupportsRecreateSocket && ServerConnection != nullptr && !ServerConnection->IsReplay())
+	{
+		const ESocketState CurState = GetSocketState();
+
+		if (CurState == ESocketState::Ready)
+		{
+			FString Error;
+			FUniqueSocket NewSocket = CreateAndBindSocket(LocalAddr.ToSharedRef(), GetClientPort(), false, ClientDesiredSocketReceiveBufferBytes,
+															ClientDesiredSocketSendBufferBytes, Error);
+
+			if (NewSocket.IsValid())
+			{
+				UE_LOG(LogNet, Log, TEXT("Recreated socket for bind address: %s"), ToCStr(LocalAddr->ToString(true)));
+
+				FSetSocketComplete SetCallback =
+					[ThisPtr = TWeakObjectPtr<UIpNetDriver>(this)]()
+					{
+						if (ThisPtr.IsValid())
+						{
+							ThisPtr->OnRecreateSocketComplete();
+						}
+					};
+
+				SocketState = ESocketState::Recreating;
+				Result = ERecreateSocketResult::BeganRecreate;
+
+				SetSocket_Internal(TSharedPtr<FSocket>(NewSocket.Release(), FSocketDeleter(NewSocket.GetDeleter())), MoveTemp(SetCallback));
+			}
+			else
+			{
+				UE_LOG(LogNet, Warning, TEXT("Could not recreate socket for bind address %s, got error %s"), ToCStr(LocalAddr->ToString(false)),
+						ToCStr(Error));
+
+				Result = ERecreateSocketResult::Error;
+			}
+		}
+		else if (CurState == ESocketState::Resolving)
+		{
+			Result = ERecreateSocketResult::NotReady;
+		}
+		else if (CurState == ESocketState::Recreating)
+		{
+			Result = ERecreateSocketResult::AlreadyInProgress;
+		}
+		else // if (CurState == ESocketState::Error)
+		{
+			Result = ERecreateSocketResult::Error;
+		}
+	}
+
+	return Result;
+}
+
+void UIpNetDriver::OnRecreateSocketComplete()
+{
+	SocketState = ESocketState::Ready;
+	LastRecreateSocketTime = GetElapsedTime();
+}
+
+void UIpNetDriver::SetSocket_Internal(const TSharedPtr<FSocket>& InSocket, UE::Net::Private::FSetSocketComplete InSetCallback/*=nullptr*/)
+{
+	if (SocketState != ESocketState::Recreating)
+	{
+		SocketState = ESocketState::Ready;
+	}
+
+	bool bHandledCallback = false;;
+
+	if (InSocket != SocketPrivate)
+	{
+		// Keep old socket around until we know we are done with it (don't want to trigger ICMP unreachable on the remote side by closing early)
+		TSharedPtr<FSocket> SavedSocket = MoveTemp(SocketPrivate);
+
+		SocketPrivate = InSocket;
+
+		const bool bUsingReceiveThread = SocketReceiveThreadRunnable.IsValid();
+
+		if (UIpConnection* IpServerConnection = GetServerConnection())
+		{
+			FIpConnectionHelper::SetSocket_Local(IpServerConnection, InSocket);
+		}
+		else
+		{
+			for (UNetConnection* CurConn : ClientConnections)
+			{
+				if (UIpConnection* IpConn = Cast<UIpConnection>(CurConn))
+				{
+					FIpConnectionHelper::SetSocket_Local(IpConn, InSocket);
+				}
+			}
+		}
+
+		if (bUsingReceiveThread)
+		{
+			SocketReceiveThreadRunnable->SetSocket(SocketPrivate, MoveTemp(InSetCallback));
+
+			bHandledCallback = true;
+		}
+	}
+
+	if (!bHandledCallback && InSetCallback)
+	{
+		InSetCallback();
+	}
+}
+
+
 UIpNetDriver::FReceiveThreadRunnable::FReceiveThreadRunnable(UIpNetDriver* InOwningNetDriver)
 	: ReceiveQueue(CVarNetIpNetDriverReceiveThreadQueueMaxPackets.GetValueOnAnyThread())
 	, bIsRunning(true)
@@ -1829,14 +2014,25 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 {
 	using namespace UE::Net::Private;
 
-	const FTimespan Timeout = FTimespan::FromMilliseconds(CVarNetIpNetDriverReceiveThreadPollTimeMS.GetValueOnAnyThread());
+	const int32 PollTimeMS = CVarNetIpNetDriverReceiveThreadPollTimeMS.GetValueOnAnyThread();
+	const FTimespan Timeout = FTimespan::FromMilliseconds(PollTimeMS);
 	const float SleepTimeForWaitableErrorsInSec = CVarRcvThreadSleepTimeForWaitableErrorsInSeconds.GetValueOnAnyThread();
 	const int32 ActionForLongRecvErrors = CVarRcvThreadShouldSleepForLongRecvErrors.GetValueOnAnyThread();
 
 	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run starting up."));
 
-	FSocket* CurSocket;
-	while (bIsRunning)
+	// Wait for the Socket to be set
+	while (bIsRunning && !Socket.IsValid())
+	{
+		// Process commands from the Game Thread
+		PumpCommandQueue();
+
+		const float NoSocketSetSleep = .03f;
+		FPlatformProcess::SleepNoStats(NoSocketSetSleep);
+	}
+
+
+	while (bIsRunning && Socket.IsValid())
 	{
 		// If we've encountered any errors during address resolution (this flag will not have the error state on it if resolution is disabled)
 		// Then stop running this thread. This stomps out any potential infinite loops caused by undefined behavior.
@@ -1844,21 +2040,19 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 
 		if (ServerConn != nullptr && FNetDriverAddressResolution::GetConnectionResolver(ServerConn)->HasAddressResolutionFailed())
 		{
-			break;
-		}
+			ClearSocket();
 
-		CurSocket = OwningNetDriver->GetSocket();
-		if (CurSocket == nullptr)
-		{
-			const float NoSocketSetSleep = .03f;
-			FPlatformProcess::SleepNoStats(NoSocketSetSleep);
-			continue;
+			break;
 		}
 
 		FReceivedPacket IncomingPacket;
 
 		bool bReceiveQueueFull = false;
-		if (CurSocket->Wait(ESocketWaitConditions::WaitForRead, Timeout))
+		const bool bWaitResult = Socket->Wait(ESocketWaitConditions::WaitForRead, Timeout);
+
+		PumpCommandQueue();
+
+		if (bWaitResult)
 		{
 			bool bOk = false;
 			int32 BytesRead = 0;
@@ -1869,7 +2063,7 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_RecvFromSocket);
-				bOk = CurSocket->RecvFrom(IncomingPacket.PacketBytes.GetData(), IncomingPacket.PacketBytes.Num(), BytesRead, *IncomingPacket.FromAddress);
+				bOk = Socket->RecvFrom(IncomingPacket.PacketBytes.GetData(), IncomingPacket.PacketBytes.Num(), BytesRead, *IncomingPacket.FromAddress);
 			}
 
 			if (bOk)
@@ -1939,8 +2133,74 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 		}
 	}
 
+	// In case of a non-standard exit from the main loop, wait for a proper Game Thread triggered shutdown and cleanup
+	while (bIsRunning && Socket.IsValid())
+	{
+		PumpCommandQueue();
+		FPlatformProcess::SleepNoStats(PollTimeMS / 1000.f);
+	}
+
 	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run returning."));
 
 	return 0;
 }
 
+void UIpNetDriver::FReceiveThreadRunnable::PumpOwnerEventQueue()
+{
+	while (TOptional<TUniqueFunction<void()>> CurCommand = OwnerEventQueue.Dequeue())
+	{
+		(*CurCommand)();
+	}
+}
+
+void UIpNetDriver::FReceiveThreadRunnable::PumpCommandQueue()
+{
+	while (TOptional<TUniqueFunction<void()>> CurCommand = CommandQueue.Dequeue())
+	{
+		(*CurCommand)();
+	}
+}
+
+void UIpNetDriver::FReceiveThreadRunnable::SetSocket(const TSharedPtr<FSocket>& InGameThreadSocket,
+														UE::Net::Private::FSetSocketComplete InGameThreadSetCallback/*=nullptr*/)
+{
+	CommandQueue.Enqueue([this, GameThreadSocket = InGameThreadSocket, GameThreadSetCallback = MoveTemp(InGameThreadSetCallback)]() mutable
+	{
+		this->SetSocketImpl(GameThreadSocket, MoveTemp(GameThreadSetCallback));
+	});
+}
+
+void UIpNetDriver::FReceiveThreadRunnable::SetSocketImpl(const TSharedPtr<FSocket>& InGameThreadSocket,
+														UE::Net::Private::FSetSocketComplete InGameThreadSetCallback/*=nullptr*/)
+{
+	ClearSocket();
+
+	Socket = InGameThreadSocket;
+
+	if (InGameThreadSetCallback)
+	{
+		OwnerEventQueue.Enqueue([GameThreadSetCallback = MoveTemp(InGameThreadSetCallback)]() mutable
+		{
+			GameThreadSetCallback();
+		});
+	}
+}
+
+void UIpNetDriver::FReceiveThreadRunnable::ClearSocket()
+{
+	if (Socket.IsValid())
+	{
+		TSharedPtr<FSocket> GameThreadSocket = MoveTemp(Socket);
+
+		Socket.Reset();
+
+		// Clear the socket shared pointer from the Game Thread
+		if (GameThreadSocket.IsValid())
+		{
+			OwnerEventQueue.Enqueue([GameThreadSocket = MoveTemp(GameThreadSocket)]() mutable
+			{
+				GameThreadSocket.Reset();
+			});
+		}
+	}
+}

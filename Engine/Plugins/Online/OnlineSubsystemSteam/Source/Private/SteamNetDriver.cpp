@@ -89,7 +89,12 @@ bool USteamNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectU
 		// If we are opening a Steam URL, create a Steam client socket
 		if (ConnectURL.Host.StartsWith(STEAM_URL_PREFIX))
 		{
-			SetSocketAndLocalAddress(SteamSockets->CreateSocket(FName(TEXT("SteamClientSocket")), TEXT("Unreal client (Steam)"), FNetworkProtocolTypes::Steam));
+			FUniqueSocket NewSocket = SteamSockets->CreateUniqueSocket(FName(TEXT("SteamClientSocket")), TEXT("Unreal client (Steam)"),
+																		FNetworkProtocolTypes::Steam);
+
+			TSharedPtr<FSocket> SharedSocket(NewSocket.Release(), FSocketDeleter(NewSocket.GetDeleter()));
+
+			SetSocketAndLocalAddress(SharedSocket);
 		}
 		else
 		{
@@ -106,7 +111,10 @@ bool USteamNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool
 	if (SteamSockets && !ListenURL.HasOption(TEXT("bIsLanMatch")) && !FParse::Param(FCommandLine::Get(), TEXT("forcepassthrough")))
 	{
 		FName SocketTypeName = IsRunningDedicatedServer() ? FName(TEXT("SteamServerSocket")) : FName(TEXT("SteamClientSocket"));
-		SetSocketAndLocalAddress(SteamSockets->CreateSocket(SocketTypeName, TEXT("Unreal server (Steam)"), FNetworkProtocolTypes::Steam));
+		FUniqueSocket NewSocket = SteamSockets->CreateUniqueSocket(SocketTypeName, TEXT("Unreal server (Steam)"), FNetworkProtocolTypes::Steam);
+		TSharedPtr<FSocket> SharedSocket(NewSocket.Release(), FSocketDeleter(NewSocket.GetDeleter()));
+
+		SetSocketAndLocalAddress(SharedSocket);
 	}
 	else
 	{

@@ -48,6 +48,7 @@ TAutoConsoleVariable<int32> CVarNetIpConnectionDisableResolution(
 	TEXT("If enabled, any future ip connections will not use resolution methods."),
 	ECVF_Default | ECVF_Cheat);
 
+
 namespace UE::Net::Private
 {
 #if !UE_BUILD_SHIPPING
@@ -64,8 +65,30 @@ namespace UE::Net::Private
 		TEXT("net.DebugInitialConnectLogFrequency"),
 		GNetDebugInitialConnectLogFrequency,
 		TEXT("The amount of time, in seconds, between initial connect debug logging."));
+
+	static int32 GNetBlockSend = 0;
+
+	static FAutoConsoleVariableRef CVarNetBlockSend(
+		TEXT("net.BlockSend"),
+		GNetBlockSend,
+		TEXT("When enabled, blocks packet sends on NetConnection's."));
 #endif
+
+	static int32 GNetRecreateSocketCooldown = 10;
+	static float GNetRecreateSocketTimeoutThreshold = 0.f;
+
+	static FAutoConsoleVariableRef CVarNetRecreateSocketCooldown(
+		TEXT("net.RecreateSocketCooldown"),
+		GNetRecreateSocketCooldown,
+		TEXT("The minimum amount of time, in seconds, between socket recreation attempts."));
+
+	static FAutoConsoleVariableRef CVarNetRecreateSocketTimeoutThreshold(
+		TEXT("net.RecreateSocketTimeoutThreshold"),
+		GNetRecreateSocketTimeoutThreshold,
+		TEXT("The amount of time, in seconds, without receiving a packet or alternatively without a send ack, before triggering socket recreation. ")
+		TEXT("(0.0 = off)"));
 }
+
 
 /**
  * UIpConnection
@@ -186,9 +209,7 @@ void UIpConnection::Tick(float DeltaSeconds)
 
 	if (CheckResult == ECheckAddressResolutionResult::TryFirstAddress || CheckResult == ECheckAddressResolutionResult::TryNextAddress)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Socket = Resolver->GetResolutionSocket().Get();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		SetSocket_Local(Resolver->GetResolutionSocket());
 
 		RemoteAddr = Resolver->GetRemoteAddr();
 
@@ -229,6 +250,16 @@ void UIpConnection::Tick(float DeltaSeconds)
 		CleanupDeprecatedSocket();
 	}
 
+	// Deferred cleanup of old sockets also waits until packets are received on the new socket (which happens after restart handshake process),
+	// in order to avoid getting kicked by the server, due to closing the old socket too early and triggering ICMP unreachable errors
+	if (DeferredCleanupSockets.Num() > 0 && ((LastReceiveRealtime - DeferredCleanupTimeCheck) >= 1.0) &&
+		DeferredCleanupSockets.Num() == DeferredCleanupReadyCount)
+	{
+		DeferredCleanupReadyCount = 0;
+
+		DeferredCleanupSockets.Reset();
+	}
+
 	Super::Tick(DeltaSeconds);
 
 #if !UE_BUILD_SHIPPING
@@ -248,7 +279,31 @@ void UIpConnection::Tick(float DeltaSeconds)
 			InitialConnectLastLogTime = CurTime;
 		}
 	}
-#endif	
+#endif
+
+	if (UIpNetDriver* IpDriver = Cast<UIpNetDriver>(Driver))
+	{
+		if (GNetRecreateSocketTimeoutThreshold != 0.f && GetConnectionState() != EConnectionState::USOCK_Closed && !IsReplay() &&
+			!IpDriver->IsServer())
+		{
+			const double ElapsedTime = Driver->GetElapsedTime();
+			const double LastRecreateSocketTime = IpDriver->GetLastRecreateSocketTime();
+			const double InitialConnectMultiplier = (ElapsedTime < Driver->InitialConnectTimeout && LastRecreateSocketTime == 0.0) ? 2.0 : 1.0;
+			const double RecreateCooldown = static_cast<double>(GNetRecreateSocketCooldown) * InitialConnectMultiplier;
+			const double CooldownCompareTimeDiff = ElapsedTime - FMath::Max(GetConnectTime(), LastRecreateSocketTime);
+			const double ThresholdCompareTimeDiff = ElapsedTime - FMath::Max(LastReceiveTime, GetLastRecvAckTime());
+
+			if (CooldownCompareTimeDiff > RecreateCooldown && ThresholdCompareTimeDiff > GNetRecreateSocketTimeoutThreshold)
+			{
+				UE::Net::ERecreateSocketResult Result = IpDriver->RecreateSocket();
+
+				UE_LOG(LogNet, Warning,
+						TEXT("Passed socket recreate threshold. LastReceiveTimeDiff: %f, LastRecvAckTimeDiff: %f, Threshold: %f, Result: %s"),
+						(ElapsedTime - LastReceiveTime), (ElapsedTime - GetLastRecvAckTime()), GNetRecreateSocketTimeoutThreshold,
+						ToCStr(UE::Net::LexToString(Result)));
+			}
+		}
+	}
 }
 
 void UIpConnection::CleanUp()
@@ -262,6 +317,34 @@ void UIpConnection::CleanUp()
 	// Sockets must be cleaned up after send tasks complete, as they can still be in use
 	CleanupDeprecatedSocket();
 	Resolver->CleanupResolutionSockets();
+
+	DeferredCleanupReadyCount = 0;
+
+	DeferredCleanupSockets.Empty();
+	SocketPrivate.Reset();
+}
+
+void UIpConnection::SetSocket_Local(const TSharedPtr<FSocket>& InSocket)
+{
+	TSharedPtr<FSocket> ResolutionSocket = Resolver->GetResolutionSocket();
+
+	if (ResolutionSocket.IsValid() && InSocket != ResolutionSocket)
+	{
+		SafeDeferredSocketCleanup(ResolutionSocket);
+		CleanupDeprecatedSocket();
+		Resolver->CleanupResolutionSockets();
+	}
+
+	if (SocketPrivate.IsValid() && InSocket != SocketPrivate && SocketPrivate != ResolutionSocket)
+	{
+		SafeDeferredSocketCleanup(SocketPrivate);
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Socket = InSocket.Get();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	SocketPrivate = InSocket;
 }
 
 void UIpConnection::CleanupDeprecatedSocket()
@@ -272,6 +355,35 @@ void UIpConnection::CleanupDeprecatedSocket()
 		Socket = nullptr;
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+// This needs to be removed when the main multithreading changes are added (or implemented in line with them)
+void UIpConnection::SafeDeferredSocketCleanup(const TSharedPtr<FSocket>& InSocket)
+{
+	if (!DeferredCleanupSockets.Contains(InSocket))
+	{
+		DeferredCleanupSockets.Add(InSocket);
+		DeferredCleanupTimeCheck = LastReceiveRealtime;
+
+		if (CVarNetIpConnectionUseSendTasks.GetValueOnGameThread() != 0 && LastSendTask.IsValid())
+		{
+			DECLARE_CYCLE_STAT(TEXT("IpConnection SocketCleanup task"), STAT_IpConnection_SocketCleanupTask, STATGROUP_TaskGraphTasks);
+
+			FGraphEventArray Prerequisites;
+
+			Prerequisites.Add(LastSendTask);
+
+			LastSendTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this]()
+				{
+					this->DeferredCleanupReadyCount++;
+				},
+				GET_STATID(STAT_IpConnection_SocketCleanupTask), &Prerequisites);
+		}
+		else
+		{
+			DeferredCleanupReadyCount++;
+		}
+	}
 }
 
 void UIpConnection::HandleConnectionTimeout(const FString& ErrorStr)
@@ -298,6 +410,8 @@ void UIpConnection::WaitForSendTasks()
 
 		SCOPE_CYCLE_COUNTER(STAT_IpConnection_WaitForSendTasks);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(LastSendTask, ENamedThreads::GameThread);
+
+		DeferredCleanupSockets.Reset();
 	}
 }
 
@@ -335,6 +449,11 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 			RemoteAddr = OrigAddr;
 		}
 	};
+
+	if (GNetBlockSend)
+	{
+		return;
+	}
 #endif
 
 	if (Resolver->ShouldBlockSend())

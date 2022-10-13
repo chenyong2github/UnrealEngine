@@ -79,8 +79,13 @@ public:
 	FSocket* GetSocket() const
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Socket;
+		if (Socket != SocketPrivate.Get())
+		{
+			return Socket;
+		}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		return SocketPrivate.Get();
 	}
 
 private:
@@ -90,14 +95,8 @@ private:
 	 */
 	struct FSocketSendResult
 	{
-		FSocketSendResult()
-			: BytesSent(0)
-			, Error(SE_NO_ERROR)
-		{
-		}
-
-		int32 BytesSent;
-		ESocketErrors Error;
+		int32 BytesSent = 0;
+		ESocketErrors Error = SE_NO_ERROR;
 	};
 
 	/** Critical section to protect SocketSendResults */
@@ -111,6 +110,18 @@ private:
 	 * for the next send task. Also, CleanUp() blocks until this task is complete.
 	 */
 	FGraphEventRef LastSendTask;
+
+	/** The socket used for communication (typically shared between NetConnection's, Net Address Resolution, and the NetDriver) */
+	TSharedPtr<FSocket> SocketPrivate;
+
+	/** List of previously active sockets for this connection, whose cleanup is deferred for multithreaded safety and to prevent remote ICMP errors */
+	TArray<TSharedPtr<FSocket>> DeferredCleanupSockets;
+
+	/** The time at which a socket was last queued for deferred cleanup */
+	double DeferredCleanupTimeCheck = 0.0;
+
+	/** The number of 'DeferredCleanupSockets' entries ready for cleanup (may be set by async send tasks) */
+	std::atomic<int32> DeferredCleanupReadyCount = 0;
 
 	/** Instead of disconnecting immediately on a socket error, wait for some time to see if we can recover. Specified in Seconds. */
 	UPROPERTY(Config)
@@ -134,9 +145,14 @@ private:
 #endif
 
 private:
+	/** Sets the local socket pointer, and safely cleans up any references to old sockets */
+	void SetSocket_Local(const TSharedPtr<FSocket>& InSocket);
 
 	/** Cleanup for the deprecated 'Socket' value */
 	void CleanupDeprecatedSocket();
+
+	/** Safe/non-blocking cleanup of a shared socket, which may be in use by async sends, or may be at risk of triggering ICMP unreachable errors */
+	void SafeDeferredSocketCleanup(const TSharedPtr<FSocket>& InSocket);
 
 	/** Handles any SendTo errors on the game thread. */
 	void HandleSocketSendResult(const FSocketSendResult& Result, ISocketSubsystem* SocketSubsystem);
