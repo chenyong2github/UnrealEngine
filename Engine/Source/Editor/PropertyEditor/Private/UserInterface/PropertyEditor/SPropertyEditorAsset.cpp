@@ -330,6 +330,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	ObjectClass = InArgs._Class != nullptr ? InArgs._Class : GetObjectPropertyClass(Property);
 	bAllowClear = InArgs._AllowClear.IsSet() ? InArgs._AllowClear.GetValue() : (Property ? !(Property->PropertyFlags & CPF_NoClear) : true);
+	bAllowCreate = InArgs._AllowCreate.IsSet() ? InArgs._AllowCreate.GetValue() : (Property ? !Property->HasMetaData("NoCreate") : true);
 
 	InitializeAssetDataTags(Property);
 	if (DisallowedAssetDataTags.IsValid() || RequiredAssetDataTags.IsValid())
@@ -360,8 +361,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass());
 
-	const bool bAllowCreation = !Property || !Property->HasMetaData("NoCreate");
-	if (bAllowCreation) 
+	if (bAllowCreate)
 	{
 		if (InArgs._NewAssetFactories.IsSet())
 		{

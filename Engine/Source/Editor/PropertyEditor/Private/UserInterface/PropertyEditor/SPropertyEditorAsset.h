@@ -63,6 +63,7 @@ public:
 		, _CustomContentSlot()
 	{}
 		SLATE_ARGUMENT(TOptional<bool>, AllowClear)
+		SLATE_ARGUMENT(TOptional<bool>, AllowCreate)
 		SLATE_ARGUMENT(bool, DisplayThumbnail)
 		SLATE_ARGUMENT(bool, DisplayUseSelected)
 		SLATE_ARGUMENT(bool, DisplayBrowse)
@@ -375,6 +376,9 @@ private:
 
 	/** Whether the asset can be 'None' in this case */
 	bool bAllowClear;
+
+	/** Whether the asset can be created from the asset picker */
+	bool bAllowCreate;
 
 	/** Whether the object we are editing is an Actor (i.e. requires a Scene Outliner to be displayed) */
 	bool bIsActor;

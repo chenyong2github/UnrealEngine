@@ -197,6 +197,8 @@ public:
 		SLATE_EVENT(FOnIsEnabled, OnIsEnabled)
 		/** Whether the asset can be 'None' */
 		SLATE_ARGUMENT(bool, AllowClear)
+		/** Whether the asset can be created from the asset picker directly */
+		SLATE_ARGUMENT(bool, AllowCreate)
 		/** Whether to show the 'Use Selected' button */
 		SLATE_ARGUMENT(bool, DisplayUseSelected)
 		/** Whether to show the 'Browse' button */
