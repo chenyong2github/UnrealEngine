@@ -8353,6 +8353,7 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 		Pin->DefaultValue = DefaultValue;
 	}
 
+	Notify(ERigVMGraphNotifType::PinAdded, Pin);
 	Notify(ERigVMGraphNotifType::PinArraySizeChanged, ArrayPin);
 	if (!bSuspendNotifications)
 	{
@@ -8409,15 +8410,16 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 	}
 
 	int32 IndexToRemove = ArrayElementPin->GetPinIndex();
-	if (!RemovePin(ArrayElementPin, bSetupUndoRedo, false))
+	if (!RemovePin(ArrayElementPin, bSetupUndoRedo, true))
 	{
 		return false;
 	}
 
-	for (int32 ExistingIndex = ArrayPin->GetSubPins().Num() - 1; ExistingIndex >= IndexToRemove; ExistingIndex--)
+	for (int32 ExistingIndex = IndexToRemove; ExistingIndex < ArrayPin->GetArraySize(); ExistingIndex++)
 	{
 		URigVMPin* ExistingPin = ArrayPin->GetSubPins()[ExistingIndex];
 		ExistingPin->SetNameFromIndex();
+		Notify(ERigVMGraphNotifType::PinRenamed, ExistingPin);
 	}
 
 	if (!bSuspendNotifications)
@@ -10288,7 +10290,11 @@ bool URigVMController::AddArgumentForPin(URigVMPin* InPin, URigVMPin* InToLinkPi
 		ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));
 	}
 	
-	LibraryNode->Template = NewTemplate;	
+	LibraryNode->Template = NewTemplate;
+	{
+		FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
+		Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
+	}
 	
 	// Update Entry and Return filtered permutations to all permutations
 	URigVMTemplateNode* EntryNode = Graph->GetEntryNode();
@@ -10652,6 +10658,10 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 			ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));
 		}
 		LibraryNode->Template = NewTemplate;
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
+			Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
+		}
 	}
 
 	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
@@ -17656,8 +17666,41 @@ bool URigVMController::UpdateLibraryTemplate(URigVMLibraryNode* LibraryNode, boo
 			ActionStack->AddAction(FRigVMSetTemplateFilteredPermutationsAction(LibraryNode, OldPermutations));
 			ActionStack->AddAction(FRigVMSetLibraryTemplateAction(LibraryNode, NewTemplate));		
 		}
+
+		bool bTemplateChanged = false;
+		if(!bTemplateChanged)
+		{
+			bTemplateChanged = CurTemplate->GetNotation() != NewTemplate.GetNotation();
+		}
+		if(!bTemplateChanged)
+		{
+			check(CurTemplate->NumArguments() == NewTemplate.NumArguments());
+			for(int32 ArgumentIndex = 0; (ArgumentIndex < NewTemplate.NumArguments()) && (!bTemplateChanged); ArgumentIndex++)
+			{
+				const FRigVMTemplateArgument* ArgA = CurTemplate->GetArgument(ArgumentIndex);
+				const FRigVMTemplateArgument* ArgB = NewTemplate.GetArgument(ArgumentIndex);
+
+				const TArray<TRigVMTypeIndex>& TypesA = ArgA->GetTypeIndices();
+				const TArray<TRigVMTypeIndex>& TypesB = ArgB->GetTypeIndices();
+				bTemplateChanged = TypesA.Num() != TypesB.Num();
+				if(!bTemplateChanged)
+				{
+					for(int32 TypeIndex=0; (TypeIndex<TypesA.Num()) && (!bTemplateChanged);TypeIndex++)
+					{
+						bTemplateChanged = TypesA[TypeIndex] != TypesB[TypeIndex];
+					}
+				}
+			}
+		}
+		
 		LibraryNode->Template = NewTemplate;
 		Notify(ERigVMGraphNotifType::NodeDescriptionChanged, LibraryNode);
+
+		if(bTemplateChanged)
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
+			Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
+		}
 	}
 
 	// Update Entry and Return filtered permutations to all permutations
@@ -18048,6 +18091,10 @@ void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()
 			{
 				NewTemplate.ComputeNotationFromArguments(LibraryNode->GetName());				
 				LibraryNode->Template = NewTemplate;
+				{
+					FRigVMControllerGraphGuard GraphGuard(this, LibraryNode->GetTypedOuter<URigVMGraph>(), false);
+					Notify(ERigVMGraphNotifType::LibraryTemplateChanged, LibraryNode);
+				}
 			}
 		}
 		

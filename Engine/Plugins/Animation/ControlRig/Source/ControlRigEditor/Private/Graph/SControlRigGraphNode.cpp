@@ -47,11 +47,6 @@ const FSlateBrush* SControlRigGraphNode::CachedImg_CR_Pin_Disconnected = nullptr
 
 void SControlRigGraphNode::Construct( const FArguments& InArgs )
 {
-	static const float PinWidgetSidePadding = 6.f;
-	static const float EmptySidePadding = 60.f;
-	static const float TopPadding = 2.f; 
-	static const float MaxHeight = 30.f;
-
 	if (CachedImg_CR_Pin_Connected == nullptr)
 	{
 		static const FName NAME_CR_Pin_Connected("ControlRig.Bug.Solid");
@@ -73,10 +68,6 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 
 	Blueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(this->GraphNode));
 
-	// Re-cache variable info here (unit structure could have changed since last reconstruction, e.g. array add/remove)
-	// and also create missing pins if it hasn't created yet
-	EdGraphNode->AllocateDefaultPins();
-	
 	NodeErrorType = int32(EMessageSeverity::Info) + 1;
 	this->UpdateGraphNode();
 
@@ -85,447 +76,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	URigVMController* Controller = EdGraphNode->GetController();
 	Controller->OnModified().AddSP(this, &SControlRigGraphNode::HandleModifiedEvent);
 
-	TMap<UEdGraphPin*, int32> EdGraphPinToInputPin;
-	for(int32 InputPinIndex = 0; InputPinIndex < InputPins.Num(); InputPinIndex++)
-	{
-		EdGraphPinToInputPin.Add(InputPins[InputPinIndex]->GetPinObj(), InputPinIndex);
-	}
-	TMap<UEdGraphPin*, int32> EdGraphPinToOutputPin;
-	for(int32 OutputPinIndex = 0; OutputPinIndex < OutputPins.Num(); OutputPinIndex++)
-	{
-		EdGraphPinToOutputPin.Add(OutputPins[OutputPinIndex]->GetPinObj(), OutputPinIndex);
-	}
-
-	TArray<URigVMPin*> RootModelPins = ModelNode->GetPins();
-	// orphaned pins are appended to the end of pin list on each side of the node
-	RootModelPins.Append(ModelNode->GetOrphanedPins());
-	TArray<URigVMPin*> ModelPins;
-
-	// sort model pins
-	// a) execute IOs, b) IO pins, c) input / visible pins, d) output pins
-	struct Local
-	{
-		static void VisitPinRecursively(URigVMPin* InPin, TArray<URigVMPin*>& OutPins)
-		{
-			OutPins.Add(InPin);
-
-			if (InPin->GetCPPType() == TEXT("FRotator"))
-			{
-				TArray<URigVMPin*> SubPins = InPin->GetSubPins();
-				if (SubPins.Num() == 3)
-				{
-					OutPins.Add(SubPins[2]);	
-					OutPins.Add(SubPins[0]);	
-					OutPins.Add(SubPins[1]);
-				}	
-			}
-			else
-			{				
-				for (URigVMPin* SubPin : InPin->GetSubPins())
-				{
-					VisitPinRecursively(SubPin, OutPins);
-				}
-			}
-		}
-	};
-	for(int32 SortPhase = 0; SortPhase < 4; SortPhase++)
-	{
-		for(URigVMPin* RootPin : RootModelPins)
-		{
-			switch (SortPhase)
-			{
-				case 0: // execute IO pins
-				{
-					if(RootPin->IsExecuteContext() && RootPin->GetDirection() == ERigVMPinDirection::IO)
-					{
-						Local::VisitPinRecursively(RootPin, ModelPins);
-					}
-					break;
-				}
-				case 1: // IO pins
-				{
-					if(!RootPin->IsExecuteContext() && RootPin->GetDirection() == ERigVMPinDirection::IO)
-					{
-						Local::VisitPinRecursively(RootPin, ModelPins);
-					}
-					break;
-				}
-				case 2: // input / visible pins
-				{
-					if(RootPin->GetDirection() == ERigVMPinDirection::Input || RootPin->GetDirection() == ERigVMPinDirection::Visible)
-					{
-						Local::VisitPinRecursively(RootPin, ModelPins);
-					}
-					break;
-				}
-				case 3: // output pins
-				default:
-				{
-					if(RootPin->GetDirection() == ERigVMPinDirection::Output)
-					{
-						Local::VisitPinRecursively(RootPin, ModelPins);
-					}
-					break;
-				}
-			}
-		}
-	}
-
-	// add spacer widget at the start
-	LeftNodeBox->AddSlot()
-	.HAlign(HAlign_Fill)
-	.VAlign(VAlign_Center)
-	.AutoHeight()
-	[
-		SNew(SSpacer)
-		.Size(FVector2D(1.f, 2.f))
-	];
-
-	const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(EdGraphNode->GetSchema());
-	
-	TMap<URigVMPin*, int32> ModelPinToInfoIndex;
-	for(URigVMPin* ModelPin : ModelPins)
-	{
-		FPinInfo PinInfo;
-		PinInfo.Index = PinInfos.Num();
-		PinInfo.ParentIndex = INDEX_NONE;
-		PinInfo.bHasChildren = (ModelPin->GetSubPins().Num() > 0);
-		PinInfo.bIsContainer = ModelPin->IsArray();
-		PinInfo.Depth = 0;
-		PinInfo.bExpanded = ModelPin->IsExpanded();
-		PinInfo.ModelPinPath = ModelPin->GetPinPath();
-		PinInfo.bAutoHeight = false;
-		
-		const bool bAskSchemaForEdition = RigSchema && ModelPin->IsStruct() && !ModelPin->IsBoundToVariable();
-		PinInfo.bHideInputWidget = (!ModelPin->IsBoundToVariable()) && PinInfo.bIsContainer;
-		if (!PinInfo.bHideInputWidget)
-		{
-			if (bAskSchemaForEdition && !PinInfo.bHasChildren)
-			{
-				const bool bIsStructEditable = RigSchema->IsStructEditable(ModelPin->GetScriptStruct()); 
-				PinInfo.bHideInputWidget = !bIsStructEditable;
-				PinInfo.bAutoHeight = bIsStructEditable;
-			}
-			else if(PinInfo.bHasChildren && !ModelPin->IsBoundToVariable())
-			{
-				PinInfo.bHideInputWidget = true;
-			}
-		}
-		
-		if(URigVMPin* ParentPin = ModelPin->GetParentPin())
-		{
-			const int32* ParentIndexPtr = ModelPinToInfoIndex.Find(ParentPin);
-			if(ParentIndexPtr == nullptr)
-			{
-				continue;
-			}
-			PinInfo.ParentIndex = *ParentIndexPtr;
-			PinInfo.Depth = PinInfos[PinInfo.ParentIndex].Depth + 1;
-		}
-
-		TAttribute<EVisibility> PinVisibilityAttribute = TAttribute<EVisibility>::CreateSP(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index);
-
-		bool bPinWidgetForExpanderLeft = false;
-		TSharedPtr<SGraphPin> PinWidgetForExpander;
-
-		bool bPinInfoIsValid = false;
-		if(UEdGraphPin* OutputEdGraphPin = EdGraphNode->FindPin(ModelPin->GetPinPath(), EEdGraphPinDirection::EGPD_Output))
-		{
-			if(const int32* PinIndexPtr = EdGraphPinToOutputPin.Find(OutputEdGraphPin))
-			{
-				PinInfo.OutputPinWidget = OutputPins[*PinIndexPtr];
-				PinInfo.OutputPinWidget->SetVisibility(PinVisibilityAttribute);
-				PinWidgetForExpander = PinInfo.OutputPinWidget;
-				bPinWidgetForExpanderLeft = false;
-				bPinInfoIsValid = true;
-			}
-		}
-		if(UEdGraphPin* InputEdGraphPin = EdGraphNode->FindPin(ModelPin->GetPinPath(), EEdGraphPinDirection::EGPD_Input))
-		{
-			if(const int32* PinIndexPtr = EdGraphPinToInputPin.Find(InputEdGraphPin))
-			{
-				PinInfo.InputPinWidget = InputPins[*PinIndexPtr];
-				PinInfo.InputPinWidget->SetVisibility(PinVisibilityAttribute);
-				PinWidgetForExpander = PinInfo.InputPinWidget;
-				bPinWidgetForExpanderLeft = true;
-				bPinInfoIsValid = true;
-			}
-		}
-
-		if(!bPinInfoIsValid)
-		{
-			continue;
-		}
-
-		ModelPinToInfoIndex.Add(ModelPin, PinInfos.Add(PinInfo));
-		
-		// check if this pin has sub pins
-		TSharedPtr<SHorizontalBox> FullPinHorizontalRowWidget = PinWidgetForExpander->GetFullPinHorizontalRowWidget().Pin();
-		if(FullPinHorizontalRowWidget.IsValid())
-		{
-			// indent the pin by padding
-			const float DepthIndentation = 12.f * float(PinInfo.Depth + (PinInfo.bHasChildren ? 0 : 1));
-			const float LeftIndentation = bPinWidgetForExpanderLeft ? DepthIndentation : 0.f;
-			const float RightIndentation = bPinWidgetForExpanderLeft ? 0.f : DepthIndentation;
-			
-			if(PinInfo.bHasChildren)
-			{
-				// only inject the expander arrow for inputs on input / IO
-				// or for output pins
-				if(
-					(
-						(
-							(ModelPin->GetDirection() == ERigVMPinDirection::Input) ||
-							(ModelPin->GetDirection() == ERigVMPinDirection::IO)
-						) &&
-						bPinWidgetForExpanderLeft
-					) ||
-					(
-						(ModelPin->GetDirection() == ERigVMPinDirection::Output) &&
-						(!bPinWidgetForExpanderLeft)
-					)
-				)
-				{
-					// Add the expander arrow
-					FullPinHorizontalRowWidget->InsertSlot(bPinWidgetForExpanderLeft ? 1 : FullPinHorizontalRowWidget->GetChildren()->Num() - 1)
-					.Padding(LeftIndentation, 0.f, RightIndentation, 0.f)
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
-						.ContentPadding(0)
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.ClickMethod( EButtonClickMethod::MouseDown )
-						.OnClicked(this, &SControlRigGraphNode::OnExpanderArrowClicked, PinInfo.Index)
-						.ToolTipText(LOCTEXT("ExpandSubPin", "Expand Pin"))
-						[
-							SNew(SImage)
-							.Image(this, &SControlRigGraphNode::GetExpanderImage, PinInfo.Index, bPinWidgetForExpanderLeft, false)
-							.ColorAndOpacity(FSlateColor::UseForeground())
-						]
-					];
-				}
-			}
-			else
-			{
-				const int32 SlotToAdjustIndex = bPinWidgetForExpanderLeft ? 0 : FullPinHorizontalRowWidget->NumSlots() - 1;
-				SHorizontalBox::FSlot& Slot = FullPinHorizontalRowWidget->GetSlot(SlotToAdjustIndex);
-
-				FMargin Padding = Slot.GetPadding();
-				Padding = FMargin(RightIndentation + Padding.Left, Padding.Top, LeftIndentation + Padding.Right, Padding.Bottom);
-				Slot.SetPadding(Padding);
-			}
-		}
-	}
-
-	auto AddArrayPlusButtonLambda = [this](URigVMPin* InModelPin, TSharedPtr<SHorizontalBox> InSlotLayout, const float InEmptySidePadding)
-	{
-		// add array plus button
-		InSlotLayout->AddSlot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.Padding(PinWidgetSidePadding, TopPadding, InEmptySidePadding, 0.f)
-		[
-			SNew(SButton)
-			.ContentPadding(0.0f)
-			.ButtonStyle(FAppStyle::Get(), "NoBorder")
-			.OnClicked(this, &SControlRigGraphNode::HandleAddArrayElement, InModelPin->GetPinPath())
-			.IsEnabled(this, &SGraphNode::IsNodeEditable)
-			.Cursor(EMouseCursor::Default)
-			.Visibility(this, &SControlRigGraphNode::GetArrayPlusButtonVisibility, InModelPin)
-			.ToolTipText(LOCTEXT("AddArrayElement", "Add Array Element"))
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-					.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
-				]
-			]
-		];
-	};
-
-	for(const FPinInfo& PinInfo : PinInfos)
-	{
-		if(PinInfo.InputPinWidget.IsValid())
-		{
-			if(PinInfo.bHideInputWidget)
-			{
-				if(PinInfo.InputPinWidget->GetValueWidget() != SNullWidget::NullWidget)
-				{
-					PinInfo.InputPinWidget->GetValueWidget()->SetVisibility(EVisibility::Collapsed);
-				}
-			}
-				
-			// input pins
-			if(!PinInfo.OutputPinWidget.IsValid())
-			{
-				TSharedPtr<SHorizontalBox> SlotLayout;
-				SHorizontalBox::FSlot* FirstSlot = nullptr;
-
-				const float MyEmptySidePadding = PinInfo.bHideInputWidget ? EmptySidePadding : 0.f; 
-				
-				LeftNodeBox->AddSlot()
-                .HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-				.AutoHeight()
-				.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
-                [
-                    SAssignNew(SlotLayout, SHorizontalBox)
-                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
-		            
-                    +SHorizontalBox::Slot()
-                    .Expose(FirstSlot)
-                    .FillWidth(1.f)
-                    .HAlign(HAlign_Left)
-                    .Padding(PinWidgetSidePadding, TopPadding, PinInfo.bIsContainer ? 0.f : MyEmptySidePadding, 0.f)
-                    [
-                        PinInfo.InputPinWidget.ToSharedRef()
-                    ]
-                ];
-
-				if(PinInfo.bIsContainer)
-				{
-					URigVMPin* ModelPin = ModelNode->GetGraph()->FindPin(PinInfo.ModelPinPath);
-					if(ModelPin)
-					{
-						// make sure to minimize the width of the label
-						FirstSlot->SetAutoWidth();
-						AddArrayPlusButtonLambda(ModelPin, SlotLayout, MyEmptySidePadding);
-					}
-				}
-			}
-			// io pins
-			else
-			{
-				TSharedPtr<SHorizontalBox> SlotLayout;
-				SHorizontalBox::FSlot* FirstSlot = nullptr;
-
-				PinInfo.OutputPinWidget->SetShowLabel(false);
-			
-				LeftNodeBox->AddSlot()
-                .HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-                .AutoHeight()
-				.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
-                [
-                    SAssignNew(SlotLayout, SHorizontalBox)
-                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
-
-                    +SHorizontalBox::Slot()
-					.Expose(FirstSlot)
-                    .FillWidth(1.f)
-                    .HAlign(HAlign_Left)
-                    .VAlign(VAlign_Center)
-                    .Padding(PinWidgetSidePadding, TopPadding, 0.f, 0.f)
-                    [
-                        PinInfo.InputPinWidget.ToSharedRef()
-                    ]
-                ];
-
-				if(PinInfo.bIsContainer)
-				{
-					URigVMPin* ModelPin = ModelNode->GetGraph()->FindPin(PinInfo.ModelPinPath);
-					if(ModelPin)
-					{
-						// make sure to minimize the width of the label
-						FirstSlot->SetAutoWidth();
-						AddArrayPlusButtonLambda(ModelPin, SlotLayout, EmptySidePadding);
-					}
-				}
-
-				SlotLayout->AddSlot()
-				.FillWidth(1.f)
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.Padding(0.f, TopPadding, PinWidgetSidePadding, 0.f)
-				[
-					PinInfo.OutputPinWidget.ToSharedRef()
-				];
-			}
-		}
-		// output pins
-		else if(PinInfo.OutputPinWidget.IsValid())
-		{
-			LeftNodeBox->AddSlot()
-            .HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
-            .AutoHeight()
-			.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
-            [
-            	SNew(SHorizontalBox)
-	            .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
-	            
-				+SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-	            .Padding(EmptySidePadding, TopPadding, PinWidgetSidePadding, 0.f)
-				[
-	                PinInfo.OutputPinWidget.ToSharedRef()
-				]
-            ];
-		}
-	}
-
-	if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
-	{
-		TWeakObjectPtr<URigVMFunctionReferenceNode> WeakFunctionReferenceNode = FunctionReferenceNode;
-		TWeakObjectPtr<UControlRigBlueprint> WeakControlRigBlueprint = Blueprint;
-
-		// add the entries for the variable remapping
-		for(const TSharedPtr<FRigVMExternalVariable>& ExternalVariable : EdGraphNode->ExternalVariables)
-		{
-			LeftNodeBox->AddSlot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
-			.AutoHeight()
-			.MaxHeight(MaxHeight)
-			[
-				SNew(SHorizontalBox)
-	            
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(PinWidgetSidePadding, TopPadding, PinWidgetSidePadding, 0.f)
-				[
-					SNew(STextBlock)
-					.Text(FText::FromName(ExternalVariable->Name))
-					.TextStyle(FAppStyle::Get(), NAME_DefaultPinLabelStyle)
-					.ColorAndOpacity(this, &SControlRigGraphNode::GetVariableLabelTextColor, WeakFunctionReferenceNode, ExternalVariable->Name)
-					.ToolTipText(this, &SControlRigGraphNode::GetVariableLabelTooltipText, WeakControlRigBlueprint, ExternalVariable->Name)
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(PinWidgetSidePadding, TopPadding, PinWidgetSidePadding, 0.f)
-				[
-					SNew(SControlRigVariableBinding)
-					.Blueprint(Blueprint.Get())
-					.FunctionReferenceNode(FunctionReferenceNode)
-					.InnerVariableName(ExternalVariable->Name)
-				]
-			];
-		}
-	}
-
-	CreateAggregateAddPinButton();
-	
-	// add spacer widget at the end
-	LeftNodeBox->AddSlot()
-	.HAlign(HAlign_Fill)
-	.VAlign(VAlign_Center)
-	.AutoHeight()
-	[
-		SNew(SSpacer)
-		.Size(FVector2D(1.f, 4.f))
-	];
+	UpdatePinTreeView();
 
 	const FSlateBrush* ImageBrush = FControlRigEditorStyle::Get().GetBrush(TEXT("ControlRig.Bug.Dot"));
 
@@ -554,7 +105,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	.Visibility(EVisibility::Visible)
 	.ToolTipText(LOCTEXT("NodeDurationToolTip", "This number represents the duration in microseconds for a node.\nFor functions / collapse nodes it represents the accumulated time of contained nodes.\n\nYou can enable / disable the display of the number in the Class Settings\n(VM Runtime Settings -> Enable Profiling)"));
 
-	EdGraphNode->GetNodeTitleDirtied().BindSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
+	EdGraphNode->OnNodeTitleDirtied().AddSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
+	EdGraphNode->OnNodePinsChanged().AddSP(this, &SControlRigGraphNode::HandleNodePinsChanged);
 
 	LastHighDetailSize = FVector2D::ZeroVector;
 }
@@ -686,7 +238,7 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 		FString NodeName, PinPath;
 		if (URigVMPin::SplitPinPathAtStart(EdPinObj->GetName(), NodeName, PinPath))
 		{
-			if (URigVMPin* ModelPin = ModelNode->FindPin(PinPath))
+			if (const URigVMPin* ModelPin = ModelNode->FindPin(PinPath))
 			{
 				if (ModelPin->HasInjectedUnitNodes())
 				{
@@ -695,61 +247,71 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 				PinToAdd->SetToolTipText(ModelPin->GetToolTipText());
 
 				// If the pin belongs to a template node that does not own an argument for that pin, make it transparent
-				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
+				if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
 				{
 					if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 					{
-						URigVMPin* RootPin = ModelPin->GetRootPin();
+						const URigVMPin* RootPin = ModelPin->GetRootPin();
+						FLinearColor PinColorAndOpacity = PinToAdd->GetColorAndOpacity();
 						if (Template->FindArgument(RootPin->GetFName()) == nullptr)
 						{
-							PinToAdd->SetColorAndOpacity(PinToAdd->GetColorAndOpacity() * FLinearColor(1.0f,1.0f,1.0f,0.2f));
+							PinColorAndOpacity.A = 0.2f;
 						}
+						else
+						{
+							PinColorAndOpacity.A = 1.0f;
+						}
+						PinToAdd->SetColorAndOpacity(PinColorAndOpacity);
 					}
 				}
 			}
 		}
 
-		// reformat the pin by
-		// 1. taking out the swrapbox widget
-		// 2. re-inserting all widgets from the label and value wrap box back in the horizontal box
-		TSharedPtr<SHorizontalBox> FullPinHorizontalRowWidget = PinToAdd->GetFullPinHorizontalRowWidget().Pin();
-		TSharedPtr<SWrapBox> LabelAndValueWidget = PinToAdd->GetLabelAndValue();
-		if(FullPinHorizontalRowWidget.IsValid() && LabelAndValueWidget.IsValid())
+		if(!PinsToKeep.Contains(EdPinObj))
 		{
-			int32 LabelAndValueWidgetIndex = INDEX_NONE;
-			for(int32 ChildIndex = 0; ChildIndex < FullPinHorizontalRowWidget->GetChildren()->Num(); ChildIndex++)
+			// reformat the pin by
+			// 1. taking out the swrapbox widget
+			// 2. re-inserting all widgets from the label and value wrap box back in the horizontal box
+			TSharedPtr<SHorizontalBox> FullPinHorizontalRowWidget = PinToAdd->GetFullPinHorizontalRowWidget().Pin();
+			TSharedPtr<SWrapBox> LabelAndValueWidget = PinToAdd->GetLabelAndValue();
+			if(FullPinHorizontalRowWidget.IsValid() && LabelAndValueWidget.IsValid())
 			{
-				TSharedRef<SWidget> ChildWidget = FullPinHorizontalRowWidget->GetChildren()->GetChildAt(ChildIndex);
-				if(ChildWidget == LabelAndValueWidget)
+				int32 LabelAndValueWidgetIndex = INDEX_NONE;
+				for(int32 ChildIndex = 0; ChildIndex < FullPinHorizontalRowWidget->GetChildren()->Num(); ChildIndex++)
 				{
-					LabelAndValueWidgetIndex = ChildIndex;
-					break;
+					TSharedRef<SWidget> ChildWidget = FullPinHorizontalRowWidget->GetChildren()->GetChildAt(ChildIndex);
+					if(ChildWidget == LabelAndValueWidget)
+					{
+						LabelAndValueWidgetIndex = ChildIndex;
+						break;
+					}
+				}
+				check(LabelAndValueWidgetIndex != INDEX_NONE);
+				
+				FullPinHorizontalRowWidget->RemoveSlot(LabelAndValueWidget.ToSharedRef());
+				
+				for(int32 ChildIndex = 0; ChildIndex < LabelAndValueWidget->GetChildren()->Num(); ChildIndex++)
+				{
+					TSharedRef<SWidget> ChildWidget = LabelAndValueWidget->GetChildren()->GetChildAt(ChildIndex);
+					if(ChildWidget != SNullWidget::NullWidget)
+					{
+						ChildWidget->AssignParentWidget(FullPinHorizontalRowWidget.ToSharedRef());
+						
+						FullPinHorizontalRowWidget->InsertSlot(LabelAndValueWidgetIndex + ChildIndex)
+						.HAlign(HAlign_Fill)
+						.VAlign(VAlign_Center)
+						.Padding(EdPinObj->Direction == EGPD_Input ? 0.f : 2.f, 0.f, EdPinObj->Direction == EGPD_Input ? 2.f : 0.f, 0.f)
+						.AutoWidth()
+						[
+							ChildWidget
+						];
+					}
 				}
 			}
-			check(LabelAndValueWidgetIndex != INDEX_NONE);
-			
-			FullPinHorizontalRowWidget->RemoveSlot(LabelAndValueWidget.ToSharedRef());
-			
-			for(int32 ChildIndex = 0; ChildIndex < LabelAndValueWidget->GetChildren()->Num(); ChildIndex++)
-			{
-				TSharedRef<SWidget> ChildWidget = LabelAndValueWidget->GetChildren()->GetChildAt(ChildIndex);
-				if(ChildWidget != SNullWidget::NullWidget)
-				{
-					ChildWidget->AssignParentWidget(FullPinHorizontalRowWidget.ToSharedRef());
-					
-					FullPinHorizontalRowWidget->InsertSlot(LabelAndValueWidgetIndex + ChildIndex)
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Center)
-					.Padding(EdPinObj->Direction == EGPD_Input ? 0.f : 2.f, 0.f, EdPinObj->Direction == EGPD_Input ? 2.f : 0.f, 0.f)
-					.AutoWidth()
-					[
-						ChildWidget
-					];
-				}
-			}
-		}
 
-		PinToAdd->SetOwner(SharedThis(this));
+			PinToAdd->SetOwner(SharedThis(this));
+		}
+		
 		if(EdPinObj->Direction == EGPD_Input)
 		{
 			InputPins.Add(PinToAdd);
@@ -758,6 +320,40 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 		{
 			OutputPins.Add(PinToAdd);
 		}
+	}
+}
+
+void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
+{
+	bool bShowPin = true;
+	if(const UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
+	{
+		if(const URigVMPin* ModelPin = RigGraphNode->FindModelPinFromGraphPin(CurPin))
+		{
+			bShowPin =
+				ModelPin->GetDirection() == ERigVMPinDirection::Visible ||
+				ModelPin->GetDirection() == ERigVMPinDirection::Input ||
+				ModelPin->GetDirection() == ERigVMPinDirection::Output ||
+				ModelPin->GetDirection() == ERigVMPinDirection::IO;
+		}
+	}
+	
+	if (bShowPin)
+	{
+		// Do we have this pin in our list of pins to keep?
+		TSharedPtr<SGraphPin> NewPin;
+		const TSharedRef<SGraphPin>* RecycledPin = PinsToKeep.Find(CurPin);
+		if (!RecycledPin)
+		{
+			NewPin = CreatePinWidget(CurPin);
+			check(NewPin.IsValid());
+		}
+		else
+		{
+			NewPin = *RecycledPin;
+		}
+
+		AddPin(NewPin.ToSharedRef());
 	}
 }
 
@@ -1240,6 +836,13 @@ void SControlRigGraphNode::Tick(const FGeometry& AllottedGeometry, const double 
 		GraphNode->NodeWidth = (int32)AllottedGeometry.Size.X;
 		GraphNode->NodeHeight = (int32)AllottedGeometry.Size.Y;
 		RefreshErrorInfo();
+
+		// These will be deleted on the next tick.
+		for (UEdGraphPin *PinToDelete: PinsToDelete)
+		{
+			PinToDelete->MarkAsGarbage();
+		}
+		PinsToDelete.Reset();
 	}
 
 	if((!UseLowDetailNodeContent()) && (LeftNodeBox != nullptr))
@@ -1254,6 +857,96 @@ void SControlRigGraphNode::HandleNodeTitleDirtied()
 	{
 		NodeTitle->MarkDirty();
 	}
+}
+
+void SControlRigGraphNode::HandleNodePinsChanged()
+{
+	UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode);
+	if(ControlRigGraphNode == nullptr)
+	{
+		return;
+	}
+
+	// Collect graph pins to delete. We do this here because this widget is the only entity
+	// that's aware of the lifetime requirements for the graph pins (SGraphPanel uses Slate 
+	// timers to trigger a delete, which makes deleting them from a non-widget setting). 
+	TSet<UEdGraphPin *> LocalPinsToDelete;
+	LocalPinsToDelete.Reserve(InputPins.Num() + OutputPins.Num());
+	
+	for (const TSharedRef<SGraphPin>& GraphPin: InputPins)
+	{
+		LocalPinsToDelete.Add(GraphPin->GetPinObj());
+	}
+	for (const TSharedRef<SGraphPin>& GraphPin: OutputPins)
+	{
+		LocalPinsToDelete.Add(GraphPin->GetPinObj());
+	}
+
+	check(PinsToKeep.IsEmpty());
+
+	for (const UEdGraphPin* LivePin: ControlRigGraphNode->Pins)
+	{
+		const FString PinPath = LivePin->GetName();
+		
+		const FPinInfo* PinInfoPtr = PinInfos.FindByPredicate([PinPath](const FPinInfo& PinInfo) -> bool
+		{
+			return PinInfo.ModelPinPath == PinPath;
+		});
+		
+		if (PinInfoPtr)
+		{
+			if (LivePin->Direction == EGPD_Input && PinInfoPtr->InputPinWidget.IsValid())
+			{
+				PinsToKeep.Add(LivePin, PinInfoPtr->InputPinWidget.ToSharedRef());
+			}
+			if (LivePin->Direction == EGPD_Output && PinInfoPtr->OutputPinWidget.IsValid())
+			{
+				PinsToKeep.Add(LivePin, PinInfoPtr->OutputPinWidget.ToSharedRef());
+			}
+		}
+		LocalPinsToDelete.Remove(LivePin);
+	}
+
+	for (const UEdGraphPin* DeletingPin: LocalPinsToDelete)
+	{
+		const FString PinPath = DeletingPin->GetName();
+		
+		const FPinInfo* PinInfoPtr = PinInfos.FindByPredicate([PinPath](const FPinInfo& PinInfo) -> bool
+		{
+			return PinInfo.ModelPinPath == PinPath;
+		});
+		
+		if (PinInfoPtr)
+		{
+			if (DeletingPin->Direction == EGPD_Input && PinInfoPtr->InputPinWidget.IsValid())
+			{
+				// Ensure that this pin widget can no longer depend on the soon-to-be-deleted
+				// graph pin.
+				PinInfoPtr->InputPinWidget->InvalidateGraphData();
+			}
+
+			if (DeletingPin->Direction == EGPD_Output && PinInfoPtr->OutputPinWidget.IsValid())
+			{
+				// Ensure that this pin widget can no longer depend on the soon-to-be-deleted
+				// graph pin.
+				PinInfoPtr->OutputPinWidget->InvalidateGraphData();
+			}
+		}
+	}
+	
+	PinsToDelete.Append(LocalPinsToDelete);
+
+	// Reconstruct the pin widgets. This could be done more surgically but will do for now.
+	InputPins.Reset();
+	OutputPins.Reset();
+	PinInfos.Reset();
+
+	CreatePinWidgets();
+
+	// Nix any pins left in this map. They're most likely hidden sub-pins.
+	PinsToKeep.Reset();
+
+	UpdatePinTreeView();
 }
 
 FText SControlRigGraphNode::GetInstructionCountText() const
@@ -1497,6 +1190,494 @@ void SControlRigGraphNode::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			break;
 		}			
 	}
+}
+
+void SControlRigGraphNode::UpdatePinTreeView()
+{
+	static const float PinWidgetSidePadding = 6.f;
+	static const float EmptySidePadding = 60.f;
+	static const float TopPadding = 2.f; 
+	static const float MaxHeight = 30.f;
+
+	check(GraphNode);
+
+	// remove all existing content in the Left
+	LeftNodeBox->ClearChildren();
+
+	UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode);
+
+	TMap<UEdGraphPin*, int32> EdGraphPinToInputPin;
+	for(int32 InputPinIndex = 0; InputPinIndex < InputPins.Num(); InputPinIndex++)
+	{
+		EdGraphPinToInputPin.Add(InputPins[InputPinIndex]->GetPinObj(), InputPinIndex);
+	}
+	TMap<UEdGraphPin*, int32> EdGraphPinToOutputPin;
+	for(int32 OutputPinIndex = 0; OutputPinIndex < OutputPins.Num(); OutputPinIndex++)
+	{
+		EdGraphPinToOutputPin.Add(OutputPins[OutputPinIndex]->GetPinObj(), OutputPinIndex);
+	}
+
+	TArray<URigVMPin*> RootModelPins = ModelNode->GetPins();
+	// orphaned pins are appended to the end of pin list on each side of the node
+	RootModelPins.Append(ModelNode->GetOrphanedPins());
+	TArray<URigVMPin*> ModelPins;
+
+	// sort model pins
+	// a) execute IOs, b) IO pins, c) input / visible pins, d) output pins
+	struct Local
+	{
+		static void VisitPinRecursively(URigVMPin* InPin, TArray<URigVMPin*>& OutPins)
+		{
+			OutPins.Add(InPin);
+
+			if (InPin->GetCPPType() == TEXT("FRotator"))
+			{
+				const TArray<URigVMPin*>& SubPins = InPin->GetSubPins();
+				if (SubPins.Num() == 3)
+				{
+					OutPins.Add(SubPins[2]);	
+					OutPins.Add(SubPins[0]);	
+					OutPins.Add(SubPins[1]);
+				}	
+			}
+			else
+			{				
+				for (URigVMPin* SubPin : InPin->GetSubPins())
+				{
+					VisitPinRecursively(SubPin, OutPins);
+				}
+			}
+		}
+	};
+	
+	for(int32 SortPhase = 0; SortPhase < 4; SortPhase++)
+	{
+		for(URigVMPin* RootPin : RootModelPins)
+		{
+			switch (SortPhase)
+			{
+				case 0: // execute IO pins
+				{
+					if(RootPin->IsExecuteContext() && RootPin->GetDirection() == ERigVMPinDirection::IO)
+					{
+						Local::VisitPinRecursively(RootPin, ModelPins);
+					}
+					break;
+				}
+				case 1: // IO pins
+				{
+					if(!RootPin->IsExecuteContext() && RootPin->GetDirection() == ERigVMPinDirection::IO)
+					{
+						Local::VisitPinRecursively(RootPin, ModelPins);
+					}
+					break;
+				}
+				case 2: // input / visible pins
+				{
+					if(RootPin->GetDirection() == ERigVMPinDirection::Input || RootPin->GetDirection() == ERigVMPinDirection::Visible)
+					{
+						Local::VisitPinRecursively(RootPin, ModelPins);
+					}
+					break;
+				}
+				case 3: // output pins
+				default:
+				{
+					if(RootPin->GetDirection() == ERigVMPinDirection::Output)
+					{
+						Local::VisitPinRecursively(RootPin, ModelPins);
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(RigGraphNode->GetSchema());
+	
+	TMap<URigVMPin*, int32> ModelPinToInfoIndex;
+	for(URigVMPin* ModelPin : ModelPins)
+	{
+		FPinInfo PinInfo;
+		PinInfo.Index = PinInfos.Num();
+		PinInfo.ParentIndex = INDEX_NONE;
+		PinInfo.bHasChildren = (ModelPin->GetSubPins().Num() > 0);
+		PinInfo.bIsContainer = ModelPin->IsArray();
+		PinInfo.Depth = 0;
+		PinInfo.bExpanded = ModelPin->IsExpanded();
+		PinInfo.ModelPinPath = ModelPin->GetPinPath();
+		PinInfo.bAutoHeight = false;
+		
+		const bool bAskSchemaForEdition = RigSchema && ModelPin->IsStruct() && !ModelPin->IsBoundToVariable();
+		PinInfo.bHideInputWidget = (!ModelPin->IsBoundToVariable()) && PinInfo.bIsContainer;
+		if (!PinInfo.bHideInputWidget)
+		{
+			if (bAskSchemaForEdition && !PinInfo.bHasChildren)
+			{
+				const bool bIsStructEditable = RigSchema->IsStructEditable(ModelPin->GetScriptStruct()); 
+				PinInfo.bHideInputWidget = !bIsStructEditable;
+				PinInfo.bAutoHeight = bIsStructEditable;
+			}
+			else if(PinInfo.bHasChildren && !ModelPin->IsBoundToVariable())
+			{
+				PinInfo.bHideInputWidget = true;
+			}
+		}
+		
+		if(URigVMPin* ParentPin = ModelPin->GetParentPin())
+		{
+			const int32* ParentIndexPtr = ModelPinToInfoIndex.Find(ParentPin);
+			if(ParentIndexPtr == nullptr)
+			{
+				continue;
+			}
+			PinInfo.ParentIndex = *ParentIndexPtr;
+			PinInfo.Depth = PinInfos[PinInfo.ParentIndex].Depth + 1;
+		}
+
+		TAttribute<EVisibility> PinVisibilityAttribute = TAttribute<EVisibility>::CreateSP(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index);
+
+		bool bPinWidgetForExpanderLeft = false;
+		TSharedPtr<SGraphPin> PinWidgetForExpander;
+
+		bool bPinInfoIsValid = false;
+		if(UEdGraphPin* OutputEdGraphPin = RigGraphNode->FindPin(ModelPin->GetPinPath(), EEdGraphPinDirection::EGPD_Output))
+		{
+			if(const int32* PinIndexPtr = EdGraphPinToOutputPin.Find(OutputEdGraphPin))
+			{
+				PinInfo.OutputPinWidget = OutputPins[*PinIndexPtr];
+				PinInfo.OutputPinWidget->SetVisibility(PinVisibilityAttribute);
+				PinWidgetForExpander = PinInfo.OutputPinWidget;
+				bPinWidgetForExpanderLeft = false;
+				bPinInfoIsValid = true;
+			}
+		}
+		
+		if(UEdGraphPin* InputEdGraphPin = RigGraphNode->FindPin(ModelPin->GetPinPath(), EEdGraphPinDirection::EGPD_Input))
+		{
+			if(const int32* PinIndexPtr = EdGraphPinToInputPin.Find(InputEdGraphPin))
+			{
+				PinInfo.InputPinWidget = InputPins[*PinIndexPtr];
+				PinInfo.InputPinWidget->SetVisibility(PinVisibilityAttribute);
+				PinWidgetForExpander = PinInfo.InputPinWidget;
+				bPinWidgetForExpanderLeft = true;
+				bPinInfoIsValid = true;
+			}
+		}
+
+		if(!bPinInfoIsValid)
+		{
+			continue;
+		}
+
+		ModelPinToInfoIndex.Add(ModelPin, PinInfos.Add(PinInfo));
+		
+		// check if this pin has sub pins
+		TSharedPtr<SHorizontalBox> FullPinHorizontalRowWidget = PinWidgetForExpander->GetFullPinHorizontalRowWidget().Pin();
+		if(FullPinHorizontalRowWidget.IsValid())
+		{
+			// indent the pin by padding
+			const float DepthIndentation = 12.f * float(PinInfo.Depth + (PinInfo.bHasChildren ? 0 : 1));
+			const float LeftIndentation = bPinWidgetForExpanderLeft ? DepthIndentation : 0.f;
+			const float RightIndentation = bPinWidgetForExpanderLeft ? 0.f : DepthIndentation;
+			const FMargin LineIndentation = FMargin(RightIndentation, 0, LeftIndentation, 0); 
+
+			static const TSharedRef<FTagMetaData> ExpanderButtonMetadata = MakeShared<FTagMetaData>(TEXT("SControlRigGraphNode.ExpanderButton"));
+
+			// check if this pin widget may already have the expander button 
+			int32 ExpanderSlotIndex = INDEX_NONE;
+			int32 PaddedSlotIndex = INDEX_NONE;
+
+			for(int32 SlotIndex=0; SlotIndex<FullPinHorizontalRowWidget->NumSlots(); SlotIndex++)
+			{
+				const TSharedRef<SWidget> Widget = FullPinHorizontalRowWidget->GetSlot(SlotIndex).GetWidget();
+				const TSharedPtr<FTagMetaData> Metadata = Widget->GetMetaData<FTagMetaData>();
+				if(Metadata.IsValid())
+				{
+					if(Metadata->Tag == ExpanderButtonMetadata->Tag)
+					{
+						ExpanderSlotIndex = SlotIndex;
+						break;
+					}
+				}
+			}
+
+			if(!PinInfo.bHasChildren && ExpanderSlotIndex != INDEX_NONE)
+			{
+				SHorizontalBox::FSlot& Slot = FullPinHorizontalRowWidget->GetSlot(ExpanderSlotIndex);
+				const TSharedRef<SWidget> Widget = Slot.GetWidget();
+				Widget->RemoveMetaData(ExpanderButtonMetadata);
+				FullPinHorizontalRowWidget->RemoveSlot(Widget);
+				ExpanderSlotIndex = INDEX_NONE;
+			}
+	
+			if(PinInfo.bHasChildren && ExpanderSlotIndex == INDEX_NONE)
+			{
+				// only inject the expander arrow for inputs on input / IO
+				// or for output pins
+				if(
+					(
+						(
+							(ModelPin->GetDirection() == ERigVMPinDirection::Input) ||
+							(ModelPin->GetDirection() == ERigVMPinDirection::IO)
+						) &&
+						bPinWidgetForExpanderLeft
+					) ||
+					(
+						(ModelPin->GetDirection() == ERigVMPinDirection::Output) &&
+						(!bPinWidgetForExpanderLeft)
+					)
+				)
+				{
+					// Add the expander arrow
+					FullPinHorizontalRowWidget->InsertSlot(bPinWidgetForExpanderLeft ? 1 : FullPinHorizontalRowWidget->GetChildren()->Num() - 1)
+					.Padding(FMargin(0, 0, 0, 0))
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
+						.ContentPadding(0)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Center)
+						.ClickMethod( EButtonClickMethod::MouseDown )
+						.OnClicked(this, &SControlRigGraphNode::OnExpanderArrowClicked, PinInfo.Index)
+						.ToolTipText(LOCTEXT("ExpandSubPin", "Expand Pin"))
+						[
+							SNew(SImage)
+							.Image(this, &SControlRigGraphNode::GetExpanderImage, PinInfo.Index, bPinWidgetForExpanderLeft, false)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+						.AddMetaData(ExpanderButtonMetadata)
+					];
+				}
+			}
+
+			// adjust the padding
+			{
+				const int32 SlotToAdjustIndex = bPinWidgetForExpanderLeft ? 0 : FullPinHorizontalRowWidget->NumSlots() - 1;
+				SHorizontalBox::FSlot& Slot = FullPinHorizontalRowWidget->GetSlot(SlotToAdjustIndex);
+				Slot.SetPadding(LineIndentation);
+			}
+		}
+	}
+
+	// add spacer widget at the start
+	LeftNodeBox->AddSlot()
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Center)
+	.AutoHeight()
+	[
+		SNew(SSpacer)
+		.Size(FVector2D(1.f, 2.f))
+	];
+
+	auto AddArrayPlusButtonLambda = [this](URigVMPin* InModelPin, TSharedPtr<SHorizontalBox> InSlotLayout, const float InEmptySidePadding)
+	{
+		// add array plus button
+		InSlotLayout->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.Padding(PinWidgetSidePadding, TopPadding, InEmptySidePadding, 0.f)
+		[
+			SNew(SButton)
+			.ContentPadding(0.0f)
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
+			.OnClicked(this, &SControlRigGraphNode::HandleAddArrayElement, InModelPin->GetPinPath())
+			.IsEnabled(this, &SGraphNode::IsNodeEditable)
+			.Cursor(EMouseCursor::Default)
+			.Visibility(this, &SControlRigGraphNode::GetArrayPlusButtonVisibility, InModelPin)
+			.ToolTipText(LOCTEXT("AddArrayElement", "Add Array Element"))
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
+				]
+			]
+		];
+	};
+
+	for(const FPinInfo& PinInfo : PinInfos)
+	{
+		if(PinInfo.InputPinWidget.IsValid())
+		{
+			if(PinInfo.bHideInputWidget)
+			{
+				if(PinInfo.InputPinWidget->GetValueWidget() != SNullWidget::NullWidget)
+				{
+					PinInfo.InputPinWidget->GetValueWidget()->SetVisibility(EVisibility::Collapsed);
+				}
+			}
+				
+			// input pins
+			if(!PinInfo.OutputPinWidget.IsValid())
+			{
+				TSharedPtr<SHorizontalBox> SlotLayout;
+				SHorizontalBox::FSlot* FirstSlot = nullptr;
+
+				const float MyEmptySidePadding = PinInfo.bHideInputWidget ? EmptySidePadding : 0.f; 
+				
+				LeftNodeBox->AddSlot()
+                .HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.AutoHeight()
+				.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
+                [
+                    SAssignNew(SlotLayout, SHorizontalBox)
+                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
+		            
+                    +SHorizontalBox::Slot()
+                    .Expose(FirstSlot)
+                    .FillWidth(1.f)
+                    .HAlign(HAlign_Left)
+                    .Padding(PinWidgetSidePadding, TopPadding, PinInfo.bIsContainer ? 0.f : MyEmptySidePadding, 0.f)
+                    [
+                        PinInfo.InputPinWidget.ToSharedRef()
+                    ]
+                ];
+
+				if(PinInfo.bIsContainer)
+				{
+					URigVMPin* ModelPin = ModelNode->GetGraph()->FindPin(PinInfo.ModelPinPath);
+					if(ModelPin)
+					{
+						// make sure to minimize the width of the label
+						FirstSlot->SetAutoWidth();
+						AddArrayPlusButtonLambda(ModelPin, SlotLayout, MyEmptySidePadding);
+					}
+				}
+			}
+			// io pins
+			else
+			{
+				TSharedPtr<SHorizontalBox> SlotLayout;
+				SHorizontalBox::FSlot* FirstSlot = nullptr;
+
+				PinInfo.OutputPinWidget->SetShowLabel(false);
+			
+				LeftNodeBox->AddSlot()
+                .HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+                .AutoHeight()
+				.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
+                [
+                    SAssignNew(SlotLayout, SHorizontalBox)
+                    .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
+
+                    +SHorizontalBox::Slot()
+					.Expose(FirstSlot)
+                    .FillWidth(1.f)
+                    .HAlign(HAlign_Left)
+                    .VAlign(VAlign_Center)
+                    .Padding(PinWidgetSidePadding, TopPadding, 0.f, 0.f)
+                    [
+                        PinInfo.InputPinWidget.ToSharedRef()
+                    ]
+                ];
+
+				if(PinInfo.bIsContainer)
+				{
+					URigVMPin* ModelPin = ModelNode->GetGraph()->FindPin(PinInfo.ModelPinPath);
+					if(ModelPin)
+					{
+						// make sure to minimize the width of the label
+						FirstSlot->SetAutoWidth();
+						AddArrayPlusButtonLambda(ModelPin, SlotLayout, EmptySidePadding);
+					}
+				}
+
+				SlotLayout->AddSlot()
+				.FillWidth(1.f)
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.Padding(0.f, TopPadding, PinWidgetSidePadding, 0.f)
+				[
+					PinInfo.OutputPinWidget.ToSharedRef()
+				];
+			}
+		}
+		// output pins
+		else if(PinInfo.OutputPinWidget.IsValid())
+		{
+			LeftNodeBox->AddSlot()
+            .HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+            .AutoHeight()
+			.MaxHeight(PinInfo.bAutoHeight ? TAttribute<float>() : MaxHeight)
+            [
+            	SNew(SHorizontalBox)
+	            .Visibility(this, &SControlRigGraphNode::GetPinVisibility, PinInfo.Index)
+	            
+				+SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+	            .Padding(EmptySidePadding, TopPadding, PinWidgetSidePadding, 0.f)
+				[
+	                PinInfo.OutputPinWidget.ToSharedRef()
+				]
+            ];
+		}
+	}
+
+	if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
+	{
+		TWeakObjectPtr<URigVMFunctionReferenceNode> WeakFunctionReferenceNode = FunctionReferenceNode;
+		TWeakObjectPtr<UControlRigBlueprint> WeakControlRigBlueprint = Blueprint;
+
+		// add the entries for the variable remapping
+		for(const TSharedPtr<FRigVMExternalVariable>& ExternalVariable : RigGraphNode->ExternalVariables)
+		{
+			LeftNodeBox->AddSlot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.AutoHeight()
+			.MaxHeight(MaxHeight)
+			[
+				SNew(SHorizontalBox)
+	            
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(PinWidgetSidePadding, TopPadding, PinWidgetSidePadding, 0.f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromName(ExternalVariable->Name))
+					.TextStyle(FAppStyle::Get(), NAME_DefaultPinLabelStyle)
+					.ColorAndOpacity(this, &SControlRigGraphNode::GetVariableLabelTextColor, WeakFunctionReferenceNode, ExternalVariable->Name)
+					.ToolTipText(this, &SControlRigGraphNode::GetVariableLabelTooltipText, WeakControlRigBlueprint, ExternalVariable->Name)
+				]
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(PinWidgetSidePadding, TopPadding, PinWidgetSidePadding, 0.f)
+				[
+					SNew(SControlRigVariableBinding)
+					.Blueprint(Blueprint.Get())
+					.FunctionReferenceNode(FunctionReferenceNode)
+					.InnerVariableName(ExternalVariable->Name)
+				]
+			];
+		}
+	}
+
+	CreateAggregateAddPinButton();
+	
+	// add spacer widget at the end
+	LeftNodeBox->AddSlot()
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Center)
+	.AutoHeight()
+	[
+		SNew(SSpacer)
+		.Size(FVector2D(1.f, 4.f))
+	];
 }
 
 #undef LOCTEXT_NAMESPACE

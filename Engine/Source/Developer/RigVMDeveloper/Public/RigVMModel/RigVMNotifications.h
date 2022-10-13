@@ -51,6 +51,7 @@ enum class ERigVMGraphNotifType : uint8
 	NodeKeywordsChanged, // A node's keywords have changed (Subject == URigVMNode)
 	NodeDescriptionChanged, // A node's description has changed (Subject == URigVMNode)
 	VariableRemappingChanged, // A function reference node's remapping has changed (Subject == URigVMFunctionReferenceNode)
+	LibraryTemplateChanged, // The definition of a library node's template has changed
 	Invalid // The max for this enum (used for guarding)
 };
 

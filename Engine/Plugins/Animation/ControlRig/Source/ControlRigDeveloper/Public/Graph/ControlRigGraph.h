@@ -86,6 +86,7 @@ public:
 	const UControlRigGraph* GetRootGraph() const;
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+	void ConsumeQueuedNotifications();
 
 	int32 GetInstructionIndex(const UControlRigGraphNode* InNode, bool bAsInput);
 

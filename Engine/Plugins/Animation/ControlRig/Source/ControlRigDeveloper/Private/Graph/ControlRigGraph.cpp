@@ -436,11 +436,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		}
 		case ERigVMGraphNotifType::NodeAdded:
 		{
-			ModelNodePathToEdNode.Reset();
-
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
-			
 				if (!ModelNode->IsVisibleInUI())
 				{
 					if (URigVMInjectionInfo* Injection = ModelNode->GetInjectionInfo())
@@ -489,6 +486,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->NodeComment = CommentModelNode->GetCommentText();
 					NewNode->SetFlags(RF_Transactional);
 					NewNode->GetNodesUnderComment();
+
+					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
 				}
 				else if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
 				{
@@ -504,12 +503,13 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->NodePosY = ModelNode->GetPosition().Y;
 
 					NewNode->SetFlags(RF_Transactional);
-					NewNode->AllocateDefaultPins();
 
 					if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelNode->FindPin("Value")->GetPinPath()))
 					{
 						NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
 					}
+
+					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
 				}
 				else // struct, library, parameter + variable
 				{
@@ -520,31 +520,29 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					NewNode->CreateNewGuid();
 					NewNode->PostPlacedNewNode();
 					NewNode->AllocateDefaultPins();
+					NewNode->PostReconstructNode();
 
 					NewNode->NodePosX = ModelNode->GetPosition().X;
 					NewNode->NodePosY = ModelNode->GetPosition().Y;
 					NewNode->SetColorFromModel(ModelNode->GetNodeColor());
 					NewNode->SetFlags(RF_Transactional);
-					NewNode->AllocateDefaultPins();
+
+					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
 				}
 			}
 			break;
 		}
 		case ERigVMGraphNotifType::NodeRemoved:
 		{
-			ModelNodePathToEdNode.Reset();
-
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
 				if (URigVMInjectionInfo* Injection = ModelNode->GetInjectionInfo())
 				{
 					if (URigVMPin* ModelPin = Injection->GetPin())
 					{
-						URigVMNode* ParentModelNode = ModelPin->GetNode();
-						if (ParentModelNode)
+						if (URigVMNode* ParentModelNode = ModelPin->GetNode())
 						{
-							UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName());
-							if (EdNode)
+							if (UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName()))
 							{
 								if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 								{
@@ -556,8 +554,9 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					break;
 				}
 
-				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false);
-				if (EdNode)
+				ModelNodePathToEdNode.Remove(ModelNode->GetFName());
+
+				if (UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false))
 				{
 					RemoveNode(EdNode);
 				}
@@ -599,8 +598,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			{
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
 				{
-					RigNode->InvalidateNodeTitle();
-					RigNode->ReconstructNode_Internal(true);
+					RigNode->SyncGraphNodeTitleWithModelNodeTitle();
 				}
 			}
 			break;
@@ -722,7 +720,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					{
 						if(ModelPin->GetNode()->IsEvent())
 						{
-							RigNode->InvalidateNodeTitle();
+							RigNode->SyncGraphNodeTitleWithModelNodeTitle();
 						}
 						break;
 					}
@@ -733,13 +731,13 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					{
 						if (ModelPin->GetName() == TEXT("Variable"))
 						{
-							RigNode->InvalidateNodeTitle();
-							RigNode->ReconstructNode_Internal(true);
+							RigNode->SyncGraphNodeTitleWithModelNodeTitle();
+							RigNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
 						}
 					}
 					else if (Cast<URigVMUnitNode>(ModelPin->GetNode()))
 					{
-						RigNode->InvalidateNodeTitle();
+						RigNode->SyncGraphNodeTitleWithModelNodeTitle();
 
 						// if the node contains a rig element key - invalidate the node
 						if(RigNode->GetAllPins().ContainsByPredicate([](UEdGraphPin* Pin) -> bool
@@ -748,7 +746,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 						}))
 						{
 							// we do this to enforce the refresh of the element name widgets
-							RigNode->ReconstructNode_Internal(true);
+							RigNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
 						}
 					}
 				}
@@ -766,7 +764,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 								{
 									if (UControlRigGraphNode* HostRigNode = Cast<UControlRigGraphNode>(HostEdNode))
 									{
-										HostRigNode->ReconstructNode_Internal(true);
+										HostRigNode->ModelPinsChanged();
 									}
 								}
 							}
@@ -776,36 +774,95 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			}
 			break;
 		}
+		case ERigVMGraphNotifType::PinAdded:
+		{
+			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+			{
+				if(URigVMNode* ModelNode = ModelPin->GetNode())
+				{
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
+					{
+						RigNode->ModelPinAdded(ModelPin);
+					}
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::PinRemoved:
+		{
+			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+			{
+				if(URigVMNode* ModelNode = ModelPin->GetNode())
+				{
+					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
+					{
+						RigNode->ModelPinRemoved(ModelPin);
+					}
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::PinArraySizeChanged:
+		{
+			// don't do anything here - the UI will update based on the
+			// PinAdded and PinRemoved notifs
+			break;
+		}
 		case ERigVMGraphNotifType::PinDirectionChanged:
-		case ERigVMGraphNotifType::PinTypeChanged:
 		case ERigVMGraphNotifType::PinIndexChanged:
 		case ERigVMGraphNotifType::PinBoundVariableChanged:
-		case ERigVMGraphNotifType::PinAdded:
-		case ERigVMGraphNotifType::PinRemoved:
+		{
+			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
+				{
+					RigNode->ModelPinsChanged();
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::LibraryTemplateChanged:
+		{
+			if (URigVMNode* LibraryNode = Cast<URigVMNode>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(LibraryNode->GetFName())))
+				{
+					RigNode->ModelPinsChanged(true);
+				}
+			}
+			break;
+		}
+		case ERigVMGraphNotifType::PinTypeChanged:
+		{
+			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
+				{
+					RigNode->SynchronizeGraphPinTypeWithModelPin(ModelPin);
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::PinRenamed:
 		{
 			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
 			{
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
 				{
-					RigNode->ReconstructNode_Internal(true);
+					RigNode->SynchronizeGraphPinNameWithModelPin(ModelPin);
 				}
 			}
 			break;
 		}
 		case ERigVMGraphNotifType::NodeRenamed:
 		{
-			ModelNodePathToEdNode.Reset();
-				
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
+				ModelNodePathToEdNode.Remove(ModelNode->GetPreviousFName());
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetPreviousFName())))
 				{
-					RigNode->Rename(*ModelNode->GetName());
-					RigNode->ModelNodePath = ModelNode->GetNodePath();
-					RigNode->InvalidateNodeTitle();
-					RigNode->ReconstructNode_Internal(true);
+					RigNode->SyncGraphNodeNameWithModelNodeName(ModelNode);
+					ModelNodePathToEdNode.Add(ModelNode->GetFName(), RigNode);
 				}
 			}
 			break;
@@ -817,7 +874,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			{
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
 				{
-					RigNode->InvalidateNodeTitle();
+					RigNode->SyncGraphNodeTitleWithModelNodeTitle();
 				}
 			}
 			break;
@@ -849,6 +906,16 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			break;
 		}
 		case ERigVMGraphNotifType::PinExpansionChanged:
+		{
+			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
+				{
+					RigNode->OnNodePinExpansionChanged().Broadcast();
+				}
+			}
+			break;
+		}
 		default:
 		{
 			break;
