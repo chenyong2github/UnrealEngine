@@ -246,7 +246,7 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostRegisterAllComponents() override;
 	virtual void PostActorCreated() override;
-	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
+	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override;
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;

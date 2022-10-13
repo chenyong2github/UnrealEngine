@@ -8,6 +8,7 @@
 
 #include "CoreFwd.h"
 #include "UObject/Interface.h"
+#include "Templates/SharedPointer.h"
 
 #include "TypedElementWorldInterface.generated.h"
 
@@ -50,6 +51,22 @@ private:
 
 	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|World|DeletionOptions", meta=(AllowPrivateAccess=true))
 	bool bWarnAboutSoftReferences = true;
+};
+
+struct FWorldElementPasteImporter
+{
+	virtual ~FWorldElementPasteImporter() = default;
+
+	struct FContext
+	{
+		FTypedElementListConstPtr CurrentSelection;
+		UWorld* World;
+		FStringView Text;
+	};
+	
+	virtual void Import(FContext& Context) {}
+	
+	virtual TArray<FTypedElementHandle> GetImportedElements() { return {}; }
 };
 
 UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
@@ -197,6 +214,31 @@ public:
 	 */
 	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 	{
+	}
+
+	virtual bool CanCopyElement(const FTypedElementHandle& InElementHandle) { return false; }
+
+	/**
+	 * Copy the given element into a object to export
+	 * 
+	 * @note Default version calls CopyElements with a single element.
+	 */
+	virtual void CopyElement(const FTypedElementHandle& InElementHandle, FOutputDevice& Out)
+	{
+		CopyElements(MakeArrayView(&InElementHandle, 1), Out);
+	}
+
+	/**
+	 * Copy the given set of elements into a object to export.
+	 * @note If you want to copy an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::CopyNormalizedElements function instead.
+	 */
+	virtual void CopyElements(TArrayView<const FTypedElementHandle> InElementHandles, FOutputDevice& Out)
+	{
+	}
+	
+	virtual TSharedPtr<FWorldElementPasteImporter> GetPasteImporter()
+	{
+		return {};
 	}
 
 	/**
@@ -419,6 +461,8 @@ struct TTypedElement<ITypedElementWorldInterface> : public TTypedElementBase<ITy
 	bool DeleteElement(UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) const { return InterfacePtr->DeleteElement(*this, InWorld, InSelectionSet, InDeletionOptions); }
 	bool CanDuplicateElement() const { return InterfacePtr->CanDuplicateElement(*this); }
 	FTypedElementHandle DuplicateElement(UWorld* InWorld, const FVector& InLocationOffset) const { return InterfacePtr->DuplicateElement(*this, InWorld, InLocationOffset); }
+	bool CanCopyElement() const { return InterfacePtr->CanCopyElement(*this); }
+	void CopyElement(FOutputDevice& Out) const { InterfacePtr->CopyElement(*this, Out); }
 	bool CanPromoteElement() const { return InterfacePtr->CanPromoteElement(*this); }
 	FTypedElementHandle PromoteElement(UWorld* OverrideWorld = nullptr) const { return InterfacePtr->PromoteElement(*this, OverrideWorld); }
 	bool IsElementInConvexVolume(const FConvexVolume& InVolume, bool bMustEncompassEntireElement = false) const { return InterfacePtr->IsElementInConvexVolume(*this, InVolume, bMustEncompassEntireElement); }

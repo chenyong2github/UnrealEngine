@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Actor/ActorElementEditorWorldInterface.h"
+
 #include "Elements/Actor/ActorElementData.h"
+#include "Elements/Actor/ActorElementEditorCopyAndPaste.h"
 #include "GameFramework/Actor.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
@@ -92,7 +94,9 @@ void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FType
 
 		TArray<AActor*> NewActors;
 		ABrush::SetSuppressBSPRegeneration(true);
-		GUnrealEd->DuplicateActors(ActorsToDuplicate, NewActors, InWorld->GetCurrentLevel(), InLocationOffset);
+		ULevel* Level = InWorld->GetCurrentLevel();
+		TGuardValue DisablePrompt(Level->bPromptWhenAddingToLevelOutsideBounds, false);
+		GUnrealEd->DuplicateActors(ActorsToDuplicate, NewActors, Level, InLocationOffset);
 		ABrush::SetSuppressBSPRegeneration(false);
 
 		FEditorDelegates::OnDuplicateActorsEnd.Broadcast();
@@ -112,6 +116,32 @@ void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FType
 			GEditor->RebuildAlteredBSP();
 		}
 	}
+}
+
+bool UActorElementEditorWorldInterface::CanCopyElement(const FTypedElementHandle& InElementHandle)
+{
+	return true;
+}
+
+void UActorElementEditorWorldInterface::CopyElements(TArrayView<const FTypedElementHandle> InElementHandles, FOutputDevice& Out)
+{
+	TArray<AActor*> Actors = ActorElementDataUtil::GetActorsFromHandles(InElementHandles);
+
+	if (Actors.IsEmpty())
+	{
+		return;
+	}
+	
+	UActorElementsCopy* ActorElementsCopy = NewObject<UActorElementsCopy>();
+	ActorElementsCopy->ActorsToCopy = Actors;
+
+	constexpr int32 Indent = 3;
+	UExporter::ExportToOutputDevice(nullptr, ActorElementsCopy, nullptr, Out, TEXT("copy"), Indent, PPF_DeepCompareInstances);
+}
+
+TSharedPtr<FWorldElementPasteImporter> UActorElementEditorWorldInterface::GetPasteImporter()
+{
+	return MakeShared<FActorElementEditorPasteImporter>();
 }
 
 bool UActorElementEditorWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)

@@ -4263,7 +4263,7 @@ void ALandscape::PostActorCreated()
 	bIncludeGridSizeInNameForLandscapeActors = true;
 }
 
-bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
+bool ALandscape::ShouldImport(FStringView ActorPropString, bool IsMovingLevel)
 {
 	return GetWorld() != nullptr && !GetWorld()->IsGameWorld();
 }
@@ -6597,14 +6597,14 @@ bool ALandscapeProxy::ShouldExport()
 	return true;
 }
 
-bool ALandscapeProxy::ShouldImport(FString* ActorPropString, bool IsMovingToLevel)
+bool ALandscapeProxy::ShouldImport(FStringView ActorPropString, bool IsMovingToLevel)
 {
 	bIsMovingToLevel = IsMovingToLevel;
-	if (!bIsMovingToLevel && ActorPropString && ActorPropString->Len() > MAX_LANDSCAPE_PROP_TEXT_LENGTH)
+	if (!bIsMovingToLevel && ActorPropString.Len() > MAX_LANDSCAPE_PROP_TEXT_LENGTH)
 	{
 		// Prompt to save startup packages
 		if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
-			NSLOCTEXT("UnrealEd", "LandscapeImport_Warning", "Landscape is about to import large amount memory ({0}MB) from the clipboard, which will take some time. Do you want to proceed?"), FText::AsNumber(ActorPropString->Len() >> 20))))
+			NSLOCTEXT("UnrealEd", "LandscapeImport_Warning", "Landscape is about to import large amount memory ({0}MB) from the clipboard, which will take some time. Do you want to proceed?"), FText::AsNumber(ActorPropString.Len() >> 20))))
 		{
 			return true;
 		}

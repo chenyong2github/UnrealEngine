@@ -4094,7 +4094,7 @@ bool AInstancedFoliageActor::ShouldExport()
 	return false;
 }
 
-bool AInstancedFoliageActor::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
+bool AInstancedFoliageActor::ShouldImport(FStringView ActorPropString, bool IsMovingLevel)
 {
 	return false;
 }

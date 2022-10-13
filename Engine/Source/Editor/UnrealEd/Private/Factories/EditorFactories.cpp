@@ -1232,8 +1232,8 @@ UObject* ULevelFactory::FactoryCreateText
 
 		// Import properties if the new actor is 
 		bool		bActorChanged = false;
-		FString&	PropText = ActorMapElement.Value;
-		if ( Actor->ShouldImport(&PropText, bIsMoveToStreamingLevel) )
+		const FString&	PropText = ActorMapElement.Value;
+		if ( Actor->ShouldImport(FStringView(PropText), bIsMoveToStreamingLevel) )
 		{
 			Actor->PreEditChange(nullptr);
 			ImportObjectProperties( (uint8*)Actor, *PropText, Actor->GetClass(), Actor, Actor, Warn, 0, INDEX_NONE, NULL, &ExistingToNewMap );

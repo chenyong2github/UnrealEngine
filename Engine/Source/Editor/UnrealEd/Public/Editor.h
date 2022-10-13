@@ -501,9 +501,7 @@ struct FImportObjectParams
  *
  * @return	NULL if the default values couldn't be imported
  */
-
 const TCHAR* ImportObjectProperties( FImportObjectParams& InParams );
-
 
 /**
  * Parse and import text as property values for the object specified.
@@ -781,6 +779,82 @@ namespace EditorUtilities
 	 * @return	The number of properties that were copied over (properties that were filtered out, or were already identical, are not counted.)
 	 */
 	UNREALED_API int32 CopyActorProperties( AActor* SourceActor, AActor* TargetActor, const FCopyOptions& Options = FCopyOptions(ECopyOptions::Default) );
+
+
+	// ==== Multi step import utilities ====
+
+	/**
+	 * Parameters for the ImportCreateObjectStep and ImportObjectPropertiesStep. Used for multi steps import.
+	 */
+	struct FMultiStepsImportObjectParams
+	{
+		/** The location to import the property values to */
+		uint8* DestData = nullptr;
+
+		/** Text buffer containing the values that should be parsed and imported */
+		FStringView SourceText;
+
+		/** The struct for the data we're importing */
+		UStruct* ObjectStruct = nullptr;
+
+		/** The original object that ImportObjectProperties was called for.
+			If SubobjectOuter is a subobject, corresponds to the first object in SubobjectOuter's Outer chain that is not a subobject itself.
+			If SubobjectOuter is not a subobject, should normally be the same value as SubobjectOuter */
+		UObject* SubobjectRoot = nullptr;
+
+		/** The object corresponding to DestData; this is the object that will used as the outer when creating subobjects from definitions contained in SourceText */
+		UObject* SubobjectOuter = nullptr;
+
+		/** Output device to use for log messages */
+		FFeedbackContext*	Warn = nullptr;
+
+		/** Current nesting level */
+		int32 Depth = 0;
+
+		/** Used when importing defaults during script compilation for tracking which line we're currently for the purposes of printing compile errors */
+		int32 LineNumber = INDEX_NONE;
+
+		/** Contains the mappings of instanced objects and components to their templates; used when recursively calling ImportObjectProperties; generally
+			not necessary to specify a value when calling this function from other code */
+		FObjectInstancingGraph* InInstanceGraph = nullptr;
+
+		/** 
+		 * Provides a mapping from an exported path to a new instance to which it should be remapped 
+		 * Imported object will be added to this map when possible during the create objects step.
+		 */
+		TMap<FString, UObject*>* ObjectRemapper = nullptr;
+
+		/** 
+		 * Tell what properties shouldn't be imported when importing the properties
+		 */
+		TSet<FProperty*>* PropertiesToSkip = nullptr;
+
+		/** True if we should call PreEditChange/PostEditChange on the object as it's imported. Pass false here
+			if you're going to do that on your own. */
+		bool bShouldCallEditChange = false;
+	};
+
+	/**
+	 * Parse text and create the objects for the object specified.
+	 * See ImportObjectPropertiesStep for the next step of the multi steps object import
+	 * 
+	 * @param	InParams	Parameters for object the multistep object import; see declaration of FMultiStepsImportObjectParams.
+	 *
+	 * @return	nullptr if the objects couldn't be imported
+	 */
+	UNREALED_API const TCHAR* ImportCreateObjectsStep(FMultiStepsImportObjectParams& InParams);
+
+	/**
+	 * Parse text and import the properties for the object specified and its subobjects.
+	 * Call ImportCreateObjectsStep before calling this function to create the subobjects
+	 * 
+	 * @param	InParams	Parameters for object the multistep object import; see declaration of FMultiStepsImportObjectParams.
+	 *
+	 * @return	nullptr if the values couldn't be imported
+	 */
+	UNREALED_API const TCHAR* ImportObjectsPropertiesStep(FMultiStepsImportObjectParams& InParams);
+
+
 }
 
 

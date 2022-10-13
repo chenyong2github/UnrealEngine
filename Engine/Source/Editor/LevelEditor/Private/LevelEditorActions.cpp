@@ -45,6 +45,7 @@
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldBrowserModule.h"
 
+#include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Subsystems/EditorElementSubsystem.h"
@@ -1750,7 +1751,20 @@ bool FLevelEditorActionCallbacks::Cut_CanExecute()
 	}
 
 	bool bCanCut = false;
-	if (GEditor->GetSelectedComponentCount() > 0)
+	if (TypedElementCommonActionsUtils::IsElementCopyAndPasteEnabled())
+	{
+		static const FName NAME_LevelEditor = "LevelEditor";
+		if (TSharedPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditor).GetLevelEditorInstance().Pin())
+		{
+			const UTypedElementSelectionSet* SelectionSet = LevelEditor->GetElementSelectionSet();
+			SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([&bCanCut](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
+				{
+					bCanCut |= InWorldElement.CanCopyElement();
+					return !bCanCut;
+				});
+		}
+	}
+	else if (GEditor->GetSelectedComponentCount() > 0)
 	{
 		// Make sure the components can be copied and deleted
 		TArray<UActorComponent*> SelectedComponents;
@@ -1800,7 +1814,20 @@ bool FLevelEditorActionCallbacks::Copy_CanExecute()
 	}
 
 	bool bCanCopy = false;
-	if (GEditor->GetSelectedComponentCount() > 0)
+	if (TypedElementCommonActionsUtils::IsElementCopyAndPasteEnabled())
+	{
+		static const FName NAME_LevelEditor = "LevelEditor";
+		if (TSharedPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditor).GetLevelEditorInstance().Pin())
+		{
+			const UTypedElementSelectionSet* SelectionSet = LevelEditor->GetElementSelectionSet();
+			SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([&bCanCopy](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
+				{
+					bCanCopy |= InWorldElement.CanCopyElement();
+					return !bCanCopy;
+				});
+		}
+	}
+	else if (GEditor->GetSelectedComponentCount() > 0)
 	{
 		TArray<UActorComponent*> SelectedComponents;
 		for (FSelectionIterator It(GEditor->GetSelectedComponentIterator()); It; ++It)
@@ -1848,20 +1875,31 @@ bool FLevelEditorActionCallbacks::Paste_CanExecute()
 	}
 
 	bool bCanPaste = false;
-	if (GEditor->GetSelectedComponentCount() > 0)
+	if (TypedElementCommonActionsUtils::IsElementCopyAndPasteEnabled())
 	{
-		if(ensureMsgf(GEditor->GetSelectedActorCount() == 1, TEXT("Expected SelectedActorCount to be 1 but was %d"), GEditor->GetSelectedActorCount()))
-		{
-			auto SelectedActor = CastChecked<AActor>(*GEditor->GetSelectedActorIterator());
-			bCanPaste = FComponentEditorUtils::CanPasteComponents(SelectedActor->GetRootComponent());
-		}
+		// Todo Copy and Paste find the right logic for a extensible can paste
+		// but for now just set it to true
+		bCanPaste = true;
 	}
-	else
+
+	// Legacy style copy and paste format
+	if (!bCanPaste)
 	{
-		UWorld* World = GetWorld();
-		if (World)
+		if (GEditor->GetSelectedComponentCount() > 0)
 		{
-			bCanPaste = GUnrealEd->CanPasteSelectedActorsFromClipboard(World);
+			if(ensureMsgf(GEditor->GetSelectedActorCount() == 1, TEXT("Expected SelectedActorCount to be 1 but was %d"), GEditor->GetSelectedActorCount()))
+			{
+				auto SelectedActor = CastChecked<AActor>(*GEditor->GetSelectedActorIterator());
+				bCanPaste = FComponentEditorUtils::CanPasteComponents(SelectedActor->GetRootComponent());
+			}
+		}
+		else
+		{
+			UWorld* World = GetWorld();
+			if (World)
+			{
+				bCanPaste = GUnrealEd->CanPasteSelectedActorsFromClipboard(World);
+			}
 		}
 	}
 

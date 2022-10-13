@@ -15,6 +15,7 @@
 #include "Misc/StringBuilder.h"
 #include "HAL/IConsoleManager.h"
 #include "Containers/LazyPrintf.h"
+#include "Containers/StringView.h"
 
 #if !UE_BUILD_SHIPPING 
 /**
@@ -1030,11 +1031,20 @@ bool FParse::Line(const TCHAR** Stream, TCHAR* Result, int32 MaxLen, bool bExact
 
 bool FParse::Line(const TCHAR** Stream, FString& Result, bool bExact)
 {
+	FStringView View;
+	bool bReturnValue = Line(Stream, View, bExact);
+	Result = View;
+	return bReturnValue;
+}
+
+bool FParse::Line(const TCHAR** Stream, FStringView& Result, bool bExact)
+{
 	bool bGotStream = false;
 	bool bIsQuoted = false;
 	bool bIgnore = false;
 
 	Result.Reset();
+	const TCHAR* StartOfLine = nullptr;
 
 	while (**Stream != TEXT('\0') && **Stream != TEXT('\n') && **Stream != TEXT('\r'))
 	{
@@ -1055,14 +1065,19 @@ bool FParse::Line(const TCHAR** Stream, FString& Result, bool bExact)
 		bGotStream = true;
 
 		// Got stuff.
-		if (!bIgnore)
+		if (!bIgnore && !StartOfLine)
 		{
-			Result.AppendChar(*((*Stream)++));
+			StartOfLine = (*Stream)++;
 		}
 		else
 		{
 			(*Stream)++;
 		}
+	}
+
+	if (StartOfLine)
+	{
+		Result = FStringView(StartOfLine, int32((*Stream) - StartOfLine));
 	}
 
 	if (bExact)

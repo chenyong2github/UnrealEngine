@@ -10,6 +10,7 @@
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Elements/Component/ComponentElementEditorCopyAndPaste.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
 void UComponentElementEditorWorldInterface::NotifyMovementStarted(const FTypedElementHandle& InElementHandle)
@@ -80,6 +81,32 @@ void UComponentElementEditorWorldInterface::DuplicateElements(TArrayView<const F
 			OutNewElements.Add(UEngineElementsLibrary::AcquireEditorComponentElementHandle(NewComponent));
 		}
 	}
+}
+
+bool UComponentElementEditorWorldInterface::CanCopyElement(const FTypedElementHandle& InElementHandle)
+{
+	return true;
+}
+
+void UComponentElementEditorWorldInterface::CopyElements(TArrayView<const FTypedElementHandle> InElementHandles, FOutputDevice& Out)
+{
+	TArray<UActorComponent*> Components = ComponentElementDataUtil::GetComponentsFromHandles(InElementHandles);
+
+	if (Components.IsEmpty())
+	{
+		return;
+	}
+
+	UComponentElementsCopy* ActorElementsCopy = NewObject<UComponentElementsCopy>();
+	ActorElementsCopy->ComponentsToCopy = Components;
+
+	int32 const Indent = 3;
+	UExporter::ExportToOutputDevice(nullptr, ActorElementsCopy, nullptr, Out, TEXT("copy"), Indent, PPF_DeepCompareInstances);
+}
+
+TSharedPtr<FWorldElementPasteImporter> UComponentElementEditorWorldInterface::GetPasteImporter()
+{
+	return MakeShared<FComponentElementEditorPasteImporter>();
 }
 
 bool UComponentElementEditorWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)

@@ -476,6 +476,9 @@ void UExporter::EmitBeginObject( FOutputDevice& Ar, UObject* Obj, uint32 PortFla
 		}
 	}
 
+	// Emit the object path
+	Ar.Logf(TEXT(" ExportPath=%s"), *FObjectPropertyBase::GetExportPath(Obj, nullptr, nullptr, PortFlags | (PPF_Delimited  & ~PPF_ExportsNotFullyQualified)));
+
 	// end in a return
 	Ar.Logf(TEXT("\r\n"));
 
@@ -635,6 +638,7 @@ void UExporter::ExportObjectInner(const FExportObjectInnerContext* Context, UObj
 
 		if (AActor* Actor = Cast<AActor>(Object))
 		{
+			// Todo PlacementMode consider removing that code when we it will replace the foliage
 			// Export anything extra for the components. Used for instanced foliage.
 			// This is done after the actor properties so these are set when regenerating the extra data objects.
 			TArray<UActorComponent*> Components;

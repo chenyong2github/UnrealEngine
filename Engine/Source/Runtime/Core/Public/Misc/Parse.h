@@ -57,9 +57,11 @@ struct CORE_API FParse
 	/** Parses a boolean value. */
 	static bool Bool( const TCHAR* Stream, const TCHAR* Match, bool& OnOff );
 	/** Get a line of Stream (everything up to, but not including, CR/LF. Returns 0 if ok, nonzero if at end of stream and returned 0-length string. */
-	static bool Line( const TCHAR** Stream, TCHAR* Result, int32 MaxLen, bool Exact=0 );
+	static bool Line( const TCHAR** Stream, TCHAR* Result, int32 MaxLen, bool Exact= false );
 	/** Get a line of Stream (everything up to, but not including, CR/LF. Returns 0 if ok, nonzero if at end of stream and returned 0-length string. */
-	static bool Line( const TCHAR** Stream, FString& Resultd, bool Exact=0 );
+	static bool Line( const TCHAR** Stream, FString& Result, bool Exact = false );
+	/** Get a line of Stream (everything up to, but not including, CR/LF. Returns 0 if ok, nonzero if at end of stream and returned 0-length string. */
+	static bool Line( const TCHAR** Stream, FStringView& Result, bool Exact = false );
 	/** Get a line of Stream, with support for extending beyond that line with certain characters, e.g. {} and \
 	 * the out character array will not include the ignored endlines
 	 */

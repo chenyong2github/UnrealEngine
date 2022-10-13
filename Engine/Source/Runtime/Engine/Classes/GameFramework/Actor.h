@@ -2321,7 +2321,11 @@ public:
 	virtual bool ShouldExport() { return true; }
 
 	/** Called before editor paste, true allow import */
-	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) { return true; }
+	UE_DEPRECATED(5.1, "Use the override that take a StringView instead instead")
+	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) { return ActorPropString ? ShouldImport(FStringView(), IsMovingLevel) : ShouldImport(FStringView(*ActorPropString), IsMovingLevel); }
+
+	/** Called before editor paste, true allow import */
+	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) { return true; }
 
 	/** Called by InputKey when an unhandled key is pressed with a selected actor */
 	virtual void EditorKeyPressed(FKey Key, EInputEvent Event) {}

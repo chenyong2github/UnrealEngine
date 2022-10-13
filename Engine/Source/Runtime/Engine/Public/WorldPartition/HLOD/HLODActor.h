@@ -80,7 +80,7 @@ protected:
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	virtual FBox GetStreamingBounds() const override;
 
-	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override { return false; }
+	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override { return false; }
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const override { return false; }
 #endif

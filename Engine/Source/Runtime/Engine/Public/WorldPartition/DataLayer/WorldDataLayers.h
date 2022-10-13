@@ -52,7 +52,7 @@ public:
 
 #if WITH_EDITOR
 	virtual bool ShouldLevelKeepRefIfExternal() const override { return true; }
-	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override { return false; }
+	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override { return false; }
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const override { return false; }
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
