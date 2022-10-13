@@ -90,3 +90,55 @@ void RemoveLastElem_{ParameterName}_UEImpureCall(bool bSkip, out {VariableType} 
 	{RWBufferRead}
 	#undef BUFFER_NAME
 }
+
+#if {bSupportsAtomicOps}
+
+void AtomicAdd_{ParameterName}_UEImpureCall(bool bSkip, int Index, int Value, out {VariableType} PrevValue, out {VariableType} CurrValue)
+{
+	bool bIsValidIndex;
+	IsValidIndex_{ParameterName}(Index, bIsValidIndex);
+	if ( !bSkip && bIsValidIndex )
+	{
+		InterlockedAdd({ParameterName}_ArrayRWBuffer[Index], Value, PrevValue);
+		CurrValue = PrevValue + Value;
+	}
+	else
+	{
+		PrevValue = 0;
+		CurrValue = 0;
+	}
+}
+
+void AtomicMin_{ParameterName}_UEImpureCall(bool bSkip, int Index, int Value, out {VariableType} PrevValue, out {VariableType} CurrValue)
+{
+	bool bIsValidIndex;
+	IsValidIndex_{ParameterName}(Index, bIsValidIndex);
+	if ( !bSkip && bIsValidIndex )
+	{
+		InterlockedMin({ParameterName}_ArrayRWBuffer[Index], Value, PrevValue);
+		CurrValue = PrevValue + Value;
+	}
+	else
+	{
+		PrevValue = 0;
+		CurrValue = 0;
+	}
+}
+
+void AtomicMax_{ParameterName}_UEImpureCall(bool bSkip, int Index, int Value, out {VariableType} PrevValue, out {VariableType} CurrValue)
+{
+	bool bIsValidIndex;
+	IsValidIndex_{ParameterName}(Index, bIsValidIndex);
+	if ( !bSkip && bIsValidIndex )
+	{
+		InterlockedMax({ParameterName}_ArrayRWBuffer[Index], Value, PrevValue);
+		CurrValue = PrevValue + Value;
+	}
+	else
+	{
+		PrevValue = 0;
+		CurrValue = 0;
+	}
+}
+
+#endif

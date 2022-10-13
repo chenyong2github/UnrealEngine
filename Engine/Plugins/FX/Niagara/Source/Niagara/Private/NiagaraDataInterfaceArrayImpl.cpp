@@ -16,6 +16,10 @@ const FName FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName(TEXT
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_AddName(TEXT("Add"));
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_RemoveLastElemName(TEXT("RemoveLastElem"));
 
+const FName FNiagaraDataInterfaceArrayImplHelper::Function_AtomicAddName("AtomicAdd");
+const FName FNiagaraDataInterfaceArrayImplHelper::Function_AtomicMinName("AtomicMin");
+const FName FNiagaraDataInterfaceArrayImplHelper::Function_AtomicMaxName("AtomicMax");
+
 #if WITH_EDITORONLY_DATA
 bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
@@ -60,3 +64,20 @@ bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionS
 	return true;
 }
 #endif
+
+bool FNiagaraDataInterfaceArrayImplHelper::IsRWFunction(const FName FunctionName)
+{
+	static const TSet<FName> RWFunctions =
+	{
+		Function_ClearName,
+		Function_ResizeName,
+		Function_SetArrayElemName,
+		Function_AddName,
+		Function_RemoveLastElemName,
+
+		Function_AtomicAddName,
+		Function_AtomicMinName,
+		Function_AtomicMaxName,
+	};
+	return RWFunctions.Contains(FunctionName);
+}

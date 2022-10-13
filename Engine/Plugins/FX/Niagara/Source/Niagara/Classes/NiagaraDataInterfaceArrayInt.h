@@ -11,6 +11,8 @@ struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 {
 	typedef int32 TVMArrayType;
 
+	static constexpr bool bSupportsAtomicOps = true;
+
 	static constexpr TCHAR const* HLSLVariableType = TEXT("int");
 	static constexpr EPixelFormat ReadPixelFormat = PF_R32_SINT;
 	static constexpr TCHAR const* ReadHLSLBufferType = TEXT("int");
@@ -22,6 +24,29 @@ struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetIntDef(); }
 	static const int32 GetDefaultValue() { return 0; }
+
+	static int32 AtomicAdd(int32* Dest, int32 Value)
+	{
+		return FPlatformAtomics::InterlockedAdd(Dest, Value);
+	}
+	static int32 AtomicMin(int32* Dest, int32 Value)
+	{
+		int32 PrevValue = *Dest;
+		while (PrevValue > Value)
+		{
+			PrevValue = FPlatformAtomics::InterlockedCompareExchange(Dest, Value, PrevValue);
+		}
+		return PrevValue;
+	}
+	static int32 AtomicMax(int32* Dest, int32 Value)
+	{
+		int32 PrevValue = *Dest;
+		while (PrevValue < Value)
+		{
+			PrevValue = FPlatformAtomics::InterlockedCompareExchange(Dest, Value, PrevValue);
+		}
+		return PrevValue;
+	}
 };
 
 template<>
