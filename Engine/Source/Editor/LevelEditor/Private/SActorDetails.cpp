@@ -488,8 +488,7 @@ void SActorDetails::RefreshTopLevelElements(TArrayView<const TTypedElement<IType
 	// Update the underlying details view and the Elements buttons
 	SetElementDetailsObjects(TopLevelElements, bForceRefresh, bOverrideLock, &InDetailsElements);
 
-	// Update the Subobject tree if we were asked to edit a single actor
-	if (AActor* Actor = GetActorContext())
+	// Update the Subobject tree
 	{
 		// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
 		TGuardValue<bool> SelectionGuard(bSelectionGuard, true);

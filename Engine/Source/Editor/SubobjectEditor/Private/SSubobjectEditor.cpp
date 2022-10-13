@@ -2459,14 +2459,8 @@ void SSubobjectEditor::UpdateTree(bool bRegenerateTreeNodes /* = true */)
 		return;
 	}
 
-	UObject* Context = GetObjectContext();
-
-	if (bRegenerateTreeNodes && Context)
+	if (bRegenerateTreeNodes)
 	{
-		// Obtain the set of expandable tree nodes that are currently collapsed
-		TSet<FSubobjectEditorTreeNodePtrType> CollapsedTreeNodes;
-		GetCollapsedNodes(RootNodes.Num() > 0 ? RootNodes[0] : FSubobjectEditorTreeNodePtrType(), CollapsedTreeNodes);
-
 		// Obtain the list of selected items
 		TArray<FSubobjectEditorTreeNodePtrType> SelectedTreeNodes = GetSelectedNodes();
 
@@ -2477,75 +2471,78 @@ void SSubobjectEditor::UpdateTree(bool bRegenerateTreeNodes /* = true */)
 		}
 		RootNodes.Empty();
 
-		ensureMsgf(FModuleManager::Get().LoadModule("SubobjectDataInterface"), TEXT("The Subobject Data Interface module is required."));
-
-		USubobjectDataSubsystem* DataSubsystem = USubobjectDataSubsystem::Get();
-		check(DataSubsystem);
-
-		TArray<FSubobjectDataHandle> SubobjectData;
-				
-		DataSubsystem->GatherSubobjectData(Context, SubobjectData);
-		
-		FSubobjectEditorTreeNodePtrType SeperatorNode;
-		TMap<FSubobjectDataHandle, FSubobjectEditorTreeNodePtrType> AddedNodes;
-
-		// By default, root node will always be expanded. If possible we will restore the collapsed state later.
-		if (SubobjectData.Num() > 0)
+		if (UObject* Context = GetObjectContext())
 		{
-			FSubobjectEditorTreeNodePtrType Node = MakeShareable<FSubobjectEditorTreeNode>(
-				new FSubobjectEditorTreeNode(SubobjectData[0]));
-			RootNodes.Add(Node);
-			AddedNodes.Add(Node->GetDataHandle(), Node);
-			CachedRootHandle = Node->GetDataHandle();
-			
-			TreeWidget->SetItemExpansion(Node, true);
-			TreeWidget->SetItemExpansion(SeperatorNode, true);
+			ensureMsgf(FModuleManager::Get().LoadModule("SubobjectDataInterface"), TEXT("The Subobject Data Interface module is required."));
 
-			RefreshFilteredState(Node, false);
-		}
+			USubobjectDataSubsystem* DataSubsystem = USubobjectDataSubsystem::Get();
+			check(DataSubsystem);
 
-		// Create slate nodes for each subobject
-		for (FSubobjectDataHandle& Handle : SubobjectData)
-		{
-			// Do we have a slate node for this handle already? If not, then we need to make one
-			FSubobjectEditorTreeNodePtrType NewNode = SSubobjectEditor::FindOrCreateSlateNodeForHandle(Handle, AddedNodes);
-			
-			FSubobjectData* Data = Handle.GetData();
+			TArray<FSubobjectDataHandle> SubobjectData;
 
-			const FSubobjectDataHandle& ParentHandle = Data->GetParentHandle();
+			DataSubsystem->GatherSubobjectData(Context, SubobjectData);
 
-			// Have parent? 
-			if (ParentHandle.IsValid())
+			FSubobjectEditorTreeNodePtrType SeperatorNode;
+			TMap<FSubobjectDataHandle, FSubobjectEditorTreeNodePtrType> AddedNodes;
+
+			// By default, root node will always be expanded. If possible we will restore the collapsed state later.
+			if (SubobjectData.Num() > 0)
 			{
-				// Get the parent node for this subobject
-				FSubobjectEditorTreeNodePtrType ParentNode = SSubobjectEditor::FindOrCreateSlateNodeForHandle(ParentHandle, AddedNodes);
+				FSubobjectEditorTreeNodePtrType Node = MakeShareable<FSubobjectEditorTreeNode>(
+					new FSubobjectEditorTreeNode(SubobjectData[0]));
+				RootNodes.Add(Node);
+				AddedNodes.Add(Node->GetDataHandle(), Node);
+				CachedRootHandle = Node->GetDataHandle();
 
-				check(ParentNode);
-				ParentNode->AddChild(NewNode);
-				TreeWidget->SetItemExpansion(ParentNode, true);			
+				TreeWidget->SetItemExpansion(Node, true);
+				TreeWidget->SetItemExpansion(SeperatorNode, true);
 
-				// Add a seperator after the default scene root, but only if there are more items below it
-				if (Data->IsDefaultSceneRoot() && Data->IsInheritedComponent() && SubobjectData.Find(Handle) < SubobjectData.Num() - 1)
-				{
-					SeperatorNode = MakeShareable<FSubobjectEditorTreeNode>(
-						new FSubobjectEditorTreeNode(FSubobjectDataHandle::InvalidHandle, /** bIsSeperator */true));
-					AddedNodes.Add(SeperatorNode->GetDataHandle(), SeperatorNode);
-					ParentNode->AddChild(SeperatorNode);
-				}
-				
+				RefreshFilteredState(Node, false);
 			}
-			TreeWidget->SetItemExpansion(NewNode, true);
-		}
 
-		RestoreSelectionState(SelectedTreeNodes);
-
-		// If we have a pending deferred rename request, redirect it to the new tree node
-		if(DeferredRenameRequest.IsValid())
-		{
-			FSubobjectEditorTreeNodePtrType NodeToRenamePtr = FindSlateNodeForHandle(DeferredRenameRequest);
-			if(NodeToRenamePtr.IsValid())
+			// Create slate nodes for each subobject
+			for (FSubobjectDataHandle& Handle : SubobjectData)
 			{
-				TreeWidget->RequestScrollIntoView(NodeToRenamePtr);
+				// Do we have a slate node for this handle already? If not, then we need to make one
+				FSubobjectEditorTreeNodePtrType NewNode = SSubobjectEditor::FindOrCreateSlateNodeForHandle(Handle, AddedNodes);
+
+				FSubobjectData* Data = Handle.GetData();
+
+				const FSubobjectDataHandle& ParentHandle = Data->GetParentHandle();
+
+				// Have parent? 
+				if (ParentHandle.IsValid())
+				{
+					// Get the parent node for this subobject
+					FSubobjectEditorTreeNodePtrType ParentNode = SSubobjectEditor::FindOrCreateSlateNodeForHandle(ParentHandle, AddedNodes);
+
+					check(ParentNode);
+					ParentNode->AddChild(NewNode);
+					TreeWidget->SetItemExpansion(ParentNode, true);
+
+					// Add a seperator after the default scene root, but only if there are more items below it
+					if (Data->IsDefaultSceneRoot() && Data->IsInheritedComponent() && SubobjectData.Find(Handle) < SubobjectData.Num() - 1)
+					{
+						SeperatorNode = MakeShareable<FSubobjectEditorTreeNode>(
+							new FSubobjectEditorTreeNode(FSubobjectDataHandle::InvalidHandle, /** bIsSeperator */true));
+						AddedNodes.Add(SeperatorNode->GetDataHandle(), SeperatorNode);
+						ParentNode->AddChild(SeperatorNode);
+					}
+
+				}
+				TreeWidget->SetItemExpansion(NewNode, true);
+			}
+
+			RestoreSelectionState(SelectedTreeNodes);
+
+			// If we have a pending deferred rename request, redirect it to the new tree node
+			if (DeferredRenameRequest.IsValid())
+			{
+				FSubobjectEditorTreeNodePtrType NodeToRenamePtr = FindSlateNodeForHandle(DeferredRenameRequest);
+				if (NodeToRenamePtr.IsValid())
+				{
+					TreeWidget->RequestScrollIntoView(NodeToRenamePtr);
+				}
 			}
 		}
 	}
