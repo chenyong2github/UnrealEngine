@@ -109,4 +109,4 @@ RADDEFFUNC void CPU_clear( void )
 #endif
 }
 
-#endif // defined(__RADX86__)
+#endif // __RADX86__

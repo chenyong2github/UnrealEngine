@@ -810,20 +810,17 @@ static void clamp_best_quant_to_ath( U32 * best_qlevel, AUDIOFLOAT * band_ath, U
   {
     AUDIOFLOAT band_db, ath;
 
-    if ( best_qlevel[ i ] < 255 )
+    ath = band_ath[ i ] + lossy;
+
+    band_db = ( (AUDIOFLOAT) (U8) best_qlevel[ i ] ) * 0.664F;
+
+    if ( ath > band_db )
     {
-      ath = band_ath[ i ] + lossy;
-
-      band_db = ( (AUDIOFLOAT) (U8) best_qlevel[ i ] ) * 0.664F;
-
-      if ( ath > band_db )
-      {
-        best_qlevel[ i ] = (U32) ( ( ath + 0.3319F ) / 0.664F );
-
-        if ( best_qlevel[ i ] > 255 )
-          best_qlevel[ i ] = 255;
-      }
+      best_qlevel[ i ] = (U32) ( ( ath + 0.3319F ) / 0.664F );
     }
+    
+    if (best_qlevel[i] > 95)
+        best_qlevel[i] = 95;
   }
 }
 
@@ -853,13 +850,13 @@ static void encode_one_channel( U32 transform_size,
   #else
 
   AUDIOFLOAT threshold_mult[ TOTBANDS ];
-  S16 coeffs[ MAXBUFFERSIZE * MAXCHANNELS ];
-  U16 levels[ ( ( ( MAXBUFFERSIZE * MAXCHANNELS ) + VQLENGTH ) / VQLENGTH ) ];
+  S16 coeffs[ MAXBUFFERSIZE ];
+  U16 levels[ ( ( MAXBUFFERSIZE + VQLENGTH ) / VQLENGTH ) ];
 
   #endif
 
   rrassert( TOTBANDS >= num_bands );
-  rrassert( ( MAXBUFFERSIZE * MAXCHANNELS ) >= transform_size );
+  rrassert( ( MAXBUFFERSIZE ) >= transform_size );
 
   // unquant the threshold for compression
   for ( i = 0 ; i < num_bands ; i++ )
