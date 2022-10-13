@@ -758,6 +758,52 @@ TArray<FString> UInterchangeManager::GetSupportedAssetTypeFormats(const EInterch
 	return FileExtensions;
 }
 
+TArray<FString> UInterchangeManager::GetSupportedFormatsForObject(const UObject* Object) const
+{
+	TArray<FString> FileExtensions;
+	if (!IsInterchangeImportEnabled())
+	{
+		return FileExtensions;
+	}
+
+	const UClass* RegisteredFactoryClass = GetRegisteredFactoryClass(Object->GetClass());
+	if (!RegisteredFactoryClass)
+	{
+		return FileExtensions;
+	}
+
+	UInterchangeFactoryBase* Factory = RegisteredFactoryClass->GetDefaultObject<UInterchangeFactoryBase>();
+	TArray<FString> TempFilenames;
+	//GetSourceFilenames verify we have a valid UInterchangeAssetImportData for this Object
+	//This ensure we do not allow re-import
+	if (!Factory->GetSourceFilenames(Object, TempFilenames))
+	{
+		return FileExtensions;
+	}
+
+	switch (Factory->GetFactoryAssetType())
+	{
+	case EInterchangeFactoryAssetType::Animations:
+		FileExtensions = GetSupportedAssetTypeFormats(EInterchangeTranslatorAssetType::Animations);
+		break;
+	case EInterchangeFactoryAssetType::Materials:
+		FileExtensions = GetSupportedAssetTypeFormats(EInterchangeTranslatorAssetType::Materials);
+		break;
+	case EInterchangeFactoryAssetType::Meshes:
+	case EInterchangeFactoryAssetType::Physics:
+		FileExtensions = GetSupportedAssetTypeFormats(EInterchangeTranslatorAssetType::Meshes);
+		break;
+	case EInterchangeFactoryAssetType::Textures:
+		FileExtensions = GetSupportedAssetTypeFormats(EInterchangeTranslatorAssetType::Textures);
+		break;
+	case EInterchangeFactoryAssetType::None: //Actor factories return None
+		FileExtensions = GetSupportedFormats(EInterchangeTranslatorType::Actors);
+		break;
+	}
+
+	return FileExtensions;
+}
+
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
 	if (!IsInterchangeImportEnabled())

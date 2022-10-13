@@ -379,6 +379,11 @@ public:
 	TArray<FString> GetSupportedAssetTypeFormats(const EInterchangeTranslatorAssetType ForTranslatorAssetType) const;
 
 	/**
+	 * Returns the list of supported formats for a given Object.
+	 */
+	TArray<FString> GetSupportedFormatsForObject(const UObject* Object) const;
+
+	/**
 	 * Look if there is a registered translator for this source data.
 	 * This allow us to by pass the original asset tools system to import supported asset.
 	 * @Param SourceData - The source data input we want to translate to Uod

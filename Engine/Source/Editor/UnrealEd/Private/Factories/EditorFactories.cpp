@@ -6317,8 +6317,10 @@ bool UReimportFbxSkeletalMeshFactory::CanReimport( UObject* Obj, TArray<FString>
 				//This skeletal mesh was import with a scene import, we cannot reimport it here
 				return false;
 			}
-			else if (FPaths::GetExtension(AssetImportData->GetFirstFilename()) == TEXT("abc"))
+			else if (FPaths::GetExtension(AssetImportData->GetFirstFilename()) != TEXT("fbx")
+				  && FPaths::GetExtension(AssetImportData->GetFirstFilename()) != TEXT("obj"))
 			{
+				//Fbx factory only support fbx and obj files
 				return false;
 			}
 			AssetImportData->ExtractFilenames(OutFilenames);
@@ -6793,7 +6795,8 @@ bool UReimportFbxAnimSequenceFactory::CanReimport( UObject* Obj, TArray<FString>
 				//This mesh was import with a scene import, we cannot reimport it
 				return false;
 			}
-			else if (FPaths::GetExtension(AnimSequence->AssetImportData->GetFirstFilename()) == TEXT("abc"))
+			else if (FPaths::GetExtension(AnimSequence->AssetImportData->GetFirstFilename()) != TEXT("fbx")
+				&& FPaths::GetExtension(AnimSequence->AssetImportData->GetFirstFilename()) != TEXT("obj"))
 			{
 				return false;
 			}

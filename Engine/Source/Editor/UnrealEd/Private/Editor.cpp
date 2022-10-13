@@ -752,10 +752,22 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 
 	TMultiMap<uint32, UFactory*> DummyFilterIndexToFactory;
 
-	// Generate the file types and extensions represented by the selected factories
-	ObjectTools::GenerateFactoryFileExtensions( Factories, FileTypes, AllExtensions, DummyFilterIndexToFactory );
+	//Append the interchange supported translator formats for this object
+	if (UInterchangeManager::IsInterchangeImportEnabled())
+	{
+		//Get the extension interchange can translate for this object
+		TArray<FString> TranslatorFormats = UInterchangeManager::GetInterchangeManager().GetSupportedFormatsForObject(Obj);
+		ObjectTools::AppendFormatsFileExtensions(TranslatorFormats, FileTypes, AllExtensions, DummyFilterIndexToFactory);
+	}
 
-	FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"),*AllExtensions,*AllExtensions,*FileTypes);
+	//If this object was not import with interchange add the legacy formats
+	if(AllExtensions.IsEmpty())
+	{
+		// Generate the file types and extensions represented by the selected factories
+		ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, DummyFilterIndexToFactory);
+	}
+
+	
 
 	FString DefaultFolder;
 	FString DefaultFile;
@@ -765,7 +777,20 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 	{
 		DefaultFolder = FPaths::GetPath(ExistingPaths[0]);
 		DefaultFile = FPaths::GetCleanFilename(ExistingPaths[0]);
+		//Make sure we have at least the existing asset source files path extension.
+		//If an asset is import with legacy importer and we switch importer to use interchange (or we go back to legacy)
+		for (const FString& ExistingPath : ExistingPaths)
+		{
+			const FString& Extension = FPaths::GetExtension(ExistingPath);
+			if (!AllExtensions.Contains(Extension))
+			{
+				AllExtensions.Append(TEXT(";*.") + Extension);
+				FileTypes.Append(FString::Printf(TEXT("|Asset file source type (*.%s)|*.%s"), *Extension, *Extension));
+			}
+		}
 	}
+
+	FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
 
 	// Prompt the user for the filenames
 	TArray<FString> OpenFilenames;

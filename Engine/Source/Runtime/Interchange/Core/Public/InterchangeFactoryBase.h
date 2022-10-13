@@ -17,6 +17,17 @@ class UInterchangePipelineBase;
 class UInterchangeSourceData;
 class UInterchangeTranslatorBase;
 
+UENUM(BlueprintType)
+enum class EInterchangeFactoryAssetType : uint8
+{
+	None = 0,
+	Textures,
+	Materials,
+	Meshes,
+	Animations,
+	Physics
+};
+
 UCLASS(BlueprintType, Blueprintable, Abstract)
 class INTERCHANGECORE_API UInterchangeFactoryBase : public UObject
 {
@@ -31,6 +42,11 @@ public:
 	{
 		return nullptr;
 	}
+
+	/**
+	 * return the asset type this factory can create.
+	 */
+	virtual EInterchangeFactoryAssetType GetFactoryAssetType() { return EInterchangeFactoryAssetType::None; }
 
 	/**
 	 * Parameters to pass to CreateAsset function
