@@ -98,7 +98,7 @@ namespace Chaos
 
 		// Reject if the middle of the capsule is inside the face (single-sided collision)
 		const FReal FaceDMid = FReal(0.5) * (FaceD0 + FaceD1);
-		if (FaceDMid < FReal(0))
+		if (FaceDMid < -FReal(DistanceTolerance))
 		{
 			// Far inside triangle
 			return;

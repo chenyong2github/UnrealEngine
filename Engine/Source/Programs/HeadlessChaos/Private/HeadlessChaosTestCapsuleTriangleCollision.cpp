@@ -37,7 +37,7 @@ namespace ChaosTest
 	//
 	//  ________
 	//  \       |
-	//   \ ==== |
+	//   \ +==+ |
 	//    \     |
 	//     \    |
 	//      \   |
@@ -109,7 +109,7 @@ namespace ChaosTest
 	//
 	//  ________
 	//  \       |
-	//   \   ======
+	//   \   +==+==
 	//    \     |
 	//     \    |
 	//      \   |
@@ -183,10 +183,10 @@ namespace ChaosTest
 	// Capsule at a 45 degree angle to the triangle, and the capsule axis passes right through an edge.
 	// We should get a single contact pointing out of the triangle at 45 degrees.
 	// 
-	//     \.\
-	//      \.\
+	//     \ \
+	//      \ \
 	//  -----\+\
-	//        \.\
+	//        \ \
 	//
 	GTEST_TEST(CapsuleTriangleTests, TestEdgeZeroSeparation)
 	{
