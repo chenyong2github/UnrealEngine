@@ -35,6 +35,13 @@ FText UAnimGraphNode_RemapCurvesFromMesh::GetTooltipText() const
 	return LOCTEXT("Tooltip", "The Remap Curves From Mesh node copies curves from another component to this. Can be used to map any curve to any and perform mathematical operations on them.");
 }
 
+
+FText UAnimGraphNode_RemapCurvesFromMesh::GetMenuCategory() const
+{
+	return LOCTEXT("NodeCategory", "Animation|Curve Expression");
+}
+
+
 void UAnimGraphNode_RemapCurvesFromMesh::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
 {
 	OutAttributes.Add(UE::Anim::FAttributes::Curves);

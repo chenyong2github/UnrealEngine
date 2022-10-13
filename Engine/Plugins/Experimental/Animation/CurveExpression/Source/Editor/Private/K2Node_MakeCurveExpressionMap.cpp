@@ -239,7 +239,7 @@ FNodeHandlingFunctor* UK2Node_MakeCurveExpressionMap::CreateNodeHandler(FKismetC
 
 FText UK2Node_MakeCurveExpressionMap::GetMenuCategory() const
 {
-	return LOCTEXT("NodeCategory", "Curve Expression");
+	return LOCTEXT("NodeCategory", "Animation|Curve Expression");
 }
 
 #undef LOCTEXT_NAMESPACE
