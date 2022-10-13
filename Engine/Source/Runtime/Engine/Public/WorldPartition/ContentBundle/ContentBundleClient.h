@@ -50,6 +50,8 @@ public:
 
 	EContentBundleClientState GetState() const { return State; }
 
+	bool HasInjectedAnyContent() const;
+
 	FString const& GetDisplayName() const { return DisplayName; }
 
 private:

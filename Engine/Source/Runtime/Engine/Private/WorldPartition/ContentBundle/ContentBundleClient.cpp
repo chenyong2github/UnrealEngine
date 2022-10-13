@@ -58,7 +58,19 @@ void FContentBundleClient::RequestUnregister()
 		UE_LOG(LogContentBundle, Log, TEXT("[CB: %s] Client failed to request unregister. Its state is %s"), *GetDescriptor()->GetDisplayName(), *UEnum::GetDisplayValueAsText(State).ToString());
 	}
 }
-	
+
+bool FContentBundleClient::HasInjectedAnyContent() const
+{
+	for (auto& WorldState : WorldContentStates)
+	{
+		if (WorldState.Value != EWorldContentState::NoContent)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 void FContentBundleClient::OnContentInjectedInWorld(EContentBundleStatus InjectionStatus, UWorld* InjectedWorld)
 {
@@ -84,6 +96,13 @@ void FContentBundleClient::OnContentRemovedFromWorld(EContentBundleStatus Remova
 	if (RemovalStatus == EContentBundleStatus::Registered)
 	{
 		SetWorldContentState(InjectedWorld, EWorldContentState::NoContent);
+
+		// If the client request content removal and removed everything set the client state as registered.
+		// If the client did not request content removal but removed everything keep the client state. We just changed levels. The next level will have its content bundle injected.
+		if (GetState() == EContentBundleClientState::ContentRemovalRequested && !HasInjectedAnyContent())
+		{
+			SetState(EContentBundleClientState::Registered);
+		}
 	}
 	else
 	{
