@@ -771,7 +771,7 @@ FName FOpenXRHMDModule::ResolvePathToName(XrPath Path)
 	uint32 PathCount = 0;
 	char PathChars[XR_MAX_PATH_LENGTH];
 	XrResult Result = xrPathToString(Instance, Path, XR_MAX_PATH_LENGTH, &PathCount, PathChars);
-	check(Result);
+	check(XR_SUCCEEDED(Result));
 	if (Result == XR_SUCCESS)
 	{
 		// Resolve this XrPath to an FName and store it in the name map
