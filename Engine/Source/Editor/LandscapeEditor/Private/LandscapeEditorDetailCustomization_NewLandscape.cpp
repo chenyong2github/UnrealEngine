@@ -941,8 +941,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		// Import doesn't fill in the LayerInfo for layers with no data, do that now
 		const TArray<FLandscapeImportLayer>& ImportLandscapeLayersList = UISettings->ImportLandscape_Layers;
 		const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
-		TSoftObjectPtr<ULandscapeLayerInfoObject> DefaultLayerInfoObject = Settings->GetDefaultLayerInfoObject();
-		const bool bIsDefaultLayerInfoObjectSet = !DefaultLayerInfoObject.IsNull();
+		TSoftObjectPtr<ULandscapeLayerInfoObject> DefaultLayerInfoObject = Settings->GetDefaultLayerInfoObject().LoadSynchronous();
 
 		for (int32 i = 0; i < ImportLandscapeLayersList.Num(); i++)
 		{
@@ -950,9 +949,9 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 			FName LayerName = ImportLandscapeLayersList[i].LayerName;
 
 			// If DefaultLayerInfoObject is set and LayerInfo does not exist, we will try to create the new LayerInfo by cloning DefaultLayerInfoObject. Except for VisibilityLayer which doesn't require an asset.
-			if (bIsDefaultLayerInfoObjectSet && (LayerInfo == nullptr) && (LayerName != ALandscapeProxy::VisibilityLayer->LayerName))
+			if (DefaultLayerInfoObject.IsValid() && (LayerInfo == nullptr) && (LayerName != ALandscapeProxy::VisibilityLayer->LayerName))
 			{
-				LayerInfo = Landscape->CreateLayerInfo(*LayerName.ToString(), DefaultLayerInfoObject.LoadSynchronous());
+				LayerInfo = Landscape->CreateLayerInfo(*LayerName.ToString(), DefaultLayerInfoObject.Get());
 
 				if (LayerInfo != nullptr)
 				{

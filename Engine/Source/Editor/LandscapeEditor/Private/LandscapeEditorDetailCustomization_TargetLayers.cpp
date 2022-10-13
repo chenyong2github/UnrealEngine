@@ -645,6 +645,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateRow(
 							.AllowedClass(ULandscapeLayerInfoObject::StaticClass())
 							.OnObjectChanged_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerSetObject, Target)
 							.OnShouldFilterAsset_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::ShouldFilterLayerInfo, Target->LayerName)
+							.AllowCreate(false)
 							.AllowClear(false)
 						]
 						+ SHorizontalBox::Slot()

@@ -151,7 +151,7 @@ struct FLandscapeImportLayerInfo
 	UPROPERTY(Category="Import", VisibleAnywhere)
 	FName LayerName;
 
-	UPROPERTY(Category="Import", EditAnywhere)
+	UPROPERTY(Category="Import", EditAnywhere, meta=(NoCreate))
 	TObjectPtr<ULandscapeLayerInfoObject> LayerInfo;
 
 	UPROPERTY(Category="Import", EditAnywhere, meta=(DisplayName="Layer File"))
