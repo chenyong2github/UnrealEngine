@@ -104,7 +104,7 @@ TArray<int32> GetGridShape(TArray<int32> YShape, TArray<int32> GroupShape)
 void FMLConvCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(InParameters, OutEnvironment);
-	OutEnvironment.SetDefine(TEXT("MAX_NUM_DIMENSIONS"), NNXRT_CONV_MAX_NUM_DIMENSIONS);
+	OutEnvironment.SetDefine(TEXT("MAX_NUM_DIMENSIONS"), FConvConstants::MAX_NUM_DIMENSIONS);
 }
 
 TArray<int32> FMLConvCS::GetOutputShape(TArray<int32> XShape, TArray<int32> WShape, EConvAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads)

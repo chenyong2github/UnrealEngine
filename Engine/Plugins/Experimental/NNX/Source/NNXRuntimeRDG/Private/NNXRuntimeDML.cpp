@@ -11,14 +11,7 @@
 #include "RenderGraphUtils.h"
 
 // TODO: Use NNXOperator.h instead of HlslIdentityOp
-#define NNXRT_RDG_DML
 #include "NNXShaderParameters.h"
-#undef NNXRT_RDG_DML
-// This is to fix compilation warnings on unity builds
-#undef NNXRT_BEGIN_SHADER_PARAMETER_STRUCT
-#undef NNXRT_END_SHADER_PARAMETER_STRUCT
-#undef NNXRT_RDG_BUFFER_SRV
-#undef NNXRT_RDG_BUFFER_UAV
 
 #include "HAL/FileManager.h"
 

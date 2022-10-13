@@ -3,8 +3,8 @@
 #pragma once
 
 #include "GlobalShader.h"
-#include "NNXShaderParameters.h"
-
+#include "ShaderParameterUtils.h"
+#include "RenderGraphUtils.h"
 #include "NNXOperator.h"
 
 //
@@ -17,7 +17,15 @@ class NNXHLSLSHADERS_API FMLElementWiseCS : public FGlobalShader
 
 public:
 
-	NNXRT_ELEMENTWISEUNARY_PARAMETER_STRUCT()
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Input)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, Output)
+		SHADER_PARAMETER(uint32, Num)
+		SHADER_PARAMETER(uint32, ThreadCountX)
+		SHADER_PARAMETER(float, Alpha)
+		SHADER_PARAMETER(float, Beta)
+		SHADER_PARAMETER(float, Gamma)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static const uint32 THREADGROUP_SIZE_X;
 
@@ -32,4 +40,3 @@ private:
 
 	static const FString GetOpFunc(EMLElementWiseUnaryOperatorType OpType);
 };
-

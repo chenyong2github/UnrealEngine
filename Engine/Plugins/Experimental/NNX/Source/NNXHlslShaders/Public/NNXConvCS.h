@@ -3,7 +3,8 @@
 #pragma once
 
 #include "GlobalShader.h"
-#include "NNXShaderParameters.h"
+#include "ShaderParameterUtils.h"
+#include "RenderGraphUtils.h"
 
 enum class EConvAlgorithm : uint8
 {
@@ -31,6 +32,7 @@ enum class EConvAutoPad : uint8
 class FConvConstants
 {
 public:
+	static const int32 MAX_NUM_DIMENSIONS{4};
 	static const int32 MIN_NUM_READS_PER_THREAD_POW2{1};
 	static const int32 MAX_NUM_READS_PER_THREAD_POW2{3};
 };
@@ -42,13 +44,35 @@ class NNXHLSLSHADERS_API FMLConvCS : public FGlobalShader
 
 	class FConvAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EConvAlgorithm);
 	class FConvGroupSize : SHADER_PERMUTATION_ENUM_CLASS("GROUP_SIZE", EConvGroupSize);
-	class FConvNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, NNXRT_CONV_MAX_NUM_DIMENSIONS);
+	class FConvNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, FConvConstants::MAX_NUM_DIMENSIONS);
 	class FConvNumReadsPerThread : SHADER_PERMUTATION_RANGE_INT("NUM_READS_PER_THREAD_POW2", FConvConstants::MIN_NUM_READS_PER_THREAD_POW2, FConvConstants::MAX_NUM_READS_PER_THREAD_POW2);
 	class FConvHasB : SHADER_PERMUTATION_BOOL("HAS_B");
 	using FPermutationDomain = TShaderPermutationDomain<FConvAlgorithm, FConvGroupSize, FConvNumDimensions, FConvNumReadsPerThread, FConvHasB>;
 
 public:
-	NNXRT_CONV_PARAMETER_STRUCT();
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, X)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, W)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, Y)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, B)
+		SHADER_PARAMETER_ARRAY(FIntVector4, Dilation_Stride_XBlockStartOffset_DilationXBlockStride, [FConvConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER_ARRAY(FIntVector4, GroupStride_GroupShape_GroupThreadStride_StrideXBlockStride, [FConvConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER_ARRAY(FIntVector4, YDimension_YMemoryStride_XDimension_XMemoryStride, [FConvConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER_ARRAY(FIntVector4, XBlockStartStride_XBlockStride_WDimension_WDimensionDilationXBlockStride, [FConvConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER_ARRAY(FVector4f, OneDiv_GroupStride_GroupThreadStride_XBlockStride, [FConvConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER(int32, NumWChannels)
+		SHADER_PARAMETER(int32, YBatchStride)
+		SHADER_PARAMETER(int32, YOutputKernelStride)
+		SHADER_PARAMETER(int32, XBatchStride)
+		SHADER_PARAMETER(int32, XChannelStride)
+		SHADER_PARAMETER(int32, XBlockSize)
+		SHADER_PARAMETER(int32, NumChannelBatches)
+		SHADER_PARAMETER(int32, NumChannelsPerBatch)
+		SHADER_PARAMETER(int32, WOutputKernelStride)
+		SHADER_PARAMETER(int32, WChannelBatchSize)
+		SHADER_PARAMETER(int32, WChannelSize)
+		SHADER_PARAMETER(float, GroupsDivM)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 

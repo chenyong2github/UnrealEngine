@@ -29,7 +29,7 @@ namespace
 		int32 NumStackDimensionsB = FMath::Max((int32)InputB.Dimension - 2, 0);
 		int32 NumStackDimensions = FMath::Max(NumStackDimensionsA, NumStackDimensionsB);
 
-		check(NumStackDimensions <= NNXRT_GEMM_MAX_NUM_STACK_DIMENSIONS);
+		check(NumStackDimensions <= FGemmConstants::MAX_NUM_STACK_DIMENSIONS);
 
 		// Check matrix stack dimensions
 		if (NumStackDimensionsA > 0 && NumStackDimensionsB > 0)
@@ -84,7 +84,7 @@ namespace
 void FMLGemmCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(InParameters, OutEnvironment);
-	OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), NNXRT_GEMM_MAX_NUM_STACK_DIMENSIONS);
+	OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), FGemmConstants::MAX_NUM_STACK_DIMENSIONS);
 }
 
 void FMLGemmCS::FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB,

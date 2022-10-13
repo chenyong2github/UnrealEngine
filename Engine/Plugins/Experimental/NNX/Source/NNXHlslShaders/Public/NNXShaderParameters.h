@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//#pragma once
+#pragma once
 
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
 
 // HLSL runtime and DirectML runtime use different shader parameter access patterns
+#define NNXRT_RDG_DML
+
 #ifdef NNXRT_RDG_DML
 #define NNXRT_RDG_BUFFER_SRV(View, BufferName) RDG_BUFFER_ACCESS(BufferName, ERHIAccess::UAVCompute)
 #define NNXRT_RDG_BUFFER_UAV(View, BufferName) RDG_BUFFER_ACCESS(BufferName, ERHIAccess::UAVCompute)

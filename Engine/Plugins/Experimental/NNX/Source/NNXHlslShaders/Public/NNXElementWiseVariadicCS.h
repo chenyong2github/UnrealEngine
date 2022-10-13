@@ -3,9 +3,15 @@
 #pragma once
 
 #include "GlobalShader.h"
-#include "NNXShaderParameters.h"
-
+#include "ShaderParameterUtils.h"
+#include "RenderGraphUtils.h"
 #include "NNXOperator.h"
+
+class FElementWiseVariadicConstants
+{
+public:
+	static const int32 MAX_NUM_DIMENSIONS{8};
+};
 
 class NNXHLSLSHADERS_API FMLElementWiseVariadicCS : public FGlobalShader
 {
@@ -21,15 +27,25 @@ public:
 	class FApplyScale : SHADER_PERMUTATION_BOOL("APPLYSCALE");
 	class FOutputAsInput : SHADER_PERMUTATION_BOOL("OUTPUTASINPUT");
 	class FNumInput : SHADER_PERMUTATION_RANGE_INT("NUMINPUT", 1, MAX_NUM_INPUT);
-	class FVariadicNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
+	class FVariadicNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, FElementWiseVariadicConstants::MAX_NUM_DIMENSIONS);
 	using FPermutationDomain = TShaderPermutationDomain<FOperatorType, FApplyScale, FOutputAsInput, FNumInput, FVariadicNumDimensions>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 
-	NNXRT_ELEMENTWISEVARIADIC_PARAMETER_STRUCT()
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Input0)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Input1)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Input2)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Input3)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, Output)
+		SHADER_PARAMETER_ARRAY(FUintVector4, InputTensorInfo, [FElementWiseVariadicConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER_ARRAY(FUintVector4, OutputTensorInfo, [FElementWiseVariadicConstants::MAX_NUM_DIMENSIONS])
+		SHADER_PARAMETER(uint32, Num)
+		SHADER_PARAMETER(uint32, ThreadCountX)
+		SHADER_PARAMETER(float, Scale)
+	END_SHADER_PARAMETER_STRUCT()
 
 private:
 
 	static const FString GetOpFunc(EMLElementWiseVariadicOperatorType);
 };
-

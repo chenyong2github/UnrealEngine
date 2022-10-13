@@ -3,7 +3,8 @@
 #pragma once
 
 #include "GlobalShader.h"
-#include "NNXShaderParameters.h"
+#include "ShaderParameterUtils.h"
+#include "RenderGraphUtils.h"
 #include "NNXTypes.h"
 
 enum class EGemmCScalar : uint8
@@ -34,6 +35,12 @@ enum class EGemmAlgorithm : uint8
 	MAX
 };
 
+class FGemmConstants
+{
+public:
+	static const int32 MAX_NUM_STACK_DIMENSIONS{8};
+};
+
 class NNXHLSLSHADERS_API FMLGemmCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FMLGemmCS);
@@ -41,19 +48,38 @@ class NNXHLSLSHADERS_API FMLGemmCS : public FGlobalShader
 
 	class FGemmCScalar : SHADER_PERMUTATION_ENUM_CLASS("C_SCALAR", EGemmCScalar);
 	class FGemmAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EGemmAlgorithm);
-	class FGemmNumStackDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_STACK_DIMENSIONS", 0, NNXRT_GEMM_MAX_NUM_STACK_DIMENSIONS);
+	class FGemmNumStackDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_STACK_DIMENSIONS", 0, FGemmConstants::MAX_NUM_STACK_DIMENSIONS);
 	using FPermutationDomain = TShaderPermutationDomain<FGemmCScalar, FGemmAlgorithm, FGemmNumStackDimensions>;
 
 public:
-	NNXRT_GEMM_PARAMETER_STRUCT()
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float, Alpha)
+		SHADER_PARAMETER(float, Beta)
+		SHADER_PARAMETER(int32, TransA)
+		SHADER_PARAMETER(int32, TransB)
+		SHADER_PARAMETER(uint32, M)
+		SHADER_PARAMETER(uint32, N)
+		SHADER_PARAMETER(uint32, K)
+		SHADER_PARAMETER(uint32, MxK)
+		SHADER_PARAMETER(uint32, KxN)
+		SHADER_PARAMETER(uint32, MxN)
+		SHADER_PARAMETER(uint32, CWidth)
+		SHADER_PARAMETER(uint32, CHeight)
+		SHADER_PARAMETER(float, CScalar)
+		SHADER_PARAMETER_ARRAY(FUint32Vector4, StackShapeA_StackShapeB_StackStrideA_StackStrideB, [FGemmConstants::MAX_NUM_STACK_DIMENSIONS])
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, A)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, B)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, C)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, Y)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB,
-		const NNX::FMLTensorDesc &InputC, float CScalar, FMLGemmCS::FParameters& Parameters);
+		const NNX::FMLTensorDesc &InputC, float CScalar, FParameters& Parameters);
 
-	static void FillInParametersMatMul(const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB, FMLGemmCS::FParameters& Parameters);
+	static void FillInParametersMatMul(const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB, FParameters& Parameters);
 
-	static FIntVector GetGroupCount(const FMLGemmCS::FParameters& Parameters, EGemmAlgorithm Algorithm, int32 NumStackDimensions);
-	static EGemmAlgorithm GetAlgorithm(const FMLGemmCS::FParameters& Parameters);
+	static FIntVector GetGroupCount(const FParameters& Parameters, EGemmAlgorithm Algorithm, int32 NumStackDimensions);
+	static EGemmAlgorithm GetAlgorithm(const FParameters& Parameters);
 };

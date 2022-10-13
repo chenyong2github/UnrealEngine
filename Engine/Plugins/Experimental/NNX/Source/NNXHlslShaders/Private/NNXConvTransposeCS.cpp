@@ -5,7 +5,7 @@
 void FMLConvTransposeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(InParameters, OutEnvironment);
-	OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), NNXRT_CONVTRANSPOSE_MAX_NUM_STACK_DIMENSIONS);
+	OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), FConvTransposeConstants::MAX_NUM_DIMENSIONS);
 }
 
 TArray<int32> FMLConvTransposeCS::GetOutputShape(TArray<int32> XShape, TArray<int32> WShape, EConvTransposeAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads, TArray<int32> OutputPadding, int32 Group)
@@ -123,9 +123,9 @@ int32 FMLConvTransposeCS::GetNumReadsPerThread(EConvTransposeGroupSize GroupSize
 	}
 
 	int32 NumReads = FMath::DivideAndRoundUp(NumXBlockElements, NumThreadsPerGroup);
-	int32 NumReadsPow2 = FMath::Max(FMath::RoundToPositiveInfinity(FMath::Log2((float)NumReads)), NNXRT_CONVTRANSPOSE_MIN_NUM_READS_PER_THREAD_POW2);
+	int32 NumReadsPow2 = FMath::Max(FMath::RoundToPositiveInfinity(FMath::Log2((float)NumReads)), FConvTransposeConstants::MIN_NUM_READS_PER_THREAD_POW2);
 
-	if (NumReadsPow2 <= NNXRT_CONVTRANSPOSE_MAX_NUM_READS_PER_THREAD_POW2)
+	if (NumReadsPow2 <= FConvTransposeConstants::MAX_NUM_READS_PER_THREAD_POW2)
 	{
 		return NumReadsPow2;
 	}
