@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -14,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.Management.Infrastructure;
 
 namespace Horde.Agent.Commands
 {
@@ -199,21 +199,26 @@ namespace Horde.Agent.Commands
 		/// <param name="processId">The process id to search for</param>
 		/// <returns>The service controller corresponding to this process</returns>
 		[SupportedOSPlatform("windows")]
-		static ServiceController? GetServiceForProcess(int processId)
+		public static ServiceController? GetServiceForProcess(int processId)
 		{
 			try
 			{
-				using (ManagementObjectSearcher searcher = new ManagementObjectSearcher($"SELECT Name FROM Win32_Service WHERE ProcessId={processId}"))
+				using (CimSession session = CimSession.Create(null))
 				{
-					foreach (ManagementObject service in searcher.Get())
+					const string QueryNamespace = @"root\cimv2";
+					const string QueryDialect = "WQL";
+
+					foreach (CimInstance instance in session.QueryInstances(QueryNamespace, QueryDialect, $"SELECT Name FROM Win32_Service WHERE ProcessId={processId}"))
 					{
-						PropertyData property = service.Properties["Name"];
-						if (property != null)
+						foreach (CimProperty property in instance.CimInstanceProperties)
 						{
-							string? name = property.Value as string;
-							if (name != null)
+							if (property.Name.Equals("Name", StringComparison.OrdinalIgnoreCase))
 							{
-								return new ServiceController(name);
+								string? value = property.Value as string;
+								if (value != null)
+								{
+									return new ServiceController(value);
+								}
 							}
 						}
 					}
