@@ -7,8 +7,6 @@ using Cassandra;
 using Cassandra.Mapping;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
 namespace Jupiter.Implementation.Blob;
@@ -42,7 +40,7 @@ public class ScyllaBlobIndex : IBlobIndex
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
         using IScope scope = Tracer.Instance.StartActive("scylla.insert_blob_index");
-        scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+        ScyllaUtils.SetupScyllaScope(scope);
         scope.Span.ResourceName = $"{ns}.{id}";
 
         if (_scyllaSessionManager.IsScylla)
@@ -60,7 +58,7 @@ public class ScyllaBlobIndex : IBlobIndex
     public async Task<BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id, BlobIndexFlags flags = BlobIndexFlags.None)
     {
         using IScope scope = Tracer.Instance.StartActive("scylla.fetch_blob_index");
-        scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+        ScyllaUtils.SetupScyllaScope(scope);
         scope.Span.ResourceName = $"{ns}.{id}";
 
         bool includeReferences = (flags & BlobIndexFlags.IncludeReferences) != 0;
@@ -96,7 +94,7 @@ public class ScyllaBlobIndex : IBlobIndex
     public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
     {
         using IScope scope = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
-        scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+        ScyllaUtils.SetupScyllaScope(scope);
         scope.Span.ResourceName = $"{ns}.{id}";
 
         if (_scyllaSessionManager.IsScylla)
@@ -117,7 +115,7 @@ public class ScyllaBlobIndex : IBlobIndex
     {
         region ??= _jupiterSettings.CurrentValue.CurrentSite;
         using IScope scope = Tracer.Instance.StartActive("scylla.remove_blob_index_region");
-        scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+        ScyllaUtils.SetupScyllaScope(scope);
         scope.Span.ResourceName = $"{ns}.{id}";
 
         if (_scyllaSessionManager.IsScylla)
@@ -145,7 +143,7 @@ public class ScyllaBlobIndex : IBlobIndex
     public async Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
     {
         using IScope scope = Tracer.Instance.StartActive("scylla.add_ref_blobs");
-        scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+        ScyllaUtils.SetupScyllaScope(scope);
 
         string nsAsString = ns.ToString();
         ScyllaObjectReference reference = new ScyllaObjectReference(bucket, key);
@@ -180,7 +178,7 @@ public class ScyllaBlobIndex : IBlobIndex
     public async IAsyncEnumerable<BlobInfo> GetAllBlobs()
     {
         using IScope scope = Tracer.Instance.StartActive("scylla.get_all_blobs");
-        scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+        ScyllaUtils.SetupScyllaScope(scope);
 
         string cqlOptions = _scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
 

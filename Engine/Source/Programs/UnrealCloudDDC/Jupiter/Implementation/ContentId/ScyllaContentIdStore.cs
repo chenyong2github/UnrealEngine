@@ -7,8 +7,6 @@ using Cassandra;
 using Cassandra.Mapping;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
-using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Jupiter.Implementation
 {
@@ -52,7 +50,7 @@ namespace Jupiter.Implementation
             {
                 using IScope contentIdFetchScope = Tracer.Instance.StartActive("ScyllaContentIdStore.FetchContentId");
                 contentIdFetchScope.Span.ResourceName = contentId.ToString();
-                contentIdFetchScope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+                ScyllaUtils.SetupScyllaScope(contentIdFetchScope);
 
                 if (_scyllaSessionManager.IsScylla)
                 {
@@ -123,7 +121,7 @@ namespace Jupiter.Implementation
         public async Task Put(NamespaceId ns, ContentId contentId, BlobIdentifier blobIdentifier, int contentWeight)
         {
             using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.PutContentId");
-            scope.Span.ServiceName = IScyllaSessionManager.DatadogScyllaServiceName;
+            ScyllaUtils.SetupScyllaScope(scope);
 
             if (_scyllaSessionManager.IsScylla)
             {

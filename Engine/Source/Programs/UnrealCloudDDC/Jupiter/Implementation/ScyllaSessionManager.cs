@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using Cassandra;
+using Datadog.Trace;
 
 namespace Jupiter.Implementation
 {
@@ -18,8 +19,6 @@ namespace Jupiter.Implementation
         /// True when using a base cassandra protocol
         /// </summary>
         bool IsCassandra { get; }
-
-        public const string DatadogScyllaServiceName = "ScyllaDB";
     }
 
     public class ScyllaSessionManager : IScyllaSessionManager
@@ -48,5 +47,16 @@ namespace Jupiter.Implementation
 
         public bool IsScylla { get; }
         public bool IsCassandra { get; }
+    }
+
+    public static class ScyllaUtils
+    {
+        private const string DatadogScyllaServiceName = "ScyllaDB";
+
+        public static void SetupScyllaScope(IScope scope)
+        {
+            scope.Span.ServiceName = DatadogScyllaServiceName;
+            scope.Span.SetTag("type", "db");
+        }
     }
 }
