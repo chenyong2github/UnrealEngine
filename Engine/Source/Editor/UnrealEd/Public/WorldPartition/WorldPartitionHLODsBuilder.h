@@ -111,13 +111,14 @@ private:
 	EHLODBuildStep BuildOptions;
 
 	bool bDistributedBuild;
+	bool bForceBuild;
 	FString BuildManifest;
 	int32 BuilderIdx;
 	int32 BuilderCount;
 	bool bResumeBuild;
 	int32 ResumeBuildIndex;
-	int32 HLODLevelToBuild;
-
+	FName HLODLayerToBuild;
+	FName HLODActorToBuild;
 
 	const FString DistributedBuildWorkingDir;
 	const FString DistributedBuildManifest;

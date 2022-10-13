@@ -205,10 +205,6 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 				FHLODCreationParams CreationParams;
 				CreationParams.WorldPartition = WorldPartition;
-				CreationParams.GridIndexX = CellCoord.X;
-				CreationParams.GridIndexY = CellCoord.Y;
-				CreationParams.GridIndexZ = CellCoord.Z;
-				CreationParams.DataLayersID = GridCellDataChunk.GetDataLayersID();
 				CreationParams.CellName = FName(CellName);
 				CreationParams.CellBounds = CellBounds;
 				CreationParams.HLODLevel = HLODLevel;
@@ -428,35 +424,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	// HLOD creation context
 	FHLODCreationContext Context;
-
-	TSet<uint64> InvalidHLODCellHashes;
-	InvalidHLODCellHashes.Add(0);
-
-	TSet<FWorldPartitionHandle> InvalidHLODActors;
-
 	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition->GetActorDescContainer()); HLODIterator; ++HLODIterator)
 	{
-		uint64 CellHash = HLODIterator->GetCellHash();
-
 		FWorldPartitionHandle HLODActorHandle(WorldPartition, HLODIterator->GetGuid());
-		FWorldPartitionHandle* DupeHLODActorHandle = Context.HLODActorDescs.Find(CellHash);
-
-		if (DupeHLODActorHandle == nullptr && !InvalidHLODCellHashes.Contains(CellHash))
-		{
-			Context.HLODActorDescs.Emplace(CellHash, MoveTemp(HLODActorHandle));
-		}
-		else
-		{
-			InvalidHLODCellHashes.Add(CellHash);
-
-			InvalidHLODActors.Emplace(MoveTemp(HLODActorHandle));
-			if (DupeHLODActorHandle)
-			{
-				InvalidHLODActors.Emplace(*DupeHLODActorHandle);
-			}
-
-			Context.HLODActorDescs.Remove(CellHash);
-		}
+		Context.HLODActorDescs.Emplace(HLODIterator->GetActorName(), MoveTemp(HLODActorHandle));
 	}
 
 	IStreamingGenerationContext::FActorSetContainer* MainActorSetContainer = const_cast<IStreamingGenerationContext::FActorSetContainer*>(StreamingGenerationContext->GetMainWorldContainer());
@@ -561,9 +532,6 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	{
 		DeleteHLODActor(HLODActorPair.Value);
 	}
-
-	// Destroy all invalid HLOD actors
-	Algo::ForEach(InvalidHLODActors, DeleteHLODActor);
 
 	// Create/destroy HLOD grid actors
 	UpdateHLODGridsActors(GetWorld(), HLODGrids, SourceControlHelper);

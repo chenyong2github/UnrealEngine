@@ -4,6 +4,8 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
@@ -18,6 +20,9 @@
 #include "EngineUtils.h"
 #include "LevelUtils.h"
 #include "Components/StaticMeshComponent.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Templates/UniquePtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODSubsystem)
 
@@ -468,6 +473,102 @@ void FHLODResourcesResidencySceneViewExtension::BeginRenderViewFamily(FSceneView
 {
 	GetWorld()->GetSubsystem<UHLODSubsystem>()->OnBeginRenderViews(InViewFamily);
 }
+
+#if WITH_EDITOR
+
+static void DumpHLODStats(UWorld* World)
+{
+	UWorldPartition* WorldPartition = World ? World->GetWorldPartition() : nullptr;
+	if (!WorldPartition)
+	{
+		return;
+	}
+	
+	typedef TFunction<FString(const FHLODActorDesc&)> FGetStatFunc;
+
+	auto GetHLODStat = [](FName InStatName)
+	{
+		return TPair<FName, FGetStatFunc>(InStatName, [InStatName](const FHLODActorDesc& InActorDesc)
+		{
+			return FString::Printf(TEXT("%lld"), InActorDesc.GetStat(InStatName));
+		});
+	};
+
+	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World);
+
+	auto GetDataLayerShortName = [DataLayerSubsystem](FName DataLayerInstanceName)
+	{ 
+		UDataLayerInstance* DataLayerInstance = DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName) : nullptr;
+		return DataLayerInstance ? DataLayerInstance->GetDataLayerShortName() : DataLayerInstanceName.ToString();
+	};
+
+	TArray<TPair<FName, FGetStatFunc>> StatsToWrite =
+	{
+		{ "Name",				[](const FHLODActorDesc& InActorDesc) { return InActorDesc.GetActorLabel().ToString(); } },
+		{ "HLODLayer",			[](const FHLODActorDesc& InActorDesc) { return InActorDesc.GetSourceHLODLayerName().ToString(); } },
+		{ "SpatiallyLoaded",	[](const FHLODActorDesc& InActorDesc) { return InActorDesc.GetIsSpatiallyLoaded() ? TEXT("true") : TEXT("false"); } },
+		{ "DataLayers",			[&GetDataLayerShortName](const FHLODActorDesc& InActorDesc) { return FString::JoinBy(InActorDesc.GetDataLayerInstanceNames(), TEXT(" | "), GetDataLayerShortName); } },
+
+		GetHLODStat(FWorldPartitionHLODStats::InputActorCount),
+		GetHLODStat(FWorldPartitionHLODStats::InputTriangleCount),
+		GetHLODStat(FWorldPartitionHLODStats::InputVertexCount),
+
+		GetHLODStat(FWorldPartitionHLODStats::MeshInstanceCount),
+		GetHLODStat(FWorldPartitionHLODStats::MeshNaniteTriangleCount),
+		GetHLODStat(FWorldPartitionHLODStats::MeshNaniteVertexCount),
+		GetHLODStat(FWorldPartitionHLODStats::MeshTriangleCount),
+		GetHLODStat(FWorldPartitionHLODStats::MeshVertexCount),
+		GetHLODStat(FWorldPartitionHLODStats::MeshUVChannelCount),
+
+		GetHLODStat(FWorldPartitionHLODStats::MaterialBaseColorTextureSize),
+		GetHLODStat(FWorldPartitionHLODStats::MaterialNormalTextureSize),
+		GetHLODStat(FWorldPartitionHLODStats::MaterialEmissiveTextureSize),
+		GetHLODStat(FWorldPartitionHLODStats::MaterialMetallicTextureSize),
+		GetHLODStat(FWorldPartitionHLODStats::MaterialRoughnessTextureSize),
+		GetHLODStat(FWorldPartitionHLODStats::MaterialSpecularTextureSize),
+		
+		GetHLODStat(FWorldPartitionHLODStats::MemoryMeshResourceSizeBytes),
+		GetHLODStat(FWorldPartitionHLODStats::MemoryTexturesResourceSizeBytes),
+		GetHLODStat(FWorldPartitionHLODStats::MemoryDiskSizeBytes),
+		
+		GetHLODStat(FWorldPartitionHLODStats::BuildTimeLoadMilliseconds),
+		GetHLODStat(FWorldPartitionHLODStats::BuildTimeBuildMilliseconds),
+		GetHLODStat(FWorldPartitionHLODStats::BuildTimeTotalMilliseconds)				
+	};
+
+	// Write header
+	FStringOutputDevice Output;
+	const FString StatHeader = FString::JoinBy(StatsToWrite, TEXT(","), [](const TPair<FName, FGetStatFunc>& Pair) { return Pair.Key.ToString(); });
+	Output.Logf(TEXT("%s" LINE_TERMINATOR_ANSI), *StatHeader);
+
+	// Write one line per HLOD actor desc
+	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition->GetActorDescContainer()); HLODIterator; ++HLODIterator)
+	{
+		const FString StatLine = FString::JoinBy(StatsToWrite, TEXT(","), [&HLODIterator](const TPair<FName, FGetStatFunc>& Pair) { return Pair.Value(**HLODIterator); });
+		Output.Logf(TEXT("%s" LINE_TERMINATOR_ANSI), *StatLine);
+	}
+
+	// Write to file
+	const FString HLODStatsOutputFilename = FPaths::ProjectSavedDir() / TEXT("WorldPartition") / FString::Printf(TEXT("HLODStats-%s-%08x-%s.csv"), *World->GetName(), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToString());
+	FFileHelper::SaveStringToFile(Output, *HLODStatsOutputFilename);
+}
+
+FAutoConsoleCommand HLODDumpStats(
+	TEXT("wp.Editor.HLOD.DumpStats"),
+	TEXT("Write various HLOD stats to a CSV formatted file."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (UWorld* World = Context.World())
+			{
+				DumpHLODStats(World);
+			}
+		}
+	})
+);
+
+#endif // #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
 

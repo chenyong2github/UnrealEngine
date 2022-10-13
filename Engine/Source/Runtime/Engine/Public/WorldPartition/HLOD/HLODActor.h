@@ -7,6 +7,7 @@
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODSubActor.h"
+#include "WorldPartition/HLOD/HLODStats.h"
 #include "HLODActor.generated.h"
 
 class UHLODLayer;
@@ -16,6 +17,8 @@ UCLASS(NotPlaceable)
 class ENGINE_API AWorldPartitionHLOD : public AActor
 {
 	GENERATED_UCLASS_BODY()
+
+	typedef TMap<FName, int64>	FStats;
 
 public:
 	void SetVisibility(bool bInVisible);
@@ -38,20 +41,6 @@ public:
 
 	void SetRequireWarmup(bool InRequireWarmup) { bRequireWarmup = InRequireWarmup; }
 
-	void SetGridIndices(uint64 InGridIndexX, uint64 InGridIndexY, uint64 InGridIndexZ)
-	{
-		GridIndexX = InGridIndexX;
-		GridIndexY = InGridIndexY;
-		GridIndexZ = InGridIndexZ;
-	}
-
-	void GetGridIndices(uint64& OutGridIndexX, uint64& OutGridIndexY, uint64& OutGridIndexZ) const
-	{
-		OutGridIndexX = GridIndexX;
-		OutGridIndexY = GridIndexY;
-		OutGridIndexZ = GridIndexZ;
-	}
-
 	void SetSourceCellName(FName InSourceCellName);
 	inline void SetLODLevel(uint32 InLODLevel) { LODLevel = InLODLevel; }
 
@@ -63,6 +52,11 @@ public:
 
 	void BuildHLOD(bool bForceBuild = false);
 	uint32 GetHLODHash() const;
+
+	const FStats& GetStats() const { return HLODStats; }
+	int64 GetStat(FName InStatName) const { return HLODStats.FindRef(InStatName); }
+	void SetStat(FName InStatName, int64 InStatValue) { HLODStats.Add(InStatName, InStatValue); }
+	void ResetStats() { HLODStats.Reset(); }
 #endif // WITH_EDITOR
 
 protected:
@@ -101,15 +95,6 @@ private:
 	TObjectPtr<const UHLODLayer> SubActorsHLODLayer;
 
 	UPROPERTY()
-	int64 GridIndexX;
-
-	UPROPERTY()
-	int64 GridIndexY;
-
-	UPROPERTY()
-	int64 GridIndexZ;
-
-	UPROPERTY()
 	FBox HLODBounds;
 
 	UPROPERTY()
@@ -117,6 +102,9 @@ private:
 
 	UPROPERTY()
 	uint32 HLODHash;
+
+	UPROPERTY()
+	TMap<FName, int64> HLODStats;
 #endif
 
 	UPROPERTY()

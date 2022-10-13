@@ -15,20 +15,25 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
-#include "UObject/GCObjectScopeGuard.h"
-#include "Serialization/ArchiveCrc32.h"
-#include "Templates/UniquePtr.h"
-
 #include "HLODBuilderInstancing.h"
 #include "HLODBuilderMeshMerge.h"
 #include "HLODBuilderMeshSimplify.h"
 #include "HLODBuilderMeshApproximate.h"
 
 #include "Algo/Transform.h"
-
-#include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/InstancedStaticMesh.h"
+#include "Engine/StaticMesh.h"
+#include "HAL/FileManager.h"
+#include "Materials/MaterialInstance.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "Serialization/ArchiveCrc32.h"
+#include "StaticMeshCompiler.h"
+#include "Templates/UniquePtr.h"
+#include "TextureCompiler.h"
+#include "UObject/GCObjectScopeGuard.h"
+
 
 static UWorldPartitionLevelStreamingDynamic* CreateLevelStreamingFromHLODActor(AWorldPartitionHLOD* InHLODActor, bool& bOutDirty)
 {
@@ -139,12 +144,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const FSubActorsInfo& SubActorsInfo = Pair.Value;
 		check(!SubActorsInfo.SubActors.IsEmpty());
 
-		// Compute HLODActor hash
-		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), InCreationParams.GridIndexX, InCreationParams.GridIndexY, InCreationParams.GridIndexZ, InCreationParams.DataLayersID);
+		auto ComputeCellHash = [](const FString& HLODLayerName, const FName CellName)
+		{
+			uint64 HLODLayerNameHash = FCrc::StrCrc32(*HLODLayerName);
+			uint32 CellNameHash = FCrc::StrCrc32(*CellName.ToString());
+			return HashCombine(HLODLayerNameHash, CellNameHash);
+		};
+
+		uint64 CellHash = ComputeCellHash(HLODLayer->GetName(), InCreationParams.CellName);
+		FName HLODActorName = *FString::Printf(TEXT("%s_%016llx"), *HLODLayer->GetName(), CellHash);		
 
 		AWorldPartitionHLOD* HLODActor = nullptr;
 		FWorldPartitionHandle HLODActorHandle;
-		if (InCreationContext.HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
+		if (InCreationContext.HLODActorDescs.RemoveAndCopyValue(HLODActorName, HLODActorHandle))
 		{
 			InCreationContext.ActorReferences.Add(HLODActorHandle.ToReference());
 			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorHandle->GetActor());
@@ -154,13 +166,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (bNewActor)
 		{
 			FActorSpawnParameters SpawnParams;
-			SpawnParams.Name = *FString::Printf(TEXT("%s_%016llx"), *HLODLayer->GetName(), CellHash);
+			SpawnParams.Name = HLODActorName;
 			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 			HLODActor = InCreationParams.WorldPartition->GetWorld()->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
 
 			HLODActor->SetSourceCellName(InCreationParams.CellName);
 			HLODActor->SetSubActorsHLODLayer(HLODLayer);
-			HLODActor->SetGridIndices(InCreationParams.GridIndexX, InCreationParams.GridIndexY, InCreationParams.GridIndexZ);
 
 			// Make sure the generated HLOD actor has the same data layers as the source actors
 			for (const UDataLayerInstance* DataLayerInstance : InDataLayersInstances)
@@ -171,13 +182,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		else
 		{
 #if DO_CHECK
-			uint64 GridIndexX, GridIndexY, GridIndexZ;
-			HLODActor->GetGridIndices(GridIndexX, GridIndexY, GridIndexZ);
-			check(GridIndexX == InCreationParams.GridIndexX);
-			check(GridIndexY == InCreationParams.GridIndexY);
-			check(GridIndexZ == InCreationParams.GridIndexZ);
+			check(HLODActor->GetSourceCellName() == InCreationParams.CellName);
 			check(HLODActor->GetSubActorsHLODLayer() == HLODLayer);
-			check(FDataLayersID(HLODActor->GetDataLayerInstances()) == InCreationParams.DataLayersID);
 #endif
 		}
 
@@ -358,10 +364,202 @@ UHLODBuilderSettings* FWorldPartitionHLODUtilities::CreateHLODBuilderSettings(UH
 	return HLODBuilderSettings;
 }
 
+void GatherInputStats(AWorldPartitionHLOD* InHLODActor, const TArray<AActor*> SubActors)
+{
+	int64 NumActors = 0;
+	int64 NumTriangles = 0;
+	int64 NumVertices = 0;
+
+	for (AActor* SubActor : SubActors)
+	{
+		if (SubActor && SubActor->IsHLODRelevant())
+		{
+			if (AWorldPartitionHLOD* SubHLODActor = Cast<AWorldPartitionHLOD>(SubActor))
+			{
+				NumActors += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputActorCount);
+				NumTriangles += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputTriangleCount);
+				NumVertices += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputVertexCount);				
+			}
+			else
+			{
+				NumActors++;
+
+				SubActor->ForEachComponent<UStaticMeshComponent>(false, [&] (UStaticMeshComponent* SMComponent)
+				{
+					const UStaticMesh* StaticMesh = SMComponent->GetStaticMesh();
+					const FStaticMeshRenderData* RenderData = StaticMesh ? StaticMesh->GetRenderData() : nullptr;
+					const bool bHasRenderData = RenderData && !RenderData->LODResources.IsEmpty();
+
+					if (bHasRenderData)
+					{
+						const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(SMComponent);
+						const int64 LOD0TriCount = RenderData->LODResources[0].GetNumTriangles();
+						const int64 LOD0VtxCount = RenderData->LODResources[0].GetNumVertices();
+						const int64 NumInstances = ISMComponent ? ISMComponent->GetInstanceCount() : 1;
+
+						NumTriangles += LOD0TriCount * NumInstances;
+						NumVertices += LOD0VtxCount * NumInstances;
+					}
+				});
+			}
+		}
+	}
+
+	InHLODActor->SetStat(FWorldPartitionHLODStats::InputActorCount, NumActors);
+	InHLODActor->SetStat(FWorldPartitionHLODStats::InputTriangleCount, NumTriangles);
+	InHLODActor->SetStat(FWorldPartitionHLODStats::InputVertexCount, NumVertices);	
+}
+
+void GatherOutputStats(AWorldPartitionHLOD* InHLODActor)
+{
+	const UPackage* HLODPackage = InHLODActor->GetPackage();
+
+	// Gather relevant assets and process them outside of this ForEach as it's possible that async compilation completion
+	// triggers insertion of new objects, which would break the iteration over UObjects
+	TArray<UStaticMesh*> StaticMeshes;
+	TArray<UTexture*> Textures;
+	TArray<UMaterialInstance*> MaterialInstances;
+	ForEachObjectWithPackage(HLODPackage, [&](UObject* Object)
+	{
+		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+		{
+			StaticMeshes.Add(StaticMesh);
+		}
+		else if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Object))
+		{
+			MaterialInstances.Add(MaterialInstance);
+		}
+		else if (UTexture* Texture = Cast<UTexture>(Object))
+		{
+			Textures.Add(Texture);
+		}
+		return true;
+	}, false);
+
+	// Process static meshes
+	int64 MeshResourceSize = 0;
+	{
+		int64 InstanceCount = 0;
+		int64 NaniteTriangleCount = 0;
+		int64 NaniteVertexCount = 0;
+		int64 TriangleCount = 0;
+		int64 VertexCount = 0;
+		int64 UVChannelCount = 0;
+
+		InHLODActor->ForEachComponent<UInstancedStaticMeshComponent>(false, [&](const UInstancedStaticMeshComponent* ISMC)
+		{
+			InstanceCount += ISMC->GetInstanceCount();
+		});
+
+		FStaticMeshCompilingManager::Get().FinishCompilation(StaticMeshes);
+
+		for (UStaticMesh* StaticMesh : StaticMeshes)
+		{
+			MeshResourceSize += StaticMesh->GetResourceSizeBytes(EResourceSizeMode::Exclusive);
+
+			TriangleCount += StaticMesh->GetNumTriangles(0);
+			VertexCount += StaticMesh->GetNumVertices(0);
+			UVChannelCount = FMath::Max(UVChannelCount, StaticMesh->GetNumTexCoords(0));
+
+			NaniteTriangleCount += StaticMesh->GetNumNaniteTriangles();
+			NaniteVertexCount += StaticMesh->GetNumNaniteVertices();
+		}
+
+		// Mesh stats
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MeshInstanceCount, InstanceCount);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MeshNaniteTriangleCount, NaniteTriangleCount);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MeshNaniteVertexCount, NaniteVertexCount);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MeshTriangleCount, TriangleCount);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MeshVertexCount, VertexCount);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MeshUVChannelCount, UVChannelCount);
+	}
+
+	// Process materials
+	int64 TexturesResourceSize = 0;
+	{
+		int64 BaseColorTextureSize = 0;
+		int64 NormalTextureSize = 0;
+		int64 EmissiveTextureSize = 0;
+		int64 MetallicTextureSize = 0;
+		int64 RoughnessTextureSize = 0;
+		int64 SpecularTextureSize = 0;
+
+		FTextureCompilingManager::Get().FinishCompilation(Textures);
+
+		for (UMaterialInstance* MaterialInstance : MaterialInstances)
+		{
+			// Retrieve the texture size for a texture that can have different names
+			auto GetTextureSize = [&](const TArray<FName>& TextureParamNames) -> int64
+			{
+				for (FName TextureParamName : TextureParamNames)
+				{
+					UTexture* Texture = nullptr;
+					MaterialInstance->GetTextureParameterValue(TextureParamName, Texture, true);
+
+					if (Texture && Texture->GetPackage() == HLODPackage)
+					{
+						TexturesResourceSize += Texture->GetResourceSizeBytes(EResourceSizeMode::Exclusive);
+						return Texture->GetSurfaceWidth();
+					}
+				}
+
+				return 0;
+			};
+
+			int64 LocalBaseColorTextureSize = GetTextureSize({ "BaseColorTexture", "DiffuseTexture" });
+			int64 LocalNormalTextureSize = GetTextureSize({ "NormalTexture" });
+			int64 LocalEmissiveTextureSize = GetTextureSize({ "EmissiveTexture", "EmissiveColorTexture" });
+			int64 LocalMetallicTextureSize = GetTextureSize({ "MetallicTexture" });
+			int64 LocalRoughnessTextureSize = GetTextureSize({ "RoughnessTexture" });
+			int64 LocalSpecularTextureSize = GetTextureSize({ "SpecularTexture" });
+
+			int64 MRSTextureSize = GetTextureSize({ "PackedTexture" });
+			if (MRSTextureSize != 0)
+			{
+				LocalMetallicTextureSize = LocalRoughnessTextureSize = LocalSpecularTextureSize = MRSTextureSize;
+			}
+
+			BaseColorTextureSize = FMath::Max(BaseColorTextureSize, LocalBaseColorTextureSize);
+			NormalTextureSize = FMath::Max(NormalTextureSize, LocalNormalTextureSize);
+			EmissiveTextureSize = FMath::Max(EmissiveTextureSize, LocalEmissiveTextureSize);
+			MetallicTextureSize = FMath::Max(MetallicTextureSize, LocalMetallicTextureSize);
+			RoughnessTextureSize = FMath::Max(RoughnessTextureSize, LocalRoughnessTextureSize);
+			SpecularTextureSize = FMath::Max(SpecularTextureSize, LocalSpecularTextureSize);
+		}
+
+		// Material stats
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MaterialBaseColorTextureSize, BaseColorTextureSize);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MaterialNormalTextureSize, NormalTextureSize);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MaterialEmissiveTextureSize, EmissiveTextureSize);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MaterialMetallicTextureSize, MetallicTextureSize);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MaterialRoughnessTextureSize, RoughnessTextureSize);
+		InHLODActor->SetStat(FWorldPartitionHLODStats::MaterialSpecularTextureSize, SpecularTextureSize);
+	}
+
+	// Memory stats
+	InHLODActor->SetStat(FWorldPartitionHLODStats::MemoryMeshResourceSizeBytes, MeshResourceSize);
+	InHLODActor->SetStat(FWorldPartitionHLODStats::MemoryTexturesResourceSizeBytes, TexturesResourceSize);
+	InHLODActor->SetStat(FWorldPartitionHLODStats::MemoryDiskSizeBytes, 0); // Clear disk size as it is unknown at this point. It will be assigned at package loading
+}
+
 uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 {
+	FAutoScopedDurationTimer TotalTimeScope;
+
+	// Keep track of timings related to this build
+	int64 LoadTimeMS = 0;
+	int64 BuildTimeMS = 0;
+	int64 TotalTimeMS = 0;
+	
+	// Load actors relevant to HLODs
 	bool bIsDirty = false;
-	UWorldPartitionLevelStreamingDynamic* LevelStreaming = CreateLevelStreamingFromHLODActor(InHLODActor, bIsDirty);
+	UWorldPartitionLevelStreamingDynamic* LevelStreaming = nullptr;
+	{
+		FAutoScopedDurationTimer LoadTimeScope;
+		LevelStreaming = CreateLevelStreamingFromHLODActor(InHLODActor, bIsDirty);
+		LoadTimeMS = LoadTimeScope.GetTime() * 1000;
+	}
+
 	ON_SCOPE_EXIT
 	{
 		UWorldPartitionLevelStreamingDynamic::UnloadFromEditor(LevelStreaming);
@@ -376,6 +574,12 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 		return OldHLODHash;
 	}
 
+	// Clear stats as we're about to refresh them
+	InHLODActor->ResetStats();
+	
+	// Gather stats from the input to our HLOD build
+	GatherInputStats(InHLODActor, LevelStreaming->GetLoadedLevel()->Actors);
+	
 	const UHLODLayer* HLODLayer = InHLODActor->GetSubActorsHLODLayer();
 	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClass(HLODLayer);
 
@@ -394,7 +598,14 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 			HLODBuildContext.AssetsBaseName = InHLODActor->GetActorLabel();
 			HLODBuildContext.MinVisibleDistance = InHLODActor->GetMinVisibleDistance();
 
-			TArray<UActorComponent*> HLODComponents = HLODBuilder->Build(HLODBuildContext, LevelStreaming->GetLoadedLevel()->Actors);
+			// Build
+			TArray<UActorComponent*> HLODComponents;
+			{
+				FAutoScopedDurationTimer BuildTimeScope;
+				HLODComponents = HLODBuilder->Build(HLODBuildContext, LevelStreaming->GetLoadedLevel()->Actors);
+				BuildTimeMS = BuildTimeScope.GetTime() * 1000;
+			}
+
 			if (HLODComponents.IsEmpty())
 			{
 				UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD generation created no component for %s"), *InHLODActor->GetActorLabel());
@@ -438,6 +649,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 							}
 
 							// Disable collisions
+							StaticMesh->MarkAsNotHavingNavigationData();
 							if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
 							{
 								BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
@@ -454,6 +666,16 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 			InHLODActor->SetHLODComponents(HLODComponents);
 		}
 	}
+
+	// Gather stats pertaining to the assets generated during this build
+	GatherOutputStats(InHLODActor);
+
+	TotalTimeMS = TotalTimeScope.GetTime() * 1000;
+
+	// Build timings stats
+	InHLODActor->SetStat(FWorldPartitionHLODStats::BuildTimeLoadMilliseconds, LoadTimeMS);
+	InHLODActor->SetStat(FWorldPartitionHLODStats::BuildTimeBuildMilliseconds, BuildTimeMS);
+	InHLODActor->SetStat(FWorldPartitionHLODStats::BuildTimeTotalMilliseconds, TotalTimeMS);
 
 	return NewHLODHash;
 }

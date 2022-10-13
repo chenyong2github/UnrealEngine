@@ -159,31 +159,38 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 	: Super(ObjectInitializer)
 	, BuilderIdx(INDEX_NONE)
 	, BuilderCount(INDEX_NONE)
-	, HLODLevelToBuild(INDEX_NONE)
 	, DistributedBuildWorkingDir(FPaths::RootDir() / DistributedBuildWorkingDirName)
 	, DistributedBuildManifest(DistributedBuildWorkingDir / DistributedBuildManifestName)
 {
 	BuildOptions = FParse::Param(FCommandLine::Get(), TEXT("SetupHLODs")) ? EHLODBuildStep::HLOD_Setup : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("BuildHLODs")) ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
+	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("RebuildHLODs")) ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("DeleteHLODs")) ? EHLODBuildStep::HLOD_Delete : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("FinalizeHLODs")) ? EHLODBuildStep::HLOD_Finalize : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("DumpStats")) ? EHLODBuildStep::HLOD_Stats : EHLODBuildStep::None;
 
+	bResumeBuild = FParse::Value(FCommandLine::Get(), TEXT("ResumeBuild="), ResumeBuildIndex);
+
+	bDistributedBuild = FParse::Param(FCommandLine::Get(), TEXT("DistributedBuild"));
+	bForceBuild = FParse::Param(FCommandLine::Get(), TEXT("RebuildHLODs"));
+
+	FParse::Value(FCommandLine::Get(), TEXT("BuildManifest="), BuildManifest);
+	FParse::Value(FCommandLine::Get(), TEXT("BuilderIdx="), BuilderIdx);
+	FParse::Value(FCommandLine::Get(), TEXT("BuilderCount="), BuilderCount);
+	FParse::Value(FCommandLine::Get(), TEXT("BuildHLODLayer="), HLODLayerToBuild);
+	FParse::Value(FCommandLine::Get(), TEXT("BuildSingleHLOD="), HLODActorToBuild);
+
+	if (!HLODActorToBuild.IsNone() || !HLODLayerToBuild.IsNone())
+	{
+		BuildOptions = EHLODBuildStep::HLOD_Build;
+		bForceBuild = bForceBuild || !HLODActorToBuild.IsNone();
+	}
+	
 	// Default behavior without any option is to setup + build
 	if (BuildOptions == EHLODBuildStep::None)
 	{
 		BuildOptions = EHLODBuildStep::HLOD_Setup | EHLODBuildStep::HLOD_Build;
 	}
-
-	bResumeBuild = FParse::Value(FCommandLine::Get(), TEXT("ResumeBuild="), ResumeBuildIndex);
-
-	bDistributedBuild = FParse::Param(FCommandLine::Get(), TEXT("DistributedBuild"));
-
-	FParse::Value(FCommandLine::Get(), TEXT("BuildManifest="), BuildManifest);
-	FParse::Value(FCommandLine::Get(), TEXT("BuilderIdx="), BuilderIdx);
-	FParse::Value(FCommandLine::Get(), TEXT("BuilderCount="), BuilderCount);
-
-	FParse::Value(FCommandLine::Get(), TEXT("HLODLevel="), HLODLevelToBuild);
 
 	if (bDistributedBuild)
 	{
@@ -329,9 +336,14 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors()
 {
 	auto ActorFolderAddedDelegateHandle = GEngine->OnActorFolderAdded().AddLambda([this](UActorFolder* InActorFolder)
 	{
-		// We don't want the HLOD folders to be expanded by default
-		InActorFolder->SetIsInitiallyExpanded(false);
-		SourceControlHelper->Save(InActorFolder->GetPackage());
+		UPackage* ActorFolderPackage = InActorFolder->GetPackage();
+		const bool bIsTempPackage = FPackageName::IsTempPackage(ActorFolderPackage->GetName());
+		if (!bIsTempPackage)
+		{
+			// We don't want the HLOD folders to be expanded by default
+			InActorFolder->SetIsInitiallyExpanded(false);
+			SourceControlHelper->Save(InActorFolder->GetPackage());
+		}
 	});
 	
 	ON_SCOPE_EXIT
@@ -467,13 +479,10 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 
 		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("[%d / %d] Building HLOD actor %s..."), CurrentActor + 1, HLODActorsToBuild.Num(), *HLODActor->GetActorLabel());
 
-		if (HLODLevelToBuild == INDEX_NONE || HLODActor->GetLODLevel() == HLODLevelToBuild)
-		{
-			// Simulate an engine tick to make sure engine & render resources that are queued for deletion are processed.
-			FWorldPartitionHelpers::FakeEngineTick(WorldPartition->GetWorld());
+		// Simulate an engine tick to make sure engine & render resources that are queued for deletion are processed.
+		FWorldPartitionHelpers::FakeEngineTick(WorldPartition->GetWorld());
 
-			HLODActor->BuildHLOD();
-		}
+		HLODActor->BuildHLOD(bForceBuild);
 
 		UPackage* ActorPackage = HLODActor->GetPackage();
 		if (ActorPackage->IsDirty())
@@ -643,7 +652,6 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 		HLODStat.Name = HLODActor->GetActorLabel();
 		HLODStat.RuntimeGrid = HLODActor->GetRuntimeGrid();
 		HLODStat.bIsSpatiallyLoaded = HLODActor->GetIsSpatiallyLoaded();
-		HLODActor->GetGridIndices(HLODStat.GridLocationX, HLODStat.GridLocationY, HLODStat.GridLocationZ);
 		HLODStat.DataLayers = *FString::JoinBy(HLODActor->GetDataLayerInstances(), TEXT("| "), [](const UDataLayerInstance* DataLayer) { return DataLayer->GetDataLayerShortName(); });
 		HLODStat.HLODType = HLODActor->GetSubActorsHLODLayer()->GetLayerType();
 
@@ -778,6 +786,18 @@ TArray<TArray<FGuid>> UWorldPartitionHLODsBuilder::GetHLODWorkloads(int32 NumWor
 	TMap<FGuid, TArray<FGuid>>	HLODParenting;
 	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition->GetActorDescContainer()); HLODIterator; ++HLODIterator)
 	{
+		// Filter by HLOD actor
+		if (!HLODActorToBuild.IsNone() && HLODIterator->GetActorLabel() != HLODActorToBuild)
+		{
+			continue;
+		}
+
+		// Filter by HLOD layer
+		if (!HLODLayerToBuild.IsNone() && HLODIterator->GetSourceHLODLayerName() != HLODLayerToBuild)
+		{
+			continue;
+		}
+
 		TArray<FGuid>& ChildHLODs = HLODParenting.Add(HLODIterator->GetGuid());
 
 		for (const FHLODSubActorDesc& SubActor : HLODIterator->GetSubActors())

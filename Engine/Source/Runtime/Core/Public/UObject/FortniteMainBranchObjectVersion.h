@@ -253,6 +253,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add Nanite Material Override option to materials and material instances.
 		NaniteMaterialOverride,
 
+		// Serialize HLOD stats in HLODActorDesc
+		WorldPartitionHLODActorDescSerializeStats,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
