@@ -145,8 +145,9 @@ class FMemoryCompressor
 {
 public:
 	/** Divide into blocks and start compress asynchronously */
-	FMemoryCompressor(uint8* UncompressedBuffer, int64 UncompressedSize, FName Format, int32 CompressionBlockSize, FGraphEventRef CompressionFinishedEvent) :
-		Index(0)
+	FMemoryCompressor(uint8* UncompressedBuffer, int64 UncompressedSize, FName Format, int32 CompressionBlockSize, FGraphEventRef InCompressionFinishedEvent) 
+		: CompressionFinishedEvent(InCompressionFinishedEvent)
+		, Index(0)
 	{
 		// Divide into blocks and start compression async tasks.
 		// These blocks must be as same as followed CompressMemory callings.
@@ -158,8 +159,20 @@ public:
 			BlockCompressAsyncTasks.Add(AsyncTask);
 			UncompressedSize -= BlockSize;
 			UncompressedBytes += BlockSize;
-		}
+		}	
+	}
 
+	~FMemoryCompressor()
+	{
+		for (FAsyncTask<FBlockCompressTask>* AsyncTask : BlockCompressAsyncTasks)
+		{
+			check(AsyncTask->IsDone());
+			delete AsyncTask;
+		}
+	}
+
+	void StartWork()
+	{
 		if (BlockCompressAsyncTasks.IsEmpty())
 		{
 			CompressionFinishedEvent->DispatchSubsequents();
@@ -168,22 +181,12 @@ public:
 		{
 			RemainingTasksCounter = BlockCompressAsyncTasks.Num();
 
-			for (auto* AsyncTask : BlockCompressAsyncTasks)
+			for (FAsyncTask<FBlockCompressTask>* AsyncTask : BlockCompressAsyncTasks)
 			{
 				AsyncTask->StartBackgroundTask();
 			}
 		}
 	}
-
-	~FMemoryCompressor()
-	{
-		for (auto* AsyncTask : BlockCompressAsyncTasks)
-		{
-			check(AsyncTask->IsDone());
-			delete AsyncTask;
-		}
-	}
-
 
 	/** Fetch compressed result. Returns true and store CompressedSize if succeeded */
 	bool CopyNextCompressedBuffer(FName Format, void* CompressedBuffer, int32& CompressedSize, const void* UncompressedBuffer, int32 UncompressedSize)
@@ -191,7 +194,7 @@ public:
 		// Fetch compressed result from task.
 		// We assume this is called only once, same order, same parameters for
 		// each task.
-		auto* AsyncTask = BlockCompressAsyncTasks[Index++];
+		FAsyncTask<FBlockCompressTask>* AsyncTask = BlockCompressAsyncTasks[Index++];
 		while (!AsyncTask->IsDone())
 		{
 			// Compression is done but we also need to wait for the async task to be marked as completed before we call GetTask() below
@@ -214,6 +217,8 @@ public:
 	}
 
 private:
+	FGraphEventRef CompressionFinishedEvent;
+
 	TArray<FAsyncTask<FBlockCompressTask>*> BlockCompressAsyncTasks;
 	std::atomic<int32> RemainingTasksCounter = 0;
 
@@ -2155,6 +2160,10 @@ void FPakWriterContext::BeginCompress(FOutputPakFileEntry* Entry)
 	}
 	// attempt to compress the data
 	Entry->MemoryCompressor = Entry->CompressedFileBuffer.BeginCompressFileToWorkingBuffer(Entry->InputPair, Entry->CompressionMethod, CmdLineParameters.CompressionBlockSize, Entry->EndCompressionBarrier);
+	if (Entry->MemoryCompressor != nullptr)
+	{
+		Entry->MemoryCompressor->StartWork();
+	}
 }
 
 void FPakWriterContext::EndCompress(FOutputPakFileEntry* Entry)
