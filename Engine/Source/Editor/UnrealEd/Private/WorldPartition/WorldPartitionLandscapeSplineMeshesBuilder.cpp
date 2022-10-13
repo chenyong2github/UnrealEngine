@@ -488,12 +488,15 @@ bool UWorldPartitionLandscapeSplineMeshesBuilder::RunInternal(UWorld* InWorld, c
 	}
 
 	// Destroy actors that are no longer needed
-	TArray<FString> PackagesToDelete;
+	TArray<UPackage*> PackagesToDelete;
 	for (ALandscapeSplineMeshesActor* Actor : PreviousGeneratedActors)
 	{
 		if (UPackage* Package = Actor->GetExternalPackage())
 		{
-			PackagesToDelete.Add(Package->GetName());
+			PackagesToDelete.Add(Package);
+
+			// Releases file handles so packages can be deleted
+			ResetLoaders(Package);
 		}
 		InWorld->DestroyActor(Actor);
 	}
@@ -510,8 +513,10 @@ bool UWorldPartitionLandscapeSplineMeshesBuilder::RunInternal(UWorld* InWorld, c
 			return false;
 		}
 
-		TArray<FString> ModifiedFiles = MoveTemp(PackagesToDelete);
-		Algo::Transform(PackagesToSave, ModifiedFiles, [](const UPackage* InPackage) { return USourceControlHelpers::PackageFilename(InPackage); });
+		TArray<FString> ModifiedFiles;
+		auto GetPackageFilename = [](const UPackage* InPackage) { return USourceControlHelpers::PackageFilename(InPackage); };
+		Algo::Transform(PackagesToDelete, ModifiedFiles, GetPackageFilename);
+		Algo::Transform(PackagesToSave, ModifiedFiles, GetPackageFilename);
 
 		const FString ChangeDescription = FString::Printf(TEXT("Rebuilt landscape splines for %s"), *InWorld->GetName());
 		if (!AutoSubmitFiles(ModifiedFiles, ChangeDescription))

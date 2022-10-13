@@ -394,6 +394,13 @@ bool UWorldPartitionBuilder::SavePackages(const TArray<UPackage*>& Packages, FPa
 	return bSuccess;
 }
 
+bool UWorldPartitionBuilder::DeletePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings)
+{
+	TArray<FString> PackagesNames;
+	Algo::Transform(Packages, PackagesNames, [](UPackage* InPackage) { return InPackage->GetName(); });
+	return DeletePackages(PackagesNames, PackageHelper, bErrorsAsWarnings);
+}
+
 bool UWorldPartitionBuilder::DeletePackages(const TArray<FString>& PackageNames, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings)
 {
 	if (PackageNames.Num() > 0)
