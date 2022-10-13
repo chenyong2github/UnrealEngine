@@ -49,6 +49,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"StylusInput",
 				"DeveloperSettings",
 				"PropertyEditor",
+				"GeometryFramework"
 				// ... add private dependencies that you statically link with here ...	
 			}
 		);

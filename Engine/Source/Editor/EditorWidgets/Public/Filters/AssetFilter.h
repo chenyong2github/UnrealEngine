@@ -113,6 +113,12 @@ public:
 		// If not, try to use the comparison function
 		else if(OnCompareItem.IsBound())
 		{
+			// If there are no filters active just return true
+			if(CompiledBackendFilter.IsEmpty())
+			{
+				return true;
+			}
+			
 			return OnCompareItem.Execute(InItem, CompiledBackendFilter.ClassPaths);
 		}
 

@@ -75,10 +75,10 @@ public class NiagaraEditor : ModuleRules
 			new string[] {
 				"Engine",
 				"Messaging",
-				"LevelEditor",
 				"AssetTools",
 				"ContentBrowser",
                 "DerivedDataCache",
+                "LevelEditor",
             }
         );
 

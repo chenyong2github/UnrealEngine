@@ -42,6 +42,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
+#include "LevelEditorOutlinerSettings.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -208,6 +209,8 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		OwnerWindow = MainFrameModule.GetParentWindow();
 	}
 
+	OutlinerSettings->CreateDefaultFilters();
+
 	TSharedPtr<SLevelEditor> LevelEditorTmp;
 	if (OwnerWindow.IsValid())
 	{
@@ -294,6 +297,9 @@ void FLevelEditorModule::StartupModule()
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	MessageLogModule.RegisterLogListing("BuildAndSubmitErrors", LOCTEXT("BuildAndSubmitErrors", "Build and Submit Errors"));
+
+	OutlinerSettings = MakeShared<FLevelEditorOutlinerSettings>();
+	OutlinerSettings->SetupBuiltInCategories();
 }
 
 /**
@@ -1829,5 +1835,24 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		);
 }
 
+TSharedPtr<FLevelEditorOutlinerSettings> FLevelEditorModule::GetLevelEditorOutlinerSettings() const
+{
+	return OutlinerSettings;
+}
+
+void FLevelEditorModule::AddCustomFilterToOutliner(TSharedRef<FFilterBase<SceneOutliner::FilterBarType>> InCustomFilter)
+{
+	OutlinerSettings->AddCustomFilter(InCustomFilter);
+}
+
+void FLevelEditorModule::AddCustomClassFilterToOutliner(TSharedRef<FCustomClassFilterData> InCustomClassFilterData)
+{
+	OutlinerSettings->AddCustomClassFilter(InCustomClassFilterData);
+}
+
+TSharedPtr<FFilterCategory> FLevelEditorModule::GetOutlinerFilterCategory(const FName& CategoryName) const
+{
+	return OutlinerSettings->GetFilterCategory(CategoryName);
+}
 
 #undef LOCTEXT_NAMESPACE

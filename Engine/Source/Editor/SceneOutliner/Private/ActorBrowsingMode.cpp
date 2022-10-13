@@ -42,10 +42,6 @@
 #include "EditorLevelUtils.h"
 #include "EditorViewportCommands.h"
 #include "SceneOutlinerActorSCCColumn.h"
-#include "Filters/GenericFilter.h"
-#include "Engine/StaticMeshActor.h"
-#include "Filters/CustomClassFilterData.h"
-#include "IPlacementModeModule.h"
 #include "Misc/ScopedSlowTask.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
@@ -2227,135 +2223,35 @@ void FActorBrowsingMode::SaveConfig()
 	UActorBrowserConfig::Get()->SaveEditorConfig();
 }
 
-void FActorBrowsingMode::CreateOutlinerFilterBarFilters(FSceneOutlinerFilterBarOptions& OutFilterBarOptions)
-{
-	OutFilterBarOptions.bHasFilterBar = true;
-
-	// All level editor outliners share their custom text filters
-	OutFilterBarOptions.bUseSharedSettings = true;
-
-	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
-
-	// Get all the Categories
-	TArray<FPlacementCategoryInfo> Categories;
-	PlacementModeModule.GetSortedCategories(Categories);
-
-	// Array of unique class types to Add as filters
-	TMap<FTopLevelAssetPath, TSharedRef<FCustomClassFilterData>> FilterClasses;
-
-	// Remove the Recently Placed (doesn't make sense) and All Classes (too much bloat) categories from the filters
-	Categories.RemoveAll([](const FPlacementCategoryInfo& Category)
-	{
-		return Category.UniqueHandle == FBuiltInPlacementCategories::RecentlyPlaced() || Category.UniqueHandle == FBuiltInPlacementCategories::AllClasses();
-	});
-
-	// We will keep a reference to the shapes category if we find it for later
-	TSharedPtr<FFilterCategory> ShapesCategory;
-	
-	auto FindOrAddClassFilter = [&FilterClasses](UClass* Class, TSharedPtr<FFilterCategory> FilterCategory)
-	{
-		// If the underlying class already exists, just add this category to it
-		if(TSharedRef<FCustomClassFilterData>* ExistingClassData = FilterClasses.Find(Class->GetClassPathName()))
-		{
-			(*ExistingClassData)->AddCategory(FilterCategory);
-		}
-		else
-		{
-			TSharedRef<FCustomClassFilterData> NewClassData = MakeShared<FCustomClassFilterData>(Class, FilterCategory, FLinearColor::White);
-
-			FilterClasses.Add(Class->GetClassPathName(), NewClassData);
-		}
-	};
-	
-	for (const FPlacementCategoryInfo& Category : Categories)
-	{
-		// Make an FFilterCategory using the current PlacementCategory
-		TSharedPtr<FFilterCategory> FilterCategory = MakeShared<FFilterCategory>(Category.DisplayName, FText::GetEmpty());
-
-		if(Category.UniqueHandle == FBuiltInPlacementCategories::Shapes())
-		{
-			ShapesCategory = FilterCategory;
-		}
-
-		// Get all the items belonging to the current category
-		TArray<TSharedPtr<FPlaceableItem>> Items;
-		PlacementModeModule.RegenerateItemsForCategory(Category.UniqueHandle);
-		PlacementModeModule.GetItemsForCategory(Category.UniqueHandle, Items);
-
-		for(TSharedPtr<FPlaceableItem>& Item : Items)
-		{
-			// Get the underlying class from the Actor belonging to this item
-			const bool bIsClass = Item->AssetData.GetClass() == UClass::StaticClass();
-			const bool bIsActor = bIsClass ? CastChecked<UClass>(Item->AssetData.GetAsset())->IsChildOf(AActor::StaticClass()) : false;
-			AActor* DefaultActor = nullptr;
-			if (Item->Factory != nullptr)
-			{
-				DefaultActor = Item->Factory->GetDefaultActor(Item->AssetData);
-			}
-			else if (bIsActor)
-			{
-				DefaultActor = CastChecked<AActor>(CastChecked<UClass>(Item->AssetData.GetAsset())->ClassDefaultObject);
-			
-			}
-			if(!DefaultActor)
-			{
-				continue;
-			}
-			UClass* Class = DefaultActor->GetClass();
-
-			FindOrAddClassFilter(Class, FilterCategory);
-		}
-	}
-
-	if(ShapesCategory)
-	{
-		// Special case: Add Static Mesh Actor to the Shapes category
-		// TODO: Add a better way to register exception and extra classes if we want to deviate from the place actors set later on
-		FindOrAddClassFilter(AStaticMeshActor::StaticClass(), ShapesCategory);
-	}
-
-	// Sort the filter menu by name
-	FilterClasses.ValueSort([](const TSharedRef<FCustomClassFilterData>& ClassA, const TSharedRef<FCustomClassFilterData>& ClassB)
-		{
-			return ClassA->GetName().CompareTo(ClassB->GetName()) < 0;
-		});
-
-	// Now add all the classes to the filter bar
-	for(const TPair<FTopLevelAssetPath, TSharedRef<FCustomClassFilterData>>& FilterClass : FilterClasses)
-	{
-		OutFilterBarOptions.CustomClassFilters.Add(FilterClass.Value);
-	}
-	
-}
-
-/** Function called by the Outliner Filter Bar to compare an item with Asset Type Filters*/
-bool FActorBrowsingMode::ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const
+bool FActorBrowsingMode::CompareItemWithClassName(SceneOutliner::FilterBarType InItem, const TSet<FTopLevelAssetPath>& AssetClassPaths) const
 {
 	// Type filtering only supported for Actors (and unloaded actors) currently
 	if (const FActorTreeItem* ActorItem = InItem.CastTo<FActorTreeItem>())
 	{
 		AActor* Actor = ActorItem->Actor.Get();
 
-		OutAssetData = FAssetData(Actor);
+		FTopLevelAssetPath AssetClassPath = Actor->GetClass()->GetClassPathName();
 
-		return true;
+		// For Blueprints, we check both the parent type (e.g Pawn/Actor etc) and the Blueprint class itself
+		if (UBlueprint* ClassBP = UBlueprint::GetBlueprintFromClass(Actor->GetClass()))
+		{
+			return AssetClassPaths.Contains(ClassBP->GetClass()->GetClassPathName()) || AssetClassPaths.Contains(AssetClassPath);
+		}
+		
+		return AssetClassPaths.Contains(AssetClassPath);
 	}
+	// TODO: Maybe can be improved to not use TryConvertShortClassNameToPathName to optimize?
 	else if (const FActorDescTreeItem* ActorDescItem = InItem.CastTo<FActorDescTreeItem>())
 	{
 		if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 		{
-			// For Unloaded Actors, grab the native class 
-			OutAssetData = FAssetData();
+			// For Unloaded Actors, grab the native class and try to convert it to a path name
 			FTopLevelAssetPath ClassPath = ActorDesc->GetNativeClass();
-			if(ClassPath.IsValid())
-			{
-				OutAssetData.AssetClassPath = ClassPath;
-				return true;
-			}
+			return AssetClassPaths.Contains(ClassPath);
 		}
 	}
 
-	return FActorModeInteractive::ConvertItemToAssetData(InItem, OutAssetData);
+	return FActorModeInteractive::CompareItemWithClassName(InItem, AssetClassPaths);
 }
 
 #undef LOCTEXT_NAMESPACE

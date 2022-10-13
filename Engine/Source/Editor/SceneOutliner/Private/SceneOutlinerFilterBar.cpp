@@ -8,6 +8,7 @@ SSceneOutlinerFilterBar::FCustomTextFilterEvent SSceneOutlinerFilterBar::CustomT
 void SSceneOutlinerFilterBar::Construct( const FArguments& InArgs )
 {
 	bUseSharedSettings = InArgs._UseSharedSettings;
+	this->CategoryToExpand = InArgs._CategoryToExpand;
 
 	SFilterBar<SceneOutliner::FilterBarType>::FArguments Args;
 	Args._OnFilterChanged = InArgs._OnFilterChanged;
@@ -17,6 +18,7 @@ void SSceneOutlinerFilterBar::Construct( const FArguments& InArgs )
 	Args._CreateTextFilter = InArgs._CreateTextFilter;
 	Args._FilterSearchBox = InArgs._FilterSearchBox;
 	Args._FilterBarIdentifier = InArgs._FilterBarIdentifier;
+	Args._OnCompareItemWithClassNames = InArgs._OnCompareItemWithClassNames;
 	Args._OnConvertItemToAssetData = InArgs._OnConvertItemToAssetData;
 	Args._FilterPillStyle = EFilterPillStyle::Basic;
 

@@ -14,6 +14,7 @@
 class FExtender;
 struct FToolMenuContext;
 class FCustomClassFilterData;
+class FFilterCategory;
 template<typename FilterType> class FFilterBase;
 
 DECLARE_DELEGATE_TwoParams(FSceneOutlinerModifyContextMenu, FName& /* MenuName */, FToolMenuContext& /* MenuContext */);
@@ -146,6 +147,9 @@ struct FSceneOutlinerFilterBarOptions
 
 	/** If true, share this Outliner filter bar's custom text filters with the level editor outliners */
 	bool bUseSharedSettings = false;
+
+	/** The category to expand in the filter menu (There must be at least one filter attached to the category) */
+	TSharedPtr<FFilterCategory> CategoryToExpand;
 };
 
 /**

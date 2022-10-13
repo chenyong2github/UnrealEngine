@@ -31,6 +31,7 @@
 #include "LandscapeModule.h"
 
 #include "LevelEditor.h"
+#include "Filters/CustomClassFilterData.h"
 #include "ToolMenus.h"
 #include "Editor/EditorEngine.h"
 #include "LandscapeSubsystem.h"
@@ -103,6 +104,13 @@ public:
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(ViewportMenuExtender);
 
+		// Add Level Editor Outliner Filter
+		if (TSharedPtr<FFilterCategory> EnvironmentFilterCategory = LevelEditorModule.GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::Environment()))
+		{
+			TSharedRef<FCustomClassFilterData> LandscapeActorClassData = MakeShared<FCustomClassFilterData>(ALandscape::StaticClass(), EnvironmentFilterCategory, FLinearColor::White);
+			LevelEditorModule.AddCustomClassFilterToOutliner(LandscapeActorClassData);
+		}
+		
 		// add actor factories
 		UActorFactoryLandscape* LandscapeActorFactory = NewObject<UActorFactoryLandscape>();
 		LandscapeActorFactory->NewActorClass = ALandscape::StaticClass();

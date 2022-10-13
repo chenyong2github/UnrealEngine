@@ -101,12 +101,9 @@ public:
 
 	/** Called by engine when edit delete actors ends */
 	void OnDeleteActorsEnd();
-
-	/* Helper function to create the basic set of filters that the Actor Browser will have */
-	static void CreateOutlinerFilterBarFilters(FSceneOutlinerFilterBarOptions& OutFilterBarOptions);
-
-	/** Function called by the Outliner Filter Bar to compare an item with Asset Type Filters*/
-	virtual bool ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const override;
+	
+	/** Function called by the Outliner Filter Bar to compare an item with Type Filters*/
+	virtual bool CompareItemWithClassName(SceneOutliner::FilterBarType InItem, const TSet<FTopLevelAssetPath>&) const override;
 private:
 	/** Build and up the context menu */
 	TSharedPtr<SWidget> BuildContextMenu();

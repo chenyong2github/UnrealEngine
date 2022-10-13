@@ -164,8 +164,8 @@ public:
 	/** Unpins all selected items */
 	virtual void UnpinSelectedItems() {}
 
-	/** Function called by the Outliner Filter Bar to compare an item with Asset Type Filters*/
-	virtual bool ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const { return false; };
+	/** Function called by the Outliner Filter Bar to compare an item with Type Filters*/
+	virtual bool CompareItemWithClassName(SceneOutliner::FilterBarType InItem, const TSet<FTopLevelAssetPath>&) const { return false; };
 public:
 	/* Getters */
 

@@ -16,7 +16,7 @@ public:
 	DECLARE_EVENT_OneParam(SSceneOutlinerFilterBar, FCustomTextFilterEvent, TSharedPtr<SWidget> /* BroadcastingFilterBar */);
 	
 	using FOnFilterChanged = typename SBasicFilterBar<SceneOutliner::FilterBarType>::FOnFilterChanged;
-	using FConvertItemToAssetData = typename FAssetFilter<SceneOutliner::FilterBarType>::FConvertItemToAssetData;
+	using FCompareItemWithClassNames = typename FAssetFilter<SceneOutliner::FilterBarType>::FCompareItemWithClassNames;
 	using FCreateTextFilter = typename SBasicFilterBar<SceneOutliner::FilterBarType>::FCreateTextFilter;
 	
 	SLATE_BEGIN_ARGS( SSceneOutlinerFilterBar )
@@ -31,6 +31,9 @@ public:
 
 		/** Specify this delegate to use asset comparison through IAssetRegistry, where you specify how to convert your Item into an FAssetData */
 		SLATE_EVENT( FConvertItemToAssetData, OnConvertItemToAssetData )
+
+		/** Specify this delegate to use asset comparison through IAssetRegistry, where you specify how to convert your Item into an FAssetData */
+		SLATE_EVENT( FCompareItemWithClassNames, OnCompareItemWithClassNames )
 
 		/** Initial List of Custom Filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FFilterBase<SceneOutliner::FilterBarType>>>, CustomFilters)
@@ -59,6 +62,9 @@ public:
 		 *	Currently used to sync all level editor outliner custom text filters.
 		 */
 		SLATE_ARGUMENT(bool, UseSharedSettings)
+
+		/** The Category to expand in the Filter Menu */
+		SLATE_ARGUMENT(TSharedPtr<FFilterCategory>, CategoryToExpand)
 
 	SLATE_END_ARGS()
 

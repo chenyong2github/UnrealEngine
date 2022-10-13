@@ -1524,7 +1524,7 @@ protected:
 	/** Helper function to add all custom filters to the Add Filter Menu */
 	void PopulateCustomFilters(UToolMenu* Menu)
 	{
-		FToolMenuSection& Section = Menu->AddSection("BasicFilterBarFiltersMenu");
+		FToolMenuSection& Section = Menu->AddSection("BasicFilterBarFiltersMenu", LOCTEXT("FilterBarOtherFiltersSection", "Other Filters"));
 		
 		// Add all the filters
 		for (const TSharedPtr<FFilterCategory>& Category : AllFilterCategories)

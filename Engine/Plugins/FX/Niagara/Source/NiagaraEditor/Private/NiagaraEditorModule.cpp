@@ -145,6 +145,10 @@
 #include "NiagaraEffectType.h"
 #include "SNiagaraSystemViewport.h"
 
+#include "LevelEditor.h"
+#include "LevelEditorOutlinerSettings.h"
+#include "Filters/CustomClassFilterData.h"
+
 #include "SNiagaraDebugger.h"
 
 #include "NiagaraDebugVis.h"
@@ -1408,6 +1412,20 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	// ensure that all cached asset types are fully loaded.
 	ParameterCollectionAssetCache.RefreshCache(true /*bAllowLoading*/);
 	ParameterDefinitionsAssetCache.RefreshCache(true /*bAllowLoading*/);
+
+	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		
+		TSharedPtr<FFilterCategory> FXFilterCategory = MakeShared<FFilterCategory>(LOCTEXT("FXFilterCategory", "FX"), FText::GetEmpty());
+		TSharedRef<FCustomClassFilterData> NewClassData = MakeShared<FCustomClassFilterData>(ANiagaraActor::StaticClass(), FXFilterCategory, FLinearColor::White);
+
+		if(TSharedPtr<FFilterCategory> EssentialCategory = LevelEditorModule.GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::Common()))
+		{
+			NewClassData->AddCategory(EssentialCategory);
+		}
+		LevelEditorModule.AddCustomClassFilterToOutliner(NewClassData);
+	}
 
 #if WITH_NIAGARA_DEBUGGER
 	Debugger = MakeShared<FNiagaraDebugger>();

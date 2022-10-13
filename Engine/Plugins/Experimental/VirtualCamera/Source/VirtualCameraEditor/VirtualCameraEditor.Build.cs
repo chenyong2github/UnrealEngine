@@ -20,7 +20,16 @@ public class VirtualCameraEditor : ModuleRules
 				"VPUtilities",
 				"VPUtilitiesEditor",
 				"VCamCore",
-				"VirtualCamera"
+				"VirtualCamera",
+				"EditorWidgets",
+				"CinematicCamera"
+			}
+		);
+			
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"LevelEditor",
 			}
 		);
 	}

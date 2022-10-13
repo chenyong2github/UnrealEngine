@@ -804,8 +804,12 @@ protected:
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 		// Add the Basic category
-		AssetFilterCategories.Add(EAssetTypeCategories::Basic, MakeShareable(new FFilterCategory(LOCTEXT("BasicFilter", "Basic"), LOCTEXT("BasicFilterTooltip", "Filter by basic assets."))));
+		TSharedPtr<FFilterCategory> BasicCategory = MakeShareable(new FFilterCategory(LOCTEXT("BasicFilter", "Common"), LOCTEXT("BasicFilterTooltip", "Filter by Common assets.")));
+		AssetFilterCategories.Add(EAssetTypeCategories::Basic, BasicCategory);
 
+		// We expand the basic category by default if we are creating it
+		CategoryToExpand = BasicCategory;
+		
 		// Add the advanced categories
 		TArray<FAdvancedAssetCategory> AdvancedAssetCategories;
 		AssetToolsModule.Get().GetAllAdvancedAssetCategories(/*out*/ AdvancedAssetCategories);
@@ -929,9 +933,10 @@ protected:
 		FilterBarContext->PopulateFilterMenu = FOnPopulateAddAssetFilterMenu::CreateSP(this, &SAssetFilterBar<FilterType>::PopulateAddFilterMenu);
 
 		/** Auto expand the Basic Category if it is present */
-		if(TSharedPtr<FFilterCategory>* BasicCategory = AssetFilterCategories.Find(EAssetTypeCategories::Basic))
+
+		if(CategoryToExpand)
 		{
-			FilterBarContext->MenuExpansion = *BasicCategory;
+			FilterBarContext->MenuExpansion = CategoryToExpand;
 		}
 	
 		FToolMenuContext ToolMenuContext(FilterBarContext);
@@ -1032,22 +1037,22 @@ protected:
 			if(ExpandedCategory)
 			{
 				FToolMenuSection& Section = Menu->AddSection(ExpandedCategory->SectionExtensionHook, ExpandedCategory->SectionHeading);
-				if(MenuExpansion == AssetFilterCategories.FindChecked(EAssetTypeCategories::Basic))
-				{
-					// If we are doing a full menu (i.e expanding basic) we add a menu entry which toggles all other categories
-					Section.AddMenuEntry(
-						NAME_None,
-						MenuExpansion->Title,
-						MenuExpansion->Tooltip,
-						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.Basic"),
-						FUIAction(
-						FExecuteAction::CreateSP( this, &SAssetFilterBar<FilterType>::FilterByTypeCategoryClicked, MenuExpansion, ExpandedCategory->Classes ),
-						FCanExecuteAction(),
-						FGetActionCheckState::CreateSP(this, &SAssetFilterBar<FilterType>::IsTypeCategoryChecked, MenuExpansion, ExpandedCategory->Classes ) ),
-						EUserInterfaceActionType::ToggleButton
-						);
-				}
+				
+				// If we are doing a full menu (i.e expanding basic) we add a menu entry which toggles all other categories
+                Section.AddMenuEntry(
+                	NAME_None,
+                	ExpandedCategory->SectionHeading,
+                	MenuExpansion->Tooltip,
+                	FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.Basic"),
+                	FUIAction(
+                	FExecuteAction::CreateSP( this, &SAssetFilterBar<FilterType>::FilterByTypeCategoryClicked, MenuExpansion, ExpandedCategory->Classes ),
+                	FCanExecuteAction(),
+                	FGetActionCheckState::CreateSP(this, &SAssetFilterBar<FilterType>::IsTypeCategoryChecked, MenuExpansion, ExpandedCategory->Classes ) ),
+                	EUserInterfaceActionType::ToggleButton
+                	);
 
+				Section.AddSeparator("ExpandedCategorySeparator");
+				
 				// Now populate with all the assets from the expanded category
 				SAssetFilterBar<FilterType>::CreateFiltersMenuCategory( Section, ExpandedCategory->Classes);
 				
@@ -1056,36 +1061,28 @@ protected:
 			}
 		}
 
-		TSharedPtr<FFilterCategory>* BasicCategory = AssetFilterCategories.Find(EAssetTypeCategories::Basic);
-
-		// We are in Full Menu Mode if there is no menu expansion, or the menu expansion is EAssetTypeCategories::Basic
-		bool bInFullMenuMode = !MenuExpansion || (BasicCategory && MenuExpansion == *BasicCategory);
-
-		// If we are in full menu mode, add all the other categories as submenus
-		if(bInFullMenuMode)
-		{
-			FToolMenuSection& Section = Menu->AddSection("AssetFilterBarFilterAdvancedAsset", LOCTEXT("AdvancedAssetsMenuHeading", "Other Assets"));
+		// Add all the other categories as submenus
+		FToolMenuSection& Section = Menu->AddSection("AssetFilterBarFilterAdvancedAsset", LOCTEXT("AdvancedAssetsMenuHeading", "Type Filters"));
 			
-			// Sort by category name so that we add the submenus in alphabetical order
-			CategoryToMenuMap.KeySort([](const TSharedPtr<FFilterCategory>& A, const TSharedPtr<FFilterCategory>& B) {
-				return A->Title.CompareTo(B->Title) < 0;
-			});
+		// Sort by category name so that we add the submenus in alphabetical order
+		CategoryToMenuMap.KeySort([](const TSharedPtr<FFilterCategory>& A, const TSharedPtr<FFilterCategory>& B) {
+			return A->Title.CompareTo(B->Title) < 0;
+		});
 
-			// For all the remaining categories, add them as submenus
-			for (const TPair<TSharedPtr<FFilterCategory>, FCategoryMenu>& CategoryMenuPair : CategoryToMenuMap)
-			{
-				Section.AddSubMenu(
-					NAME_None,
-					CategoryMenuPair.Key->Title,
-					CategoryMenuPair.Key->Tooltip,
-					FNewToolMenuDelegate::CreateSP(this, &SAssetFilterBar<FilterType>::CreateFiltersMenuCategory, CategoryMenuPair.Value.Classes),
-					FUIAction(
-					FExecuteAction::CreateSP(this, &SAssetFilterBar<FilterType>::FilterByTypeCategoryClicked, CategoryMenuPair.Key, CategoryMenuPair.Value.Classes),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateSP(this, &SAssetFilterBar<FilterType>::IsTypeCategoryChecked, CategoryMenuPair.Key, CategoryMenuPair.Value.Classes)),
-					EUserInterfaceActionType::ToggleButton
-					);
-			}
+		// Now actually add them
+		for (const TPair<TSharedPtr<FFilterCategory>, FCategoryMenu>& CategoryMenuPair : CategoryToMenuMap)
+		{
+			Section.AddSubMenu(
+				NAME_None,
+				CategoryMenuPair.Key->Title,
+				CategoryMenuPair.Key->Tooltip,
+				FNewToolMenuDelegate::CreateSP(this, &SAssetFilterBar<FilterType>::CreateFiltersMenuCategory, CategoryMenuPair.Value.Classes),
+				FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetFilterBar<FilterType>::FilterByTypeCategoryClicked, CategoryMenuPair.Key, CategoryMenuPair.Value.Classes),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateSP(this, &SAssetFilterBar<FilterType>::IsTypeCategoryChecked, CategoryMenuPair.Key, CategoryMenuPair.Value.Classes)),
+				EUserInterfaceActionType::ToggleButton
+				);
 		}
 
 		// Now add all non-asset filters
@@ -1211,6 +1208,9 @@ protected:
 	TArray<TSharedRef<FCustomClassFilterData>> UserCustomClassFilters;
 
 	TMap<EAssetTypeCategories::Type, TSharedPtr<FFilterCategory>> AssetFilterCategories;
+
+	/** The category to expand in the filter menu */
+	TSharedPtr<FFilterCategory> CategoryToExpand;
 	
 	/** Whether the filter bar provides the default Asset Filters */
 	bool bUseDefaultAssetFilters;

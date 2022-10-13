@@ -609,10 +609,7 @@ private:
 	/** Creates a TextFilter for ISceneOutlinerTreeItem used to save searches as Text Filters */
 	TSharedPtr< SceneOutliner::TreeItemTextFilter > CreateTextFilter() const;
 
-	/** Convert a SceneOutliner item into an FAssetData struct to compare against type filters *
-	 *  TODO: Move to the ISceneOutlinerMode maybe to allow each mode to specify how to convert items?
-	 */
-	bool ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const;
+	bool CompareItemWithClassName(SceneOutliner::FilterBarType InItem, const TSet<FTopLevelAssetPath>&) const;
 
 	/** Delegate for when a filter in the filter bar is changed */
 	void OnFilterBarFilterChanged();

@@ -6,12 +6,6 @@ public class SceneOutliner : ModuleRules
 {
 	public SceneOutliner(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"PlacementMode"
-			}
-		);
-		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

@@ -10,6 +10,11 @@
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "IVPUtilitiesEditorModule.h"
 #include "SimpleVirtualCamera.h"
+#include "VirtualCameraActor.h"
+#include "LevelEditor.h"
+#include "LevelEditorOutlinerSettings.h"
+#include "Filters/CustomClassFilterData.h"
+
 
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraEditorModule"
@@ -21,6 +26,7 @@ public:
 	{
 		RegisterSettings();
 		RegisterPlacementModeItems();
+		RegisterOutlinerFilters();
 	}
 
 	virtual void ShutdownModule() override
@@ -73,6 +79,17 @@ public:
 					NSLOCTEXT("PlacementMode", "VCam Actor", "VCam Actor")
 				));
 			}
+		}
+	}
+
+	void RegisterOutlinerFilters()
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		
+		if(TSharedPtr<FFilterCategory> VPFilterCategory = LevelEditorModule.GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
+		{
+			TSharedRef<FCustomClassFilterData> CineCameraActorClassData = MakeShared<FCustomClassFilterData>(ACineCameraActor::StaticClass(), VPFilterCategory, FLinearColor::White);
+			LevelEditorModule.AddCustomClassFilterToOutliner(CineCameraActorClassData);
 		}
 	}
 };

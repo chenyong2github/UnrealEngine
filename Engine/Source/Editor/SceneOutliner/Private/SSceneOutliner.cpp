@@ -2454,9 +2454,9 @@ void SSceneOutliner::OnFilterBarFilterChanged()
 	FullRefresh();
 }
 
-bool SSceneOutliner::ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const
+bool SSceneOutliner::CompareItemWithClassName(SceneOutliner::FilterBarType InItem, const TSet<FTopLevelAssetPath>& AssetClassPaths) const
 {
-	return Mode->ConvertItemToAssetData(InItem, OutAssetData);
+	return Mode->CompareItemWithClassName(InItem, AssetClassPaths);
 }
 
 void SSceneOutliner::CreateFilterBar(const FSceneOutlinerFilterBarOptions& FilterBarOptions)
@@ -2469,13 +2469,14 @@ void SSceneOutliner::CreateFilterBar(const FSceneOutlinerFilterBarOptions& Filte
 	FName FilterBarIdentifier = OutlinerIdentifier;
 
 	SAssignNew(FilterBar, SSceneOutlinerFilterBar)
-	.OnConvertItemToAssetData(this, &SSceneOutliner::ConvertItemToAssetData)
+	.OnCompareItemWithClassNames(this, &SSceneOutliner::CompareItemWithClassName)
 	.OnFilterChanged(this, &SSceneOutliner::OnFilterBarFilterChanged)
 	.CustomClassFilters(FilterBarOptions.CustomClassFilters)
 	.CustomFilters(FilterBarOptions.CustomFilters)
 	.FilterSearchBox(FilterTextBoxWidget)
 	.FilterBarIdentifier(FilterBarIdentifier)
 	.UseSharedSettings(FilterBarOptions.bUseSharedSettings)
+	.CategoryToExpand(FilterBarOptions.CategoryToExpand)
 	.CreateTextFilter(SSceneOutlinerFilterBar::FCreateTextFilter::CreateLambda([this]()
 	{
 		TSharedPtr< SceneOutliner::TreeItemTextFilter > Filter = this->CreateTextFilter();
