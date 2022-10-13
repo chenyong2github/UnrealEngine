@@ -165,6 +165,16 @@ void FNaniteDisplacedMeshCompilingManager::Shutdown()
 	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
 }
 
+void FNaniteDisplacedMeshCompilingManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(GCReferedNaniteDisplacedMesh);
+}
+
+FString FNaniteDisplacedMeshCompilingManager::GetReferencerName() const
+{
+	return FString(TEXT("FNaniteDisplacedMeshCompilingManager"));
+}
+
 TRACE_DECLARE_INT_COUNTER(QueuedNaniteDisplacedMeshCompilation, TEXT("AsyncCompilation/QueuedNaniteDisplacedMesh"));
 void FNaniteDisplacedMeshCompilingManager::UpdateCompilationNotification()
 {
@@ -256,6 +266,16 @@ void FNaniteDisplacedMeshCompilingManager::AddNaniteDisplacedMeshes(TArrayView<U
 	for (UNaniteDisplacedMesh* NaniteDisplacedMesh : InNaniteDisplacedMeshes)
 	{
 		RegisteredNaniteDisplacedMesh.Emplace(NaniteDisplacedMesh);
+		if (NaniteDisplacedMesh
+			&& NaniteDisplacedMesh->HasAnyFlags(RF_Transient)
+			&& !NaniteDisplacedMesh->HasAnyFlags(RF_Standalone))
+		{
+			/**
+			 * Transient generated object shouldn't stall the GC.
+			 * So we refer then here to delay when they will be GC if they are compiling.
+			 */
+			GCReferedNaniteDisplacedMesh.Add(NaniteDisplacedMesh);
+		}
 	}
 
 	TRACE_COUNTER_SET(QueuedNaniteDisplacedMeshCompilation, GetNumRemainingAssets());
@@ -328,6 +348,7 @@ void FNaniteDisplacedMeshCompilingManager::FinishCompilation(TArrayView<UNaniteD
 				UNaniteDisplacedMesh* NaniteDisplacedMesh = static_cast<FCompilableNaniteDisplacedMesh*>(Object)->NaniteDisplacedMesh;
 				PostCompilation(NaniteDisplacedMesh);
 				RegisteredNaniteDisplacedMesh.Remove(NaniteDisplacedMesh);
+				GCReferedNaniteDisplacedMesh.Remove(NaniteDisplacedMesh);
 			}
 		);
 
@@ -403,6 +424,7 @@ void FNaniteDisplacedMeshCompilingManager::ProcessNaniteDisplacedMeshes(bool bLi
 					{
 						PostCompilation(NaniteDisplacedMesh);
 						ProcessedNaniteDisplacedMeshes.Add(NaniteDisplacedMesh);
+						GCReferedNaniteDisplacedMesh.Remove(NaniteDisplacedMesh);
 					}
 					else
 					{

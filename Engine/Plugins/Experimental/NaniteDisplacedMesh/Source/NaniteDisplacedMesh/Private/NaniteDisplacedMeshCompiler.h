@@ -3,19 +3,20 @@
 
 #if WITH_EDITOR
 
-#include "CoreTypes.h"
-#include "NaniteDisplacedMesh.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Containers/Set.h"
 #include "AssetCompilingManager.h"
 #include "AsyncCompilationHelpers.h"
+#include "Containers/Set.h"
+#include "CoreTypes.h"
+#include "NaniteDisplacedMesh.h"
+#include "UObject/GCObject.h"
+#include "UObject/WeakObjectPtr.h"
 
 class UNaniteDisplacedMesh;
 class FQueuedThreadPool;
 struct FAssetCompileContext;
 enum class EQueuedWorkPriority : uint8;
 
-class FNaniteDisplacedMeshCompilingManager : public IAssetCompilingManager
+class FNaniteDisplacedMeshCompilingManager : public IAssetCompilingManager, public FGCObject
 {
 public:
 	static FNaniteDisplacedMeshCompilingManager& Get();
@@ -55,6 +56,11 @@ public:
 	 */
 	void Shutdown() override;
 
+	//~ Begin FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+	//~ End FGCObject interface
+
 private:
 	friend class FAssetCompilingManager;
 
@@ -69,6 +75,10 @@ private:
 
 	bool bHasShutdown = false;
 	TSet<TWeakObjectPtr<UNaniteDisplacedMesh>> RegisteredNaniteDisplacedMesh;
+
+	// Refer the transient displaced meshes to the GC so that they are not GCed while compiling. Without this a pie session can hitches a lot when the ddc is not primed.
+	TSet<UNaniteDisplacedMesh*> GCReferedNaniteDisplacedMesh;
+
 	FAsyncCompilationNotification Notification;
 
 	void FinishCompilationsForGame();
