@@ -757,7 +757,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 				const float Phase = IsotropicPhase();
 
-				// Now lerp between the optically thin and optically thin medium models.
+				// Now lerp between the optically thick and optically thin medium models.
 				// The diffuse and throughput account for the GGX interface SpecularTransmission.
 				Sample.DiffusePathValue		= lerp(Sample.DiffusePathValue,		SlabDirectionalAlbedo * SpecularTransmissionV,		DiffuseToVolumeBlend);
 				Sample.DiffusePDF			= lerp(Sample.DiffusePDF,			Phase,												DiffuseToVolumeBlend);
@@ -984,7 +984,7 @@ FStrataEvaluateResult StrataIntegrateBSDF(FStrataBSDFContext BSDFContext, FShado
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BSDF Importance sampling
  
-// STRATA_TODO: merge this with Path-Tracing
+// STRATA_TODO: merge this with Path-Tracing (watch out -- implementations have diverged)
 
 // Given two lobes that will roughly contribute colors A and B to the total (estimated for example using directional albedo)
 // return the probability of choosing lobe A
@@ -1459,7 +1459,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.SSRSpecularWeight	*= Cloth_DirectionalAlbedo_SpecularTransmission;
 				
 				// We currently send the cloth environment lighting to be taken into account by the diffuse term.
-				// STARTA_TODO: true a mix of diffuse and specular contribution according to roughness.
+				// STRATA_TODO: true a mix of diffuse and specular contribution according to roughness.
 				StrataEnvLightResult.DiffuseColor		+= ClothEnergyTerms.E * FuzzAmount;
 				StrataEnvLightResult.DiffuseWeight		+= ClothEnergyTerms.E * FuzzAmount;
 				break;

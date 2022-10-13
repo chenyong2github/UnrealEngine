@@ -351,7 +351,7 @@ static void AddDownsampleSceneColorPass(FRDGBuilder& GraphBuilder, FDownsampleSc
 
 //////////////////////////////////////////////////////////////////////////
 
-// STARTA_TODO make common with the function in PostProcessWeightedSampleSum.cpp
+// STRATA_TODO make common with the function in PostProcessWeightedSampleSum.cpp
 class FGaussianFiltering
 {
 public:
