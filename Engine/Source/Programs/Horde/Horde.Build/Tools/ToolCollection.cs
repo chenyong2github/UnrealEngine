@@ -220,7 +220,7 @@ namespace Horde.Build.Tools
 				{
 					ITransaction transaction = redis.CreateTransaction();
 					transaction.AddCondition(Condition.StringEqual(s_indexKey, value));
-					_ = transaction.StringSetAsync(s_indexKey, newValue);
+					_ = transaction.StringSetAsync(s_indexKey, newValue, flags: CommandFlags.FireAndForget);
 
 					if (await transaction.ExecuteAsync())
 					{

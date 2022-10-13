@@ -376,7 +376,7 @@ namespace Horde.Build.Perforce
 				// Remove this stream from the dirty list if it's empty
 				ITransaction transaction = _redisConnectionPool.GetDatabase().CreateTransaction();
 				transaction.AddCondition(Condition.ListLengthLessThan(streamChanges.Key, 2));
-				_ = transaction.With(_redisDirtyStreams).RemoveAsync(streamId);
+				_ = transaction.With(_redisDirtyStreams).RemoveAsync(streamId, flags: CommandFlags.FireAndForget);
 				if (await transaction.ExecuteAsync())
 				{
 					break;
@@ -427,7 +427,7 @@ namespace Horde.Build.Perforce
 					ITransaction transaction = _redisConnectionPool.GetDatabase().CreateTransaction();
 					transaction.AddCondition(Condition.ListIndexEqual(changes.Key, 0, values[0]));
 					transaction.AddCondition(Condition.ListIndexEqual(changes.Key, 1, values[1]));
-					_ = transaction.With(changes).LeftPopAsync();
+					_ = transaction.With(changes).LeftPopAsync(flags: CommandFlags.FireAndForget);
 					await transaction.ExecuteAsync();
 				}
 				else

@@ -238,7 +238,7 @@ namespace Horde.Build.Utilities
 			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson(typeof(VersionedDocument<TId, TLatest>)));
 			pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
 
-			_ = transaction.StringSetAsync(pairs);
+			_ = transaction.StringSetAsync(pairs, flags: CommandFlags.FireAndForget);
 
 			if (!await transaction.ExecuteAsync())
 			{
