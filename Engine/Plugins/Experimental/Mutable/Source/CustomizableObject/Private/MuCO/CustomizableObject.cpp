@@ -1479,12 +1479,6 @@ void UCustomizableObject::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContex
 }
 
 
-FGuid UCustomizableObject::GetCompilationGuid() const
-{
-	return CompilationGuid;
-}
-
-
 EDataValidationResult UCustomizableObject::IsDataValid(FDataValidationContext& Context)
 {
 	// This method seems to be designed to check data errors (like variables with unexpected values).
@@ -1570,6 +1564,13 @@ EDataValidationResult UCustomizableObject::IsDataValid(FDataValidationContext& C
 	return Result;
 }
 #endif
+
+
+FGuid UCustomizableObject::GetCompilationGuid() const
+{
+	return CompilationGuid;
+}
+
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
