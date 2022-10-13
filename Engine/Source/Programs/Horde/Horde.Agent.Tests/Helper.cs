@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Execution;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
 using HordeCommon;
@@ -202,44 +202,55 @@ namespace Horde.Agent.Tests
 		}
 	}
 
-	class SimpleTestExecutor : IExecutor
+	class SimpleTestExecutor : JobExecutor
 	{
 		private readonly Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> _func;
 
 		public SimpleTestExecutor(Func<BeginStepResponse, ILogger, CancellationToken, Task<JobStepOutcome>> func)
+			: base(null!, null!, null!, null!)
 		{
 			_func = func;
 		}
 
-		public Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
+		public override Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			logger.LogDebug("SimpleTestExecutor.InitializeAsync()");
 			return Task.CompletedTask;
 		}
 
-		public Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger,
+		public override Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger,
 			CancellationToken cancellationToken)
 		{
 			logger.LogDebug("SimpleTestExecutor.RunAsync(Step: {Step})", step);
 			return _func(step, logger, cancellationToken);
 		}
 
-		public Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
+		public override Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			logger.LogDebug("SimpleTestExecutor.FinalizeAsync()");
 			return Task.CompletedTask;
 		}
+
+		protected override Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
+		{
+			throw new NotImplementedException();
+		}
+
+		protected override Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
+		{
+			throw new NotImplementedException();
+		}
 	}
 
-	class SimpleTestExecutorFactory : IExecutorFactory
+	class SimpleTestExecutorFactory : JobExecutorFactory
 	{
-		readonly IExecutor _executor;
+		readonly JobExecutor _executor;
 
-		public SimpleTestExecutorFactory(IExecutor executor)
+		public SimpleTestExecutorFactory(JobExecutor executor)
 		{
 			_executor = executor;
 		}
 
-		public IExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse) => _executor;
+		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse) => _executor;
 	}
 }

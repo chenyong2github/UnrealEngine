@@ -262,7 +262,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		public async Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
+		public virtual async Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (step.Name == "Setup Build")
 			{

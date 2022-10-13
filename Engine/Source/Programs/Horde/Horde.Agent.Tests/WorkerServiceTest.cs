@@ -13,7 +13,7 @@ using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Execution;
 using Horde.Agent.Leases;
 using Horde.Agent.Leases.Handlers;
 using Horde.Agent.Services;
@@ -37,7 +37,7 @@ namespace Horde.Agent.Tests
 	{
 		private ServiceCollection _serviceCollection;
 
-		internal static IExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
+		internal static JobExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 		{
 			await Task.Delay(1, cancellationToken);
 			return JobStepOutcome.Success;
@@ -75,7 +75,7 @@ namespace Horde.Agent.Tests
 				using CancellationTokenSource cancelSource = new CancellationTokenSource();
 				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 
-				IExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
+				JobExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
 				{
 					cancelSource.CancelAfter(10);
 					await Task.Delay(5000, cancelToken);
@@ -90,7 +90,7 @@ namespace Horde.Agent.Tests
 				using CancellationTokenSource cancelSource = new CancellationTokenSource();
 				using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 
-				IExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
+				JobExecutor executor = new SimpleTestExecutor(async (stepResponse, logger, cancelToken) =>
 				{
 					stepCancelSource.CancelAfter(10);
 					await Task.Delay(5000, cancelToken);
@@ -130,13 +130,13 @@ namespace Horde.Agent.Tests
 			GetStepResponse step2Res = new GetStepResponse(JobStepOutcome.Unspecified, JobStepState.Unspecified, true);
 			client.GetStepResponses[step2Req] = step2Res;
 
-			IExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
+			JobExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
 			{
 				await Task.Delay(50, cancelToken);
 				return JobStepOutcome.Success;
 			});
 
-			_serviceCollection.AddSingleton<IExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			_serviceCollection.AddSingleton<JobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
 			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
@@ -162,13 +162,13 @@ namespace Horde.Agent.Tests
 		[TestMethod]
 		public async Task PollForStepAbortFailureTest()
 		{
-			IExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
+			JobExecutor executor = new SimpleTestExecutor(async (step, logger, cancelToken) =>
 			{
 				await Task.Delay(50, cancelToken);
 				return JobStepOutcome.Success;
 			});
 
-			_serviceCollection.AddSingleton<IExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			_serviceCollection.AddSingleton<JobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
 			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			JobHandler jobHandler = serviceProvider.GetRequiredService<JobHandler>();
@@ -200,13 +200,13 @@ namespace Horde.Agent.Tests
 		[TestMethod]
 		public async Task Shutdown()
 		{
-			IExecutor executor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
+			JobExecutor executor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
 			{
 				await Task.Delay(50, cancellationToken);
 				return JobStepOutcome.Success;
 			});
 
-			_serviceCollection.AddSingleton<IExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
+			_serviceCollection.AddSingleton<JobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
 			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			using CancellationTokenSource cts = new ();
