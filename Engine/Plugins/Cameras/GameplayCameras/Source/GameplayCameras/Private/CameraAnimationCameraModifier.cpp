@@ -146,7 +146,7 @@ void UCameraAnimationCameraModifier::StopCameraAnimation(const FCameraAnimationH
 		if (bImmediate || CameraAnimation->Params.EaseOutDuration == 0.f)
 		{
 			CameraAnimation->Player->Stop();
-			ActiveAnimations.RemoveAt(CameraAnimation->Handle.InstanceID);
+			ActiveAnimations[CameraAnimation->Handle.InstanceID] = FActiveCameraAnimationInfo();
 		}
 		else if (!CameraAnimation->bIsEasingOut)
 		{
