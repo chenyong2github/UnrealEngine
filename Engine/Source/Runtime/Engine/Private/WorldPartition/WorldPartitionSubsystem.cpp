@@ -261,6 +261,36 @@ TStatId UWorldPartitionSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UWorldPartitionSubsystem, STATGROUP_Tickables);
 }
 
+bool UWorldPartitionSubsystem::IsAllStreamingCompleted()
+{
+	return const_cast<UWorldPartitionSubsystem*>(this)->IsStreamingCompleted();
+}
+
+bool UWorldPartitionSubsystem::IsStreamingCompleted(const IWorldPartitionStreamingSourceProvider* InStreamingSourceProvider) const
+{
+	// Convert specified/optional streaming source provider to a world partition 
+	// streaming source and pass it along to each registered world partition
+	FWorldPartitionStreamingSource StreamingSource;
+	FWorldPartitionStreamingSource* StreamingSourcePtr = nullptr;
+	if (InStreamingSourceProvider)
+	{
+		StreamingSourcePtr = &StreamingSource;
+		if (!InStreamingSourceProvider->GetStreamingSource(StreamingSource))
+		{
+			return true;
+		}
+	}
+
+	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
+	{
+		if (!RegisteredWorldPartition->IsStreamingCompleted(StreamingSourcePtr))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool UWorldPartitionSubsystem::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
 {
 	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)

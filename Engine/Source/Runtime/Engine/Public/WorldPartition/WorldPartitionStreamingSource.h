@@ -433,5 +433,5 @@ struct ENGINE_API FWorldPartitionStreamingSource
  */
 struct ENGINE_API IWorldPartitionStreamingSourceProvider
 {
-	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& StreamingSource) = 0;
+	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& StreamingSource) const = 0;
 };

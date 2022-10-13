@@ -64,7 +64,7 @@ void UWorldPartitionStreamingSourceComponent::OnUnregister()
 	verify(WorldPartitionSubsystem->UnregisterStreamingSourceProvider(this));
 }
 
-bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource)
+bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const
 {
 	if (bStreamingSourceEnabled)
 	{
@@ -86,36 +86,11 @@ bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartition
 
 bool UWorldPartitionStreamingSourceComponent::IsStreamingCompleted() const
 {
-	UWorld* World = GetWorld();
-	if (!bStreamingSourceEnabled || !World->IsGameWorld())
+	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(GetWorld()))
 	{
-		return false;
+		return WorldPartitionSubsystem->IsStreamingCompleted(this);
 	}
-	
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-	UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
-	if (!WorldPartitionSubsystem || !DataLayerSubsystem)	
-	{
-		return false;
-	}
-
-	// Build a query source
-	AActor* Actor = GetOwner();
-	TArray<FWorldPartitionStreamingQuerySource> QuerySources;
-	FWorldPartitionStreamingQuerySource& QuerySource = QuerySources.Emplace_GetRef();
-	QuerySource.bSpatialQuery = true;
-	QuerySource.Location = Actor->GetActorLocation();
-	QuerySource.Rotation = Actor->GetActorRotation();
-	QuerySource.TargetGrid = TargetGrid;
-	QuerySource.Shapes = Shapes;
-	QuerySource.bUseGridLoadingRange = true;
-	QuerySource.Radius = 0.f;
-	QuerySource.bDataLayersOnly = false;
-	QuerySource.DataLayers = (TargetState == EStreamingSourceTargetState::Loaded) ? DataLayerSubsystem->GetEffectiveLoadedDataLayerNames().Array() : DataLayerSubsystem->GetEffectiveActiveDataLayerNames().Array();
-
-	// Execute query
-	const EWorldPartitionRuntimeCellState QueryState = (TargetState == EStreamingSourceTargetState::Loaded) ? EWorldPartitionRuntimeCellState::Loaded : EWorldPartitionRuntimeCellState::Activated;
-	return WorldPartitionSubsystem->IsStreamingCompleted(QueryState, QuerySources, /*bExactState*/ true);
+	return true;
 }
 
 void UWorldPartitionStreamingSourceComponent::DrawVisualization(const FSceneView* View, FPrimitiveDrawInterface* PDI) const

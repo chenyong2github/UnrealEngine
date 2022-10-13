@@ -41,6 +41,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Streaming)
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
+	/** Returns true if world partition is done streaming levels, adding them to the world or removing them from the world. */
+	UFUNCTION(BlueprintCallable, Category = Streaming)
+	bool IsAllStreamingCompleted();
+
+	/*
+	 * Returns true if world partition is done streaming levels, adding them to the world or removing them from the world. 
+	 * When provided, the test is reduced to streaming levels affected by the optional streaming source provider.
+	 */
+	bool IsStreamingCompleted(const IWorldPartitionStreamingSourceProvider* InStreamingSourceProvider = nullptr) const;
+
 	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
 	TSet<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const { return StreamingSourceProviders; }

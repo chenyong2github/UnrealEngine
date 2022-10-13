@@ -1347,6 +1347,15 @@ bool UWorldPartition::CanAddLoadedLevelToWorld(class ULevel* InLevel) const
 	return true;
 }
 
+bool UWorldPartition::IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		return StreamingPolicy->IsStreamingCompleted(InStreamingSource);
+	}
+	return true;
+}
+
 bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
 {
 	if (GetWorld()->IsGameWorld())
@@ -1354,7 +1363,7 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 		return StreamingPolicy->IsStreamingCompleted(QueryState, QuerySources, bExactState);
 	}
 
-	return false;
+	return true;
 }
 
 bool UWorldPartition::CanDebugDraw() const

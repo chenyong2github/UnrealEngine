@@ -226,7 +226,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState);
 
 	UWorld* World = GetWorld();
-	check(World && World->IsGameWorld());
+	check(World);
+	check(World->IsGameWorld());
 
 	// Dermine if the World's BlockTillLevelStreamingCompleted was triggered by WorldPartitionStreamingPolicy
 	if (bCriticalPerformanceRequestedBlockTillOnWorld && IsInBlockTillLevelStreamingCompleted())
@@ -754,6 +755,67 @@ bool UWorldPartitionStreamingPolicy::CanAddLoadedLevelToWorld(ULevel* InLevel) c
 		return false;
 	}
  
+	return true;
+}
+
+bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const
+{
+	const UWorld* World = GetWorld();
+	check(World);
+	check(World->IsGameWorld());
+	const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
+	const bool bTestProvidedStreamingSource = !!InStreamingSource;
+
+	// Always test non-spatial cells
+	{
+		// Test non-data layer and activated data layers
+		TArray<FWorldPartitionStreamingQuerySource> QuerySources;
+		FWorldPartitionStreamingQuerySource& QuerySource = QuerySources.Emplace_GetRef();
+		QuerySource.bSpatialQuery = false;
+		QuerySource.bDataLayersOnly = false;
+		QuerySource.DataLayers = DataLayerSubsystem->GetEffectiveActiveDataLayerNames().Array();
+		if (!IsStreamingCompleted(EWorldPartitionRuntimeCellState::Activated, QuerySources, true))
+		{
+			return false;
+		}
+
+		// Test only loaded data layers
+		if (!DataLayerSubsystem->GetEffectiveLoadedDataLayerNames().IsEmpty())
+		{
+			QuerySource.bDataLayersOnly = true;
+			QuerySource.DataLayers = DataLayerSubsystem->GetEffectiveLoadedDataLayerNames().Array();
+			if (!IsStreamingCompleted(EWorldPartitionRuntimeCellState::Loaded, QuerySources, true))
+			{
+				return false;
+			}
+		}
+	}
+
+	// Test spatially loaded cells using streaming sources (or provided streaming source)
+	TArrayView<const FWorldPartitionStreamingSource> QueriedStreamingSources = bTestProvidedStreamingSource ? MakeArrayView({ *InStreamingSource }) : StreamingSources;
+	for (const FWorldPartitionStreamingSource& StreamingSource : QueriedStreamingSources)
+	{
+		// Build a query source from a Streaming Source
+		TArray<FWorldPartitionStreamingQuerySource> QuerySources;
+		FWorldPartitionStreamingQuerySource& QuerySource = QuerySources.Emplace_GetRef();
+		QuerySource.bSpatialQuery = true;
+		QuerySource.Location = StreamingSource.Location;
+		QuerySource.Rotation = StreamingSource.Rotation;
+		QuerySource.TargetGrid = StreamingSource.TargetGrid;
+		QuerySource.Shapes = StreamingSource.Shapes;
+		QuerySource.bUseGridLoadingRange = true;
+		QuerySource.Radius = 0.f;
+		QuerySource.bDataLayersOnly = false;
+		QuerySource.DataLayers = (StreamingSource.TargetState == EStreamingSourceTargetState::Loaded) ? DataLayerSubsystem->GetEffectiveLoadedDataLayerNames().Array() : DataLayerSubsystem->GetEffectiveActiveDataLayerNames().Array();
+
+		// Execute query
+		const EWorldPartitionRuntimeCellState QueryState = (StreamingSource.TargetState == EStreamingSourceTargetState::Loaded) ? EWorldPartitionRuntimeCellState::Loaded : EWorldPartitionRuntimeCellState::Activated;
+		if (!IsStreamingCompleted(QueryState, QuerySources, true))
+		{
+			return false;
+		}
+	}
+
 	return true;
 }
 

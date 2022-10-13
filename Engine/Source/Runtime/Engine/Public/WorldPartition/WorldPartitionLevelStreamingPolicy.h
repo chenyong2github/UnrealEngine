@@ -24,6 +24,7 @@ class UWorldPartitionLevelStreamingPolicy : public UWorldPartitionStreamingPolic
 public:
 	virtual void DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset) override;
 	virtual void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset) override;
+	virtual bool IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const override;
 
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const override;

@@ -237,6 +237,7 @@ public:
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
 	bool CanAddLoadedLevelToWorld(ULevel* InLevel) const;
+	bool IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
