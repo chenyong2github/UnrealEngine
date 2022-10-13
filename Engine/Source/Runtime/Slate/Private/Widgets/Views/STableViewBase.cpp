@@ -287,17 +287,8 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 			PanelGeometryLastTick = PanelGeometry;
 			
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
+			const EScrollIntoViewResult ScrollIntoViewResult = ScrollIntoView(PanelGeometry);
 
-			EScrollIntoViewResult ScrollIntoViewResult = EScrollIntoViewResult::Deferred;
-
-			/* Don't try to scroll if our geometry is changing (eg: In the middle of refreshing items) because the
-			 * scrolled item could end up outside the view
-			 */
-			if(!bPanelGeometryChanged)
-			{
-				ScrollIntoViewResult = ScrollIntoView(PanelGeometry);
-			}
-			
 			double TargetScrollOffset = GetTargetScrollOffset();
 
 			if (bEnableAnimatedScrolling)
