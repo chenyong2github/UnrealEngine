@@ -1560,6 +1560,7 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 			if (bCompileStatusRefreshed)
 			{
 				SendLastCompileMessageJobs();
+				RefreshStackViewModels();
 			}
 		}
 	}
@@ -2842,6 +2843,18 @@ void FNiagaraSystemViewModel::ScratchPadScriptsChanged()
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 	{
 		EmitterHandleViewModel->GetEmitterStackViewModel()->GetRootEntry()->RefreshChildren();
+	}
+}
+
+void FNiagaraSystemViewModel::RefreshStackViewModels()
+{
+	if (SystemStackViewModel)
+	{
+		SystemStackViewModel->Refresh();
+	}
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->Refresh();
 	}
 }
 

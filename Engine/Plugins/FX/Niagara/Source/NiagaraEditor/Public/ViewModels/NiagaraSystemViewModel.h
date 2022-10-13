@@ -573,6 +573,9 @@ private:
 	/** Called whenever one of the scripts in the scratch pad changes. */
 	void ScratchPadScriptsChanged();
 
+	/** Deferred refreshes the system and emitter view models the next time they are ticked. */
+	void RefreshStackViewModels();
+
 	/** Called whenever the map of messages associated with the managed Emitter/System changes. */
 	void RefreshAssetMessages();
 
