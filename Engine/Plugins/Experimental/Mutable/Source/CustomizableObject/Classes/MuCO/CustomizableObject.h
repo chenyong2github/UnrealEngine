@@ -1334,9 +1334,7 @@ public:
 #if WITH_EDITOR
 
 	// UObject Interface -> Data validation
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
-	virtual EDataValidationResult
-	IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
 	// End of UObject Interface
 
 	// UObject Interface -> Asset saving

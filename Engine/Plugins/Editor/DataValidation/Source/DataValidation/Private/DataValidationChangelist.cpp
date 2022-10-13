@@ -5,6 +5,7 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Transform.h"
 #include "Misc/Paths.h"
+#include "Misc/DataValidation.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ISourceControlProvider.h"
@@ -70,7 +71,7 @@ FString GetPrettyPackageName(const FName& InPackageName)
 	}
 }
 
-EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings)
+EDataValidationResult UDataValidationChangelist::IsDataValid(FDataValidationContext& Context)
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	
@@ -138,13 +139,13 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 		{
 			bHasChangelistErrors = true;
 			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.Error", "{0} is missing from this changelist."), FText::FromString(GetPrettyPackageName(ExternalDependency)));
-			ValidationErrors.Add(CurrentError);
+			Context.AddError(CurrentError);
 		}
 		// Dependency is not at the latest revision
 		else if (!ExternalDependencyFileState->IsCurrent())
 		{
 			FText CurrentWarning = FText::Format(LOCTEXT("DataValidation.Changelist.NotLatest", "{0} is referenced but is not at the latest revision '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
-			ValidationWarnings.Add(CurrentWarning);
+			Context.AddWarning(CurrentWarning);
 		}
 		// Dependency is not in source control
 		else if (ExternalDependencyFileState->CanAdd())
@@ -153,13 +154,13 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 			{
 				bHasChangelistErrors = true;
 				FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.NotInWorkspace", "{0} is referenced and cannot be found in workspace '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
-				ValidationErrors.Add(CurrentError);
+				Context.AddError(CurrentError);
 			}
 			else
 			{
 				bHasChangelistErrors = true;
 				FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.NotInDepot", "{0} is referenced and must also be added to source control '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
-				ValidationErrors.Add(CurrentError);
+				Context.AddError(CurrentError);
 			}
 		}
 	}

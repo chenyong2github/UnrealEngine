@@ -16,6 +16,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
 #include "Misc/ITransactionObjectAnnotation.h"
+#include "Misc/DataValidation.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
@@ -5005,9 +5006,17 @@ EDataValidationResult UObject::IsDataValid(TArray<FText>& ValidationErrors)
 	return EDataValidationResult::NotValidated;
 }
 
-EDataValidationResult UObject::IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings)
+EDataValidationResult UObject::IsDataValid(FDataValidationContext& Context)
 {
-	return IsDataValid(ValidationErrors);
+	TArray<FText> ValidationErrors;
+	const EDataValidationResult Result = IsDataValid(ValidationErrors);
+
+	for (const FText& Text : ValidationErrors)
+	{
+		Context.AddError(Text);
+	}
+
+	return Result;
 }
 
 #endif // WITH_EDITOR

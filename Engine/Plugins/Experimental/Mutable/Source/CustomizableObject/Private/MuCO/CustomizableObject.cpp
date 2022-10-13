@@ -24,6 +24,7 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/DataValidation.h"
 #include "Modules/ModuleManager.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectPrivate.h"
@@ -1467,14 +1468,7 @@ void UCustomizableObject::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContex
 	bIsValidationTriggeredBySave = true;
 }
 
-EDataValidationResult UCustomizableObject::IsDataValid(TArray<FText>& ValidationErrors)
-{
-	TArray<FText> ValidationWarnings;
-	return IsDataValid(ValidationErrors,ValidationWarnings);
-}
-
-EDataValidationResult UCustomizableObject::IsDataValid(TArray<FText>& ValidationErrors,
-	TArray<FText>& ValidationWarnings)
+EDataValidationResult UCustomizableObject::IsDataValid(FDataValidationContext& Context)
 {
 	// This method seems to be designed to check data errors (like variables with unexpected values).
 	// Currently it does not check if the root that we are compiling has already been compiled during another validation.
@@ -1510,8 +1504,20 @@ EDataValidationResult UCustomizableObject::IsDataValid(TArray<FText>& Validation
 		// --------------------------------------------------------------------------
 
 		// Request the compilation warnings and errors and provide them to the caller
-		Compiler->GetCompilationMessages(ValidationWarnings,ValidationErrors);
-		
+		TArray<FText> ValidationErrors;
+		TArray<FText> ValidationWarnings;
+		Compiler->GetCompilationMessages(ValidationWarnings, ValidationErrors);
+
+		for (const FText& ValidationError : ValidationErrors)
+		{
+			Context.AddError(ValidationError);
+		}
+
+		for (const FText& ValidationWarning : ValidationWarnings)
+		{
+			Context.AddWarning(ValidationWarning);
+		}
+
 		// Check if the compilation was able to be performed (not if there were errors but if a critical issue appeared
 		// before starting the compilation as we know.
 		switch (Compiler->GetCompilationState())

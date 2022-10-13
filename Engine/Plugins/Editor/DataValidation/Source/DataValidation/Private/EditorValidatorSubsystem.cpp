@@ -15,6 +15,7 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Logging/MessageLog.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/DataValidation.h"
 #include "AssetRegistry/AssetData.h"
 #include "ISourceControlModule.h"
 #include "DataValidationChangelist.h"
@@ -158,7 +159,10 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 	if (ensure(InObject))
 	{
 		// First check the class level validation
-		Result = InObject->IsDataValid(ValidationErrors, ValidationWarnings);
+		FDataValidationContext Context;
+		Result = InObject->IsDataValid(Context);
+		Context.SplitIssues(ValidationWarnings, ValidationErrors);
+
 		// If the asset is still valid or there wasn't a class-level validation, keep validating with custom validators
 		if (Result != EDataValidationResult::Invalid)
 		{

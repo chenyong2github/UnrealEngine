@@ -26,7 +26,7 @@ public:
 	/** Default constructor with nothing */
 	UDataValidationChangelist() = default;
 
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
 
 	/** Initializes internal state so the validation can be done */
 	void Initialize(FSourceControlChangelistPtr InChangelist);
