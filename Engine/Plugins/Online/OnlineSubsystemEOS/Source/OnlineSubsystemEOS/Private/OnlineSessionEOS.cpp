@@ -22,7 +22,7 @@
 	#include "eos_lobby.h"
 
 /** This is the game name plus version in ansi done once for optimization */
-char BucketIdAnsi[EOS_OSS_STRING_BUFFER_LENGTH];
+char BucketIdAnsi[EOS_OSS_BUCKET_ID_STRING_LENGTH + 1]; // X characters plus null terminator
 
 FString MakeStringFromAttributeValue(const EOS_Sessions_AttributeData* Attribute)
 {

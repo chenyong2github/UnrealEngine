@@ -11,6 +11,7 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemTypes.h"
 
+#define EOS_OSS_BUCKET_ID_STRING_LENGTH 60
 #define EOS_OSS_STRING_BUFFER_LENGTH 256 + 1 // 256 plus null terminator
 
 class FOnlineSubsystemEOS;
