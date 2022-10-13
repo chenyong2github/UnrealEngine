@@ -43,6 +43,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -691,6 +692,8 @@ void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const IChangelist
 
 void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const TSet<FString>& PathnamesToMonitor)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::RequestFileStatusRefresh);
+
 	if (!ISourceControlModule::Get().IsEnabled())
 	{
 		return;
@@ -759,6 +762,8 @@ void SSourceControlChangelistsWidget::OnRefresh()
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::Refresh);
+
 	// Views will be teared down and rebuilt from scratch, save the items that are expanded and/or selected to be able to restore those states after the rebuild.
 	FExpandedAndSelectionStates ExpandedAndSelectedStates;
 	SaveExpandedAndSelectionStates(ExpandedAndSelectedStates);
@@ -796,100 +801,108 @@ void SSourceControlChangelistsWidget::OnRefresh()
 	UncontrolledChangelistTreeNodes.Reset(UncontrolledChangelistStates.Num());
 	FileTreeNodes.Reset();
 
-	for (const TSharedRef<ISourceControlChangelistState>& ChangelistState : ChangelistsStates)
 	{
-		TSharedRef<IChangelistTreeItem> ChangelistNode = MakeShared<FChangelistTreeItem>(ChangelistState);
-		TSharedPtr<IChangelistTreeItem> ShelvedFilesNode;
-		bool bShelvedFilesNodeFilteredOut = true;
-		bool bSearchForcedChangelistNodeExpansion = false;
-		if (ChangelistState->GetShelvedFilesStates().Num() > 0)
-		{
-			ShelvedFilesNode = MakeShared<FShelvedChangelistTreeItem>();
-			bShelvedFilesNodeFilteredOut = !ChangelistTextFilter->PassesFilter(*ShelvedFilesNode);
-			bSearchForcedChangelistNodeExpansion = !bShelvedFilesNodeFilteredOut && !ChangelistTextFilter->GetRawFilterText().IsEmpty();
-		}
-		
-		// Check if the 'changelist' node must be kept.
-		if (!ChangelistTextFilter->PassesFilter(*ChangelistNode) && bShelvedFilesNodeFilteredOut)
-		{
-			continue; // Both the changelist and the shelved nodes are filtered out.
-		}
+		TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::RefreshControlledChangelists);
 
-		// Add the changelist.
-		ChangelistTreeNodes.Add(ChangelistNode);
-		if (bSearchForcedChangelistNodeExpansion)
+		for (const TSharedRef<ISourceControlChangelistState>& ChangelistState : ChangelistsStates)
 		{
-			ChangelistTreeView->SetItemExpansion(ChangelistNode, /*bShouldExpand*/true);
-		}
-
-		// Add the changelist files.
-		for (const TSharedRef<ISourceControlState>& FileState : ChangelistState->GetFilesStates())
-		{
-			TSharedRef<FFileTreeItem> FileItem = MakeShared<FFileTreeItem>(FileState, bBeautifyPaths);
-			if (FileTextFilter->PassesFilter(*FileItem))
+			TSharedRef<IChangelistTreeItem> ChangelistNode = MakeShared<FChangelistTreeItem>(ChangelistState);
+			TSharedPtr<IChangelistTreeItem> ShelvedFilesNode;
+			bool bShelvedFilesNodeFilteredOut = true;
+			bool bSearchForcedChangelistNodeExpansion = false;
+			if (ChangelistState->GetShelvedFilesStates().Num() > 0)
 			{
-				ChangelistNode->AddChild(FileItem);
-				SlowTask.EnterProgressFrame();
-				bBeautifyPaths &= !SlowTask.ShouldCancel();
+				ShelvedFilesNode = MakeShared<FShelvedChangelistTreeItem>();
+				bShelvedFilesNodeFilteredOut = !ChangelistTextFilter->PassesFilter(*ShelvedFilesNode);
+				bSearchForcedChangelistNodeExpansion = !bShelvedFilesNodeFilteredOut && !ChangelistTextFilter->GetRawFilterText().IsEmpty();
 			}
-		}
-
-		if (ShelvedFilesNode)
-		{
-			// Add a shelved files node under the changelist node.
-			ChangelistNode->AddChild(ShelvedFilesNode.ToSharedRef());
-
-			// Add the shelved files.
-			for (const TSharedRef<ISourceControlState>& ShelvedFileState : ChangelistState->GetShelvedFilesStates())
+		
+			// Check if the 'changelist' node must be kept.
+			if (!ChangelistTextFilter->PassesFilter(*ChangelistNode) && bShelvedFilesNodeFilteredOut)
 			{
-				TSharedRef<FShelvedFileTreeItem> ShelvedFileItem = MakeShared<FShelvedFileTreeItem>(ShelvedFileState, bBeautifyPaths);
-				if (FileTextFilter->PassesFilter(*ShelvedFileItem))
+				continue; // Both the changelist and the shelved nodes are filtered out.
+			}
+
+			// Add the changelist.
+			ChangelistTreeNodes.Add(ChangelistNode);
+			if (bSearchForcedChangelistNodeExpansion)
+			{
+				ChangelistTreeView->SetItemExpansion(ChangelistNode, /*bShouldExpand*/true);
+			}
+
+			// Add the changelist files.
+			for (const TSharedRef<ISourceControlState>& FileState : ChangelistState->GetFilesStates())
+			{
+				TSharedRef<FFileTreeItem> FileItem = MakeShared<FFileTreeItem>(FileState, bBeautifyPaths);
+				if (FileTextFilter->PassesFilter(*FileItem))
 				{
-					ShelvedFilesNode->AddChild(ShelvedFileItem);
+					ChangelistNode->AddChild(FileItem);
 					SlowTask.EnterProgressFrame();
 					bBeautifyPaths &= !SlowTask.ShouldCancel();
 				}
 			}
-		}
 
-		SlowTask.EnterProgressFrame();
-		bBeautifyPaths &= !SlowTask.ShouldCancel();
+			if (ShelvedFilesNode)
+			{
+				// Add a shelved files node under the changelist node.
+				ChangelistNode->AddChild(ShelvedFilesNode.ToSharedRef());
+
+				// Add the shelved files.
+				for (const TSharedRef<ISourceControlState>& ShelvedFileState : ChangelistState->GetShelvedFilesStates())
+				{
+					TSharedRef<FShelvedFileTreeItem> ShelvedFileItem = MakeShared<FShelvedFileTreeItem>(ShelvedFileState, bBeautifyPaths);
+					if (FileTextFilter->PassesFilter(*ShelvedFileItem))
+					{
+						ShelvedFilesNode->AddChild(ShelvedFileItem);
+						SlowTask.EnterProgressFrame();
+						bBeautifyPaths &= !SlowTask.ShouldCancel();
+					}
+				}
+			}
+
+			SlowTask.EnterProgressFrame();
+			bBeautifyPaths &= !SlowTask.ShouldCancel();
+		}
 	}
 
-	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistState : UncontrolledChangelistStates)
 	{
-		// Add an uncontrolled changelist.
-		TSharedRef<IChangelistTreeItem> UncontrolledChangelistNode = MakeShared<FUncontrolledChangelistTreeItem>(UncontrolledChangelistState);
-		if (!UncontrolledChangelistTextFilter->PassesFilter(*UncontrolledChangelistNode))
-		{
-			continue;
-		}
-		UncontrolledChangelistTreeNodes.Add(UncontrolledChangelistNode);
+		TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::RefreshUncontrolledChangelists);
 
-		for (const TSharedRef<ISourceControlState>& FileState : UncontrolledChangelistState->GetFilesStates())
+		for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistState : UncontrolledChangelistStates)
 		{
-			TSharedRef<FFileTreeItem> UncontrolledFileItem = MakeShared<FFileTreeItem>(FileState, bBeautifyPaths);
-			if (FileTextFilter->PassesFilter(*UncontrolledFileItem))
+			// Add an uncontrolled changelist.
+			TSharedRef<IChangelistTreeItem> UncontrolledChangelistNode = MakeShared<FUncontrolledChangelistTreeItem>(UncontrolledChangelistState);
+			if (!UncontrolledChangelistTextFilter->PassesFilter(*UncontrolledChangelistNode))
 			{
-				UncontrolledChangelistNode->AddChild(UncontrolledFileItem);
-				SlowTask.EnterProgressFrame();
-				bBeautifyPaths &= !SlowTask.ShouldCancel();
+				continue;
 			}
-		}
+			UncontrolledChangelistTreeNodes.Add(UncontrolledChangelistNode);
 
-		for (const FString& Filename : UncontrolledChangelistState->GetOfflineFiles())
-		{
-			TSharedRef<FOfflineFileTreeItem> OfflineFileItem = MakeShared<FOfflineFileTreeItem>(Filename);
-			if (FileTextFilter->PassesFilter(*OfflineFileItem))
+			for (const TSharedRef<ISourceControlState>& FileState : UncontrolledChangelistState->GetFilesStates())
 			{
-				UncontrolledChangelistNode->AddChild(OfflineFileItem);
-				SlowTask.EnterProgressFrame();
-				bBeautifyPaths &= !SlowTask.ShouldCancel();
+				TSharedRef<FFileTreeItem> UncontrolledFileItem = MakeShared<FFileTreeItem>(FileState, bBeautifyPaths);
+				if (FileTextFilter->PassesFilter(*UncontrolledFileItem))
+				{
+					UncontrolledChangelistNode->AddChild(UncontrolledFileItem);
+					SlowTask.EnterProgressFrame();
+					bBeautifyPaths &= !SlowTask.ShouldCancel();
+				}
 			}
-		}
 
-		SlowTask.EnterProgressFrame();
-		bBeautifyPaths &= !SlowTask.ShouldCancel();
+			for (const FString& Filename : UncontrolledChangelistState->GetOfflineFiles())
+			{
+				TSharedRef<FOfflineFileTreeItem> OfflineFileItem = MakeShared<FOfflineFileTreeItem>(Filename);
+				if (FileTextFilter->PassesFilter(*OfflineFileItem))
+				{
+					UncontrolledChangelistNode->AddChild(OfflineFileItem);
+					SlowTask.EnterProgressFrame();
+					bBeautifyPaths &= !SlowTask.ShouldCancel();
+				}
+			}
+
+			SlowTask.EnterProgressFrame();
+			bBeautifyPaths &= !SlowTask.ShouldCancel();
+		}
 	}
 
 	// Views were rebuilt from scratch, try expanding and selecting the nodes that were in that state before the update.
@@ -920,6 +933,8 @@ void SSourceControlChangelistsWidget::OnSourceControlProviderChanged(ISourceCont
 
 void SSourceControlChangelistsWidget::OnSourceControlStateChanged()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::OnSourceControlStateChanged);
+
 	// NOTE: No need to call RequestChangelistsRefresh() to force the SCC to update internal states. We are being invoked because it was update, we just
 	//       need to update the UI to reflect those state changes.
 	OnRefresh();

@@ -1364,6 +1364,8 @@ bool FCollectionManager::UpdateCollection(FName CollectionName, ECollectionShare
 
 bool FCollectionManager::GetCollectionStatusInfo(FName CollectionName, ECollectionShareType::Type ShareType, FCollectionStatusInfo& OutStatusInfo) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCollectionManager::GetCollectionStatusInfo);
+
 	if (!ensure(ShareType < ECollectionShareType::CST_All))
 	{
 		// Bad share type

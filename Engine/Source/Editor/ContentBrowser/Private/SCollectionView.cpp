@@ -43,6 +43,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/TextFilterUtils.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "SAssetTagItem.h"
 #include "SlotBase.h"
 #include "SourcesData.h"
@@ -317,6 +318,8 @@ void SCollectionView::HandleSourceControlProviderChanged(ISourceControlProvider&
 
 void SCollectionView::HandleSourceControlStateChanged()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SCollectionView::HandleSourceControlStateChanged);
+
 	// Update the status of each collection
 	for (const auto& AvailableCollectionInfo : AvailableCollections)
 	{
@@ -326,6 +329,8 @@ void SCollectionView::HandleSourceControlStateChanged()
 
 void SCollectionView::UpdateCollectionItemStatus( const TSharedRef<FCollectionItem>& CollectionItem )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SCollectionView::UpdateCollectionItemStatus);
+
 	int32 NewObjectCount = 0;
 	TOptional<ECollectionItemStatus> NewStatus;
 

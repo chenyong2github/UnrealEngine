@@ -7,6 +7,7 @@
 #include "ActorFolderTreeItem.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr InTreeItemPtr)
@@ -122,6 +123,8 @@ void FSceneOutlinerTreeItemSCC::DisconnectSourceControl()
 
 void FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged(EStateCacheUsage::Type CacheUsage)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneOutlinerTreeItemSCC::HandleSourceControlStateChanged);
+
 	FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, CacheUsage);
 	if (SourceControlState.IsValid())
 	{

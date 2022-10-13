@@ -8,6 +8,7 @@
 #include "ISourceControlProvider.h"
 #include "Math/NumericLimits.h"
 #include "SourceControlOperations.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 FSourceControlFileStatusMonitor::FSourceControlFileStatusMonitor()
 : ProbationPeriodPolicy(FTimespan::FromSeconds(1))
@@ -257,6 +258,8 @@ bool FSourceControlFileStatusMonitor::Tick(float DeltaTime)
 
 void FSourceControlFileStatusMonitor::OnSourceControlStatusUpdate(const TSharedRef<ISourceControlOperation>& InOperation, ECommandResult::Type InResult)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlFileStatusMonitor::OnSourceControlStatusUpdate);
+
 	check(IsInGameThread()); // Concurrency issues if the callback in invoked from a background thread.
 
 	double NowSecs = FPlatformTime::Seconds();

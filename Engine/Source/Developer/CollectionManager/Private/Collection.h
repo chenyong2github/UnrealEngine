@@ -188,6 +188,9 @@ private:
 	/** Source control is used if true */
 	bool bUseSCC;
 
+	/** Indicates if the collection has changes in memory that weren't saved to disk. */
+	bool bChangedSinceLastDiskSnapshot = false;
+
 	/** The filename used to load this collection. Empty if it is new or never loaded from disk. */
 	FString SourceFilename;
 

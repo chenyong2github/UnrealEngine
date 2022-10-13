@@ -17,6 +17,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Async/ParallelFor.h"
 #include "String/ParseLines.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #define LOCTEXT_NAMESPACE "CollectionManager"
 
@@ -156,6 +157,7 @@ bool FCollection::Load(FText& OutError)
 	}
 
 	DiskSnapshot.TakeSnapshot(*this);
+	bChangedSinceLastDiskSnapshot = false;
 
 	return true;
 }
@@ -282,6 +284,7 @@ bool FCollection::Save(const TArray<FText>& AdditionalChangelistText, FText& Out
 		FileVersion = ECollectionVersion::CurrentVersion;
 
 		DiskSnapshot.TakeSnapshot(*this);
+		bChangedSinceLastDiskSnapshot = false;
 	}
 
 	GWarn->EndSlowTask();
@@ -397,6 +400,7 @@ bool FCollection::DeleteSourceFile(FText& OutError)
 	if ( bSuccessfullyDeleted )
 	{
 		DiskSnapshot = FCollectionSnapshot();
+		bChangedSinceLastDiskSnapshot = (ObjectSet.Num() == 0);
 	}
 
 	return bSuccessfullyDeleted;
@@ -409,6 +413,7 @@ void FCollection::Empty()
 	DynamicQueryExpressionEvaluatorPtr.Reset();
 
 	DiskSnapshot.TakeSnapshot(*this);
+	bChangedSinceLastDiskSnapshot = false;
 }
 
 bool FCollection::AddObjectToCollection(const FSoftObjectPath& ObjectPath)
@@ -422,6 +427,7 @@ bool FCollection::AddObjectToCollection(const FSoftObjectPath& ObjectPath)
 	{
 		bool bAlreadyInSet = false;
 		ObjectSet.Add(ObjectPath, &bAlreadyInSet);
+		bChangedSinceLastDiskSnapshot |= !bAlreadyInSet;
 		return !bAlreadyInSet;
 	}
 
@@ -435,9 +441,10 @@ bool FCollection::RemoveObjectFromCollection(const FSoftObjectPath& ObjectPath)
 		return false;
 	}
 
-	if (StorageMode == ECollectionStorageMode::Static)
+	if (StorageMode == ECollectionStorageMode::Static && ObjectSet.Remove(ObjectPath) > 0)
 	{
-		return ObjectSet.Remove(ObjectPath) > 0;
+		bChangedSinceLastDiskSnapshot = true;
+		return true;
 	}
 
 	return false;
@@ -539,6 +546,8 @@ bool FCollection::TestDynamicQuery(const ITextFilterExpressionContext& InContext
 
 FCollectionStatusInfo FCollection::GetStatusInfo() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCollection::GetStatusInfo);
+
 	FCollectionStatusInfo StatusInfo;
 
 	StatusInfo.bIsDirty = IsDirty();
@@ -562,6 +571,8 @@ FCollectionStatusInfo FCollection::GetStatusInfo() const
 
 bool FCollection::IsDirty() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCollection::IsDirty);
+
 	if (ParentCollectionGuid != DiskSnapshot.ParentCollectionGuid)
 	{
 		return true;
@@ -572,22 +583,14 @@ bool FCollection::IsDirty() const
 		return true;
 	}
 
-	bool bHasChanges = false;
-
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
-		TArray<FSoftObjectPath> ObjectsAdded;
-		TArray<FSoftObjectPath> ObjectsRemoved;
-		GetObjectDifferencesFromDisk(ObjectsAdded, ObjectsRemoved);
-
-		bHasChanges = ObjectsAdded.Num() != 0 || ObjectsRemoved.Num() != 0;
+		return bChangedSinceLastDiskSnapshot;
 	}
 	else
 	{
-		bHasChanges = DynamicQueryText != DiskSnapshot.DynamicQueryText;
+		return DynamicQueryText != DiskSnapshot.DynamicQueryText;
 	}
-
-	return bHasChanges;
 }
 
 bool FCollection::IsEmpty() const
@@ -736,6 +739,8 @@ bool FCollection::MergeWithCollection(const FCollection& Other)
 			{
 				ObjectSet.Remove(RemovedObjectName);
 			}
+			
+			bChangedSinceLastDiskSnapshot = true;
 		}
 	}
 	else

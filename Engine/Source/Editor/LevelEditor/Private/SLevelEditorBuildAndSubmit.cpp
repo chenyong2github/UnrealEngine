@@ -16,6 +16,7 @@
 #include "EditorBuildUtils.h"
 #include "Logging/MessageLog.h"
 #include "LightingBuildOptions.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -298,6 +299,8 @@ void SLevelEditorBuildAndSubmit::OnEditorPackageModified(UPackage* Package)
 
 void SLevelEditorBuildAndSubmit::OnSourceControlStateChanged()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SLevelEditorBuildAndSubmit::OnSourceControlStateChanged);
+
 	if (bIsExtraPackagesSectionExpanded)
 	{
 		UpdatePackagesList();
