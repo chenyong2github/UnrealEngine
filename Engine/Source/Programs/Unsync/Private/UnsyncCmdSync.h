@@ -24,6 +24,8 @@ struct FCmdSyncOptions
 	bool bFullSourceScan = false;
 	bool bCleanup		 = false;
 
+	bool bCheckAvailableSpace = true;
+
 	bool bValidateTargetFiles = true;  // WARNING: turning this off is intended only for testing/profiling
 
 	uint32 BlockSize = uint32(64_KB);

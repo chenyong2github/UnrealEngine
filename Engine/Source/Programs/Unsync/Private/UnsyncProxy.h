@@ -84,6 +84,7 @@ struct FTelemetryEventSyncComplete
 	std::string ClientVersion;
 	std::string Session;
 	std::string Source;
+	std::string ClientHostNameHash;
 	uint64 TotalBytes = 0;
 	uint64 SourceBytes = 0;
 	uint64 BaseBytes = 0;

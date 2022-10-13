@@ -25,7 +25,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.47"
+#define UNSYNC_VERSION_STR "1.0.48"
 
 namespace unsync {
 
@@ -2965,6 +2965,20 @@ LoadAndMergeSourceManifest(FDirectoryManifest& Output,
 	return MergeManifests(Output, LoadedManifest, bCaseSensitiveTargetFileSystem);
 }
 
+static std::string
+GetAnonymizedHostName()
+{
+	std::string HostName = GetCurrentHostName();
+	if (HostName.empty())
+	{
+		return {};
+	}
+	HostName += " {22FF4421-8CAC-4A14-9E4C-780AAF8BBF2A}";
+	FHash128	MachineId = HashBlake3String<FHash128>(HostName);
+	std::string Result	  = HashToHexString(MachineId);
+	return Result;
+}
+
 bool  // TODO: return a TResult
 SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 {
@@ -3383,10 +3397,14 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		HashSet<FHash128> UniqueSourceBlocks;
 		uint64			  UniqueSourceBytes = 0;
 
+		uint64 TotalSyncSizeBytes = 0;
+
 		for (FileSyncTask& Item : SyncTaskList)
 		{
 			EstimatedNeedBytesFromSource += Item.NeedBytesFromSource;
 			EstimatedNeedBytesFromBase += Item.NeedBytesFromBase;
+			TotalSyncSizeBytes += Item.TotalSizeBytes;
+
 			for (const auto& Block : Item.NeedList.Source)
 			{
 				auto InsertRes = UniqueSourceBlocks.insert(Block.Hash.ToHash128());	 // #wip-widehash
@@ -3399,6 +3417,17 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 		UNSYNC_VERBOSE(L"Total need from source: %.2f MB", SizeMb(EstimatedNeedBytesFromSource));
 		UNSYNC_VERBOSE(L"Total need from base: %.2f MB", SizeMb(EstimatedNeedBytesFromBase));
+
+		uint64 AvailableDiskBytes = SyncOptions.bCheckAvailableSpace ? GetAvailableDiskSpace(TargetPath) : ~0ull;
+		if (TotalSyncSizeBytes > AvailableDiskBytes)
+		{
+			UNSYNC_ERROR(
+				L"Sync requires %.0f MB (%llu bytes) of disk space, but only %.0f MB (%llu bytes) is available. "
+				L"Use --no-space-validation flag to suppress this check.",
+				SizeMb(TotalSyncSizeBytes), TotalSyncSizeBytes,
+				SizeMb(AvailableDiskBytes), AvailableDiskBytes);
+			return false;
+		}
 	}
 
 	GGlobalProgressCurrent = 0;
@@ -3686,17 +3715,18 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	{
 		FTelemetryEventSyncComplete Event;
 
-		Event.ClientVersion	   = GetVersionString();
-		Event.Session		   = ProxyPool.GetSessionId();
-		Event.Source		   = ConvertWideToUtf8(SourcePath.wstring());
-		Event.TotalBytes	   = TotalSourceSize;
-		Event.SourceBytes	   = StatSourceBytes;
-		Event.BaseBytes		   = StatBaseBytes;
-		Event.SkippedFiles	   = StatSkipped;
-		Event.FullCopyFiles	   = StatFullCopy;
-		Event.PartialCopyFiles = StatPartialCopy;
-		Event.Elapsed		   = ElapsedSeconds;
-		Event.bSuccess		   = bSyncSucceeded;
+		Event.ClientVersion		 = GetVersionString();
+		Event.Session			 = ProxyPool.GetSessionId();
+		Event.Source			 = ConvertWideToUtf8(SourcePath.wstring());
+		Event.ClientHostNameHash = GetAnonymizedHostName();
+		Event.TotalBytes		 = TotalSourceSize;
+		Event.SourceBytes		 = StatSourceBytes;
+		Event.BaseBytes			 = StatBaseBytes;
+		Event.SkippedFiles		 = StatSkipped;
+		Event.FullCopyFiles		 = StatFullCopy;
+		Event.PartialCopyFiles	 = StatPartialCopy;
+		Event.Elapsed			 = ElapsedSeconds;
+		Event.bSuccess			 = bSyncSucceeded;
 
 		ProxyPool.SendTelemetryEvent(Event);
 	}

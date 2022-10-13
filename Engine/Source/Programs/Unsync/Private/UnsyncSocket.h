@@ -34,6 +34,9 @@ struct FSocketAddress  // opaque buffer that holds socket address
 	bool operator==(const FSocketAddress& Other) const { return Data64[0] == Other.Data64[0] && Data64[1] == Other.Data64[1]; }
 };
 
+// Returns current host name or empty string if it could not be determined.
+std::string GetCurrentHostName();
+
 FSocketHandle SocketConnectTcp(const char* DestAddress, uint16 Port);
 void		  SocketClose(FSocketHandle Socket);
 

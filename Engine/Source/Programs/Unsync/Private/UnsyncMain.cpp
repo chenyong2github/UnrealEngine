@@ -76,6 +76,7 @@ InnerMain(int Argc, char** Argv)
 	bool					 bIncrementalMode	 = false;
 	bool					 bNoOutputValidation = false;
 	bool					 bNoCleanupAfterSync = false;
+	bool					 bNoSpaceValidation	 = false;
 	bool					 bFullSourceScan	 = false;
 	bool					 bFullDifference	 = false;
 	bool					 bInfoFiles			 = false;
@@ -214,6 +215,7 @@ InnerMain(int Argc, char** Argv)
 					  "sync process, however this can be very slow when dealing with large numbers of files and directories.");
 
 	SubSync->add_flag("--no-output-validation", bNoOutputValidation, "Skip final patched file block hash validation (DANGEROUS)");
+	SubSync->add_flag("--no-space-validation", bNoSpaceValidation, "Skip checking available disk space before sync (DANGEROUS)");
 	SubSync->add_option("-b, --block", HashOrSyncBlockSize, "Block size in bytes (default=64KB)");
 	SubCommands.push_back(SubSync);
 
@@ -654,6 +656,7 @@ InnerMain(int Argc, char** Argv)
 		SyncOptions.BlockSize			   = HashOrSyncBlockSize;
 		SyncOptions.Filter				   = &SyncFilter;
 		SyncOptions.bValidateTargetFiles   = !bNoOutputValidation;
+		SyncOptions.bCheckAvailableSpace   = !bNoSpaceValidation;
 
 		for (const std::string& Entry : OverlayArrayUtf8)
 		{

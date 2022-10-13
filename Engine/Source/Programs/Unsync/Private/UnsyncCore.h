@@ -355,10 +355,10 @@ enum class ESyncSourceType
 struct FSyncDirectoryOptions
 {
 	ESyncSourceType	   SourceType;
-	FPath			   Source;					// remote data location
-	FPath			   Target;					// output target location
-	FPath			   Base;					// base data location, which typically is the same as sync target
-	std::vector<FPath> Overlays;				// extra source directories to overlay over primary (add extra files, replace existing files)
+	FPath			   Source;	  // remote data location
+	FPath			   Target;	  // output target location
+	FPath			   Base;	  // base data location, which typically is the same as sync target
+	std::vector<FPath> Overlays;  // extra source directories to overlay over primary (add extra files, replace existing files)
 	FPath			   SourceManifestOverride;	// force the manifest to be read from a specified file instead of source directory
 	FSyncFilter*	   SyncFilter = nullptr;	// filter callback for partial sync support
 	const FRemoteDesc* Remote	  = nullptr;	// unsync proxy server connection settings
@@ -366,6 +366,7 @@ struct FSyncDirectoryOptions
 	bool			   bValidateSourceFiles = true;	 // whether to check that all source files declared in the manifest are present/valid
 	bool			   bValidateTargetFiles = true;	 // WARNING: turning this off is intended only for testing/profiling
 	bool			   bFullDifference = true;	// whether to run full file difference algorithm, even when there is an existing manifest
+	bool			   bCheckAvailableSpace = true;	 // whether to abort the sync if target path does not have enough available space
 };
 
 bool SyncDirectory(const FSyncDirectoryOptions& SyncOptions);

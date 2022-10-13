@@ -138,6 +138,7 @@ CmdSync(const FCmdSyncOptions& Options)
 			SyncOptions.bValidateSourceFiles   = Options.bFullSourceScan;
 			SyncOptions.bFullDifference		   = Options.bFullDifference;
 			SyncOptions.bValidateTargetFiles   = Options.bValidateTargetFiles;
+			SyncOptions.bCheckAvailableSpace   = Options.bCheckAvailableSpace;
 
 			return SyncDirectory(SyncOptions) ? 0 : 1;
 		}

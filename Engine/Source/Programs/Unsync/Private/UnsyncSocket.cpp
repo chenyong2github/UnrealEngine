@@ -72,6 +72,23 @@ LazyInitSockets()
 	static FSocketInitHelper InitHelper;
 }
 
+std::string
+GetCurrentHostName()
+{
+	LazyInitSockets();
+
+	char Buffer[1024] = {};
+
+	if (gethostname(Buffer, (int)sizeof(Buffer)) == 0)
+	{
+		return std::string(Buffer);
+	}
+	else
+	{
+		return {};
+	}
+}
+
 FSocketHandle
 SocketConnectTcp(const char* DestAddress, uint16 Port)
 {
