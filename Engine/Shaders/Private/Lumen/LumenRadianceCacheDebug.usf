@@ -29,7 +29,7 @@ void RadianceCacheUpdateStatsCS(
 	FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.1, 0.1));
 	Newline(Context);
 
-	[loop]
+	SHADER_PRINT_UNROLL(8) // Max buckets shown with FXC
 	for (uint BucketIndex = 0; BucketIndex < PRIORITY_HISTOGRAM_SIZE; ++BucketIndex)
 	{
 		Print(Context, PriorityHistogram[BucketIndex]);

@@ -1201,6 +1201,7 @@ void PrintInstanceName(inout FShaderPrintContext Context, uint PrimitiveID, FFon
 	const FNameInfo Info = FindNameInfo(PrimitiveID);
 	if (Info.PrimitiveID != ~0 && (Info.Length + Info.Offset) <= NameCharacterCount)
 	{
+		SHADER_PRINT_UNROLL(16) // Max name length with FXC
 		for (uint It = 0; It < Info.Length; ++It)
 		{
 			const uint Char = Names[It + Info.Offset];
@@ -1269,6 +1270,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Primary Shadow Name"));
 	Newline(Context);
 
+	SHADER_PRINT_UNROLL(2) // Max instances shown with FXC
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 	{
 		const FInstanceInfo Info = ReadInstanceInfo(InstanceIndex);

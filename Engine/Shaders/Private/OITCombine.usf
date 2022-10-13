@@ -194,6 +194,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		// Sample infos
 		SampleCount = min(SampleCount, MaxSampleCount);
+
+		SHADER_PRINT_UNROLL(8) // Max samples shown with FXC
 		for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
 			const uint2 SampleOffset = uint2(SampleIt % MaxSideSampleCount, SampleIt / MaxSideSampleCount);
