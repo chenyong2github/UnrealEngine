@@ -590,7 +590,7 @@ public:
 #endif
 
 private:
-	void Finalize();
+	void Finalize(bool bRemoveEmptyChannels = true);
 	void ResolveBoneReferences();
 
 public:

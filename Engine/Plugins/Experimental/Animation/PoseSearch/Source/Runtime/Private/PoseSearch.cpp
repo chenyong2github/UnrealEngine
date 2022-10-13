@@ -349,21 +349,25 @@ int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 
 } // namespace UE::PoseSearch
 
-void UPoseSearchSchema::Finalize()
+void UPoseSearchSchema::Finalize(bool bRemoveEmptyChannels)
 {
 	using namespace UE::PoseSearch;
 
-	// Discard null channels
-	Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return !Channel; });
+	if (bRemoveEmptyChannels)
+	{
+		Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return !Channel; });
+	}
 
 	BoneReferences.Reset();
 
 	FSchemaInitializer Initializer;
 	for (int32 ChannelIdx = 0; ChannelIdx != Channels.Num(); ++ChannelIdx)
 	{
-		TObjectPtr<UPoseSearchFeatureChannel>& Channel = Channels[ChannelIdx];
-		Initializer.CurrentChannelIdx = ChannelIdx;
-		Channel->InitializeSchema(Initializer);
+		if (Channels[ChannelIdx].Get())
+		{
+			Initializer.CurrentChannelIdx = ChannelIdx;
+			Channels[ChannelIdx]->InitializeSchema(Initializer);
+		}
 	}
 
 	SchemaCardinality = Initializer.GetCurrentChannelDataOffset();
@@ -389,7 +393,7 @@ void UPoseSearchSchema::PostLoad()
 #if WITH_EDITOR
 void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Finalize();
+	Finalize(false);
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
