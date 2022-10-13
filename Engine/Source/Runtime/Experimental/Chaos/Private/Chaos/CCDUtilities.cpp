@@ -967,7 +967,7 @@ namespace Chaos
 
 			for (FPBDCollisionConstraint* Constraint : Constraints)
 			{
-				if (!Constraint->IsEnabled())
+				if (Constraint->IsProbe() || !Constraint->IsEnabled())
 				{
 					continue;
 				}

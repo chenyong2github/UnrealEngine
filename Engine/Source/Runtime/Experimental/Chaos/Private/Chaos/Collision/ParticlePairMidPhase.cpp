@@ -423,8 +423,13 @@ namespace Chaos
 			// If we did get a hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint (skip the rewind)
 			if (Constraint->GetCCDTimeOfImpact() == FReal(1))
 			{
-				Constraint->SetCCDSweepEnabled(false);
 				Collisions::UpdateConstraint(*Constraint.Get(), Constraint->GetShapeWorldTransform0(), Constraint->GetShapeWorldTransform1(), Dt);
+			}
+
+			// If the sweep did not find a hit, or we are treating it like a regular contact, we will skip the CCD rewind step for this contact
+			if (Constraint->GetCCDTimeOfImpact() >= FReal(1))
+			{
+				Constraint->SetCCDSweepEnabled(false);
 			}
 
 			Context.GetAllocator()->ActivateConstraint(Constraint.Get());

@@ -389,7 +389,7 @@ namespace Chaos
 				[this](FConstraintHandle* ConstraintHandle)
 				{
 					FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->AsUnsafe<FPBDCollisionConstraintHandle>();
-					if (!CollisionHandle->IsEnabled() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
+					if (!CollisionHandle->IsEnabled() || CollisionHandle->IsProbe() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
 					{
 						TempCollisions.Add(CollisionHandle);
 					}
@@ -407,7 +407,7 @@ namespace Chaos
 		for (FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintAllocator.GetConstraints())
 		{
 			FPBDCollisionConstraint& Constraint = ConstraintHandle->GetContact();
-			if (!Constraint.IsInConstraintGraph() && Constraint.IsEnabled())
+			if (!Constraint.IsInConstraintGraph() && Constraint.IsEnabled() && !Constraint.IsProbe())
 			{
 				TempCollisions.Add(ConstraintHandle);
 			}
