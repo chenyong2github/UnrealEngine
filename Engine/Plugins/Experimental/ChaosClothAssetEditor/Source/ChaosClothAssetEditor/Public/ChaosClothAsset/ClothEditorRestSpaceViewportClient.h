@@ -9,7 +9,7 @@
 
 class UInputBehaviorSet;
 
-class CHAOSCLOTHASSETEDITOR_API FChaosClothEditorRestSpaceViewportClient : public FEditorViewportClient, public IInputBehaviorSource
+class CHAOSCLOTHASSETEDITOR_API FChaosClothEditorRestSpaceViewportClient : public FEditorViewportClient
 {
 public:
 
@@ -17,12 +17,7 @@ public:
 
 	virtual ~FChaosClothEditorRestSpaceViewportClient() = default;
 
-	// IInputBehaviorSource
-	virtual const UInputBehaviorSet* GetInputBehaviors() const override;
-
-	// FGCObject
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
+	// FEditorViewportClient
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
 	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
 
@@ -36,13 +31,6 @@ public:
 private:
 
 	bool b2DMode = false;
-
-	UInputBehaviorSet* BehaviorSet;
-
-	TArray<UInputBehavior*> SavedBehaviors;
-
-	TUniquePtr<FEditor2DScrollBehaviorTarget> ScrollBehaviorTarget;
-	TUniquePtr<FEditor2DMouseWheelZoomBehaviorTarget> ZoomBehaviorTarget;
 
 	TWeakPtr<FUICommandList> ToolCommandList;
 };

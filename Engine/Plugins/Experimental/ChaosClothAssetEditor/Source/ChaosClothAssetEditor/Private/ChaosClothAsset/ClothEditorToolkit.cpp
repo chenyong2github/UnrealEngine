@@ -346,14 +346,8 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	
 	SetCommonViewportClientOptions(ViewportClient.Get());
 
-	// Ortho has too many problems with rendering things, unfortunately, so we should use perspective.
-	ViewportClient->SetViewportType(ELevelViewportType::LVT_Perspective);
-
 	// Lit gives us the most options in terms of the materials we can use.
 	ViewportClient->SetViewMode(EViewModeIndex::VMI_Lit);
-
-	// If exposure isn't set to fixed, it will flash as we stare into the void
-	ViewportClient->ExposureSettings.bFixed = true;
 
 	UChaosClothAssetEditorMode* ClothMode = Cast<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
 	check(ClothMode);

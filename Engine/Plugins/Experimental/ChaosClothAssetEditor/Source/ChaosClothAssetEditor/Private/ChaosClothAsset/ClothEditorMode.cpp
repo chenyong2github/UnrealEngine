@@ -475,6 +475,20 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 				TObjectPtr<UDynamicMeshComponent> PatternMeshComponent = NewObject<UDynamicMeshComponent>(ParentActor);
 				PatternMeshComponent->SetMesh(MoveTemp(PatternMesh));
+
+				UMaterialInterface* Material = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
+				UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, GetToolManager());
+				MatInstance->SetVectorParameterValue(TEXT("Color"), FLinearColor::Gray);
+				MatInstance->TwoSided = 1;
+				PatternMeshComponent->SetMaterial(0, MatInstance);
+
+				if (bPattern2DMode)
+				{
+					// The LVT_OrthoXY viewport transform results in the positive y axis pointing down in screen space. The following transform rotates 
+					// the mesh around the z axis so that increasing y value in the cloth asset corresponds to "up" in screen space
+					PatternMeshComponent->SetWorldRotation(FQuat(FVector(0,0,1), FMathd::Pi));
+				}
+
 				PatternMeshComponent->RegisterComponentWithWorld(this->GetWorld());
 				DynamicMeshComponents[PatternIndex] = PatternMeshComponent;
 				DynamicMeshSourceInfos.Add(FDynamicMeshSourceInfo{ LodIndex, PatternIndex });
@@ -493,7 +507,12 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 	{
 		// Set up the wireframe display of the rest space mesh.
 		TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
-		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
+
+		// The LVT_OrthoXY viewport transform results in the positive y axis pointing down in screen space. The following transform rotates 
+		// the mesh around the z axis so that increasing y value in the cloth asset corresponds to "up" in screen space
+		const FTransform WireframeTransform = bPattern2DMode ? FTransform(FQuat(FVector(0, 0, 1), FMathd::Pi)) : FTransform::Identity;
+
+		WireframeDisplay->CreateInWorld(GetWorld(), WireframeTransform);
 
 		WireframeDisplay->Settings->DepthBias = 2.0;
 		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
@@ -572,7 +591,7 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 		if (IsPattern2DModeActive())
 		{
 			// 2D pattern
-			PinnedVC->SetInitialViewTransform(ELevelViewportType::LVT_Perspective, FVector(0, 150, 100), FRotator(-90, 90, 0), DEFAULT_ORTHOZOOM);
+			PinnedVC->SetInitialViewTransform(ELevelViewportType::LVT_OrthoXY, FVector(0, 0, 0), FRotator(0, 0, 0), DEFAULT_ORTHOZOOM);
 		}
 		else
 		{
