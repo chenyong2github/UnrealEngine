@@ -550,6 +550,7 @@ public:
 		}
 		else
 		{
+			LLM_SCOPE(ELLMTag::FileSystem);
 			ProcessIncomingRequests();
 			while (PendingIoRequestsCount > 0)
 			{
