@@ -5,7 +5,8 @@
 =============================================================================*/
 
 #include "Common.ush"	
-#include "ShaderPrint.ush"
+#include "MiniFontCommon.ush"
+#include "ShaderPrintCommon.ush"
 
 uint2 ViewportResolution;
 uint FrameIndex;
@@ -309,14 +310,14 @@ void DrawSymbolsVS(
 	bool bIsValid = true;
 	if (Symbol.Type == SHADER_PRINT_TYPE_SLIDER)
 	{
-		const float2 NormalizedSize = GetSliderWidgetSize() / float2(ShaderPrintData.Resolution);
+		const float2 NormalizedSize = GetSliderWidgetSize(ShaderPrintData.FontSpacing, ShaderPrintData.Resolution) / float2(ShaderPrintData.Resolution);
 		const float2 Offset = float2(NormalizedSize.x - NormalizedSize.y/4.f, 0.f);
 		OutPosition.xy = VertPos.xy * NormalizedSize + Offset + InstancePos + DropShadowOffset;
 		bIsValid = !bDropShadow;
 	}
 	else if (Symbol.Type == SHADER_PRINT_TYPE_CHECK)
 	{
-		const float2 NormalizedSize = GetCheckboxWidgetSize() / float2(ShaderPrintData.Resolution);
+		const float2 NormalizedSize = GetCheckboxWidgetSize(ShaderPrintData.FontSpacing, ShaderPrintData.Resolution) / float2(ShaderPrintData.Resolution);
 		const float2 Offset = float2(NormalizedSize.x * 0.5f, 0.f);
 		OutPosition.xy = VertPos.xy * NormalizedSize + Offset + InstancePos + DropShadowOffset;
 		bIsValid = !bDropShadow;

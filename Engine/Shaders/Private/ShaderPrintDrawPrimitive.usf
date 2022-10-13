@@ -2,8 +2,7 @@
 
 
 #include "Common.ush"
-
-#include "ShaderPrint.ush"
+#include "ShaderPrintCommon.ush"
 
 float3 TranslatedWorldOffsetConversion;
 uint bCheckerboardEnabled;
@@ -27,7 +26,7 @@ void ShaderDrawDebugVS(
 	out float4 Position : SV_POSITION,
 	out float4 ColorAlpha : TEXCOORD0)
 {
-	const FLineElement Item = UnpackLineElement(ShaderDrawDebugPrimitive, InstanceId);
+	const FLineElement Item = UnpackLineElement(ShaderDrawDebugPrimitive, InstanceId, ShaderPrintData.MaxValueCount);
 
 	float4 VertexPositionTWS = float4(VertexId == 0 ? Item.Pos0 : Item.Pos1, 1.0f);
 	float4 VertexColor = VertexId == 0 ? Item.Color0 : Item.Color1;
@@ -61,7 +60,7 @@ void ShaderDrawDebugVS(
 	out float4 Position : SV_POSITION,
 	out float4 ColorAlpha : TEXCOORD0)
 {
-	const FTriangleElement Item = UnpackTriangleElement(ShaderDrawDebugPrimitive, InstanceId);
+	const FTriangleElement Item = UnpackTriangleElement(ShaderDrawDebugPrimitive, InstanceId, ShaderPrintData.MaxValueCount, ShaderPrintData.MaxLineCount);
 
 	float4 VertexPositionTWS = float4(VertexId == 0 ? Item.Pos0 : (VertexId == 1 ? Item.Pos1 : Item.Pos2), 1.0f);
 	float4 VertexColor = Item.Color;
