@@ -210,6 +210,8 @@ public:
 		/** A custom content slot for widgets */ 
 		SLATE_NAMED_SLOT(FArguments, CustomContentSlot)
 		SLATE_ATTRIBUTE(FIntPoint, ThumbnailSizeOverride)
+		/** Called to check if an actor is valid to use */
+		SLATE_EVENT(FOnShouldFilterActor, OnShouldFilterActor)
 	SLATE_END_ARGS()
 
 	PROPERTYEDITOR_API void Construct( const FArguments& InArgs );
@@ -230,6 +232,8 @@ private:
 private:
 	/** Delegate to call to determine whether the asset should be set */
 	FOnShouldSetAsset OnShouldSetAsset;
+	/** Delegate to call to determine whether the actor should be allowed */
+	FOnShouldFilterActor OnShouldFilterActor;
 	/** Delegate to call when the object changes */
 	FOnSetObject OnObjectChanged;
 	/** Delegate to call to check if this widget should be enabled. */

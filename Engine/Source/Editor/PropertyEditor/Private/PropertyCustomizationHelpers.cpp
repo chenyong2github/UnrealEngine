@@ -464,6 +464,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 	OnObjectChanged = InArgs._OnObjectChanged;
 	OnShouldSetAsset = InArgs._OnShouldSetAsset;
 	OnIsEnabled = InArgs._OnIsEnabled;
+	OnShouldFilterActor = InArgs._OnShouldFilterActor;
 
 	const TArray<FAssetData>& OwnerAssetDataArray = InArgs._OwnerAssetDataArray;
 
@@ -529,6 +530,7 @@ void SObjectPropertyEntryBox::Construct( const FArguments& InArgs )
 				.OwnerAssetDataArray(OwnerAssetDataArray)
 				.ThumbnailSize(ThumbnailSize)
 				.DisplayCompactSize(InArgs._DisplayCompactSize)
+				.OnShouldFilterActor(InArgs._OnShouldFilterActor)
 				.CustomContentSlot()
 				[
 					InArgs._CustomContentSlot.Widget

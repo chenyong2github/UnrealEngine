@@ -78,6 +78,7 @@ public:
 		SLATE_NAMED_SLOT(FArguments, CustomContentSlot)
 		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PropertyHandle)
 		SLATE_ARGUMENT(TArray<FAssetData>, OwnerAssetDataArray)
+		SLATE_EVENT(FOnShouldFilterActor, OnShouldFilterActor)
 
 	SLATE_END_ARGS()
 
@@ -395,6 +396,9 @@ private:
 
 	/** The property handle, if any */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+
+	/** Delegate for filtering valid actors */
+	FOnShouldFilterActor OnShouldFilterActor;
 
 	/*
 	 * The reference object on which the picker will assign the picked asset, if any.
