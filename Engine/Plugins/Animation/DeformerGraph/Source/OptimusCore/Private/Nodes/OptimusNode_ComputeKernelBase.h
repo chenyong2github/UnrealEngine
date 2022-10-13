@@ -74,7 +74,7 @@ protected:
 	
 	
 private:
-	void ProcessInputPinForComputeKernel(
+	TOptional<FText> ProcessInputPinForComputeKernel(
 		const FOptimusPinTraversalContext& InTraversalContext,
 		const UOptimusNodePin* InInputPin,
 		const FString& InGroupName,
