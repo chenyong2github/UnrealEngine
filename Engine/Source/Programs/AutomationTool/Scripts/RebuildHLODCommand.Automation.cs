@@ -360,6 +360,10 @@ namespace AutomationScripts.Automation
 				{
 					return "#ROBOMERGE[ALL] #DisregardExcludedAuthors";
 				}
+				else if (Command == "deadend")
+				{
+					return "#ROBOMERGE " + Command;
+				}
 				else
 				{
 					return "#ROBOMERGE " + Command + " #DisregardExcludedAuthors";
