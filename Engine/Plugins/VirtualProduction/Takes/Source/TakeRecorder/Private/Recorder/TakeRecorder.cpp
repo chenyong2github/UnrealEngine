@@ -486,7 +486,6 @@ bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorde
 	{
 		Parameters.Project.bStartAtCurrentTimecode = false;
 		Parameters.User.bStopAtPlaybackEnd = true;
-		Parameters.User.bSaveRecordedAssets = false;
 		Parameters.User.bAutoLock = false;
 	}
 
