@@ -93,22 +93,24 @@ bool ULevelStreaming::DefaultAllowClientUseMakingVisibleTransactionRequests()
 
 bool ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest() const
 {
-	if (UWorld* World = GetWorld())
+	if (!bSkipClientUseMakingInvisibleTransactionRequest)
 	{
 		// Rely on the world to decide whether the client should wait for the server to acknowledge
 		// visibility before making streaming levels invisible on the client.
-		return World->SupportsMakingInvisibleTransactionRequests(); 
+		UWorld* World = GetWorld();
+		return World && World->SupportsMakingInvisibleTransactionRequests();
 	}
 	return false;
 }
 
 bool ULevelStreaming::ShouldClientUseMakingVisibleTransactionRequest() const
 {
-	if (UWorld* World = GetWorld())
+	if (!bSkipClientUseMakingVisibleTransactionRequest)
 	{
 		// Rely on the world to decide whether the client should wait for the server to acknowledge
 		// visibility before making streaming levels visible on the client.
-		return World->SupportsMakingVisibleTransactionRequests();
+		UWorld* World = GetWorld();
+		return World && World->SupportsMakingVisibleTransactionRequests();
 	}
 	return false;
 }
@@ -366,6 +368,8 @@ ULevelStreaming::ULevelStreaming(const FObjectInitializer& ObjectInitializer)
 	bDrawOnLevelStatusMap = true;
 	LevelLODIndex = INDEX_NONE;
 	CurrentState = ECurrentState::Removed;
+	bSkipClientUseMakingInvisibleTransactionRequest = false;
+	bSkipClientUseMakingVisibleTransactionRequest = false;
 }
 
 void ULevelStreaming::PostLoad()

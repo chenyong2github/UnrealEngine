@@ -60,66 +60,73 @@
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
 #include "IDocumentation.h"
-
-static int32 GLoadingRangeBugItGo = 12800;
-static FAutoConsoleVariableRef CVarLoadingRangeBugItGo(
-	TEXT("wp.Editor.LoadingRangeBugItGo"),
-	GLoadingRangeBugItGo,
-	TEXT("Loading range for BugItGo command."),
-	ECVF_Default
-);
-
-static int32 GWorldExtentToEnableStreaming = 400000;
-static FAutoConsoleVariableRef CVarWorldExtentToEnableStreaming(
-	TEXT("wp.Editor.WorldExtentToEnableStreaming"),
-	GWorldExtentToEnableStreaming,
-	TEXT("World extend to justify enabling streaming."),
-	ECVF_Default
-);
-
-static bool GDebugDedicatedServerStreaming = false;
-static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming(
-	TEXT("wp.Runtime.DebugDedicatedServerStreaming"),
-	GDebugDedicatedServerStreaming,
-	TEXT("Turn on/off to debug of server streaming."));
-
 #endif //WITH_EDITOR
 
-static int32 GEnableServerStreaming = 0;
-static FAutoConsoleVariableRef CVarEnableServerStreaming(
-	TEXT("wp.Runtime.EnableServerStreaming"),
-	GEnableServerStreaming,
-	TEXT("Set to 1 to enable server streaming, set to 2 to only enable it in PIE."));
+#define LOCTEXT_NAMESPACE "WorldPartition"
 
-static bool GEnableServerStreamingOut = false;
-static FAutoConsoleVariableRef CVarEnableServerStreamingOut(
+namespace WorldPartition
+{
+#if WITH_EDITOR
+	static const EConsoleVariableFlags ECVF_Runtime_ReadOnly = ECVF_Default;
+#else
+	static const EConsoleVariableFlags ECVF_Runtime_ReadOnly = ECVF_ReadOnly;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UWorldPartition::LoadingRangeBugItGo = 12800;
+FAutoConsoleVariableRef UWorldPartition::CVarLoadingRangeBugItGo(
+	TEXT("wp.Editor.LoadingRangeBugItGo"),
+	UWorldPartition::LoadingRangeBugItGo,
+	TEXT("Loading range for BugItGo command."),
+	ECVF_Default);
+
+int32 UWorldPartition::WorldExtentToEnableStreaming = 400000;
+FAutoConsoleVariableRef UWorldPartition::CVarWorldExtentToEnableStreaming(
+	TEXT("wp.Editor.WorldExtentToEnableStreaming"),
+	UWorldPartition::WorldExtentToEnableStreaming,
+	TEXT("World extend to justify enabling streaming."),
+	ECVF_Default);
+
+bool UWorldPartition::DebugDedicatedServerStreaming = false;
+FAutoConsoleVariableRef UWorldPartition::CVarDebugDedicatedServerStreaming(
+	TEXT("wp.Runtime.DebugDedicatedServerStreaming"),
+	UWorldPartition::DebugDedicatedServerStreaming,
+	TEXT("Turn on/off to debug of server streaming."),
+	ECVF_Default);
+#endif
+
+int32 UWorldPartition::EnableServerStreaming = 0;
+FAutoConsoleVariableRef UWorldPartition::CVarEnableServerStreaming(
+	TEXT("wp.Runtime.EnableServerStreaming"),
+	UWorldPartition::EnableServerStreaming,
+	TEXT("Set to 1 to enable server streaming, set to 2 to only enable it in PIE.\n")
+	TEXT("Changing the value while the game is running won't be considered."),
+	WorldPartition::ECVF_Runtime_ReadOnly);
+
+bool UWorldPartition::bEnableServerStreamingOut = false;
+FAutoConsoleVariableRef UWorldPartition::CVarEnableServerStreamingOut(
 	TEXT("wp.Runtime.EnableServerStreamingOut"),
-	GEnableServerStreamingOut,
-	TEXT("Turn on/off to allow or not the server to stream out levels (only relevant when server streaming is enabled)"));
+	UWorldPartition::bEnableServerStreamingOut,
+	TEXT("Turn on/off to allow or not the server to stream out levels (only relevant when server streaming is enabled)\n")
+	TEXT("Changing the value while the game is running won't be considered."),
+	WorldPartition::ECVF_Runtime_ReadOnly);
 
 bool UWorldPartition::bUseMakingVisibleTransactionRequests = false;
 FAutoConsoleVariableRef UWorldPartition::CVarUseMakingVisibleTransactionRequests(
 	TEXT("wp.Runtime.UseMakingVisibleTransactionRequests"),
 	UWorldPartition::bUseMakingVisibleTransactionRequests,
-	TEXT("Whether the client should wait for the server to acknowledge visibility update before making partitioned world streaming levels visible."));
+	TEXT("Whether the client should wait for the server to acknowledge visibility update before making partitioned world streaming levels visible.\n")
+	TEXT("Changing the value while the game is running won't be considered."),
+	WorldPartition::ECVF_Runtime_ReadOnly);
 
 bool UWorldPartition::bUseMakingInvisibleTransactionRequests = false;
 FAutoConsoleVariableRef UWorldPartition::CVarUseMakingInvisibleTransactionRequests(
 	TEXT("wp.Runtime.UseMakingInvisibleTransactionRequests"),
 	UWorldPartition::bUseMakingInvisibleTransactionRequests,
-	TEXT("Whether the client should wait for the server to acknowledge visibility update before making partitioned world streaming levels invisible."));
-
-#define LOCTEXT_NAMESPACE "WorldPartition"
-
-bool UWorldPartition::UseMakingVisibleTransactionRequests()
-{
-	return bUseMakingVisibleTransactionRequests;
-}
-
-bool UWorldPartition::UseMakingInvisibleTransactionRequests()
-{
-	return bUseMakingInvisibleTransactionRequests;
-}
+	TEXT("Whether the client should wait for the server to acknowledge visibility update before making partitioned world streaming levels invisible.\n")
+	TEXT("Changing the value while the game is running won't be considered."),
+	WorldPartition::ECVF_Runtime_ReadOnly);
 
 #if WITH_EDITOR
 TMap<FName, FString> GetDataLayersDumpString(const UWorldPartition* WorldPartition)
@@ -742,7 +749,7 @@ void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Ro
 		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
 		if (!WorldPartitionEditorModule.GetDisableLoadingInEditor())
 		{
-			const FVector LoadExtent(GLoadingRangeBugItGo, GLoadingRangeBugItGo, HALF_WORLD_MAX);
+			const FVector LoadExtent(UWorldPartition::LoadingRangeBugItGo, UWorldPartition::LoadingRangeBugItGo, HALF_WORLD_MAX);
 			const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
 
 			UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("BugItGo"));
@@ -957,19 +964,56 @@ bool UWorldPartition::IsServer() const
 
 bool UWorldPartition::IsServerStreamingEnabled() const
 {
-	switch (GEnableServerStreaming)
+	// Resolve once (we don't allow changing the state at runtime)
+	if (!bCachedIsServerStreamingEnabled.IsSet())
 	{
-	case 1:	return true;
+		bool bIsEnabled = false;
+		switch (UWorldPartition::EnableServerStreaming)
+		{
+		case 1:	bIsEnabled = true;
 #if WITH_EDITOR
-	case 2: return bIsPIE;
+		case 2: bIsEnabled = bIsPIE;
 #endif
+		}
+		UWorld* OwningWorld = GetWorld();
+		bCachedIsServerStreamingEnabled = (OwningWorld && OwningWorld->IsGameWorld() && bIsEnabled);
 	}
-	return false;
+	
+	return bCachedIsServerStreamingEnabled.Get(false);
 }
 
 bool UWorldPartition::IsServerStreamingOutEnabled() const
 {
-	return IsServerStreamingEnabled() && GEnableServerStreamingOut;
+	// Resolve once (we don't allow changing the state at runtime)
+	if (!bCachedIsServerStreamingOutEnabled.IsSet())
+	{
+		UWorld* OwningWorld = GetWorld();
+		bCachedIsServerStreamingOutEnabled = OwningWorld && OwningWorld->IsGameWorld() && IsServerStreamingEnabled() && UWorldPartition::bEnableServerStreamingOut;
+	}
+
+	return bCachedIsServerStreamingOutEnabled.Get(false);
+}
+
+bool UWorldPartition::UseMakingVisibleTransactionRequests() const
+{
+	// Resolve once (we don't allow changing the state at runtime)
+	if (!bCachedUseMakingVisibleTransactionRequests.IsSet())
+	{
+		UWorld* OwningWorld = GetWorld();
+		bCachedUseMakingVisibleTransactionRequests = OwningWorld && OwningWorld->IsGameWorld() && UWorldPartition::bUseMakingVisibleTransactionRequests;
+	}
+	return bCachedUseMakingVisibleTransactionRequests.Get(false);
+}
+
+bool UWorldPartition::UseMakingInvisibleTransactionRequests() const
+{
+	// Resolve once (we don't allow changing the state at runtime)
+	if (!bCachedUseMakingInvisibleTransactionRequests.IsSet())
+	{
+		UWorld* OwningWorld = GetWorld();
+		bCachedUseMakingInvisibleTransactionRequests = OwningWorld && OwningWorld->IsGameWorld() && UWorldPartition::bUseMakingInvisibleTransactionRequests;
+	}
+	return bCachedUseMakingInvisibleTransactionRequests.Get(false);
 }
 
 bool UWorldPartition::IsSimulating()
@@ -1274,7 +1318,7 @@ void UWorldPartition::Tick(float DeltaSeconds)
 					AllActorsBounds += ActorDescIterator->GetBounds();
 
 					// Warn the user if the world becomes larger that 4km in any axis
-					if (AllActorsBounds.GetSize().GetMax() >= GWorldExtentToEnableStreaming)
+					if (AllActorsBounds.GetSize().GetMax() >= UWorldPartition::WorldExtentToEnableStreaming)
 					{
 						bEnablingStreamingJustified = true;
 						break;
@@ -1319,8 +1363,8 @@ bool UWorldPartition::CanDebugDraw() const
 	const ENetMode NetMode = GetWorld()->GetNetMode();
 	const bool bIsDedicatedServer = (NetMode == NM_DedicatedServer);
 	const bool bIsClient = (NetMode == NM_Client);
-	if ((bIsDedicatedServer && !GDebugDedicatedServerStreaming) ||
-		(bIsClient && GDebugDedicatedServerStreaming))
+	if ((bIsDedicatedServer && !UWorldPartition::DebugDedicatedServerStreaming) ||
+		(bIsClient && UWorldPartition::DebugDedicatedServerStreaming))
 	{
 		return false;
 	}

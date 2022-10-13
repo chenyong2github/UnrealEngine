@@ -35,6 +35,9 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 
 	virtual bool ShouldBeAlwaysLoaded() const override { return bShouldBeAlwaysLoaded; }
 	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
+#if !WITH_EDITOR
+	virtual void PostLoad();
+#endif
 
 	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
 
@@ -71,6 +74,9 @@ private:
 	bool bLoadSucceeded;
 	FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
 #endif
+
+private:
+	void UpdateShouldSkipMakingVisibilityTransactionRequest();
 
 	UPROPERTY()
 	bool bShouldBeAlwaysLoaded;

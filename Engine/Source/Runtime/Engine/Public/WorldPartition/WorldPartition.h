@@ -229,6 +229,8 @@ public:
 	bool IsServer() const;
 	bool IsServerStreamingEnabled() const;
 	bool IsServerStreamingOutEnabled() const;
+	bool UseMakingVisibleTransactionRequests() const;
+	bool UseMakingInvisibleTransactionRequests() const;
 
 	bool IsMainWorldPartition() const;
 
@@ -276,9 +278,6 @@ private:
 #endif
 
 public:
-	static bool UseMakingVisibleTransactionRequests();
-	static bool UseMakingInvisibleTransactionRequests();
-
 	UActorDescContainer* GetActorDescContainer() const { return ActorDescContainer; }
 
 	UPROPERTY()
@@ -318,6 +317,11 @@ private:
 	EWorldPartitionInitState InitState;
 	TOptional<FTransform> InstanceTransform;
 
+	mutable TOptional<bool> bCachedUseMakingInvisibleTransactionRequests;
+	mutable TOptional<bool> bCachedUseMakingVisibleTransactionRequests;
+	mutable TOptional<bool> bCachedIsServerStreamingEnabled;
+	mutable TOptional<bool> bCachedIsServerStreamingOutEnabled;
+
 	UPROPERTY(Transient)
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
 
@@ -327,8 +331,21 @@ private:
 	FWorldPartitionReference WorldDataLayersActor;
 #endif
 
+#if WITH_EDITOR
+	static int32 LoadingRangeBugItGo;
+	static int32 WorldExtentToEnableStreaming;
+	static bool DebugDedicatedServerStreaming;
+	static FAutoConsoleVariableRef CVarLoadingRangeBugItGo;
+	static FAutoConsoleVariableRef CVarWorldExtentToEnableStreaming;
+	static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming;
+#endif
+
+	static int32 EnableServerStreaming;
+	static bool bEnableServerStreamingOut;
 	static bool bUseMakingVisibleTransactionRequests;
 	static bool bUseMakingInvisibleTransactionRequests;
+	static FAutoConsoleVariableRef CVarEnableServerStreaming;
+	static FAutoConsoleVariableRef CVarEnableServerStreamingOut;
 	static FAutoConsoleVariableRef CVarUseMakingVisibleTransactionRequests;
 	static FAutoConsoleVariableRef CVarUseMakingInvisibleTransactionRequests;
 

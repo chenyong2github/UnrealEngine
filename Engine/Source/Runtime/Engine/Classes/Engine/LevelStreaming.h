@@ -227,6 +227,12 @@ protected:
 	UPROPERTY(Category=LevelStreaming, BlueprintSetter=SetShouldBeLoaded, BlueprintGetter=ShouldBeLoaded)
 	uint8 bShouldBeLoaded:1;
 
+	/** Whether the streaming level can safely skip making invisible transaction request from the client to the server */
+	uint8 bSkipClientUseMakingInvisibleTransactionRequest:1;
+
+	/** Whether the streaming level can safely skip making visible transaction request from the client to the server */
+	uint8 bSkipClientUseMakingVisibleTransactionRequest:1;
+
 	/** What the current streamed state of the streaming level is */
 	ECurrentState CurrentState;
 

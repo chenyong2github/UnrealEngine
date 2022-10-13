@@ -70,6 +70,8 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	IWorldPartitionRuntimeCellOwner* CellOwner = InCell.GetCellOwner();
 	OuterWorldPartition = CellOwner->GetOuterWorld()->GetWorldPartition();
 #endif
+
+	UpdateShouldSkipMakingVisibilityTransactionRequest();
 }
 
 #if WITH_EDITOR
@@ -615,6 +617,26 @@ UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const
 	check(OuterWorldPartition.IsValid());
 	return OuterWorldPartition->GetTypedOuter<UWorld>();
 }
+
+void UWorldPartitionLevelStreamingDynamic::UpdateShouldSkipMakingVisibilityTransactionRequest()
+{
+	// It is safe to skip client visibility transaction requests for cells without data layers when world partition server streaming is disabled
+	const UWorldPartitionRuntimeCell* Cell = GetWorldPartitionRuntimeCell();
+	if (ensure(Cell && OuterWorldPartition.IsValid()))
+	{
+		bSkipClientUseMakingVisibleTransactionRequest = bSkipClientUseMakingInvisibleTransactionRequest = !OuterWorldPartition->IsServerStreamingEnabled() && !Cell->HasDataLayers();
+	}
+}
+
+#if !WITH_EDITOR
+void UWorldPartitionLevelStreamingDynamic::PostLoad()
+{
+	Super::PostLoad();
+
+	// UWorldPartitionLevelStreamingDynamic::Initialize is not called at runtime (except for content bundles)
+	UpdateShouldSkipMakingVisibilityTransactionRequest();
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE
 
