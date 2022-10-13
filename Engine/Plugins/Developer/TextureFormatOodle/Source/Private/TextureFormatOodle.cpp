@@ -1440,6 +1440,10 @@ public:
 				InSurf.height = Image.SizeY;
 				uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
 
+				// verify that the surface memory ranges given to us by Unreal are valid before calling into Oodle Texture:
+				CheckMemoryIsReadable(InSurf.pixels,InBytesPerSlice);
+				CheckMemoryIsReadable(OutSlicePtr,OutBytesPerSlice);
+
 				OodleTex_RDO_Options OodleOptions = { };
 				OodleOptions.effort = EffortLevel;
 				OodleOptions.metric = OodleTex_RDO_ErrorMetric_Default;
@@ -1491,6 +1495,21 @@ public:
 
 		return bCompressionSucceeded;
 	}
+	
+	// noinline so we see it on the call stack :
+	FORCENOINLINE void CheckMemoryIsReadable(const void * Buffer,int64 Size) const
+	{
+		check( Size > 0 );
+
+		const uint8 * Start = (const uint8 *)Buffer;
+
+		// volatile to ensure it's not optimized out
+		volatile uint8 Byte;
+
+		Byte = Start[0];
+		Byte = Start[Size-1];
+	}
+
 };
 
 //===============================================================
