@@ -2,12 +2,12 @@
 
 #include "OptimusDataInterfaceDebugDraw.h"
 
-// #include "Components/PrimitiveComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
 #include "OptimusDataTypeRegistry.h"
 #include "RenderGraphBuilder.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 
@@ -31,8 +31,7 @@ TArray<FOptimusCDIPinDefinition> UOptimusDebugDrawDataInterface::GetPinDefinitio
 
 TSubclassOf<UActorComponent> UOptimusDebugDrawDataInterface::GetRequiredComponentClass() const
 {
-	// return UPrimitiveComponent::StaticClass();
-	return USkinnedMeshComponent::StaticClass();
+	 return USkinnedMeshComponent::StaticClass();
 }
 
 void UOptimusDebugDrawDataInterface::RegisterTypes() 
@@ -58,7 +57,16 @@ void UOptimusDebugDrawDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDebugDrawDataInterfaceParameters, )
 	SHADER_PARAMETER(FMatrix44f, LocalToWorld)
-	SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+	SHADER_PARAMETER(FIntPoint, Resolution)
+	SHADER_PARAMETER(FVector2f, FontSize)
+	SHADER_PARAMETER(FVector2f, FontSpacing)
+	SHADER_PARAMETER(uint32, MaxValueCount)
+	SHADER_PARAMETER(uint32, MaxSymbolCount)
+	SHADER_PARAMETER(uint32, MaxStateCount)
+	SHADER_PARAMETER(uint32, MaxLineCount)
+	SHADER_PARAMETER(uint32, MaxTriangleCount)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, StateBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWEntryBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusDebugDrawDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -94,7 +102,7 @@ UComputeDataProvider* UOptimusDebugDrawDataInterface::CreateDataProvider(TObject
 
 bool UOptimusDebugDrawDataProvider::IsValid() const
 {
-	return true;
+	return PrimitiveComponent != nullptr;
 }
 
 FComputeDataProviderRenderProxy* UOptimusDebugDrawDataProvider::GetRenderProxy()
@@ -104,35 +112,38 @@ FComputeDataProviderRenderProxy* UOptimusDebugDrawDataProvider::GetRenderProxy()
 
 
 FOptimusDebugDrawDataProviderProxy::FOptimusDebugDrawDataProviderProxy(UPrimitiveComponent* InPrimitiveComponent, FOptimusDebugDrawParameters const& InDebugDrawParameters)
+	: Setup(FIntRect(0, 0, 1920, 1080))
 {
 	// Split LocalToWorld into a pre-translation and transform for large world coordinate support.
 	FMatrix RenderMatrix = InPrimitiveComponent->GetRenderMatrix();
-	PreViewTranslation = -RenderMatrix.GetOrigin();
+	FVector PreViewTranslation = -RenderMatrix.GetOrigin();
 	LocalToWorld = FMatrix44f(RenderMatrix.ConcatTranslation(PreViewTranslation));
 
-	DebugDrawParameters = InDebugDrawParameters;
+	Setup.FontSize = InDebugDrawParameters.FontSize;
+	Setup.MaxLineCount = Setup.bEnabled ? InDebugDrawParameters.MaxLineCount : 0;
+	Setup.MaxTriangleCount = Setup.bEnabled ? InDebugDrawParameters.MaxTriangleCount : 0;
+	Setup.MaxValueCount = Setup.bEnabled ? InDebugDrawParameters.MaxCharacterCount : 0;
+	Setup.PreViewTranslation = PreViewTranslation;
+
+	ShaderPrint::GetParameters(Setup, ConfigParameters);
+
+	// Force ShaderPrint system enable if requested.
+	if (InDebugDrawParameters.bForceEnable)
+	{
+		ShaderPrint::SetEnabled(true);
+	}
 }
 
 void FOptimusDebugDrawDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
-	// Force enable if requested.
-	if (DebugDrawParameters.bForceEnable)
-	{
-		ShaderPrint::SetEnabled(true);
-	}
-
 	// Allocate ShaderPrint output buffers.
-	ShaderPrint::FShaderPrintSetup Setup(FIntRect(0, 0, 1920, 1080));
-	Setup.FontSize = DebugDrawParameters.FontSize;
-	Setup.MaxLineCount = Setup.bEnabled ? DebugDrawParameters.MaxLineCount : 0;
-	Setup.MaxTriangleCount = Setup.bEnabled ? DebugDrawParameters.MaxTriangleCount : 0;
-	Setup.MaxValueCount = Setup.bEnabled ? DebugDrawParameters.MaxCharacterCount : 0;
-	Setup.PreViewTranslation = PreViewTranslation;
-
 	FShaderPrintData ShaderPrintData = ShaderPrint::CreateShaderPrintData(GraphBuilder, Setup);
 	
-	// Cache parameters for later GatherDispatchData().
-	ShaderPrint::SetParameters(GraphBuilder, ShaderPrintData, ShaderPrintParameters);
+	// Cache parameters for later GatherDispatchData(). 
+	// We only want the buffers that are created here. 
+	// We don't use the ShaderPrint uniform buffer because we'll use the loose ConfigParameters instead.
+	// That's so we can bind multiple instances of this data interface if we want.
+	ShaderPrint::SetParameters(GraphBuilder, ShaderPrintData, CachedParameters);
 
 	if (ShaderPrint::IsEnabled(ShaderPrintData))
 	{
@@ -153,6 +164,15 @@ void FOptimusDebugDrawDataProviderProxy::GatherDispatchData(FDispatchSetup const
 	{
 		FDebugDrawDataInterfaceParameters* Parameters = (FDebugDrawDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->LocalToWorld = LocalToWorld;
-		Parameters->ShaderPrintParameters = ShaderPrintParameters;
+		Parameters->Resolution = ConfigParameters.Resolution;
+		Parameters->FontSize = ConfigParameters.FontSize;
+		Parameters->FontSpacing = ConfigParameters.FontSpacing;
+		Parameters->MaxValueCount = ConfigParameters.MaxValueCount;
+		Parameters->MaxSymbolCount = ConfigParameters.MaxSymbolCount;
+		Parameters->MaxStateCount = ConfigParameters.MaxStateCount;
+		Parameters->MaxLineCount = ConfigParameters.MaxLineCount;
+		Parameters->MaxTriangleCount = ConfigParameters.MaxTriangleCount;
+		Parameters->StateBuffer = CachedParameters.ShaderPrint_StateBuffer;
+		Parameters->RWEntryBuffer = CachedParameters.ShaderPrint_RWEntryBuffer;
 	}
 }

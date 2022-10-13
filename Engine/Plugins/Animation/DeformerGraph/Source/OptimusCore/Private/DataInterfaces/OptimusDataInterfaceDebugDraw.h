@@ -94,8 +94,8 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	FVector PreViewTranslation;
 	FMatrix44f LocalToWorld;
-	FOptimusDebugDrawParameters DebugDrawParameters;
-	ShaderPrint::FShaderParameters ShaderPrintParameters;
+	ShaderPrint::FShaderPrintSetup Setup;
+	ShaderPrint::FShaderPrintCommonParameters ConfigParameters;
+	ShaderPrint::FShaderParameters CachedParameters;
 };

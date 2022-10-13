@@ -1,22 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//todo[CF]:
-// Only included for [FLATTEN] used by MiniFontCommon.ush
-// We need to factor MiniFontCommon.ush out of ShaderPrint.ush
-#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ShaderPrintCommon.ush"
 
-//todo[CF]:
-// This is a temporary hack to insert our buffer name into ShaderPrint.ush
-// We need ShaderPrint to be flexible enough to take uniforms and buffers as parameters instead of using the hard coded uniform buffer.
-// Until that is done we can't support multiple of this data interface per kernel (although that would be an unusual requirement).
-#define ShaderPrint_StateBuffer		{DataInterfaceName}_ShaderPrint_StateBuffer
-#define ShaderPrint_RWEntryBuffer	{DataInterfaceName}_ShaderPrint_RWEntryBuffer
-#include "/Engine/Private/ShaderPrint.ush"
-
-float4x4 {DataInterfaceName}_LocalToWorld;
+#ifndef DATA_INTERFACE_DEBUGDRAW_ONCE
+#define DATA_INTERFACE_DEBUGDRAW_ONCE 1
 
 struct FDebugDraw
 {
+	FShaderPrintContext Context;
 	float4x4 LocalToWorld;
 
 	float3 TransformLocalToWorld(float3 P)
@@ -26,17 +17,18 @@ struct FDebugDraw
 
 	void AddLine(float3 Pos0, float3 Pos1, float4 Color)
 	{
-		AddLineTWS(TransformLocalToWorld(Pos0), TransformLocalToWorld(Pos1), Color);
+		AddLineTWS(Context, TransformLocalToWorld(Pos0), TransformLocalToWorld(Pos1), Color);
 	}
 
 	void AddCross(float3 Pos, float Size, float4 Color)
 	{
-		AddCrossTWS(TransformLocalToWorld(Pos), Size, Color);
+		AddCrossTWS(Context, TransformLocalToWorld(Pos), Size, Color);
 	}
 
 	void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 	{
 		AddQuadTWS(
+			Context,
 			TransformLocalToWorld(Pos0),
 			TransformLocalToWorld(Pos1),
 			TransformLocalToWorld(Pos2),
@@ -46,13 +38,40 @@ struct FDebugDraw
 
 	void AddAxis(float3 Pos, float3x3 InM, float Scale)
 	{
-		AddReferentialWS(TransformLocalToWorld(Pos), mul(InM, (float3x3)LocalToWorld), Scale);
+		AddReferentialWS(Context, TransformLocalToWorld(Pos), mul(InM, (float3x3)LocalToWorld), Scale);
 	}
 };
+
+#endif // DATA_INTERFACE_DEBUGDRAW_ONCE
+
+float4x4 {DataInterfaceName}_LocalToWorld;
+int2 {DataInterfaceName}_Resolution;
+float2 {DataInterfaceName}_FontSize;
+float2 {DataInterfaceName}_FontSpacing;
+uint {DataInterfaceName}_MaxValueCount;
+uint {DataInterfaceName}_MaxSymbolCount;
+uint {DataInterfaceName}_MaxStateCount;
+uint {DataInterfaceName}_MaxLineCount;
+uint {DataInterfaceName}_MaxTriangleCount;
+StructuredBuffer<uint> {DataInterfaceName}_StateBuffer;
+RWStructuredBuffer<uint> {DataInterfaceName}_RWEntryBuffer;
 
 FDebugDraw ReadDebugDraw_{DataInterfaceName}()
 {
 	FDebugDraw DebugDraw;
+	DebugDraw.Context.bIsActive = true;
+	DebugDraw.Context.StartPos = 0;
+	DebugDraw.Context.Pos = 0;
+	DebugDraw.Context.Config.Resolution = {DataInterfaceName}_Resolution;
+	DebugDraw.Context.Config.FontSize = {DataInterfaceName}_FontSize;
+	DebugDraw.Context.Config.FontSpacing = {DataInterfaceName}_FontSpacing;
+	DebugDraw.Context.Config.MaxValueCount = {DataInterfaceName}_MaxValueCount;
+	DebugDraw.Context.Config.MaxSymbolCount = {DataInterfaceName}_MaxSymbolCount;
+	DebugDraw.Context.Config.MaxStateCount = {DataInterfaceName}_MaxStateCount;
+	DebugDraw.Context.Config.MaxLineCount = {DataInterfaceName}_MaxLineCount;
+	DebugDraw.Context.Config.MaxTriangleCount = {DataInterfaceName}_MaxTriangleCount;
+	DebugDraw.Context.Buffers.StateBuffer = {DataInterfaceName}_StateBuffer;
+	DebugDraw.Context.Buffers.RWEntryBuffer = {DataInterfaceName}_RWEntryBuffer;
 	DebugDraw.LocalToWorld = {DataInterfaceName}_LocalToWorld;
 	return DebugDraw;
 }
