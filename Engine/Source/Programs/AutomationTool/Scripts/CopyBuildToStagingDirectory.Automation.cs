@@ -454,6 +454,12 @@ namespace AutomationScripts
 
 		public static void StageLocalizationDataForTarget(DeploymentContext SC, List<string> CulturesToStage, DirectoryReference SourceDirectory)
 		{
+			if (!DirectoryReference.Exists(SourceDirectory))
+			{
+				Log.TraceWarning("Failed to stage '{0}' localization target as the directory does not exist! Full path: {1}", SourceDirectory.GetDirectoryName(), SourceDirectory.FullName);
+				return;
+			}
+
 			var PlatformSourceDirectory = new DirectoryReference(CombinePaths(SourceDirectory.FullName, "Platforms", ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType)));
 			if (!DirectoryReference.Exists(PlatformSourceDirectory))
 			{
