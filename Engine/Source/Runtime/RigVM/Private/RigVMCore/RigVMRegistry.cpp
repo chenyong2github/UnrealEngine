@@ -1079,8 +1079,8 @@ const FRigVMFunction* FRigVMRegistry::FindFunction(const TCHAR* InName) const
 	{
 		return &Functions[*FunctionIndexPtr];
 	}
-	
-	if(Factories.Num() > 0)
+
+	// look for the function from a dispatch factory, will register the corresponding factory if needed
 	{
 		static bool IsDispatchingFunction = false;
 		if(IsDispatchingFunction)
