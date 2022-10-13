@@ -322,7 +322,8 @@ void FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitCon
 
 			// This is used to release the game thread to access the hashes
 			UE::SavePackageUtilities::DecrementOutstandingAsyncWrites();
-		}
+		},
+		UE::Tasks::ETaskPriority::BackgroundNormal
 	);
 }
 
