@@ -3037,8 +3037,12 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		if (EnableSubmixSendsOnPreview())
 		{
 			WaveInstance->bEnableSubmixSends = ParseParams.bEnableSubmixSends;
+			WaveInstance->bEnableBaseSubmix = ParseParams.bEnableBaseSubmix;
 		}
-		WaveInstance->bEnableBaseSubmix = true;
+		else
+		{
+			WaveInstance->bEnableBaseSubmix = true;
+		}
 		WaveInstance->bEnableBusSends = ParseParams.bEnableBusSends;
 	}
 
