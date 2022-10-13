@@ -470,6 +470,37 @@ namespace mu
 		return pResult;
 	}
 
+	int32 Image::GetMipsDataSize() const
+	{
+		int32 res = 0;
+
+        const FImageFormatData& fdata = GetImageFormatData( m_format );
+        if (fdata.m_bytesPerBlock)
+        {
+			return CalculateDataSize();
+        }
+		else if (m_format == EImageFormat::IF_L_UBYTE_RLE ||
+				 m_format == EImageFormat::IF_L_UBIT_RLE)
+		{	
+			if (m_data.Num())
+			{ 
+			    // Every mip has variable size, but it is stored in the first 4 bytes.
+				const uint8* pMipData = m_data.GetData();
+				for (int l = 0; l < m_lods; ++l)
+				{
+					const uint32_t mipSize = *(const uint32_t*)pMipData;
+					pMipData += mipSize;
+					res += mipSize;
+				}	
+			}
+		}
+		else
+		{
+			checkf(false, TEXT("Trying to get mips data size in an unsupported pixel format."));
+		}
+
+        return res;
+	}
 
     //---------------------------------------------------------------------------------------------
     vec4<float> Image::Sample( vec2<float> coords ) const

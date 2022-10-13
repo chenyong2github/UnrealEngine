@@ -348,6 +348,10 @@ namespace mu
 		//! Return a pointer to the beginning of the data for a particular mip.
 		uint8* GetMipData(int mip);
 		const uint8* GetMipData(int mip) const;
+		
+		//! Return the size of the resident mips. for block-compressed images the result is the same as in CalculateDataSize()
+		//! for non-block-compressed images, the sizes encoded in the image data is used to compute the final size.
+		int32 GetMipsDataSize() const;
 
 		//! See if all the pixels in the image are equal and return the colour.
 		bool IsPlainColour(vec4<float>& colour) const;

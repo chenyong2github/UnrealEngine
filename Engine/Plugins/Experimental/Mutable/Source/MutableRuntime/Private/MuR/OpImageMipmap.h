@@ -509,179 +509,207 @@ namespace mu
 	};
 
 
-	//---------------------------------------------------------------------------------------------
-	inline void ImageMipmap_PrepareScratch(Image* pDest, const Image* pBase, int levelCount,
-		SCRATCH_IMAGE_MIPMAP* scratch)
-	{
-		int startLevel = pBase->GetLODCount() - 1;
+    //---------------------------------------------------------------------------------------------
+    inline void ImageMipmap_PrepareScratch( Image* pDest, const Image* pBase, int levelCount,
+                                            SCRATCH_IMAGE_MIPMAP* scratch )
+    {
+        int startLevel = pBase->GetLODCount() - 1;
 
-		check(pDest->GetLODCount() == levelCount);
-		check(pDest->GetSizeX() == pBase->GetSizeX());
-		check(pDest->GetSizeY() == pBase->GetSizeY());
-		check(pDest->GetFormat() == pBase->GetFormat());
+        check(pDest->GetLODCount() == levelCount);
+        check(pDest->GetSizeX() == pBase->GetSizeX());
+        check(pDest->GetSizeY() == pBase->GetSizeY());
+        check(pDest->GetFormat() == pBase->GetFormat());
 		(void)pDest;
 
-		switch (pBase->GetFormat())
-		{
-		case EImageFormat::IF_L_UBYTE:
-		case EImageFormat::IF_RGB_UBYTE:
-		case EImageFormat::IF_RGBA_UBYTE:
-		case EImageFormat::IF_BGRA_UBYTE:
-			break;
+        switch (pBase->GetFormat())
+        {
+        case EImageFormat::IF_L_UBYTE:
+        case EImageFormat::IF_RGB_UBYTE:
+        case EImageFormat::IF_RGBA_UBYTE:
+        case EImageFormat::IF_BGRA_UBYTE:
+            break;
 
-			// Bad cases: we need to decompress, mip and then recompress. It may be necessary to
-			// generate the latests mips after composing, or in unoptimised code.
-			// TODO: Make sure that the code optimisations avoid this cases generating separate
-			// operations to generate the mip tail.
-		case EImageFormat::IF_BC1:
-		case EImageFormat::IF_BC2:
-		case EImageFormat::IF_BC3:
-		case EImageFormat::IF_BC4:
-		case EImageFormat::IF_BC5:
-		case EImageFormat::IF_ASTC_4x4_RGB_LDR:
-		case EImageFormat::IF_ASTC_4x4_RGBA_LDR:
-		case EImageFormat::IF_ASTC_4x4_RG_LDR:
-		{
-			// Uncompress the last mip that we already have
-			vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
-			scratch->pUncompressed = new Image(
-				(uint16)uncompressedSize[0],
-				(uint16)uncompressedSize[1],
-				1,
-				EImageFormat::IF_RGBA_UBYTE);
-
-			// Generate the mipmaps from there on
-			scratch->pUncompressedMips = new Image(
-				(uint16)uncompressedSize[0],
-				(uint16)uncompressedSize[1],
-				levelCount - startLevel,
-				EImageFormat::IF_RGBA_UBYTE);
-
-			// Compress the mipmapped image
-			scratch->pCompressedMips = new Image(
-				(uint16)uncompressedSize[0],
-				(uint16)uncompressedSize[1],
-				scratch->pUncompressedMips->GetLODCount(),
-				pBase->GetFormat());
-
-			break;
-		}
-
-		case EImageFormat::IF_L_UBIT_RLE:
-		case EImageFormat::IF_L_UBYTE_RLE:
-		{
-			// Uncompress the last mip that we already have
-			vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
-			scratch->pUncompressed = new Image(
-				(uint16)uncompressedSize[0],
-				(uint16)uncompressedSize[1],
-				1,
-				EImageFormat::IF_L_UBYTE);
-
-			// Generate the mipmaps from there on
-			scratch->pUncompressedMips = new Image(
-				(uint16)uncompressedSize[0],
-				(uint16)uncompressedSize[1],
-				levelCount - startLevel,
-				EImageFormat::IF_L_UBYTE);
-
-			// Compress the mipmapped image
-			scratch->pCompressedMips = new Image(
-				(uint16)uncompressedSize[0],
-				(uint16)uncompressedSize[1],
-				scratch->pUncompressedMips->GetLODCount(),
-				pBase->GetFormat());
-
-			// Preallocate ample memory for the compressed data
-			scratch->pCompressedMips->m_data.SetNum(scratch->pUncompressedMips->GetDataSize());
-
-			// Preallocate ample memory for the destination data
-			pDest->m_data.SetNum(pBase->GetDataSize()
-				+
-				scratch->pUncompressedMips->GetDataSize());
-
-			break;
-		}
-
-		default:
-			checkf(false, TEXT("Format not implemented in mipmap generation."));
-		}
-	}
+        // Bad cases: we need to decompress, mip and then recompress. It may be necessary to
+        // generate the latests mips after composing, or in unoptimised code.
+        // TODO: Make sure that the code optimisations avoid this cases generating separate
+        // operations to generate the mip tail.
+        case EImageFormat::IF_BC1:
+        case EImageFormat::IF_BC2:
+        case EImageFormat::IF_BC3:
+        case EImageFormat::IF_BC4:
+        case EImageFormat::IF_BC5:
+        case EImageFormat::IF_ASTC_4x4_RGB_LDR:
+        case EImageFormat::IF_ASTC_4x4_RGBA_LDR:
+        case EImageFormat::IF_ASTC_4x4_RG_LDR:
+        {
+		// Uncompress the last mip that we already have
+		vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
+		scratch->pUncompressed = new Image(
+			(uint16)uncompressedSize[0],
+			(uint16)uncompressedSize[1],
+			1,
+			EImageFormat::IF_RGBA_UBYTE);
 
 
-	//---------------------------------------------------------------------------------------------
-	inline void ImageMipmap(int imageCompressionQuality, Image* pDest, const Image* pBase,
-		int levelCount, SCRATCH_IMAGE_MIPMAP* scratch,
-		FMipmapGenerationSettings& settings)
-	{
-		int startLevel = pBase->GetLODCount() - 1;
+		FImageSize uncompressedMipsSize = pBase->CalculateMipSize(startLevel + 1);
+        // Generate the mipmaps from there on
+        scratch->pUncompressedMips = new Image(
+			(uint16)uncompressedMipsSize[0],
+			(uint16)uncompressedMipsSize[1],
+			FMath::Max(1, levelCount - startLevel - 1),
+			EImageFormat::IF_RGBA_UBYTE);
+
+		// Compress the mipmapped image
+		scratch->pCompressedMips = new Image(
+			(uint16)uncompressedMipsSize[0],
+			(uint16)uncompressedMipsSize[1],
+			scratch->pUncompressedMips->GetLODCount(),
+			pBase->GetFormat());
+
+            break;
+        }
+
+        case EImageFormat::IF_L_UBIT_RLE:
+        case EImageFormat::IF_L_UBYTE_RLE:
+        {
+            // Uncompress the last mip that we already have
+            vec2<int> uncompressedSize = pBase->CalculateMipSize(startLevel);
+            scratch->pUncompressed = new Image(
+                (uint16)uncompressedSize[0],
+                (uint16)uncompressedSize[1],
+                1,
+                EImageFormat::IF_L_UBYTE);
+
+
+			FImageSize uncompressedMipsSize = pBase->CalculateMipSize(startLevel + 1);
+            // Generate the mipmaps from there on
+            scratch->pUncompressedMips = new Image(
+                (uint16)uncompressedMipsSize[0],
+                (uint16)uncompressedMipsSize[1],
+				FMath::Max(1, levelCount - startLevel - 1),
+                EImageFormat::IF_L_UBYTE);
+
+
+            // Compress the mipmapped image
+            scratch->pCompressedMips = new Image(
+                (uint16)uncompressedMipsSize[0],
+                (uint16)uncompressedMipsSize[1],
+                scratch->pUncompressedMips->GetLODCount(),
+                pBase->GetFormat());
+
+            // Preallocate ample memory for the compressed data
+            scratch->pCompressedMips->m_data.SetNum(scratch->pUncompressedMips->GetDataSize());
+
+            // Preallocate ample memory for the destination data
+            pDest->m_data.SetNum(pBase->GetDataSize() + scratch->pUncompressedMips->GetDataSize());
+
+            break;
+        }
+
+        default:
+            checkf( false, TEXT("Format not implemented in mipmap generation."));
+        }
+    }
+
+    //---------------------------------------------------------------------------------------------
+    //! Generate the mipmaps for images.
+	//! if bGenerateOnlyTail is true, generates the mips missing form pBase to levelCount and sets
+	//! them in pDest (the full chain is spit in two images). Otherwise generate the mips missing 
+	//! from pBase up to levelCount and append them in pDest to the already generated pBase's mips.
+    //---------------------------------------------------------------------------------------------
+    inline void ImageMipmap( int imageCompressionQuality, Image* pDest, const Image* pBase,
+                             int levelCount, SCRATCH_IMAGE_MIPMAP* scratch, 
+							 const FMipmapGenerationSettings& settings, bool bGenerateOnlyTail = false )
+    {
+        int startLevel = pBase->GetLODCount() - 1;
 
 		check(!(pBase->m_flags & Image::IF_CANNOT_BE_SCALED));
 
-		check(pDest->GetLODCount() == levelCount);
-		check(pDest->GetSizeX() == pBase->GetSizeX());
-		check(pDest->GetSizeY() == pBase->GetSizeY());
-		check(pDest->GetFormat() == pBase->GetFormat());
-
-		// Copy already-existing mips
-
-		// Calculate the data size, since the base could have more data allocated.
-		int32 mipDataSize = pBase->CalculateDataSize();
-		check(pDest->GetDataSize() >= mipDataSize);
-		FMemory::Memcpy(pDest->GetData(), pBase->GetData(), mipDataSize);
-
-		int mipsToBuild = levelCount - startLevel - 1;
-		if (!mipsToBuild)
+	
+		if (!bGenerateOnlyTail)
 		{
-			return;
+			check(pDest->GetLODCount() == levelCount);
+			check(pDest->GetSizeX() == pBase->GetSizeX());
+			check(pDest->GetSizeY() == pBase->GetSizeY());
+		}
+		else
+		{	
+			check(pDest->GetLODCount() + pBase->GetLODCount() == levelCount);
+
+			check(
+				[&]() -> bool
+				{
+					const FImageSize BaseImageNextMipSize = pBase->CalculateMipSize(startLevel + 1);
+					return BaseImageNextMipSize.x() == pDest->GetSizeX() && BaseImageNextMipSize.y() == pDest->GetSizeY();
+				}());
 		}
 
-		uint8_t* pSourceBuf = pDest->GetMipData(startLevel);
-		uint8_t* pDestBuf = pDest->GetMipData(startLevel + 1);
+        check(pDest->GetFormat() == pBase->GetFormat());
 
-		vec2<int> sourceSize = pDest->CalculateMipSize(startLevel);
-
-		switch (pBase->GetFormat())
+        // Calculate the data size, since the base could have more data allocated.
+		int32 BaseMipDataSize = 0;
+		if (!bGenerateOnlyTail)
 		{
-		case EImageFormat::IF_L_UBYTE:
-			GenerateMipmapsUint8<1>(levelCount - startLevel - 1, pSourceBuf, pDestBuf, sourceSize, settings);
-			break;
+			BaseMipDataSize = pBase->GetMipsDataSize();
+			check(pDest->GetDataSize() >= BaseMipDataSize);
+			FMemory::Memcpy(pDest->GetData(), pBase->GetData(), BaseMipDataSize);
+		}
 
-		case EImageFormat::IF_RGB_UBYTE:
-			GenerateMipmapsUint8<3>(levelCount - startLevel - 1, pSourceBuf, pDestBuf, sourceSize, settings);
-			break;
+        int mipsToBuild = levelCount - startLevel - 1;
+        if (!mipsToBuild)
+        {
+            return;
+        }
 
-		case EImageFormat::IF_BGRA_UBYTE:
-		case EImageFormat::IF_RGBA_UBYTE:
-			GenerateMipmapsUint8<4>(levelCount - startLevel - 1, pSourceBuf, pDestBuf, sourceSize, settings);
-			break;
+        const uint8_t* pSourceBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel) : pBase->GetMipData(startLevel);
 
-			// Bad cases: we need to decompress, mip and then recompress. It may be necessary to
-			// generate the latests mips after composing, or in unoptimised code.
-			// TODO: Make sure that the code optimisations avoid this cases generating separate
-			// operations to generate the mip tail.
-		case EImageFormat::IF_BC1:
-		case EImageFormat::IF_BC2:
-		case EImageFormat::IF_BC3:
-		case EImageFormat::IF_BC4:
-		case EImageFormat::IF_BC5:
-		case EImageFormat::IF_ASTC_4x4_RGB_LDR:
-		case EImageFormat::IF_ASTC_4x4_RGBA_LDR:
-		case EImageFormat::IF_ASTC_4x4_RG_LDR:
-		case EImageFormat::IF_L_UBIT_RLE:
-		case EImageFormat::IF_L_UBYTE_RLE:
-		{
-			// Uncompress the last mip that we already have
-			bool bSuccess = ImagePixelFormatInPlace(imageCompressionQuality, scratch->pUncompressed.get(), pBase, startLevel);
+        uint8_t* pDestBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel + 1) : pDest->GetMipData(0);
+	
+        vec2<int> sourceSize = pBase->CalculateMipSize(startLevel);
+
+        switch (pBase->GetFormat())
+        {
+        case EImageFormat::IF_L_UBYTE:
+            GenerateMipmapsUint8<1>(levelCount - startLevel - 1, pSourceBuf, pDestBuf, sourceSize, settings);
+            break; 
+
+        case EImageFormat::IF_RGB_UBYTE:
+            GenerateMipmapsUint8<3>(levelCount - startLevel - 1, pSourceBuf, pDestBuf, sourceSize, settings);
+            break;
+
+        case EImageFormat::IF_BGRA_UBYTE:
+        case EImageFormat::IF_RGBA_UBYTE:
+            GenerateMipmapsUint8<4>(levelCount - startLevel - 1, pSourceBuf, pDestBuf, sourceSize, settings);
+            break;
+
+        // Bad cases: we need to decompress, mip and then recompress. It may be necessary to
+        // generate the latests mips after composing, or in unoptimised code.
+        // TODO: Make sure that the code optimisations avoid this cases generating separate
+        // operations to generate the mip tail.
+        case EImageFormat::IF_BC1:
+        case EImageFormat::IF_BC2:
+        case EImageFormat::IF_BC3:
+        case EImageFormat::IF_BC4:
+        case EImageFormat::IF_BC5:
+        case EImageFormat::IF_ASTC_4x4_RGB_LDR:
+        case EImageFormat::IF_ASTC_4x4_RGBA_LDR:
+        case EImageFormat::IF_ASTC_4x4_RG_LDR:
+        case EImageFormat::IF_L_UBIT_RLE:
+        case EImageFormat::IF_L_UBYTE_RLE:
+        {
+            // Uncompress the last mip that we already have
+            bool bSuccess = ImagePixelFormatInPlace(imageCompressionQuality, scratch->pUncompressed.get(), pBase, startLevel);
 			check(bSuccess);
 
-			// Generate the mipmaps from there on
-			ImageMipmap(imageCompressionQuality, scratch->pUncompressedMips.get(),
-				scratch->pUncompressed.get(), levelCount - startLevel, 0, settings);
+            // Generate the mipmaps from there on
 
-			// Compress the mipmapped image
+			constexpr bool bGenerateOnlyTailForCompressed = true;
+            ImageMipmap(imageCompressionQuality, scratch->pUncompressedMips.get(),
+                        scratch->pUncompressed.get(), levelCount - startLevel, 0, settings, bGenerateOnlyTailForCompressed);
+
+            // Compress the mipmapped image
 			bSuccess = ImagePixelFormatInPlace(imageCompressionQuality, scratch->pCompressedMips.get(), scratch->pUncompressedMips.get());
-			int32 ExcessDataSize = scratch->pCompressedMips->GetDataSize();
+			int32 ExcessDataSize = FMath::Max(2, scratch->pCompressedMips->GetDataSize());
 			while (!bSuccess)
 			{
 				// Bad case: this should almost never happen.
@@ -692,25 +720,23 @@ namespace mu
 				ExcessDataSize *= 4;
 			}
 
-			int32 FinalDestSize = pSourceBuf - pDest->GetData() + scratch->pCompressedMips->GetDataSize();
+			check(!bGenerateOnlyTail || BaseMipDataSize == 0);
+			const int32 FinalDestSize = BaseMipDataSize + scratch->pCompressedMips->GetDataSize();
 
 			if (FinalDestSize > pDest->GetDataSize())
 			{
 				// Bad case: this should almost never happen.
 				pDest->m_data.SetNum(FinalDestSize);
-				pSourceBuf = pDest->GetMipData(startLevel);
+				pDestBuf = !bGenerateOnlyTail ? pDest->GetMipData(startLevel + 1) : pDest->GetMipData(0);
 			}
 
-			// TODO: We are recompressing the source level, which we could avoid.
-			FMemory::Memcpy(pSourceBuf,
-				scratch->pCompressedMips->GetData(),
-				scratch->pCompressedMips->GetDataSize());
-			break;
-		}
+            FMemory::Memcpy(pDestBuf, scratch->pCompressedMips->GetData(), scratch->pCompressedMips->GetDataSize());
+            break;
+        }
 
-		default:
-			checkf(false, TEXT("Format not implemented in mipmap generation."));
-		}
+        default:
+            checkf( false, TEXT("Format not implemented in mipmap generation."));
+        }
+    }
 
-	}
 }
