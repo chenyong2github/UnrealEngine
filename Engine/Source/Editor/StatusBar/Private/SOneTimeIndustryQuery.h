@@ -50,6 +50,7 @@ private:
 	static const FName BroadcastIndustryName;
 	static const FName AdIndustryName;
 	static const FName SimulationIndustryName;
+	static const FName FashionIndustryName;
 	static const FName OtherIndustryName;
 };
 
