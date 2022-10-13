@@ -75,6 +75,15 @@ public:
 	 */
 	bool IsAllowingExpensiveTasks() const;
 
+	/**
+	 * Explicitly disable Slate throttling. This is intended to be used for code-driven exemptions
+	 * to Slate throttling such as interactive actions that require multiple refreshes & world ticks.
+	 * For single refresh scenarios, consider FEditorViewportClient.Invalidate(false, false).
+	 *
+	 * @param bState true if throttling should be disabled.
+	 */
+	void DisableThrottle(bool bState);
+
 public:
 
 	/**
@@ -91,4 +100,7 @@ private:
 
 	/** Number of active throttle requests */
 	uint32 ThrottleCount;
+
+	/** If false, then throttling is explicitly disabled. */
+	int32 DisableThrottleCount;
 };

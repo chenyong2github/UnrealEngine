@@ -10,6 +10,7 @@ FSlateThrottleManager::FSlateThrottleManager( )
 	: bShouldThrottle(1)
 	, CVarAllowThrottle(TEXT("Slate.bAllowThrottling"), bShouldThrottle, TEXT("Allow Slate to throttle parts of the engine to ensure the UI is responsive") )
 	, ThrottleCount(0)
+	, DisableThrottleCount(0)
 { }
 
 
@@ -33,7 +34,7 @@ bool FSlateThrottleManager::IsAllowingExpensiveTasks( ) const
 {
 	// Expensive tasks are allowed if the number of active throttle requests is zero
 	// or we always always allow it due to a CVar
-	return (ThrottleCount == 0) || !bShouldThrottle;
+	return (ThrottleCount == 0) || !bShouldThrottle || DisableThrottleCount > 0;
 }
 
 
@@ -48,6 +49,13 @@ void FSlateThrottleManager::LeaveResponsiveMode( FThrottleRequest& InHandle )
 		InHandle.Index = INDEX_NONE;
 	}
 }
+
+void FSlateThrottleManager::DisableThrottle(bool bState)
+{
+	DisableThrottleCount += bState ? 1 : -1;
+	ensure(DisableThrottleCount >= 0);
+}
+
 
 
 /* FSlateThrottleManager static functions
