@@ -454,7 +454,10 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 					UNavigationSystemV1::UpdateNavOctreeBounds(ParentedActors[Idx]);
 				}
 
-				if (Actor.IsActorInitialized())
+				// We need to check this actor has registered all their components post spawn / load
+				// before attempting to update the components in the nav octree.
+				// Without this check we were getting an issue with UNavRelevantComponent::GetNavigationParent().
+				if (Actor.HasActorRegisteredAllComponents())
 				{
 					// not doing manual update of all attached actors since UpdateActorAndComponentsInNavOctree should take care of it
 					UNavigationSystemV1::UpdateActorAndComponentsInNavOctree(Actor);
@@ -4127,7 +4130,10 @@ void UNavigationSystemV1::OnActorMoved(AActor* Actor)
 	{
 		OnNavigationBoundsUpdated((ANavMeshBoundsVolume*)Actor);
 	}
-	else if (Actor && Actor->IsActorInitialized())
+	// We need to check this actor has registered all their components post spawn / load
+	// before attempting to update the components in the nav octree.
+	// Without this check we were getting an issue with UNavRelevantComponent::GetNavigationParent().
+	else if (Actor && Actor->HasActorRegisteredAllComponents())
 	{
 		UpdateActorAndComponentsInNavOctree(*Actor, /*bUpdateAttachedActors=*/true);
 	}

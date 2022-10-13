@@ -459,6 +459,9 @@ private:
 	/** True if this actor is currently running user construction script (used to defer component registration) */
 	uint8 bRunningUserConstructionScript:1;
 
+	/** Set when RegisterAllComponents() is called and unset when UnregisterAllComponents() is called */
+	uint8 bHasRegisteredAllComponents:1;
+
 	/**
 	 * Enables any collision on this actor.
 	 * @see SetActorEnableCollision(), GetActorEnableCollision()
@@ -1831,6 +1834,9 @@ public:
 	{
 		return bActorIsBeingDestroyed;
 	}
+
+	/** Returns true if RegisterAllComponents() has been called without a subsequent call to UnregisterAllComponents() and false otherwise */
+	bool HasActorRegisteredAllComponents() const { return bHasRegisteredAllComponents; }
 
 	/** Event when this actor takes ANY damage */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName = "AnyDamage"), Category="Game|Damage")
