@@ -37,6 +37,23 @@ namespace ELogVerbosity
  */
 extern "C" CORE_API void PrintScriptCallstack();
 
+
+struct FEnsureHandlerArgs
+{
+	const ANSICHAR* Expression;
+	const TCHAR* Message;
+};
+
+template <typename FuncType> class TFunction;
+
+/** 
+ * Sets the thead_local ensure handler callback
+ * returning true skips the regular ensure handling logic
+ * returns the previous handler which maybe nullptr
+ **/
+CORE_API TFunction<bool(const FEnsureHandlerArgs& Args)> SetEnsureHandler(TFunction<bool(const FEnsureHandlerArgs& Args)> EnsureHandler);
+CORE_API TFunction<bool(const FEnsureHandlerArgs& Args)> GetEnsureHandler();
+
 /**
  * FDebug
  * These functions offer debugging and diagnostic functionality and its presence 

@@ -361,6 +361,20 @@ void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* F
 	}
 }
 
+thread_local TFunction<bool(const FEnsureHandlerArgs& Args)> EnsureHandler = nullptr;
+
+TFunction<bool(const FEnsureHandlerArgs& Args)> SetEnsureHandler(TFunction<bool(const FEnsureHandlerArgs& Args)> Handler)
+{
+	TFunction<bool(const FEnsureHandlerArgs& Args)> OldHandler = EnsureHandler;
+	EnsureHandler = MoveTemp(Handler);
+	return OldHandler;
+}
+
+TFunction<bool(const FEnsureHandlerArgs& Args)> GetEnsureHandler()
+{
+	return EnsureHandler;
+}
+
 /**
  * Called when an 'ensure' assertion fails; gathers stack data and generates and error report.
  *
@@ -372,6 +386,10 @@ void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* F
  */
 FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Msg)
 {
+	if (UNLIKELY(EnsureHandler && EnsureHandler({ Expr, Msg })))
+	{
+		return;
+	}
 	FTempCommandLineScope TempCommandLine;
 
 	// if time isn't ready yet, we better not continue

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Misc/Build.h" 
+
 #if WITH_LOW_LEVEL_TESTS && DO_ENSURE
 
 #include "Misc/AssertionMacros.h"
@@ -8,116 +10,116 @@
 #include "TestHarness.h"
 #include "TestMacros/Assertions.h"
 
-static void OneEnsureNonFailed();
-static void OneEnsureNonFailedDifferent();
-static void OneEnsureFailed();
-static void OneEnsureFailedDifferent();
-static void OneEnsureFailedDifferentAgain();
-static void MultipleEnsuresNonFailed();
-static void MultipleEnsuresFailed();
-static void MultipleEnsuresFailedDifferent();
+//since ensure uses a static bool to suppress multiple calls
+//these small functions are needed to scope that bool
+static void EnsureFailed()
+{
+	ensure(false);
+}
+
+static void EnsureFailAlways()
+{
+	ensureAlways(false);
+}
+
+static int EnsureContinues(int Value)
+{
+	if (ensure(Value == 1))
+	{
+		return Value + 1;
+	}
+	return Value + 2;
+}
+
+static int EnsureMultipleFailures(int Value)
+{
+	ensure(Value == 1);
+	ensure(Value == 5);
+	ensure(Value == 2);
+	return Value + 1;
+}
+
+static int EnsureForCheck(int Value)
+{
+	if (ensure(Value == 1))
+	{
+		return Value + 1;
+	}
+	return Value + 2;
+}
+
+static int EnsureAlwaysMsg(int Value)
+{
+	if (ensureAlwaysMsgf(Value == 1, TEXT("expected value of 1")))
+	{
+		return Value + 1;
+	}
+	return Value + 2;
+}
 
 /**
  * @brief Ensure test case, tests Catch2-style macros that check or require whether at least one ensure was triggered or not.
  * Note that each different ensure expression is counted once, if the same ensure fails twice it's only counted the first time it fails.
  */
-TEST_CASE("Core::Misc::AssertionMacros", "[Core][Misc][AssertionMacros][Ensure]")
+TEST_CASE("Core::Misc::TestEnsure", "[Core][Misc][AssertionMacros][Ensure]")
 {
+	//ignore the debugger as all the breaks make for annoying debugging experience
 	TGuardValue<bool> IgnoreDebugger(GIgnoreDebugger, true);
-	SECTION("Ensure not triggered with REQUIRE_NOENSURE")
 	{
-		REQUIRE_NOENSURE(OneEnsureNonFailed());
+		REQUIRE_ENSURE(EnsureFailed());
+		EnsureFailed(); //ensure already fired should not fire again
 	}
 
-	/**
-	 * Some sections are disabled until assertion messages and/or callstacks are skipped in a thread-local manner.
-	*/
-
-	DISABLED_SECTION("Ensure triggered with REQUIRE_ENSURE")
 	{
-		REQUIRE_ENSURE(OneEnsureFailed());
-	};
+		//validate that ensure continue on failure
+		//validate that non failure works
+		int result = 0;
+		result = EnsureContinues(1);
+		REQUIRE(result == 2);
 
-	SECTION("Ensure not triggered with multiple CHECK_NOENSURE")
-	{
-		SIZE_T EnsuresBefore = FDebug::GetNumEnsureFailures();
-		CHECK_NOENSURE(OneEnsureNonFailed());
-		CHECK_NOENSURE(OneEnsureNonFailedDifferent());
-		CHECK(FDebug::GetNumEnsureFailures() == EnsuresBefore);
+		REQUIRE_ENSURE(result = EnsureContinues(0));
+		REQUIRE(result == 2);
+
+		//second failure should not cause an error
+		result = EnsureContinues(2);
+		REQUIRE(result == 4);
 	}
 
-	DISABLED_SECTION("Ensure triggered multiple CHECK_ENSURE")
 	{
-		SIZE_T EnsuresBefore = FDebug::GetNumEnsureFailures();
-		CHECK_ENSURE(OneEnsureFailedDifferent());
-		CHECK_ENSURE(OneEnsureFailedDifferentAgain());
-		CHECK(FDebug::GetNumEnsureFailures() == EnsuresBefore + 2);
-	};
-
-	SECTION("Multiple ensures not triggered with one REQUIRE_NOENSURE")
-	{
-		REQUIRE_NOENSURE(MultipleEnsuresNonFailed());
+		//validate that ensureAlways raises errors
+		REQUIRE_ENSURE(EnsureFailAlways());
+		REQUIRE_ENSURE(EnsureFailAlways());
 	}
 
-	DISABLED_SECTION("At least one of multiple ensures triggered with REQUIRE_ENSURE")
 	{
-		REQUIRE_ENSURE(MultipleEnsuresFailed());
-	};
-
-	SECTION("Multiple ensures not triggered with CHECK_NOENSURE")
-	{
-		CHECK_NOENSURE(MultipleEnsuresNonFailed());
+		//not much of test of CHECK_ENSURE as its hard to tell if the coninue part is working
+		int result = 0;
+		CHECK_ENSURE(result = EnsureForCheck(0));
+		REQUIRE(result == 2);
 	}
 	
-	DISABLED_SECTION("At least one of multiple ensures triggered with CHECK_ENSURE")
 	{
-		CHECK_ENSURE(MultipleEnsuresFailedDifferent());
-	};
+		//multiple failed ensure should continue beecause its wrapped in a scope
+		int result = 0;
+		REQUIRE_ENSURE(result = EnsureMultipleFailures(7));
+		REQUIRE(result == 8);
+	}
+
+	{
+		int result = 0;
+		REQUIRE_ENSURE_MSG("expected value of 1", result = EnsureAlwaysMsg(3));
+		REQUIRE(result == 5);
+		CHECK_ENSURE_MSG("expected value of 1", result = EnsureAlwaysMsg(4));
+		REQUIRE(result == 6);
+	}
 }
 
-static void OneEnsureNonFailed()
+TEST_CASE("Core::Misc::TestCheck", "[Core][Misc][AssertionMacros][Check]")
 {
-	ensure(true);
+	REQUIRE_CHECK(check(1 == 2));
+	REQUIRE_CHECK_MSG("1 == 2", checkf(1 == 2, TEXT("Error Message")));
+	REQUIRE_CHECK_MSG("Error Message", checkf(1 == 2, TEXT("Error Message")));
 }
 
-static void OneEnsureNonFailedDifferent()
-{
-	ensure(1 == 1);
-}
-
-static void OneEnsureFailed()
-{
-	ensure(false);
-}
-
-static void OneEnsureFailedDifferent()
-{
-	ensure(1 == 2);
-}
-
-static void OneEnsureFailedDifferentAgain()
-{
-	ensure(2 == 3);
-}
-
-static void MultipleEnsuresNonFailed()
-{
-	ensure(2 == 2);
-	ensure(3 == 3);
-}
-
-static void MultipleEnsuresFailed()
-{
-	ensure(2 == 2);
-	ensure(3 == 4);
-	ensure(4 == 4);
-}
-
-static void MultipleEnsuresFailedDifferent()
-{
-	ensure(2 == 2);
-	ensure(4 == 5);
-	ensure(3 == 3);
-}
 
 #endif
