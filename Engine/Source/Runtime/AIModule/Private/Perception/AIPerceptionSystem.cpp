@@ -16,6 +16,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionSystem)
 
 DECLARE_CYCLE_STAT(TEXT("Perception System"),STAT_AI_PerceptionSys,STATGROUP_AI);
+DECLARE_CYCLE_STAT(TEXT("Perception System - Process Stim"),STAT_AI_Perception_ProcessStim,STATGROUP_AI);
 
 DEFINE_LOG_CATEGORY(LogAIPerception);
 
@@ -215,19 +216,21 @@ void UAIPerceptionSystem::Tick(float DeltaSeconds)
 				}
 			}
 		}
-
-		/** no point in sorting if no new stimuli was processed */
-		bool bStimuliDelivered = DeliverDelayedStimuli(bNeedsUpdate ? RequiresSorting : NoNeedToSort);
-
-		if (bNeedsUpdate || bStimuliDelivered || bSomeListenersNeedUpdateDueToStimuliAging)
 		{
-			for (AIPerception::FListenerMap::TIterator ListenerIt(ListenerContainer); ListenerIt; ++ListenerIt)
-			{
-				check(ListenerIt->Value.Listener.IsValid());
+			SCOPE_CYCLE_COUNTER(STAT_AI_Perception_ProcessStim);
+			/** no point in sorting if no new stimuli was processed */
+			const bool bStimuliDelivered = DeliverDelayedStimuli(bNeedsUpdate ? RequiresSorting : NoNeedToSort);
 
-				if (ListenerIt->Value.HasAnyNewStimuli())
+			if (bNeedsUpdate || bStimuliDelivered || bSomeListenersNeedUpdateDueToStimuliAging)
+			{
+				for (AIPerception::FListenerMap::TIterator ListenerIt(ListenerContainer); ListenerIt; ++ListenerIt)
 				{
-					ListenerIt->Value.ProcessStimuli();
+					check(ListenerIt->Value.Listener.IsValid());
+
+					if (ListenerIt->Value.HasAnyNewStimuli())
+					{
+						ListenerIt->Value.ProcessStimuli();
+					}
 				}
 			}
 		}
