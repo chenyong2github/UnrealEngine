@@ -544,6 +544,9 @@ protected:
 	/** Index of the next entry in the Messages array that is pending submission to the text layout */
 	int32 NextPendingMessageIndex;
 
+	/** Index of last message that was null, used to ensure we don't stop processing due to a null message */
+	int32 LastNullMessageIndex;
+
 	/** Holds cached numbers of messages to avoid unnecessary re-filtering */
 	int32 CachedNumMessages;
 	
