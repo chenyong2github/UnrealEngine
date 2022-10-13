@@ -216,8 +216,8 @@ protected:
 
 		BuffDesc.DataType = DmlDataType;
 		BuffDesc.Flags = DML_TENSOR_FLAG_NONE;
-		BuffDesc.DimensionCount = TensorDesc.Dimension;
-		BuffDesc.Sizes = TensorDesc.Sizes;
+		BuffDesc.DimensionCount = TensorDesc.Shape.Num();
+		BuffDesc.Sizes = TensorDesc.Shape.GetData();
 		// TODO: FIXME: Support strides in FMLTensorDesc
 		BuffDesc.Strides = nullptr;
 		BuffDesc.TotalTensorSizeInBytes = TensorDesc.DataSize;

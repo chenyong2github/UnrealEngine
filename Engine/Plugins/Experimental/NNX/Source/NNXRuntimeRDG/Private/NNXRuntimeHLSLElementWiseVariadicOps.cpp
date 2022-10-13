@@ -40,18 +40,18 @@ namespace NNX
 		Params->Input2 = InputsSRV[2];
 		Params->Input3 = InputsSRV[3];
 		Params->Output = OutputUAV;
-		FillTensorStrideForBroadcastShaderParameters(InputDesc[0], OutputDesc.Dimension, Params->InputTensorInfo, 0);
+		FillTensorStrideForBroadcastShaderParameters(InputDesc[0], OutputDesc.Shape.Num(), Params->InputTensorInfo, 0);
 		if (InputBindings.Num() >= 2)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[1], OutputDesc.Dimension, Params->InputTensorInfo, 1);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[1], OutputDesc.Shape.Num(), Params->InputTensorInfo, 1);
 		}
 		if (InputBindings.Num() >= 3)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[2], OutputDesc.Dimension, Params->InputTensorInfo, 2);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[2], OutputDesc.Shape.Num(), Params->InputTensorInfo, 2);
 		}
 		if (InputBindings.Num() >= 4)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.Dimension, Params->InputTensorInfo, 3);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.Shape.Num(), Params->InputTensorInfo, 3);
 		}
 		FillTensorStrideShaderParameters(OutputDesc, Params->OutputTensorInfo, 0);
 		Params->Num = OutputDesc.Num();
@@ -65,7 +65,7 @@ namespace NNX
 		PermutationVector.Set<FMLElementWiseVariadicCS::FApplyScale>(Scale != 1.0f);
 		PermutationVector.Set<FMLElementWiseVariadicCS::FOutputAsInput>(OutputAsInput);
 		PermutationVector.Set<FMLElementWiseVariadicCS::FNumInput>(InputBindings.Num());
-		PermutationVector.Set<FMLElementWiseVariadicCS::FVariadicNumDimensions>(OutputDesc.Dimension);
+		PermutationVector.Set<FMLElementWiseVariadicCS::FVariadicNumDimensions>(OutputDesc.Shape.Num());
 
 		// Add the pass to RDG
 		TShaderMapRef<FMLElementWiseVariadicCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);

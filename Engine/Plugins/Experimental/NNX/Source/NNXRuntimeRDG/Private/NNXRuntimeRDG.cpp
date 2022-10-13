@@ -53,18 +53,12 @@ bool FMLInferenceModelRDG::LoadModel(UMLInferenceModel* InModel, FMLRuntimeForma
 
 		Tensor.Name = TensorDesc.Name;
 
-		Tensor.Dimension = TensorDesc.Shape.Dimension;
-		if (Tensor.Dimension > FMLTensorDesc::MaxTensorDimension)
+		if (TensorDesc.Shape.Num() > FMLTensorDesc::MaxTensorDimension)
 		{
 			// FIXME: Should we report error here?
-			Tensor.Dimension = FMLTensorDesc::MaxTensorDimension;
 		}
 
-		FMemory::Memset(Tensor.Sizes, 0, sizeof(Tensor.Sizes));
-		for (uint32 ShapeIdx = 0; ShapeIdx < Tensor.Dimension; ++ShapeIdx)
-		{
-			Tensor.Sizes[ShapeIdx] = TensorDesc.Shape.Sizes[ShapeIdx];
-		}
+		Tensor.Shape = TensorDesc.Shape;
 
 		// NOTE: Set first the DataType prior setting DataSize
 		Tensor.DataType = TensorDesc.DataType;

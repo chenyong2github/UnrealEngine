@@ -65,47 +65,6 @@ struct FMLFormatOperatorDesc
 };
 
 USTRUCT()
-struct FMLFormatTensorShapeDesc
-{
-	static constexpr int32 MaxDimension = NNX::FMLTensorDesc::MaxTensorDimension;
-
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	uint32	Sizes[MaxDimension];
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	uint32	Dimension;
-
-	template<typename T>
-	void operator=(TArrayView<const T> OtherShape)
-	{
-		Dimension = OtherShape.Num();
-		if (Dimension > MaxDimension)
-		{
-			Dimension = MaxDimension;
-		}
-
-		for (uint32 Idx = 0; Idx < Dimension; ++Idx)
-		{
-			Sizes[Idx] = static_cast<uint32>(OtherShape[Idx]);
-		}
-	}
-
-	int32 Volume() const
-	{
-		int32 Result = 1;
-
-		for (uint32 Idx = 0; Idx < Dimension; ++Idx)
-		{
-			Result *= Sizes[Idx];
-		}
-
-		return Result;
-	}
-};
-
-USTRUCT()
 struct FMLFormatTensorDesc
 {
 	GENERATED_USTRUCT_BODY()
@@ -114,7 +73,7 @@ struct FMLFormatTensorDesc
 	FString Name;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	FMLFormatTensorShapeDesc	Shape;
+	TArray<uint32> Shape;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	EMLFormatTensorType	Type;

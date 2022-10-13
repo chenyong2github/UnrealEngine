@@ -55,9 +55,9 @@ namespace NNX
 			Weights = InputTensors[1];
 			Output = OutputTensors[0];
 
-			check(Input.Dimension > 2);
-			check(Weights.Dimension  == Input.Dimension);
-			check(Output.Dimension == Input.Dimension);
+			check(Input.Shape.Num() > 2);
+			check(Weights.Shape.Num()  == Input.Shape.Num());
+			check(Output.Shape.Num() == Input.Shape.Num());
 
 			if (InputTensors.Num() == 3) {
 				HasBias = true;
@@ -69,15 +69,15 @@ namespace NNX
 
 			auto MakeShape = [](const NNX::FMLTensorDesc& InputDesc) {
 				TArray<int32> Result;
-				for (int32 i = 0; i < (int32)InputDesc.Dimension; i++) {
-					Result.Add(InputDesc.Sizes[i]);
+				for (int32 i = 0; i < (int32)InputDesc.Shape.Num(); i++) {
+					Result.Add(InputDesc.Shape[i]);
 				}
 				return Result;
 			};
 			InputShape = MakeShape(Input);
 			WeightsShape = MakeShape(Weights);
 
-			NumDimensions = Input.Dimension - 2;
+			NumDimensions = Input.Shape.Num() - 2;
 
 			return true;
 		}

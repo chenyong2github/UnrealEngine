@@ -56,11 +56,11 @@ namespace NNX
 			if (InputTensors.Num() == 3) InputC = InputTensors[2];
 			Output = OutputTensors[0];
 
-			check(InputA.Dimension == 2);
-			check(InputB.Dimension == 2);
-			check(InputC.Dimension < 3);
+			check(InputA.Shape.Num() == 2);
+			check(InputB.Shape.Num() == 2);
+			check(InputC.Shape.Num() < 3);
 
-			check(InputC.Dimension != 1 || InputC.Sizes[0] != 1); // TODO scalar version not supported yet
+			check(InputC.Shape.Num() != 1 || InputC.Shape[0] != 1); // TODO scalar version not supported yet
 
 			// C is treated as a scalar if there is no valid C, either width or height is zero or C dimension is 1x1
 			bIsCScalar = false; // InputTensors.Num() != 3 || InputC.Sizes[0] * InputC.Sizes[1] < 2;

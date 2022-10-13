@@ -179,40 +179,24 @@ namespace NNX
  */
 struct FMLTensorDesc
 {
-	constexpr static uint32	MaxTensorDimension = 5;
+	constexpr static int32	MaxTensorDimension = 5;
 
 	FString					Name;
-	uint32					Dimension;							//!< Number of dimensions in the Sizes
-	uint32					Sizes[MaxTensorDimension];			//!< Sizes
+	TArray<uint32, TInlineAllocator<MaxTensorDimension>> Shape;	//!< Shape
 	uint64					DataSize;							//!< Size of data in bytes
 	EMLTensorDataType		DataType;
 
 	/** Make tensor descriptor */
 	static FMLTensorDesc Make(const FString& Name, TArrayView<const uint32> Shape, EMLTensorDataType DataType, uint64 DataSize = 0)
 	{
-		FMLTensorDesc Desc{};
-
-		uint32 Dimension = Shape.Num();
-
-		check(Dimension <= FMLTensorDesc::MaxTensorDimension);
-		if (Dimension > FMLTensorDesc::MaxTensorDimension)
+		check(Shape.Num() <= FMLTensorDesc::MaxTensorDimension);
+		if (Shape.Num() > FMLTensorDesc::MaxTensorDimension)
 		{
-			//UE_LOG(LogNNX, Warning, TEXT("Unsupported tensor dimension:%d"), Dimension);
-			return Desc;
+			//UE_LOG(LogNNX, Warning, TEXT("Unsupported tensor dimension:%d"), Shape.Num());
+			return {};
 		}
 
-		Desc.Name = Name;
-		Desc.Dimension = Dimension;
-		
-		for (uint32 Idx = 0; Idx < Desc.Dimension; ++Idx)
-		{
-			Desc.Sizes[Idx] = Shape[Idx];
-		}
-
-		Desc.DataType = DataType;
-		Desc.DataSize = DataSize;
-
-		return Desc;
+		return {Name, TArray<uint32, TInlineAllocator<MaxTensorDimension>>{Shape}, DataSize, DataType};
 	}
 
 	/** Check if descriptor is valid */
@@ -268,7 +252,7 @@ inline size_t GetTensorDataTypeSizeInBytes(EMLTensorDataType InType)
 /** Check if descriptor is valid */
 inline bool FMLTensorDesc::IsValid() const
 {
-	return DataType != EMLTensorDataType::None && Dimension > 0 && Dimension <= MaxTensorDimension; //&& Volume() >= 1;
+	return DataType != EMLTensorDataType::None && Shape.Num() > 0 && Shape.Num() <= MaxTensorDimension; //&& Volume() >= 1;
 }
 
 /** Return size of one element in bytes */
@@ -282,9 +266,9 @@ inline int32 FMLTensorDesc::Volume() const
 {
 	int32 Result = 1;
 
-	for (uint32 Idx = 0; Idx < Dimension; ++Idx)
+	for (int32 Idx = 0; Idx < Shape.Num(); ++Idx)
 	{
-		Result *= Sizes[Idx];
+		Result *= Shape[Idx];
 	}
 
 	return Result;

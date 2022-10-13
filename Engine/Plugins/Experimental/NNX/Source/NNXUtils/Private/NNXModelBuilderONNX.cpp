@@ -294,7 +294,7 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 	for (int32 Idx = 0; Idx < InInputTensors.Num(); ++Idx)
 	{
 		const FMLTensorDesc& Desc = InInputTensors[Idx];
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.Name, Desc.DataType, MakeArrayView((const int32*) Desc.Sizes, Desc.Dimension));
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.Name, Desc.DataType, MakeArrayView((const int32*) Desc.Shape.GetData(), Desc.Shape.Num()));
 
 		InputTensors.Emplace(Tensor);
 		Builder->AddInput(Tensor);
@@ -305,7 +305,7 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 	for (int32 Idx = 0; Idx < InOutputTensors.Num(); ++Idx)
 	{
 		const FMLTensorDesc& Desc = InOutputTensors[Idx];
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.Name, Desc.DataType, MakeArrayView((const int32*) Desc.Sizes, Desc.Dimension));
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.Name, Desc.DataType, MakeArrayView((const int32*) Desc.Shape.GetData(), Desc.Shape.Num()));
 
 		OutputTensors.Emplace(Tensor);
 		Builder->AddOutput(Tensor);
@@ -340,4 +340,3 @@ NNXUTILS_API IMLModelBuilder* CreateONNXModelBuilder(int64 IrVersion, int64 Opse
 }
 
 } // namespace NNX
-

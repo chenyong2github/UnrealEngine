@@ -21,12 +21,12 @@ namespace
 
 	static GemmMatrixParameters GetMatrixParameters(const NNX::FMLTensorDesc &InputA, const NNX::FMLTensorDesc &InputB, const NNX::FMLTensorDesc &InputC)
 	{
-		check(InputA.Dimension != 0);
-		check(InputB.Dimension != 0);
+		check(InputA.Shape.Num() != 0);
+		check(InputB.Shape.Num() != 0);
 
 		GemmMatrixParameters Result;
-		int32 NumStackDimensionsA = FMath::Max((int32)InputA.Dimension - 2, 0);
-		int32 NumStackDimensionsB = FMath::Max((int32)InputB.Dimension - 2, 0);
+		int32 NumStackDimensionsA = FMath::Max((int32)InputA.Shape.Num() - 2, 0);
+		int32 NumStackDimensionsB = FMath::Max((int32)InputB.Shape.Num() - 2, 0);
 		int32 NumStackDimensions = FMath::Max(NumStackDimensionsA, NumStackDimensionsB);
 
 		check(NumStackDimensions <= FGemmConstants::MAX_NUM_STACK_DIMENSIONS);
@@ -37,32 +37,32 @@ namespace
 			const int32 NumDimToCheck = FMath::Min(NumStackDimensionsA, NumStackDimensionsB);
 			for (int32 i = 0; i < NumDimToCheck; i++)
 			{
-				const uint32 VolumeA = InputA.Sizes[NumStackDimensionsA - 1 - i];
-				const uint32 VolumeB = InputB.Sizes[NumStackDimensionsB - 1 - i];
+				const uint32 VolumeA = InputA.Shape[NumStackDimensionsA - 1 - i];
+				const uint32 VolumeB = InputB.Shape[NumStackDimensionsB - 1 - i];
 
 				check(VolumeA == 1 || VolumeB == 1 || VolumeA == VolumeB);
 			}
 		}
 
-		const bool IsVectorA = InputA.Dimension == 1;
-		const bool IsVectorB = InputB.Dimension == 1;
-		const bool IsVectorC = InputC.Dimension == 1;
+		const bool IsVectorA = InputA.Shape.Num() == 1;
+		const bool IsVectorB = InputB.Shape.Num() == 1;
+		const bool IsVectorC = InputC.Shape.Num() == 1;
 
-		Result.M = IsVectorA ? 1 : InputA.Sizes[InputA.Dimension - 2];
-		Result.N = IsVectorB ? 1 : InputB.Sizes[InputB.Dimension - 1];
-		Result.K = InputA.Sizes[IsVectorA ? 0 : InputA.Dimension - 1];
-		check(InputB.Sizes[IsVectorB ? 0 : InputB.Dimension - 2] == Result.K);
+		Result.M = IsVectorA ? 1 : InputA.Shape[InputA.Shape.Num() - 2];
+		Result.N = IsVectorB ? 1 : InputB.Shape[InputB.Shape.Num() - 1];
+		Result.K = InputA.Shape[IsVectorA ? 0 : InputA.Shape.Num() - 1];
+		check(InputB.Shape[IsVectorB ? 0 : InputB.Shape.Num() - 2] == Result.K);
 
 		Result.StackShapeA.Init(1, NumStackDimensions);
 		Result.StackShapeB.Init(1, NumStackDimensions);
 
 		for (int32 i = 0; i < NumStackDimensions; i++)
 		{
-			int32 IdxA = InputA.Dimension - 3 - i;
-			int32 IdxB = InputB.Dimension - 3 - i;
+			int32 IdxA = InputA.Shape.Num() - 3 - i;
+			int32 IdxB = InputB.Shape.Num() - 3 - i;
 
-			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = IdxA >= 0 ? InputA.Sizes[IdxA] : 1;
-			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = IdxB >= 0 ? InputB.Sizes[IdxB] : 1;
+			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = IdxA >= 0 ? InputA.Shape[IdxA] : 1;
+			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = IdxB >= 0 ? InputB.Shape[IdxB] : 1;
 		}
 
 		Result.StackStrideA.Init(1, NumStackDimensions);
@@ -74,8 +74,8 @@ namespace
 			Result.StackStrideB[i] = Result.StackStrideB[i + 1] * Result.StackShapeB[i + 1];
 		}
 
-		Result.CWidth = InputC.Dimension == 0 ? 0 : InputC.Sizes[InputC.Dimension - 1];
-		Result.CHeight = InputC.Dimension == 0 ? 0 : IsVectorC ? 1 : InputC.Sizes[InputC.Dimension - 2];
+		Result.CWidth = InputC.Shape.Num() == 0 ? 0 : InputC.Shape[InputC.Shape.Num() - 1];
+		Result.CHeight = InputC.Shape.Num() == 0 ? 0 : IsVectorC ? 1 : InputC.Shape[InputC.Shape.Num() - 2];
 
 		return Result;
 	}

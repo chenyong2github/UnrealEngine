@@ -35,11 +35,11 @@ public:
 
 		Str << TEXT("[");
 		
-		for (uint32 Idx = 0; Idx < Tensor.Shape.Dimension; ++Idx)
+		for (int32 Idx = 0; Idx < Tensor.Shape.Num(); ++Idx)
 		{
-			Str << Tensor.Shape.Sizes[Idx];
+			Str << Tensor.Shape[Idx];
 
-			if (Idx + 1 < Tensor.Shape.Dimension)
+			if (Idx + 1 < Tensor.Shape.Num())
 			{
 				Str << TEXT(",");
 			}

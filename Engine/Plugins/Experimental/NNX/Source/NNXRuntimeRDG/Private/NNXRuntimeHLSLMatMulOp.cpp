@@ -48,7 +48,7 @@ namespace NNX
 		{
 			const EGemmAlgorithm Algorithm = EGemmAlgorithm::Simple32x32;
 
-			const int32 NumStackDimensions = FMath::Max((int32)FMath::Max(InputA.Dimension, InputB.Dimension) - 2, 0);
+			const int32 NumStackDimensions = FMath::Max(FMath::Max(InputA.Shape.Num(), InputB.Shape.Num()) - 2, 0);
 
 			// Set parameters
 			FMLGemmCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMLGemmCS::FParameters>();

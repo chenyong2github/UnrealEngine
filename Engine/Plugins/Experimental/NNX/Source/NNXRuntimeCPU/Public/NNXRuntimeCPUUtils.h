@@ -135,14 +135,14 @@ inline void BindTensorsToORT(
 		ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
 
 		TUniquePtr<int64_t[]> SizesInt64t;
-		SizesInt64t = MakeUnique<int64_t[]>(CurrentDescriptor.Dimension);
-		for (uint32 DimIndex = 0; DimIndex < CurrentDescriptor.Dimension; ++DimIndex)
+		SizesInt64t = MakeUnique<int64_t[]>(CurrentDescriptor.Shape.Num());
+		for (int32 DimIndex = 0; DimIndex < CurrentDescriptor.Shape.Num(); ++DimIndex)
 		{
-			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.Sizes[DimIndex];
+			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.Shape[DimIndex];
 		}
 
 		const uint64 ByteCount { InTensorsDescriptors[Index].DataSize };
-		const uint32 ArrayDimensions { CurrentDescriptor.Dimension };
+		const uint32 ArrayDimensions { (uint32)CurrentDescriptor.Shape.Num() };
 		OutOrtTensors.Emplace(
 			Ort::Value::CreateTensor(
 				*InAllocatorInfo,
