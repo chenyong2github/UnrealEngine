@@ -29,6 +29,8 @@ FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
 	, OutputSettings(FControlRigIOSettings())
 	, bExecute(true)
 	, InternalBlendAlpha (1.f)
+	, bControlRigRequiresInitialization(true)
+	, LastBonesSerialNumberForCacheBones(0)
 {
 
 }
@@ -70,6 +72,8 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 		//Don't Inititialize the Control Rig here it may have the wrong VM on the CDO
 		SetTargetInstance(ControlRig);
 		ControlRig->RequestInit();
+		bControlRigRequiresInitialization = true;
+		LastBonesSerialNumberForCacheBones = 0;
 	}
 }
 
@@ -598,14 +602,19 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 
 	if (UControlRig* ControlRig = GetControlRig())
 	{
-		// the construction event may create a set of bones that we can map to. let's run construction now.
-		if(ControlRig->IsConstructionModeEnabled() || ControlRig->IsConstructionRequired())
-		{
-			ControlRig->Execute(EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
-		}
-			
 		// fill up node names
 		FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
+
+		const uint16 BonesSerialNumber = RequiredBones.GetSerialNumber();
+		const bool bIsLODChange = !bControlRigRequiresInitialization && (BonesSerialNumber != LastBonesSerialNumberForCacheBones);
+
+		// the construction event may create a set of bones that we can map to. let's run construction now.
+		if(ControlRig->IsConstructionModeEnabled() ||
+			(ControlRig->IsConstructionRequired() && (bControlRigRequiresInitialization || bIsLODChange)))
+		{
+			ControlRig->Execute(EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+			bControlRigRequiresInitialization = false;
+		}
 
 		ControlRigBoneInputMappingByIndex.Reset();
 		ControlRigBoneOutputMappingByIndex.Reset();
@@ -790,10 +799,16 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 			}
 		}
 
-		// re-init when LOD changes
-		// and restore control values
-		FControlRigControlScope Scope(ControlRig);
-		ControlRig->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
+		if(bControlRigRequiresInitialization)
+		{
+			// re-init only if this is the first run
+			// and restore control values
+			FControlRigControlScope Scope(ControlRig);
+			ControlRig->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
+			bControlRigRequiresInitialization = false;
+		}
+		
+		LastBonesSerialNumberForCacheBones = BonesSerialNumber;
 	}
 }
 

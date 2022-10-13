@@ -167,6 +167,9 @@ protected:
 	void ExecuteControlRig(FPoseContext& InOutput);
 
 	void QueueControlRigDrawInstructions(UControlRig* ControlRig, FAnimInstanceProxy* Proxy) const;
+	
+	bool bControlRigRequiresInitialization;
+	uint16 LastBonesSerialNumberForCacheBones;
 
 	friend struct FControlRigSequencerAnimInstanceProxy;
 	friend struct FControlRigLayerInstanceProxy;
