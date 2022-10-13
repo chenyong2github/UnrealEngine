@@ -5,6 +5,7 @@ using System.Linq;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Horde.Build.Agents.Fleet;
+using Horde.Build.Perforce;
 using Horde.Build.Storage.Backends;
 using Horde.Build.Utilities;
 using Serilog.Events;
@@ -176,6 +177,32 @@ namespace Horde.Build
 		/// Limit concurrent log chunk writes and await them to reduce mem and I/O usage
 		/// </summary>
 		public bool LimitConcurrentLogChunkWriting { get; set; } = false;
+	}
+
+	/// <summary>
+	/// Options for the commit service
+	/// </summary>
+	public class CommitSettings
+	{
+		/// <summary>
+		/// Whether to mirror commit metadata to the database
+		/// </summary>
+		public bool ReplicateMetadata { get; set; } = true;
+
+		/// <summary>
+		/// Whether to mirror commit metadata to the database
+		/// </summary>
+		public bool ReplicateContent { get; set; } = false;
+
+		/// <summary>
+		/// Options for how objects are packed together
+		/// </summary>
+		public TreeOptions Bundle { get; set; } = new TreeOptions();
+
+		/// <summary>
+		/// Options for how objects are sliced
+		/// </summary>
+		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();
 	}
 
 	/// <summary>
@@ -589,6 +616,11 @@ namespace Horde.Build
 
 		/// <inheritdoc cref="FeatureFlags" />
 		public FeatureFlagSettings FeatureFlags { get; set; } = new ();
+
+		/// <summary>
+		/// Options for the commit service
+		/// </summary>
+		public CommitSettings Commits { get; set; } = new CommitSettings();
 
 		/// <summary>
 		/// Helper method to check if this process has activated the given mode

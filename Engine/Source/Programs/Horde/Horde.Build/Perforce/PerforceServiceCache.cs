@@ -28,17 +28,6 @@ namespace Horde.Build.Perforce
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
-	/// Options for the commit service
-	/// </summary>
-	public class CommitServiceOptions
-	{
-		/// <summary>
-		/// Whether to mirror commit metadata to the database
-		/// </summary>
-		public bool Enable { get; set; } = true;
-	}
-
-	/// <summary>
 	/// Service which mirrors changes from Perforce
 	/// </summary>
 	class PerforceServiceCache : PerforceService, IHostedService
@@ -164,8 +153,8 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		public CommitServiceOptions Options { get; }
 		readonly MongoService _mongoService;
+		readonly ServerSettings _settings;
 		readonly IMongoCollection<CachedCommitDoc> _commits;
 		readonly IStreamCollection _streamCollection;
 		readonly ILogger _logger;
@@ -174,12 +163,11 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceServiceCache(PerforceLoadBalancer loadBalancer, MongoService mongoService, GlobalsService globalsService, IUserCollection userCollection, IStreamCollection streamCollection, IClock clock, IOptions<ServerSettings> settings, IOptions<CommitServiceOptions> options, ILogger<PerforceService> logger)
+		public PerforceServiceCache(PerforceLoadBalancer loadBalancer, MongoService mongoService, GlobalsService globalsService, IUserCollection userCollection, IStreamCollection streamCollection, IClock clock, IOptions<ServerSettings> settings, ILogger<PerforceService> logger)
 			: base(loadBalancer, globalsService, userCollection, settings, logger)
 		{
-			Options = options.Value;
-
 			_mongoService = mongoService;
+			_settings = settings.Value;
 
 			List<MongoIndex<CachedCommitDoc>> indexes = new List<MongoIndex<CachedCommitDoc>>();
 			indexes.Add(MongoIndex.Create<CachedCommitDoc>(keys => keys.Ascending(x => x.StreamId).Descending(x => x.Number), true));
@@ -203,7 +191,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
-			if (Options.Enable)
+			if (_settings.Commits.ReplicateMetadata)
 			{
 				await _updateCommitsTicker.StartAsync();
 			}
@@ -212,7 +200,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
-			if (Options.Enable)
+			if (_settings.Commits.ReplicateMetadata)
 			{
 				await _updateCommitsTicker.StopAsync();
 			}

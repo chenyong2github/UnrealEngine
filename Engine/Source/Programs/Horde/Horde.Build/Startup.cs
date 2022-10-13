@@ -292,11 +292,7 @@ namespace Horde.Build
 			IConfigurationSection configSection = Configuration.GetSection("Horde");
 			ServerSettings settings = new ServerSettings();
 			configSection.Bind(settings);
-
 			settings.Validate();
-
-			services.Configure<CommitServiceOptions>(configSection.GetSection("Commits"));
-			services.Configure<ReplicationServiceOptions>(configSection.GetSection("Replication"));
 
 			if (settings.GlobalThreadPoolMinSize != null)
 			{

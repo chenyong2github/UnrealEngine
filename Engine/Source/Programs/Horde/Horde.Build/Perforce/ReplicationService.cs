@@ -40,27 +40,6 @@ namespace Horde.Build.Perforce
 	}
 
 	/// <summary>
-	/// Options for the commit service
-	/// </summary>
-	public class ReplicationServiceOptions
-	{
-		/// <summary>
-		/// Whether to enable replication. Must also be enabled on a per-stream basis (see <see cref="StreamConfig.ReplicationMode"/>).
-		/// </summary>
-		public bool Enable { get; set; } = true;
-
-		/// <summary>
-		/// Options for how objects are packed together
-		/// </summary>
-		public TreeOptions Bundle { get; set; } = new TreeOptions();
-
-		/// <summary>
-		/// Options for how objects are sliced
-		/// </summary>
-		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();
-	}
-
-	/// <summary>
 	/// Root node for a commit snapshot
 	/// </summary>
 	public class ReplicationNode : TreeNode
@@ -136,7 +115,7 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		public ReplicationServiceOptions Options { get; }
+		readonly ServerSettings _settings;
 
 		// Redis
 		readonly RedisConnectionPool _redisConnectionPool;
@@ -167,9 +146,9 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReplicationService(RedisService redisService, /* CommitService commitService, */IStreamCollection streamCollection, IPerforceService perforceService, StorageService storageService, IOptions<ReplicationServiceOptions> options, ILogger<ReplicationService> logger)
+		public ReplicationService(RedisService redisService, /* CommitService commitService, */IStreamCollection streamCollection, IPerforceService perforceService, StorageService storageService, IOptions<ServerSettings> settings, ILogger<ReplicationService> logger)
 		{
-			Options = options.Value;
+			_settings = settings.Value;
 
 			_redisConnectionPool = redisService.ConnectionPool;
 			_redisDirtyStreams = new RedisSet<StreamId>(_redisConnectionPool, RedisBaseKey.Append("streams"));
@@ -193,7 +172,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken cancellationToken)
 		{
-			if (Options.Enable)
+			if (_settings.Commits.ReplicateContent)
 			{
 				_stopping = false;
 				_updateStreamsEvent.Reset();
@@ -205,7 +184,7 @@ namespace Horde.Build.Perforce
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken cancellationToken)
 		{
-			if (Options.Enable)
+			if (_settings.Commits.ReplicateContent)
 			{
 				_stopping = true;
 				_updateStreamsEvent.Latch();
@@ -628,7 +607,7 @@ namespace Horde.Build.Perforce
 					using ReadOnlyMemoryStream dataStream = new ReadOnlyMemoryStream(data);
 
 					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, cancellationToken);
-					await entry.AppendAsync(dataStream, Options.Chunking, writer, cancellationToken);
+					await entry.AppendAsync(dataStream, _settings.Commits.Chunking, writer, cancellationToken);
 				}
 			}
 			else
@@ -783,7 +762,7 @@ namespace Horde.Build.Perforce
 								else if (io.Command == PerforceIoCommand.Write)
 								{
 									FileWriter file = handles[io.File];
-									await file.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
+									await file.AppendAsync(io.Payload, _settings.Commits.Chunking, writer, cancellationToken);
 								}
 								else if (io.Command == PerforceIoCommand.Close)
 								{
