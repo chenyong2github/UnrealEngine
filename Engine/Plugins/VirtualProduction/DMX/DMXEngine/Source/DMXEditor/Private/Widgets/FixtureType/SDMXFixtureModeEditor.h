@@ -16,6 +16,7 @@ struct FPropertyAndParent;
 class FScopedTransaction;
 class IStructureDetailsView;
 class SBorder;
+class STextBlock;
 
 
 /** Editor for a single Mode struct inside a UDMXEntityFixtureType. */
@@ -45,6 +46,9 @@ private:
 	/** Sets the Mode that is being edited */
 	void SetMode(UDMXEntityFixtureType* InFixtureType, int32 InModeIndex);
 
+	/** Called when the properties of the fixture type changed */
+	void OnFixtureTypePropertiesChanged(const UDMXEntityFixtureType* FixtureType);
+
 	/** Returns true if the properties are visible */
 	bool IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
 
@@ -60,8 +64,14 @@ private:
 	/** The current transaction or nullptr if there's no transaction ongoing */
 	TUniquePtr<FScopedTransaction> Transaction;
 
-	/** Border that holds the content of the editor */
-	TSharedPtr<SBorder> ContentBorder;
+	/** Details view for the Mode Struct being edited */
+	TSharedPtr<IStructureDetailsView> StructDetailsView;
+
+	/** Widget of the Details view */
+	TSharedPtr<SWidget> StructDetailsViewWidget;
+
+	/** Text block that displays info in case the struct details view cannot be shown */
+	TSharedPtr<STextBlock> InfoTextBlock;
 
 	/** Shared Data for */
 	TSharedPtr<FDMXFixtureTypeSharedData> FixtureTypeSharedData;
