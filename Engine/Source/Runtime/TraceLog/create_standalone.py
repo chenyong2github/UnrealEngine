@@ -228,12 +228,18 @@ def _thin(state):
 		(stubs_dir / dep).open("wt").close()
 
 	# Symlink source
-	def symlink(fr, to):
+	def symlink_posix(fr, to):
+		fr = state.dest_dir / "src" / fr
+		fr.symlink_to(to.resolve())
+
+	def symlink_nt(fr, to):
 		fr = state.dest_dir / "src" / fr
 		subprocess.run(
 			("cmd.exe", "/c", "mklink", "/j", fr, to.resolve()),
 			stderr=subprocess.DEVNULL
 		)
+
+	symlink = symlink_nt if os.name == "nt" else symlink_posix
 
 	(state.dest_dir / "src").mkdir(parents=True, exist_ok=True)
 	symlink("trace", state.src_dir)
