@@ -15,5 +15,14 @@ TArray<UPrimitiveComponent*> IWaterBrushActorInterface::GetBrushRenderableCompon
 {
 	return TArray<UPrimitiveComponent*>();
 }
+
+IWaterBrushActorInterface::FWaterBrushActorChangedEvent& IWaterBrushActorInterface::GetOnWaterBrushActorChangedEvent()
+{
+	static IWaterBrushActorInterface::FWaterBrushActorChangedEvent WaterBrushActorChangedEvent;
+	return WaterBrushActorChangedEvent;
+}
+
 #endif //WITH_EDITOR
+
+
 

@@ -103,11 +103,7 @@ class WATER_API IWaterBrushActorInterface
 	 * Event sent whenever a data change occurs on a water brush actor
 	 */
 	DECLARE_EVENT_OneParam(IWaterBrushActorInterface, FWaterBrushActorChangedEvent, const FWaterBrushActorChangedEventParams&);
-	static FWaterBrushActorChangedEvent& GetOnWaterBrushActorChangedEvent()
-	{
-		static FWaterBrushActorChangedEvent WaterBrushActorChangedEvent;
-		return WaterBrushActorChangedEvent;
-	}
+	static FWaterBrushActorChangedEvent& GetOnWaterBrushActorChangedEvent();
 
 	void BroadcastWaterBrushActorChangedEvent(const FWaterBrushActorChangedEventParams& InParams)
 	{
