@@ -485,6 +485,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					{
 						SetVolumeShadowingDefaultShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0);
 					}
+
+					// Create default textures once for each faces
+					CloudRC.CreateDefaultTexturesIfNeeded(GraphBuilder);
 				}
 				else
 				{
@@ -728,6 +731,15 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 					CloudRC.RenderTargets[0] = SkyRC.RenderTargets[0];
 					//	CloudRC.RenderTargets[1] = Null target will skip export
+
+					if (CloudRC.ComputeOverlapCloudColorCubeTextureUAVWithoutBarrier == nullptr)
+					{
+						// Create a UAV skipping barrier to make sure each compute pass processing each faces can overlap. 
+						// Here in ReflectionEnvironmentRealTimeCapture we know it is a cube texture
+						FRDGTextureRef CubeTexture = CloudRC.RenderTargets[0].GetTexture();
+						check(CubeTexture->Desc.IsTextureCube());
+						CloudRC.ComputeOverlapCloudColorCubeTextureUAVWithoutBarrier = GraphBuilder.CreateUAV(CubeTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+					}
 
 					CloudRC.VolumetricCloudShadowTexture[0] = CloudShadowAOData.VolumetricCloudShadowMap[0];
 					CloudRC.VolumetricCloudShadowTexture[1] = CloudShadowAOData.VolumetricCloudShadowMap[1];

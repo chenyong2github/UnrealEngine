@@ -1921,6 +1921,29 @@ FCloudRenderContext::FCloudRenderContext()
 	bVisualizeConservativeDensity = false;
 }
 
+void FCloudRenderContext::CreateDefaultTexturesIfNeeded(FRDGBuilder& GraphBuilder)
+{
+	if (DefaultCloudColorCubeTexture == nullptr)
+	{
+		DefaultCloudColorCubeTexture = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::CreateCube(1, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+			TEXT("Cloud.ColorCubeDummy"));
+
+		DefaultCloudColor2DTexture = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+			TEXT("Cloud.ColorDummy"));
+
+		DefaultCloudDepthTexture = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_G16R16F, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+			TEXT("Cloud.DepthDummy"));
+
+
+		DefaultCloudColorCubeTextureUAV = GraphBuilder.CreateUAV(DefaultCloudColorCubeTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		DefaultCloudColor2DTextureUAV = GraphBuilder.CreateUAV(DefaultCloudColor2DTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		DefaultCloudDepthTextureUAV = GraphBuilder.CreateUAV(DefaultCloudDepthTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+}
+
 static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudPassUniformBuffer(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC)
 {
 	FViewInfo& MainView = *CloudRC.MainView;
@@ -2003,30 +2026,46 @@ static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudP
 	return GraphBuilder.CreateUniformBuffer(&VolumetricCloudParams);
 }
 
-static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, FRDGTextureRef& CloudColorCubeTexture, FRDGTextureRef& CloudColorTexture, FRDGTextureRef& CloudDepthTexture)
+static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, FRDGTextureUAVRef& CloudColorCubeTextureUAV, FRDGTextureUAVRef& CloudColorTextureUAV, FRDGTextureUAVRef& CloudDepthTextureUAV)
 {
-	CloudColorCubeTexture = CloudRC.RenderTargets[0].GetTexture();
+	CloudRC.CreateDefaultTexturesIfNeeded(GraphBuilder);
+
+	FRDGTextureRef CloudColorCubeTexture = CloudRC.RenderTargets[0].GetTexture();
 	if (!CloudColorCubeTexture || !CloudColorCubeTexture->Desc.IsTextureCube())
 	{
-		CloudColorCubeTexture = GraphBuilder.CreateTexture(
-			FRDGTextureDesc::CreateCube(1, PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
-			TEXT("Cloud.ColorCubeDummy"));
+		CloudColorCubeTextureUAV = CloudRC.DefaultCloudColorCubeTextureUAV;
+	}
+	else
+	{
+		if (CloudRC.ComputeOverlapCloudColorCubeTextureUAVWithoutBarrier)
+		{
+			// If specified, this is to make sure a single UAV without barrier so that compute work items can overlap.
+			CloudColorCubeTextureUAV = CloudRC.ComputeOverlapCloudColorCubeTextureUAVWithoutBarrier;
+		}
+		else
+		{
+			CloudColorCubeTextureUAV = GraphBuilder.CreateUAV(CloudColorCubeTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		}
 	}
 
-	CloudColorTexture = CloudRC.RenderTargets[0].GetTexture();
+	FRDGTextureRef CloudColorTexture = CloudRC.RenderTargets[0].GetTexture();
 	if (!CloudColorTexture || CloudColorTexture->Desc.IsTextureCube())
 	{
-		CloudColorTexture = GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
-			TEXT("Cloud.ColorDummy"));
+		CloudColorTextureUAV = CloudRC.DefaultCloudColor2DTextureUAV;
+	}
+	else
+	{
+		CloudColorTextureUAV = GraphBuilder.CreateUAV(CloudColorTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
 
-	CloudDepthTexture = CloudRC.RenderTargets[1].GetTexture();
+	FRDGTextureRef CloudDepthTexture = CloudRC.RenderTargets[1].GetTexture();
 	if (!CloudDepthTexture)
 	{
-		CloudDepthTexture = GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_G16R16F, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
-			TEXT("Cloud.DepthDummy"));
+		CloudDepthTextureUAV = CloudRC.DefaultCloudDepthTextureUAV;
+	}
+	else
+	{
+		CloudDepthTextureUAV = GraphBuilder.CreateUAV(CloudDepthTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
 }
 
@@ -2053,10 +2092,10 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	const bool bShouldUseComputeForCloudTracing = !bVisualizeConservativeDensity && ShouldUseComputeForCloudTracing(Scene->GetFeatureLevel());
 	if (bShouldUseComputeForCloudTracing)
 	{
-		FRDGTextureRef CloudColorCubeTexture;
-		FRDGTextureRef CloudColorTexture;
-		FRDGTextureRef CloudDepthTexture;
-		GetOutputTexturesWithFallback(GraphBuilder, CloudRC, CloudColorCubeTexture, CloudColorTexture, CloudDepthTexture);
+		FRDGTextureUAVRef CloudColorCubeTextureUAV;
+		FRDGTextureUAVRef CloudColorTextureUAV;
+		FRDGTextureUAVRef CloudDepthTextureUAV;
+		GetOutputTexturesWithFallback(GraphBuilder, CloudRC, CloudColorCubeTextureUAV, CloudColorTextureUAV, CloudDepthTextureUAV);
 
 		bool bSampleVirtualShadowMap = (!bSkipAtmosphericLightShadowmap && CVarVolumetricCloudShadowSampleAtmosphericLightShadowmap.GetValueOnRenderThread() > 0);
 
@@ -2070,9 +2109,9 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		{
 			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		}
-		PassParameters->OutCloudColor = GraphBuilder.CreateUAV(CloudColorTexture);
-		PassParameters->OutCloudDepth = GraphBuilder.CreateUAV(CloudDepthTexture);
-		PassParameters->OutCloudColorCube = GraphBuilder.CreateUAV(CloudColorCubeTexture);
+		PassParameters->OutCloudColor = CloudColorTextureUAV;
+		PassParameters->OutCloudDepth = CloudDepthTextureUAV;
+		PassParameters->OutCloudColorCube = CloudColorCubeTextureUAV;
 
 #if CLOUD_DEBUG_SAMPLES
 		ShaderPrint::SetEnabled(true);
