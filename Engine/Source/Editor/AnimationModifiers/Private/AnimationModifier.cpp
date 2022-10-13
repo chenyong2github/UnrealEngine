@@ -90,11 +90,8 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 
 	IAnimationDataController& Controller = CurrentAnimSequence->GetController(); //-V595
 
-	{
-		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("ApplyModifierBracket", "Applying Animation Modifier"));
-		/** Reverting and applying, populates the log with possible warnings and or errors to notify the user about */
-		OnApply(CurrentAnimSequence);
-	}
+	/** Reverting and applying, populates the log with possible warnings and or errors to notify the user about */
+	OnApply(CurrentAnimSequence);
 
 	// Apply transaction
 	ModifierTransaction.BeginOperation();
