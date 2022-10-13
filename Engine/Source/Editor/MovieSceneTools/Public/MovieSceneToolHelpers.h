@@ -133,9 +133,11 @@ public:
 	 * @param ShotPrefix The parsed shot prefix
 	 * @param ShotNumber The parsed shot number
 	 * @param TakeNumber The parsed take number
+	 * @param ShotNumberDigits The number of digits to pad for the shot number
+	 * @param TakeNumberDigits The number of digits to pad for the take number
 	 * @return Whether the shot name was parsed successfully
 	 */
-	static bool ParseShotName(const FString& ShotName, FString& ShotPrefix, uint32& ShotNumber, uint32& TakeNumber);
+	static bool ParseShotName(const FString& ShotName, FString& ShotPrefix, uint32& ShotNumber, uint32& TakeNumber, uint32& ShotNumberDigits, uint32& TakeNumberDigits);
 
 	/**
 	 * Compose a shot name given its components.
@@ -143,9 +145,11 @@ public:
 	 * @param ShotPrefix The shot prefix to use
 	 * @param ShotNumber The shot number to use
 	 * @param TakeNumber The take number to use
+	 * @param ShotNumberDigits The number of digits to pad for the shot number
+	 * @param TakeNumberDigits The number of digits to pad for the take number
 	 * @return The composed shot name
 	 */
-	static FString ComposeShotName(const FString& ShotPrefix, uint32 ShotNumber, uint32 TakeNumber);
+	static FString ComposeShotName(const FString& ShotPrefix, uint32 ShotNumber, uint32 TakeNumber, uint32 ShotNumberDigits, uint32 TakeNumberDigits);
 
 	/**
 	 * Generate a new shot package
