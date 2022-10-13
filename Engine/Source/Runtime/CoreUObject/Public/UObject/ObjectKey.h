@@ -108,6 +108,19 @@ public:
 		return WeakPtr.Get(bEvenIfPendingKill);
 	}
 
+	/**
+	 * Attempt to access the object from which this key was constructed, even if it is RF_PendingKill or RF_Unreachable
+	 * @return The object used to construct this key, or nullptr if it is no longer valid
+	 */
+	UObject* ResolveObjectPtrEvenIfUnreachable() const
+	{
+		FWeakObjectPtr WeakPtr;
+		WeakPtr.ObjectIndex = ObjectIndex;
+		WeakPtr.ObjectSerialNumber = ObjectSerialNumber;
+
+		return WeakPtr.GetEvenIfUnreachable();
+	}
+
 	/** Hash function */
 	friend uint32 GetTypeHash(const FObjectKey& Key)
 	{

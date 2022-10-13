@@ -1063,6 +1063,8 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 
 	if ( CurrentRealtimeSeconds - LastCleanupTime > CleanupTimeSeconds )
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_NetUpdateCleanupTime);
+
 		for ( auto It = ReplicationChangeListMap.CreateIterator(); It; ++It )
 		{
 			if ( !It.Value().IsObjectValid() )
