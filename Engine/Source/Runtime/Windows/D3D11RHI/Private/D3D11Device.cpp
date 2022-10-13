@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
+#include "D3D11ConstantBuffer.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
@@ -207,6 +208,7 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1, D3D_FEATURE_LE
 	GMaxTextureDimensions = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 	GMaxCubeTextureDimensions = D3D11_REQ_TEXTURECUBE_DIMENSION;
 	GMaxTextureArrayLayers = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+	GRHIMaxConstantBufferByteSize = MAX_GLOBAL_CONSTANT_BUFFER_SIZE;
 	GRHISupportsMSAADepthSampleAccess = true;
 	GRHISupportsRHIThread = !!EXPERIMENTAL_D3D11_RHITHREAD;
 

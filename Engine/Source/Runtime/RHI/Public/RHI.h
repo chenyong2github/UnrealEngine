@@ -526,6 +526,9 @@ extern RHI_API TRHIGlobal<int32> GMaxTextureDimensions;
 /** The maximum size allowed for 2D textures in both dimensions. */
 extern RHI_API TRHIGlobal<int64> GMaxBufferDimensions;
 
+/** The maximum size allowed for a contant buffer. */
+extern RHI_API TRHIGlobal<int64> GRHIMaxConstantBufferByteSize;
+
 /** The maximum size allowed for Shared Compute Memory. */
 extern RHI_API TRHIGlobal<int64> GMaxComputeSharedMemory;
 
@@ -541,10 +544,14 @@ extern RHI_API bool GRHISupportsRawViewsForAnyBuffer;
 /** Whether depth or stencil can individually be set to CopySrc/Dest access. */
 extern RHI_API bool GRHISupportsSeparateDepthStencilCopyAccess;
 
-
 FORCEINLINE uint64 GetMaxBufferDimension()
 {
 	return GMaxBufferDimensions;
+}
+
+FORCEINLINE uint64 GetMaxConstantBufferByteSize()
+{
+	return GRHIMaxConstantBufferByteSize;
 }
 
 FORCEINLINE uint64 GetMaxComputeSharedMemory()
