@@ -199,6 +199,121 @@ void FIKRetargetEditorController::AddOffsetToMeshComponent(const FVector& Offset
 	MeshComponent->SetWorldScale3D(FVector(Scale,Scale,Scale));
 }
 
+bool FIKRetargetEditorController::GetCameraTargetForSelection(FSphere& OutTarget) const
+{
+	// center the view on the last selected item
+	switch (GetLastSelectedItemType())
+	{
+	case ERetargetSelectionType::BONE:
+		{
+			// target the selected bones
+			const TArray<FName>& SelectedBones = GetSelectedBones();
+			if (SelectedBones.IsEmpty())
+			{
+				return false;
+			}
+
+			TArray<FVector> TargetPoints;
+			const UDebugSkelMeshComponent* SkeletalMeshComponent = GetSkeletalMeshComponent(GetSourceOrTarget());
+			const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetReferenceSkeleton();
+			TArray<int32> ChildrenIndices;
+			for (const FName& SelectedBoneName : SelectedBones)
+			{
+				const int32 BoneIndex = RefSkeleton.FindBoneIndex(SelectedBoneName);
+				if (BoneIndex == INDEX_NONE)
+				{
+					continue;
+				}
+
+				TargetPoints.Add(SkeletalMeshComponent->GetBoneTransform(BoneIndex).GetLocation());
+				ChildrenIndices.Reset();
+				RefSkeleton.GetDirectChildBones(BoneIndex, ChildrenIndices);
+				for (const int32 ChildIndex : ChildrenIndices)
+				{
+					TargetPoints.Add(SkeletalMeshComponent->GetBoneTransform(ChildIndex).GetLocation());
+				}
+			}
+	
+			// create a sphere that contains all the target points
+			if (TargetPoints.Num() == 0)
+			{
+				TargetPoints.Add(FVector::ZeroVector);
+			}
+			OutTarget = FSphere(&TargetPoints[0], TargetPoints.Num());
+			return true;
+		}
+		
+	case ERetargetSelectionType::CHAIN:
+		{
+			const ERetargetSourceOrTarget SourceOrTarget = GetSourceOrTarget();
+			const UIKRigDefinition* IKRig = AssetController->GetIKRig(SourceOrTarget);
+			if (!IKRig)
+			{
+				return false;
+			}
+
+			const UDebugSkelMeshComponent* SkeletalMeshComponent = GetSkeletalMeshComponent(GetSourceOrTarget());
+			const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetReferenceSkeleton();
+
+			// get target points from start/end bone of all selected chains on the currently active skeleton (source or target)
+			TArray<FVector> TargetPoints;
+			const TArray<FName>& SelectedChainNames = GetSelectedChains();
+			for (const FName SelectedChainName : SelectedChainNames)
+			{
+				const URetargetChainSettings* ChainMap = AssetController->GetChainMappingByTargetChainName(SelectedChainName);
+				if (!ChainMap)
+				{
+					continue;
+				}
+
+				const FName& ChainName = SourceOrTarget == ERetargetSourceOrTarget::Target ? SelectedChainName : ChainMap->SourceChain;
+				if (ChainName == NAME_None)
+				{
+					continue;
+				}
+
+				const FBoneChain* BoneChain = IKRig->GetRetargetChainByName(ChainName);
+				if (!BoneChain)
+				{
+					continue;
+				}
+
+				const int32 StartBoneIndex = RefSkeleton.FindBoneIndex(BoneChain->StartBone.BoneName);
+				if (StartBoneIndex != INDEX_NONE)
+				{
+					TargetPoints.Add(SkeletalMeshComponent->GetBoneTransform(StartBoneIndex).GetLocation());
+				}
+
+				const int32 EndBoneIndex = RefSkeleton.FindBoneIndex(BoneChain->EndBone.BoneName);
+				if (EndBoneIndex != INDEX_NONE)
+				{
+					TargetPoints.Add(SkeletalMeshComponent->GetBoneTransform(EndBoneIndex).GetLocation());
+				}
+			}
+
+			// create a sphere that contains all the target points
+			if (TargetPoints.Num() == 0)
+			{
+				TargetPoints.Add(FVector::ZeroVector);
+			}
+			OutTarget = FSphere(&TargetPoints[0], TargetPoints.Num());
+			return true;	
+		}
+	case ERetargetSelectionType::ROOT:
+	case ERetargetSelectionType::MESH:
+	case ERetargetSelectionType::NONE:
+	default:
+		// target the current mesh
+		if (const UPrimitiveComponent* CurrentMesh = GetSkeletalMeshComponent(GetSourceOrTarget()))
+		{
+			OutTarget = CurrentMesh->Bounds.GetSphere();
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FIKRetargetEditorController::IsBoneRetargeted(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const
 {
 	// get an initialized processor

@@ -22,17 +22,12 @@ FName FIKRetargetEditPoseMode::ModeName("IKRetargetAssetEditMode");
 
 bool FIKRetargetEditPoseMode::GetCameraTarget(FSphere& OutTarget) const
 {
-	// target skeletal mesh
-	if (const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin())
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
 	{
-		if (Controller->TargetSkelMeshComponent)
-		{
-			OutTarget = Controller->TargetSkelMeshComponent->Bounds.GetSphere();
-			return true;
-		}
+		return false;
 	}
-	
-	return false;
+	return Controller->GetCameraTargetForSelection(OutTarget);
 }
 
 IPersonaPreviewScene& FIKRetargetEditPoseMode::GetAnimPreviewScene() const

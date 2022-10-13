@@ -209,6 +209,8 @@ public:
 	void ClearSelection(const bool bKeepBoneSelection=false);
 	ERetargetSelectionType GetLastSelectedItemType() const { return LastSelectedItem; };
 
+	bool GetCameraTargetForSelection(FSphere& OutTarget) const; 
+
 	/** ------------------------- END SELECTION -----------------------------*/
 
 	/** determine if bone in the specified skeleton is part of the retarget (in a mapped chain) */
