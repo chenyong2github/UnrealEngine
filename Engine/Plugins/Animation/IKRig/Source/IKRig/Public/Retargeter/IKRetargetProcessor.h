@@ -322,9 +322,8 @@ struct FDecodedIKChain
 
 struct FSourceChainIK
 {
-	int32 BoneIndexA = INDEX_NONE;
-	int32 BoneIndexB = INDEX_NONE;
-	int32 BoneIndexC = INDEX_NONE;
+	int32 StartBoneIndex = INDEX_NONE;
+	int32 EndBoneIndex = INDEX_NONE;
 	
 	FVector InitialEndPosition = FVector::ZeroVector;
 	FQuat InitialEndRotation = FQuat::Identity;
@@ -336,7 +335,6 @@ struct FSourceChainIK
 	FVector CurrentEndDirectionNormalized = FVector::ZeroVector;
 	FQuat CurrentEndRotation = FQuat::Identity;
 	float CurrentHeightFromGroundNormalized = 0.0f;
-	FVector PoleVectorDirection = FVector::ZeroVector;
 };
 
 struct FTargetChainIK
