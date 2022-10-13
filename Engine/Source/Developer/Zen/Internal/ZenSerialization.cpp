@@ -133,8 +133,6 @@ struct CbPackageHeader
 	uint32	Reserved2;
 };
 
-static const uint32 kMagic = 0xaa77aacc;
-
 struct CbAttachmentEntry
 {
 	uint64	AttachmentSize;
@@ -156,7 +154,7 @@ void SaveCbPackage(const FCbPackage& Package, FArchive& Ar)
 	FCompressedBuffer ObjectBuffer = FCompressedBuffer::Compress(Object.GetBuffer(), FOodleDataCompression::ECompressor::NotSet, FOodleDataCompression::ECompressionLevel::None);
 
 	CbPackageHeader Hdr;
-	Hdr.HeaderMagic = kMagic;
+	Hdr.HeaderMagic = kCbPkgMagic;
 	Hdr.AttachmentCount = Attachments.Num();
 	Hdr.Reserved1 = 0;
 	Hdr.Reserved2 = 0;
@@ -248,7 +246,7 @@ bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allo
 	CbPackageHeader Hdr;
 	Ar.Serialize(&Hdr, sizeof Hdr);
 
-	if (Hdr.HeaderMagic != kMagic)
+	if (Hdr.HeaderMagic != kCbPkgMagic)
 	{
 		return false;
 	}

@@ -26,6 +26,8 @@ ZEN_API bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAlloca
 
 namespace Http
 {
+static const uint32 kCbPkgMagic = 0xaa77aacc;
+	
 ZEN_API void SaveCbPackage(const FCbPackage& Package, FArchive& Ar);
 ZEN_API bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 }

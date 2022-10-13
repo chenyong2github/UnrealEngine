@@ -183,6 +183,8 @@ public:
 			BatchWriter.BeginObject();
 			{
 				BatchWriter << ANSITEXTVIEW("Method") << "PutCacheRecords";
+				BatchWriter.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+
 				BatchWriter.BeginObject(ANSITEXTVIEW("Params"));
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
@@ -331,6 +333,8 @@ public:
 				BatchRequest.BeginObject();
 				{
 					BatchRequest << ANSITEXTVIEW("Method") << ANSITEXTVIEW("GetCacheRecords");
+					BatchRequest.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+
 					BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 					{
 						ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
@@ -457,6 +461,8 @@ public:
 			BatchWriter.BeginObject();
 			{
 				BatchWriter << ANSITEXTVIEW("Method") << ANSITEXTVIEW("PutCacheValues");
+				BatchWriter.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+
 				BatchWriter.BeginObject(ANSITEXTVIEW("Params"));
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
@@ -601,6 +607,8 @@ public:
 			BatchRequest.BeginObject();
 			{
 				BatchRequest << ANSITEXTVIEW("Method") << ANSITEXTVIEW("GetCacheValues");
+				BatchRequest.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+
 				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
@@ -748,7 +756,8 @@ public:
 			BatchRequest.BeginObject();
 			{
 				BatchRequest << ANSITEXTVIEW("Method") << "GetCacheChunks";
-				BatchRequest.AddInteger(ANSITEXTVIEW("MethodVersion"), 1);
+				BatchRequest.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+
 				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 				{
 					ECachePolicy DefaultPolicy = Batch[0].Policy;
