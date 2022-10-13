@@ -1058,6 +1058,16 @@ FString UCustomizableObject::GetStateParameterName(int32 StateIndex, int32 Param
 }
 
 
+#if WITH_EDITORONLY_DATA
+void UCustomizableObject::PostCompile()
+{
+	CompilationGuid = FGuid::NewGuid();
+
+	PostCompileDelegate.Broadcast();
+}
+#endif
+
+
 UCustomizableObjectInstance* UCustomizableObject::CreateInstance()
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableObject::CreateInstance)
@@ -1467,6 +1477,13 @@ void UCustomizableObject::PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContex
 	// get treated as expected.
 	bIsValidationTriggeredBySave = true;
 }
+
+
+FGuid UCustomizableObject::GetCompilationGuid() const
+{
+	return CompilationGuid;
+}
+
 
 EDataValidationResult UCustomizableObject::IsDataValid(FDataValidationContext& Context)
 {

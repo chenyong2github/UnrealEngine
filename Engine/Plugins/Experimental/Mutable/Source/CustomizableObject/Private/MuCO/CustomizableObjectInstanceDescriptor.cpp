@@ -2095,6 +2095,7 @@ uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key)
 	if (Key.CustomizableObject) 
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Key.CustomizableObject->GetPathName()));
+		Hash = HashCombine(Hash, GetTypeHash(Key.CustomizableObject->GetCompilationGuid()));
 	}
 
 	for (const FCustomizableObjectBoolParameterValue& Value : Key.BoolParameters)

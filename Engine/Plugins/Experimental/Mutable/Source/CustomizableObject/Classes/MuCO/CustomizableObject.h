@@ -1303,6 +1303,8 @@ public:
 	bool bIsChildObject = false;
 
 	FPostCompileDelegate PostCompileDelegate;
+
+	void PostCompile();
 #endif
 
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
@@ -1349,8 +1351,6 @@ private:
 
 #endif
 
-private:
-
 	/** Used to prevent GC of MaskOutCache and keep it in memory while it's needed */
 	UPROPERTY(Transient)
 	TObjectPtr<UMutableMaskOutCache> MaskOutCache_HardRef;
@@ -1359,11 +1359,18 @@ private:
 	UPROPERTY()
 	FGuid Identifier;
 
+	/** Unique identifier. Regenerated each time the object is compiled. */
+	UPROPERTY()
+	FGuid CompilationGuid;
+
+public:
+	FGuid GetCompilationGuid() const;
+
+private:
 	/** BulkData that stores all in-game resources used by Mutable when generating instances.
 	  * Only valid in packaged builds */
 	UPROPERTY()
 	TObjectPtr<UCustomizableObjectBulk> BulkData;
 
 	TSharedPtr<FCustomizableObjectPrivateData> PrivateData;
-
 };

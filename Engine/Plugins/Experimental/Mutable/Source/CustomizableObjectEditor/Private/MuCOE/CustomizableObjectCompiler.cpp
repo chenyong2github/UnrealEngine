@@ -138,7 +138,8 @@ bool FCustomizableObjectCompiler::Tick()
 		bUpdated = true;
 
 		FinishSavingDerivedData();
-		CurrentObject->PostCompileDelegate.Broadcast();
+	
+		CurrentObject->PostCompile();
 
 		UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] Finished Saving Derived Data task."), FPlatformTime::Seconds());
 		UE_LOG(LogMutable, Verbose, TEXT("PROFILE: -----------------------------------------------------------"));
