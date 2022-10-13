@@ -25,6 +25,7 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Tracks/MovieScenePrimitiveMaterialTrack.h"
 
+#include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "TrackRowModel"
@@ -224,6 +225,41 @@ TSharedRef<SWidget> FTrackRowModel::CreateOutlinerView(const FCreateOutlinerView
 			TWeakViewModelPtr<IOutlinerExtension>(SharedThis(this)), 
 			InParams.Editor->CastThisSharedChecked<FSequencerEditorViewModel>(), 
 			InParams.TreeViewRow);
+}
+
+bool FTrackRowModel::CanRename() const
+{
+	UMovieSceneNameableTrack* NameableTrack = Cast<UMovieSceneNameableTrack>(GetTrack());
+	return NameableTrack && NameableTrack->CanRename();
+}
+
+void FTrackRowModel::Rename(const FText& NewName)
+{
+	UMovieSceneNameableTrack* NameableTrack = ::Cast<UMovieSceneNameableTrack>(GetTrack());
+
+	if (NameableTrack && !NameableTrack->GetTrackRowDisplayName(GetRowIndex()).EqualTo(NewName))
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("SequencerTrackRowNode", "RenameTrackRow", "Rename Track Row"));
+		NameableTrack->SetTrackRowDisplayName(NewName, GetRowIndex());
+
+		SetIdentifier(FName(*NewName.ToString()));
+
+		// HACK: this should not exist but is required to make renaming emitters work in niagara
+		if (TSharedPtr<FSequenceModel> OwnerModel = FindAncestorOfType<FSequenceModel>())
+		{
+			OwnerModel->GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+		}
+	}
+}
+
+bool FTrackRowModel::IsRenameValidImpl(const FText& NewName, FText& OutErrorMessage) const
+{
+	UMovieSceneNameableTrack* NameableTrack = ::Cast<UMovieSceneNameableTrack>(GetTrack());
+	if (NameableTrack)
+	{
+		return NameableTrack->ValidateDisplayName(NewName, OutErrorMessage);
+	}
+	return false;
 }
 
 bool FTrackRowModel::IsResizable() const

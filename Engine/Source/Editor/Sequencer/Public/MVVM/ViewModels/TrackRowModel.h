@@ -6,6 +6,7 @@
 #include "MVVM/ViewModels/OutlinerItemModel.h"
 #include "MVVM/Extensions/ITrackExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/Extensions/IRenameableExtension.h"
 #include "MVVM/Extensions/IResizableExtension.h"
 #include "MVVM/Extensions/IDeletableExtension.h"
 
@@ -27,12 +28,13 @@ class FTrackRowModel
 	: public FOutlinerItemModel
 	, public ITrackAreaExtension
 	, public ITrackExtension
+	, public IRenameableExtension
 	, public IResizableExtension
 	, public IDeletableExtension
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FTrackRowModel, FOutlinerItemModel, ITrackAreaExtension, ITrackExtension, IDeletableExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FTrackRowModel, FOutlinerItemModel, ITrackAreaExtension, ITrackExtension, IDeletableExtension, IRenameableExtension);
 
 	explicit FTrackRowModel(UMovieSceneTrack* InTrack, int32 InRowIndex);
 	~FTrackRowModel();
@@ -52,6 +54,11 @@ public:
 	FSlateColor GetLabelColor() const override;
 	FSlateFontInfo GetLabelFont() const override;
 	const FSlateBrush* GetIconBrush() const override;
+
+	/*~ IRenameableExtension */
+	bool CanRename() const override;
+	void Rename(const FText& NewName) override;
+	bool IsRenameValidImpl(const FText& NewName, FText& OutErrorMessage) const override;
 
 	/*~ IResizableExtension */
 	bool IsResizable() const override;
