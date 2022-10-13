@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Grpc.Core;
-using Horde.Agent.Execution.Interfaces;
+using Horde.Agent.Execution;
 using Horde.Agent.Parser;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
@@ -30,14 +30,14 @@ namespace Horde.Agent.Leases.Handlers
 		/// </summary>
 		internal TimeSpan _stepAbortPollInterval = TimeSpan.FromSeconds(5);
 
-		readonly IExecutorFactory _executorFactory;
+		readonly JobExecutorFactory _executorFactory;
 		readonly AgentSettings _settings;
 		readonly ILogger _defaultLogger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobHandler(IExecutorFactory executorFactory, IOptions<AgentSettings> settings, ILogger<JobHandler> defaultLogger)
+		public JobHandler(JobExecutorFactory executorFactory, IOptions<AgentSettings> settings, ILogger<JobHandler> defaultLogger)
 		{
 			_executorFactory = executorFactory;
 			_settings = settings.Value;
@@ -99,7 +99,7 @@ namespace Horde.Agent.Leases.Handlers
 			await session.TerminateProcessesAsync(batchLogger, cancellationToken);
 
 			// Create an executor for this job
-			IExecutor executor = _executorFactory.CreateExecutor(session, executeTask, batch);
+			JobExecutor executor = _executorFactory.CreateExecutor(session, executeTask, batch);
 
 			// Try to initialize the executor
 			batchLogger.LogInformation("Initializing...");
@@ -255,7 +255,7 @@ namespace Horde.Agent.Leases.Handlers
 		/// <param name="cancellationToken">Cancellation token to abort the batch</param>
 		/// <param name="stepCancellationToken">Cancellation token to abort only this individual step</param>
 		/// <returns>Async task</returns>
-		internal static async Task<(JobStepOutcome, JobStepState)> ExecuteStepAsync(IExecutor executor, BeginStepResponse step, ILogger stepLogger, CancellationToken cancellationToken, CancellationToken stepCancellationToken)
+		internal static async Task<(JobStepOutcome, JobStepState)> ExecuteStepAsync(JobExecutor executor, BeginStepResponse step, ILogger stepLogger, CancellationToken cancellationToken, CancellationToken stepCancellationToken)
 		{
 			using CancellationTokenSource combined = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stepCancellationToken);
 			try
