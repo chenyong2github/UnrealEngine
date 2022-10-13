@@ -332,6 +332,27 @@ public:
 	}
 
 	/**
+	 * Returns the index of an element given its key within its default parent (or root)
+	 * @param InKey The key of the element to retrieve the index for
+	 * @return The index of the element or INDEX_NONE
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Index", ScriptName = "GetIndex"))
+	FORCEINLINE int32 GetLocalIndex_ForBlueprint(FRigElementKey InKey) const
+	{
+		return GetLocalIndex(InKey);
+	}
+
+	/**
+	 * Returns the index of an element given its key within its default parent (or root)
+	 * @param InKey The key of the element to retrieve the index for
+	 * @return The index of the element or INDEX_NONE
+	 */
+	FORCEINLINE int32 GetLocalIndex(const FRigElementKey& InKey) const
+	{
+		return GetLocalIndex(Find(InKey));
+	}
+
+	/**
 	 * Returns the indices of an array of keys
 	 * @param InKeys The keys of the elements to retrieve the indices for
 	 * @return The indices of the elements or INDEX_NONE
@@ -837,6 +858,29 @@ public:
     FORCEINLINE TArray<FRigElementKey> GetReferenceKeys(bool bTraverse = true) const
 	{
 		return GetKeysOfType<FRigReferenceElement>(bTraverse);
+	}
+
+	/**
+	 * Returns all root elements
+	 */
+	FORCEINLINE TArray<FRigBaseElement*> GetRootElements() const
+	{
+		return GetFilteredElements<FRigBaseElement>([this](FRigBaseElement* Element) -> bool
+		{
+			return GetNumberOfParents(Element) == 0;
+		});
+	}
+
+	/**
+	 * Returns all root element keys
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Controls", ScriptName = "GetControls"))
+	FORCEINLINE TArray<FRigElementKey> GetRootElementKeys() const
+	{
+		return GetKeysByPredicate([this](const FRigBaseElement& Element) -> bool
+		{
+			return GetNumberOfParents(Element.Index) == 0;
+		}, false);
 	}
 
 	/**
@@ -3372,6 +3416,13 @@ public:
 	 * @return True if the child is parented to the parent
 	 */
 	bool IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement* InDependency, TArray<bool>& InElementsVisited, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
+
+	/**
+	 * Returns the index of an element given its key within its default parent (or root)
+	 * @param InElement The element to retrieve the index for
+	 * @return The index of the element or INDEX_NONE
+	 */
+	int32 GetLocalIndex(const FRigBaseElement* InElement) const;
 
 	/**
 	 * Returns a reference to the suspend notifications flag

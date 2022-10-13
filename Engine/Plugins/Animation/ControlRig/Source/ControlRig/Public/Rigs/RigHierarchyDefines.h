@@ -88,6 +88,7 @@ enum class ERigHierarchyNotification : uint8
 	ParentWeightsChanged,
 	InteractionBracketOpened,
 	InteractionBracketClosed,
+	ElementReordered,
 
 	/** MAX - invalid */
 	Max UMETA(Hidden),

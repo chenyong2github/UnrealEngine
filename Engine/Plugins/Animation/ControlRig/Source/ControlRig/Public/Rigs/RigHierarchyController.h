@@ -405,6 +405,17 @@ public:
     FRigElementKey RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo = false, bool bPrintPythonCommand = false, bool bClearSelection = true);
 
 	/**
+	 * Changes the element's index within its default parent (or the top level)
+	 * @param InElement The key of the element to rename
+	 * @param InIndex The new index of the element to take within its default parent (or the top level)
+	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
+	 * @return Returns true if the element has been reordered accordingly
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
+	bool ReorderElement(FRigElementKey InElement, int32 InIndex, bool bSetupUndo = false, bool bPrintPythonCommand = false);
+
+	/**
  	 * Sets the display name on a control
  	 * @param InControl The key of the control to change the display name for
  	 * @param InDisplayName The new display name to set for the control
@@ -610,6 +621,14 @@ private:
 	 * @return Returns true if successful.
 	 */
     bool RenameElement(FRigBaseElement* InElement, const FName &InName, bool bClearSelection = true);
+
+	/**
+	 * Changes the element's index within its default parent (or the top level)
+	 * @param InElement The key of the element to rename
+	 * @param InIndex The new index of the element to take within its default parent (or the top level)
+	 * @return Returns true if the element has been reordered accordingly
+	 */
+	bool ReorderElement(FRigBaseElement* InElement, int32 InIndex);
 
 	/**
  	 * Sets the display name on a control

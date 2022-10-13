@@ -1873,8 +1873,57 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 	return bRenamed ? Element->GetKey() : FRigElementKey();
 }
 
-FName URigHierarchyController::SetDisplayName(FRigElementKey InControl, FName InDisplayName, bool bRenameElement, bool bSetupUndo,
+bool URigHierarchyController::ReorderElement(FRigElementKey InElement, int32 InIndex, bool bSetupUndo,
 	bool bPrintPythonCommand)
+{
+	if(!IsValid())
+	{
+		return false;
+	}
+
+	FRigBaseElement* Element = Hierarchy->Find(InElement);
+	if(Element == nullptr)
+	{
+		ReportWarningf(TEXT("Cannot Reorder Element: '%s' not found."), *InElement.ToString());
+		return false;
+	}
+
+#if WITH_EDITOR
+	TSharedPtr<FScopedTransaction> TransactionPtr;
+	if(bSetupUndo)
+	{
+		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Reorder Element", "Reorder Element"));
+		Hierarchy->Modify();
+	}
+#endif
+
+	const bool bReordered = ReorderElement(Element, InIndex);
+
+#if WITH_EDITOR
+	if(!bReordered && TransactionPtr.IsValid())
+	{
+		TransactionPtr->Cancel();
+	}
+	TransactionPtr.Reset();
+
+	if (bReordered && bPrintPythonCommand && !bSuspendPythonPrinting)
+	{
+		UBlueprint* Blueprint = GetTypedOuter<UBlueprint>();
+		if (Blueprint)
+		{
+			RigVMPythonUtils::Print(Blueprint->GetFName().ToString(), 
+				FString::Printf(TEXT("hierarchy_controller.reorder_element(%s, %d)"),
+				*InElement.ToPythonString(),
+				InIndex));
+		}
+	}
+#endif
+
+	return bReordered;
+}
+
+FName URigHierarchyController::SetDisplayName(FRigElementKey InControl, FName InDisplayName, bool bRenameElement, bool bSetupUndo,
+                                              bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -2003,6 +2052,68 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	{
 		SelectElement(InElement->GetKey(), true);
 	}
+
+	return true;
+}
+
+bool URigHierarchyController::ReorderElement(FRigBaseElement* InElement, int32 InIndex)
+{
+	if(InElement == nullptr)
+	{
+		return false;
+	}
+
+	InIndex = FMath::Max<int32>(InIndex, 0);
+
+	TArray<FRigBaseElement*> LocalElements;
+	const FRigBaseElement* ParentElement = Hierarchy->GetFirstParent(InElement);
+	if(ParentElement)
+	{
+		const FRigBaseElementChildrenArray& Children = Hierarchy->GetChildren(ParentElement);
+		LocalElements.Append(Children);
+	}
+	else
+	{
+		const TArray<FRigBaseElement*> RootElements = Hierarchy->GetRootElements();
+		LocalElements.Append(RootElements);
+	}
+
+	const int32 CurrentIndex = LocalElements.Find(InElement);
+	if(CurrentIndex == INDEX_NONE || CurrentIndex == InIndex || !LocalElements.IsValidIndex(InIndex))
+	{
+		return false;
+	}
+
+	Hierarchy->IncrementTopologyVersion();
+
+	TArray<int32> GlobalIndices;
+	GlobalIndices.Reserve(LocalElements.Num());
+	for(const FRigBaseElement* Element : LocalElements)
+	{
+		GlobalIndices.Add(Element->GetIndex());
+	}
+
+	LocalElements.RemoveAt(CurrentIndex);
+	LocalElements.Insert(InElement, InIndex);
+
+	const int32 LowerBound = FMath::Min<int32>(InIndex, CurrentIndex);
+	const int32 UpperBound = FMath::Max<int32>(InIndex, CurrentIndex);
+	for(int32 LocalIndex = LowerBound; LocalIndex <= UpperBound; LocalIndex++)
+	{
+		const int32 GlobalIndex = GlobalIndices[LocalIndex];
+		FRigBaseElement* Element = LocalElements[LocalIndex];
+		Hierarchy->Elements[GlobalIndex] = Element;
+		Element->Index = GlobalIndex;
+		Hierarchy->IndexLookup.FindOrAdd(Element->Key) = GlobalIndex;
+		Element->TopologyVersion = Hierarchy->GetTopologyVersion();
+	}
+
+	if(ParentElement)
+	{
+		Hierarchy->UpdateCachedChildren(ParentElement, true);
+	}
+
+	Notify(ERigHierarchyNotification::ElementReordered, InElement);
 
 	return true;
 }
