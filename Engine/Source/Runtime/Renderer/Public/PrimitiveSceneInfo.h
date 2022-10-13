@@ -722,7 +722,7 @@ struct FPrimitiveOctreeSemantics
 	enum { MinInclusiveElementsPerNode = 7 };
 	enum { MaxNodeDepth = 12 };
 
-	typedef TInlineAllocator<MaxElementsPerLeaf> ElementAllocator;
+	typedef FDefaultAllocator ElementAllocator;
 
 	FORCEINLINE static const FCompactBoxSphereBounds& GetBoundingBox(const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
 	{
