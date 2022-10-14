@@ -565,6 +565,12 @@ public:
 	 */
 	void SetTimeController(TSharedPtr<FMovieSceneTimeController> InTimeController);
 
+	/**
+	 * Sets whether to listen or ignore playback replication events.
+	 * @param bState If true, ignores playback replication.
+	 */
+	void SetIgnorePlaybackReplication(bool bState);
+
 protected:
 
 	void PlayInternal();
@@ -779,6 +785,9 @@ protected:
 
 	/** (Optional) Synchronous runner to use when no tick manager is in use */
 	TSharedPtr<FMovieSceneEntitySystemRunner> SynchronousRunner;
+
+	/** When true, ignore playback replication events. */
+	bool bIgnorePlaybackReplication = false;
 
 private:
 
