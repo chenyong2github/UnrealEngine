@@ -1219,6 +1219,11 @@ namespace Horde.Build.Issues
 			{
 				string summary = GetSummary(span.Fingerprint, span.FirstFailure.Severity);
 				issue = await _issueCollection.AddIssueAsync(summary);
+				_logger.LogInformation("Created issue {IssueId}", issue.Id);
+			}
+			else
+			{
+				_logger.LogInformation("Natched to issue {IssueId}", issue.Id);
 			}
 			return issue;
 		}
