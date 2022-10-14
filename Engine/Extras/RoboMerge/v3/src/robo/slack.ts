@@ -148,7 +148,7 @@ export class Slack {
 
 		const result = JSON.parse(rawResult)
 		if (!result.ok) {
-			throw new Error(rawResult)
+			throw new Error(`url: '${url}' error: '${rawResult}'`)
 		}
 		return result
 	}
