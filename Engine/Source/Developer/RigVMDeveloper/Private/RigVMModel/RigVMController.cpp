@@ -107,6 +107,18 @@ URigVMController::~URigVMController()
 {
 }
 
+#if WITH_EDITORONLY_DATA
+void URigVMController::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMActionStack::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMInjectionInfo::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMPin::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMVariableNode::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMLink::StaticClass()));
+}
+#endif
+
 URigVMGraph* URigVMController::GetGraph() const
 {
 	if (Graphs.Num() == 0)

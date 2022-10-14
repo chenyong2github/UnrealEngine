@@ -2440,6 +2440,16 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 	CloseBracket();
 }
 
+#if WITH_EDITORONLY_DATA
+void UAnimSequencerController::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UMovieScene::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UMovieSceneControlRigParameterTrack::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UFKControlRig::StaticClass()));
+}
+#endif
+
 void UAnimSequencerController::InitializeModel()
 {
 	if (Model->GetAnimationSequence())

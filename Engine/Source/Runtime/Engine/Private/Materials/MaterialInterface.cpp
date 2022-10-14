@@ -207,6 +207,14 @@ void UMaterialInterface::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITORONLY_DATA
+void UMaterialInterface::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UMaterialInterfaceEditorOnlyData::StaticClass()));
+}
+#endif
+
 const FMaterialCachedExpressionData& UMaterialInterface::GetCachedExpressionData(TMicRecursionGuard) const
 {
 	const FMaterialCachedExpressionData* LocalData = CachedExpressionData.Get();

@@ -78,6 +78,14 @@ void UNiagaraEffectType::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraEffectType::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraSignificanceHandlerDistance::StaticClass()));
+}
+#endif
+
 const FNiagaraSystemScalabilitySettings& UNiagaraEffectType::GetActiveSystemScalabilitySettings()const
 {
 	for (const FNiagaraSystemScalabilitySettings& Settings : SystemScalabilitySettings.Settings)

@@ -565,6 +565,19 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+#if WITH_EDITORONLY_DATA
+void AWorldSettings::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNavigationSystemConfig::StaticClass()));	
+	TSubclassOf<UNavigationSystemConfig> NavSystemConfigClass = UNavigationSystemConfig::GetDefaultConfigClass();
+	if (*NavSystemConfigClass)
+	{
+		OutConstructClasses.Add(FTopLevelAssetPath(NavSystemConfigClass));
+	}
+}
+#endif
+
 bool AWorldSettings::IsNavigationSystemEnabled() const
 {
 	return NavigationSystemConfig && NavigationSystemConfig->NavigationSystemClass.IsValid();

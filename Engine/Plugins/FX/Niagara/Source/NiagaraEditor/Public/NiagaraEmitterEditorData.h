@@ -26,6 +26,9 @@ public:
 	UNiagaraEmitterEditorData(const FObjectInitializer& ObjectInitializer);
 
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	NIAGARAEDITOR_API static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 
 	NIAGARAEDITOR_API UNiagaraStackEditorData& GetStackEditorData() const;
 

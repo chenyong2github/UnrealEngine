@@ -1047,6 +1047,14 @@ void UControlRigBlueprint::PostLoad()
 	FRigVMRegistry::Get().OnRigVMRegistryChanged().AddUObject(this, &UControlRigBlueprint::OnRigVMRegistryChanged);
 }
 
+#if WITH_EDITORONLY_DATA
+void UControlRigBlueprint::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMController::StaticClass()));
+}
+#endif
+
 #if WITH_EDITOR
 void UControlRigBlueprint::HandlePackageDone(const FEndLoadPackageContext& Context)
 {

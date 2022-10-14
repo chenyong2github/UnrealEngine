@@ -425,6 +425,14 @@ void UOpenColorIOConfiguration::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UOpenColorIOConfiguration::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UOpenColorIOColorTransform::StaticClass()));
+}
+#endif
+
 namespace OpenColorIOConfiguration
 {
 	static void SendAnalytics(const FString& EventName, const TArray<FOpenColorIOColorSpace>& DesiredColorSpaces)

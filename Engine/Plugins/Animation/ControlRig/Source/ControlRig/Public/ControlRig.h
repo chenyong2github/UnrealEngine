@@ -494,6 +494,9 @@ public:
 	void PostInitInstanceIfRequired();
 	void SwapVMToNativizedIfRequired(UClass* InNativizedClass = nullptr);
 	static bool AreNativizedVMsDisabled() ;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 
 protected:
 

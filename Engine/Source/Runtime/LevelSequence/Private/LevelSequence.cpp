@@ -333,6 +333,14 @@ void ULevelSequence::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void ULevelSequence::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UObjectRedirector::StaticClass()));
+}
+#endif
+
 void ULevelSequence::PostInitProperties()
 {
 	Super::PostInitProperties();

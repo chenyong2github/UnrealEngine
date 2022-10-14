@@ -832,6 +832,15 @@ void UOpenColorIOColorTransform::PostLoad()
 
 }
 
+#if WITH_EDITORONLY_DATA
+void UOpenColorIOColorTransform::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UTexture2D::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UVolumeTexture::StaticClass()));
+}
+#endif
+
 void UOpenColorIOColorTransform::BeginDestroy()
 {
 	Super::BeginDestroy();

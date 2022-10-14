@@ -209,6 +209,16 @@ void UPhysicsAsset::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UPhysicsAsset::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+
+	OutConstructClasses.Add(FTopLevelAssetPath(USkeletalBodySetup::StaticClass()));
+}
+#endif
+
+
 void UPhysicsAsset::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);

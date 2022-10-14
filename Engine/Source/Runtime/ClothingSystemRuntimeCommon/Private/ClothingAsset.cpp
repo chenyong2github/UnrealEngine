@@ -1308,6 +1308,29 @@ void UClothingAssetCommon::PostLoad()
 #endif  // #if WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITORONLY_DATA
+void UClothingAssetCommon::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	const TArray<IClothingSimulationFactoryClassProvider*> ClassProviders =
+		IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
+	for (IClothingSimulationFactoryClassProvider* Provider : ClassProviders)
+	{
+		check(Provider);
+		if (UClass* const ClothingSimulationFactoryClass = *TSubclassOf<class UClothingSimulationFactory>(Provider->GetClothingSimulationFactoryClass()))
+		{
+			const UClothingSimulationFactory* const ClothingSimulationFactory = ClothingSimulationFactoryClass->GetDefaultObject<UClothingSimulationFactory>();
+			for (TSubclassOf<UClothConfigBase> ClothConfigClass : ClothingSimulationFactory->GetClothConfigClasses())
+			{
+				OutConstructClasses.Add(FTopLevelAssetPath(ClothConfigClass));
+			}
+		}
+	}
+	// OutConstructClasses.Add(FTopLevelAssetPath(UChaosClothSharedSimConfig::StaticClass()));
+	//OutConstructClasses.Add(FTopLevelAssetPath(UChaosClothConfig::StaticClass()));
+}
+#endif
+
 void UClothingAssetCommon::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

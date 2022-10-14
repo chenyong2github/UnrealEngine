@@ -769,6 +769,9 @@ public:
 #endif
 	virtual ENGINE_API void Serialize(FArchive& Ar) override;
 	virtual ENGINE_API void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	ENGINE_API static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 	virtual ENGINE_API void BeginDestroy() override;
 	virtual ENGINE_API bool IsReadyForFinishDestroy() override;
 	virtual ENGINE_API void FinishDestroy() override;

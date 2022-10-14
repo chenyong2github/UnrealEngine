@@ -13344,6 +13344,14 @@ void UMaterialFunctionInterface::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UMaterialFunctionInterface::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UMaterialFunctionInterfaceEditorOnlyData::StaticClass()));
+}
+#endif
+
 void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	Super::GetAssetRegistryTags(OutTags);
@@ -13928,6 +13936,15 @@ void UMaterialFunction::PostLoad()
 	}
 #endif // #if WITH_EDITOR
 }
+
+#if WITH_EDITORONLY_DATA
+void UMaterialFunction::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UMaterialFunctionEditorOnlyData::StaticClass()));
+}
+#endif
+
 
 #if WITH_EDITORONLY_DATA
 TConstArrayView<TObjectPtr<UMaterialExpression>> UMaterialFunction::GetExpressions() const

@@ -496,6 +496,14 @@ void UNiagaraGraph::PostLoad()
 	InvalidateCachedParameterData();
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraGraph::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScriptVariable::StaticClass()));
+}
+#endif
+
 void UNiagaraGraph::ChangeParameterType(const TArray<FNiagaraVariable>& ParametersToChange, const FNiagaraTypeDefinition& NewType, bool bAllowOrphanedPins)
 {
 	check(!bIsForCompilationOnly);

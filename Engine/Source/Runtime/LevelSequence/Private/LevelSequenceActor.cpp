@@ -246,6 +246,14 @@ void ALevelSequenceActor::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void ALevelSequenceActor::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UDefaultLevelSequenceInstanceData::StaticClass()));
+}
+#endif
+
 ULevelSequence* ALevelSequenceActor::GetSequence() const
 {
 	return LevelSequenceAsset;

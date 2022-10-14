@@ -14,6 +14,7 @@
 #include "NiagaraModule.h"
 #include "NiagaraPrecompileContainer.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraScratchPadContainer.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
 #include "NiagaraShared.h"
@@ -940,6 +941,16 @@ void UNiagaraSystem::PostLoad()
 
 	PrecachePSOs();
 }
+
+#if WITH_EDITORONLY_DATA
+void UNiagaraSystem::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScratchPadContainer::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/NiagaraEditor.NiagaraSystemEditorData")));
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/NiagaraEditor.NiagaraEditorParametersAdapter")));
+}
+#endif
 
 void UNiagaraSystem::PrecachePSOs()
 {

@@ -56,6 +56,9 @@ public:
 	virtual void UnbindObjects(const FGuid& ObjectId, const TArray<UObject*>& InObjects, UObject* Context) override {}
 	virtual void UnbindInvalidObjects(const FGuid& ObjectId, UObject* Context) override {}
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 	/** End UMovieSceneSequence overrides */
 	
 	/** Begin IAnimationDataModel overrides*/

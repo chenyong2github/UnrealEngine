@@ -651,6 +651,15 @@ void UNiagaraEmitter::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraEmitter::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScratchPadContainer::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/NiagaraEditor.NiagaraEditorParametersAdapter")));
+}
+#endif
+
 void FVersionedNiagaraEmitterData::PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked, int32 NiagaraVer)
 {
 #if STATS

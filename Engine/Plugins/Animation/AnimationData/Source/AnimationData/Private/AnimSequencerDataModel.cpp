@@ -180,6 +180,14 @@ void UAnimationSequencerDataModel::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UAnimationSequencerDataModel::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UControlRig::StaticClass()));
+}
+#endif
+
 void UAnimationSequencerDataModel::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);

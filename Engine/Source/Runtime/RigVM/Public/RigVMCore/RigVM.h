@@ -180,6 +180,10 @@ public:
 	virtual void Save(FArchive& Ar);
 	virtual void Load(FArchive& Ar);
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
+
 
 	// returns true if this is a nativized VM
 	virtual bool IsNativized() const { return false; }

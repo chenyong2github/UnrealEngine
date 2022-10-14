@@ -148,6 +148,9 @@ class UNiagaraGraph : public UEdGraph
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginDestroy() override;
 	//~ End UObjet Interface

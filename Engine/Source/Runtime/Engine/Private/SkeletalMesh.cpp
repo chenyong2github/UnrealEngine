@@ -3073,6 +3073,15 @@ void USkeletalMesh::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context)
 #endif // #if WITH_EDITOR
 }
 
+#if WITH_EDITORONLY_DATA
+void USkeletalMesh::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+
+	OutConstructClasses.Add(FTopLevelAssetPath(USkeletalMeshEditorData::StaticClass()));
+}
+#endif
+
 void USkeletalMesh::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);

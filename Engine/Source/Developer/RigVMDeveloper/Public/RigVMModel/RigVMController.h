@@ -155,6 +155,10 @@ public:
 	// Default destructor
 	~URigVMController();
 
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
+
 	// Returns the currently edited Graph of this controller.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMGraph* GetGraph() const;

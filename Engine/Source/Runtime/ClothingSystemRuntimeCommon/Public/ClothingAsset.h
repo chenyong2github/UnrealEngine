@@ -230,6 +230,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Migrate deprecated objects. */
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 
 	/** Serialize deprecated objects. */
 	virtual void Serialize(FArchive& Ar) override;

@@ -121,6 +121,15 @@ void UMovieSceneSection::Serialize(FArchive& Ar)
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UMovieSceneSection::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UMovieSceneBuiltInEasingFunction::StaticClass()));
+}
+#endif
+
+
 void UMovieSceneSection::PostDuplicate(bool bDuplicateForPIE)
 {
 	if (ChannelProxyType == EMovieSceneChannelProxyType::Dynamic)

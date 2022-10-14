@@ -290,6 +290,14 @@ void URigHierarchy::PostLoad()
 	CleanupInvalidCaches();
 }
 
+#if WITH_EDITORONLY_DATA
+void URigHierarchy::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(URigHierarchyController::StaticClass()));
+}
+#endif
+
 void URigHierarchy::Reset()
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));

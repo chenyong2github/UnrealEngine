@@ -107,6 +107,9 @@ public:
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif

@@ -3370,6 +3370,16 @@ bool UControlRig::AreNativizedVMsDisabled()
 	return (CVarControlRigDisableNativizedVMs->GetInt() != 0);
 }
 
+#if WITH_EDITORONLY_DATA
+void UControlRig::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVM::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(URigHierarchy::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UAnimationDataSourceRegistry::StaticClass()));
+}
+#endif
+
 void UControlRig::PostInitInstance(UControlRig* InCDO)
 {
 	const EObjectFlags SubObjectFlags =

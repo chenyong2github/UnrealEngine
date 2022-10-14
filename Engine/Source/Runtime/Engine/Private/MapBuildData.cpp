@@ -585,6 +585,13 @@ void UMapBuildDataRegistry::PostLoad()
 	SetupLightmapResourceClusters();
 }
 
+#if WITH_EDITORONLY_DATA
+void UMapBuildDataRegistry::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UTextureCube::StaticClass()));
+}
+#endif
 
 void UMapBuildDataRegistry::HandleLegacyEncodedCubemapData()
 {

@@ -259,6 +259,14 @@ void URigVM::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void URigVM::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(URigVMMemoryStorage::StaticClass()));
+}
+#endif
+
 uint32 URigVM::GetVMHash() const
 {
 	uint32 Hash = 0;

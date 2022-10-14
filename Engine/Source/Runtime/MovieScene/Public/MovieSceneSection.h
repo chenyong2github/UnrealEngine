@@ -684,6 +684,10 @@ public:
 
 	MOVIESCENE_API void BuildDefaultComponents(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutLedgerEntry);
 
+#if WITH_EDITORONLY_DATA
+	MOVIESCENE_API static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
+
 protected:
 
 	//~ UObject interface

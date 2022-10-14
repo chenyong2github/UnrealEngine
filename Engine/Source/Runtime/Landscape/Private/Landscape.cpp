@@ -1212,6 +1212,14 @@ void ULandscapeComponent::PostLoad()
 }
 
 #if WITH_EDITORONLY_DATA
+void ULandscapeComponent::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(ULandscapeMaterialInstanceConstant::StaticClass()));
+}
+#endif
+
+#if WITH_EDITORONLY_DATA
 TArray<ALandscapeProxy*> ALandscapeProxy::LandscapeProxies;
 #endif
 

@@ -18,6 +18,12 @@ public:
 	: BracketDepth(0) 
 	{}
 
+	/** Begin UObject Interface */
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
+	/** End UObject overrides */
+
 	/** Begin IAnimationDataController overrides */
 	virtual void SetModel(TScriptInterface<IAnimationDataModel> InModel) override;
     virtual TScriptInterface<IAnimationDataModel> GetModelInterface() const override { return ModelInterface; }

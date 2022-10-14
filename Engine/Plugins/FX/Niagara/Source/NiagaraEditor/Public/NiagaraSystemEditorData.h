@@ -58,6 +58,9 @@ public:
 	void PostInitProperties();
 
 	virtual void PostLoadFromOwner(UObject* InOwner) override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 
 	/** Gets the root folder for UI folders for emitters. */
 	UNiagaraSystemEditorFolder& GetRootFolder() const;

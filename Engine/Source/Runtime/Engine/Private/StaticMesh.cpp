@@ -5718,6 +5718,15 @@ void UStaticMesh::PostLoad()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UStaticMesh::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UStaticMeshDescriptionBulkData::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/NavigationSystem.NavCollision")));
+}
+#endif
+
 void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
 {
 #if WITH_EDITOR

@@ -138,6 +138,17 @@ void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraSystemEditorData::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UEdGraph::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraOverviewNode::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScriptVariable::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraHierarchyRoot::StaticClass()));
+}
+#endif
+
 UNiagaraSystemEditorFolder& UNiagaraSystemEditorData::GetRootFolder() const
 {
 	return *RootFolder;

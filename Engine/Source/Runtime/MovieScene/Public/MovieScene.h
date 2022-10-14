@@ -380,6 +380,10 @@ public:
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
+
 
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;

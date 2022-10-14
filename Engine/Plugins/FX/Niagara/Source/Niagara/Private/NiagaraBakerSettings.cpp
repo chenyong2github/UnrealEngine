@@ -218,6 +218,14 @@ void UNiagaraBakerSettings::PostLoad()
 }
 
 #if WITH_EDITORONLY_DATA
+void UNiagaraBakerSettings::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraBakerOutputTexture2D::StaticClass()));
+}
+#endif
+
+#if WITH_EDITORONLY_DATA
 void UNiagaraBakerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

@@ -358,6 +358,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 
 	void CopyFrom(const FVersionedNiagaraEmitterData& Source);
 	void PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked, int32 NiagaraVer);
+
 	void PostInitProperties(UNiagaraEmitter* Outer);
 	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
 	bool UsesScript(const UNiagaraScript* Script) const;
@@ -578,6 +579,9 @@ public:
 	virtual void Serialize(FArchive& Ar)override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
 	virtual bool IsEditorOnly() const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//End UObject Interface

@@ -422,6 +422,15 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void UMovieSceneControlRigParameterTrack::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UMovieSceneSection::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UMovieSceneControlRigParameterSection::StaticClass()));
+}
+#endif
+
 #if WITH_EDITOR
 void UMovieSceneControlRigParameterTrack::HandlePackageDone(const FEndLoadPackageContext& Context)
 {

@@ -104,6 +104,14 @@ void UMovieScene::PostLoad()
 	Super::PostLoad();
 }
 
+#if WITH_EDITORONLY_DATA
+void UMovieScene::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/MovieScene.MovieSceneNodeGroupCollection")));
+}
+#endif
+
 void UMovieScene::Serialize( FArchive& Ar )
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);

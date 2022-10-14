@@ -57,6 +57,29 @@ bool UAnimSequenceBase::IsPostLoadThreadSafe() const
 	return false;	// PostLoad is not thread safe because of the call to VerifyCurveNames() (calling USkeleton::VerifySmartName) that can mutate a shared map in the skeleton.
 }
 
+#if WITH_EDITORONLY_DATA
+void UAnimSequenceBase::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/Engine.AnimDataModel")));
+
+	// We need to declare all types that can be returned from UE::Anim::DataModel::IAnimationDataModels::FindClassForAnimationAsset(UAnimSequenceBase*);
+	OutConstructClasses.Add(FTopLevelAssetPath(TEXT("/Script/AnimationData.AnimationSequencerDataModel")));
+
+	// We can call Controller->CreateModel, which can add objects, so add every ControllerClass as something we can construct.
+	// THe caller will add on all recursively constructable classes
+	UClass* AnimationControllerClass = UAnimationDataController::StaticClass();
+	for (TObjectIterator<UClass> Iter; Iter; ++Iter)
+	{
+		if ((*Iter)->ImplementsInterface(AnimationControllerClass))
+		{
+			OutConstructClasses.Add(FTopLevelAssetPath(*Iter));
+		}
+	}
+}
+#endif
+
 void UAnimSequenceBase::PostLoad()
 {
 #if WITH_EDITORONLY_DATA

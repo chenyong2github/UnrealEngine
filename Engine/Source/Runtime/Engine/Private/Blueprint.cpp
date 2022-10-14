@@ -780,6 +780,15 @@ void UBlueprint::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void UBlueprint::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UObjectRedirector::StaticClass()));
+}
+#endif
+
+
 void UBlueprint::DebuggingWorldRegistrationHelper(UObject* ObjectProvidingWorld, UObject* ValueToRegister)
 {
 	if (ObjectProvidingWorld != NULL)

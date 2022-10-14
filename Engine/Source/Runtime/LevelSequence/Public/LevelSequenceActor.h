@@ -268,6 +268,12 @@ protected:
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags *RepFlags) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+public:
+#if WITH_EDITORONLY_DATA
+	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+#endif
+protected:
+
 	//~ End UObject interface
 
 	//~ Begin AActor interface

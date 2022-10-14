@@ -2725,6 +2725,20 @@ void UNiagaraComponent::PostLoad()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraComponent::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	TArray<UClass*> DataInterfaceClasses;
+	GetDerivedClasses(UNiagaraDataInterface::StaticClass(), DataInterfaceClasses);
+	for (UClass* DataInterfaceClass : DataInterfaceClasses)
+	{
+		OutConstructClasses.Add(FTopLevelAssetPath(DataInterfaceClass));
+	}
+}
+#endif
+
+
 static FNiagaraVariant GetParameterValueFromStore(const FNiagaraVariableBase& Var, const FNiagaraParameterStore& Store)
 {
 	if (Var.IsDataInterface())

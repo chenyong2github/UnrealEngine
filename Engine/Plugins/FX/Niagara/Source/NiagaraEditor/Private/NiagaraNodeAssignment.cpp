@@ -247,6 +247,21 @@ void UNiagaraNodeAssignment::PostLoad()
 	RefreshTitle();
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraNodeAssignment::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+{
+	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraGraph::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraNodeInput::StaticClass()));	
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraNodeOutput::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraNodeParameterMapGet::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraNodeParameterMapSet::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScript::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScriptSource::StaticClass()));
+	OutConstructClasses.Add(FTopLevelAssetPath(UNiagaraScriptVariable::StaticClass()));	
+}
+#endif
+
 void UNiagaraNodeAssignment::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
