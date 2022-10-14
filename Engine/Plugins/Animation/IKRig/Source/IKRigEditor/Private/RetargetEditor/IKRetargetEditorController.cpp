@@ -710,6 +710,12 @@ void FIKRetargetEditorController::EditBoneSelection(
 	{
 		RefreshHierarchyView();
 	}
+	else
+	{
+		// If selection was made from the hierarchy view, the viewport must be invalidated for the
+		// new widget hit proxies to be activated. Otherwise user has to click in the viewport first to gain focus.
+		Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->InvalidateViews();
+	}
 
 	// update details
 	if (SelectedBoneNames[CurrentlyEditingSourceOrTarget].IsEmpty())
