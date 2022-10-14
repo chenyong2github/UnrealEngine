@@ -7,6 +7,7 @@
 #include "UObject/Class.h"
 #include "Engine/NetSerialization.h"
 #include "Engine/EngineTypes.h"
+#include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayPrediction.h"
