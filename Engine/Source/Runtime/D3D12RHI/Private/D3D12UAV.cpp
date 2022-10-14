@@ -277,18 +277,27 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				FD3D12ViewDescriptorHandle UAVHandle(ParentDevice, ERHIDescriptorHeapType::Standard);
 				UAVHandle.CreateView(R32UAVDesc, Resource, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
 
-				// Check if the view heap is full and needs to rollover.
-				if (!Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->CanReserveSlots(1))
+				const D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle = UAVHandle.GetOfflineCpuHandle();
+
+				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle;
+				if (!Context.StateCache.GetDescriptorCache()->IsViewHeapOverridden())
 				{
-					Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->RollOver();
+					// Check if the view heap is full and needs to rollover.
+					if (!Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->CanReserveSlots(1))
+					{
+						Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->RollOver();
+					}
+
+					uint32 ReservedSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->ReserveSlots(1);
+					D3D12_CPU_DESCRIPTOR_HANDLE DestSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetCPUSlotHandle(ReservedSlot);
+					GPUHandle = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetGPUSlotHandle(ReservedSlot);
+
+					Device->CopyDescriptorsSimple(1, DestSlot, CPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				}
-
-				uint32 ReservedSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->ReserveSlots(1);
-				D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle = UAVHandle.GetOfflineCpuHandle();
-				D3D12_CPU_DESCRIPTOR_HANDLE DestSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetCPUSlotHandle(ReservedSlot);
-				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetGPUSlotHandle(ReservedSlot);
-
-				Device->CopyDescriptorsSimple(1, DestSlot, CPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+				else
+				{
+					GPUHandle = ParentDevice->GetBindlessDescriptorManager().GetGpuHandle(UAVHandle.GetBindlessHandle());
+				}
 
 				Context.TransitionResource(UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 

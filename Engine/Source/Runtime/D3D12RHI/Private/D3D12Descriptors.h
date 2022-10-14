@@ -70,7 +70,8 @@ public:
 
 	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 
-	inline FD3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
+	inline       FD3D12DescriptorHeap* GetHeap()       { return Heap.GetReference(); }
+	inline const FD3D12DescriptorHeap* GetHeap() const { return Heap.GetReference(); }
 
 	inline bool HandlesAllocationWithFlags(ERHIDescriptorHeapType InHeapType, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags) const
 	{
@@ -103,6 +104,8 @@ public:
 	void UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 
 	FD3D12DescriptorHeap* GetHeapForType(ERHIDescriptorHeapType InType);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(FRHIDescriptorHandle InHandle) const;
 
 private:
 	TArray<FD3D12DescriptorManager> Managers;
