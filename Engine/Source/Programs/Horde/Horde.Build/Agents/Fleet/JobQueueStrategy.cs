@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Horde.Build.Agents.Pools;
@@ -38,6 +39,19 @@ namespace Horde.Build.Agents.Fleet
 		public double ScaleInFactor { get; set; } = 0.9;
 
 		/// <summary>
+		/// How far back in time to look for job batches (that potentially are in the queue)
+		/// </summary>
+		public int SamplePeriodMin { get; set; } = 60 * 24 * 5; // 5 days
+
+		/// <summary>
+		/// Time spent in ready state before considered truly waiting for an agent
+		///
+		/// A job batch can be in ready state before getting picked up and executed.
+		/// This threshold will help ensure only batches that have been waiting longer than this value will be considered.
+		/// </summary>
+		public int ReadyTimeThresholdSec { get; set; } = 45;
+
+		/// <summary>
 		/// Constructor used for JSON serialization
 		/// </summary>
 		[JsonConstructor]
@@ -54,6 +68,17 @@ namespace Horde.Build.Agents.Fleet
 		{
 			ScaleOutFactor = scaleOutFactor.GetValueOrDefault(ScaleOutFactor);
 			ScaleInFactor = scaleInFactor.GetValueOrDefault(ScaleInFactor);
+		}
+		
+		/// <inheritdoc />
+		public override string ToString()
+		{
+			StringBuilder sb = new (50);
+			sb.AppendFormat("{0}={1} ", nameof(ScaleOutFactor), ScaleOutFactor);
+			sb.AppendFormat("{0}={1} ", nameof(ScaleInFactor), ScaleInFactor);
+			sb.AppendFormat("{0}={1} ", nameof(SamplePeriodMin), SamplePeriodMin);
+			sb.AppendFormat("{0}={1} ", nameof(ReadyTimeThresholdSec), ReadyTimeThresholdSec);
+			return sb.ToString();
 		}
 	}
 	
@@ -75,21 +100,6 @@ namespace Horde.Build.Agents.Fleet
 		private readonly IMemoryCache _cache;
 		
 		/// <summary>
-		/// How far back in time to look for job batches (that potentially are in the queue)
-		/// </summary>
-		private readonly TimeSpan _samplePeriod = TimeSpan.FromDays(5);
-		
-		/// <summary>
-		/// Time spent in ready state before considered truly waiting for an agent
-		///
-		/// A job batch can be in ready state before getting picked up and executed.
-		/// This threshold will help ensure only batches that have been waiting longer than this value will be considered.
-		/// </summary>
-		internal readonly TimeSpan ReadyTimeThreshold = TimeSpan.FromSeconds(45.0);
-
-		private readonly JobQueueSettings _defaultPoolSettings = new();
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="jobs"></param>
@@ -98,16 +108,14 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="clock"></param>
 		/// <param name="cache"></param>
 		/// <param name="settings"></param>
-		/// <param name="samplePeriod">Time period for each sample</param>
-		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, IMemoryCache cache, JobQueueSettings? settings = null, TimeSpan? samplePeriod = null)
+		public JobQueueStrategy(IJobCollection jobs, IGraphCollection graphs, StreamService streamService, IClock clock, IMemoryCache cache, JobQueueSettings? settings = null)
 		{
 			_jobs = jobs;
 			_graphs = graphs;
 			_streamService = streamService;
 			_clock = clock;
 			_cache = cache;
-			_samplePeriod = samplePeriod ?? _samplePeriod;
-			Settings = settings ?? _defaultPoolSettings;
+			Settings = settings ?? new JobQueueSettings();
 		}
 
 		/// <inheritdoc/>
@@ -136,7 +144,7 @@ namespace Horde.Build.Agents.Fleet
 				{
 					continue;
 				}
-				if (waitTime.Value < ReadyTimeThreshold)
+				if (waitTime.Value < TimeSpan.FromSeconds(Settings.ReadyTimeThresholdSec))
 				{
 					continue;
 				}
@@ -177,11 +185,10 @@ namespace Horde.Build.Agents.Fleet
 		/// <inheritdoc/>
 		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
-			DateTimeOffset minCreateTime = _clock.UtcNow - _samplePeriod;
-			Dictionary<PoolId, int> poolQueueSizes;// = await GetPoolQueueSizesAsync(minCreateTime);
+			DateTimeOffset minCreateTime = _clock.UtcNow - TimeSpan.FromMinutes(Settings.SamplePeriodMin);
 
 			// Cache pool queue sizes for a short while for faster runs when many pools are scaled
-			if (!_cache.TryGetValue(CacheKey, out poolQueueSizes))
+			if (!_cache.TryGetValue(CacheKey, out Dictionary<PoolId, int> poolQueueSizes))
 			{
 				// Pool sizes haven't been cached, update them (might happen from multiple tasks but that is fine)
 				poolQueueSizes = await GetPoolQueueSizesAsync(minCreateTime);
@@ -190,18 +197,17 @@ namespace Horde.Build.Agents.Fleet
 
 			return pools.Select(current =>
 			{
-				JobQueueSettings settings = current.Pool.JobQueueSettings ?? _defaultPoolSettings;
 				poolQueueSizes.TryGetValue(current.Pool.Id, out int queueSize);
 				if (queueSize > 0)
 				{
-					int additionalAgentCount = (int)Math.Ceiling(queueSize * settings.ScaleOutFactor);
+					int additionalAgentCount = (int)Math.Ceiling(queueSize * Settings.ScaleOutFactor);
 					int desiredAgentCount = current.Agents.Count + additionalAgentCount;
-					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, $"QueueSize={queueSize}");
+					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, $"QueueSize={queueSize} " + Settings);
 				}
 				else
 				{
-					int desiredAgentCount = (int)(current.Agents.Count * settings.ScaleInFactor);
-					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, "Empty job queue");
+					int desiredAgentCount = (int)(current.Agents.Count * Settings.ScaleInFactor);
+					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, "QueueSize={queueSize} " + Settings);
 				}
 			}).ToList();
 		}

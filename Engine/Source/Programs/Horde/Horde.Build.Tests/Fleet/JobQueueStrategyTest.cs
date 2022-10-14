@@ -28,7 +28,7 @@ namespace Horde.Build.Tests.Fleet
 		public async Task GetPoolQueueSizes()
 		{
 			(JobQueueStrategy strategy, PoolSizeData poolSizeData) = await SetUpJobsAsync(1, 5);
-			await Clock.AdvanceAsync(strategy.ReadyTimeThreshold + TimeSpan.FromSeconds(5));
+			await Clock.AdvanceAsync(TimeSpan.FromSeconds(strategy.Settings.ReadyTimeThresholdSec) + TimeSpan.FromSeconds(5));
 			Dictionary<PoolId, int> poolQueueSizes = await strategy.GetPoolQueueSizesAsync(Clock.UtcNow - TimeSpan.FromHours(2));
 			Assert.AreEqual(1, poolQueueSizes.Count);
 			Assert.AreEqual(5, poolQueueSizes[poolSizeData.Pool.Id]);
@@ -86,7 +86,7 @@ namespace Horde.Build.Tests.Fleet
 		{
 			(JobQueueStrategy strategy, PoolSizeData poolSizeData) = await SetUpJobsAsync(1, numBatchesReady, numAgents);
 			TimeSpan timeToWait = waitedBeyondThreshold
-				? strategy.ReadyTimeThreshold + TimeSpan.FromSeconds(5)
+				? TimeSpan.FromSeconds(strategy.Settings.ReadyTimeThresholdSec) + TimeSpan.FromSeconds(5)
 				: TimeSpan.FromSeconds(15);
 			
 			await Clock.AdvanceAsync(timeToWait);

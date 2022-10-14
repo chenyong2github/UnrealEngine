@@ -37,7 +37,29 @@ namespace Horde.Build.Agents.Fleet
 		/// <summary>
 		/// Min number of samples for a valid result
 		/// </summary>
-		public int NumSamplesForResult { get; set;  } = 9;
+		public int NumSamplesForResult { get; set; } = 9;
+
+		/// <summary>
+		/// The minimum number of agents to keep in the pool
+		/// </summary>
+		public int MinAgents { get; set; } = 1;
+
+		/// <summary>
+		/// The minimum number of idle agents to hold in reserve
+		/// </summary>
+		public int NumReserveAgents { get; set; } = 5;
+
+		/// <inheritdoc />
+		public override string ToString()
+		{
+			StringBuilder sb = new (150);
+			sb.AppendFormat("{0}={1} ", nameof(SampleTimeSec), SampleTimeSec);
+			sb.AppendFormat("{0}={1} ", nameof(NumSamples), NumSamples);
+			sb.AppendFormat("{0}={1} ", nameof(NumSamplesForResult), NumSamplesForResult);
+			sb.AppendFormat("{0}={1} ", nameof(MinAgents), MinAgents);
+			sb.AppendFormat("{0}={1} ", nameof(NumReserveAgents), NumReserveAgents);
+			return sb.ToString();
+		}
 	}
 	
 	/// <summary>
@@ -229,15 +251,13 @@ namespace Horde.Build.Agents.Fleet
 				PoolSizeData? poolSize = pools.Find(x => x.Pool.Id == pool.Id);
 				if (poolSize != null)
 				{
-					int minAgents = pool.MinAgents ?? 1;
-					int numReserveAgents = pool.NumReserveAgents ?? 5;
 					double utilization = poolData.Samples.Select(x => x._jobWork).OrderByDescending(x => x).Skip(Settings.NumSamples - Settings.NumSamplesForResult).First();
 				
 					// Number of agents in use over the sampling period. Can never be greater than number of agents available in pool.
 					int numAgentsUtilized = (int)utilization;
 					
 					// Include reserve agent count to ensure pool always can grow
-					int desiredAgentCount = Math.Max(numAgentsUtilized + numReserveAgents, minAgents);
+					int desiredAgentCount = Math.Max(numAgentsUtilized + Settings.NumReserveAgents, Settings.MinAgents);
 					
 					StringBuilder sb = new();
 					sb.AppendFormat("Jobs=[{0}] ", GetDensityMap(poolData.Samples.Select(x => x._jobWork / Math.Max(1, poolData.Agents.Count))));
@@ -246,6 +266,7 @@ namespace Horde.Build.Agents.Fleet
 					sb.AppendFormat("Max=[{0,5:0.0}] ", poolData.Samples.Max(x => x._jobWork));
 					sb.AppendFormat("Avg=[{0,5:0.0}] ", utilization);
 					sb.AppendFormat("Pct=[{0,5:0.0}] ", poolData.Samples.Sum(x => x._jobWork) / Settings.NumSamples);
+					sb.Append(Settings);
 
 					result.Add(new(pool, poolSize.Agents, desiredAgentCount, sb.ToString()));
 				}

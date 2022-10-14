@@ -321,7 +321,10 @@ namespace Horde.Build.Agents.Fleet
 				case PoolSizeStrategy.JobQueue:
 					return new JobQueueStrategy(_jobCollection, _graphCollection, _streamService, _clock, _cache, pool.JobQueueSettings);
 				case PoolSizeStrategy.LeaseUtilization:
-					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, new());
+					LeaseUtilizationSettings luSettings = new();
+					if (pool.MinAgents != null) luSettings.MinAgents = pool.MinAgents.Value;
+					if (pool.NumReserveAgents != null) luSettings.NumReserveAgents = pool.NumReserveAgents.Value;
+					return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, luSettings);
 				case PoolSizeStrategy.NoOp:
 					return new NoOpPoolSizeStrategy();
 				default:
