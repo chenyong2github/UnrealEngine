@@ -1929,8 +1929,11 @@ namespace ActorBrowsingModeUtils
 		}
 	}
 
-	static void RecursiveAddItemsToActorGuidList(const TArray<FSceneOutlinerTreeItemPtr>& Items, TArray<FGuid>& List)
+	static void RecursiveAddItemsToActorGuidList(const TArray<FSceneOutlinerTreeItemPtr>& Items, TArray<FGuid>& List, bool bSearchForHiddenUnloadedActors)
 	{
+		// In the case where we want the list of unloaded actors under a folder and the option to hide unloaded actors is enabled, we need to find them through FActorFolders 
+		TMap<UWorld*, TSet<FName>> UnloadedActorsFolderPaths;
+
 		for (const FSceneOutlinerTreeItemPtr& Item : Items)
 		{
 			if (const FActorDescTreeItem* const ActorDescTreeItem = Item->CastTo<FActorDescTreeItem>())
@@ -1944,6 +1947,13 @@ namespace ActorBrowsingModeUtils
 					List.Add(ActorTreeItem->Actor->GetActorGuid());
 				}
 			}
+			else if (const FActorFolderTreeItem* const ActorFolderTreeItem = Item->CastTo<FActorFolderTreeItem>(); ActorFolderTreeItem && bSearchForHiddenUnloadedActors)
+			{
+				if (UWorld* FolderWorld = ActorFolderTreeItem->World.Get())
+				{
+					UnloadedActorsFolderPaths.FindOrAdd(FolderWorld).Add(ActorFolderTreeItem->GetPath());
+				}
+			}
 
 			TArray<FSceneOutlinerTreeItemPtr> ChildrenItems;
 			for (const auto& Child : Item->GetChildren())
@@ -1953,11 +1963,24 @@ namespace ActorBrowsingModeUtils
 					ChildrenItems.Add(Child.Pin());
 				}
 			}
-
+						
 			if (ChildrenItems.Num())
 			{
-				RecursiveAddItemsToActorGuidList(ChildrenItems, List);
+				RecursiveAddItemsToActorGuidList(ChildrenItems, List, bSearchForHiddenUnloadedActors);
 			}
+		}
+
+		
+		for (const TTuple<UWorld*, TSet<FName>>& Pair : UnloadedActorsFolderPaths)
+		{
+			FActorFolders::ForEachActorDescInFolders(*Pair.Key, Pair.Value, [&List](const FWorldPartitionActorDesc* ActorDesc)
+			{
+				if (!ActorDesc->IsLoaded())
+				{
+					List.Add(ActorDesc->GetGuid());
+				}
+				return true;
+			});
 		}
 	};
 }
@@ -1996,7 +2019,9 @@ void FActorBrowsingMode::PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InIte
 	}
 
 	TArray<FGuid> ActorsToPin;
-	ActorBrowsingModeUtils::RecursiveAddItemsToActorGuidList(InItems, ActorsToPin);
+	// If Unloaded actors are hidden and we are pinning folders we need to find them through FActorFolders
+	const bool bSearchForHiddenUnloadedActors = bHideUnloadedActors;
+	ActorBrowsingModeUtils::RecursiveAddItemsToActorGuidList(InItems, ActorsToPin, bSearchForHiddenUnloadedActors);
 
 	if (ActorsToPin.Num())
 	{
@@ -2036,7 +2061,9 @@ void FActorBrowsingMode::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InI
 	}
 
 	TArray<FGuid> ActorsToUnpin;
-	ActorBrowsingModeUtils::RecursiveAddItemsToActorGuidList(InItems, ActorsToUnpin);
+	// No need to search for hidden unloaded actors when unloading
+	const bool bSearchForHiddenUnloadedActors = false;
+	ActorBrowsingModeUtils::RecursiveAddItemsToActorGuidList(InItems, ActorsToUnpin, bSearchForHiddenUnloadedActors);
 
 	if (ActorsToUnpin.Num())
 	{

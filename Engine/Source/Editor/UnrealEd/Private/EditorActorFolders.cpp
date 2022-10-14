@@ -19,6 +19,9 @@
 #include "ActorFolder.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
 #include "Styling/AppStyle.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/ActorDescContainer.h"
 
 #define LOCTEXT_NAMESPACE "FActorFolders"
 
@@ -638,7 +641,58 @@ void FActorFolders::ForEachFolderWithRootObject(UWorld& InWorld, const FFolder::
 	GetOrCreateWorldFolders(InWorld).ForEachFolderWithRootObject(FolderRootObject, Operation);
 }
 
-void FActorFolders::ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+FFolder FActorFolders::GetActorDescFolder(UWorld& InWorld, const FWorldPartitionActorDesc* InActorDesc)
+{
+	if (InActorDesc)
+	{
+		UWorld& OuterWorld = InActorDesc->GetContainer() ? *InActorDesc->GetContainer()->GetTypedOuter<UWorld>() : InWorld;
+		{
+			ULevel* OuterLevel = OuterWorld.PersistentLevel;
+			if (OuterLevel->IsUsingActorFolders())
+			{
+				if (UActorFolder* ActorFolder = OuterLevel->GetActorFolder(InActorDesc->GetFolderGuid()))
+				{
+					return ActorFolder->GetFolder();
+				}
+				return FFolder::GetWorldRootFolder(&OuterWorld).GetRootObject();
+			}
+			return FFolder(FFolder::GetWorldRootFolder(&OuterWorld).GetRootObject(), InActorDesc->GetFolderPath());
+		}
+	}
+	return FFolder::GetInvalidFolder();
+}
+
+void FActorFolders::ForEachActorDescInFolders(UWorld& InWorld, const TSet<FName>& InPaths, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Operation, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+{
+	if (UWorldPartition* WorldPartition = InWorld.GetWorldPartition())
+	{
+		FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [&](const FWorldPartitionActorDesc* ActorDesc)
+		{
+			FFolder ActorDescFolder = GetActorDescFolder(InWorld, ActorDesc);
+			if (ActorDescFolder == FFolder::GetInvalidFolder())
+			{
+				return true;
+			}
+
+			FName ActorDescPath = ActorDescFolder.GetPath();
+			if (ActorDescPath.IsNone() || !InPaths.Contains(ActorDescPath))
+			{
+				return true;
+			}
+
+			return Operation(ActorDesc);
+		});
+	}
+}
+
+void FActorFolders::ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& InPaths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+{
+	TSet<FName> Paths;
+	Paths.Append(InPaths);
+	ForEachActorInFolders(InWorld, Paths, Operation, InFolderRootObject);
+}
+
+void FActorFolders::ForEachActorInFolders(UWorld& InWorld, const TSet<FName>& InPaths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
 {
 	const FFolder::FRootObject FolderRootObject = FFolder::IsRootObjectValid(InFolderRootObject) ? InFolderRootObject : GetWorldFolderRootObject(InWorld);
 
@@ -649,7 +703,7 @@ void FActorFolders::ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& 
 			continue;
 		}
 		FName ActorPath = ActorIt->GetFolderPath();
-		if (ActorPath.IsNone() || !Paths.Contains(ActorPath))
+		if (ActorPath.IsNone() || !InPaths.Contains(ActorPath))
 		{
 			continue;
 		}
@@ -661,22 +715,37 @@ void FActorFolders::ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& 
 	}
 }
 
-void FActorFolders::GetActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<AActor*>& OutActors, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+void FActorFolders::GetActorsFromFolders(UWorld& InWorld, const TArray<FName>& InPaths, TArray<AActor*>& OutActors, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+{
+	TSet<FName> Paths;
+	Paths.Append(InPaths);
+	GetActorsFromFolders(InWorld, Paths, OutActors, InFolderRootObject);
+}
+
+void FActorFolders::GetActorsFromFolders(UWorld& InWorld, const TSet<FName>& InPaths, TArray<AActor*>& OutActors, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
 {
 	const FFolder::FRootObject FolderRootObject = FFolder::IsRootObjectValid(InFolderRootObject) ? InFolderRootObject : GetWorldFolderRootObject(InWorld);
 
-	ForEachActorInFolders(InWorld, Paths, [&OutActors](AActor* InActor)
+	ForEachActorInFolders(InWorld, InPaths, [&OutActors](AActor* InActor)
 	{
 		OutActors.Add(InActor);
 		return true;
 	}, FolderRootObject);
 }
 
-void FActorFolders::GetWeakActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+
+void FActorFolders::GetWeakActorsFromFolders(UWorld& InWorld, const TArray<FName>& InPaths, TArray<TWeakObjectPtr<AActor>>& OutActors, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
+{
+	TSet<FName> Paths;
+	Paths.Append(InPaths);
+	GetWeakActorsFromFolders(InWorld, Paths, OutActors, InFolderRootObject);
+}
+
+void FActorFolders::GetWeakActorsFromFolders(UWorld& InWorld, const TSet<FName>& InPaths, TArray<TWeakObjectPtr<AActor>>& OutActors, const FFolder::FRootObject& InFolderRootObject /*= FFolder::GetInvalidRootObject()*/)
 {
 	const FFolder::FRootObject FolderRootObject = FFolder::IsRootObjectValid(InFolderRootObject) ? InFolderRootObject : GetWorldFolderRootObject(InWorld);
 
-	ForEachActorInFolders(InWorld, Paths, [&OutActors](AActor* InActor)
+	ForEachActorInFolders(InWorld, InPaths, [&OutActors](AActor* InActor)
 	{
 		OutActors.Add(InActor);
 		return true;

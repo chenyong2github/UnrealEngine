@@ -128,24 +128,6 @@ FActorHierarchy::~FActorHierarchy()
 	}
 }
 
-static FFolder GetFolderPathFromActorDesc(UWorld* InWorld, const FWorldPartitionActorDesc* InActorDesc)
-{
-	if (UWorld* OuterWorld = InActorDesc->GetContainer() ? InActorDesc->GetContainer()->GetTypedOuter<UWorld>() : InWorld)
-	{
-		ULevel* OuterLevel = OuterWorld->PersistentLevel;
-		if (OuterLevel->IsUsingActorFolders())
-		{
-			if (UActorFolder* ActorFolder = OuterLevel->GetActorFolder(InActorDesc->GetFolderGuid()))
-			{
-				return ActorFolder->GetFolder();
-			}
-			return FFolder::GetWorldRootFolder(OuterWorld).GetRootObject();
-		}
-		return FFolder(FFolder::GetWorldRootFolder(OuterWorld).GetRootObject(), InActorDesc->GetFolderPath());
-	}
-	return FFolder::GetInvalidFolder();
-}
-
 FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, bool bCreate)
 {
 	if (Item.IsA<FWorldTreeItem>())
@@ -291,16 +273,19 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 	{
 		if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 		{
-			const FFolder ActorDescFolder = GetFolderPathFromActorDesc(RepresentingWorld.Get(), ActorDesc);
-			if (!ActorDescFolder.IsNone())
+			if (UWorld* RepresentingWorldPtr = RepresentingWorld.Get())
 			{
-				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorDescFolder))
+				const FFolder ActorDescFolder = FActorFolders::GetActorDescFolder(*RepresentingWorldPtr, ActorDesc);
+				if (!ActorDescFolder.IsNone())
 				{
-					return *ParentItem;
-				}
-				else
-				{
-					return bCreate ? Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorDescFolder, RepresentingWorld), true) : nullptr;
+					if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorDescFolder))
+					{
+						return *ParentItem;
+					}
+					else
+					{
+						return bCreate ? Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorDescFolder, RepresentingWorldPtr), true) : nullptr;
+					}
 				}
 			}
 
