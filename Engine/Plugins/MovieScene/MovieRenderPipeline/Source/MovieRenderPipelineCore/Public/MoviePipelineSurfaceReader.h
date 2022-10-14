@@ -5,6 +5,7 @@
 #include "PixelFormat.h"
 #include "RHI.h"
 #include "MovieRenderPipelineDataTypes.h"
+#include "RHIGPUReadback.h"
 
 /**
 * When the GPU finishes rendering a view we can copy the resulting data back to the CPU. Because the
@@ -58,7 +59,7 @@ protected:
 	FEvent* AvailableEvent;
 
 	/** Texture used to store the resolved render target */
-	FTexture2DRHIRef ReadbackTexture;
+	TUniquePtr<FRHIGPUTextureReadback> ReadbackTexture;
 
 	/** The desired pixel format of the resolved textures */
 	EPixelFormat PixelFormat;
