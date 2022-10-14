@@ -26,12 +26,10 @@ public:
 	FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_CustomizableObjectInstance", "Customizable Object Instance"); }
 	FColor GetTypeColor() const override { return FColor(255, 82, 49); }
 	UClass* GetSupportedClass() const override { return UCustomizableObjectInstance::StaticClass(); }
-	bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
 	void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	uint32 GetCategories() override;
-
-
+	
 	bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override;
 	bool CanFilter() override { return true; }
 	bool ShouldForceWorldCentric() override { return false; }

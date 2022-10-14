@@ -26,10 +26,12 @@
 #include "Framework/SlateDelegates.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformCrt.h"
+#include "HAL/PlatformStackWalk.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "ICollectionManager.h"
 #include "Internationalization/Internationalization.h"
+#include "Logging/MessageLog.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
 #include "Misc/NamePermissionList.h"
@@ -90,8 +92,61 @@ void FAssetContextMenu::BindCommands(TSharedPtr< FUICommandList >& Commands)
 		));
 }
 
+class FDontLoadAssetsDuringThisScope
+{
+public:
+	FDontLoadAssetsDuringThisScope()
+	{
+		FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FDontLoadAssetsDuringThisScope::OnAssetLoaded);
+	}
+
+	~FDontLoadAssetsDuringThisScope()
+	{
+		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+
+		FMessageLog EditorErrors("EditorErrors");
+		
+		for (const FLoadEvent& LoadEvent : ObjectsLoaded)
+		{
+			TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
+			ErrorMessage->AddToken(FAssetNameToken::Create(LoadEvent.ObjectPath.ToString(),FText::FromString(LoadEvent.ObjectPath.ToString())));
+			ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("DontLoadAssetsNow", "was loaded while creating the asset context menu.  Don't do this, it causes the operation to hitch.")));
+			
+			for (const FProgramCounterSymbolInfo& CallInfo : LoadEvent.Callstack)
+			{
+				ErrorMessage->AddToken(FTextToken::Create(FText::FromString(FString(CallInfo.FunctionName) + TEXT("\n"))));
+			}
+		}
+
+		EditorErrors.Notify(LOCTEXT("AssetsOpenedDuringContextMenuNotify", "Don't Load Assets Now!"));
+	}
+	
+private:
+	void OnAssetLoaded(UObject* InObject)
+	{
+		FLoadEvent Event;
+		Event.ObjectPath = FSoftObjectPath(InObject);
+		Event.Callstack = FPlatformStackWalk::GetStack(4, 10);
+		ObjectsLoaded.Add(MoveTemp(Event));
+	}
+
+private:
+	struct FLoadEvent
+	{
+		FSoftObjectPath ObjectPath;
+		TArray<FProgramCounterSymbolInfo> Callstack;
+	};
+	
+	TArray<FLoadEvent> ObjectsLoaded;
+};
+
 TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContentBrowserItem> InSelectedItems, const FSourcesData& InSourcesData, TSharedPtr< FUICommandList > InCommandList)
 {
+#if DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS
+	// If we're not calling GetActions any more, then fire off errors when people open the context menu and it loads assets
+	FDontLoadAssetsDuringThisScope DontLoadScope;
+#endif
+	
 	SetSelectedItems(InSelectedItems);
 	SourcesData = InSourcesData;
 
@@ -137,9 +192,7 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 	static const FName BaseMenuName("ContentBrowser.AssetContextMenu");
 	static const FName ItemContextMenuName("ContentBrowser.ItemContextMenu");
 	RegisterContextMenu(BaseMenuName);
-
-	TArray<UObject*> SelectedObjects;
-
+	
 	// Create menu hierarchy based on class hierarchy
 	FName MenuName = BaseMenuName;
 	{
@@ -147,7 +200,7 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 		// need to keep it here for now to build the correct menu name and register the correct extenders
 
 		// Objects must be loaded for this operation... for now
-		TArray<FString> ObjectPaths;
+		TArray<FAssetData> SelectedAssets;
 		UContentBrowserDataSource* CommonDataSource = nullptr;
 		bool bKeepCheckingCommonDataSource = true;
 		for (const FContentBrowserItem& SelectedItem : SelectedItems)
@@ -174,25 +227,34 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			FAssetData ItemAssetData;
 			if (SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
 			{
-				ObjectPaths.Add(ItemAssetData.GetObjectPathString());
+				SelectedAssets.Add(MoveTemp(ItemAssetData));
 			}
 		}
 
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		const TSharedRef<FPathPermissionList>& WritableFolderFilter = AssetToolsModule.Get().GetWritableFolderPermissionList();
 
-		ContextObject->bCanBeModified = ObjectPaths.Num() == 0;
+		ContextObject->bCanBeModified = SelectedAssets.Num() == 0;
 
-		ContextObject->SelectedObjects.Reset();
-		if (ContentBrowserUtils::LoadAssetsIfNeeded(ObjectPaths, SelectedObjects) && SelectedObjects.Num() > 0)
+		ContextObject->SelectedAssets.Reset();
+
+		if (SelectedAssets.Num() > 0)
 		{
-			ContextObject->SelectedObjects.Append(SelectedObjects);
+			ContextObject->SelectedAssets.Append(SelectedAssets);
 
 			// Find common class for selected objects
-			UClass* CommonClass = SelectedObjects[0]->GetClass();
-			for (int32 ObjIdx = 1; ObjIdx < SelectedObjects.Num(); ++ObjIdx)
+			UClass* CommonClass = nullptr;
+			for (int32 ObjIdx = 0; ObjIdx < SelectedAssets.Num(); ++ObjIdx)
 			{
-				while (!SelectedObjects[ObjIdx]->IsA(CommonClass))
+				if (CommonClass == nullptr)
+				{
+					CommonClass = SelectedAssets[ObjIdx].GetClass();
+					continue;
+				}
+
+				// Update the CommonClass until we find a common shared class.
+				UClass* Class = SelectedAssets[ObjIdx].GetClass();
+				while (Class && !Class->IsChildOf(CommonClass))
 				{
 					CommonClass = CommonClass->GetSuperClass();
 				}
@@ -200,32 +262,26 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			ContextObject->CommonClass = CommonClass;
 
 			ContextObject->bCanBeModified = true;
-			for (const UObject* SelectedObject : SelectedObjects)
+			for (const FAssetData& SelectedAsset : SelectedAssets)
 			{
-				if (SelectedObject)
+				if (WritableFolderFilter->HasFiltering() && !WritableFolderFilter->PassesStartsWithFilter(SelectedAsset.PackageName))
 				{
-					if (const UPackage* SelectedObjectPackage = SelectedObject->GetOutermost())
-					{
-						if (WritableFolderFilter->HasFiltering() && !WritableFolderFilter->PassesStartsWithFilter(SelectedObjectPackage->GetFName()))
-						{
-							ContextObject->bCanBeModified = false;
-							break;
-						}
+					ContextObject->bCanBeModified = false;
+					break;
+				}
 
-						if (SelectedObjectPackage->HasAnyPackageFlags(PKG_Cooked | PKG_FilterEditorOnly))
-						{
-							ContextObject->bCanBeModified = false;
-							break;
-						}
-					}
+				if (SelectedAsset.HasAnyPackageFlags(PKG_Cooked | PKG_FilterEditorOnly))
+				{
+					ContextObject->bCanBeModified = false;
+					break;
+				}
 
-					if (const UClass* AssetClass = SelectedObject->GetClass())
+				if (const UClass* AssetClass = SelectedAsset.GetClass())
+				{
+					if (AssetClass->IsChildOf<UClass>())
 					{
-						if (AssetClass->IsChildOf<UClass>())
-						{
-							ContextObject->bCanBeModified = false;
-							break;
-						}
+						ContextObject->bCanBeModified = false;
+						break;
 					}
 				}
 			}
@@ -235,13 +291,9 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContent
 			RegisterMenuHierarchy(CommonClass);
 
 			// Find asset actions for common class
-			TSharedPtr<IAssetTypeActions> CommonAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ContextObject->CommonClass).Pin();
-			if (CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(SelectedObjects))
-			{
-				ContextObject->CommonAssetTypeActions = CommonAssetTypeActions;
-			}
+			ContextObject->CommonAssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ContextObject->CommonClass).Pin();
 		}
-		else if (SelectedObjects.Num() == 0)
+		else if (SelectedAssets.Num() == 0)
 		{
 			if (CommonDataSource)
 			{
@@ -325,13 +377,17 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
 		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
+#if  !DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS
+
 		// Note: Do  not use "GetActions" again when copying this code, otherwise "GetActions" menu entry will be overwritten
 		Section.AddDynamicEntry("GetActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
 			UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 			if (Context && Context->CommonAssetTypeActions.IsValid())
 			{
-				Context->CommonAssetTypeActions.Pin()->GetActions(Context->GetSelectedObjects(), InSection);
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjects(), InSection);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}));
 
@@ -340,9 +396,13 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 			UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
 			if (Context && Context->CommonAssetTypeActions.IsValid())
 			{
-				Context->CommonAssetTypeActions.Pin()->GetActions(Context->GetSelectedObjects(), MenuBuilder);
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjects(), MenuBuilder);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}));
+		
+#endif
 
 		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
@@ -611,7 +671,7 @@ bool FAssetContextMenu::AddAssetTypeMenuOptions(UToolMenu* Menu)
 	bool bAnyTypeOptions = false;
 
 	UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
-	if (Context && Context->SelectedObjects.Num() > 0)
+	if (Context && Context->SelectedAssets.Num() > 0)
 	{
 		// Label "GetAssetActions" section
 		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");

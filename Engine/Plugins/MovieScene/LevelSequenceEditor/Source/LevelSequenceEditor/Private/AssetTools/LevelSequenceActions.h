@@ -27,7 +27,6 @@ public:
 public:
 	
 	// IAssetTypeActions interface
-
 	virtual uint32 GetCategories() override;
 	virtual FText GetName() const override;
 	virtual UClass* GetSupportedClass() const override;
@@ -35,7 +34,6 @@ public:
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 	virtual bool ShouldForceWorldCentric() override;
 	virtual bool CanLocalize() const override { return false; }
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const { return false; }
 
 private:
 

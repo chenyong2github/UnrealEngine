@@ -40,41 +40,28 @@ namespace Metasound
 			template <typename TClass, typename TFactory>
 			void ExecuteCreatePreset(const FToolMenuContext& MenuContext)
 			{
-				UContentBrowserAssetContextMenuContext* Context = MenuContext.FindContext<UContentBrowserAssetContextMenuContext>();
-				if (!Context || Context->SelectedObjects.IsEmpty())
+				if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext))
 				{
-					return;
+					for (TClass* MetaSound : Context->LoadSelectedObjects<TClass>())
+					{
+						FString PackagePath;
+						FString AssetName;
+
+						IAssetTools::Get().CreateUniqueAssetName(MetaSound->GetOutermost()->GetName(), TEXT("_Preset"), PackagePath, AssetName);
+
+						TFactory* Factory = NewObject<TFactory>();
+						check(Factory);
+
+						Factory->ReferencedMetaSoundObject = MetaSound;
+
+						IContentBrowserSingleton::Get().CreateNewAsset(AssetName, FPackageName::GetLongPackagePath(PackagePath), TClass::StaticClass(), Factory);
+					}
 				}
-
-				FString PackagePath;
-				FString AssetName;
-
-				TWeakObjectPtr<UObject> ReferencedMetaSound = Context->SelectedObjects[0];
-				if (!ReferencedMetaSound.IsValid())
-				{
-					return;
-				}
-
-				FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-				AssetToolsModule.Get().CreateUniqueAssetName(ReferencedMetaSound->GetOutermost()->GetName(), TEXT("_Preset"), PackagePath, AssetName);
-
-				TFactory* Factory = NewObject<TFactory>();
-				check(Factory);
-
-				Factory->ReferencedMetaSoundObject = ReferencedMetaSound.Get();
-
-				FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-				ContentBrowserModule.Get().CreateNewAsset(AssetName, FPackageName::GetLongPackagePath(PackagePath), TClass::StaticClass(), Factory);
 			}
 
 			template <typename TPresetClass, typename TFactory, typename TReferenceClass = TPresetClass>
 			void RegisterPresetAction(const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip)
 			{
-				if (!UToolMenus::IsToolMenuUIEnabled())
-				{
-					return;
-				}
-
 				FString ClassName = TReferenceClass::StaticClass()->GetName();
 				const FString MenuName = TEXT("ContentBrowser.AssetContextMenu.") + ClassName;
 				UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(*MenuName);
@@ -88,18 +75,6 @@ namespace Metasound
 				FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 				Section.AddDynamicEntry(*EntryName, FNewToolMenuSectionDelegate::CreateLambda([InPresetClassName = MoveTemp(PresetClassName), Label = InLabel, ToolTip = InToolTip](FToolMenuSection& InSection)
 				{
-					UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-					if (!Context || Context->SelectedObjects.IsEmpty())
-					{
-						return;
-					}
-
-					TWeakObjectPtr<UObject> MetaSoundObject = Context->SelectedObjects[0];
-					if (!MetaSoundObject.IsValid())
-					{
-						return;
-					}
-
 					// TODO: Make class icons for MetaSound types. For now just use SoundCue.
 					//const FString IconName = TEXT("ClassIcon.") + InPresetClassName;
 					const FString IconName = TEXT("ClassIcon.SoundCue");

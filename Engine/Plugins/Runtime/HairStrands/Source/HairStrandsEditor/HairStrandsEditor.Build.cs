@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"Projects",
 					"ToolMenus",
+					"ContentBrowser",
 					"UnrealEd",
 					"AssetTools",
 					"EditorInteractiveToolsFramework",

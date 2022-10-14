@@ -14,7 +14,6 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_World", "Level"); }
 	virtual FColor GetTypeColor() const override { return FAppStyle::Get().GetColor("LevelEditor.AssetColor").ToFColor(true); }
 	virtual UClass* GetSupportedClass() const override { return UWorld::StaticClass(); }
-	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return false; }
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Basic; }
 	virtual bool CanLocalize() const override { return false; }

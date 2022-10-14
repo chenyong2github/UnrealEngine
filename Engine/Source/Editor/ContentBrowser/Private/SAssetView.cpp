@@ -257,7 +257,6 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	bCanShowFavorites = InArgs._CanShowFavorites;
 	bCanDockCollections = InArgs._CanDockCollections;
-	bPreloadAssetsForContextMenu = InArgs._PreloadAssetsForContextMenu;
 
 	SelectionMode = InArgs._SelectionMode;
 
@@ -3640,27 +3639,6 @@ bool SAssetView::CanOpenContextMenu() const
 	if (NumCollectionFoldersSelected > 0)
 	{
 		return false;
-	}
-
-	if (bPreloadAssetsForContextMenu)
-	{
-		// Build a list of selected object paths
-		TArray<FString> ObjectPaths;
-		for (const TSharedPtr<FAssetViewItem>& Item : SelectedItems)
-		{
-			FAssetData ItemAssetData;
-			if (Item->GetItem().Legacy_TryGetAssetData(ItemAssetData))
-			{
-				ObjectPaths.Add(ItemAssetData.GetObjectPathString());
-			}
-		}
-
-		TArray<UObject*> LoadedObjects;
-		if (ObjectPaths.Num() > 0 && !ContentBrowserUtils::LoadAssetsIfNeeded(ObjectPaths, LoadedObjects, /*bAllowedToPrompt*/false))
-		{
-			// Do not show the context menu if the load failed
-			return false;
-		}
 	}
 
 	return true;

@@ -49,8 +49,6 @@ bool FGroomActions::CanFilter()
 
 void FGroomActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
-	FAssetTypeActions_Base::GetActions(InObjects, Section);
-
 	TArray<TWeakObjectPtr<UGroomAsset>> GroomAssets = GetTypedWeakObjectPtrs<UGroomAsset>(InObjects);
 
 	Section.AddMenuEntry(

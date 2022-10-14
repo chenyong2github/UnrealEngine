@@ -19,6 +19,8 @@
 #include "ContentBrowserDataUtils.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Engine/Level.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
@@ -1607,7 +1609,7 @@ void PopulateAssetFileContextMenu(UContentBrowserDataSource* InOwnerDataSource, 
 		InMenu,
 		SelectedAssets,
 		OnShowAssetsInPathsView
-		);
+	);
 }
 
 }

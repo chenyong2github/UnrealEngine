@@ -12,10 +12,6 @@ class FControlRigShapeLibraryActions : public FAssetTypeActions_Base
 {
 public:
 	// IAssetTypeActions Implementation
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override
-	{
-		return true;
-	}
 	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ControlRigShapeLibrary", "Control Rig Shape Library"); }
 	virtual FColor GetTypeColor() const override { return FColor(100,100,255); }

@@ -62,10 +62,14 @@ void FSynthesisEditorModule::StartupModule()
 
 void FSynthesisEditorModule::ShutdownModule()
 {
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner(this);
+	UToolMenus::UnregisterOwner(UE_MODULE_NAME);
 }
 
 void FSynthesisEditorModule::RegisterMenus()
 {
 	LLM_SCOPE(ELLMTag::AudioSynthesis);
+	FToolMenuOwnerScoped MenuOwner(this);
 	FAudioImpulseResponseExtension::RegisterMenus();
 }

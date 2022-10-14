@@ -79,6 +79,12 @@ struct FContentBrowserItem;
 
 static const FName ContentBrowserDrawerInstanceName("ContentBrowserDrawer");
 
+IContentBrowserSingleton& IContentBrowserSingleton::Get()
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	return ContentBrowserModule.Get();
+}
+
 FContentBrowserSingleton::FContentBrowserSingleton()
 	: CollectionAssetRegistryBridge(MakeShared<FCollectionAssetRegistryBridge>())
 	, SettingsStringID(0)

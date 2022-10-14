@@ -15,11 +15,6 @@ FAssetTypeActions_GameplayTagAssetBase::FAssetTypeActions_GameplayTagAssetBase(F
 	: OwnedGameplayTagPropertyName(InTagPropertyName)
 {}
 
-bool FAssetTypeActions_GameplayTagAssetBase::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	TArray<UObject*> ContainerObjectOwners;

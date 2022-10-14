@@ -32,7 +32,6 @@ void SDisplayClusterConfiguratorAssetPickerList::Construct(const FArguments& InA
 		AssetPickerConfig.bAutohideSearchBar = false;
 		AssetPickerConfig.bAllowDragging = false;
 		AssetPickerConfig.bCanShowClasses = false;
-		AssetPickerConfig.bPreloadAssetsForContextMenu = true;
 		AssetPickerConfig.ThumbnailLabel = EThumbnailLabel::AssetName;
 		
 		AssetPickerConfig.Filter.ClassPaths.Add(UDisplayClusterBlueprint::StaticClass()->GetClassPathName());

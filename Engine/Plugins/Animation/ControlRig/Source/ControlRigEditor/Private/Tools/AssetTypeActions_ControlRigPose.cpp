@@ -29,11 +29,6 @@ UClass* FAssetTypeActions_ControlRigPose::GetSupportedClass() const
 	return UControlRigPoseAsset::StaticClass();
 }
 
-bool FAssetTypeActions_ControlRigPose::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FAssetTypeActions_ControlRigPose::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>()*/)
 {
 	FAssetTypeActions_Base::OpenAssetEditor(InObjects, EditWithinLevelEditor);
@@ -42,22 +37,6 @@ void FAssetTypeActions_ControlRigPose::OpenAssetEditor(const TArray<UObject*>& I
 uint32 FAssetTypeActions_ControlRigPose::GetCategories()
 {
 	return EAssetTypeCategories::Animation;
-}
-
-class UThumbnailInfo* FAssetTypeActions_ControlRigPose::GetThumbnailInfo(UObject* Asset) const
-{
-	return nullptr; //mz todo it looks like this is not needed if we use the default. Will remove based on feedback.
-	/*
-	UControlRigPoseAsset* PoseAsset = CastChecked<UControlRigPoseAsset>(Asset);
-	UThumbnailInfo* ThumbnailInfo = PoseAsset->ThumbnailInfo;
-	if (ThumbnailInfo == NULL)
-	{
-		ThumbnailInfo = NewObject<USceneThumbnailInfo>(PoseAsset, NAME_None, RF_Transactional);
-		PoseAsset->ThumbnailInfo = ThumbnailInfo;
-	}
-	
-	return ThumbnailInfo;
-	*/
 }
 
 bool FAssetTypeActions_ControlRigPose::IsImportedAsset() const

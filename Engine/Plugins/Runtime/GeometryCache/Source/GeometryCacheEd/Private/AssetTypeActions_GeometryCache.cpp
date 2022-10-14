@@ -21,16 +21,6 @@ UClass* FAssetTypeActions_GeometryCache::GetSupportedClass() const
 	return UGeometryCache::StaticClass();
 }
 
-bool FAssetTypeActions_GeometryCache::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return false;
-}
-
-void FAssetTypeActions_GeometryCache::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
-{
-	FAssetTypeActions_Base::GetActions(InObjects, Section);
-}
-
 void FAssetTypeActions_GeometryCache::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>()*/)
 {
 	FAssetTypeActions_Base::OpenAssetEditor(InObjects, EditWithinLevelEditor);

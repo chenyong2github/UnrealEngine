@@ -10,7 +10,6 @@ class FAssetTypeActions_MediaProfile : public FAssetTypeActions_Base
 public:
 	// IAssetTypeActions Implementation
 	virtual FColor GetTypeColor() const override { return FColor(140, 62, 35); }
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return false; }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Media; }
 	virtual bool IsImportedAsset() const override { return false; }
 	virtual FText GetName() const override;

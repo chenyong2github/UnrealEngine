@@ -29,14 +29,14 @@ void FMotoSynthExtension::RegisterMenus()
 	Section.AddDynamicEntry("SoundWaveAssetConversion", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-		if (!Context || Context->SelectedObjects.IsEmpty())
+		if (!Context || Context->SelectedAssets.IsEmpty())
 		{
 			return;
 		}
 
-		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+		for (const FAssetData& Object : Context->SelectedAssets)
 		{
-			if (Object->IsA<USoundWaveProcedural>())
+			if (Object.IsInstanceOf(USoundWaveProcedural::StaticClass()))
 			{
 				return;
 			}
@@ -54,7 +54,7 @@ void FMotoSynthExtension::RegisterMenus()
 void FMotoSynthExtension::ExecuteCreateMotoSynthSource(const FToolMenuContext& MenuContext)
 {
 	UContentBrowserAssetContextMenuContext* Context = MenuContext.FindContext<UContentBrowserAssetContextMenuContext>();
-	if (!Context || Context->SelectedObjects.Num() == 0)
+	if (!Context || Context->SelectedAssets.Num() == 0)
 	{
 		return;
 	}
@@ -65,21 +65,28 @@ void FMotoSynthExtension::ExecuteCreateMotoSynthSource(const FToolMenuContext& M
 	// Create the factory used to generate the asset
 	UMotoSynthSourceFactory* Factory = NewObject<UMotoSynthSourceFactory>();
 	
-	for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+	FMessageLog EditorErrors("EditorErrors");
+	for (const FAssetData& Asset : Context->SelectedAssets)
 	{
 		// stage the soundwave on the factory to be used during asset creation
-		USoundWave* Wave = Cast<USoundWave>(Object);
-		check(Wave);
-		Factory->StagedSoundWave = Wave; // WeakPtr gets reset by the Factory after it is consumed
+		if (USoundWave* Wave = Cast<USoundWave>(Asset.GetAsset()))
+		{
+			Factory->StagedSoundWave = Wave; // WeakPtr gets reset by the Factory after it is consumed
 
-		// Determine an appropriate name
-		FString Name;
-		FString PackagePath;
-		AssetToolsModule.Get().CreateUniqueAssetName(Wave->GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
+			// Determine an appropriate name
+			FString Name;
+			FString PackagePath;
+			AssetToolsModule.Get().CreateUniqueAssetName(Wave->GetOutermost()->GetName(), DefaultSuffix, PackagePath, Name);
 
-		// create new asset
-		AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackagePath), UMotoSynthSource::StaticClass(), Factory);
+			// create new asset
+			AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackagePath), UMotoSynthSource::StaticClass(), Factory);
+		}
+		else
+		{
+			EditorErrors.Error(LOCTEXT("ExpectedUSoundWave", "Expected SoundWave"))->AddToken(FAssetNameToken::Create(Asset.PackageName.ToString()));
+		}
 	}
+	EditorErrors.Notify();
 }
 
 #undef LOCTEXT_NAMESPACE

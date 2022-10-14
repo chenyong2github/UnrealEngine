@@ -226,7 +226,7 @@ class IAssetTools
 	GENERATED_IINTERFACE_BODY()
 
 public:
-
+	ASSETTOOLS_API static IAssetTools& Get();
 
 	/** Registers an asset type actions object so it can provide information about and actions for asset types. */
 	virtual void RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions) = 0;

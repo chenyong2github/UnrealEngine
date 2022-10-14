@@ -7,14 +7,10 @@
 #include "ContentBrowserDelegates.h"
 #include "CoreMinimal.h"
 #include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #include "ContentBrowserMenuContexts.generated.h"
@@ -26,6 +22,8 @@ class SContentBrowser;
 class SFilterList;
 class UClass;
 struct FFrame;
+struct FToolMenuSection;
+struct FToolMenuContext;
 
 UCLASS()
 class CONTENTBROWSER_API UContentBrowserAssetContextMenuContext : public UObject
@@ -37,9 +35,12 @@ public:
 	TWeakPtr<FAssetContextMenu> AssetContextMenu;
 
 	TWeakPtr<IAssetTypeActions> CommonAssetTypeActions;
-	
-	UPROPERTY()
+
+	UE_DEPRECATED(5.2, "Use SelectedAssets now, this field will not contain any objects.")
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
+
+	UPROPERTY()
+	TArray<FAssetData> SelectedAssets;
 
 	UPROPERTY()
 	TObjectPtr<UClass> CommonClass;
@@ -47,16 +48,55 @@ public:
 	UPROPERTY()
 	bool bCanBeModified;
 
-	UFUNCTION(BlueprintCallable, Category="Tool Menus")
+	UFUNCTION(BlueprintCallable, Category="Tool Menus", meta=(DeprecatedFunction, DeprecationMessage = "GetSelectedObjects has been deprecated.  We no longer implictly load assets upon request.  If you can work without loading the assets, please use SelectedAssets.  Otherwise call LoadSelectedObjects"))
 	TArray<UObject*> GetSelectedObjects() const
 	{
-		TArray<UObject*> Result;
-		Result.Reserve(SelectedObjects.Num());
-		for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
+		return LoadSelectedObjects();
+	}
+
+	UFUNCTION(BlueprintCallable, Category="Tool Menus")
+	TArray<UObject*> LoadSelectedObjects() const
+	{
+		return LoadSelectedObjects<UObject>();
+	}
+
+	template<typename ExpectedAssetType>
+	TArray<ExpectedAssetType*> LoadSelectedObjects() const
+	{
+		return LoadSelectedObjectsIf<ExpectedAssetType>([](const FAssetData& AssetData){ return true; });
+	}
+
+	template<typename ExpectedAssetType>
+	TArray<ExpectedAssetType*> LoadSelectedObjectsIf(TFunctionRef<bool(const FAssetData& AssetData)> PredicateFilter) const
+	{
+		TArray<ExpectedAssetType*> Result;
+		Result.Reserve(SelectedAssets.Num());
+		for (const FAssetData& Asset : SelectedAssets)
 		{
-			Result.Add(Object.Get());
+			if (PredicateFilter(Asset))
+			{
+				if (UObject* AssetObject = Asset.GetAsset())
+				{
+					if (ExpectedAssetType* AssetObjectTyped = Cast<ExpectedAssetType>(AssetObject))
+					{
+						Result.Add(AssetObjectTyped);
+					}
+				}
+			}
 		}
 		return Result;
+	}
+
+	template<typename MenuOrSectionType>
+	static const UContentBrowserAssetContextMenuContext* FindContextWithAssets(const MenuOrSectionType& MenuOrSection)
+	{
+		const UContentBrowserAssetContextMenuContext* Context = MenuOrSection.template FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context || Context->SelectedAssets.IsEmpty())
+		{
+			return nullptr;
+		}
+
+		return Context;
 	}
 };
 

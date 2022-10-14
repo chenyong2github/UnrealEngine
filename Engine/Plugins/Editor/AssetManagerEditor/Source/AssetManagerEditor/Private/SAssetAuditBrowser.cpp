@@ -289,7 +289,6 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 	Config.GetCurrentSelectionDelegates.Add(&GetCurrentSelectionDelegate);
 	Config.SetFilterDelegates.Add(&SetFilterDelegate);
 	Config.bFocusSearchBoxWhenOpened = false;
-	Config.bPreloadAssetsForContextMenu = false;
 
 	Config.SaveSettingsName = SettingsIniSection;
 	

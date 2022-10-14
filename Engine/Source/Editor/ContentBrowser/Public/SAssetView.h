@@ -108,7 +108,6 @@ public:
 		, _CanShowDevelopersFolder(false)
 		, _CanShowFavorites(false)
 		, _CanDockCollections(false)
-		, _PreloadAssetsForContextMenu(true)
 		, _SelectionMode( ESelectionMode::Multi )
 		, _AllowDragging(true)
 		, _AllowFocusOnSync(true)
@@ -228,9 +227,6 @@ public:
 
 		/** Indicates if the 'Dock Collections' option should be enabled or disabled */
 		SLATE_ARGUMENT(bool, CanDockCollections)
-
-		/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
-		SLATE_ARGUMENT( bool, PreloadAssetsForContextMenu )
 
 		/** The selection mode the asset view should use */
 		SLATE_ARGUMENT( ESelectionMode::Type, SelectionMode )
@@ -1046,9 +1042,6 @@ private:
 
 	/** Indicates if the 'Dock Collections' option should be enabled or disabled */
 	bool bCanDockCollections;
-
-	/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
-	bool bPreloadAssetsForContextMenu;
 
 	/** If true, it will show path column in the asset view */
 	bool bShowPathInColumnView;

@@ -20,12 +20,6 @@ UClass* FNeuralNetworkInferenceQAAssetTypeActions::GetSupportedClass() const
 	return UNeuralNetworkInferenceQAAsset::StaticClass();
 }
 
-bool FNeuralNetworkInferenceQAAssetTypeActions::HasActions(const TArray<UObject*>& InObjects) const
-{
-	// Returns true if this class can supply actions for InObjects
-	return false;
-}
-
 uint32 FNeuralNetworkInferenceQAAssetTypeActions::GetCategories()
 {
 	const INeuralNetworkInferenceEditorModule& NeuralNetworkInferenceEditorModule = FModuleManager::GetModuleChecked<INeuralNetworkInferenceEditorModule>("NeuralNetworkInferenceEditor");

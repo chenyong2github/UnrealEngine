@@ -265,9 +265,6 @@ private:
 	/** Handler to check to see if "Diff Against Depot" can be executed */
 	bool CanExecuteSCCDiffAgainstDepot() const;
 
-	/** Handler to check to see if "Consolidate" can be executed */
-	bool CanExecuteConsolidate() const;
-
 	/** Handler to check to see if "Diff Selected" can be executed */
 	bool CanExecuteDiffSelected() const;
 

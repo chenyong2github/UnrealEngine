@@ -375,40 +375,42 @@ public:
 				return;
 			}
 
-			ULevelSequence* LevelSequence = Context->SelectedObjects.Num() == 1 ? Cast<ULevelSequence>(Context->SelectedObjects[0]) : nullptr;
-			if (LevelSequence)
+			if (Context->SelectedAssets.Num() == 1 && Context->SelectedAssets[0].IsInstanceOf(ULevelSequence::StaticClass()))
 			{
-				// if this LevelSequence has associated maps, offer to load them
-				TArray<FString> AssociatedMaps = FSequencerUtilities::GetAssociatedMapPackages(LevelSequence);
-
-				if(AssociatedMaps.Num()>0)
+				if (ULevelSequence* LevelSequence = Cast<ULevelSequence>(Context->SelectedAssets[0].GetAsset()))
 				{
-					InSection.AddSubMenu(
-						"SequencerOpenMap_Label",
-						LOCTEXT("SequencerOpenMap_Label", "Open Map"),
-						LOCTEXT("SequencerOpenMap_Tooltip", "Open a map associated with this Level Sequence Asset"),
-						FNewMenuDelegate::CreateLambda(
-							[AssociatedMaps](FMenuBuilder& SubMenuBuilder)
-							{
-								for (const FString& AssociatedMap : AssociatedMaps)
+					// if this LevelSequence has associated maps, offer to load them
+					TArray<FString> AssociatedMaps = FSequencerUtilities::GetAssociatedMapPackages(LevelSequence);
+
+					if(AssociatedMaps.Num()>0)
+					{
+						InSection.AddSubMenu(
+							"SequencerOpenMap_Label",
+							LOCTEXT("SequencerOpenMap_Label", "Open Map"),
+							LOCTEXT("SequencerOpenMap_Tooltip", "Open a map associated with this Level Sequence Asset"),
+							FNewMenuDelegate::CreateLambda(
+								[AssociatedMaps](FMenuBuilder& SubMenuBuilder)
 								{
-									SubMenuBuilder.AddMenuEntry(
-										FText::FromString(FPaths::GetBaseFilename(AssociatedMap)),
-										FText(),
-										FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Levels"),
-										FExecuteAction::CreateLambda(
-											[AssociatedMap]
-											{
-												FEditorFileUtils::LoadMap(AssociatedMap);
-											}
-										)
-									);
+									for (const FString& AssociatedMap : AssociatedMaps)
+									{
+										SubMenuBuilder.AddMenuEntry(
+											FText::FromString(FPaths::GetBaseFilename(AssociatedMap)),
+											FText(),
+											FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Levels"),
+											FExecuteAction::CreateLambda(
+												[AssociatedMap]
+												{
+													FEditorFileUtils::LoadMap(AssociatedMap);
+												}
+											)
+										);
+									}
 								}
-							}
-						),
-						false,
-						FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Levels")
-					);
+							),
+							false,
+							FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Levels")
+						);
+					}
 				}
 			}
 		}));

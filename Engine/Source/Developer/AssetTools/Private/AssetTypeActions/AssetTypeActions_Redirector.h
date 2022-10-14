@@ -14,7 +14,6 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_Redirector", "Redirector"); }
 	virtual FColor GetTypeColor() const override { return FColor(128, 128, 128); }
 	virtual UClass* GetSupportedClass() const override { return UObjectRedirector::StaticClass(); }
-	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual bool AssetsActivatedOverride( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }

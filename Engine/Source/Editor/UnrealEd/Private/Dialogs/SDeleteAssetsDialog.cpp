@@ -758,7 +758,6 @@ TSharedRef<SWidget> SDeleteAssetsDialog::MakeAssetViewForReferencerAssets()
 	AssetPickerConfig.bAllowNullSelection = false;
 	AssetPickerConfig.bShowBottomToolbar = false;
 	AssetPickerConfig.bAutohideSearchBar = true;
-	AssetPickerConfig.bPreloadAssetsForContextMenu = false;
 
 	AssetPickerConfig.AssetShowWarningText = TAttribute< FText >( this, &SDeleteAssetsDialog::GetReferencingAssetsEmptyText );
 
@@ -783,7 +782,6 @@ TSharedRef<SWidget> SDeleteAssetsDialog::MakeConsolidationAssetPicker()
 	AssetPickerConfig.bShowBottomToolbar = true;
 	AssetPickerConfig.bAllowDragging = false;
 	AssetPickerConfig.bCanShowClasses = false;
-	AssetPickerConfig.bPreloadAssetsForContextMenu = false;
 	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>( TEXT( "ContentBrowser" ) );

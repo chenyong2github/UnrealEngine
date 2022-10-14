@@ -15,11 +15,6 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-bool FAssetTypeActions_Class::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	UClass *const BaseClass = (InObjects.Num() == 1) ? Cast<UClass>(InObjects[0]) : nullptr;

@@ -171,6 +171,12 @@
 
 #define LOCTEXT_NAMESPACE "AssetTools"
 
+IAssetTools& IAssetTools::Get()
+{
+	FAssetToolsModule& Module = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	return Module.Get();
+}
+
 TScriptInterface<IAssetTools> UAssetToolsHelpers::GetAssetTools()
 {
 	return &UAssetToolsImpl::Get();

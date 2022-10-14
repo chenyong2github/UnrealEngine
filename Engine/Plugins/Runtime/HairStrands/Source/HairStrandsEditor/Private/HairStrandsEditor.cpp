@@ -8,10 +8,8 @@
 #include "GroomCacheActions.h"
 
 #include "Styling/SlateStyleRegistry.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/AppStyle.h"
 #include "Interfaces/IPluginManager.h"
-#include "SlateOptMacros.h"
+#include "ToolMenus.h"
 
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
@@ -73,6 +71,8 @@ void SaveAsset(UObject* Object)
 void FGroomEditor::StartupModule()
 {
 	LLM_SCOPE_BYTAG(GroomEditor)
+
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FGroomEditor::RegisterMenus));
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShared<FGroomActions>();
@@ -152,6 +152,9 @@ void FGroomEditor::StartupModule()
 
 void FGroomEditor::ShutdownModule()
 {
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner(UE_MODULE_NAME);
+
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule != nullptr)
 	{
@@ -195,6 +198,11 @@ void FGroomEditor::ShutdownModule()
 		ensure(StyleSet.IsUnique());
 		StyleSet.Reset();
 	}
+}
+
+void FGroomEditor::RegisterMenus()
+{
+	FGroomBindingActions::RegisterMenus();
 }
 
 TArray<TSharedPtr<IGroomTranslator>> FGroomEditor::GetHairTranslators()

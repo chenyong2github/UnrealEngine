@@ -51,11 +51,6 @@ UClass* FAssetTypeActions_EditorUtilityBlueprint::GetSupportedClass() const
 	return UEditorUtilityBlueprint::StaticClass();
 }
 
-bool FAssetTypeActions_EditorUtilityBlueprint::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<UEditorUtilityBlueprint>> Blueprints = GetTypedWeakObjectPtrs<UEditorUtilityBlueprint>(InObjects);

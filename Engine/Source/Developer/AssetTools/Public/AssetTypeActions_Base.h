@@ -30,21 +30,6 @@ public:
 		return Object->GetName();
 	}
 
-	virtual bool HasActions( const TArray<UObject*>& InObjects ) const override
-	{
-		return false;
-	}
-
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override
-	{
-
-	}
-
-	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override
-	{
-
-	}
-
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override
 	{
 		FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);

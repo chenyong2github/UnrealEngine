@@ -19,7 +19,6 @@ protected:
 	virtual FText GetName() const override;
 	virtual FColor GetTypeColor() const override;
 	virtual uint32 GetCategories() override;
-	virtual bool HasActions(TArray<UObject*> const& InObjects) const override { return true; }
 	virtual void GetActions(TArray<UObject*> const& InObjects, FMenuBuilder& MenuBuilder) override;
 	//~ End FAssetTypeActions_Base Interface.
 

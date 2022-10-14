@@ -12,7 +12,6 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_PhysicalMaterialMask", "Physical Material Mask"); }
 	virtual FColor GetTypeColor() const override { return FColor(200,162,108); }
 	virtual UClass* GetSupportedClass() const override;
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Physics; }
 	virtual bool IsImportedAsset() const override { return true; }

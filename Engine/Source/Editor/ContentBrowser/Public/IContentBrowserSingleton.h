@@ -286,9 +286,6 @@ struct FAssetPickerConfig
 	/** Indicates if plugin content should always be shown */
 	bool bForceShowPluginContent;
 
-	/** Indicates if the context menu is going to load the assets, and if so to preload before the context menu is shown, and warn about the pending load. */
-	bool bPreloadAssetsForContextMenu;
-
 	/** Indicates that we would like to build the filter UI with the Asset Picker */
 	bool bAddFilterUI;
 
@@ -319,7 +316,6 @@ struct FAssetPickerConfig
 		, bCanShowDevelopersFolder(true)
 		, bForceShowEngineContent(false)
 		, bForceShowPluginContent(false)
-		, bPreloadAssetsForContextMenu(true)
 		, bAddFilterUI(false)
 		, bShowPathInColumnView(false)
 		, bShowTypeInColumnView(true)
@@ -470,6 +466,8 @@ struct FSaveAssetDialogConfig : public FSharedAssetDialogConfig
 class IContentBrowserSingleton
 {
 public:
+	CONTENTBROWSER_API static IContentBrowserSingleton& Get();
+	
 	/** Virtual destructor */
 	virtual ~IContentBrowserSingleton() {}
 

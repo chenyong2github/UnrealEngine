@@ -24,7 +24,6 @@ class FAudioImpulseResponseExtension
 {
 public:
 	static void RegisterMenus();
-	static void GetExtendedActions(const struct FToolMenuContext& MenuContext);
 	static void ExecuteCreateImpulseResponse(const struct FToolMenuContext& MenuContext);
 };
 

@@ -13,5 +13,4 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(105, 0, 60); }
 	virtual UClass* GetSupportedClass() const override { return UImagePlateFileSequence::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Media; }
-	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return false; }
 };

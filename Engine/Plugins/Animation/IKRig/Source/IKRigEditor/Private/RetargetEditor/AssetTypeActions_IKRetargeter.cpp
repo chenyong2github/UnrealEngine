@@ -18,11 +18,6 @@ UClass* FAssetTypeActions_IKRetargeter::GetSupportedClass() const
 	return UIKRetargeter::StaticClass();
 }
 
-void FAssetTypeActions_IKRetargeter::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
-{
-	FAssetTypeActions_Base::GetActions(InObjects, Section);
-}
-
 void FAssetTypeActions_IKRetargeter::OpenAssetEditor(
 	const TArray<UObject*>& InObjects,
 	TSharedPtr<IToolkitHost> EditWithinLevelEditor)
@@ -61,10 +56,7 @@ void FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu()
 	for (const FName& MenuName : MenusToExtend)
 	{
 		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(MenuName);
-		if (Menu == nullptr)
-		{
-			continue;
-		}
+		check(Menu);
 
 		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 		Section.AddSubMenu(

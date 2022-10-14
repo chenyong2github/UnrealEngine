@@ -33,7 +33,6 @@ public:
 	FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_CustomizableObject", "Customizable Object"); }
 	FColor GetTypeColor() const override { return FColor(234, 255, 0); }
 	UClass* GetSupportedClass() const override { return UCustomizableObject::StaticClass(); }
-	bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
 	void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	uint32 GetCategories() override;

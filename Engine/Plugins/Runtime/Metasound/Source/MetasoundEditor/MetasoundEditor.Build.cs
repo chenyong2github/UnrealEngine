@@ -13,11 +13,13 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
+					"AssetTools",
 					"AppFramework",
 					"AudioExtensions",
 					"AudioMixer",
 					"AudioWidgets",
 					"AudioSynesthesia",
+					"ContentBrowser",
 					"EditorWidgets",
 					"Kismet",
 					"KismetWidgets",

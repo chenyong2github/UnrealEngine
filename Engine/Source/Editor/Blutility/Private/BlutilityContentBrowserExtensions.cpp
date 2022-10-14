@@ -115,13 +115,25 @@ public:
 			// Process asset based utilities
 			for (const FAssetData& UtilAsset : UtilAssets)
 			{
-				if (UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
+				FString ParentClassName;
+				if (!UtilAsset.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
 				{
-					if (UClass* BPClass = Blueprint->GeneratedClass.Get())
+					UObject* Outer = nullptr;
+					ResolveName(Outer, ParentClassName, false, false);
+					const UClass* ParentClass = FindObject<UClass>(Outer, *ParentClassName);
+
+					// We only care about UEditorUtilityBlueprint's that are compiling subclasses of UAssetActionUtility
+					if (ParentClass && ParentClass->IsChildOf(UAssetActionUtility::StaticClass()))
 					{
-						if (UAssetActionUtility* DefaultObject = Cast<UAssetActionUtility>(BPClass->GetDefaultObject()))
+						if (const UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
 						{
-							ProcessAssetAction(DefaultObject);
+							if (const UClass* BPClass = Blueprint->GeneratedClass.Get())
+							{
+								if (UAssetActionUtility* DefaultObject = Cast<UAssetActionUtility>(BPClass->GetDefaultObject()))
+								{
+									ProcessAssetAction(DefaultObject);
+								}
+							}
 						}
 					}
 				}

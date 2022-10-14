@@ -11,8 +11,7 @@ class FGLTFProxyAssetActions final : public IAssetTypeActions
 public:
 
 	FGLTFProxyAssetActions(const TSharedRef<IAssetTypeActions>& OriginalActions);
-
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
+	
 	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
 
 	virtual FText GetName() const override { return OriginalActions->GetName(); }

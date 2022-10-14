@@ -9,7 +9,6 @@ class FAssetTypeActions_CSVAssetBase : public FAssetTypeActions_Base
 {
 public:
 	virtual FColor GetTypeColor() const override { return FColor(62, 140, 35); }
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
 	virtual bool IsImportedAsset() const override { return true; }
 

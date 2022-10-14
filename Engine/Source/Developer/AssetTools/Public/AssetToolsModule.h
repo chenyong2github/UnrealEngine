@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "IAssetTools.h"
 
+class IAssetTools;
 
 class FAssetToolsModule : public IModuleInterface
 {
@@ -36,5 +37,5 @@ public:
 
 private:
 	TWeakObjectPtr<class UAssetToolsImpl> AssetToolsPtr;
-	class FAssetToolsConsoleCommands* ConsoleCommands;
+	class FAssetToolsConsoleCommands* ConsoleCommands = nullptr;
 };

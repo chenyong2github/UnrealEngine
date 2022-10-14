@@ -6,6 +6,7 @@
 #include "ContentBrowserDataSubsystem.h"
 #include "SContentBrowser.h"
 #include "UObject/UnrealNames.h"
+#include "ToolMenuSection.h"
 
 FName UContentBrowserToolbarMenuContext::GetCurrentPath() const
 {

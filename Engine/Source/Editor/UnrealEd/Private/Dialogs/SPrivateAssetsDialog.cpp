@@ -312,7 +312,6 @@ TSharedRef<SWidget> SPrivateAssetsDialog::BuildAssetViewForReferencerAssets()
 	AssetPickerConfig.bAllowNullSelection = false;
 	AssetPickerConfig.bShowBottomToolbar = false;
 	AssetPickerConfig.bAutohideSearchBar = true;
-	AssetPickerConfig.bPreloadAssetsForContextMenu = false;
 
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
 	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SPrivateAssetsDialog::OnShouldFilterAsset);

@@ -25,7 +25,6 @@ class FAssetTypeActions_CustomizableObjectPopulation : public FAssetTypeActions_
 	UClass* GetSupportedClass() const override;
 	uint32 GetCategories();
 
-	bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
 	void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
 
 	void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor) override;

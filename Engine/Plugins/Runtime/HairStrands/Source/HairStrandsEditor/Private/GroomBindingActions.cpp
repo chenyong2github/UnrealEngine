@@ -1,42 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomBindingActions.h"
+
+#include "ContentBrowserMenuContexts.h"
 #include "GroomAsset.h"
 
-#include "EditorFramework/AssetImportData.h"
 #include "GeometryCache.h"
-#include "HairStrandsRendering.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "ToolMenuSection.h"
 #include "GroomBindingBuilder.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
-
-FGroomBindingActions::FGroomBindingActions()
-{}
-
-bool FGroomBindingActions::CanFilter()
-{
-	return true;
-}
-
-void FGroomBindingActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
-{
-	FAssetTypeActions_Base::GetActions(InObjects, Section);
-
-	TArray<TWeakObjectPtr<UGroomBindingAsset>> GroomBindingAssets = GetTypedWeakObjectPtrs<UGroomBindingAsset>(InObjects);
-
-	Section.AddMenuEntry(
-		"RebuildGroomBinding",
-		LOCTEXT("RebuildGroomBinding", "Rebuild"),
-		LOCTEXT("RebuildGroomBindingTooltip", "Rebuild the groom binding"),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FGroomBindingActions::ExecuteRebuildBindingAsset, GroomBindingAssets),
-			FCanExecuteAction::CreateSP(this, &FGroomBindingActions::CanRebuildBindingAsset, GroomBindingAssets)
-		)
-	);
-}
 
 uint32 FGroomBindingActions::GetCategories()
 {
@@ -58,54 +33,57 @@ FColor FGroomBindingActions::GetTypeColor() const
 	return FColor::White;
 }
 
-bool FGroomBindingActions::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FGroomBindingActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
 	// #ueent_todo: Will need a custom editor at some point, for now just use the Properties editor
 	FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
 }
 
-bool FGroomBindingActions::CanRebuildBindingAsset(TArray<TWeakObjectPtr<UGroomBindingAsset>> Objects) const
+void FGroomBindingActions::RegisterMenus()
 {
-	for (TWeakObjectPtr<UGroomBindingAsset> BindingAsset : Objects)
+	FToolMenuOwnerScoped MenuOwner(UE_MODULE_NAME);
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.GroomBinding");
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+
+	Section.AddDynamicEntry("GroomBinding", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
-		if (BindingAsset.IsValid())
-		{
-			return true;
-		}
-	}
-	return false;
+		const TAttribute<FText> Label = LOCTEXT("RebuildGroomBinding", "Rebuild");
+		const TAttribute<FText> ToolTip = LOCTEXT("RebuildGroomBindingTooltip", "Rebuild the groom binding");
+		const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.AssetActions");
+		const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&FGroomBindingActions::ExecuteRebuildBindingAsset);
+
+		InSection.AddMenuEntry("GroomBinding_Rebuild", Label, ToolTip, Icon, UIAction);
+	}));
 }
 
-void FGroomBindingActions::ExecuteRebuildBindingAsset(TArray<TWeakObjectPtr<UGroomBindingAsset>> Objects) const
+void FGroomBindingActions::ExecuteRebuildBindingAsset(const FToolMenuContext& MenuContext)
 {
-	for (TWeakObjectPtr<UGroomBindingAsset> BindingAsset : Objects)
+	if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext))
 	{
-		if (BindingAsset.IsValid() && BindingAsset->Groom && BindingAsset->HasValidTarget())
+		for (UGroomBindingAsset* BindingAsset : Context->LoadSelectedObjects<UGroomBindingAsset>())
 		{
-			BindingAsset->Groom->ConditionalPostLoad();
-			if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+			if (BindingAsset->Groom && BindingAsset->HasValidTarget())
 			{
-				BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
-				if (BindingAsset->SourceSkeletalMesh)
+				BindingAsset->Groom->ConditionalPostLoad();
+				if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 				{
-					BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
+					BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
+					if (BindingAsset->SourceSkeletalMesh)
+					{
+						BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
+					}
 				}
-			}
-			else
-			{
-				BindingAsset->TargetGeometryCache->ConditionalPostLoad();
-				if (BindingAsset->SourceGeometryCache)
+				else
 				{
-					BindingAsset->SourceGeometryCache->ConditionalPostLoad();
+					BindingAsset->TargetGeometryCache->ConditionalPostLoad();
+					if (BindingAsset->SourceGeometryCache)
+					{
+						BindingAsset->SourceGeometryCache->ConditionalPostLoad();
+					}
 				}
+				FGroomBindingBuilder::BuildBinding(BindingAsset, true);
+				BindingAsset->GetOutermost()->MarkPackageDirty();
 			}
-			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), true);
-			BindingAsset->GetOutermost()->MarkPackageDirty();
 		}
 	}
 }

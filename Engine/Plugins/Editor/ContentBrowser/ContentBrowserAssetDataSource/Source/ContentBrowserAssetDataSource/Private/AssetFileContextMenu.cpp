@@ -454,18 +454,15 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 		);
 
 		// Replace References
-		if (CanExecuteConsolidate())
-		{
-			Section.AddMenuEntry(
-				"ReplaceReferences",
-				LOCTEXT("ReplaceReferences", "Replace References"),
-				LOCTEXT("ConsolidateTooltip", "Replace references to the selected assets."),
-				FSlateIcon(),
-				FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteConsolidate)
-				)
-				);
-		}
+		Section.AddMenuEntry(
+			"ReplaceReferences",
+			LOCTEXT("ReplaceReferences", "Replace References"),
+			LOCTEXT("ConsolidateTooltip", "Replace references to the selected assets."),
+			FSlateIcon(),
+			FUIAction(
+			FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteConsolidate)
+			)
+		);
 
 		// Property Matrix
 		bool bCanUsePropertyMatrix = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( "PropertyEditor" ).GetCanUsePropertyMatrix();
@@ -1535,9 +1532,7 @@ void FAssetFileContextMenu::GetSelectedAssets(TArray<UObject*>& Assets, bool Ski
 			continue;
 		}
 
-		UObject* Object = SelectedAssets[AssetIdx].FastGetAsset();
-
-		if (Object)
+		if (UObject* Object = SelectedAssets[AssetIdx].GetAsset())
 		{
 			Assets.Add(Object);
 		}
@@ -2375,32 +2370,6 @@ bool FAssetFileContextMenu::CanExecuteSCCRevert() const
 bool FAssetFileContextMenu::CanExecuteSCCSync() const
 {
 	return bCanExecuteSCCSync;
-}
-
-bool FAssetFileContextMenu::CanExecuteConsolidate() const
-{
-	TArray<UObject*> ProposedObjects;
-	for (int32 AssetIdx = 0; AssetIdx < SelectedAssets.Num(); ++AssetIdx)
-	{
-		// Don't load assets here. Only operate on already loaded assets.
-		if ( SelectedAssets[AssetIdx].IsAssetLoaded() )
-		{
-			UObject* Object = SelectedAssets[AssetIdx].GetAsset();
-
-			if ( Object )
-			{
-				ProposedObjects.Add(Object);
-			}
-		}
-	}
-	
-	if ( ProposedObjects.Num() > 0 )
-	{
-		TArray<UObject*> CompatibleObjects;
-		return FConsolidateToolWindow::DetermineAssetCompatibility(ProposedObjects, CompatibleObjects);
-	}
-
-	return false;
 }
 
 bool FAssetFileContextMenu::CanExecuteDiffSelected() const

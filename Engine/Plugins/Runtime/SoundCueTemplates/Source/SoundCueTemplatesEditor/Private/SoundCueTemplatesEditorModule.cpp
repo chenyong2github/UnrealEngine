@@ -20,7 +20,7 @@ void FSoundCueTemplatesEditorModule::ShutdownModule()
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 	UToolMenus::UnRegisterStartupCallback(this);
-	UToolMenus::UnregisterOwner("SoundCueTemplates");
+	UToolMenus::UnregisterOwner(UE_MODULE_NAME);
 }
 
 void FSoundCueTemplatesEditorModule::RegisterAssetActions()

@@ -16,11 +16,6 @@ FGLTFProxyAssetActions::FGLTFProxyAssetActions(const TSharedRef<IAssetTypeAction
 {
 }
 
-bool FGLTFProxyAssetActions::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FGLTFProxyAssetActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	OriginalActions->GetActions(InObjects, Section);

@@ -19,7 +19,6 @@ public:
 	virtual UClass* GetSupportedClass() const override { return UClass::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Basic; }
 	
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;

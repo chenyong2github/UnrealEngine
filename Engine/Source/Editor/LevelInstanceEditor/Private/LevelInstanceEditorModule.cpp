@@ -558,13 +558,16 @@ namespace LevelInstanceMenuUtils
 		}		
 	}
 
-	void CreateBlueprintFromMenu(UToolMenu* Menu, UWorld* WorldAsset)
+	void CreateBlueprintFromMenu(UToolMenu* Menu, FAssetData WorldAsset)
 	{
 		FToolMenuSection& Section = CreateLevelSection(Menu);
 		FToolUIAction UIAction;
 		UIAction.ExecuteAction.BindLambda([WorldAsset](const FToolMenuContext& MenuContext)
 		{
-			CreateBlueprintFromWorld(WorldAsset);
+			if (UWorld* World = Cast<UWorld>(WorldAsset.GetAsset()))
+			{
+				CreateBlueprintFromWorld(World);
+			}
 		});
 
 		Section.AddMenuEntry(
@@ -634,16 +637,19 @@ namespace LevelInstanceMenuUtils
 		}
 	}
 
-	void AddPartitionedStreamingSupportFromMenu(UToolMenu* Menu, UWorld* WorldAsset)
+	void AddPartitionedStreamingSupportFromMenu(UToolMenu* Menu, FAssetData WorldAsset)
 	{
-		FName WorldAssetName = WorldAsset->GetPackage()->GetFName();
+		FName WorldAssetName = WorldAsset.PackageName;
 		if (!ULevel::GetIsLevelPartitionedFromPackage(WorldAssetName) || !ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(WorldAssetName))
 		{
 			FToolMenuSection& Section = CreateLevelSection(Menu);
 			FToolUIAction UIAction;
 			UIAction.ExecuteAction.BindLambda([WorldAsset](const FToolMenuContext& MenuContext)
 			{
-				AddPartitionedStreamingSupportFromWorld(WorldAsset);
+				if (UWorld* World = Cast<UWorld>(WorldAsset.GetAsset()))
+				{
+					AddPartitionedStreamingSupportFromWorld(World);
+				}
 			});
 
 			Section.AddMenuEntry(
@@ -836,12 +842,13 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 			{
 				if (UContentBrowserAssetContextMenuContext* AssetMenuContext = ToolMenu->Context.FindContext<UContentBrowserAssetContextMenuContext>())
 				{
-					if (AssetMenuContext->SelectedObjects.Num() != 1)
+					if (AssetMenuContext->SelectedAssets.Num() != 1)
 					{
 						return;
 					}
-					// World is already loaded by the AssetContextMenu code
-					if (UWorld* WorldAsset = Cast<UWorld>(AssetMenuContext->SelectedObjects[0].Get()))
+
+					const FAssetData& WorldAsset = AssetMenuContext->SelectedAssets[0];
+					if (AssetMenuContext->SelectedAssets[0].IsInstanceOf<UWorld>())
 					{
 						LevelInstanceMenuUtils::CreateBlueprintFromMenu(ToolMenu, WorldAsset);
 						LevelInstanceMenuUtils::AddPartitionedStreamingSupportFromMenu(ToolMenu, WorldAsset);

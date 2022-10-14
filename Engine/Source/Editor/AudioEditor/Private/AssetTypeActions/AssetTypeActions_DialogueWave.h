@@ -28,7 +28,6 @@ public:
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual bool CanFilter() override { return true; }
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 

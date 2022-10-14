@@ -19,6 +19,7 @@
 #include "Misc/PackageName.h"
 #include "LevelEditor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "IAssetTools.h"
 
 #define LOCTEXT_NAMESPACE "UnsavedAssetsTracker"
 

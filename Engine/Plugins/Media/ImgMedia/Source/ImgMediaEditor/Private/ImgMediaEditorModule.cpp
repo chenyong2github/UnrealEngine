@@ -201,55 +201,51 @@ protected:
 
 	void ExtendContentMenu()
 	{
-		if (UToolMenu* WorldAssetMenu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.ImgMediaSource"))
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.ImgMediaSource");
+		
+		FToolMenuSection& Section = Menu->AddDynamicSection("ImgMediaSource", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* ToolMenu)
 		{
-			FToolMenuSection& Section = WorldAssetMenu->AddDynamicSection("ImgMediaSource", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* ToolMenu)
+			if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(*ToolMenu))
 			{
-				if (ToolMenu)
+				if (Context->SelectedAssets.Num() != 1)
 				{
-					if (UContentBrowserAssetContextMenuContext* AssetMenuContext = ToolMenu->Context.FindContext<UContentBrowserAssetContextMenuContext>())
-					{
-						if (AssetMenuContext->SelectedObjects.Num() != 1)
-						{
-							return;
-						}
-
-						// Add menu entry.
-						if (UImgMediaSource* WorldAsset = Cast<UImgMediaSource>(AssetMenuContext->SelectedObjects[0].Get()))
-						{
-							// Get path from media source.
-							// Make sure it ends with / so it opens the directory.
-							FString InputPath = WorldAsset->GetSequencePath();
-							if (InputPath.EndsWith(TEXT("/")) == false)
-							{
-								InputPath += TEXT("/");
-							}
-
-							const TAttribute<FText> Label = LOCTEXT("ProcessEXR", "Process EXRs");
-							const TAttribute<FText> ToolTip = LOCTEXT("ProcessEXR_Tooltip", "Open a tab to allow adding tiles and mips to an EXR sequence.");
-							const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(),
-								"LevelEditor.Tabs.Viewports");
-							const FToolMenuExecuteAction UIAction =
-								FToolMenuExecuteAction::CreateLambda([InputPath]
-								(const FToolMenuContext& InContext)
-							{
-								ProcessEXRInputPath = InputPath;
-								OpenProcesEXRTab();
-							});
-						
-							const FName SectionName = TEXT("ImgMedia");
-							FToolMenuSection* Section = ToolMenu->FindSection(SectionName);
-							if (!Section)
-							{
-								Section = &(ToolMenu->AddSection(SectionName, LOCTEXT("ImgMediaSectionLabel", "ImgMedia")));
-							}
-
-							Section->AddMenuEntry("ImgMedia_ProcessEXR", Label, ToolTip, Icon, UIAction);
-						}
-					}
+					return;
 				}
-			}), FToolMenuInsert(NAME_None, EToolMenuInsertType::Default));
-		}
+
+				// Add menu entry.
+				if (UImgMediaSource* ImgMediaSource = Cast<UImgMediaSource>(Context->SelectedAssets[0].GetAsset()))
+				{
+					// Get path from media source.
+					// Make sure it ends with / so it opens the directory.
+					FString InputPath = ImgMediaSource->GetSequencePath();
+					if (InputPath.EndsWith(TEXT("/")) == false)
+					{
+						InputPath += TEXT("/");
+					}
+
+					const TAttribute<FText> Label = LOCTEXT("ProcessEXR", "Process EXRs");
+					const TAttribute<FText> ToolTip = LOCTEXT("ProcessEXR_Tooltip", "Open a tab to allow adding tiles and mips to an EXR sequence.");
+					const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(),
+						"LevelEditor.Tabs.Viewports");
+					const FToolMenuExecuteAction UIAction =
+						FToolMenuExecuteAction::CreateLambda([InputPath]
+						(const FToolMenuContext& InContext)
+					{
+						ProcessEXRInputPath = InputPath;
+						OpenProcesEXRTab();
+					});
+				
+					const FName SectionName = TEXT("ImgMedia");
+					FToolMenuSection* Section = ToolMenu->FindSection(SectionName);
+					if (!Section)
+					{
+						Section = &(ToolMenu->AddSection(SectionName, LOCTEXT("ImgMediaSectionLabel", "ImgMedia")));
+					}
+
+					Section->AddMenuEntry("ImgMedia_ProcessEXR", Label, ToolTip, Icon, UIAction);
+				}
+			}
+		}), FToolMenuInsert(NAME_None, EToolMenuInsertType::Default));
 	}
 
 	/**

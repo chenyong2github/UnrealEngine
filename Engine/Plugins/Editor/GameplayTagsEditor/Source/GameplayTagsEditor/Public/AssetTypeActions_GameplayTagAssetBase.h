@@ -14,9 +14,6 @@ public:
 	/** Constructor */
 	FAssetTypeActions_GameplayTagAssetBase(FName InTagPropertyName);
 
-	/** Overridden to specify that the gameplay tag base has actions */
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
-
 	/** Overridden to offer the gameplay tagging options */
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 

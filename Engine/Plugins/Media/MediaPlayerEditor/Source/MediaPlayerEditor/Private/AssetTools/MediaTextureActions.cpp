@@ -63,36 +63,25 @@ void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FToolMe
 	}*/
 }
 
-
 uint32 FMediaTextureActions::GetCategories()
 {
 	return EAssetTypeCategories::Textures | EAssetTypeCategories::Media;
 }
-
 
 FText FMediaTextureActions::GetName() const
 {
 	return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_MediaTexture", "Media Texture");
 }
 
-
 UClass* FMediaTextureActions::GetSupportedClass() const
 {
 	return UMediaTexture::StaticClass();
 }
 
-
 FColor FMediaTextureActions::GetTypeColor() const
 {
 	return FColor::Red;
 }
-
-
-bool FMediaTextureActions::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 
 void FMediaTextureActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {

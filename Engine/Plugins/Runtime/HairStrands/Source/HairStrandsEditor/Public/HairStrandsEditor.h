@@ -49,6 +49,7 @@ public:
 	TArray<TSharedPtr<IGroomTranslator>> GetHairTranslators();
 
 private:
+	void RegisterMenus();
 
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<class IAssetTypeActions>> RegisteredAssetTypeActions;
