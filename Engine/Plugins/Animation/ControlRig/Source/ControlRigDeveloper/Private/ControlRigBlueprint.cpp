@@ -4711,6 +4711,7 @@ void UControlRigBlueprint::HandleHierarchyModified(ERigHierarchyNotification InN
 		}
 		case ERigHierarchyNotification::ElementAdded:
 		case ERigHierarchyNotification::ParentChanged:
+		case ERigHierarchyNotification::ElementReordered:
 		case ERigHierarchyNotification::HierarchyReset:
 		{
 			Modify();

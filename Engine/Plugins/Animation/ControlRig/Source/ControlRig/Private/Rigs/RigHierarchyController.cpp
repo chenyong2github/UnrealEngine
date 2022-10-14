@@ -2079,7 +2079,7 @@ bool URigHierarchyController::ReorderElement(FRigBaseElement* InElement, int32 I
 	}
 
 	const int32 CurrentIndex = LocalElements.Find(InElement);
-	if(CurrentIndex == INDEX_NONE || CurrentIndex == InIndex || !LocalElements.IsValidIndex(InIndex))
+	if(CurrentIndex == INDEX_NONE || CurrentIndex == InIndex)
 	{
 		return false;
 	}
@@ -2094,8 +2094,16 @@ bool URigHierarchyController::ReorderElement(FRigBaseElement* InElement, int32 I
 	}
 
 	LocalElements.RemoveAt(CurrentIndex);
-	LocalElements.Insert(InElement, InIndex);
+	if(InIndex >= LocalElements.Num())
+	{
+		LocalElements.Add(InElement);
+	}
+	else
+	{
+		LocalElements.Insert(InElement, InIndex);
+	}
 
+	InIndex = FMath::Min<int32>(InIndex, LocalElements.Num() - 1);
 	const int32 LowerBound = FMath::Min<int32>(InIndex, CurrentIndex);
 	const int32 UpperBound = FMath::Max<int32>(InIndex, CurrentIndex);
 	for(int32 LocalIndex = LowerBound; LocalIndex <= UpperBound; LocalIndex++)

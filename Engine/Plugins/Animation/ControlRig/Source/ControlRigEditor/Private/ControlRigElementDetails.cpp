@@ -3029,7 +3029,49 @@ void FRigControlElementDetails::CustomizeAnimationChannels(IDetailLayoutBuilder&
 						})),
 						LOCTEXT("DeleteAnimationChannel", "Delete"),
 						LOCTEXT("DeleteAnimationChannelTooltip", "Deletes this animation channel"),
-					FSlateIcon());
+						FSlateIcon());
+
+					const FRigElementKey ControlElementKey = ControlElement->GetKey();
+					
+					// move up or down
+					WidgetRow->AddCustomContextMenuAction(FUIAction(
+						FExecuteAction::CreateLambda([this, ControlElementKey, ChildElementKeys, HierarchyToChange]()
+						{
+							if(URigHierarchyController* Controller = HierarchyToChange->GetController(true))
+							{
+								FScopedTransaction(LOCTEXT("MoveAnimationChannelUp", "Move Animation Channel Up"));
+								HierarchyToChange->Modify();
+								
+								for(const FRigElementKey& KeyToMove : ChildElementKeys)
+								{
+									const int32 LocalIndex = HierarchyToChange->GetLocalIndex(KeyToMove);
+									Controller->ReorderElement(KeyToMove, LocalIndex - 1, true);
+								}
+								Controller->SelectElement(ControlElementKey, true, true);
+							}
+						})),
+						LOCTEXT("MoveAnimationChannelUp", "Move Up"),
+						LOCTEXT("MoveAnimationChannelUpTooltip", "Reorders this animation channel to show up one higher"),
+						FSlateIcon());
+					WidgetRow->AddCustomContextMenuAction(FUIAction(
+						FExecuteAction::CreateLambda([this, ControlElementKey, ChildElementKeys, HierarchyToChange]()
+						{
+							if(URigHierarchyController* Controller = HierarchyToChange->GetController(true))
+							{
+								FScopedTransaction(LOCTEXT("MoveAnimationChannelDown", "Move Animation Channel Down"));
+								HierarchyToChange->Modify();
+								
+								for(const FRigElementKey& KeyToMove : ChildElementKeys)
+								{
+									const int32 LocalIndex = HierarchyToChange->GetLocalIndex(KeyToMove);
+									Controller->ReorderElement(KeyToMove, LocalIndex + 1, true);
+								}
+								Controller->SelectElement(ControlElementKey, true, true);
+							}
+						})),
+						LOCTEXT("MoveAnimationChannelDown", "Move Down"),
+						LOCTEXT("MoveAnimationChannelDownTooltip", "Reorders this animation channel to show up one lower"),
+						FSlateIcon());
 				}
 			}
 		}
@@ -3059,7 +3101,7 @@ void FRigControlElementDetails::CustomizeAnimationChannels(IDetailLayoutBuilder&
 
 FReply FRigControlElementDetails::OnAddAnimationChannelClicked()
 {
-	if(!IsAnyElementNotOfType(ERigElementType::Control) || IsAnyElementProcedural())
+	if(IsAnyElementNotOfType(ERigElementType::Control) || IsAnyElementProcedural())
 	{
 		return FReply::Handled();
 	}
@@ -3075,6 +3117,7 @@ FReply FRigControlElementDetails::OnAddAnimationChannelClicked()
 	Settings.MaximumValue = FRigControlValue::Make<float>(1.f);
 	Settings.DisplayName = HierarchyToChange->GetSafeNewDisplayName(Key, ChannelName);
 	HierarchyToChange->GetController(true)->AddAnimationChannel(*ChannelName, Key, Settings, true, true);
+	HierarchyToChange->GetController(true)->SelectElement(Key);
 	return FReply::Handled();
 }
 

@@ -588,6 +588,7 @@ void SRigCurveContainer::OnHierarchyModified(ERigHierarchyNotification InNotif, 
 		case ERigHierarchyNotification::ElementAdded:
 		case ERigHierarchyNotification::ElementRemoved:
 		case ERigHierarchyNotification::ElementRenamed:
+		case ERigHierarchyNotification::ElementReordered:
 		case ERigHierarchyNotification::HierarchyReset:
 		{
 			RefreshCurveList();
