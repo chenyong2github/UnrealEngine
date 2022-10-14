@@ -139,7 +139,7 @@ namespace Chaos
 		}
 
 		// Return the wind velocity and pressure field associated with a given group id.
-		const Softs::FVelocityAndPressureField& GetWindVelocityAndPressureField(uint32 GroupId);
+		const Softs::FVelocityAndPressureField& GetWindVelocityAndPressureField(uint32 GroupId) const;
 		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const Softs::FVelocityField& GetWindVelocityField(uint32 GroupId) { return GetWindVelocityAndPressureField(GroupId); }
@@ -218,6 +218,7 @@ namespace Chaos
 		// Simulation group attributes
 		TArrayCollectionArray<Softs::FSolverRigidTransform3> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
 		TArrayCollectionArray<Softs::FSolverVec3> FictitiousAngularDisplacements;  // Relative angular displacement of the reference bone that depends on the fictitious angular scale factor
+		TArrayCollectionArray<Softs::FSolverVec3> ReferenceSpaceLocations;  // Center of rotations for fictitious forces in local coordinate to the simulation space location
 
 		// Particle attributes
 		TArrayCollectionArray<Softs::FSolverVec3> Normals;
