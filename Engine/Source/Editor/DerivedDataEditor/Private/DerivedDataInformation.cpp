@@ -128,11 +128,11 @@ bool FDerivedDataInformation::GetHasZenCache()
 	return false;
 }
 
-bool FDerivedDataInformation::GetHasHordeStorageCache()
+bool FDerivedDataInformation::GetHasUnrealCloudCache()
 {
 	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 		{
-		if (Usage->GetCacheType().Equals(TEXT("Horde Storage")))
+		if (Usage->GetCacheType().Equals(TEXT("Unreal Cloud DDC")))
 	{
 			return true;
 	}
@@ -174,10 +174,10 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 
 		if (EditorSettings && EditorSettings->bEnableDDCNotifications)
 		{
-			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage && EditorSettings->bNotifyUseHordeStorage && !GetHasZenCache() && !GetHasHordeStorageCache() && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter")) != 0))
+			if (DDCProjectSettings->RecommendEveryoneUseUnrealCloudDDC && EditorSettings->bNotifyUseUnrealCloudDDC && !GetHasZenCache() && !GetHasUnrealCloudCache() && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter")) != 0))
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
-				RemoteCacheWarningMessage = FText(LOCTEXT("HordeStorageWarning", "It is recommended that you use a DDC graph that supports Horde Storage. Please check any -ddc commandline overrides."));
+				RemoteCacheWarningMessage = FText(LOCTEXT("UnrealCloudDDCWarning", "It is recommended that you use a DDC graph that supports Unreal Cloud DDC. Please check any -ddc commandline overrides."));
 			}
 			else if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && EditorSettings->bNotifySetupDDCPath && EditorSettings->GlobalLocalDDCPath.Path.IsEmpty())
 			{

@@ -21,7 +21,7 @@ public:
 	static double				GetCacheActivitySizeBytes(bool bGet, bool bLocal);
 	static bool					GetHasRemoteCache();
 	static bool					GetHasZenCache();
-	static bool					GetHasHordeStorageCache();
+	static bool					GetHasUnrealCloudCache();
 	static ERemoteCacheState	GetRemoteCacheState() { return RemoteCacheState; }
 	static FText				GetRemoteCacheStateAsText();
 	static FText				GetRemoteCacheWarningMessage() { return RemoteCacheWarningMessage; }

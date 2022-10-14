@@ -2266,7 +2266,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 
 void FHttpCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	OutNode = {TEXT("Horde Storage"), FString::Printf(TEXT("%s (%s)"), *Domain, *Namespace), /*bIsLocal*/ false};
+	OutNode = {TEXT("Unreal Cloud DDC"), FString::Printf(TEXT("%s (%s)"), *Domain, *Namespace), /*bIsLocal*/ false};
 	OutNode.UsageStats.Add(TEXT(""), UsageStats);
 }
 
@@ -2611,8 +2611,13 @@ void FHttpCacheStoreParams::Parse(const TCHAR* NodeName, const TCHAR* Config)
 	if (FParse::Value(Config, TEXT("ServerID="), ServerId))
 	{
 		FString ServerEntry;
-		const TCHAR* ServerSection = TEXT("HordeStorageServers");
+		const TCHAR* ServerSection = TEXT("StorageServers");
+		const TCHAR* FallbackServerSection = TEXT("HordeStorageServers");
 		if (GConfig->GetString(ServerSection, *ServerId, ServerEntry, GEngineIni))
+		{
+			Parse(NodeName, *ServerEntry);
+		}
+		else if (GConfig->GetString(FallbackServerSection, *ServerId, ServerEntry, GEngineIni))
 		{
 			Parse(NodeName, *ServerEntry);
 		}

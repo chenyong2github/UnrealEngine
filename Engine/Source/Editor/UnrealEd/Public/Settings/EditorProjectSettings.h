@@ -268,5 +268,5 @@ public:
 	 *
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Warnings)
-	bool RecommendEveryoneUseHordeStorage = false;
+	bool RecommendEveryoneUseUnrealCloudDDC = false;
 };
