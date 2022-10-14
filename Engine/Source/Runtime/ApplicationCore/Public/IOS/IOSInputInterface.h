@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "GenericPlatform/IForceFeedbackSystem.h"
 #if !PLATFORM_TVOS
 #import <CoreMotion/CoreMotion.h>
 #endif
@@ -81,7 +80,7 @@ public:
 	void SendControllerEvents();
 	
 	/**
-	 * IForceFeedbackSystem implementation
+	 * IInputInterface implementation
 	 */
 	virtual void SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
 	virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override;

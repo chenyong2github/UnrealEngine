@@ -22,7 +22,6 @@
 class FSlateApplication;
 class IAnalyticsProvider;
 class ICursor;
-class IForceFeedbackSystem;
 class IInputInterface;
 class ITextInputMethodSystem;
 

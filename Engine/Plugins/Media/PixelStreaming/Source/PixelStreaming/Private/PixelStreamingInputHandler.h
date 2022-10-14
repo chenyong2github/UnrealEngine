@@ -31,7 +31,7 @@ namespace UE::PixelStreaming
 		/** Exec handler to allow console commands to be passed through for debugging */
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 		/**
-		 * IForceFeedbackSystem pass through functions
+		 * IInputInterface pass through functions
 		 */
 		virtual void SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
 

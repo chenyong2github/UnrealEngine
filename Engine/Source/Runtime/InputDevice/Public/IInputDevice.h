@@ -31,7 +31,7 @@ public:
     virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) = 0;
 
 	/**
-	 * IForceFeedbackSystem pass through functions
+	 * Force Feedback pass through functions
 	 */
 	virtual void SetChannelValue (int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) = 0;
 	virtual void SetChannelValues (int32 ControllerId, const FForceFeedbackValues &values) = 0;

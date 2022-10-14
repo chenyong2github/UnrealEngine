@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GenericPlatform/IForceFeedbackSystem.h"
 #include "Misc/CoreMisc.h"
+#include "GenericPlatform/IInputInterface.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 #import <GameController/GameController.h>
 
@@ -60,7 +60,7 @@ struct FDeferredAppleControllerEvent
 /**
  * Interface class for Apple Controllers
  */
-class FAppleControllerInterface : public IForceFeedbackSystem
+class FAppleControllerInterface : public IInputInterface
 {
 public:
 
@@ -82,7 +82,7 @@ public:
 	void SendControllerEvents();
 
 	/**
-	 * IForceFeedbackSystem implementation
+	 * Force Feedback implementation
 	 */
 	virtual void SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override {}
 	virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override {}

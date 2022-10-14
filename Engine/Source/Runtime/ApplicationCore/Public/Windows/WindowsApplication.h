@@ -7,19 +7,17 @@
 #include "Math/Color.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericApplication.h"
-
+#include "GenericPlatform/IInputInterface.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <Ole2.h>
 	#include <oleidl.h>
 	#include <ShObjIdl.h>
 #include "Windows/HideWindowsPlatformTypes.h"
-#include "GenericPlatform/IForceFeedbackSystem.h"
 #include "Windows/WindowsTextInputMethodSystem.h"
 
 class FGenericWindow;
 enum class EWindowTransparency;
-class IInputInterface;
 class ITextInputMethodSystem;
 enum class FForceFeedbackChannelType;
 struct FForceFeedbackValues;
@@ -284,7 +282,7 @@ public:
  */
 class APPLICATIONCORE_API FWindowsApplication
 	: public GenericApplication
-	, public IForceFeedbackSystem
+	, public IInputInterface
 {
 public:
 

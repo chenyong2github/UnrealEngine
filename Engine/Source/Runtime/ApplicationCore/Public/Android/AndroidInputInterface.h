@@ -7,7 +7,6 @@
 #include <android/api-level.h>
 #include "GenericPlatform/ICursor.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "GenericPlatform/IForceFeedbackSystem.h"
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Color.h"
@@ -215,7 +214,7 @@ struct FDeferredAndroidMessage
 /**
  * Interface class for Android input devices                 
  */
-class FAndroidInputInterface : public IForceFeedbackSystem
+class FAndroidInputInterface : public IInputInterface
 {
 public:
 
@@ -256,7 +255,7 @@ public:
 	static void QueueMotionData(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
 
 	/**
-	* IForceFeedbackSystem implementation
+	* Force Feedback implementation
 	*/
 	virtual void SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
 	virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override;

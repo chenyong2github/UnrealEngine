@@ -2,6 +2,17 @@
 
 #pragma once
 
+/**
+ * DEPRECATED GenericPlatform/IForceFeedbackSystem.h. Use GenericPlatform/IInputInterface.h instead
+ */
+#pragma once
+  
+#ifdef _MSC_VER
+	#pragma message(__FILE__"(9): warning: use GenericPlatform/IInputInterface.h instead of GenericPlatform/IForceFeedbackSystem.h")
+#else
+	#pragma message("#include GenericPlatform/IInputInterface.h instead of GenericPlatform/IForceFeedbackSystem.h")
+#endif
+
 #include "GenericPlatform/IInputInterface.h"
 
 
@@ -10,6 +21,7 @@
  *
  * Note: This class is deprecated and will be removed in favor of IInputInterface
  */
+UE_DEPRECATED(5.2, "IForceFeedbackSystem has been deprecated, use IInputInterface instead.")
 class IForceFeedbackSystem
 	: public IInputInterface
 {
