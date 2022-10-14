@@ -5,16 +5,29 @@
 #include "Chaos/Defines.h"
 #include "Chaos/SimCallbackInput.h"
 #include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/GeometryParticlesfwd.h"
 
 namespace Chaos
 {
 class FPhysicsSolverBase;
 class FCollisionContactModifier;
+class FSingleParticlePhysicsProxy;
 
 namespace Utilities
 {
 	CHAOS_API FReal GetSolverPhysicsResultsTime(FPhysicsSolverBase*);
 }
+
+enum class ESimCallbackOptions : uint8
+{
+	Presimulate				= 1 << 0,
+	ContactModification		= 1 << 1,
+	ParticleRegister		= 1 << 2,
+	ParticleUnregister		= 1 << 3,
+	RunOnFrozenGameThread	= 1 << 4,
+	Rewind					= 1 << 5
+};
+ENUM_CLASS_FLAGS(ESimCallbackOptions)
 
 /**
  * Callback API used for executing code at different points in the simulation.
@@ -86,21 +99,29 @@ public:
 	virtual void ApplyCorrections_Internal(int32 PhysicsStep, FSimCallbackInput* Input) { ensure(false); }
 	virtual void FirstPreResimStep_Internal(int32 PhysicsStep) { }
 
-	bool RunOnFrozenGameThread() const { return bRunOnFrozenGameThread; }
+	bool HasOption(const ESimCallbackOptions Option) const
+	{
+		return (Options & Option) == Option;
+	}
+
+	UE_DEPRECATED(5.1, "Use HasOption(ESimCallbackOptions::RunOnFrozenGameThread) instead.")
+	bool RunOnFrozenGameThread() const 
+	{
+		return HasOption(ESimCallbackOptions::RunOnFrozenGameThread);
+	}
 	
 protected:
 
-	ISimCallbackObject(bool InRunOnFrozenGameThread = false)
-	: bPendingDelete(false)
-	, bPendingDelete_External(false)
-	, bContactModification(false)
-	, CurrentExternalInput_External(nullptr)
-	, Solver(nullptr)
-	, CurrentOutput_Internal(nullptr)
-	, CurrentInput_Internal(nullptr)
-	, bRunOnFrozenGameThread(InRunOnFrozenGameThread)
-	{
-	}
+	ISimCallbackObject(const ESimCallbackOptions InOptions = ESimCallbackOptions::Presimulate)
+		: bPendingDelete(false)
+		, bPendingDelete_External(false)
+		, CurrentExternalInput_External(nullptr)
+		, Solver(nullptr)
+		, CurrentOutput_Internal(nullptr)
+		, CurrentInput_Internal(nullptr)
+		, Options(InOptions)
+	{ }
+	
 
 
 	/**
@@ -144,30 +165,49 @@ private:
 		check(false);
 	}
 
-	/** If we've already allocated an output in this simulation step, use it again. This way multiple sim callbacks only generate one output.
-*   Otherwise allocate an output for us and mark it as pending for external thread */
+	/**
+	* Called once in a simulation step if any new particles were registered. Occurs after UniqueIdxs
+	* are valid.
+	*/
+	virtual void OnParticlesRegistered_Internal(TArray<FSingleParticlePhysicsProxy*>& RegisteredProxies)
+	{
+		check(false);
+	}
+
+	/**
+	* Called once in a simulation step if any particles were unregistered. Occurs immediately before
+	* UniqueIdxs become invalid.
+	*/
+	virtual void OnParticleUnregistered_Internal(TArray<TTuple<Chaos::FUniqueIdx, FSingleParticlePhysicsProxy*>>& UnregisteredProxies)
+	{
+		check(false);
+	}
+
+	/** If we've already allocated an output in this simulation step, use it again. This way multiple sim callbacks only generate one output. Otherwise allocate an output for us and mark it as pending for external thread */
 	virtual void OnFinalizeOutputData_Internal(FSimCallbackOutput* CurOutput)
 	{
 		check(false);	//wrote to output but not finalizing it. Typically this is pushed into some kind of thread safe queue
 	}
-	
 
 	friend class FPBDRigidsSolver;
-
 	friend class FPhysicsSolverBase;
 	friend class FChaosMarshallingManager;
 	friend struct FPushPhysicsData;
 
 	bool bPendingDelete;	//used internally for more efficient deletion. Callbacks do not need to check this
 	bool bPendingDelete_External;	//used for efficient deletion. Callbacks do not need to check this
-	bool bContactModification;
 
 	FSimCallbackInput* CurrentExternalInput_External;	//the input currently being filled out by external thread
 	FPhysicsSolverBase* Solver;
 
 	//putting this here so that user classes don't have to bother with non-default constructor
 	void SetSolver_External(FPhysicsSolverBase* InSolver) { Solver = InSolver;}
-	void SetContactModification(bool InContactModification) { bContactModification = InContactModification; }
+	
+	UE_DEPRECATED(5.1, "Do not change options after creation of the callback object - instead, specify them using the TOptions template parameter.")
+	void SetContactModification(bool InContactModification)
+	{
+		Options = Options | ESimCallbackOptions::ContactModification;
+	}
 
 protected:
 	FSimCallbackOutput* CurrentOutput_Internal;	//the output currently being written to in this sim step
@@ -178,7 +218,12 @@ private:
 
 	FReal SimTime_Internal;
 	FReal DeltaTime_Internal;
-	bool bRunOnFrozenGameThread;
+
+	// TODO: Make this const and remove the "friend class FPhysicsSolverBase"
+	// once FPhysicsSolverBase::CreateAndRegisterSimCallbackObject_External(bool, bool)
+	// has been deprecated.
+	ESimCallbackOptions Options;
+	friend class FPhysicsSolverBase;
 };
 
 /** Simple callback command object. Commands are typically passed in as lambdas and there's no need for data management. Should not be used directly, see FPhysicsSolverBase::EnqueueCommand */
@@ -221,16 +266,21 @@ private:
 };
 
 /** Simple templated implementation that uses lock free queues to manage memory */
-template <typename TInputType = FSimCallbackNoInput, typename TOutputType = FSimCallbackNoOutput>
+template <typename TInputType = FSimCallbackNoInput, typename TOutputType = FSimCallbackNoOutput, ESimCallbackOptions TOptions = ESimCallbackOptions::Presimulate>
 class TSimCallbackObject : public ISimCallbackObject
 {
 public:
 
-	TSimCallbackObject(bool InRunOnFrozenGameThread = false)
-	: ISimCallbackObject(InRunOnFrozenGameThread)
-	, CurrentOutput_External(nullptr)
-	{
-	}
+	TSimCallbackObject()
+		: ISimCallbackObject(TOptions)
+		, CurrentOutput_External(nullptr)
+	{ }
+
+	UE_DEPRECATED(5.1, "Use default constructor instead and specify RunFrozenOnGameThread using TOptions template parameter.")
+	TSimCallbackObject(bool InRunOnFrozenGameThread)
+		: ISimCallbackObject(InRunOnFrozenGameThread ? (TOptions | ESimCallbackOptions::RunOnFrozenGameThread) : TOptions)
+		, CurrentOutput_External(nullptr)
+	{ }
 
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output) override
 	{

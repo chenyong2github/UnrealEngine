@@ -82,7 +82,10 @@ namespace Chaos
 	// data because this is a one-way callback. We use it basically just to
 	// marshal data in one direction.
 	template <typename TUserData>
-	class TUserDataManagerPT : public TSimCallbackObject<TUserDataManagerPTInput<TUserData>, FSimCallbackNoOutput>
+	class TUserDataManagerPT : public TSimCallbackObject<
+		TUserDataManagerPTInput<TUserData>,
+		FSimCallbackNoOutput,
+		ESimCallbackOptions::Presimulate | ESimCallbackOptions::ParticleUnregister>
 	{
 		using TInput = TUserDataManagerPTInput<TUserData>;
 
@@ -204,6 +207,26 @@ namespace Chaos
 						UserDataMap_PT.Shrink();
 					}
 				}
+			}
+		}
+
+		virtual void OnParticleUnregistered_Internal(TArray<TTuple<FUniqueIdx, FSingleParticlePhysicsProxy*>>& UnregisteredProxies) override
+		{
+			if (UnregisteredProxies.Num() > 0)
+			{
+				// If any particles were removed in this physics tick, check to see if they have
+				// userdata that we were tracking and remove those userdata instances.
+				for (TTuple<FUniqueIdx, FSingleParticlePhysicsProxy*> Proxy : UnregisteredProxies)
+				{
+					const FUniqueIdx Idx = Proxy.Get<FUniqueIdx>();
+					if (UserDataMap_PT.IsValidIndex(Idx.Idx))
+					{
+						UserDataMap_PT.RemoveAt(Idx.Idx);
+					}
+				}
+
+				// Shrink sparse array if we took elements off the end
+				UserDataMap_PT.Shrink();
 			}
 		}
 

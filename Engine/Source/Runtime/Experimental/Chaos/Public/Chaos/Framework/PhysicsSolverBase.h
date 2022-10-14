@@ -262,24 +262,46 @@ namespace Chaos
 
 		/** Creates a new sim callback object of the type given. Caller expected to free using FreeSimCallbackObject_External*/
 		template <typename TSimCallbackObjectType>
-		inline TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification = false, bool bRegisterRewindCallback = false)
+		inline TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External()
 		{
 			auto NewCallbackObject = new TSimCallbackObjectType();
 			//If at least one callback is on frozen GT we mark it as such
 			//Note this is never cleaned up (to avoid race conditions of register/unregister).
 			//Expectation is that there's typically just one of these on frozen gt that triggers all the fixed tick on gt (maybe two if another system wants direct control)
 			//This means we don't expect to optimize for the case where a gt callback goes away half way through sim
-			if (NewCallbackObject->RunOnFrozenGameThread())
+			if (NewCallbackObject->HasOption(ESimCallbackOptions::RunOnFrozenGameThread))
 			{
 				bSolverHasFrozenGameThreadCallbacks = true;
 			}
 
-			RegisterSimCallbackObject_External(NewCallbackObject, bContactModification);
-			if (bRegisterRewindCallback)
+			RegisterSimCallbackObject_External(NewCallbackObject);
+			if (NewCallbackObject->HasOption(ESimCallbackOptions::Rewind))
 			{
 				EnqueueSimcallbackRewindRegisteration(NewCallbackObject);
 			}
 			return NewCallbackObject;
+		}
+
+		template <typename TSimCallbackObjectType>
+		UE_DEPRECATED(5.1, "Use version with no arguments, and provide TOptions bitmask parameter to TSimCallbackObject instead.")
+		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification, bool bRegisterRewindCallback = false)
+		{
+			TSimCallbackObjectType* CallbackObject = CreateAndRegisterSimCallbackObject_External<TSimCallbackObjectType>();
+			ESimCallbackOptions& Options = CallbackObject->Options;
+
+			if (bContactModification) {
+				Options |= ESimCallbackOptions::ContactModification;
+			} else {
+				Options &= ~ESimCallbackOptions::ContactModification;
+			}
+
+			if (bRegisterRewindCallback) {
+				Options |= ESimCallbackOptions::Rewind;
+			} else {
+				Options &= ~ESimCallbackOptions::Rewind;
+			}
+
+			return CallbackObject;
 		}
 
 		void EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback);
@@ -439,7 +461,7 @@ namespace Chaos
 				const FReal SimTime = GetSolverTime();
 				for (ISimCallbackObject* Callback : SimCallbackObjects)
 				{
-					if (Callback->RunOnFrozenGameThread() == bGameThreadFrozen)
+					if (Callback->HasOption(ESimCallbackOptions::RunOnFrozenGameThread) == bGameThreadFrozen)
 					{
 						Callback->SetSimAndDeltaTime_Internal(SimTime, MLastDt);
 						Callback->PreSimulate_Internal();
@@ -585,6 +607,8 @@ namespace Chaos
 
 	TArray<ISimCallbackObject*> SimCallbackObjects;
 	TArray<ISimCallbackObject*> ContactModifiers;
+	TArray<ISimCallbackObject*> RegistrationWatchers;
+	TArray<ISimCallbackObject*> UnregistrationWatchers;
 
 	TUniquePtr<FRewindData> MRewindData;
 	TUniquePtr<IRewindCallback> MRewindCallback;
@@ -602,11 +626,10 @@ namespace Chaos
 
 		//This is private because the user should never create their own callback object
 		//The lifetime management should always be done by solver to ensure callbacks are accessing valid memory on async tasks
-		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject, bool bContactModification = false)
+		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
 		{
 			ensure(SimCallbackObject->Solver == nullptr);	//double register?
 			SimCallbackObject->SetSolver_External(this);
-			SimCallbackObject->SetContactModification(bContactModification);
 			MarshallingManager.RegisterSimCallbackObject_External(SimCallbackObject);
 		}
 

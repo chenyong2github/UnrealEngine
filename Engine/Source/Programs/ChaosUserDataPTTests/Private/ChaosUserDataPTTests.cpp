@@ -104,25 +104,19 @@ TEST_CASE("ChaosUserDataPT", "[integration]")
 		Solver->AdvanceAndDispatch_External(DeltaTime)->Wait();
 		Solver->AdvanceAndDispatch_External(DeltaTime)->Wait();
 
-		// Add a new particle
-		Chaos::FSingleParticlePhysicsProxy* Proxy1 = Chaos::FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
-		Chaos::FRigidBodyHandle_External& HandleExternal1 = Proxy1->GetGameThreadAPI();
-		HandleExternal1.SetGeometry(BoxGeom);
-		Solver->RegisterObject(Proxy1);
-
-		// Make sure the unique idx got recycled
-		const Chaos::FUniqueIdx UniqueIdx1 = HandleExternal1.UniqueIdx();
-		if (UniqueIdx0.Idx == UniqueIdx1.Idx)
+		struct FMockHandle
 		{
-			// Register the new particle and advance solver to make sure it propagates to PT
-			Solver->AdvanceAndDispatch_External(DeltaTime)->Wait();
+			FMockHandle(Chaos::FUniqueIdx InUniqueIdx) : MUniqueIdx(InUniqueIdx) { }
+			Chaos::FUniqueIdx UniqueIdx() const { return MUniqueIdx; }
+			Chaos::FUniqueIdx MUniqueIdx;
+		};
 
-			// Access userdata with the new internal handle - it should retrieve nothing
-			Solver->EnqueueCommandImmediate([&]()
-			{
-				REQUIRE(TestUserData->GetData_PT(*Proxy1->GetPhysicsThreadAPI()) == nullptr);
-			});
-			Solver->AdvanceAndDispatch_External(DeltaTime)->Wait();
-		}
+		// Access userdata with the invalid particle handle - it should retrieve nothing
+		Solver->EnqueueCommandImmediate([&]()
+		{
+			const FMockHandle MockHandle0 = FMockHandle(UniqueIdx0);
+			REQUIRE(TestUserData->GetData_PT(MockHandle0) == nullptr);
+		});
+		Solver->AdvanceAndDispatch_External(DeltaTime)->Wait();
 	}
 }

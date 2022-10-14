@@ -78,14 +78,12 @@ struct FPendingAsyncPhysicsCommand
 };
 
 
-class FAsyncPhysicsTickCallback : public Chaos::TSimCallbackObject<>
+class FAsyncPhysicsTickCallback : public Chaos::TSimCallbackObject<
+	Chaos::FSimCallbackNoInput,
+	Chaos::FSimCallbackNoOutput,
+	Chaos::ESimCallbackOptions::Presimulate | Chaos::ESimCallbackOptions::RunOnFrozenGameThread>
 {
 public:
-	FAsyncPhysicsTickCallback()
-		: TSimCallbackObject<>(/*InRunOnFrozenGameThread=*/ true)
-	{
-
-	}
 
 	TSet<UActorComponent*> AsyncPhysicsTickComponents;
 	TSet<AActor*> AsyncPhysicsTickActors;

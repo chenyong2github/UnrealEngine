@@ -819,6 +819,23 @@ namespace Chaos
 
 	void FPBDRigidsSolver::DestroyPendingProxies_Internal()
 	{
+		// If we have any callback objects watching for particle deregistrations,
+		// send an array of proxies that are about to be deleted.
+		if (UnregistrationWatchers.Num() > 0)
+		{
+			TArray<TTuple<FUniqueIdx, FSingleParticlePhysicsProxy*>> Proxies;
+			Proxies.Reserve(PendingDestroyPhysicsProxy.Num());
+			for (FPendingDestroyInfo& Info : PendingDestroyPhysicsProxy)
+			{
+				Proxies.Add({ Info.UniqueIdx, Info.Proxy });
+			}
+			for (ISimCallbackObject* Callback : UnregistrationWatchers)
+			{
+				Callback->OnParticleUnregistered_Internal(Proxies);
+			}
+		}
+
+		// Do the actual destruction
 		for(int32 Idx = PendingDestroyPhysicsProxy.Num() - 1; Idx >= 0; --Idx)
 		{
 			FPendingDestroyInfo& Info = PendingDestroyPhysicsProxy[Idx];
@@ -1080,7 +1097,9 @@ namespace Chaos
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
 		FReal ExternalDt = PushData.ExternalDt;
 
-		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData, ExternalDt, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+		TArray<FSingleParticlePhysicsProxy*> RegisteredProxies;
+
+		auto ProcessProxyPT = [Manager, ShapeDirtyData, RewindData, ExternalDt, &RegisteredProxies, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 		{
 			const bool bIsNew = !Proxy->IsInitialized();
 			if(bIsNew)
@@ -1091,6 +1110,13 @@ namespace Chaos
 
 				auto Handle = Proxy->GetHandle_LowLevel();
 				Handle->GTGeometryParticle() = Proxy->GetParticle_LowLevel();
+
+				// If anybody's listening for proxy creations, build a list of proxies that have been
+				// added in this step.
+				if (RegistrationWatchers.Num() > 0)
+				{
+					RegisteredProxies.Add(Proxy);
+				}
 
 				// Track proxies
 				if (UniqueIdx)
@@ -1222,6 +1248,16 @@ namespace Chaos
 			}
 		});
 
+		// If we have callbacks watching for particle registrations, send them the array
+		// of newly added proxies
+		if (RegistrationWatchers.Num() > 0)
+		{
+			for (ISimCallbackObject* Callback : RegistrationWatchers)
+			{
+				Callback->OnParticlesRegistered_Internal(RegisteredProxies);
+			}
+		}
+
 		//MarshallingManager.FreeData_Internal(&PushData);
 	}
 
@@ -1234,10 +1270,24 @@ namespace Chaos
 		SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData.SimCallbackObjectsToAdd.Num());
 		for(ISimCallbackObject* SimCallbackObject : PushData.SimCallbackObjectsToAdd)
 		{
-			SimCallbackObjects.Add(SimCallbackObject);
-			if (SimCallbackObject->bContactModification)
+			if (SimCallbackObject->HasOption(ESimCallbackOptions::Presimulate))
+			{
+				SimCallbackObjects.Add(SimCallbackObject);
+			}
+
+			if (SimCallbackObject->HasOption(ESimCallbackOptions::ContactModification))
 			{
 				ContactModifiers.Add(SimCallbackObject);
+			}
+
+			if (SimCallbackObject->HasOption(ESimCallbackOptions::ParticleRegister))
+			{
+				RegistrationWatchers.Add(SimCallbackObject);
+			}
+
+			if (SimCallbackObject->HasOption(ESimCallbackOptions::ParticleUnregister))
+			{
+				UnregistrationWatchers.Add(SimCallbackObject);
 			}
 		}
 
