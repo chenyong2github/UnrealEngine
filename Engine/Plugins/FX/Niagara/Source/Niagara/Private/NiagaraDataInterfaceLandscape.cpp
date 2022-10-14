@@ -323,7 +323,7 @@ struct FNDILandscapeData_RenderThread
 		const FUintVector4 DummyUint4(ForceInitToZero);
 
 		ShaderParameters->BaseColorVirtualTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		ShaderParameters->BaseColorVirtualTexturePageTable = GBlackTexture->TextureRHI;
+		ShaderParameters->BaseColorVirtualTexturePageTable = GBlackUintTexture->TextureRHI;
 		ShaderParameters->BaseColorVirtualTextureWorldToUvTransform = FMatrix44f::Identity;
 		ShaderParameters->BaseColorVirtualTextureSRGB = 0;
 		ShaderParameters->BaseColorVirtualTextureEnabled = 0;
@@ -398,7 +398,7 @@ struct FNDILandscapeData_RenderThread
 		const FUintVector4 DummyUint4(ForceInitToZero);
 
 		ShaderParameters->HeightVirtualTexture = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		ShaderParameters->HeightVirtualTexturePageTable = GBlackTexture->TextureRHI;
+		ShaderParameters->HeightVirtualTexturePageTable = GBlackUintTexture->TextureRHI;
 		ShaderParameters->HeightVirtualTextureWorldToUvTransform = FMatrix44f::Identity;
 		ShaderParameters->HeightVirtualTextureEnabled = 0;
 		ShaderParameters->HeightVirtualTexturePackedUniform0 = DummyUint4;
@@ -502,7 +502,7 @@ struct FNDILandscapeData_RenderThread
 
 		ShaderParameters->NormalVirtualTexture0 =  GBlackTextureWithSRV->ShaderResourceViewRHI;
 		ShaderParameters->NormalVirtualTexture1 = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		ShaderParameters->NormalVirtualTexturePageTable = GBlackTexture->TextureRHI;
+		ShaderParameters->NormalVirtualTexturePageTable = GBlackUintTexture->TextureRHI;
 		ShaderParameters->NormalVirtualTextureWorldToUvTransform = FMatrix44f::Identity;
 		ShaderParameters->NormalVirtualTextureEnabled = 0;
 		ShaderParameters->NormalVirtualTextureUnpackMode = (int32)ENormalUnpackType::None;

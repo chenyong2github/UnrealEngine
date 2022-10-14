@@ -73,8 +73,37 @@ void FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(FRDGBuilder& Gr
 	}
 	else
 	{
+		class FDFDummyByteAddress : public FRenderResource
+		{
+		public:
+			TRefCountPtr<FRDGPooledBuffer> PooledBuffer;
+
+			virtual void InitRHI() override
+			{
+				FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1);
+				BufferDesc.Usage = BUF_Static | BUF_ShaderResource | BUF_ByteAddressBuffer;
+
+				FRHIResourceCreateInfo CreateInfo(TEXT("FDFDummyByteAddress"));
+				FBufferRHIRef RHIBuffer = RHICreateStructuredBuffer(BufferDesc.BytesPerElement, BufferDesc.GetSize(), BufferDesc.Usage, CreateInfo);
+				{
+					void* Data = RHILockBuffer(RHIBuffer, 0, BufferDesc.GetSize(), RLM_WriteOnly);
+					FMemory::Memset(Data, 0, BufferDesc.GetSize());
+					RHIUnlockBuffer(RHIBuffer);
+				}
+
+				PooledBuffer = new FRDGPooledBuffer(RHIBuffer, BufferDesc, BufferDesc.NumElements, CreateInfo.DebugName);
+			}
+
+			virtual void ReleaseRHI() override
+			{
+				PooledBuffer.SafeRelease();
+			}
+		};
+
+		static TGlobalResource<FDFDummyByteAddress> GDFDummyByteAddress;
+
 		FRDGBufferSRVRef DefaultVector4 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f))));
-		FRDGBufferSRVRef DefaultUInt32 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32))));
+		FRDGBufferSRVRef DefaultUInt32 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GraphBuilder.RegisterExternalBuffer(GDFDummyByteAddress.PooledBuffer, ERDGBufferFlags::SkipTracking)));
 
 		ObjectShaderParameters.SceneObjectBounds = DefaultVector4;
 		ObjectShaderParameters.SceneObjectData = DefaultVector4;
@@ -89,7 +118,7 @@ void FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(FRDGBuilder& Gr
 		AtlasShaderParameters.DistanceFieldIndirectionTable = DefaultUInt32;
 		AtlasShaderParameters.DistanceFieldIndirection2Table = DefaultVector4;
 		AtlasShaderParameters.DistanceFieldIndirectionAtlas = SystemTextures.VolumetricBlack;
-		AtlasShaderParameters.DistanceFieldBrickTexture = SystemTextures.Black;
+		AtlasShaderParameters.DistanceFieldBrickTexture = SystemTextures.VolumetricBlack;
 		AtlasShaderParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 		AtlasShaderParameters.DistanceFieldBrickSize = FVector3f::ZeroVector;
 		AtlasShaderParameters.DistanceFieldUniqueDataBrickSize = FVector3f::ZeroVector;
