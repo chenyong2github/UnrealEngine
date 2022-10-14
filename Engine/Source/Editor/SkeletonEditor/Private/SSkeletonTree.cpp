@@ -614,7 +614,7 @@ void SSkeletonTree::CreateTreeColumns()
 	.HeaderContent()
 	[
 		SNew(SBox)
-		.HeightOverride(24)
+		.HeightOverride(24.f)
 		.HAlign(HAlign_Left)
 		[
 			SAssignNew(BlendProfileHeader, SInlineEditableTextBlock)
@@ -1366,8 +1366,8 @@ void SSkeletonTree::FillAttachAssetSubmenu(FMenuBuilder& MenuBuilder, const TSha
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SSkeletonTree::OnAssetSelectedFromPicker, TargetItem);
 
 	TSharedRef<SWidget> MenuContent = SNew(SBox)
-	.WidthOverride(384)
-	.HeightOverride(500)
+	.WidthOverride(384.f)
+	.HeightOverride(500.f)
 	[
 		ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 		];
