@@ -2678,6 +2678,10 @@ void USkeletalMeshComponent::AddClothingBounds(FBoxSphereBounds& InOutBounds, co
 	}
 }
 
+#if WITH_EDITOR
+ENGINE_API bool GLogReinstancerReferenceReplacement = false;
+#endif
+
 void USkeletalMeshComponent::RecreateClothingActors()
 {
 	CSV_SCOPED_TIMING_STAT(Animation, ClothInit);
@@ -2689,6 +2693,10 @@ void USkeletalMeshComponent::RecreateClothingActors()
 	{
 		return;
 	}
+
+#if WITH_EDITOR
+	TGuardValue<bool> EnableReinstancingLog(GLogReinstancerReferenceReplacement, true);
+#endif
 
 	if(CVarEnableClothPhysics.GetValueOnGameThread() && (SkelMesh->GetMeshClothingAssets().Num() > 0))
 	{

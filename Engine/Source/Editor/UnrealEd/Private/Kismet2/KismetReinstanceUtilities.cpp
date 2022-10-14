@@ -57,6 +57,7 @@ static FAutoConsoleVariableRef CVarUseLegacyAnimInstanceReinstancingBehavior(
 	TEXT("Use the legacy re-instancing behavior for anim instances where the instance is destroyed and re-created.")
 );
 
+extern ENGINE_API bool GLogReinstancerReferenceReplacement;
 
 struct FReplaceReferenceHelper
 {
@@ -93,6 +94,16 @@ struct FReplaceReferenceHelper
 		if(SourceObjects.Num() == 0 && ObjectsToReplace.Num() == 0 )
 		{
 			return;
+		}
+
+		if (GLogReinstancerReferenceReplacement)
+		{
+			FString Classes;
+			for (UObject* Obj : SourceObjects)
+			{
+				Classes.Append(Obj->GetClass()->GetName() + " ");
+			}
+			UE_LOG(LogBlueprint, Warning, TEXT("Replacing References to: %s"), *Classes);
 		}
 
 		// Remember what values were in UActorChannel::Actor so we can restore them later (this should only affect reinstancing during PIE)
