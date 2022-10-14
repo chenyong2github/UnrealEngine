@@ -300,5 +300,38 @@ namespace EpicGames.Core
 			}
 			return array;
 		}
+
+		/// <summary>
+		/// Reads a dictionary from the writer
+		/// </summary>
+		/// <param name="reader">Reader to serialize from</param>
+		/// <param name="dictionary">The dictionary to read</param>
+		/// <param name="readKey">Delegate to write an individual key</param>
+		/// <param name="readValue">Delegate to write an individual value</param>
+		public static void ReadDictionary<TKey, TValue>(this IMemoryReader reader, Dictionary<TKey, TValue> dictionary, Func<TKey> readKey, Func<TValue> readValue) where TKey : notnull
+		{
+			int count = (int)reader.ReadUnsignedVarInt();
+			dictionary.EnsureCapacity(count);
+
+			for (int idx = 0; idx < count; idx++)
+			{
+				TKey key = readKey();
+				TValue value = readValue();
+				dictionary.Add(key, value);
+			}
+		}
+
+		/// <summary>
+		/// Reads a dictionary from the writer
+		/// </summary>
+		/// <param name="reader">Reader to serialize from</param>
+		/// <param name="readKey">Delegate to write an individual key</param>
+		/// <param name="readValue">Delegate to write an individual value</param>
+		public static Dictionary<TKey, TValue> ReadDictionary<TKey, TValue>(this IMemoryReader reader, Func<TKey> readKey, Func<TValue> readValue, IEqualityComparer<TKey>? comparer = null) where TKey : notnull
+		{
+			Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>(comparer);
+			ReadDictionary(reader, dictionary, readKey, readValue);
+			return dictionary;
+		}
 	}
 }

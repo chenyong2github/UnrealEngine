@@ -39,6 +39,12 @@ namespace EpicGames.Horde.Storage
 			BlobId.ValidateArgument(nameof(text), text);
 		}
 
+		/// <summary>
+		/// Sanitize the given name
+		/// </summary>
+		/// <param name="name">Name to sanitize</param>
+		public static Utf8String Sanitize(Utf8String name) => BlobId.Sanitize(name);
+
 		/// <inheritdoc/>
 		public override bool Equals(object? obj) => obj is RefName refId && Equals(refId);
 

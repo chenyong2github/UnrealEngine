@@ -24,7 +24,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Dummy enum to allow invoking the constructor which takes a sanitized full path
 		/// </summary>
-		public enum Sanitize
+		public enum Validate
 		{
 			/// <summary>
 			/// Dummy value
@@ -56,11 +56,11 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="inner"></param>
-		/// <param name="sanitize"></param>
-		public BlobId(Utf8String inner, Sanitize sanitize)
+		/// <param name="validate"></param>
+		public BlobId(Utf8String inner, Validate validate)
 		{
 			Inner = inner;
-			_ = sanitize;
+			_ = validate;
 		}
 
 		static readonly Utf8String s_process;
@@ -108,7 +108,7 @@ namespace EpicGames.Horde.Storage
 			span = span.Slice(1);
 
 			GenerateUniqueId(span);
-			return new BlobId(new Utf8String(buffer), Sanitize.None);
+			return new BlobId(new Utf8String(buffer), Validate.None);
 		}
 
 		/// <summary>
@@ -171,6 +171,44 @@ namespace EpicGames.Horde.Storage
 					}
 				}
 			}
+		}
+
+		/// <summary>
+		/// Sanitize the given string to make a valid blob id
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		public static Utf8String Sanitize(Utf8String name)
+		{
+			byte[] output = new byte[name.Length];
+
+			int outputIdx = 0;
+			for (int idx = 0; idx < name.Length; idx++)
+			{
+				if (name[idx] >= 'A' && name[idx] <= 'Z')
+				{
+					output[outputIdx++] = (byte)(name[idx] + 'a' - 'A');
+				}
+				else if ((name[idx] >= 'a' && name[idx] <= 'z') || (name[idx] >= '0' && name[idx] <= '9') || name[idx] == '+')
+				{
+					output[outputIdx++] = name[idx];
+				}
+				else if (name.Length > 0 && name[name.Length - 1] != '-')
+				{
+					output[outputIdx++] = (byte)'-';
+				}
+				else if (name[idx] == '/' && outputIdx > 0)
+				{
+					output[outputIdx++] = (byte)'/';
+				}
+			}
+
+			while (outputIdx > 0 && (output[outputIdx - 1] == '-' || output[outputIdx - 1] == '/'))
+			{
+				outputIdx--;
+			}
+
+			return new Utf8String(output.AsMemory(0, outputIdx));
 		}
 
 		/// <summary>

@@ -13,6 +13,8 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using Grpc.Core;
 using Horde.Agent.Parser;
 using Horde.Agent.Services;
@@ -21,6 +23,8 @@ using Horde.Storage.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Tasks;
+using Microsoft.CodeAnalysis.Rename;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
@@ -641,14 +645,16 @@ namespace Horde.Agent.Execution
 
 		private async Task<bool> ExecuteWithTempStorageAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference sharedStorageDir, string arguments, ILogger logger, CancellationToken cancellationToken)
 		{
-			TempStorage storage = new TempStorage(workspaceDir, DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph"), sharedStorageDir);
+			// Create the storage client
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
+			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
 
 			// Create the mapping of tag names to file sets
 			Dictionary<string, HashSet<FileReference>> tagNameToFileSet = new Dictionary<string, HashSet<FileReference>>();
 
 			// Read all the input tags for this node, and build a list of referenced input storage blocks
-			HashSet<TempStorageBlock> inputStorageBlocks = new HashSet<TempStorageBlock>();
+			HashSet<TempStorageBlockRef> inputStorageBlocks = new HashSet<TempStorageBlockRef>();
 			foreach (string input in step.Inputs)
 			{
 				int slashIdx = input.IndexOf('/', StringComparison.Ordinal);
@@ -661,40 +667,34 @@ namespace Horde.Agent.Execution
 				string nodeName = input.Substring(0, slashIdx);
 				string tagName = input.Substring(slashIdx + 1);
 
-				TempStorageFileList? fileList = storage.ReadFileList(nodeName, tagName, logger);
-				if (fileList == null)
-				{
-					logger.LogError("Unable to read file list for {Node}/{Tag} from shared storage ({SharedStorageDir})", nodeName, tagName, sharedStorageDir);
-					return false;
-				}
-
+				TempStorageTagManifest fileList = await TempStorage.RetrieveTagAsync(storage, nodeName, tagName, workspaceDir, logger, cancellationToken);
 				tagNameToFileSet[tagName] = fileList.ToFileSet(workspaceDir);
 				inputStorageBlocks.UnionWith(fileList.Blocks);
 			}
 
 			// Read the manifests for all the input storage blocks
-			Dictionary<TempStorageBlock, TempStorageManifest> inputManifests = new Dictionary<TempStorageBlock, TempStorageManifest>();
+			Dictionary<TempStorageBlockRef, TempStorageBlockManifest> inputManifests = new Dictionary<TempStorageBlockRef, TempStorageBlockManifest>();
 			using (IScope scope = GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "read").StartActive())
 			{
 				scope.Span.SetTag("blocks", inputStorageBlocks.Count);
-				foreach (TempStorageBlock inputStorageBlock in inputStorageBlocks)
+				foreach (TempStorageBlockRef inputStorageBlock in inputStorageBlocks)
 				{
-					TempStorageManifest manifest = await storage.RetrieveAsync(inputStorageBlock.NodeName, inputStorageBlock.OutputName, logger, cancellationToken);
+					TempStorageBlockManifest manifest = await TempStorage.RetrieveBlockAsync(storage, inputStorageBlock.NodeName, inputStorageBlock.OutputName, workspaceDir, logger, cancellationToken);
 					inputManifests[inputStorageBlock] = manifest;
 				}
 				scope.Span.SetTag("size", inputManifests.Sum(x => x.Value.GetTotalSize()));
 			}
 
 			// Read all the input storage blocks, keeping track of which block each file came from
-			Dictionary<FileReference, TempStorageBlock> fileToStorageBlock = new Dictionary<FileReference, TempStorageBlock>();
-			foreach (KeyValuePair<TempStorageBlock, TempStorageManifest> pair in inputManifests)
+			Dictionary<FileReference, TempStorageBlockRef> fileToStorageBlock = new Dictionary<FileReference, TempStorageBlockRef>();
+			foreach (KeyValuePair<TempStorageBlockRef, TempStorageBlockManifest> pair in inputManifests)
 			{
-				TempStorageBlock inputStorageBlock = pair.Key;
+				TempStorageBlockRef inputStorageBlock = pair.Key;
 				foreach (FileReference file in pair.Value.Files.Select(x => x.ToFileReference(workspaceDir)))
 				{
 					logger.LogInformation("Reading input block: {File}", file);
 
-					TempStorageBlock? currentStorageBlock;
+					TempStorageBlockRef? currentStorageBlock;
 					if (fileToStorageBlock.TryGetValue(file, out currentStorageBlock) && !TempStorage.IsDuplicateBuildProduct(file))
 					{
 						logger.LogError("File '{File}' was produced by {InputBlock} and {CurrentBlock}", file, inputStorageBlock.ToString(), currentStorageBlock.ToString());
@@ -712,12 +712,10 @@ namespace Horde.Agent.Execution
 			// Read all the output manifests
 			foreach (string tagName in step.OutputNames)
 			{
-				TempStorageFileList? fileList = storage.ReadFileList(step.Name, tagName, logger);
-				if (fileList == null)
-				{
-					logger.LogError("Unable to read local file list for output {Tag}", tagName);
-					return false;
-				}
+				FileReference tagFileListLocation = TempStorage.GetTagManifestLocation(workspaceDir, step.Name, tagName);
+				logger.LogInformation("Reading local file list from {File}", tagFileListLocation.FullName);
+
+				TempStorageTagManifest fileList = TempStorageTagManifest.Load(tagFileListLocation);
 				tagNameToFileSet[tagName] = fileList.ToFileSet(workspaceDir);
 			}
 
@@ -809,36 +807,47 @@ namespace Horde.Agent.Execution
 			// Write all the storage blocks, and update the mapping from file to storage block
 			using (GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "Write").StartActive())
 			{
+				RefName refName = new RefName(RefName.Sanitize(step.Name));
+
+				TreeOptions treeOptions = new TreeOptions();
+				TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
+
+				TempStorageNode outputNode = new TempStorageNode();
+
+				// Create all the output blocks
 				foreach (KeyValuePair<string, HashSet<FileReference>> pair in outputStorageBlockToFiles)
 				{
-					TempStorageBlock outputBlock = new TempStorageBlock(step.Name, pair.Key);
+					TempStorageBlockRef outputBlock = new TempStorageBlockRef(step.Name, pair.Key);
 					foreach (FileReference file in pair.Value)
 					{
 						fileToStorageBlock.Add(file, outputBlock);
 					}
 					if (pair.Value.Any(x => referencedOutputFiles.Contains(x)))
 					{
-						await storage.ArchiveAsync(step.Name, pair.Key, pair.Value.ToArray(), logger, cancellationToken);
+						outputNode.Blocks[pair.Key] = await TempStorage.ArchiveBlockAsync(treeWriter, pair.Key, workspaceDir, pair.Value.ToArray(), logger, cancellationToken);
 					}
 				}
 
-				// Publish all the output tags
+				// Create all the output tags
 				foreach (string outputName in step.OutputNames)
 				{
 					HashSet<FileReference> files = tagNameToFileSet[outputName];
 
-					HashSet<TempStorageBlock> storageBlocks = new HashSet<TempStorageBlock>();
+					HashSet<TempStorageBlockRef> storageBlocks = new HashSet<TempStorageBlockRef>();
 					foreach (FileReference file in files)
 					{
-						TempStorageBlock? storageBlock;
+						TempStorageBlockRef? storageBlock;
 						if (fileToStorageBlock.TryGetValue(file, out storageBlock))
 						{
 							storageBlocks.Add(storageBlock);
 						}
 					}
 
-					storage.WriteFileList(step.Name, outputName, files, storageBlocks.ToArray(), logger);
+					outputNode.Tags[outputName] = await TempStorage.ArchiveTagAsync(treeWriter, outputName, workspaceDir, files, storageBlocks.ToArray(), logger, cancellationToken);
 				}
+
+				// Write the final node
+				await treeWriter.WriteRefAsync(refName, outputNode, cancellationToken);
 			}
 
 			return true;

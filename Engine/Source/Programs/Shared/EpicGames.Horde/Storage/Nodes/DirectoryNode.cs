@@ -522,9 +522,9 @@ namespace EpicGames.Horde.Storage.Nodes
 			return false;
 		}
 
-#endregion
+		#endregion
 
-#region Directory operations
+		#region Directory operations
 
 		/// <summary>
 		/// Adds a new directory with the given name

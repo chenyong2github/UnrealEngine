@@ -417,6 +417,23 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes a dictionary to the writer
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="dictionary">The dictionary to write</param>
+		/// <param name="writeKey">Delegate to write an individual key</param>
+		/// <param name="writeValue">Delegate to write an individual value</param>
+		public static void WriteDictionary<TKey, TValue>(this IMemoryWriter writer, IReadOnlyDictionary<TKey, TValue> dictionary, Action<TKey> writeKey, Action<TValue> writeValue)
+		{
+			writer.WriteUnsignedVarInt(dictionary.Count);
+			foreach (KeyValuePair<TKey, TValue> kvp in dictionary)
+			{
+				writeKey(kvp.Key);
+				writeValue(kvp.Value);
+			}
+		}
+
+		/// <summary>
 		/// Read a string from memory
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>

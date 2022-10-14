@@ -63,7 +63,7 @@ namespace EpicGames.Horde.Storage
 			get
 			{
 				int colonIdx = Inner.LastIndexOf((byte)':');
-				return new BlobId(Inner.Substring(colonIdx + 1), BlobId.Sanitize.None);
+				return new BlobId(Inner.Substring(colonIdx + 1), BlobId.Validate.None);
 			}
 		}
 
