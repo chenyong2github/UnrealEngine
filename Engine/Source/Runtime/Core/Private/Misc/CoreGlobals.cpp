@@ -168,6 +168,7 @@ bool GIsRunningUnattendedScript = false;
 
 #if WITH_EDITOR
 bool					PRIVATE_GIsRunningCookCommandlet	= false;				/** Whether this executable is running the cook commandlet */
+bool					PRIVATE_GIsRunningDLCCookCommandlet = false;				/** Whether this executable is running the cook commandlet on a DLC plugin */
 #endif
 
 #if WITH_ENGINE

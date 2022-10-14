@@ -1949,6 +1949,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		if (CommandletName == TEXTVIEW("cookcommandlet"))
 		{
 			PRIVATE_GIsRunningCookCommandlet = true;
+			PRIVATE_GIsRunningDLCCookCommandlet = (FCString::Strfind(FCommandLine::Get(), TEXT("-dlcname=")) != nullptr);
 		}
 #endif
 #if WITH_ENGINE

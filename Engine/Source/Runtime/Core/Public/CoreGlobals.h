@@ -241,6 +241,7 @@ extern CORE_API bool GFirstFrameIntraFrameDebugging;
 
 #if WITH_EDITOR
 extern CORE_API bool PRIVATE_GIsRunningCookCommandlet;
+extern CORE_API bool PRIVATE_GIsRunningDLCCookCommandlet;
 #endif
 
 /**
@@ -262,6 +263,18 @@ FORCEINLINE bool IsRunningCookCommandlet()
 {
 #if WITH_EDITOR
 	return PRIVATE_GIsRunningCookCommandlet;
+#else
+	return false;
+#endif
+}
+
+/**
+* Check to see if this executable is running the cookcommandlet
+*/
+FORCEINLINE bool IsRunningDLCCookCommandlet()
+{
+#if WITH_EDITOR
+	return PRIVATE_GIsRunningDLCCookCommandlet;
 #else
 	return false;
 #endif
