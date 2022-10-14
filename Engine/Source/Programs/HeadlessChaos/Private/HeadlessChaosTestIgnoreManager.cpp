@@ -11,7 +11,7 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	class FCollisionReportingCallback : public TSimCallbackObject<FSimCallbackNoInput, FSimCallbackNoOutput>
+	class FCollisionReportingCallback : public TSimCallbackObject<FSimCallbackNoInput, FSimCallbackNoOutput, Chaos::ESimCallbackOptions::Presimulate | Chaos::ESimCallbackOptions::ContactModification>
 	{
 	public:
 		TArray<TTuple<FUniqueIdx, FUniqueIdx>> CollisionPairs;
@@ -104,7 +104,7 @@ namespace ChaosTest
 		FloorParticle.SetX(FVec3(0, 0, 0));
 		ChaosTest::SetParticleSimDataToCollide({ FloorProxy->GetParticle_LowLevel() });
 
-		FCollisionReportingCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCollisionReportingCallback>(true);
+		FCollisionReportingCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCollisionReportingCallback>();
 
 		// Named Ids for the particles
 		const FUniqueIdx CollidableId = CollidingCubeParticle.UniqueIdx();
@@ -190,7 +190,7 @@ namespace ChaosTest
 		FloorParticle.SetX(FVec3(0, 0, 0));
 		ChaosTest::SetParticleSimDataToCollide({ FloorProxy->GetParticle_LowLevel() });
 
-		FCollisionReportingCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCollisionReportingCallback>(true);
+		FCollisionReportingCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCollisionReportingCallback>();
 
 		// Named Ids for the particles
 		const FUniqueIdx CollidableId = CollidingCubeParticle.UniqueIdx();
