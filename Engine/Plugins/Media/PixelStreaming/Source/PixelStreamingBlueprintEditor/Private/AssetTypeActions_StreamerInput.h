@@ -14,7 +14,6 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("PixelStreaming", "AssetTypeActions_StreamerInput", "Streamer Input Actions"); }
 	virtual FColor GetTypeColor() const override { return FColor(192,64,64); }
 	virtual UClass* GetSupportedClass() const override { return UPixelStreamingStreamerInput::StaticClass(); }
-	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return false; }
 	virtual bool CanFilter() override { return false; }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
 	virtual bool IsImportedAsset() const override { return false; }

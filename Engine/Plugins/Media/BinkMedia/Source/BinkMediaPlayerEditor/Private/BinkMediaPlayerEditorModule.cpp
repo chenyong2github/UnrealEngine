@@ -315,7 +315,6 @@ struct FBinkMediaPlayerActions : FAssetTypeActions_Base
 	virtual FText GetName() const override { return FText::FromString(TEXT("Bink Media Player")); }
 	virtual UClass* GetSupportedClass() const override { return UBinkMediaPlayer::StaticClass(); }
 	virtual FColor GetTypeColor() const override { return FColor::Red; }
-	virtual bool HasActions( const TArray<UObject*>& InObjects ) const override { return  true; }
 
 	TSharedRef<ISlateStyle> Style;
 };

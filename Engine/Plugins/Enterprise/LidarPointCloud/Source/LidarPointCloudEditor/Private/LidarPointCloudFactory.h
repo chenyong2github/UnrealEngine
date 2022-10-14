@@ -17,7 +17,6 @@ public:
 	virtual FText GetName() const override;
 	virtual FColor GetTypeColor() const override { return FColor(0, 128, 128); }
 	virtual UClass* GetSupportedClass() const override { return ULidarPointCloud::StaticClass(); }
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
 	virtual bool IsImportedAsset() const override { return true; }

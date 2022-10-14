@@ -14,12 +14,7 @@ public:
 	{
 		return FColor(100, 255, 100);
 	}
-
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override
-	{
-		return false;
-	}
-
+	
 	virtual uint32 GetCategories() override
 	{
 		return EAssetTypeCategories::Misc;

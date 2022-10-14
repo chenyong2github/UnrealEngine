@@ -15,7 +15,6 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(255, 0, 0); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
-	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	virtual bool IsImportedAsset() const override { return true; }
 	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;

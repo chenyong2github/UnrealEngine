@@ -16,7 +16,6 @@ public:
 	virtual uint32 GetCategories() override;
 	virtual FColor GetTypeColor() const override { return FColor(0, 0, 0); }
 	virtual UClass* GetSupportedClass() const override;
-	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
 	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
 	virtual bool IsImportedAsset() const override { return false; }
 

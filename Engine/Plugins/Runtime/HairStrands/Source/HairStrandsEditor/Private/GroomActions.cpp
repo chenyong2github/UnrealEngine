@@ -128,11 +128,6 @@ FColor FGroomActions::GetTypeColor() const
 	return FColor::White;
 }
 
-bool FGroomActions::HasActions(const TArray<UObject*>& InObjects) const
-{
-	return true;
-}
-
 void FGroomActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
 	// #ueent_todo: Will need a custom editor at some point, for now just use the Properties editor

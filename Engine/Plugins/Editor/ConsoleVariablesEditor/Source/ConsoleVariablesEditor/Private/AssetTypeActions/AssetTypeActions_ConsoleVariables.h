@@ -33,15 +33,6 @@ public:
 	{
 		return FColor(238, 181, 235, 255);
 	}
-	
-	/**
-	 * @param InObjects A list of objects selected in the content browser
-	 * @return Whether or not the asset has context actions (required to return true in order to use registered actions)
-	 */
-	virtual bool HasActions(const TArray<UObject*>& InObjects) const override
-	{
-		return true;
-	}
 
 	// These are defined in source - GetName requires a defined LOCTEXT namespace and GetSupportedClass has an external include
 	
