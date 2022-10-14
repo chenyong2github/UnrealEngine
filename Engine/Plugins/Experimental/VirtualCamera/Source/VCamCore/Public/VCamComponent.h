@@ -441,5 +441,9 @@ private:
 	void RegisterInputComponent();
 	void UnregisterInputComponent();
 
+	// Store the Input Mapping Contexts that have been added via this component
+	UPROPERTY(Transient, DuplicateTransient)
+	TArray<TObjectPtr<const UInputMappingContext>> AppliedInputContexts;
+
 	bool bIsInputRegistered = false;
 };
