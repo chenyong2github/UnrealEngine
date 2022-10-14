@@ -116,13 +116,7 @@ struct IKRIG_API FIKRigSkeleton
 
 	// given a set of bones, returns a set of indices of bones that are mirrored across X axis (YZ plane)
 	// return false if any of the bones do not have a mirrored pair within the MaxDistanceThreshold
-	bool GetMirroredBoneIndices(
-		const TArray<int32>& BoneIndices,
-		TArray<int32>& OutMirroredIndices,
-		float MaxDistanceThreshold=5.0f) const;
-	
-	// get the bone that is closest to the given point (sets bone index and distance)
-	void GetClosestBone(const FVector& InPoint, int32& OutBoneIndex, float& OutDistance) const;
+	bool GetMirroredBoneIndices(const TArray<int32>& BoneIndices, TArray<int32>& OutMirroredIndices) const;
 
 private:
 
