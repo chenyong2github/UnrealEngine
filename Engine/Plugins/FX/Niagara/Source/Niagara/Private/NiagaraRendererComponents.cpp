@@ -317,9 +317,7 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 					}
 				}
 			}
-
 		}
-		ComponentPool.Empty();
 	}
 
 	if (bRequiresAyncTask)
@@ -360,8 +358,8 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 				Component->DestroyComponent();
 			}
 		}
-		ComponentPool.Empty();
 	}
+	ComponentPool.Empty();
 	SpawnedOwner.Reset();
 }
 
