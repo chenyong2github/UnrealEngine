@@ -29,6 +29,7 @@ FVulkanQueue::FVulkanQueue(FVulkanDevice* InDevice, uint32 InFamilyIndex)
 	, LastSubmittedCmdBuffer(nullptr)
 	, LastSubmittedCmdBufferFenceCounter(0)
 	, SubmitCounter(0)
+	, LayoutManager(false, nullptr)
 {
 	VulkanRHI::vkGetDeviceQueue(Device->GetInstanceHandle(), FamilyIndex, QueueIndex, &Queue);
 
@@ -115,6 +116,9 @@ void FVulkanQueue::Submit(FVulkanCmdBuffer* CmdBuffer, uint32 NumSignalSemaphore
 	CmdBuffer->GetOwner()->RefreshFenceStatus(CmdBuffer);
 
 	Device->GetStagingManager().ProcessPendingFree(false, false);
+
+	// If we're tracking layouts for the queue, merge in the changes recorded in this command buffer's context
+	CmdBuffer->GetLayoutManager().TransferTo(LayoutManager);
 }
 
 void FVulkanQueue::UpdateLastSubmittedCommandBuffer(FVulkanCmdBuffer* CmdBuffer)
@@ -181,4 +185,9 @@ void FVulkanQueue::FillSupportedStageBits()
 	{
 		SupportedStages |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 	}
+}
+
+void FVulkanQueue::NotifyDeletedImage(VkImage Image)
+{
+	LayoutManager.NotifyDeletedImage(Image);
 }

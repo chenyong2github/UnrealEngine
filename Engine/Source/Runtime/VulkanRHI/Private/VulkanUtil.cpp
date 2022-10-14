@@ -425,8 +425,8 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 
 				SCOPE_CYCLE_COUNTER(STAT_RenderQueryResultTime);
 
-				bool bWaitForStart = StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
-				bool bWaitForEnd = EndQuerySyncPoint.FenceCounter == EndQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
+				const bool bWaitForStart = StartQuerySyncPoint.FenceCounter >= StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
+				const bool bWaitForEnd = EndQuerySyncPoint.FenceCounter >= EndQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
 				if (bWaitForEnd || bWaitForStart)
 				{
 					// Need to submit the open command lists.
@@ -434,11 +434,11 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 				}
 
 				// CPU wait for query results to be ready.
-				if (bWaitForStart && StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
+				if (bWaitForStart && StartQuerySyncPoint.FenceCounter >= StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
 				{
 					CmdContext->GetCommandBufferManager()->WaitForCmdBuffer(StartQuerySyncPoint.CmdBuffer);
 				}
-				if (bWaitForEnd && EndQuerySyncPoint.FenceCounter == EndQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
+				if (bWaitForEnd && EndQuerySyncPoint.FenceCounter >= EndQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
 				{
 					CmdContext->GetCommandBufferManager()->WaitForCmdBuffer(EndQuerySyncPoint.CmdBuffer);
 				}
@@ -1049,6 +1049,7 @@ DEFINE_STAT(STAT_VulkanUPPrepTime);
 DEFINE_STAT(STAT_VulkanUniformBufferCreateTime);
 DEFINE_STAT(STAT_VulkanApplyDSUniformBuffers);
 DEFINE_STAT(STAT_VulkanApplyPackedUniformBuffers);
+DEFINE_STAT(STAT_VulkanBarrierTime);
 DEFINE_STAT(STAT_VulkanSRVUpdateTime);
 DEFINE_STAT(STAT_VulkanUAVUpdateTime);
 DEFINE_STAT(STAT_VulkanDeletionQueue);

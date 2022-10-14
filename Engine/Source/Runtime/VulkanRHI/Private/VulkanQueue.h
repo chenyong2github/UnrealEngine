@@ -7,10 +7,12 @@
 #pragma once
 
 #include "VulkanConfiguration.h"
+#include "VulkanBarriers.h"
 
 class FVulkanDevice;
 class FVulkanCmdBuffer;
 class FVulkanCommandListContext;
+class FVulkanLayoutManager;
 
 namespace VulkanRHI
 {
@@ -46,7 +48,7 @@ public:
 		return Queue;
 	}
 
-	void GetLastSubmittedInfo(FVulkanCmdBuffer*& OutCmdBuffer, uint64& OutFenceCounter) const
+	inline void GetLastSubmittedInfo(FVulkanCmdBuffer*& OutCmdBuffer, uint64& OutFenceCounter) const
 	{
 		FScopeLock ScopeLock(&CS);
 		OutCmdBuffer = LastSubmittedCmdBuffer;
@@ -58,10 +60,17 @@ public:
 		return SubmitCounter;
 	}
 
-	inline VkPipelineStageFlags GetSupportedStageBits()
+	inline VkPipelineStageFlags GetSupportedStageBits() const
 	{
 		return SupportedStages;
 	}
+
+	inline FVulkanLayoutManager& GetLayoutManager()
+	{
+		return LayoutManager;
+	}
+
+	void NotifyDeletedImage(VkImage Image);
 
 private:
 	VkQueue Queue;
@@ -74,6 +83,9 @@ private:
 	uint64 LastSubmittedCmdBufferFenceCounter;
 	uint64 SubmitCounter;
 	VkPipelineStageFlags SupportedStages;
+
+	// Last known layouts submitted on this queue, used for defrag
+	FVulkanLayoutManager LayoutManager;
 
 	void UpdateLastSubmittedCommandBuffer(FVulkanCmdBuffer* CmdBuffer);
 	void FillSupportedStageBits();

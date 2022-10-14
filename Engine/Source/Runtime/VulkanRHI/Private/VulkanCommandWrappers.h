@@ -101,9 +101,7 @@ struct FWrapLayer
 	static void CreateFramebuffer(VkResult Result, VkDevice Device, const VkFramebufferCreateInfo* CreateInfo, VkFramebuffer* Framebuffer) VULKAN_LAYER_BODY
 	static void DestroyFramebuffer(VkResult Result, VkDevice Device, VkFramebuffer Framebuffer) VULKAN_LAYER_BODY
 	static void CreateRenderPass(VkResult Result, VkDevice Device, const VkRenderPassCreateInfo* CreateInfo, VkRenderPass* RenderPass) VULKAN_LAYER_BODY
-#if VULKAN_SUPPORTS_RENDERPASS2
 	static void CreateRenderPass2KHR(VkResult Result, VkDevice Device, const VkRenderPassCreateInfo2* CreateInfo, VkRenderPass* RenderPass) VULKAN_LAYER_BODY
-#endif
 	static void DestroyRenderPass(VkResult Result, VkDevice Device, VkRenderPass RenderPass) VULKAN_LAYER_BODY
 	static void GetRenderAreaGranularity(VkResult Result, VkDevice Device, VkRenderPass RenderPass, VkExtent2D* pGranularity) VULKAN_LAYER_BODY
 	static void CreateCommandPool(VkResult Result, VkDevice Device, const VkCommandPoolCreateInfo* CreateInfo, VkCommandPool* CommandPool) VULKAN_LAYER_BODY
@@ -156,9 +154,7 @@ struct FWrapLayer
 	static void CmdCopyQueryPoolResults(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Stride, VkQueryResultFlags Flags) VULKAN_LAYER_BODY
 	static void CmdPushConstants(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineLayout Layout, VkShaderStageFlags StageFlags, uint32_t Offset, uint32_t Size, const void* pValues) VULKAN_LAYER_BODY
 	static void CmdBeginRenderPass(VkResult Result, VkCommandBuffer CommandBuffer, const VkRenderPassBeginInfo* RenderPassBegin, VkSubpassContents Contents) VULKAN_LAYER_BODY
-#if VULKAN_SUPPORTS_RENDERPASS2
 	static void CmdBeginRenderPass2KHR(VkResult Result, VkCommandBuffer CommandBuffer, const VkRenderPassBeginInfo* RenderPassBegin, const VkSubpassBeginInfo* pSubpassBeginInfo) VULKAN_LAYER_BODY
-#endif
 	static void CmdNextSubpass(VkResult Result, VkCommandBuffer CommandBuffer, VkSubpassContents Contents) VULKAN_LAYER_BODY
 	static void CmdEndRenderPass(VkResult Result, VkCommandBuffer CommandBuffer) VULKAN_LAYER_BODY
 	static void CmdExecuteCommands(VkResult Result, VkCommandBuffer CommandBuffer, uint32 CommandBufferCount, const VkCommandBuffer* pCommandBuffers) VULKAN_LAYER_BODY
@@ -207,6 +203,11 @@ struct FWrapLayer
 	static void ResetQueryPoolEXT(VkResult Result, VkDevice Device, VkQueryPool QueryPool, uint32_t FirstQuery, uint32_t QueryCount) VULKAN_LAYER_BODY
 	static void GetPhysicalDeviceCalibrateableTimeDomainsEXT(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32_t* TimeDomainCount, VkTimeDomainEXT* TimeDomains) VULKAN_LAYER_BODY
 	static void GetCalibratedTimestampsEXT(VkResult Result, VkDevice Device, uint32_t TimestampCount, const VkCalibratedTimestampInfoEXT* TimestampInfos, uint64_t* Timestamps, uint64_t* MaxDeviation) VULKAN_LAYER_BODY
+	static void CmdPipelineBarrier2KHR(VkResult Result, VkCommandBuffer CommandBuffer, const VkDependencyInfo* DependencyInfo) VULKAN_LAYER_BODY
+	static void CmdResetEvent2KHR(VkResult Result, VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags2 StageMask) VULKAN_LAYER_BODY
+	static void CmdSetEvent2KHR(VkResult Result, VkCommandBuffer CommandBuffer, VkEvent Event, const VkDependencyInfo* DependencyInfo) VULKAN_LAYER_BODY
+	static void CmdWaitEvents2KHR(VkResult Result, VkCommandBuffer CommandBuffer, uint32_t EventCount, const VkEvent* Events, const VkDependencyInfo* DependencyInfos) VULKAN_LAYER_BODY
+	static void QueueSubmit2KHR(VkResult Result, VkQueue Queue, uint32_t SubmitCount, const VkSubmitInfo2* Submits, VkFence Fence) VULKAN_LAYER_BODY
 };
 
 #undef VULKAN_LAYER_BODY
@@ -879,7 +880,6 @@ namespace VulkanRHI
 		return Result;
 	}
 
-#if VULKAN_SUPPORTS_RENDERPASS2
 	static FORCEINLINE_DEBUGGABLE VkResult vkCreateRenderPass2KHR(VkDevice Device, const VkRenderPassCreateInfo2* CreateInfo, const VkAllocationCallbacks* Allocator, VkRenderPass* RenderPass)
 	{
 		FWrapLayer::CreateRenderPass2KHR(VK_RESULT_MAX_ENUM, Device, CreateInfo, RenderPass);
@@ -887,7 +887,6 @@ namespace VulkanRHI
 		FWrapLayer::CreateRenderPass2KHR(Result, Device, CreateInfo, RenderPass);
 		return Result;
 	}
-#endif
 
 	static FORCEINLINE_DEBUGGABLE void  vkDestroyRenderPass(VkDevice Device, VkRenderPass RenderPass, const VkAllocationCallbacks* Allocator)
 	{
@@ -1268,14 +1267,12 @@ namespace VulkanRHI
 		FWrapLayer::CmdBeginRenderPass(VK_SUCCESS, CommandBuffer, RenderPassBegin, Contents);
 	}
 
-#if VULKAN_SUPPORTS_RENDERPASS2
 	static FORCEINLINE_DEBUGGABLE void vkCmdBeginRenderPass2KHR(VkCommandBuffer CommandBuffer, const VkRenderPassBeginInfo* RenderPassBegin, const VkSubpassBeginInfo* SubpassBeginInfo)
 	{
 		FWrapLayer::CmdBeginRenderPass2KHR(VK_RESULT_MAX_ENUM, CommandBuffer, RenderPassBegin, SubpassBeginInfo);
 		VULKANAPINAMESPACE::vkCmdBeginRenderPass2KHR(CommandBuffer, RenderPassBegin, SubpassBeginInfo);
 		FWrapLayer::CmdBeginRenderPass2KHR(VK_SUCCESS, CommandBuffer, RenderPassBegin, SubpassBeginInfo);
 	}
-#endif
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdNextSubpass(VkCommandBuffer CommandBuffer, VkSubpassContents Contents)
 	{
@@ -1516,6 +1513,41 @@ namespace VulkanRHI
 		const VkResult Result = VULKANAPINAMESPACE::vkGetCalibratedTimestampsEXT(Device, TimestampCount, TimestampInfos, Timestamps, MaxDeviation);
 		FWrapLayer::GetCalibratedTimestampsEXT(Result, Device, TimestampCount, TimestampInfos, Timestamps, MaxDeviation);
 		return Result;
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkCmdPipelineBarrier2KHR(VkCommandBuffer CommandBuffer, const VkDependencyInfo* DependencyInfo)
+	{
+		FWrapLayer::CmdPipelineBarrier2KHR(VK_RESULT_MAX_ENUM, CommandBuffer, DependencyInfo);
+		VULKANAPINAMESPACE::vkCmdPipelineBarrier2KHR(CommandBuffer, DependencyInfo);
+		FWrapLayer::CmdPipelineBarrier2KHR(VK_SUCCESS, CommandBuffer, DependencyInfo);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkCmdResetEvent2KHR(VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags2 StageMask)
+	{
+		FWrapLayer::CmdResetEvent2KHR(VK_RESULT_MAX_ENUM, CommandBuffer, Event, StageMask);
+		VULKANAPINAMESPACE::vkCmdResetEvent2KHR(CommandBuffer, Event, StageMask);
+		FWrapLayer::CmdResetEvent2KHR(VK_SUCCESS, CommandBuffer, Event, StageMask);
+	}
+	
+	static FORCEINLINE_DEBUGGABLE void vkCmdSetEvent2KHR(VkCommandBuffer CommandBuffer, VkEvent Event, const VkDependencyInfo* DependencyInfo)
+	{
+		FWrapLayer::CmdSetEvent2KHR(VK_RESULT_MAX_ENUM, CommandBuffer, Event, DependencyInfo);
+		VULKANAPINAMESPACE::vkCmdSetEvent2KHR(CommandBuffer, Event, DependencyInfo);
+		FWrapLayer::CmdSetEvent2KHR(VK_SUCCESS, CommandBuffer, Event, DependencyInfo);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkCmdWaitEvents2KHR(VkCommandBuffer CommandBuffer, uint32_t EventCount, const VkEvent* Events, const VkDependencyInfo* DependencyInfos)
+	{
+		FWrapLayer::CmdWaitEvents2KHR(VK_RESULT_MAX_ENUM, CommandBuffer, EventCount, Events, DependencyInfos);
+		VULKANAPINAMESPACE::vkCmdWaitEvents2KHR(CommandBuffer, EventCount, Events, DependencyInfos);
+		FWrapLayer::CmdWaitEvents2KHR(VK_SUCCESS, CommandBuffer, EventCount, Events, DependencyInfos);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void vkQueueSubmit2KHR(VkQueue Queue, uint32_t SubmitCount, const VkSubmitInfo2* Submits, VkFence Fence)
+	{
+		FWrapLayer::QueueSubmit2KHR(VK_RESULT_MAX_ENUM, Queue, SubmitCount, Submits, Fence);
+		VULKANAPINAMESPACE::vkQueueSubmit2KHR(Queue, SubmitCount, Submits, Fence);
+		FWrapLayer::QueueSubmit2KHR(VK_SUCCESS, Queue, SubmitCount, Submits, Fence);
 	}
 
 #if VULKAN_ENABLE_IMAGE_TRACKING_LAYER

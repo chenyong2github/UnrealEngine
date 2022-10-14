@@ -331,9 +331,11 @@ void FVulkanPendingComputeState::SetSRVForUBResource(uint32 DescriptorSet, uint3
 #endif // VULKAN_RHI_RAYTRACING
 		else
 		{
-			checkf(SRV->TextureView.View != VK_NULL_HANDLE, TEXT("Empty SRV"));
-			const FVulkanImageLayout& Layout = Context.GetLayoutManager().GetFullLayoutChecked(SRV->TextureView.Image);
-			CurrentState->SetSRVTextureView(DescriptorSet, BindingIndex, SRV->TextureView, Layout.GetSubresLayout(SRV->FirstArraySlice, SRV->MipLevel));
+			const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(SRV->SourceTexture.GetReference());
+			checkf((SRV->TextureView.View != VK_NULL_HANDLE) && VulkanTexture, TEXT("Empty SRV"));
+			const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(
+				Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVCompute);
+			CurrentState->SetSRVTextureView(DescriptorSet, BindingIndex, SRV->TextureView, ExpectedLayout);
 		}
 	}
 	else
@@ -358,7 +360,9 @@ void FVulkanPendingComputeState::SetUAVForUBResource(uint32 DescriptorSet, uint3
 		}
 		else if (UAV->SourceTexture)
 		{
-			CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, VK_IMAGE_LAYOUT_GENERAL);
+			const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(UAV->SourceTexture.GetReference());
+			const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::UAVCompute);
+			CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, ExpectedLayout);
 		}
 		else
 		{
@@ -415,7 +419,7 @@ void FVulkanPendingGfxState::PrepareForDraw(FVulkanCmdBuffer* CmdBuffer)
 	// TODO: Add 'dirty' flag? Need to rebind only on PSO change
 	if (CurrentPipeline->bHasInputAttachments)
 	{
-		FVulkanFramebuffer* CurrentFramebuffer = Context.GetLayoutManager().CurrentFramebuffer;
+		FVulkanFramebuffer* CurrentFramebuffer = Context.GetCurrentFramebuffer();
 		UpdateInputAttachments(CurrentFramebuffer);
 	}
 	
@@ -597,9 +601,10 @@ void FVulkanPendingGfxState::SetSRVForUBResource(uint8 DescriptorSet, uint32 Bin
 		}
 		else
 		{
-			checkf(SRV->TextureView.View != VK_NULL_HANDLE, TEXT("Empty SRV"));
-			const FVulkanImageLayout& Layout = Context.GetLayoutManager().GetFullLayoutChecked(SRV->TextureView.Image);
-			CurrentState->SetSRVTextureView(DescriptorSet, BindingIndex, SRV->TextureView, Layout.GetSubresLayout(SRV->FirstArraySlice, SRV->MipLevel));
+			const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(SRV->SourceTexture.GetReference());
+			checkf((SRV->TextureView.View != VK_NULL_HANDLE) && VulkanTexture, TEXT("Empty SRV"));
+			const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVGraphics);
+			CurrentState->SetSRVTextureView(DescriptorSet, BindingIndex, SRV->TextureView, ExpectedLayout);
 		}
 	}
 	else
@@ -624,8 +629,10 @@ void FVulkanPendingGfxState::SetUAVForUBResource(uint8 DescriptorSet, uint32 Bin
 		}
 		else if (UAV->SourceTexture)
 		{
-			const FVulkanImageLayout& Layout = Context.GetLayoutManager().GetFullLayoutChecked(UAV->TextureView.Image);
-			CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, Layout.GetSubresLayout(UAV->FirstArraySlice, UAV->MipLevel));
+			const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(UAV->SourceTexture.GetReference());
+			checkf(VulkanTexture, TEXT("Empty UAV"));
+			const VkImageLayout Layout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::UAVGraphics);
+			CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, Layout);
 		}
 		else
 		{

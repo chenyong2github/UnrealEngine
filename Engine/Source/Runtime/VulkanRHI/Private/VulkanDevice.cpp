@@ -15,6 +15,7 @@
 #include "VulkanLLM.h"
 #include "VulkanTransientResourceAllocator.h"
 #include "VulkanExtensions.h"
+#include "VulkanRenderpass.h"
 #include "VulkanRayTracing.h"
 #include "VulkanDescriptorSets.h"
 
@@ -1072,6 +1073,8 @@ void FVulkanDevice::InitGPU()
 	}
 #endif
 
+	RenderPassManager = new FVulkanRenderPassManager(this);
+
 	if (UseVulkanDescriptorCache())
 	{
 		DescriptorSetCache = new FVulkanDescriptorSetCache(this);
@@ -1227,6 +1230,9 @@ void FVulkanDevice::Destroy()
 	delete ImmediateContext;
 	ImmediateContext = nullptr;
 
+	delete RenderPassManager;
+	RenderPassManager = nullptr;
+
 	for (FVulkanOcclusionQueryPool* Pool : UsedOcclusionQueryPools)
 	{
 		delete Pool;
@@ -1326,10 +1332,13 @@ void FVulkanDevice::NotifyDeletedImage(VkImage Image, bool bRenderTarget)
 {
 	if (bRenderTarget)
 	{
+		// Contexts first, as it may clear the current framebuffer
 		GetImmediateContext().NotifyDeletedRenderTarget(Image);
+		// Delete framebuffers using this image
+		GetRenderPassManager().NotifyDeletedRenderTarget(Image);
 	}
 
-	//#todo-rco: Loop through all contexts!
+	//#todo-jn: Loop through all contexts!  And all queues!
 	GetImmediateContext().NotifyDeletedImage(Image);
 }
 

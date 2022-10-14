@@ -15,11 +15,8 @@ class FVulkanBindlessDescriptorManager;
 class FVulkanCommandListContextImmediate;
 class FVulkanTransientHeapCache;
 class FVulkanDeviceExtension;
-#if VULKAN_USE_NEW_QUERIES
 class FVulkanOcclusionQueryPool;
-#else
-class FOLDVulkanQueryPool;
-#endif
+class FVulkanRenderPassManager;
 
 #if VULKAN_RHI_RAYTRACING
 class FVulkanBasicRaytracingPipeline;
@@ -84,6 +81,7 @@ struct FOptionalVulkanDeviceExtensions
 			// Promoted to 1.3
 			uint64 HasEXTTextureCompressionASTCHDR : 1;
 			uint64 HasKHRMaintenance4 : 1;
+			uint64 HasKHRSynchronization2 : 1;
 		};
 		uint64 Packed;
 	};
@@ -376,6 +374,11 @@ public:
 		return FenceManager;
 	}
 
+	inline FVulkanRenderPassManager& GetRenderPassManager()
+	{
+		return *RenderPassManager;
+	}
+
 	inline FVulkanDescriptorSetCache& GetDescriptorSetCache()
 	{
 		return *DescriptorSetCache;
@@ -468,6 +471,11 @@ public:
 		return OptionalDeviceExtensions;
 	}
 
+	inline bool SupportsParallelRendering() const
+	{
+		return OptionalDeviceExtensions.HasSeparateDepthStencilLayouts && OptionalDeviceExtensions.HasKHRSynchronization2 && OptionalDeviceExtensions.HasKHRRenderPass2;
+	}
+
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	VkBuffer GetCrashMarkerBuffer() const
 	{
@@ -523,6 +531,8 @@ private:
 	VulkanRHI::FStagingManager StagingManager;
 
 	VulkanRHI::FFenceManager FenceManager;
+
+	FVulkanRenderPassManager* RenderPassManager;
 
 	FVulkanTransientHeapCache* TransientHeapCache = nullptr;
 

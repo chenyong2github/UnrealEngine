@@ -66,8 +66,10 @@ FVulkanCmdBuffer::FVulkanCmdBuffer(FVulkanDevice* InDevice, FVulkanCommandBuffer
 	, CommandBufferPool(InCommandBufferPool)
 	, Timing(nullptr)
 	, LastValidTiming(0)
+	, LayoutManager(InDevice->SupportsParallelRendering(), 
+		InDevice->SupportsParallelRendering() ? nullptr :
+		&InCommandBufferPool->GetMgr().GetCommandListContext()->GetQueue()->GetLayoutManager())
 {
-
 	{
 		FScopeLock ScopeLock(CommandBufferPool->GetCS());
 		AllocMemory();
@@ -202,7 +204,6 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 	}
 #endif
 
-#if VULKAN_SUPPORTS_RENDERPASS2
 	if (Device->GetOptionalExtensions().HasKHRRenderPass2)
 	{
 		VkSubpassBeginInfo SubpassInfo;
@@ -211,7 +212,6 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 		VulkanRHI::vkCmdBeginRenderPass2KHR(CommandBufferHandle, &Info, &SubpassInfo);
 	}
 	else
-#endif
 	{
 		VulkanRHI::vkCmdBeginRenderPass(CommandBufferHandle, &Info, VK_SUBPASS_CONTENTS_INLINE);
 	}
@@ -288,12 +288,18 @@ inline void FVulkanCmdBuffer::InitializeTimings(FVulkanCommandListContext* InCon
 	}
 }
 
-void FVulkanCmdBuffer::AddWaitSemaphore(VkPipelineStageFlags InWaitFlags, VulkanRHI::FSemaphore* InWaitSemaphore)
+void FVulkanCmdBuffer::AddWaitSemaphore(VkPipelineStageFlags InWaitFlags, TArrayView<VulkanRHI::FSemaphore*> InWaitSemaphores)
 {
-	WaitFlags.Add(InWaitFlags);
-	InWaitSemaphore->AddRef();
-	check(!WaitSemaphores.Contains(InWaitSemaphore));
-	WaitSemaphores.Add(InWaitSemaphore);
+	WaitFlags.Reserve(WaitFlags.Num() + InWaitSemaphores.Num());
+
+	for (VulkanRHI::FSemaphore* Sema : InWaitSemaphores)
+	{
+		WaitFlags.Add(InWaitFlags);
+		Sema->AddRef();
+		check(!WaitSemaphores.Contains(Sema));
+	}
+
+	WaitSemaphores.Append(InWaitSemaphores);
 }
 
 void FVulkanCmdBuffer::Begin()

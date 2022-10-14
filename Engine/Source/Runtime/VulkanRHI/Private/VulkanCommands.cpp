@@ -191,11 +191,11 @@ void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeSha
 
 void FVulkanCommandListContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
-	FVulkanTexture* Texture = FVulkanTexture::Cast(NewTextureRHI);
-	VkImageLayout Layout = LayoutManager.FindLayoutChecked(Texture->Image);
+	FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(NewTextureRHI);
+	const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVGraphics);
 
 	ShaderStage::EStage Stage = GetAndVerifyShaderStage(ShaderRHI, PendingGfxState);
-	PendingGfxState->SetTextureForStage(Stage, TextureIndex, Texture, Layout);
+	PendingGfxState->SetTextureForStage(Stage, TextureIndex, VulkanTexture, ExpectedLayout);
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
 }
 
@@ -205,8 +205,8 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIComputeShader* ComputeSh
 	check(PendingComputeState->GetCurrentShader() == ComputeShader);
 
 	FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(NewTextureRHI);
-	VkImageLayout Layout = LayoutManager.FindLayoutChecked(VulkanTexture->Image);
-	PendingComputeState->SetTextureForStage(TextureIndex, VulkanTexture, Layout);
+	const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVCompute);
+	PendingComputeState->SetTextureForStage(TextureIndex, VulkanTexture, ExpectedLayout);
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
 }
 
@@ -319,8 +319,8 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 				}
 #endif
 
-				const VkImageLayout Layout = Context->GetLayoutManager().FindLayoutChecked(VulkanTexture->Image);
-				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, VulkanTexture, Layout);
+				const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context->GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVMask);
+				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, VulkanTexture, ExpectedLayout);
 				TexRef->SetLastRenderTime(CurrentTime);
 			}
 			else
@@ -646,16 +646,16 @@ void FVulkanCommandListContext::RHIClearMRT(bool bClearColor, int32 NumClearColo
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 	//FRCLog::Printf(TEXT("RHIClearMRT"));
 
-	const uint32 NumColorAttachments = LayoutManager.CurrentFramebuffer->GetNumColorAttachments();
+	const uint32 NumColorAttachments = CurrentFramebuffer->GetNumColorAttachments();
 	check(!bClearColor || (uint32)NumClearColors <= NumColorAttachments);
 	InternalClearMRT(CmdBuffer, bClearColor, bClearColor ? NumClearColors : 0, ClearColorArray, bClearDepth, Depth, bClearStencil, Stencil);
 }
 
 void FVulkanCommandListContext::InternalClearMRT(FVulkanCmdBuffer* CmdBuffer, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil)
 {
-	if (LayoutManager.CurrentRenderPass)
+	if (CurrentRenderPass)
 	{
-		const VkExtent2D& Extents = LayoutManager.CurrentRenderPass->GetLayout().GetExtent2D();
+		const VkExtent2D& Extents = CurrentRenderPass->GetLayout().GetExtent2D();
 		VkClearRect Rect;
 		FMemory::Memzero(Rect);
 		Rect.rect.offset.x = 0;
@@ -784,12 +784,6 @@ void FVulkanCommandListContext::RHISubmitCommandsHint()
 		SafePointSubmit();
 	}
 	CommandBufferManager->RefreshFenceStatus();
-}
-
-void FVulkanCommandListContext::PrepareParallelFromBase(const FVulkanCommandListContext& BaseContext)
-{
-	//#todo-rco: Temp
-	LayoutManager.TempCopy(BaseContext.LayoutManager);
 }
 
 void FVulkanCommandListContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)

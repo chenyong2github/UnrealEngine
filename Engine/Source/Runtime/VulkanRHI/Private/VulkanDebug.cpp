@@ -915,64 +915,17 @@ namespace VulkanRHI
 
 	static FString GetVkImageLayoutString(VkImageLayout Layout)
 	{
-		switch (Layout)
-		{
-			// + 16 to skip "VK_IMAGE_LAYOUT"
-#define VKSWITCHCASE(x)	case x: return &TEXT(#x)[16];
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_UNDEFINED)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_GENERAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_PREINITIALIZED)
-			VKSWITCHCASE(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-#undef VKSWITCHCASE
-		default:
-			break;
-		}
-
-		return FString::Printf(TEXT("Unknown VkImageLayout %d"), (int32)Layout);
+		return FString(VK_TYPE_TO_STRING(VkImageLayout, Layout)).RightChop(16);
 	}
 
 	static FString GetVkImageViewTypeString(VkImageViewType Type)
 	{
-		switch (Type)
-		{
-			// + 19 to skip "VK_IMAGE_VIEW_TYPE_"
-#define VKSWITCHCASE(x)	case x: return &TEXT(#x)[19];
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_1D)
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_2D)
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_3D)
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_CUBE)
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_1D_ARRAY)
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_2D_ARRAY)
-		VKSWITCHCASE(VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
-#undef VKSWITCHCASE
-		default:
-			break;
-		}
-
-		return FString::Printf(TEXT("Unknown VkImageViewType %d"), (int32)Type);
+		return FString(VK_TYPE_TO_STRING(VkImageViewType, Type)).RightChop(19);
 	}
 
 	static FString GetVkImageTypeString(VkImageType Type)
 	{
-		switch (Type)
-		{
-			// + 14 to skip "VK_IMAGE_TYPE_1D"
-#define VKSWITCHCASE(x)	case x: return &TEXT(#x)[14];
-		VKSWITCHCASE(VK_IMAGE_TYPE_1D)
-		VKSWITCHCASE(VK_IMAGE_TYPE_2D)
-		VKSWITCHCASE(VK_IMAGE_TYPE_3D)
-#undef VKSWITCHCASE
-		default:
-			break;
-		}
-
-		return FString::Printf(TEXT("Unknown VkImageType %d"), (int32)Type);
+		return FString(VK_TYPE_TO_STRING(VkImageType, Type)).RightChop(14);
 	}
 
 	static FString GetVkDescriptorTypeString(VkDescriptorType Type)
@@ -2066,9 +2019,12 @@ void FWrapLayer::CreateFramebuffer(VkResult Result, VkDevice Device, const VkFra
 		{
 			FFBInfo Info;
 			Info.Info = *CreateInfo;
-			Info.Attachments.AddUninitialized(CreateInfo->attachmentCount);
-			FMemory::Memcpy(&Info.Attachments[0], CreateInfo->pAttachments, CreateInfo->attachmentCount * sizeof(VkImageView));
-			Info.Info.pAttachments = &Info.Attachments[0];
+			if (CreateInfo->attachmentCount)
+			{
+				Info.Attachments.AddUninitialized(CreateInfo->attachmentCount);
+				FMemory::Memcpy(&Info.Attachments[0], CreateInfo->pAttachments, CreateInfo->attachmentCount * sizeof(VkImageView));
+				Info.Info.pAttachments = &Info.Attachments[0];
+			}
 			GFramebufferInfo.Add(*Framebuffer, Info);
 		}
 #endif
@@ -2240,25 +2196,34 @@ void FWrapLayer::CreateRenderPass2KHR(VkResult Result, VkDevice Device, const Vk
 	else
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
-		/*
-		* @todo
 		PrintResultAndNamedHandle(Result, TEXT("RenderPass"), *RenderPass);
 		if (Result == VK_SUCCESS)
 		{
 			FRenderPassInfo Info;
-			Info.Info = *CreateInfo;
+			Info.Info.sType = CreateInfo->sType;
+			Info.Info.attachmentCount = CreateInfo->attachmentCount;
+			Info.Info.dependencyCount = CreateInfo->dependencyCount;
+			Info.Info.subpassCount = CreateInfo->subpassCount;
+			Info.Info.flags = CreateInfo->flags;
 			Info.Info.pAttachments = nullptr;
 			Info.Info.pSubpasses = nullptr;
 			Info.Info.pDependencies = nullptr;
 			Info.Descriptions.AddUninitialized(CreateInfo->attachmentCount);
-			if (CreateInfo->attachmentCount)
+			for (uint32 Index = 0; Index < CreateInfo->attachmentCount; ++Index)
 			{
-				FMemory::Memcpy(&Info.Descriptions[0], CreateInfo->pAttachments, CreateInfo->attachmentCount * sizeof(VkAttachmentDescription));
+				Info.Descriptions[Index].flags = CreateInfo->pAttachments[Index].flags;
+				Info.Descriptions[Index].format = CreateInfo->pAttachments[Index].format;
+				Info.Descriptions[Index].samples = CreateInfo->pAttachments[Index].samples;
+				Info.Descriptions[Index].loadOp = CreateInfo->pAttachments[Index].loadOp;
+				Info.Descriptions[Index].storeOp = CreateInfo->pAttachments[Index].storeOp;
+				Info.Descriptions[Index].stencilLoadOp = CreateInfo->pAttachments[Index].stencilLoadOp;
+				Info.Descriptions[Index].stencilStoreOp = CreateInfo->pAttachments[Index].stencilStoreOp;
+				Info.Descriptions[Index].initialLayout = CreateInfo->pAttachments[Index].initialLayout;
+				Info.Descriptions[Index].finalLayout = CreateInfo->pAttachments[Index].finalLayout;
 			}
 			GRenderPassInfo.Add(*RenderPass, Info);
 		}
 		FlushDebugWrapperLog();
-		*/
 #endif
 	}
 }
@@ -4506,7 +4471,7 @@ void FWrapLayer::CmdPipelineBarrier2KHR(VkResult Result, VkCommandBuffer Command
 				BreakOnTrackingImage(ImageBarrier.image);
 				if (DumpTrackImage(ImageBarrier.image))
 				{
-					CmdPrintfBegin(CommandBuffer, FString::Printf(TEXT("vkCmdPipelineBarrier(Flags=%d, NumMemB=%d, MemB=0x%p,"), (uint32)DependencyInfo->dependencyFlags, DependencyInfo->memoryBarrierCount, DependencyInfo->pMemoryBarriers));
+					CmdPrintfBegin(CommandBuffer, FString::Printf(TEXT("vkCmdPipelineBarrier2(Flags=%d, NumMemB=%d, MemB=0x%p,"), (uint32)DependencyInfo->dependencyFlags, DependencyInfo->memoryBarrierCount, DependencyInfo->pMemoryBarriers));
 					DebugLog += FString::Printf(TEXT("%s\tNumBufferB=%d, BufferB=0x%p, NumImageB=%d, ImageB=0x%p)[...]\n"), Tabs, DependencyInfo->bufferMemoryBarrierCount, DependencyInfo->pBufferMemoryBarriers, DependencyInfo->imageMemoryBarrierCount, DependencyInfo->pImageMemoryBarriers);
 					DumpImageMemoryBarriers(DependencyInfo->imageMemoryBarrierCount, DependencyInfo->pImageMemoryBarriers);
 					FlushDebugWrapperLog();

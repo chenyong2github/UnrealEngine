@@ -5,21 +5,22 @@
 #include "CoreMinimal.h"
 #include "VulkanCommon.h"
 
+class FVulkanCmdBuffer;
 
 struct FVulkanPipelineBarrier
 {
-	FVulkanPipelineBarrier() : SrcStageMask(0), DstStageMask(0), Semaphore(nullptr), bHasMemoryBarrier(false)
-	{
-		ZeroVulkanStruct(MemoryBarrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER);
-	}
+	FVulkanPipelineBarrier() : Semaphore(nullptr)
+	{}
+
+	using MemoryBarrierArrayType = TArray<VkMemoryBarrier2, TInlineAllocator<1>>;
+	using ImageBarrierArrayType = TArray<VkImageMemoryBarrier2, TInlineAllocator<2>>;
+	using BufferBarrierArrayType = TArray<VkBufferMemoryBarrier2>;
 
 	ERHIPipeline SrcPipelines, DstPipelines;
-	VkPipelineStageFlags SrcStageMask, DstStageMask;
-	VkMemoryBarrier MemoryBarrier;
-	TArray<VkImageMemoryBarrier, TInlineAllocator<2>> ImageBarriers;
-	TArray<VkBufferMemoryBarrier> BufferBarriers;
+	MemoryBarrierArrayType MemoryBarriers;
+	ImageBarrierArrayType ImageBarriers;
+	BufferBarrierArrayType BufferBarriers;
 	VulkanRHI::FSemaphore* Semaphore;
-	bool bHasMemoryBarrier;
 
 	// We need to keep the texture pointers around, because we need to call OnTransitionResource on them, and we need mip and layer counts for the tracking code.
 	struct ImageBarrierExtraData
@@ -36,21 +37,24 @@ struct FVulkanPipelineBarrier
 	void AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, const struct FVulkanImageLayout& SrcLayout, const struct FVulkanImageLayout& DstLayout);
 	void AddImageAccessTransition(const FVulkanTexture& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout);
 	void Execute(VkCommandBuffer CmdBuffer);
+	void Execute(FVulkanCmdBuffer* CmdBuffer);
 
 	static VkImageSubresourceRange MakeSubresourceRange(VkImageAspectFlags AspectMask, uint32 FirstMip = 0, uint32 NumMips = VK_REMAINING_MIP_LEVELS, uint32 FirstLayer = 0, uint32 NumLayers = VK_REMAINING_ARRAY_LAYERS);
 };
 
 struct FVulkanImageLayout
 {
-	FVulkanImageLayout(VkImageLayout InitialLayout, uint32 InNumMips, uint32 InNumLayers) :
+	FVulkanImageLayout(VkImageLayout InitialLayout, uint32 InNumMips, uint32 InNumLayers, VkImageAspectFlags Aspect) :
 		NumMips(InNumMips),
 		NumLayers(InNumLayers),
+		NumPlanes((Aspect == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) ? 2 : 1),
 		MainLayout(InitialLayout)
 	{
 	}
 
 	uint32 NumMips;
 	uint32 NumLayers;
+	uint32 NumPlanes;
 
 	// The layout when all the subresources are in the same state.
 	VkImageLayout MainLayout;
@@ -58,12 +62,17 @@ struct FVulkanImageLayout
 	// Explicit subresource layouts. Always NumLayers*NumMips elements.
 	TArray<VkImageLayout> SubresLayouts;
 
-	bool AreAllSubresourcesSameLayout() const
+	inline bool AreAllSubresourcesSameLayout() const
 	{
 		return SubresLayouts.Num() == 0;
 	}
 
-	VkImageLayout GetSubresLayout(uint32 Layer, uint32 Mip) const
+	VkImageLayout GetSubresLayout(uint32 Layer, uint32 Mip, VkImageAspectFlagBits Aspect) const
+	{
+		return GetSubresLayout(Layer, Mip, (Aspect==VK_IMAGE_ASPECT_STENCIL_BIT) ? NumPlanes - 1 : 0);
+	}
+
+	VkImageLayout GetSubresLayout(uint32 Layer, uint32 Mip, uint32 Plane) const
 	{
 		if (SubresLayouts.Num() == 0)
 		{
@@ -75,20 +84,22 @@ struct FVulkanImageLayout
 			Layer = 0;
 		}
 
-		check(Layer < NumLayers && Mip < NumMips);
-		return SubresLayouts[Layer * NumMips + Mip];
+		check(Plane < NumPlanes && Layer < NumLayers && Mip < NumMips);
+		return SubresLayouts[(Plane * NumLayers * NumMips) + (Layer * NumMips) + Mip];
 	}
 
 	bool AreSubresourcesSameLayout(VkImageLayout Layout, const VkImageSubresourceRange& SubresourceRange) const;
 
-	uint32 GetSubresRangeLayerCount(const VkImageSubresourceRange& SubresourceRange) const
+	inline uint32 GetSubresRangeLayerCount(const VkImageSubresourceRange& SubresourceRange) const
 	{
-		return (SubresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS) ? NumLayers : SubresourceRange.layerCount;
+		check(SubresourceRange.baseArrayLayer < NumLayers);
+		return (SubresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS) ? (NumLayers - SubresourceRange.baseArrayLayer) : SubresourceRange.layerCount;
 	}
 
-	uint32 GetSubresRangeMipCount(const VkImageSubresourceRange& SubresourceRange) const
+	inline uint32 GetSubresRangeMipCount(const VkImageSubresourceRange& SubresourceRange) const
 	{
-		return (SubresourceRange.levelCount == VK_REMAINING_MIP_LEVELS) ? NumMips : SubresourceRange.levelCount;
+		check(SubresourceRange.baseMipLevel < NumMips);
+		return (SubresourceRange.levelCount == VK_REMAINING_MIP_LEVELS) ? (NumMips - SubresourceRange.baseMipLevel) : SubresourceRange.levelCount;
 	}
 
 	void CollapseSubresLayoutsIfSame();
@@ -99,128 +110,116 @@ struct FVulkanImageLayout
 class FVulkanLayoutManager
 {
 public:
-	FVulkanLayoutManager()
-		: CurrentRenderPass(nullptr)
-		, CurrentFramebuffer(nullptr)
+	FVulkanLayoutManager(bool InWriteOnly, FVulkanLayoutManager* InFallback)
+		: bWriteOnly(InWriteOnly)
+		, Fallback(InFallback)
 	{
 	}
 
-	void TempCopy(const FVulkanLayoutManager& In)
-	{
-		Framebuffers = In.Framebuffers;
-		RenderPasses = In.RenderPasses;
-		Layouts = In.Layouts;
-	}
-
-	void Destroy(FVulkanDevice& InDevice, FVulkanLayoutManager* Immediate);
-
-	FVulkanFramebuffer* GetOrCreateFramebuffer(FVulkanDevice& InDevice, const FRHISetRenderTargetsInfo& RenderTargetsInfo, const FVulkanRenderTargetLayout& RTLayout, FVulkanRenderPass* RenderPass);
-	FVulkanRenderPass* GetOrCreateRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& RTLayout)
-	{
-		uint32 RenderPassHash = RTLayout.GetRenderPassFullHash();
-		FVulkanRenderPass** FoundRenderPass = nullptr;
-		{
-			FScopeLock Lock(&RenderPassesCS);
-			FoundRenderPass = RenderPasses.Find(RenderPassHash);
-		}
-		if (FoundRenderPass)
-		{
-			return *FoundRenderPass;
-		}
-
-		FVulkanRenderPass* RenderPass = new FVulkanRenderPass(InDevice, RTLayout);
-		{
-			FScopeLock Lock(&RenderPassesCS);
-			FoundRenderPass = RenderPasses.Find(RenderPassHash);
-			if (FoundRenderPass)
-			{
-				delete RenderPass;
-				return *FoundRenderPass;
-			}
-			RenderPasses.Add(RenderPassHash, RenderPass);
-		}
-		return RenderPass;
-	}
-
-	void BeginRenderPass(FVulkanCommandListContext& Context, FVulkanDevice& InDevice, FVulkanCmdBuffer* CmdBuffer, const FRHIRenderPassInfo& RPInfo, const FVulkanRenderTargetLayout& RTLayout, FVulkanRenderPass* RenderPass, FVulkanFramebuffer* Framebuffer);
-	void EndRenderPass(FVulkanCmdBuffer* CmdBuffer);
-
-	FVulkanRenderPass* CurrentRenderPass;
-	FVulkanFramebuffer* CurrentFramebuffer;
-
-	FCriticalSection RenderPassesCS;
-
-	void NotifyDeletedRenderTarget(FVulkanDevice& InDevice, VkImage Image);
 	void NotifyDeletedImage(VkImage Image);
 
-	FVulkanImageLayout* GetFullLayout(VkImage Image)
+	// Predetermined layouts for given RHIAccess
+	static VkImageLayout GetDefaultLayout(FVulkanCmdBuffer* CmdBuffer, const FVulkanTexture& VulkanTexture, ERHIAccess DesiredAccess);
+
+	// Expected layouts and Hints are workarounds until we can use 'hardcoded layouts' everywhere.
+	static VkImageLayout SetExpectedLayout(FVulkanCmdBuffer* CmdBuffer, const FVulkanTexture& VulkanTexture, ERHIAccess DesiredAccess);
+	VkImageLayout GetDepthStencilHint(const FVulkanTexture& VulkanTexture, VkImageAspectFlagBits AspectBit);
+
+	VULKANRHI_API const FVulkanImageLayout* GetFullLayout(VkImage Image) const
 	{
-		return Layouts.Find(Image);
+		check(!bWriteOnly);
+		const FVulkanImageLayout* Layout = Layouts.Find(Image);
+		if (!Layout && Fallback)
+		{
+			return Fallback->GetFullLayout(Image);
+		}
+		return Layout;
 	}
 
-	FVulkanImageLayout& GetFullLayoutChecked(VkImage Image)
+	VULKANRHI_API const FVulkanImageLayout* GetFullLayout(const FVulkanTexture& VulkanTexture, bool bAddIfNotFound = false, VkImageLayout LayoutIfNotFound = VK_IMAGE_LAYOUT_UNDEFINED)
 	{
-		return Layouts.FindChecked(Image);
-	}
-
-	FVulkanImageLayout& GetOrAddFullLayout(const FVulkanTexture& Surface, VkImageLayout LayoutIfNotFound)
-	{
-		FVulkanImageLayout* Layout = Layouts.Find(Surface.Image);
+		check(!bWriteOnly);
+		const FVulkanImageLayout* Layout = Layouts.Find(VulkanTexture.Image);
+		
+		if (!Layout && Fallback)
+		{
+			Layout = Fallback->GetFullLayout(VulkanTexture, false);
+		}
+		
 		if (Layout)
 		{
-			return *Layout;
+			return Layout;
+		}
+		else if (!bAddIfNotFound)
+		{
+			return nullptr;
 		}
 
-		return Layouts.Add(Surface.Image, FVulkanImageLayout(LayoutIfNotFound, Surface.GetNumMips(), Surface.GetNumberOfArrayLevels()));
+		return &Layouts.Add(VulkanTexture.Image, FVulkanImageLayout(LayoutIfNotFound, VulkanTexture.GetNumMips(), VulkanTexture.GetNumberOfArrayLevels(), VulkanTexture.GetFullAspectMask()));
 	}
 
-	//
-	// The following functions should only be used when the calling code is sure that the image has all its sub-resources
-	// in the same state. They will assert if that's not the case.
-	//
-	VkImageLayout FindLayoutChecked(VkImage Image) const
-	{
-		const FVulkanImageLayout& Layout = Layouts.FindChecked(Image);
-		check(Layout.AreAllSubresourcesSameLayout());
-		return Layout.MainLayout;
-	}
-
-	VULKANRHI_API FVulkanImageLayout& FindOrAddFullLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound, uint32 NumMips, uint32 NumLayers)
+	// Not the preferred path because we can't ensure Mip and Layer counts match, but still necessary for images like the backbuffer
+	VULKANRHI_API void SetFullLayout(VkImage Image, const FVulkanImageLayout& NewLayout)
 	{
 		FVulkanImageLayout* Layout = Layouts.Find(Image);
 		if (Layout)
 		{
-			check(Layout->AreAllSubresourcesSameLayout());
-			return *Layout;
+			*Layout = NewLayout;
 		}
-		return Layouts.Add(Image, FVulkanImageLayout(LayoutIfNotFound, NumMips, NumLayers));
+		else
+		{
+			Layouts.Add(Image, NewLayout);
+		}
 	}
 
-	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound, uint32 NumMips, uint32 NumLayers)
+	VULKANRHI_API void SetFullLayout(const FVulkanTexture& VulkanTexture, const FVulkanImageLayout& NewLayout)
 	{
-		return FindOrAddFullLayoutRW(Image, LayoutIfNotFound, NumMips, NumLayers).MainLayout;
+		check((VulkanTexture.GetNumMips() == NewLayout.NumMips) && (VulkanTexture.GetNumberOfArrayLevels() == NewLayout.NumLayers));
+		SetFullLayout(VulkanTexture.Image, NewLayout);
 	}
 
-	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(const FVulkanTexture& Surface, VkImageLayout LayoutIfNotFound)
+	VULKANRHI_API void SetFullLayout(const FVulkanTexture& VulkanTexture, VkImageLayout InLayout, bool bOnlyIfNotFound=false)
 	{
-		return FindOrAddLayoutRW(Surface.Image, LayoutIfNotFound, Surface.GetNumMips(), Surface.GetNumberOfArrayLevels());
+		FVulkanImageLayout* Layout = Layouts.Find(VulkanTexture.Image);
+		if (Layout)
+		{
+			if (!bOnlyIfNotFound)
+			{
+				Layout->Set(InLayout, FVulkanPipelineBarrier::MakeSubresourceRange(VulkanTexture.GetFullAspectMask()));
+			}
+		}
+		else
+		{
+			Layouts.Add(VulkanTexture.Image, FVulkanImageLayout(InLayout, VulkanTexture.GetNumMips(), VulkanTexture.GetNumberOfArrayLevels(), VulkanTexture.GetFullAspectMask()));
+		}
 	}
 
-	VkImageLayout FindOrAddLayout(const FVulkanTexture& Surface, VkImageLayout LayoutIfNotFound)
+	VULKANRHI_API void SetLayout(const FVulkanTexture& VulkanTexture, const VkImageSubresourceRange& InSubresourceRange, VkImageLayout InLayout)
 	{
-		return FindOrAddLayoutRW(Surface, LayoutIfNotFound);
+		FVulkanImageLayout* Layout = Layouts.Find(VulkanTexture.Image);
+		if (Layout)
+		{
+			Layout->Set(InLayout, InSubresourceRange);
+		}
+		else
+		{
+			FVulkanImageLayout NewLayout(VK_IMAGE_LAYOUT_UNDEFINED, VulkanTexture.GetNumMips(), VulkanTexture.GetNumberOfArrayLevels(), VulkanTexture.GetFullAspectMask());
+			NewLayout.Set(InLayout, InSubresourceRange);
+			Layouts.Add(VulkanTexture.Image, NewLayout);
+		}
 	}
+
+	// Transfers our layouts into the destination
+	void TransferTo(FVulkanLayoutManager& Destination);
 
 private:
-	TMap<uint32, FVulkanRenderPass*> RenderPasses;
-
-	struct FFramebufferList
-	{
-		TArray<FVulkanFramebuffer*> Framebuffer;
-	};
-	TMap<uint32, FFramebufferList*> Framebuffers;
 
 	TMap<VkImage, FVulkanImageLayout> Layouts;
 
-	void ValidateRenderPassColorEntry(const FRHIRenderPassInfo::FColorEntry& ColorEntry, bool bResolveTarget, FVulkanPipelineBarrier& Barrier);
+	// If we're WriteOnly, we should never read layout from this instance.  This is important for parallel rendering.
+	// When WriteOnly, this instance of the layout manager should only collect layouts to later feed them to the another central mgr.
+	const bool bWriteOnly;
+
+	// If parallel command list creation is NOT supported, then the queue's layout mgr can be used as a fallback to fetch previous layouts.
+	FVulkanLayoutManager* Fallback;
 };

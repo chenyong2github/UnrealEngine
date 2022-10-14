@@ -360,7 +360,9 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 		const VkFormat SwapChainFormat = VulkanRHI->RHIGetViewVkFormat(SwapChainTexture);
 
 		// Color layout
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS		
 		VkImageLayout& CurrentLayout = VulkanRHI->RHIFindOrAddLayoutRW(SwapChainTexture, VK_IMAGE_LAYOUT_UNDEFINED);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bool bHadLayout = (CurrentLayout != VK_IMAGE_LAYOUT_UNDEFINED);
 		
 		VkImageSubresourceRange SubresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
@@ -402,7 +404,9 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 			const VkFormat DepthSwapChainFormat = VulkanRHI->RHIGetViewVkFormat(DepthSwapChainTexture);
 
 			VkImageSubresourceRange SubresourceRangeDepth = { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			VkImageLayout& CurrentDepthLayout = VulkanRHI->RHIFindOrAddLayoutRW(DepthSwapChainTexture, VK_IMAGE_LAYOUT_UNDEFINED);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			bool bDepthHadLayout = (CurrentDepthLayout != VK_IMAGE_LAYOUT_UNDEFINED);
 
 			if (CurrentDepthLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)

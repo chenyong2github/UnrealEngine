@@ -74,14 +74,14 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 			DefaultView.View = ImageView.View;
 			DefaultView.ViewId = ImageView.ViewId;
 
-			// right after acquiring image is in undefined state
-			FVulkanLayoutManager& LayoutMgr = Context.GetLayoutManager();
-			VkImageLayout& CurrentLayout = LayoutMgr.FindOrAddLayoutRW(ImageView.Image, VK_IMAGE_LAYOUT_UNDEFINED, 1, 1);
-			CurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
 			FVulkanCommandBufferManager* CmdBufferManager = Context.GetCommandBufferManager();
 			FVulkanCmdBuffer* CmdBuffer = CmdBufferManager->GetActiveCmdBuffer();
 			check(!CmdBuffer->IsInsideRenderPass());
+
+			// right after acquiring image is in undefined state
+			FVulkanLayoutManager& LayoutMgr = CmdBuffer->GetLayoutManager();
+			const FVulkanImageLayout CustomLayout(VK_IMAGE_LAYOUT_UNDEFINED, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT);
+			LayoutMgr.SetFullLayout(ImageView.Image, CustomLayout);
 
 			// Wait for semaphore signal before writing to backbuffer image
 			CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, Viewport->AcquiredSemaphore);
@@ -641,6 +641,11 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		FVulkanCmdBuffer* CmdBuffer = Device->GetImmediateContext().GetCommandBufferManager()->GetUploadCmdBuffer();
 		ensure(CmdBuffer->IsOutsideRenderPass());
 
+		VkClearColorValue ClearColor;
+		FMemory::Memzero(ClearColor);
+
+		const VkImageSubresourceRange Range = FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
+		const FVulkanImageLayout InitialLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT);
 		for (int32 Index = 0; Index < Images.Num(); ++Index)
 		{
 			BackBufferImages[Index] = Images[Index];
@@ -648,13 +653,10 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 
 			// Clear the swapchain to avoid a validation warning, and transition to ColorAttachment
 			{
-				VkImageSubresourceRange Range = FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
-
-				VkClearColorValue Color;
-				FMemory::Memzero(Color);
-				VulkanSetImageLayout(CmdBuffer->GetHandle(), Images[Index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, Range);
-				VulkanRHI::vkCmdClearColorImage(CmdBuffer->GetHandle(), Images[Index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &Color, 1, &Range);
-				VulkanSetImageLayout(CmdBuffer->GetHandle(), Images[Index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, Range);
+				VulkanSetImageLayout(CmdBuffer, Images[Index], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, Range);
+				VulkanRHI::vkCmdClearColorImage(CmdBuffer->GetHandle(), Images[Index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &ClearColor, 1, &Range);
+				VulkanSetImageLayout(CmdBuffer, Images[Index], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, Range);
+				CmdBuffer->GetLayoutManager().SetFullLayout(Images[Index], InitialLayout);
 			}
 
 #if VULKAN_ENABLE_DRAW_MARKERS
@@ -746,16 +748,15 @@ void FVulkanViewport::DestroySwapchain(FVulkanSwapChainRecreateInfo* RecreateInf
 	AcquiredImageIndex = -1;
 }
 
-inline static void CopyImageToBackBuffer(FVulkanCommandListContext* Context, FVulkanCmdBuffer* CmdBuffer, VkImage SrcSurface, VkImage DstSurface, int32 SizeX, int32 SizeY, int32 WindowSizeX, int32 WindowSizeY)
+inline static void CopyImageToBackBuffer(FVulkanCommandListContext* Context, FVulkanCmdBuffer* CmdBuffer, FVulkanTexture& SrcSurface, VkImage DstSurface, int32 SizeX, int32 SizeY, int32 WindowSizeX, int32 WindowSizeY)
 {
-	FVulkanLayoutManager& LayoutManager = Context->GetLayoutManager();
-	VkImageLayout SrcLayout = LayoutManager.FindLayoutChecked(SrcSurface);
+	FVulkanLayoutManager& LayoutManager = CmdBuffer->GetLayoutManager();
+	const VkImageLayout PreviousSrcLayout = FVulkanLayoutManager::SetExpectedLayout(CmdBuffer, SrcSurface, ERHIAccess::CopySrc);
 
 	{
 		FVulkanPipelineBarrier Barrier;
-		Barrier.AddImageLayoutTransition(SrcSurface, SrcLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1));
 		Barrier.AddImageLayoutTransition(DstSurface, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1));
-		Barrier.Execute(CmdBuffer->GetHandle());
+		Barrier.Execute(CmdBuffer);
 	}
 
 	VulkanRHI::DebugHeavyWeightBarrier(CmdBuffer->GetHandle(), 32);
@@ -782,7 +783,7 @@ inline static void CopyImageToBackBuffer(FVulkanCommandListContext* Context, FVu
 		Region.dstSubresource.baseArrayLayer = 0;
 		Region.dstSubresource.layerCount = 1;
 		VulkanRHI::vkCmdBlitImage(CmdBuffer->GetHandle(),
-			SrcSurface, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			DstSurface, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1, &Region, VK_FILTER_LINEAR);
 	}
@@ -802,16 +803,16 @@ inline static void CopyImageToBackBuffer(FVulkanCommandListContext* Context, FVu
 		Region.dstSubresource.layerCount = 1;
 		//Region.dstSubresource.mipLevel = 0;
 		VulkanRHI::vkCmdCopyImage(CmdBuffer->GetHandle(),
-			SrcSurface, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			DstSurface, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1, &Region);
 	}
 
 	{
 		FVulkanPipelineBarrier Barrier;
-		Barrier.AddImageLayoutTransition(SrcSurface, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, SrcLayout, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1));
+		Barrier.AddImageLayoutTransition(SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, PreviousSrcLayout, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1));
 		Barrier.AddImageLayoutTransition(DstSurface, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1));
-		Barrier.Execute(CmdBuffer->GetHandle());
+		Barrier.Execute(CmdBuffer);
 	}
 }
 
@@ -835,7 +836,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 				uint32 WindowSizeY = FMath::Min(SizeY, SwapChain->InternalHeight);
 
 				Context->RHIPushEvent(TEXT("CopyImageToBackBuffer"), FColor::Blue);
-				CopyImageToBackBuffer(Context, CmdBuffer, RenderingBackBuffer->Image, BackBufferImages[AcquiredImageIndex], SizeX, SizeY, WindowSizeX, WindowSizeY);
+				CopyImageToBackBuffer(Context, CmdBuffer, *RenderingBackBuffer.GetReference(), BackBufferImages[AcquiredImageIndex], SizeX, SizeY, WindowSizeX, WindowSizeY);
 				Context->RHIPopEvent();
 			}
 			else
@@ -848,9 +849,21 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 			if (AcquiredImageIndex != -1)
 			{
 				check(RHIBackBuffer != nullptr && RHIBackBuffer->Image == BackBufferImages[AcquiredImageIndex]);
-				VkImageLayout& Layout = Context->GetLayoutManager().FindOrAddLayoutRW(BackBufferImages[AcquiredImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, 1, 1);
-				VulkanSetImageLayout(CmdBuffer->GetHandle(), BackBufferImages[AcquiredImageIndex], Layout, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT));
-				Layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+				FVulkanLayoutManager& LayoutManager = CmdBuffer->GetLayoutManager();
+				const FVulkanImageLayout* TrackedLayout = LayoutManager.GetFullLayout(BackBufferImages[AcquiredImageIndex]);
+
+				// One of the rare cases we'll let parallel rendering check the tracking (legacy path already checked as a fallback)
+				if (!TrackedLayout && Device->SupportsParallelRendering())
+				{
+					TrackedLayout = Context->GetQueue()->GetLayoutManager().GetFullLayout(BackBufferImages[AcquiredImageIndex]);
+				}
+
+				VkImageLayout LastLayout = TrackedLayout ? TrackedLayout->MainLayout : VK_IMAGE_LAYOUT_UNDEFINED;
+				VulkanSetImageLayout(CmdBuffer, BackBufferImages[AcquiredImageIndex], LastLayout, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, FVulkanPipelineBarrier::MakeSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT));
+
+				const FVulkanImageLayout UndefinedLayout(VK_IMAGE_LAYOUT_UNDEFINED, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT);
+				LayoutManager.SetFullLayout(BackBufferImages[AcquiredImageIndex], UndefinedLayout);
 			}
 			else
 			{

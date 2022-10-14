@@ -14,13 +14,6 @@
 #include "HAL/PlatformStackwalk.h"
 #endif
 
-TAutoConsoleVariable<int32> GSubmitOcclusionBatchCmdBufferCVar(
-	TEXT("r.Vulkan.SubmitOcclusionBatchCmdBuffer"),
-	1,
-	TEXT("1 to submit the cmd buffer after end occlusion query batch (default)"),
-	ECVF_RenderThreadSafe
-);
-
 static uint32 GTimestampQueryStage = 0;
 TAutoConsoleVariable<int32> GTimestampQueryStageCVar(
 	TEXT("r.Vulkan.TimestampQueryStage"),
@@ -364,14 +357,6 @@ void FVulkanCommandListContext::EndOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuff
 	checkf(CurrentOcclusionQueryPool, TEXT("EndOcclusionQueryBatch called without corresponding BeginOcclusionQueryBatch!"));
 	CurrentOcclusionQueryPool->EndBatch(CmdBuffer);
 	CurrentOcclusionQueryPool = nullptr;
-	LayoutManager.EndRenderPass(CmdBuffer);
-
-	// Sync point
-	if (GSubmitOcclusionBatchCmdBufferCVar.GetValueOnAnyThread())
-	{
-		RequestSubmitCurrentCommands();
-		SafePointSubmit();
-	}
 }
 
 

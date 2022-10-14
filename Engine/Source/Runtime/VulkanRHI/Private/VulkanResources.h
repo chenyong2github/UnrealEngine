@@ -449,7 +449,7 @@ public:
 	/**
 	 * Returns how much memory is used by the surface
 	 */
-	uint32 GetMemorySize() const
+	inline uint32 GetMemorySize() const
 	{
 		return MemoryRequirements.size;
 	}
@@ -524,6 +524,11 @@ public:
 		return EnumHasAllFlags(GPixelFormats[GetDesc().Format].Capabilities, EPixelFormatCapabilities::TextureSample);
 	}
 
+	inline VkImageLayout GetDefaultLayout() const
+	{
+		return DefaultLayout;
+	}
+
 	VULKANRHI_API VkDeviceMemory GetAllocationHandle() const;
 	VULKANRHI_API uint64 GetAllocationOffset() const;
 
@@ -543,14 +548,15 @@ private:
 
 	void InvalidateViews(FVulkanDevice& Device);
 	void DestroyViews();
-	void SetInitialImageState(FVulkanCommandListContext& Context, VkImageLayout InitialLayout, bool bClear, const FClearValueBinding& ClearValueBinding);
-	void InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& DestAllocation);
+	void SetInitialImageState(FVulkanCommandListContext& Context, VkImageLayout InitialLayout, bool bClear, const FClearValueBinding& ClearValueBinding, bool bIsTransientResource);
+	void InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& DestAllocation, VkImageLayout OriginalLayout);
 
 	VkImageTiling Tiling;
 	VulkanRHI::FVulkanAllocation Allocation;
 	VkImageAspectFlags FullAspectMask;
 	VkImageAspectFlags PartialAspectMask;
 	FVulkanCpuReadbackBuffer* CpuReadbackBuffer;
+	VkImageLayout DefaultLayout;
 
 	friend struct FRHICommandSetInitialImageState;
 

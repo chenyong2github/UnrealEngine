@@ -51,6 +51,16 @@ TAutoConsoleVariable<int32> GVulkanAllowHostQueryResetCVar(
 	ECVF_ReadOnly
 );
 
+TAutoConsoleVariable<int32> GVulkaAllowSync2BarriersCVar(
+	TEXT("r.Vulkan.AllowSynchronization2"),
+	1,
+	TEXT("Enables the use of advanced barriers that combine the use of the VK_KHR_separate_depth_stencil_layouts \n")
+	TEXT("and VK_KHR_synchronization2 to reduce the reliance on layout tracking (except for defragging).\n")
+	TEXT("This is necessary in order to support parallel command buffer generation.\n")
+	TEXT("0: Do not enable support for sync2 barriers.\n")
+	TEXT("1: Enable sync2 barriers (default)"),
+	ECVF_ReadOnly
+);
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
 extern TAutoConsoleVariable<int32> GGPUValidationCvar;
@@ -285,10 +295,9 @@ class FVulkanKHRSeparateDepthStencilLayoutsExtension : public FVulkanDeviceExten
 public:
 
 	FVulkanKHRSeparateDepthStencilLayoutsExtension(FVulkanDevice* InDevice)
-		: FVulkanDeviceExtension(InDevice, VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME, VULKAN_SUPPORTS_SEPARATE_DEPTH_STENCIL_LAYOUTS, VK_API_VERSION_1_2)
+		: FVulkanDeviceExtension(InDevice, VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VK_API_VERSION_1_2)
 	{
-		// Disabled but kept for reference. The barriers code doesn't currently use separate transitions for depth and stencil.
-		bEnabledInCode = false;
+		bEnabledInCode = bEnabledInCode && (GVulkaAllowSync2BarriersCVar.GetValueOnAnyThread() != 0);
 	}
 
 	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
@@ -312,6 +321,42 @@ public:
 
 private:
 	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR SeparateDepthStencilLayoutsFeatures;
+};
+
+
+
+// ***** VK_KHR_synchronization2
+class FVulkanKHRSynchronization2 : public FVulkanDeviceExtension
+{
+public:
+
+	FVulkanKHRSynchronization2(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VK_API_VERSION_1_3)
+	{
+		bEnabledInCode = bEnabledInCode && (GVulkaAllowSync2BarriersCVar.GetValueOnAnyThread() != 0);
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(Synchronization2Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES);
+		AddToPNext(PhysicalDeviceFeatures2, Synchronization2Features);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		ExtensionFlags.HasKHRSynchronization2 = Synchronization2Features.synchronization2;
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		if (Synchronization2Features.synchronization2 == VK_TRUE)
+		{
+			AddToPNext(DeviceCreateInfo, Synchronization2Features);
+		}
+	}
+
+private:
+	VkPhysicalDeviceSynchronization2FeaturesKHR Synchronization2Features;
 };
 
 
@@ -914,7 +959,6 @@ private:
 	VkPhysicalDeviceHostQueryResetFeaturesEXT HostQueryResetFeatures;
 };
 
-
 // ***** VK_EXT_subgroup_size_control
 class FVulkanEXTSubgroupSizeControlExtension : public FVulkanDeviceExtension
 {
@@ -1055,6 +1099,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanEXTScalarBlockLayoutExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTShaderViewportIndexLayerExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanKHRSeparateDepthStencilLayoutsExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanKHRSynchronization2);
 	ADD_CUSTOM_EXTENSION(FVulkanKHRFragmentShadingRateExtension); // must be kept BEFORE DensityMap!
 	ADD_CUSTOM_EXTENSION(FVulkanEXTFragmentDensityMapExtension);  // must be kept AFTER ShadingRate!
 	ADD_CUSTOM_EXTENSION(FVulkanEXTFragmentDensityMap2Extension);

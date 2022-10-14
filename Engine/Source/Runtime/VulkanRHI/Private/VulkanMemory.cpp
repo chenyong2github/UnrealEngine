@@ -2610,13 +2610,13 @@ namespace VulkanRHI
 
 	FVulkanSubresourceAllocator::~FVulkanSubresourceAllocator()
 	{
-		if(!JoinFreeBlocks())
+		if (!JoinFreeBlocks())
 		{
 			UE_LOG(LogVulkanRHI, Warning, TEXT("FVulkanSubresourceAllocator %p has unfreed %s resources %s"), (void*)this, VulkanAllocationTypeToString(Type), *VULKAN_TRACK_STRING(Track));
 			uint32 LeakCount = 0;
-			for(FVulkanAllocationInternal& Data : InternalData)
+			for (FVulkanAllocationInternal& Data : InternalData)
 			{
-				if(Data.State == FVulkanAllocationInternal::EALLOCATED)
+				if (Data.State == FVulkanAllocationInternal::EALLOCATED)
 				{
 					UE_LOG(LogVulkanRHI, Warning, TEXT(" ** LEAK %03d [%08x-%08x] %u  %s \n%s"), LeakCount++, Data.AllocationOffset, Data.AllocationSize,  Data.Size, VulkanAllocationMetaTypeToString(Data.MetaType), *VULKAN_TRACK_STRING(Data.Track));
 				}
@@ -2657,7 +2657,7 @@ namespace VulkanRHI
 		}
 		else
 		{
-			checkf(false, TEXT("Unknown buffer alignment for VkBufferUsageFlags combination: 0x%x"), VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
+			checkf(false, TEXT("Unknown buffer alignment for VkBufferUsageFlags combination: 0x%x (%s)"), BufferUsageFlags, VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
 		}
 
 		return Alignment;
@@ -2709,7 +2709,7 @@ namespace VulkanRHI
 		}
 		else
 		{
-			checkf(false, TEXT("Unknown priority for VkBufferUsageFlags combination: 0x%x"), VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
+			checkf(false, TEXT("Unknown priority for VkBufferUsageFlags combination: 0x%x (%s)"), BufferUsageFlags, VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
 		}
 
 		return Priority;
@@ -3262,8 +3262,8 @@ namespace VulkanRHI
 
 		auto WriteLogLine = [](const FString& Name, FResourceHeapStats& Stat)
 		{
-			uint64 FreeMemory = Stat.TotalMemory - FMath::Min<uint64>(Stat.TotalMemory, Stat.UsedBufferMemory + Stat.UsedImageMemory);
-			FString HostString = VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Stat.MemoryFlags);
+			const uint64 FreeMemory = Stat.TotalMemory - FMath::Min<uint64>(Stat.TotalMemory, Stat.UsedBufferMemory + Stat.UsedImageMemory);
+			FString HostString = (Stat.MemoryFlags != 0) ? VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Stat.MemoryFlags) : TEXT("");
 			VULKAN_LOGMEMORY(TEXT("\t\t%-33s  |%8.2fmb / %8.2fmb / %11.2fmb / %11.2fmb | %10d %10d | %6d %6d %6d | %05x | %s"),
 				*Name,
 				Stat.UsedBufferMemory / (1024.f * 1024.f),
@@ -3410,7 +3410,7 @@ namespace VulkanRHI
 				{
 					Flags = MemoryProperties.memoryTypes[Allocator->MemoryTypeIndex].propertyFlags;
 				}
-				FString MemoryString = VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Flags);
+				FString MemoryString = (Flags != 0) ? VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Flags) : TEXT("");
 				FString NameId = FString::Printf(TEXT("%s [%4d]"), *Name, Allocator->AllocatorIndex);
 				WriteLogLineSubAllocator(NameId, MemoryString, *Allocator);
 			}
@@ -3425,7 +3425,7 @@ namespace VulkanRHI
 				{
 					Flags = MemoryProperties.memoryTypes[Allocator->MemoryTypeIndex].propertyFlags;
 				}
-				FString MemoryString = VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Flags);
+				FString MemoryString = (Flags != 0) ? VK_FLAGS_TO_STRING(VkMemoryPropertyFlags, Flags) : TEXT("");
 				VULKAN_LOGMEMORY(VULKAN_LOGMEMORY_PAD2);
 				VULKAN_LOGMEMORY(TEXT("\t\t%-45s  | %4s %8s | %4s / %10s / %10s / %10s / %10s | %10s / %10s / %10s / %10s | %10s / %10s | %10s / %10s / %10s | Mapped/Evictable |"),
 					TEXT(""),
@@ -3722,11 +3722,10 @@ namespace VulkanRHI
 
 	void FVulkanAllocation::Free(FVulkanDevice& Device)
 	{
-		if(HasAllocation())
+		if (HasAllocation())
 		{
 			Device.GetMemoryManager().FreeVulkanAllocation(*this);
 			check(EVulkanAllocationEmpty != Type);
-
 		}
 	}
 	void FVulkanAllocation::Swap(FVulkanAllocation& Other)
@@ -4055,7 +4054,7 @@ namespace VulkanRHI
 
 		FScopeLock ScopeLock(&SubresourceAllocatorCS);
 
-		//Search for allocations to move to different pages.
+		// Search for allocations to move to different pages.
 		for (FVulkanAllocationInternal& Alloc : InternalData)
 		{
 			if (Alloc.State == FVulkanAllocationInternal::EALLOCATED)
@@ -4065,44 +4064,50 @@ namespace VulkanRHI
 				{
 					case EVulkanAllocationMetaImageRenderTarget: //only rendertargets can be defragged
 					{
-						FVulkanAllocation Allocation;
-						// The current SubAllocator is tagged as locked, this will never allocate in the current SubAllocator.
-						if(Heap->TryRealloc(Allocation, EvictableOwner, EType::Image, Alloc.Size, Alloc.Alignment, Alloc.MetaType))
-						{
-							check(Allocation.HasAllocation());
-							FVulkanTexture* Texture = EvictableOwner->GetEvictableTexture();
+						FVulkanTexture* Texture = EvictableOwner->GetEvictableTexture();
 
-							if(GVulkanLogDefrag)
+						// Defrag works from the queue for layouts
+						// Only work with straightforward targets that are in a single layout
+						const FVulkanImageLayout* OriginalLayout = Context.GetQueue()->GetLayoutManager().GetFullLayout(Texture->Image);
+						if (OriginalLayout && OriginalLayout->AreAllSubresourcesSameLayout() && (OriginalLayout->MainLayout != VK_IMAGE_LAYOUT_UNDEFINED))
+						{
+							FVulkanAllocation Allocation;
+							// The current SubAllocator is tagged as locked, this will never allocate in the current SubAllocator.
+							if (Heap->TryRealloc(Allocation, EvictableOwner, EType::Image, Alloc.Size, Alloc.Alignment, Alloc.MetaType))
 							{
-								VULKAN_LOGMEMORY(TEXT("Moving %6.2fMB : %d:%08x -> %d/%08x\n"), Alloc.Size / (1024.f*1024.f),
-									AllocatorIndex,
-									Alloc.AllocationOffset,
-									Allocation.AllocatorIndex,
-									Allocation.Offset);
+								check(Allocation.HasAllocation());
+
+								if (GVulkanLogDefrag)
+								{
+									VULKAN_LOGMEMORY(TEXT("Moving %6.2fMB : %d:%08x -> %d/%08x\n"), Alloc.Size / (1024.f * 1024.f),
+										AllocatorIndex,
+										Alloc.AllocationOffset,
+										Allocation.AllocatorIndex,
+										Allocation.Offset);
+								}
+
+								//Move the Rendertarget to the new allocation
+								//Function swaps the old allocation into the Allocation object
+								Texture->Move(Device, Context, Allocation);
+								DefragCount++;
+								Device.GetMemoryManager().FreeVulkanAllocation(Allocation);
+
+								check(Alloc.State != FVulkanAllocationInternal::EALLOCATED);
+								check(!Allocation.HasAllocation()); //must be consumed by Move
 							}
-
-							//Move the Rendertarget to the new allocation
-							//Function swaps the old allocation into the Allocation object
-							Texture->Move(Device, Context, Allocation);
-							DefragCount++;
-							Device.GetMemoryManager().FreeVulkanAllocation(Allocation);
-
-							check(Alloc.State != FVulkanAllocationInternal::EALLOCATED);
-							check(!Allocation.HasAllocation()); //must be consumed by Move
+							else
+							{
+								check(!Allocation.HasAllocation());
+								bLocked = false;
+								return DefragCount;
+							}
 						}
-						else
-						{
-							check(!Allocation.HasAllocation());
-							bLocked = false;
-							return DefragCount;
-						}
-
 					}
 					break;
 					default:
 						checkNoEntry(); //not implemented.
 				}
-				if(0 >= --Count)
+				if (0 >= --Count)
 				{
 					break;
 				}
@@ -4124,7 +4129,7 @@ namespace VulkanRHI
 				{
 				case EVulkanAllocationMetaImageOther:
 				{
-					FVulkanEvictable* Texture= Alloc.AllocationOwner;
+					FVulkanEvictable* Texture = Alloc.AllocationOwner;
 					Texture->Evict(Device, Context);
 				}
 				break;
