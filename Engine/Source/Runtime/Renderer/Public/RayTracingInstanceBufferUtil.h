@@ -94,6 +94,7 @@ RENDERER_API void BuildRayTracingInstanceBuffer(
 	FShaderResourceViewRHIRef CPUInstanceTransformSRV,
 	uint32 NumNativeGPUSceneInstances,
 	uint32 NumNativeCPUInstances,
-	TConstArrayView<FRayTracingGPUInstance> GPUInstances);
+	TConstArrayView<FRayTracingGPUInstance> GPUInstances,
+	FUnorderedAccessViewRHIRef DebugInstanceGPUSceneIndexUAV);
 
 #endif // RHI_RAYTRACING

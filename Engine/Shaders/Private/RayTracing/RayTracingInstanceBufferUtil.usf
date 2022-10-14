@@ -41,6 +41,9 @@ ByteAddressBuffer AccelerationStructureAddresses;
 // because of FXC matrix packing issues when using StructuredBuffer<float3x4>
 StructuredBuffer<float4> InstanceTransforms;
 
+// Extra per instance debug data
+RWStructuredBuffer<uint> RWDebugInstanceGPUSceneIndices;
+
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void RayTracingBuildInstanceBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -79,12 +82,19 @@ void RayTracingBuildInstanceBufferCS(uint3 DispatchThreadId : SV_DispatchThreadI
 		LocalToTranslatedWorld[0] = LocalToTranslatedWorld4x4[0];
 		LocalToTranslatedWorld[1] = LocalToTranslatedWorld4x4[1];
 		LocalToTranslatedWorld[2] = LocalToTranslatedWorld4x4[2];
+
+#if OUTPUT_INSTANCE_GPUSCENE_INDEX
+		{
+			RWDebugInstanceGPUSceneIndices[InputDesc.OutputDescriptorIndex] = InputDesc.GPUSceneInstanceOrTransformIndex;
+		}
+#endif // OUTPUT_INSTANCE_GPUSCENE_INDEX
+
 #else
 		float3x4 LocalToTranslatedWorld;
 		LocalToTranslatedWorld[0] = InstanceTransforms[InputDesc.GPUSceneInstanceOrTransformIndex * 3 + 0];
 		LocalToTranslatedWorld[1] = InstanceTransforms[InputDesc.GPUSceneInstanceOrTransformIndex * 3 + 1];
 		LocalToTranslatedWorld[2] = InstanceTransforms[InputDesc.GPUSceneInstanceOrTransformIndex * 3 + 2];
-#endif
+#endif // USE_GPUSCENE
 
 		uint2 BlasAddress = 0;
 

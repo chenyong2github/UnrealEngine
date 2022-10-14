@@ -123,6 +123,9 @@ public:
 	FRDGBufferRef InstanceDebugBuffer = nullptr;
 	TArray<FRayTracingInstanceDebugData> InstancesDebugData;
 
+	FRDGBufferRef DebugInstanceGPUSceneIndexBuffer = nullptr;
+	bool bNeedsDebugInstanceGPUSceneIndexBuffer = false;
+
 	// Used for transforming to translated world space in which TLAS was built.
 	FVector RelativePreViewTranslation = FVector::Zero();
 	FVector3f ViewTilePosition = FVector3f::ZeroVector;

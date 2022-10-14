@@ -208,7 +208,8 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		TransformUploadSRV,
 		RayTracingScene.NumNativeGPUSceneInstances,
 		RayTracingScene.NumNativeCPUInstances,
-		{});
+		{},
+		nullptr);
 
 	RHICmdList.BindAccelerationStructureMemory(RayTracingScene.Scene, SceneBuffer, 0);
 

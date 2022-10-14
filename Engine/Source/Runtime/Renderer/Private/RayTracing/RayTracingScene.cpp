@@ -13,6 +13,7 @@
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildInstanceBufferPassParams, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstanceBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, DebugInstanceGPUSceneIndexBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 FRayTracingScene::FRayTracingScene()
@@ -196,6 +197,20 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();
 		PassParams->InstanceBuffer = GraphBuilder.CreateUAV(InstanceBuffer);
+		PassParams->DebugInstanceGPUSceneIndexBuffer = nullptr;
+
+		if (bNeedsDebugInstanceGPUSceneIndexBuffer)
+		{
+			FRDGBufferDesc DebugInstanceGPUSceneIndexBufferDesc;
+			DebugInstanceGPUSceneIndexBufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::StructuredBuffer;
+			DebugInstanceGPUSceneIndexBufferDesc.BytesPerElement = sizeof(uint32);
+			DebugInstanceGPUSceneIndexBufferDesc.NumElements = NumNativeInstances;
+
+			DebugInstanceGPUSceneIndexBuffer = GraphBuilder.CreateBuffer(DebugInstanceGPUSceneIndexBufferDesc, TEXT("FRayTracingScene::DebugInstanceGPUSceneIndexBuffer"));
+			PassParams->DebugInstanceGPUSceneIndexBuffer = GraphBuilder.CreateUAV(DebugInstanceGPUSceneIndexBuffer);
+
+			AddClearUAVPass(GraphBuilder, PassParams->DebugInstanceGPUSceneIndexBuffer, 0xFFFFFFFF);
+		}
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("BuildTLASInstanceBuffer"),
@@ -252,7 +267,8 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 					TransformUploadSRV,
 					NumNativeGPUSceneInstances,
 					NumNativeCPUInstances,
-					GPUInstances);
+					GPUInstances,
+					PassParams->DebugInstanceGPUSceneIndexBuffer ? PassParams->DebugInstanceGPUSceneIndexBuffer->GetRHI() : nullptr);
 			});
 	}
 }
@@ -327,6 +343,7 @@ void FRayTracingScene::Reset()
 
 	BuildScratchBuffer = nullptr;
 	InstanceDebugBuffer = nullptr;
+	DebugInstanceGPUSceneIndexBuffer = nullptr;
 }
 
 void FRayTracingScene::ResetAndReleaseResources()

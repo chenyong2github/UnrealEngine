@@ -16,6 +16,8 @@
 #include "/Engine/Shared/RayTracingDebugTypes.h"
 
 RWTexture2D<float4> Output;
+RWTexture2D<float> OutputDepth;
+
 RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
@@ -167,7 +169,7 @@ struct FRayTracingDebugPayload : FMinimalPayload
 	uint GeometryIndex;
 };
 
-float4 DebugRayTracingInstance(FRayDesc Ray)
+float4 DebugRayTracingInstance(FRayDesc Ray, uint2 PixelCoord, out float OutDepth)
 {
 	float4 Result = float4(0, 0, 0, 1);
 
@@ -194,6 +196,9 @@ float4 DebugRayTracingInstance(FRayDesc Ray)
 		default:
 		case RAY_TRACING_DEBUG_VIZ_INSTANCES:
 			Result.rgb = InstanceColor;
+			break;
+		case RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP:
+			Result.rgb = 1.0; // We only use fake lighting as instance heatmap is blended in
 			break;
 		case RAY_TRACING_DEBUG_VIZ_TRIANGLES:
 			Result.rgb = TriangleColor;
@@ -234,8 +239,16 @@ float4 DebugRayTracingInstance(FRayDesc Ray)
 		}
 #endif // ENABLE_PICKING
 
-		// apply some shading based on the primitive normal (map dot product result from [0,1] to [0.75,1]).
-		Result.rgb *= dot(Payload.WorldNormal, normalize(float3(1.0f, 1.0f, 1.0f))) * 0.125f + 0.875;
+		// apply some shading based on the primitive normal (map dot product result from [0,1] to [0.75,1] unless we are showing instance heatmap then just use [0,1]).
+		const float FakeLighting = dot(Payload.WorldNormal, normalize(float3(1.0f, 1.0f, 1.0f)));
+		const float FakeLightingScale = (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP) ? 0.5f : 0.125f;
+		const float FakeLightingBias = (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP) ? 0.5f : 0.875f;
+
+		Result.rgb *= FakeLighting * FakeLightingScale + FakeLightingBias;
+
+		float3 TranslatedWorldPosition = Ray.Origin + Payload.HitT * Ray.Direction;
+		float4 ClipPosition = mul(float4(TranslatedWorldPosition, 1.0), View.TranslatedWorldToClip);
+		OutDepth = ClipPosition.z / ClipPosition.w;
 	}
 
 	return Result;
@@ -250,10 +263,16 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 	FRayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 
 	float4 Result = (float4)0;
+	
+#if	HAS_INVERTED_Z_BUFFER
+	float OutDepth = 0.0f;
+#else
+	float OutDepth = 1.0f;
+#endif
 
 	if (UseDebugCHS)
 	{
-		Result = DebugRayTracingInstance(Ray);
+		Result = DebugRayTracingInstance(Ray, PixelCoord, OutDepth);
 	}
 	else
 	{
@@ -285,6 +304,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 	}
 	
 	Output[PixelCoord] = Result;
+
+	if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP)
+	{
+		OutputDepth[PixelCoord] = OutDepth;
+	}	
 }
 
 float3 ComputeWorldNormal()

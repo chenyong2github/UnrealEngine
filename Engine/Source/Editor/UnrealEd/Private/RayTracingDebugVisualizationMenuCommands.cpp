@@ -54,6 +54,7 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	RayTracingDebugModeNames.Add(LOCTEXT("World Tangent", "World Tangent"));
 	RayTracingDebugModeNames.Add(LOCTEXT("Anisotropy", "Anisotropy"));
 	RayTracingDebugModeNames.Add(LOCTEXT("Instances", "Instances"));
+	RayTracingDebugModeNames.Add(LOCTEXT("Instance Overlap", "Instance Overlap"));
 
 	if (GRHISupportsShaderTimestamp)
 	{

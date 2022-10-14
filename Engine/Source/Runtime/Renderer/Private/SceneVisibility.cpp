@@ -4045,10 +4045,10 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 	if (Scene && Views.Num())
 	{
 		const int32 ReferenceViewIndex = 0;
-		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
-		FRayTracingScene& RayTracingScene = Scene->RayTracingScene;
+		const FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
 		Scene->RayTracingScene.InitPreViewTranslation(ReferenceView.ViewMatrices);
+		Scene->RayTracingScene.bNeedsDebugInstanceGPUSceneIndexBuffer = IsRayTracingInstanceOverlapEnabled(ReferenceView);
 	}
 #endif
 

@@ -1187,7 +1187,8 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				TransformUploadSRV,
 				SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 				SceneWithGeometryInstances.NumNativeCPUInstances,
-				{});
+				{},
+				nullptr);
 
 			RHICmdList.BindAccelerationStructureMemory(RayTracingScene, RayTracingSceneBuffer, 0);
 

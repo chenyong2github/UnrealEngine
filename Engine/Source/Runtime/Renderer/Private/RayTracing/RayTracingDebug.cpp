@@ -16,6 +16,7 @@
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingTraversalStatistics.h"
+#include "PixelShaderUtils.h"
 
 #define LOCTEXT_NAMESPACE "RayTracingDebugVisualizationMenuCommands"
 
@@ -61,6 +62,24 @@ static TAutoConsoleVariable<float> CVarRayTracingDebugTraversalClusterScale(
 	TEXT("Scaling factor for cluster traversal heat map visualization. (default = 2500)\n")
 );
 
+static TAutoConsoleVariable<float> CVarRayTracingDebugInstanceOverlapScale(
+	TEXT("r.RayTracing.Debug.InstanceOverlap.Scale"),
+	16.0f,
+	TEXT("Scaling factor for instance traversal heat map visualization. (default = 16)\n")
+);
+
+static TAutoConsoleVariable<float> CVarRayTracingDebugInstanceOverlapBoundingBoxScale(
+	TEXT("r.RayTracing.Debug.InstanceOverlap.BoundingBoxScale"),
+	1.001f,
+	TEXT("Scaling factor for instance bounding box extent for avoiding z-fighting. (default = 1.001)\n")
+);
+
+static TAutoConsoleVariable<int32> CVarRayTracingDebugInstanceOverlapShowWireframe(
+	TEXT("r.RayTracing.Debug.InstanceOverlap.ShowWireframe"),
+	1,
+	TEXT("Show instance bounding boxes in wireframe in Instances Overlap mode. (default = 1)\n")
+);
+
 static TAutoConsoleVariable<float> CVarRayTracingDebugTraversalTriangleScale(
 	TEXT("r.RayTracing.DebugTraversalScale.Triangle"),
 	30.0f,
@@ -97,6 +116,7 @@ class FRayTracingDebugRGS : public FGlobalShader
 		SHADER_PARAMETER(int32, OpaqueOnly)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, OutputDepth)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, InstancesDebugData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRayTracingPickingFeedback>, PickingBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -209,6 +229,139 @@ class FRayTracingPickingRGS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen);
 
+class FRayTracingDebugInstanceOverlapVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingDebugInstanceOverlapVS);
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingDebugInstanceOverlapVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, InstanceGPUSceneIndices)
+		SHADER_PARAMETER(float, BoundingBoxExtentScale)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsRayTracingEnabledForProject(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugInstanceOverlapVS, "/Engine/Private/RayTracing/RayTracingDebugInstanceOverlap.usf", "InstanceOverlapMainVS", SF_Vertex);
+
+class FRayTracingDebugInstanceOverlapPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingDebugInstanceOverlapPS);
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingDebugInstanceOverlapPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)		
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsRayTracingEnabledForProject(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugInstanceOverlapPS, "/Engine/Private/RayTracing/RayTracingDebugInstanceOverlap.usf", "InstanceOverlapMainPS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FRayTracingDebugInstanceOverlapVSPSParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FRayTracingDebugInstanceOverlapVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FRayTracingDebugInstanceOverlapPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FRayTracingDebugConvertToDeviceDepthPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingDebugConvertToDeviceDepthPS);
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingDebugConvertToDeviceDepthPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, InputDepth)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsRayTracingEnabledForProject(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugConvertToDeviceDepthPS, "/Engine/Private/RayTracing/RayTracingDebugInstanceOverlap.usf", "ConvertToDeviceDepthPS", SF_Pixel);
+
+class FRayTracingDebugBlendInstanceOverlapPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingDebugBlendInstanceOverlapPS);
+	SHADER_USE_PARAMETER_STRUCT(FRayTracingDebugBlendInstanceOverlapPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, InstanceOverlap)
+		SHADER_PARAMETER(float, HeatmapScale)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsRayTracingEnabledForProject(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugBlendInstanceOverlapPS, "/Engine/Private/RayTracing/RayTracingDebugInstanceOverlap.usf", "BlendInstanceOverlapPS", SF_Pixel);
+
+class FRayTracingDebugLineAABBIndexBuffer : public FIndexBuffer
+{
+public:
+	/**
+	* Initialize the RHI for this rendering resource
+	*/
+	void InitRHI() override
+	{
+		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> Indices;
+
+		static const uint16 LineIndices[12 * 2] =
+		{
+			0, 1,
+			0, 2,
+			0, 4,
+			2, 3,
+			3, 1,
+			1, 5,
+			3, 7,
+			2, 6,
+			6, 7,
+			6, 4,
+			7, 5,
+			4, 5
+		};
+
+		int32 NumIndices = UE_ARRAY_COUNT(LineIndices);
+		Indices.AddUninitialized(NumIndices);
+		FMemory::Memcpy(Indices.GetData(), LineIndices, NumIndices * sizeof(uint16));
+
+		const uint32 Size = Indices.GetResourceDataSize();
+		const uint32 Stride = sizeof(uint16);
+
+		// Create index buffer. Fill buffer with initial data upon creation
+		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingDebugLineAABBIndexBuffer"), &Indices);
+		IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
+	}
+};
+
+TGlobalResource<FRayTracingDebugLineAABBIndexBuffer> GRayTracingInstanceLineAABBIndexBuffer;
+
 struct FRayTracingDebugResources : public FRenderResource
 {
 	const int32 MaxPickingBuffers = 4;
@@ -288,7 +441,8 @@ static bool RequiresRayTracingDebugCHS(uint32 DebugVisualizationMode)
 		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_TRIANGLES ||
 		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_DYNAMIC_INSTANCES ||
 		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PROXY_TYPE ||
-		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PICKER;
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PICKER ||
+		DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP;
 }
 
 static bool IsRayTracingDebugTraversalMode(uint32 DebugVisualizationMode)
@@ -427,6 +581,130 @@ static FRDGBufferRef RayTracingPerformPicking(FRDGBuilder& GraphBuilder, const F
 	return PickingBuffer;
 }
 
+static void RayTracingDrawInstances(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FGPUScene& GPUScene, FRDGTextureRef OutputTexture, FRDGTextureRef SceneDepthTexture, FRDGBufferRef InstanceGPUSceneIndexBuffer, bool bWireframe)
+{
+	TShaderMapRef<FRayTracingDebugInstanceOverlapVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FRayTracingDebugInstanceOverlapPS> PixelShader(View.ShaderMap);
+
+	FRayTracingDebugInstanceOverlapVSPSParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingDebugInstanceOverlapVSPSParameters>();
+	PassParameters->VS.View = View.ViewUniformBuffer;
+	PassParameters->VS.InstanceGPUSceneIndices = GraphBuilder.CreateSRV(InstanceGPUSceneIndexBuffer);
+	PassParameters->VS.BoundingBoxExtentScale = CVarRayTracingDebugInstanceOverlapBoundingBoxScale.GetValueOnRenderThread();
+
+	const FGPUSceneResourceParameters GPUSceneParameters = GPUScene.GetShaderParameters();
+	PassParameters->VS.GPUSceneInstanceSceneData = GPUSceneParameters.GPUSceneInstanceSceneData;
+	PassParameters->VS.GPUSceneInstancePayloadData = GPUSceneParameters.GPUSceneInstancePayloadData;
+	PassParameters->VS.GPUScenePrimitiveSceneData = GPUSceneParameters.GPUScenePrimitiveSceneData;
+
+	PassParameters->PS.View = View.ViewUniformBuffer;
+
+	const uint32 NumInstances = InstanceGPUSceneIndexBuffer->GetSize() / InstanceGPUSceneIndexBuffer->GetStride();
+
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, bWireframe ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+
+	ValidateShaderParameters(PixelShader, PassParameters->PS);
+	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
+	ValidateShaderParameters(VertexShader, PassParameters->VS);
+	ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("RayTracingDebug::DrawInstances"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&View, VertexShader, PixelShader, PassParameters, NumInstances, bWireframe](FRHICommandList& RHICmdList)
+		{
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+			GraphicsPSOInit.BlendState = bWireframe ? TStaticBlendState<CW_RGB>::GetRHI() : TStaticBlendState<CW_RED, BO_Add, BF_One, BF_One>::GetRHI();
+			GraphicsPSOInit.RasterizerState = bWireframe ? TStaticRasterizerState<FM_Wireframe, CM_None>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = bWireframe ? PT_LineList : PT_TriangleList;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+
+			RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
+
+			const FBufferRHIRef IndexBufferRHI = bWireframe ? GRayTracingInstanceLineAABBIndexBuffer.IndexBufferRHI  : GetUnitCubeIndexBuffer();
+			RHICmdList.DrawIndexedPrimitive(IndexBufferRHI, 0, 0, 8, 0, 12, NumInstances);
+		});
+}
+
+static void DrawInstanceOverlap(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, FRDGTextureRef SceneColorTexture, FRDGTextureRef InputDepthTexture)
+{
+	FRDGTextureRef SceneDepthTexture = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			SceneColorTexture->Desc.Extent,
+			PF_DepthStencil,
+			FClearValueBinding::DepthFar,
+			TexCreate_DepthStencilTargetable | TexCreate_InputAttachmentRead | TexCreate_ShaderResource),
+		TEXT("RayTracingDebug::SceneDepth"));
+
+	// Convert from depth texture to depth buffer for depth testing
+	{
+		FRayTracingDebugConvertToDeviceDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingDebugConvertToDeviceDepthPS::FParameters>();
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
+
+		PassParameters->InputDepth = GraphBuilder.CreateSRV(InputDepthTexture);
+
+		TShaderMapRef<FRayTracingDebugConvertToDeviceDepthPS> PixelShader(View.ShaderMap);
+
+		FPixelShaderUtils::AddFullscreenPass(
+			GraphBuilder,
+			View.ShaderMap,
+			RDG_EVENT_NAME("RayTracingDebug::ConvertToDeviceDepth"),
+			PixelShader,
+			PassParameters,
+			View.ViewRect,
+			TStaticBlendState<>::GetRHI(),
+			TStaticRasterizerState<FM_Solid, CM_None>::GetRHI(),
+			TStaticDepthStencilState<true, CF_Always>::GetRHI());
+	}
+
+	// Accumulate instance overlap
+	FRDGTextureDesc InstanceOverlapTextureDesc = FRDGTextureDesc::Create2D(SceneColorTexture->Desc.Extent, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable);
+	FRDGTextureRef InstanceOverlapTexture = GraphBuilder.CreateTexture(InstanceOverlapTextureDesc, TEXT("RayTracingDebug::InstanceOverlap"));
+	
+	RayTracingDrawInstances(GraphBuilder, View, Scene->GPUScene, InstanceOverlapTexture, SceneDepthTexture, Scene->RayTracingScene.DebugInstanceGPUSceneIndexBuffer, false);
+
+	// Calculate heatmap of instance overlap and blend it on top of ray tracing debug output
+	{
+		FRayTracingDebugBlendInstanceOverlapPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingDebugBlendInstanceOverlapPS::FParameters>();
+
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad, 0);
+
+		PassParameters->InstanceOverlap = GraphBuilder.CreateSRV(InstanceOverlapTexture);
+		PassParameters->HeatmapScale = CVarRayTracingDebugInstanceOverlapScale.GetValueOnRenderThread();
+
+		TShaderMapRef<FRayTracingDebugBlendInstanceOverlapPS> PixelShader(View.ShaderMap);
+
+		FPixelShaderUtils::AddFullscreenPass(
+			GraphBuilder,
+			View.ShaderMap,
+			RDG_EVENT_NAME("RayTracingDebug::BlendInstanceOverlap"),
+			PixelShader,
+			PassParameters,
+			View.ViewRect,
+			TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI(),
+			TStaticRasterizerState<FM_Solid, CM_None>::GetRHI(),
+			TStaticDepthStencilState<false, CF_Always>::GetRHI());
+	}
+
+	// Draw instance AABB with lines
+	if (CVarRayTracingDebugInstanceOverlapShowWireframe.GetValueOnRenderThread() != 0)
+	{
+		RayTracingDrawInstances(GraphBuilder, View, Scene->GPUScene, SceneColorTexture, SceneDepthTexture, Scene->RayTracingScene.DebugInstanceGPUSceneIndexBuffer, true);
+	}
+}
+
 void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture, FRayTracingPickingFeedback& PickingFeedback)
 {
 	static TMap<FName, uint32> RayTracingDebugVisualizationModes;
@@ -466,6 +744,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Dynamic Instances", "Dynamic Instances").ToString()),							RAY_TRACING_DEBUG_VIZ_DYNAMIC_INSTANCES);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Proxy Type", "Proxy Type").ToString()),										RAY_TRACING_DEBUG_VIZ_PROXY_TYPE);
 		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Picker", "Picker").ToString()),												RAY_TRACING_DEBUG_VIZ_PICKER);
+		RayTracingDebugVisualizationModes.Emplace(FName(*LOCTEXT("Instance Overlap", "Instance Overlap").ToString()),							RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP);
 	}
 
 	uint32 DebugVisualizationMode;
@@ -602,6 +881,17 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	RayGenParameters->TimingScale = CVarRayTracingDebugTimingScale.GetValueOnAnyThread() / 25000.0f;
 	RayGenParameters->OpaqueOnly = CVarRayTracingDebugModeOpaqueOnly.GetValueOnRenderThread();
 	
+	// If we don't output depth, create dummy 1x1 texture
+	const bool bOutputDepth = DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP;
+
+	FRDGTextureDesc OutputDepthTextureDesc = FRDGTextureDesc::Create2D(
+		bOutputDepth ? SceneColorTexture->Desc.Extent : FIntPoint(1, 1),
+		PF_R32_FLOAT, 
+		FClearValueBinding::Black, 
+		TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureRef OutputDepthTexture = GraphBuilder.CreateTexture(OutputDepthTextureDesc, TEXT("RayTracingDebug::Depth"));
+	RayGenParameters->OutputDepth = GraphBuilder.CreateUAV(OutputDepthTexture);
+
 	if (Scene->RayTracingScene.InstanceDebugBuffer)
 	{
 		RayGenParameters->InstancesDebugData = GraphBuilder.CreateSRV(Scene->RayTracingScene.InstanceDebugBuffer);
@@ -650,6 +940,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 
 		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader.GetRayTracingShader(), View.GetRayTracingSceneChecked(), GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
 	});
+
+	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCE_OVERLAP)
+	{
+		DrawInstanceOverlap(GraphBuilder, Scene, View, SceneColorTexture, OutputDepthTexture);
+	}
 }
 
 void FDeferredShadingSceneRenderer::RayTracingDisplayPicking(const FRayTracingPickingFeedback& PickingFeedback, FScreenMessageWriter& Writer)
@@ -781,6 +1076,30 @@ bool IsRayTracingInstanceDebugDataEnabled(const FViewInfo& View)
 		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Dynamic Instances", "Dynamic Instances").ToString());
 		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Proxy Type", "Proxy Type").ToString());
 		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Picker", "Picker").ToString());
+	}
+
+	FString ConsoleViewMode = CVarRayTracingDebugMode.GetValueOnRenderThread();
+	if (!ConsoleViewMode.IsEmpty())
+	{
+		return RayTracingDebugVisualizationModes.Contains(FName(*ConsoleViewMode));
+	}
+	else if (View.CurrentRayTracingDebugVisualizationMode != NAME_None)
+	{
+		return RayTracingDebugVisualizationModes.Contains(View.CurrentRayTracingDebugVisualizationMode);
+	}
+#endif
+	{
+		return false;
+	}
+}
+
+bool IsRayTracingInstanceOverlapEnabled(const FViewInfo& View)
+{
+#if !UE_BUILD_SHIPPING	
+	static TArray<FName> RayTracingDebugVisualizationModes;
+	if (RayTracingDebugVisualizationModes.Num() == 0)
+	{
+		RayTracingDebugVisualizationModes.Add(*LOCTEXT("Instance Overlap", "Instance Overlap").ToString());
 	}
 
 	FString ConsoleViewMode = CVarRayTracingDebugMode.GetValueOnRenderThread();
