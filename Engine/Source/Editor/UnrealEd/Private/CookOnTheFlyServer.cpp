@@ -9331,7 +9331,7 @@ void UCookOnTheFlyServer::StartCookAsCookWorker()
 
 	// Initialize systems that nothing in StartCookAsCookWorker references
 	// Functions in this section are not dependent upon each other and can be ordered arbitrarily or for async performance	
-	BeginCookEDLCookInfo(BeginContext); // MPCOOKTODO: Need to send information from EDLCookInfo to director
+	BeginCookEDLCookInfo(BeginContext);
 	BeginCookPackageWriters(BeginContext);
 	InitializePollables();
 	if (IsDirectorCookByTheBook())
@@ -9761,13 +9761,6 @@ void FEDLMPCollector::ReceiveMessage(FServerContext& Context, FCbObjectView Mess
 void UCookOnTheFlyServer::BeginCookEDLCookInfo(FBeginCookContext& BeginContext)
 {
 	if (IsCookingInEditor())
-	{
-		return;
-	}
-	if (!Algo::AllOf(BeginContext.PlatformContexts, [this](const FBeginCookContextPlatform& PlatformContext)
-		{
-			return PlatformContext.PlatformData->bFullBuild;
-		}))
 	{
 		return;
 	}
