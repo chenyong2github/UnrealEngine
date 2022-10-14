@@ -721,6 +721,11 @@ namespace Horde.Build.Jobs
 		/// An error ocurred while executing the lease. Cannot be retried.
 		/// </summary>
 		ExecutionError = 10,
+
+		/// <summary>
+		/// The change that the job is running against is invalid
+		/// </summary>
+		UnknownShelf = 11,
 	}
 
 	/// <summary>
