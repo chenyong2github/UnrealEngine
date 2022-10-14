@@ -1725,6 +1725,12 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 		const int32 LeafIndex = RootNode.ChildrenNodes[0];
 		const LeafType& Leaf = Leaves[LeafIndex];
 
+		if (Leaf.Elems.Num() == 0)
+		{
+			// Will have an empty BVH in this case
+			return;
+		}
+
 		// make the node
 		FTrimeshBVH::FNode& NewNode = FastBVH.Nodes.Emplace_GetRef();
 		NewNode.Children[0].SetChildOrFaceIndex(0);

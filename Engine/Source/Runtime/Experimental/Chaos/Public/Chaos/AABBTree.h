@@ -30,9 +30,6 @@ struct CHAOS_API FAABBTreeCVars
 	static int32 SplitOnVarianceAxis;
 	static FAutoConsoleVariableRef CVarSplitOnVarianceAxis;
 
-	static float MaxNonGlobalElementBoundsExtrema; 
-	static FAutoConsoleVariableRef CVarMaxNonGlobalElementBoundsExtrema;
-
 	static float DynamicTreeBoundingBoxPadding;
 	static FAutoConsoleVariableRef CVarDynamicTreeBoundingBoxPadding;
 
@@ -1644,7 +1641,7 @@ public:
 		if (bDynamicTree && bHasBounds && ValidateBounds(NewBounds) == false)
 		{
 			bHasBounds = false;
-			ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s. If Bounds are valid but large, increase FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema."),
+			ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s."),
 				*NewBounds.Min().ToString(), *NewBounds.Max().ToString());
 		}
 
@@ -2027,12 +2024,6 @@ public:
 		{
 			const T& MinComponent = Min[i];
 			const T& MaxComponent = Max[i];
-
-			// If element is extremely far out on any axis, if past limit return false to make it a global element and prevent huge numbers poisoning splitting algorithm computation.
-			if (MinComponent <= -FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema || MaxComponent >= FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema)
-			{
-				return false;
-			}
 
 			// Are we an empty aabb?
 			if (MinComponent > MaxComponent)
@@ -2949,7 +2940,7 @@ private:
 				if (bHasBoundingBox && ValidateBounds(ElemBounds) == false)
 				{
 					bHasBoundingBox = false;
-					ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s. If Bounds are valid but large, increase FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema."),
+					ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s."),
 						*ElemBounds.Min().ToString(), *ElemBounds.Max().ToString());
 				}
 
