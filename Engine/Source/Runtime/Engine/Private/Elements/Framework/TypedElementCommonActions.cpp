@@ -245,7 +245,10 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::PasteNormalizedElements(
 			{
 				if (Line.StartsWith(LookingForEndTag))
 				{
-					(*CurrentBlock) = MakeStringView(StartOfBlock, int32((Line.GetData() + Line.Len()) - StartOfBlock));
+					if (CurrentBlock)
+					{
+						(*CurrentBlock) = MakeStringView(StartOfBlock, int32((Line.GetData() + Line.Len()) - StartOfBlock));
+					}
 					LookingForEndTag.Reset();
 				}
 			}
