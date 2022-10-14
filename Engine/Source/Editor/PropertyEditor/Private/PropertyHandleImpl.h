@@ -108,19 +108,6 @@ public:
 		return CastFieldChecked<FObjectPropertyBase>(PropertyNodePin->GetProperty())->GetObjectPropertyValue(Address);
 	}
 
-	/**
-	 * Given an address, get the actual TObjectPtr value out
-	 *
-	 * @param Address	The location of the property value
-	 * @return The object property value
-	 */
-	TObjectPtr<UObject> GetObjectPtrPropertyValue(void const* Address) const
-	{
-		TSharedPtr<FPropertyNode> PropertyNodePin = PropertyNode.Pin();
-		check(PropertyNodePin.IsValid());
-		return CastFieldChecked<FObjectPropertyBase>(PropertyNodePin->GetProperty())->GetObjectPtrPropertyValue(Address);
-	}
-
 
 	/**
 	 * The core functionality for setting values on a property
@@ -406,8 +393,6 @@ public:
 	DECLARE_PROPERTY_ACCESSOR( FRotator )
 	DECLARE_PROPERTY_ACCESSOR( UObject* )
 	DECLARE_PROPERTY_ACCESSOR( const UObject* )
-	DECLARE_PROPERTY_ACCESSOR( TObjectPtr<UObject> )
-	DECLARE_PROPERTY_ACCESSOR( TObjectPtr<const UObject> )
 	DECLARE_PROPERTY_ACCESSOR( FAssetData )
 	DECLARE_PROPERTY_ACCESSOR( FProperty* )
 	DECLARE_PROPERTY_ACCESSOR( const FProperty* )
@@ -602,14 +587,10 @@ class FPropertyHandleObject : public FPropertyHandleBase
 public:
 	FPropertyHandleObject( TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities );
 	static bool Supports( TSharedRef<FPropertyNode> PropertyNode );
-	virtual FPropertyAccess::Result GetValue(TObjectPtr<UObject>& OutValue) const override;
-	virtual FPropertyAccess::Result GetValue(TObjectPtr<const UObject>& OutValue) const override;
 	virtual FPropertyAccess::Result GetValue( UObject*& OutValue ) const override;
 	virtual FPropertyAccess::Result SetValue( UObject* const& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) override;
 	virtual FPropertyAccess::Result GetValue( const UObject*& OutValue ) const override;
 	virtual FPropertyAccess::Result SetValue( const UObject* const& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) override;
-	virtual FPropertyAccess::Result SetValue( TObjectPtr<UObject> const& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
-	virtual FPropertyAccess::Result SetValue( TObjectPtr<const UObject> const& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
 	virtual FPropertyAccess::Result GetValue( FAssetData& OutValue ) const override;
 	virtual FPropertyAccess::Result SetValue( const FAssetData& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) override;
 	virtual FPropertyAccess::Result SetValueFromFormattedString(const FString& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;

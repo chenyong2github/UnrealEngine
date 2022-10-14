@@ -359,13 +359,13 @@ bool FObjectPropertyNode::GetReadAddressUncached(const FPropertyNode& InNode,
 
 					// If BaseObj is NON-NULL, all other objects' properties should also be non-NULL.
 					// If BaseObj is NULL, all other objects' properties should also be NULL.
-					const TObjectPtr<UObject> BaseObj = CastField<FObjectPropertyBase>(InItemProperty)->GetObjectPtrPropertyValue(BaseAddr);
+					UObject* BaseObj = CastField<FObjectPropertyBase>(InItemProperty)->GetObjectPropertyValue(BaseAddr);
 
 					for (int32 ObjIndex = 1; ObjIndex < GetNumObjects(); ObjIndex++)
 					{
-						const TObjectPtr<UObject> CurObj = CastField<FObjectPropertyBase>(InItemProperty)->GetObjectPtrPropertyValue(InNode.GetValueBaseAddressFromObject(GetUObject(ObjIndex)));
-						if (   ( !BaseObj && CurObj)			// BaseObj is NULL, but this InItemProperty is non-NULL!
-							|| ( BaseObj && !CurObj) )			// BaseObj is non-NULL, but this InItemProperty is NULL!
+						UObject* CurObj = CastField<FObjectPropertyBase>(InItemProperty)->GetObjectPropertyValue(InNode.GetValueBaseAddressFromObject(GetUObject(ObjIndex)));
+						if (   ( !BaseObj && CurObj )			// BaseObj is NULL, but this InItemProperty is non-NULL!
+							|| ( BaseObj && !CurObj ) )			// BaseObj is non-NULL, but this InItemProperty is NULL!
 						{
 							bAllTheSame = false;
 							break;
@@ -376,12 +376,13 @@ bool FObjectPropertyNode::GetReadAddressUncached(const FPropertyNode& InNode,
 		}
 	}
 
-	// Write addresses to the output.
+		// Write addresses to the output.
 	if (OutAddresses != nullptr)
-	{
-		for (int32 ObjIndex = 0; ObjIndex < GetNumObjects(); ++ObjIndex)
 		{
-			if (const UObject* TempObject = GetUObject(ObjIndex))
+		for (int32 ObjIndex = 0; ObjIndex < GetNumObjects(); ++ObjIndex)
+		{	
+			const UObject* TempObject = GetUObject(ObjIndex);
+			if (TempObject)
 			{
 				OutAddresses->Add(TempObject, InNode.GetValueBaseAddressFromObject(TempObject));
 			}
@@ -447,7 +448,7 @@ uint8* FObjectPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSpa
 void FObjectPropertyNode::InitBeforeNodeFlags()
 {
 	StoredProperty = Property;
-	Property = nullptr;
+	Property = NULL;
 
 	Finalize();
 }
@@ -465,7 +466,7 @@ static TSharedPtr<FPropertyNode> FindChildCategory( TSharedPtr<FPropertyNode> Pa
 		check( ChildNode.IsValid() );
 
 		// Is this a category node?
-		const FCategoryPropertyNode* ChildCategoryNode = ChildNode->AsCategoryNode();
+		FCategoryPropertyNode* ChildCategoryNode = ChildNode->AsCategoryNode();
 		if( ChildCategoryNode != nullptr && ChildCategoryNode->GetCategoryName() == CategoryName )
 		{
 			return ChildNode;

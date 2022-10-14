@@ -2074,8 +2074,6 @@ IMPLEMENT_PROPERTY_ACCESSOR( FQuat )
 IMPLEMENT_PROPERTY_ACCESSOR( FRotator )
 IMPLEMENT_PROPERTY_ACCESSOR( UObject* )
 IMPLEMENT_PROPERTY_ACCESSOR( const UObject* )
-IMPLEMENT_PROPERTY_ACCESSOR( TObjectPtr<UObject> )
-IMPLEMENT_PROPERTY_ACCESSOR( TObjectPtr<const UObject> )
 IMPLEMENT_PROPERTY_ACCESSOR( FAssetData )
 IMPLEMENT_PROPERTY_ACCESSOR( FProperty* )
 IMPLEMENT_PROPERTY_ACCESSOR( const FProperty* )
@@ -3790,26 +3788,10 @@ bool FPropertyHandleObject::Supports( TSharedRef<FPropertyNode> PropertyNode )
 
 FPropertyAccess::Result FPropertyHandleObject::GetValue( UObject*& OutValue ) const
 {
-	TObjectPtr<UObject> Temp;
-	FPropertyAccess::Result Result = FPropertyHandleObject::GetValue(Temp);
-	OutValue = Temp.Get();
-	return Result;
+	return FPropertyHandleObject::GetValue((const UObject*&)OutValue);
 }
 
 FPropertyAccess::Result FPropertyHandleObject::GetValue( const UObject*& OutValue ) const
-{
-	TObjectPtr<const UObject> Temp;
-	FPropertyAccess::Result Result = FPropertyHandleObject::GetValue(Temp);
-	OutValue = Temp.Get();
-	return Result;
-}
-
-FPropertyAccess::Result FPropertyHandleObject::GetValue(TObjectPtr<UObject>& OutValue) const
-{
-	return FPropertyHandleObject::GetValue((TObjectPtr<const UObject>&)OutValue);
-}
-
-FPropertyAccess::Result FPropertyHandleObject::GetValue(TObjectPtr<const UObject>& OutValue) const
 {
 	void* PropValue = nullptr;
 	FPropertyAccess::Result Res = Implementation->GetValueData( PropValue );
@@ -3820,7 +3802,7 @@ FPropertyAccess::Result FPropertyHandleObject::GetValue(TObjectPtr<const UObject
 
 		if (Property->IsA(FObjectPropertyBase::StaticClass()))
 		{
-			OutValue = Implementation->GetObjectPtrPropertyValue(PropValue);
+			OutValue = Implementation->GetObjectPropertyValue(PropValue);
 		}
 		else if (Property->IsA(FInterfaceProperty::StaticClass()))
 		{
@@ -3843,20 +3825,10 @@ FPropertyAccess::Result FPropertyHandleObject::GetValue(TObjectPtr<const UObject
 
 FPropertyAccess::Result FPropertyHandleObject::SetValue( UObject* const& NewValue, EPropertyValueSetFlags::Type Flags )
 {
-	return FPropertyHandleObject::SetValue((TObjectPtr<const UObject>&)NewValue);
+	return FPropertyHandleObject::SetValue((const UObject*)NewValue);
 }
 
 FPropertyAccess::Result FPropertyHandleObject::SetValue( const UObject* const& NewValue, EPropertyValueSetFlags::Type Flags )
-{
-	return FPropertyHandleObject::SetValue((TObjectPtr<const UObject>&)NewValue);
-}
-
-FPropertyAccess::Result FPropertyHandleObject::SetValue( TObjectPtr<UObject> const& NewValue, EPropertyValueSetFlags::Type Flags )
-{
-	return FPropertyHandleObject::SetValue((TObjectPtr<const UObject>&)NewValue);
-}
-
-FPropertyAccess::Result FPropertyHandleObject::SetValue( TObjectPtr<const UObject> const& NewValue, EPropertyValueSetFlags::Type Flags )
 {
 	const TSharedPtr<FPropertyNode>& PropertyNode = Implementation->GetPropertyNode();
 

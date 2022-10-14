@@ -1642,19 +1642,11 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 			FObjectProperty* ObjProp = *PropertyIt;
 			if (!ObjProp->HasAllPropertyFlags(CPF_NonTransactional))
 			{
-				TObjectPtr<UObject> ObjectValue = ObjProp->GetObjectPtrPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(this));
-				// @TODO: OBJPTR: UActorComponents can't be lazy loaded, so if this property is unresolved it's impossible that we're dealing
-				// with a case where we *need* resolution to occur.
-				if (ObjectValue.IsResolved())
+				UActorComponent* ActorComponent = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(this)));
+				if (ActorComponent && ActorComponent->IsCreatedByConstructionScript())
 				{
-					if (UActorComponent* ActorComponent = Cast<UActorComponent>(ObjectValue))
-					{
-						if (ActorComponent->IsCreatedByConstructionScript())
-						{
-							ObjProp->SetPropertyFlags(CPF_NonTransactional);
-							TemporarilyNonTransactionalProperties.Add(ObjProp);
-						}
-					}
+					ObjProp->SetPropertyFlags(CPF_NonTransactional);
+					TemporarilyNonTransactionalProperties.Add(ObjProp);
 				}
 			}
 		}

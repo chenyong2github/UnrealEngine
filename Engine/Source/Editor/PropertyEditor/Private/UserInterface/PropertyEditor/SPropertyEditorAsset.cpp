@@ -977,83 +977,88 @@ FPropertyAccess::Result SPropertyEditorAsset::GetValue( FObjectOrAssetData& OutV
 
 	if( PropertyEditor.IsValid() && PropertyEditor->GetPropertyHandle()->IsValidHandle() )
 	{
-		TObjectPtr<UObject> ObjectPtr;
-		Result = PropertyEditor->GetPropertyHandle()->GetValue(ObjectPtr);
+		UObject* Object = nullptr;
+		Result = PropertyEditor->GetPropertyHandle()->GetValue(Object);
 
-		if (!ObjectPtr.IsResolved())
+		if (Object == nullptr)
 		{
 			// Check to see if it's pointing to an unloaded object
-			FSoftObjectPath SoftObjectPath = FSoftObjectPath(ObjectPtr);
+			FString CurrentObjectPath;
+			PropertyEditor->GetPropertyHandle()->GetValueAsFormattedString( CurrentObjectPath );
 
-			if (SoftObjectPath.IsAsset())
+			if (CurrentObjectPath.Len() > 0 && CurrentObjectPath != TEXT("None"))
 			{
-				if (!CachedAssetData.IsValid() || CachedAssetData.GetSoftObjectPath() != SoftObjectPath)
-				{
-					static FName AssetRegistryName("AssetRegistry");
+				FSoftObjectPath SoftObjectPath = FSoftObjectPath(CurrentObjectPath);
 
-					FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(AssetRegistryName);
-					CachedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(SoftObjectPath);
+				if (SoftObjectPath.IsAsset())
+				{
+					if (!CachedAssetData.IsValid() || CachedAssetData.GetObjectPathString() != CurrentObjectPath)
+					{
+						static FName AssetRegistryName("AssetRegistry");
+
+						FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(AssetRegistryName);
+						CachedAssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(CurrentObjectPath));
+					}
+
+					Result = FPropertyAccess::Success;
+					OutValue = FObjectOrAssetData(CachedAssetData);
+				}
+				else
+				{
+					// This is an actor or other subobject reference
+					if (CachedAssetData.IsValid())
+					{
+						CachedAssetData = FAssetData();
+					}
+
+					Result = FPropertyAccess::Success;
+					OutValue = FObjectOrAssetData(SoftObjectPath);
 				}
 
-				Result = FPropertyAccess::Success;
-				OutValue = FObjectOrAssetData(CachedAssetData);
+				return Result;
 			}
-			else
-			{
-				// This is an actor or other subobject reference
-				if (CachedAssetData.IsValid())
-				{
-					CachedAssetData = FAssetData();
-				}
-
-				Result = FPropertyAccess::Success;
-				OutValue = FObjectOrAssetData(SoftObjectPath);
-			}
-
-			return Result;
 		}
 
 #if !UE_BUILD_SHIPPING
-		if (ObjectPtr.IsResolved() && ObjectPtr && !ObjectPtr->IsValidLowLevel())
+		if (Object && !Object->IsValidLowLevel())
 		{
 			const FProperty* Property = PropertyEditor->GetProperty();
 			UE_LOG(LogPropertyNode, Fatal, TEXT("Property \"%s\" (%s) contains invalid data."), *Property->GetName(), *Property->GetCPPType());
 		}
 #endif
 
-		OutValue = FObjectOrAssetData( ObjectPtr );
+		OutValue = FObjectOrAssetData( Object );
 	}
 	else
 	{
 		FSoftObjectPath SoftObjectPath;
-		TObjectPtr<UObject> ObjectPtr;
+		UObject* Object = nullptr;
 		if (PropertyHandle.IsValid())
 		{
-			Result = PropertyHandle->GetValue(ObjectPtr);
-			SoftObjectPath = FSoftObjectPath(ObjectPtr);
+			Result = PropertyHandle->GetValue(Object);
 		}
 		else
 		{
 			SoftObjectPath = FSoftObjectPath(ObjectPath.Get());
-			ObjectPtr = SoftObjectPath.ResolveObject();
+			Object = SoftObjectPath.ResolveObject();
 
-			if (ObjectPtr != nullptr)
+			if (Object != nullptr)
 			{
 				Result = FPropertyAccess::Success;
 			}
 		}
 
-		if (ObjectPtr.IsResolved() && ObjectPtr)
+		if (Object != nullptr)
 		{
 #if !UE_BUILD_SHIPPING
-			if (!ObjectPtr->IsValidLowLevel())
+			if (!Object->IsValidLowLevel())
 			{
 				const FProperty* Property = PropertyEditor->GetProperty();
 				UE_LOG(LogPropertyNode, Fatal, TEXT("Property \"%s\" (%s) contains invalid data."), *Property->GetName(), *Property->GetCPPType());
 			}
 #endif
 
-			OutValue = FObjectOrAssetData(ObjectPtr);
+			OutValue = FObjectOrAssetData(Object);
 		}
 		else
 		{
