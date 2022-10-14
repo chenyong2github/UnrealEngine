@@ -4499,7 +4499,8 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 	}
 }
 
-void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC)
+void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC,
+	const FPlatformMemoryStats& MemStatsBeforeGC, int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC)
 {
 	using namespace UE::Cook;
 
@@ -4511,9 +4512,7 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBefor
 	int64 NumObjectsMin = NumObjectsHistory.GetMinimum();
 	int64 NumObjectsMax = NumObjectsHistory.GetMaximum();
 	int64 NumObjectsSpread = NumObjectsMax - NumObjectsMin;
-	int64 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 	int64 NumObjectsFreed = NumObjectsBeforeGC - NumObjectsAfterGC;
-	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats();
 	int64 VirtualMemMin = VirtualMemoryHistory.GetMinimum();
 	int64 VirtualMemMax = VirtualMemoryHistory.GetMaximum();
 	int64 VirtualMemSpread = VirtualMemMax - VirtualMemMin;
@@ -4555,35 +4554,51 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBefor
 	constexpr int32 BytesPerMeg = 1000000;
 	UE_LOG(LogCook, Display, TEXT("Garbage Collection was not very impactful.\n")
 		TEXT("\tNumObjects:\n")
-		TEXT("\t\tProcess Min:    %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Max:    %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Spread: %10" INT64_FMT "\n")
-		TEXT("\t\tBefore GC:      %10" INT64_FMT "\n")
-		TEXT("\t\tAfter GC:       %10" INT64_FMT "\n")
-		TEXT("\t\tFreed by GC:    %10" INT64_FMT "\n")
+		TEXT("\t\tProcess Min:      %10" INT64_FMT "\n")
+		TEXT("\t\tProcess Max:      %10" INT64_FMT "\n")
+		TEXT("\t\tProcess Spread:   %10" INT64_FMT "\n")
+		TEXT("\t\tBefore GC:        %10" INT64_FMT "\n")
+		TEXT("\t\tAfter GC:         %10" INT64_FMT "\n")
+		TEXT("\t\tFreed by GC:      %10" INT64_FMT "\n")
 		TEXT("\tVirtual Memory:\n")
-		TEXT("\t\tProcess Min:    %10" INT64_FMT " MB\n")
-		TEXT("\t\tProcess Max:    %10" INT64_FMT " MB\n")
-		TEXT("\t\tProcess Spread: %10" INT64_FMT " MB\n")
-		TEXT("\t\tBefore GC:      %10" INT64_FMT " MB\n")
-		TEXT("\t\tAfter GC:       %10" INT64_FMT " MB\n")
-		TEXT("\t\tFreed by GC:    %10" INT64_FMT " MB\n")
+		TEXT("\t\tProcess Min:      %10" INT64_FMT " MB\n")
+		TEXT("\t\tProcess Max:      %10" INT64_FMT " MB\n")
+		TEXT("\t\tProcess Spread:   %10" INT64_FMT " MB\n")
+		TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
+		TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
+		TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB\n")
 		TEXT("\tReferences:\n")
 		TEXT("\t\tCooker direct packages:         %10" INT64_FMT "\n")
 		TEXT("\t\tCooker transitive packages:     %10" INT64_FMT "\n")
 		TEXT("\t\tCooker direct package size:     %10" INT64_FMT " MB\n")
 		TEXT("\t\tCooker transitive package size: %10" INT64_FMT " MB\n"),
 		NumObjectsMin, NumObjectsMax, NumObjectsSpread,
-		(int64)NumObjectsBeforeGC, NumObjectsAfterGC, NumObjectsFreed,
+		(int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed,
 		VirtualMemMin / BytesPerMeg, VirtualMemMax / BytesPerMeg, VirtualMemSpread / BytesPerMeg,
 		VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg,
 		NumDirectPackages, NumTransitivePackages,
 		DirectResourceSize.GetTotalMemoryBytes() / BytesPerMeg,
 		TransitiveResourceSize.GetTotalMemoryBytes() / BytesPerMeg
 	);
+
+	if (IsCookByTheBookMode())
+	{
+		UE_LOG(LogCook, Display, TEXT("See log for memory use information for UObject classes and LLM tags."));
+		UE::Cook::DumpObjClassList(CookByTheBookOptions->SessionStartupObjects);
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-	FLowLevelMemTracker::Get().DumpToLog();
+		if (FLowLevelMemTracker::Get().IsEnabled())
+		{
+			GLog->Logf(TEXT("LLM Tags:"));
+			FLowLevelMemTracker::Get().UpdateStatsPerFrame();
+			FLowLevelMemTracker::Get().DumpToLog();
+		}
+		else
 #endif
+		{
+			GLog->Logf(TEXT("LLM Tags are not displayed because llm is disabled. Run with -llm or -trace=memtag to see llm tags."));
+		}
+		GLog->Flush();
+	}
 }
 
 void UCookOnTheFlyServer::GetDirectAndTransitiveResourceSize(FResourceSizeEx& OutDirectSize,
@@ -9269,6 +9284,17 @@ FBeginCookContext UCookOnTheFlyServer::CreateBeginCookByTheBookContext(const FCo
 	{
 		BeginContext.PlatformContexts[Index].TargetPlatform = BeginContext.TargetPlatforms[Index];
 		// PlatformContext.PlatformData is currently null and is set in SelectSessionPlatforms
+	}
+
+	if (!IsCookingInEditor())
+	{
+		TArray<FWeakObjectPtr>& SessionStartupObjects = CookByTheBookOptions->SessionStartupObjects;
+		SessionStartupObjects.Reset();
+		for (FThreadSafeObjectIterator Iter; Iter; ++Iter)
+		{
+			SessionStartupObjects.Emplace(*Iter);
+		}
+		SessionStartupObjects.Shrink();
 	}
 
 	return BeginContext;

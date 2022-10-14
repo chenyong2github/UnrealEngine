@@ -329,7 +329,7 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FBeginCookConfigSetting
 FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& OutValue)
 {
 	Writer.BeginObject();
-	// StartupPackages are process-specific
+	// StartupPackages and SessionStartupObjects are process-specific
 
 	Writer << "DlcName" << OutValue.DlcName;
 	Writer << "CreateReleaseVersion" << OutValue.CreateReleaseVersion;
@@ -356,7 +356,8 @@ FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FCookByTheBookOptions& 
 bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FCookByTheBookOptions& OutValue)
 {
 	bool bOk = Field.IsObject();
-	OutValue.StartupPackages.Reset();
+	OutValue.StartupPackages.Empty();
+	OutValue.SessionStartupObjects.Empty();
 
 	bOk = LoadFromCompactBinary(Field["DlcName"], OutValue.DlcName) & bOk;
 	bOk = LoadFromCompactBinary(Field["CreateReleaseVersion"], OutValue.CreateReleaseVersion) & bOk;

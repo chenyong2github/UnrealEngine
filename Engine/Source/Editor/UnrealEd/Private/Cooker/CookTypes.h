@@ -20,6 +20,7 @@
 class FCbFieldView;
 class FCbWriter;
 class ITargetPlatform;
+struct FWeakObjectPtr;
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::Cook { struct FBeginCookConfigSettings; }
 namespace UE::Cook { struct FCookByTheBookOptions; }
@@ -379,6 +380,12 @@ public:
 	TArray<FName>					StartupPackages;
 
 	// Session-lifetime variables
+	/**
+	 * The list of UObjects that existed at the start of the cook. This is used to tell which UObjects
+	 * were created during the cook.
+	 */
+	TArray<FWeakObjectPtr>			SessionStartupObjects;
+
 	/** DlcName setup if we are cooking dlc will be used as the directory to save cooked files to */
 	FString							DlcName;
 

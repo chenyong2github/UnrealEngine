@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
@@ -13,6 +14,11 @@
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#endif
+
+struct FWeakObjectPtr;
+
+#if OUTPUT_COOKTIMING
 
 void OutputHierarchyTimers();
 void ClearHierarchyTimers();
@@ -152,3 +158,17 @@ DECLARE_STATS_GROUP(TEXT("Cooking"), STATGROUP_Cooking, STATCAT_Advanced);
 
 DECLARE_CYCLE_STAT(TEXT("Precache Derived data for platform"), STAT_TickPrecacheCooking, STATGROUP_Cooking);
 DECLARE_CYCLE_STAT(TEXT("Tick cooking"), STAT_TickCooker, STATGROUP_Cooking);
+
+namespace UE::Cook
+{
+
+/**
+ * Used for profiling memory after a garbage collect. Find how many instances of each class exist, and find the list
+ * of referencers that are keeping instances of each class in memory. Dump this information to the log (GLog).
+ * 
+ * @param SessionStartupObjects: The list of objects that existed at the start of the cook session. Objects in this
+ *                               list are removed from the results since we do not expect them to be garbage collected.
+ */
+void DumpObjClassList(TConstArrayView<FWeakObjectPtr> SessionStartupObjects);
+
+}

@@ -19,6 +19,7 @@
 #include "GlobalShader.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/MemoryBase.h"
 #include "HAL/MemoryMisc.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
@@ -1024,15 +1025,36 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 
 	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 	int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
+	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats();
 	if (!COTFS.IsCookOnTheFlyMode())
 	{
-		UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"),
-			(bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
+		int64 VirtualMemBeforeGC = MemStatsBeforeGC.UsedVirtual;
+		int64 VirtualMemAfterGC = MemStatsAfterGC.UsedVirtual;
+		int64 VirtualMemFreed = MemStatsBeforeGC.UsedVirtual - MemStatsAfterGC.UsedVirtual;
+		constexpr int32 BytesPerMeg = 1000000;
+		UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection Results:\n")
+			TEXT("\tType: %s\n")
+			TEXT("\tNumObjects:\n")
+			TEXT("\t\tBefore GC:        %10d\n")
+			TEXT("\t\tAvailable Before: %10d\n")
+			TEXT("\t\tAfter GC:         %10d\n")
+			TEXT("\t\tAvailable After:  %10d\n")
+			TEXT("\t\tFreed by GC:      %10d\n")
+			TEXT("\tVirtual Memory:\n")
+			TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
+			TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
+			TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB\n"),
+			(bPartialGC ? TEXT("Partial") : TEXT("Full")),
+			NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC,
+			NumObjectsBeforeGC - NumObjectsAfterGC,
+			VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg
+		);
+
 		DumpMemStats();
 	}
 
 	if (TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM)
 	{
-		COTFS.EvaluateGarbageCollectionResults(NumObjectsBeforeGC, MemStatsBeforeGC);
+		COTFS.EvaluateGarbageCollectionResults(NumObjectsBeforeGC, MemStatsBeforeGC, NumObjectsAfterGC, MemStatsAfterGC);
 	} 
 }

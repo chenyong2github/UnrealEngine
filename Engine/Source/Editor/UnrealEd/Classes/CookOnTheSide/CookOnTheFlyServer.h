@@ -798,7 +798,8 @@ public:
 	}
 
 	bool HasExceededMaxMemory() const;
-	void EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC);
+	void EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
+		int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC);
 
 	/**
 	 * RequestPackage to be cooked
