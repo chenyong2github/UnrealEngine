@@ -76,6 +76,7 @@ struct FBinkMediaTextureActions : FAssetTypeActions_Base
 			)
 		);
 	}
+	
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override 
 	{
 		EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
@@ -165,11 +166,6 @@ struct FBinkMediaTextureActions : FAssetTypeActions_Base
 	{ 
 		return FColor::Red; 
 	}
-	virtual bool HasActions( const TArray<UObject*>& InObjects ) const override 
-	{ 
-		return true; 
-	}
-
 };
 
 struct FBinkMediaPlayerActions : FAssetTypeActions_Base 
