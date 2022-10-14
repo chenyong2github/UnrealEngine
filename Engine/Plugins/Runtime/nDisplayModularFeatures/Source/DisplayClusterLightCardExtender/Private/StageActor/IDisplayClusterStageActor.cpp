@@ -4,6 +4,10 @@
 
 #include "GameFramework/Actor.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 const FRotator IDisplayClusterStageActor::PlaneMeshRotation = FRotator(0.0f, -90.0f, 90.0f);
 
 struct FStageActorHelper
@@ -66,6 +70,10 @@ void IDisplayClusterStageActor::UpdateStageActorTransform()
 	if (AActor* Actor = FStageActorHelper::GetActor(this))
 	{
 		Actor->SetActorTransform(Transform);
+
+#if WITH_EDITOR
+		UpdateEditorGizmos();
+#endif
 	}
 }
 
@@ -129,6 +137,10 @@ void IDisplayClusterStageActor::UpdatePositionalParamsFromTransform()
 		Actor->GetTransform(), GetOrigin(), GetRadialOffset());
 
 		SetPositionalParams(PositionalParams);
+
+#if WITH_EDITOR
+		UpdateEditorGizmos();
+#endif
 	}
 }
 
@@ -230,3 +242,19 @@ FDisplayClusterPositionalParams IDisplayClusterStageActor::TransformToPositional
 	
 	return PositionalParams;
 }
+
+#if WITH_EDITOR
+void IDisplayClusterStageActor::UpdateEditorGizmos()
+{
+	if (GEditor)
+	{
+		if (const AActor* Actor = Cast<AActor>(this))
+		{
+			if (Actor->IsSelectedInEditor())
+			{
+				GEditor->NoteSelectionChange(/*bNotify*/ false);
+			}
+		}
+	}
+}
+#endif

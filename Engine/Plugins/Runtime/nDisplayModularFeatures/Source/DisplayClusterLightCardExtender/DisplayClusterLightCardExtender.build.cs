@@ -13,5 +13,10 @@ public class DisplayClusterLightCardExtender : ModuleRules
 				"CoreUObject",
 				"Engine"
 			});
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 	}
 }
