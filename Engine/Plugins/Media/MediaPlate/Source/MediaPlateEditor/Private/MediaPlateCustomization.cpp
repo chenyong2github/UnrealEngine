@@ -803,7 +803,7 @@ ECheckBoxState FMediaPlateCustomization::IsAspectRatioAuto() const
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			ECheckBoxState NewState = MediaPlate->bIsAspectRatioAuto ? ECheckBoxState::Checked :
+			ECheckBoxState NewState = MediaPlate->GetIsAspectRatioAuto() ? ECheckBoxState::Checked :
 				ECheckBoxState::Unchecked;
 			if (State == ECheckBoxState::Undetermined)
 			{
@@ -831,7 +831,7 @@ void FMediaPlateCustomization::SetIsAspectRatioAuto(ECheckBoxState State)
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			MediaPlate->bIsAspectRatioAuto = bEnable;
+			MediaPlate->SetIsAspectRatioAuto(bEnable);
 		}
 	}
 }

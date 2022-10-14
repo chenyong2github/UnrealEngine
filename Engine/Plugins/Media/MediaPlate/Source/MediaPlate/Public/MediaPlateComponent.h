@@ -146,10 +146,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaPlate", meta = (ClampMin = "0.0"))
 	float StartTime = 0.0f;
 
-	/** If true then set the aspect ratio automatically based on the media. */
-	UPROPERTY(BlueprintReadWrite, Category = "MediaPlate")
-	bool bIsAspectRatioAuto = true;
-
 	/** Holds the component to play sound. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
@@ -194,6 +190,18 @@ public:
 	 * Call this to set the aspect ratio of the mesh.
 	 */
 	void SetAspectRatio(float AspectRatio);
+
+	/**
+	 * Gets whether automatic aspect ratio is enabled.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
+	bool GetIsAspectRatioAuto() const { return bIsAspectRatioAuto; }
+
+	/**
+	 * Sets whether automatic aspect ratio is enabled.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
+	void SetIsAspectRatioAuto(bool bInIsAspectRatioAuto);
 
 	/**
 	 * Call this to get the aspect ratio of the screen.
@@ -278,6 +286,10 @@ private:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (AllowPrivateAccess = true, UIMin = "-16.0", UIMax = "15.99"))
 	float MipMapBias = 0.0f;
 
+	/** If true then set the aspect ratio automatically based on the media. */
+	UPROPERTY(Blueprintgetter = GetIsAspectRatioAuto, BlueprintSetter = SetIsAspectRatioAuto, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	bool bIsAspectRatioAuto = true;
+
 	/** If > 0, then this is the aspect ratio of our screen and 
 	 * letterboxes will be added if the media is smaller than the screen. */
 	UPROPERTY()
@@ -317,6 +329,12 @@ private:
 	 * @return	True if we played anything.
 	 */
 	bool PlayMediaSource(UMediaSource* InMediaSource);
+
+	/**
+	 * If the player is currently active, then this will set the aspect ratio
+	 * according to the media.
+	 */
+	void TryActivateAspectRatioAuto();
 
 	/**
 	 * Stops the clock sink so we no longer tick.

@@ -372,6 +372,15 @@ void UMediaPlateComponent::SetPlayOnlyWhenVisible(bool bInPlayOnlyWhenVisible)
 	PlayOnlyWhenVisibleChanged();
 }
 
+void UMediaPlateComponent::SetIsAspectRatioAuto(bool bInIsAspectRatioAuto)
+{
+	if (bIsAspectRatioAuto != bInIsAspectRatioAuto)
+	{
+		bIsAspectRatioAuto = bInIsAspectRatioAuto;
+		TryActivateAspectRatioAuto();
+	}
+}
+
 void UMediaPlateComponent::PlayOnlyWhenVisibleChanged()
 {
 	// If we are turning off PlayOnlyWhenVisible then make sure we are playing.
@@ -438,26 +447,34 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 			// Did we play anything?
 			if (bIsPlaying)
 			{
-				// Are we using automatic aspect ratio?
-				if ((bIsAspectRatioAuto) &&
-					(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane))
-				{
-					// Start the clock sink so we can tick.
-					IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
-					if (MediaModule != nullptr)
-					{
-						if (ClockSink.IsValid() == false)
-						{
-							ClockSink = MakeShared<FMediaComponentClockSink, ESPMode::ThreadSafe>(this);
-						}
-						MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
-					}
-				}
+				TryActivateAspectRatioAuto();
 			}
 		}
 	}
 
 	return bIsPlaying;
+}
+
+void UMediaPlateComponent::TryActivateAspectRatioAuto()
+{
+	if ((MediaPlayer != nullptr) && (MediaPlayer->IsClosed() == false))
+	{
+		// Are we using automatic aspect ratio?
+		if ((bIsAspectRatioAuto) &&
+			(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane))
+		{
+			// Start the clock sink so we can tick.
+			IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+			if (MediaModule != nullptr)
+			{
+				if (ClockSink.IsValid() == false)
+				{
+					ClockSink = MakeShared<FMediaComponentClockSink, ESPMode::ThreadSafe>(this);
+				}
+				MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
+			}
+		}
+	}
 }
 
 
