@@ -39,6 +39,11 @@ public:
 		return Entries.Num();
 	}
 
+	const FString& ServerRootPath() const
+	{
+		return ServerRoot;
+	}
+
 private:
 	static void GetExtensionDirs(TArray<FString>& OutExtensionDirs, const TCHAR* BaseDir, const TCHAR* SubDir, const TArray<FString>& PlatformDirectoryNames);
 

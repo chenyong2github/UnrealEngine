@@ -430,16 +430,20 @@ FEditorDomainOplog::FEditorDomainOplog()
 	FPaths::NormalizeDirectoryName(EngineDir);
 	FString ProjectDir = FPaths::ProjectDir();
 	FPaths::NormalizeDirectoryName(ProjectDir);
+	FString ProjectPath = FPaths::GetProjectFilePath();
+	FPaths::NormalizeFilename(ProjectPath);
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	FString AbsServerRoot = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*RootDir);
 	FString AbsEngineDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*EngineDir);
 	FString AbsProjectDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectDir);
+	FString ProjectFilePath = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectPath);
 
 #if UE_WITH_ZEN
 	if (UE::Zen::IsDefaultServicePresent())
 	{
-		HttpClient.TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir);
+		bool IsLocalConnection = HttpClient.GetZenServiceInstance().IsServiceRunningLocally();
+		HttpClient.TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir, IsLocalConnection ? ProjectFilePath : FStringView());
 		HttpClient.TryCreateOplog(ProjectId, OplogId, false /* bFullBuild */);
 	}
 #endif

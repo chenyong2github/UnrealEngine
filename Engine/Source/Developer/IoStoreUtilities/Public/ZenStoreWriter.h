@@ -174,6 +174,7 @@ private:
 	FCriticalSection								PackagesCriticalSection;
 	TMap<FName, TUniquePtr<FPendingPackageState>>	PendingPackages;
 	TUniquePtr<UE::FZenStoreHttpClient>	HttpClient;
+	bool IsLocalConnection = true;
 
 	const ITargetPlatform&				TargetPlatform;
 	const FName							TargetPlatformFName;

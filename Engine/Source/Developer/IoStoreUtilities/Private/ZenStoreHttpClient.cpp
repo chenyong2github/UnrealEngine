@@ -58,7 +58,8 @@ FZenStoreHttpClient::TryCreateProject(FStringView InProjectId,
 	FStringView InOplogId, 
 	FStringView ServerRoot,
 	FStringView EngineRoot,
-	FStringView ProjectRoot)
+	FStringView ProjectRoot,
+	FStringView ProjectFilePath)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenStoreHttp_Initialize);
 
@@ -93,6 +94,7 @@ FZenStoreHttpClient::TryCreateProject(FStringView InProjectId,
 			ProjInfo << "root" << ServerRoot;
 			ProjInfo << "engine" << EngineRoot;
 			ProjInfo << "project" << ProjectRoot;
+			ProjInfo << "projectfile" << ProjectFilePath;
 			ProjInfo.EndObject();
 
 			Res = Request->PerformBlockingPost(ProjectUri, ProjInfo.Save().AsObject());
@@ -631,7 +633,8 @@ FZenStoreHttpClient::~FZenStoreHttpClient()
 }
 
 bool FZenStoreHttpClient::TryCreateProject(FStringView InProjectId, FStringView InOplogId, FStringView ServerRoot,
-	FStringView EngineRoot,	FStringView ProjectRoot)
+	FStringView EngineRoot,	FStringView ProjectRoot,
+	FStringView ProjectFilePath)
 {
 	return false;
 }

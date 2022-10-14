@@ -166,18 +166,25 @@ FZenStoreWriter::FZenStoreWriter(
 	
 	HttpClient = MakeUnique<UE::FZenStoreHttpClient>();
 
+#if UE_WITH_ZEN
+	IsLocalConnection = HttpClient->GetZenServiceInstance().IsServiceRunningLocally();
+#endif
+
 	FString RootDir = FPaths::RootDir();
 	FString EngineDir = FPaths::EngineDir();
 	FPaths::NormalizeDirectoryName(EngineDir);
 	FString ProjectDir = FPaths::ProjectDir();
 	FPaths::NormalizeDirectoryName(ProjectDir);
+	FString ProjectPath = FPaths::GetProjectFilePath();
+	FPaths::NormalizeFilename(ProjectPath);
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	FString AbsServerRoot = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*RootDir);
 	FString AbsEngineDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*EngineDir);
 	FString AbsProjectDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectDir);
+	FString ProjectFilePath = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectPath);
 
-	HttpClient->TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir);
+	HttpClient->TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir, IsLocalConnection ? ProjectFilePath : FStringView());
 
 	PackageStoreOptimizer->Initialize();
 
@@ -1045,12 +1052,34 @@ void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageO
 			{
 				FCbObjectId FileOid = ToObjectId(NewEntry.FileChunkId);
 
-				PackageObj.BeginObject();
-				PackageObj << "id" << FileOid;
-				PackageObj << "data" << FIoHash::Zero;
-				PackageObj << "serverpath" << NewEntry.ServerPath;
-				PackageObj << "clientpath" << NewEntry.ClientPath;
-				PackageObj.EndObject();
+				if (IsLocalConnection)
+				{
+					PackageObj.BeginObject();
+					PackageObj << "id" << FileOid;
+					PackageObj << "data" << FIoHash::Zero;
+					PackageObj << "serverpath" << NewEntry.ServerPath;
+					PackageObj << "clientpath" << NewEntry.ClientPath;
+					PackageObj.EndObject();
+				}
+				else
+				{
+					const FString AbsPath = ZenFileSystemManifest->ServerRootPath() / NewEntry.ServerPath;
+					TArray<uint8> FileBuffer;
+					FFileHelper::LoadFileToArray(FileBuffer, *AbsPath);
+					if (FileBuffer.Num())
+					{
+						FCbAttachment FileAttachment = CreateAttachment(FIoBuffer(FIoBuffer::Clone, FileBuffer.GetData(), FileBuffer.Num()));
+
+						PackageObj.BeginObject();
+						PackageObj << "id" << FileOid;
+						PackageObj << "data" << FileAttachment;
+						PackageObj << "serverpath" << NewEntry.ServerPath;
+						PackageObj << "clientpath" << NewEntry.ClientPath;
+						PackageObj.EndObject();
+
+						Pkg.AddAttachment(FileAttachment);
+					}
+				}
 			}
 
 			PackageObj.EndArray();
