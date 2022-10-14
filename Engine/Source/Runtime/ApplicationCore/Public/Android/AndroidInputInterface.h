@@ -101,7 +101,8 @@ enum ButtonRemapType
 	Normal,
 	XBox,
 	PS4,
-	PS5
+	PS5,
+	PS5New
 };
 
 struct FAndroidInputDeviceInfo {
