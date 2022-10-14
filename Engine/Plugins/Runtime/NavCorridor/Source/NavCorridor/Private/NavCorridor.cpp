@@ -5,7 +5,13 @@
 #include "Algo/Sort.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+#include "VisualLogger/VisualLogger.h"
+#include "AI/NavigationSystemBase.h" 
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavCorridor)
+
+// If set to 1, parts of the process are logged into vis logger.
+#define NAV_CORRIDOR_DEBUG_DETAILS 0
 
 //-------------------------------------------------------
 // Private helper functions for the nav corridor.
@@ -195,7 +201,7 @@ namespace UE::NavCorridor::Private
 	 * @param OutLeftSegments edges in UV space left of the segment 
 	 * @param OutRightSegments edges in UV space right of the segment
 	 */
-	static void ClipEdgesToSector(const FVector SegStart, const FVector SegForward, const FVector SegLeft, TConstArrayView<FVector> Quad, TConstArrayView<FVector> Edges,
+	static void ClipEdgesToSector(const ANavigationData* NavData, const FVector SegStart, const FVector SegForward, const FVector SegLeft, TConstArrayView<FVector> Quad, TConstArrayView<FVector> Edges,
 						  TArray<FUVSegment>& OutLeftSegments, TArray<FUVSegment>& OutRightSegments)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NavCorridor_ClipEdgesToSector);
@@ -245,10 +251,13 @@ namespace UE::NavCorridor::Private
 					bIsLeft = DistOnLeft > DistOnRight;
 				}
 
+				
 				// Convert the world position into the quads UV space.
 				const FVector2D StartUV = UE::AI::InvBilinear2DClamped(StartPos, Quad[0], Quad[1], Quad[2], Quad[3]);
 				const FVector2D EndUV = UE::AI::InvBilinear2DClamped(EndPos, Quad[0], Quad[1], Quad[2], Quad[3]);
 
+				bool bAdded = false;
+				
 				// Back face culling (assume the edges are oriented), and add.
 				const FReal DeltaV = EndUV.Y - StartUV.Y;
 				if (bIsLeft)
@@ -256,6 +265,7 @@ namespace UE::NavCorridor::Private
 					if (DeltaV < -UE_KINDA_SMALL_NUMBER)
 					{
 						OutLeftSegments.Emplace(EndUV, StartUV); // Vertices in UV segments are assumed to be in ascending order 
+						bAdded = true;
 					}
 				}
 				else
@@ -263,8 +273,32 @@ namespace UE::NavCorridor::Private
 					if (DeltaV > UE_KINDA_SMALL_NUMBER)
 					{
 						OutRightSegments.Emplace(StartUV, EndUV);
+						bAdded = true;
 					}
 				}
+
+#if NAV_CORRIDOR_DEBUG_DETAILS				
+				{
+					const FVector Dir = EndPos - StartPos;
+					const FVector Left = FVector::CrossProduct(Dir, FVector::UpVector).GetSafeNormal();
+					const FVector Mid = (StartPos + EndPos) * 0.5f;
+
+					if (bIsLeft)
+					{
+						const FVector Offset(0,0, 15);
+						const FVector Offset2(0,0, 17);
+						UE_VLOG_SEGMENT_THICK(NavData, LogNavigation, Log, StartPos + Offset, EndPos + Offset2, FColor::Blue, 2, TEXT_EMPTY);
+						UE_VLOG_SEGMENT_THICK(NavData, LogNavigation, Log, Mid + Offset, Mid + Left * 10.0f + Offset, bAdded ? FColor::Blue : FColor::Red, 1, TEXT_EMPTY);
+					}
+					else
+					{
+						const FVector Offset(0,0, 15);
+						const FVector Offset2(0,0, 17);
+						UE_VLOG_SEGMENT_THICK(NavData, LogNavigation, Log, StartPos + Offset, EndPos + Offset2, FColor::Green, 2, TEXT_EMPTY);
+						UE_VLOG_SEGMENT_THICK(NavData, LogNavigation, Log, Mid + Offset, Mid + Left * 10.0f + Offset, bAdded ? FColor::Green : FColor::Red, 1, TEXT_EMPTY);
+					}
+				}
+#endif				
 			}
 		}
 
@@ -1201,19 +1235,19 @@ void FNavCorridor::Reset()
 	Portals.Reset();
 }
 
-void FNavCorridor::BuildFromPath(const ANavigationData* NavData, FSharedConstNavQueryFilter NavQueryFilter, const FNavMeshPath* Path, const FNavCorridorParams& Params)
+void FNavCorridor::BuildFromPath(const FNavigationPath& Path, FSharedConstNavQueryFilter NavQueryFilter, const FNavCorridorParams& Params)
 {
-	if (Path == nullptr || Path->GetPathPoints().Num() < 2)
+	if (Path.GetPathPoints().Num() < 2)
 	{
 		Reset();
 		return;
 	}
 	
-	BuildFromPathPoints(NavData, NavQueryFilter, Path->GetPathPoints(), 0, Params);
+	BuildFromPathPoints(Path, Path.GetPathPoints(), 0, NavQueryFilter, Params);
 }
 
-void FNavCorridor::BuildFromPathPoints(const ANavigationData* NavData, FSharedConstNavQueryFilter NavQueryFilter, TConstArrayView<FNavPathPoint> PathPoints,
-										const int32 PathPointBaseIndex, const FNavCorridorParams& Params)
+void FNavCorridor::BuildFromPathPoints(const FNavigationPath& Path, TConstArrayView<FNavPathPoint> PathPoints, const int32 PathPointBaseIndex,
+										FSharedConstNavQueryFilter NavQueryFilter, const FNavCorridorParams& Params)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NavCorridor_BuildFromPath);
 
@@ -1222,6 +1256,8 @@ void FNavCorridor::BuildFromPathPoints(const ANavigationData* NavData, FSharedCo
 		Reset();
 		return;
 	}
+	
+	const ANavigationData* NavData = Path.GetNavigationDataUsed();
 	check(NavData);
 
 	using FReal = FVector::FReal;
@@ -1263,8 +1299,18 @@ void FNavCorridor::BuildFromPathPoints(const ANavigationData* NavData, FSharedCo
 		// Find wall/obstacle segments that overlap the current sector between two portals.
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(NavCorridor_FindOverlappingEdges);
+
 			Edges.Reset();
-			NavData->FindOverlappingEdges(PathPoints[PortalIndex], Quad, Edges, NavQueryFilter);
+			NavData->GetPathSegmentBoundaryEdges(Path,  PathPoints[PortalIndex], PathPoints[PortalIndex+1], Quad, Edges, 0.1f, NavQueryFilter);
+
+#if NAV_CORRIDOR_DEBUG_DETAILS			
+			for (int32 Index = 0; Index < Edges.Num(); Index += 2)
+			{
+				const FVector PolyOffset(0,0,15);
+				UE_VLOG_ARROW(NavData, LogNavigation, Log, Edges[Index] + PolyOffset, Edges[Index+1] + PolyOffset, FColor::Black, TEXT_EMPTY);
+			}
+#endif			
+
 		}
 
 		// Clip and classify edges to left and right segments.
@@ -1276,7 +1322,7 @@ void FNavCorridor::BuildFromPathPoints(const ANavigationData* NavData, FSharedCo
 		const FVector SegLeft = SegmentLefts[PortalIndex];
 		const FVector SegDir = SegmentDirs[PortalIndex];
 
-		UE::NavCorridor::Private::ClipEdgesToSector(SegBasePos, SegDir, SegLeft, Quad, Edges, LeftUVSegments, RightUVSegments);
+		UE::NavCorridor::Private::ClipEdgesToSector(NavData, SegBasePos, SegDir, SegLeft, Quad, Edges, LeftUVSegments, RightUVSegments);
 
 		// Process obstacle segments so that they do not have steep angles, by adding taper segments at obstacle ends.
 		TArray<FVector2d> LeftUVPoints;

@@ -22,6 +22,12 @@ namespace UE::AI
 		{
 			const FVector Edge = Poly[NextIndex] - Poly[Index];
 			const FVector Diff = Start - Poly[Index];
+
+			// Skip degenerate edges.
+			if (Edge.SizeSquared2D() < UE_KINDA_SMALL_NUMBER)
+			{
+				continue;
+			}
 			
 			const FReal N = Cross2D(Edge, Diff);
 			const FReal D = Cross2D(Dir, Edge);

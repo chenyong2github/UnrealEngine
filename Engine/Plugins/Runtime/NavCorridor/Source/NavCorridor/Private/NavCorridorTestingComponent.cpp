@@ -149,7 +149,7 @@ void UNavCorridorTestingComponent::UpdateTests()
 
 		if (PathResult.IsSuccessful())
 		{
-			Corridor.BuildFromPath(NavData, NavQueryFilter, (FNavMeshPath*)Path.Get(), CorridorParams);
+			Corridor.BuildFromPath(*Path, NavQueryFilter, CorridorParams);
 			Corridor.OffsetPathLocationsFromWalls(PathOffset);
 		}
 		

@@ -1510,6 +1510,89 @@ bool ARecastNavMesh::FindOverlappingEdges(const FNavLocation& StartLocation, TCo
 	return false;
 }
 
+bool ARecastNavMesh::GetPathSegmentBoundaryEdges(const FNavigationPath& Path, const FNavPathPoint& StartPoint, const FNavPathPoint& EndPoint, const TConstArrayView<FVector> SearchArea, TArray<FVector>& OutEdges, const float MaxAreaEnterCost, FSharedConstNavQueryFilter Filter, const UObject* Querier) const
+{
+	if (RecastNavMeshImpl == NULL || RecastNavMeshImpl->DetourNavMesh == NULL)
+	{
+		return false;
+	}
+
+	const FNavMeshPath* NavMeshPath = Path.CastPath<const FNavMeshPath>();
+	if (NavMeshPath == nullptr)
+	{
+		return false;
+	}
+	
+	const FNavigationQueryFilter& FilterToUse = GetRightFilterRef(Filter);
+
+	FRecastSpeciaLinkFilter LinkFilter(FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()), Querier);
+	INITIALIZE_NAVQUERY_WLINKFILTER(NavQuery, FilterToUse.GetMaxSearchNodes(), LinkFilter);
+	const dtQueryFilter* QueryFilter = static_cast<const FRecastQueryFilter*>(FilterToUse.GetImplementation())->GetAsDetourQueryFilter();
+
+
+	// Find all the polygon refs between the path points.
+	TArray<NavNodeRef> SegmentPathPolys;
+	if (NavMeshPath->PathCorridor.Num() > 0)
+	{
+		const int32 StartIndex = NavMeshPath->GetNodeRefIndex(StartPoint.NodeRef);
+		if (StartIndex != INDEX_NONE)
+		{
+			const NavNodeRef NextNodeRef = EndPoint.NodeRef;
+			for (int32 NodeIndex = StartIndex; NodeIndex < NavMeshPath->PathCorridor.Num(); NodeIndex++)
+			{
+				const NavNodeRef NodeRef = NavMeshPath->PathCorridor[NodeIndex];
+				SegmentPathPolys.Add(NodeRef);
+				if (NodeRef == NextNodeRef)
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	if (SegmentPathPolys.IsEmpty())
+	{
+		SegmentPathPolys.Add(StartPoint.NodeRef);
+	}
+	
+	const int32 MaxWalls = 64;
+	int32 NumWalls = 0;
+	FVector::FReal WallSegments[MaxWalls * 3 * 2] = { 0 };
+	dtPolyRef WallPolys[MaxWalls * 2] = { 0 };
+
+	const int32 MaxNeis = 64;
+	int32 NumNeis = 0;
+	dtPolyRef NeiPolys[MaxNeis] = { 0 };
+
+	const int32 MaxConvexPolygonPoints = 8;
+	int32 NumConvexPolygonPoints = FMath::Min(SearchArea.Num(), MaxConvexPolygonPoints);
+	FVector::FReal RcConvexPolygon[MaxConvexPolygonPoints * 3] = { 0 };
+
+	for (int32 i  = 0; i < NumConvexPolygonPoints; i++)
+	{
+		const FVector RcPoint = Unreal2RecastPoint(SearchArea[i]);
+		RcConvexPolygon[i*3+0] = RcPoint.X;
+		RcConvexPolygon[i*3+1] = RcPoint.Y;
+		RcConvexPolygon[i*3+2] = RcPoint.Z;
+	}
+
+	dtStatus Status = NavQuery.findWallsAroundPath(SegmentPathPolys.GetData(), SegmentPathPolys.Num(), RcConvexPolygon, NumConvexPolygonPoints, MaxAreaEnterCost, QueryFilter,
+		NeiPolys, &NumNeis, MaxNeis, WallSegments, WallPolys, &NumWalls, MaxWalls);
+
+	if (dtStatusSucceed(Status))
+	{
+		OutEdges.Reset(NumWalls*2);
+		for (int32 Idx = 0; Idx < NumWalls; Idx++)
+		{
+			OutEdges.Add(Recast2UnrealPoint(&WallSegments[Idx * 6]));
+			OutEdges.Add(Recast2UnrealPoint(&WallSegments[Idx * 6 + 3]));
+		}
+		return true;
+	}
+
+	return false;
+}
+
 bool ARecastNavMesh::ProjectPoint(const FVector& Point, FNavLocation& OutLocation, const FVector& Extent, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {
 	bool bSuccess = false;

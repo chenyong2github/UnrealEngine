@@ -4363,48 +4363,47 @@ static void storeWallSegment(const dtNavMesh* nav, const dtMeshTile* tile, const
 			const dtReal* va2 = &neiTile->verts[neiPoly->verts[neiEdge] * 3];
 			const dtReal* vb2 = &neiTile->verts[neiPoly->verts[(neiEdge + 1) % neiPoly->vertCount] * 3];
 
-			// project segment va2-vb2 on va-vb: point va2
-			dtReal seg[3], toPt[3], closestA[3], closestB[3];
+			// Project and clip segment va2-vb2 on va-vb
+			dtReal seg[3], diffA[3], diffB[3], clippedA[3], clippedB[3];
 			dtVsub(seg, vb, va);
 
-			dtVsub(toPt, va2, va);
-			dtReal d1 = dtVdot(toPt, seg);
-			dtReal d2 = dtVdot(seg, seg);
-
-			if (d1 <= 0)
+			dtVsub(diffA, va2, va);
+			dtVsub(diffB, vb2, va);
+			const dtReal da = dtVdot(diffA, seg);
+			const dtReal db = dtVdot(diffB, seg);
+			const dtReal ds = dtVdot(seg, seg);
+			const dtReal dmin = dtMin(da, db);
+			const dtReal dmax = dtMax(da, db);
+			
+			if (dmin <= 0)
 			{
-				dtVcopy(closestA, va);
+				dtVcopy(clippedA, va);
 			}
-			else if (d2 <= d1)
+			else if (dmin >= ds)
 			{
-				dtVcopy(closestA, vb);
-			}
-			else
-			{
-				dtVmad(closestA, va, seg, d1 / d2);
-			}
-
-			// project segment va2-vb2 on va-vb: point vb2
-			dtVsub(toPt, vb2, va);
-			d1 = dtVdot(toPt, seg);
-			d2 = dtVdot(seg, seg);
-
-			if (d1 <= 0)
-			{
-				dtVcopy(closestB, va);
-			}
-			else if (d2 <= d1)
-			{
-				dtVcopy(closestB, vb);
+				dtVcopy(clippedA, vb);
 			}
 			else
 			{
-				dtVmad(closestB, va, seg, d1 / d2);
+				dtVmad(clippedA, va, seg, dmin / ds);
 			}
 
-			// store projected segment (intersection of both edges)
-			dtVcopy(&resultWalls[wall0Offset], closestA);
-			dtVcopy(&resultWalls[wall1Offset], closestB);
+			if (dmax <= 0)
+			{
+				dtVcopy(clippedB, va);
+			}
+			else if (dmax >= ds)
+			{
+				dtVcopy(clippedB, vb);
+			}
+			else
+			{
+				dtVmad(clippedB, va, seg, dmax / ds);
+			}
+
+			// Store projected segment (intersection of both edges)
+			dtVcopy(&resultWalls[wall0Offset], clippedA);
+			dtVcopy(&resultWalls[wall1Offset], clippedB);
 		}
 	}
 }
@@ -4687,6 +4686,186 @@ dtStatus dtNavMeshQuery::findWallsOverlappingShape(dtPolyRef startRef, const dtR
 			dtReal tmin, tmax;
 			int segMin, segMax;
 			if (!dtIntersectSegmentPoly2D(va, vb, verts, nverts, tmin, tmax, segMin, segMax))
+				continue;
+			if (tmin > 1.0f || tmax < 0.0f)
+				continue;
+
+			// Mark node visited, this is done before the overlap test so that
+			// we will not visit the poly again if the test fails.
+			neighbourNode->flags |= DT_NODE_CLOSED;
+			neighbourNode->pidx = m_tinyNodePool->getNodeIdx(curNode);			
+
+			// This poly is fine, store and advance to the poly.
+			if (n < maxNei)
+			{
+				neiRefs[n] = neighbourRef;
+				++n;
+			}
+			else
+			{
+				status |= DT_BUFFER_TOO_SMALL;
+			}
+
+			if (nstack < MAX_STACK)
+			{
+				stack[nstack++] = neighbourNode;
+			}
+		}
+
+		// add hard edges of poly
+		for (int neighbourIndex = 0; neighbourIndex < curPoly->vertCount; neighbourIndex++)
+		{
+			bool bStoreEdge = (curPoly->neis[neighbourIndex] == 0);
+			if (curPoly->neis[neighbourIndex] & DT_EXT_LINK)
+			{
+				// check if external edge has valid link
+				bool bConnected = false;
+
+				unsigned int linkIdx = curPoly->firstLink;
+				while (linkIdx != DT_NULL_LINK)
+				{
+					const dtLink& link = m_nav->getLink(curTile, linkIdx);
+					linkIdx = link.next;
+
+					if (link.edge == neighbourIndex)
+					{
+						bConnected = true;
+						break;
+					}
+				}
+
+				bStoreEdge = !bConnected;
+			}
+
+			if (bStoreEdge)
+			{
+				storeWallSegment(m_nav, curTile, curPoly, neighbourIndex, curRef, 0, 
+					resultWalls, resultRefs, resultCount, maxResult);
+			}
+		}
+	}
+
+	*neiCount = n;
+	return status;
+}
+
+dtStatus dtNavMeshQuery::findWallsAroundPath(const dtPolyRef* path, const int pathCount, const dtReal* searchAreaPoly, const int searchAreaPolyCount,
+												   const float maxAreaEnterCost, const dtQueryFilter* filter,
+												   dtPolyRef* neiRefs, int* neiCount, const int maxNei,
+												   dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const
+{
+	*resultCount = 0;
+	*neiCount = 0;
+
+	// Validate input
+	if (pathCount == 0)
+		return DT_FAILURE | DT_INVALID_PARAM;
+
+	dtStatus status = DT_SUCCESS;
+
+	int n = 0;
+	
+	m_tinyNodePool->clear();
+
+	static const int MAX_STACK = 48;
+	dtNode* stack[MAX_STACK];
+	int nstack = 0;
+
+	// Add all seed polygons in the stack.
+	for (int i = 0; i < dtMin(pathCount, MAX_STACK); i++)
+	{
+		const dtPolyRef polyRef = path[i];
+		if (m_nav->isValidPolyRef(polyRef))
+		{
+			dtNode* node = m_tinyNodePool->getNode(polyRef);
+			node->pidx = 0;
+			node->id = polyRef;
+			node->flags = DT_NODE_CLOSED;
+			stack[nstack++] = node;
+
+			if (n < maxNei)
+			{
+				neiRefs[n] = node->id;
+				++n;
+			}
+			else
+			{
+				status |= DT_BUFFER_TOO_SMALL;
+			}
+		}
+	}
+
+	while (nstack)
+	{
+		// Pop front.
+		dtNode* curNode = stack[0];
+		for (int stackIndex = 0; stackIndex < nstack - 1; ++stackIndex)
+			stack[stackIndex] = stack[stackIndex + 1];
+		nstack--;
+		
+		// Get poly and tile.
+		// The API input has been cheked already, skip checking internal data.
+		const dtPolyRef curRef = curNode->id;
+		const dtMeshTile* curTile = 0;
+		const dtPoly* curPoly = 0;
+		m_nav->getTileAndPolyByRefUnsafe(curRef, &curTile, &curPoly);
+
+		unsigned int i = curPoly->firstLink;
+		while (i != DT_NULL_LINK)
+		{
+			const dtLink& link = m_nav->getLink(curTile, i);
+			i = link.next;
+
+			dtPolyRef neighbourRef = link.ref;
+			// Skip invalid neighbours.
+			if (!neighbourRef)
+			{
+				// store wall segment
+				storeWallSegment(m_nav, curTile, curPoly, link.edge, curRef, 0, 
+					resultWalls, resultRefs, resultCount, maxResult);
+				continue;
+			}
+
+			// Skip if cannot alloca more nodes.
+			dtNode* neighbourNode = m_tinyNodePool->getNode(neighbourRef);
+			if (!neighbourNode)
+				continue;
+			// Skip visited.
+			if (neighbourNode->flags & DT_NODE_CLOSED)
+				continue;
+
+			// Expand to neighbour
+			const dtMeshTile* neighbourTile = 0;
+			const dtPoly* neighbourPoly = 0;
+			m_nav->getTileAndPolyByRefUnsafe(neighbourRef, &neighbourTile, &neighbourPoly);
+
+			// Skip off-mesh connections.
+			if (neighbourPoly->getType() != DT_POLYTYPE_GROUND)
+				continue;
+
+			// Do not advance if the polygon is excluded by the filter, or if the area enter cost is too high.
+			const float enterCost = filter->getAreaFixedCost(neighbourPoly->getArea());
+
+			if (!filter->passFilter(neighbourRef, neighbourTile, neighbourPoly)
+				|| !passLinkFilterByRef(neighbourTile, neighbourRef)
+				|| enterCost > maxAreaEnterCost) 
+			{
+				// store wall segment
+				storeWallSegment(m_nav, curTile, curPoly, link.edge, curRef, neighbourRef,
+					resultWalls, resultRefs, resultCount, maxResult);
+
+				continue;
+			}
+
+			// Find edge and calc distance to the edge.
+			dtReal va[3], vb[3];
+			if (!getPortalPoints(curRef, curPoly, curTile, neighbourRef, neighbourPoly, neighbourTile, va, vb))
+				continue;
+
+			// If the poly is not touching the edge to the next polygon, skip the connection it.
+			dtReal tmin, tmax;
+			int segMin, segMax;
+			if (!dtIntersectSegmentPoly2D(va, vb, searchAreaPoly, searchAreaPolyCount, tmin, tmax, segMin, segMax))
 				continue;
 			if (tmin > 1.0f || tmax < 0.0f)
 				continue;

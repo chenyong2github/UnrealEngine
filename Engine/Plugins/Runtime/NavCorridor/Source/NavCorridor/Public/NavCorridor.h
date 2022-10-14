@@ -111,10 +111,10 @@ struct NAVCORRIDOR_API FNavCorridor : public TSharedFromThis<FNavCorridor>
 	void Reset();
 
 	/** Builds the corridor from a given Path. */
-	void BuildFromPath(const ANavigationData* NavData, FSharedConstNavQueryFilter NavQueryFilter, const FNavMeshPath* Path, const FNavCorridorParams& Params);
+	void BuildFromPath(const FNavigationPath& Path, FSharedConstNavQueryFilter NavQueryFilter, const FNavCorridorParams& Params);
 
 	/** Builds the corridor from a given array of Path points */
-	void BuildFromPathPoints(const ANavigationData* NavData, FSharedConstNavQueryFilter NavQueryFilter, TConstArrayView<FNavPathPoint> PathPoints, const int32 PathPointBaseIndex, const FNavCorridorParams& Params);
+	void BuildFromPathPoints(const FNavigationPath& Path, TConstArrayView<FNavPathPoint> PathPoints, const int32 PathPointBaseIndex, FSharedConstNavQueryFilter NavQueryFilter, const FNavCorridorParams& Params);
 
 	/** Offsets the path locations away from walls. */
 	void OffsetPathLocationsFromWalls(const float Offset, bool bOffsetFirst = false, bool bOffsetLast = false);

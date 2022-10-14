@@ -482,13 +482,12 @@ void UGameplayTask_MoveTo::UpdateCorridor(const int32 PathPointIndex)
 
 		if (LastPointIndex > LastCorridorPathPoint)
 		{
-			ANavigationData* NavData = PathInstance->GetNavigationDataUsed();
 			FSharedConstNavQueryFilter NavQueryFilter = PathInstance->GetQueryData().QueryFilter;
 
 			const bool bOffsetFirst = PathPointIndex > 0;
 			const bool bOffsetLast = (PathPointIndex + PathPoints.Num()) < NumPathPoints;
-			
-			ActuationState.Corridor->BuildFromPathPoints(NavData, NavQueryFilter, PathPoints, PathPointIndex, CorridorParams);
+
+			ActuationState.Corridor->BuildFromPathPoints(*PathInstance, PathPoints, PathPointIndex, NavQueryFilter, CorridorParams);
 			constexpr double LookAheadToOffsetRatio = 1.0 / 3.0; // Empirically found ratio that works well for most paths.
 			ActuationState.Corridor->OffsetPathLocationsFromWalls(FollowLookAheadDistance * LookAheadToOffsetRatio, bOffsetFirst, bOffsetLast);
 
