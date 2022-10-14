@@ -31,8 +31,12 @@ class MESHMODELINGTOOLSEXP_API UConvertMeshesToolProperties : public UInteractiv
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bShowTransferMaterials == true", EditConditionHides, HideEditConditionToggle))
 	bool bTransferMaterials = true;
+
+	// control whether the transfer materials option is displayed
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowTransferMaterials = true;
 };
 
 

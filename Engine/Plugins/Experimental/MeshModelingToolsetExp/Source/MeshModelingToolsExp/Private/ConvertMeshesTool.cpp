@@ -51,11 +51,17 @@ void UConvertMeshesTool::Setup()
 	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
 	OutputTypeProperties->RestoreProperties(this, TEXT("ConvertMeshesTool"));
 	OutputTypeProperties->InitializeDefault();
-	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
-	AddToolPropertySource(OutputTypeProperties);
+	
 
 	BasicProperties = NewObject<UConvertMeshesToolProperties>(this);
 	BasicProperties->RestoreProperties(this);
+	BasicProperties->bShowTransferMaterials = !OutputTypeProperties->bShowVolumeList;
+	
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { 
+																							OutputTypeProperties->UpdatePropertyVisibility(); 
+																							BasicProperties->bShowTransferMaterials = !OutputTypeProperties->bShowVolumeList;
+																							});
+	AddToolPropertySource(OutputTypeProperties);
 	AddToolPropertySource(BasicProperties);
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Convert"));
@@ -94,7 +100,7 @@ void UConvertMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 			FTransform SourceTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
 			FDynamicMesh3 SourceMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[k], true);
 			FString AssetName = TargetActor->GetActorNameOrLabel();
-			FComponentMaterialSet Materials = UE::ToolTarget::GetMaterialSet(Targets[0]);
+			FComponentMaterialSet Materials = UE::ToolTarget::GetMaterialSet(Targets[k]);
 			const FComponentMaterialSet* TransferMaterials = (BasicProperties->bTransferMaterials) ? &Materials : nullptr;
 
 			FCreateMeshObjectParams NewMeshObjectParams;
