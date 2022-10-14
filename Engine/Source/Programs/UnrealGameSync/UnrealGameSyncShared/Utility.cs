@@ -36,14 +36,16 @@ namespace UnrealGameSync
 		public bool ContainsCode;
 		public bool ContainsContent;
 
-		public PerforceChangeDetails(DescribeRecord describeRecord)
+		public PerforceChangeDetails(DescribeRecord describeRecord, Func<string, bool>? isCodeFile = null)
 		{
+			isCodeFile ??= IsCodeFile;
+
 			Description = describeRecord.Description;
 
 			// Check whether the files are code or content
 			foreach (DescribeFileRecord file in describeRecord.Files)
 			{
-				if (PerforceUtils.CodeExtensions.Any(extension => file.DepotFile.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+				if (isCodeFile(file.DepotFile))
 				{
 					ContainsCode = true;
 				}
@@ -57,6 +59,11 @@ namespace UnrealGameSync
 					break;
 				}
 			}
+		}
+
+		public static bool IsCodeFile(string depotFile)
+		{
+			return PerforceUtils.CodeExtensions.Any(extension => depotFile.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 		}
 	}
 
