@@ -160,7 +160,6 @@
 		},
 		{
 			"category": "Elementwise.Binary",
-			"runtimes": [ { "name": "NNXRuntimeDml", "skip": true} ],
 			"targets": [
 				{	"target": "Add", "additional_datasets": [ "Elementwise.Slow.TwoInputs" ]},
 				{	"target": "And", "tags": [ "SmokeTest" ], "input_type": "boolean", "output_type": "boolean", "runtimes": [
