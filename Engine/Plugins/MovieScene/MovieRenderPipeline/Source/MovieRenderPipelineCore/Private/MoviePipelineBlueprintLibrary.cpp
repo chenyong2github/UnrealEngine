@@ -937,10 +937,13 @@ UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingFo
 	}
 
 	// If they didn't have a shot override, or the setting wasn't enabled, we'll check the master config.
-	UMoviePipelineSetting* Setting = InMasterConfig->FindSettingByClass(InSettingType);
-	if (Setting)
+	if (InMasterConfig)
 	{
-		return Setting->IsEnabled() ? Setting : InSettingType->GetDefaultObject<UMoviePipelineSetting>();
+		UMoviePipelineSetting* Setting = InMasterConfig->FindSettingByClass(InSettingType);
+		if (Setting && Setting->IsEnabled())
+		{
+			return Setting;
+		}
 	}
 
 	// If no one overrode it, then we return the default.

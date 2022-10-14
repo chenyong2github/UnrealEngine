@@ -255,6 +255,11 @@ void UMoviePipelineMasterConfig::CopyFrom(UMoviePipelineConfigBase* InConfig)
 {
 	Super::CopyFrom(InConfig);
 
+	if (InConfig == this)
+	{
+		return;
+	}
+
 	if (InConfig->IsA<UMoviePipelineMasterConfig>())
 	{
 		UMoviePipelineMasterConfig* MasterConfig = CastChecked<UMoviePipelineMasterConfig>(InConfig);
