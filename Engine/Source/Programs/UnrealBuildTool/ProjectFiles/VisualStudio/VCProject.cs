@@ -521,7 +521,7 @@ namespace UnrealBuildTool
 				Configuration = InConfiguration;
 				ProjectPlatformName = InProjectPlatformName;
 				ProjectConfigurationName = InProjectConfigurationName;
-				ProjectTarget = InProjectTarget;				
+				ProjectTarget = InProjectTarget;
 			}
 
 			public string? ProjectConfigurationAndPlatformName
@@ -603,7 +603,7 @@ namespace UnrealBuildTool
 
 			return Version;
 		}
-		
+
 		/// <summary>
 		/// Gets compiler switch for specifying in AdditionalOptions in .vcxproj file for specific C++ version
 		/// </summary>
@@ -1372,6 +1372,9 @@ namespace UnrealBuildTool
 			}
 			VCProjectFileContent.AppendLine("  <ImportGroup Label=\"ExtensionTargets\">");
 			VCProjectFileContent.AppendLine("  </ImportGroup>");
+
+			WriteTargets(ProjectPlatforms, PlatformProjectGenerators, VCProjectFileContent, Logger);
+
 			VCProjectFileContent.AppendLine("</Project>");
 
 			VCFiltersFileContent.AppendLine("</Project>");
@@ -1426,6 +1429,59 @@ namespace UnrealBuildTool
 			}
 
 			return bSuccess;
+		}
+
+		private class ProjectConfigurationForGenerator : ProjectBuildConfiguration
+		{
+			public override string ConfigurationName => Combination.ProjectConfigurationName;
+			public override string BuildCommand      => $"{EscapePath(NormalizeProjectPath(CommandBuilder.BuildScript))} {CommandBuilder.GetBuildArguments()}";
+
+			private ProjectConfigAndTargetCombination Combination;
+			private BuildCommandBuilder               CommandBuilder;
+
+			public ProjectConfigurationForGenerator(ProjectConfigAndTargetCombination InCombination, BuildCommandBuilder InCommandBuilder)
+			{
+				Combination    = InCombination;
+				CommandBuilder = InCommandBuilder;
+			}
+		}
+
+		/// <summary>
+		/// Write additional Target elements if needed by per-platform generators.
+		/// </summary>
+		/// <param name="ProjectPlatforms"></param>
+		/// <param name="PlatformProjectGenerators"></param>
+		/// <param name="VCProjectFileContent"></param>
+		/// <param name="Logger"></param>
+		private void WriteTargets(List<UnrealTargetPlatform> ProjectPlatforms, PlatformProjectGeneratorCollection PlatformProjectGenerators, StringBuilder VCProjectFileContent, ILogger Logger)
+		{
+			foreach (UnrealTargetPlatform Platform in ProjectPlatforms)
+			{
+				PlatformProjectGenerator? ProjGenerator = PlatformProjectGenerators.GetPlatformProjectGenerator(Platform, true);
+				if (ProjGenerator != null && ProjGenerator.HasVisualStudioTargets(Platform))
+				{
+					IEnumerable<ProjectConfigAndTargetCombination> PlatformCombinations = ProjectConfigAndTargetCombinations!.Where(Combination => Combination.Platform == Platform);
+
+					if (PlatformCombinations.Any())
+					{
+						List<ProjectBuildConfiguration> PlatformConfigurations = PlatformCombinations.Select(Combination =>
+							{
+								string UProjectPath = "";
+								if (IsForeignProject)
+								{
+									UProjectPath = String.Format("\"{0}\"", InsertPathVariables(Combination.ProjectTarget!.UnrealProjectFilePath!));
+								}
+
+								BuildCommandBuilder Builder = CreateArgumentsBuilder(Combination, UProjectPath, ProjGenerator);
+
+								return new ProjectConfigurationForGenerator(Combination, Builder) as ProjectBuildConfiguration;
+							}
+						).ToList();
+
+						ProjGenerator.GetVisualStudioTargetsString(Platform, PlatformConfigurations, VCProjectFileContent);
+					}
+				}
+			}
 		}
 
 		private static bool EnsureFilterPathExists(string FilterRelativeSourceDirectory, StringBuilder VCFiltersFileContent, HashSet<string> FilterDirectories)

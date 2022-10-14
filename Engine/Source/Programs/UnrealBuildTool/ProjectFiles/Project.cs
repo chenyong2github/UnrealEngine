@@ -550,7 +550,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Takes the given path, normalizes it, and quotes it if necessary.
 		/// </summary>
-		public string EscapePath(string InputPath)
+		public static string EscapePath(string InputPath)
 		{
 			string Result = InputPath;
 			if (Result.Contains(' '))
