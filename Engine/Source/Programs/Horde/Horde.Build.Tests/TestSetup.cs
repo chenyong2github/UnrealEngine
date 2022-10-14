@@ -153,6 +153,7 @@ namespace Horde.Build.Tests
 
 			settings.AdminClaimType = HordeClaimTypes.Role;
 			settings.AdminClaimValue = "app-horde-admins";
+			settings.WithAws = true;
 		}
 
 		protected override void ConfigureServices(IServiceCollection services)
@@ -206,6 +207,7 @@ namespace Horde.Build.Tests
 			// Empty mocked object to satisfy basic test runs
 			services.AddSingleton<IAmazonEC2>(sp => new Mock<IAmazonEC2>().Object);
 			services.AddSingleton<IAmazonAutoScaling>(sp => new Mock<IAmazonAutoScaling>().Object);
+			services.AddSingleton<IFleetManagerFactory, FleetManagerFactory>();
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();

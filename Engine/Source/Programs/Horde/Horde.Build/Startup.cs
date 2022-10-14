@@ -370,19 +370,11 @@ namespace Horde.Build
 			services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
 			services.AddSingleton<AutoscaleServiceV2>();
+			services.AddSingleton<IFleetManagerFactory, FleetManagerFactory>();
 			
 			// Associate IFleetManager interface with the default implementation from config for convenience
 			// Though most fleet managers are created on a per-pool basis
-			services.AddSingleton<IFleetManager>(ctx =>
-			{
-				AutoscaleServiceV2? autoScale = ctx.GetService<AutoscaleServiceV2>();
-				if (autoScale == null)
-				{
-					throw new InvalidOperationException($"{nameof(AutoscaleServiceV2)} not registered!");
-				}
-
-				return autoScale.GetDefaultFleetManager();
-			});
+			services.AddSingleton<IFleetManager>(ctx => ctx.GetRequiredService<IFleetManagerFactory>().CreateFleetManager(FleetManagerType.Default));
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();			
@@ -448,17 +440,20 @@ namespace Horde.Build
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
-			
-			AWSOptions awsOptions = Configuration.GetAWSOptions();
-			services.AddDefaultAWSOptions(awsOptions);
-			if (awsOptions.Region == null && Environment.GetEnvironmentVariable("AWS_REGION") == null)
+
+			if (settings.WithAws)
 			{
-				awsOptions.Region = RegionEndpoint.USEast1;
+				AWSOptions awsOptions = Configuration.GetAWSOptions();
+				services.AddDefaultAWSOptions(awsOptions);
+				if (awsOptions.Region == null && Environment.GetEnvironmentVariable("AWS_REGION") == null)
+				{
+					awsOptions.Region = RegionEndpoint.USEast1;
+				}
+				
+				services.AddAWSService<IAmazonCloudWatch>();
+				services.AddAWSService<IAmazonAutoScaling>();
+				services.AddAWSService<IAmazonEC2>();
 			}
-			
-			services.AddAWSService<IAmazonCloudWatch>();
-			services.AddAWSService<IAmazonAutoScaling>();
-			services.AddAWSService<IAmazonEC2>();
 
 			ConfigureLogStorage(services);
 

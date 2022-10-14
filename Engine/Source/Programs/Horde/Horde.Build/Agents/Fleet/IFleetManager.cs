@@ -14,6 +14,11 @@ namespace Horde.Build.Agents.Fleet
 	public enum FleetManagerType
 	{
 		/// <summary>
+		/// Default fleet manager
+		/// </summary>
+		Default,
+		
+		/// <summary>
 		/// <see cref="NoOpFleetManager" />
 		/// </summary>
 		NoOp,

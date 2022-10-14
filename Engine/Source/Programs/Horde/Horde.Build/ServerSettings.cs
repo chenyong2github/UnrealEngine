@@ -571,6 +571,11 @@ namespace Horde.Build
 		public bool WithDatadog { get; set; }
 
 		/// <summary>
+		/// Whether to enable Amazon Web Services (AWS) specific features
+		/// </summary>
+		public bool WithAws { get; set; } = false;
+
+		/// <summary>
 		/// Path to the root config file
 		/// </summary>
 		public string ConfigPath { get; set; } = "Defaults/globals.json";

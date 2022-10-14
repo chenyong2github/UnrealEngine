@@ -47,8 +47,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly IPoolCollection _poolCollection;
 		private readonly StreamService _streamService;
 		private readonly IDogStatsd _dogStatsd;
-		private readonly IAmazonEC2 _ec2;
-		private readonly IAmazonAutoScaling _awsAutoScaling;
+		private readonly IFleetManagerFactory _fleetManagerFactory2;
 		private readonly IClock _clock;
 		private readonly IMemoryCache _cache;
 		private readonly ITicker _ticker;
@@ -57,11 +56,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly TimeSpan _defaultScaleInCooldown;
 		private readonly IOptions<ServerSettings> _settings;
 		private readonly ILogger<AutoscaleServiceV2> _logger;
-		private readonly ILoggerFactory _loggerFactory;
 		
-		/// <summary>Allow overriding the fleet manager during testing</summary>
-		private readonly Func<IPool, IFleetManager> _fleetManagerFactory;
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -73,13 +68,11 @@ namespace Horde.Build.Agents.Fleet
 			IPoolCollection poolCollection,
 			StreamService streamService,
 			IDogStatsd dogStatsd,
-			IAmazonEC2 ec2,
-			IAmazonAutoScaling awsAutoScaling,
+			IFleetManagerFactory fleetManagerFactory,
 			IClock clock,
 			IMemoryCache cache,
 			IOptions<ServerSettings> settings,
-			ILoggerFactory loggerFactory,
-			Func<IPool, IFleetManager>? fleetManagerFactory = null)
+			ILogger<AutoscaleServiceV2> logger)
 		{
 			_agentCollection = agentCollection;
 			_graphCollection = graphCollection;
@@ -88,18 +81,16 @@ namespace Horde.Build.Agents.Fleet
 			_poolCollection = poolCollection;
 			_streamService = streamService;
 			_dogStatsd = dogStatsd;
-			_ec2 = ec2;
-			_awsAutoScaling = awsAutoScaling;
+			_fleetManagerFactory2 = fleetManagerFactory;
 			_clock = clock;
 			_cache = cache;
-			_logger = loggerFactory.CreateLogger<AutoscaleServiceV2>();
-			_loggerFactory = loggerFactory;
+			_logger = logger;
 			_ticker = clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, _logger);
 			_tickerHighFrequency = clock.AddSharedTicker("AutoscaleServiceV2.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
 			_settings = settings;
 			_defaultScaleOutCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleOutCooldownSeconds);
 			_defaultScaleInCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleInCooldownSeconds);
-			_fleetManagerFactory = fleetManagerFactory ?? CreateFleetManager;
+
 		}
 
 		/// <inheritdoc/>
@@ -193,7 +184,7 @@ namespace Horde.Build.Agents.Fleet
 			int desiredAgentCount = poolSizeData.DesiredAgentCount.Value;
 			int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
-			IFleetManager fleetManager = _fleetManagerFactory(poolSizeData.Pool);
+			IFleetManager fleetManager = CreateFleetManager(poolSizeData.Pool);
 
 			_logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status} FleetManager={FleetManager}",
 				pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount, poolSizeData.StatusMessage, fleetManager.GetType().Name);
@@ -282,60 +273,11 @@ namespace Horde.Build.Agents.Fleet
 			{
 				if (info.Condition == null || info.Condition.Evaluate(GetPropValues))
 				{
-					return CreateFleetManager(info.Type, info.Config);
+					return _fleetManagerFactory2.CreateFleetManager(info.Type, info.Config);
 				}
 			}
 
-			return GetDefaultFleetManager();
-		}
-		
-		/// <summary>
-		/// Instantiate the default fleet manager  />
-		/// </summary>
-		/// <returns>A fleet manager with parameters from server settings</returns>
-		/// <exception cref="ArgumentException">If fleet manager could not be instantiated</exception>
-		public IFleetManager GetDefaultFleetManager()
-		{
-			return CreateFleetManager(_settings.Value.FleetManagerV2, _settings.Value.FleetManagerV2Config ?? "{}");
-		}
-		
-		/// <summary>
-		/// Create a fleet manager
-		/// </summary>
-		/// <param name="type">Type of fleet manager</param>
-		/// <param name="config">Config as a serialized JSON string</param>
-		/// <returns>An instantiated fleet manager with parameters loaded from config</returns>
-		/// <exception cref="ArgumentException">If fleet manager could not be instantiated</exception>
-		private IFleetManager CreateFleetManager(FleetManagerType type, string config)
-		{
-			switch (type)
-			{
-				case FleetManagerType.NoOp:
-					return new NoOpFleetManager(_loggerFactory.CreateLogger<NoOpFleetManager>());
-				case FleetManagerType.Aws:
-					return new AwsFleetManager(_ec2, _agentCollection, DeserializeSettings<AwsFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsFleetManager>());
-				case FleetManagerType.AwsReuse:
-					return new AwsReuseFleetManager(_ec2, _agentCollection, DeserializeSettings<AwsReuseFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsReuseFleetManager>());
-				case FleetManagerType.AwsAsg:
-					return new AwsAsgFleetManager(_awsAutoScaling, DeserializeSettings<AwsAsgSettings>(config), _loggerFactory.CreateLogger<AwsAsgFleetManager>());	
-				default:
-					throw new ArgumentException("Unknown fleet manager type " + type);
-			}
-		}
-		
-		private static T DeserializeSettings<T>(string config)
-		{
-			if (String.IsNullOrEmpty(config)) { config = "{}"; }
-			try
-			{
-				T? settings = JsonSerializer.Deserialize<T>(config);
-				if (settings == null) throw new NullReferenceException($"Unable to deserialize");
-				return settings;
-			}
-			catch (ArgumentException e)
-			{
-				throw new ArgumentException($"Unable to deserialize {typeof(T)} config: '{config}'", e);
-			}
+			return _fleetManagerFactory2.CreateFleetManager(FleetManagerType.Default, "{}");
 		}
 
 		/// <summary>

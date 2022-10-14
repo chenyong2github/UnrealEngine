@@ -65,6 +65,21 @@ namespace Horde.Build.Tests.Fleet
 
 		public string Name { get; } = "PoolSizeStrategySpy";
 	}
+	
+	public class StubFleetManagerFactory : IFleetManagerFactory
+	{
+		private readonly IFleetManager _fleetManager;
+
+		public StubFleetManagerFactory(IFleetManager fleetManager)
+		{
+			_fleetManager = fleetManager;
+		}
+
+		public IFleetManager CreateFleetManager(FleetManagerType type, string config = "{}")
+		{
+			return _fleetManager;
+		}
+	}
 
 	[TestClass]
 	public class AutoscaleServiceV2Test : TestSetup
@@ -160,13 +175,10 @@ namespace Horde.Build.Tests.Fleet
 			IOptions<ServerSettings> serverSettingsOpt = ServiceProvider.GetRequiredService<IOptions<ServerSettings>>();
 			serverSettingsOpt.Value.FleetManagerV2 = FleetManagerType.AwsReuse;
 			
-			// Empty mocks to satisfy the constructor below
-			Mock<IAmazonEC2> mockEc2 = new ();
-			Mock<IAmazonAutoScaling> mockAwsAutoScaling = new ();
-
-			AutoscaleServiceV2 service = new (AgentCollection, GraphCollection, JobCollection, LeaseCollection, PoolCollection,
-				StreamService, _dogStatsD, mockEc2.Object, mockAwsAutoScaling.Object, Clock, Cache, serverSettingsOpt, loggerFactory,
-				_ => fleetManager);
+			AutoscaleServiceV2 service = new(
+				AgentCollection, GraphCollection, JobCollection, LeaseCollection, PoolCollection, StreamService, _dogStatsD,
+				new StubFleetManagerFactory(fleetManager), Clock, Cache, serverSettingsOpt, loggerFactory.CreateLogger<AutoscaleServiceV2>());
+				
 			return service;
 		}
 	}
