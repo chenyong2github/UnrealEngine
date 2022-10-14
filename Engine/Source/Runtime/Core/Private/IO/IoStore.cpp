@@ -53,6 +53,7 @@ FString LexToString(const EIoChunkType Type)
 		TEXT("PackageStoreEntry"),
 		TEXT("DerivedData"),
 		TEXT("EditorDerivedData"),
+		TEXT("PackageResource"),
 	};
 	static_assert(UE_ARRAY_COUNT(Strings) == (SIZE_T)EIoChunkType::MAX);
 	uint8 Index = (uint8)Type;

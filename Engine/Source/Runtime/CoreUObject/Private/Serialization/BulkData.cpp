@@ -3,7 +3,6 @@
 #include "Async/MappedFileHandle.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/TVariant.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -12,6 +11,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/PackageResourceIoDispatcherBackend.h"
 
 /** Whether to track information of how bulk data is being used */
 #define TRACK_BULKDATA_USE 0
@@ -76,19 +76,19 @@ namespace UE::BulkData::Private
 /** Open the bulk data chunk fo reading. */
 bool OpenReadBulkData(
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
 	TFunction<void(FArchive& Ar)>&& Read);
 
 /** Open async read file handle for the specified bulk data chunk ID. */
-TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId);
+TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& BulkMeta, const FIoChunkId& BulkChunkId);
 
 /** Create bulk data streaming request. */
 TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -96,12 +96,12 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	uint8* UserSuppliedMemory);
 
 /** Returns whether the bulk data chunk exist or not. */
-bool DoesBulkDataExist(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId);
+bool DoesBulkDataExist(const FIoChunkId& BulkChunkId);
 
 /** Try memory map the chunk specified by the bulk data ID. */
 bool TryMemoryMapBulkData(
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	FIoMappedRegion& OutRegion);
@@ -110,7 +110,7 @@ bool TryMemoryMapBulkData(
 bool StartAsyncLoad(
 	FBulkData* Owner,
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -185,154 +185,6 @@ FArchive& operator<<(FArchive& Ar, FBulkMetaResource& BulkMeta)
 	}
 
 	return Ar;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-struct FBulkDataChunkId::FImpl
-{
-	using FPathOrId = TVariant<FPackagePath, FPackageId>;
-
-	FImpl(const FPackageId& PackageId)
-		: PathOrId(TInPlaceType<FPackageId>(), PackageId)
-	{ }
-
-	FImpl(const FPackagePath& PackagePath)
-		: PathOrId(TInPlaceType<FPackagePath>(), PackagePath)
-	{ }
-
-	FImpl(const FPathOrId& InPathOrId)
-		: PathOrId(InPathOrId)
-	{ }
-
-	FPathOrId PathOrId;
-};
-
-FBulkDataChunkId::FBulkDataChunkId()
-{
-}
-
-FBulkDataChunkId::FBulkDataChunkId(TPimplPtr<FImpl>&& InImpl)
-	: Impl(MoveTemp(InImpl))
-{
-}
-
-FBulkDataChunkId::~FBulkDataChunkId()
-{
-}
-
-FBulkDataChunkId::FBulkDataChunkId(const FBulkDataChunkId& Other)
-{
-	*this = Other;
-}
-
-FBulkDataChunkId& FBulkDataChunkId::operator=(const FBulkDataChunkId& Other)
-{
-	Impl.Reset();
-
-	if (Other.Impl)
-	{
-		Impl = MakePimpl<FImpl>(Other.Impl->PathOrId);
-	}
-
-	return *this;
-}
-
-bool FBulkDataChunkId::operator==(const FBulkDataChunkId& Other) const
-{
-	if (Impl.IsValid() && Other.Impl.IsValid())
-	{
-		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
-		{
-			if (const FPackageId* OtherId = Other.Impl->PathOrId.TryGet<FPackageId>())
-			{
-				return *Id == *OtherId;
-			}
-		}
-
-		if (const FPackagePath* PackagePath = Impl->PathOrId.TryGet<FPackagePath>())
-		{
-			if (const FPackagePath* OtherPackagePath = Other.Impl->PathOrId.TryGet<FPackagePath>())
-			{
-				return *PackagePath == *OtherPackagePath;
-			}
-		}
-	}
-
-	return Impl.IsValid() == Other.Impl.IsValid();
-}
-
-FPackageId FBulkDataChunkId::GetPackageId() const
-{
-	if (Impl)
-	{
-		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
-		{
-			return *Id;
-		}
-	}
-
-	return FPackageId();
-}
-
-const FPackagePath& FBulkDataChunkId::GetPackagePath() const
-{
-	if (Impl)
-	{
-		if (const FPackagePath* Path = Impl->PathOrId.TryGet<FPackagePath>())
-		{
-			return *Path;
-		}
-	}
-
-	static FPackagePath Empty;
-	return Empty;
-}
-
-FIoFilenameHash FBulkDataChunkId::GetIoFilenameHash(EBulkDataFlags BulkDataFlags) const
-{
-	if (Impl)
-	{
-		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
-		{
-			return MakeIoFilenameHash(CreateBulkDataIoChunkId(UE::BulkData::Private::FBulkMetaData(BulkDataFlags), *Id));
-		}
-
-		if (const FPackagePath* PackagePath = Impl->PathOrId.TryGet<FPackagePath>())
-		{
-			return MakeIoFilenameHash(*PackagePath);
-		}
-	}
-
-	return INVALID_IO_FILENAME_HASH;
-}
-
-FString FBulkDataChunkId::ToDebugString() const
-{
-	if (Impl)
-	{
-		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
-		{
-			return FString::Printf(TEXT("0x%llX"), Id->Value());
-		}
-
-		if (const FPackagePath* PackagePath = Impl->PathOrId.TryGet<FPackagePath>())
-		{
-			return PackagePath->GetDebugName();
-		}
-	}
-
-	return FString(TEXT("None"));
-}
-
-FBulkDataChunkId FBulkDataChunkId::FromPackagePath(const FPackagePath& PackagePath)
-{
-	return FBulkDataChunkId(MakePimpl<FImpl>(PackagePath));
-}
-
-FBulkDataChunkId FBulkDataChunkId::FromPackageId(const FPackageId& PackageId)
-{
-	return FBulkDataChunkId(MakePimpl<FImpl>(PackageId));
 }
 
 } // namespace UE::BulkData
@@ -773,7 +625,7 @@ bool FBulkData::DoesExist() const
 	}
 #endif
 
-	return UE::BulkData::Private::DoesBulkDataExist(BulkMeta, BulkChunkId);
+	return UE::BulkData::Private::DoesBulkDataExist(BulkChunkId);
 }
 
 /**
@@ -1083,7 +935,7 @@ bool FBulkData::LoadBulkDataWithFileReader()
 bool FBulkData::CanLoadBulkDataWithFileReader() const
 {
 #if WITH_EDITOR
-	return BulkChunkId.GetPackagePath().IsEmpty() == false;
+	return BulkChunkId.IsValid();
 #else
 	return false;
 #endif
@@ -1153,7 +1005,7 @@ bool FBulkData::StartAsyncLoading()
 		}
 		else
 		{
-			UE_LOG(LogSerialization, Error, TEXT("Async load bulk data '%s' FAILED, reason '%s'"), *BulkChunkId.ToDebugString(), GetIoErrorText(Result.Status().GetErrorCode()));
+			UE_LOG(LogSerialization, Error, TEXT("Async load bulk data '%s' FAILED, reason '%s'"), *LexToString(BulkChunkId), GetIoErrorText(Result.Status().GetErrorCode()));
 			RemoveBulkData();
 		}
 
@@ -1219,12 +1071,12 @@ void FBulkData::ClearBulkDataFlags( uint32 BulkDataFlagsToClear )
 
 FIoChunkId FBulkData::CreateChunkId() const
 {
-	return UE::BulkData::Private::CreateBulkDataIoChunkId(BulkMeta, BulkChunkId.GetPackageId());
+	return BulkChunkId; 
 }
 
 FString FBulkData::GetDebugName() const
 {
-	return BulkChunkId.ToDebugString();
+	return LexToString(BulkChunkId);
 }
 
 /*-----------------------------------------------------------------------------
@@ -1375,7 +1227,6 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					check(IsInSeparateFile());
 					check(Package != nullptr);
 					BulkMeta.SetFlags(EBulkDataFlags(BulkMeta.GetFlags() | BULKDATA_UsesIoDispatcher));
-					BulkChunkId = FBulkDataChunkId::FromPackageId(Package->GetPackageIdToLoad());
 				}
 			}
 			else
@@ -1385,11 +1236,6 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					if (LinkerLoad = Owner->GetLinker(); LinkerLoad == nullptr)
 					{
 						LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(Package);
-					}
-					
-					if (LinkerLoad != nullptr)
-					{
-						BulkChunkId = FBulkDataChunkId::FromPackagePath(LinkerLoad->GetPackagePath());
 					}
 #if WITH_EDITOR
 					Linker = LinkerLoad;
@@ -1402,6 +1248,8 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 #endif // WITH_EDITOR
 				}
 			}
+
+			BulkChunkId = CreateBulkDataIoChunkId(BulkMeta, Owner);
 
 			if (IsInlined())
 			{
@@ -1428,13 +1276,15 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 
 					if (IsDuplicateNonOptional())
 					{
-						const bool bOptionalDataExist = DoesBulkDataExist(FBulkMetaData(BULKDATA_OptionalPayload), BulkChunkId);
+						const EBulkDataFlags OptionalFlags = static_cast<EBulkDataFlags>(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_OptionalPayload);
+						const FIoChunkId OptionalChunkId = CreateBulkDataIoChunkId(FBulkMetaData(OptionalFlags, BulkMeta.GetMetaFlags()), Owner);
 
-						if (bOptionalDataExist)
+						if (DoesBulkDataExist(OptionalChunkId))
 						{
 							BulkMeta.SetFlags(static_cast<EBulkDataFlags>((MetaResource.DuplicateFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload | BULKDATA_PayloadInSeperateFile | BULKDATA_PayloadAtEndOfFile));
 							BulkMeta.SetOffset(MetaResource.DuplicateOffset);
 							BulkMeta.SetSizeOnDisk(MetaResource.DuplicateSizeOnDisk);
+							BulkChunkId = OptionalChunkId;
 
 							if (bIsUsingIoDispatcher)
 							{
@@ -1453,10 +1303,14 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 					bool bFileMappingFailed = false;
 					if (bAttemptFileMapping && (bCanLazyLoad || bIsUsingIoDispatcher))
 					{
+						const EBulkDataFlags MemoryMappedFlags = static_cast<EBulkDataFlags>(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_MemoryMappedPayload);
+						const FIoChunkId MmapChunkId = CreateBulkDataIoChunkId(FBulkMetaData(MemoryMappedFlags, BulkMeta.GetMetaFlags()), Owner);
+
 						FIoMappedRegion MappedRegion;
-						if (TryMemoryMapBulkData(BulkMeta, BulkChunkId, BulkMeta.GetOffset(), BulkMeta.GetSize(), MappedRegion))
+						if (TryMemoryMapBulkData(BulkMeta, MmapChunkId, BulkMeta.GetOffset(), BulkMeta.GetSize(), MappedRegion))
 						{
 							DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
+							BulkChunkId = MmapChunkId;
 						}
 						else
 						{
@@ -1466,7 +1320,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 
 					if (bFileMappingFailed || (bCanLazyLoad == false && bIsUsingIoDispatcher == false))
 					{
-						UE_CLOG(bFileMappingFailed, LogSerialization, Warning, TEXT("Memory map bulk data '%s' FAILED"), *BulkChunkId.ToDebugString());
+						UE_CLOG(bFileMappingFailed, LogSerialization, Warning, TEXT("Memory map bulk data '%s' FAILED"), *LexToString(BulkChunkId));
 						ForceBulkDataResident();
 					}
 				}
@@ -1719,42 +1573,34 @@ FCustomVersionContainer FBulkData::GetCustomVersions(FArchive& InlineArchive) co
 void FBulkData::GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion,
 	int32& OutLicenseeUEVersion, FCustomVersionContainer& OutCustomVersions) const
 {
-	if (!IsInSeparateFile())
+	FName PackageName;
+	EPackageSegment Segment;
+	bool bExternal;
+
+	if (UE::TryGetPackageNameFromChunkId(BulkChunkId, PackageName, Segment, bExternal) == false)
 	{
-		OutUEVersion = InlineArchive.UEVer();
-		OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
-		OutCustomVersions = InlineArchive.GetCustomVersions();
+		return;
 	}
-	else if (!IsInExternalResource())
+
+	IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
+
+	if (TUniquePtr<FArchive> Ar = ResourceMgr.OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackageName.ToString()))
 	{
-		// The BulkData is in a sidecar file. These files were created with the same custom versions that
-		// the package file containing the BulkData used
-		OutUEVersion = InlineArchive.UEVer();
-		OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
-		OutCustomVersions = InlineArchive.GetCustomVersions();
-	}
-	else
-	{
-		// Read the CustomVersions out of the separate package file
-		const FPackagePath& PackagePath = BulkChunkId.GetPackagePath();
-		TUniquePtr<FArchive> ExternalArchive = IPackageResourceManager::Get().OpenReadExternalResource(
-			EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
-		if (ExternalArchive.IsValid())
+		FPackageFileSummary Summary;
+		*Ar << Summary;
+
+		if (Ar->IsError() == false && Summary.Tag == PACKAGE_FILE_TAG)
 		{
-			FPackageFileSummary PackageFileSummary;
-			*ExternalArchive << PackageFileSummary;
-			if (PackageFileSummary.Tag == PACKAGE_FILE_TAG && !ExternalArchive->IsError())
-			{
-				OutUEVersion = PackageFileSummary.GetFileVersionUE();
-				OutLicenseeUEVersion = PackageFileSummary.GetFileVersionLicenseeUE();
-				OutCustomVersions = PackageFileSummary.GetCustomVersionContainer();
-				return;
-			}
+			OutUEVersion = Summary.GetFileVersionUE();
+			OutLicenseeUEVersion = Summary.GetFileVersionLicenseeUE();
+			OutCustomVersions = Summary.GetCustomVersionContainer();
+			return;
 		}
-		OutUEVersion = InlineArchive.UEVer();
-		OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
-		OutCustomVersions = InlineArchive.GetCustomVersions();
 	}
+
+	OutUEVersion = InlineArchive.UEVer();
+	OutLicenseeUEVersion = InlineArchive.LicenseeUEVer();
+	OutCustomVersions = InlineArchive.GetCustomVersions();
 }
 
 /*-----------------------------------------------------------------------------
@@ -1784,7 +1630,7 @@ void FBulkData::DetachFromArchive( FArchive* Ar, bool bEnsureBulkDataIsLoaded )
 	// Detach from archive.
 	AttachedAr = nullptr;
 	Linker = nullptr;
-	BulkChunkId = UE::BulkData::Private::FBulkDataChunkId();
+	BulkChunkId = FIoChunkId::InvalidChunkId;
 }
 #endif // WITH_EDITOR
 
@@ -1889,12 +1735,12 @@ IBulkDataIORequest* FBulkData::CreateStreamingRequestForRange(const BulkDataRang
 	checkf(
 		Start.IsUsingIODispatcher() == false || Start.IsInSeparateFile(),
 		TEXT("Create bulkdata stream request from package '%s' FAILED, inline bulk data cannot be streamed from I/O store"),
-		*Start.BulkChunkId.ToDebugString());
+		*LexToString(Start.BulkChunkId));
 
 	checkf(
-		Start.IsUsingIODispatcher() == false || (End.IsInSeparateFile() && Start.BulkChunkId.GetPackageId() == End.BulkChunkId.GetPackageId()),
+		Start.IsUsingIODispatcher() == false || (End.IsInSeparateFile() && Start.BulkChunkId == End.BulkChunkId),
 		TEXT("Create bulk data stream request FAILED, range spans from package '%s' to package '%s'"),
-		*Start.BulkChunkId.ToDebugString(), *End.BulkChunkId.ToDebugString());
+		*LexToString(Start.BulkChunkId), *LexToString(End.BulkChunkId));
 
 	return UE::BulkData::Private::CreateStreamingRequest(
 		Start.BulkMeta,

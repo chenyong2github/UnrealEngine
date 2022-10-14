@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Serialization/BulkData.h"
-#include "Algo/AllOf.h"
 #include "Async/MappedFileHandle.h"
 #include "Containers/ChunkedArray.h"
 #include "Experimental/Async/LazyEvent.h"
@@ -10,7 +9,8 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "Templates/RefCounting.h"
-#include "UObject/PackageResourceManager.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/PackageResourceIoDispatcherBackend.h"
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -129,25 +129,6 @@ void EnsureCanStreamBulkData(const FBulkMetaData& BulkMeta)
 #endif 
 }
 
-FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, const FPackageId& PackageId)
-{
-	if (PackageId.IsValid() == false)
-	{
-		return FIoChunkId();
-	}
-
-	const EBulkDataFlags BulkDataFlags = BulkMeta.GetFlags();
-
-	const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
-		? EIoChunkType::OptionalBulkData
-		: BulkDataFlags & BULKDATA_MemoryMappedPayload
-			? EIoChunkType::MemoryMappedBulkData
-			: EIoChunkType::BulkData;
-
-	const uint16 ChunkIndex = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::OptionalPackage) ? 1 : 0;
-	return CreateIoChunkId(PackageId.Value(), ChunkIndex, ChunkType);
-}
-
 //////////////////////////////////////////////////////////////////////////////
 
 EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta)
@@ -181,6 +162,54 @@ EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta)
 	{
 		return EPackageSegment::BulkDataDefault;
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, UObject* Owner)
+{
+	UPackage* Pkg = Owner ? Owner->GetPackage() : nullptr;
+
+	if (Pkg == nullptr)
+	{
+		return FIoChunkId::InvalidChunkId;
+	}
+
+	const bool bCooked = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::CookedPackage);
+	
+	if (bCooked && Pkg->GetPackageId().IsValid())
+	{
+		const EBulkDataFlags BulkDataFlags = BulkMeta.GetFlags();
+
+		const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
+			? EIoChunkType::OptionalBulkData
+			: BulkDataFlags & BULKDATA_MemoryMappedPayload
+				? EIoChunkType::MemoryMappedBulkData
+				: EIoChunkType::BulkData;
+
+		const uint16 ChunkIndex = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::OptionalPackage) ? 1 : 0;
+		
+		return CreateIoChunkId(Pkg->GetPackageId().Value(), ChunkIndex, ChunkType);
+	}
+	else
+	{
+		FLinkerLoad* Linker = Owner->GetLinker();
+		if (Linker == nullptr)
+		{
+			Linker = FLinkerLoad::FindExistingLinkerForPackage(Pkg);
+		}
+	
+		if (Linker != nullptr)
+		{
+			const FPackagePath& PkgPath = Linker->GetPackagePath();
+			const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
+			const bool bExternalResource = BulkMeta.HasAnyFlags(BULKDATA_WorkspaceDomainPayload);
+
+			return CreatePackageResourceChunkId(PkgPath.GetPackageFName(), Segment, bExternalResource);
+		}
+	}
+
+	return FIoChunkId::InvalidChunkId;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -513,7 +542,7 @@ TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
 
 bool OpenReadBulkData(
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -525,50 +554,19 @@ bool OpenReadBulkData(
 	}
 
 	EnsureCanStreamBulkData(BulkMeta);
+	
+	FIoBatch Batch = FIoDispatcher::Get().NewBatch();
+	FIoRequest Request = Batch.Read(BulkChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
+	FEventRef Event;
+	Batch.IssueAndTriggerEvent(Event.Get());
+	Event->Wait();
 
-	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
+	if (const FIoBuffer* Buffer = Request.GetResult())
 	{
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
-		FIoBatch Batch = FIoDispatcher::Get().NewBatch();
+		FMemoryReaderView Ar(Buffer->GetView());
+		Read(Ar);
 
-		FIoRequest Request = Batch.Read(ChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
-		FEventRef Event;
-		Batch.IssueAndTriggerEvent(Event.Get());
-		Event->Wait();
-
-		if (const FIoBuffer* Buffer = Request.GetResult())
-		{
-			FMemoryReaderView Ar(Buffer->GetView());
-			Read(Ar);
-
-			return true;
-		}
-	}
-	else
-	{
-		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
-		
-		const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
-		const FPackagePath& Path = BulkChunkId.GetPackagePath();
-
-		TUniquePtr<FArchive> Ar;
-		if (bExternalResource)
-		{
-			Ar = ResourceMgr.OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, Path.GetPackageName());
-		}
-		else
-		{
-			const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
-			Ar = ResourceMgr.OpenReadPackage(Path, Segment).Archive;
-		}
-
-		if (Ar)
-		{
-			Ar->Seek(Offset);
-			Read(*Ar);
-
-			return true;
-		}
+		return true;
 	}
 
 	return false;
@@ -576,7 +574,7 @@ bool OpenReadBulkData(
 
 //////////////////////////////////////////////////////////////////////////////
 
-TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId)
+TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& BulkMeta, const FIoChunkId& BulkChunkId)
 {
 	if (BulkChunkId.IsValid() == false)
 	{
@@ -584,35 +582,14 @@ TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& Bulk
 	}
 
 	EnsureCanStreamBulkData(BulkMeta);
-
-	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
-	{
-		return MakeUnique<FChunkReadFileHandle>(CreateBulkDataIoChunkId(BulkMeta, PackageId));
-	}
-	else
-	{
-		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
-		
-		const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
-		const FPackagePath& Path = BulkChunkId.GetPackagePath();
-
-		if (bExternalResource)
-		{
-			return ResourceMgr.OpenAsyncReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, Path.GetPackageName()).Handle;
-		}
-		else
-		{
-			const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
-			return ResourceMgr.OpenAsyncReadPackage(Path, Segment).Handle;
-		}
-	}
+	return MakeUnique<FChunkReadFileHandle>(BulkChunkId);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -626,102 +603,35 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 
 	EnsureCanStreamBulkData(BulkMeta);
 
-	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
-	{
-		FIoBuffer Buffer = UserSuppliedMemory ? FIoBuffer(FIoBuffer::Wrap, UserSuppliedMemory, Size) : FIoBuffer(Size);
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
-
-		FChunkBulkDataRequest* Request = new FChunkBulkDataRequest(Callback, MoveTemp(Buffer));
-		Request->Issue(ChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
-		
-		return TUniquePtr<IBulkDataIORequest>(Request);
-	}
-	else if (TUniquePtr<IAsyncReadFileHandle> FileHandle = OpenAsyncReadBulkData(BulkMeta, BulkChunkId); FileHandle.IsValid())
-	{
-		TUniquePtr<FBulkDataIORequest> Request = MakeUnique<FBulkDataIORequest>(FileHandle.Release());
-
-		if (Request->MakeReadRequest(Offset, Size, Priority, Callback, UserSuppliedMemory))
-		{
-			return Request;
-		}
-	}
-
-	return TUniquePtr<IBulkDataIORequest>();
+	FIoBuffer Buffer = UserSuppliedMemory ? FIoBuffer(FIoBuffer::Wrap, UserSuppliedMemory, Size) : FIoBuffer(Size);
+	FChunkBulkDataRequest* Request = new FChunkBulkDataRequest(Callback, MoveTemp(Buffer));
+	Request->Issue(BulkChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
+	
+	return TUniquePtr<IBulkDataIORequest>(Request);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool DoesBulkDataExist(const FBulkMetaData& BulkMeta, const FBulkDataChunkId& BulkChunkId)
+bool DoesBulkDataExist(const FIoChunkId& BulkChunkId)
 {
-	if (BulkChunkId.IsValid() == false)
-	{
-		return false;
-	}
-
-	if (FPackageId Id = BulkChunkId.GetPackageId(); Id.IsValid())
-	{
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, Id);
-		return FIoDispatcher::Get().DoesChunkExist(ChunkId);
-	}
-	else
-	{
-		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
-		const FPackagePath& PackagePath = BulkChunkId.GetPackagePath();
-		const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
-
-		if (bExternalResource)
-		{
-			return ResourceMgr.DoesExternalResourceExist(
-				EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
-		}
-
-		const EPackageSegment PackageSegment = GetPackageSegmentFromFlags(BulkMeta);
-		return ResourceMgr.DoesPackageExist(PackagePath, PackageSegment);
-	}
+	return FIoDispatcher::Get().DoesChunkExist(BulkChunkId);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 bool TryMemoryMapBulkData(
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	FIoMappedRegion& OutRegion)
 {
-	if (FPackageId Id = BulkChunkId.GetPackageId(); Id.IsValid())
+	TIoStatusOr<FIoMappedRegion> Status = FIoDispatcher::Get().OpenMapped(BulkChunkId, FIoReadOptions(Offset, Size));
+
+	if (Status.IsOk())
 	{
-		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, Id);
-		TIoStatusOr<FIoMappedRegion> Status = FIoDispatcher::Get().OpenMapped(ChunkId, FIoReadOptions(Offset, Size));
-
-		if (Status.IsOk())
-		{
-			OutRegion = Status.ConsumeValueOrDie();
-
-			return true;
-		}
-	}
-	else
-	{
-		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
-		const FPackagePath& Path = BulkChunkId.GetPackagePath();
-		const EPackageSegment Segment = EPackageSegment::BulkDataMemoryMapped;
-
-		TUniquePtr<IMappedFileHandle> MappedFile;
-		MappedFile.Reset(IPackageResourceManager::Get().OpenMappedHandleToPackage(Path, Segment));
-
-		if (!MappedFile)
-		{
-			return false;
-		}
-
-		if (IMappedFileRegion* MappedRegion = MappedFile->MapRegion(Offset, Size, true))
-		{
-			OutRegion.MappedFileHandle = MappedFile.Release();
-			OutRegion.MappedFileRegion = MappedRegion;
-
-			return true;
-		}
+		OutRegion = Status.ConsumeValueOrDie();
+		return true;
 	}
 
 	return false;
@@ -774,7 +684,7 @@ private:
 bool StartAsyncLoad(
 	FBulkData* Owner,
 	const FBulkMetaData& BulkMeta,
-	const FBulkDataChunkId& BulkChunkId,
+	const FIoChunkId& BulkChunkId,
 	int64 Offset,
 	int64 Size,
 	EAsyncIOPriorityAndFlags Priority,
@@ -834,24 +744,6 @@ public:
 
 //////////////////////////////////////////////////////////////////////////////
 
-class FBulkDataBatchRequest::IHandle : public FBulkDataRequest::IHandle
-{
-public:
-	virtual ~IHandle() = default;
-
-	virtual void Read(
-		const UE::BulkData::Private::FBulkMetaData& BulkMeta,
-		const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
-		const FIoReadOptions& Options,
-		EAsyncIOPriorityAndFlags Priority,
-		FIoReadCallback&& Callback,
-		FBulkDataBatchReadRequest* OutRequest) = 0; 
-
-	virtual bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) = 0;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
 class FHandleBase : public FBulkDataRequest::IHandle
 {
 public:
@@ -907,68 +799,6 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-class FBatchHandleBase : public FBulkDataBatchRequest::IHandle
-{
-public:
-	FBatchHandleBase() = default;
-	virtual ~FBatchHandleBase() = default;
-
-	virtual void AddRef() override final
-	{
-		RefCount.fetch_add(1, std::memory_order_relaxed);
-	}
-
-	virtual void Release() override final
-	{
-		if (RefCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
-		{
-			delete this;
-		}
-	}
-
-	virtual uint32 GetRefCount() const override final
-	{
-		return uint32(RefCount.load(std::memory_order_relaxed));
-	}
-
-	virtual FBulkDataBatchRequest::EStatus GetStatus() const override final
-	{
-		return FBulkDataBatchRequest::EStatus(Status.load(std::memory_order_consume));
-	}
-	
-	virtual bool Wait(uint32 Milliseconds) override final
-	{
-		return DoneEvent.Wait(Milliseconds);
-	}
-
-	void SetStatus(FBulkDataBatchRequest::EStatus InStatus)
-	{
-		Status.store(uint32(InStatus), std::memory_order_release);
-	}
-
-protected:
-	void CompleteBatch(FBulkDataRequest::EStatus CompletionStatus)
-	{
-		if (CompletionCallback)
-		{
-			CompletionCallback(CompletionStatus);
-		}
-
-		SetStatus(CompletionStatus);
-		DoneEvent.Trigger();
-	}
-
-private:
-	std::atomic<int32>	RefCount{0};
-	std::atomic<uint32> Status{0};
-	UE::FLazyEvent		DoneEvent{EEventMode::ManualReset};
-
-protected:
-	FBulkDataRequest::FCompletionCallback CompletionCallback;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
 static FBulkDataRequest::EStatus GetStatusFromIoErrorCode(const EIoErrorCode ErrorCode)
 {
 	if (ErrorCode == EIoErrorCode::Unknown)
@@ -993,9 +823,8 @@ class FChunkBatchReadRequest final : public FBulkDataRequest::IHandle
 {
 public:
 	FChunkBatchReadRequest() = default;
-	FChunkBatchReadRequest(FBulkDataBatchRequest::IHandle* InBatch, FIoRequest&& InIoHandle)
+	FChunkBatchReadRequest(FBulkDataRequest::IHandle* InBatch)
 		: Batch(InBatch)
-		, IoHandle(MoveTemp(InIoHandle))
 	{ }
 
 	virtual void AddRef() override
@@ -1034,14 +863,15 @@ public:
 		return true;
 	}
 
-	FBulkDataBatchRequest::IHandle* Batch = nullptr;
+	FBulkDataRequest::IHandle* Batch = nullptr;
 	FIoRequest IoHandle;
 };
 
-class FChunkBatchRequest final : public FBatchHandleBase
+class FBulkDataBatchRequest::FBatchHandle
+	: public FHandleBase
 {
 public:
-	FChunkBatchRequest(int32 BatchMaxCount)
+	FBatchHandle(int32 BatchMaxCount)
 	{
 		if (BatchMaxCount > 0)
 		{
@@ -1051,7 +881,7 @@ public:
 		TRACE_COUNTER_INCREMENT(BulkDataBatchRequest_Count);
 	}
 	
-	~FChunkBatchRequest()
+	~FBatchHandle()
 	{
 		Cancel();
 		Wait(MAX_uint32);
@@ -1059,7 +889,7 @@ public:
 		TRACE_COUNTER_DECREMENT(BulkDataBatchRequest_Count);
 	}
 
-	virtual bool Cancel() override
+	virtual bool Cancel() override final
 	{
 		if (FBulkDataRequest::EStatus::None == GetStatus())
 		{
@@ -1078,20 +908,24 @@ public:
 
 		return false;
 	}
+	
+	virtual bool Wait(uint32 Milliseconds) override final
+	{
+		check(GetStatus() != FBulkDataRequest::EStatus::None);
+		return DoneEvent.Wait(Milliseconds);
+	}
 
-	virtual void Read(
-		const UE::BulkData::Private::FBulkMetaData& BulkMeta,
-		const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
+	void Read(
+		const FIoChunkId& BulkChunkId,
 		const FIoReadOptions& Options,
 		EAsyncIOPriorityAndFlags Priority,
 		FIoReadCallback&& Callback,
-		FBulkDataBatchReadRequest* OutRequest) override
+		FBulkDataBatchReadRequest* OutRequest) 
 	{
-		const FIoChunkId ChunkId	= CreateBulkDataIoChunkId(BulkMeta, BulkChunkId.GetPackageId());
-		const int32 IoPriority		= ConvertToIoDispatcherPriority(Priority);
+		const int32 IoPriority = ConvertToIoDispatcherPriority(Priority);
 
-		FIoRequest IoRequest = IoBatch.ReadWithCallback(ChunkId, Options, IoPriority, MoveTemp(Callback));
-		FChunkBatchReadRequest* Request = new (Requests) FChunkBatchReadRequest(this, MoveTemp(IoRequest));
+		FChunkBatchReadRequest* Request = new (Requests) FChunkBatchReadRequest(this);
+		Request->IoHandle = IoBatch.ReadWithCallback(BulkChunkId, Options, IoPriority, MoveTemp(Callback));
 
 		if (OutRequest)
 		{
@@ -1099,7 +933,7 @@ public:
 		}
 	}
 
-	virtual bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) override
+	bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) 
 	{
 		CompletionCallback = MoveTemp(Callback);
 
@@ -1117,7 +951,7 @@ public:
 		{
 			FBulkDataRequest::EStatus BatchStatus = FBulkDataRequest::EStatus::Ok;
 
-			for (auto& Request : Requests)
+			for (FChunkBatchReadRequest& Request : Requests)
 			{
 				if (EIoErrorCode ErrorCode = Request.IoHandle.Status().GetErrorCode(); ErrorCode != EIoErrorCode::Ok)
 				{
@@ -1134,244 +968,28 @@ public:
 		return true;
 	}
 
+private:
+	void CompleteBatch(FBulkDataRequest::EStatus CompletionStatus)
+	{
+		if (CompletionCallback)
+		{
+			CompletionCallback(CompletionStatus);
+		}
+
+		SetStatus(CompletionStatus);
+		DoneEvent.Trigger();
+	}
+
 	static constexpr int32 TargetBytesPerChunk = sizeof(FChunkBatchReadRequest) * 8;
 	using FRequests = TChunkedArray<FChunkBatchReadRequest, TargetBytesPerChunk>;
 
-	FIoBatch	IoBatch;
-	FRequests	Requests; //TOOD: Optimize if there's only a single read request 
+	FIoBatch		IoBatch;
+	FRequests		Requests; //TOOD: Optimize if there's only a single read request 
+	UE::FLazyEvent	DoneEvent{EEventMode::ManualReset};
+	FBulkDataRequest::FCompletionCallback CompletionCallback;
 };
 
 //////////////////////////////////////////////////////////////////////////////
-
-class FFileSystemBatchReadRequest final : public FBulkDataRequest::IHandle 
-{
-public:
-	FFileSystemBatchReadRequest() = default;
-	FFileSystemBatchReadRequest(FBulkDataBatchRequest::IHandle* InBatch, FIoReadCallback&& InCallback)
-		: BatchHandle(InBatch)
-		, Callback(MoveTemp(InCallback))
-	{ }
-
-	virtual void AddRef() override
-	{
-		BatchHandle->AddRef();
-	}
-
-	virtual void Release() override
-	{
-		BatchHandle->Release();
-	}
-
-	virtual uint32 GetRefCount() const override
-	{
-		return BatchHandle->GetRefCount();
-	}
-
-	virtual FBulkDataRequest::EStatus GetStatus() const override
-	{
-		check(RequestHandle);
-		
-		if (bWasCancelled)
-		{
-			return FBulkDataRequest::EStatus::Cancelled;
-		}
-
-		return RequestHandle->PollCompletion() ? FBulkDataRequest::EStatus::Ok : FBulkDataRequest::EStatus::Pending;
-	}
-
-	virtual bool Cancel() override
-	{
-		check(RequestHandle);
-
-		if (GetStatus() == FBulkDataRequest::EStatus::Pending)
-		{
-			RequestHandle->Cancel();
-			return true;
-		}
-
-		return false;
-	}
-
-	virtual bool Wait(uint32 Milliseconds) override
-	{
-		checkNoEntry(); // Bulk read requests is currently not awaitable
-		return true;
-	}
-
-	FBulkDataBatchRequest::IHandle* BatchHandle = nullptr;
-	TUniquePtr<IAsyncReadRequest>	RequestHandle;
-	FIoReadCallback					Callback;
-	std::atomic<bool>				bWasCancelled{false};
-};
-
-class FFileSystemBatchRequest final : public FBatchHandleBase
-{
-	struct FRequestParams
-	{
-		FFileSystemBatchReadRequest*			Request;
-		FPackagePath							PackagePath;
-		FIoReadOptions							ReadOptions;
-		UE::BulkData::Private::FBulkMetaData	BulkMeta;
-		EAsyncIOPriorityAndFlags				Priority;
-	};
-
-public:
-	FFileSystemBatchRequest(int32 BatchMaxCount)
-	{
-		if (BatchMaxCount > 0)
-		{
-			Requests.Reserve(BatchMaxCount);
-			RequestParams.Reserve(BatchMaxCount);
-		}
-	}
-
-	~FFileSystemBatchRequest()
-	{
-		Cancel();
-		Wait(MAX_uint32);
-		Requests.Empty();
-	}
-
-	virtual void Read(
-		const UE::BulkData::Private::FBulkMetaData& BulkMeta,
-		const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
-		const FIoReadOptions& Options,
-		EAsyncIOPriorityAndFlags Priority,
-		FIoReadCallback&& Callback,
-		FBulkDataBatchReadRequest* OutRequest) override
-	{
-		FFileSystemBatchReadRequest* Request = new (Requests) FFileSystemBatchReadRequest(this, MoveTemp(Callback));
-
-		RequestParams.Add(FRequestParams {Request, BulkChunkId.GetPackagePath(), Options, BulkMeta, Priority});
-
-		if (OutRequest)
-		{
-			*OutRequest = FBulkDataBatchReadRequest(Request);
-		}
-	}
-
-	virtual bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) override
-	{
-		CompletionCallback = MoveTemp(Callback);
-
-		if (Requests.IsEmpty())
-		{
-			CompleteBatch(FBulkDataRequest::EStatus::Ok);
-			return false;
-		}
-
-		SetStatus(FBulkDataRequest::EStatus::Pending);
-
-		PendingRequestCount.store(Requests.Num(), std::memory_order_relaxed);
-
-		for (FRequestParams& Params : RequestParams)
-		{
-			IAsyncReadFileHandle* FileHandle = OpenFile(Params.PackagePath, Params.BulkMeta);
-
-			if (FileHandle == nullptr)
-			{
-				CompleteBatch(FBulkDataRequest::EStatus::Error);
-				return false;
-			}
-
-			const bool bMemoryIsOwned = Params.ReadOptions.GetTargetVa() != nullptr;
-
-			FAsyncFileCallBack ReadFileCallback = [
-				this,
-				Request = Params.Request,
-				bMemoryIsOwned,
-				Size = Params.ReadOptions.GetSize()](bool bWasCancelled, IAsyncReadRequest* ReadRequest)
-				{
-					if (Request->Callback)
-					{
-						if (bWasCancelled)
-						{
-							Request->Callback(FIoStatus(EIoErrorCode::Cancelled));
-						}
-						else
-						{
-							FIoBuffer Buffer = bMemoryIsOwned
-								? FIoBuffer(FIoBuffer::Wrap, ReadRequest->GetReadResults(), Size)
-								: FIoBuffer(FIoBuffer::AssumeOwnership, ReadRequest->GetReadResults(), Size);
-							
-							Request->Callback(Buffer);
-						}
-					}
-
-					if (bWasCancelled)
-					{
-						Request->bWasCancelled = true;
-						BatchStatus.store(uint32(FBulkDataRequest::EStatus::Cancelled), std::memory_order_release);
-					}
-
-					if (1 == PendingRequestCount.fetch_sub(1))
-					{
-						CompleteBatch(FBulkDataRequest::EStatus(BatchStatus.load(std::memory_order_consume)));
-					}
-				};
-
-			Params.Request->RequestHandle.Reset(FileHandle->ReadRequest(
-				Params.ReadOptions.GetOffset(),
-				Params.ReadOptions.GetSize(),
-				Params.Priority,
-				&ReadFileCallback,
-				reinterpret_cast<uint8*>(Params.ReadOptions.GetTargetVa())));
-		}
-		
-		RequestParams.Empty();
-
-		return true;
-	}
-
-	virtual bool Cancel() override
-	{
-		if (GetStatus() == FBulkDataRequest::EStatus::Pending)
-		{
-			for (FFileSystemBatchReadRequest& Request : Requests)
-			{
-				Request.Cancel();
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-private:
-	IAsyncReadFileHandle* OpenFile(const FPackagePath& Path, const UE::BulkData::Private::FBulkMetaData& BulkMeta)
-	{
-		TUniquePtr<IAsyncReadFileHandle>& FileHandle = PathToFileHandle.FindOrAdd(Path.GetPackageFName());
-
-		if (FileHandle.IsValid() == false)
-		{
-			IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
-
-			const bool bExternalResource = BulkMeta.HasAllFlags(static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload));
-
-			if (bExternalResource)
-			{
-				FileHandle = ResourceMgr.OpenAsyncReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, Path.GetPackageName()).Handle;
-			}
-			else
-			{
-				const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
-				FileHandle = ResourceMgr.OpenAsyncReadPackage(Path, Segment).Handle;
-			}
-		}
-
-		return FileHandle.Get();
-	}
-
-	using FPathToFileHandle = TMap<FName, TUniquePtr<IAsyncReadFileHandle>>;
-	using FRequests			= TChunkedArray<FFileSystemBatchReadRequest>;
-
-	FPathToFileHandle			PathToFileHandle;
-	FRequests					Requests;
-	TArray<FRequestParams>		RequestParams;
-	std::atomic<uint32>			BatchStatus;
-	std::atomic<int32>			PendingRequestCount;
-};
 
 FBulkDataRequest::FBulkDataRequest()
 {
@@ -1467,10 +1085,6 @@ bool FBulkDataBatchRequest::WaitFor(const FTimespan& WaitTime)
 
 //////////////////////////////////////////////////////////////////////////////
 
-FBulkDataBatchRequest::FBuilder::FBuilder()
-{
-}
-
 FBulkDataBatchRequest::FBuilder::FBuilder(int32 MaxCount)
 	: BatchMax(MaxCount)
 {
@@ -1480,20 +1094,11 @@ FBulkDataBatchRequest::FBuilder::~FBuilder()
 {
 }
 
-FBulkDataBatchRequest::IHandle& FBulkDataBatchRequest::FBuilder::GetBatch(const FBulkData& BulkData)
+FBulkDataBatchRequest::FBatchHandle& FBulkDataBatchRequest::FBuilder::GetBatch()
 {
 	if (Batch.IsValid() == false)
 	{
-		check(BulkData.BulkChunkId.IsValid());
-
-		if (FPackageId PackageId = BulkData.BulkChunkId.GetPackageId(); PackageId.IsValid())
-		{
-			Batch = new FChunkBatchRequest(BatchMax);
-		}
-		else
-		{
-			Batch = new FFileSystemBatchRequest(BatchMax);
-		}
+		Batch = new FBulkDataBatchRequest::FBatchHandle(BatchMax);
 	}
 
 	return *Batch;
@@ -1504,7 +1109,7 @@ FBulkDataRequest::EStatus FBulkDataBatchRequest::FBuilder::IssueBatch(FBulkDataB
 	check(Batch.IsValid());
 	checkf(OutRequest != nullptr || Batch->GetRefCount() > 1, TEXT("At least one request handle needs to be used when creating a batch request"));
 
-	TRefCountPtr<FBulkDataBatchRequest::IHandle> NewBatch = MoveTemp(Batch);
+	TRefCountPtr<FBulkDataBatchRequest::FBatchHandle> NewBatch = MoveTemp(Batch);
 	const bool bOk = NewBatch->Issue(MoveTemp(Callback));
 
 	if (OutRequest)
@@ -1529,16 +1134,13 @@ FBulkDataBatchRequest::FBatchBuilder::FBatchBuilder(int32 MaxCount)
 
 FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read(FBulkData& BulkData, EAsyncIOPriorityAndFlags Priority)
 {
-	check(BatchMax == -1 || BatchCount < BatchMax);
-
 	if (BulkData.IsBulkDataLoaded())
 	{
 		++NumLoaded;
 		return *this;
 	}
 
-	GetBatch(BulkData).Read(
-		BulkData.BulkMeta,
+	GetBatch().Read(
 		BulkData.BulkChunkId,
 		FIoReadOptions(BulkData.GetBulkDataOffsetInFile(), BulkData.GetBulkDataSize()),
 		Priority,
@@ -1573,7 +1175,6 @@ FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read
 	const uint64 ReadOffset = BulkData.GetBulkDataOffsetInFile() + Offset;
 	const uint64 ReadSize	= FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
 
-	check(BatchMax == -1 || BatchCount < BatchMax);
 	check(Dst.GetSize() == 0 || Dst.GetSize() == ReadSize);
 
 	if (Dst.GetSize() == 0)
@@ -1581,8 +1182,7 @@ FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read
 		Dst = FIoBuffer(ReadSize);
 	}
 
-	GetBatch(BulkData).Read(
-		BulkData.BulkMeta,
+	GetBatch().Read(
 		BulkData.BulkChunkId,
 		FIoReadOptions(ReadOffset, ReadSize, Dst.GetData()),
 		Priority,
@@ -1671,13 +1271,10 @@ FBulkDataRequest::EStatus FBulkDataBatchRequest::FScatterGatherBuilder::Issue(FI
 		Dst = FIoBuffer(TotalSize);
 	}
 
-	FBulkDataBatchRequest::IHandle& BatchRequest = GetBatch(*Requests[0].BulkData);
-
 	FMutableMemoryView DstView = Dst.GetMutableView();
 	for (const FRequest& Request : Requests)
 	{
-		BatchRequest.Read(
-			Request.BulkData->BulkMeta,
+		GetBatch().Read(
 			Request.BulkData->BulkChunkId,
 			FIoReadOptions(Request.Offset, Request.Size, DstView.GetData()),
 			Priority,

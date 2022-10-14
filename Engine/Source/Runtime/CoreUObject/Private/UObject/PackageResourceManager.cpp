@@ -10,6 +10,7 @@
 #include "Misc/ScopeLock.h"
 #include "Serialization/Archive.h"
 #include "UObject/PackageResourceManagerFile.h"
+#include "UObject/PackageResourceIoDispatcherBackend.h"
 
 DEFINE_LOG_CATEGORY(LogPackageResourceManager);
 
@@ -43,6 +44,12 @@ void IPackageResourceManager::Initialize()
 	if (!GPackageResourceManager)
 	{
 		GPackageResourceManager = MakePackageResourceManagerFile();
+	}
+
+	if (FIoDispatcher::IsInitialized())
+	{
+		TSharedRef<IIoDispatcherBackend> Backend = UE::MakePackageResourceIoDispatcherBackend(*GPackageResourceManager);
+		FIoDispatcher::Get().Mount(Backend);
 	}
 }
 

@@ -681,7 +681,7 @@ enum class EIoChunkType : uint8
 	PackageStoreEntry = 10,
 	DerivedData = 11,
 	EditorDerivedData = 12,
-	
+	PackageResource = 13,
 	MAX
 };
 

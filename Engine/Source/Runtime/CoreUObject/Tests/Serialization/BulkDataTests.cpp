@@ -50,8 +50,25 @@ bool TestBulkDataFlags(FBulkData& BulkData, uint32 Flags, T&& IsSet)
 	return bOk;
 }
 
+class FIoDispatcherTestScope
+{
+public:
+	FIoDispatcherTestScope()
+	{
+		FIoDispatcher::Initialize();
+		FIoDispatcher::InitializePostSettings();
+	}
+	
+	~FIoDispatcherTestScope()
+	{
+		FIoDispatcher::Shutdown();
+	}
+};
+
 TEST_CASE("CoreUObject::Serialization::FBulkData::Basic", "[CoreUObject][Serialization]")
 {
+	FIoDispatcherTestScope _;
+
 	SECTION("Default construction")
 	{
 		FBulkData BulkData;
@@ -220,6 +237,8 @@ TEST_CASE("CoreUObject::Serialization::FBulkData::Basic", "[CoreUObject][Seriali
 
 TEST_CASE("CoreUObject::Serialization::FBulkData::Serialize", "[CoreUObject][Serialization]")
 {
+	FIoDispatcherTestScope _;
+
 	SECTION("Serialize to memory archive")
 	{
 		const int64 ExpectedPayloadSize = 128;

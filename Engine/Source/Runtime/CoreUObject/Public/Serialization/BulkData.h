@@ -372,10 +372,11 @@ public:
 #endif
 	}
 
-	explicit FBulkMetaData(EBulkDataFlags Flags)
+	explicit FBulkMetaData(EBulkDataFlags Flags, EMetaFlags MetaFlags)
 		: FBulkMetaData()
 	{
 		SetFlags(Flags);
+		SetMetaFlags(MetaFlags);
 	}
 
 	inline int64 GetSize() const
@@ -496,51 +497,8 @@ private:
 #endif // USE_RUNTIME_BULKDATA
 };
 
-/**
- * Chunk identifier when reading non-inlined bulk data. Either
- * a package path or a package ID depending on the package loader.
- */
-class FBulkDataChunkId
-{
-public:
-	COREUOBJECT_API FBulkDataChunkId();
-
-	COREUOBJECT_API FBulkDataChunkId(const FBulkDataChunkId& Other);
-
-	COREUOBJECT_API FBulkDataChunkId(FBulkDataChunkId&&) = default;
-
-	COREUOBJECT_API ~FBulkDataChunkId();
-
-	COREUOBJECT_API FBulkDataChunkId& operator=(const FBulkDataChunkId& Other);
-
-	COREUOBJECT_API FBulkDataChunkId& operator=(FBulkDataChunkId&&) = default;
-	
-	COREUOBJECT_API bool operator==(const FBulkDataChunkId& Other) const;
-	
-	bool IsValid() const { return Impl.IsValid(); }
-
-	FPackageId GetPackageId() const;
-	
-	COREUOBJECT_API const FPackagePath& GetPackagePath() const;
-
-	COREUOBJECT_API FIoFilenameHash GetIoFilenameHash(EBulkDataFlags BulkDataFlags) const;
-
-	FString ToDebugString() const;
-
-	static FBulkDataChunkId FromPackagePath(const FPackagePath& PackagePath);
-
-	static FBulkDataChunkId FromPackageId(const FPackageId& PackageId);
-
-private:
-	struct FImpl;
-
-	FBulkDataChunkId(TPimplPtr<FImpl>&& InImpl);
-
-	TPimplPtr<FImpl> Impl;
-};
-
 /** Returns an I/O chunk ID to be used when loading from I/O store. */
-FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, const FPackageId& PackageId);
+FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, UObject* Owner);
 
 /** Returns the package segment when loading from the package resource manager. */
 COREUOBJECT_API EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta);
@@ -828,18 +786,25 @@ public:
 
 	/** Returns the PackagePath this bulkdata resides in */
 	UE_DEPRECATED(5.1, "Deprecated")
-	const FPackagePath& GetPackagePath() const { return BulkChunkId.GetPackagePath(); }
+	const FPackagePath& GetPackagePath() const
+	{ 
+		static FPackagePath Empty;
+		return Empty;
+	}
 
 	/** Returns which segment of its PackagePath this bulkdata resides in */
 	UE_DEPRECATED(5.1, "Deprecated")
-	EPackageSegment GetPackageSegment() const { return UE::BulkData::Private::GetPackageSegmentFromFlags(BulkMeta); }
+	EPackageSegment GetPackageSegment() const
+	{ 
+		return EPackageSegment::Header;
+	}
 
 	/** 
 	 * Returns the io filename hash associated with this bulk data.
 	 *
 	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
 	 **/
-	FIoFilenameHash GetIoFilenameHash() const { return BulkChunkId.GetIoFilenameHash(BulkMeta.GetFlags()); }
+	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(BulkChunkId); }
 	
 	/** Returns a FIoChunkId for the bulkdata payload, this will be invalid if the bulkdata is not stored in the IoStore */
 	FIoChunkId CreateChunkId() const;
@@ -1138,9 +1103,9 @@ private:
 		Member variables.
 	-----------------------------------------------------------------------------*/
 	
-	FAllocatedPtr								DataAllocation;
-	UE::BulkData::Private::FBulkMetaData		BulkMeta;
-	UE::BulkData::Private::FBulkDataChunkId		BulkChunkId;
+	FAllocatedPtr							DataAllocation;
+	UE::BulkData::Private::FBulkMetaData	BulkMeta;
+	FIoChunkId								BulkChunkId = FIoChunkId::InvalidChunkId;
 	
 protected:
 #if WITH_EDITOR
@@ -1418,8 +1383,7 @@ public:
 	void Reset();
 
 protected:
-	friend class FChunkBatchRequest;
-	friend class FFileSystemBatchRequest;
+	friend class FBulkDataBatchRequest;
 	
 	FBulkDataRequest(IHandle* InHandle);
 	int32 GetRefCount() const;
@@ -1441,7 +1405,7 @@ using FBulkDataBatchReadRequest = FBulkDataRequest;
 class COREUOBJECT_API FBulkDataBatchRequest : public FBulkDataRequest
 {
 public:
-	class IHandle;
+	class FBatchHandle;
 
 private:
 	class COREUOBJECT_API FBuilder
@@ -1452,15 +1416,16 @@ private:
 		FBuilder& operator=(const FBuilder&) = delete;
 
 	protected:
-		FBuilder();
 		explicit FBuilder(int32 MaxCount);
-		FBulkDataBatchRequest::IHandle& GetBatch(const FBulkData& BulkData);
+		FBulkDataBatchRequest::FBatchHandle& GetBatch();
 		EStatus IssueBatch(FBulkDataBatchRequest* OutRequest, FCompletionCallback&& Callback);
 
-		int32 BatchMax = -1;
 		int32 BatchCount = 0;
 		int32 NumLoaded = 0;
-		TRefCountPtr<FBulkDataBatchRequest::IHandle> Batch;
+
+	private:
+		int32 BatchMax = -1;
+		TRefCountPtr<FBulkDataBatchRequest::FBatchHandle> Batch;
 	};
 
 public:	
