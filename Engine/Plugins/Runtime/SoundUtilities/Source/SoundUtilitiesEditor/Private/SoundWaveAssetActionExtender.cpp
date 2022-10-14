@@ -12,6 +12,7 @@
 #include "Sound/SoundWaveProcedural.h"
 #include "SoundSimple.h"
 #include "SoundSimpleFactory.h"
+#include "Algo/AnyOf.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
