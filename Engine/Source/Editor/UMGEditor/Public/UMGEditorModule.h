@@ -12,6 +12,7 @@ extern const FName UMGEditorAppIdentifier;
 class FUMGEditor;
 class FWidgetBlueprintApplicationMode;
 class FWorkflowAllowedTabSet;
+class IBlueprintWidgetCustomizationExtender;
 
 /** The public interface of the UMG editor module. */
 class IUMGEditorModule : 
@@ -34,6 +35,15 @@ public:
 
 	/** Get current toolbar extenders for widget editor */
 	virtual TArrayView<FWidgetEditorToolbarExtender> GetAllWidgetEditorToolbarExtenders() = 0;
+
+	/** Add customization for widget */
+	virtual void AddWidgetCustomizationExtender(const TSharedRef<IBlueprintWidgetCustomizationExtender>& WidgetCustomizationExtender) = 0;
+
+	/** Remove customization for widget */
+	virtual void RemoveWidgetCustomizationExtender(const TSharedRef<IBlueprintWidgetCustomizationExtender>& WidgetCustomizationExtender) = 0;
+
+	/** Get current customization extenders for widget */
+	virtual TArrayView<TSharedRef<IBlueprintWidgetCustomizationExtender>> GetAllWidgetCustomizationExtenders() = 0;
 
 	/** Support for general layout extenders */
 	DECLARE_EVENT_OneParam(IStaticMeshEditor, FOnRegisterLayoutExtensions, FLayoutExtender&);

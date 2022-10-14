@@ -38,7 +38,7 @@ public:
 	static bool HasPropertyBindings(TWeakPtr<FWidgetBlueprintEditor> InEditor, const TSharedRef<IPropertyHandle>& InPropertyHandle);
 
 private:
-	void PerformBindingCustomization(IDetailLayoutBuilder& DetailLayout);
+	void PerformBindingCustomization(IDetailLayoutBuilder& DetailLayout, const TArrayView<UWidget*> Widgets);
 
 	void CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, FDelegateProperty* Property, UWidget* Widget );
 
@@ -52,6 +52,7 @@ private:
 
 	void PerformAccessibilityCustomization(IDetailLayoutBuilder& DetailLayout);
 	void CustomizeAccessibilityProperty(IDetailLayoutBuilder& DetailLayout, const FName& BehaviorPropertyName, const FName& TextPropertyName);
+	void PerformCustomizationExtenders(IDetailLayoutBuilder& DetailLayout, const TArrayView<UWidget*> Widgets);
 private:
 
 	TWeakPtr<FWidgetBlueprintEditor> Editor;

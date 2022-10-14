@@ -41,6 +41,7 @@
 #include "BlueprintEditorModule.h"
 #include "PropertyEditorModule.h"
 #include "Customizations/DynamicEntryBoxDetails.h"
+#include "Customizations/IBlueprintWidgetCustomizationExtender.h"
 #include "Customizations/ListViewBaseDetails.h"
 #include "WidgetBlueprintThumbnailRenderer.h"
 #include "Customizations/WidgetThumbnailCustomization.h"
@@ -276,6 +277,21 @@ public:
 		return WidgetEditorToolbarExtenders;
 	}
 
+	virtual void AddWidgetCustomizationExtender(const TSharedRef<IBlueprintWidgetCustomizationExtender>& WidgetCustomizationExtender) override
+	{
+		WidgetCustomizationExtenders.AddUnique(WidgetCustomizationExtender);
+	}
+
+	virtual void RemoveWidgetCustomizationExtender(const TSharedRef<IBlueprintWidgetCustomizationExtender>& WidgetCustomizationExtender) override
+	{
+		WidgetCustomizationExtenders.RemoveSingleSwap(WidgetCustomizationExtender, false);
+	}
+
+	virtual TArrayView<TSharedRef<IBlueprintWidgetCustomizationExtender>> GetAllWidgetCustomizationExtenders() override
+	{
+		return WidgetCustomizationExtenders;
+	}
+
 	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() override 
 	{
 		return RegisterLayoutExtensions; 
@@ -352,6 +368,7 @@ private:
 
 	/** All toolbar extenders. Utilized by tool palette */
 	TArray<FWidgetEditorToolbarExtender> WidgetEditorToolbarExtenders;
+	TArray<TSharedRef<IBlueprintWidgetCustomizationExtender>> WidgetCustomizationExtenders;
 
 	USequencerSettings* Settings;
 

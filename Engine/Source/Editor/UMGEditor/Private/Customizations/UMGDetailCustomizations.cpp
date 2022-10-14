@@ -15,6 +15,7 @@
 
 #include "Algo/Transform.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
+#include "Customizations/IBlueprintWidgetCustomizationExtender.h"
 #include "DetailWidgetRow.h"
 #include "PropertyHandle.h"
 #include "IDetailPropertyRow.h"
@@ -805,12 +806,17 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 
 	TArray< TWeakObjectPtr<UObject> > OutObjects;
 	DetailLayout.GetObjectsBeingCustomized(OutObjects);
-	
+
+	FMemMark Mark(FMemStack::Get());
+	TArray<UWidget*, TMemStackAllocator<>> CustomizedWidgets;
+	CustomizedWidgets.Reserve(OutObjects.Num());
+
 	UClass* SlotBaseClasses = nullptr;
 	for (const TWeakObjectPtr<UObject>& Obj : OutObjects)
 	{
 		if (UWidget* Widget = Cast<UWidget>(Obj.Get()))
 		{
+			CustomizedWidgets.Add(Widget);
 			if (Widget->Slot)
 			{
 				UClass* SlotClass = Widget->Slot->GetClass();
@@ -830,11 +836,6 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 				break;
 			}
 		}
-		else
-		{
-			SlotBaseClasses = nullptr;
-			break;
-		}
 	}
 	
 	if (SlotBaseClasses)
@@ -848,20 +849,18 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 	}
 
 	PerformAccessibilityCustomization(DetailLayout);
-	PerformBindingCustomization(DetailLayout);
+	PerformBindingCustomization(DetailLayout, CustomizedWidgets);
+	PerformCustomizationExtenders(DetailLayout, CustomizedWidgets);
 }
 
-void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBuilder& DetailLayout)
+void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBuilder& DetailLayout, const TArrayView<UWidget*> Widgets)
 {
 	static const FName IsBindableEventName(TEXT("IsBindableEvent"));
 
-	TArray< TWeakObjectPtr<UObject> > OutObjects;
-	DetailLayout.GetObjectsBeingCustomized(OutObjects);
-
-	if ( OutObjects.Num() == 1 )
+	if ( Widgets.Num() == 1 )
 	{
-		UWidget* Widget = Cast<UWidget>(OutObjects[0].Get());
-		UClass* PropertyClass = OutObjects[0].Get()->GetClass();
+		UWidget* Widget = Widgets[0];
+		UClass* PropertyClass = Widget->GetClass();
 
 		for ( TFieldIterator<FProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
 		{
@@ -877,7 +876,7 @@ void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBui
 			}
 			else if ( FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Property) )
 			{
-				CreateMulticastEventCustomization(DetailLayout, OutObjects[0].Get()->GetFName(), PropertyClass, MulticastDelegateProperty);
+				CreateMulticastEventCustomization(DetailLayout, Widget->GetFName(), PropertyClass, MulticastDelegateProperty);
 			}
 		}
 	}
@@ -952,6 +951,20 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 			CustomTextLayout
 		]
 	];
+}
+
+void FBlueprintWidgetCustomization::PerformCustomizationExtenders(IDetailLayoutBuilder& DetailLayout, const TArrayView<UWidget*> Widgets)
+{
+	if (IUMGEditorModule* UMGEditorModule = FModuleManager::GetModulePtr<IUMGEditorModule>("UMGEditor"))
+	{
+		if (TSharedPtr<FWidgetBlueprintEditor> EditorPtr = Editor.Pin())
+		{
+			for (TSharedRef<IBlueprintWidgetCustomizationExtender>& CustomizationExtender : UMGEditorModule->GetAllWidgetCustomizationExtenders())
+			{
+				CustomizationExtender->CustomizeDetails(DetailLayout, Widgets, EditorPtr.ToSharedRef());
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
