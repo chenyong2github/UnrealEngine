@@ -39,7 +39,7 @@ void UK2Node_CallArrayFunction::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 
 	UEdGraphPin* TargetArrayPin = GetTargetArrayPin();
-	if (ensure(TargetArrayPin))
+	if (ensureMsgf(TargetArrayPin, TEXT("%s"), *GetFullName()))
 	{
 		TargetArrayPin->PinType.ContainerType = EPinContainerType::Array;
 		TargetArrayPin->PinType.bIsReference = true;
