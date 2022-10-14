@@ -490,44 +490,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		// We may need to populate bindings that will be used in rendering
 		RendererBindings.UnbindAll();
 
-		bool bAnyRendererBindingsAdded = false;
-		for (UNiagaraRendererProperties* Props : EmitterData->GetRenderers())
-		{
-			if (Props && Props->bIsEnabled)
-			{
-				bAnyRendererBindingsAdded |= Props->PopulateRequiredBindings(RendererBindings);
-			}
-		}
-
-		if ( GPUExecContext != nullptr )
-		{
-			for (const FSimulationStageMetaData& SimStageMetaData : GPUExecContext->SimStageInfo )
-			{
-				if (!SimStageMetaData.EnabledBinding.IsNone())
-				{
-					bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), SimStageMetaData.EnabledBinding), false);
-				}
-				if (SimStageMetaData.bOverrideElementCount)
-				{
-					if (!SimStageMetaData.ElementCountXBinding.IsNone())
-					{
-						bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountXBinding), false);
-					}
-					if (!SimStageMetaData.ElementCountYBinding.IsNone())
-					{
-						bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountYBinding), false);
-					}
-					if (!SimStageMetaData.ElementCountZBinding.IsNone())
-					{
-						bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountZBinding), false);
-					}
-				}
-				if ( !SimStageMetaData.NumIterationsBinding.IsNone() )
-				{
-					bAnyRendererBindingsAdded |= RendererBindings.AddParameter(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.NumIterationsBinding), false);
-				}				
-			}
-		}
+		const bool bAnyRendererBindingsAdded = EmitterData->BuildParameterStoreRendererBindings(RendererBindings);
 
 		if (bAnyRendererBindingsAdded)
 		{

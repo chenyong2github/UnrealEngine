@@ -380,6 +380,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
 	const FNiagaraEmitterScalabilityOverride& GetCurrentOverrideSettings() const;
 	UNiagaraSimulationStageBase* GetSimulationStageById(FGuid ScriptUsageId) const;
+	bool BuildParameterStoreRendererBindings(FNiagaraParameterStore& ParameterStore) const;
 	void RebuildRendererBindings(const UNiagaraEmitter& Emitter);
 	FORCEINLINE static FBox GetDefaultFixedBounds() { return FBox(FVector(-100), FVector(100)); }
 	
