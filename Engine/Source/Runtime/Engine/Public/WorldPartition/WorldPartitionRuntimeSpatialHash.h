@@ -167,8 +167,8 @@ struct FSpatialHashRuntimeGrid
 
 	FSpatialHashRuntimeGrid()
 #if WITH_EDITORONLY_DATA
-		: CellSize(0)
-		, LoadingRange(1000)
+		: CellSize(12800)
+		, LoadingRange(25600)
 		, bBlockOnSlowStreaming(false)
 		, Priority(0)
 		, DebugColor(FLinearColor::MakeRandomColor())

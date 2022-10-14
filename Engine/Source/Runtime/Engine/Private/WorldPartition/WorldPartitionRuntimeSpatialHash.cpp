@@ -877,8 +877,6 @@ void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
 
 	FSpatialHashRuntimeGrid& MainGrid = Grids.AddDefaulted_GetRef();
 	MainGrid.GridName = TEXT("MainGrid");
-	MainGrid.CellSize = 12800;
-	MainGrid.LoadingRange = 25600;
 	MainGrid.DebugColor = FLinearColor::Gray;
 }
 
