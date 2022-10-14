@@ -307,6 +307,7 @@ namespace Horde.Storage.Utility
 	/// <summary>
 	/// A manifest storing information about build products for a node's output
 	/// </summary>
+	[XmlRoot(ElementName = "TempStorageManifest")]
 	public class TempStorageBlockManifest
 	{
 		/// <summary>
@@ -397,6 +398,7 @@ namespace Horde.Storage.Utility
 	/// <summary>
 	/// Stores the contents of a tagged file set
 	/// </summary>
+	[XmlRoot(ElementName = "TempStorageFileList")]
 	public class TempStorageTagManifest
 	{
 		/// <summary>
