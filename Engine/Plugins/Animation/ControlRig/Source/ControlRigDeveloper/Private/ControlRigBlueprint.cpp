@@ -2652,6 +2652,10 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient)) ||
 			PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, UbergraphPages)))
 		{
+			UbergraphPages.RemoveAll([](const UEdGraph* UberGraph) -> bool
+			{
+ 				return UberGraph == nullptr || !IsValid(UberGraph);
+			});
 			RigVMClient.PostTransacted(TransactionEvent);
 
 			RecompileVM();
