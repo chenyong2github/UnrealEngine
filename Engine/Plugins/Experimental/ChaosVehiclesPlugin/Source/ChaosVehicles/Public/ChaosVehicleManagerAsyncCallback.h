@@ -171,7 +171,7 @@ struct FChaosVehicleManagerAsyncOutput : public Chaos::FSimCallbackOutput
 /**
  * Async callback from the Physics Engine where we can perform our vehicle simulation
  */
-class CHAOSVEHICLES_API FChaosVehicleManagerAsyncCallback : public Chaos::TSimCallbackObject<FChaosVehicleManagerAsyncInput, FChaosVehicleManagerAsyncOutput>
+class CHAOSVEHICLES_API FChaosVehicleManagerAsyncCallback : public Chaos::TSimCallbackObject<FChaosVehicleManagerAsyncInput, FChaosVehicleManagerAsyncOutput, Chaos::ESimCallbackOptions::Presimulate | Chaos::ESimCallbackOptions::ContactModification>
 {
 private:
 	virtual void OnPreSimulate_Internal() override;
