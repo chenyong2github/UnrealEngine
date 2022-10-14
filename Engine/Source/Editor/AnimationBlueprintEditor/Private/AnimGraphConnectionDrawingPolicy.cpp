@@ -140,7 +140,7 @@ void FAnimGraphConnectionDrawingPolicy::DetermineStyleOfExecWire(float& Thicknes
 	const float LightBlendThickness = SustainWireThickness;
 
 	Thickness = FMath::Lerp<float>(LightBlendThickness, HeavyBlendThickness, BlendWeight);
-	WireColor = WireColor * (BlendWeight * 0.5f + 0.5f);//FMath::Lerp<FLinearColor>(SustainColor, AttackColor, BlendWeight);
+	WireColor = WireColor * static_cast<float>(BlendWeight * 0.5 + 0.5);//FMath::Lerp<FLinearColor>(SustainColor, AttackColor, BlendWeight);
 
 	bDrawBubbles = true;
 }

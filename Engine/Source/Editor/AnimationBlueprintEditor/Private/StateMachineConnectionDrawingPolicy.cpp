@@ -159,7 +159,7 @@ void FStateMachineConnectionDrawingPolicy::Internal_DrawLineWithArrow(const FVec
 
 	// Draw the arrow
 	const FVector2D ArrowDrawPos = EndPoint - ArrowRadius;
-	const float AngleInRadians = FMath::Atan2(DeltaPos.Y, DeltaPos.X);
+	const double AngleInRadians = FMath::Atan2(DeltaPos.Y, DeltaPos.X);
 
 	FSlateDrawElement::MakeRotatedBox(
 		DrawElementsList,
@@ -167,7 +167,7 @@ void FStateMachineConnectionDrawingPolicy::Internal_DrawLineWithArrow(const FVec
 		FPaintGeometry(ArrowDrawPos, ArrowImage->ImageSize * ZoomFactor, ZoomFactor),
 		ArrowImage,
 		ESlateDrawEffect::None,
-		AngleInRadians,
+		static_cast<float>(AngleInRadians),
 		TOptional<FVector2D>(),
 		FSlateDrawElement::RelativeToElement,
 		Params.WireColor
