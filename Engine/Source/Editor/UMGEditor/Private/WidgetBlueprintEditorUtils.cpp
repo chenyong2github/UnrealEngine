@@ -1064,57 +1064,56 @@ bool FWidgetBlueprintEditorUtils::CanBeReplacedWithTemplate(TSharedRef<FWidgetBl
 	FAssetData SelectedUserWidget = BlueprintEditor->GetSelectedUserWidget();
 	UWidget* ThisWidget = Widget.GetTemplate();
 	UPanelWidget* ExistingPanel = Cast<UPanelWidget>(ThisWidget);
+
+	UClass* WidgetClass = nullptr;
 	// If selecting another widget blueprint
 	if (SelectedUserWidget.GetSoftObjectPath().IsValid())
 	{
-		if (ExistingPanel)
-		{
-			if (ExistingPanel->GetChildrenCount() != 0)
-			{
-				return false;
-			}
-		}
-		if (UUserWidget* NewUserWidget = CastChecked<UUserWidget>(FWidgetTemplateBlueprintClass(SelectedUserWidget).Create(BP->WidgetTree)))
-		{
-			const bool bFreeFromCircularRefs = BP->IsWidgetFreeFromCircularReferences(NewUserWidget);
-			NewUserWidget->Rename(nullptr, GetTransientPackage());
-			return bFreeFromCircularRefs;
-		}
-	}
-
-	UClass* WidgetClass = BlueprintEditor->GetSelectedTemplate().Get();
-	const bool bCanReplace = WidgetClass->IsChildOf(UPanelWidget::StaticClass());
-	if (!ExistingPanel && !bCanReplace)
-	{
-		return true;
-	}
-	else if (!ExistingPanel && bCanReplace)
-	{
-		return true;
-	}
-	else if (ExistingPanel && !bCanReplace)
-	{
-		if (ExistingPanel->GetChildrenCount() == 0)
-		{
-			return true;
-		}
-		else 
+		if (ExistingPanel && ExistingPanel->GetChildrenCount() != 0)
 		{
 			return false;
 		}
+		if (UWidget* NewWidget = FWidgetTemplateBlueprintClass(SelectedUserWidget).Create(BP->WidgetTree))
+		{
+			// If we are creating a UserWidget, check for Circular references
+			if (UUserWidget* NewUserWidget = Cast<UUserWidget>(NewWidget))
+			{
+				const bool bFreeFromCircularRefs = BP->IsWidgetFreeFromCircularReferences(NewUserWidget);
+				NewWidget->Rename(nullptr, GetTransientPackage());
+				return bFreeFromCircularRefs;
+			}
+			WidgetClass = NewWidget->GetClass();
+			NewWidget->Rename(nullptr, GetTransientPackage());
+		}
 	}
-	else 
+
+	// If we get here, the Widget selected is not a UserWidget and it's not a Blueprint.
+	if (!WidgetClass)
 	{
-		if (ExistingPanel->GetClass()->GetDefaultObject<UPanelWidget>()->CanHaveMultipleChildren() && bCanReplace)
-		{
-			const bool bChildAllowed = WidgetClass->GetDefaultObject<UPanelWidget>()->CanHaveMultipleChildren() || ExistingPanel->GetChildrenCount() == 0;
-			return bChildAllowed;
-		}
-		else
-		{
-			return true;
-		}
+		WidgetClass = BlueprintEditor->GetSelectedTemplate().Get();
 	}
+
+	// If the Widget to replace is not a Panel we can replace it with anything	
+	if (!ExistingPanel)
+	{
+		return true;
+	}
+
+	const bool bNewWidgetClassIsAPanel = WidgetClass->IsChildOf(UPanelWidget::StaticClass());
+	// If the Widget to replace is a Panel and the new widget is not, we allow to replace it only if it's empty;
+	if (!bNewWidgetClassIsAPanel)
+	{
+		return ExistingPanel->GetChildrenCount() == 0;
+	}
+
+	// If the Widget to replace is a Panel that can have multiple children, we allow to replace it with a Panel that can support multiple children only.
+	if (ExistingPanel->GetClass()->GetDefaultObject<UPanelWidget>()->CanHaveMultipleChildren() && bNewWidgetClassIsAPanel)
+	{
+		const bool bChildAllowed = WidgetClass->GetDefaultObject<UPanelWidget>()->CanHaveMultipleChildren() || ExistingPanel->GetChildrenCount() == 0;
+		return bChildAllowed;
+	}
+	
+	return true;
 }
 
 void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, FWidgetReference Widget)

@@ -76,11 +76,10 @@ UWidget* FWidgetTemplateBlueprintClass::Create(UWidgetTree* Tree)
 		{
 			WidgetClass = LoadObject<UBlueprintGeneratedClass>(nullptr, *AssetPath);
 		}
-		else
+		else if (UBlueprint* LoadedWidget = LoadObject<UBlueprint>(nullptr, *AssetPath))
 		{
-			UWidgetBlueprint* LoadedWidget = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
 			WidgetClass = *LoadedWidget->GeneratedClass;
-		}
+ 		}
 	}
 
 	return FWidgetTemplateClass::CreateNamed(Tree, FName(*FBlueprintEditorUtils::GetClassNameWithoutSuffix(WidgetClass.Get())));
