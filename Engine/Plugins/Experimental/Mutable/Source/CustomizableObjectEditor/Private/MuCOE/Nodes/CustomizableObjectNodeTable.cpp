@@ -909,7 +909,7 @@ TArray<FName> UCustomizableObjectNodeTable::GetRowNames() const
 		TArray<FName> TableRowNames = Table->GetRowNames();
 		FBoolProperty* BoolProperty = nullptr;
 
-		for (TFieldIterator<FProperty> PropertyIt(TableStruct); PropertyIt; ++PropertyIt)
+		for (TFieldIterator<FProperty> PropertyIt(TableStruct); PropertyIt && bDisableCheckedRows; ++PropertyIt)
 		{
 			BoolProperty = CastField<FBoolProperty>(*PropertyIt);
 
@@ -934,7 +934,7 @@ TArray<FName> UCustomizableObjectNodeTable::GetRowNames() const
 			}
 		}
 
-		// There is no Bool column
+		// There is no Bool column or we don't want to disable rows
 		if (!BoolProperty)
 		{
 			return TableRowNames;

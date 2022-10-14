@@ -97,12 +97,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = TableProperties)
 	FString ParameterName = "Default Name";
 
+	/** If true, adds a "None" parameter option */
 	UPROPERTY(EditAnywhere, Category = TableProperties)
 	bool bAddNoneOption;
 
 	// Pointer to the Data Table Asset represented in this node
 	UPROPERTY(EditAnywhere, Category = TableProperties, meta = (DontUpdateWhileEditing))
 	TObjectPtr<UDataTable> Table = nullptr;
+	
+	/** If there is a bool column in the table, checked rows will not be compiled */
+	UPROPERTY(EditAnywhere, Category = TableProperties)
+	bool bDisableCheckedRows = true;
 	
 	UPROPERTY(EditAnywhere, Category = UI, meta = (DisplayName = "Parameter UI Metadata"))
 	FMutableParamUIMetadata ParamUIMetadata;
