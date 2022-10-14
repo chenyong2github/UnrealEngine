@@ -107,11 +107,20 @@ private:
 		FSoftObjectPath ObjectPath;
 		FAssetData AssetData;
 
-		FObjectOrAssetData( UObject* InObject = nullptr )
-			: Object( InObject )
-			, ObjectPath( Object )
+		FObjectOrAssetData( TObjectPtr<UObject> InObject = nullptr )
 		{
-			AssetData = InObject != nullptr && !InObject->IsA<AActor>() ? FAssetData( InObject ) : FAssetData();
+			// If the TObjectPtr isn't resolved yet, then treat it like a soft object ptr.
+			if (InObject.IsResolved() && InObject != nullptr)
+			{
+				Object = InObject;
+				ObjectPath = Object;
+				AssetData = Object->IsA<AActor>() ? FAssetData(Object) : FAssetData();
+			}
+			else
+			{
+				Object = nullptr;
+				ObjectPath = FSoftObjectPath(InObject);
+			}
 		}
 
 		FObjectOrAssetData( const FSoftObjectPath& InObjectPath )

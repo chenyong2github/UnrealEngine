@@ -294,6 +294,8 @@ public:
 	virtual FPropertyAccess::Result GetValue( FRotator& OutValue ) const = 0;
 	virtual FPropertyAccess::Result GetValue( UObject*& OutValue ) const = 0;
 	virtual FPropertyAccess::Result GetValue( const UObject*& OutValue ) const = 0;
+	virtual FPropertyAccess::Result GetValue( TObjectPtr<UObject>& OutValue ) const = 0;
+	virtual FPropertyAccess::Result GetValue( TObjectPtr<const UObject>& OutValue ) const = 0;
 	virtual FPropertyAccess::Result GetValue( FAssetData& OutValue ) const = 0;
 	virtual FPropertyAccess::Result GetValueData( void*& OutAddress ) const = 0;
 	virtual FPropertyAccess::Result GetValue(FProperty*& OutValue) const = 0;
@@ -324,6 +326,8 @@ public:
 	virtual FPropertyAccess::Result SetValue( const FVector4& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( const FQuat& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( const FRotator& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
+	virtual FPropertyAccess::Result SetValue( TObjectPtr<UObject> const& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
+	virtual FPropertyAccess::Result SetValue( TObjectPtr<const UObject> const& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( UObject* const& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( const UObject* const& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;
 	virtual FPropertyAccess::Result SetValue( const FAssetData& InValue,  EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) = 0;

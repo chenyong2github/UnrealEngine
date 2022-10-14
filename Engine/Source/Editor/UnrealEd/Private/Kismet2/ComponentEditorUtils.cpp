@@ -189,10 +189,15 @@ FProperty* FComponentEditorUtils::GetPropertyForEditableNativeComponent(const UA
 				continue;
 			}
 
-			UObject* Object = ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(ComponentOuter));
-			if (Object != nullptr && Object->GetFName() == NativeComponent->GetFName())
+			TObjectPtr<UObject> ObjectPtr = ObjectProp->GetObjectPtrPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(ComponentOuter));
+
+			// Don't bother checking unless it's already resolved, a component member would already be resolved.
+			if (ObjectPtr.IsResolved())
 			{
-				return ObjectProp;
+				if (ObjectPtr != nullptr && ObjectPtr->GetFName() == NativeComponent->GetFName())
+				{
+					return ObjectProp;
+				}
 			}
 		}	
 	
