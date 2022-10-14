@@ -60,7 +60,7 @@ class ResonanceAudioApiImpl : public ResonanceAudioApi {
   // Listener configuration.
   void SetHeadPosition(float x, float y, float z) override;
   void SetHeadRotation(float x, float y, float z, float w) override;
-  void SetMasterVolume(float volume) override;
+  void SetPrimaryVolume(float volume) override;
   void SetStereoSpeakerMode(bool enabled) override;
 
   // Create and destroy sources.

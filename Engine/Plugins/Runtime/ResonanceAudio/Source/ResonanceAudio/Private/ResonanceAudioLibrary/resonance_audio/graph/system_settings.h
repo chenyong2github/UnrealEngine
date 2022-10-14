@@ -41,7 +41,7 @@ class SystemSettings {
         num_channels_(num_output_channels),
         head_rotation_(WorldRotation::Identity()),
         head_position_(WorldPosition::Zero()),
-        master_gain_(1.0f),
+        primary_gain_(1.0f),
         stereo_speaker_mode_(false) {}
 
   // Sets the listener head orientation.
@@ -110,10 +110,10 @@ class SystemSettings {
   // @return Current stereo speaker mode state.
   bool IsStereoSpeakerModeEnabled() const { return stereo_speaker_mode_; }
 
-  // Sets the master gain.
+  // Sets the primary gain.
   //
-  // @param master_gain Master output gain.
-  void SetMasterGain(float master_gain) { master_gain_ = master_gain; }
+  // @param primary_gain primary output gain.
+  void SetPrimaryGain(float primary_gain) { primary_gain_ = primary_gain; }
 
   // Sets current reflection properties.
   //
@@ -130,10 +130,10 @@ class SystemSettings {
     reverb_properties_ = reverb_properties;
   }
 
-  // Returns the master gain.
+  // Returns the primary gain.
   //
-  // @return Master output gain.
-  float GetMasterGain() const { return master_gain_; }
+  // @return primary output gain.
+  float GetPrimaryGain() const { return primary_gain_; }
 
   // Returns the current reflection properties of the environment.
   //
@@ -171,8 +171,8 @@ class SystemSettings {
   // Source parameters manager.
   SourceParametersManager source_parameters_manager_;
 
-  // Master gain in amplitude.
-  float master_gain_;
+  // primary gain in amplitude.
+  float primary_gain_;
 
   // Current reflection properties of the environment.
   ReflectionProperties reflection_properties_;

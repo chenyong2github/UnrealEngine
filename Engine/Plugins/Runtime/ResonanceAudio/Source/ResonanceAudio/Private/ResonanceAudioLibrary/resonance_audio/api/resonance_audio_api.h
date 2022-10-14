@@ -205,11 +205,11 @@ class ResonanceAudioApi {
   // @param w W component of quaternion.
   virtual void SetHeadRotation(float x, float y, float z, float w) = 0;
 
-  // Sets the master volume of the main audio output.
+  // Sets the Primary volume of the main audio output.
   //
-  // @param volume Master volume (linear) in amplitude in range [0, 1] for
+  // @param volume Primary volume (linear) in amplitude in range [0, 1] for
   //     attenuation, range [1, inf) for gain boost.
-  virtual void SetMasterVolume(float volume) = 0;
+  virtual void SetPrimaryVolume(float volume) = 0;
 
   // Enables the stereo speaker mode. When activated, it disables HRTF-based
   // filtering and switches to computationally cheaper stereo-panning. This

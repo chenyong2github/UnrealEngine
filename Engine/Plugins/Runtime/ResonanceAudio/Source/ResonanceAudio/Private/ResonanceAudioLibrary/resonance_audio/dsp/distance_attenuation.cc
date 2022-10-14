@@ -79,7 +79,7 @@ float ComputeNearFieldEffectGain(const WorldPosition& listener_position,
   return 0.0f;
 }
 
-void UpdateAttenuationParameters(float master_gain, float reflections_gain,
+void UpdateAttenuationParameters(float primary_gain, float reflections_gain,
                                  float reverb_gain,
                                  const WorldPosition& listener_position,
                                  SourceParameters* parameters) {
@@ -106,7 +106,7 @@ void UpdateAttenuationParameters(float master_gain, float reflections_gain,
       break;
   }
   // Update gain attenuations.
-  const float input_gain = master_gain * parameters->gain;
+  const float input_gain = primary_gain * parameters->gain;
   const float direct_attenuation = input_gain * distance_attenuation;
   const float room_effects_attenuation = parameters->room_effects_gain;
 

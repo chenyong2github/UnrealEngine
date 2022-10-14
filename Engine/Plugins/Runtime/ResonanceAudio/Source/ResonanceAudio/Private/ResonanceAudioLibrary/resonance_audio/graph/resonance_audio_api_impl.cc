@@ -145,8 +145,8 @@ void ResonanceAudioApiImpl::SetHeadRotation(float x, float y, float z,
   task_queue_.Post(task);
 }
 
-void ResonanceAudioApiImpl::SetMasterVolume(float volume) {
-  auto task = [this, volume]() { system_settings_.SetMasterGain(volume); };
+void ResonanceAudioApiImpl::SetPrimaryVolume(float volume) {
+  auto task = [this, volume]() { system_settings_.SetPrimaryGain(volume); };
   task_queue_.Post(task);
 }
 
@@ -468,12 +468,12 @@ void ResonanceAudioApiImpl::ProcessNextBuffer() {
   }
   // Update source attenuation parameters.
   const auto process = [this](SourceParameters* parameters) {
-    const float master_gain = system_settings_.GetMasterGain();
+    const float primary_gain = system_settings_.GetPrimaryGain();
     const auto& listener_position = system_settings_.GetHeadPosition();
     const auto& reflection_properties =
         system_settings_.GetReflectionProperties();
     const auto& reverb_properties = system_settings_.GetReverbProperties();
-    UpdateAttenuationParameters(master_gain, reflection_properties.gain,
+    UpdateAttenuationParameters(primary_gain, reflection_properties.gain,
                                 reverb_properties.gain, listener_position,
                                 parameters);
   };
