@@ -345,21 +345,33 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 	}
 
 	ClearOutputLog();
-	
-	AnimInstance->SetProcessorNeedsInitialized();
 
-	// Initialize editor's instances on request
+	// anim instance needs reinitialized
 	InitializeSolvers();
+	AnimInstance->SetProcessorNeedsInitialized();
+	AnimInstance->InitializeAnimation();
+	
+	// in case the skeletal mesh was swapped out, we need to ensure the preview scene is up-to-date
+	{
+		USkeletalMesh* NewMesh = AssetController->GetAsset()->GetPreviewMesh();
+		const TSharedRef<IPersonaPreviewScene> PreviewScene = EditorToolkit.Pin()->GetPersonaToolkit()->GetPreviewScene();
+		PreviewScene->SetPreviewMesh(NewMesh);
+
+		// ensure goals are using initial transforms from the current mesh 
+		AssetController->ResetInitialGoalTransforms();
+	}
 
 	// update the bone details so it can pull on the current data
 	BoneDetails->AnimInstancePtr = AnimInstance;
 	BoneDetails->AssetPtr = ModifiedIKRig;
+
+	RefreshAllViews();
 }
 
 void FIKRigEditorController::Reset() const
 {
 	SkelMeshComponent->ShowReferencePose(true);
-	AssetController->ResetGoalTransforms();
+	AssetController->ResetCurrentGoalTransforms();
 }
 
 void FIKRigEditorController::RefreshAllViews() const
@@ -802,33 +814,15 @@ void FIKRigEditorController::ShowDetailsForElements(const TArray<TSharedPtr<FIKR
 	}
 }
 
-void FIKRigEditorController::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
+void FIKRigEditorController::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent) const
 {
+	// if user swapped in a different skeletal mesh, then trigger a total reinitialization
 	const bool bPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRigDefinition::GetPreviewMeshPropertyName();
-	
 	if (bPreviewChanged)
 	{
-		// set the source and target skeletal meshes on the component
-		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
 		USkeletalMesh* NewMesh = AssetController->GetAsset()->GetPreviewMesh();
-		if (NewMesh)
-		{
-			// apply the mesh to the preview scene
-			TSharedRef<IPersonaPreviewScene> PreviewScene = EditorToolkit.Pin()->GetPersonaToolkit()->GetPreviewScene();
-			if (PreviewScene->GetPreviewMesh() != NewMesh)
-			{
-				PreviewScene->SetPreviewMeshComponent(SkelMeshComponent);
-				PreviewScene->SetPreviewMesh(NewMesh);
-			}
-
-			ClearOutputLog();
-			AssetController->SetSkeletalMesh(NewMesh);
-			AnimInstance->SetProcessorNeedsInitialized();
-			AnimInstance->InitializeAnimation();
-			AssetController->BroadcastNeedsReinitialized();
-			AssetController->ResetGoalTransforms();
-			RefreshAllViews();
-		}
+		AssetController->SetSkeletalMesh(NewMesh);
+		AssetController->BroadcastNeedsReinitialized();
 	}
 }
 

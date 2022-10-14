@@ -220,7 +220,6 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	EditorController->AnimInstance = AnimInstance;
 	AnimInstance->SetIKRigAsset(EditorController->AssetController->GetAsset());
 	EditorController->SkelMeshComponent->PreviewInstance = AnimInstance;
-	EditorController->OnIKRigNeedsInitialized(EditorController->AssetController->GetAsset());
 	AnimInstance->InitializeAnimation();
 
 	// set the skeletal mesh on the component

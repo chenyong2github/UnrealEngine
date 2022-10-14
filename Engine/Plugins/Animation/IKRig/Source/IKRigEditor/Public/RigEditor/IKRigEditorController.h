@@ -177,7 +177,7 @@ public:
 	/** show selected items in details view */
 	void ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems) const;
 	/** callback when detail is edited */
-	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);
+	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent) const;
 	
 	/** set details tab view */
 	void SetDetailsView(const TSharedPtr<class IDetailsView>& InDetailsView);

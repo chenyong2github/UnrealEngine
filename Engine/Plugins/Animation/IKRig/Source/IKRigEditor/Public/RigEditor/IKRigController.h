@@ -37,9 +37,9 @@ public:
 	/** SKELETON
 	 * 
 	 */
-	/** Sets the preview mesh to use, can optionally reinitialize the skeleton with bReImportBone=true.
+	/** Sets the preview mesh to use. Loads the hierarchy into the asset's IKRigSkeleton.
 	 * Returns true if the mesh was able to be set. False if it was incompatible for any reason. */
-	bool SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransact=false) const;
+	bool SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const;
 	/** Get read-access to the IKRig skeleton representation */
 	const FIKRigSkeleton& GetIKRigSkeleton() const;
 	/** Get the USkeleton asset this rig was initialized with */
@@ -120,7 +120,9 @@ public:
 	/** Set the Goal to the given transform. */
 	void SetGoalCurrentTransform(const FName& GoalName, const FTransform& Transform) const;
 	/** Reset all Goals back to their initial transforms. */
-	void ResetGoalTransforms() const;
+	void ResetCurrentGoalTransforms() const;
+	/** Update initial goal transforms (called after new mesh is applied). */
+	void ResetInitialGoalTransforms() const;
 	/** Ensure that the given name adheres to required standards for Goal names (no special characters etc..)*/
 	static void SanitizeGoalName(FString& InOutName);
 	/** Add a suffix as needed to ensure the Goal name is unique */

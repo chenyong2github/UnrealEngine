@@ -483,7 +483,7 @@ FName UIKRigController::GetRetargetChainFromGoal(const FName& GoalName) const
 // SKELETON
 //
 
-bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransact) const
+bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const
 {
 	if (!SkeletalMesh)
 	{
@@ -497,31 +497,15 @@ bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransa
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. {0}"), *Asset->GetName());
 		return false;
 	}
-
-	FScopedTransaction Transaction(LOCTEXT("SetSkeletalMesh_Label", "Set Skeletal Mesh"));
 	
-	if (bTransact)
-	{	
-		Asset->Modify();
-	}
-
 	// update stored skeletal mesh used for previewing results
 	Asset->PreviewSkeletalMesh = SkeletalMesh;
+
 	// copy skeleton data from the actual skeleton we want to run on
 	Asset->Skeleton.SetInputSkeleton(InputSkeleton, GetAsset()->Skeleton.ExcludedBones);
-	// update goal's initial transforms to reflect new
-	for (UIKRigEffectorGoal* Goal : Asset->Goals)
-	{
-		if (bTransact)
-		{
-			Goal->Modify();
-		}
-		
-		const FTransform InitialTransform = GetRefPoseTransformOfBone(Goal->BoneName);
-		Goal->InitialTransform = InitialTransform;
-	}
 
-	BroadcastNeedsReinitialized();
+	// update goal's initial transforms to reflect new skeleton
+	ResetInitialGoalTransforms();
 
 	return true;
 }
@@ -913,9 +897,11 @@ bool UIKRigController::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	
 	FScopedTransaction Transaction(LOCTEXT("SetGoalBone_Label", "Set Goal Bone"));
 
-	// update goal
-	Asset->Goals[GoalIndex]->Modify();
-	Asset->Goals[GoalIndex]->BoneName = NewBoneName;
+	// update goal with new bone
+	TObjectPtr<UIKRigEffectorGoal> Goal = Asset->Goals[GoalIndex];
+	Goal->Modify();
+	Goal->BoneName = NewBoneName;
+	Goal->InitialTransform = GetRefPoseTransformOfBone(NewBoneName);
 	
 	// update in solvers
 	for (UIKRigSolver* Solver : Asset->Solvers)
@@ -923,9 +909,6 @@ bool UIKRigController::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 		Solver->Modify();
 		Solver->SetGoalBone(GoalName, NewBoneName);
 	}
-
-	// update initial transforms
-	ResetGoalTransforms();
 
 	BroadcastNeedsReinitialized();
 	
@@ -1083,17 +1066,29 @@ void UIKRigController::SetGoalCurrentTransform(const FName& GoalName, const FTra
 	Goal->CurrentTransform = Transform;
 }
 
-void UIKRigController::ResetGoalTransforms() const
+void UIKRigController::ResetCurrentGoalTransforms() const
 {
-	FScopedTransaction Transaction(LOCTEXT("ResetGoalTransforms", "Reset All Goal Transforms"));
+	FScopedTransaction Transaction(LOCTEXT("ResetCurrentGoalTransforms", "Reset All Goal Transforms"));
 	
 	for (UIKRigEffectorGoal* Goal : Asset->Goals)
     {
 		Goal->Modify();
-    	const FTransform InitialTransform = GetRefPoseTransformOfBone(Goal->BoneName);
-    	Goal->InitialTransform = InitialTransform;
-    	Goal->CurrentTransform = InitialTransform;
+    	Goal->CurrentTransform = Goal->InitialTransform;
     }
+}
+
+void UIKRigController::ResetInitialGoalTransforms() const
+{
+	for (UIKRigEffectorGoal* Goal : Asset->Goals)
+	{
+		// record the current delta rotation
+		const FQuat DeltaRotation = Goal->CurrentTransform.GetRotation() * Goal->InitialTransform.GetRotation().Inverse();
+		// update the initial transform based on the new ref pose
+		const FTransform InitialTransform = GetRefPoseTransformOfBone(Goal->BoneName);
+		Goal->InitialTransform = InitialTransform;
+		// restore the current transform
+		Goal->CurrentTransform.SetRotation(Goal->InitialTransform.GetRotation() * DeltaRotation);
+	}
 }
 
 void UIKRigController::SanitizeGoalName(FString& InOutName)
