@@ -544,6 +544,7 @@ private:
 		return FKeyType(Name, Group);
 	};
 
+	friend struct FManagedArrayCollectionValueTypeWrapper;
 	struct FValueType
 	{
 		EArrayType ArrayType;

@@ -537,6 +537,27 @@ FString FManagedArrayCollection::ToString() const
 
 static const FName GuidName("GUID");
 
+// this is a reference wrapper to avoid copying attributes as some may not support copy (unique ptr ones) 
+// this is used during serialization to build a transient filtered map of attributes that can be saved
+struct FManagedArrayCollectionValueTypeWrapper
+{
+	FManagedArrayCollectionValueTypeWrapper()
+		: ValueRef(nullptr)
+	{}
+
+	FManagedArrayCollectionValueTypeWrapper(FManagedArrayCollection::FValueType* ValueRefIn)
+		: ValueRef(ValueRefIn)
+	{}
+
+	FManagedArrayCollection::FValueType* ValueRef;
+};
+FArchive& operator<<(FArchive& Ar, FManagedArrayCollectionValueTypeWrapper& ValueIn)
+{
+	// simple forwarding to the original object 
+	Ar << (*ValueIn.ValueRef);
+	return Ar;
+}
+
 void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
@@ -620,18 +641,14 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 		// Unless it's an undo/redo transaction, strip out the keys that we don't want to save
 		if (!Ar.IsTransacting())
 		{
-			TMap<FKeyType, FValueType> ToSaveMap = Map;
-			TArray<FKeyType> ToRemoveKeys;
-			for (TTuple<FKeyType, FValueType>& Pair : ToSaveMap)
+			// we do create a wrapper around ValueType, to avoid copies and save memory 
+			TMap<FKeyType, FManagedArrayCollectionValueTypeWrapper> ToSaveMap;
+			for (TTuple<FKeyType, FValueType>& Pair : Map)
 			{
-				if (!Pair.Value.Saved)
+				if (Pair.Value.Saved)
 				{
-					ToRemoveKeys.Add(Pair.Key);
+					ToSaveMap.Emplace(Pair.Key, FManagedArrayCollectionValueTypeWrapper(&Pair.Value));
 				}
-			}
-			for (const FKeyType& Key : ToRemoveKeys)
-			{
-				ToSaveMap.Remove(Key);
 			}
 			Ar << ToSaveMap;
 		}
