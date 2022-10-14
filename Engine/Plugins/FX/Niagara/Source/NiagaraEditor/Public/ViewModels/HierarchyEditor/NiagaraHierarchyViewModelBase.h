@@ -155,6 +155,7 @@ public:
 	void SetCategoryName(FName NewCategory) { Category = NewCategory; }
 	FName GetCategoryName() const { return Category; }
 
+	FText GetCategoryAsText() const { return FText::FromName(Category); }
 	FText GetTooltip() const { return Tooltip; }
 
 	void SetSection(UNiagaraHierarchySection* InSection) { Section = InSection; }
@@ -165,7 +166,7 @@ public:
 	virtual FString ToString() const override { return Category.ToString(); }
 
 private:
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Category")
 	FName Category;
 
 	/** The tooltip used when the user is hovering this category */
@@ -192,8 +193,9 @@ public:
 
 	FText GetTooltip() const { return Tooltip; }
 
+	virtual FString ToString() const override { return Section.ToString(); }
 private:
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Section")
 	FName Section;
 
 	/** The tooltip used when the user is hovering this section */
@@ -242,7 +244,7 @@ public:
 	DECLARE_DELEGATE_OneParam(FRefreshTreeWidget, bool bFullRefresh)
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsItemSelected, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
 	DECLARE_DELEGATE_OneParam(FSelectObjectInDetailsPanel, UObject* Object)
-
+	
 	GENERATED_BODY()
 	
 	UNiagaraHierarchyViewModelBase();
@@ -260,6 +262,9 @@ public:
 	/** The hierarchy root the widget is editing. This should point to persistent data stored somewhere else as the serialized root of the hierarchy. */
 	virtual UNiagaraHierarchyRoot* GetHierarchyDataRoot() const PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::GetHierarchyDataRoot, return nullptr;);
 	TSharedPtr<struct FNiagaraHierarchyRootViewModel> GetHierarchyViewModelRoot() const { return HierarchyViewModelRoot; }
+
+	/** This function will create the view model for a given item. Override to customize view model behavior by providing custom classes. */
+	virtual TSharedPtr<FNiagaraHierarchyItemViewModelBase> CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent);
 	
 	/** Source items reflect the base, unedited status of items to edit into a hierarchy */
 	const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& GetSourceItems() const;
@@ -284,21 +289,16 @@ public:
 	virtual bool SupportsDetailsPanel() { return false; }
 	// Overriding this will give the details panel instance customizations for specific UClasses
 	virtual TArray<TTuple<UClass*, FOnGetDetailCustomizationInstance>> GetInstanceCustomizations() { return {}; }
-	// Child view models need to override this to handle their own row generation. By default, we provide category widgets
-	virtual TSharedRef<SWidget> GenerateRowContentWidget(TSharedRef<FNiagaraHierarchyItemViewModelBase>) const;
 	
 	void RefreshSourceView(bool bFullRefresh = false) const;
 	void RefreshHierarchyView(bool bFullRefresh = false) const;
 	void RefreshSectionsWidget() const;
 	void SelectItemInDetailsPanel(UObject* Object) const;
-	bool IsItemSelected(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) const;
 	
 	// Delegate that call functions from SNiagaraHierarchy
 	FRefreshTreeWidget& OnRefreshSourceView() { return RefreshSourceViewDelegate; }
 	FRefreshTreeWidget& OnRefreshHierarchyView() { return RefreshHierarchyWidgetDelegate; }
 	FSimpleDelegate& OnRefreshSections() { return RefreshSectionsWidgetDelegate; }
-	FSelectObjectInDetailsPanel& OnSelectObjectInDetailsPanel() { return SelectObjectInDetailsPanelDelegate; }
-	FIsItemSelected& IsItemSelected() { return IsItemSelectedDelegate; }
 
 	// Delegates for external systems
 	FOnHierarchyChanged& OnHierarchyChanged() { return OnHierarchyChangedDelegate; } 
@@ -310,11 +310,10 @@ public:
 	bool IsSectionActive(const UNiagaraHierarchySection* Section) const;
 	
 	FString OnItemToStringDebug(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemBaseViewModel) const; 
-
 protected:
 	virtual void InitializeInternal() {}
 	virtual void FinalizeInternal() {}
-
+	
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 protected:
@@ -335,13 +334,11 @@ protected:
 	FRefreshTreeWidget RefreshSourceViewDelegate;
 	FRefreshTreeWidget RefreshHierarchyWidgetDelegate;
 	FSimpleDelegate RefreshSectionsWidgetDelegate;
-	FIsItemSelected IsItemSelectedDelegate;
-	FSelectObjectInDetailsPanel SelectObjectInDetailsPanelDelegate;
 
 	FOnHierarchyChanged OnHierarchyChangedDelegate;
 };
 
-struct FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyItemViewModelBase>
+struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyItemViewModelBase>
 {
 	DECLARE_MULTICAST_DELEGATE(FOnSynced)
 	
@@ -357,6 +354,12 @@ struct FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyIte
 
 	UNiagaraHierarchyItemBase* GetDataMutable() const { return ItemBase; }
 	const UNiagaraHierarchyItemBase* GetData() const { return ItemBase; }
+	
+	template<class T>
+	T* GetDataMutable() const { return Cast<T>(ItemBase); }
+	
+	template<class T>
+	const T* GetData() const { return Cast<T>(ItemBase); }
 
 	FString ToString() const { return ItemBase->ToString(); }
 	
@@ -378,6 +381,8 @@ struct FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyIte
 	int32 FindIndexOfDataChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const;
 	int32 FindIndexOfDataChild(UNiagaraHierarchyItemBase* Child) const;
 
+	/** Deleting will finalize as well, but is a user triggered action whereas Finalize is an internal call. */
+	void Delete();
 	/** Finalizing the view model will finalize the data & the children as well as handle cleanup. */
 	void Finalize();
 
@@ -405,6 +410,9 @@ struct FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyIte
 			OnRequestRenameDelegate.Execute();
 		}
 	}
+
+	/** The UObject we display in the details panel when this item is selected. By default it's the item the view model represents. */
+	virtual UObject* GetDataForEditing() { return ItemBase; }
 	
 	/** Used to create customized drag drop ops. */
 	TSharedRef<class FNiagaraHierarchyDragDropOp> CreateDragDropOp();
@@ -457,6 +465,7 @@ struct FNiagaraHierarchyRootViewModel : FNiagaraHierarchyItemViewModelBase
 	virtual ~FNiagaraHierarchyRootViewModel() override {}
 
 	virtual bool CanDrag() override { return false; }
+	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
 
 	TSharedPtr<struct FNiagaraHierarchySectionViewModel> AddNewSection();
 	TArray<TSharedPtr<struct FNiagaraHierarchySectionViewModel>>& GetSectionViewModels() { return SectionViewModels; }
@@ -477,7 +486,7 @@ struct FNiagaraHierarchySectionViewModel : FNiagaraHierarchyItemViewModelBase
 	
 	void SetSectionNameAsText(const FText& Text) const { Cast<UNiagaraHierarchySection>(ItemBase)->SetSectionNameAsText(Text); }
 	FText GetSectionNameAsText() const { return Cast<UNiagaraHierarchySection>(ItemBase)->GetSectionNameAsText(); }
-	
+	FText GetSectionTooltip() const { return Cast<UNiagaraHierarchySection>(ItemBase)->GetTooltip(); }
 	virtual bool CanDrag() override { return false; }
 	virtual bool CanRename() override { return true; }
 	virtual bool CanDelete() override { return true; }
@@ -487,7 +496,7 @@ struct FNiagaraHierarchySectionViewModel : FNiagaraHierarchyItemViewModelBase
 	virtual void FinalizeInternal() override;
 };
 
-struct FNiagaraHierarchyItemViewModel : FNiagaraHierarchyItemViewModelBase
+struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModel : FNiagaraHierarchyItemViewModelBase
 {
 	FNiagaraHierarchyItemViewModel(UNiagaraHierarchyItem* InItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel) : FNiagaraHierarchyItemViewModelBase(InItem, InParent, InHierarchyViewModel) {}
 	

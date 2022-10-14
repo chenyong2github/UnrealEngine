@@ -54,6 +54,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
+#include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SWrapBox.h"
 
@@ -1387,7 +1388,16 @@ void SNiagaraOverviewStack::OnSelectionChanged(UNiagaraStackEntry* InNewSelectio
 		}
 
 		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
-		OverviewSelectionViewModel->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, bClearCurrentSelection);
+
+		// todo (ME) remove this special case when we remove the user parameters group from the stack in favor of the new user param tab
+		if(InNewSelection->IsA<UNiagaraStackSystemUserParametersGroup>())
+		{
+			InNewSelection->GetSystemViewModel()->FocusTab(TEXT("NiagaraSystemEditor_UserParameters"), true);
+		}
+		else
+		{
+			OverviewSelectionViewModel->UpdateSelectedEntries(SelectedEntries, DeselectedEntries, bClearCurrentSelection);
+		}
 
 		PreviousSelection.Empty();
 		for (UNiagaraStackEntry* SelectedEntry : SelectedEntries)

@@ -813,6 +813,9 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariableBase& Param, 
 			RemoveParameter(Param);
 
 			OnLayoutChange();
+#if WITH_EDITORONLY_DATA
+			OnParameterRenamedDelegate.Broadcast(Param, NewName);
+#endif
 		}
 		else
 		{

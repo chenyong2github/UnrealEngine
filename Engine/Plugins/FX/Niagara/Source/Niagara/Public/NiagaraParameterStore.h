@@ -176,6 +176,7 @@ struct NIAGARA_API FNiagaraParameterStore
 	};
 	
 	DECLARE_MULTICAST_DELEGATE(FOnStructureChanged)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnParameterRenamed, FNiagaraVariable OldVariable, FName NewName)
 #endif
 
 	GENERATED_USTRUCT_BODY()
@@ -240,6 +241,7 @@ private:
 	FOnChanged OnChangedDelegate;
 	bool bSuppressOnChanged = false;
 	FOnStructureChanged OnStructureChangedDelegate;
+	FOnParameterRenamed OnParameterRenamedDelegate;
 #endif
 
 	void SetPositionData(const FName& Name, const FVector& Position);
@@ -669,6 +671,7 @@ public:
 	void RemoveAllOnChangedHandlers(const void* InUserObject);
 
 	FOnStructureChanged& OnStructureChanged() { return OnStructureChangedDelegate; }
+	FOnParameterRenamed& OnParameterRenamed() { return OnParameterRenamedDelegate; }
 #endif
 
 	void TriggerOnLayoutChanged() { OnLayoutChange(); }

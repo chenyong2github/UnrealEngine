@@ -8,18 +8,15 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SNiagaraParameterMenu.h"
+#include "ViewModels/TNiagaraViewModelManager.h"
 
 class SNiagaraSystemUserParameters : public SCompoundWidget
 {
-public:
-	DECLARE_DELEGATE_OneParam(FOnThumbnailCaptured, UTexture2D*);
-
 public:
 	SLATE_BEGIN_ARGS( SNiagaraSystemUserParameters ){}
 	SLATE_END_ARGS()
 	
 	void Construct(const FArguments& InArgs, TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
-	virtual ~SNiagaraSystemUserParameters() override {}
 	
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override {}
 
@@ -31,7 +28,7 @@ private:
 
 	FReply SummonHierarchyEditor();
 private:
-	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
+	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	
 	TSharedPtr<SComboButton> AddParameterButton;
 	TSharedPtr<SNiagaraAddParameterFromPanelMenu> ParameterPanel;

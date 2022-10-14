@@ -10,6 +10,7 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystemScalabilityViewModel.h"
+#include "NiagaraUserParameterPanelViewModel.h"
 #include "TickableEditorObject.h"
 #include "UObject/GCObject.h"
 #include "UObject/ObjectKey.h"
@@ -127,7 +128,7 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnPreClose);
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRequestFocusTab, FName /* TabName */);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRequestFocusTab, FName /* TabName */, bool /* DrawAttention */);
 
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnExternalRenameParameter, const FNiagaraVariableBase&, const FNiagaraVariableBase&, UNiagaraEmitter*);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExternalRemoveParameter, const FNiagaraVariableBase&,  UNiagaraEmitter*);
@@ -351,7 +352,7 @@ public:
 
 	FOnRequestFocusTab& OnRequestFocusTab();
 
-	NIAGARAEDITOR_API void FocusTab(FName TabName);
+	NIAGARAEDITOR_API void FocusTab(FName TabName, bool bDrawAttention = false);
 	
 	/** Gets the system toolkit command list. */
 	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetToolkitCommands();
@@ -440,6 +441,8 @@ public:
 
 	const TSharedPtr<FNiagaraSystemGraphSelectionViewModel>& GetSystemGraphSelectionViewModel() const { return SystemGraphSelectionViewModel; };
 
+	TSharedPtr<FNiagaraUserParameterPanelViewModel> GetUserParameterPanelViewModel() const { return UserParameterPanelViewModel; }
+	
 	/** Utility method to gather all graphs. */
 	TArray<UNiagaraGraph*> GetAllGraphs();
 
@@ -754,4 +757,6 @@ private:
 
 	/** ViewModel for caching the selected graph state and notifying when it changes. */
 	TSharedPtr<FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionViewModel;
+
+	TSharedPtr<FNiagaraUserParameterPanelViewModel> UserParameterPanelViewModel;
 };

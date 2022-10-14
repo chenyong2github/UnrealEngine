@@ -698,7 +698,8 @@ void FNiagaraEditorStyle::InitHierarchyEditor()
 	FInlineEditableTextBlockStyle HierarchyCategoryTextStyle = FInlineEditableTextBlockStyle()
 		.SetTextStyle(CategoryText)
 		.SetEditableTextBoxStyle(CategoryEditableText);
-	
+
+	Set("NiagaraEditor.HierarchyEditor.CategoryTextBlock", CategoryText);
 	Set("NiagaraEditor.HierarchyEditor.Category", HierarchyCategoryTextStyle);
 
 	Set("NiagaraEditor.Stack.DropTarget.BorderVertical", new IMAGE_BRUSH("Icons/StackDropTargetBorder_Vertical", FVector2D(2, 8), FLinearColor::White, ESlateBrushTileType::Vertical));

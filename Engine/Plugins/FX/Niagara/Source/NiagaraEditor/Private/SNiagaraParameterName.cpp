@@ -342,6 +342,7 @@ void SNiagaraParameterNameTextBlock::Construct(const FArguments& InArgs)
 	ParameterText = InArgs._ParameterText;
 	OnVerifyNameTextChangedDelegate = InArgs._OnVerifyTextChanged;
 	OnNameTextCommittedDelegate = InArgs._OnTextCommitted;
+	OnDragDetectedHandlerDelegate = InArgs._OnDragDetected;
 
 	ChildSlot
 	[
@@ -389,6 +390,27 @@ bool SNiagaraParameterNameTextBlock::VerifyNameChange(FName InNewName, FText& Ou
 void SNiagaraParameterNameTextBlock::NameChanged(FName InNewName)
 {
 	OnNameTextCommittedDelegate.ExecuteIfBound(FText::FromName(InNewName), ETextCommit::OnEnter);
+}
+
+FReply SNiagaraParameterNameTextBlock::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	// for OnDragDetected to fire, the widget has to handle mouse button down
+	if(OnDragDetectedHandlerDelegate.IsBound())
+	{
+		return FReply::Handled().DetectDrag(SharedThis(this), MouseEvent.GetEffectingButton());
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SNiagaraParameterNameTextBlock::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if(OnDragDetectedHandlerDelegate.IsBound())
+	{
+		return OnDragDetectedHandlerDelegate.Execute(MyGeometry, MouseEvent);
+	}
+
+	return FReply::Unhandled();
 }
 
 void SNiagaraParameterNameTextBlock::EnterEditingMode()

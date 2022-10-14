@@ -386,8 +386,6 @@ public:
 
 	virtual bool GetSectionEnabled(FText Section) const override;
 
-	bool IsUserSectionActive() const { return ActiveSectionIndex == UserOnlyIdx && UserOnlyIdx != -1; }
-
 	virtual bool GetShowSections() const override { return true; }
 	virtual bool GetNamespaceActive(const FName& InNamespace) const override { return true; }
 
@@ -451,7 +449,6 @@ private:
 	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedScriptCategories;
 
 	TSharedPtr<FNiagaraObjectSelection> VariableObjectSelection;
-	int32 UserOnlyIdx = -1;
 	int32 ActiveScriptIdx = -1;
 	int32 ActiveSystemIdx = -1;
 	int32 LastActiveSystemSectionIdx = -1;

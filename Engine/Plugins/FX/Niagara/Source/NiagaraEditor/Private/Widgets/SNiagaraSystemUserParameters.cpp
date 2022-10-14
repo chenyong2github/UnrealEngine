@@ -22,24 +22,26 @@ void SNiagaraSystemUserParameters::Construct(const FArguments& InArgs, TSharedPt
 	SystemViewModel = InSystemViewModel;
 	
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
+	
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
+	DetailsViewArgs.bShowOptions = false;
+	DetailsViewArgs.bShowPropertyMatrixButton = false;
 	TSharedRef<IDetailsView> ObjectDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	ObjectDetailsView->RegisterInstancedCustomPropertyLayout(UNiagaraSystem::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraSystemUserParameterDetails::MakeInstance));
-	ObjectDetailsView->SetObject(&SystemViewModel->GetSystem());
+	ObjectDetailsView->SetObject(&InSystemViewModel->GetSystem());
 	
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.HAlign(HAlign_Right)
+		.HAlign(HAlign_Fill)
 		.Padding(2.f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.HAlign(HAlign_Left)
 			[
 				SAssignNew(AddParameterButton, SComboButton)
 				.OnGetMenuContent(this, &SNiagaraSystemUserParameters::GetParameterMenu)
@@ -54,9 +56,10 @@ void SNiagaraSystemUserParameters::Construct(const FArguments& InArgs, TSharedPt
 				]
 			]
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.HAlign(HAlign_Right)
 			[
 				SNew(SButton)
+				.HAlign(HAlign_Right)
 				.OnClicked(this, &SNiagaraSystemUserParameters::SummonHierarchyEditor)
 				.Text(LOCTEXT("SummonUserParametersHierarchyButtonLabel", "Edit Hierarchy"))
 			]
@@ -76,7 +79,7 @@ TSharedRef<SWidget> SNiagaraSystemUserParameters::GetParameterMenu()
 {
 	FNiagaraParameterPanelCategory UserCategory = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
 	ParameterPanel = SNew(SNiagaraAddParameterFromPanelMenu)
-		.Graphs(SystemViewModel->GetParameterPanelViewModel()->GetEditableGraphsConst())
+		.Graphs(SystemViewModel.Pin()->GetParameterPanelViewModel()->GetEditableGraphsConst())
 		.OnNewParameterRequested(this, &SNiagaraSystemUserParameters::AddParameter)
 		.OnAllowMakeType(this, &SNiagaraSystemUserParameters::CanMakeNewParameterOfType)
 		.NamespaceId(UserCategory.NamespaceMetaData.GetGuid())
@@ -90,18 +93,18 @@ TSharedRef<SWidget> SNiagaraSystemUserParameters::GetParameterMenu()
 void SNiagaraSystemUserParameters::AddParameter(FNiagaraVariable NewParameter) const
 {
 	FNiagaraParameterPanelCategory UserCategory = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
-	// TODO (ME) Change request rename to true when it's supported in the UI
-	SystemViewModel->GetParameterPanelViewModel()->AddParameter(NewParameter, UserCategory, false, true);
+	FNiagaraEditorUtilities::AddParameter(NewParameter, SystemViewModel.Pin()->GetSystem().GetExposedParameters(), SystemViewModel.Pin()->GetSystem(), nullptr);
+	SystemViewModel.Pin()->GetUserParameterPanelViewModel()->OnParameterAdded().Execute(NewParameter);
 }
 
 bool SNiagaraSystemUserParameters::CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const
 {
-	return SystemViewModel->GetParameterPanelViewModel()->CanMakeNewParameterOfType(InType);
+	return SystemViewModel.Pin()->GetParameterPanelViewModel()->CanMakeNewParameterOfType(InType);
 }
 
 FReply SNiagaraSystemUserParameters::SummonHierarchyEditor()
 {
-	SystemViewModel->FocusTab(FNiagaraSystemToolkitModeBase::UserParametersHierarchyTabID);
+	SystemViewModel.Pin()->FocusTab(FNiagaraSystemToolkitModeBase::UserParametersHierarchyTabID);
 	return FReply::Handled();
 }
 

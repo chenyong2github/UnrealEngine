@@ -790,6 +790,56 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_UserParameters(cons
 	return SpawnedTab;
 }
 
+TSharedRef<SWidget> GenerateRowContentForUserParameterHierarchyEditor(TSharedRef<FNiagaraHierarchyItemViewModelBase> HierarchyItem, TSharedPtr<FNiagaraSystemViewModel> SystemViewModel)
+{
+	if(HierarchyItem->GetDataMutable()->IsA<UNiagaraHierarchyCategory>())
+	{
+		TSharedRef<FNiagaraHierarchyCategoryViewModel> TreeViewCategory = StaticCastSharedRef<FNiagaraHierarchyCategoryViewModel>(HierarchyItem);
+		return SNew(SNiagaraHierarchyCategory, TreeViewCategory);
+	}
+	else if(const UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(HierarchyItem->GetData()))
+	{
+		TSharedRef<SWidget> ParameterWidget = FNiagaraParameterUtilities::GetParameterWidget(UserParameter->GetUserParameter(), true, false);
+		UNiagaraScriptVariable* ScriptVariable = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(UserParameter->GetUserParameter(), SystemViewModel->GetSystem());
+
+		ParameterWidget->SetToolTipText(TAttribute<FText>::CreateLambda([ScriptVariable]()
+		{
+			return ScriptVariable->Metadata.Description;
+		}));
+		
+		return ParameterWidget;
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> GenerateCustomDetailsPanelNameWidget(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem)
+{
+	if(!HierarchyItem.IsValid())
+	{
+		return SNew(STextBlock).Text(FText::FromString("None selected"));
+	}
+	
+	if(HierarchyItem->GetData()->IsA<UNiagaraHierarchyCategory>() || HierarchyItem->GetData()->IsA<UNiagaraHierarchySection>())
+	{
+		return SNew(SBox).Padding(2.f)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([HierarchyItem]
+			{
+				return FText::FromString(HierarchyItem->ToString());
+			})
+			.TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.HierarchyEditor.CategoryTextBlock"))
+		];
+	}
+	else if(const UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(HierarchyItem->GetData()))
+	{
+		return FNiagaraParameterUtilities::GetParameterWidget(UserParameter->GetUserParameter(), false, false);
+	}
+
+	return SNullWidget::NullWidget;
+}
+
 TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_UserParametersHierarchyEditor(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId().TabType == UserParametersHierarchyTabID);
@@ -801,6 +851,8 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_UserParametersHiera
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("UserParameters")))
 			[
 				SNew(SNiagaraHierarchy, SystemToolkit.Pin()->GetSystemViewModel()->GetUserParametersHierarchyViewModel())
+				.OnGenerateRowContentWidget_Static(&GenerateRowContentForUserParameterHierarchyEditor, SystemToolkit.Pin()->GetSystemViewModel())
+				.OnGenerateCustomDetailsPanelNameWidget_Static(&GenerateCustomDetailsPanelNameWidget)
 			]
 		];
 	

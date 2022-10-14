@@ -33,6 +33,16 @@ void UNiagaraHierarchyUserParameter::RefreshDataInternal()
 	}
 }
 
+UObject* FNiagaraHierarchyUserParameterViewModel::GetDataForEditing()
+{
+	UNiagaraHierarchyUserParameter* HierarchyUserParameter = Cast<UNiagaraHierarchyUserParameter>(GetDataMutable<UNiagaraHierarchyUserParameter>());
+	FNiagaraVariable ContainedVariable = HierarchyUserParameter->GetUserParameter();
+	UNiagaraUserParametersHierarchyViewModel* UserParametersHierarchyViewModel = Cast<UNiagaraUserParametersHierarchyViewModel>(GetHierarchyViewModel());
+	UserParametersHierarchyViewModel->GetSystemViewModel()->GetSystem().GetExposedParameters().RedirectUserVariable(ContainedVariable);
+	TObjectPtr<UNiagaraScriptVariable> ScriptVariable = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(ContainedVariable, UserParametersHierarchyViewModel->GetSystemViewModel());
+	return ScriptVariable.Get();
+}
+
 TSharedRef<FNiagaraSystemViewModel> UNiagaraUserParametersHierarchyViewModel::GetSystemViewModel() const
 {
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModelWeak.Pin();
@@ -71,6 +81,21 @@ UNiagaraHierarchyRoot* UNiagaraUserParametersHierarchyViewModel::GetHierarchyDat
 
 	ensure(RootItem != nullptr);
 	return RootItem;
+}
+
+TSharedPtr<FNiagaraHierarchyItemViewModelBase> UNiagaraUserParametersHierarchyViewModel::CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent)
+{
+	if(UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(ItemBase))
+	{
+		return MakeShared<FNiagaraHierarchyUserParameterViewModel>(UserParameter, Parent, this);
+	}
+	else if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(ItemBase))
+	{
+		return MakeShared<FNiagaraHierarchyCategoryViewModel>(Category, Parent, this);
+	}
+
+	check(false);
+	return nullptr;
 }
 
 void UNiagaraUserParametersHierarchyViewModel::PrepareSourceItems()
@@ -120,12 +145,20 @@ TOptional<EItemDropZone> UNiagaraUserParametersHierarchyViewModel::CanDropOn(TSh
 			!TargetDropItem->HasParent(SourceDropItem, true)
 		&&
 		(
+			// user parameters can be dropped onto categories
 			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && DropZone == EItemDropZone::OntoItem)
 				||
+			// user parameters can be dropped above/below other user parameters
 			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && DropZone != EItemDropZone::OntoItem)
 				||
-			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyCategory>()
-				)
+			// categories can be dropped on categories
+			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyCategory>())
+				||
+			// user parameters can be dropped onto the root if the section is set to "All"
+			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyRoot>() && GetActiveSectionData() == nullptr)
+				||
+			// categories can be dropped onto the root always
+			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && TargetDropItem->GetData()-IsA<UNiagaraHierarchyRoot>())
 		);
 	
 	return bAllowDropOn ? DropZone : TOptional<EItemDropZone>();
@@ -151,54 +184,9 @@ TSharedRef<FNiagaraHierarchyDragDropOp> UNiagaraUserParametersHierarchyViewModel
 	return MakeShared<FNiagaraHierarchyDragDropOp>(nullptr);
 }
 
-void UNiagaraUserParametersHierarchyViewModel::OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem)
-{
-	if(!HierarchyItem.IsValid())
-	{
-		SelectObjectInDetailsPanelDelegate.Execute(nullptr);
-		return;
-	}
-
-	UObject* ObjectToSelect = nullptr;
-	if(HierarchyItem->GetData()->IsA<UNiagaraHierarchyUserParameter>())
-	{
-		UNiagaraHierarchyUserParameter* HierarchyUserParameter = Cast<UNiagaraHierarchyUserParameter>(HierarchyItem->GetDataMutable());
-		FNiagaraVariable ContainedVariable = HierarchyUserParameter->GetUserParameter();
-		GetSystemViewModel()->GetSystem().GetExposedParameters().RedirectUserVariable(ContainedVariable);
-		TObjectPtr<UNiagaraScriptVariable> ScriptVariable = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(ContainedVariable, GetSystemViewModel());
-
-		if(ScriptVariable)
-		{
-			ObjectToSelect = ScriptVariable.Get();
-		}
-	}
-	else
-	{
-		ObjectToSelect = HierarchyItem->GetDataMutable();
-	}
-
-	SelectObjectInDetailsPanelDelegate.Execute(ObjectToSelect);
-}
-
 TArray<TTuple<UClass*, FOnGetDetailCustomizationInstance>> UNiagaraUserParametersHierarchyViewModel::GetInstanceCustomizations()
 {
 	return {{UNiagaraScriptVariable::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraScriptVariableHierarchyDetails::MakeInstance)}};
-}
-
-TSharedRef<SWidget> UNiagaraUserParametersHierarchyViewModel::GenerateRowContentWidget(TSharedRef<FNiagaraHierarchyItemViewModelBase> ItemViewModelBase) const
-{
-	TSharedRef<SWidget> RowWidget = Super::GenerateRowContentWidget(ItemViewModelBase);
-
-	if(RowWidget == SNullWidget::NullWidget)
-	{
-		if(const UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(ItemViewModelBase->GetData()))
-		{
-			RowWidget = FNiagaraParameterUtilities::GetParameterWidget(UserParameter->GetUserParameter(), true, false);
-		}
-	}	
-
-	check(RowWidget != SNullWidget::NullWidget);
-	return RowWidget;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -882,7 +882,6 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 	}
 
 	// Define the sections
-	UserOnlyIdx = Sections.Emplace(FGuid(0x9E29BC43, 0x31524AB5, 0xA9D6675D, 0x741137CB), LOCTEXT("SectionUser", "User"), LOCTEXT("SectionUserDesc", "Displays only User exposed parameters"));
 	ActiveSystemIdx = Sections.Emplace(FGuid(0x7B4AFB34, 0xD0DF4618, 0x9A05349E, 0x361CE735), LOCTEXT("SectionSystemActive", "Active Overview"), LOCTEXT("SectionActiveSystemDesc", "Displays parameters that are context-sensitive to the selected items in the System Overview."));
 	ActiveScriptIdx = Sections.Emplace(FGuid(0x6E11F3EA, 0x5E314E82, 0xA64FEA41, 0x4F1DB891), LOCTEXT("SectionScriptActive", "Active Module"), LOCTEXT("SectionActiveScriptDesc", "Displays parameters that are context-sensitive to the active Scratch module document. Use this for renaming/editing local parameters to the module."));
 
@@ -892,12 +891,6 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 	{
 		bool bSaveConfig = false;
 		bool bAdded = false;
-		FNiagaraParameterPanelSectionStorage& UserStorage = Settings->FindOrAddParameterPanelSectionStorage(Sections[UserOnlyIdx].SectionId, bAdded);
-		if (bAdded)
-		{
-			UserStorage.ExpandedCategories.Emplace(FNiagaraEditorGuids::UserNamespaceMetaDataGuid);
-			bSaveConfig = true;
-		}
 
 		FNiagaraParameterPanelSectionStorage& ScriptStorage = Settings->FindOrAddParameterPanelSectionStorage(Sections[ActiveScriptIdx].SectionId, bAdded);
 		if (bAdded)
@@ -1517,28 +1510,19 @@ const TArray<FNiagaraParameterPanelCategory>& FNiagaraSystemToolkitParameterPane
 	// Show advanced in Active/Common case. Only show User when in user mode.
 	bool bForceScript = false;
 	bool bForceSystem = false;
-	bool bUserOnly = false;
-	if (ActiveSectionIndex == UserOnlyIdx && UserOnlyIdx != -1)
-		bUserOnly = true;
-	else if (ActiveSectionIndex == ActiveScriptIdx && ActiveScriptIdx != -1)
+	
+	if (ActiveSectionIndex == ActiveScriptIdx && ActiveScriptIdx != -1)
 		bForceScript= true;
 	else if (ActiveSectionIndex == ActiveSystemIdx && ActiveSystemIdx != -1)
 		bForceSystem = true;
-
-	if (bUserOnly)
+	
+	if (bForceScript)
 	{
-		CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::UserCategories;
+		CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedScriptCategories;
 	}
 	else
-	{	
-		if (bForceScript)
-		{
-			CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedScriptCategories;
-		}
-		else
-		{
-			CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
-		}
+	{
+		CachedCurrentCategories = FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 	}
 	
 	return CachedCurrentCategories;
@@ -1865,10 +1849,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 {
 	bool bForceScript = false;
 	bool bForceSystem = false;
-	bool bUserOnly = false;
-	if (ActiveSectionIndex == UserOnlyIdx && UserOnlyIdx != -1)
-		bUserOnly = true;
-	else if (ActiveSectionIndex == ActiveScriptIdx && ActiveScriptIdx != -1)
+	if (ActiveSectionIndex == ActiveScriptIdx && ActiveScriptIdx != -1)
 		bForceScript = true;
 	else if (ActiveSectionIndex == ActiveSystemIdx && ActiveSystemIdx != -1)
 		bForceSystem = true;
@@ -1917,7 +1898,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 	};
 
 	// Collect user parameters from system.
-	if (bUserOnly || bForceSystem)
+	if (bForceSystem)
 	{
 		CollectParamStore(&SystemViewModel->GetSystem().GetExposedParameters());
 	}
@@ -1944,7 +1925,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 		}
 	}
 
-	if (bForceSystem || bUserOnly)
+	if (bForceSystem)
 	{
 		// Collect parameters for all emitters.
 		TArray<FNiagaraVariable> VisitedInvalidParameters;
@@ -2041,7 +2022,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 						// This variable has already been registered, increment the reference count.
 						ItemPtr->ReferenceCount += Builder.Histories[0].PerVariableReadHistory[VariableIndex].Num() + Builder.Histories[0].PerVariableWriteHistory[VariableIndex].Num();
 					}
-					else if (!bUserOnly) // Add newly found variables, unless in user-only mode in which we use the parameter store defined ones only
+					else  // Add newly found variables
 					{
 						// This variable has not been registered, prepare the FNiagaraParameterPanelItem.
 						// -First make sure the variable namespace is in a valid category. If not, skip it.

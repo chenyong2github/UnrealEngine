@@ -30,6 +30,15 @@ private:
 	TObjectPtr<UNiagaraSystem> System;
 };
 
+struct FNiagaraHierarchyUserParameterViewModel : public FNiagaraHierarchyItemViewModel
+{
+	FNiagaraHierarchyUserParameterViewModel(UNiagaraHierarchyUserParameter* InItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel)
+	: FNiagaraHierarchyItemViewModel(InItem, InParent, InHierarchyViewModel) {}
+
+	/** For editing in the details panel we want to handle the script variable that is represented by the hierarchy item, not the hierarchy item itself. */
+	virtual UObject* GetDataForEditing() override;
+};
+
 UCLASS()
 class UNiagaraUserParametersHierarchyViewModel : public UNiagaraHierarchyViewModelBase
 {
@@ -45,18 +54,16 @@ public:
 	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 	
 	virtual UNiagaraHierarchyRoot* GetHierarchyDataRoot() const override;
+	virtual TSharedPtr<FNiagaraHierarchyItemViewModelBase> CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent) override;
 	
 	virtual void PrepareSourceItems() override;
 	virtual void SetupCommands() override;
 
 	virtual TOptional<EItemDropZone> CanDropOn(TSharedPtr<FNiagaraHierarchyItemViewModelBase> SourceDropItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> TargetDropItem, EItemDropZone DropZone = EItemDropZone::OntoItem) override;
 	virtual TSharedRef<FNiagaraHierarchyDragDropOp> CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item) override;
-
-	virtual void OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem) override;
 	
 	virtual bool SupportsDetailsPanel() override { return true; }
 	virtual TArray<TTuple<UClass*, FOnGetDetailCustomizationInstance>> GetInstanceCustomizations() override;
-	virtual TSharedRef<SWidget> GenerateRowContentWidget(TSharedRef<FNiagaraHierarchyItemViewModelBase>) const override;
 protected:
 	virtual void FinalizeInternal() override;
 private:

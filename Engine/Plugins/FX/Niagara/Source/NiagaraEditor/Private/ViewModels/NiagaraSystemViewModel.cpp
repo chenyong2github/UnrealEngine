@@ -151,6 +151,8 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	ScalabilityViewModel = NewObject<UNiagaraSystemScalabilityViewModel>(GetTransientPackage());
 	ScalabilityViewModel->Initialize(this->AsShared());
 
+	UserParameterPanelViewModel = MakeShared<FNiagaraUserParameterPanelViewModel>();
+	
 	UserParametersHierarchyViewModel = NewObject<UNiagaraUserParametersHierarchyViewModel>(GetTransientPackage());
 	UserParametersHierarchyViewModel->Initialize(this->AsShared());
 	
@@ -303,6 +305,11 @@ void FNiagaraSystemViewModel::Cleanup()
 	{
 		UserParametersHierarchyViewModel->Finalize();
 		UserParametersHierarchyViewModel = nullptr;
+	}
+
+	if(UserParameterPanelViewModel.IsValid())
+	{
+		UserParameterPanelViewModel.Reset();
 	}
 
 	if (PlaceholderDataInterfaceManager.IsValid())
@@ -911,9 +918,9 @@ FNiagaraSystemViewModel::FOnRequestFocusTab& FNiagaraSystemViewModel::OnRequestF
 	return OnRequestFocusTabDelegate;
 }
 
-void FNiagaraSystemViewModel::FocusTab(FName TabName)
+void FNiagaraSystemViewModel::FocusTab(FName TabName, bool bDrawAttention)
 {
-	OnRequestFocusTabDelegate.Broadcast(TabName);
+	OnRequestFocusTabDelegate.Broadcast(TabName, bDrawAttention);
 }
 
 TSharedPtr<FUICommandList> FNiagaraSystemViewModel::GetToolkitCommands()

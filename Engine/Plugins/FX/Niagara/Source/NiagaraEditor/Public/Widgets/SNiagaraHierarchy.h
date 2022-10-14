@@ -18,18 +18,21 @@ struct FNiagaraHierarchySectionViewModel;
 
 class SNiagaraHierarchy : public SCompoundWidget
 {
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateRowContentWidget, TSharedRef<FNiagaraHierarchyItemViewModelBase> HierarchyItem);
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateCustomDetailsPanelNameWidget, TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem);
+
 	SLATE_BEGIN_ARGS(SNiagaraHierarchy)
 		: _bReadOnly(true)
 	{}
 		SLATE_ARGUMENT(bool, bReadOnly)
+		SLATE_EVENT(FOnGenerateRowContentWidget, OnGenerateRowContentWidget)
+		SLATE_EVENT(FOnGenerateCustomDetailsPanelNameWidget, OnGenerateCustomDetailsPanelNameWidget)
 	SLATE_END_ARGS()
 
 public:
 	void Construct(const FArguments& InArgs, TObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel);
 	virtual ~SNiagaraHierarchy() override;
 	
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-
 	void RefreshSourceView(bool bFullRefresh = false) const;
 	void RefreshHierarchyView(bool bFullRefresh = false) const;
 	void RefreshSectionsWidget();
@@ -48,7 +51,15 @@ private:
 	void DeleteSelectedItems();
 	bool CanDeleteSelectedItems() const;
 
-	void OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, ESelectInfo::Type Type) const;
+	void OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, ESelectInfo::Type Type, bool bFromHierarchy) const;
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	/** This handles the drag & drop at the root level of the hierarchy, i.e. when dragging and dropping a parameter into the "empty" hierarchy */
+	FReply HandleHierarchyRootDrop(const FGeometry&, const FDragDropEvent& DragDropEvent) const;
+	bool CanDropOnRoot(TSharedPtr<FDragDropOperation> DragDropOp) const;
 private:
 	TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel;
 	TSharedPtr<STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>> SourceTreeView;
@@ -56,26 +67,37 @@ private:
 	TMap<TSharedPtr<FNiagaraHierarchySectionViewModel>, TSharedPtr<class SNiagaraHierarchySection>> SectionsWidgetMap;
 	SVerticalBox::FSlot* SectionsSlot = nullptr;
 	TSharedPtr<IDetailsView> DetailsPanel;
+
+	// Slate widget arguments
+private:
+	FOnGenerateRowContentWidget OnGenerateRowContentWidget;
+	FOnGenerateCustomDetailsPanelNameWidget OnGenerateCustomDetailsPanelNameWidget;
 };
 
 class SNiagaraHierarchySection : public SCompoundWidget
 {
+	DECLARE_DELEGATE_OneParam(FOnSectionActivated, TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel)
+	
 	SLATE_BEGIN_ARGS(SNiagaraHierarchySection)
 	{}
 		SLATE_EVENT(FIsSelected, IsSelected)
+		SLATE_EVENT(FOnSectionActivated, OnSectionActivated)
 	SLATE_END_ARGS()
 
 public:
 	void Construct(const FArguments& InArgs, TSharedPtr<struct FNiagaraHierarchySectionViewModel> InSection, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel);
 	virtual ~SNiagaraHierarchySection() override;
-	
 
 	bool OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation) const;
 	bool OnCanAcceptSectionDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const;
 	FReply OnDroppedOn(const FGeometry&, const FDragDropEvent& DragDropEvent, EItemDropZone DropZone) const;
 
 	void EnterEditingMode() const;
+
+private:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	
@@ -84,6 +106,7 @@ public:
 	UNiagaraHierarchySection* TryGetSectionData() const;
 
 	FText GetText() const;
+	FText GetTooltipText() const;
 	void OnRenameSection(const FText& Text, ETextCommit::Type CommitType) const;
 	bool OnVerifySectionRename(const FText& NewName, FText& OutTooltip) const;
 
@@ -94,6 +117,8 @@ private:
 	TSharedPtr<SInlineEditableTextBlock> InlineEditableTextBlock;
 	TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel;
 	TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel;
+private:
+	FOnSectionActivated OnSectionActivatedDelegate;
 };
 
 class SNiagaraHierarchyCategory : public SCompoundWidget

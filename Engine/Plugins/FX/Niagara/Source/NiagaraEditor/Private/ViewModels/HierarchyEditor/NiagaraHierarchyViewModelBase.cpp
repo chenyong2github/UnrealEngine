@@ -39,12 +39,20 @@ void UNiagaraHierarchyItemBase::Refresh()
 	Children.Empty();
 	for(UNiagaraHierarchyItemBase* Item : OldChildren)
 	{
+		// if an item is already finalized we can skip it
 		if(Item->IsFinalized())
 		{
 			continue;
 		}
-
+		
 		Item->Refresh();
+
+		// the refresh can have caused the item to finalize. In that case, we don't add it back
+		if(Item->IsFinalized())
+		{
+			continue;
+		}
+		
 		Children.Add(Item);
 	}
 }
@@ -154,7 +162,7 @@ bool UNiagaraHierarchyRoot::Modify(bool bAlwaysMarkDirty)
 
 bool FNiagaraHierarchyCategoryViewModel::IsTopCategoryActive() const
 {
-	if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(GetDataMutable()))
+	if(UNiagaraHierarchyCategory* Category = GetDataMutable<UNiagaraHierarchyCategory>())
 	{
 		const UNiagaraHierarchyCategory* Result = Category;
 		const UNiagaraHierarchyCategory* TopLevelCategory = Result;
@@ -190,32 +198,15 @@ UNiagaraHierarchyViewModelBase::~UNiagaraHierarchyViewModelBase()
 	RefreshSourceViewDelegate.Unbind();
 	RefreshHierarchyWidgetDelegate.Unbind();
 	RefreshSectionsWidgetDelegate.Unbind();
-	IsItemSelectedDelegate.Unbind();
-	SelectObjectInDetailsPanelDelegate.Unbind();
 }
 
 void UNiagaraHierarchyViewModelBase::ForceFullRefresh()
-{
+{	
 	PrepareSourceItems();
 	HierarchyViewModelRoot->SyncToData();
 	RefreshSourceView(true);
 	RefreshHierarchyView(true);
 	RefreshSectionsWidget();
-}
-
-TSharedRef<SWidget> UNiagaraHierarchyViewModelBase::GenerateRowContentWidget(TSharedRef<FNiagaraHierarchyItemViewModelBase> ItemBaseViewModel) const
-{
-	if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(ItemBaseViewModel->GetDataMutable()))
-	{
-		TSharedRef<FNiagaraHierarchyCategoryViewModel> TreeViewCategory = StaticCastSharedRef<FNiagaraHierarchyCategoryViewModel>(ItemBaseViewModel);
-		return SNew(SNiagaraHierarchyCategory, TreeViewCategory)
-		.IsSelected(FIsSelected::CreateLambda([this, ItemBaseViewModel]
-		{
-			return this->IsItemSelected(ItemBaseViewModel);
-		}));
-	}
-
-	return SNullWidget::NullWidget;
 }
 
 void UNiagaraHierarchyViewModelBase::RefreshSourceView(bool bFullRefresh) const
@@ -240,24 +231,6 @@ void UNiagaraHierarchyViewModelBase::RefreshSectionsWidget() const
 	{
 		RefreshSectionsWidgetDelegate.Execute();
 	}
-}
-
-void UNiagaraHierarchyViewModelBase::SelectItemInDetailsPanel(UObject* Object) const
-{
-	if(SelectObjectInDetailsPanelDelegate.IsBound())
-	{
-		SelectObjectInDetailsPanelDelegate.Execute(Object);
-	}
-}
-
-bool UNiagaraHierarchyViewModelBase::IsItemSelected(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) const
-{
-	if(IsItemSelectedDelegate.IsBound())
-	{
-		return IsItemSelectedDelegate.Execute(Item);
-	}
-
-	return false;
 }
 
 void UNiagaraHierarchyViewModelBase::PostUndo(bool bSuccess)
@@ -320,6 +293,20 @@ void UNiagaraHierarchyViewModelBase::Finalize()
 	FinalizeInternal();
 }
 
+TSharedPtr<FNiagaraHierarchyItemViewModelBase> UNiagaraHierarchyViewModelBase::CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent)
+{
+	if(UNiagaraHierarchyItem* Item = Cast<UNiagaraHierarchyItem>(ItemBase))
+	{
+		return MakeShared<FNiagaraHierarchyItemViewModel>(Item, Parent, this);
+	}
+	else if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(ItemBase))
+	{
+		return MakeShared<FNiagaraHierarchyCategoryViewModel>(Category, Parent, this);
+	}
+
+	return nullptr;
+}
+
 const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& UNiagaraHierarchyViewModelBase::GetSourceItems() const
 {
 	return SourceViewModelRoot->GetChildren();
@@ -337,16 +324,7 @@ void UNiagaraHierarchyViewModelBase::OnGetChildren(TSharedPtr<FNiagaraHierarchyI
 
 void UNiagaraHierarchyViewModelBase::SetActiveSection(TSharedPtr<FNiagaraHierarchySectionViewModel> Section)
 {
-	ActiveSection = Section;
-	if(Section.IsValid())
-	{
-		SelectItemInDetailsPanel(Section->GetDataMutable());
-	}
-	else
-	{
-		SelectItemInDetailsPanel(nullptr);
-	}
-	
+	ActiveSection = Section;	
 	RefreshHierarchyView(true);
 }
 
@@ -357,7 +335,7 @@ TSharedPtr<FNiagaraHierarchySectionViewModel> UNiagaraHierarchyViewModelBase::Ge
 
 UNiagaraHierarchySection* UNiagaraHierarchyViewModelBase::GetActiveSectionData() const
 {
-	return ActiveSection.IsValid() ? Cast<UNiagaraHierarchySection>(ActiveSection.Pin()->GetDataMutable()) : nullptr;
+	return ActiveSection.IsValid() ? ActiveSection.Pin()->GetDataMutable<UNiagaraHierarchySection>() : nullptr;
 }
 
 bool UNiagaraHierarchyViewModelBase::IsSectionActive(const UNiagaraHierarchySection* Section) const
@@ -383,17 +361,12 @@ void FNiagaraHierarchyItemViewModelBase::SyncToData()
 		// if we couldn't find a view model for a data child, we create it here
 		if(ViewModelIndex == INDEX_NONE)
 		{
-			if(UNiagaraHierarchyItem* Item = Cast<UNiagaraHierarchyItem>(Child))
+			TSharedPtr<FNiagaraHierarchyItemViewModelBase> NewItem = HierarchyViewModel->CreateViewModelForData(Child, AsShared());
+
+			if(ensure(NewItem.IsValid()))
 			{
-				TSharedPtr<FNiagaraHierarchyItemViewModel> NewItem = MakeShared<FNiagaraHierarchyItemViewModel>(Item, AsShared(), HierarchyViewModel);
 				NewItem->SyncToData();
 				NewChildren.Add(NewItem);
-			}
-			else if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(Child))
-			{
-				TSharedPtr<FNiagaraHierarchyCategoryViewModel> NewCategory = MakeShared<FNiagaraHierarchyCategoryViewModel>(Category, AsShared(), HierarchyViewModel);
-				NewCategory->SyncToData();
-				NewChildren.Add(NewCategory);
 			}
 		}
 		// if we could find it, we refresh its contained view models and readd it
@@ -434,9 +407,18 @@ const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& FNiagaraHierarchyI
 
 	for(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child : Children)
 	{
-		if(const UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(Child->GetData()))
+		// we add categories only if the top most category is considered active
+		if(const UNiagaraHierarchyCategory* Category = Child->GetData<UNiagaraHierarchyCategory>())
 		{
-			if(StaticCastSharedPtr<FNiagaraHierarchyCategoryViewModel>(Child)->IsTopCategoryActive()) //HierarchyViewModel->IsSectionActive(Category->GetSection()))
+			if(StaticCastSharedPtr<FNiagaraHierarchyCategoryViewModel>(Child)->IsTopCategoryActive())
+			{
+				FilteredChildren.Add(Child);
+			}
+		}
+		// if we have an item directly under the root without being categorized, we only allow if if the active section is set to "All"
+		else if(Child->GetParent().IsValid() && Child->GetParent() == HierarchyViewModel->GetHierarchyViewModelRoot() && Child->GetData()->IsA<UNiagaraHierarchyItem>())
+		{
+			if(HierarchyViewModel->GetActiveSectionData() == nullptr)
 			{
 				FilteredChildren.Add(Child);
 			}
@@ -546,6 +528,19 @@ int32 FNiagaraHierarchyItemViewModelBase::FindIndexOfDataChild(UNiagaraHierarchy
 	return GetData()->GetChildren().Find(Child);
 }
 
+void FNiagaraHierarchyItemViewModelBase::Delete()
+{
+	FScopedTransaction Transaction(LOCTEXT("DeletedItemTransaction", "Deleted hierarchy item"));
+	ItemBase->Modify();
+
+	if(Parent.IsValid())
+	{
+		Parent.Pin()->ItemBase->Modify();
+	}
+	
+	Finalize();
+}
+
 void FNiagaraHierarchyItemViewModelBase::Finalize()
 {	
 	for(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ChildViewModel : Children)
@@ -603,6 +598,34 @@ FReply FNiagaraHierarchyItemViewModelBase::OnDragDetected(const FGeometry& Geome
 	return FReply::Unhandled();
 }
 
+FReply FNiagaraHierarchyRootViewModel::OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
+{
+	if(DragDropEvent.GetOperation()->IsOfType<FNiagaraHierarchyDragDropOp>())
+	{
+		FScopedTransaction Transaction(LOCTEXT("Transaction_OnDropOnRoot", "Dropped item on root"));
+		HierarchyViewModel->GetHierarchyDataRoot()->Modify();
+		
+		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FNiagaraHierarchyDragDropOp>();
+		TWeakPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem();
+
+		if(DraggedItem.Pin()->GetDataMutable()->IsA<UNiagaraHierarchyItem>() || DraggedItem.Pin()->GetDataMutable()->IsA<UNiagaraHierarchyCategory>())
+		{
+			if(HierarchyDragDropOp->GetIsFromSourceList())
+			{
+				DuplicateToThis(DraggedItem.Pin());
+			}
+			else
+			{
+				ReparentToThis(DraggedItem.Pin());
+			}
+
+			HierarchyViewModel->RefreshHierarchyView();
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
 TSharedPtr<FNiagaraHierarchySectionViewModel> FNiagaraHierarchyRootViewModel::AddNewSection()
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("NewSectionAdded","Added Section"));
@@ -615,14 +638,13 @@ TSharedPtr<FNiagaraHierarchySectionViewModel> FNiagaraHierarchyRootViewModel::Ad
 	SyncToData();
 	HierarchyViewModel->SetActiveSection(NewSectionViewModel);
 	NewSectionViewModel->RequestRename();
-	
 
 	return NewSectionViewModel;
 }
 
 void FNiagaraHierarchyRootViewModel::SyncChildrenViewModelsInternal()
 {
-	const UNiagaraHierarchyRoot* RootData = Cast<UNiagaraHierarchyRoot>(GetData());
+	const UNiagaraHierarchyRoot* RootData = GetData<UNiagaraHierarchyRoot>();
 
 	TArray<TSharedPtr<FNiagaraHierarchySectionViewModel>> SectionsToRemove;
 	for(TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel : SectionViewModels)
@@ -659,9 +681,10 @@ void FNiagaraHierarchyRootViewModel::SyncChildrenViewModelsInternal()
 
 	SectionViewModels.Sort([this](const TSharedPtr<FNiagaraHierarchySectionViewModel>& ItemA, const TSharedPtr<FNiagaraHierarchySectionViewModel>& ItemB)
 		{
-			return Cast<UNiagaraHierarchyRoot>(GetDataMutable())->GetSectionData().Find(Cast<UNiagaraHierarchySection>(ItemA->GetDataMutable()))
-						<
-					Cast<UNiagaraHierarchyRoot>(GetDataMutable())->GetSectionData().Find(Cast<UNiagaraHierarchySection>(ItemB->GetDataMutable())); 
+			return
+			GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionData().Find(Cast<UNiagaraHierarchySection>(ItemA->GetDataMutable()))
+				<
+			GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionData().Find(Cast<UNiagaraHierarchySection>(ItemB->GetDataMutable())); 
 		});
 }
 
@@ -671,10 +694,10 @@ FReply FNiagaraHierarchySectionViewModel::OnDroppedOn(const FDragDropEvent& Drag
 	{
 		TSharedPtr<FNiagaraSectionDragDropOp> SectionDragDropOp = DragDropEvent.GetOperationAs<FNiagaraSectionDragDropOp>();
 		TWeakPtr<FNiagaraHierarchySectionViewModel> DraggedItem = SectionDragDropOp->GetDraggedSection();
-		UNiagaraHierarchySection* DraggedSectionData = Cast<UNiagaraHierarchySection>(DraggedItem.Pin()->GetDataMutable());
+		UNiagaraHierarchySection* DraggedSectionData = DraggedItem.Pin()->GetDataMutable<UNiagaraHierarchySection>();
 
-		int32 IndexOfThis = HierarchyViewModel->GetHierarchyDataRoot()->GetSectionData().Find(Cast<UNiagaraHierarchySection>(GetDataMutable()));
-		int32 DraggedSectionIndex = HierarchyViewModel->GetHierarchyDataRoot()->GetSectionData().Find(Cast<UNiagaraHierarchySection>(DraggedItem.Pin()->GetDataMutable()));
+		int32 IndexOfThis = HierarchyViewModel->GetHierarchyDataRoot()->GetSectionData().Find(GetDataMutable<UNiagaraHierarchySection>());
+		int32 DraggedSectionIndex = HierarchyViewModel->GetHierarchyDataRoot()->GetSectionData().Find(DraggedItem.Pin()->GetDataMutable<UNiagaraHierarchySection>());
 
 		TArray<UNiagaraHierarchySection*>& SectionData = HierarchyViewModel->GetHierarchyDataRoot()->GetSectionDataMutable();
 		int32 Count = SectionData.Num();
@@ -719,12 +742,12 @@ FReply FNiagaraHierarchySectionViewModel::OnDroppedOn(const FDragDropEvent& Drag
 		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FNiagaraHierarchyDragDropOp>();
 		TWeakPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem();
 
-		if(UNiagaraHierarchyCategory* HierarchyCategory = Cast<UNiagaraHierarchyCategory>(DraggedItem.Pin()->GetDataMutable()))
+		if(UNiagaraHierarchyCategory* HierarchyCategory = DraggedItem.Pin()->GetDataMutable<UNiagaraHierarchyCategory>())
 		{
 			FScopedTransaction Transaction(LOCTEXT("Transaction_OnSectionDrop", "Moved category to section"));
 			HierarchyViewModel->GetHierarchyDataRoot()->Modify();
 			
-			HierarchyCategory->SetSection(Cast<UNiagaraHierarchySection>(GetDataMutable()));
+			HierarchyCategory->SetSection(GetDataMutable<UNiagaraHierarchySection>());
 
 			// we null out any sections for all contained categories
 			TArray<UNiagaraHierarchyCategory*> AllChildCategories;
@@ -822,11 +845,27 @@ FReply FNiagaraHierarchyCategoryViewModel::OnDroppedOn(const FDragDropEvent& Dra
 		
 		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FNiagaraHierarchyDragDropOp>();
 		TSharedPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem().Pin();
-		
-		if(ItemDropZone == EItemDropZone::OntoItem)
+
+		if(UNiagaraHierarchyCategory* Category = DraggedItem->GetDataMutable<UNiagaraHierarchyCategory>())
 		{
-			// if we are dragging a category onto another category, we null out its section
-			if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(DraggedItem->GetDataMutable()))
+			// if we are dragging a category above/below another category and the new parent is going to be the root, we update its section to the active section
+			if(ItemDropZone != EItemDropZone::OntoItem)
+			{
+				if(Parent.IsValid() && Parent == HierarchyViewModel->GetHierarchyViewModelRoot())
+				{
+					Category->SetSection(HierarchyViewModel->GetActiveSectionData());
+
+					// we null out any sections for all contained categories
+					TArray<UNiagaraHierarchyCategory*> AllChildCategories;
+					Category->GetChildrenOfType<UNiagaraHierarchyCategory>(AllChildCategories, true);
+					for(UNiagaraHierarchyCategory* ChildCategory : AllChildCategories)
+					{
+						ChildCategory->SetSection(nullptr);
+					}
+				}				
+			}
+			// if we are dragging a category onto another category, we null out its section instead
+			else
 			{
 				Category->SetSection(nullptr);
 
@@ -837,8 +876,12 @@ FReply FNiagaraHierarchyCategoryViewModel::OnDroppedOn(const FDragDropEvent& Dra
 				{
 					ChildCategory->SetSection(nullptr);
 				}
-			}
+			}			
+		}
 
+		// the actual moving of the item happens here
+		if(ItemDropZone == EItemDropZone::OntoItem)
+		{
 			if(HierarchyDragDropOp->GetIsFromSourceList())
 			{
 				DuplicateToThis(HierarchyDragDropOp->GetDraggedItem().Pin());
@@ -856,7 +899,7 @@ FReply FNiagaraHierarchyCategoryViewModel::OnDroppedOn(const FDragDropEvent& Dra
 				Parent.Pin()->DuplicateToThis(HierarchyDragDropOp->GetDraggedItem().Pin(), FMath::Max(IndexOfThis, 0));
 			}
 			else
-			{
+			{				
 				Parent.Pin()->ReparentToThis(HierarchyDragDropOp->GetDraggedItem().Pin(), FMath::Max(IndexOfThis, 0));
 			}
 		}
