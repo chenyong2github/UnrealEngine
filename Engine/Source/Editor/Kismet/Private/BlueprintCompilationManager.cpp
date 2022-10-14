@@ -2354,7 +2354,7 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 					// that things that are not directly outered to the transient package will be 
 					// 'reinst'd', this is specifically to handle components, which need to be up to date
 					// on the REINST_ actor class:
-					return !bIsArchetype || Obj->GetOuter() == GetTransientPackage() || Obj->HasAnyFlags(RF_NewerVersionExists); 
+					return !bIsArchetype || Obj->GetOutermost() == GetTransientPackage() || Obj->HasAnyFlags(RF_NewerVersionExists); 
 				}
 			);
 
