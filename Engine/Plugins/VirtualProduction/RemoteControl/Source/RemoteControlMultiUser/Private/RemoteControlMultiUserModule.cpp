@@ -4,6 +4,7 @@
 
 #include "IConcertClientTransactionBridge.h"
 #include "IConcertSyncClientModule.h"
+#include "RemoteControlBinding.h"
 #include "RemoteControlPreset.h"
 
 
@@ -13,7 +14,9 @@ namespace RemoteControlMultiUserUtils
 	{
 		//Always allow RemoteControlPresets and RemoteControlExposeRegistry
 		static const FName ExposeRegistryName = "RemoteControlExposeRegistry";
-		if(Cast<URemoteControlPreset>(ObjectToFilter) != nullptr || (ObjectToFilter && ObjectToFilter->GetClass()->GetFName() == ExposeRegistryName))
+		if (Cast<URemoteControlPreset>(ObjectToFilter) != nullptr
+			|| (ObjectToFilter && ObjectToFilter->GetClass()->GetFName() == ExposeRegistryName)
+			|| (ObjectToFilter && ObjectToFilter->IsA<URemoteControlBinding>()))
 		{
 			return ETransactionFilterResult::IncludeObject;
 		}

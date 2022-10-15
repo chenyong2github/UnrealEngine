@@ -1856,13 +1856,18 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 			{
 				return true;
 			}
-			
+#if WITH_EDITOR
+			FScopedTransaction Transaction(LOCTEXT("ModifyPresetMetadata", "Modify preset metadata"));
+#endif
 			Preset->Modify();
 			FString& MetadataValue = Preset->Metadata.FindOrAdd(MoveTemp(MetadataField));
 			MetadataValue = MoveTemp(SetMetadataRequest.Value);
 		}
 		else if (Request.Verb == EHttpServerRequestVerbs::VERB_DELETE)
 		{
+#if WITH_EDITOR
+			FScopedTransaction Transaction(LOCTEXT("DeletePresetMetadata", "Delete preset metadata entry"));
+#endif
 			Preset->Modify();
 			Preset->Metadata.Remove(MoveTemp(MetadataField));
 		}
