@@ -16,6 +16,8 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/EnvelopeFollower.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundGenerator.h"
+#include "MediaAudioResampler.h"
 
 #include "MediaSoundComponent.generated.h"
 
@@ -64,6 +66,82 @@ struct FMediaSoundComponentSpectralData
 	// The magnitude of the spectrum at this frequency
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
 	float Magnitude = 0.0f;
+};
+
+// Class implements an ISoundGenerator to feed decoded audio to audio renderering async tasks
+class FMediaSoundGenerator : public ISoundGenerator
+{
+public:
+	struct FSoundGeneratorParams
+	{
+		int32 SampleRate = 0;
+		int32 NumChannels = 0;
+
+		TSharedPtr<FMediaAudioSampleQueue, ESPMode::ThreadSafe> SampleQueue;
+
+		bool bSpectralAnalysisEnabled = false;
+		bool bEnvelopeFollowingEnabled = false;
+
+		int32 EnvelopeFollowerAttackTime = 0;
+		int32 EnvelopeFollowerReleaseTime = 0;
+
+		Audio::FSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
+		TArray<float> FrequenciesToAnalyze;
+
+		float CachedRate = 0.0f;
+		FTimespan CachedTime;
+		FTimespan LastPlaySampleTime;
+	};
+
+	FMediaSoundGenerator(FSoundGeneratorParams& InParams);
+
+	virtual ~FMediaSoundGenerator();
+
+	virtual void OnEndGenerate() override;
+
+	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
+
+	void SetCachedData(float InCachedRate, const FTimespan& InCachedTime);
+	void SetLastPlaySampleTime(const FTimespan& InLastPlaySampleTime);
+
+	void SetEnableSpectralAnalysis(bool bInSpectralAnlaysisEnabled);
+	void SetEnableEnvelopeFollowing(bool bInEnvelopeFollowingEnabled);
+
+	void SetSpectrumAnalyzerSettings(Audio::FSpectrumAnalyzerSettings::EFFTSize InFFTSize, const TArray<float>& InFrequenciesToAnalyze);
+	void SetEnvelopeFollowingSettings(int32 InAttackTimeMsec, int32 InReleaseTimeMsec);
+
+	void SetSampleQueue(TSharedPtr<FMediaAudioSampleQueue, ESPMode::ThreadSafe>& InSampleQueue);
+
+	TArray<FMediaSoundComponentSpectralData> GetSpectralData() const;
+	TArray<FMediaSoundComponentSpectralData> GetNormalizedSpectralData() const;
+	float GetCurrentEnvelopeValue() const { return CurrentEnvelopeValue; }
+
+	FTimespan GetLastPlayTime() const { return LastPlaySampleTime.Load(); }
+
+private:
+
+	FSoundGeneratorParams Params;
+
+	/** The audio resampler. */
+	FMediaAudioResampler Resampler;
+
+	/** Scratch buffer to mix in source audio to from decoder */
+	Audio::AlignedFloatBuffer AudioScratchBuffer;
+
+	/** Spectrum analyzer used for analyzing audio in media. */
+	mutable Audio::FAsyncSpectrumAnalyzer SpectrumAnalyzer;
+
+	Audio::FEnvelopeFollower EnvelopeFollower;
+
+	TAtomic<float> CachedRate;
+	TAtomic<FTimespan> CachedTime;
+	TAtomic<FTimespan> LastPlaySampleTime;
+
+	float CurrentEnvelopeValue = 0.0f;
+	bool bEnvelopeFollowerSettingsChanged = false;
+
+	mutable FCriticalSection AnalysisCritSect;
+	mutable FCriticalSection SampleQueueCritSect;
 };
 
 /**
@@ -260,7 +338,8 @@ protected:
 	//~ USynthComponent interface
 
 	virtual bool Init(int32& SampleRate) override;
-	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
+
+	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 
 protected:
 
@@ -278,10 +357,10 @@ protected:
 private:
 
 	/** The player's current play rate (cached for use on audio thread). */
-	TAtomic<float> CachedRate;
+	float CachedRate;
 
 	/** The player's current time (cached for use on audio thread). */
-	TAtomic<FTimespan> CachedTime;
+	FTimespan CachedTime;
 
 	/** Critical section for synchronizing access to PlayerFacadePtr. */
 	FCriticalSection CriticalSection;
@@ -295,33 +374,18 @@ private:
 	/** Adjusts the output sample rate to synchronize audio and media clock. */
 	float RateAdjustment;
 
-	/** The audio resampler. */
-	FMediaAudioResampler* Resampler;
-
 	/** Audio sample queue. */
 	TSharedPtr<FMediaAudioSampleQueue, ESPMode::ThreadSafe> SampleQueue;
 
 	/* Time of last sample played. */
-	TAtomic<FTimespan> LastPlaySampleTime;
+	FTimespan LastPlaySampleTime;
 
 	/** Which frequencies to analyze. */
 	TArray<float> FrequenciesToAnalyze;
-
-	/** The FFT bin-size to use for FFT analysis. Smaller sizes make it more reactive but less accurate in the frequency space. */
-	EMediaSoundComponentFFTSize FFTSize;
-
 	/** Spectrum analyzer used for analyzing audio in media. */
-	Audio::FAsyncSpectrumAnalyzer SpectrumAnalyzer;
 	Audio::FSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
-
-	Audio::FEnvelopeFollower EnvelopeFollower;
 	int32 EnvelopeFollowerAttackTime;
 	int32 EnvelopeFollowerReleaseTime;
-	float CurrentEnvelopeValue;
-	FCriticalSection EnvelopeFollowerCriticalSection;
-
-	/** Scratch buffer to mix in source audio to from decoder */
-	Audio::AlignedFloatBuffer AudioScratchBuffer;
 
 	/** Whether or not spectral analysis is enabled. */
 	bool bSpectralAnalysisEnabled;
@@ -329,9 +393,9 @@ private:
 	/** Whether or not envelope following is enabled. */
 	bool bEnvelopeFollowingEnabled;
 
-	/** Whether or not envelope follower settings changed. */
-	bool bEnvelopeFollowerSettingsChanged;
-
 	/** Holds our clock sink if available. */
 	TSharedPtr<FMediaSoundComponentClockSink, ESPMode::ThreadSafe> ClockSink;
+
+	/** Instance of our media sound generator. This is a non-uobject that is used to feed sink audio to a sound source on the audio render thread (or async task). */
+	ISoundGeneratorPtr MediaSoundGenerator;
 };

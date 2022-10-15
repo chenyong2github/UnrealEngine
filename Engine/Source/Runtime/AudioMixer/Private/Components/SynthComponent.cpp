@@ -349,13 +349,17 @@ void USynthComponent::OnUnregister()
 		AudioComponent->DestroyComponent();
 		AudioComponent = nullptr;
 	}
+
+	// Clear out the synth component's reference to the sound generator or it will leak until it gets GC'd
+	// Normally this is ok to wait till GC but some derived synths might need for the handle to be released
+	SoundGenerator.Reset();
 }
 
 void USynthComponent::EndPlay(const EEndPlayReason::Type Reason) 
 {	
 	Super::EndPlay(Reason);
 
-	if (GetOwner() && (Reason == EEndPlayReason::LevelTransition || Reason == EEndPlayReason::RemovedFromWorld))
+	if (GetOwner() && (Reason == EEndPlayReason::LevelTransition || Reason == EEndPlayReason::RemovedFromWorld || Reason == EEndPlayReason::Destroyed))
 	{
 		// If our world or sublevel is going away, stop immediately to prevent the containing world/level from being leaked via hard references from the audio device.
 		Stop();
