@@ -390,9 +390,10 @@ bool FActorTreeItem::ShouldShowPinnedState() const
 {
 	if (const AActor* ActorPtr = Actor.Get())
 	{
+		// Pinning of Actors is only supported on the main world partition
 		const ULevel* Level = ActorPtr->GetLevel();
 		const UWorld* World = Level->GetWorld();
-		return World && !World->IsGameWorld() && !!Level->GetWorldPartition();
+		return World && !World->IsGameWorld() && !!World->GetWorldPartition() && Level->IsPersistentLevel();
 	}
 
 	return false;

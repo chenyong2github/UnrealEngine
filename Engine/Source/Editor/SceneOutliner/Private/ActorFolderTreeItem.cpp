@@ -357,6 +357,14 @@ bool FActorFolderTreeItem::ShouldShowPinnedState() const
 	return false;
 }
 
+bool FActorFolderTreeItem::ShouldShowVisibilityState() const
+{
+	// Visibility state can only be shown when folder is part of the persistent level (PIE or Editor) or
+	// if it is an actual sub-level that is not instanced (sublevels prior to level instances or editing level instance)
+	ULevel* Level = FFolder::GetRootObjectAssociatedLevel(GetRootObject());
+	return World.IsValid() && Level && (Level->IsPersistentLevel() || !Level->IsInstancedLevel());
+}
+
 FFolder FActorFolderTreeItem::GetFolder() const
 {
 	// Use Folder resolved by ActorFolder when valid (a null owning world would will fail resolving, see UActorFolder::GetFolder())

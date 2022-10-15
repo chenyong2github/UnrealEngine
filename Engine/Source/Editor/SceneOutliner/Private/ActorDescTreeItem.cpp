@@ -317,12 +317,29 @@ bool FActorDescTreeItem::GetVisibility() const
 	return true;
 }
 
+bool FActorDescTreeItem::ShouldShowPinnedState() const
+{
+	if (ActorDescHandle.IsValid())
+	{
+		// Pinning of ActorDescs is only supported on the main world partition
+		if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDescHandle->GetContainer()))
+		{
+			return WorldPartition->IsMainWorldPartition();
+		}
+	}
+
+	return false;
+}
+
 bool FActorDescTreeItem::GetPinnedState() const
 {
 	if (ActorDescHandle.IsValid())
 	{
-		UWorldPartition* WorldPartition = ActorDescHandle->GetContainer()->GetWorld()->GetWorldPartition();
-		return WorldPartition ? WorldPartition->IsActorPinned(GetGuid()) : false;
+		// Pinning of ActorDescs is only supported on the main world partition
+		if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDescHandle->GetContainer()))
+		{
+			return WorldPartition->IsMainWorldPartition() && WorldPartition->IsActorPinned(GetGuid());
+		}
 	}
 	return false;
 }
