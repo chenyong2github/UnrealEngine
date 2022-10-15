@@ -208,9 +208,10 @@ bool FWorldPartitionHelpers::HasExceededMaxMemory()
 
 void FWorldPartitionHelpers::DoCollectGarbage()
 {
-	const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
+	constexpr bool bShouldAllowCaching = false;
+	const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats(bShouldAllowCaching);
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
-	const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
+	const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats(bShouldAllowCaching);
 
 	UE_LOG(LogWorldPartition, Log, TEXT("GC Performed - Available Physical: %.2fGB, Available Virtual: %.2fGB"),
 		(int64)MemStatsAfter.AvailablePhysical / (1024.0 * 1024.0 * 1024.0),

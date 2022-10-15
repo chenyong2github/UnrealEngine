@@ -72,7 +72,7 @@ struct CORE_API FHoloLensPlatformMemory : public FGenericPlatformMemory
 		return true;
 	}
 	static class FMalloc* BaseAllocator();
-	static FPlatformMemoryStats GetStats();
+	static FPlatformMemoryStats GetStatsImmediate();
 	static void GetStatsForMallocProfiler(FGenericMemoryStats& out_Stats);
 	static const FPlatformMemoryConstants& GetConstants();
 	static void* BinnedAllocFromOS(SIZE_T Size);

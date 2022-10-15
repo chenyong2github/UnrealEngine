@@ -60,6 +60,9 @@ namespace GenericPlatformMemory
 		     "Where a platform can specifically state it's memory pressure this test maybe ignored.\n"
 		     "0 (default) critical pressure will not use the threshold."),
 		ECVF_Default);
+
+	static uint64 CachedMemoryStatsAtFrame = -1;
+	static FPlatformMemoryStats CachedMemoryStats;
 }
 
 struct TUnalignedTester
@@ -250,9 +253,24 @@ FMalloc* FGenericPlatformMemory::BaseAllocator()
 	return new FMallocAnsi();
 }
 
-FPlatformMemoryStats FGenericPlatformMemory::GetStats()
+FPlatformMemoryStats FGenericPlatformMemory::GetStats(const bool bAllowUseCachedStats)
 {
-	UE_LOG(LogMemory, Warning, TEXT("FGenericPlatformMemory::GetStats not implemented on this platform"));
+	if (IsInGameThread())
+	{
+		if (!bAllowUseCachedStats || (GFrameCounter != GenericPlatformMemory::CachedMemoryStatsAtFrame))
+		{
+			GenericPlatformMemory::CachedMemoryStatsAtFrame = GFrameCounter;
+			GenericPlatformMemory::CachedMemoryStats = FPlatformMemory::GetStatsImmediate();
+		}
+		return GenericPlatformMemory::CachedMemoryStats;
+	}
+
+	return FPlatformMemory::GetStatsImmediate();
+}
+
+FPlatformMemoryStats FGenericPlatformMemory::GetStatsImmediate()
+{
+	UE_LOG(LogMemory, Warning, TEXT("FGenericPlatformMemory::GetStatsImmediate not implemented on this platform"));
 	return FPlatformMemoryStats();
 }
 

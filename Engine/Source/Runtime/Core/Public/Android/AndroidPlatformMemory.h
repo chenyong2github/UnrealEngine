@@ -24,7 +24,7 @@ struct CORE_API FAndroidPlatformMemory : public FGenericPlatformMemory
 {
 	//~ Begin FGenericPlatformMemory Interface
 	static void Init();
-	static FPlatformMemoryStats GetStats();
+	static FPlatformMemoryStats GetStatsImmediate();
 	static uint64 GetMemoryUsedFast();
 	static const FPlatformMemoryConstants& GetConstants();
 	static EPlatformMemorySizeBucket GetMemorySizeBucket();

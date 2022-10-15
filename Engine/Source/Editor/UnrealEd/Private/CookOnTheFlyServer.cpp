@@ -1652,10 +1652,11 @@ void UCookOnTheFlyServer::UpdateDisplay(UE::Cook::FTickStackData& StackData, boo
 		}
 		if (!IsCookOnTheFlyMode() || bCookOnTheFlyShouldDisplay)
 		{
+			constexpr bool bShouldAllowCaching = false;
 			UE_CLOG(!(StackData.TickFlags & ECookTickFlags::HideProgressDisplay) && (GCookProgressDisplay != (int32)ECookProgressDisplayMode::Nothing),
 				LogCook, Display,
 				TEXT("Cook Diagnostics: OpenFileHandles=%d, VirtualMemory=%dMiB"),
-				OpenFileHandles, FPlatformMemory::GetStats().UsedVirtual / 1024 / 1024);
+				OpenFileHandles, FPlatformMemory::GetStats(bShouldAllowCaching).UsedVirtual / 1024 / 1024);
 		}
 		if (bCookOnTheFlyShouldDisplay)
 		{
@@ -1953,7 +1954,8 @@ TRefCountPtr<UCookOnTheFlyServer::FPollable> UCookOnTheFlyServer::CreatePollable
 void UCookOnTheFlyServer::PollGarbageCollection(UE::Cook::FTickStackData& StackData)
 {
 	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
-	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
+	constexpr bool bShouldAllowCaching = false;
+	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats(bShouldAllowCaching).UsedVirtual);
 
 	if (IsCookFlagSet(ECookInitializationFlags::TestCook))
 	{
@@ -4415,8 +4417,8 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 
 	TStringBuilder<256> TriggerMessages;
 
-	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
-	
+	constexpr bool bShouldAllowCaching = false;
+	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats(bShouldAllowCaching);
 	if (MemoryMinFreeVirtual > 0 || MemoryMinFreePhysical > 0)
 	{
 		++ActiveTriggers;
@@ -4954,7 +4956,8 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	}
 
 	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
-	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
+	constexpr bool bShouldAllowCaching = false;
+	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats(bShouldAllowCaching).UsedVirtual);
 	TArray<UPackage*> GCKeepPackages;
 	TArray<UE::Cook::FPackageData*> GCKeepPackageDatas;
 	PreGarbageCollectImpl(GCKeepPackages, GCKeepPackageDatas, GCKeepObjects);
@@ -5130,8 +5133,9 @@ void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collec
 
 void UCookOnTheFlyServer::PostGarbageCollect()
 {
+	constexpr bool bShouldAllowCaching = false;
 	NumObjectsHistory.AddInstance(GUObjectArray.GetObjectArrayNumMinusAvailable());
-	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats().UsedVirtual);
+	VirtualMemoryHistory.AddInstance(FPlatformMemory::GetStats(bShouldAllowCaching).UsedVirtual);
 	PostGarbageCollectImpl(GCKeepObjects);
 }
 
@@ -5936,7 +5940,8 @@ bool UCookOnTheFlyServer::TryInitializeCookWorker()
 void UCookOnTheFlyServer::InitializeSession()
 {
 	NumObjectsHistory.Initialize(GUObjectArray.GetObjectArrayNumMinusAvailable());
-	VirtualMemoryHistory.Initialize(FPlatformMemory::GetStats().UsedVirtual);
+	constexpr bool bShouldAllowCaching = false;
+	VirtualMemoryHistory.Initialize(FPlatformMemory::GetStats(bShouldAllowCaching).UsedVirtual);
 }
 
 bool UCookOnTheFlyServer::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
@@ -8493,7 +8498,8 @@ void UCookOnTheFlyServer::PrintFinishStats()
 	const float TotalCookTime = (float)(FPlatformTime::Seconds() - CookByTheBookOptions->CookStartTime);
 	UE_LOG(LogCook, Display, TEXT("Cook by the book total time in tick %fs total time %f"), CookByTheBookOptions->CookTime, TotalCookTime);
 
-	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
+	constexpr bool bShouldAllowCaching = false;
+	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats(bShouldAllowCaching);
 	UE_LOG(LogCook, Display, TEXT("Peak Used virtual %u MiB Peak Used physical %u MiB"), MemStats.PeakUsedVirtual / 1024 / 1024, MemStats.PeakUsedPhysical / 1024 / 1024);
 
 	COOK_STAT(UE_LOG(LogCook, Display, TEXT("Packages Cooked: %d, Packages Iteratively Skipped: %d, Total Packages: %d"),

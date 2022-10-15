@@ -84,7 +84,7 @@ struct CORE_API FWindowsPlatformMemory
 	}
 
 	static class FMalloc* BaseAllocator();
-	static FPlatformMemoryStats GetStats();
+	static FPlatformMemoryStats GetStatsImmediate();
 	static void GetStatsForMallocProfiler( FGenericMemoryStats& out_Stats );
 	static const FPlatformMemoryConstants& GetConstants();
 	static bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);

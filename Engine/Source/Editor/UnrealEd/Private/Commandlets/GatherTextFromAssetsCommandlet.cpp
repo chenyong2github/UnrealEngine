@@ -270,7 +270,8 @@ void UGatherTextFromAssetsCommandlet::CalculateDependenciesForPackagesPendingGat
 
 bool UGatherTextFromAssetsCommandlet::HasExceededMemoryLimit(const bool bLog)
 {
-	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
+	constexpr bool bShouldAllowCaching = false;
+	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats(bShouldAllowCaching);
 
 	const uint64 FreeMemoryBytes = MemStats.AvailablePhysical;
 	if (MinFreeMemoryBytes > 0u && FreeMemoryBytes < MinFreeMemoryBytes)

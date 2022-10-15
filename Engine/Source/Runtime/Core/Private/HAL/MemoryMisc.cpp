@@ -46,13 +46,13 @@ namespace MemoryMiscInternal
 #if ENABLE_MEMORY_SCOPE_STATS
 FScopedMemoryStats::FScopedMemoryStats(const TCHAR* Name)
 	: Text(Name)
-	, StartStats(FPlatformMemory::GetStats())
+	, StartStats(FPlatformMemory::GetStatsImmediate())
 {
 }
 
 FScopedMemoryStats::~FScopedMemoryStats()
 {
-	const FPlatformMemoryStats EndStats = FPlatformMemory::GetStats();
+	const FPlatformMemoryStats EndStats = FPlatformMemory::GetStatsImmediate();
 	MemoryMiscInternal::LogMemoryDiff(Text, StartStats, EndStats);
 }
 #endif

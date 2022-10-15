@@ -78,7 +78,7 @@ FMalloc* FHoloLensPlatformMemory::BaseAllocator()
 	//	_CrtSetAllocHook(HoloLensAllocHook); // Enable to track down windows allocs not handled by our wrapper
 }
 
-FPlatformMemoryStats FHoloLensPlatformMemory::GetStats()
+FPlatformMemoryStats FHoloLensPlatformMemory::GetStatsImmediate()
 {
 	/**
 	*	GetProcessMemoryInfo

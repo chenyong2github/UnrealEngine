@@ -64,7 +64,7 @@ struct CORE_API FApplePlatformMemory : public FGenericPlatformMemory
 {
 	//~ Begin FGenericPlatformMemory Interface
 	static void Init();
-	static FPlatformMemoryStats GetStats();
+	static FPlatformMemoryStats GetStatsImmediate();
 	static uint64 GetMemoryUsedFast();
 	static const FPlatformMemoryConstants& GetConstants();
 	static FMalloc* BaseAllocator();

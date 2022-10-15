@@ -789,7 +789,7 @@ static uint32 ReadProcFields(const char *FileName, FProcField *ProcFields, uint3
 //   uint64 PeakUsedPhysical;  /** The peak amount of physical memory used by the process, in bytes. */	VmHWM
 //   uint64 UsedVirtual;       /** Total amount of virtual memory used by the process. */					VmSize
 //   uint64 PeakUsedVirtual;   /** The peak amount of virtual memory used by the process. */				VmPeak
-FPlatformMemoryStats FUnixPlatformMemory::GetStats()
+FPlatformMemoryStats FUnixPlatformMemory::GetStatsImmediate()
 {
 	uint64 MemFree = 0;
 	uint64 Cached = 0;

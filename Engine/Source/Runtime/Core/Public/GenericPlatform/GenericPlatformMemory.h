@@ -334,9 +334,14 @@ struct CORE_API FGenericPlatformMemory
 	static FMalloc* BaseAllocator();
 
 	/**
-	 * @return platform specific current memory statistics.
+	 * @return platform specific current memory statistics - by default caches value for same frame to avoid repeated costly platform calls.
 	 */
-	static FPlatformMemoryStats GetStats();
+	static FPlatformMemoryStats GetStats(const bool bAllowUseCachedStats = true);
+
+	/**
+	 * @return platform specific current memory statistics - no caching.
+	 */
+	static FPlatformMemoryStats GetStatsImmediate();
 
 	/**
 	* @return memory used for platforms that can do it quickly (without affecting stat unit much)
