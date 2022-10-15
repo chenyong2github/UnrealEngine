@@ -702,7 +702,7 @@ namespace Horde.Storage.Utility
 			else
 			{
 				RefName refName = GetRefNameForNode(nodeName);
-				logger.LogInformation("Reading tag {NodeName}:{TagName} from temp storage (ref: {RefName})", nodeName, tagName, refName);
+				logger.LogInformation("Reading tag {NodeName}:{TagName} from temp storage (ref: {RefName}, localFile: {LocalFile})", nodeName, tagName, refName, localFileListLocation);
 
 				TempStorageNode node = await store.ReadNodeAsync<TempStorageNode>(refName, cancellationToken: cancellationToken);
 
