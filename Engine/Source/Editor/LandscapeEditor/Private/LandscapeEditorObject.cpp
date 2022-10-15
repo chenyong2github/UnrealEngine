@@ -126,7 +126,10 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	SetAlphaTexture(ConstructorStatics.AlphaTexture.Object, AlphaTextureChannel);
+	if (!IsTemplate())
+	{
+		SetAlphaTexture(ConstructorStatics.AlphaTexture.Object, AlphaTextureChannel);
+	}
 }
 
 void ULandscapeEditorObject::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
