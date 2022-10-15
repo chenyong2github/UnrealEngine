@@ -1124,6 +1124,8 @@ FVulkanBasicRaytracingPipeline::FVulkanBasicRaytracingPipeline(FVulkanDevice* co
 
 	// Occlusion pipeline
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 		FRayTracingPipelineStateInitializer OcclusionInitializer;
 
 		FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuiltInRayTracingShader<FOcclusionMainRG>() };
@@ -1138,6 +1140,8 @@ FVulkanBasicRaytracingPipeline::FVulkanBasicRaytracingPipeline(FVulkanDevice* co
 		OcclusionInitializer.bAllowHitGroupIndexing = false;
 
 		Occlusion = new FVulkanRayTracingPipelineState(InDevice, OcclusionInitializer);
+
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 

@@ -2218,9 +2218,11 @@ public:
 template<typename ShaderType>
 static FD3D12RayTracingShader* GetBuildInRayTracingShader()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	auto Shader = ShaderMap->GetShader<ShaderType>();
 	FD3D12RayTracingShader* RayTracingShader = static_cast<FD3D12RayTracingShader*>(Shader.GetRayTracingShader());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return RayTracingShader;
 }
 
@@ -2858,6 +2860,8 @@ public:
 	{
 		// Occlusion pipeline
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 			FRayTracingPipelineStateInitializer OcclusionInitializer;
 
 			FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuildInRayTracingShader<FOcclusionMainRG>() };
@@ -2869,10 +2873,14 @@ public:
 			OcclusionInitializer.bAllowHitGroupIndexing = false;
 
 			Occlusion = new FD3D12RayTracingPipelineState(Device, OcclusionInitializer);
+
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		// Intersection pipeline
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 			FRayTracingPipelineStateInitializer IntersectionInitializer;
 
 			FRHIRayTracingShader* IntersectionRGSTable[] = { GetBuildInRayTracingShader<FIntersectionMainRG>() };
@@ -2887,6 +2895,8 @@ public:
 			IntersectionInitializer.bAllowHitGroupIndexing = false;
 
 			Intersection = new FD3D12RayTracingPipelineState(Device, IntersectionInitializer);
+
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 

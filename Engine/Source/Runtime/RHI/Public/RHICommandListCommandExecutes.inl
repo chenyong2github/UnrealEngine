@@ -596,13 +596,17 @@ void FRHICommandBuildAccelerationStructures::Execute(FRHICommandListBase& CmdLis
 void FRHICommandRayTraceOcclusion::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(RayTraceOcclusion);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	INTERNAL_DECORATOR(RHIRayTraceOcclusion)(Scene, Rays, Output, NumRays);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FRHICommandRayTraceIntersection::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(RayTraceIntersection);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	INTERNAL_DECORATOR(RHIRayTraceIntersection)(Scene, Rays, Output, NumRays);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FRHICommandRayTraceDispatch::Execute(FRHICommandListBase& CmdList)
