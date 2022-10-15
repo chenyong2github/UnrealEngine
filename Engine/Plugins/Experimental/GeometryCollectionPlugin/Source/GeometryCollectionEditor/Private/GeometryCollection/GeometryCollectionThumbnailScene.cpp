@@ -24,19 +24,22 @@ FGeometryCollectionThumbnailScene::FGeometryCollectionThumbnailScene()
 
 void FGeometryCollectionThumbnailScene::SetGeometryCollection(UGeometryCollection* GeometryCollection)
 {
-	PreviewActor->GetGeometryCollectionComponent()->SetRestCollection(GeometryCollection);
-
-	if (GeometryCollection)
+	if (PreviewActor->GetGeometryCollectionComponent())
 	{
-		FTransform MeshTransform = FTransform::Identity;
+		PreviewActor->GetGeometryCollectionComponent()->SetRestCollection(GeometryCollection);
 
-		PreviewActor->SetActorLocation(FVector(0, 0, 0), false);
-		PreviewActor->GetGeometryCollectionComponent()->UpdateBounds();
+		if (GeometryCollection)
+		{
+			FTransform MeshTransform = FTransform::Identity;
 
-		// Center the mesh at the world origin then offset to put it on top of the plane
-		const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetGeometryCollectionComponent()->Bounds);
-		PreviewActor->SetActorLocation(-PreviewActor->GetGeometryCollectionComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false);
-		PreviewActor->GetGeometryCollectionComponent()->RecreateRenderState_Concurrent();
+			PreviewActor->SetActorLocation(FVector(0, 0, 0), false);
+			PreviewActor->GetGeometryCollectionComponent()->UpdateBounds();
+
+			// Center the mesh at the world origin then offset to put it on top of the plane
+			const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetGeometryCollectionComponent()->Bounds);
+			PreviewActor->SetActorLocation(-PreviewActor->GetGeometryCollectionComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false);
+			PreviewActor->GetGeometryCollectionComponent()->RecreateRenderState_Concurrent();
+		}
 	}
 }
 
