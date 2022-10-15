@@ -368,8 +368,8 @@ private:
 					}
 
 					// Derived from:
-					// LandscapeComponentUnitsPerVertex * 2 ^ (LODLevel) <= WaterInfoUnitsPerPixel
-					OptimalLODLevel = FMath::FloorLog2(WaterInfoUnitsPerPixel / LandscapeComponentUnitsPerVertex);
+					// LandscapeComponentUnitsPerVertex * 2 ^ (LODLevel) <= WaterInfoUnitsPerPixel * 0.5
+					OptimalLODLevel = FMath::Max(0, int32(FMath::FloorLog2(WaterInfoUnitsPerPixel / LandscapeComponentUnitsPerVertex)) - 1);
 
 					break;
 				}
