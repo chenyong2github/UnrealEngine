@@ -50,6 +50,9 @@ struct FConcertSequencerState
 	UPROPERTY()
 	float PlaybackSpeed;
 
+	UPROPERTY()
+	bool bLoopMode = false;
+
 	FConcertSequencerState()
 		: PlayerStatus(EConcertMovieScenePlayerStatus::Stopped)
 		, PlaybackSpeed(1.0f)
