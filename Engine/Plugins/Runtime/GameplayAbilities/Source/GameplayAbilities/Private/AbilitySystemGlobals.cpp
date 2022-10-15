@@ -6,6 +6,7 @@
 #include "GameplayCueInterface.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
+#include "AbilitySystemLog.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayCueManager.h"
 #include "GameplayTagResponseTable.h"

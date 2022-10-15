@@ -2,6 +2,7 @@
 
 #include "Sensors/MLAdapterSensor_Attribute.h"
 #include "AttributeSet.h"
+#include "GameFramework/Actor.h"
 
 
 UMLAdapterSensor_Attribute::UMLAdapterSensor_Attribute(const FObjectInitializer& ObjectInitializer)
