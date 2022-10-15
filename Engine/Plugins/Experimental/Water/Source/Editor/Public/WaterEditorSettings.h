@@ -19,6 +19,7 @@ class UStaticMesh;
 class UWaterBodyComponent;
 class UWaterWavesBase;
 class AWaterLandscapeBrush;
+class AWaterZone;
 
 USTRUCT()
 struct WATEREDITOR_API FWaterBrushActorDefaults
@@ -185,6 +186,9 @@ public:
 
 	virtual FName GetCategoryName() const override { return FName(TEXT("Plugins")); }
 
+	TSubclassOf<AWaterZone> GetWaterZoneClass() const;
+	FSoftClassPath GetWaterZoneClassPath() const { return WaterZoneClassPath; }
+
 	TSubclassOf<AWaterLandscapeBrush> GetWaterManagerClass() const;
 	FSoftClassPath GetWaterManagerClassPath() const { return WaterManagerClassPath; }
 
@@ -277,6 +281,10 @@ private:
 	/** Allows the water mesh to be updated when the water body's shape is modified interactively (e.g. when dragging a spline point). Set to false if the performance when editing a water body gets too bad (the water mesh will be properly updated when the dragging operation is done). */
 	UPROPERTY(EditAnywhere, config, Category = Brush)
 	bool bUpdateWaterMeshDuringInteractiveChanges = false;
+
+	/** Class of the water zone to be used*/
+	UPROPERTY(EditAnywhere, config, Category = Water, meta = (MetaClass = "/Script/Water.WaterZone"))
+	FSoftClassPath WaterZoneClassPath;
 
 	/** Class of the water brush to be used in landscape */
 	UPROPERTY(EditAnywhere, config, Category = Brush, meta = (MetaClass = "/Script/WaterEditor.WaterLandscapeBrush"), AdvancedDisplay)

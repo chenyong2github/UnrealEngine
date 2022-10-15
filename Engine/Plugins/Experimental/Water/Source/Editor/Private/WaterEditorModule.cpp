@@ -215,11 +215,11 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 			WaterZoneBounds += LandscapeBounds;
 		}
 
+		const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
+		check(WaterEditorSettings != nullptr);
 		// Automatically setup landscape-affecting features (water brush) if needed : 
 		if ((WaterBrushActor != nullptr) && WaterBrushActor->AffectsLandscape() && !FoundLandscapes.IsEmpty())
 		{
-			const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
-			check(WaterEditorSettings != nullptr);
 			TSubclassOf<AWaterLandscapeBrush> WaterBrushClass = WaterEditorSettings->GetWaterManagerClass();
 			if (UClass* WaterBrushClassPtr = WaterBrushClass.Get())
 			{
@@ -262,8 +262,14 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 						AWaterLandscapeBrush* NewBrush = (WaterBrushActorFactory != nullptr)
 							? Cast<AWaterLandscapeBrush>(WaterBrushActorFactory->CreateActor(ActorWorld, FoundLandscape->GetLevel(), FTransform(WaterZoneBounds.GetCenter()), SpawnParams))
 							: ActorWorld->SpawnActor<AWaterLandscapeBrush>(WaterBrushClassPtr, SpawnParams);
+
 						if (NewBrush)
 						{
+							if (!WaterBrushActorFactory)
+							{
+								UE_LOG(LogWaterEditor, Warning, TEXT("WaterManager Actor Factory could not be found! The newly spawned %s may have incorrect defaults!"), *NewBrush->GetActorLabel());
+							}
+
 							bHasWaterManager = true;
 							NewBrush->SetActorLabel(BrushActorString);
 							NewBrush->SetTargetLandscape(FoundLandscape);
@@ -284,41 +290,58 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 		}
 
 		// Setup the water zone actor for this water body : 
+
 		const bool bHasZoneActor = !!TActorIterator<AWaterZone>(ActorWorld);
 		if ((WaterBodyActor != nullptr) && !bHasZoneActor)
 		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.OverrideLevel = ActorWorld->PersistentLevel;
-			SpawnParams.bAllowDuringConstructionScript = true; // This can be called by construction script if the actor being added to the world is part of a blueprint, for example : 
-			AWaterZone* WaterZoneActor = ActorWorld->SpawnActor<AWaterZone>(AWaterZone::StaticClass(), SpawnParams);
-
-			// TODO [jonathan.bard] : when we can tag static meshes as "water ground", add these to the bounds
-			// Set a more sensible default location and extent so that the zone fully encapsulates the landscape if one exists.
-			if (WaterZoneBounds.IsValid)
+			TSubclassOf<AWaterZone> WaterZoneClass = WaterEditorSettings->GetWaterZoneClass();
+			if (UClass* WaterZoneClassPtr = WaterZoneClass.Get())
 			{
-				WaterZoneActor->SetActorLocation(WaterZoneBounds.GetCenter());
+				UActorFactory* WaterZoneActorFactory = GEditor->FindActorFactoryForActorClass(WaterZoneClassPtr);
 
-				// FBox::GetExtent returns the radius, SetZoneExtent expects diameter.
-				FVector2D NewExtent = 2 * FVector2D(WaterZoneBounds.GetExtent());
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.OverrideLevel = ActorWorld->PersistentLevel;
+				SpawnParams.bAllowDuringConstructionScript = true; // This can be called by construction script if the actor being added to the world is part of a blueprint, for example : 
 
-				float ZoneExtentScale = WaterEditorModule::CVarOverrideNewWaterZoneScale.GetValueOnGameThread();
-				if (ZoneExtentScale == 0)
+				AWaterZone* WaterZoneActor = (WaterZoneActorFactory != nullptr)
+					? Cast<AWaterZone>(WaterZoneActorFactory->CreateActor(ActorWorld, Actor->GetLevel(), FTransform(WaterZoneBounds.GetCenter()), SpawnParams))
+					: ActorWorld->SpawnActor<AWaterZone>(WaterZoneClassPtr, SpawnParams);
+
+				if (WaterZoneActor)
 				{
-					ZoneExtentScale = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults.NewWaterZoneScale;
-				}
+					if (!WaterZoneActorFactory)
+					{
+						UE_LOG(LogWaterEditor, Warning, TEXT("WaterZone Actor Factory could not be found! The newly spawned %s may have incorrect defaults!"), *WaterZoneActor->GetActorLabel());
+					}
 
-				if (ZoneExtentScale != 0)
-				{
-					NewExtent = FMath::Abs(ZoneExtentScale) * NewExtent;
-				}
+					// TODO [jonathan.bard] : when we can tag static meshes as "water ground", add these to the bounds
+					// Set a more sensible default location and extent so that the zone fully encapsulates the landscape if one exists.
+					if (WaterZoneBounds.IsValid)
+					{
+						WaterZoneActor->SetActorLocation(WaterZoneBounds.GetCenter());
 
-				WaterZoneActor->SetZoneExtent(NewExtent);
+						// FBox::GetExtent returns the radius, SetZoneExtent expects diameter.
+						FVector2D NewExtent = 2 * FVector2D(WaterZoneBounds.GetExtent());
+
+						float ZoneExtentScale = WaterEditorModule::CVarOverrideNewWaterZoneScale.GetValueOnGameThread();
+						if (ZoneExtentScale == 0)
+						{
+							ZoneExtentScale = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults.NewWaterZoneScale;
+						}
+
+						if (ZoneExtentScale != 0)
+						{
+							NewExtent = FMath::Abs(ZoneExtentScale) * NewExtent;
+						}
+
+						WaterZoneActor->SetZoneExtent(NewExtent);
+					}
+				}
 			}
-
-			// Set the defaults here because the actor factory isn't triggered on manual SpawnActor.
-			const FWaterZoneActorDefaults& WaterMeshActorDefaults = GetDefault<UWaterEditorSettings>()->WaterZoneActorDefaults;
-			WaterZoneActor->GetWaterMeshComponent()->FarDistanceMaterial = WaterMeshActorDefaults.GetFarDistanceMaterial();
-			WaterZoneActor->GetWaterMeshComponent()->FarDistanceMeshExtent = WaterMeshActorDefaults.FarDistanceMeshExtent;
+			else
+			{
+				UE_LOG(LogWaterEditor, Warning, TEXT("Could not find Water Zone class %s to spawn"), *WaterEditorSettings->GetWaterZoneClassPath().GetAssetPathString());
+			}
 		}
 	}
 }

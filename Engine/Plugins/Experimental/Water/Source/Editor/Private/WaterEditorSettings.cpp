@@ -6,6 +6,7 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialInterface.h"
 #include "WaterLandscapeBrush.h"
+#include "WaterZoneActor.h"
 #include "WaterWaves.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Curves/CurveFloat.h"
@@ -135,6 +136,7 @@ UWaterEditorSettings::UWaterEditorSettings()
 	: TextureGroupForGeneratedTextures(TEXTUREGROUP_World)
 	, MaxWaterVelocityAndHeightTextureSize(2048)
 	, LandscapeMaterialParameterCollection(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/MPC/MPC_Landscape.MPC_Landscape")))
+	, WaterZoneClassPath(TEXT("/Script/Water.WaterZone"))
 	, WaterManagerClassPath(TEXT("/Script/WaterEditor.WaterBrushManager"))
 	, DefaultBrushAngleFalloffMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/MeshBrush_Angle.MeshBrush_Angle")))
 	, DefaultBrushIslandFalloffMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/MeshBrush_Island.MeshBrush_Island")))
@@ -164,6 +166,11 @@ UWaterEditorSettings::UWaterEditorSettings()
 		WaterWavesRef->SetWaterWavesAsset(WaterWavesAssetRef.Object);
 		WaterBodyOceanDefaults.WaterWaves = WaterWavesRef;
 	}
+}
+
+TSubclassOf<AWaterZone> UWaterEditorSettings::GetWaterZoneClass() const
+{
+	return WaterZoneClassPath.TryLoadClass<AWaterZone>();
 }
 
 TSubclassOf<AWaterLandscapeBrush> UWaterEditorSettings::GetWaterManagerClass() const
