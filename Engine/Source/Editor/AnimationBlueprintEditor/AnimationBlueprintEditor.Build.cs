@@ -61,6 +61,7 @@ public class AnimationBlueprintEditor : ModuleRules
             new string[] {
                 "Kismet",
                 "Persona",
+				"EditorFramework"
             }
         );
     }
