@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonVisibilityWidgetBase.h"
+#include "CommonInputSubsystem.h"
 #include "CommonUIPrivate.h"
 #include "CommonUISubsystemBase.h"
 
