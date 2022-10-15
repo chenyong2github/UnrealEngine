@@ -8,6 +8,7 @@
 #include "Styling/AppStyle.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 
@@ -20,6 +21,11 @@ class URenderGridQueue;
 namespace UE::RenderGrid
 {
 	class IRenderGridEditor;
+}
+
+namespace UE::RenderGrid::Private
+{
+	class SRenderGridJobListTable;
 }
 
 
@@ -39,6 +45,10 @@ namespace UE::RenderGrid::Private
 
 		virtual void Tick(const FGeometry&, const double, const float) override;
 		void Construct(const FArguments& InArgs, TSharedPtr<IRenderGridEditor> InBlueprintEditor);
+
+		//~ Begin SWidget Interface
+		virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+		//~ End SWidget Interface
 
 		/** Refreshes the content of this widget. */
 		void Refresh();
@@ -69,13 +79,6 @@ namespace UE::RenderGrid::Private
 		void OnSearchBarTextChanged(const FText& Text) { Refresh(); }
 
 	private:
-		/** Callback for generating a row widget in the session tree view. */
-		TSharedRef<ITableRow> HandleJobListGenerateRow(URenderGridJob* Item, const TSharedRef<STableViewBase>& OwnerTable);
-
-		/** Callback for session tree view selection changes. */
-		void HandleJobListSelectionChanged(URenderGridJob* Item, ESelectInfo::Type SelectInfo);
-
-	private:
 		/** A reference to the blueprint editor that owns the render grid instance. */
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 
@@ -86,13 +89,46 @@ namespace UE::RenderGrid::Private
 		TArray<URenderGridJob*> RenderGridJobs;
 
 		/** The widget that lists the render grid jobs. */
-		TSharedPtr<SListView<URenderGridJob*>> RenderGridJobListWidget;
+		TSharedPtr<SRenderGridJobListTable> RenderGridJobListWidget;
 
 		/** The search bar widget. */
 		TSharedPtr<SSearchBox> RenderGridSearchBox;
 
 		/** The header checkbox for the enable/disable column. */
 		TSharedPtr<SCheckBox> RenderGridJobEnabledHeaderCheckbox;
+	};
+
+
+	/**
+	 * The widget that contains the rows of render grid jobs.
+	 */
+	class SRenderGridJobListTable : public SListView<URenderGridJob*>
+	{
+	public:
+		SLATE_BEGIN_ARGS(SRenderGridJobListTable) {}
+			SLATE_ARGUMENT(const TArray<URenderGridJob*>*, ListItemsSource)
+			SLATE_ARGUMENT(TSharedPtr<SHeaderRow>, HeaderRow)
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, TWeakPtr<IRenderGridEditor> InBlueprintEditor, const TSharedPtr<SRenderGridJobList>& InJobListWidget);
+
+		//~ Begin SWidget Interface
+		virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+		//~ End SWidget Interface
+
+	private:
+		/** Callback for generating a row widget in the session tree view. */
+		TSharedRef<ITableRow> HandleJobListGenerateRow(URenderGridJob* Item, const TSharedRef<STableViewBase>& OwnerTable);
+
+		/** Callback for session tree view selection changes. */
+		void HandleJobListSelectionChanged(URenderGridJob* Item, ESelectInfo::Type SelectInfo);
+
+	private:
+		/** A reference to the blueprint editor that owns the render grid instance. */
+		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
+
+		/** A reference to the job list (the parent widget). */
+		TSharedPtr<SRenderGridJobList> JobListWidget;
 	};
 
 
@@ -114,9 +150,6 @@ namespace UE::RenderGrid::Private
 		TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& InEvent, EItemDropZone InItemDropZone, URenderGridJob* InJob);
 		FReply OnAcceptDrop(const FDragDropEvent& InEvent, EItemDropZone InItemDropZone, URenderGridJob* InJob);
 		virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
-
-		void DuplicateJob();
-		void DeleteJob();
 
 		FText GetRenderStatusText() const;
 

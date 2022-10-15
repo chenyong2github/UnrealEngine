@@ -86,9 +86,6 @@ namespace UE::RenderGrid::Private
 		/** Immediately rebuilds the render grid instance that is being shown in the editor. */
 		void RefreshInstance();
 
-		/** The delegate that will fire when this editor closes. */
-		FRenderGridEditorClosed& OnRenderGridEditorClosed() { return RenderGridEditorClosedDelegate; }
-
 	private:
 		/** Called whenever the blueprint is structurally changed. */
 		virtual void OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled = false) override;
@@ -149,9 +146,6 @@ namespace UE::RenderGrid::Private
 		FActionMenuContent HandleCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
 
 	private:
-		/** The delegate that will be fired when this editor closes. */
-		FRenderGridEditorClosed RenderGridEditorClosedDelegate;
-
 		/** The toolbar builder that is used to customize the toolbar of this editor. */
 		TSharedPtr<FRenderGridBlueprintEditorToolbar> RenderGridToolbar;
 

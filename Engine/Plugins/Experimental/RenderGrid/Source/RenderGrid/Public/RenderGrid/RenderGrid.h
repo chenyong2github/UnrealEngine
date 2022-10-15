@@ -303,6 +303,7 @@ public:
 		return {
 			TEXT("ReceiveBeginEditor"),
 			TEXT("ReceiveEndEditor"),
+			TEXT("ReceiveTick"),
 			TEXT("ReceiveBeginBatchRender"),
 			TEXT("ReceiveEndBatchRender"),
 			TEXT("ReceiveBeginJobRender"),
@@ -328,6 +329,12 @@ protected:
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="EndEditor"))
 	void ReceiveEndEditor();
+
+	/**
+	 * The tick event, will only execute when the asset is open in the editor.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="Tick"))
+	void ReceiveTick(float DeltaTime);
 
 	/**
 	 * Event for when batch rendering begins.
@@ -389,6 +396,9 @@ public:
 
 	/** Overridable native event for when this asset is closed in the editor. The asset will also be closed and reopened during a blueprint compile. */
 	virtual void EndEditor();
+
+	/** Overridable native event for when this asset is ticked by the editor. */
+	virtual void Tick(float DeltaTime);
 
 	/** Overridable native event for when batch rendering begins. */
 	virtual void BeginBatchRender(URenderGridQueue* Queue);
@@ -539,11 +549,11 @@ private:
 
 
 	/** The type of the properties that a job in this grid can have. */
-	UPROPERTY(/*EditInstanceOnly, Category="Render Grid|Grid", Meta=(DisplayName="Properties Type", AllowPrivateAccess="true")*/)
+	UPROPERTY(/*EditInstanceOnly, Category="Render Grid|Source", Meta=(DisplayName="Properties Type", AllowPrivateAccess="true")*/)
 	ERenderGridPropsSourceType PropsSourceType;
 
 	/** The remote control properties that a job in this grid can have, only use this if PropsSourceType is ERenderGridPropsSourceType::RemoteControl. */
-	UPROPERTY(EditInstanceOnly, Category="Render Grid|Grid", Meta=(DisplayName="Remote Control Preset", AllowPrivateAccess="true", EditCondition="PropsSourceType == ERenderGridPropsSourceType::RemoteControl", EditConditionHides))
+	UPROPERTY(EditInstanceOnly, Category="Render Grid|Source", Meta=(DisplayName="Remote Control Preset", AllowPrivateAccess="true", EditCondition="PropsSourceType == ERenderGridPropsSourceType::RemoteControl", EditConditionHides))
 	TObjectPtr<URemoteControlPreset> PropsSourceOrigin_RemoteControl;
 
 

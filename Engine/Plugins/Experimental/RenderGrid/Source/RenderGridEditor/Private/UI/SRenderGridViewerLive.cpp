@@ -172,7 +172,6 @@ ULevelSequencePlayer* UE::RenderGrid::Private::SRenderGridEditorViewport::GetSeq
 		PlaybackSettings.bAutoPlay = false;
 		PlaybackSettings.bPauseAtEnd = true;
 		PlaybackSettings.bRestoreState = true;
-		FLevelSequenceCameraSettings CameraSettings;
 
 		ALevelSequenceActor* PlayerActor = nullptr;
 		if (ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, PlaybackSettings, PlayerActor); IsValid(Player))

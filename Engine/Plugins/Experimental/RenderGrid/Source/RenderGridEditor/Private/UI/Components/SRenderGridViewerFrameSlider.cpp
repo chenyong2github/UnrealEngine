@@ -47,7 +47,7 @@ void UE::RenderGrid::Private::SRenderGridViewerFrameSlider::Construct(const FArg
 			SNew(SBox)
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
-			.HeightOverride(20.0f)
+			.HeightOverride(39.0f)
 			[
 				FrameSlider.ToSharedRef()
 			]
@@ -56,7 +56,7 @@ void UE::RenderGrid::Private::SRenderGridViewerFrameSlider::Construct(const FArg
 		// slider text
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(5.0f, -3.0f, 5.0f, 3.0f)
+		.Padding(5.0f, -14.0f, 5.0f, 3.0f)
 		[
 			SNew(SHorizontalBox)
 

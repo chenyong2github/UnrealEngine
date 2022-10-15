@@ -386,6 +386,99 @@ FString URenderGridQueue::GetJobStatus(URenderGridJob* Job) const
 	return TEXT("");
 }
 
+TArray<URenderGridJob*> URenderGridQueue::GetJobs() const
+{
+	TArray<URenderGridJob*> Jobs;
+	Jobs.Reserve(Entries.Num());
+	for (const TTuple<TObjectPtr<URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJob>> EntryEntry : Entries)
+	{
+		if (const TObjectPtr<URenderGridJob> Job = EntryEntry.Key; IsValid(Job))
+		{
+			if (const TObjectPtr<URenderGridMoviePipelineRenderJob> Entry = EntryEntry.Value; IsValid(Entry))
+			{
+				if (Entry->CanExecute())
+				{
+					Jobs.Add(Job);
+				}
+			}
+		}
+	}
+	return Jobs;
+}
+
+int32 URenderGridQueue::GetJobsCount() const
+{
+	int32 JobsCount = 0;
+	for (const TTuple<TObjectPtr<URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJob>> EntryEntry : Entries)
+	{
+		if (const TObjectPtr<URenderGridJob> Job = EntryEntry.Key; IsValid(Job))
+		{
+			if (const TObjectPtr<URenderGridMoviePipelineRenderJob> Entry = EntryEntry.Value; IsValid(Entry))
+			{
+				if (Entry->CanExecute())
+				{
+					JobsCount++;
+				}
+			}
+		}
+	}
+	return JobsCount;
+}
+
+int32 URenderGridQueue::GetJobsRemainingCount() const
+{
+	if (bCanceled)
+	{
+		return 0;
+	}
+
+	int32 JobsCount = 0;
+	for (const TObjectPtr<URenderGridJob> Job : RemainingJobs)
+	{
+		if (const TObjectPtr<URenderGridMoviePipelineRenderJob>* EntryPtr = Entries.Find(Job))
+		{
+			if (const TObjectPtr<URenderGridMoviePipelineRenderJob> Entry = *EntryPtr; IsValid(Entry))
+			{
+				if (Entry->CanExecute())
+				{
+					JobsCount++;
+				}
+			}
+		}
+	}
+	return JobsCount + 1; // one is removed when it starts rendering, but this job is still remaining of course, so let's add 1 here
+}
+
+int32 URenderGridQueue::GetJobsCompletedCount() const
+{
+	return (GetJobsCount() - GetJobsRemainingCount());
+}
+
+float URenderGridQueue::GetStatusPercentage() const
+{
+	if (bCanceled)
+	{
+		return 100.0;
+	}
+
+	double JobsCount = GetJobsCount();
+	if (JobsCount <= 0)
+	{
+		return 0.0;
+	}
+	double RemainingCount = GetJobsRemainingCount() - 0.5; // rendering a job, but we can't get the progression from the job, so let's say we're halfway there (0.0 started, 0.5 halfway, 1.0 finished)
+	return FMath::Clamp(100.0 - ((RemainingCount / JobsCount) * 100), 0.0, 100.0);
+}
+
+FString URenderGridQueue::GetStatus() const
+{
+	if (bCanceled)
+	{
+		return TEXT("Done");
+	}
+	return TEXT("Rendering...");
+}
+
 
 void URenderGridQueue::OnStart()
 {
@@ -481,7 +574,10 @@ void URenderGridQueue::OnFinish()
 	bool bSuccess = !bCanceled;
 	Cancel();// to prevent any new jobs from being added to it
 
-	RenderGrid->EndBatchRender(this);
+	if (Args.bIsBatchRender)
+	{
+		RenderGrid->EndBatchRender(this);
+	}
 
 	UE::RenderGrid::Private::FRenderGridUtils::RestoreFpsLimit(PreviousFrameLimitSettings);
 	PreviousFrameLimitSettings = FRenderGridPreviousEngineFpsSettings();

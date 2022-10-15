@@ -548,6 +548,13 @@ void URenderGrid::EndEditor()
 	bExecutingBlueprintEvent = false;
 }
 
+void URenderGrid::Tick(float DeltaTime)
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveTick(DeltaTime);
+	bExecutingBlueprintEvent = false;
+}
+
 void URenderGrid::BeginBatchRender(URenderGridQueue* Queue)
 {
 	bExecutingBlueprintEvent = true;

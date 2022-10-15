@@ -96,13 +96,6 @@ UE::RenderGrid::Private::FRenderGridEditor::FRenderGridEditor()
 
 UE::RenderGrid::Private::FRenderGridEditor::~FRenderGridEditor()
 {
-	URenderGridBlueprint* RenderGridBlueprint = FRenderGridEditor::GetRenderGridBlueprint();
-	if (IsValid(RenderGridBlueprint))
-	{
-		RenderGridEditorClosedDelegate.Broadcast(this, RenderGridBlueprint);
-	}
-	RenderGridBlueprint = nullptr;
-
 	DestroyInstance();
 }
 
@@ -353,6 +346,11 @@ void UE::RenderGrid::Private::FRenderGridEditor::Tick(float DeltaTime)
 			GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 		}
 	}
+
+	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
+	{
+		Instance->Tick(DeltaTime);
+	}
 }
 
 TStatId UE::RenderGrid::Private::FRenderGridEditor::GetStatId() const
@@ -406,7 +404,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::OnFinishedChangingProperties(co
 
 void UE::RenderGrid::Private::FRenderGridEditor::BindCommands()
 {
-	const auto& Commands = FRenderGridEditorCommands::Get();
+	const FRenderGridEditorCommands& Commands = FRenderGridEditorCommands::Get();
 
 	ToolkitCommands->MapAction(Commands.AddJob, FExecuteAction::CreateSP(this, &FRenderGridEditor::AddJobAction));
 	ToolkitCommands->MapAction(Commands.DuplicateJob, FExecuteAction::CreateSP(this, &FRenderGridEditor::DuplicateJobAction));
@@ -501,10 +499,11 @@ void UE::RenderGrid::Private::FRenderGridEditor::BatchRenderListAction()
 		{
 			RenderQueue->OnExecuteFinished().AddRaw(this, &FRenderGridEditor::OnBatchRenderListActionFinished);
 			BatchRenderQueue = RenderQueue;
-			OnRenderGridBatchRenderingStarted().Broadcast(RenderQueue);
 
 			SetIsDebugging(true);
 			RenderQueue->Execute();
+
+			OnRenderGridBatchRenderingStarted().Broadcast(RenderQueue);
 		}
 	}
 }

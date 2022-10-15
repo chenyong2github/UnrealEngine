@@ -102,6 +102,9 @@ public:
 	/** Returns true if this render job was canceled (which for example can be caused by calling Cancel(), or by closing the render popup). */
 	bool IsCanceled() const { return bCanceled; }
 
+	/** Returns true if this render job can render (otherwise it will be skipped). */
+	bool CanExecute() const { return bCanExecute; }
+
 private:
 	void ComputePlaybackContext(bool& bOutAllowBinding);
 	void ExecuteFinished(UMoviePipelineExecutorBase* InPipelineExecutor, const bool bSuccess);
@@ -184,8 +187,32 @@ public:
 	bool IsCanceled() const { return bCanceled; }
 
 	/** Retrieves the rendering status of the given render grid job. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="render progress"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain text"))
 	FString GetJobStatus(URenderGridJob* Job) const;
+
+	/** Returns all the jobs that have been and will be rendered. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain"))
+	TArray<URenderGridJob*> GetJobs() const;
+
+	/** Returns the number of jobs that have been and will be rendered. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount"))
+	int32 GetJobsCount() const;
+
+	/** Returns the number of jobs that have finished rendering. Basically just returns [Get Jobs Count] minus [Get Jobs Remaining Count]. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	int32 GetJobsCompletedCount() const;
+
+	/** Returns the percentage of jobs finished, this includes the progression of the job that is currently rendering. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	float GetStatusPercentage() const;
+
+	/** Returns the number of jobs that are still left to render, includes the job that is currently rendering. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	int32 GetJobsRemainingCount() const;
+
+	/** Returns the status of the rendering process. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain text"))
+	FString GetStatus() const;
 
 protected:
 	void OnStart();
@@ -205,7 +232,7 @@ protected:
 
 	/** The render grid jobs that are to be rendered, mapped to the movie pipeline render job of each specific render grid job. */
 	UPROPERTY(Transient)
-	TMap<TObjectPtr<const URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJob>> Entries;
+	TMap<TObjectPtr<URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJob>> Entries;
 
 	/** The render grid of the given render grid job that will be rendered. */
 	UPROPERTY(Transient)
