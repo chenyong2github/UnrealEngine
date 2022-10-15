@@ -439,6 +439,8 @@ bool USequencerToolsFunctionLibrary::LinkAnimSequence(ULevelSequence*  Sequence,
 						LevelAnimLinkItem.bExportAttributeCurves = ExportOptions->bExportAttributeCurves;
 						LevelAnimLinkItem.bExportMaterialCurves = ExportOptions->bExportMaterialCurves;
 						LevelAnimLinkItem.bExportTransforms = ExportOptions->bExportTransforms;
+						LevelAnimLinkItem.Interpolation = ExportOptions->Interpolation;
+						LevelAnimLinkItem.CurveInterpolation = ExportOptions->CurveInterpolation;
 						LevelAnimLinkItem.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
 						LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = ExportOptions->bEvaluateAllSkeletalMeshComponents;
 
@@ -457,6 +459,8 @@ bool USequencerToolsFunctionLibrary::LinkAnimSequence(ULevelSequence*  Sequence,
 				LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
 				LevelAnimLinkItem.bExportMorphTargets = ExportOptions->bExportMorphTargets;
 				LevelAnimLinkItem.bExportAttributeCurves = ExportOptions->bExportAttributeCurves;
+				LevelAnimLinkItem.Interpolation = ExportOptions->Interpolation;
+				LevelAnimLinkItem.CurveInterpolation = ExportOptions->CurveInterpolation;
 				LevelAnimLinkItem.bExportMaterialCurves = ExportOptions->bExportMaterialCurves;
 				LevelAnimLinkItem.bExportTransforms = ExportOptions->bExportTransforms;
 				LevelAnimLinkItem.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;

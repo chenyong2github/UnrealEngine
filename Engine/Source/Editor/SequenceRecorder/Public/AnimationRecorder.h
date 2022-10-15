@@ -127,6 +127,8 @@ public:
 	uint8 bRemoveRootTransform : 1;
 	/** If true we check delta time at beginning of recording */
 	uint8 bCheckDeltaTimeAtBeginning : 1;
+	/** Interpolation type for the recorded sequence */
+	EAnimInterpolationType Interpolation;
 	/** The interpolation mode for the recorded keys */
 	ERichCurveInterpMode InterpMode;
 	/** The tangent mode for the recorded keys*/

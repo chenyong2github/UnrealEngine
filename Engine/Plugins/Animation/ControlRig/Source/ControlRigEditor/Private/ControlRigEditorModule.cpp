@@ -767,12 +767,14 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 						FLevelSequenceAnimSequenceLinkItem LevelAnimLinkItem;
 						LevelAnimLinkItem.SkelTrackGuid = ActorTrackGuid;
 						LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
-						LevelAnimLinkItem.bExportMorphTargets = true; //mz todo to fix
+						LevelAnimLinkItem.bExportMorphTargets = true; 
 						LevelAnimLinkItem.bExportAttributeCurves = true;
+						LevelAnimLinkItem.Interpolation = EAnimInterpolationType::Linear;
+						LevelAnimLinkItem.CurveInterpolation = ERichCurveInterpMode::RCIM_Linear;
 						LevelAnimLinkItem.bExportMaterialCurves = true;
 						LevelAnimLinkItem.bExportTransforms = true;
 						LevelAnimLinkItem.bRecordInWorldSpace = false;
-						LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = false;
+						LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = true;
 						LevelAnimLink->AnimSequenceLinks.Add(LevelAnimLinkItem);
 						AssetUserDataInterface->AddAssetUserData(LevelAnimLink);
 					}

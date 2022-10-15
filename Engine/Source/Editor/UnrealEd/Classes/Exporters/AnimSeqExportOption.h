@@ -7,7 +7,10 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Animation/AnimTypes.h"
+#include "Curves/RealCurve.h"
 #include "AnimSeqExportOption.generated.h"
+
 
 UCLASS(MinimalAPI)
 class UAnimSeqExportOption : public UObject
@@ -37,7 +40,15 @@ public:
 
 	/** If true we evaluate all other skeletal mesh components under the same actor, this may be needed for example, to get physics to get baked*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export);	
-	bool bEvaluateAllSkeletalMeshComponents = false;
+	bool bEvaluateAllSkeletalMeshComponents = true;
+
+	/** This defines how values between keys are calculated for transforms*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export);
+	EAnimInterpolationType Interpolation = EAnimInterpolationType::Linear;
+
+	/** This defines how values between keys are calculated for curves*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export);
+	TEnumAsByte<ERichCurveInterpMode> CurveInterpolation = ERichCurveInterpMode::RCIM_Linear;
 
 	/** Number of Display Rate frames to evaluate before doing the export. It will evaluate after any Delay. This will use frames before the start frame. Use it if there is some post anim BP effects you want to run before export start time.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export);
@@ -55,7 +66,9 @@ public:
 		bExportAttributeCurves = true;
 		bExportMaterialCurves = true;
 		bRecordInWorldSpace = false;
-		bEvaluateAllSkeletalMeshComponents = false;
+		Interpolation = EAnimInterpolationType::Linear;
+		CurveInterpolation = ERichCurveInterpMode::RCIM_Linear;
+		bEvaluateAllSkeletalMeshComponents = true;
 		WarmUpFrames = 0;
 		DelayBeforeStart = 0;
 	}

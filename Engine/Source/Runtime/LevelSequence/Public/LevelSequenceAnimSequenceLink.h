@@ -8,7 +8,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
-
+#include "Animation/AnimTypes.h"
+#include "Curves/RealCurve.h"
 #include "LevelSequenceAnimSequenceLink.generated.h"
 
 class UAnimSequence;
@@ -36,10 +37,14 @@ public:
 	bool bExportAttributeCurves = true;
 	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bExportMaterialCurves = true;
+	UPROPERTY(BlueprintReadWrite, Category = Property);
+	EAnimInterpolationType Interpolation = EAnimInterpolationType::Linear;
+	UPROPERTY(BlueprintReadWrite, Category = Property);
+	TEnumAsByte<ERichCurveInterpMode> CurveInterpolation = ERichCurveInterpMode::RCIM_Linear;	
 	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bRecordInWorldSpace = false;
 	UPROPERTY(BlueprintReadWrite, Category = Property)
-	bool bEvaluateAllSkeletalMeshComponents = false;
+	bool bEvaluateAllSkeletalMeshComponents = true;
 
 	void SetAnimSequence(UAnimSequence* InAnimSequence);
 	UAnimSequence* ResolveAnimSequence();

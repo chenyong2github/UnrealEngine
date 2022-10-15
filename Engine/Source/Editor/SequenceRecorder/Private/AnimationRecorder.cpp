@@ -40,6 +40,7 @@ FAnimationRecorder::FAnimationRecorder()
 	, bAutoSaveAsset(false)
 	, bRemoveRootTransform(true)
 	, bCheckDeltaTimeAtBeginning(true)
+	, Interpolation(EAnimInterpolationType::Linear)
 	, InterpMode(ERichCurveInterpMode::RCIM_Linear)
 	, TangentMode(ERichCurveTangentMode::RCTM_Auto)
 	, AnimationSerializer(nullptr)
@@ -371,6 +372,9 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 	{
 		IAnimationDataController& Controller = AnimationObject->GetController();
 		int32 NumKeys = LastFrame.Value + 1;
+
+		//Set Interpolation type (Step or Linear), doesn't look like there is a controller for this.
+		AnimationObject->Interpolation = Interpolation;
 
 		// can't use TimePassed. That is just total time that has been passed, not necessarily match with frame count
 		Controller.SetFrameRate(RecordingRate);
@@ -1135,6 +1139,7 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder = MakeShareable(new FAnimationRecorder());
 	Recorder->SetSampleRateAndLength(Settings.SampleFrameRate, Settings.Length);
 	Recorder->bRecordLocalToWorld = Settings.bRecordInWorldSpace;
+	Recorder->Interpolation = Settings.Interpolation;
 	Recorder->InterpMode = Settings.InterpMode;
 	Recorder->TangentMode = Settings.TangentMode;
 	Recorder->bAutoSaveAsset = Settings.bAutoSaveAsset;

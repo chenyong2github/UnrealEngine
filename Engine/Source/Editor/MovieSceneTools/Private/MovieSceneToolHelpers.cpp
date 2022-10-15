@@ -4022,14 +4022,28 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions, UMovieScene* MovieScene, IMovieScenePlayer* Player,
 	USkeletalMeshComponent* SkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform)
 {
+	if (AnimSequence == nullptr || ExportOptions == nullptr || MovieScene == nullptr || SkelMeshComp == nullptr)
+	{
+		UE_LOG(LogMovieScene, Error, TEXT("MovieSceneToolHelpers::ExportToAnimSequence All parameters must be valid."));
+		return false;
+	}
 	FAnimRecorderInstance AnimationRecorder;
 	FFrameRate SampleRate = MovieScene->GetDisplayRate();
 	FInitAnimationCB InitCallback = FInitAnimationCB::CreateLambda([&AnimationRecorder,SampleRate,ExportOptions,SkelMeshComp,AnimSequence]
 	{
 		FAnimationRecordingSettings RecordingSettings;
 		RecordingSettings.SampleFrameRate = SampleRate;
-		RecordingSettings.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
-		RecordingSettings.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+		RecordingSettings.Interpolation = ExportOptions->Interpolation;
+		RecordingSettings.InterpMode = ExportOptions->CurveInterpolation;
+		if (ExportOptions->CurveInterpolation == ERichCurveInterpMode::RCIM_Constant ||
+			ExportOptions->CurveInterpolation == ERichCurveInterpMode::RCIM_None)
+		{
+			RecordingSettings.TangentMode = ERichCurveTangentMode::RCTM_None;
+		}
+		else
+		{
+			RecordingSettings.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+		}
 		RecordingSettings.Length = 0;
 		RecordingSettings.bRemoveRootAnimation = false;
 		RecordingSettings.bCheckDeltaTimeAtBeginning = false;
