@@ -95,40 +95,6 @@ void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCar
 	}
 }
 
-FDeferredLightData LoadLightData(uint LightType)
-{
-	FDeferredLightData LightData = (FDeferredLightData)0;
-
-	LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
-	LightData.InvRadius = DeferredLightUniforms.InvRadius;
-	LightData.Color = DeferredLightUniforms.Color;
-	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
-	LightData.Direction = DeferredLightUniforms.Direction;
-	LightData.Tangent = DeferredLightUniforms.Tangent;
-	LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-	LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
-	LightData.SourceLength = DeferredLightUniforms.SourceLength;
-	LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
-	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
-	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
-	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
-	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
-	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-	LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
-	LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
-	LightData.RectLightAtlasUVOffset = DeferredLightUniforms.RectLightAtlasUVOffset;
-	LightData.RectLightAtlasUVScale  = DeferredLightUniforms.RectLightAtlasUVScale;
-	LightData.RectLightAtlasMaxLevel = DeferredLightUniforms.RectLightAtlasMaxLevel;
-
-	LightData.bInverseSquared = LightData.FalloffExponent == 0.0f;
-	LightData.bRadialLight = LightType != LIGHT_TYPE_DIRECTIONAL;
-	LightData.bSpotLight = LightType == LIGHT_TYPE_SPOT;
-	LightData.bRectLight = LightType == LIGHT_TYPE_RECT;
-
-	return LightData;
-}
-
 // Must match FLumenPackedLight in LumenSceneDirectLighting.cpp
 struct FLumenPackedLight
 {
@@ -209,11 +175,11 @@ FLumenLight LoadLumenLight(uint LightIndex, float3 PreViewTranslation)
 	DeferredLightData.DistanceFadeMAD = 0.0f;
 	DeferredLightData.ShadowMapChannelMask = 0.0f;
 	DeferredLightData.ShadowedBits = 0;
-	DeferredLightData.RectLightBarnCosAngle = PackedLight.RectLightBarnCosAngle;
-	DeferredLightData.RectLightBarnLength = PackedLight.RectLightBarnLength;
-	DeferredLightData.RectLightAtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
-	DeferredLightData.RectLightAtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
-	DeferredLightData.RectLightAtlasMaxLevel = PackedLight.RectLightAtlasMaxLevel;
+	DeferredLightData.RectLightData.BarnCosAngle = PackedLight.RectLightBarnCosAngle;
+	DeferredLightData.RectLightData.BarnLength = PackedLight.RectLightBarnLength;
+	DeferredLightData.RectLightData.AtlasData.AtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
+	DeferredLightData.RectLightData.AtlasData.AtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
+	DeferredLightData.RectLightData.AtlasData.AtlasMaxLevel = PackedLight.RectLightAtlasMaxLevel;
 	DeferredLightData.bInverseSquared = PackedLight.FalloffExponent == 0.0f;
 	DeferredLightData.bRadialLight = PackedLight.LightType != LIGHT_TYPE_DIRECTIONAL;
 	DeferredLightData.bSpotLight = PackedLight.LightType == LIGHT_TYPE_SPOT;

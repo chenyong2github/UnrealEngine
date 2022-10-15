@@ -17,6 +17,7 @@
 #include "LumenTracingCommon.ush"
 #include "../DistanceFieldShadowingShared.ush"
 #include "LumenSceneDirectLightingPerLightShadowCommon.ush"
+#include "../LightDataUniforms.ush"
 
 // Bias
 float HeightfieldShadowRayBias;

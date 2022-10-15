@@ -14,6 +14,7 @@
 #include "../DeferredLightingCommon.ush"
 #include "../VolumeLightingCommon.ush"
 #include "../ForwardShadowingCommon.ush"
+#include "../LightDataUniforms.ush"
 #if VIRTUAL_SHADOW_MAP
 	#include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
