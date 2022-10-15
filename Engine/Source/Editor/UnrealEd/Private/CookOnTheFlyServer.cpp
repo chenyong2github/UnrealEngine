@@ -2852,7 +2852,7 @@ void UCookOnTheFlyServer::TickNetwork()
 	}
 }
 
-UE::Cook::EPollStatus UCookOnTheFlyServer::ConditionalCreateGeneratorPackage(UE::Cook::FPackageData& PackageData)
+UE::Cook::EPollStatus UCookOnTheFlyServer::ConditionalCreateGeneratorPackage(UE::Cook::FPackageData& PackageData, bool bPrecaching)
 {
 	using namespace UE::Cook;
 
@@ -2905,6 +2905,11 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::ConditionalCreateGeneratorPackage(UE:
 	if (!Splitter)
 	{
 		return EPollStatus::Success;
+	}
+
+	if (bPrecaching)
+	{
+		return EPollStatus::Incomplete;
 	}
 
 	// TODO: Add support for cooking in the editor. Possibly moot since we plan to deprecate cooking in the editor.
@@ -3477,7 +3482,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveInternal(UE::Cook::FPackag
 		// Check for whether the Package has a Splitter and initialize its list if so
 		if (!PackageData.HasInitializedGeneratorSave())
 		{
-			Result = ConditionalCreateGeneratorPackage(PackageData);
+			Result = ConditionalCreateGeneratorPackage(PackageData, bPrecaching);
 			if (Result != EPollStatus::Success)
 			{
 				return Result;
@@ -4188,6 +4193,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 				{
 					break;
 				}
+
 				--LeftToPrecache;
 				PrepareSave(*NextData, StackData.Timer, /*bPrecaching*/ true);
 			}
@@ -5423,12 +5429,17 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 	// check if this package is unsupported for the target platform (typically plugin content)
 	else
 	{
-		TSet<FName>* NeverCookPackages = COTFS.PackageTracker->PlatformSpecificNeverCookPackages.Find(TargetPlatform);
-		if (NeverCookPackages && NeverCookPackages->Find(Package->GetFName()))
+		if (TSet<FName>* NeverCookPackages = COTFS.PackageTracker->PlatformSpecificNeverCookPackages.Find(TargetPlatform))
 		{
-			SavePackageResult = ESavePackageResult::ContainsEditorOnlyData;
-			UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *PackageName, *PlatFilename);
-			return;
+			FGeneratorPackage* Generator = PackageData.IsGenerated() ? PackageData.GetGeneratedOwner() : nullptr;
+
+			if (NeverCookPackages->Find(Package->GetFName()) ||
+				(Generator && NeverCookPackages->Find(Generator->GetOwner().GetPackageName())))
+			{
+				SavePackageResult = ESavePackageResult::ContainsEditorOnlyData;
+				UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *PackageName, *PlatFilename);
+				return;				
+			}
 		}
 	}
 
