@@ -118,7 +118,15 @@ void FTextureShareSceneViewExtension::GetSceneViewData_RenderThread(const FTextu
 		GetTextureShareCoreSceneViewFamily(InViewFamily, SceneViewData.ViewFamily);
 
 		// Save scene viewport eye data
-		ObjectProxy->GetCoreProxyData_RenderThread().SceneData.Add(SceneViewData);
+		TArraySerializable<FTextureShareCoreSceneViewData>& DstSceneData = ObjectProxy->GetCoreProxyData_RenderThread().SceneData;
+		if (FTextureShareCoreSceneViewData* ExistValue = DstSceneData.FindByEqualsFunc(SceneViewData.ViewDesc))
+		{
+			*ExistValue = SceneViewData;
+		}
+		else
+		{
+			DstSceneData.Add(SceneViewData);
+		}
 	}
 }
 
