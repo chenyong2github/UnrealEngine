@@ -27,11 +27,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
 
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITORONLY_DATA
 	, bIsSpatiallyLoaded(true)
 	, CellSize(25600)
 	, LoadingRange(51200)
-#endif
 {
 }
 
@@ -193,10 +191,6 @@ void UHLODLayer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 }
 
-#endif // WITH_EDITOR
-
-#if WITH_EDITORONLY_DATA
-
 FName UHLODLayer::GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double InLoadingRange)
 {
 	return *FString::Format(TEXT("HLOD{0}_{1}m_{2}m"), { InLODLevel, int32(InCellSize * 0.01f), int32(InLoadingRange * 0.01f)});
@@ -218,5 +212,4 @@ const void UHLODLayer::SetParentLayer(const TSoftObjectPtr<UHLODLayer>& InParent
 	ParentLayer = InParentLayer;
 }
 
-#endif // WITH_EDITORONLY_DATA
-
+#endif // WITH_EDITOR
