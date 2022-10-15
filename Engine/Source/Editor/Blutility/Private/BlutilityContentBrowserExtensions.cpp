@@ -116,7 +116,7 @@ public:
 			for (const FAssetData& UtilAsset : UtilAssets)
 			{
 				FString ParentClassName;
-				if (!UtilAsset.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
+				if (UtilAsset.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
 				{
 					UObject* Outer = nullptr;
 					ResolveName(Outer, ParentClassName, false, false);
