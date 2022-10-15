@@ -91,6 +91,16 @@ namespace Metasound
 		return TriggeredFrames[InTriggerIndex];
 	}
 
+	int32 FTrigger::First() const
+	{
+		return TriggeredFrames.IsEmpty() ? INDEX_NONE : TriggeredFrames[0];
+	}
+
+	int32 FTrigger::Last() const
+	{
+		return TriggeredFrames.IsEmpty() ? INDEX_NONE : TriggeredFrames.Last();
+	}
+
 	bool FTrigger::IsTriggered() const
 	{
 		return bHasTrigger;
