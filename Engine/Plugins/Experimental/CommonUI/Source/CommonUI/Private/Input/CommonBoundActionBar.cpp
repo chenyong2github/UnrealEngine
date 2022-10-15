@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/CommonBoundActionBar.h"
+#include "CommonInputSubsystem.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/GameInstance.h"
