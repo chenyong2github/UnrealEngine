@@ -24,6 +24,7 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "EngineDefines.h"
 #include "Math/MathFwd.h"
+#include "PhysxUserData.h"
 
 #include "GeometryCollectionComponent.generated.h"
 
