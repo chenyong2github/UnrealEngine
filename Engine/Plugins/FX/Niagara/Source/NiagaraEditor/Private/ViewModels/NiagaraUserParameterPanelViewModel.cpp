@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "ViewModels/NiagaraUserParameterPanelViewModel.h"
 #include "CoreMinimal.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
