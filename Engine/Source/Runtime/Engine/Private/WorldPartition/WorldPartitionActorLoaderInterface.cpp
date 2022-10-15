@@ -124,7 +124,8 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassActorDescFilter(co
 
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassDataLayersFilter(const FWorldPartitionHandle& Actor) const
 {
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World))
+	UWorld* OwningWorld = World->PersistentLevel->GetWorld();
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(OwningWorld))
 	{
 		FWorldPartitionActorViewProxy ActorDescProxy(*Actor);
 
