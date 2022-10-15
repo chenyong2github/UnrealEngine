@@ -186,8 +186,8 @@ private:
 		const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const;
 	void HandleConstraintKeyMoved(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
 		const TArray<FKeyMoveEventItem>& InMovedItems);
-	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const;
-	void ClearOutConstraintDelegates() const;
+	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection);
+	void ClearOutConstraintDelegates();
 private:
 
 	static FName TransformPropertyName;
@@ -202,5 +202,8 @@ private:
 	TArray<FGuid> LockedCameraBindings;
 
 	/** Array of sections that are getting undone, we need to recreate any constraint channel add, move key delegates to them*/
-	mutable TArray<UMovieScene3DTransformSection*> SectionsGettingUndone;
+	mutable TArray<TWeakObjectPtr<UMovieScene3DTransformSection>> SectionsGettingUndone;
+
+	/** Set of sections we have added delegate's too, need to clear them*/
+	TSet<TWeakObjectPtr<UMovieScene3DTransformSection>> SectionsToClear;
 };
