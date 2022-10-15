@@ -12,6 +12,10 @@ ALevelInstanceEditorInstanceActor::ALevelInstanceEditorInstanceActor(const FObje
 {
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent->Mobility = EComponentMobility::Static;
+	
+	// To keep the behavior of any calls to USceneComponent::GetActorPositionForRenderer() consistent between Editor and Game modes
+	// we need to flag the root component so that it isn't considered as an AttachmentRoot.
+	RootComponent->bIsNotRenderAttachmentRoot = true;
 }
 
 #if WITH_EDITOR

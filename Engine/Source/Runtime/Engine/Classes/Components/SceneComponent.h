@@ -255,6 +255,10 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetShouldUpdatePhysicsVolume(bool bInShouldUpdatePhysicsVolume);
 
+	/** If true, this component stops the the walk up the attachment chain in GetActorPositionForRenderer(). Instead this component's child will be used as the attachment root. */
+	UPROPERTY()
+	uint8 bIsNotRenderAttachmentRoot : 1;
+
 protected:
 	/** Transient flag that temporarily disables UpdateOverlaps within DetachFromParent(). */
 	uint8 bDisableDetachmentUpdateOverlaps:1;
@@ -1245,6 +1249,9 @@ public:
 	
 	/** Walks up the attachment chain from this SceneComponent and returns the top-level actor it's attached to.  Returns Owner if unattached. */
 	AActor* GetAttachmentRootActor() const;
+
+	/** Returns the ActorPosition for use by rendering. This comes from walking the attachment chain to the top-level actor. */
+	FVector GetActorPositionForRenderer() const;
 
 	/** Gets the owner of the attach parent */
 	AActor* GetAttachParentActor() const;

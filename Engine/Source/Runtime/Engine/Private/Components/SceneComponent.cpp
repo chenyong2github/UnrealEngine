@@ -2360,6 +2360,13 @@ AActor* USceneComponent::GetAttachmentRootActor() const
 	return AttachmentRootComponent ? AttachmentRootComponent->GetOwner() : nullptr;
 }
 
+FVector USceneComponent::GetActorPositionForRenderer() const
+{
+	const USceneComponent* Top;
+	for (Top = this; Top->GetAttachParent() && !Top->GetAttachParent()->bIsNotRenderAttachmentRoot; Top = Top->GetAttachParent());
+	return (Top->GetOwner() != nullptr) ? Top->GetOwner()->GetActorLocation() : FVector(ForceInitToZero);
+}
+
 AActor* USceneComponent::GetAttachParentActor() const
 {
 	const USceneComponent* const AttachParentComponent = GetAttachParent();

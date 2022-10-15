@@ -2036,13 +2036,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 
 	// Cache the primitives initial transform.
 	FMatrix RenderMatrix = Primitive->GetRenderMatrix();
-	FVector AttachmentRootPosition(0);
-
-	AActor* AttachmentRoot = Primitive->GetAttachmentRootActor();
-	if (AttachmentRoot)
-	{
-		AttachmentRootPosition = AttachmentRoot->GetActorLocation();
-	}
+	FVector AttachmentRootPosition = Primitive->GetActorPositionForRenderer();
 
 	struct FCreateRenderThreadParameters
 	{
@@ -2185,13 +2179,7 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 		}
 		else
 		{
-			FVector AttachmentRootPosition(0);
-
-			AActor* Actor = Primitive->GetAttachmentRootActor();
-			if (Actor != nullptr)
-			{
-				AttachmentRootPosition = Actor->GetActorLocation();
-			}
+			FVector AttachmentRootPosition = Primitive->GetActorPositionForRenderer();
 
 			struct FPrimitiveUpdateParams
 			{
