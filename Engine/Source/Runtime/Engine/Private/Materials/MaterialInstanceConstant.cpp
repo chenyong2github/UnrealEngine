@@ -250,5 +250,11 @@ void UMaterialInstanceConstant::UpdateCachedData()
 	}
 }
 
-#endif // #if WITH_EDITOR
+void UMaterialInstanceConstant::SetNaniteOverrideMaterial(bool bInEnableOverride, UMaterialInterface* InOverrideMaterial)
+{
+	NaniteOverrideMaterial.bEnableOverride = bInEnableOverride;
+	NaniteOverrideMaterial.OverrideMaterialRef = InOverrideMaterial;
+	NaniteOverrideMaterial.PostEditChange();
+}
 
+#endif // #if WITH_EDITOR

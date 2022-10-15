@@ -62,6 +62,10 @@ class UMaterialInstanceConstant : public UMaterialInstance
 	FLinearColor K2_GetVectorParameterValue(FName ParameterName);
 
 #if WITH_EDITOR
+	/** Set an override material which will be used when rendering with nanite. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetNaniteOverrideMaterial(bool bInEnableOverride, UMaterialInterface* InOverrideMaterial);
+
 	/**
 	 * Set the parent of this material instance. This function may only be called in the Editor!
 	 *   WARNING: You MUST call PostEditChange afterwards to propagate changes to other materials in the chain!
