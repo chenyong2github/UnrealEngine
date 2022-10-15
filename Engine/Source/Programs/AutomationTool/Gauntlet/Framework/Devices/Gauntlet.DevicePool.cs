@@ -114,9 +114,22 @@ namespace Gauntlet
 				throw new AutomationException("Comparing null target constraint");
 			}
 
-			if (ReferenceEquals(this, Other)) return true;
+			if (ReferenceEquals(this, Other))
+			{
+				return true;
+			}
 
-			return Other.Platform == Platform && Other.PerfSpec == PerfSpec && Other.Model.Equals(Model, StringComparison.InvariantCultureIgnoreCase);
+			if (Other.Platform != Platform)
+			{
+				return false;
+			}
+
+			if (Other.Model.Equals(Model, StringComparison.InvariantCultureIgnoreCase))
+			{
+				return true;
+			}
+
+			return Other.PerfSpec == PerfSpec;
 		}
 
 		public override bool Equals(object Obj)
@@ -153,7 +166,7 @@ namespace Gauntlet
 				return string.Format("{0}", Platform);
 			}
 
-			return string.Format("{0}:{1}", Platform, PerfSpec == EPerfSpec.Unspecified ? Model : PerfSpec.ToString());
+			return string.Format("{0}:{1}", Platform, Model == string.Empty ? PerfSpec.ToString() : Model);
 		}
 
 		public override int GetHashCode()
@@ -685,7 +698,7 @@ namespace Gauntlet
 					Def.Name = Device.Name;
 					Def.Platform = DeviceMap.FirstOrDefault(Entry => Entry.Value == Device.Type.Replace("-DevKit", "", StringComparison.OrdinalIgnoreCase)).Key;
 					Def.DeviceData = Device.DeviceData;
-					Def.Model = string.Empty;
+					Def.Model = Device.Model;
 
 					EPerfSpec Out = EPerfSpec.Unspecified;
 					if (!String.IsNullOrEmpty(Device.PerfSpec) && !Enum.TryParse<EPerfSpec>(Device.PerfSpec, true, out Out))

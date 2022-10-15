@@ -407,6 +407,7 @@ namespace AutomationTool.DeviceReservation
 		public string Type { get; set; }
 		public string IPOrHostName { get; set; }
 		public string PerfSpec { get; set; }
+		public string Model { get; set; }
 		public TimeSpan AvailableStartTime { get; set; }
 		public TimeSpan AvailableEndTime { get; set; }
 		public bool Enabled { get; set; }
