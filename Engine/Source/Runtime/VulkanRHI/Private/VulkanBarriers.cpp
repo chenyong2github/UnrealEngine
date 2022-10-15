@@ -1093,10 +1093,10 @@ private:
 		switch (RequestedPipeline)
 		{
 		case ERHIPipeline::Graphics:
-			checkf(!Context.GetDevice()->IsRealAsyncComputeContext(this), TEXT("The %s pipeline for this transition is the Graphics queue, but it's submitted on the AsyncCompute queue."), IsBeginTransition ? TEXT("BEGIN") : TEXT("END"));
+			checkf(!Context.GetDevice()->IsRealAsyncComputeContext(&Context), TEXT("The %s pipeline for this transition is the Graphics queue, but it's submitted on the AsyncCompute queue."), IsBeginTransition ? TEXT("BEGIN") : TEXT("END"));
 			break;
 		case ERHIPipeline::AsyncCompute:
-			checkf(Context.GetDevice()->IsRealAsyncComputeContext(this), TEXT("The %s pipeline for this transition is the AsyncCompute queue, but it's submitted on the Graphics queue."), IsBeginTransition ? TEXT("BEGIN") : TEXT("END"));
+			checkf(Context.GetDevice()->IsRealAsyncComputeContext(&Context), TEXT("The %s pipeline for this transition is the AsyncCompute queue, but it's submitted on the Graphics queue."), IsBeginTransition ? TEXT("BEGIN") : TEXT("END"));
 			break;
 		default:
 			checkNoEntry();

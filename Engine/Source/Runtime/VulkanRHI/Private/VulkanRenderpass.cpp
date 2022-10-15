@@ -63,6 +63,25 @@ FVulkanFramebuffer* FVulkanRenderPassManager::GetOrCreateFramebuffer(const FRHIS
 	}
 	RTLayoutHash = FCrc::MemCrc32(MipsAndSlicesValues, sizeof(MipsAndSlicesValues), RTLayoutHash);
 
+	auto FindFramebufferInList = [&](FFramebufferList* InFramebufferList)
+	{
+		FVulkanFramebuffer* OutFramebuffer = nullptr;
+
+		for (int32 Index = 0; Index < InFramebufferList->Framebuffer.Num(); ++Index)
+		{
+			const VkRect2D RenderArea = InFramebufferList->Framebuffer[Index]->GetRenderArea();
+
+			if (InFramebufferList->Framebuffer[Index]->Matches(RenderTargetsInfo) &&
+				((RTLayout.GetExtent2D().width == RenderArea.extent.width) && (RTLayout.GetExtent2D().height == RenderArea.extent.height) &&
+					(RTLayout.GetOffset2D().x == RenderArea.offset.x) && (RTLayout.GetOffset2D().y == RenderArea.offset.y)))
+			{
+				OutFramebuffer = InFramebufferList->Framebuffer[Index];
+				break;
+			}
+		}
+
+		return OutFramebuffer;
+	};
 
 	FFramebufferList** FoundFramebufferList = nullptr;
 	FFramebufferList* FramebufferList = nullptr;
@@ -75,16 +94,10 @@ FVulkanFramebuffer* FVulkanRenderPassManager::GetOrCreateFramebuffer(const FRHIS
 		{
 			FramebufferList = *FoundFramebufferList;
 
-			for (int32 Index = 0; Index < FramebufferList->Framebuffer.Num(); ++Index)
+			FVulkanFramebuffer* ExistingFramebuffer = FindFramebufferInList(FramebufferList);
+			if (ExistingFramebuffer)
 			{
-				const VkRect2D RenderArea = FramebufferList->Framebuffer[Index]->GetRenderArea();
-
-				if (FramebufferList->Framebuffer[Index]->Matches(RenderTargetsInfo) &&
-					((RTLayout.GetExtent2D().width == RenderArea.extent.width) && (RTLayout.GetExtent2D().height == RenderArea.extent.height) &&
-						(RTLayout.GetOffset2D().x == RenderArea.offset.x) && (RTLayout.GetOffset2D().y == RenderArea.offset.y)))
-				{
-					return FramebufferList->Framebuffer[Index];
-				}
+				return ExistingFramebuffer;
 			}
 		}
 	}
@@ -95,6 +108,15 @@ FVulkanFramebuffer* FVulkanRenderPassManager::GetOrCreateFramebuffer(const FRHIS
 	{
 		FramebufferList = new FFramebufferList;
 		Framebuffers.Add(RTLayoutHash, FramebufferList);
+	}
+	else
+	{
+		FramebufferList = *FoundFramebufferList;
+		FVulkanFramebuffer* ExistingFramebuffer = FindFramebufferInList(FramebufferList);
+		if (ExistingFramebuffer)
+		{
+			return ExistingFramebuffer;
+		}
 	}
 
 	FVulkanFramebuffer* Framebuffer = new FVulkanFramebuffer(*Device, RenderTargetsInfo, RTLayout, *RenderPass);
