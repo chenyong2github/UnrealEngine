@@ -1044,7 +1044,9 @@ public:
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) final override
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ContextRedirect(RHIRayTraceOcclusion(Scene, Rays, Output, NumRays));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual void RHIRayTraceIntersection(FRHIRayTracingScene* Scene,
@@ -1052,7 +1054,9 @@ public:
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) final override
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ContextRedirect(RHIRayTraceIntersection(Scene, Rays, Output, NumRays));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
