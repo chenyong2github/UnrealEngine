@@ -114,6 +114,22 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::SetMeshSelectionV
 		}
 		FDynamicMeshColorOverlay* Colors = EditMesh.Attributes()->PrimaryColors();
 
+		// If we created a new color overlay, we are going to initialize the vertex colors to white.
+		if (bCreated)
+		{
+			TArray<int32> ElemIDs;
+			ElemIDs.SetNum(EditMesh.MaxVertexID());
+			for (int32 VertexID : EditMesh.VertexIndicesItr())
+			{
+				ElemIDs[VertexID] = Colors->AppendElement(FVector4f::One());
+			}
+			for (int32 TriangleID : EditMesh.TriangleIndicesItr())
+			{
+				FIndex3i Triangle = EditMesh.GetTriangle(TriangleID);
+				Colors->SetTriangle(TriangleID, FIndex3i(ElemIDs[Triangle.A], ElemIDs[Triangle.B], ElemIDs[Triangle.C]));
+			}
+		}
+
 		if (bCreateColorSeam)
 		{
 			FLinearColor NewColor = CombineColors(FLinearColor::Black, Color, Flags);

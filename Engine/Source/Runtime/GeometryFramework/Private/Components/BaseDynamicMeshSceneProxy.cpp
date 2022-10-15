@@ -14,6 +14,7 @@ FBaseDynamicMeshSceneProxy::FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent
 	if (Component->GetColorOverrideMode() == EDynamicMeshComponentColorOverrideMode::Constant)
 	{
 		ConstantVertexColor = Component->GetConstantOverrideColor();
+		bIgnoreVertexColors = true;
 	}
 
 	bUsePerTriangleNormals = Component->GetFlatShadingEnabled();
