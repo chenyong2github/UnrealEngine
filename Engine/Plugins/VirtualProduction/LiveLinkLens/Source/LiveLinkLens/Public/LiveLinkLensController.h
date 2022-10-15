@@ -23,6 +23,7 @@ public:
 	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
 	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
 	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
+	virtual void Cleanup() override;
 	//~ End ULiveLinkControllerBase interface
 
 	//~ Begin UObject interface

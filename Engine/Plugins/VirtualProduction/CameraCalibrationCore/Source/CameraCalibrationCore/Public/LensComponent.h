@@ -164,6 +164,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lens Component")
 	void SetDistortionState(FLensDistortionState State);
 
+	/** Reset the distortion state to defaults to represent "no distortion" */
+	UFUNCTION(BlueprintCallable, Category = "Lens Component")
+	void ClearDistortionState();
+
 	/** Get the original (not adjusted for overscan) focal length of the camera */
 	UFUNCTION(BlueprintPure, Category = "Lens Component")
 	float GetOriginalFocalLength() const;

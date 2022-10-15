@@ -54,6 +54,18 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 	}
 }
 
+void ULiveLinkLensController::Cleanup()
+{
+	if (ULensComponent* const LensComponent = Cast<ULensComponent>(GetAttachedComponent()))
+	{
+		// If the lens component is currently receiving its distortion state from this controller, reset that state to zero
+		if (LensComponent->GetDistortionSource() == EDistortionSource::LiveLinkLensSubject)
+		{
+			LensComponent->ClearDistortionState();
+		}
+	}
+}
+
 bool ULiveLinkLensController::IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport)
 {
 	return RoleToSupport == ULiveLinkLensRole::StaticClass();

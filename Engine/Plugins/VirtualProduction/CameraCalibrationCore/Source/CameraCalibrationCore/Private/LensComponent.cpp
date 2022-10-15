@@ -478,6 +478,10 @@ void ULensComponent::SetLensFilePicker(FLensFilePicker LensFile)
 		{
 			SetLensModel(NewLensFile->LensInfo.LensModel);
 		}
+		else
+		{
+			ClearDistortionState();
+		}
 	}
 }
 
@@ -492,6 +496,10 @@ void ULensComponent::SetLensFile(ULensFile* Lens)
 		if (Lens)
 		{
 			SetLensModel(Lens->LensInfo.LensModel);
+		}
+		else
+		{
+			ClearDistortionState();
 		}
 	}
 }
@@ -608,6 +616,8 @@ void ULensComponent::SetDistortionSource(EDistortionSource Source)
 {
 	DistortionStateSource = Source;
 
+	ClearDistortionState();
+
 	// If the new source is a LensFile, update the lens model to match
 	if (DistortionStateSource == EDistortionSource::LensFile)
 	{
@@ -681,6 +691,17 @@ void ULensComponent::CleanupDistortion(UCineCameraComponent* const CineCameraCom
 	}
 
 	bIsDistortionSetup = false;
+}
+
+void ULensComponent::ClearDistortionState()
+{
+	FLensDistortionState ZeroDistortionState;
+	if (LensModel)
+	{
+		const uint32 NumDistortionParameters = LensModel->GetDefaultObject<ULensModel>()->GetNumParameters();
+		ZeroDistortionState.DistortionInfo.Parameters.SetNumZeroed(NumDistortionParameters);
+	}
+	DistortionState = ZeroDistortionState;
 }
 
 void ULensComponent::CreateDistortionHandler()
