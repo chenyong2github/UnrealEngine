@@ -1428,10 +1428,14 @@ struct FLumenPackedLight
 	float ProxyRadius;
 
 	FVector3f ProxyDirection;
-	uint32 bHasShadowMask_RectLightAtlasMaxLevel;
+	float RectLightAtlasMaxLevel;
 	
 	FVector2f SinCosConeAngleOrRectLightAtlasUVScale;
 	FVector2f RectLightAtlasUVOffset;
+
+	uint32 LightingChannelMask;
+	uint32 bHasShadowMask;
+	uint32 Padding[2];
 };
 
 FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray<FLumenGatheredLight, TInlineAllocator<64>>& GatheredLights, float Exposure)
@@ -1484,8 +1488,7 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray
 		LightData.ProxyRadius = LightSceneInfo->Proxy->GetRadius();
 
 		LightData.ProxyDirection = (FVector3f)LightSceneInfo->Proxy->GetDirection();
-		ShaderParameters.RectLightAtlasMaxLevel = ShaderParameters.RectLightAtlasMaxLevel > 0.f ? ShaderParameters.RectLightAtlasMaxLevel : 0.f;
-		LightData.bHasShadowMask_RectLightAtlasMaxLevel = (LumenLight.NeedsShadowMask() ? (1u << 31) : 0) | *(uint32*)&ShaderParameters.RectLightAtlasMaxLevel;
+		LightData.RectLightAtlasMaxLevel = ShaderParameters.RectLightAtlasMaxLevel > 0.0f ? ShaderParameters.RectLightAtlasMaxLevel : 0.0f;
 
 		if (LightData.LightType == LightType_Rect)
 		{
@@ -1496,6 +1499,9 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray
 			LightData.SinCosConeAngleOrRectLightAtlasUVScale = FVector2f(FMath::Sin(LightSceneInfo->Proxy->GetOuterConeAngle()), FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle()));
 		}
 		LightData.RectLightAtlasUVOffset = ShaderParameters.RectLightAtlasUVOffset;
+
+		LightData.LightingChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
+		LightData.bHasShadowMask = LumenLight.NeedsShadowMask() ? 1 : 0;
 	}
 
 	FRDGBufferRef LightDataBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Lumen.DirectLighting.Lights"), PackedLightData);

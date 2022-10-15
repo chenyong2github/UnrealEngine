@@ -166,7 +166,7 @@ public:
 		}
 	}
 
-	static void FillData(const FLumenCard& RESTRICT Card, FVector4f* RESTRICT OutData)
+	static void FillData(const FLumenCard& RESTRICT Card, const FLumenPrimitiveGroup* InPrimitiveGroup, FVector4f* RESTRICT OutData)
 	{
 		// Note: layout must match GetLumenCardData in usf
 
@@ -175,10 +175,13 @@ public:
 		OutData[2] = FVector4f(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z);
 
 		const FIntPoint ResLevelBias = Card.ResLevelToResLevelXYBias();
+		const uint32 LightingChannelMask = InPrimitiveGroup ? InPrimitiveGroup->LightingChannelMask : UINT32_MAX;
+
 		uint32 Packed3W = 0;
 		Packed3W = uint8(ResLevelBias.X) & 0xFF;
 		Packed3W |= (uint8(ResLevelBias.Y) & 0xFF) << 8;
 		Packed3W |= (uint8(Card.AxisAlignedDirectionIndex) & 0xF) << 16;
+		Packed3W |= (LightingChannelMask & 0xF) << 20;
 		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 24) : 0;
 		Packed3W |= Card.bHeightfield && Card.IsAllocated() ? (1 << 25) : 0;
 
@@ -305,8 +308,18 @@ void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTem
 				{
 					const FLumenCard& Card = LumenSceneData.Cards.IsAllocated(Index) ? LumenSceneData.Cards[Index] : NullCard;
 
+					FLumenPrimitiveGroup* PrimitiveGroup = nullptr;
+					if (Card.MeshCardsIndex >= 0)
+					{
+						const FLumenMeshCards& MeshCardsInstance = LumenSceneData.MeshCards[Card.MeshCardsIndex];
+						if (MeshCardsInstance.PrimitiveGroupIndex >= 0)
+						{
+							PrimitiveGroup = &LumenSceneData.PrimitiveGroups[MeshCardsInstance.PrimitiveGroupIndex];
+						}
+					}
+
 					FVector4f* Data = (FVector4f*)LumenSceneData.CardUploadBuffer.Add_GetRef(Index);
-					FLumenCardGPUData::FillData(Card, Data);
+					FLumenCardGPUData::FillData(Card, PrimitiveGroup, Data);
 				}
 			}
 

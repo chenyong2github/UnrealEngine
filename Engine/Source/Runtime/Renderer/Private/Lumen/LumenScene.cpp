@@ -916,6 +916,7 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 						PrimitiveGroup.bHeightfield = false;
+						PrimitiveGroup.LightingChannelMask = SceneProxy->GetLightingChannelMask();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}
@@ -972,6 +973,7 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 								PrimitiveGroup.bHeightfield = false;
+								PrimitiveGroup.LightingChannelMask = SceneProxy->GetLightingChannelMask();
 								PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
@@ -1012,6 +1014,7 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 								PrimitiveGroup.bHeightfield = false;
+								PrimitiveGroup.LightingChannelMask = SceneProxy->GetLightingChannelMask();
 								PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
@@ -1032,6 +1035,7 @@ void UpdateLumenScenePrimitives(FRHIGPUMask GPUMask, FScene* Scene)
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
 						PrimitiveGroup.bHeightfield = SceneProxy->SupportsHeightfieldRepresentation();
+						PrimitiveGroup.LightingChannelMask = SceneProxy->GetLightingChannelMask();
 						PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);

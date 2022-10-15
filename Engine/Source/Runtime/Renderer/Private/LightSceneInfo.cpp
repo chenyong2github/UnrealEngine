@@ -205,7 +205,7 @@ bool FLightSceneInfo::ShouldRenderLight(const FViewInfo& View, bool bOffscreen) 
 		// Only render lights with static shadowing for reflection captures, since they are only captured at edit time
 		&& (!View.bStaticSceneOnly || Proxy->HasStaticShadowing())
 		// Only render lights in the default channel, or if there are any primitives outside the default channel
-		&& (Proxy->GetLightingChannelMask() & GetDefaultLightingChannelMask() || View.bUsesLightingChannels);
+		&& (Proxy->GetLightingChannelMask() & GetDefaultLightingChannelMask() || View.bUsesLightingChannels || bOffscreen);
 }
 
 bool FLightSceneInfo::IsPrecomputedLightingValid() const

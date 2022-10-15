@@ -3,7 +3,6 @@
 #pragma once
 
 #include "LumenSceneLighting.ush"
-#include "../LightDataUniforms.ush"
 
 // Must match ELumenLightType in LumenSceneDirectLighting.cpp
 #define LIGHT_TYPE_DIRECTIONAL 0
@@ -96,6 +95,41 @@ void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCar
 	}
 }
 
+FDeferredLightData LoadLightData(uint LightType)
+{
+	FDeferredLightData LightData = (FDeferredLightData)0;
+
+	LightData.TranslatedWorldPosition = DeferredLightUniforms.TranslatedWorldPosition;
+	LightData.InvRadius = DeferredLightUniforms.InvRadius;
+	LightData.Color = DeferredLightUniforms.Color;
+	LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
+	LightData.Direction = DeferredLightUniforms.Direction;
+	LightData.Tangent = DeferredLightUniforms.Tangent;
+	LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
+	LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
+	LightData.SourceLength = DeferredLightUniforms.SourceLength;
+	LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
+	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
+	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
+	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
+	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
+	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
+	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
+	LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
+	LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
+	LightData.RectLightAtlasUVOffset = DeferredLightUniforms.RectLightAtlasUVOffset;
+	LightData.RectLightAtlasUVScale  = DeferredLightUniforms.RectLightAtlasUVScale;
+	LightData.RectLightAtlasMaxLevel = DeferredLightUniforms.RectLightAtlasMaxLevel;
+
+	LightData.bInverseSquared = LightData.FalloffExponent == 0.0f;
+	LightData.bRadialLight = LightType != LIGHT_TYPE_DIRECTIONAL;
+	LightData.bSpotLight = LightType == LIGHT_TYPE_SPOT;
+	LightData.bRectLight = LightType == LIGHT_TYPE_RECT;
+
+	return LightData;
+}
+
+// Must match FLumenPackedLight in LumenSceneDirectLighting.cpp
 struct FLumenPackedLight
 {
 	float3 WorldPosition;
@@ -125,10 +159,14 @@ struct FLumenPackedLight
 	float ProxyRadius;
 
 	float3 ProxyDirection;
-	uint bHasShadowMask_RectLightAtlasMaxLevel;
+	float RectLightAtlasMaxLevel;
 	
 	float2 SinCosConeAngleOrRectLightAtlasUVScale;
 	float2 RectLightAtlasUVOffset;
+
+	uint LightingChannelMask;
+	uint bHasShadowMask;
+	uint Padding[2];
 };
 
 struct FLumenLight
@@ -143,6 +181,7 @@ struct FLumenLight
 	float SinConeAngle;
 
 	uint VirtualShadowMapId;
+	uint LightingChannelMask;
 	uint bHasShadowMask;
 	uint Type;
 };
@@ -170,11 +209,11 @@ FLumenLight LoadLumenLight(uint LightIndex, float3 PreViewTranslation)
 	DeferredLightData.DistanceFadeMAD = 0.0f;
 	DeferredLightData.ShadowMapChannelMask = 0.0f;
 	DeferredLightData.ShadowedBits = 0;
-	DeferredLightData.RectLightData.BarnCosAngle = PackedLight.RectLightBarnCosAngle;
-	DeferredLightData.RectLightData.BarnLength = PackedLight.RectLightBarnLength;
-	DeferredLightData.RectLightData.AtlasData.AtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
-	DeferredLightData.RectLightData.AtlasData.AtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
-	DeferredLightData.RectLightData.AtlasData.AtlasMaxLevel = asfloat(BitFieldExtractU32(PackedLight.bHasShadowMask_RectLightAtlasMaxLevel, 31, 0));
+	DeferredLightData.RectLightBarnCosAngle = PackedLight.RectLightBarnCosAngle;
+	DeferredLightData.RectLightBarnLength = PackedLight.RectLightBarnLength;
+	DeferredLightData.RectLightAtlasUVScale = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale;
+	DeferredLightData.RectLightAtlasUVOffset = PackedLight.RectLightAtlasUVOffset;
+	DeferredLightData.RectLightAtlasMaxLevel = PackedLight.RectLightAtlasMaxLevel;
 	DeferredLightData.bInverseSquared = PackedLight.FalloffExponent == 0.0f;
 	DeferredLightData.bRadialLight = PackedLight.LightType != LIGHT_TYPE_DIRECTIONAL;
 	DeferredLightData.bSpotLight = PackedLight.LightType == LIGHT_TYPE_SPOT;
@@ -189,7 +228,8 @@ FLumenLight LoadLumenLight(uint LightIndex, float3 PreViewTranslation)
 	LumenLight.CosConeAngle = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale.y;
 	LumenLight.SinConeAngle = PackedLight.SinCosConeAngleOrRectLightAtlasUVScale.x;
 	LumenLight.VirtualShadowMapId = PackedLight.VirtualShadowMapId;
-	LumenLight.bHasShadowMask = BitFieldExtractU32(PackedLight.bHasShadowMask_RectLightAtlasMaxLevel, 1, 31);
+	LumenLight.bHasShadowMask = PackedLight.bHasShadowMask;
+	LumenLight.LightingChannelMask = PackedLight.LightingChannelMask;
 	LumenLight.Type = PackedLight.LightType;
 	return LumenLight;
 }

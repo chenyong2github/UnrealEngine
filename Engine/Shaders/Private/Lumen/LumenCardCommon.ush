@@ -32,6 +32,7 @@ struct FLumenCardData
 	bool bVisible;
 	bool bHeightfield;
 	uint AxisAlignedDirection;
+	uint LightingChannelMask;
 
 	// Average world space texel size of always resident pages
 	float TexelSize;
@@ -78,6 +79,7 @@ FLumenCardData GetLumenCardData(uint CardId)
 	CardData.ResLevelToResLevelXYBias.x = (Packed3W >> 0) & 0xFF;
 	CardData.ResLevelToResLevelXYBias.y = (Packed3W >> 8) & 0xFF;
 	CardData.AxisAlignedDirection = (Packed3W >> 16) & 0xF;
+	CardData.LightingChannelMask = (Packed3W >> 20) & 0xF;
 	CardData.bVisible = (Packed3W >> 24) & 1;
 	CardData.bHeightfield = (Packed3W >> 25) & 1;
 	 
@@ -92,7 +94,7 @@ FLumenCardData GetLumenCardData(uint CardId)
 	CardData.MeshCardsToLocalRotation[1] = Vector6.xyz;
 	CardData.MeshCardsToLocalRotation[2] = Vector7.xyz;
 	CardData.MeshCardsOrigin = float3(Vector5.w, Vector6.w, Vector7.w);
-	CardData.MeshCardsExtent = abs(Vector8.xyz);
+	CardData.MeshCardsExtent = Vector8.xyz;
 	CardData.TexelSize = Vector8.w;
 
 	return CardData;

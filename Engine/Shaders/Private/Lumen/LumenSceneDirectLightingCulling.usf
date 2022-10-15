@@ -144,6 +144,12 @@ bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3
 
 bool DoesLightAffectCardPageUVRange(FLumenLight LumenLight, FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax, inout float3 OutCardPageWorldCenter)
 {
+	// Lighting channels test
+	if (!(Card.LightingChannelMask & LumenLight.LightingChannelMask))
+	{
+		return false;
+	}
+
 	float3 CardPageLocalCenter;
 	float3 CardPageLocalExtent;
 	GetCardLocalBBox(CardPage, Card, UVMin, UVMax, CardPageLocalCenter, CardPageLocalExtent);
