@@ -7,7 +7,7 @@
 
 #include "PCGCreateParamData.generated.h"
 
-UCLASS(BlueprintType, ClassGroup = (Procedural))
+UCLASS(BlueprintType, ClassGroup = (Procedural), meta = (Deprecated = "5.2", DeprecationMessage = "Use CreateAttribute instead."))
 class PCG_API UPCGCreateParamDataSettings : public UPCGAttributeCreationBaseSettings
 {
 	GENERATED_BODY()

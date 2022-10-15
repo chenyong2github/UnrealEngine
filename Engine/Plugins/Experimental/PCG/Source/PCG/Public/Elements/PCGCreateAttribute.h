@@ -34,6 +34,7 @@ protected:
 class FPCGCreateAttributeElement : public FSimplePCGElement
 {
 public:
+	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 
 protected:
