@@ -363,8 +363,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			List<UhtFunction> callbackFunctions = new(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
 
-			// Generate the callback parameter structures
-			AppendCallbackParametersDecls(builder, classObj, callbackFunctions);
+			// This is now done in.gen.cpp - Generate the callback parameter structures
+			//AppendCallbackParametersDecls(builder, classObj, callbackFunctions);
 
 			// Generate the RPC wrappers for the callbacks
 			AppendCallbackRpcWrapperDecls(builder, classObj, callbackFunctions);
@@ -435,10 +435,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			using (UhtMacroCreator macro = new(builder, this, classObj.PrologLineNumber, PrologMacroSuffix))
 			{
-				if (callbackFunctions.Count > 0)
-				{
-					builder.Append('\t').AppendMacroName(this, classObj, EventParamsMacroSuffix).Append(" \\\r\n");
-				}
+				//if (callbackFunctions.Count > 0)
+				//{
+				//	builder.Append('\t').AppendMacroName(this, classObj, EventParamsMacroSuffix).Append(" \\\r\n");
+				//}
 			}
 
 			bool hasCallbacks = callbackFunctions.Count > 0;

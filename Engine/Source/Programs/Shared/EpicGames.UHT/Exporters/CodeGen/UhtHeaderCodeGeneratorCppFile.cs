@@ -1021,6 +1021,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			List<UhtFunction> callbackFunctions = new(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
 
+			// Generate the callback parameter structures
+			AppendCallbackParametersDecls(builder, classObj, callbackFunctions);
+
 			// VM -> C++ proxies (events and delegates).
 			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 			{
@@ -1713,6 +1716,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
+		private StringBuilder AppendCallbackParametersDecls(StringBuilder builder, UhtClass classObj, List<UhtFunction> callbackFunctions)
+		{
+			foreach (UhtFunction function in callbackFunctions)
+			{
+				AppendEventParameter(builder, function, function.StrippedFunctionName, UhtPropertyTextType.EventParameterMember, true, 1, "\r\n");
+			}
+			return builder;
+		}
 		private StringBuilder AppendCallbackFunctions(StringBuilder builder, UhtClass classObj, List<UhtFunction> callbackFunctions)
 		{
 			if (callbackFunctions.Count > 0)

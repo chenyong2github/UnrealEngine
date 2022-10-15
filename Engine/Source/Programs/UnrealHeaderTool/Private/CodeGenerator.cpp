@@ -2745,12 +2745,15 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		// export parameters structs for all events and delegates
 		for (FUnrealFunctionDefinitionInfo* FunctionDef : CallbackFunctions)
 		{
-			ExportEventParm(UClassMacroContent, OutReferenceGatherers.ForwardDeclarations, *FunctionDef, /*Indent=*/ 1, /*bOutputConstructor=*/ true, EExportingState::Normal);
+			//ExportEventParm(UClassMacroContent, OutReferenceGatherers.ForwardDeclarations, *FunctionDef, /*Indent=*/ 1, /*bOutputConstructor=*/ true, EExportingState::Normal);
+			FUHTStringBuilder Output;
+			ExportEventParm(Output, OutReferenceGatherers.ForwardDeclarations, *FunctionDef, /*Indent=*/ 1, /*bOutputConstructor=*/ true, EExportingState::Normal);
+			OutCpp.Log(Output);
 		}
 
-		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EVENT_PARMS"));
-		WriteMacro(OutGeneratedHeaderText, MacroName, UClassMacroContent);
-		PrologMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
+		//FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EVENT_PARMS"));
+		//WriteMacro(OutGeneratedHeaderText, MacroName, UClassMacroContent);
+		//PrologMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
 		// VM -> C++ proxies (events and delegates).
 		FOutputDeviceNull NullOutput;
