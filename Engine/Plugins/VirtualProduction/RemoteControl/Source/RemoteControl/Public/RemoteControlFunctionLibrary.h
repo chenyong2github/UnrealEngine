@@ -36,8 +36,8 @@ struct FColorWheelColorBase
 	GENERATED_BODY()
 
 	/**
-		* The position on the unit circle. Magnitude should be in range [0, 1].
-		*/
+	* The position on the unit circle. Magnitude should be in range [0, 1].
+	*/
 	UPROPERTY()
 	FVector2D Position = FVector2D::ZeroVector;
 
@@ -71,7 +71,7 @@ struct FColorGradingWheelColor : public FColorWheelColorBase
 	 * The color's luminance component, which is separate from the HSV color itself.
 	 */
 	UPROPERTY()
-	double Luminance = 1.0;
+	double Luminance = 0.0;
 };
 
 UCLASS()
@@ -134,5 +134,5 @@ public:
 	 * @return Whether the operation was successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Color")
-	static bool ApplyColorGradingWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorGradingWheelColor& DeltaValue, const FColorGradingWheelColor& ReferenceColor, bool bIsInteractive);
+	static bool ApplyColorGradingWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorGradingWheelColor& DeltaValue, const FColorGradingWheelColor& ReferenceColor, bool bIsInteractive, float MinValue = 0.f, float MaxValue = 2.f);
 };
