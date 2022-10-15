@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Abilities/Tasks/AbilityTask_WaitVelocityChange.h"
+#include "AbilitySystemLog.h"
 #include "GameFramework/MovementComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AbilityTask_WaitVelocityChange)

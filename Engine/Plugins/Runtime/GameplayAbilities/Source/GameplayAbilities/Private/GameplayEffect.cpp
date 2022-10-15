@@ -3,6 +3,7 @@
 #include "GameplayEffect.h"
 
 #include "TimerManager.h"
+#include "AbilitySystemLog.h"
 #include "GameFramework/GameStateBase.h"
 #include "Engine/ChildConnection.h"
 #include "Engine/NetConnection.h"

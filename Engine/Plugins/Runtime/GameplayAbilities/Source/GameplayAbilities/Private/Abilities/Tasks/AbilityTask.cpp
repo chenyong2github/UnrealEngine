@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Abilities/Tasks/AbilityTask.h"
+#include "AbilitySystemLog.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemStats.h"
 

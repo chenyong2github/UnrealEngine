@@ -2,6 +2,7 @@
 
 #include "GameplayEffectExecutionCalculation.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemLog.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectExecutionCalculation)
 

@@ -5,14 +5,12 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/UnrealType.h"
-#include "GameFramework/Actor.h"
-#include "Engine/CurveTable.h"
 #include "Engine/DataTable.h"
-#include "ScalableFloat.h"
 #include "AttributeSet.generated.h"
 
 class UAbilitySystemComponent;
 class UAttributeSet;
+class UCurveTable;
 struct FGameplayAbilityActorInfo;
 struct FAggregator;
 
@@ -238,7 +236,7 @@ public:
 	virtual void InitFromMetaDataTable(const UDataTable* DataTable);
 
 	/** Gets information about owning actor */
-	FORCEINLINE AActor* GetOwningActor() const { return CastChecked<AActor>(GetOuter()); }
+	AActor* GetOwningActor() const;
 	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
 	UAbilitySystemComponent* GetOwningAbilitySystemComponentChecked() const;
 	FGameplayAbilityActorInfo* GetActorInfo() const;

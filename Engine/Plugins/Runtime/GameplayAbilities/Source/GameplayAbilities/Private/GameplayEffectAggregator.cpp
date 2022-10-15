@@ -4,6 +4,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemLog.h"
 #include "AbilitySystemStats.h"
 
 void FAggregatorMod::UpdateQualifies(const FAggregatorEvaluateParameters& Parameters) const

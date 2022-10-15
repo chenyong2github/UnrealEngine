@@ -5,6 +5,7 @@
 #include "AbilitySystemStats.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemLog.h"
 #include "GameplayCueManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_Static)

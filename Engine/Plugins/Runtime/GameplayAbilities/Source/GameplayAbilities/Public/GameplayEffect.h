@@ -33,6 +33,7 @@ struct FGameplayEffectModCallbackData;
 struct FGameplayEffectSpec;
 struct FAggregatorEvaluateParameters;
 struct FAggregatorMod;
+struct FVisualLogEntry;
 
 /** Enumeration outlining the possible gameplay effect magnitude calculation policies. */
 UENUM()

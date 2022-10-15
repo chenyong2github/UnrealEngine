@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Abilities/GameplayAbility.h"
+#include "AbilitySystemLog.h"
 #include "TimerManager.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Engine.h"
@@ -19,6 +20,15 @@
 #endif // UE_WITH_IRIS
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbility)
+
+#define ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(FunctionName, ReturnValue)																				\
+{																																						\
+	if (!ensure(IsInstantiated()))																														\
+	{																																					\
+		ABILITY_LOG(Error, TEXT("%s: " #FunctionName " cannot be called on a non-instanced ability. Check the instancing policy."), *GetPathName());	\
+		return ReturnValue;																																\
+	}																																					\
+}
 
 namespace FAbilitySystemTweaks
 {
@@ -1062,6 +1072,24 @@ UAbilitySystemComponent* UGameplayAbility::GetAbilitySystemComponentFromActorInf
 	ensure(AbilitySystemComponent);
 
 	return AbilitySystemComponent;
+}
+
+const FGameplayAbilityActorInfo* UGameplayAbility::GetCurrentActorInfo() const
+{
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentActorInfo, nullptr);
+	return CurrentActorInfo;
+}
+
+FGameplayAbilityActivationInfo UGameplayAbility::GetCurrentActivationInfo() const
+{
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentActivationInfo, FGameplayAbilityActivationInfo());
+	return CurrentActivationInfo;
+}
+
+FGameplayAbilitySpecHandle UGameplayAbility::GetCurrentAbilitySpecHandle() const
+{
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentAbilitySpecHandle, FGameplayAbilitySpecHandle());
+	return CurrentSpecHandle;
 }
 
 FGameplayEffectSpecHandle UGameplayAbility::MakeOutgoingGameplayEffectSpec(TSubclassOf<UGameplayEffect> GameplayEffectClass, float Level) const

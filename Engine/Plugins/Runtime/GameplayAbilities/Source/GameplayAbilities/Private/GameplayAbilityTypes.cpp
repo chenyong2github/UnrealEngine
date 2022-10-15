@@ -4,6 +4,7 @@
 
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemLog.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -141,6 +142,14 @@ bool FGameplayAbilityActorInfo::IsNetAuthority() const
 	// This rarely happens during shutdown cases for reasons that aren't quite clear
 	ABILITY_LOG(Warning, TEXT("IsNetAuthority called when OwnerActor was invalid. Returning false. AbilitySystemComponent: %s"), *GetNameSafe(AbilitySystemComponent.Get()));
 	return false;
+}
+
+FGameplayAbilityActivationInfo::FGameplayAbilityActivationInfo(AActor* InActor)
+	: bCanBeEndedByOtherInstance(false)	
+{
+	// On Init, we are either Authority or NonAuthority. We haven't been given a PredictionKey and we haven't been confirmed.
+	// NonAuthority essentially means 'I'm not sure what how I'm going to do this yet'.
+	ActivationMode = (InActor->GetLocalRole() == ROLE_Authority ? EGameplayAbilityActivationMode::Authority : EGameplayAbilityActivationMode::NonAuthority);
 }
 
 void FGameplayAbilityActivationInfo::SetPredicting(FPredictionKey PredictionKey)

@@ -8,10 +8,10 @@
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/NetSerialization.h"
+#include "GameFramework/Actor.h"
 #include "GameplayTagContainer.h"
 #include "AttributeSet.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
-#include "AbilitySystemLog.h"
 #include "GameplayEffectTypes.generated.h"
 
 #define SKILL_SYSTEM_AGGREGATOR_DEBUG 1
@@ -28,6 +28,7 @@ class UGameplayAbility;
 struct FActiveGameplayEffect;
 struct FGameplayEffectModCallbackData;
 struct FGameplayEffectSpec;
+struct FHitResult;
 namespace UE::Net
 {
 	struct FGameplayEffectContextHandleAccessorForNetSerializer;
@@ -489,11 +490,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectContext
 	}
 
 	/** Returns debug string */
-	virtual FString ToString() const
-	{
-		const AActor* InstigatorPtr = Instigator.Get();
-		return (InstigatorPtr ? InstigatorPtr->GetName() : FString(TEXT("NONE")));
-	}
+	virtual FString ToString() const;
 
 	/** Returns the actual struct used for serialization, subclasses must override this! */
 	virtual UScriptStruct* GetScriptStruct() const
@@ -1593,11 +1590,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectSpecHandle
 		return Data.IsValid();
 	}
 
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-	{
-		ABILITY_LOG(Fatal, TEXT("FGameplayEffectSpecHandle should not be NetSerialized"));
-		return false;
-	}
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	/** Comparison operator */
 	bool operator==(FGameplayEffectSpecHandle const& Other) const
@@ -1645,22 +1638,7 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 		TagMap.FindOrAdd(Tag)++;
 	}
 
-	void RemoveTag(const FGameplayTag& Tag)
-	{
-		MapID++;
-		int32& Count = TagMap.FindOrAdd(Tag);
-		Count--;
-		if (Count == 0)
-		{
-			// Remove from map so that we do not replicate
-			TagMap.Remove(Tag);
-		}
-		else if (Count < 0)
-		{
-			ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap::RemoveTag called on Tag %s and count is now < 0"), *Tag.ToString());
-			Count = 0;
-		}
-	}
+	void RemoveTag(const FGameplayTag& Tag);
 
 	void AddTags(const FGameplayTagContainer& Container)
 	{

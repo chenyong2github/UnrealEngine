@@ -427,6 +427,11 @@ void UAttributeSet::InitFromMetaDataTable(const UDataTable* DataTable)
 	PrintDebug();
 }
 
+AActor* UAttributeSet::GetOwningActor() const
+{
+	return CastChecked<AActor>(GetOuter());
+}
+
 UAbilitySystemComponent* UAttributeSet::GetOwningAbilitySystemComponent() const
 {
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwningActor());

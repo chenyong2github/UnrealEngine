@@ -11,6 +11,7 @@
 #include "GameplayTagsManager.h"
 #include "GameplayTagsModule.h"
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystemLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "GameplayCueInterface.h"
 #include "GameplayCueSet.h"

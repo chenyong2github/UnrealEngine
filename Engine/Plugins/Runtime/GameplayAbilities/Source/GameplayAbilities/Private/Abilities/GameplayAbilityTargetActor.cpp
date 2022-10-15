@@ -4,6 +4,7 @@
 #include "GameplayAbilitySpec.h"
 #include "GameFramework/PlayerController.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemLog.h"
 #include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayAbilityTargetActor)

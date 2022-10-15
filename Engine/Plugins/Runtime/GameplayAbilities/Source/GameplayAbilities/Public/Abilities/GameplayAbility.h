@@ -83,16 +83,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnGameplayAbilityStateEnded, FName);
 /** Used to delay execution until we leave a critical section */
 DECLARE_DELEGATE(FPostLockDelegate);
 
-
-#define ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(FunctionName, ReturnValue)																				\
-{																																						\
-	if (!ensure(IsInstantiated()))																														\
-	{																																					\
-		ABILITY_LOG(Error, TEXT("%s: " #FunctionName " cannot be called on a non-instanced ability. Check the instancing policy."), *GetPathName());	\
-		return ReturnValue;																																\
-	}																																					\
-}
-
 /** Structure that defines how an ability will be triggered by external events */
 USTRUCT()
 struct FAbilityTriggerData
@@ -196,18 +186,10 @@ public:
 	UAbilitySystemComponent* GetAbilitySystemComponentFromActorInfo_Ensured() const;
 
 	/** Gets the current actor info bound to this ability - can only be called on instanced abilities. */
-	const FGameplayAbilityActorInfo* GetCurrentActorInfo() const
-	{
-		ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentActorInfo, nullptr);
-		return CurrentActorInfo;
-	}
+	const FGameplayAbilityActorInfo* GetCurrentActorInfo() const;
 
 	/** Gets the current activation info bound to this ability - can only be called on instanced abilities. */
-	FGameplayAbilityActivationInfo GetCurrentActivationInfo() const
-	{
-		ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentActivationInfo, FGameplayAbilityActivationInfo());
-		return CurrentActivationInfo;
-	}
+	FGameplayAbilityActivationInfo GetCurrentActivationInfo() const;
 
 	/** Gets the current activation info bound to this ability - can only be called on instanced abilities. */
 	FGameplayAbilityActivationInfo& GetCurrentActivationInfoRef()
@@ -217,11 +199,7 @@ public:
 	}
 
 	/** Gets the current AbilitySpecHandle- can only be called on instanced abilities. */
-	FGameplayAbilitySpecHandle GetCurrentAbilitySpecHandle() const
-	{
-		ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentAbilitySpecHandle, FGameplayAbilitySpecHandle());
-		return CurrentSpecHandle;
-	}
+	FGameplayAbilitySpecHandle GetCurrentAbilitySpecHandle() const;
 
 	/** Retrieves the actual AbilitySpec for this ability. Can only be called on instanced abilities. */
 	FGameplayAbilitySpec* GetCurrentAbilitySpec() const;

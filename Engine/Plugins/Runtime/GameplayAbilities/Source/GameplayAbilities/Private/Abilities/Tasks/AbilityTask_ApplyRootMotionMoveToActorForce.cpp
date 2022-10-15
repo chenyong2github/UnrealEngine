@@ -8,6 +8,7 @@
 #include "DrawDebugHelpers.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystemLog.h"
 #include "Net/UnrealNetwork.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
 #include "Engine/World.h"

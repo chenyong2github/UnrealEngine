@@ -10,6 +10,7 @@
 #include "AttributeSet.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayPrediction.h"
+#include "ScalableFloat.h"
 #include "GameplayAbilitySpec.generated.h"
 
 class UAbilitySystemComponent;
@@ -163,13 +164,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityActivationInfo
 	{
 	}
 
-	FGameplayAbilityActivationInfo(AActor* InActor)
-		: bCanBeEndedByOtherInstance(false)	
-	{
-		// On Init, we are either Authority or NonAuthority. We haven't been given a PredictionKey and we haven't been confirmed.
-		// NonAuthority essentially means 'I'm not sure what how I'm going to do this yet'.
-		ActivationMode = (InActor->GetLocalRole() == ROLE_Authority ? EGameplayAbilityActivationMode::Authority : EGameplayAbilityActivationMode::NonAuthority);
-	}
+	FGameplayAbilityActivationInfo(AActor* InActor);
 
 	FGameplayAbilityActivationInfo(EGameplayAbilityActivationMode::Type InType)
 		: ActivationMode(InType)

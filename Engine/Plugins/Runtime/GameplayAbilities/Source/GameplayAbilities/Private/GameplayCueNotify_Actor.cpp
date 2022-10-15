@@ -6,6 +6,7 @@
 #include "Components/TimelineComponent.h"
 #include "AbilitySystemStats.h"
 #include "AbilitySystemGlobals.h"
+#include "AbilitySystemLog.h"
 #include "GameplayCueManager.h"
 #include "GameplayCueNotifyTypes.h"
 
