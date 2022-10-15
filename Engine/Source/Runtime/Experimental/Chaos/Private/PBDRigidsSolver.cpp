@@ -319,7 +319,6 @@ namespace Chaos
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
 			MSolver->ApplyCallbacks_Internal();
-			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 			
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
@@ -427,6 +426,7 @@ namespace Chaos
 					bool ResetData = (MSubStepInfo.Step == 0);
 					MSolver->GetEventManager()->FillProducerData(MSolver, ResetData);
 					MSolver->GetEvolution()->ResetAllRemovals();
+					MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 					MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterCrumblings();
 				}
 
