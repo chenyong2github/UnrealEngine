@@ -1014,6 +1014,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			// Add the accessors
 			AppendPropertyAccessors(builder, classObj);
 
+			// Add sparse accessors
+			AppendSparseAccessors(builder, classObj);
+
 			// Collect the callback function and sort by name to make the order stable
 			List<UhtFunction> callbackFunctions = new(classObj.Functions.Where(x => x.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && x.SuperFunction == null));
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
@@ -1203,6 +1206,45 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						builder.Append("\t}\r\n");
 					}
 				}
+			}
+			return builder;
+		}
+
+		private StringBuilder AppendSparseAccessors(StringBuilder builder, UhtClass classObj)
+		{
+			string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+			if (sparseDataTypes == null)
+			{
+				return builder;
+			}
+
+			string[]? baseSparseDataTypes = classObj.SuperClass?.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+			if (baseSparseDataTypes != null && Enumerable.SequenceEqual(sparseDataTypes, baseSparseDataTypes))
+			{
+				return builder;
+			}
+
+			foreach (string sparseDataType in sparseDataTypes)
+			{
+				builder.Append('F').Append(sparseDataType).Append("* ").Append(classObj.SourceName).Append("::Get").Append(sparseDataType).Append("() \r\n");
+				builder.Append("{ \r\n");
+				builder.Append("\treturn static_cast<F").Append(sparseDataType).Append("*>(GetClass()->GetOrCreateSparseClassData()); \r\n");
+				builder.Append("} \r\n");
+
+				builder.Append('F').Append(sparseDataType).Append("* ").Append(classObj.SourceName).Append("::Get").Append(sparseDataType).Append("() const \r\n");
+				builder.Append("{ \r\n");
+				builder.Append("\treturn static_cast<F").Append(sparseDataType).Append("*>(GetClass()->GetOrCreateSparseClassData()); \r\n");
+				builder.Append("} \r\n");
+
+				builder.Append("const F").Append(sparseDataType).Append("* ").Append(classObj.SourceName).Append("::Get").Append(sparseDataType).Append("(EGetSparseClassDataMethod GetMethod) const \r\n");
+				builder.Append("{ \r\n");
+				builder.Append("\treturn static_cast<const F").Append(sparseDataType).Append("*>(GetClass()->GetSparseClassData(GetMethod)); \r\n");
+				builder.Append("} \r\n");
+
+				builder.Append("UScriptStruct* ").Append(classObj.SourceName).Append("::StaticGet").Append(sparseDataType).Append("ScriptStruct()\r\n");
+				builder.Append("{ \r\n");
+				builder.Append("\treturn F").Append(sparseDataType).Append("::StaticStruct(); \r\n");
+				builder.Append("} \r\n");
 			}
 			return builder;
 		}
@@ -1512,7 +1554,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					foreach (string sparseClass in sparseDataTypes)
 					{
-						builder.Append("\t\t\t").Append(registrationName).Append(".OuterSingleton->SetSparseClassDataStruct(F").Append(sparseClass).Append("::StaticStruct());\r\n");
+						builder.Append("\t\t\t").Append(registrationName).Append(".OuterSingleton->SetSparseClassDataStruct(").Append(classObj.SourceName).Append("::StaticGet").Append(sparseClass).Append("ScriptStruct());\r\n");
 					}
 				}
 				builder.Append("\t\t}\r\n");

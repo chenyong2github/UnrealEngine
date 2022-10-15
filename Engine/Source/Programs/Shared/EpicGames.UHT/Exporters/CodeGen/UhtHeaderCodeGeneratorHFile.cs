@@ -537,69 +537,65 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
 				if (sparseDataTypes != null)
 				{
-					foreach (string sparseDataType in sparseDataTypes)
+					string[]? baseSparseDataTypes = classObj.SuperClass?.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+					if (baseSparseDataTypes == null || !Enumerable.SequenceEqual(sparseDataTypes, baseSparseDataTypes))
 					{
-						builder.Append('F').Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("() \\\r\n");
-						builder.Append("{ \\\r\n");
-						builder.Append("\treturn (F").Append(sparseDataType).Append("*)(GetClass()->GetOrCreateSparseClassData()); \\\r\n");
-						builder.Append("} \\\r\n");
+						string api = classObj.ClassFlags.HasAnyFlags(EClassFlags.MinimalAPI) ? PackageApi : "";
 
-						builder.Append('F').Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("() const \\\r\n");
-						builder.Append("{ \\\r\n");
-						builder.Append("\treturn (F").Append(sparseDataType).Append("*)(GetClass()->GetOrCreateSparseClassData()); \\\r\n");
-						builder.Append("} \\\r\n");
-
-						builder.Append("const F").Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("(EGetSparseClassDataMethod GetMethod) const \\\r\n");
-						builder.Append("{ \\\r\n");
-						builder.Append("\treturn (const F").Append(sparseDataType).Append("*)(GetClass()->GetSparseClassData(GetMethod)); \\\r\n");
-						builder.Append("} \\\r\n");
-					}
-
-					foreach (string sparseDataType in sparseDataTypes)
-					{
-						UhtScriptStruct? sparseScriptStruct = classObj.FindType(UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct | UhtFindOptions.NoSelf, sparseDataType) as UhtScriptStruct;
-						while (sparseScriptStruct != null)
+						foreach (string sparseDataType in sparseDataTypes)
 						{
-							foreach (UhtProperty sparseProperty in sparseScriptStruct.Properties)
+							builder.Append(api).Append('F').Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("(); \\\r\n");
+							builder.Append(api).Append('F').Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("() const; \\\r\n");
+							builder.Append(api).Append("const F").Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("(EGetSparseClassDataMethod GetMethod) const; \\\r\n");
+							builder.Append(api).Append("static UScriptStruct* StaticGet").Append(sparseDataType).Append("ScriptStruct(); \\\r\n");
+						}
+
+						foreach (string sparseDataType in sparseDataTypes)
+						{
+							UhtScriptStruct? sparseScriptStruct = classObj.FindType(UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct | UhtFindOptions.NoSelf, sparseDataType) as UhtScriptStruct;
+							while (sparseScriptStruct != null)
 							{
-								if (!sparseProperty.MetaData.ContainsKey(UhtNames.NoGetter))
+								foreach (UhtProperty sparseProperty in sparseScriptStruct.Properties)
 								{
-									string propertyName = sparseProperty.SourceName;
-									string cleanPropertyName = propertyName;
-									if (sparseProperty is UhtBoolProperty && propertyName.StartsWith("b", StringComparison.Ordinal))
+									if (!sparseProperty.MetaData.ContainsKey(UhtNames.NoGetter))
 									{
-										cleanPropertyName = propertyName[1..];
-									}
+										string propertyName = sparseProperty.SourceName;
+										string cleanPropertyName = propertyName;
+										if (sparseProperty is UhtBoolProperty && propertyName.StartsWith("b", StringComparison.Ordinal))
+										{
+											cleanPropertyName = propertyName[1..];
+										}
 
-									bool getByRef = sparseProperty.MetaData.ContainsKey(UhtNames.GetByRef);
+										bool getByRef = sparseProperty.MetaData.ContainsKey(UhtNames.GetByRef);
 
-									if (getByRef)
-									{
-										builder.Append("const ").AppendSparse(sparseProperty).Append("& Get").Append(cleanPropertyName).Append("() \\\r\n");
-									}
-									else
-									{
-										builder.AppendSparse(sparseProperty).Append(" Get").Append(cleanPropertyName).Append("() \\\r\n");
-									}
-									builder.Append("{ \\\r\n");
-									builder.Append("\treturn Get").Append(sparseDataType).Append("()->").Append(propertyName).Append("; \\\r\n");
-									builder.Append("} \\\r\n");
+										if (getByRef)
+										{
+											builder.Append("const ").AppendSparse(sparseProperty).Append("& Get").Append(cleanPropertyName).Append("() \\\r\n");
+										}
+										else
+										{
+											builder.AppendSparse(sparseProperty).Append(" Get").Append(cleanPropertyName).Append("() \\\r\n");
+										}
+										builder.Append("{ \\\r\n");
+										builder.Append("\treturn Get").Append(sparseDataType).Append("()->").Append(propertyName).Append("; \\\r\n");
+										builder.Append("} \\\r\n");
 
-									if (getByRef)
-									{
-										builder.Append("const ").AppendSparse(sparseProperty).Append("& Get").Append(cleanPropertyName).Append("() const \\\r\n");
+										if (getByRef)
+										{
+											builder.Append("const ").AppendSparse(sparseProperty).Append("& Get").Append(cleanPropertyName).Append("() const \\\r\n");
+										}
+										else
+										{
+											builder.AppendSparse(sparseProperty).Append(" Get").Append(cleanPropertyName).Append("() const \\\r\n");
+										}
+										builder.Append("{ \\\r\n");
+										builder.Append("\treturn Get").Append(sparseDataType).Append("()->").Append(propertyName).Append("; \\\r\n");
+										builder.Append("} \\\r\n");
 									}
-									else
-									{
-										builder.AppendSparse(sparseProperty).Append(" Get").Append(cleanPropertyName).Append("() const \\\r\n");
-									}
-									builder.Append("{ \\\r\n");
-									builder.Append("\treturn Get").Append(sparseDataType).Append("()->").Append(propertyName).Append("; \\\r\n");
-									builder.Append("} \\\r\n");
 								}
-							}
 
-							sparseScriptStruct = sparseScriptStruct.SuperScriptStruct;
+								sparseScriptStruct = sparseScriptStruct.SuperScriptStruct;
+							}
 						}
 					}
 				}
