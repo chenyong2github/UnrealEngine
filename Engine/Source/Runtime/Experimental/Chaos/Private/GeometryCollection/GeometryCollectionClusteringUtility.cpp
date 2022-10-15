@@ -661,7 +661,7 @@ void FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(FGeome
 {
 	if (!GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
 	{
-		GeometryCollection->AddAttribute<int32>("Level", FGeometryCollection::TransformGroup, FManagedArrayCollection::FConstructionParameters(FName(),  false));
+		GeometryCollection->AddAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	}
 	TManagedArray<int32>& Levels = GeometryCollection->ModifyAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;

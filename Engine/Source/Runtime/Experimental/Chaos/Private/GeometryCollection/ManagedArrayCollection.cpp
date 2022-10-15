@@ -117,6 +117,16 @@ bool FManagedArrayCollection::IsAttributeDirty(FName Name, FName Group) const
 	return false;
 }
 
+bool FManagedArrayCollection::IsAttributePersistent(FName Name, FName Group) const
+{
+	const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+	if (const FValueType* Attribute = Map.Find(Key))
+	{
+		return Attribute->Saved;
+	}
+	return false;
+}
+
 TArray<FName> FManagedArrayCollection::AttributeNames(FName Group) const
 {
 	TArray<FName> AttributeNames;
@@ -612,7 +622,6 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 			Map.Remove(Key);
 		}
 
-#if WITH_EDITOR
 		//it's possible new entries have been added but are not in old content. Resize these.
 		for (TTuple<FKeyType, FValueType>& Pair : Map)
 		{
@@ -622,8 +631,6 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 				Pair.Value.Value->Resize(GroupSize);
 			}
 		}
-
-#endif
 
 		// strip out GUID Attributes
 		for (auto& GroupName : GroupNames())

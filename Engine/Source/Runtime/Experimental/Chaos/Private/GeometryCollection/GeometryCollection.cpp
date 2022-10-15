@@ -11,6 +11,7 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 
 #include <iostream>
@@ -1300,12 +1301,16 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			Version = 9;
 		}
 
-		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::ChaosGeometryCollectionSaveLevelsAttribute)
+		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*this);
+		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::ChaosGeometryCollectionSaveLevelsAttribute
+			|| !HierarchyFacade.HasLevelAttribute()
+			|| !HierarchyFacade.IsLevelAttributePersistent()
+			)
 		{
 			// Level attribute previously serialized with bSave = false, so was not serializing level data.
-			// We now compute this during cook and need to serialize, so convert attribute to bSave = true.
-			RemoveAttribute("Level", FTransformCollection::TransformGroup);
-			AddAttribute<int32>("Level", FTransformCollection::TransformGroup, FConstructionParameters(FName(), /*bSave=*/true));
+			// We now compute this during cook and need to serialize, so convert attribute to bSave = true
+			// this is handled by the facade 
+			HierarchyFacade.GenerateLevelAttribute();
 		}
 
 		// Finally, make sure expected interfaces are initialized

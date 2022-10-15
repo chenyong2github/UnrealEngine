@@ -2,6 +2,15 @@
 #pragma once
 #include "GeometryCollection/ManagedArrayCollection.h"
 
+namespace ManageArrayAccessor
+{
+	enum class EPersistencePolicy : uint8
+	{
+		KeepExistingPersistence,
+		MakePersistent
+	};
+};
+
 /**
  * this class wraps a managed array
  * this provides a convenient API for optional attributes in a collection facade
@@ -20,6 +29,8 @@ public:
 	}
 	bool IsValid() const { return AttributeArray != nullptr; }
 
+	bool IsPersistent() const { return Collection.IsAttributePersistent(Name, Group); }
+
 	/** get the attribute for read only */
 	const TManagedArray<T>& Get() const
 	{
@@ -36,18 +47,33 @@ public:
 	}
 
 	/** add the attribute if it does not exists yet */
-	TManagedArray<T>& Add()
+	TManagedArray<T>& Add(ManageArrayAccessor::EPersistencePolicy PersistencePolicy = ManageArrayAccessor::EPersistencePolicy::MakePersistent)
 	{
-		AttributeArray = &Collection.AddAttribute<T>(Name, Group);
+		if (PersistencePolicy == ManageArrayAccessor::EPersistencePolicy::MakePersistent && !IsPersistent())
+		{
+			Remove();
+		}
+		const bool bSaved = (PersistencePolicy == ManageArrayAccessor::EPersistencePolicy::MakePersistent);
+		FManagedArrayCollection::FConstructionParameters Params(FName(), bSaved);
+		AttributeArray = &Collection.AddAttribute<T>(Name, Group, Params);
 		return *AttributeArray;
 	}
 
 	/** add and fill the attribute if it does not exist yet */
-	void AddAndFill(const T& Value)
+	void AddAndFill(const T& Value, ManageArrayAccessor::EPersistencePolicy PersistencePolicy = ManageArrayAccessor::EPersistencePolicy::MakePersistent)
 	{
 		if (!Collection.HasAttribute(Name, Group))
 		{
-			AttributeArray = &Collection.AddAttribute<T>(Name, Group);
+			Add(PersistencePolicy);
+			AttributeArray->Fill(Value);
+		}
+	}
+
+	/** Fill the attribute with a specific value */
+	void Fill(const T& Value)
+	{
+		if (AttributeArray)
+		{
 			AttributeArray->Fill(Value);
 		}
 	}
@@ -56,6 +82,12 @@ public:
 	void Copy(const TManagedArrayAccessor<T>& FromAttribute )
 	{
 		Collection.CopyAttribute(FromAttribute.Collection, Name, Group);
+	}
+
+	void Remove()
+	{
+		Collection.RemoveAttribute(Name, Group);
+		AttributeArray = nullptr;
 	}
 
 private:

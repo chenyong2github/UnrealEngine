@@ -421,6 +421,14 @@ public:
 	* @param Group - The group that manages the attribute
 	*/
 	bool IsAttributeDirty(FName Name, FName Group) const;
+
+	/**
+	* Check if an attribute is persistent - ie its data will be serialized
+	* If the attribute does not exists this will return false
+	* @param Name - The name of the attribute
+	* @param Group - The group that manages the attribute
+	*/
+	bool IsAttributePersistent(FName Name, FName Group) const;
 	
 	/**
 	*
