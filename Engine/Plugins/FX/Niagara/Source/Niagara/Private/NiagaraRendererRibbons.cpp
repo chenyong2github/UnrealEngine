@@ -43,6 +43,7 @@ DECLARE_CYCLE_STAT(TEXT("Generate Vertices GPU - Reduction Finalize [RT]"), STAT
 DECLARE_CYCLE_STAT(TEXT("Generate Vertices GPU - MultiRibbon Init [RT]"), STAT_NiagaraRenderRibbonsGenVerticesMultiRibbonInitGPU, STATGROUP_NiagaraRibbons);
 DECLARE_CYCLE_STAT(TEXT("Generate Vertices GPU - MultiRibbon Init Compute [RT]"), STAT_NiagaraRenderRibbonsGenVerticesMultiRibbonInitComputeGPU, STATGROUP_NiagaraRibbons);
 
+DECLARE_GPU_STAT_NAMED(NiagaraGPURibbons, TEXT("Niagara GPU Ribbons"));
 
 int32 GNiagaraRibbonTessellationEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraRibbonTessellationEnabled(
@@ -2548,6 +2549,8 @@ void FNiagaraGpuRibbonsDataManager::GenerateAllGPUData(FRHICommandListImmediate&
 	{
 		return;
 	}
+
+	SCOPED_GPU_STAT(RHICmdList, NiagaraGPURibbons);
 
 	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = GetOwnerInterface();
 
