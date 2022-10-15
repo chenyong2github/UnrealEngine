@@ -1069,6 +1069,9 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms(const F
 				
 		// Need to update these manually or the proxy's position will be out of sync next update
 		InActorProxy.Proxy->SetPositionalParams(InActorProxy.LevelInstance->GetPositionalParams());
+
+		// Update UV -- only valid for UV light cards
+		InActorProxy.Proxy->SetUVCoordinates(InActorProxy.LevelInstance->GetUVCoordinates());
 	}
 }
 
@@ -2205,6 +2208,11 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const
 
 		// Allows MU to receive the update in real-time.
 		LevelInstance->PostEditMove(false);
+
+		if (IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(LevelInstance))
+		{
+			StageActor->UpdateEditorGizmos();
+		}
 	}
 }
 

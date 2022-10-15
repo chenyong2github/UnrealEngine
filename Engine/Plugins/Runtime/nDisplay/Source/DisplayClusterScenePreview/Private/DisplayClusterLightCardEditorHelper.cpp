@@ -1375,9 +1375,14 @@ void FDisplayClusterLightCardEditorHelper::InternalMoveActorTo(
 	Actor->SetYaw(Rotation.Yaw);
 
 #if WITH_EDITOR
-	if (bIsFinalChange && !Actor->IsProxy())
+	if (!Actor->IsProxy())
 	{
-		PostEditChangePropertiesForMovedActor(Actor);
+		Actor->UpdateEditorGizmos();
+		
+		if (bIsFinalChange)
+		{
+			PostEditChangePropertiesForMovedActor(Actor);
+		}
 	}
 #endif
 }

@@ -137,10 +137,6 @@ void IDisplayClusterStageActor::UpdatePositionalParamsFromTransform()
 		Actor->GetTransform(), GetOrigin(), GetRadialOffset());
 
 		SetPositionalParams(PositionalParams);
-
-#if WITH_EDITOR
-		UpdateEditorGizmos();
-#endif
 	}
 }
 

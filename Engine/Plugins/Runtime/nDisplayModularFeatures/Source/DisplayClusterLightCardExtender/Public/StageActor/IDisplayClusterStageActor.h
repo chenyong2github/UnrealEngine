@@ -98,7 +98,6 @@ public:
 	static FDisplayClusterPositionalParams TransformToPositionalParams(const FTransform& InTransform, const FTransform& InOrigin, double InRadialOffset);
 
 #if WITH_EDITOR
-protected:
 	/** Update global selection gizmos */
 	void UpdateEditorGizmos();
 #endif
