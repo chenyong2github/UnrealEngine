@@ -43,12 +43,6 @@ static FAutoConsoleVariableRef CVarUpdateStreamingSources(
 	GUpdateStreamingSources,
 	TEXT("Set to 0 to stop updating (freeze) world partition streaming sources."));
 
-static int32 GEnableSimulationStreamingSource = 1;
-static FAutoConsoleVariableRef CVarEnableSimulationStreamingSource(
-	TEXT("wp.Runtime.EnableSimulationStreamingSource"),
-	GEnableSimulationStreamingSource,
-	TEXT("Set to 0 to if you want to disable the simulation/ejected camera streaming source."));
-
 static int32 GMaxLoadingStreamingCells = 4;
 static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
 	TEXT("wp.Runtime.MaxLoadingStreamingCells"),
@@ -113,7 +107,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 	if (!AWorldPartitionReplay::IsPlaybackEnabled(World) || !WorldPartition->Replay->GetReplayStreamingSources(StreamingSources))
 	{
 #if WITH_EDITOR
-		if (GEnableSimulationStreamingSource && UWorldPartition::IsSimulating())
+		if (UWorldPartition::IsSimulating())
 		{
 			// We are in the SIE
 			const FVector ViewLocation = WorldToLocal.TransformPosition(GCurrentLevelEditingViewportClient->GetViewLocation());
@@ -866,20 +860,11 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntime
 	return bResult;
 }
 
-FVector2D UWorldPartitionStreamingPolicy::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
-{
-	if (WorldPartition->RuntimeHash)
-	{
-		return WorldPartition->RuntimeHash->GetDraw2DDesiredFootprint(CanvasSize);
-	}
-	return FVector2D::ZeroVector;
-}
-
-bool UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
+bool UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize)
 {
 	if (StreamingSources.Num() > 0 && WorldPartition->RuntimeHash)
 	{
-		return WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasSize, Offset);
+		return WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasSize, Offset, OutUsedCanvasSize);
 	}
 	return false;
 }

@@ -217,7 +217,7 @@ public:
 #endif
 
 public:
-	static bool IsSimulating();
+	static bool IsSimulating(bool bIncludeTestEnableSimulationStreamingSource = true);
 
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
@@ -244,8 +244,7 @@ public:
 
 	// Debugging
 	bool CanDebugDraw() const;
-	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
-	bool DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset);
+	bool DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize);
 	void DrawRuntimeHash3D();
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
 	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
@@ -334,9 +333,11 @@ private:
 
 #if WITH_EDITOR
 	static int32 LoadingRangeBugItGo;
+	static int32 EnableSimulationStreamingSource;
 	static int32 WorldExtentToEnableStreaming;
 	static bool DebugDedicatedServerStreaming;
 	static FAutoConsoleVariableRef CVarLoadingRangeBugItGo;
+	static FAutoConsoleVariableRef CVarEnableSimulationStreamingSource;
 	static FAutoConsoleVariableRef CVarWorldExtentToEnableStreaming;
 	static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming;
 #endif

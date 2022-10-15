@@ -343,9 +343,8 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	}
 
 	// Filter out views that don't match our world
-	if (!WorldPartition->GetWorld()->IsNetMode(NM_DedicatedServer) &&
-		Canvas->SceneView->ViewActor != nullptr &&
-		Canvas->SceneView->ViewActor->GetWorld() != GetWorld())
+	if (!WorldPartition->GetWorld()->IsNetMode(NM_DedicatedServer) && !UWorldPartition::IsSimulating(false) &&
+		(Canvas->SceneView->ViewActor == nullptr || Canvas->SceneView->ViewActor->GetWorld() != GetWorld()))
 	{
 		return;
 	}
@@ -362,10 +361,11 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CurrentOffset, CanvasMinimumSize);
 
 		FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X, CanvasMaxScreenSize.Y);
-		if (WorldPartition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset))
+		FVector2D UsedCanvasSize = FVector2D::ZeroVector;
+		if (WorldPartition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset, UsedCanvasSize))
 		{
 			CurrentOffset.X = CanvasBottomRightPadding.X;
-			CurrentOffset.Y += CanvasMaxScreenSize.Y;
+			CurrentOffset.Y += UsedCanvasSize.Y;
 		}
 	}
 	

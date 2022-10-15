@@ -94,6 +94,13 @@ FAutoConsoleVariableRef UWorldPartition::CVarDebugDedicatedServerStreaming(
 	UWorldPartition::DebugDedicatedServerStreaming,
 	TEXT("Turn on/off to debug of server streaming."),
 	ECVF_Default);
+
+int32 UWorldPartition::EnableSimulationStreamingSource = 1;
+FAutoConsoleVariableRef UWorldPartition::CVarEnableSimulationStreamingSource(
+	TEXT("wp.Runtime.EnableSimulationStreamingSource"),
+	UWorldPartition::EnableSimulationStreamingSource,
+	TEXT("Set to 0 to if you want to disable the simulation/ejected camera streaming source."),
+	ECVF_Default);
 #endif
 
 int32 UWorldPartition::EnableServerStreaming = 0;
@@ -1012,10 +1019,10 @@ bool UWorldPartition::UseMakingInvisibleTransactionRequests() const
 	return bCachedUseMakingInvisibleTransactionRequests.Get(false);
 }
 
-bool UWorldPartition::IsSimulating()
+bool UWorldPartition::IsSimulating(bool bIncludeTestEnableSimulationStreamingSource)
 {
 #if WITH_EDITOR
-	return GEditor && GEditor->bIsSimulatingInEditor && GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsSimulateInEditorViewport();
+	return GEditor && GEditor->bIsSimulatingInEditor && GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsSimulateInEditorViewport() && (!bIncludeTestEnableSimulationStreamingSource || UWorldPartition::EnableSimulationStreamingSource);
 #else
 	return false;
 #endif
@@ -1374,24 +1381,18 @@ bool UWorldPartition::CanDebugDraw() const
 		return false;
 	}
 
-	if (!bIsDedicatedServer && UWorldPartition::IsSimulating() && StreamingPolicy)
+	if (!bIsDedicatedServer && UWorldPartition::IsSimulating(false) && (!GEditor || (GetWorld() != GEditor->PlayWorld)))
 	{
-		return true;
+		return false;
 	}
 #endif
 	return GetWorld()->IsGameWorld();
 }
 
-FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
+bool UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize)
 {
 	check(CanDebugDraw());
-	return StreamingPolicy->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
-}
-
-bool UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset)
-{
-	check(CanDebugDraw());
-	return StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset);
+	return StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset, OutUsedCanvasSize);
 }
 
 void UWorldPartition::DrawRuntimeHash3D()

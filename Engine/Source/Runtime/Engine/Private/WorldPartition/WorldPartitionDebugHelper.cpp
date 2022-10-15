@@ -147,12 +147,15 @@ bool FWorldPartitionDebugHelper::IsDebugCellNameShown(const FString& CellName)
 
 void FWorldPartitionDebugHelper::DrawText(UCanvas* Canvas, const FString& Text, const UFont* Font, const FColor& Color, FVector2D& Pos, float* MaxTextWidth)
 {
+	const float XScale = 1.f;
+	const float YScale = 1.f;
+	FFontRenderInfo RenderInfo;
+	RenderInfo.bClipText = true;
+	RenderInfo.bEnableShadow = true;
+	Canvas->SetDrawColor(Color);
+	Canvas->DrawText(Font, Text, Pos.X, Pos.Y, XScale, YScale, RenderInfo);
 	float TextWidth, TextHeight;
 	Canvas->StrLen(Font, Text, TextWidth, TextHeight);
-	Canvas->SetDrawColor(FColor(0,0,0));
-	Canvas->DrawText(Font, Text, Pos.X + 1, Pos.Y + 1);
-	Canvas->SetDrawColor(Color);
-	Canvas->DrawText(Font, Text, Pos.X, Pos.Y);
 	Pos.Y += TextHeight + 1;
 	if (MaxTextWidth)
 	{
