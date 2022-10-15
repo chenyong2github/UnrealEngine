@@ -630,6 +630,7 @@ protected:
 	class FWidgetRenderer* WidgetRenderer;
 
 private: 
+	bool ShouldReenableComponentTickWhenWidgetBecomesVisible() const;
 
 	/** The User Widget object displayed and managed by this component */
 	UPROPERTY(Transient, DuplicateTransient)
