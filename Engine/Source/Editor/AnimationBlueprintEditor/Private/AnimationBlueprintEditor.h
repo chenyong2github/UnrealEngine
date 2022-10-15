@@ -164,6 +164,7 @@ public:
 public:
 	//~ Begin IToolkit Interface
 	virtual FName GetToolkitFName() const override;
+	virtual FName GetToolkitContextFName() const override;
 	virtual FText GetBaseToolkitName() const override;
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
@@ -210,6 +211,7 @@ protected:
 	virtual void OnGraphEditorBackgrounded(const TSharedRef<SGraphEditor>& InGraphEditor) override;
 	virtual bool IsInAScriptingMode() const override { return true; }
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
+	virtual FString GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const override;
 	virtual void CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints) override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
 	virtual bool IsEditable(UEdGraph* InGraph) const override;
@@ -290,6 +292,9 @@ private:
 
 	/** Extend toolbar */
 	void ExtendToolbar();
+
+	/** Get the anim BP editor referenced by the supplied tool menu context */
+	static TSharedPtr<FAnimationBlueprintEditor> GetAnimationBlueprintEditor(const FToolMenuContext& InMenuContext);
 
 	/** Called immediately prior to a blueprint compilation */
 	void OnBlueprintPreCompile(UBlueprint* BlueprintToCompile);

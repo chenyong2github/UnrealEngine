@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+#include "PersonaModule.h"
 
 #include "PersonaToolMenuContext.generated.h"
 
@@ -44,7 +45,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = PersonaEditorExtensions)
 	UAnimationAsset* GetAnimationAsset() const;
 
+	/** Get the persona toolkit */
 	void SetToolkit(TSharedRef<IPersonaToolkit> InToolkit);
+
+	/** Get a weak ptr to the persona toolkit */
+	TWeakPtr<IPersonaToolkit> GetToolkit() const { return WeakToolkit; }
 
 protected:
 	bool HasValidToolkit() const;

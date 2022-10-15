@@ -131,6 +131,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
+#include "AnimationBlueprintToolMenuContext.h"
+#include "ToolMenus.h"
 #include "PropertyCustomizationHelpers.h"
 
 class FEditorModeTools;
@@ -361,6 +363,34 @@ void FAnimationBlueprintEditor::ExtendMenu()
 	// add extensible menu if exists
 	FAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<FAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
 	AddMenuExtender(AnimationBlueprintEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	// Add in Editor Specific functionality
+	static const FName MenuName = GetToolMenuName();
+	static const FName ToolsMenuName = *(MenuName.ToString() + TEXT(".") + TEXT("Tools"));
+
+	UToolMenu* ToolsMenu = UToolMenus::Get()->ExtendMenu(ToolsMenuName);
+	const FToolMenuInsert SectionInsertLocation("Programming", EToolMenuInsertType::Before);
+
+	UAnimBlueprint* AnimBlueprint = PersonaToolkit->GetAnimBlueprint();
+	if (AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->bIsTemplate)
+	{
+		ToolsMenu->AddDynamicSection("Persona", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
+		{
+			TSharedPtr<FAnimationBlueprintEditor> AnimationBlueprintEditor = GetAnimationBlueprintEditor(InToolMenu->Context);
+			if (AnimationBlueprintEditor.IsValid() && AnimationBlueprintEditor->PersonaToolkit.IsValid())
+			{
+				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+				FPersonaModule::FCommonToolbarExtensionArgs Args;
+				Args.bPreviewAnimation = false;
+				Args.bPreviewMesh = true;
+				Args.bReferencePose = false;
+				Args.bCreateAsset = true;
+				PersonaModule.AddCommonMenuExtensions(InToolMenu, Args);
+			}
+		}), SectionInsertLocation);
+	}
 }
 
 void FAnimationBlueprintEditor::RegisterMenus()
@@ -514,6 +544,19 @@ void FAnimationBlueprintEditor::BindCommands()
 		FExecuteAction::CreateRaw(&GetPersonaToolkit()->GetPreviewScene().Get(), &IPersonaPreviewScene::TogglePlayback));
 }
 
+TSharedPtr<FAnimationBlueprintEditor> FAnimationBlueprintEditor::GetAnimationBlueprintEditor(const FToolMenuContext& InMenuContext)
+{
+	if (UAnimationBlueprintToolMenuContext* Context = InMenuContext.FindContext<UAnimationBlueprintToolMenuContext>())
+	{
+		if (Context->AnimationBlueprintEditor.IsValid())
+		{
+			return StaticCastSharedPtr<FAnimationBlueprintEditor>(Context->AnimationBlueprintEditor.Pin());
+		}
+	}
+
+	return TSharedPtr<FAnimationBlueprintEditor>();
+}
+
 void FAnimationBlueprintEditor::ExtendToolbar()
 {
 	// If the ToolbarExtender is valid, remove it before rebuilding it
@@ -550,10 +593,6 @@ void FAnimationBlueprintEditor::ExtendToolbar()
 			FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ParentToolbarBuilder)
 			{
 				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-				FPersonaModule::FCommonToolbarExtensionArgs Args;
-				Args.bPreviewAnimation = false;
-				PersonaModule.AddCommonToolbarExtensions(ParentToolbarBuilder, PersonaToolkit.ToSharedRef(), Args);
-
 				TSharedRef<class IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(GetBlueprintObj());
 				AddToolbarWidget(PersonaModule.CreateAssetFamilyShortcutWidget(SharedThis(this), AssetFamily));
 			}
@@ -1475,6 +1514,11 @@ FName FAnimationBlueprintEditor::GetToolkitFName() const
 	return FName("AnimationBlueprintEditor");
 }
 
+FName FAnimationBlueprintEditor::GetToolkitContextFName() const
+{
+	return FName("AnimationBlueprintEditor");
+}
+
 FText FAnimationBlueprintEditor::GetBaseToolkitName() const
 {
 	return LOCTEXT("AppLabel", "Animation Blueprint Editor");
@@ -1499,6 +1543,10 @@ FLinearColor FAnimationBlueprintEditor::GetWorldCentricTabColorScale() const
 void FAnimationBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
 	IAnimationBlueprintEditor::InitToolMenuContext(MenuContext);
+
+	UAnimationBlueprintToolMenuContext* AnimationBlueprintToolMenuContext = NewObject<UAnimationBlueprintToolMenuContext>();
+	AnimationBlueprintToolMenuContext->AnimationBlueprintEditor = SharedThis(this);
+	MenuContext.AddObject(AnimationBlueprintToolMenuContext);
 
 	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
 	Context->SetToolkit(GetPersonaToolkit());
@@ -1617,6 +1665,17 @@ void FAnimationBlueprintEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>
 
 	FAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::GetModuleChecked<FAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
 	AnimationBlueprintEditorModule.OnGetCustomDebugObjects().Broadcast(*this, DebugList);
+}
+
+FString FAnimationBlueprintEditor::GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const
+{
+	UAnimInstance* PreviewInstance = GetPreviewInstance();
+	if (PreviewInstance == ObjectBeingDebugged)
+	{
+		return LOCTEXT("PreviewObjectLabel", "Preview Instance").ToString();
+	}
+
+	return FString();
 }
 
 void FAnimationBlueprintEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints)

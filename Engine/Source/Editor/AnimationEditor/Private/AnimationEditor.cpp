@@ -291,16 +291,16 @@ void FAnimationEditor::ExtendToolbar()
 	const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
 
 	{
-		ToolMenu->AddDynamicSection("Persona", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& ToolbarBuilder, UToolMenu* InMenu)
+		ToolMenu->AddDynamicSection("Persona", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
 		{
-			TSharedPtr<FAnimationEditor> AnimationEditor = GetAnimationEditor(InMenu->Context);
+			TSharedPtr<FAnimationEditor> AnimationEditor = GetAnimationEditor(InToolMenu->Context);
 			if (AnimationEditor.IsValid() && AnimationEditor->PersonaToolkit.IsValid())
 			{
 				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 				FPersonaModule::FCommonToolbarExtensionArgs Args;
 				Args.bPreviewAnimation = false;
 				Args.bReferencePose = false;
-				PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, AnimationEditor->PersonaToolkit.ToSharedRef(), Args);
+				PersonaModule.AddCommonToolbarExtensions(InToolMenu, Args);
 			}
 		}), SectionInsertLocation);
 	}

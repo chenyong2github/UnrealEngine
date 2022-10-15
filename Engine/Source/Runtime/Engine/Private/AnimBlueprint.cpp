@@ -240,6 +240,26 @@ bool UAnimBlueprint::SupportsMacros() const
 	return GetDefault<UAnimBlueprintSettings>()->bAllowMacros;
 }
 
+bool UAnimBlueprint::AllowFunctionOverride(const UFunction* const InFunction) const
+{
+	check(InFunction);
+
+	if (!GetDefault<UAnimBlueprintSettings>()->bRestrictBaseFunctionOverrides)
+	{
+		return true;
+	}
+
+	UClass* OwnerClass = InFunction->GetOwnerClass();
+	if (OwnerClass == UAnimInstance::StaticClass())
+	{
+		return GetDefault<UAnimBlueprintSettings>()->BaseFunctionOverrideAllowList.Contains(InFunction->GetFName());
+	}
+	else
+	{
+		return true;
+	}
+}
+
 #endif
 
 USkeletalMesh* UAnimBlueprint::GetPreviewMesh(bool bFindIfNotSet/*=false*/)

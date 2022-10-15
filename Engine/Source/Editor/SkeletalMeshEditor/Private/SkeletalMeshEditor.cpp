@@ -616,15 +616,15 @@ void FSkeletalMeshEditor::ExtendToolbar()
 	const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
 
 	{
-		ToolMenu->AddDynamicSection("Persona", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& ToolbarBuilder, UToolMenu* InMenu)
+		ToolMenu->AddDynamicSection("Persona", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
 		{
-			TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InMenu->Context);
+			TSharedPtr<FSkeletalMeshEditor> SkeletalMeshEditor = GetSkeletalMeshEditor(InToolMenu->Context);
 			if (SkeletalMeshEditor.IsValid() && SkeletalMeshEditor->PersonaToolkit.IsValid())
 			{
 				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 				FPersonaModule::FCommonToolbarExtensionArgs Args;
 				Args.bPreviewMesh = false;
-				PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, SkeletalMeshEditor->PersonaToolkit.ToSharedRef(), Args);
+				PersonaModule.AddCommonToolbarExtensions(InToolMenu, Args);
 			}
 		}), SectionInsertLocation);
 	}

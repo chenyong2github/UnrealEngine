@@ -180,6 +180,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	virtual bool SupportsEventGraphs() const override;
 	virtual bool SupportsDelegates() const override;
 	virtual bool SupportsMacros() const override;
+	virtual bool AllowFunctionOverride(const UFunction* const InFunction) const override;
 
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated

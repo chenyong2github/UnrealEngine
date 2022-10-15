@@ -26,4 +26,12 @@ public:
 	/** Whether to allow delegates to be created/displayed in animation blueprints */
 	UPROPERTY()
 	bool bAllowDelegates = true;
+
+	/** Whether to allow restrict which base function overrides can created/displayed in animation blueprints */
+	UPROPERTY()
+	bool bRestrictBaseFunctionOverrides = false;
+
+	/** The set of allowed base functions if restricted */
+	UPROPERTY()
+	TArray<FName> BaseFunctionOverrideAllowList;
 };

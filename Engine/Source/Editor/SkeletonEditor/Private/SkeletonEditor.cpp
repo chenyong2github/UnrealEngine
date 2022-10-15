@@ -214,13 +214,13 @@ void FSkeletonEditor::ExtendToolbar()
 	const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
 
 	{
-		ToolMenu->AddDynamicSection("Persona", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& ToolbarBuilder, UToolMenu* InMenu)
+		ToolMenu->AddDynamicSection("Persona", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
 		{
-			TSharedPtr<FSkeletonEditor> SkeletonEditor = GetSkeletonEditor(InMenu->Context);
+			TSharedPtr<FSkeletonEditor> SkeletonEditor = GetSkeletonEditor(InToolMenu->Context);
 			if (SkeletonEditor.IsValid() && SkeletonEditor->PersonaToolkit.IsValid())
 			{
 				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-				PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, SkeletonEditor->PersonaToolkit.ToSharedRef());
+				PersonaModule.AddCommonToolbarExtensions(InToolMenu);
 			}
 		}), SectionInsertLocation);
 	}

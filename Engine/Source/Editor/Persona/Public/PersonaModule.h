@@ -386,9 +386,9 @@ public:
 	virtual FOnPreviewSceneCreated& OnPreviewSceneCreated() { return OnPreviewSceneCreatedDelegate; }
 
 	/** Settings for AddCommonToolbarExtensions */
-	struct FCommonToolbarExtensionArgs
+	struct FCommonToolMenuExtensionArgs
 	{
-		FCommonToolbarExtensionArgs()
+		FCommonToolMenuExtensionArgs()
 			: bPreviewMesh(true)
 			, bPreviewAnimation(true)
 			, bReferencePose(false)
@@ -408,7 +408,15 @@ public:
 		bool bCreateAsset;
 	};
 
-	/** Add common toobar extensions */
+	typedef FCommonToolMenuExtensionArgs FCommonToolbarExtensionArgs;
+
+	/** Add common menu extensions */
+	virtual void AddCommonMenuExtensions(UToolMenu* InToolMenu, const FCommonToolMenuExtensionArgs& InArgs = FCommonToolMenuExtensionArgs());
+
+	/** Add common toolbar extensions */
+	virtual void AddCommonToolbarExtensions(UToolMenu* InToolMenu, const FCommonToolMenuExtensionArgs& InArgs = FCommonToolMenuExtensionArgs());
+
+	/** Add common toobar extensions (legacy support) - DEPRECATED */
 	virtual void AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilder, TSharedRef<IPersonaToolkit> PersonaToolkit, const FCommonToolbarExtensionArgs& InArgs = FCommonToolbarExtensionArgs());
 
 	/** Register common layout extensions */
@@ -434,23 +442,23 @@ private:
 		Max
 	};
 
-	TSharedRef< SWidget > GenerateCreateAssetMenu(TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) const;
+	static TSharedRef< SWidget > GenerateCreateAssetMenu(TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	void FillCreateAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) const;
+	static void FillCreateAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	void FillCreateAnimationFromCurrentAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) const;
+	static void FillCreateAnimationFromCurrentAnimationMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	void FillCreatePoseAssetMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) const;
+	static void FillCreatePoseAssetMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	void FillInsertPoseMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) const;
+	static void FillInsertPoseMenu(FMenuBuilder& MenuBuilder, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	void InsertCurrentPoseToAsset(const FAssetData& NewPoseAssetData, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
+	static void InsertCurrentPoseToAsset(const FAssetData& NewPoseAssetData, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	bool CreateAnimation(const TArray<UObject*> NewAssets, const EPoseSourceOption Option, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
+	static bool CreateAnimation(const TArray<UObject*> NewAssets, const EPoseSourceOption Option, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 
-	bool CreatePoseAsset(const TArray<UObject*> NewAssets, const EPoseSourceOption Option, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
+	static bool CreatePoseAsset(const TArray<UObject*> NewAssets, const EPoseSourceOption Option, TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit);
 	
-	bool HandleAssetCreated(const TArray<UObject*> NewAssets);
+	static bool HandleAssetCreated(const TArray<UObject*> NewAssets);
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;

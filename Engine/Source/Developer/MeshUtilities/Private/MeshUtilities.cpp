@@ -5619,7 +5619,7 @@ void FMeshUtilities::ShutdownModule()
 void FMeshUtilities::RegisterMenus()
 {
 	AddMakeStaticMeshEntryToToolMenu("AssetEditor.AnimationEditor.ToolBar");
-	AddMakeStaticMeshEntryToToolMenu("AssetEditor.AnimationBlueprintEditor.ToolBar");
+	AddMakeStaticMeshEntryToToolMenu("AssetEditor.AnimationBlueprintEditor.MainMenu.Tools");
 	AddMakeStaticMeshEntryToToolMenu("AssetEditor.SkeletalMeshEditor.ToolBar");
 	AddMakeStaticMeshEntryToToolMenu("AssetEditor.SkeletonEditor.ToolBar");
 }
@@ -6121,24 +6121,24 @@ void FMeshUtilities::AddMakeStaticMeshEntryToToolMenu(FName InToolMenuName)
 	FToolMenuOwnerScoped OwnerScoped(this);
 
 	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(InToolMenuName);
-	ToolMenu->AddMenuEntry("SkeletalMesh",
-		FToolMenuEntry::InitToolBarButton(
-			"MakeStaticMesh",
-			FToolUIActionChoice(
-				FToolUIAction(FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
+	FToolMenuSection& SkeletalMeshSection = ToolMenu->AddSection("SkeletalMesh", LOCTEXT("SkeletalMeshSection", "Skeletal Mesh"));
+
+	SkeletalMeshSection.AddMenuEntry(
+		"MakeStaticMesh",
+		LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
+		LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ConvertToStaticMesh"),
+		FToolUIActionChoice(
+			FToolUIAction(FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
+			{
+				if(UPersonaToolMenuContext* MenuContext = InContext.FindContext<UPersonaToolMenuContext>())
 				{
-					if(UPersonaToolMenuContext* MenuContext = InContext.FindContext<UPersonaToolMenuContext>())
+					if(UDebugSkelMeshComponent* MeshComponent = MenuContext->GetPreviewMeshComponent())
 					{
-						if(UDebugSkelMeshComponent* MeshComponent = MenuContext->GetPreviewMeshComponent())
-						{
-							ConvertMeshesToStaticMesh(TArray<UMeshComponent*>({ MeshComponent }), MeshComponent->GetComponentToWorld());
-						}
+						ConvertMeshesToStaticMesh(TArray<UMeshComponent*>({ MeshComponent }), MeshComponent->GetComponentToWorld());
 					}
-				}))
-			),
-			LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
-			LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.ConvertToStaticMesh")
+				}
+			}))
 		)
 	);
 }

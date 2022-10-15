@@ -1247,6 +1247,11 @@ public:
 	virtual bool SupportsFunctions() const { return true; }
 
 	/**
+	 * Returns true if this blueprints allows the given function to be overridden
+	 */
+	virtual bool AllowFunctionOverride(const UFunction* const InFunction) const { return true; }
+		
+	/**
 	 * Returns true if this blueprint supports macros
 	 */
 	virtual bool SupportsMacros() const { return true; }
