@@ -838,7 +838,11 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
 	uint8 Wireframe : 1;
 
-	/** Select what shading rate to apply for platforms that have variable rate shading */
+	/**
+	 * Select what shading rate to apply, on platforms that support variable rate shading.
+	 * Non-1x1 rates will reduce the rasterization fidelity for the material; they will not super-sample the material.
+	 * This can save GPU performance on materials where reduced fidelity is acceptable.
+	 */
 	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
 	TEnumAsByte<EMaterialShadingRate> ShadingRate;
 
