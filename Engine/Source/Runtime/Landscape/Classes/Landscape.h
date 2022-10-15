@@ -10,6 +10,7 @@
 
 #include "Landscape.generated.h"
 
+class FTextureRenderTargetResource;
 class ULandscapeComponent;
 class ILandscapeEdModeInterface;
 class SNotificationItem;

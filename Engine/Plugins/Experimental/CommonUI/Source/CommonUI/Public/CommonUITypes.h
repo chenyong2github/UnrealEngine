@@ -6,9 +6,10 @@
 #include "Blueprint/UserWidget.h"
 #include "Misc/EnumRange.h"
 #include "Styling/SlateTypes.h"
-#include "CommonInputSubsystem.h"
 #include "CommonInputBaseTypes.h"
 #include "CommonUITypes.generated.h"
+
+class UCommonInputSubsystem;
 
 UENUM(BlueprintType)
 enum class EInputActionState : uint8
