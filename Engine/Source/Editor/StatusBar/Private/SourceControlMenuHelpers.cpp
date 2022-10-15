@@ -102,6 +102,12 @@ bool FSourceControlCommands::SubmitContent_IsVisible()
 	{
 		return false;
 	}
+
+	if (!FSourceControlWindows::ShouldChoosePackagesToCheckBeVisible())
+	{
+		return false;
+	}
+
 	return true;
 }
 

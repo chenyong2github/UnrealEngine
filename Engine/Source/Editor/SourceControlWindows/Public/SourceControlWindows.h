@@ -53,6 +53,9 @@ public:
 	/** Determines whether we can choose packages to check in (we cant if an operation is already in progress) */
 	static bool CanChoosePackagesToCheckIn();
 
+	/** Determines if the Submit Content action should be visible or not */
+	static bool ShouldChoosePackagesToCheckBeVisible();
+
 	/**
 	 * Display check in dialog for the specified packages and get additional result information
 	 *

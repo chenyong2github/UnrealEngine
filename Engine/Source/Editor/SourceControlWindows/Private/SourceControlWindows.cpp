@@ -13,6 +13,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "SourceControlSettings.h"
 
 
 #if SOURCE_CONTROL_WITH_SLATE
@@ -143,7 +144,13 @@ bool FSourceControlWindows::CanChoosePackagesToCheckIn()
 	
 	return ISourceControlModule::Get().IsEnabled() &&
 		ISourceControlModule::Get().GetProvider().IsAvailable() &&
-		!ChoosePackagesToCheckInNotification.IsValid();
+		!ChoosePackagesToCheckInNotification.IsValid()
+		;
+}
+
+bool FSourceControlWindows::ShouldChoosePackagesToCheckBeVisible()
+{
+	return GetDefault<USourceControlSettings>()->bEnableSubmitContentMenuAction;
 }
 
 
