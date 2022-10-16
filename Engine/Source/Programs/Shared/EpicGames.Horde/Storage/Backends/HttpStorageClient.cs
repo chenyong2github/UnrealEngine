@@ -72,9 +72,11 @@ namespace EpicGames.Horde.Storage.Backends
 			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/storage/{_namespaceId}/blobs"))
 			{
 				using StreamContent streamContent = new StreamContent(stream);
+				using StringContent stringContent = new StringContent(prefix.ToString());
 
 				MultipartFormDataContent form = new MultipartFormDataContent();
 				form.Add(streamContent, "file", "filename");
+				form.Add(stringContent, "prefix");
 
 				request.Content = form;
 				using (HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken))

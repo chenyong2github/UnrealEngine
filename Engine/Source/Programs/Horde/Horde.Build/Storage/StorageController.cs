@@ -94,10 +94,11 @@ namespace Horde.Build.Storage
 		/// </summary>
 		/// <param name="namespaceId">Namespace to fetch from</param>
 		/// <param name="file">Data to be uploaded</param>
+		/// <param name="prefix">Prefix for the uploaded file</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		[HttpPost]
 		[Route("/api/v1/storage/{namespaceId}/blobs")]
-		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(NamespaceId namespaceId, IFormFile file, CancellationToken cancellationToken)
+		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(NamespaceId namespaceId, IFormFile file, [FromForm] string? prefix = default, CancellationToken cancellationToken = default)
 		{
 			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.WriteBlobs, null, cancellationToken))
 			{
@@ -107,7 +108,7 @@ namespace Horde.Build.Storage
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 			using (Stream stream = file.OpenReadStream())
 			{
-				BlobLocator locator = await client.WriteBlobAsync(stream, cancellationToken: cancellationToken);
+				BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null)? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
 				return new WriteBlobResponse { Locator = locator };
 			}
 		}
