@@ -896,7 +896,10 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 					{
 						DrawDebugCanvasWireBox(Canvas, CurrentTransform, FBox(-ActorBoundsExtent, ActorBoundsExtent), FColor::Yellow);
 
-						FString ActorLabel = Actor->GetActorLabel();
+						FString ActorLabel;
+#if WITH_EDITOR
+						ActorLabel = Actor->GetActorLabel();
+#endif
 						if (ActorLabel.Len() == 0)
 						{
 							ActorLabel = Actor->GetName();
