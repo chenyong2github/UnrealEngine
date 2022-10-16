@@ -302,6 +302,7 @@ FPlugin::FPlugin(const FString& InFileName, const FPluginDescriptor& InDescripto
 	, Descriptor(InDescriptor)
 	, Type(InType)
 	, bEnabled(false)
+	, bIsMounted(false)
 {
 
 }
@@ -1616,22 +1617,34 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			}, true); // @todo disable parallelism for now as it's causing hard to track problems
 		}
 
-		for (TSharedRef<IPlugin> Plugin: GetEnabledPluginsWithContentOrVerse())
+		// Mount enabled plugins with content
+		for (const FDiscoveredPluginMap::ElementType& PluginPair : AllPlugins)
 		{
-			if (Plugin->GetDescriptor().bExplicitlyLoaded)
-			{
-				continue;
-			}
+			const TSharedRef<FPlugin>& PluginRef = DiscoveredPluginMapUtils::ResolvePluginFromMapVal(PluginPair.Value);
+			FPlugin& Plugin = *PluginRef;
 
-			if (NewPluginMountedEvent.IsBound())
+			if (Plugin.IsEnabled())
 			{
-				NewPluginMountedEvent.Broadcast(*Plugin);
-			}
+				if (Plugin.GetDescriptor().bExplicitlyLoaded)
+				{
+					continue;
+				}
 
-			if (ensure(RegisterMountPointDelegate.IsBound()))
-			{
-				FString ContentDir = Plugin->GetContentDir();
-				RegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), ContentDir);
+				Plugin.SetIsMounted(true);
+
+				if ((Plugin.CanContainContent() || Plugin.CanContainVerse()))
+				{
+					if (NewPluginMountedEvent.IsBound())
+					{
+						NewPluginMountedEvent.Broadcast(Plugin);
+					}
+
+					if (ensure(RegisterMountPointDelegate.IsBound()))
+					{
+						FString ContentDir = Plugin.GetContentDir();
+						RegisterMountPointDelegate.Execute(Plugin.GetMountedAssetPath(), ContentDir);
+					}
+				}				
 			}
 		}
 
@@ -2468,9 +2481,9 @@ bool FPluginManager::TryMountExplicitlyLoadedPluginVersion(TSharedRef<FPlugin>* 
 	if (AllPlugins_PluginPtr && (*AllPlugins_PluginPtr)->Descriptor.bExplicitlyLoaded)
 	{
 		TSharedPtr<FPlugin> CurrentPriorityPlugin = FindPluginInstance((*AllPlugins_PluginPtr)->GetName());
-		if (ensure(CurrentPriorityPlugin.IsValid()) && CurrentPriorityPlugin != *AllPlugins_PluginPtr && CurrentPriorityPlugin->IsEnabled())
+		if (ensure(CurrentPriorityPlugin.IsValid()) && CurrentPriorityPlugin != *AllPlugins_PluginPtr && CurrentPriorityPlugin->IsMounted())
 		{
-			UE_LOG(LogPluginManager, Error, TEXT("Cannot mount plugin '%s' with another version (%s) enabled."), *(*AllPlugins_PluginPtr)->FileName, *CurrentPriorityPlugin->FileName);
+			UE_LOG(LogPluginManager, Error, TEXT("Cannot mount plugin '%s' with another version (%s) already mounted."), *(*AllPlugins_PluginPtr)->FileName, *CurrentPriorityPlugin->FileName);
 		}
 		else
 		{
@@ -2548,6 +2561,8 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 		}
 	}
 
+	Plugin->SetIsMounted(true);
+
 	if (GWarn)
 	{
 		GWarn->EndSlowTask();
@@ -2603,6 +2618,7 @@ bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& 
 		UnRegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), Plugin->GetContentDir());
 	}
 
+	Plugin->SetIsMounted(false);
 	Plugin->bEnabled = false;
 
 	return true;

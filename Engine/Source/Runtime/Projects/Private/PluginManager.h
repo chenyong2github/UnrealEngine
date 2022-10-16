@@ -28,7 +28,16 @@ public:
 	EPluginType Type;
 
 	/** True if the plugin is marked as enabled */
-	bool bEnabled;
+	bool bEnabled : 1;
+
+	/** 
+	 * True if this plugin has been mounted/loaded. A 'mounted' plugin is one 
+	 * whose content has been registered, and modules set to load.
+	 * NOTE: Usually plugins are 'enabled' and 'mounted' at the same time, with 
+	 *       the exception of 'ExplicitlyLoaded' plugins (which can be set  
+	 *       'enabled' but not mounted until much later)
+	 */
+	bool bIsMounted : 1;
 
 	/**
 	 * FPlugin constructor
@@ -98,6 +107,9 @@ public:
 #if WITH_EDITOR
 	virtual const TSharedPtr<FJsonObject>& GetDescriptorJson() override;
 #endif // WITH_EDITOR
+
+	bool IsMounted() const { return bIsMounted; }
+	void SetIsMounted(bool bInIsMounted) { bIsMounted = bInIsMounted; }
 };
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
