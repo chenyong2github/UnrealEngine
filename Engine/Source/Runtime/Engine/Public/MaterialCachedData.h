@@ -290,6 +290,9 @@ struct FMaterialCachedExpressionData
 	UPROPERTY()
 	TArray<TSoftObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextureValues;
 
+	UPROPERTY()
+	TArray<TSoftObjectPtr<USparseVolumeTexture>> SparseVolumeTextureValues;
+
 	/** Array of all texture referenced by this material */
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> ReferencedTextures;

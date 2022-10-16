@@ -14,6 +14,7 @@
 #include "Styling/CoreStyle.h"
 #include "MaterialEditor/DEditorTextureParameterValue.h"
 #include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
+#include "MaterialEditor/DEditorSparseVolumeTextureParameterValue.h"
 #include "Materials/Material.h"
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
@@ -29,6 +30,7 @@
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
+#include "Materials/MaterialExpressionSparseVolumeTextureSample.h"
 
 #include "MaterialEditor.h"
 #include "MaterialEditorActions.h"
@@ -52,6 +54,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "DebugViewModeHelpers.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "Widgets/Input/SButton.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -524,6 +527,7 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		TArray<FDoubleVectorParameterValue> DoubleVectorParameterValues = FunctionInstanceProxy->DoubleVectorParameterValues;
 		TArray<FTextureParameterValue> TextureParameterValues = FunctionInstanceProxy->TextureParameterValues;
 		TArray<FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues = FunctionInstanceProxy->RuntimeVirtualTextureParameterValues;
+		TArray<FSparseVolumeTextureParameterValue> SparseVolumeTextureParameterValues = FunctionInstanceProxy->SparseVolumeTextureParameterValues;
 		TArray<FFontParameterValue> FontParameterValues = FunctionInstanceProxy->FontParameterValues;
 
 		const FStaticParameterSet& OldStaticParameters = FunctionInstanceProxy->GetStaticParameters();
@@ -596,6 +600,18 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 			{
 				FunctionInstanceProxy->RuntimeVirtualTextureParameterValues.Add(RuntimeVirtualTextureParameter);
 				FunctionInstanceProxy->RuntimeVirtualTextureParameterValues.Last().ParameterInfo = OutParameterInfo[Index];
+			}
+		}
+
+		FunctionInstanceProxy->GetAllSparseVolumeTextureParameterInfo(OutParameterInfo, Guids);
+		FunctionInstanceProxy->SparseVolumeTextureParameterValues.Empty();
+		for (FSparseVolumeTextureParameterValue& SparseVolumeTextureParameter : SparseVolumeTextureParameterValues)
+		{
+			int32 Index = Guids.Find(SparseVolumeTextureParameter.ExpressionGUID);
+			if (Index != INDEX_NONE)
+			{
+				FunctionInstanceProxy->SparseVolumeTextureParameterValues.Add(SparseVolumeTextureParameter);
+				FunctionInstanceProxy->SparseVolumeTextureParameterValues.Last().ParameterInfo = OutParameterInfo[Index];
 			}
 		}
 
@@ -1371,6 +1387,22 @@ void FMaterialInstanceEditor::RefreshOnScreenMessages()
 									FText::FromString(RuntimeVirtualTexture->GetAdaptivePageTable() ? TEXT("true") : TEXT("false")),
 									FText::FromString(Expression->bAdaptive ? TEXT("true") : TEXT("false")),
 									FText::FromString(RuntimeVirtualTexture->GetPathName())).ToString());
+							}
+						}
+					}
+
+					UDEditorSparseVolumeTextureParameterValue * SparseVolumeTextureParameterValue = Cast<UDEditorSparseVolumeTextureParameterValue>(Group.Parameters[ParameterIndex]);
+					if (SparseVolumeTextureParameterValue && SparseVolumeTextureParameterValue->ExpressionId.IsValid())
+					{
+						USparseVolumeTexture* SparseVolumeTexture = NULL;
+						MaterialEditorInstance->SourceInstance->GetSparseVolumeTextureParameterValue(SparseVolumeTextureParameterValue->ParameterInfo, SparseVolumeTexture);
+						if (SparseVolumeTexture)
+						{
+							UMaterialExpressionSparseVolumeTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionSparseVolumeTextureSampleParameter>(SparseVolumeTextureParameterValue->ExpressionId);
+							if (!Expression)
+							{
+								const FText ExpressionNameText = FText::Format(LOCTEXT("MissingSVTExpression", "Warning: Sparse Volume Texture Expression {0} not found."), FText::FromName(SparseVolumeTextureParameterValue->ParameterInfo.Name));
+								OnScreenMessages.Emplace(FLinearColor(1, 1, 0), ExpressionNameText.ToString());
 							}
 						}
 					}

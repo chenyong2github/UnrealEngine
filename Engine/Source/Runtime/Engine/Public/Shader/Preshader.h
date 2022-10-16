@@ -61,6 +61,7 @@ enum class EPreshaderOpcode : uint8
 	ExternalTextureCoordinateScaleRotation,
 	ExternalTextureCoordinateOffset,
 	RuntimeVirtualTextureUniform,
+	SparseVolumeTextureUniform,
 	GetField,
 	SetField,
 	Neg,

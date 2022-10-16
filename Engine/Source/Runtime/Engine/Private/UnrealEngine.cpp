@@ -2099,6 +2099,10 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		FModuleManager::Get().LoadModuleChecked("MovieScene");
 		FModuleManager::Get().LoadModuleChecked("MovieSceneTracks");
 		FModuleManager::Get().LoadModule("LevelSequence");
+#if WITH_EDITOR
+		// The SparseVolumeTexture module containing the importer is only loaded and used in the editor.
+		FModuleManager::Get().LoadModuleChecked("SparseVolumeTexture");
+#endif
 	}
 
 	// Record large world coordinate state

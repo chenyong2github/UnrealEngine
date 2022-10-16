@@ -1461,6 +1461,13 @@ bool UMaterial::SetRuntimeVirtualTextureParameterValueEditorOnly(FName Parameter
 	return SetParameterValueEditorOnly(ParameterName, Meta);
 }
 
+bool UMaterial::SetSparseVolumeTextureParameterValueEditorOnly(FName ParameterName, class USparseVolumeTexture* InValue)
+{
+	FMaterialParameterMetadata Meta;
+	Meta.Value = InValue;
+	return SetParameterValueEditorOnly(ParameterName, Meta);
+}
+
 bool UMaterial::SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage)
 {
 	FMaterialParameterMetadata Meta;

@@ -148,6 +148,12 @@ void UMaterialInstanceConstant::SetRuntimeVirtualTextureParameterValueEditorOnly
 	SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value);
 }
 
+void UMaterialInstanceConstant::SetSparseVolumeTextureParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, USparseVolumeTexture* Value)
+{
+	check(GIsEditor || IsRunningCommandlet());
+	SetSparseVolumeTextureParameterValueInternal(ParameterInfo, Value);
+}
+
 void UMaterialInstanceConstant::SetFontParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo,class UFont* FontValue,int32 FontPage)
 {
 	check(GIsEditor || IsRunningCommandlet());

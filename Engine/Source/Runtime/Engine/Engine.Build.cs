@@ -148,6 +148,12 @@ public class Engine : ModuleRules
 			}
 		);
 
+		if (Target.bBuildWithEditorOnlyData && Target.bBuildEditor)
+		{
+			// The SparseVolumeTexture module containing the importer is only loaded and used in the editor.
+			DynamicallyLoadedModuleNames.Add("SparseVolumeTexture");
+		}
+
 		// Cross platform Audio Codecs:
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"UEOgg",

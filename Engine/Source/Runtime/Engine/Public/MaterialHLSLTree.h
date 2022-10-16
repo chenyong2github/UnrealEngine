@@ -36,6 +36,7 @@ inline void AppendHash(FHasher& Hasher, const FMaterialParameterValue& Value)
 	case EMaterialParameterType::Texture: AppendHash(Hasher, Value.Texture); break;
 	case EMaterialParameterType::Font: AppendHash(Hasher, Value.Font); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: AppendHash(Hasher, Value.RuntimeVirtualTexture); break;
+	case EMaterialParameterType::SparseVolumeTexture: AppendHash(Hasher, Value.SparseVolumeTexture); break;
 	case EMaterialParameterType::StaticSwitch: AppendHash(Hasher, Value.Bool[0]); break;
 	case EMaterialParameterType::StaticComponentMask: AppendHash(Hasher, Value.Bool); break;
 	default: checkNoEntry(); break;

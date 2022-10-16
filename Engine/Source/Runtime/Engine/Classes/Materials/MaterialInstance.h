@@ -327,6 +327,54 @@ struct FRuntimeVirtualTextureParameterValue
 	}
 };
 
+/** Editable sparse volume texture parameter. */
+USTRUCT(BlueprintType)
+struct FSparseVolumeTextureParameterValue
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RuntimeVirtualTextureParameterValue)
+	FMaterialParameterInfo ParameterInfo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RuntimeVirtualTextureParameterValue)
+	TObjectPtr<class USparseVolumeTexture> ParameterValue;
+
+	UPROPERTY()
+	FGuid ExpressionGUID;
+
+	explicit FSparseVolumeTextureParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), class USparseVolumeTexture* InValue = nullptr)
+		: ParameterInfo(InParameterInfo), ParameterValue(InValue)
+	{
+	}
+
+	bool IsOverride() const { return true; }
+
+	bool IsValid() const { return GetValue(*this) != nullptr; }
+
+	bool operator==(const FSparseVolumeTextureParameterValue& Other) const
+	{
+		return
+			ParameterInfo == Other.ParameterInfo &&
+			ParameterValue == Other.ParameterValue &&
+			ExpressionGUID == Other.ExpressionGUID;
+	}
+	bool operator!=(const FSparseVolumeTextureParameterValue& Other) const
+	{
+		return !((*this) == Other);
+	}
+
+	typedef const USparseVolumeTexture* ValueType;
+	static ValueType GetValue(const FSparseVolumeTextureParameterValue& Parameter) { return Parameter.ParameterValue; }
+
+	void GetValue(FMaterialParameterMetadata& OutResult) const
+	{
+		OutResult.Value = ParameterValue;
+#if WITH_EDITORONLY_DATA
+		OutResult.ExpressionGuid = ExpressionGUID;
+#endif
+	}
+};
+
 /** Editable font parameter. */
 USTRUCT(BlueprintType)
 struct FFontParameterValue
@@ -601,6 +649,10 @@ public:
 	/** RuntimeVirtualTexture parameters. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues;
+
+	/** Sparse Volume Texture parameters. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MaterialInstance, meta = (EditFixedOrder))
+	TArray<struct FSparseVolumeTextureParameterValue> SparseVolumeTextureParameterValues;
 
 	/** Font parameters. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
@@ -968,6 +1020,7 @@ protected:
 #endif
 	void SetTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class UTexture* Value);
 	void SetRuntimeVirtualTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture* Value);
+	void SetSparseVolumeTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class USparseVolumeTexture* Value);
 	void SetFontParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class UFont* FontValue, int32 FontPage);
 	void ClearParameterValuesInternal(EMaterialInstanceClearParameterFlag Flags = EMaterialInstanceClearParameterFlag::AllNonStatic);
 
@@ -1276,6 +1329,11 @@ template <typename ParameterType, typename ExpressionType>
 bool UpdateParameterSet(TArray<FRuntimeVirtualTextureParameterValue>& Parameters, UMaterial* ParentMaterial)
 {
 	return MaterialInstance_Private::UpdateParameterSet_WithCachedData<FRuntimeVirtualTextureParameterValue, ExpressionType>(EMaterialParameterType::RuntimeVirtualTexture, Parameters, ParentMaterial);
+}
+template <typename ParameterType, typename ExpressionType>
+bool UpdateParameterSet(TArray<FSparseVolumeTextureParameterValue>& Parameters, UMaterial* ParentMaterial)
+{
+	return MaterialInstance_Private::UpdateParameterSet_WithCachedData<FSparseVolumeTextureParameterValue, ExpressionType>(EMaterialParameterType::SparseVolumeTexture, Parameters, ParentMaterial);
 }
 template <typename ParameterType, typename ExpressionType>
 bool UpdateParameterSet(TArray<FStaticSwitchParameter>& Parameters, UMaterial* ParentMaterial)

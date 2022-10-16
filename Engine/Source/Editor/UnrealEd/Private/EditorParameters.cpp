@@ -6,6 +6,7 @@
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
 #include "MaterialEditor/DEditorParameterValue.h"
 #include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
+#include "MaterialEditor/DEditorSparseVolumeTextureParameterValue.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
@@ -71,6 +72,11 @@ UDEditorRuntimeVirtualTextureParameterValue::UDEditorRuntimeVirtualTextureParame
 {
 }
 
+UDEditorSparseVolumeTextureParameterValue::UDEditorSparseVolumeTextureParameterValue(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
 static UDEditorParameterValue* CreateParameter_Scalar(UObject* Owner, const FMaterialParameterMetadata& Meta)
 {
 	UDEditorScalarParameterValue* Parameter = NewObject<UDEditorScalarParameterValue>(Owner);
@@ -129,6 +135,16 @@ static UDEditorParameterValue* CreateParameter_RuntimeVirtualTexture(UObject* Ow
 	return Parameter;
 }
 
+static UDEditorParameterValue* CreateParameter_SparseVolumeTexture(UObject* Owner, const FMaterialParameterMetadata& Meta)
+{
+	UDEditorSparseVolumeTextureParameterValue* Parameter = NewObject<UDEditorSparseVolumeTextureParameterValue>(Owner);
+	if (Meta.Value.Type == EMaterialParameterType::SparseVolumeTexture)
+	{
+		Parameter->ParameterValue = Meta.Value.SparseVolumeTexture;
+	}
+	return Parameter;
+}
+
 static UDEditorParameterValue* CreateParameter_Font(UObject* Owner, const FMaterialParameterMetadata& Meta)
 {
 	UDEditorFontParameterValue* Parameter = NewObject<UDEditorFontParameterValue>(Owner);
@@ -176,6 +192,7 @@ UDEditorParameterValue* UDEditorParameterValue::Create(UObject* Owner,
 	case EMaterialParameterType::DoubleVector: Parameter = CreateParameter_DoubleVector(Owner, Meta); break;
 	case EMaterialParameterType::Texture: Parameter = CreateParameter_Texture(Owner, Meta); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: Parameter = CreateParameter_RuntimeVirtualTexture(Owner, Meta); break;
+	case EMaterialParameterType::SparseVolumeTexture: Parameter = CreateParameter_SparseVolumeTexture(Owner, Meta); break;
 	case EMaterialParameterType::Font: Parameter = CreateParameter_Font(Owner, Meta); break;
 	case EMaterialParameterType::StaticSwitch: Parameter = CreateParameter_StaticSwitch(Owner, Meta); break;
 	case EMaterialParameterType::StaticComponentMask: Parameter = CreateParameter_StaticComponentMask(Owner, Meta); break;

@@ -36,6 +36,7 @@
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "HLSLTree/HLSLTree.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "Engine/Font.h"
 #include "LandscapeGrassType.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -199,6 +200,10 @@ void FMaterialCachedExpressionData::AddParameter(const FMaterialParameterInfo& P
 		case EMaterialParameterType::RuntimeVirtualTexture:
 			RuntimeVirtualTextureValues.Insert(ParameterMeta.Value.RuntimeVirtualTexture, Index);
 			OutReferencedTexture = ParameterMeta.Value.RuntimeVirtualTexture;
+			break;
+		case EMaterialParameterType::SparseVolumeTexture:
+			SparseVolumeTextureValues.Insert(ParameterMeta.Value.SparseVolumeTexture, Index);
+			OutReferencedTexture = ParameterMeta.Value.SparseVolumeTexture;
 			break;
 		case EMaterialParameterType::StaticSwitch:
 			EditorOnlyData->StaticSwitchValues.Insert(ParameterMeta.Value.AsStaticSwitch(), Index);
@@ -611,6 +616,9 @@ void FMaterialCachedExpressionData::GetParameterValueByIndex(EMaterialParameterT
 		break;
 	case EMaterialParameterType::RuntimeVirtualTexture:
 		OutResult.Value = RuntimeVirtualTextureValues[ParameterIndex].LoadSynchronous();
+		break;
+	case EMaterialParameterType::SparseVolumeTexture:
+		OutResult.Value = SparseVolumeTextureValues[ParameterIndex].LoadSynchronous();
 		break;
 	case EMaterialParameterType::Font:
 		OutResult.Value = FMaterialParameterValue(FontValues[ParameterIndex].LoadSynchronous(), FontPageValues[ParameterIndex]);

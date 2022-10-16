@@ -2188,7 +2188,10 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 		case MCT_Float2: HLSLType = TEXT("float2"); break;
 		case MCT_Float3: HLSLType = TEXT("float3"); break;
 		case MCT_Float4: HLSLType = TEXT("float4"); break;
-		case MCT_ShadingModel: HLSLType = TEXT("uint"); break;
+		case MCT_UInt: case MCT_UInt1: case MCT_ShadingModel: HLSLType = TEXT("uint"); break;
+		case MCT_UInt2: HLSLType = TEXT("uint2"); break;
+		case MCT_UInt3: HLSLType = TEXT("uint3"); break;
+		case MCT_UInt4: HLSLType = TEXT("uint4"); break;
 		case MCT_Strata: HLSLType = TEXT("FStrataData"); break;
 		default: break;
 		}
@@ -2782,6 +2785,11 @@ const TCHAR* FHLSLMaterialTranslator::DescribeType(EMaterialValueType Type) cons
 	case MCT_TextureVirtual:		return TEXT("TextureVirtual");
 	case MCT_VTPageTableResult:		return TEXT("VTPageTableResult");
 	case MCT_ShadingModel:			return TEXT("ShadingModel");
+	case MCT_UInt:					return TEXT("uint");
+	case MCT_UInt1:					return TEXT("uint");
+	case MCT_UInt2:					return TEXT("uint2");
+	case MCT_UInt3:					return TEXT("uint3");
+	case MCT_UInt4:					return TEXT("uint4");
 	case MCT_Strata:				return TEXT("Strata");
 	case MCT_LWCScalar:				return TEXT("LWCScalar");
 	case MCT_LWCVector2:			return TEXT("LWCVector2");
@@ -2813,6 +2821,11 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeString(EMaterialValueType Type) co
 	case MCT_TextureVirtual:		return TEXT("TextureVirtual");
 	case MCT_VTPageTableResult:		return TEXT("VTPageTableResult");
 	case MCT_ShadingModel:			return TEXT("uint");
+	case MCT_UInt:					return TEXT("uint");
+	case MCT_UInt1:					return TEXT("uint");
+	case MCT_UInt2:					return TEXT("uint2");
+	case MCT_UInt3:					return TEXT("uint3");
+	case MCT_UInt4:					return TEXT("uint4");
 	case MCT_Strata:				return TEXT("FStrataData");
 	case MCT_LWCScalar:				return TEXT("FLWCScalar");
 	case MCT_LWCVector2:			return TEXT("FLWCVector2");
@@ -2844,6 +2857,11 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeStringDeriv(EMaterialValueType Typ
 	case MCT_TextureVirtual:		return TEXT("TextureVirtual");
 	case MCT_VTPageTableResult:		return TEXT("VTPageTableResult");
 	case MCT_ShadingModel:			return TEXT("uint");
+	case MCT_UInt:					return TEXT("uint");
+	case MCT_UInt1:					return TEXT("uint");
+	case MCT_UInt2:					return TEXT("uint2");
+	case MCT_UInt3:					return TEXT("uint3");
+	case MCT_UInt4:					return TEXT("uint4");
 	case MCT_Strata:				return TEXT("FStrataData");
 	case MCT_LWCScalar:				return (DerivativeStatus == EDerivativeStatus::Valid) ? TEXT("FLWCScalarDeriv") : TEXT("FLWCScalar");
 	case MCT_LWCVector2:			return (DerivativeStatus == EDerivativeStatus::Valid) ? TEXT("FLWCVector2Deriv") : TEXT("FLWCVector2");
@@ -2930,7 +2948,7 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCode, FormattedCode, TEXT(""), Type, DerivativeStatus, true);
 	}
 	// Can only create temporaries for certain types
-	else if ((Type & (MCT_Float | MCT_LWCType | MCT_VTPageTableResult)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
+	else if ((Type & (MCT_Float | MCT_LWCType | MCT_VTPageTableResult | MCT_UInt)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata || Type == MCT_UInt)
 	{
 		// Check for existing
 		for (int32 i = 0; i < CurrentScopeChunks->Num(); ++i)
@@ -3010,7 +3028,7 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(const TCHAR* FormattedCode
 		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCodeFinite, FormattedCodeAnalytic, TEXT(""), Type, DerivativeStatus, true);
 	}
 	// Can only create temporaries for certain types
-	else if ((Type & (MCT_Float | MCT_LWCType | MCT_VTPageTableResult)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
+	else if ((Type & (MCT_Float | MCT_LWCType | MCT_VTPageTableResult | MCT_UInt)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
 	{
 		// Check for existing
 		for (int32 i = 0; i < CurrentScopeChunks->Num(); ++i)
@@ -5916,7 +5934,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		// Note, this does not really do anything (by design) other than adding it to the UniformExpressionSet
 		/*TextureName =*/ CoerceParameter(TextureIndex, TextureType);
 
-		FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(TextureIndex);
+		FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(TextureIndex); 
 		if (UniformExpression == nullptr)
 		{
 			return Errorf(TEXT("Unable to find VT uniform expression."));
@@ -6788,7 +6806,7 @@ int32 FHLSLMaterialTranslator::TextureParameter(FName ParameterName, UTexture* I
 	return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, SamplerType, SamplerSource, bVirtual),ShaderType,TEXT(""));
 }
 
-int32 FHLSLMaterialTranslator::VirtualTexture(URuntimeVirtualTexture* InTexture, int32 TextureLayerIndex, int32 PageTableLayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)
+int32 FHLSLMaterialTranslator::VirtualTexture(URuntimeVirtualTexture* InTexture, int32 TextureLayerIndex, int32 PageTableLayerIndex, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType) 
 {
 	if (!UseVirtualTexturing(FeatureLevel, TargetPlatform))
 	{
@@ -11954,5 +11972,143 @@ bool FHLSLMaterialTranslator::IsDevelopmentFeatureEnabled(const FName& FeatureNa
 
 	return true;
 }
+
+int32 FHLSLMaterialTranslator::SparseVolumeTexture(USparseVolumeTexture* Texture, int32 SubTextureId, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)
+{
+	TextureReferenceIndex = Material->GetReferencedTextures().Find(Texture);
+	checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->SparseVolumeTexture() without implementing UMaterialExpression::GetReferencedTexture properly"));
+
+	return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, SubTextureId, SamplerType), MCT_VolumeTexture, TEXT(""));
+}
+
+int32 FHLSLMaterialTranslator::SparseVolumeTextureParameter(FName ParameterName, USparseVolumeTexture* InDefaultTexture, int32 SubTextureId, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType)
+{
+	USparseVolumeTexture* DefaultTexture = InDefaultTexture;
+
+	// If we're compiling a function, give the function a chance to override the default parameter value
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValueForCurrentFunction(EMaterialParameterType::SparseVolumeTexture, ParameterName, Meta))
+	{
+		DefaultTexture = Meta.Value.SparseVolumeTexture;
+	}
+
+	TextureReferenceIndex = Material->GetReferencedTextures().Find(DefaultTexture);
+	checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->SparseVolumeTextureParameter() without implementing UMaterialExpression::GetReferencedTexture properly"));
+
+	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
+	ParameterInfo.Name = ParameterName;
+
+	return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, SubTextureId, SamplerType), MCT_VolumeTexture, TEXT(""));
+}
+
+int32 FHLSLMaterialTranslator::SparseVolumeTextureGetVoxelCoord(int32 PackedPhysicalTileCoord, int32 TileSize, int32 CoordPageTable, int32 CoordVolume)
+{
+	FString SampleCode = FString::Printf(TEXT("SparseVolumeTextureGetVoxelCoord(%s, %s, %s, %s)"),
+		*GetParameterCode(PackedPhysicalTileCoord), *GetParameterCode(TileSize), *GetParameterCode(CoordPageTable), *GetParameterCode(CoordVolume));
+	return AddCodeChunk(MCT_UInt3, *SampleCode);
+}
+
+int32 FHLSLMaterialTranslator::SparseVolumeTextureSample(int32 TextureIndex, int32 CoordinateIndex)
+{
+	if (TextureIndex == INDEX_NONE || CoordinateIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	EMaterialValueType TextureType = GetParameterType(TextureIndex);
+
+	int32 SamplingCodeIndex = INDEX_NONE;
+	FString TextureName;
+	if (TextureType == MCT_TextureCube)
+	{
+		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSample MCT_TextureCube ERROR."));
+	}
+	else if (TextureType == MCT_Texture2DArray)
+	{
+		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSample MCT_Texture2DArray ERROR."));
+	}
+	else if (TextureType == MCT_TextureCubeArray)
+	{
+		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSample MCT_TextureCubeArray ERROR."));
+	}
+	else if (TextureType == MCT_VolumeTexture)
+	{
+		TextureName = CoerceParameter(TextureIndex, MCT_VolumeTexture);		// TODO this hsould be some texture reserved for sub textures
+
+
+		FMaterialUniformExpression* UniformExpression = GetParameterUniformExpression(TextureIndex);
+		if (UniformExpression == nullptr)
+		{
+			return Errorf(TEXT("Unable to find expression for Sparse Volume Texture."));
+		}
+		FMaterialUniformExpressionTexture* TextureUniformExpression = UniformExpression->GetTextureUniformExpression();
+		if (TextureUniformExpression == nullptr || TextureUniformExpression->GetPageTableLayerIndex() != INDEX_NONE || TextureUniformExpression->GetTextureLayerIndex() == INDEX_NONE)
+		{
+			// Sparse volume texture do not use PageTableLayerIndex but only TextureLayerIndex.
+			return Errorf(TEXT("The provided uniform expression is cannot be identified as a Sparse Volume Texture."));
+		}
+
+		int32 VirtualTextureIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Volume].Find(TextureUniformExpression);
+		check(UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Volume].IsValidIndex(VirtualTextureIndex));
+
+		const EDerivativeStatus UvDerivativeStatus = GetDerivativeStatus(CoordinateIndex);
+
+		check(TextureUniformExpression->GetTextureLayerIndex() != INDEX_NONE);
+		if (TextureUniformExpression->GetTextureLayerIndex() == 0)
+		{
+			FString SampleCode = FString::Printf(TEXT("%s.Load(int4(int3(%s), 0)).x"), *TextureName, *GetParameterCode(CoordinateIndex));
+			AddEstimatedTextureSample();
+			if (IsAnalyticDerivEnabled() && IsDerivativeValid(UvDerivativeStatus))
+			{
+				SamplingCodeIndex = AddCodeChunk(MCT_UInt1, *SampleCode);
+			}
+			else
+			{
+				SamplingCodeIndex = AddCodeChunk(MCT_UInt1, *SampleCode);
+			}
+		}
+		else if (TextureUniformExpression->GetTextureLayerIndex() == 1)
+		{
+			FString SampleCode = FString::Printf(TEXT("%s.Load(int4(int3(%s), 0))"), *TextureName, *GetParameterCode(CoordinateIndex));
+			AddEstimatedTextureSample();
+			if (IsAnalyticDerivEnabled() && IsDerivativeValid(UvDerivativeStatus))
+			{
+				SamplingCodeIndex = AddCodeChunk(MCT_Float4, *SampleCode);
+			}
+			else
+			{
+				SamplingCodeIndex = AddCodeChunk(MCT_Float4, *SampleCode);
+			}
+		}
+		else
+		{
+			return Errorf(TEXT("Sparse volume texture cannot be interpreted."));
+		}
+
+	}
+	else if (TextureType == MCT_TextureExternal)
+	{
+		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSample MCT_TextureExternal ERROR."));
+	}
+	else // MCT_Texture2D
+	{
+		return Errorf(TEXT("FHLSLMaterialTranslator::SparseVolumeTextureSample MCT_Texture2D ERROR."));
+	}
+
+	return SamplingCodeIndex;
+}
+
+int32 FHLSLMaterialTranslator::SparseVolumeTextureUniform(int32 TextureIndex, int32 VectorIndex, UE::Shader::EValueType Type)
+{
+	return AddUniformExpression(new FMaterialUniformExpressionSparseVolumeTextureUniform(TextureIndex, VectorIndex), GetMaterialValueType(Type), TEXT(""));
+}
+
+int32 FHLSLMaterialTranslator::SparseVolumeTextureUniformParameter(FName ParameterName, int32 TextureIndex, int32 VectorIndex, UE::Shader::EValueType Type)
+{
+	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
+	ParameterInfo.Name = ParameterName;
+	return AddUniformExpression(new FMaterialUniformExpressionSparseVolumeTextureUniform(ParameterInfo, TextureIndex, VectorIndex), GetMaterialValueType(Type), TEXT(""));
+}
+
 
 #endif // WITH_EDITORONLY_DATA

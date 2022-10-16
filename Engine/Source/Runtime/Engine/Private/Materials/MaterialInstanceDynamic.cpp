@@ -259,6 +259,12 @@ void UMaterialInstanceDynamic::SetRuntimeVirtualTextureParameterValueByInfo(cons
 	SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value);
 }
 
+void UMaterialInstanceDynamic::SetSparseVolumeTextureParameterValue(FName ParameterName, class USparseVolumeTexture* Value)
+{
+	FMaterialParameterInfo ParameterInfo(ParameterName);
+	SetSparseVolumeTextureParameterValueInternal(ParameterInfo, Value);
+}
+
 UTexture* UMaterialInstanceDynamic::K2_GetTextureParameterValue(FName ParameterName)
 {
 	UTexture* Result = NULL;

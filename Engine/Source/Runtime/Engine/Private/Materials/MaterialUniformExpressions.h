@@ -83,6 +83,7 @@ public:
 	FMaterialUniformExpressionTexture();
 	FMaterialUniformExpressionTexture(int32 InTextureIndex, EMaterialSamplerType InSamplerType, ESamplerSourceMode InSamplerSource, bool InVirtualTexture);
 	FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InTextureLayerIndex, int16 InPageTableLayerIndex, EMaterialSamplerType InSamplerType);
+	FMaterialUniformExpressionTexture(int32 InTextureIndex, int16 InSubTextureIndex, EMaterialSamplerType InSamplerType);
 
 	//~ Begin FMaterialUniformExpression Interface.
 	virtual class FMaterialUniformExpressionTexture* GetTextureUniformExpression() { return this; }
@@ -354,6 +355,11 @@ public:
 
 	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InTextureLayerIndex, int32 InPageTableLayerIndex, EMaterialSamplerType InSamplerType)
 		: Super(InTextureIndex, InTextureLayerIndex, InPageTableLayerIndex, InSamplerType)
+		, ParameterInfo(InParameterInfo)
+	{}
+
+	FMaterialUniformExpressionTextureParameter(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int16 InSubTextureIndex, EMaterialSamplerType InSamplerType)
+		: Super(InTextureIndex, InSubTextureIndex, InSamplerType)
 		, ParameterInfo(InParameterInfo)
 	{}
 
@@ -1542,6 +1548,37 @@ public:
 	FMaterialUniformExpressionRuntimeVirtualTextureUniform(int32 InTextureIndex, int32 InVectorIndex);
 	/** Construct with a URuntimeVirtualTexture parameter and the vector index that we want to retrieve. */
 	FMaterialUniformExpressionRuntimeVirtualTextureUniform(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InVectorIndex);
+
+	//~ Begin FMaterialUniformExpression Interface.
+	virtual bool IsConstant() const override { return false; }
+	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const override;
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override;
+	//~ End FMaterialUniformExpression Interface.
+
+protected:
+	/** Is this expression using a material instance parameter. */
+	bool bParameter;
+	/** Contains the parameter info used if bParameter is true. */
+	FHashedMaterialParameterInfo ParameterInfo;
+	/** Index of the associated URuntimeVirtualTexture in the material texture references used if bParameter is false. */
+	int32 TextureIndex;
+	/** Index of the uniform vector to fetch from the URuntimeVirtualTexture. */
+	int32 VectorIndex;
+};
+
+/**
+ * A uniform expression to retrieve one of the vector uniform parameters stored in a USparseVolumeTexture
+ */
+class FMaterialUniformExpressionSparseVolumeTextureUniform : public FMaterialUniformExpression
+{
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionSparseVolumeTextureUniform);
+
+public:
+	FMaterialUniformExpressionSparseVolumeTextureUniform();
+	/** Construct with the index of the texture reference and the vector index that we want to retrieve. */
+	FMaterialUniformExpressionSparseVolumeTextureUniform(int32 InTextureIndex, int32 InVectorIndex);
+	/** Construct with a URuntimeVirtualTexture parameter and the vector index that we want to retrieve. */
+	FMaterialUniformExpressionSparseVolumeTextureUniform(const FMaterialParameterInfo& InParameterInfo, int32 InTextureIndex, int32 InVectorIndex);
 
 	//~ Begin FMaterialUniformExpression Interface.
 	virtual bool IsConstant() const override { return false; }

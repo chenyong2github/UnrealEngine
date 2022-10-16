@@ -57,6 +57,7 @@ class UMaterialExpressionMaterialFunctionCall;
 class UMaterialInstance;
 class UMaterialInterface;
 class URuntimeVirtualTexture;
+class USparseVolumeTexture;
 class USubsurfaceProfile;
 class UTexture;
 class UTexture2D;
@@ -193,7 +194,14 @@ enum EMaterialValueType
 	MCT_VoidStatement         = 1 << 22,
 
 	/** Non-static bool, only used in new HLSL translator */
-	MCT_Bool = 1 << 23,
+	MCT_Bool				 = 1 << 23,
+
+	/** Unsigned int types */
+	MCT_UInt1				 = 1 << 24,
+	MCT_UInt2				 = 1 << 25,
+	MCT_UInt3				 = 1 << 26,
+	MCT_UInt4				 = 1 << 27,
+	MCT_UInt				 = MCT_UInt1 | MCT_UInt2 | MCT_UInt3 | MCT_UInt4,
 
 	MCT_Numeric = MCT_Float | MCT_LWCType | MCT_Bool,
 };
@@ -203,10 +211,15 @@ inline uint32 GetNumComponents(EMaterialValueType Type)
 {
 	switch (Type)
 	{
+	case MCT_UInt:
+	case MCT_UInt1:
 	case MCT_Float:
 	case MCT_Float1: return 1;
+	case MCT_UInt2:
 	case MCT_Float2: return 2;
+	case MCT_UInt3:
 	case MCT_Float3: return 3;
+	case MCT_UInt4:
 	case MCT_Float4: return 4;
 	case MCT_LWCScalar: return 1;
 	case MCT_LWCVector2: return 2;
@@ -226,10 +239,15 @@ inline bool IsFloatNumericType(EMaterialValueType InType)
 	return (InType & MCT_Float) || IsLWCType(InType);
 }
 
+inline bool IsUIntNumericType(EMaterialValueType InType)
+{
+	return (InType & MCT_UInt);
+}
+
 inline bool IsNumericType(EMaterialValueType InType)
 {
 	// 'ShadingModel' is considered an 'int' 
-	return IsFloatNumericType(InType) || InType == MCT_ShadingModel;
+	return IsFloatNumericType(InType) || InType == MCT_ShadingModel || IsUIntNumericType(InType);
 }
 
 inline EMaterialValueType MakeNonLWCType(EMaterialValueType Type)
@@ -348,6 +366,7 @@ struct ENGINE_API FMaterialRenderContext
 
 	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const UTexture*& OutValue) const;
 	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const URuntimeVirtualTexture*& OutValue) const;
+	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const USparseVolumeTexture*& OutValue) const;
 	FGuid GetExternalTextureGuid(const FGuid& ExternalTextureGuid, const FName& ParameterName, int32 SourceTextureIndex) const;
 };
 
@@ -376,6 +395,8 @@ public:
 	void GetTextureValues(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, UTexture const** OutValues) const;
 	/** Get the URuntimeVirtualTexture object if one was used to initialize this stack. */
 	void GetTextureValue(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const URuntimeVirtualTexture*& OutValue) const;
+	/** Get the USparseVolumeTexture object if one was used to initialize this stack. */
+	void GetTextureValue(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const USparseVolumeTexture * &OutValue) const;
 
 	void Serialize(FArchive& Ar);
 
@@ -606,6 +627,7 @@ public:
 	ENGINE_API void GetGameThreadTextureValue(EMaterialTextureParameterType Type, int32 Index, const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride = true) const;
 	ENGINE_API void GetTextureValue(EMaterialTextureParameterType Type, int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
 	ENGINE_API void GetTextureValue(int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
+	ENGINE_API void GetTextureValue(int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const USparseVolumeTexture*& OutValue) const;
 
 	int32 FindOrAddTextureParameter(EMaterialTextureParameterType Type, const FMaterialTextureParameterInfo& Info);
 	int32 FindOrAddExternalTextureParameter(const FMaterialExternalTextureParameterInfo& Info);
@@ -2629,6 +2651,7 @@ public:
 	bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
 	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
 	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const;
+	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const USparseVolumeTexture** OutValue, const FMaterialRenderContext& Context) const;
 	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const = 0;
 
 	bool IsDeleted() const

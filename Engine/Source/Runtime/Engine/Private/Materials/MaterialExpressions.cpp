@@ -46,6 +46,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "Styling/CoreStyle.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
 #include "Materials/MaterialExpressionAbs.h"
@@ -275,6 +276,7 @@
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionBinaryOp.h"
 #include "Materials/MaterialExpressionGenericConstant.h"
+#include "Materials/MaterialExpressionSparseVolumeTextureSample.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -13554,6 +13556,17 @@ bool UMaterialFunctionInterface::OverrideNamedRuntimeVirtualTextureParameter(con
 	return false;
 }
 
+bool UMaterialFunctionInterface::OverrideNamedSparseVolumeTextureParameter(const FHashedMaterialParameterInfo& ParameterInfo, class USparseVolumeTexture*& OutValue)
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValue(EMaterialParameterType::SparseVolumeTexture, ParameterInfo.GetName(), Meta))
+	{
+		OutValue = Meta.Value.SparseVolumeTexture;
+		return true;
+	}
+	return false;
+}
+
 bool UMaterialFunctionInterface::OverrideNamedFontParameter(const FHashedMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage)
 {
 	FMaterialParameterMetadata Meta;
@@ -14440,6 +14453,13 @@ bool UMaterialFunction::SetRuntimeVirtualTextureParameterValueEditorOnly(FName P
 	return SetParameterValueEditorOnly(ParameterName, Meta);
 };
 
+bool UMaterialFunction::SetSparseVolumeTextureParameterValueEditorOnly(FName ParameterName, class USparseVolumeTexture* InValue)
+{
+	FMaterialParameterMetadata Meta;
+	Meta.Value = InValue;
+	return SetParameterValueEditorOnly(ParameterName, Meta);
+};
+
 bool UMaterialFunction::SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage)
 {
 	FMaterialParameterMetadata Meta;
@@ -14630,6 +14650,17 @@ void UMaterialFunctionInstance::UpdateParameterSet()
 						}
 					}
 				}
+				else if (const UMaterialExpressionSparseVolumeTextureSampleParameter* SparseVolumeTextureParameter = Cast<const UMaterialExpressionSparseVolumeTextureSampleParameter>(FunctionExpression))
+				{
+					for (FSparseVolumeTextureParameterValue& SparseVolumeTextureParameterValue : SparseVolumeTextureParameterValues)
+					{
+						if (SparseVolumeTextureParameterValue.ExpressionGUID == SparseVolumeTextureParameter->ExpressionGUID)
+						{
+							SparseVolumeTextureParameterValue.ParameterInfo.Name = SparseVolumeTextureParameter->ParameterName;
+							break;
+						}
+					}
+				}
 				else if (const UMaterialExpressionFontSampleParameter* FontParameter = Cast<const UMaterialExpressionFontSampleParameter>(FunctionExpression))
 				{
 					for (FFontParameterValue& FontParameterValue : FontParameterValues)
@@ -14676,6 +14707,7 @@ void UMaterialFunctionInstance::OverrideMaterialInstanceParameterValues(UMateria
 	Instance->DoubleVectorParameterValues = DoubleVectorParameterValues;
 	Instance->TextureParameterValues = TextureParameterValues;
 	Instance->RuntimeVirtualTextureParameterValues = RuntimeVirtualTextureParameterValues;
+	Instance->SparseVolumeTextureParameterValues = SparseVolumeTextureParameterValues;
 	Instance->FontParameterValues = FontParameterValues;
 
 	// Static parameters
@@ -14836,6 +14868,7 @@ bool UMaterialFunctionInstance::GetParameterOverrideValue(EMaterialParameterType
 	case EMaterialParameterType::DoubleVector: bResult = GameThread_GetParameterValue(DoubleVectorParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::SparseVolumeTexture: bResult = GameThread_GetParameterValue(SparseVolumeTextureParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticSwitchParameterValues, ParameterInfo, OutResult); break;
 	case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticComponentMaskParameterValues, ParameterInfo, OutResult); break;
@@ -25018,5 +25051,222 @@ void UMaterialExpressionSkyLightEnvMapSample::GetCaption(TArray<FString>& OutCap
 	OutCaptions.Add(TEXT("Sky Light Env Map Sample"));
 }
 #endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSparseVolumeTextureSample
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSparseVolumeTextureSample::UMaterialExpressionSparseVolumeTextureSample(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_VirtualTexture;
+		FConstructorStatics()
+			: NAME_VirtualTexture(LOCTEXT("Texture", "Texture"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_VirtualTexture);
+#endif
+
+#if WITH_EDITOR
+	// SVT_TODO update that when attribute setup has been clarified
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Density"), 1, 1, 1, 1, 0));
+	bShowOutputNameOnPin = true;
+	bShowMaskColorsOnPin = false;
+#endif
+}
+
+UObject* UMaterialExpressionSparseVolumeTextureSample::GetReferencedTexture() const
+{
+	return SparseVolumeTexture;
+}
+
+#if WITH_EDITOR
+
+void UMaterialExpressionSparseVolumeTextureSample::PostLoad()
+{
+	Super::PostLoad();
+}
+
+void UMaterialExpressionSparseVolumeTextureSample::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Update what needs to be when the texture is changed
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetName() == TEXT("SparseVirtualTexture"))
+	{
+		if (SparseVolumeTexture != nullptr)
+		{
+			FEditorSupportDelegates::ForcePropertyWindowRebuild.Broadcast(this);
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+uint32 UMaterialExpressionSparseVolumeTextureSample::GetOutputType(int32 OutputIndex)
+{
+	switch (OutputIndex)
+	{
+	case 0:
+		return MCT_Float;	// Density defined in constructor for now
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+uint32 UMaterialExpressionSparseVolumeTextureSample::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
+int32 UMaterialExpressionSparseVolumeTextureSample::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (SparseVolumeTexture != nullptr)
+	{
+		const bool bIsParameter = HasAParameterName() && GetParameterName().IsValid() && !GetParameterName().IsNone();
+
+		int32 PageTableTextureReferenceIndex = INDEX_NONE;
+		int32 PageTableSubTextureIndex = 0;
+		int32 PageTableTextureParamCodeChunkIndex = INDEX_NONE;
+		if (bIsParameter)
+		{
+			PageTableTextureParamCodeChunkIndex = Compiler->SparseVolumeTextureParameter(GetParameterName(), SparseVolumeTexture, PageTableSubTextureIndex, PageTableTextureReferenceIndex, SAMPLERTYPE_LinearColor);
+		}
+		else
+		{
+			PageTableTextureParamCodeChunkIndex = Compiler->SparseVolumeTexture(SparseVolumeTexture, PageTableSubTextureIndex, PageTableTextureReferenceIndex, SAMPLERTYPE_LinearColor);
+		}
+
+		int32 PhysicalTileTextureReferenceIndex = INDEX_NONE;
+		int32 PhysicalTileSubTextureIndex = 1;
+		int32 PhysicalTileTextureParamCodeChunkIndex = INDEX_NONE;
+		if (bIsParameter)
+		{
+			PhysicalTileTextureParamCodeChunkIndex = Compiler->SparseVolumeTextureParameter(GetParameterName(), SparseVolumeTexture, PhysicalTileSubTextureIndex, PhysicalTileTextureReferenceIndex, SAMPLERTYPE_LinearColor);
+		}
+		else
+		{
+			PhysicalTileTextureParamCodeChunkIndex = Compiler->SparseVolumeTexture(SparseVolumeTexture, PhysicalTileSubTextureIndex, PhysicalTileTextureReferenceIndex, SAMPLERTYPE_LinearColor);
+		}
+
+		// Now register the uniform we need for sampling the sparse volume texture
+		int32 UniformCodeChunkIndex[ESparseVolumeTexture_Count];
+		for (int32 UniformIndex = 0; UniformIndex < ESparseVolumeTexture_Count; ++UniformIndex)
+		{
+			const UE::Shader::EValueType Type = USparseVolumeTexture::GetUniformParameterType(UniformIndex);
+			if (bIsParameter)
+			{
+				UniformCodeChunkIndex[UniformIndex] = Compiler->SparseVolumeTextureUniformParameter(GetParameterName(), PageTableTextureReferenceIndex, UniformIndex, Type);
+			}
+			else
+			{
+				UniformCodeChunkIndex[UniformIndex] = Compiler->SparseVolumeTextureUniform(PageTableTextureReferenceIndex, UniformIndex, Type);
+			}
+		}
+
+		// SVT_TODO Send parameters and do all the following math in shared functions (one to sample the page table and one to sample the attribute from the page table sample output)
+
+		int32 UVW = CompileWithDefaultFloat3(Compiler, Coordinates, 0.0f, 0.0f, 0.0f);
+		int32 UVWPageTable = Compiler->Mul(UVW, UniformCodeChunkIndex[ESparseVolumeTexture_PhysicalUVToPageUV]);
+		int32 CoordPageTable = Compiler->Mul(UVWPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_PageTableSize]);
+
+		int32 PackedPhysicalTileCoord = Compiler->SparseVolumeTextureSample(PageTableTextureParamCodeChunkIndex, CoordPageTable);
+
+		int32 CoordVolume = Compiler->Mul(CoordPageTable, UniformCodeChunkIndex[ESparseVolumeTexture_TileSize]);
+		int32 CoordPageTableFloor = Compiler->Floor(CoordPageTable);
+
+		int32 CoordPhysicalTileVoxel = Compiler->SparseVolumeTextureGetVoxelCoord(PackedPhysicalTileCoord, UniformCodeChunkIndex[ESparseVolumeTexture_TileSize], CoordPageTableFloor, CoordVolume);
+
+		return Compiler->SparseVolumeTextureSample(PhysicalTileTextureParamCodeChunkIndex, CoordPhysicalTileVoxel);
+	}
+
+	return INDEX_NONE;
+}
+
+void UMaterialExpressionSparseVolumeTextureSample::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Sparse Volume Texture Sample")));
+}
+
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSparseVolumeTextureSample
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionSparseVolumeTextureSampleParameter::UMaterialExpressionSparseVolumeTextureSampleParameter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Parameters;
+		FConstructorStatics()
+			: NAME_Parameters(LOCTEXT("Parameters", "Parameters"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	bIsParameterExpression = true;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
+#endif
+}
+
+#if WITH_EDITOR
+
+bool UMaterialExpressionSparseVolumeTextureSampleParameter::SetParameterValue(FName InParameterName, USparseVolumeTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags)
+{
+	if (InParameterName == ParameterName)
+	{
+		SparseVolumeTexture = InValue;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			SendPostEditChangeProperty(this, TEXT("SparseVolumeTexture"));
+		}
+		return true;
+	}
+
+	return false;
+}
+
+void UMaterialExpressionSparseVolumeTextureSampleParameter::ValidateParameterName(const bool bAllowDuplicateName)
+{
+	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
+}
+
+void UMaterialExpressionSparseVolumeTextureSampleParameter::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Sparse Volume Texture Sample Param ")));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+
+bool UMaterialExpressionSparseVolumeTextureSampleParameter::MatchesSearchQuery(const TCHAR* SearchQuery)
+{
+	if (ParameterName.ToString().Contains(SearchQuery))
+	{
+		return true;
+	}
+	return Super::MatchesSearchQuery(SearchQuery);
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

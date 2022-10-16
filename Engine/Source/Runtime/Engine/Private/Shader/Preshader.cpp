@@ -7,6 +7,7 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "Hash/xxhash.h"
 #include "ExternalTexture.h"
+#include "SparseVolumeTexture/SparseVolumeTexture.h"
 
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderData);
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderStructType);
@@ -806,6 +807,27 @@ static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& C
 	}
 }
 
+static void EvaluateSparseTextureUniform(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
+{
+	const FHashedMaterialParameterInfo ParameterInfo = ReadPreshaderValue<FHashedMaterialParameterInfo>(Data);
+	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
+	const int32 VectorIndex = ReadPreshaderValue<int32>(Data);
+
+	const USparseVolumeTexture* Texture = nullptr;
+	if (ParameterInfo.Name.IsNone() || !Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetTextureValue(ParameterInfo, &Texture, Context))
+	{
+		Texture = GetIndexedTexture<USparseVolumeTexture>(Context.Material, TextureIndex);
+	}
+	if (Texture != nullptr && VectorIndex != INDEX_NONE)
+	{
+		Stack.PushValue(FValue(Texture->GetUniformParameter(VectorIndex)));
+	}
+	else
+	{
+		Stack.PushValue(FValue(0.f, 0.f, 0.f, 0.f));
+	}
+}
+
 static void EvaluateJump(FPreshaderDataContext& RESTRICT Data)
 {
 	const int32 JumpOffset = ReadPreshaderValue<int32>(Data);
@@ -888,6 +910,7 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 		case EPreshaderOpcode::ExternalTextureCoordinateScaleRotation: EvaluateExternalTextureCoordinateScaleRotation(Context, Stack, Data); break;
 		case EPreshaderOpcode::ExternalTextureCoordinateOffset: EvaluateExternalTextureCoordinateOffset(Context, Stack, Data); break;
 		case EPreshaderOpcode::RuntimeVirtualTextureUniform: EvaluateRuntimeVirtualTextureUniform(Context, Stack, Data); break;
+		case EPreshaderOpcode::SparseVolumeTextureUniform: EvaluateSparseTextureUniform(Context, Stack, Data); break;
 		case EPreshaderOpcode::Jump: EvaluateJump(Data); break;
 		case EPreshaderOpcode::JumpIfFalse: EvaluateJumpIfFalse(Stack, Data); break;
 		default:

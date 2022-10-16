@@ -826,6 +826,17 @@ bool UMaterialInterface::GetRuntimeVirtualTextureParameterValue(const FHashedMat
 	return false;
 }
 
+bool UMaterialInterface::GetSparseVolumeTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, USparseVolumeTexture*& OutValue, bool bOveriddenOnly) const
+{
+	FMaterialParameterMetadata Result;
+	if (GetParameterValue(EMaterialParameterType::SparseVolumeTexture, ParameterInfo, Result, MakeParameterValueFlags(bOveriddenOnly)))
+	{
+		OutValue = Result.Value.SparseVolumeTexture;
+		return true;
+	}
+	return false;
+}
+
 #if WITH_EDITOR
 bool UMaterialInterface::GetTextureParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
 {
@@ -912,6 +923,17 @@ bool UMaterialInterface::GetRuntimeVirtualTextureParameterDefaultValue(const FHa
 	return false;
 }
 
+bool UMaterialInterface::GetSparseVolumeTextureParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, class USparseVolumeTexture*& OutValue) const
+{
+	FMaterialParameterMetadata Result;
+	if (GetParameterDefaultValue(EMaterialParameterType::SparseVolumeTexture, ParameterInfo, Result))
+	{
+		OutValue = Result.Value.SparseVolumeTexture;
+		return true;
+	}
+	return false;
+}
+
 bool UMaterialInterface::GetFontParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, class UFont*& OutFontValue, int32& OutFontPage) const
 {
 	FMaterialParameterMetadata Result;
@@ -991,6 +1013,11 @@ void UMaterialInterface::GetAllTextureParameterInfo(TArray<FMaterialParameterInf
 void UMaterialInterface::GetAllRuntimeVirtualTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	GetAllParameterInfoOfType(EMaterialParameterType::RuntimeVirtualTexture, OutParameterInfo, OutParameterIds);
+}
+
+void UMaterialInterface::GetAllSparseVolumeTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+{
+	GetAllParameterInfoOfType(EMaterialParameterType::SparseVolumeTexture, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterialInterface::GetAllFontParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const

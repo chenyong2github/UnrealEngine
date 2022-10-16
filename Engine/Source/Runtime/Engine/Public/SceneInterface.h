@@ -38,6 +38,7 @@ class FInstanceCullingManager;
 class FSceneViewStateInterface;
 struct FHairStrandsInstance;
 struct FLightRenderParameters;
+class FSparseVolumeTextureViewerSceneProxy;
 
 enum EBasePassDrawListType
 {
@@ -305,6 +306,9 @@ public:
 	 */
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() = 0;
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const = 0;
+
+	virtual void AddSparseVolumeTextureViewer(FSparseVolumeTextureViewerSceneProxy* SVTV) = 0;
+	virtual void RemoveSparseVolumeTextureViewer(FSparseVolumeTextureViewerSceneProxy* SVTV) = 0;
 
 	/**
 	 * Adds the unique volumetric cloud component to the scene

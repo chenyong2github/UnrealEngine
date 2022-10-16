@@ -69,6 +69,10 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category = MaterialFunctionInstance)
 	TArray<struct FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues;
 
+	/** Sparse volume texture parameters. */
+	UPROPERTY(EditAnywhere, Category = MaterialFunctionInstance)
+	TArray<struct FSparseVolumeTextureParameterValue> SparseVolumeTextureParameterValues;
+
 #if WITH_EDITOR
 	ENGINE_API void UpdateParameterSet();
 	ENGINE_API void OverrideMaterialInstanceParameterValues(class UMaterialInstance* Instance);

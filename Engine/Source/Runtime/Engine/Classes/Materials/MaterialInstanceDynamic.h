@@ -74,6 +74,10 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	void SetRuntimeVirtualTextureParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture* Value);
 
+	/** Set an MID texture parameter value */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetSparseVolumeTextureParameterValue(FName ParameterName, class USparseVolumeTexture* Value);
+
 	/** Get the current MID texture parameter value */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Get Texture Parameter Value", ScriptName = "GetTextureParameterValue"), Category="Rendering|Material")
 	class UTexture* K2_GetTextureParameterValue(FName ParameterName);

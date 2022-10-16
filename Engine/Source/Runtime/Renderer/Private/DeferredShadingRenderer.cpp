@@ -9,6 +9,7 @@
 #include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
+#include "SparseVolumeTexture/SparseVolumeTextureViewerRendering.h"
 #include "VolumetricRenderTarget.h"
 #include "ScenePrivate.h"
 #include "SceneOcclusion.h"
@@ -3773,6 +3774,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture, false);
 		ComposeVolumetricRenderTargetOverSceneForVisualization(GraphBuilder, Views, SceneTextures.Color.Target, SceneTextures);
 		RenderVolumetricCloud(GraphBuilder, SceneTextures, true, false, HalfResolutionDepthCheckerboardMinMaxTexture, false, InstanceCullingManager);
+	}
+
+	if (!bHasRayTracedOverlay)
+	{
+		AddSparseVolumeTextureViewerRenderPass(GraphBuilder, *this, SceneTextures);
 	}
 
 	// Resolve the scene color for post processing.

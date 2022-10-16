@@ -3651,6 +3651,17 @@ bool FMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& P
 	return false;
 }
 
+bool FMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const USparseVolumeTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	FMaterialParameterValue Value;
+	if (GetParameterValue(EMaterialParameterType::SparseVolumeTexture, ParameterInfo, Value, Context))
+	{
+		*OutValue = Value.SparseVolumeTexture;
+		return true;
+	}
+	return false;
+}
+
 static void OnVirtualTextureDestroyedCB(const FVirtualTextureProducerHandle& InHandle, void* Baton)
 {
 	FMaterialRenderProxy* MaterialProxy = static_cast<FMaterialRenderProxy*>(Baton);
@@ -5870,6 +5881,7 @@ UE::Shader::FValue FMaterialParameterValue::AsShaderValue() const
 	case EMaterialParameterType::Texture:
 	case EMaterialParameterType::Font:
 	case EMaterialParameterType::RuntimeVirtualTexture:
+	case EMaterialParameterType::SparseVolumeTexture:
 		// Non-numeric types, can't represent as shader values
 		return UE::Shader::FValue();
 	default:
@@ -5885,6 +5897,7 @@ UObject* FMaterialParameterValue::AsTextureObject() const
 	{
 	case EMaterialParameterType::Texture: Result = Texture; break;
 	case EMaterialParameterType::RuntimeVirtualTexture: Result = RuntimeVirtualTexture; break;
+	case EMaterialParameterType::SparseVolumeTexture: Result = SparseVolumeTexture; break;
 	case EMaterialParameterType::Font:
 		if (Font.Value && Font.Value->Textures.IsValidIndex(Font.Page))
 		{
@@ -5910,6 +5923,7 @@ UE::Shader::FType GetShaderValueType(EMaterialParameterType Type)
 	case EMaterialParameterType::Font:
 		return FMaterialTextureValue::GetTypeName();
 	case EMaterialParameterType::RuntimeVirtualTexture:
+	case EMaterialParameterType::SparseVolumeTexture:
 		return UE::Shader::EValueType::Void; // TODO
 	default:
 		checkNoEntry();

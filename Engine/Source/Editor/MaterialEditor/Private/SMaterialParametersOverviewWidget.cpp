@@ -40,6 +40,7 @@
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
+#include "MaterialEditor/DEditorSparseVolumeTextureParameterValue.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Styling/StyleColors.h"
 
@@ -801,6 +802,20 @@ void SMaterialParametersOverviewTree::ShowSubParameters()
 			UDEditorRuntimeVirtualTextureParameterValue* VTParameter = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Parameter);
 			//Don't show VT samples here
 			if (!VTParameter)
+			{
+				for (TSharedPtr<struct FSortedParamData> GroupChild : SortedParameters)
+				{
+					if (GroupChild->Group.GroupName == Property.ParameterGroup.GroupName
+						&& GroupChild->ParameterInfo.Association == ChildProperty->ParameterInfo.Association
+						&&  GroupChild->ParameterInfo.Index == ChildProperty->ParameterInfo.Index)
+					{
+						GroupChild->Children.Add(ChildProperty);
+					}
+				}
+			}
+
+			UDEditorSparseVolumeTextureParameterValue* SVTParameter = Cast<UDEditorSparseVolumeTextureParameterValue>(Parameter);
+			if (!SVTParameter)
 			{
 				for (TSharedPtr<struct FSortedParamData> GroupChild : SortedParameters)
 				{
