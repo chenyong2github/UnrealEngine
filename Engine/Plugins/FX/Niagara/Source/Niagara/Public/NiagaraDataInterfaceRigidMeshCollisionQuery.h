@@ -127,6 +127,8 @@ struct FNDIRigidMeshCollisionData
 	using FMergedActorArray = TArray<AActor*, TInlineAllocator<16>>;
 	void MergeActors(FMergedActorArray& MergedActors) const;
 
+	bool TrimMissingActors();
+
 	/** Physics asset Gpu buffer */
 	FNDIRigidMeshCollisionBuffer* AssetBuffer = nullptr;
 

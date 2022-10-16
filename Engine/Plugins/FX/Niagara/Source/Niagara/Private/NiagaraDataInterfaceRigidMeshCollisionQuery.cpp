@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceRigidMeshCollisionQuery.h"
 #include "Algo/ForEach.h"
+#include "Algo/RemoveIf.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Canvas.h"
 #include "Animation/SkeletalMeshActor.h"
@@ -598,6 +599,22 @@ void FNDIRigidMeshCollisionData::MergeActors(FMergedActorArray& MergedActors) co
 	Algo::ForEach(FoundActors, AppendActors);
 }
 
+bool FNDIRigidMeshCollisionData::TrimMissingActors()
+{
+	auto EvaluateWeakActor = [&](const TWeakObjectPtr<AActor>& ActorPtr)
+	{
+		return !ActorPtr.IsValid();
+	};
+
+	const int32 ExplicitActorCount = ExplicitActors.Num();
+	ExplicitActors.SetNum(Algo::StableRemoveIf(ExplicitActors, EvaluateWeakActor));
+
+	const int32 FoundActorCount = FoundActors.Num();
+	FoundActors.SetNum(Algo::StableRemoveIf(FoundActors, EvaluateWeakActor));
+
+	return ExplicitActorCount != ExplicitActors.Num() || FoundActorCount != FoundActors.Num();
+}
+
 void FNDIRigidMeshCollisionData::Init(int32 MaxNumPrimitives)
 {
 	const bool bHasActors = HasActors();
@@ -655,6 +672,8 @@ void FNDIRigidMeshCollisionData::Update(UNiagaraDataInterfaceRigidMeshCollisionQ
 
 	if (bHasActors)
 	{
+		bRequiresFullUpdate |= TrimMissingActors();
+
 		FMergedActorArray MergedActors;
 		MergeActors(MergedActors);
 
@@ -862,6 +881,7 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 		if (!InstanceData_GT->ExplicitActors.IsEmpty() || !InstanceData_GT->FoundActors.IsEmpty())
 		{
 			const UFont* Font = GEngine->GetMediumFont();
+			Canvas->SetDrawColor(FColor::White);
 
 			auto DrawDebugActor = [&](TWeakObjectPtr<AActor>& InWeakActor, const TCHAR* ActorSourceString)
 			{
@@ -876,8 +896,14 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 					{
 						DrawDebugCanvasWireBox(Canvas, CurrentTransform, FBox(-ActorBoundsExtent, ActorBoundsExtent), FColor::Yellow);
 
+						FString ActorLabel = Actor->GetActorLabel();
+						if (ActorLabel.Len() == 0)
+						{
+							ActorLabel = Actor->GetName();
+						}
+
 						const FVector ScreenLoc = Canvas->Project(ActorOrigin);
-						Canvas->DrawText(Font, FString::Printf(TEXT("RigidMeshDI[%s Actor] - %s"), ActorSourceString, *Actor->GetName()), ScreenLoc.X, ScreenLoc.Y);
+						Canvas->DrawText(Font, FString::Printf(TEXT("RigidMeshDI[%s Actor] - %s"), ActorSourceString, *ActorLabel), ScreenLoc.X, ScreenLoc.Y);
 					}
 				}
 			};
