@@ -6,11 +6,13 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using EpicGames.Perforce;
 using Horde.Build.Perforce;
 using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Build.Tests.Stubs.Services
 {
@@ -60,12 +62,16 @@ namespace Horde.Build.Tests.Stubs.Services
 
 			public ValueTask<IReadOnlyList<CommitTag>> GetTagsAsync(CancellationToken cancellationToken)
 			{
+				StreamConfig config = new StreamConfig();
+				Assert.IsTrue(config.TryGetCommitTagFilter(CommitTag.Code, out FileFilter? codeFilter));
+				Assert.IsTrue(config.TryGetCommitTagFilter(CommitTag.Content, out FileFilter? contentFilter));
+
 				List<CommitTag> tags = new List<CommitTag>();
-				if (CommitTagConfig.CodeDefault.CreateFileFilter().ApplyTo(Files).Any())
+				if (codeFilter.ApplyTo(Files).Any())
 				{
 					tags.Add(CommitTag.Code);
 				}
-				if (CommitTagConfig.ContentDefault.CreateFileFilter().ApplyTo(Files).Any())
+				if (contentFilter.ApplyTo(Files).Any())
 				{
 					tags.Add(CommitTag.Content);
 				}

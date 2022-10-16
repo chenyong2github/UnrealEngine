@@ -186,7 +186,7 @@ namespace Horde.Build.Perforce
 				IReadOnlyList<string> files = await GetFilesAsync(cancellationToken);
 				foreach (CommitTagConfig tagConfig in _stream.Config.GetAllCommitTags())
 				{
-					if (tagConfig.CreateFileFilter().ApplyTo(files).Any())
+					if (_stream.Config.TryGetCommitTagFilter(tagConfig.Name, out FileFilter? filter) && filter.ApplyTo(files).Any())
 					{
 						commitTags.Add(tagConfig.Name);
 					}
@@ -801,8 +801,8 @@ namespace Horde.Build.Perforce
 				List<CommitTag> tags = new List<CommitTag>();
 				foreach (CommitTagConfig tagConfig in stream.Config.GetAllCommitTags())
 				{
-					FileFilter filter = tagConfig.CreateFileFilter();
-					if (mappedFiles.Any(x => filter.Matches(x)))
+					FileFilter? filter;
+					if (stream.Config.TryGetCommitTagFilter(tagConfig.Name, out filter) && mappedFiles.Any(x => filter.Matches(x)))
 					{
 						tags.Add(tagConfig.Name);
 					}
@@ -1190,9 +1190,10 @@ namespace Horde.Build.Perforce
 						List<FileFilter> filters = new List<FileFilter>();
 						foreach (CommitTag tag in tags)
 						{
-							if (_stream.Config.TryGetCommitTag(tag, out CommitTagConfig? commitTagConfig))
+							FileFilter? filter;
+							if (_stream.Config.TryGetCommitTagFilter(tag, out filter))
 							{
-								filters.Add(commitTagConfig.CreateFileFilter());
+								filters.Add(filter);
 							}
 						}
 

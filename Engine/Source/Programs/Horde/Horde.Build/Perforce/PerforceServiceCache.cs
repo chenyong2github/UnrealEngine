@@ -52,10 +52,10 @@ namespace Horde.Build.Perforce
 			public CommitTag Name { get; }
 			public FileFilter Filter { get; }
 
-			public CommitTagInfo(CommitTagConfig config)
+			public CommitTagInfo(CommitTag name, FileFilter filter)
 			{
-				Name = config.Name;
-				Filter = config.CreateFileFilter();
+				Name = name;
+				Filter = filter;
 			}
 		}
 
@@ -63,13 +63,20 @@ namespace Horde.Build.Perforce
 		{
 			public IStream Stream { get; set; }
 			public PerforceViewMap View { get; }
-			public List<CommitTagInfo> CommitTags { get; set; }
+			public List<CommitTagInfo> CommitTags { get; set; } = new List<CommitTagInfo>();
 
 			public StreamInfo(IStream stream, PerforceViewMap view)
 			{
 				Stream = stream;
 				View = view;
-				CommitTags = stream.Config.GetAllCommitTags().Select(x => new CommitTagInfo(x)).ToList();
+
+				foreach (CommitTagConfig commitTagConfig in stream.Config.GetAllCommitTags())
+				{
+					if (stream.Config.TryGetCommitTagFilter(commitTagConfig.Name, out FileFilter? filter))
+					{
+						CommitTags.Add(new CommitTagInfo(commitTagConfig.Name, filter));
+					}
+				}
 			}
 		}
 

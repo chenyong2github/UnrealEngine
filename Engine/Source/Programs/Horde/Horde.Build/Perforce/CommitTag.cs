@@ -57,6 +57,11 @@ namespace Horde.Build.Perforce
 			StringId.ValidateArgument(text, nameof(text));
 		}
 
+		/// <summary>
+		/// Check if the current tag is empty
+		/// </summary>
+		public bool IsEmpty() => Text == null;
+
 		/// <inheritdoc/>
 		public override bool Equals(object? obj) => obj is CommitTag id && Equals(id);
 

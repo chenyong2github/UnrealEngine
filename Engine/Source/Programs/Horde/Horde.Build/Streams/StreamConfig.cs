@@ -237,6 +237,54 @@ namespace Horde.Build.Streams
 		}
 
 		/// <summary>
+		/// Constructs a <see cref="FileFilter"/> from the rules in this configuration object
+		/// </summary>
+		/// <returns>Filter object</returns>
+		public bool TryGetCommitTagFilter(CommitTag tag, [NotNullWhen(true)] out FileFilter? filter)
+		{
+			FileFilter newFilter = new FileFilter(FileFilterType.Exclude);
+			if (TryGetCommitTagFilter(tag, newFilter, new HashSet<CommitTag>()))
+			{
+				filter = newFilter;
+				return true;
+			}
+			else
+			{
+				filter = null;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Find the filter for a given tag, recursively
+		/// </summary>
+		bool TryGetCommitTagFilter(CommitTag tag, FileFilter filter, HashSet<CommitTag> visitedTags)
+		{
+			// Check we don't have a recursive definition for the tag
+			if (!visitedTags.Add(tag))
+			{
+				return false;
+			}
+
+			// Get the tag configuration
+			CommitTagConfig? config;
+			if (!TryGetCommitTag(tag, out config))
+			{
+				return false;
+			}
+
+			// Add rules from the base tag
+			if (!config.Base.IsEmpty() && !TryGetCommitTagFilter(config.Base, filter, visitedTags))
+			{
+				return false;
+			}
+
+			// Add rules from this tag
+			filter.AddRules(config.Filter);
+			return true;
+		}
+
+		/// <summary>
 		/// Tries to find a template with the given id
 		/// </summary>
 		/// <param name="templateRefId"></param>
@@ -855,6 +903,11 @@ namespace Horde.Build.Streams
 		public CommitTag Name { get; set; }
 
 		/// <summary>
+		/// Base tag to copy settings from
+		/// </summary>
+		public CommitTag Base { get; set; }
+
+		/// <summary>
 		/// List of files to be included in this filter
 		/// </summary>
 		public List<string> Filter { get; set; } = new List<string>();
@@ -868,16 +921,5 @@ namespace Horde.Build.Streams
 		/// Default config for content filters
 		/// </summary>
 		public static CommitTagConfig ContentDefault { get; } = new CommitTagConfig { Name = CommitTag.Content, Filter = CommitTag.ContentFilter.ToList() };
-
-		/// <summary>
-		/// Constructs a <see cref="FileFilter"/> from the rules in this configuration object
-		/// </summary>
-		/// <returns>Filter object</returns>
-		public FileFilter CreateFileFilter()
-		{
-			FileFilter filter = new FileFilter(FileFilterType.Exclude);
-			filter.AddRules(Filter);
-			return filter;
-		}
 	}
 }

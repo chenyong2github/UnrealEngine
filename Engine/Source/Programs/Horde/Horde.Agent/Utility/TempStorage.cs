@@ -735,7 +735,7 @@ namespace Horde.Storage.Utility
 		/// <returns></returns>
 		public static async Task<TreeNodeRef<TempStorageTagNode>> ArchiveTagAsync(TreeWriter writer, string tagName, DirectoryReference rootDir, IEnumerable<FileReference> files, IEnumerable<TempStorageBlockRef> blocks, ILogger logger, CancellationToken cancellationToken)
 		{
-			logger.LogInformation("Creating output tag {TagName}", tagName);
+			logger.LogInformation("Creating output tag \"{TagName}\"", tagName);
 
 			TempStorageTagManifest fileList = new TempStorageTagManifest(files, rootDir, blocks);
 			TreeNodeRef<TempStorageTagNode> tagNode = new TreeNodeRef<TempStorageTagNode>(new TempStorageTagNode(fileList));
@@ -756,7 +756,7 @@ namespace Horde.Storage.Utility
 		/// <returns>The created manifest instance (which has already been saved to disk).</returns>
 		public static async Task<TreeNodeRef<TempStorageBlockNode>> ArchiveBlockAsync(TreeWriter writer, string blockName, DirectoryReference rootDir, FileReference[] buildProducts, ILogger logger, CancellationToken cancellationToken)
 		{
-			logger.LogInformation("Creating output block {BlockName}", blockName);
+			logger.LogInformation("Creating output block \"{BlockName}\"", blockName);
 
 			// Create a manifest for the given build products
 			FileInfo[] files = buildProducts.Select(x => new FileInfo(x.FullName)).ToArray();
@@ -837,7 +837,7 @@ namespace Horde.Storage.Utility
 				TreeNodeRef<TempStorageBlockNode>? blockNodeRef;
 				if (!node.Blocks.TryGetValue(blockName, out blockNodeRef))
 				{
-					throw new TempStorageException($"Missing block {blockName} from node {nodeName}");
+					throw new TempStorageException($"Missing block \"{blockName}\" from node \"{nodeName}\"");
 				}
 
 				TempStorageBlockNode blockNode = await blockNodeRef.ExpandAsync(cancellationToken);
