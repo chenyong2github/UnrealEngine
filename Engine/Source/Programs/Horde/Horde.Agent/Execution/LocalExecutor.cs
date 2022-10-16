@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -18,8 +19,8 @@ namespace Horde.Agent.Execution
 		private readonly LocalExecutorSettings _settings;
 		private readonly DirectoryReference _localWorkspaceDir;
 
-		public LocalExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName, LocalExecutorSettings settings) 
-			: base(rpcConnection, jobId, batchId, agentTypeName)
+		public LocalExecutor(ISession session, string jobId, string batchId, string agentTypeName, LocalExecutorSettings settings, IHttpClientFactory httpClientFactory) 
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
 		{
 			_settings = settings;
 			if(settings.WorkspaceDir == null)
@@ -51,15 +52,17 @@ namespace Horde.Agent.Execution
 	class LocalExecutorFactory : JobExecutorFactory
 	{
 		readonly LocalExecutorSettings _settings;
+		readonly IHttpClientFactory _httpClientFactory;
 
-		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings)
+		public LocalExecutorFactory(IOptions<LocalExecutorSettings> settings, IHttpClientFactory httpClientFactory)
 		{
 			_settings = settings.Value;
+			_httpClientFactory = httpClientFactory;
 		}
 
 		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
-			return new LocalExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings);
+			return new LocalExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _settings, _httpClientFactory);
 		}
 	}
 }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -32,8 +33,8 @@ namespace Horde.Agent.Execution
 		protected WorkspaceInfo? _autoSdkWorkspace;
 		protected WorkspaceInfo _workspace;
 
-		public PerforceExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName, AgentWorkspace? autoSdkWorkspaceInfo, AgentWorkspace workspaceInfo, DirectoryReference rootDir)
-			: base(rpcConnection, jobId, batchId, agentTypeName)
+		public PerforceExecutor(ISession session, string jobId, string batchId, string agentTypeName, AgentWorkspace? autoSdkWorkspaceInfo, AgentWorkspace workspaceInfo, DirectoryReference rootDir, IHttpClientFactory httpClientFactory)
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
 		{
 			_autoSdkWorkspaceInfo = autoSdkWorkspaceInfo;
 			_workspaceInfo = workspaceInfo;
@@ -98,7 +99,7 @@ namespace Horde.Agent.Execution
 					UpdateJobRequest updateJobRequest = new UpdateJobRequest();
 					updateJobRequest.JobId = _jobId;
 					updateJobRequest.Change = _job.Change;
-					await _rpcConnection.InvokeAsync(x => x.UpdateJobAsync(updateJobRequest, null, null, cancellationToken), new RpcContext(), cancellationToken);
+					await RpcConnection.InvokeAsync(x => x.UpdateJobAsync(updateJobRequest, null, null, cancellationToken), new RpcContext(), cancellationToken);
 				}
 
 				// Sync the workspace
@@ -390,9 +391,16 @@ namespace Horde.Agent.Execution
 
 	class PerforceExecutorFactory : JobExecutorFactory
 	{
+		readonly IHttpClientFactory _httpClientFactory;
+
+		public PerforceExecutorFactory(IHttpClientFactory httpClientFactory)
+		{
+			_httpClientFactory = httpClientFactory;
+		}
+
 		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
-			return new PerforceExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, executeJobTask.AutoSdkWorkspace, executeJobTask.Workspace, session.WorkingDir);
+			return new PerforceExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, executeJobTask.AutoSdkWorkspace, executeJobTask.Workspace, session.WorkingDir, _httpClientFactory);
 		}
 	}
 }

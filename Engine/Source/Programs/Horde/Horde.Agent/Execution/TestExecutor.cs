@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,8 +20,8 @@ namespace Horde.Agent.Execution
 {
 	class TestExecutor : JobExecutor
 	{
-		public TestExecutor(IRpcConnection rpcClient, string jobId, string batchId, string agentTypeName)
-			: base(rpcClient, jobId, batchId, agentTypeName)
+		public TestExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory)
+			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
 		{
 		}
 
@@ -65,7 +66,7 @@ namespace Horde.Agent.Execution
 			updateGraph.Labels.Add(CreateLabel("Editors", "Fortnite", new string[] { "Compile FortniteEditor Win64" }, Array.Empty<string>(), dependencyMap));
 			updateGraph.Labels.Add(CreateLabel("Clients", "Fortnite", new string[] { "Cook FortniteClient Win64" }, new string[] { "Publish FortniteClient Win64" }, dependencyMap));
 
-			await _rpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
+			await RpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
 
 			logger.LogInformation("**** FINISH JOB SETUP ****");
 			return true;
@@ -168,7 +169,7 @@ namespace Horde.Agent.Execution
 			}
 
 			FileReference currentFile = new FileReference(Assembly.GetExecutingAssembly().Location);
-			await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, currentFile.GetFileName(), currentFile, logger, cancellationToken);
+			await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, step.StepId, currentFile.GetFileName(), currentFile, logger, cancellationToken);
 
 			logger.LogInformation("**** FINISH NODE {StepName} ****", step.Name);
 
@@ -184,9 +185,16 @@ namespace Horde.Agent.Execution
 
 	class TestExecutorFactory : JobExecutorFactory
 	{
+		readonly IHttpClientFactory _httpClientFactory;
+
+		public TestExecutorFactory(IHttpClientFactory httpClientFactory)
+		{
+			_httpClientFactory = httpClientFactory;
+		}
+
 		public override JobExecutor CreateExecutor(ISession session, ExecuteJobTask executeJobTask, BeginBatchResponse beginBatchResponse)
 		{
-			return new TestExecutor(session.RpcConnection, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType);
+			return new TestExecutor(session, executeJobTask.JobId, executeJobTask.BatchId, beginBatchResponse.AgentType, _httpClientFactory);
 		}
 	}
 }

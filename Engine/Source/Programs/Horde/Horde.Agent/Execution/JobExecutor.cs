@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
@@ -23,7 +25,6 @@ using Horde.Storage.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Tasks;
-using Microsoft.CodeAnalysis.Rename;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
@@ -146,6 +147,8 @@ namespace Horde.Agent.Execution
 		protected string _batchId;
 		protected string _agentTypeName;
 
+		protected IHttpClientFactory _httpClientFactory;
+
 		protected GetJobResponse _job;
 		protected GetStreamResponse _stream;
 		protected GetAgentTypeResponse _agentType;
@@ -154,18 +157,21 @@ namespace Horde.Agent.Execution
 
 		protected bool _compileAutomationTool = true;
 
-		protected IRpcConnection _rpcConnection;
+		protected readonly ISession _session;
+		protected IRpcConnection RpcConnection => _session.RpcConnection;
 		protected Dictionary<string, string> _remapAgentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 		protected Dictionary<string, string> _envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-		public JobExecutor(IRpcConnection rpcConnection, string jobId, string batchId, string agentTypeName)
+		public JobExecutor(ISession session, string jobId, string batchId, string agentTypeName, IHttpClientFactory httpClientFactory)
 		{
-			_rpcConnection = rpcConnection;
+			_session = session;
 
 			_jobId = jobId;
 			_batchId = batchId;
 			_agentTypeName = agentTypeName;
+
+			_httpClientFactory = httpClientFactory;
 
 			_job = null!;
 			_stream = null!;
@@ -175,10 +181,10 @@ namespace Horde.Agent.Execution
 		public virtual async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			// Get the job settings
-			_job = await _rpcConnection.InvokeAsync(x => x.GetJobAsync(new GetJobRequest(_jobId), null, null, cancellationToken), new RpcContext(), cancellationToken);
+			_job = await RpcConnection.InvokeAsync(x => x.GetJobAsync(new GetJobRequest(_jobId), null, null, cancellationToken), new RpcContext(), cancellationToken);
 
 			// Get the stream settings
-			_stream = await _rpcConnection.InvokeAsync(x => x.GetStreamAsync(new GetStreamRequest(_job.StreamId), null, null, cancellationToken), new RpcContext(), cancellationToken);
+			_stream = await RpcConnection.InvokeAsync(x => x.GetStreamAsync(new GetStreamRequest(_job.StreamId), null, null, cancellationToken), new RpcContext(), cancellationToken);
 
 			// Get the agent type to determine how to configure this machine
 			_agentType = _stream.AgentTypes.FirstOrDefault(x => x.Key == _agentTypeName).Value;
@@ -334,7 +340,7 @@ namespace Horde.Agent.Execution
 			if (localFile != null)
 			{
 				string fileName = localFile.GetFileName();
-				await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, stepId, fileName, localFile, logger, cancellationToken);
+				await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, stepId, fileName, localFile, logger, cancellationToken);
 
 				if (sharedStorageDir != null)
 				{
@@ -404,7 +410,7 @@ namespace Horde.Agent.Execution
 				return false;
 			}
 			
-			await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, definitionFile.GetFileName(), definitionFile, logger, cancellationToken);
+			await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, step.StepId, definitionFile.GetFileName(), definitionFile, logger, cancellationToken);
 			await StorePreprocessedFile(preprocessedScriptFile, step.StepId, sharedStorageDir, logger, cancellationToken);
 			await StorePreprocessedFile(preprocessedSchemaFile, step.StepId, sharedStorageDir, logger, cancellationToken);
 
@@ -567,7 +573,7 @@ namespace Horde.Agent.Execution
 			}
 			
 
-			await _rpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
+			await RpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
 
 			HashSet<string> validTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			validTargets.Add("Setup Build");
@@ -649,7 +655,13 @@ namespace Horde.Agent.Execution
 
 			// Create the storage client
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
-			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
+
+			using HttpClient httpClient = _httpClientFactory.CreateClient();
+			httpClient.BaseAddress = _session.ServerUrl;
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
+
+			HttpStorageClient storage = new HttpStorageClient(new NamespaceId("default"), httpClient, cache, logger);
+//			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
 
 			// Create the mapping of tag names to file sets
@@ -1103,7 +1115,7 @@ namespace Horde.Agent.Execution
 						telemetryList.Add(telemetry);
 					}
 
-					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, $"Telemetry/{telemetryFile.GetFileName()}", telemetryFile, logger, CancellationToken.None);
+					await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, step.StepId, $"Telemetry/{telemetryFile.GetFileName()}", telemetryFile, logger, CancellationToken.None);
 					FileUtils.ForceDeleteFile(telemetryFile);
 				}
 
@@ -1172,7 +1184,7 @@ namespace Horde.Agent.Execution
 						JsonSerializerOptions options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 						await JsonSerializer.SerializeAsync(stream, rootSpan, options, cancellationToken);
 					}
-					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, "Trace.json", traceFile, logger, CancellationToken.None);
+					await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, step.StepId, "Trace.json", traceFile, logger, CancellationToken.None);
 
 					CreateTracingData(GlobalTracer.Instance.ActiveSpan, rootSpan);
 				}
@@ -1184,7 +1196,7 @@ namespace Horde.Agent.Execution
 				foreach (FileReference testDataFile in DirectoryReference.EnumerateFiles(testDataDir, "*.json", SearchOption.AllDirectories))
 				{
 					logger.LogInformation("Reading test data {TestDataFile}", testDataFile);
-					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, $"TestData/{testDataFile.MakeRelativeTo(testDataDir)}", testDataFile, logger, CancellationToken.None);
+					await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, step.StepId, $"TestData/{testDataFile.MakeRelativeTo(testDataDir)}", testDataFile, logger, CancellationToken.None);
 
 					TestData testData;
 					using (FileStream stream = FileReference.Open(testDataFile, FileMode.Open))
@@ -1218,7 +1230,7 @@ namespace Horde.Agent.Execution
 				{
 					string artifactName = artifactFile.MakeRelativeTo(logDir);
 
-					string? artifactId = await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, artifactName, artifactFile, logger, cancellationToken);
+					string? artifactId = await ArtifactUploader.UploadAsync(RpcConnection, _jobId, _batchId, step.StepId, artifactName, artifactFile, logger, cancellationToken);
 					if (artifactId != null)
 					{
 						artifactFileToId[artifactFile] = artifactId;
@@ -1278,7 +1290,7 @@ namespace Horde.Agent.Execution
 			request.Placement = report.Placement;
 			request.Name = report.Name;
 			request.ArtifactId = artifactId;
-			await _rpcConnection.InvokeAsync(x => x.CreateReportAsync(request), new RpcContext(), CancellationToken.None);
+			await RpcConnection.InvokeAsync(x => x.CreateReportAsync(request), new RpcContext(), CancellationToken.None);
 		}
 
 		private ISpan CreateTracingData(ISpan parent, TraceSpan span)
@@ -1313,7 +1325,7 @@ namespace Horde.Agent.Execution
 		{
 			if (testData.Any())
 			{
-				await _rpcConnection.InvokeAsync(x => UploadTestDataAsync(x, jobStepId, testData), new RpcContext(), CancellationToken.None);
+				await RpcConnection.InvokeAsync(x => UploadTestDataAsync(x, jobStepId, testData), new RpcContext(), CancellationToken.None);
 			}
 		}
 
