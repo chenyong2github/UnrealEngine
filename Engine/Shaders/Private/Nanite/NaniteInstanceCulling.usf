@@ -14,7 +14,7 @@
 #include "NaniteWritePixel.ush"
 #include "NaniteImposter.ush"
 
-void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, uint ImposterIndex, FScreenRect Rect )
+void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, float3 BoundsCenter, float3 BoundsExtent, uint ImposterIndex, FScreenRect Rect )
 {
 	// High bit flags it as an imposter
 	uint ImposterPixelCode = (1u << 31) | (InstanceId << 8) | (1u << 7);
@@ -54,7 +54,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			RayLocal.Origin		= LWCMultiply( RayWorldOrigin,	InstanceData.WorldToLocal );
 			RayLocal.Direction	= LWCMultiplyVector( RayWorldDirection,	InstanceData.WorldToLocal );
 
-			uint2 ImposterPixel = RayIntersectImposter( RayLocal, ImposterIndex, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, Noise );
+			uint2 ImposterPixel = RayIntersectImposter( RayLocal, ImposterIndex, BoundsCenter, BoundsExtent, Noise );
 
 			if( ImposterPixel.y != 0 )
 			{
@@ -274,6 +274,9 @@ void InstanceCull(
 			return;
 		}
 
+		const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
+		const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+
 #if VIRTUAL_TEXTURE_TARGET
 		bool bVisibleAndShouldCacheAsStaticForAnyView = false;
 #endif // VIRTUAL_TEXTURE_TARGET
@@ -309,7 +312,7 @@ void InstanceCull(
 #endif
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
+			float BoundsRadiusSq = dot(LocalBoundsExtent, LocalBoundsExtent);
 			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
 			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 
@@ -325,7 +328,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
+				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
 				bIsVisible = Cull.bIsVisible;
 			}
 #endif
@@ -335,7 +338,7 @@ void InstanceCull(
 			BRANCH
 			if( bViewHZB && bIsVisible )
 			{
-				TestPrevHZB(NaniteView, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, true, bIsVisible, bWasOccluded);
+				TestPrevHZB(NaniteView, LocalBoundsCenter, LocalBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, true, bIsVisible, bWasOccluded);
 
 				if( bWasOccluded )
 				{
@@ -349,7 +352,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
+				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
 
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, bIsVisible, bWasOccluded);
@@ -368,7 +371,7 @@ void InstanceCull(
 				{
 					uint ImposterIndex = PrimitiveData.PackedNaniteFlags & NANITE_IMPOSTER_INDEX_MASK;
 					ImposterIndex = CondMask(ImposterIndex == NANITE_IMPOSTER_INDEX_MASK, INVALID_NANITE_IMPOSTER_INDEX, ImposterIndex);
-					DrawImposter( NaniteView, InstanceData, InstanceId, ImposterIndex, Rect );
+					DrawImposter(NaniteView, InstanceData, InstanceId, LocalBoundsCenter, LocalBoundsExtent, ImposterIndex, Rect);
 					bIsVisible = false;
 				}
 			}
@@ -509,8 +512,11 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 	const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
 
+	const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
+	const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
+	FFrustumCullData Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
 
 	for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
 	{
@@ -551,7 +557,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 		if( bViewHZB && bVisible )
 		{
 			const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
-			FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipBoxCullFrustum);
+			FFrustumCullData PrevCull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipBoxCullFrustum);
 
 			BRANCH
 			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipBoxCullHZB)

@@ -144,6 +144,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.ActorWorldPosition(Proxy->GetActorPosition())
 		.WorldBounds(Proxy->GetBounds())
 		.LocalBounds(Proxy->GetLocalBounds())
+		.BoundsScale(Proxy->GetBoundsScale())
 		.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
 		.CustomPrimitiveData(Proxy->GetCustomPrimitiveData())
 		.LightingChannelMask(Proxy->GetLightingChannelMask())
@@ -286,8 +287,11 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[31].Z = PrimitiveUniformShaderParameters.InstanceWPODisableDistanceSquared;
 	Data[31].W = FMath::AsFloat(PrimitiveUniformShaderParameters.NaniteRayTracingDataOffset);
 
+	Data[32].X = PrimitiveUniformShaderParameters.BoundsScale;
+	// .YZW Unused
+
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 32;
+	const int32 CustomPrimitiveDataStartIndex = 33;
 	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];

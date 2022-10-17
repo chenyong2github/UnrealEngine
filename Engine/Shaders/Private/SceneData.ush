@@ -50,7 +50,7 @@
 	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		#ifdef USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
 			#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED
-        #endif	
+		#endif	
 	#else
 		#ifdef USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
 			#define USE_DITHERED_LOD_TRANSITION USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL
@@ -175,6 +175,8 @@ struct FPrimitiveSceneData
 	float2 		InstanceDrawDistanceMinMaxSquared;
 	float		InstanceWPODisableDistanceSquared;
 	uint		NaniteRayTracingDataOffset;
+	float3		Unused;
+	float		BoundsScale;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
 
@@ -221,12 +223,14 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.InstanceWPODisableDistanceSquared	= Primitive.InstanceWPODisableDistanceSquared;
 	PrimitiveData.PersistentPrimitiveIndex			= Primitive.PersistentPrimitiveIndex;
 	PrimitiveData.NaniteRayTracingDataOffset		= Primitive.NaniteRayTracingDataOffset;
+	PrimitiveData.BoundsScale						= Primitive.BoundsScale;
 	
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
 		PrimitiveData.CustomPrimitiveData[DataIndex] = Primitive.CustomPrimitiveData[DataIndex];
 	}
+
 	return PrimitiveData;
 }
 
@@ -238,8 +242,8 @@ StructuredBuffer<float4> GPUScenePrimitiveSceneData;
 RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
 #endif
 
-// Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 41
+// Stride of a single primitive's data in float4's, must match C++ (FPrimitiveSceneShaderData::DataStrideInFloat4s and FScatterUploadBuffer::PrimitiveDataStrideInFloat4s)
+#define PRIMITIVE_SCENE_DATA_STRIDE 42
 
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
@@ -298,44 +302,46 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 
 	float4 ObjectWorldPositionAndRadius	= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 19);
 
-	PrimitiveData.Flags							= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).x);
-	PrimitiveData.InstanceSceneDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
-	PrimitiveData.NumInstanceSceneDataEntries	= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
-	PrimitiveData.SingleCaptureIndex			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w);
-	PrimitiveData.TilePosition					= TilePosition; // 1.xyz
-	PrimitiveData.PrimitiveComponentId			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1).w);
-	PrimitiveData.LocalToWorld					= MakeLWCMatrix4x3(TilePosition, LocalToWorld);
-	PrimitiveData.WorldToLocal					= MakeLWCInverseMatrix4x3(TilePosition, WorldToLocal);
-	PrimitiveData.PreviousLocalToWorld			= MakeLWCMatrix4x3(TilePosition, PreviousLocalToWorld);
-	PrimitiveData.PreviousWorldToLocal			= MakeLWCInverseMatrix4x3(TilePosition, PreviousWorldToLocal);
-	PrimitiveData.InvNonUniformScale			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18).xyz;
-	PrimitiveData.ObjectBoundsX					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18).w;
-	PrimitiveData.ObjectWorldPosition			= MakeLWCVector3(TilePosition, ObjectWorldPositionAndRadius.xyz);
-	PrimitiveData.ObjectRadius					= ObjectWorldPositionAndRadius.w;
-	PrimitiveData.ActorWorldPosition			= MakeLWCVector3(TilePosition, LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).xyz);
-	PrimitiveData.LightmapUVIndex				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).w);
-	PrimitiveData.ObjectOrientation				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21).xyz;
-	PrimitiveData.LightmapDataIndex				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21).w);
-	PrimitiveData.NonUniformScale				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22);
-	PrimitiveData.PreSkinnedLocalBoundsMin		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).xyz;
-	PrimitiveData.NaniteResourceID				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w);
-	PrimitiveData.PreSkinnedLocalBoundsMax		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).xyz;
-	PrimitiveData.NaniteHierarchyOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w);
-	PrimitiveData.LocalObjectBoundsMin			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
-	PrimitiveData.ObjectBoundsY					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w;
-	PrimitiveData.LocalObjectBoundsMax			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).xyz;
-	PrimitiveData.ObjectBoundsZ					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).w;
-	PrimitiveData.InstanceLocalBoundsCenter		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).xyz;
-	PrimitiveData.InstancePayloadDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
-	PrimitiveData.InstanceLocalBoundsExtent		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
-	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
-	PrimitiveData.WireframeColor				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
-	PrimitiveData.PackedNaniteFlags				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
-	PrimitiveData.LevelColor					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
-	PrimitiveData.PersistentPrimitiveIndex		= asint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
-	PrimitiveData.InstanceDrawDistanceMinMaxSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).xy;
-	PrimitiveData.InstanceWPODisableDistanceSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).z;
-	PrimitiveData.NaniteRayTracingDataOffset	= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).w);
+	PrimitiveData.Flags									= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).x);
+	PrimitiveData.InstanceSceneDataOffset				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).y);
+	PrimitiveData.NumInstanceSceneDataEntries			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).z);
+	PrimitiveData.SingleCaptureIndex					= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 0).w);
+	PrimitiveData.TilePosition							= TilePosition; // 1.xyz
+	PrimitiveData.PrimitiveComponentId					= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 1).w);
+	PrimitiveData.LocalToWorld							= MakeLWCMatrix4x3(TilePosition, LocalToWorld);
+	PrimitiveData.WorldToLocal							= MakeLWCInverseMatrix4x3(TilePosition, WorldToLocal);
+	PrimitiveData.PreviousLocalToWorld					= MakeLWCMatrix4x3(TilePosition, PreviousLocalToWorld);
+	PrimitiveData.PreviousWorldToLocal					= MakeLWCInverseMatrix4x3(TilePosition, PreviousWorldToLocal);
+	PrimitiveData.InvNonUniformScale					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18).xyz;
+	PrimitiveData.ObjectBoundsX							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 18).w;
+	PrimitiveData.ObjectWorldPosition					= MakeLWCVector3(TilePosition, ObjectWorldPositionAndRadius.xyz);
+	PrimitiveData.ObjectRadius							= ObjectWorldPositionAndRadius.w;
+	PrimitiveData.ActorWorldPosition					= MakeLWCVector3(TilePosition, LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).xyz);
+	PrimitiveData.LightmapUVIndex						= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 20).w);
+	PrimitiveData.ObjectOrientation						= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21).xyz;
+	PrimitiveData.LightmapDataIndex						= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 21).w);
+	PrimitiveData.NonUniformScale						= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 22);
+	PrimitiveData.PreSkinnedLocalBoundsMin				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).xyz;
+	PrimitiveData.NaniteResourceID						= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 23).w);
+	PrimitiveData.PreSkinnedLocalBoundsMax				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).xyz;
+	PrimitiveData.NaniteHierarchyOffset					= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w);
+	PrimitiveData.LocalObjectBoundsMin					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
+	PrimitiveData.ObjectBoundsY							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w;
+	PrimitiveData.LocalObjectBoundsMax					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).xyz;
+	PrimitiveData.ObjectBoundsZ							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).w;
+	PrimitiveData.InstanceLocalBoundsCenter				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).xyz;
+	PrimitiveData.InstancePayloadDataOffset				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
+	PrimitiveData.InstanceLocalBoundsExtent				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
+	PrimitiveData.InstancePayloadDataStride				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
+	PrimitiveData.WireframeColor						= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
+	PrimitiveData.PackedNaniteFlags						= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
+	PrimitiveData.LevelColor							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
+	PrimitiveData.PersistentPrimitiveIndex				= asint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
+	PrimitiveData.InstanceDrawDistanceMinMaxSquared		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).xy;
+	PrimitiveData.InstanceWPODisableDistanceSquared		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).z;
+	PrimitiveData.NaniteRayTracingDataOffset			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).w);
+	PrimitiveData.BoundsScale							= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 32).x;
+	// .yzw Unused
 
 	// NOTE: Please make sure GetPrimitiveDataFromUniformBuffer() gets updated as well when adding new members here
 
@@ -343,7 +349,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
-		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  32 + DataIndex);
+		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  33 + DataIndex);
 	}
 	return PrimitiveData;
 #endif

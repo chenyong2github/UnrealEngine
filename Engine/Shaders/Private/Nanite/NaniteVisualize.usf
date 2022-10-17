@@ -469,16 +469,22 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 		const float4x4 LocalToWorld = LWCHackToFloat(InstanceData.LocalToWorld);
 
+		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
+		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent * PrimitiveData.BoundsScale;
+
+		const float3 InstanceBoxBoundsCenter = InstanceData.LocalBoundsCenter;
+		const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+
 		AddOBBWS(
-			Cluster.BoxBoundsCenter - Cluster.BoxBoundsExtent,
-			Cluster.BoxBoundsCenter + Cluster.BoxBoundsExtent,
+			ClusterBoxBoundsCenter - ClusterBoxBoundsExtent,
+			ClusterBoxBoundsCenter + ClusterBoxBoundsExtent,
 			ClusterBoundsColor,
 			LocalToWorld
 		);
 
 		AddOBBWS(
-			InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent,
-			InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent,
+			InstanceBoxBoundsCenter - InstanceBoxBoundsExtent,
+			InstanceBoxBoundsCenter + InstanceBoxBoundsExtent,
 			InstanceBoundsColor,
 			LocalToWorld
 		);

@@ -554,6 +554,7 @@ public:
 	inline bool IsLocalToWorldDeterminantNegative() const { return bIsLocalToWorldDeterminantNegative; }
 	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 	inline const FBoxSphereBounds& GetLocalBounds() const { return LocalBounds; }
+	inline float GetBoundsScale() const { return BoundsScale; }
 	virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const { OutBounds = LocalBounds; }
 	inline FName GetOwnerName() const { return OwnerName; }
 	inline FName GetResourceName() const { return ResourceName; }
@@ -1435,6 +1436,9 @@ private:
 
 	/** The primitive's minimum cull distance. */
 	float MinDrawDistance;
+
+	/** The primitive's bounds scale. */
+	float BoundsScale;
 
 	/** The primitive's uniform buffer. */
 	TUniformBufferRef<FPrimitiveUniformShaderParameters> UniformBuffer;

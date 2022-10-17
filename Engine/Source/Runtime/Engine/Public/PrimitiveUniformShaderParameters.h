@@ -59,6 +59,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector2f,		InstanceDrawDistanceMinMaxSquared)
 	SHADER_PARAMETER(float,			InstanceWPODisableDistanceSquared)
 	SHADER_PARAMETER(uint32,		NaniteRayTracingDataOffset)
+	SHADER_PARAMETER(FVector3f,		Unused)
+	SHADER_PARAMETER(float,			BoundsScale)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -125,6 +127,8 @@ public:
 		bHasNaniteImposter							= false;
 		bHasInstanceDrawDistanceCull				= false;
 		bHasWPODisableDistance						= false;
+
+		Parameters.BoundsScale						= 1.0f;
 
 		// Default colors
 		Parameters.WireframeColor					= FVector3f(1.0f, 1.0f, 1.0f);
@@ -199,6 +203,12 @@ public:
 	inline FPrimitiveUniformShaderParametersBuilder& LightingChannelMask(uint32 InLightingChannelMask)
 	{
 		LightingChannels = InLightingChannelMask;
+		return *this;
+	}
+
+	inline FPrimitiveUniformShaderParametersBuilder& BoundsScale(float InBoundsScale)
+	{
+		Parameters.BoundsScale = InBoundsScale;
 		return *this;
 	}
 
@@ -368,7 +378,6 @@ public:
 			Parameters.InstanceLocalBoundsExtent = InstanceLocalBounds.GetExtent();
 		}
 
-
 		if (!bHasPreSkinnedLocalBounds)
 		{
 			Parameters.PreSkinnedLocalBoundsMin = Parameters.LocalObjectBoundsMin;
@@ -524,7 +533,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match PRIMITIVE_SCENE_DATA_STRIDE in SceneData.ush
-	enum { DataStrideInFloat4s = 41 };
+	enum { DataStrideInFloat4s = 42 };
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 

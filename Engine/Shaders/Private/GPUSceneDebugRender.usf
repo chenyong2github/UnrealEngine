@@ -116,16 +116,19 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 		return;
 	}
 
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+
+	const float3 InstanceBoxBoundsCenter = InstanceData.LocalBoundsCenter;
+	const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent * PrimitiveData.BoundsScale;
+
 	float3 LocalRayEnd = mul(float4(PickingRayEnd, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
-	float2 RayResult = LineBoxIntersect(LocalRayStart, LocalRayEnd, InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent);
+	float2 RayResult = LineBoxIntersect(LocalRayStart, LocalRayEnd, InstanceBoxBoundsCenter - InstanceBoxBoundsExtent, InstanceBoxBoundsCenter + InstanceBoxBoundsExtent);
 	bool bIsMouseOver = RayResult.x <= RayResult.y;
 	// Only draw selected
 	const uint BitsPerWord = 32U;
 	const uint Mask = 1U << (InstanceData.PrimitiveId % BitsPerWord);
 
 	bool bIsSelected = (InstanceData.PrimitiveId < NumScenePrimitives && (SelectedPrimitiveFlags[InstanceData.PrimitiveId / BitsPerWord] & Mask) != 0U);
-
-	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
 	//float4 InstanceBoundColor = InstanceData.PrimitiveId < NumScenePrimitives ? float4(0.3f, 1.0f, 0.5f, 1.0f) : float4(0.3f, 0.3f, 0.3f, 0.5f);
 	float4 InstanceBoundColor = float4(ColorSilver.xyz, 0.5f);
