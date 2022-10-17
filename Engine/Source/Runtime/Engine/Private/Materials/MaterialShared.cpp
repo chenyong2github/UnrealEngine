@@ -1613,6 +1613,11 @@ bool FMaterialResource::IsUsedWithNanite() const
 	return Material->bUsedWithNanite;
 }
 
+bool FMaterialResource::IsUsedWithVolumetricCloud() const
+{
+	return Material->bUsedWithVolumetricCloud;
+}
+
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
 	return Material->TranslucencyPass == MTP_AfterDOF
@@ -6063,6 +6068,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bIsTranslucencySurface = InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_Surface || InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_SurfacePerPixelLighting;
 	bShouldDisableDepthTest = InMaterial->ShouldDisableDepthTest();
 	bHasRenderTracePhysicalMaterialOutput = InMaterial->HasRenderTracePhysicalMaterialOutputs();
+	bIsUsedWithVolumetricCloud = InMaterial->IsUsedWithVolumetricCloud();
 }
 
 #undef LOCTEXT_NAMESPACE

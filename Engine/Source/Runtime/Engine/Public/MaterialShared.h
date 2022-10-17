@@ -1894,6 +1894,7 @@ public:
 	virtual bool IsUsedWithGeometryCollections() const { return false; }
 	virtual bool IsUsedWithAPEXCloth() const { return false; }
 	virtual bool IsUsedWithNanite() const { return false; }
+	virtual bool IsUsedWithVolumetricCloud() const { return false; }
 	virtual bool IsUsedWithUI() const { return false; }
 	virtual bool IsUsedWithGeometryCache() const { return false; }
 	virtual bool IsUsedWithWater() const { return false; }
@@ -2931,6 +2932,7 @@ public:
 	ENGINE_API virtual bool IsUsedWithLidarPointCloud() const override;
 	ENGINE_API virtual bool IsUsedWithVirtualHeightfieldMesh() const override;
 	ENGINE_API virtual bool IsUsedWithNanite() const override;
+	ENGINE_API virtual bool IsUsedWithVolumetricCloud() const override;
 	ENGINE_API virtual bool IsFullyRough() const override;
 	ENGINE_API virtual bool UseNormalCurvatureToRoughness() const override;
 	ENGINE_API virtual enum EMaterialFloatPrecisionMode GetMaterialFloatPrecisionMode() const override;
@@ -3585,6 +3587,7 @@ struct FMaterialShaderParameters
 			uint64 bIsTranslucencySurface : 1;
 			uint64 bShouldDisableDepthTest : 1;
 			uint64 bHasRenderTracePhysicalMaterialOutput : 1;
+			uint64 bIsUsedWithVolumetricCloud : 1;
 		};
 	};
 

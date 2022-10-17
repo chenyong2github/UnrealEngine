@@ -286,6 +286,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Support 16-bit skin weights on SkeletalMesh
 		IncreasedSkinWeightPrecision,
 
+		// bIsUsedWithVolumetricCloud flag auto conversion
+		MaterialHasIsUsedWithVolumetricCloudFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

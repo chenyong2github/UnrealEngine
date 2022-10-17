@@ -71,6 +71,7 @@ enum EMaterialUsage
 	MATUSAGE_LidarPointCloud,
 	MATUSAGE_VirtualHeightfieldMesh,
 	MATUSAGE_Nanite,
+	MATUSAGE_VolumetricCloud,
 
 	MATUSAGE_MAX,
 };

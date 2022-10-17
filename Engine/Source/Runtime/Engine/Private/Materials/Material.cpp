@@ -78,6 +78,9 @@
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialInput.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
+#include "Materials/MaterialExpressionCloudLayer.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "Materials/StrataMaterial.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
@@ -969,6 +972,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	BlendableOutputAlpha = false;
 	bIsBlendable = true;
 	bEnableStencilTest = false;
+	bUsedWithVolumetricCloud = false;
 
 	bUseEmissiveForDynamicAreaLighting = false;
 	RefractionDepthBias = 0.0f;
@@ -1344,6 +1348,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_LidarPointCloud: UsageValue = bUsedWithLidarPointCloud; break;
 		case MATUSAGE_VirtualHeightfieldMesh: UsageValue = bUsedWithVirtualHeightfieldMesh; break;
 		case MATUSAGE_Nanite: UsageValue = bUsedWithNanite; break;
+		case MATUSAGE_VolumetricCloud: UsageValue = bUsedWithVolumetricCloud; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageValue;
@@ -1587,6 +1592,10 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithNanite = NewValue; break;
 		}
+		case MATUSAGE_VolumetricCloud:
+		{
+			bUsedWithVolumetricCloud = NewValue; break;
+		}
 		default: UE_LOG(LogMaterial, Fatal, TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 #if WITH_EDITOR
@@ -1619,6 +1628,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_LidarPointCloud: UsageName = TEXT("bUsedWithLidarPointCloud"); break;
 		case MATUSAGE_VirtualHeightfieldMesh: UsageName = TEXT("bUsedWithVirtualHeightfieldMesh"); break;
 		case MATUSAGE_Nanite: UsageName = TEXT("bUsedWithNanite"); break;
+		case MATUSAGE_VolumetricCloud: UsageName = TEXT("bUsedWithVolumetricCloud"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageName;
@@ -3754,6 +3764,20 @@ void UMaterial::PostLoad()
 
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
+	if (MaterialDomain == MD_Volume && UE5MainVer < FUE5MainStreamObjectVersion::MaterialHasIsUsedWithVolumetricCloudFlag)
+	{
+		bUsedWithVolumetricCloud = HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionCloudSampleAttribute>()
+								|| HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionVolumetricAdvancedMaterialOutput>()
+								|| HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionVolumetricAdvancedMaterialInput>();
+		if (bUsedWithVolumetricCloud)
+		{
+			static FGuid BackwardsCompatibilityUsedWithVolumetricCloudConversionGuid(TEXT("6F6336BF-D377-4FA5-9887-A7457BE6DE92"));
+			ReleaseResourcesAndMutateDDCKey(BackwardsCompatibilityUsedWithVolumetricCloudConversionGuid);
+		}
+	}
+#endif
+
 	// Strata materials conversion needs to be done after expressions are cached, otherwise material function won't have 
 	// valid inputs in certain cases
 	ConvertMaterialToStrataMaterial();
@@ -4180,7 +4204,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if (FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0)
 		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface;
+			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume;
 		}
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUsesDistortion))
 		{
