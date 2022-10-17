@@ -459,7 +459,7 @@ private:
 	/** True if this actor is currently running user construction script (used to defer component registration) */
 	uint8 bRunningUserConstructionScript:1;
 
-	/** Set when RegisterAllComponents() is called and unset when UnregisterAllComponents() is called */
+	/** Set true just before PostRegisterAllComponents() is called and false just before PostUnregisterAllComponents() is called */
 	uint8 bHasRegisteredAllComponents:1;
 
 	/**
@@ -1835,8 +1835,14 @@ public:
 		return bActorIsBeingDestroyed;
 	}
 
-	/** Returns true if RegisterAllComponents() has been called without a subsequent call to UnregisterAllComponents() and false otherwise */
+	/** Returns bHasRegisteredAllComponents which indicates whether this actor has registered all their components without 
+	 *	unregisatering all of them them.
+	 *	bHasRegisteredAllComponents is set true just before PostRegisterAllComponents() is called and false just before PostUnregisterAllComponents() is called.
+	 */ 
 	bool HasActorRegisteredAllComponents() const { return bHasRegisteredAllComponents; }
+
+	/** Sets bHasRegisteredAllComponents true. bHasRegisteredAllComponents must be set true just prior to calling PostRegisterAllComponents(). */
+	void SetHasActorRegisteredAllComponents() { bHasRegisteredAllComponents = true; }
 
 	/** Event when this actor takes ANY damage */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName = "AnyDamage"), Category="Game|Damage")
@@ -2844,7 +2850,10 @@ public:
 	/** Called before all the components in the Components array are registered, called both in editor and during gameplay */
 	virtual void PreRegisterAllComponents();
 
-	/** Called after all the components in the Components array are registered, called both in editor and during gameplay */
+	/** 
+	 * Called after all the components in the Components array are registered, called both in editor and during gameplay.
+	 * bHasRegisteredAllComponents must be set true prior to calling this function.
+	 */
 	virtual void PostRegisterAllComponents();
 
 	/** Returns true if Actor has deferred the RegisterAllComponents() call at spawn time (e.g. pending Blueprint SCS execution to set up a scene root component). */

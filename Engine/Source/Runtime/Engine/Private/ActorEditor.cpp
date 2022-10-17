@@ -188,6 +188,7 @@ void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 			}
 			else
 			{
+				bHasRegisteredAllComponents = true;
 				PostRegisterAllComponents();
 			}
 		}

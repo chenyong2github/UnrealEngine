@@ -3476,6 +3476,8 @@ void AActor::PreRegisterAllComponents()
 
 void AActor::PostRegisterAllComponents() 
 {
+	ensureMsgf(bHasRegisteredAllComponents == true, TEXT("bHasRegisteredAllComponents must be set to true prior to calling PostRegisterAllComponents()"));
+
 	FNavigationSystem::OnActorRegistered(*this);
 }
 
@@ -5186,6 +5188,8 @@ void AActor::UnregisterAllComponents(const bool bForReregister)
 
 void AActor::PostUnregisterAllComponents()
 {
+	ensureMsgf(bHasRegisteredAllComponents == false, TEXT("bHasRegisteredAllComponents must be set to false prior to calling PostUnregisterAllComponents()"));
+
 	FNavigationSystem::OnActorUnregistered(*this);
 }
 
@@ -5201,7 +5205,6 @@ void AActor::RegisterAllComponents()
 
 	// Clear this flag as it's no longer deferred
 	bHasDeferredComponentRegistration = false;
-	bHasRegisteredAllComponents = true;
 }
 
 // Walks through components hierarchy and returns closest to root parent component that is unregistered
@@ -5311,6 +5314,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegis
 #if PERF_TRACK_DETAILED_ASYNC_STATS
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_AActor_IncrementalRegisterComponents_PostRegisterAllComponents);
 #endif
+		bHasRegisteredAllComponents = true;
 		// Finally, call PostRegisterAllComponents
 		PostRegisterAllComponents();
 		return true;
