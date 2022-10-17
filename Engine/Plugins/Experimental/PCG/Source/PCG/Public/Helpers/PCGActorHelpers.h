@@ -28,6 +28,8 @@ struct FPCGISMCBuilderParameters
 	EComponentMobility::Type Mobility = EComponentMobility::Static;
 	FName CollisionProfile = TEXT("Default");
 	int32 NumCustomDataFloats = 0;
+	float CullStartDistance = 0;
+	float CullEndDistance = 0;
 };
 
 UCLASS(BlueprintType)

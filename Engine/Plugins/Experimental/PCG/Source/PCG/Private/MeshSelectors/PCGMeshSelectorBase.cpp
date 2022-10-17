@@ -11,11 +11,18 @@ bool UPCGMeshSelectorBase::FindOrAddInstanceList(
 	const FCollisionProfileName& CollisionProfile,
 	bool bOverrideMaterials,
 	const TArray<UMaterialInterface*>& MaterialOverrides,
+	const float InCullStartDistance,
+	const float InCullEndDistance,
 	int32& OutIndex) const
 {
 	for (int Index = 0; Index < OutInstanceLists.Num(); ++Index)
 	{
 		if (OutInstanceLists[Index].Mesh != Mesh || OutInstanceLists[Index].bOverrideCollisionProfile != bOverrideCollisionProfile || OutInstanceLists[Index].bOverrideMaterials != bOverrideMaterials)
+		{
+			continue;
+		}
+
+		if (OutInstanceLists[Index].CullStartDistance != InCullStartDistance || OutInstanceLists[Index].CullEndDistance != InCullEndDistance)
 		{
 			continue;
 		}
@@ -35,7 +42,7 @@ bool UPCGMeshSelectorBase::FindOrAddInstanceList(
 		return false;
 	}
 
-	OutIndex = OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides);
+	OutIndex = OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance);
 
 	return true;
 }

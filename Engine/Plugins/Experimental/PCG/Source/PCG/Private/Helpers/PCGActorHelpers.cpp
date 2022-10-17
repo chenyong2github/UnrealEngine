@@ -64,7 +64,9 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 			// Check basic parameters
 			if (ISMC->Mobility != InParams.Mobility ||
 				(ISMC->bUseDefaultCollision && InParams.CollisionProfile != TEXT("Default")) ||
-				(!ISMC->bUseDefaultCollision && ISMC->GetCollisionProfileName() != InParams.CollisionProfile))
+				(!ISMC->bUseDefaultCollision && ISMC->GetCollisionProfileName() != InParams.CollisionProfile) ||
+				ISMC->InstanceStartCullDistance != InParams.CullStartDistance ||
+				ISMC->InstanceEndCullDistance != InParams.CullEndDistance)
 			{
 				continue;
 			}
@@ -140,6 +142,9 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 	{
 		ISMC->bUseDefaultCollision = true;
 	}
+
+	ISMC->InstanceStartCullDistance = InParams.CullStartDistance;
+	ISMC->InstanceEndCullDistance = InParams.CullEndDistance;
 	
 	ISMC->AttachToComponent(InTargetActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 	ISMC->ComponentTags.Add(InSourceComponent->GetFName());

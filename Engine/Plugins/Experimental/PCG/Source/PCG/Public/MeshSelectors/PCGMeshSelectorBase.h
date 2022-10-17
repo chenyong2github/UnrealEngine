@@ -21,8 +21,8 @@ struct FPCGMeshInstanceList
 
 	FPCGMeshInstanceList() = default;
 	
-	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<UMaterialInterface*>& InMaterialOverrides)
-		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides)
+	FPCGMeshInstanceList(const TSoftObjectPtr<UStaticMesh>& InMesh, bool bInOverrideCollisionProfile, const FCollisionProfileName& InCollisionProfile, bool bInOverrideMaterials, const TArray<UMaterialInterface*>& InMaterialOverrides, const float InCullStartDistance, const float InCullEndDistance)
+		: Mesh(InMesh), bOverrideCollisionProfile(bInOverrideCollisionProfile), CollisionProfile(InCollisionProfile), bOverrideMaterials(bInOverrideMaterials), MaterialOverrides(InMaterialOverrides), CullStartDistance(InCullStartDistance), CullEndDistance(InCullEndDistance)
 	{}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -42,6 +42,14 @@ struct FPCGMeshInstanceList
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
     TArray<FPCGPoint> Instances;
+
+	/** Distance at which instances begin to fade. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	float CullStartDistance = 0;
+	
+	/** Distance at which instances are culled. Use 0 to disable. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	float CullEndDistance = 0;
 };
 
 UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (Procedural))
@@ -74,5 +82,7 @@ public:
 		const FCollisionProfileName& CollisionProfile,
 		bool bOverrideMaterials,
 		const TArray<UMaterialInterface*>& MaterialOverrides,
+		const float InCullStartDistance,
+		const float InCullEndDistance,
 		int32& OutIndex) const;
 };

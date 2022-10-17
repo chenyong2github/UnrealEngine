@@ -32,6 +32,14 @@ struct PCG_API FPCGMeshSelectorWeightedEntry
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
 
+	/** Distance at which instances begin to fade. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	float CullStartDistance = 0;
+	
+	/** Distance at which instances are culled. Use 0 to disable. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	float CullEndDistance = 0;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0"))
 	int Weight = 1;
 };

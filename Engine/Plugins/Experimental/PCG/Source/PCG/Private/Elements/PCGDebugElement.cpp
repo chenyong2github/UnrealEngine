@@ -145,6 +145,8 @@ namespace PCGDebugElement
 			Params.Mesh = Mesh;
 			Params.MaterialOverrides = Materials;
 			Params.CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
+			// Note: In the future we may consider enabling culling for performance reasons, but for now culling disabled.
+			Params.CullStartDistance = Params.CullEndDistance = 0;
 
 			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent.Get(), Params);
 			check(ISMC);
