@@ -1991,7 +1991,7 @@ namespace Horde.Build.Tests
 
 				// make sure 4 steps have been recorded
 				IIssueDetails details = await IssueService.GetIssueDetailsAsync(issues[0]);
-				Assert.AreEqual(4, details.Steps.Count);
+				Assert.AreEqual(3, details.Steps.Count);
 
 			}
 
