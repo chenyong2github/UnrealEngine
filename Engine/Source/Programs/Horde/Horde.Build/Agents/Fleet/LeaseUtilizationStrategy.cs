@@ -259,16 +259,23 @@ namespace Horde.Build.Agents.Fleet
 					// Include reserve agent count to ensure pool always can grow
 					int desiredAgentCount = Math.Max(numAgentsUtilized + Settings.NumReserveAgents, Settings.MinAgents);
 					
-					StringBuilder sb = new();
-					sb.AppendFormat("Jobs=[{0}] ", GetDensityMap(poolData.Samples.Select(x => x._jobWork / Math.Max(1, poolData.Agents.Count))));
-					sb.AppendFormat("Total=[{0}] ", GetDensityMap(poolData.Samples.Select(x => x._otherWork / Math.Max(1, poolData.Agents.Count))));
-					sb.AppendFormat("Min=[{0,5:0.0}] ", poolData.Samples.Min(x => x._jobWork));
-					sb.AppendFormat("Max=[{0,5:0.0}] ", poolData.Samples.Max(x => x._jobWork));
-					sb.AppendFormat("Avg=[{0,5:0.0}] ", utilization);
-					sb.AppendFormat("Pct=[{0,5:0.0}] ", poolData.Samples.Sum(x => x._jobWork) / Settings.NumSamples);
-					sb.Append(Settings);
+					Dictionary<string, object> status = new()
+					{
+						["Name"] = GetType().Name,
+						["Jobs"] = GetDensityMap(poolData.Samples.Select(x => x._jobWork / Math.Max(1, poolData.Agents.Count))),
+						["Total"] = GetDensityMap(poolData.Samples.Select(x => x._otherWork / Math.Max(1, poolData.Agents.Count))),
+						["Min"] = poolData.Samples.Min(x => x._jobWork),
+						["Max"] = poolData.Samples.Max(x => x._jobWork),
+						["Avg"] = utilization,
+						["Pct"] = poolData.Samples.Sum(x => x._jobWork) / Settings.NumSamples,
+						["SampleTimeSec"] = Settings.SampleTimeSec,
+						["NumSamples"] = Settings.NumSamples,
+						["NumSamplesForResult"] = Settings.NumSamplesForResult,
+						["MinAgents"] = Settings.MinAgents,
+						["NumReserveAgents"] = Settings.NumReserveAgents,
+					};
 
-					result.Add(new(pool, poolSize.Agents, desiredAgentCount, sb.ToString()));
+					result.Add(new(pool, poolSize.Agents, desiredAgentCount, status));
 				}
 			}
 

@@ -183,9 +183,15 @@ namespace Horde.Build.Agents.Fleet
 
 			IFleetManager fleetManager = CreateFleetManager(poolSizeData.Pool);
 
-			_logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status} FleetManager={FleetManager}",
-				pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount, poolSizeData.StatusMessage, fleetManager.GetType().Name);
-			
+			Dictionary<string, object> logScope = new() { ["FleetManager"] = fleetManager.GetType().Name };
+			logScope["PoolSizeStrategy"] = poolSizeData.Status ?? new Dictionary<string, object>();
+
+			using (_logger.BeginScope(logScope))
+			{
+				_logger.LogInformation("{PoolName} Current={Current} Target={Target} Delta={Delta}",
+					pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount);
+			}
+
 			try
 			{
 				using IScope scope = GlobalTracer.Instance.BuildSpan("ScalingPool").StartActive();

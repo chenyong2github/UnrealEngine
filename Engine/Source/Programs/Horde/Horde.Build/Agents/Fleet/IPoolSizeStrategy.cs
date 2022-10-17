@@ -78,9 +78,9 @@ namespace Horde.Build.Agents.Fleet
 		public int? DesiredAgentCount  { get; }
 		
 		/// <summary>
-		/// Human-readable text describing the status of the pool (data the sizing is based on etc)
+		/// Log-friendly metadata object describing the output of the size calculation through key/values
 		/// </summary>
-		public string StatusMessage { get; }
+		public IReadOnlyDictionary<string, object>? Status { get; }
 
 		/// <summary>
 		/// Constructor
@@ -88,13 +88,13 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="pool"></param>
 		/// <param name="agents"></param>
 		/// <param name="desiredAgentCount"></param>
-		/// <param name="statusMessage"></param>
-		public PoolSizeData(IPool pool, List<IAgent> agents, int? desiredAgentCount, string statusMessage = "N/A")
+		/// <param name="status"></param>
+		public PoolSizeData(IPool pool, List<IAgent> agents, int? desiredAgentCount, IReadOnlyDictionary<string, object>? status = null)
 		{
 			Pool = pool;
 			Agents = agents;
 			DesiredAgentCount = desiredAgentCount;
-			StatusMessage = statusMessage;
+			Status = status;
 		}
 
 		/// <summary>
@@ -104,11 +104,11 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="pool"></param>
 		/// <param name="agents"></param>
 		/// <param name="desiredAgentCount"></param>
-		/// <param name="statusMessage"></param>
+		/// <param name="status"></param>
 		/// <returns>A new copy</returns>
-		public PoolSizeData Copy(IPool? pool = null, List<IAgent>? agents = null, int? desiredAgentCount = null, string? statusMessage = null)
+		public PoolSizeData Copy(IPool? pool = null, List<IAgent>? agents = null, int? desiredAgentCount = null, IReadOnlyDictionary<string, object>? status = null)
 		{
-			return new PoolSizeData(pool ?? Pool, agents ?? Agents, desiredAgentCount ?? DesiredAgentCount, statusMessage ?? StatusMessage);
+			return new PoolSizeData(pool ?? Pool, agents ?? Agents, desiredAgentCount ?? DesiredAgentCount, status);
 		}
 	}
 	
@@ -139,7 +139,7 @@ namespace Horde.Build.Agents.Fleet
 		/// <inheritdoc/>
 		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
 		{
-			List<PoolSizeData> result = pools.Select(x => new PoolSizeData(x.Pool, x.Agents, x.Agents.Count, "(no-op)")).ToList();
+			List<PoolSizeData> result = pools.Select(x => new PoolSizeData(x.Pool, x.Agents, x.Agents.Count)).ToList();
 			return Task.FromResult(result);
 		}
 

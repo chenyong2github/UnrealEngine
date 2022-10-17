@@ -198,16 +198,27 @@ namespace Horde.Build.Agents.Fleet
 			return pools.Select(current =>
 			{
 				poolQueueSizes.TryGetValue(current.Pool.Id, out int queueSize);
+				
+				Dictionary<string, object> status = new()
+				{
+					["Name"] = GetType().Name,
+					["QueueSize"] = queueSize,
+					["ScaleOutFactor"] = Settings.ScaleOutFactor,
+					["ScaleInFactor"] = Settings.ScaleInFactor,
+					["SamplePeriodMin"] = Settings.SamplePeriodMin,
+					["ReadyTimeThresholdSec"] = Settings.ReadyTimeThresholdSec,
+				};
+				
 				if (queueSize > 0)
 				{
 					int additionalAgentCount = (int)Math.Ceiling(queueSize * Settings.ScaleOutFactor);
 					int desiredAgentCount = current.Agents.Count + additionalAgentCount;
-					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, $"QueueSize={queueSize} " + Settings);
+					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, status);
 				}
 				else
 				{
 					int desiredAgentCount = (int)(current.Agents.Count * Settings.ScaleInFactor);
-					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, "QueueSize={queueSize} " + Settings);
+					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, status);
 				}
 			}).ToList();
 		}
