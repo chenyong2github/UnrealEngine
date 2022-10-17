@@ -1558,7 +1558,7 @@ extern double GCStartTime;
     }, TStatId(), NULL, ENamedThreads::GameThread);
 }
 
--(void)application:(UIApplication *)application didFailtoRegisterForRemoteNotificationsWithError:(NSError *)error
+-(void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
 {
 	FString errorDescription([error description]);
 	
