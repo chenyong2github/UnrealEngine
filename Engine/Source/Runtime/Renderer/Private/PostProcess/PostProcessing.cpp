@@ -805,7 +805,7 @@ void AddPostProcessingPasses(
 		FSceneDownsampleChain SceneDownsampleChain;
 		if (bProduceSceneColorChain)
 		{
-			const bool bLogLumaInAlpha = true;
+			const bool bLogLumaInAlpha = bBasicEyeAdaptationEnabled;
 			SceneDownsampleChain.Init(
 				GraphBuilder, View,
 				EyeAdaptationParameters,
