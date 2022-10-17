@@ -9533,7 +9533,10 @@ int32 FHLSLMaterialTranslator::ShadingModel(EMaterialShadingModel InSelectedShad
 		InSelectedShadingModel = MSM_DefaultLit;
 	}
 	
-	ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
+	if (InSelectedShadingModel < MSM_NUM)
+	{
+		ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
+	}
 	return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
 }
 

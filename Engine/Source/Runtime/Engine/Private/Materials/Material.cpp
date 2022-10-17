@@ -4686,7 +4686,11 @@ void UMaterial::RebuildShadingModelField()
 
 				for (UMaterialExpressionShadingModel* MatExpr : ShadingModelExpressions)
 				{
-					ShadingModels.AddShadingModel(MatExpr->ShadingModel);
+					// Ensure the Shading model is valid
+					if (MatExpr->ShadingModel < MSM_NUM)
+					{
+						ShadingModels.AddShadingModel(MatExpr->ShadingModel);
+					}
 				}
 
 				// If no expressions have been found, set a default
@@ -4799,7 +4803,11 @@ void UMaterial::RebuildShadingModelField()
 
 		for (UMaterialExpressionShadingModel* MatExpr : ShadingModelExpressions)
 		{
-			ShadingModels.AddShadingModel(MatExpr->ShadingModel);
+			// Ensure the Shading model is valid
+			if (MatExpr->ShadingModel < MSM_NUM)
+			{
+				ShadingModels.AddShadingModel(MatExpr->ShadingModel);
+			}
 		}
 
 		// If no expressions have been found, set a default
