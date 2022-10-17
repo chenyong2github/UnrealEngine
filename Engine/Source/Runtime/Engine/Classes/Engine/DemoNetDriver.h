@@ -34,7 +34,7 @@ DECLARE_DELEGATE_OneParam(FOnGotoTimeDelegate, const bool /* bWasSuccessful */);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDemoStartedDelegate, UDemoNetDriver* /* DemoNetDriver */);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UE_DEPRECATED(5.2, "No longer used")
+UE_DEPRECATED(5.1, "No longer used")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDemoFailedToStartDelegate, UDemoNetDriver* /* DemoNetDriver */, EDemoPlayFailure::Type /* FailureType*/);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -701,7 +701,7 @@ protected:
 	bool DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.2, "Please use NotifyDemoPlaybackError instead")
+	UE_DEPRECATED(5.1, "Please use NotifyDemoPlaybackError instead")
 	void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	

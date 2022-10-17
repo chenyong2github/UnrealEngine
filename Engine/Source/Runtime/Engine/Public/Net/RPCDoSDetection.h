@@ -471,7 +471,7 @@ public:
 	 * @param Update	Whether or not we are escalating or de-escalating the severity state
 	 * @param Reason	The reason for the escalation change
 	 */
-	UE_DEPRECATED(5.2, "UpdateSeverity will be made private soon.")
+	UE_DEPRECATED(5.1, "UpdateSeverity will be made private soon.")
 	void UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason)
 	{
 		UpdateSeverity_Private(Update, Reason);

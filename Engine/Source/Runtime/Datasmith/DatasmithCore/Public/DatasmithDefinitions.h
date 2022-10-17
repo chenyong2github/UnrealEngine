@@ -28,7 +28,7 @@ enum class EDatasmithElementType : uint64
 	Camera                         = 1ull << 10,
 	Shader                         = 1ull << 11,
 	BaseMaterial                   = 1ull << 12,
-	MasterMaterial UE_DEPRECATED(5.2, "EDatasmithElementType::MasterMaterial will not be supported in 5.2. Please use EDatasmithElementType::MaterialInstance instead.") = 1ull << 13,
+	MasterMaterial UE_DEPRECATED(5.1, "EDatasmithElementType::MasterMaterial will not be supported in 5.2. Please use EDatasmithElementType::MaterialInstance instead.") = 1ull << 13,
 	MaterialInstance               = 1ull << 13,
 	KeyValueProperty               = 1ull << 14,
 	Texture                        = 1ull << 15,

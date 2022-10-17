@@ -629,7 +629,7 @@ enum ETravelType
 UENUM(BlueprintType)
 namespace EDemoPlayFailure
 {
-	enum UE_DEPRECATED(5.2, "No longer used in favor of EReplayResult") Type
+	enum UE_DEPRECATED(5.1, "No longer used in favor of EReplayResult") Type
 	{
 		/** A Generic failure. */
 		Generic,
@@ -655,7 +655,7 @@ namespace EDemoPlayFailure
 namespace EDemoPlayFailure
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.2, "EDemoPlayFailure is now deprecated")
+	UE_DEPRECATED(5.1, "EDemoPlayFailure is now deprecated")
 	inline const TCHAR* ToString(EDemoPlayFailure::Type FailureType)
 	{
 		switch (FailureType)

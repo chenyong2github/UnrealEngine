@@ -294,7 +294,7 @@ public:
 	void RefreshViewer( const bool bFinal );
 	void ConditionallyRefreshViewer();
 	
-	UE_DEPRECATED(5.2, "No longer used")
+	UE_DEPRECATED(5.1, "No longer used")
 	void SetLastError(const ENetworkReplayError::Type InLastError) { SetLastError(EHttpReplayResult::Unknown); }
 	void SetLastError(FHttpReplayResult&& Result);
 

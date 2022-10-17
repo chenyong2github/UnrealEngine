@@ -95,7 +95,7 @@ struct FDDS10FileHeader
 
 // @todo Oodle : deprecate old DDSLoader after it is removed from InterchangeDDSTranslator 
 // 
-//class UE_DEPRECATED(5.2, "Use DDSFile instead") FDDSLoadHelper;
+//class UE_DEPRECATED(5.1, "Use DDSFile instead") FDDSLoadHelper;
 class FDDSLoadHelper
 {
 public:

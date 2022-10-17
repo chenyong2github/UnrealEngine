@@ -700,7 +700,7 @@ ENUM_CLASS_FLAGS(ELogTraceFlags);
  *
  * Most easily used through the LogTrace console command, as documented in UnitTestManager.cpp
  */
-class UE_DEPRECATED(5.2, "FLogStackTraceManager is deprecated, use FLogTraceManager/GLogTrace now, instead.") FLogStackTraceManager
+class UE_DEPRECATED(5.1, "FLogStackTraceManager is deprecated, use FLogTraceManager/GLogTrace now, instead.") FLogStackTraceManager
 	: public FOutputDevice
 {
 public:
@@ -730,7 +730,7 @@ public:
 	 * @param bPartial	Whether or not to do partial matches for this line (case insensitive, and matches substrings)
 	 * @param bDump		Whether or not to dump traces as they are encountered
 	 */
-	UE_DEPRECATED(5.2, "Use AddLogTrace with ELogTraceFlags now, instead.")
+	UE_DEPRECATED(5.1, "Use AddLogTrace with ELogTraceFlags now, instead.")
 	void AddLogTrace(FString LogLine, bool bPartial=true, bool bDump=true)
 	{
 		ELogTraceFlags TraceFlags = (bPartial ? ELogTraceFlags::Partial : ELogTraceFlags::Full);

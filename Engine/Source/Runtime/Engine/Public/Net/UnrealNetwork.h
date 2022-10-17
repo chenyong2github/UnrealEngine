@@ -64,7 +64,7 @@ DECLARE_DELEGATE_OneParam(FGetOverridableVersionDataForDemoHeaderWriteDelegate, 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayStartedDelegate, UWorld* /*World*/);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UE_DEPRECATED(5.2, "Deprecated in favor of FOnReplayPlaybackFailureDelegate")
+UE_DEPRECATED(5.1, "Deprecated in favor of FOnReplayPlaybackFailureDelegate")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayStartFailureDelegate, UWorld* /*World*/, EDemoPlayFailure::Type /*Error*/);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -100,7 +100,7 @@ struct ENGINE_API FNetworkReplayDelegates
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Public delegate to be notified when a replay failed to start */
-	UE_DEPRECATED(5.2, "Deprecated in favor of OnReplayPlaybackFailure")
+	UE_DEPRECATED(5.1, "Deprecated in favor of OnReplayPlaybackFailure")
 	static FOnReplayStartFailureDelegate OnReplayStartFailure;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

@@ -36,7 +36,7 @@ public:
 
 	TWeakPtr<IAssetTypeActions> CommonAssetTypeActions;
 
-	UE_DEPRECATED(5.2, "Use SelectedAssets now, this field will not contain any objects.")
+	UE_DEPRECATED(5.1, "Use SelectedAssets now, this field will not contain any objects.")
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	UPROPERTY()

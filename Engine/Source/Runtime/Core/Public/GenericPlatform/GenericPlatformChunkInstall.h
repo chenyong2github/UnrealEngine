@@ -211,16 +211,16 @@ public:
 	virtual void RemoveChunkInstallDelegate( FDelegateHandle Delegate ) = 0;
 
 
-	UE_DEPRECATED(5.2, "Call SupportsNamedChunkInstall instead")
+	UE_DEPRECATED(5.1, "Call SupportsNamedChunkInstall instead")
 	virtual bool SupportsIntelligentInstall() = 0;
 
-	UE_DEPRECATED(5.2, "Call IsNamedChunkInProgress instead")
+	UE_DEPRECATED(5.1, "Call IsNamedChunkInProgress instead")
 	virtual bool IsChunkInstallationPending(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
-	UE_DEPRECATED(5.2, "Call InstallNamedChunks instead")
+	UE_DEPRECATED(5.1, "Call InstallNamedChunks instead")
 	virtual bool InstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
-	UE_DEPRECATED(5.2, "Call UninstallNamedChunks instead")
+	UE_DEPRECATED(5.1, "Call UninstallNamedChunks instead")
 	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
 	UE_DEPRECATED(5.2, "Call GetNamedChunksByType instead")

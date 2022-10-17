@@ -262,7 +262,7 @@ public:
 	/** 
 	 * This will return a string of the form "ScopeName.FunctionName" associated with this stack frame:
 	 */
-	UE_DEPRECATED(5.2, "Please use GetStackDescription(FStringBuilderBase&).")
+	UE_DEPRECATED(5.1, "Please use GetStackDescription(FStringBuilderBase&).")
 	COREUOBJECT_API FString GetStackDescription() const;
 
 	/**

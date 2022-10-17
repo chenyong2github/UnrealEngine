@@ -101,7 +101,7 @@ struct FNetworkReplayStreamInfo
 
 namespace ENetworkReplayError
 {
-	enum UE_DEPRECATED(5.2, "No longer used") Type
+	enum UE_DEPRECATED(5.1, "No longer used") Type
 	{
 		/** There are currently no issues */
 		None,
@@ -624,7 +624,7 @@ public:
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Returns the last error that occurred while streaming replays */
-	UE_DEPRECATED(5.2, "Deprecated in favor of HasError and HandleLastError")
+	UE_DEPRECATED(5.1, "Deprecated in favor of HasError and HandleLastError")
 	virtual ENetworkReplayError::Type GetLastError() const;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

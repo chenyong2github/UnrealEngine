@@ -408,7 +408,7 @@ public:
 	FLocalFileReplayInfo ReplayInfo;
 	TArray<uint8> DataBuffer;
 
-	UE_DEPRECATED(5.2, "No longer used")
+	UE_DEPRECATED(5.1, "No longer used")
 	bool bAsyncError = false;
 
 	ELocalFileReplayResult AsyncError = ELocalFileReplayResult::Success;
@@ -610,7 +610,7 @@ protected:
 	void CancelStreamingRequests();
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.2, "No longer used")
+	UE_DEPRECATED(5.1, "No longer used")
 	void SetLastError(const ENetworkReplayError::Type InLastError) 
 	{ 
 		SetLastError(ELocalFileReplayResult::Unknown); 

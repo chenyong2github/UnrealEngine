@@ -2112,7 +2112,7 @@ public:
 	/** searches the list of all enum value names for the specified name
 	 * @return the value the specified name represents if found, otherwise INDEX_NONE
 	 */
-	UE_DEPRECATED(5.2, "LookupEnumName that takes only enum name is deprecated. Please use the version of this function that also takes enum package name.")
+	UE_DEPRECATED(5.1, "LookupEnumName that takes only enum name is deprecated. Please use the version of this function that also takes enum package name.")
 	static int64 LookupEnumName(FName TestName, UEnum** FoundEnum = nullptr)
 	{
 		return LookupEnumName(FName(), TestName, EFindFirstObjectOptions::None, FoundEnum);
@@ -2131,7 +2131,7 @@ public:
 	/** searches the list of all enum value names for the specified name
 	 * @return the value the specified name represents if found, otherwise INDEX_NONE
 	 */
-	UE_DEPRECATED(5.2, "LookupEnumNameSlow that takes only enum name is deprecated. Please use the version of this function that also takes enum package name.")
+	UE_DEPRECATED(5.1, "LookupEnumNameSlow that takes only enum name is deprecated. Please use the version of this function that also takes enum package name.")
 	static int64 LookupEnumNameSlow(const TCHAR* InTestShortName, UEnum** FoundEnum = nullptr)
 	{
 		return LookupEnumNameSlow(FName(), InTestShortName, EFindFirstObjectOptions::None, FoundEnum);

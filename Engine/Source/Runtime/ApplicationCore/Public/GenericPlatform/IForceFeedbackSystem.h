@@ -21,7 +21,7 @@
  *
  * Note: This class is deprecated and will be removed in favor of IInputInterface
  */
-UE_DEPRECATED(5.2, "IForceFeedbackSystem has been deprecated, use IInputInterface instead.")
+UE_DEPRECATED(5.1, "IForceFeedbackSystem has been deprecated, use IInputInterface instead.")
 class IForceFeedbackSystem
 	: public IInputInterface
 {

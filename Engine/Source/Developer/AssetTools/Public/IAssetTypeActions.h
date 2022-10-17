@@ -74,16 +74,16 @@ public:
 	virtual FColor GetTypeColor() const = 0;
 	
 	/** Returns true if this class can supply actions for InObjects. */
-//   	UE_DEPRECATED(5.2, "HasActions is no longer used all IAssetTypeActions are assumed to need to have them and GetActions is just called instead.  GetActions is always called unless DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS is true.")
+//   	UE_DEPRECATED(5.1, "HasActions is no longer used all IAssetTypeActions are assumed to need to have them and GetActions is just called instead.  GetActions is always called unless DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS is true.")
    	virtual bool HasActions( const TArray<UObject*>& InObjects ) const { return true; }
 
 #if DEPRECATE_ASSET_TYPE_ACTIONS_NEEDING_LOADED_OBJECTS
 	/** Generates a menubuilder for the specified objects. */
-	UE_DEPRECATED(5.2, "Look at 'HOW TO ADD ASSET EXTENSION MENUS' in IAssetTypeActions.h")
+	UE_DEPRECATED(5.1, "Look at 'HOW TO ADD ASSET EXTENSION MENUS' in IAssetTypeActions.h")
 	virtual void GetActions( const TArray<UObject*>& InObjects, class FMenuBuilder& MenuBuilder ) final { }
 
 	/** Generates a menu section for the specified objects. */
-	UE_DEPRECATED(5.2, "Look at 'HOW TO ADD ASSET EXTENSION MENUS' in IAssetTypeActions.h")
+	UE_DEPRECATED(5.1, "Look at 'HOW TO ADD ASSET EXTENSION MENUS' in IAssetTypeActions.h")
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) final { }
 #else
 	/** Generates a menubuilder for the specified objects. */

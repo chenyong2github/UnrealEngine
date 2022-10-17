@@ -431,7 +431,7 @@ public:
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Called when demo playback fails for any reason */
-	UE_DEPRECATED(5.2, "Now takes a EReplayResult instead.")
+	UE_DEPRECATED(5.1, "Now takes a EReplayResult instead.")
 	virtual void HandleDemoPlaybackFailure(EDemoPlayFailure::Type FailureType, const FString& ErrorString = TEXT("")) { }
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

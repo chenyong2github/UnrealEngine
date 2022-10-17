@@ -88,7 +88,7 @@ namespace UE::Tasks
 		CORE_API FTaskBase* ExchangeCurrentTask(FTaskBase* Task);
 
 		// Returns true if called from inside a task that is being retracted
-		UE_DEPRECATED(5.2, "You should not use this function as it exists only to patch another system and can be removed any time.")
+		UE_DEPRECATED(5.1, "You should not use this function as it exists only to patch another system and can be removed any time.")
 		CORE_API bool IsThreadRetractingTask();
 
 		// An abstract base class for task implementation. 
