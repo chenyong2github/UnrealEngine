@@ -702,7 +702,6 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 		// system present queue out of order.
 		if (LastFrameSyncPoint)
 		{
-			PresentContext->CloseCommandList(true);
 			PresentContext->WaitSyncPoint(LastFrameSyncPoint);
 		}
 	}
@@ -733,12 +732,7 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 		// Currently, the swap chain Present() is called directly by the RHI thread.
 		// We need to submit the above commands and wait for the submission thread to process everything before we can continue.
 		FD3D12CommandContext& DefaultContext = Adapter->GetDevice(GPUIndex)->GetDefaultCommandContext();
-
-		ED3D12FlushFlags FlushMode = &DefaultContext == PresentContext
-			? ED3D12FlushFlags::WaitForSubmission | ED3D12FlushFlags::NoOpen
-			: ED3D12FlushFlags::WaitForSubmission;
-
-		DefaultContext.FlushCommands(FlushMode);
+		DefaultContext.FlushCommands(ED3D12FlushFlags::WaitForSubmission);
 	}
 
 	const int32 SyncInterval = bLockToVsync ? RHIGetSyncInterval() : 0;
@@ -800,10 +794,8 @@ void FD3D12Viewport::IssueFrameEvent()
 
 		FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
 
-		Context.CloseCommandList(true);
 		Context.SignalSyncPoint(SyncPoint);
 		Context.Finalize(Payloads);
-		Context.OpenCommandList();
 
 		FrameSyncPoints.Emplace(MoveTemp(SyncPoint));
 	}

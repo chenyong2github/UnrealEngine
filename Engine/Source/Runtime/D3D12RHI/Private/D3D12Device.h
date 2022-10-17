@@ -117,7 +117,6 @@ public:
 
 	FD3D12Payload*          PayloadToSubmit    = nullptr;
 	FD3D12CommandAllocator* BarrierAllocator   = nullptr;
-	FD3D12CommandList*      BarrierCommandList = nullptr;
 	FD3D12QueryAllocator    BarrierTimestamps;
 
 	uint32 NumCommandListsInBatch = 0;

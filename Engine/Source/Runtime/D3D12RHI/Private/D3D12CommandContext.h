@@ -83,10 +83,7 @@ enum class ED3D12FlushFlags
 	WaitForSubmission = 1,
 
 	// Both the calling thread until the GPU has signaled completion of all dispatched work.
-	WaitForCompletion = 2,
-
-	// Don't reopen the command list after the flush.
-	NoOpen = 4
+	WaitForCompletion = 2
 };
 ENUM_CLASS_FLAGS(ED3D12FlushFlags)
 
@@ -104,9 +101,11 @@ protected:
 public:
 	virtual ~FD3D12ContextCommon() = default;
 
+protected:
 	virtual void OpenCommandList();
-	virtual void CloseCommandList(bool bResolveQueries);
+	virtual void CloseCommandList();
 
+public:
 	enum class EClearStateMode
 	{
 		TransientOnly,
@@ -152,11 +151,10 @@ public:
 	bool IsOpen() const { return CommandList != nullptr; }
 
 	// Returns unique identity that can be used to distinguish between command lists even after they were recycled.
-	uint64 GetCommandListID() const	{ return GetCommandList().State.CommandListID; }
+	uint64 GetCommandListID() { return GetCommandList().State.CommandListID; }
 
 	FD3D12SyncPoint* GetContextSyncPoint()
 	{
-		checkf(CommandList, TEXT("Command list is not open."));
 		if (!ContextSyncPoint)
 		{
 			ContextSyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
@@ -196,20 +194,14 @@ private:
 	// A sync point signaled when all payloads in this context have completed.
 	FD3D12SyncPointRef ContextSyncPoint;
 
-#if DO_CHECK
-	// Flags used to validate correct use of Open/Close/Finalize functions.
-	enum class EState
+	// Returns the current command list (or creates a new one if the command list was not open).
+	FD3D12CommandList& GetCommandList()
 	{
-		AllowOpen     = 1,
-		AllowClose    = 2,
-		AllowFinalize = 4
-	} State = EState::AllowOpen;
-	FRIEND_ENUM_CLASS_FLAGS(EState)
-#endif
+		if (!CommandList)
+		{
+			OpenCommandList();
+		}
 
-	FD3D12CommandList& GetCommandList() const
-	{
-		checkf(CommandList, TEXT("Command list is not open."));
 		return *CommandList;
 	}
 
@@ -230,96 +222,54 @@ protected:
 		return Payloads.Last();
 	}
 
-	uint32 GetNumCommands() const
-	{
-		return GetCommandList().State.NumCommands;
-	}
+	uint32 ActiveQueries = 0;
 
 public:
 	// Flushes any pending commands in this context to the GPU.
 	void FlushCommands(ED3D12FlushFlags FlushFlags = ED3D12FlushFlags::None);
 
-	//
-	// Wrapper type to prevent l-value use of the returned command list interfaces.
-	// A context's command list may be swapped out during recording. Users should access the command
-	// list via the context itself, to ensure they always have the correct command list instance.
-	//
-	template <typename T>
-	class TRValuePtr
-	{
-		friend FD3D12ContextCommon;
+	// Closes the current command list if the number of enqueued commands exceeds
+	// the threshold defined by the "D3D12.MaxCommandsPerCommandList" cvar.
+	void ConditionalSplitCommandList();
 
-		FD3D12CommandList& CommandList;
-		T* Ptr;
-
-		TRValuePtr(FD3D12CommandList& CommandList, T* Ptr)
-			: CommandList(CommandList)
-			, Ptr(Ptr)
-		{}
-
-	public:
-		TRValuePtr() = delete;
-
-		TRValuePtr(TRValuePtr const&) = delete;
-		TRValuePtr(TRValuePtr&&)      = delete;
-
-		TRValuePtr& operator= (TRValuePtr const&) = delete;
-		TRValuePtr& operator= (TRValuePtr&&)      = delete;
-
-		operator bool () const&& { return !!Ptr; }
-		bool operator!() const&& { return  !Ptr; }
-
-		// These accessor functions count useful work on command lists
-		T* operator ->  () && { CommandList.State.NumCommands++; return Ptr; }
-		T* Get          () && { CommandList.State.NumCommands++; return Ptr; }
-
-		T* GetNoRefCount() && { return Ptr; }
-	};
-
-private:
-	template <typename FInterfaceType>
-	auto BuildRValuePtr(TRefCountPtr<FInterfaceType> FD3D12CommandList::FInterfaces::* Member) const
-	{
-		FD3D12CommandList& CmdList = GetCommandList();
-		return TRValuePtr<FInterfaceType>(CmdList, CmdList.Interfaces.*Member);
-	}
-
-public:
-	auto BaseCommandList      () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::CommandList         ); }
-	auto CopyCommandList      () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::CopyCommandList     ); }
-	auto GraphicsCommandList  () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList ); }
+	auto BaseCommandList      () { return GetCommandList().BaseCommandList(); }
+	auto CopyCommandList      () { return GetCommandList().CopyCommandList(); }
+	auto GraphicsCommandList  () { return GetCommandList().GraphicsCommandList(); }
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 1					    
-	auto GraphicsCommandList1 () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList1); }
+	auto GraphicsCommandList1 () { return GetCommandList().GraphicsCommandList1(); }
 #endif														    
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 2					    
-	auto GraphicsCommandList2 () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList2); }
+	auto GraphicsCommandList2 () { return GetCommandList().GraphicsCommandList2(); }
 #endif														    
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 3					    
-	auto GraphicsCommandList3 () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList3); }
+	auto GraphicsCommandList3 () { return GetCommandList().GraphicsCommandList3(); }
 #endif														    
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 4					    
-	auto GraphicsCommandList4 () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList4); }
+	auto GraphicsCommandList4 () { return GetCommandList().GraphicsCommandList4(); }
 #endif														    
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 5					    
-	auto GraphicsCommandList5 () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList5); }
+	auto GraphicsCommandList5 () { return GetCommandList().GraphicsCommandList5(); }
 #endif														    
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 6					    
-	auto GraphicsCommandList6 () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList6); }
+	auto GraphicsCommandList6 () { return GetCommandList().GraphicsCommandList6(); }
 #endif														    
 #if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES			    
-	auto DebugCommandList     () const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::DebugCommandList    ); }
+	auto DebugCommandList     () { return GetCommandList().DebugCommandList(); }
 #endif
 #if D3D12_RHI_RAYTRACING
-	auto RayTracingCommandList() const { return BuildRValuePtr(&FD3D12CommandList::FInterfaces::GraphicsCommandList4); }
+	auto RayTracingCommandList() { return GetCommandList().RayTracingCommandList(); }
 #endif
 #if NV_AFTERMATH
-	auto AftermathHandle      () const { return GetCommandList().Interfaces.AftermathHandle; }
+	auto AftermathHandle      () { return GetCommandList().AftermathHandle(); }
 #endif
+
+	void BeginQuery(FD3D12QueryLocation const& Location) { GetCommandList().BeginQuery(Location); }
+	void EndQuery  (FD3D12QueryLocation const& Location) { GetCommandList().EndQuery  (Location); }
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 	void UpdateResidency(TConstArrayView<FD3D12ResidencyHandle*> Handles) { GetCommandList().UpdateResidency(Handles); }
 	void UpdateResidency(FD3D12ResidencyHandle& Handle                  ) { GetCommandList().UpdateResidency({ &Handle }); }
-	void UpdateResidency(FD3D12ResidencyHandle* Handle                  ) { check(Handle); GetCommandList().UpdateResidency({ Handle }); }
+	void UpdateResidency(FD3D12ResidencyHandle* Handle                  ) { check(Handle  ); GetCommandList().UpdateResidency({ Handle }); }
 	void UpdateResidency(FD3D12Resource* Resource                       ) { check(Resource); GetCommandList().UpdateResidency({ &Resource->GetResidencyHandle() }); }
 #else
 	void UpdateResidency(TConstArrayView<FD3D12ResidencyHandle*> Handles) { }
@@ -357,10 +307,6 @@ private:
 	bool TransitionResource(FD3D12Resource* InResource, CResourceState& ResourceState_OnCommandList, uint32 InSubresourceIndex, D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState, bool bInForceAfterState);
 };
 
-#if DO_CHECK
-	ENUM_CLASS_FLAGS(FD3D12ContextCommon::EState)
-#endif
-
 //
 // Context for the copy queue. Doesn't implement an RHI interface 
 // since the copy queue is not directly exposed to the renderer.
@@ -370,9 +316,7 @@ class FD3D12ContextCopy final : public FD3D12ContextCommon
 public:
 	FD3D12ContextCopy(FD3D12Device* Device)
 		: FD3D12ContextCommon(Device, ED3D12QueueType::Copy, false)
-	{
-		OpenCommandList();
-	}
+	{}
 };
 
 //
@@ -444,7 +388,7 @@ public:
 	}
 
 	virtual void OpenCommandList() override final;
-	virtual void CloseCommandList(bool bResolveQueries) override final;
+	virtual void CloseCommandList() override final;
 
 	virtual ERHIPipeline GetPipeline() const override
 	{
@@ -452,8 +396,6 @@ public:
 			? ERHIPipeline::Graphics
 			: ERHIPipeline::AsyncCompute;
 	}
-
-	void ConditionalSplitCommandList();
 
 	virtual void ClearState(EClearStateMode ClearStateMode = EClearStateMode::All) override final;
 	void ConditionalClearShaderResource(FD3D12ResourceLocation* Resource);
@@ -509,8 +451,6 @@ public:
 	}
 	virtual void FlushTextureCache() {};
 #endif
-
-	uint32 ActiveQueries = 0;
 
 	/** Constant buffers for Set*ShaderParameter calls. */
 	FD3D12ConstantBuffer VSConstantBuffer;

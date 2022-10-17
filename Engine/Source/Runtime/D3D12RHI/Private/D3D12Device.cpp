@@ -558,10 +558,6 @@ FD3D12ContextCommon* FD3D12Device::ObtainContext(ED3D12QueueType QueueType)
 		case ED3D12QueueType::Copy  : Context = new FD3D12ContextCopy   (this);                   break;
 		}
 	}
-	else
-	{
-		Context->OpenCommandList();
-	}
 
 	check(Context);
 	return Context;

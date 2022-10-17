@@ -294,7 +294,7 @@ void FD3D12CommandList::WriteBeginTimestamp()
 {
 	if (!State.bBeginTimestampWritten && State.BeginTimestamp)
 	{
-		WriteTimestamp(State.BeginTimestamp);
+		EndQuery(State.BeginTimestamp);
 		State.bBeginTimestampWritten = true;
 	}
 }
@@ -303,15 +303,58 @@ void FD3D12CommandList::WriteEndTimestamp()
 {
 	if (!State.bEndTimestampWritten && State.EndTimestamp)
 	{
-		WriteTimestamp(State.EndTimestamp);
+		EndQuery(State.EndTimestamp);
 		State.bEndTimestampWritten = true;
 	}
 }
 
-#if D3D12RHI_PLATFORM_USES_TIMESTAMP_QUERIES
-void FD3D12CommandList::WriteTimestamp(FD3D12QueryLocation& Location)
+void FD3D12CommandList::BeginQuery(FD3D12QueryLocation const& Location)
 {
-	Interfaces.GraphicsCommandList->EndQuery(
+	check(Location);
+	check(Location.Heap->QueryType == D3D12_QUERY_TYPE_OCCLUSION);
+
+	GraphicsCommandList()->BeginQuery(
+		Location.Heap->GetD3DQueryHeap(),
+		Location.Heap->QueryType,
+		Location.Index
+	);
+}
+
+void FD3D12CommandList::EndQuery(FD3D12QueryLocation const& Location)
+{
+	check(Location);
+	switch (Location.Heap->QueryType)
+	{
+	default:
+		checkNoEntry();
+		break;
+
+	case D3D12_QUERY_TYPE_OCCLUSION:
+		GraphicsCommandList()->EndQuery(
+			Location.Heap->GetD3DQueryHeap(),
+			Location.Heap->QueryType,
+			Location.Index
+		);
+		State.OcclusionQueries.Add(Location);
+		break;
+
+	case D3D12_QUERY_TYPE_TIMESTAMP:
+		WriteTimestamp(Location);
+
+		// Command list begin/end timestamps are handled separately by the 
+		// submission thread, so shouldn't be in the TimestampQueries array.
+		if (Location.Type != ED3D12QueryType::CommandListBegin && Location.Type != ED3D12QueryType::CommandListEnd)
+		{
+			State.TimestampQueries.Add(Location);
+		}
+		break;
+	}
+}
+
+#if D3D12RHI_PLATFORM_USES_TIMESTAMP_QUERIES
+void FD3D12CommandList::WriteTimestamp(FD3D12QueryLocation const& Location)
+{
+	GraphicsCommandList()->EndQuery(
 		Location.Heap->GetD3DQueryHeap(),
 		Location.Heap->QueryType,
 		Location.Index

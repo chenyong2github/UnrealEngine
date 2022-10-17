@@ -111,8 +111,6 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12QueueTy
 	, CSConstantBuffer(InParent, ConstantsAllocator)
 {
 	StaticUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
-
-	OpenCommandList();
 	ClearState();
 }
 
@@ -283,23 +281,31 @@ FD3D12ContextCommon::FD3D12ContextCommon(FD3D12Device* Device, ED3D12QueueType Q
 
 void FD3D12ContextCommon::WaitSyncPoint(FD3D12SyncPoint* SyncPoint)
 {
-	checkf(!CommandList, TEXT("Command list must be closed before waiting on a sync point."));
+	if (IsOpen())
+	{
+		CloseCommandList();
+	}
+
 	GetPayload(EPhase::Wait)->SyncPointsToWait.Add(SyncPoint);
 }
 
 void FD3D12ContextCommon::SignalSyncPoint(FD3D12SyncPoint* SyncPoint)
 {
-	checkf(!CommandList, TEXT("Command list must be closed before signaling a sync point."));
-
-	checkf(SyncPoint->GetType() == ED3D12SyncPointType::GPUOnly || EnumHasAllFlags(State, EState::AllowFinalize),
-		TEXT("Cannot signal a CPU-accessible sync point if the previous command list did not resolve queries when it was closed."));
+	if (IsOpen())
+	{
+		CloseCommandList();
+	}
 
 	GetPayload(EPhase::Signal)->SyncPointsToSignal.Add(SyncPoint);
 }
 
 void FD3D12ContextCommon::SignalManualFence(ID3D12Fence* Fence, uint64 Value)
 {
-	checkf(!CommandList, TEXT("Command list must be closed before signaling a manual fence."));
+	if (IsOpen())
+	{
+		CloseCommandList();
+	}
+
 	GetPayload(EPhase::Signal)->FencesToSignal.Emplace(Fence, Value);
 }
 
@@ -311,7 +317,6 @@ void FD3D12ContextCommon::WaitManualFence(ID3D12Fence* Fence, uint64 Value)
 
 FD3D12QueryLocation FD3D12ContextCommon::AllocateQuery(ED3D12QueryType Type, uint64* Target)
 {
-	checkf(CommandList, TEXT("Command list must be open to insert a timestamp."));
 	switch (Type)
 	{
 	default:
@@ -320,10 +325,10 @@ FD3D12QueryLocation FD3D12ContextCommon::AllocateQuery(ED3D12QueryType Type, uin
 
 	case ED3D12QueryType::AdjustedRaw:
 	case ED3D12QueryType::AdjustedMicroseconds:
-		return CommandList->State.TimestampQueries.Emplace_GetRef(TimestampQueries.Allocate(Type, Target));
+		return TimestampQueries.Allocate(Type, Target);
 
 	case ED3D12QueryType::Occlusion:
-		return CommandList->State.OcclusionQueries.Emplace_GetRef(OcclusionQueries.Allocate(Type, Target));
+		return OcclusionQueries.Allocate(Type, Target);
 	}
 }
 
@@ -341,19 +346,15 @@ FD3D12QueryLocation FD3D12ContextCommon::InsertTimestamp(ED3D12Units Units, uint
 	}
 
 	FD3D12QueryLocation Location = AllocateQuery(Type, Target);
-	CommandList->WriteTimestamp(Location);
+	EndQuery(Location);
+
 	return Location;
 }
 
 void FD3D12ContextCommon::OpenCommandList()
 {
 	LLM_SCOPE_BYNAME(TEXT("RHIMisc/OpenCommandList"));
-
-#if DO_CHECK
-	checkf(!CommandList, TEXT("Command list is already open."));
-	checkf(EnumHasAllFlags(State, EState::AllowOpen), TEXT("Cannot open a new command list until the context has been finalized."));
-	State = EState::AllowClose;
-#endif
+	checkf(!IsOpen(), TEXT("Command list is already open."));
 
 	if (CommandAllocator == nullptr)
 	{
@@ -363,6 +364,9 @@ void FD3D12ContextCommon::OpenCommandList()
 
 	// Get a new command list
 	CommandList = Device->ObtainCommandList(CommandAllocator, &TimestampQueries);
+	GetPayload(EPhase::Execute)->CommandListsToExecute.Add(CommandList);
+
+	check(ActiveQueries == 0);
 }
 
 void FD3D12CommandContext::OpenCommandList()
@@ -372,72 +376,47 @@ void FD3D12CommandContext::OpenCommandList()
 	// Notify the descriptor cache about the new command list
 	// This will set the descriptor cache's current heaps on the new command list.
 	StateCache.GetDescriptorCache()->OpenCommandList();
-
-	// Go through the state and find bits that differ from command list defaults.
-	// Mark state as dirty so next time ApplyState is called, it will set all state on this new command list
-	StateCache.DirtyStateForNewCommandList();
-
-	check(ActiveQueries == 0);
 }
 
-void FD3D12ContextCommon::CloseCommandList(bool bResolveQueries)
+void FD3D12ContextCommon::CloseCommandList()
 {
-#if DO_CHECK
-	checkf(EnumHasAllFlags(State, EState::AllowClose), TEXT("Command list is already closed."));
-	// Finalize is only allowed when queries have been resolved.
-	State = bResolveQueries
-		? EState::AllowOpen | EState::AllowFinalize
-		: EState::AllowOpen;
-#endif
+	checkf(IsOpen(), TEXT("Command list is not open."));
+	checkf(Payloads.Num() && CurrentPhase == EPhase::Execute, TEXT("Expected the current payload to be in the execute phase."));
+	
+	checkf(ActiveQueries == 0, TEXT("All queries must be completed before the command list is closed."));
+
+	FD3D12Payload* Payload = GetPayload(EPhase::Execute);
 
 	// Do this before we insert the final timestamp to ensure we're timing all the work on the command list.
 	FlushResourceBarriers();
 
-	// Don't close the command list if we're resolving queries.
-	// The submission thread will close it after appending a ResolveQueryData() command.
-	if (!bResolveQueries)
-	{
-		CommandList->Close();
-	}
-
-	GetPayload(EPhase::Execute)->CommandListsToExecute.Add(CommandList);
-	GetPayload(EPhase::Execute)->bResolveQueries = bResolveQueries;
+	CommandList->Close();
 	CommandList = nullptr;
 
-	if (bResolveQueries)
-	{
-		TimestampQueries.CloseAndReset(GetPayload(EPhase::Execute)->QueryRanges);
-		OcclusionQueries.CloseAndReset(GetPayload(EPhase::Execute)->QueryRanges);
-
-		// When resolving queries, we're leaving the command list open,
-		// which means we can't reuse this allocator for the next command list.
-		check(CommandAllocator);
-		GetPayload(EPhase::Signal)->AllocatorsToRelease.Add(CommandAllocator);
-		CommandAllocator = nullptr;
-	}
+	TimestampQueries.CloseAndReset(Payload->QueryRanges);
+	OcclusionQueries.CloseAndReset(Payload->QueryRanges);
 }
 
-void FD3D12CommandContext::CloseCommandList(bool bResolveQueries)
+void FD3D12CommandContext::CloseCommandList()
 {
-	checkf(ActiveQueries == 0, TEXT("All queries must be completed before the command list is closed."));
-
 	StateCache.GetDescriptorCache()->CloseCommandList();
-
-	FD3D12ContextCommon::CloseCommandList(bResolveQueries);
+	FD3D12ContextCommon::CloseCommandList();
+	// Mark state as dirty now, because ApplyState may be called before OpenCommandList(), and it needs to know that the state has
+	// become invalid, so it can set it up again (which opens a new command list if necessary).
+	StateCache.DirtyStateForNewCommandList();
 }
 
 void FD3D12ContextCommon::Finalize(TArray<FD3D12Payload*>& OutPayloads)
 {
-#if DO_CHECK
-	checkf(!CommandList, TEXT("Command list must be closed before finalizing."));
-	checkf(EnumHasAllFlags(State, EState::AllowFinalize), TEXT("The last call to CloseCommandList() did not resolve queries."));
-	State = EState::AllowOpen | EState::AllowFinalize;
-#endif
+	if (IsOpen())
+	{
+		CloseCommandList();
+	}
 
 	// Collect the context's batch of sync points to wait/signal
 	if (BatchedSyncPoints.ToWait.Num())
 	{
-		FD3D12Payload* Payload = Payloads.Num() 
+		FD3D12Payload* Payload = Payloads.Num()
 			? Payloads[0]
 			: GetPayload(EPhase::Wait);
 
@@ -533,7 +512,6 @@ FD3D12CopyScope::~FD3D12CopyScope()
 {
 	checkf(bSyncPointRetrieved, TEXT("The copy sync point must be retrieved before the end of the scope."));
 
-	Context.CloseCommandList(true);
 	Context.SignalSyncPoint(SyncPoint);
 
 	TArray<FD3D12Payload*> Payloads;
@@ -561,7 +539,7 @@ void FD3D12ContextCommon::FlushCommands(ED3D12FlushFlags FlushFlags)
 
 	if (IsOpen())
 	{
-		CloseCommandList(true);
+		CloseCommandList();
 	}
 
 	FD3D12SyncPointRef SyncPoint;
@@ -597,21 +575,15 @@ void FD3D12ContextCommon::FlushCommands(ED3D12FlushFlags FlushFlags)
 		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForAllOtherSleep);
 		SubmissionEvent->Wait();
 	}
-
-	if (!EnumHasAnyFlags(FlushFlags, ED3D12FlushFlags::NoOpen))
-	{
-		OpenCommandList();
-	}
 }
 
-void FD3D12CommandContext::ConditionalSplitCommandList()
+void FD3D12ContextCommon::ConditionalSplitCommandList()
 {
 	// Start a new command list if the total number of commands exceeds the threshold. Too many commands in a single command list can cause TDRs.
-	if (IsOpen() && ActiveQueries == 0 && GD3D12MaxCommandsPerCommandList > 0 && GetNumCommands() > (uint32)GD3D12MaxCommandsPerCommandList)
+	if (IsOpen() && ActiveQueries == 0 && GD3D12MaxCommandsPerCommandList > 0 && CommandList->State.NumCommands > (uint32)GD3D12MaxCommandsPerCommandList)
 	{
-		UE_LOG(LogD3D12RHI, Verbose, TEXT("Splitting command lists because too many commands have been enqueued already (%d commands)"), GetNumCommands());
-		CloseCommandList(false);
-		OpenCommandList();
+		UE_LOG(LogD3D12RHI, Verbose, TEXT("Splitting command lists because too many commands have been enqueued already (%d commands)"), CommandList->State.NumCommands);
+		CloseCommandList();
 	}
 }
 
@@ -890,10 +862,6 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 			CombinedMask |= WaitMask.GetValue();
 		}
 
-		// Close all relevant contexts to allow signalling/waiting of sync points
-		for (uint32 GPUIndex : CombinedMask)
-			PhysicalContexts[GPUIndex]->CloseCommandList(false);
-
 		// Signal a sync point on each source GPU
 		TStaticArray<FD3D12SyncPointRef, MAX_NUM_GPUS> SyncPoints;
 		for (uint32 GPUIndex : SignalMask)
@@ -913,10 +881,6 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 				}
 			}
 		}
-
-		// Re-open contexts
-		for (uint32 GPUIndex : CombinedMask)
-			PhysicalContexts[GPUIndex]->OpenCommandList();
 
 		return SyncPoints;
 	};
@@ -988,9 +952,7 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 			{
 				FD3D12SyncPoint* SyncPoint = static_cast<FD3D12SyncPoint*>(FenceData->SyncPoints[GPUIndex]);
 
-				PhysicalContexts[GPUIndex]->CloseCommandList(false);
 				PhysicalContexts[GPUIndex]->WaitSyncPoint(SyncPoint);
-				PhysicalContexts[GPUIndex]->OpenCommandList();
 
 				SyncPoint->Release();
 			}
@@ -1117,9 +1079,7 @@ void FD3D12CommandContextRedirector::RHITransferResourceSignal(const TArrayView<
 		FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUOnly);
 		SyncPoint->AddRef();
 
-		PhysicalContexts[SrcGPUIndex]->CloseCommandList(false);
 		PhysicalContexts[SrcGPUIndex]->SignalSyncPoint(SyncPoint);
-		PhysicalContexts[SrcGPUIndex]->OpenCommandList();
 
 		FTransferResourceFenceData* FenceData = FenceDatas[FenceIndex++];
 		FenceData->Mask = FRHIGPUMask::FromIndex(SrcGPUIndex);
@@ -1137,10 +1097,6 @@ void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FT
 			? FenceDatas[Index]->Mask
 			: FenceDatas[Index]->Mask | AllMasks;
 	}
-
-	// Close all relevant contexts to allow signalling/waiting of sync points
-	for (uint32 GPUIndex : AllMasks)
-		PhysicalContexts[GPUIndex]->CloseCommandList(false);
 
 	for (FTransferResourceFenceData* FenceData : FenceDatas)
 	{
@@ -1168,10 +1124,6 @@ void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FT
 
 		delete FenceData;
 	}
-
-	// Re-open contexts
-	for (uint32 GPUIndex : AllMasks)
-		PhysicalContexts[GPUIndex]->OpenCommandList();
 
 #endif // WITH_MGPU
 }

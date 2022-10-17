@@ -562,7 +562,6 @@ void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*>
 	}
 
 	// Signal fences
-	bool bClosed = false;
 	const ERHIPipeline SourcePipeline = GetPipeline();
 	for (const FRHITransition* Transition : Transitions)
 	{
@@ -573,20 +572,9 @@ void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*>
 
 			if (DeviceSyncPoints[SourcePipeline])
 			{
-				if (!bClosed)
-				{
-					CloseCommandList(false);
-					bClosed = true;
-				}
-
 				SignalSyncPoint(DeviceSyncPoints[SourcePipeline]);
 			}
 		}
-	}
-
-	if (bClosed)
-	{
-		OpenCommandList();
 	}
 }
 
@@ -594,7 +582,6 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 {
 	// Wait for fences
 	{
-		bool bClosed = false;
 		const ERHIPipeline DstPipeline = GetPipeline();
 		for (const FRHITransition* Transition : Transitions)
 		{
@@ -607,21 +594,10 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 				{
 					if (SrcPipeline != DstPipeline && DeviceSyncPoints[SrcPipeline])
 					{
-						if (!bClosed)
-						{
-							CloseCommandList(false);
-							bClosed = true;
-						}
-
 						WaitSyncPoint(DeviceSyncPoints[SrcPipeline]);
 					}
 				});
 			}
-		}
-
-		if (bClosed)
-		{
-			OpenCommandList();
 		}
 	}
 
@@ -2349,10 +2325,7 @@ void FD3D12CommandContext::BroadcastTemporalEffect(const FName& InEffectName, co
 	// This will be used to fence the copy from starting until all prior work on this queue is complete.
 	// @todo mgpu - RHIBroadcastTemporalEffect does not take async compute into consideration.
 	FD3D12SyncPointRef WaitForGraphics_SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUOnly);
-
-	CloseCommandList(false);
 	SignalSyncPoint(WaitForGraphics_SyncPoint);
-	OpenCommandList();
 
 	// Start the copy work
 	FD3D12SyncPointRef& CopySyncPoint = Device->GetParentAdapter()->GetTemporalEffect(InEffectName)[SiblingGPUIndex];
@@ -2448,10 +2421,7 @@ void FD3D12CommandContext::RHIWaitForTemporalEffect(const FName& InEffectName)
 
 	if (SyncPoint)
 	{
-		CloseCommandList(false);
 		WaitSyncPoint(SyncPoint);
-		OpenCommandList();
-
 		SyncPoint = nullptr;
 	}
 }

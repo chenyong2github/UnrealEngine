@@ -1006,10 +1006,7 @@ void FD3D12ResourceBarrierBatcher::FlushIntoCommandList(FD3D12CommandList& Comma
 
 	auto InsertTimestamp = [&](ED3D12QueryType Type)
 	{
-		auto Timestamp = TimestampAllocator.Allocate(Type, nullptr);
-		CommandList.State.TimestampQueries.Emplace_GetRef(Timestamp);
-		CommandList.WriteTimestamp(Timestamp);
-		CommandList.State.NumCommands++;
+		CommandList.EndQuery(TimestampAllocator.Allocate(Type, nullptr));
 	};
 
 	for (int32 BatchStart = 0, BatchEnd = 0; BatchStart < Barriers.Num(); BatchStart = BatchEnd)
@@ -1031,8 +1028,7 @@ void FD3D12ResourceBarrierBatcher::FlushIntoCommandList(FD3D12CommandList& Comma
 			InsertTimestamp(ED3D12QueryType::IdleBegin);
 		}
 
-		CommandList.Interfaces.GraphicsCommandList->ResourceBarrier(BatchEnd - BatchStart, &Barriers[BatchStart]);
-		CommandList.State.NumCommands++;
+		CommandList.GraphicsCommandList()->ResourceBarrier(BatchEnd - BatchStart, &Barriers[BatchStart]);
 
 		if (bIdle)
 		{

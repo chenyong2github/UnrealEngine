@@ -67,13 +67,16 @@ private:
 public:
 	~FD3D12CommandList();
 
-	void WriteTimestamp(FD3D12QueryLocation& Location);
+	void BeginQuery(FD3D12QueryLocation const& Location);
+	void EndQuery  (FD3D12QueryLocation const& Location);
 
 	void Reset(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator);
 	void Close();
 
 	bool IsOpen  () const { return !State.IsClosed; }
 	bool IsClosed() const { return  State.IsClosed; }
+
+	uint32 GetNumCommands() const { return State.NumCommands; }
 
 	FD3D12Device*       const Device;
 	ED3D12QueueType     const QueueType;
@@ -117,6 +120,86 @@ private:
 		GFSDK_Aftermath_ContextHandle AftermathHandle = nullptr;
 #endif
 	} Interfaces;
+
+public:
+	//
+	// Wrapper type to prevent l-value use of the returned command list interfaces.
+	// A context's command list may be swapped out during recording. Users should access the command
+	// list via the context itself, to ensure they always have the correct command list instance.
+	//
+	template <typename T>
+	class TRValuePtr
+	{
+		friend FD3D12CommandList;
+
+		FD3D12CommandList& CommandList;
+		T* Ptr;
+
+		TRValuePtr(FD3D12CommandList& CommandList, T* Ptr)
+			: CommandList(CommandList)
+			, Ptr(Ptr)
+		{}
+
+	public:
+		TRValuePtr() = delete;
+
+		TRValuePtr(TRValuePtr const&) = delete;
+		TRValuePtr(TRValuePtr&&)      = delete;
+
+		TRValuePtr& operator= (TRValuePtr const&) = delete;
+		TRValuePtr& operator= (TRValuePtr&&)      = delete;
+
+		operator bool () const&& { return !!Ptr; }
+		bool operator!() const&& { return  !Ptr; }
+
+		// These accessor functions count useful work on command lists
+		T* operator ->  () && { CommandList.State.NumCommands++; return Ptr; }
+		T* Get          () && { CommandList.State.NumCommands++; return Ptr; }
+
+		T* GetNoRefCount() && { return Ptr; }
+	};
+
+private:
+	template <typename FInterfaceType>
+	auto BuildRValuePtr(TRefCountPtr<FInterfaceType> FInterfaces::* Member)
+	{
+		return TRValuePtr<FInterfaceType>(*this, Interfaces.*Member);
+	}
+
+public:
+	auto BaseCommandList      () { return BuildRValuePtr(&FInterfaces::CommandList         ); }
+	auto CopyCommandList      () { return BuildRValuePtr(&FInterfaces::CopyCommandList     ); }
+	auto GraphicsCommandList  () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList ); }
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
+	auto GraphicsCommandList1 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList1); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
+	auto GraphicsCommandList2 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList2); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
+	auto GraphicsCommandList3 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList3); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
+	auto GraphicsCommandList4 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList4); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
+	auto GraphicsCommandList5 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList5); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
+	auto GraphicsCommandList6 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList6); }
+#endif
+#if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
+	auto DebugCommandList     () { return BuildRValuePtr(&FInterfaces::DebugCommandList    ); }
+#endif
+#if D3D12_RHI_RAYTRACING
+	auto RayTracingCommandList() { return BuildRValuePtr(&FInterfaces::GraphicsCommandList4); }
+#endif
+#if NV_AFTERMATH
+	auto AftermathHandle      () { return Interfaces.AftermathHandle; } // @todo - should this increment NumCommands?
+#endif
+
+private:
+	void WriteTimestamp(FD3D12QueryLocation const& Location);
 
 	// Contents of the state struct are reset when the command list is recycled
 	struct FState

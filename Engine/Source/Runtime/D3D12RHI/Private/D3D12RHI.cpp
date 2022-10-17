@@ -408,7 +408,6 @@ void FD3D12DynamicRHI::EnqueueEndOfPipeTask(TUniqueFunction<void()> TaskFunc, TU
 
 		FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
 		Payload->SyncPointsToSignal.Emplace(SyncPoint);
-		Payload->bResolveQueries = true;
 		Prereqs.Add(SyncPoint->GetGraphEvent());
 
 		if (ModifyPayloadCallback)
@@ -624,18 +623,14 @@ void FD3D12DynamicRHI::RHISignalManualFence(FRHICommandList& RHICmdList, ID3D12F
 {
 	checkf(FRHIGPUMask::All() == FRHIGPUMask::GPU0(), TEXT("RHISignalManualFence cannot be used by multi-GPU code"));
 	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList);
-	Context.CloseCommandList(false);
 	Context.SignalManualFence(Fence, Value);
-	Context.OpenCommandList();
 }
 
 void FD3D12DynamicRHI::RHIWaitManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value)
 {
 	checkf(FRHIGPUMask::All() == FRHIGPUMask::GPU0(), TEXT("RHIWaitManualFence cannot be used by multi-GPU code"));
 	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList);
-	Context.CloseCommandList(false);
 	Context.WaitManualFence(Fence, Value);
-	Context.OpenCommandList();
 }
 
 bool ID3D12DynamicRHI::IsD3DDebugEnabled()

@@ -191,12 +191,7 @@ void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 	checkf(Query->Type == RQT_Occlusion, TEXT("Only occlusion queries support RHIBeginRenderQuery()."));
 
 	Query->ActiveLocation = AllocateQuery(ED3D12QueryType::Occlusion, &Query->Result);
-
-	GraphicsCommandList()->BeginQuery(
-		Query->ActiveLocation.Heap->GetD3DQueryHeap(),
-		Query->ActiveLocation.Heap->QueryType,
-		Query->ActiveLocation.Index
-	);
+	BeginQuery(Query->ActiveLocation);
 
 	ActiveQueries++;
 }
@@ -241,12 +236,7 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 		check(ActiveQueries > 0);
 		ActiveQueries--;
 
-		check(Query->ActiveLocation.Heap);
-		GraphicsCommandList()->EndQuery(
-			Query->ActiveLocation.Heap->GetD3DQueryHeap(),
-			Query->ActiveLocation.Heap->QueryType,
-			Query->ActiveLocation.Index
-		);
+		EndQuery(Query->ActiveLocation);
 		Query->ActiveLocation = {};
 		break;
 

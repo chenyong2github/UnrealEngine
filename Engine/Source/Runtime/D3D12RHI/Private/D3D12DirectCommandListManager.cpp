@@ -67,9 +67,7 @@ void FD3D12CommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
 	check(Fence);
 	check(Fence->SyncPoints[GetGPUIndex()]);
 
-	CloseCommandList(true);
 	SignalSyncPoint(Fence->SyncPoints[GetGPUIndex()]);
-	OpenCommandList();
 }
 
 
@@ -145,17 +143,7 @@ void FD3D12ManualFence::AdvanceFrame()
 	{
 		for (FFencePair& Pair : FencePairs)
 		{
-			Pair.Context->CloseCommandList(false);
-		}
-
-		for (FFencePair& Pair : FencePairs)
-		{
 			Pair.Context->SignalManualFence(Pair.Fence, NextValue);
-		}
-
-		for (FFencePair& Pair : FencePairs)
-		{
-			Pair.Context->OpenCommandList();
 		}
 	});
 }

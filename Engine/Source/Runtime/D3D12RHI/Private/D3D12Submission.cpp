@@ -125,14 +125,9 @@ IRHIPlatformCommandList* FD3D12DynamicRHI::RHIFinalizeContext(IRHIComputeContext
 	FD3D12FinalizedCommands Result;
 	auto FinalizeContext = [&](FD3D12CommandContext* CmdContext)
 	{
-		CmdContext->CloseCommandList(true);
 		CmdContext->Finalize(Result);
 
-		if (CmdContext->IsDefaultContext())
-		{
-			CmdContext->OpenCommandList();
-		}
-		else
+		if (!CmdContext->IsDefaultContext())
 		{
 			CmdContext->ClearState();
 			CmdContext->GetParentDevice()->ReleaseContext(CmdContext);
@@ -288,9 +283,6 @@ FD3D12DynamicRHI::FProcessResult FD3D12DynamicRHI::ProcessSubmissionQueue()
 				// executing on a different queue (e.g. graphics-only transitions required 
 				// before async compute work), so we gather potential work across all
 				// queues for this device.
-				// 
-				// The last command list from each finalized context will still be open, 
-				// allowing us to use it to append any necessary ResolveQueryData commands.
 				//
 				const uint32 MaxBatchSize = GetMaxExecuteBatchSize();
 				auto AccumulateQueries = [&](FD3D12CommandList* CommandList)
@@ -333,10 +325,6 @@ FD3D12DynamicRHI::FProcessResult FD3D12DynamicRHI::ProcessSubmissionQueue()
 						if (&BarrierQueue == &CurrentQueue)
 						{
 							// Barrier command list will run on the current queue.
-
-							// There's always another command list after the barrier one, so close this immediately.
-							BarrierCommandList->Close();
-
 							// Insert it immediately before the corresponding command list that generated it.
 							check(BarrierQueue.PayloadToSubmit);
 							BarrierQueue.PayloadToSubmit->CommandListsToExecute.Insert(BarrierCommandList, Index++);
@@ -370,65 +358,87 @@ FD3D12DynamicRHI::FProcessResult FD3D12DynamicRHI::ProcessSubmissionQueue()
 				check(Payload->SyncPointsToWait.Num() == 0);
 
 				Queue->BarrierTimestamps.CloseAndReset(Queue->PendingQueryRanges);
-				Queue->BarrierCommandList = nullptr;
 				Queue->NumCommandListsInBatch = 0;
 
 				check(Payload->QueryRanges.Num() == 0);
 				check(Payload->TimestampQueries.Num() == 0);
 				check(Payload->OcclusionQueries.Num() == 0);
 
-				FD3D12CommandList* FinalCommandList = Payload->CommandListsToExecute.Num() > 0
-					? Payload->CommandListsToExecute.Last()
-					: nullptr;
-
-				if (Payload->bResolveQueries && Queue->PendingQueryRanges.Num())
+				if (Queue->PendingQueryRanges.Num())
 				{
-					if (!FinalCommandList)
+					// If this payload will signal a CPU-visible sync point, we need to resolve queries.
+					// This makes sure that the query data has reached the CPU before the sync point the CPU is waiting on is signaled.
+					bool bResolveQueries = false;
+					for (FD3D12SyncPoint* SyncPoint : Payload->SyncPointsToSignal)
 					{
-						// We've got queries to resolve, but no command list to use. Allocate one.
-						if (!Queue->BarrierAllocator)
+						if (SyncPoint->GetType() == ED3D12SyncPointType::GPUAndCPU)
 						{
-							Queue->BarrierAllocator = Queue->Device->ObtainCommandAllocator(Queue->QueueType);
-						}
-
-						FinalCommandList = Queue->Device->ObtainCommandList(Queue->BarrierAllocator, nullptr);
-						Payload->CommandListsToExecute.Add(FinalCommandList);
-					}
-
-					check(FinalCommandList->IsOpen());
-					FinalCommandList->WriteEndTimestamp();
-
-					for (FD3D12QueryRange const& Range : Queue->PendingQueryRanges)
-					{
-						check(Range.End > Range.Start);
-
-						FD3D12Resource* ResultBuffer = Range.Heap->GetResultBuffer();
-						FinalCommandList->UpdateResidency(
-						{
-							&Range.Heap->GetHeapResidencyHandle(),
-							&ResultBuffer->GetResidencyHandle()
-						});
-
-						if (Range.Heap->GetD3DQueryHeap())
-						{
-							FinalCommandList->Interfaces.GraphicsCommandList->ResolveQueryData(
-								Range.Heap->GetD3DQueryHeap(),
-								Range.Heap->QueryType,
-								Range.Start,
-								Range.End - Range.Start,
-								ResultBuffer->GetResource(),
-								Range.Start * FD3D12QueryHeap::ResultSize
-							);
+							bResolveQueries = true;
+							break;
 						}
 					}
 
-					Payload->QueryRanges      = MoveTemp(Queue->PendingQueryRanges     );
-					Payload->TimestampQueries = MoveTemp(Queue->PendingTimestampQueries);
-					Payload->OcclusionQueries = MoveTemp(Queue->PendingOcclusionQueries);
+					if (bResolveQueries)
+					{
+						FD3D12CommandList* ResolveCommandList = nullptr;
+						{
+							auto GetResolveCommandList = [&]() -> FD3D12CommandList*
+							{
+								if (ResolveCommandList)
+									return ResolveCommandList;
+
+								if (!Queue->BarrierAllocator)
+									Queue->BarrierAllocator = Queue->Device->ObtainCommandAllocator(Queue->QueueType); 
+
+								return ResolveCommandList = Queue->Device->ObtainCommandList(Queue->BarrierAllocator, nullptr);
+							};
+
+							// We've got queries to resolve. Allocate a command list.
+							for (FD3D12QueryRange const& Range : Queue->PendingQueryRanges)
+							{
+								check(Range.End > Range.Start);
+
+	#if ENABLE_RESIDENCY_MANAGEMENT
+								FD3D12ResidencyHandle* ResidencyHandles[] =
+								{
+									&Range.Heap->GetHeapResidencyHandle(),
+									&Range.Heap->GetResultBuffer()->GetResidencyHandle()
+								};
+
+								for (FD3D12ResidencyHandle* Handle : ResidencyHandles)
+								{
+									if (Handle->IsInitialized())
+									{
+										GetResolveCommandList()->UpdateResidency({ Handle });
+									}
+								}
+	#endif // ENABLE_RESIDENCY_MANAGEMENT
+
+								if (Range.Heap->GetD3DQueryHeap())
+								{
+									GetResolveCommandList()->GraphicsCommandList()->ResolveQueryData(
+										Range.Heap->GetD3DQueryHeap(),
+										Range.Heap->QueryType,
+										Range.Start,
+										Range.End - Range.Start,
+										Range.Heap->GetResultBuffer()->GetResource(),
+										Range.Start * FD3D12QueryHeap::ResultSize
+									);
+								}
+							}
+						}
+
+						Payload->QueryRanges      = MoveTemp(Queue->PendingQueryRanges     );
+						Payload->TimestampQueries = MoveTemp(Queue->PendingTimestampQueries);
+						Payload->OcclusionQueries = MoveTemp(Queue->PendingOcclusionQueries);
+
+						if (ResolveCommandList)
+						{
+							ResolveCommandList->Close();
+							Payload->CommandListsToExecute.Add(ResolveCommandList);
+						}
+					}
 				}
-
-				if (FinalCommandList && FinalCommandList->IsOpen())
-					FinalCommandList->Close();
 
 				if (Queue->BarrierAllocator)
 				{
@@ -582,24 +592,21 @@ FD3D12CommandList* FD3D12DynamicRHI::GenerateBarrierCommandListAndUpdateState(FD
 			: SourceCommandList->QueueType
 	);
 
-	// Close the previous barrier command list, since we're going to reuse its allocator.
-	if (Queue.BarrierCommandList && Queue.BarrierCommandList->IsOpen())
-		Queue.BarrierCommandList->Close();
-
 	// Get an allocator if we don't have one
 	if (!Queue.BarrierAllocator)
 		Queue.BarrierAllocator = Queue.Device->ObtainCommandAllocator(Queue.QueueType);
 
 	// Get a new command list
-	Queue.BarrierCommandList = Queue.Device->ObtainCommandList(Queue.BarrierAllocator, &Queue.BarrierTimestamps);
+	FD3D12CommandList* BarrierCommandList = Queue.Device->ObtainCommandList(Queue.BarrierAllocator, &Queue.BarrierTimestamps);
 
 #if ENABLE_RESIDENCY_MANAGEMENT
-	Queue.BarrierCommandList->UpdateResidency(ResidencyHandles);
+	BarrierCommandList->UpdateResidency(ResidencyHandles);
 #endif
 
-	Batcher.FlushIntoCommandList(*Queue.BarrierCommandList, Queue.BarrierTimestamps);
+	Batcher.FlushIntoCommandList(*BarrierCommandList, Queue.BarrierTimestamps);
+	BarrierCommandList->Close();
 
-	return Queue.BarrierCommandList;
+	return BarrierCommandList;
 }
 
 uint64 FD3D12Queue::ExecutePayload()
