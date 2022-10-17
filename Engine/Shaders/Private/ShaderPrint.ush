@@ -5,20 +5,25 @@
 
 #pragma once
 
-#include "ShaderPrintCommon.ush"
-#include "MiniFontCommon.ush"
-
-// The FXC compiler will force unroll on loops around Print() and so in some places we need
-// to limit the loop count to either fix compilation or reduce compilation time.
+// * The FXC compiler will force unroll on loops around Print() and so in some places we need
+//   to limit the loop count to either fix compilation or reduce compilation time.
+// * FXC compiler can't use buffer which are conditionally initialized
 #if COMPILER_HLSL && !COMPILER_DXC
 #define SHADER_PRINT_UNROLL(N) UNROLL_N(N)
+#define SHADER_PRINT_USE_GLOBAL_RESOURCE 1
+#define SHADER_PRINT_RWENTRYBUFFER(Ctx) ShaderPrint_RWEntryBuffer
+#define SHADER_PRINT_RWSTATEBUFFER(Ctx) ShaderPrint_StateBuffer
 #else
 #define SHADER_PRINT_UNROLL(N) LOOP
+#define SHADER_PRINT_USE_GLOBAL_RESOURCE 0
 #endif
 
 // Global buffers for ShaderPrint collection.
 StructuredBuffer<uint> ShaderPrint_StateBuffer;
 RWStructuredBuffer<uint> ShaderPrint_RWEntryBuffer;
+
+#include "ShaderPrintCommon.ush"
+#include "MiniFontCommon.ush"
 
 FShaderPrintBuffers InitShaderPrintContextBuffers()
 {
