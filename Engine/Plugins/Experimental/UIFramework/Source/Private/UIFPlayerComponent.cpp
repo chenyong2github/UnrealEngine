@@ -196,6 +196,25 @@ void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick
 
 		PrimaryComponentTick.SetTickFunctionEnable(false);
 	}
+	else
+	{
+		FMemMark Mark(FMemStack::Get());
+		TArray<int32, TMemStackAllocator<>> TempNetReplicationPending;
+		TempNetReplicationPending.Reserve(NetReplicationPending.Num());
+		for (int32 ReplicationId : NetReplicationPending)
+		{
+			TempNetReplicationPending.Add(ReplicationId);
+		}
+		NetReplicationPending.Empty(false);
+
+		for (int32 ReplicationId : TempNetReplicationPending)
+		{
+			if (const FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.GetEntryByReplicationId(ReplicationId))
+			{
+				LocalWidgetWasAddedToTree(*Entry);
+			}
+		}
+	}
 }
 
 void UUIFrameworkPlayerComponent::LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry)

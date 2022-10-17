@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Types/UIFWidgetTree.h"
+#include "UIFLog.h"
 #include "UIFPlayerComponent.h"
 #include "UIFWidget.h"
 
@@ -143,15 +144,21 @@ void FUIFrameworkWidgetTree::AddWidget(UUIFrameworkWidget* Parent, UUIFrameworkW
 
 void FUIFrameworkWidgetTree::AddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
 {
+	check(OwnerComponent);
 	int32 PreviousEntryIndex = Entries.IndexOfByPredicate([Child](const FUIFrameworkWidgetTreeEntry& Other){ return Other.Child == Child; });
 	if (PreviousEntryIndex != INDEX_NONE)
 	{
 		const FUIFrameworkWidgetTreeEntry& PreviousEntry = Entries[PreviousEntryIndex];
 		if (PreviousEntry.Parent != Parent)
 		{
+			// New Parent for an existing child.
 			Entries.RemoveAtSwap(PreviousEntryIndex);
 			FUIFrameworkWidgetTreeEntry& NewEntry = Entries.Emplace_GetRef(Parent, Child);
 			MarkItemDirty(NewEntry);
+		}
+		else
+		{
+			UE_LOG(LogUIFramework, Warning, TEXT("A widget was added to the WidgetTree but it's already added."));
 		}
 	}
 	else
@@ -159,6 +166,7 @@ void FUIFrameworkWidgetTree::AddChildInternal(UUIFrameworkWidget* Parent, UUIFra
 		FUIFrameworkWidgetTreeEntry& NewEntry = Entries.Emplace_GetRef(Parent, Child);
 		MarkItemDirty(NewEntry);
 		WidgetByIdMap.FindOrAdd(Child->GetWidgetId()) = Child;
+		OwnerComponent->GetOwner()->AddReplicatedSubObject(Child);
 		AddChildRecursiveInternal(Child);
 	}
 }
@@ -173,6 +181,7 @@ void FUIFrameworkWidgetTree::AddChildRecursiveInternal(UUIFrameworkWidget* Widge
 				FUIFrameworkWidgetTreeEntry& NewEntry = Self->Entries.Emplace_GetRef(Widget, ChildWidget);
 				Self->MarkItemDirty(NewEntry);
 				Self->WidgetByIdMap.FindOrAdd(ChildWidget->GetWidgetId()) = ChildWidget;
+				Self->OwnerComponent->GetOwner()->AddReplicatedSubObject(ChildWidget);
 				Self->AddChildRecursiveInternal(ChildWidget);
 			}
 		});
@@ -191,6 +200,7 @@ void FUIFrameworkWidgetTree::RemoveWidget(UUIFrameworkWidget* Widget)
 		{
 			UUIFrameworkWidget* CurrentWidgetToRemove = WidgetsToRemove.Last();
 			WidgetByIdMap.Remove(CurrentWidgetToRemove->GetWidgetId());
+			OwnerComponent->GetOwner()->RemoveReplicatedSubObject(CurrentWidgetToRemove);
 
 			WidgetsToRemove.RemoveAt(WidgetsToRemove.Num()-1);
 			for (int32 Index = Entries.Num() - 1; Index >= 0; --Index)
