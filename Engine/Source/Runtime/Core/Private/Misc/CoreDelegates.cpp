@@ -270,6 +270,7 @@ TDelegate<TSharedPtr<class IPackageStore>()> FCoreDelegates::CreatePackageStore;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TMulticastDelegate<void(bool)> FCoreDelegates::ApplicationNetworkInitializationChanged;
+TMulticastDelegate<void(ENetworkConnectionStatus, ENetworkConnectionStatus)> FCoreDelegates::OnNetworkConnectionStatusChanged;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCrashOverrideParameters::~FCrashOverrideParameters()

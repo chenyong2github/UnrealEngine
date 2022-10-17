@@ -336,6 +336,20 @@ enum class EMobileHapticsType : uint8
 	ImpactHeavy,
 };
 
+/** Possible connection states */
+enum class ENetworkConnectionStatus : uint8
+{
+	/** Default state */
+	Unknown = 0,
+	/** No network connection or network device disabled */
+	Disabled,
+	/** Ad-hoc Wifi network or LAN with no external connection */
+	Local,
+	/** Connected to the network */
+	Connected
+};
+CORE_API const TCHAR* LexToString(ENetworkConnectionStatus EnumVal);
+
 enum class ENetworkConnectionType : uint8
 {
 	/**
@@ -1485,6 +1499,16 @@ public:
 	}
 
 	/**
+	 * Returns the current status for the network connection
+	 */
+	static ENetworkConnectionStatus GetNetworkConnectionStatus();
+
+	/**
+	 * Updates the current status for the network connection
+	 */
+	static void SetNetworkConnectionStatus(ENetworkConnectionStatus NewNetworkConnectionStatus);
+
+	/**
 	 * Returns whether WiFi connection is currently active
 	 */
 	static ENetworkConnectionType GetNetworkConnectionType()
@@ -1829,6 +1853,8 @@ protected:
 #endif	//#if !UE_BUILD_SHIPPING
 
 	static EDeviceScreenOrientation AllowedDeviceOrientation;
+
+	static ENetworkConnectionStatus CurrentNetworkConnectionStatus;
 
 protected:
 	/**

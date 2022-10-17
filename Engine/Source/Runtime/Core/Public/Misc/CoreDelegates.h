@@ -501,6 +501,14 @@ public:
 	/** Called when the application's network initializes or shutdowns on platforms where the network stack is not always available */
 	static TMulticastDelegate<void(bool bIsNetworkInitialized)> ApplicationNetworkInitializationChanged;
 
+	/**
+	 * Called when the connection state as reported by the platform changes
+	 *
+	 * @param LastConnectionState last state of the connection
+	 * @param ConnectionState current state of the connection
+	 */
+	static TMulticastDelegate<void(ENetworkConnectionStatus LastConnectionState, ENetworkConnectionStatus ConnectionState)> OnNetworkConnectionStatusChanged;
+
 	// Callback to let code read or write specialized binary data that is generated at Stage time, for optimizing data right before 
 	// final game data is being written to disk
 	// The TMap is a map of an identifier for owner of the data, and a boolean where true means the data is being generated (ie editor), and false 
