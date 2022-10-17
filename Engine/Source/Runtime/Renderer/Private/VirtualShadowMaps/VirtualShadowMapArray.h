@@ -132,6 +132,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)	
 
+	// Set to 1 if r.Shadow.Virtual.NonNanite.IncludeInCoarsePages is set to 0 in order to signal that we want to use the legacy path for just excluding non-nanite
+	SHADER_PARAMETER(uint32, bExcludeNonNaniteFromCoarsePages)
+	SHADER_PARAMETER(float, CoarsePagePixelThresholdDynamic)
+	SHADER_PARAMETER(float, CoarsePagePixelThresholdStatic)
+	SHADER_PARAMETER(float, CoarsePagePixelThresholdDynamicNanite)
+
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ProjectionData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageTable)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageFlags)

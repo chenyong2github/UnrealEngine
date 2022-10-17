@@ -95,8 +95,8 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 TranslatedWorldPosi
 	{
 		return;
 	}
-
-	uint Flags = VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG;
+	// Normal pages marked through pixel processing are not "coarse" and should include "detail geometry" - i.e., all geometry
+	uint Flags = VSM_ALLOCATED_FLAG | VSM_DETAIL_GEOMETRY_FLAG;
 
 	uint MaxPageAddress = CalcLevelDimsPages(MipLevel) - 1U;
 	float2 PageAddressFloat = ShadowUVz.xy * CalcLevelDimsPages(MipLevel);
@@ -409,7 +409,7 @@ void MarkCoarsePages(uint DispatchThreadId : SV_DispatchThreadID)
 
 	// NOTE: Coarse pages are very large and tend to get invalidated a lot due to anything in the scene moving
 	// Rendering non-nanite geometry into these pages can be very expensive and thus isn't always desirable.
-	uint Flags = VSM_ALLOCATED_FLAG | (bIncludeNonNaniteGeometry != 0 ? VSM_NON_NANITE_FLAG : 0);
+	uint Flags = VSM_ALLOCATED_FLAG;
 
 	if (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
@@ -440,8 +440,7 @@ void MarkCoarsePages(uint DispatchThreadId : SV_DispatchThreadID)
 	{
 		// Mark last mip
 		uint PageOffset = CalcPageOffset(VirtualShadowMapId, VSM_MAX_MIP_LEVELS - 1, uint2(0, 0));
-		// For distant lights we want to inlcude the non-nanite geometry.
-		MarkPageAddress(PageOffset, ProjectionData.bCurrentDistantLight ? (VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG) : Flags);
+		MarkPageAddress(PageOffset, Flags);
 	}
 }
 
@@ -543,10 +542,10 @@ void CreateCachedPageMappings(uint VirtualShadowMapId, uint GlobalPageOffset, ui
 				// portion as we will regenerate that later anyways depending on this frame's allocations.
 				const uint PrevFlags = PrevPageFlags[PrevGlobalOffset] & VSM_PAGE_FLAGS_BITS_MASK;
 
-				// True if the request matches the cached page in terms of whether it includes nanite geometry
-				bool bMatchesNonNanite = (RequestFlags & VSM_NON_NANITE_FLAG) == (PrevFlags & VSM_NON_NANITE_FLAG);
+				// True if the request matches the cached page in terms of whether it includes all geometry
+				bool bMatchesDetailGeometryFlag = (RequestFlags & VSM_DETAIL_GEOMETRY_FLAG) == (PrevFlags & VSM_DETAIL_GEOMETRY_FLAG);
 
-				if ((PrevFlags & VSM_ALLOCATED_FLAG) != 0 && bMatchesNonNanite)
+				if ((PrevFlags & VSM_ALLOCATED_FLAG) != 0 && bMatchesDetailGeometryFlag)
 				{
 					uint2 PhysicalAddress = ShadowDecodePageTable(PrevPageTable[PrevGlobalOffset]).PhysicalAddress;
 					uint PhysicalPageIndex = VSMPhysicalPageAddressToIndex(PhysicalAddress);
@@ -724,9 +723,8 @@ void AllocateNewPageMappings(uint ThreadId : SV_DispatchThreadID)
 			uint PhysicalPageIndex = uint(OutFreePhysicalPages[FreeListOffset]);
 			uint2 PhysicalPageAddress = VSMPhysicalIndexToPageAddress(PhysicalPageIndex);
 
-			bool bRequestNonNaniteFlag = (RequestFlags & VSM_NON_NANITE_FLAG) != 0;
-			uint Flags = VSM_ALLOCATED_FLAG | VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG |
-				(bRequestNonNaniteFlag ? VSM_NON_NANITE_FLAG : 0);
+			uint RequestDetailGeometryFlag = RequestFlags & VSM_DETAIL_GEOMETRY_FLAG;
+			uint Flags = VSM_ALLOCATED_FLAG | VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG | RequestDetailGeometryFlag;
 
 			// Mark this page as allocated and not cached (needing rendering)
 			OutPageTable[GlobalPageOffset] = ShadowEncodePageTable(PhysicalPageAddress);

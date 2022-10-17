@@ -96,6 +96,7 @@ void VirtualSmInvalidateInstancePagesCS(
 			return;
 		}
 
+		const bool bIsNanite = InstanceSceneData.NaniteRuntimeResourceID != 0xFFFFFFFFu;
 
 		bool bCastShadows = InstanceSceneData.ValidInstance 
 			&& (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0U;
@@ -144,14 +145,15 @@ void VirtualSmInvalidateInstancePagesCS(
 				UVToClip[2] = float4(0, 0, 1, 0);
 				UVToClip[3] = float4(-1, 1, 0, 1);
 
-				float4x4 LocalToClip = mul(LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowUVMatrix, UVToClip));
-
 				const bool bIsOrtho = bDirectionalLight;
 				const bool bNearClip = !bDirectionalLight;
-				FFrustumCullData Cull = BoxCullFrustum(InstanceSceneData.LocalBoundsCenter, InstanceSceneData.LocalBoundsExtent, LocalToClip, bIsOrtho, bNearClip, false);
+				FFrustumCullData Cull = BoxCullFrustum(InstanceSceneData.LocalBoundsCenter, InstanceSceneData.LocalBoundsExtent, LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowUVMatrix, UVToClip), bIsOrtho, bNearClip, false);
+				float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceSceneData, LocalToTranslatedWorld, ProjectionData.ShadowViewToClipMatrix) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 
 				if (Cull.bIsVisible)
 				{
+					bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
+
 					// 2. figure out overlap and all that
 					// case #1 mip-map VSM - loop all mip levels, case #2 clipmap, just one 'mip level'
 					int NumMipLevels = (ProjectionData.ClipmapLevelCount <= 0) ? VSM_MAX_MIP_LEVELS : 1;
@@ -170,8 +172,11 @@ void VirtualSmInvalidateInstancePagesCS(
 
 							uint4 RectPages = GetPageRect(Rect, ProjectionData.VirtualShadowMapId, MipLevel);
 
+							uint FlagMask = VSM_ALLOCATED_FLAG | GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, bIsNanite, PixelEstRadius);
+							PixelEstRadius *= 0.5f;
+
 							// Use Hierarchical mip test to speed up (allows skipping invalidating areas that don't have any flags anyway)
-							if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, RectPages, VSM_ALLOCATED_FLAG))
+							if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, RectPages, FlagMask))
 							{
 #if USE_HZB_OCCLUSION
 								FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect, ProjectionData.VirtualShadowMapId, MipLevel);
@@ -186,7 +191,7 @@ void VirtualSmInvalidateInstancePagesCS(
 										uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, MipLevel, uint2(x, y));
 										uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
 
-										if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
+										if ((PageFlag & FlagMask) == FlagMask)
 										{
 #if USE_HZB_OCCLUSION
 											if (!IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect))

@@ -212,6 +212,28 @@ TAutoConsoleVariable<int32> CVarDoNonNaniteBatching(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarCoarsePagePixelThresholdDynamic(
+	TEXT("r.Shadow.Virtual.CoarsePagePixelThresholdDynamic"),
+	16.0f,
+	TEXT("If a dynamic (non-nanite) instance has a smaller footprint, it should not be drawn into a coarse page."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarCoarsePagePixelThresholdStatic(
+	TEXT("r.Shadow.Virtual.CoarsePagePixelThresholdStatic"),
+	1.0f,
+	TEXT("If a static (non-nanite) instance has a smaller footprint, it should not be drawn into a coarse page."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarCoarsePagePixelThresholdDynamicNanite(
+	TEXT("r.Shadow.Virtual.CoarsePagePixelThresholdDynamicNanite"),
+	4.0f,
+	TEXT("If a dynamic Nanite instance has a smaller footprint, it should not be drawn into a coarse page."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+
 #if !UE_BUILD_SHIPPING
 bool GDumpVSMLightNames = false;
 void DumpVSMLightNames()
@@ -389,6 +411,11 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	UniformParameters.MaxPhysicalPages = 0;
 	UniformParameters.StaticCachedArrayIndex = 0;
 	// NOTE: Most uniform values don't matter when VSM is disabled
+
+	UniformParameters.bExcludeNonNaniteFromCoarsePages = !CVarCoarsePagesIncludeNonNanite.GetValueOnRenderThread();
+	UniformParameters.CoarsePagePixelThresholdDynamic = CVarCoarsePagePixelThresholdDynamic.GetValueOnRenderThread();
+	UniformParameters.CoarsePagePixelThresholdStatic = CVarCoarsePagePixelThresholdStatic.GetValueOnRenderThread();
+	UniformParameters.CoarsePagePixelThresholdDynamicNanite = CVarCoarsePagePixelThresholdDynamicNanite.GetValueOnRenderThread();
 
 	// Reference dummy data in the UB initially
 	const uint32 DummyPageTableElement = 0xFFFFFFFF;
@@ -1273,6 +1300,11 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	UniformParameters.NumSinglePageShadowMaps = GetNumSinglePageShadowMaps();
 	UniformParameters.NumShadowMapSlots = ShadowMaps.Num();
 	UniformParameters.ProjectionData = GraphBuilder.CreateSRV(ProjectionDataRDG);
+
+	UniformParameters.bExcludeNonNaniteFromCoarsePages = !CVarCoarsePagesIncludeNonNanite.GetValueOnRenderThread();
+	UniformParameters.CoarsePagePixelThresholdDynamic = CVarCoarsePagePixelThresholdDynamic.GetValueOnRenderThread();
+	UniformParameters.CoarsePagePixelThresholdStatic = CVarCoarsePagePixelThresholdStatic.GetValueOnRenderThread();
+	UniformParameters.CoarsePagePixelThresholdDynamicNanite = CVarCoarsePagePixelThresholdDynamicNanite.GetValueOnRenderThread();
 
 	if (CVarShowStats.GetValueOnRenderThread() || CacheManager->IsAccumulatingStats())
 	{

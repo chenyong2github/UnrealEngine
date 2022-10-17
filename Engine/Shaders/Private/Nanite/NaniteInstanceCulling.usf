@@ -225,11 +225,19 @@ void InstanceCull(
 #else
 		uint InstanceId = DispatchIndex;
 #endif
-		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId);
-		const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
+		uint PrimitiveId;
+		uint InstanceFlags;
+		LoadInstancePrimitiveIdAndFlags(InstanceId, PageConstants.x, PrimitiveId, InstanceFlags);
+
+		if (PrimitiveId == INVALID_PRIMITIVE_ID)
+		{
+			return;
+		}
+
+		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, false);
 
 		BRANCH
-		if (!InstanceData.ValidInstance || RuntimeResourceID == 0xFFFFFFFFu)
+		if (InstanceData.NaniteRuntimeResourceID == 0xFFFFFFFFu)
 		{
 			// Only process valid Nanite instances
 			return;
@@ -485,13 +493,120 @@ void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 	}
 }
 
+void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, const uint InstanceId, FInstanceSceneData InstanceData, FCompactedViewInfo ViewInfo, FNaniteView NaniteView, const bool bHasMoved, inout bool bVisibleAndShouldCacheAsStaticForAnyView)
+{
+#if DEBUG_FLAGS
+	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bDebugSkipCamPerPrimDistanceCull = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+#else
+	const bool bSkipBoxCullFrustum = false;
+	const bool bSkipBoxCullHZB = false;
+	const bool bDebugSkipCamPerPrimDistanceCull = false;
+#endif
+
+	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
+	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
+	const bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
+
+	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+	FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
+
+	for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
+	{
+		uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
+		FNaniteView MipView = GetNaniteView(MipViewId);
+		float2 ViewSize = MipView.ViewSizeAndInvSize.xy;
+
+		// TODO: minor optimization possible, but need to duplicate setup from CullRasterize for virtual targets
+		//float2 ViewSize = float2( ( TargetViewSize + ( 1u << TargetMipLevel ) - 1u ) >> TargetMipLevel );
+
+		FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4 );
+
+		bool bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
+
+		// TODO: Distance culling for VSM is complicated because of page invalidations and because the pre-view translation
+		// is not the same as the main view's camera. This will need some work to be able to support properly if we need to
+		const bool bSkipCamPerPrimDistanceCull = /*bDebugSkipCamPerPrimDistanceCull || */ true;
+
+		// TODO: WPO disable distance is also ignored for VSM for now, but should probably affect bHasMoved and bMaterialInvalidates
+		const bool bDisableWPODisableDistance = true;
+		bool bEnableWPO = true;
+		DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bDisableWPODisableDistance, bVisible, bEnableWPO);
+
+		// TODO: add per-view tracking of whether the material invalidates (AKA WPO is enabled) and only queue for re-classification if this is the case.
+
+		BRANCH
+		if( bVisible && !Cull.bCrossesNearPlane )
+		{
+			const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
+			float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, DynamicData.LocalToTranslatedWorld, MipView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
+			const uint PageFlagMask = GetPageFlagMaskForRendering(bShouldCacheAsStatic, bHasMoved)
+									| GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, true, PixelEstRadius);
+			uint4 RectPages = GetPageRect(Rect, MipView.TargetLayerIndex, MipView.TargetMipLevel);
+			bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, RectPages, PageFlagMask );
+		}
+
+		BRANCH
+		if( bViewHZB && bVisible )
+		{
+			const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
+			FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipBoxCullFrustum);
+
+			BRANCH
+			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipBoxCullHZB)
+			{
+				FScreenRect PrevRect = GetScreenRect(MipView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
+				bool bWasOccluded = !IsVisibleMaskedHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect, false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, 0U);
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+				if (bWasOccluded)
+				{
+					WriteOccludedInstance(MipViewId, InstanceId);
+				}
+#endif
+
+				bVisible = !bWasOccluded;
+			}
+		}
+
+		BRANCH
+		if( bVisible )
+		{
+			uint NodeOffset = 0;
+
+			WaveInterlockedAdd_( OutQueueState[0].PassState[0].NodeWriteOffset, 1U, NodeOffset );
+			WaveInterlockedAdd(  OutQueueState[0].PassState[0].NodeCount, 1U );
+#if DEBUG_FLAGS
+			if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS)
+			{
+				WaveInterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, 1U);
+			}
+#endif
+
+			bVisibleAndShouldCacheAsStaticForAnyView = bVisibleAndShouldCacheAsStaticForAnyView || ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
+
+			// Output visible nodes. Get compaction for free by only looping over set bits in VisibleMipsMask.
+			// Iteration count is equal to the maximum lane output count.
+			if (NodeOffset < MaxNodes)
+			{
+				FCandidateNode Node;
+				Node.Flags = NANITE_CULLING_FLAG_TEST_LOD;
+				Node.ViewId = MipViewId;
+				Node.InstanceId = InstanceId;
+				Node.NodeIndex = 0;
+				Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
+				StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, false );
+			}
+		}
+	}
+}
+
+
 StructuredBuffer< FCompactedViewInfo > CompactedViewInfo;
 StructuredBuffer< uint > CompactedViewsAllocation;
 
 [numthreads(64, 1, 1)]
-void InstanceCullVSM(
-	uint3 GroupId : SV_GroupID,
-	uint GroupIndex : SV_GroupIndex)
+void InstanceCullVSM(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex)
 {
 	const uint DispatchIndex = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, 64);
 
@@ -504,16 +619,6 @@ void InstanceCullVSM(
 	}
 #endif
 
-#if DEBUG_FLAGS
-	const bool bSkipBoxCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB		= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
-	const bool bDebugSkipCamPerPrimDistanceCull = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
-#else
-	const bool bSkipBoxCullFrustum	= false;
-	const bool bSkipBoxCullHZB		= false;
-	const bool bDebugSkipCamPerPrimDistanceCull = false;
-#endif
-	
 	const uint InstanceId = DispatchIndex;
 
 	BRANCH
@@ -522,11 +627,19 @@ void InstanceCullVSM(
 		return;
 	}
 
-	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId);
-	const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
+	uint PrimitiveId;
+	uint InstanceFlags;
+	LoadInstancePrimitiveIdAndFlags(InstanceId, PageConstants.x, PrimitiveId, InstanceFlags);
+
+	if (PrimitiveId == INVALID_PRIMITIVE_ID)
+	{
+		return;
+	}
+
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, false);
 
 	BRANCH
-	if (!InstanceData.ValidInstance || RuntimeResourceID == 0xFFFFFFFFu)
+	if (InstanceData.NaniteRuntimeResourceID == 0xFFFFFFFFu)
 	{
 		// Only process valid Nanite instances
 		return;
@@ -541,7 +654,7 @@ void InstanceCullVSM(
 	}
 #endif
 
-	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(PrimitiveId);
 
 	BRANCH
 	if (!IsPrimitiveShown(PrimitiveData.Flags, RenderFlags, /* bIsShadowPass = */ true))
@@ -562,114 +675,17 @@ void InstanceCullVSM(
 	{
 		FCompactedViewInfo ViewInfo = CompactedViewInfo[CompactedViewInfoIndex];
 		uint PrimaryViewId = ViewInfo.StartOffset;
-		uint VisibleMipsMask = 0U;
 
 		FNaniteView NaniteView = GetNaniteView( PrimaryViewId );
-			
+	
 		// Depth clipping should only be disabled with orthographic projections
-		const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
-		const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-		FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
-
-		const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);			
-			
-		for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
+		if (IsOrthoProjection(NaniteView.ViewToClip))
 		{
-			uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
-			FNaniteView MipView = GetNaniteView(MipViewId);
-			float2 ViewSize = MipView.ViewSizeAndInvSize.xy;
-
-			// TODO: minor optimization possible, but need to duplicate setup from CullRasterize for virtual targets
-			//float2 ViewSize = float2( ( TargetViewSize + ( 1u << TargetMipLevel ) - 1u ) >> TargetMipLevel );
-
-			FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4 );
-
-			bool bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
-
-			// TODO: Distance culling for VSM is complicated because of page invalidations and because the pre-view translation
-			// is not the same as the main view's camera. This will need some work to be able to support properly if we need to
-			const bool bSkipCamPerPrimDistanceCull = /*bDebugSkipCamPerPrimDistanceCull || */ true;
-
-			// TODO: WPO disable distance is also ignored for VSM for now, but should probably affect bHasMoved and bMaterialInvalidates
-			const bool bDisableWPODisableDistance = true;
-			bool bEnableWPO = true;
-			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bDisableWPODisableDistance, bVisible, bEnableWPO);
-
-			// TODO: add per-view tracking of whether the material invalidates (AKA WPO is enabled) and only queue for re-classification if this is the case.
-
-			BRANCH
-			if( bVisible && !Cull.bCrossesNearPlane )
-			{
-				const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
-				uint4 RectPages = GetPageRect(Rect, MipView.TargetLayerIndex, MipView.TargetMipLevel);
-				bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, RectPages, PageFlagMask );
-			}
-
-			BRANCH
-			if( bViewHZB && bVisible )
-			{
-				const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
-				FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipBoxCullFrustum);
-
-				BRANCH
-				if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipBoxCullHZB)
-				{
-					FScreenRect PrevRect = GetScreenRect(MipView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-					bool bWasOccluded = !IsVisibleMaskedHZB(MipView.TargetPrevLayerIndex, MipView.TargetMipLevel, PrevRect, false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, 0U);
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-					if (bWasOccluded)
-					{
-						WriteOccludedInstance(MipViewId, InstanceId);
-					}
-#endif
-
-					bVisible = !bWasOccluded;
-				}
-			}
-
-			if( bVisible )
-			{
-				VisibleMipsMask |= ( 1u << MipViewInfoIndex);
-			}
+			ProcessPrimaryView(true, PrimitiveData, InstanceId, InstanceData, ViewInfo, NaniteView, bHasMoved, bVisibleAndShouldCacheAsStaticForAnyView);
 		}
-
-		uint NodeOffset = 0;
-
-		BRANCH
-		if( VisibleMipsMask )
+		else
 		{
-			uint NumNodes = countbits( VisibleMipsMask );
-			WaveInterlockedAdd_( OutQueueState[0].PassState[0].NodeWriteOffset, NumNodes, NodeOffset );
-			WaveInterlockedAdd(  OutQueueState[0].PassState[0].NodeCount, NumNodes );
-
-	#if DEBUG_FLAGS
-			if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS)
-			{
-				WaveInterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, NumNodes);
-			}
-	#endif
-
-			bVisibleAndShouldCacheAsStaticForAnyView = bVisibleAndShouldCacheAsStaticForAnyView || ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
-		}
-
-		// Output visible nodes. Get compaction for free by only looping over set bits in VisibleMipsMask.
-		// Iteration count is equal to the maximum lane output count.
-		while( VisibleMipsMask && NodeOffset < MaxNodes)
-		{
-			uint MipViewInfoIndex = firstbitlow( VisibleMipsMask );	// Jump to next set bit.
-			uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
-
-			VisibleMipsMask &= VisibleMipsMask - 1u;				// Remove bottom bit.
-
-			FCandidateNode Node;
-			Node.Flags = NANITE_CULLING_FLAG_TEST_LOD;
-			Node.ViewId = MipViewId;
-			Node.InstanceId = InstanceId;
-			Node.NodeIndex = 0;
-			Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
-			StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, false );
-			NodeOffset++;
+			ProcessPrimaryView(false, PrimitiveData, InstanceId, InstanceData, ViewInfo, NaniteView, bHasMoved, bVisibleAndShouldCacheAsStaticForAnyView);
 		}
 	}
 

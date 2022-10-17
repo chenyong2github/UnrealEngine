@@ -12,13 +12,14 @@
 // Used in the PageFlags
 // NOTE: These flags are combined hierarchically using bitwise *OR*, so plan/negate them appropriately
 // Marks pages that are allocated
-#define VSM_ALLOCATED_FLAG			(1U)
+#define VSM_ALLOCATED_FLAG			(1U << 0)
 // Marks pages whose dynamic pages are uncached
-#define VSM_DYNAMIC_UNCACHED_FLAG	(2U)
+#define VSM_DYNAMIC_UNCACHED_FLAG	(1U << 1)
 // Marks pages whose static pages are uncached
-#define VSM_STATIC_UNCACHED_FLAG	(4U)
-// Marks pages that need non-nanite rendering
-#define VSM_NON_NANITE_FLAG			(8U)
+#define VSM_STATIC_UNCACHED_FLAG	(1U << 2)
+// Marks pages that are _not_ coarse (i.e., "normal" pages) that should include all geometry and conversely to mark geometry that is 
+// "detail geometry" and which can skip rendering to coarse pages
+#define VSM_DETAIL_GEOMETRY_FLAG	(1U << 3)
 
 // Stored in the physical meta data flags and must be higher than the  VSM_*_FLAG
 // The light was marked to not be cached (even though caching is enabled)

@@ -274,9 +274,10 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 			const uint2 TargetViewSize = uint2(NaniteView.ViewSizeAndInvSize.xy);
 
 			float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
-			float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, false);
 
-			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bIsOrtho, bNearClip, false);
+			// Compute estimated footprint in the VSM base level - note that we don't use the actual footprint because it changes under rotation and also with edge clipping which makes it unstable when used for culling.
+			float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 
 #if USE_HZB_OCCLUSION
 			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
@@ -288,7 +289,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 			{
 				bool bIsViewUncached = (NaniteView.Flags & NANITE_VIEW_FLAG_UNCACHED) != 0u;
 				bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, bIsViewUncached);
-				uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
+				uint BaseFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 				bShouldCacheAsStaticForAnyView = bShouldCacheAsStaticForAnyView || bShouldCacheAsStatic;
 
 				// Loop over mip levels and count number of output visible instances
@@ -299,6 +300,10 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 					uint VirtualShadowMapId = uint(MipView.TargetLayerIndex);
 
 					FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
+
+					uint FlagMask = BaseFlagMask | GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, false, PixelEstRadius);
+					// Update for next clip level
+					PixelEstRadius *= 0.5f;
 
 					uint4 RectPages = GetPageRect(Rect, VirtualShadowMapId, MipLevel);
 
@@ -413,8 +418,9 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		{
 			uint LocalPageY = uint(floor((float(Index) + 0.5f) * rcp(RectPagesSize.x)));
 			uint2 vPage = Job.RectPages.xy + uint2(Index - RectPagesSize.x * LocalPageY, LocalPageY);
-			uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(Job.bShouldCacheAsStatic, Job.bHasMoved);
+			uint FlagMask = GetPageFlagMaskForRendering(Job.bShouldCacheAsStatic, Job.bHasMoved);
 
+			// We don't need to add the correct flag mask here, as we don't look at the VSM_DETAIL_GEOMETRY_FLAG for invalidaiton processing
 			MarkPageDirty(PageTableLevelOffset, vPage, Job.MipLevel, Job.bMaterialInvalidates, Job.bShouldCacheAsStatic, Job.bIsViewUncached, FlagMask);
 		}
 	}
