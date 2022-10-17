@@ -251,7 +251,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					return AnalysisTimeoutFlags.After_10_minutes;
+					return AnalysisTimeoutFlags.After_30_minutes;
 				}
 			}
 			set
