@@ -170,14 +170,25 @@ public:
 
 	void OnParameterPreChange()
 	{
-		TWeakObjectPtr<UNiagaraComponent> RawComponent = GetComponent();
-		if (RawComponent.IsValid())
+		if (Owner->IsA<UNiagaraComponent>())
 		{
-			RawComponent->Modify();
-
-			for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+			TWeakObjectPtr<UNiagaraComponent> RawComponent = GetComponent();
+			if(RawComponent.IsValid())
 			{
-				PropertyHandle->NotifyPreChange();
+				RawComponent->Modify();
+
+				for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
+				{
+					PropertyHandle->NotifyPreChange();
+				}
+			}
+		}
+		else if(Owner->IsA<UNiagaraSystem>())
+		{
+			TWeakObjectPtr<UNiagaraSystem> System = GetSystem();
+			if(System.IsValid())
+			{
+				System->Modify();
 			}
 		}
 	}
