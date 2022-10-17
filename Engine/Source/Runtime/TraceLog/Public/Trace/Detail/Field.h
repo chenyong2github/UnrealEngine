@@ -9,6 +9,7 @@
 #include "Atomic.h"
 #include "Protocol.h"
 #include "Templates/UnrealTemplate.h"
+#include "Trace/Trace.h"
 #include "Writer.inl"
 
 /* Statically sized fields (e.g. UE_TRACE_EVENT_FIELD(float[4], Colours)) are
