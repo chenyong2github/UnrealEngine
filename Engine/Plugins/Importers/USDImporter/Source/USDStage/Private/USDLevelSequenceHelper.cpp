@@ -3020,6 +3020,7 @@ void FUsdLevelSequenceHelperImpl::HandleControlRigSectionChange( UMovieSceneCont
 	{
 		return;
 	}
+	ensure( BoundComponent->Mobility != EComponentMobility::Static );
 
 	USkeleton* Skeleton = BoundComponent->GetSkeletalMeshAsset() ? BoundComponent->GetSkeletalMeshAsset()->GetSkeleton() : nullptr;
 	if ( !Skeleton )
@@ -3190,6 +3191,7 @@ void FUsdLevelSequenceHelperImpl::HandleTrackChange( const UMovieSceneTrack& Tra
 	{
 		return;
 	}
+	ensure( BoundSceneComponent->Mobility != EComponentMobility::Static );
 
 	UUsdPrimTwin* PrimTwin = StageActor->RootUsdTwin->Find( BoundSceneComponent );
 

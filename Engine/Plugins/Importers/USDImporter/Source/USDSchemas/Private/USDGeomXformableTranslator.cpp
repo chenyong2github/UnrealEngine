@@ -16,6 +16,7 @@
 #include "USDTypesConversion.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/LightComponentBase.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -512,7 +513,11 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		}
 		else
 		{
-			SceneComponent->Mobility = UsdUtils::IsAnimated( Prim ) ? EComponentMobility::Movable : EComponentMobility::Static;
+			SceneComponent->Mobility = UsdUtils::IsAnimated( Prim )
+				? EComponentMobility::Movable
+				: SceneComponent->IsA<ULightComponentBase>()	// Lights need to be stationary by default
+					? EComponentMobility::Stationary
+					: EComponentMobility::Static;
 		}
 
 		// Attach to parent
