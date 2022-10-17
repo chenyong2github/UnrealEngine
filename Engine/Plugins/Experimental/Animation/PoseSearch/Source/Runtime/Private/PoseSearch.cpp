@@ -168,7 +168,7 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 	return LowerBound(First, Last, Value, FIdentityFunctor(), TLess<>());
 }
 
-static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelectableIdxBuffer, FSearchContext& SearchContext, const UPoseSearchDatabase* Database, TArrayView<const float> QueryValues)
+static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelectableIdxBuffer, FSearchContext& SearchContext, const UPoseSearchDatabase* Database, TConstArrayView<float> QueryValues)
 {
 	check(Database);
 	const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
@@ -307,6 +307,99 @@ static TArrayView<size_t> PopulateNonSelectableIdx(TArrayView<size_t> NonSelecta
 	return NonSelectableIdx;
 }
 
+struct FPoseFilters
+{
+	FPoseFilters(const UPoseSearchSchema* Schema, TConstArrayView<size_t> NonSelectableIdx, EPoseSearchPoseFlags OverallFlags)
+	{
+		NonSelectableIdxPoseFilter.NonSelectableIdx = NonSelectableIdx;
+
+		if (EnumHasAnyFlags(OverallFlags, EPoseSearchPoseFlags::BlockTransition))
+		{
+			AllPoseFilters.Add(&BlockTransitionPoseFilter);
+		}
+
+		if (NonSelectableIdxPoseFilter.IsPoseFilterActive())
+		{
+			AllPoseFilters.Add(&NonSelectableIdxPoseFilter);
+		}
+
+		for (const IPoseFilter* ChannelPoseFilter : Schema->Channels)
+		{
+			if (ChannelPoseFilter->IsPoseFilterActive())
+			{
+				AllPoseFilters.Add(ChannelPoseFilter);
+			}
+		}
+	}
+
+	bool AreFiltersValid(const FPoseSearchIndex* SearchIndex, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata
+#if UE_POSE_SEARCH_TRACE_ENABLED
+		, UE::PoseSearch::FSearchContext& SearchContext, const UPoseSearchDatabase* Database
+#endif
+	) const
+	{
+		TConstArrayView<float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
+		for (const IPoseFilter* PoseFilter : AllPoseFilters)
+		{
+			if (!PoseFilter->IsPoseValid(PoseValues, QueryValues, PoseIdx, Metadata))
+			{
+#if UE_POSE_SEARCH_TRACE_ENABLED
+				if (PoseFilter == &NonSelectableIdxPoseFilter)
+				{
+					// candidate already added to SearchContext.BestCandidates by PopulateNonSelectableIdx
+				}
+				else if (PoseFilter == &BlockTransitionPoseFilter)
+				{
+					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+					SearchContext.BestCandidates.Add(PoseCost, PoseIdx, Database, EPoseCandidateFlags::DiscardedBy_BlockTransition);
+				}
+				else
+				{
+					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+					SearchContext.BestCandidates.Add(PoseCost, PoseIdx, Database, EPoseCandidateFlags::DiscardedBy_PoseFilter);
+				}
+#endif
+				return false;
+			}
+		}
+		return true;
+	};
+
+private:
+	struct FNonSelectableIdxPoseFilter : public IPoseFilter
+	{
+		virtual bool IsPoseFilterActive() const override
+		{
+			return !NonSelectableIdx.IsEmpty();
+		}
+
+		virtual bool IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const override
+		{
+			return Algo::BinarySearch(NonSelectableIdx, PoseIdx) == INDEX_NONE;
+		}
+
+		TConstArrayView<size_t> NonSelectableIdx;
+	};
+
+	struct FBlockTransitionPoseFilter : public IPoseFilter
+	{
+		virtual bool IsPoseFilterActive() const override
+		{
+			return true;
+		}
+
+		virtual bool IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const override
+		{
+			return !EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition);
+		}
+	};
+
+	FNonSelectableIdxPoseFilter NonSelectableIdxPoseFilter;
+	FBlockTransitionPoseFilter BlockTransitionPoseFilter;
+
+	TArray<const IPoseFilter*, TInlineAllocator<64>> AllPoseFilters;
+};
+
 } // namespace UE::PoseSearch
 
 
@@ -331,7 +424,7 @@ void UPoseSearchFeatureChannel::ComputeMeanDeviations(const Eigen::MatrixXd& Cen
 	using namespace UE::PoseSearch;
 
 	int32 DataOffset = ChannelDataOffset;
-	FFeatureVectorHelper::ComputeMeanDeviations(MinimumMeanDeviation, CenteredPoseMatrix, MeanDeviations, DataOffset, ChannelCardinality);
+	FFeatureVectorHelper::ComputeMeanDeviations(GetMinimumMeanDeviation(), CenteredPoseMatrix, MeanDeviations, DataOffset, ChannelCardinality);
 
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
@@ -644,7 +737,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 	}
 
 	Schema->BuildQuery(SearchContext, Result.ComposedQuery);
-	TArrayView<const float> QueryValues = Result.ComposedQuery.GetValues();
+	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
 	if (!ensure(QueryValues.Num() == SearchIndex.Schema->SchemaCardinality))
 	{
@@ -1644,7 +1737,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		for (int32 PoseIdx = 0; PoseIdx < SearchIndex->NumPoses; ++PoseIdx)
 		{
 			FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
-			TArrayView<const float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
+			TConstArrayView<float> PoseValues = SearchIndex->GetPoseValues(PoseIdx);
 
 			const RowMajorVectorMapConst Mean(SearchIndex->Mean.GetData(), 1, NumDimensions);
 			const ColMajorMatrixMapConst PCAProjectionMatrix(SearchIndex->PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
@@ -1671,7 +1764,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 
 	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
 
-	TArrayView<const float> QueryValues = Result.ComposedQuery.GetValues();
+	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
 	const bool IsCurrentResultFromThisDatabase = SearchContext.IsCurrentResultFromDatabase(this);
 
@@ -1709,31 +1802,28 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 
 		SearchIndex->KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
 
+		// NonSelectableIdx are already filtered out inside the kdtree search
+		const FPoseFilters PoseFilters(SearchIndex->Schema, TConstArrayView<size_t>(), SearchIndex->OverallFlags);
 		for (size_t ResultIndex = 0; ResultIndex < ResultSet.Num(); ++ResultIndex)
 		{
 			const int32 PoseIdx = ResultIndexes[ResultIndex];
-
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
-
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
-			{
+			if (PoseFilters.AreFiltersValid(SearchIndex, QueryValues, PoseIdx, SearchIndex->PoseMetadata[PoseIdx]
 #if UE_POSE_SEARCH_TRACE_ENABLED
+				, SearchContext, this
+#endif
+			))
+			{
 				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
-				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this, EPoseCandidateFlags::DiscardedBy_BlockTransition);
-#endif
-				continue;
-			}
-
-			const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
-			if (PoseCost < Result.PoseCost)
-			{
-				Result.PoseCost = PoseCost;
-				Result.PoseIdx = PoseIdx;
-			}
+				if (PoseCost < Result.PoseCost)
+				{
+					Result.PoseCost = PoseCost;
+					Result.PoseIdx = PoseIdx;
+				}
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-			SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this, EPoseCandidateFlags::Valid_Pose);
+				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this, EPoseCandidateFlags::Valid_Pose);
 #endif
+			}
 		}
 
 		if (GetSkipSearchIfPossible() && Result.PoseCost.IsValid())
@@ -1768,7 +1858,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	check(SearchIndex);
 
 	SearchContext.GetOrBuildQuery(this, Result.ComposedQuery);
-	TArrayView<const float> QueryValues = Result.ComposedQuery.GetValues();
+	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
 	const bool IsCurrentResultFromThisDatabase = SearchContext.IsCurrentResultFromDatabase(this);
 	if (!SearchContext.bForceInterrupt && IsCurrentResultFromThisDatabase)
@@ -1797,37 +1887,29 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
 	if (SearchContext.GetCurrentBestTotalCost() > SearchIndex->MinCostAddend)
 	{
+		const FPoseFilters PoseFilters(SearchIndex->Schema, NonSelectableIdx, SearchIndex->OverallFlags);
 		for (int32 PoseIdx = 0; PoseIdx < SearchIndex->NumPoses; ++PoseIdx)
 		{
-			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
-
-			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
-			{
+			if (PoseFilters.AreFiltersValid(SearchIndex, QueryValues, PoseIdx, SearchIndex->PoseMetadata[PoseIdx]
 #if UE_POSE_SEARCH_TRACE_ENABLED
+				, SearchContext, this
+#endif
+			))
+			{
 				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
-				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this, EPoseCandidateFlags::DiscardedBy_BlockTransition);
-#endif
-				continue;
-			}
-
-			if (Algo::BinarySearch(NonSelectableIdx, PoseIdx) != INDEX_NONE)
-			{
-				continue;
-			}
-
-			const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
-			if (PoseCost < Result.PoseCost)
-			{
-				Result.PoseCost = PoseCost;
-				Result.PoseIdx = PoseIdx;
-			}
+				if (PoseCost < Result.PoseCost)
+				{
+					Result.PoseCost = PoseCost;
+					Result.PoseIdx = PoseIdx;
+				}
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-			if (PoseSearchMode == EPoseSearchMode::BruteForce)
-			{
-				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this, EPoseCandidateFlags::Valid_Pose);
-			}
+				if (PoseSearchMode == EPoseSearchMode::BruteForce)
+				{
+					SearchContext.BestCandidates.Add(PoseCost, PoseIdx, this, EPoseCandidateFlags::Valid_Pose);
+				}
 #endif
+			}
 		}
 
 		if (GetSkipSearchIfPossible() && Result.PoseCost.IsValid())
@@ -1882,7 +1964,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 		{
 			SearchContext.GetOrBuildQuery(Database, Result.ComposedQuery);
 
-			TArrayView<const float> QueryValues = Result.ComposedQuery.GetValues();
+			TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
 			Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
 			Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, QueryValues);
@@ -2003,7 +2085,7 @@ void FPoseIndicesHistory::Update(const FSearchResult& SearchResult, float DeltaT
 	}
 }
 
-FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& Error)
+FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool& bError)
 {
 	check(History && Schema);
 
@@ -2018,7 +2100,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 
 	if (Entry)
 	{
-		Error = false;
+		bError = false;
 		return Entry->Transform;
 	}
 
@@ -2040,11 +2122,11 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 				NewEntry.Transform = SampledComponentPose[NewEntryBoneIndexType];
 			}
 
-			Error = false;
+			bError = false;
 			return SampledComponentPose[BoneIndexType];
 		}
 
-		Error = true;
+		bError = true;
 		return FTransform::Identity;
 	}
 	
@@ -2056,11 +2138,11 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 		NewEntry.BoneIndexType = BoneIndexType;
 		NewEntry.Transform = SampledRootTransform;
 
-		Error = false;
+		bError = false;
 		return SampledRootTransform;
 	}
 	
-	Error = true;
+	bError = true;
 	return FTransform::Identity;
 }
 
@@ -2345,7 +2427,7 @@ void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffse
 	DataOffset += EncodeQuatCardinality;
 }
 
-void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue)
+void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
 {
 	FQuat Quat = DecodeQuatInternal(CurValues, DataOffset);
 
@@ -2361,19 +2443,19 @@ void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffse
 			Quat = FQuat::Slerp(Quat, DecodeQuatInternal(NextValues, DataOffset), LerpValue);
 		}
 	}
+	
 	// @todo: do we need to add options for cubic interpolation?
-
 	EncodeQuat(Values, DataOffset, Quat);
 }
 
-FQuat FFeatureVectorHelper::DecodeQuat(TArrayView<const float> Values, int32& DataOffset)
+FQuat FFeatureVectorHelper::DecodeQuat(TConstArrayView<float> Values, int32& DataOffset)
 {
 	const FQuat Quat = DecodeQuatInternal(Values, DataOffset);
 	DataOffset += EncodeQuatCardinality;
 	return Quat;
 }
 
-FQuat FFeatureVectorHelper::DecodeQuatInternal(TArrayView<const float> Values, int32 DataOffset)
+FQuat FFeatureVectorHelper::DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset)
 {
 	const FVector X(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
 	const FVector Y(Values[DataOffset + 3], Values[DataOffset + 4], Values[DataOffset + 5]);
@@ -2395,7 +2477,7 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 	DataOffset += EncodeVectorCardinality;
 }
 
-void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue, bool bNormalize)
+void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize)
 {
 	FVector Vector = DecodeVectorInternal(CurValues, DataOffset);
 
@@ -2411,8 +2493,8 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 			Vector = FMath::Lerp(Vector, DecodeVectorInternal(NextValues, DataOffset), LerpValue);
 		}
 	}
+	
 	// @todo: do we need to add options for cubic interpolation?
-
 	if (bNormalize)
 	{
 		Vector = Vector.GetSafeNormal(UE_SMALL_NUMBER, FVector::XAxisVector);
@@ -2421,14 +2503,14 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOff
 	EncodeVector(Values, DataOffset, Vector);
 }
 
-FVector FFeatureVectorHelper::DecodeVector(TArrayView<const float> Values, int32& DataOffset)
+FVector FFeatureVectorHelper::DecodeVector(TConstArrayView<float> Values, int32& DataOffset)
 {
 	const FVector Vector = DecodeVectorInternal(Values, DataOffset);
 	DataOffset += EncodeVectorCardinality;
 	return Vector;
 }
 
-FVector FFeatureVectorHelper::DecodeVectorInternal(TArrayView<const float> Values, int32 DataOffset)
+FVector FFeatureVectorHelper::DecodeVectorInternal(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return FVector(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
 }
@@ -2440,7 +2522,7 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataO
 	DataOffset += EncodeVector2DCardinality;
 }
 
-void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue)
+void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
 {
 	FVector2D Vector2D = DecodeVector2DInternal(CurValues, DataOffset);
 
@@ -2456,21 +2538,60 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataO
 			Vector2D = FMath::Lerp(Vector2D, DecodeVector2DInternal(NextValues, DataOffset), LerpValue);
 		}
 	}
+	
 	// @todo: do we need to add options for cubic interpolation?
-
 	EncodeVector2D(Values, DataOffset, Vector2D);
 }
 
-FVector2D FFeatureVectorHelper::DecodeVector2D(TArrayView<const float> Values, int32& DataOffset)
+FVector2D FFeatureVectorHelper::DecodeVector2D(TConstArrayView<float> Values, int32& DataOffset)
 {
 	const FVector2D Vector2D = DecodeVector2DInternal(Values, DataOffset);
 	DataOffset += EncodeVector2DCardinality;
 	return Vector2D;
 }
 
-FVector2D FFeatureVectorHelper::DecodeVector2DInternal(TArrayView<const float> Values, int32 DataOffset)
+FVector2D FFeatureVectorHelper::DecodeVector2DInternal(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return FVector2D(Values[DataOffset + 0], Values[DataOffset + 1]);
+}
+
+void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32& DataOffset, const float Value)
+{
+	Values[DataOffset + 0] = Value;
+	DataOffset += EncodeFloatCardinality;
+}
+
+void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
+{
+	float Value = DecodeFloatInternal(CurValues, DataOffset);
+
+	// linear interpolation
+	if (!FMath::IsNearlyZero(LerpValue))
+	{
+		if (LerpValue < 0.f)
+		{
+			Value = FMath::Lerp(Value, DecodeFloatInternal(PrevValues, DataOffset), -LerpValue);
+		}
+		else
+		{
+			Value = FMath::Lerp(Value, DecodeFloatInternal(NextValues, DataOffset), LerpValue);
+		}
+	}
+
+	// @todo: do we need to add options for cubic interpolation?
+	EncodeFloat(Values, DataOffset, Value);
+}
+
+float FFeatureVectorHelper::DecodeFloat(TConstArrayView<float> Values, int32& DataOffset)
+{
+	const float Value = DecodeFloatInternal(Values, DataOffset);
+	DataOffset += EncodeFloatCardinality;
+	return Value;
+}
+
+float FFeatureVectorHelper::DecodeFloatInternal(TConstArrayView<float> Values, int32 DataOffset)
+{
+	return Values[DataOffset];
 }
 
 void FFeatureVectorHelper::ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality)
@@ -2733,7 +2854,7 @@ void ICostBreakDownData::AddEntireBreakDownSection(const FText& Label, const UPo
 // Uses distance delta between NextRootDistanceIndex and NextRootDistanceIndex - 1 and extrapolates it to ExtrapolationTime
 static float ExtrapolateAccumulatedRootDistance(
 	int32 SamplingRate,
-	TArrayView<const float> AccumulatedRootDistance,
+	TConstArrayView<float> AccumulatedRootDistance,
 	int32 NextRootDistanceIndex, 
 	float ExtrapolationTime,
 	const FPoseSearchExtrapolationParameters& ExtrapolationParameters)
@@ -2753,7 +2874,7 @@ static float ExtrapolateAccumulatedRootDistance(
 
 static float ExtractAccumulatedRootDistance(
 	int32 SamplingRate,
-	TArrayView<const float> AccumulatedRootDistance,
+	TConstArrayView<float> AccumulatedRootDistance,
 	float PlayLength,
 	float Time,
 	const FPoseSearchExtrapolationParameters& ExtrapolationParameters)
@@ -3510,6 +3631,7 @@ public:
 		int32 FirstIndexedSample = 0;
 		int32 LastIndexedSample = 0;
 		int32 NumIndexedPoses = 0;
+
 		TArray<float> FeatureVectorTable;
 		TArray<FPoseSearchPoseMetadata> PoseMetadata;
 		TBitArray<> AllFeaturesNotAdded;
@@ -3529,13 +3651,8 @@ public: // IAssetIndexer
 	FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) override;
 
 private:
-	FBoneContainer BoneContainer;
-	FAssetIndexingContext IndexingContext;
-	TArray<FPoseSearchFeatureVectorBuilder> FeatureVectorBuilders;
-	FPoseSearchPoseMetadata Metadata;
+	FPoseSearchPoseMetadata GetMetadata(int32 SampleIdx) const;
 	
-	void AddMetadata(int32 SampleIdx);
-
 	struct CachedEntry
 	{
 		float SampleTime;
@@ -3551,6 +3668,8 @@ private:
 		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
 	};
 
+	FBoneContainer BoneContainer;
+	FAssetIndexingContext IndexingContext;
 	TArray<CachedEntry> CachedEntries;
 };
 
@@ -3581,14 +3700,7 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext, const F
 	Output.NumIndexedPoses = Output.LastIndexedSample - Output.FirstIndexedSample + 1;
 	
 	Output.FeatureVectorTable.SetNumZeroed(IndexingContext.Schema->SchemaCardinality * Output.NumIndexedPoses);
-
 	Output.PoseMetadata.SetNum(Output.NumIndexedPoses);
-
-	FeatureVectorBuilders.SetNum(Output.NumIndexedPoses);
-	for (FPoseSearchFeatureVectorBuilder& Builder : FeatureVectorBuilders)
-	{
-		Builder.Init(IndexingContext.Schema);
-	}
 }
 
 bool FAssetIndexer::Process()
@@ -3601,40 +3713,23 @@ bool FAssetIndexer::Process()
 
 	IndexingContext.BeginSampleIdx = Output.FirstIndexedSample;
 	IndexingContext.EndSampleIdx = Output.LastIndexedSample + 1;
-	const int32 NumSamplesInRange = IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx;
 
-	FAssetIndexingOutput AssetIndexingOutput{FeatureVectorBuilders};
-
-	// Index each channel
-	for (int32 ChannelIdx = 0; ChannelIdx != IndexingContext.Schema->Channels.Num(); ++ChannelIdx)
-	{
-		const TObjectPtr<UPoseSearchFeatureChannel>& Channel = IndexingContext.Schema->Channels[ChannelIdx];
-		Channel->IndexAsset(*this, AssetIndexingOutput);
-	}
-
-	// @todo: this step can be avoided now since Schema.SchemaCardinality is known and the data can be preallocated before Channel->IndexAsset
-	
-	// Merge spans of feature vectors into contiguous buffer
 	if (IndexingContext.Schema->SchemaCardinality > 0)
 	{
-		for (int32 VectorIdx = 0; VectorIdx != NumSamplesInRange; ++VectorIdx)
+		// Index each channel
+		FAssetIndexingOutput AssetIndexingOutput(IndexingContext.Schema->SchemaCardinality, Output.FeatureVectorTable);
+		for (int32 ChannelIdx = 0; ChannelIdx != IndexingContext.Schema->Channels.Num(); ++ChannelIdx) 
 		{
-			const int32 SampleIdx = VectorIdx + IndexingContext.BeginSampleIdx;
-			const int32 PoseIdx = SampleIdx - Output.FirstIndexedSample;
-			const int32 FirstValueIdx = PoseIdx * IndexingContext.Schema->SchemaCardinality;
-			TArrayView<float> WriteValues = MakeArrayView(&Output.FeatureVectorTable[FirstValueIdx], IndexingContext.Schema->SchemaCardinality);
-			TArrayView<const float> ReadValues = FeatureVectorBuilders[VectorIdx].GetValues();
-			check(WriteValues.Num() == ReadValues.Num());
-			FMemory::Memcpy(WriteValues.GetData(), ReadValues.GetData(), WriteValues.Num() * WriteValues.GetTypeSize());
+			IndexingContext.Schema->Channels[ChannelIdx]->IndexAsset(*this, AssetIndexingOutput);
 		}
 	}
 
 	// Generate pose metadata
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{
-		AddMetadata(SampleIdx);
 		const int32 PoseIdx = SampleIdx - Output.FirstIndexedSample;
-		Output.PoseMetadata[PoseIdx] = Metadata;
+		FPoseSearchPoseMetadata& OutputPoseMetadata = Output.PoseMetadata[PoseIdx];
+		OutputPoseMetadata = GetMetadata(SampleIdx);
 	}
 
 	return true;
@@ -3883,12 +3978,12 @@ FTransform FAssetIndexer::MirrorTransform(const FTransform& Transform) const
 	return IndexingContext.bMirrored ? IndexingContext.SamplingContext->MirrorTransform(Transform) : Transform;
 }
 
-void FAssetIndexer::AddMetadata(int32 SampleIdx)
+FPoseSearchPoseMetadata FAssetIndexer::GetMetadata(int32 SampleIdx) const
 {
 	const float SequenceLength = IndexingContext.MainSampler->GetPlayLength();
 	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
 
-	Metadata = FPoseSearchPoseMetadata();
+	FPoseSearchPoseMetadata Metadata;
 	Metadata.CostAddend = IndexingContext.Schema->BaseCostBias;
 	Metadata.ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
 	
@@ -3913,6 +4008,7 @@ void FAssetIndexer::AddMetadata(int32 SampleIdx)
 			Metadata.ContinuingPoseCostAddend = ContinuingPoseCostBias->CostAddend;
 		}
 	}
+	return Metadata;
 }
 
 FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped)
@@ -3986,7 +4082,7 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 //////////////////////////////////////////////////////////////////////////
 // PoseSearch API
 
-void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector)
+void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector)
 {
 	if (DrawParams.CanDraw())
 	{
@@ -4379,6 +4475,12 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 	SequenceMetaData->SearchIndex.Assets.Add(SearchIndexAsset);
 	SequenceMetaData->SearchIndex.PoseMetadata = Indexer.Output.PoseMetadata;
 
+	SequenceMetaData->SearchIndex.OverallFlags = EPoseSearchPoseFlags::None;
+	for (const FPoseSearchPoseMetadata& PoseMetadata : Indexer.Output.PoseMetadata)
+	{
+		SequenceMetaData->SearchIndex.OverallFlags = PoseMetadata.Flags;
+	}
+
 	// todo: do we need to PreprocessSearchIndex?
 	// PreprocessSearchIndex(&SequenceMetaData->SearchIndex, Database);
 	return true;
@@ -4575,6 +4677,7 @@ void FDatabaseIndexingContext::JoinIndex()
 	SearchIndex->Values.Reset();
 	SearchIndex->PoseMetadata.Reset();
 	SearchIndex->PCAValues.Reset();
+	SearchIndex->OverallFlags = EPoseSearchPoseFlags::None;
 
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndex->Assets.Num(); ++AssetIdx)
 	{
@@ -4593,6 +4696,7 @@ void FDatabaseIndexingContext::JoinIndex()
 		for (int32 i = PoseMetadataStartIdx; i < PoseMetadataEndIdx; ++i)
 		{
 			SearchIndex->PoseMetadata[i].AssetIndex = AssetIdx;
+			SearchIndex->OverallFlags |= SearchIndex->PoseMetadata[i].Flags;
 		}
 
 		TotalPoses += Output.NumIndexedPoses;

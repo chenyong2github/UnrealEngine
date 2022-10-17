@@ -274,6 +274,7 @@ namespace UE::PoseSearch
 		Ar << NumValues;
 		Ar << NumPCAValues;
 		Ar << NumAssets;
+		Ar << Index.OverallFlags;
 
 		if (Ar.IsLoading())
 		{

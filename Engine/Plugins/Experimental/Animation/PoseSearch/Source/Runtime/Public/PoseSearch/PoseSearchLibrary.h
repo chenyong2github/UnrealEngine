@@ -47,7 +47,7 @@ struct POSESEARCH_API FMotionMatchingSettings
 	
 	// Don't jump to poses that are less than this many seconds away
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float PoseJumpThresholdTime = 1.f;
+	float PoseJumpThresholdTime = 0.f;
 
 	// Don't jump to poses that has been selected previously within this many seconds in the past
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0"))
@@ -55,7 +55,7 @@ struct POSESEARCH_API FMotionMatchingSettings
 
 	// Minimum amount of time to wait between pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float SearchThrottleTime = 0.1f;
+	float SearchThrottleTime = 0.f;
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")

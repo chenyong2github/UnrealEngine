@@ -358,9 +358,20 @@ struct FAssetIndexingContext
  */
 struct FAssetIndexingOutput
 {
-	// Channel data should be written to this array of feature vector builders
-	// Size is EndPoseIdx - BeginPoseIdx and PoseVectors[0] contains data for BeginPoseIdx
-	const TArrayView<FPoseSearchFeatureVectorBuilder> PoseVectors;
+	FAssetIndexingOutput(const int32 InSchemaCardinality, TArrayView<float> InFeatureVectorTable)
+	: SchemaCardinality(InSchemaCardinality)
+	, FeatureVectorTable(InFeatureVectorTable)
+	{
+	}
+
+	TArrayView<float> GetPoseVector(int32 VectorIdx)
+	{
+		return MakeArrayView(&FeatureVectorTable[VectorIdx * SchemaCardinality], SchemaCardinality);
+	}
+
+private:
+	const int32 SchemaCardinality;
+	TArrayView<float> FeatureVectorTable;
 };
 
 class POSESEARCH_API IAssetIndexer
@@ -419,11 +430,23 @@ public:
 
 } // namespace UE::PoseSearch
 
+class POSESEARCH_API IPoseFilter
+{
+public:
+	virtual ~IPoseFilter() {}
+
+	// if true this filter will be evaluated
+	virtual bool IsPoseFilterActive() const { return false; }
+	
+	// if it returns false the pose candidate will be discarded
+	virtual bool IsPoseValid(TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues, int32 PoseIdx, const FPoseSearchPoseMetadata& Metadata) const { return true; }
+};
+
 //////////////////////////////////////////////////////////////////////////
 // Feature channels interface
 
 UCLASS(Abstract, BlueprintType, EditInlineNew)
-class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneReferenceSkeletonProvider
+class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneReferenceSkeletonProvider, public IPoseFilter
 {
 	GENERATED_BODY()
 
@@ -450,15 +473,14 @@ public:
 	virtual bool BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
 
 	// Draw this channel's data for the given pose vector
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
+	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
 
 #if WITH_EDITOR
 	virtual void ComputeCostBreakdowns(UE::PoseSearch::ICostBreakDownData& CostBreakDownData, const UPoseSearchSchema* Schema) const;
 #endif
 
 	// Used during data normalization. If a feature has less than this amount of deviation from the mean across all poses in a database, then it will not be normalized.
-	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0001"))
-	float MinimumMeanDeviation = 1.0f;
+	virtual float GetMinimumMeanDeviation() const { return 0.1f; }
 
 private:
 	// IBoneReferenceSkeletonProvider interface
@@ -530,7 +552,7 @@ public:
 	TObjectPtr<USkeleton> Skeleton = nullptr;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Schema")
-	int32 SampleRate = 10;
+	int32 SampleRate = 30;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Schema")
 	TArray<TObjectPtr<UPoseSearchFeatureChannel>> Channels;
@@ -725,6 +747,9 @@ struct POSESEARCH_API FPoseSearchIndex
 	TArray<FPoseSearchPoseMetadata> PoseMetadata;
 
 	UPROPERTY()
+	EPoseSearchPoseFlags OverallFlags = EPoseSearchPoseFlags::None;
+
+	UPROPERTY()
 	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
 	UPROPERTY()
@@ -906,7 +931,7 @@ public:
 	const UPoseSearchSchema* GetSchema() const { return Schema.Get(); }
 
 	TArray<float>& EditValues() { return Values; }
-	TArrayView<const float> GetValues() const { return Values; }
+	TConstArrayView<float> GetValues() const { return Values; }
 
 private:
 	UPROPERTY(Transient)
@@ -1058,20 +1083,20 @@ public:
 	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces;
 
 	UPROPERTY(EditAnywhere, Category = "Performance")
-	EPoseSearchMode PoseSearchMode = EPoseSearchMode::BruteForce;
+	EPoseSearchMode PoseSearchMode = EPoseSearchMode::PCAKDTree;
 
 	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "64", UIMin = "1", UIMax = "64"))
 	int32 NumberOfPrincipalComponents = 4;
 
 	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "256", UIMin = "1", UIMax = "256"))
-	int32 KDTreeMaxLeafSize = 8;
+	int32 KDTreeMaxLeafSize = 16;
 	
 	UPROPERTY(EditAnywhere, Category = "Performance", meta = (EditCondition = "PoseSearchMode != EPoseSearchMode::BruteForce", EditConditionHides, ClampMin = "1", ClampMax = "600", UIMin = "1", UIMax = "600"))
-	int32 KDTreeQueryNumNeighbors = 100;
+	int32 KDTreeQueryNumNeighbors = 200;
 
 	// if true, this database search will be skipped if cannot decrease the pose cost, and poses will not be listed into the PoseSearchDebugger
 	UPROPERTY(EditAnywhere, Category = "Performance")
-	bool bSkipSearchIfPossible = false;
+	bool bSkipSearchIfPossible = true;
 
 	virtual ~UPoseSearchDatabase();
 
@@ -1214,8 +1239,9 @@ enum class EPoseCandidateFlags : uint8
 	DiscardedBy_PoseJumpThresholdTime = 1 << 3,
 	DiscardedBy_PoseReselectHistory = 1 << 4,
 	DiscardedBy_BlockTransition = 1 << 5,
+	DiscardedBy_PoseFilter = 1 << 6,
 
-	AnyDiscardedMask = DiscardedBy_PoseJumpThresholdTime | DiscardedBy_PoseReselectHistory | DiscardedBy_BlockTransition,
+	AnyDiscardedMask = DiscardedBy_PoseJumpThresholdTime | DiscardedBy_PoseReselectHistory | DiscardedBy_BlockTransition | DiscardedBy_PoseFilter,
 };
 ENUM_CLASS_FLAGS(EPoseCandidateFlags);
 
@@ -1225,18 +1251,23 @@ class POSESEARCH_API FFeatureVectorHelper
 public:
 	enum { EncodeQuatCardinality = 6 };
 	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat);
-	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue);
-	static FQuat DecodeQuat(TArrayView<const float> Values, int32& DataOffset);
+	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static FQuat DecodeQuat(TConstArrayView<float> Values, int32& DataOffset);
 
 	enum { EncodeVectorCardinality = 3 };
 	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector);
-	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue, bool bNormalize = false);
-	static FVector DecodeVector(TArrayView<const float> Values, int32& DataOffset);
+	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize = false);
+	static FVector DecodeVector(TConstArrayView<float> Values, int32& DataOffset);
 
 	enum { EncodeVector2DCardinality = 2 };
 	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D);
-	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TArrayView<const float> PrevValues, TArrayView<const float> CurValues, TArrayView<const float> NextValues, float LerpValue);
-	static FVector2D DecodeVector2D(TArrayView<const float> Values, int32& DataOffset);
+	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static FVector2D DecodeVector2D(TConstArrayView<float> Values, int32& DataOffset);
+
+	enum { EncodeFloatCardinality = 1 };
+	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, const float Value);
+	static void EncodeFloat(TArrayView<float> Values, int32& DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue);
+	static float DecodeFloat(TConstArrayView<float> Values, int32& DataOffset);
 
 	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calculated from a centered matrix
 	static void ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
@@ -1245,9 +1276,11 @@ public:
 	static void SetMeanDeviations(float Deviation, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
 
 private:
-	static FQuat DecodeQuatInternal(TArrayView<const float> Values, int32 DataOffset);
-	static FVector DecodeVectorInternal(TArrayView<const float> Values, int32 DataOffset);
-	static FVector2D DecodeVector2DInternal(TArrayView<const float> Values, int32 DataOffset);
+	static FQuat DecodeQuatInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static FVector DecodeVectorInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static FVector2D DecodeVector2DInternal(TConstArrayView<float> Values, int32 DataOffset);
+	static float DecodeFloatInternal(TConstArrayView<float> Values, int32 DataOffset);
+
 };
 
 /**
@@ -1370,7 +1403,7 @@ private:
 		FPoseSearchFeatureVectorBuilder FeatureVectorBuilder;
 	};
 
-	TArray<FCachedQuery> CachedQueries;
+	TArray<FCachedQuery, TInlineAllocator<8>> CachedQueries;
 
 	float CurrentBestTotalCost = MAX_flt;
 
@@ -1427,7 +1460,7 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // Main PoseSearch API
 
-POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector);
+POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector);
 POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx);
 POSESEARCH_API void DrawSearchIndex(const FDebugDrawParams& DrawParams);
 POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);

@@ -663,6 +663,12 @@ namespace DebuggerDatabaseColumns
 					TextBuilder.AppendLine(LOCTEXT("DiscardedBy_BlockTransition", "BlockTransition"));
 				}
 
+				if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseFilter))
+				{
+					AddDelimiter(TextBuilder, bNeedDelimiter);
+					TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseFilter", "PoseFilter"));
+				}
+
 				return TextBuilder.ToText();
 			}
 
