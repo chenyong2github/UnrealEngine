@@ -417,6 +417,12 @@ namespace UE::NearestNeighborModel
 		check(NearestNeighborModel->GetMorphTargetSet().IsValid());
 		FMorphTargetVertexInfoBuffers& MorphBuffers = NearestNeighborModel->GetMorphTargetSet()->MorphBuffers;
 		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphTargetErrorTolerance());
+
+		if (MorphBuffers.GetNumBatches() <= 0)
+		{
+			NearestNeighborModel->ResetMorphBuffers();
+		}
+
 		NearestNeighborModel->SetMorphTargetDeltas(Deltas);
 	}
 
@@ -427,7 +433,7 @@ namespace UE::NearestNeighborModel
 		{
 			FMorphTargetVertexInfoBuffers& MorphBuffers = GetNearestNeighborModel()->GetMorphTargetSet()->MorphBuffers;
 			BeginReleaseResource(&MorphBuffers);
-			if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0)
+			if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0 && MorphBuffers.GetNumBatches() > 0)
 			{
 				BeginInitResource(&MorphBuffers);
 			}

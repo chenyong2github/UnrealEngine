@@ -95,6 +95,22 @@ void UNearestNeighborModel::ClipInputs(float* InputPtr, int NumInputs)
 	}	
 }
 
+class FMorphTargetBuffersInfo : public FMorphTargetVertexInfoBuffers
+{
+public:
+	uint32 GetMorphDataSize() const { return MorphData.Num() * sizeof(uint32); }
+	void ResetCPUData() { FMorphTargetVertexInfoBuffers::ResetCPUData(); }
+};
+
+void UNearestNeighborModel::ResetMorphBuffers()
+{
+	if (GetMorphTargetSet())
+	{
+		FMorphTargetBuffersInfo* MorphBuffersInfo = static_cast<FMorphTargetBuffersInfo*>(&GetMorphTargetSet()->MorphBuffers);
+		MorphBuffersInfo->ResetCPUData();
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 void UNearestNeighborModel::UpdatePCACoeffNums()
 {
@@ -227,12 +243,6 @@ void UNearestNeighborModel::UpdateNetworkSize()
 		SavedNetworkSize = 0.0f;
 	}
 }
-
-class FMorphTargetBuffersInfo : public FMorphTargetVertexInfoBuffers
-{
-public:
-	uint32 GetMorphDataSize() const { return MorphData.Num() * sizeof(uint32); }
-};
 
 void UNearestNeighborModel::UpdateMorphTargetSize()
 {
