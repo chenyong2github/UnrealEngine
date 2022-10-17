@@ -3602,32 +3602,102 @@ bool FName::IsValidXName(const FStringView& InName, const FString& InInvalidChar
 		return true;
 	}
 
+	enum class EInvalidCharacters
+	{
+		Space = 32,
+		LineFeed = 10,
+		CarriageReturn = 13,
+		Tab = 9
+	};
+	
 	// See if the name contains invalid characters.
 	FString MatchedInvalidChars;
+	TArray<FText> MatchedInvalidWhitespaceChars;
 	TSet<TCHAR> AlreadyMatchedInvalidChars;
+		
 	for (const TCHAR InvalidChar : InInvalidChars)
 	{
 		int32 InvalidCharIndex = INDEX_NONE;
 		if (!AlreadyMatchedInvalidChars.Contains(InvalidChar) && InName.FindChar(InvalidChar, InvalidCharIndex))
 		{
-			MatchedInvalidChars.AppendChar(InvalidChar);
+			switch (static_cast<EInvalidCharacters>(InvalidChar))
+			{
+			case EInvalidCharacters::Space:
+				MatchedInvalidWhitespaceChars.Add(NSLOCTEXT("Core", "FNameSpaceName", "space"));
+				break;
+			case EInvalidCharacters::CarriageReturn:
+				MatchedInvalidWhitespaceChars.Add(NSLOCTEXT("Core", "FNameCarriageReturnName", "carriage return [\\r]"));
+				break;
+			case EInvalidCharacters::LineFeed:
+				MatchedInvalidWhitespaceChars.Add(NSLOCTEXT("Core", "FNameLineFeedName", "line feed [\\n]"));
+				break;
+			case EInvalidCharacters::Tab:
+				MatchedInvalidWhitespaceChars.Add(NSLOCTEXT("Core", "FNameTabName", "tab"));
+				break;
+			default:
+				MatchedInvalidChars.AppendChar(InvalidChar);
+			}
 			AlreadyMatchedInvalidChars.Add(InvalidChar);
 		}
 	}
 
-	if (MatchedInvalidChars.Len())
+	const bool bHasMatchedInvalidWhitespaceChars = MatchedInvalidWhitespaceChars.Num() > 0;
+	const bool bHasMatchedInvalidChars = MatchedInvalidChars.Len() > 0;
+
+	if (bHasMatchedInvalidChars || bHasMatchedInvalidWhitespaceChars)
 	{
 		if (OutReason)
 		{
+			FText InvalidWhiteSpaceCharsFText =
+				FText::Join(FText::FromString(TEXT(", ")), MatchedInvalidWhitespaceChars);
 			FFormatNamedArguments Args;
-			Args.Add(TEXT("ErrorCtx"), (InErrorCtx) ? *InErrorCtx : NSLOCTEXT("Core", "NameDefaultErrorCtx", "Name"));
-			Args.Add(TEXT("IllegalNameCharacters"), FText::FromString(MatchedInvalidChars));
-			*OutReason = FText::Format(NSLOCTEXT("Core", "NameContainsInvalidCharacters", "{ErrorCtx} may not contain the following characters: {IllegalNameCharacters}"), Args);
+			Args.Add(TEXT("ErrorCtx"), InErrorCtx ? *InErrorCtx : NSLOCTEXT("Core", "NameDefaultErrorCtx", "Name"));
+			
+			if (bHasMatchedInvalidWhitespaceChars)
+			{
+				Args.Add(TEXT("InvalidWhitespaceChars"), InvalidWhiteSpaceCharsFText);
+				*OutReason =  FText::Format(NSLOCTEXT("Core", "NameContainsInvalidWhitespaceCharacters", "Name may not contain whitespace characters ({InvalidWhitespaceChars})"), Args);	
+			}
+			if (bHasMatchedInvalidChars)
+			{
+				FString InvalidCharacters;
+				
+				for (TCHAR ch : MatchedInvalidChars)
+				{
+					if (FText::IsWhitespace(ch))
+					{
+						InvalidCharacters.Append(FString::Printf(TEXT(" U+%04X"), ch));
+						continue;
+					}
+					InvalidCharacters.Append(FString::Printf(TEXT(" %c"), ch));
+				}
+				Args.Add(TEXT("InvalidCharacters"), FText::FromString(InvalidCharacters));
+
+				*OutReason = bHasMatchedInvalidWhitespaceChars ?
+					FText::Format(NSLOCTEXT("Core", "NameContainsInvalidMixedCharacters", "{ErrorCtx} may not contain whitespace characters ({InvalidWhitespaceChars}) or the following characters:{InvalidCharacters}"), Args) :
+					FText::Format(NSLOCTEXT("Core", "NameContainsInvalidNonwhitespaceCharacters", "{ErrorCtx} may not contain the following characters:{InvalidCharacters}"), Args) ;
+			}
+
 		}
 		return false;
 	}
 
 	return true;
+}
+
+FString FName::SanitizeWhitespace(const FString& FNameString)
+{
+	FString ReturnStr;
+
+	for (const TCHAR CurrentChar : FNameString)
+	{
+		if (!FText::IsWhitespace(CurrentChar) || (CurrentChar == ' ' || CurrentChar =='\t'))
+		{
+			ReturnStr.AppendChar(CurrentChar);
+		}	
+	}
+
+	return ReturnStr;
 }
 
 FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, FNameEntryId Id)

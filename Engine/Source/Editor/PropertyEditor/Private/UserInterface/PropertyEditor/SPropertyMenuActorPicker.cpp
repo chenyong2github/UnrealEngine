@@ -18,6 +18,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "ActorTreeItem.h"
+#include "PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -189,6 +190,25 @@ void SPropertyMenuActorPicker::OnClear()
 
 void SPropertyMenuActorPicker::OnActorSelected( AActor* InActor )
 {
+	FText OutErrorMsg;
+
+	if (IsValid(InActor) && !FName::IsValidXName(InActor->GetName(), "aeoiu",  &OutErrorMsg))
+	{
+		FFormatNamedArguments Args;
+		Args.Add("ActorName", FText::FromString(FName::SanitizeWhitespace(InActor->GetName())));
+		Args.Add("ActorLabel", FText::FromString(FName::SanitizeWhitespace(InActor->GetActorLabel())));
+
+		FText Error = OutErrorMsg.IsEmpty() ?
+		     LOCTEXT("InvalidCharactersDefaultErrorMessage", "Names do not support the following characters: \"\' ,\\n\\r\\t") : OutErrorMsg;
+		
+		Args.Add("ErrorMessage", Error);
+		const FText LogMessage = FText::Format(LOCTEXT("InvalidActorName", "The chosen actor, {ActorLabel}, has an invalid name of {ActorName}.\n{ErrorMessage}"), Args);
+		
+		UE_LOG(LogPropertyNode, Warning, TEXT("%s"), *LogMessage.ToString());
+	}
+
+
+	
 	SetValue(InActor);
 	OnClose.ExecuteIfBound();
 }

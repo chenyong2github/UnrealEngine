@@ -770,6 +770,16 @@ public:
 	}
 
 	/**
+	 * Printing FNames in logging or on screen can be problematic when they contain Whitespace characters such as \n and \r,
+	 * so this will return an FName based upon the calling FName, but with any Whitespace characters potentially problematic for
+	 * showing in a log or on screen omitted.
+	 *
+	* @return the new FName based upon the calling FName, but with any Whitespace characters potentially problematic for
+	 * showing in a log or on screen omitted.
+	 */
+	static FString SanitizeWhitespace(const FString& FNameString);
+	
+	/**
 	 * Compares name to passed in one. Sort is alphabetical ascending.
 	 *
 	 * @param	Other	Name to compare this against
