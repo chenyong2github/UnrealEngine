@@ -81,6 +81,13 @@ class FPaletteWindow : public DG::Palette,
 		DetachFromAllItems(*this);
 	}
 
+#if PLATFORM_MAC & AC_VERSION > 25
+	virtual void ItemMouseExited(const DG::ItemMouseMoveEvent& /*ev*/) override {}
+	virtual void ItemMouseEntered(const DG::ItemMouseMoveEvent& /*ev*/) override {}
+	virtual short SpecMouseExited(const DG::ItemMouseMoveEvent& /*ev*/) override { return 0; }
+	virtual short SpecMouseEntered(const DG::ItemMouseMoveEvent& /*ev*/) override { return 0; }
+#endif
+
   private:
 	virtual void PanelOpened(const DG::PanelOpenEvent& /*ev*/) override
 	{

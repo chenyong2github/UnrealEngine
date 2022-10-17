@@ -11,4 +11,5 @@ pushd $EnginePath/Binaries/Mac/DatasmithARCHICADExporter
 mv DatasmithARCHICAD23Exporter.app DatasmithARCHICAD23Exporter.bundle
 mv DatasmithARCHICAD24Exporter.app DatasmithARCHICAD24Exporter.bundle
 mv DatasmithARCHICAD25Exporter.app DatasmithARCHICAD25Exporter.bundle
+mv DatasmithARCHICAD26Exporter.app DatasmithARCHICAD26Exporter.bundle
 popd

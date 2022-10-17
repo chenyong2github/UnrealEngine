@@ -3,10 +3,11 @@
 set -e
 
 ConfigPath=`dirname "$0"`
-projectPath=$ConfigPath/..
-
-RelativeEnginePath=$projectPath/../../../../../../../Engine
-EnginePath=`python -c "import os; print(os.path.realpath('$RelativeEnginePath'))"`
+pushd $ConfigPath/..
+projectPath=`pwd`
+cd ../../../../../..
+EnginePath=`pwd`
+popd
 
 echo "UE_SDKS_ROOT = ${UE_SDKS_ROOT}"
 
@@ -31,6 +32,9 @@ pushd "$UE_SDKS_ROOT/HostMac/Mac/Archicad"
 
 	chmod 777 25/Support/Tools/OSX/ResConv
 	xattr -r -d com.apple.quarantine 25/Support/Tools/OSX/ResConv
+
+	chmod 777 26/Support/Tools/OSX/ResConv
+	xattr -r -d com.apple.quarantine 26/Support/Tools/OSX/ResConv
 popd
 
 OurDylibFolder=$projectPath/Dylibs

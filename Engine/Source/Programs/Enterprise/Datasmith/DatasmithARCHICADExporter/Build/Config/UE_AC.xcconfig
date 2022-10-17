@@ -23,7 +23,7 @@ VRevision = 0
 VBetaOrRevision = b // b for beta or . for revision
 VAddOn = $(VMajor).$(VMinor)$(VBetaOrRevision)$(VRevision)
 
-CurrentYear = 2021
+CurrentYear = 2022
 
 FRAMEWORK_SEARCH_PATHS = $(FRAMEWORK_SEARCH_PATHS) $(AC_SDK_PATH)/Support/Frameworks
 
