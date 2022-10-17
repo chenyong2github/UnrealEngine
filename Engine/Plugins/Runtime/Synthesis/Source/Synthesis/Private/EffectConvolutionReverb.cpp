@@ -260,7 +260,7 @@ namespace Audio
 		}
 
 		// Check if there is a channel mismatch between the convolution reverb and the input/output data
-		const bool bNumChannelsMismatch = IsChannelCountUpToDate(InNumInputChannels, InNumOutputChannels);
+		const bool bNumChannelsMismatch = !IsChannelCountUpToDate(InNumInputChannels, InNumOutputChannels);
 		const bool bRequestedChannelCountIsValid = InNumInputChannels > 0 && InNumOutputChannels > 0;
 
 		if (bNumChannelsMismatch && bRequestedChannelCountIsValid)
