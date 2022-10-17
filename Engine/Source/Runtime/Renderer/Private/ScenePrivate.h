@@ -1927,15 +1927,13 @@ struct FDistanceFieldReadRequest
 	const uint8* AlwaysLoadedDataPtr = nullptr;
 
 	// Inputs of read request
-	const FByteBulkData* BulkData = nullptr;
+	const FBulkData* BulkData = nullptr;
 	uint32 BulkOffset = 0;
 	uint32 BulkSize = 0;
 
 	// Outputs of read request
-	uint8* ReadOutputDataPtr = nullptr;
-	FIoRequest Request;
-	IAsyncReadFileHandle* AsyncHandle = nullptr;
-	IAsyncReadRequest* AsyncRequest = nullptr;
+	FBulkDataBatchReadRequest RequestHandle;
+	FIoBuffer RequestBuffer;
 };
 
 struct FDistanceFieldAsyncUpdateParameters
@@ -1949,7 +1947,6 @@ struct FDistanceFieldAsyncUpdateParameters
 
 	TArray<FDistanceFieldReadRequest> NewReadRequests;
 	TArray<FDistanceFieldReadRequest> ReadRequestsToUpload;
-	TArray<FDistanceFieldReadRequest> ReadRequestsToCleanUp;
 };
 
 /** Scene data used to manage distance field object buffers on the GPU. */
@@ -2109,8 +2106,7 @@ private:
 	void ProcessReadRequests(
 		TArray<FDistanceFieldAssetMipId>& AssetDataUploads,
 		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetMipAdds,
-		TArray<FDistanceFieldReadRequest>& ReadRequestsToUpload,
-		TArray<FDistanceFieldReadRequest>& ReadRequestsToCleanUp);
+		TArray<FDistanceFieldReadRequest>& ReadRequestsToUpload);
 
 	FRDGTexture* ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
 
@@ -2122,7 +2118,7 @@ private:
 	
 	void UploadAllAssetData(FRDGBuilder& GraphBuilder, FRDGBuffer* AssetDataBufferRDG);
 
-	void AsyncUpdate(FDistanceFieldAsyncUpdateParameters UpdateParameters);
+	void AsyncUpdate(FDistanceFieldAsyncUpdateParameters&& UpdateParameters);
 
 	void GenerateStreamingRequests(
 		FRDGBuilder& GraphBuilder, 
