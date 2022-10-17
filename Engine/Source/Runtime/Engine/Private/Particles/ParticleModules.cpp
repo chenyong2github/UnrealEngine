@@ -3038,6 +3038,13 @@ static TAutoConsoleVariable<int32> CVarParticleLightQuality(
 	ECVF_Scalability
 	);
 
+static TAutoConsoleVariable<int32> CVarParticleDefaultLightInverseExposureBlend(
+	TEXT("fx.ParticleDefaultLightInverseExposureBlend"),
+	0.0f,
+	TEXT("Blend Factor used to blend between Intensity and Intensity / Exposure."),
+	ECVF_Default
+);
+
 void UParticleModuleLight::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
 {
 	int32 ParticleLightQuality = CVarParticleLightQuality.GetValueOnAnyThread();
@@ -3050,6 +3057,7 @@ void UParticleModuleLight::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset
 		LightData.RadiusScale = RadiusScale.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		// Exponent of 0 is interpreted by renderer as inverse squared falloff
 		LightData.LightExponent = bUseInverseSquaredFalloff ? 0 : LightExponent.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
+		LightData.InverseExposureBlend = bOverrideInverseExposureBlend ? InverseExposureBlend : CVarParticleDefaultLightInverseExposureBlend.GetValueOnAnyThread();
 		const float RandomNumber = InRandomStream->GetFraction();
 		LightData.bValid = RandomNumber < SpawnFraction;
 		LightData.bAffectsTranslucency = bAffectsTranslucency;
@@ -3163,6 +3171,7 @@ void UParticleModuleLight::UpdateHQLight(UPointLightComponent* PointLightCompone
 	PointLightComponent->SetLightColor(NormalizedColor);
 	PointLightComponent->SetAttenuationRadius(Radius);
 	PointLightComponent->SetLightFalloffExponent(Payload.LightExponent);
+	PointLightComponent->SetInverseExposureBlend(Payload.InverseExposureBlend);
 
 	if (OwnerScene && bDoRTUpdate)
 	{

@@ -4,6 +4,7 @@
 #include "ParticleResources.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraDataSetAccessor.h"
+#include "NiagaraSettings.h"
 #include "NiagaraStats.h"
 #include "NiagaraVertexFactory.h"
 #include "NiagaraComponent.h"
@@ -110,6 +111,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	const int32 DefaultVisibilityTag(0);
 	const float DefaultExponent = Properties->DefaultExponent;
 
+	const float InverseExposureBlend = Properties->bOverrideInverseExposureBlend ? Properties->InverseExposureBlend : GetDefault<UNiagaraSettings>()->DefaultLightInverseExposureBlend;
+
 	for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
 	{
 		bool bShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
@@ -128,6 +131,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			LightData.LightEntry.Radius = LightRadius;
 			LightData.LightEntry.Color = FVector3f(Color) * Brightness + Properties->ColorAdd;
 			LightData.LightEntry.Exponent = Properties->bUseInverseSquaredFalloff ? 0 : ExponentReader.GetSafe(ParticleIndex, DefaultExponent);
+			LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 			LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
 			LightData.PerViewEntry.Position = LwcConverter.ConvertSimulationPositionToWorld(PositionReader.GetSafe(ParticleIndex, DefaultPos));
@@ -160,7 +164,3 @@ void FNiagaraRendererLights::GatherSimpleLights(FSimpleLightArray& OutParticleLi
 		}
 	}
 }
-
-
-
-

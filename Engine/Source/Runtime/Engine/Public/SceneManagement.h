@@ -1340,6 +1340,7 @@ struct FLightRenderParameters
 {
 	ENGINE_API void MakeShaderParameters(const FViewMatrices& ViewMatrices, float Exposure, FLightShaderParameters& OutShaderParameters) const;
 	ENGINE_API float GetLightExposureScale(float Exposure) const;
+	static ENGINE_API float GetLightExposureScale(float Exposure, float InverseExposureBlend);
 
 	// Position of the light in world space.
 	FVector WorldPosition;

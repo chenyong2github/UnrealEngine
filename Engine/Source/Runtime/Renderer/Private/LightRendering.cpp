@@ -378,7 +378,7 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 
 	Out.LightParameters.TranslatedWorldPosition = FVector3f(LightWorldPosition + View.ViewMatrices.GetPreViewTranslation());
 	Out.LightParameters.InvRadius = 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER);
-	Out.LightParameters.Color = (FVector3f)SimpleLight.Color;
+	Out.LightParameters.Color = (FVector3f)SimpleLight.Color * FLightRenderParameters::GetLightExposureScale(View.GetLastEyeAdaptationExposure(), SimpleLight.InverseExposureBlend);
 	Out.LightParameters.FalloffExponent = SimpleLight.Exponent;
 	Out.LightParameters.Direction = FVector3f(1, 0, 0);
 	Out.LightParameters.Tangent = FVector3f(1, 0, 0);

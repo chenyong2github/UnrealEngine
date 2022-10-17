@@ -602,6 +602,7 @@ struct FLightParticlePayload
 	uint64		LightId;
 	float		RadiusScale;
 	float		LightExponent;
+	float		InverseExposureBlend;
 	bool		bValid;
 	bool		bAffectsTranslucency;
 	bool		bHighQuality;

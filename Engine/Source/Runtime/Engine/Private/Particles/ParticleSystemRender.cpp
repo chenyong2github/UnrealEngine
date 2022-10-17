@@ -713,6 +713,7 @@ void GatherParticleLightData(const FDynamicSpriteEmitterReplayDataBase& Source, 
 				ParticleLight.Radius =  LightPayload->RadiusScale * (Size.X + Size.Y) / 2.0f;
 				ParticleLight.Color = FVector3f(Particle.Color) * Particle.Color.A * LightPayload->ColorScale;
 				ParticleLight.Exponent = LightPayload->LightExponent;
+				ParticleLight.InverseExposureBlend = LightPayload->InverseExposureBlend;
 				ParticleLight.VolumetricScatteringIntensity = Source.LightVolumetricScatteringIntensity;
 				ParticleLight.bAffectTranslucency = LightPayload->bAffectsTranslucency;
 

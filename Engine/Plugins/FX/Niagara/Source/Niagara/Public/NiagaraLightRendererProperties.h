@@ -56,6 +56,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
 	uint32 bAlphaScalesBrightness : 1;
 
+	/** When enabled we will override the project default setting with our local setting. */
+	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint32 bOverrideInverseExposureBlend : 1;
+
 	/** A factor used to scale each particle light radius */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (ClampMin = "0"))
 	float RadiusScale;
@@ -67,6 +71,14 @@ public:
 	/** A static color shift applied to each rendered light */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")
 	FVector3f ColorAdd;
+
+	/**
+	* Blend Factor used to blend between Intensity and Intensity/Exposure.
+	* This is useful for gameplay lights that should have constant brighness on screen independent of current exposure.
+	* This feature can cause issues with exposure particularly when used on the primary light on a scene, as such it's usage should be limited.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Light Rendering", AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition="bOverrideInverseExposureBlend"))
+	float InverseExposureBlend = 0.0f;
 
 	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
 	UPROPERTY(EditAnywhere, Category = "Light Rendering")

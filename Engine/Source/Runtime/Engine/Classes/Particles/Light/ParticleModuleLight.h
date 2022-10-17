@@ -31,6 +31,10 @@ class UParticleModuleLight : public UParticleModuleLightBase
 	UPROPERTY(EditAnywhere, Category=Light)
 	bool bAffectsTranslucency;
 
+	/** When enabled we will override the project default setting with our local setting. */
+	UPROPERTY(EditAnywhere, Category = Light, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint32 bOverrideInverseExposureBlend : 1;
+
 	/** 
 	 * Will draw wireframe spheres to preview the light radius if enabled.
 	 * Note: this is intended for previewing and the value will not be saved, it will always revert to disabled.
@@ -57,6 +61,14 @@ class UParticleModuleLight : public UParticleModuleLightBase
 	/** Provides the light's exponent when inverse squared falloff is disabled. */
 	UPROPERTY(EditAnywhere, Category=Light)
 	struct FRawDistributionFloat LightExponent;
+
+	/**
+	* Blend Factor used to blend between Intensity and Intensity/Exposure.
+	* This is useful for gameplay lights that should have constant brighness on screen independent of current exposure.
+	* This feature can cause issues with exposure particularly when used on the primary light on a scene, as such it's usage should be limited.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bOverrideInverseExposureBlend"))
+	float InverseExposureBlend = 0.0f;
 
 	/**
 	* Channels that this light should affect.

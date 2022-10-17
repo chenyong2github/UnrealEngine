@@ -315,7 +315,7 @@ static void PackLocalLightData(
 	const uint32 RectPackedW = FFloat16(-2.f).Encoded;
 
 	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
-	Out.LightColorAndFalloffExponent			= FVector4f((FVector3f)SimpleLight.Color, SimpleLight.Exponent);
+	Out.LightColorAndFalloffExponent			= FVector4f((FVector3f)SimpleLight.Color * FLightRenderParameters::GetLightExposureScale(View.GetLastEyeAdaptationExposure(), SimpleLight.InverseExposureBlend), SimpleLight.Exponent);
 	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(FVector3f(1, 0, 0), FMath::AsFloat(ShadowMapChannelMask));
 	Out.SpotAnglesAndSourceRadiusPacked			= FVector4f(-2, 1, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
 	Out.LightTangentAndSpecularScale			= FVector4f(1.0f, 0.0f, 0.0f, 1.0f);
@@ -402,6 +402,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		int32 ClusteredSupportedEnd = 0;
 		int32 LumenSupportedStart = 0;
 
+		const float Exposure = View.GetLastEyeAdaptationExposure();
+
 		if (bCullLightsToGrid)
 		{
 			// Simple lights are copied without view dependent checks, so same in and out
@@ -452,8 +454,6 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				#endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 				}
 			}
-
-			const float Exposure = View.GetLastEyeAdaptationExposure();
 
 			float SelectedForwardDirectionalLightIntensitySq = 0.0f;
 			int32 SelectedForwardDirectionalLightPriority = -1;

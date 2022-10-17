@@ -43,6 +43,7 @@ public:
 	FVector3f Color;
 	float Radius;
 	float Exponent;
+	float InverseExposureBlend = 0.0f;
 	float VolumetricScatteringIntensity;
 	bool bAffectTranslucency;
 };

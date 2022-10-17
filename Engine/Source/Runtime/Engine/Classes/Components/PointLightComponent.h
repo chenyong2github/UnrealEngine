@@ -63,6 +63,9 @@ class ENGINE_API UPointLightComponent : public ULocalLightComponent
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetLightFalloffExponent(float NewLightFalloffExponent);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetInverseExposureBlend(float NewInverseExposureBlend);
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetSourceRadius(float bNewValue);
 

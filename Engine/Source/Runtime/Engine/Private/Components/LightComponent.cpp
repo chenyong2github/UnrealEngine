@@ -334,7 +334,7 @@ void FLightRenderParameters::MakeShaderParameters(const FViewMatrices& ViewMatri
 }
 
 // match logic in EyeAdaptationInverseLookup(...)
-float FLightRenderParameters::GetLightExposureScale(float Exposure) const
+float FLightRenderParameters::GetLightExposureScale(float Exposure, float InverseExposureBlend)
 {
 	if (Exposure <= 0.0f)
 	{
@@ -355,6 +355,11 @@ float FLightRenderParameters::GetLightExposureScale(float Exposure) const
 	const float Scale = exp(LerpLogScale);
 
 	return Scale;
+}
+
+float FLightRenderParameters::GetLightExposureScale(float Exposure) const
+{
+	return GetLightExposureScale(Exposure, InverseExposureBlend);
 }
 
 FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)

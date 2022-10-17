@@ -147,6 +147,16 @@ void UPointLightComponent::SetLightFalloffExponent(float NewLightFalloffExponent
 	}
 }
 
+void UPointLightComponent::SetInverseExposureBlend(float NewInverseExposureBlend)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& NewInverseExposureBlend != InverseExposureBlend)
+	{
+		InverseExposureBlend = NewInverseExposureBlend;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPointLightComponent::SetSourceRadius(float NewValue)
 {
 	if (AreDynamicDataChangesAllowed()

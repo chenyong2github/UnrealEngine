@@ -1275,6 +1275,8 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 
 		const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
+		const float Exposure = View.GetLastEyeAdaptationExposure();
+
 		// Inject into each volume cascade
 		// Operate on one cascade at a time to reduce render target switches
 		for (int32 VolumeCascadeIndex = 0; VolumeCascadeIndex < TVC_MAX; VolumeCascadeIndex++)
@@ -1303,7 +1305,7 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->VolumeCascadeIndex = VolumeCascadeIndex;
 						PassParameters->SimpleLightPositionAndRadius = FVector4f(TranslatedLightPosition, SimpleLight.Radius);
-						PassParameters->SimpleLightColorAndExponent = FVector4f((FVector3f)SimpleLight.Color, SimpleLight.Exponent);
+						PassParameters->SimpleLightColorAndExponent = FVector4f((FVector3f)SimpleLight.Color * FLightRenderParameters::GetLightExposureScale(Exposure, SimpleLight.InverseExposureBlend), SimpleLight.Exponent);
 						PassParameters->RenderTargets[0] = FRenderTargetBinding(VolumeAmbientTexture, ERenderTargetLoadAction::ELoad);
 						PassParameters->RenderTargets[1] = FRenderTargetBinding(VolumeDirectionalTexture, ERenderTargetLoadAction::ELoad);
 
