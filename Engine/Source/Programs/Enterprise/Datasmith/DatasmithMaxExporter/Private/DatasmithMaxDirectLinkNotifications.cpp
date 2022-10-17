@@ -450,6 +450,12 @@ public:
 
 		break;
 
+		case REFMSG_BEGIN_EDIT: 
+			// Workaround for missing events for some modifiers
+			// E.g. Body Cutter won't sent a CHANGE event an object is converted to it
+			SceneTracker.NodeGeometryChanged(&Node);
+		break;
+
 		case REFMSG_NODE_MATERIAL_CHANGED:
 			SceneTracker.NodeMaterialAssignmentChanged(&Node);
 		break;
