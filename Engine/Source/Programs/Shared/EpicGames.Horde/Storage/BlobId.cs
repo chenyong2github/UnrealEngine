@@ -193,13 +193,13 @@ namespace EpicGames.Horde.Storage
 				{
 					output[outputIdx++] = name[idx];
 				}
-				else if (name.Length > 0 && name[name.Length - 1] != '-')
-				{
-					output[outputIdx++] = (byte)'-';
-				}
 				else if (name[idx] == '/' && outputIdx > 0)
 				{
 					output[outputIdx++] = (byte)'/';
+				}
+				else if (name.Length > 0 && name[name.Length - 1] != '-')
+				{
+					output[outputIdx++] = (byte)'-';
 				}
 			}
 
