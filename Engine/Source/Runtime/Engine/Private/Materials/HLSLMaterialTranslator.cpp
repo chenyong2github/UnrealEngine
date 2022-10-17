@@ -1858,10 +1858,9 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 		}
 
 		const bool bIsWaterDistanceFieldShadowEnabled = IsWaterDistanceFieldShadowEnabled(InPlatform);
-		const bool bIsWaterVSMFilteringEnabled = IsWaterVirtualShadowMapFilteringEnabled(InPlatform);
-		if (ShadingModels.HasShadingModel(MSM_SingleLayerWater) && (bIsWaterDistanceFieldShadowEnabled || bIsWaterVSMFilteringEnabled))
+		if (ShadingModels.HasShadingModel(MSM_SingleLayerWater) && bIsWaterDistanceFieldShadowEnabled)
 		{
-			OutEnvironment.SetDefine(TEXT("SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("SINGLE_LAYER_WATER_DF_SHADOW_ENABLED"), TEXT("1"));
 		}
 
 		if (NumSetMaterials == 1)

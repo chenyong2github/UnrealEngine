@@ -441,8 +441,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
 
 		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
-		const bool bNeedsSeparateMainDirLightTexture = IsWaterDistanceFieldShadowEnabled(Parameters.Platform) || IsWaterVirtualShadowMapFilteringEnabled(Parameters.Platform);
-		if (IsSingleLayerWater && bNeedsSeparateMainDirLightTexture)
+		if (IsSingleLayerWater && IsWaterDistanceFieldShadowEnabled(Parameters.Platform))
 		{
 			// See FShaderCompileUtilities::FetchGBufferParamsRuntime for the details
 			const bool bOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform);
@@ -648,8 +647,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
 
 		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
-		const bool bNeedsSeparateMainDirLightTexture = IsWaterDistanceFieldShadowEnabled(Parameters.Platform) || IsWaterVirtualShadowMapFilteringEnabled(Parameters.Platform);
-		if (IsSingleLayerWater && bNeedsSeparateMainDirLightTexture)
+		if (IsSingleLayerWater && IsWaterDistanceFieldShadowEnabled(Parameters.Platform))
 		{
 			// See FShaderCompileUtilities::FetchGBufferParamsRuntime for the details
 			const bool bOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform);

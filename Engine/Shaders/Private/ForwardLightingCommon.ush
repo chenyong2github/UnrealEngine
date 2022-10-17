@@ -122,7 +122,7 @@ float GetIndirectOcclusion(float2 ScreenUV, bool bHasDynamicIndirectShadowCaster
 FDeferredLightingSplit GetForwardDirectLightingSplit(
 	uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, 
 	float InDirectionalLightCloudShadow, float3 InDirectionalLightAtmosphereTransmittance, inout float OutDirectionalLightShadow,
-	bool bSeparateMainDirLightLuminance, inout float3 SeparatedMainDirLightLuminance, bool bSkipDirLightVirtualShadowMapEvaluation)
+	bool bSeparateMainDirLightLuminance, inout float3 SeparatedMainDirLightLuminance)
 {
 	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
@@ -185,7 +185,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 			
 			#if VIRTUAL_SHADOW_MAP
 			BRANCH
-			if ( !bSkipDirLightVirtualShadowMapEvaluation && ForwardLightData.DirectionalLightVSM != INDEX_NONE )
+			if ( ForwardLightData.DirectionalLightVSM != INDEX_NONE )
 			{
 				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld( ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition );
 				DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
