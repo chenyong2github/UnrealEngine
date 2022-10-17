@@ -1234,3 +1234,62 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelRotator : public FRig
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
+
+/**
+ * Retrieves the shape settings of a control
+ */
+USTRUCT(meta=(DisplayName="Get Shape Settings", Keywords="Construction,Create,New,Control", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyGetShapeSettings : public FRigUnit_DynamicHierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyGetShapeSettings()
+	{
+		Item = FRigElementKey(NAME_None, ERigElementType::Control);
+	}
+
+	/*
+	 * The item to change
+	 */
+	UPROPERTY(meta = (Input))
+	FRigElementKey Item;
+
+	/*
+	 * The shape settings for the control
+	 */
+	UPROPERTY(meta = (Output))
+	FRigUnit_HierarchyAddControl_ShapeSettings Settings;
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+};
+
+/**
+ * Changes the shape settings of a control
+ * Note: This node only runs as part of the construction event.
+ */
+USTRUCT(meta=(DisplayName="Set Shape Settings", Keywords="Construction,Create,New,Control", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchySetShapeSettings : public FRigUnit_DynamicHierarchyBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchySetShapeSettings()
+	{
+		Item = FRigElementKey(NAME_None, ERigElementType::Control);
+	}
+
+	/*
+	 * The item to change
+	 */
+	UPROPERTY(meta = (Input))
+	FRigElementKey Item;
+
+	/*
+	 * The shape settings for the control
+	 */
+	UPROPERTY(meta = (Input))
+	FRigUnit_HierarchyAddControl_ShapeSettings Settings;
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+};

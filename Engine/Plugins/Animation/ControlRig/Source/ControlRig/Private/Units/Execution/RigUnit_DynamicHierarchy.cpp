@@ -906,3 +906,50 @@ FRigUnit_HierarchyAddAnimationChannelRotator_Execute()
 	}
 }
 
+FRigUnit_HierarchyGetShapeSettings_Execute()
+{
+	Settings = FRigUnit_HierarchyAddControl_ShapeSettings();
+
+	if(URigHierarchy* Hierarchy = Context.Hierarchy)
+	{
+		if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Item))
+		{
+			Settings.bVisible = ControlElement->Settings.bShapeVisible;
+			Settings.Color = ControlElement->Settings.ShapeColor;
+			Settings.Name = ControlElement->Settings.ShapeName;
+			Settings.Transform = Hierarchy->GetControlShapeTransform((FRigControlElement*)ControlElement, ERigTransformType::InitialLocal);
+		}
+		else
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Control '%s' does not exist."), *Item.ToString());
+		}
+	}
+}
+
+FRigUnit_HierarchySetShapeSettings_Execute()
+{
+	FString ErrorMessage;
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	{
+		if(!ErrorMessage.IsEmpty())
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("%s"), *ErrorMessage);
+		}
+		return;
+	}
+
+	if(FRigControlElement* ControlElement = ExecuteContext.Hierarchy->Find<FRigControlElement>(Item))
+	{
+		ControlElement->Settings.bShapeVisible = Settings.bVisible;
+		ControlElement->Settings.ShapeColor = Settings.Color;
+		ControlElement->Settings.ShapeName = Settings.Name;
+		ExecuteContext.Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+		ExecuteContext.Hierarchy->SetControlShapeTransformByIndex(ControlElement->GetIndex(), Settings.Transform, true, false);
+		ExecuteContext.Hierarchy->SetControlShapeTransformByIndex(ControlElement->GetIndex(), Settings.Transform, false, false);
+	}
+	else
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Control '%s' does not exist."), *Item.ToString());
+	}
+
+}
