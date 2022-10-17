@@ -82,31 +82,34 @@ void AssignStringWithoutShrinking(FString& InOutResult, FStringView Value)
 	}
 }
 
-FDiscoveredPathData::FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath, const FDateTime& InPackageTimestamp)
+FDiscoveredPathData::FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath, const FDateTime& InPackageTimestamp, EGatherableFileType InType)
 	: LocalAbsPath(InLocalAbsPath)
 	, LongPackageName(InLongPackageName)
 	, RelPath(InRelPath)
 	, PackageTimestamp(InPackageTimestamp)
+	, Type(InType)
 {
 }
 
-FDiscoveredPathData::FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath)
+FDiscoveredPathData::FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath, EGatherableFileType InType)
 	: LocalAbsPath(InLocalAbsPath)
 	, LongPackageName(InLongPackageName)
 	, RelPath(InRelPath)
+	, Type(InType)
 {
 }
 
-void FDiscoveredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath)
+void FDiscoveredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath, EGatherableFileType InType)
 {
 	AssignStringWithoutShrinking(LocalAbsPath, InLocalAbsPath);
 	AssignStringWithoutShrinking(LongPackageName, InLongPackageName);
 	AssignStringWithoutShrinking(RelPath, InRelPath);
+	Type = InType;
 }
 
-void FDiscoveredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath, const FDateTime& InPackageTimestamp)
+void FDiscoveredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath, const FDateTime& InPackageTimestamp, EGatherableFileType InType)
 {
-	Assign(InLocalAbsPath, InLongPackageName, InRelPath);
+	Assign(InLocalAbsPath, InLongPackageName, InRelPath, InType);
 	PackageTimestamp = InPackageTimestamp;
 }
 
@@ -115,15 +118,16 @@ SIZE_T FDiscoveredPathData::GetAllocatedSize() const
 	return LocalAbsPath.GetAllocatedSize() + LongPackageName.GetAllocatedSize() + RelPath.GetAllocatedSize();
 }
 
-FGatheredPathData::FGatheredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp)
+FGatheredPathData::FGatheredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp, EGatherableFileType InType)
 	: LocalAbsPath(InLocalAbsPath)
 	, LongPackageName(InLongPackageName)
 	, PackageTimestamp(InPackageTimestamp)
+	, Type(InType)
 {
 }
 
 FGatheredPathData::FGatheredPathData(const FDiscoveredPathData& DiscoveredData)
-	:FGatheredPathData(DiscoveredData.LocalAbsPath, DiscoveredData.LongPackageName, DiscoveredData.PackageTimestamp)
+	: FGatheredPathData(DiscoveredData.LocalAbsPath, DiscoveredData.LongPackageName, DiscoveredData.PackageTimestamp, DiscoveredData.Type)
 {
 }
 
@@ -131,19 +135,21 @@ FGatheredPathData::FGatheredPathData(FDiscoveredPathData&& DiscoveredData)
 	: LocalAbsPath(MoveTemp(DiscoveredData.LocalAbsPath))
 	, LongPackageName(MoveTemp(DiscoveredData.LongPackageName))
 	, PackageTimestamp(MoveTemp(DiscoveredData.PackageTimestamp))
+	, Type(DiscoveredData.Type)
 {
 }
 
-void FGatheredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp)
+void FGatheredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp, EGatherableFileType InType)
 {
 	AssignStringWithoutShrinking(LocalAbsPath, InLocalAbsPath);
 	AssignStringWithoutShrinking(LongPackageName, InLongPackageName);
 	PackageTimestamp = InPackageTimestamp;
+	Type = InType;
 }
 
 void FGatheredPathData::Assign(const FDiscoveredPathData& DiscoveredData)
 {
-	Assign(DiscoveredData.LocalAbsPath, DiscoveredData.LongPackageName, DiscoveredData.PackageTimestamp);
+	Assign(DiscoveredData.LocalAbsPath, DiscoveredData.LongPackageName, DiscoveredData.PackageTimestamp, DiscoveredData.Type);
 }
 
 SIZE_T FGatheredPathData::GetAllocatedSize() const
@@ -1548,22 +1554,26 @@ void FAssetDataDiscovery::TickInternal()
 						check(IteratedSubDirs.Num() == NumIteratedDirs);
 						IteratedSubDirs.Emplace();
 					}
-					IteratedSubDirs[NumIteratedDirs++].Assign(LocalAbsPath, DirLongPackageName, RelPath);
+					IteratedSubDirs[NumIteratedDirs++].Assign(LocalAbsPath, DirLongPackageName, RelPath, EGatherableFileType::Directory);
 				}
 			}
 			else
 			{
-				FStringView BaseName = FPathViews::GetBaseFilename(RelPath);
-				FPathViews::AppendPath(DirLongPackageName, BaseName);
+				EGatherableFileType FileType = GetFileType(RelPath);
 				// Don't record files that contain invalid packagepath characters (not counting their extension) or that do not end with a recognized extension
-				if (!FPackageName::DoesPackageNameContainInvalidCharacters(BaseName) && FPackageName::IsPackageFilename(RelPath))
+				if (FileType != EGatherableFileType::Invalid)
 				{
-					if (IteratedFiles.Num() < NumIteratedFiles + 1)
+					FStringView BaseName = FPathViews::GetBaseFilename(RelPath);
+					if (!FPackageName::DoesPackageNameContainInvalidCharacters(BaseName))
 					{
-						check(IteratedFiles.Num() == NumIteratedFiles);
-						IteratedFiles.Emplace();
+						if (IteratedFiles.Num() < NumIteratedFiles + 1)
+						{
+							check(IteratedFiles.Num() == NumIteratedFiles);
+							IteratedFiles.Emplace();
+						}
+						FPathViews::AppendPath(DirLongPackageName, BaseName);
+						IteratedFiles[NumIteratedFiles++].Assign(LocalAbsPath, DirLongPackageName, RelPath, InPackageStatData.ModificationTime, FileType);
 					}
-					IteratedFiles[NumIteratedFiles++].Assign(LocalAbsPath, DirLongPackageName, RelPath, InPackageStatData.ModificationTime);
 				}
 			}
 			return true;
@@ -1895,18 +1905,22 @@ void FAssetDataDiscovery::SetPropertiesAndWait(FPathExistence& QueryPath, bool b
 			if (!bAlreadyScanned || bForceRescan)
 			{
 				FStringView RelPathFromParentDir = FPathViews::GetCleanFilename(RelPath);
-				FStringView FileRelPathNoExt = FPathViews::GetBaseFilenameWithPath(RelPath);
-				if (!FPackageName::DoesPackageNameContainInvalidCharacters(FileRelPathNoExt) && FPackageName::IsPackageFilename(RelPathFromParentDir))
+				EGatherableFileType FileType = GetFileType(RelPathFromParentDir);
+				if (FileType != EGatherableFileType::Invalid)
 				{
-					TStringBuilder<256> LongPackageName;
-					LongPackageName << MountDir->GetLongPackageName();
-					FPathViews::AppendPath(LongPackageName, ScanDir->GetMountRelPath());
-					FPathViews::AppendPath(LongPackageName, FileRelPathNoExt);
-					AddDiscoveredFile(FDiscoveredPathData(SearchPath, LongPackageName, RelPathFromParentDir, QueryPath.GetModificationTime()));
-					if (FPathViews::IsPathLeaf(RelPath) && !ScanDir->HasScanned())
+					FStringView FileRelPathNoExt = FPathViews::GetBaseFilenameWithPath(RelPath);
+					if (!FPackageName::DoesPackageNameContainInvalidCharacters(FileRelPathNoExt))
 					{
-						SetIsIdle(false);
-						ScanDir->MarkFileAlreadyScanned(RelPath);
+						TStringBuilder<256> LongPackageName;
+						LongPackageName << MountDir->GetLongPackageName();
+						FPathViews::AppendPath(LongPackageName, ScanDir->GetMountRelPath());
+						FPathViews::AppendPath(LongPackageName, FileRelPathNoExt);
+						AddDiscoveredFile(FDiscoveredPathData(SearchPath, LongPackageName, RelPathFromParentDir, QueryPath.GetModificationTime(), FileType));
+						if (FPathViews::IsPathLeaf(RelPath) && !ScanDir->HasScanned())
+						{
+							SetIsIdle(false);
+							ScanDir->MarkFileAlreadyScanned(RelPath);
+						}
 					}
 				}
 			}
@@ -2226,17 +2240,21 @@ void FAssetDataDiscovery::OnFileCreated(const FString& LocalAbsPath)
 	}
 
 	FStringView RelPathFromParentDir = FPathViews::GetCleanFilename(FileRelPath);
-	FStringView FileRelPathNoExt = FPathViews::GetBaseFilenameWithPath(FileRelPath);
-	if (!FPackageName::DoesPackageNameContainInvalidCharacters(FileRelPathNoExt) && FPackageName::IsPackageFilename(RelPathFromParentDir))
+	EGatherableFileType FileType = GetFileType(RelPathFromParentDir);
+	if (FileType != EGatherableFileType::Invalid)
 	{
-		TStringBuilder<256> LongPackageName;
-		LongPackageName << MountDir->GetLongPackageName();
-		FPathViews::AppendPath(LongPackageName, ScanDir->GetMountRelPath());
-		FPathViews::AppendPath(LongPackageName, FileRelPathNoExt);
-		AddDiscoveredFile(FDiscoveredPathData(LocalAbsPath, LongPackageName, RelPathFromParentDir, StatData.ModificationTime));
-		if (FPathViews::IsPathLeaf(FileRelPath))
+		FStringView FileRelPathNoExt = FPathViews::GetBaseFilenameWithPath(FileRelPath);
+		if (!FPackageName::DoesPackageNameContainInvalidCharacters(FileRelPathNoExt))
 		{
-			ScanDir->MarkFileAlreadyScanned(FileRelPath);
+			TStringBuilder<256> LongPackageName;
+			LongPackageName << MountDir->GetLongPackageName();
+			FPathViews::AppendPath(LongPackageName, ScanDir->GetMountRelPath());
+			FPathViews::AppendPath(LongPackageName, FileRelPathNoExt);
+			AddDiscoveredFile(FDiscoveredPathData(LocalAbsPath, LongPackageName, RelPathFromParentDir, StatData.ModificationTime, FileType));
+			if (FPathViews::IsPathLeaf(FileRelPath))
+			{
+				ScanDir->MarkFileAlreadyScanned(FileRelPath);
+			}
 		}
 	}
 }
@@ -2328,6 +2346,13 @@ void FAssetDataDiscovery::AddDiscoveredFile(FDiscoveredPathData&& File)
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 	DiscoveredSingleFiles.Emplace(MoveTemp(File));
 	NumDiscoveredFiles++;
+}
+
+EGatherableFileType FAssetDataDiscovery::GetFileType(FStringView FilePath)
+{
+	return FPackageName::IsPackageFilename(FilePath)
+		? EGatherableFileType::PackageFile
+		: (FAssetDataGatherer::IsVerseFile(FilePath) ? EGatherableFileType::VerseFile : EGatherableFileType::Invalid);
 }
 
 FAssetDataDiscovery::FDirectoryResult::FDirectoryResult(FStringView InDirAbsPath, TConstArrayView<FDiscoveredPathData> InFiles)
@@ -2866,8 +2891,8 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 	, bFirstTickAfterIdle(true)
 	, bFinishedInitialDiscovery(false)
 	, WaitBatchCount(0)
-	, NumCachedFiles(0)
-	, NumUncachedFiles(0)
+	, NumCachedAssetFiles(0)
+	, NumUncachedAssetFiles(0)
 	, bIsSavingAsyncCache(false)
 {
 	using namespace UE::AssetDataGather::Private;
@@ -3059,6 +3084,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 	TArray<FAssetData*, FBatchInlineAllocator> LocalAssetResults;
 	TArray<FPackageDependencyData, FBatchInlineAllocator> LocalDependencyResults;
 	TArray<FString, FBatchInlineAllocator> LocalCookedPackageNamesWithoutAssetDataResults;
+	TArray<FName, FBatchInlineAllocator> LocalVerseResults;
 	bool bLoadMonolithicCache = false;
 	double LocalLastCacheWriteTime = 0.0;
 	bool bWaitBatchCountDecremented = false;
@@ -3155,6 +3181,21 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 	TArray<FReadContext> ReadContexts;
 	for (FGatheredPathData& AssetFileData : LocalFilesToSearch)
 	{
+		// If this a Verse source file, just directly add its file name to the Verse results
+		if (AssetFileData.Type == EGatherableFileType::VerseFile)
+		{
+			// Store Verse results in a hybrid format using the LongPackageName but keeping the extension
+			WriteToString<256> MappedPath(AssetFileData.LongPackageName, FPathViews::GetExtension(AssetFileData.LocalAbsPath, true));
+			LocalVerseResults.Add(*MappedPath);
+			continue;
+		}
+
+		if (AssetFileData.Type != EGatherableFileType::PackageFile)
+		{
+			ensureMsgf(false, TEXT("Encountered unrecognized gathered asset %s!"), *AssetFileData.LongPackageName);
+			continue;
+		}
+
 		const FName PackageName = *AssetFileData.LongPackageName;
 		const FName Extension = FName(*FPaths::GetExtension(AssetFileData.LocalAbsPath));
 
@@ -3179,7 +3220,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		if (DiskCachedAssetData)
 		{
 			// Add the valid cached data to our results, and to the map of data we keep to write out the new version of the cache file
-			++NumCachedFiles;
+			++NumCachedAssetFiles;
 
 			// Set the transient flags based on whether our current cache has dependency data.
 			// Note that in editor, bGatherAssetPackageData is always true, no way to turn it off,
@@ -3199,6 +3240,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		}
 		else
 		{
+			// Not found in cache (or stale) - schedule to be read from disk
 			ReadContexts.Emplace(PackageName, Extension, AssetFileData);
 		}
 	}
@@ -3229,12 +3271,14 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		}
 		else if (ReadContext.bResult)
 		{
-			++NumUncachedFiles;
+			++NumUncachedAssetFiles;
 
 			// Add the results from a cooked package into our results on cooked package
 			LocalCookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(ReadContext.CookedPackageNamesWithoutAssetData));
 			// Do not add the results from a cooked package into the map of data we keep to write out the new version of the cache file
-			bool bCachePackage = bCacheEnabled && LocalCookedPackageNamesWithoutAssetDataResults.Num() == 0;
+			bool bCachePackage = bCacheEnabled
+				&& LocalCookedPackageNamesWithoutAssetDataResults.Num() == 0
+				&& ensure(ReadContext.AssetFileData.Type == EGatherableFileType::PackageFile);
 			if (bCachePackage)
 			{
 				for (const FAssetData* AssetData : ReadContext.AssetDataFromFile)
@@ -3284,6 +3328,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		AssetResults.Append(MoveTemp(LocalAssetResults));
 		DependencyResults.Append(MoveTemp(LocalDependencyResults));
 		CookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(LocalCookedPackageNamesWithoutAssetDataResults));
+		VerseResults.Append(MoveTemp(LocalVerseResults));
 
 		if (bHasCancelation)
 		{
@@ -3419,33 +3464,32 @@ void FAssetDataGatherer::AddToCache(FName PackageName, FDiskCachedAssetData* Dis
 	}
 }
 
-void FAssetDataGatherer::GetAndTrimSearchResults(bool& bOutIsSearching, bool& bOutAbleToProgress,
-	TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FString>& OutPathResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults,
-	TRingBuffer<FString>& OutCookedPackageNamesWithoutAssetDataResults, TArray<double>& OutSearchTimes, int32& OutNumFilesToSearch, int32& OutNumPathsToSearch, bool& OutIsDiscoveringFiles)
+void FAssetDataGatherer::GetAndTrimSearchResults(FResults& InOutResults, FResultContext& OutContext)
 {
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 
-	auto MoveAppendRangeToRingBuffer = [](auto& OutRingBuffer, auto& InArray)
+	auto MoveAppendRangeToRingBuffer = [](auto& InOutRingBuffer, auto& InArray)
 	{
-		OutRingBuffer.Reserve(OutRingBuffer.Num() + InArray.Num());
+		InOutRingBuffer.Reserve(InOutRingBuffer.Num() + InArray.Num());
 		for (auto& Element : InArray)
 		{
-			OutRingBuffer.Add(MoveTemp(Element));
+			InOutRingBuffer.Add(MoveTemp(Element));
 		}
 		InArray.Reset();
 	};
 
-	MoveAppendRangeToRingBuffer(OutAssetResults, AssetResults);
-	MoveAppendRangeToRingBuffer(OutPathResults, DiscoveredPaths);
-	MoveAppendRangeToRingBuffer(OutDependencyResults, DependencyResults);
-	MoveAppendRangeToRingBuffer(OutCookedPackageNamesWithoutAssetDataResults, CookedPackageNamesWithoutAssetDataResults);
+	MoveAppendRangeToRingBuffer(InOutResults.Assets, AssetResults);
+	MoveAppendRangeToRingBuffer(InOutResults.Paths, DiscoveredPaths);
+	MoveAppendRangeToRingBuffer(InOutResults.Dependencies, DependencyResults);
+	MoveAppendRangeToRingBuffer(InOutResults.CookedPackageNamesWithoutAssetData, CookedPackageNamesWithoutAssetDataResults);
+	MoveAppendRangeToRingBuffer(InOutResults.VerseFiles, VerseResults);
 
-	OutSearchTimes.Append(MoveTemp(SearchTimes));
+	OutContext.SearchTimes.Append(MoveTemp(SearchTimes));
 	SearchTimes.Reset();
 
-	OutNumFilesToSearch = FilesToSearch->Num();
-	OutNumPathsToSearch = NumPathsToSearchAtLastSyncPoint;
-	OutIsDiscoveringFiles = !bDiscoveryIsComplete;
+	OutContext.NumFilesToSearch = FilesToSearch->Num();
+	OutContext.NumPathsToSearch = NumPathsToSearchAtLastSyncPoint;
+	OutContext.bIsDiscoveringFiles = !bDiscoveryIsComplete;
 
 	// Idle means no more work OR we are blocked on external events, but complete means no more work period.
 	bool bLocalIsComplete = bIsIdle && FilesToSearch->Num() == 0;
@@ -3454,8 +3498,8 @@ void FAssetDataGatherer::GetAndTrimSearchResults(bool& bOutIsSearching, bool& bO
 		bIsComplete = true;
 		Shrink();
 	}
-	bOutIsSearching = !bLocalIsComplete;
-	bOutAbleToProgress = !bIsIdle;
+	OutContext.bIsSearching = !bLocalIsComplete;
+	OutContext.bAbleToProgress = !bIsIdle;
 }
 
 void FAssetDataGatherer::GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults)
@@ -3960,6 +4004,7 @@ SIZE_T FAssetDataGatherer::GetAllocatedSize() const
 
 	Result += GetArrayRecursiveAllocatedSize(DependencyResults);
 	Result += GetArrayRecursiveAllocatedSize(CookedPackageNamesWithoutAssetDataResults);
+	Result += VerseResults.GetAllocatedSize();
 	Result += SearchTimes.GetAllocatedSize();
 	Result += GetArrayRecursiveAllocatedSize(DiscoveredPaths);
 	Result += GPreloadSettings.GetMonolithicCacheFilename().GetAllocatedSize();
@@ -3988,6 +4033,7 @@ void FAssetDataGatherer::Shrink()
 	AssetResults.Shrink();
 	DependencyResults.Shrink();
 	CookedPackageNamesWithoutAssetDataResults.Shrink();
+	VerseResults.Shrink();
 	SearchTimes.Shrink();
 	DiscoveredPaths.Shrink();
 }
@@ -4139,6 +4185,11 @@ bool FAssetDataGatherer::IsMonitored(FStringView LocalPath) const
 	return Discovery->IsMonitored(NormalizeLocalPath(LocalPath));
 }
 
+bool FAssetDataGatherer::IsVerseFile(FStringView FilePath)
+{
+	return FilePath.EndsWith(TEXT(".verse")) || FilePath.EndsWith(TEXT(".vmodule"));
+}
+
 void FAssetDataGatherer::SetIsIdle(bool bInIsIdle)
 {
 	CHECK_IS_LOCKED_CURRENT_THREAD(ResultsLock);
@@ -4156,7 +4207,7 @@ void FAssetDataGatherer::SetIsIdle(bool bInIsIdle)
 		{
 			bFinishedInitialDiscovery = true;
 
-			UE_LOG(LogAssetRegistry, Verbose, TEXT("Initial scan took %0.6f seconds (found %d cached assets, and loaded %d)"), (float)SearchTime, NumCachedFiles, NumUncachedFiles);
+			UE_LOG(LogAssetRegistry, Verbose, TEXT("Initial scan took %0.6f seconds (found %d cached assets, and loaded %d)"), (float)SearchTime, NumCachedAssetFiles, NumUncachedAssetFiles);
 		}
 		SearchTimes.Add(SearchTime);
 	}

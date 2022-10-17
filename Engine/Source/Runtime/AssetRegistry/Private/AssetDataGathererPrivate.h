@@ -65,6 +65,15 @@ struct FSetPathProperties
 	}
 };
 
+/** To distinguish between assets and Verse source code */
+enum class EGatherableFileType : uint8
+{
+	Invalid,
+	Directory,
+	PackageFile,
+	VerseFile,
+};
+
 /** Information needed about a discovered asset file or path that is needed by the Discoverer */
 struct FDiscoveredPathData
 {
@@ -76,14 +85,18 @@ struct FDiscoveredPathData
 	FString RelPath;
 	/** If the path is a file, the modification timestamp of the package file (that it had when it was discovered). */
 	FDateTime PackageTimestamp;
+	/** The type of file that was found */
+	EGatherableFileType Type = EGatherableFileType::Invalid;
 
 	FDiscoveredPathData() = default;
 	FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
-		const FDateTime& InPackageTimestamp);
-	FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath);
+		const FDateTime& InPackageTimestamp, EGatherableFileType InType);
+	FDiscoveredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
+		EGatherableFileType InType);
 	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
-		const FDateTime& InPackageTimestamp);
-	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath);
+		const FDateTime& InPackageTimestamp, EGatherableFileType InType);
+	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath,
+		EGatherableFileType InType);
 
 	/** Return the total amount of heap memory used by the gatherer (including not-yet-claimed search results). */
 	SIZE_T GetAllocatedSize() const;
@@ -98,12 +111,14 @@ struct FGatheredPathData
 	FString LongPackageName;
 	/** The modification timestamp of the package file (that it had when it was discovered) */
 	FDateTime PackageTimestamp;
+	/** The type of file that was found */
+	EGatherableFileType Type = EGatherableFileType::Invalid;
 
 	FGatheredPathData() = default;
-	FGatheredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp);
+	FGatheredPathData(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp, EGatherableFileType InType);
 	explicit FGatheredPathData(const FDiscoveredPathData& DiscoveredData);
 	explicit FGatheredPathData(FDiscoveredPathData&& DiscoveredData);
-	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp);
+	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, const FDateTime& InPackageTimestamp, EGatherableFileType InType);
 	void Assign(const FDiscoveredPathData& DiscoveredData);
 
 	/**
@@ -647,6 +662,9 @@ private:
 	void AddDiscovered(FStringView DirAbsPath, TConstArrayView<FDiscoveredPathData> SubDirs, TConstArrayView<FDiscoveredPathData> Files);
 	/** Store the given specially reported single file in the results. */
 	void AddDiscoveredFile(FDiscoveredPathData&& File);
+
+	/** For a given file path, determine the type it should be gathered as. */
+	static EGatherableFileType GetFileType(FStringView FilePath);
 
 	/**
 	 * Return whether a directory with the given LongPackageName should be reported to the AssetRegistry

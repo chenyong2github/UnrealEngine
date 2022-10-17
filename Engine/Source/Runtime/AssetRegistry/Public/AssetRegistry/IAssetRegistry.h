@@ -483,6 +483,15 @@ public:
 	 */
 	virtual void PrioritizeAssetInstall(const FAssetData& AssetData) const = 0;
 
+	/**
+	 * Gets paths for all Verse files in the supplied folder path
+	 *
+	 * @param PackagePath the path to query asset data in (e.g. /Game/MyFolder)
+	 * @param OutFilePaths the list of Verse files in this path, as pseudo UE LongPackagePaths with extension (e.g. /Game/MyFolder/MyVerseFile.verse)
+	 * @param bRecursive if true, all supplied paths will be searched recursively
+	 */
+	virtual bool GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive = false) const = 0;
+
 	/** Adds the specified path to the set of cached paths. These will be returned by GetAllCachedPaths(). Returns true if the path was actually added and false if it already existed. */
 	virtual bool AddPath(const FString& PathToAdd) = 0;
 

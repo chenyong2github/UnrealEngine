@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetDataGatherer.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryState.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -136,6 +137,7 @@ public:
 	bool AddPath(Impl::FEventContext& EventContext, const FString& PathToAdd);
 	void SearchAllAssets(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
 		bool bSynchronousSearch);
+	bool GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive = false) const;
 	void ScanPathsSynchronous(Impl::FScanPathContext& Context);
 	void PrioritizeSearchPath(const FString& PathToPrioritize);
 	void ScanModifiedAssetFiles(Impl::FEventContext& EventContext, Impl::FClassInheritanceContext& InheritanceContext,
@@ -215,6 +217,8 @@ public:
 	bool RemoveAssetPath(Impl::FEventContext& EventContext, FName PathToRemove, bool bEvenIfAssetsStillExist = false);
 	/** Removes the asset data associated with this package from the look-up maps */
 	void RemovePackageData(Impl::FEventContext& EventContext, const FName PackageName);
+	/** Removes the Verse file from the look-up maps */
+	void RemoveVerseFile(FName VerseFilePathToRemove);
 
 	/** Returns the names of all subclasses of the class whose name is ClassName */
 	void GetSubClasses(Impl::FClassInheritanceContext& InheritanceContext, const TArray<FTopLevelAssetPath>& InClassNames,
@@ -286,6 +290,9 @@ private:
 	void CookedPackageNamesWithoutAssetDataGathered(Impl::FEventContext& EventContext, const double TickStartTime,
 		TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults, bool& bOutInterrupted);
 
+	/** Called every tick when data is retrieved by the background dependency search */
+	void VerseFilesGathered(const double TickStartTime, TRingBuffer<FName>& VerseResults);
+
 	/** Adds the asset data to the lookup maps */
 	void AddAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData);
 
@@ -328,6 +335,10 @@ private:
 	/** Internal state of the cached asset registry */
 	FAssetRegistryState State;
 
+	/** Database of known Verse files */
+	TSet<FName> CachedVerseFiles;
+	TMap<FName, TArray<FName>> CachedVerseFilesByPath;
+
 	/** Default options used for serialization */
 	FAssetRegistrySerializationOptions SerializationOptions;
 	FAssetRegistrySerializationOptions DevelopmentSerializationOptions;
@@ -358,11 +369,8 @@ private:
 	/** Async task that gathers asset information from disk */
 	TUniquePtr<FAssetDataGatherer> GlobalGatherer;
 
-	/** A list of results from the background thread that are waiting to get processed by the main thread */
-	TRingBuffer<FAssetData*> BackgroundAssetResults;
-	TRingBuffer<FString> BackgroundPathResults;
-	TRingBuffer<FPackageDependencyData> BackgroundDependencyResults;
-	TRingBuffer<FString> BackgroundCookedPackageNamesWithoutAssetDataResults;
+	/** Lists of results from the background thread that are waiting to get processed by the main thread */
+	FAssetDataGatherer::FResults BackgroundResults;
 
 	UE_DEPRECATED(5.0, "DelayDelete is only intended to support deprecated functions.")
 	TArray<TUniqueFunction<void()>> DeleteActions;

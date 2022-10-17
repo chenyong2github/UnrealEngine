@@ -85,12 +85,27 @@ public:
 
 
 	// Receiving Results (possibly while tick is running)
+	struct FResults
+	{
+		TRingBuffer<FAssetData*> Assets;
+		TRingBuffer<FString> Paths;
+		TRingBuffer<FPackageDependencyData> Dependencies;
+		TRingBuffer<FString> CookedPackageNamesWithoutAssetData;
+		TRingBuffer<FName> VerseFiles;
 
+		SIZE_T GetAllocatedSize() const { return Assets.GetAllocatedSize() + Paths.GetAllocatedSize() + Dependencies.GetAllocatedSize() + CookedPackageNamesWithoutAssetData.GetAllocatedSize() + VerseFiles.GetAllocatedSize(); }
+	};
+	struct FResultContext
+	{
+		bool bIsSearching = false;
+		bool bAbleToProgress = false;
+		TArray<double> SearchTimes;
+		int32 NumFilesToSearch = 0;
+		int32 NumPathsToSearch = 0;
+		bool bIsDiscoveringFiles = false;
+	};
 	/** Gets search results from the data gatherer. */
-	void GetAndTrimSearchResults(bool& bOutIsSearching, bool& bOutAbleToProgress,
-		TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FString>& OutPathResults,
-		TRingBuffer<FPackageDependencyData>& OutDependencyResults, TRingBuffer<FString>& OutCookedPackageNamesWithoutAssetDataResults,
-		TArray<double>& OutSearchTimes, int32& OutNumFilesToSearch, int32& OutNumPathsToSearch, bool& OutIsDiscoveringFiles);
+	void GetAndTrimSearchResults(FResults& InOutResults, FResultContext& OutContext);
 	/** Gets just the AssetResults and DependencyResults from the data gatherer. */
 	void GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults);
 	/** Wait for all monitored assets under the given path to be added to search results. Returns immediately if the given path is not monitored. */
@@ -163,6 +178,9 @@ public:
 	bool IsOnDenyList(FStringView LocalPath) const;
 	/** Report whether the path is both in the allow list and not in the deny list. */
 	bool IsMonitored(FStringView LocalPath) const;
+
+	/** Determine, based on the file extension, if the given file path is a Verse file */
+	static bool IsVerseFile(FStringView FilePath);
 
 	/**
 	 * Reads FAssetData information out of a previously initialized package reader
@@ -336,6 +354,8 @@ private:
 	 * These assets may still contain assets (if they were older for example). Read/writable only within ResultsLock.
 	 */
 	TArray<FString> CookedPackageNamesWithoutAssetDataResults;
+	/** File paths (in UE LongPackagePath notation) of the Verse source code gathered from the searched files. */
+	TArray<FName> VerseResults;
 
 	/** All the search times since the last call to GetAndTrimSearchResults. Read/writable only within ResultsLock. */
 	TArray<double> SearchTimes;
@@ -396,9 +416,9 @@ private:
 	 */
 	int32 WaitBatchCount;
 	/** How many files in the search results were read from the cache. Read/writable only within TickLock. */
-	int32 NumCachedFiles;
+	int32 NumCachedAssetFiles;
 	/** How many files in the search results were not in the cache and were read by parsing the file. Read/writable only within TickLock. */
-	int32 NumUncachedFiles;
+	int32 NumUncachedAssetFiles;
 	/**
 	 * True if the current TickInternal is synchronous, which may be because bIsSynchronous or because the game thread has taken over the tick for a synchronous function.
 	 * Read/writable only within TickLock.

@@ -3252,6 +3252,40 @@ void PrioritizeAssetInstall(const FAssetData& AssetData)
 
 }
 
+bool UAssetRegistryImpl::GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive /*= false*/) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+	return GuardedData.GetVerseFilesByPath(PackagePath, OutFilePaths, bRecursive);
+}
+
+namespace UE::AssetRegistry
+{
+
+bool FAssetRegistryImpl::GetVerseFilesByPath(FName PackagePath, TArray<FName>& OutFilePaths, bool bRecursive /*= false*/) const
+{
+	bool bFoundAnything = false;
+	TSet<FName> PathList;
+	PathList.Reserve(32);
+	if (bRecursive)
+	{
+		CachedPathTree.GetSubPaths(PackagePath, PathList, true);
+	}
+	PathList.Add(PackagePath);
+	for (const FName& PathName : PathList)
+	{
+		const TArray<FName>* FilePaths = CachedVerseFilesByPath.Find(PathName);
+		if (FilePaths)
+		{
+			OutFilePaths.Append(*FilePaths);
+			bFoundAnything = true;
+		}
+	}
+
+	return bFoundAnything;
+}
+
+}
+
 bool UAssetRegistryImpl::AddPath(const FString& PathToAdd)
 {
 	UE::AssetRegistry::Impl::FEventContext EventContext;
@@ -3390,21 +3424,21 @@ void FAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 	// Also prioritize the queue of background search results
 	int32 FirstNonPriorityIndex = 0;
-	for (int Index = 0; Index < BackgroundAssetResults.Num(); ++Index)
+	for (int Index = 0; Index < BackgroundResults.Assets.Num(); ++Index)
 	{
-		FAssetData* PriorityElement = BackgroundAssetResults[Index];
+		FAssetData* PriorityElement = BackgroundResults.Assets[Index];
 		if (PriorityElement && PriorityElement->PackagePath.ToString().StartsWith(PathToPrioritize))
 		{
-			Swap(BackgroundAssetResults[FirstNonPriorityIndex++], BackgroundAssetResults[Index]);
+			Swap(BackgroundResults.Assets[FirstNonPriorityIndex++], BackgroundResults.Assets[Index]);
 		}
 	}
 	FirstNonPriorityIndex = 0;
-	for (int Index = 0; Index < BackgroundPathResults.Num(); ++Index)
+	for (int Index = 0; Index < BackgroundResults.Paths.Num(); ++Index)
 	{
-		FString& PriorityElement = BackgroundPathResults[Index];
+		FString& PriorityElement = BackgroundResults.Paths[Index];
 		if (PriorityElement.StartsWith(PathToPrioritize))
 		{
-			Swap(BackgroundPathResults[FirstNonPriorityIndex++], BackgroundPathResults[Index]);
+			Swap(BackgroundResults.Paths[FirstNonPriorityIndex++], BackgroundResults.Paths[Index]);
 		}
 	}
 }
@@ -3684,27 +3718,20 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	}
 
 	// Gather results from the background search
-	bool bIsSearching = false;
-	bool bAbleToProgress = false;
-	TArray<double> SearchTimes;
-	int32 NumFilesToSearch = 0;
-	int32 NumPathsToSearch = 0;
-	bool bIsDiscoveringFiles = false;
-	GlobalGatherer->GetAndTrimSearchResults(bIsSearching, bAbleToProgress, BackgroundAssetResults, BackgroundPathResults, BackgroundDependencyResults,
-		BackgroundCookedPackageNamesWithoutAssetDataResults, SearchTimes, NumFilesToSearch, NumPathsToSearch, bIsDiscoveringFiles);
+	FAssetDataGatherer::FResultContext ResultContext;
+	GlobalGatherer->GetAndTrimSearchResults(BackgroundResults, ResultContext);	
 	// Report the search times
-	for (int32 SearchTimeIdx = 0; SearchTimeIdx < SearchTimes.Num(); ++SearchTimeIdx)
+	for (double SearchTime : ResultContext.SearchTimes)
 	{
-		UE_LOG(LogAssetRegistry, Verbose, TEXT("### Background search completed in %0.4f seconds"), SearchTimes[SearchTimeIdx]);
+		UE_LOG(LogAssetRegistry, Verbose, TEXT("### Background search completed in %0.4f seconds"), SearchTime);
 	}
-	const bool bHadAssetsToProcess = BackgroundAssetResults.Num() > 0 || BackgroundDependencyResults.Num() > 0;
-	auto GetNumGatherFromDiskPending = [&NumFilesToSearch, &NumPathsToSearch, this]()
+	const bool bHadAssetsToProcess = BackgroundResults.Assets.Num() > 0 || BackgroundResults.Dependencies.Num() > 0;
+	auto GetNumGatherFromDiskPending = [&ResultContext, this]()
 	{
-		return NumFilesToSearch + NumPathsToSearch + BackgroundPathResults.Num() + BackgroundAssetResults.Num()
-			+ BackgroundDependencyResults.Num() + BackgroundCookedPackageNamesWithoutAssetDataResults.Num();
+		return ResultContext.NumFilesToSearch + ResultContext.NumPathsToSearch + BackgroundResults.Paths.Num() + BackgroundResults.Assets.Num()
+			+ BackgroundResults.Dependencies.Num() + BackgroundResults.CookedPackageNamesWithoutAssetData.Num();
 	};
-	auto UpdateStatus = [bIsSearching, bAbleToProgress, bHadAssetsToProcess, bIsDiscoveringFiles, &EventContext,
-		&OutStatus, this](int32 NumGatherPending, bool bInterrupted)
+	auto UpdateStatus = [bHadAssetsToProcess, &ResultContext, &EventContext, &OutStatus, this](int32 NumGatherPending, bool bInterrupted)
 	{
 		// Compute total pending, plus highest pending for this run so we can show a good progress bar
 		int32 NumPending = NumGatherPending
@@ -3714,11 +3741,11 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 			;
 		HighestPending = FMath::Max(this->HighestPending, NumPending);
 
-		if (!bInterrupted && !bIsSearching && NumPending == 0)
+		if (!bInterrupted && !ResultContext.bIsSearching && NumPending == 0)
 		{
 			OutStatus = EGatherStatus::Complete;
 		}
-		else if (!bInterrupted && !bAbleToProgress)
+		else if (!bInterrupted && !ResultContext.bAbleToProgress)
 		{
 			OutStatus = EGatherStatus::UnableToProgress;
 		}
@@ -3727,14 +3754,14 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 			OutStatus = EGatherStatus::Active;
 		}
 		// Notify the status change, only when something changed, or when sending the final result before going idle
-		if (bIsSearching || bHadAssetsToProcess ||
+		if (ResultContext.bIsSearching || bHadAssetsToProcess ||
 			(OutStatus == EGatherStatus::Complete && this->GatherStatus != EGatherStatus::Complete))
 		{
 			EventContext.ProgressUpdateData.Emplace(
 				HighestPending,					// NumTotalAssets
 				HighestPending - NumPending,	// NumAssetsProcessedByAssetRegistry
 				NumPending / 2,					// NumAssetsPendingDataLoad, divided by 2 because assets are double counted due to dependencies
-				bIsDiscoveringFiles				// bIsDiscoveringAssetFiles
+				ResultContext.bIsDiscoveringFiles // bIsDiscoveringAssetFiles
 			);
 		}
 		this->GatherStatus = OutStatus;
@@ -3742,13 +3769,13 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 
 
 	// Add discovered paths
-	if (BackgroundPathResults.Num())
+	if (BackgroundResults.Paths.Num())
 	{
-		PathDataGathered(EventContext, TickStartTime, BackgroundPathResults);
+		PathDataGathered(EventContext, TickStartTime, BackgroundResults.Paths);
 	}
 
 	// Process the asset results
-	if (BackgroundAssetResults.Num())
+	if (BackgroundResults.Assets.Num())
 	{
 		// Mark the first amortize time
 		if (AmortizeStartTime == 0)
@@ -3757,12 +3784,12 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		}
 		if (AssetsFoundCallback.IsSet())
 		{
-			AssetsFoundCallback.GetValue()(BackgroundAssetResults);
+			AssetsFoundCallback.GetValue()(BackgroundResults.Assets);
 		}
 
-		AssetSearchDataGathered(EventContext, TickStartTime, BackgroundAssetResults);
+		AssetSearchDataGathered(EventContext, TickStartTime, BackgroundResults.Assets);
 
-		if (BackgroundAssetResults.Num() == 0)
+		if (BackgroundResults.Assets.Num() == 0)
 		{
 			TotalAmortizeTime += FPlatformTime::Seconds() - AmortizeStartTime;
 			AmortizeStartTime = 0;
@@ -3770,15 +3797,15 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	}
 
 	// Add dependencies
-	if (BackgroundDependencyResults.Num())
+	if (BackgroundResults.Dependencies.Num())
 	{
-		DependencyDataGathered(TickStartTime, BackgroundDependencyResults);
+		DependencyDataGathered(TickStartTime, BackgroundResults.Dependencies);
 	}
 
 	// Load cooked packages that do not have asset data
-	if (BackgroundCookedPackageNamesWithoutAssetDataResults.Num())
+	if (BackgroundResults.CookedPackageNamesWithoutAssetData.Num())
 	{
-		CookedPackageNamesWithoutAssetDataGathered(EventContext, TickStartTime, BackgroundCookedPackageNamesWithoutAssetDataResults, bOutInterrupted);
+		CookedPackageNamesWithoutAssetDataGathered(EventContext, TickStartTime, BackgroundResults.CookedPackageNamesWithoutAssetData, bOutInterrupted);
 		if (bOutInterrupted)
 		{
 			UpdateStatus(GetNumGatherFromDiskPending(), true /* bInterrupted */);
@@ -3786,10 +3813,16 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		}
 	}
 
+	// Add Verse files
+	if (BackgroundResults.VerseFiles.Num())
+	{
+		VerseFilesGathered(TickStartTime, BackgroundResults.VerseFiles);
+	}
+
 	// Load Calculated Dependencies when the gather from disk is complete; the full gather is not complete until after this is done
 	int32 NumGatherFromDiskPending = GetNumGatherFromDiskPending();
 #if WITH_EDITOR
-	bool bDiskGatherComplete = !bIsSearching && NumGatherFromDiskPending == 0;
+	bool bDiskGatherComplete = !ResultContext.bIsSearching && NumGatherFromDiskPending == 0;
 	if (bDiskGatherComplete && PackagesNeedingDependencyCalculation.Num())
 	{
 		LoadCalculatedDependencies(nullptr, TickStartTime, InheritanceContext, bOutInterrupted);
@@ -3837,27 +3870,27 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 	FName PackageFName(PackageName);
 
 	// Gather results from the background search
-	GlobalGatherer->GetPackageResults(BackgroundAssetResults, BackgroundDependencyResults);
+	GlobalGatherer->GetPackageResults(BackgroundResults.Assets, BackgroundResults.Dependencies);
 
 	TRingBuffer<FAssetData*> PackageAssets;
 	TRingBuffer<FPackageDependencyData> PackageDependencyDatas;
-	for (int n = 0; n < BackgroundAssetResults.Num(); ++n)
+	for (int n = 0; n < BackgroundResults.Assets.Num(); ++n)
 	{
-		FAssetData* Asset = BackgroundAssetResults[n];
+		FAssetData* Asset = BackgroundResults.Assets[n];
 		if (Asset->PackageName == PackageFName)
 		{
-			Swap(BackgroundAssetResults[n], BackgroundAssetResults.Last());
-			PackageAssets.Add(BackgroundAssetResults.PopValue());
+			Swap(BackgroundResults.Assets[n], BackgroundResults.Assets.Last());
+			PackageAssets.Add(BackgroundResults.Assets.PopValue());
 			--n;
 		}
 	}
-	for (int n = 0; n < BackgroundDependencyResults.Num(); ++n)
+	for (int n = 0; n < BackgroundResults.Dependencies.Num(); ++n)
 	{
-		FPackageDependencyData& DependencyData = BackgroundDependencyResults[n];
+		FPackageDependencyData& DependencyData = BackgroundResults.Dependencies[n];
 		if (DependencyData.PackageName == PackageFName)
 		{
-			Swap(BackgroundDependencyResults[n], BackgroundDependencyResults.Last());
-			PackageDependencyDatas.Add(BackgroundDependencyResults.PopValue());
+			Swap(BackgroundResults.Dependencies[n], BackgroundResults.Dependencies.Last());
+			PackageDependencyDatas.Add(BackgroundResults.Dependencies.PopValue());
 			--n;
 		}
 	}
@@ -4135,7 +4168,7 @@ void FAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed, SIZE_T& StateSize, 
 	StateSize = State.GetAllocatedSize(bLogDetailed);
 
 	StaticSize = CachedEmptyPackages.GetAllocatedSize() + CachedBPInheritanceMap.GetAllocatedSize() + ClassGeneratorNames.GetAllocatedSize();
-	SearchSize = BackgroundAssetResults.GetAllocatedSize() + BackgroundPathResults.GetAllocatedSize() + BackgroundDependencyResults.GetAllocatedSize() + BackgroundCookedPackageNamesWithoutAssetDataResults.GetAllocatedSize() + CachedPathTree.GetAllocatedSize();
+	SearchSize = BackgroundResults.GetAllocatedSize() + CachedPathTree.GetAllocatedSize();
 
 	if (bIsTempCachingEnabled && !bIsTempCachingAlwaysEnabled)
 	{
@@ -4761,7 +4794,6 @@ void FAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(Impl::FEvent
 	const double TickStartTime, TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults, bool& bOutInterrupted)
 {
 	bOutInterrupted = false;
-	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	struct FConfigValue
 	{
@@ -4799,6 +4831,30 @@ void FAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(Impl::FEvent
 		// process will involve opening every single package synchronously on the game thread which will
 		// kill performance. We need a better way.
 		CookedPackageNamesWithoutAssetDataResults.Empty();
+	}
+}
+
+void FAssetRegistryImpl::VerseFilesGathered(const double TickStartTime, TRingBuffer<FName>& VerseResults)
+{
+	while (VerseResults.Num() > 0)
+	{
+		FName VerseFilePath = VerseResults.PopFrontValue();
+
+		bool bAlreadyExists = false;
+		CachedVerseFiles.Add(VerseFilePath, &bAlreadyExists);
+		if (!bAlreadyExists)
+		{
+			WriteToString<256> VerseFilePathString(VerseFilePath);
+			FName VerseDirectoryPath(FPathViews::GetPath(VerseFilePathString.ToView()));
+			TArray<FName>& FilePathsArray = CachedVerseFilesByPath.FindOrAdd(VerseDirectoryPath);
+			FilePathsArray.Add(VerseFilePath);
+		}
+
+		// Check to see if we have run out of time in this tick
+		if (TickStartTime >= 0 && (FPlatformTime::Seconds() - TickStartTime) > Impl::MaxSecondsPerFrame)
+		{
+			return;
+		}
 	}
 }
 
@@ -5005,6 +5061,24 @@ void FAssetRegistryImpl::RemovePackageData(Impl::FEventContext& EventContext, co
 	}
 }
 
+void FAssetRegistryImpl::RemoveVerseFile(FName VerseFilePathToRemove)
+{
+	if (CachedVerseFiles.Remove(VerseFilePathToRemove))
+	{
+		WriteToString<256> VerseFilePathString(VerseFilePathToRemove);
+		FName VerseDirectoryPath(FPathViews::GetPath(VerseFilePathString.ToView()));
+		TArray<FName>* FilePathsArray = CachedVerseFilesByPath.Find(VerseDirectoryPath);
+		if (ensure(FilePathsArray)) // We found it in CachedVerseFiles, so we must also find it here
+		{
+			FilePathsArray->Remove(VerseFilePathToRemove);
+			if (FilePathsArray->IsEmpty())
+			{
+				CachedVerseFilesByPath.Remove(VerseDirectoryPath);
+			}
+		}
+	}
+}
+
 }
 
 #if WITH_EDITOR
@@ -5067,10 +5141,11 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext,
 		const bool bIsPackageFile = FPackageName::IsPackageExtension(*FPaths::GetExtension(File, true));
 		const bool bIsValidPackageName = FPackageName::TryConvertFilenameToLongPackageName(File, LongPackageName);
 		const bool bIsValidPackage = bIsPackageFile && bIsValidPackageName;
-		FName LongPackageFName(*LongPackageName);
 
 		if (bIsValidPackage)
 		{
+			FName LongPackageFName(*LongPackageName);
+
 			bool bAddedOrCreated = false;
 			switch (FileChangesProcessed[FileIdx].Action)
 			{
@@ -5106,27 +5181,52 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext,
 		}
 		else if (bIsValidPackageName)
 		{
-			// This could be a directory or possibly a file with no extension or a wrong extension.
-			// No guaranteed way to know at this point since it may have been deleted.
-			switch (FileChangesProcessed[FileIdx].Action)
+			// Is this a Verse file?
+			if (FAssetDataGatherer::IsVerseFile(File))
 			{
-			case FFileChangeData::FCA_Added:
-			{
-				if (FPaths::DirectoryExists(File))
+				switch (FileChangesProcessed[FileIdx].Action)
 				{
-					NewDirs.Add(File);
-					UE_LOG(LogAssetRegistry, Verbose, TEXT("Directory was added to content directory: %s"), *File);
+				case FFileChangeData::FCA_Added:
+					// This is a Verse file that was created on disk.
+					NewFiles.AddUnique(File);
+					UE_LOG(LogAssetRegistry, Verbose, TEXT("Verse file was added to content directory: %s"), *File);
+					break;
+
+				case FFileChangeData::FCA_Modified:
+					// Note: Since content of Verse files is not scanned, no need to handle FCA_Modified
+					break;
+
+				case FFileChangeData::FCA_Removed:
+					WriteToString<256> VerseFilePathString(LongPackageName, FPathViews::GetExtension(File, true));
+					RemoveVerseFile(*VerseFilePathString);
+					UE_LOG(LogAssetRegistry, Verbose, TEXT("Verse file was removed from content directory: %s"), *File);
+					break;
 				}
-				break;
 			}
-			case FFileChangeData::FCA_Removed:
+			else
 			{
-				RemoveAssetPath(EventContext, *LongPackageName);
-				UE_LOG(LogAssetRegistry, Verbose, TEXT("Directory was removed from content directory: %s"), *File);
-				break;
-			}
-			default:
-				break;
+				// This could be a directory or possibly a file with no extension or a wrong extension.
+				// No guaranteed way to know at this point since it may have been deleted.
+				switch (FileChangesProcessed[FileIdx].Action)
+				{
+				case FFileChangeData::FCA_Added:
+				{
+					if (FPaths::DirectoryExists(File))
+					{
+						NewDirs.Add(File);
+						UE_LOG(LogAssetRegistry, Verbose, TEXT("Directory was added to content directory: %s"), *File);
+					}
+					break;
+				}
+				case FFileChangeData::FCA_Removed:
+				{
+					RemoveAssetPath(EventContext, *LongPackageName);
+					UE_LOG(LogAssetRegistry, Verbose, TEXT("Directory was removed from content directory: %s"), *File);
+					break;
+				}
+				default:
+					break;
+				}
 			}
 		}
 
