@@ -821,7 +821,7 @@ namespace Horde.Agent.Execution
 			// Write all the storage blocks, and update the mapping from file to storage block
 			using (GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "Write").StartActive())
 			{
-				RefName refName = new RefName(RefName.Sanitize(step.Name));
+				RefName refName = new RefName(RefName.Sanitize($"{_job.StreamId}/{_job.Change}-{_jobId}/{step.Name}"));
 
 				TreeOptions treeOptions = new TreeOptions();
 				TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
