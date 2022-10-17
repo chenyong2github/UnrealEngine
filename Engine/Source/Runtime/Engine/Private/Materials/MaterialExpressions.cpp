@@ -21225,6 +21225,7 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	bGroundContribution = false;
 	bGrayScaleMaterial = false;
 	bRayMarchVolumeShadow = true;
+	bClampMultiScatteringContribution = true;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedOutput);

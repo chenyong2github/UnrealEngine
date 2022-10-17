@@ -259,6 +259,9 @@ bool RayIntersectSphereSolution(float3 RayOrigin, float3 RayDirection, float4 Sp
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW
 #define MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW 0
 #endif
+#ifndef MATERIAL_VOLUMETRIC_ADVANCED_CLAMP_MULTISCATTERING_CONTRIBUTION
+#define MATERIAL_VOLUMETRIC_ADVANCED_CLAMP_MULTISCATTERING_CONTRIBUTION 1
+#endif
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
 #define MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION 0
 #endif
@@ -574,7 +577,11 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 		// Evalaute Factors once per pixel
 #if MATERIAL_VOLUMETRIC_ADVANCED
+	#if MATERIAL_VOLUMETRIC_ADVANCED_CLAMP_MULTISCATTERING_CONTRIBUTION
 		const float MsScattFactor = saturate(GetVolumetricAdvancedMaterialOutput3(MaterialParameters));
+	#else
+		const float MsScattFactor = GetVolumetricAdvancedMaterialOutput3(MaterialParameters);
+	#endif
 		const float MsExtinFactor = saturate(GetVolumetricAdvancedMaterialOutput4(MaterialParameters));
 		const float MsPhaseFactor = saturate(GetVolumetricAdvancedMaterialOutput5(MaterialParameters));
 #else

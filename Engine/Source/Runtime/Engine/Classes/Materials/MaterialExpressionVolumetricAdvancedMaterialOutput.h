@@ -88,6 +88,10 @@ class UMaterialExpressionVolumetricAdvancedMaterialOutput : public UMaterialExpr
 	UPROPERTY(EditAnywhere, Category = "Options")
 	bool bRayMarchVolumeShadow;
 
+	/** Set whether multiple scattering contribution entry is clamped in [0,1] or not. When disabled, the artist is in charge for ensuring the visual remain in a reasonable brighness range.*/
+	UPROPERTY(EditAnywhere, Category = "Options")
+	bool bClampMultiScatteringContribution;
+
 public:
 #if WITH_EDITOR
 	//~ Begin UMaterialExpression Interface
