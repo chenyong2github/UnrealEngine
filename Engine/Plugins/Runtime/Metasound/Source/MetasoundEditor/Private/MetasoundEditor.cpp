@@ -2419,12 +2419,12 @@ namespace Metasound
 								}
 								else
 								{
-									// Fix-up if variable getter node does not exist but variable does
-									FConstNodeHandle NodeHandle = VariableNode->GetConstNodeHandle();
+									// Add new variable node
+									const FNodeClassName NodeClassName = VariableNode->GetClassName().ToNodeClassName();
+									FNodeHandle NodeHandle = FGraphBuilder::AddVariableNodeHandle(*Metasound, Variable->GetVariableID(), NodeClassName, VariableNode);
 									if (!NodeHandle->IsValid())
 									{
-										const FNodeClassName NodeClassName = VariableNode->GetClassName().ToNodeClassName();
-										NodeHandle = FGraphBuilder::AddVariableNodeHandle(*Metasound, Variable->GetVariableID(), NodeClassName, VariableNode);
+										NodesToRemove.Add(GraphNode);
 									}
 								}
 							}
