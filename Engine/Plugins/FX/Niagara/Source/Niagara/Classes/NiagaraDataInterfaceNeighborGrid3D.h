@@ -16,19 +16,24 @@ class FNiagaraSystemInstance;
 // move all data management to use per instance data
 // remove references to push data to render thread
 
-class NeighborGrid3DRWInstanceData
+struct FNDINeighborGrid3DInstanceData_GT
 {
-public:
+	FIntVector	NumCells = FIntVector::ZeroValue;
+	float		CellSize = 0.0f;
+	uint32		MaxNeighborsPerCell = 0;
+	FVector		WorldBBoxSize = FVector::ZeroVector;
+	bool		bNeedsRealloc = false;
+};
+
+struct FNDINeighborGrid3DInstanceData_RT
+{
 	void ResizeBuffers(FRDGBuilder& GraphBuilder);
 
 	FIntVector	NumCells = FIntVector::ZeroValue;
 	float		CellSize = 0.0f;
-	bool		SetGridFromCellSize = false;
 	uint32		MaxNeighborsPerCell = 0;
 	FVector		WorldBBoxSize = FVector::ZeroVector;
-
-	bool		NeedsRealloc_GT = false;
-	bool		NeedsRealloc_RT = false;
+	bool		bNeedsRealloc = false;
 
 	FNiagaraPooledRWBuffer NeighborhoodBuffer;
 	FNiagaraPooledRWBuffer NeighborhoodCountBuffer;
@@ -40,13 +45,13 @@ struct FNiagaraDataInterfaceProxyNeighborGrid3D : public FNiagaraDataInterfacePr
 	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(NeighborGrid3DRWInstanceData); }	
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }	
 
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
-	TMap<FNiagaraSystemInstanceID, NeighborGrid3DRWInstanceData> SystemInstancesToProxyData;
+	TMap<FNiagaraSystemInstanceID, FNDINeighborGrid3DInstanceData_RT> SystemInstancesToProxyData_RT;
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Neighbor Grid3D"))
@@ -107,7 +112,7 @@ public:
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override { return false;  }
-	virtual int32 PerInstanceDataSize()const override { return sizeof(NeighborGrid3DRWInstanceData); }
+	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDINeighborGrid3DInstanceData_GT); }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPostSimulateTick() const override { return true; }
 	virtual bool HasPreSimulateTick() const override { return true; }
