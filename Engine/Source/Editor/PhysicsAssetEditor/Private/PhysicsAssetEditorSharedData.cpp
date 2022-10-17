@@ -1433,6 +1433,7 @@ static EAggCollisionShape::Type ConvertPhysicsAssetGeomTypeToAggCollisionShapeTy
 	case EPhysAssetFitGeomType::EFG_TaperedCapsule: 	return EAggCollisionShape::Type::TaperedCapsule;
 	case EPhysAssetFitGeomType::EFG_SingleConvexHull:	return EAggCollisionShape::Type::Convex;
 	case EPhysAssetFitGeomType::EFG_MultiConvexHull:	return EAggCollisionShape::Type::Convex;
+	case EPhysAssetFitGeomType::EFG_LevelSet:			return EAggCollisionShape::Type::LevelSet;
 	default:											return EAggCollisionShape::Type::Unknown;
 	}
 }

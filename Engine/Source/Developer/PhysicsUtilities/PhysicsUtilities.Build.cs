@@ -20,6 +20,7 @@ public class PhysicsUtilities : ModuleRules
 			new string[] {
 				"MeshUtilitiesCommon",
 				"MeshUtilitiesEngine",
+				"GeometryCore"		// For mesh to level set conversion
             }
 		);
 

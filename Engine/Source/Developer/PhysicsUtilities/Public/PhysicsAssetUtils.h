@@ -21,7 +21,8 @@ enum EPhysAssetFitGeomType
 	EFG_Sphere				UMETA(DisplayName="Sphere"),
 	EFG_TaperedCapsule		UMETA(DisplayName="Tapered Capsule (Cloth Only)"),
 	EFG_SingleConvexHull	UMETA(DisplayName="Single Convex Hull"),
-	EFG_MultiConvexHull		UMETA(DisplayName="Multi Convex Hull")
+	EFG_MultiConvexHull		UMETA(DisplayName="Multi Convex Hull"),
+	EFG_LevelSet			UMETA(DisplayName="Level Set"),
 };
 
 UENUM()
@@ -51,6 +52,7 @@ struct FPhysAssetCreateParams
 		AngularConstraintMode = ACM_Limited;
 		HullCount = 4;
 		MaxHullVerts = 16;
+		LevelSetResolution = 8;
 	}
 
 	/** Bones that are shorter than this value will be ignored for body creation */
@@ -100,6 +102,11 @@ struct FPhysAssetCreateParams
 	/** When creating convex hulls, the maximum verts that should be created */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Body Creation")
 	int32								MaxHullVerts;
+
+	/** When creating level sets, the grid resolution to use */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Body Creation", 
+		meta = (ClampMin = 1, UIMin = 5, UIMax = 100, ClampMax = 500, EditCondition = "GeomType == EPhysAssetFitGeomType::EFG_LevelSet"))
+	int32								LevelSetResolution;
 };
 
 class UPhysicsAsset;
