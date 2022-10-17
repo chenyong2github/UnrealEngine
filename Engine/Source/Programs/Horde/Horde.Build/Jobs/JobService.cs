@@ -860,7 +860,7 @@ namespace Horde.Build.Jobs
 						newError = error.Value;
 
 						// Find the agent and set the conform flag
-						if (checkForBadAgent)
+						if (newError == JobStepBatchError.Incomplete && checkForBadAgent)
 						{
 							for (; ; )
 							{
