@@ -1698,21 +1698,6 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterc
 
 void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContainer& NodeContainer, const FString& SceneNodeUid, const TArray<int32>& SkinnedMeshNodes, TSet<int>& UnusedMeshIndices) const
 {
-	//If there are skeletons, set them as a root joint for the joint hierarchy as per documentation:
-	//The skeleton property (if present) points to the node that is the common root of a joints hierarchy or to a direct or indirect parent node of the common root.
-	for (const GLTF::FSkinInfo& Skin : GltfAsset.Skins)
-	{
-		if (GltfAsset.Nodes.IsValidIndex(Skin.Skeleton))
-		{
-			const FString* SkeletonNodeUid = NodeUidMap.Find(&GltfAsset.Nodes[Skin.Skeleton]);
-			if (SkeletonNodeUid)
-			{
-				NodeContainer.SetNodeParentUid(*SkeletonNodeUid, SceneNodeUid);
-			}
-		}
-	}
-
-
 	TMap<int32, TMap<int32, TArray<int32>>> MeshIndexToRootJointGroupedSkinnedMeshNodesMap;
 
 	//group SkinnedMeshNodes based on Joint Root Parents and Mesh indices

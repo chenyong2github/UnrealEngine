@@ -4,6 +4,8 @@
 #include "InterchangeActorFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
 #include "Scene/InterchangeActorHelper.h"
+#include "InterchangeSceneNode.h"
+#include "InterchangeSkeletalMeshFactoryNode.h"
 
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -52,17 +54,22 @@ void UInterchangeSkeletalMeshActorFactory::PostImportPreCompletedCallback(const 
 	{
 		if (USkeletalMeshComponent * SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
 		{
-			if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(Arguments.NodeContainer, Arguments.FactoryNode))
 			{
-				FSoftObjectPath ReferenceObject;
-				MeshNode->GetCustomReferenceObject(ReferenceObject);
-				if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReferenceObject.TryLoad()))
+				TArray<FString> TargetNodeUids;
+				Arguments.FactoryNode->GetTargetNodeUids(TargetNodeUids);
+				const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = TargetNodeUids.IsEmpty() ? nullptr : Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.NodeContainer->GetFactoryNode(TargetNodeUids[0]));
+				if (SkeletalMeshFactoryNode)
 				{
-					SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
-
-					if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(Arguments.FactoryNode))
+					FSoftObjectPath ReferenceObject;
+					SkeletalMeshFactoryNode->GetCustomReferenceObject(ReferenceObject);
+					if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReferenceObject.TryLoad()))
 					{
-						UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *SkeletalMeshComponent);
+						SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+
+						if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(Arguments.FactoryNode))
+						{
+							UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *SkeletalMeshComponent);
+						}
 					}
 				}
 			}

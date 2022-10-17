@@ -336,14 +336,15 @@ namespace UE::Interchange::Private
 			Controller.SetFrameRate(ResampleFrameRate);
 			Controller.SetNumberOfFrames(FGenericPlatformMath::Max<int32>(NumberOfFrames.Value, 1));
 
-			FTransform3f GlobalOffsetTransform;
+			FTransform GlobalOffsetTransform;
+			bool bBakeMeshes = false;
 			{
-				FTransform TempTransform = FTransform::Identity;
+				GlobalOffsetTransform = FTransform::Identity;
 				if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(NodeContainer))
 				{
-					CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(TempTransform);
+					CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+					CommonPipelineDataFactoryNode->GetBakeMeshes(bBakeMeshes);
 				}
-				GlobalOffsetTransform = FTransform3f(TempTransform);
 			}
 
 			for (const TTuple< const UInterchangeSceneNode*, TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>>& AnimationPayload : AnimationPayloads)
@@ -392,7 +393,22 @@ namespace UE::Interchange::Private
 					FTransform3f AnimKeyTransform = FTransform3f(AnimationTransformPayload->Transforms[TransformIndex]);
 					if (bApplyGlobalOffset)
 					{
-						AnimKeyTransform = AnimKeyTransform * GlobalOffsetTransform;
+						if (bBakeMeshes)
+						{
+							const UInterchangeSceneNode* RootJointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(SkeletonRootUid));
+							if (RootJointNode)
+							{
+								FString RootJointParentNodeUid = RootJointNode->GetParentUid();
+
+								const UInterchangeSceneNode* RootJointParentNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(RootJointParentNodeUid));
+								if (RootJointParentNode)
+								{
+									FTransform GlobalTransform;
+									RootJointParentNode->GetCustomGlobalTransform(NodeContainer, GlobalOffsetTransform, GlobalTransform);
+									AnimKeyTransform = AnimKeyTransform * FTransform3f(GlobalTransform);
+								}
+							}
+						}
 					}
 					//Default value to identity
 					FVector3f Position(0.0f);

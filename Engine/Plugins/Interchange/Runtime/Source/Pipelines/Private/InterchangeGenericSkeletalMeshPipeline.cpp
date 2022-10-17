@@ -168,20 +168,16 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 			return bFoundInstances;
 		};
 
-		bool bFoundMeshes = false;
-		if (CommonMeshesProperties->bBakeMeshes)
-		{
-			PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(BaseNodeContainer, MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh);
-			const bool bUseMeshInstance = true;
-			bFoundMeshes = CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
-		}
+		PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(BaseNodeContainer, MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh);
+		bool bUseMeshInstance = true;
+		bool bFoundMeshes = CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
 
 		if (!bFoundMeshes)
 		{
 			//Fall back to support mesh not reference by any scene node
 			MeshUidsPerSkeletonRootUid.Empty();
 			PipelineMeshesUtilities->GetCombinedSkinnedMeshGeometries(MeshUidsPerSkeletonRootUid);
-			const bool bUseMeshInstance = false;
+			bUseMeshInstance = false;
 			CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
 		}
 	}
@@ -242,20 +238,16 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 			}
 			return bFoundInstances;
 		};
-			
-		bool bFoundMeshes = false;
-		if (CommonMeshesProperties->bBakeMeshes)
-		{
-			PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids, bConvertStaticMeshToSkeletalMesh);
-			const bool bUseMeshInstance = true;
-			bFoundMeshes = CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
-		}
+		
+		PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids, bConvertStaticMeshToSkeletalMesh);
+		bool bUseMeshInstance = true;
+		bool bFoundMeshes = CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
 
 		if (!bFoundMeshes)
 		{
 			MeshUids.Empty();
 			PipelineMeshesUtilities->GetAllSkinnedMeshGeometry(MeshUids);
-			const bool bUseMeshInstance = false;
+			bUseMeshInstance = false;
 			CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
 		}
 	}
@@ -417,6 +409,8 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 	SkeletalMeshFactoryNode->InitializeSkeletalMeshNode(SkeletalMeshUid, DisplayLabel, USkeletalMesh::StaticClass()->GetName());
 	SkeletalMeshFactoryNode->AddFactoryDependencyUid(SkeletonUid);
 	BaseNodeContainer->AddNode(SkeletalMeshFactoryNode);
+
+	SkeletonFactoryNode->SetCustomSkeletalMeshFactoryNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
 
 	AddLodDataToSkeletalMesh(SkeletonFactoryNode, SkeletalMeshFactoryNode, MeshUidsPerLodIndex);
 	SkeletalMeshFactoryNode->SetCustomImportMorphTarget(bImportMorphTargets);

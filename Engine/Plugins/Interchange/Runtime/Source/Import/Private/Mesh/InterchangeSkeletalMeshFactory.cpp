@@ -996,9 +996,11 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 	const bool bIsReImport = (Arguments.ReimportObject != nullptr) || (SkeletalMesh->GetLODNum() > 0);
 
 	FTransform GlobalOffsetTransform = FTransform::Identity;
+	bool bBakeMeshes = false;
 	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(Arguments.NodeContainer))
 	{
 		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+		CommonPipelineDataFactoryNode->GetBakeMeshes(bBakeMeshes);
 	}
 
 	//Dirty the DDC Key for any imported Skeletal Mesh
@@ -1157,6 +1159,18 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 			continue;
 		}
+		
+		const UInterchangeSceneNode* RootJointNode = Cast<UInterchangeSceneNode>(Arguments.NodeContainer->GetNode(RootJointNodeId));
+		if (!RootJointNode)
+		{
+			UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton RootJointNode."));
+			continue;
+		}
+		FTransform RootJointNodeGlobalTransform;
+		ensure(RootJointNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, RootJointNodeGlobalTransform));
+		FTransform RootJointNodeLocalTransform;
+		ensure(RootJointNode->GetCustomLocalTransform(RootJointNodeLocalTransform));
+		FTransform BakeToRootJointTransfromModifier = RootJointNodeGlobalTransform.Inverse() * RootJointNodeLocalTransform;
 
 		int32 SkeletonDepth = 0;
 		TArray<SkeletalMeshImportData::FBone> RefBonesBinary;
@@ -1192,17 +1206,21 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					MeshReference.SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
 					MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
 					//Cache the scene node global matrix, we will use this matrix to bake the vertices, add the node geometric mesh offset to this matrix to bake it properly
-					FTransform SceneNodeGlobalTransform;
-					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform))
+					FTransform SceneNodeTransform;
+					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeTransform))
 					{
-						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform));
+						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeTransform));
+						if (!bBakeMeshes)
+						{
+							SceneNodeTransform *= BakeToRootJointTransfromModifier;
+						}
 					}
 					FTransform SceneNodeGeometricTransform;
 					if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))
 					{
-						SceneNodeGlobalTransform *= SceneNodeGeometricTransform;
+						SceneNodeTransform *= SceneNodeGeometricTransform;
 					}
-					MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
+					MeshReference.SceneGlobalTransform = SceneNodeTransform;
 				}
 				else
 				{

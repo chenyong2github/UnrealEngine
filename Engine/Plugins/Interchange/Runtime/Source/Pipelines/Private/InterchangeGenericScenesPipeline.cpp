@@ -16,6 +16,7 @@
 #include "InterchangeSceneVariantSetsFactoryNode.h"
 #include "InterchangeVariantSetNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
+#include "InterchangeSkeletonFactoryNode.h"
 
 #include "Animation/SkeletalMeshActor.h"
 #include "CineCameraActor.h"
@@ -71,8 +72,26 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 				SceneNode->GetSpecializedTypes(SpecializeTypes);
 				if (!SpecializeTypes.Contains(UE::Interchange::FSceneNodeStaticData::GetTransformSpecializeTypeString()))
 				{
-					//Skip any scene node that have specialized types but not the "Transform" type.
-					continue;
+					bool bSkipNode = true;
+					if (SpecializeTypes.Contains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+					{
+						//check if its the rootjoint (we want to create an actor for the rootjoint)
+						FString CurrentNodesParentUid = SceneNode->GetParentUid();
+						const UInterchangeBaseNode* ParentNode = BaseNodeContainer->GetNode(CurrentNodesParentUid);
+						if (const UInterchangeSceneNode* ParentSceneNode = Cast<UInterchangeSceneNode>(ParentNode))
+						{
+							if (!ParentSceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
+							{
+								bSkipNode = false;
+							}
+						}
+					}
+
+					if (bSkipNode)
+					{
+						//Skip any scene node that have specialized types but not the "Transform" type.
+						continue;
+					}
 				}
 			}
 			ExecuteSceneNodePreImport(GlobalOffsetTransform, SceneNode);
@@ -82,18 +101,18 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 	//Find all translated scene variant sets
 	TArray<UInterchangeSceneVariantSetsNode*> SceneVariantSetNodes;
 
-	InBaseNodeContainer->IterateNodesOfType<UInterchangeSceneVariantSetsNode>([&SceneVariantSetNodes](const FString& NodeUid, UInterchangeSceneVariantSetsNode* Node)
-		{
-			SceneVariantSetNodes.Add(Node);
-		});
-
-	for (const UInterchangeSceneVariantSetsNode* SceneVariantSetNode : SceneVariantSetNodes)
+InBaseNodeContainer->IterateNodesOfType<UInterchangeSceneVariantSetsNode>([&SceneVariantSetNodes](const FString& NodeUid, UInterchangeSceneVariantSetsNode* Node)
 	{
-		if (SceneVariantSetNode)
-		{
-			ExecuteSceneVariantSetNodePreImport(*SceneVariantSetNode);
-		}
+		SceneVariantSetNodes.Add(Node);
+	});
+
+for (const UInterchangeSceneVariantSetsNode* SceneVariantSetNode : SceneVariantSetNodes)
+{
+	if (SceneVariantSetNode)
+	{
+		ExecuteSceneVariantSetNodePreImport(*SceneVariantSetNode);
 	}
+}
 }
 
 void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode)
@@ -104,11 +123,41 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 	}
 
 	const UInterchangeBaseNode* TranslatedAssetNode = nullptr;
+	bool bRootJointNode = SceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
+	FString SkeletalMeshFactoryNodeUid;
 
-	FString AssetInstanceUid;
-	if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
+	if (bRootJointNode)
 	{
-		TranslatedAssetNode = BaseNodeContainer->GetNode(AssetInstanceUid);
+		FString SkeletonFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneNode->GetUniqueID());
+		const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonFactoryNodeUid));
+		if (SkeletonFactoryNode)
+		{
+			if (SkeletonFactoryNode->GetCustomSkeletalMeshFactoryNodeUid(SkeletalMeshFactoryNodeUid))
+			{
+				if (const UInterchangeFactoryBaseNode* SkeletalMeshFactoryNode = BaseNodeContainer->GetFactoryNode(SkeletalMeshFactoryNodeUid))
+				{
+					TArray<FString> NodeUids;
+					SkeletalMeshFactoryNode->GetTargetNodeUids(NodeUids);
+
+					if (NodeUids.Num() > 0)
+					{
+						TranslatedAssetNode = BaseNodeContainer->GetNode(NodeUids[0]);
+					}
+					else
+					{
+						TranslatedAssetNode = nullptr;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		FString AssetInstanceUid;
+		if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
+		{
+			TranslatedAssetNode = BaseNodeContainer->GetNode(AssetInstanceUid);
+		}
 	}
 
 	UInterchangeActorFactoryNode* ActorFactoryNode = CreateActorFactoryNode(SceneNode, TranslatedAssetNode);
@@ -118,7 +167,10 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 		return;
 	}
 
-	ActorFactoryNode->InitializeNode(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneNode->GetUniqueID()), SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
+	FString NodeUid = SceneNode->GetUniqueID() + (bRootJointNode ? TEXT("_SkeletonNode") : TEXT(""));
+	FString FactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(NodeUid);
+
+	ActorFactoryNode->InitializeNode(FactoryNodeUid, SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
 	const FString ActorFactoryNodeUid = BaseNodeContainer->AddNode(ActorFactoryNode);
 	if (!SceneNode->GetParentUid().IsEmpty())
 	{
@@ -127,16 +179,36 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 		ActorFactoryNode->AddFactoryDependencyUid(ParentFactoryNodeUid);
 	}
 
-	ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());
-	SceneNode->AddTargetNodeUid(ActorFactoryNode->GetUniqueID());
+	if (bRootJointNode)
+	{
+		ActorFactoryNode->AddTargetNodeUid(SkeletalMeshFactoryNodeUid);
+	}
+	else
+	{
+		ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());
+		SceneNode->AddTargetNodeUid(ActorFactoryNode->GetUniqueID());
+	}
 
 	//TODO move this code to the factory, a stack over pipeline can change the global offset transform which will affect this value.
 	FTransform GlobalTransform;
 	if (SceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalTransform))
 	{
+		if (bRootJointNode)
+		{
+			GlobalTransform = FTransform::Identity;
+			//LocalTransform of RootjointNode is already baked into the Skeletal and animation.
+			//due to that we acquire the Parent SceneNode and get its GlobalTransform:
+			if (!SceneNode->GetParentUid().IsEmpty())
+			{
+				if (const UInterchangeSceneNode* ParentSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid())))
+				{
+					ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalOffsetTransform, GlobalTransform);
+				}
+			}
+		}
 		ActorFactoryNode->SetCustomGlobalTransform(GlobalTransform);
 	}
-	
+
 	ActorFactoryNode->SetCustomMobility(EComponentMobility::Static);
 
 	if (TranslatedAssetNode)
@@ -194,6 +266,12 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 	{
 		if (MeshNode->IsSkinnedMesh())
 		{
+			bool bRootJointNode = SceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
+			if (!bRootJointNode)
+			{
+				return;
+			}
+
 			ActorFactoryNode->SetCustomActorClassName(ASkeletalMeshActor::StaticClass()->GetPathName());
 			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
 		}

@@ -539,9 +539,11 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 	}
 
 	FTransform GlobalOffsetTransform = FTransform::Identity;
+	bool bBakeMeshes = false;
 	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(Arguments.NodeContainer))
 	{
 		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+		CommonPipelineDataFactoryNode->GetBakeMeshes(bBakeMeshes);
 	}
 
 	for (const FString& MeshUid : MeshUids)
@@ -560,11 +562,14 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 				continue;
 			}
 
-			// Get the transform from the scene node
-			FTransform SceneNodeGlobalTransform;
-			if (SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform))
+			if (bBakeMeshes)
 			{
-				Payload.Transform = SceneNodeGlobalTransform;
+				// Get the transform from the scene node
+				FTransform SceneNodeGlobalTransform;
+				if (SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, SceneNodeGlobalTransform))
+				{
+					Payload.Transform = SceneNodeGlobalTransform;
+				}
 			}
 
 			// And get the mesh node which it references
@@ -574,8 +579,11 @@ TArray<UInterchangeStaticMeshFactory::FMeshPayload> UInterchangeStaticMeshFactor
 		}
 		else
 		{
-			//If we have a mesh that is not reference by a scene node, we must apply the global offset.
-			Payload.Transform = GlobalOffsetTransform;
+			if (bBakeMeshes)
+			{
+				//If we have a mesh that is not reference by a scene node, we must apply the global offset.
+				Payload.Transform = GlobalOffsetTransform;
+			}
 		}
 
 		if (!ensure(MeshNode))
@@ -1409,9 +1417,11 @@ bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Argu
 	TSet<FName> ImportedSocketNames;
 
 	FTransform GlobalOffsetTransform = FTransform::Identity;
+	bool bBakeMeshes = false;
 	if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(Arguments.NodeContainer))
 	{
 		CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+		CommonPipelineDataFactoryNode->GetBakeMeshes(bBakeMeshes);
 	}
 
 	for (const FString& SocketUid : SocketUids)
@@ -1427,8 +1437,11 @@ bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Argu
 			FName SocketName = FName(NodeDisplayName);
 			ImportedSocketNames.Add(SocketName);
 
-			FTransform GlobalTransform;
-			SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, GlobalTransform);
+			FTransform Transform;
+			if (bBakeMeshes)
+			{
+				SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, GlobalOffsetTransform, Transform);
+			}
 
 			UStaticMeshSocket* Socket = StaticMesh->FindSocket(SocketName);
 			if (!Socket)
@@ -1442,9 +1455,9 @@ bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Argu
 				StaticMesh->AddSocket(Socket);
 			}
 
-			Socket->RelativeLocation = GlobalTransform.GetLocation();
-			Socket->RelativeRotation = GlobalTransform.GetRotation().Rotator();
-			Socket->RelativeScale = GlobalTransform.GetScale3D();
+			Socket->RelativeLocation = Transform.GetLocation();
+			Socket->RelativeRotation = Transform.GetRotation().Rotator();
+			Socket->RelativeScale = Transform.GetScale3D();
 		}
 	}
 

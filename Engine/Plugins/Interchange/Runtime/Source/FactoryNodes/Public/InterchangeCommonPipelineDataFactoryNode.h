@@ -30,8 +30,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Common Pipeline Data")
 	bool SetCustomGlobalOffsetTransform(const UInterchangeBaseNodeContainer* NodeContainer, const FTransform& AttributeValue);
 
+	/** Return the Bake Meshes set by the pipelines. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Common Pipeline Data")
+	bool GetBakeMeshes(bool& AttributeValue) const;
+
+	/** Pipeline can set Bake Meshes, factories will use this to identify if Global transforms should be applied to Meshes/Skeletals. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Common Pipeline Data")
+	bool SetBakeMeshes(const UInterchangeBaseNodeContainer* NodeContainer, const bool& AttributeValue);
+
 private:
 	UInterchangeCommonPipelineDataFactoryNode() {};
 
 	const UE::Interchange::FAttributeKey Macro_CustomGlobalOffsetTransformKey = UE::Interchange::FAttributeKey(TEXT("GlobalOffsetTransform"));
+	const UE::Interchange::FAttributeKey Macro_CustomBakeMeshesKey = UE::Interchange::FAttributeKey(TEXT("BakeMeshes"));
 };

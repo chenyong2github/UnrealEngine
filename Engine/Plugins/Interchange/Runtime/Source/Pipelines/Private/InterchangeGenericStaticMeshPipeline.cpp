@@ -159,7 +159,6 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 			// Combine all the static meshes
 
 			bool bFoundMeshes = false;
-			if (CommonMeshesProperties->bBakeMeshes)
 			{
 				// If baking transforms, get all the static mesh instance nodes, and group them by LOD
 				TArray<FString> MeshUids;
@@ -222,8 +221,6 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 			// Do not combine static meshes
 
 			bool bFoundMeshes = false;
-
-			if (CommonMeshesProperties->bBakeMeshes)
 			{
 				TArray<FString> MeshUids;
 				PipelineMeshesUtilities->GetAllStaticMeshInstance(MeshUids, bConvertSkeletalMeshToStaticMesh);
@@ -363,9 +360,7 @@ bool UInterchangeGenericMeshPipeline::MakeMeshFactoryNodeUidAndDisplayLabel(cons
 								DisplayLabel = SceneNode->GetDisplayLabel();
 							}
 
-							// Use the first scene node uid this LOD references, adding backslash since this uid is not asset typed (\\Mesh\\) like a mesh node
-							// @TODO: change this so that scene nodes get a type prefix of their own?
-							NewNodeUid = TEXT("\\") + Uid;
+							NewNodeUid = RefMeshUid;
 							return true;
 						}
 					}

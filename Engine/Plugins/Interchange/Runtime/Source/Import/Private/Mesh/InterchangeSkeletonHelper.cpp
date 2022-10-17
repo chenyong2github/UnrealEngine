@@ -192,22 +192,28 @@ namespace UE::Interchange::Private
 		bool bHasTimeZeroTransform = false;
 		FTransform BindPoseLocalTransform;
 		bool bHasBindPoseTransform = false;
+
+		ensure(JointNode->GetCustomLocalTransform(LocalTransform));
+		bHasTimeZeroTransform = JointNode->GetCustomTimeZeroLocalTransform(TimeZeroLocalTransform);
+		bHasBindPoseTransform = JointNode->GetCustomBindPoseLocalTransform(BindPoseLocalTransform);
+
 		if (ParentIndex == INDEX_NONE)
 		{
 			FTransform GlobalOffsetTransform = FTransform::Identity;
+			bool bBakeMeshes = false;
 			if (UInterchangeCommonPipelineDataFactoryNode* CommonPipelineDataFactoryNode = UInterchangeCommonPipelineDataFactoryNode::GetUniqueInstance(NodeContainer))
 			{
 				CommonPipelineDataFactoryNode->GetCustomGlobalOffsetTransform(GlobalOffsetTransform);
+				CommonPipelineDataFactoryNode->GetBakeMeshes(bBakeMeshes);
 			}
-			ensure(JointNode->GetCustomGlobalTransform(NodeContainer, GlobalOffsetTransform, LocalTransform));
-			bHasTimeZeroTransform = JointNode->GetCustomTimeZeroGlobalTransform(NodeContainer, GlobalOffsetTransform, TimeZeroLocalTransform);
-			bHasBindPoseTransform = JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, GlobalOffsetTransform, BindPoseLocalTransform);
-		}
-		else
-		{
-			ensure(JointNode->GetCustomLocalTransform(LocalTransform));
-			bHasTimeZeroTransform = JointNode->GetCustomTimeZeroLocalTransform(TimeZeroLocalTransform);
-			bHasBindPoseTransform = JointNode->GetCustomBindPoseLocalTransform(BindPoseLocalTransform);
+
+			if (bBakeMeshes)
+			{
+				LocalTransform = FTransform::Identity;
+				ensure(JointNode->GetCustomGlobalTransform(NodeContainer, GlobalOffsetTransform, LocalTransform));
+				bHasTimeZeroTransform = JointNode->GetCustomTimeZeroGlobalTransform(NodeContainer, GlobalOffsetTransform, TimeZeroLocalTransform);
+				bHasBindPoseTransform = JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, GlobalOffsetTransform, BindPoseLocalTransform);
+			}
 		}
 
 		Info.LocalTransform = bHasBindPoseTransform ? BindPoseLocalTransform : LocalTransform;

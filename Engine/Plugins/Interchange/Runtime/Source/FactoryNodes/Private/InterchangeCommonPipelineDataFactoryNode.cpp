@@ -47,3 +47,12 @@ bool UInterchangeCommonPipelineDataFactoryNode::SetCustomGlobalOffsetTransform(c
 	UInterchangeSceneNode::ResetAllGlobalTransformCaches(NodeContainer);
 }
 
+bool UInterchangeCommonPipelineDataFactoryNode::GetBakeMeshes(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BakeMeshes, bool);
+}
+
+bool UInterchangeCommonPipelineDataFactoryNode::SetBakeMeshes(const UInterchangeBaseNodeContainer* NodeContainer, const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BakeMeshes, bool);
+}
