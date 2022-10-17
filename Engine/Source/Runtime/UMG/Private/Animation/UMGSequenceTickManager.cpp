@@ -4,6 +4,7 @@
 #include "Animation/UMGSequencePlayer.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Framework/Application/SlateApplication.h"

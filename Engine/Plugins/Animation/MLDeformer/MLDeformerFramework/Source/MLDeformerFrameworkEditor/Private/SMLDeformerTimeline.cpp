@@ -5,6 +5,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "ISequencerWidgetsModule.h"
+#include "MovieSceneTimeHelpers.h"
 #include "FrameNumberNumericInterface.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBorder.h"

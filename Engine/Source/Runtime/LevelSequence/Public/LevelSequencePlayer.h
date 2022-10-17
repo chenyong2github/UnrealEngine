@@ -16,6 +16,7 @@
 #include "MovieSceneSequencePlayer.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "LevelSequence.h"
+#include "LevelSequenceCameraSettings.h"
 #include "LevelSequencePlayer.generated.h"
 
 class AActor;
@@ -67,18 +68,6 @@ struct FLevelSequencePlayerSnapshot
 
 	UPROPERTY()
 	FMovieSceneSequenceID ShotID;
-};
-
-USTRUCT(BlueprintType)
-struct FLevelSequenceCameraSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aspect Ratio")
-	bool bOverrideAspectRatioAxisConstraint = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aspect Ratio", meta = (EditCondition = bOverrideAspectRatioAxisConstraint))
-	TEnumAsByte<enum EAspectRatioAxisConstraint> AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV;
 };
 
 /**

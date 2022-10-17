@@ -5,7 +5,7 @@
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequenceActorSpawner.h"
-#include "MovieSceneSequencePlayer.h"
+#include "LevelSequencePlayer.h"
 #include "UObject/UObjectBaseUtility.h"
 
 DEFINE_LOG_CATEGORY(LogLevelSequence);

@@ -17,6 +17,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
+#include "Animation/WidgetAnimation.h"
+
 
 #define LOCTEXT_NAMESPACE "UMG.BindWidget"
 

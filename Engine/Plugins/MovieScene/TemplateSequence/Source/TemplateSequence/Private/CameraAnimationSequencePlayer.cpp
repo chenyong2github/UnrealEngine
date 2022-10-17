@@ -3,6 +3,7 @@
 #include "CameraAnimationSequencePlayer.h"
 #include "CineCameraComponent.h"
 #include "Engine/World.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"

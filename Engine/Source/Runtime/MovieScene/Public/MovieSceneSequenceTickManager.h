@@ -5,54 +5,19 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "MovieSceneSequenceTickInterval.h"
+#include "MovieSceneLatentActionManager.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+	#include "EntitySystem/MovieSceneEntitySystemRunner.h"
+#endif
+
 #include "MovieSceneSequenceTickManager.generated.h"
 
 
+class FMovieSceneEntitySystemRunner;
 class UMovieSceneEntitySystemLinker;
-
-DECLARE_DELEGATE(FMovieSceneSequenceLatentActionDelegate);
-
-/**
- * Utility class for running latent actions created from sequence players.
- */
-class MOVIESCENE_API FMovieSceneLatentActionManager
-{
-public:
-	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
-	void ClearLatentActions(UObject* Object);
-	void ClearLatentActions();
-
-	void RunLatentActions(TFunctionRef<void()> FlushCallback);
-
-	bool IsEmpty() const { return LatentActions.Num() == 0; }
-
-private:
-	TArray<FMovieSceneSequenceLatentActionDelegate> LatentActions;
-
-	bool bIsRunningLatentActions = false;
-};
-
-/**
- * Interface for objects that are to be ticked by the tick manager.
- */
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneSequenceTickManagerClient
-	: public UInterface
-{
-public:
-	GENERATED_BODY()
-};
-
-class MOVIESCENE_API IMovieSceneSequenceTickManagerClient
-{
-public:
-	GENERATED_BODY()
-
-	virtual void TickFromSequenceTickManager(float DeltaSeconds, FMovieSceneEntitySystemRunner* Runner) = 0;
-};
-
+class IMovieSceneSequenceTickManagerClient;
 
 /**
  * Global (one per-UWorld) manager object that manages ticking and updating any and all Sequencer-based
@@ -239,16 +204,4 @@ private:
 
 	/** Latent action manager for managing actions that need performing after evaluation */
 	FMovieSceneLatentActionManager LatentActionManager;
-};
-
-
-/** Deprecated IMovieSceneSequenceActor interface that has been replaced with IMovieSceneSequenceTickManagerClient */
-class UE_DEPRECATED(5.1, "Please use IMovieSceneSequenceTickManagerClient directly") IMovieSceneSequenceActor
-	: public IMovieSceneSequenceTickManagerClient
-{
-	virtual void TickFromSequenceTickManager(float DeltaSeconds) = 0;
-	virtual void TickFromSequenceTickManager(float DeltaSeconds, FMovieSceneEntitySystemRunner* Runner) override
-	{
-		TickFromSequenceTickManager(DeltaSeconds);
-	}
 };

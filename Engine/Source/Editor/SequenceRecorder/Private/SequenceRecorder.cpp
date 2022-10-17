@@ -42,6 +42,7 @@
 #include "ScopedTransaction.h"
 #include "Features/IModularFeatures.h"
 #include "ScopedTransaction.h"
+#include "LevelSequencePlayer.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SequenceRecorder"

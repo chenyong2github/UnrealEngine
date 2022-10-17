@@ -5,7 +5,6 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "HAL/Platform.h"
@@ -16,6 +15,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UObjectGlobals.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+	#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#endif
 
 #include "MovieSceneEntitySystem.generated.h"
 

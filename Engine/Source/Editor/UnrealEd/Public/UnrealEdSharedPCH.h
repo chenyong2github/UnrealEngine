@@ -618,6 +618,3 @@
 
 // From ToolMenus
 #include "ToolMenus.h"
-
-// From Movie
-#include "IMovieScenePlayer.h"

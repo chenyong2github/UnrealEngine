@@ -6,6 +6,7 @@
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "EngineUtils.h"
 #include "MovieSceneSection.h"
 #include "Sections/MovieSceneCameraCutSection.h"

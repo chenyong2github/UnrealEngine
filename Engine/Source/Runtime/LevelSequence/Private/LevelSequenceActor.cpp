@@ -544,6 +544,11 @@ void ALevelSequenceActor::UpdateObjectFromProxy(FStructOnScope& Proxy, IProperty
 	ObjectPropertyHandle.SetValue(BoundActor);
 }
 
+UMovieSceneSequence* ALevelSequenceActor::RetrieveOwnedSequence() const
+{
+	return GetSequence();
+}
+
 bool ALevelSequenceActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 {
 	if (LevelSequenceAsset)

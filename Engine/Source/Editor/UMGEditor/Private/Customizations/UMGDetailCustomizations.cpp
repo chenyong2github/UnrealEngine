@@ -34,6 +34,7 @@
 #include "Components/WidgetComponent.h"
 #include "UMGEditorModule.h"
 #include "WidgetBlueprintEditor.h"
+#include "Animation/WidgetAnimation.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

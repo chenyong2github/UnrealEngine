@@ -20,6 +20,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ScopedTransaction.h"
 #include "LevelSequenceActor.h"
+#include "LevelSequence.h"
+#include "LevelSequencePlayer.h"
 #include "EditorDirectories.h"
 #include "EngineUtils.h"
 #include "ISequencer.h"

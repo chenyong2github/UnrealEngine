@@ -12,6 +12,7 @@
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 #include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "LevelSequenceModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceMediaController)

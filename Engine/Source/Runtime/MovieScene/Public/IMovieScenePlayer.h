@@ -8,6 +8,7 @@
 #include "Misc/InlineValue.h"
 
 #include "MovieSceneSpawnRegister.h"
+#include "Evaluation/MovieSceneAnimTypeID.h"
 #include "Evaluation/MovieScenePreAnimatedState.h"
 #include "Evaluation/MovieSceneEvaluationState.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
@@ -21,6 +22,7 @@
 
 enum class EMovieSceneBuiltInEasing : uint8;
 
+struct FMovieSceneContext;
 class UMovieSceneSequence;
 class FViewportClient;
 class IMovieScenePlaybackClient;

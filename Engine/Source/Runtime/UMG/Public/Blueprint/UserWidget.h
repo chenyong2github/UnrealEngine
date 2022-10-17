@@ -23,8 +23,12 @@
 #include "Stats/Stats.h"
 #include "EngineStats.h"
 #include "SlateGlobals.h"
-#include "Animation/WidgetAnimation.h"
+#include "Animation/WidgetAnimationEvents.h"
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+	#include "Animation/WidgetAnimation.h"
+#endif
 
 #include "UserWidget.generated.h"
 

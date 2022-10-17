@@ -7,15 +7,12 @@
 #include "UObject/ScriptMacros.h"
 #include "MovieSceneSequence.h"
 #include "Animation/WidgetAnimationBinding.h"
+#include "Animation/WidgetAnimationEvents.h"
 #include "WidgetAnimation.generated.h"
 
 class UMovieScene;
 class UUserWidget;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetAnimationPlaybackStatusChanged);
-
-DECLARE_DYNAMIC_DELEGATE(FWidgetAnimationDynamicEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FWidgetAnimationDynamicEvents);
 
 /**
  * 

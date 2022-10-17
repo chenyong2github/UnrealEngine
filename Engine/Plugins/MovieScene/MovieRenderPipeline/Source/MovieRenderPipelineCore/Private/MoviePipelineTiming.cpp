@@ -11,6 +11,7 @@
 #include "MovieScene.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"

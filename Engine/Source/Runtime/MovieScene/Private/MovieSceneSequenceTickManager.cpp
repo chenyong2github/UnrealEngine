@@ -3,6 +3,8 @@
 #include "MovieSceneSequenceTickManager.h"
 #include "Engine/World.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "MovieSceneSequenceTickManagerClient.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 #include "Logging/MessageLog.h"

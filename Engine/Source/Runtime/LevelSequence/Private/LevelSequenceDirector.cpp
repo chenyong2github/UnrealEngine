@@ -8,6 +8,7 @@
 #include "IMovieScenePlayer.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieSceneSequence.h"
+#include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "Evaluation/MovieScenePlayback.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceDirector)

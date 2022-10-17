@@ -4,10 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Camera/CameraShakeBase.h"
-#include "Evaluation/MovieSceneCameraShakeTemplate.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "UObject/Object.h"
 #include "GameFramework/Actor.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+	#include "Evaluation/MovieSceneCameraShakeTemplate.h"
+#endif
+
 #include "LegacyCameraShake.generated.h"
 
 class AActor;

@@ -6,6 +6,7 @@
 #include "Animation/WidgetAnimation.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Evaluation/MovieScenePlayback.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Animation/UMGSequenceTickManager.h"
 

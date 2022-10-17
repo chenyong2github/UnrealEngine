@@ -7,12 +7,20 @@
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPath.h"
 #include "GameFramework/Actor.h"
-#include "LevelSequencePlayer.h"
+#include "IMovieScenePlaybackClient.h"
+#include "MovieSceneSequencePlaybackSettings.h"
 #include "MovieSceneBindingOwnerInterface.h"
 #include "MovieSceneBindingOverrides.h"
+#include "LevelSequenceCameraSettings.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+	#include "LevelSequencePlayer.h"
+#endif
+
 #include "LevelSequenceActor.generated.h"
 
 class ULevelSequenceBurnIn;
+class ULevelSequencePlayer;
 class UMovieSceneSequenceTickManager;
 
 UCLASS(Blueprintable, DefaultToInstanced)
@@ -303,10 +311,7 @@ public:
 #if WITH_EDITOR
 	virtual TSharedPtr<FStructOnScope> GetObjectPickerProxy(TSharedPtr<IPropertyHandle> PropertyHandle) override;
 	virtual void UpdateObjectFromProxy(FStructOnScope& Proxy, IPropertyHandle& ObjectPropertyHandle) override;
-	virtual UMovieSceneSequence* RetrieveOwnedSequence() const override
-	{
-		return GetSequence();
-	}
+	virtual UMovieSceneSequence* RetrieveOwnedSequence() const override;
 #endif
 
 private:

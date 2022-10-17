@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "GameFramework/Actor.h"
 #include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "Styling/SlateIconFinder.h"
 #include "ClassIconFinder.h"
 
