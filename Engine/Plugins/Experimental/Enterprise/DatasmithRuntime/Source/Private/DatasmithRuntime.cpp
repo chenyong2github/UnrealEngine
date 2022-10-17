@@ -354,7 +354,7 @@ namespace DatasmithRuntime
 {
 	bool FTranslationJob::Execute()
 	{
-		if (!RuntimeActor.IsValid()|| ThreadEvent == nullptr)
+		if (!RuntimeActor.IsValid())
 		{
 			return false;
 		}
@@ -380,7 +380,7 @@ namespace DatasmithRuntime
 
 		while(RuntimeActor->IsReceiving() || ADatasmithRuntimeActor::bImportingScene)
 		{
-			ThreadEvent->Wait(FTimespan::FromMilliseconds(50));
+			FPlatformProcess::Sleep(0.05f);
 		}
 
 		RuntimeActor->OnOpenDelta();
@@ -422,8 +422,11 @@ namespace DatasmithRuntime
 				continue;
 			}
 
-			ThreadEvent->Wait(FTimespan::FromMilliseconds(50));
+			FPlatformProcess::Sleep(0.1f);
 		}
+
+		// The FTranslationThread is being deleted, trigger the event before exiting
+		ThreadEvent->Trigger();
 	}
 
 	FTranslationThread::~FTranslationThread()
@@ -431,8 +434,9 @@ namespace DatasmithRuntime
 		if (bKeepRunning)
 		{
 			bKeepRunning = false;
-			ThreadEvent->Trigger();
-			ThreadResult.Get();
+			ThreadResult.Reset();
+			// Wait for FTranslationThread::Run() to be completed
+			ThreadEvent->Wait();
 			FPlatformProcess::ReturnSynchEventToPool(ThreadEvent);
 		}
 	}

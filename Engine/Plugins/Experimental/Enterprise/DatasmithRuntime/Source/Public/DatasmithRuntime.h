@@ -47,22 +47,18 @@ namespace DatasmithRuntime
 		FTranslationJob(ADatasmithRuntimeActor* InActor, const FString& InFilePath)
 			: RuntimeActor(InActor)
 			, FilePath(InFilePath)
-			, ThreadEvent(nullptr)
 		{
 		}
 
-		FTranslationJob() : ThreadEvent(nullptr)
+		FTranslationJob()
 		{
 		}
 
 		bool Execute();
 
-		void SetEvent(FEvent* InThreadEvent) { ThreadEvent = InThreadEvent; }
-
 	private:
 		TWeakObjectPtr<ADatasmithRuntimeActor> RuntimeActor;
 		FString FilePath;
-		FEvent* ThreadEvent;
 	};
 
 	class FTranslationThread
@@ -70,7 +66,6 @@ namespace DatasmithRuntime
 	public:
 		FTranslationThread() 
 			: bKeepRunning(false)
-			, ThreadEvent(nullptr)
 		{}
 
 		~FTranslationThread();
@@ -79,13 +74,12 @@ namespace DatasmithRuntime
 
 		void AddJob(FTranslationJob&& Job)
 		{
-			Job.SetEvent(ThreadEvent);
 			JobQueue.Enqueue(MoveTemp(Job));
 		}
 
 		std::atomic_bool bKeepRunning;
 		TFuture<void> ThreadResult;
-		FEvent* ThreadEvent;
+		FEvent* ThreadEvent = nullptr;
 		TQueue< FTranslationJob, EQueueMode::Mpsc > JobQueue;
 	};
 }
