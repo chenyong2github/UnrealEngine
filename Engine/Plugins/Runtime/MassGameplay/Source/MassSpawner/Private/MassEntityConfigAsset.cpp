@@ -96,10 +96,10 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 	BuildContext.BuildFromTraits(CombinedTraits, World);
 	Template.SetTemplateName(ConfigOwner.GetName());
 
-	if (ensureMsgf(!Template.IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
-	{
-		TemplateRegistry.InitializeEntityTemplate(Template);
-	}
+	// It is ok to have an empty template, 
+    // but be aware there will be an error if you try to create an entity with it
+    // as there will be no archetype associated with this template...
+	TemplateRegistry.InitializeEntityTemplate(Template);
 
 	return Template;
 }

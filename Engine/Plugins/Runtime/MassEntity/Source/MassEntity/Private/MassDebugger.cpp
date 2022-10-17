@@ -13,6 +13,8 @@
 #include "Misc/OutputDevice.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "MassEntityUtils.h"
+#include "MassCommandBuffer.h"
 
 
 namespace UE::Mass::Debug
@@ -188,6 +190,42 @@ namespace UE::Mass::Debug
 				OutputDevice.Logf(TEXT("Known Chunk Fragments:"));
 				PrintKnownTypes(FMassChunkFragmentBitSet::DebugGetAllStructTypes());
 			}));
+
+	static FAutoConsoleCommandWithWorldAndArgs DestroyEntity(
+		TEXT("ai.debug.mass.DestroyEntity"),
+		TEXT("ID of a lightweight entity that we want to destroy.")
+		TEXT("Usage: \"ai.debug.mass.DestoryEntity <Entity>\""),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		if (Args.Num() != 1)
+		{
+			UE_LOG(LogConsoleResponse, Display, TEXT("Error: Expecting 1 parameter"));
+			return;
+		}
+
+		int32 ID = INDEX_NONE;
+		if (!LexTryParseString<int32>(ID, *Args[0]))
+		{
+			UE_LOG(LogConsoleResponse, Display, TEXT("Error: parameter must be an integer"));
+			return;
+		}
+
+		if (!World)
+		{
+			UE_LOG(LogConsoleResponse, Display, TEXT("Error: invalid world"));
+			return;
+		}
+
+		FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
+		FMassEntityHandle EntityToDestroy = EntityManager.DebugGetEntityIndexHandle(ID);
+		if (!EntityToDestroy.IsSet())
+		{
+			UE_LOG(LogConsoleResponse, Display, TEXT("Error: cannot find entity for this index"));
+			return;
+		}
+
+		EntityManager.Defer().DestroyEntity(EntityToDestroy);
+	}));
 
 } // namespace UE::Mass::Debug
 

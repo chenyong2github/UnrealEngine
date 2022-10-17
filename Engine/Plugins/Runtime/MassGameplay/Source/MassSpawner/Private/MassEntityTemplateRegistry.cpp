@@ -147,8 +147,12 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 
 void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& OutTemplate) const
 {
-	// expected to be ensured by the caller
-	check(!OutTemplate.IsEmpty());
+	if (OutTemplate.IsEmpty() == true)
+	{
+		// nothing to initialize, return.
+		// this will leave the ArchetypeHandle invalid
+		return;
+	}
 
 	UWorld* World = GetWorld();
 	check(World);
