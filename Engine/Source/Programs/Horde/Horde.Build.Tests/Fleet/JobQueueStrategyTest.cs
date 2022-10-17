@@ -27,7 +27,7 @@ namespace Horde.Build.Tests.Fleet
 		[TestMethod]
 		public async Task GetPoolQueueSizes()
 		{
-			(JobQueueStrategy strategy, PoolSizeData poolSizeData) = await SetUpJobsAsync(1, 5);
+			(JobQueueStrategy strategy, PoolSizeResult poolSizeData) = await SetUpJobsAsync(1, 5);
 			await Clock.AdvanceAsync(TimeSpan.FromSeconds(strategy.Settings.ReadyTimeThresholdSec) + TimeSpan.FromSeconds(5));
 			Dictionary<PoolId, int> poolQueueSizes = await strategy.GetPoolQueueSizesAsync(Clock.UtcNow - TimeSpan.FromHours(2));
 			Assert.AreEqual(1, poolQueueSizes.Count);
@@ -84,16 +84,15 @@ namespace Horde.Build.Tests.Fleet
 
 		public async Task AssertAgentCount(int numBatchesReady, int expectedAgentDelta, bool waitedBeyondThreshold = true, int numAgents = 8)
 		{
-			(JobQueueStrategy strategy, PoolSizeData poolSizeData) = await SetUpJobsAsync(1, numBatchesReady, numAgents);
+			(JobQueueStrategy strategy, PoolSizeResult poolSizeData) = await SetUpJobsAsync(1, numBatchesReady, numAgents);
 			TimeSpan timeToWait = waitedBeyondThreshold
 				? TimeSpan.FromSeconds(strategy.Settings.ReadyTimeThresholdSec) + TimeSpan.FromSeconds(5)
 				: TimeSpan.FromSeconds(15);
 			
 			await Clock.AdvanceAsync(timeToWait);
 
-			List<PoolSizeData> result = await strategy.CalcDesiredPoolSizesAsync(new() { poolSizeData });
-			Assert.AreEqual(1, result.Count);
-			Assert.AreEqual(result[0].Agents.Count + expectedAgentDelta, result[0].DesiredAgentCount);
+			PoolSizeResult result = await strategy.CalculatePoolSizeAsync(poolSizeData.Pool, poolSizeData.Agents);
+			Assert.AreEqual(result.Agents.Count + expectedAgentDelta, result.DesiredAgentCount);
 		}
 	
 		/// <summary>
@@ -101,7 +100,7 @@ namespace Horde.Build.Tests.Fleet
 		/// </summary>
 		/// <param name="numBatchesRunning">Num of job batches that should be in state running</param>
 		/// <param name="numBatchesReady">Num of job batches that should be in state waiting</param>
-		private async Task<(JobQueueStrategy, PoolSizeData)> SetUpJobsAsync(int numBatchesRunning, int numBatchesReady, int numAgents = 8)
+		private async Task<(JobQueueStrategy, PoolSizeResult)> SetUpJobsAsync(int numBatchesRunning, int numBatchesReady, int numAgents = 8)
 		{
 			IPool pool1 = await PoolService.CreatePoolAsync("bogusPool1", null, true, 0, 0);
 			List<IAgent> agents = new();
@@ -110,7 +109,7 @@ namespace Horde.Build.Tests.Fleet
 				agents.Add(await CreateAgentAsync(pool1));
 			}
 			
-			PoolSizeData poolSize = new (pool1, agents, null);
+			PoolSizeResult poolSize = new (pool1, agents, null);
 			
 			string agentTypeName1 = "bogusAgentType1";
 			Dictionary<string, AgentConfig> agentTypes = new() { {agentTypeName1, new() { Pool = new PoolId(pool1.Name) } }, };

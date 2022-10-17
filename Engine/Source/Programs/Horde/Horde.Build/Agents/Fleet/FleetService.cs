@@ -115,8 +115,8 @@ namespace Horde.Build.Agents.Fleet
 			Stopwatch stopwatch = Stopwatch.StartNew();
 			using IScope _ = GlobalTracer.Instance.BuildSpan("AutoscaleService.TickAsync").StartActive();
 			
-			List<PoolSizeData> input = await GetPoolSizeDataAsync();
-			List<PoolSizeData> output = await CalculatePoolSizesAsync(input, stoppingToken);
+			List<PoolSizeResult> input = await GetPoolSizeDataAsync();
+			List<PoolSizeResult> output = await CalculatePoolSizesAsync(input, stoppingToken);
 			await ResizePoolsAsync(output, stoppingToken);
 
 			stopwatch.Stop();
@@ -136,10 +136,10 @@ namespace Horde.Build.Agents.Fleet
 			_logger.LogInformation("Autoscaling pools (high frequency) took {ElapsedTime} ms", stopwatch.ElapsedMilliseconds);
 		}
 
-		internal async Task<List<PoolSizeData>> CalculatePoolSizesAsync(List<PoolSizeData> poolSizeDatas, CancellationToken cancellationToken)
+		internal async Task<List<PoolSizeResult>> CalculatePoolSizesAsync(List<PoolSizeResult> poolSizeDatas, CancellationToken cancellationToken)
 		{
 			using IScope _ = GlobalTracer.Instance.BuildSpan("AutoscaleService.CalculatePoolSizesAsync").StartActive();
-			ConcurrentQueue<PoolSizeData> results = new ();
+			ConcurrentQueue<PoolSizeResult> results = new ();
 			ParallelOptions options = new () { MaxDegreeOfParallelism = MaxParallelTasks, CancellationToken = cancellationToken };
 
 			await Parallel.ForEachAsync(poolSizeDatas, options, async (input, innerCt) =>
@@ -147,7 +147,7 @@ namespace Horde.Build.Agents.Fleet
 				try
 				{
 					IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(input.Pool);
-					PoolSizeData output = (await sizeStrategy.CalcDesiredPoolSizesAsync(new List<PoolSizeData> { input }))[0];
+					PoolSizeResult output = await sizeStrategy.CalculatePoolSizeAsync(input.Pool, input.Agents);
 					results.Enqueue(output);
 				}
 				catch (Exception e)
@@ -159,32 +159,32 @@ namespace Horde.Build.Agents.Fleet
 			return results.ToList();
 		}
 
-		internal async Task<List<PoolSizeData>> GetPoolSizeDataAsync()
+		internal async Task<List<PoolSizeResult>> GetPoolSizeDataAsync()
 		{
 			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok, enabled: true);
 			List<IAgent> GetAgentsInPool(PoolId poolId) => agents.FindAll(a => a.GetPools().Any(p => p == poolId));
 			List<IPool> pools = await _poolCollection.GetAsync();
 
-			return pools.Select(pool => new PoolSizeData(pool, GetAgentsInPool(pool.Id), null)).ToList();
+			return pools.Select(pool => new PoolSizeResult(pool, GetAgentsInPool(pool.Id), null)).ToList();
 		}
 
-		internal async Task ResizePoolAsync(PoolSizeData poolSizeData, CancellationToken cancellationToken)
+		internal async Task ResizePoolAsync(PoolSizeResult poolSizeResult, CancellationToken cancellationToken)
 		{
-			IPool pool = poolSizeData.Pool;
+			IPool pool = poolSizeResult.Pool;
 
-			if (!pool.EnableAutoscaling || poolSizeData.DesiredAgentCount == null)
+			if (!pool.EnableAutoscaling || poolSizeResult.DesiredAgentCount == null)
 			{
 				return;
 			}
 
-			int currentAgentCount = poolSizeData.Agents.Count;
-			int desiredAgentCount = poolSizeData.DesiredAgentCount.Value;
+			int currentAgentCount = poolSizeResult.Agents.Count;
+			int desiredAgentCount = poolSizeResult.DesiredAgentCount.Value;
 			int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
-			IFleetManager fleetManager = CreateFleetManager(poolSizeData.Pool);
+			IFleetManager fleetManager = CreateFleetManager(poolSizeResult.Pool);
 
 			Dictionary<string, object> logScope = new() { ["FleetManager"] = fleetManager.GetType().Name };
-			logScope["PoolSizeStrategy"] = poolSizeData.Status ?? new Dictionary<string, object>();
+			logScope["PoolSizeStrategy"] = poolSizeResult.Status ?? new Dictionary<string, object>();
 
 			using (_logger.BeginScope(logScope))
 			{
@@ -207,7 +207,7 @@ namespace Horde.Build.Agents.Fleet
 					scope.Span.SetTag("isCoolingDown", isCoolingDown);
 					if (!isCoolingDown)
 					{
-						await fleetManager.ExpandPoolAsync(pool, poolSizeData.Agents, deltaAgentCount, cancellationToken);
+						await fleetManager.ExpandPoolAsync(pool, poolSizeResult.Agents, deltaAgentCount, cancellationToken);
 						await _poolCollection.TryUpdateAsync(pool, lastScaleUpTime: _clock.UtcNow);
 					}
 					else
@@ -224,7 +224,7 @@ namespace Horde.Build.Agents.Fleet
 					scope.Span.SetTag("isCoolingDown", isCoolingDown);
 					if (!isCoolingDown)
 					{
-						await fleetManager.ShrinkPoolAsync(pool, poolSizeData.Agents, -deltaAgentCount, cancellationToken);
+						await fleetManager.ShrinkPoolAsync(pool, poolSizeResult.Agents, -deltaAgentCount, cancellationToken);
 						await _poolCollection.TryUpdateAsync(pool, lastScaleDownTime: _clock.UtcNow);
 					}
 					else
@@ -244,7 +244,7 @@ namespace Horde.Build.Agents.Fleet
 			_dogStatsd.Gauge("agentpools.autoscale.current", currentAgentCount, tags: new []{"pool:" + pool.Name});
 		}
 		
-		internal async Task ResizePoolsAsync(List<PoolSizeData> poolSizeDatas, CancellationToken cancellationToken = default)
+		internal async Task ResizePoolsAsync(List<PoolSizeResult> poolSizeDatas, CancellationToken cancellationToken = default)
 		{
 			using IScope _ = GlobalTracer.Instance.BuildSpan("AutoscaleService.ResizePoolsAsync").StartActive();
 			
@@ -307,6 +307,11 @@ namespace Horde.Build.Agents.Fleet
 							case PoolSizeStrategy.LeaseUtilization:
 								LeaseUtilizationSettings luSettings = DeserializeConfig<LeaseUtilizationSettings>(info.Config);
 								return new LeaseUtilizationStrategy(_agentCollection, _poolCollection, _leaseCollection, _clock, _cache, luSettings);
+							
+							// Disabled until moved to a separate factory class as FleetService should not contain AWS-specific classes
+							// case PoolSizeStrategy.ComputeQueueAwsMetric:
+							// 	ComputeQueueAwsMetricSettings cqamSettings = DeserializeConfig<ComputeQueueAwsMetricSettings>(info.Config);
+							// 	return new ComputeQueueAwsMetricStrategy(_awsCloudWatch, _computeService, cqamSettings);
 							
 							case PoolSizeStrategy.NoOp:
 								return new NoOpPoolSizeStrategy();

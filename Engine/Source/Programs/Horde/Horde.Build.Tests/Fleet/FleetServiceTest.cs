@@ -53,14 +53,11 @@ namespace Horde.Build.Tests.Fleet
 		public int CallCount { get; private set; }
 		public HashSet<PoolId> PoolIdsSeen { get; } = new();
 		
-		public Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
+		public Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
 			CallCount++;
-			foreach (PoolSizeData data in pools)
-			{
-				PoolIdsSeen.Add(data.Pool.Id);
-			}
-			return Task.FromResult(pools);
+			PoolIdsSeen.Add(pool.Id);
+			return Task.FromResult(new PoolSizeResult(pool, agents, agents.Count));
 		}
 
 		public string Name { get; } = "PoolSizeStrategySpy";
@@ -106,7 +103,7 @@ namespace Horde.Build.Tests.Fleet
 			await CreateAgentAsync(pool, true);
 			await CreateAgentAsync(pool, false);
 
-			List<PoolSizeData> poolSizeDatas = await service.GetPoolSizeDataAsync();
+			List<PoolSizeResult> poolSizeDatas = await service.GetPoolSizeDataAsync();
 			poolSizeDatas = await service.CalculatePoolSizesAsync(poolSizeDatas, CancellationToken.None);
 			Assert.AreEqual(1, poolSizeDatas.Count);
 			Assert.AreEqual(2, poolSizeDatas[0].Agents.Count);
@@ -117,10 +114,10 @@ namespace Horde.Build.Tests.Fleet
 		{
 			using FleetService service = GetAutoscaleService(_fleetManagerSpy);
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.LeaseUtilization);
-			List<PoolSizeData> poolSizeDatas = new()
+			List<PoolSizeResult> poolSizeDatas = new()
 			{
-				new PoolSizeData(null!, new(), null),
-				new PoolSizeData(pool, new(), null),
+				new PoolSizeResult(null!, new(), null),
+				new PoolSizeResult(pool, new(), null),
 			};
 
 			poolSizeDatas = await service.CalculatePoolSizesAsync(poolSizeDatas, CancellationToken.None);
@@ -134,16 +131,16 @@ namespace Horde.Build.Tests.Fleet
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 
 			// First scale-out will succeed
-			await service.ResizePoolsAsync(new() { new PoolSizeData(pool, new List<IAgent>(), 1) });
+			await service.ResizePoolsAsync(new() { new PoolSizeResult(pool, new List<IAgent>(), 1) });
 			Assert.AreEqual(1, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 			
 			// Cannot scale-out due to cool-down
-			await service.ResizePoolsAsync(new() { new PoolSizeData(pool, new List<IAgent>(), 2) });
+			await service.ResizePoolsAsync(new() { new PoolSizeResult(pool, new List<IAgent>(), 2) });
 			Assert.AreEqual(1, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 
 			// Wait some time and then try again
 			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
-			await service.ResizePoolsAsync(new() { new PoolSizeData(pool, new List<IAgent>(), 2) });
+			await service.ResizePoolsAsync(new() { new PoolSizeResult(pool, new List<IAgent>(), 2) });
 			Assert.AreEqual(2, _fleetManagerSpy.ExpandPoolAsyncCallCount);
 		}
 		
@@ -156,16 +153,16 @@ namespace Horde.Build.Tests.Fleet
 			IAgent agent2 = await CreateAgentAsync(pool);
 
 			// First scale-out will succeed
-			await service.ResizePoolsAsync(new() { new PoolSizeData(pool, new () { agent1, agent2 }, 1) });
+			await service.ResizePoolsAsync(new() { new PoolSizeResult(pool, new () { agent1, agent2 }, 1) });
 			Assert.AreEqual(1, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 			
 			// Cannot scale-out due to cool-down
-			await service.ResizePoolsAsync(new() { new PoolSizeData(pool, new () { agent1 }, 0) });
+			await service.ResizePoolsAsync(new() { new PoolSizeResult(pool, new () { agent1 }, 0) });
 			Assert.AreEqual(1, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 
 			// Wait some time and then try again
 			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
-			await service.ResizePoolsAsync(new() { new PoolSizeData(pool, new () { agent1 }, 0) });
+			await service.ResizePoolsAsync(new() { new PoolSizeResult(pool, new () { agent1 }, 0) });
 			Assert.AreEqual(2, _fleetManagerSpy.ShrinkPoolAsyncCallCount);
 		}
 

@@ -230,7 +230,7 @@ namespace Horde.Build.Agents.Fleet
 		public string Name { get; } = "LeaseUtilization";
 
 		/// <inheritdoc/>
-		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
+		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
 			Dictionary<PoolId, PoolData> poolToData;
 			
@@ -241,45 +241,34 @@ namespace Horde.Build.Agents.Fleet
 				poolToData = await GetPoolDataAsync();
 				_cache.Set(CacheKey, poolToData, TimeSpan.FromSeconds(60));
 			}
+
+			PoolData poolData = poolToData[pool.Id];
 			
-			List<PoolSizeData> result = new();
-
-			foreach (PoolData poolData in poolToData.Values.OrderByDescending(x => x.Agents.Count))
+			double utilization = poolData.Samples.Select(x => x._jobWork).OrderByDescending(x => x).Skip(Settings.NumSamples - Settings.NumSamplesForResult).First();
+		
+			// Number of agents in use over the sampling period. Can never be greater than number of agents available in pool.
+			int numAgentsUtilized = (int)utilization;
+			
+			// Include reserve agent count to ensure pool always can grow
+			int desiredAgentCount = Math.Max(numAgentsUtilized + Settings.NumReserveAgents, Settings.MinAgents);
+			
+			Dictionary<string, object> status = new()
 			{
-				IPool pool = poolData.Pool;
+				["Name"] = GetType().Name,
+				["Jobs"] = GetDensityMap(poolData.Samples.Select(x => x._jobWork / Math.Max(1, poolData.Agents.Count))),
+				["Total"] = GetDensityMap(poolData.Samples.Select(x => x._otherWork / Math.Max(1, poolData.Agents.Count))),
+				["Min"] = poolData.Samples.Min(x => x._jobWork),
+				["Max"] = poolData.Samples.Max(x => x._jobWork),
+				["Avg"] = utilization,
+				["Pct"] = poolData.Samples.Sum(x => x._jobWork) / Settings.NumSamples,
+				["SampleTimeSec"] = Settings.SampleTimeSec,
+				["NumSamples"] = Settings.NumSamples,
+				["NumSamplesForResult"] = Settings.NumSamplesForResult,
+				["MinAgents"] = Settings.MinAgents,
+				["NumReserveAgents"] = Settings.NumReserveAgents,
+			};
 
-				PoolSizeData? poolSize = pools.Find(x => x.Pool.Id == pool.Id);
-				if (poolSize != null)
-				{
-					double utilization = poolData.Samples.Select(x => x._jobWork).OrderByDescending(x => x).Skip(Settings.NumSamples - Settings.NumSamplesForResult).First();
-				
-					// Number of agents in use over the sampling period. Can never be greater than number of agents available in pool.
-					int numAgentsUtilized = (int)utilization;
-					
-					// Include reserve agent count to ensure pool always can grow
-					int desiredAgentCount = Math.Max(numAgentsUtilized + Settings.NumReserveAgents, Settings.MinAgents);
-					
-					Dictionary<string, object> status = new()
-					{
-						["Name"] = GetType().Name,
-						["Jobs"] = GetDensityMap(poolData.Samples.Select(x => x._jobWork / Math.Max(1, poolData.Agents.Count))),
-						["Total"] = GetDensityMap(poolData.Samples.Select(x => x._otherWork / Math.Max(1, poolData.Agents.Count))),
-						["Min"] = poolData.Samples.Min(x => x._jobWork),
-						["Max"] = poolData.Samples.Max(x => x._jobWork),
-						["Avg"] = utilization,
-						["Pct"] = poolData.Samples.Sum(x => x._jobWork) / Settings.NumSamples,
-						["SampleTimeSec"] = Settings.SampleTimeSec,
-						["NumSamples"] = Settings.NumSamples,
-						["NumSamplesForResult"] = Settings.NumSamplesForResult,
-						["MinAgents"] = Settings.MinAgents,
-						["NumReserveAgents"] = Settings.NumReserveAgents,
-					};
-
-					result.Add(new(pool, poolSize.Agents, desiredAgentCount, status));
-				}
-			}
-
-			return result;
+			return new PoolSizeResult(pool, agents, desiredAgentCount, status); 
 		}
 		
 		/// <summary>

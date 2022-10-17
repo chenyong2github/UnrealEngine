@@ -183,7 +183,7 @@ namespace Horde.Build.Agents.Fleet
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<PoolSizeData>> CalcDesiredPoolSizesAsync(List<PoolSizeData> pools)
+		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
 			DateTimeOffset minCreateTime = _clock.UtcNow - TimeSpan.FromMinutes(Settings.SamplePeriodMin);
 
@@ -195,32 +195,29 @@ namespace Horde.Build.Agents.Fleet
 				_cache.Set(CacheKey, poolQueueSizes, TimeSpan.FromSeconds(60));
 			}
 
-			return pools.Select(current =>
+			poolQueueSizes.TryGetValue(pool.Id, out int queueSize);
+			
+			Dictionary<string, object> status = new()
 			{
-				poolQueueSizes.TryGetValue(current.Pool.Id, out int queueSize);
-				
-				Dictionary<string, object> status = new()
-				{
-					["Name"] = GetType().Name,
-					["QueueSize"] = queueSize,
-					["ScaleOutFactor"] = Settings.ScaleOutFactor,
-					["ScaleInFactor"] = Settings.ScaleInFactor,
-					["SamplePeriodMin"] = Settings.SamplePeriodMin,
-					["ReadyTimeThresholdSec"] = Settings.ReadyTimeThresholdSec,
-				};
-				
-				if (queueSize > 0)
-				{
-					int additionalAgentCount = (int)Math.Ceiling(queueSize * Settings.ScaleOutFactor);
-					int desiredAgentCount = current.Agents.Count + additionalAgentCount;
-					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, status);
-				}
-				else
-				{
-					int desiredAgentCount = (int)(current.Agents.Count * Settings.ScaleInFactor);
-					return new PoolSizeData(current.Pool, current.Agents, desiredAgentCount, status);
-				}
-			}).ToList();
+				["Name"] = GetType().Name,
+				["QueueSize"] = queueSize,
+				["ScaleOutFactor"] = Settings.ScaleOutFactor,
+				["ScaleInFactor"] = Settings.ScaleInFactor,
+				["SamplePeriodMin"] = Settings.SamplePeriodMin,
+				["ReadyTimeThresholdSec"] = Settings.ReadyTimeThresholdSec,
+			};
+			
+			if (queueSize > 0)
+			{
+				int additionalAgentCount = (int)Math.Ceiling(queueSize * Settings.ScaleOutFactor);
+				int desiredAgentCount = agents.Count + additionalAgentCount;
+				return new PoolSizeResult(pool, agents, desiredAgentCount, status);
+			}
+			else
+			{
+				int desiredAgentCount = (int)(agents.Count * Settings.ScaleInFactor);
+				return new PoolSizeResult(pool, agents, desiredAgentCount, status);
+			}
 		}
 	}
 }

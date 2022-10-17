@@ -98,9 +98,8 @@ namespace Horde.Build.Tests.Fleet
 		private async Task AssertPoolSizeAsync(IPool pool, int expectedNumAgents)
 		{
 			IPoolSizeStrategy strategy = FleetService.CreatePoolSizeStrategy(pool);
-			List<PoolSizeData> output = await strategy.CalcDesiredPoolSizesAsync(new() { new(pool, _poolAgents, null) });
-			Assert.AreEqual(1, output.Count);
-			Assert.AreEqual(expectedNumAgents, output[0].DesiredAgentCount);
+			PoolSizeResult output = await strategy.CalculatePoolSizeAsync(pool, _poolAgents);
+			Assert.AreEqual(expectedNumAgents, output.DesiredAgentCount);
 		}
 		
 		private async Task<ILease> AddPlaceholderLease(IAgent agent, IPool pool, DateTime startTime, TimeSpan duration)
