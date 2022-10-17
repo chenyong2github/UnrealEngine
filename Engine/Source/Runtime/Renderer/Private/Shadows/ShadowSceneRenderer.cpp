@@ -398,6 +398,8 @@ void FShadowSceneRenderer::ApplyVirtualShadowMapProjectionForLight(
 						ScissorRect,
 						EVirtualShadowMapProjectionInputType::GBuffer,
 						VisibleLightInfo.FindShadowClipmapForView(&View),
+						false, // bModulateRGB
+						nullptr, // TiledVSMProjection
 						OutputScreenShadowMaskTexture);
 				}
 				else if (bShouldUseVirtualShadowMapOnePassProjection)
@@ -443,6 +445,8 @@ void FShadowSceneRenderer::ApplyVirtualShadowMapProjectionForLight(
 						ScissorRect,
 						EVirtualShadowMapProjectionInputType::HairStrands,
 						VisibleLightInfo.FindShadowClipmapForView(&View),
+						false, // bModulateRGB
+						nullptr, // TiledVSMProjection
 						OutputScreenShadowMaskSubPixelTexture);
 				}
 				else if (bShouldUseVirtualShadowMapOnePassProjection)

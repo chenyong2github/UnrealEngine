@@ -1803,9 +1803,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
-	if (IsWaterDistanceFieldShadowEnabled(Platform))
+	const bool bNeedsSeparateMainDirLightTexture = IsWaterDistanceFieldShadowEnabled(Platform) || IsWaterVirtualShadowMapFilteringEnabled(Platform);
+	if (bNeedsSeparateMainDirLightTexture)
 	{
-		KeyString += TEXT("_SLWDFS");
+		KeyString += TEXT("_SLWSMDLT");
 	}
 
 	{

@@ -12,6 +12,14 @@
 
 class FVirtualShadowMapClipmap;
 
+struct FTiledVSMProjection
+{
+	FRDGBufferRef DrawIndirectParametersBuffer;
+	FRDGBufferRef DispatchIndirectParametersBuffer;
+	FRDGBufferSRVRef TileListDataBufferSRV;
+	uint32 TileSize;
+};
+
 // Note: Must match the definitions in VirtualShadowMapPageManagement.usf!
 enum class EVirtualShadowMapProjectionInputType
 {
@@ -29,6 +37,8 @@ void RenderVirtualShadowMapProjection(
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
+	bool bModulateRGB,
+	FTiledVSMProjection* TiledVSMProjection,
 	FRDGTextureRef OutputShadowMaskTexture);
 
 void RenderVirtualShadowMapProjection(
@@ -62,6 +72,8 @@ void CompositeVirtualShadowMapMask(
 	const FIntRect ScissorRect,
 	const FRDGTextureRef Input,
 	bool bDirectionalLight,
+	bool bModulateRGB,
+	FTiledVSMProjection* TiledVSMProjection,
 	FRDGTextureRef OutputShadowMaskTexture);
 
 void CompositeVirtualShadowMapFromMaskBits(

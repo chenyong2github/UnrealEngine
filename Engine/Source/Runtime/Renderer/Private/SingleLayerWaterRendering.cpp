@@ -18,6 +18,7 @@
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "Lumen/LumenSceneData.h"
 #include "Lumen/LumenTracingUtils.h"
 
@@ -71,17 +72,27 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayerShadersSupportDistanceFie
 	TEXT("Whether or not the single layer water material shaders are compiled with support for distance field shadow, i.e. output main directional light luminance in a separate render target. This is preconditioned on using deferred shading and having distance field support enabled in the project."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerDistanceFieldShadow(
+	TEXT("r.Water.SingleLayer.DistanceFieldShadow"), 1,
+	TEXT("When using deferred, distance field shadow tracing is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerShadersSupportVSMFiltering(
+	TEXT("r.Water.SingleLayer.ShadersSupportVSMFiltering"), 1,
+	TEXT("Whether or not the single layer water material shaders are compiled with support for virtual shadow map filter, i.e. output main directional light luminance in a separate render target. This is preconditioned on using deferred shading and having VSM support enabled in the project."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarWaterSingleLayerVSMFiltering(
+	TEXT("r.Water.SingleLayer.VSMFiltering"), 1,
+	TEXT("When using deferred, virtual shadow map filtering is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 // The project setting for the cloud shadow to affect SingleLayerWater (enable/disable runtime and shader code).  This is not implemented on mobile as VolumetricClouds are not available on these platforms.
 static TAutoConsoleVariable<int32> CVarSupportCloudShadowOnSingleLayerWater(
 	TEXT("r.Water.SingleLayerWater.SupportCloudShadow"),
 	0,
 	TEXT("Enables cloud shadows on SingleLayerWater materials."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarWaterSingleLayerDistanceFieldShadow(
-	TEXT("r.Water.SingleLayer.DistanceFieldShadow"), 1,
-	TEXT("When using deferred, distance field shadow tracing is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerRTR(
 	TEXT("r.Water.SingleLayer.RTR"), 1,
@@ -167,6 +178,21 @@ bool UseSingleLayerWaterIndirectDraw(EShaderPlatform ShaderPlatform)
 bool IsWaterDistanceFieldShadowEnabled_Runtime(const FStaticShaderPlatform Platform)
 {
 	return IsWaterDistanceFieldShadowEnabled(Platform) && CVarWaterSingleLayerDistanceFieldShadow.GetValueOnAnyThread() > 0;
+}
+
+bool IsWaterVirtualShadowMapFilteringEnabled_Runtime(const FStaticShaderPlatform Platform)
+{
+	return IsWaterVirtualShadowMapFilteringEnabled(Platform) && UseVirtualShadowMaps(Platform, GetMaxSupportedFeatureLevel(Platform)) && CVarWaterSingleLayerVSMFiltering.GetValueOnRenderThread() > 0;
+}
+
+bool NeedsSeparatedMainDirectionalLightTexture(const FStaticShaderPlatform Platform)
+{
+	return IsWaterDistanceFieldShadowEnabled(Platform) || IsWaterVirtualShadowMapFilteringEnabled(Platform);
+}
+
+bool NeedsSeparatedMainDirectionalLightTexture_Runtime(const FStaticShaderPlatform Platform)
+{
+	return IsWaterDistanceFieldShadowEnabled_Runtime(Platform) || IsWaterVirtualShadowMapFilteringEnabled_Runtime(Platform);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
@@ -379,7 +405,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterDepthPrepass(FRDGBuild
 			}
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthPrepassTexture.Target, ERenderTargetLoadAction::ENoAction, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 			FCopyDepthPS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FCopyDepthPS::FMSAASampleCount>(DepthPrepassTextureDesc.NumSamples);
@@ -686,34 +712,17 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		}
 
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+		const FStaticShaderPlatform StaticShaderPlatform = View.GetShaderPlatform();
+		const bool bWaterVSMFiltering = IsWaterVirtualShadowMapFilteringEnabled_Runtime(StaticShaderPlatform);
+		const bool bWaterDistanceFieldShadow = IsWaterDistanceFieldShadowEnabled_Runtime(StaticShaderPlatform);
 
-		if (IsWaterDistanceFieldShadowEnabled_Runtime(View.GetShaderPlatform()))
+		if (bWaterVSMFiltering || bWaterDistanceFieldShadow)
 		{
-
-			FProjectedShadowInfo* DistanceFieldShadowInfo = nullptr;
-
-			// Try to find the ProjectedShadowInfo corresponding to ray trace shadow info for the main directional light.
 			const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
-			if (SelectedForwardDirectionalLightProxy)
-			{
-				FLightSceneInfo* LightSceneInfo = SelectedForwardDirectionalLightProxy->GetLightSceneInfo();
-				FVisibleLightInfo& VisibleLightViewInfo = VisibleLightInfos[LightSceneInfo->Id];
 
-				for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightViewInfo.ShadowsToProject.Num(); ShadowIndex++)
-				{
-					FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightViewInfo.ShadowsToProject[ShadowIndex];
-					if (ProjectedShadowInfo->bRayTracedDistanceField)
-					{
-						DistanceFieldShadowInfo = ProjectedShadowInfo;
-					}
-				}
-			}
-
-			// If DFShadow data has been found, then combine it with the separate main directional light luminance texture.
-			FRDGTextureRef ScreenShadowMaskTexture = SystemTextures.White;
-			if (DistanceFieldShadowInfo)
+			if (bWaterVSMFiltering && SelectedForwardDirectionalLightProxy)
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "SLW::DistanceFieldShadow");
+				RDG_EVENT_SCOPE(GraphBuilder, "SLW::VirtualShadowMaps");
 
 				FIntRect ScissorRect;
 				if (!SelectedForwardDirectionalLightProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
@@ -721,28 +730,82 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 					ScissorRect = View.ViewRect;
 				}
 
-				// Reset the cached texture to create a new one mapping to the water depth buffer
-				DistanceFieldShadowInfo->ResetRayTracedDistanceFieldShadow(&View);
+				const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[SelectedForwardDirectionalLightProxy->GetLightSceneInfo()->Id];
 
-				FTiledShadowRendering TiledShadowRendering;
-				if (bRunTiled)
-				{
-					TiledShadowRendering.DrawIndirectParametersBuffer = TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
-					TiledShadowRendering.TileListDataBufferSRV = TiledScreenSpaceReflection.TileListDataBufferSRV;
-					TiledShadowRendering.TileSize = TiledScreenSpaceReflection.TileSize;
-				}
+				FTiledVSMProjection TiledVSMProjection{};
+				TiledVSMProjection.DrawIndirectParametersBuffer = TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
+				TiledVSMProjection.DispatchIndirectParametersBuffer = TiledScreenSpaceReflection.DispatchIndirectParametersBuffer;
+				TiledVSMProjection.TileListDataBufferSRV = TiledScreenSpaceReflection.TileListDataBufferSRV;
+				TiledVSMProjection.TileSize = TiledScreenSpaceReflection.TileSize;
 
-				const bool bProjectingForForwardShading = false;
-				const bool bForceRGBModulation = true;
-				DistanceFieldShadowInfo->RenderRayTracedDistanceFieldProjection(
+				RenderVirtualShadowMapProjection(
 					GraphBuilder,
 					SceneTextures,
-					SceneWithoutWaterTextures.SeparatedMainDirLightTexture,
-					View,
+					View, ViewIndex,
+					VirtualShadowMapArray,
 					ScissorRect,
-					bProjectingForForwardShading,
-					bForceRGBModulation,
-					bRunTiled ? &TiledShadowRendering : nullptr);
+					EVirtualShadowMapProjectionInputType::GBuffer,
+					VisibleLightInfo.FindShadowClipmapForView(&View),
+					true, // bModulateRGB
+					&TiledVSMProjection,
+					SceneWithoutWaterTextures.SeparatedMainDirLightTexture);
+			}
+
+			if (bWaterDistanceFieldShadow)
+			{
+				FProjectedShadowInfo* DistanceFieldShadowInfo = nullptr;
+
+				// Try to find the ProjectedShadowInfo corresponding to ray trace shadow info for the main directional light.
+				if (SelectedForwardDirectionalLightProxy)
+				{
+					FLightSceneInfo* LightSceneInfo = SelectedForwardDirectionalLightProxy->GetLightSceneInfo();
+					FVisibleLightInfo& VisibleLightViewInfo = VisibleLightInfos[LightSceneInfo->Id];
+
+					for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightViewInfo.ShadowsToProject.Num(); ShadowIndex++)
+					{
+						FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightViewInfo.ShadowsToProject[ShadowIndex];
+						if (ProjectedShadowInfo->bRayTracedDistanceField)
+						{
+							DistanceFieldShadowInfo = ProjectedShadowInfo;
+						}
+					}
+				}
+
+				// If DFShadow data has been found, then combine it with the separate main directional light luminance texture.
+				FRDGTextureRef ScreenShadowMaskTexture = SystemTextures.White;
+				if (DistanceFieldShadowInfo)
+				{
+					RDG_EVENT_SCOPE(GraphBuilder, "SLW::DistanceFieldShadow");
+
+					FIntRect ScissorRect;
+					if (!SelectedForwardDirectionalLightProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
+					{
+						ScissorRect = View.ViewRect;
+					}
+
+					// Reset the cached texture to create a new one mapping to the water depth buffer
+					DistanceFieldShadowInfo->ResetRayTracedDistanceFieldShadow(&View);
+
+					FTiledShadowRendering TiledShadowRendering;
+					if (bRunTiled)
+					{
+						TiledShadowRendering.DrawIndirectParametersBuffer = TiledScreenSpaceReflection.DrawIndirectParametersBuffer;
+						TiledShadowRendering.TileListDataBufferSRV = TiledScreenSpaceReflection.TileListDataBufferSRV;
+						TiledShadowRendering.TileSize = TiledScreenSpaceReflection.TileSize;
+					}
+
+					const bool bProjectingForForwardShading = false;
+					const bool bForceRGBModulation = true;
+					DistanceFieldShadowInfo->RenderRayTracedDistanceFieldProjection(
+						GraphBuilder,
+						SceneTextures,
+						SceneWithoutWaterTextures.SeparatedMainDirLightTexture,
+						View,
+						ScissorRect,
+						bProjectingForForwardShading,
+						bForceRGBModulation,
+						bRunTiled ? &TiledShadowRendering : nullptr);
+				}
 			}
 		}
 
@@ -906,7 +969,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			PassParameters->VS.TileListData = TiledScreenSpaceReflection.TileListDataBufferSRV;
 
 			SetCommonParameters(PassParameters->PS.CommonParameters);
-			if (IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))
+			if (NeedsSeparatedMainDirectionalLightTexture_Runtime(Scene->GetShaderPlatform()))
 			{
 				PassParameters->PS.CommonParameters.SeparatedMainDirLightTexture = SceneWithoutWaterTextures.SeparatedMainDirLightTexture;
 				PassParameters->PS.CommonParameters.UseSeparatedMainDirLightTexture = 1.0f;
@@ -1032,6 +1095,8 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FSingleLayerWaterPassUniformParameters,)
 	SHADER_PARAMETER(FVector4f, DistortionParams)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterTextureSize)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterInvTextureSize)
+	SHADER_PARAMETER(uint32, bMainDirectionalLightVSMFiltering)
+	SHADER_PARAMETER(uint32, bSeparateMainDirLightLuminance)
 	SHADER_PARAMETER_STRUCT(FLightCloudTransmittanceParameters, ForwardDirLightCloudShadow)
 END_UNIFORM_BUFFER_STRUCT()
 
@@ -1066,7 +1131,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
-	if(IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))
+	if(NeedsSeparatedMainDirectionalLightTexture(Scene->GetShaderPlatform())
 	{
 		const bool bNeverClear = true;
 		BasePassTextures[BasePassTextureCount++] = FTextureRenderTargetBinding(SceneWithoutWaterTextures.SeparatedMainDirLightTexture, bNeverClear);
@@ -1117,6 +1182,8 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 			SetupDistortionParams(SLWUniformParameters.DistortionParams, View);
 			SLWUniformParameters.SceneWithoutSingleLayerWaterTextureSize = FVector2f(DepthTextureSize.X, DepthTextureSize.Y);
 			SLWUniformParameters.SceneWithoutSingleLayerWaterInvTextureSize = FVector2f(1.0f / DepthTextureSize.X, 1.0f / DepthTextureSize.Y);
+			SLWUniformParameters.bMainDirectionalLightVSMFiltering = IsWaterVirtualShadowMapFilteringEnabled_Runtime(View.GetShaderPlatform());
+			SLWUniformParameters.bSeparateMainDirLightLuminance = NeedsSeparatedMainDirectionalLightTexture_Runtime(View.GetShaderPlatform());
 
 			const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
 			SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, SelectedForwardDirectionalLightProxy ? SelectedForwardDirectionalLightProxy->GetLightSceneInfo() : nullptr, SLWUniformParameters.ForwardDirLightCloudShadow);
@@ -1331,8 +1398,7 @@ void FSingleLayerWaterPassMeshProcessor::CollectPSOInitializers(const FSceneText
 
 		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
 		SetupGBufferRenderTargetInfo(SceneTexturesConfig, RenderTargetsInfo, true /*bSetupDepthStencil*/);
-		if (IsWaterDistanceFieldShadowEnabled_Runtime(GMaxRHIShaderPlatform)
-			&& !Strata::IsStrataEnabled())	// We do not bind that texture if Strata is enabled as the data will go through the Strata material buffer.
+		if (NeedsSeparatedMainDirectionalLightTexture(GMaxRHIShaderPlatform))
 		{
 			AddRenderTargetInfo(PF_FloatR11G11B10, TexCreate_ShaderResource | TexCreate_RenderTargetable, RenderTargetsInfo);
 		}

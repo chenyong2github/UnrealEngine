@@ -174,10 +174,6 @@
 #include "/Engine/Private/Strata/StrataExport.ush"
 #endif
 
-// Separate main directional light from scene color buffer if water needs to receive distance field shadows.
-// Sperated dir light should match with FShaderCompileUtilities::FetchGBufferParamsRuntime.
-#define SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT  (SINGLE_LAYER_WATER_DF_SHADOW_ENABLED)
-
 #if !FORWARD_SHADING
 
 bool ManualDepthTestEqual(float4 SvPosition, float PSDeviceZWithOffset)
@@ -1181,7 +1177,7 @@ void FPixelShaderInOut_MainPS(
 	float3 DiffuseIndirectLighting = 0;
 	float3 SubsurfaceIndirectLighting = 0;
 
-	bool bSeparateWaterMainDirLightLuminance = SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT > 0 && View.SeparateWaterMainDirLightLuminance > 0.0f; 
+	bool bSeparateWaterMainDirLightLuminance = SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT > 0 && SingleLayerWater.bSeparateMainDirLightLuminance; 
 	float3 SeparatedWaterMainDirLightLuminance = float3(0, 0, 0); 
 
 #if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
@@ -1282,10 +1278,13 @@ void FPixelShaderInOut_MainPS(
 					}
 					#endif // NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE
 
+					const bool bSkipMainDirLightVirtualShadowMapEvaluation = SingleLayerWater.bMainDirectionalLightVSMFiltering;
+
 					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(
 						GridIndex, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, 
 						DirectionalLightCloudShadow, DirectionalLightAtmosphereTransmittance, DirectionalLightShadow,
-						bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
+						bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance,
+						bSkipMainDirLightVirtualShadowMapEvaluation);
 					
 					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 						DiffuseColor += ForwardDirectLighting.DiffuseLighting.rgb;
