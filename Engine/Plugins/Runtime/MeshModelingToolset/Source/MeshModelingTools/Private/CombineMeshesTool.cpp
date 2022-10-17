@@ -222,12 +222,6 @@ void UCombineMeshesTool::CreateNewAsset()
 				AccumulateDMesh.Attributes()->EnableMatchingAttributes(*ComponentDMesh.Attributes(), false);
 			}
 
-			FTransformSRT3d XF = (UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]) * ToAccum);
-			if (XF.GetDeterminant() < 0)
-			{
-				ComponentDMesh.ReverseOrientation(false);
-			}
-
 			// update material IDs to account for combined material set
 			FDynamicMeshMaterialAttribute* MatAttrib = ComponentDMesh.Attributes()->GetMaterialID();
 			for (int TID : ComponentDMesh.TriangleIndicesItr())
@@ -250,6 +244,12 @@ void UCombineMeshesTool::CreateNewAsset()
 			}
 			else
 			{
+				FTransformSRT3d XF = (UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]) * ToAccum);
+				if (XF.GetDeterminant() < 0)
+				{
+					ComponentDMesh.ReverseOrientation(false);
+				}
+
 				Editor.AppendMesh(&ComponentDMesh, IndexMapping,
 					[&XF](int Unused, const FVector3d P) { return XF.TransformPosition(P); },
 					[&XF](int Unused, const FVector3d N) { return XF.TransformNormal(N); });
