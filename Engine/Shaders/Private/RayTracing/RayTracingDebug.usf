@@ -203,17 +203,14 @@ float4 DebugRayTracingInstance(FRayDesc Ray, uint2 PixelCoord, out float OutDept
 		case RAY_TRACING_DEBUG_VIZ_TRIANGLES:
 			Result.rgb = TriangleColor;
 			break;
-#if ENABLE_INSTANCE_DEBUG_DATA
 		case RAY_TRACING_DEBUG_VIZ_DYNAMIC_INSTANCES:
 			Result.rgb = InstancesDebugData[Payload.GeometryInstanceIndex].Flags ? float3(0.25f, 0.50f, 0.25f) : float3(0.50f, 0.25f, 0.25f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_PROXY_TYPE:
 			Result.rgb = IntToColor(InstancesDebugData[Payload.GeometryInstanceIndex].ProxyHash);
 			break;
-#endif // ENABLE_INSTANCE_DEBUG_DATA
 		}
 	
-#if ENABLE_PICKING
 		if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_PICKER)
 		{
 			const float ColorScale = 0.1f;
@@ -237,7 +234,6 @@ float4 DebugRayTracingInstance(FRayDesc Ray, uint2 PixelCoord, out float OutDept
 				break;
 			}
 		}
-#endif // ENABLE_PICKING
 
 		// apply some shading based on the primitive normal (map dot product result from [0,1] to [0.75,1] unless we are showing instance heatmap then just use [0,1]).
 		const float FakeLighting = dot(Payload.WorldNormal, normalize(float3(1.0f, 1.0f, 1.0f)));
