@@ -430,6 +430,11 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Varname;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Result;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken File;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken WrapS;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken WrapT;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Repeat;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Mirror;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Clamp;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Fallback;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken R;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken RGB;

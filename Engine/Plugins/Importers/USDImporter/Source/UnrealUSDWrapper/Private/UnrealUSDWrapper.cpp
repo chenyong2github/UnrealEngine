@@ -121,6 +121,11 @@ namespace UnrealIdentifiers
 	const TfToken Varname = TfToken("varname");
 	const TfToken Result = TfToken("result");
 	const TfToken File = TfToken("file");
+	const TfToken WrapT = TfToken( "wrapT" );
+	const TfToken WrapS = TfToken( "wrapS" );
+	const TfToken Repeat = TfToken( "repeat" );
+	const TfToken Mirror = TfToken( "mirror" );
+	const TfToken Clamp = TfToken( "clamp" );
 	const TfToken Fallback = TfToken("fallback");
 	const TfToken R = TfToken("r");
 	const TfToken RGB = TfToken("rgb");
