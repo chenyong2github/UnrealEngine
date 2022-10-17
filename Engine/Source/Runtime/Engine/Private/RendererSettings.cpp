@@ -342,6 +342,17 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 		return !bForwardShading;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// only allow changing ExtendDefaultLuminanceRange if it was disabled.
+	// we don't want new projects disabling this setting but still allow existing projects to enable it.
+	static bool bCanEditExtendDefaultLuminanceRange = !bExtendDefaultLuminanceRangeInAutoExposureSettings;
+
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bExtendDefaultLuminanceRangeInAutoExposureSettings)))
+	{
+		return bCanEditExtendDefaultLuminanceRange;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	return true;
 }
 
