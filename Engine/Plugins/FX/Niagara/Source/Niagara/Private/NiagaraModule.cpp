@@ -899,23 +899,18 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 		return false;
 	}
 
-	UStruct* TDStruct = GetStruct();
-	UClass* TDClass = GetClass();
-	UEnum* TDEnum = GetEnum();
-
 	TStringBuilder<128> PathName;
-	if (TDEnum)
+	if (UEnum* TDEnum = GetEnum())
 	{
 		// Do we need to enumerate all the enum values and rebuild if that changes or are we ok with just knowing that there are the same  count of enum entries?
 		// For now, am just going to be ok with the number of entries. The actual string values don't matter so much.
-		FString CppType = TDEnum->CppType;
 		PathName.Reset();
 		TDEnum->GetPathName(nullptr, PathName);
 		InVisitor->UpdateString(TEXT("\tEnumPath"), PathName);
-		InVisitor->UpdateString(TEXT("\tEnumCppType"), CppType);
+		InVisitor->UpdateString(TEXT("\tEnumCppType"), TDEnum->CppType);
 		InVisitor->UpdatePOD(TEXT("\t\tNumEnums"),TDEnum->NumEnums());
 	}
-	else if (TDClass)
+	else if (UClass* TDClass = GetClass())
 	{
 		// For data interfaces, get the default object and the compile version so that we can properly update when code changes.
 		check(IsInGameThread());
@@ -937,7 +932,7 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 			}
 		}
 	}
-	else if (TDStruct)
+	else if (UStruct* TDStruct = GetStruct())
 	{
 		PathName.Reset();
 		TDStruct->GetPathName(nullptr, PathName);
@@ -1552,6 +1547,12 @@ void FNiagaraVariableBase::PostSerialize(const FArchive& Ar)
 	}
 }
 #endif
+
+bool FNiagaraVariableBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	return InVisitor->UpdateName(TEXT("NiagaraVariable.Name"), Name)
+		&& TypeDefHandle->AppendCompileHash(InVisitor);
+}
 
 bool FNiagaraVariable::Serialize(FArchive& Ar)
 {

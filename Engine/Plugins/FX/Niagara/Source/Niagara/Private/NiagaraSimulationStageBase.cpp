@@ -21,8 +21,10 @@ namespace NiagaraSimulationStageLocal
 bool UNiagaraSimulationStageBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 #if WITH_EDITORONLY_DATA
-	const int32 Index = InVisitor->Values.AddDefaulted();
-	InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *GetClass()->GetName(), *GetName());
+	if (FNiagaraCompileHashVisitorDebugInfo* DebugInfo = InVisitor->AddDebugInfo())
+	{
+		DebugInfo->Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *GetClass()->GetName(), *GetName());
+	}
 #endif
 	InVisitor->UpdatePOD(TEXT("Enabled"), bEnabled ? 1 : 0);
 	return true;

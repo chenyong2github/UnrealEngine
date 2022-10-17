@@ -6,6 +6,7 @@
 
 #include "NiagaraVariant.generated.h"
 
+struct FNiagaraCompileHashVisitor;
 class UNiagaraDataInterface;
 
 UENUM()
@@ -45,6 +46,8 @@ struct NIAGARA_API FNiagaraVariant
 
 	bool operator==(const FNiagaraVariant& Other) const;
 	bool operator!=(const FNiagaraVariant& Other) const;
+
+	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 private:
 	UPROPERTY(EditAnywhere, Category=Variant, Instanced)

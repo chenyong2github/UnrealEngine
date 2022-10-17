@@ -2881,8 +2881,10 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	check(!bIsForCompilationOnly);
 
 #if WITH_EDITORONLY_DATA
-	int32 Index = InVisitor->Values.AddDefaulted();
-	InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *this->GetClass()->GetName(),  *this->GetName());
+	if (FNiagaraCompileHashVisitorDebugInfo* DebugInfo = InVisitor->AddDebugInfo())
+	{
+		DebugInfo->Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *this->GetClass()->GetName(), *this->GetName());
+	}
 #endif
 	InVisitor->UpdateString(TEXT("ForceRebuildId"), ForceRebuildId.ToString());
 
@@ -2957,8 +2959,10 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 			}
 
 		#if WITH_EDITORONLY_DATA
-			Index = InVisitor->Values.AddDefaulted();
-			InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *Var->GetClass()->GetName(), *Var->Variable.GetName().ToString());
+			if (FNiagaraCompileHashVisitorDebugInfo* DebugInfo = InVisitor->AddDebugInfo())
+			{
+				DebugInfo->Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *Var->GetClass()->GetName(), *Var->Variable.GetName().ToString());
+			}
 		#endif
 			verify(Var->AppendCompileHash(InVisitor));
 			
@@ -2975,8 +2979,10 @@ bool UNiagaraGraph::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor, con
 	for (const UNiagaraNode* Node : InTraversal)
 	{
 #if WITH_EDITORONLY_DATA
-		Index = InVisitor->Values.AddDefaulted();
-		InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\" Title: \"%s\" Name: \"%s\" Guid: %s"), *Node->GetClass()->GetName(), *Node->GetNodeTitle(ENodeTitleType::EditableTitle).ToString(), *Node->GetName(), *LexToString(Node->NodeGuid));
+		if (FNiagaraCompileHashVisitorDebugInfo* DebugInfo = InVisitor->AddDebugInfo())
+		{
+			DebugInfo->Object = FString::Printf(TEXT("Class: \"%s\" Title: \"%s\" Name: \"%s\" Guid: %s"), *Node->GetClass()->GetName(), *Node->GetNodeTitle(ENodeTitleType::EditableTitle).ToString(), *Node->GetName(), *LexToString(Node->NodeGuid));
+		}
 #endif
 		verify(Node->AppendCompileHash(InVisitor));
 	}

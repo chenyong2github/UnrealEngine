@@ -110,11 +110,19 @@ void UNiagaraScriptVariable::PostLoad()
 
 bool UNiagaraScriptVariable::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
-	if (!FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(static_cast<const void*>(this), StaticClass(), EFieldIteratorFlags::ExcludeSuper, StaticClass()->GetName(), InVisitor))
+	bool bSuccess = InVisitor->UpdatePOD<uint8>(TEXT("NiagaraScriptVariable.DefaultMode"), static_cast<uint8>(DefaultMode))
+		&& InVisitor->UpdateName(TEXT("NiagaraScriptVariable.DefaultBinding.Name"), DefaultBinding.Name)
+		&& InVisitor->UpdatePOD(TEXT("NiagaraScriptVariable.StaticSwitchDefaultValue"), StaticSwitchDefaultValue)
+		&& InVisitor->UpdatePOD(TEXT("NiagaraScriptVariable.bIsStaticSwitch"), bIsStaticSwitch)
+		&& Variable.AppendCompileHash(InVisitor)
+		&& DefaultValueVariant.AppendCompileHash(InVisitor);
+
+	for (const FName& AlternateAlias : Metadata.AlternateAliases)
 	{
-		return false;
+		bSuccess = bSuccess && InVisitor->UpdateName(TEXT("NiagaraScriptVariable.Metadata.AlternateAliases"), AlternateAlias);
 	}
-	return true;
+
+	return bSuccess;
 }
 
 void UNiagaraScriptVariable::SetIsSubscribedToParameterDefinitions(bool bInSubscribedToParameterDefinitions)

@@ -590,6 +590,14 @@ public:
 	static int LogCompileIdGeneration;
 
 #if WITH_EDITORONLY_DATA
+	FNiagaraCompileHashVisitorDebugInfo* AddDebugInfo()
+	{
+		if (LogCompileIdGeneration != 0)
+		{
+			return &Values.AddDefaulted_GetRef();
+		}
+		return nullptr;
+	}
 
 	// Debug data about the compilation hash, including key value pairs to detect differences.
 	TArray<FNiagaraCompileHashVisitorDebugInfo> Values;
@@ -653,6 +661,15 @@ public:
 		}
 #endif
 		return true;
+	}
+
+	/**
+	 * Adds the string representation of an FName to the hash
+	 */
+	bool UpdateName(const TCHAR* InDebugName, FName InName)
+	{
+		FNameBuilder NameString(InName);
+		return UpdateString(InDebugName, NameString.ToView());
 	}
 
 	/**
@@ -1818,6 +1835,8 @@ struct FNiagaraVariableBase
 #if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
 #endif
+
+	bool NIAGARA_API AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Variable")

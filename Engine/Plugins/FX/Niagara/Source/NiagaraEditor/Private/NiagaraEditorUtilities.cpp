@@ -366,75 +366,75 @@ void FNiagaraEditorUtilities::WriteTextFileToDisk(FString SaveDirectory, FString
 }
 
 
-bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) 
+bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container, FProperty* Property, FStringView PropertyName, FNiagaraCompileHashVisitor* InVisitor) 
 {
 	if (Property->IsA(FFloatProperty::StaticClass()))
 	{
 		FFloatProperty* CastProp = CastFieldChecked<FFloatProperty>(Property);
 		float Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FIntProperty::StaticClass()))
 	{
 		FIntProperty* CastProp = CastFieldChecked<FIntProperty>(Property);
 		int32 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FInt16Property::StaticClass()))
 	{
 		FInt16Property* CastProp = CastFieldChecked<FInt16Property>(Property);
 		int16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FUInt32Property::StaticClass()))
 	{
 		FUInt32Property* CastProp = CastFieldChecked<FUInt32Property>(Property);
 		uint32 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FUInt16Property::StaticClass()))
 	{
 		FUInt16Property* CastProp = CastFieldChecked<FUInt16Property>(Property);
 		uint16 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FByteProperty::StaticClass()))
 	{
 		FByteProperty* CastProp = CastFieldChecked<FByteProperty>(Property);
 		uint8 Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FBoolProperty::StaticClass()))
 	{
 		FBoolProperty* CastProp = CastFieldChecked<FBoolProperty>(Property);
 		bool Value = CastProp->GetPropertyValue_InContainer(Container, 0);
-		InVisitor->UpdatePOD(*PropertyName, Value);
+		InVisitor->UpdatePOD(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FNameProperty::StaticClass()))
 	{
 		FNameProperty* CastProp = CastFieldChecked<FNameProperty>(Property);
 		FName Value = CastProp->GetPropertyValue_InContainer(Container);
-		InVisitor->UpdateString(*PropertyName, Value.ToString());
+		InVisitor->UpdateName(PropertyName.GetData(), Value);
 		return true;
 	}
 	else if (Property->IsA(FStrProperty::StaticClass()))
 	{
 		FStrProperty* CastProp = CastFieldChecked<FStrProperty>(Property);
 		FString Value = CastProp->GetPropertyValue_InContainer(Container);
-		InVisitor->UpdateString(*PropertyName, Value);
+		InVisitor->UpdateString(PropertyName.GetData(), Value);
 		return true;
 	}
 	return false;
 }
 
-bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Container, const UStruct* Struct, EFieldIteratorFlags::SuperClassFlags IteratorFlags, const FString& BaseName, FNiagaraCompileHashVisitor* InVisitor) 
+bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Container, const UStruct* Struct, EFieldIteratorFlags::SuperClassFlags IteratorFlags, FStringView BaseName, FNiagaraCompileHashVisitor* InVisitor) 
 {
 	// We special case FNiagaraTypeDefinitions here because they need to write out a lot more than just their standalone uproperties.
 	if (Struct == FNiagaraTypeDefinition::StaticStruct())
@@ -454,7 +454,7 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 		}
 	}
 
-	TFieldIterator<FProperty> PropertyCountIt(Struct, IteratorFlags);
+	TFieldIterator<FProperty> PropertyCountIt(Struct, IteratorFlags, EFieldIteratorFlags::ExcludeDeprecated);
 	int32 NumProperties = 0;
 	for (; PropertyCountIt; ++PropertyCountIt)
 	{
@@ -462,7 +462,9 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 	}
 
 	TStringBuilder<128> PathName;
-	for (TFieldIterator<FProperty> PropertyIt(Struct, IteratorFlags); PropertyIt; ++PropertyIt)
+	TStringBuilder<128> PropertyName;
+
+	for (TFieldIterator<FProperty> PropertyIt(Struct, IteratorFlags, EFieldIteratorFlags::ExcludeDeprecated); PropertyIt; ++PropertyIt)
 	{
 		FProperty* Property = *PropertyIt;
 
@@ -472,17 +474,57 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			continue;
 		}
 
-		FString PropertyName = (NumProperties == 1) ? (BaseName) : (BaseName + "." + Property->GetName());
+		PropertyName = BaseName;
+		if (NumProperties > 1)
+		{
+			PropertyName << TCHAR('.');
+			Property->GetFName().AppendString(PropertyName);
+		}
 
 		if (PODPropertyAppendCompileHash(Container, Property, PropertyName, InVisitor))
 		{
+			continue;
+		}
+		else if (Property->IsA(FStructProperty::StaticClass()))
+		{
+			FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property);
+			const void* StructContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
+			NestedPropertiesAppendCompileHash(StructContainer, StructProp->Struct, EFieldIteratorFlags::IncludeSuper, PropertyName, InVisitor);
+			continue;
+		}
+		else if (Property->IsA(FEnumProperty::StaticClass()))
+		{
+			FEnumProperty* CastProp = CastFieldChecked<FEnumProperty>(Property);
+			const void* EnumContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
+			if (PODPropertyAppendCompileHash(EnumContainer, CastProp->GetUnderlyingProperty(), PropertyName, InVisitor))
+			{
+				continue;
+			}
+			check(false);
+			return false;
+		}
+		else if (Property->IsA(FObjectProperty::StaticClass()))
+		{
+			FObjectProperty* CastProp = CastFieldChecked<FObjectProperty>(Property);
+			UObject* Obj = CastProp->GetObjectPropertyValue_InContainer(Container);
+			if (Obj != nullptr)
+			{
+				// We just do name here as sometimes things will be in a transient package or something tricky.
+				// Because we do nested id's for each called graph, it should work out in the end to have a different
+				// value in the compile array if the scripts are the same name but different locations.
+				InVisitor->UpdateString(PropertyName.GetData(), Obj->GetName());
+			}
+			else
+			{
+				InVisitor->UpdateString(PropertyName.GetData(), TEXT("nullptr"));
+			}
 			continue;
 		}
 		else if (Property->IsA(FMapProperty::StaticClass()))
 		{
 			FMapProperty* CastProp = CastFieldChecked<FMapProperty>(Property);
 			FScriptMapHelper MapHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
-			InVisitor->UpdatePOD(*PropertyName, MapHelper.Num());
+			InVisitor->UpdatePOD(PropertyName.GetData(), MapHelper.Num());
 			if (MapHelper.GetKeyProperty())
 			{
 				PathName.Reset();
@@ -567,7 +609,7 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			FArrayProperty* CastProp = CastFieldChecked<FArrayProperty>(Property);
 
 			FScriptArrayHelper ArrayHelper(CastProp, CastProp->ContainerPtrToValuePtr<void>(Container));
-			InVisitor->UpdatePOD(*PropertyName, ArrayHelper.Num());
+			InVisitor->UpdatePOD(PropertyName.GetData(), ArrayHelper.Num());
 			PathName.Reset();
 			CastProp->Inner->GetPathName(nullptr, PathName);
 			InVisitor->UpdateString(TEXT("InnerPathname"), PathName);
@@ -621,41 +663,6 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			FTextProperty* CastProp = CastFieldChecked<FTextProperty>(Property);
 			UE_LOG(LogNiagaraEditor, Warning, TEXT("Skipping %s because it is a UText property, please add \"meta = (SkipForCompileHash=\"true\")\" to avoid this warning in the future or handle it yourself in NestedPropertiesAppendCompileHash!"), *Property->GetName());
 			return true;
-		}
-		else if (Property->IsA(FEnumProperty::StaticClass()))
-		{
-			FEnumProperty* CastProp = CastFieldChecked<FEnumProperty>(Property);
-			const void* EnumContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
-			if (PODPropertyAppendCompileHash(EnumContainer, CastProp->GetUnderlyingProperty(), PropertyName, InVisitor))
-			{
-				continue;
-			}
-			check(false);
-			return false;
-		}
-		else if (Property->IsA(FObjectProperty::StaticClass()))
-		{
-			FObjectProperty* CastProp = CastFieldChecked<FObjectProperty>(Property);
-			UObject* Obj = CastProp->GetObjectPropertyValue_InContainer(Container);
-			if (Obj != nullptr)
-			{
-				// We just do name here as sometimes things will be in a transient package or something tricky.
-				// Because we do nested id's for each called graph, it should work out in the end to have a different
-				// value in the compile array if the scripts are the same name but different locations.
-				InVisitor->UpdateString(*PropertyName, Obj->GetName());
-			}
-			else
-			{
-				InVisitor->UpdateString(*PropertyName, TEXT("nullptr"));
-			}
-			continue;
-		}
-		else if (Property->IsA(FStructProperty::StaticClass()))
-		{
-			FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property);
-			const void* StructContainer = Property->ContainerPtrToValuePtr<uint8>(Container);
-			NestedPropertiesAppendCompileHash(StructContainer, StructProp->Struct, EFieldIteratorFlags::IncludeSuper, PropertyName, InVisitor);
-			continue;
 		}
 		else
 		{
