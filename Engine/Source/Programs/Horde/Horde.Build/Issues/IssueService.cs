@@ -585,13 +585,8 @@ namespace Horde.Build.Issues
 						}
 					}
 
-					// Only update sentinels for issues which aren't quarantined
-					List<IIssue> quarantined = await _issueCollection.FindIssuesAsync(openSpans.Select(x => x.IssueId).Distinct());
-					quarantined = quarantined.Where(x => x.QuarantinedByUserId != null).ToList();
-					List<IIssueSpan> sentinels = openSpans.Where(x => !quarantined.Any(y => x.IssueId == y.Id)).ToList();
-
 					// Try to update the sentinels for any other open steps
-					if (!await TryUpdateSentinelsAsync(sentinels, stream, job, batch, step))
+					if (!await TryUpdateSentinelsAsync(openSpans, stream, job, batch, step))
 					{
 						continue;
 					}
@@ -1274,14 +1269,34 @@ namespace Horde.Build.Issues
 				}
 				else if (job.Change > span.LastFailure.Change && (span.NextSuccess == null || job.Change < span.NextSuccess.Change))
 				{
-					NewIssueStepData newNextSucccess = new NewIssueStepData(job.Change, IssueSeverity.Unspecified, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, null, false);
-
-					if (await _issueCollection.TryUpdateSpanAsync(span, newNextSuccess: newNextSucccess) == null)
+					
+					IIssue? issue = await _issueCollection.GetIssueAsync(span.IssueId);
+					bool quarantined = false;
+					if (issue != null && issue.QuarantinedByUserId != null)
 					{
-						return false;
+						quarantined = true;
 					}
 
-					_logger.LogInformation("Set next success for issue {IssueId}, template {TemplateId}, node {Node} as job {JobId}, cl {Change}", span.IssueId, job.TemplateId, span.NodeName, job.Id, job.Change);
+					if (!quarantined)
+					{
+						NewIssueStepData newNextSucccess = new NewIssueStepData(job.Change, IssueSeverity.Unspecified, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, null, false);
+
+						if (await _issueCollection.TryUpdateSpanAsync(span, newNextSuccess: newNextSucccess) == null)
+						{
+							return false;
+						}
+
+						_logger.LogInformation("Set next success for issue {IssueId}, template {TemplateId}, node {Node} as job {JobId}, cl {Change}", span.IssueId, job.TemplateId, span.NodeName, job.Id, job.Change);
+
+					}
+					else
+					{						
+						NewIssueStepData newStep = new NewIssueStepData(job, batch, step, IssueSeverity.Unspecified, null, false);
+						await _issueCollection.AddStepAsync(span.Id, newStep);
+						_logger.LogInformation("Adding step to quarantined issue {IssueId}, template {TemplateId}, node {Node} job {JobId} batch {BatchId} step {StepId} cl {Change}", span.IssueId, job.TemplateId, span.NodeName, job.Id, batch.Id, step.Id, job.Change);
+					}
+
+					
 					await UpdateIssueDerivedDataAsync(span.IssueId);
 				}
 			}
