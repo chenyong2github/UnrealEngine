@@ -130,53 +130,16 @@ void UNiagaraStackSystemUserParametersGroup::Initialize(
 	UObject* InOwner,
 	FNiagaraParameterStore* InParameterStore)
 {
-	AddUtilities = MakeShared<FParameterStoreGroupAddUtiliites>(*InOwner, *InParameterStore, *InRequiredEntryData.StackEditorData,
-		FParameterStoreGroupAddUtiliites::FOnItemAdded::CreateUObject(this, &UNiagaraStackSystemUserParametersGroup::ParameterAdded));
 	FText DisplayName = LOCTEXT("SystemUserParametersGroupName", "User Parameters");
-	FText Tooltip = LOCTEXT("SystemUserParametersTooltip", "Parameters for the system which are exposed externally.");
-	Super::Initialize(InRequiredEntryData, DisplayName, Tooltip, AddUtilities.Get());
+	FText Tooltip = LOCTEXT("SystemUserParametersTooltip", "Brings the User Parameters tab to the front. This button will go away with the next release.\nThe User Parameters tab allows you to set default values and hierarchies for user parameters.\nUser Parameters are exposed to systems outside Niagara (like Blueprints) and can be dynamically changed at runtime.\n");
+	Super::Initialize(InRequiredEntryData, DisplayName, Tooltip, nullptr);
 
 	Owner = InOwner;
-	UserParameterStore = InParameterStore;
 }
 
 FText UNiagaraStackSystemUserParametersGroup::GetIconText() const
 {
 	return FText::FromString(FString(TEXT("\xf007")/* fa-user */));
-}
-
-void UNiagaraStackSystemUserParametersGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
-{
-	if (UserParameterStore != nullptr)
-	{
-		UNiagaraStackParameterStoreItem* UserParameterStoreItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreItem>(CurrentChildren,
-			[=](UNiagaraStackParameterStoreItem* CurrentItem) { return true; });
-
-		if (UserParameterStoreItem == nullptr)
-		{
-			UserParameterStoreItem = NewObject<UNiagaraStackParameterStoreItem>(this);
-			UserParameterStoreItem->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), UserParameterStore, AddUtilities.Get());
-		}
-
-		NewChildren.Add(UserParameterStoreItem);
-	}
-
-	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
-}
-
-void UNiagaraStackSystemUserParametersGroup::ParameterAdded(FNiagaraVariable AddedParameter)
-{
-	if (AddedParameter.GetType().IsDataInterface())
-	{
-		UNiagaraDataInterface* DataInterfaceParameter = UserParameterStore->GetDataInterface(AddedParameter);
-		if (DataInterfaceParameter != nullptr)
-		{
-			TArray<UObject*> ChangedObjects;
-			ChangedObjects.Add(DataInterfaceParameter);
-			OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Added);
-		}
-	}
-	RefreshChildren();
 }
 
 void UNiagaraStackParameterStoreItem::Initialize(

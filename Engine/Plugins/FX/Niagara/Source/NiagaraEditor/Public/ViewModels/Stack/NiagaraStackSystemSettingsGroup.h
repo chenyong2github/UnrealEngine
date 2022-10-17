@@ -40,18 +40,9 @@ public:
 	virtual FText GetIconText() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
-
-protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-
-private:
-	void ParameterAdded(FNiagaraVariable AddedParameter);
-
 private:
 	TWeakObjectPtr<UObject> Owner;
-	FNiagaraParameterStore* UserParameterStore;
 	FDelegateHandle ParameterStoreChangedHandle;
-	TSharedPtr<INiagaraStackItemGroupAddUtilities> AddUtilities;
 };
 
 UCLASS()
