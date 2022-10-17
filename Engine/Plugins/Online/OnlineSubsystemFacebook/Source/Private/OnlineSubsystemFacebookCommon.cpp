@@ -87,11 +87,16 @@ FString FOnlineSubsystemFacebookCommon::GetAppId() const
 
 bool FOnlineSubsystemFacebookCommon::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	if (FOnlineSubsystemImpl::Exec(InWorld, Cmd, Ar))
+	bool bWasHandled = false;
+	if (FParse::Command(&Cmd, TEXT("FACEBOOK")))
 	{
-		return true;
+		bWasHandled = HandleFacebookExecCommands(InWorld, Cmd, Ar);
 	}
-	return false;
+	else if (FOnlineSubsystemImpl::Exec(InWorld, Cmd, Ar))
+	{
+		bWasHandled = true;
+	}
+	return bWasHandled;
 }
 
 IOnlineSessionPtr FOnlineSubsystemFacebookCommon::GetSessionInterface() const
@@ -212,4 +217,128 @@ IOnlineTournamentPtr FOnlineSubsystemFacebookCommon::GetTournamentInterface() co
 FText FOnlineSubsystemFacebookCommon::GetOnlineServiceName() const
 {
 	return NSLOCTEXT("OnlineSubsystemFacebook", "OnlineServiceName", "Facebook");
+}
+
+bool FOnlineSubsystemFacebookCommon::HandleFacebookExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	bool bWasHandled = false;
+
+	if (FParse::Command(&Cmd, TEXT("LOGIN")))
+	{
+		bWasHandled = true;
+
+		FString LocalNumStr = FParse::Token(Cmd, false);
+		int32 LocalNum = FCString::Atoi(*LocalNumStr);
+		if (LocalNumStr.IsEmpty() || LocalNum < 0 || LocalNum > MAX_LOCAL_PLAYERS)
+		{
+			UE_LOG_ONLINE(Warning, TEXT("usage: LOGIN <localnum>"));
+		}
+		else
+		{
+			HandleFacebookLoginCommand(LocalNum);
+		}
+	}
+	else if (FParse::Command(&Cmd, TEXT("LOGOUT")))
+	{
+		bWasHandled = true;
+
+		FString LocalNumStr = FParse::Token(Cmd, false);
+		int32 LocalNum = FCString::Atoi(*LocalNumStr);
+		if (LocalNumStr.IsEmpty() || LocalNum < 0 || LocalNum > MAX_LOCAL_PLAYERS)
+		{
+			UE_LOG_ONLINE(Warning, TEXT("usage: LOGOUT <localnum>"));
+		}
+		else
+		{
+			HandleFacebookLogoutCommand(LocalNum);
+		}
+	}
+	else if (FParse::Command(&Cmd, TEXT("FRIENDS")))
+	{
+		bWasHandled = true;
+
+		FString LocalNumStr = FParse::Token(Cmd, false);
+		int32 LocalNum = FCString::Atoi(*LocalNumStr);
+		if (LocalNumStr.IsEmpty() || LocalNum < 0 || LocalNum > MAX_LOCAL_PLAYERS)
+		{
+			UE_LOG_ONLINE(Warning, TEXT("usage: LOGOUT <localnum>"));
+		}
+		else
+		{
+			HandleFacebookFriendsCommand(LocalNum);
+		}
+	}
+	return bWasHandled;
+}
+
+void FOnlineSubsystemFacebookCommon::HandleFacebookLoginCommand(int32 LocalNum)
+{
+	IOnlineIdentityPtr IdentityInt = GetIdentityInterface();
+	if (IdentityInt.IsValid())
+	{
+		if (IdentityInt->GetLoginStatus(LocalNum) == ELoginStatus::LoggedIn)
+		{
+			UE_LOG_ONLINE(Warning, TEXT("User %d already logged into Facebook. Nickname %s"), LocalNum, *IdentityInt->GetPlayerNickname(LocalNum));
+		}
+		else
+		{
+			FOnlineAccountCredentials AccountCredentials("", "", IdentityInt->GetAuthType());
+
+			TSharedPtr<FDelegateHandle> LoginCompleteHandle = MakeShared<FDelegateHandle>();
+			*LoginCompleteHandle = IdentityInt->AddOnLoginCompleteDelegate_Handle(LocalNum, FOnLoginCompleteDelegate::CreateLambda([IdentityInt = FacebookIdentity.Get(), LoginCompleteHandle](int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& /*UserId*/, const FString& Error)
+				{
+					if (bWasSuccessful)
+					{
+						UE_LOG_ONLINE(Log, TEXT("Facebook login succeeded for player %d. User nickname %s"), LocalUserNum, *IdentityInt->GetPlayerNickname(LocalUserNum));
+					}
+					else
+					{
+						UE_LOG_ONLINE(Log, TEXT("Facebook login failed for player %d: Error: %s"), LocalUserNum, *Error);
+					}
+					IdentityInt->ClearOnLoginCompleteDelegate_Handle(LocalUserNum, *LoginCompleteHandle);
+				}));
+			IdentityInt->Login(LocalNum, AccountCredentials);
+		}
+	}
+}
+
+void FOnlineSubsystemFacebookCommon::HandleFacebookLogoutCommand(int32 LocalNum)
+{
+	IOnlineIdentityPtr IdentityInt = GetIdentityInterface();
+	if (IdentityInt.IsValid())
+	{
+		if (IdentityInt->GetLoginStatus(LocalNum) == ELoginStatus::NotLoggedIn)
+		{
+			UE_LOG_ONLINE(Warning, TEXT("User %d not logged into Facebook"), LocalNum);
+			return;
+		}
+		TSharedPtr<FDelegateHandle> LogoutCompleteHandle = MakeShared<FDelegateHandle>();
+		*LogoutCompleteHandle = IdentityInt->AddOnLogoutCompleteDelegate_Handle(LocalNum, FOnLogoutCompleteDelegate::CreateLambda([IdentityInt = IdentityInt.Get(), LogoutCompleteHandle](int32 LocalUserNum, bool bWasSuccessful)
+			{
+				UE_LOG_ONLINE(Log, TEXT("Facebook logout %s for player %d"), bWasSuccessful ? TEXT("succeeded") : TEXT("failed"), LocalUserNum);
+				IdentityInt->ClearOnLogoutCompleteDelegate_Handle(LocalUserNum, *LogoutCompleteHandle);
+			}));
+		IdentityInt->Logout(LocalNum);
+	}
+}
+
+void FOnlineSubsystemFacebookCommon::HandleFacebookFriendsCommand(int32 LocalNum)
+{
+	IOnlineFriendsPtr FriendsInt = GetFriendsInterface();
+	if (FriendsInt.IsValid())
+	{
+		FriendsInt->ReadFriendsList(LocalNum, ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([FriendsInt = FriendsInt.Get()](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr) {
+			if (bWasSuccessful)
+			{
+				UE_LOG_ONLINE(Log, TEXT("Retrieve Facebook friends list %s for player %d succeeded"), *ListName, LocalUserNum);
+				TArray<TSharedRef<FOnlineFriend>> Friends;
+				FriendsInt->GetFriendsList(LocalUserNum, ListName, Friends);
+				UE_LOG_ONLINE(Log, TEXT("List of %d friends: %s"), Friends.Num(), *FString::JoinBy(Friends, TEXT(", "), [](const TSharedRef<FOnlineFriend>& Friend) { return Friend->GetRealName(); }));
+			}
+			else
+			{
+				UE_LOG_ONLINE(Warning, TEXT("Retrieve Facebook friends list %s for player %d failed: Error: %s"), *ListName, LocalUserNum, *ErrorStr);
+			}
+			}));
+	}
 }

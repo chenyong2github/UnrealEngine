@@ -68,23 +68,53 @@ FLoginFlowResult FOnlineExternalUIFacebook::ParseRedirectResult(const FFacebookL
 
 	TMap<FString, FString> ParamsMap;
 	{
-		FString URLPrefix;
-		FString QueryParams;
-		if (!RedirectURL.Split(TEXT("#"), &URLPrefix, &QueryParams))
+		FStringView QueryParams;
+		FStringView UriFragment;
+
+		int32 QueryParamsStart = RedirectURL.Find(TEXT("?"));
+		int32 FragmentStart = RedirectURL.Find(TEXT("#"), ESearchCase::IgnoreCase, ESearchDir::FromStart, QueryParamsStart);
+		
+		bool HasQueryParams = QueryParamsStart != INDEX_NONE;
+		bool HasUriFragment = FragmentStart != INDEX_NONE;
+
+		if (HasQueryParams)
 		{
-			QueryParams = RedirectURL;
+			// Discard "?"
+			QueryParamsStart += 1;
+			int32 QueryParamsLength = HasUriFragment ? (FragmentStart - QueryParamsStart) : (RedirectURL.Len() - 1);
+			QueryParams = FStringView(RedirectURL).Mid(QueryParamsStart, QueryParamsLength);
+			HasQueryParams = QueryParams.IsEmpty();
 		}
 
-		// Remove the "Facebook fragment"
-		// https://developers.facebook.com/blog/post/552/
-		FString ParamsOnly;
-		if (!QueryParams.Split(TEXT("#_=_"), &ParamsOnly, nullptr))
+		if (HasUriFragment)
 		{
-			ParamsOnly = QueryParams;
+			UriFragment = FStringView(RedirectURL).RightChop(FragmentStart);
+
+			// Facebook adds a fragment #_=_ when that field is left blank
+			// https://developers.facebook.com/blog/post/552/
+			if (UriFragment.Equals(TEXT("#_=_")))
+			{
+				UriFragment.Reset();
+				HasUriFragment = false;
+			}
+			else
+			{
+				UriFragment.RemovePrefix(1);
+			}
 		}
 
+		// Auth token response is received through the UriFragment
+		// Error notifications are received through the QueryParams
 		TArray<FString> Params;
-		ParamsOnly.ParseIntoArray(Params, TEXT("&"));
+		if (HasUriFragment)
+		{
+			FString(UriFragment).ParseIntoArray(Params, TEXT("&"));
+		}
+		else
+		{
+			FString(QueryParams).ParseIntoArray(Params, TEXT("&"));
+		}
+
 		for (FString& Param : Params)
 		{
 			FString Key, Value;
@@ -95,6 +125,8 @@ FLoginFlowResult FOnlineExternalUIFacebook::ParseRedirectResult(const FFacebookL
 		}
 	}
 
+	// Both error or success should contain the state token
+	// Otherwise the response does not refer to this request
 	const FString* State = ParamsMap.Find(FB_STATE_TOKEN);
 	if (State)
 	{

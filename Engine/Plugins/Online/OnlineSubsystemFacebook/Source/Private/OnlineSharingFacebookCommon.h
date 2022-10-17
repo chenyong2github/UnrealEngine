@@ -14,23 +14,11 @@ class FOnlineSubsystemFacebook;
 
 /** Permissions to request at login */
 #define PERM_PUBLIC_PROFILE "public_profile"
+#define PERM_PUBLIC_GAMING_PROFILE "gaming_profile" // Same as public_profile for facebook apps with Gaming Services type
+#define PERM_READ_EMAIL "email"
 
 /** Elevated read permissions */
 #define PERM_READ_FRIENDS "user_friends"
-#define PERM_READ_EMAIL "email"
-#define PERM_READ_STREAM "read_stream"
-#define PERM_READ_MAILBOX "read_mailbox"
-#define PERM_READ_STATUS "user_status"
-#define PERM_READ_PRESENCE "user_online_presence"
-#define PERM_READ_CHECKINS "user_checkins"
-#define PERM_READ_HOMETOWN "user_hometown"
-
-/** Elevated publish permissions */
-#define PERM_PUBLISH_ACTION "publish_actions"
-#define PERM_MANAGE_FRIENDSLIST "manage_friendlists"
-#define PERM_MANAGE_NOTIFICATIONS "manage_notifications"
-#define PERM_CREATE_EVENT "create_event"
-#define PERM_RSVP_EVENT "rsvp_event"
 
 /** Facebook Permission Json */
 #define PERM_JSON_PERMISSIONS "data"

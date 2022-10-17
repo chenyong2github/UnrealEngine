@@ -20,6 +20,19 @@ typedef TSharedPtr<class FOnlineExternalUIFacebookCommon, ESPMode::ThreadSafe> F
 class ONLINESUBSYSTEMFACEBOOK_API FOnlineSubsystemFacebookCommon 
 	: public FOnlineSubsystemImpl
 {
+private:
+
+	/**
+	 * Exec function handling for Exec() call
+	 */
+	bool HandleFacebookExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
+
+	/** Handle facebook login console command */
+	void HandleFacebookLoginCommand(int32 LocalNum);
+	/** Handle facebook logout console command */
+	void HandleFacebookLogoutCommand(int32 LocalNum);
+	/** Handle facebook friends console command */
+	void HandleFacebookFriendsCommand(int32 LocalNum);
 public:
 
 	// IOnlineSubsystem Interface

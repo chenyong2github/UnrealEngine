@@ -18,20 +18,9 @@ void FFacebookPermissions::Setup()
 {
 	///////////////////////////////////////////////
 	// Read Permissions
-	SharingPermissionsMap.Add(EOnlineSharingCategory::ReadPosts, {TEXT(PERM_READ_STREAM)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::Friends, {TEXT(PERM_READ_FRIENDS)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::Email, {TEXT(PERM_READ_EMAIL)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::Mailbox, {TEXT(PERM_READ_MAILBOX)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::OnlineStatus, {TEXT(PERM_READ_STATUS), TEXT(PERM_READ_PRESENCE)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::ProfileInfo, {TEXT(PERM_PUBLIC_PROFILE)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::LocationInfo, {TEXT(PERM_READ_CHECKINS), TEXT(PERM_READ_HOMETOWN)});
-
-	///////////////////////////////////////////////
-	// Publish Permissions
-	SharingPermissionsMap.Add(EOnlineSharingCategory::SubmitPosts, {TEXT(PERM_PUBLISH_ACTION)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::ManageFriends, {TEXT(PERM_MANAGE_FRIENDSLIST)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::AccountAdmin, {TEXT(PERM_MANAGE_NOTIFICATIONS)});
-	SharingPermissionsMap.Add(EOnlineSharingCategory::Events, {TEXT(PERM_CREATE_EVENT), TEXT(PERM_RSVP_EVENT)});
+	SharingPermissionsMap.Add(EOnlineSharingCategory::Friends, { TEXT(PERM_READ_FRIENDS) });
+	SharingPermissionsMap.Add(EOnlineSharingCategory::Email, { TEXT(PERM_READ_EMAIL) });
+	SharingPermissionsMap.Add(EOnlineSharingCategory::ProfileInfo, { TEXT(PERM_PUBLIC_PROFILE), TEXT(PERM_PUBLIC_GAMING_PROFILE) });
 }
 
 void FFacebookPermissions::Reset()
