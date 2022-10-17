@@ -1256,7 +1256,7 @@ namespace RuntimeVirtualTexture
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
 		FRDGExternalAccessQueue ExternalAccessQueue;
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, (const_cast<FScene*>(Scene)), *View, ExternalAccessQueue);
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, *Scene, *View, ExternalAccessQueue);
 		ExternalAccessQueue.Submit(GraphBuilder);
 
 		// Build graph
