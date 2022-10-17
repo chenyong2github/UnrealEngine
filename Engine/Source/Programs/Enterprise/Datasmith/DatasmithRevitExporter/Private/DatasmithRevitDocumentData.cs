@@ -1660,6 +1660,11 @@ namespace DatasmithRevitExporter
 					IList<FDecalMaterial> DecalMaterials = new List<FDecalMaterial>();
 					foreach (KeyValuePair<ElementId, Asset> DecalIdAndAssetPair in ReferencingDecalIdAndAssetPairs)
 					{
+						if (DecalMaterialsMap.ContainsKey(DecalIdAndAssetPair.Key))
+						{
+							continue;
+						}
+
 						FDecalMaterial DecalMaterial = FDecalMaterial.Create(InMaterialNode, CurrentMaterial, DecalMaterials.Count, DecalIdAndAssetPair.Value);
 
 						if (DecalMaterial != null)

@@ -216,8 +216,8 @@ namespace DatasmithRevitExporter
 				return;
 			}
 
-			// We want to keep this number low in order to ensure functioning Revit GUI
-			int MetadataCountPerIdleEvent = 2;
+			// MetadataCountPerIdleEvent value will be revisited in a future release since it also requires changes in the import of metadata.
+			int MetadataCountPerIdleEvent = int.MaxValue;
 
 			string EnvBatchSize = Environment.GetEnvironmentVariable("REVIT_DIRECTLINK_METADATA_BATCH_SIZE");
 			if (!string.IsNullOrEmpty(EnvBatchSize))
