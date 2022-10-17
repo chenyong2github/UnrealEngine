@@ -68,10 +68,10 @@ protected:
 	virtual IEOSPlatformHandlePtr CreatePlatform(const FEOSSDKPlatformConfig& PlatformConfig, EOS_Platform_Options& PlatformOptions);
 	virtual bool Tick(float);
 
+	static EOS_ENetworkStatus ConvertNetworkStatus(ENetworkConnectionStatus Status);
+	void OnNetworkConnectionStatusChanged(ENetworkConnectionStatus LastConnectionState, ENetworkConnectionStatus ConnectionState);
 	void OnApplicationStatusChanged(EOS_EApplicationStatus ApplicationStatus);
-	void OnNetworkStatusChanged(EOS_ENetworkStatus NetworkStatus);
 	EOS_EApplicationStatus CachedApplicationStatus = EOS_EApplicationStatus::EOS_AS_Foreground;
-	EOS_ENetworkStatus CachedNetworkStatus = EOS_ENetworkStatus::EOS_NS_Online;
 
 	friend struct FEOSPlatformHandle;
 
