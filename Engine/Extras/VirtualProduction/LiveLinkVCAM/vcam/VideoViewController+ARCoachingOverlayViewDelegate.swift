@@ -13,7 +13,7 @@ extension VideoViewController : ARCoachingOverlayViewDelegate
 {
     func coachingOverlayViewWillActivate(_ coachingOverlayView: ARCoachingOverlayView) {
         
-        self.relayTouchEvents = false
+        self.streamingConnection?.relayTouchEvents = false
 
     }
 
@@ -25,7 +25,7 @@ extension VideoViewController : ARCoachingOverlayViewDelegate
      */
     func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
         
-        self.relayTouchEvents = true
+        self.streamingConnection?.relayTouchEvents = true
         
     }
 

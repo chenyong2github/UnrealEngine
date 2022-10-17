@@ -64,27 +64,6 @@ class VideoViewController : BaseViewController {
         }
     }
     
-    var relayTouchEvents = true {
-        didSet {
-
-            // if we are stopping touch events sent to OSC, then we need to send an "ended" event
-            // for all of the current touches so the UI doesn't think it's still occurring
-            /*
-            if relayTouchEvents == false {
-
-                for i in 0..<self.currentTouches.count {
-                    if let t = self.currentTouches[i] {
-                        self.sendTouch(.ended, point: t.location(in: self.renderView), finger: i, force: 0);
-                    }
-                }
-                self.currentTouches.removeAll()
-
-            }
-             */
-            
-        }
-    }
-
     @IBOutlet weak var arView : ARSCNView!
 
     @IBOutlet weak var reconnectingBlurView : UIVisualEffectView!

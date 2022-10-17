@@ -87,6 +87,11 @@ class StreamingConnection : NSObject {
         }
     }
     
+    var relayTouchEvents = true {
+        willSet {
+        }
+    }
+
     var stats : StreamingConnectionStats?
     
     private(set) var videoAspectRatio: CGFloat?

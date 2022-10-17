@@ -79,6 +79,13 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
         }
     }
     
+    override var relayTouchEvents : Bool {
+        willSet {
+            self.remoteSessionView?.endAllTouches()
+        }
+    }
+
+    
     required init(subjectName: String) {
         super.init(subjectName: subjectName)
 
@@ -139,7 +146,6 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
     }
     
     override func reconnect() {
-        
         oscConnection?.reconnect()
     }
     
@@ -169,7 +175,6 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
    override func sendControllerButtonReleased(_ type : StreamingConnectionControllerInputType, controllerIndex : UInt8) {
        self.oscConnection?.send(.controllerButtonReleased, arguments: [ OSCArgument.blob(OSCUtility.ueControllerButtonData(key: type.rawValue, controller: Int(controllerIndex), isRepeat: false)) ] )
     }
-
     
     func restartLiveLink() {
 
@@ -224,6 +229,7 @@ extension RemoteSessionStreamingConnection : RemoteSessionViewDelegate {
     
     func remoteSessionView(_ view: RemoteSessionView?, touch type: StreamingConnectionTouchType, index: Int, at point: CGPoint, force: CGFloat) {
         
+        guard self.relayTouchEvents else { return }
         guard let rsv = remoteSessionView else { return }
         
         let normalizedPoint = CGPoint(x: point.x / rsv.frame.size.width, y: point.y / rsv.frame.size.height)

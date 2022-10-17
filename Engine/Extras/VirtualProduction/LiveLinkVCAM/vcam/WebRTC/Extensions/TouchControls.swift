@@ -44,6 +44,19 @@ final class TouchControls : TouchDelegate {
     var fingers : [Int] = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
     var fingerIds = [UITouch : Int]()
     
+    var relayTouchEvents = true {
+        willSet {
+            
+            // cancel/end all touches
+            var touches = Set<UITouch>()
+            for t in self.fingerIds {
+                touches.insert(t.key)
+            }
+            touchesCancelled(touches)
+        }
+
+    }
+    
     init(_ webRTCClient : WebRTCClient, touchView: UIView) {
         self.webRTCClient = webRTCClient
         self.touchView = touchView
@@ -101,7 +114,7 @@ final class TouchControls : TouchDelegate {
         // same as touches ended unless we are hooking up gestures
         touchesEnded(touches)
     }
-    
+
     func onVideoChangedSize(size: CGSize) {
         self.videoAspectRatio = size.height / size.width
     }
@@ -130,6 +143,8 @@ final class TouchControls : TouchDelegate {
     }
     
     func sendTouchData(messageType: PixelStreamingToStreamerMessage, touches: Set<UITouch>) {
+        
+        guard relayTouchEvents else { return }
         
         var bytes: [UInt8] = []
         

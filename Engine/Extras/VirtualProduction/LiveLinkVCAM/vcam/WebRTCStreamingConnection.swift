@@ -47,6 +47,12 @@ class WebRTCStreamingConnection : StreamingConnection {
             return (self.webRTCClientState ?? .disconnected) == .connected
         }
     }
+    
+    override var relayTouchEvents: Bool {
+        willSet {
+            self.touchControls?.relayTouchEvents = relayTouchEvents
+        }
+    }
 
     override var renderView: UIView? {
         didSet {

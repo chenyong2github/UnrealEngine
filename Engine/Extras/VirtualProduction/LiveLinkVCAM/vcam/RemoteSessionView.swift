@@ -54,8 +54,6 @@ class RemoteSessionView : UIView {
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
 
-        //guard relayTouchEvents else { return }
-        
         // for each touch, we need to maintain an index to send via OSC, so that UE
         // can correctly map between began/moved. The currentTouches array will maintain
         // the indices for each touch (keeping some nil if needed) and clean up / compress
@@ -83,8 +81,6 @@ class RemoteSessionView : UIView {
     
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
 
-        //guard relayTouchEvents else { return }
-
         for touch in touches {
             if let fingerIndex = _currentTouches.firstIndex(of: touch) {
                 self.delegate?.remoteSessionView(self, touch: .moved, index: fingerIndex, at: touch.location(in: self), force: touch.force)
@@ -94,8 +90,6 @@ class RemoteSessionView : UIView {
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-
-        //guard relayTouchEvents else { return }
 
         for touch in touches {
             
@@ -116,5 +110,14 @@ class RemoteSessionView : UIView {
         } else {
             _currentTouches.removeAll()
         }
+    }
+    
+    func endAllTouches() {
+        for i in 0..<_currentTouches.count {
+            if let t = _currentTouches[i] {
+                self.delegate?.remoteSessionView(self, touch: .ended, index: i, at: t.location(in: self), force: t.force)
+            }
+        }
+        _currentTouches.removeAll()
     }
 }
