@@ -82,6 +82,11 @@ FCameraShakePreviewUpdater::FCameraShakePreviewUpdater()
 	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FCameraShakePreviewUpdater::OnObjectsReplaced);
 }
 
+FCameraShakePreviewUpdater::~FCameraShakePreviewUpdater()
+{
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+}
+
 void FCameraShakePreviewUpdater::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
 {
 	// If a camera shake gets recompiled, we just stop and discard it.
