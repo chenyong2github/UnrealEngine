@@ -419,7 +419,7 @@ namespace UnrealGameSync
 			// Get the filter for code changes
 			ConfigSection projectConfigSection = LatestProjectConfigFile.FindSection("Perforce");
 
-			string[] codeRules = projectConfigSection.GetValues("CodeFilter", new string[0]);
+			string[] codeRules = projectConfigSection?.GetValues("CodeFilter", (string[]?)null) ?? Array.Empty<string>();
 			if (!Enumerable.SequenceEqual(codeRules, prevCodeRules))
 			{
 				_changeDetails.Clear();
