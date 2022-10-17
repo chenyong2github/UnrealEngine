@@ -120,6 +120,8 @@ namespace Audio
 		{
 			Metronome.SetSampleRate(HeadlessClockSampleRateCvar);
 		}
+
+		UpdateCachedState();
 	}
 
 	FQuartzClock::~FQuartzClock()
@@ -162,11 +164,14 @@ namespace Audio
 				Command.NumFramesUntilExec = NumFramesLeft + Ratio * (Command.NumFramesUntilExec - NumFramesLeft);
 			}
 		}
+
+		UpdateCachedState();
 	}
 
 	void FQuartzClock::ChangeTimeSignature(const FQuartzTimeSignature& InNewTimeSignature)
 	{
 		Metronome.SetTimeSignature(InNewTimeSignature);
+		UpdateCachedState();
 	}
 
 	void FQuartzClock::Resume()
@@ -370,6 +375,8 @@ namespace Audio
 
 		// update Tick Rate
 		Metronome.SetSampleRate(InNewSampleRate);
+
+		UpdateCachedState();
 	}
 
 	bool FQuartzClock::IgnoresFlush() const
