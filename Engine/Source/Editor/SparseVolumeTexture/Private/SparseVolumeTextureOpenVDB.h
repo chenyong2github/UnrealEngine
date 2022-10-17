@@ -35,7 +35,7 @@ UE_PUSH_MACRO("check")
 #include <openvdb/tools/Prune.h>
 #include <openvdb/tools/Dense.h>
 #include <openvdb/math/Vec4.h>
-#include <openvdb//math/Half.h>
+#include <openvdb/math/Half.h>
 
 #if LOCAL_M_PI
 #undef M_PI

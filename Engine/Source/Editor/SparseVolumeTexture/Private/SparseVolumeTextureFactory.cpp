@@ -279,7 +279,7 @@ static bool ConvertOpenVDBToSparseVolumeTexture(
 		// A page encodes the physical tile coord as unsigned int of 11 11 10 bits
 		// This means a page coord cannot be larger than 2047 for x and y and 1023 for z
 		// which mean we cannot have more than 2048*2048*1024 = 4 Giga tiles of 16^3 tiles.
-		uint32 DestinationTileCoord32bit = DestinationTileCoord.X & 0x7FF | ((DestinationTileCoord.Y & 0x7FF) << 11) | ((DestinationTileCoord.Z & 0x3FF) << 22);
+		uint32 DestinationTileCoord32bit = (DestinationTileCoord.X & 0x7FF) | ((DestinationTileCoord.Y & 0x7FF) << 11) | ((DestinationTileCoord.Z & 0x3FF) << 22);
 
 		// Setup the page table entry
 		OutSparseVolumeRawSource.DensityPage.GetData()
