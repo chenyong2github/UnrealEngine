@@ -14,7 +14,7 @@ class UEdGraph;
 struct FEdGraphEditAction;
 
 /** Interface responsible for generating FBlueprintDifferenceTreeEntry's for visual diff tools */
-class IDiffControl
+class KISMET_API IDiffControl
 {
 public:
 	virtual ~IDiffControl() {}
@@ -66,7 +66,7 @@ private:
 
 /** Generic wrapper around a details view template parameter determines whether TreeEntries are populated */
 template<bool bPopulateOutTreeEntries>
-class TDetailsDiffControl : public TSharedFromThis<TDetailsDiffControl<bPopulateOutTreeEntries>>, public IDiffControl
+class KISMET_API TDetailsDiffControl : public TSharedFromThis<TDetailsDiffControl<bPopulateOutTreeEntries>>, public IDiffControl
 {
 public:
 	TDetailsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
