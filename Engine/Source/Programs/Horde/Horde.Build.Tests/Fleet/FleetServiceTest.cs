@@ -82,7 +82,7 @@ namespace Horde.Build.Tests.Fleet
 	}
 
 	[TestClass]
-	public class AutoscaleServiceV2Test : TestSetup
+	public class FleetServiceTest : TestSetup
 	{
 		readonly FleetManagerSpy _fleetManagerSpy = new();
 		readonly IDogStatsd _dogStatsD = new NoOpDogStatsd();
