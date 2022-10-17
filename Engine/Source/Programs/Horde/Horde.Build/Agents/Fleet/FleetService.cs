@@ -8,9 +8,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.AutoScaling;
-using Amazon.EC2;
-using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Jobs;
@@ -33,7 +30,7 @@ namespace Horde.Build.Agents.Fleet
 	/// <summary>
 	/// Service for managing the autoscaling of agent pools
 	/// </summary>
-	public sealed class AutoscaleServiceV2 : IHostedService, IDisposable
+	public sealed class FleetService : IHostedService, IDisposable
 	{
 		/// <summary>
 		/// Max number of auto-scaling calculations to be done concurrently (sizing calculations and fleet manager calls)
@@ -55,12 +52,12 @@ namespace Horde.Build.Agents.Fleet
 		private readonly TimeSpan _defaultScaleOutCooldown;
 		private readonly TimeSpan _defaultScaleInCooldown;
 		private readonly IOptions<ServerSettings> _settings;
-		private readonly ILogger<AutoscaleServiceV2> _logger;
+		private readonly ILogger<FleetService> _logger;
 		
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AutoscaleServiceV2(
+		public FleetService(
 			IAgentCollection agentCollection,
 			IGraphCollection graphCollection,
 			IJobCollection jobCollection,
@@ -72,7 +69,7 @@ namespace Horde.Build.Agents.Fleet
 			IClock clock,
 			IMemoryCache cache,
 			IOptions<ServerSettings> settings,
-			ILogger<AutoscaleServiceV2> logger)
+			ILogger<FleetService> logger)
 		{
 			_agentCollection = agentCollection;
 			_graphCollection = graphCollection;
@@ -85,8 +82,8 @@ namespace Horde.Build.Agents.Fleet
 			_clock = clock;
 			_cache = cache;
 			_logger = logger;
-			_ticker = clock.AddSharedTicker<AutoscaleServiceV2>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, _logger);
-			_tickerHighFrequency = clock.AddSharedTicker("AutoscaleServiceV2.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
+			_ticker = clock.AddSharedTicker<FleetService>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, _logger);
+			_tickerHighFrequency = clock.AddSharedTicker("FleetService.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
 			_settings = settings;
 			_defaultScaleOutCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleOutCooldownSeconds);
 			_defaultScaleInCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleInCooldownSeconds);

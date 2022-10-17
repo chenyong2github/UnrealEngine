@@ -369,7 +369,7 @@ namespace Horde.Build
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 
-			services.AddSingleton<AutoscaleServiceV2>();
+			services.AddSingleton<FleetService>();
 			services.AddSingleton<IFleetManagerFactory, FleetManagerFactory>();
 			
 			// Associate IFleetManager interface with the default implementation from config for convenience
@@ -599,7 +599,7 @@ namespace Horde.Build
 			{
 				services.AddHostedService<MongoUpgradeService>();
 
-				services.AddHostedService(provider => provider.GetRequiredService<AutoscaleServiceV2>());
+				services.AddHostedService(provider => provider.GetRequiredService<FleetService>());
 				
 				services.AddHostedService(provider => provider.GetRequiredService<AgentService>());
 				services.AddHostedService(provider => provider.GetRequiredService<PerforceServiceCache>());
