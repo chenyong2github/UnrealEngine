@@ -1056,10 +1056,12 @@ UActorChannel::UActorChannel(const FObjectInitializer& ObjectInitializer)
 	QueuedCloseReason = EChannelCloseReason::Destroyed;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UActorChannel::~UActorChannel()
 {
 
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UActorChannel::AppendExportBunches( TArray<FOutBunch *>& OutExportBunches )
 {
@@ -2166,7 +2168,7 @@ void UActorChannel::ReleaseReferences(bool bKeepReplicators)
 {
 	Actor = nullptr;
 	CleanupReplicators(bKeepReplicators);
-	CreateSubObjects.Empty();
+	GetCreatedSubObjects().Empty();
 }
 
 void UActorChannel::BreakAndReleaseReferences()
@@ -2226,9 +2228,11 @@ void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 	// Cleanup or save replicators
 	for (auto CompIt = ReplicationMap.CreateIterator(); CompIt; ++CompIt)
 	{
+		TSharedRef< FObjectReplicator >& ObjectReplicatorRef = CompIt.Value();
+
 		// NOTE: FObjectReplicator::GetObject is just going to return a raw Object Pointer,
-		// so it won't actually check to see whether or not the Object was marked PendingKill.
-		if (bKeepReplicators && CompIt.Value()->GetObject() != nullptr)
+		// so it won't actually check to see whether or not the Object was marked PendingKill/Garbage.
+		if (bKeepReplicators && ObjectReplicatorRef->GetObject() != nullptr)
 		{
 			LLM_SCOPE_BYTAG(NetConnection);
 
@@ -2242,12 +2246,13 @@ void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 			//		KeepProcessingActorChannelBunchesMap will get in here, then when the channel closes a second time, we'll hit this assert
 			//		It should be okay to just set the most recent replicator
 			//check( Connection->DormantReplicatorMap.Find( CompIt.Value()->GetObject() ) == NULL );
-			Connection->AddDormantReplicator(CompIt.Value()->GetObject(), CompIt.Value());
-			CompIt.Value()->StopReplicating(this);		// Stop replicating on this channel
+			Connection->AddDormantReplicator(ObjectReplicatorRef->GetObject(), ObjectReplicatorRef);
+			ObjectReplicatorRef->StopReplicating(this);		// Stop replicating on this channel
 		}
 		else
 		{
-			CompIt.Value()->CleanUp();
+
+			ObjectReplicatorRef->CleanUp();
 		}
 	}
 
@@ -2267,6 +2272,7 @@ void UActorChannel::MoveMappedObjectToUnmapped(const UObject* Object)
 void UActorChannel::DestroyActorAndComponents()
 {
 	// Destroy any sub-objects we created
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (UObject* SubObject : CreateSubObjects)
 	{
 		if (SubObject != nullptr)
@@ -2287,6 +2293,7 @@ void UActorChannel::DestroyActorAndComponents()
 	}
 
 	CreateSubObjects.Empty();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Destroy the actor
 	if (Actor != nullptr)
@@ -3880,7 +3887,7 @@ void UActorChannel::Serialize(FArchive& Ar)
 		);
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingGuidResolves", PendingGuidResolves.CountBytes(Ar));
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CreateSubObjects", CreateSubObjects.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CreateSubObjects", GetCreatedSubObjects().CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedMustBeMappedGuidsInLastBunch", QueuedMustBeMappedGuidsInLastBunch.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueuedExportBunches",
@@ -4264,7 +4271,7 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 			MoveMappedObjectToUnmapped(SubObj);
 
 			// Stop tracking this sub-object
-			CreateSubObjects.Remove(SubObj);
+			GetCreatedSubObjects().Remove(SubObj);
 
 			if (Connection != nullptr && Connection->Driver != nullptr)
 			{
@@ -4383,7 +4390,7 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 		Connection->Driver->GuidCache->RegisterNetGUID_Client( NetGUID, SubObj );
 
 		// Track which sub-object guids we are creating
-		CreateSubObjects.Add( SubObj );
+		GetCreatedSubObjects().Add( SubObj );
 
 		// Add this sub-object to the ImportedNetGuids list so we can possibly map this object if needed
 		if (ensureMsgf(NetGUID.IsValid(), TEXT("Channel tried to add an invalid GUID to the import list: %s"), *Describe()))

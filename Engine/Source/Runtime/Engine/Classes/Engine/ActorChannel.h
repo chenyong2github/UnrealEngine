@@ -126,8 +126,16 @@ public:
 
 	TSet<FNetworkGUID> PendingGuidResolves;	// These guids are waiting for their resolves, we need to queue up bunches until these are resolved
 
+	UE_DEPRECATED(5.1, "The CreateSubObjects array will be made private in future versions. Use GetCreatedSubObjects() instead")
 	UPROPERTY()
 	TArray< TObjectPtr<UObject> >					CreateSubObjects;		// Any sub-object we created on this channel
+
+	inline const TArray< TObjectPtr<UObject> >& GetCreatedSubObjects() const 
+	{ 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return CreateSubObjects;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	TArray< FNetworkGUID >				QueuedMustBeMappedGuidsInLastBunch;	// Array of guids that will async load on client. This list is used for queued RPC's.
 	TArray< class FOutBunch * >			QueuedExportBunches;				// Bunches that need to be appended to the export list on the next SendBunch call. This list is used for queued RPC's.
@@ -418,6 +426,13 @@ private:
 
 	void TestLegacyReplicateSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags);
 	void TestLegacyReplicateSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
+
+	inline TArray< TObjectPtr<UObject> >& GetCreatedSubObjects()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return CreateSubObjects;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 private:
 
