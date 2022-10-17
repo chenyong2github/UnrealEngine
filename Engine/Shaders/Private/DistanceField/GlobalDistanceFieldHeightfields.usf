@@ -36,7 +36,7 @@ struct FHeightfieldSample
 	float3 WorldNormal;
 };
 
-FHeightfieldSample SampleHeightfield(FLWCVector3 PreViewTranslation, FLWCVector3 VoxelWorldCenter)
+FHeightfieldSample SampleHeightfield(FLWCVector3 PreViewTranslation, FLWCVector3 VoxelWorldCenter, float VoxelWorldExtent)
 {
 	FHeightfieldSample Sample;
 	Sample.bValid = false;
@@ -66,7 +66,7 @@ FHeightfieldSample SampleHeightfield(FLWCVector3 PreViewTranslation, FLWCVector3
 		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
 		{
 			float HeightfieldVisibility;
-			FLWCVector3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(Sample.HeightfieldIndex, LocalPosition.xy, HeightfieldUV, Sample.WorldNormal, HeightfieldVisibility);
+			FLWCVector3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(Sample.HeightfieldIndex, LocalPosition.xy, HeightfieldUV, VoxelWorldExtent, Sample.WorldNormal, HeightfieldVisibility);
 			Sample.TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldHeightfieldShadingPosition, PreViewTranslation));
 
 			// Skip holes in the heightfield
@@ -117,7 +117,7 @@ void MarkHeightfieldPagesCS(
 
 	GroupMarkedPage[ThreadIndex] = 0;
 
-	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, VoxelWorldCenter);
+	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, VoxelWorldCenter, ClipmapVoxelExtent);
 	if (HeightfieldSample.bValid)
 	{
 		float3 VoxelTranslatedWorldCenterNearestZ = VoxelTranslatedWorldCenter;
@@ -247,7 +247,7 @@ void ComposeHeightfieldsIntoPagesCS(
 	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
 	PageAtlasCoord += TexelCoordInPage;
 
-	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, VoxelWorldCenter);
+	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, VoxelWorldCenter, ClipmapVoxelExtent);
 	if (HeightfieldSample.bValid)
 	{
 		// Compute distance for all Z values of the update region
@@ -305,7 +305,7 @@ void CompositeHeightfieldsIntoObjectGridPagesCS(
 	float CardInterpolationRange = DISTANCE_FIELD_OBJECT_GRID_CARD_INTERPOLATION_RANGE_IN_VOXELS * ClipmapVoxelExtent;
 	float MaxQueryDistance = 1.44f * ObjectGridCellWorldExtent + CardInterpolationRange;
 
-	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, ObjectGridCellWorldCenter);
+	FHeightfieldSample HeightfieldSample = SampleHeightfield(PreViewTranslation, ObjectGridCellWorldCenter, ObjectGridCellWorldExtent);
 	if (HeightfieldSample.bValid)
 	{
 		float HeightfieldDistance = ComputeHeightfieldDistance(HeightfieldSample, ObjectGridCellTranslatedWorldCenter);

@@ -40,6 +40,16 @@ float2 GetHeightfieldSizeInv(uint Index)
 	return HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 2].zw;
 }
 
+float3x3 GetWorldToLocalRotT(uint Index)
+{
+	float4 M0 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 4];
+	float4 M1 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 5];
+	float4 M2 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 6];
+
+	float3x3 RelativeWorldToLocal = float3x3(M0.xyz, M1.xyz, M2.xyz);
+	return RelativeWorldToLocal;
+}
+
 FLWCInverseMatrix GetWorldToLocal(uint Index)
 {
 	float3 TilePosition = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 3].xyz;
@@ -77,6 +87,12 @@ uint GetHeightfieldGPUSceneInstanceIndex(uint HeightfieldIndex)
 	return asuint(V0.x);
 }
 
+float GetHeightfieldInvMaxScale(uint HeightfieldIndex)
+{
+	float4 V0 = HeightfieldDescriptions[HeightfieldIndex * HEIGHTFIELD_DATA_STRIDE + 11];
+	return V0.y;
+}
+
 float2 GetHeightfieldUV(uint HeightfieldIndex, float2 LocalPosition, out float4 MinMaxHeightfieldUV)
 {
 	bool bHasSubsections;
@@ -107,7 +123,15 @@ float2 GetVisibilityUV(uint HeightfieldIndex, float2 LocalPosition)
 	return LocalPosition * GetHeightfieldSizeInv(HeightfieldIndex);
 }
 
-FLWCVector3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV, out float3 WorldNormal, out float Visibility)
+float SampleHeightfield(uint HeightfieldIndex, float4 HeightfieldScaleBias, float2 LocalPosition)
+{
+	float4 MinMaxHeightfieldUV;
+	float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition, MinMaxHeightfieldUV);
+	HeightfieldUV = clamp(HeightfieldUV, MinMaxHeightfieldUV.xy, MinMaxHeightfieldUV.zw);
+	return DecodePackedHeight(Texture2DSampleLevel(HeightfieldTexture, HeightfieldSampler, HeightfieldUV + 0.5f * HeightfieldScaleBias.xy, 0).xy);
+}
+
+FLWCVector3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV, float CentralDiffOffset, out float3 WorldNormal, out float Visibility)
 {
 	//@todo - don't call GetHeightfieldScaleBias twice
 	bool bHasSubsections;
@@ -117,7 +141,24 @@ FLWCVector3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 L
 	float HeightfieldHeight = DecodePackedHeight(SampleValue.xy);
 
 	float2 SampleNormal = float2(SampleValue.b, SampleValue.a) * float2(2.0,2.0) - float2(1.0,1.0);
-	WorldNormal = float3(SampleNormal, sqrt(max(1.0 - dot(SampleNormal, SampleNormal), 0.0)));
+	float3 HeightfieldNormal = float3(SampleNormal, sqrt(max(1.0 - dot(SampleNormal, SampleNormal), 0.0)));
+
+	// Reconstruct normal using central differences
+	// This is usually a better approximation for normal over the CentralDiffOffset area than SampleNormal
+	{
+		float2 TexelOffset = CentralDiffOffset * GetHeightfieldInvMaxScale(HeightfieldIndex);
+
+		float R = SampleHeightfield(HeightfieldIndex, HeightfieldScaleBias, LocalPosition.xy + float2(+TexelOffset.x, 0.0f));
+		float L = SampleHeightfield(HeightfieldIndex, HeightfieldScaleBias, LocalPosition.xy + float2(-TexelOffset.x, 0.0f));
+		float T = SampleHeightfield(HeightfieldIndex, HeightfieldScaleBias, LocalPosition.xy + float2(0.0f, +TexelOffset.y));
+		float B = SampleHeightfield(HeightfieldIndex, HeightfieldScaleBias, LocalPosition.xy + float2(0.0f, -TexelOffset.y));
+
+		float3 HeightfieldGradient = float3((R - L) / (2.0f * TexelOffset.x), (T - B) / (2.0f * TexelOffset.y), 1.0f);
+		float HeightfieldGradientLength = length(HeightfieldGradient);
+		HeightfieldNormal = HeightfieldGradientLength > 0.001f ? HeightfieldGradient / HeightfieldGradientLength : HeightfieldNormal;
+	}
+
+	WorldNormal = normalize(mul(HeightfieldNormal, GetWorldToLocalRotT(HeightfieldIndex)));
 
 	float2 VisibilityUV = GetVisibilityUV(HeightfieldIndex, LocalPosition);
 	float4 SampleVisibility = Texture2DSampleLevel(VisibilityTexture, VisibilitySampler, VisibilityUV, 0);
@@ -127,11 +168,4 @@ FLWCVector3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 L
 	FLWCVector3 HeightfieldWorldPosition = LWCMultiply(HeightfieldLocalPosition, GetLocalToWorld(HeightfieldIndex));
 
 	return HeightfieldWorldPosition;
-}
-
-FLWCVector3 GetHeightfieldWorldPosition(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV)
-{
-	float3 WorldNormal;
-	float Visibility;
-	return GetHeightfieldWorldPositionAndNormal(HeightfieldIndex, LocalPosition, HeightfieldUV, WorldNormal, Visibility);
 }

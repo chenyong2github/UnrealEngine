@@ -65,12 +65,11 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 		}
 		HeightfieldDescriptionData.Add(ChannelMask);
 
-		uint32 PackedData[4];
-		PackedData[0] = Description.GPUSceneInstanceIndex;
-		PackedData[1] = 0;
-		PackedData[2] = 0;
-		PackedData[3] = 0;
-		HeightfieldDescriptionData.Add(*(FVector4f*)&PackedData);
+		FVector4f& V0 = HeightfieldDescriptionData.AddDefaulted_GetRef();
+		V0.X = *(float*)&Description.GPUSceneInstanceIndex;
+		V0.Y = 1.0f / LocalToRelativeWorld.GetMaximumAxisScale();
+		V0.Z = 0.0f;
+		V0.W = 0.0f;
 	}
 
 	check(HeightfieldDescriptionData.Num() % HEIGHTFIELD_DATA_STRIDE == 0);
