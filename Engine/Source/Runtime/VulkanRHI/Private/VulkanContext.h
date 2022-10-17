@@ -8,7 +8,6 @@
 
 #include "VulkanResources.h"
 #include "VulkanGPUProfiler.h"
-#include "VulkanRenderpass.h"
 
 class FVulkanDevice;
 class FVulkanCommandBufferManager;

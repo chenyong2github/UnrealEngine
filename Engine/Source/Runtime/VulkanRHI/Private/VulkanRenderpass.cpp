@@ -4,7 +4,9 @@
 	VulkanState.cpp: Vulkan state implementation.
 =============================================================================*/
 
+#include "VulkanRHIPrivate.h"
 #include "VulkanRenderpass.h"
+#include "VulkanContext.h"
 
 VkRenderPass CreateVulkanRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& RTLayout)
 {

@@ -11,6 +11,7 @@
 #include "VulkanSwapChain.h"
 #include "SceneUtils.h"
 #include "RHISurfaceDataConversion.h"
+#include "VulkanRenderpass.h"
 
 // Debug mode used as workaround when a DEVICE LOST occurs on alt+tab on some platforms
 // This is a workaround and may end up causing some hitches on the rendering thread

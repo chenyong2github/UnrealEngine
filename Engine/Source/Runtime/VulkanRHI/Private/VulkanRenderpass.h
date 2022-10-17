@@ -11,7 +11,8 @@
 #include "VulkanRHIPrivate.h"
 #include "VulkanResources.h"
 #include "VulkanPendingState.h"
-#include "VulkanContext.h"
+
+class FVulkanCommandListContext;
 
 template <typename TAttachmentReferenceType>
 struct FVulkanAttachmentReference
