@@ -26,7 +26,7 @@ struct FLevelInstanceID
 
 	inline bool operator==(const FLevelInstanceID& Other) const
 	{
-		return Hash == Other.Hash && Guids == Other.Guids;
+		return Hash == Other.Hash && Guids == Other.Guids && ActorName == Other.ActorName;
 	}
 
 	inline bool IsValid() const { return !Guids.IsEmpty(); }
@@ -36,6 +36,7 @@ struct FLevelInstanceID
 private:
 	uint64 Hash = 0;
 	TArray<FGuid> Guids;
+	FName ActorName;
 };
 
 UENUM()
