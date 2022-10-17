@@ -97,3 +97,5 @@
 /* Class = "UINavigationItem"; title = "License"; ObjectID = "ZHG-A7-gPg"; */
 "ZHG-A7-gPg.title" = "라이선스";
 
+/* Class = "UILabel"; title = "Connection Type"; ObjectID = "DJe-a8-JcI"; */
+"DJe-a8-JcI.text" = "연결 타입";

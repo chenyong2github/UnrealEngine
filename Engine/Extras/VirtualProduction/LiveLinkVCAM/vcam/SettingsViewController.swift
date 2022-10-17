@@ -13,6 +13,25 @@ class SettingsViewController : UITableViewController {
     
     let appSettings = AppSettings.shared
     
+    class LocalizedConnectionType {
+        
+        class func title() -> String {
+            return NSLocalizedString("connectiontype-title", value: "ConnectionType", comment: "")
+        }
+        class func footer() -> String {
+            return ""
+            //return NSLocalizedString("connectiontype-footer", value: "", comment: "")
+        }
+        class func value(_ type : StreamingConnectionType) -> String {
+            switch type {
+            case .remoteSession:
+                return NSLocalizedString("connectiontype-value-remotesession", value: "Remote Session", comment: "")
+            case .webRTC:
+                return NSLocalizedString("connectiontype-value-pixelstreaming", value: "Pixel Streaming", comment: "")
+            }
+        }
+    }
+                    
     override func viewDidLoad() {
         super.viewDidLoad()
         if UIDevice.current.userInterfaceIdiom == .phone {
@@ -40,12 +59,7 @@ class SettingsViewController : UITableViewController {
             cell.detailTextLabel?.text = Timecode.sourceToString(appSettings.timecodeSourceEnum())
             
         case "connectionType":
-            switch appSettings.connectionTypeEnum() {
-            case .remoteSession:
-                cell.detailTextLabel?.text = "Remote Session"
-            case .webRTC:
-                cell.detailTextLabel?.text = "Pixel Streaming"
-            }
+            cell.detailTextLabel?.text = LocalizedConnectionType.value(appSettings.connectionTypeEnum())
 
         default:
             break
@@ -84,12 +98,12 @@ class SettingsViewController : UITableViewController {
             
             if segue.identifier == "connectionType" {
                 
-                vc.navigationItem.title = "Connection Type"
-                vc.items = [ "Remote Session", "Pixel Streaming" ]
-                vc.selectedIndex = appSettings.connectionType == "RemoteSession" ? 0 : 1
-                vc.footerString = "Description of Connection Types"
+                vc.navigationItem.title = LocalizedConnectionType.title()
+                vc.items = [ LocalizedConnectionType.value(.remoteSession), LocalizedConnectionType.value(.webRTC) ]
+                vc.selectedIndex = appSettings.connectionTypeEnum() == .remoteSession ? 0 : 1
+                vc.footerString = LocalizedConnectionType.footer()
                 vc.completion = { (index) in
-                    self.appSettings.connectionType = index == 0 ? "RemoteSession" : "WebRTC"
+                    self.appSettings.setConnectionTypeEnum(index == 0 ? .remoteSession : .webRTC)
                 }
             }
         }

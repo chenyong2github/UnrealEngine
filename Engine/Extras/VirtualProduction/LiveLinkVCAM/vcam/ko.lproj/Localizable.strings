@@ -157,3 +157,14 @@
 /* An unknown or unsupported value was found */
 "value-unknown" = "알 수 없음";
 
+/* Type of UE connection to use (remote session or pixel streaming) */
+"connectiontype-title" = "연결 타입";
+
+/* Footer describing the connection type option */
+"connectiontype-footer" = "";
+
+/* Remote Session */
+"connectiontype-value-remotesession" = "리모트 세션";
+
+/* Pixel Streaming */
+"connectiontype-value-pixelstreaming" = "픽셀 스트리밍";

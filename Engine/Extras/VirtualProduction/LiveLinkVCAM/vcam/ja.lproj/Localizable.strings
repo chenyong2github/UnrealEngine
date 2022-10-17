@@ -157,3 +157,14 @@
 /* An unknown or unsupported value was found */
 "value-unknown" = "不明";
 
+/* Type of UE connection to use (remote session or pixel streaming) */
+"connectiontype-title" = "接続タイプ";
+
+/* Footer describing the connection type option */
+"connectiontype-footer" = "";
+
+/* Remote Session */
+"connectiontype-value-remotesession" = "リモート セッション";
+
+/* Pixel Streaming */
+"connectiontype-value-pixelstreaming" = "ピクセルストリーミング";
