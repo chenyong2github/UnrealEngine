@@ -1327,7 +1327,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	{
 		if (ArgC < 6)
 		{
-			printf("ShaderCompileWorker is called by UnrealEditor, it requires specific command like arguments.\n");
+			printf("ShaderCompileWorker is called by UnrealEditor, it requires specific command line arguments.\n");
 			return -1;
 		}
 
