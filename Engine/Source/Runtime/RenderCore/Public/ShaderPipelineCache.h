@@ -267,6 +267,7 @@ private:
 	std::atomic_bool bHasShaderPipelineTask = false;
 
 	mutable FCriticalSection Mutex;
+	FGraphEventRef NextPrecompileCacheTask;
 
 	static FShaderCachePreOpenDelegate OnCachePreOpen;
     static FShaderCacheOpenedDelegate OnCachedOpened;
