@@ -2512,6 +2512,8 @@ static void SerializePlatformData(
 			if (bStreamable)
 #endif
 			{
+				check( Texture->IsPossibleToStream() );
+
 				int32 NumNonStreamingMips = PlatformData->GetNumNonStreamingMips(true);
 				// NumMips has been reduced by FirstMipToSerialize (LODBias)
 				NumNonStreamingMips = FMath::Min(NumNonStreamingMips,NumMips);
@@ -2530,6 +2532,16 @@ static void SerializePlatformData(
 
 				// Optional mips must not overlap the non-streaming mips : (MinMipToInline ensures this)
 				check( OptionalMips + NumNonStreamingMips <= NumMips );
+#endif
+			
+#if WITH_EDITOR
+				// if we make any streaming mips, record it on the owner :
+				if ( NumNonStreamingMips < NumMips )
+				{
+					// was added previously and set to false, so FindChecked here :
+					const FString PlatformName = Ar.CookingTarget()->PlatformName();
+					Texture->DidSerializeStreamingMipsForPlatform.FindChecked( PlatformName ) = true;
+				}
 #endif
 			}
 
@@ -2681,7 +2693,6 @@ UE::DerivedData::FValueId FTexturePlatformData::MakeMipId(int32 MipIndex)
 void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool bStreamable)
 {
 	EPlatformDataSerializationFlags Flags = EPlatformDataSerializationFlags::Cooked;
-	// @@CB bStreamable may be set to true because of bCookedIsStreamable even if I am NOT actually a streamable texture on this platform
 	if (bStreamable)
 	{
 		Flags |= EPlatformDataSerializationFlags::Streamable;
@@ -3410,7 +3421,6 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 #if WITH_EDITOR
 	if (Ar.IsCooking() && Ar.IsPersistent())
 	{
-		bCookedIsStreamable.Reset();
 		if (Ar.CookingTarget()->AllowAudioVisualData())
 		{
 			TArray<FTexturePlatformData*> PlatformDataToSerialize;
@@ -3486,17 +3496,14 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				}
 			}
 
+			// set DidSerializeStreamingMipsForPlatform to false, then it will change to true if any SerializeCooked makes streaming mips
+			const FString PlatformName = Ar.CookingTarget()->PlatformName();
+			DidSerializeStreamingMipsForPlatform.Add( PlatformName, false );
+
+			// this iteration is over NumLayers :
 			for (FTexturePlatformData* PlatformDataToSave : PlatformDataToSerialize)
 			{
 				PlatformDataToSave->FinishCache();
-
-				// Update bCookedIsStreamable for later use in IsCandidateForTextureStreaming
-				// @@CB bCookedIsStreamable is set to true if the texture can be streamed on ANY platform
-				FStreamableRenderResourceState State;
-				if (GetStreamableRenderResourceState(PlatformDataToSave, State))
-				{
-					bCookedIsStreamable = !bCookedIsStreamable.IsSet() ? State.bSupportsStreaming : (*bCookedIsStreamable || State.bSupportsStreaming);
-				}
 
 				FName PixelFormatName = PixelFormatEnum->GetNameByValue(PlatformDataToSave->PixelFormat);
 				Ar << PixelFormatName;
@@ -3508,9 +3515,6 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				}
 
 				// Pass streamable flag for inlining mips
-				// @@CB GetTextureIsStreamableOnPlatform checks bCookedIsStreamable which changes while we go through this loop
-				//		that makes behavior dependent on order of platforms
-				// 
 				bool bTextureIsStreamable = GetTextureIsStreamableOnPlatform(*this, *Ar.CookingTarget());
 				PlatformDataToSave->SerializeCooked(Ar, this, bTextureIsStreamable);
 

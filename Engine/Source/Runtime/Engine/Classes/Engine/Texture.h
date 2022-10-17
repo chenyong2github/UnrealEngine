@@ -1385,13 +1385,15 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Texture)
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
-private:
-
+public:
 #if WITH_EDITOR
-	/** Used to mark texture streamable state when cooking. */
-	TOptional<bool> bCookedIsStreamable;
+	/** Used to record texture streamable state when cooking.
+	This a per-platform bool to record whether the PlatformData being cooked made streamable mips.
+	Key is TargetPlatform->PlatformName */
+	TMap<FString,bool> DidSerializeStreamingMipsForPlatform;
 #endif
 
+private:
 	/** The texture's resource, can be NULL */
 	class FTextureResource*	PrivateResource;
 	/** Value updated and returned by the render-thread to allow
@@ -1811,7 +1813,7 @@ public:
 
 #if WITH_EDITOR
 	/** Called by ULevel::MarkNoStreamableTexturesPrimitiveComponents when cooking level.
-	Checks bCookedIsStreamable.  Return false for VT. */
+	* Return false for VT. */
 	bool IsCandidateForTextureStreamingOnPlatformDuringCook(const ITargetPlatform* InTargetPlatform) const;
 
 	/** Get the largest allowed dimension of non-VT texture
@@ -1842,7 +1844,6 @@ protected:
 	/** Notify any loaded material instances that the texture has changed. */
 	ENGINE_API void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
 
-	virtual bool GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const { return false; }
 #endif //WITH_EDITOR
 
 	void BeginFinalReleaseResource();

@@ -317,9 +317,4 @@ public:
 	 */
 	virtual bool IsVirtualTexturedWithSinglePhysicalSpace() const { return false;  }
 
-protected:
-
-#if WITH_EDITOR
-	virtual bool GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const override;
-#endif
 };

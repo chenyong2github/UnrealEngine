@@ -913,39 +913,6 @@ bool UTexture2D::HasAlphaChannel() const
 	return false;
 }
 
-#if WITH_EDITOR
-bool UTexture2D::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
-{
-	// we want to make queries about InPlatformData here, not the current platform data
-	// so for the scope of this function, change PrivatePlatformData to InPlatformData
-	TGuardValue<FTexturePlatformData*> Guard(const_cast<UTexture2D*>(this)->PrivatePlatformData, InPlatformData);
-
-	check( GetPlatformData() == InPlatformData );
-
-	if (GetPlatformData())
-	{
-		if (IsCurrentlyVirtualTextured())
-		{
-			return false;
-		}
-
-		// we're relying on these calls like GetPixelFormat() to actually be queries on InPlatformData :
-		const EPixelFormat PixelFormat = GetPixelFormat();
-		const int32 NumMips = FMath::Min3<int32>(GetPlatformData()->Mips.Num(), GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
-		if (NumMips && GPixelFormats[PixelFormat].Supported &&
-			(NumMips > 1 || FMath::Max(GetSizeX(), GetSizeY()) <= (int32)GetMax2DTextureDimension()))
-		{
-			// this wants to make a query on InPlatformData, for some other target platform
-			// @todo Oodle : this is a bit broken, will use the current DeviceProfile in CalculateLODBias
-			//		it should be getting LODGroup settings from the TargetPlatform but is not
-			OutState = GetResourcePostInitState(GetPlatformData(), true, 0, NumMips, /*bSkipCanBeLoaded*/ true);
-			return true;
-		}
-	}
-	return false;
-}
-#endif
-
 FTextureResource* UTexture2D::CreateResource()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::CreateResource)

@@ -1375,9 +1375,7 @@ bool UTexture::IsPossibleToStream() const
 }
 
 #if WITH_EDITOR
-// Based on target platform, returns wether texture is candidate to be streamed.
-// This method is used to decide if PrimitiveComponent's bHasNoStreamableTextures flag can be set to true.
-// See ULevel::MarkNoStreamableTexturesPrimitiveComponents for details.
+// Based on target platform, returns whether texture is candidate to be streamed.
 bool UTexture::IsCandidateForTextureStreamingOnPlatformDuringCook(const ITargetPlatform* InTargetPlatform) const
 {
 	const bool bIsVirtualTextureStreaming = InTargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming) ? VirtualTextureStreaming : false;
@@ -1386,15 +1384,6 @@ bool UTexture::IsCandidateForTextureStreamingOnPlatformDuringCook(const ITargetP
 	if (bIsCandidateForTextureStreaming &&
 		IsPossibleToStream())
 	{
-		// If bCookedIsStreamable flag was previously computed, use it.
-		// This is computed _after_ the derived data is cached. It's only Reset() and used in the SerializeCookedPlatformData
-		// path.. but not the BeginCacheForCookedPlatformData path. Need to know what happens if you do
-		// one, then the other, as the flag will be set. Also note that this is an OR when multiple platforms
-		// are cooked... so this can be true for a non-streaming platform if it gets cooked with a streaming platform!
-		if (bCookedIsStreamable.IsSet())
-		{
-			return *bCookedIsStreamable;
-		}
 		return true;
 	}
 	return false;

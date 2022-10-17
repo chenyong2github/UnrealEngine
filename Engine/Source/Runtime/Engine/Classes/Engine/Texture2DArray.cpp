@@ -144,23 +144,6 @@ FTexturePlatformData* UTexture2DArray::GetPlatformData()
 	return const_cast<FTexturePlatformData*>(ConstThis->GetPlatformData());
 }
 
-#if WITH_EDITOR
-bool UTexture2DArray::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
-{
-	TGuardValue<FTexturePlatformData*> Guard(const_cast<UTexture2DArray*>(this)->PrivatePlatformData, InPlatformData);
-	if (GetPlatformData())
-	{
-		const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
-		if (GetNumMips() > 0 && FormatInfo.Supported)
-		{
-			OutState = GetResourcePostInitState(GetPlatformData(), GSupportsTexture2DArrayStreaming, 0, 0, /*bSkipCanBeLoaded*/ true);
-			return true;
-		}
-	}
-	return false;
-}
-#endif
-
 FTextureResource* UTexture2DArray::CreateResource()
 {
 #if WITH_EDITOR

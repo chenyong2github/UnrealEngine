@@ -137,9 +137,4 @@ public:
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
 	//~ End UStreamableRenderAsset Interface
 
-protected:
-
-#if WITH_EDITOR
-	virtual bool GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const override;
-#endif
 };

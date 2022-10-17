@@ -501,24 +501,6 @@ EPixelFormat UVolumeTexture::GetPixelFormat() const
 	return PF_Unknown;
 }
 
-#if WITH_EDITOR
-bool UVolumeTexture::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
-{
-	TGuardValue<FTexturePlatformData*> Guard(const_cast<UVolumeTexture*>(this)->PrivatePlatformData, InPlatformData);
-	if (GetPlatformData())
-	{
-		const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
-		const bool bFormatIsSupported = FormatInfo.Supported;
-		if (GetNumMips() > 0 && GSupportsTexture3D && bFormatIsSupported)
-		{
-			OutState = GetResourcePostInitState(GetPlatformData(), GSupportsVolumeTextureStreaming, 0, 0, /*bSkipCanBeLoaded*/ true);
-			return true;
-		}
-	}
-	return false;
-}
-#endif
-
 FTextureResource* UVolumeTexture::CreateResource()
 {
 #if WITH_EDITOR
