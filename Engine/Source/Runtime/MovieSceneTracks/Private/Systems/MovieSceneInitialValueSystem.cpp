@@ -157,7 +157,8 @@ void UMovieSceneInitialValueSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 		// When there is no caching extension, or we are interrogating we simply initialize any initial values directly without going through the cache
 		FEntityComponentFilter Filter;
 		Filter.Any(Mutation.AnyInitialValue);
-		Filter.All({ BuiltInComponents->BoundObject, BuiltInComponents->Tags.NeedsLink });
+		Filter.Any({ BuiltInComponents->BoundObject, BuiltInComponents->Interrogation.OutputKey });
+		Filter.All({ BuiltInComponents->Tags.NeedsLink });
 
 		for (FEntityAllocationIteratorItem Item : Linker->EntityManager.Iterate(&Filter))
 		{
