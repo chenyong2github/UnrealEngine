@@ -9,6 +9,7 @@
 #include "PCGComponent.generated.h"
 
 class APCGPartitionActor;
+struct FPCGContext;
 class UPCGComponent;
 class UPCGGraph;
 class UPCGManagedResource;
@@ -177,6 +178,12 @@ public:
 	FOnPCGGraphCleaned OnPCGGraphCleanedDelegate;
 #endif
 
+	/** Can specify a list of functions from the owner of this component to be called when generation is done, in order. 
+	*   Need to take (and only take) a PCGDataCollection as parameter and with "CallInEditor" flag enabled.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties)
+	TArray<FName> PostGenerateFunctionNames;
+
 	/** Return if we are currently generating the graph for this component */
 	bool IsGenerating() const { return CurrentGenerationTask != InvalidPCGTaskId; }
 	bool IsCleaningUp() const { return CurrentCleanupTask != InvalidPCGTaskId; }
@@ -240,7 +247,8 @@ private:
 	/* Internal call to create tasks to cleanup the component. If there is nothing to do, an invalid task id will be returned. Should only be used by the subsystem. */
 	FPCGTaskId CreateCleanupTask(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies);
 
-	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
+	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated, FPCGContext* Context);
+	void CallPostGenerateFunctions(FPCGContext* Context) const;
 	void PostCleanupGraph();
 	void OnProcessGraphAborted();
 	void CleanupUnusedManagedResources();

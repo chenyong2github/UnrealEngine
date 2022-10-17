@@ -106,7 +106,8 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 		check(ScheduledTask.Tasks.Num() >= 2 && ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Node == nullptr);
 		for (FPCGTaskId ExternalDependency : ExternalDependencies)
 		{
-			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, nullptr, nullptr);
+			// For the pre-task, we don't consume any input
+			ScheduledTask.Tasks[ScheduledTask.Tasks.Num() - 2].Inputs.Emplace(ExternalDependency, nullptr, nullptr, /*bConsumeData=*/false);
 		}
 
 		ScheduleLock.Unlock();
@@ -117,11 +118,21 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 
 FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies)
 {
+	// Since we have no context, the generic task will consume no input
+	constexpr bool bConsumeInputData = false;
+	return ScheduleGenericWithContext([Operation = MoveTemp(InOperation)](FPCGContext*) -> bool
+		{
+			return Operation();
+		}, InSourceComponent, TaskDependencies, bConsumeInputData);
+}
+
+FPCGTaskId FPCGGraphExecutor::ScheduleGenericWithContext(TFunction<bool(FPCGContext*)> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies, bool bConsumeInputData)
+{
 	// Build task & element to hold the operation to perform
 	FPCGGraphTask Task;
 	for (FPCGTaskId TaskDependency : TaskDependencies)
 	{
-		Task.Inputs.Emplace(TaskDependency, nullptr, nullptr);
+		Task.Inputs.Emplace(TaskDependency, nullptr, nullptr, bConsumeInputData);
 	}
 
 	Task.SourceComponent = InSourceComponent;
@@ -601,6 +612,13 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 	for (const FPCGGraphTaskInput& Input : Task.Inputs)
 	{
 		check(OutputData.Contains(Input.TaskId));
+
+		// If the input does not provide any data, don't add it to the task input.
+		if (!Input.bProvideData)
+		{
+			continue;
+		}
+
 		const FPCGDataCollection& InputCollection = OutputData[Input.TaskId];
 
 		TaskInput.bCancelExecution |= InputCollection.bCancelExecution;
@@ -884,7 +902,7 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
-FPCGGenericElement::FPCGGenericElement(TFunction<bool()> InOperation)
+FPCGGenericElement::FPCGGenericElement(TFunction<bool(FPCGContext*)> InOperation)
 	: Operation(InOperation)
 {
 }
@@ -892,5 +910,5 @@ FPCGGenericElement::FPCGGenericElement(TFunction<bool()> InOperation)
 bool FPCGGenericElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGenericElement::Execute);
-	return Operation();
+	return Operation(Context);
 }

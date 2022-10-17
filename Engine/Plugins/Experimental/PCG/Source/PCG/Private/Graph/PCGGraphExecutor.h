@@ -22,16 +22,18 @@ class FPCGGraphCompiler;
 
 struct FPCGGraphTaskInput
 {
-	FPCGGraphTaskInput(FPCGTaskId InTaskId, const UPCGPin* InInboundPin, const UPCGPin* InOutboundPin)
+	FPCGGraphTaskInput(FPCGTaskId InTaskId, const UPCGPin* InInboundPin, const UPCGPin* InOutboundPin, bool bInProvideData = true)
 		: TaskId(InTaskId)
 		, InPin(InInboundPin)
 		, OutPin(InOutboundPin)
+		, bProvideData(bInProvideData)
 	{
 	}
 
 	FPCGTaskId TaskId;
 	const UPCGPin* InPin;
 	const UPCGPin* OutPin;
+	bool bProvideData;
 };
 
 struct FPCGGraphTask
@@ -72,8 +74,16 @@ public:
 	FPCGTaskId Schedule(UPCGComponent* InComponent, const TArray<FPCGTaskId>& TaskDependency = TArray<FPCGTaskId>());
 	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
 
-	/** General job scheduling, used to control loading/unloading */
+	// Back compatibility function. Use ScheduleGenericWithContext
 	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies);
+
+	/** General job scheduling
+	*  @param InOperation:       Callback that takes a Context as argument and returns true if the task is done, false otherwise
+	*  @param InSourceComponent: PCG component associated with this task. Can be null.
+	*  @param TaskDependencies:  List of all the dependencies for this task.
+	*  @param bConsumeInputData: If your task need a context, but don't need the input data, set this flag to false. Default is true.
+	*/
+	FPCGTaskId ScheduleGenericWithContext(TFunction<bool(FPCGContext*)> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies, bool bConsumeInputData = true);
 
 	/** Gets data in the output results. Returns false if data is not ready. */
 	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
@@ -164,7 +174,7 @@ protected:
 class FPCGGenericElement : public FSimplePCGElement
 {
 public:
-	FPCGGenericElement(TFunction<bool()> InOperation);
+	FPCGGenericElement(TFunction<bool(FPCGContext*)> InOperation);
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
 
@@ -179,5 +189,5 @@ protected:
 #endif
 
 private:
-	TFunction<bool()> Operation;
+	TFunction<bool(FPCGContext*)> Operation;
 };

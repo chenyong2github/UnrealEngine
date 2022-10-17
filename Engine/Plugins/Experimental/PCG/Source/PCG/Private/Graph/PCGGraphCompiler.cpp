@@ -310,14 +310,18 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 	// Note: this works because there is a weak ordering on the tasks such that
 	// a successor task is always after its predecessors
 	TSet<FPCGTaskId> TasksWithSuccessors;
-	TArray<FPCGTaskId> EndNodes;
+	const UPCGNode* GraphOutputNode = InGraph->GetOutputNode();
 
 	for (int TaskIndex = TaskNum - 1; TaskIndex >= 0; --TaskIndex)
 	{
 		const FPCGGraphTask& Task = CompiledTasks[TaskIndex];
 		if (!TasksWithSuccessors.Contains(Task.NodeId))
 		{
-			PostExecuteTask.Inputs.Emplace(Task.NodeId, nullptr, nullptr);
+			// For the post task, only the output node will provide data. 
+			// It is necessary for any post generation task to get the content of the output node
+			// and only this content.
+			const bool bProvideData = Task.Node == GraphOutputNode;
+			PostExecuteTask.Inputs.Emplace(Task.NodeId, nullptr, nullptr, bProvideData);
 		}
 
 		for (const FPCGGraphTaskInput& Input : Task.Inputs)

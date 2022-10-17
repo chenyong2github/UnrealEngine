@@ -247,7 +247,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 	{
 		TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
 
-		return GraphExecutor->ScheduleGeneric([ComponentPtr]() {
+		return GraphExecutor->ScheduleGenericWithContext([ComponentPtr](FPCGContext* Context) {
 			if (UPCGComponent* Component = ComponentPtr.Get())
 			{
 				// If the component is not valid anymore, just early out.
@@ -257,7 +257,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 				}
 
 				const FBox NewBounds = Component->GetGridBounds();
-				Component->PostProcessGraph(NewBounds, /*bGenerate=*/true);
+				Component->PostProcessGraph(NewBounds, /*bGenerate=*/true, Context);
 			}
 
 			return true;
@@ -388,6 +388,12 @@ FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, UPCGCom
 {
 	check(GraphExecutor);
 	return GraphExecutor->ScheduleGeneric(InOperation, Component, TaskDependencies);
+}
+
+FPCGTaskId UPCGSubsystem::ScheduleGenericWithContext(TFunction<bool(FPCGContext*)> InOperation, UPCGComponent* Component, const TArray<FPCGTaskId>& TaskDependencies, bool bConsumeInputData)
+{
+	check(GraphExecutor);
+	return GraphExecutor->ScheduleGenericWithContext(InOperation, Component, TaskDependencies, bConsumeInputData);
 }
 
 TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
@@ -1169,15 +1175,15 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	// Finally, call PostProcessGraph if something happened
 	if (ProcessAllCellsTaskId != InvalidPCGTaskId)
 	{
-		auto PostProcessGraph = [ComponentPtr, InNewBounds, bGenerate]() {
+		auto PostProcessGraphTask = [ComponentPtr, InNewBounds, bGenerate](FPCGContext* Context) {
 			if (UPCGComponent* Component = ComponentPtr.Get())
 			{
-				Component->PostProcessGraph(InNewBounds, bGenerate);
+				Component->PostProcessGraph(InNewBounds, bGenerate, Context);
 			}
 			return true;
 		};
 
-		return GraphExecutor->ScheduleGeneric(PostProcessGraph, Component, { ProcessAllCellsTaskId });
+		return GraphExecutor->ScheduleGenericWithContext(PostProcessGraphTask, Component, { ProcessAllCellsTaskId });
 	}
 	else
 	{

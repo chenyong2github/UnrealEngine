@@ -329,7 +329,7 @@ bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjec
 	return bHasValidTag;
 }
 
-void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
+void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated, FPCGContext* Context)
 {
 	LastGeneratedBounds = InNewBounds;
 
@@ -345,6 +345,72 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 		bDirtyGenerated = false;
 		OnPCGGraphGeneratedDelegate.Broadcast(this);
 #endif
+		// After a successful generation, we also want to call PostGenerateFunctions
+		// if we have any. We also need a context.
+
+		if (Context)
+		{
+			// If the original component is partitioned, local components have to forward
+			// their inputs, so that they can be gathered by the original component.
+			// We don't have the info on the original component here, so forward for all
+			// components.
+			Context->OutputData = Context->InputData;
+
+			CallPostGenerateFunctions(Context);
+		}
+	}
+}
+
+void UPCGComponent::CallPostGenerateFunctions(FPCGContext* Context) const
+{
+	check(Context);
+
+	if (AActor* Owner = GetOwner())
+	{
+		for (const FName& FunctionName : PostGenerateFunctionNames)
+		{
+			if (UFunction* PostGenerateFunc = Owner->GetClass()->FindFunctionByName(FunctionName))
+			{
+				// Validate that the function take the right number of arguments
+				if (PostGenerateFunc->NumParms != 1)
+				{
+					UE_LOG(LogPCG, Error, TEXT("[UPCGComponent] PostGenerateFunction \"%s\" from actor \"%s\" doesn't have exactly 1 parameter. Will skip the call."), *FunctionName.ToString(), *Owner->GetFName().ToString());
+					continue;
+				}
+
+				bool bIsValid = false;
+				TFieldIterator<FProperty> PropIterator(PostGenerateFunc);
+				while (PropIterator)
+				{
+					if (!!(PropIterator->PropertyFlags & CPF_Parm))
+					{
+						if (FStructProperty* Property = CastField<FStructProperty>(*PropIterator))
+						{
+							if (Property->Struct == FPCGDataCollection::StaticStruct())
+							{
+								bIsValid = true;
+								break;
+							}
+						}
+					}
+
+					++PropIterator;
+				}
+
+				if (bIsValid)
+				{
+					Owner->ProcessEvent(PostGenerateFunc, &Context->InputData);
+				}
+				else
+				{
+					UE_LOG(LogPCG, Error, TEXT("[UPCGComponent] PostGenerateFunction \"%s\" from actor \"%s\" parameter type is not PCGDataCollection. Will skip the call."), *FunctionName.ToString(), *Owner->GetFName().ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogPCG, Error, TEXT("[UPCGComponent] PostGenerateFunction \"%s\" was not found in the component owner \"%s\"."), *FunctionName.ToString(), *Owner->GetFName().ToString());
+			}
+		}
 	}
 }
 
@@ -652,7 +718,7 @@ void UPCGComponent::BeginPlay()
 			const FBox NewBounds = GetGridBounds();
 			if (NewBounds.IsValid)
 			{
-				PostProcessGraph(NewBounds, true);
+				PostProcessGraph(NewBounds, true, nullptr);
 			}
 		}
 		else
