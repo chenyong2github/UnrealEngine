@@ -538,6 +538,9 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 		if (CVars::ChaosSolverDebugDrawMeshContacts && FDebugDrawQueue::GetInstance().IsDebugDrawingEnabled())
 		{
+			TArray<bool> bTriangleDrawn;
+			bTriangleDrawn.SetNumZeroed(ContactTriangles.Num());
+
 			const FReal Duration = 0;
 			const int32 DrawPriority = 10;
 			for (const FTriangleContactPoint& ContactPoint : TriangleContactPoints)
@@ -551,6 +554,18 @@ namespace Chaos
 
 				// Draw a thin black line connecting the two contact points (triangle face to convex surface)
 				FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, FColor::Black, false, FRealSingle(Duration), DrawPriority, 0.5f * FRealSingle(LineThickness));
+
+				if (!bTriangleDrawn[ContactPoint.ContactTriangleIndex])
+				{
+					FContactTriangle& Triangle = ContactTriangles[ContactPoint.ContactTriangleIndex];
+					const FVec3 V0 = ConvexTransform.TransformPosition(Triangle.Vertices[0]);
+					const FVec3 V1 = ConvexTransform.TransformPosition(Triangle.Vertices[1]);
+					const FVec3 V2 = ConvexTransform.TransformPosition(Triangle.Vertices[2]);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(V0, V1, FColor::Silver, false, FRealSingle(Duration), DrawPriority, 0.5f * FRealSingle(LineThickness));
+					FDebugDrawQueue::GetInstance().DrawDebugLine(V1, V2, FColor::Silver, false, FRealSingle(Duration), DrawPriority, 0.5f * FRealSingle(LineThickness));
+					FDebugDrawQueue::GetInstance().DrawDebugLine(V2, V0, FColor::Silver, false, FRealSingle(Duration), DrawPriority, 0.5f * FRealSingle(LineThickness));
+					bTriangleDrawn[ContactPoint.ContactTriangleIndex] = true;
+				}
 			}
 		}
 #endif
