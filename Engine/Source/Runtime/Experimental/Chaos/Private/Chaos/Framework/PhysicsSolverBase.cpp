@@ -242,6 +242,7 @@ namespace Chaos
 
 		// GeometryCollection particles do not always remove collision constraints on unregister,
 		// explicitly clear constraints so we will not crash when filling collision events in advance.
+		// @todo(chaos): fix this and remove
 		{
 			auto* Evolution = static_cast<FPBDRigidsSolver&>(InSolver).GetEvolution();
 			if (Evolution)

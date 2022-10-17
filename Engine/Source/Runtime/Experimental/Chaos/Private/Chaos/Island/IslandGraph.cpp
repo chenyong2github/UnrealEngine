@@ -218,18 +218,15 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ResetEdges()
 		}
 	}
 
-	for (auto& GraphIsland : GraphIslands)
-	{
-		GraphIsland.NumEdges = 0;
-	}
-
 	for (auto& GraphNode : GraphNodes)
 	{
 		GraphNode.NodeEdges.Reset();
+		GraphNode.IslandIndex = INDEX_NONE;
 	}
 
 	GraphEdges.Reset();
 	ItemEdges.Reset();
+	GraphIslands.Reset();
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>

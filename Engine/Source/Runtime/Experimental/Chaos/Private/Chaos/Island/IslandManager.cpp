@@ -293,6 +293,7 @@ void FPBDIslandManager::RemoveConstraints()
 	for(auto& Island : Islands)
 	{
 		Island->ClearConstraints();
+		Island->ClearParticles();
 	}
 }
 
