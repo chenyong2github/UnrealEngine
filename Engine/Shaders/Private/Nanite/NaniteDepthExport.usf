@@ -127,7 +127,9 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				SceneStencil[PixelPos.xy] = OutStencil;
 
 			#if VELOCITY_EXPORT
-				const bool bOutputVelocity = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
+				// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass.
+				const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+				const bool bOutputVelocity = !bWPOEnabled && (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
 				if (bOutputVelocity)
 				{
 					FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);

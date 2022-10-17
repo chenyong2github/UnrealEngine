@@ -101,6 +101,14 @@ enum EGBufferChecker
 	GBCH_Num
 };
 
+enum EGBufferLayout
+{
+	GBL_Default, // Default GBuffer Layout
+	GBL_ForceVelocity, // Force the inclusion of the velocity target (if it's not included in GBL_Default)
+
+	GBL_Num
+};
+
 
 struct FGBufferCompressionInfo
 {
@@ -256,6 +264,17 @@ struct FGBufferBinding
 	int32 Index = -1;
 	EPixelFormat Format = PF_Unknown;
 	ETextureCreateFlags Flags = TexCreate_None;
+};
+
+// Describes the bindings of the GBuffer for a given layout
+struct FGBufferBindings
+{
+	FGBufferBinding GBufferA;
+	FGBufferBinding GBufferB;
+	FGBufferBinding GBufferC;
+	FGBufferBinding GBufferD;
+	FGBufferBinding GBufferE;
+	FGBufferBinding GBufferVelocity;
 };
 
 struct FGBufferInfo

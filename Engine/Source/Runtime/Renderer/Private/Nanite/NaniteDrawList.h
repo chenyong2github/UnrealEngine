@@ -22,6 +22,7 @@ public:
 		uint32 InstructionCount;
 #endif
 		uint8 SectionIndex;
+		bool bWPOEnabled;
 	};
 
 	struct FDeferredPipelines
@@ -165,13 +166,30 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 	FMeshPassDrawListContext* InDrawListContext
 );
 
+enum class ENaniteMaterialPass : uint32
+{
+	// Standard per-material draws that fill the GBuffer
+	EmitGBuffer,
+	// When !IsUsingBasePassVelocity, fills the GBuffer and velocity for materials with programmable deformation
+	EmitGBufferWithVelocity,
+
+	Max
+};
+
+struct FNaniteMaterialPassInfo
+{
+	uint32 CommandOffset = 0;
+	uint32 NumCommands = 0;
+};
+
 void BuildNaniteMaterialPassCommands(
-	const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo,
+	const TConstArrayView<FGraphicsPipelineRenderTargetsInfo> RenderTargetsInfo,
 	const FNaniteMaterialCommands& MaterialCommands,
 	const FNaniteVisibilityResults& VisibilityResults,
-	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands);
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands,
+	TArrayView<FNaniteMaterialPassInfo> OutMaterialPassInfo);
 
-void DrawNaniteMaterialPasses(
+void DrawNaniteMaterialPass(
 	FRDGParallelCommandListSet* ParallelCommandListSet,
 	FRHICommandList& RHICmdList,
 	const FIntRect ViewRect,

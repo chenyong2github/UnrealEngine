@@ -833,7 +833,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 		// Create a texture for the world-space normal imaginary reflection g-buffer.
 		FRDGTextureRef ImaginaryReflectionGBufferATexture;
 		{
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(RayTracingBufferSize, SceneTextures.Config.GBufferA.Format, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV));
+			const FGBufferBindings& Bindings = SceneTextures.Config.GBufferBindings[GBL_Default];
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(RayTracingBufferSize, Bindings.GBufferA.Format, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV));
 			ImaginaryReflectionGBufferATexture = GraphBuilder.CreateTexture(Desc, TEXT("ImaginaryReflectionGBufferA"));
 		}
 

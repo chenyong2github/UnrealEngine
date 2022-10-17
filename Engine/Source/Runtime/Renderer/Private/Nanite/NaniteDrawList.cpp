@@ -182,6 +182,9 @@ void FNaniteDrawListContext::FinalizeCommand(
 	const uint32 InstructionCount = static_cast<uint32>(NumPSInstructions << 16u | NumVSInstructions);
 #endif
 
+	const ERHIFeatureLevel::Type FeatureLevel = CurrentPrimitiveSceneInfo->Scene->GetFeatureLevel();
+	const bool bWPOEnabled = MeshBatch.MaterialRenderProxy && MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).MaterialUsesWorldPositionOffset_RenderThread();
+
 	// Defer the command
 	DeferredCommands[CurrentMeshPass].Add(
 		FDeferredCommand {
@@ -191,7 +194,8 @@ void FNaniteDrawListContext::FinalizeCommand(
 		#if WITH_DEBUG_VIEW_MODES
 			InstructionCount,
 		#endif
-			MeshBatch.SegmentIndex
+			MeshBatch.SegmentIndex,
+			bWPOEnabled
 		}
 	);
 }
@@ -217,7 +221,7 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 			InstructionCount = Command.InstructionCount;
 		#endif
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = Command.PrimitiveSceneInfo;
-			FNaniteCommandInfo CommandInfo = ShadingCommands.Register(Command.MeshDrawCommand, Command.CommandHash, InstructionCount);
+			FNaniteCommandInfo CommandInfo = ShadingCommands.Register(Command.MeshDrawCommand, Command.CommandHash, InstructionCount, Command.bWPOEnabled);
 			AddShadingCommand(*PrimitiveSceneInfo, CommandInfo, ENaniteMeshPass::Type(MeshPass), Command.SectionIndex);
 
 			FNaniteVisibility::PrimitiveDrawType& ShadingDraws = Visibility.GetShadingDrawReferences(PrimitiveSceneInfo);
@@ -630,12 +634,47 @@ public:
 };
 
 void BuildNaniteMaterialPassCommands(
-	const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo,
+	const TConstArrayView<FGraphicsPipelineRenderTargetsInfo> RenderTargetsInfo,
 	const FNaniteMaterialCommands& MaterialCommands,
 	const FNaniteVisibilityResults& VisibilityResults,
-	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands)
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands,
+	TArrayView<FNaniteMaterialPassInfo> OutMaterialPassInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildNaniteMaterialPassCommands);
+
+	const uint32 NumPasses = RenderTargetsInfo.Num();
+	check(NumPasses > 0);
+	check(NumPasses <= (uint32)ENaniteMaterialPass::Max);
+	check(NumPasses == OutMaterialPassInfo.Num());
+
+	// Initialize the pass info
+	for (FNaniteMaterialPassInfo& PassInfo : OutMaterialPassInfo)
+	{
+		PassInfo.CommandOffset = 0;
+		PassInfo.NumCommands = 0;
+	}
+	
+	const bool bVelocityPassEnabled = NumPasses > (uint32)ENaniteMaterialPass::EmitGBufferWithVelocity;
+	auto GetMaterialPass = [bVelocityPassEnabled](const FNaniteMaterialEntry& MaterialEntry)
+	{
+		// If the material has WPO enabled, we have to render this material in the velocity pass so velocity will
+		// be properly written
+		return (bVelocityPassEnabled && MaterialEntry.bWPOEnabled) ?
+			ENaniteMaterialPass::EmitGBufferWithVelocity : ENaniteMaterialPass::EmitGBuffer;
+	};
+	auto InsertPassCommand = [&OutNaniteMaterialPassCommands, OutMaterialPassInfo, NumPasses] (FNaniteMaterialPassCommand& PassCommand, uint32 PassIndex)
+	{
+		// The sort key will force it to the right position for the pass, so just add it anywhere in the list
+		OutNaniteMaterialPassCommands.Emplace(PassCommand);
+		FNaniteMaterialPassInfo& PassInfo = OutMaterialPassInfo[PassIndex];
+		++PassInfo.NumCommands;
+
+		// push out the offset of subsequent passes
+		for (uint32 OtherPassIndex = PassIndex + 1; OtherPassIndex < NumPasses; ++OtherPassIndex)
+		{
+			++OutMaterialPassInfo[OtherPassIndex].CommandOffset;
+		}
+	};
 
 	const FNaniteMaterialEntryMap& BucketMap = MaterialCommands.GetCommands();
 	checkf(OutNaniteMaterialPassCommands.Max() >= BucketMap.Num(), TEXT("Nanite mesh commands must be resized on the render thread prior to calling this method."));
@@ -652,6 +691,7 @@ void BuildNaniteMaterialPassCommands(
 			continue;
 		}
 
+		const uint32 PassIndex = (uint32)GetMaterialPass(Command.Value);
 		FNaniteMaterialPassCommand PassCommand(MeshDrawCommand);
 		const int32 MaterialId = Iter.GetElementId().GetIndex();
 
@@ -660,7 +700,7 @@ void BuildNaniteMaterialPassCommands(
 
 		if (MaterialSortMode == 2)
 		{
-			PassCommand.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(RenderTargetsInfo);
+			PassCommand.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(RenderTargetsInfo[PassIndex]);
 		}
 		else if (MaterialSortMode == 3)
 		{
@@ -672,13 +712,24 @@ void BuildNaniteMaterialPassCommands(
 			// TODO: Remove other sort modes and just use 4 (needs more optimization/profiling)?
 			// Sort by pipeline state, but use hash of MaterialId for randomized tie-breaking.
 			// This spreads out the empty draws inside the pipeline buckets and improves overall utilization.
-			const uint64 PipelineSortKey = MeshDrawCommand.GetPipelineStateSortingKey(RenderTargetsInfo);
+			const uint64 PipelineSortKey = MeshDrawCommand.GetPipelineStateSortingKey(RenderTargetsInfo[PassIndex]);
 			const uint32 PipelineSortKeyHash = GetTypeHash(PipelineSortKey);
 			const uint32 MaterialHash = MurmurFinalize32(MaterialId);
 			PassCommand.SortKey = ((uint64)PipelineSortKeyHash << 32) | MaterialHash;
 		}
 
-		OutNaniteMaterialPassCommands.Emplace(PassCommand);
+		if (bVelocityPassEnabled)
+		{
+			// Use the pass index as the highest order bits to keep them in pass order
+			static const uint32 PassIndexBits = 1u;
+			static_assert(1u << PassIndexBits <= (uint32)ENaniteMaterialPass::Max);
+
+			static const uint32 PassIndexShift = 32u - PassIndexBits;
+			static const uint32 SortKeyMask = ((1u << PassIndexShift) - 1u);
+			PassCommand.SortKey = (PassCommand.SortKey & SortKeyMask) | (PassIndex << PassIndexShift);
+		}
+
+		InsertPassCommand(PassCommand, PassIndex);
 	}
 
 	if (MaterialSortMode != 0)
@@ -688,7 +739,7 @@ void BuildNaniteMaterialPassCommands(
 	}
 }
 
-void DrawNaniteMaterialPasses(
+void DrawNaniteMaterialPass(
 	FRDGParallelCommandListSet* ParallelCommandListSet,
 	FRHICommandList& RHICmdList,
 	const FIntRect ViewRect,

@@ -192,6 +192,7 @@ struct FShaderMaterialPropertyDefines
 	uint8 IS_DECAL : 1;
 	uint8 IS_BASE_PASS : 1;
 	uint32 DECAL_RENDERTARGET_COUNT;
+	uint32 GBUFFER_LAYOUT;
 
 	uint8 bAllowDevelopmentShaderCompile : 1;// = Material->GetAllowDevelopmentShaderCompile();
 

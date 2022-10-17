@@ -1083,11 +1083,11 @@ void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& RenderTargetC
 	}
 }
 
-void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, FShaderCompilerEnvironment& OutEnvironment)
+void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, FShaderCompilerEnvironment& OutEnvironment, EGBufferLayout GBufferLayout)
 {
 	if (Strata::IsStrataEnabled())
 	{
-		FGBufferParams GBufferParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(Platform);
+		FGBufferParams GBufferParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(Platform, GBufferLayout);
 
 		// If it is not a water material, we force bHasSingleLayerWaterSeparatedMainLight to false, in order to 
 		// ensure non-used MRTs are not inserted in BufferInfo. Otherwise this would offset Strata MRTs, causing 

@@ -87,18 +87,19 @@ void GetDeferredDecalRenderTargetsInfo(
 	EDecalRenderTargetMode RenderTargetMode,
 	FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo)
 {
+	const FGBufferBindings& Bindings = Config.GBufferBindings[GBL_Default];
 	switch (RenderTargetMode)
 	{
 	case EDecalRenderTargetMode::SceneColorAndGBuffer:
 		AddRenderTargetInfo(Config.ColorFormat, Config.ColorCreateFlags, RenderTargetsInfo);
-		AddRenderTargetInfo(Config.GBufferA.Format, Config.GBufferA.Flags, RenderTargetsInfo);
-		AddRenderTargetInfo(Config.GBufferB.Format, Config.GBufferB.Flags, RenderTargetsInfo);
-		AddRenderTargetInfo(Config.GBufferC.Format, Config.GBufferC.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Bindings.GBufferA.Format, Bindings.GBufferA.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Bindings.GBufferB.Format, Bindings.GBufferB.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Bindings.GBufferC.Format, Bindings.GBufferC.Flags, RenderTargetsInfo);
 		break;
 	case EDecalRenderTargetMode::SceneColorAndGBufferNoNormal:
 		AddRenderTargetInfo(Config.ColorFormat, Config.ColorCreateFlags, RenderTargetsInfo);
-		AddRenderTargetInfo(Config.GBufferB.Format, Config.GBufferB.Flags, RenderTargetsInfo);
-		AddRenderTargetInfo(Config.GBufferC.Format, Config.GBufferC.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Bindings.GBufferB.Format, Bindings.GBufferB.Flags, RenderTargetsInfo);
+		AddRenderTargetInfo(Bindings.GBufferC.Format, Bindings.GBufferC.Flags, RenderTargetsInfo);
 		break;
 	case EDecalRenderTargetMode::SceneColor:
 		AddRenderTargetInfo(Config.ColorFormat, Config.ColorCreateFlags, RenderTargetsInfo);

@@ -49,7 +49,7 @@ bool Engine_IsStrataEnabled();
 
 #if WITH_EDITOR
 
-static int FetchCompileInt(FShaderCompilerEnvironment& OutEnvironment, const char* SrcName)
+static int FetchCompileInt(const FShaderCompilerEnvironment& OutEnvironment, const char* SrcName)
 {
 	int32 Ret = 0;
 	if (OutEnvironment.GetDefinitions().Contains(SrcName))
@@ -244,6 +244,8 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderMaterialPropertyDefin
 	FETCH_COMPILE_BOOL(DUAL_SOURCE_COLOR_BLENDING_ENABLED);
 
 	FETCH_COMPILE_INT(DECAL_RENDERTARGET_COUNT);
+
+	FETCH_COMPILE_INT(GBUFFER_LAYOUT);
 }
 
 void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcDefines, FShaderCompilerEnvironment& OutEnvironment)
@@ -266,7 +268,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 // if we change the logic, increment this number to force a DDC key change
 static const int32 GBufferGeneratorVersion = 4;
 
-static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform)
+static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform, EGBufferLayout GBufferLayout)
 {
 	FShaderGlobalDefines Ret = {};
 
@@ -277,7 +279,7 @@ static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatf
 		Ret.ALLOW_STATIC_LIGHTING = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
 	}
 
-	Ret.GBUFFER_HAS_VELOCITY = IsUsingBasePassVelocity(TargetPlatform) ? 1 : 0;
+	Ret.GBUFFER_HAS_VELOCITY = (IsUsingBasePassVelocity(TargetPlatform) || GBufferLayout == GBL_ForceVelocity) ? 1 : 0;
 	Ret.GBUFFER_HAS_TANGENT = false;//BasePassCanOutputTangent(TargetPlatform) ? 1 : 0;
 
 	{
@@ -1845,7 +1847,8 @@ void FShaderCompileUtilities::ApplyDerivedDefines(FShaderCompilerEnvironment& Ou
 	static bool bUseRefactor = true;
 	OutEnvironment.SetDefine(TEXT("GBUFFER_REFACTOR"), bUseRefactor ? TEXT("1") : TEXT("0"));
 
-	FGBufferParams Params = FShaderCompileUtilities::FetchGBufferParamsRuntime(Platform);
+	EGBufferLayout Layout = (EGBufferLayout)MaterialDefines.GBUFFER_LAYOUT;
+	FGBufferParams Params = FShaderCompileUtilities::FetchGBufferParamsRuntime(Platform, Layout);
 	FGBufferInfo BufferInfo = FetchFullGBufferInfo(Params);
 
 	bool bTargetUsage[FGBufferInfo::MaxTargets] = {};
@@ -1963,27 +1966,27 @@ void FShaderCompileUtilities::ApplyDerivedDefines(FShaderCompilerEnvironment& Ou
 
 void FShaderCompileUtilities::AppendGBufferDDCKeyString(const EShaderPlatform Platform, FString& KeyString)
 {
-	FShaderGlobalDefines GlobalDefines = FetchShaderGlobalDefines(Platform);
-
-	FString Key = FString::Printf(TEXT("_%d%d%d_%d;\n"),GlobalDefines.GBUFFER_HAS_VELOCITY, GlobalDefines.GBUFFER_HAS_TANGENT, GlobalDefines.ALLOW_STATIC_LIGHTING,GBufferGeneratorVersion);
-	KeyString += Key;
+	for (uint32 Layout = 0; Layout < GBL_Num; ++Layout)
+	{
+		FShaderGlobalDefines GlobalDefines = FetchShaderGlobalDefines(Platform, (EGBufferLayout)Layout);
+		KeyString.Appendf(TEXT("_%d%d%d"),GlobalDefines.GBUFFER_HAS_VELOCITY, GlobalDefines.GBUFFER_HAS_TANGENT, GlobalDefines.ALLOW_STATIC_LIGHTING);
+	}
+	KeyString.Appendf(TEXT("_%d;\n"), GBufferGeneratorVersion);
 }
 
 static FGBufferInfo GLastGBufferInfo[SP_NumPlatforms] = {};
 static bool GLastGBufferIsValid[SP_NumPlatforms] = {}; // set to all false
 
-FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPlatform TargetPlatform, ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5)
+void FShaderCompileUtilities::WriteGBufferInfoAutogen(EShaderPlatform TargetPlatform, ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5)
 {
-	FShaderGlobalDefines GlobalDefines = FetchShaderGlobalDefines(TargetPlatform);
-
-	FGBufferParams Params = FetchGBufferParamsPipeline(TargetPlatform);
+	FGBufferParams DefaultParams = FetchGBufferParamsPipeline(TargetPlatform, GBL_Default);
 
 	FScopeLock MapLock(&GCriticalSection);
 
 	// For now, the logic always calculates the new GBuffer, and if it's the first time, write it, otherwise check it hasn't changed. We are doing this for
 	// debugging, and in the near future it will only calculate the GBuffer on the first time only.
 
-	FGBufferInfo BufferInfo = FetchFullGBufferInfo(Params);
+	FGBufferInfo DefaultBufferInfo = FetchFullGBufferInfo(DefaultParams);
 
 	FString AutoGenDirectory = GetAutoGenDirectory(TargetPlatform);
 	FString AutogenHeaderFilename = AutoGenDirectory / TEXT("AutogenShaderHeaders.ush");
@@ -1991,7 +1994,7 @@ FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPla
 
 	if (GLastGBufferIsValid[TargetPlatform])
 	{
-		const bool bSame = IsGBufferInfoEqual(GLastGBufferInfo[TargetPlatform], BufferInfo);
+		const bool bSame = IsGBufferInfoEqual(GLastGBufferInfo[TargetPlatform], DefaultBufferInfo);
 		check(bSame);
 	}
 	else
@@ -1999,7 +2002,7 @@ FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPla
 		GLastGBufferIsValid[TargetPlatform] = true;
 
 		// should cache this properly, and serialize it, but this is a temporary fix.
-		GLastGBufferInfo[TargetPlatform] = BufferInfo;
+		GLastGBufferInfo[TargetPlatform] = DefaultBufferInfo;
 
 		FString OutputFileData;
 		OutputFileData += TEXT("// Copyright Epic Games, Inc. All Rights Reserved.\n");
@@ -2016,32 +2019,47 @@ FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPla
 		OutputFileData += TEXT("#endif\n");
 		OutputFileData += TEXT("\n");
 
-		OutputFileData += CreateGBufferEncodeFunction(BufferInfo);
-
-		OutputFileData += TEXT("\n");
-
-		OutputFileData += CreateGBufferDecodeFunctionDirect(BufferInfo);
-
-		OutputFileData += TEXT("\n");
-		//OutputFileData += TEXT("#if SHADING_PATH_DEFERRED\n");
-		OutputFileData += TEXT("#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5\n");
-		OutputFileData += TEXT("\n");
-
-		OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::CoordUV, FeatureLevel);
-		OutputFileData += TEXT("\n");
-
-		OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::CoordUInt, FeatureLevel);
-
-		OutputFileData += TEXT("\n");
-
-		OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::SceneTextures, FeatureLevel);
-		OutputFileData += TEXT("\n");
-
-		OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::SceneTexturesLoad, FeatureLevel);
-		OutputFileData += TEXT("\n");
-
+		OutputFileData += TEXT("#ifndef GBUFFER_LAYOUT\n");
+		OutputFileData += TEXT("#define GBUFFER_LAYOUT 0\n");
 		OutputFileData += TEXT("#endif\n");
 		OutputFileData += TEXT("\n");
+
+		for (uint32 Layout = 0; Layout < GBL_Num; ++Layout)
+		{
+			FGBufferParams Params = FetchGBufferParamsPipeline(TargetPlatform, (EGBufferLayout)Layout);
+			FGBufferInfo BufferInfo = FetchFullGBufferInfo(Params);
+
+			OutputFileData.Appendf(TEXT("#if GBUFFER_LAYOUT == %u\n\n"), Layout);
+			OutputFileData += CreateGBufferEncodeFunction(BufferInfo);
+
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += CreateGBufferDecodeFunctionDirect(BufferInfo);
+
+			OutputFileData += TEXT("\n");
+			//OutputFileData += TEXT("#if SHADING_PATH_DEFERRED\n");
+			OutputFileData += TEXT("#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5\n");
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::CoordUV, FeatureLevel);
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::CoordUInt, FeatureLevel);
+
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::SceneTextures, FeatureLevel);
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += CreateGBufferDecodeFunctionVariation(BufferInfo, EGBufferDecodeType::SceneTexturesLoad, FeatureLevel);
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += TEXT("#endif\n");
+			OutputFileData += TEXT("\n");
+
+			OutputFileData += TEXT("#endif\n");
+			OutputFileData += TEXT("\n");
+		}
 
 
 		UE_LOG(LogShaderCompilers, Display, TEXT("Compiling shader autogen file: %s"), *AutogenHeaderFilename);
@@ -2086,18 +2104,14 @@ FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPla
 			UE_LOG(LogShaderCompilers, Display, TEXT("Shader autogen file written: %s"), *AutogenHeaderFilename);
 		}
 	}
-
-	return BufferInfo;
 }
 
 void FShaderCompileUtilities::GenerateBrdfHeaders(EShaderPlatform TargetPlatform)
 {
 	ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(TargetPlatform);
 
-	//FShaderGlobalDefines GlobalDefines = FetchShaderGlobalDefines(TargetPlatform);
-
-	// Fetches the GBuffer format, which also involves writing the .ush file if it's out of date.
-	FGBufferInfo Info = FetchGBufferInfoAndWriteAutogen(TargetPlatform, FeatureLevel);
+	// Writes the GBuffer format .ush file if it's out of date.
+	WriteGBufferInfoAutogen(TargetPlatform, FeatureLevel);
 }
 
 void FShaderCompileUtilities::GenerateBrdfHeaders(const FName& ShaderFormat)
@@ -2106,7 +2120,17 @@ void FShaderCompileUtilities::GenerateBrdfHeaders(const FName& ShaderFormat)
 	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
 }
 
-FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatform Platform)
+EGBufferLayout FShaderCompileUtilities::FetchGBufferLayout(const FShaderCompilerEnvironment& Environment)
+{
+	const uint32 Layout = FetchCompileInt(Environment, "GBUFFER_LAYOUT");
+	if (Layout >= GBL_Num)
+	{
+		return GBL_Default;
+	}
+	return (EGBufferLayout)Layout;
+}
+
+FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatform Platform, EGBufferLayout Layout)
 {
 	FGBufferParams Ret = {};
 	Ret.ShaderPlatform = Platform;
@@ -2117,7 +2141,7 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatfo
 		Ret.bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
 	}
 
-	Ret.bHasVelocity = IsUsingBasePassVelocity(Platform) ? 1 : 0;
+	Ret.bHasVelocity = (IsUsingBasePassVelocity(Platform) || Layout == GBL_ForceVelocity) ? 1 : 0;
 	Ret.bHasTangent = false;//BasePassCanOutputTangent(TargetPlatform) ? 1 : 0;
 
 	{
@@ -2139,7 +2163,7 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatfo
 
 #endif
 
-FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatform Platform)
+FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatform Platform, EGBufferLayout Layout)
 {
 	// This code should match TBasePassPS
 
@@ -2149,7 +2173,7 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatfor
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	Ret.bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
 
-	Ret.bHasVelocity = IsUsingBasePassVelocity(Platform) ? 1 : 0;
+	Ret.bHasVelocity = (IsUsingBasePassVelocity(Platform) || Layout == GBL_ForceVelocity) ? 1 : 0;
 	Ret.bHasTangent = false;//BasePassCanOutputTangent(ShaderPlatform) ? 1 : 0;
 
 	Ret.bUsesVelocityDepth = NeedsVelocityDepth(Platform);

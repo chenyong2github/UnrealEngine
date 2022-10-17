@@ -444,11 +444,6 @@ void DrawBasePass(
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
-	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
-	Strata::AppendStrataMRTs(SceneRenderer, BasePassTextureCount, BasePassTextures);
-	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
-
 	FRDGTextureRef MaterialDepth	= RasterResults.MaterialDepth ? RasterResults.MaterialDepth : SystemTextures.Black;
 	FRDGTextureRef VisBuffer64		= RasterResults.VisBuffer64   ? RasterResults.VisBuffer64   : SystemTextures.Black;
 	FRDGTextureRef DbgBuffer64		= RasterResults.DbgBuffer64   ? RasterResults.DbgBuffer64   : SystemTextures.Black;
@@ -577,9 +572,10 @@ void DrawBasePass(
 	if (NumMaterialCommands > 0)
 	{
 		const FNaniteVisibilityResults& VisibilityResults = RasterResults.VisibilityResults;
+		const bool bWPOInSecondPass = !IsUsingBasePassVelocity(View.GetShaderPlatform());
 
-		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
-		PassParameters->MaterialIndirectArgs = MaterialIndirectArgs;
+		FNaniteEmitGBufferParameters TempParams;
+		TempParams.MaterialIndirectArgs = MaterialIndirectArgs;
 
 		{
 			const FIntPoint ScaledSize = TileGridSize * 64;
@@ -623,27 +619,61 @@ void DrawBasePass(
 			UniformParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(MultiViewRectScaleOffsets);
 			UniformParameters->InViews                   = GraphBuilder.CreateSRV(ViewsBuffer);
 
-			PassParameters->Nanite = GraphBuilder.CreateUniformBuffer(UniformParameters);
+			TempParams.Nanite = GraphBuilder.CreateUniformBuffer(UniformParameters);
 		}
 
-		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
-		PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
+		TempParams.View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
+		TempParams.BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, 0, {}, DBufferTextures);
 
 		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
 			? FExclusiveDepthStencil::DepthWrite_StencilNop
 			: FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
-		PassParameters->RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-			MaterialDepth,
-			ERenderTargetLoadAction::ELoad,
-			ERenderTargetLoadAction::ELoad,
-			MaterialDepthStencil
-		);
-
-		GraphBuilder.AddSetupTask([PassParameters, &MaterialCommands, &MaterialPassCommands, VisibilityResults = RasterResults.VisibilityResults /* Intentional copy */]
+		struct FPassParamsAndInfo
 		{
-			BuildNaniteMaterialPassCommands(ExtractRenderTargetsInfo(PassParameters->RenderTargets), MaterialCommands, VisibilityResults, MaterialPassCommands);
+			FNaniteEmitGBufferParameters Params[(uint32)ENaniteMaterialPass::Max];
+			FNaniteMaterialPassInfo PassInfo[(uint32)ENaniteMaterialPass::Max];
+			uint32 NumPasses = 0;
+		};
+		FPassParamsAndInfo* ParamsAndInfo = GraphBuilder.AllocParameters<FPassParamsAndInfo>();
+
+		// TODO: Perhaps use visibility results to cull the secondary pass when possible?
+		ParamsAndInfo->NumPasses = bWPOInSecondPass ? 2 : 1;
+		for (uint32 PassIndex = 0; PassIndex < ParamsAndInfo->NumPasses; ++PassIndex)
+		{
+			static const EGBufferLayout PassGBufferLayouts[] =
+			{
+				GBL_Default,		// EmitGBuffer
+				GBL_ForceVelocity	// EmitGBufferWithVelocity
+			};
+			static_assert(UE_ARRAY_COUNT(PassGBufferLayouts) == (uint32)ENaniteMaterialPass::Max,
+						  "Unhandled Nanite material pass");
+
+			TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
+			uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures, PassGBufferLayouts[PassIndex]);
+			Strata::AppendStrataMRTs(SceneRenderer, BasePassTextureCount, BasePassTextures);
+			TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
+
+			FNaniteEmitGBufferParameters& PassParams = ParamsAndInfo->Params[PassIndex];
+			PassParams = TempParams;
+			PassParams.RenderTargets = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
+			PassParams.RenderTargets.DepthStencil = FDepthStencilBinding(
+				MaterialDepth,
+				ERenderTargetLoadAction::ELoad,
+				ERenderTargetLoadAction::ELoad,
+				MaterialDepthStencil
+			);
+		}
+
+		GraphBuilder.AddSetupTask([ParamsAndInfo, &MaterialCommands, &MaterialPassCommands, VisibilityResults = RasterResults.VisibilityResults /* Intentional copy */]
+		{
+			TArray<FGraphicsPipelineRenderTargetsInfo, TFixedAllocator<(uint32)ENaniteMaterialPass::Max>> RTInfo;
+			for (uint32 PassIndex = 0; PassIndex < ParamsAndInfo->NumPasses; ++PassIndex)
+			{
+				RTInfo.Emplace(ExtractRenderTargetsInfo(ParamsAndInfo->Params[PassIndex].RenderTargets));
+			}
+			TArrayView<FNaniteMaterialPassInfo> PassInfo = MakeArrayView(ParamsAndInfo->PassInfo, ParamsAndInfo->NumPasses);
+			BuildNaniteMaterialPassCommands(RTInfo, MaterialCommands, VisibilityResults, MaterialPassCommands, PassInfo);
 		});
 
 		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(View.ShaderMap);
@@ -652,27 +682,60 @@ void DrawBasePass(
 
 		if (bParallelDispatch)
 		{
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("EmitGBufferParallel"),
-				PassParameters,
-				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-				[&SceneRenderer, &View, PassParameters, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandListImmediate& RHICmdList)
+			static const TCHAR* const PassNames[] =
 			{
-				FRDGParallelCommandListSet ParallelCommandListSet(Pass, RHICmdList, GET_STATID(STAT_CLP_NaniteBasePass), SceneRenderer, View, FParallelCommandListBindings(PassParameters));
-				ParallelCommandListSet.SetHighPriority();
-				DrawNaniteMaterialPasses(&ParallelCommandListSet, RHICmdList, View.ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, MaterialPassCommands);
-			});
+				TEXT("EmitGBufferParallel"),
+				TEXT("EmitGBufferWithVelocityParallel"),
+			};
+			static_assert(UE_ARRAY_COUNT(PassNames) == (uint32)ENaniteMaterialPass::Max);
+
+			for (uint32 PassIndex = 0; PassIndex < ParamsAndInfo->NumPasses; ++PassIndex)
+			{
+				GraphBuilder.AddPass(
+					FRDGEventName(PassNames[PassIndex]),
+					&ParamsAndInfo->Params[PassIndex],
+					ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+					[ParamsAndInfo, PassIndex, &SceneRenderer, &View, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandListImmediate& RHICmdList)
+				{
+					if (ParamsAndInfo->PassInfo[PassIndex].NumCommands == 0)
+					{
+						return;
+					}
+
+					FParallelCommandListBindings CmdListBindings(&ParamsAndInfo->Params[PassIndex]);
+					TConstArrayView<FNaniteMaterialPassCommand> PassCommands = MakeArrayView(MaterialPassCommands.GetData() + ParamsAndInfo->PassInfo[PassIndex].CommandOffset, ParamsAndInfo->PassInfo[PassIndex].NumCommands);
+					FRDGParallelCommandListSet ParallelCommandListSet(Pass, RHICmdList, GET_STATID(STAT_CLP_NaniteBasePass), SceneRenderer, View, CmdListBindings);
+					ParallelCommandListSet.SetHighPriority();
+					DrawNaniteMaterialPass(&ParallelCommandListSet, RHICmdList, View.ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, PassCommands);
+				});
+			}
 		}
 		else
 		{
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("EmitGBuffer"),
-				PassParameters,
-				ERDGPassFlags::Raster,
-				[ViewRect = View.ViewRect, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandList& RHICmdList)
+			static const TCHAR* const PassNames[] =
 			{
-				DrawNaniteMaterialPasses(nullptr, RHICmdList, ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, MaterialPassCommands);
-			});
+				TEXT("EmitGBuffer"),
+				TEXT("EmitGBufferWithVelocity"),
+			};
+			static_assert(UE_ARRAY_COUNT(PassNames) == (uint32)ENaniteMaterialPass::Max);
+
+			for (uint32 PassIndex = 0; PassIndex < ParamsAndInfo->NumPasses; ++PassIndex)
+			{
+				GraphBuilder.AddPass(
+					FRDGEventName(PassNames[PassIndex]),
+					&ParamsAndInfo->Params[PassIndex],
+					ERDGPassFlags::Raster,
+					[ParamsAndInfo, PassIndex, ViewRect = View.ViewRect, TileCount, NaniteVertexShader, &MaterialPassCommands, MaterialIndirectArgs](const FRDGPass* Pass, FRHICommandList& RHICmdList)
+				{
+					if (ParamsAndInfo->PassInfo[PassIndex].NumCommands == 0)
+					{
+						return;
+					}
+
+					TConstArrayView<FNaniteMaterialPassCommand> PassCommands = MakeArrayView(MaterialPassCommands.GetData() + ParamsAndInfo->PassInfo[PassIndex].CommandOffset, ParamsAndInfo->PassInfo[PassIndex].NumCommands);
+					DrawNaniteMaterialPass(nullptr, RHICmdList, ViewRect, TileCount, NaniteVertexShader, MaterialIndirectArgs, MaterialPassCommands);
+				});
+			}
 		}
 	}
 
@@ -1344,6 +1407,18 @@ void DrawLumenMeshCapturePass(
 	}
 }
 
+EGBufferLayout GetGBufferLayoutForMaterial(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParams)
+{
+	// If WPO is enabled and BasePass velocity is disabled, force velocity output in the base pass
+	// (We split the shading pass into two passes for this reason - see Nanite::DrawBasePass above)
+	if (!IsUsingBasePassVelocity(Platform) && MaterialParams.bHasVertexPositionOffsetConnected)
+	{
+		return GBL_ForceVelocity;
+	}
+
+	return GBL_Default;
+}
+
 } // namespace Nanite
 
 FNaniteMaterialCommands::FNaniteMaterialCommands(uint32 InMaxMaterials)
@@ -1374,7 +1449,7 @@ void FNaniteMaterialCommands::Release()
 #endif
 }
 
-FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, FCommandHash CommandHash, uint32 InstructionCount)
+FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, FCommandHash CommandHash, uint32 InstructionCount, bool bWPOEnabled)
 {
 	FNaniteCommandInfo CommandInfo;
 
@@ -1392,6 +1467,7 @@ FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, 
 		MaterialEntry.InstructionCount = InstructionCount;
 	#endif
 		MaterialEntry.bNeedUpload = true;
+		MaterialEntry.bWPOEnabled = bWPOEnabled;
 
 		++NumMaterialDepthUpdates;
 	}

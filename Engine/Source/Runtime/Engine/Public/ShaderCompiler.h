@@ -630,7 +630,7 @@ namespace FShaderCompileUtilities
 	ENGINE_API void GenerateBrdfHeaders(const FName& ShaderFormat);
 	void ApplyDerivedDefines(FShaderCompilerEnvironment& OutEnvironment, FShaderCompilerEnvironment * SharedEnvironment, const EShaderPlatform Platform);
 	void AppendGBufferDDCKeyString(const EShaderPlatform Platform, FString& KeyString);
-	ENGINE_API FGBufferInfo FetchGBufferInfoAndWriteAutogen(EShaderPlatform TargetPlatform, ERHIFeatureLevel::Type FeatureLevel);
+	ENGINE_API void WriteGBufferInfoAutogen(EShaderPlatform TargetPlatform, ERHIFeatureLevel::Type FeatureLevel);
 
 	void ApplyFetchEnvironment(FShaderMaterialPropertyDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
 	void ApplyFetchEnvironment(FShaderGlobalDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment, const EShaderPlatform Platform);
@@ -639,8 +639,10 @@ namespace FShaderCompileUtilities
 
 	void ApplyModifyEnvironment(const FShaderMaterialDerivedDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
 
-	ENGINE_API FGBufferParams FetchGBufferParamsRuntime(EShaderPlatform Platform); // this function is called from renderer
-	FGBufferParams FetchGBufferParamsPipeline(EShaderPlatform Platform);
+	ENGINE_API EGBufferLayout FetchGBufferLayout(const FShaderCompilerEnvironment& Environment);
+
+	ENGINE_API FGBufferParams FetchGBufferParamsRuntime(EShaderPlatform Platform, EGBufferLayout Layout); // this function is called from renderer
+	FGBufferParams FetchGBufferParamsPipeline(EShaderPlatform Platform, EGBufferLayout Layout);
 
 }
 

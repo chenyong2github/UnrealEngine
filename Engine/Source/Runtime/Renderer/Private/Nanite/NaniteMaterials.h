@@ -5,6 +5,7 @@
 #include "NaniteShared.h"
 #include "NaniteCullRaster.h"
 #include "MeshPassProcessor.h"
+#include "GBufferInfo.h"
 
 static constexpr uint32 NANITE_MAX_MATERIALS = 64;
 
@@ -247,6 +248,7 @@ struct FNaniteMaterialEntry
 	, InstructionCount(0)
 #endif
 	, bNeedUpload(false)
+	, bWPOEnabled(false)
 	{
 	}
 
@@ -258,6 +260,7 @@ struct FNaniteMaterialEntry
 	, InstructionCount(Other.InstructionCount)
 #endif
 	, bNeedUpload(false)
+	, bWPOEnabled(Other.bWPOEnabled)
 	{
 		checkSlow(!Other.bNeedUpload);
 	}
@@ -269,6 +272,7 @@ struct FNaniteMaterialEntry
 	uint32 InstructionCount;
 #endif
 	bool bNeedUpload;
+	bool bWPOEnabled;
 };
 
 struct FNaniteMaterialEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FMeshDrawCommand, FNaniteMaterialEntry, false>
@@ -301,8 +305,8 @@ public:
 
 	void Release();
 
-	FNaniteCommandInfo Register(FMeshDrawCommand& Command, FCommandHash CommandHash, uint32 InstructionCount);
-	FNaniteCommandInfo Register(FMeshDrawCommand& Command, uint32 InstructionCount) { return Register(Command, ComputeCommandHash(Command), InstructionCount); }
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command, FCommandHash CommandHash, uint32 InstructionCount, bool bWPOEnabled);
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command, uint32 InstructionCount, bool bWPOEnabled) { return Register(Command, ComputeCommandHash(Command), InstructionCount, bWPOEnabled); }
 	void Unregister(const FNaniteCommandInfo& CommandInfo);
 
 	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
@@ -504,5 +508,7 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef EmissiveAtlasTexture,
 	FRDGTextureRef DepthAtlasTexture
 );
+
+EGBufferLayout GetGBufferLayoutForMaterial(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParams);
 
 } // namespace Nanite

@@ -534,34 +534,35 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 	if (Config.bIsUsingGBuffers)
 	{
 		ETextureCreateFlags FlagsToAdd = TexCreate_None;
-		
-		if (Config.GBufferA.Index >= 0)
+		const FGBufferBindings& Bindings = Config.GBufferBindings[GBL_Default];
+
+		if (Bindings.GBufferA.Index >= 0)
 		{
-			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Config.GBufferA.Format, FClearValueBinding::Transparent, Config.GBufferA.Flags | FlagsToAdd | GFastVRamConfig.GBufferA));
+			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Bindings.GBufferA.Format, FClearValueBinding::Transparent, Bindings.GBufferA.Flags | FlagsToAdd | GFastVRamConfig.GBufferA));
 			SceneTextures.GBufferA = GraphBuilder.CreateTexture(Desc, TEXT("GBufferA"));
 		}
 
-		if (Config.GBufferB.Index >= 0)
+		if (Bindings.GBufferB.Index >= 0)
 		{
-			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Config.GBufferB.Format, FClearValueBinding::Transparent, Config.GBufferB.Flags | FlagsToAdd | GFastVRamConfig.GBufferB));
+			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Bindings.GBufferB.Format, FClearValueBinding::Transparent, Bindings.GBufferB.Flags | FlagsToAdd | GFastVRamConfig.GBufferB));
 			SceneTextures.GBufferB = GraphBuilder.CreateTexture(Desc, TEXT("GBufferB"));
 		}
 
-		if (Config.GBufferC.Index >= 0)
+		if (Bindings.GBufferC.Index >= 0)
 		{
-			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Config.GBufferC.Format, FClearValueBinding::Transparent, Config.GBufferC.Flags | FlagsToAdd | GFastVRamConfig.GBufferC));
+			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Bindings.GBufferC.Format, FClearValueBinding::Transparent, Bindings.GBufferC.Flags | FlagsToAdd | GFastVRamConfig.GBufferC));
 			SceneTextures.GBufferC = GraphBuilder.CreateTexture(Desc, TEXT("GBufferC"));
 		}
 
-		if (Config.GBufferD.Index >= 0)
+		if (Bindings.GBufferD.Index >= 0)
 		{
-			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Config.GBufferD.Format, FClearValueBinding::Transparent, Config.GBufferD.Flags | FlagsToAdd | GFastVRamConfig.GBufferD));
+			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Bindings.GBufferD.Format, FClearValueBinding::Transparent, Bindings.GBufferD.Flags | FlagsToAdd | GFastVRamConfig.GBufferD));
 			SceneTextures.GBufferD = GraphBuilder.CreateTexture(Desc, TEXT("GBufferD"));
 		}
 
-		if (Config.GBufferE.Index >= 0)
+		if (Bindings.GBufferE.Index >= 0)
 		{
-			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Config.GBufferE.Format, FClearValueBinding::Transparent, Config.GBufferE.Flags | FlagsToAdd | GFastVRamConfig.GBufferE));
+			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Bindings.GBufferE.Format, FClearValueBinding::Transparent, Bindings.GBufferE.Flags | FlagsToAdd | GFastVRamConfig.GBufferE));
 			SceneTextures.GBufferE = GraphBuilder.CreateTexture(Desc, TEXT("GBufferE"));
 		}
 
@@ -574,7 +575,7 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 	}
 
 
-	if(Config.ShadingPath == EShadingPath::Mobile && MobileRequiresSceneDepthAux(Config.ShaderPlatform))
+	if (Config.ShadingPath == EShadingPath::Mobile && MobileRequiresSceneDepthAux(Config.ShaderPlatform))
 	{
 		const float FarDepth = (float)ERHIZBuffer::FarPlane;
 		const FLinearColor FarDepthColor(FarDepth, FarDepth, FarDepth, FarDepth);
@@ -614,7 +615,10 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 #endif
 }
 
-uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& RenderTargets) const
+uint32 FSceneTextures::GetGBufferRenderTargets(
+	TStaticArray<FTextureRenderTargetBinding,
+	MaxSimultaneousRenderTargets>& RenderTargets,
+	EGBufferLayout Layout) const
 {
 	uint32 RenderTargetCount = 0;
 
@@ -636,14 +640,15 @@ uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FTextureRenderTarget
 			int32 Index;
 		};
 
+		const FGBufferBindings& Bindings = Config.GBufferBindings[Layout];
 		const FGBufferEntry GBufferEntries[] =
 		{
-			{ TEXT("GBufferA"), GBufferA, Config.GBufferA.Index },
-			{ TEXT("GBufferB"), GBufferB, Config.GBufferB.Index },
-			{ TEXT("GBufferC"), GBufferC, Config.GBufferC.Index },
-			{ TEXT("GBufferD"), GBufferD, Config.GBufferD.Index },
-			{ TEXT("GBufferE"), GBufferE, Config.GBufferE.Index },
-			{ TEXT("Velocity"), Velocity, Config.GBufferVelocity.Index }
+			{ TEXT("GBufferA"), GBufferA, Bindings.GBufferA.Index },
+			{ TEXT("GBufferB"), GBufferB, Bindings.GBufferB.Index },
+			{ TEXT("GBufferC"), GBufferC, Bindings.GBufferC.Index },
+			{ TEXT("GBufferD"), GBufferD, Bindings.GBufferD.Index },
+			{ TEXT("GBufferE"), GBufferE, Bindings.GBufferE.Index },
+			{ TEXT("Velocity"), Velocity, Bindings.GBufferVelocity.Index }
 		};
 
 		for (const FGBufferEntry& Entry : GBufferEntries)
@@ -665,10 +670,13 @@ uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FTextureRenderTarget
 	return RenderTargetCount;
 }
 
-uint32 FSceneTextures::GetGBufferRenderTargets(ERenderTargetLoadAction LoadAction, FRenderTargetBindingSlots& RenderTargetBindingSlots) const
+uint32 FSceneTextures::GetGBufferRenderTargets(
+	ERenderTargetLoadAction LoadAction,
+	FRenderTargetBindingSlots& RenderTargetBindingSlots,
+	EGBufferLayout Layout) const
 {
 	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> RenderTargets;
-	const uint32 RenderTargetCount = GetGBufferRenderTargets(RenderTargets);
+	const uint32 RenderTargetCount = GetGBufferRenderTargets(RenderTargets, Layout);
 	for (uint32 Index = 0; Index < RenderTargetCount; ++Index)
 	{
 		RenderTargetBindingSlots[Index] = FRenderTargetBinding(RenderTargets[Index].Texture, LoadAction);

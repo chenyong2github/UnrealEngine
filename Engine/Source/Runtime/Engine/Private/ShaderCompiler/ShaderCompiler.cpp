@@ -6068,7 +6068,16 @@ void GlobalBeginCompileShader(
 	}
 
 	{
-		Input.Environment.SetDefine(TEXT("GBUFFER_HAS_VELOCITY"), IsUsingBasePassVelocity((EShaderPlatform)Target.Platform) ? 1 : 0);
+		// Allow GBuffer containing a velocity target to be overridden at a higher level with GBUFFER_LAYOUT
+		bool bGBufferHasVelocity = IsUsingBasePassVelocity((EShaderPlatform)Target.Platform);
+	#if WITH_EDITOR
+		if (!bGBufferHasVelocity)
+		{
+			const EGBufferLayout Layout = FShaderCompileUtilities::FetchGBufferLayout(Input.Environment);
+			bGBufferHasVelocity |= (Layout == GBL_ForceVelocity);
+		}
+	#endif
+		Input.Environment.SetDefine(TEXT("GBUFFER_HAS_VELOCITY"), bGBufferHasVelocity ? 1 : 0);
 	}
 
 	{

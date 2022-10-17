@@ -214,42 +214,40 @@ void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSett
 
 	if (bIsUsingGBuffers)
 	{
-		GBufferParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform);
+		FGBufferParams DefaultParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform, GBL_Default);
 
 		// GBuffer configuration information is expensive to compute, the results are cached between runs.
 		struct FGBufferBindingCache
 		{
 			FGBufferParams GBufferParams;
-			FGBufferBinding GBufferA;
-			FGBufferBinding GBufferB;
-			FGBufferBinding GBufferC;
-			FGBufferBinding GBufferD;
-			FGBufferBinding GBufferE;
-			FGBufferBinding GBufferVelocity;
+			FGBufferBindings Bindings[GBL_Num];
 			bool bInitialized = false;
 		};
 		static FGBufferBindingCache BindingCache;
 
-		if (!BindingCache.bInitialized || BindingCache.GBufferParams != GBufferParams)
+		if (!BindingCache.bInitialized || BindingCache.GBufferParams != DefaultParams)
 		{
-			const FGBufferInfo GBufferInfo = FetchFullGBufferInfo(GBufferParams);
+			for (uint32 Layout = 0; Layout < GBL_Num; ++Layout)
+			{
+				GBufferParams[Layout] = (Layout == GBL_Default) ? DefaultParams : FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform, (EGBufferLayout)Layout);
+				const FGBufferInfo GBufferInfo = FetchFullGBufferInfo(GBufferParams[Layout]);
 
-			BindingCache.GBufferParams = GBufferParams;
-			BindingCache.GBufferA = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferA"));
-			BindingCache.GBufferB = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferB"));
-			BindingCache.GBufferC = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferC"));
-			BindingCache.GBufferD = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferD"));
-			BindingCache.GBufferE = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferE"));
-			BindingCache.GBufferVelocity = FindGBufferBindingByName(GBufferInfo, TEXT("Velocity"));
+				BindingCache.Bindings[Layout].GBufferA = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferA"));
+				BindingCache.Bindings[Layout].GBufferB = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferB"));
+				BindingCache.Bindings[Layout].GBufferC = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferC"));
+				BindingCache.Bindings[Layout].GBufferD = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferD"));
+				BindingCache.Bindings[Layout].GBufferE = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferE"));
+				BindingCache.Bindings[Layout].GBufferVelocity = FindGBufferBindingByName(GBufferInfo, TEXT("Velocity"));
+			}
+
+			BindingCache.GBufferParams = DefaultParams;
 			BindingCache.bInitialized = true;
 		}
 
-		GBufferA = BindingCache.GBufferA;
-		GBufferB = BindingCache.GBufferB;
-		GBufferC = BindingCache.GBufferC;
-		GBufferD = BindingCache.GBufferD;
-		GBufferE = BindingCache.GBufferE;
-		GBufferVelocity = BindingCache.GBufferVelocity;
+		for (uint32 Layout = 0; Layout < GBL_Num; ++Layout)
+		{
+			GBufferBindings[Layout] = BindingCache.Bindings[Layout];
+		}
 	}
 }
 
@@ -259,7 +257,7 @@ void FSceneTexturesConfig::BuildSceneColorAndDepthFlags()
     DepthCreateFlags = GetSceneDepthStencilCreateFlags(NumSamples, bKeepDepthContent, bMemorylessMSAA, ExtraSceneDepthCreateFlags);
 }
 
-uint32 FSceneTexturesConfig::GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const 
+uint32 FSceneTexturesConfig::GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo, EGBufferLayout Layout) const 
 {
 	// Assume 1 sample for now
 	RenderTargetsInfo.NumSamples = 1;
@@ -273,7 +271,7 @@ uint32 FSceneTexturesConfig::GetGBufferRenderTargetsInfo(FGraphicsPipelineRender
 	// Setup the other render targets
 	if (bIsUsingGBuffers)
 	{
-		const auto CheckGBufferBinding = [&RenderTargetsInfo, &RenderTargetCount](const FGBufferBinding& GBufferBinding)
+		const auto IncludeBindingIfValid = [&RenderTargetsInfo, &RenderTargetCount](const FGBufferBinding& GBufferBinding)
 		{
 			if (GBufferBinding.Index > 0)
 			{
@@ -282,16 +280,19 @@ uint32 FSceneTexturesConfig::GetGBufferRenderTargetsInfo(FGraphicsPipelineRender
 				RenderTargetCount = FMath::Max(RenderTargetCount, (uint32)GBufferBinding.Index + 1);
 			}
 		};
-		CheckGBufferBinding(GBufferA);
-		CheckGBufferBinding(GBufferB);
-		CheckGBufferBinding(GBufferC);
-		CheckGBufferBinding(GBufferD);
-		CheckGBufferBinding(GBufferE);
-		CheckGBufferBinding(GBufferVelocity);
+
+		const FGBufferBindings& Bindings = GBufferBindings[Layout];
+		IncludeBindingIfValid(Bindings.GBufferA);
+		IncludeBindingIfValid(Bindings.GBufferB);
+		IncludeBindingIfValid(Bindings.GBufferC);
+		IncludeBindingIfValid(Bindings.GBufferD);
+		IncludeBindingIfValid(Bindings.GBufferE);
+		IncludeBindingIfValid(Bindings.GBufferVelocity);
 	}
 	// Forward shading path. Simple forward shading does not use velocity.
 	else if (IsUsingBasePassVelocity(ShaderPlatform))
 	{
+		const FGBufferBinding& GBufferVelocity = GBufferBindings[GBL_Default].GBufferVelocity;
 		RenderTargetsInfo.RenderTargetFormats[RenderTargetCount] = GBufferVelocity.Format;
 		RenderTargetsInfo.RenderTargetFlags[RenderTargetCount++] = GBufferVelocity.Flags;
 	}

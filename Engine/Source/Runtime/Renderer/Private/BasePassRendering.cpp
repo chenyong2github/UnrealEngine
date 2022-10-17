@@ -884,9 +884,10 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 		PassParameters->RenderTargets = GetRenderTargetBindings(ColorLoadAction, BasePassTexturesView);
 
-		if (!CVarClearGBufferDBeforeBasePass.GetValueOnRenderThread() && SceneTextures.Config.GBufferD.Index > 0 && SceneTextures.Config.GBufferD.Index < (int32)BasePassTextureCount)
+		const FGBufferBindings& GBufferBindings = SceneTextures.Config.GBufferBindings[GBL_Default];
+		if (!CVarClearGBufferDBeforeBasePass.GetValueOnRenderThread() && GBufferBindings.GBufferD.Index > 0 && GBufferBindings.GBufferD.Index < (int32)BasePassTextureCount)
 		{
-			PassParameters->RenderTargets[SceneTextures.Config.GBufferD.Index].SetLoadAction(ERenderTargetLoadAction::ENoAction);
+			PassParameters->RenderTargets[GBufferBindings.GBufferD.Index].SetLoadAction(ERenderTargetLoadAction::ENoAction);
 		}
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("GBufferClear"), PassParameters, ERDGPassFlags::Raster,

@@ -123,7 +123,7 @@ struct ENGINE_API FSceneTexturesConfig
 
 	void Init(const FSceneTexturesConfigInitSettings& InitSettings);
     void BuildSceneColorAndDepthFlags();
-	uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const;
+	uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo, EGBufferLayout Layout = GBL_Default) const;
 
 	FORCEINLINE bool IsValid() const
 	{
@@ -169,13 +169,8 @@ struct ENGINE_API FSceneTexturesConfig
 	FClearValueBinding DepthClearValue = FClearValueBinding::DepthFar;
 
 	// (Deferred Shading) Dynamic GBuffer configuration used to control allocation and slotting of base pass textures.
-	FGBufferParams GBufferParams;
-	FGBufferBinding GBufferA;
-	FGBufferBinding GBufferB;
-	FGBufferBinding GBufferC;
-	FGBufferBinding GBufferD;
-	FGBufferBinding GBufferE;
-	FGBufferBinding GBufferVelocity;
+	FGBufferParams GBufferParams[GBL_Num];
+	FGBufferBindings GBufferBindings[GBL_Num];
 
 	// (VR) True if scene color and depth should be multi-view allocated.
 	uint32 bRequireMultiView : 1;
