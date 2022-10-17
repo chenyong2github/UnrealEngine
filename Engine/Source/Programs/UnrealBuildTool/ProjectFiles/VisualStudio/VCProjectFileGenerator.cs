@@ -294,7 +294,7 @@ namespace UnrealBuildTool
 				List<VisualStudioInstallation> Installations = MicrosoftPlatformSDK.FindVisualStudioInstallations(Logger).Where(x => WindowsPlatform.HasCompiler(x.Compiler, WindowsArchitecture.x64, Logger)).ToList();
 
 				// Get the corresponding project file format
-				VCProjectFileFormat Format = VCProjectFileFormat.VisualStudio2019;
+				VCProjectFileFormat Format = VCProjectFileFormat.Default;
 				foreach (VisualStudioInstallation Installation in Installations)
 				{
 					if (Installation.Compiler == WindowsCompiler.VisualStudio2022)
