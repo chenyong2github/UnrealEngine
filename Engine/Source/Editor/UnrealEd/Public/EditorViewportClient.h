@@ -1391,6 +1391,10 @@ public:
 
 	/** @return true if Override EngineShowFlags are currently enabled */
 	bool IsEngineShowFlagsOverrideEnabled() const { return !! OverrideShowFlagsFunc; }
+
+	inline bool GetIsCurrentLevelEditingFocus() const								{ return bIsCurrentLevelEditingFocus; }
+	inline void SetIsCurrentLevelEditingFocus(bool bInIsCurrentLevelEditingFocus)	{ bIsCurrentLevelEditingFocus = bInIsCurrentLevelEditingFocus; }
+
 protected:
 	/** Invalidates the viewport widget (if valid) to register its active timer */
 	void InvalidateViewportWidget();
@@ -1959,6 +1963,9 @@ private:
 	FSceneViewFamily *DragStartViewFamily;
 
 	TArray<FIntPoint> CapturedMouseMoves;
+
+	/** True if this is the current viewport client in editing */
+	bool bIsCurrentLevelEditingFocus = false;
 };
 
 

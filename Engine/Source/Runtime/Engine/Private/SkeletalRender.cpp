@@ -91,7 +91,7 @@ FSkeletalMeshObject::~FSkeletalMeshObject()
 void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx)
 {
 	// Thumbnail rendering doesn't contribute to MinDesiredLODLevel calculation
-	if (View->Family && View->Family->bThumbnailRendering)
+	if (View->Family && (View->Family->bThumbnailRendering || !View->Family->GetIsInFocus()))
 	{
 		return;
 	}

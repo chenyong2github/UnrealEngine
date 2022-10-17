@@ -1971,6 +1971,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			if (!bAllWindowsHidden || GCurrentLevelEditingViewportClient->WantsDrawWhenAppIsHidden())
 			{
 				bool bAllowNonRealtimeViewports = true;
+				GCurrentLevelEditingViewportClient->SetIsCurrentLevelEditingFocus(true);
 				bool bWasNonRealtimeViewportDraw = UpdateSingleViewportClient(GCurrentLevelEditingViewportClient, bAllowNonRealtimeViewports, bUpdateLinkedOrthoViewports);
 				if (GCurrentLevelEditingViewportClient->IsLevelEditorClient())
 				{
@@ -1999,6 +2000,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					{
 						//if we haven't drawn a non-realtime viewport OR not one of the main viewports
 						bool bAllowNonRealtimeViewports = (!bEditorFrameNonRealtimeViewportDrawn) || !(ViewportClient->IsLevelEditorClient());
+						ViewportClient->SetIsCurrentLevelEditingFocus(false);
 						bool bWasNonRealtimeViewportDrawn = UpdateSingleViewportClient(ViewportClient, bAllowNonRealtimeViewports, bUpdateLinkedOrthoViewports);
 						if (ViewportClient->IsLevelEditorClient())
 						{

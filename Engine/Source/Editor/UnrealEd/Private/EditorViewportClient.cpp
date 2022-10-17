@@ -3945,6 +3945,9 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	ViewFamily.EngineShowFlags = UseEngineShowFlags;
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
+	
+	// The view is in focus if it is currently in editing
+	ViewFamily.SetIsInFocus(GetIsCurrentLevelEditingFocus());
 
 	if( !AllowsCinematicControl() )
 	{

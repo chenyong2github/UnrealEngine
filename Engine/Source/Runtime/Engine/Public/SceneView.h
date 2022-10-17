@@ -2008,6 +2008,9 @@ public:
 		return SecondarySpatialUpscalerInterface;
 	}
 
+	inline bool GetIsInFocus() const				{ return bIsInFocus; }
+	inline void SetIsInFocus(bool bInIsInFocus)		{ bIsInFocus = bInIsInFocus; }
+
 private:
 	/** Interface to handle screen percentage of the views of the family. */
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
@@ -2025,6 +2028,9 @@ private:
 
 	/** whether the pre DOF translucency are allowed to be rendered in separated target from scene to allow for better composition with distortion.*/
 	bool bAllowStandardTranslucencySeparated;
+
+	/** True if this view is the current editing view or the active game view */
+	bool bIsInFocus = true;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Only FSceneRenderer can copy a view family.
