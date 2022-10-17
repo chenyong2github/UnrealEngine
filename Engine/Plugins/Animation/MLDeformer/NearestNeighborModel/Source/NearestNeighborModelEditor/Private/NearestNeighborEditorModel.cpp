@@ -358,6 +358,10 @@ namespace UE::NearestNeighborModel
 		const int32 NumBaseMeshVerts = Model->GetNumBaseMeshVerts();
 		const UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
 		const int32 PartNumVerts = VertexMap.Num();
+		if (PartNumVerts == 0)
+		{
+			return;
+		}
 		const int32 NumShapes = FloatArr.Num() / (PartNumVerts * 3);
 		if (DeltaArrayOffset < 0)
 		{

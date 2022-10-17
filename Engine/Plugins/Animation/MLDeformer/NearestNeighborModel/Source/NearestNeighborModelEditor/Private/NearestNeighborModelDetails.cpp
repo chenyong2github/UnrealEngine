@@ -82,6 +82,31 @@ namespace UE::NearestNeighborModel
 
 		// Cloth part settings
 		ClothPartCategoryBuilder->AddProperty(UNearestNeighborModel::GetClothPartEditorDataPropertyName());
+
+		FString VertexCountStr = "VertexCounts:";
+		if (NearestNeighborModel)
+		{
+			const int32 NumParts = NearestNeighborModel->GetNumParts();
+			VertexCountStr += "[";
+			for (int32 PartId = 0; PartId < NumParts; PartId++)
+			{
+				VertexCountStr += FString::Printf(TEXT("%d"), NearestNeighborModel->GetPartNumVerts(PartId));
+				if (PartId != NumParts - 1)
+				{
+					VertexCountStr += ",";
+				}
+			}
+			VertexCountStr += "]";
+		}
+		FText VertexCountText = FText::FromString(VertexCountStr);
+		ClothPartCategoryBuilder->AddCustomRow(FText::FromString(""))
+			.WholeRowContent()
+			[
+				SNew(STextBlock)
+				.Text(VertexCountText)
+			];
+
+
 		FText ButtonText = (NearestNeighborModel && NearestNeighborModel->IsClothPartDataValid()) ? LOCTEXT("Update", "Update") : LOCTEXT("Update *", "Update *");
 		ClothPartCategoryBuilder->AddCustomRow(FText::FromString(""))
 			.WholeRowContent()
