@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using OpenTracing;
 using OpenTracing.Util;
 
@@ -147,6 +150,45 @@ namespace Horde.Build.Storage.Backends
 			FileReference location = FileReference.Combine(_baseDir, path);
 			FileReference.Delete(location);
 			return Task.CompletedTask;
+		}
+
+		/// <inheritdoc/>
+		public async IAsyncEnumerable<string> EnumerateAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			Stack<IEnumerator<DirectoryInfo>> queue = new Stack<IEnumerator<DirectoryInfo>>();
+			try
+			{
+				queue.Push(new List<DirectoryInfo> { _baseDir.ToDirectoryInfo() }.GetEnumerator());
+				while (queue.Count > 0)
+				{
+					IEnumerator<DirectoryInfo> top = queue.Peek();
+					if (!top.MoveNext())
+					{
+						top.Dispose();
+						queue.Pop();
+						continue;
+					}
+
+					DirectoryInfo current = top.Current;
+					foreach (FileInfo fileInfo in current.EnumerateFiles("*"))
+					{
+						string path = fileInfo.FullName.Substring(_baseDir.FullName.Length + 1).Replace(Path.DirectorySeparatorChar, '/');
+						yield return path;
+					}
+
+					queue.Push(current.EnumerateDirectories().GetEnumerator());
+
+					cancellationToken.ThrowIfCancellationRequested();
+					await Task.Yield();
+				}
+			}
+			finally
+			{
+				while (queue.TryPop(out IEnumerator<DirectoryInfo>? enumerator))
+				{
+					enumerator.Dispose();
+				}
+			}
 		}
 	}
 }

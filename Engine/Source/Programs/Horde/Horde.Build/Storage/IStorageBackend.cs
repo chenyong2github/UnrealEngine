@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,6 +55,13 @@ namespace Horde.Build.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
 		Task DeleteAsync(string path, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Enumerates all the objects in the store
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Sequence of object paths</returns>
+		IAsyncEnumerable<string> EnumerateAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -97,6 +105,9 @@ namespace Horde.Build.Storage
 
 			/// <inheritdoc/>
 			public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken) => _inner.ExistsAsync(path, cancellationToken);
+
+			/// <inheritdoc/>
+			public IAsyncEnumerable<string> EnumerateAsync(CancellationToken cancellationToken = default) => _inner.EnumerateAsync(cancellationToken);
 		}
 
 		/// <summary>

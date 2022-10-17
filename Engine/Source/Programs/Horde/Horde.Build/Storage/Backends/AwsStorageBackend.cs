@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Text;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
@@ -119,6 +119,11 @@ namespace Horde.Build.Storage.Backends
 		private readonly SemaphoreSlim _semaphore;
 
 		/// <summary>
+		/// Prefix for objects in the bucket
+		/// </summary>
+		private readonly string _pathPrefix;
+
+		/// <summary>
 		/// Logger interface
 		/// </summary>
 		private readonly ILogger _logger;
@@ -137,6 +142,12 @@ namespace Horde.Build.Storage.Backends
 			_options = options;
 			_semaphore = new SemaphoreSlim(16);
 			_logger = logger;
+
+			_pathPrefix = (_options.AwsBucketPath ?? String.Empty).TrimEnd('/');
+			if (_pathPrefix.Length > 0)
+			{
+				_pathPrefix += '/';
+			}
 
 			logger.LogInformation("Created AWS storage backend for bucket {BucketName} using credentials {Credentials} {CredentialsStr}", options.AwsBucketName, awsOptions.Credentials.GetType(), awsOptions.Credentials.ToString());
 		}
@@ -239,22 +250,7 @@ namespace Horde.Build.Storage.Backends
 			}
 		}
 
-		string GetFullPath(string path)
-		{
-			if (_options.AwsBucketPath == null)
-			{
-				return path;
-			}
-
-			StringBuilder result = new StringBuilder();
-			result.Append(_options.AwsBucketPath);
-			if (result.Length > 0 && result[^1] != '/')
-			{
-				result.Append('/');
-			}
-			result.Append(path);
-			return result.ToString();
-		}
+		string GetFullPath(string path) => _pathPrefix + path;
 
 		/// <inheritdoc/>
 		public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken)
@@ -472,6 +468,43 @@ namespace Horde.Build.Storage.Backends
 			catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
 			{
 				return false;
+			}
+		}
+
+		/// <inheritdoc/>
+		public async IAsyncEnumerable<string> EnumerateAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			ListObjectsV2Request request = new ListObjectsV2Request();
+			request.BucketName = _options.AwsBucketName;
+			if(_pathPrefix.Length > 0)
+			{
+				request.Prefix = _pathPrefix;
+			}
+
+			for (; ; )
+			{
+				ListObjectsV2Response response = await _client.ListObjectsV2Async(request, cancellationToken);
+				foreach (S3Object obj in response.S3Objects)
+				{
+					string path = obj.Key;
+					if (path.StartsWith(_pathPrefix, StringComparison.Ordinal))
+					{
+						yield return path.Substring(_pathPrefix.Length);
+					}
+					else
+					{
+						_logger.LogError("Unexpected object enumerated from {AwsBucketName} - expected object \"{Path}\" to start with \"{AwsBucketPath}\"", _options.AwsBucketName, path, _pathPrefix);
+					}
+				}
+
+				if (response.IsTruncated)
+				{
+					request.ContinuationToken = response.NextContinuationToken;
+				}
+				else
+				{
+					break;
+				}
 			}
 		}
 	}

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -63,6 +65,17 @@ namespace Horde.Build.Storage.Backends
 		{
 			_pathToData.TryRemove(path, out _);
 			return Task.CompletedTask;
+		}
+
+		/// <inheritdoc/>
+		public async IAsyncEnumerable<string> EnumerateAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			foreach (string path in _pathToData.Keys)
+			{
+				yield return path;
+				cancellationToken.ThrowIfCancellationRequested();
+				await Task.Yield();
+			}
 		}
 	}
 }
