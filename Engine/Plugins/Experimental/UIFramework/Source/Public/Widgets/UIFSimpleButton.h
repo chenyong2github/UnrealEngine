@@ -7,13 +7,6 @@
 
 #include "UIFSimpleButton.generated.h"
 
-
-/**
- *
- */
-DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkSimpleButtonClickEvent, FUIFrameworkClickEventArgument);
-
-
 /**
  *
  */
@@ -48,5 +41,5 @@ private:
 	FText Text;
 
 public:
-	FUIFrameworkSimpleButtonClickEvent OnClick;
+	FUIFrameworkClickEvent OnClick;
 };

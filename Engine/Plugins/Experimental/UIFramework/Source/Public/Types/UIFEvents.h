@@ -26,3 +26,5 @@ struct FUIFrameworkClickEventArgument
 	UPROPERTY()
 	TObjectPtr<UUIFrameworkWidget> Sender;
 };
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkClickEvent, FUIFrameworkClickEventArgument);

@@ -11,11 +11,6 @@
 /**
  *
  */
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FUIFrameworkButtonClickEvent, UUIFrameworkButton, OnClick, FUIFrameworkClickEventArgument, Argument);
-
-/**
- *
- */
 UCLASS(DisplayName = "Button UIFramework")
 class UIFRAMEWORK_API UUIFrameworkButton : public UUIFrameworkWidget
 {
@@ -48,8 +43,7 @@ private:
 	void OnRep_Slot();
 
 public:
-	UPROPERTY(BlueprintAssignable)
-	FUIFrameworkButtonClickEvent OnClick;
+	FUIFrameworkClickEvent OnClick;
 
 private:
 	UPROPERTY(/*ExposeOnSpawn, */ReplicatedUsing = OnRep_Slot)
