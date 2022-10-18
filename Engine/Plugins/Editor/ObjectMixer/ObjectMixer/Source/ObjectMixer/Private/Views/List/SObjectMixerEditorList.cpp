@@ -1294,7 +1294,7 @@ void CreateFolderRowsForTopLevelRow(
 			{
 				FolderRow =
 					MakeShared<FObjectMixerEditorListRow>(
-						BaseActorFolder.GetPath(), FObjectMixerEditorListRow::Folder, InListView,
+						BaseActorFolder, FObjectMixerEditorListRow::Folder, InListView,
 						FText::FromName(BaseActorFolder.GetLeafName()));
 
 				FolderMap.Add(BaseActorFolder.GetPath(), FolderRow.ToSharedRef());

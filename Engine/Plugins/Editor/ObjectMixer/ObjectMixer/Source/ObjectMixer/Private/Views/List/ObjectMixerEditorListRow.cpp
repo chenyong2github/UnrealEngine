@@ -358,9 +358,10 @@ bool FObjectMixerEditorListRow::HasAtLeastOneChildThatIsNotSolo(const bool bRecu
 
 FText FObjectMixerEditorListRow::GetDisplayName(const bool bIsHybridRow) const
 {
-	if (!GetDisplayNameOverride().IsEmpty())
+	const FText Override = GetDisplayNameOverride();
+	if (!Override.IsEmpty())
 	{
-		return GetDisplayNameOverride();
+		return Override;
 	}
 
 	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())

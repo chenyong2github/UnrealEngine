@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
+
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Folder.h"
 #include "Layout/Visibility.h"
-#include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 #include "PropertyHandle.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
@@ -89,9 +91,9 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	{}
 
 	FObjectMixerEditorListRow(
-		const FName InFolderPath, const EObjectMixerEditorListRowType InRowType, 
+		const FFolder InFolder, const EObjectMixerEditorListRowType InRowType, 
 		const TSharedRef<SObjectMixerEditorList>& InListView, const FText& InDisplayNameOverride = FText::GetEmpty())
-	: FolderPath(InFolderPath)
+	: FolderRef(InFolder)
 	, RowType(InRowType)
 	, ListViewPtr(InListView)
 	, DisplayNameOverride(InDisplayNameOverride)
@@ -107,9 +109,14 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 		return nullptr;
 	}
 
+	[[nodiscard]] const FFolder& GetFolder() const
+	{
+		return FolderRef;
+	}
+
 	[[nodiscard]] FName GetFolderPath() const
 	{
-		return FolderPath;
+		return FolderRef.GetPath();
 	}
 
 	UObjectMixerObjectFilter* GetObjectFilter() const;
@@ -214,7 +221,7 @@ private:
 	FObjectMixerEditorListRowPtr GetAsShared();
 
 	TWeakObjectPtr<UObject> ObjectRef;
-	FName FolderPath = NAME_None;
+	FFolder FolderRef;
 	EObjectMixerEditorListRowType RowType = MatchingObject;
 	TArray<FObjectMixerEditorListRowPtr> ChildRows;
 	
