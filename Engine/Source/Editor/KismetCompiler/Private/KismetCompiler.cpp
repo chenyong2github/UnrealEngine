@@ -1721,26 +1721,33 @@ void FKismetCompilerContext::CopyTermDefaultsToDefaultObject(UObject* DefaultObj
 				++PropertiesAssigned;
 
 				const FString& Value = *ValuePtr;
-				if(FObjectProperty* AsObjectProperty = CastField<FObjectProperty>(Property))
+				if (FObjectProperty* AsObjectProperty = CastField<FObjectProperty>(Property))
 				{
 					// Value is the fully qualified name, so just search for it:
 					UObject* Result = StaticFindObjectSafe(UObject::StaticClass(), nullptr, *Value);
-					if(Result)
+					if (Result)
 					{
 						// Object may be of a type that is also being compiled and therefore REINST_, so get real class:
 						UClass* RealClass = Result->GetClass()->GetAuthoritativeClass();
 
 						// If object is compatible, write it into cdo:
-						if( RealClass && RealClass->IsChildOf(AsObjectProperty->PropertyClass) )
+						if (RealClass && RealClass->IsChildOf(AsObjectProperty->PropertyClass))
 						{
-							AsObjectProperty->SetObjectPropertyValue( AsObjectProperty->ContainerPtrToValuePtr<uint8>(DefaultObject), Result );
+							AsObjectProperty->SetObjectPropertyValue(AsObjectProperty->ContainerPtrToValuePtr<uint8>(DefaultObject), Result);
 							continue;
 						}
 					}
 				}
 
-				const bool bParseSuccedded = FBlueprintEditorUtils::PropertyValueFromString(Property, Value, reinterpret_cast<uint8*>(DefaultObject));
-				if(!bParseSuccedded)
+				// If this property contains an instanced reference, set the flag to make sure we uniquely instance those objects when we import the default value.
+				int32 PortFlags = PPF_None;
+				if (Property->HasAnyPropertyFlags(CPF_ContainsInstancedReference | CPF_InstancedReference))
+				{
+					PortFlags |= PPF_InstanceSubobjects;
+				}
+
+				const bool bParseSucceeded = FBlueprintEditorUtils::PropertyValueFromString(Property, Value, reinterpret_cast<uint8*>(DefaultObject), DefaultObject, PortFlags);
+				if(!bParseSucceeded)
 				{
 					const FString ErrorMessage = *FText::Format(
 						LOCTEXT("ParseDefaultValueErrorFmt", "Can't parse default value '{0}' for @@. Property: {1}."),
