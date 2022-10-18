@@ -47,8 +47,8 @@ namespace UnrealBuildTool.Matchers
 			bool isWarning = false;
 			while (cursor.IsMatch(lineCount, s_undefinedReferencePattern))
 			{
-				isError |= cursor.Contains("error:");
-				isWarning |= cursor.Contains("warning:");
+				isError |= cursor.Contains(lineCount, "error:");
+				isWarning |= cursor.Contains(lineCount, "warning:");
 				lineCount++;
 			}
 			if (lineCount > 0)
