@@ -40,7 +40,7 @@ namespace UE::MLDeformer
 			Model = static_cast<UMLDeformerModel*>(Objects[0].Get());
 
 			// Get the editor model for this runtime model.
-			FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+			FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 			if (Model)
 			{
 				EditorModel = EditorModule.GetModelRegistry().GetEditorModel(Model);

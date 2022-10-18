@@ -39,7 +39,7 @@ namespace UE::MLDeformer
 
 		if (Objects.Num() == 1)
 		{
-			FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+			FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 			VizSettings = Cast<UMLDeformerVizSettings>(Objects[0]);	
 			Model = VizSettings ? Cast<UMLDeformerModel>(VizSettings->GetOuter()) : nullptr;
 			EditorModel = Model ? EditorModule.GetModelRegistry().GetEditorModel(Model) : nullptr;

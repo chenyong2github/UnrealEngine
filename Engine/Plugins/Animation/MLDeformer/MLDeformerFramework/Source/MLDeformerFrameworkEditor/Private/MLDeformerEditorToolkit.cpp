@@ -45,7 +45,7 @@ namespace UE::MLDeformer
 		FPersonaToolkitArgs PersonaToolkitArgs;
 		PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FMLDeformerEditorToolkit::HandlePreviewSceneCreated);
 
-		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+		FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();	
 
 		// Create a new model if none was selected yet.
@@ -126,7 +126,7 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorToolkit::ShowNoModelsWarningIfNeeded()
 	{
-		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+		FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		const FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();	
 		if (ModelRegistry.GetNumRegisteredModels() == 0)
 		{
@@ -189,7 +189,7 @@ namespace UE::MLDeformer
 		const bool bShouldCloseWindowAfterMenuSelection = true;
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
-		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+		FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		const FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();
 
 		TArray<UClass*> ModelTypes;
@@ -257,7 +257,7 @@ namespace UE::MLDeformer
 			}
 		}
 
-		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+		FMLDeformerEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
 		FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();
 
 		// Remove existing actors etc.
