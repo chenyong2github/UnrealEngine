@@ -92,6 +92,8 @@ public:
 
 	void SynchronizeOverviewGraphWithSystem(UNiagaraSystem& OwnerSystem);
 
+	void InitOnSyncScriptVariables(UNiagaraSystem& System);
+	
 	void SyncUserScriptVariables(UNiagaraSystem* System);
 	FOnUserParameterScriptVariablesSynced& OnUserParameterScriptVariablesSynced() { return OnUserParameterScriptVariablesSyncedDelegate; }
 	

@@ -211,6 +211,7 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 		{
 			UNiagaraSystemEditorData* SystemEditorData = NewObject<UNiagaraSystemEditorData>(InOuter);
 			SystemEditorData->SynchronizeOverviewGraphWithSystem(*System);
+			SystemEditorData->InitOnSyncScriptVariables(*System);
 			return SystemEditorData;
 		}
 		return nullptr;

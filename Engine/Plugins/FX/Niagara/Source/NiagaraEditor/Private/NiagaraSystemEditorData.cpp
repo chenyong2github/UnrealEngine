@@ -108,9 +108,7 @@ void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 		OwningSystem->GetExposedParameters().RedirectUserVariable(RedirectedUserParameter);
 		FindOrAddUserScriptVariable(RedirectedUserParameter, *OwningSystem);
 	}
-
-	OwningSystem->GetExposedParameters().AddOnChangedHandler(FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraSystemEditorData::SyncUserScriptVariables, OwningSystem));
-
+	
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 	if (NiagaraVer < FNiagaraCustomVersion::PlaybackRangeStoredOnSystem)
@@ -123,6 +121,10 @@ void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 		SystemOverviewGraph = NewObject<UEdGraph>(this, "NiagaraOverview", RF_Transactional);
 		SystemOverviewGraph->Schema = UEdGraphSchema_NiagaraSystemOverview::StaticClass();
 	}
+
+	// we make sure to refresh the script variables mapping to the user parameter store
+	SyncUserScriptVariables(OwningSystem);
+	InitOnSyncScriptVariables(*OwningSystem);
 
 	if(SystemOverviewGraph->Nodes.Num() == 0)
 	{
@@ -342,6 +344,11 @@ void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem
 
 	// Dispatch an empty graph changed message here so that any graph UIs which are visible refresh their node's widgets.
 	SystemOverviewGraph->NotifyGraphChanged();
+}
+
+void UNiagaraSystemEditorData::InitOnSyncScriptVariables(UNiagaraSystem& System)
+{
+	System.GetExposedParameters().AddOnChangedHandler(FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraSystemEditorData::SyncUserScriptVariables, &System));
 }
 
 void UNiagaraSystemEditorData::SyncUserScriptVariables(UNiagaraSystem* System)
