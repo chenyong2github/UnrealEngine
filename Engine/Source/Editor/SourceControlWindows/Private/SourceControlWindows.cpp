@@ -89,14 +89,14 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 
 	// make sure we update the SCC status of all packages (this could take a long time, so we will run it as a background task)
 	TArray<FString> Filenames;
-	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-	if (SourceControlProjectDir.IsEmpty())
+	if (ISourceControlModule::Get().UsesCustomProjectDir())
 	{
-		Filenames = GetSourceControlLocations();
+		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+		Filenames.Add(SourceControlProjectDir);
 	}
 	else
 	{
-		Filenames.Add(SourceControlProjectDir);
+		Filenames = GetSourceControlLocations();
 	}
 	
 	// make sure the SourceControlProvider state cache is populated as well
@@ -267,9 +267,7 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 	{
 		SourceControlHelpers::RevertUnchangedFiles(SourceControlProvider, Description.FilesForSubmit);
 
-		const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-
-		if (SCCProjectDir.IsEmpty())
+		if (!ISourceControlModule::Get().UsesCustomProjectDir())
 		{
 			// Make sure all files are still checked out
 			for (int32 VerifyIndex = Description.FilesForSubmit.Num() - 1; VerifyIndex >= 0; --VerifyIndex)
@@ -445,15 +443,15 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 	TArray<FString> PendingDeletePaths;
 
 	bool bUseSourceControlStateCache = true;
-	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-	if (SourceControlProjectDir.IsEmpty())
+	if (ISourceControlModule::Get().UsesCustomProjectDir())
 	{
-		PendingDeletePaths = GetSourceControlLocations();
+		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+		PendingDeletePaths.Add(SourceControlProjectDir);
+		bUseSourceControlStateCache = false;
 	}
 	else
 	{
-		PendingDeletePaths.Add(SourceControlProjectDir);
-		bUseSourceControlStateCache = false;
+		PendingDeletePaths = GetSourceControlLocations();
 	}
 
 	PromptForCheckin(OutResultInfo, PackageNames, PendingDeletePaths, ConfigFiles, bUseSourceControlStateCache);

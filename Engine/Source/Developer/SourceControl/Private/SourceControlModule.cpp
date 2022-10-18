@@ -551,6 +551,19 @@ FString FSourceControlModule::GetSourceControlProjectDir() const
 	return FPaths::ProjectDir();
 }
 
+bool FSourceControlModule::UsesCustomProjectDir() const
+{
+	if (SourceControlProjectDirDelegate.IsBound())
+	{
+		FString ProjectDir = SourceControlProjectDirDelegate.Execute();
+		if (!ProjectDir.IsEmpty())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 FSourceControlFileStatusMonitor& FSourceControlModule::GetSourceControlFileStatusMonitor()
 {
 	return *SourceControlFileStatusMonitor;

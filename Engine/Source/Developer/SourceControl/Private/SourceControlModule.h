@@ -58,6 +58,7 @@ public:
 	virtual void RegisterSourceControlProjectDirDelegate(const FSourceControlProjectDirDelegate& SourceControlProjectDirDelegate) override;
 	virtual void UnregisterSourceControlProjectDirDelegate() override;
 	virtual FString GetSourceControlProjectDir() const override;
+	virtual bool UsesCustomProjectDir() const override;
 	virtual FSourceControlFileStatusMonitor& GetSourceControlFileStatusMonitor() override;
 
 	/** Save the settings to the ini file */

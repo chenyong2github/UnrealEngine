@@ -251,6 +251,11 @@ public:
 	virtual FString GetSourceControlProjectDir() const = 0;
 
 	/**
+	 * Returns whether a delegate has been registered to specify the project base directory to be used by the source control
+	 */
+	virtual bool UsesCustomProjectDir() const = 0;
+
+	/**
 	 * Returns the object used to monitor the source control status of a collection of files.
 	 */
 	virtual FSourceControlFileStatusMonitor& GetSourceControlFileStatusMonitor() = 0;

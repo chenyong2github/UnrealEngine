@@ -4524,7 +4524,7 @@ void FEditorFileUtils::LoadDefaultMapAtStartup()
 void FEditorFileUtils::FindAllPackageFiles(TArray<FString>& OutPackages)
 {
 	FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-	if (!SourceControlProjectDir.IsEmpty())
+	if (ISourceControlModule::Get().UsesCustomProjectDir())
 	{
 		FPackageName::FindPackagesInDirectory(OutPackages, SourceControlProjectDir);
 		return;
@@ -4554,8 +4554,6 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
-	const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-
 	TArray<FString> Packages;
 	FEditorFileUtils::FindAllPackageFiles(Packages);
 
@@ -4577,9 +4575,9 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FPaths::ConvertRelativePathToFull(Filename), EStateCacheUsage::Use);
 
 		// Only include non-map packages that are currently checked out or packages not under source control
-		if (SCCProjectDir.IsEmpty())
+		if (ISourceControlModule::Get().UsesCustomProjectDir())
 		{
-			if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
+			if (SourceControlState.IsValid() &&
 				(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())) &&
 				(bIncludeMaps || !IsMapPackageAsset(*Filename)))
 			{
@@ -4588,7 +4586,7 @@ void FEditorFileUtils::FindAllSubmittablePackageFiles(TMap<FString, FSourceContr
 		}
 		else
 		{
-			if (SourceControlState.IsValid() && 
+			if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
 				(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())) &&
 				(bIncludeMaps || !IsMapPackageAsset(*Filename)))
 			{
@@ -4604,20 +4602,10 @@ void FEditorFileUtils::FindAllSubmittableProjectFiles(TMap<FString, FSourceContr
 {
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
-	const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-	if (SCCProjectDir.IsEmpty())
+	if (ISourceControlModule::Get().UsesCustomProjectDir())
 	{
-		// Handle just the project file
-		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()), EStateCacheUsage::Use);
+		const FString SCCProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
 
-		if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
-			(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())))
-		{
-			OutProjectFiles.Add(FPaths::GetProjectFilePath(), MoveTemp(SourceControlState));
-		}
-	}
-	else
-	{
 		// Handle non-package files in the project directory
 		TArray<FSourceControlStateRef> SourceControlStates = SourceControlProvider.GetCachedStateByPredicate(
 			[SCCProjectDir](const FSourceControlStateRef& SourceControlState)
@@ -4639,6 +4627,17 @@ void FEditorFileUtils::FindAllSubmittableProjectFiles(TMap<FString, FSourceContr
 					OutProjectFiles.Add(Filename, MoveTemp(SourceControlState));
 				}
 			}
+		}
+	}
+	else
+	{
+		// Handle just the project file
+		FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()), EStateCacheUsage::Use);
+
+		if (SourceControlState.IsValid() && SourceControlState->IsCurrent() &&
+			(SourceControlState->CanCheckIn() || (!SourceControlState->IsSourceControlled() && SourceControlState->CanAdd())))
+		{
+			OutProjectFiles.Add(FPaths::GetProjectFilePath(), MoveTemp(SourceControlState));
 		}
 	}
 }

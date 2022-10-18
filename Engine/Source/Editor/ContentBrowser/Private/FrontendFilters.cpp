@@ -850,14 +850,14 @@ void FFrontendFilter_NotSourceControlled::RequestStatus()
 		TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
 
 		TArray<FString> Filenames;
-		FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
-		if (SourceControlProjectDir.IsEmpty())
+		if (ISourceControlModule::Get().UsesCustomProjectDir())
 		{
-			Filenames = FSourceControlWindows::GetSourceControlLocations(/*bContentOnly*/true);
+			FString SourceControlProjectDir = ISourceControlModule::Get().GetSourceControlProjectDir();
+			Filenames.Add(SourceControlProjectDir);
 		}
 		else
 		{
-			Filenames.Add(SourceControlProjectDir);
+			Filenames = FSourceControlWindows::GetSourceControlLocations(/*bContentOnly*/true);
 		}
 		UpdateStatusOperation->SetCheckingAllFiles(false);
 		SourceControlProvider.Execute(UpdateStatusOperation, Filenames, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FFrontendFilter_NotSourceControlled::SourceControlOperationComplete));
