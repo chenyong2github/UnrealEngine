@@ -126,7 +126,7 @@
 #include "MuR/OpImageSwizzle.h"
 #include "MuR/Parameters.h"
 #include "MuR/System.h"
-
+#include "PhysicsEngine/PhysicsConstraintTemplate.h"
 
 UTexture2D* UCustomizableInstancePrivateData::CreateTexture()
 {
@@ -991,19 +991,62 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 	return FinalSkeleton;
 }
 
-
-void UCustomizableInstancePrivateData::RefitPhysicsBodies(UPhysicsAsset* InOutPhysicsAsset, const mu::PhysicsBody* MutablePhysicsBody)
+UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
+		TObjectPtr<UPhysicsAsset> TemplateAsset,
+		const mu::PhysicsBody* MutablePhysics, int32 ComponentId,
+		bool bDisableCollisionsBetweenDifferentAssets)
 {
-	if (!(InOutPhysicsAsset && MutablePhysicsBody))
+
+	MUTABLE_CPUPROFILER_SCOPE(MergePhysicsAssets);
+
+	check(MutablePhysics);
+
+	UPhysicsAsset* Result = nullptr;
+
+	FCustomizableInstanceComponentData* ComponentData =	GetComponentData(ComponentId);
+	check(ComponentData);
+
+	TArray<TObjectPtr<UPhysicsAsset>>& PhysicsAssets = ComponentData->PhysicsAssets.PhysicsAssetsToMerge;
+
+	TArray<TObjectPtr<UPhysicsAsset>> ValidAssets;		
+
+	const int32 NumPhysicsAssets = ComponentData->PhysicsAssets.PhysicsAssetsToMerge.Num();
+	for (int32 I = 0; I < NumPhysicsAssets; ++I)
 	{
-		return;
+		const TObjectPtr<UPhysicsAsset>& PhysicsAsset = ComponentData->PhysicsAssets.PhysicsAssetsToMerge[I];
+
+		if (PhysicsAsset)
+		{
+			ValidAssets.AddUnique(PhysicsAsset);
+		}
+	}
+	
+	if (!ValidAssets.Num())
+	{
+		return Result;
 	}
 
-	const int32 MeshPhysicsBodyCount = MutablePhysicsBody->GetBodyCount();
-
-	for (int32 B = 0; B < MeshPhysicsBodyCount; ++B)
+	if (!TemplateAsset)
 	{
-		const FString BodyBoneName( MutablePhysicsBody->GetBodyBoneName( B ) );
+		Result = DuplicateObject(ValidAssets[0], nullptr);
+	}
+	else
+	{
+		Result = DuplicateObject(TemplateAsset, nullptr);	
+	}
+
+	if (!Result)
+	{
+		return nullptr;
+	}
+	// TODO: We are duplicating just to remove the data that will be replaced.
+	Result->CollisionDisableTable.Empty();
+	Result->SkeletalBodySetups.Empty();
+	Result->ConstraintSetup.Empty();
+
+	auto MakeAggGeomFromMutablePhysics = [](int32 BodyIndex, const mu::PhysicsBody* MutablePhysicsBody) -> FKAggregateGeom
+	{
+		FKAggregateGeom BodyAggGeom;
 
 		auto GetCollisionEnabledFormFlags = [](uint32 Flags) -> ECollisionEnabled::Type
 		{
@@ -1014,215 +1057,355 @@ void UCustomizableInstancePrivateData::RefitPhysicsBodies(UPhysicsAsset* InOutPh
 		{
 			return static_cast<bool>( (Flags >> 8 ) & 1 );
 		};
+				
+		const int32 NumSpheres = MutablePhysicsBody->GetSphereCount( BodyIndex );
+		TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
+		AggSpheres.Empty(NumSpheres);
+		for (int32 I = 0; I < NumSpheres; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetSphereFlags( BodyIndex, I );
+			FString Name = MutablePhysicsBody->GetSphereName( BodyIndex, I );
+
+			FVector3f Position;
+			float Radius;
+
+			MutablePhysicsBody->GetSphere( BodyIndex, I, Position, Radius );
+			FKSphereElem& NewElem = AggSpheres.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector(Position);
+			NewElem.Radius = Radius;
+			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+			NewElem.SetName(FName(*Name));
+		}
 		
-		TObjectPtr<USkeletalBodySetup>* Found = InOutPhysicsAsset->SkeletalBodySetups.FindByPredicate(
-		[&BodyBoneName](TObjectPtr<USkeletalBodySetup>& BodySetup)
+		const int32 NumBoxes = MutablePhysicsBody->GetBoxCount( BodyIndex );
+		TArray<FKBoxElem>& AggBoxes = BodyAggGeom.BoxElems;
+		AggBoxes.Empty(NumBoxes);
+		for (int32 I = 0; I < NumBoxes; ++I)
 		{
-			return BodyBoneName.Equals(BodySetup->BoneName.ToString());
-		});
+			uint32 Flags = MutablePhysicsBody->GetBoxFlags( BodyIndex, I );
+			FString Name = MutablePhysicsBody->GetBoxName( BodyIndex, I );
 
-		if (Found)
-		{
-			FKAggregateGeom& BodyAggGeom = (*Found)->AggGeom;
+			FVector3f Position;
+			FQuat4f Orientation;
+			FVector3f Size;
+			MutablePhysicsBody->GetBox( BodyIndex, I, Position, Orientation, Size );
+
+			FKBoxElem& NewElem = AggBoxes.AddDefaulted_GetRef();
 			
-			const int32 NumSpheres = MutablePhysicsBody->GetSphereCount( B );
-			TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
-			AggSpheres.Empty(NumSpheres);
-			for (int32 I = 0; I < NumSpheres; ++I)
-			{
-				uint32 Flags = MutablePhysicsBody->GetSphereFlags( B, I );
-				FString Name = MutablePhysicsBody->GetSphereName( B, I );
-
-				FVector3f Position;
-				float Radius;
-
-				MutablePhysicsBody->GetSphere( B, I, Position, Radius );
-				FKSphereElem& NewElem = AggSpheres.AddDefaulted_GetRef();
-				
-				NewElem.Center = FVector(Position);
-				NewElem.Radius = Radius;
-				NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-				NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-				NewElem.SetName(FName(*Name));
-			}
-			
-			const int32 NumBoxes = MutablePhysicsBody->GetBoxCount( B );
-			TArray<FKBoxElem>& AggBoxes = BodyAggGeom.BoxElems;
-			AggBoxes.Empty(NumBoxes);
-			for (int32 I = 0; I < NumBoxes; ++I)
-			{
-				uint32 Flags = MutablePhysicsBody->GetBoxFlags( B, I );
-				FString Name = MutablePhysicsBody->GetBoxName( B, I );
-
-				FVector3f Position;
-				FQuat4f Orientation;
-				FVector3f Size;
-				MutablePhysicsBody->GetBox( B, I, Position, Orientation, Size );
-
-				FKBoxElem& NewElem = AggBoxes.AddDefaulted_GetRef();
-				
-				NewElem.Center = FVector( Position );
-				NewElem.Rotation = FRotator( Orientation.Rotator() );
-				NewElem.X = Size.X;
-				NewElem.Y = Size.Y;
-				NewElem.Z = Size.Z;
-				NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-				NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-				NewElem.SetName( FName(*Name) );
-			}
-
-			const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( B );
-			TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
-			AggConvexes.Empty();
-			for (int32 I = 0; I < NumConvexes; ++I)
-			{
-				uint32 Flags = MutablePhysicsBody->GetConvexFlags( B, I );
-				FString Name = MutablePhysicsBody->GetConvexName( B, I );
-
-				const FVector3f* Vertices;
-				const int32* Indices;
-				int32 NumVertices;
-				int32 NumIndices;
-				FTransform3f Transform;
-	
-				MutablePhysicsBody->GetConvex( B, I, Vertices, NumVertices, Indices, NumIndices, Transform );
-				
-				TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
-				TArrayView<const int32> IndicesView( Indices, NumIndices );
-			}
-
-			TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
-			const int32 NumSphyls = MutablePhysicsBody->GetSphylCount( B );
-			AggSphyls.Empty(NumSphyls);
-
-			for (int32 I = 0; I < NumSphyls; ++I)
-			{
-				uint32 Flags = MutablePhysicsBody->GetSphylFlags( B, I );
-				FString Name = MutablePhysicsBody->GetSphylName( B, I );
-
-				FVector3f Position;
-				FQuat4f Orientation;
-				float Radius;
-				float Length;
-
-				MutablePhysicsBody->GetSphyl( B, I, Position, Orientation, Radius, Length );
-
-				FKSphylElem& NewElem = AggSphyls.AddDefaulted_GetRef();
-				
-				NewElem.Center = FVector( Position );
-				NewElem.Rotation = FRotator( Orientation.Rotator() );
-				NewElem.Radius = Radius;
-				NewElem.Length = Length;
-				
-				NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-				NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-				NewElem.SetName( FName(*Name) );
-			}	
-
-			TArray<FKTaperedCapsuleElem>& AggTaperedCapsules = BodyAggGeom.TaperedCapsuleElems;
-			const int32 NumTaperedCapsules = MutablePhysicsBody->GetTaperedCapsuleCount( B );
-			AggTaperedCapsules.Empty(NumTaperedCapsules);
-
-			for (int32 I = 0; I < NumTaperedCapsules; ++I)
-			{
-				uint32 Flags = MutablePhysicsBody->GetTaperedCapsuleFlags( B, I );
-				FString Name = MutablePhysicsBody->GetTaperedCapsuleName( B, I );
-
-				FVector3f Position;
-				FQuat4f Orientation;
-				float Radius0;
-				float Radius1;
-				float Length;
-
-				MutablePhysicsBody->GetTaperedCapsule( B, I, Position, Orientation, Radius0, Radius1, Length );
-
-				FKTaperedCapsuleElem& NewElem = AggTaperedCapsules.AddDefaulted_GetRef();
-				
-				NewElem.Center = FVector( Position );
-				NewElem.Rotation = FRotator( Orientation.Rotator() );
-				NewElem.Radius0 = Radius0;
-				NewElem.Radius1 = Radius1;
-				NewElem.Length = Length;
-				
-				NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-				NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-				NewElem.SetName( FName(*Name) );	
-			}	
+			NewElem.Center = FVector( Position );
+			NewElem.Rotation = FRotator( Orientation.Rotator() );
+			NewElem.X = Size.X;
+			NewElem.Y = Size.Y;
+			NewElem.Z = Size.Z;
+			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+			NewElem.SetName( FName(*Name) );
 		}
-	}
-}
 
-UPhysicsAsset* UCustomizableInstancePrivateData::MergePhysicalAssets(UPhysicsAsset* BaseAsset, int32 ComponentId)
-{
-	UPhysicsAsset* result = nullptr;
-	bool bMergeSucced = false;
+		const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
+		TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
+		AggConvexes.Empty();
+		for (int32 I = 0; I < NumConvexes; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
+			FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
 
-	if (BaseAsset)
+			const FVector3f* Vertices;
+			const int32* Indices;
+			int32 NumVertices;
+			int32 NumIndices;
+			FTransform3f Transform;
+
+			MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
+			
+			TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
+			TArrayView<const int32> IndicesView( Indices, NumIndices );
+		}
+
+		TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
+		const int32 NumSphyls = MutablePhysicsBody->GetSphylCount( BodyIndex );
+		AggSphyls.Empty(NumSphyls);
+
+		for (int32 I = 0; I < NumSphyls; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetSphylFlags( BodyIndex, I );
+			FString Name = MutablePhysicsBody->GetSphylName( BodyIndex, I );
+
+			FVector3f Position;
+			FQuat4f Orientation;
+			float Radius;
+			float Length;
+
+			MutablePhysicsBody->GetSphyl( BodyIndex, I, Position, Orientation, Radius, Length );
+
+			FKSphylElem& NewElem = AggSphyls.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector( Position );
+			NewElem.Rotation = FRotator( Orientation.Rotator() );
+			NewElem.Radius = Radius;
+			NewElem.Length = Length;
+			
+			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+			NewElem.SetName( FName(*Name) );
+		}	
+
+		TArray<FKTaperedCapsuleElem>& AggTaperedCapsules = BodyAggGeom.TaperedCapsuleElems;
+		const int32 NumTaperedCapsules = MutablePhysicsBody->GetTaperedCapsuleCount( BodyIndex );
+		AggTaperedCapsules.Empty(NumTaperedCapsules);
+
+		for (int32 I = 0; I < NumTaperedCapsules; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetTaperedCapsuleFlags( BodyIndex, I );
+			FString Name = MutablePhysicsBody->GetTaperedCapsuleName( BodyIndex, I );
+
+			FVector3f Position;
+			FQuat4f Orientation;
+			float Radius0;
+			float Radius1;
+			float Length;
+
+			MutablePhysicsBody->GetTaperedCapsule( BodyIndex, I, Position, Orientation, Radius0, Radius1, Length );
+
+			FKTaperedCapsuleElem& NewElem = AggTaperedCapsules.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector( Position );
+			NewElem.Rotation = FRotator( Orientation.Rotator() );
+			NewElem.Radius0 = Radius0;
+			NewElem.Radius1 = Radius1;
+			NewElem.Length = Length;
+			
+			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+			NewElem.SetName( FName(*Name) );	
+		}	
+
+		return BodyAggGeom;
+	};
+
+	TMap<FName, int32> BonesInUse;
+
+	const int32 MutablePhysicsBodyCount = MutablePhysics->GetBodyCount();
+	BonesInUse.Reserve(MutablePhysicsBodyCount);
+	for ( int32 I = 0; I < MutablePhysicsBodyCount; ++I )
 	{
-		result = DuplicateObject(BaseAsset, NULL);
+		BonesInUse.Add(FName(MutablePhysics->GetBodyBoneName(I)), I);
 	}
 
-	FCustomizableInstanceComponentData* ComponentData =	GetComponentData(ComponentId);
-	check(ComponentData);
-	
-	for (const UPhysicsAsset* PhysicsAsset : ComponentData->PhysicsAssets.PhysicsAssetsToMerge)
-	{
-		if (!result && PhysicsAsset)
-		{
-			result = DuplicateObject(PhysicsAsset, NULL);
-		}
-		else if (PhysicsAsset && PhysicsAsset != BaseAsset)
-		{
-			bMergeSucced = true;
+	// Each array is a set of elements that can collide  
+	TArray<TArray<int32, TInlineAllocator<8>>> CollisionSets;
 
-			for (const TObjectPtr<USkeletalBodySetup>& BodySetup : PhysicsAsset->SkeletalBodySetups)
+	// {SetIndex, ElementInSetIndex, BodyIndex}
+	using CollisionSetEntryType = TTuple<int32, int32, int32>;	
+	// Map from BodyName/BoneName to set and index in set.
+	TMap<FName, CollisionSetEntryType> BodySetupSetMap;
+	
+	// {SetIndex0, SetIndex1, BodyIndex}
+	using MultiSetCollisionEnableType = TTuple<int32, int32, int32>;
+
+	// Only for elements that belong to two or more differnet sets. 
+	// Contains in which set the elements belong.
+	using MultiSetArrayType = TArray<int32, TInlineAllocator<4>>;
+	TMap<int32, MultiSetArrayType> MultiCollisionSets;
+	TArray<TArray<int32>> SetsIndexMap;
+
+	CollisionSets.SetNum(ValidAssets.Num());
+	SetsIndexMap.SetNum(CollisionSets.Num());
+
+	TMap<FRigidBodyIndexPair, bool> CollisionDisableTable;
+
+	// New body index
+	int32 CurrentBodyIndex = 0;
+	for (int32 CollisionSetIndex = 0;  CollisionSetIndex < ValidAssets.Num(); ++CollisionSetIndex)
+	{
+		const int32 PhysicsAssetBodySetupNum = ValidAssets[CollisionSetIndex]->SkeletalBodySetups.Num();
+		SetsIndexMap[CollisionSetIndex].Init(-1, PhysicsAssetBodySetupNum);
+
+		for (int32 BodySetupIndex = 0; BodySetupIndex < PhysicsAssetBodySetupNum; ++BodySetupIndex) 
+		{
+			const TObjectPtr<USkeletalBodySetup>& BodySetup = ValidAssets[CollisionSetIndex]->SkeletalBodySetups[BodySetupIndex];
+			
+			int32* MutableBodyIndex = BonesInUse.Find(BodySetup->BoneName);
+			if (!MutableBodyIndex)
 			{
-				if (!result->SkeletalBodySetups.Contains(BodySetup))
+				continue;
+			}
+
+			CollisionSetEntryType* Found = BodySetupSetMap.Find(BodySetup->BoneName);
+
+			if (!Found)
+			{
+				TObjectPtr<USkeletalBodySetup> NewBodySetup = NewObject<USkeletalBodySetup>(Result);
+				NewBodySetup->BodySetupGuid = FGuid::NewGuid();
+			
+				// Copy Body properties 	
+				NewBodySetup->BoneName = BodySetup->BoneName;
+				NewBodySetup->PhysicsType = BodySetup->PhysicsType;
+				NewBodySetup->bConsiderForBounds = BodySetup->bConsiderForBounds;
+				NewBodySetup->bMeshCollideAll = BodySetup->bMeshCollideAll;
+				NewBodySetup->bDoubleSidedGeometry = BodySetup->bDoubleSidedGeometry;
+				NewBodySetup->bGenerateNonMirroredCollision = BodySetup->bGenerateNonMirroredCollision;
+				NewBodySetup->bSharedCookedData = BodySetup->bSharedCookedData;
+				NewBodySetup->bGenerateMirroredCollision = BodySetup->bGenerateMirroredCollision;
+				NewBodySetup->PhysMaterial = BodySetup->PhysMaterial;
+				NewBodySetup->CollisionReponse = BodySetup->CollisionReponse;
+				NewBodySetup->CollisionTraceFlag = BodySetup->CollisionTraceFlag;
+				NewBodySetup->DefaultInstance = BodySetup->DefaultInstance;
+				NewBodySetup->WalkableSlopeOverride = BodySetup->WalkableSlopeOverride;
+				NewBodySetup->BuildScale3D = BodySetup->BuildScale3D;	
+				NewBodySetup->bSkipScaleFromAnimation = BodySetup->bSkipScaleFromAnimation;
+				NewBodySetup->AggGeom = MakeAggGeomFromMutablePhysics(*MutableBodyIndex, MutablePhysics);
+
+				Result->SkeletalBodySetups.Add(NewBodySetup);
+				
+				int32 IndexInSet = CollisionSets[CollisionSetIndex].Add(CurrentBodyIndex);
+				BodySetupSetMap.Add(BodySetup->BoneName, {CollisionSetIndex, IndexInSet, CurrentBodyIndex});
+				SetsIndexMap[CollisionSetIndex][IndexInSet] = CurrentBodyIndex;
+
+				++CurrentBodyIndex;
+			}
+			else
+			{
+				int32 FoundCollisionSetIndex = Found->Get<0>();
+				int32 FoundCollisionSetElemIndex = Found->Get<1>();
+				int32 FoundBodyIndex = Found->Get<2>();
+				
+				// No need to add the body again. Volumes that come form mutable are already merged.
+				// here we only need to merge properies.
+				// TODO: check if there is other properties worth merging. In case of conflict select the more restrivtive one? 
+				Result->SkeletalBodySetups[FoundBodyIndex]->bConsiderForBounds |= BodySetup->bConsiderForBounds;
+
+				// Mark as removed so no indices are invalidated.
+				CollisionSets[FoundCollisionSetIndex][FoundCollisionSetElemIndex] = INDEX_NONE;
+				// Add Elem to the set but mark it as removed so we have an index for remapping.
+				int32 IndexInSet = CollisionSets[CollisionSetIndex].Add(INDEX_NONE);	
+				SetsIndexMap[CollisionSetIndex][IndexInSet] = FoundBodyIndex;
+				
+				MultiSetArrayType& Sets = MultiCollisionSets.FindOrAdd(FoundBodyIndex);
+
+				// The first time there is a collision (MultSet is empty), add the colliding element set
+				// as well as the current set.
+				if (!Sets.Num())
 				{
-					bool bFoundBone = false;
+					Sets.Add(FoundCollisionSetIndex);
+				}
+				
+				Sets.Add(CollisionSetIndex);
+			}
+		}
+	
+		// Remap collision indices removing invalid ones.
 
-					for (const TObjectPtr<USkeletalBodySetup>& OrigBodySetup : result->SkeletalBodySetups)
+		CollisionDisableTable.Reserve(CollisionDisableTable.Num() + ValidAssets[CollisionSetIndex]->CollisionDisableTable.Num());
+		for (const TPair<FRigidBodyIndexPair, bool>& DisabledCollision : ValidAssets[CollisionSetIndex]->CollisionDisableTable)
+		{
+			int32 MappedIdx0 = SetsIndexMap[CollisionSetIndex][DisabledCollision.Key.Indices[0]];
+			int32 MappedIdx1 = SetsIndexMap[CollisionSetIndex][DisabledCollision.Key.Indices[1]];
+
+			// This will generate correct disables for the case when two shapes from different sets
+			// are meged to the same setup. Will introduce repeated pairs, but this is not a problem.
+
+			// Currenly if two bodies / bones have disabled collision in one of the merged assets, the collision
+			// will remain disabled even if other merges allow it.   
+			if ( MappedIdx0 != INDEX_NONE && MappedIdx1 != INDEX_NONE )
+			{
+				CollisionDisableTable.Add({MappedIdx0, MappedIdx1}, DisabledCollision.Value);
+			}
+		}
+
+		// Only add constraints that are part of the bones used for the mutable physics volumes description.
+		for (const TObjectPtr<UPhysicsConstraintTemplate>& Constrain : ValidAssets[CollisionSetIndex]->ConstraintSetup)
+		{
+			FName BoneA = Constrain->DefaultInstance.ConstraintBone1;
+			FName BoneB = Constrain->DefaultInstance.ConstraintBone2;
+
+			if (BonesInUse.Find(BoneA) && BonesInUse.Find(BoneB))
+			{
+				Result->ConstraintSetup.Add(Constrain);
+			}
+		}
+
+#if WITH_EDITORONLY_DATA
+		Result->ConstraintProfiles.Append(ValidAssets[CollisionSetIndex]->ConstraintProfiles);
+#endif
+	}
+
+	if (bDisableCollisionsBetweenDifferentAssets)
+	{
+		// Compute collision disable table size upperbound to reduce number of alloactions.
+		int32 CollisionDisableTableSize = 0;
+		for (int32 S0 = 1; S0 < CollisionSets.Num(); ++S0)
+		{
+			for (int32 S1 = 0; S1 < S0; ++S1)
+			{	
+				CollisionDisableTableSize += CollisionSets[S1].Num() * CollisionSets[S0].Num();
+			}
+		}
+
+		// We already may have elements in the table, but at the moment of 
+		// addition we don't know yet the final number of elements.
+		// Now a good number of elements will be added and because we know the final number of elements
+		// an upperbound to the number of interactions can be computed and reserved. 
+		CollisionDisableTable.Reserve(CollisionDisableTableSize);
+
+		// Generate disable collision entry for every element in Set S0 for every element in Set S1 
+		// that are not in multiple sets.
+		for (int32 S0 = 1; S0 < CollisionSets.Num(); ++S0)
+		{
+			for (int32 S1 = 0; S1 < S0; ++S1)
+			{	
+				for (int32 Set0Elem : CollisionSets[S0])
+				{
+					// Element present in more than one set, will be treated later.
+					if (Set0Elem == INDEX_NONE)
 					{
-						if (OrigBodySetup->BoneName == BodySetup->BoneName)
-						{
-							OrigBodySetup->AddCollisionFrom(BodySetup);
-							bFoundBone = true;
-							break;
-						}
+						continue;
 					}
 
-					if (!bFoundBone)
+					for (int32 Set1Elem : CollisionSets[S1])
 					{
-						result->SkeletalBodySetups.Add(BodySetup);
+						// Element present in more than one set, will be treated later.
+						if (Set1Elem == INDEX_NONE)
+						{
+							continue;
+						}
+						CollisionDisableTable.Add(FRigidBodyIndexPair{Set0Elem, Set1Elem}, false);
 					}
 				}
 			}
-
-			result->ConstraintSetup.Append(PhysicsAsset->ConstraintSetup);
-			result->CollisionDisableTable.Append(PhysicsAsset->CollisionDisableTable);
-#if WITH_EDITORONLY_DATA
-			result->PhysicalAnimationProfiles.Append(PhysicsAsset->PhysicalAnimationProfiles);
-			result->ConstraintProfiles.Append(PhysicsAsset->ConstraintProfiles);
-#endif // WITH_EDITORONLY_DATA
-			// TODO: Merge the rest of the properties
 		}
+
+		// Process elements that belong to multiple sets that have been merged to the same element.
+		for ( const TPair<int32, MultiSetArrayType>& Sets : MultiCollisionSets )
+		{
+			for (int32 S = 0; S < CollisionSets.Num(); ++S)
+			{
+				if (!Sets.Value.Contains(S))
+				{	
+					for (int32 SetElem : CollisionSets[S])
+					{
+						if (SetElem != INDEX_NONE)
+						{
+							CollisionDisableTable.Add(FRigidBodyIndexPair{Sets.Key, SetElem}, false);
+						}
+					}
+				}
+			}
+		}
+
+		CollisionDisableTable.Shrink();
 	}
 
-	if (bMergeSucced)
-	{
-			result->UpdateBodySetupIndexMap();
-			result->UpdateBoundsBodiesArray();
-	}
-	else if (!result)
-	{
-		result = NewObject<UPhysicsAsset>();
-	}
+	Result->CollisionDisableTable = MoveTemp(CollisionDisableTable);
+	Result->UpdateBodySetupIndexMap();
+	Result->UpdateBoundsBodiesArray();
 
 	ComponentData->PhysicsAssets.PhysicsAssetsToMerge.Empty();
 
-	return result;
+	return Result;
 }
-
 
 bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData )
 {
@@ -1323,33 +1506,24 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 				}
 
 				// Merge Physics Assets coming from SubMeshes of the newly generated Mesh
-				if (SkeletalMesh->GetPhysicsAsset() && OperationData->InstanceUpdateData.LODs.Num() )
+				if ( OperationData->InstanceUpdateData.LODs.Num() )
 				{
 					mu::MeshPtrConst MutableMesh = Component.Mesh;
-					mu::Ptr<const mu::PhysicsBody> MutablePhysicsBodies = MutableMesh->GetPhysicsBody();
-					const bool MutablePhysicsBodiesModified = MutablePhysicsBodies ? MutablePhysicsBodies->bBodiesModified : false;
+					mu::Ptr<const mu::PhysicsBody> MutablePhysics = MutableMesh ? MutableMesh->GetPhysicsBody() : nullptr;
 
-					if( HasCOInstanceFlags(ReplacePhysicsAssets) || MutablePhysicsBodiesModified )
+					if (MutablePhysics)
 					{
-						bool bBaseAssetIsValid = true;
-
-						for (const TObjectPtr<USkeletalBodySetup>& BodySetup : SkeletalMesh->GetPhysicsAsset()->SkeletalBodySetups)
-						{
-							if (BodySetup->BoneName != NAME_None && SkeletalMesh->GetRefSkeleton().FindBoneIndex(BodySetup->BoneName) == INDEX_NONE)
-							{
-								bBaseAssetIsValid = false;
-								break;
-							}
-						}
-
-						UPhysicsAsset* MergedPhysicsAsset = MergePhysicalAssets(bBaseAssetIsValid ? SkeletalMesh->GetPhysicsAsset() : nullptr, SkeletalMeshIndex);
+						constexpr bool bDisallowCollisionBetweenAssets = true;
+						UPhysicsAsset* PhysicsAssetResult = BuildPhysicsAsset( 
+								RefSkeletalMeshData->PhysicsAsset.Get(), MutablePhysics.get(), SkeletalMeshIndex, bDisallowCollisionBetweenAssets);
 					
-						if ( MutablePhysicsBodies )
-						{
-							RefitPhysicsBodies( MergedPhysicsAsset, MutablePhysicsBodies.get());
-						}
+						SkeletalMesh->SetPhysicsAsset(PhysicsAssetResult);
 
-						SkeletalMesh->SetPhysicsAsset(MergedPhysicsAsset);
+						if (PhysicsAssetResult)
+						{
+							// This is only called in editor, no need to add editor guards.	
+							PhysicsAssetResult->SetPreviewMesh(SkeletalMesh);
+						}
 					}
 				}
 
@@ -3966,7 +4140,7 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 			for (int32 TagIndex = 0; TagIndex < MutableMesh->GetTagCount(); ++TagIndex)
 			{
 				FString Tag = MutableMesh->GetTag(TagIndex);
-				if (bReplacePhysicsAssets && Tag.RemoveFromStart("__PhysicsAsset:"))
+				if (Tag.RemoveFromStart("__PhysicsAsset:"))
 				{
 					TSoftObjectPtr<UPhysicsAsset>* PhysicsAsset = CustomizableObject->PhysicsAssetsMap.Find(Tag);
 

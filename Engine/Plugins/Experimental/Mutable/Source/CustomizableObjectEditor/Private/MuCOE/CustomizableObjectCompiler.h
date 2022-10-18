@@ -160,7 +160,7 @@ private:
 	
 	/** Display warnings from discarded PhysicsAssets due to SkeletalBodySetups with no corresponding bones
 	in the SkeletalMesh's RefSkeleton */
-	void DisplayDiscardedPhysicsAssetSingleWarning(struct FMutableGraphGenerationContext& GenerationContext);
+	//void DisplayDiscardedPhysicsAssetSingleWarning(struct FMutableGraphGenerationContext& GenerationContext);
 	
 	/** Display a warning for each node contains an orphan pin. */
 	void DisplayOrphanNodesWarning(struct FMutableGraphGenerationContext& GenerationContext);

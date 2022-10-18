@@ -455,32 +455,32 @@ void FCustomizableObjectCompiler::DisplayUnnamedNodeObjectWarning(FMutableGraphG
 }
 
 
-void FCustomizableObjectCompiler::DisplayDiscardedPhysicsAssetSingleWarning(FMutableGraphGenerationContext& GenerationContext)
-{
-	if (GenerationContext.DiscartedPhysicsAssetMap.Num())
-	{
-		FString PhysicsAssetName;
-		for (int32 ComponentIndex = 0; ComponentIndex < GenerationContext.NumMeshComponentsInRoot; ++ComponentIndex)
-		{
-			USkeletalMesh* RefSkeletalMesh = GenerationContext.ComponentInfos.IsValidIndex(ComponentIndex) ? GenerationContext.ComponentInfos[ComponentIndex].RefSkeletalMesh : nullptr;
-			if (RefSkeletalMesh && GenerationContext.DiscartedPhysicsAssetMap.Find(RefSkeletalMesh->GetPhysicsAsset()))
-			{
-				PhysicsAssetName = RefSkeletalMesh->GetPhysicsAsset()->GetName();
-				break;
-			}
-		}
-		
-		if(PhysicsAssetName.IsEmpty())
-		{
-			PhysicsAssetName = (*GenerationContext.DiscartedPhysicsAssetMap.FindKey(0))->GetName();
-		}
-
-		FText Message = FText::Format( LOCTEXT("Discarted PhysicsAssets", "{0} and {1} other PhysicsAssets have been discarted because one or more Bodies have no corresponding bones in the SkeletalMesh.\nFor more infromation on the assets that need attention check the Output log."),
-										FText::FromString(PhysicsAssetName), FText::AsNumber(GenerationContext.DiscartedPhysicsAssetMap.Num()));
-		
-		CompilerLog(Message, nullptr, EMessageSeverity::Warning, false);
-	}
-}
+//void FCustomizableObjectCompiler::DisplayDiscardedPhysicsAssetSingleWarning(FMutableGraphGenerationContext& GenerationContext)
+//{
+//	if (GenerationContext.DiscartedPhysicsAssetMap.Num())
+//	{
+//		FString PhysicsAssetName;
+//		for (int32 ComponentIndex = 0; ComponentIndex < GenerationContext.NumMeshComponentsInRoot; ++ComponentIndex)
+//		{
+//			USkeletalMesh* RefSkeletalMesh = GenerationContext.ComponentInfos.IsValidIndex(ComponentIndex) ? GenerationContext.ComponentInfos[ComponentIndex].RefSkeletalMesh : nullptr;
+//			if (RefSkeletalMesh && GenerationContext.DiscartedPhysicsAssetMap.Find(RefSkeletalMesh->GetPhysicsAsset()))
+//			{
+//				PhysicsAssetName = RefSkeletalMesh->GetPhysicsAsset()->GetName();
+//				break;
+//			}
+//		}
+//		
+//		if(PhysicsAssetName.IsEmpty())
+//		{
+//			PhysicsAssetName = (*GenerationContext.DiscartedPhysicsAssetMap.FindKey(0))->GetName();
+//		}
+//
+//		FText Message = FText::Format( LOCTEXT("Discarted PhysicsAssets", "{0} and {1} other PhysicsAssets have been discarted because one or more Bodies have no corresponding bones in the SkeletalMesh.\nFor more infromation on the assets that need attention check the Output log."),
+//										FText::FromString(PhysicsAssetName), FText::AsNumber(GenerationContext.DiscartedPhysicsAssetMap.Num()));
+//		
+//		CompilerLog(Message, nullptr, EMessageSeverity::Warning, false);
+//	}
+//}
 
 
 void FCustomizableObjectCompiler::DisplayOrphanNodesWarning(FMutableGraphGenerationContext& GenerationContext)
@@ -701,15 +701,15 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 	// Generate ReferenceSkeletalMeshes data;
 	PopulateReferenceSkeletalMeshesData(GenerationContext);
 	
-	for (const USkeletalMesh* RefSkeletalMesh : Object->ReferenceSkeletalMeshes)
-	{
-		GenerationContext.CheckPhysicsAssetInSkeletalMesh(RefSkeletalMesh);
-	}
+	//for (const USkeletalMesh* RefSkeletalMesh : Object->ReferenceSkeletalMeshes)
+	//{
+	//	GenerationContext.CheckPhysicsAssetInSkeletalMesh(RefSkeletalMesh);
+	//}
 
 	DisplayParameterWarning( GenerationContext );
 	DisplayUnnamedNodeObjectWarning( GenerationContext );
 	DisplayDuplicatedNodeIdsWarning( GenerationContext );
-	DisplayDiscardedPhysicsAssetSingleWarning( GenerationContext );
+	//DisplayDiscardedPhysicsAssetSingleWarning( GenerationContext );
 	DisplayOrphanNodesWarning( GenerationContext );
 
 	if (GenerationContext.CustomizableObjectWithCycle)

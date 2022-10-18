@@ -266,20 +266,20 @@ void FMutableGraphGenerationContext::GenerateClippingCOInternalTags()
 }
 
 
-void FMutableGraphGenerationContext::CheckPhysicsAssetInSkeletalMesh(const USkeletalMesh* SkeletalMesh)
-{
-	if (SkeletalMesh && SkeletalMesh->GetPhysicsAsset() && !DiscartedPhysicsAssetMap.Find(SkeletalMesh->GetPhysicsAsset()))
-	{
-		for (TObjectPtr<USkeletalBodySetup> Bodies : SkeletalMesh->GetPhysicsAsset()->SkeletalBodySetups)
-		{
-			if (Bodies->BoneName != NAME_None && SkeletalMesh->GetRefSkeleton().FindBoneIndex(Bodies->BoneName) == INDEX_NONE)
-			{
-				DiscartedPhysicsAssetMap.Add(SkeletalMesh->GetPhysicsAsset(), DiscartedPhysicsAssetMap.Num());
-				break;
-			}
-		}
-	}
-}
+//void FMutableGraphGenerationContext::CheckPhysicsAssetInSkeletalMesh(const USkeletalMesh* SkeletalMesh)
+//{
+//	if (SkeletalMesh && SkeletalMesh->GetPhysicsAsset() && !DiscartedPhysicsAssetMap.Find(SkeletalMesh->GetPhysicsAsset()))
+//	{
+//		for (TObjectPtr<USkeletalBodySetup> Bodies : SkeletalMesh->GetPhysicsAsset()->SkeletalBodySetups)
+//		{
+//			if (Bodies->BoneName != NAME_None && SkeletalMesh->GetRefSkeleton().FindBoneIndex(Bodies->BoneName) == INDEX_NONE)
+//			{
+//				DiscartedPhysicsAssetMap.Add(SkeletalMesh->GetPhysicsAsset(), DiscartedPhysicsAssetMap.Num());
+//				break;
+//			}
+//		}
+//	}
+//}
 
 
 FMutableComponentInfo& FMutableGraphGenerationContext::GetCurrentComponentInfo()

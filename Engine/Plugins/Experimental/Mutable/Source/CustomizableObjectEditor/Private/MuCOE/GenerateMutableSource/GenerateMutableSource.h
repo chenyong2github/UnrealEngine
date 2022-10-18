@@ -579,7 +579,7 @@ struct FMutableGraphGenerationContext
 
 	/** Check if the PhysicsAsset of a given SkeletalMesh has any SkeletalBodySetup with BoneNames not present in the
 	* InSkeletalMesh's RefSkeleton, if so, adds the PhysicsAsset to the DiscartedPhysicsAssetMap to display a warning later on */
-	void CheckPhysicsAssetInSkeletalMesh(const USkeletalMesh* InSkeletalMesh);
+	//void CheckPhysicsAssetInSkeletalMesh(const USkeletalMesh* InSkeletalMesh);
 
 	/** Get the reference skeletal mesh associated to the current mesh component being generated */
 	FMutableComponentInfo& GetCurrentComponentInfo();
@@ -598,7 +598,7 @@ struct FMutableGraphGenerationContext
 	TMap<FString, FParameterUIData> ParameterUIDataMap;
 	TMap<FString, FParameterUIData> StateUIDataMap;
 	TMultiMap<const UCustomizableObjectNodeObjectGroup*, FGroupProjectorTempData> ProjectorGroupMap;
-	TMap<UPhysicsAsset*, uint32> DiscartedPhysicsAssetMap;
+	//TMap<UPhysicsAsset*, uint32> DiscartedPhysicsAssetMap;
 
 	TArray<const USkeleton*> ReferencedSkeletons;
 

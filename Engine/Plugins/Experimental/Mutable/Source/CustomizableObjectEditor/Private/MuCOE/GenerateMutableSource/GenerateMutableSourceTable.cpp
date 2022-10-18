@@ -222,6 +222,16 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 
 					if (MutableMesh)
 					{
+ 						if (SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetPhysicsBody() && MutableMesh->GetPhysicsBody()->GetBodyCount())
+						{	
+							TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
+							int32 CurrentTagCount = MutableMesh->GetTagCount();
+							MutableMesh->SetTagCount(CurrentTagCount + 1);
+							GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
+							FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
+							MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*PhysicsAssetTag));						
+						}
+
 						if (!AnimBPAssetTag.IsEmpty())
 						{
 							int32 CurrentTagCount = MutableMesh->GetTagCount();

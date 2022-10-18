@@ -3,6 +3,7 @@
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceMesh.h"
 
 #include "Algo/BinarySearch.h"
+#include "Algo/Count.h"
 #include "Animation/MorphTarget.h"
 #include "Animation/PoseAsset.h"
 #include "Animation/Skeleton.h"
@@ -1232,9 +1233,9 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				bSkinned = false;
 				int32 NewBoneIndex = 0;
 				if (SkippedBoneMapIndices.Dequeue(NewBoneIndex)) // use skipped index
-					{
+				{
 					InverseBoneMap.Add(RefSkelIndex, NewBoneIndex);
-					}
+				}
 				else
 				{
 					InverseBoneMap.Add(RefSkelIndex, InverseBoneMap.Num());
@@ -1275,8 +1276,17 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		TArray<TObjectPtr<USkeletalBodySetup>> RelevantBodySetups;
 		RelevantBodySetups.Reserve(SkeletalBodySetups.Num());
 
-		for ( TObjectPtr<USkeletalBodySetup>& BodySetup : SkeletalBodySetups )
+		TArray<uint8> DiscardedBodySetups;
+		DiscardedBodySetups.Init(1, SkeletalBodySetups.Num());
+
+		for (int32 BodySetupIndex = 0; BodySetupIndex < SkeletalBodySetups.Num(); ++BodySetupIndex )
 		{
+			TObjectPtr<USkeletalBodySetup>& BodySetup = SkeletalBodySetups[BodySetupIndex];
+			if (!BodySetup)
+			{
+				continue;
+			}
+
 			FString BodyBoneName = BodySetup->BoneName.ToString();
 
 			const int32 SkeletonBoneCount = MutableMesh->GetSkeleton()->GetBoneCount();
@@ -1287,8 +1297,42 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				if (SkeletonBoneName.Equals(BodyBoneName))
 				{
 					RelevantBodySetups.Add(BodySetup);
+					DiscardedBodySetups[BodySetupIndex] = 0;
 				}
 			}
+		}
+
+		const int32 NumDiscardedSetups = Algo::CountIf(DiscardedBodySetups, [](const uint8& V) { return V; });
+
+
+		constexpr bool bOptOutOfIncompleteBodyWarnings = true;
+		if (NumDiscardedSetups > 0 && !bOptOutOfIncompleteBodyWarnings)
+		{
+			FString PhysicsSetupsRemovedMsg = 
+					FString::Printf(TEXT("PhysicsBodySetups in %s attached to bones"), 
+					*(SkeletalMesh->GetPhysicsAsset()->GetName()));
+
+			constexpr int32 MaxNumDiscardedShown = 3;
+			
+			int32 NumDiscardedShown = 0;
+			for (int32 I = 0; I < SkeletalBodySetups.Num() && NumDiscardedShown < MaxNumDiscardedShown; ++I)
+			{
+				if (DiscardedBodySetups[I] && SkeletalBodySetups[I])
+				{
+					PhysicsSetupsRemovedMsg += (NumDiscardedShown <= 0 ? " " : ", ") + SkeletalBodySetups[I]->BoneName.ToString();
+					++NumDiscardedShown;
+				}
+			}
+	
+			if (NumDiscardedShown < NumDiscardedSetups)
+			{
+				PhysicsSetupsRemovedMsg += FString::Printf(TEXT("... and %d more "), NumDiscardedSetups - MaxNumDiscardedShown);
+			}
+	
+			PhysicsSetupsRemovedMsg += FString::Printf(TEXT("have been discarded because they are not present in the SkeletalMesh [%s] Skeleton."),
+				*SkeletalMesh->GetName());
+					
+			GenerationContext.Compiler->CompilerLog(FText::FromString(PhysicsSetupsRemovedMsg), CurrentNode, EMessageSeverity::Warning);
 		}
 
 		mu::Ptr<mu::PhysicsBody> PhysicsBody = new mu::PhysicsBody;
@@ -2224,37 +2268,15 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			{
 				MeshNode->SetValue(MutableMesh);
 
-				if (TypedNodeSkel->SkeletalMesh->GetPhysicsAsset() && !GenerationContext.DiscartedPhysicsAssetMap.Find(TypedNodeSkel->SkeletalMesh->GetPhysicsAsset()))
+				if (TypedNodeSkel->SkeletalMesh->GetPhysicsAsset() && 
+					MutableMesh->GetPhysicsBody() && 
+					MutableMesh->GetPhysicsBody()->GetBodyCount())
 				{
-					bool bBoneMismatch = false;
-
-					// should be driven by build settings in some way, probably, or a configuration
-					const bool bOptedOutOfIncompleteBodyWarnings = false;
-
-					for (TObjectPtr<USkeletalBodySetup> BodySetup : TypedNodeSkel->SkeletalMesh->GetPhysicsAsset()->SkeletalBodySetups)
-					{
-						if (BodySetup->BoneName != NAME_None && TypedNodeSkel->SkeletalMesh->GetRefSkeleton().FindBoneIndex(BodySetup->BoneName) == INDEX_NONE)
-						{
-							if (!bOptedOutOfIncompleteBodyWarnings)
-							{
-								GenerationContext.DiscartedPhysicsAssetMap.Add(TypedNodeSkel->SkeletalMesh->GetPhysicsAsset(), GenerationContext.DiscartedPhysicsAssetMap.Num());
-								FString Msg = FString::Printf(TEXT("The PhysicsAsset %s has Bodies with no corresponding bones in the SkeletalMesh %s. It will not be used."), *TypedNodeSkel->SkeletalMesh->GetPhysicsAsset()->GetName(), *TypedNodeSkel->SkeletalMesh->GetName());
-								UE_LOG(LogMutable, Warning, TEXT("%s"), *Msg);
-							}
-
-							bBoneMismatch = true;
-							break;
-						}
-					}
-
-					if (!bBoneMismatch)
-					{
-						TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = TypedNodeSkel->SkeletalMesh->GetPhysicsAsset();
-						GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
-						FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
-						MutableMesh->SetTagCount(1);
-						MutableMesh->SetTag(0, TCHAR_TO_ANSI(*PhysicsAssetTag));
-					}
+					TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = TypedNodeSkel->SkeletalMesh->GetPhysicsAsset();
+					GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
+					FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
+					MutableMesh->SetTagCount(1);
+					MutableMesh->SetTag(0, TCHAR_TO_ANSI(*PhysicsAssetTag));
 				}
 
 				if (GenerationContext.Options.bClothingEnabled)
