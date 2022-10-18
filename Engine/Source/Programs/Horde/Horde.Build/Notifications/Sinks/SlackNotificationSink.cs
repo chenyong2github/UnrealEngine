@@ -282,11 +282,15 @@ namespace Horde.Build.Notifications.Sinks
 
 			_userCache.Dispose();
 			_httpClient.Dispose();
+			_issueQueueTicker.Dispose();
+			_escalateTicker.Dispose();
 		}
 
 		/// <inheritdoc/>
 		public override async Task StartAsync(CancellationToken cancellationToken)
 		{
+			base.StartAsync();
+
 			await _issueQueueTicker.StartAsync();
 			await _escalateTicker.StartAsync();
 		}
@@ -294,6 +298,8 @@ namespace Horde.Build.Notifications.Sinks
 		/// <inheritdoc/>
 		public override async Task StopAsync(CancellationToken cancellationToken)
 		{
+			base.StopAsync();
+
 			await _escalateTicker.StopAsync();
 			await _issueQueueTicker.StopAsync();
 		}
