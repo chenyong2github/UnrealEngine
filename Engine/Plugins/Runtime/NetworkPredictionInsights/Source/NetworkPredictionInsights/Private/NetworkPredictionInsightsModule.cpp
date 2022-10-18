@@ -11,6 +11,7 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Stats/Stats.h"
 #include "String/ParseTokens.h"
 #include "Styling/AppStyle.h"
@@ -25,7 +26,6 @@
 
 #if WITH_ENGINE
 #include "Engine/Engine.h"
-#include "ProfilingDebugging/TraceAuxiliary.h"
 #endif
 
 
