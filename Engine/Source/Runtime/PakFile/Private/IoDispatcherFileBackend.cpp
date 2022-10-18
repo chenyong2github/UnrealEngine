@@ -1003,11 +1003,15 @@ FFileIoStoreReadRequest* FFileIoStoreRequestTracker::FindOrAddRawBlock(FFileIoSt
 	return Result;
 }
 
-void FFileIoStoreRequestTracker::RemoveRawBlock(const FFileIoStoreReadRequest* RawBlock)
+void FFileIoStoreRequestTracker::RemoveRawBlock(const FFileIoStoreReadRequest* RawBlock, bool bRemoveFromCancel)
 {
-	if (!RawBlock->bCancelled)
+	if (!RawBlock->bCancelled || bRemoveFromCancel)
 	{
 		RawBlocksMap.Remove(RawBlock->Key);
+		if (RawBlocksMap.IsEmpty())
+		{
+			RawBlocksMap.Empty(128);
+		}
 	}
 }
 
@@ -1047,11 +1051,15 @@ void FFileIoStoreRequestTracker::AddReadRequestsToResolvedRequest(const FFileIoS
 	}
 }
 
-void FFileIoStoreRequestTracker::RemoveCompressedBlock(const FFileIoStoreCompressedBlock* CompressedBlock)
+void FFileIoStoreRequestTracker::RemoveCompressedBlock(const FFileIoStoreCompressedBlock* CompressedBlock, bool bRemoveFromCancel)
 {
-	if (!CompressedBlock->bCancelled)
+	if (!CompressedBlock->bCancelled || bRemoveFromCancel)
 	{
 		CompressedBlocksMap.Remove(CompressedBlock->Key);
+		if (CompressedBlocksMap.IsEmpty())
+		{
+			CompressedBlocksMap.Empty(512);
+		}
 	}
 }
 
@@ -1101,16 +1109,16 @@ bool FFileIoStoreRequestTracker::CancelIoRequest(FFileIoStoreResolvedRequest& Re
 			if (bCancelCompressedBlock)
 			{
 				CompressedBlock->bCancelled = true;
-				CompressedBlocksMap.Remove(CompressedBlock->Key);
+				RemoveCompressedBlock(CompressedBlock, /*bRemoveFromCancel*/ true);
 			}
 		}
 		if (bCancelReadRequest)
 		{
+			ReadRequest.bCancelled = true;
 			if (!ReadRequest.ImmediateScatter.Request)
 			{
-				RawBlocksMap.Remove(ReadRequest.Key);
+				RemoveRawBlock(&ReadRequest, /*bRemoveFromCancel*/ true);
 			}
-			ReadRequest.bCancelled = true;
 #if DO_CHECK
 			for (FFileIoStoreCompressedBlock* CompressedBlock : ReadRequest.CompressedBlocks)
 			{

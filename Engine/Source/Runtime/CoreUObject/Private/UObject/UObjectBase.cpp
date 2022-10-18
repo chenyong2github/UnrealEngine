@@ -931,6 +931,11 @@ void ProcessNewlyLoadedUObjects(FName Package, bool bCanProcessNewlyLoadedObject
 	StructRegistry.EmptyRegistrations();
 	ClassRegistry.EmptyRegistrations();
 
+	if (TMap<UObjectBase*, FPendingRegistrantInfo>& PendingRegistrants = FPendingRegistrantInfo::GetMap(); PendingRegistrants.IsEmpty())
+	{
+		PendingRegistrants.Empty();
+	}
+
 	if (bNewUObjects && !GIsInitialLoad)
 	{
 		UClass::AssembleReferenceTokenStreams();

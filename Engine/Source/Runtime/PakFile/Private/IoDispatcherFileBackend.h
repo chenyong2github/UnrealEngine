@@ -80,9 +80,9 @@ public:
 	~FFileIoStoreRequestTracker();
 
 	FFileIoStoreCompressedBlock* FindOrAddCompressedBlock(FFileIoStoreBlockKey Key, bool& bOutWasAdded);
-	void RemoveCompressedBlock(const FFileIoStoreCompressedBlock* CompressedBlock);
+	void RemoveCompressedBlock(const FFileIoStoreCompressedBlock* CompressedBlock, bool bRemoveFromCancel = false);
 	FFileIoStoreReadRequest* FindOrAddRawBlock(FFileIoStoreBlockKey Key, bool& bOutWasAdded);
-	void RemoveRawBlock(const FFileIoStoreReadRequest* RawBlock);
+	void RemoveRawBlock(const FFileIoStoreReadRequest* RawBlock, bool bRemoveFromCancel = false);
 	void AddReadRequestsToResolvedRequest(FFileIoStoreCompressedBlock* CompressedBlock, FFileIoStoreResolvedRequest& ResolvedRequest);
 	void AddReadRequestsToResolvedRequest(const FFileIoStoreReadRequestList& Requests, FFileIoStoreResolvedRequest& ResolvedRequest);
 	bool CancelIoRequest(FFileIoStoreResolvedRequest& ResolvedRequest);

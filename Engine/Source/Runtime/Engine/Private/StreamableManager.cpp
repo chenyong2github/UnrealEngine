@@ -87,7 +87,7 @@ public:
 			}
 			if (!DelegatesForHandle->Head)
 			{
-				PendingDelegatesByHandle.Remove(AssociatedHandle);
+				RemovePendingDelegateInternal(AssociatedHandle);
 			}
 		}
 
@@ -143,7 +143,7 @@ public:
 					}
 					if (!DelegatesForHandle->Head)
 					{
-						PendingDelegatesByHandle.Remove(CurrentNode->RelatedHandle);
+						RemovePendingDelegateInternal(CurrentNode->RelatedHandle);
 					}
 				}
 				CurrentNode = NextNode;
@@ -290,6 +290,17 @@ private:
 			}
 		}
 	};
+
+	inline void RemovePendingDelegateInternal(TSharedPtr<FStreamableHandle> Handle)
+	{
+		// requires DataLock by caller
+		PendingDelegatesByHandle.Remove(Handle);
+		if (PendingDelegatesByHandle.IsEmpty())
+		{
+			// release potentially big allocation after huge batches of streaming requests
+			PendingDelegatesByHandle.Empty(128);
+		}
+	}
 
 	FPendingDelegateList PendingDelegates;
 	TMap<TSharedPtr<FStreamableHandle>, FPendingDelegateList> PendingDelegatesByHandle;
