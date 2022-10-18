@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
@@ -16,14 +17,15 @@ namespace Horde.Build.Notifications
 {
 	/// <summary>
 	/// Marker interface for (serializable) notifications
+	/// Implements IEquatable primarily for being IMemoryCache-compatible.
 	/// </summary>
 	[SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "Marker interface for generic type handling")]
-	public interface INotification { }
+	public interface INotification<T> : IEquatable<T> { }
 
 	/// <summary>
 	/// Notification for job scheduled events
 	/// </summary>
-	public class JobScheduledNotification : INotification
+	public class JobScheduledNotification : INotification<JobScheduledNotification>
 	{
 		/// <summary>Job ID</summary>
 		public string JobId { get; }
@@ -45,6 +47,29 @@ namespace Horde.Build.Notifications
 			JobId = jobId;
 			JobName = jobName;
 			PoolName = poolName;
+		}
+
+		/// <inheritdoc />
+		public bool Equals(JobScheduledNotification? other)
+		{
+			if (ReferenceEquals(null, other)) { return false; }
+			if (ReferenceEquals(this, other)) { return true; }
+			return JobId == other.JobId && JobName == other.JobName && PoolName == other.PoolName;
+		}
+
+		/// <inheritdoc />
+		public override bool Equals(object? obj)
+		{
+			if (ReferenceEquals(null, obj)) { return false; }
+			if (ReferenceEquals(this, obj)) { return true; }
+			if (obj.GetType() != GetType()) { return false; }
+			return Equals((JobScheduledNotification)obj);
+		}
+
+		/// <inheritdoc />
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(JobId, JobName, PoolName);
 		}
 	}
 	

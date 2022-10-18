@@ -20,6 +20,7 @@ using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -87,6 +88,17 @@ namespace Horde.Build.Notifications
 		/// Instance of the <see cref="IDogStatsd"/>.
 		/// </summary>
 		private readonly IDogStatsd _dogStatsd;
+		
+		/// <summary>
+		/// Cache for de-duplicating queued notifications
+		/// </summary>
+		private readonly IMemoryCache _cache;
+		
+		/// <summary>
+		/// Lock object for manipulating the above cache
+		/// Used since batch notification queue handling is run async.
+		/// </summary>
+		private readonly object _cacheLock = new object();
 
 		/// <summary>
 		/// Connection pool for Redis databases
@@ -128,7 +140,22 @@ namespace Horde.Build.Notifications
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NotificationService(IEnumerable<INotificationSink> sinks, IOptionsMonitor<ServerSettings> settings, ILogger<NotificationService> logger, IGraphCollection graphCollection, ISubscriptionCollection subscriptionCollection, INotificationTriggerCollection triggerCollection, IUserCollection userCollection, JobService jobService, StreamService streamService, IssueService issueService, ILogFileService logFileService, IDogStatsd dogStatsd, RedisService redisService, IClock clock)
+		public NotificationService(
+			IEnumerable<INotificationSink> sinks,
+			IOptionsMonitor<ServerSettings> settings,
+			ILogger<NotificationService> logger,
+			IGraphCollection graphCollection,
+			ISubscriptionCollection subscriptionCollection,
+			INotificationTriggerCollection triggerCollection,
+			IUserCollection userCollection,
+			JobService jobService,
+			StreamService streamService,
+			IssueService issueService,
+			ILogFileService logFileService,
+			IDogStatsd dogStatsd,
+			IMemoryCache cache,
+			RedisService redisService,
+			IClock clock)
 		{
 			_sinks = sinks.ToList();
 			_settings = settings;
@@ -142,6 +169,7 @@ namespace Horde.Build.Notifications
 			_issueService = issueService;
 			_logFileService = logFileService;
 			_dogStatsd = dogStatsd;
+			_cache = cache;
 			_redisConnectionPool = redisService.ConnectionPool;
 
 			issueService.OnIssueUpdated += NotifyIssueUpdated;
@@ -284,10 +312,24 @@ namespace Horde.Build.Notifications
 		/// <summary>
 		/// Enqueue a notification in Redis for batch sending later on 
 		/// </summary>
-		/// <param name="notification"></param>
+		/// <param name="notification">Notification to enqueue</param>
+		/// <param name="deduplicate">True if notification should be deduplicated</param>
 		/// <typeparam name="T">Any INotification type</typeparam>
-		private async Task EnqueueNotificationForBatchSending<T>(T notification) where T : INotification
+		private async Task EnqueueNotificationForBatchSending<T>(T notification, bool deduplicate = true) where T : INotification<T>
 		{
+			lock (_cacheLock)
+			{
+				if (deduplicate)
+				{
+					// Use cache to deduplicate notifications
+					if (_cache.TryGetValue(notification, out object? _))
+					{
+						return;
+					}
+					_cache.Set(notification, notification, _notificationBatchInterval / 2);					
+				}
+			}
+
 			try
 			{
 				byte[] data = JsonSerializer.SerializeToUtf8Bytes(notification);
@@ -317,7 +359,7 @@ namespace Horde.Build.Notifications
 		/// <typeparam name="T"></typeparam>
 		/// <returns>Deserialized notifications</returns>
 		/// <exception cref="Exception"></exception>
-		private async Task<List<T>> GetAllQueuedNotificationsAsync<T>() where T : INotification
+		private async Task<List<T>> GetAllQueuedNotificationsAsync<T>() where T : INotification<T>
 		{
 			IDatabase redis = _redisConnectionPool.GetDatabase();
 

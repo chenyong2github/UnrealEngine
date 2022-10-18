@@ -463,7 +463,7 @@ namespace Horde.Build
 		public string? UpdateStreamsNotificationChannel { get; set; }
 		
 		/// <summary>
-		/// Slack channel to send job related notifications to
+		/// Slack channel to send job related notifications to. Multiple channels can be specified, separated by ;
 		/// </summary>
 		public string? JobNotificationChannel { get; set; }
 

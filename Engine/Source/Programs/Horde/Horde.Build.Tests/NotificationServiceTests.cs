@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Horde.Build.Logs;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build.Tests
 {
@@ -115,6 +116,38 @@ namespace Horde.Build.Tests
 			await Clock.AdvanceAsync(service._notificationBatchInterval + TimeSpan.FromMinutes(5));
 			Assert.AreEqual(2, fakeSink.JobScheduledNotifications.Count);
 			Assert.AreEqual(1, fakeSink.JobScheduledCallCount);
+		}
+		
+		[TestMethod]
+		public async Task JobScheduledNotificationsAreDeduplicated()
+		{
+			FakeNotificationSink fakeSink = ServiceProvider.GetRequiredService<FakeNotificationSink>();
+			NotificationService service = (NotificationService)ServiceProvider.GetRequiredService<INotificationService>();
+			await service._ticker.StartAsync();
+			Fixture fixture = await CreateFixtureAsync();
+			IPool pool = await PoolService.CreatePoolAsync("BogusPool", properties: new Dictionary<string, string>());
+
+			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
+			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
+			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
+			
+			// Currently no good way to wait for NotifyJobScheduled() to complete as the execution is completely async in background task (see ExecuteAsync)
+			await Task.Delay(1000);
+			await Clock.AdvanceAsync(service._notificationBatchInterval + TimeSpan.FromMinutes(5));
+			
+			// Only one job scheduled notification should have been sent, despite queuing three
+			Assert.AreEqual(1, fakeSink.JobScheduledNotifications.Count);
+			
+			// Clear the cache by compacting it 100%
+			MemoryCache cache = (MemoryCache)ServiceProvider.GetRequiredService<IMemoryCache>();
+			cache.Compact(1.0);
+			
+			// Notify of exactly the same job again
+			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
+			
+			await Task.Delay(1000);
+			await Clock.AdvanceAsync(service._notificationBatchInterval + TimeSpan.FromMinutes(5));
+			Assert.AreEqual(2, fakeSink.JobScheduledNotifications.Count);
 		}
 
 		//public void NotifyLabelUpdate(IJob Job, IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates, IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates)
