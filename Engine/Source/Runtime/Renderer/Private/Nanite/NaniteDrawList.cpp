@@ -722,11 +722,11 @@ void BuildNaniteMaterialPassCommands(
 		{
 			// Use the pass index as the highest order bits to keep them in pass order
 			static const uint32 PassIndexBits = 1u;
-			static_assert(1u << PassIndexBits <= (uint32)ENaniteMaterialPass::Max);
+			static_assert((1u << PassIndexBits) <= (uint32)ENaniteMaterialPass::Max);
 
-			static const uint32 PassIndexShift = 32u - PassIndexBits;
-			static const uint32 SortKeyMask = ((1u << PassIndexShift) - 1u);
-			PassCommand.SortKey = (PassCommand.SortKey & SortKeyMask) | (PassIndex << PassIndexShift);
+			static const uint64 PassIndexShift = 64ull - uint64(PassIndexBits);
+			static const uint64 SortKeyMask = ((1ull << PassIndexShift) - 1ull);
+			PassCommand.SortKey = (PassCommand.SortKey & SortKeyMask) | (uint64(PassIndex) << PassIndexShift);
 		}
 
 		InsertPassCommand(PassCommand, PassIndex);
