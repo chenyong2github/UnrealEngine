@@ -12,6 +12,7 @@ public class AudioGameplay : ModuleRules
 			new string[]
 			{
 				"Core",
+				"AudioExtensions",
 				"GameplayTags",
 			}
 			);
