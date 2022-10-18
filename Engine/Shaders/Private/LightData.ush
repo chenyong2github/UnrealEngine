@@ -304,6 +304,8 @@ FDeferredLightData ConvertToDeferredLight_Mobile(const FLocalLightData In)
 	Out.Tangent			= 0;
 	Out.SoftSourceRadius= 0;
 	Out.SpecularScale	= 1.0f;
+	//Render RectLight approximately as SpotLight
+	Out.bSpotLight		= Out.bSpotLight || Out.bRectLight;
 	Out.bRectLight		= false;
 	Out.ShadowedBits	= 1;
 
