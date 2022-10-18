@@ -21,7 +21,7 @@
 #define NUM_SAMPLER_DESCRIPTORS D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE
 
 // Keep set state functions inline to reduce call overhead
-#define D3D12_STATE_CACHE_INLINE FORCEINLINE
+#define D3D12_STATE_CACHE_INLINE FORCEINLINE_DEBUGGABLE
 
 #if D3D12_STATE_CACHE_RUNTIME_TOGGLE
 extern bool GD3D12SkipStateCaching;
@@ -725,6 +725,7 @@ public:
 	void ApplyState();
 	void ApplySamplers(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
 	void ApplyResources(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
+	void ApplyConstants(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
 	void DirtyStateForNewCommandList();
 	void DirtyState();
 	void DirtyViewDescriptorTables();

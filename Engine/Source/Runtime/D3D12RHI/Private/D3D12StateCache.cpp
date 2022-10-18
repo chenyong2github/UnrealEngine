@@ -558,6 +558,8 @@ void FD3D12StateCache::ApplyState()
 		ApplyResources(PSOCommonData->RootSignature, StartStage, EndStage);
 	}
 
+	ApplyConstants(PSOCommonData->RootSignature, StartStage, EndStage);
+
 	// Flush any needed resource barriers
 	CmdContext.FlushResourceBarriers();
 
@@ -572,7 +574,9 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 	// Determine what resource bind slots are dirty for the current shaders and how many descriptor table slots we need.
 	// We only set dirty resources that can be used for the upcoming Draw/Dispatch.
 	SRVSlotMask CurrentShaderDirtySRVSlots[SF_NumStandardFrequencies] = {};
+#if USE_STATIC_ROOT_SIGNATURE
 	CBVSlotMask CurrentShaderDirtyCBVSlots[SF_NumStandardFrequencies] = {};
+#endif
 	UAVSlotMask CurrentShaderDirtyUAVSlots = 0;
 	uint32 NumUAVs = 0;
 	uint32 NumSRVs[SF_NumStandardFrequencies] = {};
@@ -629,9 +633,9 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 				NumViews += NumSRVs[Stage];
 			}
 
+#if USE_STATIC_ROOT_SIGNATURE
 			const CBVSlotMask CurrentShaderCBVRegisterMask = BitMask<CBVSlotMask>(PipelineState.Common.CurrentShaderCBCounts[Stage]);
 			CurrentShaderDirtyCBVSlots[Stage] = CurrentShaderCBVRegisterMask & PipelineState.Common.CBVCache.DirtySlotMask[Stage];
-#if USE_STATIC_ROOT_SIGNATURE
 			if (CurrentShaderDirtyCBVSlots[Stage])
 			{
 				if (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_1)
@@ -710,24 +714,18 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 #undef CONDITIONAL_SET_SRVS
 	}
 
+#if USE_STATIC_ROOT_SIGNATURE
 	// Constant buffers
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetConstantBufferTime);
 		FD3D12ConstantBufferCache& CBVCache = PipelineState.Common.CBVCache;
 
-#if USE_STATIC_ROOT_SIGNATURE
 	#define CONDITIONAL_SET_CBVS(Shader) \
 		if (CurrentShaderDirtyCBVSlots[##Shader]) \
 		{ \
-			DescriptorCache.SetConstantBuffers<##Shader>(pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[##Shader], NumCBVs[##Shader], ViewHeapSlot); \
+			DescriptorCache.SetConstantBufferViews(##Shader, pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[##Shader], NumCBVs[##Shader], ViewHeapSlot); \
 		}
-#else
-	#define CONDITIONAL_SET_CBVS(Shader) \
-		if (CurrentShaderDirtyCBVSlots[##Shader]) \
-		{ \
-			DescriptorCache.SetConstantBuffers<##Shader>(pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[##Shader]); \
-		}
-#endif
+
 		if (StartStage == SF_Compute)
 		{
 			// Note that ray tracing pipeline shares state with compute
@@ -743,7 +741,57 @@ void FD3D12StateCache::ApplyResources(const FD3D12RootSignature* const pRootSign
 		}
 #undef CONDITIONAL_SET_CBVS
 	}
+#endif // USE_STATIC_ROOT_SIGNATURE
 }
+
+void FD3D12StateCache::ApplyConstants(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage)
+{
+#if !USE_STATIC_ROOT_SIGNATURE
+	// Determine what resource bind slots are dirty for the current shaders and how many descriptor table slots we need.
+	// We only set dirty resources that can be used for the upcoming Draw/Dispatch.
+	CBVSlotMask CurrentShaderDirtyCBVSlots[SF_NumStandardFrequencies] = {};
+
+	for (uint32 Stage = StartStage; Stage < EndStage; ++Stage)
+	{
+		if (ShouldSkipStage(Stage))
+		{
+			continue;
+		}
+
+		const CBVSlotMask CurrentShaderCBVRegisterMask = BitMask<CBVSlotMask>(PipelineState.Common.CurrentShaderCBCounts[Stage]);
+		CurrentShaderDirtyCBVSlots[Stage] = CurrentShaderCBVRegisterMask & PipelineState.Common.CBVCache.DirtySlotMask[Stage];
+		// Note: CBVs don't currently use descriptor tables but we still need to know what resource point slots are dirty.
+	}
+
+	// Constant buffers
+	{
+		//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetConstantBufferTime);
+		FD3D12ConstantBufferCache& CBVCache = PipelineState.Common.CBVCache;
+
+#define CONDITIONAL_SET_CBVS(Shader) \
+		if (CurrentShaderDirtyCBVSlots[##Shader]) \
+		{ \
+			DescriptorCache.SetRootConstantBuffers(##Shader, pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[##Shader]); \
+		}
+
+		if (StartStage == SF_Compute)
+		{
+			// Note that ray tracing pipeline shares state with compute
+			CONDITIONAL_SET_CBVS(SF_Compute);
+		}
+		else
+		{
+			CONDITIONAL_SET_CBVS(SF_Vertex);
+			CONDITIONAL_SET_CBVS(SF_Mesh);
+			CONDITIONAL_SET_CBVS(SF_Amplification);
+			CONDITIONAL_SET_CBVS(SF_Geometry);
+			CONDITIONAL_SET_CBVS(SF_Pixel);
+		}
+#undef CONDITIONAL_SET_CBVS
+	}
+#endif // !USE_STATIC_ROOT_SIGNATURE
+}
+
 
 void FD3D12StateCache::ApplySamplers(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage)
 {
