@@ -199,10 +199,10 @@ private:
 	FGuid InitialTextureGuid;
 
 	/** Input render target if the texture samples don't provide one (for conversions). */
-	TRefCountPtr<FRHITexture2D> InputTarget;
+	TRefCountPtr<FRHITexture> InputTarget;
 
 	/** Output render target if the texture samples don't provide one. */
-	TRefCountPtr<FRHITexture2D> OutputTarget;
+	TRefCountPtr<FRHITexture> OutputTarget;
 
 	/** The media texture that owns this resource. */
 	UMediaTexture& Owner;
