@@ -5,6 +5,28 @@ using System;
 namespace Horde.Build.Agents.Software
 {
 	/// <summary>
+	/// Upload a new version of the agent software
+	/// </summary>
+	public class UploadAgentSoftwareResponse
+	{
+		/// <summary>
+		/// Version number of the uploaded software
+		/// </summary>
+		public string Version { get; set; } = String.Empty;
+	}
+
+	/// <summary>
+	/// Update the current software version
+	/// </summary>
+	public class UpdateAgentSoftwareChannelRequest
+	{
+		/// <summary>
+		/// Version of the software to use
+		/// </summary>
+		public string? Version { get; set; }
+	}
+
+	/// <summary>
 	/// Information about an agent software channel
 	/// </summary>
 	public class GetAgentSoftwareChannelResponse

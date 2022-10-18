@@ -208,17 +208,24 @@ namespace Horde.Build.Agents.Software
 		/// <summary>
 		/// Updates a new software revision
 		/// </summary>
-		/// <param name="name">Name of the channel</param>
-		/// <param name="author">Name of the user uploading this file</param>
 		/// <param name="data">The input data stream. This should be a zip archive containing the HordeAgent executable.</param>
-		/// <returns>Unique id for the file</returns>
-		public async Task<string> SetArchiveAsync(AgentSoftwareChannelName name, string? author, byte[] data)
+		/// <returns>Version number for the archive</returns>
+		public async Task<string> UploadArchiveAsync(byte[] data)
 		{
 			// Upload the software
 			string version = AgentUtilities.ReadVersion(data);
 			await _collection.AddAsync(version, data);
+			return version;
+		}
 
-			// Update the channel
+		/// <summary>
+		/// Updates the software being used by a particular channel
+		/// </summary>
+		/// <param name="name">Name of the channel to update</param>
+		/// <param name="author">Name of the user updating the software</param>
+		/// <param name="version">New version of the software to use</param>
+		public async Task UpdateChannelAsync(AgentSoftwareChannelName name, string? author, string version)
+		{
 			for(; ;)
 			{
 				AgentSoftwareChannels instance = await _singleton.GetAsync();
@@ -233,7 +240,6 @@ namespace Horde.Build.Agents.Software
 					break;
 				}
 			}
-			return version;
 		}
 
 		/// <summary>
@@ -320,7 +326,8 @@ namespace Horde.Build.Agents.Software
 
 			bytes = AgentUtilities.UpdateAppSettings(bytes, agentSettings);
 
-			string version = await SetArchiveAsync(new AgentSoftwareChannelName("default"), null, bytes);
+			string version = await UploadArchiveAsync(bytes);
+			await UpdateChannelAsync(new AgentSoftwareChannelName("default"), null, version);
 
 			if (!DirectoryReference.Exists(agentHashFile.Directory))
 			{

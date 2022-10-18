@@ -94,6 +94,25 @@ namespace Horde.Build.Agents.Software
 		}
 
 		/// <summary>
+		/// Finds all uploaded software matching the given criteria
+		/// </summary>
+		/// <param name="name">Name of the channel to get</param>
+		/// <param name="filter">Filter for the properties to return</param>
+		/// <returns>Http response</returns>
+		[HttpPut]
+		[Route("/api/v1/agentsoftware/{name}")]
+		public async Task<ActionResult<object>> SetSoftwareAsync(string name, [FromBody] UpdateAgentSoftwareChannelRequest request, [FromQuery] PropertyFilter? filter = null)
+		{
+			if (!await _aclService.AuthorizeAsync(AclAction.UploadSoftware, User))
+			{
+				return Forbid();
+			}
+
+			await _agentSoftwareService.UpdateChannelAsync(new AgentSoftwareChannelName(name), User.GetUserName(), request.Version);
+			return Ok();
+		}
+
+		/// <summary>
 		/// Uploads a new agent zip file
 		/// </summary>
 		/// <param name="name">Name of the channel to post to</param>
@@ -101,7 +120,7 @@ namespace Horde.Build.Agents.Software
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Route("/api/v1/agentsoftware/{name}/zip")]
-		public async Task<ActionResult> SetArchiveAsync(string name, [FromForm] IFormFile file)
+		public async Task<ActionResult<UploadAgentSoftwareResponse>> UploadArchiveAsync(string name, [FromForm] IFormFile file)
 		{
 			if (!await _aclService.AuthorizeAsync(AclAction.UploadSoftware, User))
 			{
@@ -118,8 +137,10 @@ namespace Horde.Build.Agents.Software
 				data = memoryStream.ToArray();
 			}
 
-			await _agentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(name), User.Identity?.Name, data);
-			return Ok();
+			string version = await _agentSoftwareService.UploadArchiveAsync(data);
+			await _agentSoftwareService.UpdateChannelAsync(new AgentSoftwareChannelName(name), User.Identity?.Name, version);
+
+			return new UploadAgentSoftwareResponse { Version = version };
 		}
 
 		/// <summary>

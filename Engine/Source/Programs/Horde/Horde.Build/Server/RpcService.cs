@@ -956,7 +956,11 @@ namespace Horde.Build.Server
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access to software is forbidden");
 			}
 
-			string version = await _agentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(request.Channel), null, request.Data.ToArray());
+			string version = await _agentSoftwareService.UploadArchiveAsync(request.Data.ToArray());
+			foreach (string channel in request.Channel.Split('+', ';'))
+			{
+				await _agentSoftwareService.UpdateChannelAsync(new AgentSoftwareChannelName(channel), null, version);
+			}
 
 			UploadSoftwareResponse response = new UploadSoftwareResponse();
 			response.Version = version;
