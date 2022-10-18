@@ -8,13 +8,22 @@
 #include "GenericPlatform/GenericPlatformCriticalSection.h"
 
 class  UDataflow;
+struct FDataflowNode;
 struct FDataflowOutput;
 
 namespace Dataflow
 {
+	struct DATAFLOWCORE_API FTimestamp
+	{
+		static uint64 Invalid;
+		FTimestamp(uint64 InValue) : Value(InValue) {}
+		uint64 Value = 0;
+		bool operator>=(const FTimestamp& InTimestamp) { return Value >= InTimestamp.Value; }
+	};
+
 	struct FContextCacheElementBase 
 	{
-		FContextCacheElementBase(FProperty* InProperty = nullptr, uint64 InTimestamp = 0)
+		FContextCacheElementBase(FProperty* InProperty = nullptr, FTimestamp InTimestamp = FTimestamp::Invalid)
 			: Property(InProperty)
 			, Timestamp(InTimestamp)
 		{}
@@ -24,18 +33,18 @@ namespace Dataflow
 		const T& GetTypedData(const FProperty* PropertyIn) const;
 		
 		FProperty* Property = nullptr;
-		uint64 Timestamp = 0;
+		FTimestamp Timestamp = FTimestamp::Invalid;
 	};
 
 	template<class T>
 	struct FContextCacheElement : public FContextCacheElementBase 
 	{
-		FContextCacheElement(FProperty* InProperty, const T& InData, uint64 Timestamp)
+		FContextCacheElement(FProperty* InProperty, const T& InData, FTimestamp Timestamp)
 			: FContextCacheElementBase(InProperty, Timestamp)
 			, Data(InData)
 		{}
 
-		FContextCacheElement(FProperty* InProperty, T&& InData, uint64 Timestamp)
+		FContextCacheElement(FProperty* InProperty, T&& InData, FTimestamp Timestamp)
 			: FContextCacheElementBase(InProperty, Timestamp)
 			, Data(InData)
 		{}
@@ -68,21 +77,16 @@ namespace Dataflow
 
 
 	public:
-		FContext(float InTime, FString InType = FString(""))
-			: Timestamp(InTime)
+		FContext(FTimestamp InTimestamp, FString InType = FString(""))
+			: Timestamp(InTimestamp)
 			, Type(StaticType().Append(InType))
 		{}
 
 		virtual ~FContext() {}
 		
-		float Timestamp = 0.f;
+		FTimestamp Timestamp = FTimestamp::Invalid;
 		FString Type;
 		static FString StaticType() { return "FContext"; }
-
-		uint32 GetTypeHash() const
-		{
-			return ::GetTypeHash(Timestamp);
-		}
 
 		template<class T>
 		const T* AsType() const
@@ -128,14 +132,15 @@ namespace Dataflow
 		}
 
 		
-		virtual bool HasDataImpl(int64 Key, uint64 StoredAfter = 0) = 0;
+		virtual bool HasDataImpl(int64 Key, FTimestamp InTimestamp = FTimestamp::Invalid) = 0;
 		
-		bool HasData(size_t Key, uint64 StoredAfter = 0)
+		bool HasData(size_t Key, FTimestamp InTimestamp = FTimestamp::Invalid)
 		{
 			int64 IntKey = (int64)Key;
-			return HasDataImpl(Key, StoredAfter);
+			return HasDataImpl(Key, InTimestamp);
 		}
 		
+		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) = 0;
 		virtual bool Evaluate(const FDataflowOutput& Connection) = 0;
 	};
 
@@ -145,7 +150,7 @@ namespace Dataflow
 
 	public:
 
-		FContextSingle(float InTime, FString InType = FString(""))
+		FContextSingle(FTimestamp InTime, FString InType = FString(""))
 			: FContext(InTime, InType)
 		{}
 
@@ -159,11 +164,12 @@ namespace Dataflow
 			return DataStore.Find(Key);
 		}
 
-		virtual bool HasDataImpl(int64 Key, uint64 StoredAfter = 0) override
+		virtual bool HasDataImpl(int64 Key, FTimestamp InTimestamp = FTimestamp::Invalid) override
 		{
-			return DataStore.Contains(Key) && DataStore[Key]->Timestamp >= StoredAfter;
+			return DataStore.Contains(Key) && DataStore[Key]->Timestamp >= InTimestamp;
 		}
 
+		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) override;
 		virtual bool Evaluate(const FDataflowOutput& Connection) override;
 	};
 	
@@ -174,7 +180,7 @@ namespace Dataflow
 
 	public:
 
-		FContextThreaded(float InTime, FString InType = FString(""))
+		FContextThreaded(FTimestamp InTime, FString InType = FString(""))
 			: FContext(InTime, InType)
 		{
 			CacheLock = MakeShared<FCriticalSection>();
@@ -194,19 +200,15 @@ namespace Dataflow
 			return DataStore.Find(Key);
 		}
 
-		virtual bool HasDataImpl(int64 Key, uint64 StoredAfter = 0) override
+		virtual bool HasDataImpl(int64 Key, FTimestamp InTimestamp = FTimestamp::Invalid) override
 		{
 			CacheLock->Lock(); ON_SCOPE_EXIT { CacheLock->Unlock(); };
 			
-			return DataStore.Contains(Key) && DataStore[Key]->Timestamp >= StoredAfter;
+			return DataStore.Contains(Key) && DataStore[Key]->Timestamp >= InTimestamp;
 		}
 
+		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) override;
 		virtual bool Evaluate(const FDataflowOutput& Connection) override;
 	};
 
-}
-
-FORCEINLINE uint32 GetTypeHash(const Dataflow::FContext& Context)
-{
-	return ::GetTypeHash(Context.Timestamp);
 }

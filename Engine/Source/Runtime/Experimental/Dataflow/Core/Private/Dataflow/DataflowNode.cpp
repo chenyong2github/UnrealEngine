@@ -197,12 +197,8 @@ TArray<Dataflow::FPin> FDataflowNode::GetPins() const
 
 void FDataflowNode::Invalidate()
 {
-	LastModifiedTimestamp = FPlatformTime::Cycles64();
-	InvalidateOutputs();
-}
+	LastModifiedTimestamp = Dataflow::FTimestamp(FPlatformTime::Cycles64());
 
-void FDataflowNode::InvalidateOutputs()
-{
 	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
 		FDataflowOutput* Con = Elem.Value;

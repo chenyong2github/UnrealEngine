@@ -96,9 +96,7 @@ TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidg
 
 	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](FDataflowNode* Node, FDataflowOutput* Out)
 	{
-		float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
-		FEngineContext Context(GeometryCollection, Dataflow, EvalTime, FString("UGeometryCollection"));
-		Node->Evaluate(Context, Out);
+		FEngineContext(GeometryCollection, Dataflow, FPlatformTime::Cycles64(), FString("UGeometryCollection")).Evaluate(Node, Out);
 	};
 
 	return SNew(SDataflowGraphEditor, GeometryCollection)

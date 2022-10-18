@@ -16,8 +16,8 @@ namespace Dataflow
 	class DATAFLOWENGINE_API TEngineContext : public Base
 	{
 	public:
-		TEngineContext(UObject* InOwner, UDataflow* InGraph, float InTime, FString InType)
-				: Base(InTime, StaticType().Append(InType))
+		TEngineContext(UObject* InOwner, UDataflow* InGraph, FTimestamp InTimestamp, FString InType)
+				: Base(InTimestamp, StaticType().Append(InType))
 				, Owner(InOwner)
 				, Graph(InGraph)
 		{}

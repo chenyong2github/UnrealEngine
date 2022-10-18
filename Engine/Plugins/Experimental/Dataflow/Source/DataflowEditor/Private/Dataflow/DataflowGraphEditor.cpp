@@ -8,6 +8,7 @@
 #include "BoneDragDropOp.h"
 #include "IStructureDetailsView.h"
 #include "Dataflow/DataflowCommentNode.h"
+#include "Dataflow/DataflowNodeParameters.h"
 
 #include "Dataflow/DataflowSchema.h"
 
@@ -106,7 +107,6 @@ void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetO
 
 void SDataflowGraphEditor::EvaluateNode()
 {
-	float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
 	if (EvaluateGraphCallback)
 	{
 		FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), EvaluateGraphCallback);
@@ -115,8 +115,8 @@ void SDataflowGraphEditor::EvaluateNode()
 	{
 		FDataflowEditorCommands::FGraphEvaluationCallback LocalEvaluateCallback = [](FDataflowNode* Node, FDataflowOutput* Out)
 		{
-			Dataflow::FContextThreaded Context(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
-			Node->Evaluate(Context, Out);
+			using namespace Dataflow;
+			FContextThreaded(FPlatformTime::Cycles64()).Evaluate(Node, Out);
 		};
 
 		FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), LocalEvaluateCallback);
