@@ -17,13 +17,14 @@
             "console": "integratedTerminal",
             "outputCapture": "std",
             "args": [
-                "-noIPC"
+                "-noIPC",
+                "-noTLS"
             ],
             "env": {
                 "ROBO_DEV_MODE": "true",
                 "ROBO_EXTERNAL_URL": "http://localhost:8877",
                 "NODE_ENV": "development",
-                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_BRANCHSPECS_DIRECTORY": "../Robomerge/data",
                 "ROBO_VAULT_PATH": "./vault",
                 "EPIC_ENV": "dev",
                 "EPIC_DEPLOYMENT": "local",

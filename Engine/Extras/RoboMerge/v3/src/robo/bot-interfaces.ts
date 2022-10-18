@@ -52,7 +52,7 @@ export interface IPCControls {
 }
 
 export interface EdgeBotInterface {
-	get ipcControls(): IPCControls
+	getIPCControls(): IPCControls
 
 	bypassGateWindow(sense: boolean): void
 }

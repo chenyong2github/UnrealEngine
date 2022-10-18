@@ -1117,7 +1117,7 @@ export class EdgeBot
 		return this.impl.implicitCommands
 	}
 
-	get ipcControls(): IPCControls {
+	getIPCControls(): IPCControls {
 		return {
 			block: this.block,
 			unblock: this.unblock,

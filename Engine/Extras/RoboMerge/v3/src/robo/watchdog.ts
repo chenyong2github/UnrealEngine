@@ -275,7 +275,7 @@ class Watchdog {
 			this.childExited()
 			this.respawn()
 		})
-		this.child.on('message', (msg) => {
+		this.child.on('message', (msg: any) => {
 			if (this.child === null)
 				return
 			

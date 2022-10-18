@@ -198,7 +198,7 @@ export class WebServer {
 			throw new Error(`Unknown file type '${filetype}'`)
 		}
 
-		let encoding: string | null = null
+		let encoding: BufferEncoding | null = null
 		let mimeType = MIME_TYPES.get(filetype)
 		if (mimeType) {
 			// assuming known file types other than images are text
@@ -248,7 +248,7 @@ export class WebServer {
 		return headers;	
 	}
 
-	private handleFileRequest(response: http.ServerResponse, filePattern: string, encoding: string | null,
+	private handleFileRequest(response: http.ServerResponse, filePattern: string, encoding: BufferEncoding | null,
 								mimeType: string, route: RegExp, path: string, inHeaders?: [string, string][]) {
 		const filePath = path.replace(route, filePattern)
 		if (filePath.search(/\.\./) !== -1) {

@@ -187,7 +187,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	getEdgeIPCControls(branch: BranchArg): IPCControls | null {
 		const edge = this.getImmediateEdge(branch)
 
-		return edge ? edge.ipcControls : null  
+		return edge ? edge.getIPCControls() : null  
 	}
 
 	hasEdge(branch: BranchArg): boolean {

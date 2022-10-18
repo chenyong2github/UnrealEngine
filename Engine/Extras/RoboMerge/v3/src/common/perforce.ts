@@ -705,7 +705,7 @@ export class PerforceContext {
 
 	// Create a new workspace for Robomerge GraphBot
 	async newGraphBotWorkspace(name: string, extraParams: any, edgeServer?: {id: string, address: string}) {
-		return this.newWorkspace(name, {Root: '/src/' + name, ...extraParams}, edgeServer);
+		return this.newWorkspace(name, {Root: getRootDirectoryForBranch(name), ...extraParams}, edgeServer);
 	}
 
 	// Create a new workspace for Robomerge to read branchspecs from
@@ -1365,7 +1365,7 @@ export class PerforceContext {
 			options.env = {};
 			for (let key in process.env)
 				options.env[key] = process.env[key];
-			options.env.PWD = path.resolve(options.cwd);
+			options.env.PWD = path.resolve(options.cwd.toString());
 		}
 
 		const doExecFile = function(retries: number): Promise<string> {
