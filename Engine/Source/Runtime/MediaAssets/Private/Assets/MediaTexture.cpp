@@ -190,13 +190,13 @@ EMaterialValueType UMediaTexture::GetMaterialType() const
 
 float UMediaTexture::GetSurfaceWidth() const
 {
-	return Dimensions.X;
+	return (float)Dimensions.X;
 }
 
 
 float UMediaTexture::GetSurfaceHeight() const
 {
-	return Dimensions.Y;
+	return (float)Dimensions.Y;
 }
 
 

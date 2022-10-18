@@ -72,7 +72,7 @@ struct FMovieSceneTimeWarping
 		else
 		{
 			const FFrameNumber WarpLength = Length();
-			const FFrameNumber WarpsOffset = WarpLength * WarpCount;
+			const FFrameNumber WarpsOffset = WarpLength * (float)WarpCount;
 			return FMovieSceneTimeTransform(WarpsOffset);
 		}
 	}
