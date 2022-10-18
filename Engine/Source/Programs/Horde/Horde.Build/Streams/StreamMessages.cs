@@ -153,9 +153,9 @@ namespace Horde.Build.Streams
 		/// <param name="identifier">Identifier to distinguish this workspace from other workspaces. Defaults to the workspace type name.</param>
 		/// <param name="stream">Override for the stream to sync</param>
 		/// <param name="view">Custom view for the workspace</param>
-		/// <param name="bIncremental">Whether to use an incrementally synced workspace</param>
-		/// <param name="bUseAutoSdk">Whether to use the AutoSDK</param>
-		public GetWorkspaceTypeResponse(string? cluster, string? serverAndPort, string? userName, string? identifier, string? stream, List<string>? view, bool bIncremental, bool bUseAutoSdk)
+		/// <param name="incremental">Whether to use an incrementally synced workspace</param>
+		/// <param name="useAutoSdk">Whether to use the AutoSDK</param>
+		public GetWorkspaceTypeResponse(string? cluster, string? serverAndPort, string? userName, string? identifier, string? stream, List<string>? view, bool incremental, bool useAutoSdk)
 		{
 			Cluster = cluster;
 			ServerAndPort = serverAndPort;
@@ -163,8 +163,8 @@ namespace Horde.Build.Streams
 			Identifier = identifier;
 			Stream = stream;
 			View = view;
-			Incremental = bIncremental;
-			UseAutoSdk = bUseAutoSdk;
+			Incremental = incremental;
+			UseAutoSdk = useAutoSdk;
 		}
 	}
 
@@ -278,8 +278,8 @@ namespace Horde.Build.Streams
 		/// <param name="templateRef">The template ref</param>
 		/// <param name="template">The template instance</param>
 		/// <param name="stepStates">The template step states</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, bool bIncludeAcl)
+		/// <param name="includeAcl">Whether to include the ACL in the response</param>
+		public GetTemplateRefResponse(TemplateId id, ITemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, bool includeAcl)
 			: base(template)
 		{
 			Id = id.ToString();
@@ -292,7 +292,7 @@ namespace Horde.Build.Streams
 			ChainedJobs = (templateRef.Config.ChainedJobs != null && templateRef.Config.ChainedJobs.Count > 0) ? templateRef.Config.ChainedJobs : null;
 			StepStates = stepStates;
 			DefaultChange = templateRef.Config.DefaultChange;
-			Acl = (bIncludeAcl && templateRef.Acl != null) ? new GetAclResponse(templateRef.Acl) : null;
+			Acl = (includeAcl && templateRef.Acl != null) ? new GetAclResponse(templateRef.Acl) : null;
 		}
 	}
 

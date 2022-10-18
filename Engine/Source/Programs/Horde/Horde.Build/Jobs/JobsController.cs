@@ -402,9 +402,9 @@ namespace Horde.Build.Jobs
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
-			bool bIncludeAcl = await _jobService.AuthorizeAsync(job, AclAction.ViewPermissions, User, cache);
-			bool bIncludeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, cache);
-			return await CreateJobResponseAsync(job, graph, bIncludeAcl, bIncludeCosts, filter);
+			bool includeAcl = await _jobService.AuthorizeAsync(job, AclAction.ViewPermissions, User, cache);
+			bool includeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, cache);
+			return await CreateJobResponseAsync(job, graph, includeAcl, includeCosts, filter);
 		}
 
 		/// <summary>
@@ -412,19 +412,19 @@ namespace Horde.Build.Jobs
 		/// </summary>
 		/// <param name="job">The job document</param>
 		/// <param name="graph">The graph for this job</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		/// <param name="bIncludeCosts">Whether to include costs in the response</param>
+		/// <param name="includeAcl">Whether to include the ACL in the response</param>
+		/// <param name="includeCosts">Whether to include costs in the response</param>
 		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Object containing the requested properties</returns>
-		async Task<object> CreateJobResponseAsync(IJob job, IGraph graph, bool bIncludeAcl, bool bIncludeCosts, PropertyFilter? filter)
+		async Task<object> CreateJobResponseAsync(IJob job, IGraph graph, bool includeAcl, bool includeCosts, PropertyFilter? filter)
 		{
 			if (filter == null)
 			{
-				return await CreateJobResponseAsync(job, graph, true, true, bIncludeAcl, bIncludeCosts);
+				return await CreateJobResponseAsync(job, graph, true, true, includeAcl, includeCosts);
 			}
 			else
 			{
-				return filter.ApplyTo(await CreateJobResponseAsync(job, graph, filter.Includes(nameof(GetJobResponse.Batches)), filter.Includes(nameof(GetJobResponse.Labels)) || filter.Includes(nameof(GetJobResponse.DefaultLabel)), bIncludeAcl, bIncludeCosts));
+				return filter.ApplyTo(await CreateJobResponseAsync(job, graph, filter.Includes(nameof(GetJobResponse.Batches)), filter.Includes(nameof(GetJobResponse.Labels)) || filter.Includes(nameof(GetJobResponse.DefaultLabel)), includeAcl, includeCosts));
 			}
 		}
 
@@ -433,12 +433,12 @@ namespace Horde.Build.Jobs
 		/// </summary>
 		/// <param name="job">The job document</param>
 		/// <param name="graph">The graph definition</param>
-		/// <param name="bIncludeBatches">Whether to include the job batches in the response</param>
-		/// <param name="bIncludeLabels">Whether to include the job aggregates in the response</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		/// <param name="bIncludeCosts">Whether to include costs of running particular agents</param>
+		/// <param name="includeBatches">Whether to include the job batches in the response</param>
+		/// <param name="includeLabels">Whether to include the job aggregates in the response</param>
+		/// <param name="includeAcl">Whether to include the ACL in the response</param>
+		/// <param name="includeCosts">Whether to include costs of running particular agents</param>
 		/// <returns>The response object</returns>
-		async ValueTask<GetJobResponse> CreateJobResponseAsync(IJob job, IGraph graph, bool bIncludeBatches, bool bIncludeLabels, bool bIncludeAcl, bool bIncludeCosts)
+		async ValueTask<GetJobResponse> CreateJobResponseAsync(IJob job, IGraph graph, bool includeBatches, bool includeLabels, bool includeAcl, bool includeCosts)
 		{
 			GetThinUserInfoResponse? startedByUserInfo = null;
 			if (job.StartedByUserId != null)
@@ -453,23 +453,23 @@ namespace Horde.Build.Jobs
 			}
 
 			GetAclResponse? aclResponse = null;
-			if (bIncludeAcl && job.Acl != null)
+			if (includeAcl && job.Acl != null)
 			{
 				aclResponse = new GetAclResponse(job.Acl);
 			}
 
 			GetJobResponse response = new GetJobResponse(job, startedByUserInfo, abortedByUserInfo, aclResponse);
-			if (bIncludeBatches || bIncludeLabels)
+			if (includeBatches || includeLabels)
 			{
-				if (bIncludeBatches)
+				if (includeBatches)
 				{
 					response.Batches = new List<GetBatchResponse>();
 					foreach (IJobStepBatch batch in job.Batches)
 					{
-						response.Batches.Add(await CreateBatchResponseAsync(batch, bIncludeCosts));
+						response.Batches.Add(await CreateBatchResponseAsync(batch, includeCosts));
 					}
 				}
-				if (bIncludeLabels)
+				if (includeLabels)
 				{
 					response.Labels = new List<GetLabelStateResponse>();
 					response.DefaultLabel = job.GetLabelStateResponses(graph, response.Labels);
@@ -482,9 +482,9 @@ namespace Horde.Build.Jobs
 		/// Get the response object for a batch
 		/// </summary>
 		/// <param name="batch"></param>
-		/// <param name="bIncludeCosts"></param>
+		/// <param name="includeCosts"></param>
 		/// <returns></returns>
-		async ValueTask<GetBatchResponse> CreateBatchResponseAsync(IJobStepBatch batch, bool bIncludeCosts)
+		async ValueTask<GetBatchResponse> CreateBatchResponseAsync(IJobStepBatch batch, bool includeCosts)
 		{
 			List<GetStepResponse> steps = new List<GetStepResponse>();
 			foreach (IJobStep step in batch.Steps)
@@ -493,7 +493,7 @@ namespace Horde.Build.Jobs
 			}
 
 			double? agentRate = null;
-			if (batch.AgentId != null && bIncludeCosts)
+			if (batch.AgentId != null && includeCosts)
 			{
 				agentRate = await _agentService.GetRateAsync(batch.AgentId.Value);
 			}
@@ -787,21 +787,21 @@ namespace Horde.Build.Jobs
 						graph = await _jobService.GetGraphAsync(job);
 					}
 
-					bool bIncludeAcl;
+					bool includeAcl;
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewPermissions").StartActive())
 					{
-						bIncludeAcl = await _jobService.AuthorizeAsync(job, AclAction.ViewPermissions, User, permissionsCache);
+						includeAcl = await _jobService.AuthorizeAsync(job, AclAction.ViewPermissions, User, permissionsCache);
 					}
 
-					bool bIncludeCosts;
+					bool includeCosts;
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewCosts").StartActive())
 					{
-						bIncludeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, permissionsCache);
+						includeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, permissionsCache);
 					}
 
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("CreateResponse").StartActive())
 					{
-						responses.Add(await CreateJobResponseAsync(job, graph, bIncludeAcl, bIncludeCosts, filter));
+						responses.Add(await CreateJobResponseAsync(job, graph, includeAcl, includeCosts, filter));
 					}
 				}
 			}
@@ -867,21 +867,21 @@ namespace Horde.Build.Jobs
 						graph = await _jobService.GetGraphAsync(job);
 					}
 
-					bool bIncludeAcl;
+					bool includeAcl;
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewPermissions").StartActive())
 					{
-						bIncludeAcl = await _jobService.AuthorizeAsync(job, AclAction.ViewPermissions, User, permissionsCache);
+						includeAcl = await _jobService.AuthorizeAsync(job, AclAction.ViewPermissions, User, permissionsCache);
 					}
 
-					bool bIncludeCosts;
+					bool includeCosts;
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewCosts").StartActive())
 					{
-						bIncludeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, permissionsCache);
+						includeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, permissionsCache);
 					}
 
 					using (IScope _ = GlobalTracer.Instance.BuildSpan("CreateResponse").StartActive())
 					{
-						responses.Add(await CreateJobResponseAsync(job, graph, bIncludeAcl, bIncludeCosts, filter));
+						responses.Add(await CreateJobResponseAsync(job, graph, includeAcl, includeCosts, filter));
 					}
 				}
 			}
@@ -1067,12 +1067,12 @@ namespace Horde.Build.Jobs
 				return Forbid(AclAction.ViewJob, jobId);
 			}
 
-			bool bIncludeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, cache);
+			bool includeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, cache);
 
 			List<object> responses = new List<object>();
 			foreach (IJobStepBatch batch in job.Batches)
 			{
-				GetBatchResponse response = await CreateBatchResponseAsync(batch, bIncludeCosts);
+				GetBatchResponse response = await CreateBatchResponseAsync(batch, includeCosts);
 				responses.Add(response.ApplyFilter(filter));
 			}
 			return responses;
@@ -1136,13 +1136,13 @@ namespace Horde.Build.Jobs
 				return Forbid(AclAction.ViewJob, jobId);
 			}
 
-			bool bIncludeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, cache);
+			bool includeCosts = await _jobService.AuthorizeAsync(job, AclAction.ViewCosts, User, cache);
 
 			foreach (IJobStepBatch batch in job.Batches)
 			{
 				if (batch.Id == batchId)
 				{
-					GetBatchResponse response = await CreateBatchResponseAsync(batch, bIncludeCosts);
+					GetBatchResponse response = await CreateBatchResponseAsync(batch, includeCosts);
 					return response.ApplyFilter(filter);
 				}
 			}

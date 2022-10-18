@@ -367,7 +367,7 @@ namespace Horde.Build.Issues
 		{
 			_ = issue;
 
-			bool bShowDesktopAlerts = false;
+			bool showDesktopAlerts = false;
 
 			HashSet<(StreamId, TemplateId)> checkedTemplates = new HashSet<(StreamId, TemplateId)>();
 			foreach(IIssueSpan span in spans)
@@ -377,13 +377,13 @@ namespace Horde.Build.Issues
 					HashSet<TemplateId>? templates;
 					if (_cachedDesktopAlerts.TryGetValue(span.StreamId, out templates) && templates.Contains(span.TemplateRefId))
 					{
-						bShowDesktopAlerts = true;
+						showDesktopAlerts = true;
 						break;
 					}
 				}
 			}
 
-			return bShowDesktopAlerts;
+			return showDesktopAlerts;
 		}
 
 		/// <summary>
@@ -1102,19 +1102,19 @@ namespace Horde.Build.Issues
 		/// </summary>
 		async ValueTask<bool> ContainsFixChange(StreamId streamId, int fixChange, Dictionary<(StreamId, int), bool> cachedContainsFixChange)
 		{
-			bool bContainsFixChange;
-			if (!cachedContainsFixChange.TryGetValue((streamId, fixChange), out bContainsFixChange) && fixChange > 0)
+			bool containsFixChange;
+			if (!cachedContainsFixChange.TryGetValue((streamId, fixChange), out containsFixChange) && fixChange > 0)
 			{
 				IStream? stream = await _streams.GetCachedStream(streamId);
 				if (stream != null)
 				{
 					_logger.LogInformation("Querying fix changelist {FixChange} in {StreamId}", fixChange, streamId);
 					ICommit? change = await _commitService.GetCollection(stream).FindAsync(fixChange, fixChange, 1).FirstOrDefaultAsync();
-					bContainsFixChange = change != null;
+					containsFixChange = change != null;
 				}
-				cachedContainsFixChange[(streamId, fixChange)] = bContainsFixChange;
+				cachedContainsFixChange[(streamId, fixChange)] = containsFixChange;
 			}
-			return bContainsFixChange;
+			return containsFixChange;
 		}
 
 		/// <summary>

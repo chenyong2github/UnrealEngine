@@ -135,11 +135,11 @@ namespace Horde.Build.Agents
 			{
 			}
 
-			public AgentDocument(AgentId id, bool bEnabled, AgentSoftwareChannelName? channel, List<PoolId> pools)
+			public AgentDocument(AgentId id, bool enabled, AgentSoftwareChannelName? channel, List<PoolId> pools)
 			{
 				Id = id;
 				Acl = new Acl();
-				Enabled = bEnabled;
+				Enabled = enabled;
 				Channel = channel;
 				Pools = pools;
 			}
@@ -165,9 +165,9 @@ namespace Horde.Build.Agents
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent> AddAsync(AgentId id, bool bEnabled, AgentSoftwareChannelName? channel, List<PoolId>? pools)
+		public async Task<IAgent> AddAsync(AgentId id, bool enabled, AgentSoftwareChannelName? channel, List<PoolId>? pools)
 		{
-			AgentDocument agent = new AgentDocument(id, bEnabled, channel, pools ?? new List<PoolId>());
+			AgentDocument agent = new AgentDocument(id, enabled, channel, pools ?? new List<PoolId>());
 			await _agents.InsertOneAsync(agent);
 			return agent;
 		}
@@ -523,8 +523,8 @@ namespace Horde.Build.Agents
 			update = update.Unset(x => x.Leases);
 			update = update.Set(x => x.Status, AgentStatus.Stopped);
 
-			bool bDeleted = agent.Deleted || agent.Ephemeral;
-			if (bDeleted != agent.Deleted)
+			bool deleted = agent.Deleted || agent.Ephemeral;
+			if (deleted != agent.Deleted)
 			{
 				update = update.Set(x => x.Deleted, agent.Deleted);
 			}

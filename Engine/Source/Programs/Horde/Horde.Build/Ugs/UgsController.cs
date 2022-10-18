@@ -163,8 +163,8 @@ namespace Horde.Build.Ugs
 				foreach(IIssue issue in issues)
 				{
 					IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
-					bool bNotify = userInfo != null && details.Suspects.Any(x => x.AuthorId == userInfo.Id);
-					responses.Add(await CreateIssueResponseAsync(details, bNotify));
+					bool notify = userInfo != null && details.Suspects.Any(x => x.AuthorId == userInfo.Id);
+					responses.Add(await CreateIssueResponseAsync(details, notify));
 				}
 			}
 			else
@@ -178,8 +178,8 @@ namespace Horde.Build.Ugs
 
 					if (cachedOpenIssue.ShowNotifications())
 					{
-						bool bNotify = userInfo != null && cachedOpenIssue.IncludeForUser(userInfo.Id);
-						responses.Add(await CreateIssueResponseAsync(cachedOpenIssue, bNotify));
+						bool notify = userInfo != null && cachedOpenIssue.IncludeForUser(userInfo.Id);
+						responses.Add(await CreateIssueResponseAsync(cachedOpenIssue, notify));
 					}
 				}
 			}
@@ -286,16 +286,16 @@ namespace Horde.Build.Ugs
 		/// Gets the URL for a failing step in the
 		/// </summary>
 		/// <param name="details">The issue to get a URL for</param>
-		/// <param name="bNotify">Whether to show notifications for this issue</param>
+		/// <param name="notify">Whether to show notifications for this issue</param>
 		/// <returns>The issue response</returns>
-		async Task<GetUgsIssueResponse> CreateIssueResponseAsync(IIssueDetails details, bool bNotify)
+		async Task<GetUgsIssueResponse> CreateIssueResponseAsync(IIssueDetails details, bool notify)
 		{
 			Uri? buildUrl = GetIssueBuildUrl(details);
 
 			IUser? owner = details.Issue.OwnerId.HasValue ? await _userCollection.GetCachedUserAsync(details.Issue.OwnerId.Value) : null;
 			IUser? nominatedBy = details.Issue.NominatedById.HasValue ? await _userCollection.GetCachedUserAsync(details.Issue.NominatedById.Value) : null;
 
-			return new GetUgsIssueResponse(details, owner, nominatedBy, bNotify, buildUrl);
+			return new GetUgsIssueResponse(details, owner, nominatedBy, notify, buildUrl);
 		}
 
 		/// <summary>

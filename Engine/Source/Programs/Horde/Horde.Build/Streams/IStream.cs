@@ -269,15 +269,15 @@ namespace Horde.Build.Streams
 		/// Converts to a public response object
 		/// </summary>
 		/// <param name="stream">The stream object</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response object</param>
+		/// <param name="includeAcl">Whether to include the ACL in the response object</param>
 		/// <param name="apiTemplateRefs">The template refs for this stream. Passed separately because they have their own ACL.</param>
 		/// <returns>New response instance</returns>
-		public static GetStreamResponse ToApiResponse(this IStream stream, bool bIncludeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
+		public static GetStreamResponse ToApiResponse(this IStream stream, bool includeAcl, List<GetTemplateRefResponse> apiTemplateRefs)
 		{
 			List<TabConfig> apiTabs = stream.Config.Tabs;
 			Dictionary<string, AgentConfig> apiAgentTypes = stream.Config.AgentTypes.ToDictionary(x => x.Key, x => x.Value);
 			Dictionary<string, WorkspaceConfig> apiWorkspaceTypes = stream.Config.WorkspaceTypes.ToDictionary(x => x.Key, x => x.Value);
-			GetAclResponse? apiAcl = (bIncludeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
+			GetAclResponse? apiAcl = (includeAcl && stream.Acl != null)? new GetAclResponse(stream.Acl) : null;
 			return new GetStreamResponse(stream.Id.ToString(), stream.ProjectId.ToString(), stream.Name, stream.ConfigRevision, stream.Config.Order, stream.Config.NotificationChannel, stream.Config.NotificationChannelFilter, stream.Config.TriageChannel, stream.Config.DefaultPreflight, apiTabs, apiAgentTypes, apiWorkspaceTypes, apiTemplateRefs, apiAcl, stream.PausedUntil, stream.PauseComment, stream.Config.Workflows);
 		}
 

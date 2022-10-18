@@ -457,9 +457,9 @@ namespace Horde.Build.Notifications
 		/// Gets the <see cref="INotificationTrigger"/> for a given trigger ID, if any.
 		/// </summary>
 		/// <param name="triggerId"></param>
-		/// <param name="bFireTrigger">If true, the trigger is fired and cannot be reused</param>
+		/// <param name="fireTrigger">If true, the trigger is fired and cannot be reused</param>
 		/// <returns></returns>
-		private async Task<INotificationTrigger?> GetNotificationTrigger(ObjectId? triggerId, bool bFireTrigger)
+		private async Task<INotificationTrigger?> GetNotificationTrigger(ObjectId? triggerId, bool fireTrigger)
 		{
 			if (triggerId == null)
 			{
@@ -472,7 +472,7 @@ namespace Horde.Build.Notifications
 				return null;
 			}
 
-			return bFireTrigger ? await _triggerCollection.FireAsync(trigger) : trigger;
+			return fireTrigger ? await _triggerCollection.FireAsync(trigger) : trigger;
 		}
 	
 		private async Task SendJobNotificationsAsync(IJob job, IGraph graph)
@@ -552,7 +552,7 @@ namespace Horde.Build.Notifications
 			return Task.CompletedTask;
 		}
 
-		private async Task<List<IUser>> GetUsersToNotify(EventRecord? eventRecord, ObjectId? notificationTriggerId, bool bFireTrigger)
+		private async Task<List<IUser>> GetUsersToNotify(EventRecord? eventRecord, ObjectId? notificationTriggerId, bool fireTrigger)
 		{
 			List<UserId> userIds = new List<UserId>();
 
@@ -572,7 +572,7 @@ namespace Horde.Build.Notifications
 			// Find the notifications for this particular step
 			if (notificationTriggerId != null)
 			{
-				INotificationTrigger? trigger = await GetNotificationTrigger(notificationTriggerId, bFireTrigger);
+				INotificationTrigger? trigger = await GetNotificationTrigger(notificationTriggerId, fireTrigger);
 				if (trigger != null)
 				{
 					foreach (INotificationSubscription subscription in trigger.Subscriptions)
@@ -736,9 +736,9 @@ namespace Horde.Build.Notifications
 						triggerId = null;
 					}
 
-					bool bFireTrigger = newLabel.State == LabelState.Complete;
+					bool fireTrigger = newLabel.State == LabelState.Complete;
 
-					List<IUser> usersToNotify = await GetUsersToNotify(eventId, triggerId, bFireTrigger);
+					List<IUser> usersToNotify = await GetUsersToNotify(eventId, triggerId, fireTrigger);
 
 					// filter preflight label notifications to only include initiator
 					if (usersToNotify.Count > 0 && job.PreflightChange != 0 && job.StartedByUserId != null)

@@ -180,13 +180,13 @@ namespace Horde.Build.Agents
 		/// Register a new agent
 		/// </summary>
 		/// <param name="name">Name of the agent</param>
-		/// <param name="bEnabled">Whether the agent is currently enabled</param>
+		/// <param name="enabled">Whether the agent is currently enabled</param>
 		/// <param name="channel">Override for the desired software version</param>
 		/// <param name="pools">Pools for this agent</param>
 		/// <returns>Unique id for the agent</returns>
-		public Task<IAgent> CreateAgentAsync(string name, bool bEnabled, AgentSoftwareChannelName? channel, List<PoolId>? pools)
+		public Task<IAgent> CreateAgentAsync(string name, bool enabled, AgentSoftwareChannelName? channel, List<PoolId>? pools)
 		{
-			return Agents.AddAsync(new AgentId(name), bEnabled, channel, pools);
+			return Agents.AddAsync(new AgentId(name), enabled, channel, pools);
 		}
 
 		/// <summary>
@@ -217,11 +217,11 @@ namespace Horde.Build.Agents
 		/// </summary>
 		/// <param name="agent">The agent to update</param>
 		/// <param name="workspaces">Current list of workspaces</param>
-		/// <param name="bPendingConform">Whether the agent still needs to run another conform</param>
+		/// <param name="pendingConform">Whether the agent still needs to run another conform</param>
 		/// <returns>New agent state</returns>
-		public async Task<bool> TryUpdateWorkspacesAsync(IAgent agent, List<AgentWorkspace> workspaces, bool bPendingConform)
+		public async Task<bool> TryUpdateWorkspacesAsync(IAgent agent, List<AgentWorkspace> workspaces, bool pendingConform)
 		{
-			IAgent? newAgent = await Agents.TryUpdateWorkspacesAsync(agent, workspaces, bPendingConform);
+			IAgent? newAgent = await Agents.TryUpdateWorkspacesAsync(agent, workspaces, pendingConform);
 			return newAgent != null;
 		}
 
@@ -649,7 +649,7 @@ namespace Horde.Build.Agents
 				}
 
 				// Flag for whether the leases array should be updated
-				bool bUpdateLeases = false;
+				bool updateLeases = false;
 				List<AgentLease> leases = new List<AgentLease>(agent.Leases);
 
 				// Remove any completed leases from the agent
@@ -664,7 +664,7 @@ namespace Horde.Build.Agents
 						{
 							await RemoveLeaseAsync(agent, lease, utcNow, LeaseOutcome.Cancelled, null);
 							leases.RemoveAt(idx--);
-							bUpdateLeases = true;
+							updateLeases = true;
 						}
 					}
 					else
@@ -681,7 +681,7 @@ namespace Horde.Build.Agents
 							{
 								lease.State = LeaseState.Active;
 							}
-							bUpdateLeases = true;
+							updateLeases = true;
 						}
 					}
 				}
@@ -694,7 +694,7 @@ namespace Horde.Build.Agents
 						if (lease.State != LeaseState.Cancelled)
 						{
 							lease.State = LeaseState.Cancelled;
-							bUpdateLeases = true;
+							updateLeases = true;
 						}
 					}
 				}
@@ -703,7 +703,7 @@ namespace Horde.Build.Agents
 				List<PoolId> dynamicPools = await GetDynamicPoolsAsync(agent);
 
 				// Update the agent, and try to create new lease documents if we succeed
-				IAgent? newAgent = await Agents.TryUpdateSessionAsync(agent, status, sessionExpiresAt, properties, resources, dynamicPools, bUpdateLeases ? leases : null);
+				IAgent? newAgent = await Agents.TryUpdateSessionAsync(agent, status, sessionExpiresAt, properties, resources, dynamicPools, updateLeases ? leases : null);
 				if (newAgent != null)
 				{
 					agent = newAgent;

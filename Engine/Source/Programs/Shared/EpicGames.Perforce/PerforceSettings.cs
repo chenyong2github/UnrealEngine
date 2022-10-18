@@ -176,16 +176,16 @@ namespace EpicGames.Perforce
 		/// Gets the command line arguments to launch an external program, such as P4V or P4VC
 		/// </summary>
 		/// <param name="settings"></param>
-		/// <param name="bIncludeClient"></param>
+		/// <param name="includeClient"></param>
 		/// <returns></returns>
-		public static string GetArgumentsForExternalProgram(this IPerforceSettings settings, bool bIncludeClient)
+		public static string GetArgumentsForExternalProgram(this IPerforceSettings settings, bool includeClient)
 		{
 			StringBuilder basicCommandArgs = new StringBuilder();
 
 			basicCommandArgs.AppendFormat("-p \"{0}\"", settings.ServerAndPort);
 			basicCommandArgs.AppendFormat(" -u \"{0}\"", settings.UserName);
 
-			if (bIncludeClient && settings.ClientName != null)
+			if (includeClient && settings.ClientName != null)
 			{
 				basicCommandArgs.AppendFormat(" -c \"{0}\" ", settings.ClientName);
 			}

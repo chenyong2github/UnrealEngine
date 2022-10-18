@@ -835,7 +835,7 @@ namespace Horde.Build.Jobs
 			return null;
 		}
 
-		async Task<ExecuteJobTask?> CreateExecuteJobTaskAsync(IStream stream, IJob job, IJobStepBatch batch, IAgent agent, AgentWorkspace workspace, bool bUseAutoSdk, LogId logId)
+		async Task<ExecuteJobTask?> CreateExecuteJobTaskAsync(IStream stream, IJob job, IJobStepBatch batch, IAgent agent, AgentWorkspace workspace, bool useAutoSdk, LogId logId)
 		{
 			// Get the lease name
 			StringBuilder leaseName = new StringBuilder($"{stream.Name} - ");
@@ -867,7 +867,7 @@ namespace Horde.Build.Jobs
 				return null;
 			}
 
-			AgentWorkspace? autoSdkWorkspace = bUseAutoSdk ? agent.GetAutoSdkWorkspace(cluster) : null;
+			AgentWorkspace? autoSdkWorkspace = useAutoSdk ? agent.GetAutoSdkWorkspace(cluster) : null;
 			if (autoSdkWorkspace != null)
 			{
 				if (!await agent.TryAddWorkspaceMessage(autoSdkWorkspace, cluster, _perforceLoadBalancer, workspaces))

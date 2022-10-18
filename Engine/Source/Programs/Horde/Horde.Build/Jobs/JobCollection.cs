@@ -561,7 +561,7 @@ namespace Horde.Build.Jobs
 			List<UpdateDefinition<JobDocument>> updates = new List<UpdateDefinition<JobDocument>>();
 
 			// Flag for whether to update batches
-			bool bUpdateBatches = false;
+			bool updateBatches = false;
 
 			// Build the update list
 			JobDocument jobDocument = Clone((JobDocument)inJob);
@@ -594,7 +594,7 @@ namespace Horde.Build.Jobs
 			{
 				jobDocument.AbortedByUserId = abortedByUserId;
 				updates.Add(updateBuilder.Set(x => x.AbortedByUserId, jobDocument.AbortedByUserId));
-				bUpdateBatches = true;
+				updateBatches = true;
 			}
 			if (notificationTriggerId != null)
 			{
@@ -639,7 +639,7 @@ namespace Horde.Build.Jobs
 				{
 					if (modifiedArgument.StartsWith(IJob.TargetArgumentPrefix, StringComparison.OrdinalIgnoreCase))
 					{
-						bUpdateBatches = true;
+						updateBatches = true;
 					}
 				}
 
@@ -648,7 +648,7 @@ namespace Horde.Build.Jobs
 			}
 
 			// Update the batches
-			if (bUpdateBatches)
+			if (updateBatches)
 			{
 				UpdateBatches(jobDocument, graph, updates, _logger);
 			}
@@ -711,7 +711,7 @@ namespace Horde.Build.Jobs
 				List<NodeRef> retriedNodes = jobDocument.RetriedNodes ?? new List<NodeRef>();
 
 				// Check if there are any steps that need to be run again
-				bool bUpdateState = false;
+				bool updateState = false;
 				foreach (JobStepDocument step in batch.Steps)
 				{
 					if (step.State == JobStepState.Running)
@@ -726,7 +726,7 @@ namespace Horde.Build.Jobs
 							retriedNodes.Add(new NodeRef(batch.GroupIdx, step.NodeIdx));
 						}
 
-						bUpdateState = true;
+						updateState = true;
 					}
 					else if (step.State == JobStepState.Ready || step.State == JobStepState.Waiting)
 					{
@@ -738,12 +738,12 @@ namespace Horde.Build.Jobs
 						{
 							step.State = JobStepState.Skipped;
 						}
-						bUpdateState = true;
+						updateState = true;
 					}
 				}
 
 				// Update the steps
-				if (bUpdateState)
+				if (updateState)
 				{
 					updates.Clear();
 					UpdateBatches(jobDocument, graph, updates, _logger);
@@ -767,8 +767,8 @@ namespace Horde.Build.Jobs
 			List<UpdateDefinition<JobDocument>> updates = new List<UpdateDefinition<JobDocument>>();
 
 			// Update the appropriate batch
-			bool bRefreshBatches = false;
-			bool bRefreshDependentJobSteps = false;
+			bool refreshBatches = false;
+			bool refreshDependentJobSteps = false;
 			for (int loopBatchIdx = 0; loopBatchIdx < jobDocument.Batches.Count; loopBatchIdx++)
 			{
 				int batchIdx = loopBatchIdx; // For lambda capture
@@ -795,7 +795,7 @@ namespace Horde.Build.Jobs
 									newOutcome = JobStepOutcome.Failure;
 								}
 
-								bRefreshDependentJobSteps = true;
+								refreshDependentJobSteps = true;
 							}
 
 							// Update the user that requested the abort
@@ -804,7 +804,7 @@ namespace Horde.Build.Jobs
 								step.AbortedByUserId = newAbortByUserId;
 								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].AbortedByUserId, step.AbortedByUserId));
 
-								bRefreshDependentJobSteps = true;
+								refreshDependentJobSteps = true;
 							}
 
 							// Update the state
@@ -824,7 +824,7 @@ namespace Horde.Build.Jobs
 									updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].FinishTime, step.FinishTime));
 								}
 
-								bRefreshDependentJobSteps = true;
+								refreshDependentJobSteps = true;
 							}
 
 							// Update the job outcome
@@ -833,7 +833,7 @@ namespace Horde.Build.Jobs
 								step.Outcome = newOutcome;
 								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].Outcome, step.Outcome));
 
-								bRefreshDependentJobSteps = true;
+								refreshDependentJobSteps = true;
 							}
 
 							// Update the job step error
@@ -849,7 +849,7 @@ namespace Horde.Build.Jobs
 								step.LogId = newLogId.Value;
 								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].LogId, step.LogId));
 
-								bRefreshDependentJobSteps = true;
+								refreshDependentJobSteps = true;
 							}
 
 							// Update the notification trigger id
@@ -868,7 +868,7 @@ namespace Horde.Build.Jobs
 								step.RetriedByUserId = newRetryByUserId;
 								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].RetriedByUserId, step.RetriedByUserId));
 
-								bRefreshBatches = true;
+								refreshBatches = true;
 							}
 
 							// Update the priority
@@ -877,7 +877,7 @@ namespace Horde.Build.Jobs
 								step.Priority = newPriority.Value;
 								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].Priority, step.Priority));
 
-								bRefreshBatches = true;
+								refreshBatches = true;
 							}
 
 							// Add any new reports
@@ -934,14 +934,14 @@ namespace Horde.Build.Jobs
 			}
 
 			// Update the batches
-			if (bRefreshBatches)
+			if (refreshBatches)
 			{
 				updates.Clear(); // UpdateBatches will update the entire batches list. We need to remove all the individual step updates to avoid an exception.
 				UpdateBatches(jobDocument, graph, updates, _logger);
 			}
 
 			// Update the state of dependent jobsteps
-			if (bRefreshDependentJobSteps)
+			if (refreshDependentJobSteps)
 			{
 				RefreshDependentJobSteps(jobDocument, graph, updates, _logger);
 				RefreshJobPriority(jobDocument, updates);

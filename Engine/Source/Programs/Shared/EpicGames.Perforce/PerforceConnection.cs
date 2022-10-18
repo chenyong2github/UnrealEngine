@@ -3326,12 +3326,12 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="connection">Connection to the Perforce server</param>
 		/// <param name="streamName">Name of the stream to query</param>
-		/// <param name="bIncludeView">Whether to include the stream view in the output</param>
+		/// <param name="includeView">Whether to include the stream view in the output</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Stream information record</returns>
-		public static async Task<StreamRecord> GetStreamAsync(this IPerforceConnection connection, string streamName, bool bIncludeView, CancellationToken cancellationToken = default)
+		public static async Task<StreamRecord> GetStreamAsync(this IPerforceConnection connection, string streamName, bool includeView, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetStreamAsync(connection, streamName, bIncludeView, cancellationToken)).Data;
+			return (await TryGetStreamAsync(connection, streamName, includeView, cancellationToken)).Data;
 		}
 
 		/// <summary>
@@ -3339,13 +3339,13 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="connection">Connection to the Perforce server</param>
 		/// <param name="streamName">Name of the stream to query</param>
-		/// <param name="bIncludeView">Whether to include the stream view in the output</param>
+		/// <param name="includeView">Whether to include the stream view in the output</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Stream information record</returns>
-		public static Task<PerforceResponse<StreamRecord>> TryGetStreamAsync(this IPerforceConnection connection, string streamName, bool bIncludeView, CancellationToken cancellationToken = default)
+		public static Task<PerforceResponse<StreamRecord>> TryGetStreamAsync(this IPerforceConnection connection, string streamName, bool includeView, CancellationToken cancellationToken = default)
 		{
 			List<string> arguments = new List<string> { "-o" };
-			if (bIncludeView)
+			if (includeView)
 			{
 				arguments.Add("-v");
 			}
@@ -3389,12 +3389,12 @@ namespace EpicGames.Perforce
 		/// <param name="streamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
 		/// <param name="maxResults">Maximum number of results to return</param>
 		/// <param name="filter">Additional filter to be applied to the results</param>
-		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
+		/// <param name="unloaded">Whether to enumerate unloaded workspaces</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection connection, string? streamPath, int maxResults, string? filter, bool bUnloaded, CancellationToken cancellationToken = default)
+		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection connection, string? streamPath, int maxResults, string? filter, bool unloaded, CancellationToken cancellationToken = default)
 		{
-			return (await TryGetStreamsAsync(connection, streamPath, maxResults, filter, bUnloaded, cancellationToken)).Data;
+			return (await TryGetStreamsAsync(connection, streamPath, maxResults, filter, unloaded, cancellationToken)).Data;
 		}
 
 		/// <summary>
@@ -3404,14 +3404,14 @@ namespace EpicGames.Perforce
 		/// <param name="streamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
 		/// <param name="maxResults">Maximum number of results to return</param>
 		/// <param name="filter">Additional filter to be applied to the results</param>
-		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
+		/// <param name="unloaded">Whether to enumerate unloaded workspaces</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static async Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection connection, string? streamPath, int maxResults, string? filter, bool bUnloaded, CancellationToken cancellationToken = default)
+		public static async Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection connection, string? streamPath, int maxResults, string? filter, bool unloaded, CancellationToken cancellationToken = default)
 		{
 			// Build the command line
 			List<string> arguments = new List<string>();
-			if (bUnloaded)
+			if (unloaded)
 			{
 				arguments.Add("-U");
 			}
@@ -3758,10 +3758,10 @@ namespace EpicGames.Perforce
 		/// <param name="min">Minimum number of files in a parallel sync</param>
 		/// <param name="minSize">Minimum number of bytes in a parallel sync</param>
 		/// <param name="fileSpecs">Files to sync</param>
-		/// <param name="bQuiet">Whether to use quiet output</param>
+		/// <param name="quiet">Whether to use quiet output</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Arguments for the command</returns>
-		private static IAsyncEnumerable<PerforceResponse<T>> SyncInternalAsync<T>(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, bool bQuiet, CancellationToken cancellationToken = default) where T : class
+		private static IAsyncEnumerable<PerforceResponse<T>> SyncInternalAsync<T>(this IPerforceConnection connection, SyncOptions options, int maxFiles, int numThreads, int batch, int batchSize, int min, int minSize, FileSpecList fileSpecs, bool quiet, CancellationToken cancellationToken = default) where T : class
 		{
 			List<string> arguments = new List<string>();
 			if ((options & SyncOptions.Force) != 0)
@@ -3788,7 +3788,7 @@ namespace EpicGames.Perforce
 			{
 				arguments.Add("-p");
 			}
-			if (bQuiet)
+			if (quiet)
 			{
 				arguments.Add("-q");
 			}

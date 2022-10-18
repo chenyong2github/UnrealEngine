@@ -770,7 +770,7 @@ namespace Horde.Build.Jobs
 		/// <returns>Job state</returns>
 		public static JobState GetState(this IJob job)
 		{
-			bool bWaiting = false;
+			bool waiting = false;
 			foreach (IJobStepBatch batch in job.Batches)
 			{
 				foreach (IJobStep step in batch.Steps)
@@ -787,12 +787,12 @@ namespace Horde.Build.Jobs
 						}
 						else
 						{
-							bWaiting = true;
+							waiting = true;
 						}
 					}
 				}
 			}
-			return bWaiting ? JobState.Waiting : JobState.Complete;
+			return waiting ? JobState.Waiting : JobState.Complete;
 		}
 
 		/// <summary>
@@ -863,20 +863,20 @@ namespace Horde.Build.Jobs
 		/// <returns>The step outcome</returns>
 		public static (JobStepState, JobStepOutcome) GetTargetState(IEnumerable<IJobStep> steps)
 		{
-			bool bAnySkipped = false;
-			bool bAnyWarnings = false;
-			bool bAnyFailed = false;
-			bool bAnyPending = false;
+			bool anySkipped = false;
+			bool anyWarnings = false;
+			bool anyFailed = false;
+			bool anyPending = false;
 			foreach (IJobStep step in steps)
 			{
-				bAnyPending |= step.IsPending();
-				bAnySkipped |= step.State == JobStepState.Aborted || step.State == JobStepState.Skipped;
-				bAnyFailed |= (step.Outcome == JobStepOutcome.Failure);
-				bAnyWarnings |= (step.Outcome == JobStepOutcome.Warnings);
+				anyPending |= step.IsPending();
+				anySkipped |= step.State == JobStepState.Aborted || step.State == JobStepState.Skipped;
+				anyFailed |= (step.Outcome == JobStepOutcome.Failure);
+				anyWarnings |= (step.Outcome == JobStepOutcome.Warnings);
 			}
 
-			JobStepState newState = bAnyPending ? JobStepState.Running : JobStepState.Completed;
-			JobStepOutcome newOutcome = bAnyFailed ? JobStepOutcome.Failure : bAnyWarnings ? JobStepOutcome.Warnings : bAnySkipped ? JobStepOutcome.Unspecified : JobStepOutcome.Success;
+			JobStepState newState = anyPending ? JobStepState.Running : JobStepState.Completed;
+			JobStepOutcome newOutcome = anyFailed ? JobStepOutcome.Failure : anyWarnings ? JobStepOutcome.Warnings : anySkipped ? JobStepOutcome.Unspecified : JobStepOutcome.Success;
 			return (newState, newOutcome);
 		}
 
@@ -1312,25 +1312,25 @@ namespace Horde.Build.Jobs
 				if (label.RequiredNodes.Any(x => stepForNodeRef.ContainsKey(x)))
 				{
 					// Combine the state of the steps contributing towards this label
-					bool bAnySkipped = false;
-					bool bAnyWarnings = false;
-					bool bAnyFailed = false;
-					bool bAnyPending = false;
+					bool anySkipped = false;
+					bool anyWarnings = false;
+					bool anyFailed = false;
+					bool anyPending = false;
 					foreach (NodeRef includedNode in label.IncludedNodes)
 					{
 						IJobStep? step;
 						if (stepForNodeRef.TryGetValue(includedNode, out step))
 						{
-							bAnyPending |= step.IsPending();
-							bAnySkipped |= step.State == JobStepState.Aborted || step.State == JobStepState.Skipped;
-							bAnyFailed |= (step.Outcome == JobStepOutcome.Failure);
-							bAnyWarnings |= (step.Outcome == JobStepOutcome.Warnings);
+							anyPending |= step.IsPending();
+							anySkipped |= step.State == JobStepState.Aborted || step.State == JobStepState.Skipped;
+							anyFailed |= (step.Outcome == JobStepOutcome.Failure);
+							anyWarnings |= (step.Outcome == JobStepOutcome.Warnings);
 						}
 					}
 
 					// Figure out the overall label state
-					newState = bAnyPending ? LabelState.Running : LabelState.Complete;
-					newOutcome = bAnyFailed ? LabelOutcome.Failure : bAnyWarnings ? LabelOutcome.Warnings : bAnySkipped? LabelOutcome.Unspecified : LabelOutcome.Success;
+					newState = anyPending ? LabelState.Running : LabelState.Complete;
+					newOutcome = anyFailed ? LabelOutcome.Failure : anyWarnings ? LabelOutcome.Warnings : anySkipped? LabelOutcome.Unspecified : LabelOutcome.Success;
 				}
 
 				states.Add((newState, newOutcome));

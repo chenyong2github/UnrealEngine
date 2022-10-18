@@ -67,8 +67,8 @@ namespace Horde.Build.Projects
 			{
 				if (await _projectService.AuthorizeAsync(project, AclAction.ViewProject, User, permissionsCache))
 				{
-					bool bIncludeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, permissionsCache);
-					responses.Add(project.ToResponse(includeStreams, includeCategories, streams, bIncludeAcl).ApplyFilter(filter));
+					bool includeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, permissionsCache);
+					responses.Add(project.ToResponse(includeStreams, includeCategories, streams, includeAcl).ApplyFilter(filter));
 				}
 			}
 			return responses;
@@ -97,11 +97,11 @@ namespace Horde.Build.Projects
 				return Forbid(AclAction.ViewProject, projectId);
 			}
 
-			bool bIncludeStreams = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Streams));
-			bool bIncludeCategories = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Categories));
+			bool includeStreams = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Streams));
+			bool includeCategories = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Categories));
 
 			List<IStream>? visibleStreams = null;
-			if (bIncludeStreams || bIncludeCategories)
+			if (includeStreams || includeCategories)
 			{
 				visibleStreams = new List<IStream>();
 
@@ -115,8 +115,8 @@ namespace Horde.Build.Projects
 				}
 			}
 
-			bool bIncludeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, cache);
-			return project.ToResponse(bIncludeStreams, bIncludeCategories, visibleStreams, bIncludeAcl).ApplyFilter(filter);
+			bool includeAcl = await _projectService.AuthorizeAsync(project, AclAction.ViewPermissions, User, cache);
+			return project.ToResponse(includeStreams, includeCategories, visibleStreams, includeAcl).ApplyFilter(filter);
 		}
 
 		/// <summary>

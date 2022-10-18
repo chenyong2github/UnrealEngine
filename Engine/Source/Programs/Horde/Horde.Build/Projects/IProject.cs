@@ -88,21 +88,21 @@ namespace Horde.Build.Projects
 		/// Converts this object to a public response
 		/// </summary>
 		/// <param name="project">The project instance</param>
-		/// <param name="bIncludeStreams">Whether to include streams in the response</param>
-		/// <param name="bIncludeCategories">Whether to include categories in the response</param>
+		/// <param name="includeStreams">Whether to include streams in the response</param>
+		/// <param name="includeCategories">Whether to include categories in the response</param>
 		/// <param name="streams">The list of streams</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
+		/// <param name="includeAcl">Whether to include the ACL in the response</param>
 		/// <returns>Response instance</returns>
-		public static GetProjectResponse ToResponse(this IProject project, bool bIncludeStreams, bool bIncludeCategories, List<IStream>? streams, bool bIncludeAcl)
+		public static GetProjectResponse ToResponse(this IProject project, bool includeStreams, bool includeCategories, List<IStream>? streams, bool includeAcl)
 		{
 			List<GetProjectStreamResponse>? streamResponses = null;
-			if(bIncludeStreams)
+			if(includeStreams)
 			{
 				streamResponses = streams!.ConvertAll(x => new GetProjectStreamResponse(x.Id.ToString(), x.Name));
 			}
 
 			List<GetProjectCategoryResponse>? categoryResponses = null;
-			if (bIncludeCategories)
+			if (includeCategories)
 			{
 				categoryResponses = project.Config.Categories.ConvertAll(x => new GetProjectCategoryResponse(x));
 				if (streams != null)
@@ -131,7 +131,7 @@ namespace Horde.Build.Projects
 				}
 			}
 
-			GetAclResponse? aclResponse = (bIncludeAcl && project.Acl != null) ? new GetAclResponse(project.Acl) : null;
+			GetAclResponse? aclResponse = (includeAcl && project.Acl != null) ? new GetAclResponse(project.Acl) : null;
 			return new GetProjectResponse(project.Id.ToString(), project.Name, project.Order, streamResponses, categoryResponses, aclResponse);
 		}
 

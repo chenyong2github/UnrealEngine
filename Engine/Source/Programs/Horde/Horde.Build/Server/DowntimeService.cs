@@ -82,7 +82,7 @@ namespace Horde.Build.Server
 			IGlobals globals = await _globalsService.GetAsync();
 
 			DateTimeOffset now = TimeZoneInfo.ConvertTime(DateTimeOffset.Now, _settings.CurrentValue.TimeZoneInfo);
-			bool bIsActive = globals.Config.Downtime.Any(x => x.IsActive(now));
+			bool isActive = globals.Config.Downtime.Any(x => x.IsActive(now));
 
 			DateTimeOffset? next = null;
 			foreach (ScheduledDowntime schedule in globals.Config.Downtime)
@@ -96,12 +96,12 @@ namespace Horde.Build.Server
 
 			if (next != null)
 			{
-				_logger.LogInformation("Server time: {Time}. Downtime: {Downtime}. Next: {Next}.", now, bIsActive, next.Value);
+				_logger.LogInformation("Server time: {Time}. Downtime: {Downtime}. Next: {Next}.", now, isActive, next.Value);
 			}
 
-			if (bIsActive != IsDowntimeActive)
+			if (isActive != IsDowntimeActive)
 			{
-				IsDowntimeActive = bIsActive;
+				IsDowntimeActive = isActive;
 				if (IsDowntimeActive)
 				{
 					_logger.LogInformation("Entering downtime");

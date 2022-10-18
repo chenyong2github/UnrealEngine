@@ -242,9 +242,9 @@ namespace Horde.Build.Jobs.Graphs
 							int nodeIdx = nodes.Count;
 
 							Priority priority = newNodeRequest.Priority ?? Priority.Normal;
-							bool bAllowRetry = newNodeRequest.AllowRetry ?? true;
-							bool bRunEarly = newNodeRequest.RunEarly ?? false;
-							bool bWarnings = newNodeRequest.Warnings ?? true;
+							bool allowRetry = newNodeRequest.AllowRetry ?? true;
+							bool runEarly = newNodeRequest.RunEarly ?? false;
+							bool warnings = newNodeRequest.Warnings ?? true;
 
 							NodeOutputRef[]? inputs = null;
 							if (newNodeRequest.Inputs != null && newNodeRequest.Inputs.Count > 0)
@@ -255,7 +255,7 @@ namespace Horde.Build.Jobs.Graphs
 							NodeRef[] inputDependencies = (newNodeRequest.InputDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.InputDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							NodeRef[] orderDependencies = (newNodeRequest.OrderDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.OrderDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							orderDependencies = orderDependencies.Union(inputDependencies).ToArray();
-							nodes.Add(new Node(newNodeRequest.Name, inputs, newNodeRequest.Outputs?.ToArray(), inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
+							nodes.Add(new Node(newNodeRequest.Name, inputs, newNodeRequest.Outputs?.ToArray(), inputDependencies, orderDependencies, priority, allowRetry, runEarly, warnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
 
 							NodeRef nodeRef = new NodeRef(newGroups.Count, nodeIdx);
 							nodeNameToRef.Add(newNodeRequest.Name, nodeRef);

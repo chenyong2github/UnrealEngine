@@ -15,7 +15,7 @@ namespace EpicGames.Perforce.Managed
 		public readonly Utf8String Name;
 		public long _length;
 		public long _lastModifiedTicks;
-		public bool _bReadOnly;
+		public bool _readOnly;
 		public readonly FileContentId ContentId;
 
 		public WorkspaceFileInfo(WorkspaceDirectoryInfo directory, Utf8String name, FileContentId contentId)
@@ -30,21 +30,21 @@ namespace EpicGames.Perforce.Managed
 		{
 		}
 
-		public WorkspaceFileInfo(WorkspaceDirectoryInfo directory, Utf8String name, long length, long lastModifiedTicks, bool bReadOnly, FileContentId contentId)
+		public WorkspaceFileInfo(WorkspaceDirectoryInfo directory, Utf8String name, long length, long lastModifiedTicks, bool readOnly, FileContentId contentId)
 		{
 			Directory = directory;
 			Name = name;
 			_length = length;
 			_lastModifiedTicks = lastModifiedTicks;
-			_bReadOnly = bReadOnly;
+			_readOnly = readOnly;
 			ContentId = contentId;
 		}
 
-		public void SetMetadata(long length, long lastModifiedTicks, bool bReadOnly)
+		public void SetMetadata(long length, long lastModifiedTicks, bool readOnly)
 		{
 			_length = length;
 			_lastModifiedTicks = lastModifiedTicks;
-			_bReadOnly = bReadOnly;
+			_readOnly = readOnly;
 		}
 
 		public void UpdateMetadata()
@@ -54,13 +54,13 @@ namespace EpicGames.Perforce.Managed
 			{
 				_length = info.Length;
 				_lastModifiedTicks = info.LastWriteTimeUtc.Ticks;
-				_bReadOnly = info.Attributes.HasFlag(FileAttributes.ReadOnly);
+				_readOnly = info.Attributes.HasFlag(FileAttributes.ReadOnly);
 			}
 		}
 
 		public bool MatchesAttributes(FileInfo info)
 		{
-			return _length == info.Length && _lastModifiedTicks == info.LastWriteTimeUtc.Ticks && (info.Attributes.HasFlag(FileAttributes.ReadOnly) == _bReadOnly);
+			return _length == info.Length && _lastModifiedTicks == info.LastWriteTimeUtc.Ticks && (info.Attributes.HasFlag(FileAttributes.ReadOnly) == _readOnly);
 		}
 
 		public string GetClientPath()
@@ -98,9 +98,9 @@ namespace EpicGames.Perforce.Managed
 			Utf8String name = reader.ReadNullTerminatedUtf8String();
 			long length = reader.ReadInt64();
 			long lastModifiedTicks = reader.ReadInt64();
-			bool bReadOnly = reader.ReadBoolean();
+			bool readOnly = reader.ReadBoolean();
 			FileContentId contentId = reader.ReadFileContentId();
-			return new WorkspaceFileInfo(directory, name, length, lastModifiedTicks, bReadOnly, contentId);
+			return new WorkspaceFileInfo(directory, name, length, lastModifiedTicks, readOnly, contentId);
 		}
 
 		public static void WriteWorkspaceFileInfo(this MemoryWriter writer, WorkspaceFileInfo fileInfo)
@@ -108,7 +108,7 @@ namespace EpicGames.Perforce.Managed
 			writer.WriteNullTerminatedUtf8String(fileInfo.Name);
 			writer.WriteInt64(fileInfo._length);
 			writer.WriteInt64(fileInfo._lastModifiedTicks);
-			writer.WriteBoolean(fileInfo._bReadOnly);
+			writer.WriteBoolean(fileInfo._readOnly);
 			writer.WriteFileContentId(fileInfo.ContentId);
 		}
 

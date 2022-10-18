@@ -142,15 +142,15 @@ namespace Horde.Build.Logs.Data
 		/// </summary>
 		/// <param name="text">The text to search</param>
 		/// <param name="offset">Offset of the window to read from the token</param>
-		/// <param name="bAllowPartialMatch">Whether to allow only matching the start of the string</param>
+		/// <param name="allowPartialMatch">Whether to allow only matching the start of the string</param>
 		/// <returns>Length of the first token</returns>
-		public static ulong GetWindowedTokenMask(ReadOnlySpan<byte> text, int offset, bool bAllowPartialMatch)
+		public static ulong GetWindowedTokenMask(ReadOnlySpan<byte> text, int offset, bool allowPartialMatch)
 		{
 			ulong token = 0;
 			for (int idx = 0; idx < MaxTokenBytes; idx++)
 			{
 				token <<= 8;
-				if (offset >= 0 && (offset < text.Length || !bAllowPartialMatch))
+				if (offset >= 0 && (offset < text.Length || !allowPartialMatch))
 				{
 					token |= 0xff;
 				}

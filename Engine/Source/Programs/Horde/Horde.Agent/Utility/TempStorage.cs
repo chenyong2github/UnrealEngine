@@ -867,12 +867,12 @@ namespace Horde.Storage.Utility
 			}
 
 			// Check all the local files are as expected
-			bool bAllMatch = true;
+			bool allMatch = true;
 			foreach(TempStorageFile File in manifest.Files)
 			{
-				bAllMatch &= File.Compare(rootDir, logger);
+				allMatch &= File.Compare(rootDir, logger);
 			}
-			if(!bAllMatch)
+			if(!allMatch)
 			{
 				throw new TempStorageException("Files have been modified");
 			}

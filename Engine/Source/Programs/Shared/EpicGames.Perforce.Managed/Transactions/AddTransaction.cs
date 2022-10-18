@@ -155,7 +155,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				if (_filesToMove.TryAdd(trackedFile, new WorkspaceFileToMove(streamFile, trackedFile, workspaceFile)))
 				{
-					workspaceFile.SetMetadata(trackedFile.Length, trackedFile.LastModifiedTicks, trackedFile.BReadOnly);
+					workspaceFile.SetMetadata(trackedFile.Length, trackedFile.LastModifiedTicks, trackedFile.ReadOnly);
 				}
 				else
 				{

@@ -869,7 +869,7 @@ namespace Horde.Build.Jobs
 								{
 									break;
 								}
-								if (await _agents.TryUpdateSettingsAsync(agent, bRequestConform: true) != null)
+								if (await _agents.TryUpdateSettingsAsync(agent, requestConform: true) != null)
 								{
 									_logger.LogError("Agent {AgentId} did not complete lease; marking for conform", agent.Id);
 									break;

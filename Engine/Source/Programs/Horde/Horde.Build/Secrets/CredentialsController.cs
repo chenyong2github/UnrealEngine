@@ -82,8 +82,8 @@ namespace Horde.Build.Secrets
 			{
 				if (await _credentialService.AuthorizeAsync(credential, AclAction.ViewCredential, User, cache))
 				{
-					bool bIncludeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
-					responses.Add(new GetCredentialResponse(credential, bIncludeAcl).ApplyFilter(filter));
+					bool includeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
+					responses.Add(new GetCredentialResponse(credential, includeAcl).ApplyFilter(filter));
 				}
 			}
 			return responses;
@@ -114,8 +114,8 @@ namespace Horde.Build.Secrets
 				return Forbid();
 			}
 
-			bool bIncludeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
-			return new GetCredentialResponse(credential, bIncludeAcl).ApplyFilter(filter);
+			bool includeAcl = await _credentialService.AuthorizeAsync(credential, AclAction.ViewPermissions, User, cache);
+			return new GetCredentialResponse(credential, includeAcl).ApplyFilter(filter);
 		}
 
 		/// <summary>

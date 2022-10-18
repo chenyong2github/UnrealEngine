@@ -192,8 +192,8 @@ namespace Horde.Build.Tests
 		//				return;
 		//			}
 
-		//			bool bFireTrigger = NewLabel.State == LabelState.Complete;
-		//			INotificationTrigger? Trigger = await GetNotificationTrigger(Job.LabelIdxToTriggerId[LabelIdx], bFireTrigger);
+		//			bool fireTrigger = NewLabel.State == LabelState.Complete;
+		//			INotificationTrigger? Trigger = await GetNotificationTrigger(Job.LabelIdxToTriggerId[LabelIdx], fireTrigger);
 		//			if (Trigger == null)
 		//			{
 		//				continue;

@@ -249,7 +249,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 			foreach (IAgent agent in agentsLimitedByCount)
 			{
 				IAuditLogChannel<AgentId> agentLogger = agentCollection.GetLogger(agent.Id);
-				if (await agentCollection.TryUpdateSettingsAsync(agent, bRequestShutdown: true, shutdownReason: "Autoscaler") != null)
+				if (await agentCollection.TryUpdateSettingsAsync(agent, requestShutdown: true, shutdownReason: "Autoscaler") != null)
 				{
 					agentLogger.LogInformation("Marked {AgentId} in pool {PoolName} for shutdown due to autoscaling (currently {NumLeases} leases outstanding)", agent.Id, pool.Name, agent.Leases.Count);
 				}

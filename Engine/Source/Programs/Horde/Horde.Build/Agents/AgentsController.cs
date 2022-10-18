@@ -128,8 +128,8 @@ namespace Horde.Build.Agents
 				leases.Add(new GetAgentLeaseResponse(lease, details));
 			}
 
-			bool bIncludeAcl = await _agentService.AuthorizeAsync(agent, AclAction.ViewPermissions, User, permissionsCache);
-			return new GetAgentResponse(agent, leases, rate, bIncludeAcl).ApplyFilter(filter);
+			bool includeAcl = await _agentService.AuthorizeAsync(agent, AclAction.ViewPermissions, User, permissionsCache);
+			return new GetAgentResponse(agent, leases, rate, includeAcl).ApplyFilter(filter);
 		}
 
 		/// <summary>

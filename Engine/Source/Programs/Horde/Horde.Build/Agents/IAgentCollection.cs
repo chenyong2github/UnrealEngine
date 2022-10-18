@@ -26,10 +26,10 @@ namespace Horde.Build.Agents
 		/// Adds a new agent with the given properties
 		/// </summary>
 		/// <param name="id">Id for the new agent</param>
-		/// <param name="bEnabled">Whether the agent is enabled or not</param>
+		/// <param name="enabled">Whether the agent is enabled or not</param>
 		/// <param name="channel">Channel to use for software run by this agent</param>
 		/// <param name="pools">Pools for the agent</param>
-		Task<IAgent> AddAsync(AgentId id, bool bEnabled, AgentSoftwareChannelName? channel = null, List<PoolId>? pools = null);
+		Task<IAgent> AddAsync(AgentId id, bool enabled, AgentSoftwareChannelName? channel = null, List<PoolId>? pools = null);
 
 		/// <summary>
 		/// Deletes an agent
@@ -76,18 +76,18 @@ namespace Horde.Build.Agents
 		/// Update an agent's settings
 		/// </summary>
 		/// <param name="agent">Agent instance</param>
-		/// <param name="bEnabled">Whether the agent is enabled or not</param>
-		/// <param name="bRequestConform">Whether to request a conform job be run</param>
-		/// <param name="bRequestFullConform">Whether to request a full conform job be run</param>
-		/// <param name="bRequestRestart">Whether to request the machine be restarted</param>
-		/// <param name="bRequestShutdown">Whether to request the machine be shut down</param>
+		/// <param name="enabled">Whether the agent is enabled or not</param>
+		/// <param name="requestConform">Whether to request a conform job be run</param>
+		/// <param name="requestFullConform">Whether to request a full conform job be run</param>
+		/// <param name="requestRestart">Whether to request the machine be restarted</param>
+		/// <param name="requestShutdown">Whether to request the machine be shut down</param>
 		/// <param name="shutdownReason">The reason for shutting down agent, ex. Autoscaler/Manual/Unexpected</param>
 		/// <param name="channel">Override for the desired software channel</param>
 		/// <param name="pools">List of pools for the agent</param>
 		/// <param name="acl">New ACL for this agent</param>
 		/// <param name="comment">New comment</param>
 		/// <returns>Version of the software that needs to be installed on the agent. Null if the agent is running the correct version.</returns>
-		Task<IAgent?> TryUpdateSettingsAsync(IAgent agent, bool? bEnabled = null, bool? bRequestConform = null, bool? bRequestFullConform = null, bool? bRequestRestart = null, bool? bRequestShutdown = null, string? shutdownReason = null, AgentSoftwareChannelName? channel = null, List<PoolId>? pools = null, Acl? acl = null, string? comment = null);
+		Task<IAgent?> TryUpdateSettingsAsync(IAgent agent, bool? enabled = null, bool? requestConform = null, bool? requestFullConform = null, bool? requestRestart = null, bool? requestShutdown = null, string? shutdownReason = null, AgentSoftwareChannelName? channel = null, List<PoolId>? pools = null, Acl? acl = null, string? comment = null);
 
 		/// <summary>
 		/// Update the current workspaces for an agent.

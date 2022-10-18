@@ -779,7 +779,7 @@ namespace Horde.Build.Perforce
 				PerforceViewMap viewMap = await perforce.GetCachedStreamViewAsync(stream, cancellationToken);
 				List<string> mappedFiles = new List<string>();
 
-				bool bHasUnmappedFile = false;
+				bool hasUnmappedFile = false;
 				foreach (DescribeFileRecord shelvedFile in change.Files)
 				{
 					string mappedFile;
@@ -789,11 +789,11 @@ namespace Horde.Build.Perforce
 					}
 					else
 					{
-						bHasUnmappedFile = true;
+						hasUnmappedFile = true;
 					}
 				}
 
-				if (bHasUnmappedFile)
+				if (hasUnmappedFile)
 				{
 					return ((mappedFiles.Count > 0)? CheckShelfResult.MixedStream : CheckShelfResult.WrongStream, null);
 				}

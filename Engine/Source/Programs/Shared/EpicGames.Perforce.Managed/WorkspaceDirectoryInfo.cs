@@ -70,16 +70,16 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="path">Relative path to the file, using forward slashes, and without a leading slash</param>
 		/// <param name="length">Length of the file on disk</param>
 		/// <param name="lastModifiedTicks">Last modified time of the file</param>
-		/// <param name="bReadOnly">Whether the file is read only</param>
+		/// <param name="readOnly">Whether the file is read only</param>
 		/// <param name="contentId">Unique identifier for the server content</param>
-		public void AddFile(Utf8String path, long length, long lastModifiedTicks, bool bReadOnly, FileContentId contentId)
+		public void AddFile(Utf8String path, long length, long lastModifiedTicks, bool readOnly, FileContentId contentId)
 		{
 			StreamDirectoryDigest = IoHash.Zero;
 
 			int idx = path.Span.IndexOf((byte)'/');
 			if (idx == -1)
 			{
-				NameToFile[path] = new WorkspaceFileInfo(this, path, length, lastModifiedTicks, bReadOnly, contentId);
+				NameToFile[path] = new WorkspaceFileInfo(this, path, length, lastModifiedTicks, readOnly, contentId);
 			}
 			else
 			{
@@ -92,7 +92,7 @@ namespace EpicGames.Perforce.Managed
 					NameToSubDirectory[name] = subDirectory;
 				}
 
-				subDirectory.AddFile(path.Slice(idx + 1), length, lastModifiedTicks, bReadOnly, contentId);
+				subDirectory.AddFile(path.Slice(idx + 1), length, lastModifiedTicks, readOnly, contentId);
 			}
 		}
 
@@ -124,16 +124,16 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Refresh the state of the workspace on disk
 		/// </summary>
-		/// <param name="bRemoveUntracked">Whether to remove files that are not part of the stream</param>
+		/// <param name="removeUntracked">Whether to remove files that are not part of the stream</param>
 		/// <param name="filesToDelete">Receives an array of files to delete</param>
 		/// <param name="directoriesToDelete">Recevies an array of directories to delete</param>
-		public void Refresh(bool bRemoveUntracked, out FileInfo[] filesToDelete, out DirectoryInfo[] directoriesToDelete)
+		public void Refresh(bool removeUntracked, out FileInfo[] filesToDelete, out DirectoryInfo[] directoriesToDelete)
 		{
 			ConcurrentQueue<FileInfo> concurrentFilesToDelete = new ConcurrentQueue<FileInfo>();
 			ConcurrentQueue<DirectoryInfo> concurrentDirectoriesToDelete = new ConcurrentQueue<DirectoryInfo>();
 			using (ThreadPoolWorkQueue queue = new ThreadPoolWorkQueue())
 			{
-				queue.Enqueue(() => Refresh(new DirectoryInfo(GetFullName()), bRemoveUntracked, concurrentFilesToDelete, concurrentDirectoriesToDelete, queue));
+				queue.Enqueue(() => Refresh(new DirectoryInfo(GetFullName()), removeUntracked, concurrentFilesToDelete, concurrentDirectoriesToDelete, queue));
 			}
 			directoriesToDelete = concurrentDirectoriesToDelete.ToArray();
 			filesToDelete = concurrentFilesToDelete.ToArray();
@@ -143,11 +143,11 @@ namespace EpicGames.Perforce.Managed
 		/// Recursive method for querying the workspace state
 		/// </summary>
 		/// <param name="info"></param>
-		/// <param name="bRemoveUntracked"></param>
+		/// <param name="removeUntracked"></param>
 		/// <param name="filesToDelete"></param>
 		/// <param name="directoriesToDelete"></param>
 		/// <param name="queue"></param>
-		void Refresh(DirectoryInfo info, bool bRemoveUntracked, ConcurrentQueue<FileInfo> filesToDelete, ConcurrentQueue<DirectoryInfo> directoriesToDelete, ThreadPoolWorkQueue queue)
+		void Refresh(DirectoryInfo info, bool removeUntracked, ConcurrentQueue<FileInfo> filesToDelete, ConcurrentQueue<DirectoryInfo> directoriesToDelete, ThreadPoolWorkQueue queue)
 		{
 			// Recurse through subdirectories
 			Dictionary<Utf8String, WorkspaceDirectoryInfo> newNameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(NameToSubDirectory.Count, NameToSubDirectory.Comparer);
@@ -157,9 +157,9 @@ namespace EpicGames.Perforce.Managed
 				if (NameToSubDirectory.TryGetValue(subDirectoryInfo.Name, out subDirectory))
 				{
 					newNameToSubDirectory.Add(subDirectory.Name, subDirectory);
-					queue.Enqueue(() => subDirectory.Refresh(subDirectoryInfo, bRemoveUntracked, filesToDelete, directoriesToDelete, queue));
+					queue.Enqueue(() => subDirectory.Refresh(subDirectoryInfo, removeUntracked, filesToDelete, directoriesToDelete, queue));
 				}
-				else if (bRemoveUntracked)
+				else if (removeUntracked)
 				{
 					directoriesToDelete.Enqueue(subDirectoryInfo);
 				}
@@ -184,7 +184,7 @@ namespace EpicGames.Perforce.Managed
 				}
 				else
 				{
-					if (bRemoveUntracked)
+					if (removeUntracked)
 					{
 						filesToDelete.Enqueue(file);
 					}

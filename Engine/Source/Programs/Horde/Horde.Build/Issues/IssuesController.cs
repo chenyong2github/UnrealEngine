@@ -263,8 +263,8 @@ namespace Horde.Build.Issues
 				IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
 				if (await AuthorizeIssue(details, permissionsCache))
 				{
-					bool bShowDesktopAlerts = _issueService.ShowDesktopAlertsForIssue(issue, details.Spans);
-					GetIssueResponse response = await CreateIssueResponseAsync(details, bShowDesktopAlerts);
+					bool showDesktopAlerts = _issueService.ShowDesktopAlertsForIssue(issue, details.Spans);
+					GetIssueResponse response = await CreateIssueResponseAsync(details, showDesktopAlerts);
 					responses.Add(PropertyFilter.Apply(response, filter));
 				}
 			}
@@ -292,8 +292,8 @@ namespace Horde.Build.Issues
 				return Forbid();
 			}
 
-			bool bShowDesktopAlerts = _issueService.ShowDesktopAlertsForIssue(details.Issue, details.Spans);
-			return PropertyFilter.Apply(await CreateIssueResponseAsync(details, bShowDesktopAlerts), filter);
+			bool showDesktopAlerts = _issueService.ShowDesktopAlertsForIssue(details.Issue, details.Spans);
+			return PropertyFilter.Apply(await CreateIssueResponseAsync(details, showDesktopAlerts), filter);
 		}
 
 		/// <summary>

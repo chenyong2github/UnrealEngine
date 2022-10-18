@@ -219,13 +219,13 @@ namespace Horde.Build.Server
 
 				// Get the set of workspaces that are currently required
 				HashSet<AgentWorkspace> conformWorkspaces = await _poolService.GetWorkspacesAsync(agent, DateTime.UtcNow);
-				bool bPendingConform = !conformWorkspaces.SetEquals(newWorkspaces) || (agent.RequestFullConform && !request.RemoveUntrackedFiles);
+				bool pendingConform = !conformWorkspaces.SetEquals(newWorkspaces) || (agent.RequestFullConform && !request.RemoveUntrackedFiles);
 
 				// Update the workspaces
-				if (await _agentService.TryUpdateWorkspacesAsync(agent, newWorkspaces, bPendingConform))
+				if (await _agentService.TryUpdateWorkspacesAsync(agent, newWorkspaces, pendingConform))
 				{
 					UpdateAgentWorkspacesResponse response = new UpdateAgentWorkspacesResponse();
-					if (bPendingConform)
+					if (pendingConform)
 					{
 						response.Retry = await _conformTaskSource.GetWorkspacesAsync(agent, response.PendingWorkspaces);
 						response.RemoveUntrackedFiles = request.RemoveUntrackedFiles || agent.RequestFullConform;

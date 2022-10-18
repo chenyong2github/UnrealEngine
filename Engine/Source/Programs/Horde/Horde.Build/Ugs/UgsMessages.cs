@@ -498,9 +498,9 @@ namespace Horde.Build.Ugs
 		/// <param name="details">Issue to construct from</param>
 		/// <param name="owner"></param>
 		/// <param name="nominatedBy"></param>
-		/// <param name="bNotify">Whether to notify the user about this issue</param>
+		/// <param name="notify">Whether to notify the user about this issue</param>
 		/// <param name="buildUrl">Link to the last build for this issue</param>
-		public GetUgsIssueResponse(IIssueDetails details, IUser? owner, IUser? nominatedBy, bool bNotify, Uri? buildUrl)
+		public GetUgsIssueResponse(IIssueDetails details, IUser? owner, IUser? nominatedBy, bool notify, Uri? buildUrl)
 		{
 			IIssue issue = details.Issue;
 			Id = issue.Id;
@@ -512,7 +512,7 @@ namespace Horde.Build.Ugs
 			AcknowledgedAt = issue.AcknowledgedAt;
 			FixChange = issue.FixChange;
 			ResolvedAt = issue.ResolvedAt;
-			BNotify = bNotify;
+			BNotify = notify;
 			BWarning = issue.Severity == IssueSeverity.Warning;
 			BuildUrl = buildUrl;
 			Streams = details.Spans.Select(x => x.StreamName ?? x.StreamId.ToString()).Distinct().ToList();

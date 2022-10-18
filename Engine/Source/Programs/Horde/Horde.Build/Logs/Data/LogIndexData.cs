@@ -381,7 +381,7 @@ namespace Horde.Build.Logs.Data
 				for (; ; )
 				{
 					// Advance all the enumerators that are behind the current block index. If they are all equal, we have a match.
-					bool bMatch = true;
+					bool match = true;
 					foreach (IEnumerator<int> enumerator in enumerators)
 					{
 						while (enumerator.Current < blockIdx)
@@ -395,12 +395,12 @@ namespace Horde.Build.Logs.Data
 						if (enumerator.Current > blockIdx)
 						{
 							blockIdx = enumerator.Current;
-							bMatch = false;
+							match = false;
 						}
 					}
 
 					// Return the match and move to the next block
-					if (bMatch)
+					if (match)
 					{
 						if (predicates.All(predicate => predicate(blockIdx)))
 						{
@@ -416,15 +416,15 @@ namespace Horde.Build.Logs.Data
 		/// Gets predicates for matching a token that starts 
 		/// </summary>
 		/// <param name="text">The token text</param>
-		/// <param name="bAllowPartialMatch">Whether to allow a partial match of the token</param>
+		/// <param name="allowPartialMatch">Whether to allow a partial match of the token</param>
 		/// <param name="tokens">Set of aligned tokens that are required</param>
 		/// <param name="predicates">List of predicates for the search</param>
-		void GetAlignedTokenPredicate(ReadOnlySpan<byte> text, bool bAllowPartialMatch, HashSet<ulong> tokens, List<Predicate<int>> predicates)
+		void GetAlignedTokenPredicate(ReadOnlySpan<byte> text, bool allowPartialMatch, HashSet<ulong> tokens, List<Predicate<int>> predicates)
 		{
 			for (int offset = 0; offset < text.Length; offset += LogToken.MaxTokenBytes)
 			{
 				ulong token = LogToken.GetWindowedTokenValue(text, offset);
-				if (offset + LogToken.MaxTokenBytes > text.Length && bAllowPartialMatch)
+				if (offset + LogToken.MaxTokenBytes > text.Length && allowPartialMatch)
 				{
 					ulong tokenMask = LogToken.GetWindowedTokenMask(text, offset, true);
 					predicates.Add(blockIdx => BlockContainsToken(blockIdx, token, tokenMask));
@@ -438,9 +438,9 @@ namespace Horde.Build.Logs.Data
 		/// Generates a predicate for matching a token which may or may not start on a regular token boundary
 		/// </summary>
 		/// <param name="text">The token text</param>
-		/// <param name="bAllowPartialMatch">Whether to allow a partial match of the token</param>
+		/// <param name="allowPartialMatch">Whether to allow a partial match of the token</param>
 		/// <param name="predicates">List of predicates for the search</param>
-		void GetUnalignedTokenPredicate(ReadOnlySpan<byte> text, bool bAllowPartialMatch, List<Predicate<int>> predicates)
+		void GetUnalignedTokenPredicate(ReadOnlySpan<byte> text, bool allowPartialMatch, List<Predicate<int>> predicates)
 		{
 			byte[] textCopy = text.ToArray();
 
@@ -449,10 +449,10 @@ namespace Horde.Build.Logs.Data
 				HashSet<int> union = new HashSet<int>();
 				for (int shift = 0; shift < LogToken.MaxTokenBytes; shift++)
 				{
-					HashSet<int> blocks = new HashSet<int>(BlocksContainingToken(textCopy.AsSpan(), -shift, bAllowPartialMatch));
+					HashSet<int> blocks = new HashSet<int>(BlocksContainingToken(textCopy.AsSpan(), -shift, allowPartialMatch));
 					for (int offset = -shift + LogToken.MaxTokenBytes; offset < textCopy.Length && blocks.Count > 0; offset += LogToken.MaxTokenBytes)
 					{
-						blocks.IntersectWith(BlocksContainingToken(textCopy.AsSpan(), offset, bAllowPartialMatch));
+						blocks.IntersectWith(BlocksContainingToken(textCopy.AsSpan(), offset, allowPartialMatch));
 					}
 					if (blocks.Count > 0)
 					{
@@ -484,12 +484,12 @@ namespace Horde.Build.Logs.Data
 		/// </summary>
 		/// <param name="text">The token to test</param>
 		/// <param name="offset">Offset of the window into the token to test</param>
-		/// <param name="bAllowPartialMatch">Whether to allow a partial match of the token</param>
+		/// <param name="allowPartialMatch">Whether to allow a partial match of the token</param>
 		/// <returns>True if the given block contains a token</returns>
-		IEnumerable<int> BlocksContainingToken(ReadOnlySpan<byte> text, int offset, bool bAllowPartialMatch)
+		IEnumerable<int> BlocksContainingToken(ReadOnlySpan<byte> text, int offset, bool allowPartialMatch)
 		{
 			ulong token = LogToken.GetWindowedTokenValue(text, offset) << _numBlockBits;
-			ulong tokenMask = LogToken.GetWindowedTokenMask(text, offset, bAllowPartialMatch) << _numBlockBits;
+			ulong tokenMask = LogToken.GetWindowedTokenMask(text, offset, allowPartialMatch) << _numBlockBits;
 			ulong blockMask = (1UL << _numBlockBits) - 1;
 			return _cachedTrie!.EnumerateValues((value, valueMask) => (value & tokenMask) == (token & valueMask)).Select(x => (int)(x & blockMask)).Distinct();
 		}

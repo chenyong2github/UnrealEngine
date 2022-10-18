@@ -310,7 +310,7 @@ namespace Horde.Build.Agents
 			Identifier = workspace.Identifier;
 			Stream = workspace.Stream;
 			View = workspace.View;
-			BIncremental = workspace.BIncremental;
+			BIncremental = workspace.Incremental;
 		}
 	}
 
@@ -460,8 +460,8 @@ namespace Horde.Build.Agents
 		/// <param name="agent">The agent to construct from</param>
 		/// <param name="leases">Active leases</param>
 		/// <param name="rate">Rate for this agent</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetAgentResponse(IAgent agent, List<GetAgentLeaseResponse> leases, double? rate, bool bIncludeAcl)
+		/// <param name="includeAcl">Whether to include the ACL in the response</param>
+		public GetAgentResponse(IAgent agent, List<GetAgentLeaseResponse> leases, double? rate, bool includeAcl)
 		{
 			Id = agent.Id.ToString();
 			Name = agent.Id.ToString();
@@ -492,7 +492,7 @@ namespace Horde.Build.Agents
 			Workspaces = agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
 			Capabilities = new { Devices = new[] { new { agent.Properties, agent.Resources } } };
 			Leases = leases;
-			Acl = (bIncludeAcl && agent.Acl != null) ? new GetAclResponse(agent.Acl) : null;
+			Acl = (includeAcl && agent.Acl != null) ? new GetAclResponse(agent.Acl) : null;
 			Comment = agent.Comment;
 		}
 	}

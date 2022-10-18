@@ -610,7 +610,7 @@ namespace Horde.Build.Logs
 			}
 
 			// Otherwise keep appending subchunks
-			bool bResult = false;
+			bool result = false;
 			for (; ; )
 			{
 				// Flush the current sub-chunk if we're on a boundary
@@ -643,7 +643,7 @@ namespace Horde.Build.Logs
 					state._offset += length;
 					state._lineIndex += lineCount;
 					state._memory = state._memory.Slice(length);
-					bResult = true;
+					result = true;
 
 					// If this is the end of the data, bail out
 					if(state._memory.Length == 0)
@@ -661,7 +661,7 @@ namespace Horde.Build.Logs
 					break;
 				}
 			}
-			return bResult;
+			return result;
 		}
 
 		/// <summary>
@@ -670,19 +670,19 @@ namespace Horde.Build.Logs
 		/// <param name="span">Data to write</param>
 		/// <param name="maxLength">Maximum length of the data to write</param>
 		/// <param name="maxLineCount">Maximum number of lines to write</param>
-		/// <param name="bIsEmptyChunk">Whether the current chunk is empty</param>
+		/// <param name="isEmptyChunk">Whether the current chunk is empty</param>
 		/// <returns>A tuple consisting of the amount of data to write and number of lines in it</returns>
-		private static (int, int) GetWriteLength(ReadOnlySpan<byte> span, int maxLength, int maxLineCount, bool bIsEmptyChunk)
+		private static (int, int) GetWriteLength(ReadOnlySpan<byte> span, int maxLength, int maxLineCount, bool isEmptyChunk)
 		{
 			int length = 0;
 			int lineCount = 0;
-			for (int idx = 0; idx < maxLength || bIsEmptyChunk; idx++)
+			for (int idx = 0; idx < maxLength || isEmptyChunk; idx++)
 			{
 				if (span[idx] == '\n')
 				{
 					length = idx + 1;
 					lineCount++;
-					bIsEmptyChunk = false;
+					isEmptyChunk = false;
 
 					if (lineCount >= maxLineCount)
 					{
@@ -1087,8 +1087,8 @@ namespace Horde.Build.Logs
 		/// Adds tasks for writing a list of complete chunks
 		/// </summary>
 		/// <param name="chunksToWrite">List of chunks to write</param>
-		/// <param name="bCreateIndex">Create an index for the log</param>
-		private void WriteCompleteChunks(List<(LogId, long)> chunksToWrite, bool bCreateIndex)
+		/// <param name="createIndex">Create an index for the log</param>
+		private void WriteCompleteChunks(List<(LogId, long)> chunksToWrite, bool createIndex)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.WriteCompleteChunks").StartActive();
 			int numTasksCreated = 0;
@@ -1113,7 +1113,7 @@ namespace Horde.Build.Logs
 				// Create the write task
 				if (offsets.Count > 0)
 				{
-					Task task = Task.Run(() => WriteCompleteChunksForLogAsync(logId, offsets, bCreateIndex));
+					Task task = Task.Run(() => WriteCompleteChunksForLogAsync(logId, offsets, createIndex));
 					numTasksCreated++;
 					lock (_writeLock)
 					{
@@ -1130,9 +1130,9 @@ namespace Horde.Build.Logs
 		/// Writes list of complete chunks
 		/// </summary>
 		/// <param name="chunksToWrite">List of chunks to write</param>
-		/// <param name="bCreateIndex">Create an index for the log</param>
+		/// <param name="createIndex">Create an index for the log</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		private async Task WriteCompleteChunksV2Async(List<(LogId, long)> chunksToWrite, bool bCreateIndex, CancellationToken cancellationToken)
+		private async Task WriteCompleteChunksV2Async(List<(LogId, long)> chunksToWrite, bool createIndex, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.WriteCompleteChunksV2Async").StartActive();
 			
@@ -1166,7 +1166,7 @@ namespace Horde.Build.Logs
 			await Parallel.ForEachAsync(offsetsToWrite, opts, async (x, innerCt) =>
 			{
 				(LogId logId, List<long> offsets) = x;
-				await WriteCompleteChunksForLogAsync(logId, offsets, bCreateIndex, innerCt);
+				await WriteCompleteChunksForLogAsync(logId, offsets, createIndex, innerCt);
 			});
 		}
 
@@ -1175,15 +1175,15 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logId">Log file to update</param>
 		/// <param name="offsets">Chunks to write</param>
-		/// <param name="bCreateIndex">Whether to create the index for this log</param>
+		/// <param name="createIndex">Whether to create the index for this log</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Async task</returns>
-		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(LogId logId, List<long> offsets, bool bCreateIndex, CancellationToken cancellationToken = default)
+		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(LogId logId, List<long> offsets, bool createIndex, CancellationToken cancellationToken = default)
 		{
 			ILogFile? logFile = await _logFiles.GetLogFileAsync(logId);
 			if(logFile != null)
 			{
-				logFile = await WriteCompleteChunksForLogAsync(logFile, offsets, bCreateIndex, cancellationToken);
+				logFile = await WriteCompleteChunksForLogAsync(logFile, offsets, createIndex, cancellationToken);
 			}
 			return logFile;
 		}
@@ -1193,15 +1193,15 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logFileInterface">Log file to update</param>
 		/// <param name="offsets">Chunks to write</param>
-		/// <param name="bCreateIndex">Whether to create the index for this log</param>
+		/// <param name="createIndex">Whether to create the index for this log</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Async task</returns>
-		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(ILogFile logFileInterface, List<long> offsets, bool bCreateIndex, CancellationToken cancellationToken = default)
+		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(ILogFile logFileInterface, List<long> offsets, bool createIndex, CancellationToken cancellationToken = default)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("WriteCompleteChunksForLogAsync").StartActive();
 			scope.Span.SetTag("LogId", logFileInterface.Id.ToString());
 			scope.Span.SetTag("NumOffsets", offsets.Count);
-			scope.Span.SetTag("CreateIndex", bCreateIndex);
+			scope.Span.SetTag("CreateIndex", createIndex);
 			
 			// Write the data to the storage provider
 			List<Task<LogChunkData?>> chunkWriteTasks = new List<Task<LogChunkData?>>();
@@ -1265,7 +1265,7 @@ namespace Horde.Build.Logs
 			}
 
 			// Create the index if necessary
-			if (bCreateIndex && logFile != null)
+			if (createIndex && logFile != null)
 			{
 				try
 				{

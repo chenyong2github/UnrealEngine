@@ -94,13 +94,13 @@ namespace Horde.Build.Credentials
 		/// Constructor
 		/// </summary>
 		/// <param name="credential">The credential to construct from</param>
-		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetCredentialResponse(Credential credential, bool bIncludeAcl)
+		/// <param name="includeAcl">Whether to include the ACL in the response</param>
+		public GetCredentialResponse(Credential credential, bool includeAcl)
 		{
 			Id = credential.Id.ToString();
 			Name = credential.Name;
 			Properties = credential.Properties;
-			Acl = (bIncludeAcl && credential.Acl != null)? new GetAclResponse(credential.Acl) : null;
+			Acl = (includeAcl && credential.Acl != null)? new GetAclResponse(credential.Acl) : null;
 		}
 	}
 }

@@ -148,7 +148,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Whether a repair operation should be run on this workspace. Set whenever the state may be inconsistent.
 		/// </summary>
-		bool _bRequiresRepair;
+		bool _requiresRepair;
 
 		/// <summary>
 		/// The log output device
@@ -223,11 +223,11 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="hostName">Name of the current machine. Will be automatically detected from the host settings if not present.</param>
 		/// <param name="baseDir">The base directory for the repository</param>
-		/// <param name="bOverwrite">Whether to allow overwriting a repository that's not up to date</param>
+		/// <param name="overwrite">Whether to allow overwriting a repository that's not up to date</param>
 		/// <param name="logger">The logging interface</param>
 		/// <param name="cancellationToken">Cancellation token for this operation</param>
 		/// <returns></returns>
-		public static async Task<ManagedWorkspace> LoadOrCreateAsync(string hostName, DirectoryReference baseDir, bool bOverwrite, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<ManagedWorkspace> LoadOrCreateAsync(string hostName, DirectoryReference baseDir, bool overwrite, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (Exists(baseDir))
 			{
@@ -237,7 +237,7 @@ namespace EpicGames.Perforce.Managed
 				}
 				catch (Exception ex)
 				{
-					if (bOverwrite)
+					if (overwrite)
 					{
 						logger.LogWarning(ex, "Unable to load existing repository.");
 					}
@@ -353,11 +353,11 @@ namespace EpicGames.Perforce.Managed
 				throw new FatalErrorException("Unsupported data format (version {0}, current {1})", version, CurrentVersion);
 			}
 
-			bool bRequiresRepair = reader.ReadBoolean();
+			bool requiresRepair = reader.ReadBoolean();
 			uint nextSequenceNumber = reader.ReadUInt32();
 
 			ManagedWorkspace repo = new ManagedWorkspace(hostName, nextSequenceNumber, baseDir, logger);
-			repo._bRequiresRepair = bRequiresRepair;
+			repo._requiresRepair = requiresRepair;
 
 			int numTrackedFiles = reader.ReadInt32();
 			for (int idx = 0; idx < numTrackedFiles; idx++)
@@ -385,7 +385,7 @@ namespace EpicGames.Perforce.Managed
 			// Write the data to memory
 			MemoryWriter writer = new MemoryWriter(buffer.AsMemory());
 			writer.WriteInt32(CurrentVersion);
-			writer.WriteBoolean(_bRequiresRepair || (state != TransactionState.Clean));
+			writer.WriteBoolean(_requiresRepair || (state != TransactionState.Clean));
 			writer.WriteUInt32(_nextSequenceNumber);
 			writer.WriteInt32(_contentIdToTrackedFile.Count);
 			foreach (CachedFileInfo trackedFile in _contentIdToTrackedFile.Values)
@@ -407,16 +407,16 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Cleans the current workspace
 		/// </summary>
-		/// <param name="bRemoveUntracked">Whether to remove untracked files</param>
+		/// <param name="removeUntracked">Whether to remove untracked files</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task CleanAsync(bool bRemoveUntracked, CancellationToken cancellationToken)
+		public async Task CleanAsync(bool removeUntracked, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 
 			_logger.LogInformation("Cleaning workspace...");
 			using (_logger.BeginIndentScope("  "))
 			{
-				await CleanInternalAsync(bRemoveUntracked, cancellationToken);
+				await CleanInternalAsync(removeUntracked, cancellationToken);
 			}
 
 			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
@@ -425,9 +425,9 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Cleans the current workspace
 		/// </summary>
-		/// <param name="bRemoveUntracked">Whether to remove untracked files</param>
+		/// <param name="removeUntracked">Whether to remove untracked files</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		private async Task CleanInternalAsync(bool bRemoveUntracked, CancellationToken cancellationToken)
+		private async Task CleanInternalAsync(bool removeUntracked, CancellationToken cancellationToken)
 		{
 			FileInfo[] filesToDelete;
 			DirectoryInfo[] directoriesToDelete;
@@ -436,7 +436,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				Stopwatch timer = Stopwatch.StartNew();
 
-				_workspace.Refresh(bRemoveUntracked, out filesToDelete, out directoriesToDelete);
+				_workspace.Refresh(removeUntracked, out filesToDelete, out directoriesToDelete);
 
 				status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
@@ -513,7 +513,7 @@ namespace EpicGames.Perforce.Managed
 				_logger.LogDebug("  Workspace:");
 				foreach (WorkspaceFileInfo file in workspaceFiles)
 				{
-					_logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", file.GetClientPath(), file.ContentId, file._length, file._lastModifiedTicks, file._bReadOnly ? "" : " [ writable ]");
+					_logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", file.GetClientPath(), file.ContentId, file._length, file._lastModifiedTicks, file._readOnly ? "" : " [ writable ]");
 				}
 			}
 
@@ -522,7 +522,7 @@ namespace EpicGames.Perforce.Managed
 				_logger.LogDebug("  Cache:");
 				foreach (KeyValuePair<FileContentId, CachedFileInfo> pair in _contentIdToTrackedFile)
 				{
-					_logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", pair.Value.GetLocation(), pair.Key, pair.Value.Length, pair.Value.LastModifiedTicks, pair.Value.BReadOnly ? "" : "[ writable ]");
+					_logger.LogDebug("    {File,-128} [{ContentId,-48}] [{Length,20:n0}] [{LastModified,20}]{Writable}", pair.Value.GetLocation(), pair.Key, pair.Value.Length, pair.Value.LastModifiedTicks, pair.Value.ReadOnly ? "" : "[ writable ]");
 				}
 			}
 
@@ -551,7 +551,7 @@ namespace EpicGames.Perforce.Managed
 				}
 
 				// Clear the repair flag
-				_bRequiresRepair = false;
+				_requiresRepair = false;
 
 				await SaveAsync(TransactionState.Clean, cancellationToken);
 
@@ -572,11 +572,11 @@ namespace EpicGames.Perforce.Managed
 		}
 
 		/// <summary>
-		/// Checks the bRequiresRepair flag, and repairs/resets it if set.
+		/// Checks the <see cref="_requiresRepair"/> flag, and repairs/resets it if set.
 		/// </summary>
 		private async Task RunOptionalRepairAsync(CancellationToken cancellationToken)
 		{
-			if (_bRequiresRepair)
+			if (_requiresRepair)
 			{
 				await RepairAsync(cancellationToken);
 			}
@@ -776,11 +776,11 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="streamName">Name of the stream to sync</param>
 		/// <param name="changeNumber">Changelist number to sync. -1 to sync to latest.</param>
 		/// <param name="view">View of the workspace</param>
-		/// <param name="bRemoveUntracked">Whether to remove untracked files from the workspace</param>
-		/// <param name="bFakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
+		/// <param name="removeUntracked">Whether to remove untracked files from the workspace</param>
+		/// <param name="fakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
 		/// <param name="cacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool bRemoveUntracked, bool bFakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
+		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 			if (changeNumber == -1)
@@ -810,7 +810,7 @@ namespace EpicGames.Perforce.Managed
 				Task updateHaveTableTask = Task.Run(() => UpdateClientHaveTableAsync(perforce, changeNumber, view, cancellationToken), cancellationToken);
 
 				// Clean the current workspace
-				await CleanInternalAsync(bRemoveUntracked, cancellationToken);
+				await CleanInternalAsync(removeUntracked, cancellationToken);
 
 				// Wait for the have table update to finish
 				await updateHaveTableTask;
@@ -832,7 +832,7 @@ namespace EpicGames.Perforce.Managed
 
 				// Sync all the appropriate files
 				await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-				await AddFilesToWorkspaceAsync(perforce, contents, bFakeSync, cancellationToken);
+				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, cancellationToken);
 			}
 
 			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
@@ -938,13 +938,13 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Populates the cache with the head revision of the given streams.
 		/// </summary>
-		public async Task PopulateAsync(List<PopulateRequest> requests, bool bFakeSync, CancellationToken cancellationToken)
+		public async Task PopulateAsync(List<PopulateRequest> requests, bool fakeSync, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Populating with {NumStreams} streams", requests.Count);
 			using (_logger.BeginIndentScope("  "))
 			{
 				Tuple<int, StreamSnapshot>[] streamState = await PopulateCleanAsync(requests, cancellationToken);
-				await PopulateSyncAsync(requests, streamState, bFakeSync, cancellationToken);
+				await PopulateSyncAsync(requests, streamState, fakeSync, cancellationToken);
 			}
 		}
 
@@ -1046,7 +1046,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Perform the sync part of a populate command
 		/// </summary>
-		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool bFakeSync, CancellationToken cancellationToken)
+		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool fakeSync, CancellationToken cancellationToken)
 		{
 			// Sync all the new files
 			for (int idx = 0; idx < requests.Count; idx++)
@@ -1065,7 +1065,7 @@ namespace EpicGames.Perforce.Managed
 
 					StreamSnapshot contents = streamState[idx].Item2;
 					await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, bFakeSync, cancellationToken);
+					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, cancellationToken);
 				}
 			}
 
@@ -1573,7 +1573,7 @@ namespace EpicGames.Perforce.Managed
 					foreach (KeyValuePair<FileContentId, WorkspaceFileInfo> fileToMove in filesToMove)
 					{
 						ulong cacheId = GetUniqueCacheId(fileToMove.Key);
-						CachedFileInfo newTrackingInfo = new CachedFileInfo(_cacheDir, fileToMove.Key, cacheId, fileToMove.Value._length, fileToMove.Value._lastModifiedTicks, fileToMove.Value._bReadOnly, _nextSequenceNumber);
+						CachedFileInfo newTrackingInfo = new CachedFileInfo(_cacheDir, fileToMove.Key, cacheId, fileToMove.Value._length, fileToMove.Value._lastModifiedTicks, fileToMove.Value._readOnly, _nextSequenceNumber);
 						_contentIdToTrackedFile.Add(fileToMove.Key, newTrackingInfo);
 						sourceAndTargetFiles.Add(new KeyValuePair<FileReference, FileReference>(fileToMove.Value.GetLocation(), newTrackingInfo.GetLocation()));
 					}
@@ -1640,7 +1640,7 @@ namespace EpicGames.Perforce.Managed
 			catch (Exception ex)
 			{
 				_logger.LogWarning(ex, "warning: Unable to delete file {FileName}.", fileToDelete.GetFullName());
-				_bRequiresRepair = true;
+				_requiresRepair = true;
 			}
 		}
 
@@ -1657,7 +1657,7 @@ namespace EpicGames.Perforce.Managed
 			catch (Exception ex)
 			{
 				_logger.LogWarning(ex, "warning: Unable to delete directory {Directory}", directoryToDelete);
-				_bRequiresRepair = true;
+				_requiresRepair = true;
 			}
 		}
 
@@ -1666,9 +1666,9 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="client">The client connection</param>
 		/// <param name="stream">Contents of the stream</param>
-		/// <param name="bFakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
+		/// <param name="fakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool bFakeSync, CancellationToken cancellationToken)
+		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool fakeSync, CancellationToken cancellationToken)
 		{
 			// Make sure the repair flag is reset
 			await RunOptionalRepairAsync(cancellationToken);
@@ -1776,7 +1776,7 @@ namespace EpicGames.Perforce.Managed
 							{
 								(int batchBeginIdx, int batchEndIdx) = batches[nextBatchIdx];
 
-								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, bFakeSync, cancellationToken), cancellationToken);
+								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, fakeSync, cancellationToken), cancellationToken);
 								tasks[task] = nextBatchIdx++;
 							}
 
@@ -1827,12 +1827,12 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="filesToSync">List of files to sync</param>
 		/// <param name="beginIdx">First file to sync</param>
 		/// <param name="endIdx">Index of the last file to sync (exclusive)</param>
-		/// <param name="bFakeSync">Whether to fake a sync</param>
+		/// <param name="fakeSync">Whether to fake a sync</param>
 		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Async task</returns>
-		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool bFakeSync, CancellationToken cancellationToken)
+		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool fakeSync, CancellationToken cancellationToken)
 		{
-			if (bFakeSync)
+			if (fakeSync)
 			{
 				for (int idx = beginIdx; idx < endIdx; idx++)
 				{
@@ -1874,7 +1874,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				_logger.LogWarning(ex, "warning: Unable to move {CacheFile} from cache to {WorkspaceFile}. Syncing instead.", fileToMove._trackedFile.GetLocation(), fileToMove._workspaceFile.GetLocation());
 				filesToSync.Enqueue(new WorkspaceFileToSync(fileToMove._streamFile, fileToMove._workspaceFile));
-				_bRequiresRepair = true;
+				_requiresRepair = true;
 			}
 		}
 
@@ -1894,7 +1894,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				_logger.LogWarning(ex, "warning: Unable to copy {SourceFile} to {TargetFile}. Syncing instead.", fileToCopy._sourceWorkspaceFile.GetLocation(), fileToCopy._targetWorkspaceFile.GetLocation());
 				filesToSync.Enqueue(new WorkspaceFileToSync(fileToCopy._streamFile, fileToCopy._targetWorkspaceFile));
-				_bRequiresRepair = true;
+				_requiresRepair = true;
 			}
 		}
 

@@ -56,13 +56,13 @@ namespace Horde.Build.Agents.Pools
 			DateTime startTime = DateTime.UtcNow;
 
 			// Update the list
-			bool bRetryUpdate = true;
-			while (bRetryUpdate && !stoppingToken.IsCancellationRequested)
+			bool retryUpdate = true;
+			while (retryUpdate && !stoppingToken.IsCancellationRequested)
 			{
 				_logger.LogDebug("Updating pool->workspace map");
 
 				// Assume this will be the last iteration
-				bRetryUpdate = false;
+				retryUpdate = false;
 
 				// Capture the list of pools at the start of this update
 				List<IPool> currentPools = await _pools.GetAsync();
@@ -125,7 +125,7 @@ namespace Horde.Build.Agents.Pools
 						if (result == null)
 						{
 							_logger.LogInformation("Pool modified; will retry");
-							bRetryUpdate = true;
+							retryUpdate = true;
 						}
 					}
 				}

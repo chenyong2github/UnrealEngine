@@ -51,7 +51,7 @@ namespace Horde.Build.Utilities
 		/// <returns>New agent app data</returns>
 		public static byte[] UpdateAppSettings(byte[] data, Dictionary<string, object> settings)
 		{
-			bool bWrittenClientId = false;
+			bool writtenClientId = false;
 
 			MemoryStream outputStream = new MemoryStream();
 			using (ZipArchive outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create, true))
@@ -80,7 +80,7 @@ namespace Horde.Build.Utilities
 							using Utf8JsonWriter writer = new Utf8JsonWriter(outputEntryStream, new JsonWriterOptions { Indented = true });
 							JsonSerializer.Serialize<Dictionary<string, Dictionary<string, object>>>(writer, document, new JsonSerializerOptions { WriteIndented = true });
 
-							bWrittenClientId = true;
+							writtenClientId = true;
 						}
 						else
 						{
@@ -90,7 +90,7 @@ namespace Horde.Build.Utilities
 				}
 			}
 
-			if (!bWrittenClientId)
+			if (!writtenClientId)
 			{
 				throw new InvalidDataException("Missing appsettings.json file from zip archive");
 			}
