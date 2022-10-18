@@ -87,14 +87,11 @@ bool FNiagaraMeshRendererMeshProperties::HasValidMeshProperties() const
 	return Mesh || UserParamBinding.Parameter.IsValid();
 }
 
-
-
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	: SourceMode(ENiagaraRendererSourceDataMode::Particles)
 	, SortMode(ENiagaraSortMode::None)
 	, bOverrideMaterials(false)
 	, bSortOnlyWhenTranslucent(true)
-	, bGpuLowLatencyTranslucency(true)
 	, bSubImageBlend(false)
 	, SubImageSize(1.0f, 1.0f)
 	, FacingMode(ENiagaraMeshFacingMode::Default)

@@ -199,12 +199,12 @@ public:
 	ENiagaraRendererSortPrecision SortPrecision = ENiagaraRendererSortPrecision::Default;
 
 	/**
-	If true and a GPU emitter, we will use the current frames data to render with regardless of where the batcher may execute the dispatches.
-	If you have other emitters that are not translucent and using data that forces it to be a frame latent (i.e. view uniform buffer) you may need to disable
-	on renderers with translucent materials if you need the frame they are reading to match exactly.
+	Gpu simulations run at different points in the frame depending on what features are used, i.e. depth buffer, distance fields, etc.
+	Opaque materials will run latent when these features are used.
+	Translucent materials can choose if they want to use this frames or the previous frames data to match opaque draws.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Rendering")
-	uint32 bGpuLowLatencyTranslucency : 1;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Sprite Rendering")
+	ENiagaraRendererGpuTranslucentLatency GpuTranslucentLatency = ENiagaraRendererGpuTranslucentLatency::ProjectDefault;
 
 	/**
 	This setting controls what happens when a sprite becomes less than a pixel in size.

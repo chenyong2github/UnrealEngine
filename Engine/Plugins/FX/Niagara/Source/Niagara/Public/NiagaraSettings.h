@@ -72,6 +72,15 @@ enum class ENiagaraDefaultSortPrecision : uint8
 };
 
 UENUM()
+enum class ENiagaraDefaultGpuTranslucentLatency : uint8
+{
+	/** Gpu simulations will always read this frames data for translucent materials. */
+	Immediate,
+	/** Gpu simulations will read the previous frames data if the simulation has to run in PostRenderOpaque. */
+	Latent,
+};
+
+UENUM()
 namespace ENDICollisionQuery_AsyncGpuTraceProvider
 {
 	enum Type
@@ -161,6 +170,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	/** The default setting for sorting precision when automatic is set on the Niagara Renderer. */
 	UPROPERTY(config, EditAnywhere, Category = Renderer)
 	ENiagaraDefaultSortPrecision DefaultSortPrecision = ENiagaraDefaultSortPrecision::Low;
+
+	/** The default setting for Gpu simulation translucent draw latency. */
+	UPROPERTY(config, EditAnywhere, Category = Renderer)
+	ENiagaraDefaultGpuTranslucentLatency DefaultGpuTranslucentLatency = ENiagaraDefaultGpuTranslucentLatency::Immediate;
 
 	/** The default InverseExposureBlend used for the light renderer. */
 	UPROPERTY(config, EditAnywhere, Category = LightRenderer)

@@ -58,7 +58,7 @@ static FAutoConsoleVariableRef CVarNiagaraGpuSubmitCommandHint(
 	ECVF_Default
 );
 
-int32 GNiagaraGpuLowLatencyTranslucencyEnabled = 0;
+int32 GNiagaraGpuLowLatencyTranslucencyEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraGpuLowLatencyTranslucencyEnabled(
 	TEXT("fx.NiagaraGpuLowLatencyTranslucencyEnabled"),
 	GNiagaraGpuLowLatencyTranslucencyEnabled,

@@ -161,6 +161,17 @@ enum class ENiagaraRendererSortPrecision : uint8
 	High,
 };
 
+UENUM()
+enum class ENiagaraRendererGpuTranslucentLatency : uint8
+{
+	/** Uses the project default value. */
+	ProjectDefault,
+	/** Gpu simulations will always read this frames data for translucent materials. */
+	Immediate,
+	/** Gpu simulations will read the previous frames data if the simulation has to run in PostRenderOpaque. */
+	Latent,
+};
+
 USTRUCT()
 struct FNiagaraRendererMaterialScalarParameter
 {
@@ -338,6 +349,8 @@ public:
 	bool NeedsPreciseMotionVectors() const;
 
 	static bool IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision);
+
+	static bool IsGpuTranslucentThisFrame(ENiagaraRendererGpuTranslucentLatency Latency);
 
 	template<typename TAction>
 	void ForEachPlatformSet(TAction Func);

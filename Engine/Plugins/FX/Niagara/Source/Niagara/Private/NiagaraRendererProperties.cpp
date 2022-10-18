@@ -609,5 +609,14 @@ bool UNiagaraRendererProperties::IsSortHighPrecision(ENiagaraRendererSortPrecisi
 	return SortPrecision == ENiagaraRendererSortPrecision::High;
 }
 
+bool UNiagaraRendererProperties::IsGpuTranslucentThisFrame(ENiagaraRendererGpuTranslucentLatency Latency)
+{
+	if (Latency == ENiagaraRendererGpuTranslucentLatency::ProjectDefault)
+	{
+		return GetDefault<UNiagaraSettings>()->DefaultGpuTranslucentLatency == ENiagaraDefaultGpuTranslucentLatency::Immediate;
+	}
+	return Latency == ENiagaraRendererGpuTranslucentLatency::Immediate;
+}
+
 #undef LOCTEXT_NAMESPACE
 
