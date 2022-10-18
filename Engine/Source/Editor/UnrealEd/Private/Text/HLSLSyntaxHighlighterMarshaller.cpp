@@ -456,8 +456,8 @@ public:
 		const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		FVector2D Size = FontMeasure->Measure(**Text, StartIndex, EndIndex, Style.Font, true, Scale) + ShadowOffsetToApply;
 
-		Size.X -= TabWidth * static_cast<float>(TabCount) * Scale;
-		Size.X += SpaceWidth * static_cast<float>(TabCount * NumSpacesPerTab) * Scale;
+		Size.X -= TabWidth * TabCount * Scale;
+		Size.X += SpaceWidth * TabCount * NumSpacesPerTab * Scale;
 
 		return Size;
 	}
@@ -481,9 +481,9 @@ protected:
 private:
 	int32 NumSpacesPerTab;
 
-	float TabWidth;
+	double TabWidth;
 
-	float SpaceWidth;
+	double SpaceWidth;
 };
 
 

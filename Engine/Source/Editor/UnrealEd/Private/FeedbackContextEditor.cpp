@@ -147,7 +147,7 @@ public:
 			.Padding(FMargin(FixedPaddingH))
 			[
 				SNew(SBox).
-				WidthOverride(FixedWidth) 
+				WidthOverride(static_cast<float>(FixedWidth))
 				[
 					VerticalBox 
 				]
@@ -232,7 +232,7 @@ private:
 			.AutoHeight()
 			[
 				SNew(SBox)
-				.HeightOverride(SecondaryBarHeight)
+				.HeightOverride(static_cast<float>(SecondaryBarHeight))
 				[
 					SNew(SProgressBar)
 					.BorderPadding(FVector2D::ZeroVector)

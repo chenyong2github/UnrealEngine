@@ -94,10 +94,10 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
-				.Padding(2)
+				.Padding(2.0f)
 				[
 					SNew(SBox)
-					.WidthOverride(250)
+					.WidthOverride(250.0f)
 					[				
 						SNew(SVerticalBox)
 						+SVerticalBox::Slot()
@@ -114,7 +114,7 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 							.Padding(2.0f, 2.0f)
 							[
 								SNew(SComboButton)
-								.ContentPadding(0)
+								.ContentPadding(0.0f)
 								.ForegroundColor(FSlateColor::UseForeground())
 								.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 								.HasDownArrow(false)

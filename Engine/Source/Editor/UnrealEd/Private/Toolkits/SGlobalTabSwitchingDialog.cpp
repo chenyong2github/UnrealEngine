@@ -110,8 +110,8 @@ public:
 			.Padding(4.0f, 4.0f)
 			[
 				SNew(SBox)
-				.WidthOverride(ThumbnailSize)
-				.HeightOverride(ThumbnailSize)
+				.WidthOverride(static_cast<float>(ThumbnailSize))
+				.HeightOverride(static_cast<float>(ThumbnailSize))
 				[
 					Thumbnail->MakeThumbnailWidget(ThumbnailConfig)
 				]
@@ -429,8 +429,8 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 		.ForegroundColor(FCoreStyle::Get().GetSlateColor("DefaultForeground"))
 		[
 			SNew(SBox)
-			.WidthOverride(InSize.X)
-			.HeightOverride(InSize.Y)
+			.WidthOverride(static_cast<float>(InSize.X))
+			.HeightOverride(static_cast<float>(InSize.Y))
 			.Padding(FMargin(12.0f, 12.0f, 12.0f, 0.0f))
 			[
 				SNew(SVerticalBox)

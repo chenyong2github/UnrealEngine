@@ -134,7 +134,7 @@ void SDeleteAssetsDialog::Construct( const FArguments& InArgs, TSharedRef<FAsset
 	[
 		SAssignNew(RootContainer, SBorder)
 		.BorderImage( FAppStyle::GetBrush( "AssetDeleteDialog.Background" ) )
-		.Padding(10)
+		.Padding(10.0f)
 	];
 
 	DeleteModel->OnStateChanged().AddRaw(this, &SDeleteAssetsDialog::HandleDeleteModelStateChanged);
@@ -310,7 +310,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildDeleteDialog()
 	[
 		SNew( SBorder )
 		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
-		.Padding( 0 )
+		.Padding( 0.0f )
 		[
 			SNew( SVerticalBox )
 
@@ -515,7 +515,7 @@ TSharedRef<SWidget> SDeleteAssetsDialog::BuildReplaceReferencesWidget()
 		.VAlign( EVerticalAlignment::VAlign_Center )
 		.ComboButtonStyle( FAppStyle::Get(), "ToolbarComboButton" )
 		.ForegroundColor( FLinearColor::White )
-		.ContentPadding( 3 )
+		.ContentPadding(3.0f)
 		.MenuPlacement( EMenuPlacement::MenuPlacement_BelowAnchor )
 		.OnGetMenuContent( this, &SDeleteAssetsDialog::MakeConsolidationAssetPicker )
 		.ButtonContent()

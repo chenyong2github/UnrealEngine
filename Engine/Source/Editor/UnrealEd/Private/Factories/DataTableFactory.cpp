@@ -97,7 +97,7 @@ bool UDataTableFactory::ConfigureProperties()
 
 			return
 				SNew(SBox)
-				.WidthOverride(330)
+				.WidthOverride(330.0f)
 				[
 					SNew(SVerticalBox)
 

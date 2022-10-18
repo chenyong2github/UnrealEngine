@@ -179,7 +179,7 @@ public:
 			.AutoHeight()
 			[
 				SNew(SBox)
-				.HeightOverride(2)
+				.HeightOverride(2.0f)
 				[
 					SAssignNew(ProgressBar, SProgressBar)
 					.BorderPadding(FVector2D::ZeroVector)

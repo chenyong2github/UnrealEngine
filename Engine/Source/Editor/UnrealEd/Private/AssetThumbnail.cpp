@@ -321,7 +321,7 @@ public:
 	{
 		if ( WidthLastFrame != AllottedGeometry.Size.X )
 		{
-			WidthLastFrame = AllottedGeometry.Size.X;
+			WidthLastFrame = static_cast<float>(AllottedGeometry.Size.X);
 
 			// The width changed, update the font
 			if ( GenericLabelTextBlock.IsValid() )
@@ -1255,7 +1255,7 @@ FSlateTexture2DRHIRef* FAssetThumbnailPool::AccessTexture( const FAssetData& Ass
 			if( FreeThumbnails.Num() == 0 && ThumbnailToTextureMap.Num() == NumInPool )
 			{
 				// Find the thumbnail which was accessed last and use it for the new thumbnail
-				float LastAccessTime = FLT_MAX;
+				double LastAccessTime = std::numeric_limits<double>::max();
 				const FThumbId* AssetToRemove = NULL;
 				for( TMap< FThumbId, TSharedRef<FThumbnailInfo> >::TConstIterator It(ThumbnailToTextureMap); It; ++It )
 				{

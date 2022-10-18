@@ -39,7 +39,7 @@ UEditorStyleSettings::UEditorStyleSettings( const FObjectInitializer& ObjectInit
 	RuleColor = FLinearColor(0.008f, 0.008f, 0.008f);
 	CenterColor = FLinearColor::Black;
 
-	GridSnapSize = 16.f;
+	GridSnapSize = 16;
 
 	bShowFriendlyNames = true;
 	bShowNativeComponentNames = true;

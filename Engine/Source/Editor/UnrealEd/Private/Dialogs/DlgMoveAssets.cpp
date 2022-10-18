@@ -90,7 +90,7 @@ public:
 						SNew(SVerticalBox)
 						+SVerticalBox::Slot()
 						.AutoHeight()
-						.Padding(3)
+						.Padding(3.0f)
 						[
 							SNew(SGridPanel)
 

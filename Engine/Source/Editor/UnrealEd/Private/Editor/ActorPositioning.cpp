@@ -138,7 +138,7 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 		}
 
 		// Go through all hits and find closest
-		float ClosestHitDistanceSqr = TNumericLimits<float>::Max();
+		double ClosestHitDistanceSqr = std::numeric_limits<double>::max();
 
 		for (const FHitResult& Hit : Hits)
 		{

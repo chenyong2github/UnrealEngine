@@ -371,7 +371,7 @@ public:
 		if (bStrataEnabled)
 		{
 			EStrataBlendMode StrataBlendMode = MaterialInterface->GetStrataBlendMode();
-			uint8 LegacyBlendMode = MaterialInterface->GetBlendMode();
+			uint8 LegacyBlendMode = static_cast<uint8>(MaterialInterface->GetBlendMode());
 			EStrataMaterialExportContext StrataMaterialExportContext = (StrataBlendMode == SBM_Opaque || StrataBlendMode == SBM_Masked) ? EStrataMaterialExportContext::SMEC_Opaque : EStrataMaterialExportContext::SMEC_Translucent;
 
 			if (Usage == EMaterialShaderMapUsage::LightmassExportDiffuse)

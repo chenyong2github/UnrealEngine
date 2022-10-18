@@ -16,7 +16,7 @@ namespace EditorScriptingHelpersInternal
 	FString RemoveFullName(const FString& AnyAssetPath, FString& OutFailureReason)
 	{
 		FString Result = AnyAssetPath.TrimStartAndEnd();
-		int32 NumberOfSpace = Algo::Count(AnyAssetPath, TEXT(' '));
+		SIZE_T NumberOfSpace = Algo::Count(AnyAssetPath, TEXT(' '));
 
 		if (NumberOfSpace == 0)
 		{

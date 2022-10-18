@@ -324,7 +324,7 @@ bool FAutoPackageBackup::PerformBackupSpaceMaintenance( TArray<FBackupFileInfo>&
 		};
 		InBackupFiles.Sort( FCompareFBackupFileInfo() );
 		
-		int32 CurSpaceUsed = InSpaceUsed;
+		int64 CurSpaceUsed = InSpaceUsed;
 		TArray<FBackupFileInfo>::TConstIterator BackupFileIter( InBackupFiles );
 		
 		// Iterate through the backup files until all of the files have been deleted or enough space has been freed

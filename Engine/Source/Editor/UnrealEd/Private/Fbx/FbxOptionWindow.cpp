@@ -52,13 +52,13 @@ void SFbxOptionWindow::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SAssignNew(ImportTypeDisplay, SBox)
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
@@ -84,7 +84,7 @@ void SFbxOptionWindow::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SAssignNew(InspectorBox, SBox)
 				.MaxDesiredHeight(650.0f)
@@ -92,10 +92,10 @@ void SFbxOptionWindow::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(2)
+				.SlotPadding(2.0f)
 				+ SUniformGridPanel::Slot(1, 0)
 				[
 					SAssignNew(ImportAllButton, SPrimaryButton)

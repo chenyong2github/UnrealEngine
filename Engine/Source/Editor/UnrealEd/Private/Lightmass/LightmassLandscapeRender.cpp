@@ -51,7 +51,7 @@ void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* Lan
 
 	const float fraction = 1.0f / NumSubsections;
 	const FVector2D PositionScale = FVector2D(RenderTarget->GetSizeXY()) * fraction * PatchExpandScale;
-	const float LayerScale = SubsectionSizeQuads;
+	const FVector::FReal LayerScale = SubsectionSizeQuads;
 	const float WeightmapSubsection = LandscapeComponent->WeightmapSubsectionOffset;
 	const FVector2D WeightmapBias = FVector2D(LandscapeComponent->WeightmapScaleBias.Z, LandscapeComponent->WeightmapScaleBias.W);
 	const FVector2D WeightmapScale = FVector2D(LandscapeComponent->WeightmapScaleBias.X, LandscapeComponent->WeightmapScaleBias.Y) * SubsectionSizeQuads;
@@ -220,7 +220,7 @@ void GetLandscapeOpacityData(const FLandscapeStaticLightingMesh* LandscapeMesh, 
 	}
 
 	// Scale up the hole map to compensate for lightmass using point-sampling
-	static const float ScaleFactor = 3;
+	static const int32 ScaleFactor = 3;
 	InOutSizeX = (XSize - 1) * ScaleFactor;
 	InOutSizeY = (YSize - 1) * ScaleFactor;
 

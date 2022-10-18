@@ -109,8 +109,8 @@ TSharedPtr<SWidget> FAssetDragDropOp::GetDefaultDecorator() const
 			.HAlign(HAlign_Left)
 			[
 				SNew(SBox) 
-				.WidthOverride(ThumbnailSize) 
-				.HeightOverride(ThumbnailSize)
+				.WidthOverride(static_cast<float>(ThumbnailSize)) 
+				.HeightOverride(static_cast<float>(ThumbnailSize))
 				.Content()
 				[
 					SNew(SOverlay)
@@ -154,7 +154,7 @@ TSharedPtr<SWidget> FAssetDragDropOp::GetDefaultDecorator() const
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBox)
-				.MinDesiredWidth(80)
+				.MinDesiredWidth(80.0f)
 				.Content()
 				[
 					SNew(SHorizontalBox)

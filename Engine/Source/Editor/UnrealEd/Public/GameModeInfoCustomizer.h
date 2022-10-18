@@ -87,7 +87,7 @@ public:
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride(125)
+				.WidthOverride(125.0f)
 				[
 					SNew(SClassPropertyEntryBox)
 					.AllowNone(bAllowNone)
@@ -144,7 +144,7 @@ public:
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride(125)
+				.WidthOverride(125.0f)
 				[
 					SNew(SClassPropertyEntryBox)
 					.AllowNone(bAllowNone)

@@ -36,7 +36,7 @@ void UFontThumbnailRenderer::GetThumbnailSize(UObject* Object, float Zoom, uint3
 		case EFontCacheType::Runtime:
 			if(Font->CompositeFont.DefaultTypeface.Fonts.Num() > 0)
 			{
-				OutWidth = OutHeight = Zoom * 256.0f;
+				OutWidth = OutHeight = static_cast<uint32>(Zoom * 256.0f);
 			}
 			break;
 

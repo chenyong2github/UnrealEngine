@@ -95,10 +95,10 @@ UnFbx::FBXImportOptions *JSONToFbxOption(TSharedPtr<FJsonValue> OptionJsonValue,
 		(*DataObj)->TryGetNumberField("G", G);
 		(*DataObj)->TryGetNumberField("B", B);
 		(*DataObj)->TryGetNumberField("A", A);
-		Option->VertexOverrideColor.R = (float)R;
-		Option->VertexOverrideColor.G = (float)G;
-		Option->VertexOverrideColor.B = (float)B;
-		Option->VertexOverrideColor.A = (float)A;
+		Option->VertexOverrideColor.R = static_cast<uint8>(R);
+		Option->VertexOverrideColor.G = static_cast<uint8>(G);
+		Option->VertexOverrideColor.B = static_cast<uint8>(B);
+		Option->VertexOverrideColor.A = static_cast<uint8>(A);
 	}
 	OptionObj->TryGetBoolField("bRemoveDegenerates", Option->bRemoveDegenerates);
 	OptionObj->TryGetBoolField("bBuildReversedIndexBuffer", Option->bBuildReversedIndexBuffer);

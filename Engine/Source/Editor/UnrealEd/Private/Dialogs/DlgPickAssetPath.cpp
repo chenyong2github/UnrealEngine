@@ -50,14 +50,14 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 
 					+ SVerticalBox::Slot()
 					.FillHeight(1)
-					.Padding(3)
+					.Padding(3.0f)
 					[
 						ContentBrowserModule.Get().CreatePathPicker(PathPickerConfig)
 					]
 
 					+ SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(3)
+					.Padding(3.0f)
 					[
 						SNew(SHorizontalBox)
 

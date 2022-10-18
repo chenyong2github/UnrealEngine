@@ -348,8 +348,8 @@ TSharedPtr<SWidget> SFbxSceneMaterialsListView::OnOpenContextMenu()
 			//We have to limit the height in case there is a lot of item, the computed height can overpass the 16 bit integer maximum.
 			TSharedRef<SWidget> Widget =
 				SNew(SBox)
-				.WidthOverride(300)
-				.HeightOverride(300)
+				.WidthOverride(300.0f)
+				.HeightOverride(300.0f)
 				[
 					ContentBrowserModule.Get().CreateAssetPicker(Config)
 				];

@@ -367,18 +367,6 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 	}
 }
 
-void rescale(int bytes, double &value, int &exp)
-{
-	value = bytes;
-	value = fabs(value);
-
-	while (value > 1024.0)
-	{
-		value /= 1024.0;
-		exp++;
-	}
-}
-
 void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, const FString& NewPath)
 {
 	{
@@ -476,8 +464,8 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 		}
 	}
 
-	int64 changes = 0;
-	int64 change_bytes = 0;
+	int64 Changes = 0;
+	int64 ChangeBytes = 0;
 
 	// find all entries of CookModified that do not exist in GuidModified
 	const TMap<FName, const FAssetPackageData*>& PackageMap = NewState.GetAssetPackageDataMap();
@@ -487,8 +475,8 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 
 		if (!GuidModified.Contains(Package))
 		{
-			++changes;
-			change_bytes += Data->DiskSize;
+			++Changes;
+			ChangeBytes += Data->DiskSize;
 			if (bIsVerbose)
 			{
 				UE_LOG(LogDiffAssets, Display, TEXT("%s : %d bytes"), *Package.ToString(), Data->DiskSize);
@@ -496,13 +484,25 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 		}
 	}
 
-	double change_value = 0.0;
-	int change_exp = 0;
+	double ChangeValue = 0.0;
+	int32 ChangeExp = 0;
 
-	rescale(change_bytes, change_value, change_exp);
+	auto Rescale = [](int64 Bytes, double& Value, int32& Exp)
+	{
+		Value = Bytes;
+		Value = fabs(Value);
+
+		while (Value > 1024.0)
+		{
+			Value /= 1024.0;
+			Exp++;
+		}
+	};
+
+	Rescale(ChangeBytes, ChangeValue, ChangeExp);
 
 	UE_LOG(LogDiffAssets, Display, TEXT("Summary:"));
-	UE_LOG(LogDiffAssets, Display, TEXT("%d nondeterministic cooks, %8.3f %cB"), changes, change_value, " KMGTP"[change_exp]);
+	UE_LOG(LogDiffAssets, Display, TEXT("%d nondeterministic cooks, %8.3f %cB"), Changes, ChangeValue, " KMGTP"[ChangeExp]);
 }
 
 bool	UDiffAssetRegistriesCommandlet::IsInRelevantChunk(FAssetRegistryState& InRegistryState, FName InAssetPath)

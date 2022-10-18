@@ -48,8 +48,8 @@ void SViewportToolBarIconMenu::Construct( const FArguments& InArgs )
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride( 16 )
-				.HeightOverride( 16 )
+				.WidthOverride(16.0f)
+				.HeightOverride(16.0f)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[

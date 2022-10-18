@@ -167,7 +167,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(SBox)
-				.WidthOverride(400)
+				.WidthOverride(400.0f)
 				.Visibility(this, &SCSVImportOptions::GetDetailsPanelVis)
 				[
 					PropertyView.ToSharedRef()

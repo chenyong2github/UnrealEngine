@@ -46,13 +46,13 @@ void SFbxExportOptionsWindow::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SAssignNew(HeaderToolBox, SBox)
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
@@ -79,17 +79,17 @@ void SFbxExportOptionsWindow::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SAssignNew(InspectorBox, SBox)
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Right)
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(2)
+				.SlotPadding(2.0f)
 				+ SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SButton)

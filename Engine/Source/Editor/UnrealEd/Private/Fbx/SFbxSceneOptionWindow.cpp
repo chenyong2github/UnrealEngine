@@ -791,7 +791,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnSceneReimportTab(const FSpawnTa
 				.AutoHeight()
 				[
 					SNew(SUniformGridPanel)
-					.SlotPadding(2)
+					.SlotPadding(2.0f)
 					+ SUniformGridPanel::Slot(0, 0)
 					[
 						SNew(SHorizontalBox)
@@ -948,7 +948,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnStaticMeshReimportTab(const FSp
 					.AutoHeight()
 					[
 						SNew(SUniformGridPanel)
-						.SlotPadding(2)
+						.SlotPadding(2.0f)
 						+ SUniformGridPanel::Slot(0, 0)
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Left)
@@ -1254,7 +1254,7 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SNew(SBorder)
 				.Padding(FMargin(3))
@@ -1281,17 +1281,17 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SpawnDockTab().ToSharedRef()
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Right)
-			.Padding(2)
+			.Padding(2.0f)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(2)
+				.SlotPadding(2.0f)
 				+ SUniformGridPanel::Slot(0, 0)
 				[
 					IDocumentation::Get()->CreateAnchor(FString("Engine/Content/FBX/ImportOptions"))

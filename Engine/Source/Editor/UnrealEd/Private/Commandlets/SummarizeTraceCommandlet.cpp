@@ -521,7 +521,7 @@ public:
 			return;
 		}
 
-		const double TotalPopulation = Count + Other.Count;
+		const double TotalPopulation = static_cast<double>(Count + Other.Count);
 		const double MeanDifference = Mean - Other.Mean;
 		const double A = ((Count - 1) * Variance()) + ((Other.Count - 1) * Other.Variance());
 		const double B = (MeanDifference) * (MeanDifference) * (Count * Other.Count / TotalPopulation);

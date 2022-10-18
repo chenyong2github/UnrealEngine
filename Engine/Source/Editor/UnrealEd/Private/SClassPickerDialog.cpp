@@ -170,7 +170,7 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 				+SVerticalBox::Slot()
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Bottom)
-				.Padding(8)
+				.Padding(8.0f)
 				[
 					SNew(SUniformGridPanel)
 					.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))

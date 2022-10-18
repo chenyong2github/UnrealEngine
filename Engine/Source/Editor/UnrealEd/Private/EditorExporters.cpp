@@ -1418,8 +1418,8 @@ static void ExportPolys( UPolys* Polys, int32 &PolyNum, int32 TotalPolys, FFeedb
 					const FVert& Vert = Model->Verts[TriVertIndices[TriVertexIndex]];
 					const FVector& Vertex = (FVector)Model->Points[Vert.pVertex];
 
-					float U = ((Vertex - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
-					float V = ((Vertex - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();
+					double U = ((Vertex - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
+					double V = ((Vertex - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();
 
 					Vertices[TriVertexIndex].Vert = Vertex;
 					Vertices[TriVertexIndex].UV = FVector2D( U, V );

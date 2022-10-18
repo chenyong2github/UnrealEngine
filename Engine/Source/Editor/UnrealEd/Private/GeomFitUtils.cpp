@@ -24,28 +24,11 @@
 #include "StaticMeshAttributes.h"
 #include "Settings/EditorExperimentalSettings.h"
 
-#define LOCAL_EPS (0.01f)
-static void AddVertexIfNotPresent(TArray<FVector> &vertices, FVector &newVertex)
-{
-	bool isPresent = 0;
-
-	for(int32 i=0; i<vertices.Num() && !isPresent; i++)
-	{
-		float diffSqr = (newVertex - vertices[i]).SizeSquared();
-		if(diffSqr < LOCAL_EPS * LOCAL_EPS)
-			isPresent = 1;
-	}
-
-	if(!isPresent)
-		vertices.Add(newVertex);
-
-}
-
 static bool PromptToRemoveExistingCollision(UStaticMesh* StaticMesh)
 {
 	check(StaticMesh);
 	UBodySetup* bs = StaticMesh->GetBodySetup();
-	if(bs && (bs->AggGeom.GetElementCount() > 0))
+	if (bs && (bs->AggGeom.GetElementCount() > 0))
 	{
 		// If we already have some simplified collision for this mesh - check before we clobber it.
 		/*const EAppReturnType::Type ret = FMessageDialog::Open(EAppMsgType::YesNoCancel, NSLOCTEXT("UnrealEd", "StaticMeshAlreadyHasGeom", "Static Mesh already has simple collision.\nDo you want to replace it?"));

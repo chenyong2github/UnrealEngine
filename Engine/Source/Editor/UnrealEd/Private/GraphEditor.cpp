@@ -152,10 +152,10 @@ void SGraphEditor::FocusCommentNodes(TArray<UEdGraphNode*> &CommentNodes, TArray
 		CommentNode->SetNodeUnrelated(true);
 
 		const FSlateRect CommentRect(
-			CommentNode->NodePosX, 
-			CommentNode->NodePosY, 
-			CommentNode->NodePosX + CommentNode->NodeWidth, 
-			CommentNode->NodePosY + CommentNode->NodeHeight
+			static_cast<float>(CommentNode->NodePosX),
+			static_cast<float>(CommentNode->NodePosY),
+			static_cast<float>(CommentNode->NodePosX + CommentNode->NodeWidth),
+			static_cast<float>(CommentNode->NodePosY + CommentNode->NodeHeight)
 		);
 
 		for (auto& RelatedNode : RelatedNodes)

@@ -101,13 +101,13 @@ public:
 		}
 		
 		SetShaderValue(InRHICmdList, ShaderRHI,ColorWeights,InColorWeightsValue);
-		FVector4f PackedParametersValue(InGammaValue, InMipLevel, bInIsNormalMap ? 1.0 : -1.0f, bInIsSingleVTPhysicalSpace ? 0 : InLayerIndex);
+		FVector4f PackedParametersValue(InGammaValue, InMipLevel, bInIsNormalMap ? 1.0f : -1.0f, bInIsSingleVTPhysicalSpace ? 0 : InLayerIndex);
 		SetShaderValue(InRHICmdList, ShaderRHI, PackedParameters, PackedParametersValue);
 
 		// Store slice count and selected slice index for texture array
 		if (bInIsTextureArray)
 		{
-			const float NumSlicesData = InTextureValue ? InTextureValue->GetSizeZ() : 1;
+			const float NumSlicesData = InTextureValue ? static_cast<float>(InTextureValue->GetSizeZ()) : 1.0f;
 			SetShaderValue(InRHICmdList, ShaderRHI, NumSlices, NumSlicesData);
 			SetShaderValue(InRHICmdList, ShaderRHI, SliceIndex, InSliceIndex);
 		}

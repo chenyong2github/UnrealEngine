@@ -86,7 +86,7 @@ void SFbxMaterialConflictWindow::Construct(const FArguments& InArgs)
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()
 							.AutoHeight()
-							.Padding(2)
+							.Padding(2.0f)
 							[
 								// Material Compare section
 								MaterialCompareSection.ToSharedRef()

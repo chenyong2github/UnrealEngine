@@ -37,8 +37,8 @@ void SGlobalOpenAssetDialog::Construct(const FArguments& InArgs, FVector2D InSiz
 	ChildSlot
 	[
 		SNew(SBox)
-		.WidthOverride(InSize.X)
-		.HeightOverride(InSize.Y)
+		.WidthOverride(static_cast<float>(InSize.X))
+		.HeightOverride(static_cast<float>(InSize.Y))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()

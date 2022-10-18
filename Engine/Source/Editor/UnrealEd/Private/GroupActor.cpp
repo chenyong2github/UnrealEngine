@@ -309,13 +309,13 @@ void GetBoundingVectorsForGroup(AGroupActor* GroupActor, FViewport* Viewport, FV
 				FBox ActorBox = Actor->GetComponentsBoundingBox( true );
 
 				// MinVector
-				OutVectorMin.X = FMath::Min<float>( ActorBox.Min.X, OutVectorMin.X );
-				OutVectorMin.Y = FMath::Min<float>( ActorBox.Min.Y, OutVectorMin.Y );
-				OutVectorMin.Z = FMath::Min<float>( ActorBox.Min.Z, OutVectorMin.Z );
+				OutVectorMin.X = FMath::Min<FVector::FReal>( ActorBox.Min.X, OutVectorMin.X );
+				OutVectorMin.Y = FMath::Min<FVector::FReal>( ActorBox.Min.Y, OutVectorMin.Y );
+				OutVectorMin.Z = FMath::Min<FVector::FReal>( ActorBox.Min.Z, OutVectorMin.Z );
 				// MaxVector
-				OutVectorMax.X = FMath::Max<float>( ActorBox.Max.X, OutVectorMax.X );
-				OutVectorMax.Y = FMath::Max<float>( ActorBox.Max.Y, OutVectorMax.Y );
-				OutVectorMax.Z = FMath::Max<float>( ActorBox.Max.Z, OutVectorMax.Z );
+				OutVectorMax.X = FMath::Max<FVector::FReal>( ActorBox.Max.X, OutVectorMax.X );
+				OutVectorMax.Y = FMath::Max<FVector::FReal>( ActorBox.Max.Y, OutVectorMax.Y );
+				OutVectorMax.Z = FMath::Max<FVector::FReal>( ActorBox.Max.Z, OutVectorMax.Z );
 			}
 		}
 	}	

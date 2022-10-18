@@ -6368,7 +6368,7 @@ void FBlueprintEditorUtils::MarkBlueprintChildrenAsModified(UBlueprint* InBluepr
 	TArray<FAssetData> Children;
 	if (GetChildrenOfBlueprint(InBlueprint, Children) > 0)
 	{
-		int32 Unloaded = Algo::CountIf(Children,
+		SIZE_T Unloaded = Algo::CountIf(Children,
 			[](const FAssetData& Asset)
 			{
 				return !Asset.IsAssetLoaded();
@@ -6379,7 +6379,7 @@ void FBlueprintEditorUtils::MarkBlueprintChildrenAsModified(UBlueprint* InBluepr
 		EAppReturnType::Type DialogResponse = EAppReturnType::Yes;
 		if (Unloaded > 0)
 		{
-			FText Message = FText::Format(LOCTEXT("LoadChildrenPopupMessage", "Load {0} unloaded child blueprints to fix up phantom references?"), FText::FromString(FString::FromInt(Unloaded)));
+			FText Message = FText::Format(LOCTEXT("LoadChildrenPopupMessage", "Load {0} unloaded child blueprints to fix up phantom references?"), FText::FromString(LexToString(Unloaded)));
 			FText Title = LOCTEXT("LoadChildrenPopupTitle", "Load Unloaded Children?");
 			DialogResponse = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
 		}
@@ -8788,8 +8788,8 @@ void FBlueprintEditorUtils::OpenReparentBlueprintMenu( const TArray< UBlueprint*
 
 	TSharedRef<SBox> ClassPickerBox = 
 		SNew(SBox)
-		.WidthOverride(280)
-		.HeightOverride(400)
+		.WidthOverride(280.0f)
+		.HeightOverride(400.0f)
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
@@ -9153,7 +9153,7 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 		}
 		else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(Property))
 		{
-			int32 IntValue = 0;
+			int64 IntValue = 0;
 			if (const UEnum* Enum = ByteProperty->Enum)
 			{
 				if (StrValue.Len() < NAME_SIZE)
@@ -9174,10 +9174,11 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			}
 			else
 			{
-				bParseSucceeded = FDefaultValueHelper::ParseInt(StrValue, IntValue);
+				bParseSucceeded = FDefaultValueHelper::ParseInt64(StrValue, IntValue);
 			}
+
 			bParseSucceeded = bParseSucceeded && (IntValue <= 255) && (IntValue >= 0);
-			ByteProperty->SetPropertyValue(DirectValue, IntValue);
+			ByteProperty->SetPropertyValue(DirectValue, static_cast<uint8>(IntValue));
 		}
 		else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(Property))
 		{

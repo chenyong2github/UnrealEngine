@@ -356,7 +356,8 @@ protected:
 		// read to next "@@":
 		if (const TCHAR* DelimiterStr = FCString::Strstr(Format, TEXT("@@")))
 		{
-			OutMessage.AddToken(FTextToken::Create(FText::FromString(FString(DelimiterStr - Format, Format))));
+			int32 TokenLength = UE_PTRDIFF_TO_INT32(DelimiterStr - Format);
+			OutMessage.AddToken(FTextToken::Create(FText::FromString(FString(TokenLength, Format))));
 			FEdGraphToken::Create(First, this, OutMessage, OutSourceNode);
 
 			const TCHAR* NextChunk = DelimiterStr + FCString::Strlen(TEXT("@@"));
