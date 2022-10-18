@@ -842,7 +842,7 @@ bool SRemoteControlPanel::IsExposed(const FRCExposesPropertyArgs& InPropertyArgs
 	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
 		constexpr bool bIsCheckIsBoundByFullPath = false;
-		return CheckCachedExposedArgs({ InPropertyArgs.OwnerObject }, InPropertyArgs.PropertyPath, bIsCheckIsBoundByFullPath);
+		return CheckCachedExposedArgs({ InPropertyArgs.OwnerObject.Get()}, InPropertyArgs.PropertyPath, bIsCheckIsBoundByFullPath);
 	}
 
 	// It never should hit this point
@@ -944,7 +944,7 @@ void SRemoteControlPanel::ToggleProperty(const FRCExposesPropertyArgs& InPropert
 		Preset->Modify();
 
 		constexpr bool bCleanDuplicates = true; // GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
-		ExposeProperty(InPropertyArgs.OwnerObject, FRCFieldPathInfo{ InPropertyArgs.PropertyPath, bCleanDuplicates });
+		ExposeProperty(InPropertyArgs.OwnerObject.Get(), FRCFieldPathInfo{InPropertyArgs.PropertyPath, bCleanDuplicates});
 
 		PostExpose();
 	}
@@ -1598,7 +1598,7 @@ void SRemoteControlPanel::Unexpose(const FRCExposesPropertyArgs& InPropertyArgs)
 	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
 		constexpr bool bUsingDuplicatesInPath = false;
-		CheckAndUnexpose({ InPropertyArgs.OwnerObject }, InPropertyArgs.PropertyPath, bUsingDuplicatesInPath);
+		CheckAndUnexpose({ InPropertyArgs.OwnerObject.Get()}, InPropertyArgs.PropertyPath, bUsingDuplicatesInPath);
 	}
 }
 

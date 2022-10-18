@@ -53,11 +53,7 @@ static const FName DetailsTabIdentifiers_LevelEditor[] = {
 static const int32 DetailsTabIdentifiers_LevelEditor_Count = 4;
 
 FRCExposesPropertyArgs::FRCExposesPropertyArgs()
-	: PropertyHandle(nullptr)
-	, OwnerObject(nullptr)
-	, PropertyPath(TEXT(""))
-	, Property(nullptr)
-	, Id(FGuid::NewGuid())
+	: Id(FGuid::NewGuid())
 {
 }
 
@@ -99,7 +95,7 @@ FRCExposesPropertyArgs::EType FRCExposesPropertyArgs::GetType() const
 	{
 		return EType::E_Handle;
 	}
-	if (OwnerObject && !PropertyPath.IsEmpty() && Property)
+	if (OwnerObject.IsValid() && !PropertyPath.IsEmpty() && Property.IsValid())
 	{
 		return EType::E_OwnerObject;
 	}
@@ -123,7 +119,7 @@ FProperty* FRCExposesPropertyArgs::GetProperty() const
 	}
 	else
 	{
-		return Property;
+		return Property.Get();
 	}
 
 	return nullptr;
@@ -178,7 +174,7 @@ namespace RemoteControlUIModule
 		}
 
 		FRCFieldPathInfo RCFieldPathInfo(InPropertyArgs.PropertyPath);
-		RCFieldPathInfo.Resolve(InPropertyArgs.OwnerObject);
+		RCFieldPathInfo.Resolve(InPropertyArgs.OwnerObject.Get());
 		FRCFieldResolvedData ResolvedData = RCFieldPathInfo.GetResolvedData();
 		return CastField<FObjectProperty>(InPropertyArgs.GetProperty());
 	}
@@ -553,7 +549,7 @@ TSharedPtr<SRemoteControlPanel> FRemoteControlUIModule::GetPanelForProperty(cons
 	}
 	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
-		return GetPanelForObject(InPropertyArgs.OwnerObject);
+		return GetPanelForObject(InPropertyArgs.OwnerObject.Get());
 	}
 
 	return GetPanelForObject(nullptr);
@@ -736,7 +732,7 @@ bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const FRCExposesPropertyArg
 	}
 	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
-		if (!IsAllowedOwnerObjects({ InPropertyArgs.OwnerObject }))
+		if (!IsAllowedOwnerObjects({ InPropertyArgs.OwnerObject.Get()}))
 		{
 			return false;
 		}
@@ -792,7 +788,7 @@ bool FRemoteControlUIModule::ShouldSkipOwnPanelProperty(const FRCExposesProperty
 	}
 	else if (ArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
-		return CheckOwnProperty(InPropertyArgs.Property);
+		return CheckOwnProperty(InPropertyArgs.Property.Get());
 	}
 
 	return false;
@@ -940,9 +936,9 @@ void FRemoteControlUIModule::TryOverridingMaterials(const FRCExposesPropertyArgs
 	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
 		FRCFieldPathInfo RCFieldPathInfo(InPropertyArgs.PropertyPath);
-		RCFieldPathInfo.Resolve(InPropertyArgs.OwnerObject);
+		RCFieldPathInfo.Resolve(InPropertyArgs.OwnerObject.Get());
 		const FRCFieldResolvedData ResolvedData = RCFieldPathInfo.GetResolvedData();
-		FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InPropertyArgs.Property);
+		FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InPropertyArgs.Property.Get());
 
 		if (!ObjectProperty)
 		{
@@ -954,9 +950,9 @@ void FRemoteControlUIModule::TryOverridingMaterials(const FRCExposesPropertyArgs
 		OriginalMaterial = OriginalMaterial ? OriginalMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
 		if (OriginalMaterial)
 		{
-			if (UMeshComponent* MeshComponentToBeModified = GetSelectedMeshComponentToBeModified(InPropertyArgs.OwnerObject, OriginalMaterial))
+			if (UMeshComponent* MeshComponentToBeModified = GetSelectedMeshComponentToBeModified(InPropertyArgs.OwnerObject.Get(), OriginalMaterial))
 			{
-				const int32 NumStaticMaterials = RemoteControlUIModule::GetNumStaticMaterials(InPropertyArgs.OwnerObject);
+				const int32 NumStaticMaterials = RemoteControlUIModule::GetNumStaticMaterials(InPropertyArgs.OwnerObject.Get());
 				if (NumStaticMaterials > 0)
 				{
 					FScopedTransaction Transaction(LOCTEXT("OverrideMaterial", "Override Material"));

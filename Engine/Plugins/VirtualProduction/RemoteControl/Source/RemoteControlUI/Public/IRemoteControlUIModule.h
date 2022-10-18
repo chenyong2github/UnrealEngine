@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/WeakFieldPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Layout/SSplitter.h"
 
 class FDelegateHandle;
@@ -92,13 +94,13 @@ public:
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 
 	/** Owner object for the property extension */
-	UObject* OwnerObject;
+	TWeakObjectPtr<UObject> OwnerObject;
 
 	/** Path of the exposed property */
 	FString PropertyPath;
 
 	/** Exposed property */
-	FProperty* Property;
+	TWeakFieldPtr<FProperty> Property;
 
 private:
 	/** Unique generated ID of the struct */
