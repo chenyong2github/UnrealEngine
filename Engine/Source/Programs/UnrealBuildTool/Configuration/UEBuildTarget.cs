@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -4172,14 +4172,9 @@ namespace UnrealBuildTool
 			}
 
 			// Check if server-only code should be compiled out.
-			if (Rules.bWithServerCode == true)
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_SERVER_CODE=1");
-			}
-			else
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_SERVER_CODE=0");
-			}
+			GlobalCompileEnvironment.Definitions.AddFormat("WITH_SERVER_CODE={0}", Rules.bWithServerCode ? "1" : "0");
+			GlobalCompileEnvironment.Definitions.AddFormat("WITH_SERVER_CODE_TRUSTED={0}", Rules.bWithServerCodeTrusted ? "1" : "0");
+			GlobalCompileEnvironment.Definitions.AddFormat("WITH_SERVER_CODE_UNTRUSTED={0}", Rules.bWithServerCodeUntrusted ? "1" : "0");
 
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_FNAME_OUTLINE_NUMBER={0}", Rules.bFNameOutlineNumber? 1 : 0));
 

@@ -990,6 +990,30 @@ namespace UnrealBuildTool
 		private bool? bWithServerCodeOverride;
 
 		/// <summary>
+		/// Compile trusted-server-only code.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithServerCodeTrusted
+		{
+			get { return bWithServerCode && bWithServerCodeTrustedPrivate; }
+			set { bWithServerCodeTrustedPrivate = value; }
+		}
+
+		/// <summary>
+		/// Compile untrusted-server-only code.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithServerCodeUntrusted
+		{
+			get { return bWithServerCode && !bWithServerCodeTrustedPrivate; }
+			set { bWithServerCodeTrustedPrivate = !value; }
+		}
+
+		[CommandLine("-TrustedServer", Value = "true")]
+		[CommandLine("-NoTrustedServer", Value = "false")]
+		private bool bWithServerCodeTrustedPrivate = true;
+
+		/// <summary>
 		/// Compile with FName storing the number part in the name table. 
 		/// Saves memory when most names are not numbered and those that are are referenced multiple times.
 		/// The game and engine must ensure they reuse numbered names similarly to name strings to avoid leaking memory.
@@ -2223,6 +2247,14 @@ namespace UnrealBuildTool
 			{
 				GlobalDefinitions.Add("UE_SERVER=1");
 				GlobalDefinitions.Add("USE_NULL_RHI=1");
+				if(bWithServerCodeTrusted)
+                {
+					GlobalDefinitions.Add("UE_SERVER_TRUSTED=1");
+                }
+                else
+                {
+					GlobalDefinitions.Add("UE_SERVER_UNTRUSTED=1");
+				}
 			}
 		}
 
@@ -2857,6 +2889,16 @@ namespace UnrealBuildTool
 		public bool bWithServerCode
 		{
 			get { return Inner.bWithServerCode; }
+		}
+
+		public bool bWithServerCodeTrusted
+		{
+			get { return Inner.bWithServerCodeTrusted; }
+		}
+
+		public bool bWithServerCodeUntrusted
+		{
+			get { return Inner.bWithServerCodeUntrusted; }
 		}
 
 		public bool bFNameOutlineNumber
