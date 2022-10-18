@@ -161,6 +161,17 @@ void FNiagaraSystemToolkitModeBase::OnSystemSelectionChanged()
 	// Do nothing for now
 }
 
+void FNiagaraSystemToolkitModeBase::PostActivateMode()
+{
+	// by default we want to close the user parameters hierarchy tab if it has been open before. T
+	// his fixes the issue of an empty tab being summoned from a system's cached layout when applied to an emitter.
+	// for consistency, we close it not only for emitters but for systems too
+	if(TSharedPtr<SDockTab> UserParametersHierarchyDockTab = SystemToolkit.Pin()->GetTabManager()->FindExistingLiveTab(UserParametersHierarchyTabID))
+	{
+		UserParametersHierarchyDockTab->RequestCloseTab();
+	}
+}
+
 void FNiagaraSystemToolkitModeBase::UpdateSelectionForActiveDocument()
 {
 	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
@@ -294,17 +305,14 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetDisplayName(LOCTEXT("VersioningTab", "Versioning"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Versions"));
-
-	if(SystemToolkit.Pin()->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
-	{
-		InTabManager->RegisterTabSpawner(UserParametersTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_UserParameters))
-			.SetDisplayName(LOCTEXT("UserParametersTab", "User Parameters"))
-			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
-		
-		InTabManager->RegisterTabSpawner(UserParametersHierarchyTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_UserParametersHierarchyEditor))
-			.SetDisplayName(LOCTEXT("UserParametersHierarchyTab", "User Parameters Hierarchy"))
-			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
-	}
+	
+	InTabManager->RegisterTabSpawner(UserParametersTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_UserParameters))
+		.SetDisplayName(LOCTEXT("UserParametersTab", "User Parameters"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+	
+	InTabManager->RegisterTabSpawner(UserParametersHierarchyTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_UserParametersHierarchyEditor))
+		.SetDisplayName(LOCTEXT("UserParametersHierarchyTab", "User Parameters Hierarchy"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
 int FNiagaraSystemToolkitModeBase::GetActiveSelectionDetailsIndex() const
@@ -780,13 +788,24 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_Versioning(const FS
 TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_UserParameters(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId().TabType == UserParametersTabID);
-	
-	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("UserParametersTabTitle", "User Parameters"))
-		[
-			SNew(SNiagaraSystemUserParameters, SystemToolkit.Pin()->GetSystemViewModel())
-		];
 
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+	.Label(LOCTEXT("UserParametersTabTitle", "User Parameters"));
+
+	if(SystemToolkit.Pin()->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		SpawnedTab->SetContent(SNew(SNiagaraSystemUserParameters, SystemToolkit.Pin()->GetSystemViewModel()));
+		return SpawnedTab;
+	}
+
+	TSharedRef<SWidget> EmptyTabContent = SNew(SBox)
+	.HAlign(HAlign_Center)
+	.VAlign(VAlign_Center)
+	[
+		SNew(STextBlock).Text(LOCTEXT("EmptyUserParametersTabText", "User Parameters are only supported in System assets.")).AutoWrapText(true)
+	];
+	
+	SpawnedTab->SetContent(EmptyTabContent);
 	return SpawnedTab;
 }
 

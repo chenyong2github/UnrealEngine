@@ -304,6 +304,8 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 
 void FNiagaraSystemToolkitMode_Default::PostActivateMode()
 {
+	FNiagaraSystemToolkitModeBase::PostActivateMode();
+	
 	// We need to register the primary tab ID with the document system so that we can easily update and 
 	// reference it elsewhere and only this class knows it's identity since it is dynamically allocated.
 	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());

@@ -23,6 +23,8 @@ public:
 
 	virtual void OnActiveDocumentChanged(TSharedPtr<class SDockTab> NewActiveTab);
 	virtual void OnSystemSelectionChanged();
+
+	virtual void PostActivateMode() override;
 private:
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_CurveEd(const FSpawnTabArgs& Args);
