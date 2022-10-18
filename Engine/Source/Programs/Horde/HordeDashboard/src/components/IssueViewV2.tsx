@@ -867,7 +867,8 @@ const StreamCanvas: React.FC = () => {
                   if (step.severity === IssueSeverity.Error) {
                      color = colors.get(StatusColor.Failure)!;
                   }
-                  if (index && step.severity === IssueSeverity.Unspecified) {
+
+                  if (details.issue?.quarantinedByUserInfo && index && step.severity === IssueSeverity.Unspecified) {
                      color = colors.get(StatusColor.Success)!;
                   }
 
