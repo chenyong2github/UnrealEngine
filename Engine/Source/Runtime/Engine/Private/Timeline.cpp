@@ -771,14 +771,29 @@ void UTimelineComponent::AddInterpVector(UCurveVector* VectorCurve, FOnTimelineV
 	TheTimeline.AddInterpVector(VectorCurve, InterpFunc, PropertyName, TrackName);
 }
 
+void UTimelineComponent::AddInterpVector(UCurveVector* VectorCurve, const FOnTimelineVectorStatic InterpFunc)
+{
+	TheTimeline.AddInterpVector(VectorCurve, InterpFunc);
+}
+
 void UTimelineComponent::AddInterpFloat(UCurveFloat* FloatCurve, FOnTimelineFloat InterpFunc, FName PropertyName, FName TrackName)
 {
 	TheTimeline.AddInterpFloat(FloatCurve, InterpFunc, PropertyName, TrackName);
 }
 
+void UTimelineComponent::AddInterpFloat(UCurveFloat* FloatCurve, const FOnTimelineFloatStatic InterpFunc)
+{
+	TheTimeline.AddInterpFloat(FloatCurve, InterpFunc);
+}
+
 void UTimelineComponent::AddInterpLinearColor(UCurveLinearColor* LinearColorCurve, FOnTimelineLinearColor InterpFunc, FName PropertyName, FName TrackName)
 {
 	TheTimeline.AddInterpLinearColor(LinearColorCurve, InterpFunc, PropertyName, TrackName);
+}
+
+void UTimelineComponent::AddInterpLinearColor(UCurveLinearColor* LinearColorCurve, const FOnTimelineLinearColorStatic InterpFunc)
+{
+	TheTimeline.AddInterpLinearColor(LinearColorCurve, InterpFunc);
 }
 
 void UTimelineComponent::SetPlaybackPosition(float NewPosition, bool bFireEvents, bool bFireUpdate)

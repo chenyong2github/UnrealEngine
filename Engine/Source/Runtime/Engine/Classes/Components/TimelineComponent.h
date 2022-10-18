@@ -528,12 +528,15 @@ public:
 	
 	/** Add a vector interpolation to the timeline */
 	ENGINE_API void AddInterpVector(UCurveVector* VectorCurve, FOnTimelineVector InterpFunc, FName PropertyName = NAME_None, FName TrackName = NAME_None);
+	ENGINE_API void AddInterpVector(UCurveVector* VectorCurve, FOnTimelineVectorStatic InterpFunc);
 	
 	/** Add a float interpolation to the timeline */
 	ENGINE_API void AddInterpFloat(UCurveFloat* FloatCurve, FOnTimelineFloat InterpFunc, FName PropertyName = NAME_None, FName TrackName = NAME_None);
+	ENGINE_API void AddInterpFloat(UCurveFloat* FloatCurve, FOnTimelineFloatStatic InterpFunc);
 
 	/** Add a linear color interpolation to the timeline */
 	ENGINE_API void AddInterpLinearColor(UCurveLinearColor* LinearColorCurve, FOnTimelineLinearColor InterpFunc, FName PropertyName = NAME_None, FName TrackName = NAME_None);
+	ENGINE_API void AddInterpLinearColor(UCurveLinearColor* LinearColorCurve, FOnTimelineLinearColorStatic InterpFunc);
 
 	/** Optionally provide an object to automatically update properties on */
 	ENGINE_API void SetPropertySetObject(UObject* NewPropertySetObject);
@@ -552,6 +555,3 @@ public:
 	/** Get all curves used by the Timeline */
 	ENGINE_API void GetAllCurves(TSet<class UCurveBase*>& InOutCurves) const;
 };
-
-
-
