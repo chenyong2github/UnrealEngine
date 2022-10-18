@@ -173,21 +173,9 @@ private:
 	FSocket* UnicastSocket;
 #endif
 
-	struct FDenyCandidate
-	{
-		int32 EndpointFailureCount = 0;
-		FDateTime LastFailTime = FDateTime::UtcNow();
-	};
-
-	/** Deny list of node ids not allowed to talk to UDP processor */
-	TMap<FGuid, FDenyCandidate> DenyCandidateList;
-
 	/** Holds the static endpoints. */
 	TSet<FIPv4Endpoint> StaticEndpoints;
 
 	/** Excluded list of IP addresses not allowed to talk to UDP processor */
 	TArray<FIPv4Endpoint> ExcludedEndpoints;
-
-	/** Console command to reset the deny list */
-	FAutoConsoleCommand ClearDenyList;
 };

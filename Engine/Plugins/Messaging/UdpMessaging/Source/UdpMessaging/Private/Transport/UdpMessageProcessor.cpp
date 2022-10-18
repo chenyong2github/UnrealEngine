@@ -1036,12 +1036,12 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 	if (!FoundSegmenter)
 	{
 		// It's possible that a segmenter was fully ack and removed from the segmenter list.
-		return {};
+		return {MessageId};
 	}
 
 	TSharedPtr<FUdpMessageSegmenter>& Segmenter = *FoundSegmenter;
 
-	FSentSegmentInfo SentInfo;
+	FSentSegmentInfo SentInfo(MessageId);
 	if (Segmenter->IsInitialized() && Segmenter->NeedSending(CurrentTime))
 	{
 		FUdpMessageSegment::FDataChunk DataChunk = GetDataChunk(NodeInfo, Segmenter, MessageId);
@@ -1075,6 +1075,7 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 		SentInfo.SequenceNumber = ++NodeInfo.SequenceId;
 		SentInfo.bIsReliable = EnumHasAnyFlags(Segmenter->GetMessageFlags(), EMessageFlags::Reliable);
 		SentInfo.bRequiresRequeue = !Segmenter->IsSendingComplete() || SentInfo.bIsReliable;
+		SentInfo.bFullySent = Segmenter->IsSendingComplete();
 
 		Segmenter->UpdateSentTime(CurrentTime);
 
@@ -1094,6 +1095,7 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 	else
 	{
 		SentInfo.bRequiresRequeue = true;
+		SentInfo.bFullySent = Segmenter->IsSendingComplete();
 	}
 
 	NodeInfo.Statistics.TotalBytesSent += SentInfo.BytesSent;
@@ -1112,34 +1114,58 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
 		EUdpMessageSegments::Data		// Header.SegmentType
 	};
 
-
 	int32 MessageId;
 	int32 BytesSent = 0;
-	TArray<int32,TInlineAllocator<64>> MessagesForRequeue;
-	while (NodeInfo.CanSendSegments() && NodeInfo.WorkQueue.Dequeue(MessageId))
+	TArray<FSentSegmentInfo,TInlineAllocator<64>> ProcessedMessages;
+	auto SendOne = [this, &NodeInfo, &Header, &ProcessedMessages](int32 MessageId)
 	{
 		FSentSegmentInfo Info = SendNextSegmentForMessageId(NodeInfo, Header, MessageId);
-		if (Info.bSendSocketError)
+		ProcessedMessages.Emplace(MoveTemp(Info));
+	};
+	auto SocketError = [&ProcessedMessages]()
+	{
+		return ProcessedMessages.Top().bSendSocketError;
+	};
+
+	// Check for acknowledged segments first.
+	while (NodeInfo.CanSendSegments() && !NodeInfo.OverflowForPendingAck.IsEmpty())
+	{
+		SendOne(NodeInfo.OverflowForPendingAck.Pop());
+		if (SocketError())
 		{
 			return -1;
 		}
+	}
+	NodeInfo.OverflowForPendingAck.Reset();
 
-		if (Info.bRequiresRequeue)
+	// Process messages in the work queue.
+	while (NodeInfo.CanSendSegments() && NodeInfo.WorkQueue.Dequeue(MessageId))
+	{
+		SendOne(MessageId);
+		if (SocketError())
 		{
-			MessagesForRequeue.Add(MessageId);
+			return -1;
+		}
+	}
+
+	for (const FSentSegmentInfo& Info : ProcessedMessages)
+	{
+		if ((Info.bFullySent && Info.bRequiresRequeue) ||
+			(Info.bRequiresRequeue && NodeInfo.WorkQueue.IsFull()) )
+		{
+			NodeInfo.OverflowForPendingAck.Add(Info.MessageId);
+		}
+		else if (Info.bRequiresRequeue)
+		{
+			NodeInfo.WorkQueue.Enqueue(Info.MessageId);
 		}
 
 		BytesSent += Info.BytesSent;
 	}
-	
+
 	NodeInfo.Statistics.PacketsInFlight = NodeInfo.InflightSegments.Num();
 	NodeInfo.Statistics.BytesInflight = NodeInfo.InflightSegments.Num() * UDP_MESSAGING_SEGMENT_SIZE;
 
-	// Requeue for the next round.
-	for (int32 RequeueMessageId : MessagesForRequeue)
-	{
-		NodeInfo.WorkQueue.Enqueue(RequeueMessageId);
-	}
 	return BytesSent;
 }
 

@@ -81,18 +81,26 @@ struct FSentData
 /** Returned by the segment processor. It provides details on what was sent and how it was sent. */
 struct FSentSegmentInfo
 {
+	FSentSegmentInfo() = delete;
+	FSentSegmentInfo(int32 InMessageId)
+		: MessageId(InMessageId)
+	{
+	}
+
+	int32 MessageId;
 	uint64 SequenceNumber = 0;
 	uint32 BytesSent = 0;
 
 	bool bIsReliable = false;
 	bool bRequiresRequeue = false;
 	bool bSendSocketError = false;
+	bool bFullySent = false;
 
 	/** Converts FSentSegmentInfo into a FSentData struct. */
-	FSentData AsSentData(int32 MessageId, uint32 SegmentNumber, const FDateTime& CurrentTime)
+	FSentData AsSentData(int32 InMessageId, uint32 SegmentNumber, const FDateTime& CurrentTime)
 	{
 		return {
-			MessageId,
+			InMessageId,
 			SegmentNumber,
 			SequenceNumber,
 			bIsReliable,
@@ -150,6 +158,9 @@ class FUdpMessageProcessor
 
 		/** Holds of queue of MessageIds to send. They are processed in round-robin fashion. */
 		TUdpCircularQueue<int32> WorkQueue;
+
+		/* Holds the list of messages that are still pending acknowledgement or overflow if overcommitted on work queue. */
+		TArray<int32> OverflowForPendingAck;
 
 		/** Last time we issued a warning about work queues. */
 		FDateTime LastWorkQueueFullMessage;
