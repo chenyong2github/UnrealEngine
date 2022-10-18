@@ -312,20 +312,20 @@ void FWindowsUIAManager::DumpAccessibilityStats() const
 	// This isn't exactly right since some ControlProviders will be TextRangeProviders, but it should be close
 	const uint32 NumControlProviders = ProviderList.Num() - NumWidgetProviders;
 
-	const uint32 SizeOfWidgetProvider = sizeof(FWindowsUIAWidgetProvider);
-	const uint32 SizeOfControlProvider = sizeof(FWindowsUIAControlProvider);
-	const uint32 SizeOfCachedWidgetProviders = CachedWidgetProviders.GetAllocatedSize();
-	const uint32 SizeOfProviderList = ProviderList.GetAllocatedSize();
-	const uint32 CacheSize = NumWidgetProviders * SizeOfWidgetProvider + NumControlProviders * SizeOfControlProvider + SizeOfCachedWidgetProviders + SizeOfProviderList;
+	const SIZE_T SizeOfWidgetProvider = sizeof(FWindowsUIAWidgetProvider);
+	const SIZE_T SizeOfControlProvider = sizeof(FWindowsUIAControlProvider);
+	const SIZE_T SizeOfCachedWidgetProviders = CachedWidgetProviders.GetAllocatedSize();
+	const SIZE_T SizeOfProviderList = ProviderList.GetAllocatedSize();
+	const SIZE_T CacheSize = NumWidgetProviders * SizeOfWidgetProvider + NumControlProviders * SizeOfControlProvider + SizeOfCachedWidgetProviders + SizeOfProviderList;
 
 	UE_LOG(LogAccessibility, Log, TEXT("Dumping Windows accessibility stats:"));
 	UE_LOG(LogAccessibility, Log, TEXT("Number of Widget Providers: %i"), NumWidgetProviders);
 	UE_LOG(LogAccessibility, Log, TEXT("Number of non-Widget Providers: %i"), NumControlProviders);
-	UE_LOG(LogAccessibility, Log, TEXT("Size of FWindowsUIAWidgetProvider: %u"), SizeOfWidgetProvider);
-	UE_LOG(LogAccessibility, Log, TEXT("Size of FWindowsUIAControlProvider: %u"), SizeOfControlProvider);
-	UE_LOG(LogAccessibility, Log, TEXT("Size of WidgetProvider* map: %u"), SizeOfCachedWidgetProviders);
-	UE_LOG(LogAccessibility, Log, TEXT("Size of all Provider* set: %u"), SizeOfProviderList);
-	UE_LOG(LogAccessibility, Log, TEXT("Memory stored in cache: %u kb"), CacheSize / 1000);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of FWindowsUIAWidgetProvider: %" SIZE_T_FMT), SizeOfWidgetProvider);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of FWindowsUIAControlProvider: %" SIZE_T_FMT), SizeOfControlProvider);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of WidgetProvider* map: %" SIZE_T_FMT), SizeOfCachedWidgetProviders);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of all Provider* set: %" SIZE_T_FMT), SizeOfProviderList);
+	UE_LOG(LogAccessibility, Log, TEXT("Memory stored in cache: %" SIZE_T_FMT " kb"), CacheSize / 1000);
 }
 #endif
 

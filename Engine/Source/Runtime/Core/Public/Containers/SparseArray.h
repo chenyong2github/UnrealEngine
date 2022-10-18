@@ -478,7 +478,7 @@ public:
 			}
 
 			// Truncate unallocated elements at the end of the data array.
-			Data.RemoveAt(FirstIndexToRemove,Data.Num() - FirstIndexToRemove);
+			Data.RemoveAt(FirstIndexToRemove,Data.Num() - FirstIndexToRemove, false);
 			AllocationFlags.RemoveAt(FirstIndexToRemove,AllocationFlags.Num() - FirstIndexToRemove);
 		}
 
@@ -524,11 +524,14 @@ public:
 			FreeIndex = NextFreeIndex;
 		}
 
-		Data           .RemoveAt(TargetIndex, NumFree);
+		Data           .RemoveAt(TargetIndex, NumFree, false);
 		AllocationFlags.RemoveAt(TargetIndex, NumFree);
 
 		NumFreeIndices = 0;
 		FirstFreeIndex = -1;
+
+		// Shrink the data array.
+		Data.Shrink();
 
 		return bResult;
 	}
@@ -601,10 +604,9 @@ public:
 	 * Only returns the size of allocations made directly by the container, not the elements themselves.
 	 * @return number of bytes allocated by this container
 	 */
-	uint32 GetAllocatedSize( void ) const
+	SIZE_T GetAllocatedSize( void ) const
 	{
-		return	(Data.Num() + Data.GetSlack()) * sizeof(FElementOrFreeListLink) +
-				AllocationFlags.GetAllocatedSize();
+		return Data.GetAllocatedSize() + AllocationFlags.GetAllocatedSize();
 	}
 
 	/** Tracks the container's memory use through an archive. */

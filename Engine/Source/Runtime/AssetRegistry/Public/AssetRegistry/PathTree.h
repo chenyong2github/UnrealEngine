@@ -39,9 +39,9 @@ public:
 		return ParentPathToChildPaths.Num();
 	}
 
-	uint32 GetAllocatedSize(void) const
+	SIZE_T GetAllocatedSize(void) const
 	{
-		uint32 AllocatedSize = ParentPathToChildPaths.GetAllocatedSize() + ChildPathToParentPath.GetAllocatedSize();
+		SIZE_T AllocatedSize = ParentPathToChildPaths.GetAllocatedSize() + ChildPathToParentPath.GetAllocatedSize();
 
 		for (const TPair<FName, TSet<FName>>& Pair : ParentPathToChildPaths)
 		{

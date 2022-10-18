@@ -92,7 +92,7 @@ namespace Impl
 		/** Delete data and free allocations. */
 		void Clear();
 		/** Report size of dynamic allocations. */
-		uint32 GetAllocatedSize() const;
+		SIZE_T GetAllocatedSize() const;
 	};
 
 	/** Status of gathering, returned from the Tick function */

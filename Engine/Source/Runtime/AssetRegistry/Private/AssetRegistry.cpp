@@ -4172,9 +4172,9 @@ void FAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed, SIZE_T& StateSize, 
 
 	if (bIsTempCachingEnabled && !bIsTempCachingAlwaysEnabled)
 	{
-		uint32 TempCacheMem = TempCachedInheritanceBuffer.GetAllocatedSize();
+		SIZE_T TempCacheMem = TempCachedInheritanceBuffer.GetAllocatedSize();
 		StaticSize += TempCacheMem;
-		UE_LOG(LogAssetRegistry, Warning, TEXT("Asset Registry Temp caching enabled, wasting memory: %dk"), TempCacheMem / 1024);
+		UE_LOG(LogAssetRegistry, Warning, TEXT("Asset Registry Temp caching enabled, wasting memory: %lldk"), TempCacheMem / 1024);
 	}
 
 	if (GlobalGatherer.IsValid())
@@ -5970,7 +5970,7 @@ bool FClassInheritanceBuffer::IsUpToDate(uint64 CurrentClassesVersionNumber) con
 	return !bDirty && RegisteredClassesVersionNumber == CurrentClassesVersionNumber;
 }
 
-uint32 FClassInheritanceBuffer::GetAllocatedSize() const
+SIZE_T FClassInheritanceBuffer::GetAllocatedSize() const
 {
 	return InheritanceMap.GetAllocatedSize() + ReverseInheritanceMap.GetAllocatedSize();
 }
