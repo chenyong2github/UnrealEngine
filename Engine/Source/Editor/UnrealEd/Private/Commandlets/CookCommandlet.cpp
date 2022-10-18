@@ -998,8 +998,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 #endif
 	UE_SCOPED_COOKTIMER(CookCommandlet_GC);
 
-	constexpr bool bShouldAllowCaching = false;
-	const FPlatformMemoryStats MemStatsBeforeGC = FPlatformMemory::GetStats(bShouldAllowCaching);
+	const FPlatformMemoryStats MemStatsBeforeGC = FPlatformMemory::GetStats();
 	int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 	int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
 	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
@@ -1026,7 +1025,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 
 	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 	int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats(bShouldAllowCaching);
+	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats();
 	if (!COTFS.IsCookOnTheFlyMode())
 	{
 		int64 VirtualMemBeforeGC = MemStatsBeforeGC.UsedVirtual;

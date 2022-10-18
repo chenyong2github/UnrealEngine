@@ -141,6 +141,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Engine/ViewportStatsSubsystem.h"
 #include "GPUSkinCache.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
+#include "HAL/PlatformMemoryHelpers.h"
 
 #if UE_WITH_IRIS
 #include "Iris/IrisConfig.h"
@@ -1656,7 +1657,7 @@ void UEngine::PreGarbageCollect()
 
 float GetLowMemoryGCTimer(const float DefaultTimeBetweenGC)
 {
-	float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
+	float MBFree = float(PlatformMemoryHelpers::GetFrameMemoryStats().AvailablePhysical / 1024 / 1024);
 #if !UE_BUILD_SHIPPING
 	MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
 #endif
@@ -1823,7 +1824,7 @@ void UEngine::ConditionalCollectGarbage()
 						float IncGCTime = GIncrementalGCTimePerFrame;
 						if (GLowMemoryMemoryThresholdMB > 0.0)
 						{
-							float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
+							float MBFree = float(PlatformMemoryHelpers::GetFrameMemoryStats().AvailablePhysical / 1024 / 1024);
 #if !UE_BUILD_SHIPPING
 							MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
 #endif

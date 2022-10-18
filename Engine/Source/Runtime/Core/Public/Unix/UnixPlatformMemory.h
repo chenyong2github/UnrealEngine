@@ -76,7 +76,7 @@ struct CORE_API FUnixPlatformMemory : public FGenericPlatformMemory
 	//~ Begin FGenericPlatformMemory Interface
 	static void Init();
 	static class FMalloc* BaseAllocator();
-	static FPlatformMemoryStats GetStatsImmediate();
+	static FPlatformMemoryStats GetStats();
 	static FExtendedPlatformMemoryStats GetExtendedStats();
 	static const FPlatformMemoryConstants& GetConstants();
 	static bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);

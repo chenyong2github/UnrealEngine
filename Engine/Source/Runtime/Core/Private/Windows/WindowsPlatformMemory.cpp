@@ -228,7 +228,7 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 	}
 }
 
-FPlatformMemoryStats FWindowsPlatformMemory::GetStatsImmediate()
+FPlatformMemoryStats FWindowsPlatformMemory::GetStats()
 {
 	// release mimalloc held pages back to OS before getting stats
 	// can't do this, it calls me :

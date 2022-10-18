@@ -33,6 +33,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/TrackedActivity.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformMemoryHelpers.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "HAL/IPlatformFileManagedStorageWrapper.h"
@@ -1447,7 +1448,7 @@ static void UpdateCoreCsvStats_EndFrame()
 	    {
 		    CSV_CUSTOM_STAT_GLOBAL(InputLatencyTime, FPlatformTime::ToMilliseconds64(GInputLatencyTime), ECsvCustomStatOp::Set);
 	    }
-	    FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+	    FPlatformMemoryStats MemoryStats = PlatformMemoryHelpers::GetFrameMemoryStats();
 	    float PhysicalMBFree = float(MemoryStats.AvailablePhysical / 1024) / 1024.0f;
 #if !UE_BUILD_SHIPPING
 	    // Subtract any extra development memory from physical free. This can result in negative values in cases where we would have crashed OOM

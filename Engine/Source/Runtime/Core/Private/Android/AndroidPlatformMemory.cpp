@@ -177,7 +177,7 @@ static bool GetPss(uint64& PSSOUT, uint64& SwapPSSOUT)
 	return FieldsSetSuccessfully == 2;
 }
 
-FPlatformMemoryStats FAndroidPlatformMemory::GetStatsImmediate()
+FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 {
 	FPlatformMemoryStats MemoryStats;	// will init from constants
 

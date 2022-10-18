@@ -22,6 +22,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DynamicResolutionState.h"
+#include "HAL/PlatformMemoryHelpers.h"
 
 #ifndef FPS_CHART_SUPPORT_CSV_PROFILE
 #define FPS_CHART_SUPPORT_CSV_PROFILE (CSV_PROFILER && !UE_BUILD_SHIPPING)
@@ -807,7 +808,7 @@ void FPerformanceTrackingChart::ProcessFrame(const FFrameData& FrameData)
 		TotalDrawnPrimitives += GNumPrimitivesDrawnRHI[0];
 
 		// track memory
-		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+		FPlatformMemoryStats MemoryStats = PlatformMemoryHelpers::GetFrameMemoryStats();
 		MaxPhysicalMemory = FMath::Max(MaxPhysicalMemory, static_cast<uint64>(MemoryStats.UsedPhysical));
 		MaxVirtualMemory = FMath::Max(MaxVirtualMemory, static_cast<uint64>(MemoryStats.UsedVirtual));
 		MinPhysicalMemory = FMath::Min(MinPhysicalMemory, static_cast<uint64>(MemoryStats.UsedPhysical));
@@ -926,7 +927,7 @@ void FPerformanceTrackingChart::DumpChartToAnalyticsParams(const FString& InMapN
 			// Dump some extra non-chart-based stats
 
 			// Get the system memory stats
-			FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
+			FPlatformMemoryStats Stats = PlatformMemoryHelpers::GetFrameMemoryStats();
 			InParamArray.Add(FAnalyticsEventAttribute(TEXT("TotalPhysical"), static_cast<uint64>(Stats.TotalPhysical)));
 			InParamArray.Add(FAnalyticsEventAttribute(TEXT("TotalVirtual"), static_cast<uint64>(Stats.TotalVirtual)));
 			InParamArray.Add(FAnalyticsEventAttribute(TEXT("PeakPhysical"), static_cast<uint64>(Stats.PeakUsedPhysical)));

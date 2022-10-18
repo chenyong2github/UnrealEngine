@@ -6,6 +6,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "HAL/PlatformMemoryHelpers.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
@@ -197,7 +198,7 @@ void FPerfCounters::TickSystemCounters(float DeltaTime)
 		Set(TEXT("ProcessCPUUsageRelativeToCore"), CPUStats.CPUTimePctRelative);
 
 		// memory
-		FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
+		FPlatformMemoryStats Stats = PlatformMemoryHelpers::GetFrameMemoryStats();
 		Set(TEXT("AvailablePhysicalMemoryMB"), static_cast<uint64>(Stats.AvailablePhysical / (1024 * 1024)));
 		Set(TEXT("AvailableVirtualMemoryMB"), static_cast<uint64>(Stats.AvailableVirtual / (1024 * 1024)));
 		Set(TEXT("ProcessPhysicalMemoryMB"), static_cast<uint64>(Stats.UsedPhysical/ (1024 * 1024)));

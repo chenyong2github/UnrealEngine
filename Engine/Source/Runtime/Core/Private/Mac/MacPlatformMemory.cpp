@@ -133,7 +133,7 @@ FMalloc* FMacPlatformMemory::BaseAllocator()
 
 }
 
-FPlatformMemoryStats FMacPlatformMemory::GetStatsImmediate()
+FPlatformMemoryStats FMacPlatformMemory::GetStats()
 {
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 
