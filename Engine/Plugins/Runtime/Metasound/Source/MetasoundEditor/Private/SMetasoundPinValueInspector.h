@@ -6,9 +6,11 @@
 #include "Engine/Engine.h"
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphConnectionManager.h"
 #include "Misc/Attribute.h"
 #include "ScopedTransaction.h"
+#include "SGraphPin.h"
 #include "SPinValueInspector.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
@@ -57,9 +59,11 @@ namespace Metasound
 
 			const UMetasoundEditorGraphNode& GetReroutedNodeChecked() const;
 
-			Frontend::FConstOutputHandle GetOutputHandle() const;
+			UObject* GetOutermostObject();
 
-			Frontend::FOutputHandle GetOutputHandle();
+			Frontend::FConstOutputHandle GetReroutedOutputHandle() const;
+
+			Frontend::FOutputHandle GetReroutedOutputHandle();
 
 			Frontend::FGraphHandle GetGraphHandle();
 
@@ -99,9 +103,6 @@ namespace Metasound
 
 		class METASOUNDEDITOR_API SMetasoundPinValueInspector : public SPinValueInspector
 		{
-			/** The GraphPin that this widget is inspecting. */
-			UEdGraphPin* GraphPinObj;
-
 			TSharedPtr<FMetasoundNumericDebugLineItem> LineItem;
 
 		public:

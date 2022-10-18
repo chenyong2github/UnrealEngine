@@ -73,13 +73,26 @@ namespace Metasound
 		{
 		public:
 			TBoundAnalyzerOutput(const FAnalyzerAddress& InAnalyzerOutputAddress, const FOperatorSettings& InOperatorSettings, TDataReadReference<DataType>&& InData)
-				: DataRef(MoveTemp(InData))
+				: Address(InAnalyzerOutputAddress)
+				, DataRef(MoveTemp(InData))
 			{
 				Sender = FDataTransmissionCenter::Get().RegisterNewSender<DataType>(InAnalyzerOutputAddress, FSenderInitParams { InOperatorSettings, 0 });
 				ensure(Sender);
 			}
 
-			virtual ~TBoundAnalyzerOutput() = default;
+			virtual ~TBoundAnalyzerOutput()
+			{
+				// Only unregister the data channel if we had a sender using that 
+				// data channel. This protects against removing the data channel 
+				// multiple times. Multiple removals of data channels has caused
+				// race conditions between newly created transmitters and transmitters
+				// being cleaned up.
+				if (Sender.IsValid())
+				{
+					Sender.Reset();
+					FDataTransmissionCenter::Get().UnregisterDataChannel(Address);
+				}
+			}
 
 			FAnyDataReference GetDataReference() const override
 			{
@@ -95,6 +108,7 @@ namespace Metasound
 			}
 
 		private:
+			FAnalyzerAddress Address;
 			TDataReadReference<DataType> DataRef;
 			TUniquePtr<TSender<DataType>> Sender;
 		};

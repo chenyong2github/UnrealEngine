@@ -92,6 +92,11 @@ namespace Metasound
 		public:
 			static const FName EditorName;
 
+			FEditor()
+				: GraphConnectionManager(MakeUnique<FGraphConnectionManager>())
+			{
+			}
+
 			virtual ~FEditor();
 
 			virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
@@ -422,7 +427,7 @@ namespace Metasound
 			TSharedPtr<STextBlock> PlayTimeWidget;
 			double PlayTime = 0.0;
 
-			FGraphConnectionManager GraphConnectionManager;
+			TUniquePtr<FGraphConnectionManager> GraphConnectionManager;
 
 			/** Command list for this editor */
 			TSharedPtr<FUICommandList> GraphEditorCommands;

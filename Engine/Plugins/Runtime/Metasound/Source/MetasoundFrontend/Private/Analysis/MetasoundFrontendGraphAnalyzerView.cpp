@@ -66,6 +66,21 @@ namespace Metasound
 			ActiveAnalyzerSender = FDataTransmissionCenter::Get().RegisterNewSender(AnalyzerAddress, SenderParams);
 		}
 
+		FMetasoundGraphAnalyzerView::~FMetasoundGraphAnalyzerView()
+		{
+			// Only unregister the data channel if we had a sender using that 
+			// data channel. This protects against removing the data channel 
+			// multiple times. Multiple removals of data channels has caused
+			// race conditions between newly created transmitters and transmitters
+			// being cleaned up.
+			if (ActiveAnalyzerSender.IsValid())
+			{
+				const FGraphAnalyzerAddress AnalyzerAddress(InstanceID);
+				ActiveAnalyzerSender.Reset();
+				FDataTransmissionCenter::Get().UnregisterDataChannel(AnalyzerAddress);
+			}
+		}
+
 		void FMetasoundGraphAnalyzerView::AddAnalyzerForAllSupportedOutputs(FName InAnalyzerName, bool bInRequiresConnection)
 		{
 			using namespace GraphAnalyzerViewPrivate;

@@ -79,9 +79,12 @@ namespace Metasound
 
 		class FGraphConnectionManager
 		{
+			FGraphConnectionManager(const FGraphConnectionManager&) = delete;
+
 		public:
 			FGraphConnectionManager() = default;
 			FGraphConnectionManager(const FMetasoundAssetBase& InAssetBase, const UAudioComponent& InAudioComponent, FSampleRate InSampleRate);
+			~FGraphConnectionManager() = default;
 
 			bool GetValue(const FGuid& InNodeID, FVertexName InOutputName, float& OutValue) const;
 			bool GetValue(const FGuid& InNodeID, FVertexName InOutputName, bool& OutValue) const;
@@ -111,14 +114,15 @@ namespace Metasound
 			{
 				using namespace Frontend;
 
-				TArray<const FMetasoundAnalyzerView*> Views = GraphAnalyzerView.GetAnalyzerViewsForOutput(InNodeID, InOutputName, ForwardValueAnalyzerClass::GetAnalyzerName());
+				const Frontend::FMetasoundGraphAnalyzerView* GraphView = GraphAnalyzerView.Get();
+				TArray<const FMetasoundAnalyzerView*> Views = GraphView->GetAnalyzerViewsForOutput(InNodeID, InOutputName, ForwardValueAnalyzerClass::GetAnalyzerName());
 				if (!Views.IsEmpty())
 				{
 					const FMetasoundAnalyzerView** View = Views.FindByPredicate([](const FMetasoundAnalyzerView* Candidate)
-						{
-							check(Candidate);
-							return Candidate->AnalyzerAddress.AnalyzerMemberName == ForwardValueAnalyzerClass::FOutputs::GetValue().Name;
-						});
+					{
+						check(Candidate);
+						return Candidate->AnalyzerAddress.AnalyzerMemberName == ForwardValueAnalyzerClass::FOutputs::GetValue().Name;
+					});
 
 					if (View)
 					{
@@ -156,7 +160,7 @@ namespace Metasound
 			{
 				using namespace Frontend;
 
-				TArray<FMetasoundAnalyzerView*> Views = GraphAnalyzerView.GetAnalyzerViews(ForwardValueAnalyzerClass::GetAnalyzerName());
+				TArray<FMetasoundAnalyzerView*> Views = GraphAnalyzerView->GetAnalyzerViews(ForwardValueAnalyzerClass::GetAnalyzerName());
 				for (FMetasoundAnalyzerView* View : Views)
 				{
 					check(View);
@@ -217,7 +221,7 @@ namespace Metasound
 			TMap<FString, bool> BoolConnectionValues;
 			TMap<FString, FString> StringConnectionValues;
 
-			Frontend::FMetasoundGraphAnalyzerView GraphAnalyzerView;
+			TUniquePtr<Frontend::FMetasoundGraphAnalyzerView> GraphAnalyzerView;
 		};
 	} // namespace Editor
 } // Metasound

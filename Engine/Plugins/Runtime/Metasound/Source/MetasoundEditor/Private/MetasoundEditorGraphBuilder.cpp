@@ -146,11 +146,6 @@ namespace Metasound
 				bEditorGraphModified |= FGraphBuilder::SynchronizeNodes(InMetaSound);
 				bEditorGraphModified |= FGraphBuilder::SynchronizeConnections(InMetaSound);
 
-				if (bEditorGraphModified)
-				{
-					InMetaSound.MarkPackageDirty();
-				}
-
 				return bEditorGraphModified;
 			}
 		} // namespace GraphBuilderPrivate
@@ -234,6 +229,12 @@ namespace Metasound
 				|| DataType == GetMetasoundDataTypeName<bool>();
 
 			if (!bIsSupportedType)
+			{
+				return false;
+			}
+
+			const UEdGraphPin* ReroutedPin = FindReroutedOutputPin(InPin);
+			if (ReroutedPin != InPin)
 			{
 				return false;
 			}
@@ -846,6 +847,33 @@ namespace Metasound
 							if (!LinkedTo.IsEmpty())
 							{
 								UEdGraphPin* ReroutedOutput = LinkedTo.Last();
+								return FindReroutedOutputPin(ReroutedOutput);
+							}
+						}
+					}
+				}
+			}
+
+			return OutputPin;
+		}
+
+		const UEdGraphPin* FGraphBuilder::FindReroutedOutputPin(const UEdGraphPin* OutputPin)
+		{
+			using namespace Frontend;
+
+			if (OutputPin)
+			{
+				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(OutputPin->GetOwningNode()))
+				{
+					if (ExternalNode->GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						auto IsInput = [](const UEdGraphPin* Pin) { check(Pin); return Pin->Direction == EGPD_Input; };
+						if (const UEdGraphPin* RerouteInput = *ExternalNode->Pins.FindByPredicate(IsInput))
+						{
+							const TArray<UEdGraphPin*>& LinkedTo = RerouteInput->LinkedTo;
+							if (!LinkedTo.IsEmpty())
+							{
+								const UEdGraphPin* ReroutedOutput = LinkedTo.Last();
 								return FindReroutedOutputPin(ReroutedOutput);
 							}
 						}

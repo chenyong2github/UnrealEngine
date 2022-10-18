@@ -215,6 +215,7 @@ namespace Metasound
 			static Frontend::FConstOutputHandle GetConstOutputHandleFromPin(const UEdGraphPin* InPin);
 
 			static UEdGraphPin* FindReroutedOutputPin(UEdGraphPin* InPin);
+			static const UEdGraphPin* FindReroutedOutputPin(const UEdGraphPin* InPin);
 
 			// Find the "concrete" output handle associated with an output pin.  If the given output pin is on
 			// a reroute node, will recursively search for the non-rerouted output its representing.

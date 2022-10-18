@@ -36,9 +36,16 @@ namespace Metasound
 			using FMetasoundGraphAnalyzerOutputKey = TTuple<FGuid /* NodeID */, FName /* OutputName */>;
 			TMap<FMetasoundGraphAnalyzerOutputKey, TArray<FMetasoundAnalyzerView>> AnalyzerViews;
 
+			FMetasoundGraphAnalyzerView(const FMetasoundGraphAnalyzerView&) = delete;
+			FMetasoundGraphAnalyzerView(FMetasoundGraphAnalyzerView&&) = delete;
+			FMetasoundGraphAnalyzerView& operator=(const FMetasoundGraphAnalyzerView&) = delete;
+			FMetasoundGraphAnalyzerView& operator=(FMetasoundGraphAnalyzerView&&) = delete;
+
 		public:
 			FMetasoundGraphAnalyzerView() = default;
+
 			FMetasoundGraphAnalyzerView(const FMetasoundAssetBase& InAssetBase, uint64 InInstanceID, FSampleRate InSampleRate);
+			~FMetasoundGraphAnalyzerView();
 
 			void AddAnalyzerForAllSupportedOutputs(FName InAnalyzerName, bool bInRequiresConnection = true);
 			void RemoveAnalyzerForAllSupportedOutputs(FName InAnalyzerName);

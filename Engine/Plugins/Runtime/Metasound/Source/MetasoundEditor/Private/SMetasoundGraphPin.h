@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "EdGraph/EdGraphPin.h"
 #include "Styling/AppStyle.h"
 #include "KismetPins/SGraphPinBool.h"
 #include "KismetPins/SGraphPinNum.h"
@@ -13,12 +14,16 @@
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
 #include "SGraphPin.h"
+#include "SGraphNodeKnot.h"
 #include "SMetasoundPinValueInspector.h"
+#include "SPinTypeSelector.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateBrush.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -28,15 +33,88 @@ namespace Metasound
 	namespace Editor
 	{
 		template <typename ParentPinType>
-		class METASOUNDEDITOR_API TMetasoundGraphPin : public ParentPinType
+		class TMetasoundGraphPin : public ParentPinType
 		{
 			TSharedPtr<SMetasoundPinValueInspector> PinInspector;
+
+		protected:
+			static TWeakPtr<FPinValueInspectorTooltip> OpenPinInspector(UEdGraphPin& InPin, TSharedPtr<SMetasoundPinValueInspector>& OutPinInspector)
+			{
+				TSharedPtr<SMetasoundPinValueInspector> NewPinInspector = SNew(SMetasoundPinValueInspector);
+				TWeakPtr<FPinValueInspectorTooltip> NewTooltip = FPinValueInspectorTooltip::SummonTooltip(&InPin, NewPinInspector);
+				if (NewTooltip.IsValid())
+				{
+					OutPinInspector = NewPinInspector;
+					return NewTooltip;
+				}
+
+				return nullptr;
+			}
+
+			static void UpdatePinInspector(
+				UEdGraphPin& InPin,
+				const bool bIsHoveringPin,
+				TSharedPtr<SMetasoundPinValueInspector>& OutPinInspector,
+				TWeakPtr<FPinValueInspectorTooltip>& OutInspectorTooltip,
+				TFunctionRef<void(FVector2D&)> InGetTooltipLocation)
+			{
+				const bool bCanInspectPin = FGraphBuilder::CanInspectPin(&InPin);
+				if (bIsHoveringPin && bCanInspectPin)
+				{
+					if (OutPinInspector.IsValid())
+					{
+						const UEdGraphPin* InspectedPin = OutPinInspector->GetPinRef().Get();
+						if (InspectedPin == &InPin)
+						{
+							OutPinInspector->UpdateMessage();
+						}
+					}
+					else
+					{
+						OutInspectorTooltip = OpenPinInspector(InPin, OutPinInspector);
+						TSharedPtr<FPinValueInspectorTooltip> NewTooltip = OutInspectorTooltip.Pin();
+						if (NewTooltip.IsValid())
+						{
+							FVector2D TooltipLocation;
+							InGetTooltipLocation(TooltipLocation);
+							NewTooltip->MoveTooltip(TooltipLocation);
+						}
+					}
+				}
+				else if (OutPinInspector.IsValid())
+				{
+					TSharedPtr<FPinValueInspectorTooltip> InspectorTooltip = OutInspectorTooltip.Pin();
+					if (InspectorTooltip.IsValid())
+					{
+						if (InspectorTooltip->TooltipCanClose())
+						{
+							constexpr bool bForceDismiss = true;
+							InspectorTooltip->TryDismissTooltip(bForceDismiss);
+							OutInspectorTooltip.Reset();
+							OutPinInspector.Reset();
+						}
+					}
+					else
+					{
+						OutPinInspector.Reset();
+					}
+				}
+			}
 
 		public:
 			SLATE_BEGIN_ARGS(TMetasoundGraphPin<ParentPinType>)
 			{
 			}
 			SLATE_END_ARGS()
+
+			virtual ~TMetasoundGraphPin() = default;
+
+			void CacheNodeOffset(const FGeometry& AllottedGeometry)
+			{
+				const FVector2D UnscaledPosition = ParentPinType::OwnerNodePtr.Pin()->GetUnscaledPosition();
+				ParentPinType::CachedNodeOffset = FVector2D(AllottedGeometry.AbsolutePosition) / AllottedGeometry.Scale - UnscaledPosition;
+				ParentPinType::CachedNodeOffset.Y += AllottedGeometry.Size.Y * 0.5f;
+			}
 
 			Frontend::FConstInputHandle GetConstInputHandle() const
 			{
@@ -264,61 +342,16 @@ namespace Metasound
 
 			virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
 			{
-				ParentPinType::CachedNodeOffset = FVector2D(AllottedGeometry.AbsolutePosition) / AllottedGeometry.Scale - ParentPinType::OwnerNodePtr.Pin()->GetUnscaledPosition();
-				ParentPinType::CachedNodeOffset.Y += AllottedGeometry.Size.Y * 0.5f;
+				CacheNodeOffset(AllottedGeometry);
 
-				UEdGraphPin* GraphPin = ParentPinType::GetPinObj();
-
-				// Pause updates if menu is hosted (so user can capture state for ex. using the copy value action)
-				TSharedPtr<FPinValueInspectorTooltip> InspectorTooltip = ParentPinType::ValueInspectorTooltip.Pin();
-				if (InspectorTooltip.IsValid())
+				if (UEdGraphPin* GraphPin = ParentPinType::GetPinObj())
 				{
 					const bool bIsHoveringPin = ParentPinType::IsHovered();
-					const bool bIsInspectingPin = bIsHoveringPin && FGraphBuilder::CanInspectPin(GraphPin);
-					if (bIsInspectingPin)
-					{
-						if (PinInspector.IsValid())
+					UpdatePinInspector(*GraphPin, bIsHoveringPin, PinInspector, ParentPinType::ValueInspectorTooltip,
+						[this](FVector2D& OutTooltipLocation)
 						{
-							PinInspector->UpdateMessage();
-						}
-					}
-					else
-					{
-						if (InspectorTooltip->TooltipCanClose())
-						{
-							PinInspector.Reset();
-							InspectorTooltip->TryDismissTooltip();
-						}
-					}
-				}
-				else
-				{
-					const bool bIsHoveringPin = ParentPinType::IsHovered();
-					const bool bCanInspectPin = FGraphBuilder::CanInspectPin(GraphPin);
-					if (bIsHoveringPin && bCanInspectPin)
-					{
-						const FEdGraphPinReference* CurrentRef = nullptr;
-						if (FPinValueInspectorTooltip::ValueInspectorWidget.IsValid())
-						{
-							CurrentRef = &FPinValueInspectorTooltip::ValueInspectorWidget->GetPinRef();
-						}
-
-						// Only update if reference is not already set.  This avoids ping-pong between pins which can happen
-						// when hovering connections as this state causes IsHovered to return true for all the associated pins
-						// for the given connection.
-						if (!CurrentRef || !CurrentRef->Get() || CurrentRef->Get() == GraphPin)
-						{
-							PinInspector = SNew(SMetasoundPinValueInspector);
-							ParentPinType::ValueInspectorTooltip = FPinValueInspectorTooltip::SummonTooltip(GraphPin, PinInspector);
-							InspectorTooltip = ParentPinType::ValueInspectorTooltip.Pin();
-							if (InspectorTooltip.IsValid())
-							{
-								FVector2D TooltipLocation;
-								ParentPinType::GetInteractiveTooltipLocation(TooltipLocation);
-								InspectorTooltip->MoveTooltip(TooltipLocation);
-							}
-						}
-					}
+							ParentPinType::GetInteractiveTooltipLocation(OutTooltipLocation);
+						});
 				}
 			}
 		};
@@ -326,6 +359,8 @@ namespace Metasound
 		class SMetasoundGraphPin : public TMetasoundGraphPin<SGraphPin>
 		{
 		public:
+			virtual ~SMetasoundGraphPin() = default;
+
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
 				SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
@@ -335,6 +370,8 @@ namespace Metasound
 		class SMetasoundGraphPinBool : public TMetasoundGraphPin<SGraphPinBool>
 		{
 		public:
+			virtual ~SMetasoundGraphPinBool() = default;
+
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
 				SGraphPinBool::Construct(SGraphPinBool::FArguments(), InGraphPinObj);
@@ -344,6 +381,8 @@ namespace Metasound
 		class SMetasoundGraphPinFloat : public TMetasoundGraphPin<SGraphPinNum<float>>
 		{
 		public:
+			virtual ~SMetasoundGraphPinFloat() = default;
+
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
 				SGraphPinNum<float>::Construct(SGraphPinNum<float>::FArguments(), InGraphPinObj);
@@ -353,6 +392,8 @@ namespace Metasound
 		class SMetasoundGraphPinInteger : public TMetasoundGraphPin<SGraphPinInteger>
 		{
 		public:
+			virtual ~SMetasoundGraphPinInteger() = default;
+
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
 				SGraphPinInteger::Construct(SGraphPinInteger::FArguments(), InGraphPinObj);
@@ -362,6 +403,8 @@ namespace Metasound
 		class SMetasoundGraphPinObject : public TMetasoundGraphPin<SGraphPinObject>
 		{
 		public:
+			virtual ~SMetasoundGraphPinObject() = default;
+
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
 				SGraphPinObject::Construct(SGraphPinObject::FArguments(), InGraphPinObj);
@@ -371,10 +414,27 @@ namespace Metasound
 		class SMetasoundGraphPinString : public TMetasoundGraphPin<SGraphPinString>
 		{
 		public:
+			virtual ~SMetasoundGraphPinString() = default;
+
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
 				SGraphPinString::Construct(SGraphPinString::FArguments(), InGraphPinObj);
 			}
+		};
+
+		class SMetaSoundGraphPinKnot : public TMetasoundGraphPin<SGraphPinKnot>
+		{
+		public:
+			virtual ~SMetaSoundGraphPinKnot() = default;
+
+			void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
+
+			virtual FSlateColor GetPinColor() const override;
+
+			virtual const FSlateBrush* GetPinIcon() const override;
+
+		protected:
+			bool HasRequiredConnections() const;
 		};
 	} // namespace Editor
 } // namespace Metasound

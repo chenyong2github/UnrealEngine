@@ -12,6 +12,7 @@
 #include "MetasoundTrace.h"
 #include "Misc/App.h"
 #include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
+#include "SMetasoundPinValueInspector.h"
 #include "Templates/Function.h"
 #include "WaveTableSampler.h"
 
@@ -131,10 +132,10 @@ namespace Metasound
 					return;
 				}
 
-				const FGuid NodeID = Node->GetNodeID();
+				Frontend::FConstOutputHandle OutputHandle = Frontend::FindReroutedOutput(InData.OutputHandle);
+				const FGuid NodeID = OutputHandle->GetOwningNodeID();
 				TNumericType Value = InDefaultValue;
-				FName OutputName = InData.OutputHandle->GetName();
-				
+				FName OutputName = OutputHandle->GetName();
 				Editor->GetConnectionManager().GetValue(NodeID, OutputName, Value);
 
 				FLinearColor InnerColor = Frontend::DisplayStyle::EdgeAnimation::DefaultColor;

@@ -14,17 +14,17 @@ namespace Metasound
 	{
 		FGraphConnectionManager::FGraphConnectionManager(const FMetasoundAssetBase& InAssetBase, const UAudioComponent& InAudioComponent, FSampleRate InSampleRate)
 			: AudioComponent(&InAudioComponent)
-			, GraphAnalyzerView({ InAssetBase, InAudioComponent.GetInstanceOwnerID(), InSampleRate })
+			, GraphAnalyzerView(MakeUnique<Frontend::FMetasoundGraphAnalyzerView>(InAssetBase, InAudioComponent.GetInstanceOwnerID(), InSampleRate))
 		{
 			using namespace Frontend;
 
-			GraphAnalyzerView.AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardBool::GetAnalyzerName());
-			GraphAnalyzerView.AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardFloat::GetAnalyzerName());
-			GraphAnalyzerView.AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardInt::GetAnalyzerName());
-			GraphAnalyzerView.AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardString::GetAnalyzerName());
+			GraphAnalyzerView->AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardBool::GetAnalyzerName());
+			GraphAnalyzerView->AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardFloat::GetAnalyzerName());
+			GraphAnalyzerView->AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardInt::GetAnalyzerName());
+			GraphAnalyzerView->AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerForwardString::GetAnalyzerName());
 
-			GraphAnalyzerView.AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerEnvelopeFollower::GetAnalyzerName());
-			GraphAnalyzerView.AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerTriggerDensity::GetAnalyzerName());
+			GraphAnalyzerView->AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerEnvelopeFollower::GetAnalyzerName());
+			GraphAnalyzerView->AddAnalyzerForAllSupportedOutputs(FVertexAnalyzerTriggerDensity::GetAnalyzerName());
 		}
 
 		bool FGraphConnectionManager::GetValue(const FGuid& InNodeID, FVertexName InOutputName, float& OutValue) const
@@ -127,7 +127,7 @@ namespace Metasound
 
 			float CurrentValue = 0.0f;
 
-			TArray<FMetasoundAnalyzerView*> Views = GraphAnalyzerView.GetAnalyzerViews(InAnalyzerName);
+			TArray<FMetasoundAnalyzerView*> Views = GraphAnalyzerView->GetAnalyzerViews(InAnalyzerName);
 			for (const FMetasoundAnalyzerView* View : Views)
 			{
 				check(View);

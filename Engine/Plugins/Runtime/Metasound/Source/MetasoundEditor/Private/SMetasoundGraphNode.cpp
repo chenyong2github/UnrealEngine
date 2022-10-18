@@ -36,6 +36,7 @@
 #include "SLevelOfDetailBranchNode.h"
 #include "SMetasoundGraphEnumPin.h"
 #include "SMetasoundGraphPin.h"
+#include "SMetasoundPinValueInspector.h"
 #include "SPinTypeSelector.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
@@ -51,29 +52,13 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundGraphNode"
+#define LOCTEXT_NAMESPACE "MetasoundEditor"
 
 
 namespace Metasound
 {
 	namespace Editor
 	{
-		class SMetaSoundGraphPinKnot : public SGraphPinKnot
-		{
-		public:
-			SLATE_BEGIN_ARGS(SMetaSoundGraphPinKnot) {}
-			SLATE_END_ARGS()
-
-			void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
-
-			virtual const FSlateBrush* GetPinIcon() const override;
-			virtual FSlateColor GetPinColor() const override;
-
-		protected:
-			bool HasRequiredConnections() const;
-		};
-
-
 		SMetaSoundGraphNode::~SMetaSoundGraphNode()
 		{
 			UMetasoundEditorGraphNode& Node = GetMetaSoundNode();
@@ -191,7 +176,7 @@ namespace Metasound
 		{
 			const FText ToolTip = InToolTip
 				? *InToolTip
-				: LOCTEXT("TriggerTestToolTip", "Executes trigger if currently previewing MetaSound.");
+				: LOCTEXT("MetasoundGraphNode_TriggerTestToolTip", "Executes trigger if currently previewing MetaSound.");
 
 			TSharedPtr<SButton> SimulationButton;
 			TSharedRef<SWidget> SimulationWidget = SNew(SHorizontalBox)
@@ -669,7 +654,7 @@ namespace Metasound
 							{
 								if (!this->bIsInputWidgetTransacting)
 								{
-									GEditor->BeginTransaction(LOCTEXT("MetasoundSetInputDefault", "Set MetaSound Input Default"));
+									GEditor->BeginTransaction(LOCTEXT("MetasoundGraphNode_MetasoundSetInputDefault", "Set MetaSound Input Default"));
 									this->bIsInputWidgetTransacting = true;
 								}
 								GraphMember->GetOwningGraph()->GetMetasound()->Modify();
@@ -955,101 +940,6 @@ namespace Metasound
 			check(GraphNode);
 			return *Cast<UMetasoundEditorGraphNode>(GraphNode);
 		}
-
-		void SMetaSoundGraphPinKnot::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
-		{
-			SGraphPinKnot::Construct(SGraphPinKnot::FArguments(), InPin);
-
-			TSharedRef<SWidget> PinWidgetRef = SPinTypeSelector::ConstructPinTypeImage(
-				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetPinIcon),
-				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetPinColor),
-				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetSecondaryPinIcon),
-				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetSecondaryPinColor));
-			PinImage = PinWidgetRef;
-		}
-
-		FSlateColor SMetaSoundGraphPinKnot::GetPinColor() const
-		{
-			if (UEdGraphPin* Pin = GetPinObj())
-			{
-				if (Pin->Direction == EGPD_Output)
-				{
-					if (!HasRequiredConnections() || Pin->GetOwningNode()->ErrorType <= static_cast<uint32>(EMessageSeverity::Warning))
-					{
-						return FLinearColor::Yellow;
-					}
-				}
-			}
-
-			return SGraphPin::GetPinColor();
-		}
-
-		const FSlateBrush* SMetaSoundGraphPinKnot::GetPinIcon() const
-		{
-			using namespace Metasound::Frontend;
-
-			bool bIsConstructorPin = false;
-
-			if (UEdGraphPin* Pin = GetPinObj())
-			{
-				if (!HasRequiredConnections() || Pin->GetOwningNode()->ErrorType <= static_cast<uint32>(EMessageSeverity::Warning))
-				{
-					return &Editor::Style::GetSlateBrushSafe("MetasoundEditor.Graph.InvalidReroute");
-				}
-
-				Pin = FGraphBuilder::FindReroutedOutputPin(Pin);
-				if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
-				{
-					if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
-					{
-						if (const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(MemberNode->GetMember()))
-						{
-							FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
-							TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
-
-							check(!OutputHandles.IsEmpty());
-							bIsConstructorPin = OutputHandles.Last()->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Value;
-						}
-					}
-				}
-			}
-
-			if (bIsConstructorPin)
-			{
-				const bool bIsConnected = IsConnected();
-				if (IsArray())
-				{
-					const FName BrushName = bIsConnected ? "MetasoundEditor.Graph.ConstructorPinArray" : "MetasoundEditor.Graph.ConstructorPinArrayDisconnected";
-					return &Editor::Style::GetSlateBrushSafe(BrushName);
-				}
-				else
-				{
-					const FName BrushName = bIsConnected ? "MetasoundEditor.Graph.ConstructorPin" : "MetasoundEditor.Graph.ConstructorPinDisconnected";
-					return &Editor::Style::GetSlateBrushSafe(BrushName);
-				}
-			}
-
-			return SGraphPin::GetPinIcon();
-		}
-
-		bool SMetaSoundGraphPinKnot::HasRequiredConnections() const
-		{
-			using namespace Frontend;
-
-			if (UEdGraphPin* Pin = GetPinObj())
-			{
-				if (const UMetasoundEditorGraphExternalNode* OwningNode = Cast<UMetasoundEditorGraphExternalNode>(Pin->GetOwningNode()))
-				{
-					if (const INodeTemplate* Template = INodeTemplateRegistry::Get().FindTemplate(FRerouteNodeTemplate::GetRegistryKey()))
-					{
-						FConstNodeHandle NodeHandle = OwningNode->GetConstNodeHandle();
-						return Template->HasRequiredConnections(NodeHandle);
-					}
-				}
-			}
-
-			return false;
-		}
 	} // namespace Editor
 } // namespace Metasound
-#undef LOCTEXT_NAMESPACE // MetasoundGraphNode
+#undef LOCTEXT_NAMESPACE // MetasoundEditor

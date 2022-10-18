@@ -722,6 +722,7 @@ namespace Metasound
 				Stop();
 			}
 
+			GraphConnectionManager.Reset();
 			InterfacesView.Reset();
 			DestroyAnalyzers();
 			check(GEditor);
@@ -1516,7 +1517,7 @@ namespace Metasound
 
 					const FName& AudioBufferTypeName = GetMetasoundDataTypeName<FAudioBuffer>();
 					const FSampleRate SampleRate = static_cast<FSampleRate>(AudioDevice->GetSampleRate());
-					GraphConnectionManager = FGraphConnectionManager(*MetasoundAsset, *PreviewComp, SampleRate);
+					GraphConnectionManager = MakeUnique<FGraphConnectionManager>(*MetasoundAsset, *PreviewComp, SampleRate);
 				}
 
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
@@ -1540,7 +1541,7 @@ namespace Metasound
 							SetPreviewID(INDEX_NONE);
 							PlayTime = 0.0;
 							PlayTimeWidget->SetText(FText::GetEmpty());
-							GraphConnectionManager = { };
+							GraphConnectionManager = MakeUnique<FGraphConnectionManager>();
 
 							return EActiveTimerReturnType::Stop;
 						}
@@ -2613,12 +2614,12 @@ namespace Metasound
 
 		FGraphConnectionManager& FEditor::GetConnectionManager()
 		{
-			return GraphConnectionManager;
+			return *GraphConnectionManager.Get();
 		}
 
 		const FGraphConnectionManager& FEditor::GetConnectionManager() const
 		{
-			return GraphConnectionManager;
+			return *GraphConnectionManager.Get();
 		}
 
 		UAudioComponent* FEditor::GetAudioComponent() const
@@ -3139,7 +3140,7 @@ namespace Metasound
 
 			RefreshEditorContext();
 
-			GraphConnectionManager.Update(DeltaTime);
+			GraphConnectionManager->Update(DeltaTime);
 		}
 
 		void FEditor::RefreshEditorContext()
