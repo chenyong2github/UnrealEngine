@@ -203,7 +203,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task TestRunEarly()
 		{
-			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, null, new List<StringId<IPool>> { new StringId<IPool>("win") });
+			IAgent? agent = await AgentService.CreateAgentAsync("TestAgent", true, new List<StringId<IPool>> { new StringId<IPool>("win") });
 			await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 
 			const string ProjectConfigRevision = "projectconfig";

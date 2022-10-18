@@ -58,8 +58,7 @@ namespace Horde.Build.Agents
 				return Forbid(AclAction.CreateAgent);
 			}
 
-			AgentSoftwareChannelName? channel = String.IsNullOrEmpty(request.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(request.Channel);
-			IAgent agent = await _agentService.CreateAgentAsync(request.Name, request.Enabled, channel, request.Pools?.ConvertAll(x => new PoolId(x)));
+			IAgent agent = await _agentService.CreateAgentAsync(request.Name, request.Enabled, request.Pools?.ConvertAll(x => new PoolId(x)));
 
 			return new CreateAgentResponse(agent.Id.ToString());
 		}
@@ -143,7 +142,6 @@ namespace Horde.Build.Agents
 		public async Task<ActionResult> UpdateAgentAsync(AgentId agentId, [FromBody] UpdateAgentRequest update)
 		{
 			List<PoolId>? updatePools = update.Pools?.ConvertAll(x => new PoolId(x));
-			AgentSoftwareChannelName? channel = String.IsNullOrEmpty(update.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(update.Channel);
 
 			string userName = User.GetUserName() ?? "Unknown";
 
@@ -164,7 +162,7 @@ namespace Horde.Build.Agents
 					return Forbid(AclAction.ChangePermissions, agentId);
 				}
 
-				IAgent? newAgent = await _agentService.Agents.TryUpdateSettingsAsync(agent, update.Enabled, update.RequestConform, update.RequestFullConform, update.RequestRestart, update.RequestShutdown, $"Manual ({userName})", channel, update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(agent.Acl, update.Acl), update.Comment);
+				IAgent? newAgent = await _agentService.Agents.TryUpdateSettingsAsync(agent, update.Enabled, update.RequestConform, update.RequestFullConform, update.RequestRestart, update.RequestShutdown, $"Manual ({userName})", update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(agent.Acl, update.Acl), update.Comment);
 				if (newAgent == null)
 				{
 					continue;

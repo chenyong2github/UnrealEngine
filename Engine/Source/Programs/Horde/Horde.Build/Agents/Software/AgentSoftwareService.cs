@@ -69,11 +69,6 @@ namespace Horde.Build.Agents.Software
 	public class AgentSoftwareChannels : SingletonBase
 	{
 		/// <summary>
-		/// The next version number
-		/// </summary>
-		public int NextVersion { get; set; } = 1;
-
-		/// <summary>
 		/// List of channels
 		/// </summary>
 		public List<AgentSoftwareChannel> Channels { get; set; } = new List<AgentSoftwareChannel>();
@@ -270,6 +265,7 @@ namespace Horde.Build.Agents.Software
 		{
 			return _collection.GetAsync(version);
 		}
+
 		async Task RegisterDefaultAgent(int delayMs)
 		{
 			await Task.Delay(delayMs);

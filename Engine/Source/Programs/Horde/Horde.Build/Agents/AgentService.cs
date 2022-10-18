@@ -15,7 +15,6 @@ using Horde.Build.Acls;
 using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Agents.Sessions;
-using Horde.Build.Agents.Software;
 using Horde.Build.Auditing;
 using Horde.Build.Server;
 using Horde.Build.Tasks;
@@ -31,7 +30,6 @@ using StatsdClient;
 
 namespace Horde.Build.Agents
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
@@ -181,12 +179,11 @@ namespace Horde.Build.Agents
 		/// </summary>
 		/// <param name="name">Name of the agent</param>
 		/// <param name="enabled">Whether the agent is currently enabled</param>
-		/// <param name="channel">Override for the desired software version</param>
 		/// <param name="pools">Pools for this agent</param>
 		/// <returns>Unique id for the agent</returns>
-		public Task<IAgent> CreateAgentAsync(string name, bool enabled, AgentSoftwareChannelName? channel, List<PoolId>? pools)
+		public Task<IAgent> CreateAgentAsync(string name, bool enabled, List<PoolId>? pools)
 		{
-			return Agents.AddAsync(new AgentId(name), enabled, channel, pools);
+			return Agents.AddAsync(new AgentId(name), enabled, pools);
 		}
 
 		/// <summary>

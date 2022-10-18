@@ -10,6 +10,7 @@ using Horde.Build.Agents.Leases;
 using Horde.Build.Agents.Software;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -28,12 +29,14 @@ namespace Horde.Build.Tasks
 		public override TaskSourceFlags Flags => TaskSourceFlags.AllowWhenDisabled | TaskSourceFlags.AllowDuringDowntime;
 
 		readonly AgentSoftwareService _agentSoftwareService;
+		readonly GlobalsService _globalsService;
 		readonly ILogFileService _logService;
 		readonly IClock _clock;
 
-		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, ILogFileService logService, IClock clock)
+		public UpgradeTaskSource(AgentSoftwareService agentSoftwareService, GlobalsService globalsService, ILogFileService logService, IClock clock)
 		{
 			_agentSoftwareService = agentSoftwareService;
+			_globalsService = globalsService;
 			_logService = logService;
 			_clock = clock;
 
@@ -81,7 +84,19 @@ namespace Horde.Build.Tasks
 		/// <returns>Unique id of the client version this agent should be running</returns>
 		public async Task<string?> GetRequiredSoftwareVersion(IAgent agent)
 		{
-			AgentSoftwareChannelName channelName = agent.Channel ?? AgentSoftwareService.DefaultChannelName;
+			IGlobals globals = await _globalsService.GetAsync();
+			GlobalConfig config = globals.Config;
+
+			AgentSoftwareChannelName channelName = AgentSoftwareService.DefaultChannelName;
+			foreach (AgentSoftwareConfig softwareConfig in config.Software)
+			{
+				if (softwareConfig.Condition != null && agent.SatisfiesCondition(softwareConfig.Condition))
+				{
+					channelName = softwareConfig.Channel;
+					break;
+				}
+			}
+
 			IAgentSoftwareChannel? channel = await _agentSoftwareService.GetCachedChannelAsync(channelName);
 			return channel?.Version;
 		}

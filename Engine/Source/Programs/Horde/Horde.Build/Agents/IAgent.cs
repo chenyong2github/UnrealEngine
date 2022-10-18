@@ -26,7 +26,6 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Horde.Build.Agents
 {
-	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
@@ -403,11 +402,6 @@ namespace Horde.Build.Agents
 		/// List of resources available to the agent
 		/// </summary>
 		public IReadOnlyDictionary<string, int> Resources { get; }
-
-		/// <summary>
-		/// Channel for the software running on this agent. Uses <see cref="AgentSoftwareService.DefaultChannelName"/> if not specified
-		/// </summary>
-		public AgentSoftwareChannelName? Channel { get; }
 
 		/// <summary>
 		/// Last upgrade that was attempted

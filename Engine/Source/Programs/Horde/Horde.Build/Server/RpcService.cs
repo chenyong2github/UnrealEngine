@@ -302,7 +302,7 @@ namespace Horde.Build.Server
 					throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create new agents");
 				}
 
-				agent = await _agentService.CreateAgentAsync(request.Name, true, null, null);
+				agent = await _agentService.CreateAgentAsync(request.Name, true, null);
 			}
 
 			// Make sure we're allowed to create sessions on this agent

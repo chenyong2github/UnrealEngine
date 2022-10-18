@@ -122,7 +122,7 @@ namespace Horde.Build.Tests
 				"text/plain", job1ArtifactStream);
 
 			Agent1Name = "testAgent1";
-			Agent1 = await agentService.CreateAgentAsync(Agent1Name, true, null, null);
+			Agent1 = await agentService.CreateAgentAsync(Agent1Name, true, null);
 		}
 
 		private class FixtureGraph : IGraph

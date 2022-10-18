@@ -9,6 +9,7 @@ using EpicGames.Horde.Common;
 using EpicGames.Perforce;
 using EpicGames.Serialization;
 using Horde.Build.Acls;
+using Horde.Build.Agents.Software;
 using Horde.Build.Projects;
 using Horde.Build.Storage;
 using Horde.Build.Tools;
@@ -17,7 +18,8 @@ using Horde.Build.Utilities;
 namespace Horde.Build.Server
 {
 	using ProjectId = StringId<IProject>;
-	
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Global configuration
 	/// </summary>
@@ -39,6 +41,11 @@ namespace Horde.Build.Server
 		/// List of Perforce clusters
 		/// </summary>
 		public List<PerforceCluster> PerforceClusters { get; set; } = new List<PerforceCluster>();
+
+		/// <summary>
+		/// List of costs of a particular agent type
+		/// </summary>
+		public List<AgentSoftwareConfig> Software { get; set; } = new List<AgentSoftwareConfig>();
 
 		/// <summary>
 		/// List of costs of a particular agent type
@@ -200,6 +207,22 @@ namespace Horde.Build.Server
 		/// List of device platforms
 		/// </summary>
 		public List<DevicePlatformConfig> Platforms { get; set; } = new List<DevicePlatformConfig>();
+	}
+
+	/// <summary>
+	/// Selects different agent software versions by evaluating a condition
+	/// </summary>
+	public class AgentSoftwareConfig
+	{
+		/// <summary>
+		/// Channel name
+		/// </summary>
+		public AgentSoftwareChannelName Channel { get; set; }
+
+		/// <summary>
+		/// Condition for using this channel
+		/// </summary>
+		public Condition? Condition { get; set; }
 	}
 
 	/// <summary>

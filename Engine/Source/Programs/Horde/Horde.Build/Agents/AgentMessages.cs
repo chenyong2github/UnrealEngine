@@ -34,11 +34,6 @@ namespace Horde.Build.Agents
 		public bool Ephemeral { get; set; }
 
 		/// <summary>
-		/// Per-agent override for the desired agent software channel
-		/// </summary>
-		public string? Channel { get; set; }
-
-		/// <summary>
 		/// Pools for this agent
 		/// </summary>
 		public List<string>? Pools { get; set; }
@@ -98,11 +93,6 @@ namespace Horde.Build.Agents
 		/// Request the machine be shut down
 		/// </summary>
 		public bool? RequestShutdown { get; set; }
-
-		/// <summary>
-		/// Per-agent override for the desired agent software channel
-		/// </summary>
-		public string? Channel { get; set; }
 
 		/// <summary>
 		/// Pools for this agent
@@ -405,11 +395,6 @@ namespace Horde.Build.Agents
 		public string? Version { get; set; }
 
 		/// <summary>
-		/// Per-agent override for the desired agent software channel
-		/// </summary>
-		public string? Channel { get; set; }
-
-		/// <summary>
 		/// Properties for the agent
 		/// </summary>
 		public List<string> Properties { get; set; }
@@ -481,12 +466,7 @@ namespace Horde.Build.Agents
 			NextConformTime =   agent.LastConformTime;
 			ConformAttemptCount = agent.ConformAttemptCount;
 			Version = agent.Version?.ToString() ?? "Unknown";
-			if(agent.Channel != null)
-			{
-				Version += $" ({agent.Channel})";
-			}
 			Version = agent.Version?.ToString();
-			Channel = agent.Channel?.ToString();
 			UpdateTime = agent.UpdateTime;
 			Pools = agent.GetPools().Select(x => x.ToString()).ToList();
 			Workspaces = agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
