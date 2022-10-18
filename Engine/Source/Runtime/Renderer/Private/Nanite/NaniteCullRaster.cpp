@@ -3270,7 +3270,7 @@ void CullRasterize(
 		);
 	}
 
-	if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
+	if (RasterContext.RasterMode != EOutputBufferMode::DepthOnly)
 	{
 		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
 		CullingContext.DrawPassIndex++;
