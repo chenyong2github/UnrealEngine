@@ -67,19 +67,19 @@ namespace UnrealBuildTool
 		/// <returns>True if successful, false if not</returns>
 		public virtual bool PrepTargetForDeployment(TargetReceipt Receipt)
 		{
-			if (Receipt.IsTestTarget)
+			bool Result = true;
+			if (Receipt.IsTestTarget && Receipt.Launch != null)
 			{
-				ReceiptProperty? TestResourcesFolder = Receipt.AdditionalProperties.FirstOrDefault(Prop => Prop.Name == "ResourcesFolder");
-				if (TestResourcesFolder != null && Receipt.Launch != null)
+				foreach (ReceiptProperty TestResourcesFolder in Receipt.AdditionalProperties.FindAll(Prop => Prop.Name == "ResourcesFolder"))
 				{
 					DirectoryInfo ResourceDirectoryInfo = new DirectoryInfo(TestResourcesFolder.Value);
 					if (ResourceDirectoryInfo.Exists)
 					{
-						return CopyFilesRecursively(TestResourcesFolder.Value, Path.Combine(Receipt.Launch.Directory.FullName, ResourceDirectoryInfo.Name));
+						Result &= CopyFilesRecursively(TestResourcesFolder.Value, Path.Combine(Receipt.Launch.Directory.FullName, ResourceDirectoryInfo.Name));
 					}
 				}
 			}
-			return true;
+			return Result;
 		}
 	}
 }
