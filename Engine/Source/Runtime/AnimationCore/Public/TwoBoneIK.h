@@ -26,7 +26,7 @@ namespace AnimationCore
 	 * @param	StartStretchRatio	When should it start stretch -i.e. 1 means its own length without any stretch
 	 * @param	MaxStretchScale		How much it can stretch to in ratio
 	 */
-	ANIMATIONCORE_API void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale);
+	ANIMATIONCORE_API void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale);
 
 	/**
 	* Two Bone IK
@@ -46,7 +46,7 @@ namespace AnimationCore
 	* @param	StartStretchRatio	When should it start stretch -i.e. 1 means its own length without any stretch
 	* @param	MaxStretchScale		How much it can stretch to in ratio
 	*/
-	ANIMATIONCORE_API void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, float UpperLimbLength, float LowerLimbLength, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale);
+	ANIMATIONCORE_API void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, double UpperLimbLength, double LowerLimbLength, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale);
 
 	/**
 	* Two Bone IK
@@ -66,7 +66,7 @@ namespace AnimationCore
 	* @param	StartStretchRatio	When should it start stretch -i.e. 1 means its own length without any stretch
 	* @param	MaxStretchScale		How much it can stretch to in ratio
 	*/
-	ANIMATIONCORE_API void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale);
+	ANIMATIONCORE_API void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale);
 
 	/**
 	* Two Bone IK
@@ -86,5 +86,5 @@ namespace AnimationCore
 	* @param	StartStretchRatio	When should it start stretch -i.e. 1 means its own length without any stretch
 	* @param	MaxStretchScale		How much it can stretch to in ratio
 	*/
-	ANIMATIONCORE_API void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, float UpperLimbLength, float LowerLimbLength, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale);
+	ANIMATIONCORE_API void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, double UpperLimbLength, double LowerLimbLength, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale);
 };

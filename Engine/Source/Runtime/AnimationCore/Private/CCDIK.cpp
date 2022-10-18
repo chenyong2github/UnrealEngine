@@ -28,9 +28,9 @@ namespace AnimationCore
 				ToEnd.Normalize();
 				ToTarget.Normalize();
 
-				float RotationLimitPerJointInRadian = FMath::DegreesToRadians(InRotationLimitPerJoints[LinkIndex]);
-				float Angle = FMath::ClampAngle(FMath::Acos(FVector::DotProduct(ToEnd, ToTarget)), -RotationLimitPerJointInRadian, RotationLimitPerJointInRadian);
-				bool bCanRotate = (FMath::Abs(Angle) > KINDA_SMALL_NUMBER) && (!bInEnableRotationLimit || RotationLimitPerJointInRadian > CurrentLink.CurrentAngleDelta);
+				double RotationLimitPerJointInRadian = FMath::DegreesToRadians(InRotationLimitPerJoints[LinkIndex]);
+				double Angle = FMath::ClampAngle(FMath::Acos(FVector::DotProduct(ToEnd, ToTarget)), -RotationLimitPerJointInRadian, RotationLimitPerJointInRadian);
+				bool bCanRotate = (FMath::Abs(Angle) > DOUBLE_KINDA_SMALL_NUMBER) && (!bInEnableRotationLimit || RotationLimitPerJointInRadian > CurrentLink.CurrentAngleDelta);
 				if (bCanRotate)
 				{
 					// check rotation limit first, if fails, just abort
@@ -39,7 +39,7 @@ namespace AnimationCore
 						if (RotationLimitPerJointInRadian < CurrentLink.CurrentAngleDelta + Angle)
 						{
 							Angle = RotationLimitPerJointInRadian - CurrentLink.CurrentAngleDelta;
-							if (Angle <= KINDA_SMALL_NUMBER)
+							if (Angle <= DOUBLE_KINDA_SMALL_NUMBER)
 							{
 								return false;
 							}
@@ -101,7 +101,7 @@ namespace AnimationCore
 			// check how far
 			const FVector TargetPos = TargetPosition;
 			FVector TipPos = InOutChain[TipBoneLinkIndex].Transform.GetLocation();
-			float Distance = FVector::Dist(TargetPos, TipPos);
+			double Distance = FVector::Dist(TargetPos, TipPos);
 			int32 IterationCount = 0;
 			while ((Distance > Precision) && (IterationCount++ < MaxIteration))
 			{

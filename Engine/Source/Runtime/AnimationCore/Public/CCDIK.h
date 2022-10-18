@@ -32,11 +32,11 @@ public:
 	 * They have a zero length distance, so they will inherit this bone's transformation. */
 	TArray<int32> ChildZeroLengthTransformIndices;
 
-	float CurrentAngleDelta;
+	double CurrentAngleDelta;
 
 	FCCDIKChainLink()
 		: TransformIndex(INDEX_NONE)
-		, CurrentAngleDelta(0.f)
+		, CurrentAngleDelta(0.0)
 	{
 	}
 
@@ -44,7 +44,7 @@ public:
 		: Transform(InTransform)
 		, LocalTransform(InLocalTransform)
 		, TransformIndex(InTransformIndex)
-		, CurrentAngleDelta(0.f)
+		, CurrentAngleDelta(0.0)
 	{
 	}
 };

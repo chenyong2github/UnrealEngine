@@ -5,14 +5,14 @@
 namespace AnimationCore
 {
 
-void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale)
+void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale)
 {
-	float LowerLimbLength = (InOutEndTransform.GetLocation() - InOutJointTransform.GetLocation()).Size();
-	float UpperLimbLength = (InOutJointTransform.GetLocation() - InOutRootTransform.GetLocation()).Size();
+	double LowerLimbLength = (InOutEndTransform.GetLocation() - InOutJointTransform.GetLocation()).Size();
+	double UpperLimbLength = (InOutJointTransform.GetLocation() - InOutRootTransform.GetLocation()).Size();
 	SolveTwoBoneIK(InOutRootTransform, InOutJointTransform, InOutEndTransform, JointTarget, Effector, UpperLimbLength, LowerLimbLength, bAllowStretching, StartStretchRatio, MaxStretchScale);
 }
 
-void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, float UpperLimbLength, float LowerLimbLength, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale)
+void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransform, FTransform& InOutEndTransform, const FVector& JointTarget, const FVector& Effector, double UpperLimbLength, double LowerLimbLength, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale)
 {
 	FVector OutJointPos, OutEndPos;
 
@@ -59,30 +59,30 @@ void SolveTwoBoneIK(FTransform& InOutRootTransform, FTransform& InOutJointTransf
 	InOutEndTransform.SetTranslation(OutEndPos);
 }
 
-void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale)
+void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale)
 {
-	float LowerLimbLength = (EndPos - JointPos).Size();
-	float UpperLimbLength = (JointPos - RootPos).Size();
+	const double LowerLimbLength = (EndPos - JointPos).Size();
+	const double UpperLimbLength = (JointPos - RootPos).Size();
 
 	SolveTwoBoneIK(RootPos, JointPos, EndPos, JointTarget, Effector, OutJointPos, OutEndPos, UpperLimbLength, LowerLimbLength, bAllowStretching, StartStretchRatio, MaxStretchScale);
 }
 
-void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, float UpperLimbLength, float LowerLimbLength, bool bAllowStretching, float StartStretchRatio, float MaxStretchScale)
+void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVector& EndPos, const FVector& JointTarget, const FVector& Effector, FVector& OutJointPos, FVector& OutEndPos, double UpperLimbLength, double LowerLimbLength, bool bAllowStretching, double StartStretchRatio, double MaxStretchScale)
 {
 	// This is our reach goal.
 	FVector DesiredPos = Effector;
 	FVector DesiredDelta = DesiredPos - RootPos;
-	float DesiredLength = DesiredDelta.Size();
+	double DesiredLength = DesiredDelta.Size();
 
 	// Find lengths of upper and lower limb in the ref skeleton.
 	// Use actual sizes instead of ref skeleton, so we take into account translation and scaling from other bone controllers.
-	float MaxLimbLength = LowerLimbLength + UpperLimbLength;
+	double MaxLimbLength = LowerLimbLength + UpperLimbLength;
 
 	// Check to handle case where DesiredPos is the same as RootPos.
 	FVector	DesiredDir;
-	if (DesiredLength < (float)KINDA_SMALL_NUMBER)
+	if (DesiredLength < DOUBLE_KINDA_SMALL_NUMBER)
 	{
-		DesiredLength = (float)KINDA_SMALL_NUMBER;
+		DesiredLength = DOUBLE_KINDA_SMALL_NUMBER;
 		DesiredDir = FVector(1, 0, 0);
 	}
 	else
@@ -92,11 +92,11 @@ void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVect
 
 	// Get joint target (used for defining plane that joint should be in).
 	FVector JointTargetDelta = JointTarget - RootPos;
-	const float JointTargetLengthSqr = JointTargetDelta.SizeSquared();
+	const double JointTargetLengthSqr = JointTargetDelta.SizeSquared();
 
 	// Same check as above, to cover case when JointTarget position is the same as RootPos.
 	FVector JointPlaneNormal, JointBendDir;
-	if (JointTargetLengthSqr < FMath::Square((float)KINDA_SMALL_NUMBER))
+	if (JointTargetLengthSqr < FMath::Square(DOUBLE_KINDA_SMALL_NUMBER))
 	{
 		JointBendDir = FVector(0, 1, 0);
 		JointPlaneNormal = FVector(0, 0, 1);
@@ -107,7 +107,7 @@ void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVect
 
 		// If we are trying to point the limb in the same direction that we are supposed to displace the joint in, 
 		// we have to just pick 2 random vector perp to DesiredDir and each other.
-		if (JointPlaneNormal.SizeSquared() < FMath::Square((float)KINDA_SMALL_NUMBER))
+		if (JointPlaneNormal.SizeSquared() < FMath::Square(DOUBLE_KINDA_SMALL_NUMBER))
 		{
 			DesiredDir.FindBestAxisVectors(JointPlaneNormal, JointBendDir);
 		}
@@ -126,16 +126,16 @@ void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVect
 
 	if (bAllowStretching)
 	{
-		const float ScaleRange = MaxStretchScale - StartStretchRatio;
-		if (ScaleRange > KINDA_SMALL_NUMBER && MaxLimbLength > KINDA_SMALL_NUMBER)
+		const double ScaleRange = MaxStretchScale - StartStretchRatio;
+		if (ScaleRange > DOUBLE_KINDA_SMALL_NUMBER && MaxLimbLength > DOUBLE_KINDA_SMALL_NUMBER)
 		{
-			const float ReachRatio = DesiredLength / MaxLimbLength;
-			const float ScalingFactor = (MaxStretchScale - 1.f) * FMath::Clamp<float>((ReachRatio - StartStretchRatio) / ScaleRange, 0.f, 1.f);
-			if (ScalingFactor > KINDA_SMALL_NUMBER)
+			const double ReachRatio = DesiredLength / MaxLimbLength;
+			const double ScalingFactor = (MaxStretchScale - 1.0) * FMath::Clamp((ReachRatio - StartStretchRatio) / ScaleRange, 0.0, 1.0);
+			if (ScalingFactor > DOUBLE_KINDA_SMALL_NUMBER)
 			{
-				LowerLimbLength *= (1.f + ScalingFactor);
-				UpperLimbLength *= (1.f + ScalingFactor);
-				MaxLimbLength *= (1.f + ScalingFactor);
+				LowerLimbLength *= (1.0 + ScalingFactor);
+				UpperLimbLength *= (1.0 + ScalingFactor);
+				MaxLimbLength *= (1.0 + ScalingFactor);
 			}
 		}
 	}
@@ -153,27 +153,27 @@ void SolveTwoBoneIK(const FVector& RootPos, const FVector& JointPos, const FVect
 	{
 		// So we have a triangle we know the side lengths of. We can work out the angle between DesiredDir and the direction of the upper limb
 		// using the sin rule:
-		const float TwoAB = 2.f * UpperLimbLength * DesiredLength;
+		const double TwoAB = 2.0 * UpperLimbLength * DesiredLength;
 
-		const float CosAngle = (TwoAB != 0.f) ? ((UpperLimbLength*UpperLimbLength) + (DesiredLength*DesiredLength) - (LowerLimbLength*LowerLimbLength)) / TwoAB : 0.f;
+		const double CosAngle = (TwoAB != 0.0) ? ((UpperLimbLength*UpperLimbLength) + (DesiredLength*DesiredLength) - (LowerLimbLength*LowerLimbLength)) / TwoAB : 0.0;
 
 		// If CosAngle is less than 0, the upper arm actually points the opposite way to DesiredDir, so we handle that.
-		const bool bReverseUpperBone = (CosAngle < 0.f);
+		const bool bReverseUpperBone = (CosAngle < 0.0);
 
 		// Angle between upper limb and DesiredDir
 		// ACos clamps internally so we dont need to worry about out-of-range values here.
-		const float Angle = FMath::Acos(CosAngle);
+		const double Angle = FMath::Acos(CosAngle);
 
 		// Now we calculate the distance of the joint from the root -> effector line.
 		// This forms a right-angle triangle, with the upper limb as the hypotenuse.
-		const float JointLineDist = UpperLimbLength * FMath::Sin(Angle);
+		const double JointLineDist = UpperLimbLength * FMath::Sin(Angle);
 
 		// And the final side of that triangle - distance along DesiredDir of perpendicular.
 		// ProjJointDistSqr can't be neg, because JointLineDist must be <= UpperLimbLength because appSin(Angle) is <= 1.
-		const float ProjJointDistSqr = (UpperLimbLength*UpperLimbLength) - (JointLineDist*JointLineDist);
+		const double ProjJointDistSqr = (UpperLimbLength*UpperLimbLength) - (JointLineDist*JointLineDist);
 		// although this shouldn't be ever negative, sometimes Xbox release produces -0.f, causing ProjJointDist to be NaN
 		// so now I branch it. 						
-		float ProjJointDist = (ProjJointDistSqr > 0.f) ? FMath::Sqrt(ProjJointDistSqr) : 0.f;
+		double ProjJointDist = (ProjJointDistSqr > 0.0) ? FMath::Sqrt(ProjJointDistSqr) : 0.0;
 		if (bReverseUpperBone)
 		{
 			ProjJointDist *= -1.f;
