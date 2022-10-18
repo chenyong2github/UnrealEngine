@@ -717,7 +717,7 @@ public:
 	 * @param	bIsAlreadyInSetPtr	[out]	Optional pointer to bool that will be set depending on whether element is already in set
 	 * @return	A handle to the element stored in the set.
 	 */
-	template <typename ArgsType>
+	template <typename ArgsType = ElementType>
 	FSetElementId Emplace(ArgsType&& Args, bool* bIsAlreadyInSetPtr = nullptr)
 	{
 		// Create a new element.
@@ -741,7 +741,7 @@ public:
 	 * @param	bIsAlreadyInSetPtr	[out]	Optional pointer to bool that will be set depending on whether element is already in set
 	 * @return	A handle to the element stored in the set.
 	 */
-	template <typename ArgsType>
+	template <typename ArgsType = ElementType>
 	FSetElementId EmplaceByHash(uint32 KeyHash, ArgsType&& Args, bool* bIsAlreadyInSetPtr = nullptr)
 	{
 		// Create a new element.

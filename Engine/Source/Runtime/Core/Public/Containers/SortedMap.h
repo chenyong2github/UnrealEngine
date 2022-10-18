@@ -187,7 +187,7 @@ public:
 	 * @param InValue - The value to associate with the key.
 	 * @return A reference to the value as stored in the map (only valid until the next change to any key in the map).
 	 */
-	template <typename InitKeyType, typename InitValueType>
+	template <typename InitKeyType = KeyType, typename InitValueType = ValueType>
 	ValueType& Emplace(InitKeyType&& InKey, InitValueType&& InValue)
 	{
 		ElementType* DataPtr = AllocateMemoryForEmplace(InKey);
@@ -203,7 +203,7 @@ public:
 	 * @param InKey The key to associate the value with.
 	 * @return A reference to the value as stored in the map (only valid until the next change to any key in the map).
 	 */
-	template <typename InitKeyType>
+	template <typename InitKeyType = KeyType>
 	ValueType& Emplace(InitKeyType&& InKey)
 	{
 		ElementType* DataPtr = AllocateMemoryForEmplace(InKey);
