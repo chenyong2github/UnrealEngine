@@ -192,5 +192,16 @@ public:
 		}
 		return WarningText;
 	}
+
+	/** Gets the status message associated with this state, if any. This is a superset of the GetWarningText that also includes IsCheckedOut. */
+	virtual TOptional<FText> GetStatusText() const
+	{
+		TOptional<FText> StatusText = GetWarningText();
+		if (!StatusText.IsSet() && IsCheckedOut())
+		{
+			StatusText.Emplace(GetDisplayTooltip());
+		}
+		return StatusText;
+	}
 };
 

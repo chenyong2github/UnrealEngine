@@ -231,11 +231,11 @@ protected:
 	/** Creates a tooltip widget for this item */
 	TSharedRef<SWidget> CreateToolTipWidget() const;
 
-	/** Gets the visibility of the checked out by other text block in the tooltip */
-	EVisibility GetCheckedOutByOtherTextVisibility() const;
+	/** Gets the visibility of the source control text block in the tooltip */
+	EVisibility GetSourceControlTextVisibility() const;
 
-	/** Gets the text for the checked out by other text block in the tooltip */
-	FText GetCheckedOutByOtherText() const;
+	/** Gets the text for the source control text block in the tooltip */
+	FText GetSourceControlText() const;
 
 	/** Helper function for CreateToolTipWidget. Gets the user description for the asset, if it exists. */
 	FText GetAssetUserDescription() const;

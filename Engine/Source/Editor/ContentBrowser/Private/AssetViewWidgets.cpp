@@ -50,6 +50,7 @@
 #include "SThumbnailEditModeTools.h"
 #include "SlateOptMacros.h"
 #include "SlotBase.h"
+#include "SourceControlHelpers.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateTypes.h"
@@ -784,7 +785,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 		// TODO: Remove this special caseness so that folders can also have visible attributes
 		if(AssetItem->IsFile())
 		{
-			// The tooltip contains the name, class, path, and asset registry tags
+			// The tooltip contains the name, class, path, asset registry tags and source control status
 			const FText NameText = GetNameText();
 			const FText ClassText = FText::Format(LOCTEXT("ClassName", "({0})"), GetAssetClassText());
 			FText PublicStateText = LOCTEXT("PublicAssetState", "Public");
@@ -933,8 +934,8 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 						.AutoHeight()
 						[
 							SNew(STextBlock)
-							.Visibility(this, &SAssetViewItem::GetCheckedOutByOtherTextVisibility)
-							.Text(this, &SAssetViewItem::GetCheckedOutByOtherText)
+							.Visibility(this, &SAssetViewItem::GetSourceControlTextVisibility)
+							.Text(this, &SAssetViewItem::GetSourceControlText)
 							.ColorAndOpacity(FLinearColor(0.1f, 0.5f, 1.f, 1.f))
 						]
 
@@ -1122,12 +1123,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
-EVisibility SAssetViewItem::GetCheckedOutByOtherTextVisibility() const
+EVisibility SAssetViewItem::GetSourceControlTextVisibility() const
 {
-	return GetCheckedOutByOtherText().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+	return GetSourceControlText().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
-FText SAssetViewItem::GetCheckedOutByOtherText() const
+FText SAssetViewItem::GetSourceControlText() const
 {
 	if (AssetItem && AssetItem->IsFile() && !AssetItem->IsTemporary() && ISourceControlModule::Get().IsEnabled())
 	{
@@ -1135,9 +1136,9 @@ FText SAssetViewItem::GetCheckedOutByOtherText() const
 		if (AssetItem->GetItem().GetItemPhysicalPath(AssetFilename))
 		{
 			FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(AssetFilename, EStateCacheUsage::Use);
-			if (SourceControlState && (SourceControlState->IsCheckedOutOther() || SourceControlState->IsCheckedOutOrModifiedInOtherBranch()))
+			if (SourceControlState)
 			{
-				return SourceControlState->GetDisplayTooltip();
+				return SourceControlState->GetStatusText().Get(FText::GetEmpty());
 			}
 		}
 	}
