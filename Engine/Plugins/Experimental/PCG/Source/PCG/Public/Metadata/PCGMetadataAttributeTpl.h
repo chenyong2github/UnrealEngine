@@ -411,7 +411,7 @@ protected:
 		IT Value = PCG::Private::MetadataTraits<IT>::ZeroValue();
 		for (const TPair<PCGMetadataEntryKey, float>& WeightedEntry : InWeightedKeys)
 		{
-			PCG::Private::MetadataTraits<IT>::WeightedSum(
+			Value = PCG::Private::MetadataTraits<IT>::WeightedSum(
 				Value,
 				static_cast<const FPCGMetadataAttribute<T>*>(InAttribute)->GetValueFromItemKey(WeightedEntry.Key),
 				WeightedEntry.Value);
