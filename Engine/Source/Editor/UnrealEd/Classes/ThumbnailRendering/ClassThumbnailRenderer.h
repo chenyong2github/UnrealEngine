@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
 #include "ThumbnailHelpers.h"
 #include "ClassThumbnailRenderer.generated.h"
 
+class UBlueprintGeneratedClass;
 class FCanvas;
 class FRenderTarget;
 
@@ -24,6 +25,9 @@ class UClassThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 	// UObject Implementation
 	UNREALED_API virtual void BeginDestroy() override;
 	// End UObject Implementation
+
+private:
+	void OnBlueprintGeneratedClassUnloaded(UBlueprintGeneratedClass* BPGC);
 
 private:
 	TClassInstanceThumbnailScene<FClassThumbnailScene, 100> ThumbnailScenes;

@@ -498,7 +498,11 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 						BP->CachedDependents.Reset();
 					}
-					if (UWorld* World = Cast<UWorld>(Obj))
+					else if (UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(Obj))
+					{
+						FKismetEditorUtilities::OnBlueprintGeneratedClassUnloaded.Broadcast(BPGC);
+					}
+					else if (UWorld* World = Cast<UWorld>(Obj))
 					{
 						if (World->bIsWorldInitialized)
 						{

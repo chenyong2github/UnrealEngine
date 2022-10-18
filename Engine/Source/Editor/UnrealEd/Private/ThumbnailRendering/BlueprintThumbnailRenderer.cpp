@@ -15,11 +15,6 @@ UBlueprintThumbnailRenderer::UBlueprintThumbnailRenderer(const FObjectInitialize
 	FKismetEditorUtilities::OnBlueprintUnloaded.AddUObject(this, &UBlueprintThumbnailRenderer::OnBlueprintUnloaded);
 }
 
-UBlueprintThumbnailRenderer::~UBlueprintThumbnailRenderer()
-{
-	FKismetEditorUtilities::OnBlueprintUnloaded.RemoveAll(this);
-}
-
 bool UBlueprintThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
 	UBlueprint* Blueprint = Cast<UBlueprint>(Object);
@@ -117,6 +112,7 @@ void UBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32
 
 void UBlueprintThumbnailRenderer::BeginDestroy()
 {
+	FKismetEditorUtilities::OnBlueprintUnloaded.RemoveAll(this);
 	ThumbnailScenes.Clear();
 
 	Super::BeginDestroy();

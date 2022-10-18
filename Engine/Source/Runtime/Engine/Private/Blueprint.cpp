@@ -1989,6 +1989,10 @@ void UBlueprint::ReplaceDeprecatedNodes()
 void UBlueprint::ClearEditorReferences()
 {
 	FKismetEditorUtilities::OnBlueprintUnloaded.Broadcast(this);
+	if (UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(GeneratedClass))
+	{
+		FKismetEditorUtilities::OnBlueprintGeneratedClassUnloaded.Broadcast(BPGC);
+	}
 }
 
 UInheritableComponentHandler* UBlueprint::GetInheritableComponentHandler(bool bCreateIfNecessary)

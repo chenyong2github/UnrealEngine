@@ -126,6 +126,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlueprintUnloaded, UBlueprint*);
 	static FOnBlueprintUnloaded OnBlueprintUnloaded;
 
+	/** Event that's broadcast anytime a blueprint generated class is unloaded */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlueprintGeneratedClassUnloaded, UBlueprintGeneratedClass*);
+	static FOnBlueprintGeneratedClassUnloaded OnBlueprintGeneratedClassUnloaded;
+
 	/** 
 	 * Unloads the specified Blueprint (marking it pending-kill, and removing it 
 	 * from its outer package). Then proceeds to replace all references with a

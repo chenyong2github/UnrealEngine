@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
 #include "ThumbnailHelpers.h"
@@ -21,8 +21,6 @@ UCLASS(config=Editor,MinimalAPI)
 class UBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
-
-	UNREALED_API virtual ~UBlueprintThumbnailRenderer();
 
 	// Begin UThumbnailRenderer Object
 	UNREALED_API virtual bool CanVisualizeAsset(UObject* Object) override;
