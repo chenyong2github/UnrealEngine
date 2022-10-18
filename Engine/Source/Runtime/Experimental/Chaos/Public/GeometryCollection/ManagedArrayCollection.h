@@ -416,6 +416,13 @@ public:
 	FORCEINLINE bool HasGroup(FName Group) const { return GroupInfo.Contains(Group); }
 
 	/**
+	* Return attribute type
+	* @param Name - The name of the attribute
+	* @param Group - The group that manages the attribute
+	*/
+	EArrayType GetAttributeType(FName Name, FName Group) const;
+
+	/**
 	* Check if an attribute is dirty
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute

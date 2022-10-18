@@ -106,6 +106,15 @@ bool FManagedArrayCollection::HasAttributes(const TArray<FManagedArrayCollection
 	return true;
 }
 
+FManagedArrayCollection::EArrayType FManagedArrayCollection::GetAttributeType(FName Name, FName Group) const
+{
+	const FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+	if (const FValueType* Attribute = Map.Find(Key))
+	{
+		return Attribute->ArrayType;
+	}
+	return EArrayType::FNoneType;
+}
 
 bool FManagedArrayCollection::IsAttributeDirty(FName Name, FName Group) const
 {
