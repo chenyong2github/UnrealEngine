@@ -25,8 +25,10 @@ struct FObjectInfo
 
 struct FObjectPropertiesMessage
 {
-	int64 PropertyValueStartIndex = INDEX_NONE;
-	int64 PropertyValueEndIndex = INDEX_NONE;
+	int64 PropertyValueStartIndex = INDEX_NONE;	// Inclusive
+	int64 PropertyValueEndIndex = INDEX_NONE;	// Exclusive
+	double ProfileTime;
+	double ElapsedTime;
 };
 
 struct FObjectPropertyValue
@@ -34,7 +36,8 @@ struct FObjectPropertyValue
 	const TCHAR* Value = nullptr;
 	int32 ParentId = 0;
 	uint32 TypeStringId = 0;
-	uint32 KeyStringId = 0;
+	uint32 NameId = 0;
+	uint32 ParentNameId = 0;
 	float ValueAsFloat = 0.0f;
 };
 
@@ -109,10 +112,12 @@ public:
 	virtual bool ReadObjectEventsTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectEventsTimeline&)> Callback) const = 0;
 	virtual bool ReadObjectEvent(uint64 InObjectId, uint64 InMessageId, TFunctionRef<void(const FObjectEventMessage&)> Callback) const = 0;
 	virtual bool ReadObjectPropertiesTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectPropertiesTimeline&)> Callback) const = 0;
+	virtual bool ReadObjectPropertiesStorage(uint64 InObjectId, const FObjectPropertiesMessage& InMessage, TFunctionRef<void(const TConstArrayView<FObjectPropertyValue> &)> Callback) const = 0;
 	virtual void EnumerateObjectPropertyValues(uint64 InObjectId, const FObjectPropertiesMessage& InMessage, TFunctionRef<void(const FObjectPropertyValue&)> Callback) const = 0;
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const = 0;
 	virtual void EnumerateObjects(double StartTime, double EndTime, TFunctionRef<void(const FObjectInfo&)> Callback) const = 0;
 	virtual void EnumerateSubobjects(uint64 ObjectId, TFunctionRef<void(uint64 SubobjectId)> Callback) const = 0;
+	virtual const FObjectPropertyValue * FindPropertyValueFromStorageIndex(uint64 InObjectId, int64 InStorageIndex) const = 0;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const = 0;
 	virtual const UClass* FindClass(uint64 InClassId) const = 0;
 	virtual const FClassInfo* FindClassInfo(const TCHAR* InClassPath) const = 0;

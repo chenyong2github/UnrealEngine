@@ -7,20 +7,15 @@
 
 namespace TraceServices { class IAnalysisSession; }
 
+/**
+ * Used to display the properties of a traced object
+ */
 class SObjectPropertiesView : public SPropertiesDebugViewBase
 {
 public:
+	/** Begin SPropertiesDebugViewBase interface */
 	virtual void GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const override;
 	virtual FName GetName() const override;
-};
-
-class FObjectPropertiesViewCreator : public IRewindDebuggerViewCreator
-{
-	public:
-		virtual FName GetTargetTypeName() const;
-		virtual FName GetName() const override;
-		virtual FText GetTitle() const override;
-		virtual FSlateIcon GetIcon() const override;
-		virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
-		virtual bool HasDebugInfo(uint64 ObjectId) const override;
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+	/** End SPropertiesDebugViewBase interface */
 };

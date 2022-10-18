@@ -702,7 +702,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 						
 						const TraceServices::IFrameProvider& FrameProvider = TraceServices::ReadFrameProvider(*Session);
 						TraceServices::FFrame Frame;
-						if(FrameProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTraceTime, Frame))
+						if (FrameProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTraceTime, Frame))
 						{
 							{
 								TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebugger::Tick_UpdateActorPosition);
@@ -1037,6 +1037,23 @@ void FRewindDebugger::UpdateDetailsPanel(TSharedRef<SDockTab> DetailsTab)
 	}
 }
 
+void FRewindDebugger::RegisterComponentContextMenu()
+{
+	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.ComponentContextMenu");
+	
+	FToolMenuSection& Section = Menu->FindOrAddSection("SelectedTrack");
+	
+	FToolMenuEntry& Entry = Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	{
+		const UComponentContextMenuContext* Context = InSection.FindContext<UComponentContextMenuContext>();
+
+		if (Context && Context->SelectedTrack.IsValid())
+		{
+			Context->SelectedTrack->BuildContextMenu(InSection);
+		}
+	}));
+}
+
 void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedObject)
 {
 	if (!SelectedObject.IsValid())
@@ -1048,11 +1065,12 @@ void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<RewindDebugger::FRewindD
 	SelectedTrack->HandleDoubleClick();
 }
 
-TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu()
+TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu() const
 {
 	UComponentContextMenuContext* MenuContext = NewObject<UComponentContextMenuContext>();
 	MenuContext->SelectedObject = GetSelectedComponent();
-
+	MenuContext->SelectedTrack = SelectedTrack;
+	
 	if (SelectedTrack.IsValid())
 	{
 		// build a list of class hierarchy names to make it easier for extensions to enable menu entries by type
@@ -1093,6 +1111,11 @@ TSharedPtr<FDebugObjectInfo> FRewindDebugger::GetSelectedComponent() const
 	{
 		return TSharedPtr<FDebugObjectInfo>();
 	}
+}
+
+TSharedPtr<RewindDebugger::FRewindDebuggerTrack> FRewindDebugger::GetSelectedTrack() const
+{
+	return SelectedTrack;
 }
 
 // build a component tree that's compatible with the public api from 5.0 for GetDebugComponents.

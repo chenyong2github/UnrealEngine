@@ -10,6 +10,8 @@ namespace TraceServices
 	class IAnalysisSession;
 }
 
+struct FToolMenuSection;
+
 namespace RewindDebugger
 {
 	
@@ -96,6 +98,9 @@ public:
 
 	bool IsVisible() const { return bVisible; }
 	void SetIsVisible(bool bInIsVisible) { bVisible = bInIsVisible; }
+
+	// Called to generate context menu for the current selected track
+	virtual void BuildContextMenu(FToolMenuSection& InMenuSection) {};
 
 private:
 

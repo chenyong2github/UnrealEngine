@@ -5,41 +5,47 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
 #include "IRewindDebugger.h"
-#include "Styling/SlateIconFinder.h"
+#include "PropertiesTrack.h"
+#include "PropertyHelpers.h"
+#include "PropertyWatchManager.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
+#include "Misc/DefaultValueHelper.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SObjectPropertiesView"
 
 void SObjectPropertiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 {
+	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
 	if (const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
 	{
-		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
-
-		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("Properties", "Properties"), INDEX_NONE));
-
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("PropertiesHeader", "Properties"), INDEX_NONE));
 		TArray<TSharedPtr<FVariantTreeNode>> PropertyVariants;
 
 		GameplayProvider->ReadObjectPropertiesTimeline(ObjectId, [this, &InFrame, GameplayProvider, &Header, &PropertyVariants](const FGameplayProvider::ObjectPropertiesTimeline& InTimeline)
 		{
 			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, GameplayProvider, &Header, &PropertyVariants](double InStartTime, double InEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
 			{
-				GameplayProvider->EnumerateObjectPropertyValues(ObjectId, InMessage, [GameplayProvider, &Header, &PropertyVariants](const FObjectPropertyValue& InValue)
+				GameplayProvider->ReadObjectPropertiesStorage(ObjectId, InMessage, [&PropertyVariants, &Header, GameplayProvider](const TConstArrayView<FObjectPropertyValue> & InStorage)
 				{
-					const TCHAR* Key = GameplayProvider->GetPropertyName(InValue.KeyStringId);
-					PropertyVariants.Add(FVariantTreeNode::MakeString(FText::FromString(Key), InValue.Value));
-
-					// note assumes that order is parent->child in the properties array
-					if(InValue.ParentId != INDEX_NONE)
+					for (int32 i = 0; i < InStorage.Num(); ++i)
 					{
-						PropertyVariants[InValue.ParentId]->AddChild(PropertyVariants.Last().ToSharedRef());
-					}
-					else
-					{
-						Header->AddChild(PropertyVariants.Last().ToSharedRef());
+						PropertyVariants.Add(FObjectPropertyHelpers::GetVariantNodeFromProperty(i, *GameplayProvider, InStorage));
+						
+						// note assumes that order is parent->child in the properties array
+						if(InStorage[i].ParentId != INDEX_NONE)
+						{
+							PropertyVariants[InStorage[i].ParentId]->AddChild(PropertyVariants.Last().ToSharedRef());
+						}
+						else
+						{
+							Header->AddChild(PropertyVariants.Last().ToSharedRef());
+						}
 					}
 				});
+
 				return TraceServices::EEventEnumerate::Stop;
 			});
 		});
@@ -53,48 +59,33 @@ FName SObjectPropertiesView::GetName() const
 	return ObjectPropertiesName;
 }
 
-FName FObjectPropertiesViewCreator::GetTargetTypeName() const
+void SObjectPropertiesView::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	static FName TargetTypeName = "Object";
-	return TargetTypeName;
-}
+	SPropertiesDebugViewBase::BuildContextMenu(MenuBuilder);
 
-FName FObjectPropertiesViewCreator::GetName() const
-{
-	return ObjectPropertiesName;
-}
-
-FText FObjectPropertiesViewCreator::GetTitle() const
-{
-	return LOCTEXT("Object Properties", "Properties");
-}
-
-FSlateIcon FObjectPropertiesViewCreator::GetIcon() const
-{
-	return FSlateIconFinder::FindIconForClass(UObject::StaticClass());
-}
-
-TSharedPtr<IRewindDebuggerView> FObjectPropertiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
-{
-	return SNew(SObjectPropertiesView, ObjectId, CurrentTime, AnalysisSession);
-}
-
-bool FObjectPropertiesViewCreator::HasDebugInfo(uint64 ObjectId) const
-{
-	const TraceServices::IAnalysisSession* AnalysisSession = IRewindDebugger::Instance()->GetAnalysisSession();
-	
-	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
-	bool bHasData = false;
-	if (const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
-	{
-		GameplayProvider->ReadObjectPropertiesTimeline(ObjectId, [this, &bHasData, GameplayProvider](const FGameplayProvider::ObjectPropertiesTimeline& InTimeline)
+	MenuBuilder.BeginSection(GetName(), LOCTEXT("DetailsLabel", "Property"));
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AddPropertyWatch", "Add Property Watch"),
+		LOCTEXT("AddPropertyTooltip", "Adds a watch track for the given property"),
+		{},
+		FExecuteAction::CreateLambda([this]()
 		{
-			bHasData = true;
-		});
-	}
-	
-	return bHasData;
-}
+			FPropertyWatchManager * PropertyWatchManager = FPropertyWatchManager::Instance();
+			check(PropertyWatchManager)
 
+			if (SelectedPropertyId)
+			{
+				if (!PropertyWatchManager->WatchProperty(ObjectId, SelectedPropertyId))
+				{
+					UE_LOG(LogRewindDebugger, Warning, TEXT("Failed to watch property with id {%d}"), SelectedPropertyId);
+				}
+			}
+			else
+			{
+				UE_LOG(LogRewindDebugger, Warning, TEXT("No property was selected or an invalid property was used while attempting to add a property watch track."))
+			}
+		}));
+	MenuBuilder.EndSection();
+}
 
 #undef LOCTEXT_NAMESPACE

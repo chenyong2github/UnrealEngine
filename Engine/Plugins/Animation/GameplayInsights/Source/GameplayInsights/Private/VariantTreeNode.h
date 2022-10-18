@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IAnimationProvider.h"
+#include "IGameplayProvider.h"
 
 namespace TraceServices { class IAnalysisSession; }
 
@@ -20,9 +21,17 @@ struct FVariantTreeNode : TSharedFromThis<FVariantTreeNode>
 	FVariantTreeNode(const FText& InName, const FVariantValue& InValue, uint64 InId = INDEX_NONE)
 		: Name(InName)
 		, Value(InValue)
+		, PropertyNameId(0)
 		, Id(InId)
 	{}
 
+	FVariantTreeNode(const FText& InName, const FVariantValue& InValue, uint32 InPropertyNamedId = 0, uint64 InId = INDEX_NONE)
+		: Name(InName)
+		, Value(InValue)
+		, PropertyNameId(InPropertyNamedId)
+		, Id(InId)
+	{}
+	
 	const TSharedRef<FVariantTreeNode>& AddChild(const TSharedRef<FVariantTreeNode>& InChild)
 	{
 		check(!InChild->Parent.IsValid());
@@ -42,6 +51,10 @@ struct FVariantTreeNode : TSharedFromThis<FVariantTreeNode>
 
 	uint64 GetId() const { return Id; }
 
+	uint32 GetPropertyNamedId() const { return PropertyNameId; }
+	
+	void SetPropertyNameId(uint32 InPropertyNameId) { PropertyNameId = InPropertyNameId; }
+	
 	void SetFilterState(EVariantTreeNodeFilterState InFilterState) { FilterState = InFilterState; }
 
 	EVariantTreeNodeFilterState GetFilterState() const { return FilterState; }
@@ -135,7 +148,8 @@ private:
 	FVariantValue Value;
 	TWeakPtr<FVariantTreeNode> Parent;
 	TArray<TSharedRef<FVariantTreeNode>> Children;
-
+	uint32 PropertyNameId;
+	
 	// Unique ID used to record expansion state
 	uint64 Id;
 

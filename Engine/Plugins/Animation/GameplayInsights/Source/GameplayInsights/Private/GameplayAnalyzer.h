@@ -32,8 +32,10 @@ private:
 		RouteId_ClassPropertyStringId,
 		RouteId_ClassProperty,
 		RouteId_PropertiesStart,
+		RouteId_PropertiesStart2,
 		RouteId_PropertiesEnd,
-		RouteId_PropertyValue,
+		RouteId_PropertyValue2,
+		RouteId_PropertyValue3,
 		RouteId_RecordingInfo,
 	};
 

@@ -17,12 +17,13 @@
 #include "Stats/Stats.h"
 #include "ObjectPropertyTrace.h"
 #include "SMontageView.h"
-#include "SObjectPropertiesView.h"
 #include "AnimCurvesTrack.h"
 #include "BlendWeightsTrack.h"
 #include "MontagesTrack.h"
 #include "NotifiesTrack.h"
 #include "PoseWatchTrack.h"
+#include "PropertiesTrack.h"
+#include "PropertyWatchManager.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -73,8 +74,6 @@ void FGameplayInsightsModule::StartupModule()
 
 #if WITH_EDITOR
 	// register rewind debugger view creators
-	static FObjectPropertiesViewCreator ObjectPropertiesViewCreator;
-	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &ObjectPropertiesViewCreator);
 	static FAnimGraphSchematicViewCreator AnimGraphSchematicViewCreator;
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimGraphSchematicViewCreator);
 	
@@ -88,8 +87,11 @@ void FGameplayInsightsModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &NotifiesTrackCreator);
 	static RewindDebugger::FPoseWatchesTrackCreator PoseWatchesTrackCreator;
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &PoseWatchesTrackCreator);
+	static RewindDebugger::FPropertiesTrackCreator PropertyTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &PropertyTrackCreator);
 
-
+	FPropertyWatchManager::Initialize();
+	
 	if (!IsRunningCommandlet())
 	{
 		IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
@@ -240,6 +242,7 @@ void FGameplayInsightsModule::ShutdownModule()
 	{
 		AnimationBlueprintEditorModule->OnGetCustomDebugObjects().Remove(CustomDebugObjectHandle);
 	}
+	FPropertyWatchManager::Shutdown();
 #else
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 	FOnRegisterMajorTabExtensions& TimingProfilerLayoutExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);

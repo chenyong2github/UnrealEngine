@@ -4,9 +4,10 @@
 #include "AnimationProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
-#include "Styling/SlateIconFinder.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
+#include "PropertiesTrack.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SPropertiesDebugViewBase"
 
@@ -15,11 +16,13 @@ void SPropertiesDebugViewBase::Construct(const FArguments& InArgs, uint64 InObje
 	ObjectId = InObjectId;
 	AnalysisSession = &InAnalysisSession;
 	CurrentTime = InArgs._CurrentTime;
-
-	View = SNew(SVariantValueView, InAnalysisSession).OnGetVariantValues(this, &SPropertiesDebugViewBase::GetVariantsAtFrame);
-
-	SetTimeMarker(InTimeMarker);
-
+	SelectedPropertyId = 0;
+	
+	View = SNew(SVariantValueView, InAnalysisSession)
+	.OnGetVariantValues(this, &SPropertiesDebugViewBase::GetVariantsAtFrame)
+	.OnContextMenuOpening(this, &SPropertiesDebugViewBase::CreateContextMenu)
+	.OnMouseButtonDownOnVariantValue(this, &SPropertiesDebugViewBase::HandleOnMouseButtonDown);
+	
 	ChildSlot
 	[
 		View.ToSharedRef()
@@ -49,6 +52,22 @@ void SPropertiesDebugViewBase::Tick( const FGeometry& AllottedGeometry, const do
 	}
 
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+}
+
+void SPropertiesDebugViewBase::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+}
+
+TSharedPtr<SWidget> SPropertiesDebugViewBase::CreateContextMenu() 
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+	BuildContextMenu(MenuBuilder);
+	return MenuBuilder.MakeWidget();
+}
+
+void SPropertiesDebugViewBase::HandleOnMouseButtonDown(const TSharedPtr<FVariantTreeNode>& InVariantValueNode, const TraceServices::FFrame& InFrame, const FPointerEvent& InKeyEvent)
+{
+	SelectedPropertyId = InVariantValueNode->GetPropertyNamedId();
 }
 
 #undef LOCTEXT_NAMESPACE

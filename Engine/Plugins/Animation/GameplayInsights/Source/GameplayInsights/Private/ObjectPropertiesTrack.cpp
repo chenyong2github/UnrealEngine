@@ -4,9 +4,9 @@
 #include "GameplayProvider.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingEvent.h"
-#include "Algo/Sort.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "GameplaySharedData.h"
+#include "PropertyHelpers.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
@@ -146,8 +146,7 @@ FText FObjectPropertiesTrack::MakeTrackName(const FGameplaySharedData& InSharedD
 
 void FObjectPropertiesTrack::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
 {
-	const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-	if(GameplayProvider)
+	if(const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
@@ -158,21 +157,24 @@ void FObjectPropertiesTrack::GetVariantsAtFrame(const TraceServices::FFrame& InF
 		{
 			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, GameplayProvider, &Header, &PropertyVariants](double InStartTime, double InEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
 			{
-				GameplayProvider->EnumerateObjectPropertyValues(GetGameplayTrack().GetObjectId(), InMessage, [GameplayProvider, &Header, &PropertyVariants](const FObjectPropertyValue& InValue)
+				GameplayProvider->ReadObjectPropertiesStorage(GetGameplayTrack().GetObjectId(), InMessage, [GameplayProvider, &Header, &PropertyVariants](const TConstArrayView<FObjectPropertyValue> & InStorage)
 				{
-					const TCHAR* Key = GameplayProvider->GetPropertyName(InValue.KeyStringId);
-					PropertyVariants.Add(FVariantTreeNode::MakeString(FText::FromString(Key), InValue.Value));
+					for (int32 i = 0; i < InStorage.Num(); ++i)
+					{
+						PropertyVariants.Add(FObjectPropertyHelpers::GetVariantNodeFromProperty(i, *GameplayProvider, InStorage));
 
-					// note assumes that order is parent->child in the properties array
-					if(InValue.ParentId != INDEX_NONE)
-					{
-						PropertyVariants[InValue.ParentId]->AddChild(PropertyVariants.Last().ToSharedRef());
-					}
-					else
-					{
-						Header->AddChild(PropertyVariants.Last().ToSharedRef());
+						// note assumes that order is parent->child in the properties array
+						if(InStorage[i].ParentId != INDEX_NONE)
+						{
+							PropertyVariants[InStorage[i].ParentId]->AddChild(PropertyVariants.Last().ToSharedRef());
+						}
+						else
+						{
+							Header->AddChild(PropertyVariants.Last().ToSharedRef());
+						}
 					}
 				});
+				
 				return TraceServices::EEventEnumerate::Stop;
 			});
 		});

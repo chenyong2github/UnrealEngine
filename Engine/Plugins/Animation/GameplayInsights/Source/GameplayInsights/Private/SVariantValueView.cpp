@@ -227,7 +227,7 @@ public:
 	SLATE_BEGIN_ARGS(SVariantValueNode) {}
 
 	SLATE_ATTRIBUTE(FText, HighlightText)
-
+	SLATE_EVENT(FOnMouseButtonDownOnVariantValueNode, OnMouseButtonDownOnVariantValueNode)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FVariantTreeNode> InNode, const TraceServices::IAnalysisSession& InAnalysisSession)
@@ -235,7 +235,8 @@ public:
 		Node = InNode;
 		AnalysisSession = &InAnalysisSession;
 		HighlightText = InArgs._HighlightText;
-
+		OnMouseButtonDownOnVariantValueNode = InArgs._OnMouseButtonDownOnVariantValueNode;
+		
 		SMultiColumnTableRow<TSharedRef<FVariantTreeNode>>::Construct(
 			FSuperRowType::FArguments()
 			.Padding(1.0f),
@@ -243,6 +244,14 @@ public:
 		);
 	}
 
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		OnMouseButtonDownOnVariantValueNode.ExecuteIfBound(Node, MouseEvent);
+
+		/** We return a FReply::Unhandled to allow for event to bubble up in order for context menu to be built. */
+		return FReply::Unhandled();
+	}
+	
 	// SMultiColumnTableRow interface
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override
 	{
@@ -296,12 +305,14 @@ public:
 	const TraceServices::IAnalysisSession* AnalysisSession;
 	TSharedPtr<FVariantTreeNode> Node;
 	TAttribute<FText> HighlightText;
+	FOnMouseButtonDownOnVariantValueNode OnMouseButtonDownOnVariantValueNode;
 };
 
 void SVariantValueView::Construct(const FArguments& InArgs, const TraceServices::IAnalysisSession& InAnalysisSession)
 {
 	OnGetVariantValues = InArgs._OnGetVariantValues;
-
+	OnMouseButtonDownOnVariantValue = InArgs._OnMouseButtonDownOnVariantValue;
+	
 	AnalysisSession = &InAnalysisSession;
 	bNeedsRefresh = false;
 	bRecordExpansion = true;
@@ -313,6 +324,7 @@ void SVariantValueView::Construct(const FArguments& InArgs, const TraceServices:
 		.OnGenerateRow(this, &SVariantValueView::HandleGeneratePropertyRow)
 		.OnGetChildren(this, &SVariantValueView::HandleGetPropertyChildren)
 		.OnExpansionChanged(this, &SVariantValueView::HandleExpansionChanged)
+		.OnContextMenuOpening(InArgs._OnContextMenuOpening)
 		.TreeItemsSource(&FilteredNodes)
 		.HeaderRow(
 			SNew(SHeaderRow)
@@ -322,7 +334,6 @@ void SVariantValueView::Construct(const FArguments& InArgs, const TraceServices:
 			+SHeaderRow::Column(VariantColumns::Value)
 			.DefaultLabel(LOCTEXT("ValueValueColumn", "Value"))
 		);
-
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -378,7 +389,11 @@ TSharedRef<ITableRow> SVariantValueView::HandleGeneratePropertyRow(TSharedRef<FV
 {
 	return 
 		SNew(SVariantValueNode, OwnerTable, Item, *AnalysisSession)
-		.HighlightText(MakeAttributeLambda([this](){ return FilterText; }));
+		.HighlightText(MakeAttributeLambda([this](){ return FilterText; }))
+		.OnMouseButtonDownOnVariantValueNode_Lambda([this](const TSharedPtr<FVariantTreeNode> & InVariantValueNode, const FPointerEvent & InPointerEvent)
+		{
+			OnMouseButtonDownOnVariantValue.ExecuteIfBound(InVariantValueNode, Frame, InPointerEvent);
+		});
 }
 
 void SVariantValueView::HandleGetPropertyChildren(TSharedRef<FVariantTreeNode> InItem, TArray<TSharedRef<FVariantTreeNode>>& OutChildren)

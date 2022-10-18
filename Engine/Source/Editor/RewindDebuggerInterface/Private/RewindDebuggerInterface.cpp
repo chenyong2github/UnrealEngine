@@ -7,6 +7,8 @@
 #include "IRewindDebuggerViewCreator.h"
 #include "UObject/NameTypes.h"
 
+DEFINE_LOG_CATEGORY(LogRewindDebugger)
+
 const FName IRewindDebuggerExtension::ModularFeatureName = "RewindDebuggerExtension";
 const FName IRewindDebuggerViewCreator::ModularFeatureName = "RewindDebuggerViewCreator";
 const FName IRewindDebuggerDoubleClickHandler::ModularFeatureName = "RewindDebuggerDoubleClickHandler";

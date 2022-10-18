@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectPropertyTrace.h"
+#include "IGameplayProvider.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 #include "Containers/Ticker.h"
@@ -15,9 +16,10 @@ UE_TRACE_EVENT_BEGIN(Object, ClassPropertyStringId, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Value)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Object, PropertiesStart)
+UE_TRACE_EVENT_BEGIN(Object, PropertiesStart2)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ObjectId)
+	UE_TRACE_EVENT_FIELD(double, RecordingTime)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Object, PropertiesEnd)
@@ -25,12 +27,13 @@ UE_TRACE_EVENT_BEGIN(Object, PropertiesEnd)
 	UE_TRACE_EVENT_FIELD(uint64, ObjectId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Object, PropertyValue2)
+UE_TRACE_EVENT_BEGIN(Object, PropertyValue3)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ObjectId)
 	UE_TRACE_EVENT_FIELD(int32, ParentId)
 	UE_TRACE_EVENT_FIELD(uint32, TypeId)
-	UE_TRACE_EVENT_FIELD(uint32, KeyId)
+	UE_TRACE_EVENT_FIELD(uint32, NameId)
+	UE_TRACE_EVENT_FIELD(uint32, ParentNameId)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Value)
 UE_TRACE_EVENT_END()
 
@@ -41,26 +44,52 @@ namespace ObjectPropertyTrace
 
 	static uint32 CurrentClassPropertyStringId = 0;
 	static TMap<FString, uint32> StringIdMap;
-
-	typedef TFunctionRef<void(const FString&, const FString&, const FString&, int32, int32)> IterateFunction;
+	typedef TFunctionRef<void(const FString& /*InTypeString*/, const FString& /*InValue*/, int32 /*InId*/, int32 /*InParentId*/, FStringBuilderBase & /*InPropertyNameBuilder*/)> IterateFunction;
 
 	static uint32 TraceStringId(const FString& InString)
 	{
-		if(uint32* ExistingIdPtr = StringIdMap.Find(InString))
+		if(const uint32* ExistingIdPtr = StringIdMap.Find(InString))
 		{
 			return *ExistingIdPtr;
 		}
 
-		uint32 NewId = StringIdMap.Add(InString, ++CurrentClassPropertyStringId);
+		if (InString.IsEmpty())
+		{
+			return 0;	// Return invalid id.
+		}
+		else
+		{
+			const uint32 NewId = StringIdMap.Add(InString, ++CurrentClassPropertyStringId);
 
-		UE_TRACE_LOG(Object, ClassPropertyStringId, ObjectProperties, InString.Len() * sizeof(TCHAR))
-			<< ClassPropertyStringId.Id(NewId)
-			<< ClassPropertyStringId.Value(*InString, InString.Len());
+			UE_TRACE_LOG(Object, ClassPropertyStringId, ObjectProperties, InString.Len() * sizeof(TCHAR))
+				<< ClassPropertyStringId.Id(NewId)
+				<< ClassPropertyStringId.Value(*InString, InString.Len());
 
-		return NewId;
+			return NewId;
+		}
 	}
 
-	static void IteratePropertiesRecursive(FProperty* InProperty, const void* InContainer, const FString& InKey, IterateFunction InFunction, int32& InId, int32 InParentId)
+	/**
+	 * Helper to ensure FStringBuilderBase clears any added strings at the end of a scope.
+	 * 
+	 * Used to support creating one single FStringBuilderBase when tracing an object's properties recursively.
+	 */
+	struct FScopedPropertyName
+	{
+		FScopedPropertyName(FStringBuilderBase & InBuilder) : StartSize(InBuilder.Len()), Builder(InBuilder)
+		{
+		}
+
+		~FScopedPropertyName()
+		{
+			Builder.RemoveSuffix(FMath::Max(Builder.Len() - StartSize, 0));
+		}
+		
+		int32 StartSize;
+		FStringBuilderBase & Builder;
+	};
+	
+	static void IteratePropertiesRecursive(FProperty* InProperty, const void* InContainer, const FString& InKey, IterateFunction InFunction, int32& InId, int32 InParentId, FStringBuilderBase & InPropertyNameBuilder)
 	{
 		// Handle container properties
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
@@ -69,14 +98,22 @@ namespace ObjectPropertyTrace
 
 			int32 ArrayRootId = ++InId;
 			FString SizeString = FString::Printf(TEXT("{Num = %d}"), Helper.Num());
-			InFunction(InProperty->GetCPPType(), InKey, SizeString, ArrayRootId, InParentId);
 			
+			// Build property name id
+			FScopedPropertyName ScopedPropertyName(InPropertyNameBuilder);
+			ScopedPropertyName.Builder.AppendChar(TEXT('.'));
+			ScopedPropertyName.Builder.Append(InProperty->GetName());
+
+			// Trace array property
+			InFunction(InProperty->GetCPPType(), SizeString, ArrayRootId, InParentId, InPropertyNameBuilder);
+
+			// Trace container items
 			for (int32 DynamicIndex = 0; DynamicIndex < Helper.Num(); ++DynamicIndex)
 			{
 				const void* ValuePtr = Helper.GetRawPtr(DynamicIndex);
 				FString KeyString = FString::Printf(TEXT("[%d]"), DynamicIndex);
-
-				IteratePropertiesRecursive(ArrayProperty->Inner, ValuePtr, KeyString, InFunction, InId, ArrayRootId);
+				
+				IteratePropertiesRecursive(ArrayProperty->Inner, ValuePtr, KeyString, InFunction, InId, ArrayRootId, InPropertyNameBuilder);
 			}
 		}
 		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
@@ -85,8 +122,14 @@ namespace ObjectPropertyTrace
 
 			int32 MapRootId = ++InId;
 			FString SizeString = FString::Printf(TEXT("{Num = %d}"), Helper.Num());
-			InFunction(InProperty->GetCPPType(), InKey, SizeString, MapRootId, InParentId);
 
+			// Build property name id
+			FScopedPropertyName ScopedPropertyName(InPropertyNameBuilder);
+			ScopedPropertyName.Builder.AppendChar(TEXT('.'));
+			ScopedPropertyName.Builder.Append(InProperty->GetName());
+			
+			InFunction(InProperty->GetCPPType(), SizeString, MapRootId, InParentId, InPropertyNameBuilder);
+			
 			int32 Num = Helper.Num();
 			int32 MapIndex = 0;
 			for (int32 DynamicIndex = 0; Num; ++DynamicIndex)
@@ -96,13 +139,19 @@ namespace ObjectPropertyTrace
 					int32 MapEntryId = ++InId;
 					FString KeyString = FString::Printf(TEXT("[%d]"), MapIndex++);
 					FString TypeString = FString::Printf(TEXT("{%s, %s}"), *MapProperty->KeyProp->GetCPPType(), *MapProperty->ValueProp->GetCPPType());
-					InFunction(TypeString, KeyString, TEXT("{...}"), MapEntryId, MapRootId);
 
-					const void* PairPtr = Helper.GetPairPtr(DynamicIndex);
+					// Build pair parent name id
+					FScopedPropertyName ScopedParentPairName(InPropertyNameBuilder);
+					ScopedParentPairName.Builder.AppendChar(TEXT('.'));
+					ScopedParentPairName.Builder.Append(KeyString);
 					
-					IteratePropertiesRecursive(MapProperty->KeyProp, PairPtr, MapProperty->KeyProp->GetName(), InFunction, InId, MapEntryId);
+					InFunction(TypeString, TEXT("{...}"), MapEntryId, MapRootId, InPropertyNameBuilder);
+					
+					const void* PairPtr = Helper.GetPairPtr(DynamicIndex);
 
-					IteratePropertiesRecursive(MapProperty->ValueProp, PairPtr, MapProperty->ValueProp->GetName(), InFunction, InId, MapEntryId);
+					IteratePropertiesRecursive(MapProperty->KeyProp, PairPtr, MapProperty->KeyProp->GetName(), InFunction, InId, MapEntryId, InPropertyNameBuilder);
+
+					IteratePropertiesRecursive(MapProperty->ValueProp, PairPtr, MapProperty->ValueProp->GetName(), InFunction, InId, MapEntryId, InPropertyNameBuilder);
 
 					--Num;
 				}
@@ -114,8 +163,16 @@ namespace ObjectPropertyTrace
 
 			int32 SetRootId = ++InId;
 			FString SizeString = FString::Printf(TEXT("{Num = %d}"), Helper.Num());
-			InFunction(InProperty->GetCPPType(), InKey, SizeString, SetRootId, InParentId);
 
+			// Build property name id
+			FScopedPropertyName ScopedPropertyName(InPropertyNameBuilder);
+			ScopedPropertyName.Builder.AppendChar(TEXT('.'));
+			ScopedPropertyName.Builder.Append(InProperty->GetName());
+
+			// Trace set property
+			InFunction(InProperty->GetCPPType(), SizeString, SetRootId, InParentId, InPropertyNameBuilder);
+
+			// Trace container items
 			int32 Num = Helper.Num();
 			int32 SetIndex = 0;
 			for (int32 DynamicIndex = 0; Num; ++DynamicIndex)
@@ -124,8 +181,8 @@ namespace ObjectPropertyTrace
 				{
 					const void* ValuePtr = Helper.GetElementPtr(DynamicIndex);
 					FString KeyString = FString::Printf(TEXT("[%d]"), SetIndex++);
-
-					IteratePropertiesRecursive(SetProperty->ElementProp, ValuePtr, KeyString, InFunction, InId, SetRootId);
+					
+					IteratePropertiesRecursive(SetProperty->ElementProp, ValuePtr, KeyString, InFunction, InId, SetRootId, InPropertyNameBuilder);
 
 					--Num;
 				}
@@ -134,13 +191,20 @@ namespace ObjectPropertyTrace
 		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
 		{
 			int32 StructRootId = ++InId;
-			InFunction(InProperty->GetCPPType(), InKey, TEXT("{...}"), StructRootId, InParentId);
 
+			// Build property name id
+			FScopedPropertyName ScopedPropertyName(InPropertyNameBuilder);
+			ScopedPropertyName.Builder.AppendChar(TEXT('.'));
+			ScopedPropertyName.Builder.Append(InProperty->GetName());
+
+			// Trace struct property
+			InFunction(InProperty->GetCPPType(), TEXT("{...}"), StructRootId, InParentId, InPropertyNameBuilder);
+			
 			// Recurse
 			const void* StructContainer = StructProperty->ContainerPtrToValuePtr<const void>(InContainer);
 			for(TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
 			{
-				IteratePropertiesRecursive(*It, StructContainer, It->GetName(), InFunction, InId, StructRootId);
+				IteratePropertiesRecursive(*It, StructContainer, It->GetName(), InFunction, InId, StructRootId, InPropertyNameBuilder);
 			}
 		}
 		else
@@ -152,7 +216,14 @@ namespace ObjectPropertyTrace
 				// Handle static array header
 				PropertyParentId = ++InId;
 				FString SizeString = FString::Printf(TEXT("{Num = %d}"), InProperty->ArrayDim);
-				InFunction(InProperty->GetCPPType(), InKey, SizeString, PropertyParentId, InParentId);
+
+				// Build property name id
+				FScopedPropertyName ScopedPropertyName(InPropertyNameBuilder);
+				ScopedPropertyName.Builder.AppendChar(TEXT('.'));
+				ScopedPropertyName.Builder.Append(InProperty->GetName());
+
+				// Trace property
+				InFunction(InProperty->GetCPPType(), SizeString, PropertyParentId, InParentId,  InPropertyNameBuilder);
 			}
 
 			for (int32 StaticIndex = 0; StaticIndex != InProperty->ArrayDim; ++StaticIndex)
@@ -160,20 +231,28 @@ namespace ObjectPropertyTrace
 				const void* ValuePtr = InProperty->ContainerPtrToValuePtr<const void>(InContainer, StaticIndex);
 
 				FString KeyString = InProperty->ArrayDim == 1 ? InKey : FString::Printf(TEXT("[%d]"), StaticIndex);
+
+				// Build property name id
+				FScopedPropertyName ScopedPropertyName(InPropertyNameBuilder);
+				ScopedPropertyName.Builder.AppendChar(TEXT('.'));
+				ScopedPropertyName.Builder.Append(KeyString);
+
+				// Trace property
 				FString ValueString;
 				InProperty->ExportText_Direct(ValueString, ValuePtr, ValuePtr, nullptr, PPF_None);
-
-				InFunction(InProperty->GetCPPType(), KeyString, ValueString, ++InId, PropertyParentId);
+				InFunction(InProperty->GetCPPType(), ValueString, ++InId, PropertyParentId,  InPropertyNameBuilder);
 			}
 		}
 	}
 
 	static void IterateProperties(UStruct* InStruct, const void* InContainer, IterateFunction InFunction)
 	{
+		FStringBuilderBase ParentNameBuilder;
+		
 		int32 Id = INDEX_NONE;
 		for(TFieldIterator<FProperty> It(InStruct); It; ++It)
 		{
-			IteratePropertiesRecursive(*It, InContainer, It->GetName(), InFunction, Id, INDEX_NONE);
+			IteratePropertiesRecursive(*It, InContainer, It->GetName(), InFunction, Id, INDEX_NONE, ParentNameBuilder);
 		}
 	}
 
@@ -186,24 +265,34 @@ namespace ObjectPropertyTrace
 				uint64 StartCycle = FPlatformTime::Cycles64();
 				uint64 ObjectId = FObjectTrace::GetObjectId(TracedObject);
 
-				UE_TRACE_LOG(Object, PropertiesStart, ObjectProperties)
-					<< PropertiesStart.Cycle(StartCycle)
-					<< PropertiesStart.ObjectId(ObjectId);
-				
+				UE_TRACE_LOG(Object, PropertiesStart2, ObjectProperties)
+					<< PropertiesStart2.Cycle(StartCycle)
+					<< PropertiesStart2.ObjectId(ObjectId)
+					<< PropertiesStart2.RecordingTime(FObjectTrace::GetWorldElapsedTime(TracedObject->GetWorld()));
+
 				uint64 ClassId = FObjectTrace::GetObjectId(TracedObject->GetClass());
 
-				IterateProperties(TracedObject->GetClass(), TracedObject, [StartCycle, ClassId, ObjectId](const FString& InType, const FString& InKey, const FString& InValue, int32 InId, int32 InParentId)
+				IterateProperties(TracedObject->GetClass(), TracedObject, [StartCycle, ClassId, ObjectId](const FString& InTypeString, const FString& InValue, int32 InId, int32 InParentId, FStringBuilderBase & InPropertyNameBuilder)
 				{
-					uint32 TypeId = TraceStringId(InType);
-					uint32 KeyId = TraceStringId(InKey);
+					const FString NameString = InPropertyNameBuilder.ToString();
 
-					UE_TRACE_LOG(Object, PropertyValue2, ObjectProperties)
-						<< PropertyValue2.Cycle(StartCycle)
-						<< PropertyValue2.ObjectId(ObjectId)
-						<< PropertyValue2.Value(*InValue)
-						<< PropertyValue2.ParentId(InParentId)
-						<< PropertyValue2.TypeId(TypeId)
-						<< PropertyValue2.KeyId(KeyId);
+					// Compute parent id from property id 
+					int32 ParentEndIndex;
+					NameString.FindLastChar(TEXT('.'), ParentEndIndex);
+					const FString ParentString = NameString.Left(ParentEndIndex);
+					
+					const uint32 TypeId = TraceStringId(InTypeString);
+					const uint32 NameId = TraceStringId(NameString);
+					const uint32 ParentId = TraceStringId(ParentString);
+	
+					UE_TRACE_LOG(Object, PropertyValue3, ObjectProperties)
+						<< PropertyValue3.Cycle(StartCycle)
+						<< PropertyValue3.ObjectId(ObjectId)
+						<< PropertyValue3.Value(*InValue)
+						<< PropertyValue3.ParentId(InParentId)
+						<< PropertyValue3.TypeId(TypeId)
+						<< PropertyValue3.NameId(NameId)
+						<< PropertyValue3.ParentNameId(ParentId);
 				});
 
 				uint64 EndCycle = FPlatformTime::Cycles64();

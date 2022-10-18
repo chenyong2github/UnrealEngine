@@ -162,6 +162,24 @@ bool FGameplayProvider::ReadObjectPropertiesTimeline(uint64 InObjectId, TFunctio
 	return false;
 }
 
+bool FGameplayProvider::ReadObjectPropertiesStorage(uint64 InObjectId, const FObjectPropertiesMessage& InMessage, TFunctionRef<void(const TConstArrayView<FObjectPropertyValue>&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToPropertiesStorage.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(ObjectIdToPropertiesStorage.Num()))
+		{
+			const TSharedRef<FObjectPropertiesStorage> Storage = PropertiesStorage[*IndexPtr];
+			Callback(MakeArrayView(Storage->Values.GetData() + InMessage.PropertyValueStartIndex, InMessage.PropertyValueEndIndex - InMessage.PropertyValueStartIndex));
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FGameplayProvider::EnumerateObjectPropertyValues(uint64 InObjectId, const FObjectPropertiesMessage& InMessage, TFunctionRef<void(const FObjectPropertyValue&)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -179,6 +197,7 @@ void FGameplayProvider::EnumerateObjectPropertyValues(uint64 InObjectId, const F
 		}
 	}
 }
+
 void FGameplayProvider::EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -203,6 +222,27 @@ void FGameplayProvider::EnumerateObjects(double StartTime, double EndTime, TFunc
 			}
 			return TraceServices::EEventEnumerate::Continue;
 		});
+}
+
+const FObjectPropertyValue* FGameplayProvider::FindPropertyValueFromStorageIndex(uint64 InObjectId, int64 InStorageIndex) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = ObjectIdToPropertiesStorage.Find(InObjectId);
+	if(IndexPtr != nullptr)
+	{
+		if (*IndexPtr < static_cast<uint32>(ObjectIdToPropertiesStorage.Num()))
+		{
+			const TSharedRef<FObjectPropertiesStorage> Storage = PropertiesStorage[*IndexPtr];
+
+			if (Storage->Values.IsValidIndex(InStorageIndex))
+			{
+				return &Storage->Values[InStorageIndex];
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void FGameplayProvider::EnumerateSubobjects(uint64 ObjectId, TFunctionRef<void(uint64 SubobjectId)> Callback) const
@@ -660,7 +700,7 @@ void FGameplayProvider::AppendClassPropertyStringId(uint32 InStringId, const FSt
 	PropertyStrings.Add(InStringId, StoredString);
 }
 
-void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, uint64 InEventId)
+void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, uint64 InEventId, double InRecordingTime)
 {
 	Session.WriteAccessCheck();
 
@@ -687,6 +727,8 @@ void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, 
 	FObjectPropertiesMessage& Message = Storage->OpenEvent;
 	Message.PropertyValueStartIndex = Storage->Values.Num();
 	Message.PropertyValueEndIndex = Storage->Values.Num();
+	Message.ProfileTime = InTime;
+	Message.ElapsedTime = InRecordingTime;
 }
 
 void FGameplayProvider::AppendPropertiesEnd(uint64 InObjectId, double InTime)
@@ -719,7 +761,7 @@ void FGameplayProvider::AppendPropertiesEnd(uint64 InObjectId, double InTime)
 	}
 }
 
-void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InParentId, uint32 InTypeStringId, uint32 InKeyStringId, const FStringView& InValue)
+void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InParentId, uint32 InTypeStringId, uint32 InNameId, uint32 InParentNameId, const FStringView& InValue)
 {
 	Session.WriteAccessCheck();
 
@@ -743,12 +785,14 @@ void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, ui
 	if(Storage->OpenEventId == InEventId)
 	{
 		FObjectPropertyValue& Message = Storage->Values.AddDefaulted_GetRef();
+		
 		Message.Value = Session.StoreString(InValue);
 		Message.ValueAsFloat = FCString::Atof(Message.Value);
 		Message.ParentId = InParentId;
 		Message.TypeStringId = InTypeStringId;
-		Message.KeyStringId = InKeyStringId; 
-
+		Message.NameId = InNameId;
+		Message.ParentNameId = InParentNameId;
+		
 		Storage->OpenEvent.PropertyValueEndIndex = Storage->Values.Num();
 	}
 }

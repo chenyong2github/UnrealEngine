@@ -227,6 +227,7 @@ void FRewindDebuggerModule::StartupModule()
 
 	FPropertyTraceMenu::Register();
 	FAnimInstanceMenu::Register();
+	FRewindDebugger::RegisterComponentContextMenu();
 }
 
 void FRewindDebuggerModule::ShutdownModule()

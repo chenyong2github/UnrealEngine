@@ -2,11 +2,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TraceServices/Model/Frames.h"
 #include "IRewindDebugger.generated.h"
 
 // IRewindDebugger
 //
 // Public interface to rewind debugger
+
+REWINDDEBUGGERINTERFACE_API DECLARE_LOG_CATEGORY_EXTERN(LogRewindDebugger, Log, All);
 
 namespace TraceServices
 {
@@ -26,6 +29,12 @@ struct FDebugObjectInfo
 	TArray<TSharedPtr<FDebugObjectInfo>> Children;
 };
 
+namespace RewindDebugger
+{
+	class FRewindDebuggerTrack;
+	class FPropertiesTrack;
+}
+
 UCLASS()
 class REWINDDEBUGGERINTERFACE_API UComponentContextMenuContext : public UObject
 {
@@ -33,7 +42,10 @@ class REWINDDEBUGGERINTERFACE_API UComponentContextMenuContext : public UObject
 public:
 	TSharedPtr<FDebugObjectInfo> SelectedObject;
 	TArray<FName> TypeHierarchy;
+	TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedTrack;
 };
+
+class SPropertiesDebugViewBase;
 
 class REWINDDEBUGGERINTERFACE_API IRewindDebugger
 {
@@ -63,6 +75,9 @@ public:
 	// returns the currently selected debug component
 	virtual TSharedPtr<FDebugObjectInfo> GetSelectedComponent() const = 0;
 
+	// returns the currently selected track
+	virtual TSharedPtr<RewindDebugger::FRewindDebuggerTrack> GetSelectedTrack() const = 0;
+	
 	// get posiotion of the selected target actor (returns true if position is valid)
 	virtual bool GetTargetActorPosition(FVector& OutPosition) const = 0;
 
