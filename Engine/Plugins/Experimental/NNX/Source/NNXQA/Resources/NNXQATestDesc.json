@@ -278,7 +278,6 @@
 			"datasets": [
 				{
 					"inputs": [ { "shape": [ 4 ] } ],
-					"runtimes": [ { "name": "NNXRuntimeDML",  "skip": true, "comment": "RDG DML does not support attribute yet" } ],
 					"comment": "for now there is no way to set attribute using the json test desc, this dataset is a special temporary case to test LeakyRelu with attribute not defaulted. See RunParametricTest() in NNQAParametricTest.cpp"
 				}
 			]
