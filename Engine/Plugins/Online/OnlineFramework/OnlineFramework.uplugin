@@ -58,11 +58,6 @@
 		{
 			"Name": "OnlineSubsystemUtils",
 			"Enabled": true
-		},
-		{
-			"Name": "OnlineTracing",
-			"Enabled": true,
-			"Optional": true
 		}
 	]
 }

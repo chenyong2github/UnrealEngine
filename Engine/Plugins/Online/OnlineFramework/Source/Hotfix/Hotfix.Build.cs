@@ -28,13 +28,6 @@ public class Hotfix : ModuleRules
 			}
 			);
 
-		bool bHasOnlineTracing = Directory.Exists(Path.Combine(EngineDirectory, "Restricted", "NotForLicensees", "Plugins", "Online", "OnlineTracing"));
-		if (bHasOnlineTracing)
-		{
-			PublicDefinitions.Add("WITH_ONLINETRACING=1");
-			PrivateDependencyModuleNames.Add("OnlineTracing");
-		}
-
 		PublicDefinitions.Add("UPDATEMANAGER_PLATFORM_ENVIRONMENT_DETECTION=" + (bPlatformEnvironmentDetection ? "1" : "0"));
 	}
 
