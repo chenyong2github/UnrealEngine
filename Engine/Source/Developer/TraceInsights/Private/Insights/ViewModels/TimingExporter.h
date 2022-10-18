@@ -80,7 +80,37 @@ public:
 		 */
 		FString Region;
 	};
-	
+
+	struct FExportCountersParams
+	{
+		/**
+		 * The list of columns to be exported.
+		 * If nullptr, it uses the default list of columns.
+		 */
+		const TArray<FName>* Columns = nullptr;
+	};
+
+	struct FExportCounterParams
+	{
+		/**
+		 * The list of columns to be exported.
+		 * If nullptr, it uses the default list of columns.
+		 */
+		const TArray<FName>* Columns = nullptr;
+
+		/**
+		 * Filters the counter events by time.
+		 * Only timing events that intersects the [StartTime, EndTime] interval are exported.
+		 */
+		double IntervalStartTime = -std::numeric_limits<double>::infinity();
+		double IntervalEndTime = +std::numeric_limits<double>::infinity();
+
+		/**
+		 * If true, will export the operations and the operation values, instead of final values.
+		 */
+		bool bExportOps = false;
+	};
+
 private:
 	typedef TUtf8StringBuilder<1024> FUtf8StringBuilder;
 
@@ -101,15 +131,28 @@ public:
 	FTimingExporter(const TraceServices::IAnalysisSession& InSession);
 	virtual ~FTimingExporter();
 
+	//////////////////////////////////////////////////////////////////////
+	// Exporters
+
 	int32 ExportThreadsAsText(const FString& Filename, FExportThreadsParams& Params) const;
+
 	int32 ExportTimersAsText(const FString& Filename, FExportTimersParams& Params) const;
+
 	int32 ExportTimingEventsAsText(const FString& Filename, FExportTimingEventsParams& Params) const;
+
 	/**
 	 * Exports Timer Statistics (min,max, inclusive average, exclusive average, etc.).
 	 * Supports specifying a range to export via bookmarks, but does not support timer selection via -timers
 	 * or column selection via -columns yet
 	 */
 	int32 ExportTimerStatisticsAsText(const FString& Filename, FExportTimerStatisticsParams& Params) const;
+
+	int32 ExportCountersAsText(const FString& Filename, FExportCountersParams& Params) const;
+
+	int32 ExportCounterAsText(const FString& Filename, uint32 CounterId, FExportCounterParams& Params) const;
+
+	//////////////////////////////////////////////////////////////////////
+	// Utilities
 
 	void MakeExportTimingEventsColumnList(const FString& InColumnsString, TArray<FName>& OutColumnList) const;
 

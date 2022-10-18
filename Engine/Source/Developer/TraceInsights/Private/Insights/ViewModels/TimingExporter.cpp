@@ -3,6 +3,8 @@
 #include "TimingExporter.h"
 #include "HAL/PlatformFileManager.h"
 #include "Logging/MessageLog.h"
+#include "TraceServices/Model/Bookmarks.h"
+#include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Threads.h"
 
 // Insights
@@ -10,7 +12,6 @@
 #include "Insights/Log.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/TimingProfilerManager.h"
-#include "TraceServices/Model/Bookmarks.h"
 
 namespace Insights
 {
@@ -824,6 +825,190 @@ FTimingExporter::FTimingEventFilterFunc FTimingExporter::MakeTimingEventFilterBy
 	{
 		return !ExcludedTimers.Contains(Event.TimerIndex);
 	};
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FTimingExporter::ExportCountersAsText(const FString& Filename, FExportCountersParams& Params) const
+{
+	checkf(Params.Columns == nullptr, TEXT("Custom list of columns is not yet supported!"));
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	IFileHandle* ExportFileHandle = OpenExportFile(*Filename);
+	if (!ExportFileHandle)
+	{
+		return -1;
+	}
+
+	UTF8CHAR Separator = UTF8CHAR('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = UTF8CHAR(',');
+	}
+	const UTF8CHAR LineEnd = UTF8CHAR('\n');
+
+	FUtf8StringBuilder StringBuilder;
+
+	// Write header.
+	{
+		StringBuilder.Append(UTF8TEXT("Id"));
+		StringBuilder.AppendChar(Separator);
+		StringBuilder.Append(UTF8TEXT("Type"));
+		StringBuilder.AppendChar(Separator);
+		StringBuilder.Append(UTF8TEXT("Name"));
+		StringBuilder.AppendChar(LineEnd);
+
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+	}
+
+	int32 CounterCount = 0;
+
+	// Write values.
+	if (true) // TraceServices::ReadCounterProvider(Session)
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
+		const TraceServices::ICounterProvider& CounterProvider = TraceServices::ReadCounterProvider(Session);
+
+		CounterProvider.EnumerateCounters([&](uint32 CounterId, const TraceServices::ICounter& Counter)
+		{
+			StringBuilder.Reset();
+			StringBuilder.Appendf(UTF8TEXT("%u"), CounterId);
+			StringBuilder.AppendChar(Separator);
+			if (Counter.IsFloatingPoint())
+			{
+				StringBuilder.Append(UTF8TEXT("Double"));
+			}
+			else
+			{
+				StringBuilder.Append(UTF8TEXT("Int64"));
+			}
+			if (Counter.IsResetEveryFrame())
+			{
+				StringBuilder.Append(UTF8TEXT("|ResetEveryFrame"));
+			}
+			StringBuilder.AppendChar(Separator);
+			AppendString(StringBuilder, Counter.GetName(), Separator);
+			StringBuilder.AppendChar(LineEnd);
+			ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+			++CounterCount;
+		});
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported %d counters to file in %.3fs (\"%s\")."), CounterCount, TotalTime, *Filename);
+
+	return CounterCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FTimingExporter::ExportCounterAsText(const FString& Filename, uint32 CounterId, FExportCounterParams& Params) const
+{
+	checkf(Params.Columns == nullptr, TEXT("Custom list of columns is not yet supported!"));
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	IFileHandle* ExportFileHandle = OpenExportFile(*Filename);
+	if (!ExportFileHandle)
+	{
+		return -1;
+	}
+
+	UTF8CHAR Separator = UTF8CHAR('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = UTF8CHAR(',');
+	}
+	const UTF8CHAR LineEnd = UTF8CHAR('\n');
+
+	FUtf8StringBuilder StringBuilder;
+
+	// Write header.
+	if (Params.bExportOps)
+	{
+		StringBuilder.Append(UTF8TEXT("Time"));
+		StringBuilder.AppendChar(Separator);
+		StringBuilder.Append(UTF8TEXT("Op"));
+		StringBuilder.AppendChar(Separator);
+		StringBuilder.Append(UTF8TEXT("Value"));
+		StringBuilder.AppendChar(LineEnd);
+	}
+	else
+	{
+		StringBuilder.Append(UTF8TEXT("Time"));
+		StringBuilder.AppendChar(Separator);
+		StringBuilder.Append(UTF8TEXT("Value"));
+		StringBuilder.AppendChar(LineEnd);
+	}
+	ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+
+	FString CounterName;
+	int32 ValueCount = 0;
+
+	// Write values.
+	if (true) // TraceServices::ReadCounterProvider(Session)
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
+		const TraceServices::ICounterProvider& CounterProvider = TraceServices::ReadCounterProvider(Session);
+
+		CounterProvider.ReadCounter(CounterId, [&](const TraceServices::ICounter& Counter)
+		{
+			CounterName = Counter.GetName();
+
+			// Iterate the counter values.
+			if (Params.bExportOps)
+			{
+				//TODO: export counter events / operations
+			}
+			else
+			{
+				if (Counter.IsFloatingPoint())
+				{
+					Counter.EnumerateFloatValues(Params.IntervalStartTime, Params.IntervalEndTime, false, [&](double Time, double Value)
+					{
+						StringBuilder.Reset();
+						StringBuilder.Appendf(UTF8TEXT("%.9f"), Time);
+						StringBuilder.AppendChar(Separator);
+						StringBuilder.Appendf(UTF8TEXT("%.9f"), Value);
+						StringBuilder.AppendChar(LineEnd);
+						ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+						++ValueCount;
+					});
+				}
+				else
+				{
+					Counter.EnumerateValues(Params.IntervalStartTime, Params.IntervalEndTime, false, [&](double Time, int64 IntValue)
+					{
+						StringBuilder.Reset();
+						StringBuilder.Appendf(UTF8TEXT("%.9f"), Time);
+						StringBuilder.AppendChar(Separator);
+						StringBuilder.Appendf(UTF8TEXT("%lli"), IntValue);
+						StringBuilder.AppendChar(LineEnd);
+						ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+						++ValueCount;
+					});
+				}
+			}
+		});
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported counter %d (\"%s\", %d values) to file in %.3fs (\"%s\")."), CounterId, *CounterName, ValueCount, TotalTime, *Filename);
+
+	return 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

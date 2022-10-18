@@ -2,10 +2,13 @@
 
 #include "SStatsView.h"
 
+#include "DesktopPlatformModule.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformFileManager.h"
+#include "Logging/MessageLog.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "TraceServices/Model/Counters.h"
@@ -22,6 +25,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
@@ -29,6 +33,7 @@
 #include "Insights/ViewModels/CounterAggregation.h"
 #include "Insights/ViewModels/StatsNodeHelper.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
+#include "Insights/ViewModels/TimingExporter.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
 #include "Insights/Widgets/SStatsViewTooltip.h"
@@ -69,10 +74,38 @@ public:
 			"Copies the selection (counters and their aggregated statistics) to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control, EKeys::C));
+
+		UI_COMMAND(Command_Export,
+			"Export...",
+			"Exports the selection (counters and their aggregated statistics) to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::S));
+
+		UI_COMMAND(Command_ExportValues,
+			"Export Values...",
+			"Exports the values of the selected counter to a text file (tab-separated values or comma-separated values).\nExports the values only in the selected time region (if any) or the entire session if no time region is selected.",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportOps,
+			"Export Operations...",
+			"Exports the incremental operations/values of the selected counter to a text file (tab-separated values or comma-separated values).\nExports the ops/values only in the selected time region (if any) or the entire session if no time region is selected.",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportCounters,
+			"Export Counters...",
+			"Exports the list of counters to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
 	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
+	TSharedPtr<FUICommandInfo> Command_Export;
+	TSharedPtr<FUICommandInfo> Command_ExportValues;
+	TSharedPtr<FUICommandInfo> Command_ExportOps;
+	TSharedPtr<FUICommandInfo> Command_ExportCounters;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,6 +150,10 @@ void SStatsView::InitCommandList()
 	FStatsViewCommands::Register();
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->MapAction(FStatsViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_CopySelectedToClipboard_CanExecute));
+	CommandList->MapAction(FStatsViewCommands::Get().Command_Export, FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_Export_Execute), FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_Export_CanExecute));
+	CommandList->MapAction(FStatsViewCommands::Get().Command_ExportValues, FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ExportValues_Execute), FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ExportValues_CanExecute));
+	CommandList->MapAction(FStatsViewCommands::Get().Command_ExportOps, FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ExportOps_Execute), FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ExportOps_CanExecute));
+	CommandList->MapAction(FStatsViewCommands::Get().Command_ExportCounters, FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ExportCounters_Execute), FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ExportCounters_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,6 +478,44 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FStatsViewCommands::Get().Command_Export,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FStatsViewCommands::Get().Command_ExportValues,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+
+#if 0 // not implemented yet
+		MenuBuilder.AddMenuEntry
+		(
+			FStatsViewCommands::Get().Command_ExportOps,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+#endif
+
+		MenuBuilder.AddMenuEntry
+		(
+			FStatsViewCommands::Get().Command_ExportCounters,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -2154,6 +2229,305 @@ void SStatsView::ContextMenu_CopySelectedToClipboard_Execute()
 	{
 		FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SStatsView::ContextMenu_Export_CanExecute() const
+{
+	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	return SelectedNodes.Num() > 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::ContextMenu_Export_Execute()
+{
+	if (!Table->IsValid())
+	{
+		return;
+	}
+
+	TArray<Insights::FBaseTreeNodePtr> SelectedNodes;
+	for (FStatsNodePtr Item : TreeView->GetSelectedItems())
+	{
+		SelectedNodes.Add(Item);
+	}
+
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	const FString DialogTitle = LOCTEXT("Export_Title", "Export Aggregated Counter Stats").ToString();
+	const FString DefaultFile = TEXT("CounterStats.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
+	{
+		return;
+	}
+
+	IFileHandle* ExportFileHandle = OpenExportFile(*Filename);
+	if (!ExportFileHandle)
+	{
+		return;
+	}
+
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	UTF16CHAR BOM = UNICODE_BOM;
+	ExportFileHandle->Write((uint8*)&BOM, sizeof(UTF16CHAR));
+
+	TCHAR Separator = TEXT('\t');
+	if (Filename.EndsWith(TEXT(".csv")))
+	{
+		Separator = TEXT(',');
+	}
+	constexpr TCHAR LineEnd = TEXT('\n');
+	constexpr TCHAR QuotationMarkBegin = TEXT('\"');
+	constexpr TCHAR QuotationMarkEnd = TEXT('\"');
+
+	TStringBuilder<1024> StringBuilder;
+
+	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
+	Table->GetVisibleColumns(VisibleColumns);
+
+	// Write header.
+	{
+		bool bIsFirstColumn = true;
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			if (bIsFirstColumn)
+			{
+				bIsFirstColumn = false;
+			}
+			else
+			{
+				StringBuilder.AppendChar(Separator);
+			}
+			FString Value = ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				StringBuilder.AppendChar(QuotationMarkBegin);
+				StringBuilder.Append(Value);
+				StringBuilder.AppendChar(QuotationMarkEnd);
+			}
+			else
+			{
+				StringBuilder.Append(Value);
+			}
+		}
+		StringBuilder.AppendChar(LineEnd);
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(TCHAR));
+	}
+
+	if (CurrentSorter.IsValid())
+	{
+		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
+	}
+
+	const int32 NodeCount = SelectedNodes.Num();
+	for (int32 Index = 0; Index < NodeCount; Index++)
+	{
+		const Insights::FBaseTreeNodePtr& Node = SelectedNodes[Index];
+
+		StringBuilder.Reset();
+
+		bool bIsFirstColumn = true;
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			if (bIsFirstColumn)
+			{
+				bIsFirstColumn = false;
+			}
+			else
+			{
+				StringBuilder.AppendChar(Separator);
+			}
+
+			FString Value = ColumnRef->GetValueAsSerializableString(*Node).ReplaceCharWithEscapedChar();
+			int32 CharIndex;
+			if (Value.FindChar(Separator, CharIndex))
+			{
+				StringBuilder.AppendChar(QuotationMarkBegin);
+				StringBuilder.Append(Value);
+				StringBuilder.AppendChar(QuotationMarkEnd);
+			}
+			else
+			{
+				StringBuilder.Append(Value);
+			}
+		}
+		StringBuilder.AppendChar(LineEnd);
+		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(TCHAR));
+	}
+
+	ExportFileHandle->Flush();
+	delete ExportFileHandle;
+	ExportFileHandle = nullptr;
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported aggregated counter stats to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SStatsView::ContextMenu_ExportValues_CanExecute() const
+{
+	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	return (SelectedNodes.Num() == 1) && !SelectedNodes[0]->IsGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::ContextMenu_ExportValues_Execute() const
+{
+	if (!Session.IsValid())
+	{
+		return;
+	}
+
+	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	if (SelectedNodes.Num() != 1 || SelectedNodes[0]->IsGroup())
+	{
+		return;
+	}
+
+	const uint32 CounterId = SelectedNodes[0]->GetCounterId();
+
+	const FString DialogTitle = LOCTEXT("ExportValues_Title", "Export Counter Values").ToString();
+	const FString DefaultFile = TEXT("CounterValues.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
+	{
+		return;
+	}
+
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportCounterParams Params; // default
+	Exporter.ExportCounterAsText(*Filename, CounterId, Params);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SStatsView::ContextMenu_ExportOps_CanExecute() const
+{
+	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	return (SelectedNodes.Num() == 1) && !SelectedNodes[0]->IsGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::ContextMenu_ExportOps_Execute() const
+{
+	if (!Session.IsValid())
+	{
+		return;
+	}
+
+	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	if (SelectedNodes.Num() != 1 || SelectedNodes[0]->IsGroup())
+	{
+		return;
+	}
+
+	const uint32 CounterId = SelectedNodes[0]->GetCounterId();
+
+	const FString DialogTitle = LOCTEXT("ExportOps_Title", "Export Counter Ops").ToString();
+	const FString DefaultFile = TEXT("CounterOps.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
+	{
+		return;
+	}
+
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportCounterParams Params; // default
+	Params.bExportOps = true;
+	Exporter.ExportCounterAsText(*Filename, CounterId, Params);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SStatsView::ContextMenu_ExportCounters_CanExecute() const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStatsView::ContextMenu_ExportCounters_Execute() const
+{
+	if (!Session.IsValid())
+	{
+		return;
+	}
+
+	const FString DialogTitle = LOCTEXT("ExportCounters_Title", "Export Counters").ToString();
+	const FString DefaultFile = TEXT("Counters.tsv");
+	FString Filename;
+	if (!OpenSaveTextFileDialog(DialogTitle, DefaultFile, Filename))
+	{
+		return;
+	}
+
+	Insights::FTimingExporter Exporter(*Session.Get());
+	Insights::FTimingExporter::FExportCountersParams Params; // default
+	Exporter.ExportCountersAsText(*Filename, Params);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SStatsView::OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const
+{
+	TArray<FString> SaveFilenames;
+	bool bDialogResult = false;
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		const FString DefaultPath = FPaths::ProjectSavedDir();
+		bDialogResult = DesktopPlatform->SaveFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			InDialogTitle,
+			DefaultPath,
+			InDefaultFile,
+			TEXT("Tab-Separated Values (*.tsv)|*.tsv|Text Files (*.txt)|*.txt|Comma-Separated Values (*.csv)|*.csv|All Files (*.*)|*.*"),
+			EFileDialogFlags::None,
+			SaveFilenames
+		);
+	}
+
+	if (!bDialogResult || SaveFilenames.Num() == 0)
+	{
+		return false;
+	}
+
+	OutFilename = SaveFilenames[0];
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+IFileHandle* SStatsView::OpenExportFile(const TCHAR* InFilename) const
+{
+	IFileHandle* ExportFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenWrite(InFilename);
+
+	if (ExportFileHandle == nullptr)
+	{
+		FName LogListingName = FTimingProfilerManager::Get()->GetLogListingName();
+		FMessageLog ReportMessageLog((LogListingName != NAME_None) ? LogListingName : TEXT("Other"));
+		ReportMessageLog.Error(LOCTEXT("FailedToOpenFile", "Export failed. Failed to open file for write."));
+		ReportMessageLog.Notify();
+		return nullptr;
+	}
+
+	return ExportFileHandle;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -122,6 +122,21 @@ private:
 	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
 	void ContextMenu_CopySelectedToClipboard_Execute();
 
+	bool ContextMenu_Export_CanExecute() const;
+	void ContextMenu_Export_Execute();
+
+	bool ContextMenu_ExportValues_CanExecute() const;
+	void ContextMenu_ExportValues_Execute() const;
+
+	bool ContextMenu_ExportOps_CanExecute() const;
+	void ContextMenu_ExportOps_Execute() const;
+
+	bool ContextMenu_ExportCounters_CanExecute() const;
+	void ContextMenu_ExportCounters_Execute() const;
+
+	bool OpenSaveTextFileDialog(const FString& InDialogTitle, const FString& InDefaultFile, FString& OutFilename) const;
+	class IFileHandle* OpenExportFile(const TCHAR* InFilename) const;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
 

@@ -74,13 +74,47 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies the selection (timers and their aggregated statistics) to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
-		UI_COMMAND(Command_Export, "Export...", "Exports the selection (timers and their aggregated statistics) to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S));
-		UI_COMMAND(Command_ExportTimingEventsSelection, "Export Timing Events (Selection)...", "Exports the timing events to a text file (tab-separated values or comma-separated values).\nOnly exports the timing events of the selected timer(s), for the visible CPU/GPU Thread tracks and in the selected time region (if any).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_ExportTimingEvents, "Export Timing Events (All)...", "Exports all the timing events (for all CPU/GPU threads) to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_ExportThreads, "Export Threads...", "Exports the list of threads to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_ExportTimers, "Export Timers...", "Exports the list of timers to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_OpenSource, "Open Source", "Opens the source file of the selected timer in the registered IDE.", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(Command_CopyToClipboard,
+			"Copy To Clipboard",
+			"Copies the selection (timers and their aggregated statistics) to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::C));
+
+		UI_COMMAND(Command_Export,
+			"Export...",
+			"Exports the selection (timers and their aggregated statistics) to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::S));
+
+		UI_COMMAND(Command_ExportTimingEventsSelection,
+			"Export Timing Events (Selection)...",
+			"Exports the timing events to a text file (tab-separated values or comma-separated values).\nOnly exports the timing events of the selected timer(s), for the visible CPU/GPU Thread tracks and in the selected time region (if any).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportTimingEvents,
+			"Export Timing Events (All)...",
+			"Exports all the timing events (for all CPU/GPU threads) to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportThreads,
+			"Export Threads...",
+			"Exports the list of threads to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ExportTimers,
+			"Export Timers...",
+			"Exports the list of timers to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_OpenSource,
+			"Open Source",
+			"Opens the source file of the selected timer in the registered IDE.",
+			EUserInterfaceActionType::Button,
+			FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
@@ -2235,7 +2269,8 @@ void STimersView::ContextMenu_CopyToClipboard_Execute()
 
 bool STimersView::ContextMenu_Export_CanExecute() const
 {
-	return true;
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	return SelectedNodes.Num() > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
