@@ -67,6 +67,12 @@ then
 	echo "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" >>$HOME/.bashrc
 fi
 
+if ! grep -q "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" $HOME/.bashrc
+then
+	echo >>$HOME/.bashrc
+	echo "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" >>$HOME/.bashrc
+fi
+
 export JAVA_HOME="$STUDIO_PATH/jre"
 if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" $HOME/.bashrc
 then
@@ -83,9 +89,9 @@ if [ "$retVal" == "" ]; then
 	echo Added $PLATFORMTOOLS to path
 fi
 
-SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
 if [ ! -d "$SDKMANAGERPATH" ]; then
-	SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
+	SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
 	if [ ! -d "$SDKMANAGERPATH" ]; then
 		echo Unable to locate sdkmanager. Did you run Android Studio and install cmdline-tools after installing?
 		${PAUSE}

@@ -20,6 +20,12 @@ updateProfileFileFunc()
 		echo "export ANDROID_HOME=\"$STUDIO_SDK_PATH\"" >> "$1"
 	fi
  
+	if ! grep -q "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" "$1" 
+	then
+		echo >> "$1"
+		echo "export ANDROID_SDK_HOME=\"$STUDIO_SDK_PATH\"" >> "$1"
+	fi
+ 
 	if ! grep -q "export JAVA_HOME=\"$JAVA_HOME\"" "$1"
 	then
 		echo >> $1
@@ -94,9 +100,9 @@ export JAVA_HOME="$STUDIO_PATH/Contents/jre/jdk/Contents/Home"
 NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/${NDK_VERSION}"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/${BUILDTOOLS_VERSION}:$STUDIO_SDK_PATH/tools/bin"
 adbPath=$(type -P "adb")
-SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
 if [ ! -d "$SDKMANAGERPATH" ]; then
-	SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
+	SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
 	if [ ! -d "$SDKMANAGERPATH" ]; then
 		echo Unable to locate sdkmanager. Did you run Android Studio and install cmdline-tools after installing?
 		${PAUSE}
