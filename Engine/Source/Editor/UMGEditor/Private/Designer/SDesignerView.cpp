@@ -19,6 +19,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 
+#include "Animation/WidgetAnimation.h"
+
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
 #include "Settings/WidgetDesignerSettings.h"
