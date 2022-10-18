@@ -9,6 +9,7 @@ public class DotNetPerforceLib : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateDefinitions.Add("OS_NT");
+			PrivateDefinitions.Add("_CRT_NONSTDC_NO_DEPRECATE");
 		}
 
 		PublicIncludePathModuleNames.Add("Core");
