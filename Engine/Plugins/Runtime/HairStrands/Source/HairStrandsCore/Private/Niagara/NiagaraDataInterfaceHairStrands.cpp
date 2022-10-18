@@ -881,6 +881,7 @@ class FInterpolateGroomGuidesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,		CurvesOffsetsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>,	DeformedPositionOffset)
 		SHADER_PARAMETER(FVector3f,				RestPositionOffset)
+		SHADER_PARAMETER(FMatrix44f,			WorldToLocal)
 
 		SHADER_PARAMETER(int,					StrandsSize)
 		SHADER_PARAMETER(int,					NumPoints)
@@ -908,9 +909,36 @@ IMPLEMENT_SHADER_TYPE(, FInterpolateGroomGuidesCS, TEXT("/Plugin/Runtime/HairStr
 
 //------------------------------------------------------------------------------------------------------------
 
+FMatrix44f ComputeBoneTransform(const FNDIHairStrandsData* InstanceData)
+{
+	const FMatrix44f RigidTransformFloat = FMatrix44f(InstanceData->HairGroupInstance ? InstanceData->HairGroupInstance->Debug.RigidCurrentLocalToWorld.ToMatrixWithScale() : InstanceData->WorldTransform.ToMatrixWithScale());
+	return FMatrix44f(InstanceData->BoneTransform.ToMatrixWithScale()) * RigidTransformFloat;
+}
+
+FMatrix44f ComputeWorldTransform(const FNDIHairStrandsData* InstanceData)
+{
+	const FMatrix44f BoneTransformFloat = ComputeBoneTransform(InstanceData);
+	
+	FMatrix44f WorldTransformFloat = FMatrix44f(InstanceData->HairGroupInstance ? InstanceData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() : InstanceData->WorldTransform.ToMatrixWithScale());
+	if (InstanceData->LocalSimulation)
+	{
+		const FMatrix44d WorldTransformDouble(WorldTransformFloat);
+		const FMatrix44d BoneTransformDouble(BoneTransformFloat);
+
+		// Due to large world coordinate we store the relative world transform in double precision 
+		WorldTransformFloat = FMatrix44f(WorldTransformDouble * BoneTransformDouble.Inverse());
+	}
+		
+	if (WorldTransformFloat.ContainsNaN())
+	{
+		WorldTransformFloat = FMatrix44f(InstanceData->WorldTransform.ToMatrixWithScale());
+	}
+	return WorldTransformFloat;
+}
+
 static void InterpolateGroomGuides(FRDGBuilder& GraphBuilder, FNiagaraDataBuffer* ParticlesBuffer,
 	const uint32 NodePositionComponent,  const uint32 RestPositionComponent, FNDIHairStrandsBuffer* HairStrandsBuffer,
-	const uint32 StrandsSize, const bool bHasSkinningBinding, const bool bHasValidGeometry)
+	const uint32 StrandsSize, const bool bHasSkinningBinding, const bool bHasValidGeometry, const FMatrix44f& WorldToLocal)
 {
 	const bool bIsHairValid = HairStrandsBuffer && HairStrandsBuffer->IsInitialized();
 	const bool bIsRestValid = bIsHairValid && HairStrandsBuffer->SourceRestResources && HairStrandsBuffer->SourceRestResources->IsInitialized();
@@ -924,6 +952,7 @@ static void InterpolateGroomGuides(FRDGBuilder& GraphBuilder, FNiagaraDataBuffer
 		const uint32 NumPoints = HairStrandsBuffer->SourceRestResources->GetVertexCount();
 		const int32 MeshLODIndex = bIsRootValid ? HairStrandsBuffer->SourceDeformedRootResources->MeshLODIndex : -1;
 		bIsRootValid = bIsRootValid && HairStrandsBuffer->SourceDeformedRootResources->IsValid(MeshLODIndex);
+		
 
 		FInterpolateGroomGuidesCS::FPermutationDomain InterpolationDomain;
 		InterpolationDomain.Set<FInterpolateGroomGuidesCS::FInterpolationType>(!bIsRootValid);
@@ -938,6 +967,7 @@ static void InterpolateGroomGuides(FRDGBuilder& GraphBuilder, FNiagaraDataBuffer
 		PassParameters->NiagaraFloatStride = ParticlesBuffer->GetFloatStride() / sizeof(float);
 		PassParameters->NodePositionComponent = NodePositionComponent;
 		PassParameters->RestPositionComponent = RestPositionComponent;
+		PassParameters->WorldToLocal = WorldToLocal;
 
 		const int32 BufferIndex = HairStrandsBuffer->SourceDeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
 
@@ -1004,19 +1034,21 @@ void UNiagaraDataInterfaceHairStrands::SimCachePostReadFrame(void* OptionalPerIn
 				
 				FNiagaraDataBuffer* ParticlesBuffer = EmitterDatas.GetCurrentData();
 				FNDIHairStrandsBuffer* HairstrandsBuffer = InstanceData->HairStrandsBuffer;
-
+				
 				if(HairstrandsBuffer && InstanceData->HairGroupInstance)
 				{
+					const FMatrix44f WorldToLocal = ComputeWorldTransform(InstanceData).Inverse();
+					
 					const uint32 StrandsSize = InstanceData->StrandsSize;
 					const bool bHasSkinningBinding = InstanceData->HairGroupInstance->BindingType == EHairBindingType::Skinning;
 					const bool bHasValidGeometry = InstanceData->HairGroupInstance->GeometryType != EHairGeometryType::NoneGeometry;
 				
 					ENQUEUE_RENDER_COMMAND(NiagaraInterpolateGroomSimCache)(
-						[ParticlesBuffer, HairstrandsBuffer, NodePositionComponent, RestPositionComponent, StrandsSize, bHasSkinningBinding, bHasValidGeometry](FRHICommandListImmediate& RHICmdList)
+						[ParticlesBuffer, HairstrandsBuffer, NodePositionComponent, RestPositionComponent, StrandsSize, bHasSkinningBinding, bHasValidGeometry, WorldToLocal](FRHICommandListImmediate& RHICmdList)
 						{
 							FMemMark MemMark(FMemStack::Get());
 							FRDGBuilder GraphBuilder(RHICmdList);
-							InterpolateGroomGuides(GraphBuilder, ParticlesBuffer, NodePositionComponent, RestPositionComponent, HairstrandsBuffer, StrandsSize, bHasSkinningBinding, bHasValidGeometry);
+							InterpolateGroomGuides(GraphBuilder, ParticlesBuffer, NodePositionComponent, RestPositionComponent, HairstrandsBuffer, StrandsSize, bHasSkinningBinding, bHasValidGeometry, WorldToLocal);
 							GraphBuilder.Execute();
 
 							HairstrandsBuffer->PointsCurveBuffer.EndGraphUsage();
@@ -3459,19 +3491,9 @@ void UNiagaraDataInterfaceHairStrands::SetShaderParameters(const FNiagaraDataInt
 		// Offsets / Transforms
 		FVector3f RestPositionOffsetValue = (FVector3f)ProxyData->HairStrandsBuffer->SourceRestResources->GetPositionOffset();
 
-		FMatrix44f RigidTransformFloat = FMatrix44f(ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->Debug.RigidCurrentLocalToWorld.ToMatrixWithScale() : ProxyData->WorldTransform.ToMatrixWithScale());
-		FMatrix44f WorldTransformFloat = FMatrix44f(ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() : ProxyData->WorldTransform.ToMatrixWithScale());
-		FMatrix44f BoneTransformFloat = FMatrix44f(ProxyData->BoneTransform.ToMatrixWithScale()) * RigidTransformFloat;
-
-		if (ProxyData->LocalSimulation)
-		{
-			const FMatrix44d WorldTransformDouble(WorldTransformFloat);
-			const FMatrix44d BoneTransformDouble(BoneTransformFloat);
-
-			// Due to large world coordinate we store the relative world transform in double precision 
-			WorldTransformFloat = FMatrix44f(WorldTransformDouble * BoneTransformDouble.Inverse());
-		}
-
+		const FMatrix44f WorldTransformFloat = ComputeWorldTransform(ProxyData);
+		const FMatrix44f BoneTransformFloat = ComputeBoneTransform(ProxyData);
+		
 		if (ProxyData->BoneLinearVelocity.ContainsNaN() || ProxyData->BoneAngularVelocity.ContainsNaN() || ProxyData->BoneLinearAcceleration.ContainsNaN() || ProxyData->BoneAngularAcceleration.ContainsNaN())
 		{
 			UE_LOG(LogHairStrands, Log, TEXT("Bad bones state"));
@@ -3481,11 +3503,6 @@ void UNiagaraDataInterfaceHairStrands::SetShaderParameters(const FNiagaraDataInt
 		{
 			UE_LOG(LogHairStrands, Log, TEXT("FNDIHairStrandsParametersCS() Groom Asset %s from component %s is set to use skinning interpolation but the skin resources are not valid"),
 				*ProxyData->HairGroupInstance->Debug.GroomAssetName, *ProxyData->HairGroupInstance->Debug.MeshComponentName);
-		}
-
-		if (WorldTransformFloat.ContainsNaN())
-		{
-			WorldTransformFloat = FMatrix44f(ProxyData->WorldTransform.ToMatrixWithScale());
 		}
 
 		if (bHasSkinnedInterpolation && (!DeformedMeshProjection || !RestMeshProjection))
