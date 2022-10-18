@@ -278,7 +278,10 @@ FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 InKern
 		}
 	}
 
-	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *GetName());
+	// Graph name needs to persist since it's referenced by the metadata
+	int32 GraphNameIndex = InOutAllocations.Names.Add();
+	InOutAllocations.Names[GraphNameIndex] = GetName();
+	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, *InOutAllocations.Names[GraphNameIndex]);
 	InOutAllocations.ShaderParameterMetadatas.Add(ShaderParameterMetadata);
 
 	return ShaderParameterMetadata;
