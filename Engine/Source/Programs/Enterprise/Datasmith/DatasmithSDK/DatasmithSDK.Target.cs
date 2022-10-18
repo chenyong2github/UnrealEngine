@@ -10,7 +10,7 @@ public class DatasmithSDKTarget : TargetRules
 	{
 		Type = TargetType.Program;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-		DefaultBuildSettings = BuildSettingsVersion.Latest;
+		DefaultBuildSettings = BuildSettingsVersion.V2;
 		SolutionDirectory = "Programs/Datasmith";
 		bBuildInSolutionByDefault = false;
 
