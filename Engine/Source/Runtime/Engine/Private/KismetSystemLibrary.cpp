@@ -56,6 +56,30 @@ namespace UE::Blueprint::Private
 	FAutoConsoleVariableRef CVarBlamePrintString(TEXT("bp.BlamePrintString"), 
 		bBlamePrintString,
 		TEXT("When true, prints the Blueprint Asset and Function that generated calls to Print String. Useful for tracking down screen message spam."));
+
+	void Generic_SetStructurePropertyByName(UObject* OwnerObject, FName StructPropertyName, FStructProperty* SrcStructProperty, const void* SrcStructAddr)
+	{
+		if (OwnerObject != nullptr)
+		{
+			FStructProperty* DestStructProperty = FindFProperty<FStructProperty>(OwnerObject->GetClass(), StructPropertyName);
+
+			// SrcStructAddr and SrcStructProperty can be null in certain scenarios.
+			// For example, retrieving an element reference from an array of user structs in BP can result in a null source.
+			// We'll report a BP exception in that case, but we also need to soft-fail here to prevent an assert in CopyValuesInternal.
+
+			bool bCanSetStructureProperty =
+				(DestStructProperty != nullptr) &&
+				(SrcStructProperty != nullptr) &&
+				(SrcStructAddr != nullptr) &&
+				SrcStructProperty->SameType(DestStructProperty);
+
+			if (bCanSetStructureProperty)
+			{
+				void* DestStructAddr = DestStructProperty->ContainerPtrToValuePtr<void>(OwnerObject);
+				DestStructProperty->CopyValuesInternal(DestStructAddr, SrcStructAddr, 1);
+			}
+		}
+	}
 }
 
 UKismetSystemLibrary::UKismetSystemLibrary(const FObjectInitializer& ObjectInitializer)
@@ -1127,6 +1151,36 @@ void UKismetSystemLibrary::SetFieldPathPropertyByName(UObject* Object, FName Pro
 		const FFieldPath* FieldPathPtr = (const FFieldPath*)(&Value);
 		FieldProp->SetPropertyValue_InContainer(Object, *FieldPathPtr);
 	}
+}
+
+DEFINE_FUNCTION(UKismetSystemLibrary::execSetCollisionProfileNameProperty)
+{
+	P_GET_OBJECT(UObject, OwnerObject);
+	P_GET_PROPERTY(FNameProperty, StructPropertyName);
+
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+	FStructProperty* SrcStructProperty = CastField<FStructProperty>(Stack.MostRecentProperty);
+	void* SrcStructAddr = Stack.MostRecentPropertyAddress;
+
+	P_FINISH;
+	P_NATIVE_BEGIN;
+	UE::Blueprint::Private::Generic_SetStructurePropertyByName(OwnerObject, StructPropertyName, SrcStructProperty, SrcStructAddr);
+	P_NATIVE_END;
+}
+
+DEFINE_FUNCTION(UKismetSystemLibrary::execSetStructurePropertyByName)
+{
+	P_GET_OBJECT(UObject, OwnerObject);
+	P_GET_PROPERTY(FNameProperty, StructPropertyName);
+
+	Stack.StepCompiledIn<FStructProperty>(nullptr);
+	FStructProperty* SrcStructProperty = CastField<FStructProperty>(Stack.MostRecentProperty);
+	void* SrcStructAddr = Stack.MostRecentPropertyAddress;
+
+	P_FINISH;
+	P_NATIVE_BEGIN;
+	UE::Blueprint::Private::Generic_SetStructurePropertyByName(OwnerObject, StructPropertyName, SrcStructProperty, SrcStructAddr);
+	P_NATIVE_END;
 }
 
 void UKismetSystemLibrary::SetSoftClassPropertyByName(UObject* Object, FName PropertyName, const TSoftClassPtr<UObject>& Value)
