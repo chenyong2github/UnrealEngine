@@ -118,6 +118,7 @@ namespace UsdUtils
 	 * @param LayerToAuthorIn - Layer to clear the opinions in, or an invalid layer (e.g. UE::FSdfLayer{}, which is the default)
 	 * @return Whether we successfully cleared the opinions or not
 	 */
+	UE_DEPRECATED( 5.2, "No longer used as UE material assignments are only visible in the 'unreal' render context anyway" )
 	USDUTILITIES_API bool RemoveUnrealSurfaceOutput( pxr::UsdPrim& MaterialPrim, const UE::FSdfLayer& LayerToAuthorIn = UE::FSdfLayer{} );
 
 	/**

@@ -37,7 +37,6 @@ void UsdUtils::AddAnalyticsAttributes(
 		InOutAttributes.Emplace( TEXT( "PayloadFormat" ), Options.PayloadFormat );
 	}
 	InOutAttributes.Emplace( TEXT( "BakeMaterials" ), Options.bBakeMaterials );
-	InOutAttributes.Emplace( TEXT( "RemoveUnrealMaterials" ), Options.bRemoveUnrealMaterials );
 	if ( Options.bBakeMaterials )
 	{
 		UsdUtils::AddAnalyticsAttributes( Options.MaterialBakingOptions, InOutAttributes );
@@ -75,10 +74,6 @@ void UsdUtils::HashForMeshExport( const FUsdMeshAssetOptions& Options, FSHA1& Ha
 	HashToUpdate.Update(
 		reinterpret_cast< const uint8* >( &Options.bBakeMaterials ),
 		sizeof( Options.bBakeMaterials )
-	);
-	HashToUpdate.Update(
-		reinterpret_cast< const uint8* >( &Options.bRemoveUnrealMaterials ),
-		sizeof( Options.bRemoveUnrealMaterials )
 	);
 
 	HashToUpdate.Update(

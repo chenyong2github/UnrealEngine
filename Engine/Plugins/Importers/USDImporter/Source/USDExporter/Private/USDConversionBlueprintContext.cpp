@@ -436,7 +436,7 @@ void UUsdConversionBlueprintContext::ReplaceUnrealMaterialsWithBaked( const FFil
 		return;
 	}
 
-	UsdUtils::ReplaceUnrealMaterialsWithBaked( Stage, Layer, BakedMaterials, bIsAssetLayer, bUsePayload, bRemoveUnrealMaterials );
+	UsdUtils::ReplaceUnrealMaterialsWithBaked( Stage, Layer, BakedMaterials, bIsAssetLayer, bUsePayload );
 #endif // USE_USD_SDK
 }
 
@@ -460,7 +460,9 @@ bool UUsdConversionBlueprintContext::RemoveUnrealSurfaceOutput( const FString& P
 		Layer = UE::FSdfLayer::FindOrOpen( *LayerToAuthorIn.FilePath );
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return UsdUtils::RemoveUnrealSurfaceOutput( Prim, Layer );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 	return false;
 #endif // USE_USD_SDK

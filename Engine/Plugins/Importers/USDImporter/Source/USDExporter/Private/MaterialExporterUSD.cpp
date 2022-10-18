@@ -401,7 +401,6 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 	const FString& StageRootLayerPath,
 	bool bIsAssetLayer,
 	bool bUsePayload,
-	bool bRemoveUnrealMaterials,
 	bool bReplaceIdentical,
 	bool bReExportIdenticalAssets,
 	bool bIsAutomated
@@ -492,8 +491,7 @@ bool UMaterialExporterUsd::ExportMaterialsForStage(
 		RootLayer,
 		MaterialPathNameToFilePath,
 		bIsAssetLayer,
-		bUsePayload,
-		bRemoveUnrealMaterials
+		bUsePayload
 	);
 
 	RootLayer.Save();

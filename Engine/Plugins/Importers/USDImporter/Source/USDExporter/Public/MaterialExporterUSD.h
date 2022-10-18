@@ -56,8 +56,6 @@ public:
 	 *                        when authoring the material binding relationships, e.g. whether we author them inside variants or not
 	 * @param bUsePayload - Should be True if the Stage was exported using payload files to store the actual Mesh prims. Also dictates minor
 	 *                      behaviors when authoring the material binding relationships.
-	 * @param bRemoveUnrealMaterials - Whether to remove the `unrealMaterial` attributes after replacing them with material bindings.
-	 *                                 Important because the `unrealMaterial` attributes will be used as a higher priority when determining material assignments
 	 * @param ReplaceIdentical - Whether to overwrite the destination files in case they already exist
 	 * @param bReExportIdenticalAssets - Whether to overwrite the destination files even if they already describe up-to-date versions of Materials
 	 * @param bIsAutomated - Whether the export is being done by a script or not. Just used for analytics
@@ -69,7 +67,6 @@ public:
 		const FString& StageRootLayerPath,
 		bool bIsAssetLayer,
 		bool bUsePayload,
-		bool bRemoveUnrealMaterials,
 		bool bReplaceIdentical = true,
 		bool bReExportIdenticalAssets = false,
 		bool bIsAutomated = false

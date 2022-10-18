@@ -2323,8 +2323,7 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 	const UE::FSdfLayer& LayerToAuthorIn,
 	const TMap<FString, FString>& BakedMaterials,
 	bool bIsAssetLayer,
-	bool bUsePayload,
-	bool bRemoveUnrealMaterials
+	bool bUsePayload
 )
 {
 	FScopedUsdAllocs Allocs;
@@ -2371,7 +2370,6 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 			&BakedMaterials,
 			bIsAssetLayer,
 			bUsePayload,
-			bRemoveUnrealMaterials,
 			&StageMatScope
 		]
 		(
@@ -2523,25 +2521,6 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 
 				pxr::UsdEditContext Context{ StageToTraverse, Layer };
 
-				if ( bRemoveUnrealMaterials )
-				{
-					TOptional<pxr::UsdEditContext> VarContext;
-					if ( bAuthorInsideVariants )
-					{
-						VarContext.Emplace( OuterVariantSet.GetValue().GetVariantEditContext() );
-					}
-
-					if ( UnrealMaterialAttrSpec )
-					{
-						Prim.RemoveProperty( UnrealIdentifiers::MaterialAssignment );
-					}
-
-					if ( UnrealMaterialPrimSpec )
-					{
-						UsdUtils::RemoveUnrealSurfaceOutput( UnrealMaterialPrim, UE::FSdfLayer{ Layer } );
-					}
-				}
-
 				// It was just an empty UE asset path, so just cancel now as our BakedFilename can't possibly be useful
 				if ( UnrealMaterialAssetPath.IsEmpty() )
 				{
@@ -2672,6 +2651,24 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 	pxr::UsdPrim Root = Stage.GetPseudoRoot();
 	TOptional<FMaterialScopePrim> Empty;
 	TraverseForMaterialReplacement( UsdStage, Root, Empty, {} );
+}
+
+void UsdUtils::ReplaceUnrealMaterialsWithBaked(
+	const UE::FUsdStage& Stage,
+	const UE::FSdfLayer& LayerToAuthorIn,
+	const TMap<FString, FString>& BakedMaterials,
+	bool bIsAssetLayer,
+	bool bUsePayload,
+	bool bRemoveUnrealMaterials
+)
+{
+	ReplaceUnrealMaterialsWithBaked(
+		Stage,
+		LayerToAuthorIn,
+		BakedMaterials,
+		bIsAssetLayer,
+		bUsePayload
+	);
 }
 
 FString UsdUtils::HashGeomMeshPrim( const UE::FUsdStage& Stage, const FString& PrimPath, double TimeCode )

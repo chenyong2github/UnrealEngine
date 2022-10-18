@@ -146,11 +146,10 @@ public:
 	 *                        when authoring the material binding relationships, e.g. whether we author them inside variants or not
 	 * @param bUsePayload - Should be True if the Stage was exported using payload files to store the actual Mesh prims. Also dictates minor
 	 *                      behaviors when authoring the material binding relationships.
-	 * @param bRemoveUnrealMaterials - Whether to remove the `unrealMaterial` attributes after replacing them with material bindings.
-	 *                                 Important because the `unrealMaterial` attributes will be used as a higher priority when determining material assignments on import
+	 * @param bRemoveUnrealMaterials - No longer used.
 	 */
 	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
-	void ReplaceUnrealMaterialsWithBaked( const FFilePath& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials );
+	void ReplaceUnrealMaterialsWithBaked( const FFilePath& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials = false );
 
 	/**
 	 * Clears any opinions for the 'unreal' render context surface output of MaterialPrim within LayerToAuthorIn.
@@ -160,6 +159,7 @@ public:
 	 * @param LayerToAuthorIn - Layer to clear the opinions in. Can be the empty string to clear opinions from all layers in the layer stack
 	 * @return Whether we successfully cleared the opinions or not
 	 */
+	UE_DEPRECATED( 5.2, "No longer used as UE material assignments are only visible in the 'unreal' render context anyway" )
 	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
 	bool RemoveUnrealSurfaceOutput( const FString& PrimPath, const FFilePath& LayerToAuthorIn );
 

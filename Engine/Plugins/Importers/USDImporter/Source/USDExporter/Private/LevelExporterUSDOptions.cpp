@@ -65,7 +65,6 @@ void UsdUtils::HashForLevelExport( const FLevelExporterUSDOptionsInner& Options,
 
 	// This affects how we author material overrides
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.AssetOptions.bBakeMaterials ), sizeof( Options.AssetOptions.bBakeMaterials ) );
-	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.AssetOptions.bRemoveUnrealMaterials ), sizeof( Options.AssetOptions.bRemoveUnrealMaterials ) );
 
 	// This affects how we author material overrides and landscapes
 	HashToUpdate.Update( reinterpret_cast< const uint8* >( &Options.AssetOptions.bUsePayload ), sizeof( Options.AssetOptions.bUsePayload ) );
