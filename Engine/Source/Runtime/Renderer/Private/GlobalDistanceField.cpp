@@ -2779,7 +2779,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 			if (PageObjectGridBuffer)
 			{
-				GlobalDistanceFieldInfo.PageObjectGridBuffer = ConvertToExternalAccessBuffer(GraphBuilder, ExternalAccessQueue, PageObjectGridBuffer);
+				GlobalDistanceFieldInfo.PageObjectGridBuffer = ConvertToExternalAccessBuffer(GraphBuilder, ExternalAccessQueue, PageObjectGridBuffer, ERHIAccess::SRVMask, ERHIPipeline::All);
 			}
 
 			if (PageTableCombinedTexture)
