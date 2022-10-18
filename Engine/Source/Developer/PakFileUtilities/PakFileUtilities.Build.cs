@@ -22,7 +22,10 @@ public class PakFileUtilities : ModuleRules
 
 		if (Target.bBuildWithEditorOnlyData)
 		{
-			DynamicallyLoadedModuleNames.Add("DerivedDataCache");
+			DynamicallyLoadedModuleNames.AddRange(new string[] {
+				"DerivedDataCache",
+				"Virtualization",
+			});
 		}
 	}
 }
