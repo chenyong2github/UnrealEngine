@@ -4368,13 +4368,16 @@ void FControlRigEditMode::TickManipulatableObjects(float DeltaTime)
 				{
 					// "Copy Pose from Mesh" requires AnimInstance::PreUpdate() to copy the parent bone transforms.
 					// have to TickAnimation() to ensure that PreUpdate() is called on all anim instances
-					SkeletalMeshToUpdate->TickAnimation(0.0f, false);
-					SkeletalMeshToUpdate->RefreshBoneTransforms();
-					SkeletalMeshToUpdate->RefreshFollowerComponents	();
-					SkeletalMeshToUpdate->UpdateComponentToWorld();
-					SkeletalMeshToUpdate->FinalizeBoneTransform();
-					SkeletalMeshToUpdate->MarkRenderTransformDirty();
-					SkeletalMeshToUpdate->MarkRenderDynamicDataDirty();
+					if (!SkeletalMeshToUpdate->GetAnimInstance()->IsUpdatingAnimation())
+					{
+						SkeletalMeshToUpdate->TickAnimation(0.0f, false);
+						SkeletalMeshToUpdate->RefreshBoneTransforms();
+						SkeletalMeshToUpdate->RefreshFollowerComponents	();
+						SkeletalMeshToUpdate->UpdateComponentToWorld();
+						SkeletalMeshToUpdate->FinalizeBoneTransform();
+						SkeletalMeshToUpdate->MarkRenderTransformDirty();
+						SkeletalMeshToUpdate->MarkRenderDynamicDataDirty();
+					}
 				}
 			}
 		}

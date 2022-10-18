@@ -951,6 +951,9 @@ public:
 #if DO_CHECK
 	/** Is this animation currently running post update */
 	bool IsPostUpdatingAnimation() const { return bPostUpdatingAnimation; }
+
+	/** Is this animation currently running update */
+	bool IsUpdatingAnimation() const { return bUpdatingAnimation; }
 #endif
 
 	/** Set RootMotionMode */
