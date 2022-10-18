@@ -97,6 +97,7 @@ namespace Horde.Build.Agents.Software
 		/// Finds all uploaded software matching the given criteria
 		/// </summary>
 		/// <param name="name">Name of the channel to get</param>
+		/// <param name="request">Request body</param>
 		/// <param name="filter">Filter for the properties to return</param>
 		/// <returns>Http response</returns>
 		[HttpPut]

@@ -224,20 +224,23 @@ namespace Horde.Build.Agents.Software
 		/// <param name="name">Name of the channel to update</param>
 		/// <param name="author">Name of the user updating the software</param>
 		/// <param name="version">New version of the software to use</param>
-		public async Task UpdateChannelAsync(AgentSoftwareChannelName name, string? author, string version)
+		public async Task UpdateChannelAsync(AgentSoftwareChannelName name, string? author, string? version)
 		{
-			for(; ;)
+			if (version != null)
 			{
-				AgentSoftwareChannels instance = await _singleton.GetAsync();
-
-				AgentSoftwareChannel channel = instance.FindOrAddChannel(name);
-				channel.ModifiedBy = author;
-				channel.ModifiedTime = DateTime.UtcNow;
-				channel.Version = version;
-
-				if (await _singleton.TryUpdateAsync(instance))
+				for (; ; )
 				{
-					break;
+					AgentSoftwareChannels instance = await _singleton.GetAsync();
+
+					AgentSoftwareChannel channel = instance.FindOrAddChannel(name);
+					channel.ModifiedBy = author;
+					channel.ModifiedTime = DateTime.UtcNow;
+					channel.Version = version;
+
+					if (await _singleton.TryUpdateAsync(instance))
+					{
+						break;
+					}
 				}
 			}
 		}
