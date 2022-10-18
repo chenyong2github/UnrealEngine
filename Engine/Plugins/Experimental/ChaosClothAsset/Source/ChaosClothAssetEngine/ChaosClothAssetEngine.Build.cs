@@ -17,7 +17,10 @@ public class ChaosClothAssetEngine : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Chaos",
-				"ChaosClothAsset"
+				"ChaosClothAsset",
+				"ChaosCloth",
+				"TaskGraph",
+				"ClothingSystemRuntimeInterface"
 			}
 		);
 

@@ -10,9 +10,10 @@ namespace Chaos
 {
 	FClothingSimulationSkeletalMesh::FClothingSimulationSkeletalMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		: FClothingSimulationMesh(InSkeletalMeshComponent)
+		: FClothingSimulationMesh()
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, Asset(InAsset)
+		, SkeletalMeshComponent(InSkeletalMeshComponent)
 	{
 	}
 
@@ -25,11 +26,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		int32 LODIndex = INDEX_NONE;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		if (Asset && GetSkinnedMeshComponent())
+		if (Asset && SkeletalMeshComponent)
 		{
-			const int32 OwnerLODIndex = GetSkinnedMeshComponent()->GetPredictedLODLevel();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			const int32 OwnerLODIndex = SkeletalMeshComponent->GetPredictedLODLevel();
 			if (Asset->LodMap.IsValidIndex(OwnerLODIndex))
 			{
 				const int32 ClothLODIndex = Asset->LodMap[OwnerLODIndex];
@@ -178,16 +177,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return TConstArrayView<FClothVertBoneData>();
 	}
 
-	const TArray<FMeshToMeshVertData>& FClothingSimulationSkeletalMesh::GetTransitionUpSkinData(int32 LODIndex) const
+	TConstArrayView<FMeshToMeshVertData> FClothingSimulationSkeletalMesh::GetTransitionUpSkinData(int32 LODIndex) const
 	{
-		static TArray<FMeshToMeshVertData> EmptyArray;
-		return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].TransitionUpSkinData : EmptyArray;
+		return IsValidLODIndex(LODIndex) ? TConstArrayView<FMeshToMeshVertData>(Asset->LodData[LODIndex].TransitionUpSkinData) : TConstArrayView<FMeshToMeshVertData>();
 	}
 
-	const TArray<FMeshToMeshVertData>& FClothingSimulationSkeletalMesh::GetTransitionDownSkinData(int32 LODIndex) const
+	TConstArrayView<FMeshToMeshVertData> FClothingSimulationSkeletalMesh::GetTransitionDownSkinData(int32 LODIndex) const
 	{
-		static TArray<FMeshToMeshVertData> EmptyArray;
-		return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].TransitionDownSkinData : EmptyArray;
+		return IsValidLODIndex(LODIndex) ? TConstArrayView<FMeshToMeshVertData>(Asset->LodData[LODIndex].TransitionDownSkinData) : TConstArrayView<FMeshToMeshVertData>();
 	}
 
 	const FClothingSimulationContextCommon* FClothingSimulationSkeletalMesh::GetContext() const

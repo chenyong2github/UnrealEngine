@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "ChaosClothAsset/ClothAssetPrivate.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+
+DEFINE_LOG_CATEGORY(LogChaosClothAsset);
 
 namespace UE::Chaos::ClothAsset
 {

@@ -4,6 +4,8 @@
 #include "ChaosClothAsset/ClothAssetBuilder.h"
 #include "ChaosClothAsset/ClothAdapter.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
+#include "ChaosClothAsset/ClothAssetPrivate.h"
+#include "ChaosClothAsset/ClothSimulationModel.h"
 #include "Animation/Skeleton.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "EngineUtils.h"
@@ -18,8 +20,6 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new GUID as the version.
 #define CHAOS_CLOTH_ASSET_DERIVED_DATA_VERSION TEXT("19823D996CA54F279B9A9FA8ED7A8EB6")
 
-DEFINE_LOG_CATEGORY_STATIC(LogChaosClothAsset, Log, All);
-
 UChaosClothAsset::UChaosClothAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DisableBelowMinLodStripping(FPerPlatformBool(false))
@@ -29,6 +29,13 @@ UChaosClothAsset::UChaosClothAsset(const FObjectInitializer& ObjectInitializer)
 #endif
 {
 }
+
+UChaosClothAsset::UChaosClothAsset(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UChaosClothAsset::~UChaosClothAsset() = default;
 
 FMatrix UChaosClothAsset::GetComposedRefPoseMatrix(FName InBoneName) const
 {
@@ -92,7 +99,9 @@ void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Conte
 	// This scope allows us to use any locked properties without causing stalls
 	FSkinnedAssetAsyncBuildScope AsyncBuildScope(this);
 
-	BuildModel();
+	BuildClothSimulationModel();  // TODO: Cache ClothSimulationModel?
+
+	BuildMeshModel();
 #endif // #if WITH_EDITOR
 }
 
@@ -273,6 +282,23 @@ void UChaosClothAsset::CalculateBounds()
 	Bounds = FBoxSphereBounds(BoundingBox);
 }
 
+void UChaosClothAsset::UpdateSkeleton(bool bRebuildClothSimulationModel)
+{
+	// Rebuild Skeleton
+	RefSkeleton = Skeleton->GetReferenceSkeleton();  // TODO: Does a copy work? Try to see what's exactly needed here...
+
+	constexpr bool bRebuildNameMap = false;
+	RefSkeleton.RebuildRefSkeleton(Skeleton, bRebuildNameMap);
+
+	CalculateInvRefMatrices();
+
+	if (bRebuildClothSimulationModel)
+	{
+		// Rebuild simulation model  // TODO: How does this work with skinning
+		BuildClothSimulationModel();
+	}
+}
+
 void UChaosClothAsset::Build()
 {
 	using namespace UE::Chaos::ClothAsset;
@@ -284,12 +310,10 @@ void UChaosClothAsset::Build()
 	AssetGuid = FGuid::NewGuid();
 
 	// Rebuild Skeleton
-	RefSkeleton = Skeleton->GetReferenceSkeleton();  // TODO: Does a copy work? Try to see what's exactly needed here...
+	constexpr bool bRebuildClothSimulationModel = false;
+	UpdateSkeleton(bRebuildClothSimulationModel);
 
-	constexpr bool bRebuildNameMap = false;
-	RefSkeleton.RebuildRefSkeleton(Skeleton, bRebuildNameMap);
-
-	CalculateInvRefMatrices();
+	// Update bounds
 	CalculateBounds();
 
 	// Add LODs to the render data
@@ -300,9 +324,12 @@ void UChaosClothAsset::Build()
 	LODInfo.Reset(NumLods);
 	LODInfo.AddDefaulted(NumLods);  // TODO: Expose some properties to fill up the LOD infos
 
+	// Build simulation model
+	BuildClothSimulationModel();
+
 	// Rebuild LOD Model
 #if WITH_EDITORONLY_DATA
-	BuildModel();
+	BuildMeshModel();
 #endif
 
 	// Load/save render data from/to DDC
@@ -317,7 +344,7 @@ void UChaosClothAsset::Build()
 }
 
 #if WITH_EDITORONLY_DATA
-void UChaosClothAsset::BuildModel()
+void UChaosClothAsset::BuildMeshModel()
 {
 	const TArray<IClothAssetBuilderClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothAssetBuilderClassProvider>(IClothAssetBuilderClassProvider::FeatureName);
 	if (const TSubclassOf<UClothAssetBuilder> ClothAssetBuilderClass = ClassProviders.Num() ? ClassProviders[0]->GetClothAssetBuilderClass() : nullptr)
@@ -342,6 +369,11 @@ void UChaosClothAsset::BuildModel()
 	}
 }
 #endif  // #if WITH_EDITORONLY_DATA
+
+void UChaosClothAsset::BuildClothSimulationModel()
+{
+	ClothSimulationModel = MakeUnique<FChaosClothSimulationModel>(GetClothCollection(), GetRefSkeleton());
+}
 
 const FMeshUVChannelInfo* UChaosClothAsset::GetUVChannelData(int32 MaterialIndex) const
 {

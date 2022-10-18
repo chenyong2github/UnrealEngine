@@ -8,7 +8,6 @@
 
 //#define CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT 1  // For testing only. TODO: Once FClothingSimulationMesh is abstract from 5.4, remove all lines where this is referenced
 
-class USkinnedMeshComponent;
 struct FMeshToMeshVertData;
 struct FClothVertBoneData;
 
@@ -31,7 +30,7 @@ namespace Chaos
 #endif
 	{
 	public:
-		FClothingSimulationMesh(const USkinnedMeshComponent* InSkinnedMeshComponent);
+		FClothingSimulationMesh();
 		virtual ~FClothingSimulationMesh();
 
 		FClothingSimulationMesh(const FClothingSimulationMesh&) = delete;
@@ -39,16 +38,13 @@ namespace Chaos
 		FClothingSimulationMesh& operator=(const FClothingSimulationMesh&) = delete;
 		FClothingSimulationMesh& operator=(FClothingSimulationMesh&&) = delete;
 
-		// ---- Node property getters/setters
-		const USkinnedMeshComponent* GetSkinnedMeshComponent() const { return SkinnedMeshComponent; }
-		// ---- End of node property getters/setters
 #if !defined(CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT) || !CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		UE_DEPRECATED(5.2, "Use the FClothingSimulationSkeletalMesh constructor instead.")
 		FClothingSimulationMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent);
 		UE_DEPRECATED(5.2, "Use the FClothingSimulationSkeletalMesh::GetAsset() instead.")
 		virtual const UClothingAssetCommon* GetAsset() const { return Asset; }
 		UE_DEPRECATED(5.2, "Use the FClothingSimulationSkeletalMesh::GetSkeletalMeshComponent() instead.")
-		virtual const USkeletalMeshComponent* GetSkeletalMeshComponent() const;
+		virtual const USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkeletalMeshComponent; }
 
 		virtual int32 GetNumLODs() const;
 		virtual int32 GetLODIndex() const;
@@ -66,8 +62,8 @@ namespace Chaos
 		virtual const TArray<FMatrix44f>& GetRefToLocalMatrices() const;
 		virtual TConstArrayView<int32> GetBoneMap() const;
 		virtual TConstArrayView<FClothVertBoneData> GetBoneData(int32 LODIndex) const;
-		virtual const TArray<FMeshToMeshVertData>& GetTransitionUpSkinData(int32 LODIndex) const;
-		virtual const TArray<FMeshToMeshVertData>& GetTransitionDownSkinData(int32 LODIndex) const;
+		virtual TConstArrayView<FMeshToMeshVertData> GetTransitionUpSkinData(int32 LODIndex) const;
+		virtual TConstArrayView<FMeshToMeshVertData> GetTransitionDownSkinData(int32 LODIndex) const;
 #else
 		// ---- Cloth interface ----
 		/* Return the number of LODs on this mesh. */
@@ -119,10 +115,10 @@ namespace Chaos
 		virtual TConstArrayView<FClothVertBoneData> GetBoneData(int32 LODIndex) const = 0;
 
 		/* Return the transition up data (PrevLODIndex < LODIndex), for matching shapes during LOD changes. */
-		virtual const TArray<FMeshToMeshVertData>& GetTransitionUpSkinData(int32 LODIndex) const = 0;
+		virtual TConstArrayView<FMeshToMeshVertData> GetTransitionUpSkinData(int32 LODIndex) const = 0;
 
 		/* Return the transition down data (PrevLODIndex > LODIndex), for matching shapes during LOD changes. */
-		virtual const TArray<FMeshToMeshVertData>& GetTransitionDownSkinData(int32 LODIndex) const = 0;
+		virtual TConstArrayView<FMeshToMeshVertData> GetTransitionDownSkinData(int32 LODIndex) const = 0;
 #endif
 		/** Return this mesh uniform scale as the maximum of the three axis scale value. */
 		virtual Softs::FSolverReal GetScale() const;
@@ -162,13 +158,12 @@ namespace Chaos
 			Softs::FSolverVec3* OutPositions,
 			Softs::FSolverVec3* OutNormals) const;
 
-	private:
 #if !defined(CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT) || !CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		const FClothingSimulationContextCommon* GetContext() const;
 
 		const UClothingAssetCommon* Asset;
+		const USkeletalMeshComponent* SkeletalMeshComponent;
 #endif
-		const USkinnedMeshComponent* SkinnedMeshComponent;
 	};
 } // namespace Chaos
 

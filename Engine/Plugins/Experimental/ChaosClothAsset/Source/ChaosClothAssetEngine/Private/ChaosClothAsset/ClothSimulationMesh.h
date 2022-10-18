@@ -3,35 +3,28 @@
 
 #include "ChaosCloth/ChaosClothingSimulationMesh.h"
 
-class FClothingSimulationContextCommon;
-class UClothingAssetCommon;
+class UChaosClothAsset;
+struct FChaosClothSimulationModel;
 
-namespace Chaos
+namespace UE::Chaos::ClothAsset
 {
+	struct FClothSimulationContext;
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-	class FClothingSimulationSkeletalMesh final : public FClothingSimulationMesh
+	class FClothSimulationMesh : public ::Chaos::FClothingSimulationMesh
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	public:
-		FClothingSimulationSkeletalMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent);
+		FClothSimulationMesh(const FChaosClothSimulationModel& InClothSimulationModel, const FClothSimulationContext& InClothSimulationContext);
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		virtual ~FClothingSimulationSkeletalMesh() override = default;
+		virtual ~FClothSimulationMesh() override = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-		FClothingSimulationSkeletalMesh(const FClothingSimulationSkeletalMesh&) = delete;
-		FClothingSimulationSkeletalMesh(FClothingSimulationSkeletalMesh&&) = delete;
-		FClothingSimulationSkeletalMesh& operator=(const FClothingSimulationSkeletalMesh&) = delete;
-		FClothingSimulationSkeletalMesh& operator=(FClothingSimulationSkeletalMesh&&) = delete;
+		FClothSimulationMesh(const FClothSimulationMesh&) = delete;
+		FClothSimulationMesh(FClothSimulationMesh&&) = delete;
+		FClothSimulationMesh& operator=(const FClothSimulationMesh&) = delete;
+		FClothSimulationMesh& operator=(FClothSimulationMesh&&) = delete;
 
-#if !defined(CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT) || !CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		virtual const UClothingAssetCommon* GetAsset() const override { return Asset; }
-PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		virtual const USkeletalMeshComponent* GetSkeletalMeshComponent() const override { return SkeletalMeshComponent; }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#else
-		const UClothingAssetCommon* GetAsset() const { return Asset; }
-		const USkeletalMeshComponent* GetSkeletalMeshComponent() const { return Cast<USkeletalMeshComponent>(GetSkinnedMeshComponent()); }
-#endif
 		//~ Begin FClothingSimulationMesh Interface
 		virtual int32 GetNumLODs() const override;
 		virtual int32 GetLODIndex() const override;
@@ -41,10 +34,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		virtual TConstArrayView<FVector3f> GetPositions(int32 LODIndex) const override;
 		virtual TConstArrayView<FVector3f> GetNormals(int32 LODIndex) const override;
 		virtual TConstArrayView<uint32> GetIndices(int32 LODIndex) const override;
-		virtual TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const override;
+		virtual TArray<TConstArrayView<::Chaos::FRealSingle>> GetWeightMaps(int32 LODIndex) const override;
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const override;
 		virtual int32 GetReferenceBoneIndex() const override;
-		virtual FRigidTransform3 GetReferenceBoneTransform() const override;
+		virtual ::Chaos::FRigidTransform3 GetReferenceBoneTransform() const override;
 		virtual const FTransform& GetComponentToWorldTransform() const override;
 		virtual const TArray<FMatrix44f>& GetRefToLocalMatrices() const override;
 		virtual TConstArrayView<int32> GetBoneMap() const override;
@@ -54,9 +47,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		//~ End FClothingSimulationMesh Interface
 
 	private:
-		const FClothingSimulationContextCommon* GetContext() const;
-
-		const UClothingAssetCommon* Asset;
-		const USkeletalMeshComponent* SkeletalMeshComponent;
+		const FChaosClothSimulationModel& ClothSimulationModel;
+		const FClothSimulationContext& ClothSimulationContext;
 	};
 }

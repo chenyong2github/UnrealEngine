@@ -2,24 +2,25 @@
 
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothAsset.h"
+#include "ChaosClothAsset/ClothAssetPrivate.h"
+#include "ChaosClothAsset/ClothSimulationModel.h"
+#include "ChaosClothAsset/ClothSimulationProxy.h"
+#include "HAL/IConsoleManager.h"
 #include "SkeletalRenderPublic.h"
-#include "PhysicsEngine/PhysicsAsset.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogChaosClothComponent, Log, All);
-
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ClothComponent)
-
-DECLARE_STATS_GROUP(TEXT("ChaosClothComponent"), STATGROUP_ChaosClothComponent, STATCAT_Advanced);
-DECLARE_CYCLE_STAT(TEXT("SendRenderDynamicData_Concurrent"), STAT_ChaosClothComponent_SendRenderDynamicData_Concurrent, STATGROUP_ChaosClothComponent);
-DECLARE_CYCLE_STAT(TEXT("MeshObjectUpdate"), STAT_ChaosClothComponent_MeshObjectUpdate, STATGROUP_ChaosClothComponent);
-DECLARE_CYCLE_STAT(TEXT("CalcBounds"), STAT_ChaosClothComponent_CalcBounds, STATGROUP_ChaosClothComponent);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
 UChaosClothComponent::UChaosClothComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bDisableClothSimulation(0)
+	, bSuspendSimulation(0)
+	, bWaitForParallelClothTask(0)
+	, bBindClothToLeaderComponent(0)
 {
 	bAutoActivate = true;
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
+	PrimaryComponentTick.EndTickGroup = TG_PostPhysics;
 
 	//VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
@@ -72,26 +73,124 @@ UChaosClothComponent::UChaosClothComponent(const FObjectInitializer& ObjectIniti
 	//CurrentSkinWeightProfileName = NAME_None;
 }
 
+UChaosClothComponent::UChaosClothComponent(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UChaosClothComponent::~UChaosClothComponent() = default;
+
 void UChaosClothComponent::OnRegister()
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	LLM_SCOPE(ELLMTag::Chaos);
 
 	Super::OnRegister();
 
 	if (GetClothAsset())
 	{
-		FSkeletalMeshLODRenderData& LODData = GetClothAsset()->GetResourceForRendering()->LODRenderData[GetPredictedLODLevel()];
-		GetClothAsset()->FillComponentSpaceTransforms(GetClothAsset()->GetRefSkeleton().GetRefBonePose(), LODData.RequiredBones, GetEditableComponentSpaceTransforms());
+		const FChaosClothSimulationModel* const ClothSimulationModel = GetClothAsset()->GetClothSimulationModel();
+		if (ensure(ClothSimulationModel) && ClothSimulationModel->GetNumLods())
+		{
+			FSkeletalMeshLODRenderData& LODData = GetClothAsset()->GetResourceForRendering()->LODRenderData[GetPredictedLODLevel()];
+			GetClothAsset()->FillComponentSpaceTransforms(GetClothAsset()->GetRefSkeleton().GetRefBonePose(), LODData.RequiredBones, GetEditableComponentSpaceTransforms());
 
-		bNeedToFlipSpaceBaseBuffers = true; // Have updated space bases so need to flip
-		FlipEditableSpaceBases();
-		bHasValidBoneTransform = true;
+			bNeedToFlipSpaceBaseBuffers = true; // Have updated space bases so need to flip
+			FlipEditableSpaceBases();
+			bHasValidBoneTransform = true;
+
+			// Create simulation proxy
+			ClothSimulationProxy = MakeUnique<FClothSimulationProxy>(*this);
+		}
 	}
+}
+
+void UChaosClothComponent::OnUnregister()
+{
+	Super::OnUnregister();
+
+	// Release cloth simulation
+	ClothSimulationProxy.Reset(nullptr);
+}
+
+void UChaosClothComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
+
+	// TODO: Fields
+	//if (ClothingSimulation)
+	//{
+	//	ClothingSimulation->UpdateWorldForces(this);
+	//}
+
+	// TODO: Suspended update
+	//// If we are suspended, we will not simulate clothing, but as clothing is simulated in local space
+	//// relative to a root bone we need to extract simulation positions as this bone could be animated.
+	//if ((!CVarEnableClothPhysics.GetValueOnGameThread() || bClothingSimulationSuspended) && ClothingSimulation)
+	//{
+	//	// First update the simulation context, since the simulation isn't ticking
+	//	// and it is still required to get the correct simulation data and bounds.
+	//	constexpr bool bIsInitialization = false;
+	//	ClothingSimulation->FillContext(this, DeltaTime, ClothingSimulationContext, bIsInitialization);
+	//	ClothingSimulation->GetSimulationData(CurrentSimulationData, this, Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()));
+	//}
+
+	// Make sure that the previous frame simulation has completed
+	HandleExistingParallelSimulation();
+
+	// < This would be the right place to update the preset/use an interactor, ...etc.
+
+	// Update the proxy and start the simulation parallel task
+	StartNewParallelSimulation(DeltaTime);
+
+	// TODO: Wait in tick function
+	//if (ShouldWaitForClothInTickFunction())
+	//{
+	//	FGraphEventArray Prerequisites;
+	//	Prerequisites.Add(ParallelClothTask);
+	//	FGraphEventRef ClothCompletionEvent = TGraphTask<FParallelClothCompletionTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
+	//	ThisTickFunction.GetCompletionHandle()->DontCompleteUntil(ClothCompletionEvent);
+	//}
+
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 void UChaosClothComponent::RefreshBoneTransforms(FActorComponentTickFunction* TickFunction)
 {
-	// TODO: RefreshBoneTransforms
+	MarkRenderDynamicDataDirty();
+
+	bNeedToFlipSpaceBaseBuffers = true;
+	bHasValidBoneTransform = false;
+	FlipEditableSpaceBases();
+	bHasValidBoneTransform = true;
+}
+
+void UChaosClothComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight)
+{
+	OutLocalToWorld = GetComponentToWorld().ToMatrixWithScale();
+
+	const UChaosClothComponent* const LeaderPoseClothComponent = Cast<UChaosClothComponent>(LeaderPoseComponent.Get());
+	if (LeaderPoseClothComponent && LeaderPoseClothComponent->ClothSimulationProxy && bBindClothToLeaderComponent)
+	{
+		OutClothBlendWeight = ClothBlendWeight;
+		OutClothSimulData = LeaderPoseClothComponent->ClothSimulationProxy->GetCurrentSimulationData_AnyThread();
+	}
+	else if (!bDisableClothSimulation && !bBindClothToLeaderComponent)
+	{
+		OutClothBlendWeight = ClothBlendWeight;
+		OutClothSimulData = ClothSimulationProxy->GetCurrentSimulationData_AnyThread();
+	}
+	else
+	{
+		OutClothSimulData.Reset();
+	}
+
+	// Blend cloth out whenever the simulation data is invalid
+	if (!OutClothSimulData.Num())
+	{
+		OutClothBlendWeight = 0.0f;
+	}
 }
 
 void UChaosClothComponent::PostLoad()
@@ -138,4 +237,86 @@ void UChaosClothComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 }
 #endif // WITH_EDITOR
 
+bool UChaosClothComponent::RequiresPreEndOfFrameSync() const
+{
+	if (!IsSimulationSuspended() && !ShouldWaitForClothInTickFunction())
+	{
+		// By default we await the cloth task in TickComponent, but...
+		// If we have cloth and have no game-thread dependencies on the cloth output, 
+		// then we will wait for the cloth task in SendAllEndOfFrameUpdates.
+		return true;
+	}
+	return Super::RequiresPreEndOfFrameSync();
+}
 
+void UChaosClothComponent::OnPreEndOfFrameSync()
+{
+	Super::OnPreEndOfFrameSync();
+
+	HandleExistingParallelSimulation();
+}
+
+FBoxSphereBounds UChaosClothComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	const IConsoleVariable* const CVarCacheLocalSpaceBounds = IConsoleManager::Get().FindConsoleVariable(TEXT("a.CacheLocalSpaceBounds"));
+	const bool bCacheLocalSpaceBounds = CVarCacheLocalSpaceBounds ? CVarCacheLocalSpaceBounds->GetBool() : true;
+
+	const FTransform CachedBoundsTransform = bCacheLocalSpaceBounds ? FTransform::Identity : LocalToWorld;
+
+	FBoxSphereBounds NewBounds;
+	if (ClothSimulationProxy)
+	{
+		NewBounds = ClothSimulationProxy->CalculateBounds_AnyThread().TransformBy(CachedBoundsTransform);
+	}
+
+	CachedWorldOrLocalSpaceBounds = NewBounds;
+	bCachedLocalBoundsUpToDate = bCacheLocalSpaceBounds;
+	bCachedWorldSpaceBoundsUpToDate = !bCacheLocalSpaceBounds;
+
+	if (bCacheLocalSpaceBounds)
+	{
+		CachedWorldToLocalTransform.SetIdentity();
+		return NewBounds.TransformBy(LocalToWorld);
+	}
+	CachedWorldToLocalTransform = LocalToWorld.ToInverseMatrixWithScale();
+	return NewBounds;
+}
+
+void UChaosClothComponent::StartNewParallelSimulation(float DeltaTime)
+{
+	if (ClothSimulationProxy.IsValid())
+	{
+		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
+		ClothSimulationProxy->Tick_GameThread(DeltaTime);
+	}
+}
+
+void UChaosClothComponent::HandleExistingParallelSimulation()
+{
+	if (bBindClothToLeaderComponent)
+	{
+		if (UChaosClothComponent* const LeaderComponent = Cast<UChaosClothComponent>(LeaderPoseComponent.Get()))
+		{
+			LeaderComponent->HandleExistingParallelSimulation();
+		}
+	}
+
+	if (ClothSimulationProxy.IsValid())
+	{
+		ClothSimulationProxy->CompleteParallelSimulation_GameThread();
+	}
+}
+
+bool UChaosClothComponent::ShouldWaitForClothInTickFunction() const
+{
+	static IConsoleVariable* const CVarClothPhysicsWaitForParallelClothTask = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics.WaitForParallelClothTask"));
+
+	return bWaitForParallelClothTask || (CVarClothPhysicsWaitForParallelClothTask && CVarClothPhysicsWaitForParallelClothTask->GetBool());
+}
+
+bool UChaosClothComponent::IsSimulationSuspended() const
+{
+	static IConsoleVariable* const CVarClothPhysics = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics"));
+
+	return bSuspendSimulation || !ClothSimulationProxy.IsValid() || (CVarClothPhysics && !CVarClothPhysics->GetBool());
+}

@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/ClothAssetBuilderEditor.h"
-
-#include "BoneWeights.h"
+#include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothCollection.h"
 #include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Utils/ClothingMeshUtils.h"
+#include "BoneWeights.h"
 #include "MeshUtilities.h"
 #include "PointWeightMap.h"
 
@@ -65,36 +65,11 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 
 	// Build the sim mesh descriptor for creation of the sections' mesh to mesh mapping data
-	// TODO: Generate Mesh to Mesh data from pattern space
-	const int32 LodSimVerticesStart = ClothCollection->SimVerticesStart[PatternStart];
-	const int32 LodSimVerticesEnd = ClothCollection->SimVerticesEnd[PatternEnd];
-	const int32 NumLodSimVertices = LodSimVerticesEnd - LodSimVerticesStart + 1;
-
-	const int32 LodSimFacesStart = ClothCollection->SimFacesStart[PatternStart];
-	const int32 LodSimFacesEnd = ClothCollection->SimFacesEnd[PatternEnd];
-
-	const int32 NumLodSimFaces = LodSimFacesEnd - LodSimFacesStart + 1;
-	const int32 NumLodIndices = NumLodSimFaces * 3;
-
-	TArray<uint32> LodSimIndices;
-	LodSimIndices.Reserve(NumLodIndices);
-
-	for (int32 SimFaceIndex = LodSimFacesStart; SimFaceIndex <= LodSimFacesEnd; ++SimFaceIndex)
-	{
-		const FIntVector3& SimIndices = ClothCollection->SimIndices[SimFaceIndex];
-		LodSimIndices.Add((uint32)SimIndices.X);
-		LodSimIndices.Add((uint32)SimIndices.Y);
-		LodSimIndices.Add((uint32)SimIndices.Z);
-
-		const FVector3f& A = ClothCollection->SimRestPosition[LodSimVerticesStart + SimIndices.X];
-		const FVector3f& B = ClothCollection->SimRestPosition[LodSimVerticesStart + SimIndices.Y];
-		const FVector3f& C = ClothCollection->SimRestPosition[LodSimVerticesStart + SimIndices.Z];
-		ensure(FVector3f::CrossProduct(B - A, C - A).SizeSquared() >= SMALL_NUMBER);
-	}
-
 	const ClothingMeshUtils::ClothMeshDesc SourceMesh(
-		TConstArrayView<FVector3f>(ClothCollection->SimRestPosition.GetData() + LodSimVerticesStart, NumLodSimVertices),
-		TConstArrayView<uint32>(LodSimIndices));  // Calculate averaged normals
+		GetSimPositions(ClothAsset, LodIndex),
+		GetSimIndices(ClothAsset, LodIndex));  // Let it calculate the averaged normals as to match the simulation data output
+
+	const int32 NumLodSimVertices = GetNumVertices(ClothAsset, LodIndex);
 
 	// Retrieve the MaxDistance map
 	FPointWeightMap MaxDistances;
@@ -112,7 +87,9 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	int32 BaseIndex = 0;
 	for (const TPair<int32, TArray<int32>>& SectionFaces : SectionFacesMap)
 	{
-		FSkelMeshSection& Section = LODModel.Sections[SectionIndex++];
+		FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+		Section.OriginalDataSectionIndex = SectionIndex++;
 
 		const int32 MaterialIndex = SectionFaces.Key;
 		const TArray<int32>& Faces = SectionFaces.Value;
@@ -266,6 +243,9 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 				}
 			}
 		}
+
+		// Copy to user section data, otherwise the section data set above would get lost when the user section gets synced
+		FSkelMeshSourceSectionUserData::GetSourceSectionUserData(LODModel.UserSectionsData, Section);
 	}
 
 	// Remap the LOD indices with the new vertex indices
@@ -283,4 +263,3 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	// Compute the required bones for this model.
 	USkeletalMesh::CalculateRequiredBones(LODModel, ClothAsset.RefSkeleton, nullptr);
 }
-

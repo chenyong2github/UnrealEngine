@@ -38,24 +38,19 @@ namespace Chaos
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 
-FClothingSimulationMesh::FClothingSimulationMesh(const USkinnedMeshComponent* InSkinnedMeshComponent)
+FClothingSimulationMesh::FClothingSimulationMesh()
 	: Asset(nullptr)
-	, SkinnedMeshComponent(InSkinnedMeshComponent)
+	, SkeletalMeshComponent(nullptr)
 {
 }
 
 FClothingSimulationMesh::FClothingSimulationMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent)
 	: Asset(InAsset)
-	, SkinnedMeshComponent(InSkeletalMeshComponent)
+	, SkeletalMeshComponent(InSkeletalMeshComponent)
 {
 }
 
 FClothingSimulationMesh::~FClothingSimulationMesh() = default;
-
-const USkeletalMeshComponent* FClothingSimulationMesh::GetSkeletalMeshComponent() const
-{
-	return Cast<USkeletalMeshComponent>(SkinnedMeshComponent);
-}
 
 int32 FClothingSimulationMesh::GetNumLODs() const
 {
@@ -66,9 +61,9 @@ int32 FClothingSimulationMesh::GetLODIndex() const
 {
 	int32 LODIndex = INDEX_NONE;
 
-	if (Asset && SkinnedMeshComponent)
+	if (Asset && SkeletalMeshComponent)
 	{
-		const int32 MeshLODIndex = SkinnedMeshComponent->GetPredictedLODLevel();
+		const int32 MeshLODIndex = SkeletalMeshComponent->GetPredictedLODLevel();
 		if (Asset->LodMap.IsValidIndex(MeshLODIndex))
 		{
 			const int32 ClothLODIndex = Asset->LodMap[MeshLODIndex];
@@ -218,16 +213,14 @@ TConstArrayView<FClothVertBoneData> FClothingSimulationMesh::GetBoneData(int32 L
 	return EmptyArray;
 }
 
-const TArray<FMeshToMeshVertData>& FClothingSimulationMesh::GetTransitionUpSkinData(int32 LODIndex) const
+TConstArrayView<FMeshToMeshVertData> FClothingSimulationMesh::GetTransitionUpSkinData(int32 LODIndex) const
 {
-	static TArray<FMeshToMeshVertData> EmptyArray;
-	return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].TransitionUpSkinData : EmptyArray;
+	return IsValidLODIndex(LODIndex) ? TConstArrayView<FMeshToMeshVertData>(Asset->LodData[LODIndex].TransitionUpSkinData) : TConstArrayView<FMeshToMeshVertData>();
 }
 
-const TArray<FMeshToMeshVertData>& FClothingSimulationMesh::GetTransitionDownSkinData(int32 LODIndex) const
+TConstArrayView<FMeshToMeshVertData> FClothingSimulationMesh::GetTransitionDownSkinData(int32 LODIndex) const
 {
-	static TArray<FMeshToMeshVertData> EmptyArray;
-	return IsValidLODIndex(LODIndex) ? Asset->LodData[LODIndex].TransitionDownSkinData : EmptyArray;
+	return IsValidLODIndex(LODIndex) ? TConstArrayView<FMeshToMeshVertData>(Asset->LodData[LODIndex].TransitionDownSkinData) : TConstArrayView<FMeshToMeshVertData>();
 }
 
 const FClothingSimulationContextCommon* FClothingSimulationMesh::GetContext() const
@@ -240,10 +233,7 @@ const FClothingSimulationContextCommon* FClothingSimulationMesh::GetContext() co
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #else
-FClothingSimulationMesh::FClothingSimulationMesh(const USkinnedMeshComponent* InSkinnedMeshComponent)
-	: SkinnedMeshComponent(InSkinnedMeshComponent)
-{
-}
+FClothingSimulationMesh::FClothingSimulationMesh() = default;
 
 FClothingSimulationMesh::~FClothingSimulationMesh() = default;
 #endif
@@ -270,7 +260,7 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 	}
 
 	const int32 NumPoints = GetNumPoints(LODIndex);
-	const TArray<FMeshToMeshVertData>& SkinData = (PrevLODIndex < LODIndex) ?
+	const TConstArrayView<FMeshToMeshVertData> SkinData = (PrevLODIndex < LODIndex) ?
 		GetTransitionUpSkinData(LODIndex) :
 		GetTransitionDownSkinData(LODIndex);
 
@@ -311,7 +301,7 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 	}
 
 	const int32 NumPoints = GetNumPoints(LODIndex);
-	const TArray<FMeshToMeshVertData>& SkinData = (PrevLODIndex < LODIndex) ?
+	const TConstArrayView<FMeshToMeshVertData> SkinData = (PrevLODIndex < LODIndex) ?
 		GetTransitionUpSkinData(LODIndex) :
 		GetTransitionDownSkinData(LODIndex);
 
@@ -431,7 +421,7 @@ void FClothingSimulationMesh::Update(
 	check(Solver);
 
 	// Exit if any inputs are missing or not ready, and if the LOD is invalid
-	if (!IsValidLODIndex(LODIndex) || !SkinnedMeshComponent)
+	if (!IsValidLODIndex(LODIndex))
 	{
 		return;
 	}

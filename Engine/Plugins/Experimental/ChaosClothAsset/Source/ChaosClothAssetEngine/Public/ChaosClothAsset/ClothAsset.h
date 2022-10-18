@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ChaosClothAsset/ClothPreset.h"
 #include "Engine/SkeletalMesh.h"  // For FSkeletalMeshLODInfo
 #include "Engine/SkinnedAsset.h"
@@ -13,7 +12,7 @@
 namespace UE::Chaos::ClothAsset { class FClothCollection; }
 class FSkeletalMeshRenderData;
 class FSkeletalMeshModel;
-
+struct FChaosClothSimulationModel;
 
 UENUM()
 enum class EClothAssetAsyncProperties : uint64
@@ -24,9 +23,8 @@ enum class EClothAssetAsyncProperties : uint64
 };
 ENUM_CLASS_FLAGS(EClothAssetAsyncProperties);
 
-
 /**
- * Tailored cloth simulation asset.
+ * Cloth asset for pattern based simulation.
  */
 UCLASS(hidecategories = Object, BlueprintType)
 class CHAOSCLOTHASSETENGINE_API UChaosClothAsset : public USkinnedAsset
@@ -34,8 +32,8 @@ class CHAOSCLOTHASSETENGINE_API UChaosClothAsset : public USkinnedAsset
 	GENERATED_BODY()
 public:
 	UChaosClothAsset(const FObjectInitializer& ObjectInitializer);
-	//UChaosClothAsset(FVTableHelper& Helper);  // This is declared so we can use TUniquePtr<FSkeletalMeshRenderData> with just a forward declare of that class
-	~UChaosClothAsset() = default;
+	UChaosClothAsset(FVTableHelper& Helper);  // This is declared so we can use TUniquePtr<FClothSimulationModel> with just a forward declare of that class
+	virtual ~UChaosClothAsset() override;
 
 	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -73,7 +71,7 @@ public:
 	virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const override { return nullptr; }
 	virtual USkeleton* GetSkeleton() override									{ return Skeleton; }
 	virtual const USkeleton* GetSkeleton() const override						{ return Skeleton; }
-	virtual void SetSkeleton(USkeleton* InSkeleton) override					{ Skeleton = InSkeleton; }
+	virtual void SetSkeleton(USkeleton* InSkeleton) override					{ Skeleton = InSkeleton; UpdateSkeleton(); }
 	virtual UMeshDeformer* GetDefaultMeshDeformer() const override				{ return nullptr; }
 	virtual bool IsValidLODIndex(int32 Index) const override					{ return LODInfo.IsValidIndex(Index); }
 	virtual int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const override	{ return 0; }
@@ -99,6 +97,9 @@ public:
 
 	/** Return the enclosed Cloth Collection object, const version. */
 	const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> GetClothCollection() const { return ClothCollection; }
+
+	/** Return the cloth simulation ready LOD model data. */
+	const FChaosClothSimulationModel* GetClothSimulationModel() const { return ClothSimulationModel.Get(); }
 
 	/** Build this asset static render and simulation data. This needs to be done every time the asset has changed. */
 	void Build();
@@ -134,10 +135,19 @@ private:
 	/** Re-calculate the bounds for this asset. */
 	void CalculateBounds();
 
+	/** Re-calculate the reference bone index, from which the cloth gets transformed when the simulation is suspended. */
+	void CalculateReferenceBoneIndex();
+
+	/** Update the bone informations after a change of skeleton. */
+	void UpdateSkeleton(bool bRebuildClothSimulationModel = true);
+
 #if WITH_EDITORONLY_DATA
 	/** Build the SkeletalMeshLODModel for this asset. */
-	void BuildModel();
+	void BuildMeshModel();
 #endif
+
+	/** Build the clothing simulation meshes from the Cloth Collection. */
+	void BuildClothSimulationModel();
 
 	/** Initialize all render resources. */
 	void InitResources();
@@ -231,6 +241,9 @@ private:
 	/** Source mesh geometry information (not used at runtime). */
 	TSharedPtr<FSkeletalMeshModel> MeshModel;
 #endif
+
+	/** Simulation mesh Lods as fed to the solver for constraints creation. */
+	TUniquePtr<FChaosClothSimulationModel> ClothSimulationModel;
 
 	friend class UClothAssetBuilderEditor;
 };
