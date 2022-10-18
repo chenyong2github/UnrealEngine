@@ -1034,6 +1034,11 @@ public:
 		return RHI->RHICreateAliasedTexture(SourceTexture);
 	}
 
+	virtual void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation) override final
+	{
+		RHI->RHIGetDisplaysInformation(OutDisplayInformation);
+	}
+
 	virtual void RHIAdvanceFrameFence() override final
 	{
 		check(IsInRenderingThread());
