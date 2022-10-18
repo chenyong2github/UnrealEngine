@@ -36,7 +36,8 @@ public:
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	const FIoOffsetAndLength* Resolve(const FIoChunkId& ChunkId) const;
-	const FFileIoStoreContainerFile& GetContainerFile() const { return ContainerFile; }
+	FFileIoStoreContainerFile* GetContainerFile() { return &ContainerFile; }
+	const FFileIoStoreContainerFile* GetContainerFile() const { return &ContainerFile; }
 	IMappedFileHandle* GetMappedContainerFileHandle(uint64 TocOffset);
 	const FIoContainerId& GetContainerId() const { return ContainerId; }
 	int32 GetOrder() const { return Order; }

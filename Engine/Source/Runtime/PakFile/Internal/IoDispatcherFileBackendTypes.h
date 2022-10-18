@@ -25,10 +25,10 @@ struct FFileIoStoreCompressionContext;
 struct PAKFILE_API FFileIoStoreContainerFilePartition
 {
 	FFileIoStoreContainerFilePartition() = default;
-	FFileIoStoreContainerFilePartition(FFileIoStoreContainerFilePartition&&) = default;
+	FFileIoStoreContainerFilePartition(FFileIoStoreContainerFilePartition&&) = delete;
 	FFileIoStoreContainerFilePartition(const FFileIoStoreContainerFilePartition&) = delete;
 
-	FFileIoStoreContainerFilePartition& operator=(FFileIoStoreContainerFilePartition&&) = default;
+	FFileIoStoreContainerFilePartition& operator=(FFileIoStoreContainerFilePartition&&) = delete;
 	FFileIoStoreContainerFilePartition& operator=(const FFileIoStoreContainerFilePartition&) = delete;
 
 	uint64 FileHandle = 0;
@@ -36,6 +36,28 @@ struct PAKFILE_API FFileIoStoreContainerFilePartition
 	uint32 ContainerFileIndex = 0;
 	FString FilePath;
 	TUniquePtr<IMappedFileHandle> MappedFileHandle;
+	std::atomic<int32> StartedReadRequestsCount = 0;
+};
+
+struct PAKFILE_API FFileIoStoreBlockSignatureTable
+{
+	TArray<FSHAHash> Hashes;
+
+	void AddRef()
+	{
+		++RefCount;
+	}
+
+	void Release()
+	{
+		if (--RefCount == 0)
+		{
+			delete this;
+		}
+	}
+
+private:
+	std::atomic<int64> RefCount = 0;
 };
 
 struct PAKFILE_API FFileIoStoreContainerFile
@@ -55,15 +77,14 @@ struct PAKFILE_API FFileIoStoreContainerFile
 	FGuid EncryptionKeyGuid;
 	FAES::FAESKey EncryptionKey;
 	EIoContainerFlags ContainerFlags;
-	TArray<FSHAHash> BlockSignatureHashes;
+	TRefCountPtr<FFileIoStoreBlockSignatureTable> BlockSignatureTable;
 	TArray<FFileIoStoreContainerFilePartition> Partitions;
 	uint32 ContainerInstanceId = 0;
 
-	void GetPartitionFileHandleAndOffset(uint64 TocOffset, uint64& OutFileHandle, uint64& OutOffset) const
+	void GetPartitionAndOffset(uint64 TocOffset, FFileIoStoreContainerFilePartition*& OutPartition, uint64& OutOffset)
 	{
 		int32 PartitionIndex = int32(TocOffset / PartitionSize);
-		const FFileIoStoreContainerFilePartition& Partition = Partitions[PartitionIndex];
-		OutFileHandle = Partition.FileHandle;
+		OutPartition = &Partitions[PartitionIndex];
 		OutOffset = TocOffset % PartitionSize;
 	}
 };
@@ -122,6 +143,7 @@ struct PAKFILE_API FFileIoStoreCompressedBlock
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
 	FAES::FAESKey EncryptionKey;
+	TRefCountPtr<FFileIoStoreBlockSignatureTable> BlockSignatureTable;
 	const FSHAHash* SignatureHash = nullptr;
 	bool bFailed = false;
 	bool bCancelled = false;
@@ -133,7 +155,8 @@ struct PAKFILE_API FFileIoStoreReadRequest
 	{
 		QueueStatus_NotInQueue,
 		QueueStatus_InQueue,
-		QueueStatus_Started
+		QueueStatus_Started,
+		QueueStatus_Completed
 	};
 
 	FFileIoStoreReadRequest()
@@ -143,7 +166,7 @@ struct PAKFILE_API FFileIoStoreReadRequest
 	}
 	FFileIoStoreReadRequest* Next = nullptr;
 	FFileIoStoreReadRequest* Previous = nullptr;
-	uint64 FileHandle = uint64(-1);
+	FFileIoStoreContainerFilePartition* ContainerFilePartition = nullptr;
 	uint64 Offset = uint64(-1);
 	uint64 Size = uint64(-1);
 	FFileIoStoreBlockKey Key;
@@ -593,7 +616,7 @@ struct PAKFILE_API FFileIoStoreReadRequestSortKey
 
 	FFileIoStoreReadRequestSortKey() {}
 	FFileIoStoreReadRequestSortKey(FFileIoStoreReadRequest* Request)
-		: Offset(Request->Offset), Handle(Request->FileHandle), Priority(Request->Priority)
+		: Offset(Request->Offset), Handle(Request->ContainerFilePartition->FileHandle), Priority(Request->Priority)
 	{
 	}
 };
@@ -618,7 +641,7 @@ public:
 
 	FFileIoStoreReadRequest* Pop(FFileIoStoreReadRequestSortKey LastSortKey);
 	void Push(FFileIoStoreReadRequest* Request);
-	void CancelRequestsWithFileHandle(uint64 FileHandle);
+	int32 HandleContainerUnmounted(const FFileIoStoreContainerFile& ContainerFile);
 
 private:
 	int32 Priority;
@@ -646,7 +669,7 @@ public:
 	void UpdateOrder();
 	void Lock();
 	void Unlock();
-	void CancelRequestsWithFileHandle(uint64 FileHandle);
+	int32 HandleContainerUnmounted(const FFileIoStoreContainerFile& ContainerFile);
 
 private:
 	static bool QueueSortFunc(const FFileIoStoreReadRequest& A, const FFileIoStoreReadRequest& B)
@@ -771,7 +794,7 @@ public:
 
 	FFileIoStoreResolvedRequest* AllocResolvedRequest(
 		FIoRequestImpl& InDispatcherRequest,
-		const FFileIoStoreContainerFile& InContainerFile,
+		FFileIoStoreContainerFile* InContainerFile,
 		uint64 InResolvedOffset,
 		uint64 InResolvedSize)
 	{
@@ -837,11 +860,16 @@ struct PAKFILE_API FFileIoStoreResolvedRequest
 public:
 	FFileIoStoreResolvedRequest(
 		FIoRequestImpl& InDispatcherRequest,
-		const FFileIoStoreContainerFile& InContainerFile,
+		FFileIoStoreContainerFile* InContainerFile,
 		uint64 InResolvedOffset,
 		uint64 InResolvedSize);
 
-	const FFileIoStoreContainerFile& GetContainerFile() const
+	const FFileIoStoreContainerFile* GetContainerFile() const
+	{
+		return ContainerFile;
+	}
+
+	FFileIoStoreContainerFile* GetContainerFile()
 	{
 		return ContainerFile;
 	}
@@ -884,7 +912,7 @@ public:
 
 private:
 	FIoRequestImpl* DispatcherRequest = nullptr;
-	const FFileIoStoreContainerFile& ContainerFile;
+	FFileIoStoreContainerFile* ContainerFile;
 	FFileIoStoreReadRequestLink* ReadRequestsHead = nullptr;
 	FFileIoStoreReadRequestLink* ReadRequestsTail = nullptr;
 	const uint64 ResolvedOffset;
@@ -949,7 +977,7 @@ private:
 #endif
 
 	// Used for seek tracking 
-	uint64 LastHandle = uint64(-1);
+	const FFileIoStoreContainerFilePartition* LastContainerFilePartition = nullptr;
 	uint64 LastOffset = uint64(-1);
 
 	FTSTicker::FDelegateHandle TickerHandle;

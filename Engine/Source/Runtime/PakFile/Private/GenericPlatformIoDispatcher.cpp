@@ -75,13 +75,22 @@ void FGenericFileIoStoreImpl::CloseContainer(uint64 ContainerFileHandle)
 
 bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQueue)
 {
+	if (!AcquiredBuffer)
+	{
+		AcquiredBuffer = BufferAllocator->AllocBuffer();
+		if (!AcquiredBuffer)
+		{
+			return false;
+		}
+	}
+
 	FFileIoStoreReadRequest* NextRequest = RequestQueue.Pop();
 	if (!NextRequest)
 	{
 		return false;
 	}
 
-	if (NextRequest->bCancelled)
+	if (NextRequest->bCancelled | NextRequest->bFailed)
 	{
 		{
 			FScopeLock _(&CompletedRequestsCritical);
@@ -93,17 +102,14 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 
 	uint8* Dest;
 	check(!NextRequest->ImmediateScatter.Request);
-	NextRequest->Buffer = BufferAllocator->AllocBuffer();
-	if (!NextRequest->Buffer)
-	{
-		RequestQueue.Push(*NextRequest);
-		return false;
-	}
+	
+	NextRequest->Buffer = AcquiredBuffer;
+	AcquiredBuffer = nullptr;
 	Dest = NextRequest->Buffer->Memory;
 
 	if (!BlockCache->Read(NextRequest))
 	{
-		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->FileHandle));
+		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->ContainerFilePartition->FileHandle));
 		 
 		Stats->OnFilesystemReadStarted(NextRequest);
 		{

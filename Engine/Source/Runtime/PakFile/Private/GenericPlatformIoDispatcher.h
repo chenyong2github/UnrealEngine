@@ -58,6 +58,7 @@ private:
 	FFileIoStoreBufferAllocator* BufferAllocator = nullptr;
 	FFileIoStoreBlockCache* BlockCache = nullptr;
 	FFileIoStoreStats* Stats = nullptr;
+	FFileIoStoreBuffer* AcquiredBuffer = nullptr;
 
 	FCriticalSection CompletedRequestsCritical;
 	FFileIoStoreReadRequestList CompletedRequests;
