@@ -542,9 +542,25 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 		const bool SkyAtmospherePresentInScene = ResolvedView.SkyAtmospherePresentInScene > 0.0f;
 
-		// Clamp to max distance
-		const float MarchingDistance = min(RenderVolumetricCloudParameters.TracingMaxDistance, TMax - TMin);
-		TMax = TMin + MarchingDistance;
+		// Clamp to tracing max distance according to the selected mode
+		if (RenderVolumetricCloudParameters.TracingMaxDistanceMode == 0)
+		{
+			// Distance after the cloud layer entry point
+			const float MarchingDistance = min(RenderVolumetricCloudParameters.TracingMaxDistance, TMax - TMin);
+			TMax = TMin + MarchingDistance;
+		}
+		else // if (RenderVolumetricCloudParameters.TracingMaxDistanceMode == 1)
+		{
+			// Distance from the point of view
+			TMin = min(TMin, RenderVolumetricCloudParameters.TracingMaxDistance);
+			TMax = min(TMax, RenderVolumetricCloudParameters.TracingMaxDistance);
+
+			// Exit if tracing a 0 length segment.
+			if ((TMax - TMin) <= 0.0f)
+			{
+				return;
+			}
+		}
 
 		// When we do trace, we want a minimum amount of sample count. This avoid situation with 0 sample count due to InvDistanceToSampleCountMax.
 		const uint  IStepCount = max(RenderVolumetricCloudParameters.SampleCountMin, RenderVolumetricCloudParameters.SampleCountMax * saturate((TMax - TMin) * RenderVolumetricCloudParameters.InvDistanceToSampleCountMax));

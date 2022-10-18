@@ -13,6 +13,7 @@ FVolumetricCloudSceneProxy::FVolumetricCloudSceneProxy(const UVolumetricCloudCom
 	: LayerBottomAltitudeKm(InComponent->LayerBottomAltitude)
 	, LayerHeightKm(InComponent->LayerHeight)
 	, TracingStartMaxDistance(InComponent->TracingStartMaxDistance)
+	, TracingMaxDistanceMode(uint8(InComponent->TracingMaxDistanceMode))
 	, TracingMaxDistance(InComponent->TracingMaxDistance)
 	, PlanetRadiusKm(InComponent->PlanetRadius)
 	, GroundAlbedo(InComponent->GroundAlbedo)

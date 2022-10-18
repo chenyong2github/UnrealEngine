@@ -14,6 +14,12 @@
 
 class FVolumetricCloudSceneProxy;
 
+UENUM()
+enum class EVolumetricCloudTracingMaxDistanceMode : uint8
+{
+	DistanceFromCloudLayerEntryPoint = 0,
+	DistanceFromPointOfView = 1,
+};
 
 /**
  * A component that represents a participating media material around a planet, e.g. clouds.
@@ -36,6 +42,10 @@ class UVolumetricCloudComponent : public USceneComponent
 	/** The maximum distance of the volumetric surface before which we will accept to start tracing. (kilometers) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Layer", meta = (UIMin = 100.0f, UIMax = 500.0f, ClampMin = 1.0f, SliderExponent = 2.0))
 	float TracingStartMaxDistance;
+
+	/** Mode to select how the tracing max distance should be interpreted. DistanceFromPointOfView is useful to avoid the top of the cloud layer to be clipped when TracingMaxDistance is shorten for performance. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Layer")
+	EVolumetricCloudTracingMaxDistanceMode TracingMaxDistanceMode;
 
 	/** The maximum distance that will be traced inside the cloud layer. (kilometers) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Layer", meta = (UIMin = 1.0f, UIMax = 500.0f, ClampMin = 0.1f, SliderExponent = 2.0))

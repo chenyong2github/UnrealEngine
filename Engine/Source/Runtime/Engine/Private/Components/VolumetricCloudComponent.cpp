@@ -36,6 +36,7 @@ UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& O
 	, LayerBottomAltitude(5.0f)
 	, LayerHeight(10.0f)
 	, TracingStartMaxDistance(350.0f)
+	, TracingMaxDistanceMode(EVolumetricCloudTracingMaxDistanceMode::DistanceFromCloudLayerEntryPoint)
 	, TracingMaxDistance(50.0f)
 	, PlanetRadius(6360.0f)					// Default to earth-like
 	, GroundAlbedo(FColor(170, 170, 170))	// 170 => 0.4f linear

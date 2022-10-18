@@ -33,6 +33,7 @@ public:
 	float LayerHeightKm;
 
 	float TracingStartMaxDistance;
+	uint8 TracingMaxDistanceMode;
 	float TracingMaxDistance;
 
 	float PlanetRadiusKm;
