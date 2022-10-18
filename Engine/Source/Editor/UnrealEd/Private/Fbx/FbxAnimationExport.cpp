@@ -31,7 +31,7 @@ namespace UnFbx
 			return false;
 		}
 
-		const float FrameRate = AnimSeq->GetDataModel()->GetFrameRate().AsDecimal();
+		const double FrameRate = AnimSeq->GetDataModel()->GetFrameRate().AsDecimal();
 		//Configure the scene time line
 		{
 			FbxGlobalSettings& SceneGlobalSettings = Scene->GetGlobalSettings();

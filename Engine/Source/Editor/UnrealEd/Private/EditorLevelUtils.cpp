@@ -314,7 +314,7 @@ ULevel* UEditorLevelUtils::AddLevelsToWorld(UWorld* InWorld, TArray<FString> Pac
 		return nullptr;
 	}
 
-	FScopedSlowTask SlowTask(PackageNames.Num(), LOCTEXT("AddLevelsToWorldTask", "Adding Levels to World"));
+	FScopedSlowTask SlowTask(static_cast<float>(PackageNames.Num()), LOCTEXT("AddLevelsToWorldTask", "Adding Levels to World"));
 	SlowTask.MakeDialog();
 
 	// Sort the level packages alphabetically by name.

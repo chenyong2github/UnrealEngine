@@ -1187,7 +1187,7 @@ void FHierarchicalLODBuilder::MergeClustersAndBuildActors(ULevel* InLevel, const
 			{
 				const int32 NumClusters = Clusters.Num();
 
-				FScopedSlowTask SlowTask(NumClusters, FText::Format(LOCTEXT("HierarchicalLOD_BuildClusters", "Building Clusters for LOD {LODIndex} of {LevelName}..."), Arguments));
+				FScopedSlowTask SlowTask(static_cast<float>(NumClusters), FText::Format(LOCTEXT("HierarchicalLOD_BuildClusters", "Building Clusters for LOD {LODIndex} of {LevelName}..."), Arguments));
 				SlowTask.MakeDialog();
 
 				TArray<FLODCluster> ValidMergedClusters;
@@ -1270,7 +1270,7 @@ void FHierarchicalLODBuilder::MergeClustersAndBuildActors(ULevel* InLevel, const
 				}
 			}
 
-			FScopedSlowTask SlowTask(TotalValidCluster, FText::Format(LOCTEXT("HierarchicalLOD_MergeActors", "Merging Actors for LOD {LODIndex} of {LevelName}..."), Arguments));
+			FScopedSlowTask SlowTask(static_cast<float>(TotalValidCluster), FText::Format(LOCTEXT("HierarchicalLOD_MergeActors", "Merging Actors for LOD {LODIndex} of {LevelName}..."), Arguments));
 			SlowTask.MakeDialog();
 
 			for (FLODCluster& Cluster : Clusters)

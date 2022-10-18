@@ -315,10 +315,10 @@ void FAutomationEditorCommonUtils::ApplyCustomFactorySettings(UFactory* InFactor
 * @param InTestName is the folder that has the same name as the test. (For Example: "Performance").
 * @param InItemBeingTested is the name for the thing that is being tested. (For Example: "MapName").
 * @param InFileName is the name of the file with an extension
-* @param InNumberToBeWritten is the float number that is expected to be written to the file.
+* @param InEntry is the double-precision number that is expected to be written to the file.
 * @param Delimiter is the delimiter to be used. TEXT(",")
 */
-void FAutomationEditorCommonUtils::WriteToTextFile(const FString& InTestName, const FString& InTestItem, const FString& InFileName, const float& InEntry, const FString& Delimiter)
+void FAutomationEditorCommonUtils::WriteToTextFile(const FString& InTestName, const FString& InTestItem, const FString& InFileName, const double& InEntry, const FString& Delimiter)
 {
 	//Performance file locations and setups.
 	FString FileSaveLocation = FPaths::Combine(*FPaths::AutomationLogDir(), *InTestName, *InTestItem, *InFileName);

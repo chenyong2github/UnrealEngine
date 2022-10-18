@@ -582,8 +582,8 @@ void FEditorCommonDrawHelper::DrawGridSection(double ViewportGridY, double MaxSi
 
 	const double InvTransitionRegion = 1.0 / TransitionRegion;
 	const double Fract = IncValue - FMath::FloorToDouble(IncValue);
-	float AlphaA = FMath::Clamp<float>(Fract * InvTransitionRegion, 0.0f, 1.0f);
-	float AlphaB = FMath::Clamp<float>(InvTransitionRegion - Fract * InvTransitionRegion, 0.0f, 1.0f);
+	float AlphaA = FMath::Clamp<float>(static_cast<float>(Fract * InvTransitionRegion), 0.0f, 1.0f);
+	float AlphaB = FMath::Clamp<float>(static_cast<float>(InvTransitionRegion - Fract * InvTransitionRegion), 0.0f, 1.0f);
 
 	if(IncValue < -0.5)
 	{
@@ -600,8 +600,8 @@ void FEditorCommonDrawHelper::DrawGridSection(double ViewportGridY, double MaxSi
 	FLinearColor MinorColor = FMath::Lerp(Background, FLinearColor::White, 0.02f);
 
 	const FMatrix InvViewProjMatrix = View->ViewMatrices.GetInvViewProjectionMatrix();
-	int32 FirstLine = FMath::TruncToInt(InvViewProjMatrix.TransformPosition(FVector(-1, -1, 0.5f)).Component(Axis) / ViewportGridY);
-	int32 LastLine = FMath::TruncToInt(InvViewProjMatrix.TransformPosition(FVector(+1, +1, 0.5f)).Component(Axis) / ViewportGridY);
+	int64 FirstLine = FMath::TruncToInt(InvViewProjMatrix.TransformPosition(FVector(-1, -1, 0.5f)).Component(Axis) / ViewportGridY);
+	int64 LastLine = FMath::TruncToInt(InvViewProjMatrix.TransformPosition(FVector(+1, +1, 0.5f)).Component(Axis) / ViewportGridY);
 	if (FirstLine > LastLine)
 	{
 		Exchange(FirstLine, LastLine);
@@ -657,8 +657,8 @@ void FEditorCommonDrawHelper::DrawPivot(const FSceneView* View,FPrimitiveDrawInt
 
 	const FVector PivLoc = GLevelEditorModeTools().SnappedLocation;
 
-	const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
-	const float WidgetRadius = View->ViewMatrices.GetViewProjectionMatrix().TransformPosition(PivLoc).W * (PivotSize / ZoomFactor);
+	const FVector::FReal ZoomFactor = FMath::Min<FVector::FReal>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
+	const FVector::FReal WidgetRadius = View->ViewMatrices.GetViewProjectionMatrix().TransformPosition(PivLoc).W * (PivotSize / ZoomFactor);
 
 	const FVector CamX = CameraToWorld.TransformVector( FVector(1,0,0) );
 	const FVector CamY = CameraToWorld.TransformVector( FVector(0,1,0) );

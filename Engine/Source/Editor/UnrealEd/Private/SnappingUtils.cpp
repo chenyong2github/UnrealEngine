@@ -197,7 +197,7 @@ bool FEditorViewportSnapping::SnapActorsToNearestActor( FVector& Drag, FLevelEdi
 			// Nearest results
 			const AActor* BestActor = NULL;
 			FVector BestPoint = FVector::ZeroVector;
-			float BestSqrdDist = 0.0f;
+			double BestSqrdDist = 0.0f;
 
 			// Find the nearest actor to the pivot point that isn't part of the selection
 			const FVector PivotLocation = Tools.PivotLocation;
@@ -226,8 +226,8 @@ bool FEditorViewportSnapping::SnapActorsToNearestActor( FVector& Drag, FLevelEdi
 
 					// Is this the nearest actor to the pivot?
 					const FVector Point = Actor->GetActorLocation();
-					const float SqrdDist = FVector::DistSquared( PivotLocation, Point );
-					if ( BestActor == NULL || SqrdDist < BestSqrdDist )
+					const double SqrdDist = FVector::DistSquared( PivotLocation, Point );
+					if ( BestActor == nullptr || SqrdDist < BestSqrdDist )
 					{
 						BestActor = Actor;
 						BestPoint = Point;
@@ -307,12 +307,12 @@ void FEditorViewportSnapping::SnapScale(FVector& Point, const FVector& GridBase)
 			if (GetDefault<ULevelEditorViewportSettings>()->PreserveNonUniformScale)
 			{
 				// when using 'auto-precision', we take the max component & snap its scale, then proportionally scale the other components
-				float MaxComponent = Point.GetAbsMax();
+				double MaxComponent = Point.GetAbsMax();
 				if(MaxComponent == 0.0f)
 				{
 					MaxComponent = 1.0f;
 				}
-				const float SnappedMaxComponent = FMath::GridSnap(MaxComponent, GEditor->GetScaleGridSize());
+				const double SnappedMaxComponent = FMath::GridSnap(MaxComponent, GEditor->GetScaleGridSize());
 				Point = Point * (SnappedMaxComponent / MaxComponent);
 			}
 			else

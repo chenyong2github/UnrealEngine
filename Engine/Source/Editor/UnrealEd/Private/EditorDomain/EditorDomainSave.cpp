@@ -1321,7 +1321,7 @@ bool FEditorDomainSaveClient::TrySendRequests(TArray<FPackagePath>& LocalRequest
 			FString PackageName = PackagePath.GetPackageName();
 			Message << PackageName;
 		}
-		MessageHeader.Size = Message.Tell();
+		MessageHeader.Size = IntCastChecked<uint32>(Message.Tell());
 		Message.Seek(0);
 		Message << MessageHeader;
 		Message.Seek(MessageHeader.Size);

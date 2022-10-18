@@ -758,7 +758,7 @@ TOptional<ECurrentState> FAutoReimportManager::ProcessDeletions()
 		Monitor->ExtractAssetsToDelete(AssetsToDelete);
 	}
 
-	FeedbackContextOverride->MainTask->EnterProgressFrame(TotalWork);
+	FeedbackContextOverride->MainTask->EnterProgressFrame(static_cast<float>(TotalWork));
 
 	if (AssetsToDelete.Num() > 0)
 	{

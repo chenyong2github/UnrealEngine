@@ -1169,7 +1169,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			// Recompile any BPs that had their references updated
 			if (BlueprintsToRecompileThisBatch.Num() > 0)
 			{
-				FScopedSlowTask CompilingBlueprintsSlowTask(BlueprintsToRecompileThisBatch.Num(), NSLOCTEXT("UnrealEd", "CompilingBlueprints", "Compiling Blueprints"));
+				FScopedSlowTask CompilingBlueprintsSlowTask(static_cast<float>(BlueprintsToRecompileThisBatch.Num()), NSLOCTEXT("UnrealEd", "CompilingBlueprints", "Compiling Blueprints"));
 
 				// Gather up all loaded BP assets.
 				TArray<UObject*> BPs;

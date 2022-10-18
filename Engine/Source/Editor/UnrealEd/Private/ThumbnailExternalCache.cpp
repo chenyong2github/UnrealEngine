@@ -142,7 +142,7 @@ void FSaveThumbnailCache::Save(FArchive& Ar, const TArrayView<FAssetData> InAsse
 	const int32 NumAssetDatas = InAssetDatas.Num();
 
 	FText StatusText = LOCTEXT("SaveStatus", "Saving Thumbnails: {0}");
-	FScopedSlowTask SlowTask( (double)NumAssetDatas / (double)TaskBatchSize, FText::Format(StatusText, FText::AsNumber(NumAssetDatas)));
+	FScopedSlowTask SlowTask( (float)NumAssetDatas / (float)TaskBatchSize, FText::Format(StatusText, FText::AsNumber(NumAssetDatas)));
 	SlowTask.MakeDialog(/*bShowCancelButton*/ false);
 
 	TArray<FPackageThumbnailRecord> PackageThumbnailRecords;
@@ -236,7 +236,7 @@ void FSaveThumbnailCache::Save(FArchive& Ar, const TArrayView<FAssetData> InAsse
 		SaveTime += FPlatformTime::Seconds() - SaveTimeStart;
 		LoadTime += SaveTimeStart - LoadTimeStart;
 
-		SlowTask.EnterProgressFrame((double)AssetsForSegment.Num() / (double)TaskBatchSize, FText::Format(StatusText, FText::AsNumber(NumAssetDatas - EndIndex)));
+		SlowTask.EnterProgressFrame((float)AssetsForSegment.Num() / (float)TaskBatchSize, FText::Format(StatusText, FText::AsNumber(NumAssetDatas - EndIndex)));
 		if (SlowTask.ShouldCancel())
 		{
 			PackageThumbnailRecords.Reset();
@@ -553,7 +553,7 @@ bool FThumbnailExternalCache::LoadCacheFileIndex(FArchive& Ar, const TSharedPtr<
 	int64 NumPackages = 0;
 	Ar << NumPackages;
 
-	CacheFile->NameToEntry.Reserve(NumPackages);
+	CacheFile->NameToEntry.Reserve(IntCastChecked<int32>(NumPackages));
 
 	FString PackageNameString;
 	for (int64 i=0; i < NumPackages; ++i)

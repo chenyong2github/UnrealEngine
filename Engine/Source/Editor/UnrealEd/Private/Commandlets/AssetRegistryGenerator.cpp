@@ -316,7 +316,7 @@ public:
 		if (ExtIndex >= UE_ARRAY_COUNT(Extensions))
 			return true;
 
-		int32 LengthWithoutExtension = Extension - FilenameOrDirectory;
+		int32 LengthWithoutExtension = UE_PTRDIFF_TO_INT32(Extension - FilenameOrDirectory);
 		FString FilenameWithoutExtension(LengthWithoutExtension, FilenameOrDirectory);
 
 		if (int64* CurrentPackageSize = PackageFileSizes.Find(FilenameWithoutExtension))
@@ -2670,7 +2670,7 @@ bool FAssetRegistryPackageMessage::TryRead(FCbObject&& Object, FPackageData& Pac
 	{
 		return false;
 	}
-	AssetDatas.Reset(AssetDatasArray.Num());
+	AssetDatas.Reset(IntCastChecked<int32>(AssetDatasArray.Num()));
 	for (FCbFieldView ElementField : AssetDatasArray)
 	{
 		FAssetData& AssetData = AssetDatas.Emplace_GetRef();

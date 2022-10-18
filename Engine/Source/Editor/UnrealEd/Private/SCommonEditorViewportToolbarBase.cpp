@@ -494,8 +494,8 @@ void SCommonEditorViewportToolbarBase::OnFOVValueChanged(float NewValue) const
 
 TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateScreenPercentageMenu() const
 {
-	const int32 PreviewScreenPercentageMin = ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction * 100.0f;
-	const int32 PreviewScreenPercentageMax = ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction * 100.0f;
+	const int32 PreviewScreenPercentageMin = static_cast<int32>(ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction * 100.0f);
+	const int32 PreviewScreenPercentageMax = static_cast<int32>(ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction * 100.0f);
 
 	return
 		SNew(SBox)

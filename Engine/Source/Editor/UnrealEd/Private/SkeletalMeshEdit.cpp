@@ -262,7 +262,7 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 				if (CurAnimStack)
 				{
 					// set current anim stack
-					int32 ResampleRate = DEFAULT_SAMPLERATE;
+					int32 ResampleRate = static_cast<int32>(DEFAULT_SAMPLERATE);
 					if (FbxImporter->ImportOptions->bResample)
 					{
 						if(FbxImporter->ImportOptions->ResampleRate > 0)

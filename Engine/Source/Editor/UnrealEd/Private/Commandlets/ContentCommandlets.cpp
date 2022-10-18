@@ -2013,7 +2013,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				while (Processor->IsProxyGenerationRunning())
 				{
-					FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
+					FTSTicker::GetCoreTicker().Tick(static_cast<float>(FApp::GetDeltaTime()));
 					FThreadManager::Get().Tick();
 					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 					FPlatformProcess::Sleep(0.1f);
@@ -2294,7 +2294,7 @@ struct FUnreferencedObject
 	/** Full name of object */
 	FString ObjectName;
 	/** Size on disk as recorded in FObjectExport */
-	int32 SerialSize;
+	int64 SerialSize;
 
 	/**
 	 * Constructor for easy creation in a TArray

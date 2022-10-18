@@ -1356,7 +1356,7 @@ void LoadNativePropertyData( UObject* Object, TArray<uint8>& out_NativePropertyD
 		((FArchive*)ObjectLinker)->Precache(NativeStartPos, NativePropertySerialSize);
 
 		// allocate enough space to contain the data we're about to read from disk
-		out_NativePropertyData.AddZeroed(NativePropertySerialSize);
+		out_NativePropertyData.AddZeroed(IntCastChecked<int32, int64>(NativePropertySerialSize));
 		((FArchive*)ObjectLinker)->Serialize(out_NativePropertyData.GetData(), NativePropertySerialSize);
 
 		// return the linker to its previous position

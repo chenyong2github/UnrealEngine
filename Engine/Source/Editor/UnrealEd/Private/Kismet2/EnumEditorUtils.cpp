@@ -481,7 +481,7 @@ int64 FEnumEditorUtils::ResolveEnumerator(const UEnum* Enum, FArchive& Ar, int64
 			if (OldName.Value == EnumeratorValue)
 			{
 				const FName EnumeratorName = OldName.Key;
-				const int32 NewEnumValue = Enum->GetValueByName(EnumeratorName);
+				const int64 NewEnumValue = Enum->GetValueByName(EnumeratorName);
 				if(INDEX_NONE != NewEnumValue)
 				{
 					return NewEnumValue;

@@ -170,7 +170,7 @@ void SKeySelector::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(KeyComboButton, SComboButton)
 			.OnGetMenuContent(this, &SKeySelector::GetMenuContent)
-			.ContentPadding(0)
+			.ContentPadding(0.0f)
 			.ToolTipText(this, &SKeySelector::GetKeyDescriptionToolTip)	// Longer key descriptions can overrun the visible space in the combo button if the parent width is constrained, so we reflect them in the tooltip too.
 			.ButtonContent()
 			[

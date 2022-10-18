@@ -44,8 +44,8 @@ namespace FEdGraphNode_Comment_Utils
 UEdGraphNode_Comment::UEdGraphNode_Comment(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	NodeWidth = 400.0f;
-	NodeHeight = 100.0f;
+	NodeWidth = 400;
+	NodeHeight = 100;
 	FontSize = 18;
 	CommentColor = FLinearColor::White;
 	bColorCommentBubble = false;
@@ -153,8 +153,8 @@ void UEdGraphNode_Comment::ResizeNode(const FVector2D& NewSize)
 {
 	if (bCanResizeNode) 
 	{
-		NodeHeight = NewSize.Y;
-		NodeWidth = NewSize.X;
+		NodeHeight = UE::LWC::FloatToIntCastChecked<int32>(NewSize.Y);
+		NodeWidth = UE::LWC::FloatToIntCastChecked<int32>(NewSize.X);
 	}
 }
 
@@ -174,12 +174,12 @@ void UEdGraphNode_Comment::ClearNodesUnderComment()
 
 void UEdGraphNode_Comment::SetBounds(const class FSlateRect& Rect)
 {
-	NodePosX = Rect.Left;
-	NodePosY = Rect.Top;
+	NodePosX = UE::LWC::FloatToIntCastChecked<int32>(Rect.Left);
+	NodePosY = UE::LWC::FloatToIntCastChecked<int32>(Rect.Top);
 
 	FVector2D Size = Rect.GetSize();
-	NodeWidth = Size.X;
-	NodeHeight = Size.Y;
+	NodeWidth = UE::LWC::FloatToIntCastChecked<int32>(Size.X);
+	NodeHeight = UE::LWC::FloatToIntCastChecked<int32>(Size.Y);
 }
 
 const FCommentNodeSet& UEdGraphNode_Comment::GetNodesUnderComment() const

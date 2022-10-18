@@ -2655,7 +2655,7 @@ void FLevelEditorViewportClient::ProjectActorsIntoWorld(const TArray<AActor*>& A
 			// We only snap things that are on screen
 			FVector2D ScreenPos;
 			FIntPoint ViewportSize = InViewport->GetSizeXY();
-			if (SceneView->WorldToPixel(NewActorPosition, ScreenPos) && FMath::IsWithin<float>(ScreenPos.X, 0, ViewportSize.X) && FMath::IsWithin<float>(ScreenPos.Y, 0, ViewportSize.Y))
+			if (SceneView->WorldToPixel(NewActorPosition, ScreenPos) && FMath::IsWithin(ScreenPos.X, 0, ViewportSize.X) && FMath::IsWithin(ScreenPos.Y, 0, ViewportSize.Y))
 			{
 				bIsOnScreen = true;
 				Cursor = FViewportCursorLocation(SceneView, this, static_cast<int32>(ScreenPos.X), static_cast<int32>(ScreenPos.Y));

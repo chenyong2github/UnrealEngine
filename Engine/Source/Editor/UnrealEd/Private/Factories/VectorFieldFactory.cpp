@@ -224,7 +224,7 @@ UObject* UVectorFieldStaticFactory::FactoryCreateBinary(
 	if ( IsFluidGridAscii( Type ) )
 	{
 		FString String;
-		const int32 BufferSize = BufferEnd - Buffer;
+		const int32 BufferSize = UE_PTRDIFF_TO_INT32(BufferEnd - Buffer);
 		FFileHelper::BufferToString( String, Buffer, BufferSize );
 		TCHAR* Stream = (TCHAR*)*String;
 		

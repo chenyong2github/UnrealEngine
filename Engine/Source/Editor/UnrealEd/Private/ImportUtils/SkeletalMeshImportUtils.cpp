@@ -195,9 +195,9 @@ bool SkeletalMeshImportUtils::ProcessImportMeshSkeleton(const USkeleton* Skeleto
 	for (int32 b = 0; b < RefSkeleton.GetRawBoneNum(); b++)
 	{
 		int32 Parent = RefSkeleton.GetRawParentIndex(b);
-		int32 Depth = 1.0f;
+		int32 Depth = 1;
 
-		SkeletalDepths[b] = 1.0f;
+		SkeletalDepths[b] = 1;
 		if (Parent != INDEX_NONE)
 		{
 			Depth += SkeletalDepths[Parent];
@@ -554,7 +554,7 @@ void SkeletalMeshImportUtils::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkelet
 						DestTangentZ.Normalize();
 						FVector SrcTangentZ = FVector4(SrcVertex.TangentZ);
 						SrcTangentZ.Normalize();
-						float AngleDiff = FMath::Abs(FMath::Acos(FVector::DotProduct(DestTangentZ, SrcTangentZ)));
+						double AngleDiff = FMath::Abs(FMath::Acos(FVector::DotProduct(DestTangentZ, SrcTangentZ)));
 						if (AngleDiff < MinNormalAngle)
 						{
 							MinNormalAngle = AngleDiff;
@@ -584,11 +584,11 @@ void SkeletalMeshImportUtils::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkelet
 					int32 OverrideIndex;
 					if (Section.BoneMap.Find(OriginalBoneIndex, OverrideIndex))
 					{
-						DestVertex.InfluenceBones[InfluenceIndex] = OverrideIndex;
+						DestVertex.InfluenceBones[InfluenceIndex] = IntCastChecked<FBoneIndexType>(OverrideIndex);
 					}
 					else
 					{
-						DestVertex.InfluenceBones[InfluenceIndex] = Section.BoneMap.Add(OriginalBoneIndex);
+						DestVertex.InfluenceBones[InfluenceIndex] = IntCastChecked<FBoneIndexType>(Section.BoneMap.Add(OriginalBoneIndex));
 						DestLODModel.ActiveBoneIndices.AddUnique(OriginalBoneIndex);
 					}
 					bUseBone = true;
@@ -762,7 +762,7 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 							}
 							else
 							{
-								LODModelCopy->ActiveBoneIndices[j] = NewBoneIndex;
+								LODModelCopy->ActiveBoneIndices[j] = IntCastChecked<FBoneIndexType>(NewBoneIndex);
 							}
 						}
 						else
@@ -788,7 +788,7 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 							}
 							else
 							{
-								LODModelCopy->RequiredBones[j] = NewBoneIndex;
+								LODModelCopy->RequiredBones[j] = IntCastChecked<FBoneIndexType>(NewBoneIndex);
 							}
 						}
 						else
@@ -818,7 +818,7 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 							}
 							else
 							{
-								Section.BoneMap[BoneIndex] = NewBoneIndex;
+								Section.BoneMap[BoneIndex] = IntCastChecked<FBoneIndexType>(NewBoneIndex);
 							}
 						}
 						if (bMissingBone)

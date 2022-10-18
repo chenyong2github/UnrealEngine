@@ -465,11 +465,11 @@ bool StaticMeshImportUtils::AddSphereGeomFromVerts( const TArray<FVector3f>& Ver
 
 	FVector Center, Extents;
 	Box.GetCenterAndExtents(Center, Extents);
-	float Longest = 2.f * Extents.GetMax();
-	float Shortest = 2.f * Extents.GetMin();
+	double Longest = 2.f * Extents.GetMax();
+	double Shortest = 2.f * Extents.GetMin();
 
 	// check that the AABB is roughly a square (5% tolerance)
-	if((Longest - Shortest)/Longest > 0.05f)
+	if((Longest - Shortest) / Longest > 0.05f)
 	{
 		UE_LOG(LogStaticMeshImportUtils, Log, TEXT("AddSphereGeomFromVerts (%s): Sphere bounding box not square."), ObjName);
 		return false;

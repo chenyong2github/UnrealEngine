@@ -72,10 +72,10 @@ public:
 	* @param InTestName - is the folder that has the same name as the test. (For Example: "Performance").
 	* @param InItemBeingTested - is the name for the thing that is being tested. (For Example: "MapName").
 	* @param InFileName - is the name of the file with an extension
-	* @param InNumberToBeWritten - is the float number that is expected to be written to the file.
+	* @param InEntry - is the double-precision number that is expected to be written to the file.
 	* @param Delimiter - is the delimiter to be used. TEXT(",")
 	*/
-	static void WriteToTextFile(const FString& InTestName, const FString& InTestItem, const FString& InFileName, const float& InEntry, const FString& Delimiter);
+	static void WriteToTextFile(const FString& InTestName, const FString& InTestItem, const FString& InFileName, const double& InEntry, const FString& Delimiter);
 
 	/**
 	* Returns the sum of the numbers available in an array of float.

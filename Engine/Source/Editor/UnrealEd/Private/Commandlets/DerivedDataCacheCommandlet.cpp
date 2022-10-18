@@ -151,7 +151,7 @@ static void TickCookObjects(bool bCookComplete = false)
 	if (bCookComplete || LastTickTime + TickPeriod <= CurrentTime)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TickCookObjects);
-		FTickableCookObject::TickObjects(CurrentTime - LastTickTime, bCookComplete);
+		FTickableCookObject::TickObjects(static_cast<float>(CurrentTime - LastTickTime), bCookComplete);
 		LastTickTime = CurrentTime;
 	}
 }
