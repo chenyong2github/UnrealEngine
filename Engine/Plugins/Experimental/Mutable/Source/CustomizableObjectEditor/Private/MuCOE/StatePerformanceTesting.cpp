@@ -124,9 +124,6 @@ void FTestingCustomizableObject::StartTest(UCustomizableObject* CustomizableObje
 
 	if (SkeletalMeshComponents.Num() && SkeletalMeshComponents.Num() == CustomizableSkeletalComponents.Num())
 	{
-		Instance->UpdateSkeletalMeshAsync(true);
-		Instance->UpdateBeginDelegate.BindRaw(this, &FTestingCustomizableObject::InstanceUpdateBegin);
-
 		Instance->UpdatedDelegate.AddDynamic(HelperCallback, &UUpdateClassHelper::DelegatedCallback);
 		Instance->UpdateSkeletalMeshAsync(true);
 		InitStateAndParameterSequence();
@@ -160,7 +157,7 @@ void FTestingCustomizableObject::FinishTest()
 	StateTestEnded.ExecuteIfBound();
 	if (Instance)
 	{
-		Instance->UpdateBeginDelegate.Unbind();
+		//Instance->UpdateBeginDelegate.Unbind();
 		Instance->UpdatedDelegate.RemoveDynamic(HelperCallback, &UUpdateClassHelper::DelegatedCallback);
 	}
 
@@ -194,15 +191,6 @@ void FTestingCustomizableObject::FinishTest()
 
 	BatchTestInCourse = false;
 	BatchTestFinished = true;
-}
-
-
-void FTestingCustomizableObject::InstanceUpdateBegin()
-{
-	if (ActiveBatch != nullptr)
-	{
-		ActiveBatch->TestStarted = true;
-	}
 }
 
 

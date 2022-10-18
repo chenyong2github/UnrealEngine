@@ -100,14 +100,29 @@ enum class EUpdateResult : uint8
 };
 
 
-DECLARE_DELEGATE(FObjectInstanceUpdateBeginDelegate);
+/* When creating new delegates use the following conventions:
+ *
+ * - All delegates must be multicast.
+ * - If the delegate is exposed to the API create both, dynamic and native versions (non-dynamic).
+ * - Dynamic delegates should not be transient. Use the native version if you do not want it to be saved.
+ * - Native delegates names should end with "NativeDelegate".
+ * - Dynamic delegates broadcast before native delegates. */
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBeginUpdateDelegate, UCustomizableObjectInstance*, Instance);
+DECLARE_MULTICAST_DELEGATE_OneParam(FBeginUpdateNativeDelegate, UCustomizableObjectInstance*);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FObjectInstanceUpdatedDelegate, UCustomizableObjectInstance*, Instance);
 DECLARE_MULTICAST_DELEGATE_OneParam(FObjectInstanceUpdatedNativeDelegate, UCustomizableObjectInstance*);
-DECLARE_DELEGATE_OneParam( FProjectorStateChangedDelegate, FString );
-DECLARE_MULTICAST_DELEGATE_OneParam(FBeginDestroyDelegate, UCustomizableObjectInstance*);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBeginDestroyDelegate, UCustomizableObjectInstance*, Instance);
+DECLARE_MULTICAST_DELEGATE_OneParam(FBeginDestroyNativeDelegate, UCustomizableObjectInstance*);
+
+DECLARE_DELEGATE_OneParam(FProjectorStateChangedDelegate, FString);
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FEachComponentAnimInstanceClassDelegate, int32, SlotIndex, TSubclassOf<UAnimInstance>, AnimInstClass);
+
 DECLARE_DELEGATE_TwoParams(FEachComponentAnimInstanceClassNativeDelegate, int32 /*SlotIndex*/, TSubclassOf<UAnimInstance> /*AnimInstClass*/);
+
 
 UCLASS( Blueprintable, BlueprintType, HideCategories=(CustomizableObjectInstance) )
 class CUSTOMIZABLEOBJECT_API UCustomizableObjectInstance : public UObject
@@ -124,27 +139,33 @@ public:
 	const FCustomizableObjectInstanceDescriptor& GetDescriptor() const;
 	
 	void SetDescriptor(const FCustomizableObjectInstanceDescriptor& InDescriptor);
-	
-	/** The generated skeletal meshes for this Instance, one for each component */
-	UPROPERTY(Transient, VisibleAnywhere, Category = CustomizableSkeletalMesh)
-	TArray< TObjectPtr<USkeletalMesh> > SkeletalMeshes;
 
-	/** Broadcasts when the Customizable Object Instance is updated. */
+	/** Broadcast at the beginning of an Instance update. */
+	UPROPERTY(BlueprintAssignable, Category = CustomizableObjectInstance)
+	FBeginUpdateDelegate BeginUpdateDelegate;
+
+	/** Broadcast at the beginning of an Instance update. */
+	FBeginUpdateNativeDelegate BeginUpdateNativeDelegate;
+
+	/** Broadcast when the Customizable Object Instance is updated. */
 	UPROPERTY(Transient, BlueprintAssignable, Category = CustomizableObjectInstance)
 	FObjectInstanceUpdatedDelegate UpdatedDelegate;
 
-	/** Non-dynamic version. */
+	/** Broadcast when the Customizable Object Instance is updated. */
 	FObjectInstanceUpdatedNativeDelegate UpdatedNativeDelegate;
 
-	// Delegate to notify the beginning of an update of this instance
-	// NOTE: this delegate can be called outside the main thread, make sure operations done in the
-	//       callbacks are safe, avoid using it outside editor functionality
-	FObjectInstanceUpdateBeginDelegate UpdateBeginDelegate;
-
-	/** Broadcast when UObject::BeginDestroy is being called. */
+	/** Broadcast when UObject::BeginDestroy is being called. */	
+	UPROPERTY(BlueprintAssignable, Category = CustomizableObjectInstance)
 	FBeginDestroyDelegate BeginDestroyDelegate;
 
+	/** Broadcast when UObject::BeginDestroy is being called. */
+	FBeginDestroyNativeDelegate BeginDestroyNativeDelegate;
+
 	TMap<FString, bool> ParamNameToExpandedMap; // Used to check whether a mutable param is expanded in the editor to show its child params
+
+	/** The generated skeletal meshes for this Instance, one for each component */
+	UPROPERTY(Transient, VisibleAnywhere, Category = CustomizableSkeletalMesh)
+	TArray< TObjectPtr<USkeletalMesh> > SkeletalMeshes;
 
 	// Will store status description of current skeletal mesh generation (for instance, "EmptyLOD0" or "EmptyMesh"
 	UPROPERTY()

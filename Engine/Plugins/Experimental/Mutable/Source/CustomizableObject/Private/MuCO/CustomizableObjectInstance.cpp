@@ -360,6 +360,7 @@ bool UCustomizableObjectInstance::IsEditorOnly() const
 void UCustomizableObjectInstance::BeginDestroy()
 {
 	BeginDestroyDelegate.Broadcast(this);
+	BeginDestroyNativeDelegate.Broadcast(this);
 
 	if (PrivateData && PrivateData->StreamingHandle)
 	{

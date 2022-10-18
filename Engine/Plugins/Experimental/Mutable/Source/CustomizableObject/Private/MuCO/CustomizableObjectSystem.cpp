@@ -837,6 +837,9 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		}
 
 		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, InCustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer));
+
+		InCustomizableObjectInstance->BeginUpdateDelegate.Broadcast(InCustomizableObjectInstance);
+		InCustomizableObjectInstance->BeginUpdateNativeDelegate.Broadcast(InCustomizableObjectInstance);
 	}
 	else
 	{

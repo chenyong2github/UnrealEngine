@@ -351,9 +351,6 @@ public:
 	/** Finish the test */
 	void FinishTest();
 
-	/** Callback for instance update begin delegate */
-	void InstanceUpdateBegin();
-
 	/** Callback for instance update end delegate */
 	void InstanceUpdateEnd();
 
