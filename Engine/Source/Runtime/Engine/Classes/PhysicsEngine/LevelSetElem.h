@@ -64,6 +64,7 @@ struct FKLevelSetElem : public FKShapeElem
 
 	ENGINE_API FBox CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const;
 	ENGINE_API FBox UntransformedAABB() const;
+	ENGINE_API FIntVector3 GridResolution() const;
 
 	bool Serialize(FArchive& Ar);
 

@@ -791,16 +791,23 @@ void FKLevelSetElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTra
 {
 	TArray<FBox> Boxes;
 
-	// Bounding box
-	Boxes.Add(UntransformedAABB());
+	if (GridResolution().GetMax() < 30)	// Don't render individual cells if the resolution is too high
+	{
+		// Cells with negative Phi values
+		const double Threshold = UE_KINDA_SMALL_NUMBER;		// allow slightly greater than zero for visualization purposes
+		GetInteriorGridCells(Boxes, UE_KINDA_SMALL_NUMBER);
+	}
+	else
+	{
+		// Just render the bounding box of the grid itself
+		Boxes.Add(UntransformedAABB());
+	}
 
-	// Cells with negative Phi values
-	const double Threshold = UE_KINDA_SMALL_NUMBER;		// allow slightly greater than zero for visualization purposes
-	GetInteriorGridCells(Boxes, UE_KINDA_SMALL_NUMBER);
-
+	PDI->AddReserveLines(SDPG_World, Boxes.Num() * 12);
 	for (const FBox& Box : Boxes)
 	{
-		DrawWireBox(PDI, ElemTM.ToMatrixWithScale(), Box, Color, SDPG_World, 0.f);
+		constexpr float Thickness = 0.f;
+		DrawWireBox(PDI, ElemTM.ToMatrixWithScale(), Box, Color, SDPG_World, Thickness);
 	}
 }
 

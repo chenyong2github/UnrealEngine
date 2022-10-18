@@ -473,14 +473,21 @@ namespace LevelSetHelpers
 	}
 
 	// Copied from FMeshSimpleShapeApproximation::Generate_LevelSets (Plugins/Runtime/GeometryProcessing)
-	bool CreateLevelSetForMesh(const UE::Geometry::FDynamicMesh3& InMesh, int32 LevelSetGridResolution, FKLevelSetElem& OutElement)
+	bool CreateLevelSetForMesh(const UE::Geometry::FDynamicMesh3& InMesh, int32 InLevelSetGridResolution, FKLevelSetElem& OutElement)
 	{
 		using UE::Geometry::FDynamicMesh3;
 		using UE::Geometry::TSweepingMeshSDF;
 
+		constexpr int32 NumNarrowBandCells = 2;
+		constexpr int32 NumExpandCells = 1;
+
+		// Inside SDF.Compute(), extra grid cell are added to account for the narrow band ("NarrowBandMaxDistance") as well as an 
+		// outer buffer ("ExpandBounds"). So here we adjust the cell size to make the final output resolution closer to the user-specified resolution.
+		const int32 LevelSetGridResolution = FMath::Max(1, InLevelSetGridResolution - 2*(NumNarrowBandCells + NumExpandCells));
+
 		const UE::Geometry::FAxisAlignedBox3d Bounds = InMesh.GetBounds();
 		const double CellSize = Bounds.MaxDim() / LevelSetGridResolution;
-		const double ExpandBounds = 2.0 * CellSize;
+		const double ExpandBounds = NumExpandCells * CellSize;
 
 		UE::Geometry::TMeshAABBTree3<FDynamicMesh3> Spatial(&InMesh);
 
@@ -501,7 +508,7 @@ namespace LevelSetHelpers
 		SDF.Spatial = &Spatial;
 		SDF.ComputeMode = TSweepingMeshSDF<FDynamicMesh3>::EComputeModes::NarrowBand_SpatialFloodFill;
 		SDF.CellSize = (float)CellSize;
-		SDF.NarrowBandMaxDistance = 2.0 * CellSize;
+		SDF.NarrowBandMaxDistance = NumNarrowBandCells * CellSize;
 		SDF.ExactBandWidth = FMath::CeilToInt32(SDF.NarrowBandMaxDistance / CellSize);
 		SDF.ExpandBounds = FVector3d(ExpandBounds);
 

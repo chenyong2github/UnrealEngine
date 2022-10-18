@@ -105,7 +105,7 @@ struct FPhysAssetCreateParams
 
 	/** When creating level sets, the grid resolution to use */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Body Creation", 
-		meta = (ClampMin = 1, UIMin = 5, UIMax = 100, ClampMax = 500, EditCondition = "GeomType == EPhysAssetFitGeomType::EFG_LevelSet"))
+		meta = (ClampMin = 1, UIMin = 10, UIMax = 100, ClampMax = 500, EditCondition = "GeomType == EPhysAssetFitGeomType::EFG_LevelSet"))
 	int32								LevelSetResolution;
 };
 
