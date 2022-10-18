@@ -326,6 +326,7 @@ namespace AutomationTool
 			this.SignPak = InParams.SignPak;
 			this.SignedPak = InParams.SignedPak;
 			this.PakAlignForMemoryMapping = InParams.PakAlignForMemoryMapping;
+			this.RehydrateAssets = InParams.RehydrateAssets;
 			this.SkipPak = InParams.SkipPak;
             this.PrePak = InParams.PrePak;
             this.NoXGE = InParams.NoXGE;
@@ -529,6 +530,7 @@ namespace AutomationTool
 			bool? NoBootstrapExe = null,
             bool? SignedPak = null,
 			bool? PakAlignForMemoryMapping = null,
+			bool? RehydrateAssets = null,
 			bool? NullRHI = null,
             bool? FakeClient = null,
             bool? EditorTest = null,
@@ -712,6 +714,7 @@ namespace AutomationTool
 				}
 			}
 			this.PakAlignForMemoryMapping = GetParamValueIfNotSpecified(Command, PakAlignForMemoryMapping, this.PakAlignForMemoryMapping, "PakAlignForMemoryMapping");
+			this.RehydrateAssets = GetParamValueIfNotSpecified(Command, RehydrateAssets, this.RehydrateAssets, "RehydrateAssets");		
 			this.Pak = GetParamValueIfNotSpecified(Command, Pak, this.Pak, "pak");
 			this.IgnorePaksFromDifferentCookSource = GetParamValueIfNotSpecified(Command, IgnorePaksFromDifferentCookSource, this.IgnorePaksFromDifferentCookSource, "IgnorePaksFromDifferentCookSource");
 			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
@@ -1425,6 +1428,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("PakAlignForMemoryMapping", "The game will be set up for memory mapping bulk data.")]
 		public bool PakAlignForMemoryMapping { private set; get; }
+		
+		/// <summary>
+		/// Shared: true if we want to rehydrate virtualized assets when staging.
+		/// </summary>
+		[Help("rehydrateassets", "Should virtualized assets be rehydrated?")]
+		public bool RehydrateAssets { get; set; }
 
 		/// <summary>
 		/// Shared: true if this build is staged, command line: -stage
@@ -3148,6 +3157,7 @@ namespace AutomationTool
                 CommandUtils.LogLog("PrePak={0}", PrePak);
                 CommandUtils.LogLog("SkipStage={0}", SkipStage);
 				CommandUtils.LogLog("Stage={0}", Stage);
+				CommandUtils.LogLog("RehydrateAssets={0}", RehydrateAssets);
 				CommandUtils.LogLog("bTreatNonShippingBinariesAsDebugFiles={0}", bTreatNonShippingBinariesAsDebugFiles);
 				CommandUtils.LogLog("bUseExtraFlavor={0}", bUseExtraFlavor);
                 CommandUtils.LogLog("StageDirectoryParam={0}", StageDirectoryParam);
