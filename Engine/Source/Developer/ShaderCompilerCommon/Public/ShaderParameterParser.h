@@ -64,16 +64,27 @@ public:
 	};
 
 	FShaderParameterParser();
-	FShaderParameterParser(TArrayView<const TCHAR*> InExtraSRVTypes, TArrayView<const TCHAR*> InExtraUAVTypes);
+	FShaderParameterParser(const TCHAR* InConstantBufferType);
+	FShaderParameterParser(const TCHAR* InConstantBufferType, TArrayView<const TCHAR* const> InExtraSRVTypes, TArrayView<const TCHAR* const> InExtraUAVTypes);
 	~FShaderParameterParser();
 
 	/** Parses the preprocessed shader code and applies the necessary modifications to it. */
 	bool ParseAndModify(
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput,
-		FString& PreprocessedShaderSource,
-		const TCHAR* ConstantBufferType
+		FString& PreprocessedShaderSource
 	);
+
+	UE_DEPRECATED(5.2, "ParseAndModify doesn't need ConstantBufferType anymore")
+	bool ParseAndModify(
+		const FShaderCompilerInput& CompilerInput,
+		FShaderCompilerOutput& CompilerOutput,
+		FString& PreprocessedShaderSource,
+		const TCHAR* InConstantBufferType
+	)
+	{
+		return ParseAndModify(CompilerInput, CompilerOutput, PreprocessedShaderSource);
+	}
 
 	/** Parses the preprocessed shader code and move the parameters into root constant buffer */
 	UE_DEPRECATED(5.1, "ParseAndModify should be called instead.")
@@ -81,9 +92,9 @@ public:
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput,
 		FString& PreprocessedShaderSource,
-		const TCHAR* ConstantBufferType)
+		const TCHAR* InConstantBufferType)
 	{
-		return ParseAndModify(CompilerInput, CompilerOutput, PreprocessedShaderSource, ConstantBufferType);
+		return ParseAndModify(CompilerInput, CompilerOutput, PreprocessedShaderSource);
 	}
 
 	/** Gets parsing information from a parameter binding name. */
@@ -150,20 +161,20 @@ private:
 	bool MoveShaderParametersToRootConstantBuffer(
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput,
-		FString& PreprocessedShaderSource,
-		const TCHAR* ConstantBufferType
+		FString& PreprocessedShaderSource
 	);
 
 	void ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const;
 
-	TArray<const TCHAR*> ExtraSRVTypes;
-	TArray<const TCHAR*> ExtraUAVTypes;
+	const TCHAR* const ConstantBufferType = nullptr;
+
+	const TArray<const TCHAR*> ExtraSRVTypes;
+	const TArray<const TCHAR*> ExtraUAVTypes;
 
 	FString OriginalParsedShader;
 
 	TMap<FString, FParsedShaderParameter> ParsedParameters;
 
-	bool bHasRootParameters = false;
 	bool bBindlessResources = false;
 	bool bBindlessSamplers = false;
 

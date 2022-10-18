@@ -135,11 +135,18 @@ static void AddNoteToDisplayShaderParameterMemberOnCppSide(
 FShaderParameterParser::FShaderParameterParser() = default;
 FShaderParameterParser::~FShaderParameterParser() = default;
 
+FShaderParameterParser::FShaderParameterParser(const TCHAR* InConstantBufferType)
+	: ConstantBufferType(InConstantBufferType)
+{
+}
+
 FShaderParameterParser::FShaderParameterParser(
-	TArrayView<const TCHAR*> InExtraSRVTypes,
-	TArrayView<const TCHAR*> InExtraUAVTypes
+	const TCHAR* InConstantBufferType,
+	TArrayView<const TCHAR* const> InExtraSRVTypes,
+	TArrayView<const TCHAR* const> InExtraUAVTypes
 )
-	: ExtraSRVTypes(InExtraSRVTypes)
+	: ConstantBufferType(InConstantBufferType)
+	, ExtraSRVTypes(InExtraSRVTypes)
 	, ExtraUAVTypes(InExtraUAVTypes)
 {
 }
@@ -267,7 +274,7 @@ bool FShaderParameterParser::ParseParameters(
 				const bool bBindlessIndex = (ParsedParameterType == EShaderParameterType::BindlessResourceIndex || ParsedParameterType == EShaderParameterType::BindlessSamplerIndex);
 
 				EBindlessConversionType BindlessConversionType = EBindlessConversionType::None;
-				EShaderParameterType ConstantBufferType = ParsedParameterType;
+				EShaderParameterType ParsedConstantBufferType = ParsedParameterType;
 
 				if ((bBindlessResources || bBindlessSamplers) && ParsedParameterType == EShaderParameterType::LooseData)
 				{
@@ -276,19 +283,19 @@ bool FShaderParameterParser::ParseParameters(
 					if (bBindlessResources && (ParsedParameterType == EShaderParameterType::SRV || ParsedParameterType == EShaderParameterType::UAV))
 					{
 						BindlessConversionType = EBindlessConversionType::Resource;
-						ConstantBufferType = EShaderParameterType::BindlessResourceIndex;
+						ParsedConstantBufferType = EShaderParameterType::BindlessResourceIndex;
 					}
 					else if (bBindlessSamplers && ParsedParameterType == EShaderParameterType::Sampler)
 					{
 						BindlessConversionType = EBindlessConversionType::Sampler;
-						ConstantBufferType = EShaderParameterType::BindlessSamplerIndex;
+						ParsedConstantBufferType = EShaderParameterType::BindlessSamplerIndex;
 					}
 
 					if (BindlessConversionType != EBindlessConversionType::None && Leftovers.Contains(TEXT("register")))
 					{
 						// avoid rewriting hardcoded register assignments
 						BindlessConversionType = EBindlessConversionType::None;
-						ConstantBufferType = ParsedParameterType;
+						ParsedConstantBufferType = ParsedParameterType;
 					}
 				}
 
@@ -324,7 +331,7 @@ bool FShaderParameterParser::ParseParameters(
 
 							if (bMoveToRootConstantBuffer)
 							{
-								ConstantBufferParameterType = ConstantBufferType;
+								ConstantBufferParameterType = ParsedConstantBufferType;
 							}
 						}
 					}
@@ -847,8 +854,7 @@ static const TCHAR* GetConstantSwizzle(uint16 ByteOffset)
 bool FShaderParameterParser::MoveShaderParametersToRootConstantBuffer(
 	const FShaderCompilerInput& CompilerInput,
 	FShaderCompilerOutput& CompilerOutput,
-	FString& PreprocessedShaderSource,
-	const TCHAR* ConstantBufferType)
+	FString& PreprocessedShaderSource)
 {
 	bool bSuccess = true;
 
@@ -938,12 +944,11 @@ bool FShaderParameterParser::MoveShaderParametersToRootConstantBuffer(
 bool FShaderParameterParser::ParseAndModify(
 	const FShaderCompilerInput& CompilerInput,
 	FShaderCompilerOutput& CompilerOutput,
-	FString& PreprocessedShaderSource,
-	const TCHAR* ConstantBufferType)
+	FString& PreprocessedShaderSource)
 {
 	bBindlessResources = CompilerInput.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
 	bBindlessSamplers = CompilerInput.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
-	bHasRootParameters = (CompilerInput.RootParametersStructure != nullptr);
+	const bool bHasRootParameters = (CompilerInput.RootParametersStructure != nullptr);
 
 	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
 	if (!(bBindlessResources || bBindlessSamplers || bHasRootParameters))
@@ -951,7 +956,7 @@ bool FShaderParameterParser::ParseAndModify(
 		return true;
 	}
 
-	bNeedToMoveToRootConstantBuffer = ConstantBufferType != nullptr;
+	bNeedToMoveToRootConstantBuffer = ConstantBufferType != nullptr && (CompilerInput.IsRayTracingShader() || UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer(CompilerInput));
 	OriginalParsedShader = PreprocessedShaderSource;
 
 	if (!ParseParameters(CompilerInput, CompilerOutput))
@@ -964,7 +969,7 @@ bool FShaderParameterParser::ParseAndModify(
 
 	if (bNeedToMoveToRootConstantBuffer)
 	{
-		return MoveShaderParametersToRootConstantBuffer(CompilerInput, CompilerOutput, PreprocessedShaderSource, ConstantBufferType);
+		return MoveShaderParametersToRootConstantBuffer(CompilerInput, CompilerOutput, PreprocessedShaderSource);
 	}
 	
 	return true;

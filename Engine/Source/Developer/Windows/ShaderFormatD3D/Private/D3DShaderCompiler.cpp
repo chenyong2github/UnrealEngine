@@ -1302,10 +1302,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		}
 	}
 
-	FShaderParameterParser ShaderParameterParser;
-	if (!ShaderParameterParser.ParseAndModify(
-		Input, Output, PreprocessedShaderSource,
-		(Input.IsRayTracingShader() || ShouldUseStableConstantBuffer(Input)) ? TEXT("cbuffer") : nullptr))
+	FShaderParameterParser ShaderParameterParser(TEXT("cbuffer"));
+	if (!ShaderParameterParser.ParseAndModify(Input, Output, PreprocessedShaderSource))
 	{
 		// The FShaderParameterParser will add any relevant errors.
 		return;

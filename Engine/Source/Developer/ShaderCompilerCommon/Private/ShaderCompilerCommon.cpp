@@ -471,6 +471,18 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 	return nullptr;
 }
 
+bool UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
+{
+	// stable constant buffer is for the FShaderParameterBindings::BindForLegacyShaderParameters() code path.
+	// Ray tracing shaders use FShaderParameterBindings::BindForRootShaderParameters instead.
+	if (Input.IsRayTracingShader())
+	{
+		return false;
+	}
+
+	return Input.RootParametersStructure != nullptr;
+}
+
 static const TCHAR* const s_AllSRVTypes[] =
 {
 	TEXT("Texture1D"),
@@ -512,8 +524,8 @@ static const TCHAR* const s_AllSamplerTypes[] =
 
 EShaderParameterType UE::ShaderCompilerCommon::ParseParameterType(
 	FStringView InType,
-	TArrayView<const TCHAR*> InExtraSRVTypes,
-	TArrayView<const TCHAR*> InExtraUAVTypes)
+	TArrayView<const TCHAR* const> InExtraSRVTypes,
+	TArrayView<const TCHAR* const> InExtraUAVTypes)
 {
 	TArrayView<const TCHAR* const> AllSamplerTypes(s_AllSamplerTypes);
 	TArrayView<const TCHAR* const> AllSRVTypes(s_AllSRVTypes);

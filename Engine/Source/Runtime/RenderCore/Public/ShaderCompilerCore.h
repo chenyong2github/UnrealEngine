@@ -506,7 +506,7 @@ enum class ESCWErrorCode
 	BadInputFile
 };
 
-
+UE_DEPRECATED(5.2, "Functionality has moved to UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer")
 inline bool ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
 {
 	// stable constant buffer is for the FShaderParameterBindings::BindForLegacyShaderParameters() code path.
