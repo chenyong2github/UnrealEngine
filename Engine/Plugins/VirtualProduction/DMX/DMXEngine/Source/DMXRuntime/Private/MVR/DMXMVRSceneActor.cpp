@@ -322,6 +322,12 @@ AActor* ADMXMVRSceneActor::SpawnMVRActor(const TSubclassOf<AActor>&ActorClass, U
 		return nullptr;
 	}
 
+	if (!FixturePatch->GetFixtureType() || !FixturePatch->GetFixtureType()->DMXImport)
+	{
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Cannot spawn fixture for Fixture Patch '%s'. It's Fixture Type does not source from a GDTF."), *FixturePatch->Name);
+		return nullptr;
+	}
+
 	FActorSpawnParameters ActorSpawnParameters;
 	ActorSpawnParameters.Template = Template;
 	ActorSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
