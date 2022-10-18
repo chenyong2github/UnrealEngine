@@ -560,6 +560,11 @@ namespace UnrealBuildTool
 		private List<DirectoryReference> AdditionalModuleDirectories = new List<DirectoryReference>();
 
 		/// <summary>
+		/// The rules assembly to use when searching for modules
+		/// </summary>
+		internal RulesAssembly RulesAssembly;
+
+		/// <summary>
 		/// Plugin containing this module
 		/// </summary>
 		internal PluginInfo? Plugin;
@@ -1004,6 +1009,21 @@ namespace UnrealBuildTool
 		/// List of additional libraries (names of the .lib files including extension) - typically used for External (third party) modules
 		/// </summary>
 		public List<string> PublicAdditionalLibraries = new List<string>();
+
+		/// <summary>
+		/// Returns the directory of where the passed in module name lives.
+		/// </summary>
+		/// <param name="ModuleName">Name of the module</param>
+		/// <returns>Directory where the module lives</returns>
+		public string GetModuleDirectory(string ModuleName)
+		{
+			FileReference? ModuleFileReference = RulesAssembly.GetModuleFileName(ModuleName);
+			if (ModuleFileReference == null)
+			{
+				throw new BuildException("Could not find a module named '{0}'.", ModuleName);
+			}
+			return ModuleFileReference.Directory.FullName;
+		}
 
 		/// <summary>
 		/// List of additional pre-build libraries (names of the .lib files including extension) - typically used for additional targets which are still built, but using either TargetRules.PreBuildSteps or TargetRules.PreBuildTargets.

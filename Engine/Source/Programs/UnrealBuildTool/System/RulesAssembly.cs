@@ -481,6 +481,7 @@ namespace UnrealBuildTool
 				}
 				RulesObject.bPrecompile = (RulesObject.bTreatAsEngineModule || ModuleName.Equals("UnrealGame", StringComparison.OrdinalIgnoreCase)) && Target.bPrecompile;
 				RulesObject.bUsePrecompiled = bReadOnly;
+				RulesObject.RulesAssembly = this;
 
 				// go up the type hierarchy (if there is a hierarchy), looking for any extra directories for the module
 				if (RulesObjectType != BaseRulesObjectType && RulesObjectType != typeof(ModuleRules))
