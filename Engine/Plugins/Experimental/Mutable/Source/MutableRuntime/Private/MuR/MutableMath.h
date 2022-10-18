@@ -360,17 +360,27 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 		//! Per component min
         //-----------------------------------------------------------------------------------------
-        inline static V min(const V& a, const V& b)
-        {
-            V r;
-            for (size_t i = 0; i < DIM; ++i)
-            {
-                r.m[i] = FMath::Min(a.m[i], b.m[i]);
-            }
-            return r;
-        }
+		inline static V min(const V& a, const V& b)
+		{
+			V r;
+			for (size_t i = 0; i < DIM; ++i)
+			{
+				r.m[i] = FMath::Min(a.m[i], b.m[i]);
+			}
+			return r;
+		}
 
-        //-----------------------------------------------------------------------------------------
+		inline static V max(const V& a, const V& b)
+		{
+			V r;
+			for (size_t i = 0; i < DIM; ++i)
+			{
+				r.m[i] = FMath::Max(a.m[i], b.m[i]);
+			}
+			return r;
+		}
+
+		//-----------------------------------------------------------------------------------------
 		//! Strict ordering of vectors.
 		//-----------------------------------------------------------------------------------------
 		inline bool

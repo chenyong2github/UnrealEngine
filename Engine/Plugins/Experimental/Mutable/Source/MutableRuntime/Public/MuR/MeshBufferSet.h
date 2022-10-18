@@ -393,7 +393,7 @@ namespace mu
 		//! Compare the mesh buffer with another one, but ignore internal data like generated
 		//! vertex indices. This version compares the data component-wise, skipping any memory
 		//! not specified in the buffer description.	
-		bool IsSimilarRobust(const FMeshBufferSet& Other) const;
+		bool IsSimilarRobust(const FMeshBufferSet& Other,bool bCompareUVs) const;
 
 		//! Change the buffer descriptions so that all buffer indices start at 0 and are in the
 		//! same order than memory.

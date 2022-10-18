@@ -202,8 +202,6 @@ namespace mu
     {
 		const NodeImageConstant::Private& node = *InNode->GetPrivate();
 		
-		//MUTABLE_CPUPROFILER_SCOPE(NodeImageConstant);
-
         Ptr<ASTOpConstantResource> op = new ASTOpConstantResource();
         op->type = OP_TYPE::IM_CONSTANT;
 
@@ -232,10 +230,9 @@ namespace mu
 
         // Order of the operations is important: multiply first to avoid losing precision.
         // It will not overflow since image sizes are limited to 16 bit
-        cropRect.min = ( m_imageState.Last().m_imageRect.min * imageSize )
-                / m_imageState.Last().m_imageSize;
-        cropRect.size = ( m_imageState.Last().m_imageRect.size * imageSize )
-                / m_imageState.Last().m_imageSize;
+		vec2<int> RectDivisor = vec2<int>::max(vec2<int>(1,1),m_imageState.Last().m_imageSize);
+        cropRect.min = ( m_imageState.Last().m_imageRect.min * imageSize ) / RectDivisor;
+        cropRect.size = ( m_imageState.Last().m_imageRect.size * imageSize ) / RectDivisor;
 
         //check( cropRect.size[0]>0 && cropRect.size[1]>0 );
         cropRect.size[0] = FMath::Max( cropRect.size[0], 1 );
@@ -244,9 +241,7 @@ namespace mu
         //
         if ( pImage->GetSizeX()!=cropRect.size[0] || pImage->GetSizeY()!=cropRect.size[1] )
         {
-            ImagePtrConst pCropped =
-                ImageCrop( m_compilerOptions->m_imageCompressionQuality,
-                           pImage.get(), cropRect );
+            ImagePtrConst pCropped = ImageCrop( m_compilerOptions->m_imageCompressionQuality, pImage.get(), cropRect );
             op->SetValue( pCropped, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
         }
         else
@@ -1440,9 +1435,16 @@ namespace mu
         // Mesh
         if ( node.m_pMesh )
         {
-            MESH_GENERATION_RESULT MeshResult;
-			check(m_overrideLayoutsStack.IsEmpty());
-            GenerateMesh(MeshResult, node.m_pMesh );
+            FMeshGenerationResult MeshResult;
+			FMeshGenerationOptions MeshOptions;
+			MeshOptions.State = m_currentStateIndex;
+			if (m_activeTags.Num())
+			{
+				MeshOptions.ActiveTags = m_activeTags.Last();
+			}
+			MeshOptions.bLayouts = true;			// We need the layout that we will use to render
+			MeshOptions.bUniqueVertexIDs = false;	// We don't need the IDs at this point.
+            GenerateMesh( MeshOptions, MeshResult, node.m_pMesh );
 
             pop->SetChild( pop->op.args.MeshProject.mesh, MeshResult.meshOp );
 

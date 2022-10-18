@@ -150,10 +150,10 @@ namespace mu
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetMorphIndicesAreRelative( bool relative )
-	{
-		m_pD->m_vertexIndicesAreRelative = relative;
-	}
+	//void NodeMeshMorph::SetMorphIndicesAreRelative( bool relative )
+	//{
+	//	m_pD->m_vertexIndicesAreRelative = relative;
+	//}
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::SetReshapeSkeleton(bool bEnable)

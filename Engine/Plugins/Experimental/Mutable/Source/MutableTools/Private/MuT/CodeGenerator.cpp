@@ -275,7 +275,6 @@ namespace mu
         m_generatedTables.clear();
         m_firstPass = FirstPassGenerator();
         m_currentBottomUpState = BOTTOM_UP_STATE();
-        m_overrideLayoutsStack.Empty();
         m_imageState.Empty();
         m_currentParents.Empty();
         m_currentObject.Empty();
@@ -336,8 +335,14 @@ namespace mu
 
 		if (auto MeshNode = dynamic_cast<const NodeMesh*>(pNode.get()))
 		{
-			MESH_GENERATION_RESULT MeshResult;
-			GenerateMesh(MeshResult, MeshNode);
+			// This should only happen with mesh root nodes
+			FMeshGenerationOptions MeshOptions;
+			MeshOptions.bUniqueVertexIDs = true;
+			MeshOptions.bLayouts = true;
+			MeshOptions.State = m_currentStateIndex;
+
+			FMeshGenerationResult MeshResult;
+			GenerateMesh(MeshOptions, MeshResult, MeshNode);
 			return MeshResult.meshOp;
 		}
 
@@ -862,7 +867,7 @@ namespace mu
         }
 
 
-        MESH_GENERATION_RESULT meshResults;
+        FMeshGenerationResult meshResults;
 
 
 		// We don't add the mesh here, since it will be added directly at the top of the
@@ -915,7 +920,13 @@ namespace mu
 			m_activeTags.Add(node.m_tags);
 
             // Generate the mesh
-            GenerateMesh( meshResults, pMesh );
+			FMeshGenerationOptions MeshOptions;
+			MeshOptions.bUniqueVertexIDs = true;
+			MeshOptions.bLayouts = true;
+			MeshOptions.State = m_currentStateIndex;
+			MeshOptions.ActiveTags = m_activeTags.Last();
+
+            GenerateMesh(MeshOptions, meshResults, pMesh );
             lastMeshOp = meshResults.meshOp;
             meshResults.extraMeshLayouts.SetNum( edits.Num() );
 
@@ -938,8 +949,13 @@ namespace mu
 						// Store the data necessary to apply modifiers for the pre-normal operations stage.
 						m_activeTags.Add(e.node->m_tags);
 						
-						MESH_GENERATION_RESULT addResults;
-                        GenerateMesh( addResults, pAdd );
+						FMeshGenerationOptions MergedMeshOptions;
+						MergedMeshOptions.bUniqueVertexIDs = true;
+						MergedMeshOptions.bLayouts = true;
+						MergedMeshOptions.State = m_currentStateIndex;
+						MergedMeshOptions.ActiveTags = m_activeTags.Last();
+						FMeshGenerationResult addResults;
+                        GenerateMesh(MergedMeshOptions, addResults, pAdd);
 
 						m_activeTags.Pop();
 
@@ -950,7 +966,7 @@ namespace mu
 						lastMeshOp = ApplyMeshModifiers(lastMeshOp, e.node->m_tags,
 							bModifiersForBeforeOperations, node.m_errorContext);
 
-                        MESH_GENERATION_RESULT::EXTRA_LAYOUTS data;
+                        FMeshGenerationResult::EXTRA_LAYOUTS data;
                         data.layouts = addResults.layouts;
                         data.condition = e.condition;
                         data.meshFragment = addResults.meshOp;
@@ -992,8 +1008,17 @@ namespace mu
                 {
                     if ( NodeMeshPtr pRemove = e.node->m_pMesh->GetRemove() )
                     {
-                        MESH_GENERATION_RESULT removeResults;
-                        GenerateMesh( removeResults, pRemove );
+                        FMeshGenerationResult removeResults;
+						FMeshGenerationOptions RemoveMeshOptions;
+						RemoveMeshOptions.bUniqueVertexIDs = false;
+						RemoveMeshOptions.bLayouts = false;
+						RemoveMeshOptions.State = m_currentStateIndex;
+						if (!m_activeTags.IsEmpty())
+						{
+							RemoveMeshOptions.ActiveTags = m_activeTags.Last();
+						}
+
+                        GenerateMesh(RemoveMeshOptions, removeResults, pRemove );
 
                         Ptr<ASTOpFixed> maskOp = new ASTOpFixed();
                         maskOp->op.type = OP_TYPE::ME_MASKDIFF;
@@ -1034,21 +1059,27 @@ namespace mu
             {
                 if ( NodeMeshPtr pMorph = e.node->m_pMorph )
                 {
+					// Not needed because it has been generated before already.
 					// Base mesh
-					MESH_GENERATION_RESULT baseMesh;
-					GenerateMesh(baseMesh, pMesh);
+					//FMeshGenerationResult baseMesh;
+					//GenerateMesh(baseMesh, pMesh);
 
                     // Target mesh
-                    MESH_GENERATION_RESULT morphResult;
-                    GenerateMesh( morphResult, pMorph );
+					FMeshGenerationOptions MorphTargetMeshOptions;
+					MorphTargetMeshOptions.bUniqueVertexIDs = false;
+					MorphTargetMeshOptions.bLayouts = false;
+					MorphTargetMeshOptions.State = m_currentStateIndex;
+
+                    FMeshGenerationResult morphResult;
+                    GenerateMesh(MorphTargetMeshOptions, morphResult, pMorph );
 
 					// BaseMorph generation through mesh diff
 					Ptr<ASTOpFixed> diffBase;
 					{
 						Ptr<ASTOpFixed> op = new ASTOpFixed();
 						op->op.type = OP_TYPE::ME_DIFFERENCE;
-						op->SetChild(op->op.args.MeshDifference.base, baseMesh.meshOp);
-						op->SetChild(op->op.args.MeshDifference.target, baseMesh.meshOp);
+						op->SetChild(op->op.args.MeshDifference.base, meshResults.meshOp);
+						op->SetChild(op->op.args.MeshDifference.target, meshResults.meshOp);
 
 						// Morphing tex coords here is not supported:
 						// Generating the homogoneous UVs is difficult since we don't have the base
@@ -1094,8 +1125,6 @@ namespace mu
 						}
 
 						// Base		
-						MESH_GENERATION_RESULT test;
-						GenerateMesh(test, pMesh);
 						op->SetChild(op->op.args.MeshMorph2.base, lastMeshOp);
 
 						// Targets
@@ -2258,8 +2287,13 @@ namespace mu
 				op->source = preModifiersMesh;
 
 				// Parameters
-				MESH_GENERATION_RESULT clipResult;
-				GenerateMesh(clipResult, TypedClipNode->m_clipMesh);
+				FMeshGenerationOptions ClipOptions;
+				ClipOptions.bUniqueVertexIDs = false;
+				ClipOptions.bLayouts = false;
+				ClipOptions.State = m_currentStateIndex;
+
+				FMeshGenerationResult clipResult;
+				GenerateMesh(ClipOptions, clipResult, TypedClipNode->m_clipMesh);
 				op->clip = clipResult.meshOp;
 
 				if (!op->clip)
@@ -2380,8 +2414,13 @@ namespace mu
 				Ptr<ASTOpMeshBindShape>  BindOp = new ASTOpMeshBindShape();
 				Ptr<ASTOpMeshClipDeform> ClipOp = new ASTOpMeshClipDeform();
 
-				MESH_GENERATION_RESULT ClipShapeResult;
-				GenerateMesh(ClipShapeResult, TypedClipNode->ClipMesh);
+				FMeshGenerationOptions ClipOptions;
+				ClipOptions.bUniqueVertexIDs = false;
+				ClipOptions.bLayouts = false;
+				ClipOptions.State = m_currentStateIndex;
+
+				FMeshGenerationResult ClipShapeResult;
+				GenerateMesh(ClipOptions, ClipShapeResult, TypedClipNode->ClipMesh);
 				ClipOp->ClipShape = ClipShapeResult.meshOp;
 				
 				BindOp->Mesh = lastMeshOp;
@@ -2423,25 +2462,5 @@ namespace mu
 
 		return lastMeshOp;
 	}
-	//---------------------------------------------------------------------------------------------
-//	void CodeGenerator::GetSurfacesWithTag(
-//		const string& tag,
-//		vector<FirstPassGenerator::SURFACE>& surfaces)
-//	{
-//		MUTABLE_CPUPROFILER_SCOPE(GetSurfacesWithTag);
-
-//		for (const auto& m : m_firstPass.surfaces)
-//		{
-//			// Matching tags?
-//            bool found = std::find(m.node->GetPrivate()->m_tags.begin(), m.node->GetPrivate()->m_tags.end(),tag)
-//				!=
-//                m.node->GetPrivate()->m_tags.end();
-
-//			if (found)
-//			{
-//				surfaces.push_back(m);
-//			}
-//		}
-//	}
 
 }

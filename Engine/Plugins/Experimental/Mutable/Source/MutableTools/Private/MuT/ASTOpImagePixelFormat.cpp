@@ -21,11 +21,10 @@
 #include <memory>
 #include <utility>
 
-namespace mu { template <class SCALAR> class vec4; }
+namespace mu
+{
 
-
-using namespace mu;
-
+	template <class SCALAR> class vec4;
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -530,3 +529,5 @@ mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(mu::Ptr<ASTOp> at, const ASTOpIma
 	return newAt;
 }
 
+
+}

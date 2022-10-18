@@ -942,7 +942,7 @@ void Mesh::ResetBufferIndices()
 
 
 //---------------------------------------------------------------------------------------------
-bool Mesh::IsSimilar(const Mesh& o) const
+bool Mesh::IsSimilar(const Mesh& o, bool bCompareLayouts) const
 {
 	// Some meshes are just vertex indices (masks) we don't consider them for similarity,
 	// because the kind of vertex channel data they store is the kind that is ignored.
@@ -953,7 +953,7 @@ bool Mesh::IsSimilar(const Mesh& o) const
 
 	bool equal = m_IndexBuffers == o.m_IndexBuffers;
 	if (equal) equal = m_FaceBuffers == o.m_FaceBuffers;
-	if (equal) equal = (m_layouts.Num() == o.m_layouts.Num());
+	if (equal && bCompareLayouts) equal = (m_layouts.Num() == o.m_layouts.Num());
 	if (equal && m_pSkeleton != o.m_pSkeleton)
 	{
 		if (m_pSkeleton && o.m_pSkeleton)
@@ -983,15 +983,18 @@ bool Mesh::IsSimilar(const Mesh& o) const
 	if (equal) equal = (m_tags == o.m_tags);
 
 	// Special comparison for layouts
-	for (int32 i = 0; equal && i < m_layouts.Num(); ++i)
+	if (bCompareLayouts)
 	{
-		equal &= m_layouts[i]->IsSimilar(*o.m_layouts[i]);
+		for (int32 i = 0; equal && i < m_layouts.Num(); ++i)
+		{
+			equal &= m_layouts[i]->IsSimilar(*o.m_layouts[i]);
+		}
 	}
 
 	// Special comparison for vertex buffers
 	if (equal)
 	{
-		equal = m_VertexBuffers.IsSimilarRobust(o.m_VertexBuffers);
+		equal = m_VertexBuffers.IsSimilarRobust(o.m_VertexBuffers, bCompareLayouts);
 	}
 
 	return equal;

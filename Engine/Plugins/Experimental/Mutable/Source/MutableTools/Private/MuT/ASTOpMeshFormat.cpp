@@ -23,11 +23,11 @@
 #include <utility>
 
 
-using namespace mu;
+
+namespace mu
+{
 
 
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 ASTOpMeshFormat::ASTOpMeshFormat()
     : Source(this)
@@ -409,4 +409,6 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 	m_oldToNew.Add(at, newAt);
 
 	return newAt;
+}
+
 }

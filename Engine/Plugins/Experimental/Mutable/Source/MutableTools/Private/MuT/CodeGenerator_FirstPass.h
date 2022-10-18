@@ -34,33 +34,6 @@ namespace mu
 	class Layout;
 	struct OBJECT_STATE;
 
-    //! Store the results of the code generation of a mesh.
-    struct MESH_GENERATION_RESULT
-    {
-        //! Mesh after all code tree is applied
-        Ptr<ASTOp> meshOp;
-
-        //! Original base mesh before removes, morphs, etc.
-        Ptr<ASTOp> baseMeshOp;
-
-		/** Source node layouts to use with these extra mesh. They don't have block ids. */
-		TArray<Ptr<const Layout>> layouts;
-
-		TArray<Ptr<ASTOp>> layoutOps;
-
-
-        struct EXTRA_LAYOUTS
-        {
-			/** Source node layouts to use with these extra mesh. They don't have block ids. */
-			TArray<Ptr<const Layout>> layouts;
-            Ptr<ASTOp> condition;
-            Ptr<ASTOp> meshFragment;
-        };
-		TArray< EXTRA_LAYOUTS > extraMeshLayouts;
-
-    };
-
-
 	//---------------------------------------------------------------------------------------------
 	//! First pass of the code generation process.
 	//! It collects data about the object hierarchy, the conditions for each object and the global

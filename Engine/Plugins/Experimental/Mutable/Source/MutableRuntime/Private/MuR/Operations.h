@@ -289,6 +289,7 @@ namespace mu
 
 		//! Remap the vertex index buffer with the ones in the reference mesh, using the current
 		//! ones as relative to that mesh.
+		//! \TODO: Deprecated?
 		ME_REMAPINDICES,
 
 		//! Apply a geometry core operation to a mesh.

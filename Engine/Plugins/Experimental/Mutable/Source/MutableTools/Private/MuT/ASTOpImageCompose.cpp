@@ -20,7 +20,8 @@
 #include <utility>
 
 
-using namespace mu;
+namespace mu
+{
 
 
 //-------------------------------------------------------------------------------------------------
@@ -280,4 +281,6 @@ mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTI
 	}
 
 	return at;
+}
+
 }

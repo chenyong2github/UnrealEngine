@@ -37,7 +37,7 @@ namespace mu
 			}
 
 			ErrorLogMessageType m_type;
-			string m_text;
+			FString m_text;
             std::shared_ptr< DATA > m_data;
 			const void* m_context;
 		};
@@ -48,7 +48,10 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		//!
-		void Add( const char* strMessage, ErrorLogMessageType type, const void* context );
+		void Add(const FString& Message, ErrorLogMessageType Type, const void* Context);
+
+		//!
+		void Add(const char* strMessage, ErrorLogMessageType type, const void* context);
 
         //!
         void Add( const char* strMessage, const ErrorLogMessageAttachedDataView& data, 

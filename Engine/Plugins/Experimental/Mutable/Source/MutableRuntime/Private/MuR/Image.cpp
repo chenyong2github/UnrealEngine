@@ -200,12 +200,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     uint8_t* Image::GetData()
     {
-        uint8_t* pResult = 0;
-        if ( m_data.Num() )
-        {
-            pResult = &m_data[0];
-        }
-        return pResult;
+		return m_data.GetData();
     }
 
 

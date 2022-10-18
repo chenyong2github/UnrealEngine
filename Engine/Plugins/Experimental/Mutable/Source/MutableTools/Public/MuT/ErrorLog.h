@@ -54,7 +54,7 @@ namespace mu
 
 		//! Get the text of a message.
 		//! \param index index of the message from 0 to GetMessageCount(ELMT_NONE)-1
-		const char* GetMessageText( int index ) const;
+		const FString& GetMessageText( int index ) const;
 
 		//! Get the opaque context of a message.
 		//! \param index index of the message from 0 to GetMessageCount(ELMT_NONE)-1

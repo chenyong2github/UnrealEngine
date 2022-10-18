@@ -113,6 +113,8 @@ namespace mu
 	struct OBJECT_STATE;
 	struct PROGRAM;
 
+
+
     //---------------------------------------------------------------------------------------------
     //! Code generator
     //---------------------------------------------------------------------------------------------
@@ -232,20 +234,15 @@ namespace mu
         //! palceholders for missing images.
         ImagePtr m_missingImage[size_t(EImageFormat::IF_COUNT)];
 
-        //! If this has something, while generating meshes, the layouts will be ignored, because
-        //! they are supposed to match some other set of layouts. If the vector is empty, layouts
-        //! are generated normally.
-		TArray< TArray<Ptr<const Layout>> > m_overrideLayoutsStack;
-
         //! Map of layouts found in the code already generated. The map is from the source layout
         //! pointer to the cloned layout. The cloned layout will have absolute block ids assigned.
         TMap<Ptr<const Layout>,Ptr<const Layout>> m_addedLayouts;
 
         //! First free index for a layout block
-        int32_t m_absoluteLayoutIndex = 0;
+        int32 m_absoluteLayoutIndex = 0;
 
         //! First free index to be used to identify mesh vertices.
-        uint32_t m_freeVertexIndex = 0;
+        uint32 m_freeVertexIndex = 0;
 
         //! When generating images, here we have the entire source image size and the rect of the
         //! image that we are generating.
@@ -253,7 +250,7 @@ namespace mu
         {
             vec2<int> m_imageSize;
             box< vec2<int> > m_imageRect;
-            int32_t m_layoutBlock;
+            int32 m_layoutBlock;
             LayoutPtrConst m_pLayout;
         };
 		TArray<IMAGE_STATE> m_imageState;
@@ -375,10 +372,6 @@ namespace mu
 			if (!m_activeTags.IsEmpty())
 			{
 				key.activeTags = m_activeTags.Last();
-				if (!m_overrideLayoutsStack.IsEmpty())
-				{
-					key.overrideLayouts = m_overrideLayoutsStack.Last();
-				}
 			}
 			return key;
 		}
@@ -447,27 +440,115 @@ namespace mu
 
         //-----------------------------------------------------------------------------------------
         // Meshes
-        typedef TMap<VISITED_MAP_KEY,MESH_GENERATION_RESULT> GeneratedMeshMap;
+
+		/** Options that affect the generation of meshes. It is like list of what required data we want
+		* while parsing down the mesh node graph.
+		*/
+		struct FMeshGenerationOptions
+		{
+			/** TODO: Review and document. */
+			int State = 0;
+			TArray<mu::string> ActiveTags;
+
+			/** Whatever mesh we reach at the leaves of the graph will need to have unique ids for its vertices.
+			* This is used to track mesh removal indices, morph data in other nodes, clothing data, etc.
+			*/
+			bool bUniqueVertexIDs = false;
+
+			/** The meshes at the leaves will need their own layout block data. */
+			bool bLayouts = false;
+
+			/** If this has something the layouts in constant meshes will be ignored, because
+			* they are supposed to match some other set of layouts. If the vector is empty, layouts
+			* are generated normally.
+			*/
+			TArray<Ptr<const Layout>> OverrideLayouts;			
+
+			friend FORCEINLINE uint32 GetTypeHash(const FMeshGenerationOptions& InKey)
+			{
+				uint32 KeyHash = 0;
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.bUniqueVertexIDs));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.bLayouts));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.OverrideLayouts.Num()));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.State));
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.ActiveTags.Num()));
+				return KeyHash;
+			}
+
+			FORCEINLINE bool operator==(const FMeshGenerationOptions& Other) const
+			{
+				return State==Other.State 
+					&& bUniqueVertexIDs==Other.bUniqueVertexIDs && bLayouts==Other.bLayouts
+					&& ActiveTags==Other.ActiveTags
+					&& OverrideLayouts ==Other.OverrideLayouts;
+			}
+
+		};
+
+		//! Store the results of the code generation of a mesh.
+		struct FMeshGenerationResult
+		{
+			//! Mesh after all code tree is applied
+			Ptr<ASTOp> meshOp;
+
+			//! Original base mesh before removes, morphs, etc.
+			Ptr<ASTOp> baseMeshOp;
+
+			/** Source node layouts to use with these extra mesh. They don't have block ids. */
+			TArray<Ptr<const Layout>> layouts;
+
+			TArray<Ptr<ASTOp>> layoutOps;
+
+			struct EXTRA_LAYOUTS
+			{
+				/** Source node layouts to use with these extra mesh. They don't have block ids. */
+				TArray<Ptr<const Layout>> layouts;
+				Ptr<ASTOp> condition;
+				Ptr<ASTOp> meshFragment;
+			};
+			TArray< EXTRA_LAYOUTS > extraMeshLayouts;
+		};
+		
+		struct FGeneratedMeshCacheKey
+		{
+			NodePtrConst Node;
+			FMeshGenerationOptions Options;
+
+			friend FORCEINLINE uint32 GetTypeHash(const FGeneratedMeshCacheKey& InKey)
+			{
+				uint32 KeyHash = 0;
+				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.Node.get()));
+				KeyHash = HashCombine(KeyHash, GetTypeHash(InKey.Options));
+				return KeyHash;
+			}
+
+			FORCEINLINE bool operator==(const FGeneratedMeshCacheKey& Other) const
+			{
+				return Node == Other.Node && Options == Other.Options;
+			}
+		};
+
+        typedef TMap<FGeneratedMeshCacheKey,FMeshGenerationResult> GeneratedMeshMap;
         GeneratedMeshMap m_generatedMeshes;
 
-        void GenerateMesh( MESH_GENERATION_RESULT& result, const NodeMeshPtrConst& node);
-        void GenerateMesh_Constant( MESH_GENERATION_RESULT&, const NodeMeshConstant* );
-        void GenerateMesh_Format( MESH_GENERATION_RESULT&, const NodeMeshFormat* );
-        void GenerateMesh_Morph( MESH_GENERATION_RESULT&, const NodeMeshMorph* );
-        void GenerateMesh_MakeMorph( MESH_GENERATION_RESULT&, const NodeMeshMakeMorph* );
-        void GenerateMesh_Fragment( MESH_GENERATION_RESULT&, const NodeMeshFragment* );
-        void GenerateMesh_Interpolate( MESH_GENERATION_RESULT&, const NodeMeshInterpolate* );
-        void GenerateMesh_Switch( MESH_GENERATION_RESULT&, const NodeMeshSwitch* );
-        void GenerateMesh_Subtract( MESH_GENERATION_RESULT&, const NodeMeshSubtract* );
-        void GenerateMesh_Transform( MESH_GENERATION_RESULT&, const NodeMeshTransform* );
-        void GenerateMesh_ClipMorphPlane( MESH_GENERATION_RESULT&, const NodeMeshClipMorphPlane* );
-        void GenerateMesh_ClipWithMesh( MESH_GENERATION_RESULT&, const NodeMeshClipWithMesh* );
-        void GenerateMesh_ApplyPose( MESH_GENERATION_RESULT&, const NodeMeshApplyPose* );
-        void GenerateMesh_Variation( MESH_GENERATION_RESULT&, const NodeMeshVariation* );
-		void GenerateMesh_Table(MESH_GENERATION_RESULT&, const NodeMeshTable*);
-		void GenerateMesh_GeometryOperation(MESH_GENERATION_RESULT&, const NodeMeshGeometryOperation*);
-		void GenerateMesh_Reshape(MESH_GENERATION_RESULT&, const NodeMeshReshape*);
-		void GenerateMesh_ClipDeform(MESH_GENERATION_RESULT&, const NodeMeshClipDeform*);
+        void GenerateMesh(const FMeshGenerationOptions&, FMeshGenerationResult& result, const NodeMeshPtrConst& node);
+        void GenerateMesh_Constant(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshConstant* );
+        void GenerateMesh_Format(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshFormat* );
+        void GenerateMesh_Morph(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshMorph* );
+        void GenerateMesh_MakeMorph(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshMakeMorph* );
+        void GenerateMesh_Fragment(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshFragment* );
+        void GenerateMesh_Interpolate(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshInterpolate* );
+        void GenerateMesh_Switch(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshSwitch* );
+        void GenerateMesh_Subtract(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshSubtract* );
+        void GenerateMesh_Transform(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshTransform* );
+        void GenerateMesh_ClipMorphPlane(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshClipMorphPlane* );
+        void GenerateMesh_ClipWithMesh(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshClipWithMesh* );
+        void GenerateMesh_ApplyPose(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshApplyPose* );
+        void GenerateMesh_Variation(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshVariation* );
+		void GenerateMesh_Table(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshTable*);
+		void GenerateMesh_GeometryOperation(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshGeometryOperation*);
+		void GenerateMesh_Reshape(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshReshape*);
+		void GenerateMesh_ClipDeform(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshClipDeform*);
 
 		//!
 		Ptr<const Layout> AddLayout(Ptr<const Layout> SourceLayout);

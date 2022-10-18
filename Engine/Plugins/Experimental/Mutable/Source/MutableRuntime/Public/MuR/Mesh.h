@@ -520,10 +520,10 @@ namespace mu
 
 		//! Compare the mesh with another one, but ignore internal data like generated vertex
 		//! indices.
-		bool IsSimilar(const Mesh& o) const;
+		bool IsSimilar(const Mesh& o, bool bCompareLayouts) const;
 
 		//! Compare the vertex attributes to check if they match.
-		bool IsSameVertex( uint32 v, const Mesh& other, uint32 otherVertexIndex, float tolerance = 1e-5f) const;
+		bool IsSameVertex( uint32 v, const Mesh& other, uint32 otherVertexIndex, float tolerance = UE_SMALL_NUMBER) const;
 
 
 		//! Make a map from the vertices in this mesh to thefirst matching vertex of the given

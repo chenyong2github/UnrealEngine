@@ -64,16 +64,17 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	const char* ErrorLog::GetMessageText( int index ) const
+	const FString& ErrorLog::GetMessageText( int index ) const
 	{
 		const char* strResult = "";
 
 		if ( index >=0 && index<(int)m_pD->m_messages.Num() )
 		{
-			strResult = m_pD->m_messages[index].m_text.c_str();
+			return m_pD->m_messages[index].m_text;
 		}
 
-		return strResult;
+		static FString Empty;
+		return Empty;
 	}
 
 
@@ -124,13 +125,22 @@ namespace mu
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void ErrorLog::Private::Add( const char* strMessage, ErrorLogMessageType type,
-								 const void* context )
+	void ErrorLog::Private::Add(const char* strMessage, ErrorLogMessageType type,
+		const void* context)
 	{
-		m_messages.Add( MSG() );
+		m_messages.Add(MSG());
 		m_messages.Last().m_type = type;
 		m_messages.Last().m_text = strMessage;
 		m_messages.Last().m_context = context;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	void ErrorLog::Private::Add(const FString& InMessage, ErrorLogMessageType InType, const void* InContext)
+	{
+		m_messages.Add(MSG());
+		m_messages.Last().m_type = InType;
+		m_messages.Last().m_text = InMessage;
+		m_messages.Last().m_context = InContext;
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -160,10 +170,10 @@ namespace mu
 		{
 			switch ( msg.m_type )
 			{
-			case ELMT_ERROR: 	UE_LOG(LogMutableCore, Log, TEXT("  ERR  %s\n"), msg.m_text.c_str()); break;
-			case ELMT_WARNING: 	UE_LOG(LogMutableCore, Log, TEXT("  WRN  %s\n"), msg.m_text.c_str()); break;
-			case ELMT_INFO: 	UE_LOG(LogMutableCore, Log, TEXT("  INF  %s\n"), msg.m_text.c_str()); break;
-			default: 			UE_LOG(LogMutableCore, Log, TEXT("  NON  %s\n"), msg.m_text.c_str()); break;
+			case ELMT_ERROR: 	UE_LOG(LogMutableCore, Log, TEXT("  ERR  %s\n"), *msg.m_text); break;
+			case ELMT_WARNING: 	UE_LOG(LogMutableCore, Log, TEXT("  WRN  %s\n"), *msg.m_text); break;
+			case ELMT_INFO: 	UE_LOG(LogMutableCore, Log, TEXT("  INF  %s\n"), *msg.m_text); break;
+			default: 			UE_LOG(LogMutableCore, Log, TEXT("  NON  %s\n"), *msg.m_text); break;
 			}
 		}
 	}

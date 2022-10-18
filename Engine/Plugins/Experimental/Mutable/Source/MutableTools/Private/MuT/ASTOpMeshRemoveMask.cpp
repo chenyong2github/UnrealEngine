@@ -11,179 +11,178 @@
 #include <memory>
 
 
-using namespace mu;
-
-
-//---------------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------------
-ASTOpMeshRemoveMask::ASTOpMeshRemoveMask()
-    : source(this)
+namespace mu
 {
-}
 
 
-//---------------------------------------------------------------------------------------------
-ASTOpMeshRemoveMask::~ASTOpMeshRemoveMask()
-{
-    // Explicit call needed to avoid recursive destruction
-    ASTOp::RemoveChildren();
-}
+	//---------------------------------------------------------------------------------------------
+	ASTOpMeshRemoveMask::ASTOpMeshRemoveMask()
+		: source(this)
+	{
+	}
 
 
-//---------------------------------------------------------------------------------------------
-void ASTOpMeshRemoveMask::AddRemove( const Ptr<ASTOp>& condition, const Ptr<ASTOp>& mask  )
-{
-	removes.Add({ ASTChild(this,condition), ASTChild(this,mask) });
-}
+	//---------------------------------------------------------------------------------------------
+	ASTOpMeshRemoveMask::~ASTOpMeshRemoveMask()
+	{
+		// Explicit call needed to avoid recursive destruction
+		ASTOp::RemoveChildren();
+	}
 
 
-//---------------------------------------------------------------------------------------------
-bool ASTOpMeshRemoveMask::IsEqual(const ASTOp& otherUntyped) const
-{
-    if ( auto other = dynamic_cast<const ASTOpMeshRemoveMask*>(&otherUntyped) )
-    {
-        return source==other->source && removes==other->removes;
-    }
-    return false;
-}
+	//---------------------------------------------------------------------------------------------
+	void ASTOpMeshRemoveMask::AddRemove(const Ptr<ASTOp>& condition, const Ptr<ASTOp>& mask)
+	{
+		removes.Add({ ASTChild(this,condition), ASTChild(this,mask) });
+	}
 
 
-//---------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpMeshRemoveMask::Clone(MapChildFuncRef mapChild) const
-{
-    Ptr<ASTOpMeshRemoveMask> n = new ASTOpMeshRemoveMask();
-    n->source = mapChild(source.child());
-    for(const auto& r:removes)
-    {
-		n->removes.Add({ ASTChild(n,mapChild(r.Key.child())), ASTChild(n,mapChild(r.Value.child())) });
-    }
-    return n;
-}
+	//---------------------------------------------------------------------------------------------
+	bool ASTOpMeshRemoveMask::IsEqual(const ASTOp& otherUntyped) const
+	{
+		if (auto other = dynamic_cast<const ASTOpMeshRemoveMask*>(&otherUntyped))
+		{
+			return source == other->source && removes == other->removes;
+		}
+		return false;
+	}
 
 
-//---------------------------------------------------------------------------------------------
-void ASTOpMeshRemoveMask::Assert()
-{
-    ASTOp::Assert();
-}
+	//---------------------------------------------------------------------------------------------
+	mu::Ptr<ASTOp> ASTOpMeshRemoveMask::Clone(MapChildFuncRef mapChild) const
+	{
+		Ptr<ASTOpMeshRemoveMask> n = new ASTOpMeshRemoveMask();
+		n->source = mapChild(source.child());
+		for (const auto& r : removes)
+		{
+			n->removes.Add({ ASTChild(n,mapChild(r.Key.child())), ASTChild(n,mapChild(r.Value.child())) });
+		}
+		return n;
+	}
 
 
-//---------------------------------------------------------------------------------------------
-void ASTOpMeshRemoveMask::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
-{
-    f(source);
-    for(auto& r:removes)
-    {
-        f(r.Key);
-        f(r.Value);
-    }
-}
+	//---------------------------------------------------------------------------------------------
+	void ASTOpMeshRemoveMask::Assert()
+	{
+		ASTOp::Assert();
+	}
 
 
-//---------------------------------------------------------------------------------------------
-uint64 ASTOpMeshRemoveMask::Hash() const
-{
-	uint64 res = std::hash<ASTOp*>()( source.child().get() );
-    for(const auto& r:removes)
-    {
-        hash_combine( res, r.Key.child().get() );
-        hash_combine( res, r.Value.child().get() );
-    }
-    return res;
-}
+	//---------------------------------------------------------------------------------------------
+	void ASTOpMeshRemoveMask::ForEachChild(const TFunctionRef<void(ASTChild&)> f)
+	{
+		f(source);
+		for (auto& r : removes)
+		{
+			f(r.Key);
+			f(r.Value);
+		}
+	}
 
 
-//---------------------------------------------------------------------------------------------
-void ASTOpMeshRemoveMask::Link( PROGRAM& program, const FLinkerOptions*)
-{
-    // Already linked?
-    if (!linkedAddress)
-    {
-        linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
-
-        program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
-        AppendCode(program.m_byteCode, OP_TYPE::ME_REMOVEMASK);
-        OP::ADDRESS sourceAt = source ? source->linkedAddress : 0;
-        AppendCode(program.m_byteCode, sourceAt );
-        AppendCode(program.m_byteCode, (uint16)removes.Num() );
-        for ( const auto& b: removes )
-        {
-            OP::ADDRESS condition = b.Key ? b.Key->linkedAddress : 0;
-            AppendCode(program.m_byteCode, condition );
-
-            OP::ADDRESS remove = b.Value ? b.Value->linkedAddress : 0;
-            AppendCode(program.m_byteCode, remove );
-        }
-    }
-}
+	//---------------------------------------------------------------------------------------------
+	uint64 ASTOpMeshRemoveMask::Hash() const
+	{
+		uint64 res = std::hash<ASTOp*>()(source.child().get());
+		for (const auto& r : removes)
+		{
+			hash_combine(res, r.Key.child().get());
+			hash_combine(res, r.Value.child().get());
+		}
+		return res;
+	}
 
 
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
-namespace
-{
-    class Sink_MeshRemoveMaskAST
-    {
-    public:
+	//---------------------------------------------------------------------------------------------
+	void ASTOpMeshRemoveMask::Link(PROGRAM& program, const FLinkerOptions*)
+	{
+		// Already linked?
+		if (!linkedAddress)
+		{
+			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 
-        // \TODO This is recursive and may cause stack overflows in big models.
+			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
+			AppendCode(program.m_byteCode, OP_TYPE::ME_REMOVEMASK);
+			OP::ADDRESS sourceAt = source ? source->linkedAddress : 0;
+			AppendCode(program.m_byteCode, sourceAt);
+			AppendCode(program.m_byteCode, (uint16)removes.Num());
+			for (const auto& b : removes)
+			{
+				OP::ADDRESS condition = b.Key ? b.Key->linkedAddress : 0;
+				AppendCode(program.m_byteCode, condition);
 
-		mu::Ptr<ASTOp> Apply( const ASTOpMeshRemoveMask* root )
-        {
-            m_root = root;
-            m_oldToNew.Empty();
+				OP::ADDRESS remove = b.Value ? b.Value->linkedAddress : 0;
+				AppendCode(program.m_byteCode, remove);
+			}
+		}
+	}
 
-            m_initialSource = root->source.child();
-			mu::Ptr<ASTOp> newSource = Visit( m_initialSource );
 
-            // If there is any change, it is the new root.
-            if (newSource!=m_initialSource)
-            {
-                return newSource;
-            }
+	//-------------------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------------------
+	namespace
+	{
+		class Sink_MeshRemoveMaskAST
+		{
+		public:
 
-            return nullptr;
-        }
+			// \TODO This is recursive and may cause stack overflows in big models.
 
-    protected:
+			mu::Ptr<ASTOp> Apply(const ASTOpMeshRemoveMask* root)
+			{
+				m_root = root;
+				m_oldToNew.Empty();
 
-        const ASTOpMeshRemoveMask* m_root;
-		mu::Ptr<ASTOp> m_initialSource;
-        TMap<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
-        TArray<mu::Ptr<ASTOp>> m_newOps;
+				m_initialSource = root->source.child();
+				mu::Ptr<ASTOp> newSource = Visit(m_initialSource);
 
-		mu::Ptr<ASTOp> Visit( const mu::Ptr<ASTOp>& at )
-        {
-            if (!at) return nullptr;
+				// If there is any change, it is the new root.
+				if (newSource != m_initialSource)
+				{
+					return newSource;
+				}
 
-            // Newly created?
-            if (m_newOps.Contains( at ))
-            {
-                return at;
-            }
+				return nullptr;
+			}
 
-            // Already visited?
-            auto cacheIt = m_oldToNew.Find(at);
-            if (cacheIt)
-            {
-                return *cacheIt;
-            }
+		protected:
 
-			mu::Ptr<ASTOp> newAt = at;
-            switch ( at->GetOpType() )
-            {
+			const ASTOpMeshRemoveMask* m_root;
+			mu::Ptr<ASTOp> m_initialSource;
+			TMap<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
+			TArray<mu::Ptr<ASTOp>> m_newOps;
 
-            case OP_TYPE::ME_MORPH2:
-            {
-				mu::Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(at);
-                newOp->SetChild( newOp->op.args.MeshMorph2.base, Visit( newOp->children[newOp->op.args.MeshMorph2.base].child() ) );
-                newAt = newOp;
-                break;
-            }
+			mu::Ptr<ASTOp> Visit(const mu::Ptr<ASTOp>& at)
+			{
+				if (!at) return nullptr;
 
-                // disabled to avoid code explosion (or bug?) TODO
+				// Newly created?
+				if (m_newOps.Contains(at))
+				{
+					return at;
+				}
+
+				// Already visited?
+				auto cacheIt = m_oldToNew.Find(at);
+				if (cacheIt)
+				{
+					return *cacheIt;
+				}
+
+				mu::Ptr<ASTOp> newAt = at;
+				switch (at->GetOpType())
+				{
+
+				case OP_TYPE::ME_MORPH2:
+				{
+					mu::Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(at);
+					newOp->SetChild(newOp->op.args.MeshMorph2.base, Visit(newOp->children[newOp->op.args.MeshMorph2.base].child()));
+					newAt = newOp;
+					break;
+				}
+
+				// disabled to avoid code explosion (or bug?) TODO
 //            case OP_TYPE::ME_CONDITIONAL:
 //            {
 //                Ptr<ASTOpConditional> newOp = mu::Clone<ASTOpConditional>(at);
@@ -205,34 +204,35 @@ namespace
 //                break;
 //            }
 
-            default:
-            {
-                //
-                if (at!=m_initialSource)
-                {
-                    auto newOp = mu::Clone<ASTOpMeshRemoveMask>(m_root);
-                    newOp->source = at;
-                    newAt = newOp;
-                }
-                break;
-            }
+				default:
+				{
+					//
+					if (at != m_initialSource)
+					{
+						auto newOp = mu::Clone<ASTOpMeshRemoveMask>(m_root);
+						newOp->source = at;
+						newAt = newOp;
+					}
+					break;
+				}
 
-            }
+				}
 
-            m_oldToNew.Add(at, newAt);
+				m_oldToNew.Add(at, newAt);
 
-            return newAt;
-        }
-    };
+				return newAt;
+			}
+		};
+	}
+
+
+	//-------------------------------------------------------------------------------------------------
+	mu::Ptr<ASTOp> ASTOpMeshRemoveMask::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const
+	{
+		Sink_MeshRemoveMaskAST sinker;
+		auto at = sinker.Apply(this);
+
+		return at;
+	}
+
 }
-
-
-//-------------------------------------------------------------------------------------------------
-mu::Ptr<ASTOp> ASTOpMeshRemoveMask::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const
-{
-    Sink_MeshRemoveMaskAST sinker;
-    auto at = sinker.Apply(this);
-
-    return at;
-}
-

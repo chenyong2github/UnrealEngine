@@ -416,9 +416,8 @@ namespace mu
 	}
 
 	//-----------------------------------------------------------------------------------------
-	bool FMeshBufferSet::IsSimilarRobust(const FMeshBufferSet& Other) const
+	bool FMeshBufferSet::IsSimilarRobust(const FMeshBufferSet& Other, bool bCompareUVs) const
 	{
-
 		MUTABLE_CPUPROFILER_SCOPE(FMeshBufferSet::IsSimilarRobust);
 
 		if (m_elementCount != Other.m_elementCount)
@@ -454,18 +453,23 @@ namespace mu
 			const int32 ThisNumChannels = m_buffers[I].m_channels.Num();
 			const int32 OtherNumChannels = m_buffers[J].m_channels.Num();
 
-			if (ThisNumChannels != OtherNumChannels)
+			const MESH_BUFFER& ThisBuffer = m_buffers[I];
+			const MESH_BUFFER& OtherBuffer = Other.m_buffers[J];
+
+			if (!(ThisBuffer.m_channels == OtherBuffer.m_channels && ThisBuffer.m_elementSize==OtherBuffer.m_elementSize))
 			{
 				return false;
 			}
-
-			const MESH_BUFFER& ThisBuffer = m_buffers[I];
-			const MESH_BUFFER& OtherBuffer = Other.m_buffers[J];
 
 			for (uint32 Elem = 0; Elem < m_elementCount; ++Elem)
 			{
 				for (int32 C = 0; C < ThisNumChannels; ++C)
 				{
+					if (!bCompareUVs && ThisBuffer.m_channels[C].m_semantic==MBS_TEXCOORDS)
+					{						
+						continue;
+					}
+
 					const SIZE_T SizeA = GetMeshFormatData(ThisBuffer.m_channels[C].m_format).m_size * ThisBuffer.m_channels[C].m_componentCount;
 					const SIZE_T SizeB = GetMeshFormatData(OtherBuffer.m_channels[C].m_format).m_size * OtherBuffer.m_channels[C].m_componentCount;
 
@@ -488,83 +492,83 @@ namespace mu
 			++I;
 		}
 
-		if (I + 1 < ThisNumBuffers || J + 1 < OtherNumBuffers)
+		// Whatever buffers are left should be irrelevant
+		while (I < ThisNumBuffers)
 		{
-			return false;
+			if (!IsSpecialBufferToIgnoreInSimilar(m_buffers[I]))
+			{
+				return false;
+			}
+			++I;
 		}
 
-		if (I < ThisNumBuffers && !IsSpecialBufferToIgnoreInSimilar(m_buffers[I]))
+		while (J < OtherNumBuffers)
 		{
-			return false;
-		}
-
-		if (J < OtherNumBuffers && !IsSpecialBufferToIgnoreInSimilar(Other.m_buffers[J]))
-		{
-			return false;
+			if (!IsSpecialBufferToIgnoreInSimilar(Other.m_buffers[J]))
+			{
+				return false;
+			}
+			++J;
 		}
 
 		return true;
 	}
 
 	//-----------------------------------------------------------------------------------------
-	bool FMeshBufferSet::IsSimilar(const FMeshBufferSet& o) const
+	bool FMeshBufferSet::IsSimilar(const FMeshBufferSet& Other) const
 	{
 		MUTABLE_CPUPROFILER_SCOPE(FMeshBufferSet::IsSimilar);
 
-		if (m_elementCount != o.m_elementCount) return false;
+		if (m_elementCount != Other.m_elementCount) return false;
 
 		// Compare all buffers except the vertex index channel, which should always be alone in
 		// the last buffer
-		int32 i = 0;
-		int32 oi = 0;
+		int32 Index = 0;
+		int32 OtherIndex = 0;
 
-		while (i < m_buffers.Num() && oi < o.m_buffers.Num())
+		const int32 ThisNumBuffers = m_buffers.Num();
+		const int32 OtherNumBuffers = Other.m_buffers.Num();
+
+		while (Index < ThisNumBuffers && OtherIndex < OtherNumBuffers)
 		{
 			// Is it a special buffer that we should ignore?
-			if (IsSpecialBufferToIgnoreInSimilar(m_buffers[i]))
+			if (IsSpecialBufferToIgnoreInSimilar(m_buffers[Index]))
 			{
-				++i;
+				++Index;
+				continue;
 			}
-			else
+
+			if (IsSpecialBufferToIgnoreInSimilar(Other.m_buffers[OtherIndex]))
 			{
-				if (IsSpecialBufferToIgnoreInSimilar(o.m_buffers[oi]))
-				{
-					++oi;
-				}
-				else
-				{
-					if (!(m_buffers[i] == o.m_buffers[oi]))
-					{
-						return false;
-					}
-					++i;
-					++oi;
-				}
+				++OtherIndex;
+				continue;
 			}
+
+			if (!(m_buffers[Index] == Other.m_buffers[OtherIndex]))
+			{
+				return false;
+			}
+			++Index;
+			++OtherIndex;
 		}
 
-		// Remaining buffers?
-		if (i + 1 < m_buffers.Num()
-			||
-			oi + 1 < o.m_buffers.Num())
+		// Whatever buffers are left should be irrelevant
+		while (Index < ThisNumBuffers)
 		{
-			return false;
+			if (!IsSpecialBufferToIgnoreInSimilar(m_buffers[Index]))
+			{
+				return false;
+			}
+			++Index;
 		}
 
-		if (i < m_buffers.Num()
-			&&
-			!IsSpecialBufferToIgnoreInSimilar(m_buffers[i])
-			)
+		while (OtherIndex < OtherNumBuffers)
 		{
-			return false;
-		}
-
-		if (oi < o.m_buffers.Num()
-			&&
-			!IsSpecialBufferToIgnoreInSimilar(o.m_buffers[oi])
-			)
-		{
-			return false;
+			if (!IsSpecialBufferToIgnoreInSimilar(Other.m_buffers[OtherIndex]))
+			{
+				return false;
+			}
+			++OtherIndex;
 		}
 
 		return true;

@@ -414,7 +414,7 @@ namespace mu
 				m_format = MBF_NONE;
 				m_components = 0;
 				m_elementSize = 0;
-				m_pBuf = 0;
+				m_pBuf = nullptr;
 			}
 		}
 

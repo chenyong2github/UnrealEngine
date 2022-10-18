@@ -23,12 +23,9 @@
 #include <utility>
 
 
-using namespace mu;
+namespace mu
+{
 
-
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
 ASTOpImageMipmap::ASTOpImageMipmap()
     : Source(this)
 {
@@ -458,3 +455,4 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 	return newAt;
 }
 
+}

@@ -24,7 +24,7 @@ namespace mu
 		NodeScalarPtr m_pFactor;
 		NodeMeshPtr m_pBase;
 		TArray<NodeMeshPtr> m_morphs;
-        bool m_vertexIndicesAreRelative = false;
+        bool m_vertexIndicesAreRelative_Deprecated = false;
 		
 		bool m_reshapeSkeleton = false;
 		bool m_reshapePhysicsVolumes = false;
@@ -44,7 +44,7 @@ namespace mu
 			arch << m_pFactor;
 			arch << m_pBase;
 			arch << m_morphs;
-            arch << m_vertexIndicesAreRelative;
+            arch << m_vertexIndicesAreRelative_Deprecated;
 
 			arch << m_reshapeSkeleton;
 			arch << m_reshapePhysicsVolumes;
@@ -67,7 +67,7 @@ namespace mu
 			arch >> m_pFactor;
 			arch >> m_pBase;
 			arch >> m_morphs;
-            arch >> m_vertexIndicesAreRelative;
+            arch >> m_vertexIndicesAreRelative_Deprecated;
 	
 			if (ver >= 2)
 			{

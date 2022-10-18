@@ -169,8 +169,8 @@ struct MORPH_VERTEX
 				);
 
 			// Source vertex index channel
-			UntypedMeshBufferIteratorConst
-					itBaseId( pBase->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
+			UntypedMeshBufferIteratorConst itBaseId( pBase->GetVertexBuffers(), MBS_VERTEXINDEX, 0 );
+			check(itBaseId.GetElementSize());
 
 			// Set the data
 			uint8_t* pDestData = pDest->GetVertexBuffers().GetBufferData( 0 );

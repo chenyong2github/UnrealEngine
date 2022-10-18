@@ -113,7 +113,7 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 	mu::Ptr<const mu::ErrorLog> pLog = Compiler->GetLog();
 	for (int i = 0; i < pLog->GetMessageCount(); ++i)
 	{
-		const char* strMessage = pLog->GetMessageText(i);
+		const FString& Message = pLog->GetMessageText(i);
 		mu::ErrorLogMessageType MessageType = pLog->GetMessageType(i);
 		mu::ErrorLogMessageAttachedDataView MessageAttachedData = pLog->GetMessageAttachedData(i);
 
@@ -124,11 +124,11 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 				TSharedPtr<FErrorAttachedData> ErrorAttachedData = MakeShared<FErrorAttachedData>();
 				ErrorAttachedData->UnassignedUVs.Reset();
 				ErrorAttachedData->UnassignedUVs.Append(MessageAttachedData.m_unassignedUVs, MessageAttachedData.m_unassignedUVsSize);
-				ArrayWarning.Add(FError(FText::AsCultureInvariant(strMessage), ErrorAttachedData, pLog->GetMessageContext(i)));
+				ArrayWarning.Add(FError(FText::AsCultureInvariant(Message), ErrorAttachedData, pLog->GetMessageContext(i)));
 			}
 			else
 			{
-				ArrayWarning.Add(FError(FText::AsCultureInvariant(strMessage), pLog->GetMessageContext(i)));
+				ArrayWarning.Add(FError(FText::AsCultureInvariant(Message), pLog->GetMessageContext(i)));
 			}
 		}
 		else if (MessageType == mu::ELMT_ERROR)
@@ -138,11 +138,11 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 				TSharedPtr<FErrorAttachedData> ErrorAttachedData = MakeShared<FErrorAttachedData>();
 				ErrorAttachedData->UnassignedUVs.Reset();
 				ErrorAttachedData->UnassignedUVs.Append(MessageAttachedData.m_unassignedUVs, MessageAttachedData.m_unassignedUVsSize);
-				ArrayError.Add(FError(FText::AsCultureInvariant(strMessage), ErrorAttachedData, pLog->GetMessageContext(i)));
+				ArrayError.Add(FError(FText::AsCultureInvariant(Message), ErrorAttachedData, pLog->GetMessageContext(i)));
 			}
 			else
 			{
-				ArrayError.Add(FError(FText::AsCultureInvariant(strMessage), pLog->GetMessageContext(i)));
+				ArrayError.Add(FError(FText::AsCultureInvariant(Message), pLog->GetMessageContext(i)));
 			}
 		}
 	}
