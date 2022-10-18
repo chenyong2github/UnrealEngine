@@ -556,7 +556,7 @@ TSharedRef<FComponentHierarchy> FLevelSnapshotsEditorResultsHelpers::BuildCompon
 			const bool ComponentContained = AllHierarchies.ContainsByPredicate(
 				[&SceneComponent](const TWeakPtr<FComponentHierarchy>& Hierarchy)
 				{
-					return Hierarchy.Pin()->Component == SceneComponent;
+					return Hierarchy.IsValid() && Hierarchy.Pin()->Component == SceneComponent;
 				});
 
 			if (!ComponentContained)

@@ -131,7 +131,7 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseComponentProperti
 	FAddedAndRemovedComponentInfo ComponentSelection;
 
 	const bool bShouldAnalyseUnmatchedComponents = Snapshot->GetSerializedData().SnapshotVersionInfo.GetSnapshotCustomVersion() >= FSnapshotCustomVersion::SubobjectSupport;
-	IterateComponents(DeserializedSnapshotActor, WorldActor,
+	IterateRestorableComponents(Snapshot, DeserializedSnapshotActor, WorldActor,
 		[this, &MapToAddTo](UActorComponent* SnapshotComp, UActorComponent* WorldComp)
 		{
 			FilterSubobjectPair(MapToAddTo, SnapshotComp, WorldComp);

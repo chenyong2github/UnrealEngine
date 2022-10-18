@@ -91,10 +91,10 @@ namespace UE::LevelSnapshots::Private::Internal
 	}
 
 	/** @return False if one component could not be matched */
-	static bool EnqueueMatchingComponents(TInlineComponentArray<TPair<UObject*, UObject*>>& SnapshotOriginalPairsToProcess, const FWorldSnapshotData& WorldData, AActor* SnapshotActor, AActor* WorldActor)
+	static bool EnqueueMatchingComponents(ULevelSnapshot* Snapshot, TInlineComponentArray<TPair<UObject*, UObject*>>& SnapshotOriginalPairsToProcess, const FWorldSnapshotData& WorldData, AActor* SnapshotActor, AActor* WorldActor)
 	{
 		bool bFoundUnmatchedObjects = false;
-		UE::LevelSnapshots::Private::IterateComponents(SnapshotActor, WorldActor,
+		UE::LevelSnapshots::Private::IterateRestorableComponents(Snapshot, SnapshotActor, WorldActor,
 			[&SnapshotOriginalPairsToProcess, &WorldData, &bFoundUnmatchedObjects](UActorComponent* SnapshotComp, UActorComponent* WorldComp)
 			{
 				bFoundUnmatchedObjects |= EnqueueMatchingCustomSubobjects(SnapshotOriginalPairsToProcess, WorldData, SnapshotComp, WorldComp);
@@ -113,11 +113,12 @@ namespace UE::LevelSnapshots::Private::Internal
 	}
 }
 
-void UE::LevelSnapshots::Private::IterateComponents(AActor* SnapshotActor, AActor* WorldActor, FHandleMatchedActorComponent OnComponentsMatched, FHandleUnmatchedActorComponent OnSnapshotComponentUnmatched, FHandleUnmatchedActorComponent OnWorldComponentUnmatched)
+void UE::LevelSnapshots::Private::IterateRestorableComponents(ULevelSnapshot* Snapshot, AActor* SnapshotActor, AActor* WorldActor, FHandleMatchedActorComponent OnComponentsMatched, FHandleUnmatchedActorComponent OnSnapshotComponentUnmatched, FHandleUnmatchedActorComponent OnWorldComponentUnmatched)
 {
+	const FSoftObjectPath WorldActorPath = WorldActor;
 	for (UActorComponent* WorldComp : WorldActor->GetComponents())
 	{
-		if (!Restorability::IsComponentDesirableForCapture(WorldComp))
+		if (!Restorability::IsComponentRestorable(Snapshot, WorldActorPath, WorldComp))
 		{
 			continue;
 		}
@@ -134,7 +135,7 @@ void UE::LevelSnapshots::Private::IterateComponents(AActor* SnapshotActor, AActo
 
 	for (UActorComponent* SnapshotComp : SnapshotActor->GetComponents())
 	{
-		if (Restorability::IsComponentDesirableForCapture(SnapshotComp)
+		if (Restorability::IsComponentRestorable(Snapshot, WorldActorPath, SnapshotComp)
 			&& Internal::TryFindMatchingComponent(WorldActor, SnapshotComp) == nullptr)
 		{
 			OnSnapshotComponentUnmatched(SnapshotComp);
@@ -191,7 +192,7 @@ bool UE::LevelSnapshots::Private::HasOriginalChangedPropertiesSinceSnapshotWasTa
 	TInlineComponentArray<TPair<UObject*, UObject*>> SnapshotOriginalPairsToProcess;
 	SnapshotOriginalPairsToProcess.Add(TPair<UObject*, UObject*>(SnapshotActor, WorldActor));
 	
-	const bool bFailedToMatchAllComponentObjects = Internal::EnqueueMatchingComponents(SnapshotOriginalPairsToProcess, Snapshot->GetSerializedData(), SnapshotActor, WorldActor);
+	const bool bFailedToMatchAllComponentObjects = Internal::EnqueueMatchingComponents(Snapshot, SnapshotOriginalPairsToProcess, Snapshot->GetSerializedData(), SnapshotActor, WorldActor);
 	if (bFailedToMatchAllComponentObjects)
 	{
 		return true;

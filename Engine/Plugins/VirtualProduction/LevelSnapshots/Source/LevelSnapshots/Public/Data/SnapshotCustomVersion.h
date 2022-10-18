@@ -35,6 +35,13 @@ namespace UE::LevelSnapshots
 			 */
 			SkipSubobjectReferencesWhenSerializingArchetypesRefactor = 6,
 
+			/**
+			 * If FComponentEditorUtils::CanEditComponentInstance returned false, the snapshot would not be captured.
+			 * Now, if FComponentEditorUtils::CanEditComponentInstance returns false the component will still be captured if it is a root component; otherwise the actor's transform cannot be restored.
+			 * No migration needs to take place. This entry exists only for future proofing (in case something breaks).
+			 */
+			NonEditableComponentsAreCaptured = 7,
+
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1

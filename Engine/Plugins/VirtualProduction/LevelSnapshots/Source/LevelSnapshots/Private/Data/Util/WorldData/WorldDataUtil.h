@@ -19,4 +19,7 @@ namespace UE::LevelSnapshots::Private
 	
 	/* Applies the saved properties to WorldActor */
 	void ApplyToWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
+
+	/** Whether the component was saved in the world data */
+	bool HasSavedComponentData(const FWorldSnapshotData& WorldData, const FSoftObjectPath& WorldActorPath, const UActorComponent* EditorOrSnapshotComponent);
 }

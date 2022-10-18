@@ -25,6 +25,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/NonNullPointer.h"
 #include "UObject/Package.h"
+#include "Util/SnapshotUtil.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -256,6 +257,36 @@ void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FS
 		GUnrealEd->UpdatePivotLocationForSelection();
 	}
 #endif
+}
+
+bool UE::LevelSnapshots::Private::HasSavedComponentData(const FWorldSnapshotData& WorldData, const FSoftObjectPath& WorldActorPath, const UActorComponent* EditorOrSnapshotComponent)
+{
+	const FActorSnapshotData* ActorData = WorldData.ActorData.Find(WorldActorPath);
+	if (!ActorData)
+	{
+		return false;
+	}
+
+	const FSoftObjectPath SearchedComponentPath = EditorOrSnapshotComponent;
+	const FString ComponentName = EditorOrSnapshotComponent->GetName();
+	const int32 ComponentDataIndex = [&WorldData, ActorData, ComponentName]() -> int32
+	{
+		// For better performance, instead of iterating through all elements in FWorldSnapshotData::SerializedObjectReferences we can use FActorSnapshotData::ComponentData as hint
+		for (const TPair<int32, FComponentSnapshotData>& ComponentData : ActorData->ComponentData)
+		{
+			if (ensure(WorldData.SerializedObjectReferences.IsValidIndex(ComponentData.Key))
+				&& ExtractLastSubobjectName(WorldData.SerializedObjectReferences[ComponentData.Key]) == ComponentName)
+			{
+				return ComponentData.Key;
+			}
+		}
+		return INDEX_NONE;
+	}();
+
+	const FSubobjectSnapshotData* ComponentData = WorldData.Subobjects.Find(ComponentDataIndex);
+	return ComponentData
+		&& ensureMsgf(ComponentDataIndex != INDEX_NONE, TEXT("Did not expect FWorldSnapshotData::Subobjects to contain INDEX_NONE. Investigate."))
+		&& ComponentData->SerializedData.Num() > 0;
 }
 
 namespace UE::LevelSnapshots::Private::Internal

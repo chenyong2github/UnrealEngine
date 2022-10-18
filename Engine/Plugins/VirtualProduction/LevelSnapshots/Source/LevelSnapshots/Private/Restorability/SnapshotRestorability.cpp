@@ -5,6 +5,7 @@
 #include "Interfaces/IActorSnapshotFilter.h"
 #include "Landscape.h"
 #include "LandscapeGizmoActor.h"
+#include "LevelSnapshot.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "SnapshotCustomVersion.h"
@@ -20,6 +21,7 @@
 #include "GameFramework/DefaultPhysicsVolume.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UnrealType.h"
+#include "Util/WorldData/WorldDataUtil.h"
 #if WITH_EDITOR
 #include "ActorEditorUtils.h"
 #include "Kismet2/ComponentEditorUtils.h"
@@ -162,10 +164,19 @@ bool UE::LevelSnapshots::Restorability::IsComponentDesirableForCapture(const UAc
 			&& Private::Internal::DoesComponentHaveSupportedClassForCapture(Component)
 			&& !Component->HasAnyFlags(RF_Transient)
 #if WITH_EDITORONLY_DATA
-			&& FComponentEditorUtils::CanEditComponentInstance(Component, Private::Internal::GetParentComponent(Component), bAllowUserContructionScriptComps)
+			// Generally, snapshots should only restore snapshots that are editable. However, even if the root component is not editable, we still want to be able to restore the actor's transform.
+			// Ideally, we may not want to capture all component data in that case but for now that is exactly what we will do.
+			// For any future developer: we could add a IPropertyComparer implementation that marks all non-transform properties as unchanged.
+			&& (Component == Component->GetOwner()->GetRootComponent() || FComponentEditorUtils::CanEditComponentInstance(Component, Private::Internal::GetParentComponent(Component), bAllowUserContructionScriptComps))
 #endif
 	;
 	return bSomebodyAllowed || bIsAllowed;
+}
+
+bool UE::LevelSnapshots::Restorability::IsComponentRestorable(const ULevelSnapshot* Snapshot, const FSoftObjectPath& WorldActorPath, const UActorComponent* Component)
+{
+	return LevelSnapshots::Private::HasSavedComponentData(Snapshot->GetSerializedData(), WorldActorPath, Component)
+		&& IsComponentDesirableForCapture(Component);
 }
 
 bool UE::LevelSnapshots::Restorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
@@ -176,7 +187,7 @@ bool UE::LevelSnapshots::Restorability::IsSubobjectClassDesirableForCapture(cons
 
 bool UE::LevelSnapshots::Restorability::IsSubobjectDesirableForCapture(const UObject* Subobject)
 {
-	checkf(!Subobject->IsA<UClass>(), TEXT("Do you have a typo on your code?"));
+	checkf(!Subobject->IsA<UClass>(), TEXT("Do you have a typo in your code?"));
 	
 	if (const UActorComponent* Component = Cast<UActorComponent>(Subobject))
 	{
