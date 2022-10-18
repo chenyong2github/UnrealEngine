@@ -640,7 +640,7 @@ static void Writer_WorkerThread()
 {
 	ThreadRegister(TEXT("Trace"), 0, INT_MAX);
 
-	while (!GWorkerThreadQuit)
+	while (!AtomicLoadRelaxed(&GWorkerThreadQuit))
 	{
 		Writer_WorkerUpdate();
 
@@ -667,7 +667,8 @@ static void Writer_WorkerJoin()
 		return;
 	}
 
-	GWorkerThreadQuit = true;
+	AtomicStoreRelaxed(&GWorkerThreadQuit, true);
+
 	ThreadJoin(GWorkerThread);
 	ThreadDestroy(GWorkerThread);
 
