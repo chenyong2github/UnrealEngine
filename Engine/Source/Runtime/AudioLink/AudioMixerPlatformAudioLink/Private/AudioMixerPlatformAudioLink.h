@@ -13,6 +13,7 @@ namespace Audio
 
 		FAudioMixerPlatformAudioLink();
 		virtual ~FAudioMixerPlatformAudioLink() = default;
+	protected:
 
 		//~ Begin IAudioMixerPlatformInterface Interface
 		FString GetPlatformApi() const override { return TEXT("AudioLink"); }
@@ -32,9 +33,22 @@ namespace Audio
 		//~ End IAudioMixerPlatformInterface Interface
 
 	private:
+		void MakeDeviceInfo(int32 InNumChannels, int32 InSampleRate, const FString& InName);
+
+		void OnLinkSuspend();
+		void OnLinkResume();
+		void OnLinkCloseStream();
+		void OnLinkOpenStream(const IAudioLinkSynchronizer::FOnOpenStreamParams&);
+		void OnLinkRenderBegin(const IAudioLinkSynchronizer::FOnRenderParams&);
+		void OnLinkRenderEnd(const IAudioLinkSynchronizer::FOnRenderParams&);
+
 		bool bSuspended = false;
 		bool bInitialized = false;
+		IAudioLinkFactory* Factory = nullptr;
 		IAudioLinkFactory::FAudioLinkSynchronizerSharedPtr SynchronizeLink;
+		FAudioPlatformDeviceInfo DeviceInfo;
+		uint32 LastBufferTickID = 0;
+		int32 FrameRemainder = 0;
 	};
 }
 

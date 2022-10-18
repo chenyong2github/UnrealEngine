@@ -17,7 +17,8 @@ public class AudioMixerPlatformAudioLink: ModuleRules
 				"CoreUObject",
 				"Engine",
 				"AudioMixer",
-				"AudioMixerCore"
+				"AudioMixerCore",
+				"AudioLinkEngine"
 		});
 					
 		if (Target.bCompileAgainstEngine) 

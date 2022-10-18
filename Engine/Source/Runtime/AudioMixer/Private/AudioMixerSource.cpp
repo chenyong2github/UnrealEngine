@@ -596,7 +596,7 @@ namespace Audio
 			InitParams.SourceBufferListener = WaveInstance->SourceBufferListener;
 			InitParams.bShouldSourceBufferListenerZeroBuffer = WaveInstance->bShouldSourceBufferListenerZeroBuffer;
 
-			if( WaveInstance->bShouldUseAudioLink)
+			if (WaveInstance->bShouldUseAudioLink)
 			{
 				if (IAudioLinkFactory* LinkFactory = MixerDevice->GetAudioLinkFactory())
 				{				
@@ -614,6 +614,7 @@ namespace Audio
 					CreateArgs.NumChannels = SoundBuffer->NumChannels;
 					CreateArgs.NumFramesPerBuffer = MixerDevice->GetBufferLength();
 					CreateArgs.SampleRate = MixerDevice->GetSampleRate();
+					CreateArgs.TotalNumFramesInSource = NumTotalFrames;
 					AudioLink = LinkFactory->CreateSourcePushedAudioLink(CreateArgs);
 					InitParams.AudioLink = AudioLink;
 				}

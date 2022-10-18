@@ -3059,6 +3059,9 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 	WaveInstance->bEnableSourceDataOverride = ParseParams.bEnableSourceDataOverride;
 
+	WaveInstance->bShouldUseAudioLink = ParseParams.bEnableSendToAudioLink;
+	WaveInstance->AudioLinkSettingsOverride = ParseParams.AudioLinkSettingsOverride;
+
 	if (WaveInstance->IsPlaying())
 	{
 		WaveInstances.Add(WaveInstance);

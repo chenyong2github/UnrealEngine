@@ -112,6 +112,7 @@ bool FSoundAttenuationSettings::operator==(const FSoundAttenuationSettings& Othe
 			&& bEnableLogFrequencyScaling == Other.bEnableLogFrequencyScaling
 			&& bEnableSubmixSends 		== Other.bEnableSubmixSends
 			&& bEnableListenerFocus 	== Other.bEnableListenerFocus
+			&& bEnableSendToAudioLink	== Other.bEnableSendToAudioLink
 			&& FocusAzimuth				== Other.FocusAzimuth
 			&& NonFocusAzimuth			== Other.NonFocusAzimuth
 			&& FocusDistanceScale		== Other.FocusDistanceScale
@@ -127,6 +128,7 @@ bool FSoundAttenuationSettings::operator==(const FSoundAttenuationSettings& Othe
 			&& bEnableReverbSend		== Other.bEnableReverbSend
 			&& PluginSettings.ReverbPluginSettingsArray		== Other.PluginSettings.ReverbPluginSettingsArray
 			&& PluginSettings.SourceDataOverridePluginSettingsArray == Other.PluginSettings.SourceDataOverridePluginSettingsArray
+			&& AudioLinkSettingsOverride == Other.AudioLinkSettingsOverride
 			&& ReverbWetLevelMin		== Other.ReverbWetLevelMin
 			&& ReverbWetLevelMax		== Other.ReverbWetLevelMax
 			&& ReverbDistanceMin		== Other.ReverbDistanceMin

@@ -5,6 +5,7 @@
 #include "Engine/Attenuation.h"
 #include "IAudioExtensionPlugin.h"
 #include "IAudioParameterInterfaceRegistry.h"
+#include "AudioLinkSettingsAbstract.h"
 
 #include "SoundAttenuation.generated.h"
 
@@ -203,9 +204,17 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSourceDataOverride, meta = (DisplayName = "Enable Source Data Override"))
 	uint8 bEnableSourceDataOverride : 1;
 
+	/** Enables/Disables AudioLink on all sources using this attenuation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAudioLink, meta = (DisplayName = "Enable Send to AudioLink"))
+	uint8 bEnableSendToAudioLink : 1;
+
 	/** What method we use to spatialize the sound. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize", DisplayName = "Spatialization Method"))
 	TEnumAsByte<enum ESoundSpatializationAlgorithm> SpatializationAlgorithm;
+
+	/** AudioLink Setting Overrides */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationAudioLink, meta = (DisplayName = "AudioLink Settings Override", EditCondition = "bEnableSendToAudioLink"))
+	TObjectPtr<UAudioLinkSettingsAbstract> AudioLinkSettingsOverride;
 
 	/** What min radius to use to swap to non-binaural audio when a sound starts playing. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (ClampMin = "0", EditCondition = "bSpatialize"))
@@ -413,7 +422,9 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, bEnableLogFrequencyScaling(false)
 		, bEnableSubmixSends(false)
 		, bEnableSourceDataOverride(false)
+		, bEnableSendToAudioLink(true)
 		, SpatializationAlgorithm(ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
+		, AudioLinkSettingsOverride(nullptr)
 		, BinauralRadius(0.0f)
 		, AbsorptionMethod(EAirAbsorptionMethod::Linear)
 		, OcclusionTraceChannel(ECC_Visibility)

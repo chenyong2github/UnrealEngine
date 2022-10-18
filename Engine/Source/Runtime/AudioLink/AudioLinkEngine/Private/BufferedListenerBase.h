@@ -7,7 +7,108 @@
 
 #include "IBufferedAudioOutput.h"
 #include "Misc/Optional.h"
-#include "Containers/ArrayView.h"
+#include "Math/UnrealMathUtility.h"
+
+// Simple locking circular buffer
+// Uses 32bit wrap around logic explained here: 
+// https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/
+class FLockingCircularSampleBuffer
+{	
+public:
+	FLockingCircularSampleBuffer(int32 InInitialCapacity)
+	{
+		SetCapacity(InInitialCapacity);
+	}
+
+	// Allow the caller to lock the CS ahead of calling (if necessary)
+	FCriticalSection& GetCriticialSection() { return CS; }
+	const FCriticalSection& GetCriticialSection() const { return CS; }
+
+	// This doesn't preserve contents.
+	void SetCapacity(int32 InCapacity)
+	{
+		check(InCapacity > 0);
+
+		if(!FMath::IsPowerOfTwo(InCapacity))
+		{
+			InCapacity = FMath::RoundUpToPowerOfTwo(InCapacity);
+		}
+
+		FScopeLock Lock(&CS);
+		Buffer.SetNumZeroed(InCapacity, true /* Allow shrinking */);
+		Mask = InCapacity-1;
+		Read = 0; // Empty.
+		Write = 0;
+
+		check(Mask != 0);
+	}
+	int32 GetCapacity() const
+	{
+		FScopeLock Lock(&CS);
+		return Buffer.Num();
+	}
+	int32 Num() const
+	{
+		FScopeLock Lock(&CS);
+		return Write-Read;
+	}
+	
+	// Get number of samples that can be pushed onto the buffer before it is full.
+	int32 Remainder() const
+	{
+		FScopeLock Lock(&CS);
+		return Buffer.Num() - Num();
+	}
+
+	int32 Push(const float* InBuffer, int32 InSize)
+	{
+		FScopeLock Lock(&CS);
+
+		int32 CanPush = FMath::Min(Remainder(), InSize);
+		for (int32 i = 0; i < CanPush ; ++i)
+		{
+			Enqueue(InBuffer[i]);
+		}
+		return CanPush;		
+	}
+	int32 Pop(float* OutBuffer, int32 InNumSamples)
+	{
+		FScopeLock Lock(&CS);
+		int32 CanPop = FMath::Min(Num(),InNumSamples);
+		for(int32 i=0; i < CanPop; ++i)
+		{
+			OutBuffer[i] = Dequeue();
+		}
+		return CanPop;
+	}
+
+	int32 PushZeros(int32 InNumSamplesOfSilence)
+	{
+		FScopeLock Lock(&CS);
+		int32 CanPush = FMath::Min(GetCapacity(), InNumSamplesOfSilence);
+		for(int32 i = 0; i < CanPush; ++i)
+		{
+			Enqueue(0.f);
+		}
+		return CanPush;
+	}
+private:
+	uint32 Read = 0;		// These grow indefinitely until wrap at 2^32,
+	uint32 Write = 0;		// this allows us to use full capacity as write >= read.
+	uint32 Mask = 0;
+	TArray<float> Buffer;
+	mutable FCriticalSection CS;
+
+	// NOTE: Not forceinline as compiler does better job without.
+	void Enqueue(const float InFloat)
+	{
+		Buffer[Write++ & Mask] = InFloat;
+	}
+	float Dequeue()
+	{
+		return Buffer[Read++ & Mask];
+	}
+};
 
 /** Common base class of Buffered Listener objects.
 */
@@ -43,11 +144,13 @@ protected:
 	//* Attempt to set started to false. This can fail if we're already stopped. */	
 	bool TryUnsetStartedFlag();
 
+	bool TrySetStoppingFlag();
+
 private:	
 	void PushSilence(int32 InNumSamplesOfSilence);
 
-	/** Lock-less buffer to hold the data for the single source we're listening to, interleaved. */
-	Audio::TCircularAudioBuffer<float> LocklessCircularBuffer;
+	/** Buffer to hold the data for the single source we're listening to, interleaved. */
+	FLockingCircularSampleBuffer CircularBuffer;
 
 	/** Read/Write slim lock protects format known optional */
 	mutable FRWLock FormatKnownRwLock;
@@ -58,9 +161,9 @@ private:
 	/** Delegate that fires when the format it known. Normally on the first buffer received. */
 	FOnFormatKnown OnFormatKnown;
 
-	/** Count for how much (initial) silence is still remaining in the Circular buffer, for logging purposes */
-	std::atomic<int32> NumSilentSamplesRemaining;
-
 	/** Atomic flag we've been started */
 	std::atomic<bool> bStarted;
+
+	/** Atomic flag we've been told to stop */
+	std::atomic<bool> bStopping;
 };

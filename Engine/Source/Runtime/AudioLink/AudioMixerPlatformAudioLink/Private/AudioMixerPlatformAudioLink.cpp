@@ -10,49 +10,50 @@
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-
-namespace AudioMixerPlatformAudioLinkPrivate
-{	
-	using namespace Audio;
-	static const FAudioPlatformDeviceInfo& GetPlatformInfo()
-	{
-		static const FAudioPlatformDeviceInfo DeviceInfo = []()
-		{
-			// For now just hard-code a virtual audio platform, but this will ultimately match an external endpoint via audio link.
-			FAudioPlatformDeviceInfo Info;
-			Info.Name = TEXT("AudioLink Virtual Platform");
-			Info.DeviceId = Info.Name;
-			Info.SampleRate	= 48000;
-			Info.NumChannels = 8;
-			Info.bIsSystemDefault = true;
-			Info.Format = EAudioMixerStreamDataFormat::Float;
-			Info.OutputChannelArray.Add(EAudioMixerChannel::FrontLeft);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::FrontRight);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::FrontCenter);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::LowFrequency);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::SideLeft);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::SideRight);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::BackLeft);
-			Info.OutputChannelArray.Add(EAudioMixerChannel::BackRight);
-
-			return Info;
-		}();
-		return DeviceInfo;
-	}
-}
+#include "AudioLinkLog.h"
 
 namespace Audio
-{		
+{
+	// We can't easily access AudioMixer instance from here, so find the factory in the registry.
+	static IAudioLinkFactory* GetAudioLinkFactory()
+	{
+		TArray<FName> Names = IAudioLinkFactory::GetAllRegisteredFactoryNames();
+		if (Names.Num())
+		{
+			return IAudioLinkFactory::FindFactory(Names[0]);
+		}
+		return nullptr;
+	}
+
 	FAudioMixerPlatformAudioLink::FAudioMixerPlatformAudioLink()
-	{}
+		: Factory(GetAudioLinkFactory())
+	{
+		MakeDeviceInfo(
+			8,
+			48000,
+			TEXT("AudioLink AudioMixer")
+		);
+	}
 
 	bool FAudioMixerPlatformAudioLink::InitializeHardware()
 	{
 		if (IAudioMixer::ShouldRecycleThreads())
 		{
-			// Pre-create the null render device thread on XAudio2, so we can simple wake it up when we need it.
+			// Pre-create the null render device thread, so we can simple wake it up when we need it.
 			// Give it nothing to do, with a slow tick as the default, but ask it to wait for a signal to wake up.
 			CreateNullDeviceThread([] {}, 1.0f, true);
+		}
+
+		SynchronizeLink = Factory->CreateSynchronizerAudioLink();
+		if (SynchronizeLink.IsValid())
+		{
+			using FThisType = FAudioMixerPlatformAudioLink;
+			using FSync = IAudioLinkSynchronizer;
+		
+			// Register callbacks.
+			SynchronizeLink->RegisterBeginRenderDelegate(FSync::FOnBeginRender::FDelegate::CreateRaw(this, &FThisType::OnLinkRenderBegin));
+			SynchronizeLink->RegisterEndRenderDelegate(FSync::FOnEndRender::FDelegate::CreateRaw(this, &FThisType::OnLinkRenderEnd));
+			SynchronizeLink->RegisterOpenStreamDelegate(FSync::FOnOpenStream::FDelegate::CreateRaw(this, &FThisType::OnLinkOpenStream));
 		}
 
 		bInitialized = true;
@@ -63,6 +64,9 @@ namespace Audio
 	{		
 		StopAudioStream();
 		CloseAudioStream();
+
+		// Kill synchronizer, and unregister callbacks.
+		SynchronizeLink.Reset();
 		return true;
 	}
 
@@ -79,9 +83,7 @@ namespace Audio
 	
 	bool FAudioMixerPlatformAudioLink::GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo)
 	{	
-		using namespace AudioMixerPlatformAudioLinkPrivate;
-		
-		OutInfo = GetPlatformInfo();
+		OutInfo = DeviceInfo;
 		return true;
 	}
 
@@ -141,7 +143,10 @@ namespace Audio
 		// Start generating audio
 		BeginGeneratingAudio();
 
-		StartRunningNullDevice();
+		if (!SynchronizeLink.IsValid())
+		{
+			StartRunningNullDevice();
+		}
 
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Running;
 
@@ -175,8 +180,7 @@ namespace Audio
 
 	FString FAudioMixerPlatformAudioLink::GetDefaultDeviceName()
 	{
-		using namespace AudioMixerPlatformAudioLinkPrivate;
-		return GetPlatformInfo().Name;
+		return DeviceInfo.Name;
 	}
 	
 	FAudioPlatformSettings FAudioMixerPlatformAudioLink::GetPlatformSettings() const
@@ -186,5 +190,52 @@ namespace Audio
 #else
 		return FAudioPlatformSettings();
 #endif // WITH_ENGINE
+	}
+
+	void FAudioMixerPlatformAudioLink::MakeDeviceInfo(int32 InNumChannels, int32 InSampleRate, const FString& InName)
+	{
+		DeviceInfo.Reset();
+		DeviceInfo.Name = InName;
+		DeviceInfo.DeviceId = InName;
+		DeviceInfo.SampleRate = InSampleRate;
+		DeviceInfo.NumChannels = InNumChannels;
+		DeviceInfo.bIsSystemDefault = true;
+		DeviceInfo.Format = EAudioMixerStreamDataFormat::Float;
+		
+		DeviceInfo.OutputChannelArray.SetNum(InNumChannels);
+		for (int32 i = 0; i < InNumChannels; ++i)
+		{
+			DeviceInfo.OutputChannelArray.Add(EAudioMixerChannel::Type(i));
+		}
+	}
+
+	void FAudioMixerPlatformAudioLink::OnLinkOpenStream(const IAudioLinkSynchronizer::FOnOpenStreamParams& InParams)
+	{
+		DeviceInfo.Name = InParams.Name;
+		DeviceInfo.NumChannels = InParams.NumChannels;
+		DeviceInfo.SampleRate = InParams.SampleRate;
+	}
+
+	void FAudioMixerPlatformAudioLink::OnLinkRenderBegin(const IAudioLinkSynchronizer::FOnRenderParams& InParams)
+	{		
+	}
+	void FAudioMixerPlatformAudioLink::OnLinkRenderEnd(const IAudioLinkSynchronizer::FOnRenderParams& InParams)
+	{
+		UE_LOG(LogAudioLink, VeryVerbose, TEXT(
+			"FAudioMixerPlatformAudioLink::OnLinkRenderEnd, TickID=%d, FramesMade=%d, LastBufferTickID=%d, FrameRemainder=%d, AudioMixer.NumFrames=%d, AudioMixer.NumBuffers=%dm This=0x%p"), 
+				InParams.BufferTickID, InParams.NumFrames, LastBufferTickID, FrameRemainder, AudioStreamInfo.NumOutputFrames, AudioStreamInfo.NumBuffers, this);
+
+		if (LastBufferTickID < InParams.BufferTickID)
+		{
+			LastBufferTickID = InParams.BufferTickID;
+
+			FrameRemainder += InParams.NumFrames;
+
+			if (FrameRemainder >= AudioStreamInfo.NumOutputFrames)
+			{
+				FrameRemainder = 0;
+				ReadNextBuffer();
+			}
+		}
 	}
 }

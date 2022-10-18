@@ -102,6 +102,7 @@ public:
 		int32 NumChannels = INDEX_NONE;
 		int32 SampleRate = INDEX_NONE;
 		int32 NumFramesPerBuffer = INDEX_NONE;
+		int32 TotalNumFramesInSource = INDEX_NONE;
 		UAudioLinkSettingsAbstract::FSharedSettingsProxyPtr Settings;
 	};	
 	using FAudioLinkSourcePushedSharedPtr = TSharedPtr<IAudioLinkSourcePushed, ESPMode::ThreadSafe>;

@@ -60,6 +60,8 @@ protected:
 	TSharedPtr<IPropertyHandle> bIsPriorityAttenuationEnabledHandle;
 	TSharedPtr<IPropertyHandle> bIsSubmixSendAttenuationEnabledHandle;
 	TSharedPtr<IPropertyHandle> bIsSourceDataOverrideEnabledHandle;
+	TSharedPtr<IPropertyHandle> bIsSendToAudioLinkEnabledHandle;
+	TSharedPtr<IPropertyHandle> bEnableSourceDataOverrideHandle;
 	TSharedPtr<IPropertyHandle> ReverbSendMethodHandle;
 	TSharedPtr<IPropertyHandle> PriorityAttenuationMethodHandle;
 	TSharedPtr<IPropertyHandle> AbsorptionMethodHandle;

@@ -4,16 +4,21 @@
 #include "AudioLinkLog.h"
 
 FBufferedListenerBase::FBufferedListenerBase(int32 InDefaultCircularBufferSize)
+	: CircularBuffer(InDefaultCircularBufferSize)
 {
-	LocklessCircularBuffer.SetCapacity(InDefaultCircularBufferSize);
+	CircularBuffer.SetCapacity(InDefaultCircularBufferSize);
 }
 
 /** CONSUMER Thread. This will be called by the consuming data of the buffers. */
 bool FBufferedListenerBase::PopBuffer(float* InBuffer, int32 InBufferSizeInSamples, int32& OutSamplesWritten)
 {
-	OutSamplesWritten = LocklessCircularBuffer.Pop(InBuffer, InBufferSizeInSamples);
-	NumSilentSamplesRemaining = FMath::Max(0,NumSilentSamplesRemaining-OutSamplesWritten);
-	return bStarted;
+	FScopeLock Lock(&CircularBuffer.GetCriticialSection());
+	OutSamplesWritten = CircularBuffer.Pop(InBuffer, InBufferSizeInSamples);
+	int32 NumSamplesRemaining = CircularBuffer.Num();
+	
+	// Return true if any data remaining, which signals the consumer to shutdown if false.
+	// However if we're still running, we could be starving, so only signal stopped if we've exhausted.
+	return (bStopping && NumSamplesRemaining > 0) || bStarted;
 }
 
 /** CONSUMER Thread. This will be called by the consuming data of the buffers. */
@@ -72,16 +77,27 @@ void FBufferedListenerBase::OnBufferReceived(const FBufferFormat& InFormat, TArr
 		OnFormatKnown.ExecuteIfBound(InFormat);
 	}
 
-	// Push the data into the circular buffer.
-	int32 SamplesPushed = LocklessCircularBuffer.Push(InBuffer.GetData(), InBuffer.Num());
+	int32 SamplesPushed = 0;
+	{
+		// Lock outside for the sake of atomic logging
+		FScopeLock Lock(&CircularBuffer.GetCriticialSection());
+		
+		// Push the data into the circular buffer.
+		SamplesPushed = CircularBuffer.Push(InBuffer.GetData(), InBuffer.Num());
+
+		UE_LOG(LogAudioLink, VeryVerbose, 
+			TEXT("FBufferedListenerBase::OnBufferReceived()(post-push), SamplesPushed=%d, InBuffer.Num()=%d, LocklessCircularBuffer.Num()=%d, LocklessCircularBuffer.Remainder()=%d, LocklessCircularBuffer.Capacity()=%d, This=0x%p"),
+				SamplesPushed, InBuffer.Num(), CircularBuffer.Num(), CircularBuffer.Remainder(), CircularBuffer.GetCapacity(), this );
+	}
 
 	// Warn of not enough space in circular buffer, unless we're overwriting silence.
-	if (SamplesPushed < InBuffer.Num() && NumSilentSamplesRemaining == 0)
+	if (SamplesPushed < InBuffer.Num())
 	{
 		// Prevent log spam by limiting to 1:100 logs.
 		static const int32 NumLogMessagesToSkip = 100;
 		static int32 LogPacifier = 0;
-		UE_CLOG(LogPacifier++ % NumLogMessagesToSkip == 0, LogAudioLink, Log, TEXT("Overflow by '%d' Samples in Buffer Listener"), InBuffer.Num() - SamplesPushed);
+		UE_CLOG(LogPacifier++ % NumLogMessagesToSkip == 0, LogAudioLink, 
+			Verbose, TEXT("FBufferedListenerBase: Overflow by '%d' Samples in Buffer Listener"), InBuffer.Num() - SamplesPushed);
 	}
 }
 
@@ -118,17 +134,23 @@ bool FBufferedListenerBase::TryUnsetStartedFlag()
 	return bStarted.compare_exchange_strong(bExpected, bDesired);
 }
 
+bool FBufferedListenerBase::TrySetStoppingFlag()
+{
+	bool bExpected = false;
+	bool bDesired = true;
+	return bStopping.compare_exchange_strong(bExpected, bDesired);
+}
+
 void FBufferedListenerBase::PushSilence(int32 InNumSamplesOfSilence)
 {
-	LocklessCircularBuffer.PushZeros(InNumSamplesOfSilence);
-	NumSilentSamplesRemaining += InNumSamplesOfSilence;
+	CircularBuffer.PushZeros(InNumSamplesOfSilence);
 }
 
 void FBufferedListenerBase::Reserve(int32 InNumSamplesToReserve, int32 InNumSamplesOfSilence)
 {
 	// This Zeros the buffer also so should only be done at the start.
-	LocklessCircularBuffer.SetCapacity(InNumSamplesToReserve);	
-
+	CircularBuffer.SetCapacity(InNumSamplesToReserve);	
+	
 	// Optionally add silence into the buffer, this will cause latency.
 	if (InNumSamplesOfSilence > 0)
 	{

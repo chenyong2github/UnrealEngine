@@ -160,6 +160,9 @@ struct FSoundParseParameters
 	// What source data override plugin source settings to use
 	USourceDataOverridePluginSourceSettingsBase* SourceDataOverridePluginSettings;
 
+	// If using AudioLink, this allows the settings to be overriden.
+	UAudioLinkSettingsAbstract* AudioLinkSettingsOverride = nullptr;
+
 	// What source effect chain to use
 	USoundEffectSourcePresetChain* SourceEffectChain;
 
@@ -188,6 +191,8 @@ struct FSoundParseParameters
 	uint32 bEnableSubmixSends : 1;
 
 	uint32 bEnableSourceDataOverride : 1;
+
+	uint32 bEnableSendToAudioLink : 1;
 
 	// Whether the sound should be spatialized
 	uint8 bUseSpatialization:1;
@@ -239,6 +244,7 @@ struct FSoundParseParameters
 		, OcclusionPluginSettings(nullptr)
 		, ReverbPluginSettings(nullptr)
 		, SourceDataOverridePluginSettings(nullptr)
+		, AudioLinkSettingsOverride(nullptr)
 		, SourceEffectChain(nullptr)
 		, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 		, AttenuationLowpassFilterFrequency(MAX_FILTER_FREQUENCY)

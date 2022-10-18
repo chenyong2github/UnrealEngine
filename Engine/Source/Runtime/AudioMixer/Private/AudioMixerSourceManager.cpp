@@ -580,6 +580,12 @@ namespace Audio
 			MixerDevice->ReverbPluginInterface->OnReleaseSource(SourceId);
 		}
 
+		if (SourceInfo.AudioLink)
+		{
+			SourceInfo.AudioLink->OnSourceReleased(SourceId);
+			SourceInfo.AudioLink.Reset();
+		}
+
 		// Delete the source effects
 		SourceInfo.SourceEffectChainId = INDEX_NONE;
 		ResetSourceEffectChain(SourceId);
@@ -605,12 +611,6 @@ namespace Audio
 
 		SourceInfo.LowPassFreq = MAX_FILTER_FREQUENCY;
 		SourceInfo.HighPassFreq = MIN_FILTER_FREQUENCY;
-
-		if (SourceInfo.AudioLink)
-		{
-			SourceInfo.AudioLink->OnSourceReleased(SourceId);
-			SourceInfo.AudioLink.Reset();
-		}
 
 		if (SourceInfo.SourceBufferListener)
 		{
@@ -1273,6 +1273,10 @@ namespace Audio
 			if (SourceInfo.SourceListener)
 			{
 				SourceInfo.SourceListener->OnDone();
+			}
+			if (SourceInfo.AudioLink)
+			{
+				SourceInfo.AudioLink->OnSourceDone(SourceId);
 			}
 		}
 	}
@@ -3026,6 +3030,11 @@ namespace Audio
 
 					// Notify that we're now done with this source
 					SourceInfo.SourceListener->OnDone();
+
+					if (SourceInfo.AudioLink)
+					{
+						SourceInfo.AudioLink->OnSourceDone(SourceId);
+					}
 				}
 			}
 		}
@@ -3042,6 +3051,10 @@ namespace Audio
 				SourceInfo.bIsStopping = false;
 				SourceInfo.bIsDone = true;
 				SourceInfo.SourceListener->OnDone();
+				if (SourceInfo.AudioLink)
+				{
+					SourceInfo.AudioLink->OnSourceDone(SourceId);
+				}
 			}
 
 		}

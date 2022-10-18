@@ -1787,6 +1787,11 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		}
 	}
 
+	if (Settings->AudioLinkSettingsOverride)
+	{
+		ParseParams.AudioLinkSettingsOverride = Settings->AudioLinkSettingsOverride;
+	}
+
 	// Attenuate with the absorption filter if necessary
 	if (Settings->bAttenuateWithLPF)
 	{
@@ -1814,6 +1819,7 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	ParseParams.bApplyNormalizationToStereoSounds = Settings->bApplyNormalizationToStereoSounds;
 	ParseParams.bUseSpatialization |= Settings->bSpatialize;
 	ParseParams.bEnableSourceDataOverride |= Settings->bEnableSourceDataOverride;
+	ParseParams.bEnableSendToAudioLink |= Settings->bEnableSendToAudioLink;
 
 	// Check the binaural radius to determine if we're going to HRTF spatialize, cache the result
 	if (bIsFirstAttenuationUpdate)

@@ -20,7 +20,8 @@ bool FBufferedSourceListener::Start(FAudioDevice*)
 
 void FBufferedSourceListener::Stop(FAudioDevice*)
 {
-	ensure(TryUnsetStartedFlag());
+	TrySetStoppingFlag();
+	TryUnsetStartedFlag();
 }
 
 /** AUDIO MIXER THREAD. When a source is finished and returned to the pool, this call will be called. */
@@ -36,8 +37,9 @@ void FBufferedSourceListener::OnSourceReleased(const int32 InSourceId)
 		// Reset our source id.
 		CurrentSourceId = INDEX_NONE;
 
-		// Reset the format, now our source we were listening to has stopped.
-		ResetFormat();
+		// Mark us stopping.
+		Stop(nullptr);
+
 	}
 }
 

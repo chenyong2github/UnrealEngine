@@ -41,7 +41,11 @@ public:
 	};
 	virtual void OnNewBuffer(const FOnNewBufferParams&) = 0;
 
-	virtual void OnSourceReleased(const int32 SourceId) = 0;	
+	virtual void OnSourceDone(const int32 SourceId) = 0;
+
+	virtual void OnSourceReleased(const int32 SourceId) = 0;
+
+
 };
 
 /** IAudioLinkSynchronizer
@@ -70,7 +74,7 @@ public:
 		int32 SampleRate = INDEX_NONE;
 	};
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnOpenStream, FOnOpenStreamParams);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnOpenStream, const FOnOpenStreamParams&);
 	virtual FDelegateHandle RegisterOpenStreamDelegate(const FOnOpenStream::FDelegate&) = 0;
 	virtual bool RemoveOpenStreamDelegate(const FDelegateHandle&) = 0;
 
@@ -80,15 +84,15 @@ public:
 
 	struct FOnRenderParams 
 	{
-		uint64 FrameID = 0;
+		uint64 BufferTickID = 0;
 		int32 NumFrames = INDEX_NONE;
 	};
 	
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBeginRender, FOnRenderParams);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBeginRender, const FOnRenderParams&);
 	virtual FDelegateHandle RegisterBeginRenderDelegate(const FOnBeginRender::FDelegate&) = 0;
-	virtual bool RemoveBeginRenderDelgate(const FDelegateHandle&) = 0;
+	virtual bool RemoveBeginRenderDelegate(const FDelegateHandle&) = 0;
 
-	DECLARE_MULTICAST_DELEGATE(FOnEndRender);	
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEndRender, const FOnRenderParams&);
 	virtual FDelegateHandle RegisterEndRenderDelegate(const FOnEndRender::FDelegate&) = 0;
-	virtual bool RemoveEndRenderDelgate(const FDelegateHandle&) = 0;
+	virtual bool RemoveEndRenderDelegate(const FDelegateHandle&) = 0;
 };
