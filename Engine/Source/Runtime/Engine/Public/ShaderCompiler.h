@@ -25,6 +25,7 @@
 #include "AssetCompilingManager.h"
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
+#include "Containers/Deque.h"
 #include "Hash/Blake3.h"
 #include "SceneTypes.h"
 
@@ -300,10 +301,14 @@ inline void FShaderCommonCompileJob::Destroy() const
 	}
 }
 
+struct FShaderJobCacheStoredOutput;
+
 class FShaderJobCache
 {
 public:
+
 	FShaderJobCache();
+	~FShaderJobCache();
 
 	using FJobInputHash = FShaderCommonCompileJob::FInputHash;
 	using FJobCachedOutput = TArray<uint8>;
@@ -324,24 +329,20 @@ public:
 	uint64 GetCurrentMemoryBudget() const;
 
 private:
+
 	using FJobOutputHash = FBlake3Hash;
-	struct FStoredOutput
-	{
-		/** How many times this output is referenced by the cached jobs */
-		int32 NumReferences;
+	using FStoredOutput = FShaderJobCacheStoredOutput;
 
-		/** How many times this output has been returned as a cached result, no matter the input hash */
-		int32 NumHits;
-		
-		/** Canned output */
-		TArray<uint8> JobOutput;
-	};
+	void RemoveByInputHash(const FJobInputHash& InputHash);
 
-	/* a lot of outputs can be duplicated, so they are deduplicated before storing */
+	/* A lot of outputs can be duplicated, so they are deduplicated before storing */
 	TMap<FJobOutputHash, FStoredOutput*> Outputs;
 
 	/** Map of input hashes to output hashes */
 	TMap<FJobInputHash, FJobOutputHash> InputHashToOutput;
+
+	/** Queue to evict oldest elements when memory budget is exceeded */
+	TDeque<FJobInputHash> EvictionQueue;
 
 	/** Statistics - total number of times we tried to Find() some input hash */
 	uint64 TotalSearchAttempts = 0;
