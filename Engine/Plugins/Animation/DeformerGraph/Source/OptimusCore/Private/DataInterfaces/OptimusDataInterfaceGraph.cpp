@@ -9,6 +9,7 @@
 #include "OptimusVariableDescription.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ComputeMetadataBuilder.h"
+#include "MeshDeformerInterface.h"
 
 void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> const& InVariables)
 {
@@ -89,9 +90,10 @@ void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL, FString const& InData
 UComputeDataProvider* UOptimusGraphDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UOptimusGraphDataProvider* Provider = NewObject<UOptimusGraphDataProvider>();
-	Provider->SkinnedMeshComponent = Cast<USkinnedMeshComponent>(InBinding);
+	Provider->MeshComponent = Cast<UMeshComponent>(InBinding);
 	Provider->Variables = Variables;
 	Provider->ParameterBufferSize = ParameterBufferSize;
+	check(Provider->MeshComponent);
 	return Provider;
 }
 
@@ -113,11 +115,13 @@ void UOptimusGraphDataProvider::SetConstant(FString const& InVariableName, TArra
 
 FComputeDataProviderRenderProxy* UOptimusGraphDataProvider::GetRenderProxy()
 {
-	UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->GetMeshDeformerInstance());
-
-	return new FOptimusGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
+	if (IMeshDeformerInterface* MeshDeformerInterface = Cast<IMeshDeformerInterface>(MeshComponent))
+	{
+		UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(MeshDeformerInterface->GetMeshDeformerInstance());
+		return new FOptimusGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
+	}
+	return nullptr;
 }
-
 
 FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerInstance const* DeformerInstance, TArray<FOptimusGraphVariableDescription> const& Variables, int32 ParameterBufferSize)
 {

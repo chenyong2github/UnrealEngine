@@ -15,6 +15,7 @@
 #include "Components/MeshComponent.h"
 #include "Containers/SortedMap.h"
 #include "LODSyncInterface.h"
+#include "MeshDeformerInterface.h"
 #include "BoneContainer.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
 #include "ClothingSystemRuntimeTypes.h"
@@ -238,7 +239,7 @@ struct FVertexOffsetUsage
  * @see USkeletalMeshComponent
 */
 UCLASS(hidecategories=Object, config=Engine, editinlinenew, abstract)
-class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface
+class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface, public IMeshDeformerInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -302,7 +303,7 @@ protected:
 
 public:
 	/** Get the currently active MeshDeformer Instance. */
-	UMeshDeformerInstance const* GetMeshDeformerInstance() const { return MeshDeformerInstance; }
+	virtual UMeshDeformerInstance const* GetMeshDeformerInstance() const override { return MeshDeformerInstance; }
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const

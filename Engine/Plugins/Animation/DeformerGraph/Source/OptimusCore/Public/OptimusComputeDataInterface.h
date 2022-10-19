@@ -119,7 +119,7 @@ class OPTIMUSCORE_API UOptimusComputeDataInterface : public UComputeDataInterfac
 	GENERATED_BODY()
 	
 public:
-	struct CategoryName
+	struct OPTIMUSCORE_API CategoryName
 	{
 		static const FName DataInterfaces;
 		static const FName ExecutionDataInterfaces;

@@ -8,7 +8,7 @@
 #include "OptimusDataInterfaceGraph.generated.h"
 
 class UOptimusDeformerInstance;
-class USkinnedMeshComponent;
+class UMeshComponent;
 
 /** */
 USTRUCT()
@@ -62,7 +62,7 @@ class UOptimusGraphDataProvider : public UComputeDataProvider
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkinnedMeshComponent> SkinnedMeshComponent = nullptr;
+	TObjectPtr<UMeshComponent> MeshComponent = nullptr;
 
 	UPROPERTY()
 	TArray<FOptimusGraphVariableDescription> Variables;

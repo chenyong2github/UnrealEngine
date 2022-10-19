@@ -57,7 +57,7 @@ public:
 	}
 	
 	/** Returns true if the source can be used by primary bindings. */
-	bool IsUsableAsPrimarySource() const;
+	virtual bool IsUsableAsPrimarySource() const;
 
 	// TODO: Component color for additional indicator wire.
 

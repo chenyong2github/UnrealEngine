@@ -9,7 +9,6 @@
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
 #include "RenderGraphBuilder.h"
-#include "SkeletalRenderPublic.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 
@@ -330,18 +329,6 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 			for (int32 Index = 0; Index < InDeformer->GetComponentBindings().Num(); Index++)
 			{
 				Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, Index, MeshComponent.Get());
-			}
-		}
-
-		int32 LODIndex = 0;
-		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(MeshComponent))
-		{
-			// This guff should be a utility function on USkinnedMeshComponent. 
-			LODIndex = SkinnedMeshComponent->GetPredictedLODLevel();
-			
-			if (SkinnedMeshComponent->GetSkinnedAsset() && SkinnedMeshComponent->GetSkinnedAsset()->IsStreamable() && SkinnedMeshComponent->MeshObject)
-			{
-				LODIndex = FMath::Max<int32>(LODIndex, SkinnedMeshComponent->MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 			}
 		}
 
