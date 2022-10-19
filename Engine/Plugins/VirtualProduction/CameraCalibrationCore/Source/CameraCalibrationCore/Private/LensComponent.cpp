@@ -416,7 +416,7 @@ void ULensComponent::ApplyNodalOffset(USceneComponent* ComponentToOffset, bool b
 	}
 
 	// Cache the original transform before applying the offset, so that nodal offset can potentially be re-evaluated in the future
-	OriginalTrackedComponentTransform = TrackedComponent.Get()->GetRelativeTransform();
+	OriginalTrackedComponentTransform = ComponentToOffset->GetRelativeTransform();
 
 	ComponentToOffset->AddLocalOffset(Offset.LocationOffset);
 	ComponentToOffset->AddLocalRotation(Offset.RotationOffset);
