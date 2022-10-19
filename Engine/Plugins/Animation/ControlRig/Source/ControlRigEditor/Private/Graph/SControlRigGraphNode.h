@@ -124,6 +124,22 @@ private:
 		bool bExpanded;
 		bool bAutoHeight;
 	};
+
+	
+	/**
+	 * Simple tagging metadata
+	 */
+	class FPinInfoMetaData : public ISlateMetaData
+	{
+	public:
+		SLATE_METADATA_TYPE(FPinInfoMetaData, ISlateMetaData)
+
+		FPinInfoMetaData(const FString& InCPPType)
+		: CPPType(InCPPType)
+		{}
+
+		FString CPPType;
+	};
 	
 	TArray<FPinInfo> PinInfos;
 	TWeakObjectPtr<URigVMNode> ModelNode;

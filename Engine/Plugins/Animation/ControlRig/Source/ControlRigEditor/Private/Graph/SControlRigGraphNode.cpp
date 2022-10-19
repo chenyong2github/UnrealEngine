@@ -326,6 +326,7 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 {
 	bool bShowPin = true;
+	FString CPPType;
 	if(const UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
 	{
 		if(const URigVMPin* ModelPin = RigGraphNode->FindModelPinFromGraphPin(CurPin))
@@ -335,6 +336,8 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 				ModelPin->GetDirection() == ERigVMPinDirection::Input ||
 				ModelPin->GetDirection() == ERigVMPinDirection::Output ||
 				ModelPin->GetDirection() == ERigVMPinDirection::IO;
+			
+			CPPType = ModelPin->GetCPPType();
 		}
 	}
 	
@@ -342,15 +345,30 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 	{
 		// Do we have this pin in our list of pins to keep?
 		TSharedPtr<SGraphPin> NewPin;
-		const TSharedRef<SGraphPin>* RecycledPin = PinsToKeep.Find(CurPin);
-		if (!RecycledPin)
+		const TSharedRef<SGraphPin>* RecycledPinPtr = PinsToKeep.Find(CurPin);
+		if (RecycledPinPtr)
 		{
-			NewPin = CreatePinWidget(CurPin);
-			check(NewPin.IsValid());
+			const TSharedRef<SGraphPin>& RecycledPin = *RecycledPinPtr;
+			const TSharedPtr<FPinInfoMetaData> PinInfoMetaData = RecycledPin->GetMetaData<FPinInfoMetaData>();
+			if(PinInfoMetaData.IsValid())
+			{
+				if(PinInfoMetaData->CPPType == CPPType)
+				{
+					NewPin = RecycledPin;
+				}
+			}
 		}
-		else
+
+		if(!NewPin.IsValid())
 		{
-			NewPin = *RecycledPin;
+			if(RecycledPinPtr)
+			{
+				(*RecycledPinPtr)->InvalidateGraphData();
+			}
+			NewPin = CreatePinWidget(CurPin);
+			NewPin->AddMetadata(MakeShared<FPinInfoMetaData>(CPPType));
+			check(NewPin.IsValid());
+			PinsToKeep.Remove(CurPin);
 		}
 
 		AddPin(NewPin.ToSharedRef());
@@ -898,10 +916,12 @@ void SControlRigGraphNode::HandleNodePinsChanged()
 			if (LivePin->Direction == EGPD_Input && PinInfoPtr->InputPinWidget.IsValid())
 			{
 				PinsToKeep.Add(LivePin, PinInfoPtr->InputPinWidget.ToSharedRef());
+				LocalPinsToDelete.Remove(PinInfoPtr->InputPinWidget->GetPinObj());
 			}
 			if (LivePin->Direction == EGPD_Output && PinInfoPtr->OutputPinWidget.IsValid())
 			{
 				PinsToKeep.Add(LivePin, PinInfoPtr->OutputPinWidget.ToSharedRef());
+				LocalPinsToDelete.Remove(PinInfoPtr->OutputPinWidget->GetPinObj());
 			}
 		}
 		LocalPinsToDelete.Remove(LivePin);

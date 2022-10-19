@@ -479,7 +479,7 @@ URigVMPin* UControlRigGraphNode::FindModelPinFromGraphPin(const UEdGraphPin* InG
 		}
 	}
 
-	return nullptr;
+	return GetModelPinFromPinPath(InGraphPin->GetName());
 }
 
 UEdGraphPin* UControlRigGraphNode::FindGraphPinFromModelPin(const URigVMPin* InModelPin, bool bAsInput) const
@@ -494,6 +494,18 @@ UEdGraphPin* UControlRigGraphNode::FindGraphPinFromModelPin(const URigVMPin* InM
 		return bAsInput ? Pair->InputPin : Pair->OutputPin;
 	}
 
+	const FString PinPath = InModelPin->GetPinPath();
+	for(UEdGraphPin* GraphPin : Pins)
+	{
+		if((GraphPin->Direction == EGPD_Input) == bAsInput)
+		{
+			if(GraphPin->GetName() == PinPath)
+			{
+				return GraphPin;
+			}
+		}
+	}
+	
 	return nullptr;
 }
 
@@ -634,6 +646,12 @@ void UControlRigGraphNode::SyncGraphNodeNameWithModelNodeName(const URigVMNode* 
 	Rename(*InModelNode->GetName());
 	ModelNodePath = InModelNode->GetNodePath();
 	SyncGraphNodeTitleWithModelNodeTitle();
+
+	TArray<URigVMPin*> AllModelPins = InModelNode->GetAllPinsRecursively();
+	for(const URigVMPin* ModelPin : AllModelPins)
+	{
+		SynchronizeGraphPinNameWithModelPin(ModelPin);
+	}
 }
 
 bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPin, EEdGraphPinDirection InDirection,
@@ -671,20 +689,23 @@ bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPi
 
 	UEdGraphPin* InputPin = nullptr;
 	UEdGraphPin* OutputPin = nullptr;
-	
+
+	bool bResult = false;
 	if (InDirection == EGPD_Input && PairConst.InputPin == nullptr)
 	{
 		InputPin = CreatePinLambda(InModelPin, EGPD_Input, InParentPin);
+		bResult = true;
 	}
 	if (InDirection == EGPD_Output && PairConst.OutputPin == nullptr)
 	{
 		OutputPin = CreatePinLambda(InModelPin, EGPD_Output, InParentPin);
+		bResult = true;
 	}
 
 	FPinPair& Pair = CachedPins.FindChecked((URigVMPin*)InModelPin);
 	Pair.InputPin = InputPin != nullptr ? InputPin : Pair.InputPin;
 	Pair.OutputPin = OutputPin != nullptr ? OutputPin : Pair.OutputPin;
-	return Pair.IsValid();
+	return Pair.IsValid() && bResult;
 }
 
 void UControlRigGraphNode::RemoveGraphSubPins(UEdGraphPin* InParentPin, const TArray<UEdGraphPin*>& InPinsToKeep)
@@ -919,6 +940,17 @@ bool UControlRigGraphNode::ModelPinRemoved(const URigVMPin* InModelPin)
 
 bool UControlRigGraphNode::ModelPinRemoved_Internal(const URigVMPin* InModelPin)
 {
+	auto RemoveGraphPin = [this](const URigVMPin* InModelPin, bool bAsInput)
+	{
+		if(UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin, bAsInput))
+		{
+			RemoveGraphSubPins(GraphPin);
+			Pins.Remove(GraphPin);
+		}
+	};
+	RemoveGraphPin(InModelPin, true);
+	RemoveGraphPin(InModelPin, false);
+		
 	const bool bResult = PinPathToModelPin.Remove(InModelPin->GetPinPath()) > 0;
 	CachedPins.Remove(InModelPin);
 	return bResult;
