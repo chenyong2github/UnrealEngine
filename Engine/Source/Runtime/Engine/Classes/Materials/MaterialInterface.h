@@ -1048,6 +1048,9 @@ protected:
 
 	void UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy);
 
+	/** Filter out ShadingModels field to a shader platform settings */
+	static void FilterOutPlatformShadingModels(const FStaticShaderPlatform Platform, FMaterialShadingModelField& ShadingModels);
+
 	/**
 	 * Cached data generated from the material's expressions, may be nullptr
 	 * UMaterials should always have cached data

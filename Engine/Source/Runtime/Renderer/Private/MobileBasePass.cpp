@@ -578,29 +578,15 @@ FMobileBasePassMeshProcessor::FMobileBasePassMeshProcessor(
 	, PassDrawRenderState(InDrawRenderState)
 	, TranslucencyPassType(InTranslucencyPassType)
 	, Flags(InFlags)
-	, ShadingModelsMask(GetPlatformShadingModelsMask(GetFeatureLevelShaderPlatform(InFeatureLevel)))
 	, bTranslucentBasePass(InTranslucencyPassType != ETranslucencyPass::TPT_MAX)
 	, bUsesDeferredShading(!bTranslucentBasePass && IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(InFeatureLevel)))
 {
 }
 
-FMaterialShadingModelField FMobileBasePassMeshProcessor::FilterShadingModelsMask(const FMaterialShadingModelField& ShadingModels) const
-{
-	uint16 ShadingModelField = ShadingModels.GetShadingModelField();
-	uint16 FilteredShadingModels = (ShadingModelField & ShadingModelsMask);
-	FMaterialShadingModelField NewShadingModelField;
-	NewShadingModelField.SetShadingModelField(FilteredShadingModels);
-	if (!NewShadingModelField.IsValid())
-	{
-		NewShadingModelField.AddShadingModel(MSM_DefaultLit);
-	}
-	return NewShadingModelField;
-}
-
 bool FMobileBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
 {
 	const EBlendMode BlendMode = Material.GetBlendMode();
-	const FMaterialShadingModelField ShadingModels = FilterShadingModelsMask(Material.GetShadingModels());
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 	const bool bUsesWaterMaterial = ShadingModels.HasShadingModel(MSM_SingleLayerWater); // Water goes into the translucent pass
 	const bool bCanReceiveCSM = ((Flags & EFlags::CanReceiveCSM) == EFlags::CanReceiveCSM);

@@ -478,7 +478,6 @@ private:
 
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const EFlags Flags;
-	uint16 ShadingModelsMask;
 	const bool bTranslucentBasePass;
 	const bool bUsesDeferredShading;
 };

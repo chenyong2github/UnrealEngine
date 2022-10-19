@@ -3675,6 +3675,12 @@ void UMaterial::PostLoad()
 		bUseFullPrecision_DEPRECATED = false;
 	}
 
+	if (!GIsEditor)
+	{
+		// Filter out ShadingModels field to a current platform settings
+		FilterOutPlatformShadingModels(GMaxRHIShaderPlatform, ShadingModels);
+	}
+
 #if WITH_EDITOR
 	// Create exec flow expressions, if needed
 	CreateExecutionFlowExpressions();

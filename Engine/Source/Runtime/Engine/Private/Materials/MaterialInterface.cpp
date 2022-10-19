@@ -1486,6 +1486,25 @@ void UMaterialInterface::EnsureIsComplete()
 #endif
 }
 
+void UMaterialInterface::FilterOutPlatformShadingModels(const FStaticShaderPlatform Platform, FMaterialShadingModelField& ShadingModels)
+{
+	if (ShadingModels.CountShadingModels() > 1 && !AllowPerPixelShadingModels(Platform))
+	{
+		ShadingModels = FMaterialShadingModelField(ShadingModels.GetFirstShadingModel());
+	}
+
+	uint32 ShadingModelsMask = GetPlatformShadingModelsMask(Platform);
+	if (ShadingModelsMask != 0xFFFFFFFF)
+	{
+		uint16 FilteredShadingModels = (ShadingModels.GetShadingModelField() & ShadingModelsMask);
+		ShadingModels.SetShadingModelField(FilteredShadingModels);
+		if (!ShadingModels.IsValid())
+		{
+			ShadingModels.AddShadingModel(MSM_DefaultLit);
+		}
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 
 namespace MaterialInterface
