@@ -204,6 +204,6 @@ private:
 	/** Array of sections that are getting undone, we need to recreate any constraint channel add, move key delegates to them*/
 	mutable TArray<TWeakObjectPtr<UMovieScene3DTransformSection>> SectionsGettingUndone;
 
-	/** Set of sections we have added delegate's too, need to clear them*/
-	TSet<TWeakObjectPtr<UMovieScene3DTransformSection>> SectionsToClear;
+	/** Set of delegate handles we have added delegate's too, need to clear them*/
+	TSet<FDelegateHandle> ConstraintHandlesToClear;
 };

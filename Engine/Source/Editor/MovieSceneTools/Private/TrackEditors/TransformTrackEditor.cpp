@@ -1540,7 +1540,6 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 	if (!InSection->OnConstraintRemovedHandle.IsValid())
 	{
-		SectionsToClear.Add(Section);
 		InSection->OnConstraintRemovedHandle =
 			Controller.GetNotifyDelegate().AddLambda([InSection,Section, this](EConstraintsManagerNotifyType InNotifyType, UObject *InObject)
 				{
@@ -1582,6 +1581,8 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 							break;		
 					}
 				});
+		ConstraintHandlesToClear.Add(InSection->OnConstraintRemovedHandle);
+
 	}
 }
 
@@ -1589,25 +1590,13 @@ void F3DTransformTrackEditor::ClearOutConstraintDelegates()
 {
 	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
 	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-	for (TWeakObjectPtr<UMovieScene3DTransformSection>& Section : SectionsToClear)
+	for (FDelegateHandle& Handle : ConstraintHandlesToClear)
 	{
-		if (IMovieSceneConstrainedSection* CRSection = Section.Get())
+		if (Handle.IsValid())
 		{
-			// clear constraint channels
-			TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
-			for (FConstraintAndActiveChannel& Channel : ConstraintChannels)
-			{
-				Channel.ActiveChannel.OnKeyMovedEvent().Clear();
-				Channel.ActiveChannel.OnKeyDeletedEvent().Clear();
-			}
-
-			if (CRSection->OnConstraintRemovedHandle.IsValid())
-			{
-				Controller.GetNotifyDelegate().Remove(CRSection->OnConstraintRemovedHandle);
-				CRSection->OnConstraintRemovedHandle.Reset();
-			}
+			Controller.GetNotifyDelegate().Remove(Handle);
 		}
 	}
-	SectionsToClear.Reset();
+	ConstraintHandlesToClear.Reset();
 }
 #undef LOCTEXT_NAMESPACE
