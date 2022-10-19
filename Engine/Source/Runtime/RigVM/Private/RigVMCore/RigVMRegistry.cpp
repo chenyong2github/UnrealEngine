@@ -16,7 +16,7 @@ const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
 
 // When the object system has been completely loaded, load in all the engine types that we haven't registered already in InitializeIfNeeded 
-FDelayedAutoRegisterHelper GRigVMRegistrySingletonHelper(EDelayedRegisterRunPhase::ObjectSystemReady, []() -> void
+static FDelayedAutoRegisterHelper GRigVMRegistrySingletonHelper(EDelayedRegisterRunPhase::EndOfEngineInit, []() -> void
 {
 	FRigVMRegistry::Get().RefreshEngineTypes();
 });
