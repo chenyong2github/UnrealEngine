@@ -27,6 +27,12 @@ void UBoneProxy::Tick(float DeltaTime)
 	{
 		if (UDebugSkelMeshComponent* Component = SkelMeshComponent.Get())
 		{
+			if (Component->GetSkeletalMeshAsset() && Component->GetSkeletalMeshAsset()->IsCompiling())
+			{
+				//We do not want to tick if the skeletalmesh is inside a compilation
+				return;
+			}
+
 			TArray<FTransform> LocalBoneTransforms = Component->GetBoneSpaceTransforms();
 
 			int32 BoneIndex = Component->GetBoneIndex(BoneName);

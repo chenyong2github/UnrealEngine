@@ -141,6 +141,9 @@ public:
 		return true;
 	}
 
+	/** Call when the user cancel the operation. */
+	virtual void Cancel() {}
+
 	/**
 	 * Parameters to pass to CreateAsset function
 	 */

@@ -52,6 +52,11 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 			//Verify if the task was cancel
 			if (AsyncHelper->bCancel)
 			{
+				for (const FImportAsyncHelper::FImportedObjectInfo& ObjectInfo : ObjectInfosPerSourceIndexPair.Value)
+				{
+					//Cancel factories so they can do proper cleanup
+					ObjectInfo.Factory->Cancel();
+				}
 				break;
 			}
 

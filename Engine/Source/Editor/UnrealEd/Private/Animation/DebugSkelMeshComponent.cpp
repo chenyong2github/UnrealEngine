@@ -97,7 +97,7 @@ FBoxSphereBounds UDebugSkelMeshComponent::CalcBounds(const FTransform& LocalToWo
 			}			
 		}
 
-		if (GetSkeletalMeshAsset())
+		if (GetSkeletalMeshAsset() && !GetSkeletalMeshAsset()->IsCompiling())
 		{
 			Result = Result + GetSkeletalMeshAsset()->GetBounds();
 		}
@@ -700,6 +700,11 @@ bool UDebugSkelMeshComponent::ShouldRunClothTick() const
 void UDebugSkelMeshComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderDynamicData_Concurrent();
+	
+	if (GetSkeletalMeshAsset() && GetSkeletalMeshAsset()->IsCompiling())
+	{
+		return;
+	}
 
 	if (SceneProxy)
 	{
@@ -1080,6 +1085,12 @@ void UDebugSkelMeshComponent::CheckClothTeleport()
 
 void UDebugSkelMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
+	//Do not tick a skeletalmesh component if the skeletalmesh is compiling
+	if (GetSkeletalMeshAsset() && GetSkeletalMeshAsset()->IsCompiling())
+	{
+		return;
+	}
+
 	if (TurnTableMode == EPersonaTurnTableMode::Playing)
 	{
 		FRotator Rotation = GetRelativeTransform().Rotator();

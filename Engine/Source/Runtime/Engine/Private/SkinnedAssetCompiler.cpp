@@ -229,6 +229,13 @@ void FSkinnedAssetCompilingManager::PostCompilation(USkinnedAsset* SkinnedAsset)
 
 				LocalAsyncTask->GetTask().BuildContext.Reset();
 			}
+
+			if (LocalAsyncTask->GetTask().AsyncTaskContext.IsSet())
+			{
+				SkinnedAsset->FinishAsyncTaskInternal(*LocalAsyncTask->GetTask().AsyncTaskContext);
+
+				LocalAsyncTask->GetTask().AsyncTaskContext.Reset();
+			}
 		}
 
 		// Calling this delegate during app exit might be quite dangerous and lead to crash

@@ -514,13 +514,24 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents = GetPreviewScene()->GetAllPreviewMeshComponents();
 	for (UDebugSkelMeshComponent* PreviewMeshComponent : PreviewMeshComponents)
 	{
-		if (!(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset()))
+		if (!(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset() && !PreviewMeshComponent->GetSkeletalMeshAsset()->IsCompiling()))
 		{
 			continue;
 		}
 
 		// Can't have both bones of interest and sockets of interest set
 		check( !(GetAnimPreviewScene()->GetSelectedBoneIndex() != INDEX_NONE && GetAnimPreviewScene()->GetSelectedSocket().IsValid() ) )
+
+		const FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->GetReferenceSkeleton();
+		const TArray<FBoneIndexType>& DrawBoneIndices = PreviewMeshComponent->GetDrawBoneIndices();
+		//If DrawBoneIndices count is different from the refskeleton, it mean the component must be re-register
+		//It can happen during an asynchronous re-import of a skeletal mesh where the properties lock is release
+		//before the postedit change scope have re-register the components
+		if (RefSkeleton.GetNum() != DrawBoneIndices.Num())
+		{
+			//Skip this draw call until the component cache fit the skeletalmesh data
+			continue;
+		}
 
 		// if we have BonesOfInterest, draw sub set of the bones only
 		if (GetAnimPreviewScene()->GetSelectedBoneIndex() != INDEX_NONE)
@@ -643,7 +654,7 @@ void FAnimationViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 
 void FAnimationViewportClient::DrawUVsForMesh(FViewport* InViewport, FCanvas* InCanvas, int32 InTextYPos, UDebugSkelMeshComponent* PreviewMeshComponent)
 {
-	if (!PreviewMeshComponent)
+	if (!PreviewMeshComponent || !PreviewMeshComponent->GetSkeletalMeshAsset() || PreviewMeshComponent->GetSkeletalMeshAsset()->IsCompiling())
 	{
 		return;
 	}
@@ -658,6 +669,14 @@ void FAnimationViewportClient::DrawUVsForMesh(FViewport* InViewport, FCanvas* In
 
 void FAnimationViewportClient::Tick(float DeltaSeconds) 
 {
+	//Avoid ticking the animation viewport if the skeletalmesh is compiling
+	if (GetAnimPreviewScene()->GetPreviewMeshComponent()
+		&& GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset()
+		&& GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset()->IsCompiling())
+	{
+		return;
+	}
+
 	FEditorViewportClient::Tick(DeltaSeconds);
 
 	GetAnimPreviewScene()->FlagTickable();
@@ -910,7 +929,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 
 	// if not valid skeletalmesh
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetPreviewScene()->GetPreviewMeshComponent();
-	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset() == nullptr)
+	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset() == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset()->IsCompiling())
 	{
 		return FText();
 	}

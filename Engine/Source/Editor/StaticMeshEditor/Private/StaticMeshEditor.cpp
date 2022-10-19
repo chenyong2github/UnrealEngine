@@ -1656,7 +1656,7 @@ void FStaticMeshEditor::HandleReimportMesh()
 	// Reimport the asset
 	if (StaticMesh)
 	{
-		FReimportManager::Instance()->Reimport(StaticMesh, true);
+		FReimportManager::Instance()->ReimportAsync(StaticMesh, true);
 	}
 }
 

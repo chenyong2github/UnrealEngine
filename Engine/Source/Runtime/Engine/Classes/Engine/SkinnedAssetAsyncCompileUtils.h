@@ -37,6 +37,19 @@ public:
 	TUniquePtr<class FSkinnedMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 };
 
+class FSkinnedAsyncTaskContext : public FSkinnedAssetCompilationContext
+{
+public:
+	FSkinnedAsyncTaskContext(bool bInResetAsyncFlagOnFinish, TFunctionRef<void()> InAsyncTaskFunction)
+		: bResetAsyncFlagOnFinish(bInResetAsyncFlagOnFinish)
+		, AsyncTaskFunction(InAsyncTaskFunction)
+	{
+	}
+
+	bool bResetAsyncFlagOnFinish = true;
+	TFunctionRef<void()> AsyncTaskFunction;
+};
+
 #if WITH_EDITOR
 
 // Any thread implicated in the build must have a valid scope to be granted access to protected properties without causing any stalls.
@@ -62,6 +75,7 @@ public:
 	USkinnedAsset* SkinnedAsset;
 	TOptional<FSkinnedAssetPostLoadContext> PostLoadContext;
 	TOptional<FSkinnedAssetBuildContext> BuildContext;
+	TOptional<FSkinnedAsyncTaskContext> AsyncTaskContext;
 
 	/** Initialization constructor. */
 	FSkinnedAssetAsyncBuildWorker(
@@ -78,6 +92,14 @@ public:
 		FSkinnedAssetPostLoadContext&& InPostLoadContext)
 		: SkinnedAsset(InSkinnedAsset)
 		, PostLoadContext(MoveTemp(InPostLoadContext))
+	{
+	}
+
+	FSkinnedAssetAsyncBuildWorker(
+		USkinnedAsset* InSkinnedAsset,
+		FSkinnedAsyncTaskContext&& InAsyncTaskContext)
+		: SkinnedAsset(InSkinnedAsset)
+		, AsyncTaskContext(MoveTemp(InAsyncTaskContext))
 	{
 	}
 
@@ -103,6 +125,14 @@ struct FSkinnedAssetAsyncBuildTask : public FAsyncTask<FSkinnedAssetAsyncBuildWo
 		USkinnedAsset* InSkinnedAsset,
 		FSkinnedAssetBuildContext&& InBuildContext)
 		: FAsyncTask<FSkinnedAssetAsyncBuildWorker>(InSkinnedAsset, MoveTemp(InBuildContext))
+		, SkinnedAsset(InSkinnedAsset)
+	{
+	}
+
+	FSkinnedAssetAsyncBuildTask(
+		USkinnedAsset* InSkinnedAsset,
+		FSkinnedAsyncTaskContext&& InAsyncTaskContext)
+		: FAsyncTask<FSkinnedAssetAsyncBuildWorker>(InSkinnedAsset, MoveTemp(InAsyncTaskContext))
 		, SkinnedAsset(InSkinnedAsset)
 	{
 	}

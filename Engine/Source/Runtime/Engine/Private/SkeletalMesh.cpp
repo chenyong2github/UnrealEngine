@@ -325,7 +325,7 @@ FScopedSkeletalMeshPostEditChange::~FScopedSkeletalMeshPostEditChange()
 void FScopedSkeletalMeshPostEditChange::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
 	//Some parallel task may try to call post edit change, we must prevent it
-	if (!IsInGameThread())
+	if (!IsInGameThread() || InSkeletalMesh->IsCompiling())
 	{
 		return;
 	}
@@ -1969,6 +1969,59 @@ void USkeletalMesh::FinishBuildInternal(FSkinnedAssetBuildContext& Context)
 	}
 
 	PostMeshCached.Broadcast(this);
+}
+
+void USkeletalMesh::LockPropertiesUntil(FEvent* Event)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::Import);
+	if (IsCompiling())
+	{
+		FSkinnedAssetCompilingManager::Get().FinishCompilation({ this });
+	}
+
+	auto AsyncTaskFunction = [Event]()
+	{
+		Event->Wait();
+	};
+
+	//Use the async task compile to lock the properties
+	FSkinnedAsyncTaskContext Context(!HasAnyInternalFlags(EInternalObjectFlags::Async), AsyncTaskFunction);
+	BeginAsyncTaskInternal(Context);
+	PrepareForAsyncCompilation();
+	FQueuedThreadPool* SkeletalMeshThreadPool = FSkinnedAssetCompilingManager::Get().GetThreadPool();
+	EQueuedWorkPriority BasePriority = FSkinnedAssetCompilingManager::Get().GetBasePriority(this);
+	check(AsyncTask == nullptr);
+	AsyncTask = MakeUnique<FSkinnedAssetAsyncBuildTask>(this, MoveTemp(Context));
+	AsyncTask->StartBackgroundTask(SkeletalMeshThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait);
+	FSkinnedAssetCompilingManager::Get().AddSkinnedAssets({ this });
+}
+
+void USkeletalMesh::BeginAsyncTaskInternal(FSkinnedAsyncTaskContext& Context)
+{
+	check(IsInGameThread());
+
+	if (Context.bResetAsyncFlagOnFinish)
+	{
+		SetInternalFlags(EInternalObjectFlags::Async);
+	}
+	AcquireAsyncProperty();
+	//Allow thumbnail data so content browser get refresh properly
+	ReleaseAsyncProperty((uint64)ESkeletalMeshAsyncProperties::ThumbnailInfo);
+}
+
+void USkeletalMesh::ExecuteAsyncTaskInternal(FSkinnedAsyncTaskContext& Context)
+{
+	Context.AsyncTaskFunction();
+}
+
+void USkeletalMesh::FinishAsyncTaskInternal(FSkinnedAsyncTaskContext& Context)
+{
+	check(IsInGameThread());
+	if (Context.bResetAsyncFlagOnFinish)
+	{
+		ClearInternalFlags(EInternalObjectFlags::Async);
+	}
+	ReleaseAsyncProperty();
 }
 
 #endif // #if WITH_EDITOR

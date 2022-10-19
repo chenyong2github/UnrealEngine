@@ -2407,6 +2407,13 @@ public:
 	*/
 	void Build();
 
+	/**
+	* Lock the skeletalmesh properties until the caller trigger the Event parameter.
+	* 
+	* @Param Event - When the caller will trigger the event the skeletal mesh properties will be unlocked
+	*/
+	void LockPropertiesUntil(FEvent* Event);
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	virtual void PostEditUndo() override;
@@ -2702,7 +2709,24 @@ private:
 	 * Copy build/load context result data to the skeletalmesh member on the game thread - Can't be done in parallel.
 	 */
 	void ApplyFinishBuildInternalData(FSkinnedAssetCompilationContext* ContextPtr);
-	
+
+
+
+	/**
+	 * Initial step for the building process - Can't be done in parallel. USkinnedAsset Interface.
+	 */
+	virtual void BeginAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
+
+	/**
+	 * Thread-safe part. USkinnedAsset Interface.
+	 */
+	virtual void ExecuteAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
+
+	/**
+	 * Complete the building process - Can't be done in parallel. USkinnedAsset Interface.
+	 */
+	virtual void FinishAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
+
 #endif
 
 	/** Utility function to help with building the combined socket list */

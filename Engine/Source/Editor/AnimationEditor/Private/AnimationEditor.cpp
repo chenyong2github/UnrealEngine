@@ -212,6 +212,11 @@ void FAnimationEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 
 void FAnimationEditor::Tick(float DeltaTime)
 {
+	//Do not tick the animation editor if we are compiling the skeletalmesh we edit
+	if (GetPersonaToolkit()->GetMesh() && GetPersonaToolkit()->GetMesh()->IsCompiling())
+	{
+		return;
+	}
 	GetPersonaToolkit()->GetPreviewScene()->InvalidateViews();
 }
 
@@ -639,7 +644,7 @@ void FAnimationEditor::OnReimportAnimation()
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimationAsset);
 	if (AnimSequence)
 	{
-		FReimportManager::Instance()->Reimport(AnimSequence, true);
+		FReimportManager::Instance()->ReimportAsync(AnimSequence, true);
 	}
 }
 

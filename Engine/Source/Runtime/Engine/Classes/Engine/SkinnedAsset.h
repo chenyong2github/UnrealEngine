@@ -293,6 +293,13 @@ protected:
 	/** Complete the building process - Can't be done in parallel. */
 	virtual void FinishBuildInternal(FSkinnedAssetBuildContext& Context) {}
 
+	/** Initial step for the async task process - Can't be done in parallel. */
+	virtual void BeginAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) {}
+	/** Thread-safe part. */
+	virtual void ExecuteAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) {}
+	/** Complete the async task process - Can't be done in parallel. */
+	virtual void FinishAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) {}
+
 	/** Holds the pointer to an async task if one exists. */
 	TUniquePtr<FSkinnedAssetAsyncBuildTask> AsyncTask;
 #endif // WITH_EDITOR

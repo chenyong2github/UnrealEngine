@@ -638,9 +638,9 @@ void UInterchangeGenericAnimationPipeline::CreateAnimSequenceFactoryNode(UInterc
 
 	const FString SkeletonFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SkeletonNodeUid);
 	const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<const UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonFactoryNodeUid));
-	if (!ensure(SkeletonFactoryNode))
+	if (!SkeletonFactoryNode)
 	{
-		// TODO: Warn something wrong happened
+		// It can happen if we force static mesh import, in that case no skeleton will be create
 		return;
 	}
 

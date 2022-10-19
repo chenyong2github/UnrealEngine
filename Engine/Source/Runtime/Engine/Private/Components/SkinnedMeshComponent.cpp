@@ -955,6 +955,13 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 	Super::SendRenderDynamicData_Concurrent();
 
+#if WITH_EDITOR
+	if (GetSkinnedAsset() && GetSkinnedAsset()->IsCompiling())
+	{
+		return;
+	}
+#endif
+
 	// if we have not updated the transforms then no need to send them to the rendering thread
 	// @todo GIsEditor used to be bUpdateSkelWhenNotRendered. Look into it further to find out why it doesn't update animations in the AnimSetViewer, when a level is loaded in UED (like POC_Cover.gear).
 	if( MeshObject && GetSkinnedAsset() && (bForceMeshObjectUpdate || (bRecentlyRendered || VisibilityBasedAnimTickOption == EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones || GIsEditor || MeshObject->bHasBeenUpdatedAtLeastOnce == false)) )
@@ -1459,6 +1466,14 @@ void USkinnedMeshComponent::UpdateBounds()
 	{
 		LastStreamerUpdateBoundsRadius = float(Bounds.SphereRadius);
 	}
+
+#if WITH_EDITOR
+	//We cannot update bounds during compilation
+	if (GetSkinnedAsset() && GetSkinnedAsset()->IsCompiling())
+	{
+		return;
+	}
+#endif
 
 	Super::UpdateBounds();
 

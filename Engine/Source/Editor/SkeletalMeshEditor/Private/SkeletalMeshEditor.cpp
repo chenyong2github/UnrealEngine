@@ -10,6 +10,7 @@
 #include "Algo/Transform.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AssetRegistry/AssetData.h"
+#include "Async/Async.h"
 #include "ClothingAsset.h"
 #include "ClothingSystemEditorInterfaceModule.h"
 #include "ComponentReregisterContext.h"
@@ -62,6 +63,7 @@
 #include "SkeletalMeshEditorContextMenuContext.h"
 #include "Styling/AppStyle.h"
 #include "InterchangeAssetImportData.h"
+#include "InterchangeManager.h"
 
 const FName SkeletalMeshEditorAppIdentifier = FName(TEXT("SkeletalMeshEditorApp"));
 
@@ -1348,14 +1350,59 @@ UObject* FSkeletalMeshEditor::HandleGetAsset()
 
 bool FSkeletalMeshEditor::HandleReimportMeshInternal(int32 SourceFileIndex /*= INDEX_NONE*/, bool bWithNewFile /*= false*/)
 {
-	FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkeletalMesh);
 	bool bResult = false;
+	//Interchange reimport are asynchronous
+	if (UInterchangeAssetImportData* AssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData()))
 	{
-		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
-		// Reimport the asset
-		bResult = FReimportManager::Instance()->Reimport(SkeletalMesh, true, true, TEXT(""), nullptr, SourceFileIndex, bWithNewFile);
-		// Refresh skeleton tree
-		SkeletonTree->Refresh();
+		UE::Interchange::FAssetImportResultRef Result = FReimportManager::Instance()->ReimportAsync(SkeletalMesh, true, true, TEXT(""), nullptr, SourceFileIndex, bWithNewFile);
+		
+		Result->OnDone([SkeletonTreePtr = SkeletonTree, WeakSkeletalMesh = TWeakObjectPtr<USkeletalMesh>(SkeletalMesh)](UE::Interchange::FImportResult& Result)
+			{
+				auto ResetComponent = [SkeletonTreePtr, WeakSkeletalMesh]()
+				{
+					FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(WeakSkeletalMesh.Get());
+					{
+						constexpr bool bCallPostEditChange = false;
+						constexpr bool bReregisterComponents = true;
+						FScopedSkeletalMeshPostEditChange ScopedPostEditChange = FScopedSkeletalMeshPostEditChange(WeakSkeletalMesh.Get(), bCallPostEditChange, bReregisterComponents);
+						// Refresh skeleton tree
+						SkeletonTreePtr->Refresh();
+					}
+				};
+
+				if (IsInGameThread())
+				{
+					ResetComponent();
+				}
+				else
+				{
+					Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(ResetComponent));
+				}
+			});
+		
+		if (Result->GetStatus() == UE::Interchange::FImportResult::EStatus::Done)
+		{
+			const TArray<UInterchangeResult*>& Results = Result->GetResults()->GetResults();
+			for (const UInterchangeResult* InterchangeResult : Results)
+			{
+				if (InterchangeResult->IsA<UInterchangeResultError_ReimportFail>())
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	else
+	{
+		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(SkeletalMesh);
+		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+			// Reimport the asset
+			bResult = FReimportManager::Instance()->Reimport(SkeletalMesh, true, true, TEXT(""), nullptr, SourceFileIndex, bWithNewFile);
+			// Refresh skeleton tree
+			SkeletonTree->Refresh();
+		}
 	}
 	return bResult;
 }

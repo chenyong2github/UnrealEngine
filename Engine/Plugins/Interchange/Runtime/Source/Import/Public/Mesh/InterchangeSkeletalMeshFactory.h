@@ -24,6 +24,7 @@ public:
 	virtual EInterchangeFactoryAssetType GetFactoryAssetType() override { return EInterchangeFactoryAssetType::Meshes; }
 	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments) override;
 	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments) override;
+	virtual void Cancel() override;
 	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
 	//virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
 	virtual bool GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const override;
@@ -32,6 +33,8 @@ public:
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
+private:
+	FEvent* SkeletalMeshLockPropertiesEvent = nullptr;
 };
 
 

@@ -267,6 +267,10 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			if (!bFirstValidMoved)
 			{
 				FMeshDescription& MeshDescription = const_cast<FMeshDescription&>(LodMeshPayload->MeshDescription);
+				if (MeshDescription.IsEmpty())
+				{
+					continue;
+				}
 				LodMeshDescription = MoveTemp(MeshDescription);
 				bFirstValidMoved = true;
 
@@ -278,6 +282,10 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			}
 			else
 			{
+				if (LodMeshPayload->MeshDescription.IsEmpty())
+				{
+					continue;
+				}
 				// Bake the payload mesh, with the provided transform
 				AppendSettings.MeshTransform = MeshPayload.Transform;
 				FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, LodMeshDescription, AppendSettings);

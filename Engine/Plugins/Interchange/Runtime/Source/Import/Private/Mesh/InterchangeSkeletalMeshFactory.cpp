@@ -7,6 +7,7 @@
 #include "Components.h"
 #include "CoreGlobals.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "GPUSkinPublicDefs.h"
 #include "InterchangeAssetImportData.h"
@@ -915,7 +916,14 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 	SkeletalMesh->PreEditChange(nullptr);
 	//Allocate the LODImport data in the main thread
 	SkeletalMesh->ReserveLODImportData(SkeletalMeshFactoryNode->GetLodDataCount());
-	
+
+	//Lock the skeletalmesh properties if the skeletal mesh already exist (re-import)
+	if (ExistingAsset)
+	{
+		SkeletalMeshLockPropertiesEvent = FPlatformProcess::GetSynchEventFromPool();
+		SkeletalMesh->LockPropertiesUntil(SkeletalMeshLockPropertiesEvent);
+	}
+
 	return SkeletalMesh;
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
@@ -991,6 +999,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		}
 		return nullptr;
 	}
+
+	//Make sure we can modify the skeletalmesh properties
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(SkeletalMesh);
 
 	//This is consider has a re-import if we have a reimport object or if the object exist and have some valid LOD
 	const bool bIsReImport = (Arguments.ReimportObject != nullptr) || (SkeletalMesh->GetLODNum() > 0);
@@ -1451,6 +1462,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					, NSLOCTEXT("InterchangeSkeletalMeshFactory", "SkeletonFailed_BoneMerge", "FAILED TO MERGE BONES:\n\n This could happen if significant hierarchical changes have been made\ne.g. inserting a bone between nodes.\nWould you like to regenerate the Skeleton from this mesh?\n\n***WARNING: THIS MAY INVALIDATE OR REQUIRE RECOMPRESSION OF ANIMATION DATA.***\n"));
 				if (MergeBonesChoice == EAppReturnType::Yes)
 				{
+					//Allow this thread scope to read and write skeletalmesh locked properties
+					FSkinnedAssetAsyncBuildScope AsyncBuildScope(SkeletalMeshPtr);
+
 					if (SkeletonPtr->RecreateBoneTree(SkeletalMeshPtr))
 					{
 						TArray<const USkeletalMesh*> OtherSkeletalMeshUsingSkeleton;
@@ -1572,6 +1586,16 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
+void UInterchangeSkeletalMeshFactory::Cancel()
+{
+	if (SkeletalMeshLockPropertiesEvent)
+	{
+		SkeletalMeshLockPropertiesEvent->Trigger();
+		FPlatformProcess::ReturnSynchEventToPool(SkeletalMeshLockPropertiesEvent);
+		SkeletalMeshLockPropertiesEvent = nullptr;
+	}
+}
+
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
 void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
@@ -1585,6 +1609,13 @@ void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImpor
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
 		USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Arguments.ImportedObject);
+		//Release the promise so we unlock the skeletalmesh properties
+		if (SkeletalMeshLockPropertiesEvent)
+		{
+			SkeletalMeshLockPropertiesEvent->Trigger();
+			FPlatformProcess::ReturnSynchEventToPool(SkeletalMeshLockPropertiesEvent);
+			SkeletalMeshLockPropertiesEvent = nullptr;
+		}
 
 		UAssetImportData* ImportDataPtr = SkeletalMesh->GetAssetImportData();
 		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(SkeletalMesh

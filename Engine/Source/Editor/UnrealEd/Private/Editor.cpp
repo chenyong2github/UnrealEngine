@@ -69,6 +69,7 @@
 #include "AssetToolsModule.h"
 
 #include "InterchangeManager.h"
+#include "InterchangeResultsContainer.h"
 
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -262,8 +263,24 @@ void FReimportManager::UpdateReimportPath(UObject* Obj, const FString& Filename,
 }
 
 
-bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, bool bShowNotification, FString PreferredReimportFile, FReimportHandler* SpecifiedReimportHandler, int32 SourceFileIndex, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
+bool FReimportManager::Reimport(UObject* Obj, bool bAskForNewFileIfMissing, bool bShowNotification, FString PreferredReimportFile, FReimportHandler* SpecifiedReimportHandler, int32 SourceFileIndex, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
 {
+	UE::Interchange::FAssetImportResultRef ImportResult = ReimportAsync(Obj, bAskForNewFileIfMissing, bShowNotification, PreferredReimportFile, SpecifiedReimportHandler, SourceFileIndex, bForceNewFile, bAutomated);
+	ImportResult->WaitUntilDone();
+	const TArray<UInterchangeResult*>& Results = ImportResult->GetResults()->GetResults();
+	for (const UInterchangeResult* InterchangeResult : Results)
+	{
+		if (InterchangeResult->IsA<UInterchangeResultError_ReimportFail>())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+UE::Interchange::FAssetImportResultRef FReimportManager::ReimportAsync(UObject* Obj, bool bAskForNewFileIfMissing, bool bShowNotification, FString PreferredReimportFile, FReimportHandler* SpecifiedReimportHandler, int32 SourceFileIndex, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
+{
+	UE::Interchange::FAssetImportResultRef ImportResultSynchronous = MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >();
 	// Warn that were about to reimport, so prep for it
 	PreReimport.Broadcast( Obj );
 
@@ -422,9 +439,9 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 						ImportAssetParameters.bIsAutomated = GIsAutomationTesting || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
 						ImportAssetParameters.ReimportAsset = Obj;
 						ImportAssetParameters.ReimportSourceIndex = SourceFileIndex;
-						InterchangeManager.ImportAsset(FString(), ScopedSourceData.GetSourceData(), ImportAssetParameters);
+						UE::Interchange::FAssetImportResultRef ImportResult = InterchangeManager.ImportAssetAsync(FString(), ScopedSourceData.GetSourceData(), ImportAssetParameters);
 						InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
-						return true;
+						return ImportResult;
 					}
 				}
 
@@ -514,7 +531,13 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 
 	GEditor->RedrawAllViewports();
 
-	return bSuccess;
+	if (!bSuccess)
+	{
+		//Add a ReimportFail message
+		ImportResultSynchronous->GetResults()->Add<UInterchangeResultError_ReimportFail>();
+	}
+	ImportResultSynchronous->SetDone();
+	return ImportResultSynchronous;
 }
 
 void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImportObjects, bool bShowNotification, int32 SourceFileIndex, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
@@ -681,8 +704,21 @@ bool FReimportManager::ReimportMultiple(TArrayView<UObject*> Objects, bool bAskF
 			FText SingleTaskTest = FText::Format(LOCTEXT("BulkReimport_SingleItem", "Reimporting {0}"), FText::FromString(CurrentObject->GetName()));
 			FScopedSlowTask SingleObjectTask(1.0f, SingleTaskTest);
 			SingleObjectTask.EnterProgressFrame(1.0f);
-
-			bBulkSuccess = bBulkSuccess && Reimport(CurrentObject, bAskForNewFileIfMissing, bShowNotification, PreferredReimportFile, SpecifiedReimportHandler, SourceFileIndex, bForceNewFile, bAutomated);
+			UE::Interchange::FAssetImportResultRef ImportResult = ReimportAsync(CurrentObject, bAskForNewFileIfMissing, bShowNotification, PreferredReimportFile, SpecifiedReimportHandler, SourceFileIndex, bForceNewFile, bAutomated);
+			const bool bAsync = ImportResult->GetStatus() == UE::Interchange::FImportResult::EStatus::InProgress;
+			bool bResultSuccess = true;
+			if (!bAsync)
+			{
+				const TArray<UInterchangeResult*>& Results = ImportResult->GetResults()->GetResults();
+				for (const UInterchangeResult* InterchangeResult : Results)
+				{
+					if (InterchangeResult->IsA<UInterchangeResultError_ReimportFail>())
+					{
+						bResultSuccess = false;
+					}
+				}
+			}
+			bBulkSuccess = bBulkSuccess && bResultSuccess;
 		}
 
 		BulkReimportTask.EnterProgressFrame(1.0f);

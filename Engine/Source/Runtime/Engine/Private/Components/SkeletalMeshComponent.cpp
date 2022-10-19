@@ -1231,7 +1231,11 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 		RecalcRequiredCurves();
 	}
 
-	if (GetSkeletalMeshAsset() != nullptr)
+	bool bIsCompiling = false;
+#if WITH_EDITOR
+	bIsCompiling = GetSkeletalMeshAsset() && !GetSkeletalMeshAsset()->IsCompiling();
+#endif
+	if (GetSkeletalMeshAsset() != nullptr && !bIsCompiling)
 	{
 		// We're about to UpdateAnimation, this will potentially queue events that we'll need to dispatch.
 		bNeedsQueuedAnimEventsDispatched = true;
@@ -3954,6 +3958,11 @@ void USkeletalMeshComponent::SendRenderDynamicData_Concurrent()
 	Super::SendRenderDynamicData_Concurrent();
 
 #if WITH_EDITOR
+	if (GetSkeletalMeshAsset() && GetSkeletalMeshAsset()->IsCompiling())
+	{
+		return;
+	}
+
 	if (SceneProxy)
 	{
 		UpdatePoseWatches();

@@ -34,6 +34,7 @@
 #include "Misc/Attribute.h"
 #include "Textures/SlateIcon.h"
 #include "WidgetDrawerConfig.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
 
@@ -194,6 +195,20 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		NewMajorTab->SetContent
 		( 
 			SAssignNew( NewStandaloneHost, SStandaloneAssetEditorToolkitHost, NewTabManager, AppIdentifier )
+			.IsEnabled_Lambda([ObjectsToEdit]()
+				{
+					for (const UObject* Object : ObjectsToEdit)
+					{
+						if (const IInterface_AsyncCompilation* AsyncAsset = Cast<IInterface_AsyncCompilation>(Object))
+						{
+							if (AsyncAsset->IsCompiling())
+							{
+								return false;
+							}
+						}
+					}
+					return true;
+				})
 			.OnRequestClose(this, &FAssetEditorToolkit::OnRequestClose)
 			.OnClose(this, &FAssetEditorToolkit::OnClose)
 		);

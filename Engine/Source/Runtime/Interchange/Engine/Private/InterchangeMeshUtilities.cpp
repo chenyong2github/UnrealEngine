@@ -3,8 +3,9 @@
 #include "InterchangeMeshUtilities.h"
 
 #include "Async/Future.h"
-#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeEngineLogPrivate.h"
@@ -143,7 +144,8 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 
 				if(SourceSkeletalMesh)
 				{
-
+					//Make sure we can modify the skeletalmesh properties
+					FSkinnedAssetAsyncBuildScope AsyncBuildScope(SkeletalMesh);
 					Promise->SetValue(FLODUtilities::SetCustomLOD(SkeletalMesh, SourceSkeletalMesh, LodIndex, SourceDataFilename));
 					SourceSkeletalMesh->ClearFlags(RF_Standalone);
 					SourceSkeletalMesh->ClearInternalFlags(EInternalObjectFlags::Async);

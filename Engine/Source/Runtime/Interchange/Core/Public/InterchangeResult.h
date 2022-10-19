@@ -139,3 +139,13 @@ public:
 	UPROPERTY()
 	FText Text;
 };
+
+UCLASS()
+class INTERCHANGECORE_API UInterchangeResultError_ReimportFail : public UInterchangeResultError
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual FText GetText() const override { return NSLOCTEXT("InterchangeResultNS", "UInterchangeResultError_ReimportFail_GetText", "Re-import Fail, see log for more detail."); }
+};

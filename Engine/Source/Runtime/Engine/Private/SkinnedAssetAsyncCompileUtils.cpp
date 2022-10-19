@@ -43,6 +43,11 @@ void FSkinnedAssetAsyncBuildWorker::DoWork()
 	{
 		SkinnedAsset->ExecuteBuildInternal(*BuildContext);
 	}
+
+	if (AsyncTaskContext.IsSet())
+	{
+		SkinnedAsset->ExecuteAsyncTaskInternal(*AsyncTaskContext);
+	}
 }
 
 #endif //WITH_EDITOR
