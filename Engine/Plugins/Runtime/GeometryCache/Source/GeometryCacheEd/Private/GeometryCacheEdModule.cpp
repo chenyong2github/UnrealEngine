@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheEdModule.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
-#include "ComponentAssetBroker.h"
 #include "AssetToolsModule.h"
 #include "AssetTypeActions_GeometryCache.h"
-#include "GeometryCacheAssetBroker.h"
+#include "ComponentAssetBroker.h"
 #include "GeometryCache.h"
+#include "GeometryCacheAssetBroker.h"
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheModule.h"
 #include "GeometryCacheThumbnailRenderer.h"
+#include "NiagaraEditorModule.h"
 #include "NiagaraGeometryCacheRendererProperties.h"
-#include "NiagaraEditor/Public/NiagaraEditorModule.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 IMPLEMENT_MODULE(FGeometryCacheEdModule, GeometryCacheEd)
 

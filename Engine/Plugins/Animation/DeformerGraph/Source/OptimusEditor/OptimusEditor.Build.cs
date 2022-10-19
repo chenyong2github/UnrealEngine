@@ -6,11 +6,12 @@ namespace UnrealBuildTool.Rules
     {
         public OptimusEditor(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.AddRange(
-                new string[] {
-                    "OptimusEditor/Private",
-				}
-            );
+			PrivateIncludePaths.AddRange(new string[] {
+				System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
+				System.IO.Path.Combine(GetModuleDirectory("OptimusCore"), "Private"),
+				System.IO.Path.Combine(GetModuleDirectory("OptimusEditor"), "Private"),
+				System.IO.Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
+			});
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]

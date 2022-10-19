@@ -9,8 +9,8 @@ public class Landscape : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Runtime/Engine/Private", // for Engine/Private/Collision/PhysXCollision.h
-				"Runtime/Renderer/Private",
+				Path.Combine(GetModuleDirectory("Engine"), "Private"), // for Engine/Private/Collision/PhysXCollision.h
+				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 				"../Shaders/Shared"
             }
 		);

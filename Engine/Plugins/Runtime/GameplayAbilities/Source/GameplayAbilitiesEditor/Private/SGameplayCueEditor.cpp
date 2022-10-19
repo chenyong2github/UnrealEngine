@@ -45,12 +45,12 @@
 #include "GameplayTagsModule.h"
 
 #include "AbilitySystemGlobals.h"
-#include "AssetToolsModule.h"
-#include "GameplayTagsEditorModule.h"
-#include "Editor/LevelEditor/Public/LevelEditor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetToolsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "GameplayTagsEditor/Private/SAddNewGameplayTagWidget.h"
+#include "GameplayTagsEditorModule.h"
+#include "LevelEditor.h"
+#include "SAddNewGameplayTagWidget.h"
 
 #include "SGameplayCueEditor_Picker.h"
 #include "Subsystems/AssetEditorSubsystem.h"

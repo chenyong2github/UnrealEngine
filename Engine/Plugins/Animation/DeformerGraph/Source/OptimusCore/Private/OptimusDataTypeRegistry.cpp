@@ -13,7 +13,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ComputeFramework/ComputeMetadataBuilder.h"
 
-#include "Engine/Classes/Engine/UserDefinedStruct.h"
+#include "Engine/UserDefinedStruct.h"
 
 #include "UObject/UnrealType.h"
 

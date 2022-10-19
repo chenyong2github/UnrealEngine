@@ -18,12 +18,12 @@
 
 #include "IKRigDefinition.h"
 #include "IPersonaViewport.h"
-#include "Persona/Private/PersonaPreviewSceneDescription.h"
+#include "PersonaPreviewSceneDescription.h"
 #include "RigEditor/IKRigAnimInstance.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
-#include "RigEditor/IKRigMode.h"
 #include "RigEditor/IKRigEditorController.h"
+#include "RigEditor/IKRigMode.h"
 
 #define LOCTEXT_NAMESPACE "IKRigEditorToolkit"
 

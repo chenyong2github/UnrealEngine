@@ -62,6 +62,10 @@ public class GLTFExporter : ModuleRules
 					"GLTFMaterialAnalyzer",
 				}
 			);
+
+			PrivateIncludePaths.AddRange(new string[] {
+				System.IO.Path.Combine(GetModuleDirectory("MeshMergeUtilities"), "Private"),
+			});
 		}
 	}
 }

@@ -2,6 +2,9 @@
 
 #include "OptimusEditorModule.h"
 
+#include "Actions/OptimusResourceActions.h"
+#include "Algo/Transform.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AssetViewUtils.h"
 #include "EdGraphUtilities.h"
@@ -30,14 +33,11 @@
 #include "OptimusValidatedName.h"
 #include "OptimusValueContainer.h"
 #include "PropertyEditorModule.h"
-#include "UserDefinedStructureCompilerUtils.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Widgets/SOptimusEditorGraphExplorer.h"
-#include "Widgets/SOptimusShaderTextDocumentTextBox.h"
-#include "Algo/Transform.h"
-#include "OptimusCore/Private/Actions/OptimusResourceActions.h"
 #include "UObject/FieldIterator.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
+#include "UserDefinedStructureCompilerUtils.h"
+#include "Widgets/SOptimusEditorGraphExplorer.h"
+#include "Widgets/SOptimusShaderTextDocumentTextBox.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 

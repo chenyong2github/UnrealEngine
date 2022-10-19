@@ -9,6 +9,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public MetasoundEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PrivateIncludePaths.AddRange(
+				new string[] {
+					Path.Combine(GetModuleDirectory("MetasoundFrontend"), "Private"),
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange
 			(
 				new string[]

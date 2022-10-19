@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "IMetasoundEditor.h"
 #include "AudioMeterStyle.h"
-#include "AudioSynesthesia/Classes/Meter.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EditorUndoClient.h"
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "IDetailsView.h"
-#include "IMetasoundEditor.h"
 #include "Logging/TokenizedMessage.h"
 #include "Math/UnrealMathUtility.h"
 #include "MetasoundEditorGraphConnectionManager.h"
@@ -16,6 +15,7 @@
 #include "MetasoundEditorMeter.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
+#include "Meter.h"
 #include "Misc/NotifyHook.h"
 #include "SAudioMeter.h"
 #include "SGraphActionMenu.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ComputeFramework/Public/ComputeFramework/ComputeMetadataBuilder.h"
+#include "ComputeFramework/ComputeMetadataBuilder.h"
 
 #include "ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"

@@ -2,7 +2,7 @@
 
 #include "MetasoundOperatorBuilderSettings.h"
 
-#include "Core/Public/Misc/Build.h"
+#include "Misc/Build.h"
 
 
 namespace Metasound

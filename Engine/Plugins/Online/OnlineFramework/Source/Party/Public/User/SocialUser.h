@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "../SocialTypes.h"
-#include "UObject/Object.h"
+#include "Interactions/SocialInteractionHandle.h"
 #include "OnlineSessionSettings.h"
 #include "Party/PartyTypes.h"
-#include "Interactions/SocialInteractionHandle.h"
+#include "SocialTypes.h"
+#include "UObject/Object.h"
 
 #include "SocialUser.generated.h"
 

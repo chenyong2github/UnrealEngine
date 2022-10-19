@@ -8,8 +8,6 @@ public class ObjectMixerEditor : ModuleRules
 	public ObjectMixerEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public"));
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -19,8 +17,14 @@ public class ObjectMixerEditor : ModuleRules
 				"PropertyEditor"
 			}
 		);
-			
-		
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"PlacementMode",
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

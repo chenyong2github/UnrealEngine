@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DynamicMesh/Public/EdgeSpan.h"
+#include "EdgeSpan.h"
 
 namespace UE
 {

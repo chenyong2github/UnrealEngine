@@ -17,5 +17,11 @@ public class XGEController : ModuleRules
 			"RenderCore",
 			"Engine",
 		});
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"DistributedBuildInterface",
+			}
+		);
 	}
 }

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../ObjectMixerEditorListRow.h"
+#include "Views/List/ObjectMixerEditorListRow.h"
 
 class OBJECTMIXEREDITOR_API IObjectMixerEditorListFilter
 {

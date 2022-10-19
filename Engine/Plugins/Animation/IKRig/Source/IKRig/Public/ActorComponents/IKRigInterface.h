@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "IKRigDataTypes.h"
 #include "UObject/Interface.h"
-#include "../IKRigDataTypes.h"
 
 #include "IKRigInterface.generated.h"
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_AudioSynesthesiaSettings.h"
-#include "Developer/AssetTools/Public/AssetTypeCategories.h"
+#include "AssetTypeCategories.h"
 #include "AudioSynesthesia.h"
 
 FAssetTypeActions_AudioSynesthesiaSettings::FAssetTypeActions_AudioSynesthesiaSettings(UAudioSynesthesiaSettings* InSynesthesiaSettings)

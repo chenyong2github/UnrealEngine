@@ -12,7 +12,12 @@ public class FastBuildController : ModuleRules
 			"Core",
 			"RenderCore"
 		});
-		
-		PrivateIncludePathModuleNames.Add("Engine");
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"DistributedBuildInterface",
+				"Engine",
+			}
+		);
 	}
 }

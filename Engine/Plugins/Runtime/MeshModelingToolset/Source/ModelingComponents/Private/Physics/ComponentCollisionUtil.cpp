@@ -15,12 +15,12 @@
 
 #include "Physics/PhysicsDataCollection.h"
 
-#include "Components/StaticMeshComponent.h"
 #include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
 
 using namespace UE::Geometry;
 

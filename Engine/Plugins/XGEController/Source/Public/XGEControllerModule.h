@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
-#include "Windows/WindowsPlatformNamedPipe.h"
 #include "Containers/Queue.h"
+#include "DistributedBuildControllerInterface.h"
+#include "Windows/WindowsPlatformNamedPipe.h"
 
 class FXGEControllerModule : public IDistributedBuildController
 {

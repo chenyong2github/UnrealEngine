@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../SocialTypes.h"
+#include "SocialTypes.h"
 
 #include "PartyTypes.generated.h"
 

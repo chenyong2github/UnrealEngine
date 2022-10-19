@@ -4,7 +4,7 @@
 
 #include "Components/ActorComponent.h"
 
-#include "../IKRigDataTypes.h"
+#include "IKRigDataTypes.h"
 #include "IKRigInterface.h"
 
 #include "IKRigComponent.generated.h"

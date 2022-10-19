@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../User/SocialUser.h"
+#include "User/SocialUser.h"
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCustomIsInteractionAvailable, const USocialUser&);
 

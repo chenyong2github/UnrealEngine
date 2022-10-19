@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #include "Containers/Array.h"
 #include "Containers/Queue.h"
+#include "DistributedBuildControllerInterface.h"
 
 class FFastBuildJobProcessor;
 

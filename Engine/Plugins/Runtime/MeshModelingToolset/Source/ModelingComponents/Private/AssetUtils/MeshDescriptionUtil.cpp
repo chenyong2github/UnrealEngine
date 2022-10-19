@@ -2,8 +2,8 @@
 
 #include "AssetUtils/MeshDescriptionUtil.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 

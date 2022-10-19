@@ -17,7 +17,7 @@
 #include "Components/BrushComponent.h"
 
 #if WITH_EDITOR
-#include "Engine/Classes/Engine/Polys.h"
+#include "Engine/Polys.h"
 #endif
 
 using namespace UE::Geometry;

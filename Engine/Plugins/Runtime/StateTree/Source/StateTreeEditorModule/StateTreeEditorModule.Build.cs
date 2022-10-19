@@ -47,7 +47,14 @@ namespace UnrealBuildTool.Rules
 				"ApplicationCore",
 			}
 			);
-		}
 
+			PrivateIncludePathModuleNames.AddRange(new string[] {
+				"MessageLog",
+			});
+
+			PrivateIncludePaths.AddRange(new string[] {
+				System.IO.Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
+			});
+		}
 	}
 }

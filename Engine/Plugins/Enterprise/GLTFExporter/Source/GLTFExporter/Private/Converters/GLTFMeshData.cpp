@@ -8,11 +8,11 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #if WITH_EDITOR
-#include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
 #include "Editor.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "StaticMeshAttributes.h"
+#include "MeshMergeHelpers.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "StaticMeshAttributes.h"
 #endif
 
 FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)

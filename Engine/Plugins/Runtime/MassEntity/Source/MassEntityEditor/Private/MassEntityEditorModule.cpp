@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityEditorModule.h"
-#include "Modules/ModuleManager.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "MassEditorStyle.h"
 #include "AIGraphTypes.h" // Class cache
-#include "MassProcessor.h"
+#include "AssetToolsModule.h"
 #include "AssetTypeActions_Base.h"
+#include "IAssetTools.h"
+#include "MassEditorStyle.h"
+#include "MassProcessor.h"
+#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "MassEntityEditor"

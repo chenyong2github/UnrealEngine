@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "VectorTypes.h"
-#include "Image/ImageDimensions.h"
+#include "Engine/Texture2D.h"
 #include "Image/ImageBuilder.h"
-#include "Engine/Classes/Engine/Texture2D.h"
+#include "Image/ImageDimensions.h"
+#include "VectorTypes.h"
 
 namespace UE
 {

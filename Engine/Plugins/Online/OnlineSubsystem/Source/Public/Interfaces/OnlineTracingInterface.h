@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Runtime/Core/Public/Features/IModularFeature.h"
+#include "Features/IModularFeature.h"
 
 class FOutputDevice;
 

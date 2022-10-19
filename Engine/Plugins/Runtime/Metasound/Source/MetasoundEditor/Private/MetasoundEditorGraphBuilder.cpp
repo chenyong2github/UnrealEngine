@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorGraphBuilder.h"
 
+#include "MetasoundEditorGraphBuilder.h"
 #include "Algo/AnyOf.h"
 #include "Algo/Sort.h"
 #include "Algo/Transform.h"
@@ -16,7 +17,6 @@
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraph.h"
-#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphInputNode.h"
 #include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphNode.h"
@@ -26,6 +26,7 @@
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
+#include "MetasoundFrontendDocumentVersioning.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistries.h"
@@ -43,7 +44,6 @@
 #include "Toolkits/ToolkitManager.h"
 #include "WaveTable.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "../../MetasoundFrontend/Private/MetasoundFrontendDocumentVersioning.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 

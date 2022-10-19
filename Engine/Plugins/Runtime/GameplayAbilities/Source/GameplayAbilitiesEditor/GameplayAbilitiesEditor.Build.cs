@@ -9,16 +9,12 @@ namespace UnrealBuildTool.Rules
 	{
 		public GameplayAbilitiesEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
-            // These nodes are not public so are hard to subclass
-
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"GameplayAbilitiesEditor/Private",
-					 Path.Combine(EngineDir, @"Source/Editor/GraphEditor/Private"),
-					 Path.Combine(EngineDir, @"Source/Editor/Kismet/Private"),
-					 Path.Combine(EngineDir, @"Source/Developer/AssetTools/Private")
+					Path.Combine(GetModuleDirectory("AssetTools"), "Private"),
+					Path.Combine(GetModuleDirectory("GameplayTagsEditor"), "Private"),
+					Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
+					Path.Combine(GetModuleDirectory("Kismet"), "Private"),
 				});
 
 			PublicDependencyModuleNames.Add("GameplayTasks");

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/Classes/Engine/Texture2D.h"
+#include "Engine/Texture2D.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshMaterialProperties.generated.h"
 

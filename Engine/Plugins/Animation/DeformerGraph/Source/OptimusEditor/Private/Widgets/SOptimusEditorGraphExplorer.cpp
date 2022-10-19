@@ -26,7 +26,7 @@
 #include "DetailLayoutBuilder.h"
 
 // Ick.
-#include "GraphEditor/Private/GraphActionNode.h"
+#include "GraphActionNode.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusGraphExplorer"

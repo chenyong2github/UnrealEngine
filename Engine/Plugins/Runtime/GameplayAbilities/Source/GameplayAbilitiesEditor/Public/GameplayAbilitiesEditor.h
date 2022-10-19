@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "BlueprintEditor.h"
 #include "CoreMinimal.h"
-#include "Editor/Kismet/Public/BlueprintEditor.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FGameplayAbilitiesEditor

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeCompilerLog.h"
-#include "StateTreeState.h"
-#include "Developer/MessageLog/Public/IMessageLogListing.h"
+#include "IMessageLogListing.h"
 #include "Logging/LogCategory.h"
 #include "Misc/UObjectToken.h"
+#include "StateTreeState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeCompilerLog)
 
