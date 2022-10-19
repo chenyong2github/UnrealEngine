@@ -29,11 +29,15 @@ struct FPreviewForceFeedbackEffect : public FActiveForceFeedbackEffect, public F
 class FAssetTypeActions_ForceFeedbackEffect : public FAssetTypeActions_Base
 {
 public:
+	FAssetTypeActions_ForceFeedbackEffect(EAssetTypeCategories::Type InAssetCategoryBit)
+		: AssetCategoryBit(InAssetCategoryBit)
+	{ }
+
 	// IAssetTypeActions Implementation
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_ForceFeedbackEffect", "Force Feedback Effect"); }
 	virtual FColor GetTypeColor() const override { return FColor(175, 0, 0); }
 	virtual UClass* GetSupportedClass() const override;
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
+	virtual uint32 GetCategories() override { return AssetCategoryBit; }
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual bool AssetsActivatedOverride( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override;
 	virtual TSharedPtr<SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override;
@@ -64,4 +68,6 @@ public:
 
 private:
 	FPreviewForceFeedbackEffect PreviewForceFeedbackEffect;
+
+	EAssetTypeCategories::Type AssetCategoryBit;
 };
