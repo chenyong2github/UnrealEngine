@@ -41,7 +41,7 @@ struct FMinifiedShader
 
 	bool Success() const
 	{
-		return Diagnostics.Errors.IsEmpty();
+		return Diagnostics.Errors.IsEmpty() && !Code.IsEmpty();
 	}
 };
 
