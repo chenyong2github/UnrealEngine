@@ -247,7 +247,6 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	GRHISupportsMapWriteNoOverwrite = true;
 
-	GRHISupportsDynamicResolution = true;
 	GRHISupportsFrameCyclesBubblesRemoval = true;
 	GRHISupportsGPUTimestampBubblesRemoval = true;
 	GRHISupportsRHIOnTaskThread = true;
