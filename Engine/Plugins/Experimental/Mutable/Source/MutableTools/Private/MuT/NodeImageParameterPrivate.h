@@ -4,6 +4,7 @@
 
 #include "MuT/NodeImageParameter.h"
 #include "MuT/NodeImagePrivate.h"
+#include "MuT/NodeRange.h"
 
 
 namespace mu
@@ -22,25 +23,33 @@ namespace mu
 		string m_name;
 		string m_uid;
 
+		TArray<Ptr<NodeRange>> m_ranges;
+
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 1;
+            uint32 ver = 2;
 			arch << ver;
 
 			arch << m_name;
 			arch << m_uid;
+			arch << m_ranges;
 		}
 
 		//!
 		void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
-            check(ver==1);
+            check(ver<=2);
 
 			arch >> m_name;
             arch >> m_uid;
+
+			if (ver >= 2)
+			{
+				arch >> m_ranges;
+			}
 		}
 	};
 

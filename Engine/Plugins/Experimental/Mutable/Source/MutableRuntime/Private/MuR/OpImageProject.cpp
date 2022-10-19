@@ -1484,8 +1484,8 @@ float getTriangleRatio(const vec2f& a, const vec2f& b, const vec2f& c)
 	float lenSide2 = length(c - a);
 	float lenSide3 = length(b - c);
 
-	float maxLen = max(max(lenSide1, lenSide2), lenSide3);
-	float minLen = min(min(lenSide1, lenSide2), lenSide3);
+	float maxLen = FMath::Max3(lenSide1, lenSide2, lenSide3);
+	float minLen = FMath::Min3(lenSide1, lenSide2, lenSide3);
 
 	return maxLen / minLen;
 }

@@ -20,7 +20,7 @@ namespace mu
 {
 	// Forward references
 	class Model;
-class ModelStreamer;
+	class ModelStreamer;
 
     using ModelPtr=Ptr<Model>;
     using ModelPtrConst=Ptr<const Model>;

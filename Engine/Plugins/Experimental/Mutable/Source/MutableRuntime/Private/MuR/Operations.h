@@ -15,7 +15,6 @@
 #define MUTABLE_OP_MAX_ADD_COUNT			7
 #define MUTABLE_OP_MAX_SWIZZLE_CHANNELS		4
 #define MUTABLE_OP_MAX_MORPH2_TARGETS		5
-#define MUTABLE_OP_MAX_MORPH_CHANNELS		8
 
 namespace mu
 {
@@ -780,20 +779,21 @@ namespace mu
             uint16 channel;
         };
 
-        struct MeshDifferenceArgs
-        {
-            ADDRESS base;
-            ADDRESS target;
+		// Moved to dynamically-sized link data
+        //struct MeshDifferenceArgs
+        //{
+        //    ADDRESS base;
+        //    ADDRESS target;
 
-            //! If true the texture coordinates will not be morphed. This is only relevant if the list
-            //! in channelSemantic is empty.
-            uint8 ignoreTextureCoords;
+        //    //! If true the texture coordinates will not be morphed. This is only relevant if the list
+        //    //! in channelSemantic is empty.
+        //    uint8 ignoreTextureCoords;
 
-            //! Channels to diff. Meaningful until the first null channel. If all are null, it means
-            //! that all the channels should be diff-ed
-            uint8 channelSemantic[MUTABLE_OP_MAX_MORPH_CHANNELS];
-            uint8 channelSemanticIndex[MUTABLE_OP_MAX_MORPH_CHANNELS];
-        };
+        //    //! Channels to diff. Meaningful until the first null channel. If all are null, it means
+        //    //! that all the channels should be diff-ed
+        //    uint8 channelSemantic[MUTABLE_OP_MAX_MORPH_CHANNELS];
+        //    uint8 channelSemanticIndex[MUTABLE_OP_MAX_MORPH_CHANNELS];
+        //};
 
         struct MeshMergeArgs
         {
@@ -1111,7 +1111,7 @@ namespace mu
 
             //-------------------------------------------------------------------------------------
             MeshApplyLayoutArgs MeshApplyLayout;
-            MeshDifferenceArgs MeshDifference;
+            //MeshDifferenceArgs MeshDifference;
             MeshMorph2Args MeshMorph2;
             MeshMergeArgs MeshMerge;
             MeshInterpolateArgs MeshInterpolate;

@@ -7,8 +7,6 @@
 #include "MuR/RefCounted.h"
 #include "MuR/Types.h"
 
-namespace mu { class InputArchive; }
-namespace mu { class OutputArchive; }
 
 #define MUTABLE_MAX_STRING_PARAM_LENGTH     40
 
@@ -16,8 +14,10 @@ namespace mu
 {
 
 	//!
-	class Parameters;
+	class InputArchive;
+	class OutputArchive;
 
+	class Parameters;
     using ParametersPtr = Ptr<Parameters>;
     using ParametersPtrConst = Ptr<const Parameters>;
 
@@ -359,13 +359,15 @@ namespace mu
         //! Return the value of an image parameter.
         //! \pre The parameter specified by index is a T_IMAGE.
         //! \param index Index of the parameter from 0 to GetCount()-1
-        //! \return The externalId specified when setting the image value (\see SetImageValue)
-        EXTERNAL_IMAGE_ID GetImageValue( int index ) const;
+		//! \param pos Only for multidimensional parametres: relevant position to set in the ranges
+	    //! \return The externalId specified when setting the image value (\see SetImageValue)
+        EXTERNAL_IMAGE_ID GetImageValue( int index, const Ptr<const RangeIndex>& pos = nullptr) const;
 
         //! If the parameter is of the image type, set its value.
         //! \param index Index of the parameter from 0 to GetCount()-1
         //! \param externalId Application-specific id used to identify this image during replication.
-        void SetImageValue( int index, EXTERNAL_IMAGE_ID externalId );
+		//! \param pos Only for multidimensional parametres: relevant position to set in the ranges
+		void SetImageValue( int index, EXTERNAL_IMAGE_ID externalId, const Ptr<const RangeIndex>& pos = nullptr);
 
         //! Return the value of a float parameter.
         //! \pre The parameter specified by index is a T_FLOAT.

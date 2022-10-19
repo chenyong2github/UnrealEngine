@@ -2,22 +2,10 @@
 
 #pragma once
 
+#include "Math/UnrealMathUtility.h"
+
 namespace mu
 {
-
-    inline int32_t min( int32_t a, int32_t b ) { return a<b? a : b; }
-    inline int32_t max( int32_t a, int32_t b ) { return a<b? b : a; }
-    inline int32_t min( int32_t a, int32_t b, int32_t c ) { return a<b? ( a<c? a : c ) : ( b<c? b : c ); }
-    inline int32_t max( int32_t a, int32_t b, int32_t c ) { return a>b? ( a>c? a : c ) : ( b>c? b : c ); }
-
-    inline int64_t min( int64_t a, int64_t b ) { return a<b? a : b; }
-    inline int64_t max( int64_t a, int64_t b ) { return a<b? b : a; }
-    inline int64_t min( int64_t a, int64_t b, int64_t c ) { return a<b? ( a<c? a : c ) : ( b<c? b : c ); }
-    inline int64_t max( int64_t a, int64_t b, int64_t c ) { return a>b? ( a>c? a : c ) : ( b>c? b : c ); }
-
-    inline float min( float a, float b ) { return a<b? a : b; }
-    inline float max( float a, float b ) { return a<b? b : a; }
-
 
 	template<int NUM_INTERPOLATORS>
 	class RasterVertex
@@ -99,10 +87,10 @@ namespace mu
         const INT FDY31 = DY31 * 16;
 
 	    // Bounding rectangle
-        INT minx = max(INT(0),        ( min(X1, X2, X3) + 0xF) / 16 );
-        INT maxx = min(INT(aWidth-1), ( max(X1, X2, X3) + 0xF) / 16 );
-        INT miny = max(INT(0),		  ( min(Y1, Y2, Y3) + 0xF) / 16 );
-        INT maxy = min(INT(aHeight-1),( max(Y1, Y2, Y3) + 0xF) / 16 );
+        INT minx = FMath::Max(INT(0),        (FMath::Min3(X1, X2, X3) + 0xF) / 16 );
+        INT maxx = FMath::Min(INT(aWidth-1), (FMath::Max3(X1, X2, X3) + 0xF) / 16 );
+        INT miny = FMath::Max(INT(0),		 (FMath::Min3(Y1, Y2, Y3) + 0xF) / 16 );
+        INT maxy = FMath::Min(INT(aHeight-1),(FMath::Max3(Y1, Y2, Y3) + 0xF) / 16 );
 
 	    // Block size, standard 8x8 (must be power of two)
         const INT q = 8;
@@ -181,9 +169,9 @@ namespace mu
 	                        float py = y+iy-v1.y;
 							float alpha = px*vy+py*-vx;
 							float beta = px*-uy+py*ux;
-							alpha = max(0.0,min(1.0f, alpha ));
-							beta = max(0.0,min(1.0f, beta ));
-							float gamma = max(0.0, 1.0f-alpha-beta );
+							alpha = FMath::Max(0.0, FMath::Min(1.0f, alpha ));
+							beta = FMath::Max(0.0, FMath::Min(1.0f, beta ));
+							float gamma = FMath::Max(0.0, 1.0f-alpha-beta );
 
 	                        for (int ii=0; ii<NUM_INTERPOLATORS; ii++)
 							{
@@ -220,9 +208,9 @@ namespace mu
 		                        float py = iy-v1.y;
 								float alpha = px*vy+py*-vx;
 								float beta = px*-uy+py*ux;
-								alpha = max(0.0,min(1.0f, alpha ));
-								beta = max(0.0,min(1.0f, beta ));
-								float gamma = max(0.0, 1.0f-alpha-beta );
+								alpha = FMath::Max(0.0, FMath::Min(1.0f, alpha ));
+								beta = FMath::Max(0.0, FMath::Min(1.0f, beta ));
+								float gamma = FMath::Max(0.0, 1.0f-alpha-beta );
 
 		                        for (int ii=0; ii<NUM_INTERPOLATORS; ii++)
 								{

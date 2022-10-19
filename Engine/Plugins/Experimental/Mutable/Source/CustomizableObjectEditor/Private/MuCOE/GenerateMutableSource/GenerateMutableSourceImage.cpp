@@ -207,7 +207,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 	else if (const UCustomizableObjectNodeTextureParameter* TypedNodeParam = Cast<UCustomizableObjectNodeTextureParameter>(Node))
 	{
-		mu::NodeImageParameterPtr TextureNode = new mu::NodeImageParameter();
+		mu::Ptr<mu::NodeImageParameter> TextureNode = new mu::NodeImageParameter();
 
 		GenerationContext.AddParameterNameUnique(Node, TypedNodeParam->ParameterName);
 

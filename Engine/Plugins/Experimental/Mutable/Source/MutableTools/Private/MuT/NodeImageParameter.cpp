@@ -92,6 +92,25 @@ namespace mu
 		}
 	}
 
+
+	//---------------------------------------------------------------------------------------------
+	void NodeImageParameter::SetRangeCount(int i)
+	{
+		check(i >= 0);
+		m_pD->m_ranges.SetNum(i);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void NodeImageParameter::SetRange(int i, NodeRangePtr pRange)
+	{
+		check(i >= 0 && i<int(m_pD->m_ranges.Num()));
+		if (i >= 0 && i<int(m_pD->m_ranges.Num()))
+		{
+			m_pD->m_ranges[i] = pRange;
+		}
+	}
+
 }
 
 

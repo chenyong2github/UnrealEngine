@@ -10,14 +10,9 @@
 
 namespace mu
 {
-
-    class NodeImageParameter;
-    typedef Ptr<NodeImageParameter> NodeImageParameterPtr;
-    typedef Ptr<const NodeImageParameter> NodeImageParameterPtrConst;
-
 	class InputArchive;
 	class OutputArchive;
-
+	class NodeRange;
 
     //! Node that defines a Image model parameter.
 	//! \ingroup model
@@ -33,21 +28,19 @@ namespace mu
 
 		void SerialiseWrapper(OutputArchive& arch) const override;
 		static void Serialise( const NodeImageParameter* pNode, OutputArchive& arch );
-        static NodeImageParameterPtr StaticUnserialise( InputArchive& arch );
+        static Ptr<NodeImageParameter> StaticUnserialise( InputArchive& arch );
 
 
 		//-----------------------------------------------------------------------------------------
 		// Node Interface
 		//-----------------------------------------------------------------------------------------
 
-		
-
 		const NODE_TYPE* GetType() const override;
 		static const NODE_TYPE* GetStaticType();
 
 		int GetInputCount() const override;
 		Node* GetInputNode( int i ) const override;
-		void SetInputNode( int i, NodePtr pNode ) override;
+		void SetInputNode( int i, Ptr<Node> Node ) override;
 
 		//-----------------------------------------------------------------------------------------
 		// Own Interface
@@ -65,11 +58,10 @@ namespace mu
 		//! Set the uid of the parameter.
 		void SetUid( const char* );
 
-		//! Get the default value of the parameter.
-        //ImagePtrConst GetDefaultValue() const;
-
-		//! Set the default value of the parameter.
-        //void SetDefaultValue( ImagePtr );
+		//! Set the number of ranges (dimensions) for this parameter.
+		//! By default a parameter has 0 ranges, meaning it only has one value.
+		void SetRangeCount(int Index);
+		void SetRange(int Index, Ptr<NodeRange> Range);
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

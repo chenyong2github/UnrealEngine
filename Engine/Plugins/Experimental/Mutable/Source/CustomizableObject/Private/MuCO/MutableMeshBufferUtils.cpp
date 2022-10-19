@@ -107,6 +107,7 @@ void MutableMeshBufferUtils::SetupSkinBuffer(const int32& InCurrentVertexBuffer,
 	MESH_BUFFER_FORMAT Formats[ChannelCount] = {MBF_UINT8, MBF_NUINT8};
 	switch (MaxBoneIndexTypeSizeBytes)
 	{
+	case 0: // Fallback to something in this case.
 	case 1: Formats[0] = mu::MBF_UINT8;
 		break;
 	case 2: Formats[0] = mu::MBF_UINT16;
@@ -122,6 +123,7 @@ void MutableMeshBufferUtils::SetupSkinBuffer(const int32& InCurrentVertexBuffer,
 
 	switch (MaxBoneWeightTypeSizeBytes)
 	{
+	case 0: // Fallback to something in this case.
 	case 1: Formats[1] = mu::MBF_NUINT8;
 		break;
 	case 2: Formats[1] = mu::MBF_NUINT16;

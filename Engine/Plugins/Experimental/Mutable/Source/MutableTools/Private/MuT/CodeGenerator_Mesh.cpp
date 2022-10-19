@@ -27,8 +27,8 @@
 #include "MuT/ASTOpMeshFormat.h"
 #include "MuT/ASTOpMeshGeometryOperation.h"
 #include "MuT/ASTOpMeshMorphReshape.h"
-//#include "MuT/ASTOpMeshRemapIndices.h"
 #include "MuT/ASTOpMeshTransform.h"
+#include "MuT/ASTOpMeshDifference.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeGenerator.h"
 #include "MuT/CodeGenerator_FirstPass.h"
@@ -468,11 +468,10 @@ class Node;
     {
         NodeMeshMakeMorph::Private& node = *InMakeMorphNode->GetPrivate();
 
-        Ptr<ASTOpFixed> op = new ASTOpFixed();
-        op->op.type = OP_TYPE::ME_DIFFERENCE;
+        Ptr<ASTOpMeshDifference> op = new ASTOpMeshDifference();
 
         // \todo Texcoords are broken?
-        op->op.args.MeshDifference.ignoreTextureCoords = 1;
+        op->bIgnoreTextureCoords = true;
 
         // Base
         FMeshGenerationResult BaseResult;
@@ -483,7 +482,7 @@ class Node;
 			BaseOptions.bLayouts = false;
 			GenerateMesh(BaseOptions, BaseResult, node.m_pBase );
 
-            op->SetChild( op->op.args.MeshDifference.base, BaseResult.meshOp );
+            op->Base = BaseResult.meshOp;
         }
         else
         {
@@ -503,7 +502,7 @@ class Node;
 			FMeshGenerationResult TargetResult;
             GenerateMesh( TargetOptions, TargetResult, node.m_pTarget );
 
-            op->SetChild( op->op.args.MeshDifference.target, TargetResult.meshOp );
+            op->Target = TargetResult.meshOp;
         }
         else
         {
@@ -644,35 +643,22 @@ class Node;
                 }
                 else
                 {
-                    Ptr<ASTOpFixed> dop = new ASTOpFixed();
-                    dop->op.type = OP_TYPE::ME_DIFFERENCE;
-                    dop->SetChild( dop->op.args.MeshDifference.base, base );
-                    dop->SetChild( dop->op.args.MeshDifference.target, TargetResult.meshOp );
+                    Ptr<ASTOpMeshDifference> dop = new ASTOpMeshDifference();
+                    dop->Base = base;
+                    dop->Target = TargetResult.meshOp;
 
                     // \todo Texcoords are broken?
-                    dop->op.args.MeshDifference.ignoreTextureCoords = 1;
+                    dop->bIgnoreTextureCoords = true;
 
-                    if ( node.m_channels.Num()>MUTABLE_OP_MAX_MORPH_CHANNELS )
+                    for ( size_t c=0; c<node.m_channels.Num(); ++c)
                     {
-                        char temp[256];
-                        mutable_snprintf( temp, 256,
-                                          "Morph uses too many channels [%d]. The maximum is [%d].",
-                                          node.m_channels.Num(),
-                                          MUTABLE_OP_MAX_MORPH_CHANNELS );
-                        m_pErrorLog->GetPrivate()->Add( temp, ELMT_ERROR, node.m_errorContext );
-                    }
-
-                    for ( size_t c=0;
-                          c<node.m_channels.Num() && c<MUTABLE_OP_MAX_MORPH_CHANNELS;
-                          ++c)
-                    {
-                        check( node.m_channels[c].semantic<256 );
-                        dop->op.args.MeshDifference.channelSemantic[c] =
-                                uint8_t( node.m_channels[c].semantic );
-
-                        check( node.m_channels[c].semanticIndex<256 );
-                        dop->op.args.MeshDifference.channelSemanticIndex[c] =
-                                uint8_t( node.m_channels[c].semanticIndex );
+                        check( node.m_channels[c].semantic < 256 );
+						check(node.m_channels[c].semanticIndex < 256);
+						
+						ASTOpMeshDifference::FChannel Channel;
+						Channel.Semantic = uint8(node.m_channels[c].semantic);
+						Channel.SemanticIndex = uint8(node.m_channels[c].semanticIndex);
+						dop->Channels.Add(Channel);
                     }
 
                     op->SetChild( op->op.args.MeshInterpolate.targets[count-1], dop );

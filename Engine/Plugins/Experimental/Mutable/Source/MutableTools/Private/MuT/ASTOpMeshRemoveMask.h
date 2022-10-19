@@ -11,8 +11,7 @@
 
 namespace mu
 {
-struct PROGRAM;
-
+	struct PROGRAM;
 
 	//---------------------------------------------------------------------------------------------
 	//! From a source mesh, remove a list of fragments with a condition.

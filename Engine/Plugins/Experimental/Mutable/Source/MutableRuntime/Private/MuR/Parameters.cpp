@@ -71,7 +71,7 @@ namespace mu
 
         for (size_t p=0; p<valueCount; ++p)
         {
-            const auto& desc = params->GetPrivate()->m_pModel->GetPrivate()->m_program.m_parameters[p];
+            const PARAMETER_DESC& desc = params->GetPrivate()->m_pModel->GetPrivate()->m_program.m_parameters[p];
             arch << desc.m_name;
             arch << desc.m_uid;
             arch << desc.m_type;
@@ -117,7 +117,7 @@ namespace mu
             {
                 for (size_t mp=0; mp<modelParameters; ++mp)
                 {
-                    const auto& desc = pModel->GetPrivate()->m_program.m_parameters[mp];
+                    const PARAMETER_DESC& desc = pModel->GetPrivate()->m_program.m_parameters[mp];
                     if (desc.m_uid==uid)
                     {
                         modelParam = int(mp);
@@ -131,7 +131,7 @@ namespace mu
             {
                 for (size_t mp=0; mp<modelParameters; ++mp)
                 {
-                    const auto& desc = pModel->GetPrivate()->m_program.m_parameters[mp];
+                    const PARAMETER_DESC& desc = pModel->GetPrivate()->m_program.m_parameters[mp];
                     if (desc.m_name==name && desc.m_type==type)
                     {
                         modelParam = int(mp);
@@ -145,7 +145,7 @@ namespace mu
             {
                 for (size_t mp=0; mp<modelParameters; ++mp)
                 {
-                    const auto& desc = pModel->GetPrivate()->m_program.m_parameters[mp];
+                    const PARAMETER_DESC& desc = pModel->GetPrivate()->m_program.m_parameters[mp];
                     if (desc.m_name==name)
                     {
                         modelParam = int(mp);
@@ -291,7 +291,7 @@ namespace mu
             return nullptr;
         }
 
-        auto it = m_pD->m_multiValues[paramIndex].begin();
+		TMap< TArray<int32_t>, PARAMETER_VALUE >::TRangedForIterator it = m_pD->m_multiValues[paramIndex].begin();
         for ( int i=0; i<valueIndex; ++i )
         {
             ++it;
@@ -354,8 +354,8 @@ namespace mu
 
         if ( index<int(m_pD->m_multiValues.Num()))
         {
-            const auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
+            const TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
                 return it->m_bool;
@@ -406,18 +406,9 @@ namespace mu
                 m_pD->m_multiValues.SetNum(index+1);
             }
 
-            auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
-            if (it)
-            {
-                it->m_bool = value;
-            }
-            else
-            {
-                PARAMETER_VALUE valueData;
-                valueData.m_bool = value;
-                m.Add( pos->m_pD->m_values, valueData );
-            }
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
+            it.m_bool = value;
         }
 	}
 
@@ -524,8 +515,8 @@ namespace mu
 
         if ( index<int(m_pD->m_multiValues.Num()))
         {
-            const auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
+            const TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
                 return it->m_int;
@@ -576,18 +567,9 @@ namespace mu
                 m_pD->m_multiValues.SetNum(index+1);
             }
 
-            auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
-            if (it)
-            {
-                it->m_int = value;
-            }
-            else
-            {
-                PARAMETER_VALUE valueData;
-                valueData.m_int = value;
-                m.Add( pos->m_pD->m_values, valueData );
-            }
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
+            it.m_int = value;
         }
     }
 
@@ -621,8 +603,8 @@ namespace mu
 
         if ( index<int(m_pD->m_multiValues.Num()))
         {
-            const auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
+            const TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
                 return it->m_float;
@@ -673,18 +655,9 @@ namespace mu
                 m_pD->m_multiValues.SetNum(index+1);
             }
 
-            auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
-            if (it)
-            {
-                it->m_float = value;
-            }
-            else
-            {
-                PARAMETER_VALUE valueData;
-                valueData.m_float = value;
-                m.Add( pos->m_pD->m_values, valueData );
-            }
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
+            it.m_float = value;
         }
     }
 
@@ -721,8 +694,8 @@ namespace mu
 
         if ( index<int(m_pD->m_multiValues.Num()))
         {
-            const auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
+            const TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
             if (it)
             {
                 if (pR) *pR = it->m_colour[0];
@@ -781,43 +754,72 @@ namespace mu
                 m_pD->m_multiValues.SetNum(index+1);
             }
 
-            auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find(pos->m_pD->m_values);
-            if (it)
-            {
-                it->m_colour[0] = r;
-                it->m_colour[1] = g;
-                it->m_colour[2] = b;
-            }
-            else
-            {
-                PARAMETER_VALUE valueData;
-                valueData.m_colour[0] = r;
-                valueData.m_colour[1] = g;
-                valueData.m_colour[2] = b;
-                m.Add( pos->m_pD->m_values, valueData );
-            }
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
+            it.m_colour[0] = r;
+            it.m_colour[1] = g;
+            it.m_colour[2] = b;
         }
     }
 
 
     //---------------------------------------------------------------------------------------------
-    EXTERNAL_IMAGE_ID Parameters::GetImageValue( int index ) const
+    EXTERNAL_IMAGE_ID Parameters::GetImageValue( int index, const Ptr<const RangeIndex>& pos ) const
     {
         check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
 
-        return m_pD->m_values[index].m_image;
+		// Single value case
+		if (!pos)
+		{
+			return m_pD->m_values[index].m_image;
+		}
+
+		// Multivalue case
+		check(pos->m_pD->m_parameter == index);
+
+		if (index < int(m_pD->m_multiValues.Num()))
+		{
+			const TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			const PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
+			if (it)
+			{
+				return it->m_image;
+			}
+		}
+
+		// Multivalue parameter, but no multivalue set. Return single value.
+		return m_pD->m_values[index].m_image;
+
     }
 
 
     //---------------------------------------------------------------------------------------------
-    void Parameters::SetImageValue( int index, EXTERNAL_IMAGE_ID id )
+    void Parameters::SetImageValue( int index, EXTERNAL_IMAGE_ID id, const Ptr<const RangeIndex>& pos )
     {
         check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
 
-        m_pD->m_values[index].m_image = id;
+		// Single value case
+		if (!pos)
+		{
+			m_pD->m_values[index].m_image = id;
+		}
+
+		// Multivalue case
+		else
+		{
+			check(pos->m_pD->m_parameter == index);
+
+			if (index >= int(m_pD->m_multiValues.Num()))
+			{
+				m_pD->m_multiValues.SetNum(index + 1);
+			}
+
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
+			it.m_image = id;
+		}
     }
 
 
@@ -846,8 +848,8 @@ namespace mu
 
         if ( index < int( m_pD->m_multiValues.Num() ) )
         {
-            const auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find( pos->m_pD->m_values );
+            const TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			const PARAMETER_VALUE* it = m.Find( pos->m_pD->m_values );
             if ( it )
             {
                 return it->m_text;
@@ -874,8 +876,7 @@ namespace mu
             return;
         }
 
-        int len = FMath::Min( MUTABLE_MAX_STRING_PARAM_LENGTH,
-                            int( strnlen( value, MUTABLE_MAX_STRING_PARAM_LENGTH ) ) );
+        int32 len = FMath::Min( MUTABLE_MAX_STRING_PARAM_LENGTH, int32( strnlen( value, MUTABLE_MAX_STRING_PARAM_LENGTH ) ) );
 
         // Single value case
         if ( !pos )
@@ -886,7 +887,6 @@ namespace mu
                 m_pD->m_multiValues[index].Empty();
             }
 
-            //m_pD->m_values[index].m_float = value;
 			FMemory::Memcpy( m_pD->m_values[index].m_text, value, len );
             m_pD->m_values[index].m_text[len] = 0;
         }
@@ -901,22 +901,10 @@ namespace mu
                 m_pD->m_multiValues.SetNum( index + 1 );
             }
 
-            auto& m = m_pD->m_multiValues[index];
-            auto it = m.Find( pos->m_pD->m_values );
-            if ( it )
-            {
-                //it->second.m_float = value;
-				FMemory::Memcpy( it->m_text, value, len );
-                it->m_text[len] = 0;
-            }
-            else
-            {
-                PARAMETER_VALUE valueData;
-                //valueData.m_float = value;
-				FMemory::Memcpy( valueData.m_text, value, len );
-                valueData.m_text[len] = 0;
-                m.Add( pos->m_pD->m_values, valueData );
-            }
+			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
+			PARAMETER_VALUE& it = m.FindOrAdd( pos->m_pD->m_values );
+			FMemory::Memcpy( it.m_text, value, len );
+            it.m_text[len] = 0;
         }
     }
 
@@ -1070,16 +1058,8 @@ namespace mu
             }
 
 			TMap< TArray<int32_t>, PARAMETER_VALUE >& m = m_pD->m_multiValues[index];
-			PARAMETER_VALUE* it = m.Find(pos->m_pD->m_values);
-            if (it)
-            {
-                result = &it->m_projector;
-            }
-            else
-            {
-                PARAMETER_VALUE& it2 = m.Add( pos->m_pD->m_values, PARAMETER_VALUE() );
-                result = &it2.m_projector;
-            }
+			PARAMETER_VALUE& it = m.FindOrAdd(pos->m_pD->m_values);
+            result = &it.m_projector;
         }
 
         check( result );

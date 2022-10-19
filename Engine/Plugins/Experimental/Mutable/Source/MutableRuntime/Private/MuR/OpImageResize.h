@@ -4,8 +4,8 @@
 
 #include "MuR/ImagePrivate.h"
 #include "MuR/OpImagePixelFormat.h"
-#include "Async/ParallelFor.h"
 #include "MuR/MutableTrace.h"
+#include "Async/ParallelFor.h"
 
 
 namespace mu

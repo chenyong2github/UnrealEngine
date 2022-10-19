@@ -907,15 +907,22 @@ namespace mu
 
         case OP_TYPE::ME_DIFFERENCE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshDifferenceArgs>(item.at);
+			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+
+			OP::ADDRESS BaseAt = 0;
+			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+
+			OP::ADDRESS TargetAt = 0;
+			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+
             switch (item.stage)
             {
             case 0:
-                if ( args.base && args.target )
+                if (BaseAt && TargetAt)
                 {
                     AddOp( SCHEDULED_OP( item.at, item, 1),
-                            SCHEDULED_OP( args.base, item),
-                            SCHEDULED_OP( args.target, item) );
+                            SCHEDULED_OP( BaseAt, item),
+                            SCHEDULED_OP( TargetAt, item) );
                 }
                 else
                 {
@@ -925,25 +932,32 @@ namespace mu
 
             case 1:
             {
-                Ptr<const Mesh> pBase = GetMemory().GetMesh(CACHE_ADDRESS(args.base,item));
-                Ptr<const Mesh> pTarget = GetMemory().GetMesh(CACHE_ADDRESS(args.target,item));
+                Ptr<const Mesh> pBase = GetMemory().GetMesh(CACHE_ADDRESS(BaseAt,item));
+                Ptr<const Mesh> pTarget = GetMemory().GetMesh(CACHE_ADDRESS(TargetAt,item));
 
-                MESH_BUFFER_SEMANTIC semantics[ MUTABLE_OP_MAX_MORPH_CHANNELS ];
-                int semanticIndices[ MUTABLE_OP_MAX_MORPH_CHANNELS ];
+				TArray<MESH_BUFFER_SEMANTIC, TInlineAllocator<8>> Semantics;
+				TArray<int32, TInlineAllocator<8>> SemanticIndices;
 
-                int numChannels = 0;
-                for ( int i=0;
-                      i<MUTABLE_OP_MAX_MORPH_CHANNELS && args.channelSemantic[i];
-                      ++i )
+				uint8 bIgnoreTextureCoords = 0;
+				FMemory::Memcpy(&bIgnoreTextureCoords, data, sizeof(uint8)); data += sizeof(uint8);
+
+				uint8 NumChannels = 0;
+				FMemory::Memcpy(&NumChannels, data, sizeof(uint8)); data += sizeof(uint8);
+
+                for ( uint8 i=0; i< NumChannels; ++i )
                 {
-					semantics[numChannels] = MESH_BUFFER_SEMANTIC(args.channelSemantic[i]);
-					semanticIndices[numChannels] = args.channelSemanticIndex[i];
-					++numChannels;
+					uint8 Semantic = 0;
+					FMemory::Memcpy(&Semantic, data, sizeof(uint8)); data += sizeof(uint8);
+					uint8 SemanticIndex = 0;
+					FMemory::Memcpy(&SemanticIndex, data, sizeof(uint8)); data += sizeof(uint8);
+
+					Semantics.Add(MESH_BUFFER_SEMANTIC(Semantic));
+					SemanticIndices.Add(SemanticIndex);
                 }
 
                 MeshPtr pResult = MeshDifference( pBase.get(), pTarget.get(),
-                                          numChannels, semantics, semanticIndices,
-                                          args.ignoreTextureCoords!=0 );
+                                          NumChannels, Semantics.GetData(), SemanticIndices.GetData(),
+                                          bIgnoreTextureCoords!=0 );
 
                 GetMemory().SetMesh( item, pResult );
                 break;
@@ -2375,16 +2389,17 @@ namespace mu
 
         case OP_TYPE::IM_PARAMETER:
         {
-				auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
-				EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable);
-				ImagePtr pResult = LoadExternalImage(id);
-				GetMemory().SetImage(item, pResult);
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, pParams, pModel, args.variable);
+			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable, Index);
+			ImagePtr pResult = LoadExternalImage(id);
+			GetMemory().SetImage(item, pResult);
             break;
         }
 
         case OP_TYPE::IM_LAYERCOLOUR:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerColourArgs>(item.at);
+			OP::ImageLayerColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerColourArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -2408,7 +2423,7 @@ namespace mu
 
         case OP_TYPE::IM_LAYER:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerArgs>(item.at);
+			OP::ImageLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageLayerArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -2432,7 +2447,7 @@ namespace mu
 
         case OP_TYPE::IM_MULTILAYER:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMultiLayerArgs>(item.at);
+			OP::ImageMultiLayerArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMultiLayerArgs>(item.at);
             switch (item.stage)
             {
             case 0:

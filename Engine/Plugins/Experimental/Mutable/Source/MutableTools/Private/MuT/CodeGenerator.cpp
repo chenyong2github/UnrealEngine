@@ -26,6 +26,7 @@
 #include "MuT/ASTOpMeshClipMorphPlane.h"
 #include "MuT/ASTOpMeshMaskClipMesh.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpMeshDifference.h"
 #include "MuT/ASTOpParameter.h"
 #include "MuT/CodeGenerator_SecondPass.h"
 #include "MuT/CodeOptimiser.h"
@@ -1074,33 +1075,32 @@ namespace mu
                     GenerateMesh(MorphTargetMeshOptions, morphResult, pMorph );
 
 					// BaseMorph generation through mesh diff
-					Ptr<ASTOpFixed> diffBase;
+					Ptr<ASTOpMeshDifference> diffBase;
 					{
-						Ptr<ASTOpFixed> op = new ASTOpFixed();
-						op->op.type = OP_TYPE::ME_DIFFERENCE;
-						op->SetChild(op->op.args.MeshDifference.base, meshResults.meshOp);
-						op->SetChild(op->op.args.MeshDifference.target, meshResults.meshOp);
+						// \TODO: Optimize by setting the identity morph constant instead.
+						Ptr<ASTOpMeshDifference> op = new ASTOpMeshDifference();
+						op->Base = meshResults.meshOp;
+						op->Target = meshResults.meshOp;
 
 						// Morphing tex coords here is not supported:
 						// Generating the homogoneous UVs is difficult since we don't have the base
 						// layout yet.                       
-						op->op.args.MeshDifference.ignoreTextureCoords = 1;
+						op->bIgnoreTextureCoords = true;
 						diffBase = op;
 					}
 
 					// Morph generation through mesh diff
 					Ptr<ASTOp> targetAd = morphResult.meshOp;
-                    Ptr<ASTOpFixed> diffAd;
+                    Ptr<ASTOpMeshDifference> diffAd;
                     {
-                        Ptr<ASTOpFixed> op = new ASTOpFixed();
-                        op->op.type = OP_TYPE::ME_DIFFERENCE;
-                        op->SetChild(op->op.args.MeshDifference.base, meshResults.baseMeshOp );
-                        op->SetChild(op->op.args.MeshDifference.target, targetAd );
+                        Ptr<ASTOpMeshDifference> op = new ASTOpMeshDifference();
+                        op->Base = meshResults.baseMeshOp;
+                        op->Target = targetAd;
 					
                         // Morphing tex coords here is not supported:
                         // Generating the homogoneous UVs is difficult since we don't have the base
                         // layout yet.                       
-                        op->op.args.MeshDifference.ignoreTextureCoords = 1;
+                        op->bIgnoreTextureCoords = true;
                         diffAd = op;
                     }
 

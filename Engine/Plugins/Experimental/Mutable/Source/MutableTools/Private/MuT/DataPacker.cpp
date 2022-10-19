@@ -22,6 +22,7 @@
 #include "MuT/ASTOpInstanceAdd.h"
 #include "MuT/ASTOpMeshExtractLayoutBlocks.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpMeshDifference.h"
 
 #include <cstdint>
 #include <memory>
@@ -547,13 +548,13 @@ namespace mu
             {
                 recurse = false;
 
-				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
+				const ASTOpMeshDifference* op = dynamic_cast<const ASTOpMeshDifference*>(node.get());
 
                 uint64_t newState = currentSemantics;
                 newState |= (UINT64_C(1)<<MBS_VERTEXINDEX);
-                RecurseWithState( op->children[op->op.args.MeshDifference.base].child(), newState );
+                RecurseWithState( op->Base.child(), newState );
 
-                RecurseWithState( op->children[op->op.args.MeshDifference.target].child(), currentSemantics );
+                RecurseWithState( op->Target.child(), currentSemantics );
                 break;
              }
 

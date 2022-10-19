@@ -271,6 +271,14 @@ namespace mu
 			op->parameter.m_uid = node.m_uid;
             op->parameter.m_type = PARAMETER_TYPE::T_IMAGE;
 
+			// Generate the code for the ranges
+			for (int32 a = 0; a < node.m_ranges.Num(); ++a)
+			{
+				RANGE_GENERATION_RESULT rangeResult;
+				GenerateRange(rangeResult, node.m_ranges[a]);
+				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
+			}
+
             m_nodeVariables[node.m_pNode] = op;
         }
         else

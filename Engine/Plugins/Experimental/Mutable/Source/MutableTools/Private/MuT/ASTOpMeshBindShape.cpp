@@ -7,7 +7,9 @@
 #include "MuR/ModelPrivate.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Types.h"
+#include "MuT/ASTOpConditional.h"
 #include "MuT/ASTOpSwitch.h"
+#include "MuT/ASTOpMeshRemoveMask.h"
 #include "MuT/StreamsPrivate.h"
 
 #include <memory>
@@ -215,7 +217,7 @@ namespace mu
 
 			case OP_TYPE::ME_SWITCH:
 			{
-				// Id the switch variable and structure is the same
+				// If the switch variable and structure is the same
 				const ASTOpSwitch* MeshSwitch = reinterpret_cast<const ASTOpSwitch*>(MeshAt.get());
 				const ASTOpSwitch* ShapeSwitch = reinterpret_cast<const ASTOpSwitch*>(ShapeAt.get());
 				bool bIsSimilarSwitch = MeshSwitch->IsCompatibleWith(ShapeSwitch);
@@ -235,7 +237,6 @@ namespace mu
 					NewSwitch->def = NewBind;
 				}
 
-				// We need to copy the options because we change them
 				for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
 				{
 					if (NewSwitch->cases[v].branch)
@@ -250,6 +251,40 @@ namespace mu
 				NewOp = NewSwitch;
 				break;
 			}
+
+
+			case OP_TYPE::ME_CONDITIONAL:
+			{
+				const ASTOpConditional* MeshConditional = reinterpret_cast<const ASTOpConditional*>(MeshAt.get());
+				const ASTOpConditional* ShapeConditional = reinterpret_cast<const ASTOpConditional*>(ShapeAt.get());
+				bool bIsSimilar = MeshConditional->condition == ShapeConditional->condition;
+				if (!bIsSimilar)
+				{
+					break;
+				}
+
+				Ptr<ASTOpConditional> NewConditional = mu::Clone<ASTOpConditional>(MeshAt);
+
+				if (NewConditional->yes)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Mesh = MeshConditional->yes.child();
+					NewBind->Shape = ShapeConditional->yes.child();
+					NewConditional->yes = NewBind;
+				}
+
+				if (NewConditional->no)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Mesh = MeshConditional->no.child();
+					NewBind->Shape = ShapeConditional->no.child();
+					NewConditional->no = NewBind;
+				}
+
+				NewOp = NewConditional;
+				break;
+			}
+
 
 			default:
 				break;
@@ -277,7 +312,6 @@ namespace mu
 					NewSwitch->def = NewBind;
 				}
 
-				// We need to copy the options because we change them
 				for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
 				{
 					if (NewSwitch->cases[v].branch)
@@ -289,6 +323,46 @@ namespace mu
 				}
 
 				NewOp = NewSwitch;
+				break;
+			}
+
+			case OP_TYPE::ME_CONDITIONAL:
+			{
+				// Move the operation down all the paths
+				Ptr<ASTOpConditional> NewConditional = mu::Clone<ASTOpConditional>(MeshAt);
+
+				if (NewConditional->yes)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Mesh = NewConditional->yes.child();
+					NewConditional->yes = NewBind;
+				}
+
+				if (NewConditional->no)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Mesh = NewConditional->no.child();
+					NewConditional->no = NewBind;
+				}
+
+				NewOp = NewConditional;
+				break;
+			}
+
+			case OP_TYPE::ME_REMOVEMASK:
+			{
+				// We bind something that could have a part removed: we can reorder to bind the entire mesh
+				// and apply remove later at runtime.
+
+				Ptr<ASTOpMeshRemoveMask> NewRemove = mu::Clone<ASTOpMeshRemoveMask>(MeshAt);
+				if (NewRemove->source)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Mesh = NewRemove->source.child();
+					NewRemove->source = NewBind;
+				}
+
+				NewOp = NewRemove;
 				break;
 			}
 
@@ -317,7 +391,6 @@ namespace mu
 					NewSwitch->def = NewBind;
 				}
 
-				// We need to copy the options because we change them
 				for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
 				{
 					if (NewSwitch->cases[v].branch)
@@ -329,6 +402,29 @@ namespace mu
 				}
 
 				NewOp = NewSwitch;
+				break;
+			}
+
+			case OP_TYPE::ME_CONDITIONAL:
+			{
+				// Move the operation down all the paths
+				Ptr<ASTOpConditional> NewConditional = mu::Clone<ASTOpConditional>(ShapeAt);
+
+				if (NewConditional->yes)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Shape = NewConditional->yes.child();
+					NewConditional->yes = NewBind;
+				}
+
+				if (NewConditional->no)
+				{
+					Ptr<ASTOpMeshBindShape> NewBind = mu::Clone<ASTOpMeshBindShape>(this);
+					NewBind->Shape = NewConditional->no.child();
+					NewConditional->no = NewBind;
+				}
+
+				NewOp = NewConditional;
 				break;
 			}
 

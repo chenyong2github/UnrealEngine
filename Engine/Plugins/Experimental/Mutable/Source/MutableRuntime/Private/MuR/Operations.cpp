@@ -374,11 +374,6 @@ namespace mu
             f(&op.args.MeshApplyLayout.mesh );
             break;
 
-        case OP_TYPE::ME_DIFFERENCE:
-            f(&op.args.MeshDifference.base );
-            f(&op.args.MeshDifference.target );
-            break;
-
         case OP_TYPE::ME_MORPH2:
             f(&op.args.MeshMorph2.factor );
             f(&op.args.MeshMorph2.base );
@@ -916,7 +911,7 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::ME_APPLYLAYOUT:
         {
-            auto args = program.GetOpArgs<OP::MeshApplyLayoutArgs>(at);
+			OP::MeshApplyLayoutArgs args = program.GetOpArgs<OP::MeshApplyLayoutArgs>(at);
             f(args.layout );
             f(args.mesh );
             break;
@@ -924,15 +919,21 @@ namespace mu
 
         case OP_TYPE::ME_DIFFERENCE:
         {
-            auto args = program.GetOpArgs<OP::MeshDifferenceArgs>(at);
-            f(args.base );
-            f(args.target );
+			const uint8_t* data = program.GetOpArgsPointer(at);
+			OP::ADDRESS BaseAt = 0;
+			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+
+			OP::ADDRESS TargetAt = 0;
+			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+
+			f(BaseAt);
+            f(TargetAt);
             break;
         }
 
         case OP_TYPE::ME_MORPH2:
         {
-            auto args = program.GetOpArgs<OP::MeshMorph2Args>(at);
+			OP::MeshMorph2Args args = program.GetOpArgs<OP::MeshMorph2Args>(at);
             f(args.factor );
             f(args.base );
 
@@ -945,7 +946,7 @@ namespace mu
 
         case OP_TYPE::ME_MERGE:
         {
-            auto args = program.GetOpArgs<OP::MeshMergeArgs>(at);
+			OP::MeshMergeArgs args = program.GetOpArgs<OP::MeshMergeArgs>(at);
             f(args.base );
             f(args.added );
             break;
@@ -953,7 +954,7 @@ namespace mu
 
         case OP_TYPE::ME_INTERPOLATE:
         {
-            auto args = program.GetOpArgs<OP::MeshInterpolateArgs>(at);
+			OP::MeshInterpolateArgs args = program.GetOpArgs<OP::MeshInterpolateArgs>(at);
             f(args.factor );
             f(args.base );
 
@@ -966,7 +967,7 @@ namespace mu
 
         case OP_TYPE::ME_MASKCLIPMESH:
         {
-            auto args = program.GetOpArgs<OP::MeshMaskClipMeshArgs>(at);
+			OP::MeshMaskClipMeshArgs args = program.GetOpArgs<OP::MeshMaskClipMeshArgs>(at);
             f(args.source );
             f(args.clip );
             break;
@@ -974,7 +975,7 @@ namespace mu
 
         case OP_TYPE::ME_MASKDIFF:
         {
-            auto args = program.GetOpArgs<OP::MeshMaskDiffArgs>(at);
+			OP::MeshMaskDiffArgs args = program.GetOpArgs<OP::MeshMaskDiffArgs>(at);
             f(args.source );
             f(args.fragment );
             break;
@@ -982,7 +983,7 @@ namespace mu
 
         case OP_TYPE::ME_SUBTRACT:
         {
-            auto args = program.GetOpArgs<OP::MeshSubtractArgs>(at);
+			OP::MeshSubtractArgs args = program.GetOpArgs<OP::MeshSubtractArgs>(at);
             f(args.a );
             f(args.b );
             break;
@@ -1012,7 +1013,7 @@ namespace mu
 
         case OP_TYPE::ME_FORMAT:
         {
-            auto args = program.GetOpArgs<OP::MeshFormatArgs>(at);
+			OP::MeshFormatArgs args = program.GetOpArgs<OP::MeshFormatArgs>(at);
             f(args.source );
             f(args.format );
             break;
@@ -1020,7 +1021,7 @@ namespace mu
 
         case OP_TYPE::ME_TRANSFORM:
         {
-            auto args = program.GetOpArgs<OP::MeshTransformArgs>(at);
+			OP::MeshTransformArgs args = program.GetOpArgs<OP::MeshTransformArgs>(at);
             f(args.source );
             break;
         }
@@ -1036,21 +1037,21 @@ namespace mu
 
         case OP_TYPE::ME_EXTRACTFACEGROUP:
         {
-            auto args = program.GetOpArgs<OP::MeshExtractFaceGroupArgs>(at);
+			OP::MeshExtractFaceGroupArgs args = program.GetOpArgs<OP::MeshExtractFaceGroupArgs>(at);
             f(args.source );
             break;
         }
 
         case OP_TYPE::ME_CLIPMORPHPLANE:
         {
-            auto args = program.GetOpArgs<OP::MeshClipMorphPlaneArgs>(at);
+			OP::MeshClipMorphPlaneArgs args = program.GetOpArgs<OP::MeshClipMorphPlaneArgs>(at);
             f(args.source);
             break;
         }
 
         case OP_TYPE::ME_CLIPWITHMESH :
         {
-            auto args = program.GetOpArgs<OP::MeshClipWithMeshArgs>(at);
+			OP::MeshClipWithMeshArgs args = program.GetOpArgs<OP::MeshClipWithMeshArgs>(at);
             f(args.source);
             f(args.clipMesh);
             break;
@@ -1058,7 +1059,7 @@ namespace mu
 
         case OP_TYPE::ME_CLIPDEFORM:
         {
-            auto args = program.GetOpArgs<OP::MeshClipDeformArgs>(at);
+			OP::MeshClipDeformArgs args = program.GetOpArgs<OP::MeshClipDeformArgs>(at);
             f(args.mesh);
             f(args.clipShape);
             break;
@@ -1075,7 +1076,7 @@ namespace mu
  	
         case OP_TYPE::ME_REMAPINDICES :
         {
-            auto args = program.GetOpArgs<OP::MeshRemapIndicesArgs>(at);
+			OP::MeshRemapIndicesArgs args = program.GetOpArgs<OP::MeshRemapIndicesArgs>(at);
             f(args.source);
             f(args.reference);
             break;
@@ -1083,7 +1084,7 @@ namespace mu
 
         case OP_TYPE::ME_SETSKELETON :
         {
-            auto args = program.GetOpArgs<OP::MeshSetSkeletonArgs>(at);
+			OP::MeshSetSkeletonArgs args = program.GetOpArgs<OP::MeshSetSkeletonArgs>(at);
             f(args.source);
             f(args.skeleton);
             break;
@@ -1091,7 +1092,7 @@ namespace mu
 
         case OP_TYPE::ME_PROJECT :
         {
-            auto args = program.GetOpArgs<OP::MeshProjectArgs>(at);
+			OP::MeshProjectArgs args = program.GetOpArgs<OP::MeshProjectArgs>(at);
             f(args.mesh);
             f(args.projector);
             break;
@@ -1099,7 +1100,7 @@ namespace mu
 
 		case OP_TYPE::ME_APPLYPOSE:
 		{
-			auto args = program.GetOpArgs<OP::MeshApplyPoseArgs>(at);
+			OP::MeshApplyPoseArgs args = program.GetOpArgs<OP::MeshApplyPoseArgs>(at);
 			f(args.base);
 			f(args.pose);
 			break;
@@ -1107,7 +1108,7 @@ namespace mu
 
 		case OP_TYPE::ME_GEOMETRYOPERATION:
 		{
-			auto args = program.GetOpArgs<OP::MeshGeometryOperationArgs>(at);
+			OP::MeshGeometryOperationArgs args = program.GetOpArgs<OP::MeshGeometryOperationArgs>(at);
 			f(args.meshA);
 			f(args.meshB);
 			f(args.scalarA);
@@ -1117,7 +1118,7 @@ namespace mu
 
 		case OP_TYPE::ME_BINDSHAPE:
 		{
-			auto args = program.GetOpArgs<OP::MeshBindShapeArgs>(at);
+			OP::MeshBindShapeArgs args = program.GetOpArgs<OP::MeshBindShapeArgs>(at);
 			f(args.mesh);
 			f(args.shape);
 			break;
@@ -1125,7 +1126,7 @@ namespace mu
 
 		case OP_TYPE::ME_APPLYSHAPE:
 		{
-			auto args = program.GetOpArgs<OP::MeshApplyShapeArgs>(at);
+			OP::MeshApplyShapeArgs args = program.GetOpArgs<OP::MeshApplyShapeArgs>(at);
 			f(args.mesh);
 			f(args.shape);
 			break;
@@ -1140,7 +1141,7 @@ namespace mu
         case OP_TYPE::IN_ADDCOMPONENT:
         case OP_TYPE::IN_ADDSURFACE:
         {
-            auto args = program.GetOpArgs<OP::InstanceAddArgs>(at);
+			OP::InstanceAddArgs args = program.GetOpArgs<OP::InstanceAddArgs>(at);
             f(args.instance );
             f(args.value );
             break;
@@ -1148,7 +1149,7 @@ namespace mu
 
         case OP_TYPE::IN_ADDLOD:
         {
-            auto args = program.GetOpArgs<OP::InstanceAddLODArgs>(at);
+			OP::InstanceAddLODArgs args = program.GetOpArgs<OP::InstanceAddLODArgs>(at);
             for (int t=0;t<MUTABLE_OP_MAX_ADD_COUNT;++t)
             {
                 f(args.lod[t] );
@@ -1159,14 +1160,14 @@ namespace mu
         //-------------------------------------------------------------------------------------
         case OP_TYPE::LA_PACK:
         {
-            auto args = program.GetOpArgs<OP::LayoutPackArgs>(at);
+			OP::LayoutPackArgs args = program.GetOpArgs<OP::LayoutPackArgs>(at);
             f(args.layout );
             break;
         }
 
         case OP_TYPE::LA_MERGE:
         {
-            auto args = program.GetOpArgs<OP::LayoutMergeArgs>(at);
+			OP::LayoutMergeArgs args = program.GetOpArgs<OP::LayoutMergeArgs>(at);
             f(args.base );
             f(args.added );
             break;
@@ -1174,7 +1175,7 @@ namespace mu
 
         case OP_TYPE::LA_REMOVEBLOCKS:
         {
-            auto args = program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(at);
+			OP::LayoutRemoveBlocksArgs args = program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(at);
             f(args.source );
             f(args.mesh );
             break;
