@@ -8,7 +8,7 @@
 #include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Chooser.h"
-#include "IDetailCustomization.h"
+#include "EditorUndoClient.h"
 #include "ChooserTableEditor.generated.h"
 
 class SEditableText;
@@ -28,7 +28,7 @@ public:
 
 namespace UE::ChooserEditor
 {
-	class FChooserTableEditor : public FAssetEditorToolkit
+	class FChooserTableEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
 	{
 	public:
 		/** Delegate that, given an array of assets, returns an array of objects to use in the details view of an FSimpleAssetEditor */
@@ -60,6 +60,10 @@ namespace UE::ChooserEditor
 		virtual FLinearColor GetWorldCentricTabColorScale() const override;
 		virtual bool IsPrimaryEditor() const override { return true; }
 		virtual bool IsSimpleAssetEditor() const override { return false; }
+		
+		/** FEditorUndoClient Interface */
+		virtual void PostUndo(bool bSuccess) override;
+		virtual void PostRedo(bool bSuccess) override;
 
 		/** FAssetEditorToolkit interface */
 		virtual void PostRegenerateMenusAndToolbars() override;
@@ -116,11 +120,14 @@ namespace UE::ChooserEditor
 		TArray<TSharedPtr<FChooserTableRow>> TableRows;
 	
 		TSharedPtr<SComboButton> CreateColumnComboButton;
+		TSharedPtr<SComboButton> CreateRowComboButton;
+		
 		TSharedPtr<SHeaderRow> HeaderRow;
 		TSharedPtr<SListView<TSharedPtr<FChooserTableRow>>> TableView;
 
 		FName SelectedColumn;
 	public:
+		TSharedPtr<SComboButton>& GetCreateRowComboButton() { return CreateRowComboButton; };
 
 		static TMap<const UClass*, TFunction<TSharedRef<SWidget> (UObject* Column, int Row)>> ColumnWidgetCreators;
 	

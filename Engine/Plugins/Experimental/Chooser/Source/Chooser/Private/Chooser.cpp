@@ -31,6 +31,7 @@ UChooserTable::UChooserTable(const FObjectInitializer& Initializer)
 UChooserColumnBool::UChooserColumnBool(const FObjectInitializer& ObjectInitializer)
 {
 	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterBool_ContextProperty>(this, "InputValue");
+	InputValue.GetObject()->SetFlags(RF_Transactional);
 }
 
 void UChooserColumnBool::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)
@@ -61,6 +62,7 @@ void UChooserColumnBool::Filter(const UObject* ContextObject, const TArray<uint3
 UChooserColumnFloatRange::UChooserColumnFloatRange(const FObjectInitializer& ObjectInitializer)
 {
 	InputValue = ObjectInitializer.CreateDefaultSubobject<UChooserParameterFloat_ContextProperty>(this, "InputValue");
+	InputValue.GetObject()->SetFlags(RF_Transactional);
 }
 
 void UChooserColumnFloatRange::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut)

@@ -51,7 +51,7 @@ void FInterfacePropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 
 				for(int i=0;i<RawData.Num();i++)
 				{
-					UObject* NewValue = NewObject<UObject>(OuterObjects[i], ChosenClass);
+					UObject* NewValue = NewObject<UObject>(OuterObjects[i], ChosenClass, NAME_None, RF_Transactional);
 				
 					PropertyHandle->NotifyPreChange();
 					PropertyHandle->SetValue(NewValue);
