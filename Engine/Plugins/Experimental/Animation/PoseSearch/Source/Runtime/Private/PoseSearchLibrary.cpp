@@ -10,6 +10,7 @@
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "Trace/PoseSearchTraceLogger.h"
 #include "MotionTrajectoryLibrary.h"
+#include "PoseSearch/PoseSearchFeatureChannels.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchLibrary"
 
@@ -22,6 +23,7 @@ void FMotionMatchingState::Reset()
 	// Set the elapsed time to INFINITY to trigger a search right away
 	ElapsedPoseJumpTime = INFINITY;
 	PoseIndicesHistory.Reset();
+	WantedPlayRate = 1.f;
 }
 
 void FMotionMatchingState::AdjustAssetTime(float AssetTime)
@@ -146,17 +148,17 @@ static void RequestInertialBlend(const FAnimationUpdateContext& Context, float B
 
 void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, const FMotionMatchingSettings& Settings, const UE::PoseSearch::FSearchResult& Result)
 {
-	// Remember which pose and sequence we're playing from the database
-	CurrentSearchResult = Result;
-
-	ElapsedPoseJumpTime = 0.0f;
-	
 	// requesting inertial blending only if blendstack is disabled
 	if (Settings.MaxActiveBlends <= 0)
 	{
 		const float JumpBlendTime = ComputeJumpBlendTime(Result, Settings);
 		RequestInertialBlend(Context, JumpBlendTime);
 	}
+
+	// Remember which pose and sequence we're playing from the database
+	CurrentSearchResult = Result;
+
+	ElapsedPoseJumpTime = 0.0f;
 
 	Flags |= EMotionMatchingFlags::JumpedToPose;
 }
@@ -403,8 +405,9 @@ void UpdateMotionMatchingState(
 		InOutMotionMatchingState.ElapsedPoseJumpTime += DeltaTime;
 	}
 
+	InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, Settings);
 	InOutMotionMatchingState.PoseIndicesHistory.Update(InOutMotionMatchingState.CurrentSearchResult, DeltaTime, Settings.PoseReselectHistory);
-	
+
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	// Record debugger details
 	TraceMotionMatchingState(
@@ -417,13 +420,49 @@ void UpdateMotionMatchingState(
 #endif
 }
 
+void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FMotionMatchingSettings& Settings)
+{
+	if (CurrentSearchResult.IsValid())
+	{
+		if (!FMath::IsNearlyEqual(Settings.PlayRateMin, 1.f, UE_KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Settings.PlayRateMax, 1.f, UE_KINDA_SMALL_NUMBER))
+		{
+			if (const FPoseSearchFeatureVectorBuilder* PoseSearchFeatureVectorBuilder = SearchContext.GetCachedQuery(CurrentSearchResult.Database.Get()))
+			{
+				if (const UPoseSearchFeatureChannel_Trajectory* TrajectoryChannel = CurrentSearchResult.Database->Schema->FindFirstChannelOfType<UPoseSearchFeatureChannel_Trajectory>())
+				{
+					TConstArrayView<float> QueryData = PoseSearchFeatureVectorBuilder->GetValues();
+					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex()->GetPoseValues(CurrentSearchResult.PoseIdx);
+					float EstimatedSpeedRatio = 1.f;
+					if (TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData, EstimatedSpeedRatio))
+					{
+						check(Settings.PlayRateMin <= Settings.PlayRateMax);
+						WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, Settings.PlayRateMin, Settings.PlayRateMax);
+					}
+					else
+					{
+						UE_LOG(LogPoseSearch, Warning,
+							TEXT("Couldn't update the WantedPlayRate in FMotionMatchingState::UpdateWantedPlayRate, because Schema '%s' UPoseSearchFeatureChannel_Trajectory::GetEstimatedSpeedRatio failed to compute, because of missing EPoseSearchTrajectoryFlags::Velocity samples"),
+							*GetNameSafe(CurrentSearchResult.Database->Schema));
+					}
+				}
+				else
+				{
+					UE_LOG(LogPoseSearch, Warning,
+						TEXT("Couldn't update the WantedPlayRate in FMotionMatchingState::UpdateWantedPlayRate, because Schema '%s' couldn't find a UPoseSearchFeatureChannel_Trajectory channel"),
+						*GetNameSafe(CurrentSearchResult.Database->Schema));
+				}
+			}
+		}
+	}
+}
+
 float FMotionMatchingState::ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const
 {
 	const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset();
 
 	// Use alternate blend time when changing between mirrored and unmirrored
 	float JumpBlendTime = Settings.BlendTime;
-	if ((SearchIndexAsset != nullptr) && (Settings.MirrorChangeBlendTime > 0.0f))
+	if (SearchIndexAsset && Settings.MirrorChangeBlendTime > 0.0f)
 	{
 		if (Result.GetSearchIndexAsset(true)->bMirrored != SearchIndexAsset->bMirrored)
 		{

@@ -2104,6 +2104,84 @@ void UPoseSearchFeatureChannel_Trajectory::ComputeCostBreakdowns(UE::PoseSearch:
 
 #endif // WITH_EDITOR
 
+bool UPoseSearchFeatureChannel_Trajectory::GetEstimatedSpeedRatio(TConstArrayView<float> QueryVector, TConstArrayView<float> PoseVector, float& EstimatedSpeedRatio) const
+{
+	float EstimatedQuerySpeed = 0.f;
+	float EstimatedPoseSpeed = 0.f;
+
+	int32 QueryDataOffset = ChannelDataOffset;
+	int32 PoseDataOffset = ChannelDataOffset;
+
+	bool bValidEstimate = false;
+	for (const FPoseSearchTrajectorySample& Sample : Samples)
+	{
+		// @todo: decode positions and use them to estimate velocities in case UPoseSearchFeatureChannel_Trajectory doens't contain EPoseSearchTrajectoryFlags::Velocity or EPoseSearchTrajectoryFlags::VelocityXY samples
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Position))
+		{
+			QueryDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+			PoseDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::PositionXY))
+		{
+			QueryDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+			PoseDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::Velocity))
+		{
+			const FVector QueryVelocity = UE::PoseSearch::FFeatureVectorHelper::DecodeVector(QueryVector, QueryDataOffset);
+			const FVector PoseVelocity = UE::PoseSearch::FFeatureVectorHelper::DecodeVector(PoseVector, PoseDataOffset);
+			EstimatedQuerySpeed += QueryVelocity.Length();
+			EstimatedPoseSpeed += PoseVelocity.Length();
+			bValidEstimate = true;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityXY))
+		{
+			const FVector2D QueryVelocity = UE::PoseSearch::FFeatureVectorHelper::DecodeVector2D(QueryVector, QueryDataOffset);
+			const FVector2D PoseVelocity = UE::PoseSearch::FFeatureVectorHelper::DecodeVector2D(PoseVector, PoseDataOffset);
+			EstimatedQuerySpeed += QueryVelocity.Length();
+			EstimatedPoseSpeed += PoseVelocity.Length();
+			bValidEstimate = true;
+		}
+
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirection))
+		{
+			QueryDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+			PoseDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::VelocityDirectionXY))
+		{
+			QueryDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+			PoseDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirection))
+		{
+			QueryDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+			PoseDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+		}
+		if (EnumHasAnyFlags(Sample.Flags, EPoseSearchTrajectoryFlags::FacingDirectionXY))
+		{
+			QueryDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+			PoseDataOffset += UE::PoseSearch::FFeatureVectorHelper::EncodeVector2DCardinality;
+		}
+	}
+
+	check(QueryDataOffset == ChannelDataOffset + ChannelCardinality);
+	check(PoseDataOffset == ChannelDataOffset + ChannelCardinality);
+
+	if (bValidEstimate && EstimatedPoseSpeed > UE_KINDA_SMALL_NUMBER)
+	{
+		EstimatedSpeedRatio = EstimatedQuerySpeed / EstimatedPoseSpeed;
+	}
+	else
+	{
+		EstimatedSpeedRatio = 1.f;
+	}
+
+	return bValidEstimate;
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_FilterCrashingLegs
 static void ComputeThighsSideAndForward(const FVector& RightThighPos, const FVector& LeftThighPos, FVector& ThighsSide, FVector& ThighsForward)

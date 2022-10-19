@@ -56,6 +56,12 @@ struct POSESEARCH_API FMotionMatchingSettings
 	// Minimum amount of time to wait between pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float SearchThrottleTime = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.5", ClampMax = "1.0", UIMin = "0.5", UIMax = "1.0"))
+	float PlayRateMin = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "1.0", ClampMax = "2.0", UIMin = "1.0", UIMax = "2.0"))
+	float PlayRateMax = 1.f;
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")
@@ -81,11 +87,17 @@ struct POSESEARCH_API FMotionMatchingState
 
 	float ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const;
 
+	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FMotionMatchingSettings& Settings);
+
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
 
 	// Time since the last pose jump
 	UPROPERTY(Transient)
 	float ElapsedPoseJumpTime = 0.f;
+
+	// wanted PlayRate to have the selected animation playing at the estimated requested speed from the query
+	UPROPERTY(Transient)
+	float WantedPlayRate = 1.f;
 
 	// Evaluation flags relevant to the state of motion matching
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)

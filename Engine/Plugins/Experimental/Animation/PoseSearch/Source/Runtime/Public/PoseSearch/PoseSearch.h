@@ -598,6 +598,20 @@ public:
 
 	float GetSamplingInterval() const { return 1.0f / SampleRate; }
 
+	template<typename ChannelType>
+	const ChannelType* FindFirstChannelOfType() const
+	{
+		for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Channels)
+		{
+			if (const ChannelType* Channel = Cast<const ChannelType>(ChannelPtr.Get()))
+			{
+				return Channel;
+			}
+		}
+		return nullptr;
+	}
+
+
 	// UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
