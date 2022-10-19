@@ -2863,6 +2863,18 @@ FVector UKismetMathLibrary::Conv_DoubleToVector(double InDouble)
 }
 
 KISMET_MATH_FORCEINLINE
+FVector2D UKismetMathLibrary::Conv_FloatToVector2D(float InFloat)
+{
+	return FVector2D(InFloat);
+}
+
+KISMET_MATH_FORCEINLINE
+FVector2D UKismetMathLibrary::Conv_DoubleToVector2D(double InDouble)
+{
+	return FVector2D(InDouble);
+}
+
+KISMET_MATH_FORCEINLINE
 FLinearColor UKismetMathLibrary::Conv_FloatToLinearColor(float InFloat)
 {
 	return FLinearColor(InFloat, InFloat, InFloat);
