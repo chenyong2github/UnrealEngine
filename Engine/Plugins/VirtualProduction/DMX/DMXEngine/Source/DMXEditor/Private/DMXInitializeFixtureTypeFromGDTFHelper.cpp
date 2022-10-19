@@ -545,6 +545,34 @@ void FDMXInitializeFixtureTypeFromGDTFHelper::CleanupAttributes(UDMXEntityFixtur
 				AssignedAttributeNames.Add(Function.Attribute.Name);
 			}
 		}
+
+		if (Mode.bFixtureMatrixEnabled)
+		{
+			TArray<FName> AssignedCellAttributeNames;
+			for (FDMXFixtureCellAttribute& CellAttribute : Mode.FixtureMatrixConfig.CellAttributes)
+			{
+				const TTuple<FName, TArray<FString>>* SettingsAttributeNameToKeywordPairPtr = Algo::FindByPredicate(SettingsAttributeNameToKeywordsMap, [CellAttribute](const TTuple<FName, TArray<FString>> AttributeNameToKeywordPair)
+					{
+						if (CellAttribute.Attribute.Name == AttributeNameToKeywordPair.Key ||
+							AttributeNameToKeywordPair.Value.Contains(CellAttribute.Attribute.Name.ToString()))
+						{
+							return true;
+						}
+
+						return false;
+					});
+
+				if (SettingsAttributeNameToKeywordPairPtr && !AssignedAttributeNames.Contains(SettingsAttributeNameToKeywordPairPtr->Key))
+				{
+					CellAttribute.Attribute.Name = SettingsAttributeNameToKeywordPairPtr->Key;
+					AssignedAttributeNames.Add(SettingsAttributeNameToKeywordPairPtr->Key);
+				}
+				else
+				{
+					AssignedAttributeNames.Add(CellAttribute.Attribute.Name);
+				}
+			}
+		}
 	}
 }
 

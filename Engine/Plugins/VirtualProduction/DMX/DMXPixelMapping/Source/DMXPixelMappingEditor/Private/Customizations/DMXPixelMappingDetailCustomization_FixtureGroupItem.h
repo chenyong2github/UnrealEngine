@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "PropertyHandle.h"
 #include "Misc/Attribute.h"
 #include "UObject/WeakObjectPtr.h"
 #include "IPropertyTypeCustomization.h"
@@ -15,7 +14,6 @@ class IDetailLayoutBuilder;
 class ITableRow;
 class STableViewBase;
 class IPropertyHandle;
-class UDMXEntityFixturePatch;
 class UDMXPixelMappingFixtureGroupItemComponent;
 enum class EDMXColorMode : uint8;
 
@@ -32,16 +30,9 @@ private:
 		TSharedPtr<IPropertyHandle> Handle;
 		TSharedPtr<IPropertyHandle> ExposeHandle;
 		TSharedPtr<IPropertyHandle> InvertHandle;
-
-		/** Returns true if the Attribute Handle has multiple values */
-		bool HasMultipleAttributeValues() const;
-
-		/** Gets the value of the Attribute Handle. Should not be called if HasMultipleAttributeValues returns true */
-		FName GetAttributeValue() const;
-
-		/** Sets the value of the Attribute Handle */
-		void SetAttributeValue(const FName& NewValue);
+		TAttribute<EVisibility> Visibility;
 	};
+
 
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance(const TWeakPtr<FDMXPixelMappingToolkit> InToolkitWeakPtr)
@@ -59,19 +50,22 @@ public:
 	//~ IPropertyTypeCustomization interface end
 
 private:
+
+	EVisibility GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const;
+
 	EVisibility GetRGBAttributesVisibility() const;
+
+	EVisibility GetMonochromeRowVisibilty(FFunctionAttribute* Attribute) const;
 
 	EVisibility GetMonochromeAttributesVisibility() const;
 
 	TSharedRef<ITableRow> GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable);
 
+private:
 	bool CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const;
 
 	/** Creates Details for the Output Modulators */
 	void CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout);
-
-	/** Gets an array of Fixture Patches from Group Item Components */
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> GetFixturePatchFromGroupItemComponents(const TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>>& GroupItemComponents);
 
 	/** Forces the layout to redraw */
 	void ForceRefresh();

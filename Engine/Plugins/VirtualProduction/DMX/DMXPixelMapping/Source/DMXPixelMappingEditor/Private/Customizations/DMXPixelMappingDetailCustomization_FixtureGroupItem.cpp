@@ -2,14 +2,10 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroupItem.h"
 
-#include "DMXAttribute.h"
 #include "DMXPixelMappingTypes.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
-#include "Customizations/DMXPixelMappingAttributeNamesDetails.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityReference.h"
-#include "Modulators/DMXModulator.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Modulators/DMXModulator.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -20,70 +16,7 @@
 #include "Layout/Visibility.h"
 #include "Modules/ModuleManager.h"
 
-
 #define LOCTEXT_NAMESPACE "FixtureGroupItem"
-
-bool FDMXPixelMappingDetailCustomization_FixtureGroupItem::FFunctionAttribute::HasMultipleAttributeValues() const
-{
-	TArray<const void*> RawData;
-	Handle->AccessRawData(RawData);
-
-	TSet<FName> AttributeNames;
-	for (const void* RawPtr : RawData)
-	{
-		if (RawPtr)
-		{
-			// The types we use with this customization must have a cast constructor to FName
-			AttributeNames.Add(reinterpret_cast<const FDMXAttributeName*>(RawPtr)->Name);
-		}
-	}
-
-	return AttributeNames.Num() > 1;
-}
-
-FName FDMXPixelMappingDetailCustomization_FixtureGroupItem::FFunctionAttribute::GetAttributeValue() const
-{
-	if (!ensureMsgf(!HasMultipleAttributeValues(), TEXT("Cannot get attribute value from handle when handle has mutliple values")))
-	{
-		return NAME_None;
-	}
-
-	TArray<const void*> RawData;
-	Handle->AccessRawData(RawData);
-
-	for (const void* RawPtr : RawData)
-	{
-		if (RawPtr)
-		{
-			// The types we use with this customization must have a cast constructor to FName
-			return reinterpret_cast<const FDMXAttributeName*>(RawPtr)->Name;
-		}
-	}
-
-	return NAME_None;
-}
-
-void FDMXPixelMappingDetailCustomization_FixtureGroupItem::FFunctionAttribute::SetAttributeValue(const FName& NewValue)
-{
-	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Handle->GetProperty());
-
-	TArray<void*> RawData;
-	Handle->AccessRawData(RawData);
-
-	for (void* SingleRawData : RawData)
-	{
-		FDMXAttributeName* PreviousValue = reinterpret_cast<FDMXAttributeName*>(SingleRawData);
-		FDMXAttributeName NewAttributeName;
-		NewAttributeName.SetFromName(NewValue);
-
-		// Export new value to text format that can be imported later
-		FString TextValue;
-		StructProperty->Struct->ExportText(TextValue, &NewAttributeName, PreviousValue, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-
-		// Set values on edited property handle from exported text
-		ensure(Handle->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
-	}
-}
 
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
@@ -95,12 +28,30 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	DetailLayout->GetObjectsBeingCustomized(Objects);
 
 	FixtureGroupItemComponents.Empty();
+	
 	for (TWeakObjectPtr<UObject> SelectedObject : Objects)
 	{
 		FixtureGroupItemComponents.Add(Cast<UDMXPixelMappingFixtureGroupItemComponent>(SelectedObject));
 	}
-	
-	// Gather attribute property handles
+
+	// Get editing categories
+	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
+
+	// Hide absolute postition property handles
+	TSharedPtr<IPropertyHandle> PositionXPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetPositionXPropertyName());
+	InDetailLayout.HideProperty(PositionXPropertyHandle);
+	TSharedPtr<IPropertyHandle> PositionYPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetPositionYPropertyName());
+	InDetailLayout.HideProperty(PositionYPropertyHandle);
+	TSharedPtr<IPropertyHandle> SizeXPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetSizeXPropertyName());
+	InDetailLayout.HideProperty(SizeXPropertyHandle);
+	TSharedPtr<IPropertyHandle> SizeYPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetSizeYPropertyName());
+	InDetailLayout.HideProperty(SizeXPropertyHandle);
+
+	// Add Function and ColorMode properties at the beginning
+	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode));
+	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
+
+	// Register attributes
 	TSharedPtr<FFunctionAttribute> AttributeR = MakeShared<FFunctionAttribute>();
 	AttributeR->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeR));
 	AttributeR->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, AttributeRExpose));
@@ -120,47 +71,19 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	RGBAttributes.Add(AttributeG);
 	RGBAttributes.Add(AttributeB);
 
+	// Register Monochrome attribute
 	TSharedPtr<FFunctionAttribute> MonochromeAttribute = MakeShared<FFunctionAttribute>();
 	MonochromeAttribute->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, MonochromeIntensity));
 	MonochromeAttribute->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, bMonochromeExpose));
 	MonochromeAttribute->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, bMonochromeInvert));
 	MonochromeAttributes.Add(MonochromeAttribute);
 
-	// Hide absolute postition property handles
-	TSharedPtr<IPropertyHandle> PositionXPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetPositionXPropertyName());
-	InDetailLayout.HideProperty(PositionXPropertyHandle);
-	TSharedPtr<IPropertyHandle> PositionYPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetPositionYPropertyName());
-	InDetailLayout.HideProperty(PositionYPropertyHandle);
-	TSharedPtr<IPropertyHandle> SizeXPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetSizeXPropertyName());
-	InDetailLayout.HideProperty(SizeXPropertyHandle);
-	TSharedPtr<IPropertyHandle> SizeYPropertyHandle = InDetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetSizeYPropertyName());
-	InDetailLayout.HideProperty(SizeXPropertyHandle);
-
-	// Add Function and ColorMode properties at the beginning
-	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode));
-	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
-	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
-
 	// Generate all RGB Expose and Invert rows
-	for (TSharedPtr<FFunctionAttribute> Attribute : RGBAttributes)
-	{
-		InDetailLayout.HideProperty(Attribute->ExposeHandle);
-		InDetailLayout.HideProperty(Attribute->InvertHandle);
-	}
-
-	for (TSharedPtr<FFunctionAttribute> Attribute : MonochromeAttributes)
-	{
-		InDetailLayout.HideProperty(Attribute->ExposeHandle);
-		InDetailLayout.HideProperty(Attribute->InvertHandle);
-	}
-
 	OutputSettingsCategory.AddCustomRow(FText::GetEmpty())
 		.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributesVisibility))
 		.NameContent()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("ColorSample", "Color Sample"))
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			SNew(STextBlock).Text(LOCTEXT("ColorSample", "Color Sample"))
 		]
 		.ValueContent()
 		[
@@ -169,13 +92,23 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GenerateExposeAndInvertRow)
 		];
 
+	// Update RGB attributes
+	for (TSharedPtr<FFunctionAttribute>& Attribute : RGBAttributes)
+	{
+		DetailLayout->HideProperty(Attribute->ExposeHandle);
+		DetailLayout->HideProperty(Attribute->InvertHandle);
+
+		OutputSettingsCategory
+			.AddProperty(Attribute->Handle)
+			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributeRowVisibilty, Attribute.Get())));
+	}
+
 	// Generate all Monochrome Expose and Invert rows
 	OutputSettingsCategory.AddCustomRow(FText::GetEmpty())
 		.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeAttributesVisibility))
 		.NameContent()
 		[
 			SNew(STextBlock).Text(LOCTEXT("ColorSample", "Color Sample"))
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		]
 		.ValueContent()
 		[
@@ -184,34 +117,16 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 			.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GenerateExposeAndInvertRow)
 		];
 
-	// Register a property type customization for the attributes as we can display the attributes of the fixture patches
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches = GetFixturePatchFromGroupItemComponents(FixtureGroupItemComponents);
-	FOnGetPropertyTypeCustomizationInstance OnGetPropertyTypeCustomizationInstance = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXPixelMappingAttributeNamesDetails::MakeInstance, FixturePatches);
-	InDetailLayout.GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), OnGetPropertyTypeCustomizationInstance);
+	// Update Monochrome attributes
+	for (TSharedPtr<FFunctionAttribute>& Attribute : MonochromeAttributes)
+	{
+		DetailLayout->HideProperty(Attribute->ExposeHandle);
+		DetailLayout->HideProperty(Attribute->InvertHandle);
 
-	// Add RGB attributes
-	const FName RGBCategoryName = AttributeR->Handle->GetDefaultCategoryName();
-	const TAttribute<EVisibility> RGBVisibilityAttribute = TAttribute<EVisibility>::CreateLambda([this]()
-		{
-			return GetRGBAttributesVisibility();
-		});
-	InDetailLayout.EditCategory(RGBCategoryName)
-		.AddProperty(AttributeR->Handle)
-		.Visibility(RGBVisibilityAttribute);
-	InDetailLayout.EditCategory(RGBCategoryName)
-		.AddProperty(AttributeG->Handle)
-		.Visibility(RGBVisibilityAttribute);
-	InDetailLayout.EditCategory(RGBCategoryName)
-		.AddProperty(AttributeB->Handle)
-		.Visibility(RGBVisibilityAttribute);
-
-	// Add Monochrome attribute
-	InDetailLayout.EditCategory(MonochromeAttribute->Handle->GetDefaultCategoryName())
-		.AddProperty(MonochromeAttribute->Handle)
-		.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
-			{
-				return GetMonochromeAttributesVisibility();
-			}));
+		OutputSettingsCategory
+			.AddProperty(Attribute->Handle)
+			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty, Attribute.Get())));
+	}
 
 	CreateModulatorDetails(InDetailLayout);
 }
@@ -227,6 +142,56 @@ bool FDMXPixelMappingDetailCustomization_FixtureGroupItem::CheckComponentsDMXCol
 	}
 
 	return false;
+}
+
+EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributeRowVisibilty(FFunctionAttribute* Attribute) const
+{
+	bool bIsVisible = false;
+
+	// 1. Check if current attribute is sampling now
+	FPropertyAccess::Result Result = Attribute->ExposeHandle->GetValue(bIsVisible);
+	if (Result == FPropertyAccess::Result::MultipleValues)
+	{
+		bIsVisible = true;
+	}
+
+	// 2. Check if current color mode is RGB
+	if (!CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB))
+	{
+		bIsVisible = false;
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributesVisibility() const
+{
+	return CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty(FFunctionAttribute* Attribute) const
+{
+	bool bIsVisible = false;
+
+	// 1. Check if current attribute is sampling now
+	FPropertyAccess::Result Result = Attribute->ExposeHandle->GetValue(bIsVisible);
+	if (Result == FPropertyAccess::Result::MultipleValues)
+	{
+		bIsVisible = true;
+	}
+
+	// 2. Check if current color mode is Monochrome
+	if (!CheckComponentsDMXColorMode(EDMXColorMode::CM_Monochrome))
+	{
+		bIsVisible = false;
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeAttributesVisibility() const
+{
+	return (GetRGBAttributesVisibility() == EVisibility::Visible) ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroupItem::GenerateExposeAndInvertRow(TSharedPtr<FFunctionAttribute> InAttribute, const TSharedRef<STableViewBase>& OwnerTable)
@@ -277,16 +242,6 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroupItem::Gene
 				]
 			]
 		];
-}
-
-EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetRGBAttributesVisibility() const
-{
-	return CheckComponentsDMXColorMode(EDMXColorMode::CM_RGB) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeAttributesVisibility() const
-{
-	return (GetRGBAttributesVisibility() == EVisibility::Visible) ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout)
@@ -358,12 +313,6 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetail
 					TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 					DetailsView->SetObjects(ModulatorsToEdit);
 
-					TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches = GetFixturePatchFromGroupItemComponents(FixtureGroupItemComponents);
-					FOnGetPropertyTypeCustomizationInstance OnGetPropertyTypeCustomizationInstance = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXPixelMappingAttributeNamesDetails::MakeInstance, FixturePatches);
-					DetailsView->RegisterInstancedCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), OnGetPropertyTypeCustomizationInstance);
-
-					PropertyEditorModule.NotifyCustomizationModuleChanged();
-
 					ModualtorsCategory.AddCustomRow(FText::GetEmpty())
 						.WholeRowContent()
 						[
@@ -385,24 +334,6 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetail
 			}
 		}
 	}
-}
-
-TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetFixturePatchFromGroupItemComponents(const TArray<TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent>>& GroupItemComponents)
-{
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches;
-
-	for (TWeakObjectPtr<UDMXPixelMappingFixtureGroupItemComponent> GroupItemComponent : GroupItemComponents)
-	{
-		UDMXEntityFixturePatch* FixturePatch = GroupItemComponent->FixturePatchRef.GetFixturePatch();
-		if (!FixturePatch)
-		{
-			continue;
-		}
-
-		FixturePatches.Add(TWeakObjectPtr<UDMXEntityFixturePatch>(FixturePatch));
-	}
-
-	return FixturePatches;
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::ForceRefresh()
