@@ -52,7 +52,7 @@ void FDataflowEditorCommands::Unregister()
 
 
 
-void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, FDataflowEditorCommands::FGraphEvaluationCallback Evaluate)
+void FDataflowEditorCommands::EvaluateSelectedNodes(const FGraphPanelSelectionSet& SelectedNodes, FDataflowEditorCommands::FGraphEvaluationCallback Evaluate)
 {
 	for (UObject* Ode : SelectedNodes)
 	{
@@ -81,6 +81,79 @@ void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& Selec
 		}
 	}
 }
+
+void FDataflowEditorCommands::EvaluateNode(Dataflow::FContext& Context, Dataflow::FTimestamp& OutLastNodeTimestamp,
+	const UDataflow* Dataflow, const FDataflowNode* InNode, const FDataflowOutput* Output, FString NodeName)
+{
+	if (Dataflow)
+	{
+		const FDataflowNode* Node = InNode;
+		if (Node == nullptr)
+		{
+			if (const TSharedPtr<Dataflow::FGraph> Graph = Dataflow->GetDataflow())
+			{
+				if (TSharedPtr<const FDataflowNode> GraphNode = Graph->FindBaseNode(FName(NodeName)))
+				{
+					Node = GraphNode.Get();
+				}
+			}
+		}
+
+		if (Node != nullptr)
+		{
+			if (Output == nullptr)
+			{
+				if (Node->GetTimestamp() >= OutLastNodeTimestamp)
+				{
+					Context.Evaluate(Node, nullptr);
+					OutLastNodeTimestamp = Context.GetTimestamp();
+				}
+			}
+			else // Output != nullptr
+			{
+				if (!Context.HasData(Output->CacheKey(), Context.GetTimestamp()))
+				{
+					Context.Evaluate(Node, Output);
+				}
+			}
+		}
+	}
+}
+
+void FDataflowEditorCommands::OnPropertyValueChanged(UDataflow* OutDataflow, TSharedPtr<Dataflow::FEngineContext>& Context, Dataflow::FTimestamp& OutLastNodeTimestamp, const FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	if (InPropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	{
+		TSharedPtr<const FDataflowNode> UpdatedNode = nullptr;
+		if (OutDataflow && InPropertyChangedEvent.Property && InPropertyChangedEvent.Property->GetOwnerUObject())
+		{
+			FString Name = InPropertyChangedEvent.Property->GetOwnerUObject()->GetName();
+			Name = Name.Left(Name.Len() - FString("DataflowNode").Len());
+			{
+				FDataflowAssetEdit Edit = OutDataflow->EditDataflow();
+
+				Dataflow::FGraph* Graph = Edit.GetGraph();
+				for (auto Node : Graph->GetNodes())
+				{
+					FString NodeName = Node->GetName().ToString();
+					if (NodeName.StartsWith(Name))
+					{
+						UpdatedNode = Node;
+						Node->Invalidate();
+					}
+				}
+			}
+		}
+
+		if (!UpdatedNode && Context)
+		{
+			// Some base properties dont link back to the parent, so just clobber the cache for now. 
+			Context.Reset();
+		}
+		OutLastNodeTimestamp = Dataflow::FTimestamp::Invalid;
+	}
+}
+
 
 void FDataflowEditorCommands::DeleteNodes(UDataflow* Graph, const FGraphPanelSelectionSet& SelectedNodes)
 {

@@ -109,7 +109,7 @@ void SDataflowGraphEditor::EvaluateNode()
 {
 	if (EvaluateGraphCallback)
 	{
-		FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), EvaluateGraphCallback);
+		FDataflowEditorCommands::EvaluateSelectedNodes(GetSelectedNodes(), EvaluateGraphCallback);
 	}
 	else
 	{
@@ -119,7 +119,7 @@ void SDataflowGraphEditor::EvaluateNode()
 			FContextThreaded(FPlatformTime::Cycles64()).Evaluate(Node, Out);
 		};
 
-		FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), LocalEvaluateCallback);
+		FDataflowEditorCommands::EvaluateSelectedNodes(GetSelectedNodes(), LocalEvaluateCallback);
 	}
 }
 

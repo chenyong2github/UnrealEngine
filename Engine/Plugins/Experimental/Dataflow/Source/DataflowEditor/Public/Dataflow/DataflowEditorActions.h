@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Dataflow/DataflowObjectInterface.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 
@@ -52,15 +53,27 @@ public:
 	static const FDataflowEditorCommandsImpl& Get();
 
 	/*
-	*  EvaluateNodes
+	*  EvaluateSelectedNodes
 	*/
-	static void EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, FGraphEvaluationCallback);
-	
+	static void EvaluateSelectedNodes(const FGraphPanelSelectionSet& SelectedNodes, FGraphEvaluationCallback);
+
+	/*
+	* EvaluateGraph
+	*/
+	static void EvaluateNode(Dataflow::FContext& Context, Dataflow::FTimestamp& OutLastNodeTimestamp,
+		const UDataflow* Dataflow, const FDataflowNode* Node = nullptr, const FDataflowOutput* Out = nullptr, 
+		FString NodeName = FString());
+
 	/*
 	*  DeleteNodes
 	*/
 	static void DeleteNodes(UDataflow* Graph, const FGraphPanelSelectionSet& SelectedNodes);
 	
+	/*
+	*  OnPropertyValueChanged
+	*/
+	static void OnPropertyValueChanged(UDataflow* Graph, TSharedPtr<Dataflow::FEngineContext>& Context, Dataflow::FTimestamp& OutLastNodeTimestamp, const FPropertyChangedEvent& PropertyChangedEvent);
+
 	/*
 	*  OnSelectedNodesChanged
 	*/
