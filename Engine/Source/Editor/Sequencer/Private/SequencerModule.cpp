@@ -440,7 +440,12 @@ public:
 				FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSequencerModule::RegisterMenus);
 			}
 
-			UMovieSceneSignedObject::SetDeferredHandler(MakeUnique<FDeferredSignedObjectChangeHandler>());
+			// Set the deferred handler for use by Sequence editors. It is not necessary in commandlets.
+			// TODO: Create/Delete the handler when Sequence editors are opened/closed.
+			if (!IsRunningCommandlet())
+			{
+				UMovieSceneSignedObject::SetDeferredHandler(MakeUnique<FDeferredSignedObjectChangeHandler>());
+			}
 
 			FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 			OnGetGlobalRowExtensionHandle = EditModule.GetGlobalRowExtensionDelegate().AddStatic(&RegisterKeyframeExtensionHandler);
