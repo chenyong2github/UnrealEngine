@@ -68,7 +68,8 @@
 #include "GameMapsSettings.h"
 #include "Particles/EmitterCameraLensEffectBase.h"
 #include "LevelUtils.h"
-#include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "PBDRigidsSolver.h"
@@ -3595,6 +3596,48 @@ void APlayerController::PostSeamlessTravel()
 		SpawnPlayerCameraManager();
 	}
 
+}
+
+void APlayerController::OnAddedToPlayerControllerList()
+{
+	UWorld* World = GetWorld();
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+	if (ensure(WorldPartitionSubsystem))
+	{
+		WorldPartitionSubsystem->RegisterStreamingSourceProvider(this);
+	}
+}
+
+void APlayerController::OnRemovedFromPlayerControllerList()
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+		{
+			verify(WorldPartitionSubsystem->UnregisterStreamingSourceProvider(this));
+		}
+	}
+}
+
+bool APlayerController::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const
+{
+	const ENetMode NetMode = GetNetMode();
+	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
+	if (IsStreamingSourceEnabled() && (IsLocalController() || bIsServer))
+	{
+		GetPlayerViewPoint(OutStreamingSource.Location, OutStreamingSource.Rotation);
+		OutStreamingSource.Name = GetFName();
+		OutStreamingSource.TargetState = StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
+		OutStreamingSource.bBlockOnSlowLoading = StreamingSourceShouldBlockOnSlowStreaming();
+		OutStreamingSource.DebugColor = StreamingSourceDebugColor;
+		OutStreamingSource.Priority = GetStreamingSourcePriority();
+		if (Shapes.Num())
+		{
+			OutStreamingSource.Shapes = Shapes;
+		}
+		return true;
+	}
+	return false;
 }
 
 /// @cond DOXYGEN_WARNINGS

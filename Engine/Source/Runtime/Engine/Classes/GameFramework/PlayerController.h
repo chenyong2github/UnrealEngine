@@ -26,6 +26,7 @@
 #include "GenericPlatform/IInputInterface.h"
 #include "GameFramework/PlayerInput.h"
 #include "Physics/AsyncPhysicsData.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "PlayerController.generated.h"
 
 class ACameraActor;
@@ -236,7 +237,7 @@ struct FAsyncPhysicsTimestamp
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Framework/Controller/PlayerController/
  */
 UCLASS(config=Game, BlueprintType, Blueprintable, meta=(ShortTooltip="A Player Controller is an actor responsible for controlling a Pawn used by the player."))
-class ENGINE_API APlayerController : public AController
+class ENGINE_API APlayerController : public AController, public IWorldPartitionStreamingSourceProvider
 {
 	GENERATED_BODY()
 
@@ -561,6 +562,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta=(EditCondition="bEnableStreamingSource"))
 	EStreamingSourcePriority StreamingSourcePriority;
 
+	/** Color used for debugging. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta = (EditCondition = "bEnableStreamingSource"))
+	FColor StreamingSourceDebugColor;
+
+	/** Optional aggregated shape list used to build a custom shape for the streaming source. When empty, fallbacks sphere shape with a radius equal to grid's loading range. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta = (EditCondition = "bEnableStreamingSource"))
+	TArray<FStreamingSourceShape> Shapes;
+
 	/** Scale applied to force feedback values */
 	UPROPERTY(config)
 	float ForceFeedbackScale;
@@ -785,6 +794,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
 	virtual EStreamingSourcePriority GetStreamingSourcePriority() const { return StreamingSourcePriority; }
 
+	/**
+	 * Gets the PlayerController's streaming source
+	 * @return the streaming source.
+	 */
+	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const final;
+
 protected:
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */
 	virtual void BeginPlayingState();
@@ -838,6 +853,16 @@ public:
 	 * This is called both when a new player controller is created, and when it is maintained
 	 */
 	virtual void PostSeamlessTravel();
+
+	/**
+	 * Called when player controller gets added to its owning world player controller list. 
+	 */
+	void OnAddedToPlayerControllerList();
+
+	/**
+	 * Called when player controller gets removed from its owning world player controller list.
+	 */
+	void OnRemovedFromPlayerControllerList();
 
 	/** 
 	 * Tell the client to enable or disable voice chat (not muting)
