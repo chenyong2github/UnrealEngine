@@ -1055,7 +1055,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		InitializeSortInfo(ParticleSpriteRenderData, *SceneProxy, *Context.ReferenceView, 0, SortInfo);
 	}
 
-	if (FNiagaraSpriteVertexFactory::StaticType.SupportsRayTracingDynamicGeometry())
+	if (!FNiagaraSpriteVertexFactory::StaticType.SupportsRayTracingDynamicGeometry())
 	{
 		return;
 	}
