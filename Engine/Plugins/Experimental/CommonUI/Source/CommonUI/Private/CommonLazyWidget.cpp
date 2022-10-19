@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonLazyWidget.h"
-#include "CommonWidgetPaletteCategories.h"
+#include "CommonActivatableWidget.h"
 #include "CommonUISettings.h"
-#include "../Public/CommonActivatableWidget.h"
+#include "CommonWidgetPaletteCategories.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonLazyWidget)
 

@@ -2,18 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/Classes/Engine/Texture2D.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "InteractiveToolManager.h"
 #include "AssetUtils/Texture2DBuilder.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "Image/ImageDimensions.h"
-#include "Sampling/MeshMapBaker.h"
-#include "ModelingOperators.h"
-#include "MeshOpPreviewHelpers.h"
-#include "PreviewMesh.h"
 #include "BakeMeshAttributeTool.h"
+#include "CoreMinimal.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/Texture2D.h"
+#include "Image/ImageDimensions.h"
+#include "InteractiveToolManager.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "MeshOpPreviewHelpers.h"
+#include "ModelingOperators.h"
+#include "PreviewMesh.h"
+#include "Sampling/MeshMapBaker.h"
 #include "BakeMeshAttributeMapsToolBase.generated.h"
 
 /**

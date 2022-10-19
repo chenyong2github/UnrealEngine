@@ -12,8 +12,8 @@
 #include "Physics/CollisionGeometryVisualization.h"
 
 // physics data
-#include "Engine/Classes/PhysicsEngine/BodySetup.h"
-#include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/PhysicsDataSource.h"

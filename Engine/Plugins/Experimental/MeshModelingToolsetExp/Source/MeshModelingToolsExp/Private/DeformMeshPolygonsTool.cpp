@@ -2,15 +2,15 @@
 
 #include "DeformMeshPolygonsTool.h"
 
-#include "InteractiveToolManager.h"
+#include "Curves/RichCurve.h"
 #include "DynamicMesh/MeshNormals.h"
-#include "ModelingOperators/Public/ModelingTaskTypes.h"
+#include "InteractiveToolManager.h"
+#include "ModelingTaskTypes.h"
+#include "ModelingToolTargetUtil.h"
 #include "Solvers/ConstrainedMeshDeformer.h"
 #include "ToolBuilderUtil.h"
-#include "ToolSetupUtil.h"
 #include "ToolSceneQueriesUtil.h"
-#include "ModelingToolTargetUtil.h"
-#include "Curves/RichCurve.h"
+#include "ToolSetupUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DeformMeshPolygonsTool)
 

@@ -8,9 +8,9 @@
 #include "ProxyLODMeshTypes.h" // for resize array
 #include "ProxyLODThreadedWrappers.h"
 
-#include "Containers/HashTable.h"
 #include "Containers/BinaryHeap.h"
-#include "Developer/MeshSimplifier/Private/MeshSimplifyElements.h"
+#include "Containers/HashTable.h"
+#include "MeshSimplifyElements.h"
 #include "ProxyLODQuadric.h"
 
 

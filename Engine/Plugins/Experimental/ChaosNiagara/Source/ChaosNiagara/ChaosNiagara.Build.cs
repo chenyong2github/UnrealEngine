@@ -1,11 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class ChaosNiagara : ModuleRules
 {
 	public ChaosNiagara(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.AddRange(new string[] {
+			System.IO.Path.Combine(GetModuleDirectory("ControlRig"), "Private"),
+			System.IO.Path.Combine(GetModuleDirectory("Niagara"), "Private"),
+		});
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BackChannel/Protocol/OSC/BackChannelOSCPacket.h"
-#include "BackChannel/Private/BackChannelCommon.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCBundle.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSCMessage.h"
+#include "BackChannelCommon.h"
 
 
 

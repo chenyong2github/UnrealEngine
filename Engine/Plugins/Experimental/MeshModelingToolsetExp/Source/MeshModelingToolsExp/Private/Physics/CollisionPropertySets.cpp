@@ -3,7 +3,7 @@
 #include "Physics/CollisionPropertySets.h"
 #include "Physics/PhysicsDataCollection.h"
 
-#include "Engine/Classes/PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionPropertySets)
 

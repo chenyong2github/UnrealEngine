@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BackChannel/Private/BackChannelCommon.h"
 #include "BackChannel/Transport/IBackChannelTransport.h"
-#include "BackChannel/Private/Transport/BackChannelConnection.h"
+#include "BackChannelCommon.h"
+#include "Transport/BackChannelConnection.h"
 
 const TCHAR* BackChannelTransport_TCP = TEXT("BackChannelTCP");
 

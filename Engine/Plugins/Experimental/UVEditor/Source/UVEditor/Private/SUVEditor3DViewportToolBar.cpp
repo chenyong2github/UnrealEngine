@@ -2,16 +2,16 @@
 
 #include "SUVEditor3DViewportToolBar.h"
 
-#include "UVEditorCommands.h"
 #include "EditorViewportCommands.h"
-#include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SEditorViewportToolBarMenu.h"
+#include "SEditorViewportViewMenu.h"
+#include "SUVEditor3DViewport.h"
+#include "Styling/AppStyle.h"
+#include "UVEditorCommands.h"
 #include "UVEditorStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
-#include "SEditorViewportViewMenu.h"
-#include "SUVEditor3DViewport.h"
 
 #define LOCTEXT_NAMESPACE "SUVEditor3DViewportToolBar"
 

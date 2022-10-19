@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BackChannel/Protocol/OSC/BackChannelOSCBundle.h"
-#include "BackChannel/Private/BackChannelCommon.h"
+#include "BackChannelCommon.h"
 
 
 const ANSICHAR* FBackChannelOSCBundle::BundleHeader = "#bundle";

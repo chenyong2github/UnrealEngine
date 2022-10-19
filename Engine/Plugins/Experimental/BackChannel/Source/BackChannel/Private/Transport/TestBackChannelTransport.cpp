@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BackChannel/Private/BackChannelCommon.h"
 #include "BackChannel/Transport/IBackChannelTransport.h"
 #include "BackChannel/Utils/BackChannelThreadedConnection.h"
-#include "Misc/AutomationTest.h"
+#include "BackChannelCommon.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/AutomationTest.h"
 
 PRAGMA_DISABLE_OPTIMIZATION
 

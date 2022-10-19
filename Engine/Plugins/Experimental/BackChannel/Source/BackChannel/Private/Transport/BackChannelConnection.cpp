@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BackChannel/Private/Transport/BackChannelConnection.h"
-#include "BackChannel/Private/BackChannelCommon.h"
+#include "Transport/BackChannelConnection.h"
 #include "BackChannel/Transport/IBackChannelTransport.h"
+#include "BackChannelCommon.h"
 #include "Common/TcpSocketBuilder.h"
-#include "HAL/IConsoleManager.h"
-#include "Misc/ScopeLock.h"
 #include "CoreGlobals.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopeLock.h"
 
 DECLARE_STATS_GROUP(TEXT("BackChannel"), STATGROUP_BackChannel, STATCAT_Advanced);
 

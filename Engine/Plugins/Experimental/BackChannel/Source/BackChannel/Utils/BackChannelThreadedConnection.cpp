@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BackChannel/Utils/BackChannelThreadedConnection.h"
-#include "BackChannel/Private/BackChannelCommon.h"
+#include "BackChannelCommon.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/ScopeLock.h"

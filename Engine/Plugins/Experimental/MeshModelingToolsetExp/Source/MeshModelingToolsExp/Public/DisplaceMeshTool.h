@@ -2,17 +2,17 @@
 
 #pragma once
 
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "Engine/Classes/Engine/Texture2D.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "Engine/Texture2D.h"
+#include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
+#include "SingleSelectionTool.h"
 #include "Spatial/SampledScalarField2.h"
+#include "UObject/NoExportTypes.h"
 #include "WeightMapUtil.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "DisplaceMeshTool.generated.h"
 
 struct FMeshDescription;

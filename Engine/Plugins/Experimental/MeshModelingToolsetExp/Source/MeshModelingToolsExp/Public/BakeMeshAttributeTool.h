@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/Classes/Engine/Texture2D.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "BaseTools/MultiSelectionMeshEditingTool.h"
-#include "InteractiveToolQueryInterfaces.h" // for UInteractiveToolExclusiveToolAPI
-#include "DynamicMesh/DynamicMesh3.h"
-#include "PreviewMesh.h"
-#include "TargetInterfaces/StaticMeshBackedTarget.h"
-#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
-#include "TargetInterfaces/DynamicMeshSource.h"
 #include "BakeMeshAttributeToolCommon.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
+#include "CoreMinimal.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/Texture2D.h"
+#include "InteractiveToolQueryInterfaces.h" // for UInteractiveToolExclusiveToolAPI
+#include "Materials/MaterialInstanceDynamic.h"
+#include "PreviewMesh.h"
+#include "TargetInterfaces/DynamicMeshSource.h"
+#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "BakeMeshAttributeTool.generated.h"
 
 /**

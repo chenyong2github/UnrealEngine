@@ -26,7 +26,7 @@
 #include "ModelingToolTargetUtil.h"
 
 // required to pass UStaticMesh asset so we can save at same location
-#include "Engine/Classes/Engine/StaticMesh.h"
+#include "Engine/StaticMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BakeMultiMeshAttributeMapsTool)
 

@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Materials/Material.h"
 #include "PrimitiveSceneProxy.h"
-#include "WaterQuadTree.h"
-#include "Engine/Classes/Materials/Material.h"
-#include "WaterVertexFactory.h"
+#include "UObject/ObjectMacros.h"
 #include "WaterInstanceDataBuffer.h"
+#include "WaterQuadTree.h"
+#include "WaterVertexFactory.h"
 
 class UWaterMeshComponent;
 

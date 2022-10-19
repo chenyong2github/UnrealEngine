@@ -7,7 +7,7 @@
 #include "MuT/Table.h"
 #include "MuT/AST.h"
 
-#include "../Private/MuR/MemoryPrivate.h"
+#include "MuR/MemoryPrivate.h"
 
 
 namespace mu

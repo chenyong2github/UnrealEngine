@@ -13,13 +13,13 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/UnrealTypePrivate.h"
 
+#include "EngineGlobals.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
-#include "Voronoi/Voronoi.h"
-#include "PlanarCut.h"
-#include "Runtime/Engine/Public/EngineGlobals.h"
 #include "Math/UnrealMathUtility.h"
+#include "PlanarCut.h"
+#include "Voronoi/Voronoi.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionNodes)
 

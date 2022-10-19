@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
-#include "ITransportControl.h"
-#include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
+#include "ITransportControl.h"
+#include "PropertyEditorModule.h"
+#include "Types/SlateEnums.h"
 
 class IPropertyHandle;
 class UCommonVideoPlayer;

@@ -4,9 +4,9 @@
 #include "CoreMinimal.h"
 
 #include "Components.h" // for MAX_TEXCOORDS
-#include "Containers/HashTable.h"
 #include "Containers/BinaryHeap.h"
-#include "Developer/MeshSimplifier/Private/MeshSimplifyElements.h"
+#include "Containers/HashTable.h"
+#include "MeshSimplifyElements.h"
 
 #include "SkeletalSimplifierVertex.h"
 #include "SkeletalSimplifierLinearAlgebra.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterQuadTree.h"
-#include "Engine/Public/SceneManagement.h"
 #include "Materials/MaterialInterface.h"
+#include "SceneManagement.h"
 
 #if WITH_WATER_SELECTION_SUPPORT
 #include "HitProxies.h"

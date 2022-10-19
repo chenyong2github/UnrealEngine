@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonAssetTypeActions_GenericInputActionDataTable.h"
-#include "ToolMenus.h"
-#include "Misc/MessageDialog.h"
-#include "Editor/DataTableEditor/Public/DataTableEditorModule.h"
+#include "DataTableEditorModule.h"
 #include "Input/CommonGenericInputActionDataTable.h"
+#include "Misc/MessageDialog.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

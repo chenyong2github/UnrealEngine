@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceChaosDestruction.h"
-#include "NiagaraTypes.h"
+#include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Misc/FileHelper.h"
+#include "NiagaraComponent.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
-#include "ShaderParameterUtils.h"
-#include "PhysicsSolver.h"
-#include "Niagara/Private/NiagaraStats.h"
-#include "Chaos/PBDCollisionConstraintsUtil.h"
-#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "Chaos/CollisionResolutionTypes.h"
+#include "NiagaraStats.h"
+#include "NiagaraTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
-#include "NiagaraComponent.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "PhysicsSolver.h"
+#include "ShaderParameterUtils.h"
 
 #include <memory>
 #include "GeometryCollection/GeometryCollectionComponent.h"

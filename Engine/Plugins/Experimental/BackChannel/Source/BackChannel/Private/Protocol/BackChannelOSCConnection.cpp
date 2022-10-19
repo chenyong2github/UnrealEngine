@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BackChannel/Protocol/OSC/BackChannelOSCConnection.h"
-#include "BackChannel/Private/BackChannelCommon.h"
-#include "BackChannel/Transport/IBackChannelTransport.h"
 #include "BackChannel/Protocol/OSC/BackChannelOSC.h"
-#include "Sockets.h"
-#include "HAL/PlatformTime.h"
+#include "BackChannel/Transport/IBackChannelTransport.h"
+#include "BackChannelCommon.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
 #include "Misc/ScopeLock.h"
+#include "Sockets.h"
 
 FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)
 	: Connection(InConnection)

@@ -17,9 +17,9 @@
 #include "Physics/CollisionGeometryVisualization.h"
 
 // physics data
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
-#include "Engine/Classes/PhysicsEngine/BodySetup.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #include "Async/ParallelFor.h"
 

@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "BodySetupEnums.h"
 #include "CoreMinimal.h"
 #include "InteractiveTool.h"
-#include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
-#include "BodySetupEnums.h"
+#include "PhysicsEngine/AggregateGeom.h"
 #include "CollisionPropertySets.generated.h"
 
 

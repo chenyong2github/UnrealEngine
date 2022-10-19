@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GerstnerWaterWaves.h"
-#include "GerstnerWaterWaveSubsystem.h"
-#include "WaterModule.h"
 #include "Engine/Engine.h"
-#include "Core/Public/Misc/LargeWorldRenderPosition.h"
+#include "GerstnerWaterWaveSubsystem.h"
+#include "Misc/LargeWorldRenderPosition.h"
+#include "WaterModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GerstnerWaterWaves)
 
