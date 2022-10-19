@@ -88,7 +88,7 @@ static FString RetrieveAssetPath(const FAssetData& InAssetData)
 	return Path;
 }
 
-static void RefreshAssetInformationInternal(const TArray<FAssetData>& Assets, const FString& InFilename, FText& OutAssetName, FText& OutAssetPath, FText& OutAssetType, FText& OutPackageName, FColor& OutAssetTypeColor)
+static void RefreshAssetInformationInternal(const TArray<FAssetData>& Assets, const FString& InFilename, FString& OutAssetName, FString& OutAssetPath, FString& OutAssetType, FText& OutPackageName, FColor& OutAssetTypeColor)
 {
 	// Initialize display-related members
 	FString Filename = InFilename;
@@ -164,17 +164,35 @@ static void RefreshAssetInformationInternal(const TArray<FAssetData>& Assets, co
 	}
 
 	// Finally, assign the temp variables to the member variables
-	OutAssetName = FText::FromString(TempAssetName);
-	OutAssetPath = FText::FromString(TempAssetPath);
-	OutAssetType = FText::FromString(TempAssetType);
+	OutAssetName = TempAssetName;
+	OutAssetPath = TempAssetPath;
+	OutAssetType = TempAssetType;
 	OutAssetTypeColor = TempAssetColor;
 	OutPackageName = FText::FromString(TempPackageName);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
+FString IFileViewTreeItem::DefaultStrValue; // Default is an empty string.
+FDateTime IFileViewTreeItem::DefaultDateTimeValue; // Default is FDateTime::MinValue().
+
+void IFileViewTreeItem::SetLastModifiedDateTime(const FDateTime& Timestamp)
+{
+	LastModifiedDateTime = Timestamp;
+	if (Timestamp != FDateTime::MinValue())
+	{
+		LastModifiedTimestampText = FText::AsDateTime(Timestamp, EDateTimeStyle::Short);
+	}
+	else
+	{
+		LastModifiedTimestampText = FText::GetEmpty();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths, bool bIsShelvedFile)
-	: IChangelistTreeItem(bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File)
+	: IFileViewTreeItem(bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File)
 	, FileState(InFileState)
 	, MinTimeBetweenUpdate(FTimespan::FromSeconds(5.f))
 	, LastUpdateTime()
@@ -198,21 +216,38 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	RefreshAssetInformation();
 }
 
+int32 FFileTreeItem::GetIconSortingPriority() const
+{
+	if (!FileState->IsCurrent())        { return 0; } // First if sorted in ascending order.
+	if (FileState->IsUnknown())         { return 1; }
+	if (FileState->IsConflicted())      { return 2; }
+	if (FileState->IsCheckedOutOther()) { return 3; }
+	if (FileState->IsCheckedOut())      { return 4; }
+	if (FileState->IsDeleted())         { return 5; }
+	if (FileState->IsAdded())           { return 6; }
+	else                                { return 7; }
+}
+
+const FString& FFileTreeItem::GetCheckedOutBy() const
+{
+	CheckedOutBy.Reset();
+	FileState->IsCheckedOutOther(&CheckedOutBy);
+	return CheckedOutBy;
+}
+
 FText FFileTreeItem::GetCheckedOutByUser() const
 {
-	FString Users;
-	if (FileState->IsCheckedOutOther(&Users))
-	{
-		return FText::FromString(Users);
-	}
-	return FText::GetEmpty();
+	return FText::FromString(GetCheckedOutBy());
 }
 
 void FFileTreeItem::RefreshAssetInformation()
 {
 	// Initialize display-related members
 	static TArray<FAssetData> NoAssets;
-	RefreshAssetInformationInternal(Assets.IsValid() ? *Assets : NoAssets, FileState->GetFilename(), AssetName, AssetPath, AssetType, PackageName, AssetTypeColor);
+	RefreshAssetInformationInternal(Assets.IsValid() ? *Assets : NoAssets, FileState->GetFilename(), AssetNameStr, AssetPathStr, AssetTypeStr, PackageName, AssetTypeColor);
+	AssetName = FText::FromString(AssetNameStr);
+	AssetPath = FText::FromString(AssetPathStr);
+	AssetType = FText::FromString(AssetTypeStr);
 }
 
 FText FFileTreeItem::GetAssetName() const
@@ -249,7 +284,7 @@ FText FShelvedChangelistTreeItem::GetDisplayText() const
 //////////////////////////////////////////////////////////////////////////
 
 FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
-	: IChangelistTreeItem(IChangelistTreeItem::OfflineFile)
+	: IFileViewTreeItem(IChangelistTreeItem::OfflineFile)
 	, Assets()
 	, Filename(InFilename)
 	, PackageName(FText::FromString(InFilename)) 
@@ -267,7 +302,10 @@ FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
 
 void FOfflineFileTreeItem::RefreshAssetInformation()
 {
-	RefreshAssetInformationInternal(Assets, Filename, AssetName, AssetPath, AssetType, PackageName, AssetTypeColor);
+	RefreshAssetInformationInternal(Assets, Filename, AssetNameStr, AssetPathStr, AssetTypeStr, PackageName, AssetTypeColor);
+	AssetName = FText::FromString(AssetNameStr);
+	AssetPath = FText::FromString(AssetPathStr);
+	AssetType = FText::FromString(AssetTypeStr);
 }
 
 //////////////////////////////////////////////////////////////////////////

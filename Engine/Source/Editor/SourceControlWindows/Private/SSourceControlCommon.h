@@ -70,6 +70,51 @@ protected:
 };
 
 
+/**
+ * Abstracts the values displayed in the file view that has a set of columns. The API returns values
+ * as string rather than FText to avoid conversion when sorting very large collection (as FText convert
+ * internally to FString for comparison).
+ */
+struct IFileViewTreeItem : public IChangelistTreeItem
+{
+	/**The 'Priority' given to the item icon when sorting ascending (lower will be sorted first). */
+	virtual int32 GetIconSortingPriority() const { return 0; }
+
+	/** The values displayed in the 'Name' column. */
+	virtual const FString& GetName() const { return DefaultStrValue; }
+
+	/** The values displayed in the 'Path' column. */
+	virtual const FString& GetPath() const { return DefaultStrValue; }
+
+	/** The values displayed in the 'Type' column. */
+	virtual const FString& GetType() const { return DefaultStrValue; }
+
+	/** The values displayed in the 'User' column. */
+	virtual const FString& GetCheckedOutBy() const { return DefaultStrValue; }
+
+	/** Set the last modified time timestamp. */
+	void SetLastModifiedDateTime(const FDateTime& Timestamp);
+
+	/** The values displayed in the 'Last Modified' column. */
+	const FDateTime& GetLastModifiedDateTime() const { return LastModifiedDateTime; }
+
+	/** The values displayed in the 'Last Modified' column as text. */
+	FText GetLastModifiedTimestamp() const { return LastModifiedTimestampText; }
+
+protected:
+	IFileViewTreeItem(TreeItemType InType) : IChangelistTreeItem(InType) {}
+
+private:
+	// Use an empty string to return as default for const FString&.
+	static FString DefaultStrValue;
+	static FDateTime DefaultDateTimeValue;
+
+	/** The timestamp of the last modification to the file. */
+	FText LastModifiedTimestampText;
+	FDateTime LastModifiedDateTime;
+};
+
+
 /** Displays a changelist icon/number/description. */
 struct FChangelistTreeItem : public IChangelistTreeItem
 {
@@ -132,9 +177,15 @@ struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 
 
 /** Displays a set of files under a changelist or uncontrolled changelist. */
-struct FFileTreeItem : public IChangelistTreeItem
+struct FFileTreeItem : public IFileViewTreeItem
 {
 	explicit FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true, bool bIsShelvedFile = false);
+
+	virtual int32 GetIconSortingPriority() const override;
+	virtual const FString& GetName() const override { return AssetNameStr; }
+	virtual const FString& GetPath() const override { return AssetPathStr; }
+	virtual const FString& GetType() const override { return AssetTypeStr; }
+	virtual const FString& GetCheckedOutBy() const override;
 
 	/** Updates informations based on AssetData */
 	void RefreshAssetInformation();
@@ -153,12 +204,6 @@ struct FFileTreeItem : public IChangelistTreeItem
 
 	/** Returns the asset type color of the item */
 	FSlateColor GetAssetTypeColor() const { return FSlateColor(AssetTypeColor); }
-
-	/** Returns the last modification time of the file/asset. */
-	FText GetLastModifiedTimestamp() const { return LastModifiedTimestamp; }
-	
-	/** Set the last time the files was saved on disk. */
-	void SetLastModifiedTimestamp(const FText& Timestamp) { LastModifiedTimestamp = Timestamp; }
 
 	/** Returns the user that checked out the file/asset (if any). */
 	FText GetCheckedOutByUser() const;
@@ -210,12 +255,15 @@ private:
 
 	/** Cached asset name to display */
 	FText AssetName;
+	FString AssetNameStr;
 
 	/** Cached asset path to display */
 	FText AssetPath;
+	FString AssetPathStr;
 
 	/** Cached asset type to display */
 	FText AssetType;
+	FString AssetTypeStr;
 
 	/** Cached asset type related color to display */
 	FColor AssetTypeColor;
@@ -223,8 +271,8 @@ private:
 	/** Cached package name to display */
 	FText PackageName;
 
-	/** The timestamp of the last modification to the file. */
-	FText LastModifiedTimestamp;
+	/** The other user that has the checked out. */
+	mutable FString CheckedOutBy;
 
 	/** Matching asset(s) to facilitate Locate in content browser */
 	FAssetDataArrayPtr Assets;
@@ -257,30 +305,35 @@ struct FShelvedFileTreeItem : public FFileTreeItem
 };
 
 
-struct FOfflineFileTreeItem : public IChangelistTreeItem
+struct FOfflineFileTreeItem : public IFileViewTreeItem
 {
 	explicit FOfflineFileTreeItem(const FString& InFilename);
 
 	void RefreshAssetInformation();
+
 public:
+	virtual const FString& GetName() const override { return AssetNameStr; }
+	virtual const FString& GetPath() const override { return AssetPathStr; }
+	virtual const FString& GetType() const override { return AssetTypeStr; }
+
 	const FString& GetFilename() const { return Filename; }
 	const FText& GetPackageName() const { return PackageName; }
 	const FText& GetDisplayName() const { return AssetName; }
 	const FText& GetDisplayPath() const { return AssetPath; }
 	const FText& GetDisplayType() const { return AssetType; }
 	const FColor& GetDisplayColor() const { return AssetTypeColor; }
-	FText GetLastModifiedTimestamp() const { return LastModifiedTimestamp; }
-	void SetLastModifiedTimestamp(const FText& Timestamp) { LastModifiedTimestamp = Timestamp; }
 
 private:
 	TArray<FAssetData> Assets;
 	FString Filename;
 	FText PackageName;
 	FText AssetName;
+	FString AssetNameStr;
 	FText AssetPath;
+	FString AssetPathStr;
 	FText AssetType;
+	FString AssetTypeStr;
 	FColor AssetTypeColor;
-	FText LastModifiedTimestamp;
 };
 
 

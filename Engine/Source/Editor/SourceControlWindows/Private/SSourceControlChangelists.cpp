@@ -31,6 +31,7 @@
 #include "SourceControlMenuContext.h"
 #include "SourceControlSettings.h"
 #include "AssetToolsModule.h"
+#include "Misc/CString.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Algo/AnyOf.h"
@@ -106,15 +107,6 @@ FText UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult
 
 void UpdateLastModifiedTimestamp(IChangelistTreeItem& Item)
 {
-	auto GetTimestampText = [](const FString& Pathname)
-	{
-		if (IFileManager::Get().FileExists(*Pathname))
-		{
-			return FText::AsDateTime(IFileManager::Get().GetTimeStamp(*Pathname), EDateTimeStyle::Short);
-		}
-		return FText::GetEmpty();
-	};
-
 	switch (Item.GetTreeItemType())
 	{
 		// NOTE: We may not want to display the last saved timestamp for shelved files as this could lead users to think the file
@@ -123,7 +115,7 @@ void UpdateLastModifiedTimestamp(IChangelistTreeItem& Item)
 		case IChangelistTreeItem::ShelvedFile:
 		{
 			FFileTreeItem& FileItem = static_cast<FFileTreeItem&>(Item);
-			FileItem.SetLastModifiedTimestamp(GetTimestampText(FileItem.GetFileName().ToString()));
+			FileItem.SetLastModifiedDateTime(IFileManager::Get().GetTimeStamp(*FileItem.GetFileName().ToString()));
 			return;
 		}
 		break;
@@ -131,7 +123,7 @@ void UpdateLastModifiedTimestamp(IChangelistTreeItem& Item)
 		case IChangelistTreeItem::OfflineFile:
 		{
 			FOfflineFileTreeItem& OfflineItem = static_cast<FOfflineFileTreeItem&>(Item);
-			OfflineItem.SetLastModifiedTimestamp(GetTimestampText(OfflineItem.GetFilename()));
+			OfflineItem.SetLastModifiedDateTime(IFileManager::Get().GetTimeStamp(*OfflineItem.GetFilename()));
 			return;
 		}
 
@@ -353,7 +345,8 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 	SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged));
 	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddSP(this, &SSourceControlChangelistsWidget::OnSourceControlStateChanged);
 
-	PrimarySortedColumn = SourceControlFileViewColumn::Name::Id();
+	// No default sorting, sorting make the view slower, just pay the cost if user wants it.
+	PrimarySortedColumn = FName();
 
 	ChangelistTreeView = CreateChangelistTreeView(ChangelistTreeNodes);
 	UncontrolledChangelistTreeView = CreateChangelistTreeView(UncontrolledChangelistTreeNodes);
@@ -2899,162 +2892,136 @@ void SSourceControlChangelistsWidget::OnColumnSortModeChanged(const EColumnSortP
 
 void SSourceControlChangelistsWidget::SortFileView()
 {
-	// Invoked when sorting the icons. This gives a priority to the status for sorting purpose.
-	auto GetSourceControlStateWeight = [](const ISourceControlState& State)
+	TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::SortFileView);
+
+	if (PrimarySortedColumn.IsNone() || FileTreeNodes.IsEmpty())
 	{
-		if (!State.IsCurrent())        { return 0; } // First if sorted in ascending order.
-		if (State.IsUnknown())         { return 1; }
-		if (State.IsConflicted())      { return 2; }
-		if (State.IsCheckedOutOther()) { return 3; }
-		if (State.IsCheckedOut())      { return 4; }
-		if (State.IsDeleted())         { return 5; }
-		if (State.IsAdded())           { return 6; }
-		else                           { return 7; }
+		return; // No column selected for sorting or nothing to sort.
+	}
+
+	auto CompareIcons = [](const IFileViewTreeItem* Lhs, const IFileViewTreeItem* Rhs)
+	{
+		int32 LhsVal = Lhs->GetIconSortingPriority();
+		int32 RhsVal = Rhs->GetIconSortingPriority();
+		return LhsVal < RhsVal ? -1 : ( LhsVal == RhsVal ? 0 : 1);
 	};
 
-	// Implements the equivalent of operator< to compare the files status.
-	auto OperatorLessFileIcon = [&GetSourceControlStateWeight](const FFileTreeItem& Lhs, const FFileTreeItem& Rhs) -> bool
+	auto CompareNames = [](const IFileViewTreeItem* Lhs, const IFileViewTreeItem* Rhs)
 	{
-		return GetSourceControlStateWeight(Lhs.FileState.Get()) < GetSourceControlStateWeight(Rhs.FileState.Get());
+		return FCString::Stricmp(*Lhs->GetName(), *Rhs->GetName());
 	};
 
-	auto OperatorLessOfflineFileIcon = [](const FOfflineFileTreeItem& Lhs, const FOfflineFileTreeItem& Rhs) -> bool
+	auto ComparePaths = [](const IFileViewTreeItem* Lhs, const IFileViewTreeItem* Rhs)
 	{
-		return false; // Offline file do not have state, don't change the order.
+		return FCString::Stricmp(*Lhs->GetPath(), *Rhs->GetPath());
 	};
 
-	auto OperatorLessIcon = [&OperatorLessFileIcon, &OperatorLessOfflineFileIcon](IChangelistTreeItem* Lhs, IChangelistTreeItem* Rhs)-> bool
+	auto CompareTypes = [](const IFileViewTreeItem* Lhs, const IFileViewTreeItem* Rhs)
 	{
-		check(Lhs->GetTreeItemType() == Rhs->GetTreeItemType());
-		switch (Lhs->GetTreeItemType())
-		{
-		case IChangelistTreeItem::File:
-		case IChangelistTreeItem::ShelvedFile:
-			return OperatorLessFileIcon(*static_cast<FFileTreeItem*>(Lhs), *static_cast<FFileTreeItem*>(Rhs));
-		case IChangelistTreeItem::OfflineFile:
-			return OperatorLessOfflineFileIcon(*static_cast<FOfflineFileTreeItem*>(Lhs), *static_cast<FOfflineFileTreeItem*>(Rhs));
-		default:
-			return false;
-		}
+		return FCString::Stricmp(*Lhs->GetType(), *Rhs->GetType());
 	};
 
-	auto GetName = [](IChangelistTreeItem* Item) -> FString
+	auto CompareLastModified = [](const IFileViewTreeItem* Lhs, const IFileViewTreeItem* Rhs)
 	{
-		switch (Item->GetTreeItemType())
-		{
-		case IChangelistTreeItem::File:
-		case IChangelistTreeItem::ShelvedFile:
-			return static_cast<FFileTreeItem*>(Item)->GetAssetName().ToString();
-		case IChangelistTreeItem::OfflineFile:
-			return static_cast<FOfflineFileTreeItem*>(Item)->GetDisplayName().ToString();
-		default:
-			return FString();
-		}
+		const FDateTime& LhsVal = Lhs->GetLastModifiedDateTime();
+		const FDateTime& RhsVal = Rhs->GetLastModifiedDateTime();
+		return LhsVal < RhsVal ? -1 : ( LhsVal == RhsVal ? 0 : 1);
 	};
 
-	auto GetPath = [](IChangelistTreeItem* Item) -> FString
+	auto CompareCheckedOutBy = [](const IFileViewTreeItem* Lhs, const IFileViewTreeItem* Rhs)
 	{
-		switch (Item->GetTreeItemType())
-		{
-		case IChangelistTreeItem::File:
-		case IChangelistTreeItem::ShelvedFile:
-			return static_cast<FFileTreeItem*>(Item)->GetAssetPath().ToString();
-		case IChangelistTreeItem::OfflineFile:
-			return static_cast<FOfflineFileTreeItem*>(Item)->GetDisplayPath().ToString();
-		default:
-			return FString();
-		}
+		return FCString::Stricmp(*Lhs->GetCheckedOutBy(), *Rhs->GetCheckedOutBy());
 	};
 
-	auto GetType = [](IChangelistTreeItem* Item)  -> FString
-	{
-		switch (Item->GetTreeItemType())
-		{
-		case IChangelistTreeItem::File:
-		case IChangelistTreeItem::ShelvedFile:
-			return static_cast<FFileTreeItem*>(Item)->GetAssetType().ToString();
-		case IChangelistTreeItem::OfflineFile:
-			return static_cast<FOfflineFileTreeItem*>(Item)->GetDisplayType().ToString();
-		default:
-			return FString();
-		}
-	};
-
-	auto GetModifiedTimestamp = [](IChangelistTreeItem* Item)  -> FString
-	{
-		switch (Item->GetTreeItemType())
-		{
-		case IChangelistTreeItem::File:
-		case IChangelistTreeItem::ShelvedFile:
-			return static_cast<FFileTreeItem*>(Item)->GetLastModifiedTimestamp().ToString();
-		case IChangelistTreeItem::OfflineFile:
-			return static_cast<FOfflineFileTreeItem*>(Item)->GetLastModifiedTimestamp().ToString();
-		default:
-			return FString();
-		}
-	};
-
-	auto GetCheckedOutByUser = [](IChangelistTreeItem* Item)  -> FString
-	{
-		switch (Item->GetTreeItemType())
-		{
-		case IChangelistTreeItem::File:
-		case IChangelistTreeItem::ShelvedFile:
-			return static_cast<FFileTreeItem*>(Item)->GetCheckedOutByUser().ToString();
-		default:
-			return FString();
-		}
-	};
-
-	auto Compare = [&](const TSharedPtr<IChangelistTreeItem>& Lhs, const TSharedPtr<IChangelistTreeItem>& Rhs, const FName& ColumnId, EColumnSortMode::Type SortMode) -> bool
+	auto GetCompareFunc = [&](const FName& ColumnId)
 	{
 		if (ColumnId == SourceControlFileViewColumn::Icon::Id())
 		{
-			return SortMode == EColumnSortMode::Ascending ? OperatorLessIcon(Lhs.Get(), Rhs.Get()) : OperatorLessIcon(Rhs.Get(), Lhs.Get());
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>(CompareIcons);
 		}
 		else if (ColumnId == SourceControlFileViewColumn::Name::Id())
 		{
-			return SortMode == EColumnSortMode::Ascending ? GetName(Lhs.Get()) < GetName(Rhs.Get()) : GetName(Lhs.Get()) > GetName(Rhs.Get());
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>(CompareNames);
 		}
 		else if (ColumnId == SourceControlFileViewColumn::Path::Id())
 		{
-			return SortMode == EColumnSortMode::Ascending ? GetPath(Lhs.Get()) < GetPath(Rhs.Get()) : GetPath(Lhs.Get()) > GetPath(Rhs.Get());
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>(ComparePaths);
 		}
 		else if (ColumnId == SourceControlFileViewColumn::Type::Id())
 		{
-			return SortMode == EColumnSortMode::Ascending ? GetType(Lhs.Get()) < GetType(Rhs.Get()) : GetType(Lhs.Get()) > GetType(Rhs.Get());
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>(CompareTypes);
 		}
 		else if (ColumnId == SourceControlFileViewColumn::LastModifiedTimestamp::Id())
 		{
-			return SortMode == EColumnSortMode::Ascending ? GetModifiedTimestamp(Lhs.Get()) < GetModifiedTimestamp(Rhs.Get()) : GetModifiedTimestamp(Lhs.Get()) > GetModifiedTimestamp(Rhs.Get());
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>(CompareLastModified);
 		}
 		else if (ColumnId == SourceControlFileViewColumn::CheckedOutByUser::Id())
 		{
-			return SortMode == EColumnSortMode::Ascending ? GetCheckedOutByUser(Lhs.Get()) < GetCheckedOutByUser(Rhs.Get()) : GetCheckedOutByUser(Lhs.Get()) > GetCheckedOutByUser(Rhs.Get());
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>(CompareCheckedOutBy);
 		}
 		else
 		{
 			checkNoEntry();
-			return false;
-		}
+			return TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)>();
+		};
 	};
 
-	FileTreeNodes.Sort([&](const TSharedPtr<IChangelistTreeItem>& Lhs, const TSharedPtr<IChangelistTreeItem>& Rhs)
+	TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)> PrimaryCompare = GetCompareFunc(PrimarySortedColumn);
+	TFunction<int32(const IFileViewTreeItem*, const IFileViewTreeItem*)> SecondaryCompare;
+	if (!SecondarySortedColumn.IsNone())
 	{
-		if (Compare(Lhs, Rhs, PrimarySortedColumn, PrimarySortMode))
+		SecondaryCompare = GetCompareFunc(SecondarySortedColumn);
+	}
+
+	if (PrimarySortMode == EColumnSortMode::Ascending)
+	{
+		// NOTE: StableSort() would give a better experience when the sorted columns(s) has the same values and new values gets added, but it is slower
+		//       with large changelists (7600 items was about 1.8x slower in average measured with Unreal Insight). Because this code runs in the main
+		//       thread and can be invoked a lot, the trade off went if favor of speed.
+		FileTreeNodes.Sort([this, &PrimaryCompare, &SecondaryCompare](const TSharedPtr<IChangelistTreeItem>& Lhs, const TSharedPtr<IChangelistTreeItem>& Rhs)
 		{
-			return true; // Lhs must be before Rhs based on the primary sort order.
-		}
-		else if (Compare(Rhs, Lhs, PrimarySortedColumn, PrimarySortMode)) // Invert operands order (goal is to check if operands are equal or not)
+			int32 Result = PrimaryCompare(static_cast<IFileViewTreeItem*>(Lhs.Get()), static_cast<IFileViewTreeItem*>(Rhs.Get()));
+			if (Result < 0)
+			{
+				return true;
+			}
+			else if (Result > 0 || !SecondaryCompare)
+			{
+				return false;
+			}
+			else if (SecondarySortMode == EColumnSortMode::Ascending)
+			{
+				return SecondaryCompare(static_cast<IFileViewTreeItem*>(Lhs.Get()), static_cast<IFileViewTreeItem*>(Rhs.Get())) < 0;
+			}
+			else
+			{
+				return SecondaryCompare(static_cast<IFileViewTreeItem*>(Lhs.Get()), static_cast<IFileViewTreeItem*>(Rhs.Get())) > 0;
+			}
+		});
+	}
+	else
+	{
+		FileTreeNodes.Sort([this, &PrimaryCompare, &SecondaryCompare](const TSharedPtr<IChangelistTreeItem>& Lhs, const TSharedPtr<IChangelistTreeItem>& Rhs)
 		{
-			return false; // Rhs must be before Lhs based on the primary sort.
-		}
-		else if (!SecondarySortedColumn.IsNone()) // Lhs == Rhs on the primary column, need to sort according the secondary column if one is set.
-		{
-			return Compare(Lhs, Rhs, SecondarySortedColumn, SecondarySortMode);
-		}
-		return false;
-	});
+			int32 Result = PrimaryCompare(static_cast<IFileViewTreeItem*>(Lhs.Get()), static_cast<IFileViewTreeItem*>(Rhs.Get()));
+			if (Result > 0)
+			{
+				return true;
+			}
+			else if (Result < 0 || !SecondaryCompare)
+			{
+				return false;
+			}
+			else if (SecondarySortMode == EColumnSortMode::Ascending)
+			{
+				return SecondaryCompare(static_cast<IFileViewTreeItem*>(Lhs.Get()), static_cast<IFileViewTreeItem*>(Rhs.Get())) < 0;
+			}
+			else
+			{
+				return SecondaryCompare(static_cast<IFileViewTreeItem*>(Lhs.Get()), static_cast<IFileViewTreeItem*>(Rhs.Get())) > 0;
+			}
+		});
+	}
 }
 
 void SSourceControlChangelistsWidget::OnChangelistSearchTextChanged(const FText& InFilterText)
