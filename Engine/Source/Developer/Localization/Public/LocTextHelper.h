@@ -369,6 +369,13 @@ public:
 	 */
 	bool SaveManifest(FText* OutError = nullptr) const;
 
+
+	/**
+	 * Attempt to serialize the entire manifest to an input json object
+	 * @return True if the serialization succeeds false otherwise.
+	 */
+	bool SerializeManifestToJson(TSharedRef<FJsonObject> JsonObject);
+
 	/**
 	 * Attempt to save the manifest file to the given file path.
 	 *

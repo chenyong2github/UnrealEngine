@@ -587,6 +587,11 @@ bool FLocTextHelper::SaveManifest(const FString& InManifestFilePath, FText* OutE
 	return SaveManifestImpl(Manifest.ToSharedRef(), InManifestFilePath, OutError);
 }
 
+bool FLocTextHelper::SerializeManifestToJson(TSharedRef<FJsonObject> JsonObject)
+{
+	return FJsonInternationalizationManifestSerializer::SerializeManifest(Manifest.ToSharedRef(), JsonObject);
+}
+
 void FLocTextHelper::TrimManifest()
 {
 	if (Dependencies.Num() > 0)
