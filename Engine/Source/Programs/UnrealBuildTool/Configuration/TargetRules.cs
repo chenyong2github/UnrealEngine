@@ -1652,6 +1652,12 @@ namespace UnrealBuildTool
 		public bool bUseMallocProfiler = false;
 
 		/// <summary>
+		/// If true, then enable Unreal Insights (utrace) profiling in the build for the Shader Compiler Worker (defines USE_SHADER_COMPILER_WORKER_TRACE=1).
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bShaderCompilerWorkerTrace = false;
+
+		/// <summary>
 		/// Enables "Shared PCHs", a feature which significantly speeds up compile times by attempting to
 		/// share certain PCH files between modules that UBT detects is including those PCH's header files.
 		/// </summary>
@@ -3295,6 +3301,11 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bUseMallocProfiler; }
 		}
+
+		public bool bShaderCompilerWorkerTrace
+        {
+			get { return Inner.bShaderCompilerWorkerTrace;  }
+        }
 
 		public bool bUseSharedPCHs
 		{

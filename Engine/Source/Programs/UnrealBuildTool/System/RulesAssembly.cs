@@ -630,6 +630,16 @@ namespace UnrealBuildTool
 				Rules.GlobalDefinitions.Add("USE_MALLOC_PROFILER=1");
 			}
 
+			// Setup utrace for Shader Compiler Worker
+			if (Rules.bShaderCompilerWorkerTrace)
+            {
+				Rules.GlobalDefinitions.Add("USE_SHADER_COMPILER_WORKER_TRACE=1");
+			}
+            else
+            {
+				Rules.GlobalDefinitions.Add("USE_SHADER_COMPILER_WORKER_TRACE=0");
+            }
+
 			// Set a macro if we allow using generated inis
 			if (!Rules.bAllowGeneratedIniWhenCooked)
 			{

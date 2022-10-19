@@ -62,5 +62,12 @@ public class ShaderCompileWorkerTarget : TargetRules
 
 		// This removes another thread being created even when -nocrashreports is specified
 		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
+
+		if (bShaderCompilerWorkerTrace)
+        {
+			GlobalDefinitions.Add("ENABLE_LOW_LEVEL_MEM_TRACKER=1");
+			GlobalDefinitions.Add("UE_MEMORY_TAGS_TRACE_ENABLED=1");
+			GlobalDefinitions.Add("UE_TRACE_ENABLED=1");
+		}
 	}
 }

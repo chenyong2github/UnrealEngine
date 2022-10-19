@@ -4166,6 +4166,13 @@ FProcHandle FShaderCompilingManager::LaunchWorker(const FString& WorkingDirector
 	}
 	WorkerParameters += FCommandLine::GetSubprocessCommandline();
 
+#if USE_SHADER_COMPILER_WORKER_TRACE
+	// When doing utrace functionality we can't run with -nothreading, since it won't create the utrace thread to send events.
+	WorkerParameters += FString(TEXT(" -trace=default "));
+#else
+	WorkerParameters += FString(TEXT(" -nothreading "));
+#endif // USE_SHADER_COMPILER_WORKER_TRACE
+
 	// Launch the worker process
 	int32 PriorityModifier = -1; // below normal
 	GConfig->GetInt(TEXT("DevOptions.Shaders"), TEXT("WorkerProcessPriority"), PriorityModifier, GEngineIni);
