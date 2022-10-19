@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "CommonButtonBase.h"
 #include "Components/DynamicEntryBoxBase.h"
-#include "CommonBoundActionButton.h"
 #include "CommonBoundActionBar.generated.h"
 
 class IWidgetCompilerLog;
@@ -37,8 +37,8 @@ private:
 	
 	void MonitorPlayerActions(const ULocalPlayer* NewPlayer);
 
-	UPROPERTY(EditAnywhere, Category = EntryLayout)
-	TSubclassOf<UCommonBoundActionButton> ActionButtonClass;
+	UPROPERTY(EditAnywhere, Category = EntryLayout, meta=(MustImplement = "CommonBoundActionButtonInterface"))
+	TSubclassOf<UCommonButtonBase> ActionButtonClass;
 
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bDisplayOwningPlayerActionsOnly = true;

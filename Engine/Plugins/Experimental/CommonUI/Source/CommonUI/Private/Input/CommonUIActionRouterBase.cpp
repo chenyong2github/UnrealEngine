@@ -3,6 +3,7 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonAnalogCursor.h"
 #include "Input/CommonUIInputSettings.h"
+#include "Input/UIActionBinding.h"
 #include "Input/UIActionRouterTypes.h"
 #include "CommonInputSettings.h"
 #include "CommonInputActionDomain.h"

@@ -2,12 +2,13 @@
 
 #include "Input/CommonBoundActionBar.h"
 #include "CommonInputSubsystem.h"
-#include "Input/CommonUIActionRouterBase.h"
-#include "Engine/LocalPlayer.h"
-#include "Engine/GameInstance.h"
-#include "TimerManager.h"
 #include "Editor/WidgetCompilerLog.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
+#include "Input/CommonBoundActionButtonInterface.h"
+#include "Input/CommonUIActionRouterBase.h"
 #include "Input/UIActionRouterTypes.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionBar)
 
@@ -221,7 +222,7 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 
 					for (FUIActionBindingHandle BindingHandle : FilteredBindings)
 					{
-						UCommonBoundActionButton* ActionButton = Cast<UCommonBoundActionButton>(CreateEntryInternal(ActionButtonClass));
+						ICommonBoundActionButtonInterface* ActionButton = Cast<ICommonBoundActionButtonInterface>(CreateEntryInternal(ActionButtonClass));
 						if (ensure(ActionButton))
 						{
 							ActionButton->SetRepresentedAction(BindingHandle);

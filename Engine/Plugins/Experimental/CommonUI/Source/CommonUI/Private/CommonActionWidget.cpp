@@ -9,6 +9,7 @@
 #include "Widgets/Images/SImage.h"
 #include "CommonUITypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Input/UIActionBinding.h"
 #include "Input/UIActionRouterTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActionWidget)

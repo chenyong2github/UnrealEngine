@@ -2,7 +2,7 @@
 
 #include "Input/CommonBoundActionButton.h"
 #include "CommonTextBlock.h"
-#include "Input/UIActionRouterTypes.h"
+#include "Input/UIActionBinding.h"
 #include "CommonActionWidget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionButton)

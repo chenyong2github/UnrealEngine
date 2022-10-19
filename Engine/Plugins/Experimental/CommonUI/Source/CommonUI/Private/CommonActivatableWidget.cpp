@@ -4,6 +4,7 @@
 #include "CommonUIPrivate.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonUIInputTypes.h"
+#include "Input/UIActionBinding.h"
 #include "Input/UIActionRouterTypes.h"
 #include "ICommonInputModule.h"
 #include "Slate/SObjectWidget.h"
