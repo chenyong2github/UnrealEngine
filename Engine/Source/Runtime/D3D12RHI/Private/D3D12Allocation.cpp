@@ -783,8 +783,11 @@ void FD3D12MultiBuddyAllocator::ReleaseAllResources()
 {
 	for (int32 i = (Allocators.Num() - 1); i >= 0; i--)
 	{
-		Allocators[i]->Destroy();
-		delete(Allocators[i]);
+		if (Allocators[i])
+		{
+			Allocators[i]->Destroy();
+			delete(Allocators[i]);
+		}
 	}
 
 	Allocators.Empty();
