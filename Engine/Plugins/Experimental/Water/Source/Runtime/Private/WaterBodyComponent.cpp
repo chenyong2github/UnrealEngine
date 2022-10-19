@@ -12,6 +12,7 @@
 #include "AI/NavigationSystemHelpers.h"
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
+#include "Algo/MaxElement.h"
 #include "Misc/SecureHash.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Components/SplineMeshComponent.h"
@@ -1720,7 +1721,8 @@ AWaterZone* UWaterBodyComponent::FindWaterZone() const
 		return WaterZoneOverride.Get();
 	}
 
-	TArray<AWaterZone*, TInlineAllocator<4>> ViableZones;
+	// Score each overlapping water zone and then pick the best.
+	TArray<TPair<int32, AWaterZone*>, TInlineAllocator<4>> ViableZones;
 
 	if (const UWorld* World = GetWorld())
 	{
@@ -1742,15 +1744,23 @@ AWaterZone* UWaterBodyComponent::FindWaterZone() const
 				{
 					if (WaterZone->GetTypedOuter<ULevel>() == PreferredLevel)
 					{
-						return WaterZone;
+						ViableZones.Add({ WaterZone->GetOverlapPriority(), WaterZone });
+						continue;
 					}
 
-					ViableZones.Add(WaterZone);
+					// Fallback to zones not in the preferred level only as a final resort.
+					ViableZones.Add({ TNumericLimits<int32>::Min(), WaterZone});
 				}
 			}
 		}
 	}
-	return ViableZones.Num() > 0 ? ViableZones[0] : nullptr;
+	
+	if (ViableZones.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	return Algo::MaxElementBy(ViableZones, [](const TPair<int32, AWaterZone*>& A) { return A.Key; })->Value;
 }
 
 static inline FColor PackFlowData(float VelocityMagnitude, float DirectionAngle, float MaxVelocity)

@@ -56,6 +56,8 @@ public:
 	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }
 	float GetGroundZMin() const { return GroundZMin; }
 
+	int32 GetOverlapPriority() const { return OverlapPriority; }
+
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	TObjectPtr<UTextureRenderTarget2D> WaterInfoTexture;
 
@@ -135,6 +137,10 @@ private:
 
 	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (ClampMin = "1", DisplayName = "Non Tessellated LOD Section Scale", EditCondition = "bEnableNonTessellatedLODMesh"))
 	uint32 NonTessellatedLODSectionScale = 4;
+
+	/** Higher number is higher priority. If Water Zones overlap and a water body does not have a manual water zone override, this priority will be used when automatically assigning the zone. */
+	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay)
+	int32 OverlapPriority = 0;
 
 	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (DisplayName = "Enable Non-Tessellated LOD Mesh"))
 	bool bEnableNonTessellatedLODMesh = false;
