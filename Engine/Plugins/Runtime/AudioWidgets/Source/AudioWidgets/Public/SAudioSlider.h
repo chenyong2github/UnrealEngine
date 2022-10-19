@@ -28,7 +28,7 @@ class AUDIOWIDGETS_API SAudioSliderBase
 public:
 	SLATE_BEGIN_ARGS(SAudioSliderBase)
 	{
-		_Value = 0.0f;
+		_SliderValue = 0.0f;
 		_Orientation = Orient_Vertical;
 
 		const ISlateStyle* AudioWidgetsStyle = FSlateStyleRegistry::FindSlateStyle("AudioWidgetsStyle");
@@ -44,8 +44,8 @@ public:
 		/** The style used to draw the audio slider. */
 		SLATE_STYLE_ARGUMENT(FAudioSliderStyle, Style)
 
-		/** A value representing the audio slider value. */
-		SLATE_ATTRIBUTE(float, Value)
+		/** A value representing the normalized linear (0 - 1) audio slider value position. */
+		SLATE_ATTRIBUTE(float, SliderValue)
 
 		/** Whether the text label is always shown or only on hover. */
 		SLATE_ATTRIBUTE(bool, AlwaysShowLabel)
@@ -91,15 +91,15 @@ public:
 	 * @param InDeclaration A declaration from which to construct the widget.
 	 */
 	virtual void Construct(const SAudioSliderBase::FArguments& InDeclaration);
-	virtual const float GetOutputValue(const float LinValue);
-	virtual const float GetLinValue(const float OutputValue);
-	virtual const float GetOutputValueForText(const float LinValue);
-	virtual const float GetLinValueForText(const float OutputValue);
+	virtual const float GetOutputValue(const float InSliderValue);
+	virtual const float GetSliderValue(const float OutputValue);
+	virtual const float GetOutputValueForText(const float InSliderValue);
+	virtual const float GetSliderValueForText(const float OutputValue);
 	
 	/**
 	 * Set the slider's linear (0-1 normalized) value. 
 	 */
-	void SetValue(float LinValue);
+	void SetSliderValue(float InSliderValue);
 	FVector2D ComputeDesiredSize(float) const;
 	void SetDesiredSizeOverride(const FVector2D DesiredSize);
 
@@ -122,7 +122,7 @@ protected:
 	const FAudioSliderStyle* Style;
 
 	// Holds the slider's current linear value, from 0.0 - 1.0f
-	TAttribute<float> ValueAttribute;
+	TAttribute<float> SliderValueAttribute;
 	// Holds the slider's orientation
 	TAttribute<EOrientation> Orientation;
 	// Optional override for desired size 
@@ -143,7 +143,7 @@ protected:
 
 	// Range for output, currently only used for frequency sliders and sliders without curves
 	FVector2D OutputRange = FVector2D(0.0f, 1.0f);
-	static const FVector2D LinearRange;
+	static const FVector2D NormalizedLinearSliderRange;
 private:
 	FSlateBrush SliderBackgroundBrush;
 	FVector2D SliderBackgroundSize;
@@ -167,8 +167,8 @@ public:
 	void SetOutputToLinCurve(const TWeakObjectPtr<const UCurveFloat> OutputToLinCurve);
 	const TWeakObjectPtr<const UCurveFloat> GetOutputToLinCurve();
 	const TWeakObjectPtr<const UCurveFloat> GetLinToOutputCurve();
-	const float GetOutputValue(const float LinValue);
-	const float GetLinValue(const float OutputValue);
+	const float GetOutputValue(const float InSliderValue);
+	const float GetSliderValue(const float OutputValue);
 
 protected:
 	// Curves for mapping linear (0.0 - 1.0) to output (ex. dB for volume)  
@@ -186,10 +186,10 @@ public:
 	SAudioVolumeSlider();
 	void Construct(const SAudioSlider::FArguments& InDeclaration);
 
-	const float GetOutputValue(const float LinValue);
-	const float GetLinValue(const float OutputValue);
-	const float GetOutputValueForText(const float LinValue) override;
-	const float GetLinValueForText(const float OutputValue) override;
+	const float GetOutputValue(const float InSliderValue);
+	const float GetSliderValue(const float OutputValue);
+	const float GetOutputValueForText(const float InSliderValue) override;
+	const float GetSliderValueForText(const float OutputValue) override;
 	void SetUseLinearOutput(bool InUseLinearOutput);
 	void SetOutputRange(const FVector2D Range) override;
 
@@ -198,11 +198,11 @@ private:
 	static const float MinDbValue;
 	static const float MaxDbValue; 
 	
-	// Use linear (0 - 1) output value. Only applies to the output value reported by GetOutputValue(); the text displayed will still be in decibels. 
+	// Use linear (converted from dB, not normalized) output value. Only applies to the output value reported by GetOutputValue(); the text displayed will still be in decibels. 
 	bool bUseLinearOutput = true;
 
-	const float GetDbValueFromLin(const float LinValue);
-	const float GetLinValueFromDb(const float DbValue);
+	const float GetDbValueFromSliderValue(const float InSliderValue);
+	const float GetSliderValueFromDb(const float DbValue);
 };
 
 /*
@@ -214,6 +214,6 @@ class AUDIOWIDGETS_API SAudioFrequencySlider
 public:
 	SAudioFrequencySlider();
 	void Construct(const SAudioSlider::FArguments& InDeclaration);
-	const float GetOutputValue(const float LinValue);
-	const float GetLinValue(const float OutputValue);
+	const float GetOutputValue(const float InSliderValue);
+	const float GetSliderValue(const float OutputValue);
 };

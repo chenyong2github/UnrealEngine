@@ -6,7 +6,7 @@
 #include "Widgets/SRadialSlider.h"
 #include "Styling/SlateStyleRegistry.h"
 
-const FVector2D SAudioRadialSlider::LinearRange = FVector2D(0.0f, 1.0f);
+const FVector2D SAudioRadialSlider::NormalizedLinearSliderRange = FVector2D(0.0f, 1.0f);
 
 SAudioRadialSlider::SAudioRadialSlider()
 {
@@ -16,7 +16,9 @@ void SAudioRadialSlider::Construct(const SAudioRadialSlider::FArguments& InArgs)
 {
 	Style = InArgs._Style;
 	OnValueChanged = InArgs._OnValueChanged;
-	Value = InArgs._Value;
+	OnMouseCaptureBegin = InArgs._OnMouseCaptureBegin;
+	OnMouseCaptureEnd = InArgs._OnMouseCaptureEnd;
+	SliderValue = InArgs._SliderValue;
 	CenterBackgroundColor = InArgs._CenterBackgroundColor;
 	SliderProgressColor = InArgs._SliderProgressColor;
 	SliderBarColor = InArgs._SliderBarColor;
@@ -41,20 +43,26 @@ void SAudioRadialSlider::Construct(const SAudioRadialSlider::FArguments& InArgs)
 		.OnValueTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
 		{
 			const float OutputValue = FCString::Atof(*Text.ToString());
-			const float LinValue = GetLinValueForText(OutputValue);
-			Value.Set(LinValue);
-			RadialSlider->SetValue(LinValue);
-			OnValueChanged.ExecuteIfBound(LinValue);
+			const float NewSliderValue = GetSliderValueForText(OutputValue);
+			if (!FMath::IsNearlyEqual(NewSliderValue, SliderValue.Get()))
+			{
+				SliderValue.Set(NewSliderValue);
+				RadialSlider->SetValue(NewSliderValue);
+				OnValueChanged.ExecuteIfBound(NewSliderValue);
+				OnMouseCaptureEnd.ExecuteIfBound();
+			}
 		});
 
 	SAssignNew(RadialSlider, SRadialSlider)
-		.OnValueChanged_Lambda([this](float InLinValue)
+		.OnValueChanged_Lambda([this](float InSliderValue)
 		{
-			Value.Set(InLinValue);
-			OnValueChanged.ExecuteIfBound(InLinValue);
-			const float OutputValue = GetOutputValueForText(InLinValue);
+			SliderValue.Set(InSliderValue);
+			OnValueChanged.ExecuteIfBound(InSliderValue);
+			const float OutputValue = GetOutputValueForText(InSliderValue);
 			Label->SetValueText(OutputValue);
 		})
+		.OnMouseCaptureBegin(OnMouseCaptureBegin)
+		.OnMouseCaptureEnd(OnMouseCaptureEnd)
 		.UseVerticalDrag(true)
 		.ShowSliderHand(true)
 		.ShowSliderHandle(false);
@@ -184,22 +192,22 @@ TSharedRef<SWidgetSwitcher> SAudioRadialSlider::CreateLayoutWidgetSwitcher()
 	return LayoutWidgetSwitcher.ToSharedRef();
 }
 
-void SAudioRadialSlider::SetValue(float LinValue)
+void SAudioRadialSlider::SetSliderValue(float InSliderValue)
 {
-	Value.Set(LinValue);
-	const float OutputValueText = GetOutputValueForText(LinValue);
+	SliderValue.Set(InSliderValue);
+	const float OutputValueText = GetOutputValueForText(InSliderValue);
 	Label->SetValueText(OutputValueText);
-	RadialSlider->SetValue(LinValue);
+	RadialSlider->SetValue(InSliderValue);
 }
 
-const float SAudioRadialSlider::GetLinValue(const float OutputValue)
+const float SAudioRadialSlider::GetSliderValue(const float OutputValue)
 {
-	return FMath::GetMappedRangeValueClamped(OutputRange, LinearRange, OutputValue);
+	return FMath::GetMappedRangeValueClamped(OutputRange, NormalizedLinearSliderRange, OutputValue);
 }
 
-const float SAudioRadialSlider::GetOutputValue(const float LinValue)
+const float SAudioRadialSlider::GetOutputValue(const float InSliderValue)
 {
-	return FMath::GetMappedRangeValueClamped(LinearRange, OutputRange, LinValue);
+	return FMath::GetMappedRangeValueClamped(NormalizedLinearSliderRange, OutputRange, InSliderValue);
 }
 
 void SAudioRadialSlider::SetOutputRange(const FVector2D Range)
@@ -208,22 +216,22 @@ void SAudioRadialSlider::SetOutputRange(const FVector2D Range)
 	// if Range.Y < Range.X, set Range.X to Range.Y
 	OutputRange.X = FMath::Min(Range.X, Range.Y);
 
-	const float OutputValue = GetOutputValue(Value.Get());
+	const float OutputValue = GetOutputValue(SliderValue.Get());
 	const float ClampedOutputValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
-	const float LinValue = GetLinValue(ClampedOutputValue);
-	SetValue(LinValue);
+	const float ClampedSliderValue = GetSliderValue(ClampedOutputValue);
+	SetSliderValue(ClampedSliderValue);
 
 	Label->UpdateValueTextWidth(OutputRange);
 }
 
-const float SAudioRadialSlider::GetOutputValueForText(const float LinValue)
+const float SAudioRadialSlider::GetOutputValueForText(const float InSliderValue)
 {
-	return GetOutputValue(LinValue);
+	return GetOutputValue(InSliderValue);
 }
 
-const float SAudioRadialSlider::GetLinValueForText(const float OutputValue)
+const float SAudioRadialSlider::GetSliderValueForText(const float OutputValue)
 {
-	return GetLinValue(OutputValue);
+	return GetSliderValue(OutputValue);
 }
 
 void SAudioRadialSlider::SetLabelBackgroundColor(FSlateColor InColor)
@@ -273,63 +281,67 @@ SAudioVolumeRadialSlider::SAudioVolumeRadialSlider()
 void SAudioVolumeRadialSlider::Construct(const SAudioRadialSlider::FArguments& InArgs)
 {
 	SAudioRadialSlider::Construct(InArgs);
-	
-	SAudioRadialSlider::SetOutputRange(FVector2D(-100.0f, 0.0f));
+
+	SAudioRadialSlider::SetOutputRange(FVector2D(SAudioVolumeRadialSlider::MinDbValue, 0.0f));
 	Label->SetUnitsText(FText::FromString("dB"));
 }
 
-const float SAudioVolumeRadialSlider::GetDbValueFromLin(const float LinValue)
+const float SAudioVolumeRadialSlider::GetDbValueFromSliderValue(const float InSliderValue)  
 {
 	// convert from linear 0-1 space to decibel OutputRange that has been converted to linear 
 	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
-	const float LinearSliderValue = FMath::GetMappedRangeValueClamped(LinearRange, LinearSliderRange, LinValue);
+	const float LinearSliderValue = FMath::GetMappedRangeValueClamped(NormalizedLinearSliderRange, LinearSliderRange, InSliderValue);
 	// convert from linear to decibels 
 	float OutputValue = Audio::ConvertToDecibels(LinearSliderValue);
 	return FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
 }
 
-const float SAudioVolumeRadialSlider::GetLinValueFromDb(const float OutputValue)
+const float SAudioVolumeRadialSlider::GetSliderValueFromDb(const float OutputValue) 
 {
 	float ClampedValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
 	// convert from decibels to linear
 	float LinearSliderValue = Audio::ConvertToLinear(ClampedValue);
 	// convert from decibel OutputRange that has been converted to linear to linear 0-1 space 
 	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
-	return FMath::GetMappedRangeValueClamped(LinearSliderRange, LinearRange, LinearSliderValue);
+	return FMath::GetMappedRangeValueClamped(LinearSliderRange, NormalizedLinearSliderRange, LinearSliderValue);
 }
 
-const float SAudioVolumeRadialSlider::GetOutputValue(const float LinValue)
+const float SAudioVolumeRadialSlider::GetOutputValue(const float InSliderValue) 
 {
 	if (bUseLinearOutput)
 	{
-		return FMath::Clamp(LinValue, LinearRange.X, LinearRange.Y);
+		// Return linear given normalized linear 
+		const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+		return FMath::GetMappedRangeValueClamped(NormalizedLinearSliderRange, LinearSliderRange, InSliderValue);
 	}
 	else
 	{
-		return GetDbValueFromLin(LinValue);
+		return GetDbValueFromSliderValue(InSliderValue);
 	}
 }
 
-const float SAudioVolumeRadialSlider::GetLinValue(const float OutputValue)
+const float SAudioVolumeRadialSlider::GetSliderValue(const float OutputValue)
 {
 	if (bUseLinearOutput)
 	{
-		return FMath::Clamp(OutputValue, LinearRange.X, LinearRange.Y);
+		// Convert from linear to normalized linear 
+		const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+		return FMath::GetMappedRangeValueClamped(LinearSliderRange, NormalizedLinearSliderRange, OutputValue);
 	}
 	else
 	{
-		return GetLinValueFromDb(OutputValue);
+		return GetSliderValueFromDb(OutputValue);
 	}
 }
 
-const float SAudioVolumeRadialSlider::GetOutputValueForText(const float LinValue)
+const float SAudioVolumeRadialSlider::GetOutputValueForText(const float InSliderValue)
 {
-	return GetDbValueFromLin(LinValue);
+	return GetDbValueFromSliderValue(InSliderValue);
 }
 
-const float SAudioVolumeRadialSlider::GetLinValueForText(const float OutputValue)
+const float SAudioVolumeRadialSlider::GetSliderValueForText(const float OutputValue)
 {
-	return GetLinValueFromDb(OutputValue);
+	return GetSliderValueFromDb(OutputValue);
 }
 
 void SAudioVolumeRadialSlider::SetUseLinearOutput(bool InUseLinearOutput)
@@ -337,12 +349,21 @@ void SAudioVolumeRadialSlider::SetUseLinearOutput(bool InUseLinearOutput)
 	bUseLinearOutput = InUseLinearOutput;
 }
 
-void SAudioVolumeRadialSlider::SetOutputRange(const FVector2D Range)
+void SAudioVolumeRadialSlider::SetOutputRange(const FVector2D Range) 
 {
-	// if using linear output, output range cannot be changed 
-	if (!bUseLinearOutput)
+	// For volume slider, OutputRange is always in dB
+	if (!(Range - OutputRange).IsNearlyZero())
 	{
-		SAudioRadialSlider::SetOutputRange(FVector2D(FMath::Max(MinDbValue, Range.X), FMath::Min(MaxDbValue, Range.Y)));
+		if (bUseLinearOutput)
+		{
+			// If using linear output, assume given range is linear (not normalized though) 
+			FVector2D RangeInDecibels = FVector2D(Audio::ConvertToDecibels(Range.X), Audio::ConvertToDecibels(Range.Y));
+			SAudioRadialSlider::SetOutputRange(FVector2D(FMath::Max(MinDbValue, RangeInDecibels.X), FMath::Min(MaxDbValue, RangeInDecibels.Y)));
+		}
+		else
+		{
+			SAudioRadialSlider::SetOutputRange(FVector2D(FMath::Max(MinDbValue, Range.X), FMath::Min(MaxDbValue, Range.Y)));
+		}
 	}
 }
 
@@ -359,21 +380,21 @@ void SAudioFrequencyRadialSlider::Construct(const SAudioRadialSlider::FArguments
 	Label->SetUnitsText(FText::FromString("Hz"));
 }
 
-const float SAudioFrequencyRadialSlider::GetOutputValue(const float LinValue)
+const float SAudioFrequencyRadialSlider::GetOutputValue(const float InSliderValue)
 {
-	return Audio::GetLogFrequencyClamped(LinValue, LinearRange, OutputRange);
+	return Audio::GetLogFrequencyClamped(InSliderValue, NormalizedLinearSliderRange, OutputRange);
 }
 
-const float SAudioFrequencyRadialSlider::GetLinValue(const float OutputValue)
+const float SAudioFrequencyRadialSlider::GetSliderValue(const float OutputValue)
 {
 	// edge case to avoid audio function returning negative value
 	if (FMath::IsNearlyEqual(OutputValue, OutputRange.X))
 	{
-		return LinearRange.X;
+		return NormalizedLinearSliderRange.X;
 	}
 	if (FMath::IsNearlyEqual(OutputValue, OutputRange.Y))
 	{
-		return LinearRange.Y;
+		return NormalizedLinearSliderRange.Y;
 	}
-	return Audio::GetLinearFrequencyClamped(OutputValue, LinearRange, OutputRange);
+	return Audio::GetLinearFrequencyClamped(OutputValue, NormalizedLinearSliderRange, OutputRange);
 }

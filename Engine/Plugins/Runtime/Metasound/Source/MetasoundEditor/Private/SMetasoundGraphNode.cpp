@@ -73,6 +73,12 @@ namespace Metasound
 					}
 				}
 			}
+
+			if (bIsInputWidgetTransacting)
+			{
+				GEditor->EndTransaction();
+				UE_LOG(LogMetaSound, Warning, TEXT("Unmatched MetaSound editor widget transaction."));
+			}
 		}
 
 		bool SMetaSoundGraphNode::IsVariableAccessor() const
@@ -652,10 +658,10 @@ namespace Metasound
 						{
 							if (InputWidget.IsValid())
 							{
-								if (!this->bIsInputWidgetTransacting)
+								if (!bIsInputWidgetTransacting)
 								{
 									GEditor->BeginTransaction(LOCTEXT("MetasoundGraphNode_MetasoundSetInputDefault", "Set MetaSound Input Default"));
-									this->bIsInputWidgetTransacting = true;
+									bIsInputWidgetTransacting = true;
 								}
 								GraphMember->GetOwningGraph()->GetMetasound()->Modify();
 								DefaultFloat->Modify();
@@ -778,22 +784,50 @@ namespace Metasound
 						}
 						else if (DefaultFloat->WidgetType == EMetasoundMemberDefaultWidget::RadialSlider)
 						{
+							auto OnRadialSliderMouseCaptureBeginLambda = [this]()
+							{
+								if (!bIsInputWidgetTransacting)
+								{
+									GEditor->BeginTransaction(LOCTEXT("MetasoundSetRadialSliderInputDefault", "Set MetaSound Input Default"));
+									bIsInputWidgetTransacting = true;
+								}
+							};
+
+							auto OnRadialSliderMouseCaptureEndLambda = [this]()
+							{
+								if (bIsInputWidgetTransacting)
+								{
+									GEditor->EndTransaction();
+									bIsInputWidgetTransacting = false;
+								}
+								else
+								{
+									UE_LOG(LogMetaSound, Warning, TEXT("Unmatched MetaSound editor widget transaction."));
+								}
+							};
+
 							// Create slider 
 							if (DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Frequency)
 							{
 								SAssignNew(InputWidget, SAudioFrequencyRadialSlider)
-									.OnValueChanged_Lambda(OnValueChangedLambda);
+									.OnValueChanged_Lambda(OnValueChangedLambda)
+									.OnMouseCaptureBegin_Lambda(OnRadialSliderMouseCaptureBeginLambda)
+									.OnMouseCaptureEnd_Lambda(OnRadialSliderMouseCaptureEndLambda);
 							}
 							else if (DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
 							{
 								SAssignNew(InputWidget, SAudioVolumeRadialSlider)
-									.OnValueChanged_Lambda(OnValueChangedLambda);
+									.OnValueChanged_Lambda(OnValueChangedLambda)
+									.OnMouseCaptureBegin_Lambda(OnRadialSliderMouseCaptureBeginLambda)
+									.OnMouseCaptureEnd_Lambda(OnRadialSliderMouseCaptureEndLambda);
 								StaticCastSharedPtr<SAudioVolumeRadialSlider>(InputWidget)->SetUseLinearOutput(DefaultFloat->VolumeWidgetUseLinearOutput);
 							}
 							else
 							{
 								SAssignNew(InputWidget, SAudioRadialSlider)
-									.OnValueChanged_Lambda(OnValueChangedLambda);
+									.OnValueChanged_Lambda(OnValueChangedLambda)
+									.OnMouseCaptureBegin_Lambda(OnRadialSliderMouseCaptureBeginLambda)
+									.OnMouseCaptureEnd_Lambda(OnRadialSliderMouseCaptureEndLambda);
 								InputWidget->SetShowUnitsText(false);
 							}
 							// Only vertical layout for radial slider
@@ -818,7 +852,7 @@ namespace Metasound
 
 						InputWidget->SetOutputRange(DefaultFloat->GetRange());
 						InputWidget->SetUnitsTextReadOnly(true);
-						InputWidget->SetValue(InputWidget->GetLinValue(DefaultFloat->GetDefault()));
+						InputWidget->SetSliderValue(InputWidget->GetSliderValue(DefaultFloat->GetDefault()));
 						InputWidget->SetVisibility(TAttribute<EVisibility>::Create([this]()
 						{
 							if (UMetasoundEditorGraphMemberNode* Node = GetMetaSoundMemberNode())
@@ -839,8 +873,8 @@ namespace Metasound
 						{
 							if (Widget.IsValid())
 							{
-								const float LinValue = Widget->GetLinValue(Value);
-								Widget->SetValue(LinValue);
+								const float SliderValue = Widget->GetSliderValue(Value);
+								Widget->SetSliderValue(SliderValue);
 							}
 						});
 

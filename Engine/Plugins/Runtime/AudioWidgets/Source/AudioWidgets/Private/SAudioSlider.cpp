@@ -13,7 +13,7 @@
 #include "Styling/SlateStyleRegistry.h"
 
 // SAudioSliderBase
-const FVector2D SAudioSliderBase::LinearRange = FVector2D(0.0f, 1.0f);
+const FVector2D SAudioSliderBase::NormalizedLinearSliderRange = FVector2D(0.0f, 1.0f);
 
 SAudioSliderBase::SAudioSliderBase()
 {
@@ -24,7 +24,7 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 	Style = InArgs._Style;
 	OnValueChanged = InArgs._OnValueChanged;
 	OnValueCommitted = InArgs._OnValueCommitted;
-	ValueAttribute = InArgs._Value;
+	SliderValueAttribute = InArgs._SliderValue;
 	SliderBackgroundColor = InArgs._SliderBackgroundColor;
 	SliderBarColor = InArgs._SliderBarColor;
 	SliderThumbColor = InArgs._SliderThumbColor;
@@ -51,20 +51,20 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 
 	// Underlying slider widget
 	SAssignNew(Slider, SSlider)
-		.Value(ValueAttribute.Get())
+		.Value(SliderValueAttribute.Get())
 		.Style(&Style->SliderStyle)
 		.Orientation(Orientation.Get())
 		.IndentHandle(false)
 		.OnValueChanged_Lambda([this](float Value)
 		{
-			ValueAttribute.Set(Value);
+			SliderValueAttribute.Set(Value);
 			OnValueChanged.ExecuteIfBound(Value);
 			const float OutputValue = GetOutputValueForText(Value);
 			Label->SetValueText(OutputValue);
 		})
 		.OnMouseCaptureEnd_Lambda([this]()
 		{
-			OnValueCommitted.ExecuteIfBound(ValueAttribute.Get());
+			OnValueCommitted.ExecuteIfBound(SliderValueAttribute.Get());
 		});
 
 	// Text label
@@ -73,11 +73,14 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 		.OnValueTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
 		{
 			const float OutputValue = FCString::Atof(*Text.ToString());
-			const float LinValue = GetLinValueForText(OutputValue);
-			ValueAttribute.Set(LinValue);
-			Slider->SetValue(LinValue);
-			OnValueChanged.ExecuteIfBound(LinValue);
-			OnValueCommitted.ExecuteIfBound(LinValue);
+			const float NewSliderValue = GetSliderValueForText(OutputValue);
+			if (!FMath::IsNearlyEqual(NewSliderValue, SliderValueAttribute.Get()))
+			{
+				SliderValueAttribute.Set(NewSliderValue);
+				Slider->SetValue(NewSliderValue);
+				OnValueChanged.ExecuteIfBound(NewSliderValue);
+				OnValueCommitted.ExecuteIfBound(NewSliderValue);
+			}
 		});
 
 	ChildSlot
@@ -86,12 +89,12 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 	];
 }
 
-void SAudioSliderBase::SetValue(float LinValue)
+void SAudioSliderBase::SetSliderValue(float InSliderValue)
 {
-	ValueAttribute.Set(LinValue);
-	const float OutputValueForText = GetOutputValueForText(LinValue);
+	SliderValueAttribute.Set(InSliderValue);
+	const float OutputValueForText = GetOutputValueForText(InSliderValue);
 	Label->SetValueText(OutputValueForText);
-	Slider->SetValue(LinValue);
+	Slider->SetValue(InSliderValue);
 }
 
 void SAudioSliderBase::SetOrientation(EOrientation InOrientation)
@@ -136,22 +139,22 @@ void SAudioSliderBase::SetDesiredSizeOverride(const FVector2D Size)
 	SetAttribute(DesiredSizeOverride, TAttribute<TOptional<FVector2D>>(Size), EInvalidateWidgetReason::Layout);
 }
 
-const float SAudioSliderBase::GetOutputValue(const float LinValue)
+const float SAudioSliderBase::GetOutputValue(const float InSliderValue)
 {
-	return FMath::Clamp(LinValue, OutputRange.X, OutputRange.Y);
+	return FMath::Clamp(InSliderValue, OutputRange.X, OutputRange.Y);
 }
 
-const float SAudioSliderBase::GetOutputValueForText(const float LinValue)
+const float SAudioSliderBase::GetOutputValueForText(const float InSliderValue)
 {
-	return GetOutputValue(LinValue);
+	return GetOutputValue(InSliderValue);
 }
 
-const float SAudioSliderBase::GetLinValueForText(const float OutputValue)
+const float SAudioSliderBase::GetSliderValueForText(const float OutputValue)
 {
-	return GetLinValue(OutputValue);
+	return GetSliderValue(OutputValue);
 }
 
-const float SAudioSliderBase::GetLinValue(const float OutputValue)
+const float SAudioSliderBase::GetSliderValue(const float OutputValue)
 {
 	return OutputValue;
 }
@@ -188,10 +191,10 @@ void SAudioSliderBase::SetOutputRange(const FVector2D Range)
 	// if Range.Y < Range.X, set Range.X to Range.Y
 	OutputRange.X = FMath::Min(Range.X, Range.Y);
 
-	const float OutputValue = GetOutputValue(ValueAttribute.Get());
+	const float OutputValue = GetOutputValue(SliderValueAttribute.Get());
 	const float ClampedOutputValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
-	const float LinValue = GetLinValue(ClampedOutputValue);
-	SetValue(LinValue);
+	const float ClampedSliderValue = GetSliderValue(ClampedOutputValue);
+	SetSliderValue(ClampedSliderValue);
 
 	Label->UpdateValueTextWidth(OutputRange);
 }
@@ -347,7 +350,7 @@ void SAudioSlider::Construct(const SAudioSliderBase::FArguments& InArgs)
 void SAudioSlider::SetLinToOutputCurve(const TWeakObjectPtr<const UCurveFloat> InLinToOutputCurve)
 {
 	LinToOutputCurve = InLinToOutputCurve;
-	Label->SetValueText(GetOutputValueForText(ValueAttribute.Get()));
+	Label->SetValueText(GetOutputValueForText(SliderValueAttribute.Get()));
 }
 
 void SAudioSlider::SetOutputToLinCurve(const TWeakObjectPtr<const UCurveFloat> InOutputToLinCurve)
@@ -365,24 +368,24 @@ const TWeakObjectPtr<const UCurveFloat> SAudioSlider::GetLinToOutputCurve()
 	return LinToOutputCurve;
 }
 
-const float SAudioSlider::GetOutputValue(const float LinValue)
+const float SAudioSlider::GetOutputValue(const float InSliderValue)
 {
 	if (LinToOutputCurve.IsValid())
 	{
-		const float CurveOutputValue = LinToOutputCurve->GetFloatValue(LinValue);
+		const float CurveOutputValue = LinToOutputCurve->GetFloatValue(InSliderValue);
 		return FMath::Clamp(CurveOutputValue, OutputRange.X, OutputRange.Y);
 	}
-	return FMath::GetMappedRangeValueClamped(LinearRange, OutputRange, LinValue);
+	return FMath::GetMappedRangeValueClamped(NormalizedLinearSliderRange, OutputRange, InSliderValue);
 }
 
-const float SAudioSlider::GetLinValue(const float OutputValue)
+const float SAudioSlider::GetSliderValue(const float OutputValue)
 {
 	if (OutputToLinCurve.IsValid())
 	{
-		const float CurveLinValue = OutputToLinCurve->GetFloatValue(OutputValue);
-		return FMath::Clamp(CurveLinValue, OutputRange.X, OutputRange.Y);
+		const float CurveSliderValue = OutputToLinCurve->GetFloatValue(OutputValue);
+		return FMath::Clamp(CurveSliderValue, OutputRange.X, OutputRange.Y);
 	}
-	return FMath::GetMappedRangeValueClamped(OutputRange, LinearRange, OutputValue);
+	return FMath::GetMappedRangeValueClamped(OutputRange, NormalizedLinearSliderRange, OutputValue);
 }
 
 // SAudioVolumeSlider
@@ -399,58 +402,62 @@ void SAudioVolumeSlider::Construct(const SAudioSlider::FArguments& InArgs)
 	Label->SetUnitsText(FText::FromString("dB"));
 }
 
-const float SAudioVolumeSlider::GetDbValueFromLin(const float LinValue)
+const float SAudioVolumeSlider::GetDbValueFromSliderValue(const float InSliderValue)
 {
 	// convert from linear 0-1 space to decibel OutputRange that has been converted to linear 
 	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
-	const float LinearSliderValue = FMath::GetMappedRangeValueClamped(LinearRange, LinearSliderRange, LinValue);
+	const float LinearSliderValue = FMath::GetMappedRangeValueClamped(NormalizedLinearSliderRange, LinearSliderRange, InSliderValue);
 	// convert from linear to decibels 
 	float OutputValue = Audio::ConvertToDecibels(LinearSliderValue);
 	return FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
 }
 
-const float SAudioVolumeSlider::GetLinValueFromDb(const float DbValue)
+const float SAudioVolumeSlider::GetSliderValueFromDb(const float DbValue)
 {
 	float ClampedValue = FMath::Clamp(DbValue, OutputRange.X, OutputRange.Y);
 	// convert from decibels to linear
 	float LinearSliderValue = Audio::ConvertToLinear(ClampedValue);
 	// convert from decibel OutputRange that has been converted to linear to linear 0-1 space 
 	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
-	return FMath::GetMappedRangeValueClamped(LinearSliderRange, LinearRange, LinearSliderValue);
+	return FMath::GetMappedRangeValueClamped(LinearSliderRange, NormalizedLinearSliderRange, LinearSliderValue);
 }
 
-const float SAudioVolumeSlider::GetOutputValue(const float LinValue)
+const float SAudioVolumeSlider::GetOutputValue(const float InSliderValue)
 {
 	if (bUseLinearOutput)
 	{
-		return FMath::Clamp(LinValue, LinearRange.X, LinearRange.Y);
+		// Return linear given normalized linear 
+		const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+		return FMath::GetMappedRangeValueClamped(NormalizedLinearSliderRange, LinearSliderRange, InSliderValue);
 	}
 	else
 	{
-		return GetDbValueFromLin(LinValue);
+		return GetDbValueFromSliderValue(InSliderValue);
 	}
 }
 
-const float SAudioVolumeSlider::GetLinValue(const float OutputValue)
+const float SAudioVolumeSlider::GetSliderValue(const float OutputValue)
 {
 	if (bUseLinearOutput)
 	{
-		return FMath::Clamp(OutputValue, LinearRange.X, LinearRange.Y);
+		// Convert from linear to normalized linear 
+		const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+		return FMath::GetMappedRangeValueClamped(LinearSliderRange, NormalizedLinearSliderRange, OutputValue);
 	}
 	else
 	{
-		return GetLinValueFromDb(OutputValue);
+		return GetSliderValueFromDb(OutputValue);
 	}
 }
 
-const float SAudioVolumeSlider::GetOutputValueForText(const float LinValue)
+const float SAudioVolumeSlider::GetOutputValueForText(const float InSliderValue)
 {
-	return GetDbValueFromLin(LinValue);
+	return GetDbValueFromSliderValue(InSliderValue);
 }
 
-const float SAudioVolumeSlider::GetLinValueForText(const float OutputValue)
+const float SAudioVolumeSlider::GetSliderValueForText(const float OutputValue)
 {
-	return GetLinValueFromDb(OutputValue);
+	return GetSliderValueFromDb(OutputValue);
 }
 
 void SAudioVolumeSlider::SetUseLinearOutput(bool InUseLinearOutput)
@@ -460,10 +467,19 @@ void SAudioVolumeSlider::SetUseLinearOutput(bool InUseLinearOutput)
 
 void SAudioVolumeSlider::SetOutputRange(const FVector2D Range)
 {
-	// if using linear output, output range cannot be changed 
-	if (!bUseLinearOutput)
+	// For volume slider, OutputRange is always in dB
+	if (!(Range - OutputRange).IsNearlyZero())
 	{
-		SAudioSliderBase::SetOutputRange(FVector2D(FMath::Max(MinDbValue, Range.X), FMath::Min(MaxDbValue, Range.Y)));
+		if (bUseLinearOutput)
+		{
+			// If using linear output, assume given range is linear (not normalized though) 
+			FVector2D RangeInDecibels = FVector2D(Audio::ConvertToDecibels(Range.X), Audio::ConvertToDecibels(Range.Y));
+			SAudioSliderBase::SetOutputRange(FVector2D(FMath::Max(MinDbValue, RangeInDecibels.X), FMath::Min(MaxDbValue, RangeInDecibels.Y)));
+		}
+		else
+		{
+			SAudioSliderBase::SetOutputRange(FVector2D(FMath::Max(MinDbValue, Range.X), FMath::Min(MaxDbValue, Range.Y)));
+		}
 	}
 }
 
@@ -479,21 +495,21 @@ void SAudioFrequencySlider::Construct(const SAudioSlider::FArguments& InArgs)
 	Label->SetUnitsText(FText::FromString("Hz"));
 }
 
-const float SAudioFrequencySlider::GetOutputValue(const float LinValue)
+const float SAudioFrequencySlider::GetOutputValue(const float InSliderValue)
 {
-	return Audio::GetLogFrequencyClamped(LinValue, LinearRange, OutputRange);
+	return Audio::GetLogFrequencyClamped(InSliderValue, NormalizedLinearSliderRange, OutputRange);
 }
 
-const float SAudioFrequencySlider::GetLinValue(const float OutputValue)
+const float SAudioFrequencySlider::GetSliderValue(const float OutputValue)
 {
 	// edge case to avoid audio function returning negative value
 	if (FMath::IsNearlyEqual(OutputValue, OutputRange.X))
 	{
-		return LinearRange.X;
+		return NormalizedLinearSliderRange.X;
 	}
 	if (FMath::IsNearlyEqual(OutputValue, OutputRange.Y))
 	{
-		return LinearRange.Y;
+		return NormalizedLinearSliderRange.Y;
 	}
-	return Audio::GetLinearFrequencyClamped(OutputValue, LinearRange, OutputRange);
+	return Audio::GetLinearFrequencyClamped(OutputValue, NormalizedLinearSliderRange, OutputRange);
 }

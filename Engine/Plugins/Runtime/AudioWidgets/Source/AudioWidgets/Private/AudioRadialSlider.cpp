@@ -61,6 +61,16 @@ UAudioRadialSlider::UAudioRadialSlider(const FObjectInitializer& ObjectInitializ
 #endif
 }
 
+float UAudioRadialSlider::GetOutputValue(const float InSliderValue)
+{
+	return MyAudioRadialSlider->GetOutputValue(InSliderValue);
+}
+
+float UAudioRadialSlider::GetSliderValue(const float OutputValue)
+{
+	return MyAudioRadialSlider->GetSliderValue(OutputValue);
+}
+
 void UAudioRadialSlider::SetWidgetLayout(EAudioRadialSliderLayout InLayout)
 {
 	WidgetLayout = InLayout;

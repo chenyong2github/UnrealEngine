@@ -183,9 +183,10 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType)) ||
 		PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType)))
 	{
-		if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
+		// Update VolumeWidgetDecibelRange based on current range (it might be stale)
+		if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume && VolumeWidgetUseLinearOutput)
 		{
-			SetRange(FVector2D(-100.0f, 0.0f));
+			VolumeWidgetDecibelRange = FVector2D(Audio::ConvertToDecibels(Range.X), Audio::ConvertToDecibels(Range.Y));
 		}
 
 		// If the widget type is changed to none, we need to refresh clamping the value or not, since if the widget was a slider before, the value was clamped
@@ -195,9 +196,34 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	{
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			// if Range.X > Range.Y, set Range.Y to Range.X
-			Range.Y = FMath::Max(Range.X, Range.Y);
-			ForceRefresh();
+			if (WidgetType != EMetasoundMemberDefaultWidget::None &&
+				WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
+			{
+				if (VolumeWidgetUseLinearOutput)
+				{
+					Range.X = FMath::Max(Range.X, Audio::ConvertToLinear(SAudioVolumeRadialSlider::MinDbValue));
+					Range.Y = FMath::Min(Range.Y, Audio::ConvertToLinear(SAudioVolumeRadialSlider::MaxDbValue));
+					if (Range.X > Range.Y)
+					{
+						Range.Y = Range.X;
+					}
+					VolumeWidgetDecibelRange = FVector2D(Audio::ConvertToDecibels(Range.X), Audio::ConvertToDecibels(Range.Y));
+					OnRangeChanged.Broadcast(VolumeWidgetDecibelRange);
+					SetDefault(FMath::Clamp(Default, Range.X, Range.Y));
+				}
+			}
+			else
+			{
+				// if Range.X > Range.Y, set Range.Y to Range.X
+				if (Range.X > Range.Y)
+				{
+					SetRange(FVector2D(Range.X, FMath::Max(Range.X, Range.Y)));
+				}
+				else
+				{
+					ForceRefresh();
+				}
+			}
 		}
 	}
 	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault)))
@@ -216,6 +242,32 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 			}
 		}
 		OnClampChanged.Broadcast(ClampDefault);
+	}
+	else if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetDecibelRange)))
+	{
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+		{
+			VolumeWidgetDecibelRange.X = FMath::Max(VolumeWidgetDecibelRange.X, SAudioVolumeRadialSlider::MinDbValue);
+			VolumeWidgetDecibelRange.Y = FMath::Min(VolumeWidgetDecibelRange.Y, SAudioVolumeRadialSlider::MaxDbValue);
+			SetRange(FVector2D(Audio::ConvertToLinear(VolumeWidgetDecibelRange.X), Audio::ConvertToLinear(VolumeWidgetDecibelRange.Y)));
+		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetUseLinearOutput)))
+	{
+		if (VolumeWidgetUseLinearOutput)
+		{
+			// Range and default are currently in dB, need to change to linear
+			float DbDefault = Default;
+			VolumeWidgetDecibelRange = Range;
+			Range = FVector2D(Audio::ConvertToLinear(VolumeWidgetDecibelRange.X), Audio::ConvertToLinear(VolumeWidgetDecibelRange.Y));
+			Default = Audio::ConvertToLinear(DbDefault);
+		}
+		else
+		{
+			// Range and default are currently linear, need to change to dB
+			Range = VolumeWidgetDecibelRange;
+			Default = Audio::ConvertToDecibels(Default);
+		}
 	}
 
 	UMetasoundEditorGraphMember* Member = GetParentMember();

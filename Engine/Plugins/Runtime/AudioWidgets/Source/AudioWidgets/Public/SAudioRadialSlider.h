@@ -43,7 +43,7 @@ class AUDIOWIDGETS_API SAudioRadialSlider
 public:
 	SLATE_BEGIN_ARGS(SAudioRadialSlider)
 	{
-		_Value = 0.0f;
+		_SliderValue = 0.0f;
 		_WidgetLayout = EAudioRadialSliderLayout::Layout_LabelBottom;
 		_HandStartEndRatio = FVector2D(0.0f, 1.0f);
 
@@ -60,8 +60,8 @@ public:
 	/** The style used to draw the audio radial slider. */
 	SLATE_STYLE_ARGUMENT(FAudioRadialSliderStyle, Style)
 
-	/** A value representing the audio slider value. */
-	SLATE_ATTRIBUTE(float, Value)
+	/** A value representing the normalized linear (0 - 1) audio slider value position. */
+	SLATE_ATTRIBUTE(float, SliderValue)
 
 	/** The widget layout. */
 	SLATE_ATTRIBUTE(EAudioRadialSliderLayout, WidgetLayout)
@@ -86,7 +86,13 @@ public:
 
 	/** Called when the value is changed by slider or typing */
 	SLATE_EVENT(FOnFloatValueChanged, OnValueChanged)
-		
+
+	/** Invoked when the mouse is pressed and a capture begins. */
+	SLATE_EVENT(FSimpleDelegate, OnMouseCaptureBegin)
+
+	/** Invoked when the mouse is released and a capture ends. */
+	SLATE_EVENT(FSimpleDelegate, OnMouseCaptureEnd)
+
 	SLATE_END_ARGS()
 
 	SAudioRadialSlider();
@@ -94,6 +100,12 @@ public:
 
 	// Holds a delegate that is executed when the slider's value changed.
 	FOnFloatValueChanged OnValueChanged;
+
+	// Holds a delegate that is executed when the mouse is pressed and a capture begins.
+	FSimpleDelegate OnMouseCaptureBegin;
+
+	// Holds a delegate that is executed when the mouse is let up and a capture ends.
+	FSimpleDelegate OnMouseCaptureEnd;
 	
 	void SetCenterBackgroundColor(FSlateColor InColor);
 	void SetSliderProgressColor(FSlateColor InColor);
@@ -105,11 +117,11 @@ public:
 	void SetDesiredSizeOverride(const FVector2D DesiredSize);
 
 	virtual void Construct(const SAudioRadialSlider::FArguments& InArgs);
-	void SetValue(float LinValue);
-	virtual const float GetOutputValue(const float LinValue);
-	virtual const float GetLinValue(const float OutputValue);
-	virtual const float GetOutputValueForText(const float LinValue);
-	virtual const float GetLinValueForText(const float OutputValue);
+	void SetSliderValue(float InSliderValue);
+	virtual const float GetOutputValue(const float InSliderValue);
+	virtual const float GetSliderValue(const float OutputValue);
+	virtual const float GetOutputValueForText(const float InSliderValue);
+	virtual const float GetSliderValueForText(const float OutputValue);
 	virtual void SetOutputRange(const FVector2D Range);
 
 	// Text label functions 
@@ -122,7 +134,7 @@ public:
 
 protected:
 	const FAudioRadialSliderStyle* Style;
-	TAttribute<float> Value;
+	TAttribute<float> SliderValue;
 	FRuntimeFloatCurve SliderCurve;
 	
 	TAttribute<FSlateColor> CenterBackgroundColor;
@@ -142,7 +154,7 @@ protected:
 
 	// Range for output 
 	FVector2D OutputRange = FVector2D(0.0f, 1.0f);
-	static const FVector2D LinearRange;
+	static const FVector2D NormalizedLinearSliderRange;
 
 	TSharedRef<SWidgetSwitcher> CreateLayoutWidgetSwitcher();
 };
@@ -156,23 +168,22 @@ class AUDIOWIDGETS_API SAudioVolumeRadialSlider
 public:
 	SAudioVolumeRadialSlider();
 	void Construct(const SAudioRadialSlider::FArguments& InArgs);
-	const float GetOutputValue(const float LinValue);
-	const float GetLinValue(const float OutputValue);
-	const float GetOutputValueForText(const float LinValue) override;
-	const float GetLinValueForText(const float OutputValue) override;
+	const float GetOutputValue(const float InSliderValue) override;
+	const float GetSliderValue(const float OutputValue) override;
+	const float GetOutputValueForText(const float InSliderValue) override;
+	const float GetSliderValueForText(const float OutputValue) override;
 	void SetUseLinearOutput(bool InUseLinearOutput);
 	void SetOutputRange(const FVector2D Range) override;
 
-private:
 	// Min/max possible values for output range, derived to avoid Audio::ConvertToLinear/dB functions returning NaN
-	static const float MinDbValue; 
-	static const float MaxDbValue; 
-
-	// Use linear (0 - 1) output value. Only applies to the output value reported by GetOutputValue(); the text displayed will still be in decibels. 
+	static const float MinDbValue;
+	static const float MaxDbValue;
+private:
+	// Use linear (converted from dB, not normalized) output value. Only applies to the output value reported by GetOutputValue(); the text displayed will still be in decibels. 
 	bool bUseLinearOutput = true;
 
-	const float GetDbValueFromLin(const float LinValue);
-	const float GetLinValueFromDb(const float DbValue);
+	const float GetDbValueFromSliderValue(const float InSliderValue);
+	const float GetSliderValueFromDb(const float DbValue);
 };
 
 /*
@@ -184,6 +195,6 @@ class AUDIOWIDGETS_API SAudioFrequencyRadialSlider
 public:
 	SAudioFrequencyRadialSlider();
 	void Construct(const SAudioRadialSlider::FArguments& InArgs);
-	const float GetOutputValue(const float LinValue);
-	const float GetLinValue(const float OutputValue);
+	const float GetOutputValue(const float InSliderValue);
+	const float GetSliderValue(const float OutputValue);
 };

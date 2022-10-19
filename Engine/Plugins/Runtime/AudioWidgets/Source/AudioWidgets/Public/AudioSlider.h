@@ -25,7 +25,7 @@ class AUDIOWIDGETS_API UAudioSliderBase: public UWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The linear value. */
+	/** The normalized linear (0 - 1) slider value. */
 	UPROPERTY(EditAnywhere, Category = Appearance, meta = (UIMin = "0", UIMax = "1"))
 	float Value;
 
@@ -94,13 +94,17 @@ public:
 	FGetLinearColor WidgetBackgroundColorDelegate;
 
 public:
-	/** Get output value from linear based on internal lin to output mapping. */
+	/** Get output value from normalized linear (0 - 1) based on internal lin to output mapping. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetOutputValue(const float LinValue);
+	float GetOutputValue(const float InSliderValue);
 
-	/** Get linear value from output based on internal lin to output mapping. */
-	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	/** Get normalized linear (0 - 1) value from output based on internal lin to output mapping. */
+	UFUNCTION(BlueprintCallable, Category = "Behavior", meta=(DeprecatedFunction, DeprecationMessage="5.1 - GetLinValue is deprecated, please use GetSliderValue instead."))
 	float GetLinValue(const float OutputValue);
+
+	/** Get normalized linear (0 - 1) slider value from output based on internal lin to output mapping. */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	float GetSliderValue(const float OutputValue);
 
 	/** Sets the label background color */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")

@@ -21,7 +21,7 @@ class AUDIOWIDGETS_API UAudioRadialSlider : public UWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The linear value. */
+	/** The normalized linear (0 - 1) slider value position. */
 	UPROPERTY(EditAnywhere, Category = Appearance, meta = (UIMin = "0", UIMax = "1"))
 	float Value;
 
@@ -86,6 +86,14 @@ public:
 	FOnAudioRadialSliderValueChangedEvent OnValueChanged;
 
 public: 
+	/** Get output value from normalized linear (0 - 1) based on internal lin to output mapping. */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	float GetOutputValue(const float InSliderValue);
+
+	/** Get normalized linear (0 - 1) slider value from output based on internal lin to output mapping. */
+	UFUNCTION(BlueprintCallable, Category = "Behavior")
+	float GetSliderValue(const float OutputValue);
+
 	/** Sets the widget layout */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetWidgetLayout(EAudioRadialSliderLayout InLayout);

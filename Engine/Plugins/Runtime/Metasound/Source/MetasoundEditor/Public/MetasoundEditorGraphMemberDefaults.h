@@ -20,6 +20,7 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundVertex.h"
 #include "Misc/Guid.h"
+#include "SAudioRadialSlider.h"
 #include "Sound/SoundWave.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
@@ -156,9 +157,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Widget, meta=(DisplayName = "Value Type", EditCondition = "WidgetType != EMetasoundMemberDefaultWidget::None", EditConditionHides))
 	EMetasoundMemberDefaultWidgetValueType WidgetValueType = EMetasoundMemberDefaultWidgetValueType::Linear;
 
-	/** If true, output linear (0 - 1) value. Otherwise, output dB value. The volume widget itself will always display the value in dB. */
+	/** If true, output linear value. Otherwise, output dB value. The volume widget itself will always display the value in dB. The Default Value and Range are linear. */
 	UPROPERTY(EditAnywhere, Category = Widget, meta = (DisplayName = "Output Linear"))
 	bool VolumeWidgetUseLinearOutput = true;
+
+	/** Range in decibels. This will be converted to the linear range in the Default Value category. */
+	UPROPERTY(EditAnywhere, Category = Widget, meta = (DisplayName = "Range in dB", EditCondition = "VolumeWidgetUseLinearOutput", EditConditionHides))
+	FVector2D VolumeWidgetDecibelRange = FVector2D(SAudioVolumeRadialSlider::MinDbValue, 0.0f);
 
 	static FName GetDefaultPropertyName()
 	{

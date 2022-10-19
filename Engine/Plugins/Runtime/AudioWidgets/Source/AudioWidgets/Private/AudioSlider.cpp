@@ -148,14 +148,19 @@ void UAudioSliderBase::SetShowUnitsText(const bool bShowUnitsText)
 	}
 }
 
-float UAudioSliderBase::GetOutputValue(const float LinValue)
+float UAudioSliderBase::GetOutputValue(const float InSliderValue)
 {
-	return MyAudioSlider->GetOutputValue(LinValue);
+	return MyAudioSlider->GetOutputValue(InSliderValue);
 }
 
 float UAudioSliderBase::GetLinValue(const float OutputValue)
 {
-	return MyAudioSlider->GetLinValue(OutputValue);
+	return GetSliderValue(OutputValue);
+}
+
+float UAudioSliderBase::GetSliderValue(const float OutputValue)
+{
+	return MyAudioSlider->GetSliderValue(OutputValue);
 }
 
 void UAudioSliderBase::SetSliderBackgroundColor(FLinearColor InValue)

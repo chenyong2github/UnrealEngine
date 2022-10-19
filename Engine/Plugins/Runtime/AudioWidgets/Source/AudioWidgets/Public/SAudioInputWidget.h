@@ -14,13 +14,13 @@
 	: public SCompoundWidget
 {
 public:
-	virtual const float GetOutputValue(const float LinValue) = 0;
-	virtual const float GetLinValue(const float OutputValue) = 0;
+	virtual const float GetOutputValue(const float InSliderValue) = 0;
+	virtual const float GetSliderValue(const float OutputValue) = 0;
 	
 	/**
 	 * Set the slider's linear (0-1 normalized) value. 
 	 */
-	virtual void SetValue(float LinValue) = 0;
+	virtual void SetSliderValue(float InSliderValue) = 0;
 	virtual void SetOutputRange(const FVector2D Range) = 0;
 	
 	virtual void SetLabelBackgroundColor(FSlateColor InColor) = 0;

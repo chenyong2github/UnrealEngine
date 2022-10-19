@@ -132,21 +132,14 @@ namespace Metasound
 				DefaultValueHandle = Row->GetPropertyHandle();
 			}
 
-			// Apply the clamp range to the default value if 
-			// 1. not using a widget and ClampDefault is true or 
-			// 2. using a widget but not using a volume widget where VolumeWidgetUseLinearOutput is true 
-			const bool bVolumeWidgetWithLinearOutput = DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume && DefaultFloat->VolumeWidgetUseLinearOutput;
+			// Apply the clamp range to the default value if not using a widget and ClampDefault is true
 			const bool bUsingWidget = DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None;
-			const bool bShouldClampDefaultValue = (!bUsingWidget && DefaultFloat->ClampDefault) || (bUsingWidget && !bVolumeWidgetWithLinearOutput);
+			const bool bShouldClampDefaultValue = bUsingWidget || (!bUsingWidget && DefaultFloat->ClampDefault);
 
 			IDetailPropertyRow* ClampRow = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault));
 			if (ensure(ClampRow))
 			{
 				DefaultRows.Add(ClampRow);
-				if (bVolumeWidgetWithLinearOutput)
-				{
-					DefaultFloat->SetRange(FVector2D(0.0f, 1.0f));
-				}
 
 				if (DefaultValueHandle.IsValid())
 				{
@@ -210,7 +203,10 @@ namespace Metasound
 				if (DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
 				{
 					DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetUseLinearOutput)));
-
+					if (DefaultFloat->VolumeWidgetUseLinearOutput)
+					{
+						DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetDecibelRange)));
+					}
 				}
 			}
 
