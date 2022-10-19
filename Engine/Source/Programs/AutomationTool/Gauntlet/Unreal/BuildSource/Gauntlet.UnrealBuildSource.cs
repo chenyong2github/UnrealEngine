@@ -49,11 +49,15 @@ namespace Gauntlet
 			{
 				foreach (string SearchPath in InSearchPaths)
 				{
-					DirectoryInfo SearchDir = new DirectoryInfo(Path.Combine(SearchPath, BuildRef));
-
-					if (SearchDir.Exists)
+					string AggregatedPath = Path.Combine(SearchPath, BuildRef);
+					if (AggregatedPath.Length > 0)
 					{
-						return SearchDir.FullName;
+						DirectoryInfo SearchDir = new DirectoryInfo(AggregatedPath);
+
+						if (SearchDir.Exists)
+						{
+							return SearchDir.FullName;
+						}
 					}
 				}
 
