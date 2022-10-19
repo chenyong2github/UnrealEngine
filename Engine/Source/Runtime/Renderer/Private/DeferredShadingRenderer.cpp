@@ -2675,8 +2675,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bNaniteEnabled)
 	{
-		Nanite::ListStatFilters(this);
-
 		// Must happen before any Nanite rendering in the frame
 		if (bUpdateNaniteStreaming)
 		{
@@ -3289,6 +3287,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 	// End shadow and fog after base pass
+
+	if (bNaniteEnabled)
+	{
+		// Needs doing after shadows such that the checks for shadow atlases etc work.
+		Nanite::ListStatFilters(this);
+	}
 
 	if (bUpdateNaniteStreaming)
 	{

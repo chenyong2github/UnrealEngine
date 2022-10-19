@@ -388,14 +388,9 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 			const auto& VirtualShadowMaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
 			const auto& VirtualShadowClipmaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
 
-			if (VirtualShadowClipmaps.Num() > 0)
+			if (SceneRenderer->VirtualShadowMapArray.GetNumShadowMaps() > 0)
 			{
-				UE_LOG(LogNanite, Warning, TEXT("VSM_Directional"));
-			}
-
-			if (VirtualShadowMaps.Num() > 0)
-			{
-				UE_LOG(LogNanite, Warning, TEXT("VSM_Local"));
+				UE_LOG(LogNanite, Warning, TEXT("VirtualShadowMaps"));
 			}
 		}
 		
