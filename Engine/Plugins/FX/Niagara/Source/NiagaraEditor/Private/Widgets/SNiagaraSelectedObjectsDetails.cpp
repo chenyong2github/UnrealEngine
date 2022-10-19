@@ -3,14 +3,14 @@
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "NiagaraObjectSelection.h"
 
-#include "Modules/ModuleManager.h"
-#include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
+#include "Customizations/NiagaraTypeCustomizations.h"
 #include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScriptVariable.h"
 #include "PropertyEditorDelegates.h"
-#include "Customizations/NiagaraTypeCustomizations.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSelectedObjectsDetails"
 

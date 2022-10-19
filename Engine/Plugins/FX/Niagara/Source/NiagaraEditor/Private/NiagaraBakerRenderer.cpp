@@ -9,8 +9,8 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraBatchedElements.h"
 
-#include "Niagara/Classes/NiagaraDataInterfaceRenderTarget2D.h"
-#include "Niagara/Classes/NiagaraDataInterfaceGrid2DCollection.h"
+#include "NiagaraDataInterfaceGrid2DCollection.h"
+#include "NiagaraDataInterfaceRenderTarget2D.h"
 
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/Canvas.h"

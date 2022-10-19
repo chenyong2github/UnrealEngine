@@ -16,15 +16,15 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "Modules/ModuleManager.h"
-#include "IStructureDetailsView.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
 #include "IDetailsView.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/Input/SSpinBox.h"
+#include "IStructureDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSpinBox.h"
+#include "Widgets/SNullWidget.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterCollectionEditor"

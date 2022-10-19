@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class NiagaraEditorWidgets : ModuleRules
@@ -7,7 +8,9 @@ public class NiagaraEditorWidgets : ModuleRules
 	public NiagaraEditorWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(new string[] {
-			"NiagaraEditorWidgets/Private",
+			System.IO.Path.Combine(GetModuleDirectory("Niagara"), "Private"),
+			System.IO.Path.Combine(GetModuleDirectory("NiagaraEditor"), "Private"),
+			System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {

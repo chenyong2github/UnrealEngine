@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceStaticMeshDetails.h"
-#include "NiagaraDetailSourcedArrayBuilder.h"
-#include "NiagaraDataInterfaceDetails.h"
-#include "Niagara/Private/DataInterface/NiagaraDataInterfaceStaticMesh.h" 
-#include "DetailLayoutBuilder.h"
+#include "DataInterface/NiagaraDataInterfaceStaticMesh.h" 
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "Engine/StaticMeshSocket.h"
 #include "IDetailGroup.h"
 #include "NiagaraComponent.h"
-#include "Engine/StaticMeshSocket.h"
+#include "NiagaraDataInterfaceDetails.h"
+#include "NiagaraDetailSourcedArrayBuilder.h"
 #include "SNiagaraNamePropertySelector.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceStaticMeshDetails"

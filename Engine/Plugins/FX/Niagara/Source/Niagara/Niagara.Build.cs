@@ -61,6 +61,7 @@ public class Niagara : ModuleRules
         PrivateIncludePaths.AddRange(
             new string[] {
                 "Niagara/Private",
+				Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Engine/Private"),
 				Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Renderer/Private")
 			});
 

@@ -3,10 +3,10 @@
 #include "SNiagaraEmitterVersionWidget.h"
 
 #include "AssetToolsModule.h"
-#include "NiagaraEmitter.h"
 #include "Editor.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraVersionMetaData.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "NiagaraEditor/Private/NiagaraVersionMetaData.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraEmitterVersionWidget"
 

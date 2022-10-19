@@ -3,10 +3,12 @@
 #include "NiagaraAsyncGpuTraceProviderGsdf.h"
 
 #include "GlobalShader.h"
-#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraDistanceFieldHelper.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSettings.h"
 #include "SceneManagement.h"
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 
 static int GNiagaraAsyncGpuTraceGsdfEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceGsdfEnabled(

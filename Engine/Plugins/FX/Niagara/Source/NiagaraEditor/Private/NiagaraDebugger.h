@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "NiagaraDebuggerCommon.h"
-#include "Niagara/Private/NiagaraDebugHud.h"
-#include "NiagaraWorldManager.h"
-#include "NiagaraDebuggerCommon.h"
-#include "Niagara/Private/NiagaraDebugHud.h"
 #include "IMessageContext.h"
+#include "NiagaraDebugHud.h"
+#include "NiagaraDebugHud.h"
+#include "NiagaraDebuggerCommon.h"
+#include "NiagaraDebuggerCommon.h"
 #include "NiagaraOutliner.h"
+#include "NiagaraWorldManager.h"
 
 class ISessionManager;
 class FMessageEndpoint;

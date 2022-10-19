@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Niagara/Public/NiagaraCommon.h"
-#include "NiagaraShared.h"
-#include "VectorVM.h"
+#include "NiagaraCommon.h"
 #include "NiagaraDataInterfaceBase.h"
 #include "NiagaraScriptBase.h"
+#include "NiagaraShared.h"
+#include "VectorVM.h"
 #include "NiagaraDataInterface.generated.h"
 
 class RENDERCORE_API FRDGBuilder;

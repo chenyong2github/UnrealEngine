@@ -10,7 +10,7 @@
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
 
-#include "Niagara/Classes/NiagaraDataInterfaceRenderTarget2D.h"
+#include "NiagaraDataInterfaceRenderTarget2D.h"
 
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"

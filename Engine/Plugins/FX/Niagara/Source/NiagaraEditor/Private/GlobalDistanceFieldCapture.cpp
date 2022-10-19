@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GlobalDistanceFieldCapture.h"
+#include "ContentBrowserModule.h"
 #include "Editor.h"
-#include "Stats/Stats2.h"
-#include "Renderer/Private/GlobalDistanceField.h"
-#include "HAL/IConsoleManager.h"
 #include "Engine/VolumeTexture.h"
-#include "ContentBrowser/Public/ContentBrowserModule.h"
-#include "ContentBrowser/Public/IContentBrowserSingleton.h"
+#include "GlobalDistanceField.h"
+#include "HAL/IConsoleManager.h"
+#include "IContentBrowserSingleton.h"
 #include "LevelEditorViewport.h"
 #include "NiagaraEditorModule.h"
+#include "Stats/Stats2.h"
 
 
 

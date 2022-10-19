@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraNewAssetDialog.h"
-#include "NiagaraEmitter.h"
-#include "NiagaraEditorStyle.h"
-#include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 #include "NiagaraEditorSettings.h"
+#include "NiagaraEditorStyle.h"
+#include "NiagaraEmitter.h"
+#include "SNiagaraAssetPickerList.h"
 
 #include "AssetRegistry/AssetData.h"
 

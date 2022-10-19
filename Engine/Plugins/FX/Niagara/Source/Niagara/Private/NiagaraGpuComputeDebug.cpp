@@ -5,12 +5,12 @@
 
 #include "CanvasTypes.h"
 #include "CommonRenderResources.h"
-#include "RenderGraphBuilder.h"
-#include "RHI.h"
-#include "ScreenRendering.h"
 #include "Engine/Font.h"
 #include "Modules/ModuleManager.h"
-#include "Runtime/Renderer/Private/ScreenPass.h"
+#include "RHI.h"
+#include "RenderGraphBuilder.h"
+#include "ScreenPass.h"
+#include "ScreenRendering.h"
 
 int32 GNiagaraGpuComputeDebug_MinTextureHeight = 128;
 static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_MinTextureHeight(

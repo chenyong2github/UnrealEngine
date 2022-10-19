@@ -6,8 +6,8 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Modules/ModuleManager.h"
-#include "NiagaraEditor/Private/NiagaraVersionMetaData.h"
-#include "NiagaraEditor/Public/NiagaraActions.h"
+#include "NiagaraActions.h"
+#include "NiagaraVersionMetaData.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptVersionWidget"

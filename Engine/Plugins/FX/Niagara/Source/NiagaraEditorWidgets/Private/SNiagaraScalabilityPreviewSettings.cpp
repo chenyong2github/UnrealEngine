@@ -1,21 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraScalabilityPreviewSettings.h"
+#include "Customizations/NiagaraPlatformSetCustomization.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "ISinglePropertyView.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSettings.h"
 #include "PlatformInfo.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
-#include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "NiagaraEditor/Private/Customizations/NiagaraPlatformSetCustomization.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScalabilityPreviewSettings"
 

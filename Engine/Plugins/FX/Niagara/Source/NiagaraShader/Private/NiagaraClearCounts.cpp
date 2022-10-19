@@ -9,6 +9,7 @@
 
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
+#include "ScreenPass.h"
 
 //////////////////////////////////////////////////////////////////////////
 

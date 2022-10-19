@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceParticleReadDetails.h"
-#include "Niagara/Classes/NiagaraDataInterfaceParticleRead.h" 
-#include "Niagara/Classes/NiagaraSystem.h" 
+#include "NiagaraDataInterfaceParticleRead.h" 
+#include "NiagaraSystem.h" 
 
 #include "Widgets/Input/SSuggestionTextBox.h"
 #include "DetailCategoryBuilder.h"

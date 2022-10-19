@@ -8,7 +8,7 @@
 #include "GlobalShader.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
-#include "Renderer/Private/ScenePrivate.h"
+#include "ScenePrivate.h"
 
 static int GNiagaraAsyncGpuTraceHwrtEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceHwrtEnabled(

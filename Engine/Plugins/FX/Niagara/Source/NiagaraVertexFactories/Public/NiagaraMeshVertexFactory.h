@@ -6,14 +6,14 @@ ParticleVertexFactory.h: Particle vertex factory definitions.
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RenderResource.h"
-#include "UniformBuffer.h"
-#include "NiagaraVertexFactory.h"
-#include "../../Niagara/Classes/NiagaraDataSet.h"
-#include "SceneView.h"
 #include "Components.h"
+#include "CoreMinimal.h"
+#include "NiagaraDataSet.h"
+#include "NiagaraVertexFactory.h"
+#include "RenderResource.h"
 #include "SceneManagement.h"
+#include "SceneView.h"
+#include "UniformBuffer.h"
 #include "VertexFactory.h"
 
 // Disable this define to test disabling the use of GPU Scene with Niagara mesh renderer

@@ -7,10 +7,10 @@
 #include "NiagaraGpuReadbackManager.h"
 
 #include "Engine/World.h"
-#include "Runtime/Renderer/Private/SystemTextures.h"
-#include "SceneInterface.h"
 #include "FXSystem.h"
 #include "RenderGraphBuilder.h"
+#include "SceneInterface.h"
+#include "SystemTextures.h"
 
 FNiagaraGpuComputeDispatchInterface::FNiagaraGpuComputeDispatchInterface(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel)
 	: ShaderPlatform(InShaderPlatform)

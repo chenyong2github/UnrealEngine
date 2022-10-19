@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraMessageLogViewModel.h"
-#include "NiagaraScriptSourceBase.h"
+#include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
-#include "MessageLog/Public/MessageLogModule.h"
 #include "NiagaraMessages.h"
+#include "NiagaraScriptSourceBase.h"
 
 FNiagaraMessageLogViewModel::FNiagaraMessageLogViewModel(const FName& InMessageLogName, const FGuid& InMessageLogGuidKey, TSharedPtr<class SWidget>& OutMessageLogWidget)
 	: MessageLogGuidKey(InMessageLogGuidKey)

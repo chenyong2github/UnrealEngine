@@ -6,9 +6,9 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorCommon.h"
 
-#include "Widgets/Input/SSpinBox.h"
-#include "EditorWidgets/Public/SEnumCombo.h"
+#include "SEnumCombo.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Input/SSpinBox.h"
 
 class SNiagaraEnumParameterEditor : public SNiagaraParameterEditor
 {

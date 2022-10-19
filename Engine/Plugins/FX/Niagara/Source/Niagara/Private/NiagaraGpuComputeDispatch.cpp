@@ -17,19 +17,19 @@
 #endif
 #include "NiagaraGPUProfilerInterface.h"
 #include "NiagaraGpuReadbackManager.h"
+#include "NiagaraRenderViewDataManager.h"
 #include "NiagaraRenderer.h"
-#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraShader.h"
 #include "NiagaraShaderParticleID.h"
 #include "NiagaraSortingGPU.h"
 #include "NiagaraStats.h"
-#include "NiagaraRenderViewDataManager.h"
+#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraWorldManager.h"
-#include "RHI.h"
-#include "Runtime/Renderer/Private/SceneRendering.h"
 #include "PipelineStateCache.h"
+#include "RHI.h"
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 #include "ShaderParameterUtils.h"
-#include "Renderer/Private/ScenePrivate.h"
 
 DECLARE_CYCLE_STAT(TEXT("GPU Dispatch Setup [RT]"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);

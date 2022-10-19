@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IMessageLogListing.h"
 #include "Logging/TokenizedMessage.h"
-#include "Templates/SharedPointer.h"
-#include "Developer/MessageLog/Public/IMessageLogListing.h"
 #include "NiagaraMessageManager.h"
+#include "Templates/SharedPointer.h"
 
 class FNiagaraMessageLogViewModel : public TSharedFromThis<FNiagaraMessageLogViewModel>
 {

@@ -1,20 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRendererSprites.h"
-#include "ParticleResources.h"
-#include "NiagaraDataSet.h"
-#include "NiagaraStats.h"
-#include "NiagaraSortingGPU.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraComponent.h"
+#include "NiagaraCullProxyComponent.h"
 #include "NiagaraCutoutVertexBuffer.h"
+#include "NiagaraDataSet.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSortingGPU.h"
+#include "NiagaraStats.h"
+#include "ParticleResources.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Renderer/Private/ScenePrivate.h"
-#include "NiagaraCullProxyComponent.h"
+#include "ScenePrivate.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumSprites"), STAT_NiagaraNumSprites, STATGROUP_Niagara);
 
