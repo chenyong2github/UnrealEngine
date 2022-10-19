@@ -1487,6 +1487,11 @@ TSubclassOf<UPartyMember> USocialParty::GetDesiredMemberClass(bool bLocalPlayer)
 	return UPartyMember::StaticClass();
 }
 
+bool USocialParty::InitializeBeaconEncryptionData(AOnlineBeaconClient& BeaconClient, const FString& SessionId)
+{
+	return true;
+}
+
 void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState, EPartyState PreviousPartyState)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialParty_HandlePartyStateChanged);
@@ -1536,29 +1541,32 @@ void USocialParty::ConnectToReservationBeacon()
 
 							UE_LOG(LogParty, Verbose, TEXT("Party [%s] created reservation beacon [%s]."), *ToDebugString(), *LocalReservationBeaconClient->GetName());
 
-							LocalReservationBeaconClient->OnHostConnectionFailure().BindUObject(this, &USocialParty::HandleBeaconHostConnectionFailed);
-							LocalReservationBeaconClient->OnReservationRequestComplete().BindUObject(this, &USocialParty::HandleReservationRequestComplete);
-
-							TArray<FPlayerReservation> ReservationAsArray;
-							ReservationAsArray.Reserve(NextApproval.Members.Num());
-							for (const FPendingMemberApproval::FMemberInfo& MemberInfo : NextApproval.Members)
+							if (InitializeBeaconEncryptionData(*ReservationBeaconClient, Session->GetSessionIdStr()))
 							{
-								FPlayerReservation& Reservation = ReservationAsArray.Emplace_GetRef();
-								Reservation.UniqueId = MemberInfo.MemberId;
-								Reservation.Platform = MemberInfo.Platform;
+								LocalReservationBeaconClient->OnHostConnectionFailure().BindUObject(this, &USocialParty::HandleBeaconHostConnectionFailed);
+								LocalReservationBeaconClient->OnReservationRequestComplete().BindUObject(this, &USocialParty::HandleReservationRequestComplete);
 
-								if (!NextApproval.bIsJIPApproval && MemberInfo.JoinData.IsValid())
+								TArray<FPlayerReservation> ReservationAsArray;
+								ReservationAsArray.Reserve(NextApproval.Members.Num());
+								for (const FPendingMemberApproval::FMemberInfo& MemberInfo : NextApproval.Members)
 								{
-									const ECrossplayPreference CrossplayPreference = GetCrossplayPreferenceFromJoinData(*MemberInfo.JoinData);
-									Reservation.bAllowCrossplay = (CrossplayPreference == ECrossplayPreference::OptedIn);
+									FPlayerReservation& Reservation = ReservationAsArray.Emplace_GetRef();
+									Reservation.UniqueId = MemberInfo.MemberId;
+									Reservation.Platform = MemberInfo.Platform;
+
+									if (!NextApproval.bIsJIPApproval && MemberInfo.JoinData.IsValid())
+									{
+										const ECrossplayPreference CrossplayPreference = GetCrossplayPreferenceFromJoinData(*MemberInfo.JoinData);
+										Reservation.bAllowCrossplay = (CrossplayPreference == ECrossplayPreference::OptedIn);
+									}
+									else
+									{
+										Reservation.bAllowCrossplay = true; // This will not matter since we are JIP, and the session already has crossplay set.
+									}
 								}
-								else
-								{
-									Reservation.bAllowCrossplay = true; // This will not matter since we are JIP, and the session already has crossplay set.
-								}
+
+								bStartedConnection = ReservationBeaconClient->RequestReservationUpdate(URL, Session->GetSessionIdStr(), GetPartyLeader()->GetPrimaryNetId(), ReservationAsArray, NextApproval.bIsPlayerRemoval);
 							}
-
-							bStartedConnection = ReservationBeaconClient->RequestReservationUpdate(URL, Session->GetSessionIdStr(), GetPartyLeader()->GetPrimaryNetId(), ReservationAsArray, NextApproval.bIsPlayerRemoval);
 						}
 					}
 				}
@@ -1629,7 +1637,7 @@ ASpectatorBeaconClient* USocialParty::CreateSpectatorBeaconClient()
 	LastSpectatorBeaconClientNetDriverName = NAME_None;
 	SpectatorBeaconClient = World->SpawnActor<ASpectatorBeaconClient>(SpectatorBeaconClientClass);
 
-	return SpectatorBeaconClient;
+	return SpectatorBeaconClient.Get();
 }
 
 void USocialParty::PumpApprovalQueue()
@@ -1735,14 +1743,14 @@ void USocialParty::CleanupReservationBeacon()
 
 void USocialParty::CleanupSpectatorBeacon()
 {
-	if (SpectatorBeaconClient)
+	if (ASpectatorBeaconClient* LocalSpectatorBeaconClient = SpectatorBeaconClient.Get())
 	{
 		UE_LOG(LogParty, Verbose, TEXT("Spectator reservation beacon cleanup while in state %s, pending approvals: %s"), ToString(SpectatorBeaconClient->GetConnectionState()), !PendingApprovals.IsEmpty() ? TEXT("true") : TEXT("false"));
 
-		LastReservationBeaconClientNetDriverName = SpectatorBeaconClient->GetNetDriverName();
-		SpectatorBeaconClient->OnHostConnectionFailure().Unbind();
-		SpectatorBeaconClient->OnReservationRequestComplete().Unbind();
-		SpectatorBeaconClient->DestroyBeacon();
+		LastReservationBeaconClientNetDriverName = LocalSpectatorBeaconClient->GetNetDriverName();
+		LocalSpectatorBeaconClient->OnHostConnectionFailure().Unbind();
+		LocalSpectatorBeaconClient->OnReservationRequestComplete().Unbind();
+		LocalSpectatorBeaconClient->DestroyBeacon();
 		SpectatorBeaconClient = nullptr;
 	}
 }

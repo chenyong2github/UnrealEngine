@@ -352,16 +352,27 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 		{
 		case NMT_EncryptionAck:
 			{
-				if (FNetDelegates::OnReceivedNetworkEncryptionAck.IsBound())
+				// Enable encryption using the beacons encryption data when set.
+				if (!EncryptionData.Identifier.IsEmpty())
 				{
-					TWeakObjectPtr<UNetConnection> WeakConnection = Connection;
-					FNetDelegates::OnReceivedNetworkEncryptionAck.Execute(FOnEncryptionKeyResponse::CreateUObject(this, &ThisClass::FinalizeEncryptedConnection, WeakConnection));
+					FEncryptionKeyResponse Response;
+					Response.Response = EEncryptionResponse::Success;
+					Response.EncryptionData = EncryptionData;
+					FinalizeEncryptedConnection(Response, Connection);
 				}
 				else
 				{
-					// Force close the session
-					UE_LOG(LogBeacon, Warning, TEXT("%s: No delegate available to handle encryption ack, disconnecting."), *Connection->GetName());
-					OnFailure();
+					if (FNetDelegates::OnReceivedNetworkEncryptionAck.IsBound())
+					{
+						TWeakObjectPtr<UNetConnection> WeakConnection = Connection;
+						FNetDelegates::OnReceivedNetworkEncryptionAck.Execute(FOnEncryptionKeyResponse::CreateUObject(this, &ThisClass::FinalizeEncryptedConnection, WeakConnection));
+					}
+					else
+					{
+						// Force close the session
+						UE_LOG(LogBeacon, Warning, TEXT("%s: No delegate available to handle encryption ack, disconnecting."), *Connection->GetName());
+						OnFailure();
+					}
 				}
 				break;
 			}

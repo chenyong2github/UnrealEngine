@@ -282,6 +282,9 @@ protected:
 	/** Override in child classes to specify the type of UPartyMember to create */
 	virtual TSubclassOf<UPartyMember> GetDesiredMemberClass(bool bLocalPlayer) const;
 
+	/** Override in child classes to provide encryption data for party beacon connections. */
+	virtual bool InitializeBeaconEncryptionData(AOnlineBeaconClient& BeaconClient, const FString& SessionId);
+
 	bool IsInviteRateLimited(const USocialUser& User, ESocialSubsystem SubsystemType) const;
 
 	bool ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FUserPlatform& Platform, const FOnlinePartyData& JoinData) const;
@@ -305,7 +308,7 @@ protected:
 	void CleanupSpectatorBeacon();
 	ASpectatorBeaconClient* CreateSpectatorBeaconClient();
 
-	ASpectatorBeaconClient* GetSpectatorBeaconClient() const { return SpectatorBeaconClient; }
+	ASpectatorBeaconClient* GetSpectatorBeaconClient() const { return SpectatorBeaconClient.Get(); }
 
 	/** Child classes MUST call EstablishRepDataInstance() on this using their member rep data struct instance */
 	FPartyDataReplicator PartyDataReplicator;
@@ -444,7 +447,7 @@ private:
 	
 	/** Spectator beacon client instance while getting approval for spectator*/
 	UPROPERTY()
-	TObjectPtr<ASpectatorBeaconClient> SpectatorBeaconClient = nullptr;
+	TWeakObjectPtr<ASpectatorBeaconClient> SpectatorBeaconClient = nullptr;
 
 	/**
 	 * True when we have limited functionality due to lacking an xmpp connection.
