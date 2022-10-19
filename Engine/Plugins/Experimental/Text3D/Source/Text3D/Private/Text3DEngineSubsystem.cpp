@@ -245,19 +245,14 @@ TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
 {
 	check(FreeTypeFace);
 
-	//if (Glyphs.Contains(GlyphIndex))
-	//{
-	//	return Glyphs[GlyphIndex];
-	//}
-
-	if (FT_Load_Glyph(FreeTypeFace, GlyphIndex, FT_LOAD_DEFAULT))
+	if (FT_Load_Glyph(FreeTypeFace, GlyphIndex, FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP))
 	{
 		return nullptr;
 	}
 
 	FGlyphLoader GlyphLoader(FreeTypeFace->glyph);
 	TSharedContourNode Root = GlyphLoader.GetContourList();
-	//Glyphs.Add(GlyphIndex, Root);
+
 	return Root;
 }
 

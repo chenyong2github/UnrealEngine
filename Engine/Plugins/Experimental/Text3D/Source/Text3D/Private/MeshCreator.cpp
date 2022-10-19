@@ -392,7 +392,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 		};
 
 
-		// Outter
+		// Outer
 		ProcessContour(Node);
 
 		// Holes
@@ -400,7 +400,6 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 		{
 			ProcessContour(Child);
 		}
-
 
 		if (!bOutline)
 		{

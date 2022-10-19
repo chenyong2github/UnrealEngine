@@ -840,16 +840,32 @@ void UText3DComponent::BuildTextMeshInternal(const bool bCleanCache)
 				continue;
 			}
 
-			UStaticMeshComponent* StaticMeshComponent = CharacterMeshes[GlyphId];
-			StaticMeshComponent->SetStaticMesh(CachedMesh);
-			StaticMeshComponent->SetVisibility(GetVisibleFlag());
-			StaticMeshComponent->SetHiddenInGame(bHiddenInGame);
-			StaticMeshComponent->SetCastShadow(bCastShadow);
+			if(CharacterMeshes.IsValidIndex(GlyphId))
+			{
+				UStaticMeshComponent* StaticMeshComponent = CharacterMeshes[GlyphId];
+				StaticMeshComponent->SetStaticMesh(CachedMesh);			
+				StaticMeshComponent->SetVisibility(GetVisibleFlag());
+				StaticMeshComponent->SetHiddenInGame(bHiddenInGame);
+				StaticMeshComponent->SetCastShadow(bCastShadow);
+			}
+			else
+			{
+				// @note: This shouldn't occur, but it does under unknown circumstances (UE-164789) so it should be handled 
+				UE_LOG(LogText3D, Error, TEXT("CharacterMesh not found at index %d"), GlyphId);
+			}
 
-			FTransform Transform;
-			Transform.SetLocation(GlyphLocation);
-			USceneComponent* CharacterKerningComponent = CharacterKernings[GlyphId];
-			CharacterKerningComponent->SetRelativeTransform(Transform);
+			if(CharacterKernings.IsValidIndex(GlyphId))
+			{
+				FTransform Transform;
+				Transform.SetLocation(GlyphLocation);
+				USceneComponent* CharacterKerningComponent = CharacterKernings[GlyphId];
+				CharacterKerningComponent->SetRelativeTransform(Transform);
+			}
+			else
+			{
+				// @note: This shouldn't occur, but it does under unknown circumstances (UE-164789) so it should be handled
+				UE_LOG(LogText3D, Error, TEXT("CharacterKerning not found at index %d"), GlyphId);
+			}
 		}
 	}
 	
