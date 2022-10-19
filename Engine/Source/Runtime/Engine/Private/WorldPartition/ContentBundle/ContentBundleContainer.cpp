@@ -13,10 +13,8 @@
 #include "UObject/UObjectGlobals.h"
 
 FContentBundleContainer::FContentBundleContainer(UWorld* WorldToInjectIn)
-	:InjectedWorld(WorldToInjectIn)
-{
-
-}
+	: InjectedWorld(WorldToInjectIn)
+{}
 
 FContentBundleContainer::~FContentBundleContainer()
 {
@@ -33,7 +31,7 @@ FContentBundleContainer::~FContentBundleContainer()
 
 UWorld* FContentBundleContainer::GetInjectedWorld() const
 {
-	return InjectedWorld.Get();
+	return InjectedWorld;
 }
 
 void FContentBundleContainer::Initialize()
@@ -219,14 +217,14 @@ FContentBundleBase& FContentBundleContainer::InitializeContentBundle(TSharedPtr<
 #if WITH_EDITOR
 	if (UseEditorContentBundle())
 	{
-		ContentBundle = GetEditorContentBundles().Emplace_GetRef(MakeShared<FContentBundleEditor>(ContentBundleClient, InjectedWorld.Get())).Get();
+		ContentBundle = GetEditorContentBundles().Emplace_GetRef(MakeShared<FContentBundleEditor>(ContentBundleClient, GetInjectedWorld())).Get();
 	}
 	else
 	{
-		ContentBundle = GetGameContentBundles().Emplace_GetRef(MakeUnique<FContentBundle>(ContentBundleClient, InjectedWorld.Get())).Get();
+		ContentBundle = GetGameContentBundles().Emplace_GetRef(MakeUnique<FContentBundle>(ContentBundleClient, GetInjectedWorld())).Get();
 	}
 #else
-	 ContentBundle = GetGameContentBundles().Emplace_GetRef(MakeUnique<FContentBundle>(ContentBundleClient, InjectedWorld.Get())).Get();
+	 ContentBundle = GetGameContentBundles().Emplace_GetRef(MakeUnique<FContentBundle>(ContentBundleClient, GetInjectedWorld())).Get();
 #endif
 
 	 ContentBundle->Initialize();

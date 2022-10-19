@@ -42,7 +42,7 @@ protected:
 
 private:
 	TWeakPtr<FContentBundleClient> Client;
-	TWeakObjectPtr<UWorld> InjectedWorld;
+	UWorld* InjectedWorld;
 	const UContentBundleDescriptor* Descriptor;
 	EContentBundleStatus Status;
 };

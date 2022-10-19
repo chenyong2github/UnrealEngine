@@ -95,5 +95,5 @@ private:
 	ContentBundleGameArray ContentBundles;
 #endif
 
-	TWeakObjectPtr<UWorld> InjectedWorld;
+	UWorld* InjectedWorld;
 };

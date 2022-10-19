@@ -9,13 +9,11 @@
 #include "Engine/World.h"
 
 FContentBundleBase::FContentBundleBase(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
-	: Client(InClient),
-	InjectedWorld(InWorld),
-	Descriptor(InClient->GetDescriptor()),
-	Status(EContentBundleStatus::Unknown)
-{
-
-}
+	: Client(InClient)
+	, InjectedWorld(InWorld)
+	, Descriptor(InClient->GetDescriptor())
+	, Status(EContentBundleStatus::Unknown)
+{}
 
 FContentBundleBase::~FContentBundleBase()
 {
@@ -98,7 +96,7 @@ FString FContentBundleBase::GetExternalStreamingObjectName() const
 
 UWorld* FContentBundleBase::GetInjectedWorld() const
 {
-	return InjectedWorld.Get();
+	return InjectedWorld;
 }
 
 const FString& FContentBundleBase::GetDisplayName() const
