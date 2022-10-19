@@ -278,8 +278,54 @@ FBoxSphereBounds UArrowComponent::CalcBounds(const FTransform& LocalToWorld) con
 
 void UArrowComponent::SetArrowColor(FLinearColor NewColor)
 {
-	ArrowColor = NewColor.ToFColor(true);
+	SetArrowFColor(NewColor.ToFColor(true));
+}
+
+void UArrowComponent::SetArrowFColor(FColor NewColor)
+{
+	ArrowColor = NewColor;
 	MarkRenderStateDirty();
+}
+
+void UArrowComponent::SetArrowSize(float NewSize)
+{
+	ArrowSize = NewSize;
+	MarkRenderStateDirty();
+}
+
+void UArrowComponent::SetArrowLength(float NewLength)
+{
+	ArrowLength = NewLength;
+	MarkRenderStateDirty();
+}
+
+void UArrowComponent::SetScreenSize(float NewScreenSize)
+{
+	ScreenSize = NewScreenSize;
+	MarkRenderStateDirty();
+}
+
+void UArrowComponent::SetIsScreenSizeScaled(bool bNewValue)
+{
+	bIsScreenSizeScaled = bNewValue;
+	MarkRenderStateDirty();
+}
+
+void UArrowComponent::SetTreatAsASprite(bool bNewValue)
+{
+	bTreatAsASprite = bNewValue;
+	MarkRenderStateDirty();
+}
+
+void UArrowComponent::SetUseInEditorScaling(bool bNewValue)
+{
+#if WITH_EDITORONLY_DATA
+	bUseInEditorScaling = bNewValue;
+	MarkRenderStateDirty();
+#else
+	const bool bCallOutsideOf_WithEditorOnlyData = false;
+	ensure(bCallOutsideOf_WithEditorOnlyData);
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
