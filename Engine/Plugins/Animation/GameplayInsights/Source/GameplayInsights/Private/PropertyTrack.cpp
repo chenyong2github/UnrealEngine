@@ -40,7 +40,7 @@ namespace RewindDebugger
 
 		InMenuSection.AddMenuEntry(NAME_None,
 			LOCTEXT("RemovePropertyTrack", "Remove Property Track"),
-			LOCTEXT("RemovePropertyTrack", "Remove traced property track from timeline"),
+			LOCTEXT("RemovePropertyTrackTooltip", "Remove traced property track from timeline"),
 			{},
 			FUIAction(FExecuteAction::CreateLambda([this]()
 			{
