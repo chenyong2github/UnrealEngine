@@ -521,41 +521,40 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			BlockedImage.BlocksData.Reserve(Images.Num());
 
 			bool bMismatchedFormats = false;
+			bool bMismatchedGammaSpace = false;
 			for (int32 Index = 0; Index < Images.Num(); ++Index)
 			{
+				if (BlockedImage.bSRGB != Images[Index].bSRGB)
+				{
+					bMismatchedGammaSpace = true;
+					BlockedImage.bSRGB = false;
+					BlockedImage.Format = TSF_RGBA32F;
+				}
+
 				if (BlockedImage.Format != Images[Index].Format)
 				{
 					bMismatchedFormats = true;
-					break;
+					BlockedImage.Format = FImageCoreUtils::GetCommonSourceFormat(BlockedImage.Format, Images[Index].Format);
 				}
 			}
 
-			if (bMismatchedFormats)
+			if (bMismatchedGammaSpace || bMismatchedFormats)
 			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Mismatched UDIM image formats, converting all to BGRA8 or RGBA16F ..."));
-
-				if (FTextureSource::IsHDR(BlockedImage.Format))
-				{
-					BlockedImage.Format = TSF_RGBA16F;
-					BlockedImage.bSRGB = false;
-				}
-				else
-				{
-					BlockedImage.Format = TSF_BGRA8;
-					BlockedImage.bSRGB = true;
-				}
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Mismatched UDIM image %s, converting all to %s/%s ..."), bMismatchedGammaSpace ? TEXT("gamma spaces") : TEXT("pixel formats"),
+					ERawImageFormat::GetName(FImageCoreUtils::ConvertToRawImageFormat(BlockedImage.Format)), BlockedImage.bSRGB ? TEXT("sRGB") : TEXT("Linear"));
 
 				for (UE::Interchange::FImportImage& Image : Images)
 				{
-					if (Image.Format != BlockedImage.Format)
+					if (Image.bSRGB != BlockedImage.bSRGB || Image.Format != BlockedImage.Format)
 					{
 						ERawImageFormat::Type ImageRawFormat = FImageCoreUtils::ConvertToRawImageFormat(Image.Format);
-						FImageView SourceImage(Image.RawData.GetData(), Image.SizeX, Image.SizeY, ImageRawFormat);
-						FImage DestImage(Image.SizeX, Image.SizeY, FImageCoreUtils::ConvertToRawImageFormat(BlockedImage.Format));
+						FImageView SourceImage(Image.RawData.GetData(), Image.SizeX, Image.SizeY, 1, ImageRawFormat, Image.bSRGB ? EGammaSpace::sRGB : EGammaSpace::Linear);
+						FImage DestImage(Image.SizeX, Image.SizeY, FImageCoreUtils::ConvertToRawImageFormat(BlockedImage.Format), BlockedImage.bSRGB ? EGammaSpace::sRGB : EGammaSpace::Linear);
 						FImageCore::CopyImage(SourceImage, DestImage);
 
 						Image.RawData = MakeUniqueBufferFromArray(MoveTemp(DestImage.RawData));
 						Image.Format = BlockedImage.Format;
+						Image.bSRGB = BlockedImage.bSRGB;
 					}
 				}
 			}

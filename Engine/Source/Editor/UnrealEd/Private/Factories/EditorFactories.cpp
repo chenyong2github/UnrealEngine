@@ -3207,6 +3207,7 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 	const EImageImportFlags ImportFlags = EImageImportFlags::None;
 
 	bool bMismatchedFormats = false;
+	bool bMismatchedGammaSpace = false;
 
 	for (const auto& It : UDIMIndexToFile)
 	{
@@ -3228,9 +3229,17 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 					TCSettings = Image.CompressionSettings;
 				}
 
-				if ( Format != Image.Format )
+				if (bSRGB != Image.SRGB)
+				{
+					bMismatchedGammaSpace = true;
+					bSRGB = false;
+					Format = TSF_RGBA32F;
+				}
+
+				if (Format != Image.Format)
 				{
 					bMismatchedFormats = true;
+					Format = FImageCoreUtils::GetCommonSourceFormat(Format, Image.Format);
 				}
 
 				const int32 UDIMIndex = It.Key;
@@ -3252,32 +3261,23 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 		return nullptr;
 	}
 
-	if ( bMismatchedFormats )
+	if (bMismatchedGammaSpace || bMismatchedFormats)
 	{
-		Warn->Logf(ELogVerbosity::Warning, TEXT("Mismatched UDIM image formats, converting all to BGRA8 or RGBA16F ..."));
-		
-		if ( FTextureSource::IsHDR(Format) )
-		{
-			Format = TSF_RGBA16F;
-			bSRGB = false;
-		}
-		else
-		{
-			Format = TSF_BGRA8;
-			bSRGB = true;
-		}
+		Warn->Logf(ELogVerbosity::Warning, TEXT("Mismatched UDIM image %s, converting all to %s/%s ..."), bMismatchedGammaSpace ? TEXT("gamma spaces") : TEXT("pixel formats"),
+			ERawImageFormat::GetName(FImageCoreUtils::ConvertToRawImageFormat(Format)), bSRGB ? TEXT("sRGB") : TEXT("Linear"));
 
 		for( FImportImage & Image : SourceImages )
 		{
-			if ( Image.Format != Format )
+			if (Image.SRGB != bSRGB || Image.Format != Format)
 			{
-				ERawImageFormat::Type ImageRawFormat = FImageCoreUtils::ConvertToRawImageFormat( Image.Format );
-				FImageView SourceImage( Image.RawData.GetData(), Image.SizeX, Image.SizeY, ImageRawFormat );
-				FImage DestImage( Image.SizeX, Image.SizeY, FImageCoreUtils::ConvertToRawImageFormat(Format) );
-				FImageCore::CopyImage(SourceImage,DestImage);
+				ERawImageFormat::Type ImageRawFormat = FImageCoreUtils::ConvertToRawImageFormat(Image.Format);
+				FImageView SourceImage(Image.RawData.GetData(), Image.SizeX, Image.SizeY, 1, ImageRawFormat, Image.SRGB ? EGammaSpace::sRGB : EGammaSpace::Linear);
+				FImage DestImage(Image.SizeX, Image.SizeY, FImageCoreUtils::ConvertToRawImageFormat(Format), bSRGB ? EGammaSpace::sRGB : EGammaSpace::Linear);
+				FImageCore::CopyImage(SourceImage, DestImage);
 
 				Image.RawData = MoveTemp(DestImage.RawData);
 				Image.Format = Format;
+				Image.SRGB = bSRGB;
 			}				
 		}
 	}
