@@ -289,7 +289,7 @@ namespace Horde.Build.Notifications.Sinks
 		/// <inheritdoc/>
 		public override async Task StartAsync(CancellationToken cancellationToken)
 		{
-			base.StartAsync(cancellationToken);
+			await base.StartAsync(cancellationToken);
 
 			await _issueQueueTicker.StartAsync();
 			await _escalateTicker.StartAsync();
@@ -298,7 +298,7 @@ namespace Horde.Build.Notifications.Sinks
 		/// <inheritdoc/>
 		public override async Task StopAsync(CancellationToken cancellationToken)
 		{
-			base.StopAsync(cancellationToken);
+			await base.StopAsync(cancellationToken);
 
 			await _escalateTicker.StopAsync();
 			await _issueQueueTicker.StopAsync();
