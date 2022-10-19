@@ -15,6 +15,9 @@ namespace UE::PixelStreaming
     IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDataChannelEchoTest, "System.Plugins.PixelStreaming.FDataChannelEchoTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
     bool FDataChannelEchoTest::RunTest(const FString& Parameters)
     {
+        // need to be able to accept codec to handshake otherwise setting local description fails when generating an answer
+        SetCodec(EPixelStreamingCodec::VP8, false /*bUseComputeShader*/);
+
         int32 StreamerPort = 7567;
 		int32 PlayerPort = 4581;
 
