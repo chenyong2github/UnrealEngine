@@ -114,12 +114,12 @@ public:
 		 */
 		const bool bIsSeparateVelocityPassRequired = 
 			!FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform) &&
-			(bIsDefault || bIsMasked || bIsOpaqueAndTwoSided || bMayModifyMeshes);
+			(bIsMasked || bIsOpaqueAndTwoSided || bMayModifyMeshes);
 
 		// The material may explicitly request that it be rendered into the translucent velocity pass.
 		const bool bIsSeparateVelocityPassRequiredByMaterial = Parameters.MaterialParameters.bIsTranslucencyWritingVelocity;
 
-		return bHasPlatformSupport && (bIsSeparateVelocityPassRequired || bIsSeparateVelocityPassRequiredByMaterial);
+		return bHasPlatformSupport && (bIsDefault || bIsSeparateVelocityPassRequired || bIsSeparateVelocityPassRequiredByMaterial);
 	}
 
 	FVelocityVS() = default;
