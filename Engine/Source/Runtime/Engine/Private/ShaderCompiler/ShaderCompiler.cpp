@@ -3985,16 +3985,14 @@ FString FShaderCompilingManager::CreateShaderDebugInfoPath(const FShaderCompiler
 	DumpDebugInfoPath.ReplaceInline(TEXT("?"), TEXT("!"));
 	DumpDebugInfoPath.ReplaceInline(TEXT("\""), TEXT("\'"));
 
-	// Return empty string if we exceeded the platform path limitations and emit warning
-	if (DumpDebugInfoPath.Len() > FPlatformMisc::GetMaxPathLength())
-	{
-		UE_LOG(LogShaderCompilers, Warning, TEXT("Shader debug path exceeded platform limits: %s"), *DumpDebugInfoPath);
-		return TEXT("");
-	}
-
 	if (!IFileManager::Get().DirectoryExists(*DumpDebugInfoPath))
 	{
-		verifyf(IFileManager::Get().MakeDirectory(*DumpDebugInfoPath, true), TEXT("Failed to create directory for shader debug info '%s'"), *DumpDebugInfoPath);
+		if (!IFileManager::Get().MakeDirectory(*DumpDebugInfoPath, true))
+		{
+			const uint32 ErrorCode = FPlatformMisc::GetLastError();
+			UE_LOG(LogShaderCompilers, Warning, TEXT("Last Error %u: Failed to create directory for shader debug info '%s'. Try enabling large file paths or r.DumpShaderDebugShortNames."), ErrorCode, *DumpDebugInfoPath);
+			return FString();
+		}
 	}
 
 	return DumpDebugInfoPath;
