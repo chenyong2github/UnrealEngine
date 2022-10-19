@@ -555,6 +555,7 @@ public:
 	friend class UAnimSingleNodeInstance;
 	friend class USkeletalMeshComponent;
 	friend struct FAnimNode_LinkedAnimGraph;
+	friend struct FAnimNode_LinkedAnimLayer;
 	friend struct FAnimationBaseContext;
 	friend struct FAnimTrace;
 	friend struct UE::Anim::FAnimSync;

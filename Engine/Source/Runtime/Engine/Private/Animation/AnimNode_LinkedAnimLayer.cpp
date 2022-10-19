@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimClassInterface.h"
+#include "Animation/AnimInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_LinkedAnimLayer)
 
@@ -158,7 +159,10 @@ void FAnimNode_LinkedAnimLayer::HandleObjectsReinstanced_Impl(UObject* InSourceO
 		DynamicUnlink(SourceAnimInstance);
 		DynamicLink(SourceAnimInstance);
 
-		FAnimationInitializeContext Context(&SourceAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>());
+		FAnimInstanceProxy& SourceProxy = SourceAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		SourceProxy.InitializeCachedClassData();
+		
+		FAnimationInitializeContext Context(&SourceProxy);
 		InitializeSubGraph_AnyThread(Context);
 	}
 }
