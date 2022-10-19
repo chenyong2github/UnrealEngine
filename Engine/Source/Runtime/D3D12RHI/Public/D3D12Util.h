@@ -284,15 +284,25 @@ public:
 
 	D3D12_RESOURCE_STATES GetUAVHiddenResourceState() const
 	{
-		return UAVHiddenResourceState;	
+		return static_cast<D3D12_RESOURCE_STATES>(UAVHiddenResourceState);
 	}
 
 	void SetUAVHiddenResourceState(D3D12_RESOURCE_STATES InUAVHiddenResourceState)
 	{
 		// The hidden state can never include UAV
 		check(InUAVHiddenResourceState == D3D12_RESOURCE_STATE_TBD || !EnumHasAnyFlags(InUAVHiddenResourceState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		check((InUAVHiddenResourceState & (1 << 31)) == 0);
 
-		UAVHiddenResourceState = InUAVHiddenResourceState;
+		UAVHiddenResourceState = (uint32)InUAVHiddenResourceState;
+	}
+
+	void SetHasInternalTransition()
+	{
+		bHasInternalTransition = 1;
+	}
+	bool HasInternalTransition() const
+	{
+		return bHasInternalTransition != 0;
 	}
 
 private:
@@ -306,7 +316,10 @@ private:
 
 	// Special resource state to track previous state before resource transitioned to UAV when the resource
 	// has a UAV aliasing resource so correct previous state can be found (only single state allowed)
-	D3D12_RESOURCE_STATES UAVHiddenResourceState;
+	uint32 UAVHiddenResourceState : 31;
+
+	// Was the resource used for another transition than the pending transition
+	uint32 bHasInternalTransition : 1;
 
 	// Only used if m_AllSubresourcesSame is 0.
 	// The state of each subresources.  Bits are from D3D12_RESOURCE_STATES.

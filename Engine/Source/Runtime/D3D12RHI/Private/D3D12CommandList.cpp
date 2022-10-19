@@ -32,9 +32,9 @@ void FD3D12ContextCommon::AddPendingResourceBarrier(FD3D12Resource* Resource, D3
 	check(After != D3D12_RESOURCE_STATE_TBD);
 	check(Resource->RequiresResourceStateTracking());
 	check(&GetCommandList().GetResourceState_OnCommandList(Resource) == &ResourceState_OnCommandList);
-
+	
 	GetCommandList().State.PendingResourceBarriers.Emplace(Resource, After, SubResource);
-	ResourceState_OnCommandList.SetSubresourceState(SubResource, After);
+	ResourceState_OnCommandList.SetSubresourceState(SubResource, After);	
 }
 
 void FD3D12ContextCommon::AddTransitionBarrier(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource, CResourceState* ResourceState_OnCommandList)
@@ -68,6 +68,7 @@ void FD3D12ContextCommon::AddTransitionBarrier(FD3D12Resource* pResource, D3D12_
 		}
 
 		ResourceState_OnCommandList->SetSubresourceState(Subresource, After);
+		ResourceState_OnCommandList->SetHasInternalTransition();
 	}
 }
 

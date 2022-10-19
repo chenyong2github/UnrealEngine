@@ -522,6 +522,39 @@ void FD3D12CommandContext::HandleResourceTransitions(const FD3D12TransitionData*
 		// Can't rely on before state to either be unknown or UAV because there could be a UAV->SRV transition already done (and ignored here)
 		// and the transition SRV->UAV needs a UAV barrier then to work correctly otherwise there is no synchronization at all
 		bUAVBarrier |= bUAVAccessAfter;
+
+		// Process transitions which are forced during begin because those contain transition from Graphics to Compute and should
+		// help remove forced patch up command lists for async compute to run on the graphics queue
+		if (Info.Resource && ProcessTransitionDuringBegin(TransitionData))
+		{
+			ProcessResource(*this, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource, FD3D12Texture* UnusedTexture = nullptr)
+			{
+				if (!Resource->RequiresResourceStateTracking())
+				{
+					return;
+				}
+
+				const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
+
+				// Use D3D12_RESOURCE_STATE_TBD as before state for now and don't use provided before state because there is not validation nor handling if the provided state
+				// doesn't match up with the tracked state - this needs to be improved and checked
+				D3D12_RESOURCE_STATES StateBefore = D3D12_RESOURCE_STATE_TBD;
+				D3D12_RESOURCE_STATES StateAfter = Info.AccessAfter == ERHIAccess::Discard ? GetInitialResourceState(Resource->GetDesc()) : GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
+
+				// enqueue the correct transitions
+				if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
+				{
+					TransitionResource(Resource, StateBefore, StateAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+				}
+				else
+				{
+					EnumerateSubresources(Resource, Info, nullptr, [&](uint32 Subresource, const FD3D12RenderTargetView* UnusedRTV = nullptr)
+					{
+						TransitionResource(Resource, StateBefore, StateAfter, Subresource);
+					});
+				}
+			});
+		}
 	}
 }
 

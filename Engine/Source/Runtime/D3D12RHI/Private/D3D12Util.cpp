@@ -1438,11 +1438,14 @@ void CResourceState::Initialize(uint32 SubresourceCount)
 	m_SubresourceState.SetNumUninitialized(SubresourceCount);
 	check(m_SubresourceState.Num() == SubresourceCount);
 
+	// No internal transition yet
+	bHasInternalTransition = 0;
+
 	// All subresources start out in an unknown state
 	SetResourceState(D3D12_RESOURCE_STATE_TBD);
 
 	// Unknown hidden resource state
-	UAVHiddenResourceState = D3D12_RESOURCE_STATE_TBD;
+	SetUAVHiddenResourceState(D3D12_RESOURCE_STATE_TBD);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------

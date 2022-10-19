@@ -512,9 +512,30 @@ FD3D12CommandList* FD3D12DynamicRHI::GenerateBarrierCommandListAndUpdateState(FD
 		
 		if (Before != After)
 		{
-			if (IsDirectQueueExclusiveD3D12State(Before) || IsDirectQueueExclusiveD3D12State(After))
+			if (SourceCommandList->QueueType != ED3D12QueueType::Direct)
 			{
-				bHasGraphicStates = true;
+				check(!IsDirectQueueExclusiveD3D12State(After));
+				if (IsDirectQueueExclusiveD3D12State(Before))
+				{
+					// If we are transitioning to a subset of the already set state on the resource (SRV_MASK -> SRV_COMPUTE for example)
+					// and there are no other transitions done on this resource in the command list then this transition can be ignored
+					// (otherwise a transition from SRV_COMPUTE as before state might already be recorded in the command list)
+					CResourceState& ResourceState_OnCommandList = SourceCommandList->GetResourceState_OnCommandList(PRB.Resource);
+					if (ResourceState_OnCommandList.HasInternalTransition() || !EnumHasAllFlags(Before, After))
+					{
+						bHasGraphicStates = true;
+					}
+					else
+					{
+						// should be the same final state as well
+						check(ResourceState_OnCommandList.AreAllSubresourcesSame());
+						check(After == ResourceState_OnCommandList.GetSubresourceState(PRB.SubResource));
+						
+						// Force the original state again if we're skipping this transition
+						ResourceState_OnCommandList.SetResourceState(Before);
+						continue;
+					}
+				}
 			}
 
 			if (PRB.Resource->IsBackBuffer() && EnumHasAnyFlags(After, BackBufferBarrierWriteTransitionTargets))
