@@ -391,6 +391,11 @@ FORCEINLINE VectorRegister2Int64 MakeVectorRegisterInt64(int64 X, int64 Y) {
 	return _mm_set_epi64x(Y, X);
 }
 
+PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
+#if defined(PRAGMA_DISABLE_MISSING_BRACES_WARNINGS)
+PRAGMA_DISABLE_MISSING_BRACES_WARNINGS
+#endif
+
 /**
 * constexpr 4xint32 vector constant creation that bypasses SIMD intrinsic setter.
 *
@@ -417,6 +422,11 @@ FORCEINLINE constexpr VectorRegister4Float MakeVectorRegisterFloatConstant(float
 {
 	return VectorRegister4Float { X, Y, Z, W };
 }
+
+#if defined(PRAGMA_ENABLE_MISSING_BRACES_WARNINGS)
+PRAGMA_ENABLE_MISSING_BRACES_WARNINGS
+#endif
+PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
 
 FORCEINLINE constexpr VectorRegister2Double MakeVectorRegister2DoubleConstant(double X, double Y)
 {
