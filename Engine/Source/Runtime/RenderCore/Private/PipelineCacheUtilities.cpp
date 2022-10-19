@@ -797,7 +797,13 @@ bool UE::PipelineCacheUtilities::LoadStablePipelineCacheFile(const FString& File
 		{
 			// not yet supported
 			++OutPSOsRejected;
-			UE_LOG(LogPipelineCacheUtilities, Display, TEXT("Raytracing PSOs aren't yet supported in the PSO stable cache. Filename:%s PSO:%s"), *Filename, *NewPSO.ToStringReadable());
+
+			static bool bLogged = false;
+			if (!bLogged)
+			{
+				UE_LOG(LogPipelineCacheUtilities, Display, TEXT("Raytracing PSOs aren't yet supported in the PSO stable cache.\nFilename:%s PSO:%s\nNOTE: Only first rejected PSO is reported."), *Filename, *NewPSO.ToStringReadable());
+				bLogged = true;
+			}
 		}
 	}
 
