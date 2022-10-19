@@ -736,7 +736,7 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 					}
 					else if (bAdditiveFromBase)
 					{
-						Result->Value.DecomposedAdditivesFromBase.Add(MakeTuple(EntityToDecompose, FWeightedValue{ ValueResult, Weight, BaseValue }));
+						Result->Value.DecomposedAdditives.Add(MakeTuple(EntityToDecompose, FWeightedValue{ ValueResult, Weight, BaseValue }));
 					}
 					else
 					{
@@ -753,8 +753,8 @@ FGraphEventRef UMovieScenePiecewiseDoubleBlenderSystem::DispatchDecomposeTask(co
 				}
 				else
 				{
-					Result->Value.Result.Absolute.Value  += ValueResult * Weight;
-					Result->Value.Result.Absolute.Weight += Weight;
+					Result->Value.Result.Absolute.Total += ValueResult * Weight;
+					Result->Value.Result.Absolute.TotalWeight += Weight;
 				}
 			}
 		}
