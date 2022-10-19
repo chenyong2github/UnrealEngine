@@ -2217,7 +2217,11 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 				const FAsyncPackageDesc Info(INDEX_NONE, ImportPackageFName, ImportPackagePath);
 				PendingPackage = new FAsyncPackage(AsyncLoadingThread, Info, EDLBootNotificationManager);
 				PendingPackage->Desc.Priority = Desc.Priority;
-				PendingPackage->Desc.SetInstancingContext(Linker->GetInstancingContext());
+				// if we are also instancing the dependency, propagate the instancing context
+				if (ImportPackageToLoad != ImportPackageFName)
+				{
+					PendingPackage->Desc.SetInstancingContext(Linker->GetInstancingContext());
+				}
 				if (bIsPrestreamRequest)
 				{
 					UE_LOG(LogStreaming, Display, TEXT("%s is prestreaming %s"), *Desc.PackagePath.GetDebugName(), *ImportPackagePath.GetDebugName());
@@ -6574,7 +6578,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 				if (!bLoadedFromIoStore)
 				{
 					UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s"), *Desc.PackagePath.GetDebugName(), *ImportPackageName);
-					AddImportDependency(ImportPackageFName, ImportToLoad, InstancingContext);
+					AddImportDependency(ImportPackageFName, ImportToLoad, ImportToLoad != ImportPackageFName ? InstancingContext : FLinkerInstancingContext());
 				}
 			}
 			else
@@ -6884,7 +6888,6 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 	}
 
 	const bool bAsyncPostLoadEnabled = FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled;
-	const bool bIsMultithreaded = AsyncLoadingThread.IsMultithreaded();
 
 	TOptional<FScopedSlowTask> SlowTask;
 	if (IsInGameThread())

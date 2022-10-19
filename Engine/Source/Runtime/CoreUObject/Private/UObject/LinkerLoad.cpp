@@ -3303,13 +3303,16 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			// are doing an instanced load (loading the data of package A on disk to package B in memory)
 			// hence we create a package with a unique instance name provided by the instancing context
 			// In the case of a non instanced load `PackageToLoad` and `PackageToLoadInto` will be the same and we won't be providing a package to load into since `Package` will be null.
+			// If we are going through and instanced load we are also propagating the instancing context
+			const FLinkerInstancingContext* LocalInstancingContext = nullptr;
 			if (PackageToLoad != PackageToLoadInto)
 			{
 				Package = CreatePackage(*PackageToLoadInto.ToString());
+				LocalInstancingContext = &GetInstancingContext();
 			}
 			FPackagePath PackagePathToLoad = FPackagePath::FromPackageNameChecked(PackageToLoad);
 			Package = LoadPackageInternal(Package, PackagePathToLoad, InternalLoadFlags | LOAD_IsVerifying, this, nullptr /* InReaderOverride */,
-				nullptr /* InstancingContext */, nullptr /* DiffPackagePath */);
+				LocalInstancingContext, nullptr /* DiffPackagePath */);
 		}
 #if WITH_IOSTORE_IN_EDITOR
 		if (Package && Package->HasAnyPackageFlags(PKG_Cooked) && Package->GetPackageId().IsValid())
