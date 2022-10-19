@@ -67,7 +67,8 @@ namespace NiagaraDataInterfaceLandscape
 		SHADER_PARAMETER_SRV(Texture2D,				NormalVirtualTexture0)
 		SHADER_PARAMETER_SRV(Texture2D,				NormalVirtualTexture1)
 		SHADER_PARAMETER_TEXTURE(Texture2D<uint4>,	NormalVirtualTexturePageTable)
-		SHADER_PARAMETER_SAMPLER(SamplerState,		NormalVirtualTextureSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState,		NormalVirtualTexture0Sampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState,		NormalVirtualTexture1Sampler)
 		SHADER_PARAMETER(FMatrix44f,				NormalVirtualTextureWorldToUvTransform)
 		SHADER_PARAMETER(FUintVector4,				NormalVirtualTexturePackedUniform0)
 		SHADER_PARAMETER(FUintVector4,				NormalVirtualTexturePackedUniform1)
@@ -1315,7 +1316,8 @@ void UNiagaraDataInterfaceLandscape::SetShaderParameters(const FNiagaraDataInter
 	FRHISamplerState* BilinearSamplerState				= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	ShaderParameters->BaseColorVirtualTextureSampler	= BilinearSamplerState;
 	ShaderParameters->HeightVirtualTextureSampler		= BilinearSamplerState;
-	ShaderParameters->NormalVirtualTextureSampler		= BilinearSamplerState;
+	ShaderParameters->NormalVirtualTexture0Sampler		= BilinearSamplerState;
+	ShaderParameters->NormalVirtualTexture1Sampler		= BilinearSamplerState;
 	ShaderParameters->CachedHeightTextureSampler		= BilinearSamplerState;
 
 	// Set Textures

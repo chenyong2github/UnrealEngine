@@ -31,7 +31,8 @@ uint4				{ParameterName}_HeightVirtualTextureUniforms;
 Texture2D			{ParameterName}_NormalVirtualTexture0;
 Texture2D			{ParameterName}_NormalVirtualTexture1;
 Texture2D<uint4>	{ParameterName}_NormalVirtualTexturePageTable;
-SamplerState		{ParameterName}_NormalVirtualTextureSampler;
+SamplerState		{ParameterName}_NormalVirtualTexture0Sampler;
+SamplerState		{ParameterName}_NormalVirtualTexture1Sampler;
 float4x4			{ParameterName}_NormalVirtualTextureWorldToUvTransform;
 uint4				{ParameterName}_NormalVirtualTexturePackedUniform0;
 uint4				{ParameterName}_NormalVirtualTexturePackedUniform1;
@@ -151,14 +152,14 @@ void GetWorldNormal_{ParameterName}(float3 InWorldPos, out float3 OutNormal, out
 
 		float4 PackedValue0 = TextureVirtualSample(
 			{ParameterName}_NormalVirtualTexture0,
-			{ParameterName}_NormalVirtualTextureSampler,
+			{ParameterName}_NormalVirtualTexture0Sampler,
 			PageTable,
 			0,
 			VTUniform_Unpack({ParameterName}_NormalVirtualTextureUniforms0));
 
 		float4 PackedValue1 = TextureVirtualSample(
 			{ParameterName}_NormalVirtualTexture1,
-			{ParameterName}_NormalVirtualTextureSampler,
+			{ParameterName}_NormalVirtualTexture1Sampler,
 			PageTable,
 			0,
 			VTUniform_Unpack({ParameterName}_NormalVirtualTextureUniforms1));
