@@ -26,8 +26,32 @@
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
 
-TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo( const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo, const TArray<UMaterialInterface*>& ExistingAssignments, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags )
+namespace UE::MeshTranslationImplInternal::Private
 {
+	const static FString BaseMaterialPath = TEXT( "/USDImporter/Materials/UsdPreviewSurface.UsdPreviewSurface" );
+	const static FString BaseMaterialPathVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceVT.UsdPreviewSurfaceVT" );
+
+	const static FString BaseMaterialPathTranslucent = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucent.UsdPreviewSurfaceTranslucent" );
+	const static FString BaseMaterialPathTranslucentVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentVT.UsdPreviewSurfaceTranslucentVT" );
+
+	const static FString BaseMaterialPathTwoSided = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSided.UsdPreviewSurfaceTwoSided" );
+	const static FString BaseMaterialPathTwoSidedVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSidedVT.UsdPreviewSurfaceTwoSidedVT" );
+
+	const static FString BaseMaterialPathTranslucentTwoSided = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSided.UsdPreviewSurfaceTranslucentTwoSided" );
+	const static FString BaseMaterialPathTranslucentTwoSidedVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSidedVT.UsdPreviewSurfaceTranslucentTwoSidedVT" );
+}
+
+TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo(
+	const pxr::UsdPrim& UsdPrim,
+	const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo,
+	const TArray<UMaterialInterface*>& ExistingAssignments,
+	UUsdAssetCache& AssetCache,
+	float Time,
+	EObjectFlags Flags
+)
+{
+	FScopedUnrealAllocs Allocs;
+
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials;
 
 	uint32 GlobalResolvedMaterialIndex = 0;
@@ -44,8 +68,6 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			{
 			case UsdUtils::EPrimAssignmentType::DisplayColor:
 			{
-				FScopedUsdAllocs Allocs;
-
 				// Try reusing an already created DisplayColor material
 				if ( UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>( AssetCache.GetCachedAsset( Slot.MaterialSource ) ) )
 				{
@@ -82,18 +104,86 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			}
 			case UsdUtils::EPrimAssignmentType::MaterialPrim:
 			{
-				FScopedUsdAllocs Allocs;
-
-				// Check first or else we may get a warning
-				if ( pxr::SdfPath::IsValidPathString( UnrealToUsd::ConvertString( *Slot.MaterialSource ).Get() ) )
+				FString PrimPath = Slot.MaterialSource;
+				const static FString TwoSidedToken = TEXT( "!twosided" );
+				if ( Slot.bMeshIsDoubleSided )
 				{
-					pxr::SdfPath MaterialPrimPath = UnrealToUsd::ConvertPath( *Slot.MaterialSource ).Get();
+					PrimPath += TwoSidedToken;
+				}
 
-					// TODO: This may break if MaterialPrimPath targets a prim inside a LOD variant that is disabled...
-					TUsdStore< pxr::UsdPrim > MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( MaterialPrimPath );
-					if ( MaterialPrim.Get() )
+				Material = Cast< UMaterialInterface >( AssetCache.GetAssetForPrim( PrimPath ) );
+
+				// Need to create a two-sided material on-demand
+				if ( !Material && Slot.bMeshIsDoubleSided )
+				{
+					// By now we parsed all materials so we must have the single-sided version of this material
+					UMaterialInstance* OneSidedMat = Cast< UMaterialInstance >(
+						AssetCache.GetAssetForPrim( Slot.MaterialSource )
+					);
+					if ( !ensure( OneSidedMat ) )
 					{
-						Material = Cast< UMaterialInterface >( AssetCache.GetAssetForPrim( UsdToUnreal::ConvertPath( MaterialPrim.Get().GetPrimPath() ) ) );
+						continue;
+					}
+
+					// Important to not use GetBaseMaterial() here because if our parent is the translucent we'll
+					// get the base UsdPreviewSurface instead, as that is also *its* base
+					UMaterialInterface* BaseMaterial = OneSidedMat->Parent.Get();
+					UMaterialInterface* BaseMaterialTwoSided =
+						MeshTranslationImpl::GetTwoSidedVersionOfBasePreviewSurfaceMaterial( BaseMaterial );
+					if ( !ensure( BaseMaterialTwoSided && BaseMaterialTwoSided != BaseMaterial ) )
+					{
+						continue;
+					}
+
+					const FName NewInstanceName = MakeUniqueObjectName(
+						GetTransientPackage(),
+						UMaterialInstance::StaticClass(),
+						*( FPaths::GetBaseFilename( Slot.MaterialSource ) + UnrealIdentifiers::TwoSidedMaterialSuffix )
+					);
+
+#if WITH_EDITOR
+					UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>( OneSidedMat );
+					if ( GIsEditor && MIC )
+					{
+						UMaterialInstanceConstant* TwoSidedMat = NewObject<UMaterialInstanceConstant>(
+							GetTransientPackage(),
+							NewInstanceName,
+							Flags
+						);
+						if ( TwoSidedMat )
+						{
+							UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(
+								TwoSidedMat,
+								TEXT( "USDAssetImportData" )
+							);
+							ImportData->PrimPath = Slot.MaterialSource;
+							TwoSidedMat->AssetImportData = ImportData;
+						}
+
+						TwoSidedMat->SetParentEditorOnly( BaseMaterialTwoSided );
+						TwoSidedMat->CopyMaterialUniformParametersEditorOnly( OneSidedMat );
+
+						AssetCache.CacheAsset( PrimPath, TwoSidedMat, PrimPath );
+						Material = TwoSidedMat;
+					}
+					else
+#endif // WITH_EDITOR
+					if ( UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>( OneSidedMat ) )
+					{
+						UMaterialInstanceDynamic* TwoSidedMat = UMaterialInstanceDynamic::Create(
+							BaseMaterialTwoSided,
+							GetTransientPackage(),
+							NewInstanceName
+						);
+						if ( !ensure( TwoSidedMat ) )
+						{
+							continue;
+						}
+
+						TwoSidedMat->CopyParameterOverrides( MID );
+
+						AssetCache.CacheAsset( PrimPath, TwoSidedMat, PrimPath );
+						Material = TwoSidedMat;
 					}
 				}
 
@@ -102,6 +192,16 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			case UsdUtils::EPrimAssignmentType::UnrealMaterial:
 			{
 				Material = Cast< UMaterialInterface >( FSoftObjectPath( Slot.MaterialSource ).TryLoad() );
+				if ( !Material->IsTwoSided() && Slot.bMeshIsDoubleSided )
+				{
+					// TODO: Update this message with the proper source prim paths when UE-138122 is submitted,
+					// as 'UsdPrim' may just be e.g. a SkelRoot
+					UE_LOG( LogUsd, Warning, TEXT( "Using one-sided UE material '%s' for doubleSided prim '%s'" ),
+						*Slot.MaterialSource,
+						*UsdToUnreal::ConvertPath( UsdPrim.GetPrimPath() )
+					);
+				}
+
 				break;
 			}
 			case UsdUtils::EPrimAssignmentType::None:
@@ -244,6 +344,146 @@ void MeshTranslationImpl::SetMaterialOverrides(
 			}
 		}
 	}
+}
+
+UMaterialInterface* MeshTranslationImpl::GetBasePreviewSurfaceMaterial( EUsdBaseMaterialProperties BaseMaterialProperties )
+{
+	using namespace UE::MeshTranslationImplInternal::Private;
+
+	const bool bIsTranslucent = EnumHasAnyFlags( BaseMaterialProperties, EUsdBaseMaterialProperties::Translucent );
+	const bool bIsVT = EnumHasAnyFlags( BaseMaterialProperties, EUsdBaseMaterialProperties::VT );
+	const bool bIsTwoSided = EnumHasAnyFlags( BaseMaterialProperties, EUsdBaseMaterialProperties::TwoSided );
+
+	const FString* TargetMaterialPath = nullptr;
+	if ( bIsTranslucent )
+	{
+		if ( bIsVT )
+		{
+			if ( bIsTwoSided )
+			{
+				TargetMaterialPath = &BaseMaterialPathTranslucentTwoSidedVT;
+			}
+			else
+			{
+				TargetMaterialPath = &BaseMaterialPathTranslucentVT;
+			}
+		}
+		else
+		{
+			if ( bIsTwoSided )
+			{
+				TargetMaterialPath = &BaseMaterialPathTranslucentTwoSided;
+			}
+			else
+			{
+				TargetMaterialPath = &BaseMaterialPathTranslucent;
+			}
+		}
+	}
+	else
+	{
+		if ( bIsVT )
+		{
+			if ( bIsTwoSided )
+			{
+				TargetMaterialPath = &BaseMaterialPathTwoSidedVT;
+			}
+			else
+			{
+				TargetMaterialPath = &BaseMaterialPathVT;
+			}
+		}
+		else
+		{
+			if ( bIsTwoSided )
+			{
+				TargetMaterialPath = &BaseMaterialPathTwoSided;
+			}
+			else
+			{
+				TargetMaterialPath = &BaseMaterialPath;
+			}
+		}
+	}
+
+	if ( !TargetMaterialPath )
+	{
+		return nullptr;
+	}
+
+	return Cast< UMaterialInterface >( FSoftObjectPath( *TargetMaterialPath ).TryLoad() );
+}
+
+UMaterialInterface* MeshTranslationImpl::GetVTVersionOfBasePreviewSurfaceMaterial( UMaterialInterface* BaseMaterial )
+{
+	using namespace UE::MeshTranslationImplInternal::Private;
+
+	if ( !BaseMaterial )
+	{
+		return nullptr;
+	}
+
+	const FString PathName = BaseMaterial->GetPathName();
+	if ( PathName.Contains( TEXT( "VT" ), ESearchCase::CaseSensitive, ESearchDir::FromEnd ) )
+	{
+		return BaseMaterial;
+	}
+	else if ( PathName == BaseMaterialPath )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathVT }.TryLoad() );
+	}
+	else if ( PathName == BaseMaterialPathTwoSided )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTwoSidedVT }.TryLoad() );
+	}
+	else if ( PathName == BaseMaterialPathTranslucent )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentVT }.TryLoad() );
+	}
+	else if ( PathName == BaseMaterialPathTranslucentTwoSided )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentTwoSidedVT }.TryLoad() );
+	}
+
+	// We should only ever call this function with a BaseMaterial that matches one of the above paths
+	ensure( false );
+	return nullptr;
+}
+
+UMaterialInterface* MeshTranslationImpl::GetTwoSidedVersionOfBasePreviewSurfaceMaterial( UMaterialInterface* BaseMaterial )
+{
+	using namespace UE::MeshTranslationImplInternal::Private;
+
+	if ( !BaseMaterial )
+	{
+		return nullptr;
+	}
+
+	const FString PathName = BaseMaterial->GetPathName();
+	if ( PathName.Contains( TEXT( "TwoSided" ), ESearchCase::CaseSensitive, ESearchDir::FromEnd ) )
+	{
+		return BaseMaterial;
+	}
+	else if ( PathName == BaseMaterialPath )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTwoSided }.TryLoad() );
+	}
+	else if ( PathName == BaseMaterialPathTranslucent )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentTwoSided }.TryLoad() );
+	}
+	else if ( PathName == BaseMaterialPathVT )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTwoSidedVT }.TryLoad() );
+	}
+	else if ( PathName == BaseMaterialPathTranslucentVT )
+	{
+		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentTwoSidedVT }.TryLoad() );
+	}
+
+	// We should only ever call this function with a BaseMaterial that matches one of the above paths
+	ensure( false );
+	return nullptr;
 }
 
 #endif // #if USE_USD_SDK

@@ -223,21 +223,31 @@ namespace UsdUtils
 		/** What this represents depends on AssignedMaterialType */
 		FString MaterialSource;
 		EPrimAssignmentType AssignmentType = EPrimAssignmentType::None;
+		bool bMeshIsDoubleSided = false;
 
 		friend bool operator==( const FUsdPrimMaterialSlot& Lhs, const FUsdPrimMaterialSlot& Rhs )
 		{
-			return Lhs.AssignmentType == Rhs.AssignmentType && Lhs.MaterialSource.Equals( Rhs.MaterialSource, ESearchCase::CaseSensitive );
+			return Lhs.AssignmentType == Rhs.AssignmentType &&
+				   Lhs.MaterialSource.Equals( Rhs.MaterialSource, ESearchCase::CaseSensitive ) &&
+				   Lhs.bMeshIsDoubleSided == Rhs.bMeshIsDoubleSided;
 		}
 
 		friend uint32 GetTypeHash( const FUsdPrimMaterialSlot& Slot )
 		{
-			return HashCombine( GetTypeHash( Slot.MaterialSource ), static_cast<uint32>(Slot.AssignmentType) );
+			return HashCombine(
+				Slot.bMeshIsDoubleSided,
+				HashCombine(
+					GetTypeHash( Slot.MaterialSource ),
+					static_cast<uint32>(Slot.AssignmentType)
+				)
+			);
 		}
 
 		friend FArchive& operator<<( FArchive& Ar, FUsdPrimMaterialSlot& Slot )
 		{
 			Ar << Slot.MaterialSource;
 			Ar << Slot.AssignmentType;
+			Ar << Slot.bMeshIsDoubleSided;
 
 			return Ar;
 		}

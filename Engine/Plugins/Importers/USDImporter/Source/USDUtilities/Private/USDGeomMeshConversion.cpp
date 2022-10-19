@@ -1599,6 +1599,19 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		}
 	}
 
+	bool bIsDoubleSided = false;
+	if ( pxr::UsdGeomMesh Mesh = pxr::UsdGeomMesh{ UsdPrim } )
+	{
+		if ( pxr::UsdAttribute Attr = Mesh.GetDoubleSidedAttr() )
+		{
+			pxr::VtValue AttrValue;
+			if ( Attr.Get( &AttrValue ) && AttrValue.IsHolding<bool>() )
+			{
+				bIsDoubleSided = AttrValue.UncheckedGet<bool>();
+			}
+		}
+	}
+
 	// Priority 1: Material is an unreal asset
 	if ( RenderContext == UnrealIdentifiers::Unreal )
 	{
@@ -1613,6 +1626,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 					Slot.MaterialSource = UnrealMaterial.GetValue();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+					Slot.bMeshIsDoubleSided = bIsDoubleSided;
 
 					return Result;
 				}
@@ -1625,6 +1639,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 			Slot.MaterialSource = UnrealMaterial.GetValue();
 			Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+			Slot.bMeshIsDoubleSided = bIsDoubleSided;
 
 			return Result;
 		}
@@ -1636,6 +1651,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 		Slot.MaterialSource = BoundMaterial.GetValue();
 		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
+		Slot.bMeshIsDoubleSided = bIsDoubleSided;
 
 		return Result;
 	}
@@ -1646,6 +1662,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 		Slot.MaterialSource = TargetMaterial.GetValue();
 		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
+		Slot.bMeshIsDoubleSided = bIsDoubleSided;
 
 		return Result;
 	}
@@ -1688,6 +1705,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 								FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 								Slot.MaterialSource = UnrealMaterial.GetValue();
 								Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+								Slot.bMeshIsDoubleSided = bIsDoubleSided;
 								bHasAssignment = true;
 							}
 						}
@@ -1702,6 +1720,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 						FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 						Slot.MaterialSource = UnrealMaterial.GetValue();
 						Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+						Slot.bMeshIsDoubleSided = bIsDoubleSided;
 						bHasAssignment = true;
 					}
 				}
@@ -1715,6 +1734,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 					Slot.MaterialSource = BoundMaterial.GetValue();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
+					Slot.bMeshIsDoubleSided = bIsDoubleSided;
 					bHasAssignment = true;
 				}
 			}
@@ -1727,6 +1747,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 					Slot.MaterialSource = TargetMaterial.GetValue();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
+					Slot.bMeshIsDoubleSided = bIsDoubleSided;
 					bHasAssignment = true;
 				}
 			}
@@ -1739,6 +1760,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 				{
 					Slot.MaterialSource = DisplayColor.GetValue().ToString();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::DisplayColor;
+					Slot.bMeshIsDoubleSided = bIsDoubleSided;
 				}
 				bHasAssignment = true;
 			}
@@ -1764,6 +1786,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			{
 				Slot.MaterialSource = DisplayColor.GetValue().ToString();
 				Slot.AssignmentType = UsdUtils::EPrimAssignmentType::DisplayColor;
+				Slot.bMeshIsDoubleSided = bIsDoubleSided;
 			}
 
 			if ( bProvideMaterialIndices )
@@ -1785,6 +1808,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 		Slot.MaterialSource = DisplayColor.GetValue().ToString();
 		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::DisplayColor;
+		Slot.bMeshIsDoubleSided = bIsDoubleSided;
 
 		return Result;
 	}

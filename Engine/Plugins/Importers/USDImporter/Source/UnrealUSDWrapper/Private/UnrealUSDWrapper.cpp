@@ -736,6 +736,7 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 #endif // USE_USD_SDK
 
 const TCHAR* UnrealIdentifiers::LayerSavedComment = TEXT("unreal:layerSaved");
+const TCHAR* UnrealIdentifiers::TwoSidedMaterialSuffix = TEXT("_TwoSided");
 
 const TCHAR* UnrealIdentifiers::Invisible = TEXT("invisible");
 const TCHAR* UnrealIdentifiers::Inherited = TEXT("inherited");

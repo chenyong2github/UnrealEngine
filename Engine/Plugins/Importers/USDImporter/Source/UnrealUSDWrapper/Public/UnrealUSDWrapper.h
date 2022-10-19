@@ -460,6 +460,7 @@ namespace UnrealIdentifiers
 #endif // #if USE_USD_SDK
 
 	extern UNREALUSDWRAPPER_API const TCHAR* LayerSavedComment;
+	extern UNREALUSDWRAPPER_API const TCHAR* TwoSidedMaterialSuffix;
 
 	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;
 	extern UNREALUSDWRAPPER_API const TCHAR* Inherited;

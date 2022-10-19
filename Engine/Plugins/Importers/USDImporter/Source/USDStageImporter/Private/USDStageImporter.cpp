@@ -503,8 +503,23 @@ namespace UsdStageImporterImpl
 			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Material->AssetImportData))
 			{
 				// The only materials with no prim path are our auto-generated displayColor materials
-				AssetPath = AssetImportData->PrimPath.IsEmpty()? TEXT("DisplayColor") : AssetImportData->PrimPath;
-				AssetName = FPaths::GetBaseFilename( AssetPath );
+				if ( AssetImportData->PrimPath.IsEmpty() )
+				{
+					AssetPath = TEXT("DisplayColor");
+					AssetName = FPaths::GetBaseFilename( AssetPath );
+				}
+				else
+				{
+					AssetPath = AssetImportData->PrimPath;
+					AssetName = FPaths::GetBaseFilename( AssetPath );
+
+					// If we have a preview surface two-sided material we'll also have a one-sided with the same name,
+					// so add a suffix here so we can clearly tell which is which
+					if ( Material->IsTwoSided() )
+					{
+						AssetName += UnrealIdentifiers::TwoSidedMaterialSuffix;
+					}
+				}
 			}
 		}
 		else if (UTexture* Texture = Cast<UTexture>(Asset))
