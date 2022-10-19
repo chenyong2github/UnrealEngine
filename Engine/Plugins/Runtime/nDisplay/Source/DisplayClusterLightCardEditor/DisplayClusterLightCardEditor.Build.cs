@@ -39,5 +39,11 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"ToolWidgets",
 				"WorkspaceMenuStructure"
 			});
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
+			}
+		);
 	}
 }
