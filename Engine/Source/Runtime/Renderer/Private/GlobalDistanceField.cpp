@@ -1838,7 +1838,7 @@ class FGlobalDistanceFieldDebugCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform) && ShaderPrint::IsSupported(Parameters.Platform);
 	}
 
 	static int32 GetGroupSize()
@@ -2826,23 +2826,25 @@ void UpdateGlobalDistanceFieldVolume(
 					GroupSize);
 			}
 
+			if (ShaderPrint::IsEnabled(View.ShaderPrintData))
+			{
+				FRDGBufferRef PageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer);
 
-			FRDGBufferRef PageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer);
+				FGlobalDistanceFieldDebugCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalDistanceFieldDebugCS::FParameters>();
+				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
+				PassParameters->GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.CreateSRV(PageFreeListAllocatorBuffer, PF_R32_UINT);
+				PassParameters->GlobalDistanceFieldMaxPageNum = View.GlobalDistanceFieldInfo.ParameterData.MaxPageNum;
+				PassParameters->PageStatsBuffer = GraphBuilder.CreateSRV(PageStatsBuffer);
 
-			FGlobalDistanceFieldDebugCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalDistanceFieldDebugCS::FParameters>();
-			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
-			PassParameters->GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.CreateSRV(PageFreeListAllocatorBuffer, PF_R32_UINT);
-			PassParameters->GlobalDistanceFieldMaxPageNum = View.GlobalDistanceFieldInfo.ParameterData.MaxPageNum;
-			PassParameters->PageStatsBuffer = GraphBuilder.CreateSRV(PageStatsBuffer);
+				auto ComputeShader = View.ShaderMap->GetShader<FGlobalDistanceFieldDebugCS>();
 
-			auto ComputeShader = View.ShaderMap->GetShader<FGlobalDistanceFieldDebugCS>();
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("GlobalDistanceFieldDebug"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(1, 1, 1));
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("GlobalDistanceFieldDebug"),
+					ComputeShader,
+					PassParameters,
+					FIntVector(1, 1, 1));
+			}
 		}
 	}
 
