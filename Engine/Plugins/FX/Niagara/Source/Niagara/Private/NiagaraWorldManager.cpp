@@ -1524,6 +1524,9 @@ void FNiagaraWorldManager::ViewBasedCulling(UNiagaraEffectType* EffectType, cons
 				bInsideAnyView = true;
 			}
 		}
+
+		// If we have no CachedViewInfo this can mean one of two things, we have no views or we are outside of the main loop (i.e. reregister context) so start the sim anyway
+		bInsideAnyView |= CachedViewInfo.Num() == 0;
 	}
 
 	float TimeSinceInsideView = 0.0f;
