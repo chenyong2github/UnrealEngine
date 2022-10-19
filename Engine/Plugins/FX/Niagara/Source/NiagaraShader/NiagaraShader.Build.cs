@@ -47,7 +47,7 @@ public class NiagaraShader : ModuleRules
             });
 
 		PrivateIncludePaths.AddRange(new string[] {
-			Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Renderer/Private")
+			System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 		});
 
 		PrivateIncludePathModuleNames.AddRange(

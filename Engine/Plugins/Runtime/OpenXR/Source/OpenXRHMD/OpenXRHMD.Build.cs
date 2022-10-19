@@ -15,7 +15,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"OpenXRHMD/Private",
                     EngineDir + "/Source/ThirdParty/OpenXR/include",
-                    EngineDir + "/Source/Runtime/Renderer/Private",
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 					// ... add other private include paths required here ...
 				}
 				);

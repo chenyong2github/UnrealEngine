@@ -20,7 +20,7 @@ public class DisplayClusterLightCardEditorShaders : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"../../../../Source/Runtime/Renderer/Private",
+				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			});
 	}
 }

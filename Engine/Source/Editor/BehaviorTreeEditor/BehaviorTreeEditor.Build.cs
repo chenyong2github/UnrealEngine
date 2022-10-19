@@ -8,9 +8,9 @@ public class BehaviorTreeEditor : ModuleRules
 	{
         PrivateIncludePaths.AddRange(
             new string[] {
-				"Editor/GraphEditor/Private",
-				"Editor/AIGraph/Private",
-				"Editor/BehaviorTreeEditor/Private",
+				System.IO.Path.Combine(GetModuleDirectory("AIGraph"), "Private"),
+				System.IO.Path.Combine(GetModuleDirectory("BehaviorTreeEditor"), "Private"),
+				System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 			}
 		);
 

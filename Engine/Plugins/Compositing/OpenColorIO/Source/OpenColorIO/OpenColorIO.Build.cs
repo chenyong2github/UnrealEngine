@@ -34,8 +34,7 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					//required for FPostProcessMaterialInputs
-					"../../../../Source/Runtime/Renderer/Private",
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"), //required for FPostProcessMaterialInputs
 				});
 
 			PublicDependencyModuleNames.AddRange(

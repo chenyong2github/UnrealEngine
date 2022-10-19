@@ -8,7 +8,7 @@ public class MaterialEditor : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Editor/GraphEditor/Private",
+				System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
 			}
 		);
 

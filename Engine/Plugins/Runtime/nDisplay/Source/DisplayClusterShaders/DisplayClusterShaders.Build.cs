@@ -34,7 +34,7 @@ public class DisplayClusterShaders : ModuleRules
 		
 		// NOTE: General rule is not to access the private folder of another module
 		PrivateIncludePaths.AddRange(new string[] {
-			Path.Combine(Path.GetFullPath(Target.RelativeEnginePath), "Source/Runtime/Renderer/Private"),
+			System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 		});
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "UElibPNG");

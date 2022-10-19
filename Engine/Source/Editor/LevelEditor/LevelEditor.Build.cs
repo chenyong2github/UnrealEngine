@@ -8,7 +8,7 @@ public class LevelEditor : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-					"Editor/SceneOutliner/Private",
+				System.IO.Path.Combine(GetModuleDirectory("SceneOutliner"), "Private"),
 			}
 		);
 

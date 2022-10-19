@@ -12,7 +12,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
-					"../../../../../Source/Runtime/Renderer/Private",
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 					"../../../../../Source/Runtime/Engine/Classes/Components",
 					"../../../../../Source/Runtime/Engine/Classes/Kismet",
 				});

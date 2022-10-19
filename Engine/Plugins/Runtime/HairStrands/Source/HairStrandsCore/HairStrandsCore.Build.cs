@@ -10,7 +10,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[] {
 					ModuleDirectory + "/Private",
-					EngineDirectory + "/Source/Runtime/Renderer/Private",
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 					EngineDirectory + "/Shaders/Shared",
 				});
 			PublicIncludePaths.Add(ModuleDirectory + "/Public");

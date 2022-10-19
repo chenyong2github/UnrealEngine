@@ -26,7 +26,7 @@ public class NaniteTools : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private")
+				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			}
 		);
 

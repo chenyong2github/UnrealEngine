@@ -10,7 +10,7 @@ public class Water : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				System.IO.Path.GetFullPath(Target.RelativeEnginePath) + "/Source/Runtime/Renderer/Private",
+				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			}
 		);
 

@@ -10,10 +10,10 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
                 new string[] {
-                    "Editor/GraphEditor/Private",
-				    "Editor/Kismet/Private",
-					"Editor/GameplayTasksEditor/Private",
-                    "Developer/AssetTools/Private",
+					System.IO.Path.Combine(GetModuleDirectory("AssetTools"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("GameplayTasksEditor"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("GraphEditor"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("Kismet"), "Private"),
 				}
 			);
 

@@ -8,9 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"SimpleHMD/Private",
-					"../../../../Source/Runtime/Renderer/Private",
-					// ... add other private include paths required here ...
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 				}
 				);
 

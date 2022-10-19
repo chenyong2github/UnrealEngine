@@ -10,7 +10,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					System.IO.Path.Combine(EngineDirectory,"Source/Editor/Persona/Private"),
+					System.IO.Path.Combine(GetModuleDirectory("Persona"), "Private"),
 				}
 			);
 

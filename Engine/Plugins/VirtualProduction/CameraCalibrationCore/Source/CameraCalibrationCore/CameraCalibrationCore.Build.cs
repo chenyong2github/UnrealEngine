@@ -40,8 +40,8 @@ namespace UnrealBuildTool.Rules
 				new string[] 
 				{
             		//required for ScreenPass
-            		"../../../../Source/Runtime/Renderer/Private",
-            	}
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
+				}
 			);
 		}
 	}

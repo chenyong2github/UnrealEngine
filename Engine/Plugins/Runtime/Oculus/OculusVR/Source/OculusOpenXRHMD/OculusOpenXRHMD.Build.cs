@@ -13,8 +13,8 @@ namespace UnrealBuildTool.Rules
                 new string[] {
                     // Relative to Engine\Plugins\Runtime\Oculus\OculusOpenXR\Source
                     "../../../OpenXR/Source/OpenXRHMD/Private",
-                    "../../../../../Source/Runtime/Renderer/Private",
-                    "../../../../../Source/Runtime/Engine/Classes/Components",
+					System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
+					"../../../../../Source/Runtime/Engine/Classes/Components",
                     "../../../../../Source/Runtime/Engine/Classes/Kismet",
                 });
 

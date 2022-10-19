@@ -71,8 +71,8 @@ namespace UnrealBuildTool.Rules
 			// NOTE: General rule is not to access the private folder of another module
 			PrivateIncludePaths.AddRange(new string[]
 			{
-				Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"),
-				Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
+				System.IO.Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),
+				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 			});
 
 			// WebRTC third party includes (just libyuv for colour format conversions for now)

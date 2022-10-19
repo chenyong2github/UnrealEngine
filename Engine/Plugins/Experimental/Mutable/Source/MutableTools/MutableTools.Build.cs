@@ -18,7 +18,7 @@ namespace UnrealBuildTool.Rules
 			//bUseUnity = false;
 
 			PrivateIncludePaths.AddRange(new string[] {
-				"MutableRuntime/Private",
+				System.IO.Path.Combine(GetModuleDirectory("MutableRuntime"), "Private"),
 			});
 
 			PublicDependencyModuleNames.AddRange(

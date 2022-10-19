@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"Editor/LevelEditor/Private",
+					System.IO.Path.Combine(GetModuleDirectory("LevelEditor"), "Private"),
 				}
 			);
 

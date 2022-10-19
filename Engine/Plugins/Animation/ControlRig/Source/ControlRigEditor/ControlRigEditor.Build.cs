@@ -8,15 +8,15 @@ namespace UnrealBuildTool.Rules
         {
 			PrivateIncludePaths.AddRange(
                 new string[] {
-					System.IO.Path.Combine(EngineDirectory,"Plugins/Animation/ControlRig/Source/ControlRig/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Developer/AssetTools/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Developer/MessageLog/Private"), //compatibility for FBX importer
-					System.IO.Path.Combine(EngineDirectory,"Source/Editor/Kismet/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Editor/Persona/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Editor/PropertyEditor/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Editor/SceneOutliner/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Editor/UnrealEd/Private"),
-					System.IO.Path.Combine(EngineDirectory,"Source/Runtime/Slate/Private"),
+					System.IO.Path.Combine(GetModuleDirectory("AssetTools"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("ControlRig"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("Kismet"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("MessageLog"), "Private"), //compatibility for FBX importer
+					System.IO.Path.Combine(GetModuleDirectory("Persona"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("SceneOutliner"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("Slate"), "Private"),
+					System.IO.Path.Combine(GetModuleDirectory("UnrealEd"), "Private"),
 				}
 			);
 

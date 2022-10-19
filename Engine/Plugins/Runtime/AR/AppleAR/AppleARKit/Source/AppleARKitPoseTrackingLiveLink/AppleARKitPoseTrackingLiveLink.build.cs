@@ -10,7 +10,7 @@ public class AppleARKitPoseTrackingLiveLink : ModuleRules
 		
 		PrivateIncludePaths.AddRange(new string[]
 		{
-			"../../../../../../Plugins/Runtime/AR/AppleAR/AppleARKit/Source/AppleARKit/Private",
+			System.IO.Path.Combine(GetModuleDirectory("AppleARKit"), "Private"),
 		});
 			
 		

@@ -27,7 +27,7 @@ public class ResonanceAudio : ModuleRules
                 ResonanceAudioPath,
                 ResonanceAudioLibraryPath,
                 PFFTPath,
-                "../../../../Source/Runtime/AudioMixer/Private"
+				System.IO.Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),
             }
         );
 

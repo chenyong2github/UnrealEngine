@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusAudio\Source
 					"OculusAudio/Private",
-					"../../../../../Source/Runtime/AudioMixer/Private",
+					System.IO.Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),
 
 					// ... add other private include paths required here ...
 				}

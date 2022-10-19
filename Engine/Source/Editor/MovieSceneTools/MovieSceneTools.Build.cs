@@ -8,8 +8,8 @@ public class MovieSceneTools : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
             new string[] {
-                "Editor/UnrealEd/Private",	//compatibility for FBX importer
-                "Editor/SceneOutliner/Private",
+				System.IO.Path.Combine(GetModuleDirectory("UnrealEd"), "Private"), //compatibility for FBX importer
+				System.IO.Path.Combine(GetModuleDirectory("SceneOutliner"), "Private"),
 			}
         );
 

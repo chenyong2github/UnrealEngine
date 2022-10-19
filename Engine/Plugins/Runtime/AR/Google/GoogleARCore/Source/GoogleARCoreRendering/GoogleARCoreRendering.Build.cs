@@ -10,7 +10,7 @@ public class GoogleARCoreRendering : ModuleRules
 		{
 			"GoogleARCoreRendering/Private",
 			"GoogleARCoreBase/Private",
-			"../../../../../../Source/Runtime/Renderer/Private",
+			System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Private"),
 		});
 			
 		PrivateDependencyModuleNames.AddRange(new string[]
