@@ -3908,7 +3908,8 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 
 					bool bShadowIsOccluded = false;
 
-					if (!View.bIgnoreExistingQueries && View.State)
+					// Skip occlusion result if using VSM - can result in incorrectly cached pages otherwise.
+					if (!View.bIgnoreExistingQueries && View.State && !ProjectedShadowInfo.HasVirtualShadowMap())
 					{
 						// Check if the shadow is occluded.
 						bShadowIsOccluded =
