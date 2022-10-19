@@ -30,15 +30,17 @@ public:
 		: Node(nullptr)
 		, MaxMesh(nullptr)
 		, bNeedsDelete(false)
+		, ObjectToDelete(nullptr)
 		, Pivot(FTransform::Identity)
 	{
 		ValidityInterval.SetInfinite();
 	}
 
-	explicit FRenderMeshForConversion(INode* InNode, Mesh* InMaxMesh, bool bInNeedsDelete)
+	explicit FRenderMeshForConversion(INode* InNode, Mesh* InMaxMesh, bool bInNeedsDelete, TriObject* InObjectToDelete=nullptr)
 		: Node(InNode)
 		, MaxMesh(InMaxMesh)
 		, bNeedsDelete(bInNeedsDelete)
+		, ObjectToDelete(InObjectToDelete)
 		, Pivot(FTransform::Identity)
 	{
 		ValidityInterval.SetInfinite();
@@ -61,6 +63,9 @@ public:
 		//Transfer ownership
 		bNeedsDelete = Other.bNeedsDelete;
 		Other.bNeedsDelete = false;
+
+		ObjectToDelete = Other.ObjectToDelete;
+		Other.ObjectToDelete = nullptr;
 	}
 
 	~FRenderMeshForConversion()
@@ -68,6 +73,10 @@ public:
 		if (bNeedsDelete)
 		{
 			MaxMesh->DeleteThis();
+		}
+		if (ObjectToDelete)
+		{
+			ObjectToDelete->DeleteMe();
 		}
 	}
 
@@ -106,17 +115,18 @@ public:
 		return ValidityInterval;
 	}
 private:
-	INode* Node;
-	Mesh* MaxMesh;
-	bool bNeedsDelete;
-	FTransform Pivot;
+	INode* Node; // Scene node mesh is taken from 
+	Mesh* MaxMesh; // the 3ds Max Mesh which holds the geometry
+	bool bNeedsDelete; // Whether Mesh lifetime is in our hands
+	TriObject* ObjectToDelete; // When the Mesh is retrieved from some temporary TriObject this TriObject needs to be deleted(after Mesh is used)
+
+	FTransform Pivot; 
 	Interval ValidityInterval;
 };
 
 bool ConvertRailClone(DatasmithMaxDirectLink::ISceneTracker& SceneTracker, DatasmithMaxDirectLink::FNodeTracker& NodeTracker);
 bool ConvertForest(DatasmithMaxDirectLink::ISceneTracker& Scene, DatasmithMaxDirectLink::FNodeTracker& NodeTracker);
 
-Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, Interval& ValidityInterval, BOOL& bNeedsDelete);
 FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node, const FTransform& Pivot = FTransform::Identity); // Extract mesh using already evaluated object
 
 FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, DatasmithMaxDirectLink::ISceneTracker& SceneTracker, INode* Node, bool bBakePivot);
