@@ -547,6 +547,77 @@ namespace AutomationScripts
 			}
 		}
 
+		private static void StageCookerSupportFilesFromReceipt(DeploymentContext SC)
+		{
+			if (string.IsNullOrEmpty(SC.CookerSupportFilesSubdirectory))
+			{
+				return;
+			}
+
+			// sdk components expected to be in the form: $(SomeVar)/sub/path/to/filespec
+			// so we capture the SomeVar and sub/path/to/filespec
+			// note that filespec could be a file or a wildcard
+			Regex Var = new Regex(@"^\$\((.*)\)/(.*)$");
+
+			HashSet<string> EnvVars = new();
+			foreach (StageTarget Target in SC.StageTargets)
+			{
+				TargetReceipt Receipt = Target.Receipt;
+				foreach (ReceiptProperty Prop in Receipt.AdditionalProperties)
+				{
+					if (Prop.Name.Equals("CookerSupportFiles", StringComparison.InvariantCultureIgnoreCase))
+					{
+						// Value is a path under a envvar: $(MySdk)/Tools/Converter.exe
+						Match Match = Var.Match(Prop.Value);
+						if (Match.Success)
+						{
+							string EnvVar = Match.Groups[1].Value;
+							string SubPath = Match.Groups[2].Value.Replace("\\", "/");
+							string EnvVarValue = Environment.GetEnvironmentVariable(EnvVar);
+
+							if (EnvVarValue == null)
+							{
+								CommandUtils.LogWarning($"Using envvar that isn't set, so it can't be used to pull files from : '{EnvVar}'");
+								continue;
+							}
+							if (!Directory.Exists(EnvVarValue))
+							{
+								CommandUtils.LogWarning($"Using envvar path that doesn't exist, so it can't be used to pull files from : '{EnvVarValue}' (from env var {EnvVar})");
+								continue;
+							}
+
+							FileReference ExpandedPath = FileReference.Combine(new DirectoryReference(EnvVarValue), SubPath);
+							foreach (FileReference File in DirectoryReference.EnumerateFiles(ExpandedPath.Directory, ExpandedPath.GetFileName()))
+							{
+								string ExpandedSubPath = File.MakeRelativeTo(new DirectoryReference(EnvVarValue));
+								// insert the envvar into the path so that differnt sdks/platforms won't stomp on each other (since we don't know the platform, we can't use that)
+								ExpandedSubPath = $"{SC.CookerSupportFilesSubdirectory}/{EnvVar}/{ExpandedSubPath}";
+
+								StagedFileReference DestPath = new StagedFileReference(ExpandedSubPath);
+								CommandUtils.LogInformation($"  Staging support file '{ExpandedPath}' to '{DestPath}'");
+								SC.StageFile(StagedFileType.SystemNonUFS, File, DestPath);
+							}
+
+							EnvVars.Add(EnvVar);
+						}
+					}
+				}
+			}
+
+
+			// write a temp .bat file that will set the envvar 
+			string TempBatch = Path.Combine(Path.GetTempPath(), "AutomationTool", Path.ChangeExtension(Path.GetRandomFileName(), "bat"));
+			Directory.CreateDirectory(Path.GetDirectoryName(TempBatch));
+			// add the Envvar onto the path, like we did above
+			List<string> Lines = EnvVars.Select(x => $"set {x}=%~dp0{x}").ToList();
+			// make sure the AutoSDK var is unset, as it will mess with testing (probably not needed for final dist but can't hurt if everything else works)
+			Lines.Insert(0, "set UE_SDKS_ROOT=");
+			File.WriteAllLines(TempBatch, Lines);
+
+			// and stage it
+			SC.StageFile(StagedFileType.SystemNonUFS, new FileReference(TempBatch), new StagedFileReference($"{SC.CookerSupportFilesSubdirectory}/ActivateSupportFiles.bat"));
+		}
+
 		private static void StageAdditionalDirectoriesFromConfig(DeploymentContext SC, DirectoryReference ProjectContentRoot, StagedDirectoryReference StageContentRoot, ConfigHierarchy PlatformGameConfig, bool bUFS, string ConfigKeyName)
 		{
 			List<string> ExtraDirs;
@@ -1337,6 +1408,8 @@ namespace AutomationScripts
 					}
 					SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
 				}
+
+				StageCookerSupportFilesFromReceipt(SC);
 			}
 
 			// Allow the calling scripts to make modifications to the deployment context before we finalize it
@@ -4526,6 +4599,7 @@ namespace AutomationScripts
 					String.IsNullOrEmpty(Params.OptionalFileStagingDirectory) ? null : new DirectoryReference(Params.OptionalFileStagingDirectory),
 					String.IsNullOrEmpty(Params.OptionalFileInputDirectory) ? null : new DirectoryReference(Params.OptionalFileInputDirectory),
 					String.IsNullOrEmpty(ArchiveDirectory) ? null : new DirectoryReference(ArchiveDirectory),
+					Params.CookerSupportFilesSubdirectory,
 					Platform.Platforms[CookedDataPlatform],
 					Platform.Platforms[StagePlatform],
 					ConfigsToProcess,

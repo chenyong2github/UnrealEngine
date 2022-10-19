@@ -482,8 +482,8 @@ public class MakeCookedEditor : BuildCommand
 
 		StageIniPathArray(Params, SC, "EngineExtraStageFiles", Unreal.EngineDirectory, Context);
 
-		Context.FilesToUncook.Add(FileReference.Combine(Context.EngineDirectory, "Content", "EngineMaterials", "DefaultMaterial.uasset"));
-		Context.FilesToUncook.Add(FileReference.Combine(Context.EngineDirectory, "Content", "EditorLandscapeResources", "DefaultAlphaTexture.uasset"));
+		Context.FilesToUncook.Add(FileReference.Combine(Context.EngineDirectory, "Content/EngineMaterials/DefaultMaterial.uasset"));
+		Context.FilesToUncook.Add(FileReference.Combine(Context.EngineDirectory, "Content/EditorLandscapeResources/DefaultAlphaTexture.uasset"));
 	}
 
 	protected virtual void StageProjectEditorFiles(ProjectParams Params, DeploymentContext SC, ModifyStageContext Context)
@@ -1112,6 +1112,10 @@ public class MakeCookedEditor : BuildCommand
 		// set up override functions
 		Params.PreModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { PreModifyDeploymentContext(P, SC); });
 		Params.ModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { ModifyDeploymentContext(P, SC); });
+
+		// this will make all of the files that are specified in BUild.cs files with "AdditionalPropertiesForReceipt.Add("CookerSupportFiles", ...);"  be copied into this
+		// subdirectory along with a batch file that can be used to set platform SDK environment variables during cooking
+		Params.CookerSupportFilesSubdirectory = "SDK";
 
 		ModifyParams(Params);
 

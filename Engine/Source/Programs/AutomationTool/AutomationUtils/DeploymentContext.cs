@@ -207,6 +207,11 @@ public class DeploymentContext //: ProjectParams
 	public DirectoryReference OptionalFileInputDirectory = null;
 
 	/// <summary>
+	/// If this is specified, any files written into the receipt with the CookerSupportFiles tag will be copied into here during staging
+	/// </summary>
+	public string CookerSupportFilesSubdirectory = null;
+
+	/// <summary>
 	/// Directory name for staged projects
 	/// </summary>
 	public StagedDirectoryReference RelativeProjectRootForStage;
@@ -394,6 +399,7 @@ public class DeploymentContext //: ProjectParams
 		DirectoryReference OptionalFileStageDirectory,
 		DirectoryReference OptionalFileInputDirectory,
 		DirectoryReference BaseArchiveDirectory,
+		string CookerSupportFilesSubdirectory,
 		Platform InSourcePlatform,
         Platform InTargetPlatform,
 		List<UnrealTargetConfiguration> InTargetConfigurations,
@@ -462,6 +468,7 @@ public class DeploymentContext //: ProjectParams
 		}
 		this.OptionalFileStageDirectory = OptionalFileStageDirectory;
 		this.OptionalFileInputDirectory = OptionalFileInputDirectory;
+		this.CookerSupportFilesSubdirectory = CookerSupportFilesSubdirectory;
 
 		if (BaseArchiveDirectory != null)
 		{
