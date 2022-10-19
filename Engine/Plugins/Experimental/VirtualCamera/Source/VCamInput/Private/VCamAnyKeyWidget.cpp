@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamAnyKeyWidget.h"
+#include "Containers/Ticker.h"
 #include "Framework/Application/IInputProcessor.h"
+#include "Framework/Application/SlateApplication.h"
 
 // Input processor class that forwards any relevant input to the owning widget
 // All Handle events return true to consume the input

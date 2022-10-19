@@ -24,6 +24,7 @@
 #include "Types/ReflectionMetadata.h"
 #include "Framework/Text/IRichTextMarkupWriter.h"
 #include "Framework/Text/RichTextMarkupProcessing.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonRichTextBlock)
 
