@@ -160,6 +160,12 @@ FDataflowOutput* FDataflowNode::FindOutput(void* Reference)
 	return nullptr;
 }
 
+int32 FDataflowNode::NumOutputs() const
+{
+	return Outputs.Num();
+}
+
+
 TArray< FDataflowOutput* > FDataflowNode::GetOutputs() const
 {
 	TArray< FDataflowOutput* > Result;

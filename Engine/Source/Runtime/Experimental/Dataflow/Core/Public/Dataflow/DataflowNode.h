@@ -68,6 +68,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	FGuid GetGuid() const { return Guid; }
 	FName GetName() const { return Name; }
 	void SetName(FName InName) { Name = InName; }
+	Dataflow::FTimestamp GetTimestamp() const { return LastModifiedTimestamp;  }
 
 	virtual FName GetType() const { check(true); return FName("invalid"); }
 	virtual FName GetDisplayName() const { return ""; }
@@ -92,6 +93,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 
 	void AddOutput(FDataflowOutput* InPtr);
+	int NumOutputs() const;
 	TArray< FDataflowOutput* > GetOutputs() const;
 	void ClearOutputs();
 

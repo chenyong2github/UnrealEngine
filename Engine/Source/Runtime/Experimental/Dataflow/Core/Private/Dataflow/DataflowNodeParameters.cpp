@@ -8,15 +8,37 @@ namespace Dataflow
 {
 	uint64 FTimestamp::Invalid = 0;
 
-	void FContextSingle::Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output)
+	void BeginContextEvaluation(FContext& Context, const FDataflowNode* Node, const FDataflowOutput* Output)
 	{
 		if (Node != nullptr)
 		{
-			Timestamp = FTimestamp(FPlatformTime::Cycles64());
-			Node->Evaluate(*this, Output);
+			Context.Timestamp = FTimestamp(FPlatformTime::Cycles64());
+			if (Node->NumOutputs())
+			{
+				if (Output)
+				{
+					Node->Evaluate(Context, Output);
+				}
+				else
+				{
+					for (FDataflowOutput* NodeOutput : Node->GetOutputs())
+					{
+						Node->Evaluate(Context, NodeOutput);
+					}
+				}
+			}
+			else
+			{
+				Node->Evaluate(Context, nullptr);
+			}
 		}
 	}
 	
+	void FContextSingle::Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output)
+	{
+		BeginContextEvaluation(*this, Node, Output);
+	}
+		
 	bool FContextSingle::Evaluate(const FDataflowOutput& Connection)
 	{
 		return Connection.EvaluateImpl(*this);
@@ -26,11 +48,7 @@ namespace Dataflow
 
 	void FContextThreaded::Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output)
 	{
-		if (Node != nullptr)
-		{
-			Timestamp = FTimestamp(FPlatformTime::Cycles64());
-			Node->Evaluate(*this, Output);
-		}
+		BeginContextEvaluation(*this, Node, Output);
 	}
 
 	bool FContextThreaded::Evaluate(const FDataflowOutput& Connection)

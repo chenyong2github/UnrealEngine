@@ -85,6 +85,30 @@ namespace Dataflow
 			return TSharedPtr<FDataflowNode>(nullptr);
 		}
 
+		TSharedPtr<FDataflowNode> FindBaseNode(FName InName)
+		{
+			for (TSharedPtr<FDataflowNode> Node : Nodes)
+			{
+				if (Node->GetName().IsEqual(InName))
+				{
+					return Node;
+				}
+			}
+			return TSharedPtr<FDataflowNode>(nullptr);
+		}
+
+		TSharedPtr<const FDataflowNode> FindBaseNode(FName InName) const
+		{
+			for (TSharedPtr<FDataflowNode> Node : Nodes)
+			{
+				if (Node->GetName().IsEqual(InName))
+				{
+					return Node;
+				}
+			}
+			return TSharedPtr<const FDataflowNode>(nullptr);
+		}
+
 		void RemoveNode(TSharedPtr<FDataflowNode> Node);
 
 		void ClearConnections(FDataflowConnection* ConnectionBase);

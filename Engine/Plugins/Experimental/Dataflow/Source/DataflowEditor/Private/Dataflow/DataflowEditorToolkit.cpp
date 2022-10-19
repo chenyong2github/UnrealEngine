@@ -130,10 +130,8 @@ TSharedPtr<IStructureDetailsView> FDataflowEditorToolkit::CreateNodeDetailsEdito
 	DetailsView->GetDetailsView()->SetObject(ObjectToEdit);
 	DetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([this](const FPropertyChangedEvent& PropertyChangedEvent) 
 	{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Dataflow", "UnknownEvaluationContext_Dataflow","Property Changed"));
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Dataflow", "UnknownEvaluationContext_Dataflow", "Property Changed really"));
 			}
 	});
 
