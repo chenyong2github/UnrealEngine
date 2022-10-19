@@ -530,7 +530,7 @@ private:
 	void OnEstimateCompressionChanged(ECheckBoxState NewState);
 	ECheckBoxState EstimateCompressionChecked() const;
 
-	TSharedPtr<STextBlock> OodleEncoderUsed;
+	TSharedPtr<STextBlock> OodleCompressorUsed;
 	TSharedPtr<STextBlock> OodleLevelUsed;
 	TSharedPtr<STextBlock> OodleCompressionBlockUsed;
 	TSharedPtr<STextBlock> OodleEstimateRaw;

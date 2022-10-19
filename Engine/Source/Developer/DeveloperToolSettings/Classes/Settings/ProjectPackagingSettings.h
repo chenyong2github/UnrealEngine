@@ -368,16 +368,16 @@ public:
 	FString PackageCompressionMethod;
 		
 	/*
-	 * For compressors with variable levels, select the encoder effort level, which makes packages smaller but takes more time to encode.
+	 * For compressors with variable levels, select the compressor effort level, which makes packages smaller but takes more time to encode.
 	 * This does not affect decode speed.  For faster iteration, use lower effort levels (eg. 1)
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Debug & Development"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Compressor Effort Level for Debug & Development"))
 	int32 PackageCompressionLevel_DebugDevelopment;
 	
-	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Test & Shipping"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Compressor Effort Level for Test & Shipping"))
 	int32 PackageCompressionLevel_TestShipping;
 	
-	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Distribution"))
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Compressor Effort Level for Distribution"))
 	int32 PackageCompressionLevel_Distribution;
 
 	/**
