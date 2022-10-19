@@ -43,6 +43,9 @@ private:
 	// Reattach newly imported actors if they've been moved / cut and pasted
 	void OnAssetPostImport(UFactory* InFactory, UObject* ActorAdded);
 
+	void RegisterDelegates();
+	void UnregisterDelegates();
+
 	FDelegateHandle OnActorDeletedDelegateHandle;
 #endif // WITH_EDITOR
 };
