@@ -288,6 +288,10 @@ void UMediaSoundComponent::UpdatePlayer()
 			{
 				FScopeLock Lock(&CriticalSection);
 				SampleQueue = NewSampleQueue;
+				if (MediaSoundGenerator.IsValid())
+				{
+					static_cast<FMediaSoundGenerator*>(MediaSoundGenerator.Get())->SetSampleQueue(SampleQueue);
+				}
 			}
 			CurrentPlayerFacade = PlayerFacade;
 		}
