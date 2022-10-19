@@ -1233,7 +1233,7 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 	bool bIsCompiling = false;
 #if WITH_EDITOR
-	bIsCompiling = GetSkeletalMeshAsset() && !GetSkeletalMeshAsset()->IsCompiling();
+	bIsCompiling = GetSkeletalMeshAsset() && GetSkeletalMeshAsset()->IsCompiling();
 #endif
 	if (GetSkeletalMeshAsset() != nullptr && !bIsCompiling)
 	{
