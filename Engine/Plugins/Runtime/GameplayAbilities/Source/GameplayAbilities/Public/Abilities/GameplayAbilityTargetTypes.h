@@ -610,7 +610,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetData_SingleTargetHit : public
 	UPROPERTY()
 	FHitResult	HitResult;
 
-	UPROPERTY()
+	UPROPERTY(NotReplicated)
 	bool bHitReplaced = false;
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);

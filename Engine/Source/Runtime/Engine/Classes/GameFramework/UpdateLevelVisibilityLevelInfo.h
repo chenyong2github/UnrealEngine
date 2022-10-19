@@ -91,6 +91,7 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 	uint32 bTryMakeVisible : 1;
 
 	/** Skip connection close if level can't be found (not net serialized) */
+	UPROPERTY(NotReplicated)
 	uint32 bSkipCloseOnError : 1;
 
 	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
