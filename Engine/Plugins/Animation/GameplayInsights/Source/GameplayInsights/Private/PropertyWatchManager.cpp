@@ -3,6 +3,10 @@
 #include "PropertyWatchManager.h"
 #include "IRewindDebugger.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 FPropertyWatchManager* FPropertyWatchManager::InternalInstance = nullptr;
 
 FPropertyWatchManager::FPropertyWatchManager()
@@ -97,16 +101,27 @@ FPropertyWatchManager::FOnPropertyWatched& FPropertyWatchManager::OnPropertyWatc
 FPropertyWatchManager::FOnPropertyUnwatched& FPropertyWatchManager::OnPropertyUnwatched()
 {
 	return OnPropertyUnwatchedDelegate;
-}
+}		
 
 void FPropertyWatchManager::Initialize()
 {
 	InternalInstance = new FPropertyWatchManager;
+
+#if WITH_EDITOR
+	FEditorDelegates::BeginPIE.AddLambda([](const bool bIsSimulating)
+	{
+		if (InternalInstance)
+		{
+			InternalInstance->ClearAllWatchedProperties();
+		}
+	});
+#endif
 }
 
 void FPropertyWatchManager::Shutdown()
 {
 	delete InternalInstance;
+	InternalInstance = nullptr;
 }
 
 FPropertyWatchManager* FPropertyWatchManager::Instance()

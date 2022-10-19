@@ -14,8 +14,6 @@ namespace RewindDebugger
 class FPropertyWatchManager
 {
 public:
-
-	// TODO: We need to add code that clears the property watch manager right after a PIE session has started.
 	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPropertyWatched, uint64 /*InObjectId*/, uint32 /*InPropertyNameId*/)
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPropertyUnwatched, uint64 /*InObjectId*/, uint32 /*InPropertyNameId*/)
