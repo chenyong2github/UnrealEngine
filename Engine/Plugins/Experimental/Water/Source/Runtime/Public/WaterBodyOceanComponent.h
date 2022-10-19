@@ -25,8 +25,10 @@ public:
 	virtual void SetHeightOffset(float InHeightOffset) override;
 	virtual float GetHeightOffset() const override { return HeightOffset; }
 
-	void SetVisualExtents(FVector2D NewExtents);
-	FVector2D GetVisualExtents() const { return VisualExtents; }
+	UE_DEPRECATED(5.1, "Oceans no longer rely on the visual extent parameter making this obsolete. Instead they will be guaranteed to fill the entire water zone to which they belong.")
+	void SetVisualExtents(FVector2D) {}
+	UE_DEPRECATED(5.1, "Oceans no longer rely on the visual extent parameter making this obsolete. Instead they will be guaranteed to fill the entire water zone to which they belong.")
+	FVector2D GetVisualExtents() const { return FVector2D(); }
 protected:
 	/** UWaterBodyComponent Interface */
 	virtual bool IsBodyDynamic() const override { return true; }
@@ -50,9 +52,8 @@ protected:
 	UPROPERTY(NonPIEDuplicateTransient)
 	TArray<TObjectPtr<UOceanCollisionComponent>> CollisionHullSets;
 
-	/** The area over which the ocean should be displayed, centered on the actor */
-	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly)
-	FVector2D VisualExtents;
+	UPROPERTY()
+	FVector2D VisualExtents_DEPRECATED;
 
 	UPROPERTY(Category = Collision, EditAnywhere, BlueprintReadOnly)
 	FVector CollisionExtents;

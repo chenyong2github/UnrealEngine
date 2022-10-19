@@ -10,6 +10,11 @@
 #include "PrimitiveSceneInfo.h"
 #include "Algo/Transform.h"
 
+TAutoConsoleVariable<int32> CVarVisualizeWaterInfoSceneProxies(
+		TEXT("r.Water.VisualizeWaterInfoSceneProxies"),
+		0,
+		TEXT("Enables a wireframe visualization mode for the water info scene proxy geometry. Modes: 0 to disable, 1 to show only the selected water body, 2 to show all water bodies."));
+
 FWaterBodySceneProxy::FWaterBodySceneProxy(UWaterBodyComponent* Component)
 	: FPrimitiveSceneProxy(Component)
 	, WaterBodySectionedLODMesh(GetScene().GetFeatureLevel())
@@ -201,6 +206,14 @@ void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 	const bool bWithinWaterInfoPasses = CurrentWaterInfoPass != EWaterInfoPass::None;
 
+#if !UE_BUILD_SHIPPING
+	const int VisualizeWaterInfoMode = CVarVisualizeWaterInfoSceneProxies.GetValueOnRenderThread();
+#else
+	const int VisualizeWaterInfoMode = 0;
+#endif // !UE_BUILD_SHIPPING
+
+	const bool bVisualizeWaterInfoMesh = (VisualizeWaterInfoMode != 0) && !bWithinWaterInfoPasses;
+
 	FMaterialRenderProxy* MaterialToUse = bWithinWaterInfoPasses ? WaterInfoMaterial : WaterLODMaterial;
 
 	if (!MaterialToUse)
@@ -215,7 +228,7 @@ void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 	}
 
 	// If we are not in the waterinfo pass and the cvar is not set to show opaque bodies, we should be in wireframe
-	const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
+	const bool bWireframe = AllowDebugViewmodes() && (ViewFamily.EngineShowFlags.Wireframe || bVisualizeWaterInfoMesh);
 
 	if (bWireframe)
 	{
@@ -264,6 +277,18 @@ void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			{
 				Collector.AddMesh(ViewIndex, MeshBatch);
 			}
+#if !UE_BUILD_SHIPPING
+			if (bVisualizeWaterInfoMesh && (VisualizeWaterInfoMode > 1 || IsSelected()))
+			{
+				FMeshBatch& WireframeMeshBatch = Collector.AllocateMesh();
+				WireframeMeshBatch.MaterialRenderProxy = MaterialToUse;
+				WireframeMeshBatch.bWireframe = bWireframe;
+				if (WaterBodyInfoMesh.GetMeshElements(WireframeMeshBatch, SDPG_World, IsLocalToWorldDeterminantNegative()))
+				{
+					Collector.AddMesh(ViewIndex, WireframeMeshBatch);
+				}
+			}
+#endif // !UE_BUILD_SHIPPING
 		}
 	}
 }

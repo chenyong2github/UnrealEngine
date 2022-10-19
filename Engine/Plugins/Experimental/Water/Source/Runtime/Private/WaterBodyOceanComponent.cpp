@@ -30,7 +30,6 @@ UWaterBodyOceanComponent::UWaterBodyOceanComponent(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 {
 	CollisionExtents = FVector(50000.f, 50000.f, 10000.f);
-	VisualExtents = FVector2D(150000.f, 150000.f);
 
 	// @todo_water : Remove these checks (Once AWaterBody is no more Blueprintable, these methods should become PURE_VIRTUAL and this class should overload them)
 	check(IsFlatSurface());
@@ -69,16 +68,6 @@ void UWaterBodyOceanComponent::SetHeightOffset(float InHeightOffset)
 	}
 }
 
-void UWaterBodyOceanComponent::SetVisualExtents(FVector2D NewExtents)
-{
-	if (VisualExtents != NewExtents)
-	{
-		VisualExtents = NewExtents;
-		UpdateWaterBodyRenderData();
-		Modify();
-	}
-}
-
 void UWaterBodyOceanComponent::BeginUpdateWaterBody()
 {
 	Super::BeginUpdateWaterBody();
@@ -99,10 +88,6 @@ void UWaterBodyOceanComponent::OnPostEditChangeProperty(FOnWaterBodyChangedParam
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, CollisionExtents))
 	{
 		// Affects the physics shape
-		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
-	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, VisualExtents))
-	{
 		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
 	}
 }
@@ -193,8 +178,14 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 
 	const UWaterSplineComponent* SplineComp = GetWaterSpline();
 	const FVector OceanLocation = GetComponentLocation();
+	const AWaterZone* WaterZone = GetWaterZone();
 	
 	if (SplineComp->GetNumberOfSplineSegments() < 3)
+	{
+		return false;
+	}
+
+	if (!WaterZone)
 	{
 		return false;
 	}
@@ -214,9 +205,9 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 	IslandBounds.Expand(1);
 
 	// #todo: account for scale
-	const FAxisAlignedBox2d OceanBounds = FAxisAlignedBox2d(-FVector2d(VisualExtents) / 2.0, FVector2d(VisualExtents) / 2.0);
-	FPolygon2d IslandBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(IslandBounds.Center()), 2 * IslandBounds.Extents().X, 2 * IslandBounds.Extents().Y);
-
+	const FVector2d OceanExtents = WaterZone->GetZoneExtent(); // file the entire water zone with an ocean
+	const FAxisAlignedBox2d OceanBounds = FAxisAlignedBox2d(FVector2d(GetComponentTransform().InverseTransformPositionNoScale(WaterZone->GetActorLocation())), OceanExtents.X / 2.0);
+	FPolygon2d IslandBoundingPolygon = FPolygon2d::MakeRectangle(IslandBounds.Center(), IslandBounds.Extents().X * 2., IslandBounds.Extents().Y * 2.);
 
 	FConstrainedDelaunay2d Triangulation;
 	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
@@ -229,7 +220,7 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 	Triangulation.Add(Island);
 	if (!Triangulation.Triangulate())
 	{
-		UE_LOG(LogWater, Error, TEXT("Failed to triangulate Ocean mesh for %s. Ensure that the spline points are fully contained within the VisualExtents of the ocean!"), *GetOwner()->GetActorNameOrLabel());
+		UE_LOG(LogWater, Error, TEXT("Failed to triangulate Ocean mesh for %s. Ensure that the Ocean's spline does not form any loops."), *GetOwner()->GetActorNameOrLabel());
 	}
 
 	if (Triangulation.Triangles.Num() == 0)
@@ -384,27 +375,19 @@ void UWaterBodyOceanComponent::PostLoad()
 	Super::PostLoad();
 
 #ifdef WITH_EDITORONLY_DATA
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterZonesRefactor)
-	{
-		if (AWaterZone* WaterZone = GetWaterZone())
-		{
-			SetVisualExtents(WaterZone->GetZoneExtent());
-		}
-	}
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterNontessellatedLODSupportAdded)
-	{
-		// Prior to the refactors when introducing the non-tessellated LOD, the Ocean's visual extent was treated as 2x the actual value.
-		// To maintain visual consistency with previous versions, the value needs to now be updated to be 2x.
-		VisualExtents = VisualExtents * 2.;
-	}
 #endif // WITH_EDITORONLY_DATA
 }
 
 FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	FVector Min(FVector(-VisualExtents / 2.f, -1 * GetChannelDepth()));
-	FVector Max(FVector(VisualExtents / 2.f, 0.f));
-	return FBoxSphereBounds(FBox(Min, Max)).TransformBy(LocalToWorld);
+	if (AWaterZone* WaterZone = GetWaterZone())
+	{
+		const FVector2D OceanExtents = WaterZone->GetZoneExtent();
+		const FVector Min(FVector(-OceanExtents / 2.0, -1.0 * GetChannelDepth()));
+		const FVector Max(FVector(OceanExtents / 2.0, 0.0));
+		return FBoxSphereBounds(FBox(Min, Max)).TransformBy(LocalToWorld);
+	}
+	return FBoxSphereBounds().TransformBy(LocalToWorld);
 }
 
 void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
