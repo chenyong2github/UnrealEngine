@@ -109,7 +109,7 @@ private:
 
 private:
 	void AddToScreen(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot& Slot);
-	void RemoveWidgetInternal(UWidget* Widget, FSlotInfo& SlotInfo);
+	void RemoveWidgetInternal(UWidget* Widget, const TWeakPtr<SConstraintCanvas>& FullScreenWidget, const TWeakObjectPtr<ULocalPlayer>& LocalPlayer);
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 	FMargin GetFullScreenOffsetForWidget(UWidget* Widget) const;
 	TPair<FMargin, bool> GetOffsetAttribute(UWidget* Widget, const FGameViewportWidgetSlot& Slot) const;
