@@ -3312,9 +3312,9 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 				nullptr /* InstancingContext */, nullptr /* DiffPackagePath */);
 		}
 #if WITH_IOSTORE_IN_EDITOR
-		if (Package && Package->HasAnyPackageFlags(PKG_Cooked))
+		if (Package && Package->HasAnyPackageFlags(PKG_Cooked) && Package->GetPackageId().IsValid())
 		{
-			// Cooked packages loaded with EDL is always fully loaded and has no attached
+			// Cooked packages loaded from iostore are always fully loaded and has no attached
 			// linkers. Static find all imported objects from this package.
 			check(Package->IsFullyLoaded());
 			Import.XObject = Package;
@@ -3371,7 +3371,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// or when circular dependency happen, get the linker so we are able to create the import properly at a later time.
 		// When loading editor data never consider the package fully loaded and resolve the linker anyway, for cooked data, assign the linker if one is associated witht the package
 #if WITH_IOSTORE_IN_EDITOR
-		if (Package && !Package->HasAnyPackageFlags(PKG_Cooked))
+		if (Package && !(Package->HasAnyPackageFlags(PKG_Cooked) && Package->GetPackageId().IsValid()))
 #endif
 		{
 			const bool bWasFullyLoaded = Package && Package->IsFullyLoaded() && FPlatformProperties::RequiresCookedData();
