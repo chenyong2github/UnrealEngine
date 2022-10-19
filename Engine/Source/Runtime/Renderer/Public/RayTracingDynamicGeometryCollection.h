@@ -23,6 +23,10 @@ public:
 	void DispatchUpdates(FRHICommandListImmediate& ParentCmdList, FRHIBuffer* ScratchBuffer);
 	void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
+	// Clears the working arrays to not hold any references.
+	// Needs to be called every frame when ray tracing is enabled or once when ray tracing mode has changed.
+	void Clear();
+
 	uint32 ComputeScratchBufferSize();
 
 private:

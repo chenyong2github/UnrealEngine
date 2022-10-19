@@ -1113,7 +1113,7 @@ inline bool DoesProjectSupportDistanceFields()
 
 	return DoesPlatformSupportDistanceFields(GMaxRHIShaderPlatform)
 		&& CVarGenerateDF->GetValueOnAnyThread() != 0
-		&& (CVarDFIfNoHWRT->GetValueOnAnyThread() != 0 || !IsRayTracingEnabled());
+		&& (CVarDFIfNoHWRT->GetValueOnAnyThread() != 0 || !IsRayTracingAllowed());
 }
 
 inline bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)

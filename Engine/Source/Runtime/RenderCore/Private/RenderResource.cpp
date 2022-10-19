@@ -561,13 +561,28 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	if (bAllSegmentsAreValid)
 	{
 		bValid = !bWithoutNativeResource;
-		RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+		if (IsRayTracingEnabled())
+		{
+			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+		}
+		
+		// Register the geometry if it wasn't registered before and it's not using custom path
+		const bool bRegisterGeometry = (RayTracingGeometryHandle == INDEX_NONE) && (InBuildPriority != ERTAccelerationStructureBuildPriority::Immediate);			
+
+		if (bRegisterGeometry)
+		{
+			RayTracingGeometryHandle = GRayTracingGeometryManager.RegisterRayTracingGeometry(this);
+		}
+
 		if (Initializer.OfflineData == nullptr)
 		{
 			// Request build if not skip
 			if (InBuildPriority != ERTAccelerationStructureBuildPriority::Skip)
 			{
-				RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
+				if (IsRayTracingEnabled())
+				{
+					RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
+				}
 				bRequiresBuild = false;
 			}
 			else
@@ -593,7 +608,7 @@ bool FRayTracingGeometry::IsValid() const
 
 void FRayTracingGeometry::InitRHI()
 {
-	if (!IsRayTracingEnabled())
+	if (!IsRayTracingAllowed())
 		return;
 
 	ERTAccelerationStructureBuildPriority BuildPriority = Initializer.Type != ERayTracingGeometryInitializerType::Rendering
@@ -606,6 +621,12 @@ void FRayTracingGeometry::ReleaseRHI()
 {
 	RemoveBuildRequest();
 	RayTracingGeometryRHI.SafeRelease();
+	
+	if (RayTracingGeometryHandle != INDEX_NONE)
+	{
+		GRayTracingGeometryManager.ReleaseRayTracingGeometryHandle(RayTracingGeometryHandle);
+		RayTracingGeometryHandle = INDEX_NONE;
+	}	
 }
 
 void FRayTracingGeometry::RemoveBuildRequest()
@@ -1163,7 +1184,20 @@ FRHISamplerState* FTexture::GetOrCreateSamplerState(const FSamplerStateInitializ
 
 bool IsRayTracingEnabled()
 {
-	checkf(GIsRHIInitialized, TEXT("IsRayTracingEnabled() may only be called once RHI is initialized."));
+	bool bRayTracingEnabled = true;
+	extern RENDERCORE_API ERayTracingMode GRayTracingMode;	
+	static const auto RayTracingEnableCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Raytracing.Enable"));
+	if (GRayTracingMode == ERayTracingMode::Dynamic && RayTracingEnableCVar)
+	{
+		bRayTracingEnabled = RayTracingEnableCVar->GetValueOnAnyThread() != 0;
+	}
+
+	return IsRayTracingAllowed() && bRayTracingEnabled;
+}
+
+bool IsRayTracingAllowed()
+{
+	checkf(GIsRHIInitialized, TEXT("IsRayTracingAllowed() may only be called once RHI is initialized."));
 
 #if DO_CHECK && WITH_EDITOR
 	{
@@ -1175,11 +1209,17 @@ bool IsRayTracingEnabled()
 	}
 #endif // DO_CHECK && WITH_EDITOR
 
-	extern RENDERCORE_API bool GUseRayTracing;
-	return GUseRayTracing;
+	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
+	return (int32)GRayTracingMode >= (int32)ERayTracingMode::Enabled;
 }
 
 bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform)
 {
 	return IsRayTracingEnabled() && RHISupportsRayTracing(ShaderPlatform);
+}
+
+ERayTracingMode GetRayTracingMode()
+{
+	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
+	return IsRayTracingAllowed() ? GRayTracingMode : ERayTracingMode::Disabled;
 }

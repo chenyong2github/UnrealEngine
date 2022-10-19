@@ -205,7 +205,7 @@ namespace Nanite
 
 	void FRayTracingManager::Add(FPrimitiveSceneInfo* SceneInfo)
 	{
-		if (!IsRayTracingEnabled())
+		if (!IsRayTracingAllowed())
 		{
 			return;
 		}
@@ -269,7 +269,7 @@ namespace Nanite
 
 	void FRayTracingManager::Remove(FPrimitiveSceneInfo* SceneInfo)
 	{
-		if (!IsRayTracingEnabled())
+		if (!IsRayTracingAllowed())
 		{
 			return;
 		}
@@ -293,7 +293,7 @@ namespace Nanite
 
 	void FRayTracingManager::RequestUpdates(const TSet<uint32>& InUpdateRequests)
 	{
-		if (!IsRayTracingEnabled())
+		if (!IsRayTracingAllowed())
 		{
 			return;
 		}

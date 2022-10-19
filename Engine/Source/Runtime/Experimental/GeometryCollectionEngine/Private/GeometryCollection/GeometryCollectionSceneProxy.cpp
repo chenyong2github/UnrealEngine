@@ -228,7 +228,7 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 	}
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 
 		ENQUEUE_RENDER_COMMAND(InitGeometryCollectionRayTracingGeometry)(
@@ -268,7 +268,7 @@ void FGeometryCollectionSceneProxy::DestroyRenderThreadResources()
 	}
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		RayTracingGeometry.ReleaseResource();
 		RayTracingDynamicVertexBuffer.Release();

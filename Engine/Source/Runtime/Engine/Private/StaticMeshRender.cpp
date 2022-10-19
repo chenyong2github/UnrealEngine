@@ -309,7 +309,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	bSupportRayTracing = InComponent->GetStaticMesh()->bSupportRayTracing;
 	bDynamicRayTracingGeometry = false;
 	
-	if (IsRayTracingEnabled(GetScene().GetShaderPlatform()) && bSupportRayTracing)
+	if (IsRayTracingAllowed() && bSupportRayTracing)
 	{
 		if (CVarRayTracingStaticMeshesWPO.GetValueOnAnyThread() > 0)
 		{

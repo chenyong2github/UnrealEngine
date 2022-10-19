@@ -669,7 +669,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		CachedRayTracingMaterials.SetNum(MaterialSections.Num());
 	}
 
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		CoarseMeshStreamingHandle = (Nanite::CoarseMeshStreamingHandle)Component->GetStaticMesh()->GetStreamingIndex();
 		if (MeshResources.GetNumVertices())

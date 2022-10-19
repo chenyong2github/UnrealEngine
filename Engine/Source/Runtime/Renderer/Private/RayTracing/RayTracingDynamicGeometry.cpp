@@ -118,12 +118,17 @@ FRayTracingDynamicGeometryCollection::~FRayTracingDynamicGeometryCollection()
 	VertexPositionBuffers.Empty();
 }
 
-int64 FRayTracingDynamicGeometryCollection::BeginUpdate()
+void FRayTracingDynamicGeometryCollection::Clear()
 {
 	// Clear working arrays - keep max size allocated
 	DispatchCommands.Empty(DispatchCommands.Max());
 	BuildParams.Empty(BuildParams.Max());
 	Segments.Empty(Segments.Max());
+}
+
+int64 FRayTracingDynamicGeometryCollection::BeginUpdate()
+{
+	Clear();
 
 	// Vertex buffer data can be immediatly reused the next frame, because it's already 'consumed' for building the AccelerationStructure data
 	// Garbage collect unused buffers for n generations

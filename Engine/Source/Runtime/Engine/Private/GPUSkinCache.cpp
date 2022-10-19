@@ -1686,7 +1686,7 @@ bool FGPUSkinCache::IsGPUSkinCacheRayTracingSupported()
 #if RHI_RAYTRACING
 	static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Geometry.SupportSkeletalMeshes"));
 	static const bool SupportSkeletalMeshes = CVar->GetInt() != 0;
-	return IsRayTracingEnabled() && SupportSkeletalMeshes && GEnableGPUSkinCache;
+	return IsRayTracingAllowed() && SupportSkeletalMeshes && GEnableGPUSkinCache;
 #else
 	return false;
 #endif

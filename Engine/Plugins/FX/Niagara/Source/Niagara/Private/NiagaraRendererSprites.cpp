@@ -177,7 +177,7 @@ void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 
 	CutoutVertexBuffer.ReleaseResource();
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		RayTracingGeometry.ReleaseResource();
 		RayTracingDynamicVertexBuffer.Release();
@@ -191,7 +191,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources()
 	CutoutVertexBuffer.InitResource();
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		FRayTracingGeometryInitializer Initializer;
 		static const FName DebugName("FNiagaraRendererSprites");

@@ -20,6 +20,7 @@ class RENDERCORE_API FRayTracingGeometryManager
 public:
 
 	using BuildRequestIndex = int32;
+	using RayTracingGeometryHandle = int32;
 
 	FRayTracingGeometryManager() {}
 	~FRayTracingGeometryManager() {}
@@ -35,6 +36,10 @@ public:
 	void ForceBuildIfPending(FRHIComputeCommandList& InCmdList, const TArrayView<const FRayTracingGeometry*> InGeometries);
 	void ProcessBuildRequests(FRHIComputeCommandList& InCmdList, bool bInBuildAll = false);
 
+	void Tick();
+
+	RayTracingGeometryHandle RegisterRayTracingGeometry(FRayTracingGeometry* InGeometry);
+	void ReleaseRayTracingGeometryHandle(RayTracingGeometryHandle Handle);
 private:
 
 	struct BuildRequest
@@ -51,6 +56,9 @@ private:
 	FCriticalSection RequestCS;
 
 	TSparseArray<BuildRequest> GeometryBuildRequests;
+
+	// Used for keeping track of geometries when ray tracing is dynamic
+	TSparseArray<FRayTracingGeometry*> RegisteredGeometries;
 
 	// Working array with all active build build params in the RHI
 	TArray<BuildRequest> SortedRequests;

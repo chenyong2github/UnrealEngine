@@ -2257,7 +2257,7 @@ void ComputeHairStrandsInterpolation(
 			}
 
 			#if RHI_RAYTRACING
-			if (LOD.RaytracingResource)
+			if (LOD.RaytracingResource && IsRayTracingEnabled())
 			{
 				FCardsOrMeshesResourceBLASParameters* Parameters = GraphBuilder.AllocParameters<FCardsOrMeshesResourceBLASParameters>();
 				Parameters->PositionBuffer = LOD.DeformedResource ? Register(GraphBuilder, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Current), ERDGImportedBufferFlags::None).Buffer : nullptr;

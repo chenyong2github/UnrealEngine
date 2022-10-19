@@ -607,7 +607,7 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources()
 	
 	
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		FRayTracingGeometryInitializer Initializer;
 		static const FName DebugName("FNiagaraRendererRibbons");
@@ -632,7 +632,7 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
 	ShapeState.SliceVertexDataBuffer.Release();
 	
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+	if (IsRayTracingAllowed())
 	{
 		RayTracingGeometry.ReleaseResource();
 		RayTracingDynamicVertexBuffer.Release();

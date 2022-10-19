@@ -1094,7 +1094,7 @@ bool FShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEventArray
 		const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
 
 #if RHI_RAYTRACING
-		if (!IsRayTracingEnabled() && !IsCreateShadersOnLoadEnabled() && IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(ShaderEntry.Frequency)))
+		if (!IsRayTracingAllowed() && !IsCreateShadersOnLoadEnabled() && IsRayTracingShaderFrequency(static_cast<EShaderFrequency>(ShaderEntry.Frequency)))
 		{
 			ShaderPreloadEntry.bNeverToBePreloaded = 1;
 			continue;
@@ -1886,7 +1886,7 @@ bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FGraphEve
 		const int32 ShaderGroupIndex = GetGroupIndexForShader(ShaderIndex);
 
 #if RHI_RAYTRACING
-		if (!IsRayTracingEnabled() && !IsCreateShadersOnLoadEnabled() && GroupOnlyContainsRaytracingShaders(ShaderGroupIndex))
+		if (!IsRayTracingAllowed() && !IsCreateShadersOnLoadEnabled() && GroupOnlyContainsRaytracingShaders(ShaderGroupIndex))
 		{
 			MarkPreloadEntrySkipped(ShaderGroupIndex);
 			continue;
@@ -1913,7 +1913,7 @@ bool FIoStoreShaderCodeArchive::PreloadShaderMap(int32 ShaderMapIndex, FCoreDele
 		const int32 ShaderGroupIndex = GetGroupIndexForShader(ShaderIndex);
 
 #if RHI_RAYTRACING
-		if (!IsRayTracingEnabled() && !IsCreateShadersOnLoadEnabled() && GroupOnlyContainsRaytracingShaders(ShaderGroupIndex))
+		if (!IsRayTracingAllowed() && !IsCreateShadersOnLoadEnabled() && GroupOnlyContainsRaytracingShaders(ShaderGroupIndex))
 		{
 			MarkPreloadEntrySkipped(ShaderGroupIndex);
 			continue;

@@ -79,6 +79,7 @@
 #include "Async/ParallelFor.h"
 #include "Shadows/ShadowSceneRenderer.h"
 #include "HeterogeneousVolumes/HeterogeneousVolumes.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;
@@ -115,6 +116,24 @@ static TAutoConsoleVariable<int32> CVarRayTracing(
 	TEXT(" 0: off\n")
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+static bool bHasRayTracingEnableChanged = false;
+static TAutoConsoleVariable<int32> CVarRayTracingEnable(
+	TEXT("r.RayTracing.Enable"),
+	1,
+	TEXT("Runtime toggle for switching raytracing on/off (experimental)."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			FGlobalComponentRecreateRenderStateContext Context;		 
+			ENQUEUE_RENDER_COMMAND(RefreshRayTracingMeshCommandsCmd)(
+				[](FRHICommandListImmediate&)
+				{
+					bHasRayTracingEnableChanged = true;
+				}
+			);
+		}),
+	ECVF_RenderThreadSafe
+);
 
 int32 GRayTracingUseTextureLod = 0;
 static TAutoConsoleVariable<int32> CVarRayTracingTextureLod(
@@ -2171,6 +2190,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Initialize ray tracing flags, in case they weren't initialized in the CreateSceneRenderers code path
 	InitializeRayTracingFlags_RenderThread();
 
+	GRayTracingGeometryManager.Tick();
+
+	if (bHasRayTracingEnableChanged)
+	{
+		Scene->GetRayTracingDynamicGeometryCollection()->Clear();
+	}
+
 	// Now that we have updated all the PrimitiveSceneInfos, update the RayTracing mesh commands cache if needed
 	{
 		const ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
@@ -2180,12 +2206,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #endif // WITH_EDITOR
 		const bool bNaniteRayTracingModeChanged = Nanite::GRayTracingManager.CheckModeChanged();
 
-		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged || bNaniteRayTracingModeChanged)
+		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged || bNaniteRayTracingModeChanged || bHasRayTracingEnableChanged)
 		{
 			// In some situations, we need to refresh the cached ray tracing mesh commands because they contain data about the currently bound shader. 
 			// This operation is a bit expensive but only happens once as we transition between modes which should be rare.
 			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
 			Scene->RefreshRayTracingMeshCommandCache();
+			bHasRayTracingEnableChanged = false;
 		}
 
 		if (bRefreshRayTracingInstances)

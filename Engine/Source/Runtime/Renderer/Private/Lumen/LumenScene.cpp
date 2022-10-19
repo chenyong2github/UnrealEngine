@@ -596,7 +596,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 	}
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled() && Proxy->HasRayTracingRepresentation())
+	if (IsRayTracingAllowed() && Proxy->HasRayTracingRepresentation())
 	{
 		if ((Proxy->IsVisibleInRayTracing() && (Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden())) || Proxy->IsRayTracingFarField())
 		{

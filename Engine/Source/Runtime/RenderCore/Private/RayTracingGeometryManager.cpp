@@ -86,6 +86,58 @@ void FRayTracingGeometryManager::RemoveBuildRequest(BuildRequestIndex InRequestI
 	GeometryBuildRequests.RemoveAt(InRequestIndex);
 }
 
+FRayTracingGeometryManager::RayTracingGeometryHandle FRayTracingGeometryManager::RegisterRayTracingGeometry(FRayTracingGeometry* InGeometry)
+{	
+	if (GetRayTracingMode() == ERayTracingMode::Dynamic)
+	{
+		check(InGeometry);
+
+		FScopeLock ScopeLock(&RequestCS);
+		RayTracingGeometryHandle Handle = RegisteredGeometries.Add(InGeometry);
+		return Handle;
+	}
+	return INDEX_NONE;
+}
+
+void FRayTracingGeometryManager::ReleaseRayTracingGeometryHandle(RayTracingGeometryHandle Handle)
+{
+	if (GetRayTracingMode() == ERayTracingMode::Dynamic)
+	{
+		check(Handle != INDEX_NONE);
+		FScopeLock ScopeLock(&RequestCS);
+		RegisteredGeometries.RemoveAt(Handle);
+	}	
+}
+
+void FRayTracingGeometryManager::Tick()
+{
+	if (GetRayTracingMode() != ERayTracingMode::Dynamic)
+	{
+		return;
+	}
+
+	if (IsRayTracingEnabled())
+	{
+		FScopeLock ScopeLock(&RequestCS);
+		for (FRayTracingGeometry* Geometry : RegisteredGeometries)
+		{
+			if (Geometry->RayTracingGeometryRHI == nullptr)
+			{
+				Geometry->InitRHI();
+			}
+		}
+	}
+	else
+	{
+		FScopeLock ScopeLock(&RequestCS);
+		for (FRayTracingGeometry* Geometry : RegisteredGeometries)
+		{
+			Geometry->RemoveBuildRequest();
+			Geometry->RayTracingGeometryRHI.SafeRelease();			
+		}
+	}
+}
+
 void FRayTracingGeometryManager::BoostPriority(BuildRequestIndex InRequestIndex, float InBoostValue)
 {
 	FScopeLock ScopeLock(&RequestCS);

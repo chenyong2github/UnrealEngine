@@ -42,6 +42,13 @@ enum class ERenderResourceState : uint8
 	Deleted,
 };
 
+enum class ERayTracingMode : uint8
+{
+	Disabled,	
+	Enabled,
+	Dynamic
+};
+
 /**
  * A rendering resource which is owned by the rendering thread.
  * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
@@ -681,12 +688,21 @@ FORCEINLINE bool ShouldCompileRayTracingCallableShadersForProject(EShaderPlatfor
 	return RHISupportsRayTracingCallableShaders(ShaderPlatform) && ShouldCompileRayTracingShadersForProject(ShaderPlatform);
 }
 
-// Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options.
+// Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options and RT is enabled with r.Raytracing.Enable
 // This function may only be called at runtime, never during cooking.
 extern RENDERCORE_API bool IsRayTracingEnabled();
-// Returns 'true' when running on RT-capable machine, RT support is enabled for the project and by game graphics options and ShaderPlatform supports RT
+
+// Returns 'true' when running on RT-capable machine, RT support is enabled for the project and by game graphics options and ShaderPlatform supports RT and RT is enabled with r.Raytracing.Enable
 // This function may only be called at runtime, never during cooking.
 RENDERCORE_API bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform);
+
+// Returns 'true' when running on RT-capable machine, RT support is enabled for the project and by game graphics options
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API bool IsRayTracingAllowed();
+
+// Returns the ray tracing mode if ray tracing is allowed.
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API ERayTracingMode GetRayTracingMode();
 
 enum class ERTAccelerationStructureBuildPriority
 {
@@ -783,6 +799,7 @@ protected:
 
 	friend class FRayTracingGeometryManager;
 	int32 RayTracingBuildRequestIndex = INDEX_NONE;
+	int32 RayTracingGeometryHandle = INDEX_NONE; // Only valid when ray tracing is dynamic
 	bool bValid = false;
 #endif
 };
