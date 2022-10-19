@@ -289,14 +289,6 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(FGameplayAbilitySpecDef& InDef, int32
 	Level = InDef.LevelScalableFloat.GetValueAtLevel(InGameplayEffectLevel, &ContextString);
 }
 
-// ----------------------------------------------------
-
-void FGameplayAbilitySpecHandle::GenerateNewHandle()
-{
-	// Must be in C++ to avoid duplicate statics accross execution units
-	static int32 GHandle = 1;
-	Handle = GHandle++;
-}
 
 // ----------------------------------------------------
 
