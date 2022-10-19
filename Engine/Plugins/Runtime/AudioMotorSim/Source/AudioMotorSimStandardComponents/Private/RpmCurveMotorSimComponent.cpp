@@ -11,7 +11,7 @@ void URpmCurveMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudi
 		return;
 	}
 
-	const float SpeedKmh = AudioMotorSim::CmsToKmh(Input.Speed);
+	const float SpeedKmh = Input.Speed;
 	
 	int32 DesiredGear = 0;
 
@@ -29,8 +29,16 @@ void URpmCurveMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAudi
 	
 	if(DesiredGear != RuntimeInfo.Gear)
 	{
+		if(DesiredGear > RuntimeInfo.Gear)
+		{
+			OnUpShift.Broadcast(DesiredGear);
+		}
+		else
+		{
+			OnDownShift.Broadcast(DesiredGear);
+		}
+		
 		RuntimeInfo.Gear = DesiredGear;
-		// todo: delegate SoundGroup->BroadcastEvent(SoundEvents_RL::GearChanged);
 	}
 	
 	const float SpeedRatio = FMath::Clamp(FMath::GetRangePct(SpeedFloor, SpeedCeil, SpeedKmh), 0.0f, 1.0f);

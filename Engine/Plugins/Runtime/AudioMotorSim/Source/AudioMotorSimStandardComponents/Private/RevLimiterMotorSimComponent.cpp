@@ -10,9 +10,21 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 	{
 		TimeRemaining = 0.f;
 		TimeInAir = 0.0f;
+
+		if(bActive)
+		{
+			bActive = false;
+			OnRevLimiterStateChanged.Broadcast(bActive);
+		}
 		return;
 	}
 
+	if(bActive == false)
+	{
+		bActive = true;
+		OnRevLimiterStateChanged.Broadcast(bActive);
+	}
+	
 	Input.bCanShift = false;
 
 	// We've hit the limiter

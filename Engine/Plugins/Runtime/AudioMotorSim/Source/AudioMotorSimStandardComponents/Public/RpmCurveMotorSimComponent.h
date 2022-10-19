@@ -20,6 +20,8 @@ struct FMotorSimGearCurve
 	float SpeedTopThreshold = 0.f;
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGearChangedEvent, int32, NewGear);
+
 // Derives Gear and RPM directly from speed using hand drawn curves and gear thresholds
 UCLASS(ClassGroup = "AudioMotorSim", meta = (BlueprintSpawnableComponent))
 class URpmCurveMotorSimComponent : public UAudioMotorSimComponent
@@ -34,6 +36,12 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gears")
 	float InterpSpeed = 0.f;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGearChangedEvent OnUpShift;
+	
+	UPROPERTY(BlueprintAssignable)
+	FOnGearChangedEvent OnDownShift;
 
 private:
 	int32 GetDesiredGearForSpeed(const float Speed) const;

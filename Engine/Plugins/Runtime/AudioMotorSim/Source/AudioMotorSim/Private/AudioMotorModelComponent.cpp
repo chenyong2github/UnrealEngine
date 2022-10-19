@@ -89,7 +89,7 @@ void UAudioMotorModelComponent::AddMotorSimComponent(TScriptInterface<IAudioMoto
 				return;
 			}
 			
-			SimComponents.Insert(NewEntry, Index - 1);
+			SimComponents.Insert(NewEntry, Index);
 			return;
 		}
 	}
