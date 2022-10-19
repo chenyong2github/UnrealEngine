@@ -1397,7 +1397,7 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::GetEvent(float InPosX, 
 	// If mouse is not above first sub-track or below last sub-track...
 	if (DY >= 0 && DY < TrackLanesHeight)
 	{
-		const int32 Depth = FMath::RoundToInt(DY / (Layout.EventH + Layout.EventDY));
+		const int32 Depth = static_cast<int32>(DY / (Layout.EventH + Layout.EventDY));
 
 		const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
 

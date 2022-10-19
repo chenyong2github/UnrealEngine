@@ -408,7 +408,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		{
 			const FVector2D& Pt = Series.Points[Index];
 			const float PtX = static_cast<float>(Pt.X) - PointVisualSize / 2.0f + 0.5f;
-			const float PtY = LocalPosY + static_cast<float>(Pt.Y) - PointVisualSize / 2.0f - 0.5f;
+			const float PtY = LocalPosY + static_cast<float>(Pt.Y) - PointVisualSize / 2.0f + 0.5f;
 			DrawContext.DrawBox(PtX, PtY, PointVisualSize, PointVisualSize, PointBrush, Series.Color);
 		}
 		DrawContext.LayerId++;
