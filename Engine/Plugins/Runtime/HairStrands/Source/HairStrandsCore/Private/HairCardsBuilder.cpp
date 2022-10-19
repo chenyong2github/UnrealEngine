@@ -4177,8 +4177,8 @@ static void AddCardsTextureReadbackPass(
 			CopyInfo);
 
 		// Flush, to ensure that all texture generation is done
-		GDynamicRHI->RHISubmitCommandsAndFlushGPU();
-		GDynamicRHI->RHIBlockUntilGPUIdle();
+		RHICmdList.SubmitCommandsAndFlushGPU();
+		RHICmdList.BlockUntilGPUIdle();
 
 		// don't think we can mark package as a dirty in the package build
 #if WITH_EDITORONLY_DATA
