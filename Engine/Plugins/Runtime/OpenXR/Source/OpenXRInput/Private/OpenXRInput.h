@@ -86,6 +86,8 @@ public:
 		int32			GripDeviceId;
 		int32			AimDeviceId;
 
+		bool			bHapticActive;
+
 		FOpenXRController(XrActionSet InActionSet, XrPath InUserPath, const char* InName);
 
 		void AddTrackedDevices(FOpenXRHMD* HMD);
