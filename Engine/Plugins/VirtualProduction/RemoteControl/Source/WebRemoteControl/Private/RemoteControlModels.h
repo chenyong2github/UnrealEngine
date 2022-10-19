@@ -124,6 +124,7 @@ struct FRCPropertyDescription
 #endif
 
 		const FProperty* ValueProperty = Property;
+		
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
 			ContainerType = Property->GetCPPType();
@@ -147,6 +148,15 @@ struct FRCPropertyDescription
 
 		//Write the type name
 		Type = ValueProperty->GetCPPType();
+
+		if (const FObjectProperty* ObjectProperty = CastField<FObjectPtrProperty>(ValueProperty))
+		{
+			if (UClass* Class = ObjectProperty->PropertyClass)
+			{
+				Type = FString::Printf(TEXT("%s%s"), Class->GetPrefixCPP(), *Class->GetName());
+				TypePath = *Class->GetPathName();
+			}
+		}
 
 #if WITH_EDITOR
 		Metadata = Property->GetMetaDataMap() ? RemoteControlModels::SanitizeMetadata(*Property->GetMetaDataMap()) : TMap<FName, FString>();
@@ -207,6 +217,10 @@ struct FRCPropertyDescription
 	/** Type of the property value (If an array, this will be the content of the array) */
 	UPROPERTY()
 	FString Type;
+
+	/** Type of the property value (If an array, this will be the content of the array) */
+	UPROPERTY()
+	FName TypePath;
 
 	/** Type of the container (TMap, TArray, CArray, TSet) or empty if none */
 	UPROPERTY()
@@ -696,7 +710,7 @@ struct FRCAssetDescription
 	FRCAssetDescription() = default;
 	FRCAssetDescription(const FAssetData& InAsset)
 		: Name(InAsset.AssetName)
-		, Class(InAsset.AssetClassPath)
+		, Class(*InAsset.AssetClassPath.ToString())
 		, Path(*InAsset.GetObjectPathString())
 	{
 		Metadata = RemoteControlModels::SanitizeAssetMetadata(InAsset.TagsAndValues.CopyMap());
@@ -706,7 +720,7 @@ struct FRCAssetDescription
 	FName Name;
 
 	UPROPERTY()
-	FTopLevelAssetPath Class;
+	FName Class;
 
 	UPROPERTY()
 	FName Path;
@@ -744,10 +758,15 @@ struct FRCAssetFilter
 
 	FARFilter ToARFilter() const
 	{
+		auto ToAssetPath = [](FName InClassName) { return FTopLevelAssetPath(InClassName.ToString()); };
+
 		FARFilter Filter;
 		Filter.PackageNames = PackageNames;
-		Filter.ClassPaths = ClassNames;
-		Filter.RecursiveClassPathsExclusionSet = RecursiveClassesExclusionSet;
+
+		Filter.ClassPaths.Reserve(ClassNames.Num());
+		Algo::Transform(ClassNames, Filter.ClassPaths, ToAssetPath);
+
+		Algo::Transform(RecursiveClassesExclusionSet, Filter.RecursiveClassPathsExclusionSet, ToAssetPath);
 		Filter.bRecursiveClasses = RecursiveClasses;
 		Filter.PackagePaths = PackagePaths;
 
@@ -778,15 +797,15 @@ struct FRCAssetFilter
 
 	/** The filter component for class names. Instances of the specified classes, but not subclasses (by default), will be included. Derived classes will be included only if bRecursiveClasses is true. */
 	UPROPERTY()
-	TArray<FTopLevelAssetPath> ClassNames;
+	TArray<FName> ClassNames;
 
 	/** Only if bRecursiveClasses is true, the results will exclude classes (and subclasses) in this list */
 	UPROPERTY()
-	TSet<FTopLevelAssetPath> RecursiveClassesExclusionSet;
+	TSet<FName> RecursiveClassesExclusionSet;
 
 	/** Only if EnableBlueprintNativeClassFiltering is true, resulting asset will be filtered for dependants of classes in this list. */
 	UPROPERTY()
-	TArray<FTopLevelAssetPath> NativeParentClasses;
+	TArray<FName> NativeParentClasses;
 
 	/** If true, subclasses of ClassNames will also be included and RecursiveClassesExclusionSet will be excluded. */
 	UPROPERTY()

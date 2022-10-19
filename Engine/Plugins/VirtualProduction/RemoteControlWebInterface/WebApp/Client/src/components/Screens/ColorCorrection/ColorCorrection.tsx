@@ -792,6 +792,7 @@ export class ColorCorrection extends React.Component<Props, State> {
                     <AssetWidget browse
                                  reset={false}
                                  type="Texture"
+                                 typePath="/Script/Engine.Texture"
                                  label="Texture"
                                  onChange={v => this.onPropertyChange('Texture', v)}
                                  value={_.get(value, 'Texture') ?? ''} />

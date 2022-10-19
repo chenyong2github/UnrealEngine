@@ -235,9 +235,9 @@ namespace WebRemoteControl
 		{
 			TSet<UClass*> NativeClasses;
 			NativeClasses.Reserve(SearchAssetRequest.Filter.NativeParentClasses.Num());
-			for (FTopLevelAssetPath NativeClass : SearchAssetRequest.Filter.NativeParentClasses)
+			for (FName NativeClassName : SearchAssetRequest.Filter.NativeParentClasses)
 			{
-				if (UClass* Class = FindObject<UClass>(NativeClass))
+				if (UClass* Class = FindObject<UClass>(FTopLevelAssetPath{ NativeClassName.ToString()}))
 				{
 					NativeClasses.Add(Class);
 				}
@@ -258,6 +258,10 @@ namespace WebRemoteControl
 							It.RemoveCurrent();
 						}
 					}
+				}
+				else
+				{
+					It.RemoveCurrent();
 				}
 			}
 		}

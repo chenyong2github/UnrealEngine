@@ -48,18 +48,18 @@ export class Snapshot extends React.Component<Props, State> {
       map = await _api.proxy.function(editorSubsystem, 'GetEditorWorld', {});
     }
 
-    const nativeFilters = await _api.assets.search('', ['LevelSnapshotFilter'], '/Game', {}, 50);
+    const nativeFilters = await _api.assets.search('', ['/Script/LevelSnapshotFilters.LevelSnapshotFilter'], '/Game', {}, 50);
 
     const filterArgs = {
       EnableBlueprintNativeClassFiltering: true,
-      NativeParentClasses: ['LevelSnapshotFilter'],
+      NativeParentClasses: ['/Script/LevelSnapshotFilters.LevelSnapshotBlueprintFilter'],
     };
-    const bpFilters = _.filter(await _api.assets.search('', ['Blueprint'], '/Game', filterArgs, 50), f => !!f.Metadata['GeneratedClass']);
+    const bpFilters = _.filter(await _api.assets.search('', ['/Script/Engine.Blueprint'], '/Game', filterArgs, 50), f => !!f.Metadata['GeneratedClass']);
 
     const filters = [...bpFilters, ...nativeFilters];
 
     const { search, sortBy, sortAsc } = this.state;
-    const assets = await _api.assets.search(search, ['LevelSnapshot'], '/Game', {}, 200);
+    const assets = await _api.assets.search(search, ['/Script/LevelSnapshots.LevelSnapshot'], '/Game', {}, 200);
     let snapshots = _.filter(assets, asset => !map || asset.Metadata?.MapPath === map);
     
     snapshots = this.sortAssets(snapshots, sortBy, sortAsc);

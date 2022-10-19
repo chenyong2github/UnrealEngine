@@ -503,6 +503,7 @@ export namespace UnrealEngine {
     for (const Group of preset.Groups) {
       for (const Property of Group.ExposedProperties) {
         Property.Type = Property.UnderlyingProperty.Type;
+        Property.TypePath = Property.UnderlyingProperty.TypePath;
         preset.Exposed[Property.ID] = Property;
       }
 
@@ -531,12 +532,13 @@ export namespace UnrealEngine {
           Metadata: Controller.Metadata,
           Description: '',
           Type: Controller.Type,
+          TypePath: Controller.TypePath
         };
 
         preset.Exposed[Controller.ID] = Controller;
         Controllers.ExposedProperties.push(Controller);
       }
-    }
+    } 
 
     preset.IsFavorite = favorites?.[preset.ID];
     return preset;

@@ -32,7 +32,7 @@ export class Sequencer extends React.Component<Props, State> {
 
   fetchAssets = async () => {
     const { search } = this.state;
-    const assets = await _api.assets.search(search, ['LevelSequence'], '/Game', 200);
+    const assets = await _api.assets.search(search, ['/Script/LevelSequence.LevelSequence'], '/Game', 200);
     this.setState({ assets });
   }
 

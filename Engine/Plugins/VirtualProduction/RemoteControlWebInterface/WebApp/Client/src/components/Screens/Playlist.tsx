@@ -68,7 +68,7 @@ export class Playlist extends React.Component<Props, State> {
 
     this.player = await _api.proxy.function("Object'/Script/SequencerPlaylists.Default__SequencerPlaylistPlayer'", 'GetDefaultPlayer', { WorldContextObject });
 
-    const sequences = await _api.assets.search('', ['LevelSequence'], '/Game', 200);
+    const sequences = await _api.assets.search('', ['/Script/LevelSequence.LevelSequence'], '/Game', 200);
     this.setState({ sequences });
 
     const currentPlaylist = await _api.proxy.function(this.player, 'GetPlaylist');
@@ -76,7 +76,7 @@ export class Playlist extends React.Component<Props, State> {
       const folder = path.dirname(currentPlaylist);
       const [filename] = path.basename(currentPlaylist).split('.');
 
-      const playlistAsset = await _api.assets.search(filename, ['SequencerPlaylist'], folder, 200);
+      const playlistAsset = await _api.assets.search(filename, ['/Script/SequencerPlaylists.SequencerPlaylist'], folder, 200);
       await this.onLoadPlaylist(playlistAsset[0]);
     }
   }
@@ -119,7 +119,7 @@ export class Playlist extends React.Component<Props, State> {
   }
 
   onPlaylistBrowse = async () => {
-    const playlist = await SearchModal.open({ placeholder: 'Search Playlist', types: ['SequencerPlaylist'], prefix: '/Game', count: 200 });
+    const playlist = await SearchModal.open({ placeholder: 'Search Playlist', types: ['/Script/SequencerPlaylists.SequencerPlaylist'], prefix: '/Game', count: 200 });
     if (!playlist)
       return;
 

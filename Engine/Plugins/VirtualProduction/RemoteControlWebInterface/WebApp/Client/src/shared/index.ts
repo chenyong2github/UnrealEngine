@@ -87,6 +87,7 @@ export interface IProperty {
   Name: string;
   Description: string;
   Type: PropertyType;
+  TypePath: string;
   Metadata: { [key: string]: string };
 }
 
@@ -100,12 +101,14 @@ export interface IExposedProperty {
 
   //Added
   Type: PropertyType;
+  TypePath: string;
 }
 
 export interface IController {
   ID: string;
   Name: string;
   Type: PropertyType;
+  TypePath: string;
   Path: string;
 
   DisplayName: string;
