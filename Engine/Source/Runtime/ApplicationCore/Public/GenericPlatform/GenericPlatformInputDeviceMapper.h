@@ -211,6 +211,12 @@ public:
 	 */
 	virtual FPlatformUserId GetPlatformUserForUserIndex(int32 LocalUserIndex) = 0;
 
+	/** Allocates a new user id when a user becomes active, will return none if no more can be created */
+	virtual FPlatformUserId AllocateNewUserId() = 0;
+
+	/** Returns the next available input device id. This ID should be globally unique! */
+	virtual FInputDeviceId AllocateNewInputDeviceId() = 0;
+	
 protected:
 
 	/**
@@ -248,12 +254,6 @@ protected:
 	 * OnControllerPairingChange
 	 */
 	virtual bool ShouldBroadcastLegacyDelegates() const = 0;
-	
-	/** Allocates a new user id when a user becomes active, will return none if no more can be created */
-	virtual FPlatformUserId AllocateNewUserId() = 0;
-
-	/** Returns the next available input device id. This ID should be globally unique! */
-	virtual FInputDeviceId AllocateNewInputDeviceId() = 0;
 
 	/** Callback when input devices are disconnected/reconnected */
 	static FOnUserInputDeviceConnectionChange OnInputDeviceConnectionChange;
@@ -292,6 +292,12 @@ public:
 	virtual int32 GetUserIndexForPlatformUser(FPlatformUserId UserId) override;
 	virtual bool IsUsingControllerIdAsUserId() const override;
 	virtual bool ShouldBroadcastLegacyDelegates() const override;
+
+	/** Allocates a new user id when a user becomes active, will return none if no more can be created */
+	virtual FPlatformUserId AllocateNewUserId() override;
+
+	/** Returns the next available input device id */
+	virtual FInputDeviceId AllocateNewInputDeviceId() override;
 	
 protected:
 
@@ -300,12 +306,6 @@ protected:
 	* If the user has logged out, then remap any input devices that the user had to the "Unpaired" user on this platform (if bUnpairInputDevicesWhenLoggingOut is true)
 	*/
 	virtual void OnUserLoginChangedEvent(bool bLoggedIn, int32 RawPlatformUserId, int32 UserIndex) override;
-	
-	/** Allocates a new user id when a user becomes active, will return none if no more can be created */
-	virtual FPlatformUserId AllocateNewUserId() override;
-
-	/** Returns the next available input device id */
-	virtual FInputDeviceId AllocateNewInputDeviceId() override;
 
 	/** Flags for backwards compatibility with the older "int32 ControllerId" implementation */
 	const bool bUsingControllerIdAsUserId = true;

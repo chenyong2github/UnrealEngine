@@ -132,6 +132,12 @@ bool IPlatformInputDeviceMapper::Internal_SetInputDeviceConnectionState(FInputDe
 		return false;
 	}
 
+	// If the connection state hasn't changed, then there is no point to calling the map function below
+	if (GetInputDeviceConnectionState(DeviceId) == NewState)
+	{
+		return false;
+	}
+
 	// Determine the owning user for this input device
 	FPlatformUserId OwningUser = GetUserForInputDevice(DeviceId);
 
