@@ -622,7 +622,7 @@ void UGameInstance::StartGameInstance()
 	const FString& DefaultMap = GameMapsSettings->GetGameDefaultMap();
 
 	FString PackageName;
-	if (!FParse::Token(Tmp, PackageName, 0) || **PackageName == '-')
+	if (!GetMapOverrideName(Tmp, PackageName))
 	{
 		PackageName = DefaultMap + GameMapsSettings->LocalMapOptions;
 	}
@@ -685,6 +685,34 @@ void UGameInstance::BroadcastOnStart()
 void UGameInstance::OnStart()
 {
 
+}
+
+bool UGameInstance::GetMapOverrideName(const TCHAR* CmdLine, FString& OverrideMapName)
+{
+	const TCHAR* ParsedCmdLine = CmdLine;
+
+	while (*ParsedCmdLine)
+	{
+		FString Token = FParse::Token(ParsedCmdLine, 0);
+
+		if (Token.IsEmpty())
+		{
+			continue;
+		}
+
+		if (Token[0] != TCHAR('-'))
+		{
+			OverrideMapName = Token;
+
+			return true;
+		}
+		else if (FParse::Value(*Token, TEXT("-map="), OverrideMapName))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool UGameInstance::HandleOpenCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)

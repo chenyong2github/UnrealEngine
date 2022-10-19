@@ -650,6 +650,9 @@ protected:
 	/** Called when the game instance is started either normally or through PIE. */
 	virtual void OnStart();
 
+	/** Find a map override argument on the command-line string (the first argument without a leading '-' or -map=..., whichever comes first). */
+	static bool GetMapOverrideName(const TCHAR* CmdLine, FString& OverrideMapName);
+
 private:
 
 	FObjectSubsystemCollection<UGameInstanceSubsystem> SubsystemCollection;
