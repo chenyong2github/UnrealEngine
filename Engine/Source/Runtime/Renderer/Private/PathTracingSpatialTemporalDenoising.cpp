@@ -11,16 +11,16 @@ PathTracingSpatialTemporalDenoiserFunction* GPathTracingSpatialTemporalDenoiserF
 PathTracingMotionVectorFunction* GPathTracingMotionVectorFunc = nullptr;
 #if RHI_RAYTRACING
 
-#include "RendererPrivate.h"
-#include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
+#include "GenerateMips.h"
+#include "GlobalShader.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "RayTracingTypes.h"
-#include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
-#include "RenderCore/Public/GenerateMips.h"
+#include "RayTracingDefinitions.h"
+#include "RayTracingTypes.h"
 #include "RenderGraphDefinitions.h"
+#include "RendererPrivate.h"
 #include <limits>
 
 DEFINE_LOG_CATEGORY_STATIC(LogPathTracingDenoising, Log, All);

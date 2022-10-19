@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "../DesktopPlatformBase.h"
 #include "Containers/IndirectArray.h"
+#include "CoreMinimal.h"
+#include "DesktopPlatformBase.h"
 #include "Windows/WindowsHWrapper.h"
 #include "WindowsRegistry.h"
 

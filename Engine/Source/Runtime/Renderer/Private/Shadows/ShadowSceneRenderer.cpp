@@ -3,10 +3,10 @@
 	ShadowSceneRenderer.cpp:
 =============================================================================*/
 #include "ShadowSceneRenderer.h"
-#include "../ScenePrivate.h"
-#include "../DeferredShadingRenderer.h"
-#include "../VirtualShadowMaps/VirtualShadowMapCacheManager.h"
-#include "../VirtualShadowMaps/VirtualShadowMapProjection.h"
+#include "DeferredShadingRenderer.h"
+#include "ScenePrivate.h"
+#include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+#include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "DynamicPrimitiveDrawing.h"

@@ -78,7 +78,7 @@ struct FD3D12_COMPUTE_PIPELINE_STATE_STREAM
 struct ComputePipelineCreationArgs_POD;
 struct GraphicsPipelineCreationArgs_POD;
 
-#include "../D3D12PipelineState.h"
+#include "D3D12PipelineState.h"
 
 void SaveByteCode(D3D12_SHADER_BYTECODE& ByteCode);
 

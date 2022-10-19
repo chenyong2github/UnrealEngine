@@ -45,6 +45,7 @@
 #include "AnimationBlueprintEditorSettings.h"
 #include "AnimationBlueprintInterfaceEditorMode.h"
 #include "AnimationBlueprintTemplateEditorMode.h"
+#include "AnimationEditorPreviewScene.h"
 #include "AnimationEditorUtils.h"
 #include "AnimationGraph.h"
 #include "AnimationGraphSchema.h"
@@ -97,11 +98,14 @@
 #include "PersonaModule.h"
 #include "PersonaToolMenuContext.h"
 #include "PersonaUtils.h"
-#include "Persona/Private/AnimationEditorPreviewScene.h"
 // Hide related nodes feature
+#include "AnimationBlueprintToolMenuContext.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "PersonaPreviewSceneDescription.h"
 #include "Preferences/AnimationBlueprintEditorOptions.h"
+#include "Preferences/PersonaOptions.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorDelegates.h"
 #include "SBlueprintEditorToolbar.h"
 #include "SKismetInspector.h"
@@ -118,8 +122,7 @@
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
 #include "ToolMenuContext.h"
-#include "Persona/Private/PersonaPreviewSceneDescription.h"
-#include "Preferences/PersonaOptions.h"
+#include "ToolMenus.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
@@ -131,9 +134,6 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
-#include "AnimationBlueprintToolMenuContext.h"
-#include "ToolMenus.h"
-#include "PropertyCustomizationHelpers.h"
 
 class FEditorModeTools;
 class FToolBarBuilder;

@@ -2,8 +2,6 @@
 
 #include "VirtualizationEditorModule.h"
 
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"
@@ -11,6 +9,8 @@
 #include "SVirtualAssetsStatistics.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "VirtualizationEditor"
 

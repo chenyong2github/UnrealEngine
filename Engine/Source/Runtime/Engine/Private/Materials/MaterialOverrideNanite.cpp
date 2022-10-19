@@ -4,7 +4,7 @@
 
 #include "Interfaces/ITargetPlatform.h"
 #include "Materials/MaterialInterface.h"
-#include "RenderCore/Public/RenderUtils.h"
+#include "RenderUtils.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
 

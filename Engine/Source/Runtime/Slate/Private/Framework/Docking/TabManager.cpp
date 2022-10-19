@@ -22,7 +22,7 @@
 #include "Trace/SlateMemoryTags.h"
 #include "HAL/PlatformApplicationMisc.h"
 #if PLATFORM_MAC
-#include "../MultiBox/Mac/MacMenu.h"
+#include "Framework/MultiBox/Mac/MacMenu.h"
 #endif
 
 

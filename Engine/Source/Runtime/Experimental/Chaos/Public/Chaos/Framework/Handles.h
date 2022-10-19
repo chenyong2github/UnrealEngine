@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Chaos/ChaosArchive.h"
 #include "Chaos/Core.h"
-#include "../ChaosArchive.h"
 #include "ChaosCheck.h"
 
 namespace Chaos

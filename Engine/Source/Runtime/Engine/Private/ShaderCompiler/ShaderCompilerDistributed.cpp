@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ShaderCompiler.h"
+#include "DistributedBuildControllerInterface.h"
 #include "HAL/FileManager.h"
-#include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
+#include "ShaderCompiler.h"
 
 namespace DistributedShaderCompilerVariables
 {

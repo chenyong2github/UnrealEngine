@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StringsAnalyzer.h"
-#include "../Common/Utils.h"
+#include "Common/Utils.h"
 #include "TraceServices/Model/Definitions.h"
 #include "TraceServices/Model/Strings.h"
 

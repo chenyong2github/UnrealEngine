@@ -5,15 +5,15 @@
 =============================================================================*/
 
 #include "Engine/TextureCubeArray.h"
-#include "RenderUtils.h"
-#include "TextureResource.h"
-#include "EngineUtils.h"
+#include "Containers/ResourceArray.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
-#include "Containers/ResourceArray.h"
-#include "TextureCompiler.h"
-#include "Engine/Public/ImageUtils.h"
+#include "EngineUtils.h"
+#include "ImageUtils.h"
 #include "Misc/ScopedSlowTask.h"
+#include "RenderUtils.h"
+#include "TextureCompiler.h"
+#include "TextureResource.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureCubeArray)

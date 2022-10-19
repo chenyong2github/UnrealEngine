@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../SceneTextures.h"
+#include "SceneTextures.h"
 
 /*
 * Stencil layout during basepass / deferred decals:

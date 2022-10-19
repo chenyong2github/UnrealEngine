@@ -5,20 +5,20 @@
 =============================================================================*/
 
 #include "Engine/VolumeTexture.h"
-#include "RenderUtils.h"
-#include "TextureResource.h"
-#include "EngineUtils.h"
+#include "Containers/ResourceArray.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
-#include "Containers/ResourceArray.h"
+#include "Engine/TextureMipDataProviderFactory.h"
+#include "EngineUtils.h"
+#include "ImageUtils.h"
+#include "Misc/ScopedSlowTask.h"
+#include "RenderUtils.h"
 #include "Rendering/Texture3DResource.h"
-#include "Streaming/VolumeTextureStreaming.h"
 #include "Streaming/TextureStreamIn.h"
 #include "Streaming/TextureStreamOut.h"
-#include "Engine/TextureMipDataProviderFactory.h"
+#include "Streaming/VolumeTextureStreaming.h"
 #include "TextureCompiler.h"
-#include "Engine/Public/ImageUtils.h"
-#include "Misc/ScopedSlowTask.h"
+#include "TextureResource.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeTexture)

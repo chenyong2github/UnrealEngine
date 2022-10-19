@@ -4,8 +4,8 @@
 =============================================================================*/
 #pragma once
 
-#include "../Nanite/Nanite.h"
-#include "../MeshDrawCommands.h"
+#include "MeshDrawCommands.h"
+#include "Nanite/Nanite.h"
 #include "SceneTypes.h"
 #include "VirtualShadowMapDefinitions.h"
 

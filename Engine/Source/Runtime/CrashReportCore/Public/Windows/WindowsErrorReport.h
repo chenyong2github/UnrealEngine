@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../GenericErrorReport.h"
+#include "GenericErrorReport.h"
 
 /**
  * Helper that works with Windows Error Reports

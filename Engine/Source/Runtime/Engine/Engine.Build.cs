@@ -26,17 +26,17 @@ public class Engine : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Developer/Virtualization/Private",
-				"Runtime/Engine/Private",
-				"Runtime/Net/Core/Private",
-				"Runtime/Renderer/Private",
-				"Runtime/SynthBenchmark/Public",
+				Path.Combine(GetModuleDirectory("NetCore"), "Private"),
+				Path.Combine(GetModuleDirectory("Renderer"), "Private"),
+				Path.Combine(GetModuleDirectory("SynthBenchmark"), "Private"),
+				Path.Combine(GetModuleDirectory("Virtualization"), "Private"),
 			}
 		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"DerivedDataCache",
+				"DistributedBuildInterface",
 				"TargetPlatform",
 				"ImageWrapper",
 				"ImageWriteQueue",

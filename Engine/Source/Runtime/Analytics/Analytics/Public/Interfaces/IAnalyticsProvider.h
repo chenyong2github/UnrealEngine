@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "AnalyticsEventAttribute.h"
 #include "CoreMinimal.h"
-#include "../AnalyticsEventAttribute.h"
 
 class Error;
 

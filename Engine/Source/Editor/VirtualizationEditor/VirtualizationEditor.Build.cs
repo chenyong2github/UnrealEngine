@@ -20,5 +20,13 @@ public class VirtualizationEditor : ModuleRules
 				"SlateCore",
 				"Virtualization"
 			});
+
+		PrivateIncludePathModuleNames.AddRange
+		(
+			new string[]
+			{
+				"WorkspaceMenuStructure",
+			}
+		);
 	}
 }

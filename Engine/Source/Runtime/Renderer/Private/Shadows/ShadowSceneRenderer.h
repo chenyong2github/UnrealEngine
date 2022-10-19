@@ -10,7 +10,7 @@
 #include "Containers/BinaryHeap.h"
 #include "Containers/Array.h"
 
-#include "../VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 
 class FProjectedShadowInfo;
 class FDeferredShadingSceneRenderer;

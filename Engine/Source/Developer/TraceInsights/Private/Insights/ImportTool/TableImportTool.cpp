@@ -7,7 +7,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Logging/MessageLog.h"
-#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLogModule.h"
 #include "Misc/FileHelper.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/Model/Threads.h"

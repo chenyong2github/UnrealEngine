@@ -1,10 +1,10 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetadataAnalysis.h"
 
-#include "CoreMinimal.h"
-#include "../Common/Utils.h"
 #include "Common/ProviderLock.h"
+#include "Common/Utils.h"
 #include "Containers/StringConv.h"
+#include "CoreMinimal.h"
 #include "Model/DefinitionProvider.h"
 #include "Model/MetadataProvider.h"
 #include "Trace/Analyzer.h"
