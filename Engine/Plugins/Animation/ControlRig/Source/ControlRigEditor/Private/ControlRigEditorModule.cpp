@@ -1003,7 +1003,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 	}
 
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
-	Registry.Refresh();
+	Registry.RefreshEngineTypes();
 
 #if UE_RIGVM_ENABLE_TEMPLATE_NODES
 	

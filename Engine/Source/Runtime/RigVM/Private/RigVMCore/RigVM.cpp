@@ -995,14 +995,16 @@ void URigVM::ResolveFunctionsIfRequired()
 
 		for (int32 FunctionIndex = 0; FunctionIndex < GetFunctionNames().Num(); FunctionIndex++)
 		{
-			GetFunctions()[FunctionIndex] = nullptr;
-			GetFactories()[FunctionIndex] = nullptr;
 			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*GetFunctionNames()[FunctionIndex].ToString()))
 			{
 				GetFunctions()[FunctionIndex] = Function->FunctionPtr;
 				GetFactories()[FunctionIndex] = Function->Factory;
 			}
-			ensureMsgf(GetFunctions()[FunctionIndex], TEXT("Function %s is not valid"), *GetFunctionNames()[FunctionIndex].ToString());
+			else
+			{
+				// We cannot recover from missing functions. 
+				UE_LOG(LogRigVM, Fatal, TEXT("No handler found for function '%s'"), *GetFunctionNames()[FunctionIndex].ToString());
+			}
 		}
 	}
 }

@@ -64,7 +64,7 @@ public:
 	
 	// Refreshes the list and finds the function pointers
 	// based on the names.
-	void Refresh();
+	void RefreshEngineTypes();
 
 	// Update the registry when types are renamed
 	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath);

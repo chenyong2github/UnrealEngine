@@ -135,7 +135,7 @@ const FRigVMDispatchFactory* URigVMDispatchNode::GetFactory() const
 	}
 
 	// Try to find factories that have not been registered yet
-	FRigVMRegistry::Get().Refresh();
+	FRigVMRegistry::Get().RefreshEngineTypes();
 	if(const FRigVMTemplate* Template = GetTemplate())
 	{
 		CachedFactory = Template->GetDispatchFactory(); 

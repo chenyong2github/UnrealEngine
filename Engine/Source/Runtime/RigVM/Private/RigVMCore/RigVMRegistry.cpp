@@ -10,8 +10,17 @@
 #include "Engine/UserDefinedStruct.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/DelayedAutoRegister.h"
 
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
+
+
+// When the object system has been completely loaded, load in all the engine types that we haven't registered already in InitializeIfNeeded 
+FDelayedAutoRegisterHelper GRigVMRegistrySingletonHelper(EDelayedRegisterRunPhase::ObjectSystemReady, []() -> void
+{
+	FRigVMRegistry::Get().RefreshEngineTypes();
+});
+
 
 FRigVMRegistry::~FRigVMRegistry()
 {
@@ -142,8 +151,6 @@ void FRigVMRegistry::InitializeIfNeeded()
 		FindOrAddType(FRigVMTemplateArgumentType(MathType));
 	}
 
-	Refresh();
-
 	// hook the registry to prepare for engine shutdown
 	FCoreDelegates::OnExit.AddLambda([&]()
 	{
@@ -168,53 +175,47 @@ void FRigVMRegistry::InitializeIfNeeded()
 	UE::Anim::AttributeTypes::GetOnAttributeTypesChanged().AddRaw(this, &FRigVMRegistry::OnAnimationAttributeTypesChanged);
 }
 
-void FRigVMRegistry::Refresh()
+void FRigVMRegistry::RefreshEngineTypes()
 {
-	// refresh only tries to register all loaded types
-	// trying to load all types is very slow for large projects so we don't want to do that
-	
-	// add all user defined structs
-	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
-	{
-		UScriptStruct* ScriptStruct = *ScriptIt;
-		if(IsAllowedType(ScriptStruct))
+	// Register all user-defined types that the engine knows about. Enumerating over the entire object hierarchy is
+	// slow, so we do it for structs, enums and dispatch factories in one shot.
+	TArray<UScriptStruct*> DispatchFactoriesToRegister;
+	DispatchFactoriesToRegister.Reserve(32);
+
+	static TArray<const UClass *> ClassesToEnumerate{UScriptStruct::StaticClass(), UEnum::StaticClass()};
+	ForEachObjectOfClasses(
+		ClassesToEnumerate,
+		[this, &DispatchFactoriesToRegister](UObject* InObject) -> void
 		{
-			// if this is a C++ type - skip it
-			if(ScriptStruct->IsA<UUserDefinedStruct>() || ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InObject))
 			{
-				FindOrAddType(FRigVMTemplateArgumentType(ScriptStruct));
+				// if this is a C++ type - skip it
+				if(ScriptStruct->IsA<UUserDefinedStruct>() || ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					FindOrAddType(FRigVMTemplateArgumentType(ScriptStruct));
+				}
+				else if (ScriptStruct != FRigVMDispatchFactory::StaticStruct() &&
+						 ScriptStruct->IsChildOf(FRigVMDispatchFactory::StaticStruct()))
+				{
+					DispatchFactoriesToRegister.Add(ScriptStruct);
+				}
+			}
+			else if (UEnum* Enum = Cast<UEnum>(InObject))
+			{
+				// Ignore reflected C++ enums.
+				if(IsAllowedType(Enum) && !Enum->IsNative())
+				{
+					const FString CPPType = Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType;
+					FindOrAddType(FRigVMTemplateArgumentType(*CPPType, Enum));
+				}
 			}
 		}
-	}
-
-	// add all user defined enums
-	for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
-	{
-		UEnum* Enum = (*EnumIt);
-		if(!IsAllowedType(Enum))
-		{
-			continue;
-		}
-
-		// if this is a C++ type - skip it
-		if(Enum->IsNative())
-		{
-			continue;
-		}
-
-		const FString CPPType = Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType;
-		FindOrAddType(FRigVMTemplateArgumentType(*CPPType, Enum));
-	}
+	);
 	
-	// register all dispatch factories
-	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
+	// Register all dispatch factories only after all other types have been registered.
+	for (UScriptStruct* DispatchFactoryStruct: DispatchFactoriesToRegister)
 	{
-		UScriptStruct* ScriptStruct = *ScriptIt;
-		if(ScriptStruct != FRigVMDispatchFactory::StaticStruct() &&
-			ScriptStruct->IsChildOf(FRigVMDispatchFactory::StaticStruct()))
-		{
-			RegisterFactory(ScriptStruct);
-		}
+		RegisterFactory(DispatchFactoryStruct);
 	}
 }
 
@@ -1075,37 +1076,38 @@ const FRigVMDispatchFactory* FRigVMRegistry::RegisterFactory(UScriptStruct* InFa
 
 const FRigVMFunction* FRigVMRegistry::FindFunction(const TCHAR* InName) const
 {
+	// Check first if the function is provided by internally registered rig units. 
 	if(const int32* FunctionIndexPtr = FunctionNameToIndex.Find(InName))
 	{
 		return &Functions[*FunctionIndexPtr];
 	}
 
-	// look for the function from a dispatch factory, will register the corresponding factory if needed
+#if !UE_BUILD_SHIPPING
+	static bool IsDispatchingFunction = false;
+	if(IsDispatchingFunction)
 	{
-		static bool IsDispatchingFunction = false;
-		if(IsDispatchingFunction)
+		return nullptr;
+	}
+#endif
+
+	// Otherwise ask the associated dispatch factory for a function matching this signature.
+	const FString NameString(InName);
+	FString FactoryName, ArgumentsString;
+	if(NameString.Split(TEXT("::"), &FactoryName, &ArgumentsString))
+	{
+		// if the factory has never been registered - FindDispatchFactory will try to look it up and register
+		if(const FRigVMDispatchFactory* Factory = FindDispatchFactory(*FactoryName))
 		{
-			return nullptr;
-		}
-		
-		const FString NameString(InName);
-		FString FactoryName, ArgumentsString;
-		if(NameString.Split(TEXT("::"), &FactoryName, &ArgumentsString))
-		{
-			// if the factory has never been registered - FindDispatchFactory will try to look it up and register
-			if(const FRigVMDispatchFactory* Factory = FindDispatchFactory(*FactoryName))
+			if(const FRigVMTemplate* Template = Factory->GetTemplate())
 			{
-				if(const FRigVMTemplate* Template = Factory->GetTemplate())
+				const FRigVMTemplateTypeMap ArgumentTypes = Template->GetArgumentTypesFromString(ArgumentsString);
+				if(ArgumentTypes.Num() == Template->NumArguments())
 				{
-					const FRigVMTemplateTypeMap ArgumentTypes = Template->GetArgumentTypesFromString(ArgumentsString);
-					if(ArgumentTypes.Num() == Template->NumArguments())
+					const int32 PermutationIndex = Template->FindPermutation(ArgumentTypes);
+					if(PermutationIndex != INDEX_NONE)
 					{
-						const int32 PermutationIndex = Template->FindPermutation(ArgumentTypes);
-						if(PermutationIndex != INDEX_NONE)
-						{
-							TGuardValue<bool> ReEntryGuard(IsDispatchingFunction, true);
-							return ((FRigVMTemplate*)Template)->GetOrCreatePermutation(PermutationIndex);
-						}
+						TGuardValue<bool> ReEntryGuard(IsDispatchingFunction, true);
+						return ((FRigVMTemplate*)Template)->GetOrCreatePermutation(PermutationIndex);
 					}
 				}
 			}
