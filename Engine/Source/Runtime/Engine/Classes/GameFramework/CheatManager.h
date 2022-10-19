@@ -82,6 +82,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Cheat Manager")
 	APlayerController* GetPlayerController() const;
+
+	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Added To Cheat Manager", Keywords="Begin Play"))
+	void AddedToCheatManager();
+
+	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Removed From Cheat Manager", Keywords = "End Play"))
+	void RemovedFromCheatManager();
 };
 
 /** 

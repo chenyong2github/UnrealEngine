@@ -81,6 +81,10 @@ UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 
 void UCheatManager::OnPlayerEndPlayed(AActor* Player, EEndPlayReason::Type EndPlayReason)
 {
+	for (UCheatManagerExtension* CheatExtension : CheatManagerExtensions)
+	{
+		CheatExtension->RemovedFromCheatManager();
+	}
 	CheatManagerExtensions.Empty();
 }
 
@@ -1369,7 +1373,11 @@ void UCheatManager::AddCheatManagerExtension(UCheatManagerExtension* CheatObject
 {
 	if (ensure(CheatObject))
 	{
-		CheatManagerExtensions.AddUnique(CheatObject);
+		if (!CheatManagerExtensions.Contains(CheatObject))
+		{
+			CheatManagerExtensions.Add(CheatObject);
+			CheatObject->AddedToCheatManager();
+		}
 	}
 }
 
@@ -1377,7 +1385,12 @@ void UCheatManager::RemoveCheatManagerExtension(UCheatManagerExtension* CheatObj
 {
 	if (ensure(CheatObject))
 	{
-		CheatManagerExtensions.Remove(CheatObject);
+		int32 CheatExtensionIdx = CheatManagerExtensions.IndexOfByKey(CheatObject);
+		if (CheatExtensionIdx != INDEX_NONE)
+		{
+			CheatManagerExtensions.RemoveAt(CheatExtensionIdx);
+			CheatObject->RemovedFromCheatManager();
+		}
 	}
 }
 
