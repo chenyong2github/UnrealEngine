@@ -458,6 +458,18 @@ int32 UKismetMathLibrary::Percent_IntInt(int32 A, int32 B)
 }
 
 KISMET_MATH_FORCEINLINE
+int64 UKismetMathLibrary::Percent_Int64Int64(int64 A, int64 B)
+{
+	if (B == 0)
+	{
+		ReportError_Percent_Int64Int64();
+		return 0;
+	}
+
+	return (A % B);
+}
+
+KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::Fraction(double A)
 {
 	return FMath::Fractional(A);

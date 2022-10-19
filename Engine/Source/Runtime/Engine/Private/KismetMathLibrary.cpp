@@ -78,7 +78,7 @@ void UKismetMathLibrary::ReportError_Divide_ByteByte()
 
 void UKismetMathLibrary::ReportError_Percent_ByteByte()
 {
-	FFrame::KismetExecutionMessage(TEXT("Modulo by zero"), ELogVerbosity::Warning, DivideByZeroWarning);
+	FFrame::KismetExecutionMessage(TEXT("Modulo by zero: Percent_ByteByte"), ELogVerbosity::Warning, DivideByZeroWarning);
 }
 
 void UKismetMathLibrary::ReportError_Divide_IntInt()
@@ -103,7 +103,12 @@ void UKismetMathLibrary::ReportError_Divide_Int64Int64()
 
 void UKismetMathLibrary::ReportError_Percent_IntInt()
 {
-	FFrame::KismetExecutionMessage(TEXT("Modulo by zero"), ELogVerbosity::Warning, DivideByZeroWarning);
+	FFrame::KismetExecutionMessage(TEXT("Modulo by zero: Percent_IntInt"), ELogVerbosity::Warning, DivideByZeroWarning);
+}
+
+void UKismetMathLibrary::ReportError_Percent_Int64Int64()
+{
+	FFrame::KismetExecutionMessage(TEXT("Modulo by zero: Percent_Int64Int64"), ELogVerbosity::Warning, DivideByZeroWarning);
 }
 
 void UKismetMathLibrary::ReportError_Sqrt()

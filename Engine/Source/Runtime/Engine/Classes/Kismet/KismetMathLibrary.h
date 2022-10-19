@@ -407,6 +407,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer64 / integer64", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer64")
 	static int64 Divide_Int64Int64(int64 A, int64 B = 1);
 	
+	/** Modulo (A % B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "% (integer64)", CompactNodeTitle = "%", Keywords = "% modulus"), Category = "Math|Integer64")
+	static int64 Percent_Int64Int64(int64 A, int64 B = 1);
+
 	/** Addition (A + B) */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer64 + integer64", CompactNodeTitle = "+", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Integer64")
 	static int64 Add_Int64Int64(int64 A, int64 B = 1);
@@ -4313,6 +4317,7 @@ private:
 	static void ReportError_Divide_DoubleDouble();
 	static void ReportError_Divide_Int64Int64();
 	static void ReportError_Percent_IntInt();
+	static void ReportError_Percent_Int64Int64();
 	static void ReportError_Sqrt();
 	static void ReportError_Divide_VectorFloat();
 	static void ReportError_Divide_VectorInt();
