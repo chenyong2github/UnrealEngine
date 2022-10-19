@@ -7,8 +7,11 @@
 #include "Dataflow/DataflowGraphEditor.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GraphEditor.h"
-#include "Toolkits/SimpleAssetEditor.h"
 #include "Misc/NotifyHook.h"
+#include "TickableEditorObject.h"
+#include "Toolkits/SimpleAssetEditor.h"
+
+
 
 class IDetailsView;
 class FTabManager;
@@ -16,10 +19,11 @@ class IToolkitHost;
 class UDataflow;
 
 
-class FGeometryCollectionEditorToolkit : public FAssetEditorToolkit, public FNotifyHook, public FGCObject
+class FGeometryCollectionEditorToolkit : public FAssetEditorToolkit, public FTickableEditorObject, public FNotifyHook, public FGCObject
 {
 public:
 	void InitGeometryCollectionAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
+	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;
@@ -52,6 +56,12 @@ public:
 	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
 	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
 
+	//~ Begin FTickableEditorObject interface
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickable() const override { return true; }
+	virtual TStatId GetStatId() const override;
+	//~ End FTickableEditorObject Interface
+
 private:
 	static const FName GraphCanvasTabId;
 	TSharedPtr<SGraphEditor> GraphEditor;
@@ -67,4 +77,7 @@ private:
 
 	UDataflow* Dataflow = nullptr;
 	UGeometryCollection* GeometryCollection = nullptr;
+
+	TSharedPtr<Dataflow::FEngineContext> Context;
+	Dataflow::FTimestamp LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 };

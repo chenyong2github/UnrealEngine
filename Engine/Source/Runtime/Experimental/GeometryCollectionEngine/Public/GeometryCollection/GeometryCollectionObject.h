@@ -654,8 +654,12 @@ public:
 	//
 	// Dataflow
 	//
-	UPROPERTY(EditAnywhere, Category = "Procedural")
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	TObjectPtr<UDataflow> Dataflow;
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	FString Terminal;
+
 
 private:
 #if WITH_EDITOR

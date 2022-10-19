@@ -23,9 +23,13 @@
 #include "IStructureDetailsView.h"
 
 #define LOCTEXT_NAMESPACE "GeometryCollectionEditorToolkit"
-
 //DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionEditorToolkitLog, Log, All);
 
+
+int32 bDataflowAssetEditorGeometryCollectionLiveEvaluationEnableCVar = 1;
+FAutoConsoleVariableRef CVarDataflowAssetEditorGeometryCollectionEnableLiveEvaluation(TEXT("p.Dataflow.AssetEditor.GeometryCollection.LiveEvaluation.Enable"),
+	bDataflowAssetEditorGeometryCollectionLiveEvaluationEnableCVar,
+	TEXT("Enable live evaluation of specified output on the GeometryCollectionAsset within the GeometryCollection Dataflow Editor.[def:true]"));
 
 const FName FGeometryCollectionEditorToolkit::GraphCanvasTabId(TEXT("GeometryCollectionEditor_GraphCanvas"));
 const FName FGeometryCollectionEditorToolkit::AssetDetailsTabId(TEXT("GeometryCollectionEditor_AssetDetails"));
@@ -49,6 +53,9 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(GeometryCollection);
 		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
+
+		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(GeometryCollection, Dataflow, FPlatformTime::Cycles64(), FString("UFleshAsset")));
+		LastNodeTimestamp = Context->GetTimestamp();
 
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("GeometryCollectionDataflowEditor_Layout.V1")
 			->AddArea
@@ -88,6 +95,33 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 	}
 }
 
+void FGeometryCollectionEditorToolkit::OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FDataflowEditorCommands::OnPropertyValueChanged(this->GetDataflow(), Context, LastNodeTimestamp, PropertyChangedEvent);
+}
+
+void FGeometryCollectionEditorToolkit::Tick(float DeltaTime)
+{
+	if (bDataflowAssetEditorGeometryCollectionLiveEvaluationEnableCVar)
+	{
+		if (Dataflow && GeometryCollection)
+		{
+			if (!Context)
+			{
+				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(GeometryCollection, Dataflow, Dataflow::FTimestamp::Invalid, FString("UGeometryCollection")));
+				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
+			}
+
+			FDataflowEditorCommands::EvaluateNode(*Context.Get(), LastNodeTimestamp, Dataflow, nullptr, nullptr, GeometryCollection->Terminal);
+		}
+	}
+}
+
+TStatId FGeometryCollectionEditorToolkit::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FGeometryCollectionEditorToolkit, STATGROUP_Tickables);
+}
+
 TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
 {
 	ensure(DataflowToEdit);
@@ -96,7 +130,16 @@ TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidg
 
 	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](FDataflowNode* Node, FDataflowOutput* Out)
 	{
-		FEngineContext(GeometryCollection, Dataflow, FPlatformTime::Cycles64(), FString("UGeometryCollection")).Evaluate(Node, Out);
+		if (Dataflow && GeometryCollection)
+		{
+			if (!Context)
+			{
+				Context = TSharedPtr< Dataflow::FEngineContext>(new FEngineContext(GeometryCollection, Dataflow, Dataflow::FTimestamp::Invalid, FString("UGeometryCollection")));
+				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
+			}
+
+			FDataflowEditorCommands::EvaluateNode(*Context.Get(), LastNodeTimestamp, Dataflow, Node, Out);
+		}
 	};
 
 	return SNew(SDataflowGraphEditor, GeometryCollection)
@@ -132,6 +175,7 @@ TSharedPtr<IStructureDetailsView> FGeometryCollectionEditorToolkit::CreateNodeDe
 	}
 	TSharedPtr<IStructureDetailsView> DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
 	DetailsView->GetDetailsView()->SetObject(ObjectToEdit);
+	DetailsView->GetOnFinishedChangingPropertiesDelegate().AddSP(this, &FGeometryCollectionEditorToolkit::OnPropertyValueChanged);
 
 	return DetailsView;
 
