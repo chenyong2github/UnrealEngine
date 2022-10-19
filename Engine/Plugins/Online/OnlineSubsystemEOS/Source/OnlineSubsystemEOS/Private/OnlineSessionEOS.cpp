@@ -4373,7 +4373,7 @@ void FOnlineSessionEOS::CopyLobbyAttributes(const TSharedRef<FLobbyDetailsEOS>& 
 				}
 				}
 
-				OutSession.SessionSettings.Settings.FindOrAdd(FName(Key), Setting);
+				OutSession.SessionSettings.Settings.Emplace(FName(Key), MoveTemp(Setting));
 			}
 		}
 
