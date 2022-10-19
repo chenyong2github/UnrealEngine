@@ -103,16 +103,18 @@ namespace Metasound
 			}
 			
 			const FAudioBusProxyPtr& AudioBusProxy = AudioBusAsset->GetAudioBusProxy();
-
-			if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
+			if (AudioBusProxy.IsValid())
 			{
-				if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
+				if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
 				{
-					// Start the audio bus in case it's not already started
-					AudioBusChannels = AudioBusProxy->NumChannels;
-					AudioDevice->StartAudioBus(AudioBusProxy->AudioBusId, AudioBusChannels, false);
-					
-					AudioBusPatchOutput = AudioDevice->AddPatchForAudioBus(AudioBusProxy->AudioBusId);
+					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
+					{
+						// Start the audio bus in case it's not already started
+						AudioBusChannels = AudioBusProxy->NumChannels;
+						AudioDevice->StartAudioBus(AudioBusProxy->AudioBusId, AudioBusChannels, false);
+
+						AudioBusPatchOutput = AudioDevice->AddPatchForAudioBus(AudioBusProxy->AudioBusId);
+					}
 				}
 			}
 		}
@@ -148,6 +150,11 @@ namespace Metasound
 		{
 			const int32 BlockSizeFrames = AudioOutputs[0]->Num();
 			const int32 NumSamplesToPop = BlockSizeFrames * AudioBusChannels;
+
+			if (!AudioBusPatchOutput.IsValid())
+			{
+				return;
+			}
 
 			// We want to write out zeroed audio until there is enough audio queued up in the patch output to avoid any underruns due to thread timing.
 			// From testing, waiting for the first buffer for 3 times the size of a single metasound block was sufficient to avoid pops. 
