@@ -71,6 +71,7 @@ enum EEngineNetworkVersionHistory
 	HISTORY_PLACEHOLDER = 27,						// Bump version to a placeholder.  This version is the same as HISTORY_REPMOVE_SERVERFRAME_AND_HANDLE
 	HISTORY_RUNTIME_FEATURES_COMPATIBILITY = 28,	// Bump version to add network runtime feature compatibility test to handshake (hello/upgrade) control messages
 	HISTORY_SOFTOBJECTPTR_NETGUIDS = 29,			// Bump version to support replicating SoftObjectPtrs by NetGuid instead of raw strings.
+	HISTORY_SUBOBJECT_DESTROY_FLAG = 30,			// Bump version to support subobject destruction message flags
 	// New history items go above here.
 
 	HISTORY_ENGINENETVERSION_PLUS_ONE,
