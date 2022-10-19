@@ -3,16 +3,16 @@
 #pragma once
 
 #include "VREditorMode.h"
-#include "VirtualScoutingMode.generated.h"
+#include "VPScoutingMode.generated.h"
 
 
-UCLASS()
-class UVirtualScoutingMode : public UVREditorMode
+UCLASS(meta=(DisplayName="Virtual Scouting Mode"))
+class UVPScoutingMode : public UVREditorMode
 {
 	GENERATED_BODY()
 
 public:
-	UVirtualScoutingMode(const FObjectInitializer& ObjectInitializer);
+	UVPScoutingMode(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UVREditorMode interface
 	virtual bool NeedsSyntheticDpad() override;

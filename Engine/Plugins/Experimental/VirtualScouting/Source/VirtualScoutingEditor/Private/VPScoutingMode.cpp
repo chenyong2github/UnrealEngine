@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VirtualScoutingMode.h"
+#include "VPScoutingMode.h"
 #include "VirtualScoutingOpenXR.h"
 #include "VirtualScoutingOpenXRModule.h"
 
@@ -41,14 +41,14 @@ private:
 IMPLEMENT_MODULE(FVirtualScoutingEditorModule, VirtualScoutingEditor);
 
 
-UVirtualScoutingMode::UVirtualScoutingMode(const FObjectInitializer& ObjectInitializer)
+UVPScoutingMode::UVPScoutingMode(const FObjectInitializer& ObjectInitializer)
 {
 	InteractorClass = FSoftObjectPath("/VirtualProductionUtilities/VR/VirtualScoutingInteractor.VirtualScoutingInteractor_C");
 	TeleporterClass = FSoftObjectPath("/VirtualProductionUtilities/VR/VirtualScoutingTeleporter.VirtualScoutingTeleporter_C");
 }
 
 
-bool UVirtualScoutingMode::NeedsSyntheticDpad()
+bool UVPScoutingMode::NeedsSyntheticDpad()
 {
 	if (!GEngine->XRSystem.IsValid() || GEngine->XRSystem->GetSystemName() != OpenXRSystemName)
 	{
@@ -59,7 +59,7 @@ bool UVirtualScoutingMode::NeedsSyntheticDpad()
 }
 
 
-void UVirtualScoutingMode::Enter()
+void UVPScoutingMode::Enter()
 {
 	if (!GEngine->XRSystem.IsValid() || GEngine->XRSystem->GetSystemName() != OpenXRSystemName)
 	{
@@ -111,7 +111,7 @@ void UVirtualScoutingMode::Enter()
 }
 
 
-bool UVirtualScoutingMode::ValidateSettings()
+bool UVPScoutingMode::ValidateSettings()
 {
 	bool bSettingsValid = true;
 
