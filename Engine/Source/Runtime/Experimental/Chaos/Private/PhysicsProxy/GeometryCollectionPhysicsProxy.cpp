@@ -470,7 +470,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 			P->SetProxy(this);
 
 			FGeometryDynamicCollection::FSharedImplicit ImplicitGeometry = GameThreadCollection.Implicits[Index];
-			if (!Scale.Equals(FVector::OneVector))
+			if (ImplicitGeometry && !Scale.Equals(FVector::OneVector))
 			{
 				TUniquePtr<Chaos::FImplicitObject> ScaledImplicit = ImplicitGeometry->CopyWithScale(Scale);
 				ImplicitGeometry = FGeometryDynamicCollection::FSharedImplicit(ScaledImplicit.Release());
