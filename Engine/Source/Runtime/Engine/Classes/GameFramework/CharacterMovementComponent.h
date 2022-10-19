@@ -2628,7 +2628,7 @@ protected:
 	void RestorePreAdditiveRootMotionVelocity();
 
 	/** Applies root motion from root motion sources to velocity (override and additive) */
-	void ApplyRootMotionToVelocity(float deltaTime);
+	virtual void ApplyRootMotionToVelocity(float deltaTime);
 
 	/** Reduces former base velocity according to FormerBaseVelocityDecayHalfLife */
 	void DecayFormerBaseVelocity(float deltaTime);
