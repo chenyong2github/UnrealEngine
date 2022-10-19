@@ -437,7 +437,6 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 		Print(Context, TEXT("Size"));
 		Newline(Context);
 
-		SHADER_PRINT_UNROLL(4) // Max instances shown with FXC
 		for (uint Index = 0; Index < VisibleInstances; ++Index)
 		{
 			const FOITDebugData Data = GetDebugInfo(DebugData, Index);

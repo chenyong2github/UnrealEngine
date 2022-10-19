@@ -61,7 +61,6 @@ void PrintInstanceName(inout FShaderPrintContext Context, uint PrimitiveID, FFon
 	const FPrimitiveSceneDebugNameInfo Info = FindNameInfo(PrimitiveID);
 	if (Info.PrimitiveID != INVALID_PRIMITIVEID && (Info.Length + Info.Offset) <= SelectedNameCharacterCount)
 	{
-		SHADER_PRINT_UNROLL(64) // Max name length with FXC
 		for (uint It = 0; It < Info.Length; ++It)
 		{
 			const uint Char = SelectedPrimitiveNames[It + Info.Offset];

@@ -5,22 +5,24 @@
 
 #pragma once
 
-// * The FXC compiler will force unroll on loops around Print() and so in some places we need
-//   to limit the loop count to either fix compilation or reduce compilation time.
-// * FXC compiler can't use buffer which are conditionally initialized
-#if COMPILER_HLSL && !COMPILER_DXC
-#define SHADER_PRINT_UNROLL(N) UNROLL_N(N)
+// ES3.1 doesn't support buffers in structs.
+// FXC compiler can't unroll the Print loops correctly when the buffers are in structs.
+// FXC compiler can't use buffers which are conditionally initialized.
+#if ES3_1_PROFILE || (COMPILER_HLSL && !COMPILER_DXC)
 #define SHADER_PRINT_USE_GLOBAL_RESOURCE 1
-#define SHADER_PRINT_RWENTRYBUFFER(Ctx) ShaderPrint_RWEntryBuffer
-#define SHADER_PRINT_RWSTATEBUFFER(Ctx) ShaderPrint_StateBuffer
 #else
-#define SHADER_PRINT_UNROLL(N) LOOP
 #define SHADER_PRINT_USE_GLOBAL_RESOURCE 0
 #endif
 
 // Global buffers for ShaderPrint collection.
 StructuredBuffer<uint> ShaderPrint_StateBuffer;
 RWStructuredBuffer<uint> ShaderPrint_RWEntryBuffer;
+
+#if SHADER_PRINT_USE_GLOBAL_RESOURCE
+// Use global buffers directly instead of using FShaderPrintContext::Buffers.
+#define SHADER_PRINT_RWENTRYBUFFER(Ctx) ShaderPrint_RWEntryBuffer
+#define SHADER_PRINT_RWSTATEBUFFER(Ctx) ShaderPrint_StateBuffer
+#endif
 
 #include "ShaderPrintCommon.ush"
 #include "MiniFontCommon.ush"
@@ -58,7 +60,9 @@ FShaderPrintContext InitShaderPrintContext(bool bActive, float2 InStartPos)
 	Context.StartPos = InStartPos;
 	Context.Pos = InStartPos;
 	Context.Config = InitShaderPrintContextConfig();
+#if !SHADER_PRINT_USE_GLOBAL_RESOURCE
 	Context.Buffers = InitShaderPrintContextBuffers();
+#endif
 	return Context;
 }
 

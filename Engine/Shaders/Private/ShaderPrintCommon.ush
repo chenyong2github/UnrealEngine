@@ -319,7 +319,10 @@ struct FShaderPrintContext
 	float2 Pos;
 
 	FShaderPrintConfig Config;
+
+#if !SHADER_PRINT_USE_GLOBAL_RESOURCE
 	FShaderPrintBuffers Buffers;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

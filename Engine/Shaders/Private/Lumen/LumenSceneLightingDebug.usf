@@ -22,7 +22,7 @@ void LumenSceneLightingStats(uint CardUpdateContext, StructuredBuffer<uint> Card
 	FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.1, 0.1));
 	Newline(Context);
 
-	SHADER_PRINT_UNROLL(8) // Max buckets shown with FXC
+	LOOP
 	for (uint BucketIndex = 0; BucketIndex < PRIORITY_HISTOGRAM_SIZE; ++BucketIndex)
 	{
 		Print(Context, PriorityHistogram[CardUpdateContext * PRIORITY_HISTOGRAM_SIZE + BucketIndex]);
