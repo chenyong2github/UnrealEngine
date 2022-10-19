@@ -2892,10 +2892,19 @@ namespace Metasound
 
 		void FEditor::CollectStaticSections(TArray<int32>& StaticSectionIDs)
 		{
+			Frontend::FConstDocumentHandle DocumentHandle = GetMetaSoundGraphChecked().GetDocumentHandle();
+			const FMetasoundFrontendGraphClass& RootGraphClass = DocumentHandle->GetRootGraphClass();
+			const bool bIsPreset = RootGraphClass.PresetOptions.bIsPreset;
+
 			for (int32 i = 0; i < static_cast<int32>(ENodeSection::COUNT); ++i)
 			{
 				if (static_cast<ENodeSection>(i) != ENodeSection::None)
 				{
+					// Presets do not have variables
+					if (bIsPreset && static_cast<ENodeSection>(i) == ENodeSection::Variables)
+					{
+						continue;
+					}
 					StaticSectionIDs.Add(i);
 				}
 			}

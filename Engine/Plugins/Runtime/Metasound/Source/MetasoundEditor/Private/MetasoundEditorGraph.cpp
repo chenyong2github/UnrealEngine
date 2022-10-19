@@ -217,6 +217,9 @@ void UMetasoundEditorGraphVertex::SetDescription(const FText& InDescription, boo
 
 			FNodeHandle NodeHandle = GetNodeHandle();
 			NodeHandle->SetDescription(InDescription);
+
+			Graph->RegisterGraphWithFrontend();
+			Graph->GetModifyContext().AddMemberIDsModified({ GetMemberID() });
 		}
 	}
 }
@@ -538,7 +541,10 @@ bool UMetasoundEditorGraphVertex::IsInterfaceMember() const
 
 bool UMetasoundEditorGraphVertex::CanRename() const
 {
-	return !IsInterfaceMember();
+	Metasound::Frontend::FConstDocumentHandle DocumentHandle = GetOwningGraph()->GetDocumentHandle();
+	const FMetasoundFrontendGraphClass& RootGraphClass = DocumentHandle->GetRootGraphClass();
+
+	return !RootGraphClass.PresetOptions.bIsPreset && !IsInterfaceMember();
 }
 
 bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutError) const
@@ -554,6 +560,15 @@ bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutEr
 	if (IsInterfaceMember())
 	{
 		OutError = FText::Format(LOCTEXT("GraphVertexRenameInvalid_GraphVertexRequired", "{0} is interface member and cannot be renamed."), InNewName);
+		return false;
+	}
+
+	Metasound::Frontend::FConstDocumentHandle DocumentHandle = GetOwningGraph()->GetDocumentHandle();
+	const FMetasoundFrontendGraphClass& RootGraphClass = DocumentHandle->GetRootGraphClass();
+
+	if (RootGraphClass.PresetOptions.bIsPreset)
+	{
+		OutError = FText::Format(LOCTEXT("GraphVertexRenameInvalid_Preset", "{0} is a vertex in a preset graph and cannot be renamed."), InNewName);
 		return false;
 	}
 
