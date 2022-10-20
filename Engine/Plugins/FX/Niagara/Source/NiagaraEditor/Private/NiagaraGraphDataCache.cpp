@@ -140,7 +140,7 @@ FNiagaraGraphDataCache::FStackFunctionInputPinKey::FStackFunctionInputPinKey(con
 		ContextStaticVariables = StaticVariables;
 	}
 
-	InputPinOption = (uint8)InputPinOption;
+	InputPinOption = (uint8)InOptions;
 	bIgnoreDisabled = bInIgnoreDisabled;
 	bFilterForCompilation = bInFilterForCompilation;
 	ConstantResolverHash = InConstantResolver.BuildTypeHash();
