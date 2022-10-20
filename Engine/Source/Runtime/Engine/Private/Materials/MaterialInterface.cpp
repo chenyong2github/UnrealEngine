@@ -31,6 +31,7 @@
 #include "ObjectCacheContext.h"
 #include "MaterialCachedData.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Components/DecalComponent.h"
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
@@ -577,6 +578,24 @@ void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World, EMaterialSha
 			!Material->IsComplete())
 		{
 			MaterialsToCache.Add(*It);
+		}
+	}
+
+	// Add Decal Component Materials.
+	for (TObjectIterator<UDecalComponent> It; It; ++It)
+	{
+		if (It)
+		{
+			TArray<UMaterialInterface*> OutMaterials;
+			It->GetUsedMaterials(OutMaterials);
+
+			for (UMaterialInterface* MaterialInterface : OutMaterials)
+			{
+				if (MaterialInterface && !MaterialInterface->IsComplete())
+				{
+					MaterialsToCache.Add(MaterialInterface);
+				}
+			}
 		}
 	}
 
