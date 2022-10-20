@@ -568,7 +568,7 @@ public:
 
 	/** Optional aggregated shape list used to build a custom shape for the streaming source. When empty, fallbacks sphere shape with a radius equal to grid's loading range. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta = (EditCondition = "bEnableStreamingSource"))
-	TArray<FStreamingSourceShape> Shapes;
+	TArray<FStreamingSourceShape> StreamingSourceShapes;
 
 	/** Scale applied to force feedback values */
 	UPROPERTY(config)
@@ -793,6 +793,21 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
 	virtual EStreamingSourcePriority GetStreamingSourcePriority() const { return StreamingSourcePriority; }
+
+	/**
+	* Gets the streaming source location and rotation.
+	* Default implementation returns APlayerController::GetPlayerViewPoint but can be overriden in child classes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = WorldPartition)
+	virtual void GetStreamingSourceLocationAndRotation(FVector& OutLocation, FRotator& OutRotation) const;
+	
+	/**
+	* Gets the streaming source priority.
+	* Default implementation returns StreamingSourceShapes but can be overriden in child classes.
+	* @return the streaming source priority.
+	*/
+	UFUNCTION(BlueprintCallable, Category = WorldPartition)
+	virtual void GetStreamingSourceShapes(TArray<FStreamingSourceShape>& OutShapes) const;
 
 	/**
 	 * Gets the PlayerController's streaming source

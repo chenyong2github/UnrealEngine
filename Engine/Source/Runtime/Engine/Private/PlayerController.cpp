@@ -3619,22 +3619,32 @@ void APlayerController::OnRemovedFromPlayerControllerList()
 	}
 }
 
+void APlayerController::GetStreamingSourceLocationAndRotation(FVector& OutLocation, FRotator& OutRotation) const
+{
+	GetPlayerViewPoint(OutLocation, OutRotation);
+}
+
+void APlayerController::GetStreamingSourceShapes(TArray<FStreamingSourceShape>& OutShapes) const
+{
+	if (StreamingSourceShapes.Num())
+	{
+		OutShapes.Append(StreamingSourceShapes);
+	}
+}
+
 bool APlayerController::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const
 {
 	const ENetMode NetMode = GetNetMode();
 	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
 	if (IsStreamingSourceEnabled() && (IsLocalController() || bIsServer))
 	{
-		GetPlayerViewPoint(OutStreamingSource.Location, OutStreamingSource.Rotation);
+		GetStreamingSourceLocationAndRotation(OutStreamingSource.Location, OutStreamingSource.Rotation);
 		OutStreamingSource.Name = GetFName();
 		OutStreamingSource.TargetState = StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
 		OutStreamingSource.bBlockOnSlowLoading = StreamingSourceShouldBlockOnSlowStreaming();
 		OutStreamingSource.DebugColor = StreamingSourceDebugColor;
 		OutStreamingSource.Priority = GetStreamingSourcePriority();
-		if (Shapes.Num())
-		{
-			OutStreamingSource.Shapes = Shapes;
-		}
+		GetStreamingSourceShapes(OutStreamingSource.Shapes);
 		return true;
 	}
 	return false;
