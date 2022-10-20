@@ -255,11 +255,20 @@ namespace Horde.Build.Agents.Fleet
 			});
 		}
 		
-		private IEnumerable<string> GetPropValues(string name)
+		internal IEnumerable<string> GetPropValues(string name)
 		{
+			DateTime now = _clock.UtcNow;
 			return name switch
 			{
-				"dayOfWeek" => new List<string> { _clock.UtcNow.DayOfWeek.ToString().ToLower() },
+				"timeUtcYear" => new List<string> { now.Year.ToString() }, // as 1 to 9999
+				"timeUtcMonth" => new List<string> { now.Month.ToString() }, // as 1 to 12
+				"timeUtcDay" => new List<string> { now.Day.ToString() }, // as 1 to 31
+				"timeUtcDayOfWeek" => new List<string> { now.DayOfWeek.ToString(), now.DayOfWeek.ToString().ToLower() },
+				"timeUtcHour" => new List<string> { now.Hour.ToString() }, // as 0 to 23
+				"timeUtcMin" => new List<string> { now.Minute.ToString() }, // as 0 to 59
+				"timeUtcSec" => new List<string> { now.Second.ToString() }, // as 0 to 59
+				
+				"dayOfWeek" => new List<string> { now.DayOfWeek.ToString().ToLower() }, // Deprecated, use timeUtcDayOfWeek
 				_ => Array.Empty<string>()
 			};
 		}
