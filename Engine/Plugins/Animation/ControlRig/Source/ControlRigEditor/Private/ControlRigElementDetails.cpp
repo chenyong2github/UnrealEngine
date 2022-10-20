@@ -3043,7 +3043,7 @@ void FRigControlElementDetails::CustomizeAnimationChannels(IDetailLayoutBuilder&
 						{
 							if(URigHierarchyController* Controller = HierarchyToChange->GetController(true))
 							{
-								FScopedTransaction(LOCTEXT("DeleteAnimationChannels", "Delete Animation Channels"));
+								FScopedTransaction Transaction(LOCTEXT("DeleteAnimationChannels", "Delete Animation Channels"));
 								HierarchyToChange->Modify();
 								
 								for(const FRigElementKey& KeyToRemove : ChildElementKeys)
@@ -3064,7 +3064,7 @@ void FRigControlElementDetails::CustomizeAnimationChannels(IDetailLayoutBuilder&
 						{
 							if(URigHierarchyController* Controller = HierarchyToChange->GetController(true))
 							{
-								FScopedTransaction(LOCTEXT("MoveAnimationChannelUpTransaction", "Move Animation Channel Up"));
+								FScopedTransaction Transaction(LOCTEXT("MoveAnimationChannelUpTransaction", "Move Animation Channel Up"));
 								HierarchyToChange->Modify();
 								
 								for(const FRigElementKey& KeyToMove : ChildElementKeys)
@@ -3083,7 +3083,7 @@ void FRigControlElementDetails::CustomizeAnimationChannels(IDetailLayoutBuilder&
 						{
 							if(URigHierarchyController* Controller = HierarchyToChange->GetController(true))
 							{
-								FScopedTransaction(LOCTEXT("MoveAnimationChannelDownTransaction", "Move Animation Channel Down"));
+								FScopedTransaction Transaction(LOCTEXT("MoveAnimationChannelDownTransaction", "Move Animation Channel Down"));
 								HierarchyToChange->Modify();
 								
 								for(const FRigElementKey& KeyToMove : ChildElementKeys)

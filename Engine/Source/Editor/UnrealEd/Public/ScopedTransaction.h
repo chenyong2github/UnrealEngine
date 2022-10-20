@@ -18,14 +18,14 @@ public:
 	 * @param PrimaryObject				The main object being edited (if known)
 	 * @param bShouldActuallyTransact	If false the transaction is ignored. Good for creating optional transactions based on condition
 	 */
-	UNREALED_API FScopedTransaction(const TCHAR* TransactionContext, const FText& SessionName, UObject* PrimaryObject, const bool bShouldActuallyTransact = true);
+	UE_NODISCARD_CTOR UNREALED_API FScopedTransaction(const TCHAR* TransactionContext, const FText& SessionName, UObject* PrimaryObject, const bool bShouldActuallyTransact = true);
 
 	/**
 	 * Construct an FScopedTransaction with minimal context 
 	 * @param SessionName				The description of this transaction, ie what is occurring
 	 * @param bShouldActuallyTransact	If false the transaction is ignored. Good for creating optional transactions based on condition 
 	 */
-	UNREALED_API FScopedTransaction(const FText& SessionName, const bool bShouldActuallyTransact = true);
+	UE_NODISCARD_CTOR UNREALED_API FScopedTransaction(const FText& SessionName, const bool bShouldActuallyTransact = true);
 	UNREALED_API ~FScopedTransaction();
 
 	/**
