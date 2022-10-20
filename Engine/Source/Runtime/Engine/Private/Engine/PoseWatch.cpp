@@ -778,6 +778,12 @@ void UPoseWatch::Serialize(FArchive& Ar)
 		NewPoseWatchElement->ViewportOffset = ViewportOffset_DEPRECATED;
 		Elements.Add(NewPoseWatchElement);
 	}
+
+	// UE-162694 Remove pose watch elements that were previously incorrectly serialized
+	Elements.RemoveAll([](const TObjectPtr<UPoseWatchElement>& Element)
+	{
+		return Element == nullptr;
+	});
 }
 #endif // WITH_EDITORONLY_DATA
 

@@ -440,7 +440,7 @@ protected:
 
 template< class TElementType > TObjectPtr<TElementType> UPoseWatch::AddElement(const FText InLabel, const FName InIconName)
 {
-	TObjectPtr<TElementType> PoseWatchElement(NewObject<TElementType>());
+	TObjectPtr<TElementType> PoseWatchElement(NewObject<TElementType>(this));
 	PoseWatchElement->SetParent(this);
 	PoseWatchElement->SetUniqueLabel(InLabel);
 	PoseWatchElement->SetIconName(InIconName);
