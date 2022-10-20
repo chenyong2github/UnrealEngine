@@ -44,7 +44,7 @@ namespace Horde.Build.Agents.Fleet
 		private readonly IPoolCollection _poolCollection;
 		private readonly StreamService _streamService;
 		private readonly IDogStatsd _dogStatsd;
-		private readonly IFleetManagerFactory _fleetManagerFactory2;
+		private readonly IFleetManagerFactory _fleetManagerFactory;
 		private readonly IClock _clock;
 		private readonly IMemoryCache _cache;
 		private readonly ITicker _ticker;
@@ -78,7 +78,7 @@ namespace Horde.Build.Agents.Fleet
 			_poolCollection = poolCollection;
 			_streamService = streamService;
 			_dogStatsd = dogStatsd;
-			_fleetManagerFactory2 = fleetManagerFactory;
+			_fleetManagerFactory = fleetManagerFactory;
 			_clock = clock;
 			_cache = cache;
 			_logger = logger;
@@ -276,11 +276,11 @@ namespace Horde.Build.Agents.Fleet
 			{
 				if (info.Condition == null || info.Condition.Evaluate(GetPropValues))
 				{
-					return _fleetManagerFactory2.CreateFleetManager(info.Type, info.Config);
+					return _fleetManagerFactory.CreateFleetManager(info.Type, info.Config);
 				}
 			}
 
-			return _fleetManagerFactory2.CreateFleetManager(FleetManagerType.Default, "{}");
+			return _fleetManagerFactory.CreateFleetManager(FleetManagerType.Default, "{}");
 		}
 
 		/// <summary>

@@ -34,6 +34,11 @@ namespace Horde.Build.Agents.Fleet
 		AwsReuse,
 		
 		/// <summary>
+		/// <see cref="AwsRecyclingFleetManager" />
+		/// </summary>
+		AwsRecycle,
+		
+		/// <summary>
 		/// <see cref="AwsAsgFleetManager" />
 		/// </summary>
 		AwsAsg

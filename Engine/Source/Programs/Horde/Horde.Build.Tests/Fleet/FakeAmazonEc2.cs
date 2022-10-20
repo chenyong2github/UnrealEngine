@@ -21,12 +21,20 @@ public class FakeAmazonEc2
 {
 	public static readonly InstanceState StatePending = new() { Code = 0, Name = "pending" };
 	public static readonly InstanceState StateStopped = new() { Code = 80, Name = "stopped" };
+	public const string AzUsEast1A = "us-east-1a";
+	public const string AzUsEast1B = "us-east-1b";
 	
 	private readonly Mock<IAmazonEC2> _mock;
 	private readonly Dictionary<string, Instance> _instances = new();
 	private int _instanceIdCounter;
 	
 	internal IReadOnlyDictionary<string, Instance> Instances => _instances;
+
+	private readonly Dictionary<string, Dictionary<string, int>> _availabilityZoneCapacity = new()
+	{
+		{AzUsEast1A, new () },
+		{AzUsEast1B, new () }
+	};
 
 	public FakeAmazonEc2()
 	{
@@ -49,9 +57,23 @@ public class FakeAmazonEc2
 		return _mock.Object;
 	}
 
-	public Instance AddInstance(InstanceState state, InstanceType type)
+	public void SetCapacity(string availabilityZone, string instanceType, int capacity)
 	{
-		Instance i = new() { InstanceId = "bogus-instance-" + _instanceIdCounter++, State = state, InstanceType = type };
+		Dictionary<string, int> temp = _availabilityZoneCapacity.GetValueOrDefault(availabilityZone, new());
+		temp[instanceType] = capacity;
+		_availabilityZoneCapacity[availabilityZone] = temp;
+	}
+
+	public Instance AddInstance(InstanceState state, InstanceType type,
+		string availabilityZone = AzUsEast1A, DateTime? launchTime = null)
+	{
+		Instance i = new()
+		{
+			InstanceId = "bogus-instance-" + _instanceIdCounter++,
+			State = state, InstanceType = type,
+			Placement = new Placement(availabilityZone),
+			LaunchTime = launchTime ?? DateTime.UnixEpoch
+		};
 		_instances.Add(i.InstanceId, i);
 		return i;
 	}
@@ -60,6 +82,9 @@ public class FakeAmazonEc2
 	{
 		return _instances[instanceId];
 	}
+
+	public int GetStoppedInstanceCount() { return _instances.Values.Count(x => x.State == StateStopped); }
+	public int GetPendingInstanceCount() { return _instances.Values.Count(x => x.State == StatePending); }
 
 	private Task<DescribeInstancesResponse> DescribeInstancesAsync(DescribeInstancesRequest request, CancellationToken cancellationToken)
 	{
@@ -73,6 +98,10 @@ public class FakeAmazonEc2
 	private Task<StartInstancesResponse> StartInstancesAsync(StartInstancesRequest request, CancellationToken cancellationToken)
 	{
 		List<InstanceStateChange> stateChanges = new();
+		
+		// Check if capacity in each AZ can handle this start instance request.
+		// If not, abort with an exception prior attempting to start them and modifying in-memory state.
+		Dictionary<string, Dictionary<string, int>> azInstanceTypeCapacities = new (_availabilityZoneCapacity);
 		foreach (string instanceId in request.InstanceIds)
 		{
 			if (!_instances.ContainsKey(instanceId))
@@ -80,6 +109,20 @@ public class FakeAmazonEc2
 				throw new ArgumentException("Unknown instance ID " + instanceId);
 			}
 
+			string az = _instances[instanceId].Placement.AvailabilityZone;
+			string instanceType = _instances[instanceId].InstanceType;
+			int capacity = azInstanceTypeCapacities[az].GetValueOrDefault(instanceType, 0);
+			
+			if (capacity <= 0)
+			{
+				throw new AmazonEC2Exception("Insufficient capacity.");
+			}
+
+			azInstanceTypeCapacities[az][instanceType] = capacity - 1;
+		}
+		
+		foreach (string instanceId in request.InstanceIds)
+		{
 			if (_instances[instanceId].State.Name == StateStopped.Name)
 			{
 				stateChanges.Add(new()

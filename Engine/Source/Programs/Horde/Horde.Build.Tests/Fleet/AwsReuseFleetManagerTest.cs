@@ -21,23 +21,25 @@ namespace Horde.Build.Tests.Fleet
 		[TestMethod]
 		public async Task ExpandOneAgent()
 		{
-			FakeAmazonEc2 fakeAmazonEc2 = new ();
-			Instance i = fakeAmazonEc2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large);
+			FakeAmazonEc2 ec2 = new ();
+			Instance i = ec2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large);
+			ec2.SetCapacity(FakeAmazonEc2.AzUsEast1A, InstanceType.M5Large, 1);
 
-			await ExpandPoolAsync(fakeAmazonEc2.Get(), 1, new());
-			Assert.AreEqual(InstanceType.M5Large, fakeAmazonEc2.Instances[i.InstanceId].InstanceType);
-			Assert.AreEqual(FakeAmazonEc2.StatePending, fakeAmazonEc2.Instances[i.InstanceId].State);
+			await ExpandPoolAsync(ec2.Get(), 1, new());
+			Assert.AreEqual(InstanceType.M5Large, ec2.Instances[i.InstanceId].InstanceType);
+			Assert.AreEqual(FakeAmazonEc2.StatePending, ec2.Instances[i.InstanceId].State);
 		}
 		
 		[TestMethod]
-		public async Task ExpandWithInstanceTypeChange2()
+		public async Task ExpandWithInstanceTypeChange()
 		{
-			FakeAmazonEc2 fakeAmazonEc2 = new ();
-			Instance i = fakeAmazonEc2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large);
+			FakeAmazonEc2 ec2 = new ();
+			Instance i = ec2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large);
+			ec2.SetCapacity(FakeAmazonEc2.AzUsEast1A, InstanceType.M54xlarge, 1);
 
-			await ExpandPoolAsync(fakeAmazonEc2.Get(), 1, new(new List<string> { InstanceType.M54xlarge }));
-			Assert.AreEqual(InstanceType.M54xlarge, fakeAmazonEc2.Instances[i.InstanceId].InstanceType);
-			Assert.AreEqual(FakeAmazonEc2.StatePending, fakeAmazonEc2.Instances[i.InstanceId].State);
+			await ExpandPoolAsync(ec2.Get(), 1, new(new List<string> { InstanceType.M54xlarge }));
+			Assert.AreEqual(InstanceType.M54xlarge, ec2.Instances[i.InstanceId].InstanceType);
+			Assert.AreEqual(FakeAmazonEc2.StatePending, ec2.Instances[i.InstanceId].State);
 		}
 
 		private async Task ExpandPoolAsync(IAmazonEC2 ec2, int numRequestedInstances, AwsReuseFleetManagerSettings settings)
