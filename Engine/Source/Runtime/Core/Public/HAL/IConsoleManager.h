@@ -140,6 +140,7 @@ enum EConsoleVariableFlags
 	// Highest priority used via editor UI or or game/editor interactive console
 	ECVF_SetByConsole =				0x0A000000,
 
+
 	// ------------------------------------------------
 };
 
