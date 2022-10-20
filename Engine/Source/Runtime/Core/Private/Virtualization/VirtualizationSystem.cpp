@@ -161,6 +161,27 @@ public:
 
 TUniquePtr<IVirtualizationSystem> GVirtualizationSystem = nullptr;
 
+/**
+ * Utility to check if either cmd is present in the command line. Useful when transitioning from one
+ * command line to another.
+ */
+static bool IsCmdLineSet(const TCHAR* Cmd, const TCHAR* AlternativeCmd = nullptr)
+{
+	const TCHAR* CmdLine = FCommandLine::Get();
+
+	if (FParse::Param(CmdLine, Cmd))
+	{
+		return true;
+	}
+
+	if (AlternativeCmd != nullptr && FParse::Param(CmdLine, AlternativeCmd))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 /** Utility function for finding a IVirtualizationSystemFactory for a given system name */
 Private::IVirtualizationSystemFactory* FindFactory(FName SystemName)
 {
@@ -183,7 +204,7 @@ bool ShouldLazyInitializeSystem(const FConfigFile& ConfigFile)
 	UE_LOG(LogVirtualization, Display, TEXT("The virtualization system will lazy initialize due to code"));
 	return true;
 #else
-	if (FParse::Param(FCommandLine::Get(), TEXT("VA-LazyInit")))
+	if (IsCmdLineSet(TEXT("VALazyInit"), TEXT("VA-LazyInit")))
 	{
 		UE_LOG(LogVirtualization, Display, TEXT("The virtualization system will lazy initialize due to the command line"));
 		return true;
@@ -218,7 +239,7 @@ FName FindSystemToMount(const FConfigFile& ConfigFile)
 	UE_LOG(LogVirtualization, Display, TEXT("The virtualization system has been disabled by code"));
 	return FName();
 #else
-	if (FParse::Param(FCommandLine::Get(), TEXT("VA-Disable")))
+	if (IsCmdLineSet(TEXT("VADisable"), TEXT("VA-Disable")))
 	{
 		UE_LOG(LogVirtualization, Display, TEXT("The virtualization system has been disabled by the command line"));
 		return FName();
