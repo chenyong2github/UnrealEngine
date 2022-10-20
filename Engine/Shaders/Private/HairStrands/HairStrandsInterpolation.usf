@@ -21,7 +21,44 @@
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Common
+// Guides
+struct FGuideData
+{
+	uint3  VertexIndices;
+	float3 VertexLerps;
+	float3 VertexWeights;
+	float3 OutPositionOffset;
+};
+
+FGuideData GetGuideData(uint InVertexIndex, uint InInterpolationData, float3 OutPositionOffset)
+{
+	FGuideData Out = (FGuideData)0;
+	Out.OutPositionOffset	= OutPositionOffset;
+	Out.VertexWeights		= float3(1, 0, 0);
+	Out.VertexIndices		= 0;
+	Out.VertexLerps			= 0;
+	Out.VertexIndices.x		= InInterpolationData & 0xFFFFFF;
+	Out.VertexLerps.x		= saturate(((InInterpolationData >> 24) & 0xFF) / 255.f);
+	return Out;
+}
+
+FGuideData GetGuideData(uint InVertexIndex, uint4 InInterpolationData0, uint4 InInterpolationData1, float3 OutPositionOffset)
+{
+	FGuideData Out = (FGuideData)0;
+	Out.OutPositionOffset = OutPositionOffset;
+
+	Out.VertexIndices.x = InInterpolationData0.x | (( InInterpolationData1.x & 0xFF) << 16);
+	Out.VertexIndices.y = InInterpolationData0.y | (((InInterpolationData1.x >> 8) & 0xFF) << 16);
+	Out.VertexIndices.z = InInterpolationData0.z | (( InInterpolationData1.y & 0xFF) << 16);
+
+	Out.VertexWeights	= float3(saturate((InInterpolationData0.w & 0xFF) / 255.f), saturate(((InInterpolationData0.w >> 8) & 0xFF) / 255.f), 0);
+	Out.VertexWeights.z = saturate(1.0f - (Out.VertexWeights.x + Out.VertexWeights.y));
+
+	Out.VertexLerps.x	= saturate(((InInterpolationData1.y >> 8) & 0xFF) / 255.f);
+	Out.VertexLerps.y	= saturate(( InInterpolationData1.z & 0xFF) / 255.f);
+	Out.VertexLerps.z	= saturate(((InInterpolationData1.z >> 8) & 0xFF) / 255.f);
+	return Out;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair interpolation 
@@ -68,8 +105,6 @@ Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
 Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
 #endif
 
-Buffer<float4>  AttributeBuffer;
-
 #if PERMUTATION_DYNAMIC_GEOMETRY >= 1 || PERMUTATION_DEBUG == 1 
 Buffer<uint>   RenVertexToRootIndexBuffer;
 Buffer<uint>   SimVertexToRootIndexBuffer;
@@ -101,12 +136,6 @@ Buffer<float4>  SimDeformedPosition2Buffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
 Buffer<uint>	SimRootToUniqueTriangleIndexBuffer;
-#endif
-
-#if PERMUTATION_DEBUG == 1
-Buffer<int>		 VertexToClusterIdBuffer;
-Buffer<float4>	 SimAttributeBuffer;
-RWBuffer<float4> OutRenderAttributeBuffer; 
 #endif
 
 Buffer<float4> OutSimHairPositionOffsetBuffer;
@@ -233,47 +262,18 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Guides
-struct FGuideData
-{
-	uint3  VertexIndices;
-	float3 VertexLerps;
-	float3 VertexWeights;
-	float3 OutPositionOffset;
-};
 
 FGuideData GetGuideData(uint InVertexIndex)
 {
-	FGuideData Out = (FGuideData)0;
-#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1
-	{
-		Out.OutPositionOffset = OutSimHairPositionOffsetBuffer[0].xyz;
-
-	#if PERMUTATION_USE_SINGLE_GUIDE == 1
-		Out.VertexWeights = float3(1, 0, 0);
-		Out.VertexIndices = 0;
-		Out.VertexLerps = 0;
-
-		const uint InterpolationData = InterpolationBuffer[InVertexIndex];
-		Out.VertexIndices.x = InterpolationData & 0xFFFFFF;
-		Out.VertexLerps.x = saturate(((InterpolationData >> 24) & 0xFF) / 255.f);
-	#else
-		const uint4 InterpolationData0 = Interpolation0Buffer[InVertexIndex];
-		const uint4 InterpolationData1 = Interpolation1Buffer[InVertexIndex];
-
-		Out.VertexIndices.x = InterpolationData0.x | ((InterpolationData1.x & 0xFF) << 16);
-		Out.VertexIndices.y = InterpolationData0.y | (((InterpolationData1.x >> 8) & 0xFF) << 16);
-		Out.VertexIndices.z = InterpolationData0.z | ((InterpolationData1.y & 0xFF) << 16);
-
-		Out.VertexWeights = float3(saturate((InterpolationData0.w & 0xFF) / 255.f), saturate(((InterpolationData0.w >> 8) & 0xFF) / 255.f), 0);
-		Out.VertexWeights.z = saturate(1.0f - (Out.VertexWeights.x + Out.VertexWeights.y));
-
-		Out.VertexLerps.x = saturate(((InterpolationData1.y >> 8) & 0xFF) / 255.f);
-		Out.VertexLerps.y = saturate((InterpolationData1.z & 0xFF) / 255.f);
-		Out.VertexLerps.z = saturate(((InterpolationData1.z >> 8) & 0xFF) / 255.f);
-	#endif
-	}
+#if PERMUTATION_SIMULATION == 1
+  #if PERMUTATION_USE_SINGLE_GUIDE
+	return GetGuideData(InVertexIndex, InterpolationBuffer[InVertexIndex], OutSimHairPositionOffsetBuffer[0].xyz);
+  #else
+	return GetGuideData(InVertexIndex, Interpolation0Buffer[InVertexIndex], Interpolation1Buffer[InVertexIndex], OutSimHairPositionOffsetBuffer[0].xyz);
+  #endif
+#else
+	return (FGuideData)0;
 #endif
-	return Out;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -430,34 +430,6 @@ float3 ApplySkinningWithTranslationAndRotation(const FGuideData GuideData, const
 	return CurrOffset;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Patch attribute with debug data
-
-float4 ApplyDebugOutput(const uint InMode, const FGuideData GuideData,  const uint InClusterId)
-{
-	float4 Out = 0;
-	#if PERMUTATION_DEBUG == 1
-	if (InMode == 1)
-	{
-		const uint GuideIndex = GuideData.VertexIndices[0]; // Take the closest guide
-		Out = SimAttributeBuffer[GuideIndex];
-	}
-	else if (InMode == 2)
-	{
-		const uint ClusterIdLo8bits = InClusterId & 0xFF;
-		const uint ClusterIdHi8btis = (InClusterId >> 8) & 0xFF;
-		// Using FNV1 hash to break linearity of ClusterId (generated by linearly parsing cluster grid)
-		uint Hash = 0;
-		Hash = Hash * 17;
-		Hash = Hash ^ ClusterIdLo8bits;
-		Hash = Hash * 17;
-		Hash = Hash ^ ClusterIdHi8btis;
-		Out = asfloat(uint4(0, (Hash & 0xFF) << 8, 0, 0));
-	}
-	#endif
-	return Out;
-}
-
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -530,17 +502,71 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 		}
 		OutRenderDeformedPositionBuffer[VertexIndex] = PackHairControlPointPosition(PackedRestPosition, OutPosition, OutRenHairPositionOffsetBuffer[0].xyz);
-
-		// 4. Optionally patch groom attribute for debug rendering
-		#if PERMUTATION_DEBUG == 1
-		if (HairDebugMode == 1 || HairDebugMode == 2)
-		{
-			OutRenderAttributeBuffer[VertexIndex] = ApplyDebugOutput(HairDebugMode, GuideData, VertexToClusterIdBuffer[VertexIndex]);
-		}
-		#endif
 	}
 }
 #endif // SHADER_HAIRINTERPOLATION
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Patch attribute (for debug visualization)
+#if SHADER_PATCHATTRIBUTE
+
+uint VertexCount;
+
+Buffer<float4>	 RenAttribute0Buffer;
+Buffer<int>		 RenVertexToClusterIdBuffer;
+
+Buffer<float4>	 SimAttribute0Buffer;
+#if PERMUTATION_SIMULATION == 1
+Buffer<uint>	InterpolationBuffer;
+#elif PERMUTATION_SIMULATION == 2
+Buffer<uint4>	Interpolation0Buffer;
+Buffer<uint4>	Interpolation1Buffer;
+#endif
+RWBuffer<float4> OutRenAttribute0Buffer;
+
+
+FGuideData GetGuideData(uint InVertexIndex)
+{
+#if PERMUTATION_SIMULATION == 1
+	return GetGuideData(InVertexIndex, InterpolationBuffer[InVertexIndex], 0 /*OutPositionOffset*/);
+#elif PERMUTATION_SIMULATION == 2
+	return GetGuideData(InVertexIndex, Interpolation0Buffer[InVertexIndex], Interpolation1Buffer[InVertexIndex], 0 /*OutPositionOffset*/);
+#else
+	return (FGuideData)0;
+#endif
+}
+
+[numthreads(1024, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint VertexIndex = DispatchThreadId.x;
+	if (VertexIndex < VertexCount)
+	{
+		float4 Out = 0;
+		#if PERMUTATION_SIMULATION == 0
+		{
+			const uint ClusterId		= RenVertexToClusterIdBuffer[VertexIndex];
+			const uint ClusterIdLo8bits = ClusterId & 0xFF;
+			const uint ClusterIdHi8btis = (ClusterId >> 8) & 0xFF;
+			// Using FNV1 hash to break linearity of ClusterId (generated by linearly parsing cluster grid)
+			uint Hash = 0;
+			Hash = Hash * 17;
+			Hash = Hash ^ ClusterIdLo8bits;
+			Hash = Hash * 17;
+			Hash = Hash ^ ClusterIdHi8btis;
+			Out = float4(0, (Hash & 0xFF) / 255.f, 0, 0);
+		}
+		#else // if (PERMUTATION_SIMULATION > 0)
+		{
+			const FGuideData GuideData = GetGuideData(VertexIndex);
+			const uint GuideIndex = GuideData.VertexIndices[0]; // Take the closest guide
+			Out = SimAttribute0Buffer[GuideIndex];
+		}
+		#endif // PERMUTATION_SIMULATION
+		OutRenAttribute0Buffer[VertexIndex] = Out;
+	}
+}
+#endif // SHADER_PATCHATTRIBUTE
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair clusters update 
