@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -217,7 +217,7 @@ namespace UnrealBuildTool
 			return MinVersionToReturn;
 		}
 
-		public static bool GenerateIOSPList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage? UPL, string? BundleID, bool bBuildAsFramework, ILogger Logger, out bool bSupportsPortrait, out bool bSupportsLandscape)
+		public static bool GenerateIOSPList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage? UPL, string? BundleID, bool bBuildAsFramework, ILogger Logger)
 		{
 			// generate the Info.plist for future use
 			string BuildDirectory = ProjectDirectory + "/Build/IOS";
@@ -244,7 +244,7 @@ namespace UnrealBuildTool
 			bool bSupported = true;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsPortraitOrientation", out bSupported);
 			SupportedOrientations += bSupported ? "\t\t<string>UIInterfaceOrientationPortrait</string>\n" : "";
-			bSupportsPortrait = bSupported;
+			bool bSupportsPortrait = bSupported;
 
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsUpsideDownOrientation", out bSupported);
 			SupportedOrientations += bSupported ? "\t\t<string>UIInterfaceOrientationPortraitUpsideDown</string>\n" : "";
@@ -254,7 +254,7 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsLandscapeLeftOrientation", out bSupportsLandscapeLeft);
 			bool bSupportsLandscapeRight = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportsLandscapeRightOrientation", out bSupportsLandscapeRight);
-			bSupportsLandscape = bSupportsLandscapeLeft || bSupportsLandscapeRight;
+			bool bSupportsLandscape = bSupportsLandscapeLeft || bSupportsLandscapeRight;
 
 			if (bSupportsLandscapeLeft && bSupportsLandscapeRight)
 			{
@@ -275,8 +275,8 @@ namespace UnrealBuildTool
 			else
 			{
 				// max one landscape orientation is supported
-				SupportedOrientations += bSupportsLandscapeRight? "\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n": "";
-				SupportedOrientations += bSupportsLandscapeLeft? "\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n" : "";
+				SupportedOrientations += bSupportsLandscapeRight ? "\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n" : "";
+				SupportedOrientations += bSupportsLandscapeLeft ? "\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n" : "";
 			}
 
 			// ITunes file sharing
@@ -362,9 +362,9 @@ namespace UnrealBuildTool
 			bool bRemoteNotificationsSupported = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableRemoteNotificationsSupport", out bRemoteNotificationsSupported);
 
-            // Add background fetch as background mode
-            bool bBackgroundFetch = false;
-            Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableBackgroundFetch", out bBackgroundFetch);
+			// Add background fetch as background mode
+			bool bBackgroundFetch = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableBackgroundFetch", out bBackgroundFetch);
 
 			// Get any Location Services permission descriptions added
 			string LocationAlwaysUsageDescription = "";
@@ -552,12 +552,12 @@ namespace UnrealBuildTool
 				Text.AppendLine(string.Format("\t<string>{0}</string>", FacebookAppID));
 				Text.AppendLine("\t<key>FacebookDisplayName</key>");
 				Text.AppendLine(string.Format("\t<string>{0}</string>", FacebookDisplayName));
-				
+
 				if (!bEnableAutomaticLogging)
 				{
 					Text.AppendLine("<key>FacebookAutoLogAppEventsEnabled</key><false/>");
 				}
-				
+
 				if (!bEnableAdvertisingId)
 				{
 					Text.AppendLine("<key>FacebookAdvertiserIDCollectionEnabled</key><false/>");
@@ -590,14 +590,14 @@ namespace UnrealBuildTool
 			{
 				Text.AppendLine("\t<key>UIBackgroundModes</key>");
 				Text.AppendLine("\t<array>");
-                if (bRemoteNotificationsSupported)
-                {
-				    Text.AppendLine("\t\t<string>remote-notification</string>");
-                }
-                if (bBackgroundFetch)
-                {
-                    Text.AppendLine("\t\t<string>fetch</string>");
-                }
+				if (bRemoteNotificationsSupported)
+				{
+					Text.AppendLine("\t\t<string>remote-notification</string>");
+				}
+				if (bBackgroundFetch)
+				{
+					Text.AppendLine("\t\t<string>fetch</string>");
+				}
 				Text.AppendLine("\t</array>");
 			}
 
@@ -686,15 +686,15 @@ namespace UnrealBuildTool
 			return false;
 		}
 
- 		public bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, TargetReceipt Receipt, out bool bSupportsPortrait, out bool bSupportsLandscape)
+ 		public bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, TargetReceipt Receipt)
 		{
 			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties, Logger);
 			VersionNumber? SdkVersion = GetSdkVersion(Receipt);
 			bool bBuildAsFramework = GetCompileAsDll(Receipt);
-			return GeneratePList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPLScripts, "", bBuildAsFramework, out bSupportsPortrait, out bSupportsLandscape);
+			return GeneratePList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPLScripts, "", bBuildAsFramework);
 		}
 
-		public virtual bool GeneratePList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, List<string> UPLScripts, string? BundleID, bool bBuildAsFramework, out bool bSupportsPortrait, out bool bSupportsLandscape)
+		public virtual bool GeneratePList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, List<string> UPLScripts, string? BundleID, bool bBuildAsFramework)
 		{
 			// remember name with -IOS-Shipping, etc
 			// string ExeName = GameName;
@@ -726,7 +726,7 @@ namespace UnrealBuildTool
 			// Passing in true for distribution is not ideal here but given the way that ios packaging happens and this call chain it seems unavoidable for now, maybe there is a way to correctly pass it in that I can't find?
 			UPL.Init(ProjectArches, true, RelativeEnginePath, BundlePath, ProjectDirectory, Config.ToString(), false);
 
-			return GenerateIOSPList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPL, BundleID, bBuildAsFramework, Logger, out bSupportsPortrait, out bSupportsLandscape);
+			return GenerateIOSPList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPL, BundleID, bBuildAsFramework, Logger);
 		}
 
 		protected virtual void CopyCloudResources(string InEngineDir, string AppDirectory)
@@ -978,9 +978,7 @@ namespace UnrealBuildTool
 				DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 			}
 
-			bool bSupportsPortrait = true;
-			bool bSupportsLandscape = false;
-			GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUnrealGame, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, BundleID, bBuildAsFramework, out bSupportsPortrait, out bSupportsLandscape);
+			GeneratePList(ProjectFile, Config, InProjectDirectory, bIsUnrealGame, GameExeName, false, InProjectName, InEngineDir, AppDirectory, UPLScripts, BundleID, bBuildAsFramework);
 
 			// ensure the destination is writable
 			if (File.Exists(AppDirectory + "/" + GameName))
@@ -1065,8 +1063,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// @todo tvos merge: This used to copy the bundle back - where did that code go? It needs to be fixed up for TVOS directories
-				bool bSupportPortrait, bSupportLandscape;
-				GeneratePList(ProjectFile, Configuration, ProjectDirectory, bIsUnrealGame, GameName, false, (ProjectFile == null) ? "" : Path.GetFileNameWithoutExtension(ProjectFile.FullName), "../../Engine", "", UPLScripts, BundleID, bBuildAsFramework, out bSupportPortrait, out bSupportLandscape);
+				GeneratePList(ProjectFile, Configuration, ProjectDirectory, bIsUnrealGame, GameName, false, (ProjectFile == null) ? "" : Path.GetFileNameWithoutExtension(ProjectFile.FullName), "../../Engine", "", UPLScripts, BundleID, bBuildAsFramework);
 			}
 			return true;
 		}
