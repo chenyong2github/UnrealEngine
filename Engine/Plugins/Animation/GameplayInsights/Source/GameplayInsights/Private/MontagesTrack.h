@@ -30,6 +30,7 @@ private:
 	virtual TSharedPtr<SWidget> GetTimelineViewInternal() override;
 	virtual TSharedPtr<SWidget> GetDetailsViewInternal() override;
 	virtual void IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction) override;
+    virtual bool HandleDoubleClickInternal() override;
 	
 	virtual FSlateIcon GetIconInternal() override { return Icon; }
 	virtual FName GetNameInternal() const override { return "Montage"; }

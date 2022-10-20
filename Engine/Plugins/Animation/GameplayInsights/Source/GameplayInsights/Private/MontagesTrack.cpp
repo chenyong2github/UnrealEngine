@@ -9,6 +9,8 @@
 #include "SMontageView.h"
 #if WITH_EDITOR
 #include "Animation/AnimMontage.h"
+#include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "MontagesTrack"
@@ -284,7 +286,26 @@ TSharedPtr<SWidget> FMontageTrack::GetDetailsViewInternal()
 	MontageView->SetAssetFilter(AssetId);
 	return MontageView;
 }
+	
+bool FMontageTrack::HandleDoubleClickInternal()
+{
+#if WITH_EDITOR
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+	if (const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
+		const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+
+		const FObjectInfo& AssetInfo = GameplayProvider->GetObjectInfo(GetAssetId());
+
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetInfo.PathName);
+
+		return true;
+	}
+#endif
+	return false;
+}
 
 FName FMontagesTrackCreator::GetTargetTypeNameInternal() const
 {
