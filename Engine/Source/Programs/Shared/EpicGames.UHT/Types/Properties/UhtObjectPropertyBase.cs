@@ -245,7 +245,7 @@ namespace EpicGames.UHT.Types
 			UhtPointerMemberBehavior behavior = nonEngineBehavior;
 			if (package.IsPartOfEngine)
 			{
-				if (package.Module.BaseDirectory.Contains("/Plugins/", StringComparison.InvariantCultureIgnoreCase) || package.Module.BaseDirectory.Contains("\\Plugins\\", StringComparison.InvariantCultureIgnoreCase))
+				if (package.IsPlugin)
 				{
 					behavior = enginePluginBehavior;
 				}
