@@ -1,10 +1,10 @@
 /*
- *
- * Copyright (C) 2020 Intel Corporation
- *
- * SPDX-License-Identifier: MIT
- *
- *
+ *
+ * Copyright (C) 2020 Intel Corporation
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ *
  * File Name:  igdext.h
  *
  * Abstract:   Public header for Intel Extensions Framework
@@ -40,7 +40,7 @@ extern "C" {
         uint32_t    EUCount;
         uint32_t    PackageTDP;
         uint32_t    MaxFillRate;
-        wchar_t     GTGenerationName[ 64 ];
+        wchar_t     GTGenerationName[64];
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -59,8 +59,8 @@ extern "C" {
         INTCExtensionVersion    RequestedExtensionVersion;  ///< [in] Intel Extension Framework interface version requested
 
         INTCDeviceInfo          IntelDeviceInfo;            ///< [out] Intel Graphics Device detailed information
-        const wchar_t*          pDeviceDriverDesc;          ///< [out] Intel Graphics Driver description
-        const wchar_t*          pDeviceDriverVersion;       ///< [out] Intel Graphics Driver version string
+        const wchar_t* pDeviceDriverDesc;          ///< [out] Intel Graphics Driver description
+        const wchar_t* pDeviceDriverVersion;       ///< [out] Intel Graphics Driver version string
         uint32_t                DeviceDriverBuildNumber;    ///< [out] Intel Graphics Driver build number
     };
 
@@ -68,9 +68,9 @@ extern "C" {
     // @brief INTCExtensionAppInfo is an optional input structure; can be used for specific apps and engine code paths
     struct INTCExtensionAppInfo
     {
-        const wchar_t*  pApplicationName;                   ///< [in] Application name
+        const wchar_t* pApplicationName;                   ///< [in] Application name
         uint32_t        ApplicationVersion;                 ///< [in] Application version
-        const wchar_t*  pEngineName;                        ///< [in] Engine name
+        const wchar_t* pEngineName;                        ///< [in] Engine name
         uint32_t        EngineVersion;                      ///< [in] Engine version
     };
 
@@ -81,10 +81,10 @@ extern "C" {
 #ifdef INTC_IGDEXT_D3D11
 
     struct INTC_D3D11_TEXTURE2D_DESC
-    {                      
+    {
         union
         {
-            D3D11_TEXTURE2D_DESC                *pD3D11Desc;
+            D3D11_TEXTURE2D_DESC* pD3D11Desc;
         };
 
         // Emulated Typed 64bit Atomics
@@ -110,7 +110,7 @@ extern "C" {
     {
         union
         {
-            D3D12_COMMAND_QUEUE_DESC                *pD3D12Desc;
+            D3D12_COMMAND_QUEUE_DESC* pD3D12Desc;
         };
 
         INTC_D3D12_COMMAND_QUEUE_THROTTLE_POLICY     CommandThrottlePolicy;         /// Command Queue Throttle Policy
@@ -135,21 +135,21 @@ extern "C" {
     {
         union
         {
-            D3D12_COMPUTE_PIPELINE_STATE_DESC*      pD3D12Desc;
+            D3D12_COMPUTE_PIPELINE_STATE_DESC* pD3D12Desc;
         };
 
         /// Extension shader bypass
         D3D12_SHADER_BYTECODE                       CS;                     /// Compute Shader Bytecode
         INTC_D3D12_SHADER_INPUT_TYPE                ShaderInputType;        /// Input Shader Type
-        void*                                       CompileOptions;         /// Compilation Options
-        void*                                       InternalOptions;        /// Internal CrossCompile Options
+        void* CompileOptions;         /// Compilation Options
+        void* InternalOptions;        /// Internal CrossCompile Options
     };
- 
+
     struct INTC_D3D12_RESOURCE_DESC
-    {                      
+    {
         union
         {
-            D3D12_RESOURCE_DESC                 *pD3D12Desc;
+            D3D12_RESOURCE_DESC* pD3D12Desc;
             //::D3D12_RESOURCE_DESC1              *pD3D12Desc1;         // Future definitions
         };
 
@@ -174,7 +174,7 @@ extern "C" {
     {
         union
         {
-            D3D12_HEAP_DESC*                    pD3D12Desc;
+            D3D12_HEAP_DESC* pD3D12Desc;
         };
 
         // Cpu Visible Video Memory
@@ -191,7 +191,7 @@ extern "C" {
         };
 
         /// Extension ray tracing
-        D3D12_SHADER_BYTECODE*                      DXILLibrary;              /// Raytracing Shader Byte code
+        D3D12_SHADER_BYTECODE*                      DXILLibrary;                    /// Raytracing Shader Byte code
         unsigned int                                numLibraries;
     };
 
@@ -209,7 +209,7 @@ extern "C" {
 
     struct INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA
     {
-        void*                                       pNext;                          // pointer to next extension or 0
+        void* pNext;                          // pointer to next extension or 0
         UINT                                        ExtType;                        // type of the extension : D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EXT_INSTANCE_COMPARISON
         D3D12_GPU_VIRTUAL_ADDRESS                   InstanceComparisonData;         // GPU virtual address of a buffer that contains an array of INTC_D3D12_INSTANCE_COMPARISON_DATA 
     };
@@ -643,8 +643,22 @@ extern "C" {
         const INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA* pComparisonDataDesc );
 
     HRESULT INTC_D3D12_SetFeatureSupport(
-        INTCExtensionContext* pExtensionContext,
-        INTC_D3D12_FEATURE* pFeature);
+        INTCExtensionContext*                       pExtensionContext,
+        INTC_D3D12_FEATURE*                         pFeature );
+        
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Gets the size and alignment of memory required for a collection of resources on this adapter.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param visibleMask For single-GPU operation, set this to zero. If there are multiple GPU nodes,
+    ///        then set bits to identify the nodes (the device's physical adapters).
+    ///        Each bit in the mask corresponds to a single node.
+    /// @param numResourceDescs The number of resource descriptors in the pResourceDescs array.
+    /// @param pResourceDescs A pointer to a overridden D3D12_RESOURCE_DESC structure that describes the resource.
+    D3D12_RESOURCE_ALLOCATION_INFO INTC_D3D12_GetResourceAllocationInfo(
+        INTCExtensionContext*                                                       pExtensionContext,
+        UINT                                                                        visibleMask,
+        UINT                                                                        numResourceDescs,
+        const INTC_D3D12_RESOURCE_DESC_0001*                                        pResourceDescs);
 
 #endif //INTC_IGDEXT_D3D12
 

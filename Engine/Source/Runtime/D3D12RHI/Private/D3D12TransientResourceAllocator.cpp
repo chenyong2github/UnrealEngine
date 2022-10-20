@@ -143,7 +143,7 @@ FRHITransientTexture* FD3D12TransientResourceHeapAllocator::CreateTexture(const 
 {
 	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
 
-	const D3D12_RESOURCE_DESC Desc = DynamicRHI->GetResourceDesc(InCreateInfo);
+	FD3D12ResourceDesc Desc = DynamicRHI->GetResourceDesc(InCreateInfo);
 	D3D12_RESOURCE_ALLOCATION_INFO Info = AllocationInfoQueryDevice->GetResourceAllocationInfo(Desc);
 
 	Info.Alignment = FMath::Max<uint32>(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, Info.Alignment);

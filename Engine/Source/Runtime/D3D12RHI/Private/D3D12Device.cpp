@@ -3,6 +3,14 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12RayTracing.h"
 
+#if INTEL_EXTENSIONS
+	#define INTC_IGDEXT_D3D12 1
+
+	THIRD_PARTY_INCLUDES_START
+	#include "igdext.h"
+	THIRD_PARTY_INCLUDES_END
+#endif
+
 static TAutoConsoleVariable<int32> CVarD3D12GPUTimeout(
 	TEXT("r.D3D12.GPUTimeout"),
 	1,
@@ -516,9 +524,9 @@ void FD3D12Device::BlockUntilIdle()
 	}
 }
 
-D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const D3D12_RESOURCE_DESC& InDesc)
+D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const FD3D12ResourceDesc& InDesc)
 {
-	uint64 Hash = CityHash64((const char*)&InDesc, sizeof(D3D12_RESOURCE_DESC));
+	uint64 Hash = CityHash64((const char*)&InDesc, sizeof(FD3D12ResourceDesc));
 
 	// By default there'll be more threads trying to read this than to write it.
 	ResourceAllocationInfoMapMutex.ReadLock();
@@ -531,7 +539,23 @@ D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const D3D
 	}
 	else
 	{
-		D3D12_RESOURCE_ALLOCATION_INFO Result = GetDevice()->GetResourceAllocationInfo(0, 1, &InDesc);
+		D3D12_RESOURCE_ALLOCATION_INFO Result;
+#if INTEL_EXTENSIONS
+		if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GRHISupportsAtomicUInt64)
+		{
+			FD3D12ResourceDesc LocalDesc = InDesc;
+
+			INTC_D3D12_RESOURCE_DESC_0001 IntelLocalDesc{};
+			IntelLocalDesc.pD3D12Desc = &LocalDesc;
+			IntelLocalDesc.EmulatedTyped64bitAtomics = true;
+
+			Result = INTC_D3D12_GetResourceAllocationInfo(FD3D12DynamicRHI::GetD3DRHI()->GetIntelExtensionContext(), 0, 1, &IntelLocalDesc);
+		}
+		else
+#endif
+		{
+			Result = GetDevice()->GetResourceAllocationInfo(0, 1, &InDesc);
+		}
 
 		ResourceAllocationInfoMapMutex.WriteLock();
 		// Try search again with write lock because could have been added already
