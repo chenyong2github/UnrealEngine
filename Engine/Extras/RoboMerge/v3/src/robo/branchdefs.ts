@@ -136,6 +136,8 @@ const edgeOptionFieldsPrototype = {
 
 	postOnlyToAdditionalChannel: false,
 
+	resolver: '',
+
 	terminal: false, // changes go along terminal edges but no further
 
 	implicitCommands: [''],
@@ -431,12 +433,7 @@ export class BranchDefs {
 
 				// check all properties are known (could make things case insensitive here)
 				for (const keyName of Object.keys(edge)) {
-					if (keyName !== 'from' && keyName !== 'to' 
-
-// temporarily allow resolver until supported properly
-&& keyName !== 'resolver'
-
-						&& !edgeOptionFieldNames.has(keyName)) {
+					if (keyName !== 'from' && keyName !== 'to' && !edgeOptionFieldNames.has(keyName)) {
 						throw new Error(`Unknown property '${keyName}' specified for edge ${edge.from}->${edge.to}`)
 					}
 				}

@@ -175,6 +175,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return this.options.implicitCommands || []
 	}
 
+	get resolver() {
+		return this.options.resolver
+	}
+
 	get isTerminal() {
 		return !!this.options.terminal
 	}
@@ -949,8 +953,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			this.pauseState.applyStatus(status)
 		}
 
-		if (this.targetBranch.resolver) {
-			status.resolver = this.targetBranch.resolver
+		if (this.options.resolver) {
+			status.resolver = this.options.resolver
 		}
 		status.disallowSkip = this.options.disallowSkip
 		status.incognitoMode = this.options.incognitoMode
@@ -1096,6 +1100,7 @@ export class EdgeBot
 	get disallowSkip() { return this.impl.disallowSkip }
 	get incognitoMode() { return this.impl.incognitoMode }
 	get excludedAuthors() { return this.impl.excludedAuthors }
+	get resolver() { return this.impl.resolver }
 	get isActive() { return this.impl.isActive }
 	get isAvailable() { return this.impl.isAvailable }
 	get isBlocked() { return this.impl.isBlocked }

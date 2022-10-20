@@ -44,7 +44,15 @@ export function getIntegrationOwner(arg0: Branch | PendingChange, overriddenOwne
 	const branch = pending ? pending.action.branch : targetBranch
 	const owner = pending ? pending.change.owner : overriddenOwner
 
-	return branch!.resolver || owner || null
+	let resolver = branch!.resolver
+	if (pending) {
+		const edgeprops = pending.change.branch.edgeProperties.get(branch!.upperName)
+		if (edgeprops) {
+			resolver = edgeprops.resolver || null
+		}	
+	}
+
+	return resolver || owner || null
 }
 
 export function getNodeBotFullName(botname: string, branchName: string) {
