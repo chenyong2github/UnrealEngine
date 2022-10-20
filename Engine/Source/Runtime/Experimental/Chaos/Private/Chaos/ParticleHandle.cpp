@@ -249,7 +249,7 @@ namespace Chaos
 			}
 			else
 			{
-				Evolution.EnableParticle(this, nullptr);
+				Evolution.EnableParticle(this);
 			}
 		}		
 

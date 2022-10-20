@@ -446,13 +446,12 @@ public:
 	/**
 	* Enable a particle.Only enabled particles are simulated.
 	* If the particle has constraints connected to it they will also be enabled (assuming the other particles in the constraints are also enabled). 
-	* If a parent particle is specified, the child particle will be placed in the same island as the parent with the same sleep state.
 	*/
-	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle, const FGeometryParticleHandle* ParentParticle = nullptr)
+	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle)
 	{
 		Particles.EnableParticle(Particle);
 		EnableConstraints(Particle);
-		ConstraintGraph.AddParticle(Particle, ParentParticle);
+		ConstraintGraph.AddParticle(Particle);
 		DirtyParticle(*Particle);
 	}
 

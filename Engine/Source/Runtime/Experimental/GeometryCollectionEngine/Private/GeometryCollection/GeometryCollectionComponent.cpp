@@ -1574,8 +1574,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 					{
 						if (!Root->Disabled())
 						{
-							// disable this code for the time being because this may cause crashes
-							// Solver->GetEvolution()->DisableParticle(Root);
+							Solver->GetEvolution()->DisableParticle(Root);
 						}
 					}
 				}

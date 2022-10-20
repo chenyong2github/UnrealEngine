@@ -52,7 +52,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 	if (bResimInitialized)	//todo: assumes particles are always initialized as enabled. This is not true in future versions of code, so check PushData
 	{
-		Evolution.EnableParticle(Handle, nullptr);
+		Evolution.EnableParticle(Handle);
 	}
 	// move the copied game thread data into the handle
 	{

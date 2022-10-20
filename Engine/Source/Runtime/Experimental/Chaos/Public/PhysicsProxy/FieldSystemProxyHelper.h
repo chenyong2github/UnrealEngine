@@ -418,7 +418,7 @@ namespace Chaos
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->Disabled() && ResultsView[Index.Result] == 0)
 					{
-						RigidSolver->GetEvolution()->EnableParticle(RigidHandle, nullptr);
+						RigidSolver->GetEvolution()->EnableParticle(RigidHandle);
 						SetParticleDynamicState(RigidSolver, Chaos::EObjectStateType::Dynamic, RigidHandle);
 					}
 				}

@@ -559,7 +559,7 @@ void FRewindData::SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy)
 		FGeometryParticleHandle* Handle = Proxy.GetHandle_LowLevel();
 		FDirtyParticleInfo& Info = FindOrAddDirtyObj(*Handle, CurFrame);
 
-		Solver->GetEvolution()->EnableParticle(Handle, nullptr);
+		Solver->GetEvolution()->EnableParticle(Handle);
 		if(Proxy.GetInitializedStep() != CurFrame)
 		{
 			DesyncObject(Info, FFrameAndPhase{ Proxy.GetInitializedStep(), FFrameAndPhase::PrePushData });	//Spawned earlier so mark as desynced from that first frame

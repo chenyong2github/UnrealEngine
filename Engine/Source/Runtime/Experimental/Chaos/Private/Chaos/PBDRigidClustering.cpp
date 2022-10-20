@@ -194,7 +194,7 @@ namespace Chaos
 		{
 			NewParticle = MEvolution.CreateClusteredParticles(1)[0]; // calls Evolution.DirtyParticle()
 		}
-		MEvolution.EnableParticle(NewParticle, Parent);
+		MEvolution.EnableParticle(NewParticle);
 
 		NewParticle->SetCollisionGroup(INT_MAX);
 		TopLevelClusterParents.Add(NewParticle);
@@ -478,7 +478,7 @@ namespace Chaos
 		{
 			FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered();
 
-			MEvolution.EnableParticle(Child, ClusteredParent);
+			MEvolution.EnableParticle(Child);
 			TopLevelClusterParents.Add(ClusteredChild);
 
 			ClusteredChild->SetClusterId(ClusterId(nullptr, ClusteredChild->ClusterIds().NumChildren)); // clear Id but retain number of children

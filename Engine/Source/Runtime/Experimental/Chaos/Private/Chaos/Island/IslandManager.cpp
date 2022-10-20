@@ -343,33 +343,13 @@ void FPBDIslandManager::GraphEdgeRemoved(const FConstraintHandleHolder& Constrai
 	ConstraintHandle->SetConstraintGraphIndex(INDEX_NONE);
 }
 
-int32 FPBDIslandManager::AddParticle(FGeometryParticleHandle* ParticleHandle, const FGeometryParticleHandle* ParentParticleHandle)
+int32 FPBDIslandManager::AddParticle(FGeometryParticleHandle* ParticleHandle)
 {
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
 	ensure(!FConstGenericParticleHandle(ParticleHandle)->Disabled());
 #endif
 
-	int32 IslandIndex = INDEX_NONE;
-
-	// If we have a parent, assign the child to the same island in the same sleep state
-	if ((ParticleHandle != nullptr) && (ParentParticleHandle != nullptr))
-	{
-		// We are only adding the child particle to the graph if the parent is dynamic
-		const FPBDRigidParticleHandle* ParentPBDRigid = ParentParticleHandle->CastToRigidParticle();
-		if (ParentPBDRigid && ParentPBDRigid->ObjectState() == EObjectStateType::Dynamic)
-		{
-			FPBDRigidParticleHandle* ChildPBDRigid = ParticleHandle->CastToRigidParticle();
-			if (ChildPBDRigid && IsDynamicParticle(ChildPBDRigid))
-			{
-				// If the child particle is dynamic or sleeping we place the child in
-				// the same island as the parent with the same sleep state
-				IslandIndex = ParentPBDRigid->IslandIndex();
-				ChildPBDRigid->SetSleeping(ParentPBDRigid->Sleeping());
-			}
-		}
-	}
-
-	return TryAddParticleIfDynamic(ParticleHandle, IslandIndex);
+	return TryAddParticleIfDynamic(ParticleHandle,  /*IslandIndex*/INDEX_NONE);
 }
 
 int32 FPBDIslandManager::TryAddParticle(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex)

@@ -141,7 +141,7 @@ public:
 	  * @param ParentParticleHandle Put the ParticleHandle in the same island as the parent with the same sleep state. May be null.
 	  * @return Sparse graph node index
 	  */
-	int32 AddParticle(FGeometryParticleHandle* ParticleHandle, const FGeometryParticleHandle* ParentParticleHandle = nullptr);
+	int32 AddParticle(FGeometryParticleHandle* ParticleHandle);
 
 	/**
 	  * Remove a particle from the graph
