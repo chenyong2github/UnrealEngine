@@ -500,6 +500,11 @@ bool UOptimusDeformerInstance::SetVector4Variable(FName InVariableName, const FV
 	return SetVariableValue<FVector4>(Variables, InVariableName, "FVector4", InValue);
 }
 
+bool UOptimusDeformerInstance::SetTransformVariable(FName InVariableName, const FTransform& InValue)
+{
+	return SetVariableValue<FTransform>(Variables, InVariableName, "FTransform", InValue);
+}
+
 const TArray<UOptimusVariableDescription*>& UOptimusDeformerInstance::GetVariables() const
 {
 	return Variables->Descriptions;

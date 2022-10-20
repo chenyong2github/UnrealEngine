@@ -182,6 +182,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (Vector4)"))
 	bool SetVector4Variable(FName InVariableName, const FVector4& InValue);
 
+	/** Set the value of a transform variable. */
+	UFUNCTION(BlueprintCallable, Category = "Deformer", meta = (DisplayName = "Set Variable (Transform)"))
+	bool SetTransformVariable(FName InVariableName, const FTransform& InValue);
+
 	/** Get an array containing all the variables. */
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusVariableDescription*>& GetVariables() const;
