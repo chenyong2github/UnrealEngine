@@ -562,7 +562,7 @@ static FReplicationStateDescriptor TestClassWithInheritanceNoSuperReplictionStat
 	12, // ExternalSize (rounded up since it also contains statemask)
 	4,	// InternalSize
 	4,	// ExternalAlignment
-	4,	// InternalAlignment
+	2,	// InternalAlignment
 	2,	// MemberCount
 	0,	// FunctionCount
 	0,	// TagCount;
