@@ -76,13 +76,13 @@ uint VertexCount;
 uint DispatchCountX;
 uint HairDebugMode;
 float HairLengthScale;
-float3 InRenderHairPositionOffset;
+float3 InRenHairPositionOffset;
 float3 InSimHairPositionOffset;
 float4x4 LocalToWorldMatrix;
 
-Buffer<uint4>  RenderRestPosePositionBuffer;
+Buffer<uint4>  RenRestPosePositionBuffer;
 Buffer<uint4>  SimRestPosePositionBuffer;
-Buffer<uint4>  DeformedSimPositionBuffer;
+Buffer<uint4>  SimDeformedPositionBuffer;
 
 // Hair interpolation support either 
 // * A single guide, 
@@ -110,18 +110,18 @@ Buffer<uint>   RenVertexToRootIndexBuffer;
 Buffer<uint>   SimVertexToRootIndexBuffer;
 #endif
 
-RWBuffer<uint4> OutRenderDeformedPositionBuffer; 
+RWBuffer<uint4> OutRenDeformedPositionBuffer;
 
 #if PERMUTATION_DYNAMIC_GEOMETRY >= 1 
 
 // Compact all these buffers into 2 buffers: translation + quaternion
-Buffer<float4>  RestPosition0Buffer;
-Buffer<float4>  RestPosition1Buffer;
-Buffer<float4>  RestPosition2Buffer;
+Buffer<float4>  RenRestPosition0Buffer;
+Buffer<float4>  RenRestPosition1Buffer;
+Buffer<float4>  RenRestPosition2Buffer;
 
-Buffer<float4>  DeformedPosition0Buffer;
-Buffer<float4>  DeformedPosition1Buffer;
-Buffer<float4>  DeformedPosition2Buffer;
+Buffer<float4>  RenDeformedPosition0Buffer;
+Buffer<float4>  RenDeformedPosition1Buffer;
+Buffer<float4>  RenDeformedPosition2Buffer;
 
 Buffer<uint>	RenRootBarycentricBuffer;
 Buffer<uint>	RenRootToUniqueTriangleIndexBuffer;
@@ -159,7 +159,7 @@ float3 ComputeStaticGeometryOffset(
 {
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
+	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
 
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
@@ -172,7 +172,7 @@ float3 ComputeLocalGeometryOffset(
 
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - f16tof32(SimRestPosePositionBuffer[RootIndex].xyz) ;
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) - f16tof32(DeformedSimPositionBuffer[RootIndex].xyz) ;
+	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) - f16tof32(SimDeformedPositionBuffer[RootIndex].xyz) ;
 
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
@@ -188,7 +188,7 @@ float3 ComputeDynamicGeometryOffset(
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
 	const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint, RootBarycentric, RestTriangle);
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
+	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
 	const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint, RootBarycentric, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
@@ -202,7 +202,7 @@ float3 ComputeTranslateGeometryOffset(
 
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - f16tof32(SimRestPosePositionBuffer[RootIndex].xyz) ;
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) - f16tof32(DeformedSimPositionBuffer[RootIndex].xyz) ;
+	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) - f16tof32(SimDeformedPositionBuffer[RootIndex].xyz) ;
 
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
@@ -218,7 +218,7 @@ float3 ComputeRotateGeometryOffset(
 	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - f16tof32(SimRestPosePositionBuffer[RootIndex].xyz) ;
 	const float3 LocalRestGuidePoint = VectorToTriangle(RestGuidePoint, RestTriangle);
 
-	const float3 DeformedGuidePoint = f16tof32(DeformedSimPositionBuffer[GuideIndex].xyz) - f16tof32(DeformedSimPositionBuffer[RootIndex].xyz) ;
+	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) - f16tof32(SimDeformedPositionBuffer[RootIndex].xyz) ;
 	const float3 LocalDeformedGuidePoint = VectorToTriangle(DeformedGuidePoint, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
@@ -253,8 +253,8 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 		Out.RootIndex		 = RenVertexToRootIndexBuffer[VertexIndex];
 		Out.TriangleIndex	 = RenRootToUniqueTriangleIndexBuffer[Out.RootIndex];
 		Out.RootBarycentric  = DecodeBarycentrics(RenRootBarycentricBuffer[Out.RootIndex]);
-		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, RenRestPosition0Buffer, RenRestPosition1Buffer, RenRestPosition2Buffer);
+		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, RenDeformedPosition0Buffer, RenDeformedPosition1Buffer, RenDeformedPosition2Buffer);
 	}
 	#endif
 	return Out;
@@ -430,6 +430,9 @@ float3 ApplySkinningWithTranslationAndRotation(const FGuideData GuideData, const
 	return CurrOffset;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Interpolation
+
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -456,8 +459,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const FRootTriangleData RenTri = GetRootTriangleData(VertexIndex, false);
 
 		// Manual decoding of the rest position
-		const uint4 PackedRestPosition = RenderRestPosePositionBuffer[VertexIndex];
-		const float3 RestPosition = f16tof32(PackedRestPosition.xyz) + InRenderHairPositionOffset;
+		const uint4 PackedRestPosition = RenRestPosePositionBuffer[VertexIndex];
+		const float3 RestPosition = f16tof32(PackedRestPosition.xyz) + InRenHairPositionOffset;
 
 		float3 OutPosition = 0.0f;
 
@@ -501,7 +504,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				OutPosition = INFINITE_FLOAT;
 			}
 		}
-		OutRenderDeformedPositionBuffer[VertexIndex] = PackHairControlPointPosition(PackedRestPosition, OutPosition, OutRenHairPositionOffsetBuffer[0].xyz);
+		OutRenDeformedPositionBuffer[VertexIndex] = PackHairControlPointPosition(PackedRestPosition, OutPosition, OutRenHairPositionOffsetBuffer[0].xyz);
 	}
 }
 #endif // SHADER_HAIRINTERPOLATION
