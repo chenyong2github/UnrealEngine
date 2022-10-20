@@ -48,7 +48,7 @@ IModularFeature* FModularFeatures::GetModularFeatureImplementation( const FName 
 		++CurrentIndex;
 	}
 
-	check( ModularFeature != nullptr );
+	checkf( ModularFeature != nullptr, TEXT("ModularFeature not found: '%s', Index: %d"), *Type.ToString(), Index);
 	return ModularFeature;
 }
 
