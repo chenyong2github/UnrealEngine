@@ -27,6 +27,9 @@ constexpr float WaitForConnectReplyTimeout = 60.f;
 FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 	: COTFS(InCOTFS)
 {
+	FLogMessagesMessageHandler* Handler = new FLogMessagesMessageHandler();
+	Handler->InitializeClient();
+	Register(Handler);
 }
 
 FCookWorkerClient::~FCookWorkerClient()

@@ -8,11 +8,14 @@
 #include "Containers/RingBuffer.h"
 #include "Containers/Set.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "CookMPCollector.h"
 #include "CookPackageData.h"
 #include "CookSockets.h"
 #include "CookTypes.h"
 #include "HAL/CriticalSection.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/Guid.h"
+#include "Misc/OutputDevice.h"
 #include "Templates/RefCounting.h"
 
 class FSocket;
@@ -290,6 +293,47 @@ public:
 
 public:
 	TArray<FDiscoveredPackage> Packages;
+	static FGuid MessageType;
+};
+
+/** Stores the data passed into FOutputDevice::Serialize, for replication to the CookDirector. */
+struct FReplicatedLogData
+{
+	FString Message;
+	FName Category;
+	ELogVerbosity::Type Verbosity;
+};
+FCbWriter& operator<<(FCbWriter& Writer, const FReplicatedLogData& Package);
+bool LoadFromCompactBinary(FCbFieldView Field, FReplicatedLogData& OutPackage);
+
+/**
+ * Send log messages from CookWorkers to the CookDirector, which marks them up with the CookWorkerId and
+ * then prints them to its own log.
+ */
+class FLogMessagesMessageHandler : public IMPCollector, public FOutputDevice
+{
+public:
+	~FLogMessagesMessageHandler();
+	void InitializeClient();
+
+	// IMPCollector
+	virtual FGuid GetMessageType() const override { return MessageType; }
+	virtual const TCHAR* GetDebugName() const override { return TEXT("FLogMessagesMessageHandler"); }
+	virtual void ClientTick(FClientContext& Context) override;
+	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
+
+	// FOutputDevice
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, const double Time) override;
+	virtual bool CanBeUsedOnAnyThread() const override { return true; }
+	virtual bool CanBeUsedOnMultipleThreads() const override { return true; }
+
+private:
+	FCriticalSection QueueLock;
+	TArray<FReplicatedLogData> QueuedLogs;
+	TArray<FReplicatedLogData> QueuedLogsBackBuffer;
+	bool bRegistered = false;
+
 	static FGuid MessageType;
 };
 

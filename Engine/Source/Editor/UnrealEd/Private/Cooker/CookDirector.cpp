@@ -47,6 +47,8 @@ FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS)
 	{
 		UE_LOG(LogCook, Display, TEXT("CookMultiprocess is enabled with %d CookWorker processes."), RequestedCookWorkerCount);
 	}
+
+	Register(new FLogMessagesMessageHandler());
 }
 
 void FCookDirector::ParseConfig()

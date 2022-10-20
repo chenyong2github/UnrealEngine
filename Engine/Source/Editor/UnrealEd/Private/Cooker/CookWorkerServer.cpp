@@ -497,6 +497,7 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 				check(*Collector);
 				IMPCollector::FServerContext Context;
 				Context.Platforms = OrderedSessionPlatforms;
+				Context.WorkerId = WorkerId;
 				(*Collector)->ReceiveMessage(Context, Message.Object);
 			}
 			else
@@ -874,5 +875,98 @@ bool FDiscoveredPackagesMessage::TryRead(FCbObject&& Object)
 }
 
 FGuid FDiscoveredPackagesMessage::MessageType(TEXT("C9F5BC5C11484B06B346B411F1ED3090"));
+
+FCbWriter& operator<<(FCbWriter& Writer, const FReplicatedLogData& Package)
+{
+	Writer.BeginArray();
+	Writer << Package.Category;
+	uint8 Verbosity = static_cast<uint8>(Package.Verbosity);
+	check(Verbosity < ELogVerbosity::NumVerbosity);
+	Writer << Verbosity;
+	Writer << Package.Message;
+	Writer.EndArray();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FReplicatedLogData& OutPackage)
+{
+	bool bOk = true;
+	FCbFieldViewIterator It = Field.CreateViewIterator();
+	bOk = LoadFromCompactBinary(*It++, OutPackage.Category) & bOk;
+	uint8 Verbosity;
+	if (LoadFromCompactBinary(*It++, Verbosity) && Verbosity <= ELogVerbosity::NumVerbosity)
+	{
+		OutPackage.Verbosity = static_cast<ELogVerbosity::Type>(Verbosity);
+	}
+	else
+	{
+		bOk = false;
+		OutPackage.Verbosity = static_cast<ELogVerbosity::Type>(0);
+	}
+	bOk = LoadFromCompactBinary(*It++, OutPackage.Message) & bOk;
+	return bOk;
+}
+
+FGuid FLogMessagesMessageHandler::MessageType(TEXT("DB024D28203D4FBAAAF6AAD7080CF277"));
+
+FLogMessagesMessageHandler::~FLogMessagesMessageHandler()
+{
+	if (bRegistered && GLog)
+	{
+		GLog->RemoveOutputDevice(this);
+	}
+}
+void FLogMessagesMessageHandler::InitializeClient()
+{
+	check(!bRegistered);
+	GLog->AddOutputDevice(this);
+	bRegistered = true;
+}
+
+void FLogMessagesMessageHandler::ClientTick(FClientContext& Context)
+{
+	{
+		FScopeLock QueueScopeLock(&QueueLock);
+		Swap(QueuedLogs, QueuedLogsBackBuffer);
+	}
+	if (!QueuedLogsBackBuffer.IsEmpty())
+	{
+		FCbWriter Writer;
+		Writer.BeginObject();
+		Writer << "Messages" << QueuedLogsBackBuffer;
+		Writer.EndObject();
+		Context.AddMessage(Writer.Save().AsObject());
+		QueuedLogsBackBuffer.Reset();
+	}
+}
+
+void FLogMessagesMessageHandler::ReceiveMessage(FServerContext& Context, FCbObjectView InMessage)
+{
+	TArray<FReplicatedLogData> Messages;
+	if (!LoadFromCompactBinary(InMessage["Messages"], Messages))
+	{
+		UE_LOG(LogCook, Error, TEXT("FLogMessagesMessageHandler received corrupted message from CookWorker"));
+		return;
+	}
+
+	for (FReplicatedLogData& LogData : Messages)
+	{
+		GLog->CategorizedLogf(LogData.Category, LogData.Verbosity, TEXT("[CookWorker %d]: %s"),
+			Context.GetWorkerId().GetRemoteIndex(), *LogData.Message);
+	}
+}
+
+void FLogMessagesMessageHandler::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity,
+	const FName& Category)
+{
+	FScopeLock QueueScopeLock(&QueueLock);
+	QueuedLogs.Add(FReplicatedLogData{ FString(V), Category, Verbosity });
+}
+
+void FLogMessagesMessageHandler::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity,
+	const FName& Category, const double Time)
+{
+	Serialize(V, Verbosity, Category);
+}
 
 }

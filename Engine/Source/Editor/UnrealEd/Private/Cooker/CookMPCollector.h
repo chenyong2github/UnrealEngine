@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Cooker/CookTypes.h"
 #include "HAL/Platform.h"
 #include "Misc/Guid.h"
 #include "Templates/RefCounting.h"
@@ -51,17 +52,19 @@ public:
 
 		uint8 PlatformToInt(const ITargetPlatform* Platform) const;
 		const ITargetPlatform* IntToPlatform(uint8 PlatformAsInt) const;
+		FWorkerId GetWorkerId() const { return WorkerId; }
 
 	private:
 		TConstArrayView<const ITargetPlatform*> Platforms;
+		FWorkerId WorkerId;
 
 		friend class FCookWorkerServer;
 	};
 
 	virtual ~IMPCollector() {}
 
-	virtual FGuid GetMessageType() = 0;
-	virtual const TCHAR* GetDebugName() = 0;
+	virtual FGuid GetMessageType() const = 0;
+	virtual const TCHAR* GetDebugName() const = 0;
 
 	virtual void ClientTick(FClientContext& Context) {}
 	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message);

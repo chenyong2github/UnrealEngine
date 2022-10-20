@@ -7840,8 +7840,8 @@ namespace UE::Cook
 class FShaderLibraryCollector : public IMPCollector
 {
 public:
-	virtual FGuid GetMessageType() override { return MessageType; }
-	virtual const TCHAR* GetDebugName() override { return TEXT("FShaderLibraryCollector"); }
+	virtual FGuid GetMessageType() const override { return MessageType; }
+	virtual const TCHAR* GetDebugName() const override { return TEXT("FShaderLibraryCollector"); }
 
 	virtual void ClientTick(FClientContext& Context) override;
 	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
@@ -9767,8 +9767,8 @@ namespace UE::Cook
 class FEDLMPCollector : public IMPCollector
 {
 public:
-	virtual FGuid GetMessageType() override { return MessageType; }
-	virtual const TCHAR* GetDebugName() override { return TEXT("FEDLMPCollector"); }
+	virtual FGuid GetMessageType() const override { return MessageType; }
+	virtual const TCHAR* GetDebugName() const override { return TEXT("FEDLMPCollector"); }
 
 	virtual void ClientTick(FClientContext& Context) override;
 	virtual void ReceiveMessage(FServerContext& Context, FCbObjectView Message) override;
