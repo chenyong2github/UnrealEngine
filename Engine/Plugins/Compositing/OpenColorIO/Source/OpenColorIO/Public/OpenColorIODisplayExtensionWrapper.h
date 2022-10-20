@@ -18,7 +18,11 @@ class OPENCOLORIO_API UOpenColorIODisplayExtensionWrapper : public UObject
 
 public:
 
-	// Sets a new OCIO configuration.
+	// Gets the display extension OCIO configuration.
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get OpenColorIO Configuration"), Category = "OpenColorIO")
+	FOpenColorIODisplayConfiguration GetOpenColorIOConfiguration() const;
+
+	// Sets the display extension OCIO configuration.
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set OpenColorIO Configuration"), Category = "OpenColorIO")
 	void SetOpenColorIOConfiguration(FOpenColorIODisplayConfiguration InDisplayConfiguration);
 

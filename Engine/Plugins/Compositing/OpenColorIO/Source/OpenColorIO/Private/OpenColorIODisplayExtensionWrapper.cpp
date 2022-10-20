@@ -21,6 +21,16 @@ void UOpenColorIODisplayExtensionWrapper::CreateDisplayExtensionIfNotExists()
 	check(DisplayExtension.IsValid());
 }
 
+FOpenColorIODisplayConfiguration UOpenColorIODisplayExtensionWrapper::GetOpenColorIOConfiguration() const
+{
+	if (!DisplayExtension.IsValid())
+	{
+		return {};
+	}
+
+	return DisplayExtension->GetDisplayConfiguration();
+}
+
 void UOpenColorIODisplayExtensionWrapper::SetOpenColorIOConfiguration(FOpenColorIODisplayConfiguration InDisplayConfiguration)
 {
 	if (!DisplayExtension.IsValid())
@@ -83,6 +93,12 @@ UOpenColorIODisplayExtensionWrapper* UOpenColorIODisplayExtensionWrapper::Create
 	FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
 	IsActiveFunctor.IsActiveFunction = [](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
 	{
+		// Note: SceneViewExtension this pointer is always passed to functors from FSceneViewExtensionBase::IsActiveThisFrame, we confirm this remains so.
+		check(SceneViewExtension);
+
+		const FOpenColorIODisplayExtension* SVE = static_cast<const FOpenColorIODisplayExtension*>(SceneViewExtension);
+		const bool bIsEnabled = SVE->GetDisplayConfiguration().bIsEnabled;
+
 		if (!Context.Viewport)
 		{
 			return TOptional<bool>();
@@ -94,7 +110,7 @@ UOpenColorIODisplayExtensionWrapper* UOpenColorIODisplayExtensionWrapper::Create
 			// Activate the SVE if it is a PIE viewport.
 			if (Context.Viewport->IsPlayInEditorViewport())
 			{
-				return TOptional<bool>(true);
+				return TOptional<bool>(bIsEnabled);
 			}
 		}
 #endif // WITH_EDITOR
@@ -104,7 +120,7 @@ UOpenColorIODisplayExtensionWrapper* UOpenColorIODisplayExtensionWrapper::Create
 		{
 			if (GameEngine->SceneViewport.IsValid() && (GameEngine->SceneViewport->GetViewport() == Context.Viewport))
 			{
-				return TOptional<bool>(true);
+				return TOptional<bool>(bIsEnabled);
 			}
 		}
 
