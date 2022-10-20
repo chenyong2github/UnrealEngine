@@ -2129,8 +2129,9 @@ uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key)
 	}
 	
 	Hash = HashCombine(Hash, GetTypeHash(Key.State));
-
 	Hash = HashCombine(Hash, GetTypeHash(Key.bBuildParameterDecorations));
+	Hash = HashCombine(Hash, GetTypeHash(Key.MinLODToLoad));
+	Hash = HashCombine(Hash, GetTypeHash(Key.MaxLODToLoad));
 
 	for (const TTuple<FName, FMultilayerProjector>& Pair : Key.MultilayerProjectors)
 	{

@@ -216,9 +216,7 @@ public:
 	// Copy data generated in the mutable thread over to the instance and initializes additional data required during the update
 	void PrepareForUpdate(const TSharedPtr<FMutableOperationData>& OperationData);
 
-	void SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades = true);
-	int32 GetMinLODToLoad() { return CurrentMinLOD; }
-	int32 GetMaxLODToLoad() { return CurrentMaxLOD; }
+	void SetMinMaxLODToLoad(UCustomizableObjectInstance* Public, int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades = true);
 	
 	int32 GetNumLODsAvailable() const { return NumLODsAvailable; }
 	
@@ -270,13 +268,12 @@ public:
 												
 	double LastUpdateTime;
 
-	// These are the LODs that MUST be used in an update through GetMinLODToLoad and GetMaxLODToLoad, they are thread safe
-	int32 CurrentMinLOD;
-	int32 CurrentMaxLOD;
+	// LODs applied on the last update. Represent the actual LODs the Instance is using.
+	int32 LastUpdateMinLOD = -1;
+	int32 LastUpdateMaxLOD = -1;
 
-	// These are the LODs we want to have, they MUSN'T be used in an update, they aren't thread safe to use from the mutable thread
-	int32 MinLODToLoad;
-	int32 MaxLODToLoad;
+	/** Saves the LODs requested on the update. */
+	void SaveMinMaxLODToLoad(const UCustomizableObjectInstance* Public);
 	
 	// This is the LODs that the Customizable Object has
 	int32 NumLODsAvailable;

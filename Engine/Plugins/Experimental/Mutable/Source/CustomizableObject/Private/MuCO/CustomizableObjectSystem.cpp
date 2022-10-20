@@ -526,11 +526,11 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 					{
 						CountAllocatedSkeletalMesh++;
 
-						if (CustomizableObjectInstance->GetPrivate()->GetMinLODToLoad() < 1)
+						if (CustomizableObjectInstance->GetPrivate()->LastUpdateMinLOD < 1)
 						{
 							++CountLOD0;
 						}
-						else if (CustomizableObjectInstance->GetPrivate()->GetMinLODToLoad() < 2)
+						else if (CustomizableObjectInstance->GetPrivate()->LastUpdateMaxLOD < 2)
 						{
 							++CountLOD1;
 						}
@@ -776,24 +776,24 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance)
 }
 
 
-void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance* InCustomizableObjectInstance, FMutableQueueElem::EQueuePriorityType Priority)
+void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance* Public, FMutableQueueElem::EQueuePriorityType Priority)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh);
 
 	check(IsInGameThread());
 
-	if (!InCustomizableObjectInstance ||
-		!InCustomizableObjectInstance->IsValidLowLevel())
+	if (!Public ||
+		!Public->IsValidLowLevel())
 	{
-		InCustomizableObjectInstance->Updated(EUpdateResult::Error);
+		Public->Updated(EUpdateResult::Error);
 		return;
 	}
 	
-	if (UCustomizableObject* CustomizableObject = InCustomizableObjectInstance->GetCustomizableObject();
+	if (UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 		CustomizableObject &&
 		!CustomizableObject->IsLocked())
 	{
-		FString CurrentState = InCustomizableObjectInstance->GetCurrentState();
+		FString CurrentState = Public->GetCurrentState();
 		FParameterUIData* State = CustomizableObject->StateUIDataMap.Find(CurrentState);
 		bool bNeverStream = State ? State->bDontCompressRuntimeTextures : false;
 		const bool bUseMipmapStreaming = !bNeverStream;
@@ -804,14 +804,16 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 			MipsToSkip = 255; // This means skip all possible mips until only UTexture::GetStaticMinTextureResidentMipCount() are left
 		}
 		
-		const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(InCustomizableObjectInstance, bNeverStream, MipsToSkip));
+		const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(Public, bNeverStream, MipsToSkip));
+
+		Public->GetPrivate()->SaveMinMaxLODToLoad(Public);
 
 		// Skip the update if the Instance has the same descriptor (pending or applied).
 		// If there is a hash collision, at worse, we would add an unnecessary update.
 		{
-			const uint32 UpdateDescriptorHash = InCustomizableObjectInstance->GetUpdateDescriptorHash();
+			const uint32 UpdateDescriptorHash = Public->GetUpdateDescriptorHash();
 
-			if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(InCustomizableObjectInstance))
+			if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(Public))
 			{
 				if (const TSharedPtr<FMutableOperation>& QueuedOperation = QueueElem->Operation;
 					QueuedOperation &&
@@ -829,21 +831,21 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 				return;
 			}
 			
-			if (InCustomizableObjectInstance->GetDescriptorHash() == UpdateDescriptorHash)
+			if (Public->GetDescriptorHash() == UpdateDescriptorHash)
 			{
-				UpdateSkeletalMesh(InCustomizableObjectInstance);
+				UpdateSkeletalMesh(Public);
 				return;
 			}
 		}
 
-		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, InCustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer));
+		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, Public->GetPrivate()->MinSquareDistFromComponentToPlayer));
 
-		InCustomizableObjectInstance->BeginUpdateDelegate.Broadcast(InCustomizableObjectInstance);
-		InCustomizableObjectInstance->BeginUpdateNativeDelegate.Broadcast(InCustomizableObjectInstance);
+		Public->BeginUpdateDelegate.Broadcast(Public);
+		Public->BeginUpdateNativeDelegate.Broadcast(Public);
 	}
 	else
 	{
-		InCustomizableObjectInstance->Updated(EUpdateResult::Error);
+		Public->Updated(EUpdateResult::Error);
 	}
 }
 
@@ -2099,12 +2101,6 @@ namespace impl
 
 		UCustomizableInstancePrivateData* PrivateInstance = CandidateInstance->GetPrivate();
 
-		PrivateInstance->CurrentMinLOD = FMath::Max(PrivateInstance->MinLODToLoad, (int32)PrivateInstance->FirstLODAvailable);
-		PrivateInstance->CurrentMinLOD = FMath::Min(PrivateInstance->CurrentMinLOD, PrivateInstance->FirstLODAvailable + PrivateInstance->NumMaxLODsToStream);
-
-		PrivateInstance->CurrentMaxLOD = FMath::Max(PrivateInstance->MaxLODToLoad, PrivateInstance->CurrentMinLOD);
-
-
 		// Prepare streaming for the current customizable object
 		System->GetPrivate()->Streamer->PrepareStreamingForObject(CustomizableObject);
 
@@ -2114,8 +2110,8 @@ namespace impl
 		TSharedPtr<FMutableOperationData> CurrentOperationData = MakeShared<FMutableOperationData>();
 		CurrentOperationData->TextureCoverageQueries_MutableThreadParams = PrivateInstance->TextureCoverageQueries;
 		CurrentOperationData->TextureCoverageQueries_MutableThreadResults.Empty();
-		CurrentOperationData->CurrentMinLOD = PrivateInstance->CurrentMinLOD;
-		CurrentOperationData->CurrentMaxLOD = PrivateInstance->CurrentMaxLOD;
+		CurrentOperationData->CurrentMinLOD = PrivateInstance->LastUpdateMinLOD;
+		CurrentOperationData->CurrentMaxLOD = PrivateInstance->LastUpdateMaxLOD;
 		CurrentOperationData->bNeverStream = Operation->bNeverStream;
 		CurrentOperationData->MipsToSkip = Operation->MipsToSkip;
 		CurrentOperationData->MutableParameters = Parameters;

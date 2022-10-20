@@ -142,6 +142,13 @@ UTexture2D* UCustomizableInstancePrivateData::CreateTexture()
 }
 
 
+void UCustomizableInstancePrivateData::SaveMinMaxLODToLoad(const UCustomizableObjectInstance* Public)
+{
+	LastUpdateMinLOD = Public->Descriptor.MinLODToLoad;
+	LastUpdateMaxLOD = Public->Descriptor.MaxLODToLoad;
+}
+
+
 int32 UCustomizableInstancePrivateData::GetLastMeshId(int32 ComponentIndex, int32 LODIndex) const
 {
 	const FCustomizableInstanceComponentData* ComponentData = GetComponentData(ComponentIndex);
@@ -212,16 +219,17 @@ void UCustomizableObjectInstance::SetDescriptor(const FCustomizableObjectInstanc
 }
 
 
-void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades)
+void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectInstance* Public, int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades)
 {
 	if (!HasCOInstanceFlags(LODsStreamingEnabled))
 	{
 		return;
 	}
 
-	NewMinLOD = FMath::Min(FMath::Max(NewMinLOD, (int32)FirstLODAvailable), FirstLODAvailable + NumMaxLODsToStream);
+	// Min LOD
+	NewMinLOD = FMath::Min(FMath::Max(NewMinLOD, static_cast<int32>(FirstLODAvailable)), FirstLODAvailable + NumMaxLODsToStream);
 
-	const bool bIsDowngradeLODUpdate = CurrentMinLOD >= 0 && NewMinLOD > CurrentMinLOD;
+	const bool bIsDowngradeLODUpdate = LastUpdateMinLOD >= 0 && NewMinLOD > LastUpdateMinLOD;
 	SetCOInstanceFlags(bIsDowngradeLODUpdate ? PendingLODsDowngrade : None);
 
 	if (!bIsDowngradeLODUpdate && bLimitLODUpgrades)
@@ -232,28 +240,29 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(int32 NewMinLOD, int32
 		}
 	}
 
-	if(NumLODsAvailable != INT32_MAX)
+	// Max LOD
+	if (NumLODsAvailable != INT32_MAX)
 	{
-		if(MaxLODToLoad == INT32_MAX)
+		if (Public->Descriptor.MaxLODToLoad == INT32_MAX)
 		{
-			MaxLODToLoad = NumLODsAvailable - 1;
+			Public->Descriptor.MaxLODToLoad = NumLODsAvailable - 1;
 		}
 
 		NewMaxLOD = FMath::Min(NewMaxLOD, NumLODsAvailable - 1);
 	}
 	
-	SetCOInstanceFlags(MinLODToLoad != NewMinLOD || MaxLODToLoad != NewMaxLOD ? PendingLODsUpdate : None);
+	NewMaxLOD = FMath::Max(NewMaxLOD, NewMinLOD);
 
-	MinLODToLoad = NewMinLOD;
-	MaxLODToLoad = NewMaxLOD;
+	// Save the new LODs
+	SetCOInstanceFlags(Public->Descriptor.MinLODToLoad != NewMinLOD || Public->Descriptor.MaxLODToLoad != NewMaxLOD ? PendingLODsUpdate : None);
+
+	Public->Descriptor.MinLODToLoad = NewMinLOD;
+	Public->Descriptor.MaxLODToLoad = NewMaxLOD;
 }
 
 
 void UCustomizableInstancePrivateData::PrepareForUpdate(const TSharedPtr<FMutableOperationData>& OperationData)
 {
-	CurrentMinLOD = OperationData->CurrentMinLOD;
-	CurrentMaxLOD = OperationData->CurrentMaxLOD;
-
 	const bool bNumLODsUpdated = NumLODsAvailable != OperationData->NumLODsAvailable;
 	
 	SetCOInstanceFlags(bNumLODsUpdated ? PendingMeshUpdate : None);
@@ -786,7 +795,7 @@ void UCustomizableInstancePrivateData::DoUpdateSkeletalMeshAsync(UCustomizableOb
 
 	if (HasCOInstanceFlags(PendingLODsUpdateSecondStage))
 	{
-		UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), CurrentMinLOD, CurrentMaxLOD, MinLODToLoad, MaxLODToLoad);
+		UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), LastUpdateMinLOD, LastUpdateMaxLOD, Instance->Descriptor.MinLODToLoad, Instance->Descriptor.MaxLODToLoad);
 	}
 
 	UCustomizableObjectSystem::GetInstance()->GetPrivate()->InitUpdateSkeletalMesh(Instance, Priority);
@@ -1437,8 +1446,8 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 		UE_LOG(LogMutable, Warning, TEXT("Updating skeletal mesh error for mesh %s"), *Public->GetName());
 	}
 
-	const int32 FirstComponent = OperationData->InstanceUpdateData.LODs[CurrentMinLOD].FirstComponent;
-	const int32 NumComponents = OperationData->InstanceUpdateData.LODs[CurrentMinLOD].ComponentCount;
+	const int32 FirstComponent = OperationData->InstanceUpdateData.LODs[OperationData->CurrentMinLOD].FirstComponent;
+	const int32 NumComponents = OperationData->InstanceUpdateData.LODs[OperationData->CurrentMinLOD].ComponentCount;
 
 	bool bHasSkeletalMesh = false;
 
@@ -1622,12 +1631,12 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 
 					for (int32 LODIndex = 0; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < OperationData->InstanceUpdateData.LODs.Num(); ++LODIndex)
 					{
-						if (HasCOInstanceFlags(ReduceLODs) && LODIndex < CurrentMinLOD)
+						if (HasCOInstanceFlags(ReduceLODs) && LODIndex < OperationData->CurrentMinLOD)
 						{
 							continue;
 						}
 						
-						Helper_GetLODData(SkeletalMesh).Add((LODIndex <= CurrentMinLOD && Helper_GetLODData(SkeletalMesh).Num()) ? &Helper_GetLODData(SkeletalMesh)[0] : new Helper_LODDataType());
+						Helper_GetLODData(SkeletalMesh).Add((LODIndex <= OperationData->CurrentMinLOD && Helper_GetLODData(SkeletalMesh).Num()) ? &Helper_GetLODData(SkeletalMesh)[0] : new Helper_LODDataType());
 
 						const FMutableRefLODData& LODData = RefSkeletalMeshData->LODData[LODIndex];
 						
@@ -1700,12 +1709,6 @@ UCustomizableInstancePrivateData::UCustomizableInstancePrivateData()
 	LastMinSquareDistFromComponentToPlayer = FLT_MAX;
 	
 	LastUpdateTime = 0.f;
-
-	CurrentMinLOD = -1;
-	CurrentMaxLOD = -1;
-
-	MinLODToLoad = 0;
-	MaxLODToLoad = INT32_MAX;
 
 	NumLODsAvailable = INT32_MAX;
 	FirstLODAvailable = 0;
@@ -2447,6 +2450,11 @@ void SetTexturePropertiesFromMutableImageProps(UTexture2D* Texture, const FMutab
 
 void UCustomizableObjectInstance::Updated(EUpdateResult Result)
 {
+	if (Result == EUpdateResult::Success)
+	{
+		DescriptorHash = UpdateDescriptorHash;
+	}
+
 	// Call Customizable Skeletal Components updated callbacks.
 	for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
 	{
@@ -2458,11 +2466,9 @@ void UCustomizableObjectInstance::Updated(EUpdateResult Result)
 		}
 	}
 
-	// Call Instance updated (this) callbacks.
-	DescriptorHash = UpdateDescriptorHash;
-
 	if (Result == EUpdateResult::Success)
 	{
+		// Call Instance updated (this) callbacks.
 		UpdatedDelegate.Broadcast(this);
 		UpdatedNativeDelegate.Broadcast(this);
 	}	
@@ -2801,10 +2807,10 @@ void UCustomizableInstancePrivateData::BuildSkeletalMeshElementData(const TShare
 	SkeletalMesh->GetMaterials().SetNum(1);
 	SkeletalMesh->GetMaterials()[0] = UnrealMaterial;
 
-	int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : CurrentMinLOD;
+	int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : OperationData->CurrentMinLOD;
 
 	int32 LODCount = OperationData->InstanceUpdateData.LODs.Num();
-	for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
+	for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
 	{
 		const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LODIndex];
 		const mu::MeshPtrConst MutableMesh = OperationData->InstanceUpdateData.Components[LOD.FirstComponent + ComponentIndex].Mesh;
@@ -2979,7 +2985,7 @@ void UCustomizableInstancePrivateData::BuildMorphTargetsData(const TSharedPtr<FM
 	const int32 SkeletalMeshMorphTargetsNum = SkeletalMesh->GetMorphTargets().Num();
 
 	int32 LODCount = OperationData->InstanceUpdateData.LODs.Num();
-	for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex)
+	for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex)
 	{
 		const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LODIndex];
 		if (mu::MeshPtrConst MutableMesh = OperationData->InstanceUpdateData.Components[LOD.FirstComponent+ComponentIndex].Mesh)
@@ -3118,8 +3124,8 @@ void UCustomizableInstancePrivateData::BuildClothingData(const TSharedPtr<FMutab
 	{
 		MUTABLE_CPUPROFILER_SCOPE(DiscoverSectionsWithCloth);
 
-		int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : CurrentMinLOD;
-		for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
+		int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : OperationData->CurrentMinLOD;
+		for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
 		{
 			const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LODIndex];
 			const int32 ComponentCount = LOD.ComponentCount;
@@ -3775,15 +3781,15 @@ void UCustomizableInstancePrivateData::BuildClothingData(const TSharedPtr<FMutab
 
 	// Based on FSkeletalMeshLODModel::GetClothMappingData().
 	TArray<TArray<FMeshToMeshVertData>> LodMappingData;
-	LodMappingData.SetNum(FMath::Max<int32>(CurrentMaxLOD + 1, LODCount));
+	LodMappingData.SetNum(FMath::Max<int32>(OperationData->CurrentMaxLOD + 1, LODCount));
 
 	TArray<TArray<FClothBufferIndexMapping>> LodClothingIndexMapping;
-	LodClothingIndexMapping.SetNum(FMath::Max<int32>(CurrentMaxLOD + 1, LODCount));
+	LodClothingIndexMapping.SetNum(FMath::Max<int32>(OperationData->CurrentMaxLOD + 1, LODCount));
 	{
 		int32 NumSectionsWithClothProcessed = 0;
-		int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : CurrentMinLOD;
+		int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : OperationData->CurrentMinLOD;
 
-		for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
+		for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
 		{
 			const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LODIndex];
 			const int32 ComponentCount = LOD.ComponentCount;
@@ -3837,8 +3843,8 @@ void UCustomizableInstancePrivateData::BuildClothingData(const TSharedPtr<FMutab
 	{
 		MUTABLE_CPUPROFILER_SCOPE(InitClothRenderData)
 		// Based on FSkeletalMeshLODModel::GetClothMappingData().
-		int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : CurrentMinLOD;
-		for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
+		int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : OperationData->CurrentMinLOD;
+		for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
 		{
 			FSkeletalMeshLODRenderData& LODModel = RenderResource->LODRenderData[MeshLODIndex];
 	
@@ -3937,10 +3943,10 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 	SkeletalMesh->SetHasBeenSimplified(false);
 	SkeletalMesh->SetHasVertexColors(false);
 
-	int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : CurrentMinLOD;
+	int32 MeshLODIndex = HasCOInstanceFlags(ReduceLODs) ? 0 : OperationData->CurrentMinLOD;
 
 	int32 LODCount = OperationData->InstanceUpdateData.LODs.Num();
-	for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
+	for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(LODLoop);
 
@@ -4121,7 +4127,7 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 	// Load assets coming from SubMeshes of the newly generated Mesh
 	if (OperationData->InstanceUpdateData.LODs.Num())
 	{
-		const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[CurrentMinLOD];
+		const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[OperationData->CurrentMinLOD];
 		for (int32 ComponentIndex = 0; ComponentIndex < LOD.ComponentCount; ++ComponentIndex)
 		{
 			const FInstanceUpdateData::FComponent& Component = Components[LOD.FirstComponent+ComponentIndex];
@@ -4477,7 +4483,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 	const bool bUseCurrentMinLODAsBaseLOD = HasCOInstanceFlags(ReduceLODs);
 	const bool bReuseTextures = HasCOInstanceFlags(ReuseTextures);
 
-	const FInstanceUpdateData::FLOD& FirstLOD = OperationData->InstanceUpdateData.LODs[CurrentMinLOD];
+	const FInstanceUpdateData::FLOD& FirstLOD = OperationData->InstanceUpdateData.LODs[OperationData->CurrentMinLOD];
 	const int32 NumComponents = FirstLOD.ComponentCount;
 
 	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
@@ -4500,9 +4506,9 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 
 		MUTABLE_CPUPROFILER_SCOPE(LODLoop);
 
-		int32 MeshLODIndex = bUseCurrentMinLODAsBaseLOD ? 0 : CurrentMinLOD;
+		int32 MeshLODIndex = bUseCurrentMinLODAsBaseLOD ? 0 : OperationData->CurrentMinLOD;
 
-		for (int32 LODIndex = CurrentMinLOD; LODIndex <= CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
+		for (int32 LODIndex = OperationData->CurrentMinLOD; LODIndex <= OperationData->CurrentMaxLOD && LODIndex < LODCount; ++LODIndex, ++MeshLODIndex)
 		{
 			const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LODIndex];
 
@@ -5147,7 +5153,19 @@ void UCustomizableObjectInstance::SetMinSquareDistToPlayer(float NewValue)
 
 void UCustomizableObjectInstance::SetMinMaxLODToLoad(int32 NewMinLOD, int32 NewMaxLOD, bool bLimitLODUpgrades)
 {
-	GetPrivate()->SetMinMaxLODToLoad(NewMinLOD, NewMaxLOD, bLimitLODUpgrades);
+	GetPrivate()->SetMinMaxLODToLoad(this, NewMinLOD, NewMaxLOD, bLimitLODUpgrades);
+}
+
+
+int32 UCustomizableObjectInstance::GetMinLODToLoad() const
+{
+	return Descriptor.MinLODToLoad;	
+}
+
+
+int32 UCustomizableObjectInstance::GetMaxLODToLoad() const
+{
+	return Descriptor.MaxLODToLoad;	
 }
 
 

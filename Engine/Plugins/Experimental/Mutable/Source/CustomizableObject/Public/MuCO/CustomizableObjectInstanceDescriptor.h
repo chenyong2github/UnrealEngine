@@ -313,12 +313,18 @@ private:
 	UPROPERTY()
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters;
 
+	/** Mutable parameters optimization state. */
 	int32 State = 0;
 	
 	/** Flag to control the build of the parameter description images required for customization UI.
      * These descriptions get generated with every instance update, so it should be disabled when not needed. */
 	bool bBuildParameterDecorations = false;
 
+	/** These are the LODs we want to have, they MUST NOT be used in an update (Mutable thread). */
+	int32 MinLODToLoad = 0;
+	int32 MaxLODToLoad = INT32_MAX;
+
+	/** Lookup of UCustomizableObjectDescriptor::IntParameters. */
 	TMap<FString, int32> IntParametersLookupTable;
 	
 	/** Multilayer Projector helpers. See FMultilayerProjector.*/
