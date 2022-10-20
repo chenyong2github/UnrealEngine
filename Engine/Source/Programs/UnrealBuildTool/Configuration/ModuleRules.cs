@@ -890,6 +890,11 @@ namespace UnrealBuildTool
 		public bool bBuildLocallyWithSNDBS = false;
 
 		/// <summary>
+		/// Enable warnings for when there are .gen.cpp files that could be inlined in a matching handwritten cpp file
+		/// </summary>
+		public bool bEnableNonInlinedGenCppWarnings = false;
+
+		/// <summary>
 		/// Redistribution override flag for this module.
 		/// </summary>
 		public bool? IsRedistributableOverride = null;
