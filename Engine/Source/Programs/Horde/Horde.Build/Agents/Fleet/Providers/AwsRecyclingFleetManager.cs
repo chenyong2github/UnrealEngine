@@ -87,7 +87,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsRecyclingFleetManagerSettings settings, ILogger<AwsReuseFleetManager> logger)
+	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsRecyclingFleetManagerSettings settings, ILogger<AwsRecyclingFleetManager> logger)
 	{
 		_ec2 = ec2;
 		_agentCollection = agentCollection;

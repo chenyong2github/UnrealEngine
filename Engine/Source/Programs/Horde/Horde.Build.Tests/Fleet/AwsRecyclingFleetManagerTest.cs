@@ -183,7 +183,7 @@ namespace Horde.Build.Tests.Fleet
 					builder.AddSimpleConsole(options => { options.SingleLine = true; });
 				});
 
-			ILogger<AwsReuseFleetManager> logger = loggerFactory.CreateLogger<AwsReuseFleetManager>();
+			ILogger<AwsRecyclingFleetManager> logger = loggerFactory.CreateLogger<AwsRecyclingFleetManager>();
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, settings, logger);
 			await manager.ExpandPoolAsync(pool, new List<IAgent>(), numRequestedInstances, CancellationToken.None);
