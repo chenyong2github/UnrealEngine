@@ -500,6 +500,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** 
 	 * Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result
 	 * 
+	 * Note this can return nullptr even if it looks like the asset exists because it doesn't handle redirects.
+	 * 
 	 * @param bLoad (optional) loads the asset if it is unloaded.
 	 * @param LoadTags (optional) allows passing specific tags to the linker when loading the asset (@see ULevel::LoadAllExternalObjectsTag for an example usage)
 	 */
@@ -541,6 +543,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** 
 	 * Returns the asset UObject if it is loaded or loads the asset if it is unloaded then returns the result 
+	 * 
+	 * Note this can return nullptr even if it looks like the asset exists because it doesn't handle redirects.
 	 * 
 	 * @param LoadTags (optional) allows passing specific tags to the linker when loading the asset (@see ULevel::LoadAllExternalObjectsTag for an example usage)
 	 */

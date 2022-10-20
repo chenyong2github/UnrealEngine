@@ -571,8 +571,7 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture(UTexture* Un
 
 	const FString MaterialFullName = bCreateMaterialInstance ? (TEXT("MI_") + TextureShortName) : (TextureShortName + TEXT("_Mat"));
 	FString NewPackageName = FPaths::Combine(NewPackageFolder, MaterialFullName);
-	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-	UPackage* Package = CreatePackage(*NewPackageName);
+	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);	
 
 	// See if the material asset already exists with the expected name, if it does, just return
 	// an instance of it.
@@ -580,13 +579,16 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture(UTexture* Un
 	if (AssetRegistry.GetAssetsByPackageName(*NewPackageName, OutAssetData) && (OutAssetData.Num() > 0))
 	{
 		UObject* FoundAsset = OutAssetData[0].GetAsset();
-		if (FoundAsset->IsA(UMaterialInterface::StaticClass()))
+		if (FoundAsset != nullptr && // Due to redirects we might have an asset by this name that actually doesn't exist under that name anymore.
+			FoundAsset->IsA(UMaterialInterface::StaticClass()))
 		{
 			return FoundAsset;
 		}
 		UE_LOG(LogEditorViewport, Warning, TEXT("Failed to create material %s from texture because a non-material asset already exists with that name"), *NewPackageName);
 		return nullptr;
 	}
+
+	UPackage* Package = CreatePackage(*NewPackageName);
 
 	// Variations for Base Maps.
 	TArray<FString> BaseSuffixes;
