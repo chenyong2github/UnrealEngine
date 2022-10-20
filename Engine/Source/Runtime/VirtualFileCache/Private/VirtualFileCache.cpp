@@ -10,21 +10,14 @@
 #include "Misc/ScopeExit.h"
 #include "Async/MappedFileHandle.h"
 
-DECLARE_STATS_GROUP(TEXT("VFC"), STATGROUP_VFC, STATCAT_Advanced);
+DEFINE_STAT(STAT_FilesAdded);
+DEFINE_STAT(STAT_BytesAdded);
+DEFINE_STAT(STAT_FilesRemoved);
+DEFINE_STAT(STAT_BytesRemoved);
+DEFINE_STAT(STAT_FilesEvicted);
+DEFINE_STAT(STAT_BytesEvicted);
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Files Added"), STAT_FilesAdded, STATGROUP_VFC);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Bytes Added"), STAT_BytesAdded, STATGROUP_VFC);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Files Removed"), STAT_FilesRemoved, STATGROUP_VFC);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Bytes Removed"), STAT_BytesRemoved, STATGROUP_VFC);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Files Evicted"), STAT_FilesEvicted, STATGROUP_VFC);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Bytes Evicted"), STAT_BytesEvicted, STATGROUP_VFC);
-
-DECLARE_LOG_CATEGORY_EXTERN(LogVFC, Log, All);
 DEFINE_LOG_CATEGORY(LogVFC);
-
-static const TCHAR VFC_CACHE_FILE_BASE_NAME[] = TEXT("vfc_");
-static const TCHAR VFC_CACHE_FILE_EXTENSION[] = TEXT("data");
-static const TCHAR VFC_META_FILE_NAME[] = TEXT("vfc.meta");
 
 TSharedRef<IVirtualFileCache> IVirtualFileCache::CreateVirtualFileCache()
 {

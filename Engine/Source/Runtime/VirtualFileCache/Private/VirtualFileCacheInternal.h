@@ -12,6 +12,16 @@
 #include "Async/MappedFileHandle.h"
 #include "Async/Future.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogVFC, Log, All);
+
+DECLARE_STATS_GROUP(TEXT("VFC"), STATGROUP_VFC, STATCAT_Advanced);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Files Added"), STAT_FilesAdded, STATGROUP_VFC, );
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Bytes Added"), STAT_BytesAdded, STATGROUP_VFC, );
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Files Removed"), STAT_FilesRemoved, STATGROUP_VFC, );
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Bytes Removed"), STAT_BytesRemoved, STATGROUP_VFC, );
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Files Evicted"), STAT_FilesEvicted, STATGROUP_VFC, );
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Bytes Evicted"), STAT_BytesEvicted, STATGROUP_VFC, );
+
 // Fragmentation is defined as the amount of separation per file in the cache.
 // A value of 1 means that there is no fragmentation
 // A value of 2 means that the mean number of ranges per file is 2

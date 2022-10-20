@@ -9,6 +9,10 @@
 #include "Misc/ScopeExit.h"
 #include "Async/MappedFileHandle.h"
 
+static const TCHAR VFC_CACHE_FILE_BASE_NAME[] = TEXT("vfc_");
+static const TCHAR VFC_CACHE_FILE_EXTENSION[] = TEXT("data");
+static const TCHAR VFC_META_FILE_NAME[] = TEXT("vfc.meta");
+
 static int64 CurrentTimestamp()
 {
 	return FDateTime::UtcNow().ToUnixTimestamp();
