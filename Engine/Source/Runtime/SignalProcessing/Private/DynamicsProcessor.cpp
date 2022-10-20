@@ -260,11 +260,6 @@ namespace Audio
 
 				// Write into the output with the computed gain value
 				OutFrame[Channel] = Gain[Channel] * LookaheadOutput * OutputGain * InputGain;
-
-				if (ProcessingMode == EDynamicsProcessingMode::Limiter)
-				{
-					OutFrame[Channel] = FMath::Clamp(OutFrame[Channel], -ConvertToLinear(ThresholdDb), ConvertToLinear(ThresholdDb));
-				}
 			}
 		}
 	}
