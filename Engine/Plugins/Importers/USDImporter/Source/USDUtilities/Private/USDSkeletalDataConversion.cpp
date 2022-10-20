@@ -1634,10 +1634,10 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 
 		// Manage materials
 		int32 LocalMaterialIndex = 0;
-		if ( FaceMaterialIndices.IsValidIndex( PolygonIndex ) )
+		if ( FaceMaterialIndices.IsValidIndex( LocalIndex ) )
 		{
-			LocalMaterialIndex = FaceMaterialIndices[ PolygonIndex ];
-			if ( !LocalMaterialSlots.IsValidIndex(LocalMaterialIndex) )
+			LocalMaterialIndex = FaceMaterialIndices[ LocalIndex ];
+			if ( !LocalMaterialSlots.IsValidIndex( LocalMaterialIndex ) )
 			{
 				LocalMaterialIndex = 0;
 			}
