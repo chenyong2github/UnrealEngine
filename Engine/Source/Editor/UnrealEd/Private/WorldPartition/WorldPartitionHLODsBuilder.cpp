@@ -27,6 +27,7 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/LevelStreamingGCHelper.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 

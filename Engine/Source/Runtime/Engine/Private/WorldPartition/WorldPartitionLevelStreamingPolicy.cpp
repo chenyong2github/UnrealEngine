@@ -15,6 +15,7 @@
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
+#include "Engine/LevelStreamingGCHelper.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingPolicy)
 

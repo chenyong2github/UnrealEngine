@@ -18,6 +18,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "RenderingThread.h"
 #include "RHIStaticStates.h"
 #include "Engine/TextureStreamingTypes.h"
+#include "Engine/LevelStreamingGCHelper.h"
 #include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "AI/NavigationSystemConfig.h"
