@@ -2893,21 +2893,28 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 		{
 			mu::Ptr<mu::NodeMesh> InputMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData);
 
-			TArray<FString> ArrayBoneName;
-			TArray<FTransform> ArrayTransform;
-			UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(TypedNode->PoseAsset, GenerationContext.GetCurrentComponentInfo().RefSkeletalMesh, ArrayBoneName, ArrayTransform);
-			mu::NodeMeshApplyPosePtr NodeMeshApplyPose = CreateNodeMeshApplyPose(InputMeshNode, GenerationContext.Object, ArrayBoneName, ArrayTransform);
-
-			if (NodeMeshApplyPose)
+			if (TypedNode->PoseAsset && GenerationContext.GetCurrentComponentInfo().RefSkeletalMesh)
 			{
-				Result = NodeMeshApplyPose;
+				TArray<FString> ArrayBoneName;
+				TArray<FTransform> ArrayTransform;
+				UCustomizableObjectNodeAnimationPose::StaticRetrievePoseInformation(TypedNode->PoseAsset, GenerationContext.GetCurrentComponentInfo().RefSkeletalMesh, ArrayBoneName, ArrayTransform);
+				mu::NodeMeshApplyPosePtr NodeMeshApplyPose = CreateNodeMeshApplyPose(InputMeshNode, GenerationContext.Object, ArrayBoneName, ArrayTransform);
+
+				if (NodeMeshApplyPose)
+				{
+					Result = NodeMeshApplyPose;
+				}
+				else
+				{
+					FString msg = FString::Printf(TEXT("Couldn't get bone transform information from a Pose Asset."));
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node);
+
+					Result = nullptr;
+				}
 			}
 			else
 			{
-				FString msg = FString::Printf(TEXT("Couldn't get bone transform information from a Pose Asset."));
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node);
-
-				Result = nullptr;
+				Result = InputMeshNode;
 			}
 		}
 	}

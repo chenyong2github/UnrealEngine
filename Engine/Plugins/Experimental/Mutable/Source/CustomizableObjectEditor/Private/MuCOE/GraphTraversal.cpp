@@ -29,6 +29,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeAnimationPose.h"
 #include "Templates/Casts.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
@@ -494,6 +495,14 @@ const UEdGraphPin* FindMeshBaseSource(const UEdGraphPin& Pin, const bool bOnlyLo
 		if (!bOnlyLookForStaticMesh)
 		{
 			return &Pin;
+		}
+	}
+
+	else if (const UCustomizableObjectNodeAnimationPose* NodeMeshPose = Cast<UCustomizableObjectNodeAnimationPose>(Node))
+	{
+		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*NodeMeshPose->GetInputMeshPin()))
+		{
+			return FindMeshBaseSource(*ConnectedPin, bOnlyLookForStaticMesh);
 		}
 	}
 
