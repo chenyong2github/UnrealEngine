@@ -76,6 +76,10 @@ void UPanelExtensionSubsystem::RegisterPanelFactory(FName ExtensionPanelID, cons
 {
 	TArray<FPanelExtensionFactory>& Factories = ExtensionPointMap.FindOrAdd(ExtensionPanelID);
 	Factories.Add(InPanelExtensionFactory);
+	Factories.StableSort([](const FPanelExtensionFactory& One, const FPanelExtensionFactory& Two)
+	{
+		return One.SortWeight > Two.SortWeight;
+	});
 
 	UPanelExtensionSubsystem::FPanelFactoryRegistryChanged& PanelFactoryRegsitered = OnPanelFactoryRegistryChanged(ExtensionPanelID);
 	PanelFactoryRegsitered.Broadcast();
@@ -117,18 +121,34 @@ TSharedRef<SWidget> UPanelExtensionSubsystem::CreateWidget(FName ExtensionPanelI
 	const TArray<FPanelExtensionFactory>* ExtensionArray = ExtensionPointMap.Find(ExtensionPanelID);
 	if (ExtensionArray && ExtensionArray->Num() > 0)
 	{
-		const FPanelExtensionFactory& Extension = (*ExtensionArray)[0]; // TODO: We need to add support for multiple widgets
-		if (Extension.CreateExtensionWidget.IsBound())
+		TSharedRef<SHorizontalBox> ExtensionWidgets = SNew(SHorizontalBox);
+
+		for (const FPanelExtensionFactory& Extension : *ExtensionArray)
 		{
-			return Extension.CreateExtensionWidget.Execute(ExtensionContext);
+			TSharedPtr<SWidget> ExtensionWidget;
+			if (Extension.CreateExtensionWidget.IsBound())
+			{
+				ExtensionWidget = Extension.CreateExtensionWidget.Execute(ExtensionContext);
+			}
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			else if (Extension.CreateWidget.IsBound())
+			{
+				TArray<UObject*> Temp;
+				ExtensionWidget = Extension.CreateWidget.Execute(Temp);
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			if (ExtensionWidget && ExtensionWidget != SNullWidget::NullWidget)
+			{
+				ExtensionWidgets->AddSlot()
+				.AutoWidth()
+				[
+					ExtensionWidget.ToSharedRef()
+				];
+			}
 		}
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		else if (Extension.CreateWidget.IsBound())
-		{
-			TArray<UObject*> Temp;
-			return Extension.CreateWidget.Execute(Temp);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		return ExtensionWidgets;
 	}
 	return SNullWidget::NullWidget;
 }

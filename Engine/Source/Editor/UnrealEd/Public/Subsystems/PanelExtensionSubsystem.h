@@ -21,6 +21,9 @@ public:
 	/** An identifier to allow removal later on. */
 	FName Identifier;
 
+	/** Weight used when sorting against other factories for this panel (higher weights sort first) */
+	int32 SortWeight = 0;
+
 	/**
 	 * Delegate that generates the SExtensionPanel content widget. 
 	 * The FWeakObjectPtr param is an opaque context specific to the panel that is being extended
