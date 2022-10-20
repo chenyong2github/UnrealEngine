@@ -167,6 +167,7 @@ public:
 	virtual FNewPluginMountedEvent& OnNewPluginCreated() override;
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() override;
 	virtual FNewPluginMountedEvent& OnPluginEdited() override;
+	virtual FNewPluginMountedEvent& OnPluginUnmounted() override;
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) override;
 	virtual bool MountExplicitlyLoadedPlugin(const FString& PluginName) override;
 	virtual bool MountExplicitlyLoadedPlugin_FromFileName(const FString& PluginFileName) override;
@@ -299,6 +300,7 @@ private:
 	FNewPluginMountedEvent NewPluginCreatedEvent;
 	FNewPluginMountedEvent NewPluginMountedEvent;
 	FNewPluginMountedEvent PluginEditedEvent;
+	FNewPluginMountedEvent PluginUnmountedEvent;
 
 	/** Callback for notifications that a loading phase was completed */
 	FLoadingModulesForPhaseEvent LoadingPhaseCompleteEvent;

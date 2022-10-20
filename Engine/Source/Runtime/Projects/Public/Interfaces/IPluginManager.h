@@ -393,6 +393,11 @@ public:
 	virtual FNewPluginMountedEvent& OnPluginEdited() = 0;
 
 	/**
+	* Event for being notified that a plugin has been unmounted
+	*/
+	virtual FNewPluginMountedEvent& OnPluginUnmounted() = 0;
+
+	/**
 	 * Marks a newly created plugin as enabled, mounts its content and tries to load its modules
 	 */
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) = 0;
