@@ -8,7 +8,6 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/StringBuilder.h"
 #include "Stats/StatsMisc.h"
-#include "Serialization/MemoryWriter.h"
 #include "VertexFactory.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Interfaces/ITargetPlatform.h"

@@ -108,51 +108,18 @@ bool FComputeKernelShaderMapId::operator==(const FComputeKernelShaderMapId& InRe
 void FComputeKernelShaderMapId::AppendKeyString(FString& OutKeyString) const
 {
 #if WITH_EDITOR
-	OutKeyString += FString::Printf(TEXT("%llX"), ShaderCodeHash);
-	OutKeyString += TEXT("_");
-
-	FString FeatureLevelString;
-	GetFeatureLevelName(FeatureLevel, FeatureLevelString);
+	OutKeyString.Appendf(TEXT("%llX"), ShaderCodeHash);
+	OutKeyString.AppendChar('_');
 
 	{
-		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FComputeKernelShaderMapContent>(), LayoutParams);
-		OutKeyString += TEXT("_");
-		OutKeyString += LayoutHash.ToString();
-		OutKeyString += TEXT("_");
+		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(StaticGetTypeLayoutDesc<FComputeKernelShaderMapContent>(), LayoutParams);
+		OutKeyString.AppendChar('_');
+		LayoutHash.AppendString(OutKeyString);
+		OutKeyString.AppendChar('_');
 	}
-
-	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers;
 
 	// Add the inputs for any shaders that are stored inline in the shader map
-	for (const FShaderTypeDependency& ShaderTypeDependency : ShaderTypeDependencies)
-	{
-		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
-		OutKeyString += TEXT("_");
-		OutKeyString += ShaderType->GetName();
-		OutKeyString += ShaderTypeDependency.SourceHash.ToString();
-		
-		const FSHAHash LayoutHash = Freeze::HashLayout(ShaderType->GetLayout(), LayoutParams);
-		OutKeyString += LayoutHash.ToString();
-
-		const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& ReferencedUniformBufferStructsCache = ShaderType->GetReferencedUniformBufferStructsCache();
-
-		for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
-		{
-			ReferencedUniformBuffers.Add(It.Key(), It.Value());
-		}
-	}
-
-	{
-		TArray<uint8> TempData;
-		FSerializationHistory SerializationHistory;
-		FMemoryWriter Ar(TempData, true);
-		FShaderSaveArchive SaveArchive(Ar, SerializationHistory);
-
-		// Save uniform buffer member info so we can detect when layout has changed
-		SerializeUniformBufferInfo(SaveArchive, ReferencedUniformBuffers);
-
-		SerializationHistory.AppendKeyString(OutKeyString);
-	}
+	AppendKeyStringShaderDependencies(MakeArrayView(ShaderTypeDependencies), LayoutParams, OutKeyString);
 #endif //WITH_EDITOR
 }
 

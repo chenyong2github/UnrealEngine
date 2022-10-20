@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialShader.h"
-#include "Algo/Find.h"
 #include "Containers/StringConv.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
@@ -997,97 +996,7 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 
 #if WITH_EDITOR
 
-static TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> MergeBufferMaps(TArrayView<const TMap<const TCHAR*,FCachedUniformBufferDeclaration>*> Maps)
-{
-	int32 Num = 0;
-	for (const TMap<const TCHAR*, FCachedUniformBufferDeclaration>* Map : Maps)
-	{
-		Num += Map->Num();
-	}
-
-	// Deduplicate identical pointers (the common case)
-	using PairType = TPair<const TCHAR*, FCachedUniformBufferDeclaration>;
-	TMap<const void*, FCachedUniformBufferDeclaration> UniquePointerPairs;
-	UniquePointerPairs.Reserve(Num);
-	for (const TMap<const TCHAR*, FCachedUniformBufferDeclaration>* Map : Maps)
-	{
-		for (const PairType& Pair : *Map)
-		{
-			UniquePointerPairs.Add(Pair);
-		}
-	}
-
-	// Presort pairs so that they can be efficiently inserted into the TSortedMap
-	TArray<PairType> PresortedPairs;
-	PresortedPairs.Reserve(UniquePointerPairs.Num());
-	for (TPair<const void*, FCachedUniformBufferDeclaration>& UniquePointerPair : UniquePointerPairs)
-	{
-		PresortedPairs.Add(PairType(static_cast<const TCHAR*>(UniquePointerPair.Key), MoveTemp(UniquePointerPair.Value)));
-	}
-
-	Algo::SortBy(PresortedPairs, &PairType::Key, FUniformBufferNameSortOrder());
-
-	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> Out;
-	Out.Reserve(PresortedPairs.Num());
-	for (PairType& PresortedPair : PresortedPairs)
-	{
-		Out.Add(PresortedPair.Key, MoveTemp(PresortedPair.Value));
-	}
-
-	return Out;
-}
-
-
 uint32 GetTypeHash(FPlatformTypeLayoutParameters Params) { return HashCombine(Params.Flags, Params.MaxFieldAlignment); }
-
-class FFrozenMaterialLayoutHashCache
-{
-public:
-	FSHAHash Get(const FTypeLayoutDesc& TypeDesc, FPlatformTypeLayoutParameters LayoutParams)
-	{
-		{
-			FReadScopeLock ReadScope(Lock);
-
-			if (const FPlatformCache* Platform = Algo::FindBy(Platforms, LayoutParams, &FPlatformCache::Parameters))
-			{
-				if (const FSHAHash* Hash = Platform->Cache.Find(&TypeDesc))
-				{
-					return *Hash;
-				}
-			}
-		}
-
-		FSHAHash Hash = Freeze::HashLayout(TypeDesc, LayoutParams);
-
-		{
-			FWriteScopeLock WriteScope(Lock);
-
-			FPlatformCache* Platform = Algo::FindBy(Platforms, LayoutParams, &FPlatformCache::Parameters);
-			if (!Platform)
-			{
-				Platform = &Platforms.AddDefaulted_GetRef();
-				Platform->Parameters = LayoutParams;
-			}
-
-
-			Platform->Cache.FindOrAdd(&TypeDesc, Hash);
-		}
-
-		return Hash;
-	}
-
-private:
-	struct FPlatformCache
-	{
-		FPlatformTypeLayoutParameters Parameters;
-		TMap<const FTypeLayoutDesc*, FSHAHash> Cache;
-	};
-
-	FRWLock Lock;
-	TArray<FPlatformCache, TInlineAllocator<8>> Platforms;
-};
-
-static FFrozenMaterialLayoutHashCache GFrozenMaterialLayoutHashes;
 
 void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 {
@@ -1095,14 +1004,12 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	BaseMaterialId.AppendString(KeyString);
 	KeyString.AppendChar('_');
 
-	FString QualityLevelName;
-	GetMaterialQualityLevelName(QualityLevel, QualityLevelName);
-	KeyString += QualityLevelName;
+	GetMaterialQualityLevelFName(QualityLevel).AppendString(KeyString);
 	KeyString.AppendChar('_');
 
-	FString FeatureLevelString;
-	GetFeatureLevelName(FeatureLevel, FeatureLevelString);
-	KeyString += FeatureLevelString;
+	FName FeatureLevelName;
+	GetFeatureLevelName(FeatureLevel, FeatureLevelName);
+	FeatureLevelName.AppendString(KeyString);
 	KeyString.AppendChar('_');
 
 	LayoutParams.AppendKeyString(KeyString);
@@ -1141,7 +1048,7 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	}
 
 	{
-		const FSHAHash LayoutHash = GFrozenMaterialLayoutHashes.Get(StaticGetTypeLayoutDesc<FMaterialShaderMapContent>(), LayoutParams);
+		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(StaticGetTypeLayoutDesc<FMaterialShaderMapContent>(), LayoutParams);
 		KeyString.AppendChar('_');
 		LayoutHash.AppendString(KeyString);
 		KeyString.AppendChar('_');
@@ -1154,92 +1061,13 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 		ReferencedParameterCollections[CollectionIndex].AppendString(KeyString);
 	}
 
-	TArray<const TMap<const TCHAR*,FCachedUniformBufferDeclaration>*> ReferencedUniformBufferMaps;
-
 	// Add the inputs for any shaders that are stored inline in the shader map
-	for (int32 ShaderIndex = 0; ShaderIndex < ShaderTypeDependencies.Num(); ShaderIndex++)
-	{
-		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
-		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
-#if WITH_EDITORONLY_DATA
-		checkf(ShaderType != nullptr, TEXT("Failed to find FShaderType for dependency %s (total in the NameToTypeMap: %d)"), ShaderTypeDependency.ShaderTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
-#endif
-
-		KeyString.AppendChar('_');
-		KeyString += ShaderType->GetName();
-		ShaderTypeDependency.SourceHash.AppendString(KeyString);
-
-		if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
-		{
-			KeyString.Appendf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
-		}
-
-		const FSHAHash LayoutHash = GFrozenMaterialLayoutHashes.Get(ShaderType->GetLayout(), LayoutParams);
-		LayoutHash.AppendString(KeyString);
-
-		ReferencedUniformBufferMaps.Add(&ShaderType->GetReferencedUniformBufferStructsCache());
-	}
-
-	// Add the inputs for any shader pipelines that are stored inline in the shader map
-	for (int32 TypeIndex = 0; TypeIndex < ShaderPipelineTypeDependencies.Num(); TypeIndex++)
-	{
-		const FShaderPipelineTypeDependency& Dependency = ShaderPipelineTypeDependencies[TypeIndex];
-		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
-#if WITH_EDITORONLY_DATA
-		checkf(ShaderPipelineType != nullptr, TEXT("Failed to find FShaderPipelineType for dependency %s (total in the NameToTypeMap: %d)"), Dependency.ShaderPipelineTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
-#endif
-
-		KeyString.AppendChar('_');
-		KeyString += ShaderPipelineType->GetName();
-		Dependency.StagesSourceHash.AppendString(KeyString);
-
-		for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
-		{
-			if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
-			{
-				KeyString.Appendf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
-			}
-
-			ReferencedUniformBufferMaps.Add(&ShaderType->GetReferencedUniformBufferStructsCache());
-		}
-	}
-
-	// Add the inputs for any shaders that are stored inline in the shader map
-	for (int32 VFIndex = 0; VFIndex < VertexFactoryTypeDependencies.Num(); VFIndex++)
-	{
-		KeyString.AppendChar('_');
-
-		const FVertexFactoryTypeDependency& VFDependency = VertexFactoryTypeDependencies[VFIndex];
-		const FVertexFactoryType* VertexFactoryType = FVertexFactoryType::GetVFByName(VFDependency.VertexFactoryTypeName);
-
-		KeyString += VertexFactoryType->GetName();
-		VFDependency.VFSourceHash.AppendString(KeyString);
-
-		for (int32 Frequency = 0; Frequency < SF_NumFrequencies; Frequency++)
-		{
-			const FTypeLayoutDesc* ParameterLayout = VertexFactoryType->GetShaderParameterLayout((EShaderFrequency)Frequency);
-			if (ParameterLayout)
-			{
-				const FSHAHash LayoutHash = GFrozenMaterialLayoutHashes.Get(*ParameterLayout, LayoutParams);
-				LayoutHash.AppendString(KeyString);
-			}
-		}
-
-		ReferencedUniformBufferMaps.Add(&VertexFactoryType->GetReferencedUniformBufferStructsCache());
-	}
-
-	{
-		TArray<uint8> TempData;
-		FSerializationHistory SerializationHistory;
-		FMemoryWriter Ar(TempData, true);
-		FShaderSaveArchive SaveArchive(Ar, SerializationHistory);
-		TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers = MergeBufferMaps(ReferencedUniformBufferMaps);
-
-		// Save uniform buffer member info so we can detect when layout has changed
-		SerializeUniformBufferInfo(SaveArchive, ReferencedUniformBuffers);
-
-		SerializationHistory.AppendKeyString(KeyString);
-	}
+	AppendKeyStringShaderDependencies(
+		MakeArrayView(ShaderTypeDependencies),
+		MakeArrayView(ShaderPipelineTypeDependencies),
+		MakeArrayView(VertexFactoryTypeDependencies),
+		LayoutParams, 
+		KeyString);
 
 	BytesToHex(&TextureReferencesHash.Hash[0], sizeof(TextureReferencesHash.Hash), KeyString);
 

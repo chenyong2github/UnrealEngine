@@ -462,86 +462,22 @@ void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShade
 	LayoutParams.AppendKeyString(KeyString);
 
 	{
-		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FGlobalShaderMapContent>(), LayoutParams);
-		KeyString += TEXT("_");
-		KeyString += LayoutHash.ToString();
-		KeyString += TEXT("_");
+		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(StaticGetTypeLayoutDesc<FGlobalShaderMapContent>(), LayoutParams);
+		KeyString.AppendChar('_');
+		LayoutHash.AppendString(KeyString);
+		KeyString.AppendChar('_');
 	}
 
-	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers;
+	AppendKeyStringShaderDependencies(Dependencies, ShaderPipelineTypeDependencies, TConstArrayView<FVertexFactoryTypeDependency>(), LayoutParams, KeyString);
 
-	for (int32 ShaderIndex = 0; ShaderIndex < Dependencies.Num(); ShaderIndex++)
+	// Extra logic, just for Global shaders
+	for (const FShaderTypeDependency& ShaderTypeDependency : Dependencies)
 	{
-		const FShaderTypeDependency& ShaderTypeDependency = Dependencies[ShaderIndex];
 		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
-
-		KeyString += TEXT("_");
-		KeyString += ShaderType->GetName();
-		KeyString += FString::Printf(TEXT("%i"), ShaderTypeDependency.PermutationId);
-
-		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
-		KeyString += ShaderTypeDependency.SourceHash.ToString();
-
 		// Add the config define hash, if any defines exist in config
 		FGlobalShaderConfigDefines::AppendKeyString(KeyString, ShaderType->GetFName(), ShaderTypeDependency.PermutationId, IniPlatformName, ShaderPlatform);
-
-		if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
-		{
-			KeyString += FString::Printf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
-		}
-
-		// Add the serialization history to the key string so that we can detect changes to global shader serialization without a corresponding .usf change
-		const FSHAHash LayoutHash = Freeze::HashLayout(ShaderType->GetLayout(), LayoutParams);
-		KeyString += LayoutHash.ToString();
-
-		const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& ReferencedUniformBufferStructsCache = ShaderType->GetReferencedUniformBufferStructsCache();
-
-		// Gather referenced uniform buffers
-		for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
-		{
-			ReferencedUniformBuffers.Add(It.Key(), It.Value());
-		}
 	}
 
-	for (int32 Index = 0; Index < ShaderPipelineTypeDependencies.Num(); ++Index)
-	{
-		const FShaderPipelineTypeDependency& Dependency = ShaderPipelineTypeDependencies[Index];
-		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
-
-		KeyString += TEXT("_");
-		KeyString += ShaderPipelineType->GetName();
-
-		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
-		KeyString += Dependency.StagesSourceHash.ToString();
-
-		for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
-		{
-			if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
-			{
-				KeyString += FString::Printf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
-			}
-
-			const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& ReferencedUniformBufferStructsCache = ShaderType->GetReferencedUniformBufferStructsCache();
-
-			// Gather referenced uniform buffers
-			for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
-			{
-				ReferencedUniformBuffers.Add(It.Key(), It.Value());
-			}
-		}
-	}
-
-	{
-		TArray<uint8> TempData;
-		FSerializationHistory SerializationHistory;
-		FMemoryWriter Ar(TempData, true);
-		FShaderSaveArchive SaveArchive(Ar, SerializationHistory);
-
-		// Save uniform buffer member info so we can detect when layout has changed
-		SerializeUniformBufferInfo(SaveArchive, ReferencedUniformBuffers);
-
-		SerializationHistory.AppendKeyString(KeyString);
-	}
 #endif // WITH_EDITOR
 }
 

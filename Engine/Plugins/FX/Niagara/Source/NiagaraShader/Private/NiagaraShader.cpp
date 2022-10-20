@@ -250,29 +250,30 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 
 void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 {
-	KeyString += BaseCompileHash.ToString();
-	KeyString += TEXT("_");
-
-	FString FeatureLevelString;
-	GetFeatureLevelName(FeatureLevel, FeatureLevelString);
+	BaseCompileHash.AppendString(KeyString);
+	KeyString.AppendChar('_');
 
 	{
-		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FNiagaraShaderMapContent>(), LayoutParams);
-		KeyString += TEXT("_");
-		KeyString += LayoutHash.ToString();
-		KeyString += TEXT("_");
+		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(StaticGetTypeLayoutDesc<FNiagaraShaderMapContent>(), LayoutParams);
+		KeyString.AppendChar('_');
+		LayoutHash.AppendString(KeyString);
+		KeyString.AppendChar('_');
 	}
 
 	{
-		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FNiagaraShader>(), LayoutParams);
-		KeyString += TEXT("_");
-		KeyString += LayoutHash.ToString();
-		KeyString += TEXT("_");
+		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(StaticGetTypeLayoutDesc<FNiagaraShader>(), LayoutParams);
+		KeyString.AppendChar('_');
+		LayoutHash.AppendString(KeyString);
+		KeyString.AppendChar('_');
 	}
 
-	KeyString += FeatureLevelString + TEXT("_");
-	KeyString += CompilerVersionID.ToString();
-	KeyString += TEXT("_");
+	FName FeatureLevelName;
+	GetFeatureLevelName(FeatureLevel, FeatureLevelName);
+
+	FeatureLevelName.AppendString(KeyString);
+	KeyString.AppendChar('_');
+	CompilerVersionID.AppendString(KeyString);
+	KeyString.AppendChar('_');
 
 	if (bUsesRapidIterationParams)
 	{
@@ -284,67 +285,31 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	}
 
 	// Add base parameters structure
-	KeyString += FString::Printf(TEXT("%08x"), TShaderParameterStructTypeInfo<FNiagaraShader::FParameters>::GetStructMetadata()->GetLayoutHash());
+	KeyString.Appendf(TEXT("%08x"), TShaderParameterStructTypeInfo<FNiagaraShader::FParameters>::GetStructMetadata()->GetLayoutHash());
 
 	// Add additional defines
-	for (int32 DefinesIndex = 0; DefinesIndex < AdditionalDefines.Num(); DefinesIndex++)
+	for (const FMemoryImageString& Define : AdditionalDefines)
 	{
-		KeyString += AdditionalDefines[DefinesIndex];
-		if (DefinesIndex < AdditionalDefines.Num() - 1)
-		{
-			KeyString += TEXT("_");
-		}
+		KeyString.AppendChar('_');
+		KeyString.Append(Define);
 	}
 
 	// Add additional variables
-	for (int32 VariablesIndex = 0; VariablesIndex < AdditionalVariables.Num(); VariablesIndex++)
+	for (const FMemoryImageString& Var : AdditionalVariables)
 	{
-		KeyString += AdditionalVariables[VariablesIndex];
-		if (VariablesIndex < AdditionalVariables.Num() - 1)
-		{
-			KeyString += TEXT("_");
-		}
+		KeyString.AppendChar('_');
+		KeyString.Append(Var);
 	}
 
 	// Add any referenced top level compile hashes to the key so that we will recompile when they are changed
-	for (int32 HashIndex = 0; HashIndex < ReferencedCompileHashes.Num(); HashIndex++)
+	for (const FSHAHash& Hash : ReferencedCompileHashes)
 	{
-		KeyString += ReferencedCompileHashes[HashIndex].ToString();
-		if (HashIndex < ReferencedCompileHashes.Num() - 1)
-		{
-			KeyString += TEXT("_");
-		}
+		KeyString.AppendChar('_');
+		Hash.AppendString(KeyString);
 	}
 
-	TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder> ReferencedUniformBuffers;
-	for (const FShaderTypeDependency& ShaderTypeDependency : ShaderTypeDependencies)
-	{
-		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
-		KeyString += TEXT("_");
-		KeyString += ShaderType->GetName();
-		KeyString += ShaderTypeDependency.SourceHash.ToString();
-
-		const FSHAHash LayoutHash = Freeze::HashLayout(ShaderType->GetLayout(), LayoutParams);
-		KeyString += LayoutHash.ToString();
-
-		const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& ReferencedUniformBufferStructsCache = ShaderType->GetReferencedUniformBufferStructsCache();
-		for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
-		{
-			ReferencedUniformBuffers.Add(It.Key(), It.Value());
-		}
-	}
-
-	{
-		TArray<uint8> TempData;
-		FSerializationHistory SerializationHistory;
-		FMemoryWriter Ar(TempData, true);
-		FShaderSaveArchive SaveArchive(Ar, SerializationHistory);
-
-		// Save uniform buffer member info so we can detect when layout has changed
-		SerializeUniformBufferInfo(SaveArchive, ReferencedUniformBuffers);
-
-		SerializationHistory.AppendKeyString(KeyString);
-	}
+	// Add the inputs for any shaders that are stored inline in the shader map
+	AppendKeyStringShaderDependencies(MakeArrayView(ShaderTypeDependencies), LayoutParams, KeyString);
 }
 
 

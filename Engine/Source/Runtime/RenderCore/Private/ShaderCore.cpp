@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShaderCore.h"
+#include "Algo/Find.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -23,6 +24,7 @@
 #include "Interfaces/IShaderFormatModule.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "Compression/OodleDataCompression.h"
+#include "Serialization/MemoryWriter.h"
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -1519,6 +1521,55 @@ void GenerateReferencedUniformBuffers(
 	}
 }
 
+namespace {
+// anonymous namespace
+
+class FFrozenMaterialLayoutHashCache
+{
+public:
+	FSHAHash Get(const FTypeLayoutDesc& TypeDesc, FPlatformTypeLayoutParameters LayoutParams)
+	{
+		{
+			FReadScopeLock ReadScope(Lock);
+
+			if (const FPlatformCache* Platform = Algo::FindBy(Platforms, LayoutParams, &FPlatformCache::Parameters))
+			{
+				if (const FSHAHash* Hash = Platform->Cache.Find(&TypeDesc))
+				{
+					return *Hash;
+				}
+			}
+		}
+
+		FSHAHash Hash = Freeze::HashLayout(TypeDesc, LayoutParams);
+
+		{
+			FWriteScopeLock WriteScope(Lock);
+
+			FPlatformCache* Platform = Algo::FindBy(Platforms, LayoutParams, &FPlatformCache::Parameters);
+			if (!Platform)
+			{
+				Platform = &Platforms.AddDefaulted_GetRef();
+				Platform->Parameters = LayoutParams;
+			}
+
+
+			Platform->Cache.FindOrAdd(&TypeDesc, Hash);
+		}
+
+		return Hash;
+	}
+
+private:
+	struct FPlatformCache
+	{
+		FPlatformTypeLayoutParameters Parameters;
+		TMap<const FTypeLayoutDesc*, FSHAHash> Cache;
+	};
+
+	FRWLock Lock;
+	TArray<FPlatformCache, TInlineAllocator<8>> Platforms;
+};
 
 /** Efficient lookup to find FShaderParametersMetadata members by name pointer */
 class FShaderParameterMemberLookup 
@@ -1575,8 +1626,15 @@ private:
 
 static FFShaderParameterPointerLookupCache GShaderParameterMemberLookupCache;
 
-void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries)
+
+// This copy is only used internally once - it could be inlined once the public API version is removed
+void SerializeUniformBufferInfo_Internal(FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries)
 {
+	if (UniformBufferEntries.IsEmpty())
+	{
+		return;
+	}
+
 	TSharedPtr<const FShaderParameterMemberLookup> ShaderParameterMembers = GShaderParameterMemberLookupCache.Get();
 
 	for (const TPair<const TCHAR*, FCachedUniformBufferDeclaration>& Entry : UniformBufferEntries)
@@ -1598,6 +1656,135 @@ void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TSortedMap<const T
 			}
 		}
 	}
+}
+
+} // anonymous namespace
+
+FSHAHash GetShaderTypeLayoutHash(const FTypeLayoutDesc& TypeDesc, FPlatformTypeLayoutParameters LayoutParameters)
+{
+	static FFrozenMaterialLayoutHashCache GFrozenMaterialLayoutHashes;
+	return GFrozenMaterialLayoutHashes.Get(TypeDesc, LayoutParameters);
+}
+
+void AppendKeyStringShaderDependencies(
+	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
+	FPlatformTypeLayoutParameters LayoutParams,
+	FString& OutKeyString)
+{
+	// Simplified interface if we only have ShaderTypeDependencies
+	AppendKeyStringShaderDependencies(
+		ShaderTypeDependencies,
+		TConstArrayView<FShaderPipelineTypeDependency>(),
+		TConstArrayView<FVertexFactoryTypeDependency>(),
+		LayoutParams,
+		OutKeyString);
+}
+
+void AppendKeyStringShaderDependencies(
+	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
+	TConstArrayView<FShaderPipelineTypeDependency> ShaderPipelineTypeDependencies,
+	TConstArrayView<FVertexFactoryTypeDependency> VertexFactoryTypeDependencies,
+	FPlatformTypeLayoutParameters LayoutParams,
+	FString& OutKeyString)
+{
+	FSortedMapUniformBufferDeclaration ReferencedUniformBuffers;
+
+	for (const FShaderTypeDependency& ShaderTypeDependency : ShaderTypeDependencies)
+	{
+		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
+#if WITH_EDITORONLY_DATA
+		checkf(ShaderType != nullptr, TEXT("Failed to find FShaderType for dependency %s (total in the NameToTypeMap: %d)"), ShaderTypeDependency.ShaderTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
+#endif
+
+		OutKeyString.AppendChar('_');
+		OutKeyString.Append(ShaderType->GetName());
+		OutKeyString.AppendInt(ShaderTypeDependency.PermutationId);
+		OutKeyString.AppendChar('_');
+
+		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
+		ShaderTypeDependency.SourceHash.AppendString(OutKeyString);
+
+		if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
+		{
+			OutKeyString.Appendf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
+		}
+
+		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(ShaderType->GetLayout(), LayoutParams);
+		LayoutHash.AppendString(OutKeyString);
+
+		for (const auto& Entry : ShaderType->GetReferencedUniformBufferStructsCache())
+		{
+			ReferencedUniformBuffers.Add(Entry.Key, Entry.Value);
+		}
+	}
+
+	// Add the inputs for any shader pipelines that are stored inline in the shader map
+	for (const FShaderPipelineTypeDependency& Dependency : ShaderPipelineTypeDependencies)
+	{
+		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
+#if WITH_EDITORONLY_DATA
+		checkf(ShaderPipelineType != nullptr, TEXT("Failed to find FShaderPipelineType for dependency %s (total in the NameToTypeMap: %d)"), Dependency.ShaderPipelineTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
+#endif
+
+		OutKeyString.AppendChar('_');
+		OutKeyString.Append(ShaderPipelineType->GetName());
+		Dependency.StagesSourceHash.AppendString(OutKeyString);
+
+		for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
+		{
+			if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
+			{
+				OutKeyString.Appendf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
+			}
+
+			for (const auto& Entry : ShaderType->GetReferencedUniformBufferStructsCache())
+			{
+				ReferencedUniformBuffers.Add(Entry.Key, Entry.Value);
+			}
+		}
+	}
+
+	for (const FVertexFactoryTypeDependency& VFDependency : VertexFactoryTypeDependencies)
+	{
+		OutKeyString.AppendChar('_');
+
+		const FVertexFactoryType* VertexFactoryType = FVertexFactoryType::GetVFByName(VFDependency.VertexFactoryTypeName);
+
+		OutKeyString.Append(VertexFactoryType->GetName());
+		VFDependency.VFSourceHash.AppendString(OutKeyString);
+
+		for (int32 Frequency = 0; Frequency < SF_NumFrequencies; Frequency++)
+		{
+			const FTypeLayoutDesc* ParameterLayout = VertexFactoryType->GetShaderParameterLayout((EShaderFrequency)Frequency);
+			if (ParameterLayout)
+			{
+				const FSHAHash LayoutHash = GetShaderTypeLayoutHash(*ParameterLayout, LayoutParams);
+				LayoutHash.AppendString(OutKeyString);
+			}
+		}
+
+		for (const auto& Entry : VertexFactoryType->GetReferencedUniformBufferStructsCache())
+		{
+			ReferencedUniformBuffers.Add(Entry.Key, Entry.Value);
+		}
+	}
+
+	{
+		TArray<uint8> TempData;
+		FSerializationHistory SerializationHistory;
+		FMemoryWriter Ar(TempData, true);
+		FShaderSaveArchive SaveArchive(Ar, SerializationHistory);
+
+		// Save uniform buffer member info so we can detect when layout has changed
+		SerializeUniformBufferInfo_Internal(SaveArchive, ReferencedUniformBuffers);
+
+		SerializationHistory.AppendKeyString(OutKeyString);
+	}
+}
+
+void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries)
+{
+	SerializeUniformBufferInfo_Internal(Ar, UniformBufferEntries);
 }
 
 FString MakeInjectedShaderCodeBlock(const TCHAR* BlockName, const FString& CodeToInject)
