@@ -695,7 +695,7 @@ bool FCurveEditorViewportClient::InputKey(FViewport* Viewport, int32 ControllerI
 }
 
 void FCurveEditorViewportClient::MouseMove(FViewport* Viewport, int32 X, int32 Y)
-{	
+{
 	bool bCtrlDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 	bool bShiftDown = Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift);
 
@@ -794,6 +794,11 @@ void FCurveEditorViewportClient::MouseMove(FViewport* Viewport, int32 X, int32 Y
 	}
 
 	Viewport->InvalidateDisplay();
+}
+
+void FCurveEditorViewportClient::CapturedMouseMove(FViewport* Viewport, int32 X, int32 Y)
+{
+	MouseMove(Viewport, X, Y);
 }
 
 bool FCurveEditorViewportClient::InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
