@@ -58,10 +58,10 @@ namespace UE::Chaos::ClothAsset
 		void WriteSimulationData_GameThread();
 
 		// Internal physics thread object
-		class FParallelClothTask;
+		friend class FClothSimulationProxyParallelTask;
 
-		// Reference for the clothing parallel task, to detect whether or not a simulation is running
-		FGraphEventRef ParallelClothTask;
+		// Reference for the cloth parallel task, to detect whether or not a simulation is running
+		FGraphEventRef ParallelTask;
 
 		// Simulation data written back to the component after the simulation has taken place
 		TMap<int32, FClothSimulData> CurrentSimulationData;
