@@ -1393,27 +1393,54 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 	// We want to combine identical slots for skeletal meshes, which is different to static meshes, where each section gets a slot
 	// Note: This is a different index remapping to the one that happens for LODs, using LODMaterialMap! Here we're combining meshes of the same LOD
 	TMap<UsdUtils::FUsdPrimMaterialSlot, int32> SlotToCombinedMaterialIndex;
-	TMap<int32, int32> LocalToCombinedMaterialIndex;
+
+	// Position 3 in this has the value 6 --> Local material slot #3 is actually the combined material slot #6
+	TArray<int32> LocalToCombinedMaterialIndex;
+	LocalToCombinedMaterialIndex.SetNumZeroed( LocalInfo.Slots.Num() );
+
 	for (int32 Index = 0; Index < MaterialAssignments.Num(); ++Index)
 	{
-		SlotToCombinedMaterialIndex.Add( MaterialAssignments[ Index ], Index );
-	}
-	for (int32 LocalIndex = 0; LocalIndex < LocalInfo.Slots.Num(); ++LocalIndex)
-	{
-		UsdUtils::FUsdPrimMaterialSlot& LocalSlot = LocalInfo.Slots[LocalIndex];
+		const UsdUtils::FUsdPrimMaterialSlot& Slot = MaterialAssignments[ Index ];
 
-		int32 CombinedMaterialIndex = INDEX_NONE;
-		if ( int32* FoundCombinedMaterialIndex = SlotToCombinedMaterialIndex.Find( LocalSlot ) )
+		// Combine entries in this way so that we can append PrimPaths
+		TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = SlotToCombinedMaterialIndex.CreateKeyIterator( Slot );
+		if ( KeyIt )
 		{
-			CombinedMaterialIndex = *FoundCombinedMaterialIndex;
+			KeyIt.Key().PrimPaths.Append( Slot.PrimPaths );
+			KeyIt.Value() = Index;
 		}
 		else
 		{
-			CombinedMaterialIndex = MaterialAssignments.Add( LocalSlot );
-			SlotToCombinedMaterialIndex.Add( LocalSlot, CombinedMaterialIndex );
+			SlotToCombinedMaterialIndex.Add( Slot, Index );
 		}
+	}
+	for (int32 LocalIndex = 0; LocalIndex < LocalInfo.Slots.Num(); ++LocalIndex)
+	{
+		const UsdUtils::FUsdPrimMaterialSlot& LocalSlot = LocalInfo.Slots[ LocalIndex ];
 
-		LocalToCombinedMaterialIndex.Add( LocalIndex, CombinedMaterialIndex );
+		// Combine entries in this way so that we can append PrimPaths
+		TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = SlotToCombinedMaterialIndex.CreateKeyIterator( LocalSlot );
+		if ( KeyIt )
+		{
+			KeyIt.Key().PrimPaths.Append( LocalSlot.PrimPaths );
+
+			const int32 ExistingCombinedIndex = KeyIt.Value();
+			LocalToCombinedMaterialIndex[ LocalIndex ] = ExistingCombinedIndex;
+		}
+		else
+		{
+			int32 NewIndex = MaterialAssignments.Add( LocalSlot );
+			SlotToCombinedMaterialIndex.Add( LocalSlot, NewIndex );
+			LocalToCombinedMaterialIndex[ LocalIndex ] = NewIndex;
+		}
+	}
+	// Now that we merged all prim paths into they keys of CombinedMaterialSlotsToIndex, let's copy them back into
+	// our output
+	for ( UsdUtils::FUsdPrimMaterialSlot& Slot : MaterialAssignments )
+	{
+		TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = SlotToCombinedMaterialIndex.CreateKeyIterator( Slot );
+		ensure( KeyIt );
+		Slot.PrimPaths = KeyIt.Key().PrimPaths;
 	}
 
 	// Retrieve vertex colors

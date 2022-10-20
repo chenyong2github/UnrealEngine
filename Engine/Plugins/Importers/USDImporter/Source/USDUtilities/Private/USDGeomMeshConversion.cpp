@@ -678,21 +678,49 @@ bool UsdToUnreal::ConvertGeomMesh(
 		for ( int32 Index = 0; Index < OutMaterialAssignments.Slots.Num(); ++Index )
 		{
 			const UsdUtils::FUsdPrimMaterialSlot& Slot = OutMaterialAssignments.Slots[ Index ];
-			CombinedMaterialSlotsToIndex.Add( Slot, Index );
-		}
 
-		for ( int32 LocalIndex = 0; LocalIndex < LocalInfo.Slots.Num(); ++LocalIndex )
-		{
-			const UsdUtils::FUsdPrimMaterialSlot& LocalSlot = LocalInfo.Slots[ LocalIndex ];
-			if ( int32* ExistingCombinedIndex = CombinedMaterialSlotsToIndex.Find( LocalSlot ) )
+			// Combine entries in this way so that we can append PrimPaths
+			TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = CombinedMaterialSlotsToIndex.CreateKeyIterator( Slot );
+			if ( KeyIt )
 			{
-				LocalToCombinedMaterialSlotIndices[ LocalIndex ] = *ExistingCombinedIndex;
+				KeyIt.Key().PrimPaths.Append( Slot.PrimPaths );
+				KeyIt.Value() = Index;
 			}
 			else
 			{
-				OutMaterialAssignments.Slots.Add( LocalSlot );
-				LocalToCombinedMaterialSlotIndices[ LocalIndex ] = OutMaterialAssignments.Slots.Num() - 1;
+				CombinedMaterialSlotsToIndex.Add( Slot, Index );
 			}
+		}
+
+		// Combine our LocalSlots into CombinedMaterialSlotsToIndex
+		for ( int32 LocalIndex = 0; LocalIndex < LocalInfo.Slots.Num(); ++LocalIndex )
+		{
+			const UsdUtils::FUsdPrimMaterialSlot& LocalSlot = LocalInfo.Slots[ LocalIndex ];
+
+			// Combine entries in this way so that we can append PrimPaths
+			TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = CombinedMaterialSlotsToIndex.CreateKeyIterator( LocalSlot );
+			if ( KeyIt )
+			{
+				KeyIt.Key().PrimPaths.Append( LocalSlot.PrimPaths );
+
+				const int32 ExistingCombinedIndex = KeyIt.Value();
+				LocalToCombinedMaterialSlotIndices[ LocalIndex ] = ExistingCombinedIndex;
+			}
+			else
+			{
+				int32 NewIndex = OutMaterialAssignments.Slots.Add( LocalSlot );
+				CombinedMaterialSlotsToIndex.Add( LocalSlot, NewIndex );
+				LocalToCombinedMaterialSlotIndices[ LocalIndex ] = NewIndex;
+			}
+		}
+
+		// Now that we merged all prim paths into they keys of CombinedMaterialSlotsToIndex, let's copy them back into
+		// our output
+		for ( UsdUtils::FUsdPrimMaterialSlot& Slot : OutMaterialAssignments.Slots )
+		{
+			TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = CombinedMaterialSlotsToIndex.CreateKeyIterator( Slot );
+			ensure(KeyIt);
+			Slot.PrimPaths = KeyIt.Key().PrimPaths;
 		}
 	}
 	else
@@ -1612,6 +1640,8 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		}
 	}
 
+	FString MeshPrimPath = UsdToUnreal::ConvertPath( UsdPrim.GetPath() );
+
 	// Priority 1: Material is an unreal asset
 	if ( RenderContext == UnrealIdentifiers::Unreal )
 	{
@@ -1627,6 +1657,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 					Slot.MaterialSource = UnrealMaterial.GetValue();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
 					Slot.bMeshIsDoubleSided = bIsDoubleSided;
+					Slot.PrimPaths.Add( MeshPrimPath );
 
 					return Result;
 				}
@@ -1640,6 +1671,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			Slot.MaterialSource = UnrealMaterial.GetValue();
 			Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
 			Slot.bMeshIsDoubleSided = bIsDoubleSided;
+			Slot.PrimPaths.Add( MeshPrimPath );
 
 			return Result;
 		}
@@ -1652,6 +1684,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		Slot.MaterialSource = BoundMaterial.GetValue();
 		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
 		Slot.bMeshIsDoubleSided = bIsDoubleSided;
+		Slot.PrimPaths.Add( MeshPrimPath );
 
 		return Result;
 	}
@@ -1663,6 +1696,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		Slot.MaterialSource = TargetMaterial.GetValue();
 		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
 		Slot.bMeshIsDoubleSided = bIsDoubleSided;
+		Slot.PrimPaths.Add( MeshPrimPath );
 
 		return Result;
 	}
@@ -1689,13 +1723,16 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			const pxr::UsdGeomSubset& GeomSubset = GeomSubsets[ GeomSubsetIndex ];
 			bool bHasAssignment = false;
 
+			pxr::UsdPrim GeomSubsetPrim = GeomSubset.GetPrim();
+			FString GeomSubsetPath = UsdToUnreal::ConvertPath( GeomSubsetPrim.GetPath() );
+
 			// Priority 4.1: Material is an unreal asset
 			if ( RenderContext == UnrealIdentifiers::Unreal )
 			{
 				// Priority 4.1.1: Partition has an unreal rendercontext material prim binding
 				if ( !bHasAssignment )
 				{
-					pxr::UsdShadeMaterialBindingAPI BindingAPI( GeomSubset.GetPrim() );
+					pxr::UsdShadeMaterialBindingAPI BindingAPI( GeomSubsetPrim );
 					if ( BindingAPI )
 					{
 						if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial( MaterialPurpose ) )
@@ -1706,6 +1743,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 								Slot.MaterialSource = UnrealMaterial.GetValue();
 								Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
 								Slot.bMeshIsDoubleSided = bIsDoubleSided;
+								Slot.PrimPaths.Add( GeomSubsetPath );
 								bHasAssignment = true;
 							}
 						}
@@ -1715,12 +1753,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 				// Priority 4.1.2: Partitition has an unrealMaterial attribute directly on it
 				if ( !bHasAssignment )
 				{
-					if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( GeomSubset.GetPrim(), TimeCode ) )
+					if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( GeomSubsetPrim, TimeCode ) )
 					{
 						FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 						Slot.MaterialSource = UnrealMaterial.GetValue();
 						Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
 						Slot.bMeshIsDoubleSided = bIsDoubleSided;
+						Slot.PrimPaths.Add( GeomSubsetPath );
 						bHasAssignment = true;
 					}
 				}
@@ -1729,12 +1768,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			// Priority 4.2: computing bound material
 			if ( !bHasAssignment )
 			{
-				if ( TOptional<FString> BoundMaterial = FetchMaterialByComputingBoundMaterial( GeomSubset.GetPrim() ) )
+				if ( TOptional<FString> BoundMaterial = FetchMaterialByComputingBoundMaterial( GeomSubsetPrim ) )
 				{
 					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 					Slot.MaterialSource = BoundMaterial.GetValue();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
 					Slot.bMeshIsDoubleSided = bIsDoubleSided;
+					Slot.PrimPaths.Add( GeomSubsetPath );
 					bHasAssignment = true;
 				}
 			}
@@ -1742,12 +1782,13 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			// Priority 4.3: material:binding relationship
 			if ( !bHasAssignment )
 			{
-				if ( TOptional<FString> TargetMaterial = FetchMaterialByMaterialRelationship( GeomSubset.GetPrim() ) )
+				if ( TOptional<FString> TargetMaterial = FetchMaterialByMaterialRelationship( GeomSubsetPrim ) )
 				{
 					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
 					Slot.MaterialSource = TargetMaterial.GetValue();
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::MaterialPrim;
 					Slot.bMeshIsDoubleSided = bIsDoubleSided;
+					Slot.PrimPaths.Add( GeomSubsetPath );
 					bHasAssignment = true;
 				}
 			}
@@ -1762,6 +1803,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::DisplayColor;
 					Slot.bMeshIsDoubleSided = bIsDoubleSided;
 				}
+				Slot.PrimPaths.Add( GeomSubsetPath );
 				bHasAssignment = true;
 			}
 
@@ -1809,6 +1851,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 		Slot.MaterialSource = DisplayColor.GetValue().ToString();
 		Slot.AssignmentType = UsdUtils::EPrimAssignmentType::DisplayColor;
 		Slot.bMeshIsDoubleSided = bIsDoubleSided;
+		Slot.PrimPaths.Add( MeshPrimPath );
 
 		return Result;
 	}

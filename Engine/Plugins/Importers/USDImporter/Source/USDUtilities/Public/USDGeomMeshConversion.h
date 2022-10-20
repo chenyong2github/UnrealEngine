@@ -220,6 +220,12 @@ namespace UsdUtils
 	 */
 	struct FUsdPrimMaterialSlot
 	{
+		/**
+		 * Path to the prims that contain this material assignment (e.g. '/Root/my_cube' or '/Root/my_cube/geomsubset_0'.
+		 * This is a set because this single material slot in UE may be merged from N identical prims.
+		 */
+		TSet<FString> PrimPaths;
+
 		/** What this represents depends on AssignedMaterialType */
 		FString MaterialSource;
 		EPrimAssignmentType AssignmentType = EPrimAssignmentType::None;
@@ -248,6 +254,7 @@ namespace UsdUtils
 			Ar << Slot.MaterialSource;
 			Ar << Slot.AssignmentType;
 			Ar << Slot.bMeshIsDoubleSided;
+			Ar << Slot.PrimPaths;
 
 			return Ar;
 		}

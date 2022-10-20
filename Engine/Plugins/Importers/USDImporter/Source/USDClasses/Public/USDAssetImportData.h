@@ -38,3 +38,29 @@ public:
 	UPROPERTY()
 	float LayerStartOffsetSeconds = 0.0f;
 };
+
+/** Simple wrapper because we're not allowed to have TMap properties with TArray<FString> as values */
+USTRUCT()
+struct FUsdPrimPathList
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FString> PrimPaths;
+};
+
+/** We assign these to UStaticMeshes or USkeletalMeshes generated from USD */
+UCLASS( config = EditorPerProjectUserSettings, AutoExpandCategories = ( Options ), MinimalAPI )
+class UUsdMeshAssetImportData : public UUsdAssetImportData
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Maps from a material slot index of an UStaticMesh or USkeletalMesh to a list of source prims that contain this
+	 * assignment. It can contain multiple prims in case we combine material slots and/or collapse prims
+	 * (e.g. {0: ['/Root/mesh', '/Root/othermesh/geomsubset0', '/Root/othermesh/geomsubset1'] }).
+	 */
+	UPROPERTY()
+	TMap< int32, FUsdPrimPathList > MaterialSlotToPrimPaths;
+};

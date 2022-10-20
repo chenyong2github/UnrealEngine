@@ -27,13 +27,11 @@ namespace UsdUtils
 /** Implementation that can be shared between the SkelRoot translator and GeomMesh translators */
 namespace MeshTranslationImpl
 {
-	/** Retrieves the target materials described on AssignmentInfo, considering that the previous material assignment on the mesh was ExistingAssignments */
+	/** Resolves the material assignments in AssignmentInfo, returning an UMaterialInterface for each material slot */
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolveMaterialAssignmentInfo(
 		const pxr::UsdPrim& UsdPrim,
 		const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo,
-		const TArray<UMaterialInterface*>& ExistingAssignments,
 		UUsdAssetCache& AssetCache,
-		float Time,
 		EObjectFlags Flags
 	);
 

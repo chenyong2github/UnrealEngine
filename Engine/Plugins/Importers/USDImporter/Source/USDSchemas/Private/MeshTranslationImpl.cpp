@@ -44,9 +44,7 @@ namespace UE::MeshTranslationImplInternal::Private
 TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 	const pxr::UsdPrim& UsdPrim,
 	const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& AssignmentInfo,
-	const TArray<UMaterialInterface*>& ExistingAssignments,
 	UUsdAssetCache& AssetCache,
-	float Time,
 	EObjectFlags Flags
 )
 {
@@ -307,9 +305,7 @@ void MeshTranslationImpl::SetMaterialOverrides(
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 		ValidPrim,
 		LODIndexToAssignments,
-		ExistingAssignments,
 		AssetCache,
-		Time,
 		Flags
 	);
 

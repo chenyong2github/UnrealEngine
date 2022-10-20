@@ -95,7 +95,16 @@ namespace UsdSkelRootTranslatorImpl
 			ExistingAssignments.Add( SkeletalMaterial.MaterialInterface );
 		}
 
-		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo( UsdPrim, LODIndexToMaterialInfo, ExistingAssignments, AssetCache, Time, Flags );
+#if WITH_EDITOR
+		UUsdMeshAssetImportData* ImportData = Cast< UUsdMeshAssetImportData>( SkeletalMesh->GetAssetImportData() );
+#endif // WITH_EDITOR
+
+		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
+			UsdPrim,
+			LODIndexToMaterialInfo,
+			AssetCache,
+			Flags
+		);
 
 		bool bMaterialsHaveChanged = false;
 
@@ -165,6 +174,13 @@ namespace UsdSkelRootTranslatorImpl
 					SkeletalMesh->GetMaterials().Add( FSkeletalMaterial( Material, bEnableShadowCasting, bRecomputeTangents, MaterialSlotName, MaterialSlotName ) );
 					bMaterialsHaveChanged = true;
 				}
+
+#if WITH_EDITOR
+				if ( ImportData )
+				{
+					ImportData->MaterialSlotToPrimPaths.FindOrAdd( SkeletalMeshSlotIndex ).PrimPaths = Slot.PrimPaths.Array();
+				}
+#endif // WITH_EDITOR
 
 				// Already have a material at that LOD remap slot, need to reassign
 				if ( LODMaterialMap.IsValidIndex( LODSlotIndex ) )
@@ -709,9 +725,7 @@ namespace UsdSkelRootTranslatorImpl
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			ValidSkelRootPrim,
 			LODIndexToAssignments,
-			ExistingAssignments,
 			AssetCache,
-			Time,
 			Flags
 		);
 
@@ -1241,6 +1255,10 @@ namespace UsdSkelRootTranslatorImpl
 				{
 					if ( bIsNew )
 					{
+						UUsdMeshAssetImportData* ImportData = NewObject< UUsdMeshAssetImportData >( SkeletalMesh, TEXT( "USDAssetImportData" ) );
+						ImportData->PrimPath = SkelRootPath;
+						SkeletalMesh->SetAssetImportData(ImportData);
+
 						const bool bMaterialsHaveChanged = UsdSkelRootTranslatorImpl::ProcessMaterials(
 							GetPrim(),
 							LODIndexToMaterialInfo,
@@ -1256,10 +1274,6 @@ namespace UsdSkelRootTranslatorImpl
 							const bool bRebuildAll = true;
 							SkeletalMesh->UpdateUVChannelData( bRebuildAll );
 						}
-
-						UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( SkeletalMesh, TEXT( "USDAssetImportData" ) );
-						ImportData->PrimPath = SkelRootPath;
-						SkeletalMesh->SetAssetImportData(ImportData);
 
 						Context->AssetCache->CacheAsset( SkeletalMeshHashString, SkeletalMesh );
 						Context->AssetCache->CacheAsset( SkeletalMeshHashString + TEXT( "_Skeleton" ), SkeletalMesh->GetSkeleton() );

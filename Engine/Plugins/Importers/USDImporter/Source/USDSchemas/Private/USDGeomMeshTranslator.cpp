@@ -228,7 +228,16 @@ namespace UsdGeomMeshTranslatorImpl
 			ExistingAssignments.Add(StaticMaterial.MaterialInterface);
 		}
 
-		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(UsdPrim, LODIndexToMaterialInfo, ExistingAssignments, AssetCache, Time, Flags );
+#if WITH_EDITOR
+		UUsdMeshAssetImportData* ImportData = Cast< UUsdMeshAssetImportData>( StaticMesh.AssetImportData.Get() );
+#endif // WITH_EDITOR
+
+		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
+			UsdPrim,
+			LODIndexToMaterialInfo,
+			AssetCache,
+			Flags
+		);
 
 		uint32 StaticMeshSlotIndex = 0;
 		for ( int32 LODIndex = 0; LODIndex < LODIndexToMaterialInfo.Num(); ++LODIndex )
@@ -264,6 +273,11 @@ namespace UsdGeomMeshTranslatorImpl
 				}
 
 #if WITH_EDITOR
+				if ( ImportData )
+				{
+					ImportData->MaterialSlotToPrimPaths.FindOrAdd( StaticMeshSlotIndex ).PrimPaths = Slot.PrimPaths.Array();
+				}
+
 				// Setup the section map so that our LOD material index is properly mapped to the static mesh material index
 				// At runtime we don't ever parse these variants as LODs so we don't need this
 				if ( StaticMesh.GetSectionInfoMap().IsValidSection( LODIndex, LODSlotIndex ) )
@@ -303,6 +317,10 @@ namespace UsdGeomMeshTranslatorImpl
 	bool ProcessGeometryCacheMaterials( const pxr::UsdPrim& UsdPrim, const TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo >& LODIndexToMaterialInfo, UGeometryCache& GeometryCache, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags)
 	{
 		bool bMaterialAssignementsHaveChanged = false;
+
+#if WITH_EDITOR
+		UUsdMeshAssetImportData* MeshImportData = Cast< UUsdMeshAssetImportData>( GeometryCache.AssetImportData.Get() );
+#endif // WITH_EDITOR
 
 		uint32 StaticMeshSlotIndex = 0;
 		for ( int32 LODIndex = 0; LODIndex < LODIndexToMaterialInfo.Num(); ++LODIndex )
@@ -432,6 +450,10 @@ namespace UsdGeomMeshTranslatorImpl
 					GeometryCache.Materials[ StaticMeshSlotIndex ] = Material;
 					bMaterialAssignementsHaveChanged = true;
 				}
+
+#if WITH_EDITOR
+				MeshImportData->MaterialSlotToPrimPaths.FindOrAdd( StaticMeshSlotIndex ).PrimPaths = Slot.PrimPaths.Array();
+#endif // WITH_EDITOR
 			}
 		}
 
@@ -497,6 +519,7 @@ namespace UsdGeomMeshTranslatorImpl
 				if ( bSuccess )
 				{
 					OptionsCopy.AdditionalTransform = MeshTransform * Options.AdditionalTransform;
+					OptionsCopy.bMergeIdenticalMaterialSlots = false;  // We only merge slots when collapsing, and we never collapse LODs
 
 					bSuccess &= UsdToUnreal::ConvertGeomMesh(
 						LODMesh,
@@ -584,6 +607,7 @@ namespace UsdGeomMeshTranslatorImpl
 			{
 				UsdToUnreal::FUsdMeshConversionOptions OptionsCopy = Options;
 				OptionsCopy.AdditionalTransform = MeshTransform * Options.AdditionalTransform;
+				OptionsCopy.bMergeIdenticalMaterialSlots = false;  // We only merge for collapsed meshes
 
 				bSuccess &= UsdToUnreal::ConvertGeomMesh(
 					pxr::UsdGeomMesh{ UsdMesh },
@@ -1181,7 +1205,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 
 				if ( bIsNew )
 				{
-					UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>( StaticMesh, TEXT( "UUSDAssetImportData" ) );
+					UUsdMeshAssetImportData* ImportData = NewObject<UUsdMeshAssetImportData>( StaticMesh, TEXT( "UUSDAssetImportData" ) );
 					ImportData->PrimPath = PrimPathString;
 					StaticMesh->AssetImportData = ImportData;
 				}
@@ -1431,7 +1455,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 
 			if ( bIsNew && GeometryCache )
 			{
-				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( GeometryCache, TEXT( "UUSDAssetImportData" ) );
+				UUsdMeshAssetImportData* ImportData = NewObject< UUsdMeshAssetImportData >( GeometryCache, TEXT( "UUSDAssetImportData" ) );
 				ImportData->PrimPath = PrimPathString;
 				GeometryCache->AssetImportData = ImportData;
 			}
@@ -1442,7 +1466,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				Context->AssetCache->LinkAssetToPrim( PrimPathString, GeometryCache );
 
 				// Only process the materials if we own the GeometryCache. If it's new we know we do
-				UUsdAssetImportData* ImportData = Cast< UUsdAssetImportData >( GeometryCache->AssetImportData );
+				UUsdMeshAssetImportData* ImportData = Cast< UUsdMeshAssetImportData >( GeometryCache->AssetImportData );
 				if ( ImportData && ImportData->PrimPath == PrimPathString )
 				{
 					bMaterialsHaveChanged = UsdGeomMeshTranslatorImpl::ProcessGeometryCacheMaterials( GetPrim(), LODIndexToMaterialInfo, *GeometryCache, *Context->AssetCache.Get(), Context->Time, Context->ObjectFlags );
