@@ -771,7 +771,14 @@ namespace Horde.Build.Notifications.Sinks
 			HashSet<UserId> userIds = new HashSet<UserId>();
 			if (notifySuspects)
 			{
-				userIds.UnionWith(details.Suspects.Select(x => x.AuthorId));
+				if (details.Suspects.Count > 5)
+				{
+					_issueService.Collection.GetLogger(issueId).LogInformation("Not notifying suspects for issue; too many users ({Count}).", details.Suspects.Count);
+				}
+				else
+				{
+					userIds.UnionWith(details.Suspects.Select(x => x.AuthorId));
+				}
 			}
 			if (notifyOwner && issue.OwnerId.HasValue)
 			{
