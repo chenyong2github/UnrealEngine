@@ -96,7 +96,6 @@ struct FAsyncLumenIndirectLightingOutputs
 		FLumenMeshSDFGridParameters MeshSDFGridParameters;
 		LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
-		FLumenReflectionCompositeParameters ReflectionCompositeParameters;
 	};
 
 	TArray<FViewOutputs, TInlineAllocator<1>> ViewOutputs;
@@ -261,6 +260,31 @@ enum class ELumenReflectionPass
 	FrontLayerTranslucency
 };
 
+enum class EDiffuseIndirectMethod
+{
+	Disabled,
+	SSGI,
+	RTGI,
+	Lumen,
+	Plugin,
+};
+
+enum class EAmbientOcclusionMethod
+{
+	Disabled,
+	SSAO,
+	SSGI, // SSGI can produce AO buffer at same time to correctly comp SSGI within the other indirect light such as skylight and lightmass.
+	RTAO,
+};
+
+enum class EReflectionsMethod
+{
+	Disabled,
+	SSR,
+	RTR,
+	Lumen
+};
+
 /**
  * Scene renderer that implements a deferred shading pipeline and associated features.
  */
@@ -388,30 +412,6 @@ public:
 #endif
 
 private:
-	enum class EDiffuseIndirectMethod
-	{
-		Disabled,
-		SSGI,
-		RTGI,
-		Lumen,
-		Plugin,
-	};
-
-	enum class EAmbientOcclusionMethod
-	{
-		Disabled,
-		SSAO,
-		SSGI, // SSGI can produce AO buffer at same time to correctly comp SSGI within the other indirect light such as skylight and lightmass.
-		RTAO,
-	};
-
-	enum class EReflectionsMethod
-	{
-		Disabled,
-		SSR,
-		RTR,
-		Lumen
-	};
 
 	/** Structure that contains the final state of deferred shading pipeline for a FViewInfo */
 	struct FPerViewPipelineState
@@ -705,7 +705,6 @@ private:
 		ELumenReflectionPass ReflectionPass,
 		const FTiledReflection* TiledReflectionInput,
 		const class FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
-		FLumenReflectionCompositeParameters& OutCompositeParameters,
 		ERDGPassFlags ComputePassFlags);
 
 	void RenderLumenFrontLayerTranslucencyReflections(

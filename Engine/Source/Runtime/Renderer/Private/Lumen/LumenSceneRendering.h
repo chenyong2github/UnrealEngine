@@ -98,6 +98,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )
 	SHADER_PARAMETER(float, InvRoughnessFadeLength)
 END_SHADER_PARAMETER_STRUCT()
 
+extern FLumenReflectionCompositeParameters GetLumenReflectionCompositeParameters();
+
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenScreenSpaceBentNormalParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenBentNormal)
 	SHADER_PARAMETER(uint32, UseScreenBentNormal)

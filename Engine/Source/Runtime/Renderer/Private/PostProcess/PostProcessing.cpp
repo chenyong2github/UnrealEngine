@@ -197,6 +197,7 @@ void AddPostProcessingPasses(
 	const FViewInfo& View, 
 	int32 ViewIndex,
 	bool bAnyLumenActive,
+	EReflectionsMethod ReflectionsMethod,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
 	FInstanceCullingManager& InstanceCullingManager,
@@ -644,7 +645,7 @@ void AddPostProcessingPasses(
 			HalfResSceneColor = Outputs.HalfRes;
 			VelocityFlattenTextures = Outputs.VelocityFlattenTextures;
 		}
-		else if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View))
+		else if (ReflectionsMethod == EReflectionsMethod::SSR)
 		{
 			// If we need SSR, and TAA is enabled, then AddTemporalAAPass() has already handled the scene history.
 			// If we need SSR, and TAA is not enable, then we just need to extract the history.
@@ -779,7 +780,7 @@ void AddPostProcessingPasses(
 
 		// Store half res scene color in the history
 		extern int32 GSSRHalfResSceneColor;
-		if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View) && !View.bStatePrevViewInfoIsReadOnly && GSSRHalfResSceneColor)
+		if (ReflectionsMethod == EReflectionsMethod::SSR && !View.bStatePrevViewInfoIsReadOnly && GSSRHalfResSceneColor)
 		{
 			check(View.ViewState);
 			GraphBuilder.QueueTextureExtraction(HalfResSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);

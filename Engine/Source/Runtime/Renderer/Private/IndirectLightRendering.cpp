@@ -832,7 +832,6 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 						ELumenReflectionPass::Opaque,
 						nullptr,
 						nullptr,
-						ViewOutputs.ReflectionCompositeParameters,
 						ERDGPassFlags::AsyncCompute);
 				}
 			}
@@ -921,7 +920,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		FSSDSignalTextures DenoiserOutputs;
 		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 		IScreenSpaceDenoiser::FDiffuseIndirectHarmonic DenoiserSphericalHarmonicInputs;
-		FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
 		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
 
 		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
@@ -967,7 +965,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				auto& ViewOutputs = AsyncLumenIndirectLightingOutputs.ViewOutputs;
 				const auto& MeshSDFGridParams = bDoComposite ? MeshSDFGridParameters : ViewOutputs[ViewIndex].MeshSDFGridParameters;
 				const auto& RadianceCacheParams = bDoComposite ? RadianceCacheParameters : ViewOutputs[ViewIndex].RadianceCacheParameters;
-				auto& ReflectionCompositeParams = bDoComposite ? LumenReflectionCompositeParameters : ViewOutputs[ViewIndex].ReflectionCompositeParameters;
 				auto& OutTextures = bDoComposite ? DenoiserOutputs : ViewOutputs[ViewIndex].IndirectLightingTextures;
 
 				if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
@@ -982,8 +979,18 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 						ELumenReflectionPass::Opaque,
 						nullptr,
 						nullptr,
-						ReflectionCompositeParams,
 						ERDGPassFlags::Compute);
+				}
+				else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR)
+				{
+					ESSRQuality SSRQuality;
+					IScreenSpaceDenoiser::FReflectionsRayTracingConfig DenoiserConfig;
+					ScreenSpaceRayTracing::GetSSRQualityForView(View, &SSRQuality, &DenoiserConfig);
+
+					RDG_EVENT_SCOPE(GraphBuilder, "ScreenSpaceReflections(Quality=%d)", int32(SSRQuality));
+					IScreenSpaceDenoiser::FReflectionsInputs SSRDenoiserInputs;
+					ScreenSpaceRayTracing::RenderScreenSpaceReflections(GraphBuilder, SceneTextureParameters, SceneColorTexture, View, SSRQuality, /*bDenoise*/ false, &SSRDenoiserInputs);
+					OutTextures.Textures[3] = SSRDenoiserInputs.Color;
 				}
 				else
 				{
@@ -1010,7 +1017,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				MeshSDFGridParameters = ViewOutputs.MeshSDFGridParameters;
 				RadianceCacheParameters = ViewOutputs.RadianceCacheParameters;
 				ScreenBentNormalParameters = ViewOutputs.ScreenBentNormalParameters;
-				LumenReflectionCompositeParameters = ViewOutputs.ReflectionCompositeParameters;
 			}
 		}
 		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Plugin)
@@ -1166,7 +1172,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
 			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
-			PassParameters->LumenReflectionCompositeParameters = LumenReflectionCompositeParameters;
+			PassParameters->LumenReflectionCompositeParameters = GetLumenReflectionCompositeParameters();
 			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
 			PassParameters->bLumenSupportBackfaceDiffuse = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && DenoiserOutputs.Textures[1] != SystemTextures.Black;
 
@@ -1751,7 +1757,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		const bool bComposePlanarReflections = !RayTracingReflectionOptions.bEnabled && HasDeferredPlanarReflections(View);
 
 		FRDGTextureRef ReflectionsColor = nullptr;
-		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
+		if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen
+			|| (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR))
 		{
 			// Specular was already comped with FDiffuseIndirectCompositePS
 			continue;

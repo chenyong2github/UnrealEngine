@@ -905,6 +905,14 @@ void UpdateHistoryReflections(
 
 DECLARE_GPU_STAT(LumenReflections);
 
+FLumenReflectionCompositeParameters GetLumenReflectionCompositeParameters()
+{
+	FLumenReflectionCompositeParameters OutCompositeParameters;
+	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
+	return OutCompositeParameters;
+}
+
 FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View,
@@ -915,12 +923,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ELumenReflectionPass ReflectionPass,
 	const FTiledReflection* ExternalTiledReflection,
 	const FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,
-	FLumenReflectionCompositeParameters& OutCompositeParameters,
 	ERDGPassFlags ComputePassFlags)
 {
-	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
-
 	const bool bDenoise = ReflectionPass == ELumenReflectionPass::Opaque;
 	const bool bFrontLayer = ReflectionPass == ELumenReflectionPass::FrontLayerTranslucency;
 	const bool bSingleLayerWater = ReflectionPass == ELumenReflectionPass::SingleLayerWater;

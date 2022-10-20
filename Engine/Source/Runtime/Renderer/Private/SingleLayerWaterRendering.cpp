@@ -752,7 +752,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 			FLumenMeshSDFGridParameters MeshSDFGridParameters;
 			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
-			FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
 
 			ReflectionsColor = RenderLumenReflections(
 				GraphBuilder,
@@ -764,7 +763,6 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				ELumenReflectionPass::SingleLayerWater,
 				&TiledScreenSpaceReflection,
 				nullptr,
-				LumenReflectionCompositeParameters,
 				ERDGPassFlags::Compute);
 		}
 		else if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::RTR 

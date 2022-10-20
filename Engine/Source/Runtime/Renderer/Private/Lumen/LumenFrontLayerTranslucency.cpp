@@ -445,7 +445,6 @@ void FDeferredShadingSceneRenderer::RenderLumenFrontLayerTranslucencyReflections
 
 		FLumenMeshSDFGridParameters MeshSDFGridParameters;
 		LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
-		FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
 
 		FRDGTextureRef ReflectionTexture = RenderLumenReflections(
 			GraphBuilder,
@@ -457,7 +456,6 @@ void FDeferredShadingSceneRenderer::RenderLumenFrontLayerTranslucencyReflections
 			ELumenReflectionPass::FrontLayerTranslucency,
 			nullptr,
 			&ReflectionGBuffer,
-			LumenReflectionCompositeParameters,
 			ERDGPassFlags::Compute);
 
 		View.LumenFrontLayerTranslucency.bEnabled = true;

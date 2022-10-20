@@ -122,7 +122,8 @@ bool ShouldKeepBleedFreeSceneColor(const FViewInfo& View)
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View)
 {
 	if(!View.Family->EngineShowFlags.ScreenSpaceReflections 
-		|| View.FinalPostProcessSettings.ReflectionMethod != EReflectionMethod::ScreenSpace 
+		// Note: intentionally allow falling back to SSR from other reflection methods, which may be disabled by scalability
+		|| View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::None 
 		|| HasRayTracedOverlay(*View.Family)
 		|| View.bIsReflectionCapture)
 	{

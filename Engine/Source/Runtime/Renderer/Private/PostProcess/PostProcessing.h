@@ -6,6 +6,7 @@
 #include "TranslucentRendering.h"
 #include "SystemTextures.h"
 #include "ScenePrivate.h"
+#include "DeferredShadingRenderer.h"
 
 class FSceneTextureParameters;
 class FVirtualShadowMapArray;
@@ -45,6 +46,7 @@ void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, int32 ViewIndex,
 	bool bAnyLumenActive,
+	EReflectionsMethod ReflectionsMethod,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
 	FInstanceCullingManager& InstanceCullingManager,
