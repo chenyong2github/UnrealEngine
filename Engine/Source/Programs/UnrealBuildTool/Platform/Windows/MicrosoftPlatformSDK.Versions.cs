@@ -64,7 +64,6 @@ namespace UnrealBuildTool
 		{
 			"Microsoft.VisualStudio.Workload.CoreEditor",
 			"Microsoft.VisualStudio.Workload.Universal",
-			"Microsoft.VisualStudio.Workload.ManagedDesktop",
 			"Microsoft.VisualStudio.Workload.NativeDesktop",
 			"Microsoft.VisualStudio.Workload.NativeGame",
 			"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
@@ -84,6 +83,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly string[] VisualStudio2022SuggestedComponents = new string[]
 		{
+			"Microsoft.VisualStudio.Workload.ManagedDesktop",
 			"Microsoft.VisualStudio.Workload.NativeCrossPlat",
 			"Microsoft.VisualStudio.Component.VC.14.33.17.3.ARM64",
 			"Microsoft.VisualStudio.Component.VC.14.33.17.3.x86.x64",
