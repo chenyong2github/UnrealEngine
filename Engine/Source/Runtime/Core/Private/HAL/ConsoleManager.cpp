@@ -72,6 +72,27 @@ static const TCHAR* GetSetByTCHAR(EConsoleVariableFlags InSetBy)
 	return TEXT("<UNKNOWN>");
 }
 
+TArray<const FAutoConsoleObject*>& FAutoConsoleObject::AccessGeneralShaderChangeCvars()
+{
+	// This variable cannot be global because it is accessed from the constructor of other global variables.
+	static TArray<const FAutoConsoleObject*> GeneralShaderChangeCvars;
+	return GeneralShaderChangeCvars;
+}
+
+TArray<const FAutoConsoleObject*>& FAutoConsoleObject::AccessMobileShaderChangeCvars()
+{
+	// This variable cannot be global because it is accessed from the constructor of other global variables.
+	static TArray<const FAutoConsoleObject*> MobileShaderChangeCvars;
+	return MobileShaderChangeCvars;
+}
+
+TArray<const FAutoConsoleObject*>& FAutoConsoleObject::AccessDesktopShaderChangeCvars()
+{
+	// This variable cannot be global because it is accessed from the constructor of other global variables.
+	static TArray<const FAutoConsoleObject*> DesktopShaderChangeCvars;
+	return DesktopShaderChangeCvars;
+}
+
 class FConsoleVariableBase : public IConsoleVariable
 {
 public:

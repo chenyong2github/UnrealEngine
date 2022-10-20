@@ -1361,7 +1361,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 {
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
 
-	for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::GeneralShaderChangeCvars)
+	for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::AccessGeneralShaderChangeCvars())
 	{
 		FString ConsoleObjectName = IConsoleManager::Get().FindConsoleObjectName(ConsoleObject->AsVariable());
 		KeyString += TEXT("_");
@@ -1371,7 +1371,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 	if (IsMobilePlatform(Platform))
 	{
-		for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::MobileShaderChangeCvars)
+		for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::AccessMobileShaderChangeCvars())
 		{
 			FString ConsoleObjectName = IConsoleManager::Get().FindConsoleObjectName(ConsoleObject->AsVariable());
 			KeyString += TEXT("_");
@@ -1382,7 +1382,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 	else if (IsConsolePlatform(Platform))
 	{
-		for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::DesktopShaderChangeCvars)
+		for (const FAutoConsoleObject* ConsoleObject : FAutoConsoleObject::AccessDesktopShaderChangeCvars())
 		{
 			FString ConsoleObjectName = IConsoleManager::Get().FindConsoleObjectName(ConsoleObject->AsVariable());
 			KeyString += TEXT("_");

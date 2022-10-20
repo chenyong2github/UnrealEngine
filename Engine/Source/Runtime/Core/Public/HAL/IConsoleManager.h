@@ -1057,27 +1057,27 @@ protected:
 		check(Target);
 		if (Target->TestFlags(ECVF_GeneralShaderChange))
 		{
-			GeneralShaderChangeCvars.Add(this);
+			AccessGeneralShaderChangeCvars().Add(this);
 		}
 		else if (Target->TestFlags(ECVF_MobileShaderChange))
 		{
-			MobileShaderChangeCvars.Add(this);
+			AccessMobileShaderChangeCvars().Add(this);
 		}
 		else if (Target->TestFlags(ECVF_DesktopShaderChange))
 		{
-			DesktopShaderChangeCvars.Add(this);
+			AccessDesktopShaderChangeCvars().Add(this);
 		}
 	}
+public:
 	/** Destructor, removes the console object **/
 	virtual ~FAutoConsoleObject()
 	{
 		IConsoleManager::Get().UnregisterConsoleObject(Target);
 	}
 
-public:
-	static TArray<const FAutoConsoleObject*> GeneralShaderChangeCvars;
-	static TArray<const FAutoConsoleObject*> MobileShaderChangeCvars;
-	static TArray<const FAutoConsoleObject*> DesktopShaderChangeCvars;
+	static TArray<const FAutoConsoleObject*>& AccessGeneralShaderChangeCvars();
+	static TArray<const FAutoConsoleObject*>& AccessMobileShaderChangeCvars();
+	static TArray<const FAutoConsoleObject*>& AccessDesktopShaderChangeCvars();
 
 	/** returns the contained console object as an IConsoleVariable **/
 	FORCEINLINE IConsoleVariable* AsVariable()
