@@ -302,6 +302,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					.ExtensionContext(ExtensionContextObject)
 				]
 				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.Padding(ToolbarSlotPadding)
 				.HAlign(HAlign_Right)
 				[
