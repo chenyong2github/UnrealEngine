@@ -98,17 +98,17 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 		SDropTarget::FArguments RightDropTargetArgs;
 
 		LeftDropTargetArgs
-			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptSectionDrop, EItemDropZone::AboveItem)
+			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptDrop, EItemDropZone::AboveItem)
 			.OnDropped(this, &SNiagaraHierarchySection::OnDroppedOn, EItemDropZone::AboveItem)
 			.VerticalImage(FAppStyle::GetNoBrush())
 			.HorizontalImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.DropTarget.BorderHorizontal"));
 
 		OntoDropTargetArgs
-			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptDrop)
+			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptDrop, EItemDropZone::OntoItem)
 			.OnDropped(this, &SNiagaraHierarchySection::OnDroppedOn, EItemDropZone::OntoItem);
 		
 		RightDropTargetArgs
-			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptSectionDrop, EItemDropZone::BelowItem)
+			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptDrop, EItemDropZone::BelowItem)
 			.OnDropped(this, &SNiagaraHierarchySection::OnDroppedOn, EItemDropZone::BelowItem)
 			.VerticalImage(FAppStyle::GetNoBrush())
 			.HorizontalImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.DropTarget.BorderHorizontal"));
@@ -162,7 +162,7 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 		ChildSlot
 		[
 			SNew(SDropTarget)
-			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptDrop)
+			.OnAllowDrop(this, &SNiagaraHierarchySection::OnCanAcceptDrop, EItemDropZone::OntoItem)
 			.OnDropped(this, &SNiagaraHierarchySection::OnDroppedOn, EItemDropZone::OntoItem)
 			[
 				SNew(SCheckBox)
@@ -188,44 +188,24 @@ void SNiagaraHierarchySection::EnterEditingMode() const
 	InlineEditableTextBlock->EnterEditingMode();
 }
 
-bool SNiagaraHierarchySection::OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation) const
+bool SNiagaraHierarchySection::OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const
 {
-	if(DragDropOperation->IsOfType<FNiagaraHierarchyDragDropOp>())
+	if(SectionViewModel.IsValid())
 	{
-		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOperation);
-		TWeakPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem();
-
-		if(const UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(DraggedItem.Pin()->GetData()))
-		{
-			return TryGetSectionData() != Category->GetSection();
-		}
+		return SectionViewModel->OnCanAcceptDropInternal(DragDropOperation, ItemDropZone).IsSet();
 	}
-
-	return false;
-}
-
-bool SNiagaraHierarchySection::OnCanAcceptSectionDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const
-{
-	if(DragDropOperation->IsOfType<FNiagaraSectionDragDropOp>() && ItemDropZone != EItemDropZone::OntoItem)
+	// for the All section which has no valid view model, we simply do a check if the sections of the dragged categories are different
+	else
 	{
-		TSharedPtr<FNiagaraSectionDragDropOp> SectionDragDropOp = StaticCastSharedPtr<FNiagaraSectionDragDropOp>(DragDropOperation);
-		TWeakPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = SectionDragDropOp->GetDraggedItem();
-		if(UNiagaraHierarchySection* DraggedSection = Cast<UNiagaraHierarchySection>(DraggedItem.Pin()->GetDataMutable()))
+		if(DragDropOperation->IsOfType<FNiagaraHierarchyDragDropOp>())
 		{
-			int32 DraggedItemIndex = SectionViewModel->GetHierarchyViewModel()->GetHierarchyDataRoot()->GetSectionIndex(DraggedSection);
-			bool bSameSection = TryGetSectionData() == DraggedSection;
+			TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOperation);
+			TWeakPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem();
 
-			int32 InsertionIndex = INDEX_NONE;
-			if(SectionViewModel.IsValid())
+			if(const UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(DraggedItem.Pin()->GetData()))
 			{
-				InsertionIndex = SectionViewModel->GetHierarchyViewModel()->GetHierarchyDataRoot()->GetSectionIndex(TryGetSectionData());
-
-				// we add 1 to the insertion index if it's below an item because we either want to insert at the current index to place the item above, or at current+1 for below
-				InsertionIndex += ItemDropZone == EItemDropZone::AboveItem ? -1 : 1;
+				return TryGetSectionData() != Category->GetSection();
 			}
-
-			bool bCanDrop = !bSameSection && DraggedItemIndex != InsertionIndex;			
-			return bCanDrop;
 		}
 	}
 
@@ -820,7 +800,7 @@ bool SNiagaraHierarchy::CanDropOnRoot(TSharedPtr<FDragDropOperation> DragDropOp)
 	{
 		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOp);
 		TSharedPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem().Pin();
-		TOptional<EItemDropZone> Result = HierarchyViewModel->CanDropOn(DraggedItem, HierarchyViewModel->GetHierarchyViewModelRoot(), EItemDropZone::OntoItem);
+		TOptional<EItemDropZone> Result = HierarchyViewModel->GetHierarchyViewModelRoot()->OnCanAcceptDropInternal(DragDropOp, EItemDropZone::OntoItem);
 		return Result.IsSet() && Result.GetValue() == EItemDropZone::OntoItem ? true : false;
 	}
 

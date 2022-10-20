@@ -181,6 +181,47 @@ bool FNiagaraHierarchyCategoryViewModel::IsTopCategoryActive() const
 	return false;	
 }
 
+TOptional<EItemDropZone> FNiagaraHierarchyCategoryViewModel::OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone)
+{
+	bool bAllowDrop = false;
+
+	if(TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOp))
+	{
+		TSharedPtr<FNiagaraHierarchyItemViewModelBase> SourceDropItem = HierarchyDragDropOp->GetDraggedItem().Pin();
+		TSharedPtr<FNiagaraHierarchyItemViewModelBase> TargetDropItem = AsShared();
+		
+		TArray<TSharedPtr<FNiagaraHierarchyCategoryViewModel>> TargetChildrenCategories;
+		TargetDropItem->GetChildrenViewModelsForType<UNiagaraHierarchyCategory, FNiagaraHierarchyCategoryViewModel>(TargetChildrenCategories);
+
+		// we only allow drops if some general conditions are fulfilled
+		if(SourceDropItem->GetData() != TargetDropItem->GetData() &&
+			(!SourceDropItem->HasParent(TargetDropItem, false) || ItemDropZone != EItemDropZone::OntoItem)  &&
+			!TargetDropItem->HasParent(SourceDropItem, true))
+		{
+			// categories can be dropped on categories, but only if the resulting sibling categories have different names
+			if(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>())
+			{
+				bAllowDrop =
+				(
+					(ItemDropZone == EItemDropZone::OntoItem && !TargetChildrenCategories.ContainsByPredicate([SourceDropItem](TSharedPtr<FNiagaraHierarchyCategoryViewModel> HierarchyCategoryViewModel)
+						{
+							return SourceDropItem->ToString() == HierarchyCategoryViewModel->ToString();
+						}))
+						||
+					(ItemDropZone != EItemDropZone::OntoItem && SourceDropItem->ToString() != TargetDropItem->ToString())
+				);
+			}
+			else if(SourceDropItem->GetData()->IsA<UNiagaraHierarchyItem>())
+			{
+				// items can generally be dropped onto categories
+				bAllowDrop = EItemDropZone::OntoItem == ItemDropZone;
+			}
+		}
+	}
+
+	return bAllowDrop ? ItemDropZone : TOptional<EItemDropZone>();
+}
+
 void UNiagaraHierarchySection::SetSectionNameAsText(const FText& Text)
 {
 	Section = FName(Text.ToString());
@@ -555,11 +596,11 @@ void FNiagaraHierarchyItemViewModelBase::Finalize()
 
 TOptional<EItemDropZone> FNiagaraHierarchyItemViewModelBase::OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
 {
-	if(TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FNiagaraHierarchyDragDropOp>())
-	{
-		return HierarchyViewModel->CanDropOn(HierarchyDragDropOp->GetDraggedItem().Pin().ToSharedRef(), AsShared(), ItemDropZone);
-	}
+	return OnCanAcceptDropInternal(DragDropEvent.GetOperation(), ItemDropZone);
+}
 
+TOptional<EItemDropZone> FNiagaraHierarchyItemViewModelBase::OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone)
+{
 	return TOptional<EItemDropZone>();	
 }
 
@@ -596,6 +637,33 @@ FReply FNiagaraHierarchyItemViewModelBase::OnDragDetected(const FGeometry& Geome
 	}
 		
 	return FReply::Unhandled();
+}
+
+TOptional<EItemDropZone> FNiagaraHierarchyRootViewModel::OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone)
+{
+	bool bAllowDrop = false;
+
+	if(TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOp))
+	{
+		TSharedPtr<FNiagaraHierarchyItemViewModelBase> SourceDropItem = HierarchyDragDropOp->GetDraggedItem().Pin();
+		TSharedPtr<FNiagaraHierarchyItemViewModelBase> TargetDropItem = AsShared();
+
+		// we only allow drops if some general conditions are fulfilled
+		if(SourceDropItem->GetData() != TargetDropItem->GetData() &&
+			(!SourceDropItem->HasParent(TargetDropItem, false) || ItemDropZone != EItemDropZone::OntoItem)  &&
+			!TargetDropItem->HasParent(SourceDropItem, true))
+		{
+			bAllowDrop = 
+				// items can be dropped onto the root directly if the section is set to "All"
+				(SourceDropItem->GetData()->IsA<UNiagaraHierarchyItem>() && HierarchyViewModel->GetActiveSectionData() == nullptr)
+					||
+				// categories can be dropped onto the root always
+				(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>());
+		}
+		
+	}
+
+	return bAllowDrop ? ItemDropZone : TOptional<EItemDropZone>();
 }
 
 FReply FNiagaraHierarchyRootViewModel::OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
@@ -686,6 +754,42 @@ void FNiagaraHierarchyRootViewModel::SyncChildrenViewModelsInternal()
 				<
 			GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionData().Find(Cast<UNiagaraHierarchySection>(ItemB->GetDataMutable())); 
 		});
+}
+
+TOptional<EItemDropZone> FNiagaraHierarchySectionViewModel::OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone)
+{
+	bool bAllowDrop = false;
+
+	if(DragDropOp->IsOfType<FNiagaraHierarchyDragDropOp>())
+	{
+		TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOp);
+		TWeakPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem = HierarchyDragDropOp->GetDraggedItem();
+
+		if(const UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(DraggedItem.Pin()->GetData()))
+		{
+			if(ItemDropZone == EItemDropZone::OntoItem)
+			{
+				bAllowDrop = GetData() != Category->GetSection();
+			}
+		}
+		else if(UNiagaraHierarchySection* Section = Cast<UNiagaraHierarchySection>(DraggedItem.Pin()->GetDataMutable()))
+		{
+			if(ItemDropZone != EItemDropZone::OntoItem)
+			{
+				int32 DraggedItemIndex = GetHierarchyViewModel()->GetHierarchyDataRoot()->GetSectionIndex(Section);
+				bool bSameSection = GetData() == Section;
+
+				int32 InsertionIndex = GetHierarchyViewModel()->GetHierarchyDataRoot()->GetSectionIndex(GetDataMutable<UNiagaraHierarchySection>());
+				// we add 1 to the insertion index if it's below an item because we either want to insert at the current index to place the item above, or at current+1 for below
+				InsertionIndex += ItemDropZone == EItemDropZone::AboveItem ? -1 : 1;
+
+				bAllowDrop = !bSameSection && DraggedItemIndex != InsertionIndex;			
+			}
+		}
+	}
+	 
+
+	return bAllowDrop ? ItemDropZone : TOptional<EItemDropZone>();
 }
 
 FReply FNiagaraHierarchySectionViewModel::OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
@@ -791,6 +895,28 @@ void FNiagaraHierarchySectionViewModel::FinalizeInternal()
 			Category->SetSection(nullptr);
 		}
 	}
+}
+
+TOptional<EItemDropZone> FNiagaraHierarchyItemViewModel::OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone)
+{
+	bool bAllowDrop = false;
+
+	if(TSharedPtr<FNiagaraHierarchyDragDropOp> HierarchyDragDropOp = StaticCastSharedPtr<FNiagaraHierarchyDragDropOp>(DragDropOp))
+	{
+		TSharedPtr<FNiagaraHierarchyItemViewModelBase> SourceDropItem = HierarchyDragDropOp->GetDraggedItem().Pin();
+		TSharedPtr<FNiagaraHierarchyItemViewModelBase> TargetDropItem = AsShared();
+
+		// we only allow drops if some general conditions are fulfilled
+		if(SourceDropItem->GetData() != TargetDropItem->GetData() &&
+			(!SourceDropItem->HasParent(TargetDropItem, false) || ItemDropZone != EItemDropZone::OntoItem)  &&
+			!TargetDropItem->HasParent(SourceDropItem, true))
+		{
+			// items can be generally be dropped above/below other items
+			bAllowDrop = (SourceDropItem->GetData()->IsA<UNiagaraHierarchyItem>() && ItemDropZone != EItemDropZone::OntoItem);
+		}
+	}
+
+	return bAllowDrop ? ItemDropZone : TOptional<EItemDropZone>();
 }
 
 FReply FNiagaraHierarchyItemViewModel::OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)

@@ -137,33 +137,6 @@ void UNiagaraUserParametersHierarchyViewModel::SetupCommands()
 	// no custom commands yet
 }
 
-TOptional<EItemDropZone> UNiagaraUserParametersHierarchyViewModel::CanDropOn(TSharedPtr<FNiagaraHierarchyItemViewModelBase> SourceDropItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> TargetDropItem, EItemDropZone DropZone)
-{
-	bool bAllowDropOn =
-		SourceDropItem->GetData() != TargetDropItem->GetData() &&
-			(!SourceDropItem->HasParent(TargetDropItem, false) || DropZone != EItemDropZone::OntoItem)  &&
-			!TargetDropItem->HasParent(SourceDropItem, true)
-		&&
-		(
-			// user parameters can be dropped onto categories
-			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && DropZone == EItemDropZone::OntoItem)
-				||
-			// user parameters can be dropped above/below other user parameters
-			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && DropZone != EItemDropZone::OntoItem)
-				||
-			// categories can be dropped on categories
-			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyCategory>())
-				||
-			// user parameters can be dropped onto the root if the section is set to "All"
-			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyUserParameter>() && TargetDropItem->GetData()->IsA<UNiagaraHierarchyRoot>() && GetActiveSectionData() == nullptr)
-				||
-			// categories can be dropped onto the root always
-			(SourceDropItem->GetData()->IsA<UNiagaraHierarchyCategory>() && TargetDropItem->GetData()-IsA<UNiagaraHierarchyRoot>())
-		);
-	
-	return bAllowDropOn ? DropZone : TOptional<EItemDropZone>();
-}
-
 TSharedRef<FNiagaraHierarchyDragDropOp> UNiagaraUserParametersHierarchyViewModel::CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item)
 {
 	if(const UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(Item->GetData()))

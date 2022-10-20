@@ -68,7 +68,6 @@ private:
 	SVerticalBox::FSlot* SectionsSlot = nullptr;
 	TSharedPtr<IDetailsView> DetailsPanel;
 
-	// Slate widget arguments
 private:
 	FOnGenerateRowContentWidget OnGenerateRowContentWidget;
 	FOnGenerateCustomDetailsPanelNameWidget OnGenerateCustomDetailsPanelNameWidget;
@@ -88,8 +87,7 @@ public:
 	void Construct(const FArguments& InArgs, TSharedPtr<struct FNiagaraHierarchySectionViewModel> InSection, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel);
 	virtual ~SNiagaraHierarchySection() override;
 
-	bool OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation) const;
-	bool OnCanAcceptSectionDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const;
+	bool OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const;
 	FReply OnDroppedOn(const FGeometry&, const FDragDropEvent& DragDropEvent, EItemDropZone DropZone) const;
 
 	void EnterEditingMode() const;

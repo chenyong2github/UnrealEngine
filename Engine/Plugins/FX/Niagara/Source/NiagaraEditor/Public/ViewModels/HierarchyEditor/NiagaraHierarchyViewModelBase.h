@@ -277,9 +277,8 @@ public:
 	/** Additional commands can be specified overriding the Commands function. */
 	virtual void SetupCommands() {}
 	TSharedRef<FUICommandList> GetCommands() const { return Commands.ToSharedRef(); }
-	
-	/** Central function to determine whether an item can be dropped on, above or below another item. */
-	virtual TOptional<EItemDropZone> CanDropOn(TSharedPtr<FNiagaraHierarchyItemViewModelBase> SourceDropItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> TargetDropItem, EItemDropZone DropZone = EItemDropZone::OntoItem) PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::CanDropOn, return TOptional<EItemDropZone>(););
+
+	/** Function to implement for custom drag drop ops. */
 	virtual TSharedRef<FNiagaraHierarchyDragDropOp> CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item) PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::CreateDragDropOp, return MakeShared<FNiagaraHierarchyDragDropOp>(nullptr););
 	
 	virtual void OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem) {}
@@ -392,8 +391,9 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 	{
 		return FReply::Unhandled();
 	}
-	
+
 	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
+	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone);
 
 	/** Should return true if draggable */
 	virtual bool CanDrag() { return false; }
@@ -465,6 +465,8 @@ struct FNiagaraHierarchyRootViewModel : FNiagaraHierarchyItemViewModelBase
 	virtual ~FNiagaraHierarchyRootViewModel() override {}
 
 	virtual bool CanDrag() override { return false; }
+
+	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
 	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
 
 	TSharedPtr<struct FNiagaraHierarchySectionViewModel> AddNewSection();
@@ -491,6 +493,7 @@ struct FNiagaraHierarchySectionViewModel : FNiagaraHierarchyItemViewModelBase
 	virtual bool CanRename() override { return true; }
 	virtual bool CanDelete() override { return true; }
 
+	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
 	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
 
 	virtual void FinalizeInternal() override;
@@ -503,7 +506,8 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModel : FNiagaraHierarchyItemV
 	virtual ~FNiagaraHierarchyItemViewModel() override {}
 
 	virtual bool CanDrag() override { return true; }
-	
+
+	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
 	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
 };
 
@@ -519,6 +523,7 @@ struct FNiagaraHierarchyCategoryViewModel : FNiagaraHierarchyItemViewModelBase
 
 	bool IsTopCategoryActive() const;
 
+	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
 	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
 };
 
