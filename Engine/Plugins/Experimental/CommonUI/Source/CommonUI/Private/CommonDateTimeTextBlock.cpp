@@ -96,10 +96,14 @@ void UCommonDateTimeTextBlock::UpdateUnderlyingText()
 			}
 		}
 
-		if (Remaining.GetTotalSeconds() < 1.0 && bUseCountdownCompletionText)
+		if (Remaining.GetTotalSeconds() < 1.0)
 		{
-			TextToSet = CountdownCompletionText;
 			OnTimeCountDownCompletion().Broadcast();
+			
+			if(bUseCountdownCompletionText)
+			{
+				TextToSet = CountdownCompletionText;
+			}
 		}
 		else
 		{
