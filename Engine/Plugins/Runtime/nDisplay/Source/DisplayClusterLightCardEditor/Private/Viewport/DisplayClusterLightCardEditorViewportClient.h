@@ -81,10 +81,12 @@ public:
 	 * @param RootActor The new root actor to use. Accepts nullptr
 	 * @param bForce Force the update even if the RootActor hasn't changed
 	 * @param ProxyType The proxy type to destroy and update
+	 * @param StageActor Limit the update to a single stage actor
 	 */
 	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce = false,
-		EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
-
+		EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All,
+		AActor* StageActor = nullptr);
+	
 	/** Only update required transform values of proxies */
 	void UpdateProxyTransforms();
 
@@ -93,6 +95,9 @@ public:
 	
 	/** Remove proxies of the specified type */
 	void DestroyProxies(EDisplayClusterLightCardEditorProxyType ProxyType);
+
+	/** Remove a proxy that is or belongs to the given actor */
+	void DestroyProxy(AActor* Actor);
 	
 	/** Selects the actor proxies that correspond to the specified actors */
 	void SelectActors(const TArray<AActor*>& ActorsToSelect);
@@ -279,6 +284,12 @@ private:
 	/** Find the actor proxy if it exists from a level instance */
 	const FActorProxy* FindActorProxyFromLevelInstance(AActor* InLevelInstance) const;
 
+	/** Find the actor proxy from either the proxy itself or the actor the proxy belongs to */
+	const FActorProxy* FindActorProxyFromActor(AActor* InActor) const;
+
+	/** Create a stage actor proxy */
+	void CreateStageActorProxy(AActor* InLevelInstance);
+	
 	/** Update the transforms for the specific proxy */
 	void UpdateProxyTransforms(const FActorProxy& InActorProxy);
 	
@@ -308,6 +319,9 @@ private:
 	TArray<FActorProxy> ActorProxies;
 	TArray<TWeakObjectPtr<UBillboardComponent>> BillboardComponentProxies;
 	TArray<FDisplayClusterWeakStageActorPtr> SelectedActors;
+
+	/** Billboards are accessed from the render thread and game thread */
+	FCriticalSection BillboardComponentCS;
 
 	/** View matrices set per tick if there are any billboard components */
 	FViewMatrices BillboardViewMatrices;

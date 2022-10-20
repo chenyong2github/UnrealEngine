@@ -264,6 +264,9 @@ private:
 	/** Refresh all preview actors */
 	void RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
 
+	/** Refresh a specific preview stage actor */
+	void RefreshPreviewStageActor(AActor* Actor);
+	
 	/** Reapply the current label settings */
 	void RefreshLabels();
 	

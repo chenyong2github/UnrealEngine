@@ -225,7 +225,7 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 	AActor* NewActor = FDisplayClusterLightCardEditorHelper::SpawnStageActor(MoveTemp(SpawnArgs));
 	check(NewActor);
 
-	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
+	RefreshPreviewStageActor(NewActor);
 	
 	if (!bIsPreview)
 	{
@@ -462,9 +462,9 @@ void FDisplayClusterLightCardEditor::AddLightCardsToActor(const TArray<ADisplayC
 
 				LightCard->AddToLightCardLayer(ActiveRootActor.Get());
 			}
-		}
 
-		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
+			RefreshPreviewStageActor(LightCard);
+		}
 	}
 }
 
@@ -1626,6 +1626,23 @@ void FDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCa
 	BindCompileDelegates();
 }
 
+void FDisplayClusterLightCardEditor::RefreshPreviewStageActor(AActor* Actor)
+{
+	if (ADisplayClusterRootActor* RootActor = GetActiveRootActor().Get())
+	{
+		if (LightCardOutliner.IsValid())
+		{
+			LightCardOutliner->SetRootActor(RootActor);
+		}
+
+		if (ViewportView.IsValid())
+		{
+			ViewportView->GetLightCardEditorViewportClient()->UpdatePreviewActor(RootActor, /*bForce*/ true,
+				EDisplayClusterLightCardEditorProxyType::StageActor, Actor);
+		}
+	}
+}
+
 void FDisplayClusterLightCardEditor::RefreshLabels()
 {
 	ShowLightCardLabels(ShouldShowLightCardLabels());
@@ -1728,24 +1745,56 @@ void FDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
 	EDisplayClusterLightCardEditorProxyType ProxyType;
 	if (IsOurObject(ObjectBeingModified, ProxyType))
 	{
+		IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(ObjectBeingModified);
+		
 		const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 		const bool bTransformationChanged =
 				(PropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
 					PropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
-					PropertyName == USceneComponent::GetRelativeScale3DPropertyName());
+					PropertyName == USceneComponent::GetRelativeScale3DPropertyName() ||
+					(StageActor && StageActor->GetPositionalPropertyNames().Contains(PropertyName)));
 		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive ||
 			(bTransformationChanged && !ObjectBeingModified->IsA<ADisplayClusterRootActor>()))
 		{
-			// Real-time & efficient update when dragging a slider.
+			// Real-time & efficient update when dragging a slider or when we know the property type doesn't
+			// require a full refresh
 			if (ViewportView.IsValid())
 			{
-				ViewportView->GetLightCardEditorViewportClient()->UpdateProxyTransforms();
+				if (AActor* Actor = Cast<AActor>(ObjectBeingModified))
+				{
+					ViewportView->GetLightCardEditorViewportClient()->UpdateProxyTransformFromLevelInstance(Actor);
+				}
+				else
+				{
+					ViewportView->GetLightCardEditorViewportClient()->UpdateProxyTransforms();
+				}
 			}
 		}
 		else
 		{
-			// Full destroy and refresh.
-			RefreshPreviewActors(ProxyType);
+			if (StageActor == nullptr)
+			{
+				// Check if this object belongs to a stage actor
+				StageActor = Cast<IDisplayClusterStageActor>(ObjectBeingModified->GetTypedOuter(UDisplayClusterStageActor::StaticClass()));
+			}
+			
+			if (AActor* Actor = Cast<AActor>(StageActor))
+			{
+				// Full destroy and refresh of a single proxy
+				RefreshPreviewStageActor(Actor);
+			}
+			else if (ObjectBeingModified->IsA<UActorComponent>() &&
+				CastChecked<UActorComponent>(ObjectBeingModified)->GetOwner() == GetActiveRootActor().Get())
+			{
+				// Avoid recreating all stage proxies if we can determine it's just a component that has changed
+				// Especially helps improve ICVFX property changes
+				RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::RootActor);
+			}
+			else
+			{
+				// Full destroy and refresh of all relevant proxies
+				RefreshPreviewActors(ProxyType);
+			}
 		}
 	}
 }
@@ -1754,24 +1803,25 @@ void FDisplayClusterLightCardEditor::OnLevelActorAdded(AActor* Actor)
 {
 	if (UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Actor))
 	{
-		RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::StageActor);
+		RefreshPreviewStageActor(Actor);
 	}
 }
 
 void FDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 {
-	if (UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Actor))
+	if (Actor && UE::DisplayClusterLightCardEditorUtils::IsManagedActor(Actor) &&
+		Actor->GetPackage() != GetTransientPackage() /* Don't trigger if this is a proxy actor being destroyed */)
 	{
-		if (Actor && Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
+		if (Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
 		{
 			// When a blueprint class is regenerated instances are deleted and replaced.
 			// In this case the OnCompiled() delegate will fire and refresh the actor.
 			return;
 		}
 		
-		if (GEditor && GEditor->GetWorld())
+		if (Actor->GetWorld())
 		{
-			GEditor->GetWorld()->GetTimerManager().SetTimerForNextTick([=]()
+			Actor->GetWorld()->GetTimerManager().SetTimerForNextTick([=]()
 			{
 				// Schedule for next tick so available selections are properly updated once the
 				// actor is fully deleted.

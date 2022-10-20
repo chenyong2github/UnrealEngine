@@ -41,6 +41,7 @@
 #include "KismetProceduralMeshLibrary.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/ScopeLock.h"
 #include "PreviewScene.h"
 #include "ProceduralMeshComponent.h"
 #include "RayTracingDebugVisualizationMenuCommands.h"
@@ -219,13 +220,6 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 			DesiredLookAtLocation.Reset();
 		}
 	}
-
-	if (BillboardComponentProxies.Num() > 0)
-	{
-		FSceneViewInitOptions SceneViewInitOptions;
-		GetSceneViewInitOptions(SceneViewInitOptions);
-		BillboardViewMatrices = FViewMatrices(SceneViewInitOptions);
-	}
 }
 
 void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
@@ -326,6 +320,8 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 	Canvas->Clear(FLinearColor::Black);
 
+	FSceneViewInitOptions BillboardSceneViewInitOptions;
+	
 	if (!bDisableCustomRenderer)
 	{
 		FDisplayClusterMeshProjectionRenderSettings RenderSettings;
@@ -338,11 +334,24 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 		GetSceneViewInitOptions(RenderSettings.ViewInitOptions);
 
+		BillboardSceneViewInitOptions = RenderSettings.ViewInitOptions;
+		
 		IDisplayClusterScenePreview::Get().Render(PreviewRendererId, RenderSettings, *Canvas);
 	}
 	else
 	{
+		if (BillboardComponentProxies.Num() > 0)
+		{
+			GetSceneViewInitOptions(BillboardSceneViewInitOptions);
+		}
+		
 		GetRendererModule().BeginRenderingViewFamily(Canvas, &ViewFamily);
+	}
+
+	if (BillboardComponentProxies.Num() > 0)
+	{
+		FScopeLock Lock(&BillboardComponentCS);
+		BillboardViewMatrices = FViewMatrices(BillboardSceneViewInitOptions);
 	}
 
 	if (View)
@@ -453,54 +462,59 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 {
 	const bool bIsUVProjection = ProjectionMode == EDisplayClusterMeshProjectionType::UV;
 
-	// Draw any sprites
-	for (const TWeakObjectPtr<UBillboardComponent>& BillboardComponent : BillboardComponentProxies)
+	// Draw any sprites - this would normally go under the CPU draw which would avoid needing critical regions, but
+	// we can't render the gizmo over the icons in that case. Canvas items drawn onto the viewport will draw onto the
+	// back buffer after the entire custom render pipeline is drawn.
 	{
-		if (!BillboardComponent.IsValid())
+		FScopeLock Lock(&BillboardComponentCS);
+		for (const TWeakObjectPtr<UBillboardComponent>& BillboardComponent : BillboardComponentProxies)
 		{
-			continue;
-		}
-		FSpriteProxy SpriteProxy = FSpriteProxy::FromBillboard(BillboardComponent.Get());
-		
-		FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, BillboardViewMatrices);
-		
-		if (const FTexture* TextureResource = SpriteProxy.Sprite ? SpriteProxy.Sprite->GetResource() : nullptr)
-		{
-			const UDisplayClusterLightCardEditorSettings* Settings = GetDefault<UDisplayClusterLightCardEditorSettings>();
-			
-			PDI->SetHitProxy(new HActor(BillboardComponent->GetOwner(), BillboardComponent.Get()));
-
-			if (Settings->bDisplayIcons)
+			if (!BillboardComponent.IsValid())
 			{
-				const float UL = SpriteProxy.UL == 0.0f ? TextureResource->GetSizeX() : SpriteProxy.UL;
-				const float VL = SpriteProxy.VL == 0.0f ? TextureResource->GetSizeY() : SpriteProxy.VL;
-			
-				// Calculate the view-dependent scaling factor.
-				float ViewedSizeX = SpriteProxy.SpriteScale * UL;
-				float ViewedSizeY = SpriteProxy.SpriteScale * VL;
-
-				if (SpriteProxy.bIsScreenSizeScaled && (View->ViewMatrices.GetProjectionMatrix().M[3][3] != 1.0f))
-				{
-					const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
-					if(ZoomFactor != 0.0f)
-					{
-						const float Radius = View->WorldToScreen(ProjectedLocation).W * (SpriteProxy.ScreenSize / ZoomFactor);
-
-						if (Radius < 1.0f)
-						{
-							ViewedSizeX *= Radius;
-							ViewedSizeY *= Radius;
-						}					
-					}
-				}
-				
-				ViewedSizeX *= Settings->IconScale;
-				ViewedSizeY *= Settings->IconScale;
-			
-				PDI->DrawSprite(ProjectedLocation, ViewedSizeX, ViewedSizeY, TextureResource, FLinearColor::White, SDPG_World,
-					SpriteProxy.U, UL, SpriteProxy.V, VL, SE_BLEND_Masked, SpriteProxy.OpacityMaskRefVal);
+				continue;
 			}
+			FSpriteProxy SpriteProxy = FSpriteProxy::FromBillboard(BillboardComponent.Get());
+		
+			FVector ProjectedLocation = ProjectWorldPosition(SpriteProxy.WorldPosition, BillboardViewMatrices);
+		
+			PDI->SetHitProxy(new HActor(BillboardComponent->GetOwner(), BillboardComponent.Get()));
+		
+			if (const FTexture* TextureResource = SpriteProxy.Sprite ? SpriteProxy.Sprite->GetResource() : nullptr)
+			{
+				const UDisplayClusterLightCardEditorSettings* Settings = GetDefault<UDisplayClusterLightCardEditorSettings>();
+
+				if (Settings->bDisplayIcons)
+				{
+					const float UL = SpriteProxy.UL == 0.0f ? TextureResource->GetSizeX() : SpriteProxy.UL;
+					const float VL = SpriteProxy.VL == 0.0f ? TextureResource->GetSizeY() : SpriteProxy.VL;
 			
+					// Calculate the view-dependent scaling factor.
+					float ViewedSizeX = SpriteProxy.SpriteScale * UL;
+					float ViewedSizeY = SpriteProxy.SpriteScale * VL;
+
+					if (SpriteProxy.bIsScreenSizeScaled && (View->ViewMatrices.GetProjectionMatrix().M[3][3] != 1.0f))
+					{
+						const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
+						if(ZoomFactor != 0.0f)
+						{
+							const float Radius = View->WorldToScreen(ProjectedLocation).W * (SpriteProxy.ScreenSize / ZoomFactor);
+
+							if (Radius < 1.0f)
+							{
+								ViewedSizeX *= Radius;
+								ViewedSizeY *= Radius;
+							}					
+						}
+					}
+				
+					ViewedSizeX *= Settings->IconScale;
+					ViewedSizeY *= Settings->IconScale;
+			
+					PDI->DrawSprite(ProjectedLocation, ViewedSizeX, ViewedSizeY, TextureResource, FLinearColor::White, SDPG_World,
+						SpriteProxy.U, UL, SpriteProxy.V, VL, SE_BLEND_Masked, SpriteProxy.OpacityMaskRefVal);
+				}
+			}
+
 			PDI->SetHitProxy(nullptr);
 		}
 	}
@@ -1053,6 +1067,85 @@ const FDisplayClusterLightCardEditorViewportClient::FActorProxy* FDisplayCluster
 	});
 }
 
+const FDisplayClusterLightCardEditorViewportClient::FActorProxy* FDisplayClusterLightCardEditorViewportClient::FindActorProxyFromActor(AActor* InActor) const
+{
+	if (InActor == nullptr)
+	{
+		return nullptr;
+	}
+	
+	return ActorProxies.FindByPredicate([InActor](const FActorProxy& Proxy)
+	{
+		return Proxy.LevelInstance.AsActor() == InActor || Proxy.Proxy.AsActor() == InActor;
+	});
+}
+
+void FDisplayClusterLightCardEditorViewportClient::CreateStageActorProxy(AActor* InLevelInstance)
+{
+	if (!IsValid(InLevelInstance))
+	{
+		// Can happen if the level actor was destroyed the tick prior to proxy creation.
+		return;
+	}
+	
+	const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
+
+	const UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+	
+	// Create proxy
+	FObjectDuplicationParameters DupeActorParameters(InLevelInstance, PreviewWorld->GetCurrentLevel());
+	DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
+	DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
+
+	AActor* ActorProxy = CastChecked<AActor>(StaticDuplicateObjectEx(DupeActorParameters));
+	ActorProxy->SetFlags(RF_Transient); // This signals to the stage actor it is a proxy
+	PreviewWorld->GetCurrentLevel()->AddLoadedActor(ActorProxy);
+
+	const FTransform LCLevelRelativeToRALevel = ActorProxy->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
+	ActorProxy->SetActorTransform(LCLevelRelativeToRALevel);
+	
+	if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(InLevelInstance))
+	{
+		ADisplayClusterLightCardActor* LightCardProxy = CastChecked<ADisplayClusterLightCardActor>(ActorProxy);
+		LightCardProxy->PolygonMask = LightCard->PolygonMask;
+
+		// Change mesh to proxy mesh with more vertices
+		if (const UStaticMesh* LightCardMesh = LightCardProxy->GetStaticMesh())
+		{
+			// Only change the mesh if we are using the default one.
+
+			const FString DefaultPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlane.SM_LightCardPlane");
+			const UStaticMesh* DefaultPlane = Cast<UStaticMesh>(FSoftObjectPath(DefaultPlanePath).TryLoad());
+
+			if (DefaultPlane == LightCardMesh)
+			{
+				const FString LightCardPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlaneSubdivided.SM_LightCardPlaneSubdivided");
+				if (UStaticMesh* LightCardPlaneMesh = Cast<UStaticMesh>(FSoftObjectPath(LightCardPlanePath).TryLoad()))
+				{
+					LightCardProxy->SetStaticMesh(LightCardPlaneMesh);
+				}
+			}
+		}
+	}
+	else
+	{
+		// Misc actor proxies
+		TArray<UBillboardComponent*> BillboardComponents;
+		ActorProxy->GetComponents<UBillboardComponent>(BillboardComponents);
+
+		FScopeLock Lock(&BillboardComponentCS);
+		BillboardComponentProxies.Append(BillboardComponents);
+	}
+
+	FActorProxy ActorProxyStruct(InLevelInstance, ActorProxy);
+	ActorProxies.Add(ActorProxyStruct);
+	ProjectionHelper->VerifyAndFixActorOrigin(InLevelInstance);
+	ProjectionHelper->VerifyAndFixActorOrigin(ActorProxy);
+
+	UpdateProxyTransforms(ActorProxyStruct);
+}
+
 void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms(const FActorProxy& InActorProxy)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms"), STAT_UpdateProxyTransforms, STATGROUP_NDisplayLightCardEditor);
@@ -1366,24 +1459,32 @@ bool FDisplayClusterLightCardEditorViewportClient::DropObjectsAtCoordinates(int3
 }
 
 void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce,
-                                                                      EDisplayClusterLightCardEditorProxyType ProxyType)
+                                                                      EDisplayClusterLightCardEditorProxyType ProxyType,
+                                                                      AActor* StageActor)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor"), STAT_UpdatePreviewActor, STATGROUP_NDisplayLightCardEditor);
 	
-	if ((!bForce && RootActor == RootActorLevelInstance.GetEvenIfUnreachable()) ||
-		(ProxyTypesRefreshing.Contains(ProxyType) || ProxyTypesRefreshing.Contains(EDisplayClusterLightCardEditorProxyType::All)))
+	if (!StageActor && ((!bForce && RootActor == RootActorLevelInstance.GetEvenIfUnreachable()) ||
+		(ProxyTypesRefreshing.Contains(ProxyType) || ProxyTypesRefreshing.Contains(EDisplayClusterLightCardEditorProxyType::All))))
 	{
 		return;
 	}
 
-	ProxyTypesRefreshing.Add(ProxyType);
-
-	auto Finalize = [this, ProxyType]()
+	if (!StageActor)
+	{
+		ProxyTypesRefreshing.Add(ProxyType);
+	}
+	
+	auto Finalize = [this, ProxyType, StageActor]()
 	{
 		Viewport->InvalidateHitProxy();
 		bShouldCheckHitProxy = true;
 
-		ProxyTypesRefreshing.Remove(ProxyType);
+		if (!StageActor)
+		{
+			ProxyTypesRefreshing.Remove(ProxyType);
+		}
+		
 		OnNextSceneRefreshDelegate.Broadcast();
 		OnNextSceneRefreshDelegate.Clear();
 	};
@@ -1395,7 +1496,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 	}
 	else
 	{
-		UWorld* PreviewWorld = PreviewScene->GetWorld();
+		const UWorld* PreviewWorld = PreviewScene->GetWorld();
 		check(PreviewWorld);
 
 		const TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr (RootActor);
@@ -1405,13 +1506,22 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
 		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
 		{
+			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActorImpl"), STAT_UpdatePreviewActorImpl, STATGROUP_NDisplayLightCardEditor);
+			
 			if (!WeakPtrThis.IsValid())
 			{
 				return;
 			}
-			
-			DestroyProxies(ProxyType);
 
+			if (StageActor)
+			{
+				DestroyProxy(StageActor);
+			}
+			else
+			{
+				DestroyProxies(ProxyType);
+			}
+			
 			if (!RootActorPtr.IsValid())
 			{
 				Finalize();
@@ -1465,64 +1575,20 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				ProxyType == EDisplayClusterLightCardEditorProxyType::StageActor)
 			{
 				SelectActor(nullptr);
-				const FTransform RALevelTransformNoScale(RootActorLevelInstance->GetActorRotation(), RootActorLevelInstance->GetActorLocation(), FVector::OneVector);
 
 				if (LightCardEditorPtr.IsValid())
 				{
-					TArray<AActor*> ManagedActors = LightCardEditorPtr.Pin()->FindAllManagedActors();
-					
-					for (AActor* Actor : ManagedActors)
+					if (StageActor)
 					{
-						// Create proxy
-						FObjectDuplicationParameters DupeActorParameters(Actor, PreviewWorld->GetCurrentLevel());
-						DupeActorParameters.FlagMask = RF_AllFlags & ~(RF_ArchetypeObject | RF_Transactional);
-						DupeActorParameters.PortFlags = PPF_DuplicateVerbatim;
-
-						AActor* ActorProxy = CastChecked<AActor>(StaticDuplicateObjectEx(DupeActorParameters));
-						ActorProxy->SetFlags(RF_Transient); // This signals to the stage actor it is a proxy
-						PreviewWorld->GetCurrentLevel()->AddLoadedActor(ActorProxy);
-
-						const FTransform LCLevelRelativeToRALevel = ActorProxy->GetTransform().GetRelativeTransform(RALevelTransformNoScale);
-						ActorProxy->SetActorTransform(LCLevelRelativeToRALevel);
-						
-						if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
+						CreateStageActorProxy(StageActor);
+					}
+					else
+					{
+						TArray<AActor*> ManagedActors = LightCardEditorPtr.Pin()->FindAllManagedActors();
+						for (AActor* Actor : ManagedActors)
 						{
-							ADisplayClusterLightCardActor* LightCardProxy = CastChecked<ADisplayClusterLightCardActor>(ActorProxy);
-							LightCardProxy->PolygonMask = LightCard->PolygonMask;
-
-							// Change mesh to proxy mesh with more vertices
-							if (const UStaticMesh* LightCardMesh = LightCardProxy->GetStaticMesh())
-							{
-								// Only change the mesh if we are using the default one.
-					
-								const FString DefaultPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlane.SM_LightCardPlane");
-								const UStaticMesh* DefaultPlane = Cast<UStaticMesh>(FSoftObjectPath(DefaultPlanePath).TryLoad());
-
-								if (DefaultPlane == LightCardMesh)
-								{
-									const FString LightCardPlanePath = TEXT("/nDisplay/LightCard/SM_LightCardPlaneSubdivided.SM_LightCardPlaneSubdivided");
-									if (UStaticMesh* LightCardPlaneMesh = Cast<UStaticMesh>(FSoftObjectPath(LightCardPlanePath).TryLoad()))
-									{
-										LightCardProxy->SetStaticMesh(LightCardPlaneMesh);
-									}
-								}
-							}
+							CreateStageActorProxy(Actor);
 						}
-						else
-						{
-							// Misc actor proxies
-							TArray<UBillboardComponent*> BillboardComponents;
-							ActorProxy->GetComponents<UBillboardComponent>(BillboardComponents);
-
-							BillboardComponentProxies.Append(BillboardComponents);
-						}
-
-						FActorProxy ActorProxyStruct(Actor, ActorProxy);
-						ActorProxies.Add(ActorProxyStruct);
-						ProjectionHelper->VerifyAndFixActorOrigin(Actor);
-						ProjectionHelper->VerifyAndFixActorOrigin(ActorProxy);
-
-						UpdateProxyTransforms(ActorProxyStruct);
 					}
 				}
 
@@ -1536,6 +1602,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				SelectActors(CurrentlySelectedActors);
 			}
 
+			// Make sure proxies are added to the renderer. Necessary for selections to render even if stage actors were not modified but root actor was updated
 			for (const FActorProxy& ActorProxy : ActorProxies)
 			{
 				IDisplayClusterScenePreview::Get().AddActorToRenderer(PreviewRendererId, ActorProxy.Proxy.AsActor(), [this, ActorProxy](const UPrimitiveComponent* PrimitiveComponent)
@@ -1585,6 +1652,8 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransformFromLevel
 void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 	EDisplayClusterLightCardEditorProxyType ProxyType)
 {
+	FScopeLock Lock(&BillboardComponentCS);
+
 	// Clear the primitives from the scene renderer based on the type of proxy that is being destroyed
 	switch (ProxyType)
 	{
@@ -1645,6 +1714,32 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 
 		ActorProxies.Empty();
 		BillboardComponentProxies.Empty();
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::DestroyProxy(AActor* Actor)
+{
+	if (const FActorProxy* ActorProxy = FindActorProxyFromActor(Actor))
+	{
+		if (AActor* ActualProxy = ActorProxy->Proxy.AsActor())
+		{
+			ActorProxies.RemoveAll([ActualProxy](const FActorProxy& OtherProxy)
+			{
+				return OtherProxy == ActualProxy;
+			});
+		
+			FScopeLock Lock(&BillboardComponentCS);
+		
+			UWorld* PreviewWorld = PreviewScene->GetWorld();
+			check(PreviewWorld);
+			IDisplayClusterScenePreview::Get().RemoveActorFromRenderer(PreviewRendererId, ActualProxy);
+			PreviewWorld->EditorDestroyActor(ActualProxy, false);
+			
+			BillboardComponentProxies.RemoveAll([ActualProxy](const TWeakObjectPtr<UBillboardComponent>& BillboardComponent)
+			{
+				return !BillboardComponent.IsValid() || BillboardComponent->GetOwner() == ActualProxy;
+			});
+		}
 	}
 }
 
