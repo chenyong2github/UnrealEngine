@@ -167,8 +167,8 @@ void FClothingSimulationContextCommon::FillTeleportMode(const USkeletalMeshCompo
 		EClothingTeleportMode::Teleport :
 		InComponent->ClothTeleportMode;
 
-	VelocityScale = (TeleportMode == EClothingTeleportMode::None) ?
-		FMath::Min(InDeltaSeconds, InMaxPhysicsDelta) / InDeltaSeconds : 1.f;
+	VelocityScale = (TeleportMode == EClothingTeleportMode::None && InDeltaSeconds > 0.f) ?
+		FMath::Min(InDeltaSeconds, InMaxPhysicsDelta) / InDeltaSeconds : 0.f;
 }
 
 void FClothingSimulationContextCommon::FillMaxDistanceScale(const USkeletalMeshComponent* InComponent)
