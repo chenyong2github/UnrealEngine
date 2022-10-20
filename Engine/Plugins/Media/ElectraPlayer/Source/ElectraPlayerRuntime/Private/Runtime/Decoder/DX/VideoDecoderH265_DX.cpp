@@ -719,7 +719,10 @@ void FVideoDecoderH265::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 			if (StartTime >= AU->AccessUnit->LatestPTS)
 			{
 				StartTime.SetToInvalid();
-				AU->bIsDiscardable = true;
+				if (AU->AccessUnit->DTS.IsValid() && AU->AccessUnit->DTS >= AU->AccessUnit->LatestPTS)
+				{
+					AU->bIsDiscardable = true;
+				}
 			}
 			else if (EndTime >= AU->AccessUnit->LatestPTS)
 			{

@@ -1013,7 +1013,10 @@ void FVideoDecoderH265::PrepareAU(TSharedPtr<FDecoderInput, ESPMode::ThreadSafe>
 			if (StartTime >= AU->AccessUnit->LatestPTS)
 			{
 				StartTime.SetToInvalid();
-				AU->bIsDiscardable = true;
+				if (AU->AccessUnit->DTS.IsValid() && AU->AccessUnit->DTS >= AU->AccessUnit->LatestPTS)
+				{
+					AU->bIsDiscardable = true;
+				}
 			}
 			else if (EndTime >= AU->AccessUnit->LatestPTS)
 			{
@@ -1791,6 +1794,7 @@ void FVideoDecoderH265::ProcessOutput(bool bFlush)
 								}
 							}
 						}
+						CFRelease(Dict);
 					}
 					double PixelAspectRatio = (double)ax / (double)ay;
 
