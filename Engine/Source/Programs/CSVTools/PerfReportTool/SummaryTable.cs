@@ -100,6 +100,10 @@ namespace PerfSummaries
 				{
 					tableColorizeMode = TableColorizeMode.Off;
 				}
+				else if (colorizeModeStr == "budget")
+				{
+					tableColorizeMode = TableColorizeMode.Budget;
+				}
 			}
 
 			statThreshold = tableElement.GetSafeAttibute<float>("statThreshold", 0.0f);
@@ -165,7 +169,7 @@ namespace PerfSummaries
 		public List<SummarySectionBoundaryInfo> sectionBoundaries = new List<SummarySectionBoundaryInfo>();
 		public bool bReverseSortRows;
 		public bool bScrollableFormatting;
-		public TableColorizeMode tableColorizeMode = TableColorizeMode.Default;
+		public TableColorizeMode tableColorizeMode = TableColorizeMode.Budget;
 		public float statThreshold;
 		public string hideStatPrefix = null;
 		public string weightByColumn = null;
@@ -222,9 +226,9 @@ namespace PerfSummaries
 
 	enum TableColorizeMode
 	{
-		Off,
-		Default,
-		Auto,
+		Off,		// No coloring.
+		Budget,     // Colorize based on defined budgets. No coloring for stats without defined budgets.
+		Auto,		// Auto calculate based on other values in the column.
 	};
 
 	enum AutoColorizeMode
@@ -555,7 +559,7 @@ namespace PerfSummaries
 
 		public void ComputeColorThresholds(TableColorizeMode tableColorizeMode)
 		{
-			if ( tableColorizeMode == TableColorizeMode.Default )
+			if ( tableColorizeMode == TableColorizeMode.Budget )
 			{
 				return;
 			}
@@ -1200,8 +1204,10 @@ namespace PerfSummaries
 				column.formatInfo = (columnFormatInfoList != null) ? columnFormatInfoList.GetFormatInfo(column.name) : SummaryTableColumnFormatInfoCollection.DefaultColumnInfo;
 			}
 
-			// Automatically colourize the table if requested
-			if (tableColorizeMode != TableColorizeMode.Default)
+			// Automatically colorize the table if requested.
+			// We run this even if colorize is off as we need to overwrite the values.
+			if (tableColorizeMode == TableColorizeMode.Auto ||
+				tableColorizeMode == TableColorizeMode.Off)
 			{
 				foreach (SummaryTableColumn column in columns)
 				{

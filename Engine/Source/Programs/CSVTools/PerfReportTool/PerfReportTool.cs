@@ -26,7 +26,7 @@ namespace PerfReportTool
     class Version
     {
 		// Format: Major.Minor.Bugfix
-        private static string VersionString = "4.94.3";
+        private static string VersionString = "4.94.4";
 
         public static string Get() { return VersionString; }
     };
@@ -148,7 +148,7 @@ namespace PerfReportTool
 			"       -noSummaryMinMax: don't make min/max columns for each stat in a condensed summary\n" +
 			"       -reverseTable [0|1]: Reverses the order of summary tables (set 0 to force off)\n" +
 			"       -scrollableTable [0|1]: makes the summary table scrollable, with frozen first rows and columns (set 0 to force off)\n" +
-			"       -colorizeTable [off|default|auto]: selects the table colorization mode\n" +
+			"       -colorizeTable [off|budget|auto]: selects the table colorization mode. If omitted, uses the default in the summary xml table if set.\n" +
 			"       -maxSummaryTableStringLength <n>: strings longer than this will get truncated\n" +
 			"       -allowDuplicateCSVs : doesn't remove duplicate CSVs (Note: can cause summary table cache file locking issues)\n" +
 			"       -requireMetadata : ignores CSVs without metadata\n" +
@@ -736,6 +736,10 @@ namespace PerfReportTool
 				bScrollableTable = (bool)bScrollableTableOption;
 			}
 
+			// The colorize mode is initially set to whatever is in the summary table xml file.
+			// We then override that value if -colorizeTable is set to auto, off or budget.
+			// If -colorizeTable isn't specified then we use the default from the xml.
+			// If -colorizeTable isn't specified and it's not set in the summary table xml it uses the default set in the class initializer.
 			TableColorizeMode colorizeMode = tableInfo.tableColorizeMode;
 			string colorizeArg = GetArg("colorizeTable","").ToLower();
 			if ( GetBoolArg("autoColorizeTable")) // Legacy support for the -autoColorizeTable arg
@@ -751,6 +755,10 @@ namespace PerfReportTool
 				else if (colorizeArg == "off")
 				{
 					colorizeMode = TableColorizeMode.Off;
+				}
+				else if (colorizeArg == "budget")
+				{
+					colorizeMode = TableColorizeMode.Budget;
 				}
 			}
 
