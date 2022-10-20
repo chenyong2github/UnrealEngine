@@ -39,8 +39,6 @@ enum EDisplayClusterViewportRuntimeICVFXFlags
 	ViewportRuntime_ICVFXIncamera       = 1 << 1,
 	ViewportRuntime_ICVFXChromakey      = 1 << 2,
 	ViewportRuntime_ICVFXLightcard      = 1 << 3,
-	ViewportRuntime_ICVFXLightcardAlpha = 1 << 4,
-	ViewportRuntime_ICVFXLightcardColor = 1 << 5,
 
 	// This viewport used as internal icvfx composing resource (created and deleted inside icvfx logic)
 	ViewportRuntime_InternalResource = 1 << 30,

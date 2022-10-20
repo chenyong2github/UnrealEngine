@@ -33,7 +33,6 @@
 
 #include "Engine/Console.h"
 
-
 int32 GDisplayClusterLightcardsAllowNanite = 0;
 static FAutoConsoleVariableRef CVarDisplayClusterLightcardsAllowNanite(
 	TEXT("DC.Lightcards.AllowNanite"),
@@ -50,6 +49,21 @@ static FAutoConsoleVariableRef CVarDisplayClusterChromaKeyAllowNanite(
 	ECVF_RenderThreadSafe
 );
 
+int32 GDisplayClusterLightcardsAllowAA = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterLightcardsAllowAA(
+	TEXT("DC.Lightcards.AllowAA"),
+	GDisplayClusterLightcardsAllowAA,
+	TEXT("0 disables AntiAliasing when rendering lightcards.Otherwise uses default showflag."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GDisplayClusterChromaKeyAllowAA = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterChromaKeyAllowAA(
+	TEXT("DC.ChromaKey.AllowAA"),
+	GDisplayClusterChromaKeyAllowAA,
+	TEXT("0 disables AntiAliasing when rendering custom chroma keys. Otherwise uses default showflag."),
+	ECVF_RenderThreadSafe
+);
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewportManager
@@ -60,9 +74,9 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	Configuration      = MakeUnique<FDisplayClusterViewportConfiguration>(*this);
 	RenderFrameManager = MakeUnique<FDisplayClusterRenderFrameManager>();
 
-	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy();
+	ViewportManagerProxy = MakeShared<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe>();
 
-	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>(ViewportManagerProxy);
+	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>(ViewportManagerProxy.Get());
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 	LightCardManager = MakeShared<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>(*this);
 
@@ -76,30 +90,41 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 {
 	// Remove viewports
+	Viewports.Reset();
+	ClusterNodeViewports.Reset();
+
+	RenderTargetManager.Reset();
+	PostProcessManager.Reset();
+
+	if (LightCardManager.IsValid())
 	{
-		TArray<FDisplayClusterViewport*> ExistViewports = Viewports;
-		for (FDisplayClusterViewport* Viewport : ExistViewports)
-		{
-			ImplDeleteViewport(Viewport);
-		}
-		ExistViewports.Empty();
+		LightCardManager->Release();
+		LightCardManager.Reset();
 	}
 
-	if (ViewportManagerProxy)
+	Configuration.Reset();
+
+	if (ViewportManagerProxy.IsValid())
 	{
-		ViewportManagerProxy->ImplSafeRelease();
-		ViewportManagerProxy = nullptr;
+		// Remove viewport manager proxy on render_thread
+		ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportManagerProxy)(
+			[ViewportManagerProxy = ViewportManagerProxy](FRHICommandListImmediate& RHICmdList)
+	{
+				ViewportManagerProxy->Release_RenderThread();
+			});
+
+		ViewportManagerProxy.Reset();
 	}
 }
 
 const IDisplayClusterViewportManagerProxy* FDisplayClusterViewportManager::GetProxy() const
 {
-	return ViewportManagerProxy;
+	return ViewportManagerProxy.Get();
 }
 
 IDisplayClusterViewportManagerProxy* FDisplayClusterViewportManager::GetProxy()
 {
-	return ViewportManagerProxy;
+	return ViewportManagerProxy.Get();
 }
 
 UWorld* FDisplayClusterViewportManager::GetCurrentWorld() const
@@ -608,54 +633,61 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 
 	bool bResolveScene = true;
 
-	switch (InFrameTarget.CaptureMode)
-	{
-		case EDisplayClusterViewportCaptureMode::Chromakey:
-		case EDisplayClusterViewportCaptureMode::Lightcard:
-		case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
-
-			if (InFrameTarget.CaptureMode != EDisplayClusterViewportCaptureMode::Lightcard_OCIO)
-			{
-				bResolveScene = false;
-				InEngineShowFlags.PostProcessing = 0;
-			}
-
-			InEngineShowFlags.SetAtmosphere(0);
-			InEngineShowFlags.SetFog(0);
-			InEngineShowFlags.SetVolumetricFog(0);
-			InEngineShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
-			InEngineShowFlags.SetSeparateTranslucency(0);
-			InEngineShowFlags.SetHMDDistortion(0);
-			InEngineShowFlags.SetOnScreenDebug(0);
-
-			InEngineShowFlags.SetLumenReflections(0);
-			InEngineShowFlags.SetLumenGlobalIllumination(0);
-			InEngineShowFlags.SetGlobalIllumination(0);
-
-			break;
-
-		default:
-			break;
-	}
-
+	// Control AA for ChromaKey and Lightcards:
 	switch (InFrameTarget.CaptureMode)
 	{
 	case EDisplayClusterViewportCaptureMode::Chromakey:
-
+		if (!GDisplayClusterChromaKeyAllowAA)
+		{
+			InEngineShowFlags.SetAntiAliasing(0);
+			InEngineShowFlags.SetTemporalAA(false);
+		}
+		
 		if (!GDisplayClusterChromaKeyAllowNanite)
 		{
 			InEngineShowFlags.SetNaniteMeshes(0);
 		}
-		break;
 
+		break;
 	case EDisplayClusterViewportCaptureMode::Lightcard:
-	case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
+		if (!GDisplayClusterLightcardsAllowAA)
+		{
+			InEngineShowFlags.SetAntiAliasing(0);
+			InEngineShowFlags.SetTemporalAA(false);
+		}
 
 		if (!GDisplayClusterLightcardsAllowNanite)
 		{
 			InEngineShowFlags.SetNaniteMeshes(0);
 		}
+		break;
+	default:
+		break;
+	}
 
+	switch (InFrameTarget.CaptureMode)
+	{
+	case EDisplayClusterViewportCaptureMode::Chromakey:
+	case EDisplayClusterViewportCaptureMode::Lightcard:
+		bResolveScene = false;
+		InEngineShowFlags.SetPostProcessing(0);
+		InEngineShowFlags.SetAtmosphere(0);
+		InEngineShowFlags.SetFog(0);
+		InEngineShowFlags.SetVolumetricFog(0);
+		InEngineShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
+		InEngineShowFlags.SetSeparateTranslucency(0);
+		InEngineShowFlags.SetHMDDistortion(0);
+		InEngineShowFlags.SetOnScreenDebug(0);
+
+		InEngineShowFlags.SetLumenReflections(0);
+		InEngineShowFlags.SetLumenGlobalIllumination(0);
+		InEngineShowFlags.SetGlobalIllumination(0);
+
+		InEngineShowFlags.SetScreenSpaceAO(0);
+		InEngineShowFlags.SetAmbientOcclusion(0);
+		InEngineShowFlags.SetDeferredLighting(0);
+		InEngineShowFlags.SetVirtualTexturePrimitives(0);
+		InEngineShowFlags.SetRectLights(0);
 		break;
 
 	default:
@@ -685,32 +717,30 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 
 void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& ViewFamily)
 {
-	// Note: EngineShowFlags should have already been configured in CreateViewFamilyConstructionValues.
+	ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
 
-	// Gather Scene View Extensions
-	// Scene View Extension activation with ViewportId granularity only works if you have one ViewFamily per ViewportId
+	// Note: EngineShowFlags should have already been configured in CreateViewFamilyConstructionValues.
+	switch (InFrameTarget.CaptureMode)
 	{
-		ViewFamily.ViewExtensions = InFrameViewFamily.ViewExtensions;
-		for (FSceneViewExtensionRef& ViewExt : ViewFamily.ViewExtensions)
-		{
-			ViewExt->SetupViewFamily(ViewFamily);
-		}
+		case EDisplayClusterViewportCaptureMode::Chromakey:
+		case EDisplayClusterViewportCaptureMode::Lightcard:
+			ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+
+			//Do not use view extensions for LightCard and Chromakey.
+			ViewFamily.ViewExtensions.Empty();
+			break;
+
+		default:
+
+			// Gather Scene View Extensions
+			ViewFamily.ViewExtensions = InFrameViewFamily.ViewExtensions;
+			break;
 	}
 
-	// Setup capture mode:
+	// Scene View Extension activation with ViewportId granularity only works if you have one ViewFamily per ViewportId
+	for (FSceneViewExtensionRef& ViewExt : ViewFamily.ViewExtensions)
 	{
-		ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
-
-		switch (InFrameTarget.CaptureMode)
-		{
-			case EDisplayClusterViewportCaptureMode::Chromakey:
-			case EDisplayClusterViewportCaptureMode::Lightcard:
-				ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
-				break;
-
-			default:
-				break;
-		}
+		ViewExt->SetupViewFamily(ViewFamily);
 	}
 
 #if WITH_EDITOR
@@ -817,6 +847,7 @@ bool FDisplayClusterViewportManager::DeleteViewport(const FString& ViewportId)
 	if (ExistViewport != nullptr)
 	{
 		ImplDeleteViewport(ExistViewport);
+
 		return true;
 	}
 
@@ -840,9 +871,6 @@ FDisplayClusterViewport* FDisplayClusterViewportManager::ImplCreateViewport(cons
 	Viewports.Add(NewViewport);
 	ClusterNodeViewports.Add(NewViewport);
 
-	// Add viewport proxy on renderthread
-	ViewportManagerProxy->ImplCreateViewport(NewViewport->ViewportProxy);
-
 	// Handle start scene for viewport
 	NewViewport->HandleStartScene();
 
@@ -855,11 +883,8 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	ExistViewport->ProjectionPolicy.Reset();
 	ExistViewport->UninitializedProjectionPolicy.Reset();
 
-	// Delete viewport proxy on render thread
-	ViewportManagerProxy->ImplDeleteViewport(ExistViewport->ViewportProxy);
-
 	{
-		// Remove viewport obj from manager
+		// Remove viewport from the whole viewports list
 		int32 ViewportIndex = Viewports.Find(ExistViewport);
 		if (ViewportIndex != INDEX_NONE)
 		{
@@ -869,7 +894,7 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	}
 
 	{
-		// Remove cluster node viewport
+		// Remove viewport from the cluster viewports list
 		int32 ViewportIndex = ClusterNodeViewports.Find(ExistViewport);
 		if (ViewportIndex != INDEX_NONE)
 		{

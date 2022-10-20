@@ -116,12 +116,11 @@ public:
 
 	static TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> CreateProjectionPolicy(const FString& InViewportId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
-	const FDisplayClusterViewportManagerProxy& ImplGetProxy() const
+	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> GetViewportManagerProxy() const
 	{
-		check(ViewportManagerProxy);
 		check(IsInGameThread());
 
-		return *ViewportManagerProxy;
+		return ViewportManagerProxy;
 	}
 
 	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const;
@@ -133,10 +132,10 @@ public:
 	bool ShouldUseFullSizeFrameTargetableResource() const;
 
 	void SetViewportBufferRatio(FDisplayClusterViewport& DstViewport, float InBufferRatio);
+	void ResetSceneRenderTargetSize();
 
 private:
 	void UpdateDesiredNumberOfViews(FDisplayClusterRenderFrame& InOutRenderFrame);
-	void ResetSceneRenderTargetSize();
 	void UpdateSceneRenderTargetSize();
 	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);
 	void ImplUpdateClusterNodeViewports(const EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
@@ -159,7 +158,7 @@ private:
 	TArray<FDisplayClusterViewport*> ClusterNodeViewports;
 
 	/** Render thread proxy manager. Deleted on render thread */
-	FDisplayClusterViewportManagerProxy* ViewportManagerProxy = nullptr;
+	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
 
 	// Pointer to the current scene
 	TWeakObjectPtr<UWorld> CurrentWorldRef;

@@ -108,18 +108,18 @@ void FDisplayClusterFrameQueue::HandleProcessLatency_RenderThread(FRHICommandLis
 			{
 				if (IDisplayClusterViewportManagerProxy* ViewportMgrProxy = ViewportMgr->GetProxy())
 				{
-					TArrayView<IDisplayClusterViewportProxy*> ViewportProxies = ViewportMgrProxy->GetViewports_RenderThread();
-					for (IDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
+					TArrayView<TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>> ViewportProxies = ViewportMgrProxy->GetViewports_RenderThread();
+					for (TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxyIt : ViewportProxies)
 					{
 						// Handle textures of all viewports that don't have any media input attached. Those don't get rendered.
-						if (!ViewportProxy->GetRenderSettings_RenderThread().bSkipSceneRenderingButLeaveResourcesAvailable)
+						if (ViewportProxyIt.IsValid() && !ViewportProxyIt->GetRenderSettings_RenderThread().bSkipSceneRenderingButLeaveResourcesAvailable)
 						{
 							// Get viewport texture
 							TArray<FRHITexture*> Textures;
-							ViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Textures);
+							ViewportProxyIt->GetResources_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, Textures);
 							check(Textures.Num() > 0);
 
-							const FString ViewportId(ViewportProxy->GetId());
+							const FString ViewportId(ViewportProxyIt->GetId());
 
 							// Enqueue this view (head)
 							Frames[IdxHead].SaveView(RHICmdList, ViewportId, Textures[0]);

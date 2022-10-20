@@ -27,7 +27,7 @@ public:
 	void UpdateProxy_RenderThread() const;
 
 private:
-	FDisplayClusterViewportProxy* DstViewportProxy;
+	TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> DstViewportProxy;
 
 	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
 
