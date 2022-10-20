@@ -362,7 +362,7 @@ float SAnimationScrubPanel::GetSequenceLength() const
 		FAnimBlueprintDebugData* DebugData;
 		if (GetAnimBlueprintDebugData(/*out*/ Instance, /*out*/ DebugData))
 		{
-			return Instance->LifeTimer;
+			return static_cast<float>(Instance->LifeTimer);
 		}
 	}
 
@@ -406,7 +406,7 @@ float SAnimationScrubPanel::GetScrubValue() const
 		FAnimBlueprintDebugData* DebugData;
 		if (GetAnimBlueprintDebugData(/*out*/ Instance, /*out*/ DebugData))
 		{
-			return Instance->CurrentLifeTimerScrubPosition;
+			return static_cast<float>(Instance->CurrentLifeTimerScrubPosition);
 		}
 	}
 

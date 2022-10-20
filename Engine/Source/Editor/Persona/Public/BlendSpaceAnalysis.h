@@ -262,7 +262,7 @@ static bool CalculateComponentSampleValue(
 	int32 ComponentIndex = (int32) AnalysisProperties->FunctionAxis;
 	if (Fn(Value, BlendSpace, AnalysisProperties, Animation, RateScale))
 	{
-		Result = Value[ComponentIndex];
+		Result = static_cast<float>(Value[ComponentIndex]);
 		return true;
 	}
 	return false;
@@ -444,32 +444,31 @@ void CalculateBoneOrientation(
 	const FVector&             FrameRightDir, 
 	const FVector&             FrameUpDir)
 {
-	FTransform BoneTM = GetBoneTransform(Animation, Key, BoneName);
+	const FTransform BoneTM = GetBoneTransform(Animation, Key, BoneName);
 
-	FTransform TM = BoneOffset * BoneTM;
-	FQuat AimQuat = TM.GetRotation();
-	FVector AimForwardDir = BlendSpaceAnalysis::GetAxisFromTM(TM, AnalysisProperties->BoneFacingAxis);
-	FVector AimRightDir = BlendSpaceAnalysis::GetAxisFromTM(TM, AnalysisProperties->BoneRightAxis);
+	const FTransform TM = BoneOffset * BoneTM;
+	const FVector AimForwardDir = BlendSpaceAnalysis::GetAxisFromTM(TM, AnalysisProperties->BoneFacingAxis);
+	const FVector AimRightDir = BlendSpaceAnalysis::GetAxisFromTM(TM, AnalysisProperties->BoneRightAxis);
 
 	// Note that Yaw is best taken from the AimRightDir - this is to avoid problems when the gun is pointing
 	// up or down - especially if it goes beyond 90 degrees in pitch.
-	float Yaw = FMath::RadiansToDegrees(FMath::Atan2(
+	const double Yaw = FMath::RadiansToDegrees(FMath::Atan2(
 		FVector::DotProduct(AimRightDir, -FrameFacingDir), FVector::DotProduct(AimRightDir, FrameRightDir)));
 
 	// Undo the yaw to get pitch
 	const FQuat YawQuat(FrameUpDir, FMath::DegreesToRadians(Yaw));
-	FVector UnYawedAimForwardDir = YawQuat.UnrotateVector(AimForwardDir);
-	float Up = UnYawedAimForwardDir | FrameUpDir;
-	float Forward = UnYawedAimForwardDir | FrameFacingDir;
-	float Pitch = FMath::RadiansToDegrees(FMath::Atan2(Up, Forward));
+	const FVector UnYawedAimForwardDir = YawQuat.UnrotateVector(AimForwardDir);
+	const double Up = UnYawedAimForwardDir | FrameUpDir;
+	const double Forward = UnYawedAimForwardDir | FrameFacingDir;
+	const double Pitch = FMath::RadiansToDegrees(FMath::Atan2(Up, Forward));
 
 	// Undo the pitch to get roll
-	FVector UnYawedAimRightDir = YawQuat.UnrotateVector(AimRightDir);
+	const FVector UnYawedAimRightDir = YawQuat.UnrotateVector(AimRightDir);
 	const FQuat PitchQuat(FrameRightDir, -FMath::DegreesToRadians(Pitch));
 
-	FVector UnYawedUnPitchedAimRightDir = PitchQuat.UnrotateVector(UnYawedAimRightDir);
+	const FVector UnYawedUnPitchedAimRightDir = PitchQuat.UnrotateVector(UnYawedAimRightDir);
 
-	float Roll = FMath::RadiansToDegrees(FMath::Atan2(
+	const double Roll = FMath::RadiansToDegrees(FMath::Atan2(
 		FVector::DotProduct(UnYawedUnPitchedAimRightDir, -FrameUpDir), 
 		FVector::DotProduct(UnYawedUnPitchedAimRightDir, FrameRightDir)));
 

@@ -333,19 +333,19 @@ FIntPoint FSkeletonSelectionEditMode::GetDPIUnscaledSize(FViewport* Viewport, FV
 	const FIntPoint Size = Viewport->GetSizeXY();
 	const float DPIScale = Client->GetDPIScale();
 	// (FIntPoint / float) implicitly casts the float to an int if you try to divide it directly
-	return FIntPoint(Size.X / DPIScale, Size.Y / DPIScale);
+	return FIntPoint(static_cast<int32>(Size.X / DPIScale), static_cast<int32>(Size.Y / DPIScale));
 }
 
 void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
-	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+	const UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
 	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset() == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset()->IsCompiling())
 	{
 		return;
 	}
 
-	FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
-	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
+	const FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
+	const int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 
 	// Draw name of selected bone
 	if (RefSkeleton.IsValidIndex(BoneIndex) && (IsSelectedBoneRequired() || RefSkeleton.GetRequiredVirtualBones().Contains(BoneIndex)))
@@ -356,15 +356,13 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 
 		const FName BoneName = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(BoneIndex);
 
-		FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
+		const FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 		const FPlane Proj = View->Project(BoneMatrix.GetOrigin());
 		if (Proj.W > 0.f)
 		{
-			const int32 XPos = HalfX + (HalfX * Proj.X);
-			const int32 YPos = HalfY + (HalfY * (Proj.Y * -1));
+			const int32 XPos = HalfX + static_cast<int32>(HalfX * Proj.X);
+			const int32 YPos = HalfY + static_cast<int32>(HalfY * Proj.Y * -1);
 
-			FQuat BoneQuat = PreviewMeshComponent->GetBoneQuaternion(BoneName);
-			FVector Loc = PreviewMeshComponent->GetBoneLocation(BoneName);
 			FCanvasTextItem TextItem(FVector2D(XPos, YPos), FText::FromString(BoneName.ToString()), GEngine->GetSmallFont(), FLinearColor::White);
 			TextItem.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(TextItem);
@@ -374,7 +372,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 	// Draw name of selected socket
 	if (GetAnimPreviewScene().GetSelectedSocket().IsValid())
 	{
-		USkeletalMeshSocket* Socket = GetAnimPreviewScene().GetSelectedSocket().Socket;
+		const USkeletalMeshSocket* Socket = GetAnimPreviewScene().GetSelectedSocket().Socket;
 
 		FMatrix SocketMatrix;
 		Socket->GetSocketMatrix(SocketMatrix, PreviewMeshComponent);
@@ -387,8 +385,8 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 			const int32 HalfX = ViewPortSize.X / 2;
 			const int32 HalfY = ViewPortSize.Y / 2;
 
-			const int32 XPos = HalfX + (HalfX * Proj.X);
-			const int32 YPos = HalfY + (HalfY * (Proj.Y * -1));
+			const int32 XPos = HalfX + static_cast<int32>(HalfX * Proj.X);
+			const int32 YPos = HalfY + static_cast<int32>(HalfY * (Proj.Y * -1));
 			FCanvasTextItem TextItem(FVector2D(XPos, YPos), FText::FromString(Socket->SocketName.ToString()), GEngine->GetSmallFont(), FLinearColor::White);
 			TextItem.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(TextItem);
@@ -403,19 +401,19 @@ bool FSkeletonSelectionEditMode::AllowWidgetMove()
 
 bool FSkeletonSelectionEditMode::IsSelectedBoneRequired() const
 {
-	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-	int32 SelectedBoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
+	const UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+	const int32 SelectedBoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	if (SelectedBoneIndex != INDEX_NONE && PreviewMeshComponent->GetSkeletalMeshRenderData())
 	{
 		//Get current LOD
-		FSkeletalMeshRenderData* SkelMeshRenderData = PreviewMeshComponent->GetSkeletalMeshRenderData();
+		const FSkeletalMeshRenderData* SkelMeshRenderData = PreviewMeshComponent->GetSkeletalMeshRenderData();
 		if(SkelMeshRenderData->LODRenderData.Num() > 0)
 		{
 			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->GetPredictedLODLevel(), 0, SkelMeshRenderData->LODRenderData.Num() - 1);
-			FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+			const FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
 
 			//Check whether the bone is vertex weighted
-			return LODData.RequiredBones.Find(SelectedBoneIndex) != INDEX_NONE;
+			return LODData.RequiredBones.Find(static_cast<FBoneIndexType>(SelectedBoneIndex)) != INDEX_NONE;
 		}
 	}
 

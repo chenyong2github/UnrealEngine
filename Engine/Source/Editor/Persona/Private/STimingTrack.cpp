@@ -133,33 +133,33 @@ void STimingTrack::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrange
 		// Separation of the nodes on the track
 		const float NodeSeparation = 3.0f;
 
-		for(NodeIsland& Island : Islands)
+		for(const NodeIsland& Island : Islands)
 		{
 			bResolved = true;
 
 			// Island resolution
-			int32 NumIslandNodes = Island.Nodes.Num();
-			float Width = FMath::Max<float>((NumIslandNodes - 1), 0.0f) * NodeSeparation;
+			const int32 NumIslandNodes = Island.Nodes.Num();
+			float Width = FMath::Max<float>(static_cast<float>(NumIslandNodes - 1), 0.0f) * NodeSeparation;
 			float Centre = 0.0f;
 
-			for(NodeData* Node : Island.Nodes)
+			for(const NodeData* Node : Island.Nodes)
 			{
-				Width += Node->ActualRect.GetSize().X;
-				Centre += Node->ActualRect.GetCenter().X;
+				Width += static_cast<float>(Node->ActualRect.GetSize().X);
+				Centre += static_cast<float>(Node->ActualRect.GetCenter().X);
 			}
 			Centre /= NumIslandNodes;
 
-			float Begin = Centre - Width / 2.0f;
+			const float Begin = Centre - Width / 2.0f;
 			for(int32 NodeIdx = 0 ; NodeIdx < NumIslandNodes; ++NodeIdx)
 			{
 				FBox2D& NodeBox = Island.Nodes[NodeIdx]->ActualRect;
-				float NodeWidth = NodeBox.GetSize().X;
-				float SeparationOffset = NodeIdx * NodeSeparation;
+				const float NodeWidth = static_cast<float>(NodeBox.GetSize().X);
+				const float SeparationOffset = NodeIdx * NodeSeparation;
 				float PositionOffset = 0.0f;
 			
 				for(int32 PositionNodeIdx = 0 ; PositionNodeIdx < NodeIdx ; ++PositionNodeIdx)
 				{
-					PositionOffset += Island.Nodes[PositionNodeIdx]->ActualRect.GetSize().X;
+					PositionOffset += static_cast<float>(Island.Nodes[PositionNodeIdx]->ActualRect.GetSize().X);
 				}
 			
 				FBox2D& OriginalRect = Island.Nodes[NodeIdx]->ActualRect;

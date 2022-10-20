@@ -301,9 +301,7 @@ namespace PhysicsAssetRender
 			// The TM position is at the center of the objects, so can be used directly for sorting.
 			// Sorting by distance (rather than along the view direction) reduces flickering when
 			// the camera is rotated without moving it.
-			FVector ViewDir = InView->GetViewDirection();
-			//Distance = TM.GetTranslation() | ViewDir; // Would sort along the view direction
-			SortingMetric = (TM.GetTranslation() - InView->ViewLocation).SquaredLength(); // Sorts by Distance
+			SortingMetric = static_cast<float>((TM.GetTranslation() - InView->ViewLocation).SquaredLength()); // Sorts by Distance
 		}
 
 		UMaterialInterface* Material = 0;
@@ -390,7 +388,7 @@ namespace PhysicsAssetRender
 			if (BoneIndex != INDEX_NONE)
 			{
 				FTransform BoneTM = SkeletalMeshComponent->GetBoneTransform(BoneIndex);
-				const float Scale = BoneTM.GetScale3D().GetAbsMax();
+				const float Scale = static_cast<float>(BoneTM.GetScale3D().GetAbsMax());
 				BoneTM.RemoveScaling();
 
 				FKAggregateGeom* const AggGeom = &PhysicsAsset->SkeletalBodySetups[i]->AggGeom;

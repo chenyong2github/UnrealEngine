@@ -289,7 +289,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 						.HAlign(EHorizontalAlignment::HAlign_Left)
 						.ToolTipText(LOCTEXT("AnalyzeAllSamples", "Analyze all samples"))
 						.OnClicked(this, &FBlendSpaceDetails::HandleAnalyzeSamples)
-						.ContentPadding(1)
+						.ContentPadding(1.f)
 						[
 							SNew(SImage)
 							.Image(FAppStyle::GetBrush("Icons.Refresh"))
@@ -427,7 +427,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 						.HAlign(EHorizontalAlignment::HAlign_Left)
 						.ToolTipText(LOCTEXT("RemoveAllSamples", "Remove all samples"))
 						.OnClicked(this, &FBlendSpaceDetails::HandleClearSamples)
-						.ContentPadding(1)
+						.ContentPadding(1.f)
 						[
 							SNew(SImage)
 							.Image(FAppStyle::GetBrush("Icons.Delete"))

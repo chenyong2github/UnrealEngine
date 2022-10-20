@@ -115,7 +115,7 @@ void FAnimModel::SetScrubPosition(FFrameTime NewScrubPostion) const
 				PreviewMeshComponent->PreviewInstance->SetPlaying(false);
 			}
 			
-			PreviewMeshComponent->PreviewInstance->SetPosition(NewScrubPostion.AsDecimal() / (double)GetTickResolution());
+			PreviewMeshComponent->PreviewInstance->SetPosition(static_cast<float>(NewScrubPostion.AsDecimal() / static_cast<double>(GetTickResolution())));
 		}
 	}
 }
@@ -248,9 +248,9 @@ void FAnimModel::SetEditableTime(int32 TimeIndex, double Time, bool bIsDragging)
 
 bool FAnimModel::Snap(float& InOutTime, float InSnapMargin, TArrayView<const FName> InSkippedSnapTypes) const
 {
-	double DoubleTime = (double)InOutTime;
+	double DoubleTime = InOutTime;
 	bool bResult = Snap(DoubleTime, (double)InSnapMargin, InSkippedSnapTypes);
-	InOutTime = DoubleTime;
+	InOutTime = static_cast<float>(DoubleTime);
 	return bResult;
 }
 

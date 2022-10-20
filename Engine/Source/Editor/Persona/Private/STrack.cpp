@@ -513,16 +513,16 @@ int32 STrack::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry
 // drag drop relationship
 FReply STrack::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
-	FVector2D CursorPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
-	float CusorDataPos = LocalToDataX(CursorPos.X, MyGeometry);
+	const FVector2D CursorPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
+	const float CusorDataPos = LocalToDataX(static_cast<float>(CursorPos.X), MyGeometry);
 
 	// Handle TrackNodes that were dropped
-	TSharedPtr<FTrackNodeDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FTrackNodeDragDropOp>();
+	const TSharedPtr<FTrackNodeDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FTrackNodeDragDropOp>();
 	if (DragDropOp.IsValid())
 	{
-		TSharedPtr<STrackNode> TrackNode = DragDropOp->OriginalTrackNode.Pin();
+		const TSharedPtr<STrackNode> TrackNode = DragDropOp->OriginalTrackNode.Pin();
 
-		float DataPos = GetNodeDragDropDataPos(MyGeometry, DragDropEvent);
+		const float DataPos = GetNodeDragDropDataPos(MyGeometry, DragDropEvent);
 		TrackNode->OnTrackNodeDragged.ExecuteIfBound( DataPos );
 		TrackNode->OnTrackNodeDropped.ExecuteIfBound();
 	}
@@ -558,21 +558,21 @@ FReply STrack::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& 
 	return FReply::Unhandled();
 }
 
-float STrack::GetNodeDragDropDataPos( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
+float STrack::GetNodeDragDropDataPos( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) const
 {
 	float DataPos = 0.f;
-	TSharedPtr<FTrackNodeDragDropOp> DragDropOp = StaticCastSharedPtr<FTrackNodeDragDropOp>(DragDropEvent.GetOperation());
+	const TSharedPtr<FTrackNodeDragDropOp> DragDropOp = StaticCastSharedPtr<FTrackNodeDragDropOp>(DragDropEvent.GetOperation());
 	if(DragDropOp.IsValid())
 	{
-		TSharedPtr<STrackNode> TrackNode = DragDropOp->OriginalTrackNode.Pin();
+		const TSharedPtr<STrackNode> TrackNode = DragDropOp->OriginalTrackNode.Pin();
 		if(TrackNode.IsValid())
 		{
-			FVector2D CursorPos = MyGeometry.AbsoluteToLocal(TrackNode->GetDragDropScreenSpacePosition(MyGeometry, DragDropEvent));
-			DataPos = LocalToDataX(CursorPos.X, MyGeometry);
+			const FVector2D CursorPos = MyGeometry.AbsoluteToLocal(TrackNode->GetDragDropScreenSpacePosition(MyGeometry, DragDropEvent));
+			DataPos = LocalToDataX(static_cast<float>(CursorPos.X), MyGeometry);
 			if(TrackNode->SnapToDragBars())
 			{
-				float OriginalX = DataPos;
-				DataPos = GetSnappedPosForLocalPos(MyGeometry, CursorPos.X);
+				const float OriginalX = DataPos;
+				DataPos = GetSnappedPosForLocalPos(MyGeometry, static_cast<float>(CursorPos.X));
 				TrackNode->OnSnapNodeDataPosition(OriginalX, DataPos);
 			}
 		}
@@ -624,8 +624,8 @@ FReply STrack::OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& Mo
 	if (bDraggingBar && OnBarDrag.IsBound())
 	{
 		/** Update drag bar position if we are dragging */
-		FVector2D CursorPos = MyGeometry.AbsoluteToLocal( MouseEvent.GetScreenSpacePosition() );
-		float NewDataPos = FMath::Clamp( LocalToDataX(CursorPos.X, MyGeometry), TrackMinValue.Get(), TrackMaxValue.Get() );
+		const FVector2D CursorPos = MyGeometry.AbsoluteToLocal( MouseEvent.GetScreenSpacePosition() );
+		const float NewDataPos = FMath::Clamp( static_cast<float>(LocalToDataX(static_cast<float>(CursorPos.X), MyGeometry)), TrackMinValue.Get(), TrackMaxValue.Get() );
 		OnBarDrag.Execute(DraggableBarIndex, NewDataPos);
 
 		// Update details panel
@@ -701,14 +701,14 @@ TSharedPtr<SWidget> STrack::SummonContextMenu(const FGeometry& MyGeometry, const
 {
 	bool SummonedContextMenu = false;
 
-	const bool bCloseWindowAfterMenuSelection = true;
+	constexpr bool bCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder( bCloseWindowAfterMenuSelection, EditorActions );
 
-	FVector2D CursorPos = MouseEvent.GetScreenSpacePosition();
-	float DataPos = LocalToDataX( MyGeometry.AbsoluteToLocal(CursorPos).X, MyGeometry );
+	const FVector2D CursorPos = MouseEvent.GetScreenSpacePosition();
+	const float DataPos = LocalToDataX( static_cast<float>(MyGeometry.AbsoluteToLocal(CursorPos).X), MyGeometry );
 
 	// Context menu for a node
-	int NotifyIndex = GetHitNode(MyGeometry, MyGeometry.AbsoluteToLocal(CursorPos));
+	const int32 NotifyIndex = GetHitNode(MyGeometry, MyGeometry.AbsoluteToLocal(CursorPos));
 	if(NotifyIndex != INDEX_NONE)
 	{
 		if(TrackNodes[NotifyIndex]->OnNodeRightClickContextMenu.IsBound())

@@ -488,7 +488,7 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 			.IsEnabled(this, &FSkeletalMeshReductionSettingsLayout::IsReductionEnabled)
 			.OnGetMenuContent(this, &FSkeletalMeshReductionSettingsLayout::FillReductionMethodMenu)
 			.VAlign(VAlign_Center)
-			.ContentPadding(2)
+			.ContentPadding(2.f)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -537,7 +537,7 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 				.IsEnabled(this, &FSkeletalMeshReductionSettingsLayout::IsReductionEnabled)
 				.OnGetMenuContent(this, &FSkeletalMeshReductionSettingsLayout::FillReductionImportanceMenu, ImportanceType)
 				.VAlign(VAlign_Center)
-				.ContentPadding(2)
+				.ContentPadding(2.f)
 				.ButtonContent()
 				[
 					SNew(STextBlock)
@@ -615,7 +615,7 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 			.IsEnabled(this, &FSkeletalMeshReductionSettingsLayout::IsReductionEnabled)
 			.OnGetMenuContent(this, &FSkeletalMeshReductionSettingsLayout::FillReductionTerminationCriterionMenu)
 			.VAlign(VAlign_Center)
-			.ContentPadding(2)
+			.ContentPadding(2.f)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -3201,7 +3201,7 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 	.ValueContent()
 	[
 		SNew(STextComboBox)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.OptionsSource(&LODNames)
 		.InitiallySelectedItem(LODNames[0])
 		.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -3751,11 +3751,11 @@ bool FPersonaMeshDetails::AddMinLodQualityLevelOverride(FName QualityLevelName)
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
 	SkelMesh->Modify();
-	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	const int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
 	if (SkelMesh->GetQualityLevelMinLod().PerQuality.Find(QLKey) == nullptr)
 	{
 		FPerQualityLevelInt MinLOD = SkelMesh->GetQualityLevelMinLod();
-		float Value = MinLOD.Default;
+		const int32 Value = MinLOD.Default;
 		MinLOD.PerQuality.Add(QLKey, Value);
 		SkelMesh->SetQualityLevelMinLod(MoveTemp(MinLOD));
 		OnMinQualityLevelLodChanged(Value, QualityLevelName);
@@ -3773,10 +3773,10 @@ bool FPersonaMeshDetails::RemoveMinLodQualityLevelOverride(FName QualityLevelNam
 	SkelMesh->Modify();
 
 	FPerQualityLevelInt MinLOD = SkelMesh->GetQualityLevelMinLod();
-	int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	const int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
 	if (QL != INDEX_NONE && MinLOD.PerQuality.Remove(QL) != 0)
 	{
-		float Value = MinLOD.Default;
+		const int32 Value = MinLOD.Default;
 		SkelMesh->SetQualityLevelMinLod(MoveTemp(MinLOD));
 		OnMinQualityLevelLodChanged(Value, QualityLevelName);
 		return true;
@@ -5028,17 +5028,16 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomNameWidgetsForSection(i
 						]
 					]
 					+SHorizontalBox::Slot()
-					.Padding(5, 2, 5, 0)
+					.Padding(5.f, 2.f, 5.f, 0.f)
 					.AutoWidth()
 					[
 						SNew(SNumericEntryBox<int8>)
 						.Visibility(this, &FPersonaMeshDetails::ShowSectionGenerateUpToSlider, LodIndex, SectionIndex)
 						.Font(IDetailLayoutBuilder::GetDetailFont())
 						.MinDesiredValueWidth(40.0f)
-						.MinValue(LodIndex)
-						//.MaxValue(1)
-						.MinSliderValue(LodIndex)
-						.MaxSliderValue(FMath::Max(8, LODCount))
+						.MinValue(static_cast<int8>(LodIndex))
+						.MinSliderValue(static_cast<int8>(LodIndex))
+						.MaxSliderValue(static_cast<int8>(FMath::Max(8, LODCount)))
 						.AllowSpin(true)
 						.Value(this, &FPersonaMeshDetails::GetSectionGenerateUpToValue, LodIndex, SectionIndex)
 						.OnValueChanged(this, &FPersonaMeshDetails::SetSectionGenerateUpToValue, LodIndex, SectionIndex)
@@ -5141,7 +5140,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 			.IsEnabled(IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
 			.OnGetMenuContent(this, &FPersonaMeshDetails::OnGenerateRecomputeTangentsSetting, LODIndex, SectionIndex)
 			.VAlign(VAlign_Center)
-			.ContentPadding(2)
+			.ContentPadding(2.f)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -5290,7 +5289,7 @@ TOptional<int8> FPersonaMeshDetails::GetSectionGenerateUpToValue(int32 LodIndex,
 	{
 		return TOptional<int8>(-1);
 	}
-	int8 SpecifiedLodIndex = SkeletalMeshPtr->GetImportedModel()->LODModels[LodIndex].Sections[SectionIndex].GenerateUpToLodIndex;
+	const int8 SpecifiedLodIndex = static_cast<int8>(SkeletalMeshPtr->GetImportedModel()->LODModels[LodIndex].Sections[SectionIndex].GenerateUpToLodIndex);
 	check(SpecifiedLodIndex == -1 || SpecifiedLodIndex >= LodIndex);
 	return TOptional<int8>(SpecifiedLodIndex);
 }
@@ -5303,10 +5302,10 @@ void FPersonaMeshDetails::SetSectionGenerateUpToValue(int8 Value, int32 LodIndex
 	{
 		return;
 	}
-	int64 ValueKey = ((int64)LodIndex << 32) | (int64)SectionIndex;
+	const int64 ValueKey = ((int64)LodIndex << 32) | (int64)SectionIndex;
 	if (!OldGenerateUpToSliderValues.Contains(ValueKey))
 	{
-		OldGenerateUpToSliderValues.Add(ValueKey, SkeletalMeshPtr->GetImportedModel()->LODModels[LodIndex].Sections[SectionIndex].GenerateUpToLodIndex);
+		OldGenerateUpToSliderValues.Add(ValueKey, static_cast<int8>(SkeletalMeshPtr->GetImportedModel()->LODModels[LodIndex].Sections[SectionIndex].GenerateUpToLodIndex));
 	}
 	SkeletalMeshPtr->GetImportedModel()->LODModels[LodIndex].Sections[SectionIndex].GenerateUpToLodIndex = Value;
 }
@@ -5385,7 +5384,7 @@ ECheckBoxState FPersonaMeshDetails::IsGenerateUpToSectionEnabled(int32 LodIndex,
 
 void FPersonaMeshDetails::OnSectionGenerateUpToChanged(ECheckBoxState NewState, int32 LodIndex, int32 SectionIndex)
 {
-	SetSectionGenerateUpToValueCommitted(NewState == ECheckBoxState::Checked ? LodIndex : -1, ETextCommit::Type::Default , LodIndex, SectionIndex);
+	SetSectionGenerateUpToValueCommitted(NewState == ECheckBoxState::Checked ? static_cast<int8>(LodIndex) : INDEX_NONE, ETextCommit::Type::Default , LodIndex, SectionIndex);
 }
 
 void FPersonaMeshDetails::SetCurrentLOD(int32 NewLodIndex)
@@ -5462,7 +5461,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateLodComboBoxForLodPicker()
 		.IsEnabled(this, &FPersonaMeshDetails::IsLodComboBoxEnabledForLodPicker)
 		.OnGetMenuContent(this, &FPersonaMeshDetails::OnGenerateLodMenuForLodPicker)
 		.VAlign(VAlign_Center)
-		.ContentPadding(2)
+		.ContentPadding(2.f)
 		.ButtonContent()
 		[
 			SNew(STextBlock)
@@ -6134,14 +6133,14 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 		// remove button
 		+ SHorizontalBox::Slot()
 		.VAlign( VAlign_Center )
-		.Padding(2)
+		.Padding(2.f)
 		.AutoWidth()
 		[
 			SNew( SButton )
 			.Text( LOCTEXT("ClearButtonLabel", "Remove") )
 			.OnClicked( this, &FPersonaMeshDetails::OnRemoveClothingAssetClicked, ElementIndex, DetailLayout )
 			.IsFocusable( false )
-			.ContentPadding(0)
+			.ContentPadding(0.f)
 			.ForegroundColor( FSlateColor::UseForeground() )
 			.ButtonColorAndOpacity(FLinearColor(1.0f,1.0f,1.0f,0.0f))
 			.ToolTipText(LOCTEXT("RemoveClothingAssetTip", "Remove this clothing asset"))
@@ -6525,7 +6524,7 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 				//Successful bind so set the SectionUserData
 				int32 AssetIndex = INDEX_NONE;
 				check(Mesh->GetMeshClothingAssets().Find(ClothingAsset, AssetIndex));
-				OriginalSectionData.CorrespondClothAssetIndex = AssetIndex;
+				OriginalSectionData.CorrespondClothAssetIndex = static_cast<int16>(AssetIndex);
 				OriginalSectionData.ClothingData.AssetGuid = ClothingAsset->GetAssetGuid();
 				OriginalSectionData.ClothingData.AssetLodIndex = InNewEntry->AssetLodIndex;
 			}

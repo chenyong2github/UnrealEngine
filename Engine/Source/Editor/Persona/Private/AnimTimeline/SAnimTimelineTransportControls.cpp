@@ -62,12 +62,12 @@ FReply SAnimTimelineTransportControls::OnClick_Forward_Step()
 	}
 	else if (SMC)
 	{
-		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase);
+		const UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase);
 		const FFrameRate TargetFramerate = AnimSequence ? AnimSequence->GetSamplingFrameRate() : FFrameRate(30, 1);
 
 		// Advance a single frame, leaving it paused afterwards
 		SMC->GlobalAnimRateScale = 1.0f;
-		SMC->TickAnimation(TargetFramerate.AsInterval(), false);
+		SMC->TickAnimation(static_cast<float>(TargetFramerate.AsInterval()), false);
 		SMC->GlobalAnimRateScale = 0.0f;
 	}
 

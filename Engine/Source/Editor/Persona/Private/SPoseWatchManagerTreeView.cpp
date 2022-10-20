@@ -245,7 +245,7 @@ TSharedRef<SWidget> SPoseWatchManagerTreeRow::GenerateWidgetForColumn(const FNam
 
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(6, 0, 0, 0)
+				.Padding(6.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SExpanderArrow, SharedThis(this)).IndentAmount(12)
 				]
@@ -302,12 +302,12 @@ void SPoseWatchManagerTreeRow::Tick(const FGeometry& AllottedGeometry, const dou
 	// Update highlight 'target' effect
 	{
 		const float HighlightLeftX = HighlightRectLeftOffset;
-		const float HighlightRightX = HighlightRectRightOffset + AllottedGeometry.GetLocalSize().X;
+		const float HighlightRightX = HighlightRectRightOffset + static_cast<float>(AllottedGeometry.GetLocalSize().X);
 
 		HighlightTargetLeftSpring.SetTarget(HighlightLeftX);
 		HighlightTargetRightSpring.SetTarget(HighlightRightX);
 
-		float TimeSinceHighlightInteraction = (float)(InCurrentTime - LastHighlightInteractionTime);
+		const float TimeSinceHighlightInteraction = static_cast<float>(InCurrentTime - LastHighlightInteractionTime);
 		if (TimeSinceHighlightInteraction <= HighlightTargetEffectDuration || bShouldAppearFocused)
 		{
 			HighlightTargetLeftSpring.Tick(InDeltaTime);
@@ -349,7 +349,7 @@ int32 SPoseWatchManagerTreeRow::OnPaint(const FPaintArgs& Args, const FGeometry&
 
 		// Compute the bounds offset of the highlight target from where the highlight target spring
 		// extents currently lie.  This is used to "grow" or "shrink" the highlight as needed.
-		const float LabelChangedAnimOffset = LabelChangedAnimOffsetPercent * AllottedGeometry.GetLocalSize().Y;
+		const float LabelChangedAnimOffset = LabelChangedAnimOffsetPercent * static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 
 		// Choose an offset amount depending on whether we're highlighting, or clearing highlight
 		const float EffectOffset = EffectAlpha * LabelChangedAnimOffset;
@@ -357,7 +357,7 @@ int32 SPoseWatchManagerTreeRow::OnPaint(const FPaintArgs& Args, const FGeometry&
 		const float HighlightLeftX = HighlightTargetLeftSpring.GetPosition() - EffectOffset;
 		const float HighlightRightX = HighlightTargetRightSpring.GetPosition() + EffectOffset;
 		const float HighlightTopY = 0.0f - LabelChangedAnimOffset;
-		const float HighlightBottomY = AllottedGeometry.GetLocalSize().Y + EffectOffset;
+		const float HighlightBottomY = static_cast<float>(AllottedGeometry.GetLocalSize().Y) + EffectOffset;
 
 		const FVector2D DrawPosition = FVector2D(HighlightLeftX, HighlightTopY);
 		const FVector2D DrawSize = FVector2D(HighlightRightX - HighlightLeftX, HighlightBottomY - HighlightTopY);

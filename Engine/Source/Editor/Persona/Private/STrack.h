@@ -303,7 +303,7 @@ protected:
 	
 	bool									GetDraggableBarSnapPosition(const FGeometry& MyGeometry, float &OutPosition) const;
 	virtual TSharedPtr<SWidget>				SummonContextMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-	float									GetNodeDragDropDataPos( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent );
+	float									GetNodeDragDropDataPos( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) const;
 	float									GetSnappedPosForLocalPos( const FGeometry& MyGeometry, float TrackPos) const;
 	void									UpdateDraggableBarIndex( const FGeometry& MyGeometry, FVector2D CursorScreenPos );
 	float									DataToLocalX( float Data, const FGeometry& MyGeometry ) const;

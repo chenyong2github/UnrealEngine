@@ -78,7 +78,7 @@ private:
 
 
 
-	void HandleScrubPositionChanged(FFrameTime NewScrubPosition, bool bIsScrubbing, bool bEvaluate);
+	void HandleScrubPositionChanged(FFrameTime NewScrubPosition, bool bIsScrubbing, bool bEvaluate) const;
 
 	void OnCropAnimSequence(bool bFromStart, float CurrentTime);
 

@@ -174,18 +174,18 @@ float FAnimTimelineTrack::GetMaxInput() const
 
 float FAnimTimelineTrack::GetViewMinInput() const
 {
-	return GetModel()->GetViewRange().GetLowerBoundValue();
+	return static_cast<float>(GetModel()->GetViewRange().GetLowerBoundValue());
 }
 
 float FAnimTimelineTrack::GetViewMaxInput() const
 {
-	return GetModel()->GetViewRange().GetUpperBoundValue();
+	return static_cast<float>(GetModel()->GetViewRange().GetUpperBoundValue());
 }
 
 float FAnimTimelineTrack::GetScrubValue() const
 {
-	const int32 Resolution = FMath::RoundToInt((double)GetDefault<UPersonaOptions>()->TimelineScrubSnapValue * GetModel()->GetFrameRate());
-	return (float)((double)GetModel()->GetScrubPosition().Value / (double)Resolution);
+	const int64 Resolution = FMath::RoundToInt(static_cast<double>(GetDefault<UPersonaOptions>()->TimelineScrubSnapValue) * GetModel()->GetFrameRate());
+	return static_cast<float>(static_cast<double>(GetModel()->GetScrubPosition().Value) / static_cast<double>(Resolution));
 }
 
 void FAnimTimelineTrack::SelectObjects(const TArray<UObject*>& SelectedItems)

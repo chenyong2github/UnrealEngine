@@ -52,7 +52,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 	OnReceivedFocus = InArgs._OnReceivedFocus;
 
 	int32 TickResolutionValue = InModel->GetTickResolution();
-	int32 SequenceFrameRate = FMath::RoundToInt(InModel->GetFrameRate());
+	int32 SequenceFrameRate = static_cast<int32>(FMath::RoundToInt(InModel->GetFrameRate()));
 
 	if (InModel->GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance)
 	{
@@ -61,22 +61,22 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 
 	ViewRange = MakeAttributeLambda([WeakModel](){ return WeakModel.IsValid() ? WeakModel.Pin()->GetViewRange() : FAnimatedRange(0.0, 0.0); });
 
-	TAttribute<EFrameNumberDisplayFormats> DisplayFormat = MakeAttributeLambda([]()
+	const TAttribute<EFrameNumberDisplayFormats> DisplayFormat = MakeAttributeLambda([]()
 	{
 		return GetDefault<UPersonaOptions>()->TimelineDisplayFormat;
 	});
 
-	TAttribute<EFrameNumberDisplayFormats> DisplayFormatSecondary = MakeAttributeLambda([]()
+	const TAttribute<EFrameNumberDisplayFormats> DisplayFormatSecondary = MakeAttributeLambda([]()
 	{
 		return GetDefault<UPersonaOptions>()->TimelineDisplayFormat == EFrameNumberDisplayFormats::Frames ? EFrameNumberDisplayFormats::Seconds : EFrameNumberDisplayFormats::Frames;
 	});
 
-	TAttribute<FFrameRate> TickResolution = MakeAttributeLambda([TickResolutionValue]()
+	const TAttribute<FFrameRate> TickResolution = MakeAttributeLambda([TickResolutionValue]()
 	{
 		return FFrameRate(TickResolutionValue, 1);
 	});
 
-	TAttribute<FFrameRate> DisplayRate = MakeAttributeLambda([SequenceFrameRate]()
+	const TAttribute<FFrameRate> DisplayRate = MakeAttributeLambda([SequenceFrameRate]()
 	{
 		return FFrameRate(SequenceFrameRate, 1);
 	});
@@ -286,7 +286,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 						SNew( SBorder )
 						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						.BorderBackgroundColor( FLinearColor(.50f, .50f, .50f, 1.0f ) )
-						.Padding(0)
+						.Padding(0.f)
 						.Clipping(EWidgetClipping::ClipToBounds)
 						[
 							TopTimeSlider.ToSharedRef()
@@ -405,18 +405,18 @@ FReply SAnimTimeline::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointe
 		}
 		MenuBuilder.EndSection();
 
-		UAnimSequence* AnimSequence = Cast<UAnimSequence>(Model.Pin()->GetAnimSequenceBase());
+		const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Model.Pin()->GetAnimSequenceBase());
 		if( AnimSequence )
 		{
 			FFrameTime MouseTime = TimeSliderController->GetFrameTimeFromMouse(MyGeometry, MouseEvent.GetScreenSpacePosition());
-			float CurrentFrameTime = (float)((double)MouseTime.AsDecimal() / (double)Model.Pin()->GetTickResolution());
-			float SequenceLength = AnimSequence->GetPlayLength();
+			const float CurrentFrameTime = static_cast<float>(MouseTime.AsDecimal() / static_cast<double>(Model.Pin()->GetTickResolution()));
+			const float SequenceLength = AnimSequence->GetPlayLength();
 			const uint32 NumKeys = AnimSequence->GetNumberOfSampledKeys();
 
 			MenuBuilder.BeginSection("SequenceEditingContext", LOCTEXT("SequenceEditing", "Sequence Editing") );
 			{
 				float CurrentFrameFraction = CurrentFrameTime / SequenceLength;
-				int32 CurrentKeyIndex = CurrentFrameFraction * NumKeys;
+				int32 CurrentKeyIndex = static_cast<int32>(CurrentFrameFraction * NumKeys);
 
 				FUIAction Action;
 				FText Label;
@@ -425,7 +425,7 @@ FReply SAnimTimeline::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointe
 				//Only show this option if the selected frame is greater than frame 1 (first frame)
 				if (CurrentKeyIndex > 0)
 				{
-					CurrentFrameFraction = (float)CurrentKeyIndex / (float)NumKeys;
+					CurrentFrameFraction = static_cast<float>(CurrentKeyIndex) / static_cast<float>(NumKeys);
 
 					//Corrected frame time based on selected frame number
 					float CorrectedFrameTime = CurrentFrameFraction * SequenceLength;
@@ -668,7 +668,7 @@ TSharedRef<INumericTypeInterface<double>> SAnimTimeline::GetNumericTypeInterface
 static bool ComputeGridSpacing(const FFrameRate& InFrameRate, float PixelsPerSecond, double& OutMajorInterval, int32& OutMinorDivisions, float MinTickPx, float DesiredMajorTickPx)
 {
 	// First try built-in spacing
-	bool bResult = InFrameRate.ComputeGridSpacing(PixelsPerSecond, OutMajorInterval, OutMinorDivisions, MinTickPx, DesiredMajorTickPx);
+	const bool bResult = InFrameRate.ComputeGridSpacing(PixelsPerSecond, OutMajorInterval, OutMinorDivisions, MinTickPx, DesiredMajorTickPx);
 	if(!bResult || OutMajorInterval == 1.0)
 	{
 		if (PixelsPerSecond <= 0.f)
@@ -676,7 +676,7 @@ static bool ComputeGridSpacing(const FFrameRate& InFrameRate, float PixelsPerSec
 			return false;
 		}
 
-		const int32 RoundedFPS = FMath::RoundToInt(InFrameRate.AsDecimal());
+		const int32 RoundedFPS = static_cast<int32>(FMath::RoundToInt(InFrameRate.AsDecimal()));
 
 		if (RoundedFPS > 0)
 		{
@@ -721,11 +721,11 @@ static bool ComputeGridSpacing(const FFrameRate& InFrameRate, float PixelsPerSec
 
 			Algo::Reverse(CommonBases);
 
-			const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond * InFrameRate.AsDecimal());
+			const int32 Scale     = static_cast<int32>(FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond * InFrameRate.AsDecimal()));
 			const int32 BaseIndex = FMath::Min(Algo::LowerBound(CommonBases, Scale), CommonBases.Num()-1);
 			const int32 Base      = CommonBases[BaseIndex];
 
-			int32 MajorIntervalFrames = FMath::CeilToInt(Scale / float(Base)) * Base;
+			const int32 MajorIntervalFrames = FMath::CeilToInt(Scale / static_cast<float>(Base)) * Base;
 			OutMajorInterval  = MajorIntervalFrames * InFrameRate.AsInterval();
 
 			// Find the lowest number of divisions we can show that's larger than the minimum tick size
@@ -734,7 +734,7 @@ static bool ComputeGridSpacing(const FFrameRate& InFrameRate, float PixelsPerSec
 			{
 				if (Base % CommonBases[DivIndex] == 0)
 				{
-					int32 MinorDivisions = MajorIntervalFrames/CommonBases[DivIndex];
+					const int32 MinorDivisions = MajorIntervalFrames/CommonBases[DivIndex];
 					if (OutMajorInterval / MinorDivisions * PixelsPerSecond >= MinTickPx)
 					{
 						OutMinorDivisions = MinorDivisions;
@@ -750,24 +750,24 @@ static bool ComputeGridSpacing(const FFrameRate& InFrameRate, float PixelsPerSec
 
 bool SAnimTimeline::GetGridMetrics(float PhysicalWidth, double& OutMajorInterval, int32& OutMinorDivisions) const
 {
-	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-	TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-	FFrameRate DisplayRate(FMath::Max(FMath::RoundToInt(Model.Pin()->GetFrameRate()), 1), 1);
-	double BiggestTime = ViewRange.Get().GetUpperBoundValue();
-	FString TickString = NumericTypeInterface->ToString((BiggestTime * DisplayRate).FrameNumber.Value);
-	FVector2D MaxTextSize = FontMeasureService->Measure(TickString, SmallLayoutFont);
+	const FFrameRate DisplayRate(static_cast<int32>(FMath::Max(FMath::RoundToInt(Model.Pin()->GetFrameRate()), 1)), 1);
+	const double BiggestTime = ViewRange.Get().GetUpperBoundValue();
+	const FString TickString = NumericTypeInterface->ToString((BiggestTime * DisplayRate).FrameNumber.Value);
+	const FVector2D MaxTextSize = FontMeasureService->Measure(TickString, SmallLayoutFont);
 
-	static float MajorTickMultiplier = 2.f;
+	constexpr float MajorTickMultiplier = 2.f;
 
-	float MinTickPx = MaxTextSize.X + 5.f;
-	float DesiredMajorTickPx = MaxTextSize.X * MajorTickMultiplier;
+	const float MinTickPx = static_cast<float>(MaxTextSize.X) + 5.f;
+	const float DesiredMajorTickPx = static_cast<float>(MaxTextSize.X) * MajorTickMultiplier;
 
 	if (PhysicalWidth > 0 && DisplayRate.AsDecimal() > 0)
 	{
 		return ComputeGridSpacing(
 			DisplayRate,
-			PhysicalWidth / ViewRange.Get().Size<double>(),
+			static_cast<float>(PhysicalWidth / ViewRange.Get().Size<double>()),
 			OutMajorInterval,
 			OutMinorDivisions,
 			MinTickPx,
@@ -805,7 +805,7 @@ class UAnimSingleNodeInstance* SAnimTimeline::GetPreviewInstance() const
 	return PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn()? PreviewMeshComponent->PreviewInstance : nullptr;
 }
 
-void SAnimTimeline::HandleScrubPositionChanged(FFrameTime NewScrubPosition, bool bIsScrubbing, bool bEvaluate)
+void SAnimTimeline::HandleScrubPositionChanged(FFrameTime NewScrubPosition, bool bIsScrubbing, bool bEvaluate) const
 {
 	if (UAnimSingleNodeInstance* PreviewInstance = GetPreviewInstance())
 	{
@@ -820,7 +820,7 @@ void SAnimTimeline::HandleScrubPositionChanged(FFrameTime NewScrubPosition, bool
 
 double SAnimTimeline::GetSpinboxDelta() const
 {
-	return FFrameRate(Model.Pin()->GetTickResolution(), 1).AsDecimal() * FFrameRate(FMath::RoundToInt(Model.Pin()->GetFrameRate()), 1).AsInterval();
+	return FFrameRate(Model.Pin()->GetTickResolution(), 1).AsDecimal() * FFrameRate(static_cast<int32>(FMath::RoundToInt(Model.Pin()->GetFrameRate())), 1).AsInterval();
 }
 
 void SAnimTimeline::SetPlayTime(double InFrameTime)
@@ -828,7 +828,7 @@ void SAnimTimeline::SetPlayTime(double InFrameTime)
 	if (UAnimSingleNodeInstance* PreviewInstance = GetPreviewInstance())
 	{
 		PreviewInstance->SetPlaying(false);
-		PreviewInstance->SetPosition(InFrameTime / (double)Model.Pin()->GetTickResolution());
+		PreviewInstance->SetPosition(static_cast<float>(InFrameTime / static_cast<double>(Model.Pin()->GetTickResolution())));
 	}
 }
 

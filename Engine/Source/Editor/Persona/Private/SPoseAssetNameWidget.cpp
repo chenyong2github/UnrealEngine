@@ -17,7 +17,7 @@ void SPoseAssetNameWidget::Construct(const FArguments& InArgs)
 			.OnGenerateWidget(this, &SPoseAssetNameWidget::MakeBasePoseComboWidget)
 			.OnSelectionChanged(this, &SPoseAssetNameWidget::SelectionChanged)
 			.OnComboBoxOpening(this, &SPoseAssetNameWidget::OnBasePoseComboOpening)
-			.ContentPadding(3)
+			.ContentPadding(3.f)
 			.Content()
 			[
 				SNew(STextBlock)

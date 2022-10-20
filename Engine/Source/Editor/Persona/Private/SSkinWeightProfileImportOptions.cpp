@@ -134,10 +134,10 @@ void SSkinWeightProfileImportOptions::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Right)
-		.Padding(2)
+		.Padding(2.f)
 		[
 			SNew(SUniformGridPanel)
-			.SlotPadding(2)
+			.SlotPadding(2.f)
 			+ SUniformGridPanel::Slot(0, 0)
 			[
 				SAssignNew(ImportButton, SButton)

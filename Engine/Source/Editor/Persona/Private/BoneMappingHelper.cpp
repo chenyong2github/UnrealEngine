@@ -27,10 +27,10 @@ int32 FBoneDescription::GetBestIndex() const
 
 float FBoneDescription::CalculateNameScore(const FName& Name1, const FName& Name2) const
 {
-	FString String1 = Name1.ToString();
-	FString String2 = Name2.ToString();
-	int32 Distance = FAnimationRuntime::GetStringDistance(String1, String2);
-	float MaxLength = FMath::Max(String1.Len() , String2.Len());
+	const FString String1 = Name1.ToString();
+	const FString String2 = Name2.ToString();
+	const int32 Distance = FAnimationRuntime::GetStringDistance(String1, String2);
+	const float MaxLength = static_cast<float>(FMath::Max(String1.Len() , String2.Len()));
 	return (MaxLength) ? (MaxLength - Distance) / (MaxLength) : 1.f;
 }
 
@@ -42,18 +42,15 @@ float FBoneDescription::CalculateScore(const FBoneDescription& Other) const
 		return 1.f;
 	}
 
-	// calculating score is tricky
-	float Score = 0.f;
-
 	// each element will exit from [0, 1], and we'll apply weight to it
 
 	// check direction of facing [-1, 1]
-	float Cosine = FVector::DotProduct(DirFromParent, Other.DirFromParent);
+	float Cosine = static_cast<float>(FVector::DotProduct(DirFromParent, Other.DirFromParent));
 	float Score_DirFromParent = FMath::Max((Cosine-0.5f)*2.f, 0.f); // scale to only care for range of [0.5-1]
 	Score_DirFromParent = FMath::Clamp(Score_DirFromParent, 0.f, 1.f);
 
 	// check direction of facing [-1, 1]
-	Cosine = FVector::DotProduct(DirFromRoot, Other.DirFromRoot);
+	Cosine = static_cast<float>(FVector::DotProduct(DirFromRoot, Other.DirFromRoot));
 	float Score_DirFromRoot = FMath::Max((Cosine - 0.5f)*2.f, 0.f); // scale to only care for range of [0.5-1]
 	Score_DirFromRoot = FMath::Clamp(Score_DirFromRoot, 0.f, 1.f);
 
@@ -62,7 +59,7 @@ float FBoneDescription::CalculateScore(const FBoneDescription& Other) const
 	const int32 MaxNumChildren = FMath::Max(Other.NumChildren, NumChildren);
 	if (MaxNumChildren > 0)
 	{
-		Score_NumChildren = (1.f - ((float)(FMath::Abs(Other.NumChildren - NumChildren)) / MaxNumChildren));
+		Score_NumChildren = 1.f - static_cast<float>(FMath::Abs(Other.NumChildren - NumChildren) / MaxNumChildren);
 	}
 	else
 	{
@@ -86,9 +83,9 @@ float FBoneDescription::CalculateScore(const FBoneDescription& Other) const
 	Score_RatioFromParent = FMath::Clamp(Score_RatioFromParent, 0.f, 1.f);
 
 	// check normalized position - since this is normalized, it should stay within 1
-	FVector DiffNormalizedPosition = (Other.NormalizedPosition - NormalizedPosition).GetAbs();
-	const float MaxNormalizedPosition = 3.f; /* since 1^2+1^2+1^2 = 3*/
-	float Score_NormalizedPosition = (MaxNormalizedPosition - DiffNormalizedPosition.SizeSquared())/ MaxNormalizedPosition;
+	const FVector DiffNormalizedPosition = (Other.NormalizedPosition - NormalizedPosition).GetAbs();
+	constexpr float MaxNormalizedPosition = 3.f; /* since 1^2+1^2+1^2 = 3*/
+	float Score_NormalizedPosition = (MaxNormalizedPosition - static_cast<float>(DiffNormalizedPosition.SizeSquared()))/ MaxNormalizedPosition;
 	Score_NormalizedPosition = FMath::Clamp(Score_NormalizedPosition, 0.f, 1.f);
 
 	float Score_NameMatching = CalculateNameScore(BoneInfo.Name, Other.BoneInfo.Name);
@@ -102,7 +99,7 @@ float FBoneDescription::CalculateScore(const FBoneDescription& Other) const
 	static float Weight_NameMatching = 2.0f;
 	static float Weight_DirFromRoot = 0.f;
 
-	float FinalScore = (Score_DirFromParent * Weight_DirFromParent + Score_NumChildren * Weight_NumChildren + Score_NormalizedPosition * Weight_NormalizedPosition + Score_RatioFromParent * Weight_RatioFromParent + Score_NameMatching * Weight_NameMatching + Score_DirFromRoot * Weight_DirFromRoot) / (Weight_DirFromParent + Weight_NumChildren + Weight_NormalizedPosition + Weight_RatioFromParent + Weight_NameMatching + Weight_DirFromRoot);
+	const float FinalScore = (Score_DirFromParent * Weight_DirFromParent + Score_NumChildren * Weight_NumChildren + Score_NormalizedPosition * Weight_NormalizedPosition + Score_RatioFromParent * Weight_RatioFromParent + Score_NameMatching * Weight_NameMatching + Score_DirFromRoot * Weight_DirFromRoot) / (Weight_DirFromParent + Weight_NumChildren + Weight_NormalizedPosition + Weight_RatioFromParent + Weight_NameMatching + Weight_DirFromRoot);
 	UE_LOG(LogAnimation, Log, TEXT("Calculate Score - [%s] - [%s] (Score_DirFromParent(%0.2f), Score_NumChildren(%0.2f), Score_NormalizedPosition(%0.2f), Score_RatioFromParent(%0.2f), Score_NameMatching(%0.2f), Score_DirFromRoot(%0.2f) )"), *BoneInfo.Name.ToString(), *Other.BoneInfo.Name.ToString(), Score_DirFromParent, Score_NumChildren, Score_NormalizedPosition, Score_RatioFromParent, Score_NameMatching, Score_DirFromRoot);
 	return FinalScore;
 }
@@ -167,7 +164,7 @@ void FBoneMappingHelper::Initialize(int32 Index, const FReferenceSkeleton&  InRe
 
 					const FVector& ParentPosition = ComponentSpaceTransforms[ParentIndex].GetLocation();
 					FVector ToChild = (Position-ParentPosition);
-					BoneDesc.RatioFromParent = ToChild.Size() / MeshBoxSize.Size();
+					BoneDesc.RatioFromParent = static_cast<float>(ToChild.Size() / MeshBoxSize.Size());
 					BoneDesc.DirFromParent = ToChild.GetSafeNormal();
 					BoneDesc.DirFromRoot = (Position-RootPosition).GetSafeNormal(); // based on whole mesh size
 				}

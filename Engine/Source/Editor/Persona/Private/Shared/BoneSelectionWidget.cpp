@@ -35,13 +35,13 @@ void SBoneTreeMenu::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.Padding(6)
+		.Padding(6.f)
 		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		.Content()
 		[
 			SNew(SBox)
-			.WidthOverride(300)
-			.HeightOverride(512)
+			.WidthOverride(300.f)
+			.HeightOverride(512.f)
 			.Content()
 			[
 				SNew(SVerticalBox)

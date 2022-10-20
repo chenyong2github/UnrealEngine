@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "RigPicker"
 
-static const FVector2D ContentBrowserWindowSize(300.0f, 300.0f);
+static const FVector2f ContentBrowserWindowSize(300.0f, 300.0f);
 
 URig* SRigPicker::EngineHumanoidRig = NULL;
 

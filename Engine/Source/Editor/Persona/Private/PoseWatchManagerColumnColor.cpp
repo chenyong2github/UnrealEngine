@@ -33,7 +33,7 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(ColorWidgetBackgroundBorder, SBorder)
-				.Padding(1)
+				.Padding(1.f)
 				.BorderImage(FAppStyle::Get().GetBrush("ColorPicker.RoundedSolidBackground"))
 				.BorderBackgroundColor(this, &SColorBoxWidget::GetColorWidgetBorderColor)
 				.VAlign(VAlign_Center)

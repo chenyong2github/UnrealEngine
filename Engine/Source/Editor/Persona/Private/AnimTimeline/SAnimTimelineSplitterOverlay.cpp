@@ -56,9 +56,9 @@ void SAnimTimelineSplitterOverlay::OnArrangeChildren( const FGeometry& AllottedG
 		if (Splitter->GetOrientation() == EOrientation::Orient_Horizontal)
 		{
 			SlotPadding.Add(FMargin(
-				ThisGeometry.Position.X + ThisGeometry.GetLocalSize().X,
+				ThisGeometry.Position.X + static_cast<float>(ThisGeometry.GetLocalSize().X),
 				0,
-				AllottedGeometry.Size.X - NextGeometry.Position.X,
+				static_cast<float>(AllottedGeometry.Size.X) - NextGeometry.Position.X,
 				0)
 			);
 		}
@@ -66,9 +66,9 @@ void SAnimTimelineSplitterOverlay::OnArrangeChildren( const FGeometry& AllottedG
 		{
 			SlotPadding.Add(FMargin(
 				0,
-				ThisGeometry.Position.Y + ThisGeometry.GetLocalSize().Y,
+				ThisGeometry.Position.Y + static_cast<float>(ThisGeometry.GetLocalSize().Y),
 				0,
-				AllottedGeometry.Size.Y - NextGeometry.Position.Y)
+				static_cast<float>(AllottedGeometry.Size.Y) - NextGeometry.Position.Y)
 			);
 		}
 	}

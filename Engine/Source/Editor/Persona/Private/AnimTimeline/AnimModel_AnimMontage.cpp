@@ -134,8 +134,8 @@ void FAnimModel_AnimMontage::OnSetEditableTime(int32 TimeIndex, double Time, boo
 			AnimMontage->Modify();
 	
 			FCompositeSection& Section = AnimMontage->CompositeSections[TimeIndex];
-			Section.SetTime(Time);
-			Section.Link(AnimMontage, Time);
+			Section.SetTime(static_cast<float>(Time));
+			Section.Link(AnimMontage, static_cast<float>(Time));
 
 			SortSections();
 			RefreshNotifyTriggerOffsets();
@@ -146,7 +146,7 @@ void FAnimModel_AnimMontage::OnSetEditableTime(int32 TimeIndex, double Time, boo
 		}
 	}
 
-	OnSectionTimeDragged.ExecuteIfBound(TimeIndex, Time, bIsDragging);
+	OnSectionTimeDragged.ExecuteIfBound(TimeIndex, static_cast<float>(Time), bIsDragging);
 }
 
 void FAnimModel_AnimMontage::OnMontageModified()

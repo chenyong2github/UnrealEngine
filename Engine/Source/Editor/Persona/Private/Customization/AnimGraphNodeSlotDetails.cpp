@@ -73,13 +73,13 @@ void FAnimGraphNodeSlotDetails::CustomizeDetails(class IDetailLayoutBuilder& Det
 		DetailBuilder.HideProperty(SlotNodeNamePropertyHandle);
 		
 		// this is used for 2 things, to create name, but also for another pop-up box to show off, it's a bit hacky to use this, but I need widget to parent on
-		TSharedRef<SWidget> SlotNodePropertyNameWidget = SlotNodeNamePropertyHandle->CreatePropertyNameWidget();
+		const TSharedRef<SWidget> SlotNodePropertyNameWidget = SlotNodeNamePropertyHandle->CreatePropertyNameWidget();
 
 		// fill combo with groups and slots
 		RefreshComboLists();
 
-		int32 FoundIndex = SlotNameList.Find(SlotNameComboSelectedName);
-		TSharedPtr<FString> ComboBoxSelectedItem = SlotNameComboListItems[FoundIndex];
+		const int32 FoundIndex = SlotNameList.Find(SlotNameComboSelectedName);
+		const TSharedPtr<FString> ComboBoxSelectedItem = SlotNameComboListItems[FoundIndex];
 
 		// create combo box
 		IDetailCategoryBuilder& SlotNameGroup = DetailBuilder.EditCategory(TEXT("Settings"));
@@ -102,7 +102,7 @@ void FAnimGraphNodeSlotDetails::CustomizeDetails(class IDetailLayoutBuilder& Det
 				.OnSelectionChanged(this, &FAnimGraphNodeSlotDetails::OnSlotNameChanged)
 				.OnComboBoxOpening(this, &FAnimGraphNodeSlotDetails::OnSlotListOpening)
 				.InitiallySelectedItem(ComboBoxSelectedItem)
-				.ContentPadding(2)
+				.ContentPadding(2.f)
 				.ToolTipText(FText::FromString(*ComboBoxSelectedItem))
 			]
 

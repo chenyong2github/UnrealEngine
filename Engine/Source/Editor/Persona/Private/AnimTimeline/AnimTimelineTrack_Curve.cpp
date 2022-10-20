@@ -74,9 +74,9 @@ public:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
 		// Rendering info
-		const float LabelOffsetPx = 2.0f;
-		const float Width = AllottedGeometry.GetLocalSize().X;
-		const float Height = AllottedGeometry.GetLocalSize().Y;
+		constexpr float LabelOffsetPx = 2.0f;
+		const float Width = static_cast<float>(AllottedGeometry.GetLocalSize().X);
+		const float Height = static_cast<float>(AllottedGeometry.GetLocalSize().Y);
 		const FPaintGeometry PaintGeometry  = AllottedGeometry.ToPaintGeometry();
 		const FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 		TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();

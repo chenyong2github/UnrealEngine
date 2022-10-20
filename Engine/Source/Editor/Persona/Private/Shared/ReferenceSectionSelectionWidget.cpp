@@ -90,16 +90,16 @@ TSharedRef<SWidget> SReferenceSectionSelectionWidget::CreateSectionListWidgetMen
 		.OnSelectionChanged(this, &SReferenceSectionSelectionWidget::OnSelectionChanged)
 		.HeaderRow(PlatformColumnHeader.ToSharedRef());
 
-	FText TitleText = FText(LOCTEXT("ReferenceListWidgetMenuTitle", "Choose a Section"));
+	const FText TitleText = FText(LOCTEXT("ReferenceListWidgetMenuTitle", "Choose a Section"));
 	TSharedPtr<SBorder> BorderWidget;
 	SAssignNew(BorderWidget, SBorder)
-	.Padding(6)
+	.Padding(6.f)
 	.BorderImage(FAppStyle::GetBrush("NoBorder"))
 	.Content()
 	[
 		SNew(SBox)
-		.WidthOverride(300)
-		.HeightOverride(512)
+		.WidthOverride(300.f)
+		.HeightOverride(512.f)
 		.Content()
 		[
 			SNew(SVerticalBox)

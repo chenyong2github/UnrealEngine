@@ -44,10 +44,10 @@ struct FAnimTimeSliderController::FScrubRangeToScreen
 
 	FScrubRangeToScreen(const TRange<double>& InViewInput, const FVector2D& InWidgetSize )
 	{
-		float ViewInputRange = InViewInput.Size<double>();
+		const double ViewInputRange = InViewInput.Size<double>();
 
 		ViewStart      = InViewInput.GetLowerBoundValue();
-		PixelsPerInput = ViewInputRange > 0 ? ( InWidgetSize.X / ViewInputRange ) : 0;
+		PixelsPerInput = ViewInputRange > 0 ? static_cast<float>( InWidgetSize.X / ViewInputRange ) : 0;
 	}
 
 	/** Local Widget Space -> Curve Input domain. */
@@ -59,7 +59,7 @@ struct FAnimTimeSliderController::FScrubRangeToScreen
 	/** Curve Input domain -> local Widget Space */
 	float InputToLocalX(double Input) const
 	{
-		return (Input - ViewStart) * PixelsPerInput;
+		return static_cast<float>((Input - ViewStart) * PixelsPerInput);
 	}
 };
 
@@ -101,15 +101,15 @@ FAnimTimeSliderController::FAnimTimeSliderController( const FTimeSliderArgs& InA
 
 FFrameTime FAnimTimeSliderController::ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping) const
 {
-	FVector2D CursorPos  = Geometry.AbsoluteToLocal( ScreenSpacePosition );
-	double    MouseValue = RangeToScreen.LocalXToInput( CursorPos.X );
+	const FVector2D CursorPos  = Geometry.AbsoluteToLocal( ScreenSpacePosition );
+	const double    MouseValue = RangeToScreen.LocalXToInput( static_cast<float>(CursorPos.X) );
 
 	return MouseValue * GetTickResolution();
 }
 
 FAnimTimeSliderController::FScrubPixelRange FAnimTimeSliderController::GetHitTestScrubberPixelRange(FFrameTime ScrubTime, const FScrubRangeToScreen& RangeToScreen) const
 {
-	static const float DragToleranceSlateUnits = 2.f, MouseTolerance = 2.f;
+	constexpr float DragToleranceSlateUnits = 2.f, MouseTolerance = 2.f;
 	return GetScrubberPixelRange(ScrubTime, GetTickResolution(), GetDisplayRate(), RangeToScreen, DragToleranceSlateUnits + MouseTolerance);
 }
 
@@ -126,7 +126,7 @@ FAnimTimeSliderController::FScrubPixelRange FAnimTimeSliderController::GetScrubb
 	float EndPixel   = RangeToScreen.InputToLocalX( (Frame+1) / Resolution);
 
 	{
-		float RoundedStartPixel = FMath::RoundToInt(StartPixel);
+		const float RoundedStartPixel = static_cast<float>(FMath::RoundToInt(StartPixel));
 		EndPixel -= (StartPixel - RoundedStartPixel);
 
 		StartPixel = RoundedStartPixel;
@@ -194,7 +194,7 @@ void FAnimTimeSliderController::DrawTicks( FSlateWindowElementList& OutDrawEleme
 
 	double MajorGridStep  = 0.0;
 	int32  MinorDivisions = 0;
-	if (!Timeline->GetGridMetrics(InArgs.AllottedGeometry.Size.X, MajorGridStep, MinorDivisions))
+	if (!Timeline->GetGridMetrics(static_cast<float>(InArgs.AllottedGeometry.Size.X), MajorGridStep, MinorDivisions))
 	{
 		return;
 	}
@@ -276,19 +276,18 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 	const bool bEnabled = bParentEnabled;
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
-	TRange<double> LocalViewRange      = TimeSliderArgs.ViewRange.Get();
-	const float    LocalViewRangeMin   = LocalViewRange.GetLowerBoundValue();
-	const float    LocalViewRangeMax   = LocalViewRange.GetUpperBoundValue();
+	const TRange<double> LocalViewRange      = TimeSliderArgs.ViewRange.Get();
+	const float    LocalViewRangeMin   = static_cast<float>(LocalViewRange.GetLowerBoundValue());
+	const float    LocalViewRangeMax   = static_cast<float>(LocalViewRange.GetUpperBoundValue());
 	const float    LocalSequenceLength = LocalViewRangeMax-LocalViewRangeMin;
-	TRange<FFrameNumber> LocalPlaybackRange = TimeSliderArgs.PlaybackRange.Get();
+	const TRange<FFrameNumber> LocalPlaybackRange = TimeSliderArgs.PlaybackRange.Get();
 
-	FVector2D Scale = FVector2D(1.0f,1.0f);
 	if ( LocalSequenceLength > 0)
 	{
 		FScrubRangeToScreen RangeToScreen( LocalViewRange, AllottedGeometry.Size );
 
 		// draw tick marks
-		const float MajorTickHeight = 9.0f;
+		constexpr float MajorTickHeight = 9.0f;
 	
 		FDrawTickArgs Args;
 		{
@@ -299,7 +298,7 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 			Args.CullingRect = MyCullingRect;
 			Args.DrawEffects = DrawEffects;
 			Args.StartLayer = LayerId;
-			Args.TickOffset = bMirrorLabels ? 0.0f : FMath::Abs( AllottedGeometry.Size.Y - MajorTickHeight );
+			Args.TickOffset = bMirrorLabels ? 0.0f : FMath::Abs( static_cast<float>(AllottedGeometry.Size.Y) - MajorTickHeight );
 			Args.MajorTickHeight = MajorTickHeight;
 		}
 
@@ -365,12 +364,12 @@ int32 FAnimTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FG
 			FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
 			const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			FVector2D TextSize = FontMeasureService->Measure(FrameString, SmallLayoutFont);
+			const FVector2D TextSize = FontMeasureService->Measure(FrameString, SmallLayoutFont);
 
 			// Flip the text position if getting near the end of the view range
-			static const float TextOffsetPx  = 2.f;
-			bool  bDrawLeft    = (AllottedGeometry.Size.X - HandleEnd) < (TextSize.X + 14.f) - TextOffsetPx;
-			float TextPosition = bDrawLeft ? HandleStart - TextSize.X - TextOffsetPx : HandleEnd + TextOffsetPx;
+			constexpr float TextOffsetPx  = 2.f;
+			const bool  bDrawLeft    = (static_cast<float>(AllottedGeometry.Size.X) - HandleEnd) < (TextSize.X + 14.f) - TextOffsetPx;
+			const float TextPosition = bDrawLeft ? HandleStart - static_cast<float>(TextSize.X) - TextOffsetPx : HandleEnd + TextOffsetPx;
 
 			FVector2D TextOffset( TextPosition, Args.bMirrorLabels ? TextSize.Y-6.f : Args.AllottedGeometry.Size.Y - (Args.MajorTickHeight+TextSize.Y) );
 
@@ -621,11 +620,11 @@ FReply FAnimTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const F
 
 			if(!MouseEvent.IsControlDown())
 			{
-				double SnapMargin = (ScrubConstants::SnapMarginInPixels / (double)RangeToScreen.PixelsPerInput);
+				const double SnapMargin = (ScrubConstants::SnapMarginInPixels / static_cast<double>(RangeToScreen.PixelsPerInput));
 				WeakModel.Pin()->Snap(Time, SnapMargin, { FName("MontageSection") });
 			}
 
-			SetEditableTime(DraggedTimeIndex, Time, false);
+			SetEditableTime(DraggedTimeIndex, static_cast<float>(Time), false);
 			DraggedTimeIndex = INDEX_NONE;
 		}
 		else
@@ -647,14 +646,14 @@ FReply FAnimTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const F
 
 FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	bool bHandleLeftMouseButton  = MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton  );
-	bool bHandleRightMouseButton = MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && TimeSliderArgs.AllowZoom;
+	const bool bHandleLeftMouseButton  = MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton  );
+	const bool bHandleRightMouseButton = MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && TimeSliderArgs.AllowZoom;
 
 	if (bHandleRightMouseButton)
 	{
 		if (!bPanning)
 		{
-			DistanceDragged += FMath::Abs( MouseEvent.GetCursorDelta().X );
+			DistanceDragged += static_cast<float>(FMath::Abs( MouseEvent.GetCursorDelta().X ));
 			if ( DistanceDragged > FSlateApplication::Get().GetDragTriggerDistance() )
 			{
 				bPanning = true;
@@ -662,12 +661,12 @@ FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeom
 		}
 		else
 		{
-			TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-			double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
-			double LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
+			const TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
+			const double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
+			const double LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
 
-			FScrubRangeToScreen ScaleInfo( LocalViewRange, MyGeometry.Size );
-			FVector2D ScreenDelta = MouseEvent.GetCursorDelta();
+			const FScrubRangeToScreen ScaleInfo( LocalViewRange, MyGeometry.Size );
+			const FVector2D ScreenDelta = MouseEvent.GetCursorDelta();
 			FVector2D InputDelta;
 			InputDelta.X = ScreenDelta.X/ScaleInfo.PixelsPerInput;
 
@@ -680,18 +679,18 @@ FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeom
 	}
 	else if (bHandleLeftMouseButton)
 	{
-		TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-		FScrubRangeToScreen RangeToScreen(LocalViewRange, MyGeometry.Size);
-		DistanceDragged += FMath::Abs( MouseEvent.GetCursorDelta().X );
+		const TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get();
+		const FScrubRangeToScreen RangeToScreen(LocalViewRange, MyGeometry.Size);
+		DistanceDragged += static_cast<float>(FMath::Abs( MouseEvent.GetCursorDelta().X ));
 
 		if ( MouseDragType == DRAG_NONE )
 		{
 			if ( DistanceDragged > FSlateApplication::Get().GetDragTriggerDistance() )
 			{
 				UAnimMontage* AnimMontage = Cast<UAnimMontage>(WeakModel.Pin()->GetAnimSequenceBase());
-				bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
+				const bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
 
-				FFrameTime MouseDownFree = ComputeFrameTimeFromMouse(MyGeometry, MouseDownPosition[0], RangeToScreen, false);
+				const FFrameTime MouseDownFree = ComputeFrameTimeFromMouse(MyGeometry, MouseDownPosition[0], RangeToScreen, false);
 
 				const FFrameRate FrameResolution    = GetTickResolution();
 				const bool       bLockedPlayRange   = TimeSliderArgs.IsPlaybackRangeLocked.Get();
@@ -700,8 +699,8 @@ FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeom
 				const int32      HitTimeIndex       = HitTestTimes(RangeToScreen, MouseDownPixel);
 				const bool       bHitTime           = !bChildAnimMontage && HitTimeIndex != INDEX_NONE;
 
-				TRange<double>   SelectionRange   = TimeSliderArgs.SelectionRange.Get() / FrameResolution;
-				TRange<double>   PlaybackRange    = TimeSliderArgs.PlaybackRange.Get()  / FrameResolution;
+				const TRange<double>   SelectionRange   = TimeSliderArgs.SelectionRange.Get() / FrameResolution;
+				const TRange<double>   PlaybackRange    = TimeSliderArgs.PlaybackRange.Get()  / FrameResolution;
 
 				// Disable selection range test if it's empty so that the playback range scrubbing gets priority
 				if (!SelectionRange.IsEmpty() && !bHitScrubber && HitTestRangeEnd(RangeToScreen, SelectionRange, MouseDownPixel))
@@ -782,11 +781,11 @@ FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeom
 
 				if(!MouseEvent.IsControlDown())
 				{
-					double SnapMargin = (ScrubConstants::SnapMarginInPixels / (double)RangeToScreen.PixelsPerInput);
+					const double SnapMargin = (ScrubConstants::SnapMarginInPixels / static_cast<double>(RangeToScreen.PixelsPerInput));
 					WeakModel.Pin()->Snap(Time, SnapMargin, { FName("MontageSection") });
 				}
 
-				SetEditableTime(DraggedTimeIndex, Time, true);
+				SetEditableTime(DraggedTimeIndex, static_cast<float>(Time), true);
 			}
 		}
 	}
@@ -818,7 +817,7 @@ FReply FAnimTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const FGeo
 
 	if ( TimeSliderArgs.AllowZoom && MouseEvent.IsControlDown() )
 	{
-		float MouseFractionX = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X;
+		const float MouseFractionX = static_cast<float>(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X);
 
 		const float ZoomDelta = -0.2f * MouseEvent.GetWheelDelta();
 		if (ZoomByDelta(ZoomDelta, MouseFractionX))
@@ -837,19 +836,19 @@ FReply FAnimTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const FGeo
 
 FCursorReply FAnimTimeSliderController::OnCursorQuery( TSharedRef<const SWidget> WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const
 {
-	FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.Size);
+	const FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.Size);
 
 	UAnimMontage* AnimMontage = Cast<UAnimMontage>(WeakModel.Pin()->GetAnimSequenceBase());
-	bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
+	const bool bChildAnimMontage = AnimMontage && AnimMontage->HasParentAsset();
 
 	const FFrameRate FrameResolution  = GetTickResolution();
 	const bool       bLockedPlayRange = TimeSliderArgs.IsPlaybackRangeLocked.Get();
-	const float      HitTestPixel     = MyGeometry.AbsoluteToLocal(CursorEvent.GetScreenSpacePosition()).X;
+	const float      HitTestPixel     = static_cast<float>(MyGeometry.AbsoluteToLocal(CursorEvent.GetScreenSpacePosition()).X);
 	const bool       bHitScrubber     = GetHitTestScrubberPixelRange(TimeSliderArgs.ScrubPosition.Get(), RangeToScreen).HandleRange.Contains(HitTestPixel);
 	const bool       bHitTime         = !bChildAnimMontage && (HitTestTimes(RangeToScreen, HitTestPixel) != INDEX_NONE);
 
-	TRange<double>   SelectionRange   = TimeSliderArgs.SelectionRange.Get() / FrameResolution;
-	TRange<double>   PlaybackRange    = TimeSliderArgs.PlaybackRange.Get()  / FrameResolution;
+	const TRange<double>   SelectionRange   = TimeSliderArgs.SelectionRange.Get() / FrameResolution;
+	const TRange<double>   PlaybackRange    = TimeSliderArgs.PlaybackRange.Get()  / FrameResolution;
 
 	if (MouseDragType == DRAG_SCRUBBING_TIME)
 	{
@@ -906,7 +905,7 @@ int32 FAnimTimeSliderController::OnPaintViewArea( const FGeometry& AllottedGeome
 			DrawTickArgs.StartLayer = LayerId-1;
 			// Draw the tick the entire height of the section area
 			DrawTickArgs.TickOffset = 0.0f;
-			DrawTickArgs.MajorTickHeight = AllottedGeometry.Size.Y;
+			DrawTickArgs.MajorTickHeight = static_cast<float>(AllottedGeometry.Size.Y);
 		}
 
 		DrawTicks( OutDrawElements, LocalViewRange, RangeToScreen, DrawTickArgs );
@@ -1125,13 +1124,13 @@ bool FAnimTimeSliderController::ZoomByDelta( float InDelta, float MousePositionF
 
 void FAnimTimeSliderController::PanByDelta( float InDelta )
 {
-	TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get().GetAnimationTarget();
+	const TRange<double> LocalViewRange = TimeSliderArgs.ViewRange.Get().GetAnimationTarget();
 
-	double CurrentMin = LocalViewRange.GetLowerBoundValue();
-	double CurrentMax = LocalViewRange.GetUpperBoundValue();
+	const double CurrentMin = LocalViewRange.GetLowerBoundValue();
+	const double CurrentMax = LocalViewRange.GetUpperBoundValue();
 
 	// Adjust the delta to be a percentage of the current range
-	InDelta *= ScrubConstants::ScrollPanFraction * (CurrentMax - CurrentMin);
+	InDelta *= ScrubConstants::ScrollPanFraction * static_cast<float>(CurrentMax - CurrentMin);
 
 	double NewViewOutputMin = CurrentMin + InDelta;
 	double NewViewOutputMax = CurrentMax + InDelta;

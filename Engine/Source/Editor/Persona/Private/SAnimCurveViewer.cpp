@@ -577,7 +577,7 @@ void SAnimCurveViewer::Construct(const FArguments& InArgs, const TSharedRef<clas
 		.AutoHeight()		// This is required to make the scrollbar work, as content overflows Slate containers by default
 		[
 			SNew(SBox)
-			.WidthOverride(150)
+			.WidthOverride(150.f)
 			.Content()
 			[
 				AnimTypeBoxContainer.ToSharedRef()
@@ -966,7 +966,7 @@ void SAnimCurveViewer::CreateAnimCurveTypeList(TSharedRef<SHorizontalBox> Horizo
 	// Add toggle button for 'all curves'
 	HorizontalBox->AddSlot()
 	.AutoWidth()
-	.Padding(3, 1)
+	.Padding(3.f, 1.f)
 	[
 		SNew(SCheckBox)
 		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
@@ -974,7 +974,7 @@ void SAnimCurveViewer::CreateAnimCurveTypeList(TSharedRef<SHorizontalBox> Horizo
 		.Type(ESlateCheckBoxType::ToggleButton)
 		.IsChecked(this, &SAnimCurveViewer::IsShowingAllCurves)
 		.OnCheckStateChanged(this, &SAnimCurveViewer::OnToggleShowingAllCurves)
-		.Padding(4)
+		.Padding(4.f)
 		.Content()
 		[
 			SNew(STextBlock)
@@ -992,7 +992,7 @@ void SAnimCurveViewer::CreateAnimCurveTypeList(TSharedRef<SHorizontalBox> Horizo
 	{
 		HorizontalBox->AddSlot()
 		.AutoWidth()
-		.Padding(3, 1)
+		.Padding(3.f, 1.f)
 		[
 			SNew(SAnimCurveTypeList)
 			.IsEnabled(this, &SAnimCurveViewer::IsCurveFilterEnabled)
@@ -1133,7 +1133,7 @@ void SAnimCurveViewer::OnSelectionChanged(TSharedPtr<FDisplayedAnimCurveInfo> In
 			TArray<FBoneReference> BoneLinks;
 			FSmartName CurrentName = RowItem->SmartName;
 			const FCurveMetaData* CurveMetaData = EditableSkeletonPtr.Pin()->GetSkeleton().GetCurveMetaData(CurrentName);
-			uint32 MaxLOD = 0xFF;
+			uint8 MaxLOD = 0xFF;
 			if (CurveMetaData)
 			{
 				BoneLinks = CurveMetaData->LinkedBones;

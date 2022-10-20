@@ -187,18 +187,18 @@ void SAnimOutliner::HandleTracksChanged()
 
 void SAnimOutliner::ReportChildRowGeometry(const TSharedRef<FAnimTimelineTrack>& InTrack, const FGeometry& InGeometry)
 {
-	float ChildOffset = TransformPoint(
+	const float ChildOffset = static_cast<float>(TransformPoint(
 		Concatenate(
 			InGeometry.GetAccumulatedLayoutTransform(),
 			GetCachedGeometry().GetAccumulatedLayoutTransform().Inverse()
 		),
 		FVector2D(0,0)
-	).Y;
+	).Y);
 
-	FCachedGeometry* ExistingGeometry = CachedTrackGeometry.Find(InTrack);
+	const FCachedGeometry* ExistingGeometry = CachedTrackGeometry.Find(InTrack);
 	if(ExistingGeometry == nullptr || (ExistingGeometry->Top != ChildOffset || ExistingGeometry->Height != InGeometry.Size.Y))
 	{
-		CachedTrackGeometry.Add(InTrack, FCachedGeometry(InTrack, ChildOffset, InGeometry.Size.Y));
+		CachedTrackGeometry.Add(InTrack, FCachedGeometry(InTrack, ChildOffset, static_cast<float>(InGeometry.Size.Y)));
 		bPhysicalTracksNeedUpdate = true;
 	}
 }

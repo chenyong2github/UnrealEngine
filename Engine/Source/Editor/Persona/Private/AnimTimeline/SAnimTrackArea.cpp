@@ -76,8 +76,8 @@ void SAnimTrackArea::OnArrangeChildren(const FGeometry& AllottedGeometry, FArran
 
 		const FMargin Padding(0, CurChild.GetVerticalOffset(), 0, 0);
 
-		AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(AllottedGeometry.GetLocalSize().X, CurChild, Padding, 1.0f, false);
-		AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(AllottedGeometry.GetLocalSize().Y, CurChild, Padding, 1.0f, false);
+		const AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(static_cast<float>(AllottedGeometry.GetLocalSize().X), CurChild, Padding, 1.0f, false);
+		const AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(static_cast<float>(AllottedGeometry.GetLocalSize().Y), CurChild, Padding, 1.0f, false);
 
 		ArrangedChildren.AddWidget(ChildVisibility,
 			AllottedGeometry.MakeChild(
@@ -168,7 +168,7 @@ FReply SAnimTrackArea::OnMouseMove( const FGeometry& MyGeometry, const FPointerE
 {
 	UpdateHoverStates(MyGeometry, MouseEvent);
 
-	TSharedPtr<FAnimTimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
+	const TSharedPtr<FAnimTimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
 	if(TimeSliderController.IsValid())
 	{
 		FReply Reply = WeakTimeSliderController.Pin()->OnMouseMove(*this, MyGeometry, MouseEvent);
@@ -178,7 +178,7 @@ FReply SAnimTrackArea::OnMouseMove( const FGeometry& MyGeometry, const FPointerE
 		{
 			if (MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton) && HasMouseCapture())
 			{
-				WeakOutliner.Pin()->ScrollByDelta(-MouseEvent.GetCursorDelta().Y);
+				WeakOutliner.Pin()->ScrollByDelta(static_cast<float>(-MouseEvent.GetCursorDelta().Y));
 			}
 		}
 

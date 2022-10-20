@@ -87,7 +87,7 @@ public:
 				.IsChecked(this, &SAssetShortcut::GetCheckState)
 				.Visibility(this, &SAssetShortcut::GetSoloButtonVisibility)
 				.ToolTipText(this, &SAssetShortcut::GetButtonTooltip)
-				.Padding(0.0)
+				.Padding(0.0f)
 				[
 					SNew(SOverlay)
 
@@ -123,7 +123,7 @@ public:
 				.IsChecked(this, &SAssetShortcut::GetCheckState)
 				.Visibility(this, &SAssetShortcut::GetComboButtonVisibility)
 				.ToolTipText(this, &SAssetShortcut::GetButtonTooltip)
-				.Padding(0.0)
+				.Padding(0.0f)
 				[
 					SNew(SOverlay)
 
@@ -154,7 +154,7 @@ public:
 			[
 				SNew(SSeparator)
 				.Visibility(this, &SAssetShortcut::GetComboVisibility)
-				.Thickness(1.0)
+				.Thickness(1.0f)
 				.Orientation(EOrientation::Orient_Vertical)
 			]
 			+SHorizontalBox::Slot()
@@ -296,8 +296,8 @@ public:
 
 				MenuBuilder.AddWidget(
 					SNew(SBox)
-					.WidthOverride(300)
-					.HeightOverride(600)
+					.WidthOverride(300.f)
+					.HeightOverride(600.f)
 					[
 						ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 					],

@@ -17,10 +17,10 @@ void SAnimTrackResizeArea::Construct(const FArguments& InArgs, TWeakPtr<FAnimTim
 
 FReply SAnimTrackResizeArea::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	TSharedPtr<FAnimTimelineTrack> ResizeTarget = Track.Pin();
+	const TSharedPtr<FAnimTimelineTrack> ResizeTarget = Track.Pin();
 	if (ResizeTarget.IsValid() && MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		DragParameters = FDragParameters(ResizeTarget->GetHeight(), MouseEvent.GetScreenSpacePosition().Y);
+		DragParameters = FDragParameters(ResizeTarget->GetHeight(), static_cast<float>(MouseEvent.GetScreenSpacePosition().Y));
 		return FReply::Handled().CaptureMouse(AsShared());
 	}
 	return FReply::Handled();
@@ -36,9 +36,9 @@ FReply SAnimTrackResizeArea::OnMouseMove(const FGeometry& MyGeometry, const FPoi
 {
 	if (DragParameters.IsSet() && HasMouseCapture())
 	{
-		float NewHeight = DragParameters->OriginalHeight + (MouseEvent.GetScreenSpacePosition().Y - DragParameters->DragStartY);
+		const float NewHeight = DragParameters->OriginalHeight + (static_cast<float>(MouseEvent.GetScreenSpacePosition().Y) - DragParameters->DragStartY);
 
-		TSharedPtr<FAnimTimelineTrack> ResizeTarget = Track.Pin();
+		const TSharedPtr<FAnimTimelineTrack> ResizeTarget = Track.Pin();
 		if (ResizeTarget.IsValid() && FMath::RoundToInt(NewHeight) != FMath::RoundToInt(DragParameters->OriginalHeight))
 		{
 			ResizeTarget->SetHeight(NewHeight);

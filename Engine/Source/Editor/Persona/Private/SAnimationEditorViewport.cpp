@@ -1837,7 +1837,7 @@ float SAnimationEditorViewportTabBody::GetViewMaxInput() const
 		}
 		else if (PreviewComponent->GetAnimInstance() != NULL)
 		{
-			return PreviewComponent->GetAnimInstance()->LifeTimer;
+			return static_cast<float>(PreviewComponent->GetAnimInstance()->LifeTimer);
 		}
 	}
 

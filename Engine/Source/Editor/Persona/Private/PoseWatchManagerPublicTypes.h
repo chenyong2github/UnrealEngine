@@ -43,7 +43,7 @@ struct FPoseWatchManagerInitializationOptions
 
 struct FPoseWatchManagerDefaultTreeItemMetrics
 {
-	static int32	RowHeight() { return 20; };
-	static int32	IconSize() { return 16; };
+	static float	RowHeight() { return 20.f; };
+	static float	IconSize() { return 16; };
 	static FMargin	IconPadding() { return FMargin(0.f, 1.f, 6.f, 1.f); };
 };
