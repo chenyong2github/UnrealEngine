@@ -31,16 +31,31 @@ enum class ELiveCodingCompileResult : uint8
 class ILiveCodingModule : public IModuleInterface
 {
 public:
+
+	// Enable by default tracks the value in the live coding settings.
+	// If enabled by default and the startup mode is one of the automatic settings, then
+	// live coding console will be started when the module is started.
 	virtual void EnableByDefault(bool bEnabled) = 0;
 	virtual bool IsEnabledByDefault() const = 0;
 
+	// The enabled for session state and started state are NOT independent states.  
+	// If a request is made to enabled live coding (automatically or manually) and live coding 
+	// hasn't already been started, then it is started.  If and only if the console starts 
+	// will both the started state and the enabled for session state will be true.
+	// If enable for session is set to false, the console isn't stopped so the started state
+	// will remain true.
+	//
+	// Started = false, Enabled = false => no request to enable has ever been made or it failed to start
+	// Started = true, Enabled = true => a request to enable was made and it started properly
+	// Started = true, Enabled = false => has been started but later disabled
+	// Started = false, Enabled = true => impossible state.
+	virtual bool HasStarted() const = 0;
 	virtual void EnableForSession(bool bEnabled) = 0;
 	virtual bool IsEnabledForSession() const = 0;
 	virtual bool CanEnableForSession() const = 0;
+
 	virtual const FText& GetEnableErrorText() const = 0;
 	virtual bool AutomaticallyCompileNewClasses() const = 0;
-
-	virtual bool HasStarted() const = 0;
 
 	virtual void ShowConsole() = 0;
 	virtual void Compile() = 0;

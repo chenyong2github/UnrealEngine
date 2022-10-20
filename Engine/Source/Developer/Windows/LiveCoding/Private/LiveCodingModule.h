@@ -3,10 +3,12 @@
 #pragma once
 
 #include "ILiveCodingModule.h"
+#include "LiveCodingSettings.h"
 #include "Delegates/Delegate.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
 #include "Internationalization/Text.h"
+#include <atomic>
 
 struct IConsoleCommand;
 class IConsoleVariable;
@@ -55,14 +57,35 @@ private:
 	void OnDllUnloaded(const FString& FullPath);
 	bool IsUEDll(const FString& FullPath);
 	bool IsPatchDll(const FString& FullPath);
+	void HideConsole();
+	void EnableConsoleCommand(FOutputDevice& out);
+	void StartLiveCodingAsync(ELiveCodingStartupMode StartupMode);
+	bool StartLiveCoding(ELiveCodingStartupMode StartupMode);
+	void OnModulesChanged(FName ModuleName, EModuleChangeReason Reason);
+	void UpdateModules(bool bAllowStarting);
+	bool ShouldPreloadModule(const TSet<FName>& PreloadedFileNames, const FString& FullFilePath) const;
+	bool IsReinstancingEnabled() const;
+	void WaitForStartup();
+	bool HasStarted(bool bAllowStarting) const;
+	void ShowConsole(bool bAllowStarting);
+
+#if WITH_EDITOR
+	void ShowNotification(bool Success, const FText& Title, const FText* SubText);
+#endif
 
 private:
+	enum class EState
+	{
+		NotRunning,
+		Starting,
+		Running,
+		RunningAndEnabled,
+	};
+
 	ULiveCodingSettings* Settings;
 	TSharedPtr<ISettingsSection> SettingsSection;
-	bool bEnabledLastTick = false;
 	bool bEnableReinstancingLastTick = false;
-	bool bEnabledForSession = false;
-	bool bStarted = false;
+	std::atomic<EState> State = EState::NotRunning;
 	bool bUpdateModulesInTick = false;
 	bool bHasReinstancingOccurred = false;
 	bool bHasPatchBeenLoaded = false;
@@ -98,22 +121,6 @@ private:
 	TUniquePtr<FReload> Reload;
 #else
 	TUniquePtr<FNullReload> Reload;
-#endif
-
-	void EnableConsoleCommand(FOutputDevice& out);
-
-	bool StartLiveCoding();
-
-	void OnModulesChanged(FName ModuleName, EModuleChangeReason Reason);
-
-	void UpdateModules();
-
-	bool ShouldPreloadModule(const TSet<FName>& PreloadedFileNames, const FString& FullFilePath) const;
-
-	bool IsReinstancingEnabled() const;
-
-#if WITH_EDITOR
-	void ShowNotification(bool Success, const FText& Title, const FText* SubText);
 #endif
 };
 

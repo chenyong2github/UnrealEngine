@@ -14,13 +14,13 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
-#include "LiveCodingSettings.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Algo/Sort.h"
 #include "Algo/BinarySearch.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Async/TaskGraphInterfaces.h"
 #if WITH_EDITOR
 	#include "Editor.h"
 	#include "Kismet2/ReloadUtilities.h"
@@ -319,26 +319,15 @@ void FLiveCodingModule::StartupModule()
 
 	LppStartup();
 
-	if (Settings->bEnabled && !FApp::IsUnattended())
+	if (Settings->bEnabled && Settings->Startup != ELiveCodingStartupMode::Manual && !FApp::IsUnattended())
 	{
-		if(Settings->Startup == ELiveCodingStartupMode::Automatic)
-		{
-			StartLiveCoding();
-			ShowConsole();
-		}
-		else if(Settings->Startup == ELiveCodingStartupMode::AutomaticButHidden)
-		{
-			GLiveCodingConsoleArguments = L"-Hidden";
-			StartLiveCoding();
-		}
+		StartLiveCodingAsync(Settings->Startup);
+	} 
+	else if (FParse::Param(FCommandLine::Get(), TEXT("LiveCoding")))
+	{
+		StartLiveCodingAsync(ELiveCodingStartupMode::Manual);
 	}
 
-	if(FParse::Param(FCommandLine::Get(), TEXT("LiveCoding")))
-	{
-		StartLiveCoding();
-	}
-
-	bEnabledLastTick = Settings->bEnabled;
 	bEnableReinstancingLastTick = IsReinstancingEnabled();
 }
 
@@ -364,10 +353,10 @@ void FLiveCodingModule::ShutdownModule()
 
 void FLiveCodingModule::EnableByDefault(bool bEnable)
 {
-	if(Settings->bEnabled != bEnable)
+	if (Settings->bEnabled != bEnable)
 	{
 		Settings->bEnabled = bEnable;
-		if(SettingsSection.IsValid())
+		if (SettingsSection.IsValid())
 		{
 			SettingsSection->Save();
 		}
@@ -397,32 +386,65 @@ void FLiveCodingModule::EnableForSession(bool bEnable)
 	if (bEnable)
 	{
 		EnableErrorText = FText::GetEmpty();
-		if(!bStarted)
+		switch (State)
 		{
-			StartLiveCoding();
+		case EState::NotRunning:
+			StartLiveCoding(ELiveCodingStartupMode::Manual); // State set in this method
 			ShowConsole();
-		}
-		else
-		{
-			bEnabledForSession = true;
+			break;
+
+		case EState::Starting:
+			WaitForStartup();
+			break;
+
+		case EState::Running:
+		case EState::RunningAndEnabled:
+			State = EState::RunningAndEnabled;
 			ShowConsole();
+			break;
 		}
 	}
 	else 
 	{
-		if(bStarted)
+		switch (State)
 		{
-			UE_LOG(LogLiveCoding, Display, TEXT("Console will be hidden but remain running in the background. Restart to disable completely."));
-			LppSetActive(false);
-			LppSetVisible(false);
-			bEnabledForSession = false;
+		case EState::NotRunning:
+		case EState::Starting:
+			break;
+
+		case EState::Running:
+		case EState::RunningAndEnabled:
+			HideConsole();
+			State = EState::Running;
+			break;
 		}
+	}
+}
+
+void FLiveCodingModule::WaitForStartup()
+{
+	if (State == EState::Starting)
+	{
+		UE_LOG(LogLiveCoding, Display, TEXT("Waiting for console to start."));
+		FPlatformProcess::ConditionalSleep([this]() { return State != EState::Starting; });
 	}
 }
 
 bool FLiveCodingModule::IsEnabledForSession() const
 {
-	return bEnabledForSession;
+	switch (State)
+	{
+	case EState::NotRunning:
+	case EState::Starting:
+	case EState::Running:
+		return false;
+
+	case EState::RunningAndEnabled:
+		return true;
+
+	default:
+		return false;
+	}
 }
 
 const FText& FLiveCodingModule::GetEnableErrorText() const
@@ -444,16 +466,50 @@ bool FLiveCodingModule::CanEnableForSession() const
 
 bool FLiveCodingModule::HasStarted() const
 {
-	return bStarted;
+	return HasStarted(false);
+}
+
+bool FLiveCodingModule::HasStarted(bool bAllowStarting) const
+{
+	switch (State)
+	{
+	case EState::NotRunning:
+		return false;
+
+	case EState::Starting:
+		return bAllowStarting;
+
+	case EState::Running:
+	case EState::RunningAndEnabled:
+		return true;
+
+	default:
+		return false;
+	}
 }
 
 void FLiveCodingModule::ShowConsole()
 {
-	if (bStarted)
+	ShowConsole(false);
+}
+
+void FLiveCodingModule::ShowConsole(bool bAllowStarting)
+{
+	if (HasStarted(bAllowStarting))
 	{
 		LppSetVisible(true);
 		LppSetActive(true);
 		LppShowConsole();
+	}
+}
+
+void FLiveCodingModule::HideConsole()
+{
+	if (HasStarted())
+	{
+		UE_LOG(LogLiveCoding, Display, TEXT("Console will be hidden but remain running in the background. Restart to disable completely."));
+		LppSetActive(false);
+		LppSetVisible(false);
 	}
 }
 
@@ -479,13 +535,13 @@ bool FLiveCodingModule::Compile(ELiveCodingCompileFlags CompileFlags, ELiveCodin
 	}
 
 	EnableForSession(true);
-	if (!bStarted)
+	if (!HasStarted())
 	{
 		return ReturnResults(ELiveCodingCompileResult::NotStarted, Result);
 	}
 
 	// Need to do this immediately rather than waiting until next tick
-	UpdateModules(); 
+	UpdateModules(false); 
 
 	// Trigger the recompile
 	GIsCompileActive = true;
@@ -525,33 +581,57 @@ bool FLiveCodingModule::IsCompiling() const
 
 void FLiveCodingModule::Tick()
 {
-	if (LppWantsRestart())
-	{
-		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
-	}
 
-	if (Settings->bEnabled != bEnabledLastTick && Settings->Startup != ELiveCodingStartupMode::Manual)
+	// Check for a change in the last requested enable state if we are in automatic mode
+	if (Settings->Startup != ELiveCodingStartupMode::Manual)
 	{
-		EnableForSession(Settings->bEnabled);
-		bEnabledLastTick = Settings->bEnabled;
-		if (IsEnabledByDefault() && !IsEnabledForSession())
+		switch (State)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoEnableLiveCodingAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting."));
+		case EState::NotRunning:
+			if (Settings->bEnabled)
+			{
+				EnableForSession(true);
+				if (!IsEnabledForSession())
+				{
+					FMessageDialog::Open(EAppMsgType::Ok, EnableErrorText);
+				}
+			}
+			break;
+
+		case EState::Starting:
+		case EState::Running:
+			break;
+
+		case EState::RunningAndEnabled:
+			if (!Settings->bEnabled)
+			{
+				EnableForSession(false);
+			}
+			break;
 		}
 	}
-	else if (IsEnabledForSession() && IsReinstancingEnabled() != bEnableReinstancingLastTick)
-	{
-		bEnableReinstancingLastTick = IsReinstancingEnabled();
-		LppSetReinstancingFlow(bEnableReinstancingLastTick);
-	}
 
-	if (bUpdateModulesInTick)
+	if (HasStarted())
 	{
-		UpdateModules();
-		bUpdateModulesInTick = false;
-	}
+		if (LppWantsRestart())
+		{
+			LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
+		}
 
-	AttemptSyncLivePatching();
+		if (HasStarted() && IsReinstancingEnabled() != bEnableReinstancingLastTick)
+		{
+			bEnableReinstancingLastTick = IsReinstancingEnabled();
+			LppSetReinstancingFlow(bEnableReinstancingLastTick);
+		}
+
+		if (bUpdateModulesInTick)
+		{
+			UpdateModules(false);
+			bUpdateModulesInTick = false;
+		}
+
+		AttemptSyncLivePatching();
+	}
 }
 
 void FLiveCodingModule::AttemptSyncLivePatching()
@@ -781,16 +861,44 @@ ILiveCodingModule::FOnPatchCompleteDelegate& FLiveCodingModule::GetOnPatchComple
 	return OnPatchCompleteDelegate;
 }
 
-bool FLiveCodingModule::StartLiveCoding()
+void FLiveCodingModule::StartLiveCodingAsync(ELiveCodingStartupMode StartupMode)
+{
+	if (IsRunningCommandlet())
+	{
+		StartLiveCoding(StartupMode);
+	}
+	else
+	{
+		auto Task = [this, StartupMode]()
+		{
+			StartLiveCoding(StartupMode);
+		};
+
+		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Task), TStatId());
+	}
+}
+
+bool FLiveCodingModule::StartLiveCoding(ELiveCodingStartupMode StartupMode)
 {
 	EnableErrorText = FText::GetEmpty();
-	if(!bStarted)
+	if (!HasStarted())
 	{
+		State = EState::Starting;
+		if (StartupMode == ELiveCodingStartupMode::AutomaticButHidden)
+		{
+			GLiveCodingConsoleArguments = L"-Hidden";
+		}
+		else
+		{
+			GLiveCodingConsoleArguments = L"";
+		}
+
 		// Make sure there aren't any hot reload modules already active
 		if (!CanEnableForSession())
 		{
 			EnableErrorText = LOCTEXT("NoLiveCodingCompileAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting.");
 			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Some modules have already been hot reloaded."));
+			State = EState::NotRunning;
 			return false;
 		}
 
@@ -803,6 +911,7 @@ bool FLiveCodingModule::StartLiveCoding()
 			const static FText FormatString = LOCTEXT("LiveCodingMissingExecutable", "Unable to start live coding session. Missing executable '{Executable}'. Use the LiveCoding.ConsolePath console variable to modify.");
 			EnableErrorText = FText::Format(FormatString, Args);
 			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Missing executable '%s'. Use the LiveCoding.ConsolePath console variable to modify."), *GLiveCodingConsolePath);
+			State = EState::NotRunning;
 			return false;
 		}
 
@@ -815,6 +924,7 @@ bool FLiveCodingModule::StartLiveCoding()
 			const static FText FormatString = LOCTEXT("LiveCodingMissingProjectFile", "Unable to start live coding session. Unable to find source project file '{ProjectFile}'.");
 			EnableErrorText = FText::Format(FormatString, Args);
 			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Unable to find source project file '%s'."), *SourceProject);
+			State = EState::NotRunning;
 			return false;
 		}
 
@@ -877,21 +987,25 @@ bool FLiveCodingModule::StartLiveCoding()
 		// Configure all the current modules. For non-commandlets, schedule it to be done in the first Tick() so we can batch everything together.
 		if (IsRunningCommandlet())
 		{
-			UpdateModules();
+			UpdateModules(true);
 		}
 		else
 		{
 			bUpdateModulesInTick = true;
 		}
 
+		if (StartupMode == ELiveCodingStartupMode::Automatic)
+		{
+			ShowConsole(true);
+		}
+
 		// Mark it as started
-		bStarted = true;
-		bEnabledForSession = true;
+		State = EState::RunningAndEnabled;
 	}
 	return true;
 }
 
-void FLiveCodingModule::UpdateModules()
+void FLiveCodingModule::UpdateModules(bool bAllowStarting)
 {
 	TArray<ModuleChange> Changes;
 	{
@@ -899,7 +1013,7 @@ void FLiveCodingModule::UpdateModules()
 		Swap(Changes, ModuleChanges);
 	}
 
-	if (bEnabledForSession)
+	if (HasStarted(bAllowStarting))
 	{
 #if IS_MONOLITHIC
 		wchar_t FullFilePath[WINDOWS_MAX_PATH];
@@ -970,7 +1084,7 @@ void FLiveCodingModule::OnModulesChanged(FName ModuleName, EModuleChangeReason R
 		// Assume that Tick() won't be called if we're running a commandlet
 		if (IsRunningCommandlet())
 		{
-			UpdateModules();
+			UpdateModules(false);
 		}
 		else
 		{
