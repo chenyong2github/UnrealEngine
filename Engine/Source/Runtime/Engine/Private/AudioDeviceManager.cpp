@@ -720,8 +720,10 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		IsUsingAudioMixerCvar->Set(0, ECVF_SetByConstructor);
 	}
 
-	Audio::Analytics::RecordEvent_Usage(TEXT("ForceNoAudioMixer"));
-
+	if (bForceNoAudioMixer)
+	{
+		Audio::Analytics::RecordEvent_Usage(TEXT("ForceNoAudioMixer"));
+	}
 	return AudioDeviceModule != nullptr;
 }
 
