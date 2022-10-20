@@ -7,6 +7,7 @@
 #include "Serialization/JsonSerializerMacros.h"
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
+#include "NNXTypes.h"
 
 namespace NNX 
 {
@@ -58,6 +59,56 @@ namespace Json
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("inputs", Inputs, FTestConfigTensor);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("outputs", Outputs, FTestConfigTensor);
 			JSON_SERIALIZE_ARRAY_SERIALIZABLE("runtimes", Runtimes, FTestConfigRuntime);
+		END_JSON_SERIALIZER
+	};
+
+	struct FTestAttribute : FJsonSerializable
+	{
+		FString Name;
+		FMLAttributeValue Value;
+
+		BEGIN_JSON_SERIALIZER
+			JSON_SERIALIZE("name", Name);
+			
+			// Since we prefer the attribute value to be in readable form in the Json and
+			// we only serialize it, we construct it at runtime by manually serialize it
+			// note: default type is float
+
+			FString TypeStr;
+			Serializer.Serialize(TEXT("type"), TypeStr);
+
+			EMLAttributeDataType Type = EMLAttributeDataType::Float;
+			if (!TypeStr.IsEmpty()) LexFromString(Type, *TypeStr);
+
+			switch (Type)
+			{
+				case EMLAttributeDataType::Float:
+				{
+					float TmpValue;
+					JSON_SERIALIZE("value", TmpValue);
+					Value = FMLAttributeValue(TmpValue);
+					break;
+				}
+
+				case EMLAttributeDataType::Int32:
+				{
+					int TmpValue;
+					JSON_SERIALIZE("value", TmpValue);
+					Value = FMLAttributeValue(TmpValue);
+					break;
+				}
+				default:
+					check(Type == EMLAttributeDataType::None);
+			}
+		END_JSON_SERIALIZER
+	};
+
+	struct FTestAttributeMap : FJsonSerializable
+	{
+		TArray<FTestAttribute> Attributes;
+
+		BEGIN_JSON_SERIALIZER
+			JSON_SERIALIZE_ARRAY_SERIALIZABLE("attributes", Attributes, FTestAttribute);
 		END_JSON_SERIALIZER
 	};
 
@@ -122,14 +173,49 @@ namespace Json
 		END_JSON_SERIALIZER
 	};
 
+	struct FTestAttributeSet : FJsonSerializable
+	{
+		FString Name;
+		TArray<FTestAttributeMap> AttributeMaps;
+		TArray<FString> MultiplyWithAttributeSets;
+
+		BEGIN_JSON_SERIALIZER
+			JSON_SERIALIZE("name", Name);
+			JSON_SERIALIZE_ARRAY_SERIALIZABLE("attribute_maps", AttributeMaps, FTestAttributeMap);
+			JSON_SERIALIZE_ARRAY("multiply_with_attribute_sets", MultiplyWithAttributeSets);
+		END_JSON_SERIALIZER
+	};
+
+	template<typename T>
+	bool TrySerializeArray(TArray<T> &OutArray, const FString &FieldName, const FJsonObject &GlobalJsonObject)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* JsonArrayValue;
+		if (GlobalJsonObject.TryGetArrayField(FieldName, JsonArrayValue))
+		{
+			for (TSharedPtr<FJsonValue> JsonValue : *JsonArrayValue)
+			{
+				const TSharedPtr<FJsonObject>* JsonObject = nullptr;
+				if (!JsonValue->TryGetObject(JsonObject))
+				{
+					return false;
+				}
+				OutArray.Emplace_GetRef().FromJson(*JsonObject);
+			}
+		}
+
+		return true;
+	}
+
 	bool LoadTestDescriptionFromJson(const FString& FullPath,
 		TArray<FTestCategory>& ModelTestCategories,
 		TArray<FTestCategory>& OperatorCategories,
-		TArray<FTestConfigInputOutputSet>& InputOutputSets)
+		TArray<FTestConfigInputOutputSet>& InputOutputSets,
+		TArray<FTestAttributeSet>& AttributeSets)
 	{
 		ModelTestCategories.Empty();
 		OperatorCategories.Empty();
 		InputOutputSets.Empty();
+		AttributeSets.Empty();
 
 		FString JsonContent;
 		FFileHelper::LoadFileToString(JsonContent, *FullPath);
@@ -146,46 +232,13 @@ namespace Json
 			return false;
 		}
 
-		const TArray<TSharedPtr<FJsonValue>>* JsonArrayValue;
-		if (GlobalJsonObject->TryGetArrayField(TEXT("model_test_categories"), JsonArrayValue))
-		{
-			for (TSharedPtr<FJsonValue> JsonValue : *JsonArrayValue)
-			{
-				const TSharedPtr<FJsonObject>* JsonObject = nullptr;
-				if (!JsonValue->TryGetObject(JsonObject))
-				{
-					return false;
-				}
-				ModelTestCategories.Emplace_GetRef().FromJson(*JsonObject);
-			}
-		}
+		bool bSuccess = false;
+		bSuccess |= TrySerializeArray(ModelTestCategories, TEXT("model_test_categories"), *GlobalJsonObject);
+		bSuccess |= TrySerializeArray(OperatorCategories, TEXT("operator_test_categories"), *GlobalJsonObject);
+		bSuccess |= TrySerializeArray(InputOutputSets, TEXT("input_output_sets"), *GlobalJsonObject);
+		bSuccess |= TrySerializeArray(AttributeSets, TEXT("attribute_sets"), *GlobalJsonObject);
 
-		if (GlobalJsonObject->TryGetArrayField(TEXT("operator_test_categories"), JsonArrayValue))
-		{
-			for (TSharedPtr<FJsonValue> JsonValue : *JsonArrayValue)
-			{
-				const TSharedPtr<FJsonObject>* JsonObject = nullptr;
-				if (!JsonValue->TryGetObject(JsonObject))
-				{
-					return false;
-				}
-				OperatorCategories.Emplace_GetRef().FromJson(*JsonObject);
-			}
-		}
-
-		if (GlobalJsonObject->TryGetArrayField(TEXT("input_output_sets"), JsonArrayValue))
-		{
-			for (TSharedPtr<FJsonValue> JsonValue : *JsonArrayValue)
-			{
-				const TSharedPtr<FJsonObject>* JsonObject = nullptr;
-				if (!JsonValue->TryGetObject(JsonObject))
-				{
-					return false;
-				}
-				InputOutputSets.Emplace_GetRef().FromJson(*JsonObject);
-			}
-		}
-		return true;
+		return bSuccess;
 	}
 
 } // namespace Json

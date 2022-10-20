@@ -18,6 +18,10 @@
 			"type": "array",
 			"items": { "$ref": "#/$defs/test_config_input_output_set" }
 		},
+		"attribute_sets": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/test_config_attribute_set" }
+		},
 		"comment": {
 			"type": "string",
 			"description": "Unused by test system, usefull to add clarification in json file"
@@ -98,6 +102,39 @@
 				"comment": {
 					"type": "string",
 					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		},
+
+		"test_config_attribute": {
+			"type": "object",
+			"required": [ "name", "value" ],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name of the attribute"
+				},
+				"value": {
+					"type": "number",
+					"description": "Value of the attribute"
+				},
+				"type": {
+					"type": "string",
+					"description": "Type of the attribute"
+				}
+			}
+		},
+
+		"test_config_attribute_map": {
+			"type": "object",
+			"required": [ "attributes" ],
+			"additionalProperties": false,
+			"properties": {
+				"attributes": {
+					"type": "array",
+					"description": "Attributes to test",
+					"items": { "$ref": "#/$defs/test_config_attribute" }
 				}
 			}
 		},
@@ -223,6 +260,32 @@
 					"type": "array",
 					"description": "Array of runtimes to specialize test behavior for",
 					"items": { "$ref": "#/$defs/test_config_runtime" }
+				},
+				"comment": {
+					"type": "string",
+					"description": "Unused by test system, usefull to add clarification in json file"
+				}
+			}
+		},
+
+		"test_config_attribute_set": {
+			"type": "object",
+			"required": [ "name", "attribute_maps" ],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name of this attribute set"
+				},
+				"attribute_maps": {
+					"type": "array",
+					"description": "Array of attribute maps to test",
+					"items": { "$ref": "#/$defs/test_config_attribute_map" }
+				},
+				"multiply_with_attribute_sets": {
+					"type": "array",
+					"description": "Combine with other attribute sets",
+					"items": { "type": "string" }
 				},
 				"comment": {
 					"type": "string",

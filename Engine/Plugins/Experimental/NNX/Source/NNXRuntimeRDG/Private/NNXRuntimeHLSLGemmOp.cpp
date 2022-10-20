@@ -67,6 +67,11 @@ namespace NNX
 			// CScalar = C != nullptr ? C[0] : (InElementType)0;
 			bNoBias = InputTensors.Num() != 3 /*|| InputC.Sizes[0] * InputC.Sizes[1] < 1*/;
 
+			InputAlpha = Attributes.GetOptionalFloat(TEXT("alpha"), InputAlpha);
+			InputBeta = Attributes.GetOptionalFloat(TEXT("beta"), InputBeta);
+			InputTransA = Attributes.GetOptionalInt32(TEXT("transA"), InputTransA);
+			InputTransB = Attributes.GetOptionalInt32(TEXT("transB"), InputTransB);
+
 			return true;
 		}
 

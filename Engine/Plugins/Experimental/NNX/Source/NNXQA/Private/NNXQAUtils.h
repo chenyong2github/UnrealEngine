@@ -34,6 +34,7 @@ namespace Test
 			TMap<FString, float> RelativeErrorPercentForRuntime;
 			TArray<FMLTensorDesc> Inputs;
 			TArray<FMLTensorDesc> Outputs;
+			FMLAttributeMap AttributeMap;
 			TArray<FString> Tags;
 			TArray<FString> AutomationExcludedRuntime;
 			TArray<FString> AutomationExcludedPlatform;

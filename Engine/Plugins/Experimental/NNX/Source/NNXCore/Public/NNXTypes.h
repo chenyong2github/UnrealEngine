@@ -39,6 +39,21 @@ enum class EMLAttributeDataType : uint8
     //TODO add more AttributeDataType support
 };
 
+/**
+ * @return EMLAttributeDataType from the string passed in
+ */
+inline void LexFromString(EMLAttributeDataType& OutValue, const TCHAR* StringVal)
+{
+	int64 EnumVal = StaticEnum<EMLAttributeDataType>()->GetValueByName(StringVal);
+	if (EnumVal == INDEX_NONE)
+	{
+		OutValue = EMLAttributeDataType::None;
+		ensureMsgf(false, TEXT("EMLAttributeDataType LexFromString didn't have a match for '%s'"), StringVal);
+	}
+
+	OutValue = (EMLAttributeDataType)EnumVal;
+};
+
 USTRUCT()
 struct FMLAttributeValue
 {

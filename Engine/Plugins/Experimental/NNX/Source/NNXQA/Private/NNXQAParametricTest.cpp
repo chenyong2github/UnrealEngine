@@ -48,15 +48,16 @@ namespace Test
 			TArray<Json::FTestCategory> ModelTestCategories;
 			TArray<Json::FTestCategory> OperatorTestCategories;
 			TArray<Json::FTestConfigInputOutputSet> InputOutputSets;
+			TArray<Json::FTestAttributeSet> AttributeSets;
 			
-			if (!Json::LoadTestDescriptionFromJson(FullPath, ModelTestCategories, OperatorTestCategories, InputOutputSets))
+			if (!Json::LoadTestDescriptionFromJson(FullPath, ModelTestCategories, OperatorTestCategories, InputOutputSets, AttributeSets))
 			{
 				return false;
 			}
 
 			const FString NNXBaseTestPath(TEXT("System.Engine.MachineLearning.NNX"));
-			AddTestFromCategory(NNXBaseTestPath + TEXT(".Model."), ModelTestCategories, InputOutputSets);
-			AddTestFromCategory(NNXBaseTestPath + TEXT(".Operator."), OperatorTestCategories, InputOutputSets);
+			AddTestFromCategory(NNXBaseTestPath + TEXT(".Model."), ModelTestCategories, InputOutputSets, AttributeSets);
+			AddTestFromCategory(NNXBaseTestPath + TEXT(".Operator."), OperatorTestCategories, InputOutputSets, AttributeSets);
 
 			return true;
 		}
@@ -109,7 +110,7 @@ namespace Test
 				TestSetup.RelativeErrorPercent = TestTarget.RelativeError;
 			}
 
-			ApplyRuntimesConfig(TestSetup, TestTarget.Runtimes);;
+			ApplyRuntimesConfig(TestSetup, TestTarget.Runtimes);
 
 			//Tags
 			TestSetup.Tags = TestTarget.Tags;
@@ -167,6 +168,14 @@ namespace Test
 			}
 		}
 
+		static void ApplyAttributeSetConfig(FTests::FTestSetup& TestSetup, const Json::FTestAttributeMap& AttributeMap)
+		{
+			for (const Json::FTestAttribute &Attribute : AttributeMap.Attributes)
+			{
+				TestSetup.AttributeMap.SetAttribute(Attribute.Name, Attribute.Value);
+			}
+		}
+
 		static FString GetTestSuffix(const Json::FTestConfigDataset& Dataset)
 		{
 			//Build TestSuffix "<inputshape0>_...=><outputshape0>_..."
@@ -195,6 +204,35 @@ namespace Test
 			return TestSuffix;
 		}
 
+		static FString GetAttributeMapSuffix(const Json::FTestAttributeMap &AttributeMap)
+		{
+			if (AttributeMap.Attributes.IsEmpty()) return TEXT("");
+
+			auto AttributeToString = [] (const FMLAttributeValue &Value) -> FString {
+				EMLAttributeDataType Type = Value.GetType();
+				
+				switch(Type)
+				{
+					case EMLAttributeDataType::Float: return FString::SanitizeFloat(Value.AsFloat());
+					case EMLAttributeDataType::Int32: return FString::FromInt(Value.AsInt32());
+				}
+				return TEXT("-");
+			};
+			
+			FStringBuilderBase Str;
+			Str  << TEXT(".");
+
+			TArray<FString> AttributeStrings;
+			for (const Json::FTestAttribute &Attribute : AttributeMap.Attributes)
+			{
+				AttributeStrings.Push(Attribute.Name + "=" + AttributeToString(Attribute.Value));
+			}
+
+			Str  << FString::Join(AttributeStrings, TEXT(","));
+
+			return Str.ToString();
+		}
+
 		static bool IsSubstringFoundInArray(const TArray<FString>& Names, const FString& SubString)
 		{
 			for (auto&& Name : Names)
@@ -207,7 +245,8 @@ namespace Test
 			return false;
 		}
 		
-		void AddTestFromCategory(const FString& BaseTestPath, const TArray<Json::FTestCategory>& TestCategories, const TArray<Json::FTestConfigInputOutputSet> InputOutputSets)
+		void AddTestFromCategory(const FString& BaseTestPath, const TArray<Json::FTestCategory>& TestCategories, const TArray<Json::FTestConfigInputOutputSet>& InputOutputSets,
+				const TArray<Json::FTestAttributeSet>& AttributeSets)
 		{
 			for (const Json::FTestCategory& TestCategory : TestCategories)
 			{
@@ -252,13 +291,76 @@ namespace Test
 									continue;
 								}
 
-								FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset));
-								
-								ApplyRuntimesConfig(Test, TestCategory.Runtimes);
-								ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
-								ApplyTargetConfig(Test, TestTarget);
-								ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
-								Test.IsModelTest = bIsModelCategory;
+								bool bAtLeastAnAttributeTestWasWadded = false;
+								for (const Json::FTestAttributeSet &AttributeSet : AttributeSets)
+								{
+									// TODO may be split by '.' and (partially) match parts
+									if (!AttributeSet.Name.Contains(InputOutputSet.Name))
+									{
+										continue;
+									}
+
+									for (const Json::FTestAttributeMap &AttributeMap : AttributeSet.AttributeMaps)
+									{
+										bool bAtLeastAnotherAttributeSetAdded = false;
+										for (const FString &OtherAttributeSetName : AttributeSet.MultiplyWithAttributeSets)
+										{
+											for (const Json::FTestAttributeSet &OtherAttributeSet : AttributeSets)
+											{
+												if (OtherAttributeSet.Name != OtherAttributeSetName)
+												{
+													continue;
+												}
+
+												for (const Json::FTestAttributeMap &OtherAttributeMap : OtherAttributeSet.AttributeMaps)
+												{
+													FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset) + GetAttributeMapSuffix(AttributeMap) + GetAttributeMapSuffix(OtherAttributeMap));
+										
+													ApplyRuntimesConfig(Test, TestCategory.Runtimes);
+													ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
+													ApplyTargetConfig(Test, TestTarget);
+													ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
+
+													ApplyAttributeSetConfig(Test, AttributeMap);
+													ApplyAttributeSetConfig(Test, OtherAttributeMap);
+
+													Test.IsModelTest = bIsModelCategory;
+
+													bAtLeastAnAttributeTestWasWadded = true;
+
+													bAtLeastAnotherAttributeSetAdded = true;
+												}
+											}
+										}
+
+										if (!bAtLeastAnotherAttributeSetAdded)
+										{
+											FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset) + GetAttributeMapSuffix(AttributeMap));
+											
+											ApplyRuntimesConfig(Test, TestCategory.Runtimes);
+											ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
+											ApplyTargetConfig(Test, TestTarget);
+											ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
+
+											ApplyAttributeSetConfig(Test, AttributeMap);
+
+											Test.IsModelTest = bIsModelCategory;
+
+											bAtLeastAnAttributeTestWasWadded = true;
+										}
+									}
+								}
+
+								if (!bAtLeastAnAttributeTestWasWadded)
+								{
+									FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset));
+									
+									ApplyRuntimesConfig(Test, TestCategory.Runtimes);
+									ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
+									ApplyTargetConfig(Test, TestTarget);
+									ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
+									Test.IsModelTest = bIsModelCategory;
+								}
 							}
 							bAtLeastATestWasAdded = true;
 						}
@@ -303,14 +405,8 @@ namespace Test
 		}
 		else
 		{
-			//TODO add support for attribute in json schema
-			FMLAttributeMap AttributeMap;
-			if (TestSetup.TestName == TEXT("System.Engine.MachineLearning.NNX.Operator.Elementwise.Unary.LeakyRelu.[4]=>[4]"))
-			{
-				AttributeMap.SetAttribute("alpha", FMLAttributeValue(0.5f));
-			}
 			// Operator test, create model in memory
-			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, AttributeMap, ModelData))
+			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ModelData))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;
