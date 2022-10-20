@@ -11,15 +11,19 @@
 #include "RHIDefinitions.h"
 #include "GroomDesc.h"
 #include "LODSyncInterface.h"
+#include "MeshDeformerInterface.h"
 #include "GroomInstance.h"
 #include "NiagaraDataInterfacePhysicsAsset.h"
 
 #include "GroomComponent.generated.h"
 
 class UGroomCache;
+class UMeshDeformer;
+class UMeshDeformerInstance;
+class UMeshDeformerInstanceSettings;
 
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface, public INiagaraPhysicsAssetDICollectorInterface
+class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface, public INiagaraPhysicsAssetDICollectorInterface, public IMeshDeformerInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,6 +58,17 @@ public:
 	/** Groom's simulation settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Simulation")
 	FHairSimulationSettings SimulationSettings;
+
+	/** If set the MeshDeformer will be applied on groonm instance for deformation. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer")
+	TObjectPtr<UMeshDeformer> MeshDeformer;
+
+	/** Object containing state for the bound MeshDeformer. */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Deformer")
+	TObjectPtr<UMeshDeformerInstance> MeshDeformerInstance;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, DisplayName = "Settings", Category = "Deformer", meta = (EditInline, EditCondition = "MeshDeformerInstanceSettings!=nullptr", HideEditConditionToggle, EditConditionHides))
+	TObjectPtr<UMeshDeformerInstanceSettings> MeshDeformerInstanceSettings;
 
 	/* Reference of the default/debug materials for each geometric representation */
 	UPROPERTY()
@@ -122,7 +137,10 @@ public:
 	virtual void DetachFromComponent(const FDetachmentTransformRules& DetachmentRules) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void SendRenderTransform_Concurrent() override;
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
+	virtual void DestroyRenderState_Concurrent() override;
+	virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin USceneComponent Interface.
@@ -174,6 +192,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
 	void SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset);
 
+	/* Change the MeshDeformer that is used for this Component. */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetMeshDeformer(UMeshDeformer* InMeshDeformer);
+
 	/* Add a skeletal mesh to the collision components */
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
 	void AddCollisionComponent(USkeletalMeshComponent* SkeletalMeshComponent);
@@ -219,6 +241,10 @@ public:
 	virtual int32 GetNumSyncLODs() const override;
 	virtual int32 GetCurrentSyncLOD() const override;
 	//~ End ILODSyncInterface
+
+	///~ Begin IMeshDeformerInterface Interface.
+	virtual UMeshDeformerInstance const* GetMeshDeformerInstance() const override { return MeshDeformerInstance; }
+	//~ End IMeshDeformerInterface
 
 	int32 GetNumLODs() const;
 	int32 GetForcedLOD() const;

@@ -21,8 +21,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-                    "GeometryCache",
-                    "Projects",
+					"GeometryCache",
+					"Projects",
 					"MeshDescription",
 					"MovieScene",
 					"NiagaraCore",
@@ -32,7 +32,9 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"VectorVM",
 					"RHI",
-					"StaticMeshDescription"
+					"StaticMeshDescription",
+					"ComputeFramework",
+					"OptimusCore",
 				});
 
 			if (Target.bBuildEditor == true)

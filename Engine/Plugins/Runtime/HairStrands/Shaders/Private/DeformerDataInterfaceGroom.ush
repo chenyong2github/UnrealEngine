@@ -1,0 +1,92 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+#include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Bindings
+
+uint  {DataInterfaceName}_NumControlPoints;
+uint  {DataInterfaceName}_NumCurves;
+float {DataInterfaceName}_VF_HairRadius;
+float {DataInterfaceName}_VF_HairLength;
+Buffer<uint4>  {DataInterfaceName}_PositionBuffer;
+Buffer<float2> {DataInterfaceName}_Attribute0Buffer;
+Buffer<uint>   {DataInterfaceName}_Attribute1Buffer;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Helpers
+
+FHairControlPoint ReadControlPointData(uint VertexIndex)
+{
+	const uint MaxVertices = {DataInterfaceName}_NumControlPoints;
+	if (VertexIndex >= MaxVertices)
+	{
+		return (FHairControlPoint)0;
+	}
+
+	// Hair deformer work in local space so no need for position offset
+	return UnpackHairControlPoint(
+		{DataInterfaceName}_PositionBuffer[VertexIndex], 
+		float3(0, 0, 0) /*InVF_PositionOffset*/,
+		{DataInterfaceName}_VF_HairRadius, 
+		1.0f /*RootScale*/, 
+		1.0f /*TipScale*/);
+}
+
+FHairAttributes ReadControlPointAttributeData(uint VertexIndex)
+{
+	const uint MaxVertices = {DataInterfaceName}_NumControlPoints;
+	if (VertexIndex >= MaxVertices)
+	{
+		return (FHairAttributes)0;
+	}
+
+	return DecodeHairAttribute(
+		{DataInterfaceName}_Attribute0Buffer[VertexIndex],
+		{DataInterfaceName}_Attribute1Buffer[VertexIndex],
+		{DataInterfaceName}_VF_HairLength);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Interface
+
+uint {DataInterfaceName}_ReadNumControlPoints()
+{
+	return {DataInterfaceName}_NumControlPoints;
+}
+
+uint {DataInterfaceName}_ReadNumCurves()
+{
+	return {DataInterfaceName}_NumCurves;
+}
+
+float3 ReadPosition_{DataInterfaceName}(uint VertexIndex)
+{
+	return ReadControlPointData(VertexIndex).Position;
+}
+
+float ReadRadius_{DataInterfaceName}(uint VertexIndex)
+{
+	return ReadControlPointData(VertexIndex).WorldRadius;
+}
+
+float ReadCoordU_{DataInterfaceName}(uint VertexIndex)
+{
+	return ReadControlPointData(VertexIndex).UCoord;
+}
+
+float ReadLength_{DataInterfaceName}(uint VertexIndex)
+{
+	return ReadControlPointAttributeData(VertexIndex).WorldLength;
+}
+
+float2 ReadRootUV_{DataInterfaceName}(uint VertexIndex)
+{
+	return ReadControlPointAttributeData(VertexIndex).RootUV;
+}
+
+float ReadSeed_{DataInterfaceName}(uint VertexIndex)
+{
+	return ReadControlPointAttributeData(VertexIndex).Seed;
+}

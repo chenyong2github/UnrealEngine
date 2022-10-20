@@ -110,7 +110,10 @@ Buffer<uint>   RenVertexToRootIndexBuffer;
 Buffer<uint>   SimVertexToRootIndexBuffer;
 #endif
 
-RWBuffer<uint4> OutRenDeformedPositionBuffer;
+#if PERMUTATION_DEFORMER
+Buffer<uint4>  RenDeformerPositionBuffer;
+#endif
+RWBuffer<uint4> OutRenDeformedPositionBuffer; 
 
 #if PERMUTATION_DYNAMIC_GEOMETRY >= 1 
 
@@ -431,6 +434,26 @@ float3 ApplySkinningWithTranslationAndRotation(const FGuideData GuideData, const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Deformer transformation
+float3 ApplyDeformer(const FRootTriangleData RenTri, float3 InRestPostion, float3 InDeformerPosition, float3 InDeformedPosition)
+{
+	float3 OutPosition = InDeformedPosition;
+#if PERMUTATION_DEFORMER
+	#if PERMUTATION_DYNAMIC_GEOMETRY == 0
+		OutPosition = InDeformedPosition + (InDeformerPosition - InRestPostion);
+	#else
+		const float3 LocalRestPoint     = ToTriangle(InRestPostion, RenTri.RootBarycentric, RenTri.RestTriangle);
+		const float3 LocalDeformerPoint = ToTriangle(InDeformerPosition, RenTri.RootBarycentric, RenTri.RestTriangle);
+
+		const float3 LocalOffset = LocalDeformerPoint - LocalRestPoint;
+		const float3 LocalDeformedPoint = ToTriangle(InDeformedPosition, RenTri.RootBarycentric, RenTri.DeformedTriangle);
+		OutPosition = ToWorld(LocalDeformedPoint + LocalOffset, RenTri.RootBarycentric, RenTri.DeformedTriangle);
+	#endif
+#endif
+	return OutPosition;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Interpolation
 
 [numthreads(GROUP_SIZE, 1, 1)]
@@ -460,7 +483,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		// Manual decoding of the rest position
 		const uint4 PackedRestPosition = RenRestPosePositionBuffer[VertexIndex];
-		const float3 RestPosition = f16tof32(PackedRestPosition.xyz) + InRenHairPositionOffset;
+		const float3 RestPosition = UnpackHairControlPointPosition(PackedRestPosition, InRenHairPositionOffset);
 
 		float3 OutPosition = 0.0f;
 
@@ -494,7 +517,17 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 		#endif
 
-		// 3. Write out the final position
+		// 3. Apply deformer
+		#if PERMUTATION_DEFORMER
+		//if (VertexIndex > 10000000)
+		{
+			const uint4 PackedDeformerPosition = RenDeformerPositionBuffer[VertexIndex];
+			const float3 DeformerPosition = UnpackHairControlPointPosition(PackedDeformerPosition, InRenHairPositionOffset);
+			OutPosition = ApplyDeformer(RenTri, RestPosition, DeformerPosition, OutPosition);
+		}
+		#endif
+
+		// 4. Write out the final position
 		// Optionally trim hair
 		if (HairLengthScale < 1.0f)
 		{

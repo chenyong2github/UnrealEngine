@@ -1,0 +1,164 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "DeformerDataInterfaceGroomWrite.h"
+
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "OptimusDataDomain.h"
+#include "RenderGraphBuilder.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "ShaderParameterMetadataBuilder.h"
+#include "SkeletalMeshDeformerHelpers.h"
+#include "SkeletalRenderPublic.h"
+#include "GroomComponent.h"
+#include "GroomInstance.h"
+
+FString UOptimusGroomWriteDataInterface::GetDisplayName() const
+{
+	return TEXT("Write Groom");
+}
+
+FName UOptimusGroomWriteDataInterface::GetCategory() const
+{
+	return CategoryName::OutputDataInterfaces;
+}
+
+TArray<FOptimusCDIPinDefinition> UOptimusGroomWriteDataInterface::GetPinDefinitions() const
+{
+	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({ "Position", "WritePosition", Optimus::DomainName::Vertex, "ReadNumControlPoints" }); // ControlPoint domain?
+	return Defs;
+}
+
+
+TSubclassOf<UActorComponent> UOptimusGroomWriteDataInterface::GetRequiredComponentClass() const
+{
+	return UGroomComponent::StaticClass();
+}
+
+
+void UOptimusGroomWriteDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+{
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumControlPoints"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+}
+
+void UOptimusGroomWriteDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+{
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WritePosition"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 3);
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FGroomWriteDataInterfaceParameters, )
+	SHADER_PARAMETER(uint32, NumControlPoints)
+	SHADER_PARAMETER(uint32, NumCurves)
+	SHADER_PARAMETER(uint32, OutputStreamStart)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, PositionBufferUAV)
+END_SHADER_PARAMETER_STRUCT()
+
+void UOptimusGroomWriteDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
+{
+	InOutBuilder.AddNestedStruct<FGroomWriteDataInterfaceParameters>(UID);
+}
+
+void UOptimusGroomWriteDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	GetShaderFileHash(TEXT("/Plugin/Runtime/HairStrands/Private/DeformerDataInterfaceGroomWrite.ush"), EShaderPlatform::SP_PCD3D_SM5).AppendString(InOutKey);
+}
+
+void UOptimusGroomWriteDataInterface::GetHLSL(FString& OutHLSL, FString const& InDataInterfaceName) const
+{
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{ TEXT("DataInterfaceName"), InDataInterfaceName },
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(TEXT("/Plugin/Runtime/HairStrands/Private/DeformerDataInterfaceGroomWrite.ush"), EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+}
+
+UComputeDataProvider* UOptimusGroomWriteDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
+{
+	UOptimusGroomWriteDataProvider* Provider = NewObject<UOptimusGroomWriteDataProvider>();
+	Provider->GroomComponent = Cast<UGroomComponent>(InBinding);
+	Provider->OutputMask = InOutputMask;
+	return Provider;
+}
+
+
+bool UOptimusGroomWriteDataProvider::IsValid() const
+{
+	return GroomComponent != nullptr && GroomComponent->GetGroupCount() > 0;
+}
+
+FComputeDataProviderRenderProxy* UOptimusGroomWriteDataProvider::GetRenderProxy()
+{
+	return new FOptimusGroomWriteDataProviderProxy(GroomComponent, OutputMask);
+}
+
+
+FOptimusGroomWriteDataProviderProxy::FOptimusGroomWriteDataProviderProxy(UGroomComponent* InGroomComponent, uint64 InOutputMask)
+{
+	GroomComponent = InGroomComponent;
+	OutputMask = InOutputMask;
+}
+
+void FOptimusGroomWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+{
+	const uint32 InstanceCount = GroomComponent ? GroomComponent->GetGroupCount() : 0;
+	for (uint32 Index=0; Index < InstanceCount; ++Index)
+	{
+		if (FHairGroupInstance* GroomInstance = GroomComponent->GetGroupInstance(Index))
+		{
+			// Allocate required buffers
+			const int32 NumControlPoints = GroomInstance->Strands.Data->PointCount;
+			const int32 NumCurves = GroomInstance->Strands.Data->CurveCount;
+
+			FResources& R = Resources.AddDefaulted_GetRef();
+			if (OutputMask & 1)
+			{
+				R.PositionBufferUAV = Register(GraphBuilder, GroomInstance->Strands.DeformedResource->GetDeformerBuffer(GraphBuilder), ERDGImportedBufferFlags::CreateUAV).UAV;
+				
+				FRDGBufferRef PositionBuffer_fallback = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(8, 1), TEXT("Groom.DeformedPositionBuffer"), ERDGBufferFlags::None);
+				R.PositionBufferUAV_fallback = GraphBuilder.CreateUAV(PositionBuffer_fallback, PF_R16G16B16A16_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+			}
+			else
+			{
+				R.PositionBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+			}
+		}	
+	}
+}
+
+void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
+{
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FGroomWriteDataInterfaceParameters)))
+	{
+		return;
+	}
+
+	const uint32 InstanceCount = GroomComponent ? GroomComponent->GetGroupCount() : 0;
+	check(InDispatchSetup.NumInvocations == InstanceCount);
+
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	{
+		if (FHairGroupInstance* GroomInstance = GroomComponent->GetGroupInstance(InvocationIndex))
+		{
+			FResources& Resource = Resources[InvocationIndex];
+
+			const bool bValid = Resource.PositionBufferUAV != nullptr;
+			const int32 NumCurves = bValid ? GroomInstance->Strands.Data->CurveCount : 0;
+			const int32 NumControlPoints = bValid ? GroomInstance->Strands.Data->PointCount : 0;
+
+			FGroomWriteDataInterfaceParameters* Parameters = (FGroomWriteDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+			Parameters->NumControlPoints = NumControlPoints;
+			Parameters->NumCurves = NumCurves;
+			Parameters->OutputStreamStart = 0;
+			Parameters->PositionBufferUAV = bValid ? Resource.PositionBufferUAV : Resource.PositionBufferUAV_fallback;
+		}
+	}
+}

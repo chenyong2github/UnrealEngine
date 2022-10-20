@@ -21,6 +21,8 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/RendererSettings.h"
 #include "Animation/AnimationSettings.h"
+#include "Animation/MeshDeformerInstance.h"
+#include "Animation/MeshDeformer.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
@@ -2743,6 +2745,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				{
 					bNeedDynamicResources = true;
 				}
+				// Mesh deformer requires to dynamic resources
+				if (MeshDeformer)
+				{
+					bNeedDynamicResources = true;
+				}
 			}
 
 			#if RHI_RAYTRACING
@@ -3175,6 +3182,8 @@ void UGroomComponent::OnRegister()
 		UpdateGroomCache(ElapsedTime);
 	}
 	UpdateHairSimulation();
+
+	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 }
 
 void UGroomComponent::OnUnregister()
@@ -3192,6 +3201,8 @@ void UGroomComponent::OnUnregister()
 		}
 		IGroomCacheStreamingManager::Get().UnregisterComponent(this);
 	}
+
+	MeshDeformerInstance = nullptr;
 }
 
 void UGroomComponent::BeginDestroy()
@@ -3579,6 +3590,51 @@ void UGroomComponent::SendRenderDynamicData_Concurrent()
 			}
 		});
 	}
+
+	if (MeshDeformerInstance != nullptr && GroomAsset != nullptr)
+	{
+		if (MeshDeformerInstance->IsActive())
+		{
+			MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update, GroomAsset->GetFName());
+		}
+		else
+		{
+			// TODO: Reset so groom appears rest pose
+		}
+	}
+}
+
+void UGroomComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
+{
+	if (MeshDeformerInstance)
+	{
+		MeshDeformerInstance->AllocateResources();
+	}
+
+	Super::CreateRenderState_Concurrent(Context);
+}
+
+void UGroomComponent::DestroyRenderState_Concurrent()
+{
+	Super::DestroyRenderState_Concurrent();
+
+	if (MeshDeformerInstance)
+	{
+		MeshDeformerInstance->ReleaseResources();
+	}
+}
+
+bool UGroomComponent::RequiresGameThreadEndOfFrameRecreate() const
+{
+	return Super::RequiresGameThreadEndOfFrameRecreate();
+}
+
+void UGroomComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
+{
+	MeshDeformer = InMeshDeformer;
+	MeshDeformerInstanceSettings = MeshDeformer->CreateSettingsInstance(this);
+	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+	MarkRenderDynamicDataDirty();
 }
 
 void UGroomComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -3647,6 +3703,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const bool bIsBindingCompatible = UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable);
 	const bool bEnableSolverChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairSimulationSolver, bEnableSimulation);
 	const bool bGroomCacheChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomCache);
+	const bool bMeshDeformerChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, MeshDeformer);
 	const bool bEnableLengthScaleChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairLengthScale);
 	if (!bIsBindingCompatible || !UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable))
 	{
@@ -3703,7 +3760,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	// If material is assigned to the groom from the viewport (i.e., drag&drop a material from the content brown onto the groom geometry, it results into a unknown property). There is other case 
 	const bool bIsUnknown = PropertyThatChanged == nullptr;
 
-	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || bEnableLengthScaleOverrideChanged || bIsUnknown || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
+	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || bEnableLengthScaleOverrideChanged || bIsUnknown || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged|| bMeshDeformerChanged;
 	if (bRecreateResources)
 	{
 		// Release the resources before Super::PostEditChangeProperty so that they get
