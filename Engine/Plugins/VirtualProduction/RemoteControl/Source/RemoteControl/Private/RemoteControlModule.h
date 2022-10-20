@@ -67,6 +67,8 @@ public:
 	//~ End IRemoteControlModule
 
 private:
+	/** Refreshes Editor related visuals like location Gizmo for relevant properties (like Location of a SceneComponent) */
+	void RefreshEditorPostSetObjectProperties(const FRCObjectReference& ObjectAccess);
 
 	/** Cache all presets in the project for the ResolvePreset function. */
 	void CachePresets() const;

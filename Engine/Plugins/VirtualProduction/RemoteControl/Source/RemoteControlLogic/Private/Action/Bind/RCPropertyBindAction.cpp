@@ -211,6 +211,9 @@ void URCPropertyBindAction::Execute() const
 				{
 					if (Actor->IsSelectedInEditor())
 					{
+						// Note: For regular Exposed Properties this is handled via RefreshEditorPostSetObjectProperties in FRemoteControlModule::SetObjectProperties
+						// Bind needs this explicit path because the Controller's property name is not guaranteed to be "RelativeLocation" (which is the pattern match used in that function).
+						// This can be revisited in the future depending on the number of related usecases that arise in this space.
 						GUnrealEd->UpdatePivotLocationForSelection();
 					}
 				}

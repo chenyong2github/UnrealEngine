@@ -32,8 +32,10 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Editor/Transactor.h"
+#include "Editor/UnrealEdEngine.h"
 #include "HAL/IConsoleManager.h"
 #include "ScopedTransaction.h"
+#include "UnrealEdGlobals.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogRemoteControl);
@@ -1119,6 +1121,12 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args, InterceptionPayload))
 			{
 				const bool bResult = InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
+
+				if (bResult)
+				{
+					RefreshEditorPostSetObjectProperties(ObjectAccess);
+				}
+
 				return bResult;
 			}
 		}
@@ -1180,6 +1188,12 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
 		{
 			const bool bResult = InvokeCall(Call);
+
+			if (bResult)
+			{
+				RefreshEditorPostSetObjectProperties(ObjectAccess);
+			}
+
 			return bResult;
 		}
 	}
@@ -1351,9 +1365,38 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 			EntityFactoryPair.Value->PostSetObjectProperties(ObjectAccess.Object.Get(), bSuccess);
 		}
 
+		if (bSuccess)
+		{
+			RefreshEditorPostSetObjectProperties(ObjectAccess);
+		}
+
 		return bSuccess;
 	}
 	return false;
+}
+
+void FRemoteControlModule::RefreshEditorPostSetObjectProperties(const FRCObjectReference& ObjectAccess)
+{
+#if WITH_EDITOR
+	UObject* Object = ObjectAccess.Object.Get();
+
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+	{
+		if (FProperty* Property = ObjectAccess.Property.Get())
+		{
+			if(Property->GetName() == "RelativeLocation")
+			{
+				if (AActor* Actor = SceneComponent->GetOwner())
+				{
+					if (Actor->IsSelectedInEditor())
+					{
+						GUnrealEd->UpdatePivotLocationForSelection();
+					}
+				}
+			}
+		}
+	}
+#endif
 }
 
 bool FRemoteControlModule::SetPresetController(const FName PresetName, const FName ControllerName, IStructDeserializerBackend& Backend, const TArray<uint8>& InPayload, const bool bAllowIntercept)
