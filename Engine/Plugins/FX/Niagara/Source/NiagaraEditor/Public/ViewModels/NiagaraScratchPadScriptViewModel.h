@@ -14,6 +14,7 @@ class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScrip
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnRenamed);
+	DECLARE_MULTICAST_DELEGATE(FOnPendingRename);
 	DECLARE_MULTICAST_DELEGATE(FOnPinnedChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnHasUnappliedChangesChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnChangesApplied);
@@ -84,6 +85,8 @@ public:
 
 	FOnRenamed& OnRenamed();
 
+	FOnPendingRename& OnPendingRename();
+
 	FOnPinnedChanged& OnPinnedChanged();
 
 	FOnHasUnappliedChangesChanged& OnHasUnappliedChangesChanged();
@@ -99,6 +102,9 @@ public:
 
 	void RaisePinFocusRequested(FNiagaraScriptIDAndGraphFocusInfo*  InFocusInfo);
 	void RaiseNodeFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo);
+
+	// Updates the cached name post undo to see if we need to broadcast a changed event. Returns true if they were out of sync and tabs will potentially need to be reopned.
+	bool ValidateAndUpdateCachedNameIfDifferent();
 
 private:
 	FText GetDisplayNameInternal() const;
@@ -124,6 +130,7 @@ private:
 	FDelegateHandle OnGraphNeedsRecompileHandle;
 
 	FOnRenamed OnRenamedDelegate;
+	FOnPendingRename OnPendingRenameDelegate;
 	FOnPinnedChanged OnPinnedChangedDelegate;
 	FOnHasUnappliedChangesChanged OnHasUnappliedChangesChangedDelegate;
 	FOnChangesApplied OnChangesAppliedDelegate;
@@ -132,4 +139,6 @@ private:
 
 	FOnNodeIDFocusRequested OnNodeIDFocusRequestedDelegate;
 	FOnPinIDFocusRequested OnPinIDFocusRequestedDelegate;
+
+	TOptional<FString> CachedName;
 };

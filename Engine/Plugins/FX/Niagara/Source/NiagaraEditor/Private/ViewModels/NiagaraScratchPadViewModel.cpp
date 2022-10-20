@@ -216,10 +216,17 @@ void UNiagaraScratchPadViewModel::RefreshScriptViewModels()
 	{
 		for (int32 i = 0; i < ScriptViewModels.Num(); i++)
 		{
+			// First double-check that we're not creating multiple view models per script....
 			TArray<TSharedPtr<FNiagaraScriptViewModel>> ExistingViewModels;
 			TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::GetAllViewModelsForObject(ScriptViewModels[i]->GetEditScript().Script, ExistingViewModels);
 
 			(ensureMsgf(ExistingViewModels.Num() == 1, TEXT("Missing or duplicate script view models detected.  Can not create script details customization.")));
+
+			// Now double-check that we haven't reused a view model where the underlying script name has changed and need to act as if a rename happened.
+			if (ScriptViewModels[i]->ValidateAndUpdateCachedNameIfDifferent())
+			{
+				ScriptViewModelScriptRenamed(ScriptViewModels[i]);
+			}
 		}
 	}
 	
@@ -473,9 +480,16 @@ FName GetUniqueScriptName(UObject* Outer, const FString& CandidateName)
 
 TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::CreateNewScript(ENiagaraScriptUsage InScriptUsage, ENiagaraScriptUsage InTargetSupportedUsage, FNiagaraTypeDefinition InOutputType)
 {
+	FScopedTransaction Transaction(LOCTEXT("CreateNewScriptTransaction", "Create a new local script."));
+
 	UObject* ScriptOuter;
 	TArray<TObjectPtr<UNiagaraScript>>* TargetScripts;
 	GetOuterAndTargetScripts(GetSystemViewModel(), ScriptOuter, TargetScripts);
+
+	if (ScriptOuter)
+	{
+		ScriptOuter->Modify();
+	}
 
 	UNiagaraScript* NewScript = nullptr;
 	switch (InScriptUsage)
@@ -530,7 +544,7 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	}
 
 	NewScript->ClearFlags(RF_Public | RF_Standalone);
-	ScriptOuter->Modify();
+	NewScript->SetFlags(RF_Transactional);
 	TargetScripts->Add(NewScript);
 	NewScript->GetLatestScriptData()->ModuleUsageBitmask |= (1 << (int32)InTargetSupportedUsage);
 	RefreshScriptViewModels();
@@ -541,13 +555,21 @@ TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 
 TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::CreateNewScriptAsDuplicate(const UNiagaraScript* ScriptToDuplicate)
 {
+
+	FScopedTransaction Transaction(LOCTEXT("CreateNewScriptDupeTransaction", "Create a new local script as duplicate."));
+
 	UObject* ScriptOuter;
 	TArray<TObjectPtr<UNiagaraScript>>* TargetScripts;
 	GetOuterAndTargetScripts(GetSystemViewModel(), ScriptOuter, TargetScripts);
 
+	if (ScriptOuter)
+	{
+		ScriptOuter->Modify();
+	}
+	
 	UNiagaraScript* NewScript = CastChecked<UNiagaraScript>(StaticDuplicateObject(ScriptToDuplicate, ScriptOuter, GetUniqueScriptName(ScriptOuter, *ScriptToDuplicate->GetFName().ToString())));
 	NewScript->ClearFlags(RF_Public | RF_Standalone);
-	ScriptOuter->Modify();
+	NewScript->SetFlags(RF_Transactional);
 	TargetScripts->Add(NewScript);
 	RefreshScriptViewModels();
 	UpdateChangeId(GetSystemViewModel());
@@ -720,6 +742,8 @@ TSharedRef<FNiagaraScratchPadScriptViewModel> UNiagaraScratchPadViewModel::Creat
 	ScriptViewModel->Initialize(ScratchPadScript, ScratchPadEditScript, SystemViewModelWeak);
 	ScriptViewModel->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptGraphNodeSelectionChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->OnRenamed().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
+	ScriptViewModel->OnPendingRename().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelScriptPendingRename, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
+
 	ScriptViewModel->OnGraphSelectionChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelGraphSelectionChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->OnPinnedChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelPinnedChanged, TWeakPtr<FNiagaraScratchPadScriptViewModel>(ScriptViewModel));
 	ScriptViewModel->OnHasUnappliedChangesChanged().AddUObject(this, &UNiagaraScratchPadViewModel::ScriptViewModelHasUnappliedChangesChanged);
@@ -740,6 +764,13 @@ void UNiagaraScratchPadViewModel::TearDownScriptViewModel(TSharedRef<FNiagaraScr
 	InScriptViewModel->OnRequestDiscardChanges().Unbind();
 	InScriptViewModel->GetVariableSelection()->OnSelectedObjectsChanged().RemoveAll(this);
 	InScriptViewModel->Finalize();
+
+	UNiagaraSystemEditorDocumentsViewModel* DocVM = GetSystemViewModel()->GetDocumentViewModel();
+	if (DocVM)
+	{
+		DocVM->CloseChildScript(InScriptViewModel->GetGraphViewModel()->GetGraph());
+	}
+
 }
 
 void UNiagaraScratchPadViewModel::RefreshEditScriptViewModels()
@@ -775,6 +806,16 @@ void UNiagaraScratchPadViewModel::ScriptGraphNodeSelectionChanged(TWeakPtr<FNiag
 	}
 }
 
+void UNiagaraScratchPadViewModel::PostUndo()
+{
+	RefreshScriptViewModels();
+	if (ObjectSelection)
+	{
+		ObjectSelection->ClearSelectedObjects();
+	}
+}
+
+
 void UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak)
 {
 	TSharedPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModel = ScriptViewModelWeak.Pin();
@@ -790,6 +831,11 @@ void UNiagaraScratchPadViewModel::ScriptViewModelScriptRenamed(TWeakPtr<FNiagara
 	{
 		GetSystemViewModel()->GetDocumentViewModel()->OpenChildScript(ScriptViewModel->GetGraphViewModel()->GetGraph());
 	}
+}
+
+void UNiagaraScratchPadViewModel::ScriptViewModelScriptPendingRename(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak)
+{
+	OnFocusNeededDelegate.Broadcast();
 }
 
 void UNiagaraScratchPadViewModel::ScriptViewModelGraphSelectionChanged(const UObject* Obj, TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak)
