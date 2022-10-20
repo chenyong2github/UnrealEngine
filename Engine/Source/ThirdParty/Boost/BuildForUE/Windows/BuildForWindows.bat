@@ -6,6 +6,9 @@
 
 setlocal EnableDelayedExpansion
 
+set BUILD_SCRIPT_LOCATION=%~dp0
+set UE_MODULE_LOCATION=%BUILD_SCRIPT_LOCATION%..\..
+
 :: Set the following variable to 1 if you already downloaded and extracted the boost sources, and you need to play around with the build configuration.
 set ALREADY_HAVE_SOURCES=0
 
@@ -44,29 +47,35 @@ if !BOOST_BUILD_LIBRARIES!==1 (
 echo.
 
 :: Set up paths and filenames.
-set PATH_SCRIPT=%~dp0
 set BOOST_VERSION_FILENAME=boost_%BOOST_VERSION:.=_%
 set BOOST_ZIP_FILE=%BOOST_VERSION_FILENAME%.zip
-set BOOST_INSTALL_PATH=%PATH_SCRIPT%..\..\boost-%BOOST_VERSION:.=_%
-set BOOST_INTERMEDIATE_PATH=..\..\..\..\..\Intermediate\ThirdParty\Boost\%BOOST_VERSION_FILENAME%
+
+set BUILD_LOCATION=%UE_MODULE_LOCATION%\Intermediate
+
+set INSTALL_INCLUDEDIR=include
+set INSTALL_LIB_DIR=lib/Win64
+
+set INSTALL_LOCATION=%UE_MODULE_LOCATION%\boost-%BOOST_VERSION:.=_%
+set INSTALL_INCLUDE_LOCATION=%INSTALL_LOCATION%\%INSTALL_INCLUDEDIR%
+set INSTALL_LIB_LOCATION=%INSTALL_LOCATION%\%INSTALL_LIB_DIR%
 
 if %ALREADY_HAVE_SOURCES%==0 (
 	:: Remove previous intermediate files to allow for a clean build.
-	if exist %BOOST_INTERMEDIATE_PATH% (
+	if exist %BUILD_LOCATION% (
 		:: Filenames in the intermediate directory are likely too long for tools like 'rmdir' to handle. Instead, we use robocopy to mirror an empty temporary folder, and then delete it.
-		echo [%time%] Deleting previous intermediate files in '%BOOST_INTERMEDIATE_PATH%'...
-		mkdir "%BOOST_INTERMEDIATE_PATH%_DELETE"
-		robocopy "%BOOST_INTERMEDIATE_PATH%_DELETE" "%BOOST_INTERMEDIATE_PATH%" /purge /W:0 /R:0 > NUL
-		rmdir "%BOOST_INTERMEDIATE_PATH%_DELETE"
-		rmdir "%BOOST_INTERMEDIATE_PATH%"
+		echo [%time%] Deleting previous intermediate files in '%BUILD_LOCATION%'...
+		mkdir "%BUILD_LOCATION%_DELETE"
+		robocopy "%BUILD_LOCATION%_DELETE" "%BUILD_LOCATION%" /purge /W:0 /R:0 > NUL
+		rmdir "%BUILD_LOCATION%_DELETE"
+		rmdir "%BUILD_LOCATION%"
 	)
 
 	:: Create intermediate directory.
-	mkdir %BOOST_INTERMEDIATE_PATH%
+	mkdir %BUILD_LOCATION%
 )
 
 :: Use intermediate directory.
-cd %BOOST_INTERMEDIATE_PATH%
+cd %BUILD_LOCATION%
 
 if %ALREADY_HAVE_SOURCES%==0 (
 	:: Download ZIP files.
@@ -80,53 +89,55 @@ if %ALREADY_HAVE_SOURCES%==0 (
 	tar -xf %BOOST_ZIP_FILE%
 	if not errorlevel 0 goto error
 ) else (
-	echo Expecting sources to already be available at '%BOOST_INTERMEDIATE_PATH%\%BOOST_VERSION_FILENAME%'.
+	echo Expecting sources to already be available at '%BUILD_LOCATION%\%BOOST_VERSION_FILENAME%'.
 )
 
 :: Build and install or just copy header files.
 cd %BOOST_VERSION_FILENAME%
 if !BOOST_BUILD_LIBRARIES!==1 (
 	:: Bootstrap before build.
-	set LOG_FILE=%BOOST_INTERMEDIATE_PATH%\%BOOST_VERSION_FILENAME%_bootstrap.log
+	set LOG_FILE=%BUILD_LOCATION%\%BOOST_VERSION_FILENAME%_bootstrap.log
 	echo [!time!] Bootstrapping Boost %BOOST_VERSION%, see '!LOG_FILE!' for details...
-	call bootstrap > !LOG_FILE!
+	call .\bootstrap.bat > !LOG_FILE! 2>&1
 	if not errorlevel 0 goto error
 		
 	:: Set tool set to current UE tool set.
-	set BOOST_TOOLSET=msvc-14.2
+	set BOOST_TOOLSET=msvc-14.3
 
 	:: Provide user config to provide tool set version and Python configuration.
-	set BOOST_PYTHON_PATH=%PATH_SCRIPT%\..\..\..\Python3\Win64
-	set BOOST_USER_CONFIG=%PATH_SCRIPT%\user-config.jam
+	set BOOST_USER_CONFIG=%BUILD_SCRIPT_LOCATION%\user-config.jam
 
 	:: Build all libraries.
-	set LOG_FILE=%BOOST_INTERMEDIATE_PATH%\%BOOST_VERSION_FILENAME%_build.log
+	set LOG_FILE=%BUILD_LOCATION%\%BOOST_VERSION_FILENAME%_build.log
 	echo [!time!] Building Boost %BOOST_VERSION%, see '!LOG_FILE!' for details...
-	.\b2 !BOOST_WITH_LIBRARIES! toolset=!BOOST_TOOLSET! --user-config=!BOOST_USER_CONFIG!^
-	    --prefix=%BOOST_INSTALL_PATH% --libdir=%BOOST_INSTALL_PATH%\lib\Win64^
-		-j8 --hash --build-type=complete --debug-configuration install^
-		address-model=64 threading=multi variant=release^
-		> !LOG_FILE!
+	.\b2.exe ^
+		--prefix=%INSTALL_LOCATION%^
+		--includedir=%INSTALL_INCLUDE_LOCATION%^
+		--libdir=%INSTALL_LIB_LOCATION%^
+		-j8^
+		address-model=64^
+		threading=multi^
+		variant=release^
+		%BOOST_WITH_LIBRARIES%^
+		--user-config=!BOOST_USER_CONFIG!^
+		--hash^
+		--build-type=complete^
+		--layout=tagged^
+		--debug-configuration^
+		toolset=!BOOST_TOOLSET!^
+		install^
+		> !LOG_FILE! 2>&1
 	if not errorlevel 0 goto error
-
-	:: Move header files out of versioned directory.
-	if exist %BOOST_INSTALL_PATH%\include (
-		pushd %BOOST_INSTALL_PATH%\include\boost-*
-	 	move boost ..\ > NUL
-	 	cd ..
-	 	for /d %%x in (boost-*) do rd /s /q "%%x"
-		popd
-	)
 ) else (
 	:: Copy header files using robocopy to prevent issues with long file paths.
-	if not exist %BOOST_INSTALL_PATH% (
-		mkdir %BOOST_INSTALL_PATH%
+	if not exist %INSTALL_LOCATION% (
+		mkdir %INSTALL_LOCATION%
 	)
-	set LOG_FILE=%BOOST_INTERMEDIATE_PATH%\%BOOST_VERSION_FILENAME%_robocopy.log
+	set LOG_FILE=%BUILD_LOCATION%\%BOOST_VERSION_FILENAME%_robocopy.log
 	echo [!time!] Copying header files, see '!LOG_FILE!' for details...
 	set HEADERS_SOURCE=boost
-	set HEADERS_DESTINATION=%BOOST_INSTALL_PATH%\include\boost
-	robocopy !HEADERS_SOURCE! !HEADERS_DESTINATION! /e > !LOG_FILE!
+	set HEADERS_DESTINATION=%INSTALL_LOCATION%\include\boost
+	robocopy !HEADERS_SOURCE! !HEADERS_DESTINATION! /e > !LOG_FILE! 2>&1
 	set ROBOCOPY_SUCCESS=false
 	if errorlevel 0 set ROBOCOPY_SUCCESS=true
 	if errorlevel 1 set ROBOCOPY_SUCCESS=true
@@ -134,7 +145,7 @@ if !BOOST_BUILD_LIBRARIES!==1 (
 )
 
 :: Print success confirmation and exit.
-echo [!time!] Boost %BOOST_VERSION% installed to '%BOOST_INSTALL_PATH%'.
+echo [!time!] Boost %BOOST_VERSION% installed to '%INSTALL_LOCATION%'.
 echo [!time!] Done.
 exit /B 0
 
@@ -157,12 +168,12 @@ echo     BuildForWindows.bat ^<version^> [^<comma-separated-library-name-list^>]
 echo.
 echo Usage examples:
 echo.
-echo     BuildForWindows.bat 1.55.0
-echo       -- Installs Boost version 1.55.0 as header-only.
+echo     BuildForWindows.bat 1.80.0
+echo       -- Installs Boost version 1.80.0 as header-only.
 echo.
-echo     BuildForWindows.bat 1.66.0 iostreams,system,thread
-echo       -- Builds and installs Boost version 1.66.0 with iostreams, system, and thread libraries.
+echo     BuildForWindows.bat 1.80.0 iostreams,system,thread
+echo       -- Builds and installs Boost version 1.80.0 with iostreams, system, and thread libraries.
 echo.
-echo     BuildForWindows.bat 1.72.0 all
-echo       -- Builds and installs Boost version 1.72.0 with all of its libraries.
+echo     BuildForWindows.bat 1.80.0 all
+echo       -- Builds and installs Boost version 1.80.0 with all of its libraries.
 exit /B 1
