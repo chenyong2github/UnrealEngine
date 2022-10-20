@@ -417,8 +417,8 @@ FAnalysisCache::~FAnalysisCache()
 	// Delete file contents wrapper
 	Contents.Reset();
 	
-	UE_LOG(LogAnalysisCache, Display, TEXT("Closing analysis cache, %0.2f Mb read, %0.2f Mb written."),
-	       Stats.BytesRead / (1024.f*1024.f), Stats.BytesWritten / (1024.f*1024.f));
+	UE_LOG(LogAnalysisCache, Display, TEXT("Closing analysis cache, %0.2f MiB read, %0.2f MiB written."),
+	       double(Stats.BytesRead) / (1024.0 * 1024.0), double(Stats.BytesWritten) / (1024.0 * 1024.0));
 }
 
 /////////////////////////////////////////////////////////////////////
