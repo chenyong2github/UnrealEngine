@@ -17,8 +17,7 @@ namespace CrossCompiler
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
-	// Inner wrapper function is required here because '__try'-statement cannot be used with function that requires object unwinding
-	static void InnerScRewriteWrapper(
+	static void ScRewriteWrapper(
 		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
 		const ShaderConductor::Compiler::Options& InOptions,
 		ShaderConductor::Compiler::ResultDesc& OutResultDesc)
@@ -26,33 +25,7 @@ namespace CrossCompiler
 		OutResultDesc = ShaderConductor::Compiler::Rewrite(InSourceDesc, InOptions);
 	}
 
-	static bool ScRewriteWrapper(
-		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
-		const ShaderConductor::Compiler::Options& InOptions,
-		ShaderConductor::Compiler::ResultDesc& OutResultDesc,
-		bool& bOutException)
-	{
-		bOutException = false;
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__try
-#endif
-		{
-			InnerScRewriteWrapper(InSourceDesc, InOptions, OutResultDesc);
-			return true;
-		}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-			FMemory::Memzero(OutResultDesc);
-			bOutException = true;
-			return false;
-		}
-#endif
-	}
-
-	// Inner wrapper function is required here because '__try'-statement cannot be used with function that requires object unwinding
-	static void InnerScCompileWrapper(
+	static void ScCompileWrapper(
 		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
 		const ShaderConductor::Compiler::Options& InOptions,
 		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
@@ -61,34 +34,7 @@ namespace CrossCompiler
 		OutResultDesc = ShaderConductor::Compiler::Compile(InSourceDesc, InOptions, InTargetDesc);
 	}
 
-	static bool ScCompileWrapper(
-		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
-		const ShaderConductor::Compiler::Options& InOptions,
-		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
-		ShaderConductor::Compiler::ResultDesc& OutResultDesc,
-		bool& bOutException)
-	{
-		bOutException = false;
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__try
-#endif
-		{
-			InnerScCompileWrapper(InSourceDesc, InOptions, InTargetDesc, OutResultDesc);
-			return true;
-		}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-			FMemory::Memzero(OutResultDesc);
-			bOutException = true;
-			return false;
-		}
-#endif
-	}
-
-	// Inner wrapper function is required here because '__try'-statement cannot be used with function that requires object unwinding
-	static void InnerScCompileWrapper(
+	static void ScConvertBinaryWrapper(
 		const ShaderConductor::Compiler::ResultDesc& InBinaryDesc,
 		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
 		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
@@ -96,33 +42,6 @@ namespace CrossCompiler
 		ShaderConductor::Compiler::ResultDesc& OutResultDesc)
 	{
 		OutResultDesc = ShaderConductor::Compiler::ConvertBinary(InBinaryDesc, InSourceDesc, InOptions, InTargetDesc);
-	}
-
-	static bool ScConvertBinaryWrapper(
-		const ShaderConductor::Compiler::ResultDesc& InBinaryDesc,
-		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
-		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
-		const ShaderConductor::Compiler::Options& InOptions,
-		ShaderConductor::Compiler::ResultDesc& OutResultDesc,
-		bool& bOutException)
-	{
-		bOutException = false;
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__try
-#endif
-		{
-			InnerScCompileWrapper(InBinaryDesc, InSourceDesc, InTargetDesc, InOptions, OutResultDesc);
-			return true;
-		}
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__except (EXCEPTION_EXECUTE_HANDLER)
-		{
-			GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-			FMemory::Memzero(OutResultDesc);
-			bOutException = true;
-			return false;
-		}
-#endif
 	}
 
 	// Converts the byte array 'InString' (without null terminator) to the output ANSI string 'OutString' (with appended null terminator).
@@ -616,11 +535,10 @@ namespace CrossCompiler
 
 		// Rewrite HLSL with wrapper function to catch exceptions from ShaderConductor
 		bool bSucceeded = false;
-		bool bException = false;
 		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		ScRewriteWrapper(ScSourceDesc, ScOptions, ResultDesc, bException);
+		ScRewriteWrapper(ScSourceDesc, ScOptions, ResultDesc);
 
-		if (!ResultDesc.hasError && !bException && ResultDesc.target.Size() > 0)
+		if (!ResultDesc.hasError && ResultDesc.target.Size() > 0)
 		{
 			// Copy rewritten HLSL code into intermediate source code.
 			ConvertByteArrayToAnsiString(reinterpret_cast<const ANSICHAR*>(ResultDesc.target.Data()), ResultDesc.target.Size(), Intermediates->ShaderSource);
@@ -631,14 +549,6 @@ namespace CrossCompiler
 				*OutSource = ANSI_TO_TCHAR(Intermediates->ShaderSource.GetData());
 			}
 			bSucceeded = true;
-		}
-		else
-		{
-			if (bException)
-			{
-				Errors.Add(TEXT("ShaderConductor exception during rewrite"));
-			}
-			bSucceeded = false;
 		}
 
 		// Append compile error and warning to output reports
@@ -662,25 +572,16 @@ namespace CrossCompiler
 
 		// Compile HLSL source code to SPIR-V
 		bool bSucceeded = false;
-		bool bException = false;
 		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		ScCompileWrapper(ScSourceDesc, ScOptions, ScTargetDesc, ResultDesc, bException);
+		ScCompileWrapper(ScSourceDesc, ScOptions, ScTargetDesc, ResultDesc);
 
-		if (!ResultDesc.hasError && !bException && ResultDesc.target.Size() > 0)
+		if (!ResultDesc.hasError && ResultDesc.target.Size() > 0)
 		{
 			// Copy result blob into output SPIR-V module
 			OutSpirv = TArray<uint32>(reinterpret_cast<const uint32*>(ResultDesc.target.Data()), ResultDesc.target.Size() / 4);
 			bSucceeded = true;
 		}
-		else
-		{
-			if (bException)
-			{
-				Errors.Add(TEXT("ShaderConductor exception during compilation"));
-			}
-			bSucceeded = false;
-		}
-
+		
 		// Append compile error and warning to output reports
 		ConvertScCompileErrors(ResultDesc.errorWarningMsg, Errors);
 
@@ -772,25 +673,16 @@ namespace CrossCompiler
 
 		// Convert the input SPIR-V into Metal high level source
 		bool bSucceeded = false;
-		bool bException = false;
 		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		ScConvertBinaryWrapper(ScBinaryDesc, ScSourceDesc, ScTargetDesc, ScOptions, ResultDesc, bException);
+		ScConvertBinaryWrapper(ScBinaryDesc, ScSourceDesc, ScTargetDesc, ScOptions, ResultDesc);
 
-		if (!ResultDesc.hasError && !bException && ResultDesc.target.Size() > 0)
+		if (!ResultDesc.hasError && ResultDesc.target.Size() > 0)
 		{
 			// Copy result blob into output SPIR-V module
 			OutputCallback(ResultDesc.target.Data(), ResultDesc.target.Size());
 			bSucceeded = true;
 		}
-		else
-		{
-			if (bException)
-			{
-				Errors.Add(TEXT("ShaderConductor exception during SPIR-V binary conversion"));
-			}
-			bSucceeded = false;
-		}
-
+	
 		// Append compile error and warning to output reports
 		if (ResultDesc.errorWarningMsg.Size() > 0)
 		{

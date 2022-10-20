@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "RequiredProgramMainCPPInclude.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderCore.h"
 #include "HAL/ExceptionHandling.h"
 #include "Interfaces/IShaderFormat.h"
@@ -107,6 +108,86 @@ static const IShaderFormat* FindShaderFormat(FName Name)
 	return nullptr;
 }
 
+#if PLATFORM_WINDOWS
+	static bool ExceptionCodeToString(DWORD ExceptionCode, FString& OutStr)
+	{
+#define EXCEPTION_CODE_CASE_STR(CODE) case CODE: OutStr = TEXT(#CODE); return true;
+		const DWORD CPlusPlusExceptionCode = 0xE06D7363;
+		switch (ExceptionCode)
+		{
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_ACCESS_VIOLATION);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_ARRAY_BOUNDS_EXCEEDED);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_BREAKPOINT);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_DATATYPE_MISALIGNMENT);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_DENORMAL_OPERAND);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_DIVIDE_BY_ZERO);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_INEXACT_RESULT);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_INVALID_OPERATION);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_OVERFLOW);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_STACK_CHECK);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_FLT_UNDERFLOW);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_GUARD_PAGE);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_ILLEGAL_INSTRUCTION);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_IN_PAGE_ERROR);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_INT_DIVIDE_BY_ZERO);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_INT_OVERFLOW);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_INVALID_DISPOSITION);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_INVALID_HANDLE);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_NONCONTINUABLE_EXCEPTION);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_PRIV_INSTRUCTION);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_SINGLE_STEP);
+			EXCEPTION_CODE_CASE_STR(EXCEPTION_STACK_OVERFLOW);
+			EXCEPTION_CODE_CASE_STR(STATUS_UNWIND_CONSOLIDATE);
+			case CPlusPlusExceptionCode: OutStr = TEXT("CPP_EXCEPTION"); return true;
+			default: return false;
+		}
+#undef EXCEPTION_CODE_CASE_STR
+	}
+
+	static int HandleException(Windows::LPEXCEPTION_POINTERS Info, FString& OutExMsg, FString& OutCallStack)
+	{
+		const DWORD AssertExceptionCode = 0x00004000;
+		FString ExCodeStr;
+		if (Info->ExceptionRecord->ExceptionCode == AssertExceptionCode)
+		{
+			// In the case of an assert the assert handler populates the GErrorHist global.
+			// This contains a readable assert message followed by a callstack; so we can use that to populate
+			// our message/callstack and save some time as well as getting the properly formatted assert message.
+			FString Assert = GErrorHist;
+			const TCHAR* CallstackStart = FCString::Strfind(GErrorHist, TEXT("0x"));
+
+			OutExMsg = FString(CallstackStart - GErrorHist, GErrorHist);
+			OutCallStack = CallstackStart;
+		}
+		else
+		{
+			if (ExceptionCodeToString(Info->ExceptionRecord->ExceptionCode, ExCodeStr))
+			{
+				OutExMsg = FString::Printf(
+					TEXT("Exception: %s, address=0x%016x\n"),
+					*ExCodeStr,
+					(uint64)Info->ExceptionRecord->ExceptionAddress);
+			}
+			else
+			{
+				OutExMsg = FString::Printf(
+					TEXT("Exception code: 0x%08x, address=0x%016x\n"),
+					Info->ExceptionRecord->ExceptionCode,
+					(uint64)Info->ExceptionRecord->ExceptionAddress);
+			}
+
+			ANSICHAR CallStack[32768];
+			FMemory::Memzero(CallStack);
+			FPlatformStackWalk::StackWalkAndDump(CallStack, ARRAYSIZE(CallStack), Info->ExceptionRecord->ExceptionAddress);
+			OutCallStack = ANSI_TO_TCHAR(CallStack);
+		}
+
+		return EXCEPTION_EXECUTE_HANDLER;
+	}
+	
+#endif
+
+
 /** Processes a compilation job. */
 static void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory)
 {
@@ -128,25 +209,45 @@ static void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompi
 		}
 	}
 
-	// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
-	double TimeStart = FPlatformTime::Seconds();
-	Compiler->CompileShader(Input.ShaderFormat, Input, Output, WorkingDirectory);
-	if (Output.bSucceeded)
+#if PLATFORM_WINDOWS
+	FString ExceptionMsg;
+	FString ExceptionCallstack;
+	__try
+#endif
 	{
-		Output.GenerateOutputHash();
-		if (Input.CompressionFormat != NAME_None)
+		// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
+		double TimeStart = FPlatformTime::Seconds();
+		Compiler->CompileShader(Input.ShaderFormat, Input, Output, WorkingDirectory);
+		if (Output.bSucceeded)
 		{
-			Output.CompressOutput(Input.CompressionFormat, Input.OodleCompressor, Input.OodleLevel);
+			Output.GenerateOutputHash();
+			if (Input.CompressionFormat != NAME_None)
+			{
+				Output.CompressOutput(Input.CompressionFormat, Input.OodleCompressor, Input.OodleLevel);
+			}
 		}
-	}
-	Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
+		Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
 
-	if (Compiler->UsesHLSLcc(Input))
+		if (Compiler->UsesHLSLcc(Input))
+		{
+			Output.bUsedHLSLccCompiler = true;
+		}
+
+		++GNumProcessedJobs;
+	}
+#if PLATFORM_WINDOWS
+	__except (HandleException(GetExceptionInformation(), ExceptionMsg, ExceptionCallstack))
 	{
-		Output.bUsedHLSLccCompiler = true;
-	}
+		Output.bSucceeded = false;
 
-	++GNumProcessedJobs;
+		FShaderCompilerError ExceptionError;
+		ExceptionError.StrippedErrorMessage = FString::Printf(
+			TEXT("Exception encountered in platform compiler: %s\nException Callstack:\n%s"), 
+			*ExceptionMsg, 
+			*ExceptionCallstack);
+		Output.Errors.Add(ExceptionError);
+	}
+#endif
 }
 
 static void UpdateFileSize(FArchive& OutputFile, int64 FileSizePosition)
@@ -1239,6 +1340,7 @@ static int32 GuardedMain(int32 argc, TCHAR* argv[], bool bDirectMode)
 	return 0;
 }
 
+
 static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOutputFile, bool bDirectMode)
 {
 	FTaskTagScope Scope(ETaskTag::EGameThread);
@@ -1269,13 +1371,15 @@ static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOut
 	{
 		// Don't want 32 dialogs popping up when SCW fails
 		GUseCrashReportClient = false;
+		FString ExceptionMsg;
+		FString ExceptionCallStack;
 		__try
 		{
 			GIsGuarded = 1;
 			ReturnCode = GuardedMain(ArgC, ArgV, bDirectMode);
 			GIsGuarded = 0;
 		}
-		__except(EXCEPTION_EXECUTE_HANDLER)
+		__except(HandleException(GetExceptionInformation(), ExceptionMsg, ExceptionCallStack))
 		{
 			FArchive& OutputFile = *IFileManager::Get().CreateFileWriter(CrashOutputFile, FILEWRITE_EvenIfReadOnly);
 
@@ -1292,8 +1396,9 @@ static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOut
 					GFailedErrorCode = ESCWErrorCode::GeneralCrash;
 				}
 			}
-			int64 FileSizePosition = WriteOutputFileHeader(OutputFile, (int32)GFailedErrorCode, FCString::Strlen(GErrorHist), GErrorHist,
-				FCString::Strlen(GErrorExceptionDescription), GErrorExceptionDescription);
+			
+			int64 FileSizePosition = WriteOutputFileHeader(OutputFile, (int32)GFailedErrorCode, ExceptionCallStack.Len(), *ExceptionCallStack,
+				ExceptionMsg.Len(), *ExceptionMsg);
 
 			int32 NumBatches = 0;
 			OutputFile << NumBatches;

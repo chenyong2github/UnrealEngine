@@ -442,54 +442,9 @@ static bool GetD3DCompilerFuncs(const FString& NewCompilerPath, pD3DCompile* Out
 	return false;
 }
 
-static const char* Win32SehExceptionToString(DWORD Code)
+static int D3DExceptionFilter(bool bCatchException)
 {
-#define CASE_TO_STRING(IDENT) case IDENT: return #IDENT
-
-	switch (Code)
-	{
-		CASE_TO_STRING(EXCEPTION_ACCESS_VIOLATION);
-		CASE_TO_STRING(EXCEPTION_ARRAY_BOUNDS_EXCEEDED);
-		CASE_TO_STRING(EXCEPTION_BREAKPOINT);
-		CASE_TO_STRING(EXCEPTION_DATATYPE_MISALIGNMENT);
-		CASE_TO_STRING(EXCEPTION_FLT_DENORMAL_OPERAND);
-		CASE_TO_STRING(EXCEPTION_FLT_DIVIDE_BY_ZERO);
-		CASE_TO_STRING(EXCEPTION_FLT_INEXACT_RESULT);
-		CASE_TO_STRING(EXCEPTION_FLT_INVALID_OPERATION);
-		CASE_TO_STRING(EXCEPTION_FLT_OVERFLOW);
-		CASE_TO_STRING(EXCEPTION_FLT_STACK_CHECK);
-		CASE_TO_STRING(EXCEPTION_FLT_UNDERFLOW);
-		CASE_TO_STRING(EXCEPTION_GUARD_PAGE);
-		CASE_TO_STRING(EXCEPTION_ILLEGAL_INSTRUCTION);
-		CASE_TO_STRING(EXCEPTION_IN_PAGE_ERROR);
-		CASE_TO_STRING(EXCEPTION_INT_DIVIDE_BY_ZERO);
-		CASE_TO_STRING(EXCEPTION_INT_OVERFLOW);
-		CASE_TO_STRING(EXCEPTION_INVALID_DISPOSITION);
-		CASE_TO_STRING(EXCEPTION_INVALID_HANDLE);
-		CASE_TO_STRING(EXCEPTION_NONCONTINUABLE_EXCEPTION);
-		CASE_TO_STRING(EXCEPTION_PRIV_INSTRUCTION);
-		CASE_TO_STRING(EXCEPTION_SINGLE_STEP);
-		CASE_TO_STRING(EXCEPTION_STACK_OVERFLOW);
-		CASE_TO_STRING(STATUS_UNWIND_CONSOLIDATE);
-		default: return nullptr;
-	}
-
-#undef CASE_TO_STRING
-}
-
-struct FD3DExceptionInfo
-{
-	uint32 Code;
-	uint64 Base;
-	uint64 Address;
-};
-
-static int D3DExceptionFilter(DWORD Code, LPEXCEPTION_POINTERS InInfo, FD3DExceptionInfo& OutInfo)
-{
-	OutInfo.Code = InInfo->ExceptionRecord->ExceptionCode;
-	OutInfo.Base = (uint64)GetModuleHandle(NULL);
-	OutInfo.Address = (uint64)InInfo->ExceptionRecord->ExceptionAddress;
-	return EXCEPTION_EXECUTE_HANDLER;
+	return bCatchException ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH;
 }
 
 static HRESULT D3DCompileWrapper(
@@ -505,8 +460,7 @@ static HRESULT D3DCompileWrapper(
 	uint32					Flags2,
 	ID3DBlob**				ppCode,
 	ID3DBlob**				ppErrorMsgs,
-	bool&					bOutException,
-	FD3DExceptionInfo&		OutExceptionInfo
+	bool					bCatchException = false
 	)
 {
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
@@ -528,10 +482,9 @@ static HRESULT D3DCompileWrapper(
 		);
 	}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-	__except(D3DExceptionFilter(GetExceptionCode(), GetExceptionInformation(), OutExceptionInfo))
+	__except(D3DExceptionFilter(bCatchException))
 	{
 		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
-		bOutException = true;
 		return E_FAIL;
 	}
 #endif
@@ -706,9 +659,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 
 	if (D3DCompileFunc)
 	{
-		bool bException = false;
-		FD3DExceptionInfo ExceptionInfo{};
-
 		const bool bHlslVersion2021 = Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
 		const bool bPrecompileWithDXC = bHlslVersion2021 || Input.Environment.CompilerFlags.Contains(CFLAG_PrecompileWithDXC);
 		if (!bPrecompileWithDXC)
@@ -726,20 +676,16 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				0,
 				Shader.GetInitReference(),
 				Errors.GetInitReference(),
-				bException,
-				ExceptionInfo
+				// We only want to catch the exception on initial FXC compiles so we can retry with a 
+				// DXC precompilation step. If it fails again on the second attempt then we let
+				// ShaderCompileWorker handle the exception and log an error.
+				/* bCatchException */ true
 			);
 		}
 
 		// Some materials give FXC a hard time to optimize and the compiler fails with an internal error.
-		if (bPrecompileWithDXC || Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) || Result == E_OUTOFMEMORY || bException || (Result != S_OK && CompileErrorsContainInternalError(Errors.GetReference())))
+		if (bPrecompileWithDXC || Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) || Result == E_OUTOFMEMORY || Result == E_FAIL || (Result != S_OK && CompileErrorsContainInternalError(Errors.GetReference())))
 		{
-			if (bPrecompileWithDXC)
-			{
-				// Let the user know this shader had to be cross-compiled due to a crash in FXC. Only shows up if CVar 'r.ShaderDevelopmentMode' is enabled.
-				Output.Errors.Add(FShaderCompilerError(FString::Printf(TEXT("Cross-compiled shader to intermediate HLSL as pre-compile step for FXC: %s"), *Input.GenerateShaderName())));
-			}
-
 			CrossCompiler::FShaderConductorContext CompilerContext;
 
 			// Load shader source into compiler context
@@ -804,9 +750,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				CompileFlags & (~D3DCOMPILE_WARNINGS_ARE_ERRORS),
 				0,
 				Shader.GetInitReference(),
-				Errors.GetInitReference(),
-				bException,
-				ExceptionInfo
+				Errors.GetInitReference()
 			);
 
 			if (!bPrecompileWithDXC && SUCCEEDED(Result))
@@ -814,30 +758,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				// Let the user know this shader had to be cross-compiled due to a crash in FXC. Only shows up if CVar 'r.ShaderDevelopmentMode' is enabled.
 				Output.Errors.Add(FShaderCompilerError(FString::Printf(TEXT("Cross-compiled shader to intermediate HLSL after first attempt crashed FXC: %s"), *Input.GenerateShaderName())));
 			}
-		}
-
-		if (bException)
-		{
-			const char* CodeName = Win32SehExceptionToString(ExceptionInfo.Code);
-			const FString CodeNameStr = (CodeName != nullptr ? ANSI_TO_TCHAR(CodeName) : TEXT("Unknown"));
-			FilteredErrors.Add(
-				FString::Printf(
-					TEXT("D3DCompile exception: Code = 0x%08X (%s), Address = 0x%016llX, Offset = 0x%016llX, Codebase = 0x%016llX"),
-					ExceptionInfo.Code,
-					*CodeNameStr,
-					ExceptionInfo.Address,
-					(ExceptionInfo.Address - ExceptionInfo.Base),
-					ExceptionInfo.Base
-				)
-			);
-
-			// Dump input shader source on exception to be able to investigate issue through logs on CIS servers
-			FString DumpedSource;
-			DumpedSource = PreprocessedShaderSource;
-			DumpedSource += TEXT("\n#if 0 /*DIRECT COMPILE*/\n");
-			DumpedSource += CreateShaderCompilerWorkerDirectCommandLine(Input);
-			DumpedSource += TEXT("\n#endif /*DIRECT COMPILE*/\n");
-			Output.OptionalPreprocessedShaderSource = MoveTemp(DumpedSource);
 		}
 	}
 	else
