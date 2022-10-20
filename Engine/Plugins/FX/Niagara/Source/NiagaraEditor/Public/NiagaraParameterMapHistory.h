@@ -118,6 +118,8 @@ public:
 	FNiagaraParameterMapHistory();
 
 	ENiagaraScriptUsage OriginatingScriptUsage;
+	FGuid UsageGuid;
+	FName UsageName;
 
 	/** The variables that have been identified during the traversal. */
 	TArray<FNiagaraVariable> Variables;
@@ -182,7 +184,7 @@ public:
 	*/
 	int32 RegisterParameterMapPin(const UEdGraphPin* Pin);
 
-	void RegisterConstantVariableWrite(const FString& InValue, int32 InVarIdx, bool bIsSettingDefault);
+	void RegisterConstantVariableWrite(const FString& InValue, int32 InVarIdx, bool bIsSettingDefault, bool bIsLinkNotValue);
 
 	uint32 BeginNodeVisitation(const UNiagaraNode* Node);
 	void EndNodeVisitation(uint32 IndexFromBeginNode);
@@ -364,7 +366,7 @@ public:
 	int32 RegisterParameterMapPin(int32 WhichParameterMap, const UEdGraphPin* Pin);
 
 	int32 RegisterConstantPin(int32 WhichConstant, const UEdGraphPin* Pin);
-	int32 RegisterConstantVariableWrite(int32 WhichParamMapIdx, int32 WhichConstant, int32 WhichVarIdx, bool bIsSettingDefault);
+	int32 RegisterConstantVariableWrite(int32 WhichParamMapIdx, int32 WhichConstant, int32 WhichVarIdx, bool bIsSettingDefault, bool bLinkNotValue);
 
 	int32  RegisterConstantFromInputPin(const UEdGraphPin* InputPin);
 
@@ -498,8 +500,8 @@ public:
 	bool GetIgnoreDisabled() const { return bIgnoreDisabled; }
 	void SetIgnoreDisabled(bool bInIgnore) { bIgnoreDisabled = bInIgnore; }
 
-	bool IsInEncounteredFunctionNamespace(FNiagaraVariable& InVar) const;
-	bool IsInEncounteredEmitterNamespace(FNiagaraVariable& InVar) const;
+	bool IsInEncounteredFunctionNamespace(const FNiagaraVariable& InVar) const;
+	bool IsInEncounteredEmitterNamespace(const FNiagaraVariable& InVar) const;
 
 	/** Register any user or other external variables that could possibly be encountered but may not be declared explicitly. */
 	void RegisterEncounterableVariables(TConstArrayView<FNiagaraVariable> Variables);
@@ -517,6 +519,7 @@ public:
 	int32 FindStaticVariable(const FNiagaraVariable& Var) const;
 
 	TArray<FNiagaraVariable> StaticVariables;
+	TArray<bool> StaticVariableExportable; // Should we export out these static variables to calling context?
 
 	void GetContextuallyVisitedNodes(TArray<const class UNiagaraNode*>& OutVistedNodes)
 	{
@@ -524,6 +527,10 @@ public:
 			OutVistedNodes.Append(ContextuallyVisitedNodes.Last());
 	}
 protected:
+	/** Internal helper function to decide whether or not we should use this static variable when merging with other
+		graph traversal static variables, like Emitter graphs merging with System graphs. */
+	bool IsStaticVariableExportableToOuterScopeBasedOnCurrentContext(const FNiagaraVariable& Var) const;
+
 	/**
 	* Generate the internal alias map from the current traversal state.
 	*/

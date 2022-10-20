@@ -262,6 +262,62 @@ UNiagaraDataInterface* FNiagaraCompileRequestDuplicateData::GetDuplicatedDataInt
 	return nullptr;
 }
 
+void FNiagaraCompileRequestData::SortOutputNodesByDependencies(TArray<class UNiagaraNodeOutput*>& NodesToSort, const TArray<class UNiagaraSimulationStageBase*>* SimStages)
+{
+	if (!SimStages)
+		return;
+
+	TArray<class UNiagaraNodeOutput*> NewArray;
+	NewArray.Reserve(NodesToSort.Num());
+
+	// First gather up the non-simstage items
+	bool bFoundAnySimStages = false;
+	for (class UNiagaraNodeOutput* OutputNode : NodesToSort)
+	{
+		// Add any non sim stage entries back to the array in the order of encounter
+		if (OutputNode->GetUsage() != ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			NewArray.Emplace(OutputNode);
+		}
+		else
+		{
+			bFoundAnySimStages = true;
+		}
+	}
+
+	// No Sim stages, no problem! Just return
+	if (!bFoundAnySimStages)
+	{
+		return;
+	}
+
+	ensure(SimStages->Num() == (NodesToSort.Num() - NewArray.Num()));
+
+	// Add any sim stage entries back to the array in the order of encounter in the SimStage entry list from the Emitter (Handles reordering)
+	for (const UNiagaraSimulationStageBase* Stage : *SimStages)
+	{
+		if (Stage && Stage->Script)
+		{
+			const FGuid & StageId = Stage->Script->GetUsageId();
+
+			for (class UNiagaraNodeOutput* OutputNode : NodesToSort)
+			{
+				if (OutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && OutputNode->GetUsageId() == StageId)
+				{
+					NewArray.Emplace(OutputNode);
+					break;
+				}
+			}
+		}
+	}
+
+	ensure(NodesToSort.Num() == NewArray.Num());
+
+	// Copy out final results
+	NodesToSort = NewArray;
+}
+
+
 FName FNiagaraCompileRequestData::ResolveEmitterAlias(FName VariableName) const
 {
 	return FNiagaraParameterMapHistory::ResolveEmitterAlias(VariableName, EmitterUniqueName);
@@ -509,6 +565,7 @@ void FNiagaraCompileRequestData::CompareAgainst(FNiagaraGraphCachedBuiltHistory*
 	}
 }
 
+
 void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, const TArray<FNiagaraVariable>& InStaticVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const TArray<class UNiagaraSimulationStageBase*>* SimStages, const TArray<FString> EmitterNames)
 {
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -521,6 +578,8 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 		{
 			Source->NodeGraph->FindOutputNodes(OutputNodes);
 		}
+
+		SortOutputNodesByDependencies(OutputNodes, SimStages);
 
 		bool bFilterByEmitterAlias = true;
 		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
@@ -584,6 +643,8 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 				for (FNiagaraParameterMapHistory& History : Builder.Histories)
 				{
 					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
+					History.UsageGuid = FoundOutputNode->ScriptTypeId;
+					History.UsageName = SimStageName;
 					for (int32 i = 0; i < History.Variables.Num(); i++)
 					{
 						FNiagaraVariable& Var = History.Variables[i];
@@ -595,6 +656,36 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 
 						if (Var.GetType().IsStatic())
 						{
+							int32 NumValues = 0;
+							int32 LastIndex = INDEX_NONE;
+
+							// The logic for the static variables array adds the full payload static variable to the builder list. This will result
+							// in duplicates with the same name and type, but *different* value payloads. We detect this and error out.
+							for (int32 StaticIdx = 0; StaticIdx < Builder.StaticVariables.Num(); StaticIdx++)
+							{
+								const FNiagaraVariable& BuilderVar = Builder.StaticVariables[StaticIdx];
+								if (Var == BuilderVar) // operator == ignores the value field, which is what we want here 
+								{
+									if (NumValues == 0)
+									{
+										LastIndex = StaticIdx;
+										NumValues++;
+									}
+									else if (LastIndex != INDEX_NONE && !BuilderVar.HoldsSameData(Builder.StaticVariables[LastIndex]))
+									{
+										if (UNiagaraScript::LogCompileStaticVars > 0)
+										{
+											UE_LOG(LogNiagaraEditor, Log, TEXT("Mismatch in static vars %s: \"%s\" vs \"%s\""), *BuilderVar.GetName().ToString(),
+												*BuilderVar.ToString(), *Builder.StaticVariables[LastIndex].ToString());
+										}
+
+										StaticVariablesWithMultipleWrites.AddUnique(Var);
+										NumValues++;
+										break;
+									}
+								} 
+							}
+
 							if (History.PerVariableConstantValue[i].Num() > 1)
 							{
 								StaticVariablesWithMultipleWrites.AddUnique(Var);
@@ -623,14 +714,23 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					UE_LOG(LogNiagaraEditor, Log, TEXT("Builder.StaticVariables After Param Map Traversal............................"));
 				}
 
-				for (const FNiagaraVariable& Var : Builder.StaticVariables)
+				for (int32 StaticIdx = 0; StaticIdx < Builder.StaticVariables.Num(); StaticIdx++)
 				{
-					StaticVariables.AddUnique(Var);
+					const FNiagaraVariable& Var = Builder.StaticVariables[StaticIdx];
+					bool bProcess = Builder.StaticVariableExportable[StaticIdx];			
 
 					if (UNiagaraScript::LogCompileStaticVars > 0)
 					{
-						UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *Var.ToString());
+						UE_LOG(LogNiagaraEditor, Log, TEXT("%s > %s"), *Var.ToString(), bProcess ? TEXT("EXPORT") : TEXT("SkipExport"));
 					}
+
+					if (!bProcess)
+					{
+						continue;
+					}
+
+					StaticVariables.AddUnique(Var);
+
 				}
 
 				if (UNiagaraScript::LogCompileStaticVars > 0)
@@ -734,6 +834,8 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 		NodeGraphDeepCopy->FindOutputNodes(OutputNodes);
 	}
 
+	FNiagaraCompileRequestData::SortOutputNodesByDependencies(OutputNodes, SimStages);
+
 	for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
 	{
 		FName SimStageName;
@@ -777,6 +879,8 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 			for (FNiagaraParameterMapHistory& History : Builder.Histories)
 			{
 				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
+				History.UsageGuid = FoundOutputNode->ScriptTypeId;
+				History.UsageName = SimStageName;
 				for (int32 VarIdx = 0; VarIdx < History.Variables.Num(); VarIdx++)
 				{
 					const FNiagaraVariable& Var = History.Variables[VarIdx];

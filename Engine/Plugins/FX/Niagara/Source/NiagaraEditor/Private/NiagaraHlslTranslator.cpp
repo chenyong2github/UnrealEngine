@@ -5282,13 +5282,8 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 					else 
 					{
 						if (Var.GetType().IsStatic())
-						{
-							if (Var.GetName().ToString().Contains("MathFun"))
-							{
-								UE_LOG(LogNiagaraEditor, Log, TEXT("A"));
-							}
-
-							bool bAllSame = true;//CompileDataStaticVariablesWithMultipleWrites;
+						{	
+							bool bAllSame = true;
 							int32 FoundOverrideIdx = CompileData->StaticVariablesWithMultipleWrites.IndexOfByPredicate([&](const FNiagaraVariable& InObj) -> bool
 								{
 									return (InObj.GetName() == Var.GetName());
@@ -5745,10 +5740,20 @@ void FHlslNiagaraTranslator::SetConstantByStaticVariable(int32& OutValue, const 
 		const FString* ConstantPtr = CompileData->PinToConstantValues.Find(PinHandle);
 		if (ConstantPtr != nullptr)
 		{
-			TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(Var.GetType());
-			if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults())
+			FNiagaraVariable SearchVar(Var.GetType(), *(*ConstantPtr));
+			int32 StaticVarSearchIdx = CompileData->StaticVariables.Find(SearchVar);
+
+			if (StaticVarSearchIdx == -1)
 			{
-				TypeEditorUtilities->SetValueFromPinDefaultString(*ConstantPtr, VarWithValue);
+				TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(Var.GetType());
+				if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults())
+				{
+					TypeEditorUtilities->SetValueFromPinDefaultString(*ConstantPtr, VarWithValue);
+				}
+			}
+			else
+			{
+				VarWithValue = CompileData->StaticVariables[StaticVarSearchIdx];
 			}
 		}
 
@@ -6129,7 +6134,19 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 				{
 					if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !Var.IsInNameSpace(FNiagaraConstants::UserNamespaceString))
 					{
+						// Register an external dependency...
 						RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), GetNode, OutputPins[i], true, ParamMapHistoryIdx);
+					}
+				}
+				else if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !Var.IsInNameSpace(FNiagaraConstants::UserNamespaceString) && !Var.IsInNameSpace(FNiagaraConstants::ModuleNamespaceString))
+				{
+					// Check for an internal dependency
+					bool bFailIfNotSet = false;
+					FNiagaraVariable TestVar = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
+					ValidateFailIfPreviouslyNotSet(TestVar, bFailIfNotSet);
+					if (bFailIfNotSet)
+					{
+						RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), GetNode, nullptr, false, ParamMapHistoryIdx);
 					}
 				}
 
@@ -6152,6 +6169,45 @@ int32 FHlslNiagaraTranslator::MakeStaticVariableDirect(const UEdGraphPin* InDefa
 	AddBodyComment(TEXT("//SetConstantByStaticVariable \"") + DebugStr + TEXT("\""));
 	return GetConstantDirect(Constant);
 }
+
+void FHlslNiagaraTranslator::ValidateFailIfPreviouslyNotSet(const FNiagaraVariable& InVar, bool& bFailIfNotSet)
+{
+	bFailIfNotSet = false;
+	FNiagaraVariable SearchVar = InVar;
+	if (FNiagaraParameterMapHistory::IsInitialValue(InVar))
+	{
+		SearchVar = FNiagaraParameterMapHistory::GetSourceForInitialValue(InVar);
+	}
+	else if (FNiagaraParameterMapHistory::IsPreviousValue(InVar))
+	{
+		SearchVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(InVar);
+	}
+
+	FVarAndDefaultSource* ParamMapDefinedVarAndDefaultSource = ParamMapDefinedAttributesToNamespaceVars.Find(SearchVar.GetName());
+	bool bSetPreviously = ParamMapDefinedVarAndDefaultSource != nullptr && ParamMapDefinedVarAndDefaultSource->bDefaultExplicit;
+	for (int32 OtherParamIdx = 0; OtherParamIdx < OtherOutputParamMapHistories.Num() && !bSetPreviously; OtherParamIdx++)
+	{
+		// Stop if this is already in our evaluation chain. Assume only indices above us are valid sourcers for this.
+		if (ParamMapHistoriesSourceInOtherHistories.Contains(OtherParamIdx))
+			break;
+
+		int32 FoundInParamIdx = OtherOutputParamMapHistories[OtherParamIdx].FindVariableByName(SearchVar.GetName());
+		if (INDEX_NONE != FoundInParamIdx)
+		{
+			for (const FModuleScopedPin& ScopedPin : OtherOutputParamMapHistories[OtherParamIdx].PerVariableWriteHistory[FoundInParamIdx])
+			{
+				if (ScopedPin.Pin->Direction == EEdGraphPinDirection::EGPD_Input && ScopedPin.Pin->bHidden == false)
+				{
+					bSetPreviously = true;
+					break;
+				}
+			}
+		}
+	}
+	if (!bSetPreviously && !UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage))
+		bFailIfNotSet = true;
+}
+
 
 void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& InVar, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, TOptional<ENiagaraDefaultMode> DefaultMode, TOptional<FNiagaraScriptVariableBinding> DefaultBinding, bool bTreatAsUnknownParameterMap, bool bIgnoreDefaultSetFirst)
 {
@@ -6263,39 +6319,7 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 	if (bValidateFailIfPreviouslyNotSet)
 	{
-		FNiagaraVariable SearchVar = Var;
-		if (FNiagaraParameterMapHistory::IsInitialValue(Var))
-		{
-			SearchVar = FNiagaraParameterMapHistory::GetSourceForInitialValue(Var);
-		}
-		else if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
-		{
-			SearchVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var);
-		}
-
-		FVarAndDefaultSource* ParamMapDefinedVarAndDefaultSource = ParamMapDefinedAttributesToNamespaceVars.Find(SearchVar.GetName());
-		bool bSetPreviously = ParamMapDefinedVarAndDefaultSource != nullptr && ParamMapDefinedVarAndDefaultSource->bDefaultExplicit;
-		for (int32 OtherParamIdx = 0; OtherParamIdx < OtherOutputParamMapHistories.Num() && !bSetPreviously; OtherParamIdx++)
-		{
-			// Stop if this is already in our evaluation chain. Assume only indices above us are valid sourcers for this.
-			if (ParamMapHistoriesSourceInOtherHistories.Contains(OtherParamIdx))
-				break;
-
-			int32 FoundInParamIdx = OtherOutputParamMapHistories[OtherParamIdx].FindVariableByName(SearchVar.GetName());
-			if (INDEX_NONE != FoundInParamIdx)
-			{
-				for (const FModuleScopedPin& ScopedPin : OtherOutputParamMapHistories[OtherParamIdx].PerVariableWriteHistory[FoundInParamIdx])
-				{
-					if (ScopedPin.Pin->Direction == EEdGraphPinDirection::EGPD_Input && ScopedPin.Pin->bHidden == false)
-					{
-						bSetPreviously = true;
-						break;
-					}
-				}
-			}
-		}
-		if (!bSetPreviously && !UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage))
-			bFailIfPreviouslyNotSetSentinel = true;
+		ValidateFailIfPreviouslyNotSet(Var, bFailIfPreviouslyNotSetSentinel);
 	}
 
 	
@@ -7237,7 +7261,7 @@ void FHlslNiagaraTranslator::CullMapSetInputPin(UEdGraphPin* InputPin)
 }
 
 // From a valid list of namespaces, resolve any aliased tokens and promote namespaced variables without a main namespace to the input parameter map instance namespace
-void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& ParameterMapInstanceNamespace, TArray<FString>& Tokens, TArray<FString>& ValidChildNamespaces, FNiagaraParameterMapHistoryBuilder& Builder, TArray<FNiagaraVariable>& UniqueParameterMapEntriesAliasesIntact, TArray<FNiagaraVariable>& UniqueParameterMapEntries, int32 ParamMapHistoryIdx)
+void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& ParameterMapInstanceNamespace, TArray<FString>& Tokens, TArray<FString>& ValidChildNamespaces, FNiagaraParameterMapHistoryBuilder& Builder, TArray<FNiagaraVariable>& UniqueParameterMapEntriesAliasesIntact, TArray<FNiagaraVariable>& UniqueParameterMapEntries, int32 ParamMapHistoryIdx, UNiagaraNode* InNodeForErrorReporting)
 {
 	for (int32 i = 0; i < Tokens.Num(); i++)
 	{
@@ -7289,7 +7313,7 @@ void FHlslNiagaraTranslator::FinalResolveNamespacedTokens(const FString& Paramet
 						}
 						if (!bAdded && !UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage)) // Don't warn in modules, they don't have enough context.
 						{
-							Error(FText::Format(LOCTEXT("GetCustomFail1", "Cannot use variable in custom expression, it hasn't been encountered yet: {0}"), FText::FromName(Var.GetName())), nullptr, nullptr);
+							Error(FText::Format(LOCTEXT("GetCustomFail1", "Cannot use variable in custom expression, it hasn't been encountered yet: {0}"), FText::FromName(Var.GetName())), InNodeForErrorReporting, nullptr);
 						}
 
 					}
@@ -7714,7 +7738,7 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 
 		TArray<FNiagaraVariable> UniqueParamMapEntries;
 		TArray<FNiagaraVariable> UniqueParamMapEntriesAliasesIntact;
-		FinalResolveNamespacedTokens(GetParameterMapInstanceName(0) + TEXT("."), Tokens, PossibleNamespaces, ActiveHistoryForFunctionCalls, UniqueParamMapEntriesAliasesIntact, UniqueParamMapEntries, ParamMapHistoryIdx);
+		FinalResolveNamespacedTokens(GetParameterMapInstanceName(0) + TEXT("."), Tokens, PossibleNamespaces, ActiveHistoryForFunctionCalls, UniqueParamMapEntriesAliasesIntact, UniqueParamMapEntries, ParamMapHistoryIdx, InNodeForErrorReporting);
 
 		// We must register any external constant variables that we encountered.
 		for (int32 VarIdx = 0; VarIdx < UniqueParamMapEntriesAliasesIntact.Num(); VarIdx++)

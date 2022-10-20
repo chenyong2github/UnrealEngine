@@ -1814,18 +1814,25 @@ struct FNiagaraVariableBase
 
 	FORCEINLINE bool IsInNameSpace(const FStringView& Namespace) const
 	{
-		TStringBuilder<128> NameString;
+		FNameBuilder NameString;
 		Name.ToString(NameString);
 		
 		FStringView NameStringView = NameString.ToView();
-		return (NameStringView.Len() > Namespace.Len() + 1) && (NameStringView[Namespace.Len()] == '.') && NameStringView.StartsWith(Namespace);
+		if (Namespace.Len() > 1 && Namespace[Namespace.Len() - 1] == '.') // Includes period in namespace
+		{
+			return (NameStringView.Len() > Namespace.Len()) && NameStringView.StartsWith(Namespace);
+		}
+		else // Skips period, makes sure it's in the name string to delineate
+		{
+			return (NameStringView.Len() > Namespace.Len() + 1) && (NameStringView[Namespace.Len()] == '.') && NameStringView.StartsWith(Namespace);
+		}
 	}
 
 #if WITH_EDITORONLY_DATA
 	// This method should not be used at runtime as we have pre-defined strings in FNiagaraConstants for runtime cases
 	FORCEINLINE bool IsInNameSpace(const FName& Namespace) const
 	{
-		TStringBuilder<128> NamespaceString;
+		FNameBuilder NamespaceString;
 		Namespace.ToString(NamespaceString);
 		return IsInNameSpace(NamespaceString.ToView());
 	}

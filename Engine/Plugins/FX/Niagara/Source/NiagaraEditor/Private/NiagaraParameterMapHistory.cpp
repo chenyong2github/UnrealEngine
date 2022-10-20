@@ -44,6 +44,38 @@ static FAutoConsoleVariableRef CVarNiagaraForcePrecompilerCullDataset(
 	ECVF_Default
 );
 
+//#define NIAGARA_SHOULD_DO_PER_VARIABLE_SUBSTRING_MATCH_LOGGING 1
+#if defined(NIAGARA_SHOULD_DO_PER_VARIABLE_SUBSTRING_MATCH_LOGGING)
+static TArray<FString> CheckTheseNameSubstrings;// = { TEXT("XXXX") };
+
+bool NiagaraDebugShouldLogEntriesByNameSubstring(const FString& InNameStr)
+{
+	for (const FString& Str : CheckTheseNameSubstrings)
+	{
+		if (InNameStr.EndsWith(Str))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+bool NiagaraDebugShouldLogEntriesByNameSubstring(const FName& InName)
+{
+	if (CheckTheseNameSubstrings.Num() == 0)
+	{
+		return false;
+	}
+	
+	FString NameStr = InName.ToString();
+	return NiagaraDebugShouldLogEntriesByNameSubstring(NameStr);
+}
+#else
+
+#define NiagaraDebugShouldLogEntriesByNameSubstring(expr) (false) // Because the code may do specific allocations, we want to bypass the expression
+
+#endif
+
 void FGraphTraversalHandle::Push(const UEdGraphNode* Node)
 {
 	ensure(Node->NodeGuid.IsValid());
@@ -193,7 +225,7 @@ void FNiagaraParameterMapHistory::RegisterConstantPin(const FGraphTraversalHandl
 		}
 		PinToConstantValues.Add(Handle, InValue);
 
-		if (UNiagaraScript::LogCompileStaticVars > 0)
+		if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(Handle.ToString(true)))
 		{
 			UE_LOG(LogNiagaraEditor, Log, TEXT("RegisterConstantPin \"%s\" Pin: \"%s\""), *InValue, *Handle.ToString(true));
 		}
@@ -201,7 +233,7 @@ void FNiagaraParameterMapHistory::RegisterConstantPin(const FGraphTraversalHandl
 }
 
 
-void FNiagaraParameterMapHistory::RegisterConstantVariableWrite(const FString& InValue, int32 VarIdx, bool bIsSettingDefault)
+void FNiagaraParameterMapHistory::RegisterConstantVariableWrite(const FString& InValue, int32 VarIdx, bool bIsSettingDefault, bool bLinkNotValue)
 {
 	
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -210,7 +242,7 @@ void FNiagaraParameterMapHistory::RegisterConstantVariableWrite(const FString& I
 	{
 		PerVariableConstantValue[VarIdx].AddUnique(InValue);
 
-		if (UNiagaraScript::LogCompileStaticVars > 0)
+		if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(Variables[VarIdx].GetName().ToString()))
 		{
 			UE_LOG(LogNiagaraEditor, Log, TEXT("RegisterConstantVariableWrite Value \"%s\" Var: \"%s\""), *InValue, *Variables[VarIdx].GetName().ToString());
 		}
@@ -219,7 +251,7 @@ void FNiagaraParameterMapHistory::RegisterConstantVariableWrite(const FString& I
 	{
 		PerVariableConstantDefaultValue[VarIdx].AddUnique(InValue);
 
-		if (UNiagaraScript::LogCompileStaticVars > 0)
+		if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(Variables[VarIdx].GetName().ToString()))
 		{
 			UE_LOG(LogNiagaraEditor, Log, TEXT("RegisterConstantVariableWrite Default \"%s\" Var: \"%s\""), *InValue, *Variables[VarIdx].GetName().ToString());
 		}
@@ -423,11 +455,19 @@ bool FNiagaraParameterMapHistory::IsInNamespace(const FNiagaraVariableBase& InVa
 {
 	if (Namespace.EndsWith(TEXT(".")))
 	{
-		return InVar.GetName().ToString().StartsWith(Namespace);
+		bool FastTest = InVar.IsInNameSpace(Namespace);
+		// Leaving old code commented out for now just as a reference to what was before.
+		//bool SlowTest =  InVar.GetName().ToString().StartsWith(Namespace);
+		//check(FastTest == SlowTest);
+		return FastTest;
 	}
 	else
 	{
-		return InVar.GetName().ToString().StartsWith(Namespace + TEXT("."));
+		bool FastTest = InVar.IsInNameSpace(Namespace); // This should check to see if there is a period in the name of the variable after the namespace string.
+		// Leaving old code commented out for now just as a reference to what was before.
+		//bool SlowTest = InVar.GetName().ToString().StartsWith(Namespace + TEXT("."));
+		//check(FastTest == SlowTest);
+		return FastTest;
 	}
 }
 
@@ -973,7 +1013,24 @@ int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantPin(int32 WhichConstan
 	}
 }
 
-int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantVariableWrite(int32 WhichParamMapIdx, int32 WhichConstant,  int32 WhichVarIdx, bool bIsSettingDefault)
+bool FNiagaraParameterMapHistoryBuilder::IsStaticVariableExportableToOuterScopeBasedOnCurrentContext(const FNiagaraVariable& Var) const
+{
+	if ((IsInEncounteredEmitterNamespace(Var) || FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var)) && (ContextContains(ENiagaraScriptUsage::EmitterSpawnScript) || ContextContains(ENiagaraScriptUsage::EmitterUpdateScript)))
+	{
+		return true;
+	}
+	else if (FNiagaraParameterMapHistory::IsAttribute(Var) && (UNiagaraScript::IsParticleScript(GetBaseUsageContext())))
+	{
+		return true;
+	}
+	else if (FNiagaraParameterMapHistory::IsSystemParameter(Var) && (UNiagaraScript::IsSystemScript(GetBaseUsageContext()) || UNiagaraScript::IsEmitterScript(GetBaseUsageContext())))
+	{
+		return true;
+	}
+	return false;
+}
+
+int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantVariableWrite(int32 WhichParamMapIdx, int32 WhichConstant,  int32 WhichVarIdx, bool bIsSettingDefault, bool bIsLinkNotValue)
 {
 
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -986,10 +1043,10 @@ int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantVariableWrite(int32 Wh
 
 			if (WhichParamMapIdx != INDEX_NONE)
 			{
-				Histories[WhichParamMapIdx].RegisterConstantVariableWrite(Constants[WhichConstant], WhichVarIdx, bIsSettingDefault);
+				Histories[WhichParamMapIdx].RegisterConstantVariableWrite(Constants[WhichConstant], WhichVarIdx, bIsSettingDefault, bIsLinkNotValue);
 			}
 
-			if (Constants[WhichConstant].Len() != 0 && Var.GetType().IsStatic())
+			if (bIsLinkNotValue == false && Constants[WhichConstant].Len() != 0 && Var.GetType().IsStatic())
 			{
 				TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(Var.GetType());
 				if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults())
@@ -998,7 +1055,25 @@ int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantVariableWrite(int32 Wh
 					VarWithValue.AllocateData();
 					if (TypeEditorUtilities->SetValueFromPinDefaultString(Constants[WhichConstant], VarWithValue))
 					{
-						StaticVariables.AddUnique(VarWithValue);
+						// Index of uses == operator, which only checks name and type. This will allow us to detect instances of the duplicate
+						// data down the line.
+						int32 LastStaticVarIdx = StaticVariables.Find(Var);
+						int32 AddedIdx = INDEX_NONE;
+						if (LastStaticVarIdx == INDEX_NONE)
+						{
+							AddedIdx = StaticVariables.Add(VarWithValue); // Didn't find it, so add it.
+						}
+						else if (false == VarWithValue.HoldsSameData(StaticVariables[LastStaticVarIdx]))
+						{
+							AddedIdx = StaticVariables.Add(VarWithValue); // Add as a duplicate here. We will filter out later
+						}
+
+						if (AddedIdx != INDEX_NONE)
+						{
+							bool bExportable = IsStaticVariableExportableToOuterScopeBasedOnCurrentContext(Var);
+							int32 AddedBoolIdx = StaticVariableExportable.Emplace(bExportable);
+							ensure(AddedBoolIdx == AddedIdx);
+						}
 					}
 				}
 			}
@@ -1037,7 +1112,7 @@ int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantFromInputPin(const UEd
 			ConstantIdx = GetConstantFromOutputPin(ConnectedOutputPin);
 			RegisterConstantPin(ConstantIdx, InputPin);
 		}
-		else if (InputPin && InputPin->Direction == EEdGraphPinDirection::EGPD_Input && InputPin->LinkedTo.Num() == 0 && InputPin->DefaultValue.Len() != 0)
+		else if (InputPin && InputPin->Direction == EEdGraphPinDirection::EGPD_Input && InputPin->LinkedTo.Num() == 0 && InputPin->DefaultValue.Len() != 0 && !InputPin->PinName.IsNone())
 		{
 			Value = InputPin->DefaultValue;
 			ConstantIdx = AddOrGetConstantFromValue(Value);
@@ -1045,7 +1120,7 @@ int32 FNiagaraParameterMapHistoryBuilder::RegisterConstantFromInputPin(const UEd
 		}
 	}
 
-	if (UNiagaraScript::LogCompileStaticVars > 0)
+	if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(InputPin->PinName.ToString()))
 	{
 		FGraphTraversalHandle TestPath = ActivePath;
 		TestPath.Push(InputPin);
@@ -1064,7 +1139,7 @@ int32 FNiagaraParameterMapHistoryBuilder::GetConstantFromInputPin(const UEdGraph
 			const int32* IdxPtr = PinToConstantIndices.Last().Find(InputPin);
 			if (IdxPtr != nullptr)
 			{
-				if (UNiagaraScript::LogCompileStaticVars > 0)
+				if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(InputPin->PinName.ToString()))
 				{
 					FGraphTraversalHandle TestPath = ActivePath;
 					TestPath.Push(InputPin);
@@ -1086,7 +1161,7 @@ int32 FNiagaraParameterMapHistoryBuilder::GetConstantFromOutputPin(const UEdGrap
 			const int32* IdxPtr = PinToConstantIndices.Last().Find(OutputPin);
 			if (IdxPtr != nullptr)
 			{
-				if (UNiagaraScript::LogCompileStaticVars > 0)
+				if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(OutputPin->GetName()))
 				{
 					FGraphTraversalHandle TestPath = ActivePath;
 					TestPath.Push(OutputPin);
@@ -1109,7 +1184,7 @@ int32 FNiagaraParameterMapHistoryBuilder::GetConstantFromVariableRead(const FNia
 			const int32* IdxPtr = VariableToConstantIndices[i].Find(InVar);
 			if (IdxPtr != nullptr)
 			{
-				if (UNiagaraScript::LogCompileStaticVars > 0)
+				if (UNiagaraScript::LogCompileStaticVars > 0 || NiagaraDebugShouldLogEntriesByNameSubstring(ActivePath.ToString()))
 				{
 					UE_LOG(LogNiagaraEditor, Log, TEXT("GetConstantFromVariableRead Value \"%s\" Var: \"%s\" Path: \"%s\""), *Constants[*IdxPtr], *InVar.GetName().ToString(),  *ActivePath.ToString());
 				}
@@ -1227,11 +1302,19 @@ int32 FNiagaraParameterMapHistoryBuilder::FindMatchingStaticFromContextInputs(co
 		FNiagaraVariable CallInputVar = Schema->PinToNiagaraVariable(Inputs[i]);
 		if (CallInputVar.IsEquivalent(InVar))
 		{
+			// If linked to something, then the output we are linked to will carry the constant.
 			if (Inputs[i]->LinkedTo.Num() != 0 && PinToConstantIndices.Num() >= 2)
 			{
 				const UEdGraphPin* OutputPin = Inputs[i]->LinkedTo[0];
 				//int32 ConstantIdx = GetConstantFromOutputPin(OutputPin);
 				const int32* IdxPtr = PinToConstantIndices[PinToConstantIndices.Num() - 2].Find(OutputPin);
+				if (IdxPtr != nullptr)
+					return *IdxPtr;
+			}
+			// If just using the default, the input pin will carry the constant.
+			else if (Inputs[i]->LinkedTo.Num() == 0 && PinToConstantIndices.Num() >= 2)
+			{				
+				const int32* IdxPtr = PinToConstantIndices[PinToConstantIndices.Num() - 2].Find(Inputs[i]);
 				if (IdxPtr != nullptr)
 					return *IdxPtr;
 			}
@@ -1422,7 +1505,7 @@ void FNiagaraParameterMapHistoryBuilder::ExitEmitter(const FString& InEmitterNam
 }
 
 
-bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredFunctionNamespace(FNiagaraVariable& InVar) const
+bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredFunctionNamespace(const FNiagaraVariable& InVar) const
 {
 	if (EncounteredFunctionNames.Num() != 0)
 	{
@@ -1437,7 +1520,7 @@ bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredFunctionNamespace(FNiaga
 	return false;
 }
 
-bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredEmitterNamespace(FNiagaraVariable& InVar) const
+bool FNiagaraParameterMapHistoryBuilder::IsInEncounteredEmitterNamespace(const FNiagaraVariable& InVar) const
 {
 	for (FString EmitterEncounteredNamespace : EncounteredEmitterNames)
 	{
@@ -1574,7 +1657,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableWrite(int32 ParamMapIdx,
 
 		if (FoundIdx != INDEX_NONE && ParamMapIdx != INDEX_NONE && ConstantIdx != INDEX_NONE)
 		{
-			RegisterConstantVariableWrite(ParamMapIdx, ConstantIdx, FoundIdx, false);
+			RegisterConstantVariableWrite(ParamMapIdx, ConstantIdx, FoundIdx, false, false);
 		}
 	}
 	else if (InPin && Var.GetType().IsStatic() && InPin->LinkedTo.Num() == 0)
@@ -1584,7 +1667,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableWrite(int32 ParamMapIdx,
 
 		if (FoundIdx != INDEX_NONE && ParamMapIdx != INDEX_NONE && ConstantIdx != INDEX_NONE)
 		{
-			RegisterConstantVariableWrite(ParamMapIdx, ConstantIdx, FoundIdx, false);
+			RegisterConstantVariableWrite(ParamMapIdx, ConstantIdx, FoundIdx, false, false);
 		}
 	}
 
@@ -1719,6 +1802,8 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 				EmitterNamespace = TEXT("Emitter");
 		}
 
+		bool bWroteVarNameToDefaultValue = false;
+
 		if (bUseRapidIterationParam && /*InTopLevelFunctionCall(Usage) && */FNiagaraParameterMapHistory::IsAliasedModuleParameter(Histories[ParamMapIdx].VariablesWithOriginalAliasesIntact[FoundIdx]))
 		{					
 			FNiagaraVariable VarRapid = FNiagaraParameterMapHistory::ConvertVariableToRapidIterationConstantName(Histories[ParamMapIdx].Variables[FoundIdx], EmitterNamespace.Len() == 0 ? nullptr : *EmitterNamespace, Usage);
@@ -1780,6 +1865,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 			else
 			{
 				DefaultValue = Var.GetName().ToString();
+				bWroteVarNameToDefaultValue = true;
 			}
 			
 			if (UNiagaraScript::LogCompileStaticVars > 0)
@@ -1795,7 +1881,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 		RegisterConstantPin(ConstantIdx, InPin);
 		if (FoundIdx != INDEX_NONE && ParamMapIdx != INDEX_NONE && ConstantIdx != INDEX_NONE)
 		{
-			RegisterConstantVariableWrite(ParamMapIdx, ConstantIdx, FoundIdx, true);
+			RegisterConstantVariableWrite(ParamMapIdx, ConstantIdx, FoundIdx, true, bWroteVarNameToDefaultValue);
 		}
 	}
 	else if (FoundIdx != INDEX_NONE && ParamMapIdx != INDEX_NONE && UEdGraphSchema_Niagara::IsStaticPin(InPin))
@@ -1814,7 +1900,14 @@ void FNiagaraParameterMapHistoryBuilder::RegisterEncounterableVariables(TConstAr
 
 void FNiagaraParameterMapHistoryBuilder::RegisterExternalStaticVariables(TConstArrayView<FNiagaraVariable> Variables)
 {
+	int32 LastIdx = StaticVariables.Num();
 	StaticVariables.Append(Variables.GetData(), Variables.Num());
+
+	// Register all new entries as exportable true
+	for (int32 i = LastIdx; i < StaticVariables.Num(); i++)
+	{
+		StaticVariableExportable.Emplace(true);
+	}
 
 	if (UNiagaraScript::LogCompileStaticVars > 0)
 	{

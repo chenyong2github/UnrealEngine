@@ -152,6 +152,9 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	static FEdGraphPinType TypeDefinitionToPinType(FNiagaraTypeDefinition TypeDef);
 	
 	static bool IsPinWildcard(const UEdGraphPin* Pin);
+	
+	// Fast path helper to skip doing full type conversion
+	static bool IsPinStatic(const UEdGraphPin* Pin);
 	static FPinConnectionResponse GetWildcardConnectionResponse(const UEdGraphPin* PinA, const UEdGraphPin* PinB);
 	
 	bool IsSystemConstant(const FNiagaraVariable& Variable)const;

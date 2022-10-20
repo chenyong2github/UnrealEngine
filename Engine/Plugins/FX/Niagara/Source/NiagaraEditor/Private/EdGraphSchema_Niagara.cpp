@@ -1786,6 +1786,10 @@ FEdGraphPinType UEdGraphSchema_Niagara::TypeDefinitionToPinType(FNiagaraTypeDefi
 
 	}
 }
+bool UEdGraphSchema_Niagara::IsPinStatic(const UEdGraphPin* Pin)
+{
+	return Pin->PinType.PinCategory == PinCategoryStaticEnum || Pin->PinType.PinCategory == PinCategoryStaticClass || Pin->PinType.PinCategory == PinCategoryStaticType;
+}
 
 bool UEdGraphSchema_Niagara::IsPinWildcard(const UEdGraphPin* Pin)
 {

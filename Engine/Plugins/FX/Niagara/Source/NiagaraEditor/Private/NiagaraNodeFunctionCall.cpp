@@ -1095,6 +1095,19 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		FPinCollectorArray InputPins;
 		GetInputPins(InputPins);
+		
+		// Because the pin traversals above the the Super::BuildParameterMapHistory don't traverse into the input pins if they aren't linked.
+		// This leaves static variables that aren't linked to anything basically ignored. The code below fills in that gap.
+		// We don't do it in the base code because many input pins are traversed only if the owning node wants them to be.
+		// OutputNode is another example of manually registering the input pins.
+		for (UEdGraphPin* Pin : InputPins)
+		{
+			// Make sure to register pin constants
+			if (Pin->LinkedTo.Num() == 0 && Schema->IsPinStatic(Pin) && Pin->DefaultValue.Len() != 0)
+			{
+				OutHistory.RegisterConstantFromInputPin(Pin);
+			}
+		}
 
 		FCompileConstantResolver FunctionResolver = OutHistory.ConstantResolver.WithDebugState(DebugState);
 		if (OutHistory.HasCurrentUsageContext())

@@ -395,6 +395,35 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 				OutHistory.Histories[ParamMapIdx].ParameterCollectionVariables.Append(History.ParameterCollectionVariables);
 				OutHistory.Histories[ParamMapIdx].PinToConstantValues.Append(History.PinToConstantValues);
 			}
+
+			// We only want to push out appropriately scoped static variables that should be in the system builder, not in-betweens like "Module.MyInputVar"
+			// or per-particle or others vars. Really only want Emitter or System parameters here.
+			for (int32 StaticVarIdx = 0; StaticVarIdx < ChildBuilder.StaticVariables.Num(); StaticVarIdx++)
+			{
+				const FNiagaraVariable& ChildStaticVar = ChildBuilder.StaticVariables[StaticVarIdx];
+				if (ChildBuilder.StaticVariableExportable[StaticVarIdx])
+				{
+					// Should match logic in FNiagaraParameterMapHistoryBuilder::RegisterConstantVariableWrite
+					FNiagaraVariable ResolvedStaticVar = FNiagaraUtilities::ResolveAliases(ChildStaticVar, ResolveAliasesContext);
+
+					// Index of uses == operator, which only checks name and type. This will allow us to detect instances of the duplicate
+					// data down the line.
+					int32 FoundStaticVarIdx = OutHistory.StaticVariables.Find(ResolvedStaticVar);
+					
+					if (FoundStaticVarIdx == INDEX_NONE) // Didn't find it, so add it.
+					{
+						OutHistory.StaticVariables.Add(ResolvedStaticVar);
+						OutHistory.StaticVariableExportable.Emplace(true);
+					}
+					else if (false == OutHistory.StaticVariables[FoundStaticVarIdx].HoldsSameData(ResolvedStaticVar))
+					{
+						OutHistory.StaticVariables.Add(ResolvedStaticVar);// Add as a duplicate here. We will filter out later
+						OutHistory.StaticVariableExportable.Emplace(true);
+					}
+
+					ensure(OutHistory.StaticVariables.Num() == OutHistory.StaticVariableExportable.Num());
+				}
+			}
 		}
 
 		OutHistory.EndNodeVisitation(ParamMapIdx, NodeIdx);
