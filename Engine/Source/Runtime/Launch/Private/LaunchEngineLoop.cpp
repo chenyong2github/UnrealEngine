@@ -1909,27 +1909,28 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	bool bIsRunningAsDedicatedServer = false;
 	bool bIsRegularClient = false;
 
-	FString TokenToForward;
+	const SIZE_T CommandLineSize = FCString::Strlen(CmdLine) + 1;
+	TCHAR* CommandLineCopy = new TCHAR[CommandLineSize];
+	FCString::Strcpy(CommandLineCopy, CommandLineSize, CmdLine);
+	const TCHAR* ParsedCmdLine = CommandLineCopy;
 
-	TArray<FString> TokenArray     = TokenizeCommandline(CmdLine);
-
-	EGameStringType GameStringType = EGameStringType::Unknown;
-	FString         GameString     = ExtractGameStringArgument(TokenArray, GameStringType);
+	FString Token = FParse::Token(ParsedCmdLine, 0);
+	// trim any whitespace at edges of string - this can happen if the token was quoted with leading or trailing whitespace
+	// VC++ tends to do this in its "external tools" config
+	Token.TrimStartAndEndInline();
 
 	auto IsModeSelected = [&bHasCommandletToken, &bHasEditorToken, &bIsRegularClient, &bIsRunningAsDedicatedServer]()
 	{
 		return bHasCommandletToken || bHasEditorToken || bIsRegularClient || bIsRunningAsDedicatedServer;
 	};
 #if UE_EDITOR || WITH_ENGINE || WITH_EDITOR
-	FString CommandletCommandLine;
-	auto SetIsRunningAsCommandlet = [&CommandletCommandLine, &TokenArray,
-		&bHasCommandletToken, &bIsRunningAsDedicatedServer, &bHasEditorToken, &bIsRegularClient, &IsModeSelected, &TokenToForward]
+	const TCHAR* CommandletCommandLine = nullptr;
+	auto SetIsRunningAsCommandlet = [&CommandletCommandLine, &ParsedCmdLine,
+		&bHasCommandletToken, &bIsRunningAsDedicatedServer, &bHasEditorToken, &bIsRegularClient, &IsModeSelected]
 		(FStringView CommandletName)
 	{
 		checkf(!IsModeSelected(), TEXT("SetIsRunningAsCommandlet should not be called after mode has been selected."));
 		bHasCommandletToken = true;
-
-		TokenToForward = CommandletName;
 
 		GIsClient = true;
 		GIsServer = true;
@@ -1944,7 +1945,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 #endif
 
-		CommandletCommandLine = FString::Join(TokenArray, TEXT(" "));
+		CommandletCommandLine = ParsedCmdLine;
 #if WITH_EDITOR
 		if (CommandletName == TEXTVIEW("cookcommandlet"))
 		{
@@ -1960,24 +1961,10 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		PRIVATE_GAllowCommandletAudio = FParse::Param(FCommandLine::Get(), TEXT("AllowCommandletAudio"));
 	};
 #endif // UE_EDITOR || WITH_ENGINE || WITH_EDITOR
-	auto SetIsRunningAsRegularClient = [&IsModeSelected, &bIsRegularClient, &TokenArray, &TokenToForward]()
+	auto SetIsRunningAsRegularClient = [&IsModeSelected, &bIsRegularClient]()
 	{
 		checkf(!IsModeSelected(), TEXT("SetIsRunningAsRegularClient should not be called after mode has been selected."));
 		bIsRegularClient = true;
-
-		// Take the first non-switch command-line parameter (i.e. one not starting with a dash) and remember
-		// it to check later as it could be a mistyped commandlet (short name).
-		const FString* NonSwitchParam = TokenArray.FindByPredicate(
-			[](const FString& Token)
-			{
-				return Token[0] != TCHAR('-');
-			}
-		);
-
-		if (NonSwitchParam)
-		{
-			TokenToForward = *NonSwitchParam;
-		}
 
 		GIsClient = true;
 		GIsServer = false;
@@ -2022,8 +2009,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		// Header generation is treated as a commandlet
 		checkf(!IsRunningDedicatedServer(), TEXT("GIsUCCMakeStandaloneHeaderGenerator is not supported in a ServerOnly configuration, or with -server on commandline."));
-
-		SetIsRunningAsCommandlet(TEXT("GIsUCCMakeStandaloneHeaderGenerator"));
+		Token = TEXT("GIsUCCMakeStandaloneHeaderGenerator");
+		SetIsRunningAsCommandlet(Token);
 	}
 	else
 #endif
@@ -2037,14 +2024,16 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #if UE_EDITOR || WITH_ENGINE || WITH_EDITOR
 	TArray<FString> NonSwitchTokens;
 	TArray<FString> Switches;
-	UCommandlet::ParseCommandLine(CmdLine, NonSwitchTokens, Switches);
+	UCommandlet::ParseCommandLine(CommandLineCopy, NonSwitchTokens, Switches);
 	if (!IsModeSelected())
 	{
 		for (const FString& ParsedToken : NonSwitchTokens)
 		{
 			if (ParsedToken.EndsWith(TEXT("Commandlet")))
 			{
-				SetIsRunningAsCommandlet(ParsedToken.TrimStartAndEnd());
+				Token = ParsedToken;
+				Token.TrimStartAndEndInline();
+				SetIsRunningAsCommandlet(Token);
 				break;
 			}
 		}
@@ -2054,13 +2043,13 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			{
 				if (ParsedSwitch.StartsWith(TEXT("RUN=")))
 				{
-					FString LocalToken = ParsedSwitch.RightChop(4);
-					LocalToken.TrimStartAndEndInline();
-					if (!LocalToken.EndsWith(TEXT("Commandlet")))
+					Token = ParsedSwitch.RightChop(4);
+					Token.TrimStartAndEndInline();
+					if (!Token.EndsWith(TEXT("Commandlet")))
 					{
-						LocalToken += TEXT("Commandlet");
+						Token += TEXT("Commandlet");
 					}
-					SetIsRunningAsCommandlet(LocalToken);
+					SetIsRunningAsCommandlet(Token);
 					break;
 				}
 			}
@@ -2072,21 +2061,37 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	// In all other cases we should check for the first token being the Project Specifier
 	if (!bHasCommandletToken)
 	{
-		if (GameStringType != EGameStringType::Unknown)
+		// Path returned by FPaths::GetProjectFilePath() is normalized, so may have symlinks and ~ resolved and may differ from the original path to .uproject passed in the command line
+		FString NormalizedToken = Token;
+		FPaths::NormalizeFilename(NormalizedToken);
+
+		const bool bFirstTokenIsGameName = (FApp::HasProjectName() && Token == FApp::GetProjectName());
+		const bool bFirstTokenIsGameProjectFilePath = (FPaths::IsProjectFilePathSet() && NormalizedToken == FPaths::GetProjectFilePath());
+		const bool bFirstTokenIsGameProjectFileShortName = (FPaths::IsProjectFilePathSet() && Token == FPaths::GetCleanFilename(FPaths::GetProjectFilePath()));
+
+		if (bFirstTokenIsGameName || bFirstTokenIsGameProjectFilePath || bFirstTokenIsGameProjectFileShortName)
 		{
-			// Set a new command-line that doesn't include the game name as the first argument.
-			FCommandLine::Set(*FString::Join(TokenArray, TEXT(" ")));
+			// The first item on command line was the game name, ignore it and get the next item for the Token
+			FString RemainingCommandline = ParsedCmdLine;
+			FCString::Strcpy(CommandLineCopy, CommandLineSize, *RemainingCommandline);
+			ParsedCmdLine = CommandLineCopy;
 
-			// Remove spurious project file tokens (which can happen on some platforms that combine commandlines).
-			// This handles extra .uprojects, but if you run with MyGame MyGame, we can't tell if the second MyGame is a map or not.
-			TokenArray.RemoveAll(
-				[](const FString& Token)
-				{
-					return Token[0] != TCHAR('-') && FPaths::GetExtension(Token) == FProjectDescriptor::GetExtension();
-				}
-			);
+			// Set a new command-line that doesn't include the game name as the first argument
+			FCommandLine::Set(ParsedCmdLine);
 
-			if (GameStringType == EGameStringType::ProjectPath || GameStringType == EGameStringType::ProjectShortName)
+			Token = FParse::Token(ParsedCmdLine, 0);
+			Token.TrimStartInline();
+
+			// if the next token is a project file, then we skip it (which can happen on some platforms that combine
+			// commandlines... this handles extra .uprojects, but if you run with MyGame MyGame, we can't tell if
+			// the second MyGame is a map or not)
+			while (FPaths::GetExtension(Token) == FProjectDescriptor::GetExtension())
+			{
+				Token = FParse::Token(ParsedCmdLine, 0);
+				Token.TrimStartInline();
+			}
+
+			if (bFirstTokenIsGameProjectFilePath || bFirstTokenIsGameProjectFileShortName)
 			{
 				// Convert it to relative if possible...
 				FString RelativeGameProjectFilePath = FFileManagerGeneric::DefaultConvertToRelativePath(*FPaths::GetProjectFilePath());
@@ -2099,22 +2104,18 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 #if UE_EDITOR
 		// Handle the first token being '-game' or '-server'
-		if (!TokenArray.IsEmpty())
+		if (Token == TEXT("-GAME") || Token == TEXT("-SERVER"))
 		{
-			if (TokenArray[0] == TEXT("-GAME") || TokenArray[0] == TEXT("-SERVER"))
-			{
-				// This isn't necessarily pretty, but many requests have been made to allow
-				//   UnrealEditor.exe <GAMENAME> -game <map>
-				// or
-				//   UnrealEditor.exe <GAMENAME> -game 127.0.0.0
-				// We don't want to remove the -game from the commandline just yet in case
-				// we need it for something later. So, just move it to the end for now...
-				FString LocalToken = TokenArray[0];
-				TokenArray.Add(LocalToken);
-				TokenArray.RemoveAt(0);
-
-				FCommandLine::Set(*FString::Join(TokenArray, TEXT(" ")));
-			}
+			// This isn't necessarily pretty, but many requests have been made to allow
+			//   UnrealEditor.exe <GAMENAME> -game <map>
+			// or
+			//   UnrealEditor.exe <GAMENAME> -game 127.0.0.0
+			// We don't want to remove the -game from the commandline just yet in case
+			// we need it for something later. So, just move it to the end for now...
+			FString RemainingCommandline = ParsedCmdLine;
+			RemainingCommandline.TrimStartInline();
+			RemainingCommandline += FString::Printf(TEXT(" %s"), *Token);
+			FCommandLine::Set(*RemainingCommandline);
 		}
 #endif
 	}
@@ -2132,7 +2133,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #elif WITH_ENGINE && WITH_EDITOR && WITH_EDITORONLY_DATA 
 		// If a non-editor target build w/ WITH_EDITOR and WITH_EDITORONLY_DATA, use the old token check...
 		//@todo. Is this something we need to support?
-		if (TokenArray.Contains(TEXT("EDITOR")))
+		if (Token == TEXT("EDITOR"))
 		{
 			SetIsRunningAsEditor();
 		}
@@ -2633,7 +2634,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if !UE_EDITOR
 	// UE_EDITOR doesn't care the meaning of the token except for a few special cases (FooCommandlet, -run=, -game, -server)
 	// But when running without UE_EDITOR, we look up the token as a class to see if it is a commandlet name prefix
-	FString LateCommandletName;
+	bool bIsLateCommandletToken = false;
 	if (!IsModeSelected())
 	{
 		//@hack: We need to set these before calling StaticLoadClass so all required data gets loaded for the commandlets.
@@ -2644,36 +2645,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 		TGuardValue<bool> ScopedGIsRunningCommandlet(PRIVATE_GIsRunningCommandlet, true);
 
-		// Take the first non-switch command-line parameter (i.e. one not starting with a dash). We will check if it's possibly a commandlet.
-		const FString* NonSwitchParam = TokenArray.FindByPredicate(
-			[](const FString& Token)
-			{
-				return Token[0] != TCHAR('-');
-			}
-		);
-
-		bool bIsPossiblyCommandletName = NonSwitchParam != nullptr;
+		bool bIsPossiblyCommandletName = Token.Len() && !Token.Contains(TEXT("-"));
 		if (bIsPossiblyCommandletName)
 		{
-			FString CommandletName = *NonSwitchParam;
-
-			if (!CommandletName.EndsWith(TEXT("Commandlet")))
-			{
-				CommandletName += TEXT("Commandlet");
-			}
-
-			UClass* TempCommandletClass = FindFirstObject<UClass>(*CommandletName, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Looking for commandlet class"));
+			UClass* TempCommandletClass = FindFirstObject<UClass>(*(Token + TEXT("Commandlet")), EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("Looking for commandlet class"));
 			if (TempCommandletClass)
 			{
 				checkf(TempCommandletClass->IsChildOf(UCommandlet::StaticClass()), TEXT("It is not valid to have a class that ends with \"Commandlet\" that is not a UCommandlet subclass."));
-
-				LateCommandletName = CommandletName;
+				Token += TEXT("Commandlet");
+				bIsLateCommandletToken = true;
 			}
 		}
 	}
-	if (!LateCommandletName.IsEmpty())
+	if (bIsLateCommandletToken)
 	{
-		SetIsRunningAsCommandlet(LateCommandletName);
+		SetIsRunningAsCommandlet(Token);
 	}
 
 	// In non-UE_EDITOR configuration this is the point where know enough to finish the mode decision and decide between commandlet or client
@@ -3059,14 +3045,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	PreInitContext.bDisableDisregardForGC = bDisableDisregardForGC;
 	PreInitContext.bIsRegularClient = bIsRegularClient;
 #endif // WITH_ENGINE
-	PreInitContext.bIsPossiblyUnrecognizedCommandlet = bIsRegularClient && TokenToForward.Len() && !TokenToForward.Contains(TEXT("-"));
+	PreInitContext.bIsPossiblyUnrecognizedCommandlet = bIsRegularClient && Token.Len() && !Token.Contains(TEXT("-"));
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	PreInitContext.bTokenDoesNotHaveDash = PreInitContext.bIsPossiblyUnrecognizedCommandlet;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-	PreInitContext.Token = TokenToForward;
+	PreInitContext.Token = Token;
 #if UE_EDITOR || WITH_ENGINE
 	PreInitContext.CommandletCommandLine = CommandletCommandLine;
 #endif // UE_EDITOR || WITH_ENGINE
+	PreInitContext.CommandLineCopy = CommandLineCopy;
 	
 	return 0;
 }
@@ -3096,8 +3083,9 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 	bool bIsPossiblyUnrecognizedCommandlet = PreInitContext.bIsPossiblyUnrecognizedCommandlet;
 	FString Token = PreInitContext.Token;
 #if UE_EDITOR || WITH_ENGINE
-	const TCHAR* CommandletCommandLine = *PreInitContext.CommandletCommandLine;
+	const TCHAR* CommandletCommandLine = PreInitContext.CommandletCommandLine;
 #endif // UE_EDITOR || WITH_ENGINE
+	TCHAR* CommandLineCopy = PreInitContext.CommandLineCopy;
 	FScopedSlowTask& SlowTask = *PreInitContext.SlowTaskPtr;
 
 #if WITH_ENGINE
@@ -4058,67 +4046,6 @@ void FEngineLoop::LoadPreInitModules()
 #endif // WITH_EDITOR
 }
 
-TArray<FString> FEngineLoop::TokenizeCommandline(const TCHAR* CmdLine)
-{
-	TArray<FString> TokenArray;
-
-	const TCHAR* ParsedCmdLine = CmdLine;
-
-	while (*ParsedCmdLine)
-	{
-		FString Token = FParse::Token(ParsedCmdLine, 0);
-
-		Token.TrimStartAndEndInline();
-
-		if (!Token.IsEmpty())
-		{
-			TokenArray.Add(MoveTemp(Token));
-		}
-	}
-
-	return MoveTemp(TokenArray);
-}
-
-FString FEngineLoop::ExtractGameStringArgument(TArray<FString>& TokenArray, EGameStringType& OutStringType)
-{
-	for (int32 I = 0; I < TokenArray.Num(); ++I)
-	{
-		FString NormalizedToken = TokenArray[I];
-
-		// Path returned by FPaths::GetProjectFilePath() is normalized, so may have symlinks and ~ resolved and may differ from the original path to .uproject passed in the command line
-		FPaths::NormalizeFilename(NormalizedToken);
-
-		const bool bTokenIsGameName                 = (FApp::HasProjectName()         && TokenArray[I]   == FApp::GetProjectName());
-		const bool bTokenIsGameProjectFilePath      = (FPaths::IsProjectFilePathSet() && NormalizedToken == FPaths::GetProjectFilePath());
-		const bool bTokenIsGameProjectFileShortName = (FPaths::IsProjectFilePathSet() && TokenArray[I]   == FPaths::GetCleanFilename(FPaths::GetProjectFilePath()));
-
-		if (bTokenIsGameName || bTokenIsGameProjectFilePath || bTokenIsGameProjectFileShortName)
-		{
-			if (bTokenIsGameName)
-			{
-				OutStringType = EGameStringType::GameName;
-			}
-			else if (bTokenIsGameProjectFilePath)
-			{
-				OutStringType = EGameStringType::ProjectPath;
-			}
-			else if (bTokenIsGameProjectFileShortName)
-			{
-				OutStringType = EGameStringType::ProjectShortName;
-			}
-
-			FString Result = TokenArray[I];
-
-			TokenArray.RemoveAt(I);
-
-			return Result;
-		}
-	}
-
-	OutStringType = EGameStringType::Unknown;
-
-	return FString();
-}
 
 #if WITH_ENGINE
 
@@ -6568,6 +6495,10 @@ void FPreInitContext::Cleanup()
 #if WITH_ENGINE && !UE_SERVER
 	SlateRenderer = nullptr;
 #endif // WITH_ENGINE && !UE_SERVER
+	CommandletCommandLine = nullptr;
+
+	delete[] CommandLineCopy;
+	CommandLineCopy = nullptr;
 
 	delete SlowTaskPtr;
 	SlowTaskPtr = nullptr;
