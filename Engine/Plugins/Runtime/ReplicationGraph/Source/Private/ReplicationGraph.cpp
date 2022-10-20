@@ -161,6 +161,7 @@ CSV_DEFINE_CATEGORY(ReplicationGraphVisibleLevels, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphForcedUpdates, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphCleanMS, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphCleanNumReps, WITH_SERVER_CODE);
+CSV_DEFINE_CATEGORY(ReplicationGraphRedundantMS, WITH_SERVER_CODE);
 
 CSV_DEFINE_CATEGORY(ReplicationGraph, WITH_SERVER_CODE);
 
@@ -1832,6 +1833,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		return 0;
 	}
 
+	FReplicationGraphCSVTracker::EActorFlags CSVFlags = FReplicationGraphCSVTracker::EActorFlags::None;
+
 	if (LIKELY(ActorInfo.Channel))
 	{
 		if (UNLIKELY(ActorInfo.Channel->Closing))
@@ -1843,6 +1846,17 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		{
 			return 0;
 		}
+
+		// If this actor has passed the repgraph last-rep-frame check for normal replication,
+		// repgraph thinks the actor has not been replicated to this connection yet this frame.
+		// However, if the actor was replicated due to an RPC opening a new channel, repgraph is unaware
+		// and will attempt to replicate it here.
+#if REPGRAPH_CSV_TRACKER
+		if (ActorInfo.Channel->LastUpdateTime == NetDriver->GetElapsedTime())
+		{
+			CSVFlags |= FReplicationGraphCSVTracker::EActorFlags::AlreadyReplicatedThisFrame;
+		}
+#endif
 	}
 
 	FrameReplicationStats.NumReplicatedActors++;
@@ -1935,7 +1949,12 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	const bool bIsTrafficActorDiscovery = ActorDiscoveryMaxBitsPerFrame > 0 && (ActorInfo.Channel && ActorInfo.Channel->SpawnAcked == false);
 	const bool bIsActorDiscoveryBudgetFull = bIsTrafficActorDiscovery && (ConnectionManager.QueuedBitsForActorDiscovery >= ActorDiscoveryMaxBitsPerFrame);
 
-	CSVTracker.PostReplicateActor(ActorClass, DeltaReplicateActorTimeSeconds, BitsWritten, bIsTrafficActorDiscovery && !bIsActorDiscoveryBudgetFull);
+	if (bIsTrafficActorDiscovery && !bIsActorDiscoveryBudgetFull)
+	{
+		CSVFlags |= FReplicationGraphCSVTracker::EActorFlags::IsInDiscovery;
+	}
+
+	CSVTracker.PostReplicateActor(ActorClass, DeltaReplicateActorTimeSeconds, BitsWritten, CSVFlags);
 
 	// ----------------------------
 	//	Dependent actors
