@@ -92,6 +92,13 @@ FCurlHttpRequest::FCurlHttpRequest()
 
 	curl_easy_setopt(EasyHandle, CURLOPT_USE_SSL, CURLUSESSL_ALL);
 
+	// HTTP2 is linked in for newer libcurl builds and the library will use it by default.
+	// There have been issues found with it use in production on long lived servers with heavy HTTP usage, for
+	// that reason we're disabling its use by default in the general purpose curl request wrapper and only
+	// allowing use of HTTP2 from other curl wrappers like the DerivedDataCache one.
+	// Note that CURL_HTTP_VERSION_1_1 was the default for libcurl version before 7.62.0
+	curl_easy_setopt(EasyHandle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+
 	// set certificate verification (disable to allow self-signed certificates)
 	if (FCurlHttpManager::CurlRequestOptions.bVerifyPeer)
 	{
