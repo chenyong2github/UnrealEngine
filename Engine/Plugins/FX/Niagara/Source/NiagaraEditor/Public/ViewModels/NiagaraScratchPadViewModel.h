@@ -21,7 +21,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnActiveScriptChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnScriptRenamed);
 	DECLARE_MULTICAST_DELEGATE(FOnScriptDeleted);
-	DECLARE_MULTICAST_DELEGATE(FOnFocusNeeded);
 
 public:
 	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
@@ -87,12 +86,6 @@ public:
 
 	void OpenEditorForActive();
 
-	FOnFocusNeeded& OnFocusNeeded() {
-		return OnFocusNeededDelegate;
-	};
-
-	void PostUndo();
-
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
 
@@ -107,8 +100,6 @@ private:
 	void ScriptGraphNodeSelectionChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> InScriptViewModelWeak);
 
 	void ScriptViewModelScriptRenamed(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
-
-	void ScriptViewModelScriptPendingRename(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);	
 
 	void ScriptViewModelPinnedChanged(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak);
 
@@ -149,9 +140,6 @@ private:
 	FOnScriptRenamed OnScriptRenamedDelegate;
 
 	FOnScriptDeleted OnScriptDeletedDelegate;
-
-	FOnFocusNeeded OnFocusNeededDelegate;
-
 
 	bool bIsBulkApplying = false;
 };

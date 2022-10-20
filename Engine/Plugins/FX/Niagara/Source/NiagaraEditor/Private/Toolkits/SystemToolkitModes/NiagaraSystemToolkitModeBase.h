@@ -46,19 +46,13 @@ private:
 	TSharedRef<SDockTab> SpawnTab_UserParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_UserParametersHierarchyEditor(const FSpawnTabArgs& Args);
 
-	void OnScratchPadNeedsFocus();
-
 protected:
 	TWeakPtr<FNiagaraSystemToolkit> SystemToolkit;
-	TWeakPtr< SDockTab> ScratchPadTab;
-
 	FDelegateHandle DocChangedHandle;
 	FDelegateHandle LastSelectionUpdateDelegate;
 	FDelegateHandle LastParamPanelSelectionUpdateDelegate;
 	FDelegateHandle LastSystemSelectionUpdateDelegate;
 	FDelegateHandle LastGraphEditDelegate;
-	FDelegateHandle ScratchPadNeedsFocusHandle;
-
 	int32 SwitcherIdx;
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelection;
 	FText ObjectSelectionSubHeaderText;
@@ -71,8 +65,6 @@ protected:
 	void OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction);
 
 	TWeakPtr< class FNiagaraScratchPadScriptViewModel > LastActiveDocumentModel;
-
-	TSharedPtr<FTabManager> TabManager;
 
 public:
 	static const FName ViewportTabID;

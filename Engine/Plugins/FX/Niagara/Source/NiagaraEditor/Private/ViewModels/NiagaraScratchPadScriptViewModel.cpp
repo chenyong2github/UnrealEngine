@@ -53,21 +53,6 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script, UNiag
 	OriginalScript = Script;
 	SystemViewModel = InSystemViewModel;
 
-	if (OriginalScript)
-	{
-		CachedName = OriginalScript->GetName();
-		OriginalScript->SetFlags(RF_Transactional);
-	}
-	else
-	{
-		CachedName.Reset();
-	}
-
-	if (InEditScript)
-	{
-		InEditScript->SetFlags(RF_Transactional);
-	}
-
 	// Copy over the old edited graph, as this initialize might be incoming from inheritance changes and we want to maintain
 	// the edits to the old graph we were working on.
 	if (InEditScript)
@@ -160,22 +145,6 @@ bool FNiagaraScratchPadScriptViewModel::GetIsPendingRename() const
 void FNiagaraScratchPadScriptViewModel::SetIsPendingRename(bool bInIsPendingRename)
 {
 	bIsPendingRename = bInIsPendingRename;
-	OnPendingRenameDelegate.Broadcast();
-}
-
-bool FNiagaraScratchPadScriptViewModel::ValidateAndUpdateCachedNameIfDifferent()
-{
-	if (CachedName.IsSet() && OriginalScript)
-	{
-		const FString& CachedNameStr = CachedName.GetValue();
-		if (CachedNameStr != OriginalScript->GetName())
-		{
-			CachedName = OriginalScript->GetName();
-			return true;
-		}
-	}
-
-	return false;
 }
 
 void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
@@ -184,10 +153,6 @@ void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 	if (OriginalScript->GetName() != NewName)
 	{
 		FScopedTransaction RenameTransaction(LOCTEXT("RenameScriptTransaction", "Rename scratch pad script."));
-		if (OriginalScript->GetOuter())
-		{
-			OriginalScript->GetOuter()->Modify();
-		}
 
 		FName NewUniqueName = FNiagaraEditorUtilities::GetUniqueObjectName<UNiagaraScript>(OriginalScript->GetOuter(), *NewName);
 		OriginalScript->Modify();
@@ -200,7 +165,7 @@ void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 			FNiagaraScratchPadUtilities::FixFunctionInputsFromFunctionScriptRename(*ReferencingFunctionCallNode, NewUniqueName);
 			ReferencingFunctionCallNode->MarkNodeRequiresSynchronization(TEXT("ScratchPad script renamed"), true);
 		}
-		CachedName = NewUniqueName.ToString();
+
 		OnRenamedDelegate.Broadcast();
 	}
 }
@@ -275,11 +240,6 @@ void FNiagaraScratchPadScriptViewModel::DiscardChanges()
 FNiagaraScratchPadScriptViewModel::FOnRenamed& FNiagaraScratchPadScriptViewModel::OnRenamed()
 {
 	return OnRenamedDelegate;
-}
-
-FNiagaraScratchPadScriptViewModel::FOnPendingRename& FNiagaraScratchPadScriptViewModel::OnPendingRename()
-{
-	return OnPendingRenameDelegate;
 }
 
 FNiagaraScratchPadScriptViewModel::FOnPinnedChanged& FNiagaraScratchPadScriptViewModel::OnPinnedChanged()

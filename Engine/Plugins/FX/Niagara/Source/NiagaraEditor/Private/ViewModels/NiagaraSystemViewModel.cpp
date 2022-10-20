@@ -792,12 +792,6 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 {
-	// We may have undone scratch script renames or adds, so we need to make sure that they
-	// are accurate and potentially close anything that is now gone.
-	if (ScriptScratchPadViewModel)
-	{
-		ScriptScratchPadViewModel->PostUndo();
-	}
 	// Reset system stack and emitter handle view models to prevent accessing invalid data if they were in the undo operation.
 	ResetStack();
 	System->InvalidateActiveCompiles();

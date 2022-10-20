@@ -37,7 +37,6 @@
 #include "Styling/StyleColors.h"
 #include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
-#include "ViewModels/NiagaraScratchPadViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemToolkitModeBase"
 
@@ -78,9 +77,6 @@ FNiagaraSystemToolkitModeBase::~FNiagaraSystemToolkitModeBase()
 			TSharedPtr<FNiagaraScratchPadScriptViewModel> OldScratchScriptVM = LastActiveDocumentModel.Pin();
 			OldScratchScriptVM->GetGraphViewModel()->GetNodeSelection()->OnSelectedObjectsChanged().Remove(LastSelectionUpdateDelegate);
 		}
-
-		SystemToolkit.Pin()->GetSystemViewModel()->GetScriptScratchPadViewModel()->OnFocusNeeded().Remove(ScratchPadNeedsFocusHandle);
-
 	}
 }
 
@@ -224,7 +220,6 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_NiagaraSystemEditor", "Niagara System"));
 
 	SystemToolkit.Pin()->RegisterToolbarTab(InTabManager.ToSharedRef());
-	TabManager = InTabManager;
 	
 	InTabManager->RegisterTabSpawner(ViewportTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("Preview", "Preview"))
@@ -716,14 +711,6 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SystemOverview(cons
 	return SpawnedTab;
 }
 
-void FNiagaraSystemToolkitModeBase::OnScratchPadNeedsFocus()
-{
-
-	if (TabManager.IsValid() && ScratchPadTab.Pin().IsValid())
-	{
-		TabManager->DrawAttention(ScratchPadTab.Pin().ToSharedRef());
-	}
-}
 
 
 TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPadScripts(const FSpawnTabArgs& Args)
@@ -733,14 +720,11 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPadScripts(c
 		SystemToolkit.Pin()->SetScriptScratchpadManager(FNiagaraEditorModule::Get().GetWidgetProvider()->CreateScriptScratchPadManager(*SystemToolkit.Pin()->GetSystemViewModel()->GetScriptScratchPadViewModel()));
 	}
 
-	ScratchPadNeedsFocusHandle = SystemToolkit.Pin()->GetSystemViewModel()->GetScriptScratchPadViewModel()->OnFocusNeeded().AddRaw(this, &FNiagaraSystemToolkitModeBase::OnScratchPadNeedsFocus);
-
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("ScratchPadLocalModulesTabLabel", "Local Modules"))
 		[
 			SystemToolkit.Pin()->GetScriptScratchpadManager().ToSharedRef()
 		];
-	ScratchPadTab = SpawnedTab;
 
 	SpawnedTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda([this](TSharedRef<SDockTab>)
 		{
