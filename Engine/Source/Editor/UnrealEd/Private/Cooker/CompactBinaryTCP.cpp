@@ -58,6 +58,7 @@ public:
 	/** Note that the elements in AppendMessages are mutated */
 	static EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
 		TArrayView<FMarshalledMessage>&& AppendMessages, uint64 MaxPacketSize);
+	static void QueueMessage(FSendBuffer& Buffer, FMarshalledMessage&& Message);
 };
 
 EConnectionStatus FCompactBinaryTCPImpl::TryReadPacket(FSocket* Socket, FReceiveBuffer& Buffer,
@@ -308,6 +309,11 @@ EConnectionStatus FCompactBinaryTCPImpl::TryWritePacket(FSocket* Socket, FSendBu
 	}
 }
 
+void FCompactBinaryTCPImpl::QueueMessage(FSendBuffer& Buffer, FMarshalledMessage&& Message)
+{
+	Buffer.PendingMessages.Add(MoveTemp(Message));
+}
+
 EConnectionStatus TryReadPacket(FSocket* Socket, FReceiveBuffer& Buffer,
 	TArray<FMarshalledMessage>& Messages, uint64 MaxPacketSize)
 {
@@ -339,6 +345,18 @@ EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
 	Marshalled.Object = Writer.Save().AsObject();
 	return FCompactBinaryTCPImpl::TryWritePacket(Socket, Buffer,
 		TArrayView<FMarshalledMessage>(&Marshalled, 1), MaxPacketSize);
+}
+
+void QueueMessage(FSendBuffer& Buffer, const IMessage& AppendMessage)
+{
+	FMarshalledMessage Marshalled;
+	Marshalled.MessageType = AppendMessage.GetMessageType();
+	FCbWriter Writer;
+	Writer.BeginObject();
+	AppendMessage.Write(Writer);
+	Writer.EndObject();
+	Marshalled.Object = Writer.Save().AsObject();
+	FCompactBinaryTCPImpl::QueueMessage(Buffer, MoveTemp(Marshalled));
 }
 
 EConnectionStatus TryFlushBuffer(FSocket* Socket, FSendBuffer& Buffer, uint64 MaxPacketSize)

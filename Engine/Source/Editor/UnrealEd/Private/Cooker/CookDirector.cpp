@@ -6,11 +6,13 @@
 #include "CompactBinaryTCP.h"
 #include "CookMPCollector.h"
 #include "CookPackageData.h"
+#include "CookPlatformManager.h"
 #include "CookWorkerServer.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CoreGlobals.h"
 #include "LoadBalanceCookBurden.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/RunnableThread.h"
 #include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -20,6 +22,7 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "String/ParseTokens.h"
+#include "UnrealEdMisc.h"
 
 extern CORE_API int32 GNumForegroundWorkers; // TaskGraph.cpp
 
@@ -27,14 +30,23 @@ namespace UE::Cook
 {
 
 FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS)
-	: COTFS(InCOTFS)
+	: RunnableShunt(*this) 
+	, COTFS(InCOTFS)
 {
 	WorkersStalledStartTimeSeconds = MAX_flt;
 	WorkersStalledWarnTimeSeconds = MAX_flt;
+	ShutdownEvent->Reset();
 
 	ParseConfig();
-	ResetCookWorkerCount();
-	UE_LOG(LogCook, Display, TEXT("CookMultiprocess is enabled with %d CookWorker processes."), CookWorkerCount);
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
+	if (!SocketSubsystem)
+	{
+		UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: platform does not support network sockets. CookWorkers will be disabled."));
+	}
+	else
+	{
+		UE_LOG(LogCook, Display, TEXT("CookMultiprocess is enabled with %d CookWorker processes."), RequestedCookWorkerCount);
+	}
 }
 
 void FCookDirector::ParseConfig()
@@ -84,32 +96,14 @@ void FCookDirector::ParseConfig()
 	}
 }
 
-void FCookDirector::ResetCookWorkerCount()
-{
-	CookWorkerCount = RequestedCookWorkerCount;
-	if (CookWorkerCount > 0)
-	{
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
-		if (!SocketSubsystem)
-		{
-			UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: platform does not support network sockets. CookWorkers will be disabled."));
-			CookWorkerCount = 0;
-		}
-	}
-
-	if (CookWorkerCount > 0)
-	{
-		TryCreateWorkerConnectSocket();
-	}
-
-}
-
 FCookDirector::~FCookDirector()
 {
+	StopCommunicationThread();
+
 	TSet<FPackageData*> AbortedAssignments;
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 	{
-		Pair.Value->AbortWorker(AbortedAssignments);
+		Pair.Value->AbortWorker(AbortedAssignments, ECookDirectorThread::SchedulerThread);
 	}
 	for (FPackageData* PackageData : AbortedAssignments)
 	{
@@ -122,6 +116,56 @@ FCookDirector::~FCookDirector()
 	Sockets::CloseSocket(WorkerConnectSocket);
 }
 
+void FCookDirector::LaunchCommunicationThread()
+{
+	if (!CommunicationThread && FPlatformProcess::SupportsMultithreading())
+	{
+		CommunicationThread = FRunnableThread::Create(&RunnableShunt, TEXT("FCookDirector"), 0, TPri_Normal);
+	}
+}
+
+void FCookDirector::StopCommunicationThread()
+{
+	ShutdownEvent->Trigger();
+	if (CommunicationThread)
+	{
+		CommunicationThread->WaitForCompletion();
+		delete CommunicationThread;
+		CommunicationThread = nullptr;
+	}
+	ShutdownEvent->Reset();
+}
+
+uint32 FCookDirector::RunCommunicationThread()
+{
+	constexpr float TickPeriod = 1.f;
+	constexpr float MinSleepTime = 0.001f;
+	for (;;)
+	{
+		double StartTime = FPlatformTime::Seconds();
+		TickCommunication(ECookDirectorThread::CommunicateThread);
+
+		double CurrentTime = FPlatformTime::Seconds();
+		float RemainingDuration = StartTime + TickPeriod - CurrentTime;
+		uint32 WaitTimeMilliseconds = static_cast<uint32>(RemainingDuration * .001f);
+		if (ShutdownEvent->Wait(WaitTimeMilliseconds))
+		{
+			break;
+		}
+	}
+	return 0;
+}
+
+uint32 FCookDirector::FRunnableShunt::Run()
+{
+	return Director.RunCommunicationThread();
+}
+
+void FCookDirector::FRunnableShunt::Stop()
+{
+	Director.ShutdownEvent->Trigger();
+}
+
 void FCookDirector::StartCook(const FBeginCookContext& InBeginContext)
 {
 	BeginCookContext.Set(InBeginContext);
@@ -131,10 +175,22 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph)
 {
 	ActivateMachineResourceReduction();
-	InitializeWorkers();
 
-	int32 NumRemoteWorkers = RemoteWorkers.Num();
-	if (NumRemoteWorkers == 0)
+	TArray<TRefCountPtr<FCookWorkerServer>> SortedWorkers;
+	int32 MaxRemoteIndex = -1;
+	FScopeLock CommunicationScopeLock(&CommunicationLock);
+	{
+		InitializeWorkers();
+
+		// Convert the Map of RemoteWorkers into an array sorted by WorkerIndex
+		SortedWorkers.Reserve(RemoteWorkers.Num());
+		for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+		{
+			SortedWorkers.Add(Pair.Value);
+			MaxRemoteIndex = FMath::Max(Pair.Key, MaxRemoteIndex);
+		}
+	}
+	if (SortedWorkers.IsEmpty())
 	{
 		OutAssignments.SetNum(Requests.Num());
 		for (FWorkerId& Assignment : OutAssignments)
@@ -143,18 +199,9 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 		}
 		return;
 	}
-
-	// Convert the Map of RemoteWorkers into an array sorted by WorkerIndex
-	TArray<FCookWorkerServer*> SortedWorkers;
-	SortedWorkers.Reserve(NumRemoteWorkers);
-	int32 MaxRemoteIndex = -1;
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
-	{
-		SortedWorkers.Add(Pair.Value.Get());
-		MaxRemoteIndex = FMath::Max(Pair.Key, MaxRemoteIndex);
-	}
 	check(MaxRemoteIndex >= 0);
-	SortedWorkers.Sort([](const FCookWorkerServer& A, const FCookWorkerServer& B) { return A.GetWorkerId() < B.GetWorkerId(); });
+	SortedWorkers.Sort([](const TRefCountPtr<FCookWorkerServer>& A, const TRefCountPtr<FCookWorkerServer>& B)
+		{ return A->GetWorkerId() < B->GetWorkerId(); });
 
 	// Call the LoadBalancing algorithm to split the requests among the LocalWorker and RemoteWorkers
 	LoadBalance(SortedWorkers, Requests, MoveTemp(RequestGraph), OutAssignments);
@@ -196,7 +243,7 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 			TArray<FPackageData*>& RemoteBatch = RemoteBatches[RemoteIndex];
 			if (RemoteBatch.Num() == 0)
 			{
-				RemoteBatch.Reserve(2 * Requests.Num() / (NumRemoteWorkers + 1));
+				RemoteBatch.Reserve(2 * Requests.Num() / (SortedWorkers.Num() + 1));
 			}
 			RemoteBatch.Add(Requests[RequestIndex]);
 		}
@@ -206,100 +253,199 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 
 	// Assign each batch to the FCookWorkerServer in RemoteWorkers;
 	// the CookWorkerServer's tick will handle sending the message to the remote process
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	for (const TRefCountPtr<FCookWorkerServer>& RemoteWorker : SortedWorkers)
 	{
-		Pair.Value->AppendAssignments(RemoteBatches[Pair.Key]);
+		RemoteWorker->AppendAssignments(RemoteBatches[RemoteWorker->GetWorkerId().GetRemoteIndex()], ECookDirectorThread::SchedulerThread);
 	}
-	TickWorkerConnects();
 
 	bIsFirstAssignment = false;
 }
 
 void FCookDirector::RemoveFromWorker(FPackageData& PackageData)
 {
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	TArray<FCookWorkerServer*> Workers;
 	{
-		Pair.Value->AbortAssignment(PackageData);
+		FScopeLock CommunicationScopeLock(&CommunicationLock);
+		for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+		{
+			Workers.Add(Pair.Value);
+		}
+	}
+	for (FCookWorkerServer* Worker : Workers)
+	{
+		Worker->AbortAssignment(PackageData, ECookDirectorThread::SchedulerThread);
 	}
 }
 
-
 void FCookDirector::TickFromSchedulerThread()
 {
-	TickWorkerConnects();
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	if (!CommunicationThread)
 	{
-		FCookWorkerServer& RemoteWorker = *Pair.Value;
-		RemoteWorker.TickFromSchedulerThread();
-		if (RemoteWorker.IsShuttingDown())
+		TickCommunication(ECookDirectorThread::SchedulerThread);
+	}
+
+	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> WorkersWithMessage;
+	{
+		FScopeLock CommunicationScopeLock(&CommunicationLock);
+		for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 		{
-			TUniquePtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(&RemoteWorker);
+			if (Pair.Value->HasMessages())
+			{
+				WorkersWithMessage.Add(Pair.Value);
+			}
+		}
+		for (TPair<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+		{
+			if (Pair.Value && Pair.Value->HasMessages())
+			{
+				WorkersWithMessage.Add(Pair.Value);
+			}
+		}
+
+	}
+	bool bIsStalled = COTFS.IsMultiprocessLocalWorkerIdle() && !COTFS.PackageDatas->GetAssignedToWorkerSet().IsEmpty();
+	for (TRefCountPtr<FCookWorkerServer>& Worker : WorkersWithMessage)
+	{
+		Worker->HandleReceiveMessages(ECookDirectorThread::SchedulerThread);
+		bIsStalled = false;
+	}
+	WorkersWithMessage.Empty();
+
+	SetWorkersStalled(bIsStalled);
+}
+
+void FCookDirector::TickCommunication(ECookDirectorThread TickThread)
+{
+	bool bHasShutdownWorkers = false;
+	TickWorkerConnects(TickThread);
+	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> LocalRemoteWorkers;
+	{
+		FScopeLock CommunicationScopeLock(&CommunicationLock);
+		for (const TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair: RemoteWorkers)
+		{
+			LocalRemoteWorkers.Add(Pair.Value);
+		}
+		if (!RemoteWorkers.IsEmpty())
+		{
+			bWorkersActive = true;
+		}
+		else
+		{
+			bWorkersActive = false;
+			for (const TPair <FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+			{
+				FCookWorkerServer* RemoteWorker = Pair.Key;
+				check(RemoteWorker->IsShuttingDown());
+				bWorkersActive = bWorkersActive || RemoteWorker->IsFlushingBeforeShutdown();
+			}
+		}
+		bHasShutdownWorkers = !ShuttingDownWorkers.IsEmpty();
+	}
+
+	for (TRefCountPtr<FCookWorkerServer>& RemoteWorker: LocalRemoteWorkers)
+	{
+		RemoteWorker->TickCommunication(TickThread);
+		if (RemoteWorker->IsShuttingDown())
+		{
+			FScopeLock CommunicationScopeLock(&CommunicationLock);
+			TRefCountPtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(RemoteWorker.GetReference());
 			check(!Existing); // We should not be able to send the same pointer into ShuttingDown twice
+			bHasShutdownWorkers = true;
 		}
 	}
 
-	TickWorkerShutdowns();
-
-	bool bIsStalled = COTFS.IsMultiprocessLocalWorkerIdle() && !COTFS.PackageDatas->GetAssignedToWorkerSet().IsEmpty();
-	SetWorkersStalled(bIsStalled);
+	if (bHasShutdownWorkers)
+	{
+		TickWorkerShutdowns(TickThread);
+	}
 }
 
 void FCookDirector::PumpCookComplete(bool& bCompleted)
 {
-	TickWorkerConnects();
-
-	// MPCOOKTODO: Messages sent from the CookWorkers about discovered packages might come in after
-	// the last message sent about completed saves. These discovered packages can cause the cook to fall
-	// back to incomplete. Don't send CookComplete messages to the CookWorkers until all CookWorkers have
-	// reported they are idle.
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 	{
-		FCookWorkerServer& RemoteWorker = *Pair.Value;
-		RemoteWorker.SignalCookComplete();
-		check(RemoteWorker.IsShuttingDown());
-		TUniquePtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(&RemoteWorker);
-		check(!Existing); // We should not be able to send the same pointer into ShuttingDown twice
+		FScopeLock CommunicationScopeLock(&CommunicationLock);
+		if (!bCookCompleteSent)
+		{
+			bool bAllIdle = true;
+			for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+			{
+				FCookWorkerServer& RemoteWorker = *Pair.Value;
+				// MPCOOKTODO: Messages sent from the CookWorkers about discovered packages might come in after
+				// the last message sent about completed saves. These discovered packages can cause the cook to fall
+				// back to incomplete. Don't send CookComplete messages to the CookWorkers until all CookWorkers have
+				// reported they are idle and have no further messages to send.
+				if (RemoteWorker.HasAssignments())
+				{
+					bAllIdle = false;
+					break;
+				}
+			}
+			if (bAllIdle)
+			{
+				for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+				{
+					FCookWorkerServer& RemoteWorker = *Pair.Value;
+					RemoteWorker.SignalCookComplete(ECookDirectorThread::SchedulerThread);
+					check(RemoteWorker.IsShuttingDown());
+				}
+				bCookCompleteSent = true;
+			}
+		}
+		bCompleted = !bWorkersActive;
 	}
-	TickWorkerShutdowns();
-	check(RemoteWorkers.Num() == 0);
-
-	bCompleted = true;
-	for (const TPair <FCookWorkerServer*, TUniquePtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
-	{
-		FCookWorkerServer* RemoteWorker = Pair.Key;
-		check(RemoteWorker->IsShuttingDown());
-		bCompleted = bCompleted && !RemoteWorker->IsFlushingBeforeShutdown();
-	}
-	SetWorkersStalled(!bCompleted);
+	TickFromSchedulerThread();
 }
 
 void FCookDirector::ShutdownCookSession()
 {
+	StopCommunicationThread();
+
 	// Cancel any inprogress workers and move them to the Shutdown list
-	while (!RemoteWorkers.IsEmpty())
+	for (;;)
 	{
-		AbortWorker(TMap<int32, TUniquePtr<FCookWorkerServer>>::TIterator(RemoteWorkers).Value()->GetWorkerId());
+		TRefCountPtr<FCookWorkerServer> RemoteWorker;
+		{
+			FScopeLock CommunicationScopeLock(&CommunicationLock);
+			if (RemoteWorkers.IsEmpty())
+			{
+				break;
+			}
+			RemoteWorker = TMap<int32, TRefCountPtr<FCookWorkerServer>>::TIterator(RemoteWorkers).Value();
+		}
+		AbortWorker(RemoteWorker->GetWorkerId(), ECookDirectorThread::SchedulerThread);
 	}
 
 	// Immediately shutdown any gracefully shutting down workers
-	for (TPair<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> WorkersNeedingAbort;
 	{
-		if (Pair.Key->IsFlushingBeforeShutdown())
+		FScopeLock CommunicationScopeLock(&CommunicationLock);
+		for (TPair<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
 		{
-			TSet<FPackageData*> UnusedPendingPackages;
-			Pair.Key->AbortWorker(UnusedPendingPackages);
+			check(Pair.Value); // The Value was set by AbortWorker for any new entries, and all old entries guarantee the value is set
+			if (Pair.Key->IsFlushingBeforeShutdown())
+			{
+				WorkersNeedingAbort.Add(Pair.Value);
+			}
 		}
+	}
+	for (TRefCountPtr<FCookWorkerServer>& RemoteWorker : WorkersNeedingAbort)
+	{
+		TSet<FPackageData*> UnusedPendingPackages;
+		RemoteWorker->AbortWorker(UnusedPendingPackages, ECookDirectorThread::SchedulerThread);
 	}
 
 	// Wait for all the shutdowns to complete
 	for (;;)
 	{
-		TickWorkerShutdowns();
-		if (ShuttingDownWorkers.IsEmpty())
+		TickWorkerShutdowns(ECookDirectorThread::SchedulerThread);
 		{
-			break;
+			FScopeLock CommunicationScopeLock(&CommunicationLock);
+			if (ShuttingDownWorkers.IsEmpty())
+			{
+				break;
+			}
 		}
-		constexpr double SleepSeconds = 0.010;
+		constexpr float SleepSeconds = 0.010f;
 		FPlatformProcess::Sleep(SleepSeconds);
 	}
 
@@ -307,8 +453,10 @@ void FCookDirector::ShutdownCookSession()
 	PendingConnections.Reset();
 
 	// Restore the FCookDirector to its original state so that it is ready for a new session
-	ResetCookWorkerCount();
+	bWorkersInitialized = false;
 	bIsFirstAssignment = true;
+	bCookCompleteSent = false;
+	bWorkersActive = false;
 }
 
 void FCookDirector::Register(IMPCollector* Collector)
@@ -401,6 +549,13 @@ bool FCookDirector::TryCreateWorkerConnectSocket()
 	{
 		return true;
 	}
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
+	if (!SocketSubsystem)
+	{
+		// Error was already logged in the constructor
+		return false;
+	}
+
 	FString ErrorReason;
 	TSharedPtr<FInternetAddr> ListenAddr;
 	WorkerConnectSocket = Sockets::CreateListenSocket(WorkerConnectPort, ListenAddr, WorkerConnectAuthority,
@@ -409,7 +564,6 @@ bool FCookDirector::TryCreateWorkerConnectSocket()
 	{
 		UE_LOG(LogCook, Error, TEXT("CookDirector could not create listen socket, CookWorkers will be disabled. Reason: %s."),
 			*ErrorReason);
-		CookWorkerCount = 0;
 		return false;
 	}
 	return true;
@@ -418,16 +572,56 @@ bool FCookDirector::TryCreateWorkerConnectSocket()
 
 void FCookDirector::InitializeWorkers()
 {
-	if (RemoteWorkers.Num() >= CookWorkerCount)
+	if (bWorkersInitialized)
+	{
+		return;
+	}
+	bWorkersInitialized = true;
+
+	check(!CommunicationThread);
+	check(RemoteWorkers.IsEmpty());
+	bool bSucceeded = false;
+	ON_SCOPE_EXIT
+	{
+		if (!bSucceeded)
+		{
+			bWorkersActive = false;
+		}
+	};
+
+	if (!TryCreateWorkerConnectSocket())
 	{
 		return;
 	}
 
+	RemoteWorkers.Reserve(RequestedCookWorkerCount);
+	for (int32 RemoteIndex = 0; RemoteIndex < RequestedCookWorkerCount; ++RemoteIndex)
+	{
+		RemoteWorkers.Add(RemoteIndex, new FCookWorkerServer(*this, FWorkerId::FromRemoteIndex(RemoteIndex)));
+	}
+	bWorkersActive = true;
+
+	ConstructReadonlyThreadVariables();
+	ShutdownEvent->Reset();
+	LaunchCommunicationThread();
+	bSucceeded = true;
+}
+
+void FCookDirector::RecreateWorkers()
+{
+	// TODO: Finish implementing the recreation of workers that have crashed
+
 	// Find any unused RemoteIndex less than the maximum used RemoteIndex
+	FScopeLock CommunicationScopeLock(&CommunicationLock);
+	if (RemoteWorkers.Num() >= RequestedCookWorkerCount || !WorkerConnectSocket)
+	{
+		return;
+	}
+
 	TArray<uint8> UnusedRemoteIndexes;
 	RemoteWorkers.KeySort(TLess<>());
 	uint8 NextPossiblyOpenIndex = 0;
-	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+	for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 	{
 		check(NextPossiblyOpenIndex <= Pair.Key);
 		while (NextPossiblyOpenIndex != Pair.Key)
@@ -435,9 +629,10 @@ void FCookDirector::InitializeWorkers()
 			UnusedRemoteIndexes.Add(NextPossiblyOpenIndex++);
 		}
 	}
+
 	// Add RemoteWorkers, pulling the RemoteIndex id from the UnusedRemoteIndexes if any exist
 	// otherwise use the next integer because all indexes up to RemoteWorkers.Num() are in use.
-	while (RemoteWorkers.Num() < CookWorkerCount)
+	while (RemoteWorkers.Num() < RequestedCookWorkerCount)
 	{
 		uint8 RemoteIndex;
 		if (UnusedRemoteIndexes.Num())
@@ -449,10 +644,11 @@ void FCookDirector::InitializeWorkers()
 		{
 			RemoteIndex = RemoteWorkers.Num();
 		}
-		RemoteWorkers.Add(RemoteIndex, MakeUnique<FCookWorkerServer>(*this, FWorkerId::FromRemoteIndex(RemoteIndex)));
+		RemoteWorkers.Add(RemoteIndex, new FCookWorkerServer(*this, FWorkerId::FromRemoteIndex(RemoteIndex)));
+		bWorkersActive = true;
 	}
-}
 
+}
 void FCookDirector::ActivateMachineResourceReduction()
 {
 	if (bHasReducedMachineResources)
@@ -506,7 +702,7 @@ void FCookDirector::ActivateMachineResourceReduction()
 		HyperThreadCount, FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 }
 
-void FCookDirector::TickWorkerConnects()
+void FCookDirector::TickWorkerConnects(ECookDirectorThread TickThread)
 {
 	using namespace UE::CompactBinaryTCP;
 
@@ -560,27 +756,33 @@ void FCookDirector::TickWorkerConnects()
 			UE_LOG(LogCook, Warning, TEXT("Pending connection sent an invalid Connection Message. Connection will be ignored."));
 			continue;
 		}
-		TUniquePtr<FCookWorkerServer>* RemoteWorkerPtr = RemoteWorkers.Find(Message.RemoteIndex);
-		if (!RemoteWorkerPtr)
+		TRefCountPtr<FCookWorkerServer> RemoteWorker;
 		{
-			TStringBuilder<256> ValidIndexes;
-			if (RemoteWorkers.Num())
+			FScopeLock CommunicationScopeLock(&CommunicationLock);
+			TRefCountPtr<FCookWorkerServer>* RemoteWorkerPtr;
+			RemoteWorkerPtr = RemoteWorkers.Find(Message.RemoteIndex);
+			if (!RemoteWorkerPtr)
 			{
-				RemoteWorkers.KeySort(TLess<>());
-				for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+				TStringBuilder<256> ValidIndexes;
+				if (RemoteWorkers.Num())
 				{
-					ValidIndexes.Appendf(TEXT("%d,"), Pair.Key);
+					RemoteWorkers.KeySort(TLess<>());
+					for (TPair<int32, TRefCountPtr<FCookWorkerServer>>& Pair : RemoteWorkers)
+					{
+						ValidIndexes.Appendf(TEXT("%d,"), Pair.Key);
+					}
+					ValidIndexes.RemoveSuffix(1); // Remove the terminating comma
 				}
-				ValidIndexes.RemoveSuffix(1); // Remove the terminating comma
+				UE_LOG(LogCook, Warning, TEXT("Pending connection sent a Connection Message with invalid RemoteIndex %d. ValidIndexes = {%s}. Connection will be ignored."),
+					Message.RemoteIndex, *ValidIndexes);
+				continue;
 			}
-			UE_LOG(LogCook, Warning, TEXT("Pending connection sent a Connection Message with invalid RemoteIndex %d. ValidIndexes = {%s}. Connection will be ignored."),
-				Message.RemoteIndex, *ValidIndexes);
-			continue;
+			RemoteWorker = *RemoteWorkerPtr;
 		}
-		FCookWorkerServer& RemoteWorker = **RemoteWorkerPtr;
+
 		FSocket* LocalSocket = LocalConn.DetachSocket();
 		Messages.RemoveAt(0);
-		if (!RemoteWorker.TryHandleConnectMessage(Message, LocalSocket, MoveTemp(Messages)))
+		if (!RemoteWorker->TryHandleConnectMessage(Message, LocalSocket, MoveTemp(Messages), TickThread))
 		{
 			UE_LOG(LogCook, Warning, TEXT("Pending connection sent a Connection Message with an already in-use RemoteIndex. Connection will be ignored."));
 			Sockets::CloseSocket(LocalSocket);
@@ -589,37 +791,58 @@ void FCookDirector::TickWorkerConnects()
 	}
 }
 
-void FCookDirector::TickWorkerShutdowns()
+void FCookDirector::TickWorkerShutdowns(ECookDirectorThread TickThread)
 {
-	if (ShuttingDownWorkers.IsEmpty())
+	// Move any newly shutting down workers from RemoteWorkers
+	TArray<TRefCountPtr<FCookWorkerServer>> NewShutdowns;
+	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> LocalRemoteWorkers;
 	{
-		return;
+		FScopeLock RemoteWorkersScopeLock(&CommunicationLock);
+		for (TPair<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+		{
+			if (!Pair.Value)
+			{
+				NewShutdowns.Emplace(Pair.Key);
+			}
+			else
+			{
+				LocalRemoteWorkers.Add(Pair.Value);
+			}
+		}
+	}
+	if (!NewShutdowns.IsEmpty())
+	{
+		for (FCookWorkerServer* NewShutdown : NewShutdowns)
+		{
+			AbortWorker(NewShutdown->GetWorkerId(), TickThread);
+			{
+				FScopeLock CommunicationScopeLock(&CommunicationLock);
+				check(ShuttingDownWorkers.FindOrAdd(NewShutdown).IsValid()); // Abort worker should have set the value
+			}
+			LocalRemoteWorkers.Emplace(NewShutdown);
+		}
 	}
 
-	// Move any newly shutting down workers from RemoteWorkers
-	TArray<FCookWorkerServer*> NewShutdowns;
-	for (TPair<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+	TArray<TRefCountPtr<FCookWorkerServer>, TInlineAllocator<16>> CompletedWorkers;
+	for (TRefCountPtr<FCookWorkerServer>& RemoteWorker : LocalRemoteWorkers)
 	{
-		if (!Pair.Value)
+		RemoteWorker->TickCommunication(TickThread);
+		if (RemoteWorker->IsShutdownComplete())
 		{
-			NewShutdowns.Add(Pair.Key);
+			CompletedWorkers.Add(RemoteWorker);
 		}
 	}
-	for (FCookWorkerServer* NewShutdown : NewShutdowns)
+	LocalRemoteWorkers.Empty();
+
+	if (!CompletedWorkers.IsEmpty())
 	{
-		AbortWorker(NewShutdown->GetWorkerId());
-	}
-	for (TMap<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>>::TIterator Iter(ShuttingDownWorkers); Iter; ++Iter)
-	{
-		FCookWorkerServer& Worker = *Iter.Key();
-		check(Iter.Value()); // All non-yet-moved workers should have been moved by the AbortWorker calls above
-		Worker.TickFromSchedulerThread();
-		if (Worker.IsShutdownComplete())
+		FScopeLock CommunicationScopeLock(&CommunicationLock);
+		for (TRefCountPtr<FCookWorkerServer>& CompletedWorker : CompletedWorkers)
 		{
-			// Worker is now deleted, do not access
-			Iter.RemoveCurrent();
+			ShuttingDownWorkers.Remove(CompletedWorker.GetReference());
 		}
 	}
+	CompletedWorkers.Empty();
 }
 
 FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId)
@@ -683,7 +906,7 @@ bool FDirectorConnectionInfo::TryParseCommandLine()
 	return true;
 }
 
-void FCookDirector::LoadBalance(TConstArrayView<FCookWorkerServer*> SortedWorkers, TArrayView<FPackageData*> Requests,
+void FCookDirector::LoadBalance(TConstArrayView<TRefCountPtr<FCookWorkerServer>> SortedWorkers, TArrayView<FPackageData*> Requests,
 	TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments)
 {
 	TArray<FWorkerId> AllWorkers;
@@ -708,22 +931,24 @@ void FCookDirector::LoadBalance(TConstArrayView<FCookWorkerServer*> SortedWorker
 	return LoadBalanceCookBurden(AllWorkers, Requests, MoveTemp(RequestGraph), OutAssignments, bLogResults);
 }
 
-void FCookDirector::AbortWorker(FWorkerId WorkerId)
+void FCookDirector::AbortWorker(FWorkerId WorkerId, ECookDirectorThread TickThread)
 {
 	check(!WorkerId.IsLocal());
 	int32 Index = WorkerId.GetRemoteIndex();
-	TUniquePtr<FCookWorkerServer> RemoteWorker;
-	RemoteWorkers.RemoveAndCopyValue(Index, RemoteWorker);
-	if (!RemoteWorker)
+	TRefCountPtr<FCookWorkerServer> RemoteWorker;
 	{
-		return;
+		FScopeLock RemoteWorkersScopeLock(&CommunicationLock);
+		RemoteWorkers.RemoveAndCopyValue(Index, RemoteWorker);
+		if (!RemoteWorker)
+		{
+			return;
+		}
 	}
-	--CookWorkerCount;
 	TSet<FPackageData*> PackagesToReassign;
-	RemoteWorker->AbortAssignments(PackagesToReassign);
+	RemoteWorker->AbortAssignments(PackagesToReassign, TickThread);
 	if (!RemoteWorker->IsShuttingDown())
 	{
-		RemoteWorker->AbortWorker(PackagesToReassign);
+		RemoteWorker->AbortWorker(PackagesToReassign, TickThread);
 	}
 	for (FPackageData* PackageData : PackagesToReassign)
 	{
@@ -731,9 +956,44 @@ void FCookDirector::AbortWorker(FWorkerId WorkerId)
 		PackageData->SetWorkerAssignment(FWorkerId::Invalid());
 		PackageData->SendToState(UE::Cook::EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
-	TUniquePtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(RemoteWorker.Get());
-	check(!Existing); // We should not be able to abort a worker twice because we removed it from RemoteWorkers above
-	Existing = MoveTemp(RemoteWorker);
+	{
+		FScopeLock RemoteWorkersScopeLock(&CommunicationLock);
+		TRefCountPtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(RemoteWorker.GetReference());
+		check(!Existing); // We should not be able to abort a worker twice because we removed it from RemoteWorkers above
+		Existing = MoveTemp(RemoteWorker);
+	}
 }
+
+void FCookDirector::ConstructReadonlyThreadVariables()
+{
+	IsCookIgnoreTimeouts(); // The global variables are read-only; call them now to initialize them
+	CommandletExecutablePath = FUnrealEdMisc::Get().GetProjectEditorBinaryPath();
+
+	InitialConfigMessage = MakeUnique<FInitialConfigMessage>();
+	const TArray<const ITargetPlatform*>& SessionPlatforms = COTFS.PlatformManager->GetSessionPlatforms();
+	TArray<ITargetPlatform*> OrderedSessionPlatforms;
+	OrderedSessionPlatforms.Reset(SessionPlatforms.Num());
+	for (const ITargetPlatform* TargetPlatform : SessionPlatforms)
+	{
+		OrderedSessionPlatforms.Add(const_cast<ITargetPlatform*>(TargetPlatform));
+	}
+	InitialConfigMessage->ReadFromLocal(COTFS, OrderedSessionPlatforms,
+		*COTFS.CookByTheBookOptions, *COTFS.CookOnTheFlyOptions, BeginCookContext);
+}
+
+const FInitialConfigMessage& FCookDirector::GetInitialConfigMessage()
+{
+	return *InitialConfigMessage;
+}
+
+FCookDirector::FLaunchInfo FCookDirector::GetLaunchInfo(FWorkerId WorkerId)
+{
+	FLaunchInfo Info;
+	Info.ShowWorkerOption = GetShowWorkerOption();
+	Info.CommandletExecutable = CommandletExecutablePath;
+	Info.WorkerCommandLine = GetWorkerCommandLine(WorkerId);
+	return Info;
+}
+
 
 }

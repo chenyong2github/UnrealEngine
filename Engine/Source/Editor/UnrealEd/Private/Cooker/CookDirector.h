@@ -9,20 +9,40 @@
 #include "Containers/UnrealString.h"
 #include "CookSockets.h"
 #include "CookTypes.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Event.h"
+#include "HAL/Runnable.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
+
+#include <atomic>
 
 class FCbObject;
 class FCbWriter;
+class FRunnableThread;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FCookWorkerServer; }
 namespace UE::Cook { class IMPCollector; }
+namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FWorkerId; }
 
 namespace UE::Cook
 {
+
+/**
+ * The categories of thread that can pump the communication with CookWorkers. It can be pumped either from
+ * the cooker's scheduler thread (aka Unreal's game thread or main thread) or from a worker thread.
+ */
+enum class ECookDirectorThread : uint8
+{
+	SchedulerThread,
+	CommunicateThread,
+	Invalid,
+};
 
 /**
  * Helper for CookOnTheFlyServer that sends requests to CookWorker processes for load/save and merges
@@ -31,6 +51,7 @@ namespace UE::Cook
 class FCookDirector
 {
 public:
+
 	FCookDirector(UCookOnTheFlyServer& InCOTFS);
 	~FCookDirector();
 
@@ -65,7 +86,24 @@ public:
 	/** Unegister a Collector that was registered. */
 	void Unregister(IMPCollector* Collector);
 
+	/** Data used by a CookWorkerServer to launch the remote process. */
+	struct FLaunchInfo
+	{
+		EShowWorker ShowWorkerOption;
+		FString CommandletExecutable;
+		FString WorkerCommandLine;
+	};
+	FLaunchInfo GetLaunchInfo(FWorkerId WorkerId);
+
+	/** The message CookWorkerServer sends to the remote process once it is ready to connect. */
+	const FInitialConfigMessage& GetInitialConfigMessage();
+
 private:
+	enum class ELoadBalanceAlgorithm
+	{
+		Striped,
+		CookBurden,
+	};
 	/** CookWorker connections that have not yet identified which CookWorker they are. */
 	struct FPendingConnection
 	{
@@ -82,28 +120,54 @@ private:
 		FSocket* Socket = nullptr;
 		UE::CompactBinaryTCP::FReceiveBuffer Buffer;
 	};
+	/** Struct that implements the FRunnable interface and forwards it to to named functions on this FCookDirector. */
+	struct FRunnableShunt : public FRunnable
+	{
+		FRunnableShunt(FCookDirector& InDirector) : Director(InDirector) {}
+		virtual uint32 Run() override;
+		virtual void Stop() override;
+		FCookDirector& Director;
+	};
+
+private:
 	/** Helper for constructor parsing. */
 	void ParseConfig();
-	/** Sets CookWorkerCount for a new session */
-	void ResetCookWorkerCount();
 	/** Initialization helper: create the listen socket. */
 	bool TryCreateWorkerConnectSocket();
-	/** Initialization helper: add the local Server for a remote worker, worker process not yet created. */
+	/**
+	 * Construct CookWorkerServers and communication thread if not yet constructed.
+	 * The CookWorkerServers are constructed to Uninitialized; the worker process is created later.
+	 */
 	void InitializeWorkers();
+	/** Copy to snapshot variables the data required on the communication thread that can only be read from the scheduler thread. */
+	void ConstructReadonlyThreadVariables();
+	/** Construct CookWorkerServers if necessary to replace workers that have crashed. */
+	void RecreateWorkers();
 	/** Reduce memory settings, cpusettings, and anything else that needs to be shared with CookWorkers. */
 	void ActivateMachineResourceReduction();
+	/** Start the communication thread if not already started. */
+	void LaunchCommunicationThread();
+	/** Signal the communication thread to stop, wait for it to finish, and deallocate it. */
+	void StopCommunicationThread();
+	/** Entry point for the communication thread. */
+	uint32 RunCommunicationThread();
+	/**
+	 * Execute a single frame of communication with CookWorkers: send/receive to all CookWorkers,
+	 * including connecting, ongoing communication, and shutting down.
+	 */
+	void TickCommunication(ECookDirectorThread TickThread);
 	/** Tick helper: tick any workers that have not yet finished initialization. */
-	void TickWorkerConnects();
+	void TickWorkerConnects(ECookDirectorThread TickThread);
 	/** Tick helper: tick any workers that are shutting down. */
-	void TickWorkerShutdowns();
+	void TickWorkerShutdowns(ECookDirectorThread TickThread);
 	/** Get the commandline to launch a worker process with. */
 	FString GetWorkerCommandLine(FWorkerId WorkerId);
 	/** Calls the configured LoadBalanceAlgorithm. Input Requests have been sorted by leaf to root load order. */
-	void LoadBalance(TConstArrayView<FCookWorkerServer*> Workers, TArrayView<FPackageData*> Requests,
+	void LoadBalance(TConstArrayView<TRefCountPtr<FCookWorkerServer>> Workers, TArrayView<FPackageData*> Requests,
 		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
 
 	/** Move the given worker from active workers to the list of workers shutting down. */
-	void AbortWorker(FWorkerId WorkerId);
+	void AbortWorker(FWorkerId WorkerId, ECookDirectorThread TickThread);
 	/**
 	 * Periodically update whether (1) local server is done and (2) no results from cookworkers have come in.
 	 * Send warning when it goes on too long.
@@ -111,30 +175,42 @@ private:
 	void SetWorkersStalled(bool bInWorkersStalled);
 
 private:
-	enum class ELoadBalanceAlgorithm
-	{
-		Striped,
-		CookBurden,
-	};
-	FBeginCookContextForWorker BeginCookContext;
-	TMap<int32, TUniquePtr<FCookWorkerServer>> RemoteWorkers;
-	TMap<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>> ShuttingDownWorkers;
-	TMap<FGuid, TRefCountPtr<IMPCollector>> MessageHandlers;
+	// Synchronization primitives that can be used from any thread
+	FCriticalSection CommunicationLock;
+	FEventRef ShutdownEvent {EEventMode::ManualReset};
+
+	// Data only accessible from the SchedulerThread
+	FRunnableShunt RunnableShunt;
+	FRunnableThread* CommunicationThread = nullptr;
 	TArray<FPendingConnection> PendingConnections;
-	FString WorkerConnectAuthority;
 	UCookOnTheFlyServer& COTFS;
-	FSocket* WorkerConnectSocket = nullptr;
 	double WorkersStalledStartTimeSeconds = 0.;
 	double WorkersStalledWarnTimeSeconds = 0.;
+	bool bWorkersInitialized = false;
+	bool bHasReducedMachineResources = false;
+	bool bIsFirstAssignment = true;
+	bool bCookCompleteSent = false;
+	bool bWorkersStalled = false;
+
+	// Data that is read-only while the CommunicationThread is active and is readable from any thread
+	FBeginCookContextForWorker BeginCookContext;
+	TMap<FGuid, TRefCountPtr<IMPCollector>> MessageHandlers;
+	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
+	FString WorkerConnectAuthority;
+	FString CommandletExecutablePath;
 	int32 RequestedCookWorkerCount = 0;
-	int32 CookWorkerCount = 0;
 	int32 WorkerConnectPort = 0;
 	int32 CoreLimit = 0;
-	bool bWorkersStalled = false;
-	bool bIsFirstAssignment = true;
-	bool bHasReducedMachineResources = false;
 	EShowWorker ShowWorkerOption = EShowWorker::CombinedLogs;
 	ELoadBalanceAlgorithm LoadBalanceAlgorithm = ELoadBalanceAlgorithm::CookBurden;
+
+	// Data only accessible from the CommunicationThread (or if the CommunicationThread is inactive)
+	FSocket* WorkerConnectSocket = nullptr;
+
+	// Data shared between SchedulerThread and CommunicationThread that can only be accessed inside CommunicationLock
+	TMap<int32, TRefCountPtr<FCookWorkerServer>> RemoteWorkers;
+	TMap<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>> ShuttingDownWorkers;
+	bool bWorkersActive = false;
 
 	friend class UE::Cook::FCookWorkerServer;
 };

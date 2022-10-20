@@ -88,6 +88,8 @@ EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
 	FMarshalledMessage&& AppendMessage, uint64 MaxPacketSize = 0);
 EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
 	const IMessage& AppendMessage, uint64 MaxPacketSize = 0);
+void QueueMessage(FSendBuffer& Buffer, const IMessage& AppendMessage);
+
 
 /** Attempt to finish sending packets that were previously queued by TryWritePacket */
 EConnectionStatus TryFlushBuffer(FSocket* Socket, FSendBuffer& Buffer, uint64 MaxPacketSize = 0);

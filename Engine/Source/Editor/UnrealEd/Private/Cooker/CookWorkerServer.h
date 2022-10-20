@@ -5,12 +5,15 @@
 #include "CompactBinaryTCP.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/RingBuffer.h"
 #include "Containers/Set.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookPackageData.h"
 #include "CookSockets.h"
 #include "CookTypes.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/Guid.h"
+#include "Templates/RefCounting.h"
 
 class FSocket;
 class ITargetPlatform;
@@ -18,6 +21,7 @@ struct FProcHandle;
 namespace UE::CompactBinaryTCP { struct FMarshalledMessage; }
 namespace UE::Cook { class FCookDirector; }
 namespace UE::Cook { struct FDiscoveredPackage; }
+namespace UE::Cook { enum class ECookDirectorThread : uint8; };
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FPackageResultsMessage; }
 namespace UE::Cook { struct FWorkerConnectMessage; }
@@ -26,7 +30,7 @@ namespace UE::Cook
 {
 
 /** Class in a Director process that communicates over a Socket with FCookWorkerClient in a CookWorker process. */
-class FCookWorkerServer
+class FCookWorkerServer : public FThreadSafeRefCountedObject
 {
 public:
 	FCookWorkerServer(FCookDirector& InDirector, FWorkerId InWorkerId);
@@ -35,22 +39,28 @@ public:
 	FWorkerId GetWorkerId() const { return WorkerId; }
 
 	/** Add the given assignments for the CookWorker. They will be sent during Tick */
-	void AppendAssignments(TArrayView<FPackageData*> Assignments);
+	void AppendAssignments(TArrayView<FPackageData*> Assignments, ECookDirectorThread TickThread);
 	/** Remove assignment of the package from local state and from the connected Client. */
-	void AbortAssignment(FPackageData& PackageData);
+	void AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread);
 	/**
 	 * Remove assignment of the all assigned packages from local state and from the connected Client.
 	 * Report all packages that were unassigned.
 	 */
-	void AbortAssignments(TSet<FPackageData*>& OutPendingPackages);
+	void AbortAssignments(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread);
 	/** AbortAssignments and tell the connected Client to gracefully terminate. Report all packages that were unassigned. */
-	void AbortWorker(TSet<FPackageData*>& OutPendingPackages);
+	void AbortWorker(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread);
 	/** Take over the Socket for a CookWorker that has just connected. */
-	bool TryHandleConnectMessage(FWorkerConnectMessage& Message, FSocket* InSocket, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& OtherPacketMessages);
+	bool TryHandleConnectMessage(FWorkerConnectMessage& Message, FSocket* InSocket, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& OtherPacketMessages, ECookDirectorThread TickThread);
+
 	/** Periodic Tick function to send and receive messages to the Client. */
-	void TickFromSchedulerThread();
+	void TickCommunication(ECookDirectorThread TickThread);
 	/** Called when the COTFS Server has detected all packages are complete. Tell the CookWorker to flush messages and exit. */
-	void SignalCookComplete();
+	void SignalCookComplete(ECookDirectorThread TickThread);
+	/**
+	 * Execute the respond for all messages that have been received and that can be executed from the given thread. 
+	 * This is the entry point for the scheduler thread to pick up messages that the CommunicationThread has queued.
+	 */
+	void HandleReceiveMessages(ECookDirectorThread TickThread);
 
 	/** Is this either shutting down or completed shutdown of its remote Client? */
 	bool IsShuttingDown() const;
@@ -58,6 +68,10 @@ public:
 	bool IsFlushingBeforeShutdown() const;
 	/** Is this not yet or no longer connected to a remote Client? */
 	bool IsShutdownComplete() const;
+	/** Does this Server have any package assignments the remmote CookWorker is supposed to save but hasn't yet? */
+	bool HasAssignments() const;
+	/** Does this Server have any ReceivedMessages that need to be processed by the Scheduler thread? */
+	bool HasMessages() const;
 
 private:
 	enum class EConnectStatus
@@ -68,6 +82,31 @@ private:
 		PumpingCookComplete,
 		WaitForDisconnect,
 		LostConnection,
+	};
+	enum class ETickAction
+	{
+		Tick,
+		Queue,
+		Invalid,
+	};
+	/**
+	 * Stores from which thread the public function on *this was called, and whether that public function is a pumping
+	 * function that should send/receive network messages or merely an accessor function that should send-to-queue or
+	 * read-from-queued network messages.
+	 */
+	struct FTickState
+	{
+		FTickState();
+		ECookDirectorThread TickThread;
+		ETickAction TickAction;
+	};
+	/** An RAII structure that enters the lock and sets the TickState information required by many functions. */
+	struct FCommunicationScopeLock
+	{
+		FScopeLock ScopeLock;
+		FCookWorkerServer& Server;
+		FCommunicationScopeLock(FCookWorkerServer* InServer, ECookDirectorThread TickThread, ETickAction TickAction);
+		~FCommunicationScopeLock();
 	};
 
 private:
@@ -83,6 +122,8 @@ private:
 	void SendPendingPackages();
 	/** Helper for Tick, pump receive messages from a connected Client. */
 	void PumpReceiveMessages();
+	/** The main implementation of AbortAssignments, only callable from inside the lock. */
+	void AbortAssignmentsInLock(TSet<FPackageData*>& OutPendingPackages);
 	/** Send the message immediately to the Socket. If cannot complete immediately, it will be finished during Tick. */
 	void SendMessage(const UE::CompactBinaryTCP::IMessage& Message);
 	/** Send this into the given state. Update any state-dependent variables. */
@@ -91,23 +132,30 @@ private:
 	void DetachFromRemoteProcess();
 	/** Kill the Client process (non-graceful termination), and close the connection resources. */
 	void ShutdownRemoteProcess();
+	/** The main implementation of HandleReceiveMessages, only callable from inside the lock. */
+	void HandleReceiveMessagesInternal();
 	/** Helper for PumpReceiveMessages: dispatch the messages received from the socket. */
-	void HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages);
 	void HandleReceivedPackagePlatformMessages(FPackageData& PackageData, const ITargetPlatform* TargetPlatform, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& Messages);
 	/** Add results from the client to the local CookOnTheFlyServer. */
 	void RecordResults(FPackageResultsMessage& Message);
 	void LogInvalidMessage(const TCHAR* MessageTypeName);
 	void AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPackage);
 
+	// Lock guarding access to all data on *this
+	mutable FCriticalSection CommunicationLock;
+
+	// All data can only be read or written while the CommunicationLock is entered.
 	TArray<FPackageData*> PackagesToAssign;
 	TSet<FPackageData*> PendingPackages;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;
+	TRingBuffer<UE::CompactBinaryTCP::FMarshalledMessage> ReceiveMessages;
 	FCookDirector& Director;
 	UCookOnTheFlyServer& COTFS;
 	FSocket* Socket = nullptr;
 	FProcHandle CookWorkerHandle;
+	FTickState TickState;
 	uint32 CookWorkerProcessId = 0;
 	double ConnectStartTimeSeconds = 0.;
 	double ConnectTestStartTimeSeconds = 0.;
@@ -201,8 +249,8 @@ public:
 	FBeginCookConfigSettings&& ConsumeBeginCookConfigSettings() { return MoveTemp(BeginCookSettings); }
 	FCookByTheBookOptions&& ConsumeCookByTheBookOptions() { return MoveTemp(CookByTheBookOptions); }
 	FCookOnTheFlyOptions&& ConsumeCookOnTheFlyOptions() { return MoveTemp(CookOnTheFlyOptions); }
-	const FBeginCookContextForWorker& GetBeginCookContext() { return BeginCookContext; }
-	const TArray<ITargetPlatform*>& GetOrderedSessionPlatforms() { return OrderedSessionPlatforms; }
+	const FBeginCookContextForWorker& GetBeginCookContext() const { return BeginCookContext; }
+	const TArray<ITargetPlatform*>& GetOrderedSessionPlatforms() const { return OrderedSessionPlatforms; }
 	bool IsZenStore() const { return bZenStore; }
 
 public:
