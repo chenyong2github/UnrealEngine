@@ -586,6 +586,12 @@ public:
 	void DeleteDataLayer(UDataLayerInstance* DataLayerToDelete);
 
 	/**
+	 * Returns all Data Layers
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	TArray<UDataLayerInstance*> GetAllDataLayers();
+
+	/**
 	* Resets user override settings of all DataLayers
 	*/
 	bool ResetUserSettings();

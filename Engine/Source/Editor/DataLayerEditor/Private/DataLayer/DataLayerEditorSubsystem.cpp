@@ -1089,6 +1089,20 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsLoadedInEditor(const TArray<UD
 	return true;
 }
 
+TArray<UDataLayerInstance*> UDataLayerEditorSubsystem::GetAllDataLayers()
+{
+	TArray<UDataLayerInstance*> DataLayerInstances;
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		DataLayerSubsystem->ForEachDataLayer([&DataLayerInstances](UDataLayerInstance* DataLayerInstance)
+		{
+			DataLayerInstances.Add(DataLayerInstance);
+			return true;
+		});
+	}
+	return DataLayerInstances;
+}
+
 bool UDataLayerEditorSubsystem::ResetUserSettings()
 {
 	bool bChanged = false;
