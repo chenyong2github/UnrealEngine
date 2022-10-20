@@ -10,7 +10,7 @@ using UnrealBuildTool;
 using UnrealBuildBase;
 using EpicGames.Core;
 
-public class MacPlatform : Platform
+public class MacPlatform : ApplePlatform
 {
 	/// <summary>
 	/// Default architecture to build projects for. Defaults to Intel
