@@ -71,3 +71,7 @@ void FAnimNode_AssetPlayerBase::ClearCachedBlendWeight()
 	BlendWeight = 0.0f;
 }
 
+float FAnimNode_AssetPlayerBase::GetCurrentAssetTimePlayRateAdjusted() const
+{
+	return  GetCurrentAssetTime();
+}
