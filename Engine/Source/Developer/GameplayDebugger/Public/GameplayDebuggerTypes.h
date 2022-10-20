@@ -6,6 +6,8 @@
 #include "Engine/EngineTypes.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
+#include "UObject/ObjectMacros.h"
+#include "GameplayDebuggerTypes.generated.h"
 
 class FCanvasItem;
 class UCanvas;
@@ -157,6 +159,7 @@ namespace FGameplayDebuggerCanvasStrings
 	static FString SeparatorSpace = TEXT("  ");
 }
 
+UENUM()
 enum class EGameplayDebuggerShape : uint8
 {
 	Invalid,
@@ -171,18 +174,25 @@ enum class EGameplayDebuggerShape : uint8
 	Arrow,
 };
 
+USTRUCT()
 struct GAMEPLAYDEBUGGER_API FGameplayDebuggerShape
 {
+	GENERATED_BODY()
+
 	/** points defining shape */
+	UPROPERTY()
 	TArray<FVector> ShapeData;
 
 	/** description of shape */
+	UPROPERTY()
 	FString Description;
 
 	/** color of shape */
+	UPROPERTY()
 	FColor Color;
 
 	/** type of shape */
+	UPROPERTY()
 	EGameplayDebuggerShape Type;
 
 	FGameplayDebuggerShape() : Type(EGameplayDebuggerShape::Invalid) {}
@@ -216,42 +226,52 @@ enum class EGameplayDebuggerDataPack : uint8
 	ResetOnTick,
 };
 
+USTRUCT()
+struct FGameplayDebuggerDataPackHeader
+{
+	GENERATED_BODY()
+
+	/** version, increased every time new Data is requested */
+	UPROPERTY()
+	int16 DataVersion;
+
+	/** debug actor sync counter */
+	UPROPERTY()
+	int16 SyncCounter;
+
+	/** size of Data array */
+	UPROPERTY()
+	int32 DataSize;
+
+	/** offset to currently replicated portion of data */
+	UPROPERTY()
+	int32 DataOffset;
+
+	/** is data compressed? */
+	UPROPERTY()
+	uint32 bIsCompressed : 1;
+
+	FGameplayDebuggerDataPackHeader() : DataVersion(0), SyncCounter(0), DataSize(0), DataOffset(0), bIsCompressed(false) {}
+
+	FORCEINLINE bool Equals(const FGameplayDebuggerDataPackHeader& Other) const
+	{
+		return (DataVersion == Other.DataVersion) && (DataSize == Other.DataSize) && (DataOffset == Other.DataOffset);
+	}
+
+	FORCEINLINE bool operator==(const FGameplayDebuggerDataPackHeader& Other) const
+	{
+		return Equals(Other);
+	}
+
+	FORCEINLINE bool operator!=(const FGameplayDebuggerDataPackHeader& Other) const
+	{
+		return !Equals(Other);
+	}
+};
+
 struct GAMEPLAYDEBUGGER_API FGameplayDebuggerDataPack
 {
-	struct FHeader
-	{
-		/** version, increased every time new Data is requested */
-		int16 DataVersion;
-
-		/** debug actor sync counter */
-		int16 SyncCounter;
-
-		/** size of Data array */
-		int32 DataSize;
-
-		/** offset to currently replicated portion of data */
-		int32 DataOffset;
-
-		/** is data compressed? */
-		uint32 bIsCompressed : 1;
-
-		FHeader() : DataVersion(0), SyncCounter(0), DataSize(0), DataOffset(0), bIsCompressed(false) {}
-
-		FORCEINLINE bool Equals(const FHeader& Other) const
-		{
-			return (DataVersion == Other.DataVersion) && (DataSize == Other.DataSize) && (DataOffset == Other.DataOffset);
-		}
-
-		FORCEINLINE bool operator==(const FHeader& Other) const
-		{
-			return Equals(Other);
-		}
-
-		FORCEINLINE bool operator!=(const FHeader& Other) const
-		{
-			return !Equals(Other);
-		}
-	};
+	using FHeader = FGameplayDebuggerDataPackHeader;
 
 	DECLARE_DELEGATE(FOnReset);
 	DECLARE_DELEGATE_OneParam(FOnSerialize, FArchive&);

@@ -15,26 +15,70 @@ class FGameplayDebuggerCategory;
 class FGameplayDebuggerExtension;
 class UGameplayDebuggerRenderingComponent;
 
+// Struct used to send the DataPackPackets as RPC`s instead of using the CustomDeltaNetSerializer.
+USTRUCT()
+struct FGameplayDebuggerDataPackRPCParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CategoryName;
+
+	UPROPERTY()
+	int32 DataPackIdx;
+
+	UPROPERTY()
+	FGameplayDebuggerDataPackHeader Header;
+
+	UPROPERTY()
+	TArray<uint8> Data;
+};
+
+USTRUCT()
+struct FGameplayDebuggerCategoryData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CategoryName;
+
+	UPROPERTY()
+	TArray<FString> TextLines;
+
+	UPROPERTY()
+	TArray<FGameplayDebuggerShape> Shapes;
+
+	// Either replicated using the NetDeltaSerialize or alternatively as regular RPC`s
+	UPROPERTY(NotReplicated)
+	TArray<FGameplayDebuggerDataPackHeader> DataPacks;
+
+	UPROPERTY()
+	bool bIsEnabled;
+};
+
 USTRUCT()
 struct FGameplayDebuggerNetPack
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	AGameplayDebuggerCategoryReplicator* Owner;
+	UPROPERTY(NotReplicated)
+	TObjectPtr<AGameplayDebuggerCategoryReplicator> Owner;
 
 	FGameplayDebuggerNetPack() : Owner(nullptr) {}
+
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo & DeltaParms);
 	void OnCategoriesChanged();
 
+#if UE_WITH_IRIS
+	// When using Iris we cannot use the same appoach as the current NetSerializeDelta as it does polling of data and also modifies data outside of the replicated state during serialization which is not allowed when using iris.
+	// Therefore we need explicit methods to populate the state from the owner and to apply it to the owner which can be invoked before and after serialization as needed.
+	void PopulateFromOwner();
+	void ApplyToOwner();
+#endif
+
 private:
-	struct FCategoryData
-	{
-		TArray<FString> TextLines;
-		TArray<FGameplayDebuggerShape> Shapes;
-		TArray<FGameplayDebuggerDataPack::FHeader> DataPacks;
-		bool bIsEnabled;
-	};
-	TArray<FCategoryData> SavedData;
+	UPROPERTY()
+	TArray<FGameplayDebuggerCategoryData> SavedData;
 };
 
 template<>
@@ -51,6 +95,7 @@ struct FGameplayDebuggerDebugActor
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY(NotReplicated)
 	TWeakObjectPtr<AActor> Actor;
 
 	UPROPERTY()
@@ -82,10 +127,18 @@ class GAMEPLAYDEBUGGER_API AGameplayDebuggerCategoryReplicator : public AActor
 protected:
 	virtual void BeginPlay() override;
 
+#if UE_WITH_IRIS
+	virtual void BeginReplication() override;
+
+	virtual const AActor* GetNetOwner() const override;
+#endif
+
 public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
 	virtual void PostNetReceive() override;
+
+	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
 	/** [AUTH] set new owner */
 	void SetReplicatorOwner(APlayerController* InOwnerPC);
@@ -167,6 +220,9 @@ public:
 #endif // WITH_EDITOR
 
 protected:
+	UFUNCTION()
+	void OnRep_ReplicatedData();
+
 
 	friend FGameplayDebuggerNetPack;
 
@@ -176,7 +232,7 @@ protected:
 	UPROPERTY(Replicated)
 	bool bIsEnabled;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(Replicated, ReplicatedUsing=OnRep_ReplicatedData)
 	FGameplayDebuggerNetPack ReplicatedData;
 
 	UPROPERTY(Replicated)
@@ -202,6 +258,7 @@ protected:
 	uint32 bHasAuthority : 1;
 	uint32 bIsLocal : 1;
 	uint32 bIsEditorWorldReplicator : 1;
+	uint32 bSendDataPacksUsingRPC : 1;
 
 	/** notify about changes in known category set */
 	void OnCategoriesChanged();
@@ -238,9 +295,16 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
 	void ServerSendExtensionInputEvent(int32 ExtensionId, int32 HandlerId);
 
+	/** helper function for optionally sending DataPackPackets as RPC's */
+	UFUNCTION(Client, Reliable)
+	void ClientDataPackPacket(const FGameplayDebuggerDataPackRPCParams& Params);
+	
 	/** [LOCAL] notify from CategoryData replication */
 	void OnReceivedDataPackPacket(int32 CategoryId, int32 DataPackId, const FGameplayDebuggerDataPack& DataPacket);
 
 	/** called both from BeginPlay and InitForEditor to setup instance's internal */
 	void Init();
+
+private:
+	void SendDataPackPacket(FName CategoryName, int32 DataPackIdx, FGameplayDebuggerDataPack& DataPack);
 };

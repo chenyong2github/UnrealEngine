@@ -11,6 +11,8 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerTypes)
+
 DEFINE_LOG_CATEGORY(LogGameplayDebug);
 
 namespace FGameplayDebuggerUtils

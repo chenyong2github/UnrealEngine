@@ -181,14 +181,6 @@ AGameplayDebuggerPlayerManager& FGameplayDebuggerModule::GetPlayerManager(UWorld
 
 void FGameplayDebuggerModule::OnWorldInitialized(UWorld* World, const UWorld::InitializationValues IVS)
 {
-#if UE_WITH_IRIS
-	if (UE::Net::ShouldUseIrisReplication())
-	{
-		// $IRIS: $TODO: Implement custom Iris NetSerilalizer to be able to support this., https://jira.it.epicgames.com/browse/UE-158457
-		return;
-	}
-#endif // UE_WITH_IRIS
-
 	// make sure that world has valid player manager, create when it doesn't
 	if (World && (World->IsGameWorld() || World->IsEditorWorld()))
 	{

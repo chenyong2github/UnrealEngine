@@ -10,6 +10,10 @@
 #include "Net/UnrealNetwork.h"
 #include "VisualLogger/VisualLogger.h"
 
+#if UE_WITH_IRIS
+#include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayDebuggerCategoryReplicator)
 
 #if WITH_EDITOR
@@ -26,6 +30,12 @@ static TAutoConsoleVariable<int32> CVarGameplayDebuggerRepDetails(
 	TEXT("ai.debug.DetailedReplicationLogs"),
 	0,
 	TEXT("Enable or disable very verbose replication logs for gameplay debugger"),
+	ECVF_Cheat);
+
+static TAutoConsoleVariable<int32> CVarGameplayDebuggerUseDataPackRPC(
+	TEXT("GameplayDebugger.UseDataPackRPC"),
+	0,
+	TEXT("Enable or disable use of rpc's for datapack packets for gameplay debugger"),
 	ECVF_Cheat);
 
 FNotifyGameplayDebuggerOwnerChange AGameplayDebuggerCategoryReplicator::NotifyDebuggerOwnerChange;
@@ -96,6 +106,109 @@ public:
 	TArray<FCategoryState> CategoryStates;
 };
 
+void AGameplayDebuggerCategoryReplicator::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
+{
+#if UE_WITH_IRIS
+	if (UE::Net::FReplicationSystemUtil::GetNetHandle(this).IsValid())
+	{
+		ReplicatedData.PopulateFromOwner();
+	}
+#endif
+}
+
+void AGameplayDebuggerCategoryReplicator::OnRep_ReplicatedData()
+{
+#if UE_WITH_IRIS
+	if (UE::Net::FReplicationSystemUtil::GetNetHandle(this).IsValid())
+	{
+		ReplicatedData.ApplyToOwner();
+	}
+#endif
+}
+
+#if UE_WITH_IRIS
+void FGameplayDebuggerNetPack::PopulateFromOwner()
+{
+	// The current implementation of the FGameplayDebuggerNetPack replication does not behave like most other 
+	// replicated systems so in order to make this work for Iris replication which has much stricter rules for what can be done during serialization,
+	// we cannot rely on polling being made during the call to the custom NetDeltaSerialize method so we use this explicit method to poll the data to be replicated instead.
+	
+	// Update SavedCategories for replication, DataPacks-packets are handled using RPC`s
+	if (Owner && Owner->bIsEnabled && Owner->Categories.Num() == SavedData.Num())
+	{
+		for (int32 Idx = 0; Idx < SavedData.Num(); Idx++)
+		{
+			FGameplayDebuggerCategory& CategoryOb = Owner->Categories[Idx].Get();
+			FGameplayDebuggerCategoryData& SavedCategory = SavedData[Idx];
+
+			SavedCategory.CategoryName = CategoryOb.GetCategoryName();
+			SavedCategory.bIsEnabled = CategoryOb.bIsEnabled;
+
+			const bool bTextLinesChanged = (SavedCategory.TextLines != CategoryOb.ReplicatedLines);
+			if (bTextLinesChanged)
+			{
+				SavedCategory.TextLines = CategoryOb.ReplicatedLines;
+			}
+
+			const bool bShapesChanged = (SavedCategory.Shapes != CategoryOb.ReplicatedShapes);
+			if (bShapesChanged)
+			{
+				SavedCategory.Shapes = CategoryOb.ReplicatedShapes;
+			}
+		}
+	}
+}
+
+void FGameplayDebuggerNetPack::ApplyToOwner()
+{
+	if (!ensure(Owner))
+	{
+		return;
+	}
+
+	bool bHasCategoryStateChanges = false;
+	for (const FGameplayDebuggerCategoryData& SavedDataEntry : SavedData)
+	{
+		// Does the category exist on the client?
+		// using FindLastByPredicate since that's the only Predicate-based find that returns index.
+		const FName CategoryName = SavedDataEntry.CategoryName;
+		const int32 FoundIndex = Owner->Categories.FindLastByPredicate([CategoryName](const TSharedRef<FGameplayDebuggerCategory>& Item) { return (Item->GetCategoryName() == CategoryName); });
+		if (FoundIndex == INDEX_NONE)
+		{
+			continue;
+		}
+		
+		FGameplayDebuggerCategory& CategoryOb = Owner->Categories[FoundIndex].Get();
+		UE_LOG(LogGameplayDebugReplication, Verbose, TEXT("  CATEGORY[%d]:%s"), FoundIndex, *CategoryOb.GetCategoryName().ToString());
+		
+		if (CategoryOb.bIsEnabled != SavedDataEntry.bIsEnabled)
+		{
+			bHasCategoryStateChanges = true;
+			CategoryOb.bIsEnabled = SavedDataEntry.bIsEnabled;
+		}
+
+		if (SavedDataEntry.TextLines != CategoryOb.ReplicatedLines)
+		{
+
+			UE_LOG(LogGameplayDebugReplication, Verbose, TEXT("  >> received lines"));
+			CategoryOb.ReplicatedLines = SavedDataEntry.TextLines;
+		}
+
+		if (SavedDataEntry.Shapes != CategoryOb.ReplicatedShapes)
+		{
+			UE_LOG(LogGameplayDebugReplication, Verbose, TEXT("  >> received shapes"));
+			CategoryOb.ReplicatedShapes = SavedDataEntry.Shapes;
+		}
+	}
+
+	// force scene proxy updates if categories changed state
+	if (bHasCategoryStateChanges)
+	{
+		Owner->MarkComponentsRenderStateDirty();
+	}
+}
+#endif // #if UE_WITH_IRIS
+
 bool FGameplayDebuggerNetPack::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 {
 	if (DeltaParms.bUpdateUnmappedObjects || Owner == nullptr)
@@ -133,11 +246,12 @@ bool FGameplayDebuggerNetPack::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaPa
 			{
 				FNetFastCategoryBaseState::FCategoryState& CategoryState = NewState->CategoryStates[Idx];
 				FGameplayDebuggerCategory& CategoryOb = Owner->Categories[Idx].Get();
-				FCategoryData& SavedCategory = SavedData[Idx];
+				FGameplayDebuggerCategoryData& SavedCategory = SavedData[Idx];
 
 				const bool bMissingOldState = (OldState == nullptr) || !OldState->CategoryStates.IsValidIndex(Idx);
 				ChangedCategories[Idx] = bMissingOldState ? 1 : 0;
 
+				SavedCategory.CategoryName = CategoryOb.GetCategoryName();
 				if (SavedCategory.bIsEnabled != CategoryOb.bIsEnabled)
 				{
 					SavedCategory.bIsEnabled = CategoryOb.bIsEnabled;
@@ -160,10 +274,13 @@ bool FGameplayDebuggerNetPack::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaPa
 					ChangedCategories[Idx]++;
 				}
 
-				const int32 NumDataPacks = CategoryOb.ReplicatedDataPacks.Num();
+				// If datapack-packets are sent using RPC`s we do not need to store them in the SavedCategoryStates or the Delta baselines
+				const bool bUseDataPackRPC = Owner->bSendDataPacksUsingRPC;
+				const int32 NumDataPacks = bUseDataPackRPC ? 0 : CategoryOb.ReplicatedDataPacks.Num();
+
 				SavedCategory.DataPacks.SetNum(NumDataPacks);
 				CategoryState.DataPackStates.SetNum(NumDataPacks);
-				for (int32 DataIdx = 0; DataIdx < CategoryOb.ReplicatedDataPacks.Num(); DataIdx++)
+				for (int32 DataIdx = 0; DataIdx < NumDataPacks; DataIdx++)
 				{
 					FGameplayDebuggerDataPack& DataPack = CategoryOb.ReplicatedDataPacks[DataIdx];
 					const bool bHasOldStatePack = !bMissingOldState && OldState->CategoryStates[Idx].DataPackStates.IsValidIndex(DataIdx);
@@ -229,15 +346,14 @@ bool FGameplayDebuggerNetPack::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaPa
 		{
 			FGameplayDebuggerCategory& CategoryOb = Owner->Categories[Idx].Get();
 			const bool bMissingOldState = (OldState == nullptr) || !OldState->CategoryStates.IsValidIndex(Idx);
-			FCategoryData& SavedCategory = SavedData[Idx];
+			FGameplayDebuggerCategoryData& SavedCategory = SavedData[Idx];
 
 			uint8 BaseFlags = SavedCategory.bIsEnabled;
 			uint8 ShouldUpdateTextLines = bMissingOldState || (OldState->CategoryStates[Idx].TextLinesRepCounter != NewState->CategoryStates[Idx].TextLinesRepCounter);
 			uint8 ShouldUpdateShapes = bMissingOldState || (OldState->CategoryStates[Idx].ShapesRepCounter != NewState->CategoryStates[Idx].ShapesRepCounter);
 			uint8 NumDataPacks = SavedCategory.DataPacks.Num();
 
-			FName CategoryName = CategoryOb.GetCategoryName();
-			Writer << CategoryName;
+			Writer << SavedCategory.CategoryName;
 
 			Writer.WriteBit(BaseFlags);
 			Writer.WriteBit(ShouldUpdateTextLines);
@@ -330,7 +446,7 @@ bool FGameplayDebuggerNetPack::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaPa
 
 			if (FoundIndex != INDEX_NONE && (int32)NumDataPacks != CategoryOb.ReplicatedDataPacks.Num())
 			{
-				UE_LOG(LogGameplayDebugReplication, Error, TEXT("Data pack count mismtach! received:%d expected:%d"), NumDataPacks, CategoryOb.ReplicatedDataPacks.Num());
+				UE_LOG(LogGameplayDebugReplication, Error, TEXT("Data pack count mismatch! received:%d expected:%d"), NumDataPacks, CategoryOb.ReplicatedDataPacks.Num());
 				Reader.SetError();
 				return false;
 			}
@@ -425,6 +541,18 @@ AGameplayDebuggerCategoryReplicator::AGameplayDebuggerCategoryReplicator(const F
 	bIsEditorWorldReplicator = false;
 	bReplicates = true;
 
+#if UE_WITH_IRIS
+	if (UE::Net::ShouldUseIrisReplication())
+	{
+		// If iris is enabled, datapack-packets are always sent using RPC`s and we also requires PreReplication to called in order to populate replicated data outside of serialization.
+		SetCallPreReplication(true);
+		bSendDataPacksUsingRPC = true;
+	}
+#else
+	// We cache this as it does not make sense to be able to toggle it other than between sessions.
+	bSendDataPacksUsingRPC = CVarGameplayDebuggerUseDataPackRPC.GetValueOnAnyThread();
+#endif
+
 	ReplicatedData.Owner = this;
 }
 
@@ -440,6 +568,19 @@ void AGameplayDebuggerCategoryReplicator::BeginPlay()
 
 	Init();
 }
+
+#if UE_WITH_IRIS
+void AGameplayDebuggerCategoryReplicator::BeginReplication()
+{
+	bOnlyRelevantToOwner = true;
+	Super::BeginReplication();
+}
+
+const AActor* AGameplayDebuggerCategoryReplicator::GetNetOwner() const 
+{
+	return OwnerPC.Get();
+}
+#endif
 
 #if WITH_EDITOR
 void AGameplayDebuggerCategoryReplicator::InitForEditor()
@@ -768,11 +909,72 @@ void AGameplayDebuggerCategoryReplicator::CollectCategoryData(bool bForce)
 					{
 						UE_LOG(LogGameplayDebugReplication, Verbose, TEXT("Category[%d].DataPack[%d] SENT, DataVersion:%d DataSize:%d SyncCounter:%d"),
 							Idx, DataPackIdx, DataPack.Header.DataVersion, DataPack.Header.DataSize, DataPack.Header.SyncCounter);
+
+						// Send the update data pack as an reliable rpc instead
+						if (bSendDataPacksUsingRPC)
+						{
+							SendDataPackPacket(CategoryOb.GetCategoryName(), DataPackIdx, DataPack);						
+						}
 					}
 				}
 			}
 		}
 	}
+}
+
+void AGameplayDebuggerCategoryReplicator::SendDataPackPacket(FName CategoryName, int32 DataPackIdx, FGameplayDebuggerDataPack& DataPack)
+{
+	FGameplayDebuggerDataPackRPCParams Params;
+
+	Params.CategoryName = CategoryName;
+	Params.DataPackIdx = DataPackIdx;
+	Params.Header = DataPack.Header;
+
+	const int32 PacketSize = FMath::Min(FGameplayDebuggerDataPack::PacketSize, DataPack.Header.DataSize - DataPack.Header.DataOffset);
+	if (PacketSize > 0)
+	{
+		Params.Data.Append(DataPack.Data.GetData() + DataPack.Header.DataOffset, PacketSize);
+	}
+
+	UE_LOG(LogGameplayDebugReplication, Verbose, TEXT("  >> replicate data pack[%d] RPC progress:%0.f%% (offset:%d packet:%d)"),
+		DataPackIdx, DataPack.Header.DataSize ? (100.0f * (DataPack.Header.DataOffset + PacketSize) / DataPack.Header.DataSize) : 100.0f,
+		DataPack.Header.DataOffset, PacketSize);
+
+	ClientDataPackPacket(Params);
+
+	// As we are sending this as a reliable RPC we "ack" it immediately
+	if (DataPack.bNeedsConfirmation && !DataPack.bReceived)
+	{
+		DataPack.OnPacketRequest(Params.Header.DataVersion, Params.Header.DataOffset);
+	}
+};
+
+void AGameplayDebuggerCategoryReplicator::ClientDataPackPacket_Implementation(const FGameplayDebuggerDataPackRPCParams& Params)
+{
+	// Does the category exist on the client?
+	// using FindLastByPredicate since that's the only Predicate-based find that returns index.
+	const FName CategoryName = Params.CategoryName;
+	const int32 FoundIndex = Categories.FindLastByPredicate([CategoryName](const TSharedRef<FGameplayDebuggerCategory>& Item) { return (Item->GetCategoryName() == CategoryName);});	
+	if (FoundIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	// receive single packet
+	FGameplayDebuggerDataPack DataPacket;
+
+	DataPacket.Header = Params.Header;
+
+	const int32 PacketSize = FMath::Min(FGameplayDebuggerDataPack::PacketSize, DataPacket.Header.DataSize - DataPacket.Header.DataOffset);
+	if (PacketSize > 0)
+	{
+		DataPacket.Data.Append(Params.Data.GetData(), PacketSize);
+	}
+	
+	OnReceivedDataPackPacket(FoundIndex, Params.DataPackIdx, DataPacket);
+
+	const FGameplayDebuggerCategory& CategoryOb = Categories[FoundIndex].Get();
+	UE_LOG(LogGameplayDebugReplication, Verbose, TEXT("  >> replicate data pack[%d] progress:%.0f%%"), Params.DataPackIdx, CategoryOb.ReplicatedDataPacks[Params.DataPackIdx].GetProgress() * 100.0f);	
 }
 
 bool AGameplayDebuggerCategoryReplicator::GetViewPoint(FVector& OutViewLocation, FVector& OutViewDirection) const
