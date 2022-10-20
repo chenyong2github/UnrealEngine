@@ -279,12 +279,15 @@ namespace Metasound
 				// For backwards compatibility with previous (mono) node, in the case of 1 channels, just provide the old interface.
 				for (int32 InputIndex = 0; InputIndex < NumInputChannels; ++InputIndex)
 				{
+#if WITH_EDITOR
 					const FDataVertexMetadata AudioInputMetadata
 					{
 						  GetAudioInputDescription(InputIndex) // description
 						, GetAudioInputDisplayName(InputIndex) // display name
 					};
-
+#else
+					const FDataVertexMetadata AudioInputMetadata;
+#endif //WITH_EDITOR
 					InputInterface.Add(TInputDataVertex<FAudioBuffer>(GetAudioInputName(InputIndex), AudioInputMetadata));
 				}
 				FOutputVertexInterface OutputInterface;
@@ -385,6 +388,7 @@ namespace Metasound
 			return *FString::Printf(TEXT("In %d"), InInputIndex);
 		}
 
+#if WITH_EDITOR 
 		static const FText GetAudioInputDisplayName(int32 InInputIndex)
 		{
 			if (NumInputChannels == 1)
@@ -397,11 +401,11 @@ namespace Metasound
 			{
 				if (InInputIndex == 0)
 				{
-					return METASOUND_LOCTEXT_FORMAT("AudioInputIn2ChannelName", "In {0} L", InInputIndex);
+					return METASOUND_LOCTEXT_FORMAT("AudioInputIn2ChannelNameL", "In {0} L", InInputIndex);
 				}
 				else
 				{
-					return METASOUND_LOCTEXT_FORMAT("AudioInputIn2ChannelName", "In {0} R", InInputIndex);
+					return METASOUND_LOCTEXT_FORMAT("AudioInputIn2ChannelNameR", "In {0} R", InInputIndex);
 				}
 			}
 			return METASOUND_LOCTEXT_FORMAT("AudioInputInChannelName", "In {0}", InInputIndex);
@@ -411,6 +415,7 @@ namespace Metasound
 		{
 			return METASOUND_LOCTEXT_FORMAT("WaveWriterAudioInputDescription", "Audio Input #: {0}", InputIndex);
 		}
+#endif // WITH_EDITOR
 
 		static FNodeClassMetadata CreateNodeClassMetadata(const FName& InOperatorName, const FText& InDisplayName, const FText& InDescription, const FVertexInterface& InDefaultInterface)
 		{

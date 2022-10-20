@@ -59,20 +59,28 @@ namespace Metasound
 					// audio channels
 					for (uint32 ChanIndex = 0; ChanIndex < NumChannels; ++ChanIndex)
 					{
+#if WITH_EDITOR
 						const FDataVertexMetadata AudioInputMetadata
 						{
 							GetAudioInputDescription(InputIndex, ChanIndex),
 							GetAudioInputDisplayName(InputIndex, ChanIndex)
 						};
+#else 
+						const FDataVertexMetadata AudioInputMetadata;
+#endif // WITH_EDITOR
 						InputInterface.Add(TInputDataVertex<FAudioBuffer>(GetAudioInputName(InputIndex, ChanIndex), AudioInputMetadata));
 					}
 
 					// gain scalar
+#if WITH_EDITOR
 					FDataVertexMetadata GainPinMetaData
 					{
 						GetGainInputDescription(InputIndex),
 						GetGainInputDisplayName(InputIndex)
 					};
+#else 
+					FDataVertexMetadata GainPinMetaData;
+#endif // WITH_EDITOR
 					TInputDataVertex<float>GainVertexModel(GetGainInputName(InputIndex), GainPinMetaData, 1.0f);
 
 					InputInterface.Add(GainVertexModel);
@@ -82,12 +90,15 @@ namespace Metasound
 				FOutputVertexInterface OutputInterface;
 				for (uint32 i = 0; i < NumChannels; ++i)
 				{
+#if WITH_EDITOR
 					const FDataVertexMetadata AudioOutputMetadata
 					{
 						GetAudioOutputDescription(i),
 						GetAudioOutputDisplayName(i)
 					};
-
+#else 
+					const FDataVertexMetadata AudioOutputMetadata;
+#endif // WITH_EDITOR
 					OutputInterface.Add(TOutputDataVertex<FAudioBuffer>(GetAudioOutputName(i), AudioOutputMetadata));
 				}
 
@@ -261,6 +272,26 @@ namespace Metasound
 			return *FString::Printf(TEXT("In %i, %i"), InputIndex, ChannelIndex);
 		}
 
+		static const FVertexName GetGainInputName(uint32 InputIndex)
+		{
+			return *FString::Printf(TEXT("Gain %i"), InputIndex);
+		}
+
+		static const FVertexName GetAudioOutputName(uint32 ChannelIndex)
+		{
+			if (NumChannels == 1)
+			{
+				return TEXT("Out");
+			}
+			else if (NumChannels == 2)
+			{
+				return *FString::Printf(TEXT("Out %s"), (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
+			}
+
+			return *FString::Printf(TEXT("Out %i"), ChannelIndex);
+		}
+
+#if WITH_EDITOR
 		static const FText GetAudioInputDescription(uint32 InputIndex, uint32 ChannelIndex)
 		{
 			return METASOUND_LOCTEXT_FORMAT("AudioMixerAudioInputDescription", "Audio Input #: {0}, Channel: {1}", InputIndex, ChannelIndex);
@@ -286,11 +317,6 @@ namespace Metasound
 			return METASOUND_LOCTEXT_FORMAT("AudioMixerAudioInputIn", "In {0}, {0}", InputIndex, ChannelIndex);
 		}
 
-		static const FVertexName GetGainInputName(uint32 InputIndex)
-		{
-			return *FString::Printf(TEXT("Gain %i"), InputIndex);
-		}
-
 		static const FText GetGainInputDisplayName(uint32 InputIndex)
 		{
 			return METASOUND_LOCTEXT_FORMAT("AudioMixerGainInputDisplayName", "Gain {0} (Lin)", InputIndex);
@@ -299,20 +325,6 @@ namespace Metasound
 		static const FText GetGainInputDescription(uint32 InputIndex)
 		{
 			return METASOUND_LOCTEXT_FORMAT("AudioMixerGainInputDescription", "Gain Input #: {0}", InputIndex);
-		}
-
-		static const FVertexName GetAudioOutputName(uint32 ChannelIndex)
-		{
-			if (NumChannels == 1)
-			{
-				return TEXT("Out");
-			}
-			else if (NumChannels == 2)
-			{
-				return *FString::Printf(TEXT("Out %s"), (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
-			}
-
-			return *FString::Printf(TEXT("Out %i"), ChannelIndex);
 		}
 
 		static const FText GetAudioOutputDisplayName(uint32 ChannelIndex)
@@ -339,6 +351,7 @@ namespace Metasound
 		{
 			return METASOUND_LOCTEXT_FORMAT("AudioMixerAudioOutputDescription", "Summed output for channel: {0}", ChannelIndex);
 		}
+#endif // WITH_EDITOR
 #pragma endregion
 	}; // class TAudioMixerNodeOperator
 #pragma endregion
