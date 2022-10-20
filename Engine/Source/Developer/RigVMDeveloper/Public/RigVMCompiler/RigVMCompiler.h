@@ -109,6 +109,8 @@ public:
 	FRigVMOperand FindProperty(ERigVMMemoryType InMemoryType, const FName& InName);
 	FRigVMPropertyDescription GetProperty(const FRigVMOperand& InOperand);
 	int32 FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InHeadCPPType, const FString& InSegmentPath);
+	const FProperty* GetPropertyForOperand(const FRigVMOperand& InOperand) const;
+	TRigVMTypeIndex GetTypeIndexForOperand(const FRigVMOperand& InOperand) const;
 
 	TSharedPtr<FRigVMParserAST> AST;
 	

@@ -190,3 +190,27 @@ struct CONTROLRIG_API FRigUnit_ItemTypeNotEquals : public FRigUnit_ItemBase
 	UPROPERTY(meta = (Output))
 	bool Result;
 };
+
+/**
+ * Casts the provided item key to its name
+ */
+USTRUCT(meta=(DisplayName="To Name", Keywords="", TemplateName="Cast"))
+struct CONTROLRIG_API FRigUnit_ItemToName : public FRigUnit_ItemBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_ItemToName()
+	{
+		Value = FRigElementKey();
+		Result = NAME_None;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Value;
+
+	UPROPERTY(meta = (Output))
+	FName Result;
+};

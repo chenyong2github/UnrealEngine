@@ -3,6 +3,7 @@
 #include "RigVMDeveloperTypeUtils.h"
 
 #include "Internationalization/StringTableCore.h"
+#include "RigVMModel/RigVMController.h"
 #include "RigVMModel/RigVMVariableDescription.h"
 
 #if WITH_EDITOR
@@ -265,6 +266,16 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	}
 
 	return Variable;
+}
+
+FEdGraphPinType RigVMTypeUtils::PinTypeFromTypeIndex(const TRigVMTypeIndex& InTypeIndex)
+{
+	const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().GetType(InTypeIndex);
+	if(Type.CPPType.IsValid())
+	{
+		return PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
+	}
+	return FEdGraphPinType();
 }
 
 FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FName& InCPPType, UObject* InCPPTypeObject)
@@ -724,6 +735,18 @@ bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& I
 	return true;
 }
 
+TRigVMTypeIndex RigVMTypeUtils::TypeIndexFromPinType(const FEdGraphPinType& InPinType)
+{
+	FString CPPType;
+	UObject* CPPTypeObject = nullptr;
+	if(CPPTypeFromPinType(InPinType, CPPType, &CPPTypeObject))
+	{
+		const FRigVMTemplateArgumentType Type(*CPPType, CPPTypeObject);
+		return FRigVMRegistry::Get().GetTypeIndex(Type);
+	}
+	return INDEX_NONE;
+}
+
 bool RigVMTypeUtils::AreCompatible(const FName& InCPPTypeA, UObject* InCPPTypeObjectA, const FName& InCPPTypeB,	UObject* InCPPTypeObjectB)
 {
 	return AreCompatible(PinTypeFromCPPType(InCPPTypeA, InCPPTypeObjectA), PinTypeFromCPPType(InCPPTypeB, InCPPTypeObjectB));
@@ -739,7 +762,7 @@ bool RigVMTypeUtils::AreCompatible(const FEdGraphPinType& InTypeA, const FEdGrap
 	FEdGraphPinType SubPinTypeA = SubPinType(InTypeA, InSegmentPathA);
 	FEdGraphPinType SubPinTypeB = SubPinType(InTypeB, InSegmentPathB);
 
-	// We allow connectiongs between floats and doubles, while EdGraphSchema_K2 does not
+	// We allow connections between floats and doubles, while EdGraphSchema_K2 does not
 	// Every other case is evaluated by UEdGraphSchema_K2::ArePinTypesCompatible
 	if (SubPinTypeA.ContainerType == SubPinTypeB.ContainerType)
 	{
@@ -749,7 +772,94 @@ bool RigVMTypeUtils::AreCompatible(const FEdGraphPinType& InTypeA, const FEdGrap
 			return true;
 		}
 	}
-	
-	return UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ArePinTypesCompatible(SubPinTypeA, SubPinTypeB);	
+
+	if(UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ArePinTypesCompatible(SubPinTypeA, SubPinTypeB))
+	{
+		return true;
+	}
+
+	// also check if there's a cast available for the type
+	const TRigVMTypeIndex TypeIndexA = TypeIndexFromPinType(SubPinTypeA);
+	const TRigVMTypeIndex TypeIndexB = TypeIndexFromPinType(SubPinTypeB);
+	const TArray<TRigVMTypeIndex>& AvailableCasts = GetAvailableCasts(TypeIndexA, true);
+	return AvailableCasts.Contains(TypeIndexB);
+ }
+
+namespace RigVMTypeUtils
+{
+	static const FName CastTemplateValueName = TEXT("Value");
+	static const FName CastTemplateResultName = TEXT("Result");
+	static const FName CastTemplateNotation = TEXT("Cast::Execute(in Value,out Result)");
 }
+
+const TArray<TRigVMTypeIndex>& RigVMTypeUtils::GetAvailableCasts(const TRigVMTypeIndex& InTypeIndex, bool bAsInput)
+{
+	static TMap<int32, TArray<TRigVMTypeIndex>> AvailableInputCastMap;
+	static TMap<int32, TArray<TRigVMTypeIndex>> AvailableOutputCastMap;
+
+	TMap<int32, TArray<TRigVMTypeIndex>>& AvailableCastMap = bAsInput ? AvailableInputCastMap : AvailableOutputCastMap;
+
+	if(const TArray<TRigVMTypeIndex>* AvailableCasts = AvailableCastMap.Find(InTypeIndex))
+	{
+		return *AvailableCasts;
+	}
+
+	// find a specific template called "Cast"
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	if(const FRigVMTemplate* CastTemplate = Registry.FindTemplate(CastTemplateNotation))
+	{
+		const FRigVMTemplateArgument* ArgumentA = CastTemplate->FindArgument(bAsInput ? CastTemplateValueName : CastTemplateResultName);
+		const FRigVMTemplateArgument* ArgumentB = CastTemplate->FindArgument(bAsInput ? CastTemplateResultName : CastTemplateValueName);
+
+		if(ArgumentA && ArgumentB)
+		{
+			TArray<TRigVMTypeIndex>& AvailableCasts = AvailableCastMap.Add(InTypeIndex);
+			
+			for(int32 Index = 0; Index < ArgumentA->GetTypeIndices().Num(); Index++)
+			{
+				const TRigVMTypeIndex& TypeIndexA = ArgumentA->GetTypeIndices()[Index];
+				if(TypeIndexA == InTypeIndex)
+				{
+					AvailableCasts.Add(ArgumentB->GetTypeIndices()[Index]);
+				}
+			}
+
+			return AvailableCasts;
+		}
+	}
+
+	static const TArray<TRigVMTypeIndex> EmptyCasts;
+	return EmptyCasts;
+}
+
+bool RigVMTypeUtils::CanCastTypes(const TRigVMTypeIndex& InSourceTypeIndex, const TRigVMTypeIndex& InTargetTypeIndex)
+{
+	return GetCastForTypeIndices(InSourceTypeIndex, InTargetTypeIndex) != nullptr;
+}
+
+const FRigVMFunction* RigVMTypeUtils::GetCastForTypeIndices(const TRigVMTypeIndex& InSourceTypeIndex, const TRigVMTypeIndex& InTargetTypeIndex)
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	if(const FRigVMTemplate* CastTemplate = Registry.FindTemplate(CastTemplateNotation))
+	{
+		const FRigVMTemplateArgument* SourceArgument = CastTemplate->FindArgument(CastTemplateValueName);
+		const FRigVMTemplateArgument* TargetArgument = CastTemplate->FindArgument(CastTemplateResultName);
+
+		if(SourceArgument && TargetArgument)
+		{
+			for(int32 Index = 0; Index < SourceArgument->GetTypeIndices().Num(); Index++)
+			{
+				const TRigVMTypeIndex& SourceTypeIndex = SourceArgument->GetTypeIndices()[Index];
+				const TRigVMTypeIndex& TargetTypeIndex = TargetArgument->GetTypeIndices()[Index];
+				if(SourceTypeIndex == InSourceTypeIndex &&
+					TargetTypeIndex == InTargetTypeIndex)
+				{
+					return CastTemplate->GetPermutation(Index);
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
 #endif

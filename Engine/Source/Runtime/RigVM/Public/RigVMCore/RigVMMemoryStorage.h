@@ -856,6 +856,7 @@ private:
 
 	friend class URigVMMemoryStorage;
 	friend class URigVMCompiler;
+	friend struct FRigVMCompilerWorkData;
 	friend class URigVM;
 	friend struct FRigVMCodeGenerator;
 };

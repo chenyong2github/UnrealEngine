@@ -826,5 +826,6 @@ private:
 #endif
 
 	friend class URigVMCompiler;
+	friend struct FRigVMCompilerWorkData;
 	friend struct FRigVMCodeGenerator;
 };

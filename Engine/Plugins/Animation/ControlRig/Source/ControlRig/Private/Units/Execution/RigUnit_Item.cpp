@@ -104,3 +104,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ItemReplace)
 	return true;
 }
 #endif
+
+FRigUnit_ItemToName_Execute()
+{
+	Result = Value.Name;
+}

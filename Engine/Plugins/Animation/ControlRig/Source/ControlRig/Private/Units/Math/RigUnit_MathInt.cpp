@@ -84,6 +84,12 @@ FRigUnit_MathIntToFloat_Execute()
 	Result = (float)Value;
 }
 
+FRigUnit_MathIntToDouble_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = (double)Value;
+}
+
 FRigUnit_MathIntSign_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

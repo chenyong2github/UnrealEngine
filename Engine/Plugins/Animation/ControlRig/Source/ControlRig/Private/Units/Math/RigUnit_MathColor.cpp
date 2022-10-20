@@ -12,6 +12,12 @@ FRigUnit_MathColorFromFloat_Execute()
 	Result = FLinearColor(Value, Value, Value);
 }
 
+FRigUnit_MathColorFromDouble_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = FLinearColor((float)Value, (float)Value, (float)Value);
+}
+
 FRigUnit_MathColorAdd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

@@ -76,6 +76,29 @@ struct CONTROLRIG_API FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBas
 };
 
 /**
+ * Makes a vector from a single double
+ */
+USTRUCT(meta=(DisplayName="From Double", TemplateName="Cast", Keywords="Make,Construct"))
+struct CONTROLRIG_API FRigUnit_MathColorFromDouble : public FRigUnit_MathColorBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathColorFromDouble()
+	{
+		Value = 0.0;
+		Result = FLinearColor::Black;
+	}
+
+	UPROPERTY(meta=(Input))
+	double Value;
+
+	UPROPERTY(meta=(Output))
+	FLinearColor Result;
+};
+
+/**
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))

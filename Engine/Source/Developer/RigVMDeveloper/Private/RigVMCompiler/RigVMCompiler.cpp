@@ -141,6 +141,89 @@ int32 FRigVMCompilerWorkData::FindOrAddPropertyPath(const FRigVMOperand& InOpera
 	return Descriptions.Add(FRigVMPropertyPathDescription(InOperand.GetRegisterIndex(), InHeadCPPType, InSegmentPath));
 }
 
+const FProperty* FRigVMCompilerWorkData::GetPropertyForOperand(const FRigVMOperand& InOperand) const
+{
+	if(!InOperand.IsValid())
+	{
+		return nullptr;
+	}
+	
+	check(!bSetupMemory);
+
+	auto GetPropertyFromMemory = [this](const URigVMMemoryStorage* InMemory, const FRigVMOperand& InOperand)
+	{
+		if(InOperand.GetRegisterOffset() == INDEX_NONE)
+		{
+			return  InMemory->GetProperty(InOperand.GetRegisterIndex());
+		}
+		if(!InMemory->GetPropertyPaths().IsValidIndex(InOperand.GetRegisterOffset()))
+		{
+			if(URigVMMemoryStorageGeneratorClass* MemoryClass = Cast<URigVMMemoryStorageGeneratorClass>(InMemory->GetClass()))
+			{
+				MemoryClass->PropertyPathDescriptions = PropertyPathDescriptions.FindChecked(InOperand.GetMemoryType());;
+				MemoryClass->RefreshPropertyPaths();
+			}
+		}
+		return InMemory->GetPropertyPaths()[InOperand.GetRegisterOffset()].GetTailProperty();
+	};
+
+	const FProperty* Property = nullptr;
+	switch(InOperand.GetMemoryType())
+	{
+	case ERigVMMemoryType::Literal:
+		{
+			Property = GetPropertyFromMemory(VM->GetLiteralMemory(), InOperand);
+			break;
+		}
+	case ERigVMMemoryType::Work:
+		{
+			Property = GetPropertyFromMemory(VM->GetWorkMemory(), InOperand);
+			break;
+		}
+	case ERigVMMemoryType::Debug:
+		{
+			Property = GetPropertyFromMemory(VM->GetDebugMemory(), InOperand);
+			break;
+		}
+	case ERigVMMemoryType::External:
+		{
+			Property = VM->GetExternalVariables()[InOperand.GetRegisterIndex()].Property;
+			if(InOperand.GetRegisterOffset() != INDEX_NONE)
+			{
+				if(!VM->ExternalPropertyPaths.IsValidIndex(InOperand.GetRegisterOffset()))
+				{
+					VM->ExternalPropertyPathDescriptions = PropertyPathDescriptions.FindChecked(InOperand.GetMemoryType());
+					VM->RefreshExternalPropertyPaths();
+				}
+				Property = VM->ExternalPropertyPaths[InOperand.GetRegisterOffset()].GetTailProperty();
+			}
+			break;
+		}
+	case ERigVMMemoryType::Invalid:
+	default:
+		{
+			break;
+		}
+	}
+
+	return Property;
+}
+
+TRigVMTypeIndex FRigVMCompilerWorkData::GetTypeIndexForOperand(const FRigVMOperand& InOperand) const
+{
+	const FProperty* Property = GetPropertyForOperand(InOperand);
+	if(Property == nullptr)
+	{
+		return INDEX_NONE;
+	}
+
+	FName CPPTypeName(NAME_None);
+	UObject* CPPTypeObject = nullptr;
+	FRigVMExternalVariable::GetTypeFromProperty(Property, CPPTypeName, CPPTypeObject);
+
+	return FRigVMRegistry::Get().GetTypeIndex(CPPTypeName, CPPTypeObject);
+}
+
 URigVMCompiler::URigVMCompiler()
 {
 }
@@ -1941,16 +2024,52 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 
 	bool bAddCopyOp = true;
 
-	// if we are copying into an array variable
-	if(const URigVMPin* Pin = InTargetExpr->GetPin())
+	// check if we need to inject a cast instead of a copy operator
+	const TRigVMTypeIndex SourceTypeIndex = WorkData.GetTypeIndexForOperand(InOp.Source);
+	const TRigVMTypeIndex TargetTypeIndex = WorkData.GetTypeIndexForOperand(InOp.Target);
+	if(SourceTypeIndex != TargetTypeIndex)
 	{
-		if(Pin->IsArray() && Pin->GetNode()->IsA<URigVMVariableNode>())
+		// if the type system can't auto cast these types (like float vs double)
+		if(!FRigVMRegistry::Get().CanMatchTypes(SourceTypeIndex, TargetTypeIndex, true))
 		{
-			if(InOp.Source.GetRegisterOffset() == INDEX_NONE &&
-				InOp.Target.GetRegisterOffset() == INDEX_NONE)
-			{ 
-				WorkData.VM->GetByteCode().AddArrayCloneOp(InOp.Source, InOp.Target);
-				bAddCopyOp = false;
+			const FRigVMFunction* CastFunction = RigVMTypeUtils::GetCastForTypeIndices(SourceTypeIndex, TargetTypeIndex);
+			if(CastFunction == nullptr)
+			{
+				const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+				static constexpr TCHAR MissingCastMessage[] = TEXT("Cast (%s -> %s) for Node @@ not found.");
+				const FString& SourceCPPType = Registry.GetType(SourceTypeIndex).CPPType.ToString();
+				const FString& TargetCPPType = Registry.GetType(TargetTypeIndex).CPPType.ToString();
+				Settings.Report(EMessageSeverity::Error, InAssignExpr->GetTargetPin()->GetNode(),
+					FString::Printf(MissingCastMessage, *SourceCPPType, *TargetCPPType));
+				return;
+			}
+
+			check(CastFunction->Arguments.Num() >= 2);
+
+			const FRigVMOperand Source = InOp.Source;
+			const FRigVMOperand Target = InOp.Target;
+
+			const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(CastFunction->Name);
+			WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, {Source, Target});
+
+			bAddCopyOp = false;
+		}
+	}
+
+
+	// if we are copying into an array variable
+	if(bAddCopyOp)
+	{
+		if(const URigVMPin* Pin = InTargetExpr->GetPin())
+		{
+			if(Pin->IsArray() && Pin->GetNode()->IsA<URigVMVariableNode>())
+			{
+				if(InOp.Source.GetRegisterOffset() == INDEX_NONE &&
+					InOp.Target.GetRegisterOffset() == INDEX_NONE)
+				{ 
+					WorkData.VM->GetByteCode().AddArrayCloneOp(InOp.Source, InOp.Target);
+					bAddCopyOp = false;
+				}
 			}
 		}
 	}

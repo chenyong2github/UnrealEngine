@@ -79,6 +79,12 @@ struct RIGVM_API FRigVMExternalVariable
 			OutTypeName = *RigVMTypeUtils::GetUniqueStructTypeName(StructProperty->Struct);
 			OutTypeObject = StructProperty->Struct;
 		}
+		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
+		{
+			FName InnerTypeName = NAME_None;
+			GetTypeFromProperty(ArrayProperty->Inner, InnerTypeName, OutTypeObject);
+			OutTypeName = *RigVMTypeUtils::ArrayTypeFromBaseType(InnerTypeName.ToString());
+		}
 		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
 		{
 			if(RigVMCore::SupportsUObjects())

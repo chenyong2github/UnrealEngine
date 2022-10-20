@@ -93,6 +93,29 @@ struct CONTROLRIG_API FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorB
 };
 
 /**
+ * Makes a vector from a single double
+ */
+USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))
+struct CONTROLRIG_API FRigUnit_MathVectorFromDouble : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathVectorFromDouble()
+	{
+		Value = 0.0;
+		Result = FVector::ZeroVector;
+	}
+
+	UPROPERTY(meta=(Input))
+	double Value;
+
+	UPROPERTY(meta=(Output))
+	FVector Result;
+};
+
+/**
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", TemplateName="Add", Keywords="Sum,+"))

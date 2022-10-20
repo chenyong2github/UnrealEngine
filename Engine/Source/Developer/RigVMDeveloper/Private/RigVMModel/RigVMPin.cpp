@@ -112,8 +112,14 @@ TArray<FString> URigVMPin::SplitDefaultValue(const FString& InDefaultValue)
 		return Parts;
 	}
 
-	ensure(InDefaultValue[0] == TCHAR('('));
-	ensure(InDefaultValue[InDefaultValue.Len() - 1] == TCHAR(')')); 
+	if(InDefaultValue[0] != TCHAR('('))
+	{
+		return Parts;
+	}
+	if(InDefaultValue[InDefaultValue.Len() - 1] != TCHAR(')'))
+	{
+		return Parts;
+	}
 
 	FString Content = InDefaultValue.Mid(1, InDefaultValue.Len() - 2);
 	int32 BraceCount = 0;
@@ -1732,6 +1738,12 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 
 		if (bCPPTypesDiffer)
 		{
+			if(RigVMTypeUtils::CanCastTypes(InSourcePin->GetTypeIndex(), InTargetPin->GetTypeIndex()))
+			{
+				bCPPTypesDiffer = false;
+			}
+
+			if(bCPPTypesDiffer)
 			{
 				auto TemplateNodeSupportsType = [](URigVMPin* InPin, const int32& InTypeIndex, FString* OutFailureReason) -> bool
 				{

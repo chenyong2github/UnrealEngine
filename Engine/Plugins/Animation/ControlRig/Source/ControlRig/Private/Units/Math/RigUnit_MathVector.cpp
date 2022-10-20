@@ -14,6 +14,12 @@ FRigUnit_MathVectorFromFloat_Execute()
 	Result = FVector(Value, Value, Value);
 }
 
+FRigUnit_MathVectorFromDouble_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = FVector((float)Value, (float)Value, (float)Value);
+}
+
 FRigUnit_MathVectorAdd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

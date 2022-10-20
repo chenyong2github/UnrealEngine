@@ -236,6 +236,30 @@ struct CONTROLRIG_API FRigUnit_MathIntToFloat : public FRigUnit_MathIntBase
 };
 
 /**
+ * Returns the int cast to a float
+ */
+USTRUCT(meta=(DisplayName="To Double", TemplateName="Cast"))
+struct CONTROLRIG_API FRigUnit_MathIntToDouble : public FRigUnit_MathIntBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathIntToDouble()
+	{
+		Value = 0;
+		Result = 0.0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	int32 Value;
+
+	UPROPERTY(meta=(Output))
+	double Result;
+};
+
+/**
  * Returns the sign of the value (+1 for >= 0, -1 for < 0)
  */
 USTRUCT(meta=(DisplayName="Sign", TemplateName="Sign"))
