@@ -11,6 +11,12 @@ public class NNXUtils : ModuleRules
 		ShortName = "NNXUtils"; // Shorten to avoid path-too-long errors
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		PublicIncludePaths.AddRange(
+			new string[] {
+				Path.GetFullPath(Path.Combine(EngineDirectory, "Plugins/Experimental/NNX/Source/NNXCore/Private")),
+			}
+		);
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -44,6 +50,6 @@ public class NNXUtils : ModuleRules
 				}
 			);
 		}
-		}
-    }
+	}
+}
 

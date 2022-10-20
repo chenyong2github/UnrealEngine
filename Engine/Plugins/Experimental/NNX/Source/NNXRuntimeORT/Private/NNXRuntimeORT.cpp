@@ -6,6 +6,7 @@
 
 #include "NeuralTimer.h"
 #include "NNXRuntimeORTUtils.h"
+#include "NNXModelOptimizer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
 // NOTE: For now we only have DML on Windows, we should add support for XSX
@@ -54,6 +55,23 @@ EMLRuntimeSupportFlags FRuntimeORTCuda::GetSupportFlags() const
 EMLRuntimeSupportFlags FRuntimeORTDml::GetSupportFlags() const
 {
 	return EMLRuntimeSupportFlags::GPU;
+}
+#endif
+
+TUniquePtr<IModelOptimizer> FRuntimeORTCpu::CreateModelOptimizer() const
+{
+	return CreateONNXToONNXModelOptimizer();
+}
+
+#if PLATFORM_WINDOWS
+TUniquePtr<IModelOptimizer> FRuntimeORTCuda::CreateModelOptimizer() const
+{
+	return CreateONNXToONNXModelOptimizer();
+}
+
+TUniquePtr<IModelOptimizer> FRuntimeORTDml::CreateModelOptimizer() const
+{
+	return CreateONNXToONNXModelOptimizer();
 }
 #endif
 
@@ -132,7 +150,7 @@ bool FMLInferenceModelORT::Init(const UMLInferenceModel* InferenceModel)
 	
 	// Clean previous networks
 	bIsLoaded = false;
-	const TArray<uint8>& ModelBuffer{ InferenceModel->GetData()};
+	const TArray<uint8>& ModelBuffer{ InferenceModel->GetFormatDesc().Data };
 
 	// Checking Inference Model 
 	{

@@ -3,6 +3,7 @@
 #include "NNXRuntimeRDG.h"
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
+#include "NNXModelOptimizer.h"
 #include "NNXOperator.h"
 
 #include "HAL/FileManager.h"
@@ -512,7 +513,7 @@ protected:
 /**
  * DirectML ML operator registry
  */
-using FMLOperatorRegistryDml = TMLOperatorRegistryRDG<FMLOperatorDml>;
+using FMLOperatorRegistryDml = TOperatorRegistryRDG<FMLOperatorDml>;
 
 /**
  * Element-wise unary ML operator implementation
@@ -1002,6 +1003,15 @@ public:
 		return NNX_RUNTIME_DML_NAME;
 	}
 
+	virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const
+	{
+		return CreateONNXToNNXModelOptimizer();
+		
+		//TODO jira 167581: Add DML specific model validator
+		//see ModelOptimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
+		//in NNXRuntimeHLSL.cpp
+	}
+	
 	virtual EMLRuntimeSupportFlags GetSupportFlags() const override
 	{
 		return EMLRuntimeSupportFlags::RDG;
@@ -1247,9 +1257,10 @@ FMLInferenceModelDml::~FMLInferenceModelDml()
 //
 bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* InDevCtx)
 {
+	check(InModel != nullptr);
 	FMLRuntimeFormat	Format;
 
-	if (!LoadModel(InModel, Format))
+	if (!LoadModel(InModel->GetFormatDesc(), Format))
 	{
 		return false;
 	}
@@ -1316,7 +1327,7 @@ FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView
 {
 	// TODO: Check if D3D12 device is valid
 
-	FMLOperatorRegistryDml::MLOperatorCreateFunc CreateFn = FMLOperatorRegistryDml::Get()->OpFind(OpName);
+	FMLOperatorRegistryDml::OperatorCreateFunc CreateFn = FMLOperatorRegistryDml::Get()->OpFind(OpName);
 
 	if (!CreateFn)
 	{

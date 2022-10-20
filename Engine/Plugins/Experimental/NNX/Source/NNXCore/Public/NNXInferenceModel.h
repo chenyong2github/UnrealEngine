@@ -3,17 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NNXRuntimeFormat.h"
 #include "NNXInferenceModel.generated.h"
-
-/// Runtime inference format
-UENUM()
-enum class EMLInferenceFormat : uint8
-{
-	Invalid,
-	ONNX,				//!< ONNX Open Neural Network Exchange
-	ORT,				//!< ONNX Runtime (only for CPU)
-	NNXRT				//!< NNX Runtime format
-};
 
 UCLASS(BlueprintType)
 class NNXCORE_API UMLInferenceModel : public UObject
@@ -22,24 +13,13 @@ class NNXCORE_API UMLInferenceModel : public UObject
 
 public:
 
-	static UMLInferenceModel* CreateFromData(EMLInferenceFormat Format, TArrayView<uint8> Data);
-
-	UMLInferenceModel();
-
-	EMLInferenceFormat GetFormat() const;
-
-	// Return model data
-	const TArray<uint8>& GetData() const;
-
-	// Return data size in bytes
-	uint32 GetDataSize() const;
+	static UMLInferenceModel* CreateFromFormatDesc(const FNNXFormatDesc& Model);
+	
+	UMLInferenceModel() = default;
+	
+	const FNNXFormatDesc& GetFormatDesc() const;
 
 private:
-
-	// TODO: Formats: ONNX, ORT, NNXRT
 	UPROPERTY(EditAnywhere, Category = "Neural Network Inference")
-	TArray<uint8>		Data;
-
-	UPROPERTY(EditAnywhere, Category = "Neural Network Inference")
-	EMLInferenceFormat	Format;
+	FNNXFormatDesc FormatDesc;
 };

@@ -1,29 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNXInferenceModel.h"
+#include "NNXRuntimeFormat.h"
+#include "NNXModelOptimizerInterface.h"
 
 namespace NNX
 {
-
-/** Base class for ML model optimizers */
-class IMLModelOptimizer
-{
-public:
-
-	virtual ~IMLModelOptimizer() = default;
-
-	/** Optimize model from source to destination format */
-	virtual bool Optimize(TArrayView<uint8> InputModel, TArray<uint8>& OutModel) = 0;
-};
-
+class IModelOptimizer;
+	
 /** Create a model optimizer */
-NNXUTILS_API IMLModelOptimizer* CreateModelOptimizer(EMLInferenceFormat InputFormat, EMLInferenceFormat OutputFormat);
+NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat);
 
-/** Create a model optimizer from ONNX to NNX */
-inline IMLModelOptimizer* CreateONNXToNNXModelOptimizer()
+inline TUniquePtr<IModelOptimizer> CreateONNXToNNXModelOptimizer()
 {
-	return CreateModelOptimizer(EMLInferenceFormat::ONNX, EMLInferenceFormat::NNXRT);
+	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::NNXRT);
 }
+
+inline TUniquePtr<IModelOptimizer> CreateONNXToORTModelOptimizer()
+{
+	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::ORT);
+}
+
+inline TUniquePtr<IModelOptimizer> CreateONNXToONNXModelOptimizer()
+{
+	return CreateModelOptimizer(ENNXInferenceFormat::ONNX, ENNXInferenceFormat::ONNX);
+}
+
+/** Helper to create an optimized model for a given runtime from ONNX */
+NNXUTILS_API bool CreateRuntimeModelFromONNX(FNNXFormatDesc& OutputModel, const FNNXFormatDesc& ONNXModel, FString RuntimeName, const FOptimizerOptionsMap& Options);
 
 } // NNX

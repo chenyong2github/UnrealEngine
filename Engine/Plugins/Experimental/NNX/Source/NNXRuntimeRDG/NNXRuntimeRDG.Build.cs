@@ -23,7 +23,8 @@ public class NNXRuntimeRDG : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[]
         {
             "NNXCore",
-            "NNXHlslShaders",
+			"NNXUtils",
+			"NNXHlslShaders",
             "RHI"
         });
 

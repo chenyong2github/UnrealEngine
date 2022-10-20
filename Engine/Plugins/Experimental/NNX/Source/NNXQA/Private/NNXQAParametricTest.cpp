@@ -5,6 +5,7 @@
 #include "UObject/Class.h"
 #include "NNXCore.h"
 #include "NNXTypes.h"
+#include "NNXRuntimeFormat.h"
 #include "NNXQAUtils.h"
 #include "NNXQAJsonUtils.h"
 #include "NNXModelBuilder.h"
@@ -353,14 +354,14 @@ namespace Test
 
 								if (!bAtLeastAnAttributeTestWasWadded)
 								{
-									FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset));
-									
-									ApplyRuntimesConfig(Test, TestCategory.Runtimes);
-									ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
-									ApplyTargetConfig(Test, TestTarget);
-									ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
-									Test.IsModelTest = bIsModelCategory;
-								}
+								FTests::FTestSetup& Test = AddTest(TestCategoryPath, TestBaseName, TEXT(".") + GetTestSuffix(Dataset));
+								
+								ApplyRuntimesConfig(Test, TestCategory.Runtimes);
+								ApplyRuntimesConfig(Test, InputOutputSet.Runtimes);
+								ApplyTargetConfig(Test, TestTarget);
+								ApplyDatasetConfig(Test, Dataset, InputTypeFromTarget, OutputTypeFromTarget);
+								Test.IsModelTest = bIsModelCategory;
+							}
 							}
 							bAtLeastATestWasAdded = true;
 						}
@@ -389,31 +390,31 @@ namespace Test
 	
 	static bool RunParametricTest(FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
-		TArray<uint8> ModelData;
+		FNNXFormatDesc ONNXModel;
 
 		if (TestSetup.IsModelTest)
 		{
 			// Model test, load model from disk
 			FString ModelPath = GetFullModelPath(TestSetup.TargetName + TEXT(".onnx"));
-			const bool bIsModelInMem = FFileHelper::LoadFileToArray(ModelData, *ModelPath);
-			
+			const bool bIsModelInMem = FFileHelper::LoadFileToArray(ONNXModel.Data, *ModelPath);
 			if (!bIsModelInMem)
 			{
 				UE_LOG(LogNNX, Error, TEXT("Can't load model from disk at path '%s'. Tests ABORTED!"), *ModelPath);
 				return false;
 			}
+			ONNXModel.Format = ENNXInferenceFormat::ONNX;
 		}
 		else
 		{
 			// Operator test, create model in memory
-			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ModelData))
+			if (!CreateONNXModelForOperator(TestSetup.TargetName, TestSetup.Inputs, TestSetup.Outputs, TestSetup.AttributeMap, ONNXModel))
 			{
 				UE_LOG(LogNNX, Error, TEXT("Failed to create model for test '%s'. Test ABORTED!"), *TestSetup.TargetName);
 				return false;
 			}
 		}
 
-		return CompareONNXModelInferenceAcrossRuntimes(ModelData, TestSetup, RuntimeFilter);
+		return CompareONNXModelInferenceAcrossRuntimes(ONNXModel, TestSetup, RuntimeFilter);
 	}
 
 	static FString AutomationRuntimeFilter;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NNXRuntimeCPU.h"
 #include "NNXRuntimeCPUUtils.h"
+#include "NNXModelOptimizer.h"
 #include "NeuralTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
@@ -9,6 +10,11 @@ using namespace NNX;
 FString FRuntimeCPU::GetRuntimeName() const
 {
 	return NNX_RUNTIME_CPU_NAME;
+}
+
+TUniquePtr<IModelOptimizer> FRuntimeCPU::CreateModelOptimizer() const
+{
+	return CreateONNXToONNXModelOptimizer();
 }
 
 EMLRuntimeSupportFlags FRuntimeCPU::GetSupportFlags() const 
@@ -66,11 +72,12 @@ bool FMLInferenceModelCPU::Init(const UMLInferenceModel* InferenceModel)
 	
 	// Clean previous networks
 	bIsLoaded = false;
-	const TArray<uint8>& ModelBuffer{ InferenceModel->GetData() };
+	const TArray<uint8>& ModelBuffer{ InferenceModel->GetFormatDesc().Data };
 
 	// Checking Inference Model 
 	{
-		if (ModelBuffer.Num() == 0) {
+		if (ModelBuffer.Num() == 0) 
+		{
 			UE_LOG(LogNNX, Warning, TEXT("FMLInferenceModelCPU::Load(): Input model path is empty."));
 			return false;
 		}

@@ -20,6 +20,27 @@ namespace NNX
 			return new FMLOperatorHlslGemm();
 		}
 
+		static bool Validate(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes)
+		{
+			bool bIsValid = true;
+
+			FAttributeValidator AttributeValidator;
+			AttributeValidator.AddOptional(TEXT("alpha"), EMLAttributeDataType::Float);
+			AttributeValidator.AddOptional(TEXT("beta"), EMLAttributeDataType::Float);
+			AttributeValidator.AddOptional(TEXT("transA"), EMLAttributeDataType::Int32);
+			AttributeValidator.AddOptional(TEXT("transB"), EMLAttributeDataType::Int32);
+			bIsValid &= AttributeValidator.Validate(AttributeMap);
+			
+			FInputValidator InputValidator;
+			InputValidator.AddSupportedType(EMLTensorDataType::Float);
+			InputValidator.AddRequired();
+			InputValidator.AddRequired();
+			InputValidator.AddOptional();
+			bIsValid &= InputValidator.Validate(InputTypes);
+
+			return bIsValid;
+		}
+
 		virtual ~FMLOperatorHlslGemm() = default;
 
 	private:
@@ -114,7 +135,7 @@ namespace NNX
 
 	bool RegisterGemmOperator(FMLOperatorRegistryHlsl& Registry)
 	{
-		Registry.OpAdd(TEXT("Gemm"), FMLOperatorHlslGemm::Create);
+		Registry.OpAdd(TEXT("Gemm"), FMLOperatorHlslGemm::Create, FMLOperatorHlslGemm::Validate);
 
 		return true;
 	}

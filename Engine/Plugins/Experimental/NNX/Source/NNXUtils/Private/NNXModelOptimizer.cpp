@@ -21,7 +21,9 @@ NNX_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
 #include "core/session/ort_model_optimizer_api.h"
+#include "core/session/onnxruntime_cxx_api.h"
 NNX_THIRD_PARTY_INCLUDES_END
+
 
 #define Print(Format, ...) UE_LOG(LogNNX, Display, Format, __VA_ARGS__)
 
@@ -220,13 +222,7 @@ public:
 		}
 	}
 
-	static void OnLog(const char* LogMsg)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("%s"), ANSI_TO_TCHAR(LogMsg));
-	}
-
 private:
-
 	TUniquePtr<Ort::IModelGraph>	Graph;
 	TArray<uint8>					Storage;
 };
@@ -266,34 +262,230 @@ EMLTensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorData
 
 namespace NNX
 {
-
-class FMLModelOptimizerONNXToNNX : public IMLModelOptimizer
+class FModelOptimizerBase : public IModelOptimizer
 {
-public:
+protected:
+	TArray<TSharedPtr<IModelOptimizerPass>> OptimizationPasses;
+	TArray<TSharedPtr<IModelValidator>> Validators;
 
-	FMLModelOptimizerONNXToNNX()
+	virtual bool ValidateInputModel(const FNNXFormatDesc& InputModel)
 	{
+		if (InputModel.Format != ENNXInferenceFormat::ONNX)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Optimizer %s is expecting ONNX input format."), *GetName());
+			return false;
+		}
+
+		OrtStatusPtr Status = OrtValidateModelFromMemory(InputModel.Data.GetData(), InputModel.Data.Num());
+		if (Status)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Input ONNX model is invalid: %s, Model won't be optimized"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
+			return false;
+		}
+		
+		return true;
+	}
+	
+public:
+	virtual void AddOptimizationPass(TSharedPtr<IModelOptimizerPass> ModelOptimizerPass) override
+	{
+		if (ModelOptimizerPass.IsValid())
+		{
+			OptimizationPasses.Add(ModelOptimizerPass);
+		}
 	}
 
-	virtual bool Optimize(TArrayView<uint8> ONNXData, TArray<uint8>& NNXData) override
+	virtual void AddValidator(TSharedPtr<IModelValidator> ModelValidator) override
+	{
+		if (ModelValidator.IsValid())
+		{
+			Validators.Add(ModelValidator);
+		}
+	}
+
+	bool IsModelValid(const FNNXFormatDesc& ModelToValidate)
+	{
+		bool bIsModelValid = true;
+
+		for (TSharedPtr<IModelValidator>& Validator : Validators)
+		{
+			check(Validator.IsValid());
+			if (!Validator->ValidateModel(ModelToValidate))
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Model validator %s detected an error."), *(Validator->GetName()));
+				bIsModelValid = false;
+			}
+		}
+		return bIsModelValid;
+	}
+
+	bool ApplyAllPassesAndValidations(FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options)
+	{
+		if (!IsModelValid(OptimizedModel))
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Model is not valid, skipping optimization passes."));
+			return false;
+		}
+		
+		for (TSharedPtr<IModelOptimizerPass>& Pass : OptimizationPasses)
+		{
+			check(Pass.IsValid());
+			
+			if (!Pass->ApplyPass(OptimizedModel, Options))
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Error while executing model optimisation pass %s."), *(Pass->GetName()));
+				return false;
+			}
+			if (!IsModelValid(OptimizedModel))
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Model validation failed after optimisation pass %s."), *(Pass->GetName()));
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool Optimize(const FNNXFormatDesc& InputModel, FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	{
+		OptimizedModel = FNNXFormatDesc{};
+		
+		if (!ValidateInputModel(InputModel))
+		{
+			return false;
+		}
+
+		OptimizedModel = InputModel;
+		return ApplyAllPassesAndValidations(OptimizedModel, Options);
+	}
+};
+
+class FONNXModelValidator : public IModelValidator
+{
+public:
+	virtual FString GetName() const
+	{
+		return TEXT("ONNX Model validator");
+	}
+
+	virtual bool ValidateModel(const FNNXFormatDesc& InputModel) const override
+	{
+		FMLRuntimeFormat	Format;
+
+		ENNXInferenceFormat FormatType = InputModel.Format;
+		if (FormatType != ENNXInferenceFormat::ONNX)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
+			return false;
+		}
+
+		OrtStatusPtr Status = OrtValidateModelFromMemory(InputModel.Data.GetData(), InputModel.Data.Num());
+		if (Status)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to validate ONNX model: %s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
+			return false;
+		}
+
+		return true;
+	}
+};
+
+class FModelOptimizerONNXToONNX : public FModelOptimizerBase
+{
+public:
+	virtual FString GetName() const override
+	{
+		return TEXT("NNXModelOptimizerFromONNXToONNX");
+	}
+
+	//TODO jira 167591: investigate if it is possible to optimize ONNX model and serialize it back as ONNX.
+	//Among other benefits applying L1 could cut down on the model size. Atm this optimizer is a pass trough.
+	//Bonus: Can we get a validator for onnx format?
+};
+
+static void OnOrtLog(const char* LogMsg)
+{
+	UE_LOG(LogNNX, Warning, TEXT("%s"), ANSI_TO_TCHAR(LogMsg));
+}
+
+class FModelOptimizerONNXToORT : public FModelOptimizerBase
+{
+public:
+	virtual FString GetName() const override
+	{
+		return TEXT("NNXModelOptimizerONNXToORT");
+	}
+
+	virtual bool Optimize(const FNNXFormatDesc& InputModel, FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	{
+		OptimizedModel = FNNXFormatDesc{};
+		
+		if (!ValidateInputModel(InputModel))
+		{
+			return false;
+		}
+
+		TUniquePtr<Ort::IModelGraph> Graph = ConvertONNXToORTModelGraph(InputModel.Data);
+
+		//TODO jira 167588: Serialize the Graph to a buffer and store it in OutModel.Data
+		//allowing to initiate a session from ORT format for NN engine supporting this.
+		//Allowing model optimization to be applyed at cooking time.
+		//OptimizedModel = Graph.Serialize;
+		//return ApplyAllPasses(OptimizedModel, Options);
+		return false;
+	}
+
+protected:
+	TUniquePtr<Ort::IModelGraph> ConvertONNXToORTModelGraph(TConstArrayView<uint8> ONNXData)
 	{
 		Ort::ModelOptimizeOptions	Opts{};
-		
-		Opts.logCallback = OnLog;
+
+		Opts.logCallback = OnOrtLog;
 
 		TUniquePtr<Ort::IModelGraph> Graph(OrtOptimizeModelFromMemory(ONNXData.GetData(), ONNXData.Num(), Opts));
 		if (!Graph)
 		{
 			UE_LOG(LogNNX, Warning, TEXT("Failed to load ONNX model from memory"));
-			return false;
 		}
 
 		//auto Printer = MakeUnique<FModelGraphPrinter>(Graph.Get());
 		//Printer->Run();
+
+		return Graph;
+	}
+};
+
+class FModelOptimizerONNXToNNXRT : public FModelOptimizerONNXToORT
+{
+public:
+	virtual FString GetName() const override
+	{
+		return TEXT("FNNXModelOptimizerONNXToNNX");
+	}
+	
+	virtual bool Optimize(const FNNXFormatDesc& InputModel, FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	{
+		OptimizedModel = FNNXFormatDesc{};
 		
-		return BuildNNXFormat(Graph.Get(), NNXData);
+		if (!ValidateInputModel(InputModel))
+		{
+			return false;
+		}
+
+		TUniquePtr<Ort::IModelGraph> Graph = ConvertONNXToORTModelGraph(InputModel.Data);
+		
+		if (!BuildNNXFormat(Graph.Get(), OptimizedModel.Data))
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error while building ORT ModelGraph."));
+			return false;
+		}
+
+		OptimizedModel.Format = ENNXInferenceFormat::NNXRT;
+
+		return ApplyAllPassesAndValidations(OptimizedModel, Options);
 	}
 
+private:
 	bool BuildNNXFormat(Ort::IModelGraph* Graph, TArray<uint8>& NNXData)
 	{
 		TUniquePtr<NNX::IMLModelBuilder>	Builder(NNX::CreateNNXModelBuilder());
@@ -375,7 +567,7 @@ public:
 				// TODO: Use tensor initializer data
 				if (!Init)
 				{
-					
+					 
 				}
 				
 				auto Tensor =
@@ -414,25 +606,66 @@ public:
 
 		return Builder->End(NNXData);
 	}
-
-	static void OnLog(const char* LogMsg)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("%s"), ANSI_TO_TCHAR(LogMsg));
-	}
 };
 
 /** Create a model optimizer */
-NNXUTILS_API IMLModelOptimizer* CreateModelOptimizer(EMLInferenceFormat InputFormat, EMLInferenceFormat OutputFormat)
+NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat)
 {
-	if (InputFormat == EMLInferenceFormat::ONNX)
+	if (InputFormat == ENNXInferenceFormat::ONNX)
 	{
-		if (OutputFormat == EMLInferenceFormat::NNXRT)
+		if (OutputFormat == ENNXInferenceFormat::NNXRT)
 		{
-			return new FMLModelOptimizerONNXToNNX();
+			return MakeUnique<FModelOptimizerONNXToNNXRT>();
+		}
+		else if (OutputFormat == ENNXInferenceFormat::ONNX)
+		{
+			return MakeUnique<FModelOptimizerONNXToONNX>();
+		}
+		else
+		{
+			return MakeUnique<FModelOptimizerONNXToORT>();
 		}
 	}
 
+	//TODO jira 167592: Investigate how to conditionally compile the above,
+	//removing the dependencies to ORT in runtime build (we will then
+	//need a way to run tests without ability to create onnx
+	//model at runtime). One could also make NNXUtils editor only
+	//then the interface for optimization and validation should be in a
+	//different module than the implementation.
+
 	return nullptr;
+}
+
+/** Helper to create an optimized model for a given runtime from ONNX */
+NNXUTILS_API bool CreateRuntimeModelFromONNX(const FNNXFormatDesc& ONNXModel, FNNXFormatDesc& OptimizedModel, FString RuntimeName, const FOptimizerOptionsMap& Options)
+{
+	OptimizedModel = FNNXFormatDesc{};
+	
+	//TODO jira 167594: Register the NNEngine even when CreateInferenceModel can't be called
+	//on the platform because of missing hardware support. This would allow
+	//to optimize a model even when the current hardware cannot run inference on current hardware.
+	NNX::IRuntime* Runtime = NNX::GetRuntime(RuntimeName);
+	if (!Runtime)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Can't find runtime %s!"), *RuntimeName);
+		return false;
+	}
+
+	TUniquePtr<IModelOptimizer> Optimizer = Runtime->CreateModelOptimizer();
+	if (!Optimizer.IsValid())
+	{
+		UE_LOG(LogNNX, Warning, TEXT("No optimizer available for runtime %s!"), *RuntimeName);
+		return false;
+	}
+
+	if (!Optimizer->Optimize(ONNXModel, OptimizedModel, Options))
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Could not create an optimized model for the required runtime %s. Check the log!"), *RuntimeName);
+		return false;
+	}
+
+	return true;
 }
 
 } // namespace NNX

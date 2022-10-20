@@ -325,40 +325,28 @@ namespace Test
 		return FMath::Sin((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex));
 	}
 
-	static int RunTestInference(TArrayView<uint8> ONNXModelData, NNX::IRuntime* Runtime, 
+	static int RunTestInference(const FNNXFormatDesc& ONNXModelData, NNX::IRuntime* Runtime, 
 		TArray<NNX::FMLTensorDesc>& OutOutputTensorsDesc, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
 		OutOutputTensorsDesc.Empty();
 
-		UMLInferenceModel* UInferenceModel = nullptr;
-		if (Runtime->GetSupportFlags() == EMLRuntimeSupportFlags::RDG)
+		FOptimizerOptionsMap Options;
+		FNNXFormatDesc RuntimeModelData;
+		TUniquePtr<IModelOptimizer> Optimizer = Runtime->CreateModelOptimizer();
+		
+		if (!Optimizer || !Optimizer->Optimize(ONNXModelData, RuntimeModelData, Options))
 		{
-			//Convert model from ONNX to RDG format as this Runtime only support RDG format
-			TArray<uint8> RDGModelData;
-			TUniquePtr<IMLModelOptimizer> Optimizer(CreateONNXToNNXModelOptimizer());
-			if (!Optimizer || !Optimizer->Optimize(ONNXModelData, RDGModelData))
-			{
-				UE_LOG(LogNNX, Error, TEXT("Failed to optimize the model"));
-				return false;
-			}
-			UInferenceModel = UMLInferenceModel::CreateFromData(EMLInferenceFormat::NNXRT, RDGModelData);
+			UE_LOG(LogNNX, Error, TEXT("Failed to optimize the model"));
+			return -1;
 		}
-		else
-		{
-			UInferenceModel = UMLInferenceModel::CreateFromData(EMLInferenceFormat::ONNX, ONNXModelData);
-		}
-
+		
+		UMLInferenceModel* UInferenceModel = UMLInferenceModel::CreateFromFormatDesc(RuntimeModelData);
 		TUniquePtr<NNX::FMLInferenceModel> InferenceModel(Runtime->CreateInferenceModel(UInferenceModel));
+		
 		if (!InferenceModel.IsValid())
 		{
 			UE_LOG(LogNNX, Error, TEXT("Could not create Inference model."));
-			return -1;
-		}
-
-		if (!InferenceModel)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create NNX model"));
 			return -1;
 		}
 
@@ -380,7 +368,7 @@ namespace Test
 		const constexpr int32 NumTensorPtrForDebug = 3;
 		float* InputsAsFloat[NumTensorPtrForDebug];
 		float* OutputsAsFloat[NumTensorPtrForDebug];
-		FMemory::Memzero(InputsAsFloat, NumTensorPtrForDebug *sizeof(float*));
+		FMemory::Memzero(InputsAsFloat, NumTensorPtrForDebug * sizeof(float*));
 		FMemory::Memzero(OutputsAsFloat, NumTensorPtrForDebug * sizeof(float*));
 		for (int32 i = 0; i < NumTensorPtrForDebug && i < InputMemBuffers.Num(); ++i)
 		{
@@ -397,7 +385,7 @@ namespace Test
 		return ReturnValue;
 	}
 
-	bool CompareONNXModelInferenceAcrossRuntimes(TArrayView<uint8> ONNXModelData, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
+	bool CompareONNXModelInferenceAcrossRuntimes(const FNNXFormatDesc& ONNXModel, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
 		if (TestSetup.AutomationExcludedPlatform.Contains(CurrentPlatform))
@@ -418,7 +406,7 @@ namespace Test
 		TArray<TArray<char>> RefOutputMemBuffers;
 		TArray<NNX::FMLTensorDesc> RefOutputTensorDescs;
 
-		RunTestInference(ONNXModelData, RefRuntime, RefOutputTensorDescs, RefOutputMemBuffers);
+		RunTestInference(ONNXModel, RefRuntime, RefOutputTensorDescs, RefOutputMemBuffers);
 
 		// Test against other runtime
 		TArray<NNX::IRuntime*> Runtimes;
@@ -459,7 +447,7 @@ namespace Test
 				float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
 				float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);
 
-				RunTestInference(ONNXModelData, Runtime, OutputTensorDescs, OutputMemBuffers);
+				RunTestInference(ONNXModel, Runtime, OutputTensorDescs, OutputMemBuffers);
 				if (OutputTensorDescs.Num() == RefOutputTensorDescs.Num())
 				{
 					for (int i = 0; i < OutputTensorDescs.Num(); ++i)

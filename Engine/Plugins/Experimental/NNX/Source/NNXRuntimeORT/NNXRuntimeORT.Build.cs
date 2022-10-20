@@ -33,6 +33,7 @@ public class NNXRuntimeORT : ModuleRules
 				"ORTHelper",
 				//"ONNXRuntime",
 				"ORTDefault",
+                "NNXUtils"
 			}
 		);
 

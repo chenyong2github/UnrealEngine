@@ -56,6 +56,7 @@ namespace NNX
 		FRuntimeORTCpu() = default;
 		virtual ~FRuntimeORTCpu() = default;
 		virtual FString GetRuntimeName() const override;
+		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
 		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
@@ -69,6 +70,7 @@ namespace NNX
 		FRuntimeORTCuda() = default;
 		virtual ~FRuntimeORTCuda() = default;
 		virtual FString GetRuntimeName() const override;
+		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
 		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);
@@ -81,6 +83,7 @@ namespace NNX
 		FRuntimeORTDml() = default;
 		virtual ~FRuntimeORTDml() = default;
 		virtual FString GetRuntimeName() const override;
+		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const override;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const override;
 		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel);
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXORTConf& InConf);

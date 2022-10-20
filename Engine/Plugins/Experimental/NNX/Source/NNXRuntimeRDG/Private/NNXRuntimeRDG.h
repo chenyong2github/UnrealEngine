@@ -4,8 +4,10 @@
 
 #include "NNXCore.h"
 #include "NNXRuntime.h"
+#include "NNXModelOptimizer.h"
 #include "ShaderParameterUtils.h"
 #include "RHIGPUReadback.h"
+#include "Serialization/MemoryReader.h"
 
 #include "Containers/Map.h"
 
@@ -24,6 +26,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 class FRDGBuilder;
 struct FMLRuntimeFormat;
+struct FNNXFormatDesc;
 
 namespace NNX
 {
@@ -64,7 +67,7 @@ protected:
 
 	FMLInferenceModelRDG();
 
-	bool LoadModel(UMLInferenceModel* InModel, FMLRuntimeFormat& Format);
+	bool LoadModel(const FNNXFormatDesc& InModel, FMLRuntimeFormat& Format);
 
 	int SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutRDGBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FMLTensorDesc> InTensors);
 
@@ -77,27 +80,75 @@ protected:
 	bool			bUseManualTransitions;
 };
 
+//TODO jira 167584 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)
+//TODO jira remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
+bool AlwaysValidValidationFunction(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes);
+
+class FInputValidator
+{
+public:
+	FInputValidator();
+	void AddRequired(int32 TemplateIdx = 0);
+	void AddOptional(int32 TemplateIdx = 0);
+	void SetTemplateCount(int32 TemplateCount);
+	void AddSupportedType(EMLTensorDataType Type, int32 TemplateIdx = 0);
+	bool Validate(TConstArrayView<EMLTensorDataType> InputTypes);
+
+private:
+	TArray<TArray<EMLTensorDataType>> TemplateTypes;
+	TArray<int32> InputTemplateIndices;
+	int32 NumRequiredInput;
+	int32 NumOptionalInput;
+};
+
+class FAttributeValidator
+{
+public:
+	void AddOptional(const FString& Name, EMLAttributeDataType Type);
+	void AddRequired(const FString& Name, EMLAttributeDataType Type);
+	bool Validate(const FMLAttributeMap& AttributesToValidate);
+
+private:
+	struct FEntry
+	{
+		FEntry(const FString& InName, EMLAttributeDataType InType)
+			: Name(InName), Type(InType)
+		{
+		}
+
+		//TODO should be extended as needed by operator to support more validation especially around the range of the values.
+		//An example is ConvTranspose `auto_pad` enum style string that can only take a few values
+		//In the same direction we might only support a range of value for a float (for example
+		//we only support integer but the type is float, or only positive values for an int32)
+		FString Name;
+		EMLAttributeDataType Type;
+	};
+
+	TArray<FEntry> RequiredAttributes;
+	TArray<FEntry> OptionalAttributes;
+};
 
 /**
  * Registry for RDG ML operators
  */
-template<class TMLOperatorType>
-class TMLOperatorRegistryRDG
+template<class TOperatorType>
+class TOperatorRegistryRDG
 {
 public:
 
-	typedef TMLOperatorType* (*MLOperatorCreateFunc)();
+	typedef TOperatorType* (*OperatorCreateFunc)();
+	typedef bool (*OperatorValidateFunc)(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes);
 
-	static TMLOperatorRegistryRDG* Get()
+	static TOperatorRegistryRDG* Get()
 	{
-		static TMLOperatorRegistryRDG Inst;
+		static TOperatorRegistryRDG Inst;
 
 		return &Inst;
 	}
 
-	MLOperatorCreateFunc OpFind(const FString& Name)
+	OperatorValidateFunc OpFindValidation(const FString& Name)
 	{
-		MLOperatorCreateFunc* Fn = Operators.Find(Name);
+		OperatorValidateFunc* Fn = OperatorValidations.Find(Name);
 
 		if (!Fn)
 		{
@@ -108,7 +159,20 @@ public:
 		return *Fn;
 	}
 
-	bool OpAdd(const FString& Name, MLOperatorCreateFunc Func)
+	OperatorCreateFunc OpFind(const FString& Name)
+	{
+		OperatorCreateFunc* Fn = Operators.Find(Name);
+
+		if (!Fn)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("RDG MLOperator:%s is not registered"), *Name);
+			return nullptr;
+		}
+
+		return *Fn;
+	}
+
+	bool OpAdd(const FString& Name, OperatorCreateFunc Func, OperatorValidateFunc ValidateFunc = AlwaysValidValidationFunction)
 	{
 		if (Operators.Find(Name) != nullptr)
 		{
@@ -117,14 +181,90 @@ public:
 		}
 
 		Operators.Add(Name, Func);
+		OperatorValidations.Add(Name, ValidateFunc);
 		return true;
 	}
 
 private:
 
-	TMap<FString, MLOperatorCreateFunc> Operators;
+	TMap<FString, OperatorCreateFunc> Operators;
+	TMap<FString, OperatorValidateFunc> OperatorValidations;
 };
 
+/**
+ * Validator for RDG ML operators
+ */
+template<class TOperatorType>
+class TModelValidatorRDG : public IModelValidator
+{
+public:
+	virtual FString GetName() const 
+	{
+		return TEXT("RDG Model validator");
+	}
+	
+	virtual bool ValidateModel(const FNNXFormatDesc& InputModel) const override
+	{
+		FMLRuntimeFormat	Format;
+
+		ENNXInferenceFormat FormatType = InputModel.Format;
+		if (FormatType != ENNXInferenceFormat::NNXRT)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Unsupported format type for validator %s"), *GetName());
+			return false;
+		}
+
+		FMemoryReader Reader(InputModel.Data);
+		FMLRuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
+
+		TOperatorRegistryRDG<TOperatorType>* Registry = TOperatorRegistryRDG<TOperatorType>::Get();
+		check(Registry != nullptr);
+
+		if (Format.Operators.Num() > 1)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to validate model, currently only single layer models are supported"));
+			return false;
+		}
+		
+		// HACK: This works only for single layer networks
+		// we should get the output tensor type from intermediate tensor 
+		// (can we get it from model definition?, otherwise will need
+		// to infer from input shape type + forward propagation and op callbacks)
+		TArray<EMLTensorDataType> InputTensorTypes;
+		for (int32 Idx = 0; Idx < Format.Tensors.Num(); ++Idx)
+		{
+			if (Format.Tensors[Idx].Type == EMLFormatTensorType::Input)
+			{
+				InputTensorTypes.Add(Format.Tensors[Idx].DataType);
+			}
+		}
+
+		for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
+		{
+			FMLAttributeMap AttributeMap;
+			for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
+			{
+				AttributeMap.SetAttribute(Desc.Name, Desc.Value);
+			}
+
+			const FString& OpType = Format.Operators[Idx].TypeName;
+			
+			//TODO jira 167587: we should extract constant tensor from the model
+			//and pass them to the operator validation so that it can validate
+			//the shapes of the constant tensors and ensure no gpu-cpu sync
+			//will be needed during the execution of the operator.
+			typename TOperatorRegistryRDG<TOperatorType>::OperatorValidateFunc ValidationFn = Registry->OpFindValidation(OpType);
+
+			if (!ValidationFn(AttributeMap, InputTensorTypes))
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to validate operator:%s"), *OpType);
+				return false;
+			}
+		}
+
+		return true;
+	}
+};
 
 // NOTE: For now we only have DML on Windows, we should add support for XSX
 #if PLATFORM_WINDOWS

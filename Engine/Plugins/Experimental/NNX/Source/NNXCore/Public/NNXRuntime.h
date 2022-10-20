@@ -23,6 +23,7 @@ class FRDGBuilder;
 namespace NNX
 {
 class FMLInferenceModel;
+class IModelOptimizer;
 
 //class IOperatorRegistry;
 
@@ -41,6 +42,7 @@ class IRuntime
 public:
 	virtual ~IRuntime() = default;
 	virtual FString GetRuntimeName() const = 0;
+	virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const = 0;
 
 	// TODO: Replace with QuerySupport()
 	// Returns flags from ERuntimeSupportFlags

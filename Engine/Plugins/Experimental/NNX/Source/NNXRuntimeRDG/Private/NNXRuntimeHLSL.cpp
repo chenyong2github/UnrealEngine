@@ -3,6 +3,7 @@
 #include "NNXElementWiseBinaryCS.h"
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
+#include "NNXModelOptimizer.h"
 #include "NNXRuntimeHLSLElementWiseBinaryOps.h"
 #include "NNXRuntimeHLSLElementWiseUnaryOps.h"
 #include "NNXRuntimeHLSLElementWiseVariadicOps.h"
@@ -61,9 +62,10 @@ FMLInferenceModelHlsl::~FMLInferenceModelHlsl()
 //
 bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 {
+	check(InModel != nullptr);
 	FMLRuntimeFormat	Format;
 
-	if (!LoadModel(InModel, Format))
+	if (!LoadModel(InModel->GetFormatDesc(), Format))
 	{
 		return false;
 	}
@@ -111,7 +113,7 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 //
 FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& AttributeMap)
 {
-	FMLOperatorRegistryHlsl::MLOperatorCreateFunc CreateFn = FMLOperatorRegistryHlsl::Get()->OpFind(OpName);
+	FMLOperatorRegistryHlsl::OperatorCreateFunc CreateFn = FMLOperatorRegistryHlsl::Get()->OpFind(OpName);
 
 	if (!CreateFn)
 	{
@@ -171,6 +173,16 @@ public:
 	virtual FString GetRuntimeName() const override
 	{
 		return NNX_RUNTIME_HLSL_NAME;
+	}
+
+	virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const
+	{
+		TUniquePtr<IModelOptimizer> ModelOptimizer = CreateONNXToNNXModelOptimizer();
+		check(ModelOptimizer.IsValid());
+		
+		ModelOptimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
+		
+		return ModelOptimizer;
 	}
 
 	// Returns flags from ERuntimeSupportFlags

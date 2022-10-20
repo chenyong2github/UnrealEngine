@@ -73,24 +73,25 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 
 			}
 
-			TArray<uint8>	InputData;
+			FNNXFormatDesc ONNXModel;
 			
 			// First try to load model from file, otherwise create a single layer NN with specified
 			// operator name
 			if (!ModelPath.IsEmpty())
 			{
-				if (!FFileHelper::LoadFileToArray(InputData, *ModelPath))
+				if (!FFileHelper::LoadFileToArray(ONNXModel.Data, *ModelPath))
 				{
 					UE_LOG(LogNNX, Warning, TEXT("Failed to load model from file:%s"), *ModelPath);
 					return;
 				}
+				ONNXModel.Format = ENNXInferenceFormat::ONNX;
 			}
 			else if (!OpName.IsEmpty())
 			{
 				FMLTensorDesc InputTensor = FMLTensorDesc::Make(TEXT("in"), { 1, 512 }, EMLTensorDataType::Float);
 				FMLTensorDesc OutputTensor = FMLTensorDesc::Make(TEXT("out"), { 1, 512 }, EMLTensorDataType::Float);
 
-				if (!NNX::CreateONNXModelForOperator(OpName, MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), InputData))
+				if (!NNX::CreateONNXModelForOperator(OpName, MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
 				{
 					UE_LOG(LogNNX, Warning, TEXT("Failed to create model for operator:%s"), *OpName);
 				}
@@ -100,7 +101,7 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 				UE_LOG(LogNNX, Warning, TEXT("Invalid arguments"));
 			}
 
-			TUniquePtr<IMLModelOptimizer>	Optimizer(CreateONNXToNNXModelOptimizer());
+			TUniquePtr<IModelOptimizer> Optimizer = CreateONNXToNNXModelOptimizer();
 
 			if (!Optimizer)
 			{
@@ -108,13 +109,14 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 				return;
 			}
 
-			TArray<uint8>	OutData;
-
 			UE_LOG(LogNNX, Verbose, TEXT("Optimizing model"));
 
-			if (Optimizer->Optimize(InputData, OutData))
+			FOptimizerOptionsMap Options;
+			FNNXFormatDesc OutModel;
+			
+			if (Optimizer->Optimize(ONNXModel, OutModel, Options))
 			{
-				UE_LOG(LogNNX, Display, TEXT("Model optimized:%u bytes"), OutData.Num());
+				UE_LOG(LogNNX, Display, TEXT("Model optimized:%u bytes"), OutModel.Data.Num());
 			}
 			else
 			{
@@ -134,12 +136,11 @@ static FAutoConsoleCommand ConsoleCmdNNXCreateModel(
 
 			if (Args.Num() > 0)
 			{
-				TArray<uint8> ModelData;
-				
+				FNNXFormatDesc ONNXModel;
 				FMLTensorDesc InputTensor = FMLTensorDesc::Make(TEXT("in"), { 1, 512 }, EMLTensorDataType::Float);
 				FMLTensorDesc OutputTensor = FMLTensorDesc::Make(TEXT("out"), { 1, 512 }, EMLTensorDataType::Float);
 
-				if (!NNX::CreateONNXModelForOperator(Args[0], MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ModelData))
+				if (!NNX::CreateONNXModelForOperator(Args[0], MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
 				{
 					UE_LOG(LogNNX, Display, TEXT("Failed to create model for operator:%s"), *Args[0]);
 				}

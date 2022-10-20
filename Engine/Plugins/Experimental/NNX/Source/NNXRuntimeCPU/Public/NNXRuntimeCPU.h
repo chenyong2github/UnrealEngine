@@ -34,6 +34,7 @@ namespace NNX
 		bool Init();
 		virtual ~FRuntimeCPU();
 		virtual FString GetRuntimeName() const;
+		virtual TUniquePtr<IModelOptimizer> CreateModelOptimizer() const;
 		virtual EMLRuntimeSupportFlags GetSupportFlags() const;
 		virtual FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* Model);
 		FMLInferenceModel* CreateInferenceModel(UMLInferenceModel* InModel, const FMLInferenceNNXCPUConf& InConf);

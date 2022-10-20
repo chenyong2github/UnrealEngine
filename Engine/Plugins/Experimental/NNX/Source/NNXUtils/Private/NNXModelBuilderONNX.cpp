@@ -2,6 +2,7 @@
 
 #include "NNXCore.h"
 #include "NNXModelBuilder.h"
+#include "NNXRuntimeFormat.h"
 
 #include "NNXThirdPartyWarningDisabler.h"
 NNX_THIRD_PARTY_INCLUDES_START
@@ -274,17 +275,19 @@ private:
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, TArray<uint8>& ModelData)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, FNNXFormatDesc& Model)
 {
 	FMLAttributeMap EmptyAttributeMap;
-	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, ModelData);
+	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
 }
 
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, TArray<uint8>& ModelData)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, FNNXFormatDesc& Model)
 {
+	Model = FNNXFormatDesc{};
+	
 	TUniquePtr<IMLModelBuilder> Builder(CreateONNXModelBuilder());
 
 	Builder->Begin();
@@ -328,8 +331,10 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 		Builder->AddOperatorAttribute(Op, Attributes.GetName(Idx), Attributes.GetAttributeValue(Idx));
 	}
 
-	Builder->End(ModelData);
-
+	
+	Builder->End(Model.Data);
+	Model.Format = ENNXInferenceFormat::ONNX;
+	
 	return true;
 }
 

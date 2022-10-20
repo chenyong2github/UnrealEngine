@@ -20,6 +20,7 @@ namespace NNX
 	/**
 	  * HLSL ML operator registry
 	*/
-	typedef TMLOperatorRegistryRDG<FMLOperatorHlsl> FMLOperatorRegistryHlsl;
+	typedef TOperatorRegistryRDG<FMLOperatorHlsl> FMLOperatorRegistryHlsl;
+	typedef TModelValidatorRDG<FMLOperatorHlsl> FModelValidatorHlsl;
 
 } // NNX
