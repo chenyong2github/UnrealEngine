@@ -2364,6 +2364,49 @@ FCompileConstantResolver FCompileConstantResolver::WithUsage(ENiagaraScriptUsage
 	return Copy;
 }
 
+uint32 FCompileConstantResolver::BuildTypeHash() const
+{
+	union
+	{
+		struct  
+		{
+			uint8 Usage;
+			uint8 DebugState;
+			uint8 EmitterSimTarget;
+			uint8 bHasSystem : 1;
+			uint8 bHasEmitter : 1;
+			uint8 bEmitterLocalSpace : 1;
+			uint8 bEmitterDeterminism : 1;
+			uint8 bEmitterInterpolatedSpawn : 1;
+		};
+		uint32 Hash;
+	} HashUnion;
+
+	HashUnion.Hash = 0;
+
+	if (Emitter.Emitter)
+	{
+		HashUnion.bHasEmitter = true;
+		if (FVersionedNiagaraEmitterData* EmitterData = Emitter.GetEmitterData())
+		{
+			HashUnion.EmitterSimTarget = (uint8)EmitterData->SimTarget;
+			HashUnion.bEmitterLocalSpace = EmitterData->bLocalSpace;
+			HashUnion.bEmitterDeterminism = EmitterData->bDeterminism;
+			HashUnion.bEmitterInterpolatedSpawn = EmitterData->bInterpolatedSpawning;
+		}
+	}
+
+	if (System)
+	{
+		HashUnion.bHasSystem = true;
+	}
+
+	HashUnion.Usage = (uint8)Usage;
+	HashUnion.DebugState = (uint8)DebugState;
+
+	return HashUnion.Hash;
+}
+
 int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin)
 {
 	const FString* ModuleAlias = GetModuleAlias();

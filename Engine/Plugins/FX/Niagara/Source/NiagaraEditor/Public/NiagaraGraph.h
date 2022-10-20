@@ -257,7 +257,7 @@ class UNiagaraGraph : public UEdGraph
 	/** Each graph is given a Change Id that occurs anytime the graph's content is manipulated. This key changing induces several important activities, including being a 
 	value that third parties can poll to see if their cached handling of the graph needs to potentially adjust to changes. Furthermore, for script compilation we cache 
 	the changes that were produced during the traversal of each output node, which are referred to as the CompileID.*/
-	FGuid GetChangeID() { return ChangeId; }
+	FGuid GetChangeID() const { return ChangeId; }
 
 	/** Gets the current compile data hash associated with the output node traversal specified by InUsage and InUsageId. If the usage is not found, an invalid hash is returned.*/
 	FNiagaraCompileHash GetCompileDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const;

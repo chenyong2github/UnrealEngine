@@ -34,6 +34,12 @@ public:
 	ENiagaraFunctionDebugState CalculateDebugState() const;
 	FCompileConstantResolver WithDebugState(ENiagaraFunctionDebugState InDebugState) const;
 	FCompileConstantResolver WithUsage(ENiagaraScriptUsage ScriptUsage) const;
+
+	// returns a hash of the data that is used when resolving constants using this resolver.  The specific
+	// Emitter/System/Translator shouldn't be included but the values that it might use from those objects
+	// should be
+	uint32 BuildTypeHash() const;
+
 private:
 	FVersionedNiagaraEmitter Emitter;
 	const UNiagaraSystem* System;
@@ -513,6 +519,8 @@ public:
 
 	bool bShouldBuildSubHistories = true;
 
+	int32 MaxGraphDepthTraversal = INDEX_NONE;
+	int32 CurrentGraphDepth = 0;
 
 	void SetConstantByStaticVariable(int32& OutValue, const UEdGraphPin* InDefaultPin);
 	void SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var);

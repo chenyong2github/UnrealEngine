@@ -1056,8 +1056,26 @@ bool UNiagaraNodeFunctionCall::HasValidScriptAndGraph() const
 void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
-	const UEdGraphPin* ParamMapPin = GetInputPin(0);
-	bool bHasParamMapPin = ParamMapPin && Schema->PinToTypeDefinition(ParamMapPin) == FNiagaraTypeDefinition::GetParameterMapDef();
+
+	auto FindParameterMapPinIndex = [&]()
+	{
+		FPinCollectorArray InputPins;
+		GetInputPins(InputPins);
+		for (int32 PinIndex = 0; PinIndex < InputPins.Num(); ++PinIndex)
+		{
+			if (Schema->PinToTypeDefinition(InputPins[PinIndex]) == FNiagaraTypeDefinition::GetParameterMapDef())
+			{
+				return PinIndex;
+			}
+		}
+		return int32(INDEX_NONE);
+	};
+
+	// when dealing with function scripts it's not sufficient to assume that InputPin[0] is the ParamMap pin, and so we
+	// need to search through the inputs to find the right one
+	const int32 ParamMapPinIndex = FindParameterMapPinIndex();
+	const bool bHasParamMapPin = ParamMapPinIndex != INDEX_NONE;
+	const UEdGraphPin* ParamMapPin = bHasParamMapPin ? GetInputPin(ParamMapPinIndex) : nullptr;
 	if (bHasParamMapPin && ParamMapPin->LinkedTo.Num() == 0)
 	{
 		// Looks like this function call is not yet hooked up. Skip it to prevent cascading errors in the compilation
@@ -1122,7 +1140,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		if (bHasParamMapPin && bRecursive)
 		{
-			ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(GetInputPin(0)->LinkedTo[0]));
+			ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(ParamMapPin->LinkedTo[0]));
 		}
 
 		OutHistory.EnterFunction(GetFunctionName(), FunctionScript, FunctionGraph, this);
@@ -1130,7 +1148,18 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		{
 			NodeIdx = OutHistory.BeginNodeVisitation(ParamMapIdx, this);
 		}
-		OutputNode->BuildParameterMapHistory(OutHistory, true, bFilterForCompilation);
+
+		// check if we should be recursing deeper into the graph
+		const bool DoDepthTraversal = (OutHistory.MaxGraphDepthTraversal == INDEX_NONE || OutHistory.CurrentGraphDepth < OutHistory.MaxGraphDepthTraversal);
+
+		if (DoDepthTraversal)
+		{
+			++OutHistory.CurrentGraphDepth;
+
+			OutputNode->BuildParameterMapHistory(OutHistory, true, bFilterForCompilation);
+
+			--OutHistory.CurrentGraphDepth;
+		}
 
 		// Since we're about to lose the pin calling context, we finish up the function call parameter map pin wiring
 		// here when we have the calling context and the child context still available to us...
@@ -1197,14 +1226,28 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		OutHistory.ExitFunction(GetFunctionName(), FunctionScript, this);
 
-		for (int32 i = 0; i < MatchedPairs.Num(); i++)
+		if (DoDepthTraversal)
 		{
-			OutHistory.RegisterParameterMapPin(MatchedPairs[i].Value, MatchedPairs[i].Key);
-		}
+			for (int32 i = 0; i < MatchedPairs.Num(); i++)
+			{
+				OutHistory.RegisterParameterMapPin(MatchedPairs[i].Value, MatchedPairs[i].Key);
+			}
 
-		for (int32 i = 0; i < MatchedConstants.Num(); i++)
+			for (int32 i = 0; i < MatchedConstants.Num(); i++)
+			{
+				OutHistory.RegisterConstantPin(MatchedConstants[i].Value, MatchedConstants[i].Key);
+			}
+		}
+		else
 		{
-			OutHistory.RegisterConstantPin(MatchedConstants[i].Value, MatchedConstants[i].Key);
+			for (int32 OutputPinIt = 0; OutputPinIt < OutputPinCount; ++OutputPinIt)
+			{
+				if (OutputVariables[OutputPinIt].GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
+				{
+					OutHistory.RegisterParameterMapPin(ParamMapIdx, OutputPins[OutputPinIt]);
+					break;
+				}
+			}
 		}
 	}
 	else if (Signature.bRequiresExecPin)

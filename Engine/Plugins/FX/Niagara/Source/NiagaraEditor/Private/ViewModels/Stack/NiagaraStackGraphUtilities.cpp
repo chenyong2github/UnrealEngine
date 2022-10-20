@@ -942,6 +942,12 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(
 	Builder.ConstantResolver = ConstantResolver;
 	Builder.RegisterExternalStaticVariables(StaticVars);
 
+	// if we are only dealing with the module input pins then we don't need to delve deep into the graph
+	if (Options == ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly)
+	{
+		Builder.MaxGraphDepthTraversal = 1;
+	}
+
 	FunctionCallNode.BuildParameterMapHistory(Builder, false, bFilterForCompilation);
 
 	OutInputPins.Empty();

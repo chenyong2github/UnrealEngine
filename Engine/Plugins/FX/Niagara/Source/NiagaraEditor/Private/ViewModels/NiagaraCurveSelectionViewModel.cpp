@@ -512,7 +512,7 @@ TSharedPtr<FNiagaraCurveSelectionTreeNode> UNiagaraCurveSelectionViewModel::Crea
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	TArray<const UEdGraphPin*> InputPins;
 	TSet<const UEdGraphPin*> HiddenPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(FunctionCallNode, InputPins, HiddenPins, ConstantResolver);
+	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(FunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 	for (const UEdGraphPin* InputPin : InputPins)
 	{
 		if (HiddenPins.Contains(InputPin))

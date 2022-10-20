@@ -15,11 +15,13 @@ FNiagaraParameterHandle::FNiagaraParameterHandle(FName InParameterHandleName)
 	: ParameterHandleName(InParameterHandleName)
 {
 	int32 DotIndex;
-	const FString ParameterHandleString = ParameterHandleName.ToString();
+	FNameBuilder ParameterHandleBuilder(ParameterHandleName);
+	FStringView ParameterHandleString(ParameterHandleBuilder);
+
 	if (ParameterHandleString.FindChar(TEXT('.'), DotIndex))
 	{
-		Name = *ParameterHandleString.RightChop(DotIndex + 1);
-		Namespace = *ParameterHandleString.Left(DotIndex);
+		Name = FName(ParameterHandleString.RightChop(DotIndex + 1));
+		Namespace = FName(ParameterHandleString.Left(DotIndex));
 	}
 	else
 	{
@@ -31,7 +33,11 @@ FNiagaraParameterHandle::FNiagaraParameterHandle(FName InNamespace, FName InName
 	: Name(InName)
 	, Namespace(InNamespace)
 {
-	ParameterHandleName = *FString::Printf(TEXT("%s.%s"), *Namespace.ToString(), *Name.ToString());
+	FNameBuilder ParameterHandleBuilder(Namespace);
+	ParameterHandleBuilder.AppendChar(TCHAR('.'));
+	InName.AppendString(ParameterHandleBuilder);
+
+	ParameterHandleName = FName(ParameterHandleBuilder);
 }
 
 bool FNiagaraParameterHandle::operator==(const FNiagaraParameterHandle& Other) const
@@ -46,6 +52,23 @@ FNiagaraParameterHandle FNiagaraParameterHandle::CreateAliasedModuleParameterHan
 		: ModuleParameterHandle;
 }
 
+FNiagaraParameterHandle FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(const FName FullInputName, const FName FunctionName)
+{
+	FNameBuilder ParameterHandleBuilder(FullInputName);
+	FStringView ParamHandleString(ParameterHandleBuilder);
+
+	const int32 ModuleNamespaceLen = FNiagaraConstants::ModuleNamespaceString.Len();
+
+	if (ParamHandleString.Len() > ModuleNamespaceLen
+		&& ParamHandleString[ModuleNamespaceLen] == TCHAR('.')
+		&& ParamHandleString.StartsWith(FNiagaraConstants::ModuleNamespaceString))
+	{
+		return FNiagaraParameterHandle(FunctionName, FName(ParamHandleString.RightChop(ModuleNamespaceLen + 1)));
+	}
+
+	return FNiagaraParameterHandle(FullInputName);
+}
+
 FNiagaraParameterHandle FNiagaraParameterHandle::CreateEngineParameterHandle(const FNiagaraVariable& SystemVariable)
 {
 	return FNiagaraParameterHandle(SystemVariable.GetName());
@@ -53,7 +76,6 @@ FNiagaraParameterHandle FNiagaraParameterHandle::CreateEngineParameterHandle(con
 
 FNiagaraParameterHandle FNiagaraParameterHandle::CreateEmitterParameterHandle(const FNiagaraVariable& EmitterVariable)
 {
-
 	return FNiagaraParameterHandle(FNiagaraConstants::EmitterNamespace, EmitterVariable.GetName());
 }
 
@@ -69,7 +91,12 @@ FNiagaraParameterHandle FNiagaraParameterHandle::CreateModuleParameterHandle(con
 
 FNiagaraParameterHandle FNiagaraParameterHandle::CreateInitialParameterHandle(const FNiagaraParameterHandle& Handle)
 {
-	return FNiagaraParameterHandle(Handle.GetNamespace(), *FString::Printf(TEXT("%s.%s"), *FNiagaraConstants::InitialPrefix, *Handle.GetName().ToString()));
+	FNameBuilder NameBuilder;
+	NameBuilder.Append(FNiagaraConstants::InitialPrefix);
+	NameBuilder.AppendChar(TCHAR('.'));
+	Handle.GetName().AppendString(NameBuilder);
+
+	return FNiagaraParameterHandle(Handle.GetNamespace(), FName(FStringView(NameBuilder)));
 }
 
 bool FNiagaraParameterHandle::IsValid() const 
