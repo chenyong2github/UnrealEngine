@@ -3011,7 +3011,7 @@ bool FNiagaraDebugHUDStatsListener::Tick()
 			if (Settings.PerfSampleMode == ENiagaraDebugHUDPerfSampleMode::FrameTotal)
 			{
 				SysAvg = Stats->GetGameThreadStats().GetPerFrameAvg();
-				SysMax = Stats->GetGameThreadStats().GetPerFrameAvg();
+				SysMax = Stats->GetGameThreadStats().GetPerFrameMax();
 			}
 			else
 			{
