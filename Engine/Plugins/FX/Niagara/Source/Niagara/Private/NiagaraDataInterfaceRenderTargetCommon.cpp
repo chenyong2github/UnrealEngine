@@ -81,7 +81,7 @@ namespace NiagaraDataInterfaceRenderTargetCommon
 		}
 
 		// If the format does not support typed store we need to find one that will
-		while (RHIIsTypedUAVStoreSupported(GetPixelFormatFromRenderTargetFormat(OutRenderTargetFormat)) == false)
+		while (UE::PixelFormat::HasCapabilities(GetPixelFormatFromRenderTargetFormat(OutRenderTargetFormat), EPixelFormatCapabilities::TypedUAVStore) == false)
 		{
 			static const TPair<ETextureRenderTargetFormat, ETextureRenderTargetFormat> FormatRemapTable[] =
 			{

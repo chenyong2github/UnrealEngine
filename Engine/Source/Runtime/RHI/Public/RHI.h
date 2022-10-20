@@ -844,62 +844,22 @@ inline FVector2f GetMSAASampleOffsets(int32 NumSamples, int32 SampleIndex)
 	return GRHIDefaultMSAASampleOffsets[CalculateMSAASampleArrayIndex(NumSamples, SampleIndex)];
 }
 
-enum class EPixelFormatCapabilities : uint32
-{
-    None             = 0,
-    Texture1D        = 1ull << 1,
-    Texture2D        = 1ull << 2,
-    Texture3D        = 1ull << 3,
-    TextureCube      = 1ull << 4,
-    RenderTarget     = 1ull << 5,
-    DepthStencil     = 1ull << 6,
-	TextureMipmaps   = 1ull << 7,
-	TextureLoad      = 1ull << 8,
-	TextureSample    = 1ull << 9,
-	TextureGather    = 1ull << 10,
-	TextureAtomics   = 1ull << 11,
-	TextureBlendable = 1ull << 12,
-	TextureStore     = 1ull << 13,
-
-	Buffer           = 1ull << 14,
-    VertexBuffer     = 1ull << 15,
-    IndexBuffer      = 1ull << 16,
-	BufferLoad       = 1ull << 17,
-    BufferStore      = 1ull << 18,
-    BufferAtomics    = 1ull << 19,
-
-	UAV              = 1ull << 20,
-    TypedUAVLoad     = 1ull << 21,
-	TypedUAVStore    = 1ull << 22,
-
-	TextureFilterable = 1ull << 23,
-
-	AnyTexture       = Texture1D | Texture2D | Texture3D | TextureCube,
-
-	AllTextureFlags  = AnyTexture | RenderTarget | DepthStencil | TextureMipmaps | TextureLoad | TextureSample | TextureGather | TextureAtomics | TextureBlendable | TextureStore,
-	AllBufferFlags   = Buffer | VertexBuffer | IndexBuffer | BufferLoad | BufferStore | BufferAtomics,
-	AllUAVFlags      = UAV | TypedUAVLoad | TypedUAVStore,
-
-	AllFlags         = AllTextureFlags | AllBufferFlags | AllUAVFlags
-};
-ENUM_CLASS_FLAGS(EPixelFormatCapabilities);
-
 /** Initialize the 'best guess' pixel format capabilities. Platform formats and support must be filled out before calling this. */
 extern RHI_API void RHIInitDefaultPixelFormatCapabilities();
 
 inline bool RHIPixelFormatHasCapabilities(EPixelFormat InFormat, EPixelFormatCapabilities InCapabilities)
 {
-	return EnumHasAllFlags(GPixelFormats[InFormat].Capabilities, InCapabilities);
+	return UE::PixelFormat::HasCapabilities(InFormat, InCapabilities);
 }
 
 inline bool RHIIsTypedUAVLoadSupported(EPixelFormat InFormat)
 {
-	return RHIPixelFormatHasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVLoad);
+	return UE::PixelFormat::HasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVLoad);
 }
 
 inline bool RHIIsTypedUAVStoreSupported(EPixelFormat InFormat)
 {
-	return RHIPixelFormatHasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVStore);
+	return UE::PixelFormat::HasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVStore);
 }
 
 /**

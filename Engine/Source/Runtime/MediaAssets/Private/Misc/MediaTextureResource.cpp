@@ -208,7 +208,7 @@ namespace MediaTextureResourceHelpers
 
 	bool SupportsComputeMipGen(EPixelFormat InFormat)
 	{
-		return RHIRequiresComputeGenerateMips() && RHIIsTypedUAVLoadSupported(InFormat);
+		return RHIRequiresComputeGenerateMips() && UE::PixelFormat::HasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVLoad);
 	}
 
 	EPixelFormat GetConvertedPixelFormat(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)
@@ -1267,7 +1267,7 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 {
 	// create output render target if necessary
 	ETextureCreateFlags OutputCreateFlags = TexCreate_Dynamic | (bInSRGB ? TexCreate_SRGB : TexCreate_None);
-	if (bNeedsUAVSupport && RHIIsTypedUAVLoadSupported(InPixelFormat))
+	if (bNeedsUAVSupport && UE::PixelFormat::HasCapabilities(InPixelFormat, EPixelFormatCapabilities::TypedUAVLoad))
 	{
 		OutputCreateFlags |= TexCreate_UAV;
 	}

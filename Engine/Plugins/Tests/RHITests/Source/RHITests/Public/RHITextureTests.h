@@ -525,7 +525,7 @@ public:
 				UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped (format not supported). \"%s\""), *TestName);
 				return true;
 			}
-			if (!RHIPixelFormatHasCapabilities(Format, EPixelFormatCapabilities::Texture2D))
+			if (!UE::PixelFormat::HasCapabilities(Format, EPixelFormatCapabilities::Texture2D))
 			{
 				UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped (format not supported as Texture2D). \"%s\""), *TestName);
 				return true;

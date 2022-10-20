@@ -205,6 +205,46 @@ enum class EPixelFormatChannelFlags : uint8
 };
 ENUM_CLASS_FLAGS(EPixelFormatChannelFlags);
 
+enum class EPixelFormatCapabilities : uint32
+{
+    None             = 0,
+    Texture1D        = 1ull << 1,
+    Texture2D        = 1ull << 2,
+    Texture3D        = 1ull << 3,
+    TextureCube      = 1ull << 4,
+    RenderTarget     = 1ull << 5,
+    DepthStencil     = 1ull << 6,
+	TextureMipmaps   = 1ull << 7,
+	TextureLoad      = 1ull << 8,
+	TextureSample    = 1ull << 9,
+	TextureGather    = 1ull << 10,
+	TextureAtomics   = 1ull << 11,
+	TextureBlendable = 1ull << 12,
+	TextureStore     = 1ull << 13,
+
+	Buffer           = 1ull << 14,
+    VertexBuffer     = 1ull << 15,
+    IndexBuffer      = 1ull << 16,
+	BufferLoad       = 1ull << 17,
+    BufferStore      = 1ull << 18,
+    BufferAtomics    = 1ull << 19,
+
+	UAV              = 1ull << 20,
+    TypedUAVLoad     = 1ull << 21,
+	TypedUAVStore    = 1ull << 22,
+
+	TextureFilterable = 1ull << 23,
+
+	AnyTexture       = Texture1D | Texture2D | Texture3D | TextureCube,
+
+	AllTextureFlags  = AnyTexture | RenderTarget | DepthStencil | TextureMipmaps | TextureLoad | TextureSample | TextureGather | TextureAtomics | TextureBlendable | TextureStore,
+	AllBufferFlags   = Buffer | VertexBuffer | IndexBuffer | BufferLoad | BufferStore | BufferAtomics,
+	AllUAVFlags      = UAV | TypedUAVLoad | TypedUAVStore,
+
+	AllFlags         = AllTextureFlags | AllBufferFlags | AllUAVFlags
+};
+ENUM_CLASS_FLAGS(EPixelFormatCapabilities);
+
 // EPixelFormat is currently used interchangably with uint8, and most call sites taking a uint8
 // should be updated to take an EPixelFormat instead, but in the interim this allows fixing
 // type conversion warnings
@@ -290,14 +330,16 @@ struct FPixelFormatInfo
 	int32						NumComponents;
 
 	/** Per platform cabilities for the format (initialized by RHI module - invalid otherwise) */
-	EPixelFormatCapabilities	Capabilities{ 0 };
+	EPixelFormatCapabilities	Capabilities = EPixelFormatCapabilities::None;
 
 	/** Platform specific converted format (initialized by RHI module - invalid otherwise) */
 	uint32						PlatformFormat{ 0 };
 
 	/** Whether the texture format is supported on the current platform/ rendering combination */
 	uint8						Supported : 1;
-	uint8						bIs24BitUnormDepthStencil : 1;	// If false, 32 bit float is assumed (initialized by RHI module - invalid otherwise)
+
+	// If false, 32 bit float is assumed (initialized by RHI module - invalid otherwise)
+	uint8						bIs24BitUnormDepthStencil : 1;
 	
 	/** 
 	* Get 2D/3D image/texture size in bytes. This is for storage of the encoded image data, and does not adjust
@@ -334,3 +376,11 @@ CORE_API EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr);
 
 
 extern CORE_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.
+
+namespace UE::PixelFormat
+{
+	inline bool HasCapabilities(EPixelFormat InFormat, EPixelFormatCapabilities InCapabilities)
+	{
+		return EnumHasAllFlags(GPixelFormats[InFormat].Capabilities, InCapabilities);
+	}
+}

@@ -223,7 +223,9 @@ namespace LumenRadiosity
 
 	bool UseTemporalAccumulation()
 	{
-		return GLumenRadiosityTemporalAccumulation != 0 && RHIIsTypedUAVLoadSupported(Lumen::GetIndirectLightingAtlasFormat()) && RHIIsTypedUAVLoadSupported(Lumen::GetNumFramesAccumulatedAtlasFormat());
+		return GLumenRadiosityTemporalAccumulation != 0
+			&& UE::PixelFormat::HasCapabilities(Lumen::GetIndirectLightingAtlasFormat(), EPixelFormatCapabilities::TypedUAVLoad)
+			&& UE::PixelFormat::HasCapabilities(Lumen::GetNumFramesAccumulatedAtlasFormat(), EPixelFormatCapabilities::TypedUAVLoad);
 	}
 }
 

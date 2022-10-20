@@ -296,7 +296,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 bool FGenerateMips::WillFormatSupportCompute(EPixelFormat InPixelFormat)
 {
-	return RHIRequiresComputeGenerateMips() && RHIIsTypedUAVStoreSupported(InPixelFormat);
+	return RHIRequiresComputeGenerateMips() && UE::PixelFormat::HasCapabilities(InPixelFormat, EPixelFormatCapabilities::TypedUAVStore);
 }
 
 void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureRef Texture, FGenerateMipsParams Params, EGenerateMipsPass Pass)

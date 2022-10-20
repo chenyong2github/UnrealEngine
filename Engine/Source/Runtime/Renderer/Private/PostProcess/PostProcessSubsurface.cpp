@@ -297,7 +297,8 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View)
 
 bool IsProfileIdCacheEnabled()
 {
-	return RHIIsTypedUAVLoadSupported(PF_R8_UINT) && CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
+	return UE::PixelFormat::HasCapabilities(PF_R8_UINT, EPixelFormatCapabilities::TypedUAVLoad)
+		&& CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
 }
 
 uint32 GetSubsurfaceRequiredViewMask(TArrayView<const FViewInfo> Views)

@@ -622,7 +622,7 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::InitPerInstanceData(void* PerInstan
 	}
 
 	// Note: If the Format can ever change we will need to replicate this elsewhere also
-	if (RHIIsTypedUAVStoreSupported(InstanceData->Format) == false)
+	if (UE::PixelFormat::HasCapabilities(InstanceData->Format, EPixelFormatCapabilities::TypedUAVStore) == false)
 	{
 		return false;
 	}
