@@ -38,7 +38,6 @@ public:
 #endif
 #if WITH_EDITOR
 	virtual void UpdateNumTargetMeshVertices() override;
-	virtual void LogPackagingWarnings() override;
 	// ~END UMLDeformerModel overrides.
 
 	/**

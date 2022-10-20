@@ -13,7 +13,7 @@
 void UMLDeformerGeomCacheModel::Serialize(FArchive& Archive)
 {
 	#if WITH_EDITOR
-		if (Archive.IsSaving() && Archive.IsPersistent() && Archive.IsCooking())
+		if (Archive.IsSaving() && Archive.IsCooking())
 		{
 			GeometryCache = nullptr;
 		}
@@ -23,37 +23,6 @@ void UMLDeformerGeomCacheModel::Serialize(FArchive& Archive)
 }
 
 #if WITH_EDITOR
-void UMLDeformerGeomCacheModel::LogPackagingWarnings()
-{
-	const UGeometryCache* GeomCache = GetGeometryCache();
-	if (GeomCache && !GeomCache->GetPackage()->HasAnyPackageFlags(PKG_EditorOnly))
-	{
-		UE_LOG(
-			LogMLDeformer,
-			Warning, 
-			TEXT("Training geometry cache '%s' is not marked as editor only and will be included during packaging. Reopen the '%s' MLD asset and save this geom cache asset to fix this."),
-			*GeomCache->GetName(),
-			*GetDeformerAsset()->GetName());
-	}
-
-	UMLDeformerGeomCacheVizSettings* Viz = GetGeomCacheVizSettings();
-	if (Viz)
-	{
-		const UGeometryCache* TestGeomCache = Viz->GetTestGroundTruth();
-		if (TestGeomCache && !TestGeomCache->GetPackage()->HasAnyPackageFlags(PKG_EditorOnly))
-		{
-			UE_LOG(
-				LogMLDeformer,
-				Warning, 
-				TEXT("Test geometry cache '%s' is not marked as editor only and will be included during packaging. Reopen the '%s' MLD asset and save this geom cache asset to fix this."),
-				*TestGeomCache->GetName(),
-				*GetDeformerAsset()->GetName());
-		}
-	}
-
-	Super::LogPackagingWarnings();
-}
-
 void UMLDeformerGeomCacheModel::UpdateNumTargetMeshVertices()
 {
 	SetNumTargetMeshVerts(UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GetGeometryCache()));

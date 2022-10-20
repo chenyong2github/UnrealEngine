@@ -164,13 +164,6 @@ public:
 
 #if WITH_EDITOR
 	/**
-	 * Log package warnings.
-	 * This can identify things like when the training assets aren't marked as editor only.
-	 * If this flag isn't set, those assets will be included during packaging of your project.
-	 */
-	virtual void LogPackagingWarnings();
-
-	/**
 	 * Update the cached number of vertices of both base and target meshes.
 	 */ 
 	virtual void UpdateCachedNumVertices();

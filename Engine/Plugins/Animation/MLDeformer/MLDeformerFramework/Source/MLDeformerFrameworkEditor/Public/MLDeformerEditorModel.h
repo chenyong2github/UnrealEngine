@@ -57,65 +57,6 @@ namespace UE::MLDeformer
 	class FMLDeformerEditorModel;
 
 	/**
-	 * A helper template to keep track of the packaging flags for a given object. 
-	 * We use this to restore some flags of the current asset when user changes the asset to another one.
-	 */
-	template <class T>
-	class FMLDeformerEditorOnlyAssetFlags
-	{
-	public:
-		/** Update the current asset and flags state. */
-		void SetAsset(T* InAsset)
-		{
-			// Restore flags of the current asset, before we change to the new.
-			if (Asset)
-			{
-				UPackage* Package = Asset->GetPackage();
-				if (bEditorOnly)
-				{
-					Package->SetPackageFlags(PKG_EditorOnly);
-					Package->SetDirtyFlag(bWasDirty);
-				}
-				else
-				{
-					Package->ClearPackageFlags(PKG_EditorOnly);
-					Package->SetDirtyFlag(bWasDirty);
-					UE_LOG(LogMLDeformer, Display, TEXT("Unmarked '%s' as editor only asset. Asset can be included in packaging again."), *Asset->GetName());
-				}
-			}
-
-			// Update to the new asset, and mark it as editor only if it isn't yet.
-			Asset = InAsset;
-			if (Asset)
-			{
-				UPackage* Package = Asset->GetPackage();
-				bEditorOnly = static_cast<bool>(Package->GetPackageFlags() & PKG_EditorOnly);
-				bWasDirty = Package->IsDirty();
-				if (!bEditorOnly)
-				{
-					UE_LOG(LogMLDeformer, Display, TEXT("Marking '%s' as editor only asset. Asset will be excluded from packaging. This requires you to save the asset."), *Asset->GetName());
-					Package->SetPackageFlags(PKG_EditorOnly);
-					Package->SetDirtyFlag(true);
-				}
-			}
-			else
-			{
-				bEditorOnly = false;
-			}
-		}
-
-	private:
-		/** A pointer to the current asset. */
-		TObjectPtr<T> Asset = nullptr;
-
-		/** Was this asset previously marked as editor only already? */
-		bool bEditorOnly = false;
-
-		/** Was the previous asset dirty? */
-		bool bWasDirty = false;
-	};
-
-	/**
 	 * The base class for the editor side of an UMLDeformerModel.
 	 * The editor model class handles most of the editor interactions, such as property changes, triggering the training process,
 	 * creation of the viewport actors, and many more things.
@@ -892,9 +833,6 @@ namespace UE::MLDeformer
 
 		/** A pointer to the sampler, which can sample target meshes to calculate deltas. */
 		FMLDeformerSampler* Sampler = nullptr;
-
-		/** The flags state of the anim sequence. */
-		FMLDeformerEditorOnlyAssetFlags<UAnimSequence> AnimSequenceFlags;
 
 		/**
 		 * The input info as currently setup in the editor.

@@ -64,17 +64,20 @@ void UMLDeformerModel::Serialize(FArchive& Archive)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModel::Serialize)
 	#if WITH_EDITOR
-		if (Archive.IsSaving() && Archive.IsPersistent())
+		if (Archive.IsSaving())
 		{
 			if (Archive.IsCooking())
 			{
-				LogPackagingWarnings();
-
 				AnimSequence = nullptr;
 				VizSettings = nullptr;
 			}
 
 			InitVertexMap();
+		}
+
+		if (!Archive.IsCooking())
+		{
+			// This also triggers the target mesh to be loaded, don't do that while cooking.
 			UpdateCachedNumVertices();
 		}
 	#endif
@@ -98,10 +101,6 @@ void UMLDeformerModel::PostLoad()
 	#endif
 
 	InitGPUData();
-
-	#if WITH_EDITOR
-		UpdateCachedNumVertices();
-	#endif
 
 	UMLDeformerAsset* MLDeformerAsset = Cast<UMLDeformerAsset>(GetOuter());
 	Init(MLDeformerAsset);
@@ -204,20 +203,6 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 	int32 UMLDeformerModel::ExtractNumImportedSkinnedVertices(const USkeletalMesh* SkeletalMesh)
 	{
 		return SkeletalMesh ? SkeletalMesh->GetNumImportedVertices() : 0;
-	}
-
-	void UMLDeformerModel::LogPackagingWarnings()
-	{
-		const UAnimSequence* AnimSeq = GetAnimSequence();
-		if (AnimSeq && !AnimSeq->GetPackage()->HasAnyPackageFlags(PKG_EditorOnly))
-		{
-			UE_LOG(
-				LogMLDeformer,
-				Warning, 
-				TEXT("Training animation sequence '%s' is not marked as editor only and will be included during packaging. Reopen the '%s' MLD asset and save this anim sequence asset to fix this."),
-				*AnimSeq->GetName(),
-				*GetDeformerAsset()->GetName());
-		}
 	}
 #endif	// #if WITH_EDITOR
 
