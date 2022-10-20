@@ -4423,7 +4423,7 @@ void USkeletalMeshComponent::SetUpdateClothInEditor(const bool NewUpdateState)
 
 float USkeletalMeshComponent::GetTeleportRotationThreshold() const
 {
-	return TeleportDistanceThreshold;
+	return TeleportRotationThreshold;
 }
 
 void USkeletalMeshComponent::SetTeleportRotationThreshold(float Threshold)
