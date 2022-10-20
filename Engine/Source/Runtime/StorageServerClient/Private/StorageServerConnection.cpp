@@ -179,7 +179,7 @@ FStorageServerResponse::FStorageServerResponse(FStorageServerConnection& InOwner
 		ResponseLine = ReadResponseLine();
 		if (ResponseLine.StartsWith("Content-Length: "))
 		{
-			ContentLength = TCString<ANSICHAR>::Atoi64(ResponseLine.GetData() + 16);
+			ContentLength = FMath::Max(0, TCString<ANSICHAR>::Atoi64(ResponseLine.GetData() + 16));
 		}
 		else if (ResponseLine.StartsWith("Content-Type: "))
 		{
@@ -258,6 +258,11 @@ bool FStorageServerChunkBatchRequest::Issue(TFunctionRef<void(uint32 ChunkCount,
 		return false;
 	}
 	Response << ChunkCount;
+	if (ChunkCount > INT32_MAX)
+	{
+		UE_LOG(LogStorageServerConnection, Fatal, TEXT("Invalid chunk count in chunk batch response from storage server."));
+		return false;
+	}
 	Response << Reserved1;
 	Response << Reserved2;
 
@@ -341,7 +346,7 @@ int64 FStorageServerResponse::SerializeChunk(FStorageServerSerializationContext&
 
 	if (ContentType == EStorageServerContentType::Binary)
 	{
-		const uint64 ChunkSize = FMath::Min(ContentLength, RawSize);
+		const uint64 ChunkSize = FMath::Min<uint64>(ContentLength, RawSize);
 		OutChunk = TargetVa ? FIoBuffer(FIoBuffer::Wrap, TargetVa, ChunkSize) : FIoBuffer(ChunkSize);
 		Serialize(OutChunk.Data(), OutChunk.DataSize());
 		return ChunkSize;
@@ -387,7 +392,7 @@ int64 FStorageServerResponse::SerializeChunkTo(FMutableMemoryView Memory, uint64
 
 	if (ContentType == EStorageServerContentType::Binary)
 	{
-		FMutableMemoryView Dst = Memory.Left(FMath::Min(Memory.GetSize(), ContentLength));
+		FMutableMemoryView Dst = Memory.Left(FMath::Min<uint64>(Memory.GetSize(), ContentLength));
 		Serialize(Dst.GetData(), Dst.GetSize());
 		return Dst.GetSize();
 	}

@@ -505,28 +505,41 @@ void FNetworkFileServerClientConnection::ProcessReadFile( FArchive& In, FArchive
 	int64 BytesToRead = 0;
 	In << BytesToRead;
 
-	int64 BytesRead = 0;
 	IFileHandle* File = FindOpenFile(HandleId);
 
 	if (File)
 	{
-		uint8* Dest = (uint8*)FMemory::Malloc(BytesToRead);		
-
-		if (File->Read(Dest, BytesToRead))
+		constexpr int64 BufferSize = 4 << 20;
+		uint8* Buffer = (uint8*)FMemory::Malloc(BufferSize);
+		bool bIsFirstRead = true;
+		while (BytesToRead > 0)
 		{
-			BytesRead = BytesToRead;
-			Out << BytesRead;
-			Out.Serialize(Dest, BytesRead);
+			int64 CappedBytesToRead = FMath::Min(BufferSize, BytesToRead);
+			if (!File->Read(Buffer, CappedBytesToRead))
+			{
+				if (bIsFirstRead)
+				{
+					int64 BytesRead = 0;
+					Out << BytesRead;
+					break;
+				}
+				// If this is not the first read we've already written the expected number of bytes to the stream so we have to deliver on that
+				FMemory::Memset(Buffer, 0, CappedBytesToRead);
+			}
+			else if (bIsFirstRead)
+			{
+				Out << BytesToRead;
+			}
+			Out.Serialize(Buffer, CappedBytesToRead);
+			BytesToRead -= CappedBytesToRead;
+			bIsFirstRead = false;
+			
 		}
-		else
-		{
-			Out << BytesRead;
-		}
-
-		FMemory::Free(Dest);
+		FMemory::Free(Buffer);
 	}
 	else
 	{
+		int64 BytesRead = 0;
 		Out << BytesRead;
 	}
 }
@@ -546,15 +559,20 @@ void FNetworkFileServerClientConnection::ProcessWriteFile( FArchive& In, FArchiv
 		int64 BytesToWrite = 0;
 		In << BytesToWrite;
 
-		uint8* Source = (uint8*)FMemory::Malloc(BytesToWrite);
-		In.Serialize(Source, BytesToWrite);
-
-		if (File->Write(Source, BytesToWrite))
+		constexpr int64 BufferSize = 4 << 20;
+		uint8* Buffer = (uint8*)FMemory::Malloc(BufferSize);
+		while (BytesToWrite > 0)
 		{
-			BytesWritten = BytesToWrite;
+			int64 CappedBytesToWrite = FMath::Min(BufferSize, BytesToWrite);
+			In.Serialize(Buffer, CappedBytesToWrite);
+			if (!File->Write(Buffer, CappedBytesToWrite))
+			{
+				break;
+			}
+			BytesWritten += CappedBytesToWrite;
+			BytesToWrite -= CappedBytesToWrite;
 		}
-
-		FMemory::Free(Source); 
+		FMemory::Free(Buffer);
 	}
 		
 	Out << BytesWritten;

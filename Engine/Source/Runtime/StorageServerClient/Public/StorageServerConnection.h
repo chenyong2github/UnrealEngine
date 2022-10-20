@@ -149,8 +149,8 @@ private:
 
 	FStorageServerConnection& Owner;
 	FSocket* Socket = nullptr;
-	uint64 ContentLength = 0;
-	uint64 Position = 0;
+	int64 ContentLength = 0;
+	int64 Position = 0;
 	int32 ErrorCode;
 	FString ErrorMessage;
 	bool bIsOk = false;

@@ -577,7 +577,7 @@ namespace UE::Zen {
 	size_t FZenHttpRequest::FStatics::StaticWriteBodyFn(void* Ptr, size_t SizeInBlocks, size_t BlockSizeInBytes, void* UserData)
 	{
 		FZenHttpRequest* Request = static_cast<FZenHttpRequest*>(UserData);
-		const size_t WriteSize = SizeInBlocks * BlockSizeInBytes;
+		const int64 WriteSize = IntCastChecked<int64>(SizeInBlocks * BlockSizeInBytes);
 		TArray64<uint8>* WriteDataBufferPtr = Request->WriteDataBufferPtr;
 
 		if (WriteDataBufferPtr && WriteSize > 0)
@@ -591,7 +591,7 @@ namespace UE::Zen {
 
 				if (const ANSICHAR* ContentLengthHeader = FCStringAnsi::Strstr(Header, ContentLengthHeaderStr))
 				{
-					size_t ContentLength = (size_t)FCStringAnsi::Atoi64(ContentLengthHeader + strlen(ContentLengthHeaderStr));
+					int64 ContentLength = FCStringAnsi::Atoi64(ContentLengthHeader + strlen(ContentLengthHeaderStr));
 					if (ContentLength > 0)
 					{
 						WriteDataBufferPtr->Reserve(ContentLength);
