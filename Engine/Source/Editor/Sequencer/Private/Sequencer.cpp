@@ -4147,6 +4147,9 @@ UMovieSceneEntitySystemLinker* FSequencer::ConstructEntitySystemLinker()
 
 	FName EntitySystemLinkerName = MakeUniqueObjectName(Context, UMovieSceneEntitySystemLinker::StaticClass(), TEXT("SequencerEntitySystemLinker"));
 	UMovieSceneEntitySystemLinker* EntitySystemLinker = NewObject<UMovieSceneEntitySystemLinker>(Context, EntitySystemLinkerName);
+	EntitySystemLinker->SetLinkerRole(UE::MovieScene::EEntitySystemLinkerRole::Standalone);
+	return EntitySystemLinker;
+}
 
 EMovieScenePlayerStatus::Type FSequencer::GetPlaybackStatus() const
 {
