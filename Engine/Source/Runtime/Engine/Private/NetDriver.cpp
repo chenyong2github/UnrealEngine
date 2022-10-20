@@ -3511,7 +3511,6 @@ void UNetDriver::FlushActorDormancy(AActor* Actor, bool bWasDormInitial)
 		return;
 
 	check(Actor);
-	check(ServerConnection == NULL);
 
 	if (ReplicationDriver)
 	{
