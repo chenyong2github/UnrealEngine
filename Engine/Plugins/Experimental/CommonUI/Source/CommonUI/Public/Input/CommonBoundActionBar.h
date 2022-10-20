@@ -37,7 +37,7 @@ private:
 	
 	void MonitorPlayerActions(const ULocalPlayer* NewPlayer);
 
-	UPROPERTY(EditAnywhere, Category = EntryLayout, meta=(MustImplement = "CommonBoundActionButtonInterface"))
+	UPROPERTY(EditAnywhere, Category = EntryLayout, meta=(MustImplement = "/Script/CommonUI.CommonBoundActionButtonInterface"))
 	TSubclassOf<UCommonButtonBase> ActionButtonClass;
 
 	UPROPERTY(EditAnywhere, Category = Display)
