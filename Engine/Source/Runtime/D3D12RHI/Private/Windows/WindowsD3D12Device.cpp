@@ -1366,8 +1366,14 @@ void FD3D12DynamicRHI::Init()
 
 			GRHISupportsAtomicUInt64 = EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
 			GRHISupportsDX12AtomicUInt64 = GRHISupportsAtomicUInt64;
-				}
-			}
+		}
+
+		if (GRHISupportsMeshShadersTier0 || GRHISupportsMeshShadersTier1)
+		{
+			GRHISupportsMeshShadersTier0 = GRHISupportsMeshShadersTier1 = false;
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Mesh shaders are disabled due to a known driver issue."));
+		}
+	}
 #endif // INTEL_EXTENSIONS
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
