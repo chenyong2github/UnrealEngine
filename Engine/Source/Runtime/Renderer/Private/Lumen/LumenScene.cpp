@@ -584,13 +584,9 @@ FLumenSceneData::~FLumenSceneData()
 
 bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 {
-	const bool bTrack = Proxy->AffectsDynamicIndirectLighting()
-		&& Proxy->SupportsMeshCardRepresentation();
-
 	bool bCanBeTraced = false;
-	if (DoesProjectSupportDistanceFields() 
-		&& (Proxy->SupportsDistanceFieldRepresentation() || Proxy->SupportsHeightfieldRepresentation())
-		&& (Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden()))
+	if (DoesProjectSupportDistanceFields() && Proxy->AffectsDistanceFieldLighting()
+		&& (Proxy->SupportsDistanceFieldRepresentation() || Proxy->SupportsHeightfieldRepresentation()))
 	{
 		bCanBeTraced = true;
 	}
@@ -605,7 +601,9 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 	}
 #endif
 
-	return bTrack && bCanBeTraced;
+	const bool bAffectsLumen = Proxy->AffectsDynamicIndirectLighting() && Proxy->SupportsMeshCardRepresentation();
+	const bool bVisible = Proxy->IsDrawnInGame() || Proxy->AffectsIndirectLightingWhileHidden();
+	return bAffectsLumen && bVisible && bCanBeTraced;
 }
 
 bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox& LocalBoundingBox, bool bEmissiveLightSource)
