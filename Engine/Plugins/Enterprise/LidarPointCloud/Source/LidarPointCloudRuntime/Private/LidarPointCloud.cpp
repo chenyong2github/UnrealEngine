@@ -77,9 +77,12 @@ private:
 	{
 		if (GetDefault<ULidarPointCloudSettings>()->bReleaseAssetAfterSaving)
 		{
-			if (Cast<ULidarPointCloud>(Package->FindAssetInPackage()))
+			if(Package->GetLinker())
 			{
-				PackagesToReload.Add(Package);
+				if (Cast<ULidarPointCloud>(Package->FindAssetInPackage()))
+				{
+					PackagesToReload.Add(Package);
+				}
 			}
 		}
 	}

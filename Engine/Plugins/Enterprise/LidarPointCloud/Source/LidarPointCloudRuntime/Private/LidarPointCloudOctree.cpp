@@ -2805,9 +2805,14 @@ void FLidarPointCloudOctree::SerializeBulkData(FArchive& Ar)
 {
 	if (Ar.IsSaving())
 	{
+		const bool bReleaseData = !!Owner->GetPackage()->GetLinker();
+		
 		ITERATE_NODES({
 			Ar.Serialize(CurrentNode->Data.GetData(), CurrentNode->BulkDataSize);
-			CurrentNode->ReleaseData(true);
+			if(bReleaseData)
+			{
+				CurrentNode->ReleaseData(true);
+			}
 		}, true);
 	}
 }
