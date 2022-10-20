@@ -45,7 +45,7 @@ struct FAnimSequenceDecompressionContext
 	FAnimSequenceDecompressionContext(const FFrameRate& InSamplingRate, const int32 InNumberOfFrames, EAnimInterpolationType Interpolation_, const FName& AnimName_, const ICompressedAnimData& CompressedAnimData_, const TArray<FTransform>& RefPoses_, const TArray<FTrackToSkeletonMap>& TrackToSkeletonMap_, const USkeleton* InSourceSkeleton, bool bIsBakedAdditive)
 		:
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SequenceLength(InSamplingRate.AsSeconds(InNumberOfFrames)),
+		SequenceLength(static_cast<float>(InSamplingRate.AsSeconds(InNumberOfFrames))),
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Interpolation(Interpolation_), AnimName(AnimName_), CompressedAnimData(CompressedAnimData_),
 		RefPoses(RefPoses_.GetData(), RefPoses_.Num()), TrackToSkeletonMap(TrackToSkeletonMap_.GetData(), TrackToSkeletonMap_.Num()),
@@ -109,8 +109,8 @@ public:
 	void Seek(double SampleAtTime)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Time = SampleAtTime;
-		RelativePos = SequenceLength != 0.f ? SampleAtTime / SequenceLength : 0.f;
+		Time = static_cast<float>(SampleAtTime);
+		RelativePos = SequenceLength != 0.f ? static_cast<float>(SampleAtTime) / SequenceLength : 0.f;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		
 		SamplingTime = SamplingRate.AsFrameTime(SampleAtTime);
