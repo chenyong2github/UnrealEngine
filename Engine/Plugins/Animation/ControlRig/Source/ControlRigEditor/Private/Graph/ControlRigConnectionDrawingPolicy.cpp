@@ -102,7 +102,6 @@ void FControlRigConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidg
 
 						const FVector2D StartPoint = FGeometryHelper::VerticalMiddleRightOf(LinkStartWidgetGeometry->Geometry) - FVector2D(StartFudgeX, 0.0f);
 						const FVector2D EndPoint = FGeometryHelper::VerticalMiddleLeftOf(LinkEndWidgetGeometry->Geometry) - FVector2D(EndFudgeX, 0);
-						const FVector2D FakeTangent = (EndPoint - StartPoint).GetSafeNormal();
 
 						static TArray<FVector2D> LinePoints;
 						LinePoints.SetNum(2);
@@ -113,7 +112,45 @@ void FControlRigConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidg
 					}
 					else
 					{
-						DrawSplineWithArrow(LinkStartWidgetGeometry->Geometry, LinkEndWidgetGeometry->Geometry, Params);
+						const float StartFudgeX = 4.0f;
+						const float EndFudgeX = 4.0f;
+						FVector2D StartPoint = FGeometryHelper::VerticalMiddleRightOf(LinkStartWidgetGeometry->Geometry) - FVector2D(StartFudgeX, 0.0f);
+						FVector2D EndPoint = FGeometryHelper::VerticalMiddleLeftOf(LinkEndWidgetGeometry->Geometry) - FVector2D(ArrowRadius.X - EndFudgeX, 0);
+
+						if(Params.bUserFlag1) // indicate a cast using a mid point image
+						{
+							FConnectionParams OtherParams;
+							DetermineWiringStyle(TargetPin, ThePin, OtherParams);
+
+							if(!OtherParams.WireColor.Equals(Params.WireColor, 0.001f))
+							{
+								const FVector2D MidPoint = (StartPoint + EndPoint) * 0.5;
+								const FVector2D OriginalSplineTangent = FVector2D(100.f, 0);
+								const FVector2D InnerStartPoint = StartPoint + OriginalSplineTangent;
+								const FVector2D InnerEndPoint = EndPoint - OriginalSplineTangent;
+
+								const FVector2D DeltaPos = InnerEndPoint - InnerStartPoint;
+								const double TangentLength = FMath::Min<float>(FMath::Abs<float>(DeltaPos.X), Settings->ForwardSplineHorizontalDeltaRange);
+								OtherParams.StartTangent = DeltaPos.GetSafeNormal() * TangentLength;
+
+								DrawSplineWithArrow(MidPoint, EndPoint, OtherParams);
+
+								EndPoint = MidPoint;
+								Params.EndTangent = OtherParams.StartTangent;
+
+								// Draw the icon
+								FSlateDrawElement::MakeBox(
+									DrawElementsList,
+									ArrowLayerID,
+									FPaintGeometry(MidPoint - ArrowRadius, CastImage->ImageSize * ZoomFactor, ZoomFactor),
+									CastImage,
+									ESlateDrawEffect::None,
+									OtherParams.WireColor
+								);
+							}
+						}
+						
+						DrawSplineWithArrow(StartPoint, EndPoint, Params);
 					}
 				}
 			}
@@ -335,6 +372,15 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 			else
 			{
 				Params.WireColor = Params.WireColor * 0.5f;
+			}
+
+			Params.bUserFlag1 = false;
+			if(!UseLowDetailConnections() && !bInjectionIsSelected)
+			{
+				if(OutputModelPin->GetTypeIndex() != InputModelPin->GetTypeIndex())
+				{
+					Params.bUserFlag1 = true;
+				}
 			}
 		}
 	}

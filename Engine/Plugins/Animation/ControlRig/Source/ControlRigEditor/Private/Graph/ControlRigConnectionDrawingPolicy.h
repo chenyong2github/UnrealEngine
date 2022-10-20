@@ -12,6 +12,11 @@ public:
 	FControlRigConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
 		: FKismetConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj)
 	{
+		CastImage = FAppStyle::GetBrush( TEXT("GraphEditor.Cast_16x") );
+		ArrowImage = nullptr;
+		ArrowRadius = CastImage->ImageSize * InZoomFactor * 0.5f;
+		MidpointImage = nullptr;
+		MidpointRadius = CastImage->ImageSize * InZoomFactor * 0.5f;
 	}
 
 	virtual void SetIncompatiblePinDrawState(const TSharedPtr<SGraphPin>& StartPin, const TSet< TSharedRef<SWidget> >& VisiblePins) override;
@@ -37,4 +42,5 @@ private:
 	// Average of the positions of all pins connected to InPin
 	bool GetAverageConnectedPositionForPin(UEdGraphPin* InPin, FVector2D& OutPos) const;
 
+	const FSlateBrush* CastImage;
 };

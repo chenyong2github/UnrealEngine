@@ -68,6 +68,9 @@ struct GRAPHEDITOR_API FConnectionParams
 	EEdGraphPinDirection StartDirection;
 	EEdGraphPinDirection EndDirection;
 
+	FVector2D StartTangent;
+	FVector2D EndTangent;
+
 	FConnectionParams()
 		: WireColor(FLinearColor::White)
 		, AssociatedPin1(nullptr)
@@ -78,6 +81,8 @@ struct GRAPHEDITOR_API FConnectionParams
 		, bUserFlag2(false)
 		, StartDirection(EGPD_Output)
 		, EndDirection(EGPD_Input)
+		, StartTangent(FVector2D::ZeroVector)
+		, EndTangent(FVector2D::ZeroVector)
 	{
 	}
 };

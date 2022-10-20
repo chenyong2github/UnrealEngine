@@ -243,8 +243,9 @@ void FConnectionDrawingPolicy::DrawConnection(int32 LayerId, const FVector2D& St
 	const FVector2D& P1 = End;
 
 	const FVector2D SplineTangent = ComputeSplineTangent(P0, P1);
-	const FVector2D P0Tangent = (Params.StartDirection == EGPD_Output) ? SplineTangent : -SplineTangent;
-	const FVector2D P1Tangent = (Params.EndDirection == EGPD_Input) ? SplineTangent : -SplineTangent;
+
+	const FVector2D P0Tangent = (Params.StartTangent.IsNearlyZero()) ? ((Params.StartDirection == EGPD_Output) ? SplineTangent : -SplineTangent) : Params.StartTangent;
+	const FVector2D P1Tangent = (Params.EndTangent.IsNearlyZero()) ? ((Params.EndDirection == EGPD_Input) ? SplineTangent : -SplineTangent) : Params.EndTangent;
 
 	if (Settings->bTreatSplinesLikePins)
 	{
