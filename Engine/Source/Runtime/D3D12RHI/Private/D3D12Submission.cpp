@@ -528,11 +528,10 @@ FD3D12CommandList* FD3D12DynamicRHI::GenerateBarrierCommandListAndUpdateState(FD
 					else
 					{
 						// should be the same final state as well
-						check(ResourceState_OnCommandList.AreAllSubresourcesSame());
 						check(After == ResourceState_OnCommandList.GetSubresourceState(PRB.SubResource));
 						
 						// Force the original state again if we're skipping this transition
-						ResourceState_OnCommandList.SetResourceState(Before);
+						ResourceState_OnCommandList.SetSubresourceState(PRB.SubResource, Before);
 						continue;
 					}
 				}
