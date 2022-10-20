@@ -138,6 +138,8 @@ $ bOmitFramePointers : Whether to omit frame pointers or not. Disabling is usefu
 
 $ bUseMallocProfiler : If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
 
+$ bShaderCompilerWorkerTrace : If true, then enable Unreal Insights (utrace) profiling in the build for the Shader Compiler Worker (defines USE_SHADER_COMPILER_WORKER_TRACE=1).
+
 $ bUseSharedPCHs : Enables "Shared PCHs", a feature which significantly speeds up compile times by attempting to share certain PCH files between modules that UBT detects is including those PCH's header files.
 
 $ bUseShippingPhysXLibraries : True if Development and Release builds should use the release configuration of PhysX/APEX.
