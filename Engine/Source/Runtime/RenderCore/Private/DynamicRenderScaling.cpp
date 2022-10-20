@@ -88,6 +88,11 @@ float FHeuristicSettings::CorrectNewResolutionFraction(float CurrentResolutionFr
 
 bool FHeuristicSettings::DoesResolutionChangeEnough(float CurrentResolutionFraction, float NewResolutionFraction, bool bCanChangeResolution) const
 {
+	if (ChangeThreshold == 0.0f)
+	{
+		return true;
+	}
+
 	float IncreaseResolutionFractionThreshold = CurrentResolutionFraction * (1.0f + ChangeThreshold);
 	float DecreaseResolutionFractionThreshold = CurrentResolutionFraction * (1.0f - ChangeThreshold);
 	return bCanChangeResolution && (

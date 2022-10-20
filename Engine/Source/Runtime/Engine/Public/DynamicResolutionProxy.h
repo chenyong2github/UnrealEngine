@@ -126,6 +126,8 @@ private:
 
 	DynamicRenderScaling::TMap<float> QueryCurentFrameResolutionFractions_Internal() const;
 
+	void RefreshCurentFrameResolutionFractionUpperBound_RenderThread();
+
 	void ResetInternal();
 
 	void ResizeHistoryIfNeeded();
