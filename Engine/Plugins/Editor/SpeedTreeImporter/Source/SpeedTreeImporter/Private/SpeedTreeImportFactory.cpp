@@ -2498,7 +2498,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 			OldMaterials = UE::SpeedTreeImporter::Private::ClearOutOldMesh(*ExistingMesh);
 			StaticMesh = ExistingMesh;
 		}
-		else if (!bIsAutomatedImport)
+
+		if (!bIsAutomatedImport && !SpeedTreeImportData)
 		{
 			TSharedPtr<SSpeedTreeImportOptions> Options;
 
