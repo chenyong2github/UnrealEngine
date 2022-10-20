@@ -815,7 +815,6 @@ public:
 	virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override;
 	virtual FMovieSceneSpawnRegister& GetSpawnRegister() override { return *SpawnRegister; }
 	virtual bool IsPreview() const override { return SilentModeCount != 0; }
-	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
 
 protected:
 
