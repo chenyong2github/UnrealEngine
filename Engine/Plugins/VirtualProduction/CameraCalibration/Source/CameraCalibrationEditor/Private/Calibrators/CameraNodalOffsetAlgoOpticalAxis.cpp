@@ -252,7 +252,7 @@ bool UCameraNodalOffsetAlgoOpticalAxis::GetNodalOffset(FNodalPointOffset& OutNod
 
 	// Find a look at rotation for the camera
 	const FVector Point0 = PointAlongAxis + (0.0f * OpticalAxis.GetValue());
-	const FVector Point1 = PointAlongAxis + (1.0f * OpticalAxis.GetValue());
+	const FVector Point1 = PointAlongAxis - (1.0f * OpticalAxis.GetValue());
 
 	LookAtRotation = UKismetMathLibrary::FindLookAtRotation(Point1, Point0);
 
