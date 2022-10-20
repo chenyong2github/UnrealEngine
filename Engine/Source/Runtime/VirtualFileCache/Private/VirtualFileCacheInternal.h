@@ -8,6 +8,7 @@
 #include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
+#include "Misc/ScopeRWLock.h"
 #include "Async/MappedFileHandle.h"
 #include "Async/Future.h"
 
