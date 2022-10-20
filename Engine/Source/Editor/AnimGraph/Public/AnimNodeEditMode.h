@@ -51,6 +51,7 @@ public:
 	virtual void DoScale(FVector& InScale) override;
 	virtual void EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode) override;
 	virtual void ExitMode() override;
+	virtual bool SupportsPoseWatch() override { return false; };
 
 	/** IPersonaEditMode interface */
 	virtual bool GetCameraTarget(FSphere& OutTarget) const override;

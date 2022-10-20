@@ -666,7 +666,18 @@ void UAnimGraphNode_Base::OnPoseWatchChanged(const bool IsPoseWatchEnabled, TObj
 			InModeTools.ActivateMode(ModeID);
 			if (FEdMode* EdMode = InModeTools.GetActiveMode(ModeID))
 			{
-				static_cast<IAnimNodeEditMode*>(EdMode)->RegisterPoseWatchedNode(this, InRuntimeNode);
+				const bool bSupportsPoseWatch =
+					   static_cast<IAnimNodeEditMode*>(EdMode)->SupportsPoseWatch()
+					|| EdMode->GetID() == AnimNodeEditModes::AnimNode;
+
+				if (bSupportsPoseWatch)
+				{
+					static_cast<IAnimNodeEditMode*>(EdMode)->RegisterPoseWatchedNode(this, InRuntimeNode);
+				}
+				else
+				{
+					InModeTools.DeactivateMode(ModeID);
+				}
 			}
 		}
 		else

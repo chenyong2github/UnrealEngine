@@ -43,6 +43,9 @@ public:
 	/** Called when exiting this edit mode */
 	virtual void ExitMode() = 0;
 
+	/** Called to determine whether this edit mode should be drawn when nodes edited by this edit mode are pose watched */
+	virtual bool SupportsPoseWatch() = 0;
+
 	/** Called when a Pose Watch is created on a node edited by this edit mode */
 	virtual void RegisterPoseWatchedNode(UAnimGraphNode_Base* InEditorNode, FAnimNode_Base* InRuntimeNode) = 0;
 };

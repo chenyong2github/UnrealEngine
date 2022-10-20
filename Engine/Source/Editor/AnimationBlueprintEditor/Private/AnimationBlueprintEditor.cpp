@@ -230,14 +230,14 @@ void FAnimationBlueprintEditor::NotifyAllNodesOnPoseWatchChanged(const bool IsPo
 
 void FAnimationBlueprintEditor::ReleaseAllManagedNodes()
 {
-	NotifyAllNodesOnSelection(false);
 	NotifyAllNodesOnPoseWatchChanged(false);
+	NotifyAllNodesOnSelection(false);
 }
 
 void FAnimationBlueprintEditor::AcquireAllManagedNodes()
 {
-	NotifyAllNodesOnSelection(true);
 	NotifyAllNodesOnPoseWatchChanged(true);
+	NotifyAllNodesOnSelection(true);
 }
 
 /////////////////////////////////////////////////////
