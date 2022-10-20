@@ -204,7 +204,7 @@ namespace UE::NearestNeighborModel
 					GeometryCacheComponent->SetManualTick(true);
 					GeometryCacheComponent->SetPlaybackSpeed(1.0f);
 					GeometryCacheComponent->Play();
-					GeomCacheSampler->GeneratePartMeshMappings(GetNearestNeighborModel()->PartVertexMap(PartId));
+					GeomCacheSampler->GeneratePartMeshMappings(GetNearestNeighborModel()->PartVertexMap(PartId), NearestNeighborModel->GetUsePartOnlyMesh());
 
 					return true;
 				}

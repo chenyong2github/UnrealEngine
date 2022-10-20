@@ -14,7 +14,7 @@ namespace UE::NearestNeighborModel
 		virtual void SampleKMeansAnim(const int32 SkeletonId);
 		virtual void SampleKMeansFrame(const int32 Frame);
 		const TArray<float>& GetPartVertexDeltas() const { return PartVertexDeltas; }
-		void GeneratePartMeshMappings(const TArray<uint32>& VertexMap);
+		void GeneratePartMeshMappings(const TArray<uint32>& VertexMap, bool bUsePartOnlyMesh);
 	protected:
 		TArray<float> PartVertexDeltas;
 	};
