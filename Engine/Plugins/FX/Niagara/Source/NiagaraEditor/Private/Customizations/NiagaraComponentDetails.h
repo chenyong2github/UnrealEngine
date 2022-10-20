@@ -166,7 +166,10 @@ public:
 			
 			if(SystemViewModel.IsValid())
 			{
-				SystemViewModel.Pin()->GetUserParametersHierarchyViewModel()->OnHierarchyChanged().RemoveAll(this);
+				if (UNiagaraUserParametersHierarchyViewModel* HierarchyViewModel = SystemViewModel.Pin()->GetUserParametersHierarchyViewModel())
+				{
+					HierarchyViewModel->OnHierarchyChanged().RemoveAll(this);
+				}
 			}
 		}
 	}
