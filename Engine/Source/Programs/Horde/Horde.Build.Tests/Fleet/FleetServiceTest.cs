@@ -337,7 +337,9 @@ namespace Horde.Build.Tests.Fleet
 		[TestMethod]
 		public async Task EmptyConfigThrowsException()
 		{
-			await Assert.ThrowsExceptionAsync<JsonException>(() => CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsAsg, null, "")));
+			IFleetManager fm = await CreateFleetManager(new FleetManagerInfo(FleetManagerType.AwsRecycle, null, ""));
+			Assert.AreEqual(typeof(AwsRecyclingFleetManager), fm.GetType());
+			Assert.IsNull(((AwsRecyclingFleetManager)fm).Settings.InstanceTypes);
 		}
 		
 		[TestMethod]

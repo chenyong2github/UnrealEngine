@@ -90,8 +90,7 @@ namespace Horde.Build.Agents.Pools
 		[JsonConstructor]
 		public FleetManagerInfo(FleetManagerType type, Condition? condition, string? config)
 		{
-			// Try deserializing to ensure the config is valid JSON
-			if (config == null) throw new ArgumentNullException(nameof(config));
+			config = String.IsNullOrWhiteSpace(config) ? "{}" : config;
 			JsonSerializer.Deserialize<dynamic>(config);
 			
 			Type = type;
