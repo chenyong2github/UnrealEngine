@@ -22,6 +22,13 @@ struct MASSACTORS_API FMassActorFragment : public FObjectWrapperFragment
 {
 	GENERATED_BODY()
 
+	enum class EActorAccess
+	{
+		OnlyWhenAlive, // Only return an actor pointer if the actor is alive. This is the default.
+		IncludePendingKill, // Return an actor pointer even if the actor is marked for destruction.
+		IncludeUnreachable // Return an actor pointer even if the actor is unreachable. This implies it's being destroyed.
+	};
+
 	/**
 	 * Set the actor associated to a mass agent, will also keep the map back in MassActorSubsystem up to date.
 	 * @param MassAgent to associated with the actor
@@ -52,12 +59,14 @@ struct MASSACTORS_API FMassActorFragment : public FObjectWrapperFragment
 
 	/** @return none const pointer to the actor	*/
 	FORCEINLINE AActor* GetMutable() { return Actor.Get(); }
+	AActor* GetMutable(EActorAccess Access);
 
 	/** @return none const pointer to the actor	only if owned by mass */
 	FORCEINLINE AActor* GetOwnedByMassMutable() { return bIsOwnedByMass ? Actor.Get() : nullptr; }
 
 	/** @return none const pointer to the actor	only if owned by mass */
 	FORCEINLINE const AActor* Get() const { return Actor.Get(); }
+	const AActor* Get(EActorAccess Access) const;
 
 	/** @return if the actor is owned by mass */
 	FORCEINLINE bool IsOwnedByMass() const { return bIsOwnedByMass; }
@@ -91,7 +100,8 @@ public:
 	void RemoveHandleForActor(const TObjectKey<const AActor> Actor);
 
 	/** Get an actor pointer from a mass handle */
-	AActor* GetActorFromHandle(const FMassEntityHandle Handle) const;
+	AActor* GetActorFromHandle(const FMassEntityHandle Handle, 
+		FMassActorFragment::EActorAccess Access = FMassActorFragment::EActorAccess::OnlyWhenAlive) const;
 
 	/** 
 	 *  Removes the connection between Actor and the given entity. Does all the required book keeping 

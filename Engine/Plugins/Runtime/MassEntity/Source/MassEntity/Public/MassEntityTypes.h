@@ -50,7 +50,7 @@ struct FMassSharedFragment
 // A handle to a lightweight entity.  An entity is used in conjunction with the FMassEntityManager
 // for the current world and can contain lightweight fragments.
 USTRUCT()
-struct FMassEntityHandle
+struct alignas(8) FMassEntityHandle
 {
 	GENERATED_BODY()
 
@@ -96,6 +96,16 @@ struct FMassEntityHandle
 		Index = SerialNumber = 0;
 	}
 
+	/** Allows the entity handle to be shared anonymously. */
+	uint64 AsNumber() const { return *reinterpret_cast<const uint64*>(this); } // Relying on the fact that this struct only stores 2 integers and is aligned correctly.
+	/** Reconstruct the entity handle from an anonymously shared integer. */
+	static FMassEntityHandle FromNumber(uint64 Value) 
+	{ 
+		FMassEntityHandle Result;
+		*reinterpret_cast<uint64_t*>(&Result) = Value;
+		return Result;
+	}
+
 	friend uint32 GetTypeHash(const FMassEntityHandle Entity)
 	{
 		return HashCombine(Entity.Index, Entity.SerialNumber);
@@ -106,6 +116,9 @@ struct FMassEntityHandle
 		return FString::Printf(TEXT("i: %d sn: %d"), Index, SerialNumber);
 	}
 };
+
+static_assert(sizeof(FMassEntityHandle) == sizeof(uint64), "Expected FMassEntityHandle to be convertable to a 64-bit integer value, so size needs to be 8 bytes.");
+static_assert(alignof(FMassEntityHandle) == sizeof(uint64), "Expected FMassEntityHandle to be convertable to a 64-bit integer value, so alignment needs to be 8 bytes.");
 
 DECLARE_STRUCTTYPEBITSET_EXPORTED(MASSENTITY_API, FMassFragmentBitSet, FMassFragment);
 DECLARE_STRUCTTYPEBITSET_EXPORTED(MASSENTITY_API, FMassTagBitSet, FMassTag);

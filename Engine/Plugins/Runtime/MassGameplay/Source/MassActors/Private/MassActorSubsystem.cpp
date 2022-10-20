@@ -54,6 +54,27 @@ void FMassActorFragment::ResetNoHandleMapUpdate()
 	bIsOwnedByMass = false;
 }
 
+AActor* FMassActorFragment::GetMutable(EActorAccess Access)
+{
+	switch (Access)
+	{
+	case EActorAccess::OnlyWhenAlive:
+		return Actor.Get();
+	case EActorAccess::IncludePendingKill:
+		return Actor.Get(true);
+	case EActorAccess::IncludeUnreachable:
+		return Actor.GetEvenIfUnreachable();
+	default:
+		checkf(false, TEXT("Invalid ActorAccess value: %i."), static_cast<int32>(Access));
+		return nullptr;
+	}
+}
+
+const AActor* FMassActorFragment::Get(EActorAccess Access) const
+{
+	return const_cast<FMassActorFragment*>(this)->GetMutable(Access);
+}
+
 //----------------------------------------------------------------------//
 //  UMassActorSubsystem 
 //----------------------------------------------------------------------//
@@ -72,6 +93,7 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UMassActorSubsystem::Deinitialize()
 {
 	EntityManager.Reset();
+	ActorHandleMap.Reset();
 }
 
 FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
@@ -83,15 +105,15 @@ FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey
 		return FMassEntityManager::InvalidEntity;
 	}
 
-	check(TObjectKey<const AActor>(GetActorFromHandle(*Entity)) == Actor);
+	check(TObjectKey<const AActor>(GetActorFromHandle(*Entity, FMassActorFragment::EActorAccess::IncludeUnreachable)) == Actor);
 	return *Entity;
 }
 
-AActor* UMassActorSubsystem::GetActorFromHandle(const FMassEntityHandle Handle) const
+AActor* UMassActorSubsystem::GetActorFromHandle(const FMassEntityHandle Handle, FMassActorFragment::EActorAccess Access) const
 {
 	check(EntityManager);
 	FMassActorFragment* Data = EntityManager->GetFragmentDataPtr<FMassActorFragment>(Handle);
-	return Data != nullptr ? Data->GetMutable() : nullptr;
+	return Data != nullptr ? Data->GetMutable(Access) : nullptr;
 }
 
 void UMassActorSubsystem::SetHandleForActor(const TObjectKey<const AActor> Actor, const FMassEntityHandle Handle)
