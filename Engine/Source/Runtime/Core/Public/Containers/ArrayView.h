@@ -803,7 +803,7 @@ template<typename InElementType, typename InAllocatorType>
 template<typename OtherElementType, typename OtherSizeType>
 FORCEINLINE TArray<InElementType, InAllocatorType>::TArray(const TArrayView<OtherElementType, OtherSizeType>& Other)
 {
-	CopyToEmpty(Other.GetData(), Other.Num(), 0, 0);
+	CopyToEmpty(Other.GetData(), Other.Num(), 0);
 }
 
 template<typename InElementType, typename InAllocatorType>
@@ -811,6 +811,6 @@ template<typename OtherElementType, typename OtherSizeType>
 FORCEINLINE TArray<InElementType, InAllocatorType>& TArray<InElementType, InAllocatorType>::operator=(const TArrayView<OtherElementType, OtherSizeType>& Other)
 {
 	DestructItems(GetData(), ArrayNum);
-	CopyToEmpty(Other.GetData(), Other.Num(), ArrayMax, 0);
+	CopyToEmpty(Other.GetData(), Other.Num(), ArrayMax);
 	return *this;
 }
