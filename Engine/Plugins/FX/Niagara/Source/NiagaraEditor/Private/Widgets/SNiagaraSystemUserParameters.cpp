@@ -41,21 +41,6 @@ void SNiagaraSystemUserParameters::Construct(const FArguments& InArgs, TSharedPt
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Left)
-			[
-				SAssignNew(AddParameterButton, SComboButton)
-				.OnGetMenuContent(this, &SNiagaraSystemUserParameters::GetParameterMenu)
-				.OnComboBoxOpened_Lambda([this]
-				{
-					AddParameterButton->SetMenuContentWidgetToFocus(ParameterPanel->GetSearchBox());
-				})
-				.ButtonContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("AddUserParameterLabel", "Add Parameter"))
-				]
-			]
-			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
 			[
 				SNew(SButton)
@@ -73,33 +58,6 @@ void SNiagaraSystemUserParameters::Construct(const FArguments& InArgs, TSharedPt
 			]
 		]
 	];
-}
-
-TSharedRef<SWidget> SNiagaraSystemUserParameters::GetParameterMenu() 
-{
-	FNiagaraParameterPanelCategory UserCategory = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
-	ParameterPanel = SNew(SNiagaraAddParameterFromPanelMenu)
-		.Graphs(SystemViewModel.Pin()->GetParameterPanelViewModel()->GetEditableGraphsConst())
-		.OnNewParameterRequested(this, &SNiagaraSystemUserParameters::AddParameter)
-		.OnAllowMakeType(this, &SNiagaraSystemUserParameters::CanMakeNewParameterOfType)
-		.NamespaceId(UserCategory.NamespaceMetaData.GetGuid())
-		.ShowNamespaceCategory(false)
-		.ShowGraphParameters(false)
-		.AutoExpandMenu(false);
-	
-	return ParameterPanel.ToSharedRef();
-}
-
-void SNiagaraSystemUserParameters::AddParameter(FNiagaraVariable NewParameter) const
-{
-	FNiagaraParameterPanelCategory UserCategory = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
-	FNiagaraEditorUtilities::AddParameter(NewParameter, SystemViewModel.Pin()->GetSystem().GetExposedParameters(), SystemViewModel.Pin()->GetSystem(), nullptr);
-	SystemViewModel.Pin()->GetUserParameterPanelViewModel()->OnParameterAdded().Execute(NewParameter);
-}
-
-bool SNiagaraSystemUserParameters::CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const
-{
-	return SystemViewModel.Pin()->GetParameterPanelViewModel()->CanMakeNewParameterOfType(InType);
 }
 
 FReply SNiagaraSystemUserParameters::SummonHierarchyEditor()

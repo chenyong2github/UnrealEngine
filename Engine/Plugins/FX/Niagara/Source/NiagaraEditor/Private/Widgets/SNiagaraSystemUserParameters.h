@@ -21,15 +21,7 @@ public:
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override {}
 
 private:
-	TSharedRef<SWidget> GetParameterMenu();
-	
-	void AddParameter(FNiagaraVariable NewParameter) const;
-	bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const;
-
 	FReply SummonHierarchyEditor();
 private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
-	
-	TSharedPtr<SComboButton> AddParameterButton;
-	TSharedPtr<SNiagaraAddParameterFromPanelMenu> ParameterPanel;
 };

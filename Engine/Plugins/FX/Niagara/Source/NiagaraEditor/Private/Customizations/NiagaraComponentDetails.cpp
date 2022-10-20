@@ -37,7 +37,9 @@
 #include "Widgets/SNiagaraParameterName.h"
 #include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "SNiagaraSystemUserParameters.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraComponentDetails"
 
@@ -570,7 +572,12 @@ void FNiagaraSystemUserParameterDetails::CustomizeDetails(IDetailLayoutBuilder& 
 	{
 		System = Cast<UNiagaraSystem>(CustomizedObjects[0]);
 		IDetailCategoryBuilder& InputParamCategory = DetailBuilder.EditCategory(ParamCategoryName, LOCTEXT("ParamCategoryName", "User Parameters"), ECategoryPriority::Important);
-		InputParamCategory.AddCustomBuilder(MakeShared<FNiagaraSystemUserParameterBuilder>(System.Get(), ParamCategoryName));
+		TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System.Get());
+		ensure(SystemViewModel.IsValid());
+		TSharedRef<FNiagaraSystemUserParameterBuilder> SystemUserParameterBuilder = MakeShared<FNiagaraSystemUserParameterBuilder>(SystemViewModel, ParamCategoryName);
+		InputParamCategory.AddCustomBuilder(SystemUserParameterBuilder);
+		TSharedRef<SWidget> AddParameterButton = SystemUserParameterBuilder->GetAddParameterButton();
+		InputParamCategory.HeaderContent(AddParameterButton);
 	}
 }
 
@@ -912,17 +919,16 @@ void FNiagaraComponentUserParametersNodeBuilder::ParameterValueChanged()
 	}
 }
 
-FNiagaraSystemUserParameterBuilder::FNiagaraSystemUserParameterBuilder(UNiagaraSystem* InSystem, FName InCustomBuilderRowName)
+FNiagaraSystemUserParameterBuilder::FNiagaraSystemUserParameterBuilder(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, FName InCustomBuilderRowName)
 {
 	CustomBuilderRowName = InCustomBuilderRowName;
-	System = InSystem;
+	System = &InSystemViewModel->GetSystem();
+	SystemViewModel = InSystemViewModel;
 	bDelegatesInitialized = false;
 }
 
 TSharedPtr<SWidget> FNiagaraSystemUserParameterBuilder::GenerateCustomNameWidget(FNiagaraVariable UserParameter)
-{
-	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System.Get());
-	
+{	
 	TSharedRef<SNiagaraParameterNameTextBlock> ParameterName = SNew(SNiagaraParameterNameTextBlock)
 		// if this is specified, we avoid the default behavior, which is "when clicked when the widget had keyboard focus already, enter editing mode"
 		// we don't want to be able to rename by clicking, only by context menu
@@ -951,10 +957,11 @@ void FNiagaraSystemUserParameterBuilder::GenerateChildContent(IDetailChildrenBui
 		if(bDelegatesInitialized == false)
 		{
 			System->GetExposedParameters().OnStructureChanged().Add(FNiagaraParameterStore::FOnStructureChanged::FDelegate::CreateSP(this, &FNiagaraSystemUserParameterBuilder::Rebuild));
-			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System.Get());
-			SystemViewModel->GetUserParametersHierarchyViewModel()->OnHierarchyChanged().Add(UNiagaraHierarchyViewModelBase::FOnHierarchyChanged::FDelegate::CreateSP(this, &FNiagaraSystemUserParameterBuilder::Rebuild));
 
-			TSharedPtr<FNiagaraUserParameterPanelViewModel> UserParameterPanelViewModel = SystemViewModel->GetUserParameterPanelViewModel();
+			SystemViewModel.Pin()->GetUserParametersHierarchyViewModel()->OnHierarchyChanged().RemoveAll(this);
+			SystemViewModel.Pin()->GetUserParametersHierarchyViewModel()->OnHierarchyChanged().Add(UNiagaraHierarchyViewModelBase::FOnHierarchyChanged::FDelegate::CreateSP(this, &FNiagaraSystemUserParameterBuilder::Rebuild));
+
+			TSharedPtr<FNiagaraUserParameterPanelViewModel> UserParameterPanelViewModel = SystemViewModel.Pin()->GetUserParameterPanelViewModel();
 			if(ensure(UserParameterPanelViewModel.IsValid()))
 			{
 				UserParameterPanelViewModel->OnParameterAdded().BindSP(this, &FNiagaraSystemUserParameterBuilder::RequestRename);
@@ -985,6 +992,64 @@ void FNiagaraSystemUserParameterBuilder::AddCustomMenuActionsForParameter(FDetai
 
 	FUIAction DeleteAction(FExecuteAction::CreateSP(this, &FNiagaraSystemUserParameterBuilder::DeleteParameter, UserParameter));
 	WidgetRow.AddCustomContextMenuAction(DeleteAction, LOCTEXT("DeleteParameterAction", "Delete"), LOCTEXT("DeleteParameterActionTooltip", "Delete this user parameter"));
+}
+
+TSharedRef<SWidget> FNiagaraSystemUserParameterBuilder::GetAddParameterButton()
+{
+	if(!AddParameterButtonContainer.IsValid())
+	{
+		AddParameterButtonContainer = SNew(SBox)
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(AddParameterButton, SComboButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonStyle(FAppStyle::Get(), "RoundButton")
+			.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+			.ContentPadding(FMargin(2, 0))
+			.OnGetMenuContent(this, &FNiagaraSystemUserParameterBuilder::GetAddParameterMenu)
+			.OnComboBoxOpened_Lambda([this]
+			{
+				AddParameterButton->SetMenuContentWidgetToFocus(AddParameterMenu->GetSearchBox());
+			})
+			.HasDownArrow(false)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("Plus"))
+			]
+		];
+	}
+	
+	return AddParameterButtonContainer.ToSharedRef(); 
+}
+
+TSharedRef<SWidget> FNiagaraSystemUserParameterBuilder::GetAddParameterMenu()
+{
+	FNiagaraParameterPanelCategory UserCategory = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
+	AddParameterMenu = SNew(SNiagaraAddParameterFromPanelMenu)
+		.Graphs(SystemViewModel.Pin()->GetParameterPanelViewModel()->GetEditableGraphsConst())
+		.OnNewParameterRequested(this, &FNiagaraSystemUserParameterBuilder::AddParameter)
+		.OnAllowMakeType(this, &FNiagaraSystemUserParameterBuilder::CanMakeNewParameterOfType)
+		.NamespaceId(UserCategory.NamespaceMetaData.GetGuid())
+		.ShowNamespaceCategory(false)
+		.ShowGraphParameters(false)
+		.AutoExpandMenu(false);
+
+	return AddParameterMenu.ToSharedRef();
+}
+
+void FNiagaraSystemUserParameterBuilder::AddParameter(FNiagaraVariable NewParameter) const
+{
+	FNiagaraParameterPanelCategory UserCategory = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces({FNiagaraConstants::UserNamespace});
+	FNiagaraEditorUtilities::AddParameter(NewParameter, SystemViewModel.Pin()->GetSystem().GetExposedParameters(), SystemViewModel.Pin()->GetSystem(), nullptr);
+	SystemViewModel.Pin()->GetUserParameterPanelViewModel()->OnParameterAdded().Execute(NewParameter);
+}
+
+bool FNiagaraSystemUserParameterBuilder::CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const
+{
+	return SystemViewModel.Pin()->GetParameterPanelViewModel()->CanMakeNewParameterOfType(InType);
 }
 
 void FNiagaraSystemUserParameterBuilder::ParameterValueChanged()
@@ -1065,9 +1130,8 @@ void FNiagaraSystemUserParameterBuilder::RenameParameter(FNiagaraVariable UserPa
 		FNiagaraVariable VariableWithNewName(UserParameter);
 		VariableWithNewName.SetName(UniqueName);
 		FNiagaraUserRedirectionParameterStore::MakeUserVariable(VariableWithNewName);
-
-		TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System.Get());
-		SystemViewModel->RenameParameter(UserParameter, NewName, ENiagaraGetGraphParameterReferencesMode::AllGraphs);
+		
+		SystemViewModel.Pin()->RenameParameter(UserParameter, NewName, ENiagaraGetGraphParameterReferencesMode::AllGraphs);
 	}
 }
 

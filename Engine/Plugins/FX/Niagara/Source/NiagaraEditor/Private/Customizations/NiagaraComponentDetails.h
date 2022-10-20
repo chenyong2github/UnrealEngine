@@ -152,22 +152,21 @@ private:
 	TWeakObjectPtr<UNiagaraComponent> Component;
 };
 
-/** A specialized class to generate user parameters for a system asset */
+/** A specialized class to generate user parameters for a system asset's editor. Due to reliance on the system view model this should only be used within the asset editor. */
 class FNiagaraSystemUserParameterBuilder : public FNiagaraUserParameterNodeBuilder
 {
 public:
-	FNiagaraSystemUserParameterBuilder(UNiagaraSystem* InSystem, FName InCustomBuilderRowName);
+	FNiagaraSystemUserParameterBuilder(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, FName InCustomBuilderRowName);
 
 	virtual ~FNiagaraSystemUserParameterBuilder() override
 	{
 		if (System.IsValid() && bDelegatesInitialized)
 		{
 			System->GetExposedParameters().OnStructureChanged().RemoveAll(this);
-
-			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System.Get());
+			
 			if(SystemViewModel.IsValid())
 			{
-				SystemViewModel->GetUserParametersHierarchyViewModel()->OnHierarchyChanged().RemoveAll(this);
+				SystemViewModel.Pin()->GetUserParametersHierarchyViewModel()->OnHierarchyChanged().RemoveAll(this);
 			}
 		}
 	}
@@ -179,7 +178,13 @@ public:
 	
 	/** We want to add rename & delete actions within a system asset */
 	virtual void AddCustomMenuActionsForParameter(FDetailWidgetRow& WidgetRow, FNiagaraVariable UserParameter) override;
+
+	TSharedRef<SWidget> GetAddParameterButton();
 private:
+	TSharedRef<SWidget> GetAddParameterMenu();
+	void AddParameter(FNiagaraVariable NewParameter) const;
+	bool CanMakeNewParameterOfType(const FNiagaraTypeDefinition& InType) const;
+
 	void ParameterValueChanged();
 
 	void DeleteParameter(FNiagaraVariable UserParameter) const;
@@ -189,6 +194,10 @@ private:
 	FReply GenerateParameterDragDropOp(const FGeometry& Geometry, const FPointerEvent& MouseEvent, FNiagaraVariable UserParameter) const;
 private:
 	TWeakObjectPtr<UNiagaraSystem> System;
+	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TOptional<FNiagaraVariable> SelectedParameter;
 	TMap<FNiagaraVariable, TSharedPtr<class SNiagaraParameterNameTextBlock>> UserParamToWidgetMap;
+	TSharedPtr<SWidget> AddParameterButtonContainer;
+	TSharedPtr<class SComboButton> AddParameterButton;
+	TSharedPtr<class SNiagaraAddParameterFromPanelMenu> AddParameterMenu;
 };
