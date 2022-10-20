@@ -58,9 +58,11 @@
 #pragma warning(disable : 4245)
 #pragma warning(disable : 4127)
 #endif
+PRAGMA_DEFAULT_VISIBILITY_START
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
+PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #else

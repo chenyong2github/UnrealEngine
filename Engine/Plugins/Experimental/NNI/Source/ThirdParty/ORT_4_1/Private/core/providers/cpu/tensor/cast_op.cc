@@ -18,10 +18,10 @@
 #include "core/providers/cpu/tensor/utils.h"
 #include "core/providers/op_kernel_type_control.h"
 #include "core/util/math_cpuonly.h"
-
+PRAGMA_DEFAULT_VISIBILITY_START
 #include "Eigen/src/Core/arch/Default/BFloat16.h"
 #include "Eigen/src/Core/arch/Default/Half.h"
-
+PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(_M_AMD64) && !defined(_M_ARM64EC)
 #include "core/mlas/inc/mlas.h"
 #endif

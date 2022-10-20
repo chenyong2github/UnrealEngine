@@ -6,7 +6,9 @@
 #include "core/providers/common.h"
 #include "core/framework/op_kernel.h"
 #include "core/util/math_cpuonly.h"
+PRAGMA_DEFAULT_VISIBILITY_START
 #include "Eigen/src/Core/Map.h"
+PRAGMA_DEFAULT_VISIBILITY_END
 #include "dft.h"
 #include <functional>
 
