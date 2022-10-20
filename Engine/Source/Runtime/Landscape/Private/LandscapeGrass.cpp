@@ -195,7 +195,7 @@ static FAutoConsoleVariableRef CVarCaptureNextGrassUpdate(
 #if RHI_RAYTRACING
 static TAutoConsoleVariable<int32> CVarRayTracingLandscapeGrass(
 	TEXT("r.RayTracing.Geometry.LandscapeGrass"),
-	1,
+	0,
 	TEXT("Include landscapes grass in ray tracing effects (default = 1)"));
 #endif
 
