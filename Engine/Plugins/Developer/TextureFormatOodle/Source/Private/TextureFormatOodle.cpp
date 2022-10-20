@@ -869,7 +869,7 @@ public:
 	}
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
-	#define DDC_OODLE_TEXTURE_VERSION 15
+	#define DDC_OODLE_TEXTURE_VERSION 16
 
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* InBuildSettings) const override
 	{
