@@ -204,6 +204,7 @@ private:
 };
 
 struct FNiagaraHierarchyItemViewModelBase;
+struct FNiagaraHierarchySectionViewModel;
 
 class FNiagaraHierarchyDragDropOp : public FDragDropOperation
 {
@@ -244,7 +245,9 @@ public:
 	DECLARE_DELEGATE_OneParam(FRefreshTreeWidget, bool bFullRefresh)
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsItemSelected, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
 	DECLARE_DELEGATE_OneParam(FSelectObjectInDetailsPanel, UObject* Object)
-	
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSectionActivated, TSharedPtr<FNiagaraHierarchySectionViewModel> Section)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemAdded, TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddedItem)
+
 	GENERATED_BODY()
 	
 	UNiagaraHierarchyViewModelBase();
@@ -292,7 +295,6 @@ public:
 	void RefreshSourceView(bool bFullRefresh = false) const;
 	void RefreshHierarchyView(bool bFullRefresh = false) const;
 	void RefreshSectionsWidget() const;
-	void SelectItemInDetailsPanel(UObject* Object) const;
 	
 	// Delegate that call functions from SNiagaraHierarchy
 	FRefreshTreeWidget& OnRefreshSourceView() { return RefreshSourceViewDelegate; }
@@ -301,12 +303,15 @@ public:
 
 	// Delegates for external systems
 	FOnHierarchyChanged& OnHierarchyChanged() { return OnHierarchyChangedDelegate; } 
+
+	FOnItemAdded& OnItemAdded() { return OnItemAddedDelegate; }
 	
 	// Sections
 	void SetActiveSection(TSharedPtr<struct FNiagaraHierarchySectionViewModel>);
 	TSharedPtr<FNiagaraHierarchySectionViewModel> GetActiveSection() const;
 	UNiagaraHierarchySection* GetActiveSectionData() const;
 	bool IsSectionActive(const UNiagaraHierarchySection* Section) const;
+	FOnSectionActivated& OnSectionActivated() { return OnSectionActivatedDelegate; }
 	
 	FString OnItemToStringDebug(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemBaseViewModel) const; 
 protected:
@@ -334,13 +339,15 @@ protected:
 	FRefreshTreeWidget RefreshHierarchyWidgetDelegate;
 	FSimpleDelegate RefreshSectionsWidgetDelegate;
 
+	FOnItemAdded OnItemAddedDelegate;
+	FOnSectionActivated OnSectionActivatedDelegate;
 	FOnHierarchyChanged OnHierarchyChangedDelegate;
 };
 
-struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyItemViewModelBase>
+struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyItemViewModelBase>, public FTickableEditorObject
 {
 	DECLARE_MULTICAST_DELEGATE(FOnSynced)
-	
+
 	FNiagaraHierarchyItemViewModelBase(UNiagaraHierarchyItemBase* InItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel)
 		: ItemBase(InItemBase)
 		, Parent(InParent)
@@ -360,6 +367,9 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 	template<class T>
 	const T* GetData() const { return Cast<T>(ItemBase); }
 
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
+	
 	FString ToString() const { return ItemBase->ToString(); }
 	
 	void SyncToData();
@@ -372,9 +382,11 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 	bool HasParent(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ParentCandidate, bool bRecursive = false);
 
 	void AddChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
-	UNiagaraHierarchyItemBase* AddNewItem(TSubclassOf<UNiagaraHierarchyItemBase> NewItemClass);
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddNewItem(TSubclassOf<UNiagaraHierarchyItemBase> NewItemClass);
 	void DuplicateToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToDuplicate, int32 InsertIndex = INDEX_NONE);
 	void ReparentToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToMove, int32 InsertIndex = INDEX_NONE);
+
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> FindViewModelForChild(UNiagaraHierarchyItemBase* Child) const;
 	int32 FindIndexOfChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const;
 	int32 FindIndexOfChild(UNiagaraHierarchyItemBase* Child) const;
 	int32 FindIndexOfDataChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const;
@@ -405,9 +417,18 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 
 	void RequestRename()
 	{
+		if(CanRename() && OnRequestRenameDelegate.IsBound())
+		{
+			bRenamePending = false;
+			OnRequestRenameDelegate.Execute();
+		}
+	}
+
+	void RequestRenamePending()
+	{
 		if(CanRename())
 		{
-			OnRequestRenameDelegate.Execute();
+			bRenamePending = true;
 		}
 	}
 
@@ -436,6 +457,7 @@ protected:
 	TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel;
 	FSimpleDelegate OnRequestRenameDelegate;
 	FOnSynced OnSyncedDelegate;
+	bool bRenamePending = false;
 };
 
 template <class DataClass, class ViewModelClass>

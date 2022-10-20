@@ -382,6 +382,9 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 	HierarchyViewModel->OnRefreshHierarchyView().BindSP(this, &SNiagaraHierarchy::RefreshHierarchyView);
 	HierarchyViewModel->OnRefreshSections().BindSP(this, &SNiagaraHierarchy::RefreshSectionsWidget);
 
+	HierarchyViewModel->OnSectionActivated().AddSP(this, &SNiagaraHierarchy::OnSectionActivated);
+	HierarchyViewModel->OnItemAdded().AddSP(this, &SNiagaraHierarchy::OnItemAdded);
+	
 	OnGenerateRowContentWidget = InArgs._OnGenerateRowContentWidget;
 	OnGenerateCustomDetailsPanelNameWidget = InArgs._OnGenerateCustomDetailsPanelNameWidget;
 	
@@ -423,15 +426,19 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 						CreateHierarchyButtonWidgets()
 					]
 				]
-				+ SVerticalBox::Slot().Expose(SectionsSlot)
-				.AutoHeight()
-			]
-			+ SVerticalBox::Slot()
-			[
-				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
+					SAssignNew(SectionBox, SWrapBox)
+					.UseAllottedWidth(true)
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				 SNew(SVerticalBox)
+				 + SVerticalBox::Slot()
+				 .AutoHeight()
+				 [
 					SAssignNew(HierarchyTreeView, STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>)
 					.TreeItemsSource(&InHierarchyViewModel->GetHierarchyItems())
 					.OnSelectionChanged(this, &SNiagaraHierarchy::OnSelectionChanged, true)
@@ -497,6 +504,9 @@ SNiagaraHierarchy::~SNiagaraHierarchy()
 	HierarchyViewModel->OnRefreshHierarchyView().Unbind();
 	HierarchyViewModel->OnRefreshSections().Unbind();
 
+	HierarchyViewModel->OnSectionActivated().RemoveAll(this);
+	HierarchyViewModel->OnItemAdded().RemoveAll(this);
+	
 	HierarchyViewModel->GetCommands()->UnmapAction(FGenericCommands::Get().Delete);
 	HierarchyViewModel->GetCommands()->UnmapAction(FGenericCommands::Get().Rename);
 }
@@ -545,7 +555,36 @@ void SNiagaraHierarchy::RefreshHierarchyView(bool bFullRefresh) const
 
 void SNiagaraHierarchy::RefreshSectionsWidget()
 {
-	SectionsSlot->AttachWidget(CreateSectionWidgets());
+	SectionBox->ClearChildren();
+	SectionsWidgetMap.Empty();
+	
+	for (TSharedPtr<FNiagaraHierarchySectionViewModel>& Section : HierarchyViewModel->GetHierarchyViewModelRoot()->GetSectionViewModels())
+	{
+		TSharedPtr<SNiagaraHierarchySection> SectionWidget = SNew(SNiagaraHierarchySection, Section, HierarchyViewModel)
+		.OnSectionActivated_Lambda([this](TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel)
+		{
+			HierarchyViewModel->SetActiveSection(SectionViewModel);
+		});
+		SectionsWidgetMap.Add(Section, SectionWidget);
+		
+		SectionBox->AddSlot()
+		[
+			SectionWidget.ToSharedRef()
+		];
+	}
+	
+	TSharedPtr<SNiagaraHierarchySection> DefaultSectionWidget = SNew(SNiagaraHierarchySection, nullptr, HierarchyViewModel)
+	.OnSectionActivated_Lambda([this](TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel)
+	{
+		HierarchyViewModel->SetActiveSection(SectionViewModel);
+	});
+	
+	SectionsWidgetMap.Add(nullptr, DefaultSectionWidget);
+
+	SectionBox->AddSlot()
+	[
+		DefaultSectionWidget.ToSharedRef()
+	];
 }
 
 bool SNiagaraHierarchy::IsItemSelected(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) const
@@ -564,7 +603,16 @@ void SNiagaraHierarchy::SelectObjectInDetailsPanel(UObject* Object) const
 TSharedRef<SWidget> SNiagaraHierarchy::CreateHierarchyButtonWidgets() const
 {
 	FSlimHorizontalToolBarBuilder ToolBarBuilder(nullptr, FMultiBoxCustomization::None);
-
+	
+	// Add Section
+	{
+		FUIAction AddSectionAction;
+		AddSectionAction.ExecuteAction = FExecuteAction::CreateUObject(HierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::AddSection);
+		ToolBarBuilder.AddToolBarButton(AddSectionAction, NAME_None,
+			FText::FromString("Add Section")
+			);
+	}
+	
 	// Add Category
 	{
 		FUIAction AddCategoryAction;
@@ -574,59 +622,7 @@ TSharedRef<SWidget> SNiagaraHierarchy::CreateHierarchyButtonWidgets() const
 			);
 	}
 
-	// Add Section
-	{
-		FUIAction AddSectionAction;
-		AddSectionAction.ExecuteAction = FExecuteAction::CreateUObject(HierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::AddSection);
-		ToolBarBuilder.AddToolBarButton(AddSectionAction, NAME_None,
-			FText::FromString("Add Section")
-			);
-	}
-
 	return ToolBarBuilder.MakeWidget();
-}
-
-TSharedRef<SWidget> SNiagaraHierarchy::CreateSectionWidgets()
-{
-	SectionsWidgetMap.Empty();
-	
-	TSharedRef<SWrapBox> SectionsBox = SNew(SWrapBox)
-		.UseAllottedWidth(true);
-	
-	for (TSharedPtr<FNiagaraHierarchySectionViewModel>& Section : HierarchyViewModel->GetHierarchyViewModelRoot()->GetSectionViewModels())
-	{
-		TSharedPtr<SNiagaraHierarchySection> SectionWidget = SNew(SNiagaraHierarchySection, Section, HierarchyViewModel)
-		.OnSectionActivated_Lambda([this](TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel)
-		{
-			HierarchyViewModel->SetActiveSection(SectionViewModel);
-			OnSelectionChanged(SectionViewModel, ESelectInfo::Type::OnMouseClick, true);
-		});
-		SectionsWidgetMap.Add(Section, SectionWidget);
-		
-		SectionsBox->AddSlot()
-		[
-			SectionWidget.ToSharedRef()
-		];
-	}
-	
-	TSharedPtr<SNiagaraHierarchySection> DefaultSectionWidget = SNew(SNiagaraHierarchySection, nullptr, HierarchyViewModel)
-	.OnSectionActivated_Lambda([this](TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel)
-	{
-		HierarchyViewModel->SetActiveSection(SectionViewModel);
-		OnSelectionChanged(SectionViewModel, ESelectInfo::Type::OnMouseClick, true);
-	});
-	
-	SectionsWidgetMap.Add(nullptr, DefaultSectionWidget);
-
-	SectionsBox->AddSlot()
-	[
-		DefaultSectionWidget.ToSharedRef()
-	];
-	
-	return SNew(SBorder).BorderBackgroundColor(FStyleColors::Recessed)
-	[
-		SectionsBox
-	];
 }
 
 TSharedRef<ITableRow> SNiagaraHierarchy::GenerateSourceItemRow(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, const TSharedRef<STableViewBase>& TableViewBase)
@@ -746,6 +742,28 @@ bool SNiagaraHierarchy::CanDeleteSelectedItems() const
 	}
 
 	return false;
+}
+
+void SNiagaraHierarchy::OnItemAdded(TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddedItem)
+{
+	// when a new item is created (opposed to dragged & dropped from source view, i.e. only categories so far)
+	// we make sure to request a tree refresh, select the row, and request a pending rename since the widget will created a frame later
+	if(AddedItem->GetData()->IsA<UNiagaraHierarchyItem>() || AddedItem->GetData()->IsA<UNiagaraHierarchyCategory>())
+	{
+		HierarchyTreeView->RequestTreeRefresh();
+		HierarchyTreeView->SetSelection(AddedItem);
+	}
+	else if(AddedItem->GetData()->IsA<UNiagaraHierarchySection>())
+	{
+		RefreshSectionsWidget();
+	}
+
+	AddedItem->RequestRenamePending();
+}
+
+void SNiagaraHierarchy::OnSectionActivated(TSharedPtr<FNiagaraHierarchySectionViewModel> Section) const
+{
+	OnSelectionChanged(Section, ESelectInfo::Direct, true);
 }
 
 void SNiagaraHierarchy::OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, ESelectInfo::Type Type, bool bFromHierarchy) const

@@ -41,7 +41,6 @@ public:
 	
 private:
 	TSharedRef<SWidget> CreateHierarchyButtonWidgets() const;
-	TSharedRef<SWidget> CreateSectionWidgets();
 	TSharedRef<ITableRow> GenerateSourceItemRow(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, const TSharedRef<STableViewBase>& TableViewBase);
 	TSharedRef<ITableRow> GenerateHierarchyItemRow(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, const TSharedRef<STableViewBase>& TableViewBase);
 private:	
@@ -51,6 +50,8 @@ private:
 	void DeleteSelectedItems();
 	bool CanDeleteSelectedItems() const;
 
+	void OnItemAdded(TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddedItem);
+	void OnSectionActivated(TSharedPtr<FNiagaraHierarchySectionViewModel> Section) const;
 	void OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem, ESelectInfo::Type Type, bool bFromHierarchy) const;
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -65,7 +66,7 @@ private:
 	TSharedPtr<STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>> SourceTreeView;
 	TSharedPtr<STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>> HierarchyTreeView;
 	TMap<TSharedPtr<FNiagaraHierarchySectionViewModel>, TSharedPtr<class SNiagaraHierarchySection>> SectionsWidgetMap;
-	SVerticalBox::FSlot* SectionsSlot = nullptr;
+	TSharedPtr<class SWrapBox> SectionBox;
 	TSharedPtr<IDetailsView> DetailsPanel;
 
 private:

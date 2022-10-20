@@ -367,6 +367,7 @@ void UNiagaraHierarchyViewModelBase::SetActiveSection(TSharedPtr<FNiagaraHierarc
 {
 	ActiveSection = Section;	
 	RefreshHierarchyView(true);
+	OnSectionActivatedDelegate.Broadcast(Section);
 }
 
 TSharedPtr<FNiagaraHierarchySectionViewModel> UNiagaraHierarchyViewModelBase::GetActiveSection() const
@@ -387,6 +388,19 @@ bool UNiagaraHierarchyViewModelBase::IsSectionActive(const UNiagaraHierarchySect
 FString UNiagaraHierarchyViewModelBase::OnItemToStringDebug(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemBaseViewModel) const
 {
 	return ItemBaseViewModel->ToString();	
+}
+
+void FNiagaraHierarchyItemViewModelBase::Tick(float DeltaTime)
+{
+	if(bRenamePending)
+	{
+		RequestRename();
+	}
+}
+
+TStatId FNiagaraHierarchyItemViewModelBase::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraHierarchyItemViewModelBase, STATGROUP_Tickables);
 }
 
 void FNiagaraHierarchyItemViewModelBase::SyncToData()
@@ -500,7 +514,7 @@ void FNiagaraHierarchyItemViewModelBase::AddChild(TSharedPtr<FNiagaraHierarchyIt
 	Children.Add(Item);
 }
 
-UNiagaraHierarchyItemBase* FNiagaraHierarchyItemViewModelBase::AddNewItem(TSubclassOf<UNiagaraHierarchyItemBase> NewItemClass)
+TSharedPtr<FNiagaraHierarchyItemViewModelBase> FNiagaraHierarchyItemViewModelBase::AddNewItem(TSubclassOf<UNiagaraHierarchyItemBase> NewItemClass)
 {
 	FText TransactionText = FText::FormatOrdered(LOCTEXT("Transaction_AddedItem", "Added new {0} to hierarchy"), FText::FromString(NewItemClass->GetName()));
 	FScopedTransaction Transaction(TransactionText);
@@ -511,7 +525,9 @@ UNiagaraHierarchyItemBase* FNiagaraHierarchyItemViewModelBase::AddNewItem(TSubcl
 	GetDataMutable()->GetChildrenMutable().Add(NewItem);
 	SyncToData();
 
-	return NewItem;
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> ViewModel = FindViewModelForChild(NewItem);
+	ensure(ViewModel.IsValid());
+	return ViewModel;
 }
 
 void FNiagaraHierarchyItemViewModelBase::DuplicateToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToDuplicate, int32 InsertIndex)
@@ -544,6 +560,17 @@ void FNiagaraHierarchyItemViewModelBase::ReparentToThis(TSharedPtr<FNiagaraHiera
 	ItemToMove->Parent.Pin()->SyncToData();
 	SyncToData();
 	HierarchyViewModel->OnHierarchyChanged().Broadcast();
+}
+
+TSharedPtr<FNiagaraHierarchyItemViewModelBase> FNiagaraHierarchyItemViewModelBase::FindViewModelForChild(UNiagaraHierarchyItemBase* Child) const
+{
+	int32 Index = FindIndexOfChild(Child);
+	if(Index != INDEX_NONE)
+	{
+		return Children[Index];
+	}
+
+	return nullptr;
 }
 
 int32 FNiagaraHierarchyItemViewModelBase::FindIndexOfChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const
@@ -705,7 +732,6 @@ TSharedPtr<FNiagaraHierarchySectionViewModel> FNiagaraHierarchyRootViewModel::Ad
 	SectionViewModels.Add(NewSectionViewModel);
 	SyncToData();
 	HierarchyViewModel->SetActiveSection(NewSectionViewModel);
-	NewSectionViewModel->RequestRename();
 
 	return NewSectionViewModel;
 }
@@ -1054,29 +1080,35 @@ FReply FNiagaraHierarchyCategoryViewModel::OnDroppedOn(const FDragDropEvent& Dra
 
 void UNiagaraHierarchyViewModelBase::AddCategory() const
 {
-	UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(HierarchyViewModelRoot->AddNewItem(UNiagaraHierarchyCategory::StaticClass()));
-	TArray<UNiagaraHierarchyCategory*> SiblingCategories;
-	Category->GetTypedOuter<UNiagaraHierarchyItemBase>()->GetChildrenOfType<UNiagaraHierarchyCategory>(SiblingCategories);
-	
-	TSet<FName> CategoryNames;
-	for(const auto& SiblingCategory : SiblingCategories)
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> ViewModel = HierarchyViewModelRoot->AddNewItem(UNiagaraHierarchyCategory::StaticClass());
+
+	if(UNiagaraHierarchyCategory* Category = ViewModel->GetDataMutable<UNiagaraHierarchyCategory>())
 	{
-		CategoryNames.Add(SiblingCategory->GetCategoryName());
+		TArray<UNiagaraHierarchyCategory*> SiblingCategories;
+		Category->GetTypedOuter<UNiagaraHierarchyItemBase>()->GetChildrenOfType<UNiagaraHierarchyCategory>(SiblingCategories);
+		
+		TSet<FName> CategoryNames;
+		for(const auto& SiblingCategory : SiblingCategories)
+		{
+			CategoryNames.Add(SiblingCategory->GetCategoryName());
+		}
+
+		Category->SetCategoryName(FNiagaraUtilities::GetUniqueName(FName("New Category"), CategoryNames));
+		
+		// we only set the section property if the current section isn't set to "All"
+		Category->SetSection(GetActiveSectionData());
+		
+		RefreshHierarchyView();
+
+		OnItemAddedDelegate.Broadcast(ViewModel);
+		OnHierarchyChangedDelegate.Broadcast();
 	}
-
-	Category->SetCategoryName(FNiagaraUtilities::GetUniqueName(FName("New Category"), CategoryNames));
-	
-	// we only set the section property if the current section isn't set to "All"
-	Category->SetSection(GetActiveSectionData());
-	
-	RefreshHierarchyView();
-
-	OnHierarchyChangedDelegate.Broadcast();
 }
 
 void UNiagaraHierarchyViewModelBase::AddSection() const
 {
-	HierarchyViewModelRoot->AddNewSection();
+	TSharedPtr<FNiagaraHierarchySectionViewModel> HierarchySectionViewModel = HierarchyViewModelRoot->AddNewSection();
+	OnItemAddedDelegate.Broadcast(HierarchySectionViewModel);
 	OnHierarchyChangedDelegate.Broadcast();
 }
 
