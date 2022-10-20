@@ -493,7 +493,7 @@ void UAnimPoseExtensions::GetReferencePose(USkeleton* Skeleton, FAnimPose& OutPo
 		RequiredBoneIndexArray.AddUninitialized(RefSkeleton.GetNum());
 		for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 		{
-			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
+			RequiredBoneIndexArray[BoneIndex] = IntCastChecked<FBoneIndexType>(BoneIndex);
 		}
 
 		FBoneContainer RequiredBones;
@@ -567,7 +567,7 @@ void UAnimPoseExtensions::GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* An
 		RequiredBoneIndexArray.AddUninitialized(NumRequiredBones);
 		for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 		{
-			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
+			RequiredBoneIndexArray[BoneIndex] = static_cast<FBoneIndexType>(BoneIndex);
 		}
 
 		FBoneContainer RequiredBones;
@@ -599,7 +599,7 @@ void UAnimPoseExtensions::GetAnimPoseAtTimeIntervals(const UAnimSequenceBase* An
 			const double EvalInterval = TimeIntervals[Index];
 			
 			bool bValidTime = false;
-			UAnimationBlueprintLibrary::IsValidTime(AnimationSequenceBase, EvalInterval, bValidTime);
+			UAnimationBlueprintLibrary::IsValidTime(AnimationSequenceBase, static_cast<float>(EvalInterval), bValidTime);
 			ensure(bValidTime);
 
 			Context.CurrentTime = EvalInterval;

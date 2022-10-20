@@ -2383,7 +2383,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 		}
 		else
 		{
-			FrameRate = FFrameRate(FMath::TruncToInt(TimecodeRateAsDecimal), 1);
+			FrameRate = FFrameRate(static_cast<int32>(FMath::TruncToInt(TimecodeRateAsDecimal)), 1);
 		}
 	}
 	else if (const UAnimSequence* AnimSequence = AnimDataModel->GetAnimationSequence())
