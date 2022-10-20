@@ -27,13 +27,6 @@ namespace UE::LevelSnapshots::Restorability
 	
 	/* Is this component captured by the snapshot system? */
 	LEVELSNAPSHOTS_API bool IsComponentDesirableForCapture(const UActorComponent* Component);
-	/**
-	 * Can this component be restored by the snapshot system?
-	 * @param Snapshot Needed to check versioning data, etc.
-	 * @param WorldActorPath Soft object path of the world actor
-	 * @param Component Component from either world or snapshot world
-	 */
-	LEVELSNAPSHOTS_API bool IsComponentRestorable(const ULevelSnapshot* Snapshot, const FSoftObjectPath& WorldActorPath, const UActorComponent* Component);
 
 	/* Is this subobject class captured by the snapshot system?*/
 	LEVELSNAPSHOTS_API bool IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass);

@@ -267,7 +267,6 @@ bool UE::LevelSnapshots::Private::HasSavedComponentData(const FWorldSnapshotData
 		return false;
 	}
 
-	const FSoftObjectPath SearchedComponentPath = EditorOrSnapshotComponent;
 	const FString ComponentName = EditorOrSnapshotComponent->GetName();
 	const int32 ComponentDataIndex = [&WorldData, ActorData, ComponentName]() -> int32
 	{

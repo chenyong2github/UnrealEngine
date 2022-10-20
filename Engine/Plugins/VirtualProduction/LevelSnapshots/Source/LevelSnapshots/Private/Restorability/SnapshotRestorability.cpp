@@ -173,12 +173,6 @@ bool UE::LevelSnapshots::Restorability::IsComponentDesirableForCapture(const UAc
 	return bSomebodyAllowed || bIsAllowed;
 }
 
-bool UE::LevelSnapshots::Restorability::IsComponentRestorable(const ULevelSnapshot* Snapshot, const FSoftObjectPath& WorldActorPath, const UActorComponent* Component)
-{
-	return LevelSnapshots::Private::HasSavedComponentData(Snapshot->GetSerializedData(), WorldActorPath, Component)
-		&& IsComponentDesirableForCapture(Component);
-}
-
 bool UE::LevelSnapshots::Restorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsSubobjectClassDesirableForCapture);

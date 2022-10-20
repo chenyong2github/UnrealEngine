@@ -20,6 +20,7 @@
 #include "GameFramework/Actor.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
+#include "WorldData/WorldDataUtil.h"
 
 namespace UE::LevelSnapshots::Private::Internal
 {
@@ -118,16 +119,17 @@ void UE::LevelSnapshots::Private::IterateRestorableComponents(ULevelSnapshot* Sn
 	const FSoftObjectPath WorldActorPath = WorldActor;
 	for (UActorComponent* WorldComp : WorldActor->GetComponents())
 	{
-		if (!Restorability::IsComponentRestorable(Snapshot, WorldActorPath, WorldComp))
+		if (!Restorability::IsComponentDesirableForCapture(WorldComp))
 		{
 			continue;
 		}
-		
-		if (UActorComponent* SnapshotMatchedComp = Internal::TryFindMatchingComponent(SnapshotActor, WorldComp))
+
+		UActorComponent* SnapshotMatchedComp = Internal::TryFindMatchingComponent(SnapshotActor, WorldComp);
+		if (SnapshotMatchedComp && HasSavedComponentData(Snapshot->GetSerializedData(), WorldActorPath, WorldComp))
 		{
 			OnComponentsMatched(SnapshotMatchedComp, WorldComp);
 		}
-		else
+		else if (!SnapshotMatchedComp)
 		{
 			OnWorldComponentUnmatched(WorldComp);
 		}
@@ -135,7 +137,8 @@ void UE::LevelSnapshots::Private::IterateRestorableComponents(ULevelSnapshot* Sn
 
 	for (UActorComponent* SnapshotComp : SnapshotActor->GetComponents())
 	{
-		if (Restorability::IsComponentRestorable(Snapshot, WorldActorPath, SnapshotComp)
+		if (Restorability::IsComponentDesirableForCapture(SnapshotComp)
+			&& HasSavedComponentData(Snapshot->GetSerializedData(), WorldActorPath, SnapshotComp)
 			&& Internal::TryFindMatchingComponent(WorldActor, SnapshotComp) == nullptr)
 		{
 			OnSnapshotComponentUnmatched(SnapshotComp);
