@@ -8,8 +8,8 @@ namespace UE::NNI::RuntimeRDG::Hlsl::Private
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorGather, TEXT("NNI.Operator.Hlsl.Gather"));
 
-	template<typename DataElementType, typename IndicesElementType>
-	using TGatherCS = typename UE::NNI::HlslShaders::Internal::TGatherCS<DataElementType, IndicesElementType>;
+	//template<typename DataElementType, typename IndicesElementType>
+	using TGatherCS = typename UE::NNI::HlslShaders::Internal::TGatherCS;
 	using FGatherConstants = UE::NNI::HlslShaders::Internal::FGatherConstants;
 
 	template <typename DataElementType, typename IndicesElementType>
@@ -54,17 +54,17 @@ namespace UE::NNI::RuntimeRDG::Hlsl::Private
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
 			// Set parameters
-			typename TGatherCS<DataElementType, IndicesElementType>::FParameters* Parameters = GraphBuilder.AllocParameters<typename TGatherCS<DataElementType, IndicesElementType>::FParameters>();
-			TGatherCS<DataElementType, IndicesElementType>::FillInParameters(Axis, Data, Indices, *Parameters);
+			TGatherCS::FParameters* Parameters = GraphBuilder.AllocParameters<TGatherCS::FParameters>();
+			TGatherCS::FillInParameters(Axis, Data, Indices, *Parameters);
 			Parameters->Data = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			Parameters->Indices = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			Parameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 
-			typename TGatherCS<DataElementType, IndicesElementType>::FPermutationDomain PermutationVector;
-			PermutationVector.template Set<typename TGatherCS<DataElementType, IndicesElementType>::FGatherNumOutputDimensions>(Output.Shape.Num());
-			TShaderMapRef<TGatherCS<DataElementType, IndicesElementType>> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+			TGatherCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<TGatherCS::FGatherNumOutputDimensions>(Output.Shape.Num());
+			TShaderMapRef<TGatherCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-			FIntVector ThreadGroupCount = TGatherCS<DataElementType, IndicesElementType>::GetGroupCount(*Parameters);
+			FIntVector ThreadGroupCount = TGatherCS::GetGroupCount(*Parameters);
 
 			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.Gather");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorGather);

@@ -16,7 +16,7 @@ namespace UE::NNI::HlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	template <typename DataElementType, typename IndicesElementType>
+	// template <typename DataElementType, typename IndicesElementType>
 	class NNXHLSLSHADERS_API TGatherCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TGatherCS);
@@ -33,9 +33,9 @@ namespace UE::NNI::HlslShaders::Internal
 			SHADER_PARAMETER(int32, NumIndicesDimensions)
 			SHADER_PARAMETER_ARRAY(FIntVector4, DataStride_IndicesStride_OutputStride, [FGatherConstants::MAX_NUM_DIMENSIONS])
 			SHADER_PARAMETER_ARRAY(FVector4f, OneDivDataStride_OneDivIndicesStride_OneDivOutputStride, [FGatherConstants::MAX_NUM_DIMENSIONS])
-			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<DataElementType>, Data)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<IndicesElementType>, Indices)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<DataElementType>, Output)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Data)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int32>, Indices)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, Output)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
