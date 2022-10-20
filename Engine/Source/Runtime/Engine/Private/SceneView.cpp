@@ -88,12 +88,6 @@ static TAutoConsoleVariable<int32> CVarShadowFreezeCamera(
 	TEXT("1: freeze camera at current location"),
 	ECVF_Cheat);
 
-static TAutoConsoleVariable<float> CVarExposureOffset(
-	TEXT("r.ExposureOffset"),
-	0.0f,
-	TEXT("For adjusting the exposure on top of post process settings and eye adaptation. For developers only. 0:default"),
-	ECVF_Cheat);
-
 static TAutoConsoleVariable<int32> CVarRenderTimeFrozen(
 	TEXT("r.RenderTimeFrozen"),
 	0,
@@ -138,6 +132,12 @@ static TAutoConsoleVariable<float> CVarSSAOFadeRadiusScale(
 	TEXT("Allows to scale the ambient occlusion fade radius (SSAO).\n")
 	TEXT(" 0.01:smallest .. 1.0:normal (default), <1:smaller, >1:larger"),
 	ECVF_Cheat | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarExposureOffset(
+	TEXT("r.ExposureOffset"),
+	0.0f,
+	TEXT("For adjusting the exposure on top of post process settings and eye adaptation. 0: default"),
+	ECVF_Cheat);
 
 // Engine default (project settings):
 
@@ -2130,12 +2130,12 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 		FinalPostProcessSettings.ToneCurveAmount = 0;
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	{
 		float Value = CVarExposureOffset.GetValueOnGameThread();
 		FinalPostProcessSettings.AutoExposureBias += Value;
 	}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	{
 		float& DepthBlurAmount = FinalPostProcessSettings.DepthOfFieldDepthBlurAmount;
 
