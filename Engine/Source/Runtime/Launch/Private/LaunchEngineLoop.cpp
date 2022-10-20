@@ -253,7 +253,7 @@ class FFeedbackContext;
 #if defined(WITH_LAUNCHERCHECK) && WITH_LAUNCHERCHECK
 	#include "ILauncherCheckModule.h"
 #endif
-#include <String/ParseTokens.h>
+#include "String/ParseTokens.h"
 
 #if WITH_COREUOBJECT
 	#ifndef USE_LOCALIZED_PACKAGE_CACHE
