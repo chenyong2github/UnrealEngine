@@ -320,6 +320,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 		Total += GetBufferTotalNumBytes(Attribute0Buffer);
 		Total += GetBufferTotalNumBytes(Attribute1Buffer);
 		Total += GetBufferTotalNumBytes(MaterialBuffer);
+		Total += GetBufferTotalNumBytes(CurveBuffer);
 		return Total;
 	}
 
@@ -340,6 +341,9 @@ struct FHairStrandsRestResource : public FHairCommonResource
 
 	/* Strand hair material buffer */
 	FRDGExternalBuffer MaterialBuffer;
+
+	/* Strand hair curves buffer (contains curves' points offset and count */
+	FRDGExternalBuffer CurveBuffer;
 
 	/* Reference to the hair strands render data */
 	FHairStrandsBulkData& BulkData;

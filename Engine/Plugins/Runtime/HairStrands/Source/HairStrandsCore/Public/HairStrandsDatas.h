@@ -85,6 +85,14 @@ struct FHairInterpolation1Vertex
 	uint8 Pad1;
 };
 
+struct FPackedHairCurve
+{
+	typedef uint32 BulkType;
+
+	uint32 PointOffset : 24;
+	uint32 PointCount  : 8;
+};
+
 struct FVector4_16
 {
 	FFloat16 X;
@@ -191,6 +199,17 @@ struct FHairStrandsRootIndexFormat
 {
 	typedef uint32 Type;
 	typedef uint32 BulkType;
+
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UInt;
+	static const EPixelFormat Format = PF_R32_UINT;
+};
+
+struct FHairStrandsCurveFormat
+{
+	typedef FPackedHairCurve Type;
+	typedef FPackedHairCurve::BulkType BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -469,7 +488,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	FByteBulkData Attributes0;	// Size = PointCount
 	FByteBulkData Attributes1;	// Size = PointCount
 	FByteBulkData Materials;	// Size = PointCount
-	FByteBulkData CurveOffsets;	// Size = CurveCount+1 - Store the root point index for the curve
+	FByteBulkData Curves;		// Size = CurveCount
 };
 
 /** Hair strands debug data */

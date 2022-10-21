@@ -50,9 +50,6 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	/** Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIHairStrandsBuffer"); }
 
-	/** Strand curves point offset buffer */
-	FNiagaraPooledRWBuffer CurvesOffsetsBuffer;
-
 	/** Deformed position buffer in case no resource are there */
 	TRefCountPtr<FRDGPooledBuffer> DeformedPositionBuffer;
 

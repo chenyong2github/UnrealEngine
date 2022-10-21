@@ -41,9 +41,9 @@ FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
 	if (IsHairStrandContinuousDecimationReorderingEnabled())
-		return TEXT("3r0");
+		return TEXT("v4");
 	else
-		return TEXT("2r2");
+		return TEXT("v3");
 }
 
 namespace FHairStrandsDecimation
@@ -267,13 +267,13 @@ namespace HairStrandsBuilder
 		TArray<FHairStrandsAttribute0Format::Type> OutPackedAttributes0;
 		TArray<FHairStrandsAttribute1Format::Type> OutPackedAttributes1;
 		TArray<FHairStrandsMaterialFormat::Type> OutPackedMaterials;
-		TArray<FHairStrandsRootIndexFormat::Type> OutCurveOffsets;
+		TArray<FHairStrandsCurveFormat::Type> OutPackedCurves;
 
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
 		OutPackedAttributes0.SetNum(NumPoints * FHairStrandsAttribute0Format::ComponentCount);
 		OutPackedAttributes1.SetNum(NumPoints * FHairStrandsAttribute1Format::ComponentCount);
 		OutPackedMaterials.SetNum(NumPoints * FHairStrandsMaterialFormat::ComponentCount);
-		OutCurveOffsets = HairStrands.StrandsCurves.CurvesOffset;
+		OutPackedCurves.SetNum(NumCurves * FHairStrandsCurveFormat::ComponentCount);
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -358,6 +358,15 @@ namespace HairStrandsBuilder
 					}
 				}
 			}
+
+			// Curves
+			{
+				UE_CLOG(PointCount > 0xFF, LogGroomBuilder, Warning, TEXT("Curve point count is > 256"));
+				UE_CLOG(IndexOffset > 0xFFFFFF, LogGroomBuilder, Warning, TEXT("Curve point offset is > 24M"));
+				FHairStrandsCurveFormat::Type& Curve = OutPackedCurves[CurveIndex];
+				Curve.PointCount  = FMath::Min(uint32(PointCount), 0xFFu);
+				Curve.PointOffset = FMath::Min(uint32(IndexOffset), 0xFFFFFFu);
+			}
 		}
 
 		OutBulkData.BoundingBox = HairStrands.BoundingBox;
@@ -377,7 +386,7 @@ namespace HairStrandsBuilder
 		{
 			CopyToBulkData<FHairStrandsMaterialFormat>(OutBulkData.Materials, OutPackedMaterials);
 		}
-		CopyToBulkData<FHairStrandsRootIndexFormat>(OutBulkData.CurveOffsets, OutCurveOffsets);
+		CopyToBulkData<FHairStrandsCurveFormat>(OutBulkData.Curves, OutPackedCurves);
 	}
 
 	void BuildRenderData(const FHairStrandsDatas& HairStrands, FHairStrandsBulkData& OutBulkData)

@@ -81,7 +81,7 @@ struct FHairAttributes
 	float WorldLength;
 };
 
-FHairAttributes DecodeHairAttribute(float2 Attributes0, uint Attributes1, float InVF_Length)
+FHairAttributes UnpackHairAttribute(float2 Attributes0, uint Attributes1, float InVF_Length)
 {
 	float2 RootUV, RootIndex;
 	RootUV.x		= ((Attributes1    ) & 0x7FF) / 2047.f;	// Coord are encoded on 11 bits
@@ -96,6 +96,23 @@ FHairAttributes DecodeHairAttribute(float2 Attributes0, uint Attributes1, float 
 	Out.RootUV		= RootUV + RootIndex;
 	Out.WorldLength = Attributes0.x * InVF_Length;
 	Out.Seed		= Attributes0.y;
+	return Out;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair Curve
+
+struct FHairCurve
+{
+	uint PointIndex;
+	uint PointCount;
+};
+
+FHairCurve UnpackHairCurve(uint In)
+{
+	FHairCurve Out = (FHairCurve)0;
+	Out.PointIndex = In & 0xFFFFFF;
+	Out.PointCount = In >> 24;
 	return Out;
 }
 

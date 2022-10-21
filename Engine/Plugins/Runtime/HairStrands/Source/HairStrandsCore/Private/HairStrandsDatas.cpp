@@ -230,7 +230,7 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		Attributes0.SetBulkDataFlags(BulkFlags);
 		Attributes1.SetBulkDataFlags(BulkFlags);
 		Materials.SetBulkDataFlags(BulkFlags);
-		CurveOffsets.SetBulkDataFlags(BulkFlags);
+		Curves.SetBulkDataFlags(BulkFlags);
 	}
 
 	if (!!(Flags & DataFlags_HasData))
@@ -246,7 +246,7 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		{
 			Materials.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 		}
-		CurveOffsets.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
 }
 
@@ -264,14 +264,14 @@ void FHairStrandsBulkData::Reset()
 	Attributes0.RemoveBulkData();
 	Attributes1.RemoveBulkData();
 	Materials.RemoveBulkData();
-	CurveOffsets.RemoveBulkData();
+	Curves.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Positions 	 = FByteBulkData();
-	Attributes0  = FByteBulkData();
-	Attributes1  = FByteBulkData();
-	Materials 	 = FByteBulkData();
-	CurveOffsets = FByteBulkData();
+	Positions 	= FByteBulkData();
+	Attributes0 = FByteBulkData();
+	Attributes1 = FByteBulkData();
+	Materials 	= FByteBulkData();
+	Curves		= FByteBulkData();
 }
 
 void FHairStrandsDatas::Reset()

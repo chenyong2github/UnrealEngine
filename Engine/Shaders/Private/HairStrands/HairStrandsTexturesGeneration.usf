@@ -306,8 +306,8 @@ bool Trace(
 							OutTangent = Tangent;
 							OutDepth = Distance;
 
-							const FHairAttributes Attributes0 = DecodeHairAttribute(InVF_Attribute0Buffer[P0], InVF_Attribute1Buffer[P0], InVF_Length);
-							const FHairAttributes Attributes1 = DecodeHairAttribute(InVF_Attribute0Buffer[P1], InVF_Attribute1Buffer[P0], InVF_Length);
+							const FHairAttributes Attributes0 = UnpackHairAttribute(InVF_Attribute0Buffer[P0], InVF_Attribute1Buffer[P0], InVF_Length);
+							const FHairAttributes Attributes1 = UnpackHairAttribute(InVF_Attribute0Buffer[P1], InVF_Attribute1Buffer[P0], InVF_Length);
 
 							OutSeed		= Attributes0.Seed;
 							OutRootUV	= Attributes0.RootUV;

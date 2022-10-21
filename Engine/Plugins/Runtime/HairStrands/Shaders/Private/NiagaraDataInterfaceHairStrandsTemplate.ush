@@ -113,6 +113,26 @@ void BuildBoundingBox_{ParameterName}(in float3 NodePosition, out bool FunctionS
 }
 
 /* -----------------------------------------------------------------
+ * Utilities regarding strands curve
+ * -----------------------------------------------------------------
+ */
+struct FHairCurve
+{
+	uint PointIndex;
+	uint PointCount;
+};
+
+FHairCurve UnpackCurve_{ParameterName}(in uint InCurveIndex)
+{
+	const uint In = {ParameterName}_CurvesOffsetsBuffer[InCurveIndex];
+
+	FHairCurve Out = (FHairCurve)0;
+	Out.PointIndex = In & 0xFFFFFF;
+	Out.PointCount = In>>24;
+	return Out;
+}
+
+/* -----------------------------------------------------------------
  * Utilities regarding strands indexing
  * -----------------------------------------------------------------
  */
@@ -134,8 +154,9 @@ float ComputeStrandLength_{ParameterName}(in int StrandIndex)
 	float StrandLength = 0.0;
 	if( StrandIndex < {ParameterName}_NumStrands )
 	{
-		int PointOffset = {ParameterName}_CurvesOffsetsBuffer[StrandIndex];
-		const int EdgeCount = {ParameterName}_CurvesOffsetsBuffer[StrandIndex+1]-PointOffset-1;
+		FHairCurve Curve = UnpackCurve_{ParameterName}(StrandIndex);
+		int PointOffset = Curve.PointIndex;
+		const int EdgeCount = Curve.PointCount-1;
 
 		float3 PointNext = f16tof32({ParameterName}_RestPositionBuffer[PointOffset++].xyz);
 		float3 PointPrev = PointNext;
@@ -233,10 +254,12 @@ void ComputeNodePosition_{ParameterName}(out float3 OutNodePosition)
 	const bool RootNode = (LocalIndex == 0);
 	LocalIndex = max(0,LocalIndex - 1);
 
-	const int PointOffset = {ParameterName}_CurvesOffsetsBuffer[StrandIndex];
+	const FHairCurve Curve = UnpackCurve_{ParameterName}(StrandIndex);
+
+	const int PointOffset = Curve.PointIndex;
 
 	const float NodeCoord = (float)(LocalIndex) * CoordScale;
-	const float PointCount = {ParameterName}_CurvesOffsetsBuffer[StrandIndex+1]-PointOffset-1;
+	const float PointCount = Curve.PointCount-1;
 
 	const float NodePoint = NodeCoord * PointCount;
 	const int PointPrev = (LocalIndex==0) ? 0 : (LocalIndex==(ReducedSize-1)) ? PointCount-1 : floor(NodePoint);
@@ -551,9 +574,9 @@ void ResetPointPosition_{ParameterName}(out bool ReportStatus)
 
 	if(LocalIndex == 0)
 	{
-		const int PointBegin = {ParameterName}_CurvesOffsetsBuffer[StrandIndex];
-		const int PointEnd = {ParameterName}_CurvesOffsetsBuffer[StrandIndex+1]; 
-		const int PointCount = PointEnd - PointBegin;
+		const FHairCurve Curve = UnpackCurve_{ParameterName}(StrandIndex);
+		const int PointBegin = Curve.PointIndex;
+		const int PointCount = Curve.PointCount;
 
 		const uint4 PositionOffset = uint4( f32tof16({ParameterName}_RestPositionOffset - {ParameterName}_DeformedPositionOffset[0].xyz), 0 );
 
@@ -686,9 +709,9 @@ void UpdatePointPosition_{ParameterName}(in float3 NodePosition, in float3 RestP
 	UpdateTriangleDisplace_{ParameterName}(StrandIndex, NodePosition, RestPosition, 
 			RestTrianglePosition, RestTriangleOrientation, DeformedTrianglePosition, DeformedTriangleOrientation);
 	
-	const int PointBegin = {ParameterName}_CurvesOffsetsBuffer[StrandIndex];
-	const int PointEnd = {ParameterName}_CurvesOffsetsBuffer[StrandIndex + 1];
-	const int PointCount = PointEnd - PointBegin;
+	const FHairCurve Curve = UnpackCurve_{ParameterName}(StrandIndex);
+	const int PointBegin = Curve.PointIndex;
+	const int PointCount = Curve.PointCount;
 
 
 	for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
