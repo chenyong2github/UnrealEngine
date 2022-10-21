@@ -423,7 +423,7 @@ namespace Horde.Build.Issues.External
 				throw new Exception($"Unable to parse returned jira json: {responseBody}");
 			}
 
-			await _issueService.UpdateIssueAsync(issueId, externalIssueKey: jiraResponse.Key);
+			await _issueService.UpdateIssueAsync(issueId, externalIssueKey: jiraResponse.Key, initiatedById: user.Id);
 
 			// add the user as a watcher to the newly created issue
 			if (externalIssueUser != null)

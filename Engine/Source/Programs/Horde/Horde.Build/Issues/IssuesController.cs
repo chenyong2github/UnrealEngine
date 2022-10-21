@@ -316,33 +316,6 @@ namespace Horde.Build.Issues
 		}
 
 		/// <summary>
-		/// Hook to allow a Perforce trigger to mark an issue as fixed, via a tag in the changelist description.
-		/// </summary>
-		/// <param name="issueId">Id of the agent to get information about</param>
-		/// <param name="request">Request body</param>
-		/// <returns>Information about the requested agent</returns>
-		[HttpPost]
-		[Route("/api/v1/issues/{issueId}/p4fix")]
-		public async Task<ActionResult> MarkIssueAsFixedViaPerforceAsync(int issueId, [FromBody] MarkFixedViaPerforceRequest request)
-		{
-			if (!await _aclService.AuthorizeAsync(AclAction.IssueFixViaPerforce, User))
-			{
-				return Forbid();
-			}
-
-			IIssueDetails? issue = await _issueService.GetIssueDetailsAsync(issueId);
-			if (issue == null)
-			{
-				return NotFound();
-			}
-
-			IUser user = await _userCollection.FindOrAddUserByLoginAsync(request.UserName);
-			await _issueService.UpdateIssueAsync(issueId, fixChange: request.FixChange, resolvedById: user.Id);
-
-			return Ok();
-		}
-
-		/// <summary>
 		/// Create an issue response object
 		/// </summary>
 		/// <param name="details"></param>
@@ -625,12 +598,9 @@ namespace Horde.Build.Issues
 				removeSpans = request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
 			}
 
-			using (IDisposable scope = _issueCollection.GetLogger(issueId).BeginScope("User {UserId}", User.GetUserId() ?? UserId.Empty))
+			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById, newForceClosedById, initiatedById: User.GetUserId()))
 			{
-				if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById, newForceClosedById))
-				{
-					return NotFound();
-				}
+				return NotFound();
 			}
 			return Ok();
 		}

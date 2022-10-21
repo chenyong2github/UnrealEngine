@@ -2476,7 +2476,7 @@ namespace Horde.Build.Notifications.Sinks
 									return new { response_action = "errors", errors };
 								}
 
-								await _issueService.UpdateIssueAsync(issueId, fixChange: fixChange, resolvedById: userId);
+								await _issueService.UpdateIssueAsync(issueId, fixChange: fixChange, resolvedById: userId, initiatedById: userId);
 								_logger.LogInformation("Marked issue {IssueId} fixed by user {UserId} in {Change}", issueId, userId, fixChange);
 							}
 						}
@@ -2484,7 +2484,7 @@ namespace Horde.Build.Notifications.Sinks
 						{
 							int issueId = Int32.Parse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 							UserId userId = match.Groups[2].Value.ToObjectId<IUser>();
-							await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: userId);
+							await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: userId, initiatedById: userId);
 						}
 					}
 				}
@@ -2513,15 +2513,15 @@ namespace Horde.Build.Notifications.Sinks
 
 			if (String.Equals(verb, "ack", StringComparison.Ordinal))
 			{
-				await _issueService.UpdateIssueAsync(issueId, acknowledged: true);
+				await _issueService.UpdateIssueAsync(issueId, acknowledged: true, initiatedById: userId);
 			}
 			else if (String.Equals(verb, "accept", StringComparison.Ordinal))
 			{
-				await _issueService.UpdateIssueAsync(issueId, ownerId: userId, nominatedById: userId, acknowledged: true);
+				await _issueService.UpdateIssueAsync(issueId, ownerId: userId, nominatedById: userId, acknowledged: true, initiatedById: userId);
 			}
 			else if (String.Equals(verb, "decline", StringComparison.Ordinal))
 			{
-				await _issueService.UpdateIssueAsync(issueId, declinedById: userId);
+				await _issueService.UpdateIssueAsync(issueId, declinedById: userId, initiatedById: userId);
 			}
 
 			IIssue? newIssue = await _issueService.Collection.GetIssueAsync(issueId);
@@ -2583,7 +2583,7 @@ namespace Horde.Build.Notifications.Sinks
 					}
 				}
 
-				await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: user.Id, nominatedById: user.Id);
+				await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: user.Id, nominatedById: user.Id, initiatedById: user.Id);
 			}
 			else if (String.Equals(verb, "decline", StringComparison.Ordinal))
 			{
@@ -2608,7 +2608,7 @@ namespace Horde.Build.Notifications.Sinks
 					}
 				}
 
-				await _issueService.UpdateIssueAsync(issueId, declinedById: user.Id);
+				await _issueService.UpdateIssueAsync(issueId, declinedById: user.Id, initiatedById: user.Id);
 			}
 			else if (String.Equals(verb, "markfixed", StringComparison.Ordinal))
 			{
