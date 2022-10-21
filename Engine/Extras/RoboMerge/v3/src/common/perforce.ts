@@ -16,7 +16,7 @@ const RETRY_ERROR_MESSAGES = [
 ]
 
 const INTEGRATION_FAILURE_REGEXES: [RegExp, string][] = [
-	[/^(.*[\\\/])(.*) - can't \w+ exclusive file already opened$/, 'partial_integrate'],
+	[/^(.*[\\\/])(.*) - can't \w+ exclusive file already opened/, 'partial_integrate'],
 	[/Move\/delete\(s\) must be integrated along with matching move\/add\(s\)/, 'split_move'],
 ]
 
