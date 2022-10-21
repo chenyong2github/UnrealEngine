@@ -70,6 +70,8 @@ $ NumIncludedBytesPerUnityCPPOverride (Int32): Overrides Target.NumIncludedBytes
 
 $ bBuildLocallyWithSNDBS (Boolean): Module uses a #import so must be built locally when compiling with SN-DBS
 
+$ bEnableNonInlinedGenCppWarnings (Boolean): Enable warnings for when there are .gen.cpp files that could be inlined in a matching handwritten cpp file
+
 $ IsRedistributableOverride (Nullable&lt;Boolean&gt;): Redistribution override flag for this module.
 
 $ bLegalToDistributeObjectCode (Boolean): Whether the output from this module can be publicly distributed, even if it has code/ dependencies on modules that are not (i.e. CarefullyRedist, NotForLicensees, NoRedist). This should be used when you plan to release binaries but not source.

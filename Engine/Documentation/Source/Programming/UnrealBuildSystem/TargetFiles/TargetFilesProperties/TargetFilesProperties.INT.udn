@@ -244,6 +244,8 @@ $ bForceDeterministic (Boolean): Force set flags require for determinstic compil
         * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
         * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
 
+$ bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled (Boolean): Whether PCH headers should be force included for gen.cpp files when PCH is disabled.
+
 $ bPreprocessOnly (Boolean): Whether to just preprocess source files for this target, and skip compilation
 
 $ bPreprocessDepends (Boolean): Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.

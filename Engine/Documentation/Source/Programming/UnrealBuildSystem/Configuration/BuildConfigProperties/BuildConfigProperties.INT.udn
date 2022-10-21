@@ -106,6 +106,8 @@ $ bForceDeterministic : Force set flags require for determinstic compiling and l
         * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
         * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
 
+$ bForceIncludePCHHeadersForGenCppFilesWhenPCHIsDisabled : Whether PCH headers should be force included for gen.cpp files when PCH is disabled.
+
 $ bPreprocessDepends : Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
 
 $ StaticAnalyzer : Whether static code analysis should be enabled.
