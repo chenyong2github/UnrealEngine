@@ -4,7 +4,9 @@
 
 #include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/SparseArray.h"
+#include "UObject/NameTypes.h"
 
 namespace UE::Net
 {

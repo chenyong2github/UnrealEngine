@@ -17,6 +17,7 @@
 #include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
+#include "Net/Core/Trace/NetDebugName.h"
 #include "Containers/StringFwd.h"
 
 namespace UE::Net::IrisDebugHelper

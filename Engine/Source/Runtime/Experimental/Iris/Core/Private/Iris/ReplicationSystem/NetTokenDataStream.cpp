@@ -13,6 +13,7 @@
 #include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Iris/Core/IrisLog.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "HAL/IConsoleManager.h"
 
 #if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #	define UE_NET_ENABLE_NETTOKEN_LOG 0

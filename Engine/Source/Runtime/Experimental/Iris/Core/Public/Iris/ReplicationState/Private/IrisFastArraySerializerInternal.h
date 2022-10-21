@@ -2,10 +2,14 @@
 #pragma once
 
 #include "Iris/ReplicationState/IrisFastArraySerializer.h"
-#include "Net/Core/NetBitArray.h"
-#include "Iris/ReplicationState/ReplicationStateUtil.h"
 
 namespace UE::Net 
+{
+	class FNetBitArray;
+	class FNetBitArrayView;
+}
+
+namespace UE::Net	
 {
 
 namespace Private 
@@ -16,8 +20,8 @@ namespace Private
 */
 struct FIrisFastArraySerializerPrivateAccessor
 {
-	static FNetBitArrayView GetChangeMask(FIrisFastArraySerializer& Array) { return MakeNetBitArrayView(&Array.ChangeMaskStorage[0], FIrisFastArraySerializer::IrisFastArrayChangeMaskBits + 1U); }
-	static FNetBitArrayView GetConditionalChangeMask(FIrisFastArraySerializer& Array) { return MakeNetBitArrayView(&Array.ChangeMaskStorage[1], FIrisFastArraySerializer::IrisFastArrayChangeMaskBits + 1U); };
+	static FNetBitArrayView GetChangeMask(FIrisFastArraySerializer& Array);
+	static FNetBitArrayView GetConditionalChangeMask(FIrisFastArraySerializer& Array);
 	static FReplicationStateHeader& GetReplicationStateHeader(FIrisFastArraySerializer& Array) { return Array.ReplicationStateHeader; }
 
 	/*
@@ -36,57 +40,6 @@ struct FIrisFastArraySerializerPrivateAccessor
 	 */
 	static void MarkArrayItemDirty(FIrisFastArraySerializer& Array, int32 Index);
 };
-
-inline void FIrisFastArraySerializerPrivateAccessor::MarkAllArrayItemsDirty(FIrisFastArraySerializer& Array, uint32 StartingIndex)
-{
-	checkSlow(Array.ReplicationStateHeader.IsBound());
-
-	FNetBitArrayView MemberChangeMask = UE::Net::Private::FIrisFastArraySerializerPrivateAccessor::GetChangeMask(Array);
-	if (!MemberChangeMask.GetBit(0))
-	{
-		MarkNetObjectStateDirty(Array.ReplicationStateHeader);
-	}
-	if (StartingIndex == 0)
-	{
-		MemberChangeMask.SetAllBits();
-	}
-	else
-	{
-		MemberChangeMask.SetBit(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex);
-		MemberChangeMask.SetBits(FIrisFastArraySerializer::IrisFastArrayChangeMaskBitOffset + StartingIndex, FIrisFastArraySerializer::IrisFastArrayChangeMaskBits - StartingIndex);
-	}
-}
-
-inline void FIrisFastArraySerializerPrivateAccessor::MarkArrayDirty(FIrisFastArraySerializer& Array)
-{
-	checkSlow(Array.ReplicationStateHeader.IsBound());
-
-	FNetBitArrayView MemberChangeMask = UE::Net::Private::FIrisFastArraySerializerPrivateAccessor::GetChangeMask(Array);
-
-	// Dirty object unless already dirty, we only use the array bit for this purpose
-	if (!MemberChangeMask.GetBit(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex))
-	{
-		MarkNetObjectStateDirty(Array.ReplicationStateHeader);
-		MemberChangeMask.SetBit(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex);
-	}
-}
-
-inline void FIrisFastArraySerializerPrivateAccessor::MarkArrayItemDirty(FIrisFastArraySerializer& Array, int32 ItemIdx)
-{
-	checkSlow(Array.ReplicationStateHeader.IsBound());
-
-	// Mark changemask dirty for this item
-	// We are using a modulo scheme for dirtiness
-	FNetBitArrayView MemberChangeMask = UE::Net::Private::FIrisFastArraySerializerPrivateAccessor::GetChangeMask(Array);
-	MemberChangeMask.SetBit((ItemIdx % FIrisFastArraySerializer::IrisFastArrayChangeMaskBits) + FIrisFastArraySerializer::IrisFastArrayChangeMaskBitOffset);
-
-	// Dirty object unless already dirty, we only use the array bit for this purpose
-	if (!MemberChangeMask.GetBit(0))
-	{
-		MarkNetObjectStateDirty(Array.ReplicationStateHeader);
-		MemberChangeMask.SetBits(0, 1);
-	}
-}
 
 } // end namespace Private
 

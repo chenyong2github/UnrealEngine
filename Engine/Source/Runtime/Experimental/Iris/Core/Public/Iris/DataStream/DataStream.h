@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "UObject/NameTypes.h"
 #include "DataStream.generated.h"
 
 namespace UE::Net

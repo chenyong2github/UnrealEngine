@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/ReplicationState/ReplicationStateDescriptorBuilder.h"
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Iris/Core/BitTwiddling.h"
 #include "Iris/Core/IrisLog.h"
 #include "Iris/Core/IrisProfiler.h"

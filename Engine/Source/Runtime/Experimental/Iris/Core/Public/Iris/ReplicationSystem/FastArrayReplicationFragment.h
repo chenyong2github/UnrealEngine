@@ -7,7 +7,9 @@
 #include "Iris/ReplicationState/IrisFastArraySerializer.h"
 #include "Iris/ReplicationState/Private/IrisFastArraySerializerInternal.h"
 #include "Iris/ReplicationState/PropertyReplicationState.h"
+#include "Iris/ReplicationState/ReplicationStateUtil.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
+#include "Net/Core/NetBitArray.h"
 
 namespace UE::Net
 {

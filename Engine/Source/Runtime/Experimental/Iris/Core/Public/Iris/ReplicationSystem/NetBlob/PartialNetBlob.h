@@ -4,6 +4,7 @@
 #include "Iris/ReplicationSystem/NetBlob/NetBlob.h"
 #include "Iris/ReplicationSystem/NetBlob/RawDataNetBlob.h"
 #include "Iris/Core/NetObjectReference.h"
+#include "Net/Core/Trace/NetDebugName.h"
 
 namespace UE::Net
 {

@@ -23,6 +23,7 @@
 #if UE_WITH_IRIS
 #include "Engine/NetConnection.h"
 #include "Iris/IrisConfig.h"
+#include "Iris/ReplicationSystem/ReplicationFragment.h"
 #include "Iris/ReplicationSystem/ReplicationFragmentUtil.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Iris/ReplicationSystem/Conditionals/ReplicationCondition.h"

@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
 #include "Iris/IrisConfig.h"
-#include "Misc/StringBuilder.h"
+#include "Containers/StringFwd.h"
 #include "Templates/TypeHash.h"
 
 // Forward declarations
+//class FString;
+
 namespace UE::Net::Private
 {
 	class FNetHandleManager;
@@ -45,7 +45,7 @@ public:
 	bool operator<(const FNetHandle& Other)const { return Id < Other.Id; }
 	bool operator!=(const FNetHandle& Other)const { return Id != Other.Id; }
 
-	FString ToString() const;
+	IRISCORE_API FString ToString() const;
 
 	static bool FullCompare(FNetHandle A, FNetHandle B) { return A.Value == B.Value; }
 	
@@ -83,41 +83,7 @@ FORCEINLINE uint32 GetObjectIdForNetTrace(const FNetHandle& Handle)
 	return Handle.GetId();
 }
 
-inline FString FNetHandle::ToString() const
-{
-	FString Result;
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
-	const uint32 ReplicationSystemIdToDisplay = ReplicationSystemId - 1U;
-	Result = FString::Printf(TEXT("NetHandle (Id=%u):(RepSystemId=%u)"), GetId(), ReplicationSystemIdToDisplay);
-#else
-	Result = FString::Printf(TEXT("NetHandle (Id=%u)"), GetId());
-#endif
-	return Result;
 }
 
-}
-
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const UE::Net::FNetHandle& NetHandle) 
-{ 	
-#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
-	const uint32 ReplicationSystemIdToDisplay = NetHandle.GetReplicationSystemId() - 1U;
-	Builder.Appendf(TEXT("NetHandle (Id=%u):(RepSystemId=%u)"), NetHandle.GetId(), ReplicationSystemIdToDisplay);
-#else
-	Builder.Appendf(TEXT("NetHandle (Id=%u)"), NetHandle.GetId());
-#endif
-	return Builder;
-}
-
-inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const UE::Net::FNetHandle& NetHandle)
-{
-	#if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS
-		const uint32 ReplicationSystemIdToDisplay = NetHandle.GetReplicationSystemId() - 1U;
-		Builder.Appendf("NetHandle (Id=%u):(RepSystemId=%u)", NetHandle.GetId(), ReplicationSystemIdToDisplay);
-	#else
-		Builder.Appendf("NetHandle (Id=%u)", NetHandle.GetId());
-	#endif
-		return Builder;
-}
-
-
-
+FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const UE::Net::FNetHandle& NetHandle);
+FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const UE::Net::FNetHandle& NetHandle);

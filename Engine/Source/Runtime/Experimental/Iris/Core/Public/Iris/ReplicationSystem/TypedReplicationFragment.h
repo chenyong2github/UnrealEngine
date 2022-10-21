@@ -3,8 +3,6 @@
 #pragma once
 
 #include "Iris/ReplicationSystem/ReplicationFragment.h"
-#include "Iris/ReplicationState/ReplicationStateDescriptor.h"
-#include "Iris/ReplicationSystem/ReplicationOperations.h"
 
 namespace UE::Net
 {

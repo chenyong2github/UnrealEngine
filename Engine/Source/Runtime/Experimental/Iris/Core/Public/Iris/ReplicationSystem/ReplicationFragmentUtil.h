@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Iris/ReplicationSystem/ReplicationFragment.h"
+#include "CoreTypes.h"
+#include "Containers/ContainersFwd.h"
 
 class UObject;
 
 namespace UE::Net
 {
+
+class FFragmentRegistrationContext;
+class FReplicationFragment;
+enum class EFragmentRegistrationFlags : uint32;
 
 /**
 * FPropertyReplicationFragment - used to bind PropertyReplicationStates to their owner

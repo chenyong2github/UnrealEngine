@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Templates/RefCounting.h"
- 
+
+namespace UE::Net
+{
+	struct FReplicationStateDescriptor;
+}
+
 namespace UE::Net
 {
 

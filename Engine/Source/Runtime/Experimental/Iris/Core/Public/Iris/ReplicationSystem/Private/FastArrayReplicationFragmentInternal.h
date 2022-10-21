@@ -8,6 +8,7 @@
 #include "Iris/ReplicationState/Private/IrisFastArraySerializerInternal.h"
 #include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
+#include "Net/Core/Trace/NetDebugName.h"
 
 namespace UE {
 namespace Net {

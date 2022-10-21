@@ -10,6 +10,7 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/CoreNetTypes.h"
 
 namespace UE::Net::Private
 {

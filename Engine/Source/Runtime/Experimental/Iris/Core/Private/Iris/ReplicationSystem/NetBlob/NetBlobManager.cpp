@@ -11,6 +11,7 @@
 #include "Iris/ReplicationSystem/ReplicationWriter.h"
 #include "Iris/Core/NetObjectReference.h"
 #include "Iris/Core/IrisLog.h"
+#include "Net/Core/Trace/NetDebugName.h"
 
 namespace UE::Net::Private
 {

@@ -2,6 +2,7 @@
 
 #include "ReplicationSystemTestFixture.h"
 #include "Iris/ReplicationSystem/ChangeMaskUtil.h"
+#include "Iris/ReplicationSystem/ReplicationOperations.h"
 #include "Iris/ReplicationSystem/ReplicationOperationsInternal.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
 #include "Iris/Serialization/NetBitStreamReader.h"

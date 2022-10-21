@@ -6,6 +6,7 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/PlatformMemory.h"
 #include "Misc/AssertionMacros.h"
+#include "Templates/AlignmentTemplates.h"
 
 #if UE_NETBITSTREAMWRITER_VALIDATE
 #	define UE_NETBITSTREAMWRITER_CHECK(expr) check(expr)
