@@ -428,9 +428,25 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
+	const int32 OriginalNumOfTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+
 	if (AppendStaticMesh(StaticMesh, StartMaterialIndex, StaticMeshTransform, GeometryCollection, bReindexMaterials, bAddInternalMaterials, bSplitComponents))
 	{
 		AppendMaterials(Materials, GeometryCollectionObject, bAddInternalMaterials);
+
+		// add index to the auto instanced meshes array
+		const int32 NewNumOfTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+		if (NewNumOfTransforms > OriginalNumOfTransforms)
+		{
+			TManagedArray<int32>& AutoInstanceMeshIndices = GeometryCollection->AddAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
+			const int32 AutoInstanceMeshIndex = GeometryCollectionObject->FindOrAddAutoInstanceMesh(*StaticMesh, Materials);
+
+			for (int32 TransformIndex = OriginalNumOfTransforms; TransformIndex < NewNumOfTransforms; TransformIndex++)
+			{
+				AutoInstanceMeshIndices[TransformIndex] = AutoInstanceMeshIndex;
+			}
+		}
+
 		return true;
 	}
 
@@ -839,7 +855,12 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollection(const UGeomet
 
 	int32 MaterialStart = AppendMaterials(Materials, TargetGeometryCollectionObject, false);
 
-	AppendGeometryCollection(SourceGeometryCollectionPtr.Get(), MaterialStart, GeometryCollectionTransform, GeometryCollection, bReindexMaterials);
+	const int32 TargetTransformStart = GeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
+
+	if (AppendGeometryCollection(SourceGeometryCollectionPtr.Get(), MaterialStart, GeometryCollectionTransform, GeometryCollection, bReindexMaterials))
+	{
+		AppendGeometryCollectionInstancedMeshes(SourceGeometryCollection, TargetGeometryCollectionObject, TargetTransformStart);
+	}
 }
 
 
@@ -892,6 +913,34 @@ int32 FGeometryCollectionEngineConversion::AppendGeometryCollectionMaterials(con
 	return AppendMaterials(Materials, TargetGeometryCollectionObject, false);
 }
 
+void FGeometryCollectionEngineConversion::AppendGeometryCollectionInstancedMeshes(const UGeometryCollection* SourceGeometryCollectionObject, UGeometryCollection* TargetGeometryCollectionObject, int32 TargetTransformStartIndex)
+{
+	TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe> SourceGeometryCollectionPtr = SourceGeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> TargetGeometryCollectionPtr = TargetGeometryCollectionObject->GetGeometryCollection();
+
+	if (SourceGeometryCollectionPtr && TargetGeometryCollectionPtr)
+	{
+		if (const TManagedArray<int32>* SourceAutoInstanceMeshIndices = SourceGeometryCollectionPtr->FindAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup))
+		{
+			TManagedArray<int32>& TargetAutoInstanceMeshIndices = TargetGeometryCollectionPtr->AddAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
+
+			for (int32 SourceTransformIndex = 0; SourceTransformIndex < SourceAutoInstanceMeshIndices->Num(); SourceTransformIndex++)
+			{
+				const int32 TargettransformIndex = TargetTransformStartIndex + SourceTransformIndex;
+				TargetAutoInstanceMeshIndices[TargettransformIndex] = INDEX_NONE;
+				if (SourceAutoInstanceMeshIndices)
+				{
+					const int32 SourceAutoInstanceIndex = (*SourceAutoInstanceMeshIndices)[SourceTransformIndex];
+					if (SourceAutoInstanceIndex != INDEX_NONE)
+					{
+						const FGeometryCollectionAutoInstanceMesh& SourceAutoInstanceMesh = SourceGeometryCollectionObject->GetAutoInstanceMesh(SourceAutoInstanceIndex);
+						TargetAutoInstanceMeshIndices[TargettransformIndex] = TargetGeometryCollectionObject->FindOrAddAutoInstanceMesh(SourceAutoInstanceMesh);
+					}
+				}
+			}
+		}
+	}
+}
 
 void FGeometryCollectionEngineConversion::AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool bReindexMaterials)
 {
@@ -909,7 +958,12 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollection(const UGeomet
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
-	AppendGeometryCollection(SourceGeometryCollectionPtr.Get(), MaterialStartIndex, GeometryCollectionTransform, GeometryCollection, bReindexMaterials);
+	const int32 TargetTransformStart = GeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
+
+	if (AppendGeometryCollection(SourceGeometryCollectionPtr.Get(), MaterialStartIndex, GeometryCollectionTransform, GeometryCollection, bReindexMaterials))
+	{
+		AppendGeometryCollectionInstancedMeshes(SourceGeometryCollection, TargetGeometryCollectionObject, TargetTransformStart);
+	}
 }
 
 

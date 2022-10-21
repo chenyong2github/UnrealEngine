@@ -40,6 +40,7 @@ class UInstancedStaticMeshComponent;
 class FGeometryCollectionDecayDynamicFacade;
 struct FGeometryCollectionDecayContext;
 struct FDamageCollector;
+class AGeometryCollectionISMPoolActor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 
@@ -994,6 +995,12 @@ protected:
 	FGuid RunTimeDataCollectionGuid;
 #endif
 	
+	/** ISM pool to use to render the geometry collection - only works for unfractured geometry collections  */
+	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Rendering", meta = (DisplayName = "ISM Pool"))
+	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPool;
+
+	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
+
 	/** Populate the static geometry structures for the render thread. */
 	void InitConstantData(FGeometryCollectionConstantData* ConstantData) const;
 
@@ -1119,6 +1126,19 @@ private:
 
 	bool IsEmbeddedGeometryValid() const;
 	void ClearEmbeddedGeometry();
+
+	/** return true is an ISM pool is set and the feature is enabled */
+	bool CanUseISMPool() const;
+
+	/** If an ISM pool is set, register to it  */
+	void RegisterToISMPool();
+
+	/** If an ISM pool is set, unregister to it  */
+	void UnregisterFromISMPool();
+
+	/** update ISM transforms */
+	void RefreshISMPoolInstances();
+
 
 	void IncrementSleepTimer(float DeltaTime);
 	void IncrementBreakTimer(float DeltaTime);

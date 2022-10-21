@@ -362,6 +362,7 @@ void UGeometryCollection::Reset()
 		GeometryCollection->Empty();
 		Materials.Empty();
 		EmbeddedGeometryExemplar.Empty();
+		AutoInstanceMeshes.Empty();
 		InvalidateCollection();
 	}
 }
@@ -1143,6 +1144,73 @@ void UGeometryCollection::RemoveExemplars(const TArray<int32>& SortedRemovalIndi
 			EmbeddedGeometryExemplar.RemoveAt(Index);
 		}
 	}
+}
+
+/** find or add a auto instance mesh and return its index */
+const FGeometryCollectionAutoInstanceMesh& UGeometryCollection::GetAutoInstanceMesh(int32 AutoInstanceMeshIndex) const
+{
+	return AutoInstanceMeshes[AutoInstanceMeshIndex];
+}
+
+/**  find or add a auto instance mesh from another one and return its index */
+int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanecMesh)
+{
+	int32 ReturnedIndex = INDEX_NONE;
+
+	for (int32 MeshIndex = 0; MeshIndex < AutoInstanceMeshes.Num(); MeshIndex++)
+	{
+		const FGeometryCollectionAutoInstanceMesh& Mesh = AutoInstanceMeshes[MeshIndex];
+		if (Mesh.StaticMesh == AutoInstanecMesh.StaticMesh && Mesh.Materials == AutoInstanecMesh.Materials)
+		{
+			ReturnedIndex = MeshIndex;
+			break;
+		}
+	}
+	if (ReturnedIndex == INDEX_NONE)
+	{
+		ReturnedIndex = AutoInstanceMeshes.Add(AutoInstanecMesh);
+	}
+	return ReturnedIndex;
+}
+
+int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const UStaticMesh& StaticMesh, const TArray<UMaterialInterface*>& MeshMaterials)
+{
+	int32 ReturnedIndex = INDEX_NONE;
+
+	FSoftObjectPath StaticMeshSoftPath(&StaticMesh);
+
+	for (int32 MeshIndex = 0; MeshIndex < AutoInstanceMeshes.Num(); MeshIndex++)
+	{
+		const FGeometryCollectionAutoInstanceMesh& Mesh = AutoInstanceMeshes[MeshIndex];
+		if (Mesh.StaticMesh == StaticMeshSoftPath)
+		{
+			if (Mesh.Materials.Num() == MeshMaterials.Num())
+			{
+				bool MaterialAreAllTheSame = true;
+				for (int32 MaterialIndex = 0; MaterialIndex < MeshMaterials.Num(); MaterialIndex++)
+				{
+					if (Mesh.Materials[MaterialIndex] != MeshMaterials[MaterialIndex])
+					{
+						MaterialAreAllTheSame = false;
+						break;
+					}
+				}
+				if (MaterialAreAllTheSame)
+				{
+					ReturnedIndex = MeshIndex;
+					break;
+				}
+			}
+		}
+	}
+	if (ReturnedIndex == INDEX_NONE)
+	{
+		FGeometryCollectionAutoInstanceMesh NewMesh;
+		NewMesh.StaticMesh = StaticMeshSoftPath;
+		NewMesh.Materials = MeshMaterials;
+		ReturnedIndex = AutoInstanceMeshes.Emplace(NewMesh);
+	}
+	return ReturnedIndex;
 }
 
 FGuid UGeometryCollection::GetIdGuid() const

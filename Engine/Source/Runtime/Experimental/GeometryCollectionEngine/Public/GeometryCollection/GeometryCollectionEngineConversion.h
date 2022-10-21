@@ -127,6 +127,8 @@ public:
 
 	static int32 AppendGeometryCollectionMaterials(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, UGeometryCollection* TargetGeometryCollectionObject);
 
+	static void AppendGeometryCollectionInstancedMeshes(const UGeometryCollection* SourceGeometryCollectionObject, UGeometryCollection* TargetGeometryCollectionObject, int32 TargetTransformStartIndex);
+
 	/**
 	 * Appends a GeometryCollection to another GeometryCollection.
 	 * @param SourceGeometryCollection : Const GeometryCollection to read vertex/normals/index data from

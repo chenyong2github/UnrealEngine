@@ -41,6 +41,20 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 	/** Whether individual source mesh components should be split into separate pieces of geometry based on mesh connectivity. If checked, triangles that are not topologically connected will be assigned separate bones. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	bool bSplitComponents = false;
+
+	// TODO: add primtive custom data
+};
+
+USTRUCT(BlueprintType)
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionAutoInstanceMesh
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "AutoInstance", meta = (AllowedClasses = "/Script/Engine.StaticMesh"))
+	FSoftObjectPath StaticMesh;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "AutoInstance")
+	TArray<TObjectPtr<UMaterialInterface>> Materials;
 };
 
 USTRUCT(BlueprintType)
@@ -416,6 +430,15 @@ public:
 	/** Remove embedded geometry exemplars with indices matching the sorted removal list. */
 	void RemoveExemplars(const TArray<int32>& SortedRemovalIndices);
 
+	/** find or add a auto instance mesh and return its index */
+	const FGeometryCollectionAutoInstanceMesh& GetAutoInstanceMesh(int32 AutoInstanceMeshIndex) const;
+
+	/**  find or add a auto instance mesh from another one and return its index */
+	int32 FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanecMesh);
+
+	/** find or add a auto instance mesh from a mesh and alist of material and return its index */
+	int32 FindOrAddAutoInstanceMesh(const UStaticMesh& StaticMesh, const TArray<UMaterialInterface*>& Materials);
+
 	/** Produce a deep copy of GeometryCollection member, stripped of data unecessary for gameplay. */
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GenerateMinimalGeometryCollection() const;
 
@@ -494,6 +517,14 @@ public:
 	/** Whether to use full precision UVs when rendering this geometry. (Does not apply to Nanite rendering) */
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	bool bUseFullPrecisionUVs = false;
+
+	/** list of unique static mesh / materials pairs for auto instancing*/
+	UPROPERTY(EditAnywhere, Category = "Rendering")
+	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
+
+	/** static mesh to use as a proxy for rendering until the geometry collection is broken */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Rendering", meta = (AllowedClasses = "/Script/Engine.StaticMesh"))
+	FSoftObjectPath RootProxy;
 
 	/**
 	 * Strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.

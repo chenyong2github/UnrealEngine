@@ -21,6 +21,8 @@
 #include "GeometryCollection/GeometryCollectionSQAccelerator.h"
 #include "GeometryCollection/GeometryCollectionSceneProxy.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
+#include "GeometryCollection/GeometryCollectionISMPoolActor.h"
+#include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
 #include "Math/Sphere.h"
 #include "Modules/ModuleManager.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -86,6 +88,12 @@ static FAutoConsoleVariableRef CVarChaosBoxCalcBoundsISPCEnabled(TEXT("p.Chaos.B
 
 bool bChaos_GC_CacheComponentSpaceBounds = true;
 FAutoConsoleVariableRef CVarChaosGCCacheComponentSpaceBounds(TEXT("p.Chaos.GC.CacheComponentSpaceBounds"), bChaos_GC_CacheComponentSpaceBounds, TEXT("Cache component space bounds for performance"));
+
+bool bChaos_GC_UseISMPool = true;
+FAutoConsoleVariableRef CVarChaosGCUseISMPool(TEXT("p.Chaos.GC.UseISMPool"), bChaos_GC_UseISMPool, TEXT("When enabled, use the ISM pool if specified"));
+
+bool bChaos_GC_UseISMPoolForNonFracturedParts = true;
+FAutoConsoleVariableRef CVarChaosGCUseISMPoolForNonFracturedParts(TEXT("p.Chaos.GC.UseISMPoolForNonFracturedParts"), bChaos_GC_UseISMPoolForNonFracturedParts, TEXT("When enabled, non fractured part will use the ISM pool if specified"));
 
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
@@ -334,51 +342,11 @@ void UGeometryCollectionComponent::BeginPlay()
 	}
 #endif
 
-	//////////////////////////////////////////////////////////////////////////
-	// Commenting out these callbacks for now due to the threading model. The callbacks here
-	// expect the rest collection to be mutable which is not the case when running in multiple
-	// threads. Ideally we have some separate animation collection or track that we cache to
-	// without affecting the data we've dispatched to the physics thread
-	//////////////////////////////////////////////////////////////////////////
-	// ---------- SolverCallbacks->SetResetAnimationCacheFunction([&]()
-	// ---------- {
-	// ---------- 	FGeometryCollectionEdit Edit = EditRestCollection();
-	// ---------- 	Edit.GetRestCollection()->RecordedData.SetNum(0);
-	// ---------- });
-	// ---------- SolverCallbacks->SetUpdateTransformsFunction([&](const TArrayView<FTransform>&)
-	// ---------- {
-	// ---------- 	// todo : Move the update to the array passed here...
-	// ---------- });
-	// ---------- 
-	// ---------- SolverCallbacks->SetUpdateRestStateFunction([&](const int32 & CurrentFrame, const TManagedArray<int32> & RigidBodyID, const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, const FSolverCallbacks::FParticlesType& Particles)
-	// ---------- {
-	// ---------- 	FGeometryCollectionEdit Edit = EditRestCollection();
-	// ---------- 	UGeometryCollection * RestCollection = Edit.GetRestCollection();
-	// ---------- 	check(RestCollection);
-	// ---------- 
-	// ---------- 	if (CurrentFrame >= RestCollection->RecordedData.Num())
-	// ---------- 	{
-	// ---------- 		RestCollection->RecordedData.SetNum(CurrentFrame + 1);
-	// ---------- 		RestCollection->RecordedData[CurrentFrame].SetNum(RigidBodyID.Num());
-	// ---------- 		ParallelFor(RigidBodyID.Num(), [&](int32 i)
-	// ---------- 		{
-	// ---------- 			if (!Hierarchy[i].Children.Num())
-	// ---------- 			{
-	// ---------- 				RestCollection->RecordedData[CurrentFrame][i].SetTranslation(Particles.X(RigidBodyID[i]));
-	// ---------- 				RestCollection->RecordedData[CurrentFrame][i].SetRotation(Particles.R(RigidBodyID[i]));
-	// ---------- 			}
-	// ---------- 			else
-	// ---------- 			{
-	// ---------- 				RestCollection->RecordedData[CurrentFrame][i].SetTranslation(FVector::ZeroVector);
-	// ---------- 				RestCollection->RecordedData[CurrentFrame][i].SetRotation(FQuat::Identity);
-	// ---------- 			}
-	// ---------- 		});
-	// ---------- 	}
-	// ---------- });
-	//////////////////////////////////////////////////////////////////////////
-
 	// default current cache time
 	CurrentCacheTime = MAX_flt;	
+
+	// we only enable ISM if we are playing ( not in editing mode because of various side effect like selection )
+	RegisterToISMPool();
 }
 
 
@@ -388,6 +356,8 @@ void UGeometryCollectionComponent::EndPlay(const EEndPlayReason::Type ReasonEnd)
 	// Track our editor component if needed for syncing simulations back from PIE on shutdown
 	EditorActor = EditorUtilities::GetEditorWorldCounterpartActor(GetTypedOuter<AActor>());
 #endif
+
+	UnregisterFromISMPool();
 
 	Super::EndPlay(ReasonEnd);
 
@@ -2142,7 +2112,10 @@ void UGeometryCollectionComponent::UpdateAttachedChildrenTransform() const
 	{
 	 	for (const TObjectPtr<USceneComponent>& AttachedChild: this->GetAttachChildren())
 	 	{
-	 		AttachedChild->UpdateComponentToWorld();
+			if (AttachedChild)
+			{
+				AttachedChild->UpdateComponentToWorld();
+			}
 	 	}
 	}
 }
@@ -2192,6 +2165,10 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 			{
 				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
 				RefreshEmbeddedGeometry();
+				
+				// we may want to call this when the geometry collection updates ( notified by the proxy buffer updates ) 
+				// otherwise we are getting a frame delay 
+				RefreshISMPoolInstances();
 
 				if (SceneProxy && SceneProxy->IsNaniteMesh())
 				{
@@ -2612,7 +2589,7 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 	Super::SendRenderDynamicData_Concurrent();
 
 	// Only update the dynamic data if the dynamic collection is dirty
-	if (SceneProxy && ((DynamicCollection && DynamicCollection->IsDirty()) || CachePlayback)) 
+	if (SceneProxy && ((DynamicCollection && DynamicCollection->IsDirty()) || CachePlayback))
 	{
 		FGeometryCollectionDynamicData* DynamicData = InitDynamicData(false /* initialization */);
 
@@ -3822,6 +3799,167 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 		
 	}
 }
+
+bool UGeometryCollectionComponent::CanUseISMPool() const 
+{
+	return bChaos_GC_UseISMPool && ISMPool;
+}
+
+void UGeometryCollectionComponent::RegisterToISMPool()
+{
+	UnregisterFromISMPool();
+
+	if (CanUseISMPool())
+	{
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = ISMPool->GetISMPoolComp())
+		{
+			bool bCanRenderComponent = true;
+			if (RestCollection)
+			{
+				if (bChaos_GC_UseISMPoolForNonFracturedParts)
+				{
+					if (RestCollection->GetGeometryCollection())
+					{
+						// if we use ISM pool for the hierarchy we must hide the component for rendering 
+						bCanRenderComponent = false;
+
+						// fisrt count the instance per mesh 
+						TArray<int32> InstanceCounts;
+						InstanceCounts.AddZeroed(RestCollection->AutoInstanceMeshes.Num());
+						const TManagedArray<int32>* AutoInstanceMeshIndices = RestCollection->GetGeometryCollection()->FindAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
+						const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
+						if (AutoInstanceMeshIndices)
+						{
+							for (int32 TransformIndex = 0; TransformIndex < AutoInstanceMeshIndices->Num(); TransformIndex++)
+							{
+								const int32 AutoInstanceMeshIndex = (*AutoInstanceMeshIndices)[TransformIndex];
+								if (Children[TransformIndex].Num() == 0)
+								{
+									InstanceCounts[AutoInstanceMeshIndex]++;
+								}
+							}
+						}
+
+						// now register each mesh 
+						ISMPoolMeshGroupIndex = ISMPoolComp->CreateMeshGroup();
+						for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+						{
+							const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = RestCollection->AutoInstanceMeshes[MeshIndex];
+							if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(AutoInstanceMesh.StaticMesh.TryLoad()))
+							{
+								bool bMaterialOverride = false;
+								for (int32 MatIndex = 0; MatIndex < AutoInstanceMesh.Materials.Num(); MatIndex++)
+								{
+									const UMaterialInterface* OriginalMaterial = StaticMesh->GetMaterial(MatIndex);
+									if (OriginalMaterial != AutoInstanceMesh.Materials[MatIndex])
+									{
+										bMaterialOverride = true;
+										break;
+									}
+								}
+								FGeometryCollectionStaticMeshInstance StaticMeshInstance;
+								StaticMeshInstance.StaticMesh = StaticMesh;
+								if (bMaterialOverride)
+								{
+									StaticMeshInstance.MaterialsOverrides = AutoInstanceMesh.Materials;
+								}
+								ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, InstanceCounts[MeshIndex]);
+							}
+						}
+					}
+				}
+
+				// root proxy if available 
+				// TODO : if ISM pool is not available : uses a standard static mesh component
+				if (UObject* RootMeshProxyObject = RestCollection->RootProxy.ResolveObject())
+				{
+					if (UStaticMesh* RootMeshProxy = Cast<UStaticMesh>(RootMeshProxyObject))
+					{
+						// if we use a mesh proxy hide the component for rendering 
+						bCanRenderComponent = false;
+
+						// TODO : store this state in a variable
+
+						FGeometryCollectionStaticMeshInstance StaticMeshInstance;
+						StaticMeshInstance.StaticMesh = RootMeshProxy;
+						// todo : get the mesh index and use it to upadte the mesh transform 
+						ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1);
+					}
+				}
+			}
+
+			SetVisibility(bCanRenderComponent);
+
+			RefreshISMPoolInstances();
+		}
+	}
+}
+
+void UGeometryCollectionComponent::UnregisterFromISMPool()
+{
+	if (ISMPool)
+	{
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = ISMPool->GetISMPoolComp())
+		{
+			ISMPoolComp->DestroyMeshGroup(ISMPoolMeshGroupIndex);
+			ISMPoolMeshGroupIndex = INDEX_NONE;
+		}
+	}
+	SetVisibility(true);
+}
+
+void UGeometryCollectionComponent::RefreshISMPoolInstances()
+{
+	if (CanUseISMPool())
+	{
+		if (UGeometryCollectionISMPoolComponent* ISMPoolComp = ISMPool->GetISMPoolComp())
+		{
+			if (RestCollection)
+			{
+				// default to true for editor purposes?
+				//const bool bCollectionIsDirty = DynamicCollection ? DynamicCollection->IsDirty() : true;
+				if (bChaos_GC_UseISMPoolForNonFracturedParts /*&& bCollectionIsDirty*/)
+				{
+					if (RestCollection->GetGeometryCollection())
+					{
+						const TManagedArray<int32>* AutoInstanceMeshIndices = RestCollection->GetGeometryCollection()->FindAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
+						const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
+						if (AutoInstanceMeshIndices)
+						{
+							const int32 NumTransforms = RestCollection->NumElements(FGeometryCollection::TransformAttribute);
+							ensure(AutoInstanceMeshIndices->Num() == NumTransforms);
+
+							TArray<FTransform> InstanceTransforms;
+							CalculateGlobalMatrices();
+
+							const FTransform& ComponentTransform = GetComponentTransform();
+							for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+							{
+								InstanceTransforms.Reset(NumTransforms); // Allocate for worst case
+								for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
+								{
+									const int32 AutoInstanceMeshIndex = (*AutoInstanceMeshIndices)[TransformIndex];
+									if (AutoInstanceMeshIndex == MeshIndex && Children[TransformIndex].Num() == 0)
+									{
+										InstanceTransforms.Add(FTransform(GlobalMatrices[TransformIndex]) * ComponentTransform);
+									}
+								}
+								constexpr bool bWorlSpace = true;
+								constexpr bool bMarkRenderStateDirty = true;
+								constexpr bool bTeleport = true;
+								ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, MeshIndex, 0, InstanceTransforms, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+							}
+				
+						}
+					}
+				}
+
+				// todo : update the mesh proxy if set 
+			}
+		}
+	}
+}
+
 
 struct FGeometryCollectionDecayContext
 {
