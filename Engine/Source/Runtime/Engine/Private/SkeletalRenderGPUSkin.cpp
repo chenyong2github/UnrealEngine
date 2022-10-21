@@ -315,12 +315,7 @@ void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 	for( int32 LODIndex=0;LODIndex < LODs.Num();LODIndex++ )
 	{
 		FSkeletalMeshObjectLOD& SkelLOD = LODs[LODIndex];
-		
-		// Skip LODs that have their render data stripped
-		if (SkelLOD.SkelMeshRenderData && SkelLOD.SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex) && SkelLOD.SkelMeshRenderData->LODRenderData[LODIndex].GetNumVertices() > 0)
-		{
-			SkelLOD.ReleaseResources();
-		}
+		SkelLOD.ReleaseResources();
 	}
 	// also release morph resources
 	ReleaseMorphResources();
