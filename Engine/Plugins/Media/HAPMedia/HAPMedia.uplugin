@@ -5,7 +5,7 @@
 	"FriendlyName": "HAP Media",
 	"Description": "Implements video playback of the HAP Codec. HAP is a high performance, high resolution codec that runs on the GPU.",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"Category": "Media Players",
 	"EnabledByDefault": false,
 	"CanContainContent": false,

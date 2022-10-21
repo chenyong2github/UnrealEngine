@@ -6,7 +6,7 @@
 	"Description": "Python integration for the Unreal Editor.",
 	"Category": "Scripting",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "https://docs.unrealengine.com/en-US/Engine/Editor/ScriptingAndAutomation/Python/index.html",
 	"MarketplaceURL": "",
 	"SupportURL": "https://forums.unrealengine.com/",

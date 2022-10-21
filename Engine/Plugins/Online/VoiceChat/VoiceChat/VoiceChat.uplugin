@@ -7,7 +7,7 @@
 	"Description" : "Voice Chat Interface",
 	"Category" : "Online Platform",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"EnabledByDefault" : false,
 	
 	"Modules" :

@@ -6,7 +6,7 @@
 	"Description": "Common interface for blueprint access for location data from mobile devices",
 	"Category": "Mobile",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": true,
 	"CanContainContent": false,
 	"IsBetaVersion": false,

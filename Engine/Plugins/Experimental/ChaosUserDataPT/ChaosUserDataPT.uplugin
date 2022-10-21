@@ -6,7 +6,7 @@
 	"Description": "Custom per-particle userdata. Write-only on game thread, read-only on physics thread.",
 	"Category": "Editor",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",

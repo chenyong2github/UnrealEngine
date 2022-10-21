@@ -6,7 +6,7 @@
 	"Description": "An exporter for Khronos glTF 2.0.",
 	"Category": "Exporters",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "",
 	"SupportURL": "",
 	"EnabledByDefault": true,

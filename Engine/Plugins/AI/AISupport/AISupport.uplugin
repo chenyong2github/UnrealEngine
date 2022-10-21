@@ -6,7 +6,7 @@
 	"Description" : "A simple plugin that makes sure your project loads AIModule and NavigationSystem at runtime",
 	"Category" : "AI",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

@@ -6,7 +6,7 @@
 	"Description": "Plugin to handle camera calibration and lens distortion/undistortion displacement map generation using OpenCV.",
 	"Category": "Compositing",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",

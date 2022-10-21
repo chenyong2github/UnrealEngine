@@ -7,7 +7,7 @@
 	"Description": "Responsible for management of EOS P2P Socket connections.",
 	"Category": "Online Platform",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 
 	"Modules": [

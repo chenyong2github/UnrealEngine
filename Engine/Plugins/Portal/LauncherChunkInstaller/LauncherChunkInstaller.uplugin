@@ -6,7 +6,7 @@
 	"Description": "Chunk installer module that hooks into launcher",
 	"Category": "Other",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": true,
 	"Modules": [
 		{

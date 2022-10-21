@@ -6,7 +6,7 @@
 	"Description": "An importer for IFC 3D geometry (deprecated, use Datasmith CAD Importer instead). ",
 	"Category": "Importers",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
 	"IsBetaVersion": false,

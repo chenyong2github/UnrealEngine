@@ -6,7 +6,7 @@
 	"Description" : "Denoising engine for the Unreal Path Tracer based on Intel's OpenImageDenoise library.",
 	"Category" : "Denoising",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

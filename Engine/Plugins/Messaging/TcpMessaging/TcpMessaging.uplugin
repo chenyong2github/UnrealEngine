@@ -6,7 +6,7 @@
 	"Description" : "Adds a TCP connection based transport layer to the messaging sub-system for sending and receiving messages between networked computers and devices.",
 	"Category" : "Messaging",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

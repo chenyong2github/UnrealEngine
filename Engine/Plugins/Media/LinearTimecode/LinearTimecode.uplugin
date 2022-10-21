@@ -6,7 +6,7 @@
 	"Description" : "Component to read a linear timecode from a media source. Does not use synchronization mechanism.",
 	"Category" : "Media Players",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

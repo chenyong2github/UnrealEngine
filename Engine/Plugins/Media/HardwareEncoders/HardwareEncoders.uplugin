@@ -6,7 +6,7 @@
 	"Description": "Adds support of hardware encoders to AVEncoder",
 	"Category": "Encoders",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
 	"IsBetaVersion": true,

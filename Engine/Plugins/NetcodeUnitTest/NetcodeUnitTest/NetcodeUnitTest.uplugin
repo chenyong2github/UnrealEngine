@@ -6,7 +6,7 @@
 	"Description" : "A unit testing framework for testing the Unreal Engine netcode, primarily for bugs and exploits",
 	"Category" : "Networking",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

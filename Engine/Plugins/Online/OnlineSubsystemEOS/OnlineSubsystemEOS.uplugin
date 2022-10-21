@@ -7,7 +7,7 @@
 	"Description": "Online Subsystem for Epic Online Services",
 	"Category": "Online Platform",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://dev.epicgames.com/services",
+	"CreatedByURL": "https://dev.epicgames.com/services",
 	"EnabledByDefault": false,
 	"IsBetaVersion" : true,
 

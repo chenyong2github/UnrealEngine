@@ -6,7 +6,7 @@
 	"Description" : "Bulk importer for facial animation curves and audio. Imports facial animation curve tables (from FBX) into sound waves.",
 	"Category" : "Editor",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

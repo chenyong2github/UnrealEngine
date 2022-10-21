@@ -6,7 +6,7 @@
 	"Description" : "Exploit unit tests for Unreal Engine and some base Unreal Engine games, based on the Netcode Unit Test framework",
 	"Category" : "Networking",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

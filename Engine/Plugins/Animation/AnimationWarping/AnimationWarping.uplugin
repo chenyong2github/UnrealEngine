@@ -6,7 +6,7 @@
 	"Description": "Framework for animation and pose warping. This plugin includes Stride, Orientation, and Slope Warping alongside the Root Motion Delta animation attribute.",
 	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 	"CanContainContent": true,
 	"IsBetaVersion": false,

@@ -6,7 +6,7 @@
 	"Description": "Support for distilled Geometry animations",
 	"Category": "Importers",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "https://docs.unrealengine.com/en-US/WorkingWithContent/Importing/AlembicImporter/#importasgeometrycache",
 	"MarketplaceURL": "",
 	"SupportURL": "",

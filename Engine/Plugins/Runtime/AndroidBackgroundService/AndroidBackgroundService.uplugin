@@ -6,7 +6,7 @@
 	"Description" : "Allows you to use AndroidX WorkManager to perform background work on Android",
 	"Category" : "Android Background Service",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"EnabledByDefault" : false,
 	"SupportedTargetPlatforms": [
 		"Android"

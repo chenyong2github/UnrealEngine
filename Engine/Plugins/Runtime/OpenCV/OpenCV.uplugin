@@ -6,7 +6,7 @@
 	"Description" : "Plugin initializing OpenCV library to be used in engine.",
 	"Category" : "Computer Vision",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

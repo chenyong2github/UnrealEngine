@@ -6,7 +6,7 @@
 	"Description": "MQTT broker and client",
 	"Category": "IOT",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
 	"IsBetaVersion": true,

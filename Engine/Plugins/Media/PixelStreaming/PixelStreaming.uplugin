@@ -6,7 +6,7 @@
 	"Description": "Streaming of Unreal Engine audio and rendering to WebRTC-compatible media players such as a web browsers.",
 	"Category": "Graphics",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "https://docs.unrealengine.com/en-US/Platforms/PixelStreaming/index.html",
 	"MarketplaceURL": "",
 	"SupportURL": "",

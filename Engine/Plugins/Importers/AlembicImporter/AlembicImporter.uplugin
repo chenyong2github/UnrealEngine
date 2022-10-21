@@ -6,7 +6,7 @@
 	"Description": "Support importing Alembic files",
 	"Category": "Importers",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "https://docs.unrealengine.com/en-US/WorkingWithContent/Importing/AlembicImporter/",
 	"MarketplaceURL": "",
 	"SupportURL": "",

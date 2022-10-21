@@ -6,7 +6,7 @@
 	"Description": "Support for receiving a pixel streaming stream and displaying it in game.",
 	"Category": "Graphics",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "https://docs.unrealengine.com/en-US/Platforms/PixelStreaming/index.html",
 	"MarketplaceURL": "",
 	"SupportURL": "",

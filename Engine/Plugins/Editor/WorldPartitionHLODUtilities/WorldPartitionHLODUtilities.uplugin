@@ -6,7 +6,7 @@
 	"Description" : "Editor utility classes & HLOD layer asset types",
 	"Category" : "Editor",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"EnabledByDefault" : true,
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,

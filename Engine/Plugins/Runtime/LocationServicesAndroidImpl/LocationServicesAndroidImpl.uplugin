@@ -6,7 +6,7 @@
 	"Description": "Android implementation for blueprint access for location data from mobile devices",
 	"Category": "Mobile",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
 	"IsBetaVersion": false,

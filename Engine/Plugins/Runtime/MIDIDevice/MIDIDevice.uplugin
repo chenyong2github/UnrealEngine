@@ -6,7 +6,7 @@
 	"Description" : "Allows you to send and receive MIDI events through a simple API in either C++ or Blueprints",
 	"Category" : "Input Devices",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",

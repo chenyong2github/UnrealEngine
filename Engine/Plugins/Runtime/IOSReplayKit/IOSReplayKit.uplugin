@@ -6,7 +6,7 @@
 	"Description": "Support for local recording and broadcasting using ReplayKit",
 	"Category": "Mobile",
 	"CreatedBy": "Epic Games, Inc.",
-	"CreatedByURL": "http://epicgames.com",
+	"CreatedByURL": "https://epicgames.com",
 	"EnabledByDefault": false,
 	"Installed": false,
 	"Modules": [
