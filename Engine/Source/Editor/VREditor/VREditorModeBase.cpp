@@ -1,0 +1,245 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "VREditorModeBase.h"
+#include "CameraController.h"
+#include "Engine/Engine.h"
+#include "GameFramework/WorldSettings.h"
+#include "IHeadMountedDisplay.h"
+#include "ILevelEditor.h"
+#include "IXRTrackingSystem.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+#include "SLevelViewport.h"
+
+
+namespace VREd
+{
+	extern FAutoConsoleVariable DefaultVRNearClipPlane;
+	extern FAutoConsoleVariable DefaultWorldToMeters;
+}
+
+
+void UVREditorModeBase::Init()
+{
+	Super::Init();
+
+	// @todo vreditor urgent: Turn on global editor hacks for VR Editor mode
+	GEnableVREditorHacks = true;
+
+	if (!SavedEditorStatePtr)
+	{
+		SavedEditorStatePtr = CreateSavedState();
+	}
+}
+
+void UVREditorModeBase::Shutdown()
+{
+	// @todo vreditor urgent: Disable global editor hacks for VR Editor mode
+	GEnableVREditorHacks = false;
+
+	Super::Shutdown();
+}
+
+
+void UVREditorModeBase::Enter()
+{
+	const TSharedRef<ILevelEditor>& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor").GetFirstLevelEditor().ToSharedRef();
+	if (TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface())
+	{
+		TSharedRef<SLevelViewport> ExistingActiveLevelViewport =
+			StaticCastSharedRef<SLevelViewport>(ActiveLevelViewport->AsWidget());
+
+		ExistingActiveLevelViewport->RemoveAllPreviews(true);
+		StartViewport(ExistingActiveLevelViewport);
+	}
+	else
+	{
+		// TODO handle error
+	}
+
+	OnVRModeEntryCompleteEvent.Broadcast();
+}
+
+
+void UVREditorModeBase::Exit(bool bShouldDisableStereo)
+{
+	CloseViewport(bShouldDisableStereo);
+	VREditorLevelViewportWeakPtr.Reset();
+}
+
+
+const SLevelViewport& UVREditorModeBase::GetLevelViewportPossessedForVR() const
+{
+	check(VREditorLevelViewportWeakPtr.IsValid());
+	return *VREditorLevelViewportWeakPtr.Pin();
+}
+
+
+SLevelViewport& UVREditorModeBase::GetLevelViewportPossessedForVR()
+{
+	check(VREditorLevelViewportWeakPtr.IsValid());
+	return *VREditorLevelViewportWeakPtr.Pin();
+}
+
+
+void UVREditorModeBase::StartViewport(TSharedPtr<SLevelViewport> Viewport)
+{
+	FBaseSavedEditorState& SavedEditorState = SavedEditorStateChecked();
+
+	if (bActuallyUsingVR && !Viewport->IsImmersive())
+	{
+		// Switch to immersive mode
+		const bool bWantImmersive = true;
+		const bool bAllowAnimation = false;
+		Viewport->MakeImmersive(bWantImmersive, bAllowAnimation);
+	}
+
+	this->VREditorLevelViewportWeakPtr = Viewport;
+
+	{
+		FLevelEditorViewportClient& VRViewportClient = Viewport->GetLevelViewportClient();
+		FEditorViewportClient& VREditorViewportClient = VRViewportClient;
+
+		// Make sure we are in perspective mode
+		// @todo vreditor: We should never allow ortho switching while in VR
+		SavedEditorState.ViewportType = VREditorViewportClient.GetViewportType();
+		VREditorViewportClient.SetViewportType(LVT_Perspective);
+
+		// Set the initial camera location
+		// @todo vreditor: This should instead be calculated using the currently active perspective camera's
+		// location and orientation, compensating for the current HMD offset from the tracking space origin.
+		// Perhaps, we also want to teleport the original viewport's camera back when we exit this mode, too!
+		// @todo vreditor: Should save and restore camera position and any other settings we change (viewport type, pitch locking, etc.)
+		SavedEditorState.ViewLocation = VRViewportClient.GetViewLocation();
+		SavedEditorState.ViewRotation = VRViewportClient.GetViewRotation();
+
+		// Don't allow the tracking space to pitch up or down.  People hate that in VR.
+		// @todo vreditor: This doesn't seem to prevent people from pitching the camera with RMB drag
+		SavedEditorState.bLockedPitch = VRViewportClient.GetCameraController()->GetConfig().bLockedPitch;
+		if (bActuallyUsingVR)
+		{
+			VRViewportClient.GetCameraController()->AccessConfig().bLockedPitch = true;
+		}
+
+		// Set "game mode" to be enabled, to get better performance.  Also hit proxies won't work in VR, anyway
+		VREditorViewportClient.SetVREditView(true);
+
+		SavedEditorState.bRealTime = VREditorViewportClient.IsRealtime();
+		VREditorViewportClient.SetRealtime(true);
+
+		SavedEditorState.ShowFlags = VREditorViewportClient.EngineShowFlags;
+
+		// Make sure the mode widgets don't come back when users click on things
+		VRViewportClient.bAlwaysShowModeWidgetAfterSelectionChanges = false;
+
+		// Force tiny near clip plane distance, because user can scale themselves to be very small.
+		SavedEditorState.NearClipPlane = GNearClippingPlane;
+		GNearClippingPlane = VREd::DefaultVRNearClipPlane->GetFloat();
+
+		SavedEditorState.bOnScreenMessages = GAreScreenMessagesEnabled;
+		GAreScreenMessagesEnabled = false;
+
+		// Save the world to meters scale
+		{
+			const float DefaultWorldToMeters = VREd::DefaultWorldToMeters->GetFloat();
+			const float SavedWorldToMeters = DefaultWorldToMeters != 0.0f ? DefaultWorldToMeters : VRViewportClient.GetWorld()->GetWorldSettings()->WorldToMeters;
+			SavedEditorState.WorldToMetersScale = SavedWorldToMeters;
+		}
+
+		if (bActuallyUsingVR)
+		{
+			SavedEditorState.TrackingOrigin = GEngine->XRSystem->GetTrackingOrigin();
+			GEngine->XRSystem->SetTrackingOrigin(EHMDTrackingOrigin::Floor);
+		}
+
+		// Make the new viewport the active level editing viewport right away
+		GCurrentLevelEditingViewportClient = &VRViewportClient;
+
+		// Change viewport settings to more VR-friendly sequencer settings
+		SavedEditorState.bCinematicControlViewport = VRViewportClient.AllowsCinematicControl();
+		VRViewportClient.SetAllowCinematicControl(false);
+		// Need to force fading and color scaling off in case we enter VR editing mode with a sequence open
+		VRViewportClient.bEnableFading = false;
+		VRViewportClient.bEnableColorScaling = false;
+		VRViewportClient.Invalidate(true);
+	}
+
+	if (bActuallyUsingVR && GEngine->XRSystem.IsValid())
+	{
+		Viewport->EnableStereoRendering( bActuallyUsingVR );
+		Viewport->SetRenderDirectlyToWindow( bActuallyUsingVR );
+
+		GEngine->StereoRenderingDevice->EnableStereo(true);
+	}
+}
+
+void UVREditorModeBase::CloseViewport( const bool bShouldDisableStereo )
+{
+	FBaseSavedEditorState& SavedEditorState = SavedEditorStateChecked();
+
+	if (bActuallyUsingVR && GEngine->XRSystem.IsValid() && bShouldDisableStereo)
+	{
+		GEngine->StereoRenderingDevice->EnableStereo(false);
+	}
+
+	TSharedPtr<SLevelViewport> VREditorLevelViewport(VREditorLevelViewportWeakPtr.Pin());
+	if (VREditorLevelViewport.IsValid())
+	{
+		if( bShouldDisableStereo && bActuallyUsingVR )
+		{
+			VREditorLevelViewport->EnableStereoRendering(false);
+			VREditorLevelViewport->SetRenderDirectlyToWindow(false);
+		}
+
+		{
+			FLevelEditorViewportClient& VRViewportClient = VREditorLevelViewport->GetLevelViewportClient();
+			FEditorViewportClient& VREditorViewportClient = VRViewportClient;
+
+			// Restore settings that we changed on the viewport
+			VREditorViewportClient.SetViewportType(SavedEditorState.ViewportType);
+			VRViewportClient.GetCameraController()->AccessConfig().bLockedPitch = SavedEditorState.bLockedPitch;
+			VRViewportClient.bAlwaysShowModeWidgetAfterSelectionChanges = SavedEditorState.bAlwaysShowModeWidgetAfterSelectionChanges;
+			VRViewportClient.EngineShowFlags = SavedEditorState.ShowFlags;
+			VRViewportClient.SetVREditView(false);
+			VRViewportClient.SetAllowCinematicControl(SavedEditorState.bCinematicControlViewport);
+			VRViewportClient.bEnableFading = true;
+			VRViewportClient.bEnableColorScaling = true;
+			VRViewportClient.Invalidate(true);
+
+			if (bActuallyUsingVR)
+			{
+#if 0
+				VRViewportClient.SetViewLocation(GetHeadTransform().GetLocation());
+
+				FRotator HeadRotationNoRoll = GetHeadTransform().GetRotation().Rotator();
+				HeadRotationNoRoll.Roll = 0.0f;
+				VRViewportClient.SetViewRotation(HeadRotationNoRoll); // Use SavedEditorState.ViewRotation to go back to start rot
+#endif
+			}
+
+			VRViewportClient.SetRealtime(SavedEditorState.bRealTime);
+
+			GNearClippingPlane = SavedEditorState.NearClipPlane;
+			GAreScreenMessagesEnabled = SavedEditorState.bOnScreenMessages;
+
+			if (bActuallyUsingVR)
+			{
+				GEngine->XRSystem->SetTrackingOrigin(SavedEditorState.TrackingOrigin);
+			}
+
+			// Restore WorldToMeters
+			const float DefaultWorldToMeters = VREd::DefaultWorldToMeters->GetFloat();
+			GetWorld()->GetWorldSettings()->WorldToMeters = DefaultWorldToMeters != 0.0f ? DefaultWorldToMeters : SavedEditorState.WorldToMetersScale;
+			ENGINE_API extern float GNewWorldToMetersScale;
+			GNewWorldToMetersScale = 0.0f;
+		}
+
+		if (bActuallyUsingVR && bShouldDisableStereo)
+		{
+			// Leave immersive mode
+			const bool bWantImmersive = false;
+			const bool bAllowAnimation = false;
+			VREditorLevelViewport->MakeImmersive(bWantImmersive, bAllowAnimation);
+		}
+	}
+}

@@ -3,15 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Teleporter/VREditorTeleporter.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "VISettings.h"
-#include "VREditorInteractor.h"
 #include "VRModeSettings.generated.h"
 
-class UVREditorInteractor;
+
 class AVREditorTeleporter;
+class UVREditorInteractor;
+class UVREditorModeBase;
+
 
 UENUM()
 enum class EInteractorHand : uint8
@@ -90,7 +91,7 @@ public:
 
 	/** The mode extension to use when UnrealEd is in VR mode. Use VREditorMode to get default editor behavior or select a custom mode. */
 	UPROPERTY(EditAnywhere, config, NoClear, Category = "General")
-	TSoftClassPtr<UVREditorMode> ModeClass;
+	TSoftClassPtr<UVREditorModeBase> ModeClass;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

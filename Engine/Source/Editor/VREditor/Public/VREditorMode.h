@@ -14,6 +14,7 @@
 #include "Widgets/SWindow.h"
 #include "HeadMountedDisplayTypes.h"
 #include "UI/VRRadialMenuHandler.h"
+#include "VREditorModeBase.h"
 #include "VREditorMode.generated.h"
 
 class AActor;
@@ -49,8 +50,8 @@ namespace VRActionTypes
 /**
  * VR Editor Mode. Extends editor viewports with functionality for VR controls and object manipulation
  */
-UCLASS( Abstract, BlueprintType, Blueprintable, Transient )
-class VREDITOR_API UVREditorMode : public UEditorWorldExtension
+UCLASS( Abstract, Transient )
+class VREDITOR_API UVREditorMode : public UVREditorModeBase
 {
 	GENERATED_BODY()
 
@@ -81,13 +82,14 @@ public:
 		return false;
 	}
 
+	UE_DEPRECATED(5.1, "This method is no longer used; the associated warning is no longer displayed.")
 	virtual bool ShouldDisplayExperimentalWarningOnEntry() const { return true; }
 
 	/** When the user actually enters the VR Editor mode */
-	virtual void Enter();
+	virtual void Enter() override;
 
 	/** When the user leaves the VR Editor mode */
-	void Exit( const bool bShouldDisableStereo );
+	virtual void Exit( bool bShouldDisableStereo ) override;
 
 	/** Tick before the ViewportWorldInteraction is ticked */
 	void PreTick( const float DeltaTime );
@@ -95,20 +97,8 @@ public:
 	/** Tick after the ViewportWorldInteraction is ticked */
 	void PostTick( const float DeltaTime );
 
-	/** Static: Sets whether we should actually use an HMD.  Call this before activating VR mode */
-	void SetActuallyUsingVR( const bool bShouldActuallyUseVR )
-	{
-		bActuallyUsingVR = bShouldActuallyUseVR;
-	}
-
-	/** Returns true if we're actually using VR, or false if we're faking it */
-	bool IsActuallyUsingVR() const
-	{
-		return bActuallyUsingVR;
-	}
-
 	/** Returns true if the user wants to exit this mode */
-	bool WantsToExitMode() const
+	virtual bool WantsToExitMode() const override
 	{
 		return bWantsToExitMode;
 	}
@@ -199,14 +189,6 @@ public:
 	/** Lets other modules know if the radial menu is visible on a given interactor so input should be handled differently */
 	bool IsShowingRadialMenu( const class UVREditorInteractor* Interactor ) const;
 
-	/** Gets the viewport that VR Mode is activated in.  Even though editor modes are available in all
-		level viewports simultaneously, only one viewport is "possessed" by the HMD.  Generally try to avoid using
-		this function and instead use the ViewportClient that is passed around through various FEdMode overrides */
-	const class SLevelViewport& GetLevelViewportPossessedForVR() const;
-
-	/** Mutable version of above. */
-	class SLevelViewport& GetLevelViewportPossessedForVR();
-
 	/** Display the scene more closely to how it would appear at runtime (as opposed to edit time). */
 	UFUNCTION(BlueprintCallable, Category="VREditorMode")
 	void SetGameView(bool bGameView);
@@ -241,47 +223,15 @@ public:
 	void SnapSelectedActorsToGround();
 
 	/** Saved information about the editor and viewport we possessed, so we can restore it after exiting VR mode */
-	struct FSavedEditorState
+	struct FSavedEditorState : public FBaseSavedEditorState
 	{
-		ELevelViewportType ViewportType;
-		FVector ViewLocation;
-		FRotator ViewRotation;
-		FEngineShowFlags ShowFlags;
-		bool bLockedPitch;
-		bool bGameView;
-		bool bAlwaysShowModeWidgetAfterSelectionChanges;
-		float NearClipPlane;
-		bool bRealTime;
-		float DragTriggerDistance;
-		bool bOnScreenMessages;
-		float TransformGizmoScale;
-		EHMDTrackingOrigin::Type TrackingOrigin;
-		float WorldToMetersScale;
-		bool bCinematicControlViewport;
-		bool bKeyAllEnabled;
+		float DragTriggerDistance = 0.0f;
+		float TransformGizmoScale = 1.0f;
+		bool bKeyAllEnabled = false;
 		EAutoChangeMode AutoChangeMode;
-
-		FSavedEditorState()
-			: ViewportType(LVT_Perspective),
-			  ViewLocation(FVector::ZeroVector),
-			  ViewRotation(FRotator::ZeroRotator),
-			  ShowFlags(ESFIM_Editor),
-			  bLockedPitch(false),
-			  bGameView(false),
-			  bAlwaysShowModeWidgetAfterSelectionChanges(false),
-			  NearClipPlane(0.0f),
-			  bRealTime(false),
-			  DragTriggerDistance(0.0f),
-			  bOnScreenMessages(false),
-			  TransformGizmoScale( 1.0f ),
-			  TrackingOrigin(EHMDTrackingOrigin::Eye),
-			  WorldToMetersScale(100.0f),
-			  bCinematicControlViewport(false),
-			  bKeyAllEnabled(false),
-			  AutoChangeMode()
-		{
-		}
 	};
+
+	virtual TSharedRef<FBaseSavedEditorState> CreateSavedState() override { return MakeShared<FSavedEditorState>(); }
 
 	/** Gets the saved editor state from entering the mode */
 	const FSavedEditorState& GetSavedEditorState() const;
@@ -333,10 +283,6 @@ public:
 	DECLARE_EVENT_OneParam(UVREditorMode, FOnToggleVRModeDebug, bool);
 	FOnToggleVRModeDebug& OnToggleDebugMode() { return OnToggleDebugModeEvent; };
 
-	/** Delegate to be called when async VR mode entry has been completed. */
-	DECLARE_EVENT(UVREditorMode, FOnVRModeEntryComplete);
-	FOnVRModeEntryComplete& OnVRModeEntryComplete() { return OnVRModeEntryCompleteEvent; }
-
 	const TArray<UVREditorInteractor*> GetVRInteractors() const
 	{
 		return Interactors;
@@ -349,13 +295,6 @@ private:
 
 	/** Called when someone closes a standalone VR Editor window */
 	void OnVREditorWindowClosed( const TSharedRef<SWindow>& ClosedWindow );
-
-
-	/** Start using the viewport passed */
-	void StartViewport( TSharedPtr<SLevelViewport> Viewport );
-
-	/** Close the current viewport */
-	void CloseViewport( const bool bShouldDisableStereo );
 
 	/** Restore the world to meters to the saved one when entering VR Editor */
 	void RestoreWorldToMeters();
@@ -372,15 +311,6 @@ protected:
 
 	/** The VR editor window, if it's open right now */
 	TWeakPtr< class SWindow > VREditorWindowWeakPtr;
-
-	/** The VR level viewport, if we're in VR mode */
-	TWeakPtr< class SLevelViewport > VREditorLevelViewportWeakPtr;
-
-	/** Saved information about the editor and viewport we possessed, so we can restore it after exiting VR mode */
-	FSavedEditorState SavedEditorState;
-
-	/** True if we're in using an actual HMD in this mode, or false if we're "faking" VR mode for testing */
-	bool bActuallyUsingVR;
 
 	/** True if we currently want to exit VR mode.  This is used to defer exiting until it is safe to do that */
 	bool bWantsToExitMode;
@@ -542,6 +472,5 @@ private:
 	/** Overridden HMD device type. If NAME_None, HMD device type is derived from the XR system name. */
 	FName HMDDeviceTypeOverride = NAME_None;
 
-	/** Event that gets broadcast when async VR mode entry is completed. */
-	FOnVRModeEntryComplete OnVRModeEntryCompleteEvent;
+	bool bAddedViewportWorldInteractionExtension = false;
 };

@@ -10,7 +10,7 @@
 #include "IVREditorModule.h"
 
 
-class UVREditorMode;
+class UVREditorModeBase;
 enum class EMapChangeType : uint8;
 
 
@@ -47,7 +47,7 @@ public:
 	bool IsVREditorButtonActive() const;
 
 	/** Gets the current VR Editor mode that was enabled */
-	UVREditorMode* GetCurrentVREditorMode();
+	UVREditorModeBase* GetCurrentVREditorMode();
 
 	// FGCObject
 	virtual void AddReferencedObjects( FReferenceCollector& Collector );
@@ -64,8 +64,8 @@ public:
 	FOnVREditingModeExit& OnVREditingModeExit() { return OnVREditingModeExitHandle; }
 
 	/**
-	 * Loads each cached UVREditorMode-derived class path, checking and appending only
-	 * those which are suitable for use (not abstract, etc.) to the provided array. */
+	 * Loads each cached UVREditorModeBase-derived class path, checking and appending
+	 * only those which are suitable for use (not abstract, etc.) to the provided array. */
 	void GetConcreteModeClasses(TArray<UClass*>& OutModeClasses) const;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FModeClassAdded, const FTopLevelAssetPath&);
@@ -77,13 +77,13 @@ public:
 private:
 	UClass* TryGetConcreteModeClass(const FTopLevelAssetPath& ClassPath) const;
 
-	/** Queries the asset registry for asset paths of all classes derived from UVREditorMode. */
+	/** Queries the asset registry for asset paths of all classes derived from UVREditorModeBase. */
 	void GetModeClassPaths(TSet<FTopLevelAssetPath>& OutModeClassPaths) const;
 
 	/** Stores the results of GetModeClassPaths() into CachedModeClassPaths. */
 	void UpdateCachedModeClassPaths();
 
-	/** Cached UVREditorMode-derived assets, updated in response to asset registry events. */
+	/** Cached UVREditorModeBase-derived assets, updated in response to asset registry events. */
 	TSet<FTopLevelAssetPath> CachedModeClassPaths;
 
 	void HandleAssetFilesLoaded();
@@ -111,7 +111,7 @@ private:
 	
 	/** The current mode, nullptr if none */
 	UPROPERTY()
-	UVREditorMode* CurrentVREditorMode;
+	UVREditorModeBase* CurrentVREditorMode;
 
 	/** If the VR Editor mode needs to be enabled next tick */
 	bool bEnableVRRequest;

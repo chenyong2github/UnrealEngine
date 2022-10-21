@@ -81,6 +81,8 @@ public:
 	 *
 	 * @return True if the VREditor is currently running 
 	 */
+	// This is slated for deprecation in the next changelist (with accompanying cleanups in external code).
+	//UE_DEPRECATED(5.1, "Test whether GetVRModeBase returns nullptr instead. This only returns true in the case of UVREditorMode.")
 	virtual bool IsVREditorModeActive() = 0;
 
 	/** 
@@ -88,7 +90,12 @@ public:
 	*
 	* @return The current VREditor running
 	*/
+	// This is slated for deprecation in the next changelist (with accompanying cleanups in external code).
+	//UE_DEPRECATED(5.1, "Use GetVRModeBase instead.")
 	virtual class UVREditorMode* GetVRMode() = 0;
+
+	/** @return The active UVREditorModeBase */
+	virtual class UVREditorModeBase* GetVRModeBase() = 0;
 
 	/** 
 	* Update the actor preview (for example, the view from a camera attached to a pawn) in VR mode

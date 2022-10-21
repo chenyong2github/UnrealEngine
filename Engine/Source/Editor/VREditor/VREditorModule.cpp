@@ -51,6 +51,7 @@ public:
 	virtual bool IsVREditorButtonActive() const override;
 	virtual void EnableVREditor( const bool bEnable, const bool bForceWithoutHMD ) override;
 	virtual bool IsVREditorModeActive() override;
+	virtual UVREditorModeBase* GetVRModeBase() override;
 	virtual UVREditorMode* GetVRMode() override;
 	virtual void UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor, bool bIsPanelDetached = false) override;
 	virtual void UpdateExternalUMGUI(const FVREditorFloatingUICreationContext& CreationContext) override;
@@ -156,12 +157,19 @@ void FVREditorModule::EnableVREditor( const bool bEnable, const bool bForceWitho
 
 bool FVREditorModule::IsVREditorModeActive()
 {
-	return ModeManager.IsVREditorActive();
+	// Deprecated method only returns true for legacy UVREditorMode
+	return GetVRMode() && ModeManager.IsVREditorActive();
+}
+
+UVREditorModeBase* FVREditorModule::GetVRModeBase()
+{
+	return ModeManager.GetCurrentVREditorMode();
 }
 
 UVREditorMode* FVREditorModule::GetVRMode()
 {
-	return ModeManager.GetCurrentVREditorMode();
+	UVREditorModeBase* ModeBase = GetVRModeBase();
+	return Cast<UVREditorMode>(ModeBase);
 }
 
 void FVREditorModule::UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor* Actor, bool bIsPanelDetached)
@@ -259,7 +267,7 @@ void FVREditorModule::ExtendToolbarMenu()
 		{
 			FToolMenuSection& Section = InMenu->AddSection("Modes", LOCTEXT("ToggleVrOptions_ModesSection_Label", "Modes"));
 
-			TSoftClassPtr<UVREditorMode> CurrentModeClassSoft = GetDefault<UVRModeSettings>()->ModeClass;
+			TSoftClassPtr<UVREditorModeBase> CurrentModeClassSoft = GetDefault<UVRModeSettings>()->ModeClass;
 			UClass* CurrentModeClass = CurrentModeClassSoft.LoadSynchronous();
 
 			TArray<UClass*> ModeClasses;
