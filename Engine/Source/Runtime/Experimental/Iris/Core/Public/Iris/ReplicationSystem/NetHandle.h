@@ -8,7 +8,7 @@
 #include "Templates/TypeHash.h"
 
 // Forward declarations
-//class FString;
+class FString;
 
 namespace UE::Net::Private
 {
