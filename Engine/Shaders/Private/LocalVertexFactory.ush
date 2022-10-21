@@ -334,8 +334,8 @@ struct FVertexFactoryIntermediates
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING
 	float4 InstanceLightmapAndShadowMapUVBias;
-	// x = per-instance fade out amount, y = hide/show flag, z dither fade cutoff
-	float3 PerInstanceParams;
+	// x = per-instance fade out amount, y = hide/show flag, z dither fade cutoff, w - CustomData index
+	float4 PerInstanceParams;
 #endif
 
 	float3 PreSkinPosition;
@@ -940,6 +940,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.PerInstanceParams.y *= abs(Intermediates.PerInstanceParams.z) < .999;
 	#else
 		Intermediates.PerInstanceParams.z = 0;
+	#endif
+	
+	#if USES_PER_INSTANCE_CUSTOM_DATA
+		// index into instance CustomData
+		Intermediates.PerInstanceParams.w = asfloat(GetInstanceId(Input.InstanceId) + InstanceOffset);
 	#endif
 #endif	// USE_INSTANCING
 

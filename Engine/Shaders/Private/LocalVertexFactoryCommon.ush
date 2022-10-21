@@ -13,8 +13,8 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING
-	// x = per-instance fade out amount, y = hide/show flag, z dither fade cutoff
-	float3  PerInstanceParams : COLOR1;
+	// x = per-instance fade out amount, y = hide/show flag, z dither fade cutoff, w - CustomData index
+	nointerpolation float4  PerInstanceParams : COLOR1;
 #endif
 
 #if NUM_TEX_COORD_INTERPOLATORS
