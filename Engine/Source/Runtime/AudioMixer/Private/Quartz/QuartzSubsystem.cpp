@@ -487,7 +487,7 @@ void UQuartzSubsystem::AddProxyForExternalClock(const Audio::FQuartzClockProxy& 
 	// make sure we aren't adding a duplicate name
 	if(FindProxyByName(InProxy.GetClockName()))
 	{
-		UE_LOG(LogAudioQuartz, Warning, TEXT("Recieved request to add external Clock: (%s) when a clock of that name already exists (Ignoring Request)"), *InProxy.GetClockName().ToString());
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Received request to add external Clock: (%s) when a clock of that name already exists (Ignoring Request)"), *InProxy.GetClockName().ToString());
 		return;
 	}
 }

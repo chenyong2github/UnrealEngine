@@ -307,7 +307,7 @@ void USteamSocketsNetDriver::TickDispatch(float DeltaTime)
 				// Process the message for this connection.
 				if (ConnectionToHandleMessage != nullptr)
 				{
-					UE_LOG(LogNet, VeryVerbose, TEXT("SteamSockets: Recieved packet from %s with size %d"), *MessageSender.ToString(true), Message->GetSize());
+					UE_LOG(LogNet, VeryVerbose, TEXT("SteamSockets: Received packet from %s with size %d"), *MessageSender.ToString(true), Message->GetSize());
 					ConnectionToHandleMessage->HandleRecvMessage(Message->m_pData, Message->GetSize(), &MessageSender);
 					Message->Release();
 					continue;

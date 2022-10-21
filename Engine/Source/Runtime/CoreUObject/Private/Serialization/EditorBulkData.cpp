@@ -517,7 +517,7 @@ static FGuid CreateUniqueGuid(const FGuid& NonUniqueGuid, const UObject* Owner, 
 	else
 	{
 		UE_LOG(LogSerialization, Warning,
-			TEXT("CreateFromBulkData recieved an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
+			TEXT("CreateFromBulkData received an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
 			DebugName);
 		return FGuid::NewGuid();
 	}

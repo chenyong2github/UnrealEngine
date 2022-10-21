@@ -441,7 +441,7 @@ void FTestPresenceInterface::OnRandomUserFetchComplete(const FUniqueNetId& UserI
 
 void FTestPresenceInterface::OnPresenceRecieved(const FUniqueNetId& UserId, const TSharedRef<FOnlineUserPresence>& PresenceData)
 {
-	UE_LOG_ONLINE_PRESENCE(Verbose, TEXT("Recieved a presence update event about user %s"), *UserId.ToString());
+	UE_LOG_ONLINE_PRESENCE(Verbose, TEXT("Received a presence update event about user %s"), *UserId.ToString());
 	// We expect to get a status update about someone on your friends list at least.
 	CompletedTasks |= EPresenceTestStatus::WorkingDelegate;
 	TasksAttempted |= EPresenceTestStatus::WorkingDelegate;

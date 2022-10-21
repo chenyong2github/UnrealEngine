@@ -59,7 +59,7 @@ void UNiagaraOutliner::UpdateSystemSimCache(const FNiagaraSystemSimCacheCaptureR
 	}
 	else
 	{
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("Niagara Outliner recieved empty sim cache data."));
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("Niagara Outliner received empty sim cache data."));
 	}
 	OnChanged();
 }

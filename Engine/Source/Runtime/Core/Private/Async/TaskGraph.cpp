@@ -2634,7 +2634,7 @@ public:
 			const double ThisTime = FPlatformTime::Seconds() - StartTime;
 			if (ThisTime > 0.02)
 			{
-				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast."), ThisTime * 1000.0, Name);
+				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to receive broadcast."), ThisTime * 1000.0, Name);
 			}
 		}
 
@@ -2646,7 +2646,7 @@ public:
 			const double ThisTime = FPlatformTime::Seconds() - StartTime;
 			if (ThisTime > 0.02)
 			{
-				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast and do processing."), ThisTime * 1000.0, Name);
+				UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to receive broadcast and do processing."), ThisTime * 1000.0, Name);
 			}
 		}
 		if (StallForTaskThread)
@@ -2661,7 +2661,7 @@ public:
 						const double ThisTime = FPlatformTime::Seconds() - StartTime;
 						if (ThisTime > 0.02)
 						{
-							UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast do processing and wait for other task threads."), ThisTime * 1000.0f, Name);
+							UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to receive broadcast do processing and wait for other task threads."), ThisTime * 1000.0f, Name);
 						}
 					}
 				}
@@ -2673,7 +2673,7 @@ public:
 					const double ThisTime = FPlatformTime::Seconds() - StartTime;
 					if (ThisTime > 0.02)
 					{
-						UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to recieve broadcast do processing and trigger other task threads."), ThisTime * 1000.0, Name);
+						UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms for %s to receive broadcast do processing and trigger other task threads."), ThisTime * 1000.0, Name);
 					}
 				}
 			}

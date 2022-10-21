@@ -517,7 +517,7 @@ void FApplePlatformBackgroundHttpManager::OnTask_DidFinishDownloadingToURL(NSURL
     IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	const bool bFileExists = PlatformFile.FileExists(*TempFilePath);
 	
-    UE_LOG(LogBackgroundHttpManager, Display, TEXT("Recieved Background Session Callback for URL:%s | TaskIdentifier:%d | bFileExists:%d | ErrorCode:%d | ErrorDescription:%s | Location:%s"), *TaskURL, TaskIdentifier, (int)(bFileExists), ErrorCode, *ErrorDescription, *TempFilePath);
+    UE_LOG(LogBackgroundHttpManager, Display, TEXT("Received Background Session Callback for URL:%s | TaskIdentifier:%d | bFileExists:%d | ErrorCode:%d | ErrorDescription:%s | Location:%s"), *TaskURL, TaskIdentifier, (int)(bFileExists), ErrorCode, *ErrorDescription, *TempFilePath);
 
     if (bFileExists)
     {

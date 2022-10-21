@@ -136,12 +136,12 @@ void FNiagaraDebuggerClient::HandleConnectionRequestMessage(const FNiagaraDebugg
 	{
 		if (Connection.IsValid())
 		{
-			UE_LOG(LogNiagaraDebuggerClient, Warning, TEXT("Connection request recieved but we already have a connected debugger. Current connection being dropped and new connection accepted. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+			UE_LOG(LogNiagaraDebuggerClient, Warning, TEXT("Connection request received but we already have a connected debugger. Current connection being dropped and new connection accepted. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 			CloseConnection();
 		}
 		else
 		{
-			UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Connection request recieved and accepted. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+			UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Connection request received and accepted. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 		}
 		
 		//Accept the connection and inform the debugger we have done so with an accepted message.
@@ -164,7 +164,7 @@ void FNiagaraDebuggerClient::HandleConnectionClosedMessage(const FNiagaraDebugge
 		}
 		else
 		{
-			UE_LOG(LogNiagaraDebuggerClient, Warning, TEXT("Recieved connection closed message for unconnected debugger. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+			UE_LOG(LogNiagaraDebuggerClient, Warning, TEXT("Received connection closed message for unconnected debugger. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 		}
 	}
 }
@@ -236,24 +236,24 @@ void FNiagaraDebuggerClient::HandleOutlinerSettingsMessage(const FNiagaraOutline
 #endif
 				if (Message.CaptureDelayFrames <= 0)
 				{
-					UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Capturing now. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+					UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Received request to capture outliner data. Capturing now. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 					UpdateOutliner(0.001f);
 				}
 				else
 				{
 					OutlinerCountdown = Message.CaptureDelayFrames;
-					UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Capturing in %u frames. | Session: %s | Instance: %s (%s)."), Message.CaptureDelayFrames, *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+					UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Received request to capture outliner data. Capturing in %u frames. | Session: %s | Instance: %s (%s)."), Message.CaptureDelayFrames, *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 					FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FNiagaraDebuggerClient::UpdateOutliner));
 				}
 			}
 			else
 			{
-				UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Ignoring as we already have a pending outliner capture. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+				UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Received request to capture outliner data. Ignoring as we already have a pending outliner capture. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 			}
 		}
 		else
 		{
-			UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data but the capture bool is false. | Session: %s | Instance: %s."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+			UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Received request to capture outliner data but the capture bool is false. | Session: %s | Instance: %s."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 		}
 	}
 }

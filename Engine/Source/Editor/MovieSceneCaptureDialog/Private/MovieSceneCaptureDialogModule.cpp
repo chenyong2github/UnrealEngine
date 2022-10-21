@@ -557,7 +557,7 @@ void FInEditorCapture::OnPIEViewportStarted()
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Recieved PIE Creation callback but failed to find PIE World or missing FSlatePlayInEditorInfo for world."));
+	UE_LOG(LogTemp, Warning, TEXT("Received PIE Creation callback but failed to find PIE World or missing FSlatePlayInEditorInfo for world."));
 }
 
 void FInEditorCapture::Shutdown()

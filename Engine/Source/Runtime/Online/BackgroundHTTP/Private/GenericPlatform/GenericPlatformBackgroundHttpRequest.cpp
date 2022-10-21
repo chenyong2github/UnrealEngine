@@ -139,7 +139,7 @@ const FString FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundH
 
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::HttpRequestComplete(FHttpRequestPtr HttpRequestIn, FHttpResponsePtr HttpResponse, bool bSuccess)
 {
-	if (ensureAlwaysMsgf(OriginalRequest.IsValid(), TEXT("Recieved HttpRequestComplete callback with invalid OriginalRequest pointer! Can not complete request!")))
+	if (ensureAlwaysMsgf(OriginalRequest.IsValid(), TEXT("Received HttpRequestComplete callback with invalid OriginalRequest pointer! Can not complete request!")))
 	{
 		//Create a new FGenericPlatformBackgroundHttpRequest from the HttpRequest/Response
 		FBackgroundHttpResponsePtr ConstructedResponse = MakeShareable(new FGenericPlatformBackgroundHttpResponse(HttpRequestIn, HttpResponse, bSuccess));
@@ -170,7 +170,7 @@ bool FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrappe
 
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::UpdateHttpProgress(FHttpRequestPtr UnderlyingHttpRequest, int32 BytesSent, int32 BytesReceived)
 {
-	if (ensureAlwaysMsgf(OriginalRequest.IsValid(), TEXT("Recieved UpdateHttpProgress callback with invalid OriginalRequest pointer! Can not update request progress!")))
+	if (ensureAlwaysMsgf(OriginalRequest.IsValid(), TEXT("Received UpdateHttpProgress callback with invalid OriginalRequest pointer! Can not update request progress!")))
 	{
 		const int32 ByteDifference = (LastProgressUpdateBytes > 0) ? BytesReceived - LastProgressUpdateBytes : BytesReceived;
 		ensureAlwaysMsgf((ByteDifference >= 0), TEXT("Invalid Byte Difference in UpdateHttpProgress -- ByteDifference:%d | LastProgressUpdateBytes:%d | BytesSent:%d | BytesReceived:%d"), ByteDifference, LastProgressUpdateBytes, BytesSent, BytesReceived);

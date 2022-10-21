@@ -16,7 +16,7 @@
 #include "HAL/RunnableThread.h"
 #include "Serialization/ArrayReader.h"
 
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Art-Net Packages Recieved Total"), STAT_ArtNetPackagesReceived, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Art-Net Packages Received Total"), STAT_ArtNetPackagesReceived, STATGROUP_DMX);
 
 
 FDMXProtocolArtNetReceiver::FDMXProtocolArtNetReceiver(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& InArtNetProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InEndpointInternetAddr)

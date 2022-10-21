@@ -17,7 +17,7 @@
 #include "HAL/RunnableThread.h"
 #include "Serialization/ArrayReader.h"
 
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("sACN Packages Recieved Total"), STAT_SACNPackagesReceived, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("sACN Packages Received Total"), STAT_SACNPackagesReceived, STATGROUP_DMX);
 
 
 FDMXProtocolSACNReceiver::FDMXProtocolSACNReceiver(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InEndpointInternetAddr)

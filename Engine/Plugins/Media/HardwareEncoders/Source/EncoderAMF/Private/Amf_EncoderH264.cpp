@@ -732,7 +732,7 @@ namespace AVEncoder
 		}
 		else
 		{
-			UE_LOG(LogEncoderAMF, Error, TEXT("Amf recieved nullptr to texture."));
+			UE_LOG(LogEncoderAMF, Error, TEXT("Amf received nullptr to texture."));
 			return false;
 		}
 

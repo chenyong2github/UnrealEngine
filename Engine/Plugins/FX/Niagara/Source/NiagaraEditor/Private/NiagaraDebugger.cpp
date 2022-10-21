@@ -279,7 +279,7 @@ void FNiagaraDebugger::HandleConnectionAcceptedMessage(const FNiagaraDebuggerAcc
 	int32 FoundActive = FindActiveConnection(Message.SessionId, Message.InstanceId);
 	if (FoundActive != INDEX_NONE)
 	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved connection accepted message from an already connected client. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Received connection accepted message from an already connected client. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
 		return;
 	}
 
@@ -301,7 +301,7 @@ void FNiagaraDebugger::HandleConnectionAcceptedMessage(const FNiagaraDebuggerAcc
 	}
 	else
 	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved connection accepted message from a client that is not in our pending list. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Received connection accepted message from a client that is not in our pending list. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
 	}
 }
 
@@ -328,7 +328,7 @@ void FNiagaraDebugger::HandleConnectionClosedMessage(const FNiagaraDebuggerConne
 
 void FNiagaraDebugger::HandleOutlinerUpdateMessage(const FNiagaraDebuggerOutlinerUpdate& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved outliner update. | Sender: %s "), *Context->GetSender().ToString());
+	UE_LOG(LogNiagaraDebugger, Log, TEXT("Received outliner update. | Sender: %s "), *Context->GetSender().ToString());
 	if(UNiagaraOutliner* Outliner = GetOutliner())
 	{
 		Outliner->UpdateData(Message.OutlinerData);
@@ -337,14 +337,14 @@ void FNiagaraDebugger::HandleOutlinerUpdateMessage(const FNiagaraDebuggerOutline
 
 void FNiagaraDebugger::UpdateSimpleClientInfo(const FNiagaraSimpleClientInfo& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved simple client info update. | Sender: %s "), *Context->GetSender().ToString());
+	UE_LOG(LogNiagaraDebugger, Log, TEXT("Received simple client info update. | Sender: %s "), *Context->GetSender().ToString());
 	SimpleClientInfo = Message;
 	OnSimpleClientInfoChangedDelegate.Broadcast(SimpleClientInfo);
 }
 
 void FNiagaraDebugger::HandleSimCacheCaptureReply(const FNiagaraSystemSimCacheCaptureReply& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved Niagara Sim Cache Capture Reply. | Sender: %s "), *Context->GetSender().ToString());
+	UE_LOG(LogNiagaraDebugger, Log, TEXT("Received Niagara Sim Cache Capture Reply. | Sender: %s "), *Context->GetSender().ToString());
 	
 	if (UNiagaraOutliner* Outliner = GetOutliner())
 	{
