@@ -509,6 +509,15 @@ FName FSubversionSyncWorker::GetName() const
 
 bool FSubversionSyncWorker::Execute(FSubversionSourceControlCommand& InCommand)
 {
+	TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
+
+	FString Command = TEXT("update");
+
+	if (!Operation->GetRevision().IsEmpty())
+	{
+		Command += FString::Printf(TEXT(" -r %s"), *Operation->GetRevision());
+	}
+
 	InCommand.bCommandSuccessful = SubversionSourceControlUtils::RunCommand(TEXT("update"), InCommand.Files, TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages, InCommand.UserName);
 
 	// now update the status of our files

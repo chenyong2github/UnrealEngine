@@ -926,18 +926,34 @@ bool FPlasticSyncWorker::Execute(FPlasticSourceControlCommand& InCommand)
 
 	check(InCommand.Operation->GetName() == GetName());
 
-	TArray<FString> Parameters;
 	// Update specified directory to the head of the repository
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 	if (-1 != InCommand.ChangesetNumber)
 	{
-		Parameters.Add(TEXT("--last"));
-		Parameters.Add(TEXT("--dontmerge"));
+		TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
+
+		TArray<FString> Parameters;
+
+		if (Operation->IsForced())
+		{
+			Parameters.Add(TEXT("--forced"));
+		}
+
+		if (Operation->GetRevision().IsEmpty())
+		{
+			Parameters.Add(TEXT("--last"));
+			Parameters.Add(TEXT("--dontmerge"));
+		}
+		else
+		{
+			Parameters.Add(FString::Printf(TEXT("--changeset=%s"), *Operation->GetRevision()));
+		}
+
 		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("update"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 	else
 	{
-		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial update"), Parameters, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
+		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("partial update"), {}, InCommand.Files, InCommand.Concurrency, InCommand.InfoMessages, InCommand.ErrorMessages);
 	}
 
 	if (InCommand.bCommandSuccessful)

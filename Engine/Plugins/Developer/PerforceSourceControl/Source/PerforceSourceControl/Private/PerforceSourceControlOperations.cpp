@@ -1024,8 +1024,7 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			}
 			else if (!Revision.IsEmpty())
 			{
-				// @= syncs the file to the submitted/shelved changelist number
-				FileName += FString::Printf(TEXT("@%s"), *Revision);
+				FileName += FString::Printf(TEXT("#%s"), *Revision);
 			}
 
 			Parameters.Add(MoveTemp(FileName));
