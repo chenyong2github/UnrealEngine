@@ -164,15 +164,6 @@ void SPluginTile::RecreateWidgets()
 			+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::GetBrush("ContentBrowser.AssetTreeFolderDeveloper"))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
 				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 				[
 					SNew(STextBlock)
@@ -193,6 +184,16 @@ void SPluginTile::RecreateWidgets()
 						.ToolTipText(FText::Format(LOCTEXT("NavigateToCreatedByURL", "Visit the vendor's web site ({0})"), FText::FromString(CreatedByURL)))
 						.OnNavigate_Lambda([=]() { FPlatformProcess::LaunchURL(*CreatedByURL, nullptr, nullptr); })
 						.Style(FAppStyle::Get(), "HoverOnlyHyperlink")
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("Icons.OpenInBrowser"))
 				];
 		}
 	}
@@ -472,7 +473,7 @@ void SPluginTile::RecreateWidgets()
 												.AutoWidth()
 												.HAlign(HAlign_Right)
 												.VAlign(VAlign_Top)
-												.Padding(0.f, 0.f, PaddingAmount + 14.f, 0.f)
+												.Padding(PaddingAmount + 14.f, 0.f, PaddingAmount + 14.f, 0.f)
 												[
 													CreatedByWidget.ToSharedRef()
 												]

@@ -60,7 +60,6 @@ void FPluginStyle::Initialize()
 
 	StyleSet->Set( "Plugins.TabIcon", new IMAGE_BRUSH_SVG( "Plugins", Icon16x16 ) );
 	StyleSet->Set( "Plugins.BreadcrumbArrow", new IMAGE_BRUSH( "SmallArrowRight", Icon10x10 ) );
-	StyleSet->Set( "Plugins.Documentation", new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/Documentation", Icon16x16));
 	StyleSet->Set( "Plugins.ListBorder", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
 	StyleSet->Set( "Plugins.RestartWarningBorder", new FSlateRoundedBoxBrush(FStyleColors::Panel , 5.0f, FStyleColors::Warning, 1.0f));
 
