@@ -62,7 +62,7 @@ ECounterDisplayHint FLoadTimeProfilerProvider::FLoaderFrameCounter::GetDisplayHi
 
 void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const
 {
-
+	unimplemented();
 }
 
 void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const
@@ -90,6 +90,16 @@ void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateFloatValues(double
 			}
 		}
 	}
+}
+
+void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateOps(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, ECounterOpType, int64)> Callback) const
+{
+	unimplemented();
+}
+
+void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateFloatOps(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, ECounterOpType, double)> Callback) const
+{
+	unimplemented();
 }
 
 FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession, IEditableCounterProvider& InEditableCounterProvider)

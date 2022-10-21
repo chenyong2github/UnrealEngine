@@ -17,6 +17,12 @@ enum ECounterDisplayHint
 	CounterDisplayHint_Memory,
 };
 
+enum class ECounterOpType : uint8
+{
+	Set = 0,
+	Add = 1,
+};
+
 class ICounter
 {
 public:
@@ -30,6 +36,8 @@ public:
 	virtual ECounterDisplayHint GetDisplayHint() const = 0;
 	virtual void EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const = 0;
 	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const = 0;
+	virtual void EnumerateOps(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, ECounterOpType, int64)> Callback) const = 0;
+	virtual void EnumerateFloatOps(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, ECounterOpType, double)> Callback) const = 0;
 };
 
 class IEditableCounterProvider;

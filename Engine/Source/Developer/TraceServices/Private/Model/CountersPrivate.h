@@ -20,12 +20,6 @@
 namespace TraceServices
 {
 
-enum ECounterOpType : uint8
-{
-	CounterOpType_Add,
-	CounterOpType_Set,
-};
-
 template<typename ValueType>
 class TCounterData;
 
@@ -38,14 +32,37 @@ public:
 		, TimestampsIterator(Outer.Timestamps.GetIterator())
 		, OpTypesIterator(Outer.OpTypes.GetIterator())
 		, OpArgumentsIterator(Outer.OpArguments.GetIterator())
+		, CurrentTime(0.0)
+		, CurrentOp(ECounterOpType::Set)
+		, CurrentOpArgument(ValueType())
+		, CurrentValue(ValueType())
 	{
-		Current = MakeTuple(0.0, ValueType());
 		UpdateValue();
 	}
 
-	const TTuple<double, ValueType>& operator*() const
+	const ValueType operator*() const
 	{
-		return Current;
+		return CurrentValue;
+	}
+
+	const double GetCurrentTime() const
+	{
+		return CurrentTime;
+	}
+
+	const ECounterOpType GetCurrentOp() const
+	{
+		return CurrentOp;
+	}
+
+	const ValueType GetCurrentOpArgument() const
+	{
+		return CurrentOpArgument;
+	}
+
+	const ValueType GetCurrentValue() const
+	{
+		return CurrentValue;
 	}
 
 	explicit operator bool() const
@@ -81,21 +98,16 @@ private:
 				bIsNewFrame = true;
 				++FrameStartTimesIterator;
 			}
-			Current.template Get<0>() = *Time;
-			switch (*OpTypesIterator)
+			CurrentTime = *Time;
+			CurrentOp = bIsNewFrame ? ECounterOpType::Set : *OpTypesIterator;
+			CurrentOpArgument = *OpArgumentsIterator;
+			switch (CurrentOp)
 			{
-			case CounterOpType_Add:
-				if (bIsNewFrame)
-				{
-					Current.template Get<1>() = *OpArgumentsIterator;
-				}
-				else
-				{
-					Current.template Get<1>() += *OpArgumentsIterator;
-				}
+			case ECounterOpType::Set:
+				CurrentValue = CurrentOpArgument;
 				break;
-			case CounterOpType_Set:
-				Current.template Get<1>() = *OpArgumentsIterator;
+			case ECounterOpType::Add:
+				CurrentValue += CurrentOpArgument;
 				break;
 			}
 		}
@@ -111,7 +123,10 @@ private:
 	TPagedArray<ECounterOpType>::TIterator OpTypesIterator;
 	typename TPagedArray<ValueType>::TIterator OpArgumentsIterator;
 #endif
-	TTuple<double, ValueType> Current;
+	double CurrentTime;
+	ECounterOpType CurrentOp;
+	ValueType CurrentOpArgument;
+	ValueType CurrentValue;
 };
 
 template<typename ValueType>
@@ -209,6 +224,8 @@ public:
 	virtual void SetDisplayHint(ECounterDisplayHint InDisplayHint) override { DisplayHint = InDisplayHint; }
 	virtual void EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const override;
 	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const override;
+	virtual void EnumerateOps(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, ECounterOpType, int64)> Callback) const override;
+	virtual void EnumerateFloatOps(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, ECounterOpType, double)> Callback) const override;
 	virtual void AddValue(double Time, int64 Value) override;
 	virtual void AddValue(double Time, double Value) override;
 	virtual void SetValue(double Time, int64 Value) override;

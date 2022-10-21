@@ -966,7 +966,56 @@ int32 FTimingExporter::ExportCounterAsText(const FString& Filename, uint32 Count
 			// Iterate the counter values.
 			if (Params.bExportOps)
 			{
-				//TODO: export counter events / operations
+				if (Counter.IsFloatingPoint())
+				{
+					Counter.EnumerateFloatOps(Params.IntervalStartTime, Params.IntervalEndTime, false, [&](double Time, TraceServices::ECounterOpType Op, double Value)
+						{
+							StringBuilder.Reset();
+							StringBuilder.Appendf(UTF8TEXT("%.9f"), Time);
+							StringBuilder.AppendChar(Separator);
+							switch (Op)
+							{
+							case TraceServices::ECounterOpType::Set:
+								StringBuilder.Append(UTF8TEXT("Set"));
+								break;
+							case TraceServices::ECounterOpType::Add:
+								StringBuilder.Append(UTF8TEXT("Add"));
+								break;
+							default:
+								StringBuilder.Appendf(UTF8TEXT("%d"), int32(Op));
+							}
+							StringBuilder.AppendChar(Separator);
+							StringBuilder.Appendf(UTF8TEXT("%.9f"), Value);
+							StringBuilder.AppendChar(LineEnd);
+							ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+							++ValueCount;
+						});
+				}
+				else
+				{
+					Counter.EnumerateOps(Params.IntervalStartTime, Params.IntervalEndTime, false, [&](double Time, TraceServices::ECounterOpType Op, int64 IntValue)
+						{
+							StringBuilder.Reset();
+							StringBuilder.Appendf(UTF8TEXT("%.9f"), Time);
+							StringBuilder.AppendChar(Separator);
+							switch (Op)
+							{
+							case TraceServices::ECounterOpType::Set:
+								StringBuilder.Append(UTF8TEXT("Set"));
+								break;
+							case TraceServices::ECounterOpType::Add:
+								StringBuilder.Append(UTF8TEXT("Add"));
+								break;
+							default:
+								StringBuilder.Appendf(UTF8TEXT("%d"), int32(Op));
+							}
+							StringBuilder.AppendChar(Separator);
+							StringBuilder.Appendf(UTF8TEXT("%lli"), IntValue);
+							StringBuilder.AppendChar(LineEnd);
+							ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
+							++ValueCount;
+						});
+				}
 			}
 			else
 			{

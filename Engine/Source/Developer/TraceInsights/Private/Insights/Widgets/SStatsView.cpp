@@ -498,7 +498,6 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 
-#if 0 // not implemented yet
 		MenuBuilder.AddMenuEntry
 		(
 			FStatsViewCommands::Get().Command_ExportOps,
@@ -507,7 +506,6 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			TAttribute<FText>(),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
-#endif
 
 		MenuBuilder.AddMenuEntry
 		(

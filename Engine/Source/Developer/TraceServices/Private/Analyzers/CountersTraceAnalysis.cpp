@@ -60,9 +60,9 @@ bool FCountersAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	}
 	case RouteId_SetValueInt:
 	{
-		uint16 CounterId = EventData.GetValue<uint16>("CounterId");
-		int64 Value = EventData.GetValue<int64>("Value");
-		double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
+		const double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
+		const int64 Value = EventData.GetValue<int64>("Value");
+		const uint16 CounterId = EventData.GetValue<uint16>("CounterId");
 		IEditableCounter* FindEditableCounter = EditableCountersMap.FindRef(CounterId);
 		if (ensure(FindEditableCounter))
 		{
@@ -72,9 +72,9 @@ bool FCountersAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	}
 	case RouteId_SetValueFloat:
 	{
-		uint16 CounterId = EventData.GetValue<uint16>("CounterId");
-		float Value = EventData.GetValue<float>("Value");
-		double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
+		const double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
+		const float Value = EventData.GetValue<float>("Value");
+		const uint16 CounterId = EventData.GetValue<uint16>("CounterId");
 		IEditableCounter* FindEditableCounter = EditableCountersMap.FindRef(CounterId);
 		if (ensure(FindEditableCounter))
 		{
