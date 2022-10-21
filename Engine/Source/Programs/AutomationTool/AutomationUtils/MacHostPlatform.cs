@@ -22,11 +22,13 @@ namespace AutomationTool
 			// As of 5.0 mono comes with msbuild which performs better. If that's installed then use it
 			if (string.IsNullOrEmpty(CachedFrameworkMsbuildExe))
 			{
-				bool CanUseMsBuild = string.IsNullOrEmpty(CommandUtils.WhichApp("msbuild")) == false;
+				bool CanUseMsBuild = string.IsNullOrEmpty(CommandUtils.WhichApp("dotnet")) == false;
 
 				if (CanUseMsBuild)
 				{
-					CachedFrameworkMsbuildExe = "msbuild";
+					Log.TraceInformation($"using {CommandUtils.WhichApp("dotnet")}!");
+
+					CachedFrameworkMsbuildExe = "dotnet msbuild";
 				}
 				else
 				{

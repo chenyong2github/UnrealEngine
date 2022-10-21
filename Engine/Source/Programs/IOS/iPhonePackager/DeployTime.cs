@@ -95,7 +95,7 @@ namespace iPhonePackager
 					string DeviceName = DeviceInfo.DeviceName;
 
 					// Check the IPA's mobile provision against the connected device to make sure this device is authorized
-					// We'll still try installing anyways, but this message is more friendly than the failure we get back from MobileDeviceInterface
+					// We'll still try installing anyways, but this message is more friendly than the failure we got back from MobileDeviceInterface when we used it
 					if (UDID != String.Empty)
 					{
 						if (!Provision.ContainsUDID(UDID))

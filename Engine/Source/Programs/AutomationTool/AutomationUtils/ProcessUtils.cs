@@ -837,6 +837,14 @@ namespace AutomationTool
 			// Check if the application exists, including the PATH directories.
 			if (Options.HasFlag(ERunOptions.AppMustExist) && !FileExists(Options.HasFlag(ERunOptions.NoLoggingOfRunCommand) ? true : false, App))
 			{
+				// in the case of something like "dotnet msbuild", split it up and put the msbuild on the commandline
+				// this could be generalized, but would have to account for spaces in the App part
+				if (App.StartsWith("dotnet "))
+				{
+					string[] Tokens = App.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+					App = Tokens[0];
+					CommandLine = $"{Tokens[1]} {CommandLine}";
+				}
 				string ResolvedPath = WhichApp(App);
 
 				if(string.IsNullOrEmpty(ResolvedPath))

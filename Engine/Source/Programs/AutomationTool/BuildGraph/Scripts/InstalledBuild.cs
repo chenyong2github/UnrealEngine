@@ -360,14 +360,8 @@ namespace AutomationTool
 				Output += await CsCompileAsync(FileReference.Combine(TempCsToolsDir, "Engine/Source/Editor/SwarmInterface/DotNET/SwarmInterface.csproj"), Platform: "AnyCPU", Configuration: "Development");
 				Output += await CsCompileAsync(FileReference.Combine(TempCsToolsDir, "Engine/Source/Programs/UnrealControls/UnrealControls.csproj"), Platform: "AnyCPU", Configuration: "Development");
 				Output += await CsCompileAsync(FileReference.Combine(TempCsToolsDir, "Engine/Source/Programs/IOS/iPhonePackager/iPhonePackager.csproj"), Platform: "AnyCPU", Configuration: "Development", Arguments: "/verbosity:minimal /target:Rebuild");
-			}
-
-			if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Linux)
-			{
 				Output += await CsCompileAsync(FileReference.Combine(TempCsToolsDir, "Engine/Source/Programs/NetworkProfiler/NetworkProfiler/NetworkProfiler.csproj"), Platform: "AnyCPU", Configuration: "Development");
 			}
-
-			Output += await CsCompileAsync(FileReference.Combine(RootDir, "Engine/Source/Programs/IOS/MobileDeviceInterface/MobileDeviceInterface.csproj"), Platform: "AnyCPU", Configuration: "Development", Arguments: "/verbosity:minimal /target:Rebuild");
 
 			FileSet Binaries = Output.Binaries + Output.References;
 

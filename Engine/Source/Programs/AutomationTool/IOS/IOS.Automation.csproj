@@ -39,10 +39,6 @@
       <HintPath>..\..\..\..\Binaries\DotNET\Ionic.Zip.Reduced.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="MobileDeviceInterface">
-      <HintPath>..\..\..\..\Binaries\DotNET\IOS\MobileDeviceInterface.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup>
