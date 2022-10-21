@@ -2,13 +2,13 @@
 
 #include "NNXConvTransposeCS.h"
 
-void FMLConvTransposeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
+void FConvTransposeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(InParameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("MAX_NUM_STACK_DIMENSIONS"), FConvTransposeConstants::MAX_NUM_DIMENSIONS);
 }
 
-TArray<int32> FMLConvTransposeCS::GetOutputShape(TArray<int32> XShape, TArray<int32> WShape, EConvTransposeAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads, TArray<int32> OutputPadding, int32 Group)
+TArray<int32> FConvTransposeCS::GetOutputShape(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvTransposeAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads, TArrayView<const int32> OutputPadding, int32 Group)
 {
 	check(XShape.Num() > 2);
 	check(WShape.Num() == XShape.Num());
@@ -34,7 +34,7 @@ TArray<int32> FMLConvTransposeCS::GetOutputShape(TArray<int32> XShape, TArray<in
 	return Result;
 }
 
-void FMLConvTransposeCS::FillInParameters(EConvTransposeGroupSize GroupSize, TArray<int32> XShape, TArray<int32> WShape, bool HasB, EConvTransposeAutoPad AutoPad, int32 Group, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads, TArray<int32> OutputPadding, FMLConvTransposeCS::FParameters& Parameters)
+void FConvTransposeCS::FillInParameters(EConvTransposeGroupSize GroupSize, TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, bool HasB, EConvTransposeAutoPad AutoPad, int32 Group, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads, TArrayView<const int32> OutputPadding, FConvTransposeCS::FParameters& Parameters)
 {
 	check(XShape.Num() > 2);
 	check(WShape.Num() == XShape.Num());
@@ -88,9 +88,9 @@ void FMLConvTransposeCS::FillInParameters(EConvTransposeGroupSize GroupSize, TAr
 
 	Parameters.XBlockSize = XBlockSize;
 
-	Parameters.NumChannelsPerBatch = FMath::Min((int32)((float)GroupThreadStride / (float)WChannelSize), WShape[0]);
+	Parameters.NumChannelsPerBatch = FMath::Min((int32)((float)GroupThreadStride / (float)WChannelSize), (int32)WShape[0]);
 	check(Parameters.NumChannelsPerBatch > 0)
-		Parameters.NumChannelBatches = FMath::DivideAndRoundUp(WShape[0], Parameters.NumChannelsPerBatch);
+		Parameters.NumChannelBatches = FMath::DivideAndRoundUp((int32)WShape[0], Parameters.NumChannelsPerBatch);
 
 	Parameters.WOutputKernelStride = WShape[1] * WChannelSize;
 	Parameters.WChannelBatchSize = Parameters.NumChannelsPerBatch * WShape[1] * WChannelSize;
@@ -100,7 +100,7 @@ void FMLConvTransposeCS::FillInParameters(EConvTransposeGroupSize GroupSize, TAr
 	Parameters.OneDivGroup = 1.0 / (float)Group;
 }
 
-int32 FMLConvTransposeCS::GetNumReadsPerThread(EConvTransposeGroupSize GroupSize, TArray<int32> WShape, TArray<int32> Dilations, TArray<int32> Strides)
+int32 FConvTransposeCS::GetNumReadsPerThread(EConvTransposeGroupSize GroupSize, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides)
 {
 	check(WShape.Num() > 2);
 	check(Dilations.Num() == 0 || Dilations.Num() == WShape.Num() - 2);
@@ -133,7 +133,7 @@ int32 FMLConvTransposeCS::GetNumReadsPerThread(EConvTransposeGroupSize GroupSize
 	return -1;
 }
 
-TArray<int32> FMLConvTransposeCS::GetGroupShape(EConvTransposeGroupSize GroupSize, int32 NumDimensions)
+TArray<int32> FConvTransposeCS::GetGroupShape(EConvTransposeGroupSize GroupSize, int32 NumDimensions)
 {
 	check(NumDimensions > 0);
 
@@ -153,7 +153,7 @@ TArray<int32> FMLConvTransposeCS::GetGroupShape(EConvTransposeGroupSize GroupSiz
 	return Result;
 }
 
-FIntVector FMLConvTransposeCS::GetGroupCount(TArray<int32> YShape, TArray<int32> GroupShape)
+FIntVector FConvTransposeCS::GetGroupCount(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape)
 {
 	check(YShape.Num() > 2);
 	check(YShape.Num() == (GroupShape.Num() + 2));
@@ -167,7 +167,7 @@ FIntVector FMLConvTransposeCS::GetGroupCount(TArray<int32> YShape, TArray<int32>
 	return FIntVector(ThreadGroupCountValueX, YShape[1], YShape[0]);
 }
 
-EConvTransposeGroupSize FMLConvTransposeCS::GetMinimalGroupSize(TArray<int32> WShape)
+EConvTransposeGroupSize FConvTransposeCS::GetMinimalGroupSize(TArrayView<const uint32> WShape)
 {
 	int32 NumDimensions = WShape.Num() - 2;
 	int32 WChannelSize = 1;
@@ -187,7 +187,7 @@ EConvTransposeGroupSize FMLConvTransposeCS::GetMinimalGroupSize(TArray<int32> WS
 	return EConvTransposeGroupSize::MAX;
 }
 
-TArray<int32> FMLConvTransposeCS::GetXBlockShape(TArray<int32> GroupShape, TArray<int32> WShape, TArray<int32> Dilations, TArray<int32> Strides)
+TArray<int32> FConvTransposeCS::GetXBlockShape(TArrayView<const int32> GroupShape, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides)
 {
 	check(WShape.Num() > 2);
 	check(GroupShape.Num() == WShape.Num() - 2);
@@ -204,7 +204,7 @@ TArray<int32> FMLConvTransposeCS::GetXBlockShape(TArray<int32> GroupShape, TArra
 	return Result;
 }
 
-TArray<int32> FMLConvTransposeCS::GetPadding(TArray<int32> WShape, EConvTransposeAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads, TArray<int32> OutputPadding)
+TArray<int32> FConvTransposeCS::GetPadding(TArrayView<const uint32> WShape, EConvTransposeAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads, TArrayView<const int32> OutputPadding)
 {
 	check(WShape.Num() > 2);
 	check(Dilations.Num() == 0 || Dilations.Num() == WShape.Num() - 2);
@@ -217,7 +217,7 @@ TArray<int32> FMLConvTransposeCS::GetPadding(TArray<int32> WShape, EConvTranspos
 
 	if (AutoPad == EConvTransposeAutoPad::NOTSET)
 	{
-		return Pads;
+		return TArray<int32>{Pads};
 	}
 	else if (AutoPad == EConvTransposeAutoPad::VALID)
 	{
@@ -242,7 +242,7 @@ TArray<int32> FMLConvTransposeCS::GetPadding(TArray<int32> WShape, EConvTranspos
 	return Result;
 }
 
-int32 FMLConvTransposeCS::GetNumThreadsPerGroup(EConvTransposeGroupSize GroupSize)
+int32 FConvTransposeCS::GetNumThreadsPerGroup(EConvTransposeGroupSize GroupSize)
 {
 	int32 NumThreadsPerGroup = 128;
 	switch (GroupSize)
@@ -264,7 +264,7 @@ int32 FMLConvTransposeCS::GetNumThreadsPerGroup(EConvTransposeGroupSize GroupSiz
 	return NumThreadsPerGroup;
 }
 
-TArray<int32> FMLConvTransposeCS::GetGridShape(TArray<int32> YShape, TArray<int32> GroupShape)
+TArray<int32> FConvTransposeCS::GetGridShape(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape)
 {
 	check(YShape.Num() > 2);
 	check(YShape.Num() == (GroupShape.Num() + 2));
@@ -279,4 +279,4 @@ TArray<int32> FMLConvTransposeCS::GetGridShape(TArray<int32> YShape, TArray<int3
 	return Result;
 }
 
-IMPLEMENT_GLOBAL_SHADER(FMLConvTransposeCS, "/NNX/ConvTransposeOp.usf", "main", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/NNX/ConvTransposeOp.usf", "main", SF_Compute);

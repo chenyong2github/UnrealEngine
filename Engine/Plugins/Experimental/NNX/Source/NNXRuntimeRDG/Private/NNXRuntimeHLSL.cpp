@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Hlsl/NNIRuntimeRDGConv.h"
+#include "Hlsl/NNIRuntimeRDGConvTranspose.h"
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
 #include "NNXModelOptimizer.h"
@@ -8,7 +10,6 @@
 #include "Hlsl/NNIRuntimeRDGElementWiseUnary.h"
 #include "Hlsl/NNIRuntimeRDGElementWiseVariadic.h"
 #include "NNXRuntimeHLSLGemmOp.h"
-#include "NNXRuntimeHLSLConvTransposeOp.h"
 #include "NNXRuntimeHLSLMatMulOp.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
@@ -165,7 +166,7 @@ public:
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterElementWiseVariadicOperators(*registry);
 		RegisterGemmOperator(*registry);
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvOperator(*registry);
-		RegisterConvTransposeOperator(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvTransposeOperator(*registry);
 		RegisterMatMulOperator(*registry);
 
 		return true;
