@@ -13,6 +13,7 @@ float {DataInterfaceName}_VF_HairLength;
 Buffer<uint4>  {DataInterfaceName}_PositionBuffer;
 Buffer<float2> {DataInterfaceName}_Attribute0Buffer;
 Buffer<uint>   {DataInterfaceName}_Attribute1Buffer;
+Buffer<uint>   {DataInterfaceName}_CurveBuffer;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -42,21 +43,32 @@ FHairAttributes ReadControlPointAttributeData(uint VertexIndex)
 		return (FHairAttributes)0;
 	}
 
-	return DecodeHairAttribute(
+	return UnpackHairAttribute(
 		{DataInterfaceName}_Attribute0Buffer[VertexIndex],
 		{DataInterfaceName}_Attribute1Buffer[VertexIndex],
 		{DataInterfaceName}_VF_HairLength);
 }
 
+FHairCurve ReadCurveData(uint CurveIndex)
+{
+	const uint MaxCurve = {DataInterfaceName}_NumCurves;
+	if (CurveIndex >= MaxCurve)
+	{
+		return (FHairCurve)0;
+	}
+
+	return UnpackHairCurve({DataInterfaceName}_CurveBuffer[CurveIndex]);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Interface
 
-uint {DataInterfaceName}_ReadNumControlPoints()
+uint ReadNumControlPoints_{DataInterfaceName}()
 {
 	return {DataInterfaceName}_NumControlPoints;
 }
 
-uint {DataInterfaceName}_ReadNumCurves()
+uint ReadNumCurves_{DataInterfaceName}()
 {
 	return {DataInterfaceName}_NumCurves;
 }
@@ -90,3 +102,14 @@ float ReadSeed_{DataInterfaceName}(uint VertexIndex)
 {
 	return ReadControlPointAttributeData(VertexIndex).Seed;
 }
+
+float ReadCurveOffsetPoint_{DataInterfaceName}(uint CurveIndex)
+{
+	return ReadCurveData(CurveIndex).PointIndex;
+}
+
+float ReadCurveNumPoint_{DataInterfaceName}(uint CurveIndex)
+{
+	return ReadCurveData(CurveIndex).PointCount;
+}
+

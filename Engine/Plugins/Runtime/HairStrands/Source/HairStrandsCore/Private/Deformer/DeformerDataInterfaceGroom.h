@@ -68,6 +68,7 @@ private:
 		FRDGBufferSRVRef Attribute0SRV = nullptr;
 		FRDGBufferSRVRef Attribute1SRV = nullptr;
 		FRDGBufferSRVRef FallbackSRV = nullptr;
+		FRDGBufferSRVRef CurveSRV = nullptr;
 	};
 	TArray<FResources> Resources;
 };

@@ -9,6 +9,7 @@
 class UGroomComponent;
 class FRDGBuffer;
 class FRDGBufferUAV;
+class FRDGBufferSRV;
 
 /** Compute Framework Data Interface for writing skinned mesh. */
 UCLASS(Category = ComputeFramework)
@@ -69,7 +70,9 @@ private:
 
 	struct FResources
 	{
+		FRDGBufferSRV* PositionBufferSRV = nullptr;
 		FRDGBufferUAV* PositionBufferUAV = nullptr;
+		FRDGBufferSRV* PositionBufferSRV_fallback = nullptr;
 		FRDGBufferUAV* PositionBufferUAV_fallback = nullptr;
 	};
 	TArray<FResources> Resources;

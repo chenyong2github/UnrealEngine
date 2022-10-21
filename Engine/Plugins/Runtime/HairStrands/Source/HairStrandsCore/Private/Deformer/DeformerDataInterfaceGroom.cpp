@@ -19,13 +19,15 @@ TArray<FOptimusCDIPinDefinition> UOptimusGroomDataInterface::GetPinDefinitions()
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"NumControlPoints", "ReadNumControlPoints"});
-	Defs.Add({"NumCurves", "ReadNumCurves" });
-	Defs.Add({"Position",  "ReadPosition", Optimus::DomainName::Vertex, "ReadPosition"});
-	Defs.Add({"Radius",    "ReadRadius",   Optimus::DomainName::Vertex, "ReadRadius" });
-	Defs.Add({"CoordU",    "ReadCoordU",   Optimus::DomainName::Vertex, "ReadCoordU" });
-	Defs.Add({"Length",    "ReadLength",   Optimus::DomainName::Vertex, "ReadLength" });
-	Defs.Add({"RootUV",    "ReadRootUV",   Optimus::DomainName::Vertex, "ReadRootUV" });
-	Defs.Add({"Seed",      "ReadSeed",     Optimus::DomainName::Vertex, "ReadSeed"   });
+	Defs.Add({"NumCurves",        "ReadNumCurves" });
+	Defs.Add({"Position",         "ReadPosition",          Optimus::DomainName::Vertex,   "ReadPosition"});
+	Defs.Add({"Radius",           "ReadRadius",            Optimus::DomainName::Vertex,   "ReadRadius" });
+	Defs.Add({"CoordU",           "ReadCoordU",            Optimus::DomainName::Vertex,   "ReadCoordU" });
+	Defs.Add({"Length",           "ReadLength",            Optimus::DomainName::Vertex,   "ReadLength" });
+	Defs.Add({"RootUV",           "ReadRootUV",            Optimus::DomainName::Vertex,   "ReadRootUV" });
+	Defs.Add({"Seed",             "ReadSeed",              Optimus::DomainName::Vertex,   "ReadSeed"   });
+	Defs.Add({"CurveOffsetPoint", "ReadCurveOffsetPoint",  Optimus::DomainName::Triangle, "ReadCurveOffsetPoint" });
+	Defs.Add({"CurveNumPoint",    "ReadCurveNumPoint",     Optimus::DomainName::Triangle, "ReadCurveNumPoint" });
 	return Defs;
 }
  
@@ -73,6 +75,16 @@ void UOptimusGroomDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefini
 		.SetName(TEXT("ReadSeed"))
 		.AddReturnType(EShaderFundamentalType::Float)
 		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadCurveOffsetPoint"))
+		.AddReturnType(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadCurveNumPoint"))
+		.AddReturnType(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Uint);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGroomDataInterfaceParameters, )
@@ -83,6 +95,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGroomDataInterfaceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>,  PositionBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float2>, Attribute0Buffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,   Attribute1Buffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,   CurveBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusGroomDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -142,10 +155,11 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(Index))
 		{
 			FResources& R = Resources.AddDefaulted_GetRef();
-			R.PositionSRV = Register(GraphBuilder, Instance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
+			R.PositionSRV	= Register(GraphBuilder, Instance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.Attribute0SRV = Register(GraphBuilder, Instance->Strands.RestResource->Attribute0Buffer, ERDGImportedBufferFlags::CreateSRV).SRV;
 			R.Attribute1SRV = Register(GraphBuilder, Instance->Strands.RestResource->Attribute1Buffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-			R.FallbackSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+			R.CurveSRV		= Register(GraphBuilder, Instance->Strands.RestResource->CurveBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
+			R.FallbackSRV	= GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
 		}
 	}
 }
@@ -182,12 +196,14 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchSetup const& In
 				Parameters->PositionBuffer = Resources[InvocationIndex].PositionSRV;
 				Parameters->Attribute0Buffer = Resources[InvocationIndex].Attribute0SRV;
 				Parameters->Attribute1Buffer = Resources[InvocationIndex].Attribute1SRV;
+				Parameters->CurveBuffer = Resources[InvocationIndex].CurveSRV;
 			}
 			else
 			{
 				Parameters->PositionBuffer   = Resources[InvocationIndex].FallbackSRV;
 				Parameters->Attribute0Buffer = Resources[InvocationIndex].FallbackSRV;
 				Parameters->Attribute1Buffer = Resources[InvocationIndex].FallbackSRV;
+				Parameters->CurveBuffer		 = Resources[InvocationIndex].FallbackSRV;
 			}
 		}
 	}
