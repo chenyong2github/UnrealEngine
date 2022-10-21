@@ -168,7 +168,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
 	if (Cloth->EdgeStiffness[0] > (FRealSingle)0. || (Cloth->EdgeStiffness[1] > (FRealSingle)0. && EdgeStiffnessMultipliers.Num() == NumParticles))
 	{
-		ClothConstraints.SetEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, Cloth->bUseXPBDEdgeConstraints);
+		if (Cloth->bUseXPBDEdgeConstraints)
+		{
+			const TConstArrayView<FRealSingle>& EdgeDampingRatioMultipliers = TConstArrayView<FRealSingle>(); // XPBD is not currently exposed to the UI.
+			ClothConstraints.SetXPBDEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, EdgeDampingRatioMultipliers);
+		}
+		else
+		{
+			ClothConstraints.SetEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, Cloth->bUseXPBDEdgeConstraints);
+		}
 	}
 
 	// Bending constraints
@@ -180,7 +188,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (Cloth->bUseBendingElements)
 		{
 			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), BendingStiffnessMultipliers, BucklingStiffnessMultipliers, Cloth->bUseXPBDBendingConstraints);
+			if (Cloth->bUseXPBDBendingConstraints)
+			{
+				const TConstArrayView<FRealSingle>& BendingDampingRatioMultipliers = TConstArrayView<FRealSingle>(); // XPBD is not currently exposed to the UI.
+				ClothConstraints.SetXPBDBendingConstraints(MoveTemp(BendingElements), BendingStiffnessMultipliers, BucklingStiffnessMultipliers, BendingDampingRatioMultipliers);
+			}
+			else
+			{
+				ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), BendingStiffnessMultipliers, BucklingStiffnessMultipliers, Cloth->bUseXPBDBendingConstraints);
+			}
 		}
 		else
 		{
@@ -325,8 +341,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 	ClothConstraints.SetMaximumDistanceProperties((Softs::FSolverReal)Cloth->MaxDistancesMultiplier * MeshScale);
-	ClothConstraints.SetEdgeProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->EdgeStiffness[0], (Softs::FSolverReal)Cloth->EdgeStiffness[1]));
-	ClothConstraints.SetBendingProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->BendingStiffness[0], (Softs::FSolverReal)Cloth->BendingStiffness[1]), Cloth->BucklingRatio, Softs::FSolverVec2((Softs::FSolverReal)Cloth->BucklingStiffness[0], (Softs::FSolverReal)Cloth->BucklingStiffness[1]));
+	ClothConstraints.SetEdgeProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->EdgeStiffness[0], (Softs::FSolverReal)Cloth->EdgeStiffness[1]), 
+		Softs::FSolverVec2((Softs::FSolverReal)Cloth->EdgeDampingRatio[0], (Softs::FSolverReal)Cloth->EdgeDampingRatio[1]));
+	ClothConstraints.SetBendingProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->BendingStiffness[0], (Softs::FSolverReal)Cloth->BendingStiffness[1]), 
+		(Softs::FSolverReal)Cloth->BucklingRatio, Softs::FSolverVec2((Softs::FSolverReal)Cloth->BucklingStiffness[0], (Softs::FSolverReal)Cloth->BucklingStiffness[1]), 
+		Softs::FSolverVec2((Softs::FSolverReal)Cloth->BendingDampingRatio[0], (Softs::FSolverReal)Cloth->BendingDampingRatio[1]));
 	ClothConstraints.SetAreaProperties(Softs::FSolverVec2((FSolverReal)Cloth->AreaStiffness[0], (Softs::FSolverReal)Cloth->AreaStiffness[1]));
 	ClothConstraints.SetLongRangeAttachmentProperties(
 		Softs::FSolverVec2((Softs::FSolverReal)Cloth->TetherStiffness[0], (Softs::FSolverReal)Cloth->TetherStiffness[1]),
@@ -425,7 +444,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bInUseSelfIntersections,
 	bool bInUseLegacyBackstop,
 	bool bInUseLODIndexOverride, 
-	int32 InLODIndexOverride)
+	int32 InLODIndexOverride,
+	const TVec2<FRealSingle>& InEdgeDampingRatio,
+	const TVec2<FRealSingle>& InBendingDampingRatio)
 	: Mesh(nullptr)
 	, Colliders()
 	, GroupId(InGroupId)
@@ -433,7 +454,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, MassValue(InMassValue)
 	, MinPerParticleMass(InMinPerParticleMass)
 	, EdgeStiffness(InEdgeStiffness)
+	, EdgeDampingRatio(InEdgeDampingRatio)
 	, BendingStiffness(InBendingStiffness)
+	, BendingDampingRatio(InBendingDampingRatio)
 	, BucklingRatio(InBucklingRatio)
 	, BucklingStiffness(InBucklingStiffness)
 	, bUseBendingElements(bInUseBendingElements)

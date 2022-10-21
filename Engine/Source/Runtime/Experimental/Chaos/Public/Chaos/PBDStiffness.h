@@ -6,6 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"
 #include "ChaosStats.h"
+#include "PBDWeightMap.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Stiffness Apply Values"), STAT_PBD_StiffnessApplyValues, STATGROUP_Chaos);
 
@@ -16,7 +17,7 @@ namespace Chaos::Softs
  * Stiffness class for managing real time update to the weight map and low/high value ranges
  * and to exponentiate the stiffness value depending on the iterations and Dt.
  */
-class FPBDStiffness final
+class FPBDStiffness final : public FPBDWeightMap
 {
 public:
 	static constexpr FSolverReal ParameterFrequency = (FSolverReal)120.;  // 60Hz @ 2 iterations as a root for all stiffness values TODO: Make this a global solver parameter
@@ -47,66 +48,13 @@ public:
 
 	~FPBDStiffness() {}
 
-	/** Return the number of values stored in the weight map. */
-	int32 Num() const { return Indices.Num(); }
-
-	/** Return whether this object contains weight map values. */
-	bool HasWeightMap() const { return Table.Num() > 1 && FMath::Abs(WeightedValue[0] - WeightedValue[1]) > UE_KINDA_SMALL_NUMBER; }
-
-	/**
-	 * Set the low and high values of the weight map.
-	 * The weight map table only gets updated after ApplyValues is called.
-	 * Low and high values are clamped between [0,1]
-	 */
-	void SetWeightedValue(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.); }
-
-	/**
-	 * Set the low and high values of the weight map.
-	 * The weight map table only gets updated after ApplyValues is called.
-	 * Low and high values are not clamped. Commonly used for XPBD Stiffness values which are not [0,1]
-	 */
-	void SetWeightedValueUnclamped(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue; }
-
-	/**
-	 * Return the low and high values set for this weight map.
-	 * Both values will always be between 0 and 1 due to having been clamped in SetWeightedValue.
-	 */
-	const FSolverVec2& GetWeightedValue() const { return WeightedValue; }
-
 	/** Update the weight map table with the current simulation parameters. */
 	inline void ApplyValues(const FSolverReal Dt, const int32 NumIterations);
 
 	/** Update the weight map table with the current simulation parameters. */
 	inline void ApplyXPBDValues(const FSolverReal MaxStiffnesss);
 
-	/**
-	 * Lookup for the exponential weighted value at the specified weight map index.
-	 * This function will assert if it is called with a non zero index on an empty weight map.
-	*/
-	FSolverReal operator[](int32 Index) const { return Table[Indices[Index]]; }
-
-	/** Return the exponential value at the Low weight. */
-	FSolverReal GetLow() const { return Table[0]; }
-
-	/** Return the exponential value at the High weight. */
-	FSolverReal GetHigh() const { return Table.Last(); }
-
-	/** Return the exponential stiffness value when the weight map is not used. */
-	explicit operator FSolverReal() const { return GetLow(); }
-
-	/** Return the particles/constraints indices to the stiffness table as a read only array. */
-	TConstArrayView<uint8> GetIndices() const { return TConstArrayView<uint8>(Indices); }
-
-	/** Return the table of stiffnesses as a read only array. */
-	TConstArrayView<FSolverReal> GetTable() const { return TConstArrayView<FSolverReal>(Table); }
-
-	/** Reorder Indices based on Constraint reordering. */
-	inline void ReorderIndices(const TArray<int32>& OrigToReorderedIndices);
-
 private:
-	TArray<uint8> Indices; // Per particle/constraints array of index to the stiffness table
-	TArray<FSolverReal> Table;  // Fixed lookup table of stiffness values, use uint8 indexation
-	FSolverVec2 WeightedValue;
 	const FSolverReal ParameterFitBase;
 	const FSolverReal ParameterFitLogBase;
 };
@@ -117,33 +65,10 @@ FPBDStiffness::FPBDStiffness(
 	int32 ParticleCount,
 	int32 TableSize,
 	FSolverReal InParameterFitBase)
-	: WeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.))
+	: FPBDWeightMap(InWeightedValue, Multipliers, ParticleCount, TableSize)
 	, ParameterFitBase(InParameterFitBase)
 	, ParameterFitLogBase(FMath::Loge(InParameterFitBase))
 {
-	check(TableSize > 0 && TableSize < 256);  // The Stiffness lookup table is restricted to uint8 sized indices
-
-	if (Multipliers.Num() == ParticleCount && ParticleCount > 0)
-	{
-		// Convert the weight maps into an array of lookup indices to the stiffness table
-		Indices.AddUninitialized(ParticleCount);
-
-		const FRealSingle TableScale = (FRealSingle)(TableSize - 1);
-
-		for (int32 Index = 0; Index < ParticleCount; ++Index)
-		{
-			Indices[Index] = (uint8)(FMath::Clamp(Multipliers[Index], (FRealSingle)0., (FRealSingle)1.) * TableScale);
-		}
-
-		// Initialize empty table until ApplyValues is called
-		Table.AddZeroed(TableSize);
-	}
-	else
-	{
-		// Initialize with a one element table until ApplyValues is called
-		Indices.AddZeroed(1);
-		Table.AddZeroed(1);
-	}
 }
 
 template<int32 Valence>
@@ -156,44 +81,10 @@ FPBDStiffness::FPBDStiffness(
 	int32 TableSize,
 	FSolverReal InParameterFitBase,
 	typename TEnableIf<Valence >= 2 && Valence <= 4>::Type*)
-	: WeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.))
+	: FPBDWeightMap(InWeightedValue, Multipliers, Constraints, ParticleOffset, ParticleCount, TableSize)
 	, ParameterFitBase(InParameterFitBase)
 	, ParameterFitLogBase(FMath::Loge(InParameterFitBase))
 {
-	check(TableSize > 0 && TableSize < 256);  // The Stiffness lookup table is restricted to uint8 sized indices
-
-	const int32 ConstraintCount = Constraints.Num();
-
-	if (Multipliers.Num() == ParticleCount && ParticleCount > 0 && ConstraintCount > 0)
-	{
-		// Convert the weight maps into an array of lookup indices to the stiffness table
-		Indices.AddUninitialized(ConstraintCount);
-
-		const FRealSingle TableScale = (FRealSingle)(TableSize - 1);
-
-		for (int32 ConstraintIndex = 0; ConstraintIndex < ConstraintCount; ++ConstraintIndex)
-		{
-			const TVector<int32, Valence>& Constraint = Constraints[ConstraintIndex];
-
-			FRealSingle Weight = 0.f;
-			for (int32 Index = 0; Index < Valence; ++Index)
-			{
-				Weight += FMath::Clamp(Multipliers[Constraint[Index] - ParticleOffset], (FRealSingle)0., (FRealSingle)1.);
-			}
-			Weight /= (FRealSingle)Valence;
-
-			Indices[ConstraintIndex] = (uint8)(Weight * TableScale);
-		}
-
-		// Initialize empty table until ApplyValues is called
-		Table.AddZeroed(TableSize);
-	}
-	else
-	{
-		// Initialize with a one element table until ApplyValues is called
-		Indices.AddZeroed(1);
-		Table.AddZeroed(1);
-	}
 }
 
 static inline FSolverReal CalcExponentialParameterFit(const FSolverReal ParameterFitBase, const FSolverReal ParameterFitLogBase, const FSolverReal InValue)
@@ -264,25 +155,6 @@ void FPBDStiffness::ApplyXPBDValues(const FSolverReal MaxStiffness)
 	{
 		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
 		Table[Index] = SimulationValue(Offset + Weight * Range);
-	}
-}
-
-void FPBDStiffness::ReorderIndices(const TArray<int32>& OrigToReorderedConstraintIndices)
-{
-	if (Indices.Num() == OrigToReorderedConstraintIndices.Num())
-	{
-		TArray<uint8> ReorderedIndices;
-		ReorderedIndices.SetNumUninitialized(Indices.Num());
-		for (int32 OrigConstraintIndex = 0; OrigConstraintIndex < OrigToReorderedConstraintIndices.Num(); ++OrigConstraintIndex)
-		{
-			const int32 ReorderedConstraintIndex = OrigToReorderedConstraintIndices[OrigConstraintIndex];
-			ReorderedIndices[ReorderedConstraintIndex] = Indices[OrigConstraintIndex];
-		}
-		Indices = MoveTemp(ReorderedIndices);
-	}
-	else
-	{
-		check(Indices.Num() == 1);
 	}
 }
 

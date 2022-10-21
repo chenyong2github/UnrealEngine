@@ -415,7 +415,9 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->bUseSelfIntersections,
 		ClothConfig->bUseLegacyBackstop,
 		/*bUseLODIndexOverride =*/ false,
-		/*LODIndexOverride =*/ INDEX_NONE));
+		/*LODIndexOverride =*/ INDEX_NONE,
+		TVec2<FRealSingle>(0.f), // EdgeDampingRatio
+		TVec2<FRealSingle>(0.f))); // BendDampingRatio
 
 	// Add cloth to solver
 	Solver->AddCloth(Cloths[ClothIndex].Get());
@@ -858,7 +860,9 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->bUseSelfIntersections,
 			ClothConfig->bUseLegacyBackstop,
 			/*bUseLODIndexOverride =*/ false,
-			/*LODIndexOverride =*/ INDEX_NONE);
+			/*LODIndexOverride =*/ INDEX_NONE,
+			TVec2<FRealSingle>(0.f), // EdgeDampingRatio
+			TVec2<FRealSingle>(0.f)); // BendDampingRatio
 
 		// Re-add cloth to the solver
 		Solver->AddCloth(Cloth.Get());

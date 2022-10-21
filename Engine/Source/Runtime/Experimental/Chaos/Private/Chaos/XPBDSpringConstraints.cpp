@@ -15,6 +15,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Spring Constraint"), STAT_XPBD_Spring, STATG
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
 static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FPAndInvM), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FPAndInvM)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3)");
 static_assert(sizeof(ispc::FIntVector2) == sizeof(Chaos::TVec2<int32>), "sizeof(ispc::FIntVector2) != sizeof(Chaos::TVec2<int32>)");
 
 bool bChaos_XPBDSpring_ISPC_Enabled = true;
@@ -67,15 +68,16 @@ void FXPBDSpringConstraints::InitColor(const FSolverParticles& Particles)
 		Constraints = MoveTemp(ReorderedConstraints);
 		Dists = MoveTemp(ReorderedDists);
 		Stiffness.ReorderIndices(OrigToReorderedIndices);
+		DampingRatio.ReorderIndices(OrigToReorderedIndices);
 	}
 }
 
-void FXPBDSpringConstraints::ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
+void FXPBDSpringConstraints::ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal DampingRatioValue) const
 {
 	const TVec2<int32>& Constraint = Constraints[ConstraintIndex];
 	const int32 i1 = Constraint[0];
 	const int32 i2 = Constraint[1];
-	const FSolverVec3 Delta =  GetDelta(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+	const FSolverVec3 Delta =  GetDelta(Particles, Dt, ConstraintIndex, ExpStiffnessValue, DampingRatioValue);
 	if (Particles.InvM(i1) > (FSolverReal)0.)
 	{
 		Particles.P(i1) -= Particles.InvM(i1) * Delta;
@@ -90,12 +92,17 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FXPBDSpringConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_XPBD_Spring);
+
+	const bool StiffnessHasWeightMap = Stiffness.HasWeightMap();
+	const bool DampingHasWeightMap = DampingRatio.HasWeightMap();
+
 	if ((ConstraintsPerColorStartIndex.Num() > 1) && (Constraints.Num() > Chaos_XPBDSpring_ParallelConstraintCount))
 	{
 		const int32 ConstraintColorNum = ConstraintsPerColorStartIndex.Num() - 1;
-		if (!Stiffness.HasWeightMap())
+		if (!StiffnessHasWeightMap && !DampingHasWeightMap)
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
+			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
 			if (ExpStiffnessValue < XPBDSpringMinStiffness)
 			{
 				return;
@@ -104,18 +111,39 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_XPBDSpring_ISPC_Enabled)
 			{
-				for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
+				if (DampingRatioValue > 0)
 				{
-					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
-					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
-					ispc::ApplyXPBDSpringConstraints(
-						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
-						(ispc::FIntVector2*)&Constraints.GetData()[ColorStart],
-						&Dists.GetData()[ColorStart],
-						&Lambdas.GetData()[ColorStart],
-						Dt,
-						ExpStiffnessValue,
-						ColorSize);
+					for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
+					{
+						const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
+						const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
+						ispc::ApplyXPBDSpringConstraintsWithDamping(
+							(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
+							(const ispc::FVector3f*)Particles.X().GetData(),
+							(ispc::FIntVector2*)&Constraints.GetData()[ColorStart],
+							&Dists.GetData()[ColorStart],
+							&Lambdas.GetData()[ColorStart],
+							Dt,
+							ExpStiffnessValue,
+							DampingRatioValue,
+							ColorSize);
+					}
+				}
+				else
+				{
+					for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
+					{
+						const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
+						const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
+						ispc::ApplyXPBDSpringConstraints(
+							(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
+							(ispc::FIntVector2*)&Constraints.GetData()[ColorStart],
+							&Dists.GetData()[ColorStart],
+							&Lambdas.GetData()[ColorStart],
+							Dt,
+							ExpStiffnessValue,
+							ColorSize);
+					}
 				}
 			}
 			else
@@ -128,7 +156,7 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 					PhysicsParallelFor(ColorSize, [&](const int32 Index)
 					{
 						const int32 ConstraintIndex = ColorStart + Index;
-						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue, DampingRatioValue);
 					});
 				}
 			}
@@ -138,25 +166,53 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_XPBDSpring_ISPC_Enabled)
 			{
-				for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
+				if (DampingHasWeightMap || (FSolverReal)DampingRatio > 0)
 				{
-					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
-					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
-					ispc::ApplyXPBDSpringConstraintsWithWeightMaps(
-						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
-						(ispc::FIntVector2*) & Constraints.GetData()[ColorStart],
-						&Dists.GetData()[ColorStart],
-						&Lambdas.GetData()[ColorStart],
-						Dt,
-						XPBDSpringMinStiffness,
-						&Stiffness.GetIndices().GetData()[ColorStart],
-						&Stiffness.GetTable().GetData()[0],
-						ColorSize);
+					for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
+					{
+						const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
+						const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
+						ispc::ApplyXPBDSpringConstraintsWithDampingAndWeightMaps(
+							(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
+							(const ispc::FVector3f*)Particles.X().GetData(),
+							(ispc::FIntVector2*)&Constraints.GetData()[ColorStart],
+							&Dists.GetData()[ColorStart],
+							&Lambdas.GetData()[ColorStart],
+							Dt,
+							XPBDSpringMinStiffness,
+							StiffnessHasWeightMap,
+							&Stiffness.GetIndices().GetData()[ColorStart],
+							&Stiffness.GetTable().GetData()[0],
+							DampingHasWeightMap,
+							&DampingRatio.GetIndices().GetData()[ColorStart],
+							&DampingRatio.GetTable().GetData()[0],
+							ColorSize);
+					}
+				}
+				else
+				{
+					for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
+					{
+						const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
+						const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
+						ispc::ApplyXPBDSpringConstraintsWithWeightMaps(
+							(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
+							(ispc::FIntVector2*)&Constraints.GetData()[ColorStart],
+							&Dists.GetData()[ColorStart],
+							&Lambdas.GetData()[ColorStart],
+							Dt,
+							XPBDSpringMinStiffness,
+							&Stiffness.GetIndices().GetData()[ColorStart],
+							&Stiffness.GetTable().GetData()[0],
+							ColorSize);
+					}
 				}
 			}
 			else
 #endif
 			{
+				const FSolverReal StiffnessNoMap = (FSolverReal)Stiffness;
+				const FSolverReal DampingNoMap = (FSolverReal)DampingRatio;
 				for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
 				{
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
@@ -164,8 +220,9 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 					PhysicsParallelFor(ColorSize, [&](const int32 Index)
 					{
 						const int32 ConstraintIndex = ColorStart + Index;
-						const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
-						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+						const FSolverReal ExpStiffnessValue = StiffnessHasWeightMap ? Stiffness[ConstraintIndex] : StiffnessNoMap;
+						const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
+						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue, DampingRatioValue);
 					});
 				}
 			}
@@ -173,24 +230,28 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 	}
 	else
 	{
-		if (!Stiffness.HasWeightMap())
+		if (!StiffnessHasWeightMap && !DampingHasWeightMap)
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
+			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
 			if (ExpStiffnessValue < XPBDSpringMinStiffness)
 			{
 				return;
 			}
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
-				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue, DampingRatioValue);
 			}
 		}
 		else
 		{
+			const FSolverReal StiffnessNoMap = (FSolverReal)Stiffness;
+			const FSolverReal DampingNoMap = (FSolverReal)DampingRatio;
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
-				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
-				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+				const FSolverReal ExpStiffnessValue = StiffnessHasWeightMap ? Stiffness[ConstraintIndex] : StiffnessNoMap;
+				const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
+				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue, DampingRatioValue);
 			}
 		}
 	}

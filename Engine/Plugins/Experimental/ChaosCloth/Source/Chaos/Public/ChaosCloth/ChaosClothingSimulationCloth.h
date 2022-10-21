@@ -74,7 +74,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			bool bInUseSelfIntersections,
 			bool bInUseLegacyBackstop,
 			bool bInUseLODIndexOverride,
-			int32 InLODIndexOverride);
+			int32 InLODIndexOverride,
+			const TVec2<FRealSingle>& EdgeDampingRatio = TVec2<FRealSingle>(0.f),
+			const TVec2<FRealSingle>& BendDampingRatio = TVec2<FRealSingle>(0.f));
 		~FClothingSimulationCloth();
 
 		FClothingSimulationCloth(const FClothingSimulationCloth&) = delete;
@@ -177,7 +179,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FRealSingle MassValue;
 		FRealSingle MinPerParticleMass;
 		TVec2<FRealSingle> EdgeStiffness;
+		TVec2<FRealSingle> EdgeDampingRatio;
 		TVec2<FRealSingle> BendingStiffness;
+		TVec2<FRealSingle> BendingDampingRatio;
 		FRealSingle BucklingRatio;
 		TVec2<FRealSingle> BucklingStiffness;
 		bool bUseBendingElements;
