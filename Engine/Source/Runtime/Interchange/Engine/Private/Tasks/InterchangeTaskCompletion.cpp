@@ -81,6 +81,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 					Arguments.Pipelines = AsyncHelper->Pipelines;
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
+					Arguments.bIsReimport = ObjectInfo.bIsReimport;
 					ObjectInfo.Factory->PreImportPreCompletedCallback(Arguments);
 				}
 
