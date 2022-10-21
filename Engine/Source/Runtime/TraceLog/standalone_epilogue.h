@@ -301,6 +301,9 @@ void ThreadBuffer::Flush(bool Force)
 {
 	using namespace Private;
 
+	if (Cursor == Buffer)
+		return;
+
 	if (!Force && (Cursor <= (Buffer + BufferSize - Overflow)))
 		return;
 
