@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Iris/Serialization/GuidNetSerializer.h"
 #include "Misc/Guid.h"
 

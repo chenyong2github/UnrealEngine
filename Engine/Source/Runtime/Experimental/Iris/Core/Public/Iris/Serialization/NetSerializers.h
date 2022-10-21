@@ -38,8 +38,24 @@ struct FStructNetSerializerConfig : public FNetSerializerConfig
 	GENERATED_BODY()
 
 	IRISCORE_API FStructNetSerializerConfig();
+	IRISCORE_API ~FStructNetSerializerConfig();
+
+	FStructNetSerializerConfig(const FStructNetSerializerConfig&) = delete;
+	FStructNetSerializerConfig(FStructNetSerializerConfig&&) = delete;
+
+	FStructNetSerializerConfig& operator=(const FStructNetSerializerConfig&) = delete;
+	FStructNetSerializerConfig& operator=(FStructNetSerializerConfig&&) = delete;
 
 	TRefCountPtr<const UE::Net::FReplicationStateDescriptor> StateDescriptor;
+};
+
+template<>
+struct TStructOpsTypeTraits<FStructNetSerializerConfig> : public TStructOpsTypeTraitsBase2<FStructNetSerializerConfig>
+{
+	enum
+	{
+		WithCopy = false
+	};
 };
 
 /**

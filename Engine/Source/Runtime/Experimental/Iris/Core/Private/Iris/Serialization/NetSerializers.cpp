@@ -8,3 +8,5 @@ FStructNetSerializerConfig::FStructNetSerializerConfig()
 {
 	ConfigTraits = ENetSerializerConfigTraits::NeedDestruction;
 }
+
+FStructNetSerializerConfig::~FStructNetSerializerConfig() = default;

@@ -29,6 +29,15 @@ struct FArrayPropertyNetSerializerConfig : public FNetSerializerConfig
 	GENERATED_BODY()
 
 public:
+	FArrayPropertyNetSerializerConfig();
+	~FArrayPropertyNetSerializerConfig();
+
+	FArrayPropertyNetSerializerConfig(const FArrayPropertyNetSerializerConfig&) = delete;
+	FArrayPropertyNetSerializerConfig(FArrayPropertyNetSerializerConfig&&) = delete;
+	
+	FArrayPropertyNetSerializerConfig& operator=(const FArrayPropertyNetSerializerConfig&) = delete;
+	FArrayPropertyNetSerializerConfig& operator=(FArrayPropertyNetSerializerConfig&&) = delete;
+
 	UPROPERTY()
 	uint16 MaxElementCount = 0;
 
@@ -39,6 +48,15 @@ public:
 	TFieldPath<FArrayProperty> Property;
 
 	TRefCountPtr<const UE::Net::FReplicationStateDescriptor> StateDescriptor;
+};
+
+template<>
+struct TStructOpsTypeTraits<FArrayPropertyNetSerializerConfig> : public TStructOpsTypeTraitsBase2<FArrayPropertyNetSerializerConfig>
+{
+	enum
+	{
+		WithCopy = false
+	};
 };
 
 /**

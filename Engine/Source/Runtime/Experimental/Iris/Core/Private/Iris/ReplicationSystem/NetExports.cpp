@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "NetExports.h"
 #include "Iris/PacketControl/PacketNotification.h"
 
