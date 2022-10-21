@@ -399,12 +399,13 @@ namespace WebRemoteControlInternalUtils
 			}
 
 #if WITH_EDITOR
+			FEditPropertyChain PropertyChain;
+
 			if (Access == ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS && ObjectRef.Object.IsValid())
 			{
 				// This transaction is being manually controlled, so RemoteControlModule's automatic transaction handling won't call this for us
-				FEditPropertyChain PreEditChain;
-				ObjectRef.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-				ObjectRef.Object->PreEditChange(PreEditChain);
+				ObjectRef.PropertyPathInfo.ToEditPropertyChain(PropertyChain);
+				ObjectRef.Object->PreEditChange(PropertyChain);
 			}
 #endif
 
@@ -424,10 +425,14 @@ namespace WebRemoteControlInternalUtils
 #if WITH_EDITOR
 			if (Access == ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS && ObjectRef.Object.IsValid())
 			{
-				// This transaction is being manually controlled, so RemoteControlModule's automatic transaction handling won't call this for us
+				// This transaction is being manually controlled, so RemoteControlModule's automatic transaction handling won't call these functions for us
+				SnapshotTransactionBuffer(ObjectRef.Object.Get());
+
 				FPropertyChangedEvent PropertyEvent = ObjectRef.PropertyPathInfo.ToPropertyChangedEvent();
 				PropertyEvent.ChangeType = EPropertyChangeType::Interactive;
-				ObjectRef.Object->PostEditChangeProperty(PropertyEvent);
+
+				FPropertyChangedChainEvent PropertyChainEvent(PropertyChain, PropertyEvent);
+				ObjectRef.Object->PostEditChangeChainProperty(PropertyChainEvent);
 			}
 #endif
 		}
