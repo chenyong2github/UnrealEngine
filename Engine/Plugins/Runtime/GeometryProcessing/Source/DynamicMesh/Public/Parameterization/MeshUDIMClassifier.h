@@ -17,7 +17,7 @@ namespace UE
 		/**
 		* FDynamicMeshUDIMClassifier is a utility class for identifying active UDIMs from a FDynamicMesh's UV overlay
 		 */
-		class UVEDITORTOOLS_API FDynamicMeshUDIMClassifier
+		class DYNAMICMESH_API FDynamicMeshUDIMClassifier
 		{
 		public:			
 			explicit FDynamicMeshUDIMClassifier(const FDynamicMeshUVOverlay* UVOverlay, TOptional<TArray<int32>> Selection = TOptional<TArray<int32>>());

@@ -9,7 +9,8 @@
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Parameterization/PatchBasedMeshUVGenerator.h"
 #include "Properties/RecomputeUVsProperties.h"
-#include "Utilities/MeshUDIMClassifier.h"
+#include "Parameterization/MeshUDIMClassifier.h"
+
 
 #include "DynamicSubmesh3.h"
 

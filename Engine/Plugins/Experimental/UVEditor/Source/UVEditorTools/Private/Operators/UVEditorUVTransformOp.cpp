@@ -6,7 +6,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Parameterization/MeshUVPacking.h"
 #include "Selections/MeshConnectedComponents.h"
-#include "Utilities/MeshUDIMClassifier.h"
+#include "Parameterization/MeshUDIMClassifier.h"
 #include "Async/ParallelFor.h"
 #include "UVEditorUXSettings.h"
 

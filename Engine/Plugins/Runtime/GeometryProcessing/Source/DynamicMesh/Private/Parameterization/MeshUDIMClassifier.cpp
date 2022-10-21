@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Utilities/MeshUDIMClassifier.h"
+#include "Parameterization/MeshUDIMClassifier.h"
 #include "Spatial/SparseDynamicOctree3.h"
-#include "UVEditorUXSettings.h"
 #include "Selections/MeshConnectedComponents.h"
 
 using namespace UE::Geometry;
+
+namespace UVLayoutOpLocals
+{
+	FVector2f InternalUVToExternalUV(const FVector2f& UV)
+	{
+		return FVector2f(UV.X, 1 - UV.Y);
+	}
+}
 
 FDynamicMeshUDIMClassifier::FDynamicMeshUDIMClassifier(const FDynamicMeshUVOverlay* UVOverlayIn, TOptional<TArray<int32>> SelectionIn)
 {
@@ -41,7 +48,7 @@ FVector2i FDynamicMeshUDIMClassifier::ClassifyTrianglesToUDIM(const FDynamicMesh
 		FVector2f Vertex0, Vertex1, Vertex2;
 		UVOverlay->GetTriElements(Tid, Vertex0, Vertex1, Vertex2);
 		FVector2f BaryCenter = (Vertex0 + Vertex1 + Vertex2) / 3.0f;
-		BaryCenter = FUVEditorUXSettings::InternalUVToExternalUV(BaryCenter);
+		BaryCenter = UVLayoutOpLocals::InternalUVToExternalUV(BaryCenter);
 		UDIM = ClassifyPointToUDIM(BaryCenter);		
 		return UDIM;
 	};

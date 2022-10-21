@@ -7,10 +7,25 @@
 #include "Parameterization/MeshUVPacking.h"
 #include "Properties/UVLayoutProperties.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Parameterization/MeshUDIMClassifier.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVLayoutOp)
 
 using namespace UE::Geometry;
+
+namespace UVLayoutOpLocals
+{
+	FVector2f ExternalUVToInternalUV(const FVector2f& UV)
+	{
+		return FVector2f(UV.X, 1 - UV.Y);
+	}
+
+	FVector2f InternalUVToExternalUV(const FVector2f& UV)
+	{
+		return FVector2f(UV.X, 1 - UV.Y);
+	}
+}
+
 
 void FUVLayoutOp::SetTransform(const FTransformSRT3d& Transform) 
 {
@@ -56,7 +71,88 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		return;
 	}
 
-	FDynamicMeshUVPacker Packer(UseUVLayer);
+	if (bMaintainOriginatingUDIM)
+	{		
+		TOptional<TArray<int32>> SelectionArray;
+		if (Selection.IsSet())
+		{
+			SelectionArray = Selection.GetValue().Array();
+		}
+		FDynamicMeshUDIMClassifier TileClassifier(UseUVLayer, SelectionArray);
+
+		TArray<FVector2i> Tiles = TileClassifier.ActiveTiles();
+
+		for (FVector2i TileIndex : Tiles)
+		{
+			TUniquePtr<TArray<int32>> TileTids;
+			TileTids = MakeUnique<TArray<int32>>(TileClassifier.TidsForTile(TileIndex));
+
+			// Do this first, so we don't need to keep the TileTids around after moving it into the packer.
+			TSet<int32> ElementsToMove;
+			ElementsToMove.Reserve(TileTids->Num() * 3);
+			for (int Tid : *TileTids)
+			{
+				FIndex3i Elements = UseUVLayer->GetTriangle(Tid);
+				ElementsToMove.Add(Elements[0]);
+				ElementsToMove.Add(Elements[1]);
+				ElementsToMove.Add(Elements[2]);
+			}
+
+			// TODO: There is a second connected components call inside the packer that might be unnessessary. Could be a future optimization.
+			FDynamicMeshUVPacker Packer(UseUVLayer, MoveTemp(TileTids) );
+			ExecutePacker(Packer);
+			if (Progress && Progress->Cancelled())
+			{
+				return;
+			}
+
+			for (int32 Element : ElementsToMove)
+			{
+				FVector2f UV = UVLayoutOpLocals::InternalUVToExternalUV(UseUVLayer->GetElement(Element));
+				UV = UV + FVector2f(TileIndex);
+				UseUVLayer->SetElement(Element, UVLayoutOpLocals::ExternalUVToInternalUV(UV));
+			}			
+		}
+	}
+	else
+	{
+		TUniquePtr<TArray<int32>> TidsToLayout = nullptr;
+		if (Selection.IsSet())
+		{
+			TidsToLayout = MakeUnique<TArray<int32>>();
+			TSet<int32>& SelectionSet = Selection.GetValue();
+			TidsToLayout->Reserve(SelectionSet.Num());
+			for(int Tid : SelectionSet)
+			{
+				if (OriginalMesh->IsTriangle(Tid))
+				{
+					TidsToLayout->Add(Tid);
+				}
+			}
+		}
+		
+		FDynamicMeshUVPacker Packer(UseUVLayer, MoveTemp(TidsToLayout) );
+		ExecutePacker(Packer);
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+	}
+
+	if (UVScaleFactor != 1.0 || UVTranslation != FVector2f::Zero() )
+	{
+		for (int ElementID : UseUVLayer->ElementIndicesItr())
+		{
+			FVector2f UV = UVLayoutOpLocals::InternalUVToExternalUV(UseUVLayer->GetElement(ElementID));
+			UV = (UV * UVScaleFactor) + UVTranslation;
+			UseUVLayer->SetElement(ElementID, UVLayoutOpLocals::ExternalUVToInternalUV(UV));
+		}
+	}
+
+}
+
+void FUVLayoutOp::ExecutePacker(FDynamicMeshUVPacker& Packer)
+{
 	Packer.TextureResolution = this->TextureResolution;
 	Packer.GutterSize = this->GutterSize;
 	Packer.bAllowFlips = this->bAllowFlips;
@@ -77,22 +173,6 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 			return;
 		}
 	}
-
-	if (Progress && Progress->Cancelled())
-	{
-		return;
-	}
-
-	if (UVScaleFactor != 1.0 || UVTranslation != FVector2f::Zero() )
-	{
-		for (int ElementID : UseUVLayer->ElementIndicesItr())
-		{
-			FVector2f UV = UseUVLayer->GetElement(ElementID);
-			UV = (UV * UVScaleFactor) + UVTranslation;
-			UseUVLayer->SetElement(ElementID, UV);
-		}
-	}
-
 }
 
 TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
@@ -120,6 +200,7 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 	Op->UVScaleFactor = Settings->Scale;
 	Op->UVTranslation = FVector2f(Settings->Translation);
 	Op->SetTransform(TargetTransform);
+	Op->bMaintainOriginatingUDIM = Settings->bEnableUDIMLayout;
 
 	return Op;
 }

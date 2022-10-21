@@ -47,7 +47,7 @@
 #include "UVEditorUXSettings.h"
 #include "UDIMUtilities.h"
 #include "EditorSupportDelegates.h"
-#include "Utilities/MeshUDIMClassifier.h"
+#include "Parameterization/MeshUDIMClassifier.h"
 #include "UVEditorLogging.h"
 #include "UObject/ObjectSaveContext.h"
 

@@ -7,7 +7,8 @@
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
-#include "Operators/UVEditorUVLayoutOp.h"
+#include "ParameterizationOps/UVLayoutOp.h"
+#include "Properties/UVLayoutProperties.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "ContextObjects/UVToolContextObjects.h"
 #include "EngineAnalytics.h"
@@ -45,7 +46,7 @@ void UUVEditorLayoutTool::Setup()
 
 	UInteractiveTool::Setup();
 
-	Settings = NewObject<UUVEditorUVLayoutProperties>(this);
+	Settings = NewObject<UUVLayoutProperties>(this);
 	Settings->RestoreProperties(this);
 	Settings->bUDIMCVAREnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	AddToolPropertySource(Settings);
@@ -61,7 +62,7 @@ void UUVEditorLayoutTool::Setup()
 
 	auto SetupOpFactory = [this](UUVEditorToolMeshInput& Target, const FUVToolSelection* Selection)
 	{
-		TObjectPtr<UUVEditorUVLayoutOperatorFactory> Factory = NewObject<UUVEditorUVLayoutOperatorFactory>();
+		TObjectPtr<UUVLayoutOperatorFactory> Factory = NewObject<UUVLayoutOperatorFactory>();
 		Factory->TargetTransform = Target.AppliedPreview->PreviewMesh->GetTransform();
 		Factory->Settings = Settings;
 		Factory->OriginalMesh = Target.AppliedCanonical;

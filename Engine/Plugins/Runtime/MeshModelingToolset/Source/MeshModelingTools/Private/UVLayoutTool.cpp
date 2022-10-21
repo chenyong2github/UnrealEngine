@@ -72,6 +72,8 @@ void UUVLayoutTool::Setup()
 
 	BasicProperties = NewObject<UUVLayoutProperties>(this);
 	BasicProperties->RestoreProperties(this);
+	BasicProperties->bUDIMCVAREnabled = false;
+	BasicProperties->bEnableUDIMLayout = false;
 	AddToolPropertySource(BasicProperties);
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);

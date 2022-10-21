@@ -51,4 +51,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "UV Layout", meta = (EditCondition = "LayoutType == EUVLayoutType::Repack"))
 	bool bAllowFlips = false;
 
+	/** Enable UDIM aware layout and keep islands within their originating UDIM tiles when laying out.*/
+	UPROPERTY(EditAnywhere, Category = "UV Layout", meta = (DisplayName = "Preserve UDIMs", EditCondition="bUDIMCVAREnabled", EditConditionHides, HideEditConditionToggle = true))
+	bool bEnableUDIMLayout = false;
+
+	UPROPERTY(Transient)
+	bool bUDIMCVAREnabled = false;
 };
