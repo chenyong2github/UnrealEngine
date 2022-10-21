@@ -1298,6 +1298,7 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 					if (InputValues.Mode == EValueMode::Data && InputValues.DataObject.IsValid())
 					{
 						InputValues.DataObject->CopyTo(UserParameters.GetDataInterface(DataInterfaceOffset));
+						UserParameters.OnInterfaceChange();
 					}
 				}
 				else
