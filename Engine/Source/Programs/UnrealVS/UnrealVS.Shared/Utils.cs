@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Xml;
 
 namespace UnrealVS
@@ -536,7 +537,14 @@ namespace UnrealVS
 					{
 						foreach (DirectoryInfo ProjectDir in ParentProjectDir.EnumerateDirectories())
 						{
-							ProjectFiles.AddRange(ProjectDir.EnumerateFiles("*.uproject"));
+							try
+							{
+								ProjectFiles.AddRange(ProjectDir.EnumerateFiles("*.uproject"));
+							} 
+							catch(Exception Ex)
+							{
+								Logging.WriteLine($"AddingProjects: Exception trying to add projects from directory '{ProjectDir}': {Ex.Message}");
+							}
 						}
 					}
 				}
