@@ -38,7 +38,10 @@ public:
 
 	// source mesh
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
-		
+
+	// source groups (optional)
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGroups;
+
 	// UVAtlas generation parameters
 	float Stretch = 0.11f;
 	int32 NumCharts = 0;
@@ -49,21 +52,23 @@ public:
 	// PatchBuilder generation parameters
 	int32 InitialPatchCount = 100;
 	bool bRespectInputGroups = false;
-	FPolygroupLayer InputGroupLayer;
-	double PatchCurvatureAlignmentWeight = 1.0;
-	double PatchMergingMetricThresh = 1.5;
-	double PatchMergingAngleThresh = 45.0;
+	float PatchCurvatureAlignmentWeight = 1.0f;
+	float PatchMergingMetricThresh = 1.5f;
+	float PatchMergingAngleThresh = 45.0f;
 	int ExpMapNormalSmoothingSteps = 5;
-	double ExpMapNormalSmoothingAlpha = 0.25;
+	float ExpMapNormalSmoothingAlpha = 0.25f;
 
 	// UV layer
 	int32 UVLayer = 0;
+
+	// UDIM support
+	bool bPackToUDIMSByOriginPolygroup = false;
 
 	// Atlas Packing parameters
 	bool bEnablePacking = true;
 	int32 Height = 512;
 	int32 Width = 512;
-	float Gutter = 2.5;
+	float Gutter = 2.5f;
 
 	EParamOpBackend Method = EParamOpBackend::UVAtlas;
 
@@ -85,7 +90,7 @@ protected:
 	// dense index/vertex buffer based representation of the data needed for parameterization
 	struct FLinearMesh
 	{
-		FLinearMesh(const FDynamicMesh3& Mesh, const bool bRespectPolygroups);
+		FLinearMesh(const FDynamicMesh3& Mesh, UE::Geometry::FPolygroupSet* InputGroups);
 
 		// Stripped down mesh
 		TArray<int32>   IndexBuffer;
@@ -114,6 +119,8 @@ protected:
 		const TArray<int32>& UVIndexBuffer,
 		const TArray<int32>& VertexRemapArray,
 		bool bReverseOrientation);
+
+	void LayoutToUDIMByPolygroup(FDynamicMesh3& InOutMesh, UE::Geometry::FPolygroupSet& InputGroups);
 };
 
 } // end namespace UE::Geometry
@@ -146,7 +153,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
 
+	//TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGroups;
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
+	TUniqueFunction<TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>()> GetPolygroups = []() { return nullptr; };
 	FTransform TargetTransform;
 };

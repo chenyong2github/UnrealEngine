@@ -8,6 +8,8 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "Properties/ParameterizeMeshProperties.h"
+#include "Polygroups/PolygroupUtil.h"
+#include "Polygroups/PolygroupSet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ParameterizeMeshTool)
 
@@ -38,19 +40,6 @@ void UParameterizeMeshTool::Setup()
 	*InputMesh = UE::ToolTarget::GetDynamicMeshCopy(Target);
 	FTransform InputTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
-
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
-	Preview->Setup(GetTargetWorld(), this);
-	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
-	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
-	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
-	Preview->PreviewMesh->SetTransform(InputTransform);
-
-	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
-	{
-		OnPreviewMeshUpdated();
-	});
 
 	UE::ToolTarget::HideSourceObject(Target);
 
@@ -88,20 +77,21 @@ void UParameterizeMeshTool::Setup()
 	AddToolPropertySource(PatchBuilderProperties);
 	SetToolPropertySourceEnabled(PatchBuilderProperties, false);
 
-	PolygroupLayerProperties = NewObject<UParameterizeMeshToolPatchBuilderGroupLayerProperties>(this);
-	PolygroupLayerProperties->RestoreProperties(this, TEXT("ModelingUVTools") );
+	PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
+	PolygroupLayerProperties->RestoreProperties(this, TEXT("ModelingUVTools"));
 	PolygroupLayerProperties->InitializeGroupLayers(InputMesh.Get());
 	AddToolPropertySource(PolygroupLayerProperties);
-	SetToolPropertySourceEnabled(PolygroupLayerProperties, false);
-
+	PatchBuilderProperties->bPolygroupsEnabled = true;
+	UVAtlasProperties->bPolygroupsEnabled = true;
+	SetToolPropertySourceEnabled(PolygroupLayerProperties, (Settings->Method == EParameterizeMeshUVMethod::PatchBuilder && 
+		                                                    PatchBuilderProperties->bUsePolygroups)
+														   || (Settings->Method == EParameterizeMeshUVMethod::UVAtlas &&
+															   UVAtlasProperties->bUsePolygroups));
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
 	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
 	MaterialSettings->RestoreProperties(this, TEXT("ModelingUVTools"));
 	AddToolPropertySource(MaterialSettings);
-	// force update
-	MaterialSettings->UpdateMaterials();
-	Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 
 	if (bCreateUVLayoutViewOnSetup)
 	{
@@ -115,6 +105,43 @@ void UParameterizeMeshTool::Setup()
 		AddToolPropertySource(UVLayoutView->Settings);
 	}
 
+	Factory = NewObject<UParameterizeMeshOperatorFactory>();
+	Factory->TargetTransform = InputTransform;
+	Factory->Settings = Settings;
+	Factory->GetPolygroups = [this]() {
+		if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
+		{
+			return MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(InputMesh.Get());
+		}
+		else
+		{
+			FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
+			FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*InputMesh, SelectedName);
+			ensureMsgf(FoundAttrib, TEXT("Selected attribute not found! Falling back to Default group layer."));
+			return MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(InputMesh.Get(), FoundAttrib);
+		}
+	};
+	Factory->UVAtlasProperties = UVAtlasProperties;
+	Factory->XAtlasProperties = XAtlasProperties;
+	Factory->PatchBuilderProperties = PatchBuilderProperties;
+	Factory->OriginalMesh = InputMesh;
+	Factory->GetSelectedUVChannel = [this]() { return UVChannelProperties->UVChannelNamesList.IndexOfByKey(UVChannelProperties->UVChannel); };
+
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
+	Preview->Setup(GetTargetWorld(), Factory);
+	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
+	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
+	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+	Preview->PreviewMesh->SetTransform(InputTransform);
+
+	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
+		{
+			OnPreviewMeshUpdated();
+		});
+	// force update
+	MaterialSettings->UpdateMaterials();
+	Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	Preview->InvalidateResult();    // start compute
 
 	SetToolDisplayName(LOCTEXT("ToolNameGlobal", "AutoUV"));
@@ -125,6 +152,11 @@ void UParameterizeMeshTool::Setup()
 
 void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
+	SetToolPropertySourceEnabled(PolygroupLayerProperties, (Settings->Method == EParameterizeMeshUVMethod::PatchBuilder && 
+		                                                    PatchBuilderProperties->bUsePolygroups)
+														   || (Settings->Method == EParameterizeMeshUVMethod::UVAtlas &&
+															   UVAtlasProperties->bUsePolygroups));
+
 	if (PropertySet == UVChannelProperties 
 		|| PropertySet == Settings 
 		|| PropertySet == UVAtlasProperties  
@@ -145,7 +177,6 @@ void UParameterizeMeshTool::OnMethodTypeChanged()
 	SetToolPropertySourceEnabled(UVAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::UVAtlas);
 	SetToolPropertySourceEnabled(XAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::XAtlas);
 	SetToolPropertySourceEnabled(PatchBuilderProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
-	SetToolPropertySourceEnabled(PolygroupLayerProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
 
 	Preview->InvalidateResult();
 }
@@ -183,6 +214,7 @@ void UParameterizeMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 		GetToolManager()->EndUndoTransaction();
 	}
 
+	Factory = nullptr;
 }
 
 void UParameterizeMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
@@ -207,50 +239,6 @@ bool UParameterizeMeshTool::CanAccept() const
 {
 	return Super::CanAccept() && Preview->HaveValidResult();
 }
-
-TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
-{
-	TUniquePtr<FParameterizeMeshOp> ParameterizeMeshOp = MakeUnique<FParameterizeMeshOp>();
-
-	ParameterizeMeshOp->InputMesh = InputMesh;
-	ParameterizeMeshOp->UVLayer = UVChannelProperties->GetSelectedChannelIndex(true);
-	ParameterizeMeshOp->Method = (EParamOpBackend)(int)Settings->Method;
-
-	// uvatlas options
-	ParameterizeMeshOp->Stretch   = UVAtlasProperties->IslandStretch;
-	ParameterizeMeshOp->NumCharts = UVAtlasProperties->NumIslands;
-	if (Settings->Method == EParameterizeMeshUVMethod::UVAtlas)
-	{
-		ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = UVAtlasProperties->TextureResolution;
-	}
-	
-	// xatlas options
-	ParameterizeMeshOp->XAtlasMaxIterations = XAtlasProperties->MaxIterations;
-
-	// patchbuilder options
-	ParameterizeMeshOp->InitialPatchCount = PatchBuilderProperties->InitialPatches;
-	ParameterizeMeshOp->bRespectInputGroups = PolygroupLayerProperties->bConstrainToPolygroups;
-	if (PolygroupLayerProperties->bConstrainToPolygroups)
-	{
-		ParameterizeMeshOp->InputGroupLayer = PolygroupLayerProperties->GetSelectedLayer(*InputMesh);
-	}
-	ParameterizeMeshOp->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
-	ParameterizeMeshOp->PatchMergingMetricThresh = PatchBuilderProperties->MergingDistortionThreshold;
-	ParameterizeMeshOp->PatchMergingAngleThresh = PatchBuilderProperties->MergingAngleThreshold;
-	ParameterizeMeshOp->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
-	ParameterizeMeshOp->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
-	ParameterizeMeshOp->bEnablePacking = PatchBuilderProperties->bRepack;
-	if (Settings->Method == EParameterizeMeshUVMethod::PatchBuilder)
-	{
-		ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = PatchBuilderProperties->TextureResolution;
-	}
-
-	ParameterizeMeshOp->SetTransform(UE::ToolTarget::GetLocalToWorldTransform(Target));
-
-	return ParameterizeMeshOp;
-}
-
-
 
 void UParameterizeMeshTool::OnPreviewMeshUpdated()
 {

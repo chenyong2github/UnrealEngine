@@ -27,7 +27,7 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "ParameterizeMeshOp"
 
-FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const bool bRespectPolygroups)
+FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, UE::Geometry::FPolygroupSet* InputGroups)
 {
 	TArray<FVector3f>& Positions = this->VertexBuffer;
 
@@ -40,11 +40,10 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 	// Compute the mapping from triangle ID to triangle number
 	{
 		const int32 MaxTriID = Mesh.MaxTriangleID(); // really +1.. all TriID < MaxTriID
-		const int32 NumTris  = Mesh.TriangleCount();
+		const int32 NumTris = Mesh.TriangleCount();
 
 		// reserve space and add elements 
-		TriFromID.Empty(MaxTriID);
-		TriFromID.AddUninitialized(MaxTriID);
+		TriFromID.SetNum(MaxTriID);
 
 		// reserve space
 		TriToID.Empty(NumTris);
@@ -61,7 +60,7 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 	// Compute the mapping from vertex ID to vertex number
 	{
 		const int32 MaxVertID = Mesh.MaxVertexID();
-		const int32 NumVerts  = Mesh.VertexCount();
+		const int32 NumVerts = Mesh.VertexCount();
 
 		// reserve space and add elements
 		VertFromID.Empty(MaxVertID);
@@ -84,10 +83,9 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 		int32 NumVerts = Mesh.VertexCount();
 		Positions.Empty(NumVerts);
 
-		for (const auto& Vertex : Mesh.VerticesItr())
+		for (const FVector3d& Vertex : Mesh.VerticesItr())
 		{
-			FVector3f Pos(Vertex.X, Vertex.Y, Vertex.Z);
-			Positions.Add(Pos);
+			Positions.Add(static_cast<FVector3f>(Vertex));
 		}
 	}
 
@@ -96,7 +94,7 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 	// Fill the index buffer
 	{
 		IndexBuffer.Empty(NumTris * 3);
-		for (const auto& Tri : Mesh.TrianglesItr())
+		for (const FIndex3i& Tri : Mesh.TrianglesItr())
 		{
 			for (int i = 0; i < 3; ++i)
 			{
@@ -113,7 +111,7 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 	AdjacencyBuffer.Empty(NumTris * 3);
 
 	// Create Adjacency - create boundaries in adjacency at polygroup boundaries if requested.
-	if (bRespectPolygroups && Mesh.HasTriangleGroups())
+	if (InputGroups)
 	{
 		for (int TriID : Mesh.TriangleIndicesItr())
 		{
@@ -125,8 +123,8 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 				int32 RemapNbrID = FDynamicMesh3::InvalidID;
 				if (NbrID != FDynamicMesh3::InvalidID)
 				{
-					const int32 CurTriGroup = Mesh.GetTriangleGroup(TriID);
-					const int32 NbrTriGroup = Mesh.GetTriangleGroup(NbrID);
+					const int32 CurTriGroup = InputGroups->GetGroup(TriID);
+					const int32 NbrTriGroup = InputGroups->GetGroup(NbrID);
 
 					RemapNbrID = (CurTriGroup == NbrTriGroup) ? TriFromID[NbrID] : FDynamicMesh3::InvalidID;
 				}
@@ -155,8 +153,8 @@ FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const b
 
 
 void FParameterizeMeshOp::CopyNewUVsToMesh(
-	FDynamicMesh3& Mesh, 
-	const FLinearMesh& LinearMesh, 
+	FDynamicMesh3& Mesh,
+	const FLinearMesh& LinearMesh,
 	const FDynamicMesh3& FlippedMesh,
 	const TArray<FVector2D>& UVVertexBuffer,
 	const TArray<int32>& UVIndexBuffer,
@@ -170,7 +168,7 @@ void FParameterizeMeshOp::CopyNewUVsToMesh(
 	FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(UVLayer);
 	if (UVOverlay == nullptr)
 	{
-		Mesh.Attributes()->SetNumUVLayers(UVLayer+1);
+		Mesh.Attributes()->SetNumUVLayers(UVLayer + 1);
 		UVOverlay = Mesh.Attributes()->GetUVLayer(UVLayer);
 	}
 
@@ -230,9 +228,35 @@ void FParameterizeMeshOp::CopyNewUVsToMesh(
 	}
 }
 
+void FParameterizeMeshOp::LayoutToUDIMByPolygroup(FDynamicMesh3& InOutMesh, UE::Geometry::FPolygroupSet& PolygroupSet)
+{
+	FDynamicMeshUVEditor UVEditor(&InOutMesh, UVLayer, true);
+	TMap<int32, TArray<int32> > TidsPerTile;
+
+	for (int32 Tid : InOutMesh.TriangleIndicesItr())
+	{
+		if (UVEditor.GetOverlay()->IsSetTriangle(Tid))
+		{
+			int32 TidGroup = PolygroupSet.GetGroup(Tid);
+			TidsPerTile.FindOrAdd(TidGroup).Add(Tid);
+		}
+	}
+
+	TArray<int32> Tiles;
+	TidsPerTile.GetKeys(Tiles);
+	Tiles.Sort();
+	for (int32 FlatGroupID = 0; FlatGroupID < Tiles.Num(); ++FlatGroupID)
+	{
+		FVector2i TilePos;
+		TilePos.X = FlatGroupID % 10;
+		TilePos.Y = FlatGroupID / 10;
+
+		ensure(UVEditor.UDIMPack(Width, Gutter, TilePos, TidsPerTile.Find(Tiles[FlatGroupID])));
+	}
+}
 
 
-bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<bool(float)>& Interrupter)
+bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh, TFunction<bool(float)>& Interrupter)
 {
 #if NO_UVATLAS
 
@@ -240,14 +264,14 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 	return false;
 
 #else	// NO_UVATLAS
-	
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_UVAtlas);
 
 	// the UVAtlas code is unhappy if you feed it a single degenerate triangle
 	bool bNonDegenerate = true;
 	if (Mesh.TriangleCount() == 1)
 	{
-		for (auto TriID : Mesh.TriangleIndicesItr())
+		for (int32 TriID : Mesh.TriangleIndicesItr())
 		{
 			double Area = Mesh.GetTriArea(TriID);
 			bNonDegenerate = bNonDegenerate && FMath::Abs(Area) > 1.e-5;
@@ -272,7 +296,7 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 	}
 
 	// Convert to a dense form.
-	FLinearMesh LinearMesh(FlippedMesh, false);
+	FLinearMesh LinearMesh(FlippedMesh, (bRespectInputGroups && InputGroups.IsValid()) ? InputGroups.Get() : nullptr);
 
 	// Data to be populated by the UV generation tool
 	TArray<FVector2D> UVVertexBuffer;
@@ -280,14 +304,14 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 	TArray<int32>     VertexRemapArray; // This maps the UV vertices to the original position vertices.  Note multiple UV vertices might share the same positional vertex (due to UV boundaries)
 
 
-	float MaxStretch     = Stretch;
+	float MaxStretch = Stretch;
 	int32 MaxChartNumber = NumCharts;
 
 	TUniquePtr<IProxyLODParameterization> ParameterizationTool = IProxyLODParameterization::CreateTool();
 	bool bSuccess = ParameterizationTool->GenerateUVs(Width, Height, Gutter, LinearMesh.VertexBuffer,
-	                                                  LinearMesh.IndexBuffer, LinearMesh.AdjacencyBuffer, Interrupter,
-	                                                  UVVertexBuffer, UVIndexBuffer, VertexRemapArray, MaxStretch,
-	                                                  MaxChartNumber);
+		LinearMesh.IndexBuffer, LinearMesh.AdjacencyBuffer, Interrupter,
+		UVVertexBuffer, UVIndexBuffer, VertexRemapArray, MaxStretch,
+		MaxChartNumber);
 
 	// Add the UVs to the FDynamicMesh
 	if (bSuccess)
@@ -297,6 +321,11 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 	else
 	{
 		NewResultInfo.AddError(FGeometryError(0, LOCTEXT("UVAtlasFailed", "UVAtlas failed")));
+	}
+
+	if (bPackToUDIMSByOriginPolygroup && bRespectInputGroups && InputGroups.IsValid())
+	{
+		LayoutToUDIMByPolygroup(Mesh, *InputGroups);
 	}
 
 	return bSuccess;
@@ -312,7 +341,7 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 
 
 
-bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool(float)>& Interrupter)
+bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh, TFunction<bool(float)>& Interrupter)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_XAtlas);
 
@@ -326,7 +355,7 @@ bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool
 	}
 
 	// Convert to a dense form.
-	FLinearMesh LinearMesh(FlippedMesh, false);
+	FLinearMesh LinearMesh(FlippedMesh, (bRespectInputGroups && InputGroups.IsValid()) ? InputGroups.Get() : nullptr);
 
 	// Data to be populated by the UV generation tool
 	TArray<FVector2D> UVVertexBuffer;
@@ -337,12 +366,12 @@ bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool
 	ChartOptions.MaxIterations = XAtlasMaxIterations;
 	XAtlasWrapper::XAtlasPackOptions PackOptions;
 	bool bSuccess = XAtlasWrapper::ComputeUVs(LinearMesh.IndexBuffer,
-											LinearMesh.VertexBuffer, 
-											ChartOptions,
-											PackOptions,
-											UVVertexBuffer, 
-											UVIndexBuffer, 
-											VertexRemapArray);
+		LinearMesh.VertexBuffer,
+		ChartOptions,
+		PackOptions,
+		UVVertexBuffer,
+		UVIndexBuffer,
+		VertexRemapArray);
 
 	// Add the UVs to the FDynamicMesh
 	if (bSuccess)
@@ -363,17 +392,16 @@ bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool
 bool FParameterizeMeshOp::ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FProgressCancel* ProgressCancel)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_PatchBuilder);
-	
+
 	FPatchBasedMeshUVGenerator UVGenerator;
 
 	TUniquePtr<FPolygroupSet> PolygroupConstraint;
-	if (bRespectInputGroups && InputGroupLayer.CheckExists(&InOutMesh))
+	if (bRespectInputGroups && InputGroups.IsValid())
 	{
-		PolygroupConstraint = MakeUnique<FPolygroupSet>(&InOutMesh, InputGroupLayer);
-		UVGenerator.GroupConstraint = PolygroupConstraint.Get();
+		UVGenerator.GroupConstraint = InputGroups.Get();
 	}
 
-	UVGenerator.TargetPatchCount = FMath::Max(1,InitialPatchCount);
+	UVGenerator.TargetPatchCount = FMath::Max(1, InitialPatchCount);
 	UVGenerator.bNormalWeightedPatches = true;
 	UVGenerator.PatchNormalWeight = FMath::Clamp(PatchCurvatureAlignmentWeight, 0.0, 999999.0);
 	UVGenerator.MinPatchSize = 2;
@@ -392,6 +420,11 @@ bool FParameterizeMeshOp::ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FPro
 
 	FDynamicMeshUVEditor UVEditor(&InOutMesh, UVLayer, true);
 	FGeometryResult Result = UVGenerator.AutoComputeUVs(*UVEditor.GetMesh(), *UVEditor.GetOverlay(), ProgressCancel);
+
+	if (bPackToUDIMSByOriginPolygroup && bRespectInputGroups && InputGroups.IsValid())
+	{
+		LayoutToUDIMByPolygroup(InOutMesh, *InputGroups);
+	}
 
 	SetResultInfo(NewResultInfo);
 	return (Result.HasFailed() == false);
@@ -461,15 +494,18 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperat
 	TUniquePtr<FParameterizeMeshOp> Op = MakeUnique<FParameterizeMeshOp>();
 
 	Op->InputMesh = OriginalMesh;
+	Op->InputGroups = GetPolygroups();
 
 	switch (Settings->Method)
 	{
 	case EParameterizeMeshUVMethod::PatchBuilder:
 		Op->Method = EParamOpBackend::PatchBuilder;
 		Op->InitialPatchCount = PatchBuilderProperties->InitialPatches;
+		Op->bRespectInputGroups = PatchBuilderProperties->bUsePolygroups;
 		Op->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
 		Op->PatchMergingMetricThresh = PatchBuilderProperties->MergingDistortionThreshold;
 		Op->PatchMergingAngleThresh = PatchBuilderProperties->MergingAngleThreshold;
+		Op->bPackToUDIMSByOriginPolygroup = PatchBuilderProperties->bLayoutUDIMPerPolygroup;
 		Op->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
 		Op->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
 		Op->bEnablePacking = PatchBuilderProperties->bRepack;
@@ -477,8 +513,10 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperat
 		Op->Height = PatchBuilderProperties->TextureResolution;
 		break;
 	case EParameterizeMeshUVMethod::UVAtlas:
-		Op->Method = EParamOpBackend::UVAtlas;		
+		Op->Method = EParamOpBackend::UVAtlas;
 		Op->Stretch = UVAtlasProperties->IslandStretch;
+		Op->bRespectInputGroups = UVAtlasProperties->bUsePolygroups;
+		Op->bPackToUDIMSByOriginPolygroup = UVAtlasProperties->bLayoutUDIMPerPolygroup;
 		Op->NumCharts = UVAtlasProperties->NumIslands;
 		Op->Width = UVAtlasProperties->TextureResolution;
 		Op->Height = UVAtlasProperties->TextureResolution;
@@ -489,7 +527,7 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperat
 		break;
 	}
 
-	Op->UVLayer = GetSelectedUVChannel();	
+	Op->UVLayer = GetSelectedUVChannel();
 
 	FTransformSRT3d Transform(TargetTransform);
 	Op->SetTransform(Transform);

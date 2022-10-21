@@ -4,7 +4,8 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "Operators/UVEditorParameterizeMeshOp.h"
+#include "ParameterizationOps/ParameterizeMeshOp.h"
+#include "Properties/ParameterizeMeshProperties.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Polygroups/PolygroupUtil.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
@@ -53,22 +54,22 @@ void UUVEditorParameterizeMeshTool::Setup()
 	UInteractiveTool::Setup();
 
 	// initialize our properties
-	Settings = NewObject<UUVEditorParameterizeMeshToolProperties>(this);
+	Settings = NewObject<UParameterizeMeshToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
-	Settings->WatchProperty(Settings->Method, [&](EUVEditorParameterizeMeshUVMethod) { OnMethodTypeChanged(); });
+	Settings->WatchProperty(Settings->Method, [&](EParameterizeMeshUVMethod) { OnMethodTypeChanged(); });
 
-	UVAtlasProperties = NewObject<UUVEditorParameterizeMeshToolUVAtlasProperties>(this);
+	UVAtlasProperties = NewObject<UParameterizeMeshToolUVAtlasProperties>(this);
 	UVAtlasProperties->RestoreProperties(this);
 	AddToolPropertySource(UVAtlasProperties);
 	SetToolPropertySourceEnabled(UVAtlasProperties, true);
 
-	XAtlasProperties = NewObject<UUVEditorParameterizeMeshToolXAtlasProperties>(this);
+	XAtlasProperties = NewObject<UParameterizeMeshToolXAtlasProperties>(this);
 	XAtlasProperties->RestoreProperties(this);
 	AddToolPropertySource(XAtlasProperties);
 	SetToolPropertySourceEnabled(XAtlasProperties, true);
 	
-	PatchBuilderProperties = NewObject<UUVEditorParameterizeMeshToolPatchBuilderProperties>(this);
+	PatchBuilderProperties = NewObject<UParameterizeMeshToolPatchBuilderProperties>(this);
 	PatchBuilderProperties->RestoreProperties(this);
 	AddToolPropertySource(PatchBuilderProperties);
 	SetToolPropertySourceEnabled(PatchBuilderProperties, true);
@@ -78,18 +79,19 @@ void UUVEditorParameterizeMeshTool::Setup()
 		PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
 		PolygroupLayerProperties->RestoreProperties(this, TEXT("UVEditorRecomputeUVsTool"));
 		PolygroupLayerProperties->InitializeGroupLayers(Targets[0]->AppliedCanonical.Get());
-		PolygroupLayerProperties->WatchProperty(PolygroupLayerProperties->ActiveGroupLayer, [&](FName) { OnSelectedGroupLayerChanged(); });
 		AddToolPropertySource(PolygroupLayerProperties);
 		PatchBuilderProperties->bPolygroupsEnabled = true;
 		UVAtlasProperties->bPolygroupsEnabled = true;
+		SetToolPropertySourceEnabled(PolygroupLayerProperties, (Settings->Method == EParameterizeMeshUVMethod::PatchBuilder && 
+		                                                    PatchBuilderProperties->bUsePolygroups)
+														   || (Settings->Method == EParameterizeMeshUVMethod::UVAtlas &&
+															   UVAtlasProperties->bUsePolygroups));
 	}
 	else
 	{
-		ActiveGroupSet = nullptr;
 		PatchBuilderProperties->bPolygroupsEnabled = false;
 		UVAtlasProperties->bPolygroupsEnabled = false;
 	}
-	UpdateActiveGroupLayer(false);  /* Don't update factories that don't exist yet. */
 
 	PatchBuilderProperties->bUDIMsEnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	UVAtlasProperties->bUDIMsEnabled = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
@@ -99,10 +101,29 @@ void UUVEditorParameterizeMeshTool::Setup()
 	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
 	{
 		TObjectPtr<UUVEditorToolMeshInput> Target = Targets[TargetIndex];
-		Factories[TargetIndex] = NewObject<UUVEditorParameterizeMeshOperatorFactory>();
+		Factories[TargetIndex] = NewObject<UParameterizeMeshOperatorFactory>();
 		Factories[TargetIndex]->TargetTransform = Target->AppliedPreview->PreviewMesh->GetTransform();
 		Factories[TargetIndex]->Settings = Settings;
-		Factories[TargetIndex]->InputGroups = ActiveGroupSet;
+		Factories[TargetIndex]->GetPolygroups = [this]() -> TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> {
+			if (Targets.Num() == 1)
+			{
+				if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
+				{
+					return MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(Targets[0]->AppliedCanonical.Get());
+				}
+				else
+				{
+					FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
+					FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*Targets[0]->AppliedCanonical, SelectedName);
+					ensureMsgf(FoundAttrib, TEXT("Selected attribute not found! Falling back to Default group layer."));
+					return MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(Targets[0]->AppliedCanonical.Get(), FoundAttrib);
+				}
+			}
+			else
+			{
+				return nullptr;
+			}
+		};
 		Factories[TargetIndex]->UVAtlasProperties = UVAtlasProperties;
 		Factories[TargetIndex]->XAtlasProperties = XAtlasProperties;
 		Factories[TargetIndex]->PatchBuilderProperties = PatchBuilderProperties;
@@ -130,6 +151,11 @@ void UUVEditorParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FPr
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_OnPropertyModified);
 
+	SetToolPropertySourceEnabled(PolygroupLayerProperties, (Settings->Method == EParameterizeMeshUVMethod::PatchBuilder && 
+		                                                    PatchBuilderProperties->bUsePolygroups)
+														   || (Settings->Method == EParameterizeMeshUVMethod::UVAtlas &&
+															   UVAtlasProperties->bUsePolygroups));
+
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
 		Target->AppliedPreview->InvalidateResult();
@@ -142,12 +168,9 @@ void UUVEditorParameterizeMeshTool::OnMethodTypeChanged()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_OnMethodTypeChanged);
 	
-	SetToolPropertySourceEnabled(UVAtlasProperties, Settings->Method == EUVEditorParameterizeMeshUVMethod::UVAtlas);
-	SetToolPropertySourceEnabled(XAtlasProperties, Settings->Method == EUVEditorParameterizeMeshUVMethod::XAtlas);
-	SetToolPropertySourceEnabled(PatchBuilderProperties, Settings->Method == EUVEditorParameterizeMeshUVMethod::PatchBuilder);
-
-	SetToolPropertySourceEnabled(PolygroupLayerProperties, Settings->Method == EUVEditorParameterizeMeshUVMethod::UVAtlas ||
-		                                                   Settings->Method == EUVEditorParameterizeMeshUVMethod::PatchBuilder);
+	SetToolPropertySourceEnabled(UVAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::UVAtlas);
+	SetToolPropertySourceEnabled(XAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::XAtlas);
+	SetToolPropertySourceEnabled(PatchBuilderProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
 
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
@@ -221,46 +244,6 @@ void UUVEditorParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	Targets.Empty();
 }
 
-void UUVEditorParameterizeMeshTool::OnSelectedGroupLayerChanged()
-{
-	UpdateActiveGroupLayer();
-	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
-	{
-		Target->AppliedPreview->InvalidateResult();
-	}
-}
-
-
-void UUVEditorParameterizeMeshTool::UpdateActiveGroupLayer(bool bUpdateFactories)
-{
-	if (Targets.Num() == 1)
-	{
-		if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
-		{
-			ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(Targets[0]->AppliedCanonical.Get());
-		}
-		else
-		{
-			FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
-			FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*Targets[0]->AppliedCanonical, SelectedName);
-			ensureMsgf(FoundAttrib, TEXT("Selected attribute not found! Falling back to Default group layer."));
-			ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(Targets[0]->AppliedCanonical.Get(), FoundAttrib);
-		}
-	}
-	else
-	{
-		ActiveGroupSet = nullptr;
-	}
-
-	if (bUpdateFactories)
-	{
-		for (int32 FactoryIdx = 0; FactoryIdx < Factories.Num(); ++FactoryIdx)
-		{
-			Factories[FactoryIdx]->InputGroups = ActiveGroupSet;
-		}
-	}
-}
-
 void UUVEditorParameterizeMeshTool::OnTick(float DeltaTime)
 {
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
@@ -314,11 +297,11 @@ void UUVEditorParameterizeMeshTool::RecordAnalytics()
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
 
 	// Tool settings chosen by the user (Volatile! Sync with EditCondition meta-tags in *Properties members)
-	const FString MethodName = StaticEnum<EUVEditorParameterizeMeshUVMethod>()->GetNameStringByIndex(static_cast<int>(Settings->Method));
+	const FString MethodName = StaticEnum<EParameterizeMeshUVMethod>()->GetNameStringByIndex(static_cast<int>(Settings->Method));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Method"), MethodName));
 	switch (Settings->Method)
 	{
-		case EUVEditorParameterizeMeshUVMethod::PatchBuilder:
+		case EParameterizeMeshUVMethod::PatchBuilder:
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.InitialPatches"), *MethodName), PatchBuilderProperties->InitialPatches));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.CurvatureAlignment"), *MethodName), PatchBuilderProperties->CurvatureAlignment));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MergingDistortionThreshold"), *MethodName), PatchBuilderProperties->MergingDistortionThreshold));
@@ -331,11 +314,11 @@ void UUVEditorParameterizeMeshTool::RecordAnalytics()
 				Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.TextureResolution"), *MethodName), PatchBuilderProperties->TextureResolution));
 			}
 			break;
-		case EUVEditorParameterizeMeshUVMethod::UVAtlas:
+		case EParameterizeMeshUVMethod::UVAtlas:
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.IslandStretch"), *MethodName), UVAtlasProperties->IslandStretch));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.NumIslands"), *MethodName), UVAtlasProperties->NumIslands));
 			break;
-		case EUVEditorParameterizeMeshUVMethod::XAtlas:
+		case EParameterizeMeshUVMethod::XAtlas:
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MaxIterations"), *MethodName), XAtlasProperties->MaxIterations));
 			break;
 		default:

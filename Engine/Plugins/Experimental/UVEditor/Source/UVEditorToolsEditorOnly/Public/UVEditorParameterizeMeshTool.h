@@ -21,11 +21,11 @@ class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UUVEditorToolMeshInput;
-class UUVEditorParameterizeMeshToolProperties;
-class UUVEditorParameterizeMeshToolUVAtlasProperties;
-class UUVEditorParameterizeMeshToolXAtlasProperties;
-class UUVEditorParameterizeMeshToolPatchBuilderProperties;
-class UUVEditorParameterizeMeshOperatorFactory;
+class UParameterizeMeshToolProperties;
+class UParameterizeMeshToolUVAtlasProperties;
+class UParameterizeMeshToolXAtlasProperties;
+class UParameterizeMeshToolPatchBuilderProperties;
+class UParameterizeMeshOperatorFactory;
 class UPolygroupLayersProperties;
 
 UCLASS()
@@ -77,28 +77,24 @@ protected:
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorParameterizeMeshToolProperties> Settings = nullptr;
+	TObjectPtr<UParameterizeMeshToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorParameterizeMeshToolUVAtlasProperties> UVAtlasProperties = nullptr;
+	TObjectPtr<UParameterizeMeshToolUVAtlasProperties> UVAtlasProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorParameterizeMeshToolXAtlasProperties> XAtlasProperties = nullptr;
+	TObjectPtr<UParameterizeMeshToolXAtlasProperties> XAtlasProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
+	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UUVEditorParameterizeMeshOperatorFactory>> Factories;
+	TArray<TObjectPtr<UParameterizeMeshOperatorFactory>> Factories;
 
 	void OnMethodTypeChanged();
-
-	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
-	void OnSelectedGroupLayerChanged();
-	void UpdateActiveGroupLayer(bool bUpdateFactories = true);
 
 	//
 	// Analytics

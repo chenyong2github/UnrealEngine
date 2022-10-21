@@ -7,6 +7,7 @@
 
 #include "ParameterizeMeshProperties.generated.h"
 
+
 UENUM()
 enum class EParameterizeMeshUVMethod
 {
@@ -51,6 +52,22 @@ public:
 	/** Expected resolution of the output textures; this controls spacing left between UV islands to avoid interpolation artifacts. */
 	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096"))
 	int TextureResolution = 1024;
+
+	/** Generate new UVs based on polygroups from specified layer. */
+	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (DisplayName = "Constrain to Polygroups", EditCondition = bPolygroupsEnabled, EditConditionHides, HideEditConditionToggle))
+	bool bUsePolygroups;
+
+	/** Layout resulting islands on UDIMs based on polygroups. */
+	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (EditCondition = "bUsePolygroups && bUDIMsEnabled", EditConditionHides, HideEditConditionToggle))
+	bool bLayoutUDIMPerPolygroup;
+
+	/** Controls if polygroup options are available to the user. */
+	UPROPERTY()
+	bool bPolygroupsEnabled;
+
+	/** Controls if UDIM options are available to the user. */
+	UPROPERTY()
+	bool bUDIMsEnabled;
 };
 
 
@@ -101,4 +118,20 @@ public:
 	/** Expected resolution of the output textures; this controls spacing left between UV islands to avoid interpolation artifacts. This is only enabled when Repack is enabled. */
 	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = bRepack))
 	int TextureResolution = 1024;
+
+	/** Generate new UVs based on polygroups from specified layer. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (DisplayName = "Constrain to Polygroups", EditCondition = bPolygroupsEnabled, EditConditionHides, HideEditConditionToggle))
+	bool bUsePolygroups;
+
+	/** Layout resulting islands on UDIMs based on polygroups. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (EditCondition = "bUsePolygroups && bUDIMsEnabled", EditConditionHides, HideEditConditionToggle))
+	bool bLayoutUDIMPerPolygroup;
+
+	/** Controls if polygroup options are available to the user. */
+	UPROPERTY()
+	bool bPolygroupsEnabled;
+
+	/** Controls if UDIM options are available to the user. */
+	UPROPERTY()
+	bool bUDIMsEnabled;
 };
