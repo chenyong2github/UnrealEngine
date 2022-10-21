@@ -236,8 +236,6 @@ struct FGetSessionByName
 	{
 		/** Reference to the session mapped to the given name */
 		TSharedRef<const ISession> Session;
-
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -255,8 +253,6 @@ struct FGetSessionById
 	{
 		/** Reference to the session mapped to the given id */
 		TSharedRef<const ISession> Session;
-
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -674,8 +670,6 @@ struct FUISessionJoinRequested
 
 	/** Join request source */
 	EUISessionJoinRequestedSource JoinRequestedSource = EUISessionJoinRequestedSource::Unspecified;
-
-	FUISessionJoinRequested() = delete; // cannot default construct due to TResult
 };
 
 class ISessions

@@ -169,9 +169,6 @@ struct FAuthLogin
 	struct Result
 	{
 		TSharedRef<FAccountInfo> AccountInfo;
-
-	public:
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -328,9 +325,6 @@ struct FAuthGetLocalOnlineUserByOnlineAccountId
 	struct Result
 	{
 		TSharedRef<FAccountInfo> AccountInfo;
-
-	public:
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -347,9 +341,6 @@ struct FAuthGetLocalOnlineUserByPlatformUserId
 	struct Result
 	{
 		TSharedRef<FAccountInfo> AccountInfo;
-
-	public:
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -374,9 +365,6 @@ struct FAuthLoginStatusChanged
 	TSharedRef<FAccountInfo> AccountInfo;
 	/* The new login status. */
 	ELoginStatus LoginStatus = ELoginStatus::NotLoggedIn;
-
-public:
-	FAuthLoginStatusChanged() = delete; // cannot default construct due to TSharedRef
 };
 
 /** Struct for PendingAuthExpiration event */
@@ -384,9 +372,6 @@ struct FAuthPendingAuthExpiration
 {
 	/* The affected account. */
 	TSharedRef<FAccountInfo> AccountInfo;
-
-public:
-	FAuthPendingAuthExpiration() = delete; // cannot default construct due to TSharedRef
 };
 
 /** Struct for AccountAttributesChanged event */
@@ -400,9 +385,6 @@ struct FAuthAccountAttributesChanged
 	TMap<FSchemaAttributeId, FSchemaVariant> RemovedAttributes;
 	/* Changed attributes with their old and new values. */
 	TMap<FSchemaAttributeId, TPair<FSchemaVariant, FSchemaVariant>> ChangedAttributes;
-
-public:
-	FAuthAccountAttributesChanged() = delete; // cannot default construct due to TSharedRef
 };
 
 class IAuth

@@ -882,7 +882,7 @@ bool FOnlineSubsystemTencent::HandleUsersExecCommands(UWorld* InWorld, const TCH
 #if WITH_TENCENT_RAIL_SDK
 	const FUniqueNetIdPtr LocalUserId = GetFirstSignedInUser(TencentIdentity);
 	const int32 LocalUserNum = LocalUserId.IsValid() ? TencentIdentity->GetPlatformUserIdFromUniqueNetId(*LocalUserId) : PLATFORMUSERID_NONE;
-	if (LocalUserNum != PLATFORMUSERID_NONE)
+	if (LocalUserNum != (int32)PLATFORMUSERID_NONE)
 	{
 		bWasHandled = true;
 		if (FParse::Command(&Cmd, TEXT("DUMPALL")))

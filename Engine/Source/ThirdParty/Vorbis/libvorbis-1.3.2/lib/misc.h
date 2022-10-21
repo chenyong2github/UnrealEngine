@@ -26,7 +26,7 @@ extern void _vorbis_block_ripcord(vorbis_block *vb);
 extern int analysis_noisy;
 extern void _analysis_output(char *base,int i,float *v,int n,int bark,int dB,
                              ogg_int64_t off);
-extern void _analysis_output_always(char *base,int i,float *v,int n,int bark,int dB,
+extern void _analysis_output_always(const char *base,int i,float *v,int n,int bark,int dB,
                              ogg_int64_t off);
 #endif
 

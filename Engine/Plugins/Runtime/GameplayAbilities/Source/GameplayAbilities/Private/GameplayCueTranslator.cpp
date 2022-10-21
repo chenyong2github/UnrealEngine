@@ -331,7 +331,7 @@ bool FGameplayCueTranslationManager::BuildTagTranslationTable_r(const FName& Tag
 								UE_LOG(LogGameplayCueTranslator, Log, TEXT("   Matches real tags! Adding to translation tree"));
 
 								FGameplayCueTranslatorNodeIndex ChildIdx = GetTranslationIndexForName(TagName, true);
-								ensure(ChildIdx != INDEX_NONE);
+								ensure(ChildIdx.IsValid());
 
 								// Note: important to do this after getting ChildIdx since allocating idx can move TranslationMap memory around
 								FGameplayCueTranslatorNode& ParentNode = TranslationLUT[ParentIdx];
@@ -522,7 +522,7 @@ bool FGameplayCueTranslationManager::TranslateTag_Internal(FGameplayCueTranslato
 
 			// Use the link's NodeLookup to get the real NodeIndex
 			FGameplayCueTranslatorNodeIndex NodeIndex = Link.NodeLookup[TranslationIndex];
-			if (NodeIndex != INDEX_NONE)
+			if (NodeIndex.IsValid())
 			{
 				if (TranslationLUT.IsValidIndex(NodeIndex) == false)
 				{
@@ -610,7 +610,7 @@ bool FGameplayCueTranslationManager::GetTranslatedTags(const FName& ParentTag, T
 			for (int32 LinkIdx=0; LinkIdx < Link.NodeLookup.Num(); ++LinkIdx)
 			{
 				const FGameplayCueTranslatorNodeIndex& Index = Link.NodeLookup[LinkIdx];
-				if (Index != INDEX_NONE)
+				if (Index.IsValid())
 				{
 					FGameplayCueTranslatorNode& ChildNode = TranslationLUT[Index];
 

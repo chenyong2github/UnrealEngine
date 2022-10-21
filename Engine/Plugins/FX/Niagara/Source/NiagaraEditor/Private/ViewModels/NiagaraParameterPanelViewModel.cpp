@@ -39,6 +39,7 @@
 #include "Widgets/SNiagaraParameterMenu.h"
 #include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -1075,7 +1076,7 @@ bool FNiagaraSystemToolkitParameterPanelViewModel::IsVariableSelected(FNiagaraVa
 		}
 
 	}
-	if (IncludeViewItemsInSelectParameterItem() && InVar == SelectedVariable)
+	if (IncludeViewItemsInSelectParameterItem() && InVar == static_cast<const FNiagaraVariableBase&>(SelectedVariable))
 	{
 		return true;
 	}

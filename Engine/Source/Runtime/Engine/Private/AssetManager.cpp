@@ -2634,7 +2634,7 @@ void UAssetManager::GetPreviousPrimaryAssetIds(const FPrimaryAssetId& NewId, TAr
 	// Also look for type redirects
 	for (const TPair<FName, FName>& Redirect : PrimaryAssetTypeRedirects)
 	{
-		if (Redirect.Value == NewId.PrimaryAssetType)
+		if (Redirect.Value == NewId.PrimaryAssetType.GetName())
 		{
 			OutOldIds.AddUnique(FPrimaryAssetId(Redirect.Key, NewId.PrimaryAssetName));
 		}
@@ -3101,7 +3101,7 @@ FName UAssetManager::GetEncryptionKeyAssetTagName()
 
 bool UAssetManager::ShouldScanPrimaryAssetType(FPrimaryAssetTypeInfo& TypeInfo) const
 {
-	if (!ensureMsgf(TypeInfo.PrimaryAssetType != PackageChunkType, TEXT("Cannot use %s as an asset manager type, this is reserved for internal use"), *TypeInfo.PrimaryAssetType.ToString()))
+	if (!ensureMsgf(TypeInfo.PrimaryAssetType != PackageChunkType.GetName(), TEXT("Cannot use %s as an asset manager type, this is reserved for internal use"), *TypeInfo.PrimaryAssetType.ToString()))
 	{
 		// Cannot use this as a proper type
 		return false;

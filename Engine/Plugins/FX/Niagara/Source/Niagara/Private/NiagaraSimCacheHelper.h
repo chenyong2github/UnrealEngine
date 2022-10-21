@@ -3,6 +3,7 @@
 #pragma  once
 
 #include "NiagaraSimCache.h"
+#include "NiagaraSystemInstanceController.h"
 
 struct FNiagaraSimCacheHelper
 {
@@ -236,7 +237,7 @@ struct FNiagaraSimCacheHelper
 			EmitterData->ForEachEnabledRenderer(
 				[&](UNiagaraRendererProperties* RenderProperties)
 				{
-					for (FNiagaraVariableBase BoundAttribute : RenderProperties->GetBoundAttributes())
+					for (FNiagaraVariable BoundAttribute : RenderProperties->GetBoundAttributes())
 					{
 						if ( (BoundAttribute.GetType() == FNiagaraTypeDefinition::GetQuatDef()) ||
 							 (BoundAttribute.GetType() == FNiagaraTypeDefinition::GetMatrix4Def()) )
@@ -303,7 +304,7 @@ struct FNiagaraSimCacheHelper
 		for (const FNiagaraSimCacheVariable& SourceVariable : CacheLayout.Variables)
 		{
 			// Find variable, if it doesn't exist that's ok as the cache contains more data than is required
-			const int32 DataSetVariableIndex = CompiledData.Variables.IndexOfByPredicate([&](const FNiagaraVariable& DataSetVariable) { return DataSetVariable == SourceVariable.Variable; });
+			const int32 DataSetVariableIndex = CompiledData.Variables.IndexOfByPredicate([&](const FNiagaraVariableBase& DataSetVariable) { return DataSetVariable == SourceVariable.Variable; });
 			const FNiagaraVariableLayoutInfo* DestVariableLayout = nullptr;
 			if (DataSetVariableIndex != INDEX_NONE)
 			{

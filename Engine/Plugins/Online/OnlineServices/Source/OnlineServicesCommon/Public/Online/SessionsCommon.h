@@ -211,8 +211,6 @@ struct FGetMutableSessionByName
 	struct Result
 	{
 		TSharedRef<FSessionCommon> Session;
-
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -228,8 +226,6 @@ struct FGetMutableSessionById
 	struct Result
 	{
 		TSharedRef<FSessionCommon> Session;
-
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
