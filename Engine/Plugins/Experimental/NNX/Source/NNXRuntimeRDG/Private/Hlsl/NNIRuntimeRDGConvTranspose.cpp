@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGConvTranspose.h"
-#include "NNXConvTransposeCS.h"
+#include "NNIHlslShadersConvTransposeCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorConvTranspose, TEXT("NNI.Operator.Hlsl.ConvTranspose"));
+
+	using EConvTransposeAutoPad = UE::NNIHlslShaders::Internal::EConvTransposeAutoPad;
 
 	/**
 	 * ConvTranspose operator implementation
@@ -73,6 +75,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
+			using namespace UE::NNIHlslShaders::Internal;
+
 			constexpr EConvTransposeAlgorithm Algorithm = EConvTransposeAlgorithm::SharedMemory;
 			constexpr EConvTransposeGroupSize GroupSize = EConvTransposeGroupSize::Size256;
 
@@ -117,4 +121,4 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		return true;
 	}
 
-} // NNX
+} // UE::NNIRuntimeRDG::Private::Hlsl

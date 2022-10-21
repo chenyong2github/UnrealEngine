@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGConv.h"
-#include "NNXConvCS.h"
+#include "NNIHlslShadersConvCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
-	DECLARE_GPU_STAT_NAMED(FMLHLSLOperatorConv, TEXT("NNI.Operator.Hlsl.Conv"));
+	DECLARE_GPU_STAT_NAMED(FNNIOperatorConv, TEXT("NNI.Operator.Hlsl.Conv"));
+
+	using EConvAutoPad = UE::NNIHlslShaders::Internal::EConvAutoPad;
 
 	/**
-	 * Convolution ML operator implementation
+	 * Convolution operator implementation
 	 */
 	class FConv : public NNX::FMLOperatorHlsl
 	{
@@ -26,13 +28,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		FConv() {}
 
-		NNX::FMLTensorDesc Input;
-		NNX::FMLTensorDesc Weights;
-		NNX::FMLTensorDesc Bias;
-		NNX::FMLTensorDesc Output;
+		NNX::FMLTensorDesc Input = {};
+		NNX::FMLTensorDesc Weights = {};
+		NNX::FMLTensorDesc Bias = {};
+		NNX::FMLTensorDesc Output = {};
 
-		int NumDimensions;
-		bool HasBias;
+		int NumDimensions = 0;
+		bool HasBias = false;
 
 		// Hard coded parameters, until we accept them from JSON
 		int32 Group = 1;
@@ -71,14 +73,16 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
+			using namespace UE::NNIHlslShaders::Internal;
+
 			constexpr EConvAlgorithm Algorithm = EConvAlgorithm::SharedMemory;
 			constexpr EConvGroupSize GroupSize = EConvGroupSize::Size256;
 
-			TArray<int32> OutputShape = FMLConvCS::GetOutputShape(Input.Shape, Weights.Shape, AutoPad, Dilations, Strides, Pads);
+			TArray<int32> OutputShape = FConvCS::GetOutputShape(Input.Shape, Weights.Shape, AutoPad, Dilations, Strides, Pads);
 
 			// Set parameters
-			FMLConvCS::FParameters* Params = GraphBuilder.AllocParameters<FMLConvCS::FParameters>();
-			FMLConvCS::FillInParameters(GroupSize, Input.Shape, Weights.Shape, HasBias, AutoPad, Group, Dilations,Strides, Pads, *Params);
+			FConvCS::FParameters* Params = GraphBuilder.AllocParameters<FConvCS::FParameters>();
+			FConvCS::FillInParameters(GroupSize, Input.Shape, Weights.Shape, HasBias, AutoPad, Group, Dilations,Strides, Pads, *Params);
 			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			if (InInputBindings.Num() == 3) {
@@ -86,25 +90,25 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			}
 			Params->Y = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 
-			FMLConvCS::FPermutationDomain PermutationVector;
+			FConvCS::FPermutationDomain PermutationVector;
 
-			PermutationVector.Set<FMLConvCS::FConvAlgorithm>(Algorithm);
-			PermutationVector.Set<FMLConvCS::FConvGroupSize>(GroupSize);
-			PermutationVector.Set<FMLConvCS::FConvNumDimensions>(NumDimensions);
-			PermutationVector.Set<FMLConvCS::FConvNumReadsPerThread>(FMLConvCS::GetNumReadsPerThread(GroupSize, Weights.Shape, Dilations, Strides));
-			PermutationVector.Set<FMLConvCS::FConvHasB>(HasBias);
-			TShaderMapRef<FMLConvCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+			PermutationVector.Set<FConvCS::FConvAlgorithm>(Algorithm);
+			PermutationVector.Set<FConvCS::FConvGroupSize>(GroupSize);
+			PermutationVector.Set<FConvCS::FConvNumDimensions>(NumDimensions);
+			PermutationVector.Set<FConvCS::FConvNumReadsPerThread>(FConvCS::GetNumReadsPerThread(GroupSize, Weights.Shape, Dilations, Strides));
+			PermutationVector.Set<FConvCS::FConvHasB>(HasBias);
+			TShaderMapRef<FConvCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-			RDG_EVENT_SCOPE(GraphBuilder, "FML.HLSL.Operator.Conv");
-			RDG_GPU_STAT_SCOPE(GraphBuilder, FMLHLSLOperatorConv);
+			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.Conv");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorConv);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("FML.HLSL.Operator.Conv.Dispatch"),
+				RDG_EVENT_NAME("NNI.Operator.Hlsl.Conv.Dispatch"),
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
-				FMLConvCS::GetGroupCount(OutputShape, FMLConvCS::GetGroupShape(GroupSize, NumDimensions)));
+				FConvCS::GetGroupCount(OutputShape, FConvCS::GetGroupShape(GroupSize, NumDimensions)));
 		}
 	};
 
@@ -115,4 +119,4 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		return true;
 	}
 
-} // NNX
+} // UE::NNIRuntimeRDG::Private::Hlsl
