@@ -218,14 +218,25 @@ bool FLevelSequenceObjectReferenceMap::Serialize(FArchive& Ar)
 
 bool FLevelSequenceBindingReferences::HasBinding(const FGuid& ObjectId) const
 {
-	return BindingIdToReferences.Contains(ObjectId) || AnimSequenceInstances.Contains(ObjectId);
+	return BindingIdToReferences.Contains(ObjectId) || AnimSequenceInstances.Contains(ObjectId) || PostProcessInstances.Contains(ObjectId);
 }
 
 void FLevelSequenceBindingReferences::AddBinding(const FGuid& ObjectId, UObject* InObject, UObject* InContext)
 {
-	if (InObject->IsA<UAnimInstance>())
+	if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(InObject))
 	{
-		AnimSequenceInstances.Add(ObjectId);
+		if (AnimInstance->GetOwningComponent()->GetAnimInstance() == InObject)
+		{
+			AnimSequenceInstances.Add(ObjectId);
+		}
+		else if (AnimInstance->GetOwningComponent()->GetPostProcessInstance() == InObject)
+		{
+			PostProcessInstances.Add(ObjectId);
+		}
+		else
+		{
+			UE_LOG(LogMovieScene, Warning, TEXT("Attempted to add a binding for %s which is not an anim instance or post process instance"), *GetNameSafe(InObject));
+		}
 	}
 	else
 	{
@@ -301,9 +312,16 @@ void FLevelSequenceBindingReferences::ResolveBinding(const FGuid& ObjectId, UObj
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InContext))
 	{
 		// If the object ID exists in the AnimSequenceInstances set, then this binding relates to an anim instance on a skeletal mesh component
-		if (SkeletalMeshComponent && AnimSequenceInstances.Contains(ObjectId) && SkeletalMeshComponent->GetAnimInstance())
+		if (SkeletalMeshComponent)
 		{
-			OutObjects.Add(SkeletalMeshComponent->GetAnimInstance());
+			if (AnimSequenceInstances.Contains(ObjectId) && SkeletalMeshComponent->GetAnimInstance())
+			{
+				OutObjects.Add(SkeletalMeshComponent->GetAnimInstance());
+			}
+			else if (PostProcessInstances.Contains(ObjectId) && SkeletalMeshComponent->GetPostProcessInstance())
+			{
+				OutObjects.Add(SkeletalMeshComponent->GetPostProcessInstance());
+			}
 		}
 	}
 }

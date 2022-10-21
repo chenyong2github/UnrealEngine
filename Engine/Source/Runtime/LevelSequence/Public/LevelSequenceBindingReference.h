@@ -171,6 +171,14 @@ struct FLevelSequenceBindingReferences
 	}
 
 	/**
+	 * Const accessor for the currently bound post process instance IDs
+	 */
+	const TSet<FGuid>& GetBoundPostProcessInstances() const
+	{
+		return PostProcessInstances;
+	}
+
+	/**
 	 * Filter out any bindings that do not match the specified set of GUIDs
 	 *
 	 * @param ValidBindingIDs A set of GUIDs that are considered valid. Anything references not matching these will be removed.
@@ -186,4 +194,8 @@ private:
 	/** A set of object binding IDs that relate to anim sequence instances (must be a child of USkeletalMeshComponent) */
 	UPROPERTY()
 	TSet<FGuid> AnimSequenceInstances;
+
+	/** A set of object binding IDs that relate to post process instances (must be a child of USkeletalMeshComponent) */
+	UPROPERTY()
+	TSet<FGuid> PostProcessInstances;
 };

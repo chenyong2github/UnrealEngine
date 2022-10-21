@@ -933,30 +933,49 @@ void FLevelSequenceEditorToolkit::HandleTrackMenuExtensionAddTrack(FMenuBuilder&
 			UAnimInstance* AnimInstance = SkeletalComponent->GetAnimInstance();
 			
 			FText AnimInstanceLabel = LOCTEXT("AnimInstanceLabel", "Anim Instance");
-			FText DetailedInstanceText = AnimInstance
-				? FText::Format(LOCTEXT("AnimInstanceLabelFormat", "Anim Instance '{0}'"), FText::FromString(AnimInstance->GetName()))
+			FText DetailedAnimInstanceText = AnimInstance ? 
+				FText::Format(LOCTEXT("AnimInstanceLabelFormat", "Anim Instance '{0}'"), FText::FromString(AnimInstance->GetName()))
 				: AnimInstanceLabel;
 
 			AddTrackMenuBuilder.BeginSection("Anim Instance", AnimInstanceLabel);
 			{
 				AddTrackMenuBuilder.AddMenuEntry(
-					DetailedInstanceText,
+					DetailedAnimInstanceText,
 					LOCTEXT("AnimInstanceToolTip", "Add this skeletal mesh component's animation instance."),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateSP(this, &FLevelSequenceEditorToolkit::BindAnimationInstance, SkeletalComponent)
+						FExecuteAction::CreateSP(this, &FLevelSequenceEditorToolkit::BindAnimationInstance, SkeletalComponent, AnimInstance)
 					)
 				);
 			}
 			AddTrackMenuBuilder.EndSection();
+
+			if (UAnimInstance* PostProcessInstance = SkeletalComponent->GetPostProcessInstance())
+			{
+				FText PostProcessInstanceLabel = LOCTEXT("PostProcessInstanceLabel", "Post Process Instance");
+				FText DetailedPostProcessInstanceText = PostProcessInstance ?
+					FText::Format(LOCTEXT("PostProcessInstanceLabelFormat", "Post Process Instance '{0}'"), FText::FromString(PostProcessInstance->GetName()))
+					: PostProcessInstanceLabel;
+
+				AddTrackMenuBuilder.BeginSection("Post Process Instance", PostProcessInstanceLabel);
+				{
+					AddTrackMenuBuilder.AddMenuEntry(
+						DetailedPostProcessInstanceText,
+						LOCTEXT("PostProcessInstanceToolTip", "Add this skeletal mesh component's post process instance."),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(this, &FLevelSequenceEditorToolkit::BindAnimationInstance, SkeletalComponent, PostProcessInstance)
+						)
+					);
+				}
+				AddTrackMenuBuilder.EndSection();
+			}
 		}
 	}
 }
 
-void FLevelSequenceEditorToolkit::BindAnimationInstance(USkeletalMeshComponent* SkeletalComponent)
+void FLevelSequenceEditorToolkit::BindAnimationInstance(USkeletalMeshComponent* SkeletalComponent, UAnimInstance* AnimInstance)
 {
-	UAnimInstance* AnimInstance = SkeletalComponent->GetAnimInstance();
-
 	// If there is no script instance at the moment, just use a dummy instance for the purposes of setting up the binding in the first place.
 	// This temporary object will get GC'd later on and is never actually applied to the anim instance
 	Sequencer->GetHandleToObject(AnimInstance ? AnimInstance : NewObject<UAnimInstance>(SkeletalComponent));

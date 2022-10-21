@@ -20,6 +20,7 @@ class FToolBarBuilder;
 class IAssetViewport;
 class ISequencer;
 class UActorComponent;
+class UAnimInstance;
 class ULevelSequence;
 class UMovieSceneCinematicShotTrack;
 class FLevelSequencePlaybackContext;
@@ -128,7 +129,7 @@ private:
 	void HandleAddComponentActionExecute(UActorComponent* Component);
 
 	/** Create a new binding for the specified skeletal mesh component's animation instance. */
-	void BindAnimationInstance(USkeletalMeshComponent* SkeletalComponent);
+	void BindAnimationInstance(USkeletalMeshComponent* SkeletalComponent, UAnimInstance* AnimInstance);
 
 	/** Callback for map changes. */
 	void HandleMapChanged(UWorld* NewWorld, EMapChangeType MapChangeType);
