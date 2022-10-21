@@ -32,7 +32,6 @@ namespace UE::NearestNeighborModel
 	{
 		FMLDeformerEditorModel::Init(InitSettings);
 		InitInputInfo(Model->GetInputInfo());
-		InitMorphTargets();
 	}
 
 	FMLDeformerSampler* FNearestNeighborEditorModel::CreateSampler() const
@@ -379,32 +378,81 @@ namespace UE::NearestNeighborModel
 			}
 		}
 	}
-
-	void FNearestNeighborEditorModel::InitMorphTargets()
+#define RETURN_ON_ERROR(Flag, Func)\
+	Flag |= Func;\
+	if ((Flag & ERROR) != 0)\
+	{\
+		GetEditor()->GetModelDetailsView()->ForceRefresh();\
+		return;\
+	}
+	
+	void FNearestNeighborEditorModel::OnMorphTargetUpdate()
 	{
+		MorphTargetUpdateResult = SUCCESS;
+		RETURN_ON_ERROR(MorphTargetUpdateResult, InitMorphTargets());
+		RefreshMorphTargets();
+		GetNearestNeighborModel()->UpdateNetworkSize();
+		GetNearestNeighborModel()->UpdateMorphTargetSize();
+
+		GetEditor()->GetModelDetailsView()->ForceRefresh();
+	}
+
+	uint8 FNearestNeighborEditorModel::InitMorphTargets()
+	{
+		EResultMessage Result = SUCCESS;
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
-		if (NearestNeighborModel->GetNumBaseMeshVerts() == 0)
+
+		const USkeletalMesh* SkelMesh = Model->GetSkeletalMesh();
+		const int32 NumBaseMeshVerts = Model->GetNumBaseMeshVerts();
+		if (!SkelMesh || NumBaseMeshVerts == 0)
 		{
-			return;
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("SkeletalMesh is empty. No morph targets are generated"));
+			return ERROR;
 		}
+
+		if (Model->GetVertexMap().IsEmpty())
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("VertexMap of the skeletal mesh is empty. No morph targets are generated"));
+			return ERROR;
+		}
+
+		const int32 NumParts = NearestNeighborModel->GetNumParts();
+		if (NumParts == 0)
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("There are no cloth parts. No morph targets are generated"));
+			return ERROR;
+		}
+
+		const int32 NumImportedModelVerts = FMath::Max(NearestNeighborModel->GetVertexMap()) + 1;
+		if (NumImportedModelVerts != NumBaseMeshVerts)
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Vertex count mismatch: imported model of SkeletalMesh has %d vertices and cached SkeletalMesh has %d vertices"), NumImportedModelVerts, NumBaseMeshVerts);
+			return ERROR;
+		}
+
 		TArray<FVector3f> Deltas;
 		Deltas.Reset();
 
 		int32 NumPCACoeff = 0;
-		for (int32 PartId = 0; PartId < NearestNeighborModel->GetNumParts(); PartId++)
+		for (int32 PartId = 0; PartId < NumParts; PartId++)
 		{
 			NumPCACoeff += NearestNeighborModel->GetPCACoeffNum(PartId);
 		}
-		Deltas.Reserve((1 + NumPCACoeff) * NearestNeighborModel->GetNumBaseMeshVerts());
+		Deltas.Reserve((1 + NumPCACoeff) * NumBaseMeshVerts);
 
-		for (int32 PartId = 0; PartId < NearestNeighborModel->GetNumParts(); PartId++)
+		for (int32 PartId = 0; PartId < NumParts; PartId++)
 		{
 			const TArray<uint32>& VertexMap = NearestNeighborModel->PartVertexMap(PartId);
+			if (VertexMap.IsEmpty())
+			{
+				UE_LOG(LogNearestNeighborModel, Warning, TEXT("Cloth part %d has empty vertex map. No morph targets are generated for this part."), PartId);
+				Result = WARNING;
+			}
 			AddFloatArrayToDeltaArray(NearestNeighborModel->ClothPartData[PartId].VertexMean, VertexMap, Deltas, 0);
 			AddFloatArrayToDeltaArray(NearestNeighborModel->ClothPartData[PartId].PCABasis, VertexMap, Deltas);
 		}
 
-		for (int32 PartId = 0; PartId < NearestNeighborModel->GetNumParts(); PartId++)
+		for (int32 PartId = 0; PartId < NumParts; PartId++)
 		{
 			const TArray<uint32>& VertexMap = NearestNeighborModel->PartVertexMap(PartId);
 			AddFloatArrayToDeltaArray(NearestNeighborModel->ClothPartData[PartId].NeighborOffsets, VertexMap, Deltas);
@@ -412,8 +460,10 @@ namespace UE::NearestNeighborModel
 
 		if (Deltas.Num() == 0)
 		{
-			return;
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("All cloth parts are empty. No morph targets are generated."));
+			return ERROR;
 		}
+
 
 		const int32 LOD = 0;
 		TArray<UMorphTarget*> MorphTargets;
@@ -424,10 +474,13 @@ namespace UE::NearestNeighborModel
 
 		if (MorphBuffers.GetNumBatches() <= 0)
 		{
+			UE_LOG(LogNearestNeighborModel, Warning, TEXT("Morph buffer is empty. It is possible that all deltas are zero. No morph targets are generated."));
+			Result = WARNING;
 			NearestNeighborModel->ResetMorphBuffers();
 		}
 
 		NearestNeighborModel->SetMorphTargetDeltas(Deltas);
+		return Result;
 	}
 
 	void FNearestNeighborEditorModel::RefreshMorphTargets()
@@ -435,6 +488,7 @@ namespace UE::NearestNeighborModel
 		USkeletalMeshComponent* SkelMeshComponent = FindEditorActor(ActorID_Test_MLDeformed)->GetSkeletalMeshComponent() ;
 		if (SkelMeshComponent)
 		{
+			check(GetNearestNeighborModel()->GetMorphTargetSet().IsValid());
 			FMorphTargetVertexInfoBuffers& MorphBuffers = GetNearestNeighborModel()->GetMorphTargetSet()->MorphBuffers;
 			BeginReleaseResource(&MorphBuffers);
 			if (MorphBuffers.IsMorphCPUDataValid() && MorphBuffers.GetNumMorphs() > 0 && MorphBuffers.GetNumBatches() > 0)

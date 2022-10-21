@@ -115,6 +115,13 @@ struct FClothPartData
 	TArray<float> NeighborOffsets;
 };
 
+enum EResultMessage : uint8
+{
+	SUCCESS = 0,
+	ERROR = 1,
+	WARNING = 2
+};
+
 /**
  * The nearest neighbor model.
  * This model contains the PCA basis of the cloth vertex deltas and a small set of cloth for nearest neighbor search. 

@@ -59,11 +59,15 @@ namespace UE::NearestNeighborModel
 		void UpdateNearestNeighborActors();
 		void KMeansClusterPoses();
 
-		void InitMorphTargets();
+		uint8 InitMorphTargets();
 		void RefreshMorphTargets();
 		void AddFloatArrayToDeltaArray(const TArray<float>& FloatArr, const TArray<uint32>& VertexMap, TArray<FVector3f>& DeltaArr, int32 DeltaArrayOffset = -1, float ScaleFactor = 1);
 
 		int32 GetNumParts();
+
+		void OnMorphTargetUpdate();
+		uint8 GetMorphTargetUpdateResult() { return MorphTargetUpdateResult; }
+
 
 	protected:
 		virtual void CreateNearestNeighborActors(UWorld* World, int32 StartIndex = 0);
@@ -88,5 +92,8 @@ namespace UE::NearestNeighborModel
 
 	private:
 		UWorld* EditorWorld = nullptr;
+		uint8 ClothPartUpdateResult = 0;
+		uint8 NearestNeighborUpdateResult = 0;
+		uint8 MorphTargetUpdateResult = 0;
 	};
 }	// namespace UE::NearestNeighborModel

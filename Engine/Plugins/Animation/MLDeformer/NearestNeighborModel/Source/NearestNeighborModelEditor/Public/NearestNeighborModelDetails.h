@@ -25,6 +25,7 @@ namespace UE::NearestNeighborModel
 		virtual void CreateCategories() override;
 
 		virtual bool UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects) override;
+		virtual void AddUpdateResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result);
 
 	protected:
 		UNearestNeighborModel* NearestNeighborModel = nullptr;

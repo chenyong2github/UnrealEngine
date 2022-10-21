@@ -116,16 +116,10 @@ namespace UE::NearestNeighborModel
 				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]
 				{
-					if (NearestNeighborModel != nullptr)
-					{
-						NearestNeighborModel->UpdateClothPartData();
-						NearestNeighborModel->InitPreviousWeights();
-						if (NearestNeighborEditorModel != nullptr)
-						{
-							NearestNeighborEditorModel->UpdateNearestNeighborActors();
-						}
-						EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
-					}
+					NearestNeighborModel->UpdateClothPartData();
+					NearestNeighborModel->InitPreviousWeights();
+					NearestNeighborEditorModel->UpdateNearestNeighborActors();
+					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					return FReply::Handled();
 				})
 			];
@@ -145,12 +139,9 @@ namespace UE::NearestNeighborModel
 				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]
 				{
-					if (NearestNeighborEditorModel != nullptr)
-					{
-						NearestNeighborEditorModel->UpdateNearestNeighborData();
-						NearestNeighborModel->InitPreviousWeights();
-						EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
-					}
+					NearestNeighborEditorModel->UpdateNearestNeighborData();
+					NearestNeighborModel->InitPreviousWeights();
+					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					return FReply::Handled();
 				})
 			];
@@ -169,7 +160,7 @@ namespace UE::NearestNeighborModel
 					return FReply::Handled();
 				})
 			];
-
+		
 		MorphTargetCategoryBuilder->AddProperty(UNearestNeighborModel::GetMorphDataSizePropertyName());
 		MorphTargetCategoryBuilder->AddCustomRow(FText::FromString(""))
 			.WholeRowContent()
@@ -179,18 +170,45 @@ namespace UE::NearestNeighborModel
 				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]
 				{
-					if (NearestNeighborEditorModel != nullptr)
-					{
-						NearestNeighborEditorModel->InitMorphTargets();
-						NearestNeighborEditorModel->RefreshMorphTargets();
-						NearestNeighborModel->UpdateNetworkSize();
-						NearestNeighborModel->UpdateMorphTargetSize();
-						EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
-					}
+					NearestNeighborEditorModel->OnMorphTargetUpdate();
 					return FReply::Handled();
 				})
 			];
+		AddUpdateResultText(MorphTargetCategoryBuilder, NearestNeighborEditorModel->GetMorphTargetUpdateResult());
 	}
+
+	void FNearestNeighborModelDetails::AddUpdateResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result)
+	{
+		CategoryBuilder->AddCustomRow(FText::FromString("UpdateResultError"))
+			.Visibility((Result & ERROR) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Error)
+					.Message(FText::FromString(TEXT("Update failed with errors. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
+				]
+			];
+		CategoryBuilder->AddCustomRow(FText::FromString("UpdateResultWarning"))
+			.Visibility((Result & WARNING) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Warning)
+					.Message(FText::FromString(TEXT("Update finished with warnings. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
+				]
+			];
+		if (Result == SUCCESS)
+		{
+			UE_LOG(LogNearestNeighborModel, Display, TEXT("Update succeeded."));
+		}
+	}
+
 }	// namespace UE::NearestNeighborModel
 
 #undef LOCTEXT_NAMESPACE
