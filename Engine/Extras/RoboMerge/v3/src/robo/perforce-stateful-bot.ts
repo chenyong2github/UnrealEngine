@@ -75,7 +75,7 @@ export abstract class PerforceStatefulBot implements BotIPC {
 		}
 
 		this.pauseState.manuallyPause(message, owner)
-		this.logger.info(`Paused ${this.fullName}: ${message}.`)
+		this.logger.info(`Paused ${this.fullName} requested by ${owner}: ${message}.`)
 	}
 	unpause(requester: string) {
 		if (!this.isManuallyPaused) {
