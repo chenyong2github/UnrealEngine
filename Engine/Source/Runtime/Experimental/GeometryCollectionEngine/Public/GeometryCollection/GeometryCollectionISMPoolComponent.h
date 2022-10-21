@@ -6,11 +6,11 @@
 
 #include "Components/SceneComponent.h"
 #include "Containers/Map.h"
+#include "Materials/MaterialInterface.h"
 #include "GeometryCollectionISMPoolComponent.generated.h"
 
 class AActor;
 class UGeometryComponent;
-class UMaterialInterface;
 class UInstancedStaticMeshComponent;
 class UGeometryCollectionISMPoolComponent;
 

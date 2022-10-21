@@ -3,6 +3,7 @@
 #include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
