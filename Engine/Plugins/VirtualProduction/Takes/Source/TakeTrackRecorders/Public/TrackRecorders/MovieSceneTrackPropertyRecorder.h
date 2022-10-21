@@ -164,10 +164,7 @@ public:
 		// Enable when we finish recording the section
 		MovieSceneSection->SetIsActive(true);
 
-		for (const FPropertyKey<PropertyType>& Key : Keys)
-		{
-			AddKeyToSection(MovieSceneSection.Get(), Key);
-		}
+		AddKeysToSection(MovieSceneSection.Get(), Keys);
 
 		FTrackRecorderSettings TrackRecorderSettings = OwningTakeRecorderSource->GetTrackRecorderSettings();
 
@@ -281,7 +278,7 @@ private:
 	void PostCreate(IMovieSceneTrackRecorderHost* InRecordingHost, UObject* InObjectToRecord, class UMovieScene* InMovieScene, const FGuid& InGuid, bool bOpenSerializer = false);
 
 	/** Helper function, specialized by type, used to add keys to the movie scene section at Finalize() time */
-	void AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<PropertyType>& InKey);
+	void AddKeysToSection(UMovieSceneSection* InSection, const TArray<FPropertyKey<PropertyType>>& InKeys);
 
 	/** Helper function, specialized by type, used to reduce keys */
 	void ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance);

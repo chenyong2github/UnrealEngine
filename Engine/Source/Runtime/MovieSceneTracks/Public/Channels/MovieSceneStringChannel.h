@@ -76,6 +76,18 @@ struct MOVIESCENETRACKS_API FMovieSceneStringChannel : public FMovieSceneChannel
 	 */
 	const FString* Evaluate(FFrameTime InTime) const;
 
+	/**
+	 * Add keys with these times to channel. The number of elements in both arrays much match or nothing is added.
+	 * @param InTimes Times to add
+	 * @param InValues Values to add
+	 */
+	FORCEINLINE void AddKeys(const TArray<FFrameNumber>& InTimes, const TArray<FString>& InValues)
+	{
+		check(InTimes.Num() == InValues.Num());
+		Times.Append(InTimes);
+		Values.Append(InValues);
+	}
+
 public:
 
 	// ~ FMovieSceneChannel Interface

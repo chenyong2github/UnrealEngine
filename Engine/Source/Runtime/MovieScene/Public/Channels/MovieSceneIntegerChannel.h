@@ -111,6 +111,23 @@ struct MOVIESCENE_API FMovieSceneIntegerChannel : public FMovieSceneChannel
 		}
 	}
 
+	/**
+	 * Add keys with these times to channel. The number of elements in both arrays much match or nothing is added.
+	 * @param InTimes Times to add
+	 * @param InValues Values to add
+	 */
+	FORCEINLINE void AddKeys(const TArray<FFrameNumber>& InTimes, const TArray<int32>& InValues)
+	{
+		check(InTimes.Num() == InValues.Num());
+		int32 Index = Times.Num();
+		Times.Append(InTimes);
+		Values.Append(InValues);
+		for (; Index < Times.Num(); ++Index)
+		{
+			KeyHandles.AllocateHandle(Index);
+		}
+	}
+
 public:
 
 	// ~ FMovieSceneChannel Interface
