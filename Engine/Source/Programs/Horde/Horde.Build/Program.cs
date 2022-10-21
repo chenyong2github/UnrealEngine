@@ -104,11 +104,13 @@ namespace Horde.Build
 	{
 		public static SemVer Version => s_version;
 
+		public static string DeploymentEnvironment { get; } = GetEnvironment();
+
 		public static DirectoryReference AppDir { get; } = GetAppDir();
 
-		public static DirectoryReference DataDir { get; } = GetDefaultDataDir();
+		public static DirectoryReference DataDir { get; } = GetDataDir();
 
-		public static FileReference UserConfigFile { get; } = FileReference.Combine(GetDefaultDataDir(), "Horde.json");
+		public static FileReference UserConfigFile { get; } = FileReference.Combine(DataDir, "Horde.json");
 
 		public static Type[] ConfigSchemas = FindSchemaTypes();
 
@@ -141,21 +143,7 @@ namespace Horde.Build
 
 			CommandLineArguments arguments = new CommandLineArguments(args);
 
-			string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-			if (String.IsNullOrEmpty(environment))
-			{
-				environment = "Production";
-			}
-
-			IConfiguration config = new ConfigurationBuilder()
-				.SetBasePath(AppDir.FullName)
-				.AddJsonFile("appsettings.json", optional: false) 
-				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
-				.AddJsonFile($"appsettings.{environment}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
-				.AddJsonFile("appsettings.User.json", optional: true)
-				.AddJsonFile(UserConfigFile.FullName, optional: true, reloadOnChange: true)
-				.AddEnvironmentVariables()
-				.Build();
+			IConfiguration config = CreateConfig(UserConfigFile);
 
 			ServerSettings hordeSettings = new ServerSettings();
 			config.GetSection("Horde").Bind(hordeSettings);
@@ -201,6 +189,20 @@ namespace Horde.Build
 		public static IHostBuilder CreateHostBuilder(string[] args) => ServerCommand.CreateHostBuilderForTesting(args);
 
 		/// <summary>
+		/// Gets the current environment
+		/// </summary>
+		/// <returns></returns>
+		static string GetEnvironment()
+		{
+			string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+			if (String.IsNullOrEmpty(environment))
+			{
+				environment = "Production";
+			}
+			return environment;
+		}
+
+		/// <summary>
 		/// Get the application directory
 		/// </summary>
 		/// <returns></returns>
@@ -213,8 +215,16 @@ namespace Horde.Build
 		/// Gets the default directory for storing application data
 		/// </summary>
 		/// <returns>The default data directory</returns>
-		static DirectoryReference GetDefaultDataDir()
+		static DirectoryReference GetDataDir()
 		{
+			IConfiguration config = CreateConfig(null);
+
+			string? dataDir = config.GetSection("Horde").GetValue(typeof(string), nameof(ServerSettings.DataDir)) as string;
+			if (dataDir != null)
+			{
+				return DirectoryReference.Combine(GetAppDir(), dataDir);
+			}
+
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				DirectoryReference? dir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.CommonApplicationData);
@@ -224,6 +234,28 @@ namespace Horde.Build
 				}
 			}
 			return DirectoryReference.Combine(GetAppDir(), "Data");
+		}
+
+		/// <summary>
+		/// Constructs a configuration object for the current environment
+		/// </summary>
+		/// <param name="userConfigFile"></param>
+		/// <returns></returns>
+		static IConfiguration CreateConfig(FileReference? userConfigFile)
+		{
+			IConfigurationBuilder builder = new ConfigurationBuilder()
+				.SetBasePath(AppDir.FullName)
+				.AddJsonFile("appsettings.json", optional: false)
+				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
+				.AddJsonFile($"appsettings.{DeploymentEnvironment}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
+				.AddJsonFile("appsettings.User.json", optional: true);
+
+			if (userConfigFile != null)
+			{
+				builder = builder.AddJsonFile(userConfigFile.FullName, optional: true, reloadOnChange: true);
+			}
+
+			return builder.AddEnvironmentVariables().Build();
 		}
 
 		/// <summary>

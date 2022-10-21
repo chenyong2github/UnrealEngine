@@ -216,6 +216,11 @@ namespace Horde.Build
 		public RunMode[]? RunModes { get; set; } = null;
 
 		/// <summary>
+		/// Override the data directory used by Horde. Defaults to C:\ProgramData\HordeServer on Windows, {AppDir}/Data on other platforms.
+		/// </summary>
+		public string? DataDir { get; set; } = null;
+
+		/// <summary>
 		/// Output level for console
 		/// </summary>
 		public LogEventLevel ConsoleLogLevel { get; set; } = LogEventLevel.Debug;
