@@ -1,17 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Hlsl/NNIRuntimeRDGConv.h"
-#include "NNXElementWiseBinaryCS.h"
 #include "NNXInferenceModel.h"
-#include "NNXModelOptimizer.h"
 #include "NNXRuntimeFormat.h"
-#include "NNXRuntimeHLSLConvTransposeOp.h"
-#include "NNXRuntimeHLSLElementWiseBinaryOps.h"
-#include "NNXRuntimeHLSLElementWiseUnaryOps.h"
-#include "NNXRuntimeHLSLElementWiseVariadicOps.h"
+#include "NNXModelOptimizer.h"
+#include "Hlsl/NNIRuntimeRDGConv.h"
+#include "Hlsl/NNIRuntimeRDGElementWiseBinary.h"
+#include "Hlsl/NNIRuntimeRDGElementWiseUnary.h"
+#include "Hlsl/NNIRuntimeRDGElementWiseVariadic.h"
 #include "NNXRuntimeHLSLGemmOp.h"
-#include "NNXRuntimeHLSLHelper.h"
+#include "NNXRuntimeHLSLConvTransposeOp.h"
 #include "NNXRuntimeHLSLMatMulOp.h"
+#include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
 
 namespace NNX
@@ -161,9 +160,9 @@ public:
 		FMLOperatorRegistryHlsl* registry = FMLOperatorRegistryHlsl::Get();
 		check(registry != nullptr);
 
-		RegisterElementWiseUnaryOperators(*registry);
-		RegisterElementWiseBinaryOperators(*registry);
-		RegisterElementWiseVariadicOperators(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterElementWiseUnaryOperators(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterElementWiseBinaryOperators(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterElementWiseVariadicOperators(*registry);
 		RegisterGemmOperator(*registry);
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvOperator(*registry);
 		RegisterConvTransposeOperator(*registry);

@@ -1,0 +1,158 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NNIRuntimeRDGElementWiseUnary.h"
+#include "NNIHlslShadersElementWiseUnaryCS.h"
+#include "NNXRuntimeHLSLHelper.h"
+
+namespace UE::NNIRuntimeRDG::Private::Hlsl
+{
+	DECLARE_GPU_STAT_NAMED(FNNIOperatorElementWiseUnary, TEXT("NNI.Operator.Hlsl.ElementWise.Unary"));
+
+	using TElementWiseUnaryCS = typename UE::NNIHlslShaders::Internal::TElementWiseUnaryCS;
+	using FElementWiseUnaryConstants = UE::NNIHlslShaders::Internal::FElementWiseUnaryConstants;
+
+	/**
+	 * Unary element-wise operator implementation
+	 */
+	template<EMLElementWiseUnaryOperatorType OpType>
+	class TOperatorElementWiseUnary : public NNX::FMLOperatorHlsl
+	{
+	public:
+
+		TOperatorElementWiseUnary() : Alpha(0.0f), Beta(0.0f), Gamma(0.0f) {}
+		virtual ~TOperatorElementWiseUnary() = default;
+
+	private:
+
+		float Alpha;
+		float Beta;
+		float Gamma;
+		NNX::FMLTensorDesc Input;
+		NNX::FMLTensorDesc Output;
+
+	public:
+
+		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+		{
+			check(InputTensors.Num() == 1);
+			check(OutputTensors.Num() == 1);
+
+			Input = InputTensors[0];
+			Output = OutputTensors[0];
+
+			Alpha = Attributes.GetOptionalFloat(TEXT("alpha"), Alpha);
+			Beta = Attributes.GetOptionalFloat(TEXT("beta"), Beta);
+			Gamma = Attributes.GetOptionalFloat(TEXT("gamma"), Gamma);
+
+			return true;
+		}
+
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
+		{
+			// HACK: This only works for single layer networks
+			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
+			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
+		
+			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Num(), FElementWiseUnaryConstants::NUM_GROUP_THREADS);
+
+			// Set parameters
+			TElementWiseUnaryCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseUnaryCS::FParameters>();
+			Params->Input = InputSRV;
+			Params->Output = OutputUAV;
+			Params->Alpha = Alpha;
+			Params->Beta = Beta;
+			Params->Gamma = Gamma;
+			Params->Num = Output.Num();
+			Params->ThreadCountX = ThreadGroupCount.X * FElementWiseUnaryConstants::NUM_GROUP_THREADS;
+
+			TElementWiseUnaryCS::FPermutationDomain PermutationVector;
+
+			PermutationVector.Set<TElementWiseUnaryCS::FOperatorType>(OpType);
+
+			TShaderMapRef<TElementWiseUnaryCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+
+			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.ElementWise.Unary");
+			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorElementWiseUnary);
+		
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("NNI.Operator.Hlsl.ElementWise.Unary.Dispatch"),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+				ComputeShader,
+				Params,
+				ThreadGroupCount);
+		}
+	};
+
+	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::Selu>::TOperatorElementWiseUnary()
+		: Alpha(1.67326319217681884765625f), Beta(0.0f), Gamma(1.05070102214813232421875f)
+	{
+	}
+
+	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::Elu>::TOperatorElementWiseUnary()
+		: Alpha(1.0f), Beta(0.0f), Gamma(0.0f) 
+	{
+	}
+
+	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::HardSigmoid>::TOperatorElementWiseUnary()
+		: Alpha(0.2f), Beta(0.5f), Gamma(0.0f)
+	{
+	}
+
+	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::LeakyRelu>::TOperatorElementWiseUnary()
+		: Alpha(0.01f), Beta(0.0f), Gamma(0.0f)
+	{
+	}
+
+	template<EMLElementWiseUnaryOperatorType OpType>
+	NNX::FMLOperatorHlsl* CreateElementWiseUnaryOperator()
+	{
+		return new TOperatorElementWiseUnary<OpType>();
+	}
+
+	bool RegisterElementWiseUnaryOperators(NNX::FMLOperatorRegistryHlsl& Registry)
+	{
+#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseUnaryOperator<EMLElementWiseUnaryOperatorType::Name>)
+		OP(Abs);
+		OP(Acos);
+		OP(Acosh);
+		OP(Asin);
+		OP(Asinh);
+		OP(Atan);
+		OP(Atanh);
+		//OP(BitShift);
+		//OP(Cast);
+		OP(Ceil);
+		//OP(Clip);
+		OP(Cos);
+		OP(Cosh);
+		OP(Elu);
+		OP(Erf);
+		OP(Exp);
+		OP(Floor);
+		OP(IsInf);
+		OP(IsNan);
+		OP(HardSigmoid);
+		OP(HardSwish);
+		OP(LeakyRelu);
+		OP(Log);
+		OP(Neg);
+		//OP(Not);
+		OP(Reciprocal);
+		OP(Relu);
+		OP(Round);
+		OP(Selu);
+		OP(Sigmoid);
+		OP(Sign);
+		OP(Sin);
+		OP(Sinh);
+		OP(Softplus);
+		OP(Softsign);
+		OP(Sqrt);
+		OP(Tan);
+		OP(Tanh);
+#undef OP
+
+		return true;
+	}
+} // UE::NNIRuntimeRDG::Private::Hlsl
