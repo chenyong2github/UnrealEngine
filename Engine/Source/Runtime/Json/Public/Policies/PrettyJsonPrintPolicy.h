@@ -16,7 +16,7 @@ struct TPrettyJsonPrintPolicy
 {
 	static inline void WriteLineTerminator( FArchive* Stream )
 	{
-		TJsonPrintPolicy<CharType>::WriteString(Stream, LINE_TERMINATOR);
+		TJsonPrintPolicy<CharType>::WriteString(Stream, FStringView(LINE_TERMINATOR));
 	}
 
 	static inline void WriteTabs( FArchive* Stream, int32 Count )

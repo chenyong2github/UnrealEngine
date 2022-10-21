@@ -168,6 +168,26 @@ struct TGLTFJsonPrintPolicyUTF8
 		}
 	}
 
+	static inline void WriteString(FArchive* Stream, FStringView String)
+	{
+		const TCHAR* CharPtr = String.GetData();
+
+		for (int32 CharIndex = 0; CharIndex < String.Len(); ++CharIndex, ++CharPtr)
+		{
+			WriteChar(Stream, *CharPtr);
+		}
+	}
+
+	static inline void WriteString(FArchive* Stream, FAnsiStringView String)
+	{
+		const ANSICHAR* CharPtr = String.GetData();
+
+		for (int32 CharIndex = 0; CharIndex < String.Len(); ++CharIndex, ++CharPtr)
+		{
+			WriteChar(Stream, *CharPtr);
+		}
+	}
+
 	static void WriteFloat(FArchive* Stream, float Number)
 	{
 		WriteString(Stream, FString::Printf(TEXT("%.9g"), Number));

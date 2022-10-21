@@ -516,7 +516,7 @@ namespace BlueprintSearchMetaDataHelpers
 
 			WriteTextValue( Identifier );
 			PrintPolicy::WriteChar(this->Stream, TCHAR(':'));
-			}
+		}
 
 	public:
 		/** Cached mapping of all searchable properties that have been discovered while gathering searchable data for the current Blueprint */

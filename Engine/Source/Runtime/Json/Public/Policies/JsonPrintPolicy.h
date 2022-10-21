@@ -40,6 +40,38 @@ struct TJsonPrintPolicy
 	}
 
 	/**
+	 * Writes a string to the output stream.
+	 *
+	 * @param Stream The stream to write to.
+	 * @param String The string to write.
+	 */
+	static inline void WriteString(FArchive* Stream, FStringView String)
+	{
+		const TCHAR* CharPtr = String.GetData();
+
+		for (int32 CharIndex = 0; CharIndex < String.Len(); ++CharIndex, ++CharPtr)
+		{
+			WriteChar(Stream, *CharPtr);
+		}
+	}
+
+	/**
+	 * Writes a string to the output stream.
+	 *
+	 * @param Stream The stream to write to.
+	 * @param String The string to write.
+	 */
+	static inline void WriteString(FArchive* Stream, FAnsiStringView String)
+	{
+		const ANSICHAR* CharPtr = String.GetData();
+
+		for (int32 CharIndex = 0; CharIndex < String.Len(); ++CharIndex, ++CharPtr)
+		{
+			WriteChar(Stream, *CharPtr);
+		}
+	}
+
+	/**
 	 * Writes a float to the output stream.
 	 *
 	 * @param Stream The stream to write to.
@@ -74,6 +106,14 @@ inline void TJsonPrintPolicy<TCHAR>::WriteString( FArchive* Stream, const FStrin
 	Stream->Serialize((void*)*String, String.Len() * sizeof(TCHAR));
 }
 
+/**
+ * Specialization for TCHAR that allows direct copying from FStringView data.
+ */
+template <>
+inline void TJsonPrintPolicy<TCHAR>::WriteString(FArchive* Stream, FStringView String)
+{
+	Stream->Serialize((void*)String.GetData(), String.Len() * sizeof(TCHAR));
+}
 
 #if !PLATFORM_TCHAR_IS_CHAR16
 
@@ -85,6 +125,18 @@ inline void TJsonPrintPolicy<UTF16CHAR>::WriteString(FArchive* Stream, const FSt
 {
 	// Note: This is a no-op on platforms that are using a 16-bit TCHAR
 	FTCHARToUTF16 UTF16String(*String, String.Len());
+
+	Stream->Serialize((void*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
+}
+
+/**
+ * Specialization for UTF16CHAR that writes FString data UTF-16.
+ */
+template <>
+inline void TJsonPrintPolicy<UTF16CHAR>::WriteString(FArchive* Stream, FStringView String)
+{
+	// Note: This is a no-op on platforms that are using a 16-bit TCHAR
+	FTCHARToUTF16 UTF16String(String.GetData(), String.Len());
 
 	Stream->Serialize((void*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
 }
