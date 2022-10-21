@@ -224,9 +224,10 @@
 			]
 		},
 		{
-			"category": "ConvTranspose",
+			"category": "Convolution",
 			"runtimes": [	{	"name": "NNXRuntimeDml", "skip": true	}	],
 			"targets": [
+				{ "target": "Conv" },
 				{ "target": "ConvTranspose" }
 			]
 		},
@@ -410,7 +411,7 @@
 			]
 		},
 		{
-			"name": "ConvTranspose",
+			"name": "Convolution",
 			"datasets": [
 				{	"inputs": [	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1, 1, 1 ] } ],	"outputs": [ { "shape": [ 1, 1, 1 ] } ]},
 				{	"inputs": [	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1, 1, 1 ] },	{ "shape": [ 1 ] } ],	"outputs": [ { "shape": [ 1, 1, 1 ] } ]}

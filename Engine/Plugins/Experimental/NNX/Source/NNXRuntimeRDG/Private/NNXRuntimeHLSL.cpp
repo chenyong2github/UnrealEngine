@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Hlsl/NNIRuntimeRDGConv.h"
 #include "NNXElementWiseBinaryCS.h"
 #include "NNXInferenceModel.h"
-#include "NNXRuntimeFormat.h"
 #include "NNXModelOptimizer.h"
+#include "NNXRuntimeFormat.h"
+#include "NNXRuntimeHLSLConvTransposeOp.h"
 #include "NNXRuntimeHLSLElementWiseBinaryOps.h"
 #include "NNXRuntimeHLSLElementWiseUnaryOps.h"
 #include "NNXRuntimeHLSLElementWiseVariadicOps.h"
 #include "NNXRuntimeHLSLGemmOp.h"
-#include "NNXRuntimeHLSLConvTransposeOp.h"
-#include "NNXRuntimeHLSLMatMulOp.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNXRuntimeHLSLMatMulOp.h"
 #include "NNXRuntimeRDG.h"
 
 namespace NNX
@@ -164,6 +165,7 @@ public:
 		RegisterElementWiseBinaryOperators(*registry);
 		RegisterElementWiseVariadicOperators(*registry);
 		RegisterGemmOperator(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvOperator(*registry);
 		RegisterConvTransposeOperator(*registry);
 		RegisterMatMulOperator(*registry);
 
