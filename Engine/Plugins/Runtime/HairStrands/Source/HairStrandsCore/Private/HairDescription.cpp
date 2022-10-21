@@ -4,9 +4,14 @@
 #include "Misc/SecureHash.h"
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
+#include "Serialization/EditorBulkDataReader.h"
+#include "Serialization/EditorBulkDataWriter.h"
 
 const FStrandID FStrandID::Invalid(TNumericLimits<uint32>::Max());
 const FGroomID FGroomID::Invalid(TNumericLimits<uint32>::Max());
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// FHairDescription
 
 FHairDescription::FHairDescription()
 	: NumVertices(0)
@@ -76,8 +81,10 @@ void FHairDescription::Serialize(FArchive& Ar)
 	Ar << GroomAttributesSet;
 }
 
-#if WITH_EDITORONLY_DATA
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// FHairDescriptionBulkData
 
+#if WITH_EDITORONLY_DATA
 void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
@@ -105,9 +112,21 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		}
 	}
 
-	BulkData.Serialize(Ar, Owner);
+	// Convert legacy hair description bulk data
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::UpdateHairDescriptionBulkData)
+	{
+		FByteBulkData TempBulkData;
+		TempBulkData.Serialize(Ar, Owner);
 
-	Ar << Guid;
+		FGuid TempGuid;
+		Ar << TempGuid;
+
+		BulkData.CreateFromBulkData(TempBulkData, TempGuid, Owner);
+	}
+	else
+	{
+		BulkData.Serialize(Ar, Owner);
+	}
 
 	if (!Ar.IsTransacting() && Ar.IsLoading())
 	{
@@ -122,19 +141,16 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 void FHairDescriptionBulkData::SaveHairDescription(FHairDescription& HairDescription)
 {
-	BulkData.RemoveBulkData();
+	BulkData.Reset();
 
 	if (HairDescription.IsValid())
 	{
-		FBulkDataWriter Ar(BulkData, /*bIsPersistent*/ true);
+		UE::Serialization::FEditorBulkDataWriter Ar(BulkData);
 		HairDescription.Serialize(Ar);
 
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
 		CustomVersions = Ar.GetCustomVersions();
 	}
-
-	// Use bulk data hash instead of guid to identify content to improve DDC cache hit
-	ComputeGuidFromHash();
 
 	// Mark the HairDescriptionBulkData as having been updated.
 	// This means we know that its version is up-to-date.
@@ -148,7 +164,7 @@ void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescrip
 
 	if (!IsEmpty())
 	{
-		FBulkDataReader Ar(BulkData, /*bIsPersistent*/ true);
+		UE::Serialization::FEditorBulkDataReader Ar(BulkData);
 
 		// Propagate the custom version information from the package to the bulk data, so that the HairDescription
 		// is serialized with the same versioning
@@ -160,28 +176,14 @@ void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescrip
 
 void FHairDescriptionBulkData::Empty()
 {
-	BulkData.RemoveBulkData();
+	BulkData.Reset();
 }
 
 FString FHairDescriptionBulkData::GetIdString() const
-{
-	FString GuidString = Guid.ToString();
+{		
+	FString GuidString = UE::Serialization::IoHashToGuid(BulkData.GetPayloadId()).ToString();
 	GuidString += TEXT("X");
 	return GuidString;
-}
-
-void FHairDescriptionBulkData::ComputeGuidFromHash()
-{
-	uint32 Hash[5] = {};
-
-	if (BulkData.GetBulkDataSize() > 0)
-	{
-		void* Buffer = BulkData.Lock(LOCK_READ_ONLY);
-		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
-		BulkData.Unlock();
-	}
-
-	Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 }
 
 #endif // #if WITH_EDITORONLY_DATA

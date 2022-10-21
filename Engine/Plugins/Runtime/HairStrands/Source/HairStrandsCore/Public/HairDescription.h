@@ -9,6 +9,7 @@
 #include "MeshDescription.h" // for TVertexAttributesRef
 #include "MeshTypes.h" // for FElementID, FVertexID
 #include "Serialization/BulkData.h"
+#include "Serialization/EditorBulkData.h"
 
 struct FStrandID : public FElementID
 {
@@ -114,10 +115,7 @@ private:
 struct HAIRSTRANDSCORE_API FHairDescriptionBulkData
 {
 public:
-	FHairDescriptionBulkData()
-	{
-		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedZLIB);
-	}
+	FHairDescriptionBulkData() {}
 
 #if WITH_EDITORONLY_DATA
 	void Serialize(FArchive& Ar, UObject* Owner);
@@ -132,28 +130,21 @@ public:
 	void Empty();
 
 	/** Returns true if there is nothing in the bulk data */
-	bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
+	bool IsEmpty() const { return !BulkData.HasPayloadData(); }
 
 	/** Returns unique ID string for this bulk data */
 	FString GetIdString() const;
 
 private:
-	/** Computes a GUID from the hash of the bulk data, useful to prevent recomputing content already in cache. */
-	void ComputeGuidFromHash();
-#endif
-
-private:
 	/** Internally store bulk data as bytes */
-	FByteBulkData BulkData;
-
-	/** GUID associated with the stored bulk data */
-	FGuid Guid;
+	UE::Serialization::FEditorBulkData BulkData;
 
 	/** Custom version to propagate to archive when serializing the bulk data */
 	FCustomVersionContainer CustomVersions;
 
 	/** Whether the bulk data has been written via SaveHairDescription */
 	bool bBulkDataUpdated = false;
+#endif
 };
 
 template <typename AttributeType> using TStrandAttributesRef = TMeshAttributesRef<FStrandID, AttributeType>;
