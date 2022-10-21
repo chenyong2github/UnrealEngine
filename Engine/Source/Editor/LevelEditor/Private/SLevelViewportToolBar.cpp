@@ -257,7 +257,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Fill)
 				[
-					SAssignNew(ExtensionPanel, SExtensionPanel)
+					SNew(SExtensionPanel)
 					.ExtensionPanelID("LevelViewportToolBar.LeftExtension")
 					.ExtensionContext(ExtensionContextObject)
 				]
@@ -297,16 +297,17 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Fill)
 				[
-					SAssignNew(ExtensionPanel, SExtensionPanel)
+					SNew(SExtensionPanel)
 					.ExtensionPanelID("LevelViewportToolBar.MiddleExtension")
 					.ExtensionContext(ExtensionContextObject)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
+				.MaxWidth(TAttribute<float>::CreateSP(this, &SLevelViewportToolBar::GetTransformToolbarWidth))
 				.Padding(ToolbarSlotPadding)
 				.HAlign(HAlign_Right)
 				[
-					SNew(STransformViewportToolBar)
+					SAssignNew(TransformToolbar, STransformViewportToolBar)
 					.Viewport(ViewportRef)
 					.CommandList(ViewportRef->GetCommandList())
 					.Extenders(LevelEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders())
@@ -352,7 +353,7 @@ bool SLevelViewportToolBar::IsViewModeSupported(EViewModeIndex ViewModeIndex) co
 	return true;
 }
 
-FLevelEditorViewportClient* SLevelViewportToolBar::GetLevelViewportClient()
+FLevelEditorViewportClient* SLevelViewportToolBar::GetLevelViewportClient() const
 {
 	if (Viewport.IsValid())
 	{
@@ -1710,6 +1711,44 @@ FText SLevelViewportToolBar::GetRealtimeOverrideTooltip() const
 	}
 
 	return FText::GetEmpty();
+}
+
+float SLevelViewportToolBar::GetTransformToolbarWidth() const
+{
+	if (TransformToolbar)
+	{
+		const float TransformToolbarWidth = TransformToolbar->GetDesiredSize().X;
+		if (TransformToolbar_CachedMaxWidth == 0.0f)
+		{
+			TransformToolbar_CachedMaxWidth = TransformToolbarWidth;
+		}
+
+		{
+			FLevelEditorViewportClient* LevelEditorViewportClient = GetLevelViewportClient();
+			if (LevelEditorViewportClient && LevelEditorViewportClient->Viewport)
+			{
+				const float ViewportWidth = static_cast<float>(LevelEditorViewportClient->Viewport->GetSizeXY().X);
+				const float ToolbarWidthMinusPreviousTransformToolbar = GetDesiredSize().X - TransformToolbar_CachedMaxWidth;
+				const float ToolbarWidthEstimate = ToolbarWidthMinusPreviousTransformToolbar + TransformToolbarWidth;
+
+				const float OverflowWidth = ToolbarWidthEstimate - ViewportWidth;
+				if (OverflowWidth > 0.0f)
+				{
+					// There isn't enough space in the viewport to show the toolbar!
+					// Try and shrink the transform toolbar (which has an overflow area) to make things fit
+					TransformToolbar_CachedMaxWidth = FMath::Max(FMath::Min(4.0f, TransformToolbarWidth), TransformToolbarWidth - OverflowWidth);
+				}
+				else
+				{
+					TransformToolbar_CachedMaxWidth = TransformToolbarWidth;
+				}
+			}
+		}
+		
+		return TransformToolbar_CachedMaxWidth;
+	}
+
+	return 0.0f;
 }
 
 bool SLevelViewportToolBar::IsLandscapeLODSettingChecked(int32 Value) const
