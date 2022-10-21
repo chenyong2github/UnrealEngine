@@ -251,24 +251,51 @@ void AOnlineBeaconClient::SetEncryptionData(const FEncryptionData& InEncryptionD
 
 void AOnlineBeaconClient::SendInitialJoin()
 {
-	if (ensure(NetDriver != nullptr && NetDriver->ServerConnection != nullptr))
+	UNetConnection* ServerConn = NetDriver != nullptr ? NetDriver->ServerConnection : nullptr;
+
+	if (ensure(ServerConn != nullptr))
 	{
 		uint8 IsLittleEndian = uint8(PLATFORM_LITTLE_ENDIAN);
 		check(IsLittleEndian == !!IsLittleEndian); // should only be one or zero
 
+		const int32 AllowEncryption = CVarNetAllowEncryption.GetValueOnGameThread();
 		uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
 
-		if (CVarNetAllowEncryption.GetValueOnGameThread() == 0)
+		if (AllowEncryption == 0)
 		{
 			EncryptionData.Identifier.Empty();
 		}
 
+		bool bEncryptionRequirementsFailure = false;
 
-		EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
-		FNetControlMessage<NMT_Hello>::Send(NetDriver->ServerConnection, IsLittleEndian, LocalNetworkVersion, EncryptionData.Identifier, LocalNetworkFeatures);
-		
+		if (EncryptionData.Identifier.IsEmpty())
+		{
+			EEncryptionFailureAction FailureResult = EEncryptionFailureAction::Default;
 
-		NetDriver->ServerConnection->FlushNet();
+			if (FNetDelegates::OnReceivedNetworkEncryptionFailure.IsBound())
+			{
+				FailureResult = FNetDelegates::OnReceivedNetworkEncryptionFailure.Execute(ServerConn);
+			}
+
+			const bool bGameplayDisableEncryptionCheck = FailureResult == EEncryptionFailureAction::AllowConnection;
+
+			bEncryptionRequirementsFailure = NetDriver->IsEncryptionRequired() && !bGameplayDisableEncryptionCheck;
+		}
+
+		if (!bEncryptionRequirementsFailure)
+		{
+			EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
+			FNetControlMessage<NMT_Hello>::Send(NetDriver->ServerConnection, IsLittleEndian, LocalNetworkVersion, EncryptionData.Identifier, LocalNetworkFeatures);
+
+			ServerConn->FlushNet();
+		}
+		else if (GetConnectionState() == EBeaconConnectionState::Pending)
+		{
+			UE_LOG(LogNet, Error, TEXT("AOnlineBeaconClient::SendInitialJoin: EncryptionToken is empty when 'net.AllowEncryption' requires it."));
+
+			SetConnectionState(EBeaconConnectionState::Invalid);
+			OnFailure();
+		}
 	}
 }
 

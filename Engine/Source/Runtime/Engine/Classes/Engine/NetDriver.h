@@ -1925,6 +1925,23 @@ public:
 	/** Whether or not this driver has an IsReplay() connection, updated in Add/RemoveClientConnection */
 	bool HasReplayConnection() const { return bHasReplayConnection; }
 
+	/**
+	 * Whether or not this NetDriver supports encryption. Does not signify that encryption is actually enabled, nor setup by the PacketHandler.
+	 *
+	 * @return		Whether or not this NetDriver supports encryption.
+	 */
+	ENGINE_API virtual bool DoesSupportEncryption() const
+	{
+		return true;
+	}
+
+	/**
+	 * Whether or not this NetDriver requires encryption. Does signify that encryption is enabled, but does not signify that it's setup properly.
+	 *
+	 * @return		Whether or not encryption is presently required for connections.
+	 */
+	ENGINE_API virtual bool IsEncryptionRequired() const;
+
 protected:
 	
 	/** Stream of random numbers to be used by this instance of UNetDriver */

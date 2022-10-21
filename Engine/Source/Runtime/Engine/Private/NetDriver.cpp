@@ -369,7 +369,10 @@ static TAutoConsoleVariable<int32> CVarUseAdaptiveNetUpdateFrequency(
 TAutoConsoleVariable<int32> CVarNetAllowEncryption(
 	TEXT("net.AllowEncryption"),
 	1,
-	TEXT("If true, the engine will attempt to load an encryption PacketHandler component and fill in the EncryptionToken parameter of the NMT_Hello message based on the ?EncryptionToken= URL option and call callbacks if it's non-empty."));
+	TEXT("If true, the engine will attempt to load an encryption PacketHandler component and fill in the EncryptionToken parameter ")
+	TEXT("of the NMT_Hello message based on the ?EncryptionToken= URL option and call callbacks if it's non-empty. ")
+	TEXT("Additionally, a value of '2' will make the EncryptionToken required - which is enforced serverside. ")
+	TEXT("(0 = Disabled, 1 = Allowed (default), 2 = Required)"));
 
 static TAutoConsoleVariable<int32> CVarActorChannelPool(
 	TEXT("net.ActorChannelPool"),
@@ -395,6 +398,49 @@ static FAutoConsoleVariableRef CVarNetResetAckStatePostSeamlessTravel(
 	GNetResetAckStatePostSeamlessTravel,
 	TEXT("If 1, the server will reset the ack state of the package map after seamless travel. Increases bandwidth usage, but may resolve some issues with GUIDs not being available on clients after seamlessly traveling."),
 	ECVF_Default);
+
+namespace UE::Net
+{
+	static FString GRequiredEncryptionNetDriverDefNames_Internal = TEXT("all");
+	static TArray<FName> GRequiredEncryptionNetDriverDefNames;
+
+	// Safe to update static here, but not CVar system cached value
+	static void ParseRequiredEncryptionCVars(IConsoleVariable* =nullptr)
+	{
+		GRequiredEncryptionNetDriverDefNames.Reset();
+
+		if (GRequiredEncryptionNetDriverDefNames_Internal.TrimStartAndEnd() == TEXT("all"))
+		{
+			if (GEngine != nullptr)
+			{
+				for (const FNetDriverDefinition& CurDef : GEngine->NetDriverDefinitions)
+				{
+					if (CurDef.DefName != NAME_DemoNetDriver)
+					{
+						GRequiredEncryptionNetDriverDefNames.Add(CurDef.DefName);
+					}
+				}
+			}
+		}
+		else
+		{
+			TArray<FString> NetDriverNames;
+			GRequiredEncryptionNetDriverDefNames_Internal.ParseIntoArray(NetDriverNames, TEXT(","));
+
+			for (const FString& CurName : NetDriverNames)
+			{
+				GRequiredEncryptionNetDriverDefNames.Add(FName(CurName.TrimStartAndEnd()));
+			};
+		}
+	}
+
+	static FAutoConsoleVariableRef CVarNetRequiredEncryptionNetDriverDefNames(
+		TEXT("net.RequiredEncryptionNetDriverDefNames"),
+		GRequiredEncryptionNetDriverDefNames_Internal,
+		TEXT("Comma-delimited list of NetDriverDefinition's where 'IsEncryptionRequired' will return true, when 'net.AllowEncryption' is 2. ")
+		TEXT("(specifying 'all' will enable this for all NetDriverDefinition's)"),
+		FConsoleVariableDelegate::CreateStatic(&ParseRequiredEncryptionCVars));
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -505,8 +551,8 @@ void UNetDriver::InitPacketSimulationSettings()
 
 	// Read the settings from .ini and command line, with the command line taking precedence	
 	PacketSimulationSettings.ResetSettings();
-	PacketSimulationSettings.LoadConfig(*NetDriverName.ToString());
-	PacketSimulationSettings.ParseSettings(FCommandLine::Get(), *NetDriverName.ToString());
+	PacketSimulationSettings.LoadConfig(*NetDriverDefinition.ToString());
+	PacketSimulationSettings.ParseSettings(FCommandLine::Get(), *NetDriverDefinition.ToString());
 #endif
 }
 
@@ -1431,7 +1477,7 @@ void UNetDriver::InitConnectionlessHandler()
 		if (ConnectionlessHandler.IsValid())
 		{
 			ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
-			ConnectionlessHandler->Initialize(Handler::Mode::Server, MAX_PACKET_SIZE, true, nullptr, nullptr, NetDriverName);
+			ConnectionlessHandler->Initialize(Handler::Mode::Server, MAX_PACKET_SIZE, true, nullptr, nullptr, NetDriverDefinition);
 
 			// Add handling for the stateless connect handshake, for connectionless packets, as the outermost layer
 			TSharedPtr<HandlerComponent> NewComponent =
@@ -2388,7 +2434,7 @@ void UNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
 		}
 		else
 		{
-			AnalyticsAggregator = MakeShareable(new FNetAnalyticsAggregator(InProvider, NetDriverName));
+			AnalyticsAggregator = MakeShareable(new FNetAnalyticsAggregator(InProvider, NetDriverDefinition));
 
 			AnalyticsAggregator->Init();
 		}
@@ -2750,6 +2796,8 @@ bool UNetDriver::HandleNetDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar
 
 		ServerConnection->SendCloseReason(ENetCloseResult::Disconnect);
 		FNetControlMessage<NMT_Failure>::Send(ServerConnection, Msg);
+		ServerConnection->FlushNet(true);
+		ServerConnection->Close(ENetCloseResult::Disconnect);
 	}
 #if WITH_SERVER_CODE
 	else
@@ -2765,6 +2813,17 @@ bool UNetDriver::HandleNetDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar
 				Connection->SendCloseReason(ENetCloseResult::Disconnect);
 				FNetControlMessage<NMT_Failure>::Send(Connection, Msg);
 				Connection->FlushNet(true);
+			}
+		}
+
+		// Copy ClientConnections to close each connection, in case closing modifies the ClientConnnection list
+		const TArray<UNetConnection*> ClientConnCopy = ClientConnections;
+
+		for (UNetConnection* Connection : ClientConnCopy)
+		{
+			if (Connection != nullptr)
+			{
+				Connection->Close(ENetCloseResult::Disconnect);
 			}
 		}
 	}
@@ -3099,7 +3158,7 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 #if DO_ENABLE_NET_TEST
 	// This will allow changing the Pkt* options at runtime
 	else if (bNeverApplyNetworkEmulationSettings == false && 
-			 PacketSimulationSettings.ParseSettings(Cmd, *NetDriverName.ToString()))
+			 PacketSimulationSettings.ParseSettings(Cmd, *NetDriverDefinition.ToString()))
 	{
 		OnPacketSimulationSettingsChanged();
 		return true;
@@ -5292,7 +5351,6 @@ void UNetDriver::ReleaseToChannelPool(UChannel* Channel)
 void UNetDriver::SetNetDriverName(FName NewNetDriverNamed)
 {
 	NetDriverName = NewNetDriverNamed;
-	InitPacketSimulationSettings();
 }
 
 void UNetDriver::SetNetDriverDefinition(FName NewNetDriverDefinition)
@@ -5303,6 +5361,8 @@ void UNetDriver::SetNetDriverDefinition(FName NewNetDriverDefinition)
 	{
 		MaxChannelsOverride = DriverDef->MaxChannelsOverride;
 	}
+
+	InitPacketSimulationSettings();
 }
 
 void UNetDriver::PostCreation(bool bInitializeWithIris)
@@ -6792,6 +6852,26 @@ void UNetDriver::MoveMappedObjectToUnmapped(const UObject* Object)
 			}
 		}
 	}
+}
+
+bool UNetDriver::IsEncryptionRequired() const
+{
+	using namespace UE::Net;
+
+	if (GRequiredEncryptionNetDriverDefNames.Num() == 0)
+	{
+		ParseRequiredEncryptionCVars();
+	}
+
+	const FWorldContext* const WorldContext = (NetDriverName == NAME_PendingNetDriver ? GEngine->GetWorldContextFromPendingNetGameNetDriver(this) :
+												GEngine->GetWorldContextFromWorld(World));
+	const int32 AllowEncryption = CVarNetAllowEncryption.GetValueOnGameThread();
+	const bool bDevDisableEncryptionCheck = !IsServer() && !(UE_BUILD_SHIPPING || UE_BUILD_TEST); // Clientside only
+	const bool bPIEDisableEncryptionCheck = WorldContext != nullptr && WorldContext->WorldType == EWorldType::PIE;
+	const bool bNetDriverDefNameRequiresEncryption = GRequiredEncryptionNetDriverDefNames.Contains(NetDriverDefinition);
+
+	return DoesSupportEncryption() && bNetDriverDefNameRequiresEncryption && AllowEncryption == 2 && !bDevDisableEncryptionCheck &&
+			!bPIEDisableEncryptionCheck;
 }
 
 void UNetDriver::UpdateNetworkStats()

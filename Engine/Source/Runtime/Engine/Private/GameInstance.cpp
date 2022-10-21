@@ -111,6 +111,7 @@ void UGameInstance::Init()
 
 		FNetDelegates::OnReceivedNetworkEncryptionToken.BindUObject(this, &ThisClass::ReceivedNetworkEncryptionToken);
 		FNetDelegates::OnReceivedNetworkEncryptionAck.BindUObject(this, &ThisClass::ReceivedNetworkEncryptionAck);
+		FNetDelegates::OnReceivedNetworkEncryptionFailure.BindUObject(this, &ThisClass::ReceivedNetworkEncryptionFailure);
 
 		IPlatformInputDeviceMapper& PlatformInputMapper = IPlatformInputDeviceMapper::Get();
 		PlatformInputMapper.GetOnInputDeviceConnectionChange().AddUObject(this, &UGameInstance::HandleInputDeviceConnectionChange);
@@ -1323,6 +1324,11 @@ void UGameInstance::ReceivedNetworkEncryptionAck(const FOnEncryptionKeyResponse&
 {
 	FEncryptionKeyResponse Response(EEncryptionResponse::Failure, TEXT("ReceivedNetworkEncryptionAck not implemented"));
 	Delegate.ExecuteIfBound(Response);
+}
+
+EEncryptionFailureAction UGameInstance::ReceivedNetworkEncryptionFailure(UNetConnection* Connection)
+{
+	return EEncryptionFailureAction::Default;
 }
 
 TSubclassOf<UOnlineSession> UGameInstance::GetOnlineSessionClass()

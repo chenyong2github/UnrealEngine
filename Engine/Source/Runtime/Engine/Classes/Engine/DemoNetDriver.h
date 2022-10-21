@@ -362,6 +362,8 @@ public:
 	virtual void LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits) override {}
 	virtual class ISocketSubsystem* GetSocketSubsystem() override { return nullptr; }
 
+	virtual bool DoesSupportEncryption() const override { return false; }
+
 protected:
 	virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;
 

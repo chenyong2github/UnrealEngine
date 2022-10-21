@@ -555,6 +555,9 @@ public:
 	/** Called when a client receives the EncryptionAck control message from the server, will generally enable encryption. */
 	virtual void ReceivedNetworkEncryptionAck(const FOnEncryptionKeyResponse& Delegate);
 
+	/** Called when a connecting client fails to setup encryption */
+	virtual EEncryptionFailureAction ReceivedNetworkEncryptionFailure(UNetConnection* Connection);
+
 	/** Call to preload any content before loading a map URL, used during seamless travel as well as map loading */
 	virtual void PreloadContentForURL(FURL InURL);
 

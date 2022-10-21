@@ -102,21 +102,49 @@ void UPendingNetGame::SendInitialJoin()
 		{
 			uint8 IsLittleEndian = uint8(PLATFORM_LITTLE_ENDIAN);
 			check(IsLittleEndian == !!IsLittleEndian); // should only be one or zero
-			
-			uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
 
-			UE_LOG(LogNet, Log, TEXT( "UPendingNetGame::SendInitialJoin: Sending hello. %s" ), *ServerConn->Describe());
-
+			const int32 AllowEncryption = CVarNetAllowEncryption.GetValueOnGameThread();
 			FString EncryptionToken;
-			if (CVarNetAllowEncryption.GetValueOnGameThread() != 0)
+
+			if (AllowEncryption != 0)
 			{
 				EncryptionToken = URL.GetOption(TEXT("EncryptionToken="), TEXT(""));
 			}
 
-			EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
-			FNetControlMessage<NMT_Hello>::Send(ServerConn, IsLittleEndian, LocalNetworkVersion, EncryptionToken, LocalNetworkFeatures);
+			bool bEncryptionRequirementsFailure = false;
+
+			if (EncryptionToken.IsEmpty())
+			{
+				EEncryptionFailureAction FailureResult = EEncryptionFailureAction::Default;
+
+				if (FNetDelegates::OnReceivedNetworkEncryptionFailure.IsBound())
+				{
+					FailureResult = FNetDelegates::OnReceivedNetworkEncryptionFailure.Execute(ServerConn);
+				}
+
+				const bool bGameplayDisableEncryptionCheck = FailureResult == EEncryptionFailureAction::AllowConnection;
+
+				bEncryptionRequirementsFailure = NetDriver->IsEncryptionRequired() && !bGameplayDisableEncryptionCheck;
+			}
 			
-			ServerConn->FlushNet();
+			if (!bEncryptionRequirementsFailure)
+			{
+				uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
+
+				UE_LOG(LogNet, Log, TEXT("UPendingNetGame::SendInitialJoin: Sending hello. %s"), *ServerConn->Describe());
+
+				EEngineNetworkRuntimeFeatures LocalNetworkFeatures = NetDriver->GetNetworkRuntimeFeatures();
+				FNetControlMessage<NMT_Hello>::Send(ServerConn, IsLittleEndian, LocalNetworkVersion, EncryptionToken, LocalNetworkFeatures);
+
+
+				ServerConn->FlushNet();
+			}
+			else
+			{
+				UE_LOG(LogNet, Error, TEXT("UPendingNetGame::SendInitialJoin: EncryptionToken is empty when 'net.AllowEncryption' requires it."));
+
+				ConnectionError = TEXT("EncryptionToken not set.");
+			}
 		}
 	}
 }

@@ -206,7 +206,25 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 			// if the client didn't specify an encryption token we're done with Hello
 			if (EncryptionToken.IsEmpty())
 			{
-				OnHelloSequenceComplete(Connection);
+				EEncryptionFailureAction FailureResult = EEncryptionFailureAction::Default;
+							
+				if (FNetDelegates::OnReceivedNetworkEncryptionFailure.IsBound())
+				{
+					FailureResult = FNetDelegates::OnReceivedNetworkEncryptionFailure.Execute(Connection);
+				}
+
+				const bool bGameplayDisableEncryptionCheck = FailureResult == EEncryptionFailureAction::AllowConnection;
+				const bool bEncryptionRequired = NetDriver != nullptr && NetDriver->IsEncryptionRequired() && !bGameplayDisableEncryptionCheck;
+
+				if (!bEncryptionRequired)
+				{
+					OnHelloSequenceComplete(Connection);
+				}
+				else
+				{
+					SendFailurePacket(Connection, ENetCloseResult::EncryptionTokenMissing, FText::FromString(TEXT("Encryption token missing")));
+					return false;
+				}
 			}
 			else
 			{
@@ -465,11 +483,14 @@ void AOnlineBeaconHost::SendFailurePacket(UNetConnection* Connection, FNetCloseR
 	if (Connection != nullptr)
 	{
 		FString ErrorMsg = ErrorText.ToString();
+		FNetCloseResult CloseReasonCopy = CloseReason;
 
 		UE_LOG(LogBeacon, Log, TEXT("%s: Send failure: %s"), ToCStr(GetDebugName(Connection)), ToCStr(ErrorMsg));
 
-		Connection->SendCloseReason(MoveTemp(CloseReason));
+		Connection->SendCloseReason(MoveTemp(CloseReasonCopy));
 		FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
+		Connection->FlushNet(true);
+		Connection->Close(MoveTemp(CloseReason));
 	}
 }
 
@@ -478,8 +499,12 @@ void AOnlineBeaconHost::SendFailurePacket(UNetConnection* Connection, const FTex
 	if (Connection != nullptr)
 	{
 		FString ErrorMsg = ErrorText.ToString();
-		UE_LOG(LogBeacon, Log, TEXT("%s: Send failure: %s"), *GetDebugName(Connection), *ErrorMsg);
+
+		UE_LOG(LogBeacon, Log, TEXT("%s: Send failure: %s"), ToCStr(GetDebugName(Connection)), ToCStr(ErrorMsg));
+
 		FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
+		Connection->FlushNet(true);
+		Connection->Close();
 	}
 }
 
@@ -647,9 +672,8 @@ void AOnlineBeaconHost::OnEncryptionResponse(const FEncryptionKeyResponse& Respo
 
 				Connection->SendCloseReason(ENetCloseResult::EncryptionFailure);
 				FNetControlMessage<NMT_Failure>::Send(Connection, ResponseStr);
-				Connection->FlushNet();
-				// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
-				// Connection->Close(ENetCloseResult::EncryptionFailure);
+				Connection->FlushNet(true);
+				Connection->Close(ENetCloseResult::EncryptionFailure);
 			}
 		}
 		else

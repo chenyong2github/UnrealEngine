@@ -5180,9 +5180,8 @@ void UNetConnection::SendChallengeControlMessage(const FEncryptionKeyResponse& R
 
 			SendCloseReason(ENetCloseResult::EncryptionFailure);
 			FNetControlMessage<NMT_Failure>::Send(this, ResponseStr);
-			FlushNet();
-			// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
-			// Close(ENetCloseResult::EncryptionFailure);
+			FlushNet(true);
+			Close(ENetCloseResult::EncryptionFailure);
 		}
 	}
 	else

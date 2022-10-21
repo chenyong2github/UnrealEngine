@@ -186,6 +186,9 @@ enum class ENetCloseResult : uint32
 	/** Encryption failure */
 	EncryptionFailure,
 
+	/** EncryptionToken is missing */
+	EncryptionTokenMissing,
+
 
 	/** Channel Error result types */
 
