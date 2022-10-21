@@ -179,11 +179,6 @@ static void TraceMotionMatchingState(
 		return;
 	}
 
-	if (!MotionMatchingState.CurrentSearchResult.IsValid())
-	{
-		return;
-	}
-
 	const float DeltaTime = UpdateContext.GetDeltaTime();
 
 	auto AddUniqueDatabase = [](TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, const UPoseSearchDatabase* Database, UE::PoseSearch::FSearchContext& SearchContext) -> int32
