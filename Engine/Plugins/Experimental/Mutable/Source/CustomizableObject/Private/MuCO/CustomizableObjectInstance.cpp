@@ -4628,7 +4628,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 							FString TextureReuseCacheRef = bReuseTextures ? FString::Printf(TEXT("%d-%d-%d-%d"), LODIndex, ComponentIndex, Surface.SurfaceId, ImageIndex) : FString();
 
 							// If the mutable image is null, it must be in the cache
-							FMutableImageCacheKey ImageCacheKey = { Image.ImageID };//, OperationData->MipsToSkip }; // Todo: Reenable extended FMutableImageCacheKey
+							FMutableImageCacheKey ImageCacheKey = { Image.ImageID, OperationData->MipsToSkip };
 							if (!MutableImage)
 							{
 								TWeakObjectPtr<UTexture2D>* CachedPointerPtr = Cache.Images.Find(ImageCacheKey);

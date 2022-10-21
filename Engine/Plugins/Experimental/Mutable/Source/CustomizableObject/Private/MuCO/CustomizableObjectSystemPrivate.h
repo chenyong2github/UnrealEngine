@@ -168,19 +168,21 @@ public:
 struct FMutableImageCacheKey
 {
 	mu::RESOURCE_ID Resource = 0;
-	//int32 SkippedMips = 0; // Todo: Reenable extended FMutableImageCacheKey
+	int32 SkippedMips = 0;
 
-	inline bool operator==(const FMutableImageCacheKey& o) const
+	FMutableImageCacheKey(mu::RESOURCE_ID InResource, int32 InSkippedMips)
+		: Resource(InResource), SkippedMips(InSkippedMips) {}
+
+	inline bool operator==(const FMutableImageCacheKey& Other) const
 	{
-		return Resource == o.Resource;//&& SkippedMips == o.SkippedMips; // Todo: Reenable extended FMutableImageCacheKey
+		return Resource == Other.Resource && SkippedMips == Other.SkippedMips;
 	}
 };
 
 
 inline uint32 GetTypeHash(const FMutableImageCacheKey& Key)
 {
-	//return HashCombine(GetTypeHash(Key.Resource), GetTypeHash(Key.SkippedMips)); // Todo: Reenable extended FMutableImageCacheKey
-	return GetTypeHash(Key.Resource);
+	return HashCombine(GetTypeHash(Key.Resource), GetTypeHash(Key.SkippedMips));
 }
 
 

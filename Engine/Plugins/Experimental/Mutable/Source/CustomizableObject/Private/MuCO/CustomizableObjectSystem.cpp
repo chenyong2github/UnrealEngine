@@ -1967,7 +1967,8 @@ namespace impl
 
 		for (const FInstanceUpdateData::FImage& Image : OperationData->InstanceUpdateData.Images)
 		{
-			TWeakObjectPtr<UTexture2D>* TexturePtr = Cache.Images.Find({ Image.ImageID });
+			FMutableImageCacheKey Key(Image.ImageID, OperationData->MipsToSkip);
+			TWeakObjectPtr<UTexture2D>* TexturePtr = Cache.Images.Find(Key);
 
 			if (TexturePtr && TexturePtr->Get() && System->GetPrivate()->TextureHasReferences(Image.ImageID))
 			{
