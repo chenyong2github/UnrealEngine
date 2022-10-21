@@ -1217,7 +1217,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		}
 	}
 
-	if (Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
+	if (MaterialSample.PositionBiasSign < 0 && Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
 		float3 LocalSigmaT = max(Payload.CustomData.xyz, 1e-8f);
 		if (Payload.IsFrontFace())
