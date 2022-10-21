@@ -73,7 +73,7 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 
 			}
 
-			FNNXFormatDesc ONNXModel;
+			FNNIModelRaw ONNXModel;
 			
 			// First try to load model from file, otherwise create a single layer NN with specified
 			// operator name
@@ -112,7 +112,7 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 			UE_LOG(LogNNX, Verbose, TEXT("Optimizing model"));
 
 			FOptimizerOptionsMap Options;
-			FNNXFormatDesc OutModel;
+			FNNIModelRaw OutModel;
 			
 			if (Optimizer->Optimize(ONNXModel, OutModel, Options))
 			{
@@ -136,7 +136,7 @@ static FAutoConsoleCommand ConsoleCmdNNXCreateModel(
 
 			if (Args.Num() > 0)
 			{
-				FNNXFormatDesc ONNXModel;
+				FNNIModelRaw ONNXModel;
 				FMLTensorDesc InputTensor = FMLTensorDesc::Make(TEXT("in"), { 1, 512 }, EMLTensorDataType::Float);
 				FMLTensorDesc OutputTensor = FMLTensorDesc::Make(TEXT("out"), { 1, 512 }, EMLTensorDataType::Float);
 

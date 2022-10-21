@@ -27,7 +27,7 @@ enum class ENNXInferenceFormat : uint8
 };
 
 USTRUCT()
-struct FNNXFormatDesc
+struct FNNIModelRaw
 {
 	GENERATED_USTRUCT_BODY()
 	
@@ -36,8 +36,6 @@ struct FNNXFormatDesc
 	
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	ENNXInferenceFormat	Format { ENNXInferenceFormat::Invalid };
-
-	FNNXFormatDesc() = default;
 };
 
 // Required by LoadModel() when loading operators in HLSL and DirectML runtime

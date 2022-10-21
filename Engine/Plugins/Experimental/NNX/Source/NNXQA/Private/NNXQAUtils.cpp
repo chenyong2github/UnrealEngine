@@ -325,14 +325,14 @@ namespace Test
 		return FMath::Sin((float)(ElementIndex + IndexOffsetBetweenTensor * TensorIndex));
 	}
 
-	static int RunTestInference(const FNNXFormatDesc& ONNXModelData, NNX::IRuntime* Runtime, 
+	static int RunTestInference(const FNNIModelRaw& ONNXModelData, NNX::IRuntime* Runtime, 
 		TArray<NNX::FMLTensorDesc>& OutOutputTensorsDesc, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
 		OutOutputTensorsDesc.Empty();
 
 		FOptimizerOptionsMap Options;
-		FNNXFormatDesc RuntimeModelData;
+		FNNIModelRaw RuntimeModelData;
 		TUniquePtr<IModelOptimizer> Optimizer = Runtime->CreateModelOptimizer();
 		
 		if (!Optimizer || !Optimizer->Optimize(ONNXModelData, RuntimeModelData, Options))
@@ -385,7 +385,7 @@ namespace Test
 		return ReturnValue;
 	}
 
-	bool CompareONNXModelInferenceAcrossRuntimes(const FNNXFormatDesc& ONNXModel, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
+	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
 		FString CurrentPlatform = UGameplayStatics::GetPlatformName();
 		if (TestSetup.AutomationExcludedPlatform.Contains(CurrentPlatform))

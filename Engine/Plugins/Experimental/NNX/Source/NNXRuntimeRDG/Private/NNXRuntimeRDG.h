@@ -26,7 +26,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 class FRDGBuilder;
 struct FMLRuntimeFormat;
-struct FNNXFormatDesc;
+struct FNNIModelRaw;
 
 namespace NNX
 {
@@ -67,7 +67,7 @@ protected:
 
 	FMLInferenceModelRDG();
 
-	bool LoadModel(const FNNXFormatDesc& InModel, FMLRuntimeFormat& Format);
+	bool LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format);
 
 	int SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutRDGBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FMLTensorDesc> InTensors);
 
@@ -203,7 +203,7 @@ public:
 		return TEXT("RDG Model validator");
 	}
 	
-	virtual bool ValidateModel(const FNNXFormatDesc& InputModel) const override
+	virtual bool ValidateModel(const FNNIModelRaw& InputModel) const override
 	{
 		FMLRuntimeFormat	Format;
 
@@ -220,12 +220,6 @@ public:
 		TOperatorRegistryRDG<TOperatorType>* Registry = TOperatorRegistryRDG<TOperatorType>::Get();
 		check(Registry != nullptr);
 
-		if (Format.Operators.Num() > 1)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to validate model, currently only single layer models are supported"));
-			return false;
-		}
-		
 		// HACK: This works only for single layer networks
 		// we should get the output tensor type from intermediate tensor 
 		// (can we get it from model definition?, otherwise will need

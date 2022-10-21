@@ -13,13 +13,13 @@ class NNXCORE_API UMLInferenceModel : public UObject
 
 public:
 
-	static UMLInferenceModel* CreateFromFormatDesc(const FNNXFormatDesc& Model);
+	static UMLInferenceModel* CreateFromFormatDesc(const FNNIModelRaw& Model);
 	
 	UMLInferenceModel() = default;
 	
-	const FNNXFormatDesc& GetFormatDesc() const;
+	const FNNIModelRaw& GetFormatDesc() const;
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Neural Network Inference")
-	FNNXFormatDesc FormatDesc;
+	FNNIModelRaw FormatDesc;
 };

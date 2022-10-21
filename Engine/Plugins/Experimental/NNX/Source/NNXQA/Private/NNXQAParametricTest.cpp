@@ -390,7 +390,7 @@ namespace Test
 	
 	static bool RunParametricTest(FTests::FTestSetup& TestSetup, const FString& RuntimeFilter)
 	{
-		FNNXFormatDesc ONNXModel;
+		FNNIModelRaw ONNXModel;
 
 		if (TestSetup.IsModelTest)
 		{

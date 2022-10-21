@@ -275,7 +275,7 @@ private:
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, FNNXFormatDesc& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, FNNIModelRaw& Model)
 {
 	FMLAttributeMap EmptyAttributeMap;
 	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
@@ -284,9 +284,9 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, FNNXFormatDesc& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, FNNIModelRaw& Model)
 {
-	Model = FNNXFormatDesc{};
+	Model = FNNIModelRaw{};
 	
 	TUniquePtr<IMLModelBuilder> Builder(CreateONNXModelBuilder());
 

@@ -2,7 +2,7 @@
 
 #include "NNXInferenceModel.h"
 
-UMLInferenceModel* UMLInferenceModel::CreateFromFormatDesc(const FNNXFormatDesc& FormatDesc)
+UMLInferenceModel* UMLInferenceModel::CreateFromFormatDesc(const FNNIModelRaw& FormatDesc)
 {
 	UMLInferenceModel* Model = NewObject<UMLInferenceModel>((UObject*)GetTransientPackage(), UMLInferenceModel::StaticClass());
 
@@ -16,7 +16,7 @@ UMLInferenceModel* UMLInferenceModel::CreateFromFormatDesc(const FNNXFormatDesc&
 	return Model;
 }
 
-const FNNXFormatDesc& UMLInferenceModel::GetFormatDesc() const
+const FNNIModelRaw& UMLInferenceModel::GetFormatDesc() const
 {
 	return FormatDesc;
 }

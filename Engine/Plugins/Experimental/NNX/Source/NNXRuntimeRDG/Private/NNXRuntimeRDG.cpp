@@ -176,7 +176,7 @@ FMLInferenceModelRDG::~FMLInferenceModelRDG()
 //
 //
 //
-bool FMLInferenceModelRDG::LoadModel(const FNNXFormatDesc& InModel, FMLRuntimeFormat& Format)
+bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format)
 {
 	ENNXInferenceFormat FormatType = InModel.Format;
 

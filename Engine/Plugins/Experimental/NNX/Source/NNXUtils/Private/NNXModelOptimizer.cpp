@@ -268,7 +268,7 @@ protected:
 	TArray<TSharedPtr<IModelOptimizerPass>> OptimizationPasses;
 	TArray<TSharedPtr<IModelValidator>> Validators;
 
-	virtual bool ValidateInputModel(const FNNXFormatDesc& InputModel)
+	virtual bool ValidateInputModel(const FNNIModelRaw& InputModel)
 	{
 		if (InputModel.Format != ENNXInferenceFormat::ONNX)
 		{
@@ -303,7 +303,7 @@ public:
 		}
 	}
 
-	bool IsModelValid(const FNNXFormatDesc& ModelToValidate)
+	bool IsModelValid(const FNNIModelRaw& ModelToValidate)
 	{
 		bool bIsModelValid = true;
 
@@ -319,7 +319,7 @@ public:
 		return bIsModelValid;
 	}
 
-	bool ApplyAllPassesAndValidations(FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options)
+	bool ApplyAllPassesAndValidations(FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options)
 	{
 		if (!IsModelValid(OptimizedModel))
 		{
@@ -346,9 +346,9 @@ public:
 		return true;
 	}
 
-	bool Optimize(const FNNXFormatDesc& InputModel, FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
 	{
-		OptimizedModel = FNNXFormatDesc{};
+		OptimizedModel = FNNIModelRaw{};
 		
 		if (!ValidateInputModel(InputModel))
 		{
@@ -368,7 +368,7 @@ public:
 		return TEXT("ONNX Model validator");
 	}
 
-	virtual bool ValidateModel(const FNNXFormatDesc& InputModel) const override
+	virtual bool ValidateModel(const FNNIModelRaw& InputModel) const override
 	{
 		FMLRuntimeFormat	Format;
 
@@ -416,9 +416,9 @@ public:
 		return TEXT("NNXModelOptimizerONNXToORT");
 	}
 
-	virtual bool Optimize(const FNNXFormatDesc& InputModel, FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
 	{
-		OptimizedModel = FNNXFormatDesc{};
+		OptimizedModel = FNNIModelRaw{};
 		
 		if (!ValidateInputModel(InputModel))
 		{
@@ -463,9 +463,9 @@ public:
 		return TEXT("FNNXModelOptimizerONNXToNNX");
 	}
 	
-	virtual bool Optimize(const FNNXFormatDesc& InputModel, FNNXFormatDesc& OptimizedModel, const FOptimizerOptionsMap& Options) override
+	virtual bool Optimize(const FNNIModelRaw& InputModel, FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options) override
 	{
-		OptimizedModel = FNNXFormatDesc{};
+		OptimizedModel = FNNIModelRaw{};
 		
 		if (!ValidateInputModel(InputModel))
 		{
@@ -638,9 +638,9 @@ NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceForma
 }
 
 /** Helper to create an optimized model for a given runtime from ONNX */
-NNXUTILS_API bool CreateRuntimeModelFromONNX(const FNNXFormatDesc& ONNXModel, FNNXFormatDesc& OptimizedModel, FString RuntimeName, const FOptimizerOptionsMap& Options)
+NNXUTILS_API bool CreateRuntimeModelFromONNX(const FNNIModelRaw& ONNXModel, FNNIModelRaw& OptimizedModel, FString RuntimeName, const FOptimizerOptionsMap& Options)
 {
-	OptimizedModel = FNNXFormatDesc{};
+	OptimizedModel = FNNIModelRaw{};
 	
 	//TODO jira 167594: Register the NNEngine even when CreateInferenceModel can't be called
 	//on the platform because of missing hardware support. This would allow
