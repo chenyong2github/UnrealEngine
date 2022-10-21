@@ -61,6 +61,27 @@
 					]
 				}
 			]
+		},
+		{
+			"category": "SimpleTests",
+			"is_model_test": true,
+			"targets": [
+				{
+					"target": "OneLayerWithWeights",
+					"tags": [ "SmokeTest" ],
+					"runtimes": [
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Weights from model not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Weights from model not yet implemented." }
+					]
+				},
+				{
+					"target": "TwoLayersNoWeight",
+					"runtimes": [
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+					]
+				}
+			]
 		}
 	],
 
