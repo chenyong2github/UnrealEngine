@@ -85,17 +85,17 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	 * Variadic Element-wise ML operator implementation
 	 */
 	template<EMLElementWiseVariadicOperatorType OpType>
-	class TOperatorElementWiseVariadic : public NNX::FMLOperatorHlsl
+	class TElementWiseVariadic : public NNX::FMLOperatorHlsl
 	{
 	public:
 
-		TOperatorElementWiseVariadic() {}
-		virtual ~TOperatorElementWiseVariadic() = default;
+		TElementWiseVariadic() {}
+		virtual ~TElementWiseVariadic() = default;
 
 	private:
 
 		TArray<NNX::FMLTensorDesc> InputDescs;
-		NNX::FMLTensorDesc OutputDesc;
+		NNX::FMLTensorDesc OutputDesc = {};
 
 	public:
 
@@ -153,7 +153,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	template<EMLElementWiseVariadicOperatorType OpType>
 	NNX::FMLOperatorHlsl* CreateElementWiseVariadicOperator()
 	{
-		return new TOperatorElementWiseVariadic<OpType>();
+		return new TElementWiseVariadic<OpType>();
 	}
 
 	bool RegisterElementWiseVariadicOperators(NNX::FMLOperatorRegistryHlsl& Registry)

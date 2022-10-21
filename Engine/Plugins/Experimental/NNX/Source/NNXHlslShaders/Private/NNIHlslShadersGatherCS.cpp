@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNXGatherCS.h"
+#include "NNIHlslShadersGatherCS.h"
 
-namespace UE::NNI::HlslShaders::Internal
+namespace UE::NNIHlslShaders::Internal
 {
 	// template <>
 	void TGatherCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -78,4 +78,4 @@ namespace UE::NNI::HlslShaders::Internal
 	IMPLEMENT_GLOBAL_SHADER(TGatherCS, "/NNX/GatherOp.usf", "main", SF_Compute);
 	//template class TGatherCS<float, int32>;
 
-} // UE::NNI::HlslShaders::Internal
+} // UE::NNIHlslShaders::Internal

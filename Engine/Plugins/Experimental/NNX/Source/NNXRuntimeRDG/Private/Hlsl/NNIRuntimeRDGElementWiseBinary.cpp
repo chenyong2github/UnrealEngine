@@ -15,18 +15,18 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	 * Binary element-wise operator implementation
 	 */
 	template<EMLElementWiseBinaryOperatorType OpType>
-	class TOperatorElementWiseBinary : public NNX::FMLOperatorHlsl
+	class TElementWiseBinary : public NNX::FMLOperatorHlsl
 	{
 	public:
 
-		TOperatorElementWiseBinary() {}
-		virtual ~TOperatorElementWiseBinary() = default;
+		TElementWiseBinary() {}
+		virtual ~TElementWiseBinary() = default;
 
 	private:
 
-		NNX::FMLTensorDesc LHSInput;
-		NNX::FMLTensorDesc RHSInput;
-		NNX::FMLTensorDesc Output;
+		NNX::FMLTensorDesc LHSInput = {};
+		NNX::FMLTensorDesc RHSInput = {};
+		NNX::FMLTensorDesc Output = {};
 
 	public:
 
@@ -85,7 +85,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	template<EMLElementWiseBinaryOperatorType OpType>
 	NNX::FMLOperatorHlsl* CreateElementWiseBinaryOperator()
 	{
-		return new TOperatorElementWiseBinary<OpType>();
+		return new TElementWiseBinary<OpType>();
 	}
 
 	bool RegisterElementWiseBinaryOperators(NNX::FMLOperatorRegistryHlsl& Registry)

@@ -7,11 +7,12 @@
 #include "RenderGraphUtils.h"
 #include "NNXTypes.h"
 
-namespace UE::NNI::HlslShaders::Internal
+namespace UE::NNIHlslShaders::Internal
 {
 	class FGatherConstants
 	{
 	public:
+
 		static const int32 MAX_NUM_DIMENSIONS{ 8 };
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
@@ -26,6 +27,7 @@ namespace UE::NNI::HlslShaders::Internal
 		using FPermutationDomain = TShaderPermutationDomain<FGatherNumOutputDimensions>;
 
 	public:
+
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER(int32, Axis)
 			SHADER_PARAMETER(int32, OutputSize)
@@ -44,4 +46,4 @@ namespace UE::NNI::HlslShaders::Internal
 
 		static FIntVector GetGroupCount(const FParameters& Parameters);
 	};
-} // UE::NNI::HlslShaders::Internal
+} // UE::NNIHlslShaders::Internal

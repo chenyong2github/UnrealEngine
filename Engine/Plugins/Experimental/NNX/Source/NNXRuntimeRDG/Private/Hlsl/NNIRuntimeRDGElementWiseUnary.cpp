@@ -15,20 +15,20 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	 * Unary element-wise operator implementation
 	 */
 	template<EMLElementWiseUnaryOperatorType OpType>
-	class TOperatorElementWiseUnary : public NNX::FMLOperatorHlsl
+	class TElementWiseUnary : public NNX::FMLOperatorHlsl
 	{
 	public:
 
-		TOperatorElementWiseUnary() : Alpha(0.0f), Beta(0.0f), Gamma(0.0f) {}
-		virtual ~TOperatorElementWiseUnary() = default;
+		TElementWiseUnary() {}
+		virtual ~TElementWiseUnary() = default;
 
 	private:
 
-		float Alpha;
-		float Beta;
-		float Gamma;
-		NNX::FMLTensorDesc Input;
-		NNX::FMLTensorDesc Output;
+		float Alpha = 0.0f;
+		float Beta = 0.0f;
+		float Gamma = 0.0f;
+		NNX::FMLTensorDesc Input = {};
+		NNX::FMLTensorDesc Output = {};
 
 	public:
 
@@ -84,22 +84,22 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::Selu>::TOperatorElementWiseUnary()
+	template<> TElementWiseUnary<EMLElementWiseUnaryOperatorType::Selu>::TElementWiseUnary()
 		: Alpha(1.67326319217681884765625f), Beta(0.0f), Gamma(1.05070102214813232421875f)
 	{
 	}
 
-	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::Elu>::TOperatorElementWiseUnary()
+	template<> TElementWiseUnary<EMLElementWiseUnaryOperatorType::Elu>::TElementWiseUnary()
 		: Alpha(1.0f), Beta(0.0f), Gamma(0.0f) 
 	{
 	}
 
-	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::HardSigmoid>::TOperatorElementWiseUnary()
+	template<> TElementWiseUnary<EMLElementWiseUnaryOperatorType::HardSigmoid>::TElementWiseUnary()
 		: Alpha(0.2f), Beta(0.5f), Gamma(0.0f)
 	{
 	}
 
-	template<> TOperatorElementWiseUnary<EMLElementWiseUnaryOperatorType::LeakyRelu>::TOperatorElementWiseUnary()
+	template<> TElementWiseUnary<EMLElementWiseUnaryOperatorType::LeakyRelu>::TElementWiseUnary()
 		: Alpha(0.01f), Beta(0.0f), Gamma(0.0f)
 	{
 	}
@@ -107,7 +107,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	template<EMLElementWiseUnaryOperatorType OpType>
 	NNX::FMLOperatorHlsl* CreateElementWiseUnaryOperator()
 	{
-		return new TOperatorElementWiseUnary<OpType>();
+		return new TElementWiseUnary<OpType>();
 	}
 
 	bool RegisterElementWiseUnaryOperators(NNX::FMLOperatorRegistryHlsl& Registry)

@@ -1,25 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNXRuntimeHLSLGatherOp.h"
+#include "NNIRuntimeRDGGather.h"
 #include "NNXRuntimeHLSLHelper.h"
-#include "NNXGatherCS.h"
+#include "NNIHlslShadersGatherCS.h"
 
-namespace UE::NNI::RuntimeRDG::Hlsl::Private
+namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorGather, TEXT("NNI.Operator.Hlsl.Gather"));
 
-	//template<typename DataElementType, typename IndicesElementType>
-	using TGatherCS = typename UE::NNI::HlslShaders::Internal::TGatherCS;
-	using FGatherConstants = UE::NNI::HlslShaders::Internal::FGatherConstants;
-
+	/**
+	 * Gather operator implementation
+	 */
 	template <typename DataElementType, typename IndicesElementType>
-	class FOperatorGather : public NNX::FMLOperatorHlsl
+	class FGather : public NNX::FMLOperatorHlsl
 	{
 	public:
-			
-		virtual ~FOperatorGather() = default;
 
-		FOperatorGather() {}
+		FGather() {}
+		virtual ~FGather() = default;
 
 	private:
 
@@ -32,6 +30,8 @@ namespace UE::NNI::RuntimeRDG::Hlsl::Private
 
 		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
 		{
+			using namespace UE::NNIHlslShaders::Internal;
+
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
 			check(Output.Shape.Num() <= FGatherConstants::MAX_NUM_DIMENSIONS)
@@ -53,6 +53,8 @@ namespace UE::NNI::RuntimeRDG::Hlsl::Private
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
+			using namespace UE::NNIHlslShaders::Internal;
+
 			// Set parameters
 			TGatherCS::FParameters* Parameters = GraphBuilder.AllocParameters<TGatherCS::FParameters>();
 			TGatherCS::FillInParameters(Axis, Data, Indices, *Parameters);
@@ -81,7 +83,7 @@ namespace UE::NNI::RuntimeRDG::Hlsl::Private
 
 	NNX::FMLOperatorHlsl* CreateGatherOperator()
 	{
-		return new FOperatorGather<float, int32>();
+		return new FGather<float, int32>();
 	}
 
 	bool RegisterGatherOperator(NNX::FMLOperatorRegistryHlsl& Registry)
@@ -89,4 +91,4 @@ namespace UE::NNI::RuntimeRDG::Hlsl::Private
 		Registry.OpAdd(TEXT("Gather"), CreateGatherOperator);
 		return true;
 	}
-} // UE::NNI::RuntimeRDG::Hlsl::Private
+} // UE::NNIRuntimeRDG::Private::Hlsl
