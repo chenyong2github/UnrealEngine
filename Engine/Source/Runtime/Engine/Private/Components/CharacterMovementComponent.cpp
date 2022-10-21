@@ -1491,10 +1491,23 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 			}
 		}
 
-		// Allow root motion to move characters that have no controller.
-		if (CharacterOwner->IsLocallyControlled() || (!CharacterOwner->Controller && bRunPhysicsWithNoController) || (!CharacterOwner->Controller && CharacterOwner->IsPlayingRootMotion()))
+		// Perform input-driven move for any locally-controlled character, and also
+		// allow animation root motion or physics to move characters even if they have no controller
+		const bool bShouldPerformControlledCharMove = CharacterOwner->IsLocallyControlled() 
+													  || (!CharacterOwner->Controller && bRunPhysicsWithNoController)		
+													  || (!CharacterOwner->Controller && CharacterOwner->IsPlayingRootMotion());
+		
+		if (bShouldPerformControlledCharMove)
 		{
 			ControlledCharacterMove(InputVector, DeltaTime);
+
+			const bool bIsaListenServerAutonomousProxy = CharacterOwner->IsLocallyControlled()
+													 	 && (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy);
+
+			if (bIsaListenServerAutonomousProxy)
+			{
+				ServerAutonomousProxyTick(DeltaTime);
+			}
 		}
 		else if (CharacterOwner->GetRemoteRole() == ROLE_AutonomousProxy)
 		{
@@ -1503,6 +1516,8 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 			// otherwise the object will move on intermediate frames and we won't follow it.
 			MaybeUpdateBasedMovement(DeltaTime);
 			MaybeSaveBaseLocation();
+
+			ServerAutonomousProxyTick(DeltaTime);
 
 			// Smooth on listen server for local view of remote clients. We may receive updates at a rate different than our own tick rate.
 			if (CharacterMovementCVars::NetEnableListenServerSmoothing && !bNetworkSmoothingComplete && IsNetMode(NM_ListenServer))
