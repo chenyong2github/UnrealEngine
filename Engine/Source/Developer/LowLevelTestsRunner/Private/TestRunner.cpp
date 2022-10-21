@@ -316,8 +316,8 @@ int RunTests(int32 ArgC, const ANSICHAR* ArgV[])
 	{
 		TestRunner.GlobalTeardown();
 		TestRunner.Terminate();
-		RequestEngineExit(TEXT("Exiting"));
 		FModuleManager::Get().UnloadModulesAtShutdown();
+		RequestEngineExit(TEXT("Exiting"));
 	};
 
 	int CatchReturn = TestRunner.RunCatchSession();

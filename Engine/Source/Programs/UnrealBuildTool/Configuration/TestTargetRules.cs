@@ -95,11 +95,23 @@ namespace UnrealBuildTool
 			bExplicitTestsTargetOverride = this.GetType() != typeof(TestTargetRules);
 
 			ExeBinariesSubFolder = LaunchModuleName = Name + (bExplicitTestsTargetOverride ? string.Empty : "Tests");
+			IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 			if (bExplicitTestsTargetOverride)
 			{
 				bBuildInSolutionByDefault = true;
 				SolutionDirectory = "Programs/LowLevelTests";
+			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				string OutputName = "$(TargetName)";
+				if(Target.Configuration != UndecoratedConfiguration)
+				{
+					OutputName = OutputName + "-" + Target.Platform + "-" + Target.Configuration;
+				}
+				string OutputFileName = $"$(EngineDir)\\Binaries\\Win64\\{ExeBinariesSubFolder}\\{OutputName}.exe.is_unreal_test";
+				PostBuildSteps.Add("echo > " + OutputFileName);
 			}
 		}
 
