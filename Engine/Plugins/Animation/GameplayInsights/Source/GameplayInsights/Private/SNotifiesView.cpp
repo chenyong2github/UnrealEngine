@@ -87,7 +87,7 @@ void SNotifiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TAr
 
 			if(InMessage.NotifyEventType != EAnimNotifyMessageType::SyncMarker)
 			{
-				NotifyHeader->AddChild(FVariantTreeNode::MakeObject(LOCTEXT("Asset", "Asset"), InMessage.AssetId));
+				NotifyHeader->AddChild(FVariantTreeNode::MakeObject(LOCTEXT("Asset", "Asset"), InMessage.AssetId, InMessage.AssetId, InMessage.Time));
 
 				const FObjectInfo& NotifyInfo = GameplayProvider->GetObjectInfo(InMessage.NotifyId);
 				bool bIsState = InMessage.NotifyEventType == EAnimNotifyMessageType::Begin || InMessage.NotifyEventType == EAnimNotifyMessageType::End || InMessage.NotifyEventType == EAnimNotifyMessageType::Tick;

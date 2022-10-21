@@ -1,20 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SVariantValueView.h"
-#include "AnimationProvider.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "Insights/ITimingViewSession.h"
 #include "GameplayProvider.h"
 #include "TraceServices/Model/Frames.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
 #include "GameplayInsightsStyle.h"
-#include "Widgets/Layout/SScrollBorder.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SScrollBorder.h"
 #include "VariantTreeNode.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -26,6 +23,10 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "SourceCodeNavigation.h"
 #include "Editor.h"
+#include "IAnimationEditor.h"
+#include "IPersonaToolkit.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "AnimGraph/Public/AnimPreviewInstance.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SVariantValueView"
@@ -160,9 +161,42 @@ static TSharedRef<SWidget> MakeVariantValueWidget(const TraceServices::IAnalysis
 				.Text(FText::FromString(ObjectInfo.Name))
 				.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
 				.ToolTipText(FText::Format(LOCTEXT("AssetHyperlinkTooltipFormat", "Open asset '{0}'"), FText::FromString(ObjectInfo.PathName)))
-				.OnNavigate_Lambda([ObjectInfo]()
+				.OnNavigate_Lambda([ObjectInfo, InValue]()
 				{
-					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectInfo.PathName);
+					UObject* Asset = nullptr;
+						
+					UPackage* Package = LoadPackage(NULL, ObjectInfo.PathName, LOAD_NoRedirects);
+					if (Package)
+					{
+						Package->FullyLoad();
+                
+						FString AssetName = FPaths::GetBaseFilename(ObjectInfo.PathName);
+						Asset = FindObject<UObject>(Package, *AssetName);
+					}
+					else
+					{
+						// fallback for unsaved assets
+						Asset = FindObject<UObject>(nullptr, ObjectInfo.PathName);
+					}
+                    	
+					if (Asset != nullptr)
+					{
+						if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+						{
+							AssetEditorSS->OpenEditorForAsset(Asset);
+							if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(Asset, true))
+							{
+								if (Editor->GetEditorName()=="AnimationEditor")
+								{
+									IAnimationEditor* AnimationEditor = static_cast<IAnimationEditor*>(Editor);
+									UDebugSkelMeshComponent* PreviewComponent = AnimationEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
+									PreviewComponent->PreviewInstance->SetPosition(InValue.Object.PlaybackTime);
+									PreviewComponent->PreviewInstance->SetPlaying(false);
+									PreviewComponent->PreviewInstance->SetBlendSpacePosition(FVector(InValue.Object.BlendX, InValue.Object.BlendY, 0.0f));
+								}
+							}
+						}
+					}
 				});
 #else
 			return 

@@ -164,6 +164,11 @@ struct FVariantValue
 		struct
 		{
 			uint64 Value;
+			// for animation assets, store the playback time so we can open the editor to a specific time
+			float PlaybackTime;
+			// for blend spaces, store the x/y parameters so we can open the editor at those parameters
+			float BlendX;
+			float BlendY;
 		} Object;
 		struct
 		{

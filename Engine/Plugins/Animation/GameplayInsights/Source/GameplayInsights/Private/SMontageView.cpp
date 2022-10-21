@@ -34,7 +34,7 @@ void SMontageView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArr
 					{
 						const FObjectInfo& MontageInfo = GameplayProvider->GetObjectInfo(InMessage.MontageId);
 					
-						TSharedRef<FVariantTreeNode> MontageHeader = OutVariants.Add_GetRef(FVariantTreeNode::MakeObject(FText::FromString(MontageInfo.Name), InMessage.MontageId, InMessage.MontageId));
+						TSharedRef<FVariantTreeNode> MontageHeader = OutVariants.Add_GetRef(FVariantTreeNode::MakeObject(FText::FromString(MontageInfo.Name), InMessage.MontageId, InMessage.MontageId, InMessage.Position));
 
 						MontageHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventWeight", "Weight"), InMessage.Weight));
 						MontageHeader->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("EventDesiredWeight", "Desired Weight"), InMessage.DesiredWeight));

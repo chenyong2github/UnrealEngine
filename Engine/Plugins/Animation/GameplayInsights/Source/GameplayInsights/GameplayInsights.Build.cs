@@ -48,6 +48,8 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"Kismet",
 					"SubobjectEditor",
+					"AnimGraph",
+					"AnimGraphRuntime"
 				});
 			}
 		}

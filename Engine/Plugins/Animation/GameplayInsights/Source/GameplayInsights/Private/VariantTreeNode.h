@@ -125,11 +125,14 @@ struct FVariantTreeNode : TSharedFromThis<FVariantTreeNode>
 		return MakeShared<FVariantTreeNode>(InName, Value, InId);
 	}
 
-	static TSharedRef<FVariantTreeNode> MakeObject(const FText& InName, uint64 InValue, uint64 InId = INDEX_NONE)
+	static TSharedRef<FVariantTreeNode> MakeObject(const FText& InName, uint64 InValue, uint64 InId = INDEX_NONE, float PlaybackTime = 0.0f, float BlendX = 0.0f, float BlendY = 0.0f)
 	{
 		FVariantValue Value;
 		Value.Type = EAnimNodeValueType::Object;
 		Value.Object.Value = InValue;
+		Value.Object.PlaybackTime = PlaybackTime;
+		Value.Object.BlendX = BlendX;
+		Value.Object.BlendY = BlendY;
 
 		return MakeShared<FVariantTreeNode>(InName, Value, InId);
 	}
