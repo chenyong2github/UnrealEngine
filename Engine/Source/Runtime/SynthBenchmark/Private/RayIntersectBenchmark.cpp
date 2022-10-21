@@ -21,32 +21,32 @@ FORCEINLINE bool LineCheckWithTriangle(const FVector& V1, const FVector& V2, con
 	FVector	Edge1 = V3 - V1;
 	FVector	Edge2 = V2 - V1;
 	FVector	P = Direction ^ Edge2;
-	float Determinant = Edge1 | P;
+	double Determinant = Edge1 | P;
 
-	if(Determinant < 0.00001f)
+	if(Determinant < 0.00001)
 	{
 		return false;
 	}
 
 	FVector	T = Start - V1;
-	float U = T | P;
+	double U = T | P;
 
-	if(U < 0.0f || U > Determinant)
+	if(U < 0.0 || U > Determinant)
 	{
 		return false;
 	}
 
 	FVector	Q = T ^ Edge1;
-	float V = Direction | Q;
+	double V = Direction | Q;
 
-	if(V < 0.0f || U + V > Determinant)
+	if(V < 0.0 || U + V > Determinant)
 	{
 		return false;
 	}
 
-	float Time = (Edge2 | Q) / Determinant;
+	double Time = (Edge2 | Q) / Determinant;
 
-	return Time >= 0.0f;
+	return Time >= 0.0;
 }
 
 
