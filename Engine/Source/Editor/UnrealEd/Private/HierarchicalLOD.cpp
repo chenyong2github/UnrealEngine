@@ -588,7 +588,7 @@ void FHierarchicalLODBuilder::InitializeClusters(ULevel* InLevel, const int32 LO
 						AActor* Actor2 = InActors[SubActorId];
 
 						FLODCluster NewClusterCandidate = FLODCluster(Actor1, Actor2);
-						float NewClusterCost = NewClusterCandidate.GetCost();
+						double NewClusterCost = NewClusterCandidate.GetCost();
 
 						if (NewClusterCost <= CullCost)
 						{
@@ -898,7 +898,7 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 				FHierarchicalLODProxyProcessor* Processor = Module.GetProxyProcessor();
 				while (Processor->IsProxyGenerationRunning())
 				{
-					FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
+					FTSTicker::GetCoreTicker().Tick(static_cast<float>(FApp::GetDeltaTime()));
 					FThreadManager::Get().Tick();
 					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 					FPlatformProcess::Sleep(0.1f);
@@ -1213,7 +1213,7 @@ void FHierarchicalLODBuilder::MergeClustersAndBuildActors(ULevel* InLevel, const
 							// if valid, see if it contains any of this actors
 							if (MergedCluster.Contains(Cluster))
 							{
-								float MergeCost = MergedCluster.GetMergedCost(Cluster);
+								double MergeCost = MergedCluster.GetMergedCost(Cluster);
 
 								// merge two clusters
 								if (MergeCost <= HighestCost)
@@ -1361,7 +1361,7 @@ ALODActor* FHierarchicalLODBuilder::CreateLODActor(const FLODCluster& InCluster,
 			NewActor = LevelWorld->SpawnActor<ALODActor>(ALODActor::StaticClass(), Transform, ActorSpawnParams);
 			NewLODActors.Add(NewActor);
 			NewActor->LODLevel = LODIdx + 1;
-			NewActor->CachedNumHLODLevels = InLevel->GetWorldSettings()->GetNumHierarchicalLODLevels();
+			NewActor->CachedNumHLODLevels = IntCastChecked<uint8>(InLevel->GetWorldSettings()->GetNumHierarchicalLODLevels());
 			NewActor->SetDrawDistance(0.0f);
 
 			// now set as parent
