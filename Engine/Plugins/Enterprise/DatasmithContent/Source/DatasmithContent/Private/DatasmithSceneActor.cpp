@@ -57,9 +57,9 @@ void ADatasmithSceneActor::UnregisterDelegates()
 		GEngine->OnLevelActorDeleted().Remove(OnActorDeletedDelegateHandle);
 	}
 
-	if (GEditor)
+	if (UImportSubsystem* ImportSubsystem = (GEditor ? GetEditorSubsystem<UImportSubsystem>() : nullptr))
 	{
-		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
+		ImportSubsystem->OnAssetPostImport.RemoveAll(this);
 	}
 }
 
