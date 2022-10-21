@@ -18,6 +18,10 @@
 		"Win64",
 		"Linux"
 	],
+	"PlatformAllowList": [
+		"Win64",
+		"Linux"
+	],
 	"Modules": [
 		{
 			"Name": "VCamCore",
