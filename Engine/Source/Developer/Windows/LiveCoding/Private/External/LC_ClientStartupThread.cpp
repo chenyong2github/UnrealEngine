@@ -529,7 +529,7 @@ Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& proc
 	{
 		// we were unable to open the process, bail out
 		// BEGIN EPIC MOD
-		LC_ERROR_USER("Unable to attach to console process");
+		LC_ERROR_USER("%s", "Unable to attach to console process");
 		// END EPIC MOD
 		Process::DestroyNamedSharedMemory(m_sharedMemory);
 
@@ -538,7 +538,7 @@ Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& proc
 
 	// wait for server to become ready
 	{
-		LC_LOG_USER("Waiting for server");
+		LC_LOG_USER("%s", "Waiting for server");
 
 		Event serverReadyEvent(primitiveNames::ServerReadyEvent(processGroupName).c_str(), Event::Type::AUTO_RESET);
 		serverReadyEvent.Wait();
@@ -549,7 +549,7 @@ Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& proc
 	{
 		// could not connect to Live++ process
 		// BEGIN EPIC MOD
-		LC_ERROR_USER("Could not connect named pipe to console process");
+		LC_ERROR_USER("%s", "Could not connect named pipe to console process");
 		// END EPIC MOD
 
 		return Thread::ReturnValue(2u);
@@ -560,7 +560,7 @@ Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& proc
 	{
 		// could not connect to Live++ process
 		// BEGIN EPIC MOD
-		LC_ERROR_USER("Could not connect exception pipe to console process");
+		LC_ERROR_USER("%s", "Could not connect exception pipe to console process");
 		// END EPIC MOD
 
 		return Thread::ReturnValue(3u);
@@ -634,7 +634,7 @@ Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& proc
 	{
 		// process could not be registered, bail out
 		// BEGIN EPIC MOD
-		LC_ERROR_USER("Could not register live coding process");
+		LC_ERROR_USER("%s", "Could not register live coding process");
 		// END EPIC MOD
 
 		// close the pipe and then wait for the helper threads to finish.
@@ -666,7 +666,7 @@ Thread::ReturnValue ClientStartupThread::ThreadFunction(const std::wstring& proc
 		return Thread::ReturnValue(3u);
 	}
 
-	LC_LOG_USER("Successfully initialized, removing startup thread");
+	LC_LOG_USER("%s", "Successfully initialized, removing startup thread");
 
 	// helper threads are now allowed to run, we're finished with the pipe
 	m_startEvent->Signal();

@@ -34,15 +34,15 @@ void InterprocessMutex::Lock(void)
 
 		case WAIT_TIMEOUT:
 			// the operation timed out, which should never happen with a timeout of INFINITE
-			LC_ERROR_DEV("Mutex timed out.");
+			LC_ERROR_DEV("%s", "Mutex timed out.");
 			break;
 
 		case WAIT_ABANDONED:
-			LC_ERROR_DEV("Wait() was called on a stale mutex which was not released by the owning thread.");
+			LC_ERROR_DEV("%s", "Wait() was called on a stale mutex which was not released by the owning thread.");
 			break;
 
 		case WAIT_FAILED:
-			LC_ERROR_DEV("Failed to Wait() on a mutex.");
+			LC_ERROR_DEV("%s", "Failed to Wait() on a mutex.");
 			break;
 
 		default:

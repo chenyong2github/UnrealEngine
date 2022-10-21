@@ -158,11 +158,11 @@ struct FD3D12ComputePipelineStateDesc
 };
 
 
-#define PSO_IF_NOT_EQUAL_RETURN_FALSE( value ) if(lhs.##value != rhs.##value){ return false; }
-#define PSO_IF_MEMCMP_FAILS_RETURN_FALSE( value ) if(FMemory::Memcmp(&lhs.##value, &rhs.##value, sizeof(rhs.##value)) != 0){ return false; }
+#define PSO_IF_NOT_EQUAL_RETURN_FALSE( value ) if(lhs.value != rhs.value){ return false; }
+#define PSO_IF_MEMCMP_FAILS_RETURN_FALSE( value ) if(FMemory::Memcmp(&lhs.value, &rhs.value, sizeof(rhs.value)) != 0){ return false; }
 #define PSO_IF_STRING_COMPARE_FAILS_RETURN_FALSE( value ) \
-	const char* const lhString = lhs.##value##; \
-	const char* const rhString = rhs.##value##; \
+	const char* const lhString = lhs.value; \
+	const char* const rhString = rhs.value; \
 	if (lhString != rhString) \
 	{ \
 		if (strcmp(lhString, rhString) != 0) \

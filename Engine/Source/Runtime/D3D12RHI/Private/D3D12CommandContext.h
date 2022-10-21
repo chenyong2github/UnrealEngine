@@ -715,8 +715,8 @@ public:
 
 	virtual FD3D12CommandContextRedirector* AsRedirector() override { return this; }
 
-#define ContextRedirect(Call) { for (uint32 GPUIndex : GPUMask) PhysicalContexts[GPUIndex]->##Call; }
-#define ContextGPU0(Call) { PhysicalContexts[0]->##Call; }
+#define ContextRedirect(Call) { for (uint32 GPUIndex : GPUMask) PhysicalContexts[GPUIndex]-> Call; }
+#define ContextGPU0(Call) { PhysicalContexts[0]-> Call; }
 
 	FORCEINLINE virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override
 	{

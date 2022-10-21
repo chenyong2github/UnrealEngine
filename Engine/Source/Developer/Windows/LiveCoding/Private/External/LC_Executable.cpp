@@ -35,14 +35,14 @@ namespace detail
 		const IMAGE_DOS_HEADER* dosHeader = static_cast<const IMAGE_DOS_HEADER*>(base);
 		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
 		{
-			LC_ERROR_USER("Image has unknown file format");
+			LC_ERROR_USER("%s", "Image has unknown file format");
 			return nullptr;
 		}
 
 		const IMAGE_NT_HEADERS* ntHeader = pointer::Offset<const IMAGE_NT_HEADERS*>(dosHeader, dosHeader->e_lfanew);
 		if (ntHeader->Signature != IMAGE_NT_SIGNATURE)
 		{
-			LC_ERROR_USER("Invalid .exe file");
+			LC_ERROR_USER("%s", "Invalid .exe file");
 			return nullptr;
 		}
 

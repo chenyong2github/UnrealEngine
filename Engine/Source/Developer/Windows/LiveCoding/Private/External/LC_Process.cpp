@@ -204,7 +204,7 @@ Process::Context* Process::Spawn(const wchar_t* exePath, const wchar_t* workingD
 		::wcscpy_s(commandLineBuffer, 32768u, commandLine);
 	}
 
-	LC_LOG_DEV("Spawning process:");
+	LC_LOG_DEV("%s", "Spawning process:");
 	{
 		LC_LOG_INDENT_DEV;
 		LC_LOG_DEV("Executable: %S", exePath);
@@ -742,7 +742,7 @@ void Process::DumpMemory(Handle handle, const void* address, size_t size)
 	uint8_t* memory = new uint8_t[size];
 	ReadProcessMemory(handle, address, memory, size);
 
-	LC_LOG_DEV("Raw data:");
+	LC_LOG_DEV("%s", "Raw data:");
 	LC_LOG_INDENT_DEV;
 	for (size_t i = 0u; i < size; ++i)
 	{

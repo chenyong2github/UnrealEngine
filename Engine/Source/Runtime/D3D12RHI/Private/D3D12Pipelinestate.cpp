@@ -66,7 +66,7 @@ static FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateD
 	{ \
 		if (Shader->VendorExtensions.Num() > 0) \
 		{ \
-			Desc.##Initial##SExtensions = &Shader->VendorExtensions; \
+			Desc.Initial##SExtensions = &Shader->VendorExtensions; \
 		} \
 	}
 	EXT_SHADER(V, Vertex);

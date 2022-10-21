@@ -81,7 +81,7 @@ bool FVulkanWindowsPlatform::LoadVulkanLibrary()
 
 	if (GVulkanDLLModule)
 	{
-#define GET_VK_ENTRYPOINTS(Type,Func) VulkanDynamicAPI::Func = (Type)FPlatformProcess::GetDllExport(GVulkanDLLModule, L#Func);
+#define GET_VK_ENTRYPOINTS(Type,Func) VulkanDynamicAPI::Func = (Type)FPlatformProcess::GetDllExport(GVulkanDLLModule, L""#Func);
 		ENUM_VK_ENTRYPOINTS_BASE(GET_VK_ENTRYPOINTS);
 
 		bool bFoundAllEntryPoints = true;

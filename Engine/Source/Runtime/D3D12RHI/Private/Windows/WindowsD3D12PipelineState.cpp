@@ -940,9 +940,9 @@ static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter
 		TArray<FShaderCodeVendorExtension, TInlineAllocator<2 /* VS + PS */>> MergedExtensions;
 
 	#define MERGE_EXT(Initial) \
-		if (CreationArgs->Desc.##Initial##SExtensions != nullptr) \
+		if (CreationArgs->Desc.Initial##SExtensions != nullptr) \
 		{ \
-			for (const FShaderCodeVendorExtension& Extension : *CreationArgs->Desc.##Initial##SExtensions) \
+			for (const FShaderCodeVendorExtension& Extension : *CreationArgs->Desc.Initial##SExtensions) \
 			{ \
 				MergedExtensions.AddUnique(Extension); \
 			} \

@@ -31,7 +31,7 @@ namespace
 	{
 		if (!g_startupThread)
 		{
-			LC_ERROR_USER("Live++ was not started properly. Call lppStartup() first.");
+			LC_ERROR_USER("%s", "Live++ was not started properly. Call lppStartup() first.");
 			return false;
 		}
 

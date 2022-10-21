@@ -64,16 +64,16 @@ bool Event::WaitTimeout(unsigned int milliSeconds)
 			// the operation timed out, which should never happen with a timeout of INFINITE
 			if (milliSeconds == INFINITE)
 			{
-				LC_ERROR_DEV("Event timed out.");
+				LC_ERROR_DEV("%s", "Event timed out.");
 			}
 			return false;
 
 		case WAIT_ABANDONED:
-			LC_ERROR_DEV("Wait() was called on a stale event which was not released by the owning thread.");
+			LC_ERROR_DEV("%s", "Wait() was called on a stale event which was not released by the owning thread.");
 			return false;
 
 		case WAIT_FAILED:
-			LC_ERROR_DEV("Failed to Wait() on an event.");
+			LC_ERROR_DEV("%s", "Failed to Wait() on an event.");
 			return false;
 
 		default:
