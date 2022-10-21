@@ -36,13 +36,20 @@ bool FOnlineIdentityFacebook::Login(int32 LocalUserNum, const FOnlineAccountCred
 		if (LoginStatus == ELoginStatus::NotLoggedIn)
 		{
 			LoginCompletionDelegate = FOnInternalLoginComplete::CreateLambda(
-				[this, LocalUserNum](EFacebookLoginResponse InResponseCode, const FString& InAccessToken)
+				[this, LocalUserNum](EFacebookLoginResponse InResponseCode, const FString& InAccessToken, const TArray<FString>& GrantedPermissions, const TArray<FString>& DeclinedPermissions)
 			{
 				UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("FOnInternalLoginComplete %s %s"), ToString(InResponseCode), *InAccessToken);
 				if (InResponseCode == EFacebookLoginResponse::RESPONSE_OK &&
 					!InAccessToken.IsEmpty())
 				{
-					Login(LocalUserNum, InAccessToken);
+					TSharedPtr<FOnlineSharingFacebook> Sharing = StaticCastSharedPtr<FOnlineSharingFacebook>(FacebookSubsystem->GetSharingInterface());
+					Sharing->SetCurrentPermissions(GrantedPermissions, DeclinedPermissions);
+					FOnProfileRequestComplete CompletionDelegate = FOnProfileRequestComplete::CreateLambda([this](int32 LocalUserNumFromRequest, bool bWasProfileRequestSuccessful, const FString& ErrorStr)
+						{
+							OnLoginAttemptComplete(LocalUserNumFromRequest, ErrorStr);
+						});
+
+					ProfileRequest(LocalUserNum, InAccessToken, ProfileFields, CompletionDelegate);
 				}
 				else
 				{
@@ -61,10 +68,10 @@ bool FOnlineIdentityFacebook::Login(int32 LocalUserNum, const FOnlineAccountCred
 
 			extern bool AndroidThunkCpp_Facebook_Login(const TArray<FString>&);
 			bTriggeredLogin = AndroidThunkCpp_Facebook_Login(ScopeFields);
-			if (!ensure(bTriggeredLogin))
+			if (!bTriggeredLogin)
 			{
-				// Only if JEnv is wrong
-				OnLoginComplete(EFacebookLoginResponse::RESPONSE_ERROR, TEXT(""));
+				// Facebook SDK was not properly initialized or JEnv is wrong
+				OnLoginFailed();
 			}
 		}
 		else
@@ -79,39 +86,6 @@ bool FOnlineIdentityFacebook::Login(int32 LocalUserNum, const FOnlineAccountCred
 	}
 
 	return bTriggeredLogin;
-}
-
-void FOnlineIdentityFacebook::Login(int32 LocalUserNum, const FString& AccessToken)
-{
-	FOnProfileRequestComplete CompletionDelegate = FOnProfileRequestComplete::CreateLambda([this](int32 LocalUserNumFromRequest, bool bWasProfileRequestSuccessful, const FString& ErrorStr)
-	{
-		FOnRequestCurrentPermissionsComplete NextCompletionDelegate = FOnRequestCurrentPermissionsComplete::CreateLambda([this](int32 LocalUserNumFromPerms, bool bWerePermsSuccessful, const TArray<FSharingPermission>& Permissions)
-		{
-			OnRequestCurrentPermissionsComplete(LocalUserNumFromPerms, bWerePermsSuccessful, Permissions);
-		});
-
-		if (bWasProfileRequestSuccessful)
-		{
-			RequestCurrentPermissions(LocalUserNumFromRequest, NextCompletionDelegate);
-		}
-		else
-		{
-			OnLoginAttemptComplete(LocalUserNumFromRequest, ErrorStr);
-		}
-	});
-
-	ProfileRequest(LocalUserNum, AccessToken, ProfileFields, CompletionDelegate);
-}
-
-void FOnlineIdentityFacebook::OnRequestCurrentPermissionsComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<FSharingPermission>& NewPermissions)
-{
-	FString ErrorStr;
-	if (!bWasSuccessful)
-	{
-		ErrorStr = TEXT("Failure to request current sharing permissions");
-	}
-
-	OnLoginAttemptComplete(LocalUserNum, ErrorStr);
 }
 
 void FOnlineIdentityFacebook::OnLoginAttemptComplete(int32 LocalUserNum, const FString& ErrorStr)
@@ -156,9 +130,9 @@ void FOnlineIdentityFacebook::OnLoginAttemptComplete(int32 LocalUserNum, const F
 
 		// Clean up anything left behind from cached access tokens
 		extern bool AndroidThunkCpp_Facebook_Logout();
-		if (!ensure(AndroidThunkCpp_Facebook_Logout()))
+		if (!AndroidThunkCpp_Facebook_Logout())
 		{
-			// Only if JEnv is wrong
+			// Facebook SDK not properly initialized or JEnv is wrong
 			OnLogoutComplete(EFacebookLoginResponse::RESPONSE_ERROR);
 		}
 	}
@@ -199,9 +173,9 @@ bool FOnlineIdentityFacebook::Logout(int32 LocalUserNum)
 
 			extern bool AndroidThunkCpp_Facebook_Logout();
 			bTriggeredLogout = AndroidThunkCpp_Facebook_Logout();
-			if (!ensure(bTriggeredLogout))
+			if (!bTriggeredLogout)
 			{
-				// Only if JEnv is wrong
+				// Facebook SDK not properly initialized or JEnv is wrong
 				OnLogoutComplete(EFacebookLoginResponse::RESPONSE_ERROR);
 			}
 		}
@@ -226,18 +200,23 @@ bool FOnlineIdentityFacebook::Logout(int32 LocalUserNum)
 	return bTriggeredLogout;
 }
 
-void FOnlineIdentityFacebook::OnLoginComplete(EFacebookLoginResponse InResponseCode, const FString& InAccessToken)
+void FOnlineIdentityFacebook::OnLoginComplete(EFacebookLoginResponse InResponseCode, const FString& InAccessToken, const TArray<FString>& GrantedPermissions, const TArray<FString>& DeclinedPermissions)
 {
 	UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("OnLoginComplete %s %s"), ToString(InResponseCode), *InAccessToken);
-	ensure(LoginCompletionDelegate.IsBound());
-	LoginCompletionDelegate.ExecuteIfBound(InResponseCode, InAccessToken);
+	LoginCompletionDelegate.ExecuteIfBound(InResponseCode, InAccessToken, GrantedPermissions, DeclinedPermissions);
+	LoginCompletionDelegate.Unbind();
+}
+
+void FOnlineIdentityFacebook::OnLoginFailed()
+{
+	UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("OnLoginFailed"));
+	LoginCompletionDelegate.ExecuteIfBound(EFacebookLoginResponse::RESPONSE_ERROR, "", {}, {});
 	LoginCompletionDelegate.Unbind();
 }
 
 void FOnlineIdentityFacebook::OnLogoutComplete(EFacebookLoginResponse InResponseCode)
 {
 	UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("OnLogoutComplete %s"), ToString(InResponseCode));
-	ensure(LogoutCompletionDelegate.IsBound());
 	LogoutCompletionDelegate.ExecuteIfBound(InResponseCode);
 	LogoutCompletionDelegate.Unbind();
 }
@@ -268,7 +247,7 @@ bool AndroidThunkCpp_Facebook_Login(const TArray<FString>& InScopeFields)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		const bool bIsOptional = false;
-		static jmethodID FacebookLoginMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Facebook_Login", "([Ljava/lang/String;)V", bIsOptional);
+		static jmethodID FacebookLoginMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Facebook_Login", "([Ljava/lang/String;)Z", bIsOptional);
 		CHECK_JNI_METHOD(FacebookLoginMethod);
 
 		// Convert scope array into java fields
@@ -279,20 +258,20 @@ bool AndroidThunkCpp_Facebook_Login(const TArray<FString>& InScopeFields)
 			Env->SetObjectArrayElement(*ScopeIDArray, Param, *StringValue);
 		}
 
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookLoginMethod, *ScopeIDArray);
-		
-		bSuccess = true;
+		bSuccess = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FacebookLoginMethod, *ScopeIDArray);		
 	}
 
 	return bSuccess;
 }
 
-JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
+JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken, jobjectArray grantedPermissions, jobjectArray declinedPermissions)
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
 
 	auto AccessToken = FJavaHelper::FStringFromParam(jenv, accessToken);
-	
+	TArray<FString> GrantedPermissions = FJavaHelper::ObjectArrayToFStringTArray(jenv, grantedPermissions);
+	TArray<FString> DeclinedPermissions = FJavaHelper::ObjectArrayToFStringTArray(jenv, declinedPermissions);
+
 	UE_LOG_ONLINE_IDENTITY(VeryVerbose, TEXT("nativeLoginComplete Response: %d Token: %s"), (int)LoginResponse, *AccessToken);
 
 	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessFacebookLogin"), STAT_FSimpleDelegateGraphTask_ProcessFacebookLogin, STATGROUP_TaskGraphTasks);
@@ -305,7 +284,7 @@ JNI_METHOD void Java_com_epicgames_unreal_FacebookLogin_nativeLoginComplete(JNIE
 				FOnlineIdentityFacebookPtr IdentityFBInt = StaticCastSharedPtr<FOnlineIdentityFacebook>(OnlineSub->GetIdentityInterface());
 				if (IdentityFBInt.IsValid())
 				{
-					IdentityFBInt->TriggerOnFacebookLoginCompleteDelegates(LoginResponse, AccessToken);
+					IdentityFBInt->TriggerOnFacebookLoginCompleteDelegates(LoginResponse, AccessToken, GrantedPermissions, DeclinedPermissions);
 				}
 			}
 		}),
@@ -322,10 +301,9 @@ bool AndroidThunkCpp_Facebook_Logout()
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		const bool bIsOptional = false;
-		static jmethodID FacebookLogoutMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Facebook_Logout", "()V", bIsOptional);
+		static jmethodID FacebookLogoutMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Facebook_Logout", "()Z", bIsOptional);
 		CHECK_JNI_METHOD(FacebookLogoutMethod);
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookLogoutMethod);
-		bSuccess = true;
+		bSuccess = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FacebookLogoutMethod);
 	}
 	
 	return bSuccess;

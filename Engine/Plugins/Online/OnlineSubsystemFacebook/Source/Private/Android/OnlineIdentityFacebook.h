@@ -41,7 +41,7 @@ inline const TCHAR* ToString(EFacebookLoginResponse Response)
  * @param InResponseCode response from the Facebook SDK
  * @param InAccessToken access token if the response was RESPONSE_OK
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFacebookLoginComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnFacebookLoginComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/, const TArray<FString>& /*GrantedPermissions*/, const TArray<FString>& /*DeclinedPermissions*/);
 typedef FOnFacebookLoginComplete::FDelegate FOnFacebookLoginCompleteDelegate;
 
 /**
@@ -102,7 +102,7 @@ PACKAGE_SCOPE:
 	 * @param InResponseCode response from the FacebookSDK
 	 * @param InAccessToken access token from the FacebookSDK if login was successful
 	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnFacebookLoginComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/);
+	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnFacebookLoginComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/, const TArray<FString>& /*GrantedPermissions*/, const TArray<FString>& /*DeclinedPermissions*/);
 
 	/**
 	 * Delegate fired internally when the Java Facebook SDK has completed, notifying any OSS listeners
@@ -115,20 +115,18 @@ PACKAGE_SCOPE:
 
 private:
 
-	/** Continue login once an access token has been obtained */
-	void Login(int32 LocalUserNum, const FString& AccessToken);
-	/** Delegate fired after a current permissions request has completed */
-	void OnRequestCurrentPermissionsComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<FSharingPermission>& NewPermissions);
 	/** Last function called for any single login attempt */
 	void OnLoginAttemptComplete(int32 LocalUserNum, const FString& ErrorStr);
 
 	/** Generic handler for the Java SDK login callback */
-	void OnLoginComplete(EFacebookLoginResponse InResponseCode, const FString& InAccessToken);
+	void OnLoginComplete(EFacebookLoginResponse InResponseCode, const FString& InAccessToken, const TArray<FString>& GrantedPermissions, const TArray<FString>& DeclinedPermissions);
+
+	void OnLoginFailed();
 	/** Generic handler for the Java SDK logout callback */
 	void OnLogoutComplete(EFacebookLoginResponse InResponseCode);
 
 	/** Delegate holder for all internal related login callbacks */
-	DECLARE_DELEGATE_TwoParams(FOnInternalLoginComplete, EFacebookLoginResponse /*InLoginResponse*/, const FString& /*AccessToken*/);
+	DECLARE_DELEGATE_FourParams(FOnInternalLoginComplete, EFacebookLoginResponse /*InLoginResponse*/, const FString& /*AccessToken*/, const TArray<FString>& /*GrantedPermissions*/, const TArray<FString>& /*DeclinedPermissions*/);
 	FOnInternalLoginComplete LoginCompletionDelegate;
 	/** Delegate holder for all internal related logout callbacks */
 	DECLARE_DELEGATE_OneParam(FOnInternalLogoutComplete, EFacebookLoginResponse /*InLoginResponse*/);

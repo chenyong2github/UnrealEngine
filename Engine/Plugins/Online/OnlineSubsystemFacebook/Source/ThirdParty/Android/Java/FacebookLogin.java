@@ -72,6 +72,36 @@ public class FacebookLogin
      */
     public CallbackManager getCallbackManager() { return callbackManager; }
 
+	private abstract class NativeLoginCallback implements FacebookCallback<LoginResult>
+    {
+    	abstract void invoke(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions);
+
+		@Override
+		public void onSuccess(LoginResult loginResult) 
+		{
+			FBLog.debug("[JAVA] NativeLoginCallback.onSuccess " + loginResult);
+			AccessToken Token = AccessToken.getCurrentAccessToken();
+			printTokenDetails(Token);
+			invoke(FACEBOOK_RESPONSE_OK, Token.getToken(), Token.getPermissions().toArray(new String[0]), Token.getDeclinedPermissions().toArray(new String[0]));
+		}
+
+		@Override
+		public void onCancel() 
+		{
+			FBLog.debug("[JAVA] NativeLoginCallback.onCancel");
+			AccessToken Token = AccessToken.getCurrentAccessToken();
+			printTokenDetails(Token);
+			invoke(FACEBOOK_RESPONSE_CANCELED, "", null, null);
+		}
+
+		@Override
+		public void onError(FacebookException exception) 
+		{
+			FBLog.debug("[JAVA] NativeLoginCallback.onError " + exception);
+			// ERR_NAME_NOT_RESOLVED - not connected to internet
+			invoke(FACEBOOK_RESPONSE_ERROR, "", null, null);
+		}
+    }
 	/** Constructor */
     public FacebookLogin(GameActivity activity, final Logger InLog) 
 	{
@@ -124,7 +154,6 @@ public class FacebookLogin
 			FacebookSdk.setAdvertiserIDCollectionEnabled(bEnableAdId);
 
 			callbackManager = CallbackManager.Factory.create();
-			LoginManager.getInstance().registerCallback(callbackManager, GetLoginCallback());
 
 			profileTracker = new ProfileTracker() 
 			{
@@ -188,41 +217,6 @@ public class FacebookLogin
         FBLog.debug("AT:" + tokenTracker.isTracking() + " PT:" + profileTracker.isTracking());
     }
 
-	private FacebookCallback<LoginResult> GetLoginCallback()
-    {
-		return new FacebookCallback<LoginResult>() 
-		{
-			@Override
-			public void onSuccess(LoginResult loginResult) 
-			{
-				FBLog.debug("[JAVA] onLoginSuccess " + loginResult);
-				AccessToken Token = AccessToken.getCurrentAccessToken();
-				printTokenDetails(Token);
-				nativeLoginComplete(FACEBOOK_RESPONSE_OK, Token.getToken());
-			}
-
-			@Override
-			public void onCancel() 
-			{
-				FBLog.debug("[JAVA] onLoginCancel");
-				AccessToken Token = AccessToken.getCurrentAccessToken();
-				printTokenDetails(Token);
-				nativeLoginComplete(FACEBOOK_RESPONSE_CANCELED, "");
-			}
-
-			@Override
-			public void onError(FacebookException exception) 
-			{
-				FBLog.debug("[JAVA] onLoginError " + exception);
-				// ERR_NAME_NOT_RESOLVED - not connected to internet
-				nativeLoginComplete(FACEBOOK_RESPONSE_ERROR, "");
-				if (exception instanceof FacebookAuthorizationException)
-				{
-				}
-			}
-		};
-    }
-
     public void login(String[] ScopeFields) 
 	{
 		FBLog.debug("[JAVA] Facebook login");
@@ -232,7 +226,14 @@ public class FacebookLogin
 		{
 			FBLog.debug("Login required");
 			LoginManager loginManager = LoginManager.getInstance();
-			loginManager.registerCallback(callbackManager, GetLoginCallback());
+			loginManager.registerCallback(callbackManager, new NativeLoginCallback()
+			{
+				@Override
+				public void invoke(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions)
+				{
+					nativeLoginComplete(responseCode, accessToken, grantedPermissions, declinedPermissions);
+				} 
+			});
 			loginManager.logInWithReadPermissions(
 					this.activity,
 					Arrays.asList(ScopeFields));
@@ -241,7 +242,7 @@ public class FacebookLogin
 		{
 			AccessToken Token = AccessToken.getCurrentAccessToken();
 			printTokenDetails(Token);
-			nativeLoginComplete(FACEBOOK_RESPONSE_OK, Token.getToken());
+			nativeLoginComplete(FACEBOOK_RESPONSE_OK, Token.getToken(), Token.getPermissions().toArray(new String[0]), Token.getDeclinedPermissions().toArray(new String[0]));
 		}
     }
 
@@ -259,41 +260,6 @@ public class FacebookLogin
 		}
     }
 
-	private FacebookCallback<LoginResult> GetReadPermissionsCallback()
-    {
-		return new FacebookCallback<LoginResult>() 
-		{
-			@Override
-			public void onSuccess(LoginResult loginResult) 
-			{
-				FBLog.debug("[JAVA] onReadPermissionsSuccess " + loginResult);
-				AccessToken Token = AccessToken.getCurrentAccessToken();
-				printTokenDetails(Token);
-				nativeRequestReadPermissionsComplete(FACEBOOK_RESPONSE_OK, Token.getToken());
-			}
-
-			@Override
-			public void onCancel() 
-			{
-				FBLog.debug("[JAVA] onReadPermissionsCancel");
-				AccessToken Token = AccessToken.getCurrentAccessToken();
-				printTokenDetails(Token);
-				nativeRequestReadPermissionsComplete(FACEBOOK_RESPONSE_CANCELED, "");
-			}
-
-			@Override
-			public void onError(FacebookException exception) 
-			{
-				FBLog.debug("[JAVA] onReadPermissionsError " + exception);
-				// ERR_NAME_NOT_RESOLVED - not connected to internet
-				nativeRequestReadPermissionsComplete(FACEBOOK_RESPONSE_ERROR, "");
-				if (exception instanceof FacebookAuthorizationException)
-				{
-				}
-			}
-		};
-    }
-
     /**
      * Request additional permissions when needed
      * See https://developers.facebook.com/docs/facebook-login/android/permissions for more info on permissions
@@ -305,50 +271,30 @@ public class FacebookLogin
 			Collection<String> permissions = new ArrayList<String>(Arrays.asList(inPermissions));
 
 			LoginManager loginManager = LoginManager.getInstance();
-			loginManager.registerCallback(callbackManager, GetReadPermissionsCallback());
+			loginManager.registerCallback(callbackManager, new NativeLoginCallback()
+			{
+				@Override
+				public void invoke(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions)
+				{
+					nativeRequestReadPermissionsComplete(responseCode, accessToken, grantedPermissions, declinedPermissions);
+				} 
+			});
             loginManager.getInstance().logInWithReadPermissions(this.activity, permissions);
         }
 		else
 		{
-			nativeRequestReadPermissionsComplete(FACEBOOK_RESPONSE_OK, getAccessToken());
+			AccessToken Token = AccessToken.getCurrentAccessToken();
+			if (accessTokenValid(Token))
+			{
+				nativeRequestReadPermissionsComplete(FACEBOOK_RESPONSE_OK, getAccessToken(), Token.getPermissions().toArray(new String[0]), Token.getDeclinedPermissions().toArray(new String[0]));
+			}
+			else
+			{
+				nativeRequestReadPermissionsComplete(FACEBOOK_RESPONSE_OK, "", null, null);
+			}
 		}
     }
 
-	private FacebookCallback<LoginResult> GetPublishPermissionsCallback()
-    {
-		return new FacebookCallback<LoginResult>() 
-		{
-			@Override
-			public void onSuccess(LoginResult loginResult) 
-			{
-				FBLog.debug("[JAVA] onPublishPermissionsSuccess " + loginResult);
-				AccessToken Token = AccessToken.getCurrentAccessToken();
-				printTokenDetails(Token);
-				nativeRequestPublishPermissionsComplete(FACEBOOK_RESPONSE_OK, Token.getToken());
-			}
-
-			@Override
-			public void onCancel() 
-			{
-				FBLog.debug("[JAVA] onPublishPermissionsCancel");
-				AccessToken Token = AccessToken.getCurrentAccessToken();
-				printTokenDetails(Token);
-				nativeRequestPublishPermissionsComplete(FACEBOOK_RESPONSE_CANCELED, "");
-			}
-
-			@Override
-			public void onError(FacebookException exception) 
-			{
-				FBLog.debug("[JAVA] onPublishPermissionsError " + exception);
-				// ERR_NAME_NOT_RESOLVED - not connected to internet
-				nativeRequestPublishPermissionsComplete(FACEBOOK_RESPONSE_ERROR, "");
-				if (exception instanceof FacebookAuthorizationException)
-				{
-				}
-			}
-		};
-    }
-	
 	 public void requestPublishPermissions(String[] inPermissions) 
 	 {
         if (!areAllPermissionsGranted(inPermissions))
@@ -356,12 +302,27 @@ public class FacebookLogin
             Collection<String> permissions = new ArrayList<String>(Arrays.asList(inPermissions));
 
 			LoginManager loginManager = LoginManager.getInstance();
-			loginManager.registerCallback(callbackManager, GetPublishPermissionsCallback());
+			loginManager.registerCallback(callbackManager, new NativeLoginCallback()
+			{
+				@Override
+				public void invoke(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions)
+				{
+					nativeRequestPublishPermissionsComplete(responseCode, accessToken, grantedPermissions, declinedPermissions);
+				} 
+			});
 			loginManager.logInWithPublishPermissions(this.activity, permissions);
         }
 		else
 		{
-			nativeRequestPublishPermissionsComplete(FACEBOOK_RESPONSE_OK, getAccessToken());
+			AccessToken Token = AccessToken.getCurrentAccessToken();
+			if (accessTokenValid(Token))
+			{
+				nativeRequestPublishPermissionsComplete(FACEBOOK_RESPONSE_OK, getAccessToken(), Token.getPermissions().toArray(new String[0]), Token.getDeclinedPermissions().toArray(new String[0]));
+			}
+			else
+			{
+				nativeRequestPublishPermissionsComplete(FACEBOOK_RESPONSE_OK, "", null, null);
+			}
 		}
     }
 
@@ -472,8 +433,8 @@ public class FacebookLogin
 	}
 	
 	// Callback that notify the C++ implementation that a task has completed
-	public native void nativeLoginComplete(int responseCode, String accessToken);
-	public native void nativeRequestReadPermissionsComplete(int responseCode, String accessToken);
-	public native void nativeRequestPublishPermissionsComplete(int responseCode, String accessToken);
+	public native void nativeLoginComplete(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions);
+	public native void nativeRequestReadPermissionsComplete(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions);
+	public native void nativeRequestPublishPermissionsComplete(int responseCode, String accessToken, String[] grantedPermissions, String[] declinedPermissions);
 	public native void nativeLogoutComplete(int responseCode);
 }

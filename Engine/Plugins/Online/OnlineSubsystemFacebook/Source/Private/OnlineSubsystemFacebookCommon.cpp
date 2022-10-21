@@ -219,6 +219,25 @@ FText FOnlineSubsystemFacebookCommon::GetOnlineServiceName() const
 	return NSLOCTEXT("OnlineSubsystemFacebook", "OnlineServiceName", "Facebook");
 }
 
+static bool ParseFacebookCommandArgsLocalNum(const TCHAR* Cmd, int32& LocalNum)
+{
+	FString LocalNumStr = FParse::Token(Cmd, false);
+	LocalNum = FCString::Atoi(*LocalNumStr);
+	return (!LocalNumStr.IsEmpty() && LocalNum >= 0 && LocalNum <= MAX_LOCAL_PLAYERS);
+}
+
+static bool ParseFacebookCommandArgsScopesAndLocalNum(const TCHAR* Cmd, EOnlineSharingCategory Mask, EOnlineSharingCategory& Scope, int32& LocalNum)
+{
+	FString ScopeStr = FParse::Token(Cmd, false);
+	Scope = EOnlineSharingCategory(FParse::HexNumber(*ScopeStr));
+	if ((Scope & Mask) == EOnlineSharingCategory::None)
+	{
+		return false;
+	}
+
+	return ParseFacebookCommandArgsLocalNum(Cmd, LocalNum);
+}
+
 bool FOnlineSubsystemFacebookCommon::HandleFacebookExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	bool bWasHandled = false;
@@ -227,9 +246,8 @@ bool FOnlineSubsystemFacebookCommon::HandleFacebookExecCommands(UWorld* InWorld,
 	{
 		bWasHandled = true;
 
-		FString LocalNumStr = FParse::Token(Cmd, false);
-		int32 LocalNum = FCString::Atoi(*LocalNumStr);
-		if (LocalNumStr.IsEmpty() || LocalNum < 0 || LocalNum > MAX_LOCAL_PLAYERS)
+		int32 LocalNum = 0;
+		if (!ParseFacebookCommandArgsLocalNum(Cmd, LocalNum))
 		{
 			UE_LOG_ONLINE(Warning, TEXT("usage: LOGIN <localnum>"));
 		}
@@ -242,9 +260,8 @@ bool FOnlineSubsystemFacebookCommon::HandleFacebookExecCommands(UWorld* InWorld,
 	{
 		bWasHandled = true;
 
-		FString LocalNumStr = FParse::Token(Cmd, false);
-		int32 LocalNum = FCString::Atoi(*LocalNumStr);
-		if (LocalNumStr.IsEmpty() || LocalNum < 0 || LocalNum > MAX_LOCAL_PLAYERS)
+		int32 LocalNum = 0;
+		if (!ParseFacebookCommandArgsLocalNum(Cmd, LocalNum))
 		{
 			UE_LOG_ONLINE(Warning, TEXT("usage: LOGOUT <localnum>"));
 		}
@@ -257,15 +274,46 @@ bool FOnlineSubsystemFacebookCommon::HandleFacebookExecCommands(UWorld* InWorld,
 	{
 		bWasHandled = true;
 
-		FString LocalNumStr = FParse::Token(Cmd, false);
-		int32 LocalNum = FCString::Atoi(*LocalNumStr);
-		if (LocalNumStr.IsEmpty() || LocalNum < 0 || LocalNum > MAX_LOCAL_PLAYERS)
+		int32 LocalNum = 0;
+		if (!ParseFacebookCommandArgsLocalNum(Cmd, LocalNum))
 		{
 			UE_LOG_ONLINE(Warning, TEXT("usage: LOGOUT <localnum>"));
 		}
 		else
 		{
 			HandleFacebookFriendsCommand(LocalNum);
+		}
+	}
+	else if (FParse::Command(&Cmd, TEXT("REQUESTREADSCOPES")))
+	{
+		bWasHandled = true;
+
+		EOnlineSharingCategory Scope = EOnlineSharingCategory::None;
+		int32 LocalNum = 0;
+
+		if (!ParseFacebookCommandArgsScopesAndLocalNum(Cmd, EOnlineSharingCategory::ReadPermissionMask, Scope, LocalNum))
+		{
+			UE_LOG_ONLINE(Warning, TEXT("usage: REQUESTREADSCOPES <read categories> <localnum>"));
+		}
+		else
+		{
+			HandleFacebookRequestReadScopesCommand(Scope, LocalNum);
+		}
+	}
+	else if (FParse::Command(&Cmd, TEXT("REQUESTPUBLISHSCOPES")))
+	{
+		bWasHandled = true;
+
+		EOnlineSharingCategory Scope = EOnlineSharingCategory::None;
+		int32 LocalNum = 0;
+
+		if (!ParseFacebookCommandArgsScopesAndLocalNum(Cmd, EOnlineSharingCategory::PublishPermissionMask, Scope, LocalNum))
+		{
+			UE_LOG_ONLINE(Warning, TEXT("usage: REQUESTPUBLISHSCOPES <publish categories> <localnum>"));
+		}
+		else
+		{
+			HandleFacebookRequestPublishScopesCommand(Scope, LocalNum);
 		}
 	}
 	return bWasHandled;
@@ -340,5 +388,35 @@ void FOnlineSubsystemFacebookCommon::HandleFacebookFriendsCommand(int32 LocalNum
 				UE_LOG_ONLINE(Warning, TEXT("Retrieve Facebook friends list %s for player %d failed: Error: %s"), *ListName, LocalUserNum, *ErrorStr);
 			}
 			}));
+	}
+}
+
+void FOnlineSubsystemFacebookCommon::HandleFacebookRequestPublishScopesCommand(EOnlineSharingCategory Scopes, int32 LocalNum)
+{
+	IOnlineSharingPtr SharingInt = GetSharingInterface();
+	if (SharingInt.IsValid())
+	{
+		TSharedPtr<FDelegateHandle> Handle = MakeShared<FDelegateHandle>();
+		*Handle = SharingInt->AddOnRequestNewPublishPermissionsCompleteDelegate_Handle(LocalNum, FOnRequestNewPublishPermissionsCompleteDelegate::CreateLambda([Handle, Scopes](int32 LocalUserNum, bool bWasSuccessful) mutable
+			{
+				UE_LOG_ONLINE(Log, TEXT("Publish permission request for player %d %s"), LocalUserNum, bWasSuccessful?TEXT("succeeded"):TEXT("failed"));
+				Handle.Reset();
+			}));
+		SharingInt->RequestNewPublishPermissions(LocalNum, Scopes, EOnlineStatusUpdatePrivacy::Everyone);
+	}
+}
+
+void FOnlineSubsystemFacebookCommon::HandleFacebookRequestReadScopesCommand(EOnlineSharingCategory Scopes, int32 LocalNum)
+{
+	IOnlineSharingPtr SharingInt = GetSharingInterface();
+	if (SharingInt.IsValid())
+	{
+		TSharedPtr<FDelegateHandle> Handle = MakeShared<FDelegateHandle>();
+		*Handle = SharingInt->AddOnRequestNewReadPermissionsCompleteDelegate_Handle(LocalNum, FOnRequestNewReadPermissionsCompleteDelegate::CreateLambda([Handle, Scopes](int32 LocalUserNum, bool bWasSuccessful) mutable
+			{
+				UE_LOG_ONLINE(Log, TEXT("Read permission request for player %d %s"), LocalUserNum, bWasSuccessful?TEXT("succeeded"):TEXT("failed"));
+				Handle.Reset();
+			}));
+		SharingInt->RequestNewReadPermissions(LocalNum, Scopes);
 	}
 }

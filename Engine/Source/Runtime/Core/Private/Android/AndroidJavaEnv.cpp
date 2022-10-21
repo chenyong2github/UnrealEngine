@@ -276,3 +276,22 @@ FScopedJavaObject<jstring> FJavaHelper::ToJavaString(JNIEnv* Env, const FString&
 	check(Env);
 	return NewScopedJavaObject(Env, Env->NewStringUTF(TCHAR_TO_UTF8(*UnrealString)));
 }
+
+TArray<FString> FJavaHelper::ObjectArrayToFStringTArray(JNIEnv* Env, jobjectArray ObjectArray)
+{
+	TArray<FString> ArrayOfStrings;
+	if (Env && ObjectArray && !Env->IsSameObject(ObjectArray, NULL))
+	{
+		jsize Size = Env->GetArrayLength(ObjectArray);
+
+		ArrayOfStrings.Reserve(Size);
+
+		for (jsize Idx = 0; Idx < Size; ++Idx)
+		{
+			FString Entry = FStringFromLocalRef(Env, (jstring)Env->GetObjectArrayElement(ObjectArray, Idx));
+			ArrayOfStrings.Add(MoveTemp(Entry));
+		}
+	}
+	return ArrayOfStrings;
+}
+

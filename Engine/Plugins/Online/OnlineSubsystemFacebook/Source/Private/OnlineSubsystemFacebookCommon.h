@@ -33,6 +33,10 @@ private:
 	void HandleFacebookLogoutCommand(int32 LocalNum);
 	/** Handle facebook friends console command */
 	void HandleFacebookFriendsCommand(int32 LocalNum);
+	/** Handle facebook request additional scopes console command */
+	void HandleFacebookRequestReadScopesCommand(EOnlineSharingCategory Scopes, int32 LocalNum);
+	void HandleFacebookRequestPublishScopesCommand(EOnlineSharingCategory Scopes, int32 LocalNum);
+
 public:
 
 	// IOnlineSubsystem Interface

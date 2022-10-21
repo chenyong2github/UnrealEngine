@@ -18,9 +18,9 @@ FOnlineSubsystemFacebook::~FOnlineSubsystemFacebook()
 bool FOnlineSubsystemFacebook::Init()
 {
 #if WITH_FACEBOOK
-	FacebookIdentity = MakeShareable(new FOnlineIdentityFacebook(this));
-	FacebookFriends = MakeShareable(new FOnlineFriendsFacebook(this));
-	FacebookSharing = MakeShareable(new FOnlineSharingFacebook(this));
+	FacebookIdentity = MakeShared<FOnlineIdentityFacebook>(this);
+	FacebookFriends = MakeShared<FOnlineFriendsFacebook>(this);
+	FacebookSharing = MakeShared <FOnlineSharingFacebook>(this);
 	return true;
 #else
 	return false;

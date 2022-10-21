@@ -15,7 +15,7 @@ enum class EFacebookLoginResponse : uint8;
  * @param InResponseCode response from the Facebook SDK
  * @param InAccessToken access token if the response was RESPONSE_OK
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFacebookRequestPermissionsOpComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnFacebookRequestPermissionsOpComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/, const TArray<FString>& /*GrantedPermissions*/, const TArray<FString>& /*DeclinedPermissions*/);
 typedef FOnFacebookRequestPermissionsOpComplete::FDelegate FOnFacebookRequestPermissionsOpCompleteDelegate;
 
 /**
@@ -49,16 +49,19 @@ PACKAGE_SCOPE:
 	 *
 	 * @param InResponseCode response from the FacebookSDK
 	 * @param InAccessToken access token from the FacebookSDK if login was successful
+	 * @param GrantedPermissions list of Facebook permission names granted when using the token
+	 * @param DeclinedPermissions list of Facebook permission names declined when using the token
 	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnFacebookRequestPermissionsOpComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/);
+	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnFacebookRequestPermissionsOpComplete, EFacebookLoginResponse /*InResponseCode*/, const FString& /*InAccessToken*/, const TArray<FString>& /*GrantedPermissions*/, const TArray<FString>& /*DeclinedPermissions*/);
 
 private:
 
 	/** Generic handler for both read/publish permissions requests */
-	void OnPermissionsOpComplete(EFacebookLoginResponse InResponseCode, const FString& InAccessToken);
+	void OnPermissionsOpFailed();
+	void OnPermissionsOpComplete(EFacebookLoginResponse InResponseCode, const FString& InAccessToken, const TArray<FString>& GrantedPermissions, const TArray<FString>& DeclinedPermissions);
 
 	/** Delegate holder for all internal related permissions callbacks */
-	DECLARE_DELEGATE_TwoParams(FOnPermissionsOpComplete, EFacebookLoginResponse /*InLoginResponse*/, const FString& /*AccessToken*/);
+	DECLARE_DELEGATE_FourParams(FOnPermissionsOpComplete, EFacebookLoginResponse /*InLoginResponse*/, const FString& /*AccessToken*/, const TArray<FString>& /*GrantedPermissions*/, const TArray<FString>& /*DeclinedPermissions*/);
 	FOnPermissionsOpComplete PermissionsOpCompletionDelegate;
 
 	FDelegateHandle OnFBRequestPermissionsOpCompleteHandle;

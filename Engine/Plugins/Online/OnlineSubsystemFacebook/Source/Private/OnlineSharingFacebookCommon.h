@@ -72,6 +72,8 @@ private:
 			END_ONLINE_JSON_SERIALIZER
 	};
 
+	EOnlineSharingCategory GetCategoryFromFacebookPermission(const FString& FacebookPermission) const;
+
 	/** List of known permissions to have been accepted by the user */
 	TArray<FSharingPermission> GrantedPerms;
 	/** List of known permissions intentionally declined by the user */
@@ -105,6 +107,14 @@ public:
 	 * @param NewJsonStr valid json response from Facebook permissions request
 	 */
 	bool RefreshPermissions(const FString& NewJsonStr);
+
+	/**
+	 * Reset the current permissions, filling them from string arrays
+	 *
+	 * @param GrantedPermissions array of accepted Facebook permissions
+	 * @param DeclinedPermissions array of declined Facebook permissions
+	 */
+	void RefreshPermissions(const TArray<FString>& GrantedPermissions, const TArray<FString>& DeclinedPermissions);
 
 	/**
 	 * Has this user granted the proper permissions for a given category
@@ -148,6 +158,14 @@ public:
 	 * Default destructor
 	 */
 	virtual ~FOnlineSharingFacebookCommon();
+
+	/**
+	 * Reset the current permissions, filling them from string arrays
+	 *
+	 * @param GrantedPermissions array of accepted Facebook permissions
+	 * @param DeclinedPermissions array of declined Facebook permissions
+	 */
+	void SetCurrentPermissions(const TArray<FString>& GrantedPermissions, const TArray<FString>& DeclinedPermissions);
 
 protected:
 

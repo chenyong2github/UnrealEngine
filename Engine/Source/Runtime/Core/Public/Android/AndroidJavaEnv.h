@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include <jni.h>
 
@@ -91,4 +92,7 @@ public:
 	
 	// Converts FString into a Java string wrapped in FScopedJavaObject
 	static FScopedJavaObject<jstring> ToJavaString(JNIEnv* Env, const FString& UnrealString);
+
+	// Converts the java objectArray to an array of FStrings. jopbjectArray must be a String[] on the Java side
+	static TArray<FString> ObjectArrayToFStringTArray(JNIEnv* Env, jobjectArray ObjectArray);
 };

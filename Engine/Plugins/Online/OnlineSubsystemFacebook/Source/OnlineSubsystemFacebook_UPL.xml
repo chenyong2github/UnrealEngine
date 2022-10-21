@@ -9,6 +9,7 @@
 		<!-- get packaging for Facebook from ini and reset it if architecture not supported -->
 		<setBoolFromProperty result="bEnabled" ini="Engine" section="OnlineSubsystemFacebook" property="bEnabled" default="false"/>
 		<setStringFromProperty result="ClientId" ini="Engine" section="OnlineSubsystemFacebook" property="ClientId" default="0"/>
+		<setStringFromProperty result="ClientToken" ini="Engine" section="OnlineSubsystemFacebook" property="ClientToken" default="0"/>
 		<setBoolFromProperty result="bEnableAutomaticLogging" ini="Engine" section="OnlineSubsystemFacebook" property="bEnableAutomaticLogging" default="1"/>
 		<setBoolFromProperty result="bEnableAdvertisingId" ini="Engine" section="OnlineSubsystemFacebook" property="bEnableAdvertisingId" default="1"/>
 		<dumpvars/>
@@ -39,8 +40,16 @@
 		<if condition="bEnabled">
 			<true>
 				<insert>
+
+android {
+	compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }	
+}
 dependencies {
-	implementation('com.facebook.android:facebook-android-sdk:5.8.0')
+	implementation('com.facebook.android:facebook-android-sdk:15.0.1')
+	implementation('com.facebook.android:facebook-login:15.0.1')
 }
 				</insert>
 			</true>
@@ -51,12 +60,15 @@ dependencies {
 	<androidManifestUpdates>
 		<if condition="bEnabled">
 			<true>
-				<setStringFromAttribute result="PackageName" tag="manifest" name="package"/>
-			
 				<setElement result="FBAppId" value="meta-data" />
 				<addAttribute tag="$FBAppId" name="android:name" value="com.facebook.sdk.ApplicationId" />
 				<addAttribute tag="$FBAppId" name="android:value" value="fb$S(ClientId)" />
 				<addElement tag="application" name="FBAppId" />
+
+				<setElement result="FBClientToken" value="meta-data" />
+				<addAttribute tag="$FBClientToken" name="android:name" value="com.facebook.sdk.ClientToken" />
+				<addAttribute tag="$FBClientToken" name="android:value" value="$S(ClientToken)" />
+				<addElement tag="application" name="FBClientToken" />
 
 				<if condition="bEnableAutomaticLogging">
 					<false>
@@ -76,23 +88,12 @@ dependencies {
 					</false>
 				</if>
 				
-				<setElement result="FBActivity" value="activity" />
-				<addAttribute tag="$FBActivity" name="android:name" value="com.facebook.FacebookActivity" />
-				<addAttribute tag="$FBActivity" name="android:configChanges" value="keyboard|keyboardHidden|screenLayout|screenSize|orientation" />
-				<addAttribute tag="$FBActivity" name="android:theme" value="@style/com_facebook_activity_theme" />
-				<addElement tag="application" name="FBActivity" />
-				
-				<!-- <addAttribute tag="activity" name="android:name" value="com.facebook.CustomTabMainActivity"/> -->
-				<setElement result="FBCustomActivity" value="activity" />
-				<addAttribute tag="$FBCustomActivity" name="android:name" value="com.facebook.CustomTabMainActivity" />
-				<addElement tag="application" name="FBCustomActivity" />
+				<addElements tag="application">
+					<activity android:name="com.facebook.FacebookActivity"
+        				android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+        				android:label="@string/app_name" /> 
+				</addElements>				
 
-				<setElement result="FBProvider" value="provider" />
-				<addAttribute tag="$FBProvider" name="android:name" value="com.facebook.internal.FacebookInitProvider" />
-				<addAttribute tag="$FBProvider" name="android:authorities" value="$S(PackageName).FacebookInitProvider" />
-				<addAttribute tag="$FBProvider" name="android:exported" value="false" />
-				<addElement tag="application" name="FBProvider" />
-				
 				<!-- Add permissions -->
 				<addPermission android:name="android.permission.INTERNET" />
 			</true>
@@ -137,20 +138,22 @@ dependencies {
 	private FacebookLogin facebookLogin;
 	public FacebookLogin getFacebookLogin() { return facebookLogin; }
 
-	public void AndroidThunkJava_Facebook_Login(String[] ScopeFields)
+	public boolean AndroidThunkJava_Facebook_Login(String[] ScopeFields)
 	{
 		if (facebookLogin != null)
 		{
 			facebookLogin.login(ScopeFields);
 		}
+		return (facebookLogin != null);
 	}
 
-	public void AndroidThunkJava_Facebook_Logout()
+	public boolean AndroidThunkJava_Facebook_Logout()
 	{
 		if (facebookLogin != null)
 		{
 			facebookLogin.logout();
 		}
+		return (facebookLogin != null);
 	}
 
 	public String AndroidThunkJava_Facebook_GetAccessToken()
@@ -162,20 +165,22 @@ dependencies {
 		return "";
 	}
 	
-	public void AndroidThunkJava_Facebook_RequestReadPermissions(String[] NewPermissions)
+	public boolean AndroidThunkJava_Facebook_RequestReadPermissions(String[] NewPermissions)
 	{
 		if (facebookLogin != null)
 		{
 			facebookLogin.requestReadPermissions(NewPermissions);
 		}
+		return (facebookLogin != null);
 	}
 	
-	public void AndroidThunkJava_Facebook_RequestPublishPermissions(String[] NewPermissions)
+	public boolean AndroidThunkJava_Facebook_RequestPublishPermissions(String[] NewPermissions)
 	{
 		if (facebookLogin != null)
 		{
 			facebookLogin.requestPublishPermissions(NewPermissions);
 		}
+		return (facebookLogin != null);
 	}
 
 	// End Facebook gameActivityClassAdditions
@@ -208,12 +213,12 @@ dependencies {
 					facebookLogin = new FacebookLogin(this, Log);
 					if (!facebookLogin.init(BuildConfiguration, bEnableAppEvents, bEnableAdId))
 					{
-					facebookLogin = null;
-					Log.error("Facebook SDK failed to initialize!");
+						facebookLogin = null;
+						Log.error("Facebook SDK failed to initialize!");
 					}
 					else
 					{
-					Log.debug("Facebook SDK success!");
+						Log.debug("Facebook SDK success!");
 					}
 					// End Facebook onCreate
 				</insert>
