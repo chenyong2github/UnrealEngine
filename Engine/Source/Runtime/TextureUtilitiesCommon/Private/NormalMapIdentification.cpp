@@ -457,6 +457,7 @@ public:
 				Texture2D->WaitForPendingInitOrStreaming();
 
 				Texture2D->SetFlags(RF_Transactional);
+				// Modify calls FinishCachePlatformData to wait on any async build of this texture
 				Texture2D->Modify();
 				Texture2D->PreEditChange(NULL);
 				{
@@ -485,12 +486,13 @@ bool UE::NormalMapIdentification::HandleAssetPostImport( UTexture* Texture )
 	if( Texture != NULL)
 	{
 		// Try to automatically identify a normal map
+		//	this only reads Texture->Source
 		if ( IsTextureANormalMap( Texture ) )
 		{
 			// Set the compression settings and no gamma correction for a normal map
 			{
 				Texture->SetFlags(RF_Transactional);
-				Texture->Modify();
+				Texture->Modify(); // Modify blocks on pending texture builds
 				Texture->CompressionSettings = TC_Normalmap;
 				Texture->SRGB = false;
 				Texture->LODGroup = TEXTUREGROUP_WorldNormalMap;
@@ -498,6 +500,7 @@ bool UE::NormalMapIdentification::HandleAssetPostImport( UTexture* Texture )
 
 			// Show the user a notification indicating that this texture will be imported as a normal map.
 			// Offer two options to the user, "OK" dismisses the notification early, "Revert" reverts the settings to that of a diffuse map.
+			// ?? Guess?? this has to be done from main thread only??
 			TSharedPtr<NormalMapImportNotificationHandler> NormalMapNotificationDelegate(new NormalMapImportNotificationHandler);
 			{
 				NormalMapNotificationDelegate->Texture = Texture;

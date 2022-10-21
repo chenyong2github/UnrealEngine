@@ -365,6 +365,14 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
+void UTexture::UpdateOodleTextureSdkVersionToLatest(void)
+{
+	// OodleTextureSdkVersion = get latest sdk version
+	//	this needs to get the actual version number so it will be IO'd frozen (not just "latest")
+	OodleTextureSdkVersion = CachedGetLatestOodleSdkVersion();
+}
+
+
 // we're in WITH_EDITOR but not sure that's right, maybe move out?
 // Beware: while ValidateSettingsAfterImportOrEdit should have been called on all Textures,
 //	 it is not called on load at runtime
@@ -924,9 +932,10 @@ void UTexture::PostInitProperties()
 	{
 		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
 
-		// OodleTextureSdkVersion = get latest sdk version
-		//	this needs to get the actual version number so it will be IO'd frozen (not just "latest")
-		OodleTextureSdkVersion = CachedGetLatestOodleSdkVersion();
+		// this is for textures that are not being loaded
+		// eg. created from code, eg. lightmaps
+		// we want them to go ahead and use the latest oodle sdk, since their content is new anyway
+		UpdateOodleTextureSdkVersionToLatest();
 	}
 #endif
 	Super::PostInitProperties();

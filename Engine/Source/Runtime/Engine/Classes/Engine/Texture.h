@@ -1210,8 +1210,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, meta=(ClampMin = "0", ClampMax = "1.0", EditCondition="bDoScaleMipsForAlphaCoverage"), AdvancedDisplay)
 	FVector4 AlphaCoverageThresholds = FVector4(0,0,0,0);
 
-	/** Whether to use newer & faster mip generation filter, same quality but produces slightly different results from previous implementation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, AdvancedDisplay)
+	/** Use faster mip generation filter, usually the same result but occasionally causes color shift in high contrast areas. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName = "Use Fast MipGen Filter"), AdvancedDisplay)
 	bool bUseNewMipFilter = false;
 
 	/** When true the texture's border will be preserved during mipmap generation. */
@@ -1260,7 +1260,7 @@ public:
 
 	/**
 	 * default 1, high values result in a stronger effect e.g 1, 2, 4, 8
-	 * this is no slider because the texture update would not be fast enough
+	 * this is not a slider because the texture update would not be fast enough
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compositing, AdvancedDisplay)
 	float CompositePower;
@@ -1289,7 +1289,7 @@ public:
 	UPROPERTY(transient, duplicatetransient, NonTransactional)
 	int32 LevelIndex = INDEX_NONE;
 
-	/** A bias to the index of the top mip level to use. */
+	/** A bias to the index of the top mip level to use.  That is, number of mip levels to drop when cooking. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="LOD Bias"), AssetRegistrySearchable)
 	int32 LODBias;
 
@@ -1309,7 +1309,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="Texture Group"), AssetRegistrySearchable)
 	TEnumAsByte<enum TextureGroup> LODGroup;
 
-	/** Downscale source texture, applied only to textures without mips 
+	/** Downscale source texture, applied only to 2d textures without mips 
 	 * 0.0 - use scale value from texture group
 	 * 1.0 - do not scale texture
 	 * > 1.0 - scale texure
@@ -1322,12 +1322,12 @@ public:
 	ETextureDownscaleOptions DownscaleOptions;
 
 	
-	/** This should be unchecked if using alpha channels individually as masks. */
+	/** Whether Texture and its source are in SRGB Gamma color space.  Can only be used with 8-bit and compressed formats.  This should be unchecked if using alpha channels individually as masks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="sRGB"), AssetRegistrySearchable)
 	uint8 SRGB:1;
 
 #if WITH_EDITORONLY_DATA
-	/* Should Normals in Normal Maps be normalized after mip processing?  true gives better quality normals, but false is required to match legacy behavior. */
+	/* Normalize colors in Normal Maps after mip generation for better and sharper quality; recommended on if not required to match legacy behavior. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="Normalize after making mips", EditCondition="CompressionSettings==1"), AdvancedDisplay)
 	uint8 bNormalizeNormals:1;
 
@@ -1611,6 +1611,11 @@ public:
 		
 	/** Ensure settings are valid after import or edit; this is called by PostEditChange. */
 	ENGINE_API virtual void ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials = nullptr);
+
+	/* Change the Oodle Texture Sdk Version used to encode this texture to latest.
+	*  You should do this any time the texture is modified, such as on reimport, since the bits are changing anyway.
+	*/
+	ENGINE_API virtual void UpdateOodleTextureSdkVersionToLatest(void);
 #endif // WITH_EDITOR
 
 	ENGINE_API EGammaSpace GetGammaSpace() const

@@ -1432,6 +1432,9 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			}
 		}
 #endif // WITH_EDITORONLY_DATA
+
+		// at this point the texture is mostly set up
+		// NormalMapIdentification is not run yet
 	}
  }
 
@@ -1569,6 +1572,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	}
 
 	// create an asset if it doesn't exist
+	// typically ExistingAsset should already exist, made by CreateEmptyAsset on the main thread
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
 
 	UTexture* Texture = nullptr;
@@ -1582,7 +1586,8 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(TextureClass))
 	{
-		//This is a reimport, we are just re-updating the source data
+		//This is a reimport, we are just re-updating the source data  
+		// <- pretty sure this comment is wrong, this is hit in regular imports, because ExistingAsset was previously made by CreateNewAsset
 		Texture = static_cast<UTexture*>(ExistingAsset);
 	}
 
@@ -1670,6 +1675,9 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		UInterchangeFactoryBaseNode* TextureFactoryNode = Arguments.FactoryNode;
 		if (!Arguments.bIsReimport)
 		{
+			// Finalize texture properties, before ApplyAllCustomAttributeToObject :
+			UE::TextureUtilitiesCommon::ApplyDefaultsForNewlyImportedTextures(Texture,Arguments.bIsReimport);
+
 			/** Apply all TextureNode custom attributes to the texture asset */
 			TextureFactoryNode->ApplyAllCustomAttributeToObject(Texture);
 		}
@@ -1687,7 +1695,14 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 			CurrentNode->FillAllCustomAttributeFromObject(Texture);
 			//Apply reimport strategy
 			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Texture, PreviousNode, CurrentNode, TextureFactoryNode);
+			
+			// ApplyDefaultsForNewlyImportedTextures after ApplyReimportStrategyToAsset
+			//	so we can override values
+			UE::TextureUtilitiesCommon::ApplyDefaultsForNewlyImportedTextures(Texture,Arguments.bIsReimport);
 		}
+
+		// Texture is mostly done setting properties now (exception: FTaskPipelinePostImport NormalmapIdentification)
+		// PostEditChange will be called subseqently, in FTaskPreCompletion::DoTask
 #endif // WITH_EDITOR
 	}
 	else
