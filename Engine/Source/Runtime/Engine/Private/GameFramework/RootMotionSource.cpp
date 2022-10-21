@@ -882,8 +882,12 @@ bool FRootMotionSource_MoveToDynamicForce::MatchesAndHasSameState(const FRootMot
 	{
 		return false;
 	}
+	
+	// We can cast safely here since in FRootMotionSource::Matches() we ensured ScriptStruct equality
+	const FRootMotionSource_MoveToDynamicForce* OtherCast = static_cast<const FRootMotionSource_MoveToDynamicForce*>(Other);
 
-	return true; // MoveToDynamicForce has no unique state
+	return (StartLocation.Equals(OtherCast->StartLocation) &&
+			TargetLocation.Equals(OtherCast->TargetLocation));
 }
 
 bool FRootMotionSource_MoveToDynamicForce::UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup)
@@ -893,7 +897,13 @@ bool FRootMotionSource_MoveToDynamicForce::UpdateStateFrom(const FRootMotionSour
 		return false;
 	}
 
-	return true; // MoveToDynamicForce has no unique state other than Time which is handled by FRootMotionSource
+	// We can cast safely here since in FRootMotionSource::UpdateStateFrom() we ensured ScriptStruct equality
+	const FRootMotionSource_MoveToDynamicForce* OtherCast = static_cast<const FRootMotionSource_MoveToDynamicForce*>(SourceToTakeStateFrom);
+
+	StartLocation = OtherCast->StartLocation;
+	TargetLocation = OtherCast->TargetLocation;
+
+	return true;
 }
 
 void FRootMotionSource_MoveToDynamicForce::SetTime(float NewTime)

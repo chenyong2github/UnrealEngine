@@ -610,6 +610,7 @@ struct ENGINE_API FRootMotionSource_MoveToDynamicForce : public FRootMotionSourc
 	UPROPERTY()
 	FVector InitialTargetLocation;
 
+	// Dynamically-changing location of target, which may be altered while this movement is ongoing 
 	UPROPERTY()
 	FVector TargetLocation;
 
