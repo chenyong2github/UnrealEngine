@@ -125,7 +125,7 @@ const uint32 FGraphDataSource::GetNumFrames() const
 
 const float FGraphDataSource::GetTotalTimeMS() const
 {
-	return ProfilerSession->GetDataProvider()->GetTotalTimeMS();
+	return static_cast<float>(ProfilerSession->GetDataProvider()->GetTotalTimeMS());
 }
 
 const TSharedRef<IDataProvider> FGraphDataSource::GetDataProvider() const

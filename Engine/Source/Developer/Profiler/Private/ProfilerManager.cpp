@@ -441,7 +441,7 @@ void FProfilerManager::ProfilerClient_OnProfilerFileTransfer( const FString& Fil
 {
 	// Display and update the notification a file that is being sent.
 
-	const float Progress = (double)FileProgress/(double)FileSize;
+	const float Progress = static_cast<float>((double)FileProgress/(double)FileSize);
 
 	ELoadingProgressStates ProgressState = ELoadingProgressStates::InvalidOrMax;
 

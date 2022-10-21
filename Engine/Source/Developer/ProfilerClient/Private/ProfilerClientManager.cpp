@@ -239,7 +239,7 @@ protected:
 
 		FProfilerDataFrame& DataFrame = LoadConnection->CurrentData;
 
-		DataFrame.Frame = Frame;
+		DataFrame.Frame = static_cast<uint32>(Frame);
 		DataFrame.FrameStart = 0.0;
 		DataFrame.CountAccumulators.Reset();
 		DataFrame.CycleGraphs.Reset();
@@ -618,7 +618,7 @@ void FProfilerClientManager::HandleServicePingMessage(const FProfilerServicePing
 bool FProfilerClientManager::HandleTicker(float DeltaTime)
 {
 #if STATS
-	if (PendingInstances.Num() > 0 && FDateTime::Now() > LastPingTime + FTimespan(DeltaTime))
+	if (PendingInstances.Num() > 0 && FDateTime::Now() > LastPingTime + FTimespan::FromSeconds(DeltaTime))
 	{
 		TArray<FGuid> Instances;
 		Instances.Append(PendingInstances);
@@ -1022,7 +1022,7 @@ void FServiceConnection::GenerateAccumulators(TArray<FStatMessage>& Stats, TArra
 				// add a count accumulator
 				FProfilerCountAccumulator Data;
 				Data.StatId = StatId;
-				Data.Value = StatMessage.GetValue_int64();
+				Data.Value = static_cast<uint32>(StatMessage.GetValue_int64());
 				CountAccumulators.Add(Data);
 			}
 			else if (StatMessage.NameAndInfo.GetField<EStatDataType>() == EStatDataType::ST_double)
@@ -1030,7 +1030,7 @@ void FServiceConnection::GenerateAccumulators(TArray<FStatMessage>& Stats, TArra
 				// add a float accumulator
 				FProfilerFloatAccumulator Data;
 				Data.StatId = StatId;
-				Data.Value = StatMessage.GetValue_double();
+				Data.Value = static_cast<float>(StatMessage.GetValue_double());
 				FloatAccumulators.Add(Data);
 
 				const FName StatName = StatMessage.NameAndInfo.GetRawName();
@@ -1060,7 +1060,7 @@ void FServiceConnection::CreateGraphRecursively(const FRawStatStackNode* Root, F
 		else
 		{
 			Graph.CallsPerFrame = 1;
-			Graph.Value = Root->Meta.GetValue_int64();
+			Graph.Value = static_cast<uint32>(Root->Meta.GetValue_int64());
 		}
 	}
 
@@ -1117,7 +1117,7 @@ void FServiceConnection::GenerateProfilerDataFrame()
 {
 	SCOPE_CYCLE_COUNTER(STAT_PC_GenerateDataFrame);
 	FProfilerDataFrame& DataFrame = CurrentData;
-	DataFrame.Frame = CurrentThreadState.CurrentGameFrame;
+	DataFrame.Frame = static_cast<uint32>(CurrentThreadState.CurrentGameFrame);
 	DataFrame.FrameStart = 0.0;
 	DataFrame.CountAccumulators.Reset();
 	DataFrame.CycleGraphs.Reset();

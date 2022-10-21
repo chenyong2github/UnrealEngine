@@ -65,7 +65,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	static const FLinearColor GridTextColor = FLinearColor(1.0f,1.0f,1.0f, 0.25f);
 	static const FLinearColor BorderColor = FLinearColor(0.0f,0.0f,0.0f,1.0f);
 	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-	const float MaxFontCharHeight = FontMeasureService->Measure( TEXT("!"), SummaryFont ).Y;
+	const float MaxFontCharHeight = static_cast<float>(FontMeasureService->Measure( TEXT("!"), SummaryFont ).Y);
 	TArray<FVector2D> LinePoints;
 
 	// draw the histogram box
@@ -103,7 +103,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		// Bottom - X-Axes numbers, starting from MinValue
 		const FString XLabel = FString::Printf(TEXT("%.0f"), Description.MinValue + Index*Description.Interval);
-		float FontCharWidth = FontMeasureService->Measure(XLabel, SummaryFont).X;
+		float FontCharWidth = static_cast<float>(FontMeasureService->Measure(XLabel, SummaryFont).X);
 		FSlateDrawElement::MakeText(
 			OutDrawElements, 
 			LayerId, 
@@ -118,7 +118,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	LayerId++;
 
 	// draw the horizontal lines
-	float CountY = (AllottedGeometry.GetLocalSize().Y-LabelBuffer*2.0f) / 4;
+	float CountY = (static_cast<float>(AllottedGeometry.GetLocalSize().Y)-LabelBuffer*2.0f) / 4.0f;
 	float StartY = LabelBuffer;
 	for (int32 Index = 0; Index < 5; ++Index)
 	{
@@ -137,7 +137,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		// Bottom - Y-Axes numbers, starting from 0
 		const FString YLabel = FString::Printf(TEXT("%i"), Description.Normalize ? 25 * (4-Index) : Description.GetTotalCount() / 4 * Index);
-		float FontCharWidth = FontMeasureService->Measure(YLabel, SummaryFont).X;
+		float FontCharWidth = static_cast<float>(FontMeasureService->Measure(YLabel, SummaryFont).X);
 		FSlateDrawElement::MakeText
 			(
 			OutDrawElements, 
@@ -155,7 +155,7 @@ int32 SHistogram::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	for (int32 Index = 0; Index < Description.GetBinCount(); ++Index)
 	{
 		float MarkerPosX = StartX + Index * CountX;
-		float SizeY = (float)Description.GetCount(Index) / (float)Description.GetTotalCount() * (AllottedGeometry.GetLocalSize().Y - LabelBuffer*2.0f);
+		float SizeY = (float)Description.GetCount(Index) / (float)Description.GetTotalCount() * ((float)AllottedGeometry.GetLocalSize().Y - LabelBuffer*2.0f);
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,

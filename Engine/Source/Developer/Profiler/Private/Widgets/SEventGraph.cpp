@@ -528,7 +528,7 @@ protected:
 	{
 		const FLinearColor ThreadColor(5.0f,0.0f,0.0f,1.0f);
 		const FLinearColor DefaultColor(0.0f,0.0f,0.0f,0.0f);
-		const float Alpha = EventPtr->_FramePct * 0.01f;
+		const float Alpha = static_cast<float>(EventPtr->_FramePct) * 0.01f;
 		const FLinearColor BackgroundColorAndOpacity = FMath::Lerp(DefaultColor,ThreadColor,Alpha);
 		return BackgroundColorAndOpacity;
 	}
@@ -2814,8 +2814,8 @@ void SEventGraph::GenerateTopEvents( const TSet< FEventGraphSamplePtr >& EventPt
 	for( int32 Nx = 0; Nx < EventPtrArray.Num() && Nx < NumTopEvents; ++Nx )
 	{
 		const FEventGraphSamplePtr EventPtr = EventPtrArray[Nx];
-		const float IncTimeToTotalPct = EventPtr->_InclusiveTimeMS / TotalTimeMS;
-		const float HeightPct = EventPtr->_InclusiveTimeMS / Top5TimeMS;
+		const float IncTimeToTotalPct = static_cast<float>(EventPtr->_InclusiveTimeMS / TotalTimeMS);
+		const float HeightPct = static_cast<float>(EventPtr->_InclusiveTimeMS / Top5TimeMS);
 		out_Results.Add( FEventPtrAndMisc(EventPtr,IncTimeToTotalPct,HeightPct) );
 	}
 }

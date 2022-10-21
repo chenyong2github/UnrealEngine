@@ -95,7 +95,7 @@ class SProfilerThreadView
 			, DrawEffects( InDrawEffects )
 			, FontMeasureService( FSlateApplication::Get().GetRenderer()->GetFontMeasureService() )
 			, SummaryFont8( FCoreStyle::GetDefaultFontStyle("Regular", 8) )
-			, SummaryFont8Height( FontMeasureService->Measure( TEXT( "!" ), SummaryFont8 ).Y )
+			, SummaryFont8Height( static_cast<float>(FontMeasureService->Measure( TEXT( "!" ), SummaryFont8 ).Y) )
 		{}
 
 		const FVector2D& Size2D() const

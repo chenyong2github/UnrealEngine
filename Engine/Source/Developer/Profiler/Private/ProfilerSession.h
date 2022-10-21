@@ -688,7 +688,7 @@ public:
 	/** @return The average number of calls of all combined instances. */
 	const float AvgNumCalls() const 
 	{
-		return (double)_NumCallsAllFrames / (double)_NumFrames;
+		return static_cast<float>((double)_NumCallsAllFrames / (double)_NumFrames);
 	}
 
 	/** @return The min number of calls of all combined instances. */
@@ -708,7 +708,7 @@ public:
 	 */
 	const float FramesWithCallPct() const
 	{
-		return (double)_NumFramesWithCall / (double)_NumFrames * 100.0f;
+		return static_cast<float>((double)_NumFramesWithCall / (double)_NumFrames * 100.0);
 	}
 
 	/**

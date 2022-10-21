@@ -30,7 +30,7 @@ TSharedPtr<SToolTip> SEventGraphTooltip::GetTableCellTooltip( const TSharedPtr<F
 
 	const FLinearColor ThreadColor(5.0f,0.0f,0.0f,1.0f);
 	const FLinearColor DefaultColor(1.0f,1.0f,1.0f,1.0f);
-	const float Alpha = EventSample->_FramePct * 0.01f;
+	const float Alpha = static_cast<float>(EventSample->_FramePct) * 0.01f;
 	const FLinearColor ColorAndOpacity = FMath::Lerp(DefaultColor,ThreadColor,Alpha);
 
 	const FText InclusiveTimePctCaller = FText::Format(LOCTEXT("PctOfTheCaller", "({0} of the caller)"), FText::FromString(EventSample->GetFormattedValue(EEventPropertyIndex::InclusiveTimePct)));
@@ -463,7 +463,8 @@ TSharedPtr<SToolTip> SEventGraphTooltip::GetTableCellTooltip( const TSharedPtr<F
 		for( int32 ChildIndex = 0; ChildIndex < Children.Num(); ChildIndex++ )
 		{
 			const FEventGraphSamplePtr& Child = Children[ChildIndex];
-			MinimalChildren.Add( FEventNameAndPct(Child->_InclusiveTimePct,Child->GetShortEventName()) );
+			const float ChildInclusiveTimePct = static_cast<float>(Child->_InclusiveTimePct);
+			MinimalChildren.Add( FEventNameAndPct(ChildInclusiveTimePct, Child->GetShortEventName()) );
 		}
 
 		struct FCompareByFloatDescending

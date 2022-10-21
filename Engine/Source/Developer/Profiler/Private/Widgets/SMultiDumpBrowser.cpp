@@ -125,7 +125,7 @@ void SMultiDumpBrowser::FindTotalsForPrefilterRecursive(TSharedPtr<FEventGraphSa
 	FString EventName = Event->_StatName.ToString().ToUpper();
 	if (EventName.Contains(TotalsFilteringText.ToUpper()))
 	{
-		OutTotalTime += Event->_InclusiveTimeMS;
+		OutTotalTime += static_cast<float>(Event->_InclusiveTimeMS);
 	}
 	else
 	{

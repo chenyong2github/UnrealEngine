@@ -27,7 +27,7 @@ struct FInclusiveTime
 	/** Number of recursion. */
 	int32 Recursion;
 	FInclusiveTime()
-		: DurationCycles( 0.0 )
+		: DurationCycles( 0 )
 		, CallCount( 0 )
 		, Recursion( 0 )
 	{}

@@ -301,7 +301,7 @@ protected:
 
 	void UpdateNumPixelsPerSample()
 	{
-		NumPixelsPerSample = FMath::Max( (float)MIN_NUM_PIXELS_PER_SAMPLE, ThisGeometry.GetLocalSize().X / AllFrames.Num() );
+		NumPixelsPerSample = FMath::Max( (float)MIN_NUM_PIXELS_PER_SAMPLE, (float)ThisGeometry.GetLocalSize().X / AllFrames.Num() );
 	}
 
 	const float GetNumPixelsPerSample() const

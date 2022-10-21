@@ -197,7 +197,7 @@ void SProfilerThreadView::DrawFramesBackgroundAndTimelines() const
 			);
 
 			// Check if this frame time marker is inside the visible area.
-			const float LocalPositionXPx = PositionPx.X + SizePx.X;
+			const float LocalPositionXPx = static_cast<float>(PositionPx.X + SizePx.X);
 			if( LocalPositionXPx < 0.0f || LocalPositionXPx > PaintState->Size2D().X )
 			{
 				continue;
@@ -325,8 +325,8 @@ void SProfilerThreadView::DrawUIStackNodes() const
 			}
 
 			// Update position of the text to be always visible and try to center it.
-			const float StatNameWidthPx = PaintState->FontMeasureService->Measure( StringStatName, PaintState->SummaryFont8 ).X;
-			const float StatNameWithTimeWidthPx = PaintState->FontMeasureService->Measure( StringStatNameWithTime, PaintState->SummaryFont8 ).X;
+			const float StatNameWidthPx = static_cast<float>(PaintState->FontMeasureService->Measure( StringStatName, PaintState->SummaryFont8 ).X);
+			const float StatNameWithTimeWidthPx = static_cast<float>(PaintState->FontMeasureService->Measure( StringStatNameWithTime, PaintState->SummaryFont8 ).X);
 			const float TextAreaWidthPx = ClippedNodeRect.GetSize().X;
 
 			bool bUseShortVersion = true;
@@ -367,10 +367,10 @@ void SProfilerThreadView::DrawFrameMarkers() const
 	{
 		if( ThreadNode.StatName == NAME_GameThread )
 		{
-			const float MarkerPosXPx = ThreadNode.GetLocalPosition( ThreadViewOffsetPx, 0.0f ).X + ThreadNode.WidthPx;
+			const double MarkerPosXPx = ThreadNode.GetLocalPosition( ThreadViewOffsetPx, 0.0f ).X + ThreadNode.WidthPx;
 
 			// Check if this frame time marker is inside the visible area.
-			if( MarkerPosXPx < 0.0f || MarkerPosXPx > PaintState->Size2D().X )
+			if( MarkerPosXPx < 0.0 || MarkerPosXPx > PaintState->Size2D().X )
 			{
 				continue;
 			}
@@ -379,7 +379,7 @@ void SProfilerThreadView::DrawFrameMarkers() const
 			const FString FrameIndexStr = FString::Printf( TEXT( "%i" ), ThreadNode.FrameIndex );
 			const FString FrameTimesStr = FString::Printf( TEXT( "%.4f [%.4f] MS" ), ThreadNode.CycleCountersEndTimeMS, ThreadNode.GetDurationMS() );
 
-			float MarkerPosYPx = PaintState->Size2D().Y - 2 * PaintState->SummaryFont8Height;
+			double MarkerPosYPx = PaintState->Size2D().Y - 2 * PaintState->SummaryFont8Height;
 			DrawText( FrameIndexStr, PaintState->SummaryFont8, FVector2D( MarkerPosXPx, MarkerPosYPx ), FColorList::SkyBlue, FColorList::Black, FVector2D( 1.0f, 1.0f ) );
 
 			MarkerPosYPx += PaintState->SummaryFont8Height;
@@ -397,7 +397,7 @@ void SProfilerThreadView::DrawFrameMarkers() const
 		const FString TimelineStr = FString::Printf( TEXT( "%.4f MS" ), TimelinePosXPx / NumPixelsPerMillisecond );
 
 		// Draw time line text.
-		float MarkerPosYPx = PaintState->Size2D().Y - 3 * PaintState->SummaryFont8Height;
+		double MarkerPosYPx = PaintState->Size2D().Y - 3 * PaintState->SummaryFont8Height;
 		DrawText( TimelineStr, PaintState->SummaryFont8, FVector2D( TimelinePosXPx - ThreadViewOffsetPx, MarkerPosYPx ), FColorList::LimeGreen, FColorList::Black, FVector2D( 1.0f, 1.0f ) );
 	}
 
@@ -560,8 +560,8 @@ FReply SProfilerThreadView::OnMouseMove( const FGeometry& MyGeometry, const FPoi
 		HoveredPositionX = 0.0;//PositionToFrameIndex( LocalMousePosition.X );
 		HoveredPositionY = 0.0;
 
-		const float CursorPosXDelta = -MouseEvent.GetCursorDelta().X;
-		const float ScrollSpeed = 1.0f / ZoomFactorX;
+		const double CursorPosXDelta = -MouseEvent.GetCursorDelta().X;
+		const double ScrollSpeed = 1.0 / ZoomFactorX;
 
 		if( MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ) )
 		{

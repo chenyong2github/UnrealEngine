@@ -97,7 +97,7 @@ BreakPacketLoop:;
 	return Result;
 }
 
-static int64 GetFastThreadFrameTimeInternal( const FStatPacketArray& Frame, EThreadType::Type ThreadType )
+static uint32 GetFastThreadFrameTimeInternal( const FStatPacketArray& Frame, EThreadType::Type ThreadType )
 {
 	int64 Result = 0;
 
@@ -132,7 +132,8 @@ static int64 GetFastThreadFrameTimeInternal( const FStatPacketArray& Frame, EThr
 			}
 		}
 	}
-	return Result;
+
+	return static_cast<uint32>(Result);
 }
 
 void FRawProfilerSession::PrepareLoading()
@@ -265,7 +266,7 @@ void FRawProfilerSession::PrepareLoading()
 			const int64 TargetFrame = Frames[FrameIndex];
 			const FStatPacketArray& Frame = CombinedHistory.FindChecked( TargetFrame );
 
-			const double GameThreadTimeMS = GetMetaData()->ConvertCyclesToMS( GetFastThreadFrameTimeInternal( Frame, EThreadType::Game ) );
+			const double GameThreadTimeMS = GetMetaData()->ConvertCyclesToMS(GetFastThreadFrameTimeInternal( Frame, EThreadType::Game ));
 
 			if (GameThreadTimeMS == 0.0f)
 			{
@@ -293,19 +294,19 @@ void FRawProfilerSession::PrepareLoading()
 				const int64 TargetFrame = Frames[FrameIndex];
 				const FStatPacketArray& Frame = CombinedHistory.FindChecked(TargetFrame);
 
-				const double GameThreadTimeMS = GetMetaData()->ConvertCyclesToMS( GetFastThreadFrameTimeInternal(Frame,EThreadType::Game) );
+				const double GameThreadTimeMS = GetMetaData()->ConvertCyclesToMS(GetFastThreadFrameTimeInternal(Frame,EThreadType::Game));
 
 				if( GameThreadTimeMS == 0.0f )
 				{
 					continue;
 				}
 
-				const double RenderThreadTimeMS = GetMetaData()->ConvertCyclesToMS( GetFastThreadFrameTimeInternal(Frame,EThreadType::Renderer) );
+				const double RenderThreadTimeMS = GetMetaData()->ConvertCyclesToMS(GetFastThreadFrameTimeInternal(Frame,EThreadType::Renderer));
 
 				// Update mini-view, convert from cycles to ms.
 				TMap<uint32, float> ThreadTimesMS;
-				ThreadTimesMS.Add( GameThreadID, GameThreadTimeMS );
-				ThreadTimesMS.Add( GetMetaData()->GetRenderThreadID()[0], RenderThreadTimeMS );
+				ThreadTimesMS.Add( GameThreadID, static_cast<float>(GameThreadTimeMS) );
+				ThreadTimesMS.Add( GetMetaData()->GetRenderThreadID()[0], static_cast<float>(RenderThreadTimeMS) );
 
 				// Pass the reference to the stats' metadata.
 				OnAddThreadTime.ExecuteIfBound( FrameIndex, ThreadTimesMS, StatMetaData );
@@ -378,7 +379,7 @@ void FRawProfilerSession::ProcessStatPacketArray( const FStatPacketArray& StatPa
 	FProfilerSampleArray& MutableCollection = const_cast<FProfilerSampleArray&>(DataProvider->GetCollection());
 
 	// Add a root sample for this frame.
-	const uint32 FrameRootSampleIndex = DataProvider->AddHierarchicalSample( 0, MetaData->GetStatByID( 1 ).OwningGroup().ID(), 1, 0.0f, 0.0f, 1 );
+	const uint32 FrameRootSampleIndex = DataProvider->AddHierarchicalSample( 0, MetaData->GetStatByID( 1 ).OwningGroup().ID(), 1, 0, 0, 1 );
 
 	// Iterate through all stats packets and raw stats messages.
 	FName GameThreadFName = NAME_None;
@@ -482,8 +483,8 @@ void FRawProfilerSession::ProcessStatPacketArray( const FStatPacketArray& StatPa
 					const int64 Delta = int32( uint32( ScopeEnd.GetValue_int64() ) - uint32( ScopeStart.GetValue_int64() ) );
 					Current->CyclesEnd = Current->CyclesStart + Delta;
 
-					Current->CycleCounterStartTimeMS = MetaData->ConvertCyclesToMS( Current->CyclesStart );
-					Current->CycleCounterEndTimeMS = MetaData->ConvertCyclesToMS( Current->CyclesEnd );
+					Current->CycleCounterStartTimeMS = MetaData->ConvertCyclesToMS( uint32(Current->CyclesStart) );
+					Current->CycleCounterEndTimeMS = MetaData->ConvertCyclesToMS( uint32(Current->CyclesEnd) );
 
 					if (Current->CycleCounterStartTimeMS > Current->CycleCounterEndTimeMS)
 					{
@@ -495,7 +496,7 @@ void FRawProfilerSession::ProcessStatPacketArray( const FStatPacketArray& StatPa
 					FProfilerStackNode* ChildNode = Current;
 
 					// Update the child sample's DurationMS.
-					MutableCollection[ChildNode->SampleIndex].SetDurationCycles( Delta );
+					MutableCollection[ChildNode->SampleIndex].SetDurationCycles( uint32(Delta) );
 
 					verify( Current == Stack.Pop() );
 					Current = Stack.Last();
@@ -514,8 +515,8 @@ void FRawProfilerSession::ProcessStatPacketArray( const FStatPacketArray& StatPa
 			const int32 LastChildIndex = ThreadNode.Children.Num() - 1;
 			ThreadNode.CyclesStart = ThreadNode.Children[0]->CyclesStart;
 			ThreadNode.CyclesEnd = ThreadNode.Children[LastChildIndex]->CyclesEnd;
-			ThreadNode.CycleCounterStartTimeMS = MetaData->ConvertCyclesToMS( ThreadNode.CyclesStart );
-			ThreadNode.CycleCounterEndTimeMS = MetaData->ConvertCyclesToMS( ThreadNode.CyclesEnd );
+			ThreadNode.CycleCounterStartTimeMS = MetaData->ConvertCyclesToMS( uint32(ThreadNode.CyclesStart) );
+			ThreadNode.CycleCounterEndTimeMS = MetaData->ConvertCyclesToMS( uint32(ThreadNode.CyclesEnd) );
 
 			FProfilerSample& ProfilerSample = MutableCollection[ThreadNode.SampleIndex];
 			//ProfilerSample.SetStartAndEndMS( MetaData->ConvertCyclesToMS( ThreadNode.CyclesStart ), MetaData->ConvertCyclesToMS( ThreadNode.CyclesEnd ) );
@@ -525,13 +526,13 @@ void FRawProfilerSession::ProcessStatPacketArray( const FStatPacketArray& StatPa
 	// Get the game thread time.
 	check( GameThreadFName != NAME_None );
 	const FProfilerStackNode& GameThreadNode = *ThreadNodes.FindChecked( GameThreadFName );
-	const double GameThreadStartMS = MetaData->ConvertCyclesToMS( GameThreadNode.CyclesStart );
-	const double GameThreadEndMS = MetaData->ConvertCyclesToMS( GameThreadNode.CyclesEnd );
+	const double GameThreadStartMS = MetaData->ConvertCyclesToMS( uint32(GameThreadNode.CyclesStart) );
+	const double GameThreadEndMS = MetaData->ConvertCyclesToMS( uint32(GameThreadNode.CyclesEnd) );
 	//MutableCollection[FrameRootSampleIndex].SetStartAndEndMS( GameThreadStartMS, GameThreadEndMS );
 
 	// Advance frame
 	const uint32 LastFrameIndex = DataProvider->GetNumFrames();
-	DataProvider->AdvanceFrame( GameThreadEndMS - GameThreadStartMS );
+	DataProvider->AdvanceFrame( static_cast<float>(GameThreadEndMS - GameThreadStartMS) );
 
 	// Update aggregated stats
 	//UpdateAggregatedStats( LastFrameIndex );
