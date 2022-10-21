@@ -42,7 +42,7 @@ void FAssetActionExtender_SoundCueTemplate::RegisterMenus()
 	FToolMenuOwnerScoped MenuOwner("SoundCueTemplate");
 
 	{
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundCue");
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
 		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
 		Section.AddDynamicEntry("SoundCueAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
