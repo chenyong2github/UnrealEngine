@@ -13,7 +13,7 @@
 
 #if LC_DEBUG
 #	define LC_ASSERT_BREAKPOINT()				(Debugger::IsConnected()) ? LC_DEBUGGER_BREAKPOINT() : (void)true
-#	define LC_ASSERT(_condition, _msg)			(_condition) ? (void)true : (LC_ERROR_DEV(_msg), LC_ASSERT_BREAKPOINT())
+#	define LC_ASSERT(_condition, _msg)			(_condition) ? (void)true : (LC_ERROR_DEV("%s", _msg), LC_ASSERT_BREAKPOINT())
 #else
 #	define LC_BREAKPOINT()						(void)true
 #	define LC_ASSERT(_condition, _msg)			LC_UNUSED(_condition)

@@ -29,7 +29,7 @@ ON_SCOPE_EXIT{ UE_LOG(LogGPUTextureTransfer, Verbose, TEXT("%s duration: %d ms")
 	DVPStatus _Status = (call); \
 	if (_Status != DVP_STATUS_OK)\
 	{\
-		UE_LOG(LogGPUTextureTransfer, Error, TEXT("GPUDirect call %s failed. Error:  %d"), L#call, _Status);\
+		UE_LOG(LogGPUTextureTransfer, Error, TEXT("GPUDirect call %s failed. Error:  %d"), L""#call, _Status);\
 	}\
 }
 
