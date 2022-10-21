@@ -2820,6 +2820,17 @@ void UAssetRegistryImpl::GetSubPaths(const FString& InBasePath, TArray<FString>&
 	}, bInRecurse);
 }
 
+void UAssetRegistryImpl::GetSubPaths(const FName& InBasePath, TArray<FName>& OutPathList, bool bInRecurse) const
+{
+	FReadScopeLock InterfaceScopeLock(InterfaceLock);
+	const FPathTree& CachedPathTree = GuardedData.GetCachedPathTree();
+	CachedPathTree.EnumerateSubPaths(InBasePath, [&OutPathList](FName Path)
+	{
+		OutPathList.Emplace(Path);
+		return true;
+	}, bInRecurse);
+}
+
 void UAssetRegistryImpl::EnumerateSubPaths(const FString& InBasePath, TFunctionRef<bool(FString)> Callback, bool bInRecurse) const
 {
 	TArray<FName, TInlineAllocator<64>> SubPaths;
