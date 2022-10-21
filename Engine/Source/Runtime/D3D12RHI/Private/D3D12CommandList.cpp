@@ -95,22 +95,6 @@ void FD3D12ContextCommon::AddAliasingBarrier(ID3D12Resource* InResourceBefore, I
 
 void FD3D12ContextCommon::FlushResourceBarriers()
 {
-#if DEBUG_RESOURCE_STATES
-	// Keep track of all the resource barriers that have been submitted to the current command list.
-	const TArray<D3D12_RESOURCE_BARRIER>& Barriers = ResourceBarrierBatcher.GetBarriers();
-	if (Barriers.Num())
-	{
-		ResourceBarriers.Append(Barriers.GetData(), Barriers.Num());
-	}
-
-	const TArray<D3D12_RESOURCE_BARRIER>& BackBufferBarriers = ResourceBarrierBatcher.GetBackBufferBarriers();
-	if (BackBufferBarriers.Num())
-	{
-		ResourceBarriers.Append(BackBufferBarriers.GetData(), BackBufferBarriers.Num());
-	}
-
-#endif // #if DEBUG_RESOURCE_STATES
-
 	if (ResourceBarrierBatcher.Num())
 	{
 		ResourceBarrierBatcher.FlushIntoCommandList(GetCommandList(), TimestampQueries);

@@ -1029,6 +1029,13 @@ void FD3D12ResourceBarrierBatcher::FlushIntoCommandList(FD3D12CommandList& Comma
 		}
 
 		CommandList.GraphicsCommandList()->ResourceBarrier(BatchEnd - BatchStart, &Barriers[BatchStart]);
+#if DEBUG_RESOURCE_STATES
+		// Keep track of all the resource barriers that have been submitted to the current command list.
+		for(int i = BatchStart; i < BatchEnd - BatchStart - 1; i++)
+		{
+			CommandList.State.ResourceBarriers.Emplace(Barriers[i]);
+		}
+#endif // #if DEBUG_RESOURCE_STATES
 
 		if (bIdle)
 		{
