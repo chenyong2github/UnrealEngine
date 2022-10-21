@@ -43,6 +43,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"Eigen",
+						"DerivedDataCache",
 					});
 
 				PrivateIncludePathModuleNames.AddRange(
