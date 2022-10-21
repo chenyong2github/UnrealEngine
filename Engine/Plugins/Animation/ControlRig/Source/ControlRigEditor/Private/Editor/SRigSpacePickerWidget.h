@@ -128,9 +128,10 @@ private:
 public:
 	
 	FReply HandleAddElementClicked();
+	bool IsRestricted() const;
 
 private:
-	
+
 	bool IsSpaceMoveUpEnabled(FRigElementKey InKey) const;
 	bool IsSpaceMoveDownEnabled(FRigElementKey InKey) const;
 

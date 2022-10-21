@@ -75,6 +75,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Converted library nodes to templates
 		LibraryNodeTemplates,
 
+		// Controls to be able specify space switch targets
+		RestrictSpaceSwitchingForControls,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

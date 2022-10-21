@@ -2759,6 +2759,12 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 
 	if(bSupportsShape)
 	{
+		const TSharedPtr<IPropertyHandle> RestrictSpaceSwitchingHandle = SettingsHandle->GetChildHandle(TEXT("bRestrictSpaceSwitching"));
+		ControlCategory
+		.AddProperty(RestrictSpaceSwitchingHandle.ToSharedRef())
+		.DisplayName(FText::FromString(TEXT("Restrict Switching")))
+		.IsEnabled(bIsEnabled);
+		
 		const TSharedPtr<IPropertyHandle> AvailableSpacesHandle = CustomizationHandle->GetChildHandle(TEXT("AvailableSpaces"));
 		ControlCategory.AddProperty(AvailableSpacesHandle.ToSharedRef())
 		.IsEnabled(bIsEnabled);

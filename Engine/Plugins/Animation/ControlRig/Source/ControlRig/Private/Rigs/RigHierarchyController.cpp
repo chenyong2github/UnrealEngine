@@ -2255,6 +2255,14 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 			bMaintainGlobalTransform = false;
 		}
+
+		if(ChildControlElement->Settings.bRestrictSpaceSwitching)
+		{
+			if(ChildControlElement->Settings.Customization.AvailableSpaces.Contains(InParent->GetKey()))
+			{
+				return false;
+			}
+		}
 	}
 
 	if(Hierarchy->IsParentedTo(InParent, InChild))

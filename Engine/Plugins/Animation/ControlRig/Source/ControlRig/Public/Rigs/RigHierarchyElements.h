@@ -1121,6 +1121,12 @@ struct CONTROLRIG_API FRigControlSettings
 	bool bGroupWithParentControl;
 
 	/**
+	 * Allow to space switch only to the available spaces
+	 */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
+	bool bRestrictSpaceSwitching;
+
+	/**
 	 * Deprecated properties.
 	 */
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage = "Use animation_type instead."))

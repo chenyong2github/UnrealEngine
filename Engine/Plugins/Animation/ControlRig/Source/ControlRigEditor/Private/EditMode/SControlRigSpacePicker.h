@@ -40,6 +40,7 @@ private:
 	void HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList);
 	FReply HandleAddSpaceClicked();
 	FReply OnBakeControlsToNewSpaceButtonClicked();
+	EVisibility GetAddSpaceButtonVisibility() const;
 
 	//for now picker works off of one ControlRig, this function gets the first control rig with a selection
 	UControlRig* GetControlRig();

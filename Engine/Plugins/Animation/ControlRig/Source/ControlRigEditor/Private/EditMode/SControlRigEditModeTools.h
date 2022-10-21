@@ -111,6 +111,8 @@ private:
 	void HandleActiveSpaceChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey);
 	void HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList);
 	FReply HandleAddSpaceClicked();
+	EVisibility GetAddSpaceButtonVisibility() const;
+	bool IsSpaceSwitchingRestricted() const;
 	FReply OnBakeControlsToNewSpaceButtonClicked();
 
 	FReply HandleAddConstraintClicked();

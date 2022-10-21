@@ -186,6 +186,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 	RigTreeDelegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SControlRigEditModeTools::GetDisplaySettings);
 	RigTreeDelegates.OnSelectionChanged = FOnRigTreeSelectionChanged::CreateSP(this, &SControlRigEditModeTools::HandleSelectionChanged);
 #endif
+
 	ChildSlot
 	[
 		SNew(SScrollBox)
@@ -307,6 +308,10 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 							SNew(SImage)
 							.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 						]
+						.Visibility_Lambda([this]()->EVisibility
+						{
+							return GetAddSpaceButtonVisibility();
+						})
 					]
 				]
 				.BodyContent()
@@ -869,6 +874,16 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 FReply SControlRigEditModeTools::HandleAddSpaceClicked()
 {
 	return SpacePickerWidget->HandleAddElementClicked();
+}
+
+EVisibility SControlRigEditModeTools::GetAddSpaceButtonVisibility() const
+{
+	return IsSpaceSwitchingRestricted() ? EVisibility::Hidden : EVisibility::Visible;
+}
+
+bool SControlRigEditModeTools::IsSpaceSwitchingRestricted() const
+{
+	return SpacePickerWidget->IsRestricted();
 }
 
 FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()

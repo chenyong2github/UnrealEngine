@@ -76,6 +76,10 @@ void SControlRigSpacePicker::Construct(const FArguments& InArgs, FControlRigEdit
 								SNew(SImage)
 								.Image(FAppStyle::GetBrush(TEXT("Icons.PlusCircle")))
 							]
+							.Visibility_Lambda([this]()
+							{
+								return GetAddSpaceButtonVisibility();
+							})
 						]
 					]
 					.BodyContent()
@@ -322,6 +326,25 @@ FReply SControlRigSpacePicker::OnBakeControlsToNewSpaceButtonClicked()
 		return BakeWidget->OpenDialog(true);
 	}
 	return FReply::Unhandled();
+}
+
+EVisibility SControlRigSpacePicker::GetAddSpaceButtonVisibility() const
+{
+	if(const URigHierarchy* Hierarchy = SpacePickerWidget->GetHierarchy())
+	{
+		for(const FRigElementKey& Control : SpacePickerWidget->GetControls())
+		{
+			if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Control))
+			{
+				if(ControlElement->Settings.bRestrictSpaceSwitching)
+				{
+					return EVisibility::Collapsed;
+				}
+			}
+		}
+	}
+
+	return EVisibility::Visible;
 }
 
 #undef LOCTEXT_NAMESPACE
