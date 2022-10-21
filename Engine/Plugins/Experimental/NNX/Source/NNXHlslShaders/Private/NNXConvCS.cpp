@@ -6,7 +6,7 @@
 namespace
 {
 
-TArray<int32> GetXBlockShape(TArray<int32> GroupShape, TArray<int32> WShape, TArray<int32> Dilations, TArray<int32> Strides)
+TArray<int32> GetXBlockShape(TArrayView<const int32> GroupShape, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides)
 {
 	check(WShape.Num() > 2);
 	check(GroupShape.Num() == WShape.Num() - 2);
@@ -23,7 +23,7 @@ TArray<int32> GetXBlockShape(TArray<int32> GroupShape, TArray<int32> WShape, TAr
 	return Result;
 }
 
-TArray<int32> GetPadding(TArray<int32> XShape, TArray<int32> WShape, EConvAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads)
+TArray<int32> GetPadding(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads)
 {
 	check(XShape.Num() > 2);
 	check(WShape.Num() == XShape.Num());
@@ -37,7 +37,7 @@ TArray<int32> GetPadding(TArray<int32> XShape, TArray<int32> WShape, EConvAutoPa
 
 	if (AutoPad == EConvAutoPad::NOTSET)
 	{
-		return Pads;
+		return TArray<int32>{Pads};
 	}
 	else if (AutoPad == EConvAutoPad::VALID)
 	{
@@ -84,7 +84,7 @@ int32 GetNumThreadsPerGroup(EConvGroupSize GroupSize)
 	return NumThreadsPerGroup;
 }
 
-TArray<int32> GetGridShape(TArray<int32> YShape, TArray<int32> GroupShape)
+TArray<int32> GetGridShape(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape)
 {
 	check(YShape.Num() > 2);
 	check(YShape.Num() == (GroupShape.Num() + 2));
@@ -107,7 +107,7 @@ void FMLConvCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParam
 	OutEnvironment.SetDefine(TEXT("MAX_NUM_DIMENSIONS"), FConvConstants::MAX_NUM_DIMENSIONS);
 }
 
-TArray<int32> FMLConvCS::GetOutputShape(TArray<int32> XShape, TArray<int32> WShape, EConvAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads)
+TArray<int32> FMLConvCS::GetOutputShape(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads)
 {
 	check(XShape.Num() > 2);
 	check(WShape.Num() == XShape.Num());
@@ -135,7 +135,8 @@ TArray<int32> FMLConvCS::GetOutputShape(TArray<int32> XShape, TArray<int32> WSha
 	return Result;
 }
 
-void FMLConvCS::FillInParameters(EConvGroupSize GroupSize, TArray<int32> XShape, TArray<int32> WShape, bool HasB, EConvAutoPad AutoPad, int Group, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads, FMLConvCS::FParameters& Parameters)
+void FMLConvCS::FillInParameters(EConvGroupSize GroupSize, TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, bool HasB,
+		EConvAutoPad AutoPad, int Group, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads, FMLConvCS::FParameters& Parameters)
 {
 	check(XShape.Num() > 2);
 	check(WShape.Num() == XShape.Num());
@@ -188,9 +189,9 @@ void FMLConvCS::FillInParameters(EConvGroupSize GroupSize, TArray<int32> XShape,
 
 	Parameters.XBlockSize = XBlockSize;
 
-	Parameters.NumChannelsPerBatch = FMath::Min((int32)((float)GroupThreadStride / (float)WChannelSize), WShape[1]);
+	Parameters.NumChannelsPerBatch = FMath::Min((int32)((float)GroupThreadStride / (float)WChannelSize), (int32)WShape[1]);
 	check(Parameters.NumChannelsPerBatch > 0)
-	Parameters.NumChannelBatches = FMath::DivideAndRoundUp(WShape[1], Parameters.NumChannelsPerBatch);
+	Parameters.NumChannelBatches = FMath::DivideAndRoundUp((int32)WShape[1], Parameters.NumChannelsPerBatch);
 	
 	Parameters.WOutputKernelStride = WShape[1] * WChannelSize;
 	Parameters.WChannelBatchSize = Parameters.NumChannelsPerBatch * WChannelSize;
@@ -199,7 +200,7 @@ void FMLConvCS::FillInParameters(EConvGroupSize GroupSize, TArray<int32> XShape,
 	Parameters.GroupsDivM = (float)Group / (float)WShape[0];
 }
 
-int32 FMLConvCS::GetNumReadsPerThread(EConvGroupSize GroupSize, TArray<int32> WShape, TArray<int32> Dilations, TArray<int32> Strides)
+int32 FMLConvCS::GetNumReadsPerThread(EConvGroupSize GroupSize, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides)
 {
 	check(WShape.Num() > 2);
 	check(Dilations.Num() == 0 || Dilations.Num() == WShape.Num() - 2);
@@ -251,7 +252,7 @@ TArray<int32> FMLConvCS::GetGroupShape(EConvGroupSize GroupSize, int32 NumDimens
 	return Result;
 }
 
-FIntVector FMLConvCS::GetGroupCount(TArray<int32> YShape, TArray<int32> GroupShape)
+FIntVector FMLConvCS::GetGroupCount(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape)
 {
 	check(YShape.Num() > 2);
 	check(YShape.Num() == (GroupShape.Num() + 2));
@@ -265,7 +266,7 @@ FIntVector FMLConvCS::GetGroupCount(TArray<int32> YShape, TArray<int32> GroupSha
 	return FIntVector(ThreadGroupCountValueX, YShape[1], YShape[0]);
 }
 
-EConvGroupSize FMLConvCS::GetMinimalGroupSize(TArray<int32> WShape)
+EConvGroupSize FMLConvCS::GetMinimalGroupSize(TArrayView<const int32> WShape)
 {
 	int32 NumDimensions = WShape.Num() - 2;
 	int32 WChannelSize = 1;

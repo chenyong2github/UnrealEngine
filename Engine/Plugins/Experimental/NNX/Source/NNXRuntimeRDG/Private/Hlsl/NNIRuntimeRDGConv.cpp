@@ -36,8 +36,6 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		// Hard coded parameters, until we accept them from JSON
 		int32 Group = 1;
-		TArray<int32> InputShape;
-		TArray<int32> WeightsShape;
 		EConvAutoPad AutoPad = EConvAutoPad::VALID;
 		TArray<int32> Dilations = {1};
 		TArray<int32> Strides = {1};
@@ -66,16 +64,6 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				HasBias = false;
 			}
 
-			auto MakeShape = [](const NNX::FMLTensorDesc& InputDesc) {
-				TArray<int32> Result;
-				for (int32 i = 0; i < (int32)InputDesc.Shape.Num(); i++) {
-					Result.Add(InputDesc.Shape[i]);
-				}
-				return Result;
-			};
-			InputShape = MakeShape(Input);
-			WeightsShape = MakeShape(Weights);
-
 			NumDimensions = Input.Shape.Num() - 2;
 
 			return true;
@@ -86,11 +74,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			constexpr EConvAlgorithm Algorithm = EConvAlgorithm::SharedMemory;
 			constexpr EConvGroupSize GroupSize = EConvGroupSize::Size256;
 
-			TArray<int32> OutputShape = FMLConvCS::GetOutputShape(InputShape, WeightsShape, AutoPad, Dilations, Strides, Pads);
+			TArray<int32> OutputShape = FMLConvCS::GetOutputShape(Input.Shape, Weights.Shape, AutoPad, Dilations, Strides, Pads);
 
 			// Set parameters
 			FMLConvCS::FParameters* Params = GraphBuilder.AllocParameters<FMLConvCS::FParameters>();
-			FMLConvCS::FillInParameters(GroupSize, InputShape, WeightsShape, HasBias, AutoPad, Group, Dilations,Strides, Pads, *Params);
+			FMLConvCS::FillInParameters(GroupSize, Input.Shape, Weights.Shape, HasBias, AutoPad, Group, Dilations,Strides, Pads, *Params);
 			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			if (InInputBindings.Num() == 3) {
@@ -103,7 +91,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			PermutationVector.Set<FMLConvCS::FConvAlgorithm>(Algorithm);
 			PermutationVector.Set<FMLConvCS::FConvGroupSize>(GroupSize);
 			PermutationVector.Set<FMLConvCS::FConvNumDimensions>(NumDimensions);
-			PermutationVector.Set<FMLConvCS::FConvNumReadsPerThread>(FMLConvCS::GetNumReadsPerThread(GroupSize, WeightsShape, Dilations, Strides));
+			PermutationVector.Set<FMLConvCS::FConvNumReadsPerThread>(FMLConvCS::GetNumReadsPerThread(GroupSize, Weights.Shape, Dilations, Strides));
 			PermutationVector.Set<FMLConvCS::FConvHasB>(HasBias);
 			TShaderMapRef<FMLConvCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
@@ -116,7 +104,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				Params,
-				FMLConvCS::GetGroupCount(OutputShape, FMLConvCS::GetGroupShape(GroupSize, NumDimensions)));		
+				FMLConvCS::GetGroupCount(OutputShape, FMLConvCS::GetGroupShape(GroupSize, NumDimensions)));
 		}
 	};
 

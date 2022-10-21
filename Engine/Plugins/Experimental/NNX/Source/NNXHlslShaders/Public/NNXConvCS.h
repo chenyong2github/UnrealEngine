@@ -77,11 +77,12 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
 
 public:
-	static TArray<int32> GetOutputShape(TArray<int32> XShape, TArray<int32> WShape, EConvAutoPad AutoPad, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads);
+	static TArray<int32> GetOutputShape(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads);
 
-	static void FillInParameters(EConvGroupSize GroupSize, TArray<int32> XShape, TArray<int32> WShape, bool HasB, EConvAutoPad AutoPad, int Group, TArray<int32> Dilations, TArray<int32> Strides, TArray<int32> Pads, FMLConvCS::FParameters& Parameters);
+	static void FillInParameters(EConvGroupSize GroupSize, TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, bool HasB,
+			EConvAutoPad AutoPad, int Group, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads, FMLConvCS::FParameters& Parameters);
 
-	static int32 GetNumReadsPerThread(EConvGroupSize GroupSize, TArray<int32> WShape, TArray<int32> Dilations, TArray<int32> Strides);
+	static int32 GetNumReadsPerThread(EConvGroupSize GroupSize, TArrayView<const uint32> WShape, TArrayView<const int32> Dilations, TArrayView<const int32> Strides);
 
 	/**
 	 * @brief Computes the group shape such that all dimension have roughly equal sizes.
@@ -99,7 +100,7 @@ public:
 	 * @param YShape The shape of a single thread group as computed by GetGroupShape()
 	 * @return FIntVector The number of thread groups to instantiate. z corresponds to the batch and y to the output kernel.
 	 */
-	static FIntVector GetGroupCount(TArray<int32> YShape, TArray<int32> GroupShape);
+	static FIntVector GetGroupCount(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape);
 
-	static EConvGroupSize GetMinimalGroupSize(TArray<int32> WShape);
+	static EConvGroupSize GetMinimalGroupSize(TArrayView<const int32> WShape);
 };
