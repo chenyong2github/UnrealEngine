@@ -9,6 +9,10 @@ FRigUnit_Item_Execute()
 {
 }
 
+FRigUnit_ItemArray_Execute()
+{
+}
+
 FRigUnit_BoneName_Execute()
 {
 }

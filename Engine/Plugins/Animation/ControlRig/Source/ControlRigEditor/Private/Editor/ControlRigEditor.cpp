@@ -5656,12 +5656,9 @@ void FControlRigEditor::CreateRigHierarchyToGraphDragAndDropMenu() const
 										{
 											Controller->OpenUndoBracket(TEXT("Create Item Array From Selection"));
 
-											static const FString ItemArrayCPPType = FString::Printf(TEXT("TArray<%s>"), *RigVMTypeUtils::GetUniqueStructTypeName(FRigElementKey::StaticStruct()));
-											static const FString ItemArrayObjectPath = FRigElementKey::StaticStruct()->GetPathName();
-							
-											if (URigVMNode* ItemsNode = Controller->AddFreeRerouteNode(true, ItemArrayCPPType, *ItemArrayObjectPath, false, NAME_None, FString(), NodePosition))
+											if (URigVMNode* ItemsNode = Controller->AddUnitNode(FRigUnit_ItemArray::StaticStruct(), TEXT("Execute"), NodePosition))
 											{
-												if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Value")))
+												if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Items")))
 												{
 													Controller->SetArrayPinSize(ItemsPin->GetPinPath(), DraggedKeys.Num());
 
