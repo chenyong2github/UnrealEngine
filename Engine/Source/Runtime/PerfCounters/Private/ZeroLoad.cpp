@@ -38,7 +38,7 @@ uint32 FZeroLoad::Run()
 	double PreviousTick = FPlatformTime::Seconds();
 	while (!ExitRequest.GetValue())
 	{
-		FPlatformProcess::SleepNoStats(SecondsToSleep);
+		FPlatformProcess::SleepNoStats(static_cast<float>(SecondsToSleep));
 
 		const double CurrentTick = FPlatformTime::Seconds();
 		const double TickDuration = CurrentTick - PreviousTick;

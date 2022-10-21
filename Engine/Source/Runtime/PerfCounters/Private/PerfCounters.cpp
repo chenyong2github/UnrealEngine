@@ -52,7 +52,7 @@ bool FPerfCounters::Initialize()
 	{
 		InternalCountersUpdateInterval = ConfigInternalCountersUpdateInterval;
 	}
-	LastTimeInternalCountersUpdated = FPlatformTime::Seconds() - InternalCountersUpdateInterval * FMath::FRand();	// randomize between servers
+	LastTimeInternalCountersUpdated = static_cast<float>(FPlatformTime::Seconds()) - InternalCountersUpdateInterval * FMath::FRand();	// randomize between servers
 
 	// get the requested port from the command line (if specified)
 	const int32 StatsPort = IPerfCountersModule::GetHTTPStatsPort();
@@ -190,7 +190,7 @@ void FPerfCounters::TickZeroLoad(float DeltaTime)
 void FPerfCounters::TickSystemCounters(float DeltaTime)
 {
 	// set some internal perf stats ([RCL] FIXME 2015-12-08: move to a better place)
-	float CurrentTime = FPlatformTime::Seconds();
+	float CurrentTime = static_cast<float>(FPlatformTime::Seconds());
 	if (CurrentTime - LastTimeInternalCountersUpdated > InternalCountersUpdateInterval)
 	{
 		// get CPU stats first
