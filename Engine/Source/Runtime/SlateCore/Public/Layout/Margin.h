@@ -80,11 +80,11 @@ public:
 	{ }
 	
 	/** Construct a Margin where the spacing on each side is individually specified. */
-	FMargin(float InLeft, float InTop, float InRight, float InBottom)
-		: Left(InLeft)
-		, Top(InTop)
-		, Right(InRight)
-		, Bottom(InBottom)
+	FMargin(double InLeft, double InTop, double InRight, double InBottom)
+		: Left((float)InLeft)
+		, Top((float)InTop)
+		, Right((float)InRight)
+		, Bottom((float)InBottom)
 	{ }
 
 	/** Construct a Margin where the margins are coming from a FVector4 */

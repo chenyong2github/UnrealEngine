@@ -146,7 +146,7 @@ public:
 								[
 									// rename button
 									SNew(SButton)
-										.ContentPadding(2)
+										.ContentPadding(2.f)
 										.ForegroundColor(FSlateColor::UseForeground())
 										.IsEnabled(this, &SEditableComboBox::HandleRemoveRenameButtonIsEnabled)
 										.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
@@ -183,7 +183,7 @@ public:
 								[
 									// accept button
 									SNew(SButton)
-										.ContentPadding(2)
+										.ContentPadding(2.f)
 										.ForegroundColor(FSlateColor::UseForeground())
 										.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
 										.OnClicked(this, &SEditableComboBox::HandleAcceptButtonClicked)
@@ -205,7 +205,7 @@ public:
 				[
 					// add button
 					SNew(SButton)
-						.ContentPadding(2)
+						.ContentPadding(2.f)
 						.ForegroundColor(FSlateColor::UseForeground())
 						.IsEnabled(this, &SEditableComboBox::HandleAddButtonIsEnabled)
 						.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
@@ -226,7 +226,7 @@ public:
 				[
 					// remove button
 					SNew(SButton)
-						.ContentPadding(2)
+						.ContentPadding(2.f)
 						.ForegroundColor(FSlateColor::UseForeground())
 						.IsEnabled(this, &SEditableComboBox::HandleRemoveRenameButtonIsEnabled)
 						.ButtonStyle( FCoreStyle::Get(), "NoBorder" )

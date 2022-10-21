@@ -212,7 +212,7 @@ protected:
 
 		+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(2.0)
+			.Padding(2.0f)
 			[
 				SNew(SImage)
 					.Image(FAppStyle::GetBrush(IconName))
@@ -240,7 +240,7 @@ protected:
 
 		+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(2.0)
+			.Padding(2.0f)
 			[
 				SNew(SImage)
 					.Image(FAppStyle::GetBrush(IconName))

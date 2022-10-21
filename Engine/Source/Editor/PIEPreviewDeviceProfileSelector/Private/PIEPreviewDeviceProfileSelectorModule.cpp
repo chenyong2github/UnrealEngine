@@ -206,7 +206,7 @@ void FPIEPreviewDeviceModule::UpdateDisplayResolution()
 	}
 
 	const int32 ClientWidth = Device->GetWindowWidth();
-	const int32 ClientHeight = Device->GetWindowHeight() - WindowPtr->GetTitleBarSize().Get();
+	const int32 ClientHeight = Device->GetWindowHeight() - FMath::TruncToInt32(WindowPtr->GetTitleBarSize().Get());
 
 	FSystemResolution::RequestResolutionChange(ClientWidth, ClientHeight, EWindowMode::Windowed);
 	IConsoleManager::Get().CallAllConsoleVariableSinks();

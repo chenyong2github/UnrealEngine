@@ -32,7 +32,7 @@ void SProjectLauncherDeployRepositorySettings::Construct(const FArguments& InArg
 		.FillHeight(1.0)
 		[
 			SNew(SBorder)
-				.Padding(8.0)
+				.Padding(8.0f)
 				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)

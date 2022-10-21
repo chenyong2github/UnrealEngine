@@ -204,11 +204,11 @@ public:
 									// Cache the max desired width seen so far of rows in the message list.
 									// We use this to prevent the horizontal scroll bar from constantly shrinking/expanding as rows are virtualized.
 									// This will get reset whenever the message list is cleared.
-									MaxMessageListRowWidth = FMath::Max(MaxMessageListRowWidth, MessageListView->GetDesiredSize().X);
+									MaxMessageListRowWidth = FMath::Max(MaxMessageListRowWidth, (float)MessageListView->GetDesiredSize().X);
 
 									// Make the message list at least as wide as the scroll box so that there's not an empty space to its right;
 									// scroll boxes do not deal with alignment in the scroll direction (horizontal in this case).
-									const float CurrentScrollWidth = HorizontalScrollBox->GetTickSpaceGeometry().GetLocalSize().X;
+									const float CurrentScrollWidth = (float)HorizontalScrollBox->GetTickSpaceGeometry().GetLocalSize().X;
 									return FMath::Max(MaxMessageListRowWidth, CurrentScrollWidth);
 								})
 								[

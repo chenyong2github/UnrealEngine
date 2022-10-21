@@ -480,7 +480,7 @@ bool UMediaSoundComponent::Init(int32& SampleRate)
 ISoundGeneratorPtr UMediaSoundComponent::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	FMediaSoundGenerator::FSoundGeneratorParams Params;
-	Params.SampleRate = InParams.SampleRate;
+	Params.SampleRate = (int32)InParams.SampleRate;
 	Params.NumChannels = InParams.NumChannels;
 	Params.SampleQueue = SampleQueue;
 

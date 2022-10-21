@@ -96,7 +96,7 @@ void SProjectLauncherLaunchPage::Construct(const FArguments& InArgs, const TShar
 			[
 				SNew(SBorder)
 					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(8.0)
+					.Padding(8.0f)
 					.Visibility(this, &SProjectLauncherLaunchPage::HandleValidationErrorIconVisibility, ELauncherProfileValidationErrors::CustomRolesNotSupportedYet)
 					[
 						SNew(SHorizontalBox)
@@ -126,7 +126,7 @@ void SProjectLauncherLaunchPage::Construct(const FArguments& InArgs, const TShar
 				SNew(SExpandableArea)
 					.AreaTitle(LOCTEXT("DefaultRoleAreaTitle", "Default Role"))
 					.InitiallyCollapsed(false)
-					.Padding(8.0)
+					.Padding(8.0f)
 					.Visibility(this, &SProjectLauncherLaunchPage::HandleLaunchSettingsVisibility)
 					.BodyContent()
 					[

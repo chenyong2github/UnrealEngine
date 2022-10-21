@@ -61,12 +61,12 @@ namespace AndroidWindowUtils
 				if (InOutScreenHeight > InOutScreenWidth)
 				{
 					Height = RequestedResX;
-					Width = (Height * ((float)InOutScreenWidth / (float)InOutScreenHeight) + 0.5f);
+					Width = FMath::TruncToInt32((float)Height * ((float)InOutScreenWidth / (float)InOutScreenHeight) + 0.5f);
 				}
 				else
 				{
 					Width = RequestedResX;
-					Height = (Width * ((float)InOutScreenHeight / (float)InOutScreenWidth) + 0.5f);
+					Height = FMath::TruncToInt32((float)Width * ((float)InOutScreenHeight / (float)InOutScreenWidth) + 0.5f);
 				}
 			}
 			else if (RequestedResY > 0)
@@ -75,12 +75,12 @@ namespace AndroidWindowUtils
 				if (InOutScreenHeight > InOutScreenWidth)
 				{
 					Width = RequestedResY;
-					Height = (Width * ((float)InOutScreenHeight / (float)InOutScreenWidth) + 0.5f);
+					Height = FMath::TruncToInt32((float)Width * ((float)InOutScreenHeight / (float)InOutScreenWidth) + 0.5f);
 				}
 				else
 				{
 					Height = RequestedResY;
-					Width = (Height * ((float)InOutScreenWidth / (float)InOutScreenHeight) + 0.5f);
+					Width = FMath::TruncToInt32((float)Height * ((float)InOutScreenWidth / (float)InOutScreenHeight) + 0.5f);
 				}
 			}
 			else
@@ -90,15 +90,15 @@ namespace AndroidWindowUtils
 				// set resolution relative to 1280x720 ((height > width == GAndroidIsPortrait)
 				if (InOutScreenHeight > InOutScreenWidth)
 				{
-					Height = 1280 * RequestedContentScaleFactor;
+					Height = FMath::TruncToInt32(1280.f * RequestedContentScaleFactor);
 				}
 				else
 				{
-					Height = 720 * RequestedContentScaleFactor;
+					Height = FMath::TruncToInt32(720.f * RequestedContentScaleFactor);
 				}
 
 				// apply the aspect ration to get the width
-				Width = (Height * AspectRatio + 0.5f);
+				Width = FMath::TruncToInt32((float)Height * AspectRatio + 0.5f);
 			}
 
 			// ensure Width and Height is multiple of 8

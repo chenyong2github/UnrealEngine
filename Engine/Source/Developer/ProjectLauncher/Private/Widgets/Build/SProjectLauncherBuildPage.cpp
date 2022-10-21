@@ -136,7 +136,7 @@ void SProjectLauncherBuildPage::Construct(const FArguments& InArgs, const TShare
                 SNew(SExpandableArea)
 					.AreaTitle(LOCTEXT("AdvancedAreaTitle", "Advanced Settings"))
 					.InitiallyCollapsed(true)
-					.Padding(8.0)
+					.Padding(8.0f)
 					.BodyContent()
 					[
 						SNew(SVerticalBox)

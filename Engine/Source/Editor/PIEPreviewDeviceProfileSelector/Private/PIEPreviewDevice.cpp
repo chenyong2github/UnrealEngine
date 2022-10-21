@@ -58,22 +58,22 @@ void FPIEPreviewDevice::ComputeViewportSize(const bool bClampWindowSize)
 
  	// compute widow size
 	WindowWidth = ScreenWidth;
-	WindowHeight = ScreenHeight + WindowTitleBarSize * DPIScaleFactor;
+	WindowHeight = ScreenHeight + FMath::TruncToInt32((float)WindowTitleBarSize * DPIScaleFactor);
 
 	// compute viewport margin
 	if (bShowBezel && BezelTexture != nullptr)
 	{
 		// compute widow size
-		WindowWidth += 2.0f * ViewportRect.X * ScaleX;
-		WindowHeight += 2.0f * ViewportRect.Y * ScaleY;
+		WindowWidth += FMath::TruncToInt32(2.0f * ViewportRect.X * ScaleX);
+		WindowHeight += FMath::TruncToInt32(2.0f * ViewportRect.Y * ScaleY);
 
 		ViewportRect.X = FMath::RoundToInt(ViewportRect.X * BezelScaleFactor);
 		ViewportRect.Y = FMath::RoundToInt(ViewportRect.Y * BezelScaleFactor);
 		ViewportRect.Width = FMath::RoundToInt(ViewportRect.Width * BezelScaleFactor);
 		ViewportRect.Height = FMath::RoundToInt(ViewportRect.Height * BezelScaleFactor);
 
-		ViewportMargin.Left = ViewportRect.X;
-		ViewportMargin.Top = ViewportRect.Y;
+		ViewportMargin.Left = (float)ViewportRect.X;
+		ViewportMargin.Top = (float)ViewportRect.Y;
 
 		int32 BezelWidth = IsDeviceFlipped() ? BezelTexture->GetSizeY() : BezelTexture->GetSizeX();
 		int32 BezelHeight = IsDeviceFlipped() ? BezelTexture->GetSizeX() : BezelTexture->GetSizeY();
@@ -107,7 +107,7 @@ void FPIEPreviewDevice::ComputeViewportSize(const bool bClampWindowSize)
 			ScaleY *= ScaleFactor;
 
 			WindowWidth = DesktopWidth;
-			WindowHeight *= ScaleFactor;
+			WindowHeight = FMath::TruncToInt32((float)WindowHeight * ScaleFactor);
 
 			ViewportMargin = ViewportMargin * ScaleFactor;
 		}
@@ -117,7 +117,7 @@ void FPIEPreviewDevice::ComputeViewportSize(const bool bClampWindowSize)
 			ScaleX *= ScaleFactor;
 			ScaleY *= ScaleFactor;
 
-			WindowWidth *= ScaleFactor;
+			WindowWidth = FMath::TruncToInt32((float)WindowWidth * ScaleFactor);
 			WindowHeight = DesktopHeight;
 
 			ViewportMargin = ViewportMargin * ScaleFactor;
@@ -162,8 +162,8 @@ void FPIEPreviewDevice::ComputeContentScaledResolution(int32& Width, int32& Heig
 					RequestedContentScaleFactor = DeviceSpecs->IOSProperties.NativeScaleFactor;
 				}
 
-				Width *= RequestedContentScaleFactor;
-				Height *= RequestedContentScaleFactor;
+				Width = FMath::TruncToInt32((float)Width * RequestedContentScaleFactor);
+				Height = FMath::TruncToInt32((float)Height * RequestedContentScaleFactor);
 			}
 			break;
 
@@ -177,8 +177,8 @@ void FPIEPreviewDevice::ComputeDeviceResolution(int32& Width, int32& Height)
 {
 	ComputeContentScaledResolution(Width, Height);
 
-	Width *= ResolutionScaleFactor;
-	Height *= ResolutionScaleFactor;
+	Width = FMath::TruncToInt32((float)Width * ResolutionScaleFactor);
+	Height = FMath::TruncToInt32((float)Height * ResolutionScaleFactor);
 }
 
 void FPIEPreviewDevice::DetermineScreenOrientationRequirements(bool& bNeedPortrait, bool& bNeedLandscape)
@@ -496,5 +496,5 @@ FString FPIEPreviewDevice::GetProfile() const
 
 int32 FPIEPreviewDevice::GetWindowClientHeight() const
 {
-	return WindowHeight - WindowTitleBarSize * DPIScaleFactor;
+	return WindowHeight - FMath::TruncToInt32((float)WindowTitleBarSize * DPIScaleFactor);
 }

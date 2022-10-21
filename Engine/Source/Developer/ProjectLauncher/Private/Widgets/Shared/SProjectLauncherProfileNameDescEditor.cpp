@@ -29,8 +29,8 @@ void SProjectLauncherProfileNameDescEditor::Construct(const FArguments& InArgs, 
 			.VAlign(VAlign_Center)
 			[
 				SNew(SBox)
-				.WidthOverride(20)
-				.HeightOverride(20)
+				.WidthOverride(20.f)
+				.HeightOverride(20.f)
 				[
 					SNew(SImage)
 					.Image(this, &SProjectLauncherProfileNameDescEditor::HandleProfileImage)

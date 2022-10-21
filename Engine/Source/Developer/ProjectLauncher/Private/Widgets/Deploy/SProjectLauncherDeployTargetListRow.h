@@ -114,8 +114,8 @@ public:
 				.AutoWidth()
 				[
 					SNew(SBox)
-						.WidthOverride(24)
-						.HeightOverride(24)
+						.WidthOverride(24.f)
+						.HeightOverride(24.f)
 						[
 							SNew(SImage)
 								.Image(this, &SProjectLauncherDeployTargetListRow::HandleDeviceImage)

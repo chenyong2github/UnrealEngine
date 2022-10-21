@@ -117,8 +117,8 @@ public:
 					.Padding(14, 0, 12, 0)
 					[
 						SNew(SBox)
-						.WidthOverride(44)
-						.HeightOverride(44)
+						.WidthOverride(44.f)
+						.HeightOverride(44.f)
 						[
 							SNew(SImage)
 							.Image(this, &SProjectLauncherSimpleDeviceListRow::HandleDeviceImage)

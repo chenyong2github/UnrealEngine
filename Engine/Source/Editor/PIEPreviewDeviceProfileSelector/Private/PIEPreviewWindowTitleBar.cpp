@@ -100,7 +100,7 @@ void SPIEPreviewWindowTitleBar::MakeTitleBarContentWidgets(TSharedPtr< SWidget >
 	ScreenRotationButton = SNew(SButton)
 		.IsFocusable(false)
 		.IsEnabled(true)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.OnClicked_Lambda
 		(
 			[this]()

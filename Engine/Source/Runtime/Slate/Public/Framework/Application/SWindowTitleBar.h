@@ -450,7 +450,7 @@ protected:
 			RightSize = LeftSize;
 		}
 
-		float SpacerHeight = FMath::Max(LeftSize.Y, RightSize.Y);
+		float SpacerHeight = (float)FMath::Max(LeftSize.Y, RightSize.Y);
 
 		// create title bar
 		return 

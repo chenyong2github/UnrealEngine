@@ -64,7 +64,7 @@ void SProjectLauncherArchivePage::Construct(const FArguments& InArgs, const TSha
 			.Padding(0.0, 8.0, 0.0, 0.0)
 			[
 				SNew(SBorder)
-					.Padding(8.0)
+					.Padding(8.0f)
 					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					.Visibility(this, &SProjectLauncherArchivePage::HandleArchiveVisibility)
 					[
