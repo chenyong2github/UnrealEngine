@@ -25,7 +25,7 @@ struct FGameplayDebuggerDataPackRPCParams
 	FName CategoryName;
 
 	UPROPERTY()
-	int32 DataPackIdx;
+	int32 DataPackIdx = 0;
 
 	UPROPERTY()
 	FGameplayDebuggerDataPackHeader Header;
@@ -53,7 +53,7 @@ struct FGameplayDebuggerCategoryData
 	TArray<FGameplayDebuggerDataPackHeader> DataPacks;
 
 	UPROPERTY()
-	bool bIsEnabled;
+	bool bIsEnabled = false;
 };
 
 USTRUCT()

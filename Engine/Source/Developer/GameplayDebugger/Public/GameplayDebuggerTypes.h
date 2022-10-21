@@ -195,7 +195,7 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerShape
 	UPROPERTY()
 	EGameplayDebuggerShape Type;
 
-	FGameplayDebuggerShape() : Type(EGameplayDebuggerShape::Invalid) {}
+	FGameplayDebuggerShape() : Color(EForceInit::ForceInit), Type(EGameplayDebuggerShape::Invalid) {}
 
 	bool operator==(const FGameplayDebuggerShape& Other) const
 	{
