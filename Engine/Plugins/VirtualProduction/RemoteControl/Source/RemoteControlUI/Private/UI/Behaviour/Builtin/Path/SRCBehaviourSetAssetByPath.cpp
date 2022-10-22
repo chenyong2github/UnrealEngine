@@ -24,7 +24,7 @@ void SRCBehaviourSetAssetByPath::Construct(const FArguments& InArgs, TSharedRef<
 	const TSharedRef<SHorizontalBox> InternalExternalSwitchWidget = SNew(SHorizontalBox)
 		.Visibility_Lambda([PathBehaviour]()
 		{
-			return PathBehaviour->AssetClass->GetFName() == NAME_Vector ? EVisibility::Visible : EVisibility::Collapsed;
+				return PathBehaviour->AssetClass->GetFName() == "Texture" ? EVisibility::Visible : EVisibility::Collapsed;
 		});
 
 	if (!PathBehaviour)
