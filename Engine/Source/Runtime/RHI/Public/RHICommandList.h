@@ -750,6 +750,15 @@ protected:
 
 		FGraphEventRef RHIThreadBufferLockFence;
 
+		struct FFenceCandidate : public TConcurrentLinearObject<FFenceCandidate>, public FRefCountBase
+		{
+			FGraphEventRef Fence;
+		};
+
+		TRefCountPtr<FFenceCandidate> FenceCandidate;
+		FGraphEventArray QueuedFenceCandidateEvents;
+		TArray<TRefCountPtr<FFenceCandidate>, FConcurrentLinearArrayAllocator> QueuedFenceCandidates;
+
 		FPersistentState(FRHIGPUMask InInitialGPUMask, ERecordingThread InRecordingThread)
 			: RecordingThread(InRecordingThread)
 			, CurrentGPUMask(InInitialGPUMask)
