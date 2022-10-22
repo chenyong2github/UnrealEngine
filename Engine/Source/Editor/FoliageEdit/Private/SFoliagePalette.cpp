@@ -297,7 +297,7 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 				.Content()
 				[
 					SNew(SImage)
-            		.ColorAndOpacity(FSlateColor::UseForeground())
+					.ColorAndOpacity(FSlateColor::UseForeground())
 					.Image(FAppStyle::GetBrush("LevelEditor.Tabs.Details"))
 				]
 			]
@@ -314,109 +314,102 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 				.ButtonContent()
 				[
 					SNew(SImage)
-            		.ColorAndOpacity(FSlateColor::UseForeground())
+					.ColorAndOpacity(FSlateColor::UseForeground())
 					.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
 				]
 			]
 		]
 
 		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.MaxHeight(230.0f)
 		[
-			SNew(SSplitter)
-			.Orientation(Orient_Vertical)
-			.Style(FAppStyle::Get(), "FoliageEditMode.Splitter")
+			SNew(SOverlay)
 
-			+ SSplitter::Slot()
-			.Value(0.6f)
+			+ SOverlay::Slot()
 			[
-				SNew(SOverlay)
+				SNew(SVerticalBox)
 
-				+ SOverlay::Slot()
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(FMargin(6.f, 3.f))
 				[
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(FMargin(6.f, 3.f))
-					[
-						SNew(SBox)
-						.Visibility(this, &SFoliagePalette::GetDropFoliageHintVisibility)
-						.Padding(FMargin(15, 0))
-						.MinDesiredHeight(30)
-						[
-							SNew(SScaleBox)
-							.Stretch(EStretch::ScaleToFit)
-							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("Foliage_DropStatic", "+ Drop Foliage Here"))
-								.ToolTipText(LOCTEXT("Foliage_DropStatic_ToolTip", "Drag and drop foliage types or static meshes from the Content Browser to add them to the palette"))
-							]
-						]
-					]
-
-					+ SVerticalBox::Slot()
-					[
-						CreatePaletteViews()
-					]
-				
-					+ SVerticalBox::Slot()
-					.Padding(FMargin(0.f))
-					.VAlign(VAlign_Bottom)
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						
-						// Selected type name area
-						+ SHorizontalBox::Slot()
-						.Padding(FMargin(3.f))
-						.VAlign(VAlign_Bottom)
-						//.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Text(this, &SFoliagePalette::GetDetailsNameAreaText)
-						]
-					]
-				]
-				
-				// Foliage Mesh Drop Zone
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				[
-					SNew(SFoliageDragDropHandler)
-					.Visibility(this, &SFoliagePalette::GetFoliageDropTargetVisibility)
-					.OnDrop(this, &SFoliagePalette::HandleFoliageDropped)
+					SNew(SBox)
+					.Visibility(this, &SFoliagePalette::GetDropFoliageHintVisibility)
+					.Padding(FMargin(15, 0))
+					.MinDesiredHeight(30)
 					[
 						SNew(SScaleBox)
 						.Stretch(EStretch::ScaleToFit)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("Foliage_AddFoliageMesh", "+ Foliage Type"))
-							.ShadowOffset(FVector2D(1.f, 1.f))
+							.Text(LOCTEXT("Foliage_DropStatic", "+ Drop Foliage Here"))
+							.ToolTipText(LOCTEXT("Foliage_DropStatic_ToolTip", "Drag and drop foliage types or static meshes from the Content Browser to add them to the palette"))
 						]
 					]
 				]
-			]
-
-			// Details
-			+SSplitter::Slot()
-			[
-				SNew(SVerticalBox)
 
 				+ SVerticalBox::Slot()
-				.Padding(0, 2)
+				[
+					CreatePaletteViews()
+				]
+				
+				+ SVerticalBox::Slot()
+				.Padding(FMargin(0.f))
+				.VAlign(VAlign_Bottom)
 				.AutoHeight()
 				[
-					SNew(SUneditableFoliageTypeWarning)
-					.WarningText(LOCTEXT("CannotEditBlueprintFoliageTypeWarning", "Blueprint foliage types must be edited in the <a id=\"HyperlinkDecorator\" style=\"DetailsView.BPMessageHyperlinkStyle\">Blueprint</>"))
-					.OnHyperlinkClicked(this, &SFoliagePalette::OnEditFoliageTypeBlueprintHyperlinkClicked)
-					.Visibility(this, &SFoliagePalette::GetUneditableFoliageTypeWarningVisibility)
+					SNew(SHorizontalBox)
+						
+					// Selected type name area
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(3.f))
+					.VAlign(VAlign_Bottom)
+					//.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(this, &SFoliagePalette::GetDetailsNameAreaText)
+					]
 				]
-
-				+ SVerticalBox::Slot()
+			]
+				
+			// Foliage Mesh Drop Zone
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SFoliageDragDropHandler)
+				.Visibility(this, &SFoliagePalette::GetFoliageDropTargetVisibility)
+				.OnDrop(this, &SFoliagePalette::HandleFoliageDropped)
 				[
-					DetailsWidget.ToSharedRef()
+					SNew(SScaleBox)
+					.Stretch(EStretch::ScaleToFit)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Foliage_AddFoliageMesh", "+ Foliage Type"))
+						.ShadowOffset(FVector2D(1.f, 1.f))
+					]
 				]
+			]
+		]
+		// Details
+		+ SVerticalBox::Slot()
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.Padding(0, 2)
+			.AutoHeight()
+			[
+				SNew(SUneditableFoliageTypeWarning)
+				.WarningText(LOCTEXT("CannotEditBlueprintFoliageTypeWarning", "Blueprint foliage types must be edited in the <a id=\"HyperlinkDecorator\" style=\"DetailsView.BPMessageHyperlinkStyle\">Blueprint</>"))
+				.OnHyperlinkClicked(this, &SFoliagePalette::OnEditFoliageTypeBlueprintHyperlinkClicked)
+				.Visibility(this, &SFoliagePalette::GetUneditableFoliageTypeWarningVisibility)
+			]
+
+			+ SVerticalBox::Slot()
+			[
+				DetailsWidget.ToSharedRef()
 			]
 		]
 	];
