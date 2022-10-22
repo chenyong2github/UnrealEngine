@@ -714,12 +714,26 @@ namespace Gauntlet
 		/// <returns></returns>
 		public UnrealTestRole RequireRole(UnrealTargetRole InRole)
 		{
+			if(InRole.IsEditor())
+			{
+				return GetEditorRole();
+			}
 			return RequireRoles(InRole, 1).First();
 		}
 
 		public UnrealTestRole RequireRole(UnrealTargetRole InRole, UnrealTargetPlatform PlatformOverride)
 		{
+			if (InRole.IsEditor())
+			{
+				InRole = CookedEditor ? UnrealTargetRole.CookedEditor : UnrealTargetRole.Editor;
+			}
 			return RequireRoles(InRole, PlatformOverride, 1).First();
+		}
+
+		public UnrealTestRole GetEditorRole()
+		{
+			UnrealTargetRole EditorRole = CookedEditor ? UnrealTargetRole.CookedEditor : UnrealTargetRole.Editor;
+			return RequireRoles(EditorRole, 1).First();
 		}
 
 		/// <summary>
