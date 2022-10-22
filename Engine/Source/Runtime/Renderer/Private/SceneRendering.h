@@ -74,11 +74,6 @@ struct FSceneTextures;
 struct FCustomDepthTextures;
 struct FDynamicShadowsTaskData;
 
-namespace DistanceField
-{
-	struct FUpdateTrackingBounds;
-};
-
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
@@ -2123,7 +2118,7 @@ public:
 
 	void UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder);
 	void UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder);
-	void AddOrRemoveSceneHeightFieldPrimitives(const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds, bool bSkipAdd = false);
+	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
 	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, FRDGExternalAccessQueue& ExternalAccessQueue, bool bSplitDispatch);
 
 	void DrawGPUSkinCacheVisualizationInfoText();

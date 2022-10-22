@@ -1968,7 +1968,6 @@ public:
 		FRDGBuilder& GraphBuilder,
 		FRDGExternalAccessQueue& ExternalAccessQueue,
 		FScene* Scene,
-		const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds,
 		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
 		TArray<FSetElementId>& DistanceFieldAssetRemoves);
 

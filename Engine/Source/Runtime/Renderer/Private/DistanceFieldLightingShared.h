@@ -118,15 +118,8 @@ namespace DistanceField
 {
 	constexpr uint32 MinPrimitiveModifiedBoundsAllocation = 16 * 1024;
 
-	// Bounds indicating where distance field object updates should be tracked
-	struct FUpdateTrackingBounds
-	{
-		FBox GlobalDistanceFieldBounds;
-	};
-
 	RENDERER_API FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData& DistanceFieldSceneData);
 	RENDERER_API FDistanceFieldAtlasParameters SetupAtlasParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData& DistanceFieldSceneData);
-	void BuildUpdateTrackingBounds(const TArray<FViewInfo>& Views, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldCulledObjectBufferParameters, )

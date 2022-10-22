@@ -2867,20 +2867,3 @@ void UpdateGlobalDistanceFieldVolume(
 		View.ViewState->GlobalDistanceFieldData->UpdateFrame = View.Family->FrameNumber;
 	}
 }
-
-void GlobalDistanceField::ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
-{
-	// Global Distance Field is interested in any updates which in ClipmapInfluenceBounds range of it's clipmaps
-
-	const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(false, 1.0f), 0, GlobalDistanceField::MaxClipmaps);
-	for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
-	{
-		const FGlobalDistanceFieldClipmapState& ClipmapViewState = ViewState->GlobalDistanceFieldData->ClipmapState[ClipmapIndex];
-
-		const FVector3f ClipmapCenter = ClipmapViewState.CachedClipmapCenter;
-		const float ClipmapExtent = ClipmapViewState.CachedClipmapExtent + ClipmapViewState.CacheClipmapInfluenceRadius;
-
-		const FBox ClipmapInfluenceBounds(ClipmapCenter - ClipmapExtent, ClipmapCenter + ClipmapExtent);
-		UpdateTrackingBounds.GlobalDistanceFieldBounds += ClipmapInfluenceBounds;
-	}
-}
