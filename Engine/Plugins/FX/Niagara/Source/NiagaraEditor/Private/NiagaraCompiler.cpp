@@ -1460,31 +1460,29 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 	const UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj);
 	const UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Obj);
 
+	/*
+	* const TArray<FNiagaraVariable>& EncounterableVariables, const TArray<FNiagaraVariable>& InStaticVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const 
+	*/
 	const TArray<class UNiagaraSimulationStageBase*>* SimStages = nullptr;
 	const UNiagaraScriptSource* ScriptSource = nullptr;
 	FCompileConstantResolver ConstantResolver;
+	TArray<FNiagaraVariable> EncounterableVariables;
+	TArray<FNiagaraVariable> StaticVariablesFromSystem;
+	TArray<FNiagaraVariable> StaticVariablesFromSystemAndEmitters;
 	TArray<FNiagaraVariable> SrcStaticVariables;
 	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> ParentCachedData;
 	FString SrcUniqueEmitterName;
 
-	int32 ValidUsageMask = 0;
-	bool bIncludeSubHistories = true;
-
 	if (System)
 	{
-		TArray<FNiagaraVariable> StaticVariablesFromEmitters;
-
 		ScriptSource = CastChecked<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetLatestSource());
 		ConstantResolver = FCompileConstantResolver(System, ENiagaraScriptUsage::SystemSpawnScript);
-		System->GatherStaticVariables(SrcStaticVariables, StaticVariablesFromEmitters);
+		System->GatherStaticVariables(StaticVariablesFromSystem, StaticVariablesFromSystemAndEmitters);
 
-		for (const FNiagaraVariable& Var : StaticVariablesFromEmitters)
-		{
+		SrcStaticVariables = StaticVariablesFromSystem;
+
+		for (const FNiagaraVariable& Var : StaticVariablesFromSystemAndEmitters)
 			SrcStaticVariables.AddUnique(Var);
-		}
-
-		ValidUsageMask = ENiagaraScriptUsageMask::System;
-		bIncludeSubHistories = false;
 	}
 	else if (Emitter)
 	{
@@ -1497,6 +1495,13 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			{
 				SrcStaticVariables = ((FNiagaraGraphCachedBuiltHistory*)ParentCachedData.Get())->StaticVariables;
 			}
+			/*for (const FNiagaraEmitterHandle& Handle : SysParent->GetEmitterHandles())
+			{
+				if (Handle.GetInstance() == Emitter)
+				{
+					SrcUniqueEmitterName = Handle.GetUniqueEmitterName().ToString();
+				}
+			}*/
 		}
 		SrcUniqueEmitterName = Emitter->GetUniqueEmitterName();
 		const FVersionedNiagaraEmitterData* EmitterData = Emitter->GetEmitterData(Version);
@@ -1505,9 +1510,8 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 		ScriptSource = CastChecked<UNiagaraScriptSource>(EmitterData->GraphSource);
 		SimStages = &EmitterData->GetSimulationStages();
 		ConstantResolver = FCompileConstantResolver(FVersionedNiagaraEmitter(const_cast<UNiagaraEmitter*>(Emitter), Version), ENiagaraScriptUsage::EmitterSpawnScript);
-
-		ValidUsageMask = ENiagaraScriptUsageMask::Particle | ENiagaraScriptUsageMask::Emitter;
 	}
+
 
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	if (ScriptSource != nullptr && ScriptSource->NodeGraph != nullptr)
@@ -1531,14 +1535,6 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 	int32 NumSimStageNodes = 0;
 	for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
 	{
-		// only process those nodes that we care about
-		const bool bShouldSkipOutputNode = !(ValidUsageMask & (1 << (int32)FoundOutputNode->GetUsage()));
-
-		if (bShouldSkipOutputNode)
-		{
-			continue;
-		}
-
 		FName SimStageName;
 		bool bStageEnabled = true;
 		if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
@@ -1546,9 +1542,9 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			// Find the simulation stage for this output node.
 			const FGuid& UsageId = FoundOutputNode->GetUsageId();
 			UNiagaraSimulationStageBase* const* MatchingStagePtr = SimStages->FindByPredicate([UsageId](UNiagaraSimulationStageBase* SimStage)
-			{
+				{
 					return SimStage != nullptr && SimStage->Script != nullptr && SimStage->Script->GetUsageId() == UsageId;
-			});
+				});
 
 			// Set whether or not the stage is enabled, and get the iteration source name if available.
 			bStageEnabled = MatchingStagePtr != nullptr && (*MatchingStagePtr)->bEnabled;
@@ -1569,20 +1565,18 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			{
 				Builder.AddGraphToCallingGraphContextStack(ScriptSource->NodeGraph);
 			}
+			Builder.RegisterEncounterableVariables(EncounterableVariables);
 			Builder.RegisterExternalStaticVariables(StaticVariables);
 
 			FString TranslationName = TEXT("Emitter");
 			Builder.BeginTranslation(TranslationName);
 			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
 			Builder.EnableScriptAllowList(true, FoundOutputNode->GetUsage());
-			Builder.bShouldBuildSubHistories = bIncludeSubHistories;
 			Builder.BuildParameterMaps(FoundOutputNode, true);
 			Builder.EndUsage();
 
 			for (const FNiagaraVariable& Var : Builder.StaticVariables)
-			{
 				StaticVariables.AddUnique(Var);
-			}
 		}
 	}
 
