@@ -198,10 +198,8 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 			{
 				InterchangeManager->OnAssetPostReimport.Broadcast(Asset);
 			}
-			else
-			{
-				InterchangeManager->OnAssetPostImport.Broadcast(Asset);
-			}
+			//We broadcast this event for both import and reimport.
+			InterchangeManager->OnAssetPostImport.Broadcast(Asset);
 		}
 	}
 

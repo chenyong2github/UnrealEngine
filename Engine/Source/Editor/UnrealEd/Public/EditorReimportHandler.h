@@ -158,6 +158,8 @@ private:
 	/** Sort Reimport handlers by priority if they are unsorted */
 	void SortHandlersIfNeeded();
 
+	void OnInterchangePostReimported(UObject* ReimportAsset) const;
+
 	/** Reimport handlers registered with this manager */
 	TArray<FReimportHandler*> Handlers;
 
@@ -169,6 +171,8 @@ private:
 
 	/** Delegate to call after the asset is reimported */
 	FPostReimportNotification PostReimport;
+
+	FDelegateHandle InterchangePostReimportedDelegateHandle;
 
 	/** Constructor */
 	FReimportManager();
