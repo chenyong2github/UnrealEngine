@@ -140,6 +140,7 @@ void FComputeKernelShaderCompilationManager::RunCompileJobs()
 				if (GShaderCompilingManager->ShouldRecompileToDumpShaderDebugInfo(CurrentJob))
 				{
 					CurrentJob.Input.DumpDebugInfoPath = GShaderCompilingManager->CreateShaderDebugInfoPath(CurrentJob.Input);
+					CurrentJob.Output = FShaderCompilerOutput();
 					Compiler->CompileShader(Format, CurrentJob.Input, CurrentJob.Output, FString(FPlatformProcess::ShaderDir()));
 				}
 
