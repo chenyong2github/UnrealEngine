@@ -320,7 +320,7 @@ FText FSourceControlMenuHelpers::GetSourceControlSyncStatusText()
 	{
 		return LOCTEXT("SyncLatestButtonAtHeadText", "At Latest");
 	}
-	return LOCTEXT("SyncLatestButtonNotAtHeadText", "Get Latest");
+	return LOCTEXT("SyncLatestButtonNotAtHeadText", "Sync Latest");
 }
 
 FText FSourceControlMenuHelpers::GetSourceControlSyncStatusTooltipText()
