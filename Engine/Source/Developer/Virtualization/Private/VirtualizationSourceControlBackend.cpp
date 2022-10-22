@@ -348,19 +348,87 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)
+bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
 
-	TStringBuilder<512> DepotPath;
-	CreateDepotPath(Id, DepotPath);
+#if 0
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
+
+	for (FPullRequest& Request : Requests)
+	{
+		TStringBuilder<512> DepotPath;
+		CreateDepotPath(Request.Identifier, DepotPath);
+
+		// TODO: When multiple threads are blocked waiting on this we could gather X payloads together and make a single
+		// batch request on the same connection, which should be a lot faster with less overhead.
+		// Although ideally this backend will not get hit very often.
+		FSemaphoreScopeLock _(ConcurrentConnectionLimit.Get());
+
+		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Attempting to pull '%s' from source control"), *GetDebugName(), *DepotPath);
+
+		int32 Retries = 0;
+
+		while (Retries < RetryCount)
+		{
+			// Only warn if the backend is configured to retry
+			if (Retries != 0)
+			{
+				UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to download '%s' retrying (%d/%d) in %dms..."), *GetDebugName(), DepotPath.ToString(), Retries, RetryCount, RetryWaitTimeMS);
+				FPlatformProcess::SleepNoStats(RetryWaitTimeMS * 0.001f);
+			}
+
+#if IS_SOURCE_CONTROL_THREAD_SAFE
+			TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
+			if (SCCProvider->Execute(DownloadCommand, DepotPath.ToString(), EConcurrency::Synchronous) == ECommandResult::Succeeded)
+			{
+				// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
+				FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPath);
+				return FCompressedBuffer::FromCompressed(Buffer);
+			}
+#else
+			TSharedRef<FDownloadFile> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
+			if (SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, DepotPath.ToString()))
+			{
+				// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
+				Request.Status = FPullRequest::EStatus::Success;
+				Request.Payload = FCompressedBuffer::FromCompressed(DownloadCommand->GetFileData(DepotPath));
+
+				break;
+			}
+#endif
+
+			// If this was the first try then check to see if the error being returns is that the file does not exist
+			// in the depot. If it does not exist then there is no point in us retrying and we can error out at this point.
+			if (Retries == 0 && IsDepotFileMissing(DownloadCommand->GetResultInfo()))
+			{
+				break;
+			}
+
+			Retries++;
+		}
+	}
+
+	return true;
+
+#else
+	TArray<FString> DepotPaths;
+	DepotPaths.Reserve(Requests.Num());
+
+	for (FPullRequest& Request : Requests)
+	{
+		TStringBuilder<512> DepotPath;
+		CreateDepotPath(Request.GetIdentifier(), DepotPath);
+
+		DepotPaths.Add(DepotPath.ToString());
+	}
 
 	// TODO: When multiple threads are blocked waiting on this we could gather X payloads together and make a single
 	// batch request on the same connection, which should be a lot faster with less overhead.
 	// Although ideally this backend will not get hit very often.
 	FSemaphoreScopeLock _(ConcurrentConnectionLimit.Get());
 
-	UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Attempting to pull '%s' from source control"), *GetDebugName(), *DepotPath);
+//	UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Attempting to pull '%s' from source control"), *GetDebugName(), *DepotPath);
 
 	int32 Retries = 0;
 
@@ -369,7 +437,7 @@ FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)
 		// Only warn if the backend is configured to retry
 		if (Retries != 0)
 		{
-			UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to download '%s' retrying (%d/%d) in %dms..."), *GetDebugName(), DepotPath.ToString(), Retries, RetryCount, RetryWaitTimeMS);
+		//	UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to download '%s' retrying (%d/%d) in %dms..."), *GetDebugName(), DepotPath.ToString(), Retries, RetryCount, RetryWaitTimeMS);
 			FPlatformProcess::SleepNoStats(RetryWaitTimeMS * 0.001f);
 		}
 
@@ -379,15 +447,23 @@ FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)
 		{
 			// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
 			FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPath);
-			return FCompressedBuffer::FromCompressed(Buffer);
+
+			Request.Payload = FCompressedBuffer::FromCompressed(Buffer);
+			Request.Status = FPullRequest::EStatus::Success;
 		}
 #else
 		TSharedRef<FDownloadFile> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
-		if (SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, DepotPath.ToString()))
+		if (SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, DepotPaths))
 		{
-			// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
-			FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPath);
-			return FCompressedBuffer::FromCompressed(Buffer);
+			for(int32 Index = 0; Index < Requests.Num(); ++Index)
+			{
+				// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
+				FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPaths[Index]);
+
+				Requests[Index].SetPayload(FCompressedBuffer::FromCompressed(Buffer));
+			}
+
+			break;
 		}
 #endif
 
@@ -395,13 +471,16 @@ FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)
 		// in the depot. If it does not exist then there is no point in us retrying and we can error out at this point.
 		if (Retries == 0 && IsDepotFileMissing(DownloadCommand->GetResultInfo()))
 		{
-			return FCompressedBuffer();
+			break;
 		}
-		
+
 		Retries++;
 	}
 
-	return FCompressedBuffer();
+	// TODO -  Should we error here if the payload failed? 
+
+	return true;
+#endif
 }
 
 bool FSourceControlBackend::DoesPayloadExist(const FIoHash& Id)

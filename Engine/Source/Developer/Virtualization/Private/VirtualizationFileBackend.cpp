@@ -168,37 +168,59 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 	return ErrorCount == 0;
 }
 
-FCompressedBuffer FFileSystemBackend::PullData(const FIoHash& Id)
+bool FFileSystemBackend::PullData(TArrayView<FPullRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PullData);
 
-	TStringBuilder<512> FilePath;
-	CreateFilePath(Id, FilePath);
-
-	// TODO: Should we allow the error severity to be configured via ini or just not report this case at all?
-	if (!IFileManager::Get().FileExists(FilePath.ToString()))
+	for (FPullRequest& Request : Requests)
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *LexToString(Id));
-		return FCompressedBuffer();
+		TStringBuilder<512> FilePath;
+		CreateFilePath(Request.GetIdentifier(), FilePath);
+
+		// TODO: Should we allow the error severity to be configured via ini or just not report this case at all?
+		if (!IFileManager::Get().FileExists(FilePath.ToString()))
+		{
+			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), 
+				*GetDebugName(), 
+				*LexToString(Request.GetIdentifier()));
+
+			continue;
+		}
+
+		TUniquePtr<FArchive> FileAr = OpenFileForReading(FilePath.ToString());
+
+		if (FileAr == nullptr)
+		{
+			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+			Utils::GetFormattedSystemError(SystemErrorMsg);
+
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from file '%s' due to system error: %s"),
+				*GetDebugName(),
+				*LexToString(Request.GetIdentifier()),
+				FilePath.ToString(),
+				SystemErrorMsg.ToString());
+
+			Request.SetError();
+
+			continue;
+		}
+
+		Request.SetPayload(FCompressedBuffer::Load(*FileAr));
+
+		if (FileAr->IsError())
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to serialize payload '%s' from file '%s'"),
+				*GetDebugName(),
+				*LexToString(Request.GetIdentifier()),
+				FilePath.ToString());
+
+			Request.SetError();
+
+			continue;
+		}
 	}
 
-	TUniquePtr<FArchive> FileAr = OpenFileForReading(FilePath.ToString());
-
-	if (FileAr == nullptr)
-	{
-		TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
-		Utils::GetFormattedSystemError(SystemErrorMsg);
-
-		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from file '%s' due to system error: %s"),
-			*GetDebugName(),
-			*LexToString(Id),
-			FilePath.ToString(),
-			SystemErrorMsg.ToString());
-
-		return FCompressedBuffer();
-	}
-
-	return FCompressedBuffer::Load(*FileAr);
+	return true;
 }
 
 bool FFileSystemBackend::DoesPayloadExist(const FIoHash& Id)

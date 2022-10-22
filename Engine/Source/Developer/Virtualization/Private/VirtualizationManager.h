@@ -83,6 +83,7 @@ namespace UE::Virtualization
 {
 class IVirtualizationBackend;
 class IVirtualizationBackendFactory;
+class FPullRequestCollection;
 
 /** The default mode of filtering to use with package paths that do not match entries in UVirtualizationFilterSettings */
 enum class EPackageFilterMode : uint8
@@ -120,8 +121,7 @@ private:
 	virtual bool AllowSubmitIfVirtualizationFailed() const override;
 	
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;
-
-	virtual FCompressedBuffer PullData(const FIoHash& Id) override;
+	virtual bool PullData(TArrayView<FPullRequest> Requests) override;
 
 	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses) override;
 
@@ -168,13 +168,13 @@ private:
 
 	void EnsureBackendConnections();
 
-	void CachePayload(const FIoHash& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
+	void CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource);
 
-	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FIoHash& Id, const FCompressedBuffer& Payload);
+	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
 
-	FCompressedBuffer PullDataFromAllBackends(const FIoHash& Id);
-	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id);
+	void PullDataFromAllBackends(TArrayView<FPullRequest> Requests);
+	void PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests);
 
 	bool ShouldVirtualizeAsset(const UObject* Owner) const;
 
@@ -204,6 +204,8 @@ private:
 
 	/** Determines if the default filtering behavior is to virtualize a payload or not */
 	bool ShouldVirtualizeAsDefault() const;
+
+	void BroadcastEvent(TConstArrayView<FPullRequest> Ids, ENotification Event);
 	
 private:
 	// The following members are set from the config file

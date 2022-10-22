@@ -42,8 +42,7 @@ private:
 	virtual EConnectionStatus OnConnect() override;
 
 	virtual bool PushData(TArrayView<FPushRequest> Requests) override;
-
-	virtual FCompressedBuffer PullData(const FIoHash& Id) override;
+	virtual bool PullData(TArrayView<FPullRequest> Requests) override;
 
 	virtual bool DoesPayloadExist(const FIoHash& Id) override;
 	

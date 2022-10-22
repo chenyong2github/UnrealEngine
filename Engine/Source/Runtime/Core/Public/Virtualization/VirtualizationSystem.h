@@ -372,6 +372,63 @@ private:
 	FPushResult Result;
 };
 
+/** Data structure representing a payload pull request */
+struct FPullRequest
+{
+private:
+	enum class EStatus : int8
+	{
+		Error = -1,
+		Pending = 0,
+		Success = 1
+	};
+
+public:
+	FPullRequest(const FIoHash& InIdentifier)
+		: Identifier(InIdentifier)
+	{
+
+	}
+
+	const FIoHash& GetIdentifier() const
+	{
+		return Identifier;
+	}
+
+	const FCompressedBuffer& GetPayload() const
+	{
+		return Payload;
+	}
+
+	bool IsSuccess() const
+	{
+		return Status == EStatus::Success;
+	}
+
+	void SetError()
+	{
+		Status = EStatus::Error;
+		Payload.Reset();
+	}
+
+	void SetPayload(const FCompressedBuffer& InPayload)
+	{
+		Payload = InPayload;
+		Status = Payload ? EStatus::Success : EStatus::Error;
+	}
+
+	void SetPayload(FCompressedBuffer&& InPayload)
+	{
+		Payload = MoveTemp(InPayload);
+		Status = Payload ? EStatus::Success : EStatus::Error;
+	}
+
+private:
+	FIoHash Identifier;
+	FCompressedBuffer Payload;
+	EStatus Status = EStatus::Pending;
+};
+
 /** 
  * The set of parameters to be used when initializing the virtualization system. The 
  * members must remain valid for the duration of the call to ::Initialize. It is not
@@ -561,14 +618,45 @@ public:
 	}
 
 	/**
-	 * Pull a payload from the virtualization backends.
+	 * Pull a number of payloads from the virtualization backends.
 	 *
-	 * @param	Id The identifier of the payload being pulled.
-	 * @return	The payload in the form of a FCompressedBuffer. No decompression will be applied to the payload, it is 
-	 *			up to the caller if they want to retain the payload in compressed or uncompressed format.  If no
-	 *			backend contained the payload then an empty invalid FCompressedBuffer will be returned.
+	 * @param	Requests	An array of payload pull requests. @see FPullRequest
+	 * @return				True if the requests succeeded, false if one or more requests failed
 	 */
-	virtual FCompressedBuffer PullData(const FIoHash& Id) = 0;
+	virtual bool PullData(TArrayView<FPullRequest> Requests) = 0;
+
+	/** 
+	 * Pull a single payload from the virtualization backends.
+	 * 
+	 * @param Id	The hash of the payload to pull
+	 * @return		A valid buffer representing the payload if the pull was successful. 
+	 *				An invalid buffer if the pull failed.
+	 */
+	FCompressedBuffer PullData(const FIoHash& Id)
+	{
+		FPullRequest Request(Id);
+
+		if (PullData(MakeArrayView(&Request, 1)))
+		{
+			return Request.GetPayload();
+		}
+		else
+		{
+			return FCompressedBuffer();
+		}
+	}
+
+	/**
+	 * Pull a single payload from the virtualization backends.
+	 *
+	 * @param Request	A payload pull request. @see FPullRequest
+	 * @return			True if the pull failed and the request will return a valid payload.
+	 *					False if the pull failed and the request will return an invalid payload
+	 */
+	bool PullData(FPullRequest Request)
+	{
+		return PullData(MakeArrayView(&Request, 1));
+	}
 
 	/**
 	 * Query if a number of payloads exist or not in the given storage type. 

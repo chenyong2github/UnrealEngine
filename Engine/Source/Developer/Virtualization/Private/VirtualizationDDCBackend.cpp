@@ -131,36 +131,38 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
 	return bWasSuccess;
 }
 
-FCompressedBuffer FDDCBackend::PullData(const FIoHash& Id)
+bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PullData);
 
 	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 
-	UE::DerivedData::FCacheKey Key;
-	Key.Bucket = Bucket; 
-	Key.Hash = Id;
+	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Normal);
 
-	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
-
-	FCompressedBuffer ResultData;
-	UE::DerivedData::EStatus ResultStatus;
-
-	auto Callback = [&Id, &ResultData, &ResultStatus](UE::DerivedData::FCacheGetResponse&& Response)
+	for (FPullRequest& Request : Requests)
 	{
-		ResultStatus = Response.Status;
-		if (ResultStatus == UE::DerivedData::EStatus::Ok)
-		{
-			ResultData = Response.Record.GetValue(ToDerivedDataValueId(Id)).GetData();
-		}
-	};
+		UE::DerivedData::FRequestBarrier Barrier(Owner);
 
-	// TODO: Improve the name when we start passing more context to this function
-	Cache.Get({{{TEXT("Mirage")}, Key, TransferPolicy}}, Owner, MoveTemp(Callback));
+		UE::DerivedData::FCacheKey Key;
+		Key.Bucket = Bucket;
+		Key.Hash = Request.GetIdentifier();
+
+		auto Callback = [&Request](UE::DerivedData::FCacheGetResponse&& Response)
+		{
+			if (Response.Status == UE::DerivedData::EStatus::Ok)
+			{
+				UE::DerivedData::FValueId ValueId = ToDerivedDataValueId(Request.GetIdentifier());
+				Request.SetPayload(Response.Record.GetValue(ValueId).GetData());
+			}
+		};
+
+		// TODO: Improve the name when we start passing more context to this function
+		Cache.Get({ {{TEXT("Mirage")}, Key, TransferPolicy} }, Owner, MoveTemp(Callback));
+	}
 
 	Owner.Wait();
 
-	return ResultData;
+	return true;
 }
 
 bool FDDCBackend::DoesPayloadExist(const FIoHash& Id)

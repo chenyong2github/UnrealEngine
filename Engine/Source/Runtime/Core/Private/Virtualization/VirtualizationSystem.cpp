@@ -92,13 +92,16 @@ public:
 		return false;
 	}
 
-	virtual FCompressedBuffer PullData(const FIoHash& Id) override
+	virtual bool PullData(TArrayView<FPullRequest> Requests) override
 	{
 #if UE_LOG_ON_NULLSYSTEM_USE
-		UE_LOG(LogVirtualization, UE_NULLSYSTEM_SEVERITY, TEXT("Cannot pull payload '%s' as the virtualization system is disabled"), *LexToString(Id));
+		for (const FPullRequest& Request : Requests)
+		{
+			UE_LOG(LogVirtualization, UE_NULLSYSTEM_SEVERITY, TEXT("Cannot pull payload '%s' as the virtualization system is disabled"), *LexToString(Request.GetIdentifier()));
+		}
 #endif //UE_LOG_ON_NULLSYSTEM_USE
 
-		return FCompressedBuffer();
+		return false;
 	}
 
 	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses) override

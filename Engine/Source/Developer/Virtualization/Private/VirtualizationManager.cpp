@@ -31,6 +31,8 @@ UE_REGISTER_VIRTUALIZATION_SYSTEM(UE::Virtualization::FVirtualizationManager, De
 	#define UE_VIRTUALIZATION_CONNECTION_LAZY_INIT 0
 #endif //UE_VIRTUALIZATION_CONNECTION_LAZY_INIT
 
+#define UE_INLINE_ALLOCATION_COUNT 4
+
 // TODO: Move to RegisterConsoleCommands
 static TAutoConsoleVariable<bool> CVarLazyInitConnections(
 	TEXT("VA.LazyInitConnections"),
@@ -82,6 +84,126 @@ struct FConditionalScopeLock
 private:
 	FCriticalSection* SyncObject;
 };
+
+/** 
+ * Utility class to help manage pull requests. When created it will remove invalid and duplicate requests so
+ * that backends do not need to worry about them.
+ * It will also prune the list of requests after each backend pull so that we only make requests for payloads 
+ * that have not yet been found and on request provide a list of payloads that should be cached.
+ * On destruction it will then write the results back to the original requests. Duplicate requests will share 
+ * references to the same payload in memory. Once destroyed all of the original requests should have a success
+ * or error status and none should be listed as pending.
+ * 
+ * NOTE: This is intended to be used by FVirtualizationManager::PullDataFromAllBackends only, hence doing a 
+ * few dangerous things like returning a TArrayView as we know it will not be misused. If this is ever taken
+ * into wider use we will have to revisit things like that.
+ */
+class FPullRequestCollection
+{
+public:
+	UE_NONCOPYABLE(FPullRequestCollection);
+
+	FPullRequestCollection() = delete;
+	FPullRequestCollection(TArrayView<FPullRequest> InRequests)
+		: OriginalRequests(InRequests)
+	{
+		CurrentRequests.Reserve(OriginalRequests.Num());
+
+		// Record each payload hash as we add it to CurrentRequests so that we only request duplicates once.
+		TSet<FIoHash, DefaultKeyFuncs<FIoHash>, TInlineSetAllocator<UE_INLINE_ALLOCATION_COUNT>> UniquePayloads;
+
+		for (FPullRequest& Request : OriginalRequests)
+		{
+			if (Request.GetIdentifier().IsZero())
+			{
+				Request.SetError();
+				UE_LOG(LogVirtualization, Error, TEXT("Attempting to pull a virtualized payload with an invalid FIoHash"));
+			}
+			else if (!UniquePayloads.Contains(Request.GetIdentifier()))
+			{
+				CurrentRequests.Add(Request);
+				UniquePayloads.Add(Request.GetIdentifier());
+			}
+		}
+	}
+
+	~FPullRequestCollection()
+	{
+		for (FPullRequest& Request : OriginalRequests)
+		{
+			if (FCompressedBuffer* Payload = LoadedPayloads.Find(Request.GetIdentifier()))
+			{
+				Request.SetPayload(*Payload);
+			}
+			else
+			{
+				Request.SetError();
+			}
+		}
+	}
+
+	/** 
+	 * Called after the requests from ::GetRequests have been pulled from a backend. Payloads that were
+	 * successfully pulled will be removed from the request list and added to the LoadedPayloads map 
+	 * so that they can be assigned to the original requests later.
+	 * 
+	 * @param Backend					The backend that the payloads were pulled from
+	 * @param bRequirePayloadsToCache	Do we need a list of payloads that should be cached
+	 * 
+	 * @return A list of requests that now need to be cached (if required)
+	 */
+	TArray<FPushRequest> OnPullCompleted(const IVirtualizationBackend& Backend, bool bRequirePayloadsToCache)
+	{
+		TArray<FPushRequest> PayloadsToCache;
+		if (bRequirePayloadsToCache)
+		{
+			PayloadsToCache.Reserve(CurrentRequests.Num());
+		}
+
+		for (int32 Index = 0; Index < CurrentRequests.Num();)
+		{
+			const FPullRequest& Request = CurrentRequests[Index];
+			if (Request.IsSuccess())
+			{
+				if (bRequirePayloadsToCache)
+				{
+					PayloadsToCache.Emplace(FPushRequest(Request.GetIdentifier(), Request.GetPayload(), FString()));
+				}
+
+				LoadedPayloads.Add(Request.GetIdentifier(), Request.GetPayload());
+
+				CurrentRequests.RemoveAtSwap(Index);
+
+				UE_LOG(LogVirtualization, VeryVerbose, TEXT("[%s] pulled payload '%s'"), *Backend.GetDebugName(), *LexToString(Request.GetIdentifier()));
+			}
+			else
+			{
+				++Index;
+			}
+		}
+
+		return PayloadsToCache;
+	}
+
+	/** Return the current list of requests that need to be made */
+	TArrayView<FPullRequest> GetRequests()
+	{
+		return CurrentRequests;
+	}
+
+	/** Returns if we still have payloads that have not yet been found */
+	bool HasRemainingRequests() const
+	{
+		return !CurrentRequests.IsEmpty();
+	}
+
+private:
+	TArrayView<FPullRequest> OriginalRequests;
+
+	TMap<FIoHash, FCompressedBuffer, TInlineSetAllocator<UE_INLINE_ALLOCATION_COUNT>> LoadedPayloads;
+	TArray<FPullRequest, TInlineAllocator<UE_INLINE_ALLOCATION_COUNT>> CurrentRequests;
+};
+
 
 bool LexTryParseString(EPackageFilterMode& OutValue, FStringView Buffer)
 {
@@ -523,13 +645,15 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		// Debug operation to validate that the payload we just pushed can be retrieved from storage
 		if (DebugValues.bValidateAfterPush && bResult == true && Backend->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 		{
-			for (FPushRequest& Request : ValidatedRequests)
+			for (FPushRequest& PushRequest : ValidatedRequests)
 			{
-				FCompressedBuffer ValidationPayload = PullDataFromBackend(*Backend, Request.GetIdentifier());
-				checkf(	Request.GetIdentifier() == ValidationPayload.GetRawHash(),
+				FPullRequest PullRequest(PushRequest.GetIdentifier());
+				PullDataFromBackend(*Backend, MakeArrayView(&PullRequest, 1));
+
+				checkf(PushRequest.GetIdentifier() == PullRequest.GetPayload().GetRawHash(),
 						TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"),
 						*Backend->GetDebugName(),
-						*LexToString(Request.GetIdentifier()));
+						*LexToString(PushRequest.GetIdentifier()));
 			}
 		}
 	}
@@ -551,51 +675,51 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 	return IsCacheType(StorageType) ? ErrorCount < Backends.Num() : ErrorCount == 0;
 }
 
-FCompressedBuffer FVirtualizationManager::PullData(const FIoHash& Id)
+bool FVirtualizationManager::PullData(TArrayView<FPullRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PullData);
-
-	if (Id.IsZero())
-	{
-		// TODO: See below, should errors here be fatal?
-		UE_LOG(LogVirtualization, Error, TEXT("Attempting to pull a virtualized payload with an invalid FIoHash"));
-		return FCompressedBuffer();
-	}
 
 	if (PullEnabledBackends.IsEmpty())
 	{
 		// TODO: See below, should errors here be fatal?
-		UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled as there are no backends mounted!'"), *LexToString(Id));
-		return FCompressedBuffer();
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to pull payload(s) as there are no backends mounted!'"));
+		return false;
 	}
 
 	EnsureBackendConnections();
 
 	FConditionalScopeLock _(&DebugValues.ForceSingleThreadedCS, DebugValues.bSingleThreaded);
 
-	GetNotificationEvent().Broadcast(IVirtualizationSystem::PullBegunNotification, Id);
+	BroadcastEvent(Requests, IVirtualizationSystem::PullBegunNotification);
 
-	FCompressedBuffer Payload = PullDataFromAllBackends(Id);
-	
-	GetNotificationEvent().Broadcast(IVirtualizationSystem::PullEndedNotification, Id);
+	PullDataFromAllBackends(Requests);
 
-	if (!Payload.IsNull())
+	BroadcastEvent(Requests, IVirtualizationSystem::PullEndedNotification);
+
+	bool bSuccess = true;
+	for (const FPullRequest& Request : Requests)
 	{
-		return Payload;
-	}
-	else
-	{
-		// Broadcast the pull failed event to any listeners
-		GetNotificationEvent().Broadcast(IVirtualizationSystem::PullFailedNotification, Id);
+		// Report failed pulls of valid identifiers
+		if (!Request.IsSuccess() && !Request.GetIdentifier().IsZero())
+		{
+			GetNotificationEvent().Broadcast(IVirtualizationSystem::PullFailedNotification, Request.GetIdentifier());
 
-		// TODO: Maybe this should be a fatal error? If we keep it as an error we need to make sure any calling
-		// code handles it properly.
-		// Could be worth extending ::PullData to return error codes instead so we can make a better distinction 
-		// between the payload not being found in any of the backends and one or more of the backends failing.
-		UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled from any backend'"), *LexToString(Id));
+			// TODO: Maybe this should be a fatal error? If we keep it as an error we need to make sure any calling
+			// code handles it properly.
+			// Could be worth extending ::PullData to return error codes instead so we can make a better distinction 
+			// between the payload not being found in any of the backends and one or more of the backends failing.
+			UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled from any backend'"), *LexToString(Request.GetIdentifier()));
 
-		return FCompressedBuffer();
-	}
+			bSuccess = false;
+		}
+
+		if (Request.IsSuccess())
+		{
+			checkf(Request.GetIdentifier() == Request.GetPayload().GetRawHash(), TEXT("[%s] Invalid payload for '%s'"), *LexToString(Request.GetIdentifier()));
+		}
+	}	
+
+	return bSuccess;
 }
 
 EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses)
@@ -1540,7 +1664,7 @@ void FVirtualizationManager::EnsureBackendConnections()
 	}
 }
 
-void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource)
+void FVirtualizationManager::CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::CachePayload);
 
@@ -1549,41 +1673,61 @@ void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBu
 	// We start caching at the first (assumed to be fastest) local cache backend. 
 	for (IVirtualizationBackend* BackendToCache : CacheStorageBackends)
 	{
+		// We stop once we reach the backend that the payloads were first pulled from
 		if (BackendToCache == BackendSource)
 		{
-			return; // No point going past BackendSource
+			return;
 		}
 
-		const bool bResult = TryCacheDataToBackend(*BackendToCache, Id, Payload);
-		UE_CLOG(	!bResult, LogVirtualization, Warning,
-					TEXT("Failed to cache payload '%s' to backend '%s'"),
-					*LexToString(Id),
-					*BackendToCache->GetDebugName());
+		const bool bResult = TryCacheDataToBackend(*BackendToCache, Requests);
+
+		if (!bResult)
+		{
+			for (const FPushRequest& Request : Requests)
+			{
+				UE_LOG(LogVirtualization, Warning, TEXT("Failed to cache payload '%s' to backend '%s'"), *LexToString(Request.GetIdentifier()), *BackendToCache->GetDebugName());
+			}
+		}
 
 		// Debug operation to validate that the payload we just cached can be retrieved from storage
 		if (DebugValues.bValidateAfterPush && bResult && BackendToCache->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 		{
-			FCompressedBuffer PulledPayload = PullDataFromBackend(*BackendToCache, Id);
-			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 
+			for (const FPushRequest& Request : Requests)
+			{
+				FPullRequest ValidationRequest(Request.GetIdentifier());
+				PullDataFromBackend(*BackendToCache, MakeArrayView(&ValidationRequest, 1));
+
+				checkf(Request.GetPayload().GetRawHash() == ValidationRequest.GetPayload().GetRawHash(),
 					TEXT("[%s] Failed to pull payload '%s' after it was cached to backend"),
-					*BackendToCache->GetDebugName(), 
-					*LexToString(Id));
+					*BackendToCache->GetDebugName(),
+					*LexToString(Request.GetIdentifier()));
+			}
 		}
 	}
 }
 
-bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FIoHash& Id, const FCompressedBuffer& Payload)
+bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests)
 {
-	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
+	COOK_STAT(FCookStats::CallStats & Stats = Profiling::GetCacheStats(Backend));
+	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
+	COOK_STAT(Timer.TrackCyclesOnly());
 	
-	FPushRequest Request(Id, Payload, FString());
-
-	if (Backend.PushData(MakeArrayView(&Request, 1)))
+	if (Backend.PushData(Requests))
 	{
-		if (Request.GetResult().WasPushed())
+#if ENABLE_COOK_STATS
+		Timer.AddHit(0);
+
+		const bool bIsInGameThread = IsInGameThread();
+
+		for (const FPushRequest& Request : Requests)
 		{
-			COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+			if (Request.GetResult().WasPushed())
+			{
+				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread);
+				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, Request.GetPayload().GetCompressedSize(), bIsInGameThread);
+			}
 		}
+#endif // ENABLE_COOK_STATS
 
 		return true;
 	}
@@ -1622,20 +1766,23 @@ bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backen
 	return bPushResult;
 }
 
-FCompressedBuffer FVirtualizationManager::PullDataFromAllBackends(const FIoHash& Id)
+void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Requests)
 {
 	if (ShouldDebugFailPulling())
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("Debug miss chance (%.1f%%) invoked when pulling payload '%s'"), DebugValues.MissChance, *LexToString(Id));
-		return FCompressedBuffer();
+		UE_LOG(LogVirtualization, Verbose, TEXT("Debug miss chance (%.1f%%) invoked"), DebugValues.MissChance);
+		return;
 	}
+
+	FPullRequestCollection RequestsCollection(Requests);
 
 	for (IVirtualizationBackend* Backend : PullEnabledBackends)
 	{
-		// Skip if pulling has been disabled on this backend for debug purposes
+		check(Backend != nullptr);
+
 		if (Backend->IsOperationDebugDisabled(IVirtualizationBackend::EOperations::Pull))
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Pulling from backend '%s' is debug disabled for payload '%s'"), *Backend->GetDebugName(), *LexToString(Id));
+			UE_LOG(LogVirtualization, Verbose, TEXT("Pulling from backend '%s' is debug disabled"), *Backend->GetDebugName());
 			continue;
 		}
 
@@ -1645,37 +1792,44 @@ FCompressedBuffer FVirtualizationManager::PullDataFromAllBackends(const FIoHash&
 			continue;
 		}
 
-		FCompressedBuffer Payload = PullDataFromBackend(*Backend, Id);
+		PullDataFromBackend(*Backend, RequestsCollection.GetRequests());
 
-		if (Payload)
+		TArray<FPushRequest> PayloadsToCache = RequestsCollection.OnPullCompleted(*Backend, bEnableCacheAfterPull);
+		if (!PayloadsToCache.IsEmpty())
 		{
-			if (bEnableCacheAfterPull)
-			{
-				CachePayload(Id, Payload, Backend);
-			}
+			CachePayloads(PayloadsToCache, Backend);
+		}
 
-			UE_LOG(LogVirtualization, VeryVerbose, TEXT("[%s] pulled payload '%s'"), *Backend->GetDebugName(), *LexToString(Id));
-
-			return Payload;
+		if (!RequestsCollection.HasRemainingRequests())
+		{
+			break;
 		}
 	}
-
-	return FCompressedBuffer();
 }
 
-FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id)
+void FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests)
 {
-	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetPullStats(Backend)));
-	FCompressedBuffer Payload = Backend.PullData(Id);
+	COOK_STAT(FCookStats::CallStats & Stats = Profiling::GetPullStats(Backend));
+	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
+	COOK_STAT(Timer.TrackCyclesOnly());
 	
-	if (!Payload.IsNull())
-	{
-		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
-	}
+	Backend.PullData(Requests);
 	
-	return Payload;
-}
+#if ENABLE_COOK_STATS
+	const bool bIsInGameThread = IsInGameThread();
 
+	for (const FPullRequest& Request : Requests)
+	{
+		Timer.AddHit(0);
+
+		if (Request.IsSuccess())
+		{
+			Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread);
+			Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, Request.GetPayload().GetCompressedSize(), bIsInGameThread);
+		}
+	}
+#endif //ENABLE_COOK_STATS
+}
 
 bool FVirtualizationManager::ShouldVirtualizeAsset(const UObject* OwnerObject) const
 {
@@ -1814,6 +1968,15 @@ bool FVirtualizationManager::ShouldVirtualizeAsDefault() const
 	}
 }
 
+void FVirtualizationManager::BroadcastEvent(TConstArrayView<FPullRequest> Requests, ENotification Event)
+{
+	for (const FPullRequest& Request : Requests)
+	{
+		GetNotificationEvent().Broadcast(IVirtualizationSystem::PullEndedNotification, Request.GetIdentifier());
+	}
+}
+
 } // namespace UE::Virtualization
 
+#undef UE_INLINE_ALLOCATION_COUNT
 #undef LOCTEXT_NAMESPACE

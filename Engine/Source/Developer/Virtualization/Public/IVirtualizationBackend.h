@@ -106,17 +106,26 @@ public:
 	virtual bool PushData(TArrayView<FPushRequest> Requests) = 0;
 
 	/** 
-	 * The backend will attempt to retrieve the given payload by what ever method the backend uses.
-	 * NOTE: It is assumed that the virtualization manager will validate the returned payload to 
-	 * make sure that it matches the requested id so there is no need for each backend to do this/
+	 * The backend will attempt to retrieve the given payloads by what ever method the backend uses.
 	 * 
-	 * @param Id	The Id of a payload to try and pull from the backend.
+	 * It should be assumed that the list of requests will not contain any duplicate or invalid
+	 * payload identifiers so there is no need for each backend to perform validation.
 	 * 
-	 * @return		A valid FCompressedBuffer containing the payload if the pull
-	 *				operation succeeded and a null FCompressedBuffer
-	 *				if it did not.
+	 * It should be assumed that the caller will validate all payloads that are successfully pulled
+	 * to make sure that match the requested payload identifiers  so there is no need for each 
+	 * backend to do this.
+	 * 
+	 * @param	Requests	An array of payload pull requests. @see FPullRequest
+	 * 
+	 * @return				True if no errors were encountered while pulling, otherwise false.
+	 *						Note that returning true does not mean that all of the payloads were
+	 *						found as a missing payload should not be considered an error condition.
 	 */
-	virtual FCompressedBuffer PullData(const FIoHash& Id) = 0;
+
+	// Assume that the array only has unique requests
+	// Will set request error value if there is a problem with loading it
+	// Returns false on critical error, otherwise true
+	virtual bool PullData(TArrayView<FPullRequest> Requests) = 0;
 	
 	/**
 	 * Checks if a payload exists in the backends storage.
