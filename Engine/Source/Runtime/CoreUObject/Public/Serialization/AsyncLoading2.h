@@ -189,6 +189,12 @@ public:
 			GetPackageId() == Other.GetPackageId();
 	}
 
+	inline bool operator!=(const FPublicExportKey& Other) const
+	{
+		return GetExportHash() != Other.GetExportHash() ||
+			GetPackageId() != Other.GetPackageId();
+	}
+
 	inline friend uint32 GetTypeHash(const FPublicExportKey& In)
 	{
 		return HashCombine(GetTypeHash(In.GetPackageId()), GetTypeHash(In.GetExportHash()));
