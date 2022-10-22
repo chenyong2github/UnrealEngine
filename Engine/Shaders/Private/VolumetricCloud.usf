@@ -27,12 +27,24 @@
 #define SHADER_RENDERVIEW_PS 0
 #endif
 
+#ifndef SHADER_EMPTY_SPACE_SKIPPING_CS
+#define SHADER_EMPTY_SPACE_SKIPPING_CS 0
+#endif
+
 #ifndef VIRTUAL_SHADOW_MAP
 #define VIRTUAL_SHADOW_MAP 0
 #endif
 
 #ifndef CLOUD_SAMPLE_LOCAL_LIGHTS
 #define CLOUD_SAMPLE_LOCAL_LIGHTS 0
+#endif
+
+#ifndef EMPTY_SPACE_SKIPPING_DEBUG
+#define EMPTY_SPACE_SKIPPING_DEBUG 0
+#endif
+
+#ifndef MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT
+#define MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT 0
 #endif
 
 #ifndef CLOUD_CONSERVATIVE_DENSITY_DEBUG
@@ -43,17 +55,21 @@
 #define CLOUD_DEBUG_SAMPLES 0
 #endif
 
+#ifndef CLOUD_SAMPLE_COUNT_DEBUG_MODE
+#define CLOUD_SAMPLE_COUNT_DEBUG_MODE 0
+#endif
+
 // Draw debug sample positions
-#if CLOUD_DEBUG_SAMPLES
+#if CLOUD_DEBUG_SAMPLES || EMPTY_SPACE_SKIPPING_DEBUG
 #include "ShaderPrint.ush"
 #endif
 
-#if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
+#if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS || SHADER_EMPTY_SPACE_SKIPPING_CS
 
 #include "/Engine/Generated/Material.ush"
 #include "VolumetricCloudMaterialPixelCommon.ush"
 
-#if !SHADER_RENDERVIEW_CS
+#if !SHADER_RENDERVIEW_CS && !SHADER_EMPTY_SPACE_SKIPPING_CS
 #include "/Engine/Generated/VertexFactory.ush"
 #endif
 
@@ -61,7 +77,7 @@
 #include "ParticipatingMediaCommon.ush"
 
 
-#if defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
+#if defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS || SHADER_EMPTY_SPACE_SKIPPING_CS
 
 float3 SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
 {
@@ -230,7 +246,7 @@ bool RayIntersectSphereSolution(float3 RayOrigin, float3 RayDirection, float4 Sp
 // Single full screen triangle vertex shader
 ////////////////////////////////////////////////////////////
 
-#if SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
+#if SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS || SHADER_EMPTY_SPACE_SKIPPING_CS
 
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 
@@ -264,6 +280,9 @@ bool RayIntersectSphereSolution(float3 RayOrigin, float3 RayDirection, float4 Sp
 #endif
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
 #define MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION 0
+#endif
+#ifndef MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT
+#define MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT 0
 #endif
 
 
@@ -388,6 +407,16 @@ ParticipatingMediaPhaseContext SetupParticipatingMediaPhaseContext(float BasePha
 
 	return PMPC;
 }
+
+#define SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING (SHADER_RENDERVIEW_CS && MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT)
+
+#if SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
+
+float2	StartTracingDistanceTextureResolution;
+Texture2D<float> StartTracingDistanceTexture;
+
+#endif // SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
+
 
 void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosition, inout float4 OutColor0, inout float2 OutColor1)
 {
@@ -641,7 +670,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		const float3 GroundHemisphereLuminanceIsotropic = (2.0f * PI) * IsotropicPhase(); // Assumes the ground is uniform luminance to the cloud and solid angle is bottom hemisphere 2PI
 		const float3 GroundToCloudTransfertIsoScatter = GroundBrdfNdotL * GroundHemisphereLuminanceIsotropic;
 
-
 		//
 		// TRACING LOOP
 		//
@@ -658,8 +686,31 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			t = TMin + (float(Rand3DPCG16(int3(SvPosition.xy, View.StateFrameIndexMod8)).x) * rcp(65536.0)) * StepT;
 		}
 
+	#if SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
+		// In this case we cannot run variable step size to make sure all our samples are aligned and empty space skipping low resolution texture texel do nto become visible.
+		const float StepSizeOnZeroConservativeDensity = 1.0f;
+	#else
+		const float StepSizeOnZeroConservativeDensity = RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity;
+	#endif
+
+		//
+		// Read from empty space skipping
+		//
+		uint StartStepCount = 0;
+	#if SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
+		const float StartDepthKm = StartTracingDistanceTexture[SvPositionToViewportUV(SvPosition) * StartTracingDistanceTextureResolution];
+		const float StartDepthCm = StartDepthKm * KILOMETER_TO_CENTIMETER;
+		if (t < StartDepthCm)
+		{
+			StartStepCount = uint(StartDepthCm / StepT);
+			t += float(StartStepCount) * StepSizeOnZeroConservativeDensity * StepT;
+		}
+		//OutColor0 = float4(StartDepthKm / 50.0f, 0.0f, 0.0f, 0.5f);
+		//return;
+	#endif
+
 		float3 S0 = 0.0f;
-		for (uint i = 0; i < IStepCount; ++i)
+		for (uint i = StartStepCount; i < IStepCount; ++i)
 		{
 			int ms;
 			float3	  SampleTranslatedWorldPosition = RayTranslatedWorldOriginKm + t * Raydir;
@@ -678,8 +729,8 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				++DebugZeroConservativeDensitySampleCount;
 				t += StepT;
 #else
-				i += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity - 1;
-				t += RenderVolumetricCloudParameters.StepSizeOnZeroConservativeDensity * StepT;
+				i += StepSizeOnZeroConservativeDensity - 1;
+				t += StepSizeOnZeroConservativeDensity * StepT;
 #endif
 
 			#if CLOUD_DEBUG_SAMPLES
@@ -1370,6 +1421,150 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 
 #endif // SHADER_RENDERVIEW_CS
+
+
+
+#if SHADER_EMPTY_SPACE_SKIPPING_CS
+
+float2	StartTracingDistanceTextureResolution;
+float	StartTracingSampleVolumeDepth;
+
+RWTexture2D<float> OutStartTracingDistanceTexture;
+
+struct FThreadData
+{
+	float FrontDepthKm;
+};
+groupshared FThreadData GroupData[THREADGROUP_SIZEX][THREADGROUP_SIZEY][THREADGROUP_SIZEZ];
+
+float GetDefaultDepth()
+{
+	return StartTracingSampleVolumeDepth * CENTIMETER_TO_KILOMETER;
+}
+
+FThreadData GetDefaultThreadData()
+{
+	FThreadData ThreadData;
+	ThreadData.FrontDepthKm = GetDefaultDepth();
+	return ThreadData;
+}
+
+FThreadData Reduce(FThreadData A, FThreadData B)
+{
+	FThreadData Out;
+	Out.FrontDepthKm = min(A.FrontDepthKm, B.FrontDepthKm);
+	return Out;
+}
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, THREADGROUP_SIZEZ)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupThreadId : SV_GroupThreadID)
+{
+#if MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT
+
+	ResolvedView = ResolveView();
+	const float SliceDepth = StartTracingSampleVolumeDepth * (1.0f / THREADGROUP_SIZEZ);
+
+	float2 PixelUV = float2(DispatchThreadId.x + 0.5, DispatchThreadId.y + 0.5) / StartTracingDistanceTextureResolution;
+	float4 SvPosition = float4(PixelUV * ResolvedView.ViewSizeAndInvSize.xy, 0.1, 1);
+
+	FMaterialPixelParameters MaterialParameters = MakeInitializedMaterialPixelParameters();
+	FPixelMaterialInputs PixelMaterialInputs;
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
+
+	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams(
+		RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.PlanetRadiusKm,
+		RenderVolumetricCloudParameters.BottomRadiusKm, RenderVolumetricCloudParameters.TopRadiusKm);
+
+	const float SampleDistanceFromCamera = (float(GroupThreadId.z) + 0.5f) * SliceDepth;
+	const float3 Raydir =-MaterialParameters.CameraVector;
+	UpdateMaterialCloudParam(MaterialParameters, LWCAdd(ResolvedView.WorldCameraOrigin, LWCPromote(Raydir * SampleDistanceFromCamera)),
+		ResolvedView, CloudLayerParams, SampleDistanceFromCamera);
+
+	MaterialParameters.CloudEmptySpaceSkippingSphereCenterWorldPosition = LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition); // This is the same as the WorldPOsitionNode but float3
+	MaterialParameters.CloudEmptySpaceSkippingSphereRadius = 0.5f * SliceDepth * 1.73f;	// 1.73 = sqrt(1*1+1*1+1*1), the lenght of the diagonal of a cube as compared to its unit edge length
+
+	float CloudEmptySpaceSkippingOutput0 = GetVolumetricCloudEmptySpaceSkippingOutput0(MaterialParameters);
+	GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z].FrontDepthKm = CloudEmptySpaceSkippingOutput0 > 0.0f ? (float(GroupThreadId.z) + 0.0f) * SliceDepth * CENTIMETER_TO_KILOMETER : GetDefaultDepth();
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Reduction
+#if THREADGROUP_SIZEZ > 64
+#error Reduction does not support THREADGROUP_SIZEZ > 64
+#endif
+
+#if THREADGROUP_SIZEZ >= 64
+	if (GroupThreadId.z < 32)
+	{
+		GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z] = Reduce(
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z],
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z + 32]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+#endif
+
+#if THREADGROUP_SIZEZ >= 32
+	if (GroupThreadId.z < 16)
+	{
+		GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z] = Reduce(
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z],
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z + 16]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+#endif
+
+#if THREADGROUP_SIZEZ >= 16
+	if (GroupThreadId.z < 8)
+	{
+		GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z] = Reduce(
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z],
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z + 8]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+#endif
+
+#if THREADGROUP_SIZEZ >= 8
+	if (GroupThreadId.z < 4)
+	{
+		GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z] = Reduce(
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z],
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z + 4]);
+	}
+	GroupMemoryBarrierWithGroupSync();
+#endif
+
+	// The smallest wave size is 4 on Mali G-71 hardware. So now we can do simple math operations without group sync.
+
+#if THREADGROUP_SIZEZ >= 4
+	if (GroupThreadId.z < 2)
+	{
+		GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z] = Reduce(
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z],
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z + 2]);
+	}
+#endif
+
+	if (GroupThreadId.z < 1)
+	{
+		GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z] = Reduce(
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z],
+			GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z + 1]);
+
+		BRANCH
+		if (all(DispatchThreadId.xy < uint2(StartTracingDistanceTextureResolution.xy)))
+		{
+			OutStartTracingDistanceTexture[DispatchThreadId.xy] = GroupData[GroupThreadId.x][GroupThreadId.y][0].FrontDepthKm;
+		}
+	}
+
+#else // MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT
+
+	OutStartTracingDistanceTexture[DispatchThreadId.xy] = 0.0f;	// No empty space skipping
+
+#endif // MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT
+}
+
+#endif // SHADER_SHADOW_PS
 
 
 

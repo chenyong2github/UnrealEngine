@@ -61,6 +61,9 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 	MaterialParameters.VolumeSampleConservativeDensity = GetVolumetricAdvancedMaterialOutput6(MaterialParameters);	// Evaluate conservative density
 #endif
 
+	MaterialParameters.CloudEmptySpaceSkippingSphereCenterWorldPosition = 0.0f;
+	MaterialParameters.CloudEmptySpaceSkippingSphereRadius = 0.0f;
+
 	MaterialParameters.ShadowSampleDistance = ShadowSampleDistance;
 }
 

@@ -21360,6 +21360,154 @@ void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FStri
 }
 #endif // WITH_EDITOR
 
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_VolumetricCloudEmptySpaceSkippingOutput;
+		FConstructorStatics()
+			: NAME_VolumetricCloudEmptySpaceSkippingOutput(LOCTEXT("Volume", "Volume"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_VolumetricCloudEmptySpaceSkippingOutput);
+#endif
+
+#if WITH_EDITOR
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 CodeInput = INDEX_NONE;
+
+	if (OutputIndex == 0)
+	{
+		CodeInput = ContainsMatter.IsConnected() ? ContainsMatter.Compile(Compiler) : Compiler->Constant(1.0f);
+	}
+
+	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
+}
+
+void UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Volumetric Cloud Empty Space Skipping Output")));
+}
+
+uint32 UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Float1;
+}
+
+#endif // WITH_EDITOR
+
+int32 UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GetNumOutputs() const
+{
+	return 1;
+}
+
+FString UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GetFunctionName() const
+{
+	return TEXT("GetVolumetricCloudEmptySpaceSkippingOutput");
+}
+
+FString UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GetDisplayName() const
+{
+	return TEXT("Volumetric Cloud Empty Space Skipping Output");
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput::UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_UMaterialExpressionVolumetricCloudEmptySpaceSkippingInputInput;
+		FConstructorStatics()
+			: NAME_UMaterialExpressionVolumetricCloudEmptySpaceSkippingInputInput(LOCTEXT("Volume", "Volume"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_UMaterialExpressionVolumetricCloudEmptySpaceSkippingInputInput);
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Sphere Center")));
+	Outputs.Add(FExpressionOutput(TEXT("Sphere Radius")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (OutputIndex == 0)
+	{
+		return Compiler->GetCloudEmptySpaceSkippingSphereCenterWorldPosition();
+	}
+	else if (OutputIndex == 1)
+	{
+		return Compiler->GetCloudEmptySpaceSkippingSphereRadius();
+	}
+
+	return Compiler->Errorf(TEXT("Invalid input parameter"));
+}
+
+void UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Volumetric Cloud Empty Space Skipping Input"));
+}
+
+void UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput::GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip)
+{
+	if (OutputIndex == 0)
+	{
+		OutToolTip.Add(TEXT("The position of the center of the spherical area considered for empty space skipping. When evaluating cloud for empty space skipping, this output returns the same as the WorldPosition node."));
+		return;
+	}
+	else if (OutputIndex == 1)
+	{
+		OutToolTip.Add(TEXT("The radius of the spherical area considered for empty space skipping."));
+		return;
+	}
+	Super::GetConnectorToolTip(InputIndex, OutputIndex, OutToolTip);
+}
+
+uint32 UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput::GetInputType(int32 InputIndex)
+{
+	if (InputIndex == 0)
+	{
+		return MCT_Float3;
+	}
+	else if (InputIndex == 1)
+	{
+		return MCT_Float1;
+	}
+	return MCT_Unknown;
+}
+#endif // WITH_EDITOR
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionReflectionCapturePassSwitch
 ///////////////////////////////////////////////////////////////////////////////

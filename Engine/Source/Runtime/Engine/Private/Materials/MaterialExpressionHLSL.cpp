@@ -2263,6 +2263,27 @@ UE::Shader::EValueType UMaterialExpressionVolumetricAdvancedMaterialOutput::GetC
 	else return UE::Shader::EValueType::Void;
 }
 
+bool UMaterialExpressionVolumetricCloudEmptySpaceSkippingInput::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	check(false);	// TODO implement when the new compiler is enabled
+	return OutExpression != nullptr;
+}
+
+bool UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	check(false);	// TODO implement when the new compiler is enabled
+	return OutExpression != nullptr;
+}
+
+UE::Shader::EValueType UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput::GetCustomOutputType(int32 OutputIndex) const
+{
+	if (OutputIndex == 0)
+	{
+		return UE::Shader::EValueType::Float1;
+	}
+	return UE::Shader::EValueType::Void;
+}
+
 bool UMaterialExpressionHairAttributes::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
 {
 	using namespace UE::HLSLTree;

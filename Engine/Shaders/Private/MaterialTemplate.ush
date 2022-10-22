@@ -460,6 +460,9 @@ struct FMaterialPixelParameters
 	float CloudSampleNormAltitudeInLayer;
 	float4 VolumeSampleConservativeDensity;
 	float ShadowSampleDistance;
+
+	float3 CloudEmptySpaceSkippingSphereCenterWorldPosition;
+	float  CloudEmptySpaceSkippingSphereRadius;
 #endif
 
 #if TEMPLATE_USES_STRATA
@@ -1783,6 +1786,24 @@ float MaterialExpressionVolumeSampleShadowSampleDistance(FMaterialPixelParameter
 {
 #if CLOUD_LAYER_PIXEL_SHADER
 	return Parameters.ShadowSampleDistance;
+#else
+	return 0.0f;
+#endif
+}
+
+float3 MaterialExpressionCloudEmptySpaceSkippingSphereCenterWorldPosition(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudEmptySpaceSkippingSphereCenterWorldPosition;
+#else
+	return 0.0f;
+#endif
+}
+
+float MaterialExpressionCloudEmptySpaceSkippingSphereRadius(FMaterialPixelParameters Parameters)
+{
+#if CLOUD_LAYER_PIXEL_SHADER
+	return Parameters.CloudEmptySpaceSkippingSphereRadius;
 #else
 	return 0.0f;
 #endif

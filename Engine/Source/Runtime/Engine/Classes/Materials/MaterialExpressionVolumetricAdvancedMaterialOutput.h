@@ -114,4 +114,31 @@ public:
 	//~ End UMaterialExpressionCustomOutput Interface
 };
 
+/** USed to help the cloud system to fast skip empty space areas when ray marching. */
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+class UMaterialExpressionVolumetricCloudEmptySpaceSkippingOutput : public UMaterialExpressionCustomOutput
+{
+	GENERATED_UCLASS_BODY()
 
+	/** ContainsMatter must be 1 when the volume is occupied by any matter. This is for the tracing to later not miss it. Otherwise it can be 0 to accelerate the tracing by skipping that area. */
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Specify 0 if no matter (cloud or participating media) can be found within the area, otherwise should be set > 0."))
+	FExpressionInput ContainsMatter;
+
+public:
+#if WITH_EDITOR
+	//~ Begin UMaterialExpression Interface
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	//~ End UMaterialExpression Interface
+
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
+	virtual UE::Shader::EValueType GetCustomOutputType(int32 OutputIndex) const override;
+#endif
+
+	//~ Begin UMaterialExpressionCustomOutput Interface
+	virtual int32 GetNumOutputs() const override;
+	virtual FString GetFunctionName() const override;
+	virtual FString GetDisplayName() const override;
+	//~ End UMaterialExpressionCustomOutput Interface
+};
