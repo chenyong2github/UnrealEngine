@@ -8,9 +8,11 @@
 #include "ComputeFramework/ComputeKernelShader.h"
 #include "ComputeFramework/ComputeKernelShaderCompilationManager.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "ComputeFramework/ComputeFramework.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
+#include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCompiler.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "Stats/StatsMisc.h"
@@ -53,6 +55,7 @@ bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShad
 
 void FComputeKernelResource::NotifyCompilationFinished(FString const& ResultMessage)
 {
+	UE_LOG(LogComputeFramework, Display, TEXT("%s"), *ResultMessage);
 	CompileOutputMessages.Add(ResultMessage);
 	OnCompilationCompleteDelegate.ExecuteIfBound(this);
 }
@@ -66,8 +69,6 @@ void FComputeKernelResource::CancelCompilation()
 		OutstandingCompileShaderMapIds.Empty();
 
 		FString Message = FString::Printf(TEXT("%s: Compilation cancelled."), *GetFriendlyName());
-		UE_LOG(LogShaders, Log, TEXT("%s"), *Message);
-
 		NotifyCompilationFinished(Message);
 	}
 #endif
@@ -77,7 +78,7 @@ void FComputeKernelResource::RemoveOutstandingCompileId(const int32 InOldOutstan
 {
 	if (0 <= OutstandingCompileShaderMapIds.Remove(InOldOutstandingCompileShaderMapId))
 	{
-		UE_LOG(LogShaders, Log, TEXT("RemoveOutstandingCompileId %p %d"), this, InOldOutstandingCompileShaderMapId);
+		UE_LOG(LogComputeFramework, Log, TEXT("RemoveOutstandingCompileId %p %d"), this, InOldOutstandingCompileShaderMapId);
 	}
 }
 
@@ -135,7 +136,7 @@ void FComputeKernelResource::GetShaderMapId(EShaderPlatform InPlatform, const IT
 #else
 		if (TargetPlatform != nullptr)
 		{
-			UE_LOG(LogShaders, Error, TEXT("FComputeKernelResource::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
+			UE_LOG(LogComputeFramework, Error, TEXT("FComputeKernelResource::GetShaderMapId: TargetPlatform is not null, but a cooked executable cannot target platforms other than its own."));
 		}
 		OutId.LayoutParams.InitializeForCurrent();
 #endif
@@ -170,7 +171,7 @@ void FComputeKernelResource::SerializeShaderMap(FArchive& Ar)
 
 	if (FPlatformProperties::RequiresCookedData() && !bCooked && Ar.IsLoading())
 	{
-		UE_LOG(LogShaders, Fatal, TEXT("This platform requires cooked packages, and shaders were not cooked into this kernel %s."), *GetFriendlyName());
+		UE_LOG(LogComputeFramework, Fatal, TEXT("This platform requires cooked packages, and shaders were not cooked into this kernel %s."), *GetFriendlyName());
 	}
 
 	if (bCooked)
@@ -326,12 +327,11 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 				if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 				{
 					FString Message = FString::Printf(TEXT("Loaded shaders for %s from DDC."), *GetFriendlyName());
-					UE_LOG(LogTemp, Display, TEXT("%s"), *Message);
 					CompileOutputMessages.Add(Message);
 				}
 				else
 				{
-					UE_LOG(LogTemp, Display, TEXT("Loading shader for kernel %s from DDC failed. Shader needs recompile."), *GetFriendlyName());
+					UE_LOG(LogComputeFramework, Log, TEXT("Loading shader for kernel %s from DDC failed. Shader needs recompile."), *GetFriendlyName());
 				}
 			}
 		}
@@ -345,10 +345,10 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 	if (GameThreadShaderMap && GameThreadShaderMap->TryToAddToExistingCompilationTask(this))
 	{
 #if DEBUG_INFINITESHADERCOMPILE
-		UE_LOG(LogTemp, Display, TEXT("Found existing compiling shader for kernel %s, linking to other GameThreadShaderMap 0x%08X%08X"), *GetFriendlyName(), (int)((int64)(GameThreadShaderMap.GetReference()) >> 32), (int)((int64)(GameThreadShaderMap.GetReference())));
+		UE_LOG(LogComputeFramework, Display, TEXT("Found existing compiling shader for kernel %s, linking to other GameThreadShaderMap 0x%08X%08X"), *GetFriendlyName(), (int)((int64)(GameThreadShaderMap.GetReference()) >> 32), (int)((int64)(GameThreadShaderMap.GetReference())));
 #endif
 		OutstandingCompileShaderMapIds.AddUnique(GameThreadShaderMap->GetCompilingId());
-		UE_LOG(LogShaders, Log, TEXT("CacheShaders AddUniqueExisting %p %d"), this, GameThreadShaderMap->GetCompilingId());
+		UE_LOG(LogComputeFramework, Log, TEXT("CacheShaders AddUniqueExisting %p %d"), this, GameThreadShaderMap->GetCompilingId());
 
 		GameThreadShaderMap = nullptr;
 		bSucceeded = true;
@@ -357,12 +357,12 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 	{
 		if (bContainsInlineShaders || FPlatformProperties::RequiresCookedData())
 		{
-			UE_LOG(LogShaders, Log, TEXT("Can't compile %s with cooked content!"), *GetFriendlyName());
+			UE_LOG(LogComputeFramework, Log, TEXT("Can't compile %s with cooked content!"), *GetFriendlyName());
 			GameThreadShaderMap = nullptr;
 		}
 		else
 		{
-			UE_LOG(LogShaders, Log, TEXT("%s cached shader map for kernel %s, compiling."), GameThreadShaderMap ? TEXT("Incomplete") : TEXT("Missing"), *GetFriendlyName());
+			UE_LOG(LogComputeFramework, Log, TEXT("%s cached shader map for kernel %s, compiling."), GameThreadShaderMap ? TEXT("Incomplete") : TEXT("Missing"), *GetFriendlyName());
 
 			// If there's no cached shader map for this kernel compile a new one.
 			// This is just kicking off the compile, GameThreadShaderMap will not be complete yet
@@ -376,7 +376,7 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 	}
 	else
 	{
-		NotifyCompilationFinished(FString::Printf(TEXT("%s: Loaded shaders from DDC."), *GetFriendlyName()));
+		NotifyCompilationFinished(FString::Printf(TEXT("%s: Loaded %s shaders from DDC."), *GetFriendlyName(), *ShaderPlatformToShaderFormatName(InPlatform).ToString()));
 		bSucceeded = true;
 	}
 
@@ -401,7 +401,7 @@ void FComputeKernelResource::FinishCompilation()
 	{
 		for (int32 i = 0; i < ShaderMapIdsToFinish.Num(); i++)
 		{
-			UE_LOG(LogShaders, Log, TEXT("FinishCompilation()[%d] %s id %d!"), i, *GetFriendlyName(), ShaderMapIdsToFinish[i]);
+			UE_LOG(LogComputeFramework, Log, TEXT("FinishCompilation()[%d] %s id %d!"), i, *GetFriendlyName(), ShaderMapIdsToFinish[i]);
 		}
 	
 		// Block until the shader maps that we will save have finished being compiled
@@ -480,7 +480,7 @@ bool FComputeKernelResource::BeginCompileShaderMap(const FComputeKernelShaderMap
 	}
 	else
 	{
-		UE_LOG(LogShaders, Log, TEXT("BeginCompileShaderMap AddUnique %p %d"), this, NewShaderMap->GetCompilingId());
+		UE_LOG(LogComputeFramework, Log, TEXT("BeginCompileShaderMap AddUnique %p %d"), this, NewShaderMap->GetCompilingId());
 		OutstandingCompileShaderMapIds.AddUnique(NewShaderMap->GetCompilingId());
 		
 		// Async compile, use nullptr to detect it if used
@@ -489,7 +489,7 @@ bool FComputeKernelResource::BeginCompileShaderMap(const FComputeKernelShaderMap
 
 	return true;
 #else
-	UE_LOG(LogShaders, Fatal, TEXT("Compiling of shaders in a build without editordata is not supported."));
+	UE_LOG(LogComputeFramework, Fatal, TEXT("Compiling of shaders in a build without editordata is not supported."));
 	return false;
 #endif
 }

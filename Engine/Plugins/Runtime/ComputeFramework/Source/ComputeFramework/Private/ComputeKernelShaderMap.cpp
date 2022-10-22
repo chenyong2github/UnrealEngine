@@ -5,6 +5,7 @@
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "ComputeFramework/ComputeKernelDerivedDataVersion.h"
 #include "ComputeFramework/ComputeKernelShaderCompilationManager.h"
+#include "ComputeFramework/ComputeFramework.h"
 #include "DerivedDataCacheInterface.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -152,13 +153,13 @@ void FComputeKernelShaderType::BeginCompileShader(
 	NewJob->Input.VirtualSourceFilePath = virtualSourcePath;
 	NewJob->Input.EntryPointName = InKernel->GetEntryPoint();
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(virtualSourcePath, InKernel->GetHLSLSource());
-	UE_LOG(LogShaders, Verbose, TEXT("%s"), *InKernel->GetHLSLSource());
+	UE_LOG(LogComputeFramework, Verbose, TEXT("%s"), *InKernel->GetHLSLSource());
 	
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, InPlatform);
 
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 
-	UE_LOG(LogShaders, Verbose, TEXT("			%s"), GetName());
+	UE_LOG(LogComputeFramework, Verbose, TEXT("			%s"), GetName());
 	COOK_STAT(ComputeKernelShaderCookStats::ShadersCompiled++);
 
 	InKernel->SetupCompileEnvironment(PermutationId, ShaderEnvironment);
@@ -319,7 +320,7 @@ void FComputeKernelShaderMap::Compile(
 {
 	if (FPlatformProperties::RequiresCookedData())
 	{
-		UE_LOG(LogShaders, Fatal, TEXT("Trying to compile ComputeKernel shader %s at run-time, which is not supported on consoles!"), *InKernel->GetFriendlyName() );
+		UE_LOG(LogComputeFramework, Fatal, TEXT("Trying to compile ComputeKernel shader %s at run-time, which is not supported on consoles!"), *InKernel->GetFriendlyName() );
 	}
 #if WITH_EDITOR
 	else
@@ -340,7 +341,7 @@ void FComputeKernelShaderMap::Compile(
 		{
 			// Assign a unique identifier so that shaders from this shader map can be associated with it after a deferred compile
 			CompilingId = NextCompilingId;
-			UE_LOG(LogShaders, Log, TEXT("CompilingId = %p %d"), InKernel, CompilingId);
+			UE_LOG(LogComputeFramework, Log, TEXT("CompilingId = %p %d"), InKernel, CompilingId);
 			InKernel->AddCompileId(CompilingId);
 
 			check(NextCompilingId < UINT_MAX);
@@ -400,15 +401,13 @@ void FComputeKernelShaderMap::Compile(
 					InKernel->RemoveOutstandingCompileId(CompilingId);
 
 					FString Message = FString::Printf(TEXT("%s: Skipping compilation because it isn't supported on this target type."), *InKernel->GetFriendlyName());
-					UE_LOG(LogShaders, Display, TEXT("%s"), *Message);
-					
 					InKernel->NotifyCompilationFinished(Message);
 				}
 			}
   
 			if (!Kernel)
 			{
-				UE_LOG(LogShaders, Log, TEXT("		%u Shaders"), NumShaders);
+				UE_LOG(LogComputeFramework, Log, TEXT("		%u Shaders"), NumShaders);
 			}
 
 			// Register this shader map in the global ComputeKernel->shadermap map
@@ -496,7 +495,7 @@ bool FComputeKernelShaderMap::TryToAddToExistingCompilationTask(FComputeKernelRe
 	{
 		CorrespondingKernels->AddUnique(InKernel);
 
-		UE_LOG(LogShaders, Log, TEXT("TryToAddToExistingCompilationTask %p %d"), InKernel, GetCompilingId());
+		UE_LOG(LogComputeFramework, Log, TEXT("TryToAddToExistingCompilationTask %p %d"), InKernel, GetCompilingId());
 
 #if DEBUG_INFINITESHADERCOMPILE
 		UE_LOG(LogTemp, Display, TEXT("Added shader map 0x%08X%08X from ComputeKernel 0x%08X%08X"), (int)((int64)(this) >> 32), (int)((int64)(this)), (int)((int64)(InKernel) >> 32), (int)((int64)(InKernel)));
@@ -518,7 +517,7 @@ bool FComputeKernelShaderMap::IsComputeKernelShaderComplete(const FComputeKernel
 			{
 				if (!bSilent)
 				{
-					UE_LOG(LogShaders, Warning, TEXT("Incomplete shader %s, missing FComputeKernelShader %s."), *InKernel->GetFriendlyName(), InShaderType->GetName());
+					UE_LOG(LogComputeFramework, Warning, TEXT("Incomplete shader %s, missing FComputeKernelShader %s."), *InKernel->GetFriendlyName(), InShaderType->GetName());
 				}
 				return false;
 			}
