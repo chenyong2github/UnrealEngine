@@ -9,19 +9,17 @@ D3D12Query.h: Implementation of D3D12 Query
 class FD3D12RenderQuery : public FRHIRenderQuery, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12RenderQuery>
 {
 public:
-	/** Initialization constructor. */
-	FD3D12RenderQuery(FD3D12Device* Parent, ERenderQueryType InQueryType)
-		: FD3D12DeviceChild(Parent)
-		, Type(InQueryType)
-	{}
+	FD3D12RenderQuery(FD3D12Device* Parent, ERenderQueryType InQueryType);
+	~FD3D12RenderQuery();
 
 	ERenderQueryType const Type;
 
 	// Signaled when the result is available. Nullptr if the query has never been used.
 	FD3D12SyncPointRef SyncPoint;
 
-	// The query result, read from the GPU on the interrupt thread.
-	uint64 Result = 0;
+	// The query result, read from the GPU. Heap allocated since it is
+	// accessed by the interrupt thread, and needs to outlive the RHI object.
+	uint64* Result;
 	
 	// The current query location for occlusion queries.
 	FD3D12QueryLocation ActiveLocation;

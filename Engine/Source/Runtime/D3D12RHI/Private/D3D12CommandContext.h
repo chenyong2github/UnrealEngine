@@ -39,6 +39,7 @@ struct FD3D12DeferredDeleteObject
 		RHIObject,
 		D3DObject,
 		BindlessDescriptor,
+		CPUAllocation
 	} Type;
 
 	union
@@ -51,6 +52,8 @@ struct FD3D12DeferredDeleteObject
 			FRHIDescriptorHandle Handle;
 			FD3D12Device* Device;
 		} BindlessDescriptor;
+
+		void* CPUAllocation;
 	};
 
 	explicit FD3D12DeferredDeleteObject(FD3D12Resource* RHIObject)
@@ -67,6 +70,13 @@ struct FD3D12DeferredDeleteObject
 		: Type(EType::BindlessDescriptor)
 		, BindlessDescriptor({ Handle, Device })
 	{}
+
+	explicit FD3D12DeferredDeleteObject(void* Ptr, EType Type)
+		: Type(Type)
+		, CPUAllocation(Ptr)
+	{
+		check(Type == EType::CPUAllocation);
+	}
 };
 
 enum class ED3D12Units

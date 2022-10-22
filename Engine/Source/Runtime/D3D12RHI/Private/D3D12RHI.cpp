@@ -482,6 +482,9 @@ void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
 				case FD3D12DeferredDeleteObject::EType::BindlessDescriptor:
 					ObjectToDelete.BindlessDescriptor.Device->GetBindlessDescriptorManager().ImmediateFree(ObjectToDelete.BindlessDescriptor.Handle);
 					break;
+				case FD3D12DeferredDeleteObject::EType::CPUAllocation:
+					FMemory::Free(ObjectToDelete.CPUAllocation);
+					break;
 				default:
 					checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
 					break;

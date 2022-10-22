@@ -32,6 +32,18 @@ namespace D3D12RHI
 }
 using namespace D3D12RHI;
 
+FD3D12RenderQuery::FD3D12RenderQuery(FD3D12Device* Parent, ERenderQueryType InQueryType)
+	: FD3D12DeviceChild(Parent)
+	, Type(InQueryType)
+	, Result((uint64*)FMemory::Malloc(sizeof(uint64), alignof(uint64)))
+{}
+
+FD3D12RenderQuery::~FD3D12RenderQuery()
+{
+	FD3D12DynamicRHI::GetD3DRHI()->DeferredDelete(Result, FD3D12DeferredDeleteObject::EType::CPUAllocation);
+	Result = nullptr;
+}
+
 FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* Device, D3D12_QUERY_TYPE QueryType, D3D12_QUERY_HEAP_TYPE HeapType, uint32 NumQueries)
 	: FD3D12SingleNodeGPUObject(Device->GetGPUMask())
 	, Device(Device)
@@ -190,7 +202,7 @@ void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 	FD3D12RenderQuery* Query = RetrieveObject<FD3D12RenderQuery>(QueryRHI);
 	checkf(Query->Type == RQT_Occlusion, TEXT("Only occlusion queries support RHIBeginRenderQuery()."));
 
-	Query->ActiveLocation = AllocateQuery(ED3D12QueryType::Occlusion, &Query->Result);
+	Query->ActiveLocation = AllocateQuery(ED3D12QueryType::Occlusion, Query->Result);
 	BeginQuery(Query->ActiveLocation);
 
 	ActiveQueries++;
@@ -241,7 +253,7 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 		break;
 
 	case RQT_AbsoluteTime:
-		InsertTimestamp(ED3D12Units::Microseconds, &Query->Result);
+		InsertTimestamp(ED3D12Units::Microseconds, Query->Result);
 		break;
 	}
 }
@@ -297,7 +309,7 @@ bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 		}
 	}
 
-	OutResult = Query->Result;
+	OutResult = *Query->Result;
 	return true;
 }
 
