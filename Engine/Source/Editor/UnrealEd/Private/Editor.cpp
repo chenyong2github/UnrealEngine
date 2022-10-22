@@ -926,10 +926,14 @@ FReimportManager::FReimportManager()
 FReimportManager::~FReimportManager()
 {
 	Handlers.Empty();
+
+	/*
+	// you can't do this because ~FReimportManager is called from FReimportManager::Instance at cexit shutdown time
 	if (InterchangePostReimportedDelegateHandle.IsValid())
 	{
 		UInterchangeManager::GetInterchangeManager().OnAssetPostImport.Remove(InterchangePostReimportedDelegateHandle);
 	}
+	*/
 }
 
 int32 FReimportHandler::GetPriority() const
