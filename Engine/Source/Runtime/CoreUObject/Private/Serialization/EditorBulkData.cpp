@@ -297,6 +297,31 @@ void UpdateArchiveData(FArchive& Ar, int64 DataPosition, DataType& Data)
 	Ar.Seek(OriginalPosition);
 }
 
+FArchive& operator<<(FArchive& Ar, FSharedBuffer& Buffer)
+{
+	if (Ar.IsLoading())
+	{
+		int64 BufferLength;
+		Ar << BufferLength;
+
+		FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(BufferLength);
+
+		Ar.Serialize(MutableBuffer.GetData(), BufferLength);
+
+		Buffer = MutableBuffer.MoveToShared();
+	}
+	else if (Ar.IsSaving())
+	{
+		int64 BufferLength = (int64)Buffer.GetSize();
+		Ar << BufferLength;
+
+		// Need to remove const due to FArchive API
+		Ar.Serialize(const_cast<void*>(Buffer.GetData()), BufferLength);
+	}
+
+	return Ar;
+}
+
 /** Utility for accessing IVirtualizationSourceControlUtilities from the modular feature system. */
 UE::Virtualization::Experimental::IVirtualizationSourceControlUtilities* GetSourceControlInterface()
 {
@@ -808,8 +833,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 			{
 				if (bPayloadInArchive)
 				{
-					FCompressedBuffer CompressedPayload = FCompressedBuffer::Compress(Payload, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
-					SerializeData(Ar, CompressedPayload, Flags);
+					Ar << Payload;
 				}
 			}
 			else
@@ -821,11 +845,9 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 					BulkDataId = FGuid::NewGuid();
 				}
 
-				FCompressedBuffer CompressedPayload;
 				if (bPayloadInArchive)
 				{
-					SerializeData(Ar, CompressedPayload, Flags);
-					Payload = CompressedPayload.Decompress();
+					Ar << Payload;
 				}
 				else
 				{
