@@ -36,8 +36,12 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	WidgetStyle = *DefaultEditableTextStyle;
 	if (!IsRunningDedicatedServer())
 	{
-		static ConstructorHelpers::FObjectFinder<UFont> defaultFontObj(*UWidget::GetDefaultFontName());
-		WidgetStyle.SetFont(FSlateFontInfo(defaultFontObj.Object, 24, FName("Regular")));
+		static ConstructorHelpers::FObjectFinder<UFont> DefaultFontObj(*UWidget::GetDefaultFontName());
+		FSlateFontInfo Font(DefaultFontObj.Object, 24, FName("Regular"));
+		//The FSlateFontInfo just created doesn't contain a composite font (while the default from the WidgetStyle does),
+		//so in the case the Font object is replaced by a null one, we have to keep the composite one as a fallback.
+		Font.CompositeFont = WidgetStyle.Font.CompositeFont;
+		WidgetStyle.SetFont(Font);
 	}
 
 

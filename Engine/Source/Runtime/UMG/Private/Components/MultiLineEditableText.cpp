@@ -65,8 +65,12 @@ UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectI
 
 	if (!IsRunningDedicatedServer())
 	{
-		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
-		WidgetStyle.SetFont(FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold")));
+		static ConstructorHelpers::FObjectFinder<UFont> DefaultFontObj(*UWidget::GetDefaultFontName());
+		FSlateFontInfo Font(DefaultFontObj.Object, 12, FName("Bold"));
+		//The FSlateFontInfo just created doesn't contain a composite font (while the default from the WidgetStyle does),
+		//so in the case the Font object is replaced by a null one, we have to keep the composite one as a fallback.
+		Font.CompositeFont = WidgetStyle.Font.CompositeFont;
+		WidgetStyle.SetFont(Font);
 	}
 }
 
