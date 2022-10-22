@@ -28,40 +28,6 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableMaterialXImport(
 
 namespace mx = MaterialX;
 
-namespace UE::Interchange::MaterialX
-{
-	bool IsStandardSurfacePackageLoaded()
-	{
-		auto IsPackageLoaded = [](const FString& TextPath) -> bool
-		{
-			const FString FunctionPath{ FPackageName::ExportTextPathToObjectPath(TextPath) };
-			if(FPackageName::DoesPackageExist(FunctionPath))
-			{
-				if(FSoftObjectPath(FunctionPath).TryLoad())
-				{
-					return true;
-				}
-				else
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't load %s"), *FunctionPath);
-				}
-			}
-			else
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Couldn't find %s"), *FunctionPath);
-			}
-
-			return false;
-		};
-
-		static const bool bStandardSurfacePackageLoaded =
-			IsPackageLoaded(TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'")) &&
-			IsPackageLoaded(TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'"));
-
-		return bStandardSurfacePackageLoaded;
-	}
-}
-
 UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 #if WITH_EDITOR
 	:
@@ -234,7 +200,7 @@ TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 		return TArray<FString>{};
 	}
 
-	return UE::Interchange::MaterialX::IsStandardSurfacePackageLoaded() ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
+	return TArray<FString>{ TEXT("mtlx;MaterialX File Format") };
 }
 
 bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

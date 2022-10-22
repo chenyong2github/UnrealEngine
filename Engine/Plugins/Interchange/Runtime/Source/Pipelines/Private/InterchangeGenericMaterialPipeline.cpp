@@ -66,6 +66,55 @@ FString LexToString(UInterchangeGenericMaterialPipeline::EMaterialInputType Valu
 	}
 }
 
+namespace UE::Interchange::InterchangeGenericMaterialPipeline::Private
+{
+	bool AreRequiredPackagesLoaded()
+	{
+		auto ArePackagesLoaded = [](const TArray<FString>& PackagePaths) -> bool
+		{
+			bool bAllLoaded = true;
+
+			for (const FString& PackagePath : PackagePaths)
+			{
+				const FString ObjectPath(FPackageName::ExportTextPathToObjectPath(PackagePath));
+
+				if (FPackageName::DoesPackageExist(ObjectPath))
+				{
+					if (FSoftObjectPath(ObjectPath).TryLoad())
+					{
+						continue;
+					}
+					else
+					{
+						UE_LOG(LogInterchangePipeline, Warning, TEXT("Couldn't load %s"), *PackagePath);
+					}
+				}
+				else
+				{
+					UE_LOG(LogInterchangePipeline, Warning, TEXT("Couldn't find %s"), *PackagePath);
+				}
+
+				bAllLoaded = false;
+			}
+
+			return bAllLoaded;
+		};
+
+		TArray<FString> RequiredPackages = {
+			TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'"),
+			TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'"),
+			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec'"),
+			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Texturing/FlattenNormal.FlattenNormal'"),
+			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat3.MakeFloat3'"),
+			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/Texturing/CustomRotator.CustomRotator'"),
+		};
+
+		static const bool bRequiredPackagesLoaded = ArePackagesLoaded(RequiredPackages);
+
+		return bRequiredPackagesLoaded;
+	}
+}
+
 UInterchangeGenericMaterialPipeline::UInterchangeGenericMaterialPipeline()
 {
 	TexturePipeline = CreateDefaultSubobject<UInterchangeGenericTexturePipeline>("TexturePipeline");
@@ -83,12 +132,14 @@ void UInterchangeGenericMaterialPipeline::PreDialogCleanup(const FName PipelineS
 
 bool UInterchangeGenericMaterialPipeline::IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const
 {
+	using namespace UE::Interchange;
+
 	if (TexturePipeline && !TexturePipeline->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
 	}
 
-	return true;
+	return InterchangeGenericMaterialPipeline::Private::AreRequiredPackagesLoaded() &&  Super::IsSettingsAreValid(OutInvalidReason);
 }
 
 void UInterchangeGenericMaterialPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
