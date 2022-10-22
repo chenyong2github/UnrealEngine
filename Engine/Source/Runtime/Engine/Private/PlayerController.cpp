@@ -3601,8 +3601,8 @@ void APlayerController::PostSeamlessTravel()
 void APlayerController::OnAddedToPlayerControllerList()
 {
 	UWorld* World = GetWorld();
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-	if (ensure(WorldPartitionSubsystem))
+	// Possible we are moved into a world with no WorldPartitionSubsystem by the seamless travel (FSeamlessTravelHandler::StartTravel with no TransitionMap)
+	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
 	{
 		WorldPartitionSubsystem->RegisterStreamingSourceProvider(this);
 	}
