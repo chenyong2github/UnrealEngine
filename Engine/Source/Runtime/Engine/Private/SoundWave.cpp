@@ -1163,7 +1163,7 @@ void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSound
 #if WITH_EDITOR
 	SoundAssetCompressionType = InSoundAssetCompressionType;
 	SoundWaveDataPtr->bIsSeekable = IsSeekable();
-	SoundWaveDataPtr->RuntimeFormat = Audio::ToName(InSoundAssetCompressionType);
+	SoundWaveDataPtr->RuntimeFormat = SoundWaveDataPtr->FindRuntimeFormat(*this);
 	UpdateAsset();
 #endif // #if WITH_EDITOR
 }
