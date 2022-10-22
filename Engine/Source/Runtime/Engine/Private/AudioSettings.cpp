@@ -101,6 +101,20 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		{
 			bPromptRestartRequired = true;
 		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, DefaultAudioCompressionType))
+		{
+			// loop through all USoundWaves and update the compression type w/ the new defualt
+			// (if they are set to "Project Default")
+			for (TObjectIterator<USoundWave> It; It; ++It)
+			{
+				USoundWave* SoundWave = *It;
+				if(SoundWave && SoundWave->GetSoundAssetCompressionTypeEnum() == ESoundAssetCompressionType::ProjectDefined)
+				{
+					// this will query the correct compression type and update the asset accordingly
+					SoundWave->SetSoundAssetCompressionType(SoundWave->GetSoundAssetCompressionType(), /*bMarkDirty*/false);
+				}
+			}
+		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, QualityLevels))
 		{
 			if (QualityLevels.Num() == 0)

@@ -774,8 +774,12 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(CookedEnvelopeTimeData.Num() * sizeof(FSoundWaveEnvelopeTimeData));
 
-	// Add zeroth chunk data, if it's used (if this USoundWave isn't streaming, this won't report).
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SoundWaveDataPtr->GetZerothChunkData().GetView().Num());
+	// Add zeroth chunk data, if it's used (if this USoundWave isn't streaming,
+	// or the bulk data is culled on this platform, this won't report).
+	if(FApp::CanEverRenderAudio())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SoundWaveDataPtr->GetZerothChunkData().GetView().Num());
+	}
 
 	// Finally, report the actual audio memory being used, if this asset isn't using the stream cache.
 	if (FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw())
@@ -1158,13 +1162,18 @@ ESoundAssetCompressionType USoundWave::GetSoundAssetCompressionType() const
 	}
 }
 
-void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType)
+ESoundAssetCompressionType USoundWave::GetSoundAssetCompressionTypeEnum() const
+{
+	return SoundAssetCompressionType;
+}
+
+void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType, bool bMarkDirty)
 {
 #if WITH_EDITOR
 	SoundAssetCompressionType = InSoundAssetCompressionType;
 	SoundWaveDataPtr->bIsSeekable = IsSeekable();
 	SoundWaveDataPtr->RuntimeFormat = SoundWaveDataPtr->FindRuntimeFormat(*this);
-	UpdateAsset();
+	UpdateAsset(bMarkDirty);
 #endif // #if WITH_EDITOR
 }
 
@@ -3878,12 +3887,15 @@ void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBeha
 }
 
 #if WITH_EDITOR
-void USoundWave::UpdateAsset()
+void USoundWave::UpdateAsset(bool bMarkDirty)
 {
 	InvalidateCompressedData();
 	FreeResources();
 	UpdatePlatformData();
-	MarkPackageDirty();
+	if(bMarkDirty)
+	{
+		MarkPackageDirty();
+	}
 
 	// if we are force inline, we need to make sure the shared data is pulled from the DDC
 	// before we attempt to use a decoder on the proxy (not using stream caching)

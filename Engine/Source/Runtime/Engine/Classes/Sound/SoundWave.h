@@ -456,9 +456,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Audio")
 	ESoundAssetCompressionType GetSoundAssetCompressionType() const;
 
+	/** will return the raw value, (i.e. does not resolve options such as "Project Defined" to the correct codec) */
+	ESoundAssetCompressionType GetSoundAssetCompressionTypeEnum() const;
+
 	/** Procedurally set the compression type. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType);
+	void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType, bool bMarkDirty = true);
 
 	/** Returns the Runtime format of the wave */
 	FName GetRuntimeFormat() const;
@@ -599,7 +602,7 @@ private:
 
 	// Called when we change any properties about the underlying audio asset
 #if WITH_EDITOR
-	void UpdateAsset();
+	void UpdateAsset(bool bMarkDirty = true);
 #endif
 
 public:
