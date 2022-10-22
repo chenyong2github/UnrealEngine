@@ -958,7 +958,8 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 	const TMap<FString, FString>& SourceAndDestPackages,
 	const bool bForceAutosave,
 	const bool bCopyOverAllDestinationOverlaps,
-	FDuplicatedObjects* OutDuplicatedObjects) const
+	FDuplicatedObjects* OutDuplicatedObjects,
+	EMessageSeverity::Type NotificationSeverityFilter) const
 {
 	if (ValidateFlattenedAdvancedCopyDestinations(SourceAndDestPackages))
 	{
@@ -1117,21 +1118,16 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 		EMessageSeverity::Type Severity = EMessageSeverity::Info;
 		if (SourceControlErrors.Len() > 0)
 		{
-			FString ErrorMessage;
 			Severity = EMessageSeverity::Error;
-			if (SourceControlErrors.Len() > 0)
-			{
-				AdvancedCopyLog.NewPage(LOCTEXT("AdvancedCopyPackages_SourceControlErrorsListPage", "Source Control Errors"));
-				AdvancedCopyLog.Error(FText::FromString(*SourceControlErrors));
-				ErrorMessage += LINE_TERMINATOR;
-				ErrorMessage += LOCTEXT("AdvancedCopyPackages_SourceControlErrorsList", "Some files reported source control errors.").ToString();
-			}
+
+			AdvancedCopyLog.NewPage(LOCTEXT("AdvancedCopyPackages_SourceControlErrorsListPage", "Source Control Errors"));
+			AdvancedCopyLog.Error(FText::FromString(*SourceControlErrors));
+
+			FString ErrorMessage = LOCTEXT("AdvancedCopyPackages_SourceControlErrorsList", "Some files reported source control errors.").ToString();
+			
 			if (SuccessfullyCopiedSourcePackages.Num() > 0)
 			{
 				AdvancedCopyLog.NewPage(LOCTEXT("AdvancedCopyPackages_CopyErrorsSuccesslistPage", "Copied Successfully"));
-				AdvancedCopyLog.Info(FText::FromString(*SourceControlErrors));
-				ErrorMessage += LINE_TERMINATOR;
-				ErrorMessage += LOCTEXT("AdvancedCopyPackages_CopyErrorsSuccesslist", "Some files were copied successfully.").ToString();
 				for (auto FileIt = SuccessfullyCopiedSourcePackages.CreateConstIterator(); FileIt; ++FileIt)
 				{
 					if (!FileIt->IsNone())
@@ -1139,6 +1135,9 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 						AdvancedCopyLog.Info(FText::FromName(*FileIt));
 					}
 				}
+
+				ErrorMessage += LINE_TERMINATOR;
+				ErrorMessage += LOCTEXT("AdvancedCopyPackages_CopyErrorsSuccesslist", "Some files were copied successfully.").ToString();
 			}
 			LogMessage = FText::FromString(ErrorMessage);
 		}
@@ -1153,7 +1152,8 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 				}
 			}
 		}
-		AdvancedCopyLog.Notify(LogMessage, Severity, true);
+		// @note Using the bForce param because the InSeverityFilter param is only checked against logs in the last page
+		AdvancedCopyLog.Notify(LogMessage, /*InSeverityFilter=*/EMessageSeverity::CriticalError, /*bForce=*/(Severity <= NotificationSeverityFilter));
 		return true;
 	}
 	return false;
@@ -1164,7 +1164,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const FAdvancedCopyParams& CopyParams
 	TMap<FString, FString> FlattenedDestinationMap;
 	if (FlattenAdvancedCopyDestinations(PackagesAndDestinations, FlattenedDestinationMap))
 	{
-		return AdvancedCopyPackages(FlattenedDestinationMap, CopyParams.bShouldForceSave, CopyParams.bCopyOverAllDestinationOverlaps, nullptr);
+		return AdvancedCopyPackages(FlattenedDestinationMap, CopyParams.bShouldForceSave, CopyParams.bCopyOverAllDestinationOverlaps, /*OutDuplicatedObjects=*/nullptr, EMessageSeverity::Info);
 	}
 	return false;
 }
