@@ -414,6 +414,13 @@ struct FGeometryCollectionRepData
 	// Just test version to skip having to traverse the whole pose array for replication
 	bool Identical(const FGeometryCollectionRepData* Other, uint32 PortFlags) const;
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
+	void Reset()
+	{
+		OneOffActivated.Reset();
+		Clusters.Reset();
+	}
+
 };
 
 template<>
@@ -1058,6 +1065,9 @@ protected:
 
 	/** Called post solve to allow authoritative components to update their replication data */
 	void UpdateRepData();
+
+	/** Clear all rep data, this is required if the physics proxy has been recreated */
+	void ResetRepData();
 
 private:
 

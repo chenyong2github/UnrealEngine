@@ -1362,6 +1362,15 @@ void ActivateClusters(Chaos::FRigidClustering& Clustering, Chaos::TPBDRigidClust
 	Clustering.DeactivateClusterParticle(Cluster);
 }
 
+void UGeometryCollectionComponent::ResetRepData()
+{
+	ClustersToRep.Reset();
+	RepData.Reset();
+	OneOffActivatedProcessed = 0;
+	VersionProcessed = INDEX_NONE;
+	LastHardsnapTimeInMs = 0;
+}
+
 void UGeometryCollectionComponent::UpdateRepData()
 {
 	using namespace Chaos;
@@ -2566,20 +2575,12 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 		Scene->RemoveObject(PhysicsProxy);
 		InitializationState = ESimulationInitializationState::Unintialized;
 
+		// clear the clusters to rep as the information hold by it is now invalid
+		// we can still call this on the game thread because replication runs with the game thread frozen and will not run while the physics  state is being torned down
+		ResetRepData();
+
 		// Discard the pointer (cleanup happens through the scene or dedicated thread)
 		PhysicsProxy = nullptr;
-	}
-
-	// make sure we also clear the replication data structures
-	if (Chaos::FPhysicsSolver* Solver = GetSolver(*this))
-	{
-		Solver->EnqueueCommandImmediate([this]()
-			{
-				if (ClustersToRep)
-				{
-					ClustersToRep.Reset();
-				}
-			});
 	}
 }
 
