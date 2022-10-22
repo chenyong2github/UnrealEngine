@@ -288,11 +288,36 @@ private:
 		}
 	};
 
+	/**
+	 * Utility struct for assets book keeping.
+	 * We'll index assets using the raw pointer, as it should be possible to clear an entry after an asset has been garbage collected
+	 * but any access to the UObject should go through the weak object pointer.
+	 */
+	struct FAssetEntry
+	{
+		// Implicit constructor
+		FAssetEntry(UObject* InRawPtr)
+			: RawPtr(InRawPtr)
+			, ObjectPtr(InRawPtr)
+		{
+		}
+
+		UObject* RawPtr;
+		FWeakObjectPtr ObjectPtr;
+
+		bool operator==(const FAssetEntry& Other) const { return RawPtr == Other.RawPtr; }
+
+		inline friend uint32 GetTypeHash(const FAssetEntry& AssetEntry)
+		{
+			return GetTypeHash(AssetEntry.RawPtr);
+		}
+	};
+
 	/** Holds the opened assets. */
-	TMultiMap<UObject*, IAssetEditorInstance*> OpenedAssets;
+	TMultiMap<FAssetEntry, IAssetEditorInstance*> OpenedAssets;
 
 	/** Holds the opened editors. */
-	TMultiMap<IAssetEditorInstance*, UObject*> OpenedEditors;
+	TMultiMap<IAssetEditorInstance*, FAssetEntry> OpenedEditors;
 
 	/** Holds the times that editors were opened. */
 	TMap<IAssetEditorInstance*, FOpenedEditorTime> OpenedEditorTimes;
