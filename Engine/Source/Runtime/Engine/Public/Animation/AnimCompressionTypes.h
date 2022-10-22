@@ -192,9 +192,9 @@ struct ENGINE_API FCompressibleAnimData
 public:
 	FCompressibleAnimData();
 
-	FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys);
+	FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys, const ITargetPlatform* InTargetPlatform);
 
-	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
+	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping, const ITargetPlatform* InTargetPlatform);
 
 	FCompressibleAnimData(const FCompressibleAnimData&);
 	FCompressibleAnimData& operator=(const FCompressibleAnimData&);
@@ -241,6 +241,8 @@ public:
 	FFrameRate SampledFrameRate;
 
 	FCancelCompressionSignal IsCancelledSignal;
+
+	const ITargetPlatform* TargetPlatform;
 
 	static int32 GetApproxRawDataArraySize(const TArray<FRawAnimSequenceTrack>& AnimData)
 	{
@@ -810,6 +812,19 @@ struct FRootMotionReset
 		}
 	}
 };
+
+#if WITH_EDITOR
+namespace UE::Anim::Compression {
+	struct ENGINE_API FAnimDDCKeyArgs
+	{
+		FAnimDDCKeyArgs(const UAnimSequenceBase& AnimSequence);
+		FAnimDDCKeyArgs(const UAnimSequenceBase& AnimSequence, const ITargetPlatform* TargetPlatform);
+
+		const UAnimSequenceBase& AnimSequence;
+		const ITargetPlatform* TargetPlatform;
+	};
+}
+#endif // WITH_EDITOR
 
 UE_DEPRECATED(5.1, "Signature of DecompressPose has been deprecated, use UE::Anim::Decompression::DecompressPose instead")
 extern void DecompressPose(FCompactPose& OutPose,

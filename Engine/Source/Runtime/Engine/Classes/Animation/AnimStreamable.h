@@ -236,9 +236,9 @@ public:
 
 	void UpdateRawData();
 
-	FString GetBaseDDCKey(uint32 NumChunks) const;
+	FString GetBaseDDCKey(uint32 NumChunks, const ITargetPlatform* TargetPlatform) const;
 
-	void RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext);
+	void RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext, const ITargetPlatform* TargetPlatform);
 #endif
 
 	bool bUseRawDataOnly;

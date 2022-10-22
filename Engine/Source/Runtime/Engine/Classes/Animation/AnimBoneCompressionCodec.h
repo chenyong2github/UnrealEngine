@@ -34,9 +34,16 @@ class ENGINE_API UAnimBoneCompressionCodec : public UObject
 	virtual bool Compress(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) PURE_VIRTUAL(UAnimCurveCompressionCodec::Compress, return false;);
 
 	/*
+	 * Called to generate a unique DDC key for this codec instance and input anim sequence and TargetPlatform
+	 * A suitable key should be generated from: the InstanceGuid, a codec version, and all relevant properties that drive the behavior.
+	 */
+	virtual void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar);
+
+	/*
 	 * Called to generate a unique DDC key for this codec instance and input anim sequence.
 	 * A suitable key should be generated from: the InstanceGuid, a codec version, and all relevant properties that drive the behavior.
 	 */
+	UE_DEPRECATED(5.2, "This function has been deprecated. Override the one above instead.")
 	virtual void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar);
 
 	/*

@@ -35,6 +35,7 @@ class USkeletalMesh;
 struct FAnimCompressContext;
 struct FAnimSequenceDecompressionContext;
 struct FCompactPose;
+class ITargetPlatform;
 
 namespace UE { namespace Anim { namespace Compression { struct FScopedCompressionGuard; } } }
 
@@ -195,12 +196,14 @@ struct ENGINE_API FRequestAnimCompressionParams
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
 	// Constructors
-	FRequestAnimCompressionParams(bool bInAsyncCompression, bool bInAllowAlternateCompressor = false, bool bInOutput = false);
+	FRequestAnimCompressionParams(bool bInAsyncCompression, bool bInAllowAlternateCompressor = false, bool bInOutput = false, const ITargetPlatform* = nullptr);
 	FRequestAnimCompressionParams(bool bInAsyncCompression, TSharedPtr<FAnimCompressContext> InCompressContext);
 
 	// Frame stripping initialization funcs (allow stripping per platform)
 	void InitFrameStrippingFromCVar();
-	void InitFrameStrippingFromPlatform(const class ITargetPlatform* TargetPlatform);
+	void InitFrameStrippingFromPlatform();
+
+	const ITargetPlatform* TargetPlatform;
 };
 
 UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
@@ -540,7 +543,7 @@ public:
 	// Get compressed data for this UAnimSequence. May be built directly or pulled from DDC
 #if WITH_EDITOR
 	bool ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const;
-	FString GetDDCCacheKeySuffix(const bool bPerformStripping) const;
+	FString GetDDCCacheKeySuffix(const bool bPerformStripping, const ITargetPlatform* TargetPlatform) const;
 	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data);
 
 	void WaitOnExistingCompression(const bool bWantResults=true);
@@ -821,6 +824,8 @@ protected:
 	TArray<FBoneAnimationTrack> ResampledAnimationTrackData;
 
 	bool bBlockCompressionRequests;
+
+	FString RequestedCompression_DDCKey;
 
 private:
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

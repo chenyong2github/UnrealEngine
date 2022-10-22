@@ -45,6 +45,10 @@ FString UAnimBoneCompressionCodec::GetCodecDDCHandle() const
 }
 
 #if WITH_EDITORONLY_DATA
+void UAnimBoneCompressionCodec::PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar)
+{
+}
+
 void UAnimBoneCompressionCodec::PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar)
 {
 }

@@ -509,7 +509,7 @@ public:
 	void PopulateDDCKeyArchive(FArchive& Ar) {}
 
 protected:
-	virtual void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar) override;
+	virtual void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar) override;
 #endif // WITH_EDITOR
 
 	/**

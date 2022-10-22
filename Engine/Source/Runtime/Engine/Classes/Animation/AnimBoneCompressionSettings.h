@@ -9,6 +9,7 @@ class UAnimBoneCompressionCodec;
 class UAnimSequenceBase;
 struct FCompressibleAnimData;
 struct FCompressibleAnimDataResult;
+namespace UE::Anim::Compression { struct FAnimDDCKeyArgs; }
 
 /*
  * This object is used to wrap a bone compression codec. It allows a clean integration in the editor by avoiding the need
@@ -51,7 +52,11 @@ class ENGINE_API UAnimBoneCompressionSettings : public UObject
 	 */
 	bool Compress(const FCompressibleAnimData& AnimSeq, FCompressibleAnimDataResult& OutCompressedData) const;
 
+	/** Generates a DDC key that takes into account the current settings, selected codec, input anim sequence and TargetPlatform */
+	void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar);
+
 	/** Generates a DDC key that takes into account the current settings, selected codec, and input anim sequence. */
+	UE_DEPRECATED(5.2, "This function has been deprecated. Override the one above instead.")
 	void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar);
 
 	/** Generates a DDC key that takes into account the current settings and selected codec. */

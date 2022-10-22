@@ -302,7 +302,7 @@ void FCompressibleAnimData::WriteCompressionDataToJSON(TArrayView<FName> Origina
 	}
 }
 
-FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping)
+FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping, const ITargetPlatform* InTargetPlatform)
 	: CurveCompressionSettings(InSeq->CurveCompressionSettings)
 	, BoneCompressionSettings(InSeq->BoneCompressionSettings)
 	, Interpolation(InSeq->Interpolation)
@@ -317,6 +317,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, Name(InSeq->GetName())
 	, FullName(InSeq->GetFullName())
 	, AnimFName(InSeq->GetFName())
+	, TargetPlatform(InTargetPlatform)
 {
 #if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCompressibleAnimData::FCompressibleAnimData);
@@ -499,7 +500,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 #endif
 }
 
-FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys)
+FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys, const ITargetPlatform* InTargetPlatform)
 	: CurveCompressionSettings(InCurveCompressionSettings)
 	, BoneCompressionSettings(InBoneCompressionSettings)
 	, Interpolation(InInterpolation)
@@ -510,6 +511,7 @@ FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBon
 	, NumberOfKeys(InNumberOfKeys)
 	, bIsValidAdditive(false)
 	, ErrorThresholdScale(1.f)
+	, TargetPlatform(InTargetPlatform)
 {
 #if WITH_EDITOR
 	RefLocalPoses = InSkeleton->GetRefLocalPoses();
@@ -529,6 +531,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 , NumberOfKeys(0)
 , bIsValidAdditive(false)
 , ErrorThresholdScale(1.f)
+, TargetPlatform(nullptr)
 {
 }
 
@@ -1064,3 +1067,18 @@ FArchive& operator<<(FArchive& Ar, FAnimationErrorStats& ErrorStats)
 	Ar << ErrorStats.MaxErrorBone;
 	return Ar;
 }
+
+#if WITH_EDITORONLY_DATA
+UE::Anim::Compression::FAnimDDCKeyArgs::FAnimDDCKeyArgs(const UAnimSequenceBase& AnimSequence)
+	: AnimSequence(AnimSequence)
+	, TargetPlatform(nullptr)
+{
+}
+
+UE::Anim::Compression::FAnimDDCKeyArgs::FAnimDDCKeyArgs(const UAnimSequenceBase& AnimSequence, const ITargetPlatform* TargetPlatform)
+	: AnimSequence(AnimSequence)
+	, TargetPlatform(TargetPlatform)
+{
+}
+#endif
+

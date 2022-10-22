@@ -37,6 +37,7 @@
 #include "Logging/MessageLog.h"
 #include "DerivedDataCacheInterface.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Animation/AnimCompressionDerivedData.h"
 #include "Animation/AnimCompressionDerivedDataPublic.h"
 #include "UObject/UObjectThreadContext.h"
@@ -269,7 +270,7 @@ void OnCVarsChanged()
 
 FAutoConsoleVariableSink AnimationCVarSink(FConsoleCommandDelegate::CreateStatic(&OnCVarsChanged));
 
-FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPerformStripping, float CompressionErrorThresholdScale)
+FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPerformStripping, float CompressionErrorThresholdScale, const ITargetPlatform* TargetPlatform)
 {
 	//Make up our content key consisting of:
 	//	* Global animation compression version
@@ -290,7 +291,7 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPe
 
 	ArcToHexString.Ar << CompressionErrorThresholdScale;
 	ArcToHexString.Ar << bPerformStripping;
-	Seq.BoneCompressionSettings->PopulateDDCKey(Seq, ArcToHexString.Ar);
+	Seq.BoneCompressionSettings->PopulateDDCKey(UE::Anim::Compression::FAnimDDCKeyArgs(Seq, TargetPlatform), ArcToHexString.Ar);
 	Seq.CurveCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
 
 	FString Ret = FString::Printf(TEXT("%i_%s%s%s_%c%c%i_%s_%s_%i"),
@@ -316,9 +317,10 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPe
 
 /////////////////////////////////////////////////////
 // FRequestAnimCompressionParams
-FRequestAnimCompressionParams::FRequestAnimCompressionParams(bool bInAsyncCompression, bool bInAllowAlternateCompressor, bool bInOutput)
+FRequestAnimCompressionParams::FRequestAnimCompressionParams(bool bInAsyncCompression, bool bInAllowAlternateCompressor, bool bInOutput, const ITargetPlatform* InTargetPlatform)
 	: bAsyncCompression(bInAsyncCompression)
 	, CompressContext(MakeShared<FAnimCompressContext>(bInAllowAlternateCompressor, bInOutput))
+	, TargetPlatform(InTargetPlatform)
 {
 	InitFrameStrippingFromCVar();
 }
@@ -326,6 +328,7 @@ FRequestAnimCompressionParams::FRequestAnimCompressionParams(bool bInAsyncCompre
 FRequestAnimCompressionParams::FRequestAnimCompressionParams(bool bInAsyncCompression, TSharedPtr<FAnimCompressContext> InCompressContext)
 	: bAsyncCompression(bInAsyncCompression)
 	, CompressContext(InCompressContext)
+	, TargetPlatform(nullptr)
 {
 	InitFrameStrippingFromCVar();
 }
@@ -336,23 +339,26 @@ void FRequestAnimCompressionParams::InitFrameStrippingFromCVar()
 	bPerformFrameStrippingOnOddNumberedFrames = (GPerformFrameStrippingOddFramedAnimations == 1);
 }
 
-void FRequestAnimCompressionParams::InitFrameStrippingFromPlatform(const class ITargetPlatform* TargetPlatform)
+void FRequestAnimCompressionParams::InitFrameStrippingFromPlatform()
 {
 #if WITH_EDITOR
 	bPerformFrameStripping = false;
 
-	if (UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(TargetPlatform->IniPlatformName()))
+	if (TargetPlatform)
 	{
-		int32 CVarPlatformFrameStrippingValue = 0;
-		if (DeviceProfile->GetConsolidatedCVarValue(StripFrameCVarName, CVarPlatformFrameStrippingValue))
+		if (UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(TargetPlatform->IniPlatformName()))
 		{
-			bPerformFrameStripping = CVarPlatformFrameStrippingValue == 1;
-		}
+			int32 CVarPlatformFrameStrippingValue = 0;
+			if (DeviceProfile->GetConsolidatedCVarValue(StripFrameCVarName, CVarPlatformFrameStrippingValue))
+			{
+				bPerformFrameStripping = CVarPlatformFrameStrippingValue == 1;
+			}
 
-		int32 CVarPlatformOddAnimFrameStrippingValue = 0;
-		if (DeviceProfile->GetConsolidatedCVarValue(OddFrameStripStrippingCVarName, CVarPlatformOddAnimFrameStrippingValue))
-		{
-			bPerformFrameStrippingOnOddNumberedFrames = CVarPlatformOddAnimFrameStrippingValue == 1;
+			int32 CVarPlatformOddAnimFrameStrippingValue = 0;
+			if (DeviceProfile->GetConsolidatedCVarValue(OddFrameStripStrippingCVarName, CVarPlatformOddAnimFrameStrippingValue))
+			{
+				bPerformFrameStrippingOnOddNumberedFrames = CVarPlatformOddAnimFrameStrippingValue == 1;
+			}
 		}
 	}
 #endif
@@ -893,8 +899,8 @@ void UAnimSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	if (TargetPlatform)
 	{
 		// Update compressed data for platform
-		FRequestAnimCompressionParams Params(false, false, false);
-		Params.InitFrameStrippingFromPlatform(TargetPlatform);
+		FRequestAnimCompressionParams Params(false, false, false, TargetPlatform);
+		Params.InitFrameStrippingFromPlatform();
 		RequestAnimCompression(Params);
 	}
 
@@ -1822,9 +1828,9 @@ bool UAnimSequence::ShouldPerformStripping(const bool bPerformFrameStripping, co
 	return bStripCandidate && bShouldPerformFrameStripping;
 }
 
-FString UAnimSequence::GetDDCCacheKeySuffix(const bool bPerformStripping) const
+FString UAnimSequence::GetDDCCacheKeySuffix(const bool bPerformStripping, const ITargetPlatform* TargetPlatform) const
 {
-	return GetAnimSequenceSpecificCacheKeySuffix(*this, bPerformStripping, CompressionErrorThresholdScale);
+	return GetAnimSequenceSpecificCacheKeySuffix(*this, bPerformStripping, CompressionErrorThresholdScale, TargetPlatform);
 }
 #endif
 
@@ -1910,7 +1916,8 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 	const double CompressionStartTime = FPlatformTime::Seconds();
 
 	const bool bPerformStripping = ShouldPerformStripping(Params.bPerformFrameStripping, Params.bPerformFrameStrippingOnOddNumberedFrames);
-	const FString AssetDDCKey = GetDDCCacheKeySuffix(bPerformStripping);
+	const FString AssetDDCKey = GetDDCCacheKeySuffix(bPerformStripping, Params.TargetPlatform);
+	RequestedCompression_DDCKey = FString(AssetDDCKey);
 
 	bool bCompressedDataFromDDC = false;
 
@@ -1924,7 +1931,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		const bool bSkipDDC = GSkipDDC == 1;
 
 		// Data does not exist, need to build it.
-		FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(this, bPerformStripping);
+		FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(this, bPerformStripping, Params.TargetPlatform);
 		AnimCompressor->SetCompressibleData(CompressibleData);
 
 		if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
@@ -1978,7 +1985,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 
 void UAnimSequence::ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data)
 {
-	if (GetDDCCacheKeySuffix(bPerformFrameStripping) == DataCacheKeySuffix)
+	if (RequestedCompression_DDCKey == DataCacheKeySuffix)
 	{
 		ApplyCompressedData(Data);
 	}
@@ -2032,7 +2039,14 @@ void UAnimSequence::OnAnimModelLoaded()
 
 		if (FAnimationUtils::GetForcedRecompressionSetting())
 		{
-			RequestAnimCompression(FRequestAnimCompressionParams(true, false, false));
+			const ITargetPlatform* TargetPlatform = nullptr;
+			ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager();
+			if (TargetPlatformManager)
+			{
+				TargetPlatform = TargetPlatformManager->GetRunningTargetPlatform();
+			}
+
+			RequestAnimCompression(FRequestAnimCompressionParams(true, false, false, TargetPlatform));
 		}
 
 		if ( DataModelInterface->GetNumberOfKeys() == 0 && DataModelInterface->GetNumberOfFloatCurves() == 0 )
