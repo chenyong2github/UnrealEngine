@@ -12,7 +12,7 @@ class FSceneInterface;
  * Base class for mesh deformers instance settings.
  * This contains the serialized user settings to apply to the UMeshDeformer.
  */
-UCLASS(Abstract, DefaultToInstanced)
+UCLASS(Abstract)
 class ENGINE_API UMeshDeformerInstanceSettings : public UObject
 {
 	GENERATED_BODY()

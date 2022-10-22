@@ -294,7 +294,7 @@ protected:
 	UMeshDeformer* GetActiveMeshDeformer() const;
 
 	/** Object containing instance settings for the bound MeshDeformer. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Deformer", meta = (DisplayName = "Settings", EditCondition = "MeshDeformerInstanceSettings!=nullptr", EditConditionHides, ShowOnlyInnerProperties))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = "Deformer", meta = (DisplayName = "Deformer Settings", EditCondition = "MeshDeformerInstanceSettings!=nullptr", ShowOnlyInnerProperties))
 	TObjectPtr<UMeshDeformerInstanceSettings> MeshDeformerInstanceSettings;
 
 	/** Object containing state for the bound MeshDeformer. */

@@ -110,7 +110,7 @@ class OPTIMUSCORE_API UOptimusDeformerInstanceSettings :
 	TWeakObjectPtr<UOptimusDeformer> Deformer;
 
 	/** Array of binding descriptions. This is fixed and used by GetComponentBindings() to resolve final bindings for a given context. */
-	UPROPERTY(EditAnywhere, Category="Deformer", EditFixedSize, meta = (DisplayName = "Deformer Bindings", EditFixedOrder))
+	UPROPERTY(EditAnywhere, Category="Deformer|DeformerSettings", EditFixedSize, meta = (DisplayName = "Component Bindings", EditFixedOrder))
 	TArray<FOptimusDeformerInstanceComponentBinding> Bindings;
 
 public:

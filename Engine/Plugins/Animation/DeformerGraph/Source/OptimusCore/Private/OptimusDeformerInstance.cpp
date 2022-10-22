@@ -295,10 +295,13 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 	// The bindings are in the same order as the component bindings in the deformer.
 	TArray<UActorComponent*> BoundComponents;
 	UOptimusDeformerInstanceSettings* InstanceSettingsPtr = InstanceSettings.Get(); 
-	if (InstanceSettingsPtr)
+	if (InstanceSettingsPtr == nullptr)
 	{
-		InstanceSettingsPtr->GetComponentBindings(InDeformer, MeshComponent.Get(), BoundComponents);
+		// If we don't have any settings, then create a temporary object to get bindings.
+		InstanceSettingsPtr = NewObject<UOptimusDeformerInstanceSettings>();
+		InstanceSettingsPtr->InitializeSettings(InDeformer, MeshComponent.Get());
 	}
+	InstanceSettingsPtr->GetComponentBindings(InDeformer, MeshComponent.Get(), BoundComponents);
 
 	// Create the persistent buffer pool
 	BufferPool = MakeShared<FOptimusPersistentBufferPool>();
