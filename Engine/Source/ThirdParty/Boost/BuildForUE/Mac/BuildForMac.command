@@ -12,14 +12,14 @@ UsageAndExit()
     echo
     echo "Usage examples:"
     echo
-    echo "    BuildForMac.command 1.55.0"
-    echo "      -- Installs Boost version 1.55.0 as header-only."
+    echo "    BuildForMac.command 1.80.0"
+    echo "      -- Installs Boost version 1.80.0 as header-only."
     echo
-    echo "    BuildForMac.command 1.66.0 iostreams system thread"
-    echo "      -- Builds and installs Boost version 1.66.0 with iostreams, system, and thread libraries."
+    echo "    BuildForMac.command 1.80.0 iostreams system thread"
+    echo "      -- Builds and installs Boost version 1.80.0 with iostreams, system, and thread libraries."
     echo
-    echo "    BuildForMac.command 1.72.0 all"
-    echo "      -- Builds and installs Boost version 1.72.0 with all of its libraries."
+    echo "    BuildForMac.command 1.80.0 all"
+    echo "      -- Builds and installs Boost version 1.80.0 with all of its libraries."
     exit 1
 }
 
@@ -123,6 +123,8 @@ else
 
     MACOS_DEPLOYMENT_TARGET=10.9
 
+    ARCH_FLAGS="-arch x86_64 -arch arm64"
+
     # Bootstrap before build.
     echo [`date +"%r"`] Bootstrapping Boost $BOOST_VERSION build...
     ./bootstrap.sh \
@@ -132,50 +134,38 @@ else
         --with-toolset=$BOOST_TOOLSET \
         --with-python=$PYTHON_EXECUTABLE_LOCATION \
         --with-python-version=$PYTHON_VERSION
-        cxxflags="-arch x86_64 -arch arm64" \
-        cflags="-arch x86_64 -arch arm64" \
-        linkflags="-arch x86_64 -arch arm64"
+        cxxflags="$ARCH_FLAGS" \
+        cflags="$ARCH_FLAGS" \
+        linkflags="$ARCH_FLAGS"
 
-    for arch in "x86_64" "arm64"
-    do
-        echo [`date +"%r"`] Building Boost $BOOST_VERSION for architecture $arch...
+    echo [`date +"%r"`] Building Boost $BOOST_VERSION for architectures x86_64 and arm64...
 
-        B2_ARCH="`echo $arch | sed 's/_*64//g'`"
-
-        ./b2 \
-            --prefix=$INSTALL_LOCATION \
-            --includedir=$INSTALL_INCLUDE_LOCATION \
-            --libdir=$INSTALL_LIB_LOCATION \
-            -j8 \
-            address-model=64 \
-            threading=multi \
-            variant=release \
-            $BOOST_WITH_LIBRARIES \
-            --user-config=$BOOST_USER_CONFIG \
-            --hash \
-            --build-type=complete \
-            --layout=tagged \
-            --debug-configuration \
-            toolset=$BOOST_TOOLSET \
-            architecture=$B2_ARCH \
-            cflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET -arch $arch" \
-            cxxflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET -arch $arch" \
-            mflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET -arch $arch" \
-            mmflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET -arch $arch" \
-            linkflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET -arch $arch" \
-            install
-    done
-
-    echo [`date +"%r"`] Creating universal libraries for Boost $BOOST_VERSION...
-    for INTEL_LIB in $INSTALL_LIB_LOCATION/*-mt-x64.dylib $INSTALL_LIB_LOCATION/*-mt-x64.a $INSTALL_LIB_LOCATION/*-mt-s-x64.a
-    do
-        ARM_LIB="`echo $INTEL_LIB | sed 's/x64/a64/g'`"
-        UNIVERSAL_LIB="`echo $INTEL_LIB | sed 's/-x64//g'`"
-        lipo -create \
-            -arch x86_64 $INTEL_LIB \
-            -arch arm64 $ARM_LIB \
-            -output $UNIVERSAL_LIB
-    done
+    # Depending on the system installation, the version of liblzma.dylib found
+    # and used by iostreams may or may not be a universal binary, so disable
+    # LZMA for now.
+    ./b2 \
+        --prefix=$INSTALL_LOCATION \
+        --includedir=$INSTALL_INCLUDE_LOCATION \
+        --libdir=$INSTALL_LIB_LOCATION \
+        -j8 \
+        address-model=64 \
+        threading=multi \
+        variant=release \
+        $BOOST_WITH_LIBRARIES \
+        --user-config=$BOOST_USER_CONFIG \
+        --hash \
+        --build-type=complete \
+        --layout=tagged \
+        --debug-configuration \
+        toolset=$BOOST_TOOLSET \
+        architecture=arm+x86 \
+        -sNO_LZMA=1 \
+        cflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET $ARCH_FLAGS" \
+        cxxflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET $ARCH_FLAGS" \
+        mflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET $ARCH_FLAGS" \
+        mmflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET $ARCH_FLAGS" \
+        linkflags="-mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET $ARCH_FLAGS" \
+        install
 fi
 
 popd > /dev/null
