@@ -65,6 +65,8 @@ enum class EScreenPercentageMode
  */
 struct ENGINE_API FStaticResolutionFractionHeuristic
 {
+	FStaticResolutionFractionHeuristic() = default;
+
 	FStaticResolutionFractionHeuristic(const FEngineShowFlags& EngineShowFlags);
 
 	// User configurable settings
