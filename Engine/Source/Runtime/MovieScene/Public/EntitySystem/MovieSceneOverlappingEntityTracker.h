@@ -74,6 +74,10 @@ struct TGarbageTraitsImpl<TIntegerSequence<int, Indices...>, T...>
 	}
 };
 
+/** Override for OutputType* in order to provide custom garbage collection logic */
+inline void CollectGarbageForOutput(void*)
+{
+}
 
 template<typename... T>
 struct TOverlappingEntityInput
@@ -548,6 +552,8 @@ struct TOverlappingEntityTracker_WithGarbage : TOverlappingEntityTrackerImpl<Out
 			FOutput& Output = this->Outputs[Index];
 			if (KeyType::GarbageTraits::IsGarbage(Output.Key))
 			{
+				CollectGarbageForOutput(&this->Outputs[Index].OutputData);
+
 				this->Outputs.RemoveAt(Index, 1);
 
 				for (auto It = this->OutputToEntity.CreateKeyIterator(OutputIndex); It; ++It)

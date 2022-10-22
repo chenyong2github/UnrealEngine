@@ -8,6 +8,7 @@
 
 #include "MovieSceneMaterialParameterSystem.generated.h"
 
+class UMovieSceneBlenderSystem;
 class UMovieScenePiecewiseDoubleBlenderSystem;
 
 namespace UE::MovieScene
@@ -15,10 +16,18 @@ namespace UE::MovieScene
 
 struct FAnimatedMaterialParameterInfo
 {
+	/** Weak linker ptr - only assigned if the output entity is ever allocated */
+	TWeakObjectPtr<UMovieSceneEntitySystemLinker> WeakLinker;
+	/** Weak blender system ptr - only assigned if the blend channel is ever allocated */
+	TWeakObjectPtr<UMovieSceneBlenderSystem> WeakBlenderSystem;
 	int32 NumContributors = 0;
 	FMovieSceneEntityID OutputEntityID;
 	FMovieSceneBlendChannelID BlendChannelID;
+
+	~FAnimatedMaterialParameterInfo();
 };
+
+MOVIESCENETRACKS_API void CollectGarbageForOutput(FAnimatedMaterialParameterInfo* Output);
 
 } // namespace UE::MovieScene
 

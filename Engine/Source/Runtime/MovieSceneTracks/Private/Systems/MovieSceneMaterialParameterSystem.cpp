@@ -24,6 +24,36 @@ FAutoConsoleVariableRef CVarMaterialParameterBlending(
 	ECVF_Default
 );
 
+void CollectGarbageForOutput(FAnimatedMaterialParameterInfo* Output)
+{
+	// This should only happen during garbage collection
+	if (Output->OutputEntityID.IsValid())
+	{
+		UMovieSceneEntitySystemLinker* Linker = Output->WeakLinker.Get();
+		if (Linker)
+		{
+			Linker->EntityManager.AddComponent(Output->OutputEntityID, FBuiltInComponentTypes::Get()->Tags.NeedsUnlink);
+		}
+
+		Output->OutputEntityID = FMovieSceneEntityID();
+	}
+
+	if (Output->BlendChannelID.IsValid())
+	{
+		UMovieSceneBlenderSystem* BlenderSystem = Output->WeakBlenderSystem.Get();
+		if (BlenderSystem)
+		{
+			BlenderSystem->ReleaseBlendChannel(Output->BlendChannelID);
+		}
+		Output->BlendChannelID = FMovieSceneBlendChannelID();
+	}
+}
+
+FAnimatedMaterialParameterInfo::~FAnimatedMaterialParameterInfo()
+{
+	ensureAlways(!OutputEntityID.IsValid() && !BlendChannelID.IsValid());
+}
+
 /** Apply scalar material parameters */
 struct FApplyScalarParameters
 {
@@ -118,6 +148,9 @@ struct FOverlappingMaterialParameterHandler
 					System->DoubleBlenderSystem = Linker->LinkSystem<UMovieScenePiecewiseDoubleBlenderSystem>();
 					Linker->SystemGraph.AddReference(System, System->DoubleBlenderSystem);
 				}
+
+				Output->WeakLinker = Linker;
+				Output->WeakBlenderSystem = System->DoubleBlenderSystem;
 
 				// Initialize the blend channel ID
 				Output->BlendChannelID = System->DoubleBlenderSystem->AllocateBlendChannel();
@@ -265,16 +298,10 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 
 	if (GMaterialParameterBlending)
 	{
-		auto HandleUnlinkedAllocation = [this](const FEntityAllocation* Allocation, TRead<UObject*> InObjects, TReadOneOf<FName, FName, FName> ScalarVectorOrColorParameterNames)
+		auto HandleUnlinkedAllocation = [this](const FEntityAllocation* Allocation)
 		{
-			if (TComponentPtr<const FName> ScalarParameterNames = TComponentPtr<const FName>(ScalarVectorOrColorParameterNames.Get<0>()))
-			{
-				this->ScalarParameterTracker.VisitUnlinkedAllocation(Allocation);
-			}
-			else
-			{
-				this->VectorParameterTracker.VisitUnlinkedAllocation(Allocation);
-			}
+			this->ScalarParameterTracker.VisitUnlinkedAllocation(Allocation);
+			this->VectorParameterTracker.VisitUnlinkedAllocation(Allocation);
 		};
 
 		auto HandleUpdatedAllocation = [this](const FEntityAllocation* Allocation, TRead<UObject*> InObjects, TReadOneOf<FName, FName, FName> ScalarVectorOrColorParameterNames)
@@ -293,7 +320,7 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 			}
 		};
 
-		// Next handle any new or updated bound materials
+		// First step handle any new or updated bound materials
 		FEntityTaskBuilder()
 		.Read(TracksComponents->BoundMaterial)
 		.ReadOneOf(TracksComponents->ScalarParameterName, TracksComponents->VectorParameterName, TracksComponents->ColorParameterName)
@@ -301,10 +328,8 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 		.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
 		.Iterate_PerAllocation(&Linker->EntityManager, HandleUpdatedAllocation);
 
-		// First step, handle any entities that are going away
+		// Next handle any entities that are going away
 		FEntityTaskBuilder()
-		.Read(TracksComponents->BoundMaterial)
-		.ReadOneOf(TracksComponents->ScalarParameterName, TracksComponents->VectorParameterName, TracksComponents->ColorParameterName)
 		.FilterAll({ BuiltInComponents->Tags.NeedsUnlink })
 		.Iterate_PerAllocation(&Linker->EntityManager, HandleUnlinkedAllocation);
 
