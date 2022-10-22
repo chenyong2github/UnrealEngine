@@ -2,6 +2,7 @@
 
 #include "IAudioLinkFactory.h"
 #include "Algo/Transform.h"
+#include "AudioLinkLog.h"
 
 // Concrete Buffer Listeners.
 #include "BufferedSubmixListener.h" 
@@ -22,6 +23,10 @@ IAudioLinkFactory::IAudioLinkFactory()
 	if (AudioLinkFactory_Private::IsEnabled())
 	{
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+	}
+	else
+	{
+		UE_LOG(LogAudioLink, Warning, TEXT("AudioLink is disabled, au.audiolink.enabled=0. Not registering factory."));
 	}
 }
 

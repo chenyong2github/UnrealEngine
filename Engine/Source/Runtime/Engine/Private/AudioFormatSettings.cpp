@@ -10,6 +10,17 @@
 
 namespace Audio
 {
+	bool ShouldAllowPlatformSpecificFormats()
+	{
+		static bool IsAudioLinkEnabled = []() -> bool
+		{
+			bool bAvailable = IModularFeatures::Get().IsModularFeatureAvailable(TEXT("AudioLink Factory"));
+			UE_CLOG(bAvailable,LogAudio, Display, TEXT("AudioLink is enabled, disabling platform specific AudioFormats."));
+			return bAvailable;
+		}();
+		return !IsAudioLinkEnabled;
+	}
+
 	FAudioFormatSettings::FAudioFormatSettings(FConfigCacheIni* InConfigSystem, const FString& InConfigFilename, const FString& InPlatformIdentifierForLogging)
 	{
 		ReadConfiguration(InConfigSystem, InConfigFilename, InPlatformIdentifierForLogging);
@@ -20,13 +31,20 @@ namespace Audio
 		FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
 		if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-			if (Wave->IsStreaming())
+			if (ShouldAllowPlatformSpecificFormats())
 			{
-				return PlatformStreamingFormat;
+				if (Wave->IsStreaming())
+				{
+					return PlatformStreamingFormat;
+				}
+				else
+				{
+					return PlatformFormat;
+				}
 			}
 			else
 			{
-				return PlatformFormat;
+				return FallbackFormat;
 			}
 		}
 		return FormatName;
