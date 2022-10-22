@@ -8,7 +8,6 @@
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleEditingColumn.h"
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleStatusColumn.h"
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleClientColumn.h"
-#include "WorldPartition/ContentBundle/Outliner/ContentBundleHasErrorColumn.h"
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleActorCountColumn.h"
 
 namespace ContentBundleOutlinerPrivate
@@ -19,8 +18,7 @@ namespace ContentBundleOutlinerPrivate
 		BuiltIn,
 		Status,
 		Editing,
-		ActorCount,
-		HasError
+		ActorCount
 	};
 }
 
@@ -38,7 +36,6 @@ void SContentBundleBrowser::Construct(const FArguments& InArgs)
 	InitOptions.ColumnMap.Add(FContentBundleOutlinerStatusColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, ContentBundleOutlinerPrivate::EColumnPriority::Status, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FContentBundleOutlinerStatusColumn(InSceneOutliner)); }), false));
 	InitOptions.ColumnMap.Add(FContentBundleOutlinerEditingColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, ContentBundleOutlinerPrivate::EColumnPriority::Editing, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FContentBundleOutlinerEditingColumn(InSceneOutliner)); }), false));
 	InitOptions.ColumnMap.Add(FContentBundleOutlinerActorCountColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, ContentBundleOutlinerPrivate::EColumnPriority::ActorCount, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FContentBundleOutlinerActorCountColumn(InSceneOutliner)); }), false));
-	InitOptions.ColumnMap.Add(FContentBundleOutlinerHasErrorColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, ContentBundleOutlinerPrivate::EColumnPriority::HasError, FCreateSceneOutlinerColumn::CreateLambda([](ISceneOutliner& InSceneOutliner) { return MakeShareable(new FContentBundleOutlinerHasErrorColumn(InSceneOutliner)); }), false));
 	
 	ContentBundleOutliner = SNew(SContentBundleOutliner, InitOptions)
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());

@@ -44,11 +44,10 @@ SHeaderRow::FColumn::FArguments FDataLayerOutlinerHasErrorsColumn::ConstructHead
 		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Center)
 		.VAlignCell(VAlign_Center)
-		.DefaultTooltip(FText::FromName(GetColumnID()))
 		[
-			SNew(SImage)
-			.Image(FAppStyle::GetBrush(TEXT("Icons.Error")))
-			.ColorAndOpacity(FSlateColor::UseForeground())
+			SNew(STextBlock)
+			.Margin(FMargin(0.0f))
+			.Text(FText::FromString(TEXT("")))
 		];
 }
 

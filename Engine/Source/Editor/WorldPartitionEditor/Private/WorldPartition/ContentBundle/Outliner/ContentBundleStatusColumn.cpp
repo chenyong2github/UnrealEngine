@@ -58,6 +58,11 @@ const TSharedRef<SWidget> FContentBundleOutlinerStatusColumn::ConstructRowWidget
 							TSharedPtr<FContentBundleEditor> ContentBundleEditorPin = ContentBundleTreeItem->GetContentBundleEditorPin();
 							if (ContentBundleEditorPin != nullptr)
 							{
+								if (ContentBundleEditorPin->GetStatus() == EContentBundleStatus::FailedToInject)
+								{
+									return FText::Format(LOCTEXT("ConsultLogForErrors", "{0} (Consult Log For Errors)"), UEnum::GetDisplayValueAsText(ContentBundleEditorPin->GetStatus()));
+								}
+								
 								return UEnum::GetDisplayValueAsText(ContentBundleEditorPin->GetStatus());
 							}
 
