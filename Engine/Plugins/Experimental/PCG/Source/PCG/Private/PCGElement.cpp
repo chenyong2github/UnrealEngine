@@ -12,8 +12,76 @@
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::Execute);
-	check(Context && Context->NumAvailableTasks > 0);
+	check(Context && Context->NumAvailableTasks > 0 && Context->CurrentPhase < EPCGExecutionPhase::Done);
+	check(Context->bIsRunningOnMainThread || !CanExecuteOnlyOnMainThread(Context));
 
+	while (Context->CurrentPhase != EPCGExecutionPhase::Done)
+	{
+		bool bExecutionPostponed = false;
+
+		switch (Context->CurrentPhase)
+		{
+			case EPCGExecutionPhase::NotExecuted: // Fall-through
+			{
+				PreExecute(Context);
+				break;
+			}
+
+			case EPCGExecutionPhase::PrepareData:
+			{
+				FScopedCallTimer CallTimer(*this, Context);
+				if (PrepareDataInternal(Context))
+				{
+					Context->CurrentPhase = EPCGExecutionPhase::Execute;
+				}
+				else
+				{
+					bExecutionPostponed = true;
+				}
+				break;
+			}
+
+			case EPCGExecutionPhase::Execute:
+			{
+				FScopedCallTimer CallTimer(*this, Context);
+				if (ExecuteInternal(Context))
+				{
+					Context->CurrentPhase = EPCGExecutionPhase::PostExecute;
+				}
+				else
+				{
+					bExecutionPostponed = true;
+				}
+				break;
+			}
+
+			case EPCGExecutionPhase::PostExecute:
+			{
+				PostExecute(Context);
+				break;
+			}
+
+			default: // should not happen
+			{
+				check(0);
+				break;
+			}
+		}
+
+		if (bExecutionPostponed || 
+			Context->ShouldStop() ||
+			(!Context->bIsRunningOnMainThread && CanExecuteOnlyOnMainThread(Context))) // phase change might require access to main thread
+		{
+			break;
+		}
+	}
+
+	return Context->CurrentPhase == EPCGExecutionPhase::Done;
+}
+
+void IPCGElement::PreExecute(FPCGContext* Context) const
+{
+	// Check for early outs (task cancelled + node disabled)
 	// Early out to stop execution
 	if (Context->InputData.bCancelExecution || (!Context->SourceComponent.IsExplicitlyNull() && !Context->SourceComponent.IsValid()))
 	{
@@ -21,23 +89,32 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 		if (IsCancellable())
 		{
-			return true;
+			// Skip task completely
+			Context->CurrentPhase = EPCGExecutionPhase::Done;
+			return;
 		}
 	}
 
+	// Prepare to move to prepare data phase
+	Context->CurrentPhase = EPCGExecutionPhase::PrepareData;
+
 	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
-	if (Settings && Settings->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
+	if (!Settings)
 	{
-		//Pass-through
+		return;
+	}
+
+	if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Disabled)
+	{
+		//Pass-through - no execution
 		Context->OutputData = Context->InputData;
-		CleanupAndValidateOutput(Context);
-		return true;
+		Context->CurrentPhase = EPCGExecutionPhase::PostExecute;
 	}
 	else
 	{
+		// Perform input filtering
 		/** TODO - Placeholder feature */
-		TArray<FPCGTaggedData> BypassedTaggedData;
-		if (Settings && !Settings->FilterOnTags.IsEmpty())
+		if (!Settings->FilterOnTags.IsEmpty())
 		{
 			// Move any of the inputs that don't have the tags to the outputs as a pass-through
 			// NOTE: this breaks a bit the ordering of inputs, however, there's no obvious way around it
@@ -49,7 +126,6 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 					if (Settings->bPassThroughFilteredOutInputs)
 					{
 						Context->OutputData.TaggedData.Add(TaggedData);
-						BypassedTaggedData.Add(TaggedData);
 					}
 				}
 				else // input has the required tags
@@ -58,89 +134,57 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 				}
 			}
 
-			Context->InputData.TaggedData = FilteredTaggedData;
+			Context->InputData.TaggedData = MoveTemp(FilteredTaggedData);
+			Context->BypassedOutputCount = Context->OutputData.TaggedData.Num();
 		}
-
-		bool bDone = false;
-
-#if WITH_EDITOR
-		if (ShouldLog())
-		{
-			UE_LOG(LogPCG, Verbose, TEXT("---------------------------------------"));
-		}
-#endif
-
-#if WITH_EDITOR
-		const double StartTime = FPlatformTime::Seconds();
-#endif
-
-		bDone = ExecuteInternal(Context);
-
-#if WITH_EDITOR
-		const double EndTime = FPlatformTime::Seconds();
-		const double ElapsedTime = EndTime - StartTime;
-		Context->ElapsedTime += ElapsedTime;
-		Context->ExecutionCount++;
-
-		// TODO: Is hardcoded, should be configurable
-		constexpr int MaxNumberOfTrackedTimers = 100;
-		{
-			FScopeLock Lock(&TimersLock);
-			if (Timers.Num() < MaxNumberOfTrackedTimers)
-			{
-				Timers.Add(ElapsedTime);
-			}
-			else
-			{
-				Timers[CurrentTimerIndex] = ElapsedTime;
-			}
-			CurrentTimerIndex = (CurrentTimerIndex + 1) % MaxNumberOfTrackedTimers;
-		}
-#endif
-
-		if (bDone)
-		{
-			CleanupAndValidateOutput(Context);
-
-#if WITH_EDITOR
-			PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
-#endif
-		}
-
-		/** TODO - Placeholder feature */
-		if (bDone && Settings && !Settings->TagsAppliedOnOutput.IsEmpty())
-		{
-			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
-			{
-				if (!BypassedTaggedData.Contains(TaggedData))
-				{
-					TaggedData.Tags.Append(Settings->TagsAppliedOnOutput);
-				}
-			}
-		}
-
-#if WITH_EDITOR
-		if (bDone && Settings)
-		{
-			if (Settings->DebugSettings.bCheckForDuplicates)
-			{
-				FPCGDataCollection ElementInputs = Context->InputData;
-				FPCGDataCollection ElementOutputs = Context->OutputData;
-
-				Context->InputData = ElementOutputs;
-				Context->OutputData = FPCGDataCollection();
-
-				PCGE_LOG(Verbose, "Performing remove duplicate points test (perf warning)");
-				PCGSelfPruningElement::Execute(Context, EPCGSelfPruningType::RemoveDuplicates, 0.0f, false);
-
-				Context->InputData = ElementInputs;
-				Context->OutputData = ElementOutputs;
-			}
-		}
-#endif
-
-		return bDone;
 	}
+}
+
+bool IPCGElement::PrepareDataInternal(FPCGContext* Context) const
+{
+	return true;
+}
+
+void IPCGElement::PostExecute(FPCGContext* Context) const
+{
+	// Cleanup and validate output
+	CleanupAndValidateOutput(Context);
+
+#if WITH_EDITOR
+	PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
+#endif
+
+	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+
+	// Apply tags on output
+	/** TODO - Placeholder feature */
+	if (Settings && !Settings->TagsAppliedOnOutput.IsEmpty())
+	{
+		for (int32 TaggedDataIdx = Context->BypassedOutputCount; TaggedDataIdx < Context->OutputData.TaggedData.Num(); ++TaggedDataIdx)
+		{
+			Context->OutputData.TaggedData[TaggedDataIdx].Tags.Append(Settings->TagsAppliedOnOutput);
+		}
+	}
+
+	// Additional debug things (check for duplicates),
+#if WITH_EDITOR
+	if (Settings && Settings->DebugSettings.bCheckForDuplicates)
+	{
+		FPCGDataCollection ElementInputs = Context->InputData;
+		FPCGDataCollection ElementOutputs = Context->OutputData;
+
+		Context->InputData = ElementOutputs;
+		Context->OutputData = FPCGDataCollection();
+
+		PCGE_LOG(Verbose, "Performing remove duplicate points test (perf warning)");
+		PCGSelfPruningElement::Execute(Context, EPCGSelfPruningType::RemoveDuplicates, 0.0f, false);
+
+		Context->InputData = ElementInputs;
+		Context->OutputData = ElementOutputs;
+	}
+#endif
+
+	Context->CurrentPhase = EPCGExecutionPhase::Done;
 }
 
 #if WITH_EDITOR
@@ -216,6 +260,36 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 #endif
 	}
 }
+
+#if WITH_EDITOR
+IPCGElement::FScopedCallTimer::FScopedCallTimer(const IPCGElement& InOwner, FPCGContext* InContext)
+	: Owner(InOwner), Context(InContext)
+{
+	StartTime = FPlatformTime::Seconds();
+}
+
+IPCGElement::FScopedCallTimer::~FScopedCallTimer()
+{
+	const double EndTime = FPlatformTime::Seconds();
+	const double ElapsedTime = EndTime - StartTime;
+	Context->ElapsedTime += ElapsedTime;
+	Context->ExecutionCount++;
+
+	constexpr int MaxNumberOfTrackedTimers = 100;
+	{
+		FScopeLock Lock(&Owner.TimersLock);
+		if (Owner.Timers.Num() < MaxNumberOfTrackedTimers)
+		{
+			Owner.Timers.Add(ElapsedTime);
+		}
+		else
+		{
+			Owner.Timers[Owner.CurrentTimerIndex] = ElapsedTime;
+		}
+		Owner.CurrentTimerIndex = (Owner.CurrentTimerIndex + 1) % MaxNumberOfTrackedTimers;
+	}
+}
+#endif // WITH_EDITOR
 
 FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {

@@ -28,10 +28,11 @@ FPCGElementPtr UPCGStaticMeshSpawnerSettings::CreateElement() const
 	return MakeShared<FPCGStaticMeshSpawnerElement>();
 }
 
-bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
+bool FPCGStaticMeshSpawnerElement::PrepareDataInternal(FPCGContext* InContext) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::PrepareDataInternal);
 	// TODO : time-sliced implementation
+	FPCGStaticMeshSpawnerContext* Context = static_cast<FPCGStaticMeshSpawnerContext*>(InContext);
 	const UPCGStaticMeshSpawnerSettings* Settings = Context->GetInputSettings<UPCGStaticMeshSpawnerSettings>();
 	check(Settings);
 
@@ -42,11 +43,8 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// perform mesh selection
-	TArray<FPCGMeshInstanceList> MeshInstances;
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-	
-	FPCGPackedCustomData PackedCustomData;
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
@@ -75,8 +73,8 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (bOutputPinConnected || Settings->bForceConnectOutput)
 		{
-			FPCGTaggedData& Output = Outputs.Add_GetRef(Input); 
-			
+			FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
+
 			OutputPointData = NewObject<UPCGPointData>();
 			OutputPointData->InitializeFromData(SpatialData);
 
@@ -91,25 +89,72 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 			Output.Data = OutputPointData;
 		}
 
+		TArray<FPCGMeshInstanceList> MeshInstances;
 		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, SpatialData, MeshInstances, OutputPointData);
 
-		for (const FPCGMeshInstanceList& InstanceList : MeshInstances)
+		TArray<FPCGPackedCustomData> PackedCustomData;
+		PackedCustomData.SetNum(MeshInstances.Num());
+		if (Settings->InstancePackerInstance)
 		{
-			if (Settings->InstancePackerInstance)
+			for(int32 InstanceListIndex = 0; InstanceListIndex < MeshInstances.Num(); ++InstanceListIndex)
 			{
-				PackedCustomData.CustomData.Reset();
-				PackedCustomData.NumCustomDataFloats = 0;
-
-				Settings->InstancePackerInstance->PackInstances(*Context, SpatialData, InstanceList, PackedCustomData);
+				Settings->InstancePackerInstance->PackInstances(*Context, SpatialData, MeshInstances[InstanceListIndex], PackedCustomData[InstanceListIndex]);
 			}
-
-			SpawnStaticMeshInstances(Context, InstanceList, TargetActor, PackedCustomData);
 		}
 
-		MeshInstances.Reset();
+		FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceListData = Context->MeshInstancesData.Emplace_GetRef();
+		InstanceListData.SpatialData = SpatialData;
+		InstanceListData.MeshInstances = MoveTemp(MeshInstances);
+		InstanceListData.PackedCustomData = MoveTemp(PackedCustomData);
 	}
 
 	return true;
+}
+
+bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* InContext) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute);
+	FPCGStaticMeshSpawnerContext* Context = static_cast<FPCGStaticMeshSpawnerContext*>(InContext);
+	const UPCGStaticMeshSpawnerSettings* Settings = Context->GetInputSettings<UPCGStaticMeshSpawnerSettings>();
+	check(Settings);
+
+	while(!Context->MeshInstancesData.IsEmpty())
+	{
+		const FPCGStaticMeshSpawnerContext::FPackedInstanceListData& InstanceList = Context->MeshInstancesData.Last();
+		check(InstanceList.MeshInstances.Num() == InstanceList.PackedCustomData.Num());
+
+		if (InstanceList.SpatialData->TargetActor.IsValid())
+		{
+			for (int32 DataIndex = 0; DataIndex < InstanceList.MeshInstances.Num(); ++DataIndex)
+			{
+				SpawnStaticMeshInstances(Context, InstanceList.MeshInstances[DataIndex], InstanceList.SpatialData->TargetActor.Get(), InstanceList.PackedCustomData[DataIndex]);
+			}
+		}
+
+		Context->MeshInstancesData.RemoveAtSwap(Context->MeshInstancesData.Num() - 1);
+
+		if (Context->ShouldStop())
+		{
+			break;
+		}
+	}
+
+	return Context->MeshInstancesData.IsEmpty();
+}
+
+FPCGContext* FPCGStaticMeshSpawnerElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
+{
+	FPCGStaticMeshSpawnerContext* Context = new FPCGStaticMeshSpawnerContext();
+	Context->InputData = InputData;
+	Context->SourceComponent = SourceComponent;
+	Context->Node = Node;
+
+	return Context;
+}
+
+bool FPCGStaticMeshSpawnerElement::CanExecuteOnlyOnMainThread(FPCGContext* Context) const
+{
+	return Context->CurrentPhase == EPCGExecutionPhase::Execute;
 }
 
 void FPCGStaticMeshSpawnerElement::SpawnStaticMeshInstances(FPCGContext* Context, const FPCGMeshInstanceList& InstanceList, AActor* TargetActor, const FPCGPackedCustomData& PackedCustomData) const

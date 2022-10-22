@@ -95,13 +95,30 @@ protected:
 	void RefreshInstancePacker();
 };
 
-class FPCGStaticMeshSpawnerElement : public FSimplePCGElement
+USTRUCT()
+struct FPCGStaticMeshSpawnerContext : public FPCGContext
+{
+	GENERATED_BODY()
+
+	struct FPackedInstanceListData
+	{
+		const UPCGSpatialData* SpatialData;
+		TArray<FPCGMeshInstanceList> MeshInstances;
+		TArray<FPCGPackedCustomData> PackedCustomData;
+	};
+
+	TArray<FPackedInstanceListData> MeshInstancesData;
+};
+
+class FPCGStaticMeshSpawnerElement : public IPCGElement
 {
 public:
-	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const { return true; }
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
+	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 
 protected:
+	virtual bool PrepareDataInternal(FPCGContext* Context) const override;
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;	
 	void SpawnStaticMeshInstances(FPCGContext* Context, const FPCGMeshInstanceList& InstanceList, AActor* TargetActor, const FPCGPackedCustomData& PackedCustomData) const;
 };

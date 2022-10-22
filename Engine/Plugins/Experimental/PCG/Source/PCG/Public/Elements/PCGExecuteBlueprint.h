@@ -229,13 +229,15 @@ protected:
 
 struct FPCGBlueprintExecutionContext : public FPCGContext
 {
+	virtual ~FPCGBlueprintExecutionContext();
+
 	UPCGBlueprintElement* BlueprintElementInstance = nullptr;
 };
 
 class FPCGExecuteBlueprintElement : public IPCGElement
 {
 public:
-	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override;
+	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
 
 protected:

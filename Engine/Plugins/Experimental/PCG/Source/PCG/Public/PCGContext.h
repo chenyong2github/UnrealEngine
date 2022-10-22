@@ -27,6 +27,16 @@ namespace PCGContextHelpers
 	}
 }
 
+UENUM()
+enum class EPCGExecutionPhase : uint8
+{
+		NotExecuted = 0,
+		PrepareData,
+		Execute,
+		PostExecute,
+		Done
+};
+
 USTRUCT(BlueprintType)
 struct PCG_API FPCGContext
 {
@@ -45,6 +55,12 @@ struct PCG_API FPCGContext
 	FPCGTaskId TaskId = InvalidPCGTaskId;
 	bool bIsPaused = false;
 
+	EPCGExecutionPhase CurrentPhase = EPCGExecutionPhase::NotExecuted;
+	int32 BypassedOutputCount = 0;
+
+	double EndTime = 0.0;
+	bool bIsRunningOnMainThread = false;
+
 #if WITH_EDITOR
 	double ElapsedTime = 0.0;
 	int32 ExecutionCount = 0;
@@ -58,4 +74,5 @@ struct PCG_API FPCGContext
 
 	FString GetTaskName() const;
 	FString GetComponentName() const;
+	bool ShouldStop() const;
 };

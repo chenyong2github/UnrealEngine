@@ -43,6 +43,7 @@ struct FPCGGraphTask
 	const UPCGNode* Node = nullptr;
 	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
 	FPCGElementPtr Element; // Added to have tasks that aren't node-bound
+	FPCGContext* Context = nullptr;
 	FPCGTaskId NodeId = InvalidPCGTaskId;
 };
 
@@ -164,7 +165,7 @@ class FPCGFetchInputElement : public FSimplePCGElement
 {
 public:
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
-	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
+	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override { return true; }
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
@@ -176,7 +177,7 @@ class FPCGGenericElement : public FSimplePCGElement
 public:
 	FPCGGenericElement(TFunction<bool(FPCGContext*)> InOperation);
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
-	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
+	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override { return true; }
 
 protected:
 	// Important note: generic elements must always be run on the main thread

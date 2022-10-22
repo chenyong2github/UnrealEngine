@@ -85,7 +85,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 
 	// Prepare scheduled task that will be promoted in the next Execute call.
 	if (CompiledTasks.Num() > 0)
-	{
+	{ 
 		check(CompiledTasks[0].Node == Graph->GetInputNode());
 
 		// Setup fetch task on input node
@@ -221,6 +221,7 @@ void FPCGGraphExecutor::Execute()
 	bool bAnyTaskEnded = false;
 
 	const double StartTime = FPlatformTime::Seconds();
+	const double EndTime = StartTime + (CVarTimePerFrame.GetValueOnAnyThread() / 1000.0);
 	const int32 MaxNumThreads = FMath::Max(0, FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, CVarMaxNumTasks.GetValueOnAnyThread() - 1));
 	const bool bAllowMultiDispatch = CVarGraphMultithreading.GetValueOnAnyThread();
 
@@ -231,7 +232,7 @@ void FPCGGraphExecutor::Execute()
 	while(ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0 || SleepingTasks.Num() > 0)
 	{
 		// First: if we have free resources, move ready tasks to the active tasks
-		bool bMainThreadAvailable = (ActiveTasks.Num() == 0 || !ActiveTasks.Last().Element->CanExecuteOnlyOnMainThread(ActiveTasks.Last().Context->GetInputSettings<UPCGSettings>()));
+		bool bMainThreadAvailable = (ActiveTasks.Num() == 0 || !ActiveTasks[0].Element->CanExecuteOnlyOnMainThread(ActiveTasks[0].Context.Get()));
 		int32 NumAvailableThreads = FMath::Max(0, MaxNumThreads - CurrentlyUsedThreads);
 
 		const bool bMainThreadWasAvailable = bMainThreadAvailable;
@@ -279,18 +280,16 @@ void FPCGGraphExecutor::Execute()
 				}
 
 				// Validate that we can start this task now
-				const bool bIsMainThreadTask = SleepingTask.Element->CanExecuteOnlyOnMainThread(SleepingTask.Context->GetInputSettings<UPCGSettings>());
+				const bool bIsMainThreadTask = SleepingTask.Element->CanExecuteOnlyOnMainThread(SleepingTask.Context.Get());
 
 				if (!bIsMainThreadTask || bMainThreadAvailable)
 				{
-					const bool bInsertLast = (bIsMainThreadTask || bMainThreadAvailable || ActiveTasks.Num() == 0);
-					if (bInsertLast)
+					ActiveTasks.Emplace(MoveTemp(SleepingTask));
+
+					// Move task up front if it has to run on the main thread
+					if (bIsMainThreadTask && ActiveTasks.Num() > 1)
 					{
-						ActiveTasks.Emplace(MoveTemp(SleepingTask));
-					}
-					else
-					{
-						ActiveTasks.Insert(MoveTemp(SleepingTask), ActiveTasks.Num() - 1);
+						ActiveTasks.Swap(0, ActiveTasks.Num() - 1);
 					}
 
 					TaskDispatchBookKeeping(bIsMainThreadTask);
@@ -328,6 +327,7 @@ void FPCGGraphExecutor::Execute()
 				// At this point, if the task doesn't have an element, we will never be able to execute it, so we can drop it.
 				if (!Task.Element)
 				{
+					check(!Task.Context);
 					ReadyTasks.RemoveAtSwap(ReadyTaskIndex);
 					continue;
 				}
@@ -356,6 +356,7 @@ void FPCGGraphExecutor::Execute()
 					// Fast-forward cached result to stored results
 					FPCGTaskId SkippedTaskId = Task.NodeId;
 					StoreResults(SkippedTaskId, CachedOutput);
+					delete Task.Context;
 					ReadyTasks.RemoveAtSwap(ReadyTaskIndex);
 					QueueNextTasks(SkippedTaskId);
 					bAnyTaskEnded = true;
@@ -363,28 +364,36 @@ void FPCGGraphExecutor::Execute()
 					continue;
 				}
 
+				// Allocate context if not previously done
+				if (!Task.Context)
+				{
+					Task.Context = Task.Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
+					Task.Context->TaskId = Task.NodeId;
+				}
+
 				// Validate that we can start this task now
-				const bool bIsMainThreadTask = Task.Element->CanExecuteOnlyOnMainThread(TaskSettings);
+				const bool bIsMainThreadTask = Task.Element->CanExecuteOnlyOnMainThread(Task.Context);
 
 				if (!bIsMainThreadTask || bMainThreadAvailable)
 				{
-					const bool bInsertLast = (bIsMainThreadTask || bMainThreadAvailable || ActiveTasks.Num() == 0);
-					FPCGGraphActiveTask& ActiveTask = (bInsertLast ? ActiveTasks.Emplace_GetRef() : ActiveTasks.EmplaceAt_GetRef(ActiveTasks.Num() - 1));
-
+					FPCGGraphActiveTask& ActiveTask = ActiveTasks.Emplace_GetRef();
 					ActiveTask.Element = Task.Element;
 					ActiveTask.NodeId = Task.NodeId;
-
-					FPCGContext* Context = Task.Element->Initialize(TaskInput, Task.SourceComponent, Task.Node);
-					Context->TaskId = Task.NodeId;
-					ActiveTask.Context = TUniquePtr<FPCGContext>(Context);
+					ActiveTask.Context = TUniquePtr<FPCGContext>(Task.Context);
 
 #if WITH_EDITOR
 					if (bResultAlreadyInCache)
 					{
 						ActiveTask.bIsBypassed = true;
-						Context->OutputData = CachedOutput;
+						ActiveTask.Context->OutputData = CachedOutput;
 					}
 #endif
+
+					// Move the task up front if it needs to run on the main thread
+					if (bIsMainThreadTask && ActiveTasks.Num() > 1)
+					{
+						ActiveTasks.Swap(0, ActiveTasks.Num() - 1);
+					}
 
 					TaskDispatchBookKeeping(bIsMainThreadTask);
 
@@ -422,15 +431,19 @@ void FPCGGraphExecutor::Execute()
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::StartFutures);
-			for(int32 ExecutionIndex = 0; ExecutionIndex < ActiveTasks.Num() - 1; ++ExecutionIndex)
+			for(int32 ExecutionIndex = 1; ExecutionIndex < ActiveTasks.Num(); ++ExecutionIndex)
 			{
 				FPCGGraphActiveTask& ActiveTask = ActiveTasks[ExecutionIndex];
-				check(!ActiveTask.Context || !ActiveTask.Context->bIsPaused);
+				check(!ActiveTask.Context->bIsPaused);
 
 	#if WITH_EDITOR
 				if(!ActiveTask.bIsBypassed)
 	#endif
 				{
+					check(!ActiveTask.Element->CanExecuteOnlyOnMainThread(ActiveTask.Context.Get()));
+					ActiveTask.Context->EndTime = EndTime;
+					ActiveTask.Context->bIsRunningOnMainThread = false;
+
 					Futures.Emplace(ExecutionIndex, Async(EAsyncExecution::ThreadPool, [&ActiveTask]()
 					{
 						return ActiveTask.Element->Execute(ActiveTask.Context.Get());
@@ -488,8 +501,11 @@ void FPCGGraphExecutor::Execute()
 			if (!ActiveTasks.IsEmpty())
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::ExecuteTasks::MainThreadTask);
-				FPCGGraphActiveTask& MainThreadTask = ActiveTasks.Last();
-				check(!MainThreadTask.Context || !MainThreadTask.Context->bIsPaused);
+				FPCGGraphActiveTask& MainThreadTask = ActiveTasks[0];
+				check(!MainThreadTask.Context->bIsPaused);
+				MainThreadTask.Context->EndTime = EndTime;
+				MainThreadTask.Context->bIsRunningOnMainThread = true;
+
 #if WITH_EDITOR
 				if(MainThreadTask.bIsBypassed || MainThreadTask.Element->Execute(MainThreadTask.Context.Get()))
 #else
@@ -497,19 +513,14 @@ void FPCGGraphExecutor::Execute()
 #endif
 				{
 					bMainTaskDone = true;
-					PostTaskExecute(ActiveTasks.Num() - 1);
 				}
 			}
 
-			// If the main thread task is done, it was removed from ActiveTasks, and ActiveTasks should contains only futures (if there are some)
-			// Otherwise, ActiveTasks.Num() - 1 still point to the main thread tasks, so futures indexes are within [0, ActiveTasks.Num() - 2].
-			int32 FuturesLastIndex = bMainTaskDone ? ActiveTasks.Num() - 1 : ActiveTasks.Num() - 2;
-			if(FuturesLastIndex >= 0)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::ExecuteTasks::WaitForFutures);
 
-				// Then wait after all futures
-				for (int32 ExecutionIndex = FuturesLastIndex; ExecutionIndex >= 0; --ExecutionIndex)
+				// Then wait after all futures - start from the back so we can more easily manage the ActiveTasks array
+				for(int32 ExecutionIndex = ActiveTasks.Num() - 1; ExecutionIndex > 0; --ExecutionIndex)
 				{
 					bool bTaskDone = false;
 					// Wait on the future if any
@@ -525,6 +536,11 @@ void FPCGGraphExecutor::Execute()
 					}
 				}
 			}
+
+			if (bMainTaskDone)
+			{
+				PostTaskExecute(0);
+			}
 		}
 
 		// Any paused tasks at that point should relinquish their resources
@@ -533,9 +549,13 @@ void FPCGGraphExecutor::Execute()
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::ExecuteTasks::CheckSleepingTasks);
 			for (int32 ActiveTaskIndex = ActiveTasks.Num() - 1; ActiveTaskIndex >= 0; --ActiveTaskIndex)
 			{
-				if (ActiveTasks[ActiveTaskIndex].Context->bIsPaused)
+				FPCGGraphActiveTask& ActiveTask = ActiveTasks[ActiveTaskIndex];
+				
+				// Any task that asks to be paused or now needs to run on the main thread but doesn't have that slot currently will be moved to the sleeping queue
+				const bool bTaskShouldBePutAside = (ActiveTask.Context->bIsPaused || (ActiveTaskIndex > 0 && ActiveTask.Element->CanExecuteOnlyOnMainThread(ActiveTask.Context.Get())));
+
+				if(bTaskShouldBePutAside)
 				{
-					FPCGGraphActiveTask& ActiveTask = ActiveTasks[ActiveTaskIndex];
 					check(ActiveTask.Context->NumAvailableTasks > 0);
 					CurrentlyUsedThreads -= ActiveTask.Context->NumAvailableTasks;
 					ActiveTask.Context->NumAvailableTasks = 0;
@@ -548,8 +568,7 @@ void FPCGGraphExecutor::Execute()
 
 		check(ActiveTasks.Num() > 0 || CurrentlyUsedThreads == 0);
 
-		const double EndLoopTime = FPlatformTime::Seconds();
-		if (static_cast<float>((EndLoopTime - StartTime) * 1000) > CVarTimePerFrame.GetValueOnAnyThread())
+		if (FPlatformTime::Seconds() >= EndTime)
 		{
 			break;
 		}
@@ -561,7 +580,7 @@ void FPCGGraphExecutor::Execute()
 		// TODO: this is fine and will make sure any intermediate data is properly
 		// garbage collected, however, this goes a bit against our goals if we want to
 		// keep a cache of intermediate results.
-		if (ReadyTasks.Num() == 0 && ActiveTasks.Num() == 0 && Tasks.Num() == 0)
+		if (ReadyTasks.Num() == 0 && ActiveTasks.Num() == 0 && SleepingTasks.Num() == 0 && Tasks.Num() == 0)
 		{
 			check(TaskSuccessors.IsEmpty());
 			ClearResults();

@@ -615,6 +615,15 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 	});
 }
 
+FPCGBlueprintExecutionContext::~FPCGBlueprintExecutionContext()
+{
+	if (BlueprintElementInstance)
+	{
+		BlueprintElementInstance->RemoveFromRoot();
+		BlueprintElementInstance = nullptr;
+	}
+}
+
 FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Initialize);
@@ -627,6 +636,7 @@ FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& I
 	if (Settings && Settings->BlueprintElementInstance)
 	{
 		Context->BlueprintElementInstance = CastChecked<UPCGBlueprintElement>(StaticDuplicateObject(Settings->BlueprintElementInstance, GetTransientPackage(), FName()));
+		Context->BlueprintElementInstance->AddToRoot();
 #if !WITH_EDITOR
 		if (SourceComponent.IsValid() && SourceComponent->GetOwner())
 		{
@@ -655,9 +665,10 @@ bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) co
 	}
 }
 
-bool FPCGExecuteBlueprintElement::CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const
+bool FPCGExecuteBlueprintElement::CanExecuteOnlyOnMainThread(FPCGContext* Context) const
 {
-	const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings);
+	check(Context);
+	const UPCGBlueprintSettings* BPSettings = Context->GetInputSettings<UPCGBlueprintSettings>();
 	if (BPSettings && BPSettings->BlueprintElementInstance)
 	{
 		return !BPSettings->BlueprintElementInstance->bCanBeMultithreaded;

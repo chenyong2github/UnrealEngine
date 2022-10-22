@@ -32,3 +32,8 @@ FString FPCGContext::GetComponentName() const
 {
 	return SourceComponent.IsValid() && SourceComponent->GetOwner() ? SourceComponent->GetOwner()->GetFName().ToString() : TEXT("Non-PCG Component");
 }
+
+bool FPCGContext::ShouldStop() const
+{
+	return FPlatformTime::Seconds() > EndTime;
+}
