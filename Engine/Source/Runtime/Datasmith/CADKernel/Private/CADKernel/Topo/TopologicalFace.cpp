@@ -211,6 +211,11 @@ void FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Boundaries)
 	EndPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Min);
 	BuildEdge(StartPoint, EndPoint);
 
+	if (Edges.IsEmpty())
+	{
+		return;
+	}
+
 	TSharedPtr<FTopologicalEdge> PreviousEdge = Edges.Last();
 	for (TSharedPtr<FTopologicalEdge>& Edge : Edges)
 	{
