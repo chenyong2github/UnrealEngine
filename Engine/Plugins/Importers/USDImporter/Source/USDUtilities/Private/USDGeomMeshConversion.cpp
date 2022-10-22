@@ -157,7 +157,10 @@ namespace UE::UsdGeomMeshConversion::Private
 				// actually subdivide (like usdview) will just discard authored normals and fully recompute them
 				// on-demand in case they have a valid subdivision scheme (which is the default state).
 				// Reference: https://graphics.pixar.com/usd/release/api/class_usd_geom_mesh.html#UsdGeom_Mesh_Normals
-				ensure( UsdMesh.CreateSubdivisionSchemeAttr( pxr::VtValue{ pxr::UsdGeomTokens->none } ) );
+				if ( pxr::UsdAttribute SubdivisionAttr = UsdMesh.CreateSubdivisionSchemeAttr() )
+				{
+					ensure( SubdivisionAttr.Set( pxr::UsdGeomTokens->none ) );
+				}
 
 				pxr::UsdAttribute NormalsAttribute = UsdMesh.CreateNormalsAttr();
 				if ( NormalsAttribute )
