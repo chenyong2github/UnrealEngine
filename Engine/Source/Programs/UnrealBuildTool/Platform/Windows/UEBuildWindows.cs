@@ -294,11 +294,42 @@ namespace UnrealBuildTool
 		public string? ManifestFile;
 
 		/// <summary>
-		/// Enables strict standard conformance mode (/permissive-) in VS2017+.
+		/// Enables strict standard conformance mode (/permissive-).
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-Strict")]
-		public bool bStrictConformanceMode = false; 
+		public bool bStrictConformanceMode = false;
+
+		/// <summary>
+		/// Enables updated __cplusplus macro (/Zc:__cplusplus).
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-UpdatedCPPMacro")]
+		public bool bUpdatedCPPMacro = false;
+
+		/// <summary>
+		/// Enables inline conformance (Remove unreferenced COMDAT) (/Zc:inline).
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-StrictInline")]
+		public bool bStrictInlineConformance = false;
+
+		/// <summary>
+		/// Enables new preprocessor conformance (/Zc:preprocessor).
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-StrictPreprocessor")]
+		public bool bStrictPreprocessorConformance = false;
+
+		/// <summary>
+		/// Enables enum types conformance (/Zc:enumTypes) in VS2022 17.4 Preview 4.0+.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-StrictEnumTypes")]
+		public bool bStrictEnumTypesConformance = false;
 
 		/// VS2015 updated some of the CRT definitions but not all of the Windows SDK has been updated to match.
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
@@ -634,6 +665,26 @@ namespace UnrealBuildTool
 		public bool bStrictConformanceMode
 		{
 			get { return Inner.bStrictConformanceMode; }
+		}
+
+		public bool bUpdatedCPPMacro
+		{
+			get { return Inner.bUpdatedCPPMacro; }
+		}
+
+		public bool bStrictInlineConformance
+		{
+			get { return Inner.bStrictInlineConformance; }
+		}
+
+		public bool bStrictPreprocessorConformance
+		{
+			get { return Inner.bStrictPreprocessorConformance; }
+		}
+
+		public bool bStrictEnumTypesConformance
+		{
+			get { return Inner.bStrictEnumTypesConformance; }
 		}
 
 		public int DefaultStackSize

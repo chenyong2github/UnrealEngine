@@ -416,16 +416,39 @@ namespace UnrealBuildTool
 			Arguments.Add("/wd4819");
 
 			// Disable Microsoft extensions on VS2017+ for improved standards compliance.
-			if (Target.WindowsPlatform.Compiler.IsMSVC() && Target.WindowsPlatform.bStrictConformanceMode)
+			if (Target.WindowsPlatform.Compiler.IsMSVC())
 			{
-				// This define is needed to ensure that MSVC static analysis mode doesn't declare attributes that are incompatible with strict conformance mode
-				AddDefinition(Arguments, "SAL_NO_ATTRIBUTE_DECLARATIONS=1");
-				
-				Arguments.Add("/permissive-");
-				Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
-				if (EnvVars.CompilerVersion >= new VersionNumber(14, 32) && EnvVars.CompilerVersion < new VersionNumber(14, 33, 31629))
+				if (Target.WindowsPlatform.bStrictConformanceMode)
 				{
-					Arguments.Add("/Zc:lambda-");
+					// This define is needed to ensure that MSVC static analysis mode doesn't declare attributes that are incompatible with strict conformance mode
+					AddDefinition(Arguments, "SAL_NO_ATTRIBUTE_DECLARATIONS=1");
+
+					Arguments.Add("/permissive-");
+					Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
+					if (EnvVars.CompilerVersion >= new VersionNumber(14, 32) && EnvVars.CompilerVersion < new VersionNumber(14, 33, 31629))
+					{
+						Arguments.Add("/Zc:lambda-");
+					}
+				}
+
+				if (Target.WindowsPlatform.bUpdatedCPPMacro)
+				{
+					Arguments.Add("/Zc:__cplusplus");
+				}
+
+				if (Target.WindowsPlatform.bStrictInlineConformance)
+				{
+					Arguments.Add("/Zc:inline");
+				}
+
+				if (Target.WindowsPlatform.bStrictPreprocessorConformance)
+				{
+					Arguments.Add("/Zc:preprocessor");
+				}
+
+				if (Target.WindowsPlatform.bStrictEnumTypesConformance && EnvVars.CompilerVersion >= new VersionNumber(14, 34, 31931))
+				{
+					Arguments.Add("/Zc:enumTypes");
 				}
 			}
 
