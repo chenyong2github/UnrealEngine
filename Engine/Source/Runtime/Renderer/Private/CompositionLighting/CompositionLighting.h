@@ -63,4 +63,4 @@ private:
 	bool bInitialized = false;
 };
 
-extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View);
+extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View, bool bLumenWantsSSAO);

@@ -235,9 +235,6 @@ uint32 FSSAOHelper::ComputeAmbientOcclusionPassCount(const FViewInfo& View)
 	// 0:off / 1 / 2 / 3
 	uint32 Ret = 0;
 
-	const bool bEnabled = ShouldRenderScreenSpaceAmbientOcclusion(View);
-
-	if (bEnabled)
 	{
 		int32 CVarLevel = GetNumAmbientOcclusionLevels();
 

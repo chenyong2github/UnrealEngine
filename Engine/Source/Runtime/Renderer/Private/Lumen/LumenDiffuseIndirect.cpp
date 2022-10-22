@@ -154,6 +154,14 @@ static FAutoConsoleVariableRef CVarLumenDiffuseIndirectAsyncCompute(
 	TEXT("Whether to run lumen diffuse indirect passes on the compute pipe if possible."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+int32 GLumenDiffuseIndirectApplySSAO = 0;
+FAutoConsoleVariableRef CVarLumenDiffuseIndirectApplySSAO(
+	TEXT("r.Lumen.DiffuseIndirect.SSAO"),
+	GLumenDiffuseIndirectApplySSAO,
+	TEXT("Whether to render and apply SSAO to Lumen GI, only when r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal is disabled.  This is useful for providing short range occlusion when Lumen's Screen Bent Normal is disabled due to scalability, however SSAO settings like screen radius come from the user's post process settings."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 bool Lumen::UseMeshSDFTracing(const FSceneViewFamily& ViewFamily)
 {
 	return GLumenTraceMeshSDFs != 0 
@@ -238,6 +246,12 @@ bool ShouldRenderLumenDirectLighting(const FScene* Scene, const FSceneView& View
 	return ShouldRenderLumenDiffuseGI(Scene, View)
 		&& GLumenGatherCvars.DirectLighting
 		&& !GLumenIrradianceFieldGather;
+}
+
+bool ShouldRenderAOWithLumenGI()
+{
+	extern int32 GLumenScreenSpaceBentNormal;
+	return GLumenDiffuseIndirectApplySSAO != 0 && GLumenScreenSpaceBentNormal == 0;
 }
 
 void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTracingParameters& OutParameters)

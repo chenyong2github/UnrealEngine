@@ -133,7 +133,6 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
-		SHADER_PARAMETER(float, ApplyAOToDynamicDiffuseIndirect)
 		SHADER_PARAMETER(int32, bVisualizeDiffuseIndirect)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionCompositeParameters, LumenReflectionCompositeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenBentNormalParameters)
@@ -405,20 +404,22 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 		}
 		
+		const bool bLumenWantsSSAO = DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && ShouldRenderAOWithLumenGI();
+
 		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 		{
 			AmbientOcclusionMethod = EAmbientOcclusionMethod::SSGI;
 			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 		}
-		else if (DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen)
+		else if (DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen || bLumenWantsSSAO)
 		{
-			extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View);
+			extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View, bool bLumenWantsSSAO);
 
-			if (ShouldRenderRayTracingAmbientOcclusion(View) && (Views.Num() == 1))
+			if (ShouldRenderRayTracingAmbientOcclusion(View) && (Views.Num() == 1) && !bLumenWantsSSAO)
 			{
 				AmbientOcclusionMethod = EAmbientOcclusionMethod::RTAO;
 			}
-			else if (ShouldRenderScreenSpaceAmbientOcclusion(View))
+			else if (ShouldRenderScreenSpaceAmbientOcclusion(View, bLumenWantsSSAO))
 			{
 				AmbientOcclusionMethod = EAmbientOcclusionMethod::SSAO;
 			}
@@ -1148,13 +1149,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
 
-			PassParameters->ApplyAOToDynamicDiffuseIndirect = 0.0f;
-
-			if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
-			{
-				PassParameters->ApplyAOToDynamicDiffuseIndirect = 1.0f;
-			}
-
 			const FIntPoint BufferExtent = SceneTextureParameters.SceneDepthTexture->Desc.Extent;
 
 			{
@@ -1266,11 +1260,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 					GraphBuilder,
 					View.ShaderMap,
 					RDG_EVENT_NAME(
-						"DiffuseIndirectComposite(DiffuseIndirect=%s%s%s%s) %dx%d",
+						"DiffuseIndirectComposite(DiffuseIndirect=%s%s%s) %dx%d",
 						DiffuseIndirectSampling,
 						PermutationVector.Get<FDiffuseIndirectCompositePS::FUpscaleDiffuseIndirectDim>() ? TEXT(" UpscaleDiffuseIndirect") : TEXT(""),
 						AmbientOcclusionMask ? TEXT(" ApplyAOToSceneColor") : TEXT(""),
-						PassParameters->ApplyAOToDynamicDiffuseIndirect > 0.0f ? TEXT(" ApplyAOToDynamicDiffuseIndirect") : TEXT(""),
 						View.ViewRect.Width(), View.ViewRect.Height()),
 					PixelShader,
 					PassParameters,
@@ -1300,11 +1293,10 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME(
-						"DiffuseIndirectComposite(%s%s%s%s)(%s) %dx%d",
+						"DiffuseIndirectComposite(%s%s%s)(%s) %dx%d",
 						DiffuseIndirectSampling,
 						PermutationVector.Get<FDiffuseIndirectCompositePS::FUpscaleDiffuseIndirectDim>() ? TEXT(" UpscaleDiffuseIndirect") : TEXT(""),
 						AmbientOcclusionMask ? TEXT(" ApplyAOToSceneColor") : TEXT(""),
-						PassParameters->ApplyAOToDynamicDiffuseIndirect > 0.0f ? TEXT(" ApplyAOToDynamicDiffuseIndirect") : TEXT(""),
 						ToString(TileType),
 						View.ViewRect.Width(), View.ViewRect.Height()),
 					PassParameters,

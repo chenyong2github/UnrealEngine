@@ -93,7 +93,6 @@ RWTexture2D<float3> OutSubSurfaceSceneColor;
 //------------------------------------------------------- PARAMETERS
 
 float AmbientOcclusionStaticFraction;
-float ApplyAOToDynamicDiffuseIndirect;
 uint bVisualizeDiffuseIndirect;
 
 Texture2D AmbientOcclusionTexture;
@@ -135,7 +134,7 @@ struct FShadingOcclusion
 	float3 DiffuseOcclusion;
 };
 
-FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, float Roughness, float3 DiffuseColor, float InAO /*FinalAmbientOcclusion*/)
+FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, float Roughness, float3 DiffuseColor, float InAO)
 {
 	FShadingOcclusion Out = (FShadingOcclusion)0;
 	Out.SpecularOcclusion = 1;
@@ -149,12 +148,12 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 	Out.SpecularOcclusion = CalculateSpecularOcclusion(N, Roughness, AO, V, BentNormal);
 	Out.DiffuseOcclusion  = DistantIlluminationRescale(DiffuseColor, AO);
   #else
-	Out.SpecularOcclusion = 1;
-	Out.DiffuseOcclusion = 1;
+	Out.SpecularOcclusion = InAO;
+	Out.DiffuseOcclusion = InAO;
   #endif
 
 #else
-	Out.DiffuseOcclusion = lerp(1, InAO, ApplyAOToDynamicDiffuseIndirect);
+	Out.DiffuseOcclusion = 1;
 #endif
 
 	return Out;
@@ -425,7 +424,7 @@ void MainPS(
 						StrataAddressing,
 						StrataPixelHeader,
 						V,
-						FinalAmbientOcclusion,
+						DynamicAmbientOcclusion,
 						DiffuseIndirectLighting,
 						SpecularIndirectLighting);
 
@@ -448,7 +447,7 @@ void MainPS(
 				RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
 			#endif
 
-			const FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, N, GBuffer.Roughness, GBuffer.BaseColor, FinalAmbientOcclusion);
+			const FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, N, GBuffer.Roughness, GBuffer.BaseColor, DynamicAmbientOcclusion);
 
 			if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 			{

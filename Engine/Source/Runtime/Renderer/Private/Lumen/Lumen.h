@@ -8,6 +8,7 @@
 extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 extern bool ShouldRenderLumenDirectLighting(const FScene* Scene, const FSceneView& View);
+extern bool ShouldRenderAOWithLumenGI();
 
 class FLumenSceneData;
 
