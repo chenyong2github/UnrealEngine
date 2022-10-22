@@ -517,6 +517,17 @@ void FControlRigParameterTrackEditor::ObjectImplicitlyRemoved(UObject* InObject)
 
 void FControlRigParameterTrackEditor::OnRelease()
 {
+	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+	for (FDelegateHandle& Handle : ConstraintHandlesToClear)
+	{
+		if (Handle.IsValid())
+		{
+			Controller.GetNotifyDelegate().Remove(Handle);
+		}
+	}
+	ConstraintHandlesToClear.Reset();
+
 	UnbindAllControlRigs();
 	if (GetSequencer().IsValid())
 	{
@@ -2720,7 +2731,7 @@ void FControlRigParameterTrackEditor::HandleConstraintKeyMoved(
 	}
 }
 
-void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const
+void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) 
 {
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
 
@@ -2771,6 +2782,7 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 						break;		
 				}
 			});
+			ConstraintHandlesToClear.Add(InSection->OnConstraintRemovedHandle);
 		}
 	}
 }

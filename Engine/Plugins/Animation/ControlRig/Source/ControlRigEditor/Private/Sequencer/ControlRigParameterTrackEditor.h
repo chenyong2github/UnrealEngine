@@ -159,7 +159,7 @@ private:
 		IMovieSceneConstrainedSection* InSection,
 		const FMovieSceneConstraintChannel* InConstraintChannel,
 		const TArray<FKeyMoveEventItem>& InMovedItems);
-	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const;
+	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection);
 
 	/** Select control rig if not selected, select controls from key areas */
 	void SelectRigsAndControls(UControlRig* Subject, const TArray<const IKeyArea*>& KeyAreas);
@@ -277,6 +277,9 @@ private:
 
 	/** Controls if the control rig track for the default animating rig should be created */
 	static bool bAutoGenerateControlRigTrack;
+
+	/** Set of delegate handles we have added delegate's too, need to clear them*/
+	TSet<FDelegateHandle> ConstraintHandlesToClear;
 
 	friend class FControlRigBlueprintActions;
 };
