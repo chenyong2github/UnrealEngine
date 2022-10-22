@@ -1398,6 +1398,7 @@ bool FWebRemoteControlModule::HandlePresetExposePropertyRoute(const FHttpServerR
 
 	FRemoteControlPresetExposeArgs ExposeArgs;
 	ExposeArgs.Label = ExposePropertyRequest.Label;
+	ExposeArgs.bEnableEditCondition = ExposePropertyRequest.EnableEditCondition;
 
 	if (ExposePropertyRequest.GroupName.Len() > 0)
 	{

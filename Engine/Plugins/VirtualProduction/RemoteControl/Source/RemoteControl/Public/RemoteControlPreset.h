@@ -37,12 +37,14 @@ DECLARE_MULTICAST_DELEGATE(FOnVirtualPropertyContainerModified);
 struct REMOTECONTROL_API FRemoteControlPresetExposeArgs
 {
 	FRemoteControlPresetExposeArgs();
-	FRemoteControlPresetExposeArgs(FString Label, FGuid GroupId);
+	FRemoteControlPresetExposeArgs(FString Label, FGuid GroupId, bool bEnableEditCondition = true);
 
 	/** (Optional) The label to use for the new exposed entity. */
 	FString Label;
 	/** (Optional) The group in which to put the field. */
 	FGuid GroupId;
+	/** Whether to automatically enable the edit condition for the exposed property. */
+	bool bEnableEditCondition;
 };
 
 /**

@@ -300,6 +300,12 @@ struct FRCPresetExposePropertyRequest : public FRCRequest
 	 */
 	UPROPERTY()
 	FString GroupName;
+
+	/**
+	 * Whether to automatically enable the edit condition for the exposed property.
+	 */
+	UPROPERTY()
+	bool EnableEditCondition;
 };
 
 /**

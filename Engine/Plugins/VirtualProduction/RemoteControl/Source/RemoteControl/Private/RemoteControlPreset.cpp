@@ -116,9 +116,10 @@ FRemoteControlPresetExposeArgs::FRemoteControlPresetExposeArgs()
 {
 }
 
-FRemoteControlPresetExposeArgs::FRemoteControlPresetExposeArgs(FString InLabel, FGuid InGroupId)
+FRemoteControlPresetExposeArgs::FRemoteControlPresetExposeArgs(FString InLabel, FGuid InGroupId, bool bEnableEditCondition)
 	: Label(MoveTemp(InLabel))
 	, GroupId(MoveTemp(InGroupId))
+	, bEnableEditCondition(bEnableEditCondition)
 {
 }
 
@@ -712,7 +713,10 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 		return nullptr;
 	}
 
-	RCPropertyPtr->EnableEditCondition();
+	if (Args.bEnableEditCondition)
+	{
+		RCPropertyPtr->EnableEditCondition();
+	}
 
 	if (PropertyShouldBeWatched(RCPropertyPtr))
 	{
