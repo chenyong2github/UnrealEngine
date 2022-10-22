@@ -1177,7 +1177,14 @@ namespace Chaos
 			}
 
 			NextStart = NewNextStart;
+
+			const TVec2<int32> PrevIdx = CellIdx;
 			CellIdx = FlatGrid.Cell(NewNextStartInt);
+			if (PrevIdx == CellIdx)
+			{
+				return false;
+			}
+
 			if (DistanceProcessed > CurrentLength || NextStartZ < BoundsMinZ || NextStartZ > BoundsMaxZ)
 			{
 				return false;
@@ -1264,7 +1271,6 @@ namespace Chaos
 
 			if (PrevIdx == CellIdx)
 			{
-				//crossed on z plane which means no longer in heightfield bounds
 				return false;
 			}
 			NextStart = NextStart + Dir * BestTime;

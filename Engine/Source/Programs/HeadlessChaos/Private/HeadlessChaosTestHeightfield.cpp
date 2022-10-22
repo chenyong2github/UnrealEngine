@@ -443,6 +443,14 @@ namespace ChaosTest {
 				const bool bResult = Heightfield.Raycast(Start, Dir, 100.0, 0, TOI, Position, Normal, FaceIdx);
 				EXPECT_TRUE(bResult);
 			}
+			// Along the diagonal without hitting, navigate in FastWalk
+			{
+				const FVec3 Start(4.0, 0.0, 10.0);
+				FVec3 Dir(1.0, 1.0, 0.0);
+				Dir.Normalize();
+				const bool bResult = Heightfield.Raycast(Start, Dir, 100.0, 0, TOI, Position, Normal, FaceIdx);
+				EXPECT_FALSE(bResult);
+			}
 
 		}
 		{
@@ -452,7 +460,7 @@ namespace ChaosTest {
 			TArray<FReal> Heights;
 			Heights.AddZeroed(Rows * Columns);
 
-			// Add a mountain on the diagonal
+			// Add a mountain close to the edge
 			for (int32 Index = 0; Index < Columns; ++Index)
 			{
 				Heights[Index * Columns + 62] = 20;
@@ -476,6 +484,39 @@ namespace ChaosTest {
 				Dir.Normalize();
 				const bool bResult = Heightfield.Raycast(Start, Dir, 100.0, 0, TOI, Position, Normal, FaceIdx);
 				EXPECT_TRUE(bResult);
+			}
+
+		}
+		// Bug found in Fortnite: The raycast is falling in infinite loop if raycast in mode WalkFast 
+		// and leave the bounding volume of the HeightField
+		{
+			constexpr int32 Rows = 64;
+			constexpr int32 Columns = Rows;
+			FVec3 Scale(1.0, 1.0, 1.0);
+			TArray<FReal> Heights;
+			Heights.AddZeroed(Rows * Columns);
+
+			// Add a mountain in the middle
+			for (int32 Index = 0; Index < Columns; ++Index)
+			{
+				Heights[Index * Columns + 32] = 20;
+			}
+
+			TArray<FReal> HeightsCopy = Heights;
+
+			FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+			const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+			FReal TOI;
+			FVec3 Position, Normal;
+			int32 FaceIdx = 0;
+			{
+				const FVec3 Start(34.0, 0.0, 10.0);
+				FVec3 Dir(0.0, 1.0, 0.0);
+				Dir.Normalize();
+
+				const bool bResult = Heightfield.Raycast(Start, Dir, 100.0, 0, TOI, Position, Normal, FaceIdx);
+				EXPECT_FALSE(bResult);
 			}
 
 		}
