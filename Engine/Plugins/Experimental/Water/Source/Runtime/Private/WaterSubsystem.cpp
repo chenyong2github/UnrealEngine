@@ -294,11 +294,11 @@ void UWaterSubsystem::PostInitialize()
 
 #if WITH_EDITOR
 	// Register for heightmap streaming notifications
-	ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>();
-	check(LandscapeSubsystem);
-
-	check(!OnHeightmapStreamedHandle.IsValid());
-	OnHeightmapStreamedHandle = LandscapeSubsystem->GetOnHeightmapStreamedDelegate().AddUObject(this, &UWaterSubsystem::OnHeightmapStreamed);
+	if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+	{
+		check(!OnHeightmapStreamedHandle.IsValid());
+		OnHeightmapStreamedHandle = LandscapeSubsystem->GetOnHeightmapStreamedDelegate().AddUObject(this, &UWaterSubsystem::OnHeightmapStreamed);
+	}
 #endif // WITH_EDITOR
 }
 
