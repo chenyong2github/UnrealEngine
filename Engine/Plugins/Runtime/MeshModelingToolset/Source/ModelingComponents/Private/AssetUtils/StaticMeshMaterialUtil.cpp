@@ -56,7 +56,7 @@ bool UE::AssetUtils::GetStaticMeshLODAssetMaterials(
 		MaterialInfoOut.SectionSlotIndexes[SectionIndex] = -1;
 		MaterialInfoOut.SectionMaterials[SectionIndex] = nullptr;
 
-		if (SectionInfoMap.IsValidSection(LODIndex, SectionIndex))
+		if (SectionInfoMap.IsValidSection(LODIndex, SectionIndex) == false)
 		{
 			// did not find this section 
 			if ( StaticMaterials.IsValidIndex(SectionIndex) )
