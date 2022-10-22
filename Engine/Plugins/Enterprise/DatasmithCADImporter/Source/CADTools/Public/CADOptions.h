@@ -37,9 +37,6 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGSewMeshIfNeeded;
 		CADTOOLS_API static bool bGRemoveDuplicatedTriangle;
 		CADTOOLS_API static float GStitchingTolerance;
-		CADTOOLS_API static bool bGStitchingForceSew;
-		CADTOOLS_API static bool bGStitchingRemoveThinFaces;
-		CADTOOLS_API static float GStitchingForceFactor;
 		CADTOOLS_API static float GUnitScale;
 		CADTOOLS_API static float GMeshingParameterFactor;
 		CADTOOLS_API static int32 GMaxMaterialCountPerMesh;
@@ -65,7 +62,7 @@ namespace CADLibrary
 		uint32 GetHash() const
 		{
 			uint32 Hash = 0;
-			for (double Param : {ChordTolerance, MaxEdgeLength, MaxNormalAngle, (double) GStitchingForceFactor})
+			for (double Param : {ChordTolerance, MaxEdgeLength, MaxNormalAngle})
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
@@ -73,10 +70,7 @@ namespace CADLibrary
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
-			for (bool Param : {bGStitchingForceSew, bGStitchingRemoveThinFaces, bGDisableCADKernelTessellation, bGPreferJtFileEmbeddedTessellation})
-			{
-				Hash = HashCombine(Hash, ::GetTypeHash(Param));
-			}
+			Hash = HashCombine(Hash, ::GetTypeHash(bGPreferJtFileEmbeddedTessellation));
 			return Hash;
 		}
 
@@ -96,9 +90,6 @@ namespace CADLibrary
 			Ar << ImportParameters.bGEnableCADCache;
 			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
 			Ar << ImportParameters.GStitchingTolerance;
-			Ar << ImportParameters.bGStitchingForceSew;
-			Ar << ImportParameters.bGStitchingRemoveThinFaces;
-			Ar << ImportParameters.GStitchingForceFactor;
 			Ar << ImportParameters.GMaxMaterialCountPerMesh;
 			return Ar;
 		}
@@ -135,12 +126,6 @@ namespace CADLibrary
 
 		CADTOOLS_API friend uint32 GetTypeHash(const FImportParameters& ImportParameters);
 	};
-
-	inline FString BuildCadCachePath(const TCHAR* CachePath, uint32 FileHash)
-	{
-		FString FileName = FString::Printf(TEXT("UEx%08x"), FileHash) + TEXT(".prc");
-		return FPaths::Combine(CachePath, TEXT("cad"), FileName);
-	}
 
 	inline FString BuildCacheFilePath(const TCHAR* CachePath, const TCHAR* Folder, uint32 BodyHash)
 	{

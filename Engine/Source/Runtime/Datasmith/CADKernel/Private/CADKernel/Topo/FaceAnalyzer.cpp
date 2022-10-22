@@ -35,8 +35,7 @@ void FFaceAnalyzer::FindClosedSegments(Topo::FThinFaceContext& Context)
 
 		for (Topo::FEdgeSegment* Candidate : Context.LoopSegments)
 		{
-			// to avoid to define cylinder or cone as a thin surface
-			if (Candidate->GetEdge()->IsLinkedTo(*Edge))
+			if (Candidate->GetEdge() == Edge)
 			{
 				continue;
 			}
@@ -103,23 +102,22 @@ void FFaceAnalyzer::Analyze(Topo::FThinFaceContext& Context)
 		}
 		else
 		{
-			MedSquareDistance = DOUBLE_BIG_NUMBER;
-			MaxSquareDistance = DOUBLE_BIG_NUMBER;
+			MedSquareDistance = -1;
+			MaxSquareDistance = -1;
 		}
 
-		if (MaxSquareDistance < 2 * SquareTolerance)
+		if (MaxSquareDistance < 2*FMath::Square(Edge->Length()))
 		{
 			Context.EdgeSquareDistance.Add(MedSquareDistance);
 			Context.EdgeMaxSquareDistance.Add(MaxSquareDistance);
 
 			Context.MaxSquareDistance = FMath::Max(Context.MaxSquareDistance, MaxSquareDistance);
-			Context.ThinSideEdgeLength += Edge->Length();
+			Context.SideEdgeLength += Edge->Length();
 		}
 		else
 		{
 			Context.EdgeSquareDistance.Add(-1.);
 			Context.EdgeMaxSquareDistance.Add(-1.);
-			Context.OppositSideEdgeLength += Edge->Length();
 		}
 		Context.ExternalLoopLength += Edge->Length();
 	};
@@ -157,6 +155,7 @@ void FFaceAnalyzer::Analyze(Topo::FThinFaceContext& Context)
 void FFaceAnalyzer::BuildLoopSegments(Topo::FThinFaceContext& Context)
 {
 	double Length = 0;
+	double SegmentLength = Tolerance / 5.;
 
 	const TArray<FOrientedEdge>& Edges = Context.Loop.GetEdges();
 
@@ -217,13 +216,12 @@ bool FFaceAnalyzer::IsThinFace(double& OutGapSize)
 	Analyze(Context);
 	Chronos.AnalyzeClosedSegmentTime = FChrono::Elapse(StartTime);
 
-	if (Context.ThinSideEdgeLength > Context.OppositSideEdgeLength && Context.MaxSquareDistance < SquareTolerance )
+	if (Context.MaxSquareDistance < SquareTolerance)
 	{
 		OutGapSize = sqrt(Context.MaxSquareDistance);
 		return true;
 	}
 
-	OutGapSize = DOUBLE_BIG_NUMBER;
 	return false;
 }
 

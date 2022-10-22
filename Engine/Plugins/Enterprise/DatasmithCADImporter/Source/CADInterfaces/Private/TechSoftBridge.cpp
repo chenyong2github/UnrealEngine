@@ -182,14 +182,13 @@ UE::CADKernel::FLinearBoundary GetLinearBoundary(const A3DCrvBase* A3DCurve)
 	return Domain;
 }
 
-} // namespace TechSoftUtils
+} // ns TechSoftUtils
 
 FTechSoftBridge::FTechSoftBridge(FTechSoftFileParser& InParser, UE::CADKernel::FSession& InSession)
 	: Parser(InParser)
 	, Session(InSession)
 	, Model(InSession.GetModel())
 	, GeometricTolerance(Session.GetGeometricTolerance())
-	, EdgeLengthTolerance(Session.GetGeometricTolerance() * 2.)
 	, SquareGeometricTolerance(FMath::Square(Session.GetGeometricTolerance()))
 	, SquareJoiningVertexTolerance(SquareGeometricTolerance * 2)
 {
@@ -207,10 +206,10 @@ const A3DRiBrepModel* FTechSoftBridge::GetA3DBody(UE::CADKernel::FBody* BRepMode
 
 UE::CADKernel::FBody* FTechSoftBridge::GetBody(A3DRiBrepModel* A3DBRepModel)
 {
-	TSharedPtr<UE::CADKernel::FBody>* BodyPtr = TechSoftToCADKernel.Find(A3DBRepModel);
+	UE::CADKernel::FBody** BodyPtr = TechSoftToCADKernel.Find(A3DBRepModel);
 	if (BodyPtr &&!(*BodyPtr)->IsDeleted())
 	{
-		return (*BodyPtr).Get();
+		return *BodyPtr;
 	}
 	return nullptr;
 }
@@ -232,9 +231,14 @@ UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMa
 		BRepMetaData.MetaData.FindOrAdd(TEXT("Name")) = *Name;
 	}
 	
-	if (TSharedPtr<UE::CADKernel::FBody>* BodyPtr = TechSoftToCADKernel.Find(A3DBRepModel))
+	UE::CADKernel::FBody** BodyPtr = TechSoftToCADKernel.Find(A3DBRepModel);
+	if (BodyPtr)
 	{
-		return (*BodyPtr)->IsDeleted() ? nullptr : (*BodyPtr).Get();
+		if((*BodyPtr)->IsDeleted())
+		{
+			return nullptr;
+		}
+		return *BodyPtr;
 	}
 
 	TSharedRef<UE::CADKernel::FBody> Body = UE::CADKernel::FEntity::MakeShared<UE::CADKernel::FBody>();
@@ -253,7 +257,7 @@ UE::CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMa
 	}
 
 	Model.Add(Body);
-	TechSoftToCADKernel.Add(A3DBRepModel, Body);
+	TechSoftToCADKernel.Add(A3DBRepModel, &*Body);
 	CADKernelToTechSoft.Add(&*Body, A3DBRepModel);
 
 	return &*Body;
@@ -653,6 +657,30 @@ TSharedPtr<UE::CADKernel::FTopologicalEdge> FTechSoftBridge::AddEdge(const A3DTo
 
 	OutOrientation = CoEdgeData->m_ucOrientationUVWithLoop > 0 ? UE::CADKernel::EOrientation::Front : UE::CADKernel::EOrientation::Back;
 
+	// Link edges
+	if (CoEdgeData->m_pNeighbor)
+	{
+		const A3DTopoCoEdge* Neighbor = CoEdgeData->m_pNeighbor;
+		while (Neighbor && Neighbor != A3DCoedge)
+		{
+			TSharedPtr<UE::CADKernel::FTopologicalEdge>* TwinEdge = A3DEdgeToEdge.Find(Neighbor);
+			if (TwinEdge != nullptr)
+			{
+				Edge->Link(*TwinEdge->Get(), SquareJoiningVertexTolerance);
+			}
+
+			TUniqueTSObj<A3DTopoCoEdgeData> NeighborData(Neighbor);
+			if (NeighborData.IsValid())
+			{
+				Neighbor = NeighborData->m_pNeighbor;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
 	return Edge;
 }
 
@@ -699,50 +727,7 @@ TSharedPtr<UE::CADKernel::FTopologicalLoop> FTechSoftBridge::AddLoop(const A3DTo
 		return TSharedPtr<UE::CADKernel::FTopologicalLoop>();
 	}
 
-	TSharedPtr<UE::CADKernel::FTopologicalLoop> Loop = UE::CADKernel::FTopologicalLoop::Make(Edges, Directions, bIsExternalLoop, GeometricTolerance);
-
-	// Link the edges of the loop with their neighbors if possible
-	for (A3DUns32 Index = 0; Index < TopoLoopData->m_uiCoEdgeSize; ++Index)
-	{
-		const A3DTopoCoEdge* A3DCoedge = TopoLoopData->m_ppCoEdges[Index];
-		TSharedPtr<UE::CADKernel::FTopologicalEdge>* Edge = A3DEdgeToEdge.Find(A3DCoedge);
-		if (Edge == nullptr || !Edge->IsValid() || (*Edge)->IsDeleted())
-		{
-			continue;
-		}
-
-		TUniqueTSObj<A3DTopoCoEdgeData> CoEdgeData(A3DCoedge);
-		if (!CoEdgeData.IsValid())
-		{
-			continue;
-		}
-
-		if (CoEdgeData->m_pNeighbor)
-		{
-			const A3DTopoCoEdge* Neighbor = CoEdgeData->m_pNeighbor;
-			while (Neighbor && Neighbor != A3DCoedge)
-			{
-				TSharedPtr<UE::CADKernel::FTopologicalEdge>* TwinEdge = A3DEdgeToEdge.Find(Neighbor);
-				if (TwinEdge != nullptr && TwinEdge->IsValid() && !(*TwinEdge)->IsDeleted())
-				{
-					(*Edge)->LinkIfCoincident(*TwinEdge->Get(), EdgeLengthTolerance, SquareJoiningVertexTolerance);
-				}
-
-				// Next
-				TUniqueTSObj<A3DTopoCoEdgeData> NeighborData(Neighbor);
-				if (NeighborData.IsValid())
-				{
-					Neighbor = NeighborData->m_pNeighbor;
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
-	}
-	 
-	return Loop;
+	return UE::CADKernel::FTopologicalLoop::Make(Edges, Directions, bIsExternalLoop, GeometricTolerance);
 }
 
 void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, UE::CADKernel::EOrientation Orientation, TSharedRef<UE::CADKernel::FShell>& Shell, uint32 ShellIndex)

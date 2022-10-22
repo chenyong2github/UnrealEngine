@@ -98,7 +98,12 @@ bool FTopologicalEdge::CheckVertices()
 	return CheckExtremityGap(EndVertex, Points[1]);
 }
 
-bool FTopologicalEdge::CheckIfDegenerated() const
+double FTopologicalEdge::GetTolerance3D()
+{
+	return GetCurve()->GetCarrierSurface()->Get3DTolerance();
+}
+
+bool FTopologicalEdge::CheckIfDegenerated()
 {
 	bool bDegeneration2D = false;
 	bool bDegeneration3D = false;
@@ -162,115 +167,18 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::ReturnIfValid(TSharedRef<FTopolog
 	return InEdge;
 }
 
-bool FTopologicalEdge::HasSameLengthAs(const FTopologicalEdge& Edge, double EdgeLengthTolerance) const
+void FTopologicalEdge::Link(FTopologicalEdge& Twin, double SquareJoiningTolerance)
 {
-	double Min;
-	double Max;
-	if (Length() < Edge.Length())
-	{
-		Min = Length();
-		Max = Edge.Length();
-	}
-	else
-	{
-		Min = Edge.Length();
-		Max = Length();
-	}
-
-	if (Min / Max > 0.95) // 95 %
-	{
-		return true;
-	}
-
-	if ((Max - Min) < EdgeLengthTolerance)
-	{
-		return true;
-	}
-
-	return false;
-};
-
-bool FTopologicalEdge::IsTangentAtExtremitiesWith(const FTopologicalEdge& Edge) const
-{
-	TFunction<bool(EOrientation)> IsTangentAtExtremities = [&](EOrientation Orientation) ->  bool
-	{
-		FPoint EdgeStartTangent;
-		FPoint EdgeEndTangent;
-		FPoint StartTangent;
-		FPoint EndTangent;
-		GetTangentsAtExtremities(StartTangent, EndTangent, Orientation);
-		Edge.GetTangentsAtExtremities(EdgeStartTangent, EdgeEndTangent, EOrientation::Front);
-
-		double StartAngle = EdgeStartTangent.ComputeCosinus(StartTangent);
-		double EndAngle = EdgeEndTangent.ComputeCosinus(EndTangent);
-
-		if (StartAngle >= UE_DOUBLE_HALF_SQRT_3 && EndAngle >= UE_DOUBLE_HALF_SQRT_3)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	};
-
-	const FTopologicalVertex* ActiveEdgeVertex1 = &*Edge.GetStartVertex()->GetLinkActiveEntity();
-	const FTopologicalVertex* ActiveEdgeVertex2 = &*Edge.GetEndVertex()->GetLinkActiveEntity();
-	const FTopologicalVertex* ActiveVertex1 = &*GetStartVertex()->GetLinkActiveEntity();
-	const FTopologicalVertex* ActiveVertex2 = &*GetEndVertex()->GetLinkActiveEntity();
-
-	if ((ActiveVertex1 == ActiveEdgeVertex1) && (ActiveVertex2 == ActiveEdgeVertex2))
-	{
-		if (!IsTangentAtExtremities(EOrientation::Front))
-		{
-			if (ActiveVertex1 != ActiveEdgeVertex2)
-			{
-				return false;
-			}
-
-			// Self connected case
-			return IsTangentAtExtremities(EOrientation::Back);
-		}
-		return true;
-	}
-	else if ((ActiveVertex1 == ActiveEdgeVertex2) && (ActiveVertex2 == ActiveEdgeVertex1))
-	{
-		return IsTangentAtExtremities(EOrientation::Back);
-	}
-	return false;
-}
-
-bool FTopologicalEdge::IsLinkableTo(const FTopologicalEdge& Edge, double EdgeLengthTolerance) const
-{
-	if (IsDeleted() || Edge.IsDeleted() ||
-		IsDegenerated() || Edge.IsDegenerated())
-	{
-		return false;
-	}
-
-	if (!HasSameLengthAs(Edge, EdgeLengthTolerance))
-	{
-		return false;
-	}
-
-	return IsTangentAtExtremitiesWith(Edge);
-}
-
-void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengthTolerance, double SquareJoiningTolerance)
-{
-	if(IsDeleted() || Twin.IsDeleted())
-	{
-		return;
-	}
-
 	// Degenerated twin edges are not linked
 	if (IsDegenerated() || Twin.IsDegenerated())
 	{
-		if(HasSameLengthAs(Twin, EdgeLengthTolerance))
-		{
-			SetAsDegenerated();
-			Twin.SetAsDegenerated();
-		}
+		SetAsDegenerated();
+		Twin.SetAsDegenerated();
+		return;
+	}
+
+	if(IsDeleted() || Twin.IsDeleted())
+	{
 		return;
 	}
 
@@ -286,6 +194,7 @@ void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengt
 	const double SquareDistanceE1V1_E2V2 = GetStartVertex()->IsLinkedTo(Twin.GetEndVertex()) ? 0. : Edge1Vertex1.SquareDistance(Edge2Vertex2);
 	const double SquareDistanceE1V2_E2V1 = GetEndVertex()->IsLinkedTo(Twin.GetStartVertex()) ? 0. : Edge1Vertex2.SquareDistance(Edge2Vertex1);
 
+	bool bCanMergeEdge = true;
 	const double SquareDistanceSameOrientation = SquareDistanceE1V1_E2V1 + SquareDistanceE1V2_E2V2;
 	const double SquareDistanceReverseOrientation = SquareDistanceE1V1_E2V2 + SquareDistanceE1V2_E2V1;
 	if (SquareDistanceSameOrientation < SquareDistanceReverseOrientation)
@@ -297,7 +206,7 @@ void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengt
 		else
 		{
 			FMessage::Printf(Log, TEXT("Edge %d and Edge %d are to far (%f) to be connected\n"), GetId(), Twin.GetId(), sqrt(SquareDistanceE1V1_E2V1));
-			return;
+			bCanMergeEdge = false;
 		}
 
 		if (SquareDistanceE1V2_E2V2 < SquareJoiningTolerance)
@@ -307,7 +216,7 @@ void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengt
 		else
 		{
 			FMessage::Printf(Log, TEXT("Edge %d and Edge %d are to far (%f) to be connected\n"), GetId(), Twin.GetId(), sqrt(SquareDistanceE1V2_E2V2));
-			return;
+			bCanMergeEdge = false;
 		}
 	}
 	else
@@ -319,7 +228,7 @@ void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengt
 		else
 		{
 			FMessage::Printf(Log, TEXT("Edge %d and Edge %d are to far (%f) to be connected\n"), GetId(), Twin.GetId(), sqrt(SquareDistanceE1V1_E2V2));
-			return;
+			bCanMergeEdge = false;
 		}
 
 		if (SquareDistanceE1V2_E2V1 < SquareJoiningTolerance)
@@ -329,31 +238,14 @@ void FTopologicalEdge::LinkIfCoincident(FTopologicalEdge& Twin, double EdgeLengt
 		else
 		{
 			FMessage::Printf(Log, TEXT("Edge %d and Edge %d are to far (%f) to be connected\n"), GetId(), Twin.GetId(), sqrt(SquareDistanceE1V2_E2V1));
-			return;
+			bCanMergeEdge = false;
 		}
 	}
 
-	if (IsLinkableTo(Twin, EdgeLengthTolerance))
+	if (bCanMergeEdge)
 	{
 		MakeLink(Twin);
 	}
-}
-
-void FTopologicalEdge::Link(FTopologicalEdge& Twin)
-{
-	if (IsDegenerated() || Twin.IsDegenerated())
-	{
-		SetAsDegenerated();
-		Twin.SetAsDegenerated();
-		return;
-	}
-
-	if (IsDeleted() || Twin.IsDeleted())
-	{
-		return;
-	}
-
-	MakeLink(Twin);
 }
 
 void FTopologicalEdge::Delete()
@@ -712,7 +604,7 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 	//const double Tolerance2D = Edges[0].Entity->GetCurve()->Get2DCurve()->GetDomainTolerance();
 	TSharedRef<FSurface> CarrierSurface = Edges[0].Entity->GetCurve()->GetCarrierSurface();
 
-	// check if all curves are 2D NURBS
+	// check if all curve a 2D NURBS
 	bool bAreNurbs = true;
 	int32 NurbsMaxDegree = 0;
 
@@ -935,8 +827,9 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 	TSharedPtr<FTopologicalEdge> NewEdge = Make(RestrictionCurve, StartVertex, EndVertex);
 	if (!NewEdge.IsValid())
 	{
-		return TSharedPtr<FTopologicalEdge>();
+		printf("SSS");
 	}
+
 
 	FTopologicalLoop* Loop = Edges[0].Entity->GetLoop();
 	ensureCADKernel(Loop != nullptr);
@@ -1101,6 +994,7 @@ TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordin
 	if (GetTwinEntityCount() > 1)
 	{
 		return TSharedPtr<FTopologicalVertex>();
+		ensureCADKernel(false);
 		// TODO
 	}
 
@@ -1134,13 +1028,13 @@ TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordin
 		Boundary.Min = SplittingCoordinate;
 	}
 	MiddelVertex->AddConnectedEdge(*this);
-	Length3D = Curve->ApproximateLength(Boundary);
+	Length3D = -1.;
 
 	Loop->SplitEdge(*this, NewEdge, bKeepStartVertexConnectivity);
 	return MiddelVertex;
 }
 
-bool FTopologicalEdge::IsSharpEdge() const
+bool FTopologicalEdge::IsSharpEdge()
 {
 	double EdgeLength = Length();
 	double Step = Boundary.Length() / 7;

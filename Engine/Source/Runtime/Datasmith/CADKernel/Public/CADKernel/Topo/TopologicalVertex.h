@@ -120,11 +120,6 @@ public:
 		return Coordinates.SquareDistance(OtherVertex.Coordinates);
 	}
 
-	double SquareDistanceBetweenBarycenters(const FTopologicalVertex& OtherVertex) const
-	{
-		return GetLink()->GetBarycenter().SquareDistance(OtherVertex.GetLink()->GetBarycenter());
-	}
-
 	double SquareDistance(const FPoint& Point) const
 	{
 		return Coordinates.SquareDistance(Point);

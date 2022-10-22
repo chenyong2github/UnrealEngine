@@ -255,12 +255,8 @@ void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirect
 void DisplayEntity(const FEntity& Entity)
 {
 #ifdef CADKERNEL_DEV
-	if (Entity.IsDeleted())
-	{
-		return;
-	}
-
 	FTimePoint StartTime = FChrono::Now();
+
 	FProgress Progress;
 
 	F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity.GetTypeName(), Entity.GetId()), { Entity.GetId() });
@@ -313,11 +309,6 @@ void DisplayEntity(const FEntity& Entity)
 void DisplayEntity2D(const FEntity& Entity)
 {
 #ifdef CADKERNEL_DEV
-	if (Entity.IsDeleted())
-	{
-		return;
-	}
-
 	FTimePoint StartTime = FChrono::Now();
 
 	FProgress Progress;
@@ -745,7 +736,7 @@ void Draw(const FTopologicalFace& Face)
 				switch (Edge.Entity->GetTwinEntityCount())
 				{
 				case 1:
-					Property =  Edge.Entity->IsDegenerated() ? EVisuProperty::OrangeCurve : EVisuProperty::BorderEdge;
+					Property =  Edge.Entity->IsDegenerated() ? EVisuProperty::PurpleCurve : EVisuProperty::BorderEdge;
 					break;
 				case 2:
 					Property = EVisuProperty::BlueCurve;

@@ -26,7 +26,6 @@ public:
 		, ImportParameters(InImportParameters)
 		, GeometricTolerance(0.01)
 		, SquareTolerance(GeometricTolerance* GeometricTolerance)
-		, EdgeLengthTolerance(2 * GeometricTolerance)
 	{
 	}
 
@@ -37,16 +36,13 @@ public:
 
 	virtual bool RepairTopology() override
 	{
-		using namespace CADLibrary;
 		// Apply stitching if applicable
-		if(ImportParameters.GetStitchingTechnique() != StitchingNone)
+		if(ImportParameters.GetStitchingTechnique() != CADLibrary::StitchingNone)
 		{
-			const double JoiningTolerance = FImportParameters::GStitchingTolerance * 10.; //CM to MM
-			const double ForceFactor = FImportParameters::GStitchingForceFactor;
-			bool bForceJoining = FImportParameters::bGStitchingForceSew;
-			bool bRemoveThinFaces = FImportParameters::bGStitchingRemoveThinFaces;
-			UE::CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance, ForceFactor);
-			Topomaker.Sew(bForceJoining, bRemoveThinFaces);
+			// the joining tolerance is set to 0.1 mm until the user can specify it
+			const double JoiningTolerance = 0.1;
+			UE::CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance);
+			Topomaker.Sew();
 			Topomaker.OrientShells();
 		}
 
@@ -89,6 +85,6 @@ protected:
 	CADLibrary::FImportParameters ImportParameters;
 	double GeometricTolerance;
 	double SquareTolerance;
-	double EdgeLengthTolerance;
+
 };
 

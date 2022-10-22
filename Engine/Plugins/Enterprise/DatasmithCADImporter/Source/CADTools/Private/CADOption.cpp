@@ -62,34 +62,6 @@ FAutoConsoleVariableRef GCADTranslatorStitchingTolerance(
 Default value of StitchingTolerance is 0.001 cm\n"),
 ECVF_Default);
 
-bool FImportParameters::bGStitchingForceSew = true;
-FAutoConsoleVariableRef GCADTranslatorStitchingForceSew(
-	TEXT("ds.CADTranslator.Stitching.ForceSew"),
-	FImportParameters::bGStitchingForceSew,
-	TEXT("During the welding process, a second step is performed to try to fix last cracks with a largest threshold.\n\
-For this second step, the threshold is increased by ds.CADTranslator.Stitching.ForceFactor.\n\
-Only available with CADKernel.\n\
-Default value of ForceSew is true\n"),
-ECVF_Default);
-
-float FImportParameters::GStitchingForceFactor = 5.f;
-FAutoConsoleVariableRef GCADTranslatorStitchingForceFactor(
-	TEXT("ds.CADTranslator.Stitching.ForceFactor"),
-	FImportParameters::GStitchingForceFactor,
-	TEXT("Factor to increase the tolerance during the welding process.\n\
-Only available with CADKernel.\n\
-Default value of ForceFactor is 5.\n"),
-ECVF_Default);
-
-bool FImportParameters::bGStitchingRemoveThinFaces = true;
-FAutoConsoleVariableRef GCADTranslatorStitchingRemoveThinFaces(
-	TEXT("ds.CADTranslator.Stitching.RemoveThinFaces"),
-	FImportParameters::bGStitchingRemoveThinFaces,
-	TEXT("During the welding process, Thin faces are removed before the stiching process. The width of the thin faces is equal to the force sew tolerance.\n\
-Only available with CADKernel.\n\
-Default value of RemoveThinFaces is true\n"),
-ECVF_Default);
-
 float FImportParameters::GUnitScale = 1.f;
 FAutoConsoleVariableRef GCADTranslatorUnitScale(
 	TEXT("ds.CADTranslator.UnitScale"),

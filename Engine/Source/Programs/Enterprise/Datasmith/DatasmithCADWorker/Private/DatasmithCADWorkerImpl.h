@@ -31,7 +31,6 @@ private:
 	 * @param MaxDuration is defined in seconds.
 	 */
 	void CheckDuration(const CADLibrary::FFileDescriptor& FileToProcess, const int64 MaxDuration); 
-	void CheckMemory(const CADLibrary::FFileDescriptor& FileToProcess);
 
 private:
 	DatasmithDispatcher::FNetworkClientNode NetworkInterface;
@@ -44,6 +43,4 @@ private:
 	CADLibrary::FImportParameters ImportParameters;
 	uint64 PingStartCycle;
 	TAtomic<bool> bProcessIsRunning;
-
-	bool bRequestExit = false;
 };

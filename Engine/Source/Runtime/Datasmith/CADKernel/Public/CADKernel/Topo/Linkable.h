@@ -81,22 +81,13 @@ public:
 		TopologicalLink = FEntity::MakeShared<LinkType>((EntityType&)(*this));
 	}
 
-	bool IsLinkedTo(const TSharedRef<EntityType>& Entity) const
+	bool IsLinkedTo(TSharedRef<EntityType> Entity) const
 	{
 		if (this == &*Entity)
 		{
 			return true;
 		}
 		return (Entity->TopologicalLink == TopologicalLink);
-	}
-
-	bool IsLinkedTo(const EntityType& Entity) const
-	{
-		if (this == &Entity)
-		{
-			return true;
-		}
-		return (Entity.TopologicalLink == TopologicalLink);
 	}
 
 	int32 GetTwinEntityCount() const

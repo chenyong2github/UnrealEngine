@@ -270,18 +270,6 @@ public:
 		return Name;
 	}
 
-	void ChangePath(const FString& OldPath, const FString& NewPath)
-	{
-		int32 OldPathLength = OldPath.Len();
-		FString SourceFileOldPath = SourceFilePath.Left(OldPathLength);
-		FString SourceFileEndPath = SourceFilePath.Right(SourceFilePath.Len() - OldPathLength - 1);
-		if (OldPath == SourceFileOldPath)
-		{
-			SourceFilePath = FPaths::Combine(NewPath, SourceFileEndPath);
-		}
-		RootFolder = NewPath;
-	}
-
 private:
 
 	FString SourceFilePath; // e.g. d:/folder/content.jt

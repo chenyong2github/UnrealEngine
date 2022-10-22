@@ -50,32 +50,32 @@ bool FDatasmithCADWorkerImpl::Run()
 	{
 		if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(1.0))
 		{
-			switch (Command->GetType())
+			switch(Command->GetType())
 			{
-			case ECommandId::Ping:
-				ProcessCommand(*StaticCast<FPingCommand*>(Command.Get()));
-				break;
+				case ECommandId::Ping:
+					ProcessCommand(*StaticCast<FPingCommand*>(Command.Get()));
+					break;
 
-			case ECommandId::BackPing:
-				ProcessCommand(*StaticCast<FBackPingCommand*>(Command.Get()));
-				break;
+				case ECommandId::BackPing:
+					ProcessCommand(*StaticCast<FBackPingCommand*>(Command.Get()));
+					break;
 
-			case ECommandId::RunTask:
-				ProcessCommand(*StaticCast<FRunTaskCommand*>(Command.Get()));
-				break;
+				case ECommandId::RunTask:
+					ProcessCommand(*StaticCast<FRunTaskCommand*>(Command.Get()));
+					break;
 
-			case ECommandId::ImportParams:
-				ProcessCommand(*StaticCast<FImportParametersCommand*>(Command.Get()));
-				break;
+				case ECommandId::ImportParams:
+					ProcessCommand(*StaticCast<FImportParametersCommand*>(Command.Get()));
+					break;
 
-			case ECommandId::Terminate:
-				UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Terminate command received. Exiting."));
-				bIsRunning = false;
-				break;
+				case ECommandId::Terminate:
+					UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Terminate command received. Exiting."));
+					bIsRunning = false;
+					break;
 
-			case ECommandId::NotifyEndTask:
-			default:
-				break;
+				case ECommandId::NotifyEndTask:
+				default:
+					break;
 			}
 		}
 		else
@@ -157,16 +157,14 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 	bProcessIsRunning = true;
 	int64 MaxDuration = DefineMaximumAllowedDuration(FileToProcess);
-	TArray<UE::Tasks::FTask> Checkers;
-	Checkers.Emplace(UE::Tasks::Launch(TEXT("TimeChecker"), [&]() { CheckDuration(FileToProcess, MaxDuration); }));
-	Checkers.Emplace(UE::Tasks::Launch(TEXT("MemoryChecker"), [&]() { CheckMemory(FileToProcess); }));
+	UE::Tasks::FTask TimeChecker = UE::Tasks::Launch(TEXT("TimeChecker"), [&]() { CheckDuration(FileToProcess, MaxDuration); });
 
 	CADLibrary::FCADFileReader FileReader(ImportParameters, FileToProcess, EnginePluginsPath, CachePath);
 	ETaskState ProcessResult = FileReader.ProcessFile();
 
 	bProcessIsRunning = false;
-	UE::Tasks::Wait(Checkers);
-
+	TimeChecker.Wait();
+	
 	CompletedTask.ProcessResult = ProcessResult;
 
 	if (CompletedTask.ProcessResult == ETaskState::ProcessOk)
@@ -176,27 +174,11 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 		CompletedTask.SceneGraphFileName = CADFileData.GetSceneGraphFileName();
 		CompletedTask.GeomFileName = CADFileData.GetMeshFileName();
 		CompletedTask.WarningMessages = CADFileData.GetWarningMessages();
-
-		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("  Process %s %s saved into %s%s and %s%s."), *FileToProcess.GetFileName(), *FileToProcess.GetConfiguration(), *CompletedTask.SceneGraphFileName, TEXT(".sg"), *CompletedTask.GeomFileName, TEXT(".gm"));
-		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("     It generates %d bodies"), CADFileData.GetBodyMeshes().Num());
-		for (const CADLibrary::FBodyMesh& BodyMesh : CADFileData.GetBodyMeshes())
-		{
-			FString BodyFileName = FString::Printf(TEXT("UEx%08x"), BodyMesh.MeshActorUId);
-			UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("     - Body %s"), *BodyFileName);
-		}
-	}
-	else
-	{
-		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("  Process %s %s failed"), *FileToProcess.GetFileName(), *FileToProcess.GetConfiguration());
 	}
 
 	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
 
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s"), *FileToProcess.GetFileName());
-	if (bRequestExit)
-	{
-		FPlatformMisc::RequestExit(true);
-	}
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s %s saved in %s"), *FileToProcess.GetFileName(), *FileToProcess.GetConfiguration(), *CompletedTask.GeomFileName);
 }
 
 void FDatasmithCADWorkerImpl::CheckDuration(const CADLibrary::FFileDescriptor& FileToProcess, const int64 MaxDuration)
@@ -219,37 +201,5 @@ void FDatasmithCADWorkerImpl::CheckDuration(const CADLibrary::FFileDescriptor& F
 		}
 	}
 	double Duration = (FPlatformTime::Cycles64() - StartTime) * FPlatformTime::GetSecondsPerCycle64();
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - Processing Time: %f s"), Duration);
-}
-
-void FDatasmithCADWorkerImpl::CheckMemory(const CADLibrary::FFileDescriptor& FileToProcess, bool& bOutRequestExit)
-{
-	constexpr uint64 OneMegaBit = 1024 * 1024;
-	constexpr uint64 GigaBit = 1024 * 1024 * 1024;
-
-	uint64 MaxMemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - Start Ram used %llu Mb"), MaxMemoryUsed / OneMegaBit);
-
-	uint64 StartTime = FPlatformTime::Cycles64();
-	while (bProcessIsRunning)
-	{
-		FPlatformProcess::Sleep(0.1);
-		double Duration = (FPlatformTime::Cycles64() - StartTime) * FPlatformTime::GetSecondsPerCycle64();
-
-		const uint64 MemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
-		if (MaxMemoryUsed < MemoryUsed)
-		{
-			MaxMemoryUsed = MemoryUsed;
-		}
-	}
-
-
-	uint64 EndMemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - End Ram used %llu Mb"), EndMemoryUsed / OneMegaBit);
-	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - Max Ram used %llu Mb"), MaxMemoryUsed / OneMegaBit);
-	if(EndMemoryUsed > GigaBit)
-	{
-		UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    - End Ram used %llu Mb exceeded the limit to restart"), EndMemoryUsed / OneMegaBit);
-		bOutRequestExit = true;
-	}
+	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("    Processing Time: %f s"), Duration);
 }
