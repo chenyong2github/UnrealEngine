@@ -45,6 +45,7 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 
 	FARFilter Filter;
 	Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
+	Filter.bIncludeOnlyOnDiskAssets = true;
 	if (!CollectionFilter.IsEmpty())
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Use collection filter: %s"), *CollectionFilter);
@@ -65,17 +66,68 @@ int32 UGenerateNaniteDisplacedMeshCommandlet::Main(const FString& CmdLineParams)
 	TArray<FAssetData> LevelAssets;
 	AssetRegistry.GetAssets(Filter, LevelAssets);
 
+	// Add dependencies of the levels to list of item that also need to be processed even if they are not in the original request list.
+	TArray<FAssetData> LevelAssetsAddedByDependencies;
+	{
+		TSet<FName> StopSearchAt;
+		StopSearchAt.Reserve(LevelAssets.Num());
+		for (const FAssetData& LevelAsset : LevelAssets)
+		{
+			StopSearchAt.Add(LevelAsset.PackageName);
+		}
+		
+		TSet<FName> DependenciesToProcess;
+		TArray<FName> CurrentDependencies;
+		UE::AssetRegistry::FDependencyQuery QueryFlags;
+		QueryFlags.Required = UE::AssetRegistry::EDependencyProperty::Game;
+		for (const FAssetData& LevelAsset : LevelAssets)
+		{
+			// Get the dependencies of the level recursively
+			AssetRegistry.GetDependencies(LevelAsset.PackageName, CurrentDependencies, UE::AssetRegistry::EDependencyCategory::Package, QueryFlags);
+			while (!CurrentDependencies.IsEmpty())
+			{
+				const bool bAllowShrinking = false;
+				FName DependendPackageName = CurrentDependencies.Pop(bAllowShrinking);
+				if (!StopSearchAt.Contains(DependendPackageName))
+				{
+					StopSearchAt.Add(DependendPackageName);
+					DependenciesToProcess.Add(DependendPackageName);
+					AssetRegistry.GetDependencies(DependendPackageName, CurrentDependencies, UE::AssetRegistry::EDependencyCategory::Package, QueryFlags);
+				}
+			}
+		}
+
+		FARFilter DependenciesFilter;
+		DependenciesFilter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
+		DependenciesFilter.bIncludeOnlyOnDiskAssets = true;
+		DependenciesFilter.PackageNames = DependenciesToProcess.Array();
+		AssetRegistry.GetAssets(DependenciesFilter, LevelAssetsAddedByDependencies);
+	}
+
 	FNaniteDisplacedMeshEditorModule& Module = FNaniteDisplacedMeshEditorModule::GetModule();
 	Module.OnLinkDisplacedMeshOverride.BindUObject(this, &UGenerateNaniteDisplacedMeshCommandlet::OnLinkDisplacedMesh);
 
-	const int32 LevelCount = LevelAssets.Num();
+	const int32 LevelCount = LevelAssets.Num() + LevelAssetsAddedByDependencies.Num();
 	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Processing %d level(s)..."), LevelCount);
 
-	for (int LevelIndex = 0; LevelIndex < LevelCount; ++LevelIndex)
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Processing %d level(s) from the original query..."), LevelAssets.Num());
+	uint32 LevelIndex = 0;
+	for (const FAssetData& LevelAsset : LevelAssets)
 	{
-		const FAssetData& LevelAsset = LevelAssets[LevelIndex];
+		++LevelIndex;
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
 		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Process Level: %s (%d/%d)"), *LevelAsset.GetSoftObjectPath().ToString(), LevelIndex + 1, LevelCount);
+		LoadLevel(LevelAsset);
+	}
+
+	UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Processing the %d dependencies of the level(s) ..."), LevelAssetsAddedByDependencies.Num());
+
+	for (const FAssetData& LevelAsset : LevelAssetsAddedByDependencies)
+	{
+		++LevelIndex;
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("-------------------------------------------------------------------"));
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("Process Level: %s (%d/%d)"), *LevelAsset.GetSoftObjectPath().ToString(), LevelIndex + 1, LevelCount);
+		UE_LOG(LogNaniteDisplacedMesh, Display, TEXT("This level was added because it's a dependency of one of the processed level(s)"));
 		LoadLevel(LevelAsset);
 	}
 
