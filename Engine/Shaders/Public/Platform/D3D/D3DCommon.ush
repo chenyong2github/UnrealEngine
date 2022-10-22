@@ -7,6 +7,11 @@ D3DCommon.usf: Common defines for the d3d shader compiler
 // Update this GUID to invalidate D3D shaders and force a shader recompilation for D3D RHIs.
 // GUID: 8E6C30C5-AD0A-4C9D-8AB3-CD2C92A4EFBC
 
+#if SM6_PROFILE
+	#define COMPILER_SUPPORTS_WAVE_SIZE 1
+	#define WAVESIZE(N) [WaveSize(N)]
+#endif
+
 precise float MakePrecise(float v) { precise float pv = v; return pv; }
 precise float2 MakePrecise(float2 v) { precise float2 pv = v; return pv; }
 precise float3 MakePrecise(float3 v) { precise float3 pv = v; return pv; }

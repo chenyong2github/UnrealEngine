@@ -451,6 +451,9 @@ tsr_simd_halfC ClampFireFliersWithGuide(tsr_simd_halfC ToClamp, tsr_simd_halfC G
 
 //------------------------------------------------------- ENTRY POINT
 
+#if COMPILER_SUPPORTS_WAVE_SIZE && DIM_WAVE_SIZE > 0
+	WAVESIZE(LANE_COUNT)
+#endif
 [numthreads(LANE_COUNT, 1, 1)]
 void MainCS(
 	uint2 GroupId : SV_GroupID,

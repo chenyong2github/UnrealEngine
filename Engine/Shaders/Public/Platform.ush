@@ -93,6 +93,11 @@
 #define COMPILER_SUPPORTS_BARYCENTRIC_INTRINSICS 0
 #endif
 
+// Whether the shader compiler supports WAVESIZE()
+#ifndef COMPILER_SUPPORTS_WAVE_SIZE
+#define COMPILER_SUPPORTS_WAVE_SIZE 0
+#endif
+
 #ifndef COMPILER_FORCE_WAVE32_MODE
 #define COMPILER_FORCE_WAVE32_MODE
 #endif
