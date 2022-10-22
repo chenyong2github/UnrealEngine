@@ -775,9 +775,13 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 
 		if (bNeedsTransaction)
 		{
+			EFlags FlagsToPreserve = EFlags::None;
+
 			if (Ar.IsLoading())
 			{
 				Unregister();
+
+				FlagsToPreserve = Flags & TransientFlags;
 			}
 
 			Ar << Flags;
@@ -810,6 +814,8 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 			}
 			else
 			{
+				Flags |= FlagsToPreserve;
+
 				if (PayloadSize > 0 && !BulkDataId.IsValid())
 				{
 					BulkDataId = FGuid::NewGuid();
@@ -819,9 +825,12 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				if (bPayloadInArchive)
 				{
 					SerializeData(Ar, CompressedPayload, Flags);
+					Payload = CompressedPayload.Decompress();
 				}
-				
-				Payload = CompressedPayload.Decompress();	
+				else
+				{
+					UnloadData();
+				}
 
 				Register(Owner, TEXT("Serialize/Transacting"), false /* bAllowUpdateId */);
 			}
