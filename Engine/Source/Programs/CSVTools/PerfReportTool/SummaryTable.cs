@@ -286,6 +286,8 @@ namespace PerfSummaries
 					return 0.0f;
 				}).ToList();
 			}
+
+			colourThresholdList = ColourThresholdList.ReadColourThresholdListXML(element.Element("colourThresholds"));
 		}
 
 		public AutoColorizeMode autoColorizeMode = AutoColorizeMode.HighIsBad;
@@ -299,6 +301,8 @@ namespace PerfSummaries
 		public List<string> bucketNames = new List<string>();
 		// The value thresholds that correspond to each bucket. If a name doesn't exist for a threshold, the last bucket name is used.
 		public List<float> bucketThresholds = new List<float>();
+		// Colour thresholds override for this column.
+		public ColourThresholdList colourThresholdList = null;
 	};
 
 	class SummaryTableColumn
@@ -518,7 +522,12 @@ namespace PerfSummaries
 			{
 				return null;
 			}
-			if (colourThresholdOverride != null)
+
+			if (formatInfo.colourThresholdList != null)
+			{
+				thresholds = formatInfo.colourThresholdList;
+			}
+			else if (colourThresholdOverride != null)
 			{
 				thresholds = colourThresholdOverride;
 			}

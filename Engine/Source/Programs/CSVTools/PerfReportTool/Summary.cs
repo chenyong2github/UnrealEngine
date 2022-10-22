@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using CSVStats;
 using PerfReportTool;
 using System.Reflection;
+using System.Drawing;
 
 namespace PerfSummaries
 {
@@ -195,23 +196,14 @@ namespace PerfSummaries
             return uniqueStats.ToArray();
         }
 
+		protected ColourThresholdList ReadColourThresholdListXML(XElement colourThresholdEl)
+		{
+			return ColourThresholdList.ReadColourThresholdListXML(colourThresholdEl);
+		}
+
 		protected double [] ReadColourThresholdsXML(XElement colourThresholdEl)
 		{
-			if (colourThresholdEl != null)
-			{
-				string[] colourStrings = colourThresholdEl.Value.Split(',');
-				if (colourStrings.Length != 4)
-				{
-					throw new Exception("Incorrect number of colourthreshold entries. Should be 4.");
-				}
-				double [] colourThresholds = new double[4];
-				for (int i = 0; i < colourStrings.Length; i++)
-				{
-					colourThresholds[i] = Convert.ToDouble(colourStrings[i], System.Globalization.CultureInfo.InvariantCulture);
-				}
-				return colourThresholds;
-			}
-			return null;
+			return ColourThresholdList.ReadColourThresholdsXML(colourThresholdEl);
 		}
 
         public string GetStatThresholdColour(string StatToUse, double value)

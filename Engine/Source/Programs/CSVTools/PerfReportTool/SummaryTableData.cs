@@ -126,6 +126,7 @@ namespace PerfSummaries
 			{
 				int thresholdCount = reader.ReadInt32();
 				val.colorThresholdList = new ColourThresholdList();
+				// TODO: support serializing ColourThresholdList.LerpColours. This will require adding backwards compat to the serialization system.
 				for (int i = 0; i < thresholdCount; i++)
 				{
 					bool bHasColour = reader.ReadBoolean();
@@ -157,6 +158,7 @@ namespace PerfSummaries
 			if (colorThresholdList != null)
 			{
 				writer.Write((int)colorThresholdList.Count);
+				// TODO: support serializing ColourThresholdList.LerpColours. This will require adding backwards compat to the serialization system.
 				foreach (ThresholdInfo thresholdInfo in colorThresholdList.Thresholds)
 				{
 					writer.Write(thresholdInfo.colour != null);
