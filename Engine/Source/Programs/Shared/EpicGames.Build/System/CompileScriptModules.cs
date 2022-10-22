@@ -172,16 +172,62 @@ namespace UnrealBuildBase
 			{
 				BuildFlags |= BuildFlags.NoCompile;
 			}
-			if (Unreal.IsEngineInstalled())
-			{
-				BuildFlags |= BuildFlags.NoCompile | BuildFlags.ErrorOnMissingTarget;
-			}
 			if (bUseBuildRecords)
 			{
 				BuildFlags |= BuildFlags.UseBuildRecords;
 			}
 
-			return GetTargetPaths(Build(RulesFileType, FoundProjects, BaseDirectories, null, BuildFlags, out bBuildSuccess, OnBuildingProjects, Logger));
+			Dictionary<FileReference, CsProjBuildRecordEntry> BuildResults;
+			if (Unreal.IsEngineInstalled())
+			{
+				// Warn if not using build records or force compiling
+				if (BuildFlags.HasFlag(BuildFlags.ForceCompile))
+				{
+					Logger.LogWarning("ForceCompile not supported if Unreal.IsEngineInstalled() == true");
+				}
+				if (!BuildFlags.HasFlag(BuildFlags.UseBuildRecords))
+				{
+					Logger.LogWarning("Disabling UseBuildRecords not supported if Unreal.IsEngineInstalled() == true");
+				}
+				BuildFlags EngineBuildFlags = BuildFlags | BuildFlags.UseBuildRecords | BuildFlags.NoCompile | BuildFlags.ErrorOnMissingTarget;
+
+				bool bEngineBuildSuccess = false;
+				Dictionary<FileReference, CsProjBuildRecordEntry> EngineBuildResults = Build(
+					RulesFileType,
+					FoundProjects.Where(x => x.IsUnderDirectory(Unreal.EngineDirectory)).ToHashSet(),
+					BaseDirectories.Where(x => x.IsUnderDirectory(Unreal.EngineDirectory)).ToList(),
+					null,
+					EngineBuildFlags,
+					out bEngineBuildSuccess,
+					OnBuildingProjects,
+					Logger);
+
+				bool bProjectBuildSuccess = false;
+				BuildFlags ProjectBuildFlags = BuildFlags | BuildFlags.UseBuildRecords;
+				// ForceCompile not supported for installed builds
+				if (ProjectBuildFlags.HasFlag(BuildFlags.ForceCompile))
+				{
+					ProjectBuildFlags &= ~BuildFlags.ForceCompile;
+				}
+				Dictionary<FileReference, CsProjBuildRecordEntry> ProjectBuildResults = Build(
+					RulesFileType,
+					FoundProjects.Where(x => !x.IsUnderDirectory(Unreal.EngineDirectory)).ToHashSet(),
+					BaseDirectories,
+					null,
+					ProjectBuildFlags,
+					out bProjectBuildSuccess,
+					OnBuildingProjects,
+					Logger);
+
+				bBuildSuccess = bEngineBuildSuccess && bProjectBuildSuccess;
+				BuildResults = EngineBuildResults.Union(ProjectBuildResults).Distinct().ToDictionary(x => x.Key, x => x.Value);
+			}
+			else
+			{
+				BuildResults = Build(RulesFileType, FoundProjects, BaseDirectories, null, BuildFlags, out bBuildSuccess, OnBuildingProjects, Logger);
+			}
+
+			return GetTargetPaths(BuildResults);
 		}
 
 		/// <summary>
@@ -514,6 +560,16 @@ namespace UnrealBuildBase
 			if (Entry.Status != CsProjBuildRecordStatus.Unknown)
 			{
 				// Project validity has already been determined
+				return;
+			}
+
+
+			// If the engine is installed, and the project being validated is under the engine directory, treat it as valid
+			// so it is not built as a dependency when building an external project.
+			// It is assumed these projects exist and have already been verified.
+			if (Unreal.IsEngineInstalled() && ProjectPath.IsUnderDirectory(Unreal.EngineDirectory))
+			{
+				Entry.Status = CsProjBuildRecordStatus.Valid;
 				return;
 			}
 
