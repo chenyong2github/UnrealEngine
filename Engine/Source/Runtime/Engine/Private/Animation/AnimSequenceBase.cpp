@@ -52,18 +52,6 @@ UAnimSequenceBase::UAnimSequenceBase(const FObjectInitializer& ObjectInitializer
 #endif // WITH_EDITOR
 }
 
-{
-#if WITH_EDITOR
-	// Editor time we update the source data
-	Controller->SetPlayLength(NewLength);
-#else 
-	// In case this is called during runtime, update the sequence length directly. Current use-case is runtime created Montages.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SequenceLength = NewLength;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-}
-
 bool UAnimSequenceBase::IsPostLoadThreadSafe() const
 {
 	return false;	// PostLoad is not thread safe because of the call to VerifyCurveNames() (calling USkeleton::VerifySmartName) that can mutate a shared map in the skeleton.
