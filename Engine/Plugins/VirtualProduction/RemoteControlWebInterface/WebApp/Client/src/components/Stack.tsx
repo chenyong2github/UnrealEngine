@@ -764,7 +764,7 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
         <Widgets.AssetWidget label={this.getLabel(widget)}
                              value={this.getValue(widget)}
                              type={exposed?.Type ?? 'Object'}
-                             typePath={exposed.TypePath}
+                             typePath={exposed?.TypePath}
                              onChange={value => this.onPropertyValueChange(widget, value)}
                              browse />
       </DraggableWidget>

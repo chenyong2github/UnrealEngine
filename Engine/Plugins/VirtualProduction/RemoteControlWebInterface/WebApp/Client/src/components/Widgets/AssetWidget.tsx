@@ -9,6 +9,7 @@ type Props = {
   label?: string | JSX.Element;
   value?: string;
   type?: string;
+  typePath?: string;
   browse?: boolean;
   reset?: boolean;
   onChange?: (value?: string) => void;
@@ -21,13 +22,15 @@ export class AssetWidget extends React.Component<Props> {
   };
 
   onBrowse = async () => {
-    let { type } = this.props;
+    let { type, typePath } = this.props;
     if (type.startsWith('U') || type.startsWith('F'))
       type = type.substring(1);
 
     type = type.replace('*', '');
+    if (typePath?.length == 0)
+      typePath = type;
 
-    const asset = await SearchModal.open({ placeholder: 'Search asset', types: [type], prefix: '/Game', count: 200 });
+    const asset = await SearchModal.open({ placeholder: 'Search asset', types: [typePath], prefix: '/Game', count: 200 });
     if (asset)
       this.props.onChange?.(asset.Path);
   }
