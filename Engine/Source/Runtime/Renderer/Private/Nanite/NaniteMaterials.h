@@ -509,6 +509,6 @@ void DrawLumenMeshCapturePass(
 	FRDGTextureRef DepthAtlasTexture
 );
 
-EGBufferLayout GetGBufferLayoutForMaterial(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParams);
+EGBufferLayout GetGBufferLayoutForMaterial(const FMaterial& Material);
 
 } // namespace Nanite

@@ -81,6 +81,7 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		FeatureLevel,
 		bRenderSkylight,
 		false,
+		GBL_Default,
 		&BasePassShaders.VertexShader,
 		&BasePassShaders.PixelShader
 		))

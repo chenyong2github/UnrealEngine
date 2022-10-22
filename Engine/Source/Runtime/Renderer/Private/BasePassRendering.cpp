@@ -101,21 +101,25 @@ IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FTranslucentBasePassUniformParameters, "T
 	typedef TBasePassVS< LightMapPolicyType > TBasePassVS##LightMapPolicyName ; \
 	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassVS##LightMapPolicyName,TEXT("/Engine/Private/BasePassVertexShader.usf"),TEXT("Main"),SF_Vertex);
 
-#define IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,bEnableSkyLight,SkyLightName) \
-	typedef TBasePassPS<LightMapPolicyType, bEnableSkyLight> TBasePassPS##LightMapPolicyName##SkyLightName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassPS##LightMapPolicyName##SkyLightName,TEXT("/Engine/Private/BasePassPixelShader.usf"),TEXT("MainPS"),SF_Pixel);
+#define IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,bEnableSkyLight,SkyLightName,GBufferLayout,LayoutName) \
+	typedef TBasePassPS<LightMapPolicyType, bEnableSkyLight, GBufferLayout> TBasePassPS##LightMapPolicyName##SkyLightName##LayoutName; \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassPS##LightMapPolicyName##SkyLightName##LayoutName,TEXT("/Engine/Private/BasePassPixelShader.usf"),TEXT("MainPS"),SF_Pixel);
 
-#define IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,bEnableSkyLight,SkyLightName) \
-	typedef TBasePassCS<LightMapPolicyType, bEnableSkyLight> TBasePassCS##LightMapPolicyName##SkyLightName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassCS##LightMapPolicyName##SkyLightName,TEXT("/Engine/Private/BasePassPixelShader.usf"),TEXT("MainCS"),SF_Compute);
+#define IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,bEnableSkyLight,SkyLightName,GBufferLayout,LayoutName) \
+	typedef TBasePassCS<LightMapPolicyType, bEnableSkyLight, GBufferLayout> TBasePassCS##LightMapPolicyName##SkyLightName##LayoutName; \
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TBasePassCS##LightMapPolicyName##SkyLightName##LayoutName,TEXT("/Engine/Private/BasePassPixelShader.usf"),TEXT("MainCS"),SF_Compute);
 
 // Implement a pixel and compute shader type for skylights and one without, and one vertex shader that will be shared between them
 #define IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	IMPLEMENT_BASEPASS_VERTEXSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
-	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight) \
-	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,) \
-	IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight) \
-	IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,)
+	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight,GBL_Default,) \
+	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,,GBL_Default,) \
+	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight,GBL_ForceVelocity,ForceVelocity) \
+	IMPLEMENT_BASEPASS_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,,GBL_ForceVelocity,ForceVelocity) \
+	IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight,GBL_Default,) \
+	IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,,GBL_Default,) \
+	IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,true,Skylight,GBL_ForceVelocity,ForceVelocity) \
+	IMPLEMENT_BASEPASS_COMPUTESHADER_TYPE(LightMapPolicyType,LightMapPolicyName,false,,GBL_ForceVelocity,ForceVelocity)
 
 // Implement shader types per lightmap policy
 // If renaming or refactoring these, remember to update FMaterialResource::GetRepresentativeInstructionCounts and FPreviewMaterial::ShouldCache().
@@ -467,6 +471,26 @@ void SetupBasePassState(FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	}
 }
 
+template <ELightMapPolicyType Policy, EGBufferLayout GBufferLayout>
+void AddUniformBasePassPixelShader(bool bEnableSkyLight, bool bUse128bitRT, FMaterialShaderTypes& OutShaderTypes)
+{
+	if (bEnableSkyLight)
+	{
+		OutShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<Policy>, true, GBufferLayout>>();
+	}
+	else
+	{
+		if (bUse128bitRT && (Policy == LMP_NO_LIGHTMAP) && (GBufferLayout == GBL_Default))
+		{
+			OutShaderTypes.AddShaderType<F128BitRTBasePassPS>();
+		}
+		else
+		{
+			OutShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<Policy>, false, GBufferLayout>>();
+		}
+	}
+}
+
 /**
  * Get shader templates allowing to redirect between compatible shaders.
  */
@@ -478,32 +502,30 @@ bool GetUniformBasePassShaders(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
+	EGBufferLayout GBufferLayout,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>* PixelShader
 )
 {
 	FMaterialShaderTypes ShaderTypes;
-	if(VertexShader)
+	if (VertexShader)
 	{
 		ShaderTypes.AddShaderType<TBasePassVS<TUniformLightMapPolicy<Policy>>>();
 	}
 
-	if(PixelShader)
+	if (PixelShader)
 	{
-		if (bEnableSkyLight)
+		switch (GBufferLayout)
 		{
-			ShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<Policy>, true>>();
-		}
-		else
-		{
-			if (bUse128bitRT && (Policy == LMP_NO_LIGHTMAP))
-			{
-				ShaderTypes.AddShaderType<F128BitRTBasePassPS>();
-			}
-			else
-			{
-				ShaderTypes.AddShaderType<TBasePassPS<TUniformLightMapPolicy<Policy>, false>>();
-			}
+		case GBL_Default:
+			AddUniformBasePassPixelShader<Policy, GBL_Default>(bEnableSkyLight, bUse128bitRT, ShaderTypes);
+			break;
+		case GBL_ForceVelocity:
+			AddUniformBasePassPixelShader<Policy, GBL_ForceVelocity>(bEnableSkyLight, bUse128bitRT, ShaderTypes);
+			break;
+		default:
+			check(false);
+			break;
 		}
 	}
 
@@ -526,6 +548,7 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
     bool bUse128bitRT,
+	EGBufferLayout GBufferLayout,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>* PixelShader
 	)
@@ -533,22 +556,35 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	switch (LightMapPolicy.GetIndirectPolicy())
 	{
 	case LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	case LMP_CACHED_VOLUME_INDIRECT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	case LMP_CACHED_POINT_INDIRECT_LIGHTING:
-		return GetUniformBasePassShaders<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	case LMP_LQ_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	case LMP_HQ_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	case LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	case LMP_NO_LIGHTMAP:
-		return GetUniformBasePassShaders<LMP_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, VertexShader, PixelShader);
+		return GetUniformBasePassShaders<LMP_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, bUse128bitRT, GBufferLayout, VertexShader, PixelShader);
 	default:
 		check(false);
 		return false;
+	}
+}
+
+template <ELightMapPolicyType Policy, EGBufferLayout GBufferLayout>
+void AddUniformBasePassComputeShader(bool bEnableSkyLight, FMaterialShaderTypes& OutShaderTypes)
+{
+	if (bEnableSkyLight)
+	{
+		OutShaderTypes.AddShaderType<TBasePassCS<TUniformLightMapPolicy<Policy>, true, GBufferLayout>>();
+	}
+	else
+	{
+		OutShaderTypes.AddShaderType<TBasePassCS<TUniformLightMapPolicy<Policy>, false, GBufferLayout>>();
 	}
 }
 
@@ -558,6 +594,7 @@ bool GetUniformBasePassShader(
 	FVertexFactoryType* VertexFactoryType, 
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
+	EGBufferLayout GBufferLayout,
 	TShaderRef<TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>>* ComputeShader
 )
 {
@@ -565,13 +602,17 @@ bool GetUniformBasePassShader(
 
 	if (ComputeShader)
 	{
-		if (bEnableSkyLight)
+		switch (GBufferLayout)
 		{
-			ShaderTypes.AddShaderType<TBasePassCS<TUniformLightMapPolicy<Policy>, true>>();
-		}
-		else
-		{
-			ShaderTypes.AddShaderType<TBasePassCS<TUniformLightMapPolicy<Policy>, false>>();
+		case GBL_Default:
+			AddUniformBasePassComputeShader<Policy, GBL_Default>(bEnableSkyLight, ShaderTypes);
+			break;
+		case GBL_ForceVelocity:
+			AddUniformBasePassComputeShader<Policy, GBL_ForceVelocity>(bEnableSkyLight, ShaderTypes);
+			break;
+		default:
+			check(false);
+			break;
 		}
 	}
 
@@ -592,25 +633,26 @@ bool GetBasePassShader<FUniformLightMapPolicy>(
 	FUniformLightMapPolicy LightMapPolicy, 
 	ERHIFeatureLevel::Type FeatureLevel,
 	bool bEnableSkyLight,
+	EGBufferLayout GBufferLayout,
 	TShaderRef<TBasePassComputeShaderPolicyParamType<FUniformLightMapPolicy>>* ComputeShader
 	)
 {
 	switch (LightMapPolicy.GetIndirectPolicy())
 	{
 	case LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING:
-		return GetUniformBasePassShader<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	case LMP_CACHED_VOLUME_INDIRECT_LIGHTING:
-		return GetUniformBasePassShader<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_CACHED_VOLUME_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	case LMP_CACHED_POINT_INDIRECT_LIGHTING:
-		return GetUniformBasePassShader<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_CACHED_POINT_INDIRECT_LIGHTING>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	case LMP_LQ_LIGHTMAP:
-		return GetUniformBasePassShader<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_LQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	case LMP_HQ_LIGHTMAP:
-		return GetUniformBasePassShader<LMP_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	case LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP:
-		return GetUniformBasePassShader<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	case LMP_NO_LIGHTMAP:
-		return GetUniformBasePassShader<LMP_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, ComputeShader);
+		return GetUniformBasePassShader<LMP_NO_LIGHTMAP>(Material, VertexFactoryType, FeatureLevel, bEnableSkyLight, GBufferLayout, ComputeShader);
 	default:
 		check(false);
 		return false;
@@ -772,6 +814,99 @@ static void ClearGBufferAtMaxZ(
 			RHICmdList.DrawPrimitive(0, 2, 1);
 		});
 	}
+}
+
+bool IsGBufferLayoutSupportedForMaterial(EGBufferLayout Layout, const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	switch (Layout)
+	{
+	case GBL_Default:
+		// All Nanite and non-Nanite base pass shaders support the default layout
+		return true;
+
+	case GBL_ForceVelocity:
+		// Only Nanite materials with WPO support this GBuffer layout
+		// NOTE: FMaterialShaderParameters::bHasVertexPositionOffsetConnected means that the material *could* have WPO.
+		// It's still possible for the material to disable WPO after translation.
+		return !IsUsingBasePassVelocity(Parameters.Platform) && 
+			Parameters.VertexFactoryType->SupportsNaniteRendering() &&
+			Parameters.MaterialParameters.bIsUsedWithNanite &&
+			Parameters.MaterialParameters.bHasVertexPositionOffsetConnected;
+
+	default:
+		checkf(false, TEXT("Unhandled GBuffer Layout!"));
+		return false;
+	}
+}
+
+void ModifyBasePassCSPSCompilationEnvironment(const FMeshMaterialShaderPermutationParameters& Parameters, EGBufferLayout GBufferLayout, bool bEnableSkyLight, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), Parameters.MaterialParameters.MaterialDomain != MD_Surface);
+	OutEnvironment.SetDefine(TEXT("ENABLE_DBUFFER_TEXTURES"), Parameters.MaterialParameters.MaterialDomain == MD_Surface);
+	OutEnvironment.SetDefine(TEXT("COMPILE_BASEPASS_PIXEL_VOLUMETRIC_FOGGING"), DoesPlatformSupportVolumetricFog(Parameters.Platform));
+	OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
+	OutEnvironment.SetDefine(TEXT("PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE"), ForceSimpleSkyDiffuse(Parameters.Platform));
+	OutEnvironment.SetDefine(TEXT("GBUFFER_LAYOUT"), GBufferLayout);
+
+	// This define simply lets the compilation environment know that we are using BasePassPixelShader.usf, so that we can check for more
+	// complicated defines later in the compilation pipe.
+	OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
+	OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 0);
+
+	const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+	const bool bIsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+	const bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	if (bSupportVirtualShadowMap && (bTranslucent || bIsSingleLayerWater))
+	{
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+	}
+
+	OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
+	Strata::SetBasePassRenderTargetOutputFormat(Parameters.Platform, Parameters.MaterialParameters, OutEnvironment, GBufferLayout);
+
+	const bool bOutputVelocity = (GBufferLayout == GBL_ForceVelocity) ||
+		FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform);
+	if (bOutputVelocity)
+	{
+		const int32 VelocityIndex = IsForwardShadingEnabled(Parameters.Platform) ? 1 : 4; // As defined in BasePassPixelShader.usf
+		OutEnvironment.SetRenderTargetOutputFormat(VelocityIndex, PF_G16R16);
+	}
+
+	if (bIsSingleLayerWater && IsWaterDistanceFieldShadowEnabled(Parameters.Platform))
+	{
+		// See FShaderCompileUtilities::FetchGBufferParamsRuntime for the details
+		const bool bHasTangent = false;
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+		bool bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
+
+		uint32 TargetSeparatedMainDirLight = 5;
+		if (bOutputVelocity == false && bHasTangent == false)
+		{
+			TargetSeparatedMainDirLight = 5;
+			if (bHasPrecShadowFactor)
+			{
+				TargetSeparatedMainDirLight = 6;
+			}
+		}
+		else if (bOutputVelocity)
+		{
+			TargetSeparatedMainDirLight = 6;
+			if (bHasPrecShadowFactor)
+			{
+				TargetSeparatedMainDirLight = 7;
+			}
+		}
+		else if (bHasTangent)
+		{
+			TargetSeparatedMainDirLight = 6;
+			if (bHasPrecShadowFactor)
+			{
+				TargetSeparatedMainDirLight = 7;
+			}
+		}
+		OutEnvironment.SetRenderTargetOutputFormat(TargetSeparatedMainDirLight, PF_FloatR11G11B10);
+	}	
 }
 
 void FDeferredShadingSceneRenderer::RenderBasePass(
@@ -1440,6 +1575,7 @@ void FBasePassMeshProcessor::CollectPSOInitializersForLMPolicy(
 		FeatureLevel,
 		bRenderSkylight,
 		Get128BitRequirement(),
+		GBL_Default, // Currently only Nanite supports non-default layout
 		&BasePassShaders.VertexShader,
 		&BasePassShaders.PixelShader
 		))
@@ -1550,6 +1686,7 @@ bool FBasePassMeshProcessor::Process(
 		FeatureLevel,
 		bRenderSkylight,
 		Get128BitRequirement(),
+		GBL_Default, // Currently only Nanite uses non-default layout
 		&BasePassShaders.VertexShader,
 		&BasePassShaders.PixelShader
 		))

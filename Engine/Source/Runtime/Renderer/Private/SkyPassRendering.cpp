@@ -80,6 +80,7 @@ bool FSkyPassMeshProcessor::Process(
 			FeatureLevel,
 			bRenderSkylight,
 			false,
+			GBL_Default,
 			&SkyPassShaders.VertexShader,
 			&SkyPassShaders.PixelShader
 			))
@@ -190,6 +191,7 @@ void FSkyPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig& S
 		FeatureLevel,
 		bRenderSkylight,
 		false,
+		GBL_Default,
 		&SkyPassShaders.VertexShader,
 		&SkyPassShaders.PixelShader
 		))

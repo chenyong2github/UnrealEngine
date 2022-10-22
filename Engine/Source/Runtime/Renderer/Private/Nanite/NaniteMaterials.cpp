@@ -1407,11 +1407,11 @@ void DrawLumenMeshCapturePass(
 	}
 }
 
-EGBufferLayout GetGBufferLayoutForMaterial(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParams)
+EGBufferLayout GetGBufferLayoutForMaterial(const FMaterial& Material)
 {
 	// If WPO is enabled and BasePass velocity is disabled, force velocity output in the base pass
 	// (We split the shading pass into two passes for this reason - see Nanite::DrawBasePass above)
-	if (!IsUsingBasePassVelocity(Platform) && MaterialParams.bHasVertexPositionOffsetConnected)
+	if (!IsUsingBasePassVelocity(GMaxRHIShaderPlatform) && Material.MaterialUsesWorldPositionOffset_RenderThread())
 	{
 		return GBL_ForceVelocity;
 	}

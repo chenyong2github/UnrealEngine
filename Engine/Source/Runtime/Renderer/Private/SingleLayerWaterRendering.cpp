@@ -1269,6 +1269,7 @@ bool FSingleLayerWaterPassMeshProcessor::Process(
 		FeatureLevel,
 		bRenderSkylight,
 		false,
+		GBL_Default,
 		&WaterPassShaders.VertexShader,
 		&WaterPassShaders.PixelShader
 		))
@@ -1320,6 +1321,7 @@ void FSingleLayerWaterPassMeshProcessor::CollectPSOInitializers(const FSceneText
 			FeatureLevel,
 			bRenderSkylight,
 			false,
+			GBL_Default,
 			&WaterPassShaders.VertexShader,
 			&WaterPassShaders.PixelShader
 			))
