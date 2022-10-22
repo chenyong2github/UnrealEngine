@@ -1540,19 +1540,6 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		ControlRig->GetControlsInOrder(SortedControls);
 		StoreLastControlsUsedToReconstruct(SortedControls);
 		bool bIsInUndo = false;
-#if WITH_EDITORONLY_DATA
-		bIsInUndo = GIsTransacting;
-		if (bIsInUndo) //if undo reset spaces @helge to do need to reset to some default not parent since rig may be set up to something else
-		{
-			if (URigHierarchy* RigHierarchy = ControlRig->GetHierarchy())
-			{
-				for (FRigControlElement* ControlElement : SortedControls)
-				{
-					RigHierarchy->SwitchToDefaultParent(ControlElement->GetKey());
-				}
-			}
-		}	
-#endif
 		if (ControlsMask.Num() != SortedControls.Num())
 		{
 			TArray<bool> OnArray;

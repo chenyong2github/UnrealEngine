@@ -637,8 +637,15 @@ private:
 	}
 
 protected:
+	enum class ESetDefault
+	{
+		/** Do not set default. */
+		DoNotSetDefault,
+		/** Set default */
+		SetDefault,
+	};
 	/* Returns whether a section was added */
-	FKeyPropertyResult AddKeysToSection(UMovieSceneSection* Section, FFrameNumber KeyTime, const FGeneratedTrackKeys& Keys, ESequencerKeyMode KeyMode)
+	FKeyPropertyResult AddKeysToSection(UMovieSceneSection* Section, FFrameNumber KeyTime, const FGeneratedTrackKeys& Keys, ESequencerKeyMode KeyMode, ESetDefault SetDefault = ESetDefault::SetDefault)
 	{
 		FKeyPropertyResult KeyPropertyResult;
 
@@ -646,7 +653,7 @@ protected:
 
 		FMovieSceneChannelProxy& Proxy = Section->GetChannelProxy();
 			
-		const bool bSetDefaults = GetSequencer()->GetAutoSetTrackDefaults();
+		const bool bSetDefaults = GetSequencer()->GetAutoSetTrackDefaults() && (SetDefault == ESetDefault::SetDefault);
 
 		// The default value is a value for the channel when there are no keyframes. For example, if you add keys and 
 		// then delete them all, the default value is the value of the channel. In the implementation of ApplyDefault, 
