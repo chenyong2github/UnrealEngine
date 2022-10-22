@@ -1810,6 +1810,8 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 				WorldParam->PerfTrackers->GetInGamePerformanceTracker((EInGamePerfTrackers)Tracker, EInGamePerfTrackerThreads::RenderThread).Tick();
 			}
 		});
+
+	FWorldDelegates::OnWorldTickEnd.Broadcast(this, TickType, DeltaSeconds);
 }
 
 void UWorld::CleanupActors()

@@ -219,6 +219,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 	check(!FoundWorld || FoundWorld->PersistentLevel);
 	if (FoundWorld && FoundWorld->PersistentLevel != RuntimeLevel)
 	{
+		check(ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels(FoundWorld->PersistentLevel));
 		check(RuntimeLevel == nullptr);
 		check(LoadedLevel == nullptr);
 		RuntimeLevel = FoundWorld->PersistentLevel;
@@ -226,6 +227,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 
 	if (RuntimeLevel)
 	{
+		check(ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels(RuntimeLevel));
 		// Reuse existing Level
 		UPackage* CellLevelPackage = RuntimeLevel->GetPackage();
 		check(CellLevelPackage);
@@ -504,29 +506,34 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 
 		RuntimeLevel->OnCleanupLevel.Remove(OnCleanupLevelDelegateHandle);
 
-		TSet<UPackage*> TrashedPackages;
-		auto TrashPackage = [&TrashedPackages](UPackage* Package)
+		// If reusing levels is enabled, trash world partition level/actor packages
+		// as it won't be done by ULevel::CleanupLevel
+		if (ShouldReuseUnloadedButStillAroundLevels(RuntimeLevel))
 		{
-			bool bWasAlreadyInSet;
-			TrashedPackages.Add(Package, &bWasAlreadyInSet);
-
-			if (!bWasAlreadyInSet)
+			TSet<UPackage*> TrashedPackages;
+			auto TrashPackage = [&TrashedPackages](UPackage* Package)
 			{
-				// Clears RF_Standalone flag on objects in package (UMetaData)
-				ForEachObjectWithPackage(Package, [](UObject* Object) { Object->ClearFlags(RF_Standalone); return true; }, false);
+				bool bWasAlreadyInSet;
+				TrashedPackages.Add(Package, &bWasAlreadyInSet);
 
-				// Rename package to avoid having to deal with pending kill objects in subsequent RequestLevel calls
-				FName NewPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), FName(*FString::Printf(TEXT("%s_Trashed"), *Package->GetName())));
-				Package->Rename(*NewPackageName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
-			}
-		};
-		
-		TrashPackage(RuntimeLevel->GetPackage());
-		for (AActor* Actor : RuntimeLevel->Actors)
-		{
-			if (UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr)
+				if (!bWasAlreadyInSet)
+				{
+					// Clears RF_Standalone flag on objects in package (UMetaData)
+					ForEachObjectWithPackage(Package, [](UObject* Object) { Object->ClearFlags(RF_Standalone); return true; }, false);
+
+					// Rename package to avoid having to deal with pending kill objects in subsequent RequestLevel calls
+					FName NewPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), FName(*FString::Printf(TEXT("%s_Trashed"), *Package->GetName())));
+					Package->Rename(*NewPackageName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
+				}
+			};
+
+			TrashPackage(RuntimeLevel->GetPackage());
+			for (AActor* Actor : RuntimeLevel->Actors)
 			{
-				TrashPackage(ActorPackage);
+				if (UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr)
+				{
+					TrashPackage(ActorPackage);
+				}
 			}
 		}
 

@@ -4170,6 +4170,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWorldTickStart, UWorld*, ELevelTick, float);
 	static FOnWorldTickStart OnWorldTickStart;
 
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWorldTickEnd, UWorld*, ELevelTick, float);
+	static FOnWorldTickEnd OnWorldTickEnd;
+
 	// Delegate called before actors are ticked for each world. Delta seconds is already dilated and clamped.
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWorldPreActorTick, UWorld* /*World*/, ELevelTick/**Tick Type*/, float/**Delta Seconds*/);
 	static FOnWorldPreActorTick OnWorldPreActorTick;

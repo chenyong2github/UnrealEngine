@@ -80,6 +80,14 @@ namespace LevelStreamingCVars
 		TEXT("Whether server should wait for client to acknowledge visibility update before treating streaming levels as visible by the client.\n")
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
+
+	static bool bShouldReuseUnloadedButStillAroundLevels = true;
+	FAutoConsoleVariableRef CVarShouldReuseUnloadedButStillAroundLevels(
+		TEXT("LevelStreaming.ShouldReuseUnloadedButStillAroundLevels"),
+		bShouldReuseUnloadedButStillAroundLevels,
+		TEXT("Whether level streaming will reuse the unloaded levels that aren't GC'd yet.\n")
+		TEXT("0: Disable, 1: Enable"),
+		ECVF_ReadOnly);
 }
 
 bool ULevelStreaming::DefaultAllowClientUseMakingInvisibleTransactionRequests()
@@ -119,6 +127,16 @@ bool ULevelStreaming::ShouldClientUseMakingVisibleTransactionRequest() const
 bool ULevelStreaming::ShouldServerUseMakingVisibleTransactionRequest()
 {
 	return LevelStreamingCVars::bShouldServerUseMakingVisibleTransactionRequest;
+}
+
+bool ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels(const ULevel* InLevel)
+{
+	UWorld* OuterWorld = InLevel ? InLevel->GetTypedOuter<UWorld>() : nullptr;
+	if (OuterWorld && OuterWorld->IsGameWorld() && !LevelStreamingCVars::bShouldReuseUnloadedButStillAroundLevels)
+	{
+		return false;
+	}
+	return true;
 }
 
 int32 ULevelStreamingDynamic::UniqueLevelInstanceId = 0;
@@ -1481,6 +1499,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 				return false;
 			}
 #endif
+			check(ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels(World->PersistentLevel));
 			if (World->PersistentLevel != LoadedLevel)
 			{
 				// Level already exists but may have the wrong type due to being inactive before, so copy data over

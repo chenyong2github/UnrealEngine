@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 
 class ULevel;
 class UWorld;
@@ -34,17 +35,6 @@ struct ENGINE_API FLevelStreamingGCHelper
 	 */
 	static void CancelUnloadRequest( ULevel* InLevel );
 
-	/** 
-	 * Prepares levels that are marked for unload for the GC call by marking their actors and components as
-	 * pending kill.
-	 */
-	static void PrepareStreamedOutLevelsForGC();
-
-	/**
-	 * Verify that the level packages are no longer around.
-	 */
-	static void VerifyLevelsGotRemovedByGC();
-	
 	/**
 	 * @return	The number of levels pending a purge by the garbage collector
 	 */
@@ -56,10 +46,33 @@ struct ENGINE_API FLevelStreamingGCHelper
 	static void EnableForCommandlet();
 	
 private:
+	/** Prepares levels that are marked for unload for the next GC call by marking their actors and components as garbage. */
+	static void PrepareStreamedOutLevelsForGC();
+
+	/** Verify that the level packages are no longer around. */
+	static void VerifyLevelsGotRemovedByGC();
+
+	/** Called before garbage collect. */
+	static void OnPreGarbageCollect();
+
+	/** Called at the end of a world tick. */
+	static void OnWorldTickEnd(UWorld* InWorld, ELevelTick InTickType, float InDeltaSeconds);
+
+	/** Prepares a level that is marked for unload for the next GC call by marking its actors and components as garbage.  */
+	static void PrepareStreamedOutLevelForGC(ULevel* Level);
+
 	/** Static array of levels that should be unloaded */
 	static TArray<TWeakObjectPtr<ULevel> > LevelsPendingUnload;
-	/** Static array of level packages that have been marked by PrepareStreamedOutLevelsForGC */
-	static TArray<FName> LevelPackageNames;
+
+	/** Static set of level packages that have been marked by PrepareStreamedOutLevelsForGC */
+	static TSet<FName> LevelPackageNames;
+
 	/** Static bool allows FLevelStreamingGCHelper to be used in a commandlet */
 	static bool bEnabledForCommandlet;
+
+	/** Whether RequestUnload delayed its call to PrepareStreamedOutLevelForGC after world tick. */
+	static bool bIsPrepareStreamedOutLevelForGCDelayedToWorldTickEnd;
+
+	/** The number of unloaded levels prepared for the next GC (used by GetNumLevelsPendingPurge). */
+	static int32 NumberOfPreparedStreamedOutLevelsForGC;
 };

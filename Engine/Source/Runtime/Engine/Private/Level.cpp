@@ -496,22 +496,46 @@ void ULevel::CleanupLevel(bool bCleanupResources, bool bUnloadFromEditor)
 {
 	OnCleanupLevel.Broadcast();
 
-#if WITH_EDITOR
-	if (bUnloadFromEditor)
+	const bool bTrashPackage = !ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels(this);
+	TSet<UPackage*> ProcessedPackages;
+	auto ProcessPackage = [&ProcessedPackages, bTrashPackage](UPackage* InPackage, bool bInClearStandaloneFlag = false)
 	{
-		check(bCleanupResources);
-		// if the level contains any actor with an external package, clear their metadata standalone flag so that the packages can be properly unloaded.
-		// Do so for any actors outered to the level and not just from the level actors array
-		ForEachObjectWithOuter(this, [](UObject* InObject)
+		bool bWasAlreadyInSet;
+		ProcessedPackages.Add(InPackage, &bWasAlreadyInSet);
+		if (!bWasAlreadyInSet)
 		{
-			// Ask directly on all objects since the tests validate against object flags before doing a hash lookup
-			if (UPackage* ExternalPackage = InObject->GetExternalPackage())
+#if WITH_EDITOR
+			if (bInClearStandaloneFlag || bTrashPackage)
 			{
-				ForEachObjectWithPackage(ExternalPackage, [](UObject* Object)
-				{
-					Object->ClearFlags(RF_Standalone);
-					return true;
-				}, false);
+				// Clear RF_Standalone flag on objects in package
+				ForEachObjectWithPackage(InPackage, [](UObject* Object) { Object->ClearFlags(RF_Standalone); return true; }, false);
+			}
+#endif
+			if (bTrashPackage)
+			{
+				// Rename package to make sure it won't be reused
+				FName NewPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), FName(*FString::Printf(TEXT("%s_Trashed"), *InPackage->GetName())));
+				InPackage->Rename(*NewPackageName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
+			}
+		}
+	};
+
+	UPackage* LevelPackage = GetPackage();
+	if (bTrashPackage)
+	{
+		ProcessPackage(LevelPackage);
+	}
+
+#if WITH_EDITOR
+	// Process objects outered to this level but in a different package (currently only possible in editor)
+	check(!bUnloadFromEditor || bCleanupResources);
+	if (bUnloadFromEditor || bTrashPackage)
+	{
+		ForEachObjectWithOuter(this, [LevelPackage, ProcessPackage](UObject* InObject)
+		{
+			if (UPackage* ObjectPackage = InObject->GetPackage(); ObjectPackage && LevelPackage != ObjectPackage)
+			{
+				ProcessPackage(ObjectPackage, true);
 			}
 		}, false);
 	}
