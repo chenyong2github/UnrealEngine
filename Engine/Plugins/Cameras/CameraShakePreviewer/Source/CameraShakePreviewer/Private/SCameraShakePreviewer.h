@@ -54,7 +54,7 @@ class FCameraShakePreviewUpdater : public FTickableEditorObject, public FGCObjec
 {
 public:
 	FCameraShakePreviewUpdater();
-	~FCameraShakePreviewUpdater();
+	virtual ~FCameraShakePreviewUpdater();
 
 	// FTickableObject Interface
 	virtual ETickableTickType GetTickableTickType() const { return ETickableTickType::Always; }
