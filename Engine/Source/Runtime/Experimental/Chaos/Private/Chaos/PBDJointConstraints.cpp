@@ -71,6 +71,11 @@ namespace Chaos
 		return ConcreteContainer()->GetConstraintColor(ConstraintIndex);
 	}
 
+	bool FPBDJointConstraintHandle::IsConstraintBroken() const
+	{
+		return ConcreteContainer()->IsConstraintBroken(ConstraintIndex);
+	}
+
 	bool FPBDJointConstraintHandle::IsConstraintBreaking() const
 	{
 		return ConcreteContainer()->IsConstraintBreaking(ConstraintIndex);
@@ -329,6 +334,7 @@ namespace Chaos
 		, Color(INDEX_NONE)
 		, IslandSize(0)
 		, bDisabled(false)
+		, bBroken(false)
 		, bBreaking(false)
 		, bDriveTargetChanged(false), LinearImpulse(FVec3(0))
 		, AngularImpulse(FVec3(0))
@@ -579,6 +585,11 @@ namespace Chaos
 		return !ConstraintStates[ConstraintIndex].bDisabled;
 	}
 
+	bool FPBDJointConstraints::IsConstraintBroken(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].bBroken;
+	}
+
 	bool FPBDJointConstraints::IsConstraintBreaking(int32 ConstraintIndex) const
 	{
 		return ConstraintStates[ConstraintIndex].bBreaking;
@@ -607,8 +618,10 @@ namespace Chaos
 		if (bEnabled)
 		{ 
 			// only enable constraint if the particles are valid and not disabled
+			// and if the constraint is not broken
 			if (Particle0->Handle() != nullptr && !Particle0->Disabled()
-				&& Particle1->Handle() != nullptr && !Particle1->Disabled())
+				&& Particle1->Handle() != nullptr && !Particle1->Disabled()
+				&& !IsConstraintBroken(ConstraintIndex))
 			{
 				ConstraintStates[ConstraintIndex].bDisabled = false;
 			}
@@ -618,6 +631,11 @@ namespace Chaos
 			// desirable to allow disabling no matter what state the endpoints
 			ConstraintStates[ConstraintIndex].bDisabled = true;
 		}
+	}
+
+	void FPBDJointConstraints::SetConstraintBroken(int32 ConstraintIndex, bool bBroken)
+	{
+		ConstraintStates[ConstraintIndex].bBroken = bBroken;
 	}
 
 	void FPBDJointConstraints::SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking)
@@ -633,6 +651,7 @@ namespace Chaos
 	void FPBDJointConstraints::BreakConstraint(int32 ConstraintIndex)
 	{
 		SetConstraintEnabled(ConstraintIndex, false);
+		SetConstraintBroken(ConstraintIndex, true);
 		SetConstraintBreaking(ConstraintIndex, true);
 		if (BreakCallback)
 		{
@@ -640,8 +659,9 @@ namespace Chaos
 		}
 	}
 
-	void FPBDJointConstraints::FixConstraints(int32 ConstraintIndex)
+	void FPBDJointConstraints::FixConstraint(int32 ConstraintIndex)
 	{
+		SetConstraintBroken(ConstraintIndex, false);
 		SetConstraintEnabled(ConstraintIndex, true);
 	}
 

@@ -1268,6 +1268,11 @@ namespace Chaos
 
 		void DrawJointConstraintImpl(const FRigidTransform3& SpaceTransform, const FPBDJointConstraintHandle* ConstraintHandle, Chaos::FRealSingle ColorScale, const FChaosDebugDrawJointFeatures& FeatureMask, const FChaosDebugDrawSettings& Settings)
 		{
+			if (!ConstraintHandle->IsEnabled())
+			{
+				return;
+			}
+
 			TVec2<FGeometryParticleHandle*> ConstrainedParticles = ConstraintHandle->GetConstrainedParticles();
 			auto RigidParticle0 = ConstrainedParticles[0]->CastToRigidParticle();
 			auto RigidParticle1 = ConstrainedParticles[1]->CastToRigidParticle();

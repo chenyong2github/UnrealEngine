@@ -37,6 +37,7 @@ namespace Chaos
 		int32 GetConstraintColor() const;
 
 		bool IsConstraintEnabled() const;
+		bool IsConstraintBroken() const;
 		bool IsConstraintBreaking() const;
 		void ClearConstraintBreaking();
 		bool IsDriveTargetChanged() const;
@@ -81,6 +82,7 @@ namespace Chaos
 		int32 Color;
 		int32 IslandSize;
 		bool bDisabled;
+		bool bBroken;
 		bool bBreaking;
 		bool bDriveTargetChanged;
 		FVec3 LinearImpulse;
@@ -152,12 +154,17 @@ namespace Chaos
 		bool IsConstraintEnabled(int32 ConstraintIndex) const;
 
 		/*
-		 * Whether the constraint is breaking this frame
+		 * Whether the constraint is broken
+		 */
+		bool IsConstraintBroken(int32 ConstraintIndex) const;
+
+		/*
+		 * Whether the constraint was broken this frame (transient flag for use by event system)
 		 */
 		bool IsConstraintBreaking(int32 ConstraintIndex) const;
 
 		/*
-		 * Clear the constraint braking state
+		 * Clear the transient constraint braking state (called by event system when it has used the flag)
 		 */
 		void ClearConstraintBreaking(int32 ConstraintIndex);
 
@@ -177,11 +184,6 @@ namespace Chaos
 		void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled);
 
 		/*
-		 * Set Breaking State
-		 */
-		void SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking);
-
-		/*
 		* Set Drive Target Changed State
 		*/
 		void SetDriveTargetChanged(int32 ConstraintIndex, bool bTargetChanged);
@@ -194,7 +196,7 @@ namespace Chaos
 		/**
 		 * Repair a broken constraints (does not adjust particle positions)
 		 */
-		void FixConstraints(int32 ConstraintIndex);
+		void FixConstraint(int32 ConstraintIndex);
 
 		void SetBreakCallback(const FJointBreakCallback& Callback);
 		void ClearBreakCallback();
@@ -296,6 +298,9 @@ namespace Chaos
 		bool ApplyProjectionConstraint(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
 		void ApplyBreakThreshold(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse);
 		void ApplyPlasticityLimits(const int32 ConstraintIndex);
+
+		void SetConstraintBroken(int32 ConstraintIndex, bool bBroken);
+		void SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking);
 
 		FPBDJointSolverSettings Settings;
 
