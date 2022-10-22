@@ -177,6 +177,11 @@ float FLegacyScreenPercentageDriver::GetCVarResolutionFraction()
 	return GlobalFraction;
 }
 
+FStaticResolutionFractionHeuristic::FStaticResolutionFractionHeuristic(const FEngineShowFlags& EngineShowFlags)
+{
+	Settings.bAllowDisplayBasedScreenPercentageMode = (EngineShowFlags.StereoRendering == 0) && (EngineShowFlags.VREditing == 0);
+}
+
 #if WITH_EDITOR
 // static
 bool FStaticResolutionFractionHeuristic::FUserSettings::EditorOverridePIESettings()
@@ -259,7 +264,10 @@ float FStaticResolutionFractionHeuristic::ResolveResolutionFraction() const
 	float LocalTotalDisplayedPixelCount = FMath::Max(TotalDisplayedPixelCount, 1) * SecondaryViewFraction * SecondaryViewFraction;
 
 	float GlobalResolutionFraction = 1.0f;
-	if (Settings.Mode == EScreenPercentageMode::BasedOnDisplayResolution)
+
+	const EScreenPercentageMode EffectiveScreenPercentageMode = Settings.bAllowDisplayBasedScreenPercentageMode ? Settings.Mode : EScreenPercentageMode::Manual;
+
+	if (EffectiveScreenPercentageMode == EScreenPercentageMode::BasedOnDisplayResolution)
 	{
 		static bool bInitPixelCount = false;
 		static float AutoMinDisplayResolution;
@@ -314,13 +322,13 @@ float FStaticResolutionFractionHeuristic::ResolveResolutionFraction() const
 
 		GlobalResolutionFraction = FMath::Sqrt(Settings.AutoPixelCountMultiplier * LerpedRenderingPixelCount / LocalTotalDisplayedPixelCount);
 	}
-	else if (Settings.Mode == EScreenPercentageMode::BasedOnDPIScale)
+	else if (EffectiveScreenPercentageMode == EScreenPercentageMode::BasedOnDPIScale)
 	{
 		GlobalResolutionFraction = 1.0f / DPIScale;
 	}
 	else
 	{
-		ensure(Settings.Mode == EScreenPercentageMode::Manual);
+		ensure(EffectiveScreenPercentageMode == EScreenPercentageMode::Manual);
 		GlobalResolutionFraction = Settings.GlobalResolutionFraction;
 	}
 

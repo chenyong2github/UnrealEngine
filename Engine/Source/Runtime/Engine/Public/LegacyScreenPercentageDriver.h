@@ -65,6 +65,8 @@ enum class EScreenPercentageMode
  */
 struct ENGINE_API FStaticResolutionFractionHeuristic
 {
+	FStaticResolutionFractionHeuristic(const FEngineShowFlags& EngineShowFlags);
+
 	// User configurable settings
 	struct ENGINE_API FUserSettings
 	{
@@ -79,6 +81,9 @@ struct ENGINE_API FStaticResolutionFractionHeuristic
 
 		// r.ScreenPercentage.Auto.* Mode = EMode::BasedOnDisplayResolution.
 		float AutoPixelCountMultiplier = 1.0f;
+
+		// stereo HMDs cannot use percentage modes based on 2D monitor
+		bool bAllowDisplayBasedScreenPercentageMode = true;
 
 		/** Return whether should use the editor settings for PIE. */
 #if WITH_EDITOR

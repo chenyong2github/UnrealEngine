@@ -1650,7 +1650,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			if (ViewFamily.EngineShowFlags.ScreenPercentage && !bDisableWorldRendering && ViewFamily.Views.Num() > 0)
 			{
 				// Get global view fraction.
-				FStaticResolutionFractionHeuristic StaticHeuristic;
+				FStaticResolutionFractionHeuristic StaticHeuristic(ViewFamily.EngineShowFlags);
 
 #if WITH_EDITOR
 				if (FStaticResolutionFractionHeuristic::FUserSettings::EditorOverridePIESettings())

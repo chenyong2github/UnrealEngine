@@ -2750,7 +2750,7 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 
 float FEditorViewportClient::GetDefaultPrimaryResolutionFractionTarget() const
 {
-	FStaticResolutionFractionHeuristic StaticHeuristic;
+	FStaticResolutionFractionHeuristic StaticHeuristic(EngineShowFlags);
 	StaticHeuristic.Settings.PullEditorRenderingSettings(bIsRealtime, /* bIsPathTraced = */ EngineShowFlags.PathTracing);
 
 	if (SupportsLowDPIPreview() && IsLowDPIPreview()) // TODO: && ViewFamily.SupportsScreenPercentage())
