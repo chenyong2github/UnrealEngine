@@ -972,15 +972,32 @@ namespace mu
 
         case OP_TYPE::ME_MORPH2:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshMorph2Args>(item.at);
-            switch (item.stage)
+			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.at);
+
+			OP::ADDRESS FactorAt = 0;
+			FMemory::Memcpy(&FactorAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			
+			OP::ADDRESS BaseAt = 0;
+			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+
+			uint8 NumTargets = 0;
+			FMemory::Memcpy(&NumTargets, data, sizeof(uint8)); data += sizeof(uint8);
+
+			TArray<MESH_BUFFER_SEMANTIC, TInlineAllocator<8>> Targets;
+			Targets.SetNum(NumTargets);
+			for (uint8 T = 0; T < NumTargets; ++T)
+			{
+				FMemory::Memcpy(&Targets[T], data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			}
+
+			switch (item.stage)
             {
             case 0:
-                if ( args.base )
+                if (BaseAt)
                 {
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item),
-                           SCHEDULED_OP( args.factor, item) );
+                    AddOp( SCHEDULED_OP(item.at, item, 1),
+                           SCHEDULED_OP(BaseAt, item),
+                           SCHEDULED_OP(FactorAt, item) );
                 }
                 else
                 {
@@ -990,24 +1007,16 @@ namespace mu
 
             case 1:
             {
-                bool baseValid = GetMemory().IsValid( CACHE_ADDRESS(args.base,item) );
-                float factor = GetMemory().GetScalar( CACHE_ADDRESS(args.factor,item) );
-
-                int count = 0;
-                for ( int i=0
-                    ; i<MUTABLE_OP_MAX_MORPH2_TARGETS && args.targets[i]
-                    ; ++i )
-                {
-                    count++;
-                }
+                bool baseValid = GetMemory().IsValid( CACHE_ADDRESS(BaseAt,item) );
+                float factor = GetMemory().GetScalar( CACHE_ADDRESS(FactorAt,item) );
 
                 // Factor goes from -1 to 1 across all targets. [0 - 1] represents positive morphs, while [-1, 0) represent negative morphs.
 				factor = FMath::Clamp(factor, -1.0f, 1.0f); // Is the factor not in range [-1, 1], it will index a non existing morph.
 
-				float absFactor = fabsf(factor);
-                float delta = 1.0f/(count-1);
-				int min = (int)floorf(absFactor/delta);
-				int max = (int)ceilf(absFactor/delta);
+				float absFactor = FMath::Abs(factor);
+                float delta = 1.0f/(NumTargets -1);
+				int min = (int)FMath::FloorToFloat(absFactor/delta);
+				int max = (int)FMath::CeilToFloat(absFactor/delta);
 
                 // Factor from 0 to 1 between the two targets
 				float bifactor = absFactor/delta - min;
@@ -1015,7 +1024,7 @@ namespace mu
 				// From [0,1] to [-1,0] for negative factors
 				if (factor < 0.0f)
 				{
-					float threshold = -1.0f + SMALL_NUMBER;
+					float threshold = -1.0f + UE_SMALL_NUMBER;
 
 					if (factor <= threshold)
 					{
@@ -1031,36 +1040,36 @@ namespace mu
 
                 if (baseValid)
                 {
-                    SCHEDULED_OP_DATA data;
-                    data.bifactor = bifactor;
-					data.min = FMath::Clamp(min, 0, count - 1);
-					data.max = FMath::Clamp(max, 0, count - 1);
-					uint32 dataAddress = uint32(m_heapData.Add(data));
+                    SCHEDULED_OP_DATA HeapData;
+					HeapData.bifactor = bifactor;
+					HeapData.min = FMath::Clamp(min, 0, NumTargets - 1);
+					HeapData.max = FMath::Clamp(max, 0, NumTargets - 1);
+					uint32 dataAddress = uint32(m_heapData.Add(HeapData));
 
                     // Just the first of the targets
-					if ( bifactor < SMALL_NUMBER && bifactor > -SMALL_NUMBER )
+					if ( bifactor < UE_SMALL_NUMBER && bifactor > -UE_SMALL_NUMBER )
                     {                        
                         AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                SCHEDULED_OP( args.base, item),
-                                SCHEDULED_OP( args.targets[min], item) );
+                                SCHEDULED_OP(BaseAt, item),
+                                SCHEDULED_OP(Targets[min], item) );
                     }
                     // Just the second of the targets
-					else if ( bifactor > 1.0f - SMALL_NUMBER || bifactor <= -1.0f + SMALL_NUMBER )
+					else if ( bifactor > 1.0f - UE_SMALL_NUMBER || bifactor <= -1.0f + UE_SMALL_NUMBER )
                     {
                         check( max>0 );
 
                         AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                SCHEDULED_OP( args.base, item),
-                                SCHEDULED_OP( args.targets[max], item) );
+                                SCHEDULED_OP(BaseAt, item),
+                                SCHEDULED_OP(Targets[max], item) );
                     }
                     // Mix two targets on the base
                     else
                     {
                         // We will need the base again
                         AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
-                                SCHEDULED_OP( args.base, item),
-                                SCHEDULED_OP( args.targets[min], item),
-                                SCHEDULED_OP( args.targets[max], item) );
+                                SCHEDULED_OP(BaseAt, item),
+                                SCHEDULED_OP(Targets[min], item),
+                                SCHEDULED_OP(Targets[max], item) );
                     }
                 }
 
@@ -1069,43 +1078,43 @@ namespace mu
 
             case 2:
             {
-                Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(args.base,item) );
+                Ptr<const Mesh> pBase = GetMemory().GetMesh( CACHE_ADDRESS(BaseAt,item) );
 
                 // Factor from 0 to 1 between the two targets
-                const SCHEDULED_OP_DATA& data = m_heapData[ (size_t)item.customState ];
-                float bifactor = data.bifactor;
-                int min = data.min;
-                int max = data.max;
+                const SCHEDULED_OP_DATA& HeapData = m_heapData[ (size_t)item.customState ];
+                float bifactor = HeapData.bifactor;
+                int min = HeapData.min;
+                int max = HeapData.max;
 
                 MeshPtrConst pResult;
 
                 if (pBase)
                 {
                     // Just the first of the targets
-					if ( bifactor < SMALL_NUMBER && bifactor > -SMALL_NUMBER )
+					if ( bifactor < UE_SMALL_NUMBER && bifactor > -UE_SMALL_NUMBER )
                     {
                         // Base with one full morph
-                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[min],item) );
+                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(Targets[min],item) );
                         if (pMorph)
                         {
 							pResult = MeshMorph(pBase.get(), pMorph.get());
                         }
                     }
                     // Just the second of the targets
-                    else if ( bifactor > 1.0f - SMALL_NUMBER )
+                    else if ( bifactor > 1.0f - UE_SMALL_NUMBER )
                     {
                         check( max>0 );
-                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max],item) );
+                        Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(Targets[max],item) );
                         if (pMorph)
                         {
 							pResult = MeshMorph(pBase.get(), pMorph.get());
                         }
                     }
 					// Negative target
-					else if (bifactor <= -1.0f + SMALL_NUMBER)
+					else if (bifactor <= -1.0f + UE_SMALL_NUMBER)
 					{
 						check( max > 0 );
-						Ptr<const Mesh> pMorph = GetMemory().GetMesh(CACHE_ADDRESS(args.targets[max], item));
+						Ptr<const Mesh> pMorph = GetMemory().GetMesh(CACHE_ADDRESS(Targets[max], item));
 						if (pMorph)
 						{
 							pResult = MeshMorph(pBase.get(), pMorph.get(), bifactor);
@@ -1114,8 +1123,8 @@ namespace mu
                     // Mix two targets on the base
                     else
                     {
-                        Ptr<const Mesh> pMin = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[min],item) );
-                        Ptr<const Mesh> pMax = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max],item) );
+                        Ptr<const Mesh> pMin = GetMemory().GetMesh( CACHE_ADDRESS(Targets[min],item) );
+                        Ptr<const Mesh> pMax = GetMemory().GetMesh( CACHE_ADDRESS(Targets[max],item) );
                         if (pMin && pMax)
                         {
                             pResult = MeshMorph2( pBase.get(), pMin.get(), pMax.get(), bifactor );
@@ -1247,7 +1256,7 @@ namespace mu
 				uint32 dataAddress = uint32(m_heapData.Num());
 
                 // Just the first of the targets
-                if ( bifactor < SMALL_NUMBER )
+                if ( bifactor < UE_SMALL_NUMBER )
                 {
                     if( min==0 )
                     {
@@ -1270,7 +1279,7 @@ namespace mu
                         }
                     }
                 // Just the second of the targets
-                else if ( bifactor > 1.0f-SMALL_NUMBER )
+                else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                 {
                     m_heapData.Add(data);
                         AddOp( SCHEDULED_OP( item.at, item, 2, dataAddress),
@@ -1323,7 +1332,7 @@ namespace mu
                 if (pBase)
                 {
                     // Just the first of the targets
-                    if ( bifactor < SMALL_NUMBER )
+                    if ( bifactor < UE_SMALL_NUMBER )
                     {
                         if( min==0 )
                         {
@@ -1338,7 +1347,7 @@ namespace mu
                         }
                     }
                     // Just the second of the targets
-                    else if ( bifactor > 1.0f-SMALL_NUMBER )
+                    else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                     {
                         check( max>0 );
                         Ptr<const Mesh> pMorph = GetMemory().GetMesh( CACHE_ADDRESS(args.targets[max-1],item) );
@@ -3139,12 +3148,12 @@ namespace mu
 				data.max = FMath::Clamp(max, 0, count - 1);
 				uint32 dataPos = uint32(m_heapData.Add(data));
 
-                if ( bifactor < SMALL_NUMBER )
+                if ( bifactor < UE_SMALL_NUMBER )
                 {
                         AddOp( SCHEDULED_OP( item.at, item, 2, dataPos),
                                SCHEDULED_OP( args.targets[min], item) );
                     }
-                else if ( bifactor > 1.0f-SMALL_NUMBER )
+                else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                 {
                         AddOp( SCHEDULED_OP( item.at, item, 2, dataPos),
                                SCHEDULED_OP( args.targets[max], item) );
@@ -3176,12 +3185,12 @@ namespace mu
                 int max = data.max;
 
                 ImagePtr pResult;
-                if ( bifactor < SMALL_NUMBER )
+                if ( bifactor < UE_SMALL_NUMBER )
                 {
                     Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.targets[min],item) );
                     pResult = pSource->Clone();
                 }
-                else if ( bifactor > 1.0f-SMALL_NUMBER )
+                else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
                 {
                     Ptr<const Image> pSource = GetMemory().GetImage( CACHE_ADDRESS(args.targets[max],item) );
                     pResult = pSource->Clone();

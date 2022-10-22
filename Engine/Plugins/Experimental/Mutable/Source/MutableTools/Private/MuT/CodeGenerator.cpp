@@ -27,6 +27,7 @@
 #include "MuT/ASTOpMeshMaskClipMesh.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
 #include "MuT/ASTOpMeshDifference.h"
+#include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpParameter.h"
 #include "MuT/CodeGenerator_SecondPass.h"
 #include "MuT/CodeOptimiser.h"
@@ -268,7 +269,7 @@ namespace mu
         // Free caches
         m_compiled.Reset();
         m_constantMeshes.Empty();
-        m_addedLayouts.Empty();
+		m_generatedLayouts.Empty();
         m_nodeVariables.clear();
         m_generatedMeshes.Reset();
         m_generatedProjectors.Reset();
@@ -523,29 +524,26 @@ namespace mu
 		// The layout we are adding must be a source layout, without block ids yet.
 		check(SourceLayout->m_blocks.IsEmpty() || SourceLayout->m_blocks[0].m_id == -1);
 		
-		Ptr<const Layout>* it = m_addedLayouts.Find(SourceLayout.get() );
+		Ptr<const Layout>* it = m_generatedLayouts.Find(SourceLayout.get() );
 
-		Ptr<const Layout> pResult;
         if ( it )
         {
-            pResult = *it;
-        }
-        else
-        {
-			Ptr<Layout> ClonedLayout = SourceLayout->Clone();
-            for (int32 b=0;b< ClonedLayout->m_blocks.Num();++b)
-            {
-				// This is a hard limit due to layout block index data being stored in 16 bit.
-				check(m_absoluteLayoutIndex<65536);
-				ClonedLayout->m_blocks[b].m_id = m_absoluteLayoutIndex++;
-            }
-			check(SourceLayout->m_blocks.Num() == ClonedLayout->m_blocks.Num());
-			check(ClonedLayout->m_blocks.IsEmpty() || ClonedLayout->m_blocks[0].m_id != -1);
-			m_addedLayouts.Add(SourceLayout.get(), ClonedLayout);
-			pResult = ClonedLayout;
+            return *it;
         }
 
-        return pResult;
+		// Assign unique ids to each layout block
+		Ptr<Layout> ClonedLayout = SourceLayout->Clone();
+        for (int32 b=0;b< ClonedLayout->m_blocks.Num();++b)
+        {
+			// This is a hard limit due to layout block index data being stored in 16 bit.
+			check(m_absoluteLayoutIndex<65536);
+			ClonedLayout->m_blocks[b].m_id = m_absoluteLayoutIndex++;
+        }
+		check(SourceLayout->m_blocks.Num() == ClonedLayout->m_blocks.Num());
+		check(ClonedLayout->m_blocks.IsEmpty() || ClonedLayout->m_blocks[0].m_id != -1);
+		m_generatedLayouts.Add(SourceLayout.get(), ClonedLayout);
+
+        return ClonedLayout;
     }
 
 
@@ -765,7 +763,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     Ptr<ASTOp> CodeGenerator::Visit( const NodeLOD::Private& node )
     {
-        // Build a series of operations to assemble the component
+        // Build a series of operations to assemble all the LOD components
         Ptr<ASTOp> lastCompOp;
 
         // Create the expression for each component in this object
@@ -847,11 +845,11 @@ namespace mu
         const auto& node = *surfaceNode->GetPrivate();
 
         // Clear the surface generation state
-//        m_addedLayouts.Empty();
+//        m_generatedLayouts.Empty();
 //        m_absoluteLayoutIndex = 0;
 //        m_currentLayoutMesh = nullptr;
 //        m_currentLayoutChannel = 0;
-//        m_generatedMeshes.clear();
+//        m_generatedMeshes.Empty();
 
         // Build a series of operations to assemble the surface
         Ptr<ASTOp> lastSurfOp;
@@ -968,8 +966,8 @@ namespace mu
 							bModifiersForBeforeOperations, node.m_errorContext);
 
                         FMeshGenerationResult::EXTRA_LAYOUTS data;
-                        data.layouts = addResults.layouts;
-                        data.condition = e.condition;
+						data.GeneratedLayouts = addResults.GeneratedLayouts;
+						data.condition = e.condition;
                         data.meshFragment = addResults.meshOp;
                         meshResults.extraMeshLayouts[editIndex] = data;
 
@@ -1107,13 +1105,12 @@ namespace mu
                     // Morph operation
                     Ptr<ASTOp> morphAd;
                     {
-                        Ptr<ASTOpFixed> op = new ASTOpFixed();
-						op->op.type = OP_TYPE::ME_MORPH2;
+                        Ptr<ASTOpMeshMorph> op = new ASTOpMeshMorph();
 
 						// Factor
 						if (e.node->m_pFactor)
 						{
-							op->SetChild(op->op.args.MeshMorph2.factor, Generate(e.node->m_pFactor));
+							op->Factor = Generate(e.node->m_pFactor);
 						}
 						else
 						{
@@ -1121,15 +1118,15 @@ namespace mu
 							auxNode->SetValue(1.0f);
 							Ptr<ASTOp> resultNode = Generate(auxNode);
 
-							op->SetChild(op->op.args.MeshMorph2.factor, resultNode);
+							op->Factor = resultNode;
 						}
 
 						// Base		
-						op->SetChild(op->op.args.MeshMorph2.base, lastMeshOp);
+						op->Base = lastMeshOp;
 
 						// Targets
-						op->SetChild(op->op.args.MeshMorph2.targets[0], diffBase);
-						op->SetChild(op->op.args.MeshMorph2.targets[1], diffAd);
+						op->AddTarget(diffBase);
+						op->AddTarget(diffAd);
                         morphAd = op;
                     }
 
@@ -1156,11 +1153,11 @@ namespace mu
 				bModifiersForBeforeOperations, node.m_errorContext);
 
             // Layouts
-            for ( int32 l=0; l<meshResults.layouts.Num(); ++l )
+            for ( int32 l=0; l<meshResults.GeneratedLayouts.Num(); ++l )
             {
                 Ptr<ASTOp> layoutOp = nullptr;
 
-				Ptr<const Layout> pLayout = meshResults.layouts[l].get();
+				Ptr<const Layout> pLayout = meshResults.GeneratedLayouts[l].get();
                 if ( pLayout )
                 {
                     // Create the layout expression
@@ -1168,12 +1165,9 @@ namespace mu
                     // Constant layout to start with
                     {
                         Ptr<ASTOpConstantResource> op = new ASTOpConstantResource();
-                        op->type = OP_TYPE::LA_CONSTANT;
+                        op->type = OP_TYPE::LA_CONSTANT;                       
 
-                        // Clone and set absolute block ids
-						Ptr<const Layout> pCloned = AddLayout( pLayout );
-
-                        op->SetValue( pCloned, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+                        op->SetValue(pLayout, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
                         layoutOp = op;
                     }
 
@@ -1183,11 +1177,11 @@ namespace mu
                         if ( !data.meshFragment )
                         {
                             // No mesh to add, we assume there are no layouts to add either.
-                            check(data.layouts.IsEmpty());
+                            check(data.GeneratedLayouts.IsEmpty());
                             continue;
                         }
 
-                        if ( data.layouts.Num() != meshResults.layouts.Num() )
+                        if ( data.GeneratedLayouts.Num() != meshResults.GeneratedLayouts.Num() )
                         {
                             m_pErrorLog->GetPrivate()->Add
                                 ( "Merged layout has been ignored because the number of layouts"
@@ -1202,7 +1196,7 @@ namespace mu
                                 Ptr<ASTOpConstantResource> op = new ASTOpConstantResource();
                                 op->type = OP_TYPE::LA_CONSTANT;
 
-								Ptr<const Layout> pCloned = AddLayout( data.layouts[l] );
+								Ptr<const Layout> pCloned = data.GeneratedLayouts[l];
                                 op->SetValue( pCloned, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
 
                                 layoutFragmentAd = op;
@@ -1435,7 +1429,7 @@ namespace mu
                           ==
                           CompilerOptions::TextureLayoutStrategy::Pack )
                 {
-                    if( layout >= meshResults.layouts.Num() ||
+                    if( layout >= meshResults.GeneratedLayouts.Num() ||
                         layout >= meshResults.layoutOps.Num() )
                     {
                         m_pErrorLog->GetPrivate()->Add("Missing layout in object, or its parent.",
@@ -1443,7 +1437,7 @@ namespace mu
                     }
                     else
                     {
-                        const Layout* pLayout = m_addedLayouts[ meshResults.layouts[ layout ].get() ].get();
+                        const Layout* pLayout = meshResults.GeneratedLayouts[ layout ].get();
                         check(pLayout);
 
                         Ptr<ASTOpInstanceAdd> op = new ASTOpInstanceAdd();
@@ -1583,9 +1577,9 @@ namespace mu
                                 auto pExtend = e.node->m_textures[t].m_pExtend;
                                 if (pExtend)
                                 {
-                                    if ( layout>=meshResults.extraMeshLayouts[editIndex].layouts.Num()
+                                    if ( layout>=meshResults.extraMeshLayouts[editIndex].GeneratedLayouts.Num()
                                          ||
-                                         !meshResults.extraMeshLayouts[editIndex].layouts[layout] )
+                                         !meshResults.extraMeshLayouts[editIndex].GeneratedLayouts[layout] )
                                     {
                                         char buf[256];
                                         mutable_snprintf
@@ -1599,8 +1593,7 @@ namespace mu
                                     }
                                     else
                                     {
-                                        auto pExtendLayoutSource = meshResults.extraMeshLayouts[editIndex].layouts[layout];
-                                        auto pExtendLayout = m_addedLayouts[ pExtendLayoutSource.get() ];
+                                        Ptr<const Layout> pExtendLayout = meshResults.extraMeshLayouts[editIndex].GeneratedLayouts[layout];
 
                                         // Find out the size of the image
                                         // TODO: What if the image is empty and everything is added?
@@ -1608,7 +1601,7 @@ namespace mu
                                         FImageDesc extendDesc = CalculateImageDesc( *pExtend->GetBasePrivate() );
 
                                         // Size of a layout block in pixels
-                                        FIntPoint extlayout = pExtendLayout->GetGridSize( );
+                                        FIntPoint extlayout = pExtendLayout->GetGridSize();
 
                                         Ptr<ASTOp> lastBase = imageAd;
 
@@ -2105,7 +2098,7 @@ namespace mu
         {
             if ( const NodeLOD* pLODNode = node.m_lods[t].get() )
             {
-                m_currentParents.Last().m_lod = (int)t;
+                m_currentParents.Last().m_lod = t;
 
                 Ptr<ASTOp> lodOp = Generate( pLODNode );
 

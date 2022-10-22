@@ -29,6 +29,7 @@
 #include "MuT/ASTOpMeshMorphReshape.h"
 #include "MuT/ASTOpMeshTransform.h"
 #include "MuT/ASTOpMeshDifference.h"
+#include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeGenerator.h"
 #include "MuT/CodeGenerator_FirstPass.h"
@@ -85,18 +86,21 @@ namespace mu
 class Node;
 
     //---------------------------------------------------------------------------------------------
-    void CodeGenerator::PrepareForLayout( LayoutPtrConst pSourceLayout,
-                                             MeshPtr currentLayoutMesh,
-                                             size_t currentLayoutChannel,
-                                             const void* errorContext )
+    void CodeGenerator::PrepareForLayout(Ptr<const Layout> GeneratedLayout,
+		MeshPtr currentLayoutMesh,
+		size_t currentLayoutChannel,
+		const void* errorContext )
     {
         if (currentLayoutMesh->GetVertexCount()==0)
         {
             return;
         }
 
+		// The layout we are adding must have block ids.
+		check(GeneratedLayout->m_blocks.IsEmpty() || GeneratedLayout->m_blocks[0].m_id != -1);
+
         // 
-		Ptr<const Layout> pLayout = AddLayout( pSourceLayout );
+		Ptr<const Layout> pLayout = GeneratedLayout;
         currentLayoutMesh->AddLayout( pLayout );
 
         int buffer = -1;
@@ -343,19 +347,17 @@ class Node;
     {
         NodeMeshMorph::Private& node = *InMorphNode->GetPrivate();
 
-        Ptr<ASTOpFixed> OpMorph = new ASTOpFixed();
-        OpMorph->op.type = OP_TYPE::ME_MORPH2;
+        Ptr<ASTOpMeshMorph> OpMorph = new ASTOpMeshMorph();
 
         // Factor
         if ( node.m_pFactor )
         {
-            OpMorph->SetChild( OpMorph->op.args.MeshMorph2.factor, Generate( node.m_pFactor.get() ) );
+            OpMorph->Factor = Generate( node.m_pFactor.get() );
         }
         else
         {
             // This argument is required
-            OpMorph->SetChild( OpMorph->op.args.MeshMorph2.factor, GenerateMissingScalarCode( "Morph factor", 0.5f,
-                                                                   node.m_errorContext ) );
+            OpMorph->Factor = GenerateMissingScalarCode( "Morph factor", 0.5f, node.m_errorContext );
         }
 
         // Base
@@ -365,54 +367,38 @@ class Node;
 			FMeshGenerationOptions BaseOptions = InOptions;
 			BaseOptions.bUniqueVertexIDs = true;
             GenerateMesh(BaseOptions,BaseResult, node.m_pBase );
-            OpMorph->SetChild( OpMorph->op.args.MeshMorph2.base, BaseResult.meshOp );
+            OpMorph->Base = BaseResult.meshOp;
         }
         else
         {
             // This argument is required
             m_pErrorLog->GetPrivate()->Add( "Mesh morph base node is not set.",
                                             ELMT_ERROR, node.m_errorContext );
-        }
+        }        
 
-        // TODO: Support more than MUTABLE_OP_MAX_MORPH2_TARGETS targets
-        if ( node.m_morphs.Num()>MUTABLE_OP_MAX_MORPH2_TARGETS )
+        for ( int32 t=0 ; t<node.m_morphs.Num(); ++t )
         {
-            m_pErrorLog->GetPrivate()->Add( 
-				FString::Printf(TEXT("A morph node has more targets [%d] than currently supported [%d]."), node.m_morphs.Num(), MUTABLE_OP_MAX_MORPH2_TARGETS), 
-				ELMT_WARNING, 
-				node.m_errorContext);
-        }
+            FMeshGenerationResult TargetResult;
+			FMeshGenerationOptions TargetOptions = InOptions;
+			TargetOptions.bUniqueVertexIDs = false;
+			TargetOptions.bLayouts = false;
+			TargetOptions.OverrideLayouts.Empty();
+			TargetOptions.ActiveTags.Empty();
+            GenerateMesh(TargetOptions, TargetResult, node.m_morphs[t]);
 
-        int count = 0;
-        for ( std::size_t t=0
-            ; t<node.m_morphs.Num() && t<MUTABLE_OP_MAX_MORPH2_TARGETS
-            ; ++t )
-        {
-            if ( auto pA = node.m_morphs[t].get() )
-            {
-                FMeshGenerationResult TargetResult;
-				FMeshGenerationOptions TargetOptions = InOptions;
-				TargetOptions.bUniqueVertexIDs = false;
-				TargetOptions.bLayouts = false;
-				TargetOptions.OverrideLayouts.Empty();
-				TargetOptions.ActiveTags.Empty();
-                GenerateMesh(TargetOptions, TargetResult, pA );
+            // TODO: Make sure that the target is a mesh with the morph format
+            Ptr<ASTOp> target = TargetResult.meshOp;
 
-                // TODO: Make sure that the target is a mesh with the morph format
-                Ptr<ASTOp> target = TargetResult.meshOp;
+            // If the vertex indices are supposed to be relative in the targets, adjust them
+            //if (node.m_vertexIndicesAreRelative)
+            //{
+            //    Ptr<ASTOpMeshRemapIndices> remapIndices = new ASTOpMeshRemapIndices;
+            //    remapIndices->source = target;
+            //    remapIndices->reference = baseResult.baseMeshOp;
+            //    target = remapIndices;
+            //}
 
-                // If the vertex indices are supposed to be relative in the targets, adjust them
-                //if (node.m_vertexIndicesAreRelative)
-                //{
-                //    Ptr<ASTOpMeshRemapIndices> remapIndices = new ASTOpMeshRemapIndices;
-                //    remapIndices->source = target;
-                //    remapIndices->reference = baseResult.baseMeshOp;
-                //    target = remapIndices;
-                //}
-
-                OpMorph->SetChild( OpMorph->op.args.MeshMorph2.targets[count], target);
-                count++;
-            }
+            OpMorph->AddTarget( target );
         }
  
         const bool bReshapeEnabled = node.m_reshapeSkeleton || node.m_reshapePhysicsVolumes;
@@ -459,8 +445,8 @@ class Node;
 		}
 
         OutResult.baseMeshOp = BaseResult.baseMeshOp;
-        OutResult.layouts = BaseResult.layouts;
-    } 
+		OutResult.GeneratedLayouts = BaseResult.GeneratedLayouts;
+}
 
 
     //---------------------------------------------------------------------------------------------
@@ -513,8 +499,8 @@ class Node;
 
         OutResult.meshOp = op;
         OutResult.baseMeshOp = BaseResult.baseMeshOp;
-        OutResult.layouts = BaseResult.layouts;
-    }
+		OutResult.GeneratedLayouts = BaseResult.GeneratedLayouts;
+	}
 
     //---------------------------------------------------------------------------------------------
     void CodeGenerator::GenerateMesh_Fragment(const FMeshGenerationOptions& InOptions, FMeshGenerationResult& OutResult,
@@ -539,10 +525,9 @@ class Node;
 
                 op->source = BaseResult.meshOp;
 
-                if (BaseResult.layouts.Num()>node.m_layoutOrGroup )
+                if (BaseResult.GeneratedLayouts.Num()>node.m_layoutOrGroup )
                 {
-                    LayoutPtrConst pSourceLayout = BaseResult.layouts[ node.m_layoutOrGroup ];
-                    const Layout* pLayout = m_addedLayouts[ pSourceLayout.get() ].get();
+                    const Layout* pLayout = BaseResult.GeneratedLayouts[node.m_layoutOrGroup].get();
                     op->layout = (uint16)node.m_layoutOrGroup;
 
                     for ( int32 i=0; i<node.m_blocks.Num(); ++i )
@@ -588,8 +573,8 @@ class Node;
         }
 
         OutResult.baseMeshOp = BaseResult.baseMeshOp;
-        OutResult.layouts = BaseResult.layouts;
-    }
+		OutResult.GeneratedLayouts = BaseResult.GeneratedLayouts;
+	}
 
 
     //---------------------------------------------------------------------------------------------
@@ -639,8 +624,8 @@ class Node;
                     op->SetChild( op->op.args.MeshInterpolate.base, TargetResult.meshOp );
 
                     OutResult.baseMeshOp = TargetResult.baseMeshOp;
-                    OutResult.layouts = TargetResult.layouts;
-                }
+					OutResult.GeneratedLayouts = TargetResult.GeneratedLayouts;
+				}
                 else
                 {
                     Ptr<ASTOpMeshDifference> dop = new ASTOpMeshDifference();
@@ -707,13 +692,13 @@ class Node;
         }
 
         // Options
-        for ( std::size_t t=0; t< node.m_options.Num(); ++t )
+        for ( int32 t=0; t< node.m_options.Num(); ++t )
         {
 			FMeshGenerationOptions TargetOptions = InOptions;
 
             if (t!=0)
             {
-				TargetOptions.OverrideLayouts = OutResult.layouts;
+				TargetOptions.OverrideLayouts = OutResult.GeneratedLayouts;
             }
 
             if ( node.m_options[t] )
@@ -770,7 +755,7 @@ class Node;
 
 				if (t != 0)
 				{
-					TargetOptions.OverrideLayouts = NewResult.layouts;
+					TargetOptions.OverrideLayouts = NewResult.GeneratedLayouts;
 				}
 
 				FMeshGenerationResult BranchResults;
@@ -844,7 +829,7 @@ class Node;
 
                 if (firstOptionProcessed)
                 {
-					VariationOptions.OverrideLayouts = currentResult.layouts;
+					VariationOptions.OverrideLayouts = currentResult.GeneratedLayouts;
                 }
          
                 FMeshGenerationResult BranchResults;
@@ -882,18 +867,107 @@ class Node;
         op->type = OP_TYPE::ME_CONSTANT;
 		OutResult.baseMeshOp = op;
 		OutResult.meshOp = op;
+		OutResult.GeneratedLayouts.Empty();
 
 		bool bIsOverridingLayouts = !InOptions.OverrideLayouts.IsEmpty();
 
         MeshPtr pMesh = node.m_pValue.get();
-		if (pMesh)
+		if (!pMesh)
 		{
-			// Clone the mesh
-			MeshPtr pCloned = pMesh->Clone();
-			pCloned->EnsureSurfaceData();
+			// This data is required
+			MeshPtr pTempMesh = new Mesh();
+			op->SetValue(pTempMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+			m_constantMeshes.Add(pTempMesh);
 
-			// We will redefine the layouts
-			OutResult.layouts.Empty();
+			// Log an error message
+			m_pErrorLog->GetPrivate()->Add("Constant mesh not set.", ELMT_WARNING, node.m_errorContext);
+
+			return;
+		}
+
+		// Find out if we can (or have to) reuse a mesh that we have already generated.
+		MeshPtrConst DuplicateOf;
+		for (int32 i = 0; i < m_constantMeshes.Num(); ++i)
+		{
+			MeshPtrConst Candidate = m_constantMeshes[i];
+			
+			bool bCompareLayouts = InOptions.bLayouts && !bIsOverridingLayouts;
+
+			if (Candidate->IsSimilar(*pMesh, bCompareLayouts))
+			{
+				// If it is similar, and we need unique vertex IDs, check that it also has them. This was skipped in the IsSimilar.
+				if (InOptions.bUniqueVertexIDs)
+				{
+					int32 FoundBuffer = -1;
+					int32 FoundChannel = -1;
+					Candidate->GetVertexBuffers().FindChannel(MBS_VERTEXINDEX, 0, &FoundBuffer, &FoundChannel);
+					bool bHasUniqueVertexIDs = FoundBuffer >= 0 && FoundChannel >= 0;
+					if (!bHasUniqueVertexIDs)
+					{
+						continue;
+					}
+				}
+
+				// If it is similar and we are overriding the layouts, we must compare the layouts of the candidate with the ones
+				// we are using to override.
+				if (InOptions.bLayouts && bIsOverridingLayouts)
+				{
+					if (Candidate->GetLayoutCount() != InOptions.OverrideLayouts.Num())
+					{
+						continue;
+					}
+
+					bool bLayoutsAreEqual = true;
+					for (int32 l = 0; l < Candidate->GetLayoutCount(); ++l)
+					{
+						bLayoutsAreEqual = (*Candidate->GetLayout(l) == *InOptions.OverrideLayouts[l]);
+						if ( !bLayoutsAreEqual )
+						{
+							break;
+						}
+					}
+
+					if (!bLayoutsAreEqual)
+					{
+						continue;
+					}
+				}
+
+				DuplicateOf = Candidate;
+				break;
+			}
+		}
+
+		if (DuplicateOf)
+		{
+			// Make sure the source layouts of the mesh are mapped to the layouts of the duplicated mesh.
+			if (InOptions.bLayouts)
+			{
+				if (bIsOverridingLayouts)
+				{
+					for (int32 l = 0; l < DuplicateOf->GetLayoutCount(); ++l)
+					{
+						const Layout* OverridingLayout = InOptions.OverrideLayouts[l].get();
+						OutResult.GeneratedLayouts.Add(OverridingLayout);
+					}
+				}
+				else
+				{
+					for (int32 l = 0; l < DuplicateOf->GetLayoutCount(); ++l)
+					{
+						const Layout* DuplicatedLayout = DuplicateOf->GetLayout(l);
+						OutResult.GeneratedLayouts.Add(DuplicatedLayout);
+					}
+				}
+			}
+
+			op->SetValue(DuplicateOf, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+		}
+		else
+		{
+			// We need to clone the mesh in the node because we will modify it.
+			Ptr<Mesh> pCloned = pMesh->Clone();
+			pCloned->EnsureSurfaceData();
 
 			if (InOptions.bLayouts)
 			{
@@ -907,20 +981,11 @@ class Node;
 						const NodeLayoutBlocks* TypedNode = dynamic_cast<NodeLayoutBlocks*>(pLayoutNode.get());
 						if (TypedNode)
 						{
-							if (!pCloned)
-							{
-								m_pErrorLog->GetPrivate()->Add("Generating a layout node without a parent mesh.",
-									ELMT_ERROR, TypedNode->GetPrivate()->m_errorContext);
-								return;
-							}
+							Ptr<const Layout> SourceLayout = TypedNode->GetPrivate()->m_pLayout;
+							Ptr<const Layout> GeneratedLayout = AddLayout( SourceLayout );
+							PrepareForLayout(GeneratedLayout, pCloned, LayoutIndex, TypedNode->GetPrivate()->m_errorContext);
 
-							LayoutPtr pSourceLayout = TypedNode->GetPrivate()->m_pLayout;
-							OutResult.layouts.Add(pSourceLayout);
-
-							PrepareForLayout(pSourceLayout,
-								pCloned, LayoutIndex,
-								TypedNode->GetPrivate()->m_errorContext);
-
+							OutResult.GeneratedLayouts.Add(GeneratedLayout);
 						}
 					}
 				}
@@ -929,131 +994,56 @@ class Node;
 					// We need to apply the transform of the layouts used to override
 					for (int32 LayoutIndex = 0; LayoutIndex < InOptions.OverrideLayouts.Num(); ++LayoutIndex)
 					{
-						PrepareForLayout(InOptions.OverrideLayouts[LayoutIndex],
-							pCloned, LayoutIndex,
-							node.m_errorContext);
+						Ptr<const Layout> GeneratedLayout = InOptions.OverrideLayouts[LayoutIndex];
+						PrepareForLayout(GeneratedLayout, pCloned, LayoutIndex, node.m_errorContext);
 
+						OutResult.GeneratedLayouts.Add(GeneratedLayout);
 					}
-
-					OutResult.layouts = InOptions.OverrideLayouts;
 				}
 			}
 
-            // See if we already have a mesh identical to this one, except for the internal data like vertex indices.
-			// For now we cannot handle the case were we are overriding layouts and reusing meshes at the same time.
-            bool bIsDuplicated = false;
-            MeshPtrConst Candidate;
-            for ( int32 i=0; !bIsOverridingLayouts && !bIsDuplicated && i<m_constantMeshes.Num(); ++i)
-            {
-				Candidate = m_constantMeshes[i];
-
-                if (Candidate->IsSimilar(*pCloned,InOptions.bLayouts) )
-                {
-					// If it is similar, and we need unique vertex IDs, check that it also has them. This was skipped in the IsSimilar.
-					if (InOptions.bUniqueVertexIDs)
-					{
-						int32 FoundBuffer = -1;
-						int32 FoundChannel = -1;
-						Candidate->GetVertexBuffers().FindChannel(MBS_VERTEXINDEX, 0, &FoundBuffer, &FoundChannel);
-						bool bHasUniqueVertexIDs = FoundBuffer >= 0 && FoundChannel >= 0;
-						if (!bHasUniqueVertexIDs)
-						{
-							break;
-						}
-					}
-
-					bIsDuplicated = true;
-
-					if (InOptions.bLayouts)
-					{
-						// We want to reuse the layouts from the similar mesh.					
-						// Remap layouts that we have created in the previous step from the source mesh to the ones created for the mesh we will reuse instead.
-						for (int l = 0; l < Candidate->GetLayoutCount(); ++l)
-						{
-							check(Candidate->GetLayoutCount() == pCloned->GetLayoutCount());
-
-							const Layout* ClonedMeshLayout = pCloned->GetLayout(l);
-
-							Ptr<const Layout> DestLayoutKey = nullptr;
-							for (const auto& e : m_addedLayouts)
-							{
-								if (e.Value == ClonedMeshLayout)
-								{
-									DestLayoutKey = e.Key;
-									break;
-								}
-							}
-							check(DestLayoutKey);
-
-							const Layout* GeneratedMeshLayout = Candidate->GetLayout(l);
-							check(DestLayoutKey->m_blocks.IsEmpty() || DestLayoutKey->m_blocks[0].m_id == -1);
-							check(GeneratedMeshLayout->m_blocks.IsEmpty() || GeneratedMeshLayout->m_blocks[0].m_id != -1);
-							m_addedLayouts.Add(DestLayoutKey, GeneratedMeshLayout);
-						}
-					}
-                }
-            }
-
-            if (bIsDuplicated)
-            {
-                op->SetValue(Candidate, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
-            }
-            else
-            {
-				if (InOptions.bUniqueVertexIDs)
+			if (InOptions.bUniqueVertexIDs)
+			{
+				// Enumerate the vertices uniquely unless they already have indices
+				int buf = -1;
+				int chan = -1;
+				pCloned->GetVertexBuffers().FindChannel(MBS_VERTEXINDEX, 0, &buf, &chan);
+				bool hasVertexIndices = (buf >= 0 && chan >= 0);
+				if (!hasVertexIndices)
 				{
-					// Enumerate the vertices uniquely unless they already have indices
-					int buf = -1;
-					int chan = -1;
-					pCloned->GetVertexBuffers().FindChannel(MBS_VERTEXINDEX, 0, &buf, &chan);
-					bool hasVertexIndices = (buf >= 0 && chan >= 0);
-					if (!hasVertexIndices)
+					int newBuffer = pCloned->GetVertexBuffers().GetBufferCount();
+					pCloned->GetVertexBuffers().SetBufferCount(newBuffer + 1);
+					MESH_BUFFER_SEMANTIC semantic = MBS_VERTEXINDEX;
+					int semanticIndex = 0;
+					MESH_BUFFER_FORMAT format = MBF_UINT32;
+					int components = 1;
+					int offset = 0;
+					pCloned->GetVertexBuffers().SetBuffer
+					(
+						newBuffer,
+						sizeof(uint32),
+						1,
+						&semantic, &semanticIndex,
+						&format, &components,
+						&offset
+					);
+					uint32* pIdData = (uint32*)pCloned->GetVertexBuffers().GetBufferData(newBuffer);
+					for (int i = 0; i < pMesh->GetVertexCount(); ++i)
 					{
-						int newBuffer = pCloned->GetVertexBuffers().GetBufferCount();
-						pCloned->GetVertexBuffers().SetBufferCount(newBuffer + 1);
-						MESH_BUFFER_SEMANTIC semantic = MBS_VERTEXINDEX;
-						int semanticIndex = 0;
-						MESH_BUFFER_FORMAT format = MBF_UINT32;
-						int components = 1;
-						int offset = 0;
-						pCloned->GetVertexBuffers().SetBuffer
-						(
-							newBuffer,
-							sizeof(uint32),
-							1,
-							&semantic, &semanticIndex,
-							&format, &components,
-							&offset
-						);
-						uint32* pIdData = (uint32*)pCloned->GetVertexBuffers().GetBufferData(newBuffer);
-						for (int i = 0; i < pMesh->GetVertexCount(); ++i)
-						{
-							check(m_freeVertexIndex < std::numeric_limits<uint32>::max());
+						check(m_freeVertexIndex < std::numeric_limits<uint32>::max());
 
-							(*pIdData++) = m_freeVertexIndex++;
-							check(m_freeVertexIndex < std::numeric_limits<uint32>::max());
-						}
+						(*pIdData++) = m_freeVertexIndex++;
+						check(m_freeVertexIndex < std::numeric_limits<uint32>::max());
 					}
 				}
-
-				// Add the constant data
-				m_constantMeshes.Add(pCloned);
-				op->SetValue(pCloned.get(), m_compilerOptions->m_optimisationOptions.m_useDiskCache);
 			}
-        }
-        else
-        {
-			OutResult.layouts.Empty();
 
-            // This data is required
-            MeshPtr pTempMesh = new Mesh();
-            op->SetValue( pTempMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
-            m_constantMeshes.Add(pTempMesh);
+			// Add the constant data
+			m_constantMeshes.Add(pCloned);
+			op->SetValue(pCloned.get(), m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+		}
 
-            // Log an error message
-            m_pErrorLog->GetPrivate()->Add( "Constant mesh not set.", ELMT_WARNING, node.m_errorContext );
-        }
-
+ 
 		// Apply the modifier for the pre-normal operations stage.
 		BOTTOM_UP_STATE temp = m_currentBottomUpState;
 
@@ -1111,8 +1101,8 @@ class Node;
 
             OutResult.meshOp = op;
             OutResult.baseMeshOp = baseResult.baseMeshOp;
-            OutResult.layouts = baseResult.layouts;
-        }
+			OutResult.GeneratedLayouts = baseResult.GeneratedLayouts;
+		}
         else
         {
             // Put something there

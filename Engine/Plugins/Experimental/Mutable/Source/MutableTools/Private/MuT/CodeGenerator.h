@@ -234,10 +234,6 @@ namespace mu
         //! palceholders for missing images.
         ImagePtr m_missingImage[size_t(EImageFormat::IF_COUNT)];
 
-        //! Map of layouts found in the code already generated. The map is from the source layout
-        //! pointer to the cloned layout. The cloned layout will have absolute block ids assigned.
-        TMap<Ptr<const Layout>,Ptr<const Layout>> m_addedLayouts;
-
         //! First free index for a layout block
         int32 m_absoluteLayoutIndex = 0;
 
@@ -331,7 +327,7 @@ namespace mu
         //void GetSurfacesWithTag(const string& tag, vector<FirstPassGenerator::SURFACE>& surfaces);
 
         //-----------------------------------------------------------------------------------------
-        void PrepareForLayout( LayoutPtrConst pSourceLayout,
+        void PrepareForLayout( LayoutPtrConst GeneratedLayout,
                                   MeshPtr currentLayoutMesh,
                                   size_t currentLayoutChannel,
                                   const void* errorContext );
@@ -494,15 +490,15 @@ namespace mu
 			//! Original base mesh before removes, morphs, etc.
 			Ptr<ASTOp> baseMeshOp;
 
-			/** Source node layouts to use with these extra mesh. They don't have block ids. */
-			TArray<Ptr<const Layout>> layouts;
+			/** Generated node layouts with their own block ids. */
+			TArray<Ptr<const Layout>> GeneratedLayouts;
 
 			TArray<Ptr<ASTOp>> layoutOps;
 
 			struct EXTRA_LAYOUTS
 			{
 				/** Source node layouts to use with these extra mesh. They don't have block ids. */
-				TArray<Ptr<const Layout>> layouts;
+				TArray<Ptr<const Layout>> GeneratedLayouts;
 				Ptr<ASTOp> condition;
 				Ptr<ASTOp> meshFragment;
 			};
@@ -530,6 +526,11 @@ namespace mu
 
         typedef TMap<FGeneratedMeshCacheKey,FMeshGenerationResult> GeneratedMeshMap;
         GeneratedMeshMap m_generatedMeshes;
+
+		//! Map of layouts found in the code already generated. The map is from the source layout
+		//! pointer of the layouts in the node meshes to the cloned and modified layout. 
+		//! The cloned layout will have absolute block ids assigned.
+		TMap<Ptr<const Layout>, Ptr<const Layout>> m_generatedLayouts;
 
         void GenerateMesh(const FMeshGenerationOptions&, FMeshGenerationResult& result, const NodeMeshPtrConst& node);
         void GenerateMesh_Constant(const FMeshGenerationOptions&, FMeshGenerationResult&, const NodeMeshConstant* );

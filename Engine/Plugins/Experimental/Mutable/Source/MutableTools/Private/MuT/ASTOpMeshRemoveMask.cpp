@@ -2,6 +2,7 @@
 
 #include "MuT/ASTOpMeshRemoveMask.h"
 
+#include "MuT/ASTOpMeshMorph.h"
 #include "HAL/PlatformMath.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/RefCounted.h"
@@ -40,7 +41,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	bool ASTOpMeshRemoveMask::IsEqual(const ASTOp& otherUntyped) const
 	{
-		if (auto other = dynamic_cast<const ASTOpMeshRemoveMask*>(&otherUntyped))
+		if (const ASTOpMeshRemoveMask* other = dynamic_cast<const ASTOpMeshRemoveMask*>(&otherUntyped))
 		{
 			return source == other->source && removes == other->removes;
 		}
@@ -53,7 +54,7 @@ namespace mu
 	{
 		Ptr<ASTOpMeshRemoveMask> n = new ASTOpMeshRemoveMask();
 		n->source = mapChild(source.child());
-		for (const auto& r : removes)
+		for (const TPair<ASTChild, ASTChild>& r : removes)
 		{
 			n->removes.Add({ ASTChild(n,mapChild(r.Key.child())), ASTChild(n,mapChild(r.Value.child())) });
 		}
@@ -62,17 +63,10 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void ASTOpMeshRemoveMask::Assert()
-	{
-		ASTOp::Assert();
-	}
-
-
-	//---------------------------------------------------------------------------------------------
 	void ASTOpMeshRemoveMask::ForEachChild(const TFunctionRef<void(ASTChild&)> f)
 	{
 		f(source);
-		for (auto& r : removes)
+		for (TPair<ASTChild, ASTChild>& r : removes)
 		{
 			f(r.Key);
 			f(r.Value);
@@ -84,7 +78,7 @@ namespace mu
 	uint64 ASTOpMeshRemoveMask::Hash() const
 	{
 		uint64 res = std::hash<ASTOp*>()(source.child().get());
-		for (const auto& r : removes)
+		for (const TPair<ASTChild, ASTChild>& r : removes)
 		{
 			hash_combine(res, r.Key.child().get());
 			hash_combine(res, r.Value.child().get());
@@ -106,7 +100,7 @@ namespace mu
 			OP::ADDRESS sourceAt = source ? source->linkedAddress : 0;
 			AppendCode(program.m_byteCode, sourceAt);
 			AppendCode(program.m_byteCode, (uint16)removes.Num());
-			for (const auto& b : removes)
+			for (const TPair<ASTChild, ASTChild>& b : removes)
 			{
 				OP::ADDRESS condition = b.Key ? b.Key->linkedAddress : 0;
 				AppendCode(program.m_byteCode, condition);
@@ -164,7 +158,7 @@ namespace mu
 				}
 
 				// Already visited?
-				auto cacheIt = m_oldToNew.Find(at);
+				Ptr<ASTOp>* cacheIt = m_oldToNew.Find(at);
 				if (cacheIt)
 				{
 					return *cacheIt;
@@ -176,8 +170,8 @@ namespace mu
 
 				case OP_TYPE::ME_MORPH2:
 				{
-					mu::Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(at);
-					newOp->SetChild(newOp->op.args.MeshMorph2.base, Visit(newOp->children[newOp->op.args.MeshMorph2.base].child()));
+					mu::Ptr<ASTOpMeshMorph> newOp = mu::Clone<ASTOpMeshMorph>(at);
+					newOp->Base = Visit(newOp->Base.child());
 					newAt = newOp;
 					break;
 				}
@@ -209,7 +203,7 @@ namespace mu
 					//
 					if (at != m_initialSource)
 					{
-						auto newOp = mu::Clone<ASTOpMeshRemoveMask>(m_root);
+						Ptr<ASTOpMeshRemoveMask> newOp = mu::Clone<ASTOpMeshRemoveMask>(m_root);
 						newOp->source = at;
 						newAt = newOp;
 					}
@@ -230,7 +224,7 @@ namespace mu
 	mu::Ptr<ASTOp> ASTOpMeshRemoveMask::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const
 	{
 		Sink_MeshRemoveMaskAST sinker;
-		auto at = sinker.Apply(this);
+		mu::Ptr<ASTOp> at = sinker.Apply(this);
 
 		return at;
 	}

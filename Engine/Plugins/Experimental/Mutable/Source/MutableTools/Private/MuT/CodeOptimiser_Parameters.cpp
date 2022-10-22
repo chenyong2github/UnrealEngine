@@ -20,6 +20,7 @@
 #include "MuT/ASTOpImageCompose.h"
 #include "MuT/ASTOpImageMipmap.h"
 #include "MuT/ASTOpImagePixelFormat.h"
+#include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpInstanceAdd.h"
 #include "MuT/ASTOpParameter.h"
 #include "MuT/CodeOptimiser.h"
@@ -1694,9 +1695,9 @@ class TaskManager;
                 case OP_TYPE::ME_MORPH2:
                 {
                     // Manually choose how to recurse this op
-                    auto pTyped = dynamic_cast<const ASTOpFixed*>( at.get() );
+					const ASTOpMeshMorph* pTyped = dynamic_cast<const ASTOpMeshMorph*>( at.get() );
 
-                    if ( auto& base = pTyped->children[pTyped->op.args.MeshMorph2.base] )
+                    if ( auto& base = pTyped->Base )
                     {
 						pending.Add({ base.m_child, state });
                     }
@@ -1704,14 +1705,14 @@ class TaskManager;
                     // Mesh morphs don't modify the layouts, so we can ignore the factor and morphs
                     if (!state)
                     {
-                        if ( auto& factor = pTyped->children[pTyped->op.args.MeshMorph2.factor] )
+                        if ( auto& factor = pTyped->Factor )
                         {
 							pending.Add({ factor.m_child, state });
                         }
 
-                        for (int t=0;t<MUTABLE_OP_MAX_MORPH2_TARGETS;++t)
+                        for (int32 t=0;t<pTyped->Targets.Num(); ++t)
                         {
-                            if ( auto& target = pTyped->children[pTyped->op.args.MeshMorph2.targets[t]] )
+                            if ( auto& target = pTyped->Targets[t] )
                             {
 								pending.Add({ target.m_child, state });
                             }

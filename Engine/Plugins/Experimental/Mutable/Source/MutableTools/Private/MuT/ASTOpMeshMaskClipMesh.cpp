@@ -150,16 +150,13 @@ namespace mu
 				switch (at->GetOpType())
 				{
 
-					// This cannot be sunk since the result is different. Since the clipping is now correctly
-					// generated at the end of the chain when really necessary, this wrong optimisation is no 
-					// longer needed.
-					//case OP_TYPE::ME_MORPH2:
-		   //         {
-		   //             // Remove this op: Let's clip the unmorphed mesh only
-		   //             auto typedAt = dynamic_cast<const ASTOpFixed*>(at.get());
-		   //             newAt = Visit( typedAt->children[typedAt->op.args.MeshMorph2.base].child() );
-		   //             break;
-		   //         }
+				// This cannot be sunk since the result is different. Since the clipping is now correctly
+				// generated at the end of the chain when really necessary, this wrong optimisation is no 
+				// longer needed.
+				//case OP_TYPE::ME_MORPH2:
+		        //{
+		        //    break;
+		        //}
 
 				case OP_TYPE::ME_REMOVEMASK:
 				{

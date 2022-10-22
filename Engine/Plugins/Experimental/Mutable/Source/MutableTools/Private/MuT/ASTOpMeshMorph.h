@@ -16,24 +16,27 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! From a source mesh, remove a list of fragments with a condition.
 	//---------------------------------------------------------------------------------------------
-	class ASTOpMeshRemoveMask : public ASTOp
+	class ASTOpMeshMorph : public ASTOp
 	{
 	public:
 
-		//! Source mesh to remove from.
-		ASTChild source;
+		//! Factor selecting what morphs to apply and with what weight.
+		ASTChild Factor;
 
-		//! Pairs of remove candidates: condition + mesh to remove
-		TArray< TPair<ASTChild, ASTChild> > removes;
+		//! Base mesh to remove from.
+		ASTChild Base;
+
+		//! Targets to apply on the base depending on the factor
+		TArray<ASTChild> Targets;
 
 	public:
 
-		ASTOpMeshRemoveMask();
-		ASTOpMeshRemoveMask(const ASTOpMeshRemoveMask&) = delete;
-		~ASTOpMeshRemoveMask() override;
+		ASTOpMeshMorph();
+		ASTOpMeshMorph(const ASTOpMeshMorph&) = delete;
+		~ASTOpMeshMorph() override;
 
 		// ASTOp interface
-		OP_TYPE GetOpType() const override { return OP_TYPE::ME_REMOVEMASK; }
+		OP_TYPE GetOpType() const override { return OP_TYPE::ME_MORPH2; }
 		uint64 Hash() const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
@@ -42,7 +45,7 @@ namespace mu
 		Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;
 
 		// Own interface
-		void AddRemove(const Ptr<ASTOp>& condition, const Ptr<ASTOp>& mask);
+		void AddTarget(const Ptr<ASTOp>&);
 	};
 
 }

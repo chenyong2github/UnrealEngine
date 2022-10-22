@@ -374,16 +374,6 @@ namespace mu
             f(&op.args.MeshApplyLayout.mesh );
             break;
 
-        case OP_TYPE::ME_MORPH2:
-            f(&op.args.MeshMorph2.factor );
-            f(&op.args.MeshMorph2.base );
-
-            for (int t=0;t<MUTABLE_OP_MAX_MORPH2_TARGETS;++t)
-            {
-                f(&op.args.MeshMorph2.targets[t] );
-            }
-            break;
-
         case OP_TYPE::ME_MERGE:
             f(&op.args.MeshMerge.base );
             f(&op.args.MeshMerge.added );
@@ -920,28 +910,39 @@ namespace mu
         case OP_TYPE::ME_DIFFERENCE:
         {
 			const uint8_t* data = program.GetOpArgsPointer(at);
+
 			OP::ADDRESS BaseAt = 0;
 			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			f(BaseAt);
 
 			OP::ADDRESS TargetAt = 0;
 			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-
-			f(BaseAt);
-            f(TargetAt);
-            break;
+			f(TargetAt);
+			break;
         }
 
         case OP_TYPE::ME_MORPH2:
         {
-			OP::MeshMorph2Args args = program.GetOpArgs<OP::MeshMorph2Args>(at);
-            f(args.factor );
-            f(args.base );
+			const uint8_t* data = program.GetOpArgsPointer(at);
 
-            for (int t=0;t<MUTABLE_OP_MAX_MORPH2_TARGETS;++t)
-            {
-                f(args.targets[t] );
-            }
-            break;
+			OP::ADDRESS FactorAt = 0;
+			FMemory::Memcpy(&FactorAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			f(FactorAt);
+
+			OP::ADDRESS BaseAt = 0;
+			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			f(BaseAt);
+
+			uint8 NumTargets = 0;
+			FMemory::Memcpy(&NumTargets, data, sizeof(uint8)); data += sizeof(uint8);
+
+			for (uint8 T = 0; T < NumTargets; ++T)
+			{
+				OP::ADDRESS TargetAt = 0;
+				FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+				f(TargetAt);
+			}
+			break;
         }
 
         case OP_TYPE::ME_MERGE:

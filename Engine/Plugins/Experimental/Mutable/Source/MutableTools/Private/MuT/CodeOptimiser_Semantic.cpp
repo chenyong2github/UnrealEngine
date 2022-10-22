@@ -19,6 +19,7 @@
 #include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImagePixelFormat.h"
+#include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/Table.h"
@@ -1402,7 +1403,7 @@ namespace mu
 
                 if (nop->def)
                 {
-                    auto defOp = mu::Clone<ASTOpFixed>(this);
+					Ptr<ASTOpFixed> defOp = mu::Clone<ASTOpFixed>(this);
                     defOp->SetChild( defOp->op.args.LayoutRemoveBlocks.mesh, nop->def );
                     nop->def = defOp;
                 }
@@ -1411,7 +1412,7 @@ namespace mu
                 {
                     if ( o.branch )
                     {
-                        auto bOp = mu::Clone<ASTOpFixed>(this);
+						Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
                         bOp->SetChild( bOp->op.args.LayoutRemoveBlocks.mesh, o.branch );
                         o.branch = bOp;
                     }
@@ -1424,9 +1425,9 @@ namespace mu
             case OP_TYPE::ME_MORPH2:
             {
                 // Move the remove-blocks down the base
-                auto typedMeshAt = dynamic_cast<const ASTOpFixed*>(meshAt.get());
-                auto nop = mu::Clone<ASTOpFixed>(this);
-                nop->SetChild( nop->op.args.LayoutRemoveBlocks.mesh, typedMeshAt->children[ typedMeshAt->op.args.MeshMorph2.base] );
+				const ASTOpMeshMorph* typedMeshAt = dynamic_cast<const ASTOpMeshMorph*>(meshAt.get());
+                Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(this);
+                nop->SetChild( nop->op.args.LayoutRemoveBlocks.mesh, typedMeshAt->Base );
                 at = nop;
                 break;
             }
@@ -1435,7 +1436,7 @@ namespace mu
             {
                 // Assume that the UVs will not be interpolated across blocks!
                 auto typedMeshAt = dynamic_cast<const ASTOpFixed*>(meshAt.get());
-                auto nop = mu::Clone<ASTOpFixed>(this);
+				Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(this);
                 nop->SetChild( nop->op.args.LayoutRemoveBlocks.mesh, typedMeshAt->children[ typedMeshAt->op.args.MeshInterpolate.base] );
                 at = nop;
                 break;
@@ -1493,10 +1494,9 @@ namespace mu
 
             case OP_TYPE::ME_MORPH2:
             {
-                auto typedSource = dynamic_cast<const ASTOpFixed*>(sourceAt.get());
+				const ASTOpMeshMorph* typedSource = dynamic_cast<const ASTOpMeshMorph*>(sourceAt.get());
 				Ptr<ASTOpFixed> rasterOp = mu::Clone<ASTOpFixed>(this);
-                rasterOp->SetChild( rasterOp->op.args.ImageRasterMesh.mesh,
-                        typedSource->children[typedSource->op.args.MeshMorph2.base] );
+                rasterOp->SetChild( rasterOp->op.args.ImageRasterMesh.mesh, typedSource->Base );
                 at = rasterOp;
                 break;
             }

@@ -16,6 +16,7 @@
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpMeshClipMorphPlane.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/StreamsPrivate.h"
 
@@ -273,8 +274,8 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 	case OP_TYPE::ME_MORPH2:
 	{
 		// Move the format down the base of the morph
-		auto newOp = mu::Clone<ASTOpFixed>(at);
-		newOp->SetChild(newOp->op.args.MeshMorph2.base, Visit(newOp->children[newOp->op.args.MeshMorph2.base].child(), currentFormatOp));
+		Ptr<ASTOpMeshMorph> newOp = mu::Clone<ASTOpMeshMorph>(at);
+		newOp->Base = Visit(newOp->Base.child(), currentFormatOp);
 
 		// Reformat the morph targets to match the new format.
 		// \TODO: Cache pTargetMorphFormat? motaop?
@@ -286,9 +287,9 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 		motaop->SetValue(pTargetMorphFormat, false /* useDiskCache */);
 		auto targetMorphFormatAt = motaop;
 
-		for (int t = 0; t < MUTABLE_OP_MAX_MORPH2_TARGETS; ++t)
+		for (int32 t=0; t<newOp->Targets.Num(); ++t)
 		{
-			if (newOp->children[newOp->op.args.MeshMorph2.targets[t]])
+			if (newOp->Targets[t])
 			{
 				mu::Ptr<ASTOpMeshFormat> newFormat = mu::Clone<ASTOpMeshFormat>(currentFormatOp);
 				newFormat->Buffers =
@@ -296,7 +297,7 @@ mu::Ptr<ASTOp> Sink_MeshFormatAST::Visit(const mu::Ptr<ASTOp>& at, const ASTOpMe
 					| OP::MeshFormatArgs::BT_IGNORE_MISSING;
 				newFormat->Format = targetMorphFormatAt;
 
-				newOp->SetChild(newOp->op.args.MeshMorph2.targets[t], Visit(newOp->children[newOp->op.args.MeshMorph2.targets[t]].child(), newFormat.get()));
+				newOp->Targets[t] = Visit(newOp->Targets[t].child(), newFormat.get());
 			}
 		}
 
