@@ -78,10 +78,10 @@ namespace EpicGames.SmartlingLocalization
 			AuthenticationToken = null;
 		}
 
-		public async override Task InitializeProjectWithLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
-		{
-			// @TODOLocalization: Throw an exeption if the config data is null/invalid 
-		}
+		// public override Task InitializeProjectWithLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
+		// {
+		// 	// @TODOLocalization: Throw an exeption if the config data is null/invalid 
+		// }
 
 		public async override Task DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
 		{
