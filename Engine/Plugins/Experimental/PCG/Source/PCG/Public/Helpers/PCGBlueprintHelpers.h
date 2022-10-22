@@ -57,6 +57,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
 	static FVector GetLocalCenter(const FPCGPoint& InPoint);
 
+	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
+	static FBox GetTransformedBounds(const FPCGPoint& InPoint);
+
 	UFUNCTION(BlueprintCallable, Category = "PCG|Helpers", meta = (ScriptMethod))
 	static FBox GetActorBoundsPCG(AActor* InActor, bool bIgnorePCGCreatedComponents = true);
 
