@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "RHI.h"
+
 
 namespace UE::RivermaxCore
 {
@@ -47,6 +49,12 @@ namespace UE::RivermaxCore
 
 		/** Pushes new video frame to the stream. Returns false if frame couldn't be pushed. */
 		virtual bool PushVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame) = 0;
+		
+		/** Pushes a frame to be captured from GPU memory */
+		virtual bool PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer) = 0;
+
+		/** Returns true if GPUDirect is supported */
+		virtual bool IsGPUDirectSupported() const = 0;
 	};
 }
 

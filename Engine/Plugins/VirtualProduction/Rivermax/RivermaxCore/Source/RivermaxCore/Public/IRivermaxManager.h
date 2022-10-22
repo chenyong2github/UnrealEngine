@@ -46,6 +46,9 @@ namespace UE::RivermaxCore
 
 		/** Returns true if provided IP string is in a valid format */
 		virtual bool IsValidIP(const FString& InSourceIP) const = 0;
+
+		/** Whether gpudirect is supported on this platform. At the moment, we rely on CUDA to handle it. */
+		virtual bool IsGPUDirectSupported() const = 0;
 	};
 }
 

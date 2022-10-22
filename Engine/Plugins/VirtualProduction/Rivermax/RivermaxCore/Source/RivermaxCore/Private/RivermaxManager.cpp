@@ -205,6 +205,11 @@ namespace UE::RivermaxCore::Private
 	{
 		return DeviceFinder->IsValidIP(InSourceIP);
 	}
+
+	bool FRivermaxManager::IsGPUDirectSupported() const
+	{
+		return bIsGPUDirectSupported;
+	}
 }
 
 

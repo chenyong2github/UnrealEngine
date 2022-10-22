@@ -14,6 +14,7 @@ public class RivermaxCore : ModuleRules
 				"MediaAssets",
 				"MediaIOCore",
 				"RivermaxLib",
+				"RHI",
 				"TimeManagement"
 			}
 		);
@@ -23,7 +24,6 @@ public class RivermaxCore : ModuleRules
 				"Engine",
 				"Networking",
 				"RenderCore",
-				"RHI"
 			}
 		);
 

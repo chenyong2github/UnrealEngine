@@ -98,6 +98,8 @@ namespace UE::RivermaxCore::Private
 		virtual bool Initialize(const FRivermaxStreamOptions& Options, IRivermaxOutputStreamListener& InListener) override;
 		virtual void Uninitialize() override;
 		virtual bool PushVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame) override;
+		virtual bool PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer) override;
+		virtual bool IsGPUDirectSupported() const override;
 		//~ End IRivermaxOutputStream interface
 
 		void Process_AnyThread();
@@ -110,8 +112,7 @@ namespace UE::RivermaxCore::Private
 		//~ End FRunnable interface
 
 	private:
-		void InitializeBuffers();
-		bool InitializeMemory();
+		bool InitializeStreamMemoryConfig();
 		void InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame);
 		TSharedPtr<FRivermaxOutputFrame> GetNextFrameToSend();
 		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
@@ -125,30 +126,55 @@ namespace UE::RivermaxCore::Private
 		void InitializeStreamTimingSettings();
 		void ShowStats();
 		uint32 GetTimestampFromTime(uint64 InTimeNanosec, double InMediaClockRate) const;
+		void AllocateSystemBuffers();
+		int32 GetStride() const;
 
 	private:
+
+		/** Options related to this stream. i.e resolution, frame rate, etc... */
 		FRivermaxStreamOptions Options;
+
+		/** Rivermax memory configuration. i.e. memblock, chunks */
 		FRivermaxOutputStreamMemory StreamMemory;
+
+		/** Various stats collected by this stream */
 		FRivermaxOutputStreamStats Stats;
+
+		/** State of various piece for this stream. Alignment points, schedule number, etc... */
 		FRivermaxOutputStreamData StreamData;
 
+		/** Stream id returned by rmax library */
 		rmax_stream_id StreamId;
+
+		/** Critical section to protect frames access */
 		FCriticalSection FrameCriticalSection;
 
+		/** Current frame being sent */
 		TSharedPtr<FRivermaxOutputFrame> CurrentFrame;
 
+		/** Available frames to write memory to (Ready to be written) */
 		TArray<TSharedPtr<FRivermaxOutputFrame>> AvailableFrames;
+
+		/** Frames ready to be sent to rivermax (Ready to be read) */
 		TArray<TSharedPtr<FRivermaxOutputFrame>> FramesToSend;
 
+		/** Thread scheduling frame output */
 		TUniquePtr<FRunnableThread> RivermaxThread;
+
+		/** Whether stream is active or not */
 		std::atomic<bool> bIsActive;
 
+		/** Event used to let scheduler that a frame is ready to be sent */
 		FEvent* ReadyToSendEvent = nullptr;
 
+		/** Listener for this stream events */
 		IRivermaxOutputStreamListener* Listener = nullptr;
 
-		static constexpr double MediaClockSampleRate = 90000.0; //Required to comply with SMTPE 2110-10.The Media Clock and RTP Clock rate for streams compliant to this standard shall be 90 kHz.
-		ERivermaxStreamType StreamType = ERivermaxStreamType::VIDEO_2110_20_STREAM; //todo
+		/** Required to comply with SMTPE 2110 - 10.The Media Clock and RTP Clock rate for streams compliant to this standard shall be 90 kHz. */
+		static constexpr double MediaClockSampleRate = 90000.0; 
+
+		/** Type of stream created. Only 21110-20 (Video is supported now) */
+		ERivermaxStreamType StreamType = ERivermaxStreamType::VIDEO_2110_20_STREAM;
 
 		/** TRoffset time calculated based on ST2110 - 21 Gapped(for now) method. This is added to next alignment point */
 		uint64 TransmitOffsetNanosec = 0;
@@ -158,6 +184,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Timestamp at which we logged stats */
 		double LastStatsShownTimestamp = 0.0;
+		
+		/** Whether stream is using gpudirect to host memory consumed by Rivermax */
+		bool bUseGPUDirect = false;
 	};
 }
 

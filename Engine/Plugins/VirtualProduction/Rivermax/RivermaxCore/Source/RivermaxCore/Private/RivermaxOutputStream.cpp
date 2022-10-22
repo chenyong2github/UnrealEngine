@@ -109,6 +109,8 @@ namespace UE::RivermaxCore::Private
 
 	bool FRivermaxOutputStream::Initialize(const FRivermaxStreamOptions& InOptions, IRivermaxOutputStreamListener& InListener)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::Initialize);
+
 		IRivermaxCoreModule& RivermaxModule = FModuleManager::LoadModuleChecked<IRivermaxCoreModule>(TEXT("RivermaxCore"));
 		if (RivermaxModule.GetRivermaxManager()->IsInitialized() == false)
 		{
@@ -127,6 +129,12 @@ namespace UE::RivermaxCore::Private
 			return false;
 		}
 
+		// We do (try) to make gpu allocations here to let the capturer know if we require it or not.
+		if (RivermaxModule.GetRivermaxManager()->IsGPUDirectSupported() && Options.bUseGPUDirect)
+		{
+			//bUseGPUDirect = AllocateGPUBuffers();
+		}
+
 		Async(EAsyncExecution::TaskGraph, [this]()
 		{
 			//Create event to wait on when no frames are available to send
@@ -135,11 +143,14 @@ namespace UE::RivermaxCore::Private
 			TAnsiStringBuilder<2048> SDPDescription;
 			UE::RivermaxCore::Private::Utils::StreamOptionsToSDPDescription(Options, SDPDescription);
 
-			// Initialize video buffer memory we will be using
-			InitializeBuffers();
+			// Initialize buffers in system memory if we're not using gpudirect
+			if(bUseGPUDirect == false)
+			{
+				AllocateSystemBuffers();
+			}
 
 			// Initialize internal memory and rivermax configuration 
-			if(InitializeMemory())
+			if(InitializeStreamMemoryConfig())
 			{
 				// Initialize rivermax output stream with desired config
 				const uint32 NumberPacketsPerFrame = StreamMemory.PacketsPerFrame;
@@ -205,14 +216,15 @@ namespace UE::RivermaxCore::Private
 			ReadyToSendEvent = nullptr;
 			UE_LOG(LogRivermax, Log, TEXT("Rivermax Output stream has shutdown"));
 		}
-
 	}
 
 	bool FRivermaxOutputStream::PushVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::PushVideoFrame);
+
 		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
 		{
-			const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+			const int32 Stride = GetStride();
 			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, NewFrame.Height * Stride);
 
 			AvailableFrame->bIsVideoBufferReady = true;
@@ -299,9 +311,9 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	void FRivermaxOutputStream::InitializeBuffers()
+	void FRivermaxOutputStream::AllocateSystemBuffers()
 	{
-		const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		const int32 Stride = GetStride();
 		const int32 FrameAllocSize = Options.AlignedResolution.Y * Stride;
 		AvailableFrames.Reserve(Options.NumberOfBuffers);
 		for (int32 Index = 0; Index < Options.NumberOfBuffers; ++Index)
@@ -314,14 +326,14 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	bool FRivermaxOutputStream::InitializeMemory()
+	bool FRivermaxOutputStream::InitializeStreamMemoryConfig()
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
 
 		//2110 stream type
 		//We need to use the fullframe allocated size to compute the payload size.
 
-		const int32 BytesPerLine = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		const int32 BytesPerLine = GetStride();
 		const uint32 EffectiveBytesPerLine = BytesPerLine;
 
 		const bool bFoundPayload = FindPayloadSize(Options, BytesPerLine, FormatInfo, StreamMemory.PayloadSize);
@@ -393,6 +405,8 @@ namespace UE::RivermaxCore::Private
 
 	TSharedPtr<FRivermaxOutputFrame> FRivermaxOutputStream::GetNextFrameToSend()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::GetNextFrameToSend);
+
 		TSharedPtr<FRivermaxOutputFrame> FrameToSend;
 
 		FScopeLock Lock(&FrameCriticalSection);
@@ -424,6 +438,8 @@ namespace UE::RivermaxCore::Private
 
 	TSharedPtr<FRivermaxOutputFrame> FRivermaxOutputStream::GetNextAvailableFrame(uint32 InFrameIdentifier)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::GetNextAvailableFrame);
+
 		TSharedPtr<FRivermaxOutputFrame> NextFrame;
 
 		{
@@ -941,6 +957,24 @@ namespace UE::RivermaxCore::Private
 				UE_LOG(LogRivermax, Log, TEXT("Stats: FrameSent: %d. CommitImmediate: %d. CommitRetries: %d. ChunkRetries: %d"), Stats.MemoryBlockSentCounter, Stats.CommitImmediate, Stats.CommitRetries, Stats.ChunkRetries);
 			}
 		}
+	}
+
+	bool FRivermaxOutputStream::PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::PushGPUVideoFrame);
+
+		return false;
+	}
+
+	bool FRivermaxOutputStream::IsGPUDirectSupported() const
+	{
+		return bUseGPUDirect;
+	}
+
+	int32 FRivermaxOutputStream::GetStride() const
+	{
+		check(FormatInfo.PixelGroupCoverage != 0);
+		return (Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage) * FormatInfo.PixelGroupSize;
 	}
 }
 

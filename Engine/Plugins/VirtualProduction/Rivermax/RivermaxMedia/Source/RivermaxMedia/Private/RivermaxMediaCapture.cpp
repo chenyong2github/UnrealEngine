@@ -10,7 +10,6 @@
 #include "RivermaxMediaOutput.h"
 #include "RivermaxMediaUtils.h"
 #include "RivermaxShaders.h"
-#include "RivermaxTypes.h"
 #include "Slate/SceneViewport.h"
 #include "Widgets/SViewport.h"
 
@@ -21,7 +20,34 @@
 
 
 DECLARE_GPU_STAT(Rivermax_Capture);
+DECLARE_GPU_STAT(Rivermax_SyncPointPass);
 
+
+/** Structure holding data used for synchronization of buffer output */
+struct URivermaxMediaCapture::FRivermaxCaptureSyncData
+{
+	FRivermaxCaptureSyncData()
+		: bIsBusy(false)
+	{
+	}
+
+	/**
+	 * We use a RHIFence to write to in a pass following the buffer conversion one.
+	 * We spawn a task that will poll for the fence to be over (Waiting is not exposed)
+	 * and then we will push the captured buffer to rivermax stream
+	 */
+	FGPUFenceRHIRef RHIFence;
+
+	/** Whether fence is currently waiting to be cleared */
+	std::atomic<bool> bIsBusy;
+};
+
+
+
+/** Parameter to make our sync pass needing the convert pass as a prereq */
+BEGIN_SHADER_PARAMETER_STRUCT(FRivermaxSyncPassParameters, )
+	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
 
 
 /* namespace RivermaxMediaCaptureDevice
@@ -155,6 +181,8 @@ bool URivermaxMediaCapture::UpdateRenderTargetImpl(UTextureRenderTarget2D* InRen
 
 void URivermaxMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 {
+	bIsActive = false;
+
 	if (RivermaxStream)
 	{
 		RivermaxStream->Uninitialize();
@@ -164,16 +192,12 @@ void URivermaxMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess)
 
 bool URivermaxMediaCapture::ShouldCaptureRHIResource() const
 {
-	//todo for gpudirect support
-	return false;  
-}
-
-void URivermaxMediaCapture::BeforeFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
-{
-	if (ShouldCaptureRHIResource())
+	if (RivermaxStream)
 	{
-	
+		return RivermaxStream->IsGPUDirectSupported();
 	}
+
+	return false;
 }
 
 bool URivermaxMediaCapture::HasFinishedProcessing() const
@@ -186,22 +210,66 @@ bool URivermaxMediaCapture::Initialize(URivermaxMediaOutput* InMediaOutput)
 	using namespace UE::RivermaxCore;
 
 	check(InMediaOutput);
+	bIsActive = false;
 
 	IRivermaxCoreModule* Module = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
 	if (Module)
 	{
-		FRivermaxStreamOptions Options;
 		if (ConfigureStream(InMediaOutput, Options))
 		{
 			RivermaxStream = Module->CreateOutputStream();
 			if (RivermaxStream)
 			{
-				return RivermaxStream->Initialize(Options, *this);
+				bAreSyncHandlersInitialized = false;
+				bIsActive = RivermaxStream->Initialize(Options, *this);
 			}
 		}
 	}
 
-	return false;
+	return bIsActive;
+}
+
+void URivermaxMediaCapture::InitializeSyncHandlers_RenderThread()
+{
+	SyncHandlers.Reset(Options.NumberOfBuffers);
+	for (int32 Index = 0; Index < Options.NumberOfBuffers; ++Index)
+	{
+		TSharedPtr<FRivermaxCaptureSyncData> NewSync = MakeShared<FRivermaxCaptureSyncData>();
+		NewSync->RHIFence = RHICreateGPUFence(*FString::Printf(TEXT("RmaxSyncs_%02d"), Index));
+		SyncHandlers.Add(MoveTemp(NewSync));
+	}
+
+	bAreSyncHandlersInitialized = true;
+}
+
+TSharedPtr<URivermaxMediaCapture::FRivermaxCaptureSyncData> URivermaxMediaCapture::GetAvailableSyncHandler() const
+{
+	const auto FindAvailableHandlerFunc = [](const TSharedPtr<FRivermaxCaptureSyncData>& Item)
+	{
+		if (Item->bIsBusy == false)
+		{
+			return true;
+		}
+
+		return false;
+	};
+	
+	if (const TSharedPtr<FRivermaxCaptureSyncData>* FoundItem = SyncHandlers.FindByPredicate(FindAvailableHandlerFunc))
+	{
+		return *FoundItem;
+	}
+
+	return nullptr;
+}
+
+bool URivermaxMediaCapture::AreSyncHandlersBusy() const
+{
+	const auto IsBusyFunc = [](const TSharedPtr<FRivermaxCaptureSyncData>& Item)
+	{
+		return Item->bIsBusy.load();
+	};
+
+	return SyncHandlers.ContainsByPredicate(IsBusyFunc);
 }
 
 bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput, UE::RivermaxCore::FRivermaxStreamOptions& OutOptions) const
@@ -227,12 +295,80 @@ bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput,
 	OutOptions.Resolution = InMediaOutput->Resolution;
 	OutOptions.FrameRate = InMediaOutput->FrameRate;
 	OutOptions.NumberOfBuffers = InMediaOutput->NumberOfTextureBuffers;
+	OutOptions.bUseGPUDirect = InMediaOutput->bUseGPUDirect;
 
 	OutOptions.PixelFormat = UE::RivermaxMediaUtils::Private::MediaOutputPixelFormatToRivermaxSamplingType(InMediaOutput->PixelFormat);
 	const FVideoFormatInfo Info = FStandardVideoFormat::GetVideoFormatInfo(OutOptions.PixelFormat);
 	OutOptions.AlignedResolution = UE::RivermaxMediaCaptureUtil::GetAlignedResolution(Info, InMediaOutput->Resolution);
 
 	return true;
+}
+
+void URivermaxMediaCapture::AddSyncPointPass(FRDGBuilder& GraphBuilder, const FCaptureBaseData& InBaseData, FRDGBufferRef OutputBuffer)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxSyncPoint);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Rivermax_SyncPointPass);
+
+	// Initialize sync handlers only the first time. 
+	if (bAreSyncHandlersInitialized == false)
+	{
+		InitializeSyncHandlers_RenderThread();
+	}
+
+	// Add buffer output as a parameter to depend on the compute shader pass
+	FRivermaxSyncPassParameters* PassParameters = GraphBuilder.AllocParameters<FRivermaxSyncPassParameters>();
+	PassParameters->Buffer = OutputBuffer;
+
+	// Prepare frame info we are going to push
+	UE::RivermaxCore::FRivermaxOutputVideoFrameInfo NewFrameInfo;
+	NewFrameInfo.FrameIdentifier = InBaseData.SourceFrameNumber;
+
+	URivermaxMediaCapture* Capturer = this;
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("RivermaxCopySyncPass"),
+		PassParameters,
+		ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+		[Capturer, OutputBuffer, NewFrameInfo](FRHICommandListImmediate& RHICmdList)
+		{
+			if (Capturer->bIsActive)
+			{
+				// Get available sync handler to create a sync point
+				TSharedPtr<FRivermaxCaptureSyncData> SyncDataPtr = Capturer->GetAvailableSyncHandler();
+				if (ensure(SyncDataPtr))
+				{
+					FRHIBuffer* RHIBuffer = OutputBuffer->GetRHI();
+
+					// This will happen after the compute shader conversion pass has completed
+					RHICmdList.WriteGPUFence(SyncDataPtr->RHIFence);
+					SyncDataPtr->bIsBusy = true;
+
+					// Spawn a task that will wait (poll) and continue the process of providing a new buffer to rivermax stream
+					UE::Tasks::Launch(UE_SOURCE_LOCATION, [Capturer, RHIBuffer, NewFrameInfo, SyncDataPtr]()
+					{	
+						TRACE_CPUPROFILER_EVENT_SCOPE(RmaxSyncTask);
+
+						// Wait until fence has been written (shader has completed)
+						while (SyncDataPtr->RHIFence->Poll() == false && Capturer->bIsActive)
+						{
+							FPlatformProcess::SleepNoStats(0);
+						}
+
+						SyncDataPtr->RHIFence->Clear();
+						SyncDataPtr->bIsBusy = false;
+
+						// Push new buffer to rivermax stream
+						if (Capturer->bIsActive && Capturer->RivermaxStream)
+						{
+							if (Capturer->RivermaxStream->PushGPUVideoFrame(NewFrameInfo, RHIBuffer) == false)
+							{
+								UE_LOG(LogRivermaxMedia, Verbose, TEXT("Failed to pushed captured frame"));
+							}
+						}
+
+					}, LowLevelTasks::ETaskPriority::BackgroundHigh);
+				}
+			}
+		});
 }
 
 void URivermaxMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)
@@ -249,15 +385,8 @@ void URivermaxMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseDa
 	NewFrame.FrameIdentifier = InBaseData.SourceFrameNumber;
 	if (RivermaxStream->PushVideoFrame(NewFrame) == false)
 	{
-		UE_LOG(LogRivermaxMedia, VeryVerbose, TEXT("Failed to pushed captured frame"));
+		UE_LOG(LogRivermaxMedia, Verbose, TEXT("Failed to pushed captured frame"));
 	}
-}
-
-void URivermaxMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptureBaseData& InBaseData,	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FBufferRHIRef InBuffer)
-{
-	using namespace UE::RivermaxCore;
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(URivermaxMediaCapture::OnRHIResourceCaptured_RenderingThread);
 }
 
 FIntPoint URivermaxMediaCapture::GetCustomOutputSize(const FIntPoint& InSize) const
@@ -307,6 +436,7 @@ FRDGBufferDesc URivermaxMediaCapture::GetCustomBufferDescription(const FIntPoint
 void URivermaxMediaCapture::OnCustomCapture_RenderingThread(FRDGBuilder& GraphBuilder, const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FRDGTextureRef InSourceTexture, FRDGBufferRef OutputBuffer, const FRHICopyTextureInfo& CopyInfo, FVector2D CropU, FVector2D CropV)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Rivermax_Capture)
+	TRACE_CPUPROFILER_EVENT_SCOPE(URivermaxMediaCapture::OnCustomCapture_RenderingThread);
 
 	using namespace UE::RivermaxShaders;
 	URivermaxMediaOutput* RivermaxOutput = CastChecked<URivermaxMediaOutput>(MediaOutput);
@@ -406,6 +536,17 @@ void URivermaxMediaCapture::OnCustomCapture_RenderingThread(FRDGBuilder& GraphBu
 		break;
 	}
 	}
+
+	// Adds a simple pass to have a fence written after compute shaders are done
+	if (RivermaxStream->IsGPUDirectSupported())
+	{
+		AddSyncPointPass(GraphBuilder, InBaseData, OutputBuffer);
+	}
+}
+
+bool URivermaxMediaCapture::IsReadyForFinishDestroy()
+{
+	return Super::IsReadyForFinishDestroy() && !AreSyncHandlersBusy();
 }
 
 void URivermaxMediaCapture::OnInitializationCompleted(bool bHasSucceed)
