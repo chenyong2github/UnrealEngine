@@ -25,6 +25,7 @@
 #include "Tasks/Task.h"
 #include "TextureBuildFunction.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/WildcardString.h"
 #include "Misc/CommandLine.h"
 
@@ -170,7 +171,7 @@ new texture, it shows the Oodle Texture encoded result in the texture preview.
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatOodle, Log, All);
-
+LLM_DEFINE_TAG(OodleTexture);
 
 /*****************
 * 
@@ -212,6 +213,18 @@ OODEFFUNC typedef OO_S32 (OOEXPLINK t_fp_OodleTex_BC_BytesPerBlock)(OodleTex_BC 
 OODEFFUNC typedef OO_S32 (OOEXPLINK t_fp_OodleTex_PixelFormat_BytesPerPixel)(OodleTex_PixelFormat pf);
 
 OODEFFUNC typedef OodleTex_Err (OOEXPLINK t_fp_OodleTex_LogVersion)(void);
+
+/**
+ * DebugInfo passed to the Jobify callbacks for tracing 
+ */
+struct FOodleJobDebugInfo
+{
+	FStringView DebugTexturePathName;
+	int32 SizeX;
+	int32 SizeY;
+	OodleTex_BC OodleBCN;
+	int RDOLambda;
+};
 
 /**
 * 
@@ -1178,6 +1191,10 @@ public:
 		FImage ImageCopy;
 		if (bNeedsImageCopy)
 		{
+                        //not sure if we should bill this alloc to OodleTexture or the calling context (TextureCompressor)
+                        //we are freeing the previous Image alloc to replace it with a changed format
+			//LLM_SCOPE_BYTAG(OodleTexture);
+
 			InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
 			
 			// after we copy the image, we can free the source
@@ -1399,6 +1416,20 @@ public:
 		int CurJobifyNumThreads = OodleJobifyNumThreads;
 		void* CurJobifyUserPointer = OodleJobifyUserPointer;
 
+		// CurJobifyUserPointer is not used in the Unreal TaskGraph
+		//	so we can use it to pass a pointer to a debug info struct:
+		FOodleJobDebugInfo LocalDebugInfo;
+		LocalDebugInfo.DebugTexturePathName = DebugTexturePathName;
+		LocalDebugInfo.SizeX = Image.SizeX;
+		LocalDebugInfo.SizeY = Image.SizeY;
+		LocalDebugInfo.OodleBCN = OodleBCN;
+		LocalDebugInfo.RDOLambda = RDOLambda;
+		if ( ! OodleJobifyUseExampleJobify )
+		{
+			check( CurJobifyUserPointer == nullptr );
+			CurJobifyUserPointer = (void *) &LocalDebugInfo;
+		}
+
 		// Have a target number of pixels per job, and clamp the num threads
 		// to avoid generating lots of tiny jobs
 		const int64 TargetPixelsPerJobThread = 128 * 128;
@@ -1526,6 +1557,9 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	// reason to suspect something fishy here.
 	//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_RunJob);
 
+	// DebugInfo to inspect:
+	const FOodleJobDebugInfo * DebugInfo = (FOodleJobDebugInfo *)UserPtr;
+
 	FTask* Task = new FTask;
 	Task->Launch(
 		TEXT("Oodle_EncodeBCN_Task"),
@@ -1546,6 +1580,9 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
 	using namespace UE::Tasks;
+	
+	// DebugInfo to inspect:
+	const FOodleJobDebugInfo * DebugInfo = (FOodleJobDebugInfo *)UserPtr;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_WaitJob);
 
@@ -1578,6 +1615,8 @@ static void OODLE_CALLBACK TFO_OodleLog(int verboseLevel, const char* file, int 
 
 static void* OODLE_CALLBACK TFO_OodleMallocAligned(OO_SINTa Bytes, OO_S32 Alignment)
 {
+	LLM_SCOPE_BYTAG(OodleTexture);
+
 	void * Ret = FMemory::Malloc(Bytes, Alignment);
 	check( Ret != nullptr );
 	return Ret;
