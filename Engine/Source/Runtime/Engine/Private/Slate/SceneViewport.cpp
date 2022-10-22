@@ -1697,7 +1697,6 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 {
 	{
 		check(IsInGameThread());
-		FlushRenderingCommands();
 
 		// Update the viewport attributes.
 		// This is done AFTER the command flush done by UpdateViewportRHI, to avoid disrupting rendering thread accesses to the old viewport size.
@@ -1707,6 +1706,7 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 
 		// Release the viewport's resources.
 		BeginReleaseResource(this);
+		FlushRenderingCommands();
 
 		if( !bDestroyed )
 		{
