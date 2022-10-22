@@ -132,7 +132,7 @@ void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId, con
 
 void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId)
 {
-	for (auto It = MonitoredFiles.CreateIterator(); ;++It)
+	for (auto It = MonitoredFiles.CreateIterator(); It; ++It)
 	{
 		if (It->Value->OwnerDelegateMap.Remove(OwnerId) > 0 && It->Value->OwnerDelegateMap.IsEmpty())
 		{
