@@ -2110,7 +2110,7 @@ void FMaterialShaderMap::Compile(
 	// If we aren't actually compiling shaders don't print the debug message that we are compiling shaders.
 	if (PrecompileMode != EMaterialShaderPrecompileMode::None)
 	{
-		UE_LOG(LogShaders, Display, TEXT("	%s"), *WorkingDebugDescription);
+		UE_LOG(LogShaders, Verbose, TEXT("	%s"), *WorkingDebugDescription);
 	}
 	NewContent->DebugDescription = *WorkingDebugDescription;
 #else
