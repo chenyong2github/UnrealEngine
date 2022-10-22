@@ -964,7 +964,7 @@ public:
 	 * @param ActorFactory	The actor factory to use in replacement
 	 */
 	static void ReplaceActors_Clicked( UActorFactory* ActorFactory, FAssetData AssetData );
-	static AActor* ReplaceActors( UActorFactory* ActorFactory, const FAssetData& AssetData );
+	static AActor* ReplaceActors( UActorFactory* ActorFactory, const FAssetData& AssetData, bool bCopySourceProperties = true );
 
 	/**
 	 * Called when the ReplaceActor command is executed and a class is selected in the actor browser

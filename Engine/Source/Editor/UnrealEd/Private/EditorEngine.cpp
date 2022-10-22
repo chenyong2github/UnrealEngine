@@ -5148,7 +5148,7 @@ namespace ReattachActorsHelper
 	}
 }
 
-void UEditorEngine::ReplaceSelectedActors(UActorFactory* Factory, const FAssetData& AssetData)
+void UEditorEngine::ReplaceSelectedActors(UActorFactory* Factory, const FAssetData& AssetData, bool bCopySourceProperties)
 {
 	UObject* ObjectForFactory = NULL;
 
@@ -5185,10 +5185,10 @@ void UEditorEngine::ReplaceSelectedActors(UActorFactory* Factory, const FAssetDa
 		}
 	}
 
-	ReplaceActors(Factory, AssetData, ActorsToReplace);
+	ReplaceActors(Factory, AssetData, ActorsToReplace, nullptr, bCopySourceProperties);
 }
 
-void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace, TArray<AActor*>* OutNewActors)
+void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace, TArray<AActor*>* OutNewActors, bool bCopySourceProperties)
 {
 	// Cache for attachment info of all actors being converted.
 	TArray<ReattachActorsHelper::FActorAttachmentCache> AttachmentInfo;
@@ -5235,7 +5235,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 		// create the actor
 		NewActor = Factory->CreateActor(Asset, Level, OldTransform, SpawnParams);
 		// For blueprints, try to copy over properties
-		if (Factory->IsA(UActorFactoryBlueprint::StaticClass()))
+		if (bCopySourceProperties && Factory->IsA(UActorFactoryBlueprint::StaticClass()))
 		{
 			UBlueprint* Blueprint = CastChecked<UBlueprint>(Asset);
 			// Only try to copy properties if this blueprint is based on the actor

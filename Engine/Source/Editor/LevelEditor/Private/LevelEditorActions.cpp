@@ -1525,12 +1525,13 @@ AActor* FLevelEditorActionCallbacks::AddActorFromClass( UClass* ActorClass )
 	return NewActor;
 }
 
+extern bool GReplaceSelectedActorsWithSelectedClassCopyProperties;
 void FLevelEditorActionCallbacks::ReplaceActors_Clicked( UActorFactory* ActorFactory, FAssetData AssetData )
 {
-	FLevelEditorActionCallbacks::ReplaceActors(ActorFactory, AssetData);
+	FLevelEditorActionCallbacks::ReplaceActors(ActorFactory, AssetData, GReplaceSelectedActorsWithSelectedClassCopyProperties);
 }
 
-AActor* FLevelEditorActionCallbacks::ReplaceActors( UActorFactory* ActorFactory, const FAssetData& AssetData )
+AActor* FLevelEditorActionCallbacks::ReplaceActors( UActorFactory* ActorFactory, const FAssetData& AssetData, bool bCopySourceProperties )
 {
 	AActor* NewActor = NULL;
 
@@ -1539,7 +1540,7 @@ AActor* FLevelEditorActionCallbacks::ReplaceActors( UActorFactory* ActorFactory,
 	if( ActorFactory->CanCreateActorFrom( AssetData, ErrorMessage ) )
 	{
 		// Replace all selected actors with actors created from the specified factory
-		GEditor->ReplaceSelectedActors( ActorFactory, AssetData );
+		GEditor->ReplaceSelectedActors( ActorFactory, AssetData, bCopySourceProperties );
 
 		if ( IPlacementModeModule::IsAvailable() )
 		{

@@ -447,8 +447,32 @@ void LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(FToolMenuSect
 	}
 }
 
+bool GReplaceSelectedActorsWithSelectedClassCopyProperties = true;
 void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UToolMenu* Menu, EActorCreateMode::Type CreateMode)
 {
+	if ( CreateMode == EActorCreateMode::Replace )
+	{
+		FToolMenuSection& Section = Menu->AddSection("Options", NSLOCTEXT("LevelViewportContextMenu", "Options", "Options"));
+
+		GReplaceSelectedActorsWithSelectedClassCopyProperties = true;
+
+		FToolMenuEntry ToolMenuEntry = FToolMenuEntry::InitMenuEntry(
+			"CopyProperties",
+			NSLOCTEXT("LevelViewportContextMenu", "CopyProperties", "Copy Properties"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([]() { GReplaceSelectedActorsWithSelectedClassCopyProperties = !GReplaceSelectedActorsWithSelectedClassCopyProperties; }),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateLambda([] { return GReplaceSelectedActorsWithSelectedClassCopyProperties ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+			),
+			EUserInterfaceActionType::ToggleButton
+		);
+		ToolMenuEntry.bShouldCloseWindowAfterMenuSelection = false;
+
+		Section.AddEntry(ToolMenuEntry);
+	}
+
 	{
 		FToolMenuSection& Section = Menu->AddSection("ContentBrowserActor", NSLOCTEXT("LevelViewportContextMenu", "AssetSelectionSection", "Selection"));
 		FAssetData TargetAssetData;

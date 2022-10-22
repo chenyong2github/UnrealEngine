@@ -1257,7 +1257,7 @@ public:
 	 * 
 	 * @param Factory - the Factory to use to create Actors
 	 */
-	void ReplaceSelectedActors(UActorFactory* Factory, const FAssetData& AssetData);
+	void ReplaceSelectedActors(UActorFactory* Factory, const FAssetData& AssetData, bool bCopySourceProperties = true);
 
 	/**
 	 * Replaces specified Actors with the same number of a different kind of Actor using the specified factory to spawn the new Actors
@@ -1268,7 +1268,7 @@ public:
 	 * @param ActorsToReplace - Actors to replace
 	 * @param OutNewActors - Actors that were created
 	 */
-	void ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace, TArray<AActor*>* OutNewActors = nullptr);
+	void ReplaceActors(UActorFactory* Factory, const FAssetData& AssetData, const TArray<AActor*>& ActorsToReplace, TArray<AActor*>* OutNewActors = nullptr, bool bCopySourceProperties = true);
 
 	/**
 	 * Converts passed in brushes into a single static mesh actor. 
