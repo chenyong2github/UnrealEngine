@@ -114,7 +114,7 @@ void UGranularSynth::SetSoundWave(USoundWave* InSoundWave)
 		GranulatedSoundWave = InSoundWave;
 		bIsLoaded = false;
 
-		if (InSoundWave)
+		if (InSoundWave && InSoundWave->GetLoadingBehavior() == ESoundWaveLoadingBehavior::ForceInline)
 		{
 			TFunction<void(const USoundWave * SoundWave, const Audio::FSampleBuffer & SampleBuffer)> OnLoaded
 				= [this](const USoundWave * SoundWave, const Audio::FSampleBuffer & SampleBuffer)
