@@ -6,7 +6,7 @@
 
 using namespace UE::Geometry;
 
-namespace UVLayoutOpLocals
+namespace UDIMClassifierLocals
 {
 	FVector2f InternalUVToExternalUV(const FVector2f& UV)
 	{
@@ -48,7 +48,7 @@ FVector2i FDynamicMeshUDIMClassifier::ClassifyTrianglesToUDIM(const FDynamicMesh
 		FVector2f Vertex0, Vertex1, Vertex2;
 		UVOverlay->GetTriElements(Tid, Vertex0, Vertex1, Vertex2);
 		FVector2f BaryCenter = (Vertex0 + Vertex1 + Vertex2) / 3.0f;
-		BaryCenter = UVLayoutOpLocals::InternalUVToExternalUV(BaryCenter);
+		BaryCenter = UDIMClassifierLocals::InternalUVToExternalUV(BaryCenter);
 		UDIM = ClassifyPointToUDIM(BaryCenter);		
 		return UDIM;
 	};
