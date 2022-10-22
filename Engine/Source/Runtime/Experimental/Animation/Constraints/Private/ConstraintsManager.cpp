@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ConstraintsManager.h"
+#include "ConstraintsManager.inl"
 #include "ConstraintsActor.h"
 
 #include "Algo/Copy.h"
@@ -427,6 +427,7 @@ bool FConstraintsManagerController::AddConstraint(UTickableConstraint* InConstra
 
 	InConstraint->ConstraintTick.RegisterFunction(InConstraint->GetFunction());
 	InConstraint->ConstraintTick.RegisterTickFunction(World->GetCurrentLevel());
+	InConstraint->ConstraintTick.Constraint = InConstraint;
 
 	// notify
 	Notify(EConstraintsManagerNotifyType::ConstraintAdded, InConstraint);

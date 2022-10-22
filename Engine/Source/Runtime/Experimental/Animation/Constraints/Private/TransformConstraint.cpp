@@ -2,12 +2,182 @@
 
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
-#include "ConstraintsManager.h"
+#include "ConstraintsManager.inl"
 #include "TransformableRegistry.h"
 #include "GameFramework/Actor.h"
 #include "MovieSceneSection.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TransformConstraint)
+
+namespace
+{
+
+// ensure that InPossiblePrimary is not depending on InPossibleSecondary to avoid creating cycles 
+bool HasPrerequisiteDependencyWith(const FTickFunction* InSecondary, const FTickFunction* InPrimary)
+{
+	if (!InSecondary || !InPrimary)
+	{
+		return false;
+	}
+
+	// is InSecondary a Prereq of InPrimary?
+	const TArray<FTickPrerequisite>& Prerequisites = InPrimary->GetPrerequisites();
+	const bool bIsSecondaryAPrereq = Prerequisites.ContainsByPredicate([InSecondary](const FTickPrerequisite& Prereq)
+	{
+		const FTickFunction* PrereqFunction = Prereq.Get();
+		return PrereqFunction && (PrereqFunction == InSecondary);
+	});
+
+	if (bIsSecondaryAPrereq)
+	{
+		return true;
+	}
+
+	// otherwise, recurse
+	for (const FTickPrerequisite& Prerequisite : Prerequisites)
+	{
+		if (HasPrerequisiteDependencyWith(InSecondary, Prerequisite.Get()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+struct FConstraintCycleChecker
+{
+public:
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	using ConstraintArray = TArray<ConstraintPtr>;
+
+	/** Checks if this handle is cycle from a tick dependencies perspective. */
+	static bool IsCycling(const TObjectPtr<UTransformableHandle>& InHandle)
+	{
+		if (!IsValid(InHandle))
+		{
+			return false;
+		}
+
+		const FTickFunction* TickFunction = InHandle->GetTickFunction();
+		return HasPrerequisiteDependencyWith(TickFunction, TickFunction);
+	}
+
+	/** Checks for cycling constraints and manage tick dependencies if needed to avoid cycles from a tick dependency pov. */
+	static void CheckAndFixCycles(const UTickableTransformConstraint* InConstraint)
+	{
+		if (!IsValid(InConstraint))
+		{
+			return;
+		}
+
+		UWorld* World = InConstraint->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		// get child's tick function
+		FTickFunction* ChildTickFunction = InConstraint->GetChildHandleTickFunction();
+		if (!ChildTickFunction)
+		{
+			return;
+		}
+
+		// filter for all constraints where the parent's tick function equals ChildTickFunction
+		auto Predicate = [ChildTickFunction](const ConstraintPtr& InConstraint)
+		{
+			const UTickableTransformConstraint* TransformConst = Cast<UTickableTransformConstraint>(InConstraint.Get());
+			if (!TransformConst)
+			{
+				return false;
+			}
+
+			const FTickFunction* ParentTickFunction = TransformConst->GetParentHandleTickFunction();
+			return ParentTickFunction && ParentTickFunction == ChildTickFunction;
+		};
+
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+		const ConstraintArray CyclingConstraints = Controller.GetConstraintsByPredicate(Predicate);
+		if (CyclingConstraints.IsEmpty())
+		{
+			return;
+		}
+
+		// check if they can cause a cycle and manage dependencies if that's the case
+		for (const ConstraintPtr& Constraint: CyclingConstraints)
+		{
+			if (HasPrerequisiteDependencyWith(&Constraint->ConstraintTick, &InConstraint->ConstraintTick))
+			{
+				UpdateCyclingDependency(World, Cast<UTickableTransformConstraint>(Constraint));
+			}
+		}
+	}
+	
+private:
+
+	/**
+	 * Manage tick dependencies if needed to avoid cycles from a tick dependency pov.
+	 * Both InConstraintToUpdate and its parent handle are supposed valid at this point
+	 */
+	static void UpdateCyclingDependency(UWorld* InWorld, UTickableTransformConstraint* InConstraintToUpdate)
+	{
+		// nothing to do if this constraint doesn't tick
+		if (!InConstraintToUpdate->ConstraintTick.IsTickFunctionEnabled())
+		{
+			return;
+		}
+		
+		const TObjectPtr<UTransformableHandle>& ParentHandle = InConstraintToUpdate->ParentTRSHandle;
+		UObject* TargetObject = ParentHandle->GetPrerequisiteObject();
+
+		// filter for all constraints where the child's target object equals ChildTickFunction
+		auto Predicate = [TargetObject](const ConstraintPtr& InConstraint)
+		{
+			const UTickableTransformConstraint* TransformConst = Cast<UTickableTransformConstraint>(InConstraint.Get());
+			if (!TransformConst)
+			{
+				return false;
+			}
+
+			const TObjectPtr<UTransformableHandle>& ChildHandle = TransformConst->ChildTRSHandle;
+			if (!IsValid(ChildHandle) || !ChildHandle->IsValid())
+			{
+				return false;
+			}
+			
+			const UObject* ChildPrereqObject = ChildHandle->GetPrerequisiteObject();
+			return IsValid(ChildPrereqObject) && (ChildPrereqObject == TargetObject);
+		};
+
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+		const ConstraintArray ParentConstraints = Controller.GetConstraintsByPredicate(Predicate, true);
+
+		// check if there's any active constraint in ParentConstraints
+		const bool bHasActiveParentConstraint = ParentConstraints.ContainsByPredicate([](const ConstraintPtr& Constraint)
+		{
+			return IsValid(Constraint) && Constraint->IsFullyActive(); 
+		});
+
+		// update the constraint prerequisites based on the result
+		if (FTickFunction* TargetTickFunction = InConstraintToUpdate->GetParentHandleTickFunction())
+		{
+			if (bHasActiveParentConstraint)
+			{
+				// UE_LOG(LogTemp, Warning, TEXT("REMOVE %s prerex on %s."), *TargetObject->GetName(), *InConstraintToUpdate->GetName());
+				InConstraintToUpdate->ConstraintTick.RemovePrerequisite(TargetObject, *TargetTickFunction);
+			}
+			else
+			{
+				// UE_LOG(LogTemp, Warning, TEXT("ADD %s prerex on %s."), *TargetObject->GetName(), *InConstraintToUpdate->GetName());
+				InConstraintToUpdate->ConstraintTick.AddPrerequisite(TargetObject, *TargetTickFunction);
+			}
+		}
+	}
+};
+	
+}
 
 /** 
  * UTickableTransformConstraint
@@ -163,25 +333,8 @@ void UTickableTransformConstraint::Setup()
 
 void UTickableTransformConstraint::SetupDependencies()
 {
-	auto GetTickableFunction = [this](const TObjectPtr<UTransformableHandle>& InHandle) -> FTickFunction*
-	{
-		if (!IsValid(InHandle) || !InHandle->IsValid())
-		{
-			return nullptr;
-		}
-
-		// avoid creating dependencies between functions that are registered in levels that don't leave in the same world 
-		const UObject* PrerequisiteObject = InHandle->GetPrerequisiteObject();
-		if (!PrerequisiteObject || PrerequisiteObject->GetWorld() != GetWorld())
-		{
-			return nullptr;
-		}
-		
-		return InHandle->GetTickFunction();
-	};
-	
-	FTickFunction* ParentTickFunction = GetTickableFunction(ParentTRSHandle);
-	FTickFunction* ChildTickFunction = GetTickableFunction(ChildTRSHandle);
+	FTickFunction* ParentTickFunction = GetParentHandleTickFunction();
+	FTickFunction* ChildTickFunction = GetChildHandleTickFunction();
 	
 	if (ParentTickFunction && (ChildTickFunction != ParentTickFunction))
 	{
@@ -198,6 +351,34 @@ void UTickableTransformConstraint::SetupDependencies()
 		// Note that this might not register anything if the child can't tick (static meshes for instance)
 		ChildTickFunction->AddPrerequisite(this, ConstraintTick);
 	}
+}
+
+void UTickableTransformConstraint::EnsurePrimaryDependency()
+{
+	const FTickFunction* ParentTickFunction = GetParentHandleTickFunction();
+	const FTickFunction* ChildTickFunction = GetChildHandleTickFunction();
+	if (ParentTickFunction && (ChildTickFunction != ParentTickFunction))
+	{
+		const TArray<FTickPrerequisite>& ParentPrerequisites = ConstraintTick.GetPrerequisites();
+		if (ParentPrerequisites.IsEmpty())
+		{
+			// if the constraint has no prerex at this stage, this means that the parent tick function
+			// is not registered or can't tick (static meshes for instance) so look for the first parent tick function if any.
+			// In a context of adding several constraints, we want to make sure that the evaluation order is the right one
+			FTickPrerequisite PrimaryPrerex = ParentTRSHandle->GetPrimaryPrerequisite();
+			if (FTickFunction* PotentialFunction = PrimaryPrerex.Get())
+			{
+				UObject* Target = PrimaryPrerex.PrerequisiteObject.Get();
+				ConstraintTick.AddPrerequisite(Target, *PotentialFunction);
+			}
+		}
+	}
+}
+
+void UTickableTransformConstraint::OnActiveStateChanged() const
+{
+	// tick dependencies might need to be updated when dealing with cycles (than can be created between two controls for example) 
+	FConstraintCycleChecker::CheckAndFixCycles(this);
 }
 
 void UTickableTransformConstraint::PostLoad()
@@ -222,6 +403,11 @@ void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
 
 	SetupDependencies();
 	RegisterDelegates();
+
+	if (bDuplicateForPIE)
+	{
+		EnsurePrimaryDependency();
+	}
 }
 
 uint32 UTickableTransformConstraint::GetTargetHash() const
@@ -293,6 +479,16 @@ void UTickableTransformConstraint::Evaluate(bool bTickHandlesAlso) const
 	}
 }
 
+void UTickableTransformConstraint::SetActive(const bool bIsActive)
+{
+	const bool bNeedsUpdate = (Active != bIsActive) || (bIsActive != ConstraintTick.IsTickFunctionEnabled());
+	Super::SetActive(bIsActive);
+	
+	if (bNeedsUpdate)
+	{
+		OnActiveStateChanged();
+	}
+}
 
 void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InGlobal) const
 {
@@ -357,6 +553,33 @@ bool UTickableTransformConstraint::NeedsCompensation() const
 {
 	// NOTE: this can be extended to something more complex if needed  
 	return true;
+}
+
+FTickFunction* UTickableTransformConstraint::GetChildHandleTickFunction() const 
+{
+	return GetHandleTickFunction(ChildTRSHandle); 
+}
+
+FTickFunction* UTickableTransformConstraint::GetParentHandleTickFunction() const 
+{
+	return GetHandleTickFunction(ParentTRSHandle); 
+}
+
+FTickFunction* UTickableTransformConstraint::GetHandleTickFunction(const TObjectPtr<UTransformableHandle>& InHandle) const 
+{
+	if (!IsValid(InHandle) || !InHandle->IsValid())
+	{
+		return nullptr;
+	}
+
+	// avoid creating dependencies between functions that are registered in levels that don't leave in the same world 
+	const UObject* PrerequisiteObject = InHandle->GetPrerequisiteObject();
+	if (!PrerequisiteObject || PrerequisiteObject->GetWorld() != GetWorld())
+	{
+		return nullptr;
+	}
+		
+	return InHandle->GetTickFunction();
 }
 
 /** 
@@ -1161,21 +1384,20 @@ namespace
 // we suppose that both InParentHandle and InChildHandle are safe to use
 bool HasConstraintDependencyWith(UWorld* InWorld, const UTransformableHandle* InParentHandle, const UTransformableHandle* InChildHandle)
 {
-	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
-	static constexpr bool bSorted = false;
-
-	using HandlePtr = TObjectPtr<UTransformableHandle>;
-	TArray<TObjectPtr<UTransformableHandle>> ParentHandles;
-	
 	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	using HandlePtr = TObjectPtr<UTransformableHandle>;
+
+	static constexpr bool bSorted = false;
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
 	const TArray<ConstraintPtr> Constraints = Controller.GetParentConstraints(InParentHandle->GetHash(), bSorted);
 
 	// get parent handles
+	TArray< HandlePtr > ParentHandles;
 	for (const ConstraintPtr& Constraint: Constraints)
 	{
 		if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint.Get()))
 		{
-			if (TransformConstraint->ParentTRSHandle)
+			if (IsValid(TransformConstraint->ParentTRSHandle))
 			{
 				ParentHandles.Add(TransformConstraint->ParentTRSHandle);
 			}
@@ -1349,24 +1571,7 @@ bool FTransformConstraintUtils::AddConstraint(
 	}
 
 	// make sure we tick after the parent.
-	const FTickFunction* ParentTickFunction = InParentHandle->GetTickFunction();
-	const FTickFunction* ChildTickFunction = InChildHandle->GetTickFunction();
-	if (ParentTickFunction && (ChildTickFunction != ParentTickFunction))
-	{
-		const TArray<FTickPrerequisite>& ParentPrerequisites =  Constraint->ConstraintTick.GetPrerequisites();
-		if (ParentPrerequisites.IsEmpty())
-		{
-			// if the constraint has no prerex at this stage, this means that the parent tick function
-			// is not registered or can't tick (static meshes for instance) so look for the first parent tick function if any.
-			// In a context of adding several constraints, we want to make sure that the evaluation order is the right one
-			FTickPrerequisite PrimaryPrerex = InParentHandle->GetPrimaryPrerequisite();
-			if (FTickFunction* PotentialFunction = PrimaryPrerex.Get())
-			{
-				UObject* Target = PrimaryPrerex.PrerequisiteObject.Get();
-				Constraint->ConstraintTick.AddPrerequisite(Target, *PotentialFunction);
-			}
-		}
-	}
+	Constraint->EnsurePrimaryDependency();
 
 	// if child handle is the parent of some other constraints, ensure they will tick after that new one
 	TArray<TObjectPtr<UTickableConstraint>> ChildChildConstraints;
@@ -1375,7 +1580,13 @@ bool FTransformConstraintUtils::AddConstraint(
 	{
 		Controller.SetConstraintsDependencies( NewConstraintName, ChildConstraint->GetFName());
 	}
-	
+
+	// warn for possible cycles
+	if (FConstraintCycleChecker::IsCycling(InChildHandle))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("A cycle has been formed while creating %s."), *NewConstraintName.ToString());
+	}
+
 	return true;
 }
 
@@ -1566,15 +1777,11 @@ void FTransformConstraintUtils::GetChildrenConstraints(
 	const UTransformableHandle* InParentHandle,
 	TArray< TObjectPtr<UTickableConstraint> >& OutConstraints)
 {
-	const uint32 ParentHash = InParentHandle->GetHash();
-
-	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-
 	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
-	const TArray<ConstraintPtr>& AllConstraints = Controller.GetConstraintsArray();
-
-	const TArray<ConstraintPtr> FilteredConstraints =
-	AllConstraints.FilterByPredicate( [ParentHash](const ConstraintPtr& Constraint)
+	
+	// filter for transform constraints where the InParentHandle is the parent (based on its hash value)
+	const uint32 ParentHash = InParentHandle->GetHash();
+	auto Predicate = [ParentHash](const ConstraintPtr& Constraint)
 	{
 		const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint.Get());
 		if (!TransformConstraint)
@@ -1588,8 +1795,10 @@ void FTransformConstraintUtils::GetChildrenConstraints(
 		}
 
 		return false;
-	} );
+	};
 
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);	
+	const TArray<ConstraintPtr> FilteredConstraints = Controller.GetConstraintsByPredicate(Predicate);
 	OutConstraints.Append(FilteredConstraints);
 }
 

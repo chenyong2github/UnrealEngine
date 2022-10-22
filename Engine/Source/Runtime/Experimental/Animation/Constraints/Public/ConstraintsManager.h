@@ -86,7 +86,7 @@ public:
 	FConstraintTickFunction ConstraintTick;
 
 	/** Sets the Active value and enable/disable the tick function. */
-	void SetActive(const bool bIsActive);
+	virtual void SetActive(const bool bIsActive);
 	
 	/** Get whether or not it's fully active, it's set to active and all pieces are set up,e.g. objects really exist that are being constrainted*/
 	virtual bool IsFullyActive() const;
@@ -212,22 +212,9 @@ public:
 	/** @todo document */
 	static FConstraintsManagerController& Get(UWorld* InWorld);
 
-	/** @todo document */
+	/** Allocates a new constraint with the constraints manager as the owner. */
 	template< typename TConstraint >
-	TConstraint* AllocateConstraintT(const FName& InBaseName) const
-	{
-		UConstraintsManager* Manager = GetManager();
-		if (!Manager)
-		{
-			return nullptr;
-		}
-		// unique name (we may want to use another approach here to manage uniqueness)
-		const FName Name = MakeUniqueObjectName(Manager, TConstraint::StaticClass(), InBaseName);
-
-		TConstraint* NewConstraint = NewObject<TConstraint>(Manager, Name, RF_Transactional);
-		NewConstraint->Modify();
-		return NewConstraint;
-	}
+	TConstraint* AllocateConstraintT(const FName& InBaseName) const;
 
 	/** Add this constraint to the manager */
 	bool AddConstraint(UTickableConstraint* InConstraint) const;
@@ -244,17 +231,21 @@ public:
 	/** Remove the constraint at the given index. */
 	bool RemoveConstraint(const int32 InConstraintIndex, bool bDoNotCompensate = false) const;
 
-	/** @todo document */
+	/** Returns the constraint based on it's name within the manager's constraints array. */
 	UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
 
-	/** @todo document */
+	/** Returns the constraint based on it's index within the manager's constraints array. */
 	UTickableConstraint* GetConstraint(const int32 InConstraintIndex) const;
 	
 	/** Get read-only access to the array of constraints. */
 	const TArray< TObjectPtr<UTickableConstraint> >& GetConstraintsArray() const;
 
-	/** @todo document */
+	/** Returns manager's constraints array (sorted if needed). */
 	TArray< TObjectPtr<UTickableConstraint> > GetAllConstraints(const bool bSorted = false) const;
+
+	/** Returns a filtered constraints array checking if the predicate for each element is true. */
+	template <typename Predicate>
+	TArray< TObjectPtr<UTickableConstraint> > GetConstraintsByPredicate(Predicate Pred, const bool bSorted = false) const;
 
 	/** Get parent constraints of the specified child. If bSorted is true, then the constraints will be sorted by dependency. */
 	TArray< TObjectPtr<UTickableConstraint> > GetParentConstraints(

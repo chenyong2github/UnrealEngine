@@ -81,6 +81,7 @@ void AConstraintsActor::RegisterConstraintsTickFunctions() const
 			for (TObjectPtr<UTickableConstraint> ConstPtr: ConstraintsManager->Constraints)
 			{
 				ConstPtr->ConstraintTick.RegisterTickFunction(Level);
+				ConstPtr->ConstraintTick.Constraint = ConstPtr;
 			}
 		}
 	}

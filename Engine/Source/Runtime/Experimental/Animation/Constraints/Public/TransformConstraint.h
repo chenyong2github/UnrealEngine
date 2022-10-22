@@ -14,9 +14,6 @@ class UTransformableComponentHandle;
 class USceneComponent;
 enum class EMovieSceneTransformChannel : uint32;
 
-using SetTransformFunc = TFunction<void(const FTransform&)>;
-using GetTransformFunc = TFunction<FTransform()>;
-
 /** 
  * UTickableTransformConstraint
  **/
@@ -58,6 +55,9 @@ public:
 	/** Override the evaluate so we can tick our handles*/
 	virtual void Evaluate(bool bTickHandlesAlso = false) const override;
 
+	/** Sets the Active value and enable/disable the tick function. */
+	virtual void SetActive(const bool bIsActive) override;
+	
 	/** The transformable handle representing the parent of that constraint. */
 	UPROPERTY(BlueprintReadWrite, Category = "Handle")
 	TObjectPtr<UTransformableHandle> ParentTRSHandle;
@@ -104,6 +104,15 @@ public:
 	*/
 	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent);
 
+	/** Returns the handles tick function (ensuring it lives in the same world). */
+	FTickFunction* GetChildHandleTickFunction() const;
+	FTickFunction* GetParentHandleTickFunction() const;
+
+	/**
+	* Sets up dependencies with the first primary prerequisite available if the parent does not tick.   
+	*/
+	void EnsurePrimaryDependency();
+	
 protected:
 
 	/** Registers/Unregisters useful delegates for both child and parent handles. */
@@ -122,7 +131,7 @@ protected:
 	 * It creates a dependency graph between them so that they tick in the right order when evaluated.   
 	*/
 	void SetupDependencies();
-	
+
 	/** Set the current child's global transform. */
 	void SetChildGlobalTransform(const FTransform& InGlobal) const;
 	
@@ -132,6 +141,12 @@ protected:
 	/** Defines the constraint's type (Position, Parent, Aim...). */
 	UPROPERTY()
 	ETransformConstraintType Type = ETransformConstraintType::Parent;
+
+	/** Handle active state modification if needed. */
+	void OnActiveStateChanged() const;
+
+	/** Returns the handle's tick function (ensuring it lives in the same world). */
+	FTickFunction* GetHandleTickFunction(const TObjectPtr<UTransformableHandle>& InHandle) const;
 
 #if WITH_EDITOR
 public:
