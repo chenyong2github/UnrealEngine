@@ -136,12 +136,6 @@ namespace mu
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshReshape::SetDeformAllBones(bool bEnable)
-	{
-		m_pD->m_deformAllBones = bEnable;
-	}
-
-	//---------------------------------------------------------------------------------------------
 	void NodeMeshReshape::SetDeformAllPhysics(bool bEnable)
 	{
 		m_pD->m_deformAllPhysics = bEnable;

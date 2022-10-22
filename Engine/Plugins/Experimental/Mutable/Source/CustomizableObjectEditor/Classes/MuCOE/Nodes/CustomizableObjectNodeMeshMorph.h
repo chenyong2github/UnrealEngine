@@ -17,6 +17,7 @@ class UCustomizableObjectNodeRemapPins;
 class UEdGraphPin;
 class UObject;
 struct FMeshReshapeBoneReference;
+enum class EBoneDeformSelectionMethod : uint8;
 
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshMorph : public UCustomizableObjectNode
@@ -51,6 +52,8 @@ public:
 		return FindPin(TEXT("Factor"));
 	}
 
+	void Serialize(FArchive& Ar) override;
+
 	UPROPERTY(Category=CustomizableObject, EditAnywhere)
 	FString MorphTargetName;
 
@@ -61,13 +64,17 @@ public:
 	/** Enable the deformation of physics volumes of the base mesh */
     UPROPERTY(EditAnywhere, Category = CustomizableObject)
     bool bReshapePhysicsVolumes = false;
+
+	/** Bone Reshape Selection Method */
+	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta = (EditCondition = "bReshapeSkeleton"))
+	EBoneDeformSelectionMethod SelectionMethod;
 	
 	/** Enables the deformation of all bones of the skeleton */
-	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta=(EditCondition="bReshapeSkeleton"))
-	bool bDeformAllBones = false;
+	UPROPERTY()
+	bool bDeformAllBones_DEPRECATED = false;
 
-	/** Array with bones that will be deformed */
-	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta=(EditCondition="bReshapeSkeleton && !bDeformAllBones"))
+	/** Array with selected bones that will be deformed */
+	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta = (EditCondition = "bReshapeSkeleton && (SelectionMethod == EBoneDeformSelectionMethod::ONLY_SELECTED || SelectionMethod == EBoneDeformSelectionMethod::ALL_BUT_SELECTED)"))
 	TArray<FMeshReshapeBoneReference> BonesToDeform;
 
 	UPROPERTY(EditAnywhere, Category = ReshapePhysics, meta = (EditCondition="bReshapePhysicsVolumes"))

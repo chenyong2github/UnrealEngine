@@ -59,6 +59,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		DescriptorBuildParameterDecorations,
 
 		DescriptorMultilayerProjectors,
+
+		DeformSkeletonOptionsAdded,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

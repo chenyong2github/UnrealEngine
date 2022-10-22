@@ -848,9 +848,9 @@ bool UCustomizableObjectNodeTable::CheckPinUpdated(const FString& PinName, const
 }
 
 
-USkeletalMesh* UCustomizableObjectNodeTable::GetSkeletalMeshAt(const UEdGraphPin* Pin, int32 RowIndex) const
+USkeletalMesh* UCustomizableObjectNodeTable::GetSkeletalMeshAt(const UEdGraphPin* Pin, const FName& RowName) const
 {
-	if (!Table || !Table->GetRowStruct() || !Pin || !Table->GetRowNames().IsValidIndex(RowIndex))
+	if (!Table || !Table->GetRowStruct() || !Pin || !Table->GetRowNames().Contains(RowName))
 	{
 		return nullptr;
 	}
@@ -859,8 +859,6 @@ USkeletalMesh* UCustomizableObjectNodeTable::GetSkeletalMeshAt(const UEdGraphPin
 	const UScriptStruct* TableStruct = Table->GetRowStruct();
 
 	FString ColumnName = GetColumnNameByPin(Pin);
-
-	FName RowName = Table->GetRowNames()[RowIndex];
 
 	for (TFieldIterator<FProperty> It(TableStruct); It; ++It)
 	{

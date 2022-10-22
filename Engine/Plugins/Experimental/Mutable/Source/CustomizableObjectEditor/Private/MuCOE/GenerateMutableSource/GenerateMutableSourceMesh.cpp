@@ -1681,7 +1681,7 @@ mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, 
 }
 
 
-mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FString& MorphTargetName, FMutableGraphGenerationContext & GenerationContext, int32 RowIndex)
+mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FString& MorphTargetName, FMutableGraphGenerationContext & GenerationContext, const FName& RowName)
 {
 	check(BaseSourcePin);
 	SCOPED_PIN_DATA(GenerationContext, BaseSourcePin)
@@ -1710,7 +1710,7 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 	else if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast<UCustomizableObjectNodeTable>(Node))
 	{
 		TypedNodeTable->GetPinLODAndMaterial(BaseSourcePin, LODIndex, SectionIndex);
-		SkeletalMesh = TypedNodeTable->GetSkeletalMeshAt(BaseSourcePin, RowIndex);
+		SkeletalMesh = TypedNodeTable->GetSkeletalMeshAt(BaseSourcePin, RowName);
 	}
 
 	if (SkeletalMesh)
@@ -1837,6 +1837,7 @@ void GenerateMorphFactor(const UCustomizableObjectNode* Node, const UEdGraphPin&
 	}
 }
 
+
 TArray<USkeletalMesh*> GetSkeletalMeshesForReshapeSelection(
 		const UEdGraphNode* SkeletalMeshOrTableNode, const UEdGraphPin* SourceMeshPin)
 {
@@ -1858,11 +1859,9 @@ TArray<USkeletalMesh*> GetSkeletalMeshesForReshapeSelection(
 	{
 		if (TableNode->Table)
 		{
-			uint32 NumRows = TableNode->Table->GetRowNames().Num();
-
-			for (uint32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
+			for (const FName& RowName : TableNode->GetRowNames())
 			{
-				USkeletalMesh* SkeletalMesh = TableNode->GetSkeletalMeshAt(SourceMeshPin, RowIndex);
+				USkeletalMesh* SkeletalMesh = TableNode->GetSkeletalMeshAt(SourceMeshPin, RowName);
 
 				if (SkeletalMesh)
 				{
@@ -1879,45 +1878,121 @@ TArray<USkeletalMesh*> GetSkeletalMeshesForReshapeSelection(
 	return SkeletalMeshes;
 }
 
+
 bool GetAndValidateReshapeBonesToDeform(
 	TArray<FString>& OutBonesToDeform,
 	const TArray<FMeshReshapeBoneReference>& InBonesToDeform,
 	const TArray<USkeletalMesh*>& SkeletalMeshes,
 	const UCustomizableObjectNode* Node,
+	const EBoneDeformSelectionMethod SelectionMethod,
 	FMutableGraphGenerationContext& GenerationContext)
 {
 	bool bSetRefreshWarning = false;
 
-	int32 NumBonesToDeform = InBonesToDeform.Num();
-	for (int32 BoneIndex = 0; BoneIndex < NumBonesToDeform; ++BoneIndex)
+	if(SelectionMethod == EBoneDeformSelectionMethod::ONLY_SELECTED)
 	{
-		bool bMissingBone = true;
-		
-		const FName BoneName = InBonesToDeform[BoneIndex].BoneName;
+		int32 NumBonesToDeform = InBonesToDeform.Num();
+		for (int32 InBoneIndex = 0; InBoneIndex < NumBonesToDeform; ++InBoneIndex)
+		{
+			bool bMissingBone = true;
+
+			const FName BoneName = InBonesToDeform[InBoneIndex].BoneName;
+
+			for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+			{
+				int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
+				if (BoneIndex != INDEX_NONE)
+				{
+					if (SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
+					{
+						OutBonesToDeform.AddUnique(BoneName.ToString());
+					}
+
+					bMissingBone = false;
+					break;
+				}
+			}
+
+			if (bMissingBone)
+			{
+				FString msg = FString::Printf(TEXT("Could not find the selected Bone to Deform [%s] in Skeleton"), *(BoneName.ToString()));
+
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node);
+
+				bSetRefreshWarning = true;
+			}
+		}
+	}
+
+	else if (SelectionMethod == EBoneDeformSelectionMethod::ALL_BUT_SELECTED)
+	{
+		for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+		{
+			int32 NumBonesToDeform = SkeletalMesh->GetRefSkeleton().GetNum();
+
+			for (int32 BoneIndex = 0; BoneIndex < NumBonesToDeform; ++BoneIndex)
+			{
+				FName BoneName = SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
+				bool bFound = false;
+				int32 InNumBonesToDeform = InBonesToDeform.Num();
+
+				for (int32 InBoneIndex = 0; InBoneIndex < InNumBonesToDeform; ++InBoneIndex)
+				{
+					if (InBonesToDeform[InBoneIndex].BoneName == BoneName)
+					{
+						bFound = true;
+						break;
+					}
+				}
+
+				if (!bFound && SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
+				{
+					OutBonesToDeform.AddUnique(BoneName.ToString());
+				}
+			}
+		}
+	}
+
+	else if (SelectionMethod == EBoneDeformSelectionMethod::DEFORM_REF_SKELETON)
+	{
+		// Getting reference skeleton from the reference skeletal mesh of the current component
+		const FReferenceSkeleton RefSkeleton = GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton();
+		int32 NumBones = RefSkeleton.GetNum();
+
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		{
+			if (RefSkeleton.GetParentIndex(BoneIndex) != INDEX_NONE)
+			{
+				OutBonesToDeform.AddUnique(RefSkeleton.GetBoneName(BoneIndex).ToString());
+			}
+		}
+	}
+
+	else if (SelectionMethod == EBoneDeformSelectionMethod::DEFORM_NONE_REF_SKELETON)
+	{
+		// Getting reference skeleton from the reference skeletal mesh of the current component
+		const FReferenceSkeleton RefSkeleton = GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton();
 
 		for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
 		{
-			if (SkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName) != INDEX_NONE)
+			int32 NumBones = SkeletalMesh->GetRefSkeleton().GetNum();
+
+			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
-				OutBonesToDeform.AddUnique(BoneName.ToString());
+				FName BoneName = SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
-				bMissingBone = false;
-				break;
+				if (RefSkeleton.FindBoneIndex(BoneName) == INDEX_NONE 
+					&& SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
+				{
+					OutBonesToDeform.AddUnique(BoneName.ToString());
+				}
 			}
-		}
-
-		if (bMissingBone)
-		{
-			FString msg = FString::Printf(TEXT("Could not find the selected Bone to Deform [%s] in Skeleton"), *(BoneName.ToString()));
-
-			GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node);
-
-			bSetRefreshWarning = true;
 		}
 	}
 
 	return bSetRefreshWarning;
 }
+
 
 bool GetAndValidateReshapePhysicsToDeform(
 	TArray<FString>& OutPhysiscsToDeform,
@@ -1981,6 +2056,7 @@ bool GetAndValidateReshapePhysicsToDeform(
 	return bSetRefreshWarning;
 }
 
+
 mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 	TArray<UCustomizableObjectNodeMeshMorph*> TypedNodeMorphs,
 	int32 MorphIndex,
@@ -2036,6 +2112,8 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 		for (int32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
 		{
+			const FName RowName = TypedNodeTable->GetRowNames()[RowIndex];
+
 			ColumnIndex = Table->FindColumn(TCHAR_TO_ANSI(*ColumnName));
 
 			if (ColumnIndex == -1)
@@ -2043,7 +2121,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 				ColumnIndex = Table->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 			}
 
-			mu::MeshPtr MorphedSourceTableMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex]->MorphTargetName, GenerationContext, RowIndex);
+			mu::MeshPtr MorphedSourceTableMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex]->MorphTargetName, GenerationContext, RowName);
 			Table->SetCell(ColumnIndex, RowIndex, MorphedSourceTableMesh.get());
 		}
 
@@ -2100,7 +2178,6 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 			UCustomizableObjectNodeMeshMorph* TypedMorphNode = TypedNodeMorphs[MorphIndex];
 
-			Result->SetDeformAllBones(TypedMorphNode->bDeformAllBones);
 			Result->SetDeformAllPhysics(TypedMorphNode->bDeformAllPhysicsBodies);
 			Result->SetReshapeSkeleton(TypedMorphNode->bReshapeSkeleton);
 			Result->SetReshapePhysicsVolumes(TypedMorphNode->bReshapePhysicsVolumes);	
@@ -2112,11 +2189,11 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 				TArray<USkeletalMesh*> SkeletalMeshesToDeform = GetSkeletalMeshesForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
 				
 				bool bWarningFound = false;
-				if (TypedMorphNode->bReshapeSkeleton && !TypedMorphNode->bDeformAllBones)
+				if (TypedMorphNode->bReshapeSkeleton)
 				{
 					TArray<FString> BonesToDeform;
 					bWarningFound = GetAndValidateReshapeBonesToDeform(
-						BonesToDeform, TypedMorphNode->BonesToDeform, SkeletalMeshesToDeform, TypedMorphNode, GenerationContext);
+						BonesToDeform, TypedMorphNode->BonesToDeform, SkeletalMeshesToDeform, TypedMorphNode, TypedMorphNode->SelectionMethod, GenerationContext);
 					
 					for (const FString& BoneName : BonesToDeform)
 					{
@@ -2794,7 +2871,6 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			MeshNode->SetReshapeSkeleton(TypedNodeReshape->bReshapeSkeleton);
 			MeshNode->SetReshapePhysicsVolumes(TypedNodeReshape->bReshapePhysicsVolumes);
 			MeshNode->SetEnableRigidParts(TypedNodeReshape->bEnableRigidParts);
-			MeshNode->SetDeformAllBones(TypedNodeReshape->bDeformAllBones);
 			MeshNode->SetDeformAllPhysics(TypedNodeReshape->bDeformAllPhysicsBodies);
 				
 			const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeReshape->BaseMeshPin());
@@ -2804,11 +2880,11 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			TArray<USkeletalMesh*> SkeletalMeshesToDeform = GetSkeletalMeshesForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
 
 			bool bWarningFound = false;
-			if (TypedNodeReshape->bReshapeSkeleton && !TypedNodeReshape->bDeformAllBones)
+			if (TypedNodeReshape->bReshapeSkeleton)
 			{
 				TArray<FString> BonesToDeform;
 				bWarningFound = GetAndValidateReshapeBonesToDeform(
-					BonesToDeform, TypedNodeReshape->BonesToDeform, SkeletalMeshesToDeform, TypedNodeReshape, GenerationContext);
+					BonesToDeform, TypedNodeReshape->BonesToDeform, SkeletalMeshesToDeform, TypedNodeReshape, TypedNodeReshape->SelectionMethod, GenerationContext);
 				
 				for (const FString& BoneName : BonesToDeform)
 				{

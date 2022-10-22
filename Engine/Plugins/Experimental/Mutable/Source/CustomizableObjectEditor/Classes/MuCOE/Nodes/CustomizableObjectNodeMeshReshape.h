@@ -17,6 +17,7 @@ class UCustomizableObjectNodeRemapPins;
 class UEdGraphPin;
 class UObject;
 struct FMeshReshapeBoneReference;
+enum class EBoneDeformSelectionMethod : uint8;
 
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeMeshReshape : public UCustomizableObjectNode
@@ -50,6 +51,8 @@ public:
 		return FindPin(TEXT("Target Shape"), EGPD_Input);
 	}
 
+	void Serialize(FArchive& Ar) override;
+
 	/** Enable the deformation of the skeleton of the base mesh. */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bReshapeSkeleton = false;	
@@ -62,12 +65,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bEnableRigidParts = false;
 
-	/** Enables the deformation of all bones of the skeleton */
-	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta=(EditCondition="bReshapeSkeleton"))
-	bool bDeformAllBones = false;
+	/** Bone Reshape Selection Method */
+	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta = (EditCondition = "bReshapeSkeleton"))
+	EBoneDeformSelectionMethod SelectionMethod;
 
-	/** Array with bones that will be deformed */
-	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta=(EditCondition="bReshapeSkeleton && !bDeformAllBones"))
+	/** Enables the deformation of all bones of the skeleton */
+	UPROPERTY()
+	bool bDeformAllBones_DEPRECATED = false;
+
+	/** Array with selected bones that will be deformed */
+	UPROPERTY(EditAnywhere, Category = ReshapeBones, meta = (EditCondition = "bReshapeSkeleton && (SelectionMethod == EBoneDeformSelectionMethod::ONLY_SELECTED || SelectionMethod == EBoneDeformSelectionMethod::ALL_BUT_SELECTED)"))
 	TArray<FMeshReshapeBoneReference> BonesToDeform;
 
 	/** Enables the deformation of all physic bodies*/
@@ -75,7 +82,7 @@ public:
 	bool bDeformAllPhysicsBodies = false;
 
 	/** Array with bones with physics bodies that will be deformed */
-	UPROPERTY(EditAnywhere, Category = ReshapePhysics, meta=(EditCondition="bReshapePhysicsVolumes && !bDeformAllPhysicsBodies"))
+	UPROPERTY(EditAnywhere, Category = ReshapePhysics, meta = (EditCondition = "bReshapePhysicsVolumes && !bDeformAllPhysicsBodies"))
 	TArray<FMeshReshapeBoneReference> PhysicsBodiesToDeform;
 };
 

@@ -413,7 +413,7 @@ class Node;
 			// PhysicsBodies and the Skeleton.
             OpBind->m_reshapeVertices = false;
 		    OpBind->m_reshapeSkeleton = node.m_reshapeSkeleton;
-		    OpBind->m_deformAllBones = node.m_deformAllBones;
+		    OpBind->m_deformAllBones = false; //TODO: Remove deprecated var from node
 		    OpBind->m_bonesToDeform = node.m_bonesToDeform;
     	    OpBind->m_reshapePhysicsVolumes = node.m_reshapePhysicsVolumes; 
 			OpBind->m_physicsToDeform = node.m_physicsToDeform;
@@ -1401,7 +1401,7 @@ class Node;
 
 		opBind->m_reshapeSkeleton = node.m_reshapeSkeleton;
     	opBind->m_enableRigidParts = node.m_enableRigidParts;
-		opBind->m_deformAllBones = node.m_deformAllBones;
+		opBind->m_deformAllBones = false; //TODO: Remove deprecated var from node
 		opBind->m_bonesToDeform = node.m_bonesToDeform;
     	opBind->m_reshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
 		opBind->m_deformAllPhysics = node.m_deformAllPhysics;

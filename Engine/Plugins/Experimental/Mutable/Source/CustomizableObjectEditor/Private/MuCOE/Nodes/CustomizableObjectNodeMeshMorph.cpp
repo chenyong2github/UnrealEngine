@@ -143,5 +143,21 @@ FText UCustomizableObjectNodeMeshMorph::GetTooltipText() const
 }
 
 
+void UCustomizableObjectNodeMeshMorph::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FCustomizableObjectCustomVersion::GUID);
+
+	if (Ar.CustomVer(FCustomizableObjectCustomVersion::GUID) < FCustomizableObjectCustomVersion::DeformSkeletonOptionsAdded)
+	{
+		if (bDeformAllBones_DEPRECATED)
+		{
+			SelectionMethod = EBoneDeformSelectionMethod::ALL_BUT_SELECTED;
+			BonesToDeform.Empty();
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

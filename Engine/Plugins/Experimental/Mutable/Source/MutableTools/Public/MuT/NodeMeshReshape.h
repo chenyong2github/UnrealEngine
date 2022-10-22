@@ -59,9 +59,6 @@ namespace mu
 		/** Search for clusters of rigid parts and not deform them. */
 		void SetEnableRigidParts(bool);
 
-		/** Deform all the bones of the skeleton */
-		void SetDeformAllBones(bool);
-
 		/** Deform all the physiscs bodies */
 		void SetDeformAllPhysics(bool);
 

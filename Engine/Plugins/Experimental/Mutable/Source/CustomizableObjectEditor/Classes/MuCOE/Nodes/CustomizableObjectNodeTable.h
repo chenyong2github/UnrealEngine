@@ -234,7 +234,7 @@ public:
 	}
 
 	// We should do this in a template!
-	USkeletalMesh* GetSkeletalMeshAt(const UEdGraphPin* Pin, int32 RowIndex) const;
+	USkeletalMesh* GetSkeletalMeshAt(const UEdGraphPin* Pin, const FName& RowName) const;
 
 	// Return the name of the enabled rows in the data table.
 	// Returns the name if the row has a bool column set as false (true == disabled)
