@@ -1378,10 +1378,10 @@ ALandscape* ALandscapeStreamingProxy::GetLandscapeActor()
 	return LandscapeActor.Get();
 }
 
-ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo(bool bMapCheck)
+ULandscapeInfo* ALandscapeProxy::CreateLandscapeInfo(bool bMapCheck, bool bUpdateAllAddCollisions)
 {
 	ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(GetWorld(), LandscapeGuid);
-	LandscapeInfo->RegisterActor(this, bMapCheck);
+	LandscapeInfo->RegisterActor(this, bMapCheck, bUpdateAllAddCollisions);
 	return LandscapeInfo;
 }
 
@@ -2032,7 +2032,7 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 			ULandscapeComponent::CreateEmptyTextureMips(NewLayerHeightmap, true);
 
 			// Init Mip0 to be at 32768 which is equal to "0"
-			FColor* Mip0Data = (FColor*)NewLayerHeightmap->Source.LockMip(0);
+			TArrayView<FColor> Mip0Data((FColor*)NewLayerHeightmap->Source.LockMip(0), NewLayerHeightmap->Source.GetSizeX() * NewLayerHeightmap->Source.GetSizeY());
 
 			for (ULandscapeComponent* ComponentUsingHeightmap : InComponentsUsingHeightmap)
 			{
@@ -4119,7 +4119,7 @@ void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)>
 	}
 }
 
-void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
+void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool bUpdateAllAddCollisions)
 {
 	UWorld* OwningWorld = Proxy->GetWorld();
 	// do not pass here invalid actors
@@ -4223,7 +4223,10 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 #if WITH_EDITOR
 	UpdateLayerInfoMap(Proxy);
-	UpdateAllAddCollisions();
+	if(bUpdateAllAddCollisions)
+	{
+		UpdateAllAddCollisions();
+	}
 	RegisterSplineActor(Proxy);
 #endif // WITH_EDITOR
 

@@ -1720,7 +1720,7 @@ bool ULandscapeComponent::CanUpdatePhysicalMaterial()
 		return false;
 	}
 
-	return true;
+	return CollisionComponent != nullptr;
 }
 
 
