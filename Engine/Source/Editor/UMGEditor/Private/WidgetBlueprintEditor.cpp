@@ -67,6 +67,7 @@
 #include "Library/SLibraryViewModel.h"
 
 #include "DesktopPlatformModule.h"
+#include "Engine/MemberReference.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "IDesktopPlatform.h"
 #include "IImageWrapper.h"
@@ -82,6 +83,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
+#include "GraphEditorActions.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -195,6 +197,10 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 		FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::DuplicateSelectedWidgets),
 		FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::CanDuplicateSelectedWidgets)
 		);
+
+	DesignerCommandList->MapAction(FGraphEditorCommands::Get().FindReferences,
+		FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::OnFindWidgetReferences),
+		FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::CanFindWidgetReferences));
 
 	TSharedPtr<class IToolkitHost> PinnedToolkitHost = ToolkitHost.Pin();
 	check(PinnedToolkitHost.IsValid());
@@ -875,6 +881,24 @@ void FWidgetBlueprintEditor::DuplicateSelectedWidgets()
 		DuplicatedWidgetRefs.Add(GetReferenceFromPreview(Widget));
 	}
 	SelectWidgets(DuplicatedWidgetRefs, false);
+}
+
+void FWidgetBlueprintEditor::OnFindWidgetReferences()
+{
+	FWidgetReference WidgetReference = *GetSelectedWidgets().CreateConstIterator();
+	const FString VariableName = WidgetReference.GetTemplate()->GetName();
+
+	FMemberReference MemberReference;
+	MemberReference.SetSelfMember(*VariableName);
+	const FString SearchTerm = MemberReference.GetReferenceSearchString(GetBlueprintObj()->SkeletonGeneratedClass);
+
+	SetCurrentMode(FWidgetBlueprintApplicationModes::GraphMode);
+	SummonSearchUI(true, SearchTerm);
+}
+
+bool FWidgetBlueprintEditor::CanFindWidgetReferences() const
+{
+	return GetSelectedWidgets().Num() == 1 && GetSelectedWidgets().CreateConstIterator()->GetTemplate()->bIsVariable;
 }
 
 bool FWidgetBlueprintEditor::CanCreateNativeBaseClass() const

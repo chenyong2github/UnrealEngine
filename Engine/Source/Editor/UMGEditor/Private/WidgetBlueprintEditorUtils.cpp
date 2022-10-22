@@ -54,6 +54,7 @@
 #include "Rendering/SlateDrawBuffer.h"
 #include "Slate/WidgetRenderer.h"
 #include "Widgets/SVirtualWindow.h"
+#include "GraphEditorActions.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -377,18 +378,19 @@ void FWidgetBlueprintEditorUtils::CreateWidgetContextMenu(FMenuBuilder& MenuBuil
 	TSet<FWidgetReference> Widgets = BlueprintEditor->GetSelectedWidgets();
 	UWidgetBlueprint* BP = BlueprintEditor->GetWidgetBlueprintObj();
 
-	MenuBuilder.PushCommandList(BlueprintEditor->DesignerCommandList.ToSharedRef());
-
 	MenuBuilder.BeginSection("Edit", LOCTEXT("Edit", "Edit"));
 	{
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
-	}
-	MenuBuilder.PopCommandList();
-	{
+		MenuBuilder.PushCommandList(BlueprintEditor->DesignerCommandList.ToSharedRef());
+		{
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+			MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
+		}
+		MenuBuilder.PopCommandList();
+
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
 	}
 	MenuBuilder.EndSection();

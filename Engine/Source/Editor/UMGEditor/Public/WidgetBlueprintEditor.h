@@ -339,6 +339,9 @@ private:
 	bool CanDuplicateSelectedWidgets();
 	void DuplicateSelectedWidgets();
 
+	void OnFindWidgetReferences();
+	bool CanFindWidgetReferences() const;
+
 	/** Is creating a native base class for the current widget blueprint allowed */
 	bool CanCreateNativeBaseClass() const;
 
