@@ -574,6 +574,8 @@ namespace Metasound
 
 		FGraphValidationResults FGraphBuilder::ValidateGraph(UObject& InMetaSound)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FGraphBuilder::ValidateGraph);
+
 			using namespace Frontend;
 
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
@@ -962,13 +964,13 @@ namespace Metasound
 			return Algo::AnyOf(EditorNodes, [](const UMetasoundEditorGraphNode* Node) { return Node->ErrorType == EMessageSeverity::Error; });
 		}
 
-		bool FGraphBuilder::SynchronizeNodeLocation(UMetasoundEditorGraphNode& InNode)
+		bool FGraphBuilder::SynchronizeNodeLocation(const Frontend::FConstNodeHandle& InNode, UMetasoundEditorGraphNode& OutGraphNode)
 		{
 			bool bModified = false;
 
-			const FMetasoundFrontendNodeStyle& Style = InNode.GetConstNodeHandle()->GetNodeStyle();
+			const FMetasoundFrontendNodeStyle& Style = InNode->GetNodeStyle();
 
-			const FVector2D* Location = Style.Display.Locations.Find(InNode.NodeGuid);
+			const FVector2D* Location = Style.Display.Locations.Find(OutGraphNode.NodeGuid);
 			if (!Location)
 			{
 				// If no specific location found, use default location if provided (zero guid
@@ -980,12 +982,12 @@ namespace Metasound
 			{
 				const int32 LocX = FMath::TruncToInt(Location->X);
 				const int32 LocY = FMath::TruncToInt(Location->Y);
-				const bool bXChanged = static_cast<bool>(LocX - InNode.NodePosX);
-				const bool bYChanged = static_cast<bool>(LocY - InNode.NodePosY);
+				const bool bXChanged = static_cast<bool>(LocX - OutGraphNode.NodePosX);
+				const bool bYChanged = static_cast<bool>(LocY - OutGraphNode.NodePosY);
 				if (bXChanged || bYChanged)
 				{
-					InNode.NodePosX = LocX;
-					InNode.NodePosY = LocY;
+					OutGraphNode.NodePosX = LocX;
+					OutGraphNode.NodePosY = LocY;
 					bModified = true;
 				}
 			}
@@ -2121,6 +2123,8 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizeGraph(UObject& InMetaSound)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FGraphBuilder::SynchronizeGraph);
+
 			using namespace Frontend;
 
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
@@ -2172,6 +2176,8 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizeNodeMembers(UObject& InMetaSound)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FGraphBuilder::SynchronizeNodeMembers);
+
 			using namespace Frontend;
 
 			bool bEditorGraphModified = false;
@@ -2248,6 +2254,8 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizeNodes(UObject& InMetaSound)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FGraphBuilder::SynchronizeNodes);
+
 			using namespace Frontend;
 
 			bool bEditorGraphModified = false;
@@ -2272,14 +2280,14 @@ namespace Metasound
 			struct FAssociatedNodes
 			{
 				TArray<UMetasoundEditorGraphNode*> EditorNodes;
-				FNodeHandle Node = Metasound::Frontend::INodeController::GetInvalidHandle();
+				FConstNodeHandle Node = Metasound::Frontend::INodeController::GetInvalidHandle();
 			};
 			TMap<FGuid, FAssociatedNodes> AssociatedNodes;
 
 			// Reverse iterate so paired nodes can safely be removed from the array.
 			for (int32 i = FrontendNodes.Num() - 1; i >= 0; i--)
 			{
-				FNodeHandle Node = FrontendNodes[i];
+				const FConstNodeHandle& Node = FrontendNodes[i];
 				bool bFoundEditorNode = false;
 				for (int32 j = EditorNodes.Num() - 1; j >= 0; --j)
 				{
@@ -2297,7 +2305,7 @@ namespace Metasound
 							AssociatedNodeData.Node = Node;
 						}
 
-						bEditorGraphModified |= SynchronizeNodeLocation(*EditorNode);
+						bEditorGraphModified |= SynchronizeNodeLocation(Node, *EditorNode);
 						AssociatedNodeData.EditorNodes.Add(EditorNode);
 						EditorNodes.RemoveAtSwap(j, 1, false /* bAllowShrinking */);
 					}
@@ -2321,7 +2329,7 @@ namespace Metasound
 			}
 
 			// Add missing editor nodes marked as visible.
-			for (FNodeHandle Node : FrontendNodes)
+			for (const FNodeHandle& Node : FrontendNodes)
 			{
 				const FMetasoundFrontendNodeStyle& CurrentStyle = Node->GetNodeStyle();
 				if (CurrentStyle.Display.Locations.IsEmpty())
@@ -2576,6 +2584,8 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizeGraphMembers(UObject& InMetaSound)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FGraphBuilder::SynchronizeGraphMembers);
+
 			using namespace Frontend;
 
 			bool bEditorGraphModified = false;

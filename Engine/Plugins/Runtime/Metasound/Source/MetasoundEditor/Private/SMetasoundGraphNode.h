@@ -4,6 +4,7 @@
 
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
+#include "MetasoundFrontendDocument.h"
 #include "Misc/Attribute.h"
 #include "SGraphNode.h"
 #include "SGraphNodeKnot.h"
@@ -86,6 +87,8 @@ namespace Metasound
 			// Whether the input widget is currently transacting 
 			// for keeping track of transaction state across delegates to only commit transaction on value commit
 			bool bIsInputWidgetTransacting = false;
+
+			EMetasoundFrontendClassType ClassType;
 		};
 
 		class SMetaSoundGraphNodeKnot : public SGraphNodeKnot

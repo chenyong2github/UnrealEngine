@@ -23,6 +23,7 @@
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendNodeTemplateRegistry.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "NodeFactory.h"
 #include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
@@ -83,14 +84,12 @@ namespace Metasound
 
 		bool SMetaSoundGraphNode::IsVariableAccessor() const
 		{
-			const EMetasoundFrontendClassType ClassType = GetMetaSoundNode().GetNodeHandle()->GetClassMetadata().GetType();
 			return ClassType == EMetasoundFrontendClassType::VariableAccessor
 				|| ClassType == EMetasoundFrontendClassType::VariableDeferredAccessor;
 		}
 
 		bool SMetaSoundGraphNode::IsVariableMutator() const
 		{
-			const EMetasoundFrontendClassType ClassType = GetMetaSoundNode().GetNodeHandle()->GetClassMetadata().GetType();
 			return ClassType == EMetasoundFrontendClassType::VariableMutator;
 		}
 
@@ -107,6 +106,9 @@ namespace Metasound
 		void SMetaSoundGraphNode::Construct(const FArguments& InArgs, class UEdGraphNode* InNode)
 		{
 			GraphNode = InNode;
+			Frontend::FConstNodeHandle NodeHandle = GetMetaSoundNode().GetConstNodeHandle();
+			ClassType = NodeHandle->GetClassMetadata().GetType();
+
 			SetCursor(EMouseCursor::CardinalCross);
 			UpdateGraphNode();
 		}
@@ -529,7 +531,6 @@ namespace Metasound
 			// TODO: Add tweak & add custom bodies
 			if (GraphNode)
 			{
-				const EMetasoundFrontendClassType ClassType = GetMetaSoundNode().GetNodeHandle()->GetClassMetadata().GetType();
 				switch (ClassType)
 				{
 					case EMetasoundFrontendClassType::Variable:

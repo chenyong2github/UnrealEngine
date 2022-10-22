@@ -274,7 +274,7 @@ namespace Metasound
 			// Synchronizes node location data using handle's data
 			//
 			// @return True if the UMetasoundEditorGraphNode was altered. False otherwise.
-			static bool SynchronizeNodeLocation(UMetasoundEditorGraphNode& InNode);
+			static bool SynchronizeNodeLocation(const Frontend::FConstNodeHandle& InNode, UMetasoundEditorGraphNode& OutGraphNode);
 
 			// Adds and removes pins so that the UMetasoundEditorGraphNode matches the InNode.
 			//

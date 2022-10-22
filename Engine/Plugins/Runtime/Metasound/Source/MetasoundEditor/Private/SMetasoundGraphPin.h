@@ -101,13 +101,37 @@ namespace Metasound
 				}
 			}
 
-		public:
-			SLATE_BEGIN_ARGS(TMetasoundGraphPin<ParentPinType>)
+			void CacheAccessType()
 			{
-			}
-			SLATE_END_ARGS()
+				AccessType = EMetasoundFrontendVertexAccessType::Unset;
 
-			virtual ~TMetasoundGraphPin() = default;
+				if (const UEdGraphPin* Pin = ParentPinType::GetPinObj())
+				{
+					if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
+					{
+						if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
+						{
+							if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberNode->GetMember()))
+							{
+								AccessType = Vertex->GetVertexAccessType();
+							}
+						}
+						else if (const UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Node))
+						{
+							if (Pin->Direction == EGPD_Input)
+							{
+								Frontend::FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+								AccessType = InputHandle->GetVertexAccessType();
+							}
+							else if (Pin->Direction == EGPD_Output)
+							{
+								Frontend::FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
+								AccessType = OutputHandle->GetVertexAccessType();
+							}
+						}
+					}
+				}
+			}
 
 			void CacheNodeOffset(const FGeometry& AllottedGeometry)
 			{
@@ -115,6 +139,16 @@ namespace Metasound
 				ParentPinType::CachedNodeOffset = FVector2D(AllottedGeometry.AbsolutePosition) / AllottedGeometry.Scale - UnscaledPosition;
 				ParentPinType::CachedNodeOffset.Y += AllottedGeometry.Size.Y * 0.5f;
 			}
+
+			EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Unset;
+
+		public:
+			SLATE_BEGIN_ARGS(TMetasoundGraphPin<ParentPinType>)
+			{
+			}
+			SLATE_END_ARGS()
+
+			virtual ~TMetasoundGraphPin() = default;
 
 			Frontend::FConstInputHandle GetConstInputHandle() const
 			{
@@ -291,34 +325,6 @@ namespace Metasound
 			virtual const FSlateBrush* GetPinIcon() const override
 			{
 				const bool bIsConnected = ParentPinType::IsConnected();
-				EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Unset;
-
-				if (const UEdGraphPin* Pin = ParentPinType::GetPinObj())
-				{
-					if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
-					{
-						if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
-						{
-							if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberNode->GetMember()))
-							{
-								AccessType = Vertex->GetVertexAccessType();
-							}
-						}
-						else if (const UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Node))
-						{
-							if (Pin->Direction == EGPD_Input)
-							{
-								Frontend::FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
-								AccessType = InputHandle->GetVertexAccessType();
-							}
-							else if (Pin->Direction == EGPD_Output)
-							{
-								Frontend::FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
-								AccessType = OutputHandle->GetVertexAccessType();
-							}
-						}
-					}
-				}
 
 				// Is constructor pin 
 				if (AccessType == EMetasoundFrontendVertexAccessType::Value)
@@ -363,6 +369,7 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
+				CacheAccessType();
 				SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 			}
 		};
@@ -374,6 +381,7 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
+				CacheAccessType();
 				SGraphPinBool::Construct(SGraphPinBool::FArguments(), InGraphPinObj);
 			}
 		};
@@ -385,6 +393,7 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
+				CacheAccessType();
 				SGraphPinNum<float>::Construct(SGraphPinNum<float>::FArguments(), InGraphPinObj);
 			}
 		};
@@ -396,6 +405,7 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
+				CacheAccessType();
 				SGraphPinInteger::Construct(SGraphPinInteger::FArguments(), InGraphPinObj);
 			}
 		};
@@ -407,6 +417,7 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
+				CacheAccessType();
 				SGraphPinObject::Construct(SGraphPinObject::FArguments(), InGraphPinObj);
 			}
 		};
@@ -418,6 +429,7 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
+				CacheAccessType();
 				SGraphPinString::Construct(SGraphPinString::FArguments(), InGraphPinObj);
 			}
 		};
@@ -434,7 +446,9 @@ namespace Metasound
 			virtual const FSlateBrush* GetPinIcon() const override;
 
 		protected:
-			bool HasRequiredConnections() const;
+			void CacheHasRequiredConnections();
+
+			bool bHasRequiredConnections = false;
 		};
 	} // namespace Editor
 } // namespace Metasound

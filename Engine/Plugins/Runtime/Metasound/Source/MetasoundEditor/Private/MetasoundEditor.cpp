@@ -2698,6 +2698,8 @@ namespace Metasound
 
 		void FEditor::RefreshDetails()
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FEditor::RefreshDetails);
+
 			using namespace Frontend;
 
 			if (MetasoundDetails.IsValid())
@@ -2708,6 +2710,8 @@ namespace Metasound
 
 		void FEditor::RefreshInterfaces()
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FEditor::RefreshInterfaces);
+
 			if (InterfacesDetails.IsValid())
 			{
 				InterfacesDetails->ForceRefresh();
@@ -2716,6 +2720,8 @@ namespace Metasound
 
 		void FEditor::RefreshGraphMemberMenu()
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FEditor::RefreshGraphMemberMenu);
+
 			if (GraphMembersMenu.IsValid())
 			{
 				TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
@@ -3154,6 +3160,7 @@ namespace Metasound
 
 		void FEditor::RefreshEditorContext()
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FEditor::RefreshEditorContext);
 			const bool bSynchronizedGraph = FGraphBuilder::SynchronizeGraph(*Metasound);
 
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
