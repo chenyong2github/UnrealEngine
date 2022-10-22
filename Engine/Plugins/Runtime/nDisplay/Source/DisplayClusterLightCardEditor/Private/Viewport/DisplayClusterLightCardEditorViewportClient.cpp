@@ -132,10 +132,7 @@ FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorVie
 	IDisplayClusterScenePreview::Get().DestroyRenderer(PreviewRendererId);
 
 	EndTransaction();
-	if (RootActorLevelInstance.IsValid())
-	{
-		RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
-	}
+	UnsubscribeFromRootActor();
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -219,6 +216,13 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 		{
 			DesiredLookAtLocation.Reset();
 		}
+	}
+
+	// The root actor could be stale if it was set during a re-instancing from a compile, but the editor should have the up-to-date actor.
+	if (RootActorLevelInstance.IsStale() && LightCardEditorPtr.IsValid() &&
+		(LightCardEditorPtr.Pin()->GetActiveRootActor().IsValid() || LightCardEditorPtr.Pin()->GetActiveRootActor().IsExplicitlyNull()))
+	{
+		UpdatePreviewActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get(), true);
 	}
 }
 
@@ -1168,6 +1172,26 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms(const F
 	}
 }
 
+void FDisplayClusterLightCardEditorViewportClient::SubscribeToRootActor()
+{
+	if (RootActorLevelInstance.IsValid())
+	{
+		const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+		RootActorLevelInstance->SubscribeToPostProcessRenderTarget(GenericThis);
+		RootActorLevelInstance->AddPreviewEnableOverride(GenericThis);
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::UnsubscribeFromRootActor()
+{
+	if (RootActorLevelInstance.IsValid())
+	{
+		const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+		RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(GenericThis);
+		RootActorLevelInstance->RemovePreviewEnableOverride(GenericThis);
+	}
+}
+
 void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	// Don't select light cards while drawing a new light card
@@ -1492,6 +1516,9 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 	if (RootActor == nullptr)
 	{
 		DestroyProxies(ProxyType);
+		UnsubscribeFromRootActor();
+		RootActorLevelInstance.Reset();
+		
 		Finalize();
 	}
 	else
@@ -1528,10 +1555,14 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				return;
 			}
 
-			const uint8* GenericThis = reinterpret_cast<uint8*>(this);
-			RootActorPtr->SubscribeToPostProcessRenderTarget(GenericThis);
-			RootActorPtr->AddPreviewEnableOverride(GenericThis);
+			if (RootActorLevelInstance.IsValid() && RootActorLevelInstance.Get() != RootActor)
+			{
+				UnsubscribeFromRootActor();
+			}
+			
 			RootActorLevelInstance = RootActorPtr;
+
+			SubscribeToRootActor();
 			
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
 				ProxyType == EDisplayClusterLightCardEditorProxyType::RootActor)
@@ -1690,14 +1721,6 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 		{
 			PreviewWorld->EditorDestroyActor(RootActorProxy.Get(), false);
 			RootActorProxy.Reset();
-		}
-
-		if (RootActorLevelInstance.IsValid())
-		{
-			const uint8* GenericThis = reinterpret_cast<uint8*>(this);
-			RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(GenericThis);
-			RootActorLevelInstance->RemovePreviewEnableOverride(GenericThis);
-			RootActorLevelInstance.Reset();
 		}
 	}
 	

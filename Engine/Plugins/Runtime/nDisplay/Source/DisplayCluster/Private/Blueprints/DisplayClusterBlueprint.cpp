@@ -20,6 +20,9 @@ UDisplayClusterBlueprint::UDisplayClusterBlueprint()
 	: ConfigData(nullptr), AssetVersion(0)
 {
 	BlueprintType = BPTYPE_Normal;
+#if WITH_EDITORONLY_DATA
+	bRunConstructionScriptOnInteractiveChange = false;
+#endif
 }
 
 #if WITH_EDITOR

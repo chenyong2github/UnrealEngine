@@ -15,7 +15,13 @@ class DISPLAYCLUSTER_API UDisplayClusterBlueprint : public UBlueprint
 
 public:
 	UDisplayClusterBlueprint();
-	
+
+#if WITH_EDITORONLY_DATA
+	/** Whether or not you want to continuously rerun the construction script while dragging a slider */
+	UPROPERTY(EditAnywhere, Category=BlueprintOptions)
+	uint8 bRunConstructionScriptOnInteractiveChange : 1;
+#endif
+
 #if WITH_EDITOR
 	// UBlueprint
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }

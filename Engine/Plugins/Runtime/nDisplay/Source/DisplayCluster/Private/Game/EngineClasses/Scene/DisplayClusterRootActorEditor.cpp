@@ -2,6 +2,7 @@
 
 #include "DisplayClusterRootActor.h"
 
+#include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/SceneComponent.h"
 #include "Components/DisplayClusterOriginComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
@@ -321,6 +322,8 @@ IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FSt
 
 bool ADisplayClusterRootActor::ImplUpdatePreviewConfiguration_Editor(const FString& InClusterNodeId)
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ADisplayClusterRootActor::ImplUpdatePreviewConfiguration_Editor"), STAT_ImplUpdatePreviewConfiguration_Editor, STATGROUP_NDisplay);
+	
 	PreviewRenderFrame.Reset();
 
 	if (IsPreviewEnabled() && ViewportManager.IsValid())
@@ -694,9 +697,6 @@ static FName Name_RelativeScale3D = USceneComponent::GetRelativeScale3DPropertyN
 
 void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	// any property update causes a DCRA rebuild. Restore preview material show
-	ResetPreviewComponents_Editor(true);
-
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	
 	// The AActor method, simplified and modified to skip construction scripts.
@@ -731,18 +731,23 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	bool bReinitializeActor = true;
 	bool bCanSkipConstructionScripts = false;
-	if (const UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(GetClass()))
+	bool bResetPreviewComponents = false;
+	if (const UDisplayClusterBlueprint* Blueprint = Cast<UDisplayClusterBlueprint>(UBlueprint::GetBlueprintFromClass(GetClass())))
 	{
-		bCanSkipConstructionScripts = !Blueprint->bRunConstructionScriptOnDrag;
+		bCanSkipConstructionScripts = !Blueprint->bRunConstructionScriptOnInteractiveChange;
 	}
 	
 	if (bCanSkipConstructionScripts && PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive && !CurrentTransactionAnnotation.IsValid())
 	{
 		// Avoid calling construction scripts when the change occurs while the user is dragging a slider.
 		SuperCallWithoutConstructionScripts();
+		bReinitializeActor = false;
 	}
 	else
 	{
+		// any property update causes a DCRA rebuild. Restore preview material show
+		ResetPreviewComponents_Editor(true);
+		bResetPreviewComponents = true;
 		Super::PostEditChangeProperty(PropertyChangedEvent);
 	}
 	
@@ -780,7 +785,10 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		InitializeRootActor();
 	}
 
-	ResetPreviewComponents_Editor(false);
+	if (bResetPreviewComponents)
+	{
+		ResetPreviewComponents_Editor(false);
+	}
 }
 
 void ADisplayClusterRootActor::PostEditMove(bool bFinished)
@@ -818,6 +826,8 @@ void ADisplayClusterRootActor::ResetPreviewComponents_Editor(bool bInRestoreScen
 
 void ADisplayClusterRootActor::UpdatePreviewComponents()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ADisplayClusterRootActor::UpdatePreviewComponents"), STAT_UpdatePreviewComponents, STATGROUP_NDisplay);
+	
 	if (IsTemplate() || bDeferPreviewGeneration)
 	{
 		return;
