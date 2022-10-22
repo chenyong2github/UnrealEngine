@@ -148,17 +148,21 @@ namespace UE::RivermaxCore::Private
 				rmax_qos_attr QOSAttributes = { 0, 0 }; //todo
 
 				rmax_buffer_attr BufferAttributes;
+				FMemory::Memset(&BufferAttributes, 0, sizeof(BufferAttributes));
 				BufferAttributes.chunk_size_in_strides = StreamMemory.ChunkSizeInStrides;
 				BufferAttributes.data_stride_size = StreamMemory.PayloadSize; //Stride between chunks. 
 				BufferAttributes.app_hdr_stride_size = StreamMemory.HeaderStrideSize;
 				BufferAttributes.mem_block_array = StreamMemory.MemoryBlocks.GetData();
 				BufferAttributes.mem_block_array_len = StreamMemory.MemoryBlocks.Num();
+				BufferAttributes.attr_flags = RMAX_OUT_BUFFER_ATTR_FLAG_NONE;
 
 				rmax_status_t Status = rmax_out_create_stream(SDPDescription.GetData(), &BufferAttributes, &QOSAttributes, NumberPacketsPerFrame, MediaBlockIndex, &NewId);
 				if (Status == RMAX_OK)
 				{
 					struct sockaddr_in SourceAddress;
 					struct sockaddr_in DestinationAddress;
+					FMemory::Memset(&SourceAddress, 0, sizeof(SourceAddress));
+					FMemory::Memset(&DestinationAddress, 0, sizeof(DestinationAddress));
 					Status = rmax_out_query_address(NewId, MediaBlockIndex, &SourceAddress, &DestinationAddress);
 					if (Status == RMAX_OK)
 					{
@@ -363,7 +367,7 @@ namespace UE::RivermaxCore::Private
 			}
 			StreamMemory.HeaderSizes[PayloadSizeIndex] = StreamMemory.HeaderStrideSize;
 		}
-		StreamMemory.MemoryBlocks.SetNum(StreamMemory.MemoryBlockCount);
+		StreamMemory.MemoryBlocks.SetNumZeroed(StreamMemory.MemoryBlockCount);
 		for (uint32 BlockIndex = 0; BlockIndex < StreamMemory.MemoryBlockCount; ++BlockIndex)
 		{
 			rmax_mem_block& Block = StreamMemory.MemoryBlocks[BlockIndex];

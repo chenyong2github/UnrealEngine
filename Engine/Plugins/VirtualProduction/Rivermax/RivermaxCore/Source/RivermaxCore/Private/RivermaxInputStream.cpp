@@ -235,6 +235,7 @@ namespace UE::RivermaxCore::Private
 		const int Timeout = 0;
 		const int Flags = 0;
 		rmax_in_completion Completion;
+		FMemory::Memset(&Completion, 0, sizeof(Completion));
 		rmax_status_t Status = rmax_in_get_next_chunk(StreamId, MinChunkSize, MaxChunkSize, Timeout, Flags, &Completion);
 		if (Status == RMAX_OK)
 		{
@@ -496,8 +497,4 @@ namespace UE::RivermaxCore::Private
 	}
 
 }
-
-
-
-
 

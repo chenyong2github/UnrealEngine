@@ -88,7 +88,7 @@ void FAjaMediaOutputModule::StartupModule()
 	{
 		if (bIsGPUTextureTransferAvailable)
 		{
-			ENQUEUE_RENDER_COMMAND(AjaMediaCaptureUninitialize)(
+			ENQUEUE_RENDER_COMMAND(AjaMediaOutputModuleUninitialize)(
 				[](FRHICommandListImmediate& RHICmdList) mutable
 				{
 					AJA::UninitializeDMA();
