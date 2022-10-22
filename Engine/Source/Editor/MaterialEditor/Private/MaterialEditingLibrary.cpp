@@ -876,6 +876,15 @@ bool UMaterialEditingLibrary::GetInputNodeOutputNameForMaterialExpression(UMater
 	return false;
 }
 
+void UMaterialEditingLibrary::GetMaterialExpressionNodePosition(UMaterialExpression* MaterialExpression, int32& NodePosX, int32& NodePosY)
+{
+	if (MaterialExpression)
+	{
+		NodePosX = MaterialExpression->MaterialExpressionEditorX;
+		NodePosY = MaterialExpression->MaterialExpressionEditorY;
+	}
+}
+
 TArray<UTexture*> UMaterialEditingLibrary::GetUsedTextures(UMaterial* Material)
 {
 	TArray<UTexture*> OutTextures;

@@ -207,6 +207,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static bool GetInputNodeOutputNameForMaterialExpression(UMaterialExpression* MaterialExpression, UMaterialExpression* InputNode, FString& OutputName);
 
+	/** Get the position of the MaterialExpression node. */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static void GetMaterialExpressionNodePosition(UMaterialExpression* MaterialExpression, int32& NodePosX, int32& NodePosY);
+
 	/** Get the list of textures used by a material */
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static TArray<UTexture*> GetUsedTextures(UMaterial* Material);
