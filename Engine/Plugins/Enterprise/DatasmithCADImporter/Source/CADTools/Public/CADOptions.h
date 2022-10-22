@@ -39,6 +39,7 @@ namespace CADLibrary
 		CADTOOLS_API static float GStitchingTolerance;
 		CADTOOLS_API static float GUnitScale;
 		CADTOOLS_API static float GMeshingParameterFactor;
+		CADTOOLS_API static int32 GMaxMaterialCountPerMesh;
 
 	public:
 		FImportParameters(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -89,6 +90,7 @@ namespace CADLibrary
 			Ar << ImportParameters.bGEnableCADCache;
 			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
 			Ar << ImportParameters.GStitchingTolerance;
+			Ar << ImportParameters.GMaxMaterialCountPerMesh;
 			return Ar;
 		}
 

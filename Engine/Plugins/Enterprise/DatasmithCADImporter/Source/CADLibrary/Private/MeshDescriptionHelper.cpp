@@ -16,6 +16,8 @@
 
 typedef uint32 TriangleIndex[3];
 
+DEFINE_LOG_CATEGORY_STATIC(LogCADLibrary, Log, All);
+
 namespace CADLibrary
 {
 
@@ -290,14 +292,23 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 	}
 
 	// Add to the mesh, a polygon groups per material
+	int32 PolyGroupIndex = 0;
+	FPolygonGroupID PolyGroupID = 0;
 	for (auto& Material : MaterialToPolygonGroupMapping)
 	{
-		uint32 MaterialHash = Material.Key;
-		FName ImportedSlotName = *LexToString<uint32>(MaterialHash);
-
-		FPolygonGroupID PolyGroupID = MeshDescription.CreatePolygonGroup();
-		PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
+		if (PolyGroupIndex < FImportParameters::GMaxMaterialCountPerMesh)
+		{
+			uint32 MaterialHash = Material.Key;
+			FName ImportedSlotName = *LexToString<uint32>(MaterialHash);
+			PolyGroupID = MeshDescription.CreatePolygonGroup();
+			PolygonGroupImportedMaterialSlotNames[PolyGroupID] = ImportedSlotName;
+		}
+		else if (PolyGroupIndex == FImportParameters::GMaxMaterialCountPerMesh)
+		{
+			UE_LOG(LogCADLibrary, Warning, TEXT("The main UE5 rendering systems do not support more than 256 materials per mesh and the limit has been defined to %d materials. Only the first %d materials are kept. The others are replaced by the last one"), FImportParameters::GMaxMaterialCountPerMesh, FImportParameters::GMaxMaterialCountPerMesh);
+		}
 		Material.Value = PolyGroupID;
+		PolyGroupIndex++;
 	}
 
 	if (Algo::AnyOf(BodyTessellation.Faces, [](const FTessellationData& FaceTessellation) { return !FaceTessellation.TexCoordArray.IsEmpty(); }))

@@ -195,9 +195,25 @@ public:
 		Label = InLabel;
 	}
 
+	FColor LastColor;
+	bool bWarningNotLogYet = true;
 	void Add(const TSharedPtr<AlDagNode>& Node, FColor Color, const FString& ShaderName)
 	{
-		ShaderNames.Add(ShaderName);
+		using namespace CADLibrary;
+		if (ShaderNames.Num() == FImportParameters::GMaxMaterialCountPerMesh)
+		{
+			if (!ShaderNames.Contains(ShaderName))
+			{
+			UE_LOG(LogDatasmithWireTranslator, Warning, TEXT("The main UE5 rendering systems do not support more than 256 materials per mesh and the limit has been defined to %d materials. Only the first %d materials are kept. The others are replaced by the last one"), FImportParameters::GMaxMaterialCountPerMesh, FImportParameters::GMaxMaterialCountPerMesh);
+				bWarningNotLogYet = false;
+				Color = LastColor;
+			}
+		}
+		else
+		{
+			ShaderNames.Add(ShaderName);
+			LastColor = Color;
+		}
 		Shells.Emplace(Node, Color);
 	}
 

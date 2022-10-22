@@ -99,6 +99,15 @@ The used value of the meshing parameter is value * MeshingParameterFactor \n\
 Default value is 1.\n"),
 ECVF_Default);
 
+int32 FImportParameters::GMaxMaterialCountPerMesh = 256;
+FAutoConsoleVariableRef GCADTranslatorMaxMaterialCountPerMesh(
+	TEXT("ds.CADTranslator.MaxMaterialCountPerMesh"),
+	FImportParameters::GMaxMaterialCountPerMesh,
+	TEXT("The main UE5 rendering systems do not support more than 256 materials per mesh. This CVar allow to define the max material count per mesh.\n\
+Default value is 256\n"),
+ECVF_Default);
+
+
 uint32 GetTypeHash(const FImportParameters& ImportParameters)
 {
 	uint32 ParametersHash = ::GetTypeHash(ImportParameters.bGDisableCADKernelTessellation);
