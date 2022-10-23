@@ -652,8 +652,7 @@ void FilterScreenProbes(
 			&& GRHISupportsWaveOperations
 			&& GRHIMinimumWaveSize >= 32
 			&& RHISupportsWaveOperations(View.GetShaderPlatform())
-			&& ConvertToSHThreadGroupSize * ConvertToSHThreadGroupSize <= (uint32)GRHIMaximumWaveSize
-			&& !(IsPCPlatform(View.GetShaderPlatform()) && IsRHIDeviceAMD()); // Workaround for a wave ops bug inside 64 thread groups, where only the first 32 threads are summed aross the group. (Oct 11, 2022). #lumen_todo: replace with [WaveSize(64)] in shader.
+			&& ConvertToSHThreadGroupSize * ConvertToSHThreadGroupSize <= (uint32)GRHIMaximumWaveSize;
 
 		FScreenProbeConvertToIrradianceCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FThreadGroupSize >(ConvertToSHThreadGroupSize);

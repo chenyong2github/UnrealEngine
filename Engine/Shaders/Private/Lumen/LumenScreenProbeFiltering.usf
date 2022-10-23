@@ -518,6 +518,9 @@ groupshared float SharedSHBasisFunctions[THREADGROUP_SIZE * THREADGROUP_SIZE][NU
 groupshared float SharedLightingRadiance[THREADGROUP_SIZE * THREADGROUP_SIZE][4];
 groupshared float SharedSums[NUM_LIGHTING_SH_COEFFICIENTS * 4];
 
+#if COMPILER_SUPPORTS_WAVE_SIZE && WAVE_OPS && (THREADGROUP_SIZE * THREADGROUP_SIZE <= 128)
+	WAVESIZE(THREADGROUP_SIZE*THREADGROUP_SIZE)
+#endif
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ScreenProbeConvertToIrradianceCS(
 	uint3 GroupId : SV_GroupID,
