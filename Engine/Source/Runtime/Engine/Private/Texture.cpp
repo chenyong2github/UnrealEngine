@@ -2443,7 +2443,12 @@ EGammaSpace FTextureSource::GetGammaSpace(int LayerIndex) const
 	// TextureSource does not know its own gamma, but its owning Texture does :
 	if ( Owner != nullptr )
 	{
-		return Owner->GetGammaSpace();
+		// same as Owner->GetGammaSpace , but uses LayerFormatSettings for SRGB flag
+		FTextureFormatSettings FormatSettings;
+		Owner->GetLayerFormatSettings(LayerIndex, FormatSettings);
+
+		EGammaSpace GammaSpace = FormatSettings.SRGB ? ( Owner->bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB ) : EGammaSpace::Linear;
+		return GammaSpace;
 	}
 	else
 	{

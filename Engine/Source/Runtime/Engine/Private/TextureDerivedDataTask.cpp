@@ -195,10 +195,7 @@ void FTextureSourceData::Init(UTexture& InTexture, TextureMipGenSettings InMipGe
 
 		LayerData->ImageFormat = FImageCoreUtils::ConvertToRawImageFormat( InTexture.Source.GetFormat(LayerIndex) );
 
-		FTextureFormatSettings FormatSettings;
-		InTexture.GetLayerFormatSettings(LayerIndex, FormatSettings);
-
-		LayerData->GammaSpace = FormatSettings.SRGB ? (InTexture.bUseLegacyGamma ? EGammaSpace::Pow22 : EGammaSpace::sRGB) : EGammaSpace::Linear;
+		LayerData->SourceGammaSpace = InTexture.Source.GetGammaSpace(LayerIndex);
 	}
 
 	Blocks.Reserve(NumBlocks);
@@ -291,7 +288,7 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 						FImage* SourceMip = new(BlockData.MipsPerLayer[LayerIndex]) FImage(
 							MipSizeX, MipSizeY, MipSizeZ,
 							LayerData.ImageFormat,
-							LayerData.GammaSpace
+							LayerData.SourceGammaSpace
 						);
 
 						if (!ScopedMipData.GetMipData(SourceMip->RawData, BlockIndex, LayerIndex, MipIndex))

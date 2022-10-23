@@ -61,8 +61,8 @@ ENUM_CLASS_FLAGS(ETextureCacheFlags);
 // Everything required to get the texture source data.
 struct FTextureSourceLayerData
 {
-	ERawImageFormat::Type ImageFormat;
-	EGammaSpace GammaSpace;
+	ERawImageFormat::Type ImageFormat = ERawImageFormat::Invalid;
+	EGammaSpace SourceGammaSpace = EGammaSpace::Invalid;
 };
 
 struct FTextureSourceBlockData
