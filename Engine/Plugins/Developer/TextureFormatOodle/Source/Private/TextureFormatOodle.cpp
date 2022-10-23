@@ -80,26 +80,10 @@ find them and move them up to DefaultEngine if you want them to be global.
 The INI settings block looks like :
 
 [TextureFormatOodleSettings]
-bForceAllBC23ToBC7=False
 bDebugColor=False
 GlobalLambdaMultiplier=1.0
 
 The sense of the bools is set so that all-false is default behavior.
-
-bForceAllBC23ToBC7 :
-
-If true, all BC2 & 3 (DXT3 and DXT5) is encoded to BC7 instead.
-
-On DX11 games, BC7 usualy has higher quality and takes the same space in memory as BC3.
-
-For example in Unreal, "AutoDXT" selects DXT1 (BC1) for opaque textures and DXT5 (BC3)
-for textures with alpha.  If you turn on this option, the BC3 will change to BC7, so
-"AutoDXT" will now select BC1 for opaque and BC7 for alpha. Note that BC7 with alpha will
-likely introduce color distortion that doesn't exist with DXT5 because DXT5 has the
-alpha and color planes separate, where they are combine with BC7 - so the encoder can try
-and swap color for alpha unlike DXT5.
-
-It is off by default to make default behavior match the old encoders.
 
 bDebugColor :
 
@@ -536,7 +520,6 @@ public:
 	};
 
 	FTextureFormatOodleConfig() :
-		bForceAllBC23ToBC7(false),
 		bDebugColor(false),
 		GlobalLambdaMultiplier(1.f)
 	{
@@ -558,7 +541,6 @@ public:
 		// 
 		
 		// Class config variables
-		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 		GConfig->GetString(IniSection, TEXT("DebugDumpFilter"), LocalDebugConfig.DebugDumpFilter, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
@@ -603,13 +585,6 @@ public:
 		FCbWriter Writer;
 		Writer.BeginObject("TextureFormatOodleSettings");
 
-		if ((BuildSettings.TextureFormatName == GTextureFormatNameDXT3) ||
-			(BuildSettings.TextureFormatName == GTextureFormatNameDXT5) ||
-			(BuildSettings.TextureFormatName == GTextureFormatNameDXT5n) ||
-			(BuildSettings.TextureFormatName == GTextureFormatNameAutoDXT) )
-		{
-			Writer.AddBool("bForceAllBC23ToBC7", bForceAllBC23ToBC7);
-		}
 		if (bDebugColor)
 		{
 			Writer.AddBool("bDebugColor", bDebugColor);
@@ -647,7 +622,6 @@ public:
 			// some AutoDXT is converted to "DXT1" before it gets here
 			//	(by GetDefaultTextureFormatName if "compress no alpha" is set)
 
-			// if you set bForceAllBC23ToBC7, the DXT5 will change to BC7
 			CompressedPixelFormat = bHasAlpha ? PF_DXT5 : PF_DXT1;
 		}
 		else if (TextureFormatName == GTextureFormatNameDXT5n)
@@ -683,15 +657,6 @@ public:
 				);
 		}
 		
-		// BC7 is just always better than BC2 & BC3
-		//	so anything that came through as BC23, force to BC7 : (AutoDXT-alpha and Normals)
-		// Note that we are using the value from the FormatConfigOverride if we have one, otherwise the default will be the value we have locally
-		if ( InBuildSettings.FormatConfigOverride.FindView("bForceAllBC23ToBC7").AsBool(bForceAllBC23ToBC7) &&
-			(CompressedPixelFormat == PF_DXT3 || CompressedPixelFormat == PF_DXT5 ) )
-		{
-			CompressedPixelFormat = PF_BC7;
-		}
-
 		*OutCompressedPixelFormat = CompressedPixelFormat;
 
 		// Use the DDC2 provided value if it exists.
@@ -768,7 +733,6 @@ public:
 
 private:
 	// the sense of these bools is set so that default behavior = all false
-	bool bForceAllBC23ToBC7; // change BC2 & 3 (aka DXT3 and DXT5) to BC7 
 	bool bDebugColor; // color textures by their BCN, for data discovery
 	// after lambda is set, multiply by this scale factor :
 	//	(multiplies the default and per-Texture overrides)
