@@ -142,6 +142,15 @@ struct FImageInfo
 	{
 	}
 		
+	FORCEINLINE bool IsImageInfoValid() const
+	{
+		if ( SizeX < 0 || SizeY < 0 || NumSlices < 0 ) return false;
+		if ( Format == ERawImageFormat::Invalid ) return false;
+		if ( GammaSpace == EGammaSpace::Invalid ) return false;
+		if ( ! GetFormatNeedsGammaSpace(Format) && GammaSpace != EGammaSpace::Linear ) return false;
+		return true;
+	}
+
 	FORCEINLINE bool IsGammaCorrected() const
 	{
 		return GammaSpace != EGammaSpace::Linear;
