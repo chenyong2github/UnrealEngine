@@ -960,9 +960,9 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const
 {
 	const bool bIsChangelistValidation = false;
-	ForEachActorDescContainer([this, ErrorHandler, bIsChangelistValidation](const UActorDescContainer* ActorDescContainer)
+	ForEachActorDescContainer([this, ErrorHandler, bIsChangelistValidation](const UActorDescContainer* InActorDescContainer)
 	{
-		CheckForErrors(ErrorHandler, ActorDescContainer, IsStreamingEnabled(), bIsChangelistValidation);
+		CheckForErrors(ErrorHandler, InActorDescContainer, IsStreamingEnabled(), bIsChangelistValidation);
 	});
 }
 
