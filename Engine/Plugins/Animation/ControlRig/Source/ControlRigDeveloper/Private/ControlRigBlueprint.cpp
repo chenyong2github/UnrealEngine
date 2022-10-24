@@ -2099,6 +2099,8 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 	InternalCommands.Add(TEXT("library_controller = blueprint.get_controller(library)"));
 	InternalCommands.Add(TEXT("hierarchy = blueprint.hierarchy"));
 	InternalCommands.Add(TEXT("hierarchy_controller = hierarchy.get_controller()"));
+	InternalCommands.Add(TEXT("blueprint.set_auto_vm_recompile(False)"));
+	
 
 	// Hierarchy
 	InternalCommands.Append(Hierarchy->GetController(true)->GeneratePythonCommands());
@@ -2314,6 +2316,8 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 	InternalCommands.Add(FString::Printf(TEXT("blueprint.set_preview_mesh(unreal.load_object(name='%s', outer=None))"),
 		*PreviewMeshPath));
 #endif
+
+	InternalCommands.Add(TEXT("blueprint.set_auto_vm_recompile(True)"));
 
 	// Split multiple commands into different array elements
 	TArray<FString> InnerFunctionCmds;

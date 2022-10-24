@@ -16,6 +16,7 @@ class FRigVMBlockExprAST;
 class FRigVMEntryExprAST;
 class FRigVMInvokeEntryExprAST;
 class FRigVMCallExternExprAST;
+class FRigVMInlineFunctionExprAST;
 class FRigVMNoOpExprAST;
 class FRigVMVarExprAST;
 class FRigVMLiteralExprAST;
@@ -34,6 +35,7 @@ class URigVMLink;
 class URigVMNode;
 class URigVMGraph;
 class URigVMController;
+class URigVMLibraryNode;
 
 /*
  * A structure to describe a link between two proxies
@@ -82,6 +84,7 @@ public:
 		Entry,
 		InvokeEntry,
 		CallExtern,
+		InlineFunction,
 		NoOp,
 		Var,
 		Literal,
@@ -336,6 +339,17 @@ FORCEINLINE const FRigVMCallExternExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::CallExtern));
 	return (const FRigVMCallExternExprAST*)this;
+}
+
+// specialized cast for type checking
+// for a InlineFunction / FRigVMInlineFunctionExprAST expression
+// will raise if types are not compatible
+// @return this expression cast to FRigVMInlineFunctionExprAST
+template<>
+FORCEINLINE const FRigVMInlineFunctionExprAST* FRigVMExprAST::To() const
+{
+	ensure(IsA(EType::InlineFunction));
+	return (const FRigVMInlineFunctionExprAST*)this;
 }
 
 // specialized cast for type checking
@@ -674,6 +688,37 @@ protected:
 	// default constructor (protected so that only parser can access it)
 	FRigVMCallExternExprAST(const FRigVMASTProxy& InNodeProxy)
 		: FRigVMNodeExprAST(EType::CallExtern, InNodeProxy)
+	{}
+
+private:
+
+	friend class FRigVMParserAST;
+};
+
+/*
+ *
+ */
+class RIGVMDEVELOPER_API FRigVMInlineFunctionExprAST: public FRigVMNodeExprAST
+{
+public:
+
+	// virtual destructor
+	virtual ~FRigVMInlineFunctionExprAST() {}
+
+	// disable copy constructor
+	FRigVMInlineFunctionExprAST(const FRigVMInlineFunctionExprAST&) = delete;
+
+	// overload of the type checking mechanism
+	virtual bool IsA(EType InType) const override
+	{
+		return InType == EType::InlineFunction;
+	};
+
+protected:
+
+	// default constructor (protected so that only parser can access it)
+	FRigVMInlineFunctionExprAST(const FRigVMASTProxy& InNodeProxy)
+		: FRigVMNodeExprAST(EType::InlineFunction, InNodeProxy)
 	{}
 
 private:
@@ -1531,6 +1576,8 @@ private:
 
 	FRigVMParserASTSettings Settings;
 	mutable TMap<TTuple<const FRigVMExprAST*,const FRigVMExprAST*>, int32> MinIndexOfChildWithinParent;
+
+	URigVMLibraryNode* LibraryNodeBeingCompiled;
 
 	friend class FRigVMExprAST;
 	friend class FRigVMAssignExprAST;

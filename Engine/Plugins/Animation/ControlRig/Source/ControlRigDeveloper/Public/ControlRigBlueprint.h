@@ -293,6 +293,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RequestAutoVMRecompilation();
 
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	void SetAutoVMRecompile(bool bAutoRecompile) { bAutoRecompileVM = bAutoRecompile; }
+
 	void IncrementVMRecompileBracket();
 	void DecrementVMRecompileBracket();
 

@@ -119,6 +119,7 @@ private:
 	friend class FRigVMParserAST;
 	friend class FRigVMCallstackGuard;
 	friend class FRigVMASTProxy;
+	friend class URigVMCompiler;
 };
 
 /*

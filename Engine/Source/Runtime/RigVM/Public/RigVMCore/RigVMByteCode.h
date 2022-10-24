@@ -895,6 +895,9 @@ public:
 
 	// adds an execute operator given its function index operands
 	uint64 AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands);
+	
+	// adds an execute operator given its function index operands
+	uint64 InlineFunction(const FRigVMByteCode* FunctionByteCode, const FRigVMOperandArray& InOperands);
 
 	// adds a zero operator to zero the memory of a given argument
 	uint64 AddZeroOp(const FRigVMOperand& InArg);
@@ -1055,6 +1058,9 @@ public:
 
 	// returns all of the operands for a given instruction
 	FRigVMOperandArray GetOperandsForOp(const FRigVMInstruction& InInstruction) const;
+
+	// returns the byte index of the first operand for this instructions
+	uint64 GetFirstOperandByteIndex(const FRigVMInstruction& InInstruction) const;
 
 	// returns all of the operands for a given instruction
 	TArray<int32> GetInstructionsForOperand(const FRigVMOperand& InOperand) const;

@@ -1228,6 +1228,16 @@ uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandA
 	return OpByteIndex;
 }
 
+uint64 FRigVMByteCode::InlineFunction(const FRigVMByteCode* FunctionByteCode, const FRigVMOperandArray& InOperands)
+{
+	check(FunctionByteCode);
+	uint64 OpByteIndex = ByteCode.Num();
+	ByteCode.Append(FunctionByteCode->ByteCode);
+	NumInstructions += FunctionByteCode->NumInstructions;
+	
+	return OpByteIndex;
+}
+
 uint64 FRigVMByteCode::AddExitOp()
 {
 	FRigVMBaseOp Op(ERigVMOpCode::Exit);
@@ -1731,6 +1741,94 @@ FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InI
 	}
 
 	return FRigVMOperandArray();
+}
+
+uint64 FRigVMByteCode::GetFirstOperandByteIndex(const FRigVMInstruction& InInstruction) const
+{
+	if (InInstruction.OpCode >= ERigVMOpCode::Execute_0_Operands && InInstruction.OpCode <= ERigVMOpCode::Execute_64_Operands)
+	{
+		const uint64 ByteCodeIndex = InInstruction.ByteCodeIndex;
+		// if the bytecode is not aligned the OperandAlignment needs to be 0
+		ensure(bByteCodeIsAligned || InInstruction.OperandAlignment == 0);
+		return ByteCodeIndex + sizeof(FRigVMExecuteOp) + (uint64)InInstruction.OperandAlignment;
+	}
+
+	switch(InInstruction.OpCode)
+	{
+		case ERigVMOpCode::Copy:
+		{
+			const FRigVMCopyOp& Op = GetOpAt<FRigVMCopyOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.Source - (uint64)&Op);
+		}
+		case ERigVMOpCode::Zero:
+		case ERigVMOpCode::BoolFalse:
+		case ERigVMOpCode::BoolTrue:
+		case ERigVMOpCode::Increment:
+		case ERigVMOpCode::Decrement:
+		case ERigVMOpCode::ArrayReset:
+		case ERigVMOpCode::ArrayReverse:
+		{
+			const FRigVMUnaryOp& Op = GetOpAt<FRigVMUnaryOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.Arg - (uint64)&Op);
+		}
+		case ERigVMOpCode::Equals:
+		case ERigVMOpCode::NotEquals:
+		{
+			const FRigVMComparisonOp& Op = GetOpAt<FRigVMComparisonOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.A - (uint64)&Op);
+		}
+		case ERigVMOpCode::JumpAbsoluteIf:
+		case ERigVMOpCode::JumpForwardIf:
+		case ERigVMOpCode::JumpBackwardIf:
+		{
+			const FRigVMJumpIfOp& Op = GetOpAt<FRigVMJumpIfOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.Arg - (uint64)&Op);
+		}
+		case ERigVMOpCode::BeginBlock:
+		case ERigVMOpCode::ArrayGetNum:
+		case ERigVMOpCode::ArraySetNum:
+		case ERigVMOpCode::ArrayAppend:
+		case ERigVMOpCode::ArrayClone:
+		case ERigVMOpCode::ArrayRemove:
+		case ERigVMOpCode::ArrayUnion:
+		{
+			const FRigVMBinaryOp& Op = GetOpAt<FRigVMBinaryOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.ArgA - (uint64)&Op);
+		}
+		case ERigVMOpCode::ArrayAdd:
+		case ERigVMOpCode::ArrayGetAtIndex:
+		case ERigVMOpCode::ArraySetAtIndex:
+		case ERigVMOpCode::ArrayInsert:
+		case ERigVMOpCode::ArrayDifference:
+		case ERigVMOpCode::ArrayIntersection:
+		{
+			const FRigVMTernaryOp& Op = GetOpAt<FRigVMTernaryOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.ArgA - (uint64)&Op);
+		}
+		case ERigVMOpCode::ArrayFind:
+		{
+			const FRigVMQuaternaryOp& Op = GetOpAt<FRigVMQuaternaryOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.ArgA - (uint64)&Op);
+		}
+		case ERigVMOpCode::ArrayIterator:
+		{
+			const FRigVMSenaryOp& Op = GetOpAt<FRigVMSenaryOp>(InInstruction.ByteCodeIndex);
+			return InInstruction.ByteCodeIndex + ((uint64)&Op.ArgA - (uint64)&Op);
+		}
+		case ERigVMOpCode::JumpAbsolute:
+		case ERigVMOpCode::JumpForward:
+		case ERigVMOpCode::JumpBackward:
+		case ERigVMOpCode::ChangeType:
+		case ERigVMOpCode::Exit:
+		case ERigVMOpCode::EndBlock:
+		case ERigVMOpCode::Invalid:
+		default:
+		{
+			break;
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 TArray<int32> FRigVMByteCode::GetInstructionsForOperand(const FRigVMOperand& InOperand) const
