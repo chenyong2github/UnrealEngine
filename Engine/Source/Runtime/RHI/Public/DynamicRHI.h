@@ -1147,6 +1147,8 @@ public:
 
 	virtual bool RHIRequiresComputeGenerateMips() const { return false; };
 
+	virtual bool RHIIncludeOptionalFlushes() const { return true; }
+
 #if RHI_RAYTRACING
 
 	virtual FRayTracingAccelerationStructureSize RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags)

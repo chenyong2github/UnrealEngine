@@ -598,6 +598,8 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 		// The task blocks for each parallel translate completion, in the order they will be submitted in.
 		EnqueueLambda([Tasks](FRHICommandListBase&)
 		{
+			TArray<IRHIPlatformCommandList*> AllCmdLists;
+
 			for (FTask& Task : Tasks)
 			{
 				if (!Task.Event->IsComplete())
@@ -608,12 +610,14 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 					Task.Event->Wait();
 				}
 
-				if (Task.OutCmdLists.Num())
-				{
-					GDynamicRHI->RHISubmitCommandLists(Task.OutCmdLists);
-				}
+				AllCmdLists.Append(Task.OutCmdLists);
 
 				Task.~FTask();
+			}
+
+			if (AllCmdLists.Num())
+			{
+				GDynamicRHI->RHISubmitCommandLists(AllCmdLists);
 			}
 		});
 	}
@@ -1170,7 +1174,10 @@ void FRHICommandList::EndDrawingViewport(FRHIViewport* Viewport, bool bPresent, 
 	// Make sure all prior graphics and async compute work has been submitted.
 	// This is necessary because platform RHIs often submit additional work on the graphics queue during present, and we need to ensure we won't deadlock on async work that wasn't yet submitted by the renderer.
 	// In future, Present() itself should be an enqueued / recorded command, and platform RHIs should never implicitly submit graphics or async compute work.
-	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	if (Viewport->NeedFlushBeforeEndDrawing())
+	{
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
 
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())

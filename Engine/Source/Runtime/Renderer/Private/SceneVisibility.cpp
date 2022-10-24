@@ -5242,7 +5242,10 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		OnStartRender(RHICmdList);
 	}
 
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	if (GDynamicRHI->RHIIncludeOptionalFlushes())
+	{
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
 }
 
 template<class T>
@@ -5354,7 +5357,10 @@ void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuil
 			InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager);
 		}
 
-		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		if (GDynamicRHI->RHIIncludeOptionalFlushes())
+		{
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		}
 	}
 
 	// If parallel ILC update is disabled, then process it in place.
