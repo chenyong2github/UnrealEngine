@@ -127,19 +127,24 @@ class CONTENTBROWSER_API UContentBrowserFolderContext : public UContentBrowserMe
 
 public:
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "ContentBrowser")
 	bool bCanBeModified;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "ContentBrowser")
 	bool bNoFolderOnDisk;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "ContentBrowser")
 	int32 NumAssetPaths;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "ContentBrowser")
 	int32 NumClassPaths;
 
+	UPROPERTY(BlueprintReadOnly, Category = "ContentBrowser")
+	TArray<FString> SelectedPackagePaths;
+
 	FOnCreateNewFolder OnCreateNewFolder;
+
+	const TArray<FString>& GetSelectedPackagePaths() const { return SelectedPackagePaths; }
 };
 
 UCLASS()
