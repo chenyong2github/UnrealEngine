@@ -4,6 +4,7 @@
 
 #include "LargeWorldCoordinates.ush"
 #include "OctahedralCommon.ush"
+#include "/Engine/Shared/LightSceneData.h"
 
 #ifndef USE_GLOBAL_GPU_SCENE_DATA
 	#define USE_GLOBAL_GPU_SCENE_DATA 0
@@ -1213,3 +1214,24 @@ FSceneDataIntermediates GetSceneDataIntermediates()
 	return Intermediates;
 }
 #endif //VF_USE_PRIMITIVE_SCENE_DATA
+
+//
+// GPU Lights
+//
+
+#if USE_GLOBAL_GPU_SCENE_DATA
+StructuredBuffer<FLightSceneData> GPUSceneLights;
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+RWStructuredBuffer<FLightSceneData> GPUSceneLightsRW;
+#endif
+
+FLightSceneData GetLightSceneData(int LightId)
+{
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUSceneLights[LightId];
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+	return GPUSceneLightsRW[LightId];
+#else
+	return (FLightSceneData)0; //TODO
+#endif
+}

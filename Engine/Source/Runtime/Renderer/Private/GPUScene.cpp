@@ -22,6 +22,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "InstanceUniformShaderParameters.h"
 #include "ShaderPrint.h"
+#include "LightSceneData.h"
 
 #define LOG_INSTANCE_ALLOCATIONS 0
 
@@ -595,6 +596,58 @@ void FGPUScene::EndRender()
 	BufferState = {};
 }
 
+void FGPUScene::UpdateGPULights(FRDGBuilder& GraphBuilder, FScene& Scene)
+{
+	TArray<FLightSceneData, SceneRenderingAllocator> LightData{};
+	LightData.SetNum(Scene.Lights.Num(), false);
+
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
+
+	for (int32 Index = 0; Index < Scene.Lights.Num(); ++Index)
+	{
+		if (Scene.Lights.IsAllocated(Index))
+		{
+			InitLightData(Scene.Lights[Index], bAllowStaticLighting, LightData[Index]);
+		}
+	}
+
+	GraphBuilder.QueueBufferUpload<FLightSceneData>(BufferState.LightDataBuffer, LightData);
+}
+
+void FGPUScene::InitLightData(const FLightSceneInfoCompact& LightInfoCompact, bool bAllowStaticLighting, FLightSceneData& DataOut)
+{
+	const FLightSceneInfo& LightInfo = *LightInfoCompact.LightSceneInfo;
+	const FLightSceneProxy& LightProxy = *LightInfo.Proxy;
+
+	FLightRenderParameters LightParams;
+	LightProxy.GetLightShaderParameters(LightParams);
+
+	if (LightProxy.IsInverseSquared())
+	{
+		LightParams.FalloffExponent = 0;
+	}
+
+	// FLightRenderParameters fields
+	DataOut.WorldPosition = TLargeWorldRenderPosition<float>{ LightParams.WorldPosition };
+	DataOut.InvRadius = LightParams.InvRadius;
+	DataOut.Color = LightParams.Color;
+	DataOut.FalloffExponent = LightParams.FalloffExponent;
+	DataOut.Direction = LightParams.Direction;
+	DataOut.SpecularScale = LightParams.SpecularScale;
+	DataOut.Tangent = LightParams.Tangent;
+	DataOut.SourceRadius = LightParams.SourceRadius;
+	DataOut.SpotAngles = LightParams.SpotAngles;
+	DataOut.SoftSourceRadius = LightParams.SoftSourceRadius;
+	DataOut.SourceLength = LightParams.SourceLength;
+	DataOut.RectLightBarnCosAngle = LightParams.RectLightBarnCosAngle;
+	DataOut.RectLightBarnLength = LightParams.RectLightBarnLength;
+	DataOut.RectLightAtlasUVOffset = LightParams.RectLightAtlasUVOffset;
+	DataOut.RectLightAtlasUVScale = LightParams.RectLightAtlasUVScale;
+	DataOut.RectLightAtlasMaxLevel = LightParams.RectLightAtlasMaxLevel;
+	DataOut.InverseExposureBlend = LightParams.InverseExposureBlend;
+	DataOut.LightTypeAndShadowMapChannelMaskPacked = LightInfo.PackLightTypeAndShadowMapChannelMask(bAllowStaticLighting);
+}
 
 void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
@@ -678,6 +731,8 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExt
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
 		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(GraphBuilder, Scene, ExternalAccessQueue, Adapter);
+
+		UpdateGPULights(GraphBuilder, Scene);
 	}
 
 	UseExternalAccessMode(ExternalAccessQueue, ERHIAccess::SRVMask, ERHIPipeline::All);
@@ -729,11 +784,15 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, cons
 	const uint32 LightMapDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(LightmapDataAllocator.GetMaxSize(), InitialBufferSize));
 	BufferState.LightmapDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LightmapDataBuffer, LightMapDataBufferSize * sizeof(FLightmapSceneShaderData::Data), TEXT("GPUScene.LightmapData"));
 	BufferState.LightMapDataBufferSize = LightMapDataBufferSize;
+	
+	const uint32 LightDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene.Lights.Num(), InitialBufferSize));
+	BufferState.LightDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LightDataBuffer, LightDataBufferSize * sizeof(FLightSceneData), TEXT("GPUScene.LightData"));
 
 	ShaderParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(BufferState.InstanceSceneDataBuffer);
 	ShaderParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(BufferState.InstancePayloadDataBuffer);
 	ShaderParameters.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(BufferState.PrimitiveBuffer);
 	ShaderParameters.GPUSceneLightmapData = GraphBuilder.CreateSRV(BufferState.LightmapDataBuffer);
+	ShaderParameters.GPUSceneLightData = GraphBuilder.CreateSRV(BufferState.LightDataBuffer);
 	ShaderParameters.InstanceDataSOAStride = InstanceSceneDataSOAStride;
 	ShaderParameters.NumScenePrimitives = NumScenePrimitives;
 	ShaderParameters.NumInstances = InstanceSceneDataAllocator.GetMaxSize();

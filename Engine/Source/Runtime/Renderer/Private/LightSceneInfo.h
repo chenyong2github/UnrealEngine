@@ -346,6 +346,8 @@ public:
 	bool SetupMobileMovableLocalLightShadowParameters(const FViewInfo& View, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, FMobileMovableLocalLightShadowParameters& MobileMovableLocalLightShadowParameters) const;
 
 	bool ShouldRecordShadowSubjectsForMobile() const;
+
+	uint32 PackLightTypeAndShadowMapChannelMask(bool bAllowStaticLighting) const;
 };
 
 /** Defines how the light is stored in the scene's light octree. */

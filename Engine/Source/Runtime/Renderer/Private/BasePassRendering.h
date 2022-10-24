@@ -51,7 +51,7 @@ public:
 	FVector4f LightPositionAndInvRadius;
 	FVector4f LightColorAndFalloffExponent;
 	FVector4f LightDirectionAndShadowMapChannelMask;
-	FVector4f SpotAnglesAndSourceRadiusPacked;
+	FVector4f SpotAnglesAndIdAndSourceRadiusPacked;
 	FVector4f LightTangentAndSpecularScale;
 	FVector4f RectDataAndVirtualShadowMapId;
 };

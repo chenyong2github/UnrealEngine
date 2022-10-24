@@ -9,10 +9,12 @@
 #include "GrowOnlySpanAllocator.h"
 #include "InstanceCulling/InstanceCullingLoadBalancer.h"
 #include "MeshBatch.h"
+#include "LightSceneData.h"
 
 class FRHICommandList;
 class FScene;
 class FViewInfo;
+class FLightSceneInfoCompact;
 
 UE_DEPRECATED(5.0, "Use GPUScene::AddPrimitiveToUpdate instead.4")
 extern RENDERER_API void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId);
@@ -26,6 +28,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneResourceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FGPULight>, GPUSceneLightData)
 	SHADER_PARAMETER(uint32, InstanceDataSOAStride)
 	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 	SHADER_PARAMETER(int32, NumInstances)
@@ -174,6 +177,8 @@ struct FGPUSceneBufferState
 	FRDGBuffer* InstanceBVHBuffer = nullptr;
 	FRDGBuffer* LightmapDataBuffer = nullptr;
 	uint32 LightMapDataBufferSize = 0;
+
+	FRDGBuffer* LightDataBuffer = nullptr;
 };
 
 class FGPUScene
@@ -343,6 +348,9 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> LightmapDataBuffer;
 	FRDGAsyncScatterUploadBuffer        LightmapUploadBuffer;
 
+	/** View-independent GPU light data */
+	TRefCountPtr<FRDGPooledBuffer> LightDataBuffer;
+
 	struct FInstanceRange
 	{
 		uint32 InstanceSceneDataOffset;
@@ -402,6 +410,13 @@ private:
 	 */
 	template<typename FUploadDataSourceAdapter>
 	void UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue, const FUploadDataSourceAdapter& UploadDataSourceAdapter);
+
+	/**
+	 * Upload scene light data to gpu
+	 */
+	void UpdateGPULights(FRDGBuilder& GraphBuilder, FScene& Scene);
+
+	static void InitLightData(const FLightSceneInfoCompact& LightInfoCompact, bool bAllowStaticLighting, FLightSceneData& DataOut);
 
 	void UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView);
 

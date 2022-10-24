@@ -22,12 +22,14 @@
 // Normally offsets should be within +/-TileSizeDivideBy2, but we often rebase multiple quantities off a single tile origin
 #define UE_LWC_RENDER_MAX_OFFSET (2097152.0*0.5)
 
-double FLargeWorldRenderScalar::GetTileSize()
+template<typename TScalar>
+TScalar TLargeWorldRenderScalar<TScalar>::GetTileSize()
 {
-	return UE_LWC_RENDER_TILE_SIZE;
+	return static_cast<TScalar>(UE_LWC_RENDER_TILE_SIZE);
 }
 
-FVector3f FLargeWorldRenderScalar::GetTileFor(FVector InPosition)
+template<typename TScalar>
+FVector3f TLargeWorldRenderScalar<TScalar>::GetTileFor(FVector InPosition)
 {
 	if constexpr (UE_LWC_RENDER_TILE_SIZE == 0)
 	{
@@ -58,37 +60,44 @@ FMatrix CheckMatrixInTileOffsetRange(const FMatrix& Matrix)
 	return Matrix;
 }
 
-FMatrix44f FLargeWorldRenderScalar::SafeCastMatrix(const FMatrix& Matrix)
+template<typename TScalar>
+FMatrix44f TLargeWorldRenderScalar<TScalar>::SafeCastMatrix(const FMatrix& Matrix)
 {
 	return FMatrix44f(CheckMatrixInTileOffsetRange(Matrix));
 }
 
-FMatrix44f FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld)
+template<typename TScalar>
+FMatrix44f TLargeWorldRenderScalar<TScalar>::MakeToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld)
 {
 	return FMatrix44f(MakeToRelativeWorldMatrixDouble(Origin, ToWorld));
 }
 
-FMatrix FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld)
+template<typename TScalar>
+FMatrix TLargeWorldRenderScalar<TScalar>::MakeToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld)
 {
 	return CheckMatrixInTileOffsetRange(ToWorld * FTranslationMatrix(-Origin));
 }
 
-FMatrix44f FLargeWorldRenderScalar::MakeFromRelativeWorldMatrix(const FVector Origin, const FMatrix& FromWorld)
+template<typename TScalar>
+FMatrix44f TLargeWorldRenderScalar<TScalar>::MakeFromRelativeWorldMatrix(const FVector Origin, const FMatrix& FromWorld)
 {
 	return FMatrix44f(MakeFromRelativeWorldMatrixDouble(Origin, FromWorld));
 }
 
-FMatrix FLargeWorldRenderScalar::MakeFromRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& FromWorld)
+template<typename TScalar>
+FMatrix TLargeWorldRenderScalar<TScalar>::MakeFromRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& FromWorld)
 {
 	return CheckMatrixInTileOffsetRange(FTranslationMatrix(Origin) * FromWorld);
 }
 
-FMatrix44f FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld)
+template<typename TScalar>
+FMatrix44f TLargeWorldRenderScalar<TScalar>::MakeClampedToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld)
 {
 	return FMatrix44f(MakeClampedToRelativeWorldMatrixDouble(Origin, ToWorld));
 }
 
-FMatrix FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld)
+template<typename TScalar>
+FMatrix TLargeWorldRenderScalar<TScalar>::MakeClampedToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld)
 {
 	const double OriginMax = UE_LWC_RENDER_MAX_OFFSET;
 
@@ -104,12 +113,16 @@ FMatrix FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrixDouble(const FV
 	return ClampedToRelativeWorld;
 }
 
-void FLargeWorldRenderScalar::Validate(double InAbsolute)
+template<typename TScalar>
+void TLargeWorldRenderScalar<TScalar>::Validate(double InAbsolute)
 {
 	const double Tolerance = 0.01; // TODO LWC - How precise do we need to be?
 	const double CheckAbsolute = GetAbsolute();
 	const double Delta = FMath::Abs(CheckAbsolute - InAbsolute);
 
-	ensureMsgf(Delta < Tolerance, TEXT("Bad FLargeWorldRenderScalar (%g) vs (%g)"),
+	ensureMsgf(Delta < Tolerance, TEXT("Bad TLargeWorldRenderScalar<TScalar> (%g) vs (%g)"),
 		InAbsolute, CheckAbsolute);
 }
+
+template struct TLargeWorldRenderScalar<double>;
+template struct TLargeWorldRenderScalar<float>;

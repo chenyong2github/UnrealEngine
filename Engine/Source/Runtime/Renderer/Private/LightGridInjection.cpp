@@ -314,10 +314,13 @@ static void PackLocalLightData(
 	const uint32 RectPackedY = 0;
 	const uint32 RectPackedW = FFloat16(-2.f).Encoded;
 
+	// Pack spot angles in 2x f16
+	uint32 SpotAnglesPacked = PackRG16(-2, 1);
+
 	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
 	Out.LightColorAndFalloffExponent			= FVector4f((FVector3f)SimpleLight.Color * FLightRenderParameters::GetLightExposureScale(View.GetLastEyeAdaptationExposure(), SimpleLight.InverseExposureBlend), SimpleLight.Exponent);
 	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(FVector3f(1, 0, 0), FMath::AsFloat(ShadowMapChannelMask));
-	Out.SpotAnglesAndSourceRadiusPacked			= FVector4f(-2, 1, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
+	Out.SpotAnglesAndIdAndSourceRadiusPacked	= FVector4f(FMath::AsFloat(SpotAnglesPacked), INDEX_NONE, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
 	Out.LightTangentAndSpecularScale			= FVector4f(1.0f, 0.0f, 0.0f, 1.0f);
 	Out.RectDataAndVirtualShadowMapId			= FVector4f(FMath::AsFloat(RectPackedX), FMath::AsFloat(RectPackedY), -1, FMath::AsFloat(RectPackedW));
 }
@@ -327,6 +330,7 @@ static void PackLocalLightData(
 	const FViewInfo& View,
 	const FLightRenderParameters& LightParameters,
 	const uint32 LightTypeAndShadowMapChannelMaskPacked,
+	const int32 LightSceneId,
 	const int32 VirtualShadowMapId,
 	const float VolumetricScatteringIntensity)
 {
@@ -346,18 +350,20 @@ static void PackLocalLightData(
 	RectPackedW |= uint32(FMath::Clamp(LightParameters.RectLightBarnCosAngle,  0.f, 1.0f) * 0x3FF) << 16;	// 10 bits
 	RectPackedW |= uint32(FMath::Clamp(LightParameters.RectLightAtlasMaxLevel, 0.f, 63.f)) << 26;			//  6 bits
 
+	// Pack spot angles in 2x f16
+	uint32 SpotAnglesPacked = PackRG16(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y);
+
 	// NOTE: This cast of VirtualShadowMapId to float is not ideal, but bitcast has issues here with INDEX_NONE -> NaN
 	// and 32-bit floats have enough mantissa to cover all reasonable numbers here for now.
 	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, LightParameters.InvRadius);
 	Out.LightColorAndFalloffExponent			= FVector4f(LightParameters.Color, LightParameters.FalloffExponent);
 	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(LightParameters.Direction, FMath::AsFloat(LightTypeAndShadowMapChannelMaskPacked));
-	Out.SpotAnglesAndSourceRadiusPacked			= FVector4f(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
+	Out.SpotAnglesAndIdAndSourceRadiusPacked	= FVector4f(FMath::AsFloat(SpotAnglesPacked), LightSceneId, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
 	Out.LightTangentAndSpecularScale			= FVector4f(LightParameters.Tangent, LightParameters.SpecularScale);
 	Out.RectDataAndVirtualShadowMapId			= FVector4f(FMath::AsFloat(RectPackedX), FMath::AsFloat(RectPackedY), float(VirtualShadowMapId), FMath::AsFloat(RectPackedW));
 
 	checkSlow(int32(Out.RectDataAndVirtualShadowMapId.Z) == VirtualShadowMapId);
 }
-
 
 void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo& SortedLightSet)
 {
@@ -483,30 +489,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						LightParameters.Color *= LightProxy->GetIndirectLightingScale();
 					}
 
-					int32 ShadowMapChannel = LightProxy->GetShadowMapChannel();
-					int32 DynamicShadowMapChannel = LightSceneInfo->GetDynamicShadowMapChannel();
-
-					if (!bAllowStaticLighting)
-					{
-						ShadowMapChannel = INDEX_NONE;
-					}
-
-					// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using DynamicShadowMapChannel
-					uint32 LightTypeAndShadowMapChannelMaskPacked =
-						(ShadowMapChannel == 0 ? 1 : 0) |
-						(ShadowMapChannel == 1 ? 2 : 0) |
-						(ShadowMapChannel == 2 ? 4 : 0) |
-						(ShadowMapChannel == 3 ? 8 : 0) |
-						(DynamicShadowMapChannel == 0 ? 16 : 0) |
-						(DynamicShadowMapChannel == 1 ? 32 : 0) |
-						(DynamicShadowMapChannel == 2 ? 64 : 0) |
-						(DynamicShadowMapChannel == 3 ? 128 : 0);
-
-					LightTypeAndShadowMapChannelMaskPacked |= LightProxy->GetLightingChannelMask() << 8;
-					// pack light type in this uint32 as well
-					LightTypeAndShadowMapChannelMaskPacked |= SortedLightInfo.SortKey.Fields.LightType << 16;
-					const uint32 CastShadows = LightProxy->CastsDynamicShadow() ? 1 : 0;
-					LightTypeAndShadowMapChannelMaskPacked |= CastShadows << (16 + LightType_NumBits);
+					uint32 LightTypeAndShadowMapChannelMaskPacked = LightSceneInfo->PackLightTypeAndShadowMapChannelMask(bAllowStaticLighting);
 
 					const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows && VisibleLightInfos.IsValidIndex(LightSceneInfo->Id);
 					const int32 VirtualShadowMapId = bDynamicShadows ? VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId( &View ) : INDEX_NONE;
@@ -541,7 +524,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 							VolumetricScatteringIntensity = 0;
 						}
 
-						PackLocalLightData(LightData, View, LightParameters, LightTypeAndShadowMapChannelMaskPacked, VirtualShadowMapId, VolumetricScatteringIntensity);
+						PackLocalLightData(LightData, View, LightParameters, LightTypeAndShadowMapChannelMaskPacked, LightSceneInfo->Id, VirtualShadowMapId, VolumetricScatteringIntensity);
 
 						const FSphere BoundingSphere = LightProxy->GetBoundingSphere();
 						const float Distance = View.ViewMatrices.GetViewMatrix().TransformPosition(BoundingSphere.Center).Z + BoundingSphere.W;

@@ -162,16 +162,17 @@ FLocalLightData GetLocalLightData_Internal(
 {
 	FLocalLightData Out = (FLocalLightData)0;
 
-	Out.bClusteredDeferredSupported		= LocalLightIndex <  ClusteredDeferredSupportedEndIndex;
-	Out.bLumenLightSupported			= LocalLightIndex >= LumenSupportedStartIndex;
-	Out.bIsSimpleLight					= LocalLightIndex <  SimpleLightsEndIndex;
-	Out.LightPositionAndInvRadius		= InData0;
-	Out.LightColorAndFalloffExponent	= InData1;
-	Out.LightDirectionAndShadowMask		= InData2;
-	Out.SpotAnglesAndSourceRadiusPacked	= InData3;
-	Out.LightTangentAndSpecularScale	= InData4;
-	Out.RectDataAndVirtualShadowMapId	= InData5;
-	Out.VirtualShadowMapId				= int(Out.RectDataAndVirtualShadowMapId.z);
+	Out.bClusteredDeferredSupported				= LocalLightIndex <  ClusteredDeferredSupportedEndIndex;
+	Out.bLumenLightSupported					= LocalLightIndex >= LumenSupportedStartIndex;
+	Out.bIsSimpleLight							= LocalLightIndex <  SimpleLightsEndIndex;
+	Out.LightPositionAndInvRadius				= InData0;
+	Out.LightColorAndFalloffExponent			= InData1;
+	Out.LightDirectionAndShadowMask				= InData2;
+	Out.SpotAnglesAndIdAndSourceRadiusPacked	= InData3;
+	Out.LightTangentAndSpecularScale			= InData4;
+	Out.RectDataAndVirtualShadowMapId			= InData5;
+	Out.VirtualShadowMapId						= int(Out.RectDataAndVirtualShadowMapId.z);
+	Out.LightSceneId							= int(Out.SpotAnglesAndIdAndSourceRadiusPacked.y);
 
 	return Out;
 }

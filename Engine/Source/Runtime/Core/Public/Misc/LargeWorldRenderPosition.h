@@ -10,31 +10,35 @@
 #include "Math/Vector4.h"
 #include "Misc/LargeWorldCoordinates.h"
 
-struct FLargeWorldRenderScalar
+template <typename TScalar>
+struct TLargeWorldRenderScalar
 {
+private:
+	using VectorType = UE::Math::TVector<TScalar>;
+
 public:
-	// This should become inline at some point, but keeping it in cpp file for now to make iteration faster when experementing with tile size
-	CORE_API static double GetTileSize();
+	// This should become inline at some point, but keeping it in cpp file for now to make iteration faster when experimenting with tile size
+	CORE_API static TScalar GetTileSize();
 	CORE_API static FVector3f GetTileFor(FVector InPosition);
 
-	static double MakeTile(double InValue)
+	static TScalar MakeTile(double InValue)
 	{
-		return FMath::FloorToDouble(InValue / GetTileSize() + 0.5);
+		return static_cast<TScalar>(FMath::FloorToDouble(InValue / GetTileSize() + 0.5));
 	}
 
-	static double MakeQuantizedTile(double InValue, double InQuantization)
+	static TScalar MakeQuantizedTile(double InValue, double InQuantization)
 	{
-		return FMath::FloorToDouble((InValue / GetTileSize()) * InQuantization + 0.5) / InQuantization;
+		return static_cast<TScalar>(FMath::FloorToDouble((InValue / GetTileSize()) * InQuantization + 0.5) / InQuantization);
 	}
 
-	static FVector MakeTile(const FVector& InValue)
+	static VectorType MakeTile(const FVector& InValue)
 	{
-		return FVector(MakeTile(InValue.X), MakeTile(InValue.Y), MakeTile(InValue.Z));
+		return VectorType(MakeTile(InValue.X), MakeTile(InValue.Y), MakeTile(InValue.Z));
 	}
 
-	static FVector MakeQuantizedTile(const FVector& InValue, double InQuantization)
+	static VectorType MakeQuantizedTile(const FVector& InValue, double InQuantization)
 	{
-		return FVector(MakeQuantizedTile(InValue.X, InQuantization), MakeQuantizedTile(InValue.Y, InQuantization), MakeQuantizedTile(InValue.Z, InQuantization));
+		return VectorType(MakeQuantizedTile(InValue.X, InQuantization), MakeQuantizedTile(InValue.Y, InQuantization), MakeQuantizedTile(InValue.Z, InQuantization));
 	}
 
 	CORE_API static FMatrix44f SafeCastMatrix(const FMatrix& Matrix);
@@ -45,65 +49,104 @@ public:
 	CORE_API static FMatrix44f MakeClampedToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld);
 	CORE_API static FMatrix    MakeClampedToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld);
 
-	float GetTile() const { return (float)Tile; }
-	float GetOffset() const { return (float)Offset; }
-	double GetTileAsDouble() const { return Tile; }
-	double GetOffsetAsDouble() const { return Offset; }
-	double GetTileOffset() const { return Tile * GetTileSize(); }
+	template <typename TResult = float>
+	TResult GetTile() const { return static_cast<TResult>(Tile); }
+	template <typename TResult = float>
+	TResult GetOffset() const { return static_cast<TResult>(Offset); }
+	UE_DEPRECATED(5.2, "GetTileAsDouble is deprecated, please use GetTile<double>() instead.")
+	double GetTileAsDouble() const { return GetTile<double>(); }
+	UE_DEPRECATED(5.2, "GetOffsetAsDouble is deprecated, please use GetOffset<double>() instead.")
+	double GetOffsetAsDouble() const { return GetOffset<double>(); }
+	double GetTileOffset() const { return static_cast<double>(Tile) * GetTileSize(); }
 	double GetAbsolute() const { return GetTileOffset() + Offset; }
 
-	FLargeWorldRenderScalar() : Tile(0.0), Offset(0.0) {}
-	FLargeWorldRenderScalar(float InTile, float InOffset) : Tile(InTile), Offset(InOffset) {}
+	TLargeWorldRenderScalar() : Tile(static_cast<TScalar>(0.0)), Offset(static_cast<TScalar>(0.0)) {}
+	TLargeWorldRenderScalar(TScalar InTile, TScalar InOffset) : Tile(static_cast<TScalar>(InTile)), Offset(static_cast<TScalar>(InOffset)) {}
 
-	FLargeWorldRenderScalar(double InAbsolute)
+	template<typename TInputScalar = double>
+	explicit TLargeWorldRenderScalar(const TLargeWorldRenderScalar<TInputScalar>& In)
+		: TLargeWorldRenderScalar(In.Tile, In.Offset)
+	{ }
+
+	TLargeWorldRenderScalar(double InAbsolute)
 	{
 		// Tiles are centered on the origin
 		Tile = MakeTile(InAbsolute);
-		Offset = InAbsolute - GetTileOffset();
+		Offset = static_cast<TScalar>(InAbsolute - GetTileOffset());
 		Validate(InAbsolute);
 	}
 
 private:
 	CORE_API void Validate(double InAbsolute);
 
-	double Tile;
-	double Offset;
+	TScalar Tile;
+	TScalar Offset;
 };
+using FLargeWorldRenderScalar = TLargeWorldRenderScalar<double>;
 
-struct FLargeWorldRenderPosition
+template<typename TScalar>
+struct TLargeWorldRenderPosition
 {
+private:
+	using LWCScalarType = TLargeWorldRenderScalar<TScalar>;
+	using VectorType = UE::Math::TVector<TScalar>;
+
 public:
-	FVector3f GetTile() const { return FVector3f(X.GetTile(), Y.GetTile(), Z.GetTile()); }
-	FVector GetTileOffset() const { return FVector(X.GetTileOffset(), Y.GetTileOffset(), Z.GetTileOffset()); }
-	FVector3f GetOffset() const { return FVector3f(X.GetOffset(), Y.GetOffset(), Z.GetOffset()); }
-	FVector GetAbsolute() const { return FVector(X.GetAbsolute(), Y.GetAbsolute(), Z.GetAbsolute()); }
-
-	explicit FLargeWorldRenderPosition(const FVector3f& InWorldPosition)
-		: X(InWorldPosition.X)
-		, Y(InWorldPosition.Y)
-		, Z(InWorldPosition.Z)
-	{}
+	template<typename TResult = float>
+	UE::Math::TVector<TResult> GetTile() const { return UE::Math::TVector<TResult>(static_cast<TResult>(Tile.X), static_cast<TResult>(Tile.Y), static_cast<TResult>(Tile.Z)); }
 	
-	explicit FLargeWorldRenderPosition(const FVector3d& InWorldPosition)
-		: X(InWorldPosition.X)
-		, Y(InWorldPosition.Y)
-		, Z(InWorldPosition.Z)
-	{}
+	FVector GetTileOffset() const
+	{ 
+		LWCScalarType X(Tile.X, Offset.X);
+		LWCScalarType Y(Tile.Y, Offset.Y);
+		LWCScalarType Z(Tile.Z, Offset.Z);
+		return FVector(X.GetTileOffset(), Y.GetTileOffset(), Z.GetTileOffset());
+	}
 
-	explicit FLargeWorldRenderPosition(const FVector4d& InWorldPosition)
-		: X(InWorldPosition.X)
-		, Y(InWorldPosition.Y)
-		, Z(InWorldPosition.Z)
-	{}
+	template<typename TResult = float>
+	UE::Math::TVector<TResult> GetOffset() const { return UE::Math::TVector<TResult>(static_cast<TResult>(Offset.X), static_cast<TResult>(Offset.Y), static_cast<TResult>(Offset.Z)); }
+	
+	FVector GetAbsolute() const
+	{
+		LWCScalarType X(Tile.X, Offset.X);
+		LWCScalarType Y(Tile.Y, Offset.Y);
+		LWCScalarType Z(Tile.Z, Offset.Z);
+		return FVector(X.GetAbsolute(), Y.GetAbsolute(), Z.GetAbsolute()); 
+	}
 
-	explicit FLargeWorldRenderPosition(const FVector3f& InTilePosition, const FVector3f& InRelativePosition)
-		: X(InTilePosition.X, InRelativePosition.X)
-		, Y(InTilePosition.Y, InRelativePosition.Y)
-		, Z(InTilePosition.Z, InRelativePosition.Z)
-	{}
+	template<typename TInputScalar = double>
+	explicit TLargeWorldRenderPosition(const UE::Math::TVector<TInputScalar>& InWorldPosition)
+	{
+		LWCScalarType X(InWorldPosition.X);
+		LWCScalarType Y(InWorldPosition.Y);
+		LWCScalarType Z(InWorldPosition.Z);
+		Tile = VectorType(X.template GetTile<TScalar>(), Y.template GetTile<TScalar>(), Z.template GetTile<TScalar>());
+		Offset = VectorType(X.template GetOffset<TScalar>(), Y.template GetOffset<TScalar>(), Z.template GetOffset<TScalar>());
+	}
+
+	template<typename TInputScalar = double>
+	explicit TLargeWorldRenderPosition(const UE::Math::TVector4<TInputScalar>& InWorldPosition)
+		: TLargeWorldRenderPosition(UE::Math::TVector<TInputScalar>(InWorldPosition.X, InWorldPosition.Y, InWorldPosition.Z))
+	{ }
+
+	template<typename TInputScalar = double>
+	explicit TLargeWorldRenderPosition(const UE::Math::TVector<TInputScalar>& InTilePosition, const UE::Math::TVector<TInputScalar>& InRelativePosition)
+	{
+		Tile = VectorType(InTilePosition.X, InTilePosition.Y, InTilePosition.Z);
+		Offset = VectorType(InRelativePosition.X, InRelativePosition.Y, InRelativePosition.Z);
+	}
+
+	template<typename TInputScalar>
+	explicit TLargeWorldRenderPosition(const TLargeWorldRenderPosition<TInputScalar>& In)
+		: TLargeWorldRenderPosition(In.Tile, In.Offset)
+	{ }
+
+	TLargeWorldRenderPosition()
+		: Tile(0, 0, 0), Offset(0, 0, 0)
+	{ }
 
 private:
-	FLargeWorldRenderScalar X;
-	FLargeWorldRenderScalar Y;
-	FLargeWorldRenderScalar Z;
+	VectorType Tile;
+	VectorType Offset;
 };
+using FLargeWorldRenderPosition = TLargeWorldRenderPosition<double>;

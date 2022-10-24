@@ -298,6 +298,39 @@ bool FLightSceneInfo::ShouldRecordShadowSubjectsForMobile() const
 	return bShouldRecordShadowSubjectsForMobile;
 }
 
+uint32 FLightSceneInfo::PackLightTypeAndShadowMapChannelMask(bool bAllowStaticLighting) const
+{
+	uint32 Result = 0;
+
+	// Light type and shadow map
+	int32 ShadowMapChannel = Proxy->GetShadowMapChannel();
+	int32 CurrentDynamicShadowMapChannel = GetDynamicShadowMapChannel();
+
+	if (!bAllowStaticLighting)
+	{
+		ShadowMapChannel = INDEX_NONE;
+	}
+
+	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using DynamicShadowMapChannel
+	Result =
+		(ShadowMapChannel == 0 ? 1 : 0) |
+		(ShadowMapChannel == 1 ? 2 : 0) |
+		(ShadowMapChannel == 2 ? 4 : 0) |
+		(ShadowMapChannel == 3 ? 8 : 0) |
+		(CurrentDynamicShadowMapChannel == 0 ? 16 : 0) |
+		(CurrentDynamicShadowMapChannel == 1 ? 32 : 0) |
+		(CurrentDynamicShadowMapChannel == 2 ? 64 : 0) |
+		(CurrentDynamicShadowMapChannel == 3 ? 128 : 0);
+
+	Result |= Proxy->GetLightingChannelMask() << 8;
+	// pack light type in this uint32 as well
+	Result |= ((uint32)Proxy->GetLightType()) << 16;
+	const uint32 CastShadows = Proxy->CastsDynamicShadow() ? 1 : 0;
+	Result |= CastShadows << (16 + LightType_NumBits);
+
+	return Result;
+}
+
 /** Determines whether two bounding spheres intersect. */
 FORCEINLINE bool AreSpheresNotIntersecting(
 	const VectorRegister& A_XYZ,
