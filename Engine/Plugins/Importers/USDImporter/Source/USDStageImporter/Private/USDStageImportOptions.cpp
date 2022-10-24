@@ -33,7 +33,6 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	bPrimPathFolderStructure = false;
 	KindsToCollapse = ( int32 ) ( EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent );
 	bMergeIdenticalMaterialSlots = true;
-	bCollapseTopLevelPointInstancers = false;
 	bInterpretLODs = true;
 }
 
@@ -100,6 +99,5 @@ void UsdUtils::AddAnalyticsAttributes(
 	InOutAttributes.Emplace( TEXT( "PrimPathFolderStructure" ), LexToString( Options.bPrimPathFolderStructure ) );
 	InOutAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( Options.KindsToCollapse ) );
 	InOutAttributes.Emplace( TEXT( "MergeIdenticalMaterialSlots" ), LexToString( Options.bMergeIdenticalMaterialSlots ) );
-	InOutAttributes.Emplace( TEXT( "CollapseTopLevelPointInstancers" ), LexToString( Options.bCollapseTopLevelPointInstancers ) );
 	InOutAttributes.Emplace( TEXT( "InterpretLODs" ), LexToString( Options.bInterpretLODs ) );
 }

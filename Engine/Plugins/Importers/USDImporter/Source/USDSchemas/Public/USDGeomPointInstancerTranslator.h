@@ -37,7 +37,7 @@ public:
 	// We only return true from CanBeCollapsed if e.g. a generic Xform prim should be able to collapse us too (like when we're
 	// collapsing even simple, not-nested point instancers).
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return true; }
-	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return Context->bCollapseTopLevelPointInstancers; }
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 };
 
 #endif // #if USE_USD_SDK

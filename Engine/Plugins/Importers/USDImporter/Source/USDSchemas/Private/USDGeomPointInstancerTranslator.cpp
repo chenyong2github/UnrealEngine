@@ -39,6 +39,12 @@
 
 #define LOCTEXT_NAMESPACE "USDGeomPointInstancer"
 
+static bool GCollapseTopLevelPointInstancers = false;
+static FAutoConsoleVariableRef CVarCollapseTopLevelPointInstancers(
+	TEXT( "USD.CollapseTopLevelPointInstancers" ),
+	GCollapseTopLevelPointInstancers,
+	TEXT( "If this is true will cause any point instancer to be collapsed to a single static mesh. Point instancers that are used as prototypes for other point instancers will always be collapsed." ) );
+
 namespace UsdGeomPointInstancerTranslatorImpl
 {
 	void ApplyPointInstanceTransforms( UInstancedStaticMeshComponent* Component, TArray<FTransform>& InstanceTransforms )
@@ -146,7 +152,7 @@ void FUsdGeomPointInstancerTranslator::CreateAssets()
 	// If another FUsdGeomXformableTranslator is collapsing the point instancer prim, it will do so by calling
 	// UsdToUnreal::ConvertGeomMeshHierarchy which will consume the prim directly.
 	// This case right here is if we're collapsing *ourselves*, where we'll essentially pretend we're a single static mesh.
-	if ( Context->bCollapseTopLevelPointInstancers )
+	if ( GCollapseTopLevelPointInstancers )
 	{
 		// Don't bake our actual point instancer's transform or visibility into the mesh as its nice to have these on the static mesh component instead
 		const bool bIgnoreTopLevelTransformAndVisibility = true;
@@ -225,7 +231,7 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomPointInstancerTranslator::CreateComponents );
 
 	// If we're collapsing ourselves, we're really just a collapsed Xform prim, so let that translator handle it
-	if ( Context->bCollapseTopLevelPointInstancers )
+	if ( GCollapseTopLevelPointInstancers )
 	{
 		return FUsdGeomXformableTranslator::CreateComponents();
 	}
@@ -371,6 +377,11 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointInstancerRootComponent )
 {
 	Super::UpdateComponents( PointInstancerRootComponent );
+}
+
+bool FUsdGeomPointInstancerTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
+{
+	return GCollapseTopLevelPointInstancers;
 }
 
 #undef LOCTEXT_NAMESPACE

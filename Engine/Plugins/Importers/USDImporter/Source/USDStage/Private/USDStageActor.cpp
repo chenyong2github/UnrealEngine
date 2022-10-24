@@ -118,7 +118,6 @@ struct FUsdStageActorImpl
 
 		TranslationContext->KindsToCollapse = (EUsdDefaultKind) StageActor->KindsToCollapse;
 		TranslationContext->bMergeIdenticalMaterialSlots = StageActor->bMergeIdenticalMaterialSlots;
-		TranslationContext->bCollapseTopLevelPointInstancers = StageActor->bCollapseTopLevelPointInstancers;
 
 		UE::FSdfPath UsdPrimPath( *PrimPath );
 		UUsdPrimTwin* ParentUsdPrimTwin = StageActor->GetRootPrimTwin()->Find( UsdPrimPath.GetParentPath().GetString() );
@@ -535,7 +534,6 @@ struct FUsdStageActorImpl
 			EventAttributes.Emplace( TEXT( "InterpolationType" ), LexToString( (uint8)StageActor->InterpolationType) );
 			EventAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( StageActor->KindsToCollapse ) );
 			EventAttributes.Emplace( TEXT( "MergeIdenticalMaterialSlots" ), LexToString( StageActor->bMergeIdenticalMaterialSlots ) );
-			EventAttributes.Emplace( TEXT( "CollapseTopLevelPointInstancers" ), LexToString( StageActor->bCollapseTopLevelPointInstancers ) );
 			EventAttributes.Emplace( TEXT( "PurposesToLoad" ), LexToString( StageActor->PurposesToLoad ) );
 			EventAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( StageActor->NaniteTriangleThreshold ) );
 			EventAttributes.Emplace( TEXT( "RenderContext" ), StageActor->RenderContext.ToString() );
@@ -622,7 +620,6 @@ AUsdStageActor::AUsdStageActor()
 	, InterpolationType( EUsdInterpolationType::Linear )
 	, KindsToCollapse( ( int32 ) ( EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent ) )
 	, bMergeIdenticalMaterialSlots( true )
-	, bCollapseTopLevelPointInstancers( false )
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, NaniteTriangleThreshold( (uint64) 1000000 )
 	, MaterialPurpose( *UnrealIdentifiers::MaterialAllPurpose )
@@ -1488,10 +1485,6 @@ void AUsdStageActor::SetMergeIdenticalMaterialSlots( bool bMerge )
 
 void AUsdStageActor::SetCollapseTopLevelPointInstancers( bool bCollapse )
 {
-	Modify();
-
-	bCollapseTopLevelPointInstancers = bCollapse;
-	LoadUsdStage();
 }
 
 void AUsdStageActor::SetPurposesToLoad( int32 NewPurposesToLoad )
@@ -2833,10 +2826,6 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, bMergeIdenticalMaterialSlots ) )
 	{
 		SetMergeIdenticalMaterialSlots( bMergeIdenticalMaterialSlots );
-	}
-	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, bCollapseTopLevelPointInstancers ) )
-	{
-		SetCollapseTopLevelPointInstancers( bCollapseTopLevelPointInstancers );
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
 	{

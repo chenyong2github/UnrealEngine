@@ -462,9 +462,14 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 				}
 				// If this is a component for a point instancer that just collapsed itself into a static mesh, just make
 				// a static mesh component that can receive it
-				else if ( Context->bCollapseTopLevelPointInstancers && pxr::UsdPrim{ Prim }.IsA<pxr::UsdGeomPointInstancer>() )
+				else if ( pxr::UsdPrim{ Prim }.IsA<pxr::UsdGeomPointInstancer>() )
 				{
-					ComponentType = UStaticMeshComponent::StaticClass();
+					static IConsoleVariable* CollapseCvar =
+						IConsoleManager::Get().FindConsoleVariable( TEXT( "USD.CollapseTopLevelPointInstancers" ) );
+					if ( CollapseCvar && CollapseCvar->GetBool() )
+					{
+						ComponentType = UStaticMeshComponent::StaticClass();
+					}
 				}
 			}
 		}
