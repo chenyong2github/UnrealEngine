@@ -369,8 +369,8 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
-				CacheAccessType();
 				SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
+				CacheAccessType();
 			}
 		};
 
@@ -381,8 +381,8 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
-				CacheAccessType();
 				SGraphPinBool::Construct(SGraphPinBool::FArguments(), InGraphPinObj);
+				CacheAccessType();
 			}
 		};
 
@@ -393,8 +393,8 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
-				CacheAccessType();
 				SGraphPinNum<float>::Construct(SGraphPinNum<float>::FArguments(), InGraphPinObj);
+				CacheAccessType();
 			}
 		};
 
@@ -405,8 +405,8 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
-				CacheAccessType();
 				SGraphPinInteger::Construct(SGraphPinInteger::FArguments(), InGraphPinObj);
+				CacheAccessType();
 			}
 		};
 
@@ -417,8 +417,8 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
-				CacheAccessType();
 				SGraphPinObject::Construct(SGraphPinObject::FArguments(), InGraphPinObj);
+				CacheAccessType();
 			}
 		};
 
@@ -429,8 +429,8 @@ namespace Metasound
 
 			void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 			{
-				CacheAccessType();
 				SGraphPinString::Construct(SGraphPinString::FArguments(), InGraphPinObj);
+				CacheAccessType();
 			}
 		};
 
