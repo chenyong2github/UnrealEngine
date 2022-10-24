@@ -380,13 +380,16 @@ bool FComputeKernelResource::CacheShaders(const FComputeKernelShaderMapId& InSha
 		bSucceeded = true;
 	}
 
-	FComputeKernelResource* Kernel = this;
-	FComputeKernelShaderMap* LoadedShaderMap = GameThreadShaderMap;
-	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnComputeKernel)(
-		[Kernel, LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
-		{
-			Kernel->SetRenderingThreadShaderMap(LoadedShaderMap);
-		});
+	if (bApplyCompletedShaderMapForRendering)
+	{
+		FComputeKernelResource* Kernel = this;
+		FComputeKernelShaderMap* LoadedShaderMap = GameThreadShaderMap;
+		ENQUEUE_RENDER_COMMAND(FSetShaderMapOnComputeKernel)(
+			[Kernel, LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
+			{
+				Kernel->SetRenderingThreadShaderMap(LoadedShaderMap);
+			});
+	}
 
 	return bSucceeded;
 }
