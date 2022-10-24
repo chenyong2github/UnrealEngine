@@ -84,6 +84,8 @@
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;
 
+extern DynamicRenderScaling::FBudget GDynamicNaniteScalingPrimary;
+
 static TAutoConsoleVariable<int32> CVarClearCoatNormal(
 	TEXT("r.ClearCoatNormal"),
 	0,
@@ -2828,6 +2830,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						LODScaleFactor = FMath::Min(LODScaleFactor, FMath::Exp2(-CVarNaniteViewMeshLODBiasMin.GetValueOnRenderThread()));
 					}
 
+					float MaxPixelsPerEdgeMultipler = 1.0f;
+					if (GDynamicNaniteScalingPrimary.GetSettings().IsEnabled())
+					{
+						MaxPixelsPerEdgeMultipler = 1.0f / DynamicResolutionFractions[GDynamicNaniteScalingPrimary];
+					}
+
 					FIntRect HZBTestRect(0, 0, View.PrevViewInfo.ViewRect.Width(), View.PrevViewInfo.ViewRect.Height());
 					Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 						View,
@@ -2836,6 +2844,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						/* StreamingPriorityCategory = */ 3,
 						/* MinBoundsRadius = */ 0.0f,
 						LODScaleFactor,
+						MaxPixelsPerEdgeMultipler,
 						/* viewport rect in HZB space. HZB is built per view and is always 0,0-based */
 						&HZBTestRect
 					);

@@ -2150,9 +2150,10 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 				Nanite::FPackedViewParams Params;
 				Params.ViewMatrices = GetShadowDepthRenderingViewMatrices(CubemapFaceIndex);
 				// TODO: Real prev frame matrices
-				Params.PrevViewMatrices = Params.ViewMatrices;	
+				Params.PrevViewMatrices = Params.ViewMatrices;
 				Params.ViewRect = ShadowViewRect;
 				Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+				Params.MaxPixelsPerEdgeMultipler = 1.0f;
 				ViewIds[CubemapFaceIndex] = InstanceCullingManager.RegisterView(Params);
 			}
 		}
@@ -2167,6 +2168,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		Params.PrevViewMatrices = Params.ViewMatrices;
 		Params.ViewRect = GetInnerViewRect();
 		Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+		Params.MaxPixelsPerEdgeMultipler = 1.0f;
 		ViewIds.Add(InstanceCullingManager.RegisterView(Params));
 	}
 	else
@@ -2177,9 +2179,10 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		Params.PrevViewMatrices = Params.ViewMatrices;
 		Params.ViewRect = GetInnerViewRect();
 		Params.RasterContextSize = FIntPoint(ResolutionX, ResolutionY);
+		Params.MaxPixelsPerEdgeMultipler = 1.0f;
 		ViewIds.Add(InstanceCullingManager.RegisterView(Params));
 	}
-	// GPUCULL_TODO: Pass along any custom culling planes or whatever here (e.g., cacade bounds):
+	// GPUCULL_TODO: Pass along any custom culling planes or whatever here (e.g., cascade bounds):
 	// GPUCULL_TODO: Add debug tags to context and views (so compute passes can be understood)
 	// GPUCULL_TODO: Needed to support legacy, non-GPU-Scene culled, primitives, this is merely used to allocate enough space for CPU-side replication.
 	const bool bMayUseHostCubeFaceReplication = bOnePassPointLightShadow && !HasVirtualShadowMap();

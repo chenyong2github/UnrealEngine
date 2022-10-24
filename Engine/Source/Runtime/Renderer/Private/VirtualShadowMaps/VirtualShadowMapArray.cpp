@@ -33,7 +33,6 @@ struct FShadowMapCacheData
 	int32 Padding[1];
 };
 
-
 struct FPhysicalPageMetaData
 {	
 	uint32 Flags;
@@ -49,6 +48,8 @@ struct FPhysicalPageRequest
 };
 
 extern int32 GForceInvalidateDirectionalVSM;
+extern float GNaniteMaxPixelsPerEdge;
+extern float GNaniteMinPixelsPerEdgeHW;
 
 int32 GVSMShowLightDrawEvents = 0;
 FAutoConsoleVariableRef CVarVSMShowLightDrawEvents(
@@ -1886,6 +1887,9 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 	
 	const int32 NumPrimaryViews = Views.Num();
 
+	const float NaniteMaxPixelsPerEdge   = GNaniteMaxPixelsPerEdge;
+	const float NaniteMinPixelsPerEdgeHW = GNaniteMinPixelsPerEdgeHW;
+
 	// 1. create derivative views for each of the Mip levels, 
 	Views.AddDefaulted( NumPrimaryViews * ( FVirtualShadowMap::MaxMipLevels - 1) );
 
@@ -1909,7 +1913,7 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 				MipView = PrimaryView;
 
 				// Slightly messy, but extract any scale factor that was applied to the LOD scale for re-application below
-				MipView.UpdateLODScales();
+				MipView.UpdateLODScales(NaniteMaxPixelsPerEdge, NaniteMinPixelsPerEdgeHW);
 				float LODScaleFactor = PrimaryView.LODScales.X / MipView.LODScales.X;
 
 				MipView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Y = MipLevel;
@@ -1922,7 +1926,7 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 				MipView.ViewSizeAndInvSize = FVector4f(ViewSize.X, ViewSize.Y, 1.0f / float(ViewSize.X), 1.0f / float(ViewSize.Y));
 				MipView.ViewRect = FIntVector4(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y);
 
-				MipView.UpdateLODScales();
+				MipView.UpdateLODScales(NaniteMaxPixelsPerEdge, NaniteMinPixelsPerEdgeHW);
 				MipView.LODScales.X *= LODScaleFactor;
 
 				MipView.TranslatedWorldToSubpixelClip = Nanite::FPackedView::CalcTranslatedWorldToSubpixelClip(MipView.TranslatedWorldToClip, FIntRect(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y));
@@ -3017,6 +3021,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const TSharedPtr<FVirtualShadowMap
 		Params.ViewMatrices = Clipmap->GetViewMatrices(ClipmapLevelIndex);
 		Params.PrevTargetLayerIndex = INDEX_NONE;
 		Params.PrevViewMatrices = Params.ViewMatrices;
+		// TODO: MaxPixelsPerEdgeMultipler
 
 		// TODO: Clean this up - could be stored in a single structure for the whole clipmap
 		int32 HZBKey = Clipmap->GetHZBKey(ClipmapLevelIndex);
@@ -3073,6 +3078,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 		Params.TargetLayerIndex = VirtualShadowMap->ID;
 		Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(Index, true);
 		Params.RangeBasedCullingDistance = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetRadius();
+		// TODO: MaxPixelsPerEdgeMultipler
 
 		int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (Index << 24);
 

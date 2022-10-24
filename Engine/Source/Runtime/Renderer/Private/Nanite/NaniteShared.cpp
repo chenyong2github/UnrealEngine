@@ -57,12 +57,12 @@ FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
 namespace Nanite
 {
 
-void FPackedView::UpdateLODScales()
+void FPackedView::UpdateLODScales(const float NaniteMaxPixelsPerEdge, const float MinPixelsPerEdgeHW)
 {
 	const float ViewToPixels = 0.5f * ViewToClip.M[1][1] * ViewSizeAndInvSize.Y;
 
-	const float LODScale = ViewToPixels / GNaniteMaxPixelsPerEdge;
-	const float LODScaleHW = ViewToPixels / GNaniteMinPixelsPerEdgeHW;
+	const float LODScale = ViewToPixels / NaniteMaxPixelsPerEdge;
+	const float LODScaleHW = ViewToPixels / MinPixelsPerEdgeHW;
 
 	LODScales = FVector2f(LODScale, LODScaleHW);
 }
@@ -91,6 +91,9 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 
 	const FIntRect& ViewRect = Params.ViewRect;
 	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));
+
+	const float NaniteMaxPixelsPerEdge = GNaniteMaxPixelsPerEdge * Params.MaxPixelsPerEdgeMultipler;
+	const float NaniteMinPixelsPerEdgeHW = GNaniteMinPixelsPerEdgeHW;
 
 	FPackedView PackedView;
 	PackedView.TranslatedWorldToView		= FMatrix44f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix());	// LWC_TODO: Precision loss? (and below)
@@ -138,7 +141,7 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	check(Params.StreamingPriorityCategory <= NANITE_STREAMING_PRIORITY_CATEGORY_MASK);
 	PackedView.StreamingPriorityCategory_AndFlags = (Params.Flags << NANITE_NUM_STREAMING_PRIORITY_CATEGORY_BITS) | Params.StreamingPriorityCategory;
 	PackedView.MinBoundsRadiusSq = Params.MinBoundsRadius * Params.MinBoundsRadius;
-	PackedView.UpdateLODScales();
+	PackedView.UpdateLODScales(NaniteMaxPixelsPerEdge, NaniteMinPixelsPerEdgeHW);
 
 	PackedView.LODScales.X *= Params.LODScaleFactor;
 
@@ -161,6 +164,7 @@ FPackedView CreatePackedViewFromViewInfo
 	uint32 StreamingPriorityCategory,
 	float MinBoundsRadius,
 	float LODScaleFactor,
+	float MaxPixelsPerEdgeMultipler,
 	const FIntRect* InHZBTestViewRect
 )
 {
@@ -175,6 +179,7 @@ FPackedView CreatePackedViewFromViewInfo
 	Params.LODScaleFactor = LODScaleFactor;
 	// Note - it is incorrect to use ViewRect as it is in a different space, but keeping this for backward compatibility reasons with other callers
 	Params.HZBTestViewRect = InHZBTestViewRect ? *InHZBTestViewRect : View.PrevViewInfo.ViewRect;
+	Params.MaxPixelsPerEdgeMultipler = MaxPixelsPerEdgeMultipler;
 	return CreatePackedView(Params);
 }
 

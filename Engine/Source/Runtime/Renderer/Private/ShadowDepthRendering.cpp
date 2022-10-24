@@ -1374,6 +1374,7 @@ static void RenderShadowDepthAtlasNanite(
 		Initializer.LODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
 		Initializer.PrevViewMatrices = Initializer.ViewMatrices;
 		Initializer.HZBTestViewRect = ProjectedShadowInfo->GetInnerViewRect();
+		Initializer.MaxPixelsPerEdgeMultipler = 1.0f;
 		
 		// Orthographic shadow projections want depth clamping rather than clipping
 		Initializer.Flags = ProjectedShadowInfo->ShouldClampToNearPlane() ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
@@ -1624,7 +1625,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 	{
 		ShadowSceneRenderer->RenderVirtualShadowMaps(GraphBuilder, bNaniteEnabled, CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0, GNaniteProgrammableRasterShadows != 0);
 	}
-					}
+}
 
 void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
 {
@@ -1803,6 +1804,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						Params.LODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
 						Params.PrevViewMatrices = Params.ViewMatrices;
 						Params.HZBTestViewRect = ShadowViewRect;
+						Params.MaxPixelsPerEdgeMultipler = 1.0f;
 						UpdatePackedViewParamsFromPrevShadowState(Params, PrevShadowState);
 
 						PackedViews.Add(Nanite::CreatePackedView(Params));

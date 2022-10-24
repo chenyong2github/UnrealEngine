@@ -16,6 +16,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "DynamicResolutionState.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
@@ -206,6 +207,67 @@ static FAutoConsoleVariableRef CVarNanitePersistentThreadsCulling(
 	TEXT("Perform node and cluster culling in one combined kernel using persistent threads."),
 	ECVF_RenderThreadSafe
 );
+
+// i.e. if r.Nanite.MaxPixelsPerEdge is 1.0 and r.Nanite.PrimaryRaster.PixelsPerEdgeScaling is 20%, when heavily over budget r.Nanite.MaxPixelsPerEdge will be scaled to to 5.0
+static TAutoConsoleVariable<float> CVarNanitePrimaryPixelsPerEdgeScalingPercentage(
+	TEXT("r.Nanite.PrimaryRaster.PixelsPerEdgeScaling"),
+	100.0f, // 100% - no scaling - set to < 100% to scale pixel error when over budget
+	TEXT("Lower limit percentage to scale the Nanite primary raster MaxPixelsPerEdge value when over budget."),
+	ECVF_RenderThreadSafe | ECVF_Default);
+
+// i.e. if r.Nanite.MaxPixelsPerEdge is 1.0 and r.Nanite.ShadowRaster.PixelsPerEdgeScaling is 20%, when heavily over budget r.Nanite.MaxPixelsPerEdge will be scaled to to 5.0
+static TAutoConsoleVariable<float> CVarNaniteShadowPixelsPerEdgeScalingPercentage(
+	TEXT("r.Nanite.ShadowRaster.PixelsPerEdgeScaling"),
+	100.0f, // 100% - no scaling - set to < 100% to scale pixel error when over budget
+	TEXT("Lower limit percentage to scale the Nanite shadow raster MaxPixelsPerEdge value when over budget."),
+	ECVF_RenderThreadSafe | ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarNanitePrimaryTimeBudgetMs(
+	TEXT("r.Nanite.PrimaryRaster.TimeBudgetMs"),
+	DynamicRenderScaling::FHeuristicSettings::kBudgetMsDisabled,
+	TEXT("Frame's time budget for Nanite primary raster in milliseconds."),
+	ECVF_RenderThreadSafe | ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarNaniteShadowTimeBudgetMs(
+	TEXT("r.Nanite.ShadowRaster.TimeBudgetMs"),
+	DynamicRenderScaling::FHeuristicSettings::kBudgetMsDisabled,
+	TEXT("Frame's time budget for Nanite shadow raster in milliseconds."),
+	ECVF_RenderThreadSafe | ECVF_Default);
+
+static DynamicRenderScaling::FHeuristicSettings GetDynamicNaniteScalingPrimarySettings()
+{
+	const float PixelsPerEdgeScalingPercentage = FMath::Clamp(CVarNanitePrimaryPixelsPerEdgeScalingPercentage.GetValueOnAnyThread(), 1.0f, 100.0f);
+
+	DynamicRenderScaling::FHeuristicSettings BucketSetting;
+	BucketSetting.Model = DynamicRenderScaling::EHeuristicModel::Linear;
+	BucketSetting.bModelScalesWithPrimaryScreenPercentage = false; // r.Nanite.MaxPixelsPerEdge is not scaled by dynamic resolution of the primary view
+	BucketSetting.MinResolutionFraction = DynamicRenderScaling::PercentageToFraction(PixelsPerEdgeScalingPercentage);
+	BucketSetting.MaxResolutionFraction = DynamicRenderScaling::PercentageToFraction(100.0f);
+	BucketSetting.BudgetMs = CVarNanitePrimaryTimeBudgetMs.GetValueOnAnyThread();
+	BucketSetting.ChangeThreshold = DynamicRenderScaling::PercentageToFraction(10.0f);
+	BucketSetting.TargetedHeadRoom = DynamicRenderScaling::PercentageToFraction(5.0f); // 5% headroom
+	BucketSetting.UpperBoundQuantization = DynamicRenderScaling::FHeuristicSettings::kDefaultUpperBoundQuantization;
+	return BucketSetting;
+}
+
+static DynamicRenderScaling::FHeuristicSettings GetDynamicNaniteScalingShadowSettings()
+{
+	const float PixelsPerEdgeScalingPercentage = FMath::Clamp(CVarNaniteShadowPixelsPerEdgeScalingPercentage.GetValueOnAnyThread(), 1.0f, 100.0f);
+
+	DynamicRenderScaling::FHeuristicSettings BucketSetting;
+	BucketSetting.Model = DynamicRenderScaling::EHeuristicModel::Linear;
+	BucketSetting.bModelScalesWithPrimaryScreenPercentage = false; // r.Nanite.MaxPixelsPerEdge is not scaled by dynamic resolution of the primary view
+	BucketSetting.MinResolutionFraction = DynamicRenderScaling::PercentageToFraction(PixelsPerEdgeScalingPercentage);
+	BucketSetting.MaxResolutionFraction = DynamicRenderScaling::PercentageToFraction(100.0f);
+	BucketSetting.BudgetMs = CVarNaniteShadowTimeBudgetMs.GetValueOnAnyThread();
+	BucketSetting.ChangeThreshold = DynamicRenderScaling::PercentageToFraction(10.0f);
+	BucketSetting.TargetedHeadRoom = DynamicRenderScaling::PercentageToFraction(5.0f); // 5% headroom
+	BucketSetting.UpperBoundQuantization = DynamicRenderScaling::FHeuristicSettings::kDefaultUpperBoundQuantization;
+	return BucketSetting;
+}
+
+DynamicRenderScaling::FBudget GDynamicNaniteScalingPrimary(TEXT("DynamicNaniteScalingPrimary"), &GetDynamicNaniteScalingPrimarySettings);
+DynamicRenderScaling::FBudget GDynamicNaniteScalingShadow( TEXT("DynamicNaniteScalingShadow"),  &GetDynamicNaniteScalingShadowSettings);
 
 extern int32 GNaniteShowStats;
 
@@ -2531,6 +2593,9 @@ FBinningData AddPass_Rasterize(
 	{
 		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 	}
+
+	const DynamicRenderScaling::FBudget& ScalingBudget = bMainPass ? GDynamicNaniteScalingPrimary : GDynamicNaniteScalingShadow;
+	DynamicRenderScaling::FRDGScope DynamicScalingScope(GraphBuilder, ScalingBudget);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HW Rasterize"),
