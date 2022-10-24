@@ -80,6 +80,21 @@ void SObjectMixerEditorMainPanel::Construct(
 	SetSingleCollectionSelection();
 }
 
+FReply SObjectMixerEditorMainPanel::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// Check to see if any actions can be processed
+	// If we are in debug mode do not process commands
+	if (FSlateApplication::Get().IsNormalExecution())
+	{
+		if (GetMainPanelModel().Pin()->ObjectMixerCommands->ProcessCommandBindings(InKeyEvent))
+		{
+			return FReply::Handled();
+		}
+	}
+	
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 {
 	TSharedRef<SHorizontalBox> ToolbarBox = SNew(SHorizontalBox);

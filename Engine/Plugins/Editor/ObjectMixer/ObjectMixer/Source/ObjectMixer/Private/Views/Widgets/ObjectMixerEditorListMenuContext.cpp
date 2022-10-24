@@ -8,9 +8,11 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "LevelEditor.h"
+#include "LevelEditorActions.h"
 #include "LevelEditorContextMenu.h"
 #include "LevelEditorMenuContext.h"
 #include "LevelEditorViewport.h"
+#include "ObjectMixerEditorModule.h"
 #include "Selection.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
@@ -18,6 +20,7 @@
 #include "ToolMenuDelegates.h"
 #include "ToolMenuEntry.h"
 #include "ToolMenuSection.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
@@ -104,88 +107,91 @@ TSharedPtr<SWidget> UObjectMixerEditorListMenuContext::BuildContextMenu(const FO
 
 void UObjectMixerEditorListMenuContext::RegisterObjectMixerContextMenu()
 {
-	UToolMenus* ToolMenus = UToolMenus::Get();
-	
-	if (ToolMenus->IsMenuRegistered("LevelEditor.ActorContextMenu"))
-	{
-		UToolMenu* Menu = ToolMenus->ExtendMenu("LevelEditor.ActorContextMenu");
-	
-		Menu->AddDynamicSection("DynamicCollectionsSection", FNewToolMenuDelegate::CreateLambda(
+	if (UToolMenu* ActorContextMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu"))
+	{		
+		ActorContextMenu->AddDynamicSection("DynamicCollectionsSection", FNewToolMenuDelegate::CreateLambda(
 			[](UToolMenu* InMenu)
 			{
+				// Ensure proper context
 				UObjectMixerEditorListMenuContext* Context = InMenu->FindContext<UObjectMixerEditorListMenuContext>();
 				if (!Context || Context->Data.SelectedItems.Num() == 0)
 				{
 					return;
 				}
-	
-				FToolMenuSection& Section = InMenu->FindOrAddSection("ObjectMixerCollections");
-				Section.Label = LOCTEXT("ObjectMixerCollectionsSectionName", "Mixer Collections");
-				
-				FObjectMixerEditorListMenuContextData& ContextData = Context->Data;
-			
-				Section.AddSubMenu(
-					"SelectCollectionsSubMenu",
-					LOCTEXT("SelectCollectionsSubmenu", "Select or Add Collection"),
-					LOCTEXT("SelectCollectionsSubmenu_Tooltip", "Select the collection to which you wish to assign this object."),
-					FNewToolMenuDelegate::CreateLambda(
-						[ContextData](UToolMenu* Menu)
-						{
-							FToolMenuEntry Args;
-							Args.Type = EMultiBlockType::Widget;
-							Args.MakeCustomWidget.BindLambda(
-								[ContextData](const FToolMenuContext&, const FToolMenuCustomWidgetContext&)
-								{
-									return SNew(SBox)
-											.MinDesiredWidth(200)
-											.Padding(8, 0)
-											[
-												SNew(SEditableTextBox)
-												.HintText(LOCTEXT("NewCollectionEditableHintText", "Enter a new collection name..."))
-												.OnTextCommitted_Static(&UObjectMixerEditorListMenuContext::OnTextCommitted, ContextData)
-											]
-									;
-								}
-							);
-							Menu->AddMenuEntry("NewCollectionInput", Args);
-							
-							if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ContextData.MainPanelPtr.Pin())
-							{
-								if (TArray<FName> Collections = MainPanel->GetAllCollectionNames(); Collections.Num() > 0)
-								{
-									FToolMenuSection& Section = Menu->FindOrAddSection("Collections");
-								   Section.Label = LOCTEXT("CollectionsSectionName", "Collections");
 
-								   Collections.StableSort([](const FName& A, const FName B)
-								   {
-									   return A.LexicalLess(B);
-								   });
-								
-								   for (const FName& Key : Collections)
-								   {
-									   const FText KeyText = FText::FromName(Key);
-									
-									   Section.AddMenuEntry(
-										   Key,
-										   KeyText,
-										   FText::Format(LOCTEXT("AddObjectsToCollectionTooltipFormat", "Add selected to collection '{0}'"), KeyText),
-										   FSlateIcon(),
-										   FUIAction(
-											   FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::OnClickCollectionMenuEntry, Key, ContextData),
-											   FCanExecuteAction(),
-											   FIsActionChecked::CreateStatic(&UObjectMixerEditorListMenuContext::AreAllObjectsInCollection, Key, ContextData)
-										   ),
-										   EUserInterfaceActionType::ToggleButton
-									   );
-								   }
-								}
-							}
-						}
-					)
-				);
+				const FObjectMixerEditorListMenuContextData& ContextData = Context->Data;
+
+				ReplaceEditSubMenu(ContextData);
+
+				// Collections submenu
+				{
+					FToolMenuSection& Section = InMenu->FindOrAddSection("ObjectMixerCollections");
+					Section.Label = LOCTEXT("ObjectMixerCollectionsSectionName", "Mixer Collections");
+		
+					Section.AddSubMenu(
+						"SelectCollectionsSubMenu",
+						LOCTEXT("SelectCollectionsSubmenu", "Select or Add Collection"),
+						LOCTEXT("SelectCollectionsSubmenu_Tooltip", "Select the collection to which you wish to assign this object."),
+						FNewToolMenuDelegate::CreateStatic(&UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu, ContextData)
+					);
+				}
 			}),
 			FToolMenuInsert(NAME_None,EToolMenuInsertType::First)
 		);
+	}
+}
+
+void UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu(UToolMenu* Menu, FObjectMixerEditorListMenuContextData ContextData)
+{
+	FToolMenuEntry Args;
+	Args.Type = EMultiBlockType::Widget;
+	Args.MakeCustomWidget.BindLambda(
+		[ContextData](const FToolMenuContext&, const FToolMenuCustomWidgetContext&)
+		{
+			return
+				SNew(SBox)
+				.MinDesiredWidth(200)
+				.Padding(8, 0)
+				[
+					SNew(SEditableTextBox)
+					.HintText(LOCTEXT("NewCollectionEditableHintText", "Enter a new collection name..."))
+					.OnTextCommitted_Static(&UObjectMixerEditorListMenuContext::OnTextCommitted, ContextData)
+				]
+			;
+		}
+	);
+	Menu->AddMenuEntry("NewCollectionInput", Args);
+						
+	if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ContextData.MainPanelPtr.Pin())
+	{
+		if (TArray<FName> Collections = MainPanel->GetAllCollectionNames(); Collections.Num() > 0)
+		{
+			FToolMenuSection& Section = Menu->FindOrAddSection("Collections");
+			Section.Label = LOCTEXT("CollectionsSectionName", "Collections");
+
+			Collections.StableSort([](const FName& A, const FName B)
+			{
+				return A.LexicalLess(B);
+			});
+							
+			for (const FName& Key : Collections)
+			{
+				const FText KeyText = FText::FromName(Key);
+								
+				Section.AddMenuEntry(
+					Key,
+					KeyText,
+					FText::Format(LOCTEXT("AddObjectsToCollectionTooltipFormat", "Add selected to collection '{0}'"), KeyText),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::OnClickCollectionMenuEntry, Key, ContextData),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateStatic(&UObjectMixerEditorListMenuContext::AreAllObjectsInCollection, Key, ContextData)
+					),
+					EUserInterfaceActionType::ToggleButton
+				);
+			}
+		}
 	}
 }
 
@@ -266,6 +272,56 @@ bool UObjectMixerEditorListMenuContext::AreAllObjectsInCollection(const FName Ke
 	}
 
 	return bAreAllSelectedObjectsInCollection;
+}
+
+void UObjectMixerEditorListMenuContext::ReplaceEditSubMenu(const FObjectMixerEditorListMenuContextData& ContextData)
+{
+	if (UToolMenu* EditSubMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu.EditSubMenu"))
+	{
+		// Remove existing edit sub menu options
+		FCustomizedToolMenu* MenuCustomization = EditSubMenu->AddMenuCustomization();
+		{
+			MenuCustomization->AddEntry(TEXT("Cut"))->Visibility = ECustomizedToolMenuVisibility::Hidden;
+			MenuCustomization->AddEntry(TEXT("Copy"))->Visibility = ECustomizedToolMenuVisibility::Hidden;
+			MenuCustomization->AddEntry(TEXT("Paste"))->Visibility = ECustomizedToolMenuVisibility::Hidden;
+			MenuCustomization->AddEntry(TEXT("Duplicate"))->Visibility = ECustomizedToolMenuVisibility::Hidden;
+			MenuCustomization->AddEntry(TEXT("Delete"))->Visibility = ECustomizedToolMenuVisibility::Hidden;
+			MenuCustomization->AddEntry(TEXT("Rename"))->Visibility = ECustomizedToolMenuVisibility::Hidden;
+		}
+
+		// Add our menu widget to the edit submenu
+		// It must be a widget entry because we hid the entries above, so they won't show as regular menu entries since they share names
+		FToolMenuEntry Entry;
+		Entry.Name = TEXT("ObjectMixerGenericCommands");
+		Entry.Type = EMultiBlockType::Widget;
+		FToolMenuEntryWidgetData WidgetData;
+		WidgetData.bNoIndent = true;
+		WidgetData.bNoPadding = true;
+		Entry.WidgetData = WidgetData;
+		Entry.MakeCustomWidget.BindLambda(
+			[ContextData](const FToolMenuContext&, const FToolMenuCustomWidgetContext&)
+			{
+				if (TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = ContextData.MainPanelPtr.Pin())
+				{
+					// Add options with our mapped command list to an FMenuBuilder
+					FMenuBuilder Builder(true, PinnedMainPanel->ObjectMixerCommands);
+					{
+						Builder.AddMenuEntry( FGenericCommands::Get().Cut);
+						Builder.AddMenuEntry( FGenericCommands::Get().Copy);
+						Builder.AddMenuEntry( FGenericCommands::Get().Paste);
+						Builder.AddMenuEntry( FGenericCommands::Get().Duplicate);
+						Builder.AddMenuEntry( FGenericCommands::Get().Delete);
+						Builder.AddMenuEntry( FGenericCommands::Get().Rename);
+					}
+
+					return Builder.MakeWidget();
+				}
+
+				return SNullWidget::NullWidget;
+			}
+		);
+		EditSubMenu->AddMenuEntry(NAME_None, Entry);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

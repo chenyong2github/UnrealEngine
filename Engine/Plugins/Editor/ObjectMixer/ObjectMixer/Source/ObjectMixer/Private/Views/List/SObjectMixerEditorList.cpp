@@ -200,6 +200,14 @@ void SObjectMixerEditorList::RequestRebuildList(const FString& InItemToScrollTo)
 	bIsRebuildRequested = true;
 }
 
+void SObjectMixerEditorList::OnRenameCommand()
+{
+	if (GetSelectedTreeViewItemCount() == 1)
+	{
+		GetSelectedTreeViewItems()[0]->CallOnRenameCommandDelegate();
+	}
+}
+
 TArray<FObjectMixerEditorListRowPtr> SObjectMixerEditorList::GetSelectedTreeViewItems() const
 {
 	return TreeViewPtr->GetSelectedItems();

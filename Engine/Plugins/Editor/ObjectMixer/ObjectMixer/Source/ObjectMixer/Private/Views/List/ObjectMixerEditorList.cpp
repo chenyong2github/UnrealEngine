@@ -87,6 +87,14 @@ void FObjectMixerEditorList::RefreshList() const
 	}
 }
 
+void FObjectMixerEditorList::OnRenameCommand()
+{
+	if (ListWidget.IsValid())
+	{
+		ListWidget->OnRenameCommand();;
+	}
+}
+
 void FObjectMixerEditorList::RequestSyncEditorSelectionToListSelection() const
 {
 	if (ListWidget.IsValid())

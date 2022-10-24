@@ -2,13 +2,45 @@
 
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
+#include "LevelEditorActions.h"
 #include "ObjectMixerEditorSerializedData.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
 void FObjectMixerEditorMainPanel::Init()
 {
 	RegenerateListModel();
+	RegisterAndMapContextMenuCommands();
+}
+
+void FObjectMixerEditorMainPanel::RegisterAndMapContextMenuCommands()
+{
+	ObjectMixerCommands = MakeShared<FUICommandList>();
+
+	ObjectMixerCommands->MapAction(FGenericCommands::Get().Cut,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT CUT") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Cut_CanExecute )
+	);
+	ObjectMixerCommands->MapAction(FGenericCommands::Get().Copy,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT COPY") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Copy_CanExecute )
+	);
+	ObjectMixerCommands->MapAction(FGenericCommands::Get().Paste,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT PASTE") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Paste_CanExecute )
+	);
+	ObjectMixerCommands->MapAction(FGenericCommands::Get().Duplicate,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DUPLICATE") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Duplicate_CanExecute )
+	);
+	ObjectMixerCommands->MapAction(FGenericCommands::Get().Delete,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DELETE") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Delete_CanExecute )
+	);
+	ObjectMixerCommands->MapAction(FGenericCommands::Get().Rename,
+		FUIAction(FExecuteAction::CreateRaw(this, &FObjectMixerEditorMainPanel::OnRenameCommand))
+	);
 }
 
 TSharedRef<SWidget> FObjectMixerEditorMainPanel::GetOrCreateWidget()
@@ -41,6 +73,14 @@ void FObjectMixerEditorMainPanel::RefreshList() const
 	if (EditorListModel.IsValid())
 	{
 		EditorListModel->RefreshList();
+	}
+}
+
+void FObjectMixerEditorMainPanel::OnRenameCommand()
+{
+	if (EditorListModel.IsValid())
+	{
+		EditorListModel->OnRenameCommand();
 	}
 }
 

@@ -22,6 +22,8 @@ public:
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FObjectMixerEditorMainPanel>& InMainPanel);
 
+	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+
 	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel()
 	{
 		return MainPanelModel;

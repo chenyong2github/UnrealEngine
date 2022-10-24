@@ -38,8 +38,11 @@ public:
 	 * Useful for when the list state has gone stale but the variable count has not changed.
 	 */
 	virtual void RefreshList() const;
+
+	/** Called when the Rename command is executed from the UI or hotkey. */
+	virtual void OnRenameCommand();
 	
-	void RequestSyncEditorSelectionToListSelection();
+	virtual void RequestSyncEditorSelectionToListSelection();
 
 	void RegisterMenuGroup();
 	void UnregisterMenuGroup();

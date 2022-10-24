@@ -37,6 +37,9 @@ public:
 	 */
 	void RefreshList() const;
 
+	/** Called when the Rename command is executed from the UI or hotkey. */
+	void OnRenameCommand();
+
 	void RequestSyncEditorSelectionToListSelection() const;
 
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);

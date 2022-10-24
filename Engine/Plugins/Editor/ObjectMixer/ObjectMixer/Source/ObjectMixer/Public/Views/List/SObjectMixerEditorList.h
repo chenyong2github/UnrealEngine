@@ -98,6 +98,9 @@ public:
 	 */
 	void RequestRebuildList(const FString& InItemToScrollTo = "");
 
+	/** Called when the Rename command is executed from the UI or hotkey. */
+	void OnRenameCommand();
+
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
 	

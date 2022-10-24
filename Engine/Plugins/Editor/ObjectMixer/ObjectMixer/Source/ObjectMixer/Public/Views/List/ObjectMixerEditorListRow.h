@@ -12,7 +12,6 @@
 #include "PropertyHandle.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
-#include "UObject/WeakObjectPtr.h"
 
 class SObjectMixerEditorList;
 class UObjectMixerObjectFilter;
@@ -21,6 +20,8 @@ struct FSlateBrush;
 
 struct FObjectMixerEditorListRow;
 typedef TSharedPtr<FObjectMixerEditorListRow> FObjectMixerEditorListRowPtr;
+
+DECLARE_DELEGATE(FOnRenameCommand)
 
 class FObjectMixerListRowDragDropOp : public FDecoratedDragDropOp
 {
@@ -213,6 +214,16 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	void SetRowSoloState(const bool bNewSolo);
 
 	void ClearSoloRows() const;
+
+	FOnRenameCommand& OnRenameCommand()
+	{
+		return OnRenameCommandDelegate;
+	}
+
+	void CallOnRenameCommandDelegate()
+	{
+		OnRenameCommandDelegate.Execute();
+	}
 	
 	TMap<FName, TWeakPtr<IPropertyHandle>> PropertyNamesToHandles;
 
@@ -245,4 +256,6 @@ private:
 	bool bShouldExpandAllChildren = false;
 
 	int32 CachedHybridRowIndex = INDEX_NONE;
+
+	FOnRenameCommand OnRenameCommandDelegate;
 };

@@ -7,6 +7,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SWidget.h"
 
+class FUICommandList;
 class FObjectMixerEditorListFilter_Collection;
 class UObjectMixerEditorSerializedData;
 struct FObjectMixerEditorListRow;
@@ -28,6 +29,8 @@ public:
 	~FObjectMixerEditorMainPanel() = default;
 
 	void Init();
+	
+	void RegisterAndMapContextMenuCommands();
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
@@ -43,6 +46,9 @@ public:
 	 * Useful for when the list state has gone stale but the variable count has not changed.
 	 */
 	void RefreshList() const;
+
+	/** Called when the Rename command is executed from the UI or hotkey. */
+	void OnRenameCommand();
 
 	void RequestSyncEditorSelectionToListSelection() const;
 
@@ -155,6 +161,8 @@ public:
 
 	FOnPreFilterChange OnPreFilterChange;
 	FOnPostFilterChange OnPostFilterChange;
+
+	TSharedPtr<FUICommandList> ObjectMixerCommands;
 
 private:
 

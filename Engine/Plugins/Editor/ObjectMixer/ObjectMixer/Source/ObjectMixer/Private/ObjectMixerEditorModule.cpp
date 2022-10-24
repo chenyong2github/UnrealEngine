@@ -18,6 +18,7 @@
 #include "ToolMenus.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
 const FName FObjectMixerEditorModule::BaseObjectMixerModuleName("ObjectMixerEditor");
 
@@ -139,6 +140,14 @@ void FObjectMixerEditorModule::RefreshList() const
 	if (MainPanel.IsValid())
 	{
 		MainPanel->RefreshList();
+	}
+}
+
+void FObjectMixerEditorModule::OnRenameCommand()
+{
+	if (MainPanel.IsValid())
+	{
+		MainPanel->OnRenameCommand();
 	}
 }
 

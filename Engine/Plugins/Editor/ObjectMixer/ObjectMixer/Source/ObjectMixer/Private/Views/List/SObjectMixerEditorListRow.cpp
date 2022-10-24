@@ -47,6 +47,8 @@ public:
 	{
 		Item = InRow;
 		HybridChild = InHybridChild;
+
+		InRow->OnRenameCommand().BindRaw(this, &SInlineEditableRowNameCellWidget::EnterEditingMode);
 		
 		TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox);
 		
@@ -101,7 +103,7 @@ public:
 			HBox->AddSlot()
 			.Padding(FMargin(10.0, 0, 0, 0))
 			[
-				SNew(SInlineEditableTextBlock)
+				SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
 				.Visibility(EVisibility::Visible)
 				.Justification(ETextJustify::Left)
 				.Text(DisplayName)
@@ -124,6 +126,24 @@ public:
 				HBox
 			]
 		];
+	}
+
+	virtual ~SInlineEditableRowNameCellWidget() override
+	{
+		if (const FObjectMixerEditorListRowPtr ItemPin = Item.Pin())
+		{
+			ItemPin->OnRenameCommand().Unbind();
+		}
+		
+		Item.Reset();
+		HybridChild.Reset();
+
+		EditableTextBlock.Reset();
+	}
+
+	void EnterEditingMode() const
+	{
+		EditableTextBlock->EnterEditingMode();
 	}
 
 private:
@@ -389,6 +409,8 @@ private:
 
 	TWeakPtr<FObjectMixerEditorListRow> Item;
 	TWeakPtr<FObjectMixerEditorListRow> HybridChild;
+
+	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
 
 	/** The offset applied to text widgets so that the text aligns with the column header text */
 	float TextBlockLeftPadding = 3.0f;
