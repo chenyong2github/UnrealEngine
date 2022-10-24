@@ -36,6 +36,7 @@ const FName FGeometryCollection::StatusFlagsAttribute("StatusFlags");
 FGeometryCollection::FGeometryCollection()
 	: FTransformCollection()
 	, FGeometryCollectionConvexPropertiesInterface(this)
+	, FGeometryCollectionProximityPropertiesInterface(this)
 {
 	Construct();
 }
@@ -730,6 +731,7 @@ void FGeometryCollection::Empty()
 void FGeometryCollection::InitializeInterfaces()
 {
 	FGeometryCollectionConvexPropertiesInterface::InitializeInterface();
+	FGeometryCollectionProximityPropertiesInterface::InitializeInterface();
 }
 
 void FGeometryCollection::ReorderElements(FName Group, const TArray<int32>& NewOrder)
@@ -1039,6 +1041,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 	if (Ar.IsCooking())
 	{
 		FGeometryCollectionConvexPropertiesInterface::CleanInterfaceForCook();
+		FGeometryCollectionProximityPropertiesInterface::CleanInterfaceForCook();
 	}
 
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);

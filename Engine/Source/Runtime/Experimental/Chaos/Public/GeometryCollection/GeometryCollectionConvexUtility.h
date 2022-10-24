@@ -25,6 +25,25 @@ enum class EConvexOverlapRemoval : int32
 	OnlyClustersVsClusters = 3
 };
 
+namespace UE::GeometryCollectionConvexUtility
+{
+	// Used to pass computed convex hulls along with metadata
+	// Note these hulls are typically computed in a shared coordinate space, in contrast to the final hulls on the geometry collection which are in the local space of each bone
+	struct FConvexHulls
+	{
+		TArray<TUniquePtr<Chaos::FConvex>> Hulls;
+
+		// Mapping from geometry collection bones indices to indices in the Hulls array. A Set is used to support multiple hulls per bone.
+		TArray<TSet<int32>> TransformToHullsIndices;
+
+		// Percent the hulls are down-scaled
+		double OverlapRemovalShrinkPercent;
+
+		// The pivots used for scaling by OverlapRemovalShrinkPercent
+		TArray<FVector> Pivots;
+	};
+}
+
 class CHAOS_API FGeometryCollectionConvexUtility
 {
 public:
@@ -53,9 +72,10 @@ public:
 	 @param CanExceedFraction					The fraction by which the convex body volume on a cluster can exceed the volume of the geometry under that cluster (a value of 1 == exceed by 100% == convex hull has 2x the volume of the geometry)
 	 @param OverlapRemovalMethod				If bRemoveOverlaps, control which overlaps are removed
 	 @param OverlapRemovalShrinkPercent			Compute overlaps based on objects shrunk by this percentage, so objects that would not overlap with this value set as their 'Collision Object Reduction Percentage' will not be cut
+	 @param ComputedLeafHullsToModify			Optional pre-computed hulls for geometry of rigid leaves, in the top-level coordinate space of the geometry collection. If passed in, the data will be updated and moved.
 	 */
 	static FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, 
-		EConvexOverlapRemoval OverlapRemovalMethod = EConvexOverlapRemoval::All, double OverlapRemovalShrinkPercent = 0.0);
+		EConvexOverlapRemoval OverlapRemovalMethod = EConvexOverlapRemoval::All, double OverlapRemovalShrinkPercent = 0.0, UE::GeometryCollectionConvexUtility::FConvexHulls* ComputedLeafHullsToModify = nullptr);
 
 	/** Returns the convex hull of the vertices contained in the specified geometry. */
 	static TUniquePtr<Chaos::FConvex> FindConvexHull(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
@@ -87,6 +107,12 @@ public:
 	 * @param bLeafOnly			If true, we will only collect convexes from leaf bones, not from clusters.
 	 */
 	static void CopyChildConvexes(const FGeometryCollection* FromCollection, const TArrayView<const int32>& FromTransformIdx, FGeometryCollection* ToCollection, const TArrayView<const int32>& ToTransformIdx, bool bLeafOnly);
+
+	// Compute just the hulls of the leaf / rigid nodes that hold geometry directly, with no cluster hulls and no overlap removal by cutting
+	// This is an initial step of several algorithms: The CreateNonOverlappingConvexHullData function as well as convex-based proximity detection (TODO: and the auto-embed algorithm?)
+	// (TODO: Make auto-embed use this instead of the full hulls?)
+	// @param GlobalTransformArray		GeometryCollection's transforms to global space, as computed by GeometryCollectionAlgo::GlobalMatrices
+	static UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0);
 
 };
 

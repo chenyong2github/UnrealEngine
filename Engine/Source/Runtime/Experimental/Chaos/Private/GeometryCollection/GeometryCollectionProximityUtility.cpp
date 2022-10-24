@@ -2,8 +2,13 @@
 
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 
-#include "Spatial/SparseDynamicOctree3.h"
+#include "GeometryCollection/Facades/CollectionConnectionGraphFacade.h"
+#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "Chaos/Convex.h"
+#include "Chaos/GJK.h"
 
+#include "Spatial/SparseDynamicOctree3.h"
 #include "Async/ParallelFor.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -110,7 +115,7 @@ struct FBinNormals
 	}
 };
 
-// Per-Geometry pre-computed spatial data
+// Per-Geometry pre-computed spatial data used for computing 'precise' proximity information
 struct FPerGeometrySpatial
 {
 	TArray<TArray<int32>, TFixedAllocator<FBinNormals::NumBins>> Bins;
@@ -132,7 +137,7 @@ struct FPerGeometrySpatial
 	TMap<int32, bool> CandidateContacts; // bool indicates if the contact has been confirmed
 };
 
-// Overall geometry-collection spatial data
+// Overall geometry-collection spatial data for 'Precise method' proximity detection
 struct FGeometryCollectionProximitySpatial
 {
 	TArray<FVector3f> TransformedVertices;
@@ -401,7 +406,94 @@ struct FGeometryCollectionProximitySpatial
 
 };
 
+void BuildProximityFromConvexHulls(FGeometryCollection* Collection, const UE::GeometryCollectionConvexUtility::FConvexHulls& HullData, double DistanceThreshold)
+{
+	double MaxHullDim = DistanceThreshold;
+	Chaos::FAABB3 OverallBounds;
+	for (const TUniquePtr<Chaos::FConvex>& Hull : HullData.Hulls)
+	{
+		const Chaos::FAABB3 HullBounds = Hull->BoundingBox();
+		OverallBounds.GrowToInclude(HullBounds);
+		MaxHullDim = FMath::Max(MaxHullDim, HullBounds.Extents().GetMax() + DistanceThreshold);
+	}
 
+	if (!Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
+	{
+		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
+		Collection->AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
+	}
+
+	TManagedArray<TSet<int32>>& Proximity = Collection->ModifyAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+
+
+	UE::Geometry::FSparseDynamicOctree3 GeoOctree;
+	GeoOctree.RootDimension = FMath::Min(MaxHullDim * 2, OverallBounds.Extents().GetMax() + DistanceThreshold);
+	FVector3d Center = (FVector3d)OverallBounds.GetCenter();
+	int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+	TArray<int32> HullToGeoIdx;
+	HullToGeoIdx.Init(-1, HullData.Hulls.Num());
+	for (int32 GeoIdx = 0; GeoIdx < NumGeometry; ++GeoIdx)
+	{
+		int32 TransformIdx = Collection->TransformIndex[GeoIdx];
+		for (int32 HullIdx : HullData.TransformToHullsIndices[TransformIdx])
+		{
+			checkSlow(HullToGeoIdx[HullIdx] == -1); // these local-space hulls should not be mapped to multiple geometry pieces
+			HullToGeoIdx[HullIdx] = GeoIdx;
+		}
+	}
+
+	TArray<int32> HullIndices;
+	for (int32 GeoIdx = 0; GeoIdx < NumGeometry; ++GeoIdx)
+	{
+		int32 TransformIdx = Collection->TransformIndex[GeoIdx];
+		for (int32 HullIdx : HullData.TransformToHullsIndices[TransformIdx])
+		{
+			const Chaos::FConvex& Hull = *HullData.Hulls[HullIdx];
+			Chaos::FAABB3 ChaosHullBounds = Hull.BoundingBox();
+			ChaosHullBounds.Thicken(DistanceThreshold * .5);
+			UE::Geometry::FAxisAlignedBox3d GeoBounds((FVector3d)ChaosHullBounds.Min(), (FVector3d)ChaosHullBounds.Max());
+			GeoOctree.RangeQuery(GeoBounds, HullIndices);
+			for (int32 CandidateHullIdx : HullIndices)
+			{
+				const Chaos::FConvex& CandidateHull = *HullData.Hulls[CandidateHullIdx];
+				const Chaos::FAABB3 CandidateHullBounds = CandidateHull.BoundingBox();
+				int32 OtherGeoIdx = HullToGeoIdx[CandidateHullIdx];
+
+				if (GeoIdx != OtherGeoIdx && ChaosHullBounds.Intersects(CandidateHullBounds))
+				{
+					// TODO: Note the thickness parameter for GJKIntersection does not work as documented
+					// But if that is fixed, we can replace the below GJKDistance call with this:
+					//	const VectorRegister4Float InitialDirSimd = MakeVectorRegisterFloat(1.f, 0.f, 0.f, 0.f);
+					//	if (GJKIntersectionSameSpaceSimd(Hull, CandidateHull, DistanceThreshold, InitialDirSimd))
+
+					const Chaos::FRigidTransform3 IdentityTransform = Chaos::FRigidTransform3::Identity;
+					Chaos::FReal Distance;
+					Chaos::TVec3<Chaos::FReal> NearestA, NearestB, Normal; // All unused
+					Chaos::EGJKDistanceResult Result = Chaos::GJKDistance<Chaos::FReal>(
+						Chaos::TGJKShape(Hull),
+						Chaos::TGJKShape(CandidateHull),
+						Chaos::GJKDistanceInitialV(Hull, CandidateHull, IdentityTransform),
+						Distance, NearestA, NearestB, Normal);
+					if (Result == Chaos::EGJKDistanceResult::Contact || Result == Chaos::EGJKDistanceResult::DeepContact
+						|| (Result == Chaos::EGJKDistanceResult::Separated && Distance <= DistanceThreshold))
+					{
+						Proximity[GeoIdx].Add(OtherGeoIdx);
+						Proximity[OtherGeoIdx].Add(GeoIdx);
+					}
+				}
+			}
+		}
+		// add all the hulls for a given geometry after intersection-testing them with the hulls already in the octree
+		for (int32 HullIdx : HullData.TransformToHullsIndices[TransformIdx])
+		{
+			const Chaos::FConvex& Hull = *HullData.Hulls[HullIdx];
+			Chaos::FAABB3 ChaosHullBounds = Hull.BoundingBox();
+			ChaosHullBounds.Thicken(DistanceThreshold * .5);
+			UE::Geometry::FAxisAlignedBox3d GeoBounds((FVector3d)ChaosHullBounds.Min(), (FVector3d)ChaosHullBounds.Max());
+			GeoOctree.InsertObject(HullIdx, GeoBounds);
+		}
+	}
+}
 
 }} // namespace UE::GeometryCollectionInternal
 
@@ -411,10 +503,136 @@ FGeometryCollectionProximityUtility::FGeometryCollectionProximityUtility(FGeomet
 	check(Collection);
 }
 
-void FGeometryCollectionProximityUtility::UpdateProximity()
+void FGeometryCollectionProximityUtility::RequireProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls)
+{
+	bool bHasProximity = Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup);
+	if (!bHasProximity)
+	{
+		UpdateProximity(OptionalComputedHulls);
+	}
+}
+
+void FGeometryCollectionProximityUtility::InvalidateProximity()
+{
+	bool bHasProximity = Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup);
+	if (bHasProximity)
+	{
+		Collection->RemoveAttribute("Proximity", FGeometryCollection::GeometryGroup);
+	}
+}
+
+void FGeometryCollectionProximityUtility::ClearConnectionGraph()
+{
+	GeometryCollection::Facades::FCollectionConnectionGraphFacade ConnectionsFacade(*Collection);
+	ConnectionsFacade.ClearAttributes();
+}
+
+void FGeometryCollectionProximityUtility::CopyProximityToConnectionGraph()
+{
+	if (!Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
+	{
+		ClearConnectionGraph();
+		return;
+	}
+
+	const TManagedArray<TSet<int32>>& Proximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+	GeometryCollection::Facades::FCollectionConnectionGraphFacade ConnectionsFacade(*Collection);
+	ConnectionsFacade.AddAttributes();
+	TManagedArray<TSet<int32>>& Connections = ConnectionsFacade.ConnectionsAttribute.Modify();
+	Connections.Fill(TSet<int32>());
+
+	int32 NumBones = Connections.Num();
+	TArray<int32> Depths;
+	Depths.SetNumZeroed(NumBones);
+	for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
+	{
+		if (Collection->SimulationType[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_None)
+		{
+			Depths[BoneIdx] = -1;
+			continue;
+		}
+		int32 Depth = 0, WalkParent = BoneIdx;
+		while (Collection->Parent[WalkParent] != INDEX_NONE)
+		{
+			Depth++;
+			WalkParent = Collection->Parent[WalkParent];
+		}
+		Depths[BoneIdx] = Depth;
+	}
+	TArray<int32> AllLeaves;
+	for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
+	{
+		if (Collection->SimulationType[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_None)
+		{
+			continue;
+		}
+		int32 BoneDepth = Depths[BoneIdx];
+		int32 BoneParent = Collection->Parent[BoneIdx];
+		AllLeaves.Reset();
+
+		FGeometryCollectionClusteringUtility::GetLeafBones(Collection, BoneIdx, true, AllLeaves);
+		for (int32 LeafBone : AllLeaves)
+		{
+			int32 LeafGeo = Collection->TransformToGeometryIndex[LeafBone];
+			for (int32 NbrGeo : Proximity[LeafGeo])
+			{
+				int32 NbrBone = Collection->TransformIndex[NbrGeo];
+				if (Depths[NbrBone] < BoneDepth)
+				{
+					continue; // cluster is closer to root than us, ignore it
+				}
+				while (NbrBone != INDEX_NONE && Depths[NbrBone] > BoneDepth)
+				{
+					NbrBone = Collection->Parent[NbrBone];
+				}
+				if (NbrBone != INDEX_NONE && Collection->Parent[NbrBone] == BoneParent)
+				{
+					ConnectionsFacade.Connect(BoneIdx, NbrBone);
+				}
+			}
+		}
+	}
+}
+
+void FGeometryCollectionProximityUtility::UpdateProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls)
 {
 	using namespace UE::GeometryCollectionInternal;
 
-	FGeometryCollectionProximitySpatial Spatial(Collection, ProximityThreshold);
-	Spatial.MoveProximityToCollection(Collection);
+	FGeometryCollectionProximityPropertiesInterface::FProximityProperties Properties = Collection->GetProximityProperties();
+
+	if (Properties.Method == EProximityMethod::ConvexHull)
+	{
+		FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties ConvexProperties = Collection->GetConvexProperties();
+
+		UE::GeometryCollectionConvexUtility::FConvexHulls LocalComputedHulls;
+		UE::GeometryCollectionConvexUtility::FConvexHulls* UseComputedHulls = OptionalComputedHulls;
+		if (!UseComputedHulls || UseComputedHulls->OverlapRemovalShrinkPercent > 0) // If we don't have precomputed hulls or if they're shrunk, compute new hulls to use for proximity detection
+		{
+			TArray<FTransform> GlobalTransformArray;
+			GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransformArray);
+			LocalComputedHulls = FGeometryCollectionConvexUtility::ComputeLeafHulls(Collection, GlobalTransformArray, ConvexProperties.SimplificationThreshold, 0.0f /* Never shrink hulls for proximity detection */);
+			UseComputedHulls = &LocalComputedHulls;
+		}
+
+		UE::GeometryCollectionInternal::BuildProximityFromConvexHulls(Collection, *UseComputedHulls, Properties.DistanceThreshold);
+
+	}
+	else
+	{
+		// This threshold not exposed to the user via Properties.DistanceThreshold because it doesn't behave very well if increased to large values --
+		// the computation would become closer to O(n^2), and the results would likely be confusing/inconsistent
+		constexpr float PreciseProximityThreshold = .01f;
+		FGeometryCollectionProximitySpatial Spatial(Collection, PreciseProximityThreshold);
+		Spatial.MoveProximityToCollection(Collection);
+	}
+
+	if (Properties.bUseAsConnectionGraph)
+	{
+		CopyProximityToConnectionGraph();
+	}
+	else
+	{
+		// TODO: verify that the connection graph was auto-generated from proximity, rather than being custom edited, before removal
+		ClearConnectionGraph();
+	}
 }

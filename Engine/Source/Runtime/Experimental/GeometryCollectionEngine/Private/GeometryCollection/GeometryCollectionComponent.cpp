@@ -2746,7 +2746,7 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 		{
 			if (!bShapeIsUnchanged)
 			{
-				GetRestCollection()->UpdateConvexGeometry();
+				GetRestCollection()->UpdateGeometryDependentProperties();
 			}
 			GetRestCollection()->InvalidateCollection();
 		}
@@ -3126,7 +3126,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		case GeometryCollection::ESelectionMode::Neighbors:
 		{
 			FGeometryCollectionProximityUtility ProximityUtility(GeometryCollectionPtr.Get());
-			ProximityUtility.UpdateProximity();
+			ProximityUtility.RequireProximity();
 
 			const TManagedArray<int32>& TransformIndex = GeometryCollectionPtr->TransformIndex;
 			const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollectionPtr->TransformToGeometryIndex;

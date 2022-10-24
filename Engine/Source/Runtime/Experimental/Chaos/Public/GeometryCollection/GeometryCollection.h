@@ -7,6 +7,7 @@
 #include "Misc/Crc.h"
 
 #include "GeometryCollection/GeometryCollectionConvexPropertiesInterface.h"
+#include "GeometryCollection/GeometryCollectionProximityPropertiesInterface.h"
 #include "GeometryCollection/ManagedArrayAccessor.h"
 
 namespace Chaos
@@ -14,6 +15,7 @@ namespace Chaos
 	class FChaosArchive;
 }
 class FGeometryCollectionConvexPropertiesInterface;
+class FGeometryCollectionProximityPropertiesInterface;
 
 namespace GeometryCollectionUV
 {
@@ -27,7 +29,8 @@ namespace GeometryCollectionUV
 * FGeometryCollection (FTransformCollection)
 */
 class CHAOS_API FGeometryCollection : public FTransformCollection, 
-	public FGeometryCollectionConvexPropertiesInterface
+	public FGeometryCollectionConvexPropertiesInterface,
+	public FGeometryCollectionProximityPropertiesInterface
 {
 
 public:

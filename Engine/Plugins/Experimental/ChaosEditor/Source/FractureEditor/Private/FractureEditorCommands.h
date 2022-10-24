@@ -92,6 +92,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > ConvertToMesh;
 		TSharedPtr< FUICommandInfo > Validate;
 		TSharedPtr< FUICommandInfo > MakeConvex;
+		TSharedPtr< FUICommandInfo > Proximity;
 		TSharedPtr< FUICommandInfo > FixTinyGeo;
 
 		// Property Commands

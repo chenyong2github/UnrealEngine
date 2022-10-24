@@ -1078,7 +1078,7 @@ void CreateNonoverlappingConvexHulls(
 /// Helper to get convex hulls from a geometry collection in the format required by CreateNonoverlappingConvexHulls
 void HullsFromGeometry(
 	FGeometryCollection& Geometry,
-	TArray<FTransform>& GlobalTransformArray,
+	const TArray<FTransform>& GlobalTransformArray,
 	TFunctionRef<bool(int32)> HasCustomConvexFn,
 	TArray<TUniquePtr<Chaos::FConvex>>& Convexes,
 	TArray<FVector>& ConvexPivots,
@@ -1271,43 +1271,63 @@ double ComputeGeometryVolume(
 
 }
 
-FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(
-	FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, EConvexOverlapRemoval OverlapRemovalMethod,
-	double OverlapRemovalShrinkPercent)
+
+UE::GeometryCollectionConvexUtility::FConvexHulls
+FGeometryCollectionConvexUtility::ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold, double OverlapRemovalShrinkPercent)
 {
 	check(GeometryCollection);
 
+
+	UE::GeometryCollectionConvexUtility::FConvexHulls Hulls;
+
 	// Prevent ~100% shrink percentage, because it would not be reversible ...
 	// Note: Could alternatively just disable convex overlap removal in this case
-	OverlapRemovalShrinkPercent = FMath::Min(99.9, OverlapRemovalShrinkPercent);
+	Hulls.OverlapRemovalShrinkPercent = FMath::Min(99.9, OverlapRemovalShrinkPercent);
 
 	TManagedArray<int32>* CustomConvexFlags = GetCustomConvexFlags(GeometryCollection, false);
 	auto ConvexFlagsAlwaysFalse = [](int32) -> bool { return false; };
 	auto ConvexFlagsFromArray = [&CustomConvexFlags](int32 TransformIdx) -> bool { return (bool)(*CustomConvexFlags)[TransformIdx]; };
 	TFunctionRef<bool(int32)> HasCustomConvexFn = (CustomConvexFlags != nullptr) ? (TFunctionRef<bool(int32)>)ConvexFlagsFromArray : (TFunctionRef<bool(int32)>)ConvexFlagsAlwaysFalse;
 
-	bool bHasProximity = GeometryCollection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup);
-	if (!bHasProximity)
+	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Hulls.Hulls, Hulls.Pivots, Hulls.TransformToHullsIndices, GeometryCollection->SimulationType,
+		FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold, Hulls.OverlapRemovalShrinkPercent);
+
+	return Hulls;
+}
+
+FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(
+	FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, EConvexOverlapRemoval OverlapRemovalMethod,
+	double OverlapRemovalShrinkPercentIn, UE::GeometryCollectionConvexUtility::FConvexHulls* PrecomputedLeafHulls)
+{
+	check(GeometryCollection);
+
+	TManagedArray<int32>* CustomConvexFlags = GetCustomConvexFlags(GeometryCollection, false);
+	auto ConvexFlagsAlwaysFalse = [](int32) -> bool { return false; };
+	auto ConvexFlagsFromArray = [&CustomConvexFlags](int32 TransformIdx) -> bool { return (bool)(*CustomConvexFlags)[TransformIdx]; };
+	TFunctionRef<bool(int32)> HasCustomConvexFn = (CustomConvexFlags != nullptr) ? (TFunctionRef<bool(int32)>)ConvexFlagsFromArray : (TFunctionRef<bool(int32)>)ConvexFlagsAlwaysFalse;
+
+	TArray<FTransform> GlobalTransformArray;
+	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
+
+	UE::GeometryCollectionConvexUtility::FConvexHulls* UseLeafHulls = PrecomputedLeafHulls;
+	UE::GeometryCollectionConvexUtility::FConvexHulls LocalLeafHullsStorage;
+	if (!UseLeafHulls)
 	{
-		FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
-		ProximityUtility.UpdateProximity();
+		LocalLeafHullsStorage = ComputeLeafHulls(GeometryCollection, GlobalTransformArray, SimplificationDistanceThreshold, OverlapRemovalShrinkPercentIn);
+		UseLeafHulls = &LocalLeafHullsStorage;
 	}
+
+	FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
+	ProximityUtility.RequireProximity(UseLeafHulls);
 	SetVolumeAttributes(GeometryCollection);
 
 	const TManagedArray<TSet<int32>>* GCProximity = GeometryCollection->FindAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 	const TManagedArray<float>* Volume = GeometryCollection->FindAttribute<float>("Volume", FGeometryCollection::TransformGroup);
-	TArray<TUniquePtr<Chaos::FConvex>> Convexes;
-	TArray<FVector> ConvexPivots;
-	TArray<TSet<int32>> TransformToConvexIndexArr;
-	TArray<FTransform> GlobalTransformArray;
-	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
-	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Convexes, ConvexPivots, TransformToConvexIndexArr, GeometryCollection->SimulationType, 
-		FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold, OverlapRemovalShrinkPercent);
 
-	CreateNonoverlappingConvexHulls(Convexes, ConvexPivots, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None,
-		GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, OverlapRemovalMethod, OverlapRemovalShrinkPercent);
+	CreateNonoverlappingConvexHulls(UseLeafHulls->Hulls, UseLeafHulls->Pivots, UseLeafHulls->TransformToHullsIndices, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None,
+		GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, OverlapRemovalMethod, UseLeafHulls->OverlapRemovalShrinkPercent);
 
-	TransformHullsToLocal(GlobalTransformArray, Convexes, ConvexPivots, TransformToConvexIndexArr, OverlapRemovalShrinkPercent);
+	TransformHullsToLocal(GlobalTransformArray, UseLeafHulls->Hulls, UseLeafHulls->Pivots, UseLeafHulls->TransformToHullsIndices, UseLeafHulls->OverlapRemovalShrinkPercent);
 
 	if (!GeometryCollection->HasGroup("Convex"))
 	{
@@ -1327,10 +1347,10 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 
 	TManagedArray<TSet<int32>>& TransformToConvexIndices = GeometryCollection->ModifyAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHull = GeometryCollection->ModifyAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
-	TransformToConvexIndices = MoveTemp(TransformToConvexIndexArr);
+	TransformToConvexIndices = MoveTemp(UseLeafHulls->TransformToHullsIndices);
 	GeometryCollection->EmptyGroup("Convex");
-	GeometryCollection->Resize(Convexes.Num(), "Convex");
-	ConvexHull = MoveTemp(Convexes);
+	GeometryCollection->Resize(UseLeafHulls->Hulls.Num(), "Convex");
+	ConvexHull = MoveTemp(UseLeafHulls->Hulls);
 
 	// clear all null and empty hulls
 	TArray<int32> EmptyConvex;

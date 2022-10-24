@@ -680,6 +680,11 @@ public:
 	* Update the convex geometry on the collection.
 	*/
 	void UpdateConvexGeometry();
+	
+	/*
+	 * Update properties that depend on the geometry and clustering: Proximity, Convex Hulls, Volume and Size data.
+	 */
+	void UpdateGeometryDependentProperties();
 
 
 	//

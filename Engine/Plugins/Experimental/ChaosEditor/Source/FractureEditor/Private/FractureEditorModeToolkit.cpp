@@ -872,6 +872,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.ConvertToMesh);
 		ToolbarBuilder.AddToolBarButton(Commands.Validate);
 		ToolbarBuilder.AddToolBarButton(Commands.MakeConvex);
+		ToolbarBuilder.AddToolBarButton(Commands.Proximity);
 		ToolbarBuilder.AddToolBarButton(Commands.FixTinyGeo);
 		ToolbarBuilder.AddToolBarButton(Commands.SetInitialDynamicState);
 		ToolbarBuilder.AddToolBarButton(Commands.SetRemoveOnBreak);

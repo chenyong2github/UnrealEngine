@@ -685,10 +685,6 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 	// Add and initialize guids
 	::GeometryCollection::GenerateTemporaryGuids(FracturedGeometryCollection->GetGeometryCollection().Get(), 0 , true);
 
-	// Update proximity graph
-	FGeometryCollectionProximityUtility ProximityUtility(FracturedGeometryCollection->GetGeometryCollection().Get());
-	ProximityUtility.UpdateProximity();
-
 	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
 	ModeSettings->ApplyDefaultConvexSettings(*FracturedGeometryCollection->GetGeometryCollection());
 
@@ -876,10 +872,6 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 						GeometryCollectionObject->Materials[NewMatNum - 1] = OldMaterials[OldMatNum - 1];
 					}
 				}
-				
-				// Update proximity graph
-				FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
-				ProximityUtility.UpdateProximity();
 
 				const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
 				ModeSettings->ApplyDefaultConvexSettings(*GeometryCollection);

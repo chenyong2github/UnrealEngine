@@ -283,6 +283,15 @@ void UGeometryCollection::ValidateSizeSpecificDataDefaults()
 	check(SizeSpecificData.Num());
 }
 
+void UGeometryCollection::UpdateGeometryDependentProperties()
+{
+#if WITH_EDITOR
+	// Note: Currently, computing convex hulls also always computes proximity (if missing) as well as volumes and size.
+	// If adding a condition where we do not compute convex hulls, make sure to still compute proximity, volumes and size here
+	UpdateConvexGeometry();
+#endif
+}
+
 void UGeometryCollection::UpdateConvexGeometry()
 {
 #if WITH_EDITOR
