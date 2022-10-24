@@ -1614,10 +1614,10 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 	{
-		FPrimitiveInstance& SceneData = InstanceSceneData[GeometryIndex];
+		FInstanceSceneData& SceneData = InstanceSceneData[GeometryIndex];
 		SceneData.LocalToPrimitive.SetIdentity();
 
-		FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[GeometryIndex];
+		FInstanceDynamicData& DynamicData = InstanceDynamicData[GeometryIndex];
 		DynamicData.PrevLocalToPrimitive.SetIdentity();
 
 		InstanceLocalBounds[GeometryIndex] = FRenderBounds();
@@ -1746,10 +1746,10 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 		const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-		FPrimitiveInstance& Instance	= InstanceSceneData.Emplace_GetRef();
+		FInstanceSceneData& Instance	= InstanceSceneData.Emplace_GetRef();
 		Instance.LocalToPrimitive		= NewConstantData->RestTransforms[TransformIndex];
 
-		FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
+		FInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
 		DynamicData.PrevLocalToPrimitive = Instance.LocalToPrimitive;
 
 		InstanceLocalBounds.Emplace(NaniteData.LocalBounds);
@@ -1788,10 +1788,10 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 
 			const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-			FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
+			FInstanceSceneData& Instance = InstanceSceneData.Emplace_GetRef();
 			Instance.LocalToPrimitive = NewDynamicData->Transforms[TransformIndex];
 
-			FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
+			FInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
 
 			if (bCurrentlyInMotion)
 			{

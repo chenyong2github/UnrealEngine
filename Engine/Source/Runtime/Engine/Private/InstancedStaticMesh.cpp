@@ -1369,7 +1369,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 				const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
 				for (int i = 0; i < InstanceSceneData.Num(); ++i)
 				{
-					const FPrimitiveInstance& Instance = InstanceSceneData[i];
+					const FInstanceSceneData& Instance = InstanceSceneData[i];
 
 					FRenderTransform InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
 					DrawWireStar(Collector.GetPDI(ViewIndex), (FVector)InstanceToWorld.Origin, 40.0f, WasInstanceXFormUpdatedThisFrame(i) ? FColor::Red : FColor::Green, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
@@ -1515,7 +1515,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 				continue;
 			}
 
-			FPrimitiveInstance& SceneData = InstanceSceneData[RenderInstanceIndex];
+			FInstanceSceneData& SceneData = InstanceSceneData[RenderInstanceIndex];
 
 			FTransform InstanceTransform;
 			InComponent->GetInstanceTransform(InstanceIndex, InstanceTransform);
@@ -1603,7 +1603,7 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 
 				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 				{
-					FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
+					FInstanceSceneData& SceneData = InstanceSceneData[InstanceIndex];
 					InstanceBuffer.GetInstanceTransform(InstanceIndex, SceneData.LocalToPrimitive);
 
 					if (bHasRandomID)

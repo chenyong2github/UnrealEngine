@@ -101,8 +101,8 @@ protected:
 
 	struct FEmitterSourceInstanceData
 	{
-		FPrimitiveInstance InstanceSceneData;
-		FPrimitiveInstanceDynamicData InstanceDynamicData;
+		FInstanceSceneData InstanceSceneData;
+		FInstanceDynamicData InstanceDynamicData;
 		float CustomData;
 	};
 

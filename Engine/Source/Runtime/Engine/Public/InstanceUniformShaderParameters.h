@@ -36,8 +36,7 @@
 
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
-// TODO: Rename to FInstanceSceneData
-struct FPrimitiveInstance
+struct FInstanceSceneData
 {
 	FRenderTransform LocalToPrimitive;
 
@@ -63,8 +62,7 @@ struct FPrimitiveInstance
 	}
 };
 
-// TODO: Rename to FInstanceDynamicData
-struct FPrimitiveInstanceDynamicData
+struct FInstanceDynamicData
 {
 	FRenderTransform PrevLocalToPrimitive;
 

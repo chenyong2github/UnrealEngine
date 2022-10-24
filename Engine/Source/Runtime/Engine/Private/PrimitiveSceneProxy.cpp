@@ -1064,7 +1064,7 @@ void FPrimitiveSceneProxy::UpdateDefaultInstanceSceneData()
 {
 	check(InstanceSceneData.Num() <= 1);
 	InstanceSceneData.SetNumUninitialized(1);
-	FPrimitiveInstance& DefaultInstance = InstanceSceneData[0];
+	FInstanceSceneData& DefaultInstance = InstanceSceneData[0];
 	DefaultInstance.LocalToPrimitive.SetIdentity();
 }
 

@@ -712,7 +712,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	}
 #endif
 
-	FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
+	FInstanceSceneData& Instance = InstanceSceneData.Emplace_GetRef();
 	Instance.LocalToPrimitive.SetIdentity();
 
 	FilterFlags = EFilterFlags::StaticMesh;
@@ -785,7 +785,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
-		FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
+		FInstanceSceneData& SceneData = InstanceSceneData[InstanceIndex];
 
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
@@ -1639,7 +1639,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		CachedRayTracingInstanceTransforms.SetNumUninitialized(InstanceCount);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
-			const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
+			const FInstanceSceneData& Instance = InstanceSceneData[InstanceIndex];
 			const FRenderTransform InstanceLocalToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
 			CachedRayTracingInstanceTransforms[InstanceIndex] = InstanceLocalToWorld.ToMatrix();
 		}
@@ -1868,7 +1868,7 @@ void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& Instanc
 		InstanceLocalToPrimitiveTransforms.SetNumUninitialized(InstanceSceneData.Num());
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 		{
-			const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
+			const FInstanceSceneData& Instance = InstanceSceneData[InstanceIndex];
 			InstanceLocalToPrimitiveTransforms[InstanceIndex] = Instance.LocalToPrimitive;
 		}
 	}

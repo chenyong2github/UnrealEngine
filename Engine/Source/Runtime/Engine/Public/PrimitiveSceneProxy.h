@@ -844,12 +844,12 @@ public:
 		return false;
 	}
 
-	FORCEINLINE TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
+	FORCEINLINE TConstArrayView<FInstanceSceneData> GetInstanceSceneData() const
 	{
 		return InstanceSceneData;
 	}
 
-	FORCEINLINE TConstArrayView<FPrimitiveInstanceDynamicData> GetInstanceDynamicData() const
+	FORCEINLINE TConstArrayView<FInstanceDynamicData> GetInstanceDynamicData() const
 	{
 		return InstanceDynamicData;
 	}
@@ -1345,9 +1345,9 @@ private:
 	uint8 RayTracingGroupCullingPriority;
 
 protected:
-	TArray<FPrimitiveInstance, TInlineAllocator<1>> InstanceSceneData;
+	TArray<FInstanceSceneData, TInlineAllocator<1>> InstanceSceneData;
 	TArray<FRenderBounds, TInlineAllocator<1>> InstanceLocalBounds;
-	TArray<FPrimitiveInstanceDynamicData> InstanceDynamicData;
+	TArray<FInstanceDynamicData> InstanceDynamicData;
 	TArray<float> InstanceCustomData;
 	TArray<float> InstanceRandomID;
 	TArray<FVector4f> InstanceLightShadowUVBias;

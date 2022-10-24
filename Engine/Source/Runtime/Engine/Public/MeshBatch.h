@@ -69,8 +69,8 @@ struct FMeshBatchElementDynamicIndexBuffer
  */
 struct FMeshBatchDynamicPrimitiveData
 {
-	TConstArrayView<FPrimitiveInstance> InstanceSceneData;
-	TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData;
+	TConstArrayView<FInstanceSceneData> InstanceSceneData;
+	TConstArrayView<FInstanceDynamicData> InstanceDynamicData;
 	TConstArrayView<FRenderBounds> InstanceLocalBounds;
 	TConstArrayView<float> InstanceCustomData;
 	FGPUSceneWriteDelegate DataWriterGPU;		

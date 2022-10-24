@@ -1026,7 +1026,7 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 
 		EmitterSourceData.InstanceSceneData.LocalToPrimitive = LocalToPrimitive;
 
-		GPUSceneRes.DynamicPrimitiveData.InstanceSceneData = TConstArrayView<FPrimitiveInstance>(&EmitterSourceData.InstanceSceneData, 1);
+		GPUSceneRes.DynamicPrimitiveData.InstanceSceneData = TConstArrayView<FInstanceSceneData>(&EmitterSourceData.InstanceSceneData, 1);
 		GPUSceneRes.DynamicPrimitiveData.InstanceCustomData = TConstArrayView<float>(&EmitterSourceData.CustomData, 1);
 		
 		if (bNeedsPrevTransform)
@@ -1051,7 +1051,7 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 
 			EmitterSourceData.InstanceDynamicData.PrevLocalToPrimitive = PrevLocalToPrimitive;
 			
-			GPUSceneRes.DynamicPrimitiveData.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>(&EmitterSourceData.InstanceDynamicData, 1);
+			GPUSceneRes.DynamicPrimitiveData.InstanceDynamicData = TConstArrayView<FInstanceDynamicData>(&EmitterSourceData.InstanceDynamicData, 1);
 		}
 	}
 

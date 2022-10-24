@@ -284,14 +284,14 @@ struct FPrimitiveUploadInfo : public FPrimitiveUploadInfoHeader
  */
 struct FInstanceUploadInfo
 {
-	TConstArrayView<FPrimitiveInstance> PrimitiveInstances;
+	TConstArrayView<FInstanceSceneData> PrimitiveInstances;
 	int32 InstanceSceneDataOffset = INDEX_NONE;
 	int32 InstancePayloadDataOffset = INDEX_NONE;
 	int32 InstancePayloadDataStride = 0;
 	int32 InstanceCustomDataCount = 0;
 
 	// Optional per-instance data views
-	TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData;
+	TConstArrayView<FInstanceDynamicData> InstanceDynamicData;
 	TConstArrayView<FVector4f> InstanceLightShadowUVBias;
 	TConstArrayView<float> InstanceCustomData;
 	TConstArrayView<float> InstanceRandomID;
@@ -302,7 +302,7 @@ struct FInstanceUploadInfo
 #endif
 
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
-	FPrimitiveInstance DummyInstance;
+	FInstanceSceneData DummyInstance;
 	FRenderBounds DummyLocalBounds;
 
 	uint32 InstanceFlags = 0x0;
@@ -514,8 +514,8 @@ struct FUploadDataSourceAdapterScenePrimitives
 			// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
 			InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
 
-			InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
-			InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>();
+			InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FInstanceSceneData>(&InstanceUploadInfo.DummyInstance, 1);
+			InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FInstanceDynamicData>();
 			InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4f>();
 			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>();
@@ -1135,7 +1135,7 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 					for (int32 BatchInstanceIndex = 0; BatchInstanceIndex < Item.NumInstances; ++BatchInstanceIndex)
 					{
 						int32 InstanceIndex = Item.FirstInstance + BatchInstanceIndex;
-						const FPrimitiveInstance& SceneData = UploadInfo.PrimitiveInstances[InstanceIndex];
+						const FInstanceSceneData& SceneData = UploadInfo.PrimitiveInstances[InstanceIndex];
 
 						// Directly embedded in instance scene data
 						const float RandomID = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
@@ -1469,7 +1469,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			if (InstanceUploadInfo.PrimitiveInstances.Num() == 0)
 			{
 				InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
-				InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
+				InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FInstanceSceneData>(&InstanceUploadInfo.DummyInstance, 1);
 			}
 
 			return true;

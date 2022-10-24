@@ -1047,7 +1047,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceWorldBounds(const FMatri
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateCachedRayTracingInstanceWorldBounds);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCachedRayTracingInstanceWorldBounds);
 
-	TConstArrayView<FPrimitiveInstance> InstanceSceneData = Proxy->GetInstanceSceneData();
+	TConstArrayView<FInstanceSceneData> InstanceSceneData = Proxy->GetInstanceSceneData();
 	
 	SmallestRayTracingInstanceWorldBoundsIndex = 0;
 
@@ -1204,7 +1204,7 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 
 			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
 			{
-				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = SceneInfo->Proxy->GetInstanceSceneData();
+				const TConstArrayView<FInstanceSceneData> InstanceSceneData = SceneInfo->Proxy->GetInstanceSceneData();
 
 				SceneInfo->NumInstanceSceneDataEntries = InstanceSceneData.Num();
 				if (SceneInfo->NumInstanceSceneDataEntries > 0)
@@ -1223,7 +1223,7 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 						// TODO: Replace Instance BVH FBounds with FRenderBounds
 						for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->NumInstanceSceneDataEntries; ++InstanceIndex)
 						{
-							const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
+							const FInstanceSceneData& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 							FRenderBounds WorldBounds = SceneInfo->Proxy->GetInstanceLocalBounds(InstanceIndex);
 							WorldBounds.TransformBy(PrimitiveInstance.ComputeLocalToWorld(SceneInfo->Proxy->GetLocalToWorld()));
 							Scene->InstanceBVH.Add(FBounds3f({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceSceneDataOffset + InstanceIndex);
