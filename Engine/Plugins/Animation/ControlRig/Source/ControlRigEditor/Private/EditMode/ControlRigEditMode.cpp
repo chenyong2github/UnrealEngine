@@ -3665,8 +3665,10 @@ void FControlRigEditMode::OnHierarchyModified_AnyThread(ERigHierarchyNotificatio
 		{
 			return;
 		}
-		const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
-		OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+		if (const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key))
+		{
+			OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+		}
 		
 	}, TStatId(), NULL, ENamedThreads::GameThread);
 }

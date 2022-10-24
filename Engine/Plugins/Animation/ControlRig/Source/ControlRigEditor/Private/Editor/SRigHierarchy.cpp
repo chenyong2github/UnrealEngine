@@ -806,8 +806,10 @@ void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNo
             {
                 return;
             }
-            const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
-            OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+            if (const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key))
+            {
+	            OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+            }
 			
         }, TStatId(), NULL, ENamedThreads::GameThread);
 	}

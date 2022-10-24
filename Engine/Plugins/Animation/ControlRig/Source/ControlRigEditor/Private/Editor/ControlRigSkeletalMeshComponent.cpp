@@ -254,8 +254,10 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModified_AnyThread(ERigHierarc
     	{
     		return;
     	}
-        const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
-        OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+        if (const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key))
+        {
+	        OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+        }
 		
     }, TStatId(), NULL, ENamedThreads::GameThread);
 }
