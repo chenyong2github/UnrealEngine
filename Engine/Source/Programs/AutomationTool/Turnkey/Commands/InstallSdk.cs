@@ -138,6 +138,7 @@ namespace Turnkey.Commands
 				if (DesiredType == FileSource.SourceType.Flash)
 				{
 					InstallDevice = ChosenDevices.First();
+ 					DeviceName = InstallDevice.Name;
 				}
 
 				// skip Misc FileSources, as we dont know how they are sued
@@ -238,6 +239,11 @@ namespace Turnkey.Commands
 					if (DesiredType == FileSource.SourceType.Flash)
 					{
 						DeviceInfo Device = GetDevice(AutomationPlatform, DeviceName);
+						if (Device == null)
+						{
+							TurnkeyUtils.Log("Failed to get device (name: {0}) for platform {1}. Skipping", DeviceName == null ? "<null>/default" : DeviceName, Platform);
+							continue;
+						}
 						SDKInfo = SDK.GetAllSoftwareInfo(Device.Type, Device.SoftwareVersion);
 					}
 					else
