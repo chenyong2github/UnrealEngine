@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Editor/ControlRigEditor.h"
 #include "ControlRigEditorStyle.h"
 #include "ControlRigStackCommands.h"
@@ -16,6 +17,7 @@
 #include "DetailLayoutBuilder.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Dialog/SCustomDialog.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigStackView"
 
@@ -426,6 +428,7 @@ void SControlRigStackView::BindCommands()
 	// create new command
 	const FControlRigStackCommands& Commands = FControlRigStackCommands::Get();
 	CommandList->MapAction(Commands.FocusOnSelection, FExecuteAction::CreateSP(this, &SControlRigStackView::HandleFocusOnSelectedGraphNode));
+	CommandList->MapAction(Commands.GoToInstruction, FExecuteAction::CreateSP(this, &SControlRigStackView::HandleGoToInstruction));
 }
 
 TSharedRef<ITableRow> SControlRigStackView::MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
@@ -834,6 +837,7 @@ TSharedPtr< SWidget > SControlRigStackView::CreateContextMenu()
 	{
 		MenuBuilder.BeginSection("RigStackToolsAction", LOCTEXT("ToolsAction", "Tools"));
 		MenuBuilder.AddMenuEntry(Actions.FocusOnSelection);
+		MenuBuilder.AddMenuEntry(Actions.GoToInstruction);
 		MenuBuilder.EndSection();
 	}
 
@@ -873,6 +877,60 @@ void SControlRigStackView::HandleFocusOnSelectedGraphNode()
 				ControlRigEditor.Pin()->HandleModifiedEvent(ERigVMGraphNotifType::NodeSelected, GraphToFocus, SelectedNode);
 			}
 		}
+	}
+}
+
+void SControlRigStackView::HandleGoToInstruction()
+{
+	// figure out the current instruction's index
+	int32 Index = 0;
+	TArray<TSharedPtr<FRigStackEntry>> SelectedItems = TreeView->GetSelectedItems();
+	if (SelectedItems.Num() > 0)
+	{
+		Index = SelectedItems[0]->InstructionIndex;
+	}
+	
+	const FVector2D MouseCursorLocation = FSlateApplication::Get().GetCursorPos();
+	
+	SWindow::FArguments WindowArguments;
+	WindowArguments.ScreenPosition(MouseCursorLocation);
+	WindowArguments.AutoCenter(EAutoCenter::None);
+	WindowArguments.FocusWhenFirstShown(true);
+
+	TSharedPtr<SNumericEntryBox<int32>> NumericBox;
+	const TSharedRef<SCustomDialog> OptionsDialog = SNew(SCustomDialog)
+	.Title(FText(LOCTEXT("GoToInstructionDialog", "Go to...")))
+	.WindowArguments(WindowArguments)
+	.Content()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		[
+			SAssignNew(NumericBox, SNumericEntryBox<int32>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Value(Index)
+			.MinDesiredValueWidth(250)
+			.MinValue(0)
+			.MaxValue(Operators.Num() - 1)
+			.OnValueChanged_Lambda([&Index](const int32& InIndex)
+			{
+				Index = InIndex;
+			})
+			.IsEnabled(true)
+		]
+	]
+	.Buttons({
+		SCustomDialog::FButton(LOCTEXT("OK", "OK")),
+		SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
+	});
+
+	if(OptionsDialog->ShowModal() == 0)
+	{
+		TreeView->SetSelection(Operators[Index]);
+		TreeView->SetScrollOffset(FMath::Max(Index-5, 0));
 	}
 }
 

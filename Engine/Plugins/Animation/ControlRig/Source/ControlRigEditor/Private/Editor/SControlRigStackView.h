@@ -96,6 +96,9 @@ private:
 	/** Focus on the selected operator in the graph*/
 	void HandleFocusOnSelectedGraphNode();
 
+	/** Offers a dialog to move to a specific instruction */
+	void HandleGoToInstruction();
+
 	void OnVMCompiled(UObject* InCompiledObject, URigVM* InCompiledVM);
 
 	//* Focus on the instruction when the execution is halted */

@@ -21,6 +21,9 @@ public:
 	/** Focuses on a selected operator's node */
 	TSharedPtr< FUICommandInfo > FocusOnSelection;
 
+	/** Looks for a specific instruction by index and brings it into focus */
+	TSharedPtr< FUICommandInfo > GoToInstruction;
+
 	/**
 	 * Initialize commands
 	 */
