@@ -861,9 +861,12 @@ FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController
 	while (bContinueToFoldConstantBranches)
 	{
 		bContinueToFoldConstantBranches = false;
-		if (FoldConstantValuesToLiterals(InGraphs, InController, InExternalVariables, InRigVMUserData))
+		if (LibraryNodeBeingCompiled == nullptr)
 		{
-			bContinueToFoldConstantBranches = true;
+			if (FoldConstantValuesToLiterals(InGraphs, InController, InExternalVariables, InRigVMUserData))
+			{
+				bContinueToFoldConstantBranches = true;
+			}
 		}
 		if (FoldUnreachableBranches(InGraphs))
 		{

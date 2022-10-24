@@ -3029,7 +3029,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	
 	if (ExistingOperand)
 	{
-		if(ExistingOperand->GetMemoryType() == MemoryType)
+		if(ExistingOperand->GetMemoryType() == MemoryType || ExistingOperand->GetMemoryType() == ERigVMMemoryType::External)
 		{
 			// Add any missing hash that shares this existing operand
 			for (const FString& VirtualPinHash : HashesWithSharedOperand)
