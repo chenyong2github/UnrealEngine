@@ -14,7 +14,7 @@ struct FWriteBuffer
 	uint8						Overflow[8];
 	uint64						PrevTimestamp;
 	FWriteBuffer* __restrict	NextThread;
-	FWriteBuffer* __restrict	NextBuffer;
+	FWriteBuffer* volatile		NextBuffer;
 	uint8* __restrict			Cursor;
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;

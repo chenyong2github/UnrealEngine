@@ -74,7 +74,7 @@ static FWriteBuffer* Writer_NextBufferInternal(FWriteBuffer* CurrentBuffer)
 	NextBuffer->Cursor = (uint8*)NextBuffer - NextBuffer->Size;
 	NextBuffer->Reaped = NextBuffer->Cursor;
 	NextBuffer->EtxOffset = 0 - int32(sizeof(FWriteBuffer));
-	NextBuffer->NextBuffer = nullptr;
+	AtomicStoreRelaxed(&(NextBuffer->NextBuffer), (FWriteBuffer*)nullptr);
 
 	// Add any capture events into the buffer.
 	if (uint32 RedirectSize = TraceData.GetSize())
@@ -109,9 +109,9 @@ static FWriteBuffer* Writer_NextBufferInternal(FWriteBuffer* CurrentBuffer)
 	}
 	else
 	{
-		CurrentBuffer->NextBuffer = NextBuffer;
 		NextBuffer->ThreadId = CurrentBuffer->ThreadId;
 		NextBuffer->PrevTimestamp = CurrentBuffer->PrevTimestamp;
+		AtomicStoreRelease(&(CurrentBuffer->NextBuffer), NextBuffer);
 
 		// Retire current buffer.
 		int32 EtxOffset = int32(PTRINT((uint8*)(CurrentBuffer) - CurrentBuffer->Cursor));
@@ -159,7 +159,7 @@ void Writer_DrainBuffers()
 
 		void Insert(FWriteBuffer* __restrict Buffer)
 		{
-			Buffer->NextBuffer = Head;
+			AtomicStoreRelaxed(&(Buffer->NextBuffer), Head);
 			Head = Buffer;
 			Tail = (Tail != nullptr) ? Tail : Head;
 		}
@@ -206,7 +206,7 @@ void Writer_DrainBuffers()
 				}
 
 				// Retire the buffer
-				NextBuffer = Buffer->NextBuffer;
+				NextBuffer = AtomicLoadAcquire(&(Buffer->NextBuffer));
 				RetireList.Insert(Buffer);
 			}
 
@@ -242,7 +242,7 @@ void Writer_DrainLocalBuffers()
 
 		void Insert(FWriteBuffer* __restrict Buffer)
 		{
-			Buffer->NextBuffer = Head;
+			AtomicStoreRelaxed(&(Buffer->NextBuffer), Head);
 			Head = Buffer;
 			Tail = (Tail != nullptr) ? Tail : Head;
 		}
@@ -274,7 +274,7 @@ void Writer_DrainLocalBuffers()
 					}
 
 					// Retire the buffer
-					NextBuffer = Buffer->NextBuffer;
+					NextBuffer = AtomicLoadAcquire(&(Buffer->NextBuffer));
 					RetireList.Insert(Buffer);
 				}
 			}

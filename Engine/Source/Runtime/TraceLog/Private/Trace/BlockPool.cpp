@@ -68,7 +68,7 @@ static FPoolBlockList Writer_AllocateBlockList(uint32 PageSize)
 			break;
 		}
 
-		Buffer->NextBuffer = (FWriteBuffer*)(Block + GPoolBlockSize);
+		AtomicStoreRelaxed(&(Buffer->NextBuffer), (FWriteBuffer*)(Block + GPoolBlockSize));
 		Block += GPoolBlockSize;
 	}
 
@@ -94,7 +94,9 @@ FWriteBuffer* Writer_AllocateBlockFromPool()
 		FWriteBuffer* Owned = AtomicLoadRelaxed(&GPoolFreeList);
 		if (Owned != nullptr)
 		{
-			if (!AtomicCompareExchangeRelaxed(&GPoolFreeList, Owned->NextBuffer, Owned))
+			FWriteBuffer* OwnedNext = AtomicLoadRelaxed(&(Owned->NextBuffer));
+
+			if (!AtomicCompareExchangeAcquire(&GPoolFreeList, OwnedNext, Owned))
 			{
 				PlatformYield();
 				continue;
@@ -124,8 +126,10 @@ FWriteBuffer* Writer_AllocateBlockFromPool()
 		// And insert the block list into the freelist. 'Block' is now the last block
 		for (auto* ListNode = BlockList.Tail;; PlatformYield())
 		{
-			ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
-			if (AtomicCompareExchangeRelease(&GPoolFreeList, Ret->NextBuffer, ListNode->NextBuffer))
+			FWriteBuffer* FreeListValue = AtomicLoadRelaxed(&GPoolFreeList);
+			AtomicStoreRelaxed(&(ListNode->NextBuffer), FreeListValue);
+
+			if (AtomicCompareExchangeRelease(&GPoolFreeList, Ret->NextBuffer, FreeListValue))
 			{
 				break;
 			}
@@ -151,8 +155,10 @@ void Writer_FreeBlockListToPool(FWriteBuffer* Head, FWriteBuffer* Tail)
 {
 	for (FWriteBuffer* ListNode = Tail;; PlatformYield())
 	{
-		ListNode->NextBuffer = AtomicLoadRelaxed(&GPoolFreeList);
-		if (AtomicCompareExchangeRelease(&GPoolFreeList, Head, ListNode->NextBuffer))
+		FWriteBuffer* FreeListValue = AtomicLoadRelaxed(&GPoolFreeList);
+		AtomicStoreRelaxed(&(ListNode->NextBuffer), FreeListValue);
+
+		if (AtomicCompareExchangeRelease(&GPoolFreeList, Head, FreeListValue))
 		{
 			break;
 		}
