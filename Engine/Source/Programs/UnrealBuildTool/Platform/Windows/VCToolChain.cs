@@ -2141,6 +2141,11 @@ namespace UnrealBuildTool
 				{
 					InputFileNames.Add(string.Format("\"{0}\"", SystemLibrary));
 				}
+
+				if (Target.WindowsPlatform.ManifestFile != null)
+				{
+					PrerequisiteItems.Add(FileItem.GetItemByPath(Target.WindowsPlatform.ManifestFile));
+				}
 			}
 
 			Arguments.AddRange(InputFileNames);
