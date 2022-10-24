@@ -382,7 +382,7 @@ namespace AutomationToolDriver
 			{
 				Console.CancelKeyPress += delegate
 				{
-					Console.WriteLine("Dying....");
+					Console.WriteLine("AutomationTool: Ctrl-C pressed. Exiting...");
 				};
 			}
 
