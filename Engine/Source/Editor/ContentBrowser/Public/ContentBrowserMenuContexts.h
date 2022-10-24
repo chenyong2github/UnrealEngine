@@ -108,13 +108,6 @@ class CONTENTBROWSER_API UContentBrowserAssetViewContextMenuContext : public UOb
 public:
 	TWeakPtr<SContentBrowser> OwningContentBrowser;
 	TWeakPtr<SAssetView> AssetView;
-
-	const TArray<FAssetData>& GetSelectedAssets() const;
-
-private:
-
-	TArray<FAssetData> SelectedAssets;
-	bool bHasInitSelectedAssets = false;
 };
 
 UCLASS()
