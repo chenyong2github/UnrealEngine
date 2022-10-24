@@ -10,6 +10,7 @@ class UGroomComponent;
 class FRDGBuffer;
 class FRDGBufferUAV;
 class FRDGBufferSRV;
+struct FHairGroupInstance;
 
 /** Compute Framework Data Interface for writing skinned mesh. */
 UCLASS(Category = ComputeFramework)
@@ -65,7 +66,7 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	UGroomComponent* GroomComponent = nullptr;
+	TArray<FHairGroupInstance*> Instances;
 	uint64 OutputMask;
 
 	struct FResources
