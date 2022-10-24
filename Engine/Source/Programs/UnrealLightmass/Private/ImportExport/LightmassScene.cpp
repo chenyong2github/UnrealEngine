@@ -9,7 +9,7 @@
 namespace Lightmass
 {
 
-/** Copy ctor that doesn't modify padding in FSceneFileHeader. */
+/** Copy constructor that doesn't modify padding in FSceneFileHeader. */
 FSceneFileHeader::FSceneFileHeader(const FSceneFileHeader& Other)
 {
 	/** FourCC cookie: 'SCEN' */

@@ -152,7 +152,7 @@ void ReportLogFile()
  * 
  * @param SceneGuid		Guid of the scene to process
  * @param NumThreads	Number of concurrent threads to use for lighting building
- * @param bDumpTextures	If true, 2d lightmaps will be dumped to 
+ * @param bDumpTextures	If true, 2d lightmaps will be dumped too 
  */
 void BuildStaticLighting(const FGuid& SceneGuid, int32 NumThreads, bool bDumpTextures)
 {
