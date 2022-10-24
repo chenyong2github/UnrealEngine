@@ -37,6 +37,7 @@ public:
 	TWeakPtr<IAssetTypeActions> CommonAssetTypeActions;
 
 	UE_DEPRECATED(5.1, "Use SelectedAssets now, this field will not contain any objects.")
+	UPROPERTY()
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	UPROPERTY()
@@ -108,6 +109,13 @@ class CONTENTBROWSER_API UContentBrowserAssetViewContextMenuContext : public UOb
 public:
 	TWeakPtr<SContentBrowser> OwningContentBrowser;
 	TWeakPtr<SAssetView> AssetView;
+
+	const TArray<FAssetData>& GetSelectedAssets() const;
+
+private:
+
+	TArray<FAssetData> SelectedAssets;
+	bool bHasInitSelectedAssets = false;
 };
 
 UCLASS()
