@@ -19,6 +19,7 @@
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "FilmOverlayToolkit.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditorFilmOverlays"
 
@@ -466,16 +467,32 @@ void SFilmOverlayOptions::Construct(const FArguments& InArgs)
 {
 	PrimaryColorTint = FLinearColor(1.f, 1.f, 1.f, .5f);
 
-	PrimaryFilmOverlays.Add(NAME_None, TUniquePtr<IFilmOverlay>(new FFilmOverlay_None));
-	PrimaryFilmOverlays.Add("3x3Grid", TUniquePtr<IFilmOverlay>(new FFilmOverlay_Grid(3, 3)));
-	PrimaryFilmOverlays.Add("2x2Grid", TUniquePtr<IFilmOverlay>(new FFilmOverlay_Grid(2, 2)));
-	PrimaryFilmOverlays.Add("Crosshair", TUniquePtr<IFilmOverlay>(new FFilmOverlay_Crosshair));
-	PrimaryFilmOverlays.Add("Rabatment", TUniquePtr<IFilmOverlay>(new FFilmOverlay_Rabatment));
+	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_None));
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay(NAME_None, PrimaryOverlays.Last());
 
-	ToggleableOverlays.Add("ActionSafeFrame",	TUniquePtr<IFilmOverlay>(new FFilmOverlay_SafeFrame(LOCTEXT("ActionSafeFrame", "Action Safe"), 95.f, FLinearColor::Red)));
-	ToggleableOverlays.Add("TitleSafeFrame",	TUniquePtr<IFilmOverlay>(new FFilmOverlay_SafeFrame(LOCTEXT("TitleSafeFrame", "Title Safe"), 90.f, FLinearColor::Yellow)));
-	ToggleableOverlays.Add("CustomSafeFrame",	TUniquePtr<IFilmOverlay>(new FFilmOverlay_SafeFrame(LOCTEXT("CustomSafeFrame", "Custom Safe"), 85.f, FLinearColor::Green)));
-	ToggleableOverlays.Add("LetterBox",			TUniquePtr<IFilmOverlay>(new FFilmOverlay_LetterBox));
+	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Grid(3, 3)));
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("3x3Grid", PrimaryOverlays.Last());
+
+	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Grid(2, 2)));
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("2x2Grid", PrimaryOverlays.Last());
+
+	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Crosshair));
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("Crosshair", PrimaryOverlays.Last());
+
+	PrimaryOverlays.Add(MakeShareable(new FFilmOverlay_Rabatment));
+	UFilmOverlayToolkit::RegisterPrimaryFilmOverlay("Rabatment", PrimaryOverlays.Last());
+
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("ActionSafeFrame", "Action Safe"), 95.f, FLinearColor::Red)));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("ActionSafeFrame", ToggleableOverlays.Last());
+
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("TitleSafeFrame", "Title Safe"), 90.f, FLinearColor::Yellow)));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("TitleSafeFrame", ToggleableOverlays.Last());
+
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_SafeFrame(LOCTEXT("CustomSafeFrame", "Custom Safe"), 85.f, FLinearColor::Green)));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("CustomSafeFrame", ToggleableOverlays.Last());
+	
+	ToggleableOverlays.Add(MakeShareable(new FFilmOverlay_LetterBox));
+	UFilmOverlayToolkit::RegisterToggleableFilmOverlay("LetterBox",	ToggleableOverlays.Last());
 
 	OverlayWidget = SNew(SFilmOverlay)
 		.Visibility(EVisibility::HitTestInvisible)
@@ -589,14 +606,14 @@ TSharedRef<SWidget> SFilmOverlayOptions::ConstructPrimaryOverlaysMenu()
 	TSharedRef<SUniformGridPanel> OverlaysPanel = SNew(SUniformGridPanel).SlotPadding(10.f);
 
 	TArray<FName> OverlayNames;
-	PrimaryFilmOverlays.GenerateKeyArray(OverlayNames);
+	UFilmOverlayToolkit::GetPrimaryFilmOverlays().GenerateKeyArray(OverlayNames);
 
 	const int32 NumColumns = FMath::Log2(static_cast<float>(OverlayNames.Num() - 1));
 
 	int32 ColumnIndex = 0, RowIndex = 0;
 	for (int32 OverlayIndex = 0; OverlayIndex < OverlayNames.Num(); ++OverlayIndex)
 	{
-		IFilmOverlay& Overlay = *PrimaryFilmOverlays[OverlayNames[OverlayIndex]].Get();
+		IFilmOverlay& Overlay = *UFilmOverlayToolkit::GetPrimaryFilmOverlays()[OverlayNames[OverlayIndex]].Get();
 		OverlaysPanel->AddSlot(ColumnIndex, RowIndex)
 		[
 			SNew(SButton)
@@ -646,19 +663,23 @@ TSharedRef<SWidget> SFilmOverlayOptions::ConstructToggleableOverlaysMenu()
 	TSharedRef<SGridPanel> GridPanel = SNew(SGridPanel);
 
 	int32 Row = 0;
-	for (auto& Pair : ToggleableOverlays)
+	for (const TPair<FName, TSharedPtr<IFilmOverlay> >& Pair : UFilmOverlayToolkit::GetToggleableFilmOverlays())
 	{
-		TSharedPtr<SWidget> Settings = Pair.Value->ConstructSettingsWidget();
-		if (!Settings.IsValid())
+		TSharedPtr<IFilmOverlay> FilmOverlay = Pair.Value;
+		if (!FilmOverlay.IsValid())
 		{
 			continue;
 		}
 
-		TUniquePtr<IFilmOverlay>* Ptr = &Pair.Value;
+		TSharedPtr<SWidget> Settings = FilmOverlay->ConstructSettingsWidget();
+		if (!Settings.IsValid())
+		{
+			continue;		
+		}
 
-		auto OnCheckStateChanged = [=](ECheckBoxState InNewState){ (*Ptr)->SetEnabled(InNewState == ECheckBoxState::Checked); };
-		auto IsChecked = [=]{ return (*Ptr)->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; };
-		auto IsEnabled = [=]{ return (*Ptr)->IsEnabled(); };
+		auto OnCheckStateChanged = [=](ECheckBoxState InNewState){ FilmOverlay->SetEnabled(InNewState == ECheckBoxState::Checked); };
+		auto IsChecked = [=]{ return FilmOverlay->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; };
+		auto IsEnabled = [=]{ return FilmOverlay->IsEnabled(); };
 
 		Settings->SetEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(IsEnabled)));
 
@@ -718,11 +739,17 @@ TArray<IFilmOverlay*> SFilmOverlayOptions::GetActiveFilmOverlays() const
 		Overlays.Add(Overlay);
 	}
 
-	for (auto& Pair: ToggleableOverlays)
+	for (const TPair<FName, TSharedPtr<IFilmOverlay> >& Pair : UFilmOverlayToolkit::GetToggleableFilmOverlays())
 	{
-		if (Pair.Value->IsEnabled())
+		TSharedPtr<IFilmOverlay> FilmOverlay = Pair.Value;
+		if (!FilmOverlay.IsValid())
 		{
-			Overlays.Add(Pair.Value.Get());
+			continue;
+		}
+
+		if (FilmOverlay->IsEnabled())
+		{
+			Overlays.Add(FilmOverlay.Get());
 		}
 	}
 
@@ -733,7 +760,7 @@ const FSlateBrush* SFilmOverlayOptions::GetCurrentThumbnail() const
 {
 	if (!CurrentPrimaryOverlay.IsNone())
 	{
-		return PrimaryFilmOverlays[CurrentPrimaryOverlay]->GetThumbnail();
+		return UFilmOverlayToolkit::GetPrimaryFilmOverlays()[CurrentPrimaryOverlay].Get()->GetThumbnail();
 	}
 
 	return FLevelSequenceEditorStyle::Get()->GetBrush("FilmOverlay.DefaultThumbnail");
@@ -743,7 +770,7 @@ IFilmOverlay* SFilmOverlayOptions::GetPrimaryFilmOverlay() const
 {
 	if (!CurrentPrimaryOverlay.IsNone())
 	{
-		return PrimaryFilmOverlays[CurrentPrimaryOverlay].Get();
+		return UFilmOverlayToolkit::GetPrimaryFilmOverlays()[CurrentPrimaryOverlay].Get();
 	}
 	return nullptr;
 }
