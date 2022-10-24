@@ -175,7 +175,7 @@ StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
 
 #if PRIMITIVE_FILTER
-Buffer<uint>							InPrimitiveFilterBuffer;
+StructuredBuffer<uint>					InPrimitiveFilterBuffer;
 #endif
 
 RWStructuredBuffer<FInstanceDraw>		OutOccludedInstances;
