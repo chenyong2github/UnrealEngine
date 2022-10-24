@@ -2314,18 +2314,51 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 	return false;
 }
 
-bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch, bool* bMerged, bool bSuppressEvents)
+void UNiagaraGraph::FixupReferenceCollectionsPostRename(const FNiagaraVariable& OrigVariable, const FNiagaraVariable& DestVariable, bool bParameterMerged, bool bSuppressEvents)
+{
+	// Fixup reference collection and pin names
+	FNiagaraGraphParameterReferenceCollection NewReferences;
+	if (ParameterToReferencesMap.RemoveAndCopyValue(OrigVariable, NewReferences))
+	{
+		if (!NewReferences.ParameterReferences.IsEmpty())
+		{
+			const FText NewNameText = FText::FromName(DestVariable.GetName());
+			for (FNiagaraGraphParameterReference& Reference : NewReferences.ParameterReferences)
+			{
+				UNiagaraNode* Node = Cast<UNiagaraNode>(Reference.Value.Get());
+				if (Node && Node->GetGraph() == this)
+				{
+					Node->Modify();
+					if (UEdGraphPin* Pin = Node->GetPinByPersistentGuid(Reference.Key))
+					{
+						Pin->Modify();
+						Node->CommitEditablePinName(NewNameText, Pin, bSuppressEvents);
+					}
+				}
+			}
+		}
+
+		if (!bParameterMerged)
+		{
+			ParameterToReferencesMap.Add(DestVariable, NewReferences);
+		}
+		else
+		{
+			RefreshParameterReferences();
+		}
+	}
+}
+
+bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch, bool* bOutMerged, bool bSuppressEvents)
 {
 	check(!bIsForCompilationOnly);
 
 	// Initialize the merger state if requested
-	if (bMerged)
-		*bMerged = false;
+	if (bOutMerged)
+		*bOutMerged = false;
 
 	if (Parameter.GetName() == NewName)
 		return true;
-
-	
 
 	// Block rename when already renaming. This prevents recursion when CommitEditablePinName is called on referenced nodes. 
 	if (bIsRenamingParameter)
@@ -2333,6 +2366,8 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 		return false;
 	}
 	bIsRenamingParameter = true;
+
+	bool bParameterMerged = false;
 
 	// Create the new parameter
 	FNiagaraVariable NewParameter = Parameter;
@@ -2395,8 +2430,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	}
 	else
 	{
-		if (bMerged)
-			*bMerged = true;
+		bParameterMerged = true;
 		FName NewParamName = NewName;
 		FNiagaraEditorUtilities::DecomposeVariableNamespace(NewName, NewParamName);
 		FName OldParamName = Parameter.GetName();
@@ -2407,40 +2441,87 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewName)));
 	}
 
-	// Fixup reference collection and pin names
-	if (FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Parameter))
-	{
-		const FText NewNameText = FText::FromName(NewName);
-		FNiagaraGraphParameterReferenceCollection NewReferences = *ReferenceCollection;
-		for (FNiagaraGraphParameterReference& Reference : NewReferences.ParameterReferences)
-		{
-			UNiagaraNode* Node = Cast<UNiagaraNode>(Reference.Value.Get());
-			if (Node && Node->GetGraph() == this)
-			{
-				Node->Modify();
-				UEdGraphPin* Pin = Node->GetPinByPersistentGuid(Reference.Key);
-				if (Pin)
-				{
-					Pin->Modify();
-					Node->CommitEditablePinName(NewNameText, Pin, bSuppressEvents);
-				}
-			}
-		}
-
-		ParameterToReferencesMap.Remove(Parameter);
-		if (!bMerged)
-		{
-			ParameterToReferencesMap.Add(NewParameter, NewReferences);
-		}
-		else
-		{
-			RefreshParameterReferences();
-		}
-	}
+	FixupReferenceCollectionsPostRename(Parameter, NewParameter, bParameterMerged, bSuppressEvents);
 
 	bIsRenamingParameter = false;
 
 	NotifyGraphChanged();
+
+	if (bOutMerged)
+	{
+		*bOutMerged = bParameterMerged;
+	}
+
+	return true;
+}
+
+bool UNiagaraGraph::RenameStaticSwitch(UNiagaraNodeStaticSwitch* SwitchNode, FName NewParameterName)
+{
+	if (!SwitchNode || SwitchNode->InputParameterName == NewParameterName)
+	{
+		return false;
+	}
+
+	bIsRenamingParameter = true;
+	ON_SCOPE_EXIT{ bIsRenamingParameter = false; };
+
+	const FName OrigParameterName = SwitchNode->InputParameterName;
+
+	const FNiagaraVariableBase OrigVariable(SwitchNode->GetInputType(), OrigParameterName);
+	const FNiagaraVariableBase DestVariable(SwitchNode->GetInputType(), NewParameterName);
+
+	// see if the old/new names map to existing UNiagaraScriptVariables
+	UNiagaraScriptVariable* OrigScriptVariable = VariableToScriptVariable.FindRef(OrigVariable);
+	UNiagaraScriptVariable* DestScriptVariable = VariableToScriptVariable.FindRef(DestVariable);
+
+	// assign the new name to the node
+	SwitchNode->InputParameterName = NewParameterName;
+
+	// if we're just merging to an existing variable then we don't need to create a new one
+	if (DestScriptVariable)
+	{
+		FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(
+			LOCTEXT("MergedVar", "\"{0}\" has been merged with parameter \"{1}\".\nAll of \"{1}\"'s meta-data will be used, overwriting \"{0}\"'s meta-data."),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(OrigParameterName),
+			FNiagaraParameterUtilities::FormatParameterNameForTextDisplay(NewParameterName)));
+	}
+	else
+	{
+		TObjectPtr<UNiagaraScriptVariable>& CreatedParameter = VariableToScriptVariable.Add(DestVariable);
+		
+		if (OrigScriptVariable)
+		{
+			CreatedParameter = DuplicateObject<UNiagaraScriptVariable>(OrigScriptVariable, this);
+		}
+		else
+		{
+			CreatedParameter = NewObject<UNiagaraScriptVariable>(this);
+		}
+		
+		CreatedParameter->SetFlags(RF_Transactional);
+		CreatedParameter->Metadata.CreateNewGuid();
+		CreatedParameter->Variable = DestVariable;
+	}
+
+	// now see if we need to remove any script variables that are now obsolete because they have been renamed
+	if (OrigScriptVariable)
+	{
+		const TArray<FNiagaraVariable> StaticSwitchInputs = FindStaticSwitchInputs(false /*bReachableOnly*/);
+
+		if (!StaticSwitchInputs.Contains(OrigVariable))
+		{
+			RemoveParameter(OrigVariable);
+		}
+	}
+
+	// Fixup reference collection and pin names
+	FixupReferenceCollectionsPostRename(OrigVariable, DestVariable, DestScriptVariable != nullptr /* bIsMerging */, false /* bSuppressEvents */);
+
+	NotifyGraphChanged();
+
+	// force the graph to refresh the metadata
+	GetParameterReferenceMap();
+
 	return true;
 }
 

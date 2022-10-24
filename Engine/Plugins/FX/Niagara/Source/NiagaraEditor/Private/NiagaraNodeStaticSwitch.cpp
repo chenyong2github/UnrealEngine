@@ -168,11 +168,8 @@ FName UNiagaraNodeStaticSwitch::GetOptionPinName(const FNiagaraVariable& Variabl
 
 void UNiagaraNodeStaticSwitch::ChangeSwitchParameterName(const FName& NewName)
 {
-	FNiagaraVariable OldValue(GetInputType(), InputParameterName);
-	InputParameterName = NewName;
-	GetNiagaraGraph()->RenameParameter(OldValue, NewName, true);
+	GetNiagaraGraph()->RenameStaticSwitch(this, NewName);
 	VisualsChangedDelegate.Broadcast(this);
-	RemoveUnusedGraphParameter(OldValue);	
 }
 
 void UNiagaraNodeStaticSwitch::OnSwitchParameterTypeChanged(const FNiagaraTypeDefinition& OldType)

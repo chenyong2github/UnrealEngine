@@ -8,11 +8,11 @@
 #include "NiagaraScript.h"
 #include "NiagaraGraph.generated.h"
 
+class UNiagaraNodeStaticSwitch;
 class UNiagaraParameterDefinitions;
 class UNiagaraScriptVariable;
 struct FSynchronizeWithParameterDefinitionsArgs;
 struct FNiagaraScriptVariableData;
-
 
 /** This is the type of action that occurred on a given Niagara graph. Note that this should follow from EEdGraphActionType, leaving some slop for growth. */
 enum ENiagaraGraphActionType
@@ -319,6 +319,8 @@ class UNiagaraGraph : public UEdGraph
 	/** Rename a pin inline in a graph. If this is the only instance used in the graph, then rename them all, otherwise make a duplicate. */
 	bool RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin);
 
+	bool RenameStaticSwitch(UNiagaraNodeStaticSwitch* SwitchNode, FName NewName);
+
 	/** Changes the type of existing graph parameters.
 	 *  Optionally creates orphaned pins for any connection that won't be kept, but tries to keep connections as long as types are matching.
 	 *  Changing multiple parameters at once helps with maintaining connections.
@@ -444,6 +446,8 @@ private:
 
 	static bool VariableLess(const FNiagaraVariable& Lhs, const FNiagaraVariable& Rhs);
 	TOptional<FNiagaraScriptVariableData> GetScriptVariableData(const FNiagaraVariable& Variable) const;
+
+	void FixupReferenceCollectionsPostRename(const FNiagaraVariable& OrigVariable, const FNiagaraVariable& DestVariable, bool bParameterMerged, bool bSuppressEvents);
 
 private:
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
