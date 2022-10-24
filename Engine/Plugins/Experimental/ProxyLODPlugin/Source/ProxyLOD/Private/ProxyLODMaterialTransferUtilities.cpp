@@ -1680,52 +1680,50 @@ namespace
 		}
 	}
 
-
-
-
- // Map Diffuse, Specular, Metallic, Roughness, Normal, Emissive, Opacity to the correct materials.
- // NB: EFlattenMaterialProperties: SubSurface, OpacityMask and AmbientOcclusion are not included
-void MapFlattenMaterial(const EFlattenMaterialProperties PropertyType, 
-	const FMeshDescription& DstRawMesh,
-	const FMeshDescriptionArrayAdapter& SrcMeshAdapter,
-	const ProxyLOD::FSrcDataGrid& SuperSampledCorrespondenceGrid, 
-	const ProxyLOD::FRasterGrid& SuperSampledDstUVGrid,
-	const ProxyLOD::FRasterGrid& DstUVGrid, 
-	const TArray<FFlattenMaterial>& InputMaterials, 
-	const FColor UnresolvedSrcColor,
-	FFlattenMaterial& OutMaterial)
-{
-	switch (PropertyType)
+	// Map Diffuse, Specular, Metallic, Roughness, Normal, Emissive, Opacity to the correct materials.
+	// NB: EFlattenMaterialProperties: SubSurface and AmbientOcclusion are not included
+	void MapFlattenMaterial(const EFlattenMaterialProperties PropertyType,
+		const FMeshDescription& DstRawMesh,
+		const FMeshDescriptionArrayAdapter& SrcMeshAdapter,
+		const ProxyLOD::FSrcDataGrid& SuperSampledCorrespondenceGrid,
+		const ProxyLOD::FRasterGrid& SuperSampledDstUVGrid,
+		const ProxyLOD::FRasterGrid& DstUVGrid,
+		const TArray<FFlattenMaterial>& InputMaterials,
+		const FColor UnresolvedSrcColor,
+		FFlattenMaterial& OutMaterial)
 	{
-	case EFlattenMaterialProperties::Diffuse:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Diffuse>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial, UnresolvedSrcColor);
-		break;
-	case EFlattenMaterialProperties::Specular:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Specular>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
-		break;
-	case EFlattenMaterialProperties::Metallic:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Metallic>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
-		break;
-	case EFlattenMaterialProperties::Roughness:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Roughness>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
-		break;
-	case EFlattenMaterialProperties::Normal:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Normal>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
-		break;
-	case EFlattenMaterialProperties::Emissive:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Emissive>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
-		break;
-	case EFlattenMaterialProperties::Opacity:
-		TMapFlattenMaterial<EFlattenMaterialProperties::Opacity>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
-		break;
-	default:
-		return;
-		// do nothing.  
-	};
-}
-
+		switch (PropertyType)
+		{
+		case EFlattenMaterialProperties::Diffuse:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Diffuse>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial, UnresolvedSrcColor);
+			break;
+		case EFlattenMaterialProperties::Specular:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Specular>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		case EFlattenMaterialProperties::Metallic:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Metallic>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		case EFlattenMaterialProperties::Roughness:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Roughness>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		case EFlattenMaterialProperties::Normal:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Normal>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		case EFlattenMaterialProperties::Emissive:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Emissive>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		case EFlattenMaterialProperties::Opacity:
+			TMapFlattenMaterial<EFlattenMaterialProperties::Opacity>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		case EFlattenMaterialProperties::OpacityMask:
+			TMapFlattenMaterial<EFlattenMaterialProperties::OpacityMask>(DstRawMesh, SrcMeshAdapter, SuperSampledCorrespondenceGrid, SuperSampledDstUVGrid, DstUVGrid, InputMaterials, OutMaterial);
+			break;
+		default:
+			return;
+			// do nothing.  
+		};
+	}
 }// end anonymous namespace
-
 
 void ProxyLOD::MapFlattenMaterials(const FMeshDescription& DstRawMesh, const FMeshDescriptionArrayAdapter& SrcMeshAdapter,
 	const ProxyLOD::FSrcDataGrid& SuperSampledCorrespondenceGrid,
