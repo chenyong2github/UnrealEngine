@@ -21,7 +21,9 @@ public:
 	{
 		CategoryText = NSLOCTEXT("MovieRenderPipelineBP", "DefaultCategoryName_Text", "Custom Settings");
 		bIsValidOnPrimary = true;
+#if WITH_EDITORONLY_DATA
 		bIsValidOnMaster_DEPRECATED = true;
+#endif
 		bIsValidOnShots = true;
 		bCanBeDisabled = true;
 	}
