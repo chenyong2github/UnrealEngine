@@ -705,7 +705,7 @@ void UAnimationSequencerDataModel::OnNotify(const EAnimDataModelNotifyType& Noti
 
 UMovieSceneControlRigParameterTrack* UAnimationSequencerDataModel::GetControlRigTrack() const
 {
-	return MovieScene->FindMasterTrack<UMovieSceneControlRigParameterTrack>();
+	return MovieScene->FindTrack<UMovieSceneControlRigParameterTrack>();
 }
 
 UMovieSceneControlRigParameterSection* UAnimationSequencerDataModel::GetFKControlRigSection() const
@@ -916,10 +916,10 @@ void UAnimationSequencerDataModel::ValidateSequencerData() const
 {
 	checkf(MovieScene, TEXT("No Movie Scene found for SequencerDataModel"));
 
-	const int32 NumberOfMasterTracks = MovieScene->GetMasterTracks().Num();
-	checkf(NumberOfMasterTracks == 1, TEXT("Invalid number of Tracks in Movie Scene expected 1 but found %i"), NumberOfMasterTracks);
+	const int32 NumberOfTracks = MovieScene->GetTracks().Num();
+	checkf(NumberOfTracks == 1, TEXT("Invalid number of Tracks in Movie Scene expected 1 but found %i"), NumberOfTracks);
 		
-	const UMovieSceneControlRigParameterTrack* Track = MovieScene->FindMasterTrack<UMovieSceneControlRigParameterTrack>();
+	const UMovieSceneControlRigParameterTrack* Track = MovieScene->FindTrack<UMovieSceneControlRigParameterTrack>();
 	checkf(Track, TEXT("Unable to find Control Rig Track"));
 
 	const int32 NumberOfSections = Track->GetAllSections().Num();

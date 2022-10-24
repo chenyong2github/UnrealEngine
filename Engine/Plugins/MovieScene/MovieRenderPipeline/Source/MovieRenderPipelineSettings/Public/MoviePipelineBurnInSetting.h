@@ -39,7 +39,7 @@ public:
 	virtual FText GetCategoryText() const { return NSLOCTEXT("MovieRenderPipeline", "DefaultCategoryName_Text", "Settings"); }
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(MetaClass="/Script/MovieRenderPipelineSettings.MoviePipelineBurnInWidget"), Category = "Widget Settings")
 	FSoftClassPath BurnInClass;

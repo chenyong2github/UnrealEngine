@@ -3581,9 +3581,9 @@ bool SSequencer::CanNavigateBreadcrumbs() const
 		UMovieScene* MovieScene = RootSequence ? RootSequence->GetMovieScene() : nullptr;
 		if (RootSequence)
 		{
-			for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
+			for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 			{
-				if (MasterTrack && MasterTrack->IsA<UMovieSceneSubTrack>())
+				if (Track && Track->IsA<UMovieSceneSubTrack>())
 				{
 					return true;
 				}

@@ -148,7 +148,7 @@ public:
 	/** Exclude list */
 	TArray<FString> ExcludeAnimationNames;
 public:
-	/** Helper function to get space bases depending on master pose component */
+	/** Helper function to get space bases depending on leader pose component */
 	static void GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms);
 
 private:

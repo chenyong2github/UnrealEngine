@@ -53,7 +53,7 @@ public:
 
 private:
 
-	UMovieSceneLiveLinkTrack* DoesLiveLinkMasterTrackExist(const FName& MasterTrackName, const TSubclassOf<ULiveLinkRole>& InTrackRole);
+	UMovieSceneLiveLinkTrack* DoesLiveLinkTrackExist(const FName& TrackName, const TSubclassOf<ULiveLinkRole>& InTrackRole);
 
 	void CreateTracks();
 

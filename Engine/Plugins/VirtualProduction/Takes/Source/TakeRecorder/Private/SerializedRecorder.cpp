@@ -232,11 +232,11 @@ bool FSerializedRecorder::LoadSubSequenceFile(UMovieSceneSequence* InMovieSceneS
 	{
 		if (Serializer->OpenForRead(InFileName, Header, Error))
 		{
-			ULevelSequence* InMasterSequence = CastChecked<ULevelSequence>(InMovieSceneSequence);
+			ULevelSequence* InRootSequence = CastChecked<ULevelSequence>(InMovieSceneSequence);
 
-			ULevelSequence* TargetSequence = InMasterSequence;
+			ULevelSequence* TargetSequence = InRootSequence;
 			const FString& SubSequenceName = Header.Name;
-			TargetSequence = UTakeRecorderSources::CreateSubSequenceForSource(InMasterSequence, SubSequenceName, SubSequenceName);
+			TargetSequence = UTakeRecorderSources::CreateSubSequenceForSource(InRootSequence, SubSequenceName, SubSequenceName);
 			if (TargetSequence)
 			{
 				// If there's already a Subscene Track for our sub-sequence we need to remove that track before create a new one. No data is lost in this process as the
@@ -245,7 +245,7 @@ bool FSerializedRecorder::LoadSubSequenceFile(UMovieSceneSequence* InMovieSceneS
 				const FString SequenceName = FPaths::GetBaseFilename(TargetSequence->GetPathName());
 				UMovieSceneSubTrack* SubsceneTrack = nullptr;
 
-				for (UMovieSceneTrack* Track : InMasterSequence->GetMovieScene()->GetMasterTracks())
+				for (UMovieSceneTrack* Track : InRootSequence->GetMovieScene()->GetTracks())
 				{
 					if (Track->IsA<UMovieSceneSubTrack>())
 					{
@@ -267,11 +267,11 @@ bool FSerializedRecorder::LoadSubSequenceFile(UMovieSceneSequence* InMovieSceneS
 					}
 				}
 
-				// We need to add the new subsequence to the master sequence immediately so that it shows up in the UI and you can tell that things
+				// We need to add the new subsequence to the root sequence immediately so that it shows up in the UI and you can tell that things
 				// are being recorded, otherwise they don't show up until recording stops and then it magically pops in.
 				if (!SubsceneTrack)
 				{
-					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InMasterSequence->GetMovieScene()->AddMasterTrack(UMovieSceneSubTrack::StaticClass()));
+					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InRootSequence->GetMovieScene()->AddTrack(UMovieSceneSubTrack::StaticClass()));
 				}
 
 				// We create a new sub track for every Source so that we can name the Subtrack after the Source instead of just the sections within it.
@@ -281,8 +281,8 @@ bool FSerializedRecorder::LoadSubSequenceFile(UMovieSceneSequence* InMovieSceneS
 				/*
 				if (bCreateSequencerFolders)
 				{
-					UMovieSceneFolder* Folder = AddFolderForSource(Source, InMasterSequence->GetMovieScene());
-					Folder->AddChildMasterTrack(SubsceneTrack);
+					UMovieSceneFolder* Folder = AddFolderForSource(Source, InRootSequence->GetMovieScene());
+					Folder->AddChildTrack(SubsceneTrack);
 				}
 				*/
 

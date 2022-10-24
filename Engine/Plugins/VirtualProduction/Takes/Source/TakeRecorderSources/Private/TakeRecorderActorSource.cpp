@@ -200,7 +200,7 @@ bool UTakeRecorderActorSource::IsValid() const
 }
 
 
-TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	// Don't bother doing anything if we don't have a valid actor to record.
 	if (!Target.IsValid())
@@ -213,7 +213,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(ULevelSequen
 	// Resolve which actor we wish to record 
 	AActor* ActorToRecord = Target.Get();
 	TargetLevelSequence = InSequence;
-	MasterLevelSequence = InMasterSequence;
+	RootLevelSequence = InRootSequence;
 	TargetSequenceID = InSequenceID;
 
 	FString ObjectBindingName = ActorToRecord->GetName();
@@ -772,7 +772,7 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	FTakeRecorderParameters Parameters;
 	Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
@@ -825,7 +825,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 			{
 				FGuid RecordedCameraGuid = GetRecordedActorGuid(Target.Get());
 				FMovieSceneSequenceID RecordedCameraSequenceID = GetLevelSequenceID(Target.Get());
-				TakesUtils::CreateCameraCutTrack(InMasterSequence, RecordedCameraGuid, RecordedCameraSequenceID, InSequence->GetMovieScene()->GetPlaybackRange());
+				TakesUtils::CreateCameraCutTrack(InRootSequence, RecordedCameraGuid, RecordedCameraSequenceID, InSequence->GetMovieScene()->GetPlaybackRange());
 			}
 
 			// Swap our target actor to the Editor actor (in case the recording was added while in PIE)
@@ -855,7 +855,7 @@ void UTakeRecorderActorSource::FinalizeRecording()
 {
 	// Null these out there and NOT in PostRecording because they are used for cross sequence object binding via GetLevelSequenceID in PostRecording
 	TargetLevelSequence = nullptr;
-	MasterLevelSequence = nullptr;
+	RootLevelSequence = nullptr;
 
 	ParentSource = nullptr;
 }
@@ -1686,7 +1686,7 @@ FTransform UTakeRecorderActorSource::GetRecordedActorAnimationInitialRootTransfo
 
 FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor* OtherActor)
 {
-	return TakeRecorderSourcesUtils::GetLevelSequenceID(this, OtherActor, MasterLevelSequence);
+	return TakeRecorderSourcesUtils::GetLevelSequenceID(this, OtherActor, RootLevelSequence);
 }
 
 FTrackRecorderSettings UTakeRecorderActorSource::GetTrackRecorderSettings() const

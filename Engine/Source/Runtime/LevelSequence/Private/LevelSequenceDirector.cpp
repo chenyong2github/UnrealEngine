@@ -22,7 +22,7 @@ UWorld* ULevelSequenceDirector::GetWorld() const
 	return GetTypedOuter<UWorld>();
 }
 
-FQualifiedFrameTime ULevelSequenceDirector::GetMasterSequenceTime() const
+FQualifiedFrameTime ULevelSequenceDirector::GetRootSequenceTime() const
 {
 	using namespace UE::MovieScene;
 

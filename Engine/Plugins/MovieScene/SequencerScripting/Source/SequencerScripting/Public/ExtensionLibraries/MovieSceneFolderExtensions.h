@@ -89,33 +89,45 @@ public:
 	static bool RemoveChildFolder(UMovieSceneFolder* TargetFolder, UMovieSceneFolder* FolderToRemove);
 
 	/**
-	 * Get the master tracks contained by this folder
+	 * Get the tracks contained by this folder
 	 *
-	 * @param Folder	The folder to get the master tracks of
-	 * @return The master tracks under the given folder
+	 * @param Folder	The folder to get the tracks of
+	 * @return The tracks under the given folder
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<UMovieSceneTrack*> GetChildMasterTracks(UMovieSceneFolder* Folder);
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	static TArray<UMovieSceneTrack*> GetChildTracks(UMovieSceneFolder* Folder);
+	
+	UE_DEPRECATED(5.2, "GetChildMasterTracks is deprecated. Please use GetChildTracks instead")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "GetChildMasterTracks is deprecated. Please use GetChildTracks instead"))
+	static TArray<UMovieSceneTrack*> GetChildMasterTracks(UMovieSceneFolder* Folder) { return GetChildTracks(Folder); }
 
 	/**
-	 * Add a master track to this folder
+	 * Add a track to this folder
 	 *
-	 * @param Folder			The folder to add a child master track to
-	 * @param InMasterTrack		The master track to add to the folder
+	 * @param Folder			The folder to add a child track to
+	 * @param InTrack		    The track to add to the folder
 	 * @return True if the addition is successful
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static bool AddChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InMasterTrack);
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	static bool AddChildTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InTrack);
+	
+	UE_DEPRECATED(5.2, "AddChildMasterTrack is deprecated. Please use AddChildTrack instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "AddChildMasterTrack is deprecated. Please use AddChildTrack instead"))
+	static bool AddChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InTrack) { return AddChildTrack(Folder, InTrack); }
 
 	/**
-	 * Remove a master track from the given folder
+	 * Remove a track from the given folder
 	 *
 	 * @param Folder			The folder from which to remove a track
-	 * @param InMasterTrack		The track to remove
+	 * @param InTrack		    The track to remove
 	 * @return True if the removal succeeds
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static bool RemoveChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InMasterTrack);
+	static bool RemoveChildTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InTrack);
+
+	UE_DEPRECATED(5.2, "RemoveChildMasterTrack is deprecated. Please use RemoveChildTrack instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "RemoveChildMasterTrack is deprecated. Please use RemoveChildTrack instead"))
+	static bool RemoveChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InTrack) { return RemoveChildTrack(Folder, InTrack); }
 
 	/**
 	 * Get the object bindings contained by this folder

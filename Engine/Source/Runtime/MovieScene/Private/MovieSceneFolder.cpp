@@ -84,13 +84,13 @@ void UMovieSceneFolder::RemoveChildFolder( UMovieSceneFolder* InChildFolder )
 }
 
 
-const TArray<UMovieSceneTrack*>& UMovieSceneFolder::GetChildMasterTracks() const
+const TArray<UMovieSceneTrack*>& UMovieSceneFolder::GetChildTracks() const
 {
-	return ChildMasterTracks;
+	return ChildTracks;
 }
 
 
-void UMovieSceneFolder::AddChildMasterTrack( UMovieSceneTrack* InMasterTrack )
+void UMovieSceneFolder::AddChildTrack( UMovieSceneTrack* InTrack )
 {
 	Modify();
 
@@ -104,33 +104,33 @@ void UMovieSceneFolder::AddChildMasterTrack( UMovieSceneTrack* InMasterTrack )
 
 		for (UMovieSceneFolder* MovieSceneFolder : AllFolders)
 		{
-			MovieSceneFolder->RemoveChildMasterTrack(InMasterTrack);
+			MovieSceneFolder->RemoveChildTrack(InTrack);
 		}
 	}
 #endif
 
-	ChildMasterTracks.Add( InMasterTrack );
+	ChildTracks.Add( InTrack );
 
-	EventHandlers.Trigger(&UE::MovieScene::IFolderEventHandler::OnTrackAdded, InMasterTrack);
+	EventHandlers.Trigger(&UE::MovieScene::IFolderEventHandler::OnTrackAdded, InTrack);
 }
 
 
-void UMovieSceneFolder::RemoveChildMasterTrack( UMovieSceneTrack* InMasterTrack )
+void UMovieSceneFolder::RemoveChildTrack( UMovieSceneTrack* InTrack )
 {
 	Modify();
 
-	if (ChildMasterTracks.Remove( InMasterTrack ) > 0)
+	if (ChildTracks.Remove( InTrack ) > 0)
 	{
-		EventHandlers.Trigger(&UE::MovieScene::IFolderEventHandler::OnTrackRemoved, InMasterTrack);
+		EventHandlers.Trigger(&UE::MovieScene::IFolderEventHandler::OnTrackRemoved, InTrack);
 	}
 }
 
 
-void UMovieSceneFolder::ClearChildMasterTracks()
+void UMovieSceneFolder::ClearChildTracks()
 {
 	Modify();
 
-	ChildMasterTracks.Empty();
+	ChildTracks.Empty();
 }
 
 
@@ -145,7 +145,7 @@ void UMovieSceneFolder::AddChildObjectBinding(const FGuid& InObjectBinding )
 	Modify();
 
 #if WITH_EDITORONLY_DATA
-	// Ensure the added object  does not belong to any other folder in the same scene.
+	// Ensure the added object does not belong to any other folder in the same scene.
 	UMovieScene* OwningScene = GetTypedOuter<UMovieScene>();
 	if (OwningScene)
 	{
@@ -208,16 +208,16 @@ void UMovieSceneFolder::PostLoad()
 	UMovieScene* OwningScene = GetTypedOuter<UMovieScene>();
 	if (OwningScene)
 	{
-		// Validate child Master Tracks
-		for(int32 ChildMasterTrackIndex = 0; ChildMasterTrackIndex < ChildMasterTracks.Num(); ChildMasterTrackIndex++)
+		// Validate child Tracks
+		for(int32 ChildTrackIndex = 0; ChildTrackIndex < ChildTracks.Num(); ChildTrackIndex++)
 		{
-			const UMovieSceneTrack* ChildTrack = ChildMasterTracks[ChildMasterTrackIndex];
-			if (!OwningScene->GetMasterTracks().Contains(ChildTrack))
+			const UMovieSceneTrack* ChildTrack = ChildTracks[ChildTrackIndex];
+			if (!OwningScene->GetTracks().Contains(ChildTrack))
 			{
-				ChildMasterTracks.RemoveAt(ChildMasterTrackIndex);
-				ChildMasterTrackIndex--;
+				ChildTracks.RemoveAt(ChildTrackIndex);
+				ChildTrackIndex--;
 
-				UE_LOG(LogMovieScene, Warning, TEXT("Folder (%s) in Sequence (%s) contained a reference to a Master Track (%s) that no longer exists in the sequence, removing."), *GetFolderName().ToString(), *OwningScene->GetPathName(), *GetNameSafe(ChildTrack));
+				UE_LOG(LogMovieScene, Warning, TEXT("Folder (%s) in Sequence (%s) contained a reference to a Track (%s) that no longer exists in the sequence, removing."), *GetFolderName().ToString(), *OwningScene->GetPathName(), *GetNameSafe(ChildTrack));
 			}
 		}
 
@@ -281,7 +281,7 @@ UMovieSceneFolder* UMovieSceneFolder::FindFolderContaining(const FGuid& InObject
 
 UMovieSceneFolder* UMovieSceneFolder::FindFolderContaining(const UMovieSceneTrack* InTrack)
 {
-	if (ChildMasterTracks.Contains(InTrack))
+	if (ChildTracks.Contains(InTrack))
 	{
 		return this;
 	}
@@ -348,6 +348,15 @@ void UMovieSceneFolder::Serialize( FArchive& Archive )
 	if ( Archive.IsLoading() )
 	{
 		Super::Serialize( Archive );
+
+#if WITH_EDITOR
+		if (ChildMasterTracks_DEPRECATED.Num())
+		{
+			ChildTracks = ChildMasterTracks_DEPRECATED;
+			ChildMasterTracks_DEPRECATED.Empty();
+		}
+#endif
+
 		ChildObjectBindings.Empty();
 		for ( const FString& ChildObjectBindingString : ChildObjectBindingStrings )
 		{

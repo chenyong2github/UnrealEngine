@@ -477,7 +477,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 
 		if (Task)
 		{
-			Prereqs.AddMasterTask(Task);
+			Prereqs.AddRootTask(Task);
 		}
 	}
 
@@ -494,7 +494,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 
 		if (Task)
 		{
-			Prereqs.AddMasterTask(Task);
+			Prereqs.AddRootTask(Task);
 		}
 	}
 
@@ -511,7 +511,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 
 		if (Task)
 		{
-			Prereqs.AddMasterTask(Task);
+			Prereqs.AddRootTask(Task);
 		}
 	}
 
@@ -528,7 +528,7 @@ void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& In
 
 		if (Task)
 		{
-			Prereqs.AddMasterTask(Task);
+			Prereqs.AddRootTask(Task);
 		}
 	}
 

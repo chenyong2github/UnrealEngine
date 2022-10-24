@@ -238,7 +238,7 @@ void UAnimSequencerController::EnsureModelIsInitialized() const
 {
 	ensure(Model.Get());
 	ensure(Model->MovieScene);
-	const UMovieSceneControlRigParameterTrack* Track = Model->MovieScene->FindMasterTrack<UMovieSceneControlRigParameterTrack>();
+	const UMovieSceneControlRigParameterTrack* Track = Model->MovieScene->FindTrack<UMovieSceneControlRigParameterTrack>();
 	if (ensure(Track))
 	{
 		ensure(Track->GetAllSections().Num() > 0);
@@ -2464,7 +2464,7 @@ void UAnimSequencerController::InitializeModel()
 			const TRange<FFrameNumber> DataRange = TRange<FFrameNumber>::Inclusive(FFrameNumber(0), 1);
 			MovieScene->SetPlaybackRange(DataRange);
 			
-			if(UMovieSceneControlRigParameterTrack* Track = MovieScene->AddMasterTrack<UMovieSceneControlRigParameterTrack>())
+			if(UMovieSceneControlRigParameterTrack* Track = MovieScene->AddTrack<UMovieSceneControlRigParameterTrack>())
 			{
 				if(UFKControlRig* ControlRig = NewObject<UFKControlRig>(Track, UFKControlRig::StaticClass(), NAME_None, RF_Transactional))
 				{

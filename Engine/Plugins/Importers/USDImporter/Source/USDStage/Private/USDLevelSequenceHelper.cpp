@@ -728,7 +728,7 @@ bool FUsdLevelSequenceHelperImpl::HasData() const
 		return true;
 	}
 
-	UMovieSceneSubTrack* Track = MovieScene->FindMasterTrack<UMovieSceneSubTrack>();
+	UMovieSceneSubTrack* Track = MovieScene->FindTrack<UMovieSceneSubTrack>();
 	if ( !Track )
 	{
 		return false;
@@ -1062,7 +1062,7 @@ UMovieSceneSubSection* FUsdLevelSequenceHelperImpl::FindSubSequenceSection( ULev
 		return nullptr;
 	}
 
-	UMovieSceneSubTrack* SubTrack = MovieScene->FindMasterTrack< UMovieSceneSubTrack >();
+	UMovieSceneSubTrack* SubTrack = MovieScene->FindTrack< UMovieSceneSubTrack >();
 
 	if ( !SubTrack )
 	{
@@ -1115,10 +1115,10 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection( ULevelSequence& Sequ
 
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 
-	UMovieSceneSubTrack* SubTrack = MovieScene->FindMasterTrack< UMovieSceneSubTrack >();
+	UMovieSceneSubTrack* SubTrack = MovieScene->FindTrack< UMovieSceneSubTrack >();
 	if ( !SubTrack )
 	{
-		SubTrack = MovieScene->AddMasterTrack< UMovieSceneSubTrack >();
+		SubTrack = MovieScene->AddTrack< UMovieSceneSubTrack >();
 	}
 
 	const FString* LayerIdentifier = LayerIdentifierByLevelSequenceName.Find( Sequence.GetFName() );
@@ -1232,7 +1232,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection( ULevelSequence& Sequ
 
 void FUsdLevelSequenceHelperImpl::RemoveSubSequenceSection( ULevelSequence& Sequence, ULevelSequence& SubSequence )
 {
-	if ( UMovieSceneSubTrack* SubTrack = Sequence.GetMovieScene()->FindMasterTrack< UMovieSceneSubTrack >() )
+	if ( UMovieSceneSubTrack* SubTrack = Sequence.GetMovieScene()->FindTrack< UMovieSceneSubTrack >() )
 	{
 		if ( UMovieSceneSection* SubSection = FindSubSequenceSection( Sequence, SubSequence ) )
 		{

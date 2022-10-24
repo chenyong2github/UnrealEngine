@@ -23,7 +23,7 @@ template<class T, class TWeakObjectPtrBase> struct TWeakObjectPtr;
 class UWorld;
 class ULevelSequence;
 class UMovieSceneCinematicShotSection;
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 class UMoviePipelineShotConfig;
 class UMovieSceneCameraCutSection;
 class UMoviePipelineRenderPass;
@@ -258,7 +258,7 @@ namespace MoviePipeline
 
 	struct FFrameConstantMetrics
 	{
-		/** What is the tick resolution of the master sequence */
+		/** What is the tick resolution of the root sequence */
 		FFrameRate TickResolution;
 		/** What is the tick resolution of the current shot */
 		FFrameRate ShotTickResolution;
@@ -520,23 +520,23 @@ public:
 	/** Cached Tick Resolution our numbers are in. Simplifies some APIs. */
 	FFrameRate CachedTickResolution;
 	
-	/** Cached Tick Resolution the movie scene this range was generated for is in. Can be different than the master due to mixed tick resolutions. */
+	/** Cached Tick Resolution the movie scene this range was generated for is in. Can be different than the root due to mixed tick resolutions. */
 	FFrameRate CachedShotTickResolution;
 public:
 	/** The current state of processing this Shot is in. Not all states will be passed through. */
 	EMovieRenderShotState State;
 
-	/** The current tick of this shot that we're on in master space */
-	FFrameNumber CurrentTickInMaster;
+	/** The current tick of this shot that we're on in root space */
+	FFrameNumber CurrentTickInRoot;
 
 	/** Converts from the outermost space into the innermost space. Only works with linear transforms. */
 	FMovieSceneTimeTransform OuterToInnerTransform;
 	
-	/** The total range of output frames in master space */
-	TRange<FFrameNumber> TotalOutputRangeMaster;
+	/** The total range of output frames in root space */
+	TRange<FFrameNumber> TotalOutputRangeRoot;
 	
-	/** The total range of warmup frames in master space */
-	TRange<FFrameNumber> WarmupRangeMaster;
+	/** The total range of warmup frames in root space */
+	TRange<FFrameNumber> WarmupRangeRoot;
 
 	/** Metrics - How much work has been done for this particular shot and how much do we estimate we have to do? */
 	FMoviePipelineSegmentWorkMetrics WorkMetrics;
@@ -801,7 +801,7 @@ struct FMoviePipelineFilenameResolveParams
 	{
 	}
 	
-	/** Frame Number for the Master (matching what you see in the Sequencer timeline. ie: If the Sequence PlaybackRange starts on 50, this value would be 50 on the first frame.*/
+	/** Frame Number for the Root (matching what you see in the Sequencer timeline. ie: If the Sequence PlaybackRange starts on 50, this value would be 50 on the first frame.*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	int32 FrameNumber;
 	
@@ -809,7 +809,7 @@ struct FMoviePipelineFilenameResolveParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	int32 FrameNumberShot;
 	
-	/** Frame Number for the Master (relative to 0, not what you would see in the Sequencer timeline. ie: If sequence PlaybackRange starts on 50, this value would be 0 on the first frame. */
+	/** Frame Number for the Root (relative to 0, not what you would see in the Sequencer timeline. ie: If sequence PlaybackRange starts on 50, this value would be 0 on the first frame. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	int32 FrameNumberRel;
 	
@@ -863,7 +863,7 @@ struct FMoviePipelineFilenameResolveParams
 	/** If this shot has multiple cameras in the sidecar array, which camera is this for? -1 will return the InnerName/Main camera for the shot. */
 	int32 CameraIndex;
 
-	/** Optional. If specified, settings will be pulled from this shot (if overriden by the shot). If null, always use the master configuration in the job. */
+	/** Optional. If specified, settings will be pulled from this shot (if overriden by the shot). If null, always use the root configuration in the job. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	TObjectPtr<UMoviePipelineExecutorShot> ShotOverride;
 

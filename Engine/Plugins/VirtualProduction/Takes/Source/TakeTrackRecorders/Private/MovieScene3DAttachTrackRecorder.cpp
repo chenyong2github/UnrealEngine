@@ -63,7 +63,7 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				FMovieSceneSequenceID TargetSequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
 				FMovieSceneSequenceID ThisSequenceID   = OwningTakeRecorderSource->GetSequenceID();
 
-				FMovieSceneObjectBindingID NewBinding = UE::MovieScene::FRelativeObjectBindingID(ThisSequenceID, TargetSequenceID, Guid, OwningTakeRecorderSource->GetMasterLevelSequence());
+				FMovieSceneObjectBindingID NewBinding = UE::MovieScene::FRelativeObjectBindingID(ThisSequenceID, TargetSequenceID, Guid, OwningTakeRecorderSource->GetRootLevelSequence());
 				MovieSceneSection->SetConstraintBindingID(NewBinding);
 			}
 
@@ -98,7 +98,7 @@ void UMovieScene3DAttachTrackRecorder::FinalizeTrackImpl()
 			FMovieSceneSequenceID TargetSequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
 			FMovieSceneSequenceID ThisSequenceID   = OwningTakeRecorderSource->GetSequenceID();
 
-			FMovieSceneObjectBindingID NewBinding = UE::MovieScene::FRelativeObjectBindingID(ThisSequenceID, TargetSequenceID, Guid, OwningTakeRecorderSource->GetMasterLevelSequence());
+			FMovieSceneObjectBindingID NewBinding = UE::MovieScene::FRelativeObjectBindingID(ThisSequenceID, TargetSequenceID, Guid, OwningTakeRecorderSource->GetRootLevelSequence());
 			MovieSceneSection->SetConstraintBindingID(NewBinding);
 		}
 	}

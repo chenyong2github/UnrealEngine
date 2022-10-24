@@ -11,12 +11,12 @@ ULevelSequenceEditorSettings::ULevelSequenceEditorSettings(const FObjectInitiali
 	bAutoBindToPIE      = true;
 }
 
-ULevelSequenceMasterSequenceSettings::ULevelSequenceMasterSequenceSettings(const FObjectInitializer& ObjectInitializer)
+ULevelSequenceWithShotsSettings::ULevelSequenceWithShotsSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, MasterSequenceName(TEXT("Sequence"))
-	, MasterSequenceSuffix(TEXT("Master"))
-	, MasterSequenceNumShots(5)
+	, Name(TEXT("Sequence"))
+	, Suffix(TEXT("Root"))
+	, NumShots(5)
 {
-	MasterSequenceBasePath.Path = TEXT("/Game/Cinematics/Sequences");
+	BasePath.Path = TEXT("/Game/Cinematics/Sequences");
 }
 

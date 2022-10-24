@@ -4,7 +4,7 @@
 #include "MovieRenderPipelineEditorModule.h"
 #include "MoviePipelineConfigBase.h"
 #include "Widgets/SMoviePipelineConfigPanel.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/SOverlay.h"

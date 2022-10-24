@@ -79,41 +79,41 @@ public:
 };
 
 /**
- * Level Sequence Master Sequence settings.
+ * Level Sequence With Shots Settings.
  */
 UCLASS(config=EditorPerProjectUserSettings)
-class ULevelSequenceMasterSequenceSettings
+class ULevelSequenceWithShotsSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Master sequence name. */
-	UPROPERTY(config, DisplayName="Name", EditAnywhere, Category=MasterSequence)
-	FString MasterSequenceName;
+	/** Sequence With Shots name. */
+	UPROPERTY(config, DisplayName="Name", EditAnywhere, Category=SequenceWithShots)
+	FString Name;
 
-	/** Master sequence suffix. */
-	UPROPERTY(config, DisplayName="Suffix", EditAnywhere, Category=MasterSequence)
-	FString MasterSequenceSuffix;
+	/** Sequence With Shots suffix. */
+	UPROPERTY(config, DisplayName="Suffix", EditAnywhere, Category=SequenceWithShots)
+	FString Suffix;
 
-	/** Master sequence path. */
-	UPROPERTY(config, DisplayName="Base Path", EditAnywhere, Category=MasterSequence, meta=(ContentDir))
-	FDirectoryPath MasterSequenceBasePath;
+	/** Sequence With Shots path. */
+	UPROPERTY(config, DisplayName="Base Path", EditAnywhere, Category=SequenceWithShots, meta=(ContentDir))
+	FDirectoryPath BasePath;
 
-	/** Master sequence number of shots. */
-	UPROPERTY(config, DisplayName="Number of Shots", EditAnywhere, Category=MasterSequence, meta = (UIMin = "1", UIMax = "100"))
-	uint32 MasterSequenceNumShots;
+	/** Sequence With Shots number of shots. */
+	UPROPERTY(config, DisplayName="Number of Shots", EditAnywhere, Category=SequenceWithShots, meta = (UIMin = "1", UIMax = "100"))
+	uint32 NumShots;
 
-	/** Master sequence level sequence to duplicate when creating shots. */
-	UPROPERTY(Transient, DisplayName="Sequence to Duplicate", EditAnywhere, Category=MasterSequence)
-	TLazyObjectPtr<class ULevelSequence> MasterSequenceLevelSequenceToDuplicate;
+	/** Sequence With Shots level sequence to duplicate when creating shots. */
+	UPROPERTY(Transient, DisplayName="Sequence to Duplicate", EditAnywhere, Category=SequenceWithShots)
+	TLazyObjectPtr<class ULevelSequence> SequenceToDuplicate;
 
 	/** Array of sub sequence names, each will result in a level sequence asset in the shot. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MasterSequence)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= SequenceWithShots)
 	TArray<FName> SubSequenceNames;
 
 	/** Whether to instance sub sequences based on the first created sub sequences. */
-	UPROPERTY(config, DisplayName="Instance Sub Sequences", EditAnywhere, Category=MasterSequence)
+	UPROPERTY(config, DisplayName="Instance Sub Sequences", EditAnywhere, Category=SequenceWithShots)
 	bool bInstanceSubSequences;
 };
 

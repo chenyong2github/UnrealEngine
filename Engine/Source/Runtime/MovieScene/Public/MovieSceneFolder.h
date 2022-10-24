@@ -47,17 +47,29 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Removes a child folder from this folder. Automatically calls Modify() on the folder object. */
 	void RemoveChildFolder( UMovieSceneFolder* InChildFolder );
 
-	/** Gets the master tracks contained by this folder. */
-	const TArray<UMovieSceneTrack*>& GetChildMasterTracks() const;
+	/** Gets the tracks contained by this folder. */
+	const TArray<UMovieSceneTrack*>& GetChildTracks() const;
 
-	/** Adds a master track to this folder. Automatically calls Modify() on the folder object. */
-	void AddChildMasterTrack( UMovieSceneTrack* InMasterTrack );
+	UE_DEPRECATED(5.2, "GetChildMasterTracks is deprecated. Please use GetChildTracks instead")
+	const TArray<UMovieSceneTrack*>& GetChildMasterTracks() const { return GetChildTracks(); }
 
-	/** Removes a master track from this folder. Automatically calls Modify() on the folder object. */
-	void RemoveChildMasterTrack( UMovieSceneTrack* InMasterTrack );
+	/** Adds a track to this folder. Automatically calls Modify() on the folder object. */
+	void AddChildTrack( UMovieSceneTrack* InTrack );
 
-	/** Clear all child master tracks from this folder. */
-	void ClearChildMasterTracks();
+	UE_DEPRECATED(5.2, "AddChildMasterTrack is deprecated. Please use AddChildTrack instead")
+	void AddChildMasterTrack(UMovieSceneTrack* InMasterTrack) { AddChildTrack(InMasterTrack); }
+
+	/** Removes a track from this folder. Automatically calls Modify() on the folder object. */
+	void RemoveChildTrack( UMovieSceneTrack* InTrack );
+
+	UE_DEPRECATED(5.2, "RemoveChildMasterTrack is deprecated. Please use RemoveChildTrack instead")
+	void RemoveChildMasterTrack(UMovieSceneTrack* InMasterTrack) { return RemoveChildTrack(InMasterTrack); }
+
+	/** Clear all child tracks from this folder. */
+	void ClearChildTracks();
+
+	UE_DEPRECATED(5.2, "ClearChildMasterTracks is deprecated. Please use ClearChildTracks instead")
+	void ClearChildMasterTracks() { ClearChildTracks(); }
 
 	/** Gets the guids for the object bindings contained by this folder. */
 	const TArray<FGuid>& GetChildObjectBindings() const;
@@ -149,9 +161,9 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneFolder>> ChildFolders;
 
-	/** The master tracks contained by this folder. */
+	/** The tracks contained by this folder. */
 	UPROPERTY()
-	TArray<TObjectPtr<UMovieSceneTrack>> ChildMasterTracks;
+	TArray<TObjectPtr<UMovieSceneTrack>> ChildTracks;
 
 	/** The guid strings used to serialize the guids for the object bindings contained by this folder. */
 	UPROPERTY()
@@ -169,6 +181,11 @@ private:
 
 	/** The guids for the object bindings contained by this folder. */
 	TArray<FGuid> ChildObjectBindings;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<TObjectPtr<UMovieSceneTrack>> ChildMasterTracks_DEPRECATED;
+#endif
 };
 
 MOVIESCENE_API void GetMovieSceneFoldersRecursive(TArrayView<UMovieSceneFolder* const> InFoldersToRecurse, TArray<UMovieSceneFolder*>& OutFolders);

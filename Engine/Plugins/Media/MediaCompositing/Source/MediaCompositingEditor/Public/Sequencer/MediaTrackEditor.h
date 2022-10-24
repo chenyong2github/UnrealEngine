@@ -78,8 +78,8 @@ protected:
 	/** Callback for AnimatablePropertyChanged in HandleAssetAdded for attached media sources. */
 	FKeyPropertyResult AddAttachedMediaSource(FFrameNumber KeyTime, class UMediaSource* MediaSource, TArray<TWeakObjectPtr<UObject>> ObjectsToAttachTo, int32 RowIndex);
 
-	/** Callback for AnimatablePropertyChanged in HandleAssetAdded for master media sources. */
-	FKeyPropertyResult AddMasterMediaSource(FFrameNumber KeyTime, class UMediaSource* MediaSource, int32 RowIndex);
+	/** Callback for AnimatablePropertyChanged in HandleAssetAdded for media sources. */
+	FKeyPropertyResult AddMediaSource(FFrameNumber KeyTime, class UMediaSource* MediaSource, int32 RowIndex);
 
 	void AddNewSection(const FAssetData& Asset, UMovieSceneMediaTrack* Track);
 

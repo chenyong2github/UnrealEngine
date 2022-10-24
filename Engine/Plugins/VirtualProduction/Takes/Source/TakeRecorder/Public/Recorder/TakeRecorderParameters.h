@@ -109,8 +109,8 @@ struct FTakeRecorderProjectParameters
 	bool bRecordTimecode;
 
 	/**
-	* If enabled, each Source will be recorded into a separate Sequence and embedded in the Master Sequence will link to them via Subscenes track.
-	* If disabled, all Sources will be recorded into the Master Sequence, and you will not be able to swap between various takes of specific source
+	* If enabled, each Source will be recorded into a separate Sequence and embedded in the Root Sequence will link to them via Subscenes track.
+	* If disabled, all Sources will be recorded into the Root Sequence, and you will not be able to swap between various takes of specific source
 	* using the Sequencer Take ui. This can still be done via copying and pasting between sequences if needed.
 	*/
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Take Recorder")

@@ -31,7 +31,7 @@
 #include "DistanceFieldAtlas.h"
 #include "UObject/SoftObjectPath.h"
 #include "MoviePipelineOutputSetting.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineBlueprintLibrary.h"
 #include "ImageWriteQueue.h"
@@ -108,7 +108,7 @@ void UMoviePipeline::ValidateSequenceAndSettings() const
 		IConsoleVariable* TonemapAlphaCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha"));
 		check(TonemapAlphaCVar);
 
-		TArray<UMoviePipelineRenderPass*> OutputSettings = GetPipelineMasterConfig()->FindSettings<UMoviePipelineRenderPass>();
+		TArray<UMoviePipelineRenderPass*> OutputSettings = GetPipelinePrimaryConfig()->FindSettings<UMoviePipelineRenderPass>();
 		bool bAnyOutputWantsAlpha = false;
 
 		for (const UMoviePipelineRenderPass* Output : OutputSettings)
@@ -153,7 +153,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		//  the UI is the one who updates the configuration from the preset.
 		if (InJob->GetPresetOrigin())
 		{
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Job has a master preset specified, updating local master configuration from preset."));
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Job has a primary preset specified, updating local primary configuration from preset."));
 			InJob->GetConfiguration()->CopyFrom(InJob->GetPresetOrigin());
 		}
 
@@ -206,7 +206,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	// Override the frame range on the target sequence if needed first before anyone has a chance to modify it.
 	{
-		UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+		UMoviePipelineOutputSetting* OutputSetting = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 		if (OutputSetting->bUseCustomPlaybackRange)
 		{
 			FFrameNumber StartFrameTickResolution = FFrameRate::TransformTime(FFrameTime(FFrameNumber(OutputSetting->CustomStartFrame)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
@@ -229,8 +229,8 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		}
 	}
 	
-	// Initialize all of our master config settings. Shot specific ones will be called for their appropriate shot.
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	// Initialize all of our primary config settings. Shot specific ones will be called for their appropriate shot.
+	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
 	{
 		Setting->OnMoviePipelineInitialized(this);
 	}
@@ -527,8 +527,8 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			bInvalidTransition = false;
 			PipelineState = InNewState;
 
-			// Uninitialize our master config settings.
-			for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+			// Uninitialize our primary config settings.
+			for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
 			{
 				Setting->OnMoviePipelineShutdown(this);
 			}
@@ -546,7 +546,7 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 				DebugWidget = nullptr;
 			}
 
-			for (UMoviePipelineOutputBase* Setting : GetPipelineMasterConfig()->GetOutputContainers())
+			for (UMoviePipelineOutputBase* Setting : GetPipelinePrimaryConfig()->GetOutputContainers())
 			{
 				Setting->OnPipelineFinished();
 			}
@@ -687,7 +687,7 @@ void UMoviePipeline::BeginFinalize()
 {
 	// Notify all of our output containers that we have finished producing and
 	// submitting all frames to them and that they should start any async flushes.
-	for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
+	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
 	{
 		Container->BeginFinalize();
 	}
@@ -695,7 +695,7 @@ void UMoviePipeline::BeginFinalize()
 
 void UMoviePipeline::BeginExport()
 {
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
 	{
 		Setting->BeginExport();
 	}
@@ -711,7 +711,7 @@ void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 		bAllContainsFinishedProcessing = true;
 
 		// Ask the containers if they're all done processing.
-		for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
+		for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
 		{
 			bAllContainsFinishedProcessing &= Container->HasFinishedProcessing();
 		}
@@ -736,7 +736,7 @@ void UMoviePipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 		return;
 	}
 
-	for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
+	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
 	{
 		// All containers have finished processing, final shutdown.
 		Container->Finalize();
@@ -761,7 +761,7 @@ void UMoviePipeline::TickPostFinalizeExport(const bool bInForceFinish)
 		bAllContainsFinishedProcessing = true;
 
 		// Ask the containers if they're all done processing.
-		for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+		for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
 		{
 			bAllContainsFinishedProcessing &= Setting->HasFinishedExporting();
 		}
@@ -897,7 +897,7 @@ void UMoviePipeline::BuildShotListFromSequence()
 		// This info is read in ExpandShot so needs to be set first
 		Shot->ShotInfo.NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
 		Shot->ShotInfo.NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
-		Shot->ShotInfo.CachedFrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
+		Shot->ShotInfo.CachedFrameRate = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence);
 		Shot->ShotInfo.CachedTickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
 		Shot->ShotInfo.CachedShotTickResolution = Shot->ShotInfo.CachedTickResolution;
 		if (Shot->ShotInfo.SubSectionHierarchy.IsValid() && Shot->ShotInfo.SubSectionHierarchy->MovieScene.IsValid())
@@ -928,7 +928,7 @@ void UMoviePipeline::BuildShotListFromSequence()
 
 		// When we expanded the shot above, it pushed the first/last camera cuts ranges to account for Handle Frames.
 		// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
-		Shot->ShotInfo.CurrentTickInMaster = Shot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue();
+		Shot->ShotInfo.CurrentTickInRoot = Shot->ShotInfo.TotalOutputRangeRoot.GetLowerBoundValue();
 	}
 
 	// The active shot-list is a subset of the whole shot-list; The ShotInfo contains information about every range it detected to render
@@ -950,8 +950,8 @@ void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 	// Set the new shot as the active shot. This enables the specified shot section and disables all other shot sections.
 	SetSoloShot(InShot);
 
-	// Loop through just our master settings and let them know which shot we're about to start.
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	// Loop through just our primary settings and let them know which shot we're about to start.
+	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
 	{
 		Setting->OnSetupForShot(InShot);
 	}
@@ -986,7 +986,7 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 	}
 
 	// Notify our containers that the current shot has ended.
-	for (UMoviePipelineOutputBase* Container : GetPipelineMasterConfig()->GetOutputContainers())
+	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
 	{
 		Container->OnShotFinished(InShot, IsFlushDiskWritesPerShot());
 	}
@@ -1000,8 +1000,8 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		}
 	}
 
-	// Loop through just our master settings and let them know which shot we're about to end.
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->GetAllSettings())
+	// Loop through just our primary settings and let them know which shot we're about to end.
+	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->GetAllSettings())
 	{
 		Setting->OnTeardownForShot(InShot);
 	}
@@ -1034,7 +1034,7 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		// We call the command line encoder as a special case here because it may want to modify the file list
 		// ie: if it deletes the file after use we probably don't want scripting looking for those files.
 		const bool bIncludeDisabledSettings = false;
-		UMoviePipelineCommandLineEncoder* Encoder = GetPipelineMasterConfig()->FindSetting<UMoviePipelineCommandLineEncoder>(bIncludeDisabledSettings);
+		UMoviePipelineCommandLineEncoder* Encoder = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineCommandLineEncoder>(bIncludeDisabledSettings);
 		if (Encoder)
 		{
 			const bool bInIsShotEncode = true;
@@ -1128,14 +1128,14 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 		RightDeltaFrames += 1;
 	}
 
-	// Check to see if the detected range was not aligned to a whole frame on the master.
-	const FFrameRate MasterDisplayRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
-	FFrameTime StartTimeInMaster = FFrameRate::TransformTime(InShot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue(), InShot->ShotInfo.CachedTickResolution, MasterDisplayRate);
-	if(bIsPrePass && StartTimeInMaster.GetSubFrame() != 0.f)
+	// Check to see if the detected range was not aligned to a whole frame on the root.
+	const FFrameRate RootDisplayRate = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence);
+	FFrameTime StartTimeInRoot = FFrameRate::TransformTime(InShot->ShotInfo.TotalOutputRangeRoot.GetLowerBoundValue(), InShot->ShotInfo.CachedTickResolution, RootDisplayRate);
+	if(bIsPrePass && StartTimeInRoot.GetSubFrame() != 0.f)
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Shot/Camera \"%s\" starts on a sub-frame. Rendered range has been rounded to the previous frame to match Sequencer."), *InShot->OuterName, *InShot->InnerName);
-		FFrameNumber NewStartFrame = FFrameRate::TransformTime(FFrameTime(StartTimeInMaster.GetFrame()), MasterDisplayRate, InShot->ShotInfo.CachedTickResolution).FloorToFrame();
-		InShot->ShotInfo.TotalOutputRangeMaster.SetLowerBoundValue(NewStartFrame);
+		FFrameNumber NewStartFrame = FFrameRate::TransformTime(FFrameTime(StartTimeInRoot.GetFrame()), RootDisplayRate, InShot->ShotInfo.CachedTickResolution).FloorToFrame();
+		InShot->ShotInfo.TotalOutputRangeRoot.SetLowerBoundValue(NewStartFrame);
 	}
 
 	FFrameNumber LeftDeltaTicks = FFrameRate::TransformTime(FFrameTime(LeftDeltaFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
@@ -1147,13 +1147,13 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 	FFrameNumber LeftDeltaTicksUserPoV = FFrameRate::TransformTime(FFrameTime(LeftDeltaFramesUserPoV), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
 
 	// We generate this from excess camera cut length. If they don't want real warmup then this is overriden later.
-	// Needs to happen after we expand the TotalOutputRangeMaster for handle frames - the MoviePipelineTiming re-calculates
+	// Needs to happen after we expand the TotalOutputRangeRoot for handle frames - the MoviePipelineTiming re-calculates
 	// the required offset when jumping based on NumEngineWarmUpFramesRemaining.
-	if (!InShot->ShotInfo.WarmupRangeMaster.IsEmpty())
+	if (!InShot->ShotInfo.WarmupRangeRoot.IsEmpty())
 	{
 		if (bIsPrePass)
 		{
-			FFrameNumber TicksForWarmUp = InShot->ShotInfo.WarmupRangeMaster.Size<FFrameNumber>();
+			FFrameNumber TicksForWarmUp = InShot->ShotInfo.WarmupRangeRoot.Size<FFrameNumber>();
 			InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FFrameRate::TransformTime(FFrameTime(TicksForWarmUp), FrameMetrics.TickResolution, FrameMetrics.FrameRate).CeilToFrame().Value;
 
 			// Handle frames weren't accounted for when we calculated the warm up range, so just reduce the amount of warmup by that.
@@ -1201,8 +1201,8 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 				Node->MovieScene->MarkAsChanged();
 			}
 
-			FFrameNumber LowerCheckBound = InShot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue() - LeftDeltaTicksUserPoV;
-			FFrameNumber UpperCheckBound = InShot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue();
+			FFrameNumber LowerCheckBound = InShot->ShotInfo.TotalOutputRangeRoot.GetLowerBoundValue() - LeftDeltaTicksUserPoV;
+			FFrameNumber UpperCheckBound = InShot->ShotInfo.TotalOutputRangeRoot.GetLowerBoundValue();
 
 			TRange<FFrameNumber> CheckRange = TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Exclusive(LowerCheckBound), TRangeBound<FFrameNumber>::Inclusive(UpperCheckBound));
 
@@ -1240,13 +1240,13 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 
 			// We only do our warnings during the pre-pass
 			// Check for sections that start in the expanded evaluation range and warn user. Only check the frames user expects to (handle + temporal, no need for warm up frames to get checked as well)
-			MoviePipeline::CheckPartialSectionEvaluationAndWarn(LeftDeltaTicksUserPoV, Node, InShot, MasterDisplayRate);
+			MoviePipeline::CheckPartialSectionEvaluationAndWarn(LeftDeltaTicksUserPoV, Node, InShot, RootDisplayRate);
 		}
 
 		Node = Node->GetParent();
 	}
 
-	// Expand the Total Output Range Master by Handle Frames. The expansion of TotalOutputRangeMaster has to come after we do partial evaluation checks,
+	// Expand the Total Output Range Root by Handle Frames. The expansion of TotalOutputRangeRoot has to come after we do partial evaluation checks,
 	// otherwise the expanded range makes it check the wrong area for partial evaluations.
 	if (bIsPrePass)
 	{
@@ -1255,7 +1255,7 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 		FFrameNumber LeftHandleTicks = FFrameRate::TransformTime(FFrameTime(InNumHandleFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
 		FFrameNumber RightHandleTicks = FFrameRate::TransformTime(FFrameTime(InNumHandleFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
 
-		InShot->ShotInfo.TotalOutputRangeMaster = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeMaster, -LeftHandleTicks, RightHandleTicks);
+		InShot->ShotInfo.TotalOutputRangeRoot = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeRoot, -LeftHandleTicks, RightHandleTicks);
 	}
 }
 
@@ -1334,7 +1334,7 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	MoviePipeline::FFrameConstantMetrics Output;
 	Output.TickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
 	Output.ShotTickResolution = InShot->ShotInfo.CachedShotTickResolution;
-	Output.FrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
+	Output.FrameRate = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence);
 	Output.TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), Output.FrameRate, Output.TickResolution);
 
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(InShot);
@@ -1465,7 +1465,7 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 }
 
 
-UMoviePipelineMasterConfig* UMoviePipeline::GetPipelineMasterConfig() const
+UMoviePipelinePrimaryConfig* UMoviePipeline::GetPipelinePrimaryConfig() const
 { 
 	return CurrentJob->GetConfiguration(); 
 }
@@ -1487,7 +1487,7 @@ TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettingsForShot(TSubclassOf<U
 	}
 
 	// Add all enabled settings of given subclass not overridden by shot override
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettingsByClass(InSetting))
+	for (UMoviePipelineSetting* Setting : GetPipelinePrimaryConfig()->FindSettingsByClass(InSetting))
 	{
 		if (Setting && Setting->IsEnabled())
 		{
@@ -1518,7 +1518,7 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		Params.CameraNameOverride = InOutputState->CameraNameOverride;
 	}
 
-	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSetting);
 
 	Params.ZeroPadFrameNumberCount = OutputSetting->ZeroPadFrameNumbers;
@@ -1621,7 +1621,7 @@ void UMoviePipeline::PrintVerboseLogForFiles(const TArray<FMoviePipelineShotOutp
 void UMoviePipeline::StartUnrealInsightsCapture()
 {
 	// Generate a filepath to attempt to store the trace file in.
-	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	FString FileName = OutputSetting->FileNameFormat + TEXT("_UnrealInsights");
 	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / FileName;
 

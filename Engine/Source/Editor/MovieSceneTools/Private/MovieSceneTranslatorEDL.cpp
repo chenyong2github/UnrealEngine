@@ -367,10 +367,10 @@ bool MovieSceneTranslatorEDL::ImportEDL(UMovieScene* InMovieScene, FFrameRate In
 	TArray<FShotData> ShotDataArray;
 	ParseFromEDL(InputString, TickResolution, InFrameRate, ShotDataArray);
 
-	UMovieSceneCinematicShotTrack* CinematicShotTrack = InMovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+	UMovieSceneCinematicShotTrack* CinematicShotTrack = InMovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
 	if (!CinematicShotTrack)
 	{
-		CinematicShotTrack = InMovieScene->AddMasterTrack<UMovieSceneCinematicShotTrack>();
+		CinematicShotTrack = InMovieScene->AddTrack<UMovieSceneCinematicShotTrack>();
 	}
 
 	for (FShotData ShotData : ShotDataArray)
@@ -447,13 +447,13 @@ bool MovieSceneTranslatorEDL::ExportEDL(const UMovieScene* InMovieScene, FFrameR
 
 	TArray<FShotData> ShotDataArray;
 
-	for (UMovieSceneTrack* MasterTrack : InMovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : InMovieScene->GetTracks())
 	{
 		// @todo: sequencer-timecode: deal with framerate differences??
 		TRange<FFrameNumber> PlaybackRange = InMovieScene->GetPlaybackRange();
-		if (MasterTrack->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
+		if (Track->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
 		{
-			UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(MasterTrack);
+			UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(Track);
 
 			for (UMovieSceneSection* ShotSection : CinematicShotTrack->GetAllSections())
 			{
@@ -490,9 +490,9 @@ bool MovieSceneTranslatorEDL::ExportEDL(const UMovieScene* InMovieScene, FFrameR
 				ShotDataArray.Add(FShotData(ShotName, ShotPath, FShotData::ETrackType::TT_Video, FShotData::EEditType::ET_Cut, SourceInFrame, SourceOutFrame, EditInFrame, EditOutFrame, bWithinPlaybackRange));
 			}
 		}
-		else if (MasterTrack->IsA(UMovieSceneAudioTrack::StaticClass()))
+		else if (Track->IsA(UMovieSceneAudioTrack::StaticClass()))
 		{
-			UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(MasterTrack);
+			UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(Track);
 
 			//@todo support audio clips
 		}

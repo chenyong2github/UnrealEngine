@@ -25,9 +25,9 @@ public:
 private:
 
 	// UTakeRecorderSource
-	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
+	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void TickRecording(const FQualifiedFrameTime& CurrentTime) override;
-	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled) override;
+	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled) override;
 	virtual FText GetDisplayTextImpl() const override;
 
 	// This source does not support subscenes
@@ -38,9 +38,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UWorld> World;
 
-	/** The master or uppermost level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
+	/** The root or uppermost level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
 	UPROPERTY()
-	TObjectPtr<ULevelSequence> MasterLevelSequence;
+	TObjectPtr<ULevelSequence> RootLevelSequence;
 
 
 	struct FCameraCutData

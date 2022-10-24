@@ -380,7 +380,7 @@ public:
 		FComponentTypeID MigratedFromFastPath;
 
 		FComponentTypeID ImportedEntity;
-		FComponentTypeID Master;
+		FComponentTypeID Root;
 
 		FComponentTypeID FixedTime;
 

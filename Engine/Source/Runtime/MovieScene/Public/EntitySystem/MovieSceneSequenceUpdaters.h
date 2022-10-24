@@ -116,7 +116,7 @@ public:
 	 * Override the sequence ID that should be considered the root sequence for this updater
 	 *
 	 * @param InLinker                    The linker that is owns this sequence
-	 * @param InstanceHandle              The instance handle for the master sequence
+	 * @param InstanceHandle              The instance handle for the root sequence
 	 * @param NewRootOverrideSequenceID   The new sequence ID to treat as the root
 	 */
 	virtual void OverrideRootSequence(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InstanceHandle, FMovieSceneSequenceID NewRootOverrideSequenceID) = 0;

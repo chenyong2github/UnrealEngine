@@ -6,7 +6,7 @@
 #include "SampleBuffer.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineSetting.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -91,7 +91,7 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 		return;
 	}
 
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	FString OutputFilename = FileNameFormatOverride.Len() > 0 ? FileNameFormatOverride : OutputSetting->FileNameFormat;
 	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / OutputFilename;
 

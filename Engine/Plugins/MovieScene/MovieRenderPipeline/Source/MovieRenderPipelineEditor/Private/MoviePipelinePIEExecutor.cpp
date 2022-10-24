@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MoviePipelinePIEExecutor.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineGameOverrideSetting.h"

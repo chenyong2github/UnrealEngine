@@ -251,7 +251,7 @@ FReply SSequencerTimePanel::Apply()
 			};
 
 			UE::MovieScene::FSequenceVisitParams Params;
-			Params.bVisitMasterTracks = true;
+			Params.bVisitRootTracks = true;
 			Params.bVisitSubSequences = true;
 			FSequenceReadOnlyVisitor ReadOnlyVisitor;
 			VisitSequence(Sequence, Params, ReadOnlyVisitor);

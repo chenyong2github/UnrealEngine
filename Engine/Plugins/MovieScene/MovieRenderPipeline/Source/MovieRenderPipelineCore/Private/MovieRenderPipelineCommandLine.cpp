@@ -8,7 +8,7 @@
 #include "MoviePipeline.h"
 #include "MoviePipelineInProcessExecutor.h"
 #include "LevelSequence.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineQueue.h"
 #include "Misc/PackageName.h"
@@ -202,7 +202,7 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 *		- Preset or Queue to use (A preset is required if using a Level Sequence above, passed via -MoviePipelineConfig="/Game/...")
 *		- Will render on current map
 *		ie: 
-*			"E:\SubwaySequencer\SubwaySequencer.uproject" subwaySequencer_P -game -LevelSequence="/Game/Sequencer/SubwaySequencerMASTER.SubwaySequencerMASTER"
+*			"E:\SubwaySequencer\SubwaySequencer.uproject" subwaySequencer_P -game -LevelSequence="/Game/Sequencer/SubwaySequencer.SubwaySequencer"
 				-MoviePipelineConfig="/Game/Cinematics/MoviePipeline/Presets/SmallTestPreset.SmallTestPreset" -windowed -resx=1280 -resy=720 -log -notexturestreaming
 *		or:
 *			ie: "E:\SubwaySequencer\SubwaySequencer.uproject" subwaySequencer_P -game -MoviePipelineConfig="/Game/Cinematics/MoviePipeline/Presets/BigTestQueue.BigTestQueue" 
@@ -272,7 +272,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 			{
 				OutQueue = AssetAsQueue;
 			}
-			else if (UMoviePipelineMasterConfig* AssetAsConfig = Cast<UMoviePipelineMasterConfig>(AssetPath.TryLoad()))
+			else if (UMoviePipelinePrimaryConfig* AssetAsConfig = Cast<UMoviePipelinePrimaryConfig>(AssetPath.TryLoad()))
 			{
 				OutQueue = NewObject<UMoviePipelineQueue>();
 				UMoviePipelineExecutorJob* NewJob = OutQueue->AllocateNewJob(UMoviePipelineExecutorJob::StaticClass()); // Only the default job type is supported right now.

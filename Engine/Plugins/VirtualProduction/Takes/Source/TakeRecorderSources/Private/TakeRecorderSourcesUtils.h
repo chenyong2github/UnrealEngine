@@ -161,7 +161,7 @@ namespace TakeRecorderSourcesUtils
 	* @param Actor Actor to look for.
 	* @return The Sequence ID
 	*/
-	static FMovieSceneSequenceID GetLevelSequenceID(const UTakeRecorderSource* InSource, class AActor* Actor, ULevelSequence* MasterLevelSequence)
+	static FMovieSceneSequenceID GetLevelSequenceID(const UTakeRecorderSource* InSource, class AActor* Actor, ULevelSequence* RootLevelSequence)
 	{
 		UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(InSource->GetOuter());
 
@@ -172,7 +172,7 @@ namespace TakeRecorderSourcesUtils
 				AActor* OtherTarget = ActorSource->Target.Get();
 				if (OtherTarget && OtherTarget->GetName() == Actor->GetName()) //at the end the target's may have changed.
 				{
-					if (ActorSource->TargetLevelSequence != MasterLevelSequence)
+					if (ActorSource->TargetLevelSequence != RootLevelSequence)
 					{
 						return ActorSource->GetSequenceID();
 					}

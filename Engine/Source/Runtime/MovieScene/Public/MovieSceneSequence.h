@@ -266,7 +266,7 @@ public:
 	}
 
 	/**
-	 * Check whether this sequence is playable directly outside of a master sub sequence or not
+	 * Check whether this sequence is playable directly outside of a root sub sequence or not
 	 *
 	 * @return True if this sequences cooked data will include all the necessary information to be played back on its own, false if this data is not present in cooked builds
 	 */
@@ -276,7 +276,7 @@ public:
 	}
 
 	/**
-	 * Assign whether this sequence is playable directly outside of a master sub sequence or not
+	 * Assign whether this sequence is playable directly outside of a root sub sequence or not
 	 *
 	 * @param bInPlayableDirectly   When true, this sequence's cooked data will include all the necessary information to be played back on its own. When false this data will be culled resulting in less memory usage.
 	 */
@@ -329,7 +329,7 @@ protected:
 	bool bParentContextsAreSignificant;
 
 	/**
-	 * When true, this sequence should be compiled as if it is playable directly (outside of a master sequence). When false, various compiled data will be omitted, preventing direct playback at runtime (although will still play as a sub sequence)
+	 * When true, this sequence should be compiled as if it is playable directly (outside of a root sequence). When false, various compiled data will be omitted, preventing direct playback at runtime (although will still play as a sub sequence)
 	 */
 	UPROPERTY()
 	bool bPlayableDirectly;

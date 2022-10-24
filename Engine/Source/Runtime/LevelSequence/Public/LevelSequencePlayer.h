@@ -28,7 +28,7 @@ class UCameraComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLevelSequencePlayerCameraCutEvent, UCameraComponent*, CameraComponent);
 
 USTRUCT(BlueprintType)
-struct UE_DEPRECATED(5.0, "Snapshot settings are deprecated. Use the frame rate from the FQualifiedFrameTime on the MasterTime and the ShotTime") FLevelSequenceSnapshotSettings
+struct UE_DEPRECATED(5.0, "Snapshot settings are deprecated. Use the frame rate from the FQualifiedFrameTime on the RootTime and the ShotTime") FLevelSequenceSnapshotSettings
 { GENERATED_BODY() };
 
 /**
@@ -40,10 +40,10 @@ struct FLevelSequencePlayerSnapshot
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="General")
-	FString MasterName;
+	FString RootName;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="General")
-	FQualifiedFrameTime MasterTime;
+	FQualifiedFrameTime RootTime;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="General")
 	FQualifiedFrameTime SourceTime;
@@ -68,6 +68,14 @@ struct FLevelSequencePlayerSnapshot
 
 	UPROPERTY()
 	FMovieSceneSequenceID ShotID;
+
+private:
+
+	UPROPERTY()
+	FString MasterName_DEPRECATED;
+
+	UPROPERTY()
+	FQualifiedFrameTime MasterTime_DEPRECATED;
 };
 
 /**

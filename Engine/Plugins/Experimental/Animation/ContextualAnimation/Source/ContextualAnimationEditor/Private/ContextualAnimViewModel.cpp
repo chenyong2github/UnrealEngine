@@ -223,10 +223,10 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 
 void FContextualAnimViewModel::ResetTimeline()
 {
-	for (int32 MasterTrackIdx = MovieScene->GetMasterTracks().Num() - 1; MasterTrackIdx >= 0; MasterTrackIdx--)
+	for (int32 TrackIdx = MovieScene->GetTracks().Num() - 1; TrackIdx >= 0; TrackIdx--)
 	{
-		UMovieSceneTrack& MasterTrack = *MovieScene->GetMasterTracks()[MasterTrackIdx];
-		MovieScene->RemoveMasterTrack(MasterTrack);
+		UMovieSceneTrack& Track = *MovieScene->GetTracks()[TrackIdx];
+		MovieScene->RemoveTrack(Track);
 	}
 
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
@@ -253,7 +253,7 @@ void FContextualAnimViewModel::SetDefaultMode()
 	TArray<FName> Roles = SceneAsset->GetRoles();
 	for (FName Role : Roles)
 	{
-		UContextualAnimMovieSceneTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneTrack>();
+		UContextualAnimMovieSceneTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddTrack<UContextualAnimMovieSceneTrack>();
 		check(MovieSceneAnimTrack);
 
 		MovieSceneAnimTrack->Initialize(Role);
@@ -270,7 +270,7 @@ void FContextualAnimViewModel::SetDefaultMode()
 			UAnimSequenceBase* Animation = AnimTrack.Animation;
 			if (Animation)
 			{
-				UContextualAnimMovieSceneTrack* MovieSceneTrack = FindMasterTrackByRole(AnimTrack.Role);
+				UContextualAnimMovieSceneTrack* MovieSceneTrack = FindTrackByRole(AnimTrack.Role);
 				check(MovieSceneTrack)
 
 				UContextualAnimMovieSceneSection* NewSection = NewObject<UContextualAnimMovieSceneSection>(MovieSceneTrack, UContextualAnimMovieSceneSection::StaticClass(), NAME_None, RF_Transactional);
@@ -313,7 +313,7 @@ void FContextualAnimViewModel::SetNotifiesMode(const FContextualAnimTrack& AnimT
 
 	// Add Animation Track
 	{
-		UContextualAnimMovieSceneTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneTrack>();
+		UContextualAnimMovieSceneTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddTrack<UContextualAnimMovieSceneTrack>();
 		check(MovieSceneAnimTrack);
 
 		MovieSceneAnimTrack->SetDisplayName(FText::FromString(GetNameSafe(EditingAnimation.Get())));
@@ -335,7 +335,7 @@ void FContextualAnimViewModel::SetNotifiesMode(const FContextualAnimTrack& AnimT
 	{
 		for (const FAnimNotifyTrack& NotifyTrack : EditingAnimation->AnimNotifyTracks)
 		{
-			UContextualAnimMovieSceneNotifyTrack* Track = MovieSceneSequence->GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneNotifyTrack>();
+			UContextualAnimMovieSceneNotifyTrack* Track = MovieSceneSequence->GetMovieScene()->AddTrack<UContextualAnimMovieSceneNotifyTrack>();
 			check(Track);
 
 			Track->Initialize(*EditingAnimation, NotifyTrack);
@@ -590,12 +590,12 @@ void FContextualAnimViewModel::UpdatePreviewActorTransform(const FContextualAnim
 	}
 }
 
-UContextualAnimMovieSceneTrack* FContextualAnimViewModel::FindMasterTrackByRole(const FName& Role) const
+UContextualAnimMovieSceneTrack* FContextualAnimViewModel::FindTrackByRole(const FName& Role) const
 {
-	const TArray<UMovieSceneTrack*>& MasterTracks = MovieScene->GetMasterTracks();
-	for (UMovieSceneTrack* MasterTrack : MasterTracks)
+	const TArray<UMovieSceneTrack*>& Tracks = MovieScene->GetTracks();
+	for (UMovieSceneTrack* Track : Tracks)
 	{
-		UContextualAnimMovieSceneTrack* ContextualAnimTrack = Cast<UContextualAnimMovieSceneTrack>(MasterTrack);
+		UContextualAnimMovieSceneTrack* ContextualAnimTrack = Cast<UContextualAnimMovieSceneTrack>(Track);
 		check(ContextualAnimTrack);
 
 		if (ContextualAnimTrack->GetRole() == Role)

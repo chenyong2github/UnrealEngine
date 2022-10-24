@@ -16,8 +16,8 @@ class ILevelSequenceEditorModule
 	: public IModuleInterface
 {
 public:
-	DECLARE_EVENT_OneParam(ILevelSequenceEditorModule, FOnMasterSequenceCreated, UObject*);
-	virtual FOnMasterSequenceCreated& OnMasterSequenceCreated() = 0;
+	DECLARE_EVENT_OneParam(ILevelSequenceEditorModule, FOnLevelSequenceWithShotsCreated, UObject*);
+	virtual FOnLevelSequenceWithShotsCreated& OnLevelSequenceWithShotsCreated() = 0;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAllowPlaybackContext, bool&);
 	virtual FAllowPlaybackContext& OnComputePlaybackContext() = 0;

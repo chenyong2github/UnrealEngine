@@ -107,50 +107,50 @@ bool UMovieSceneFolderExtensions::RemoveChildFolder(UMovieSceneFolder* TargetFol
 	return true;
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneFolderExtensions::GetChildMasterTracks(UMovieSceneFolder* Folder)
+TArray<UMovieSceneTrack*> UMovieSceneFolderExtensions::GetChildTracks(UMovieSceneFolder* Folder)
 {
 	if (!Folder)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call GetChildMasterTracks with a null folder"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetChildTracks with a null folder"), ELogVerbosity::Error);
 		return TArray<UMovieSceneTrack*>();
 	}
 
-	return Folder->GetChildMasterTracks();
+	return Folder->GetChildTracks();
 }
 
-bool UMovieSceneFolderExtensions::AddChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InMasterTrack)
+bool UMovieSceneFolderExtensions::AddChildTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InTrack)
 {
 	if (!Folder)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call AddChildMasterTrack with a null folder"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call AddChildTrack with a null folder"), ELogVerbosity::Error);
 		return false;
 	}
 
-	if (!InMasterTrack)
+	if (!InTrack)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call AddChildMasterTrack with a null master track"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call AddChildTrack with a null track"), ELogVerbosity::Error);
 		return false;
 	}
 	
-	Folder->AddChildMasterTrack(InMasterTrack);
+	Folder->AddChildTrack(InTrack);
 	return true;
 }
 
-bool UMovieSceneFolderExtensions::RemoveChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InMasterTrack)
+bool UMovieSceneFolderExtensions::RemoveChildTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InTrack)
 {
 	if (!Folder)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveChildMasterTrack with a null folder"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveChildTrack with a null folder"), ELogVerbosity::Error);
 		return false;
 	}
 
-	if (!InMasterTrack)
+	if (!InTrack)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveChildMasterTrack with a null master track"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveChildTrack with a null track"), ELogVerbosity::Error);
 		return false;
 	}
 
-	Folder->RemoveChildMasterTrack(InMasterTrack);
+	Folder->RemoveChildTrack(InTrack);
 	return true;
 }
 

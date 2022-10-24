@@ -65,7 +65,7 @@ struct FSharedPersistentDataKey
 	/** The actual shared ID */
 	FMovieSceneSharedDataId UniqueId;
 
-	/** The operand that this key relates to (may be invalid where the data pertains to master tracks) */
+	/** The operand that this key relates to (may be invalid where the data pertains to root tracks) */
 	FMovieSceneEvaluationOperand Operand;
 };
 

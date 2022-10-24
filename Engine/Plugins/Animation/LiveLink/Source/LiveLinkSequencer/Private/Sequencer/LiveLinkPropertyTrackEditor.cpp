@@ -244,12 +244,12 @@ void FLiveLinkPropertyTrackEditor::HandleAddLiveLinkTrackMenuEntryExecute()
 		return;
 	}
 
-	UMovieSceneTrack* Track = FocusedMovieScene->FindMasterTrack<UMovieSceneLiveLinkTrack>();
+	UMovieSceneTrack* Track = FocusedMovieScene->FindTrack<UMovieSceneLiveLinkTrack>();
 	if (!Track)
 	{
 		const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "AddLiveLinkTrack_Transaction", "Add Live Link Track"));
 		FocusedMovieScene->Modify();
-		UMovieSceneLiveLinkTrack* NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneLiveLinkTrack>();
+		UMovieSceneLiveLinkTrack* NewTrack = FocusedMovieScene->AddTrack<UMovieSceneLiveLinkTrack>();
 		ensure(NewTrack);
 
 		NewTrack->SetDisplayName(LOCTEXT("LiveLinkTrackName", "Live Link"));
@@ -264,7 +264,7 @@ void FLiveLinkPropertyTrackEditor::HandleAddLiveLinkTrackMenuEntryExecute()
 bool FLiveLinkPropertyTrackEditor::HandleAddLiveLinkTrackMenuEntryCanExecute() const
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
-	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindMasterTrack<UMovieSceneLiveLinkTrack>() == nullptr));
+	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindTrack<UMovieSceneLiveLinkTrack>() == nullptr));
 }
 
 

@@ -112,7 +112,7 @@ protected:
 	/** Add default movie scene tracks for the given actor. */
 	void AddDefaultTracksForActor(AActor& Actor, const FGuid Binding);
 	
-	/** Add a shot to a master sequence */
+	/** Add a shot to a sequence */
 	void AddShot(UMovieSceneCinematicShotTrack* ShotTrack, const FString& ShotAssetName, const FString& ShotPackagePath, FFrameNumber ShotStartTime, FFrameNumber ShotEndTime, UObject* AssetToDuplicate, const FString& FirstShotAssetName);
 
 	/** Called whenever sequencer has received focus */
@@ -134,8 +134,8 @@ private:
 	/** Callback for map changes. */
 	void HandleMapChanged(UWorld* NewWorld, EMapChangeType MapChangeType);
 
-	/** Callback for when a master sequence is created. */
-	void HandleMasterSequenceCreated(UObject* MasterSequenceAsset);
+	/** Callback for when a sequence with shots is created. */
+	void HandleLevelSequenceWithShotsCreated(UObject* LevelSequenceWithShotsAsset);
 
 	/** Callback for the menu extensibility manager. */
 	TSharedRef<FExtender> HandleMenuExtensibilityGetExtender(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects);

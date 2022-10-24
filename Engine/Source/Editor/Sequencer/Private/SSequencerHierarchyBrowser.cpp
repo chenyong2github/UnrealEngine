@@ -184,9 +184,9 @@ void SSequencerHierarchyBrowser::AddChildren(TSharedRef<FSequencerHierarchyNode>
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
-	for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 	{
-		if (UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(MasterTrack))
+		if (UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(Track))
 		{
 			TArray<UMovieSceneCinematicShotSection*> ShotSections;
 			for (UMovieSceneSection* Section : CinematicShotTrack->GetAllSections())
@@ -209,7 +209,7 @@ void SSequencerHierarchyBrowser::AddChildren(TSharedRef<FSequencerHierarchyNode>
 				AddChildren(ChildNode.ToSharedRef(), ShotSection->GetSequence());
 			}
 		}
-		else if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MasterTrack))
+		else if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track))
 		{
 			TArray<UMovieSceneSubSection*> SubSections;
 			for (UMovieSceneSection* Section : SubTrack->GetAllSections())

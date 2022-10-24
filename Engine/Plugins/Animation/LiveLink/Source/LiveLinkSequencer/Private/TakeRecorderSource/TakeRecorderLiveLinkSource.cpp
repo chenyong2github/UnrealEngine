@@ -31,7 +31,7 @@ UTakeRecorderLiveLinkSource::UTakeRecorderLiveLinkSource(const FObjectInitialize
 	TrackTint = FColor(74, 108, 164);
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) 
+TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer) 
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 	TrackRecorder = NewObject<UMovieSceneLiveLinkTrackRecorder>();
@@ -65,7 +65,7 @@ void UTakeRecorderLiveLinkSource::StopRecording(class ULevelSequence* InSequence
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderLiveLinkSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	if (TrackRecorder)
 	{

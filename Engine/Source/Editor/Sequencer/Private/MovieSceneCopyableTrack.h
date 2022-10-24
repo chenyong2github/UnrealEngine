@@ -18,10 +18,10 @@ public:
 	TObjectPtr<UMovieSceneTrack> Track;
 
 	UPROPERTY()
-	bool bIsAMasterTrack;
+	bool bIsRootTrack;
 
 	UPROPERTY()
-	bool bIsACameraCutTrack;
+	bool bIsCameraCutTrack;
 
 	UPROPERTY()
 	TArray<FName> FolderPath;

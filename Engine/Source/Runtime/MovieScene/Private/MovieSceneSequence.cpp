@@ -164,38 +164,38 @@ bool UMovieSceneSequence::OptimizeForCook()
 
 	bool bModified = false;
 
-	for (int32 MasterTrackIndex = 0; MasterTrackIndex < MovieScene->GetMasterTracks().Num(); )
+	for (int32 TrackIndex = 0; TrackIndex < MovieScene->GetTracks().Num(); )
 	{
-		UMovieSceneTrack* MasterTrack = MovieScene->GetMasterTracks()[MasterTrackIndex];
-		if (MasterTrack && MasterTrack->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
+		UMovieSceneTrack* Track = MovieScene->GetTracks()[TrackIndex];
+		if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
 		{				
-			MasterTrack->RemoveForCook();
-			MovieScene->RemoveMasterTrack(*MasterTrack);
-			UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *MasterTrack->GetDisplayName().ToString(), *GetPathName());
+			Track->RemoveForCook();
+			MovieScene->RemoveTrack(*Track);
+			UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *Track->GetDisplayName().ToString(), *GetPathName());
 			bModified = true;
 			continue;
 		}
-		++MasterTrackIndex;
+		++TrackIndex;
 	}
 
 	// Go through the tracks again and look at sections
-	for (int32 MasterTrackIndex = 0; MasterTrackIndex < MovieScene->GetMasterTracks().Num(); ++MasterTrackIndex)
+	for (int32 TrackIndex = 0; TrackIndex < MovieScene->GetTracks().Num(); ++TrackIndex)
 	{
-		UMovieSceneTrack* MasterTrack =  MovieScene->GetMasterTracks()[MasterTrackIndex];
-		if (MasterTrack)
+		UMovieSceneTrack* Track =  MovieScene->GetTracks()[TrackIndex];
+		if (Track)
 		{
-			for (int32 MasterSectionIndex = 0; MasterSectionIndex < MasterTrack->GetAllSections().Num(); )
+			for (int32 SectionIndex = 0; SectionIndex < Track->GetAllSections().Num(); )
 			{
-				UMovieSceneSection* MasterSection = MasterTrack->GetAllSections()[MasterSectionIndex];
-				if (MasterSection && MasterSection->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveSection)
+				UMovieSceneSection* Section = Track->GetAllSections()[SectionIndex];
+				if (Section && Section->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveSection)
 				{
-					MasterSection->RemoveForCook();
-					MasterTrack->RemoveSection(*MasterSection);
-					UE_LOG(LogMovieScene, Display, TEXT("Removing muted section: %s from: %s"), *MasterSection->GetPathName(), *MasterTrack->GetDisplayName().ToString());
+					Section->RemoveForCook();
+					Track->RemoveSection(*Section);
+					UE_LOG(LogMovieScene, Display, TEXT("Removing muted section: %s from: %s"), *Section->GetPathName(), *Track->GetDisplayName().ToString());
 					bModified = true;
 					continue;
 				}
-				++MasterSectionIndex;
+				++SectionIndex;
 			}
 		}
 	}

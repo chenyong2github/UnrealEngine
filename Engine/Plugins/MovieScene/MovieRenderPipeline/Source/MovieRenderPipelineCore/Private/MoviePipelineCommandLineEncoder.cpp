@@ -6,7 +6,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineBlueprintLibrary.h"
-#include "MoviePipelineMasterConfig.h"	
+#include "MoviePipelinePrimaryConfig.h"	
 #include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
@@ -93,7 +93,7 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 		}
 	}
 
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	FString OutputFilename = FileNameFormatOverride.Len() > 0 ? FileNameFormatOverride : OutputSetting->FileNameFormat;
 	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / OutputFilename;
 	
@@ -117,7 +117,7 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 	SharedArguments.Add(TEXT("Executable"), ExecutablePathNoQuotes);
 	SharedArguments.Add(TEXT("AudioCodec"), EncoderSettings->AudioCodec);
 	SharedArguments.Add(TEXT("VideoCodec"), EncoderSettings->VideoCodec);
-	FFrameRate RenderFrameRate = GetPipeline()->GetPipelineMasterConfig()->GetEffectiveFrameRate(GetPipeline()->GetTargetSequence());
+	FFrameRate RenderFrameRate = GetPipeline()->GetPipelinePrimaryConfig()->GetEffectiveFrameRate(GetPipeline()->GetTargetSequence());
 	SharedArguments.Add(TEXT("FrameRate"), RenderFrameRate.AsDecimal());
 	SharedArguments.Add(TEXT("AdditionalLocalArgs"), AdditionalCommandLineArgs);
 	SharedArguments.Add(TEXT("Quality"), GetQualitySettingString());
@@ -233,7 +233,7 @@ void UMoviePipelineCommandLineEncoder::StartEncodingProcess(TArray<FMoviePipelin
 
 void UMoviePipelineCommandLineEncoder::LaunchEncoder(const FEncoderParams& InParams)
 {
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 
 	// Generate a text file for each input type which lists the files for that input type. We generate a FGuid in case there are
 	// multiple encode jobs going at once.
@@ -335,7 +335,7 @@ void UMoviePipelineCommandLineEncoder::LaunchEncoder(const FEncoderParams& InPar
 
 		// Automatically delete the input files we generated when the job is done
 		bool bDeleteInputTexts = true;
-		UMoviePipelineDebugSettings* DebugSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineDebugSettings>();
+		UMoviePipelineDebugSettings* DebugSettings = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineDebugSettings>();
 		if (DebugSettings)
 		{
 			bDeleteInputTexts = !DebugSettings->bWriteAllSamples;
@@ -412,7 +412,7 @@ void UMoviePipelineCommandLineEncoder::OnTick()
 
 bool UMoviePipelineCommandLineEncoder::NeedsPerShotFlushing() const
 {
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	FString OutputFilename = FileNameFormatOverride.Len() > 0 ? FileNameFormatOverride : OutputSetting->FileNameFormat;
 	FString FullPath = OutputSetting->OutputDirectory.Path / OutputFilename;
 

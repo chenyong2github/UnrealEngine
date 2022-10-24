@@ -8,7 +8,7 @@
 #include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSources.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectTokenStorage.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedMasterTokenStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedRootTokenStorage.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
 
 DECLARE_CYCLE_STAT(TEXT("Save Pre Animated State"), MovieSceneEval_SavePreAnimatedState, STATGROUP_MovieSceneEval);

@@ -49,7 +49,7 @@ void UMovieSceneMaterialParameterCollectionTrack::ExtendEntityImpl(UMovieSceneEn
 		FEntityBuilder()
 		.Add(TracksComponents->MPC, MPC)
 		.AddTag(BuiltInComponents->Tags.AbsoluteBlend)
-		.AddTag(BuiltInComponents->Tags.Master)
+		.AddTag(BuiltInComponents->Tags.Root)
 	);
 }
 

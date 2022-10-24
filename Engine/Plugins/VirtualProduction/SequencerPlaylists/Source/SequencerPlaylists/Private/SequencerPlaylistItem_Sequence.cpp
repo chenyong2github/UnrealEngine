@@ -309,7 +309,7 @@ UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTr
 		return ItemState.WeakTrack.Get();
 	}
 
-	UMovieSceneSubTrack* NewWorkingTrack = RootScene->AddMasterTrack<UMovieSceneSubTrack>();
+	UMovieSceneSubTrack* NewWorkingTrack = RootScene->AddTrack<UMovieSceneSubTrack>();
 	NewWorkingTrack->SetDisplayName(FText::Format(LOCTEXT("SequenceItemTrackName", "Item - {0}"), SequenceItem->Sequence->GetDisplayName()));
 
 	// Find or create folder named for our playlist, and organize our track beneath it.
@@ -339,7 +339,7 @@ UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTr
 		//RootScene->GetRootFolders().Add(FolderToUse);
 	}
 
-	FolderToUse->AddChildMasterTrack(NewWorkingTrack);
+	FolderToUse->AddChildTrack(NewWorkingTrack);
 
 	ItemState.WeakTrack = NewWorkingTrack;
 	return NewWorkingTrack;

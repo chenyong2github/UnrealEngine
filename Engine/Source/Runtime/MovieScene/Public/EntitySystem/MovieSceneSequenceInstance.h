@@ -113,7 +113,7 @@ public:
 	/**
 	 * Retrieve the SequenceID for this instance
 	 *
-	 * @return This sequence instance's SequenceID within the root-sequences hierachy, or MovieSceneSequenceID::Root for master sequence instances.
+	 * @return This sequence instance's SequenceID within the root-sequences hierachy, or MovieSceneSequenceID::Root for root sequence instances.
 	 */
 	FMovieSceneSequenceID GetSequenceID() const
 	{

@@ -41,7 +41,7 @@ public:
 	virtual FText GetCategoryText() const { return NSLOCTEXT("MovieRenderPipeline", "WidgetRendererSettingCategoryName", "Rendering"); }
 #endif
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 private:
 	TSharedPtr<FWidgetRenderer> WidgetRenderer;
 

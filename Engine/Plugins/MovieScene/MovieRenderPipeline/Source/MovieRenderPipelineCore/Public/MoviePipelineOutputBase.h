@@ -72,7 +72,7 @@ protected:
 
 protected:
 	virtual bool IsValidOnShots() const override { return false; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 #if WITH_EDITOR
 	virtual FText GetCategoryText() const override { return NSLOCTEXT("MovieRenderPipeline", "ExportsCategoryName_Text", "Exports"); }
 #endif

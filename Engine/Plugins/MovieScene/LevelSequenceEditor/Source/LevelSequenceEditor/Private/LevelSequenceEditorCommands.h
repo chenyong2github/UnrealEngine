@@ -17,7 +17,7 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> CreateNewLevelSequenceInLevel;
-	TSharedPtr<FUICommandInfo> CreateNewMasterSequenceInLevel;
+	TSharedPtr<FUICommandInfo> CreateNewLevelSequenceWithShotsInLevel;
 	TSharedPtr<FUICommandInfo> ToggleCinematicViewportCommand;
 	
 	TSharedPtr<FUICommandInfo> SnapSectionsToTimelineUsingSourceTimecode;

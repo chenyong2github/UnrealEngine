@@ -110,7 +110,7 @@ private:
 	/** The main movie pipeline editor widget */
 	TSharedPtr<SMoviePipelineConfigEditor> MoviePipelineEditorWidget;
 
-	/** What type of asset are we editing? Could be a master config or a per-shot override config. */
+	/** What type of asset are we editing? Could be a primary config or a per-shot override config. */
 	TSubclassOf<UMoviePipelineConfigBase> ConfigAssetType;
 
 	FOnMoviePipelineConfigChanged OnConfigurationModified;

@@ -287,11 +287,11 @@ void FEventTrackEditor::HandleAddEventTrackMenuEntryExecute(TArray<FGuid> InObje
 
 	if (!NewTracks.Num())
 	{
-		UMovieSceneEventTrack* NewMasterTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneEventTrack>();
-		NewTracks.Add(NewMasterTrack);
+		UMovieSceneEventTrack* NewTrack = FocusedMovieScene->AddTrack<UMovieSceneEventTrack>();
+		NewTracks.Add(NewTrack);
 		if (GetSequencer().IsValid())
 		{
-			GetSequencer()->OnAddTrack(NewMasterTrack, FGuid());
+			GetSequencer()->OnAddTrack(NewTrack, FGuid());
 		}
 	}
 

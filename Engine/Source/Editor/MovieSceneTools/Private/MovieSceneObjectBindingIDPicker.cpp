@@ -187,7 +187,7 @@ TSharedRef<SWidget> FMovieSceneObjectBindingIDPicker::GetWarningWidget()
 		.VAlign(VAlign_Center)
 		.ContentPadding(FMargin(0))
 		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-		.ToolTipText(LOCTEXT("FixedBindingWarningText", "This binding is fixed to the current Master Sequence hierarchy, so will break if evaluated in a different hierarchy.\nClick here to fix this problem."))
+		.ToolTipText(LOCTEXT("FixedBindingWarningText", "This binding is fixed to the current Root Sequence hierarchy, so will break if evaluated in a different hierarchy.\nClick here to fix this problem."))
 		.Visibility_Raw(this, &FMovieSceneObjectBindingIDPicker::GetFixedWarningVisibility)
 		.OnClicked_Raw(this, &FMovieSceneObjectBindingIDPicker::AttemptBindingFixup)
 		[
@@ -318,9 +318,9 @@ void FMovieSceneObjectBindingIDPicker::SetCurrentValueFromFixed(UE::MovieScene::
 	else
 	{
 		// Attempt to remap the desired binding to the current local sequence by either making it local to this sequence
-		// or specifying a parent index so that this binding is still able to resolve correctly if the master sequence is added
+		// or specifying a parent index so that this binding is still able to resolve correctly if the root sequence is added
 		// as a subsequence elsewhere
-		// This ensures that you can work on sub sequences on their own, or within a master sequence and the binding will resolve correctly.
+		// This ensures that you can work on sub sequences on their own, or within a root sequence and the binding will resolve correctly.
 		SetCurrentValue(InValue.ConvertToRelative(LocalSequenceID, Hierarchy));
 	}
 }

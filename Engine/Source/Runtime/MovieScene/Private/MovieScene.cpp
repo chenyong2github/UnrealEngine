@@ -123,6 +123,12 @@ void UMovieScene::Serialize( FArchive& Ar )
 #if WITH_EDITOR
 	if (Ar.IsLoading())
 	{
+		if (MasterTracks_DEPRECATED.Num())
+		{
+			Tracks = MasterTracks_DEPRECATED;
+			MasterTracks_DEPRECATED.Empty();
+		}
+
 		UpgradeTimeRanges();
 		RemoveNullTracks();
 
@@ -940,10 +946,10 @@ TArray<UMovieSceneSection*> UMovieScene::GetAllSections() const
 {
 	TArray<UMovieSceneSection*> OutSections;
 
-	// Add all master type sections 
-	for( int32 TrackIndex = 0; TrackIndex < MasterTracks.Num(); ++TrackIndex )
+	// Add all type sections 
+	for( int32 TrackIndex = 0; TrackIndex < Tracks.Num(); ++TrackIndex )
 	{
-		OutSections.Append( MasterTracks[TrackIndex]->GetAllSections() );
+		OutSections.Append( Tracks[TrackIndex]->GetAllSections() );
 	}
 	
 	// Add all camera cut sections
@@ -1073,23 +1079,38 @@ bool UMovieScene::AddGivenTrack(UMovieSceneTrack* InTrack, const FGuid& ObjectGu
 
 bool UMovieScene::RemoveTrack(UMovieSceneTrack& Track)
 {
-	Modify();
-
-	bool bAnythingRemoved = false;
-
-	for (auto& Binding : ObjectBindings)
+	// Remove either a root track or a track from a binding
+	if (Tracks.Contains(&Track))
 	{
-		if (Binding.RemoveTrack(Track, this))
+		Modify();
+
+		const bool bRemoved = Tracks.RemoveSingle(&Track) != 0;
+		if (bRemoved)
 		{
-			bAnythingRemoved = true;
-
-			// The track was removed from the current binding, stop
-			// searching now as it cannot exist in any other binding
-			break;
+			EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackRemoved, &Track);
 		}
+		return bRemoved;
 	}
+	else
+	{
+		Modify();
 
-	return bAnythingRemoved;
+		bool bAnythingRemoved = false;
+		
+		for (auto& Binding : ObjectBindings)
+		{
+			if (Binding.RemoveTrack(Track, this))
+			{
+				bAnythingRemoved = true;
+
+				// The track was removed from the current binding, stop
+				// searching now as it cannot exist in any other binding
+				break;
+			}
+		}
+	
+		return bAnythingRemoved;
+	}
 }
 
 bool UMovieScene::FindTrackBinding(const UMovieSceneTrack& InTrack, FGuid& OutGuid) const
@@ -1109,11 +1130,11 @@ bool UMovieScene::FindTrackBinding(const UMovieSceneTrack& InTrack, FGuid& OutGu
 	return false;
 }
 
-UMovieSceneTrack* UMovieScene::FindMasterTrack( TSubclassOf<UMovieSceneTrack> TrackClass ) const
+UMovieSceneTrack* UMovieScene::FindTrack( TSubclassOf<UMovieSceneTrack> TrackClass ) const
 {
 	UMovieSceneTrack* FoundTrack = nullptr;
 
-	for (const auto Track : MasterTracks)
+	for (const auto Track : Tracks)
 	{
 		if (Track->GetClass()->IsChildOf(TrackClass))
 		{
@@ -1126,7 +1147,7 @@ UMovieSceneTrack* UMovieScene::FindMasterTrack( TSubclassOf<UMovieSceneTrack> Tr
 }
 
 
-UMovieSceneTrack* UMovieScene::AddMasterTrack( TSubclassOf<UMovieSceneTrack> TrackClass )
+UMovieSceneTrack* UMovieScene::AddTrack( TSubclassOf<UMovieSceneTrack> TrackClass )
 {
 #if WITH_EDITOR
 	if (!IsTrackClassAllowed(TrackClass))
@@ -1138,15 +1159,15 @@ UMovieSceneTrack* UMovieScene::AddMasterTrack( TSubclassOf<UMovieSceneTrack> Tra
 	Modify();
 
 	UMovieSceneTrack* CreatedType = NewObject<UMovieSceneTrack>(this, TrackClass, NAME_None, RF_Transactional);
-	MasterTracks.Add( CreatedType );
+	Tracks.Add( CreatedType );
 
-	EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackAdded, CreatedType);
+	EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackAdded, CreatedType);
 
 	return CreatedType;
 }
 
 
-bool UMovieScene::AddGivenMasterTrack(UMovieSceneTrack* InTrack)
+bool UMovieScene::AddGivenTrack(UMovieSceneTrack* InTrack)
 {
 #if WITH_EDITOR
 	if (!IsTrackClassAllowed(InTrack->GetClass()))
@@ -1155,13 +1176,13 @@ bool UMovieScene::AddGivenMasterTrack(UMovieSceneTrack* InTrack)
 	}
 #endif
 
-	if (!MasterTracks.Contains(InTrack))
+	if (!Tracks.Contains(InTrack))
 	{
 		Modify();
-		MasterTracks.Add(InTrack);
+		Tracks.Add(InTrack);
 		InTrack->Rename(nullptr, this);
 
-		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackAdded, InTrack);
+		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackAdded, InTrack);
 
 		return true;
 	}
@@ -1169,24 +1190,11 @@ bool UMovieScene::AddGivenMasterTrack(UMovieSceneTrack* InTrack)
 }
 
 
-bool UMovieScene::RemoveMasterTrack(UMovieSceneTrack& Track) 
+bool UMovieScene::ContainsTrack(const UMovieSceneTrack& InTrack) const
 {
-	Modify();
-
-	const bool bRemoved = MasterTracks.RemoveSingle(&Track) != 0;
-	if (bRemoved)
+	for ( const UMovieSceneTrack* Track : Tracks)
 	{
-		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackRemoved, &Track);
-	}
-	return bRemoved;
-}
-
-
-bool UMovieScene::IsAMasterTrack(const UMovieSceneTrack& Track) const
-{
-	for ( const UMovieSceneTrack* MasterTrack : MasterTracks)
-	{
-		if (&Track == MasterTrack)
+		if (&InTrack == Track)
 		{
 			return true;
 		}
@@ -1210,7 +1218,7 @@ UMovieSceneTrack* UMovieScene::AddCameraCutTrack( TSubclassOf<UMovieSceneTrack> 
 		Modify();
 		CameraCutTrack = NewObject<UMovieSceneTrack>(this, TrackClass, NAME_None, RF_Transactional);
 
-		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackAdded, CameraCutTrack);
+		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackAdded, CameraCutTrack);
 	}
 
 	return CameraCutTrack;
@@ -1231,7 +1239,7 @@ void UMovieScene::RemoveCameraCutTrack()
 		UMovieSceneTrack* TmpCameraCut = CameraCutTrack;
 		CameraCutTrack = nullptr;
 
-		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackRemoved, TmpCameraCut);
+		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackRemoved, TmpCameraCut);
 	}
 }
 
@@ -1249,10 +1257,10 @@ void UMovieScene::SetCameraCutTrack(UMovieSceneTrack* InTrack)
 
 	if (OldCameraCutTrack)
 	{
-		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackRemoved, OldCameraCutTrack);
+		EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackRemoved, OldCameraCutTrack);
 	}
 
-	EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnMasterTrackAdded, CameraCutTrack);
+	EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnTrackAdded, CameraCutTrack);
 }
 
 
@@ -1285,7 +1293,7 @@ void UMovieScene::UpgradeTimeRanges()
 		// In this instance (UMG), playback always started at 0
 		TRangeBound<FFrameNumber> MaxFrame = TRangeBound<FFrameNumber>::Exclusive(0);
 
-		for (const UMovieSceneTrack* Track : MasterTracks)
+		for (const UMovieSceneTrack* Track : Tracks)
 		{
 			TOptional<TRangeBound<FFrameNumber>> MaxUpper = GetMaxUpperBound(Track);
 			if (MaxUpper.IsSet())
@@ -1366,11 +1374,11 @@ void UMovieScene::UpgradeTimeRanges()
 void UMovieScene::RemoveNullTracks()
 {
 	// Remove any null tracks
-	for( int32 TrackIndex = 0; TrackIndex < MasterTracks.Num(); )
+	for( int32 TrackIndex = 0; TrackIndex < Tracks.Num(); )
 	{
-		if (MasterTracks[TrackIndex] == nullptr)
+		if (Tracks[TrackIndex] == nullptr)
 		{
-			MasterTracks.RemoveAt(TrackIndex);
+			Tracks.RemoveAt(TrackIndex);
 		}
 		else
 		{

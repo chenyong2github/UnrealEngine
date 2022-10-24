@@ -90,7 +90,7 @@ void VisitTrackImpl(const FSequenceVisitParams& InParams, UMovieSceneTrack* InTr
 		}
 	}
 
-	if (InParams.bVisitTracks || InParams.bVisitMasterTracks)
+	if (InParams.bVisitTracks || InParams.bVisitRootTracks)
 	{
 		InVisitor.VisitTrack(InTrack, ObjectBinding, *SubSequenceSpace);
 	}
@@ -117,14 +117,14 @@ void VisitSequenceImpl(UMovieSceneSequence* Sequence, const FSequenceVisitParams
 		return;
 	}
 
-	if (InParams.bVisitMasterTracks)
+	if (InParams.bVisitRootTracks)
 	{
 		if (UMovieSceneTrack* Track = MovieScene->GetCameraCutTrack())
 		{
 			VisitTrackImpl(InParams, Track, InVisitor, FGuid(), InOutRootPath, SubSequenceSpace);
 		}
 
-		for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+		for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 		{
 			VisitTrackImpl(InParams, Track, InVisitor, FGuid(), InOutRootPath, SubSequenceSpace);
 		}

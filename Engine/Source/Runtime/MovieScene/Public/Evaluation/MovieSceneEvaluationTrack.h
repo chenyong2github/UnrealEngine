@@ -391,7 +391,7 @@ public:
 
 private:
 
-	/** ID of the possessable or spawnable within the UMovieScene this track belongs to, if any. Zero guid where this relates to a master track. */
+	/** ID of the possessable or spawnable within the UMovieScene this track belongs to, if any. Zero guid where this relates to a root track. */
 	UPROPERTY()
 	FGuid ObjectBindingID;
 

@@ -27,7 +27,7 @@ void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingKey, 
 	}
 	else
 	{
-		// Explicit nullptr means master tracks
+		// Explicit nullptr means root tracks
 		Consolidate(InOutBlendState);
 	}
 }

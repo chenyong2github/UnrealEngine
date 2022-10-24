@@ -38,11 +38,11 @@ UMovieScene* UMovieSceneSequenceExtensions::GetMovieScene(UMovieSceneSequence* S
 	return Sequence->GetMovieScene();
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::GetMasterTracks(UMovieSceneSequence* Sequence)
+TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::GetTracks(UMovieSceneSequence* Sequence)
 {
 	if (!Sequence)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call GetMasterTracks on a null sequence"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetTracks on a null sequence"), ELogVerbosity::Error);
 		return TArray<UMovieSceneTrack*>();
 	}
 
@@ -51,7 +51,7 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::GetMasterTracks(UMovieS
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
-		Tracks = MovieScene->GetMasterTracks();
+		Tracks = MovieScene->GetTracks();
 
 		if (UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack())
 		{
@@ -62,11 +62,11 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::GetMasterTracks(UMovieS
 	return Tracks;
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindMasterTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType)
+TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType)
 {
 	if (!Sequence)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call FindMasterTracksByType on a null sequence"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call FindTracksByType on a null sequence"), ELogVerbosity::Error);
 		return TArray<UMovieSceneTrack*>();
 	}
 
@@ -76,9 +76,9 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindMasterTracksByType(
 	if (MovieScene && DesiredClass)
 	{
 		bool bExactMatch = false;
-		TArray<UMovieSceneTrack*> MatchedTracks = FilterTracks(MovieScene->GetMasterTracks(), TrackType.Get(), bExactMatch);
+		TArray<UMovieSceneTrack*> MatchedTracks = FilterTracks(MovieScene->GetTracks(), TrackType.Get(), bExactMatch);
 
-		// Have to check camera cut tracks separately since they're not in the master tracks array (why?)
+		// Have to check camera cut tracks separately since they're not in the root tracks array (why?)
 		UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack();
 		if (CameraCutTrack && CameraCutTrack->GetClass()->IsChildOf(DesiredClass))
 		{
@@ -91,11 +91,11 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindMasterTracksByType(
 	return TArray<UMovieSceneTrack*>();
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindMasterTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType)
+TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType)
 {
 	if (!Sequence)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call FindMasterTracksByExactType on a null sequence"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call FindTracksByExactType on a null sequence"), ELogVerbosity::Error);
 		return TArray<UMovieSceneTrack*>();
 	}
 
@@ -105,9 +105,9 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindMasterTracksByExact
 	if (MovieScene && DesiredClass)
 	{
 		bool bExactMatch = true;
-		TArray<UMovieSceneTrack*> MatchedTracks = FilterTracks(MovieScene->GetMasterTracks(), TrackType.Get(), bExactMatch);
+		TArray<UMovieSceneTrack*> MatchedTracks = FilterTracks(MovieScene->GetTracks(), TrackType.Get(), bExactMatch);
 
-		// Have to check camera cut tracks separately since they're not in the master tracks array (why?)
+		// Have to check camera cut tracks separately since they're not in the root tracks array (why?)
 		UMovieSceneTrack* CameraCutTrack = MovieScene->GetCameraCutTrack();
 		if (CameraCutTrack && CameraCutTrack->GetClass() == DesiredClass)
 		{
@@ -120,15 +120,15 @@ TArray<UMovieSceneTrack*> UMovieSceneSequenceExtensions::FindMasterTracksByExact
 	return TArray<UMovieSceneTrack*>();
 }
 
-UMovieSceneTrack* UMovieSceneSequenceExtensions::AddMasterTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType)
+UMovieSceneTrack* UMovieSceneSequenceExtensions::AddTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType)
 {
 	if (!Sequence)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call AddMasterTrack on a null sequence"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call AddTrack on a null sequence"), ELogVerbosity::Error);
 		return nullptr;
 	}
 
-	// @todo: sequencer-python: master track type compatibility with sequence. Currently that's really only loosely defined by track editors, which is not sufficient here.
+	// @todo: sequencer-python: track type compatibility with sequence. Currently that's really only loosely defined by track editors, which is not sufficient here.
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
@@ -138,32 +138,32 @@ UMovieSceneTrack* UMovieSceneSequenceExtensions::AddMasterTrack(UMovieSceneSeque
 		}
 		else
 		{
-			return MovieScene->AddMasterTrack(TrackType);
+			return MovieScene->AddTrack(TrackType);
 		}
 	}
 
 	return nullptr;
 }
 
-bool UMovieSceneSequenceExtensions::RemoveMasterTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* MasterTrack)
+bool UMovieSceneSequenceExtensions::RemoveTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* Track)
 {
 	if (!Sequence)
 	{
-		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveMasterTrack on a null sequence"), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveTrack on a null sequence"), ELogVerbosity::Error);
 		return false;
 	}
 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
-		if (MasterTrack->IsA(UMovieSceneCameraCutTrack::StaticClass()))
+		if (Track->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 		{
 			MovieScene->RemoveCameraCutTrack();
 			return true;
 		}
 		else
 		{
-			return MovieScene->RemoveMasterTrack(*MasterTrack);
+			return MovieScene->RemoveTrack(*Track);
 		}
 	}
 
@@ -842,9 +842,9 @@ TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSe
 	return Result;
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* RootSequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
 {
-	if (!MasterSequence)
+	if (!RootSequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call MakeBindingID on a null sequence"), ELogVerbosity::Error);
 		return FMovieSceneObjectBindingID();
@@ -852,7 +852,7 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSc
 
 	// This function was kinda flawed before - when ::Local was passed for the Space parameter,
 	// and the sub sequence ID could not be found it would always fall back to a binding for ::Root without any Sequence ID
-	FMovieSceneObjectBindingID BindingID = GetPortableBindingID(MasterSequence, MasterSequence, InBinding);
+	FMovieSceneObjectBindingID BindingID = GetPortableBindingID(RootSequence, RootSequence, InBinding);
 	if (Space == EMovieSceneObjectBindingSpace::Root)
 	{
 		BindingID.ReinterpretAsFixed();
@@ -865,16 +865,16 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetBindingID(const FMo
 	return UE::MovieScene::FRelativeObjectBindingID(InBinding.BindingID);
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FMovieSceneBindingProxy& InBinding)
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(UMovieSceneSequence* RootSequence, UMovieSceneSequence* DestinationSequence, const FMovieSceneBindingProxy& InBinding)
 {
-	if (!MasterSequence || !DestinationSequence || !InBinding.Sequence)
+	if (!RootSequence || !DestinationSequence || !InBinding.Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Invalid sequence specified."), ELogVerbosity::Error);
 		return FMovieSceneObjectBindingID();
 	}
 
 	// If they are all the same sequence, we're dealing with a local binding - this requires no computation
-	if (MasterSequence == DestinationSequence && MasterSequence == InBinding.Sequence)
+	if (RootSequence == DestinationSequence && RootSequence == InBinding.Sequence)
 	{
 		return UE::MovieScene::FRelativeObjectBindingID(InBinding.BindingID);
 	}
@@ -885,24 +885,24 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(U
 	TOptional<FMovieSceneSequenceID> DestinationSequenceID;
 	TOptional<FMovieSceneSequenceID> TargetSequenceID;
 
-	if (MasterSequence == DestinationSequence)
+	if (RootSequence == DestinationSequence)
 	{
 		DestinationSequenceID = MovieSceneSequenceID::Root;
 	}
-	if (MasterSequence == InBinding.Sequence)
+	if (RootSequence == InBinding.Sequence)
 	{
 		TargetSequenceID = MovieSceneSequenceID::Root;
 	}
 
 	// We know that we have at least one sequence ID to find, otherwise we would have entered the ::Local branch above
 	UMovieSceneCompiledDataManager*     CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
-	const FMovieSceneCompiledDataID     DataID              = CompiledDataManager->Compile(MasterSequence);
+	const FMovieSceneCompiledDataID     DataID              = CompiledDataManager->Compile(RootSequence);
 	const FMovieSceneSequenceHierarchy* Hierarchy           = CompiledDataManager->FindHierarchy(DataID);
 
-	// If we have no hierarchy, the supplied MasterSequence does not have any sub-sequences so the callee has given us bogus parameters
+	// If we have no hierarchy, the supplied RootSequence does not have any sub-sequences so the callee has given us bogus parameters
 	if (!Hierarchy)
 	{
-		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Master Sequence ('%s') does not have any sub-sequences."), *MasterSequence->GetPathName()), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Root Sequence ('%s') does not have any sub-sequences."), *RootSequence->GetPathName()), ELogVerbosity::Error);
 		return FMovieSceneObjectBindingID();
 	}
 
@@ -931,30 +931,30 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(U
 
 	if (!DestinationSequenceID.IsSet())
 	{
-		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Unable to locate DestinationSequence ('%s') within Master Sequence hierarchy ('%s')."), *DestinationSequence->GetPathName(), *MasterSequence->GetPathName()), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Unable to locate DestinationSequence ('%s') within Root Sequence hierarchy ('%s')."), *DestinationSequence->GetPathName(), *RootSequence->GetPathName()), ELogVerbosity::Error);
 		return FMovieSceneObjectBindingID();
 	}
 
 	if (!TargetSequenceID.IsSet())
 	{
-		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Unable to locate Sequence for InBinding ('%s') within Master Sequence hierarchy ('%s')."), *InBinding.Sequence->GetPathName(), *MasterSequence->GetPathName()), ELogVerbosity::Error);
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Unable to locate Sequence for InBinding ('%s') within Root Sequence hierarchy ('%s')."), *InBinding.Sequence->GetPathName(), *RootSequence->GetPathName()), ELogVerbosity::Error);
 		return FMovieSceneObjectBindingID();
 	}
 
 	return UE::MovieScene::FRelativeObjectBindingID(DestinationSequenceID.GetValue(), TargetSequenceID.GetValue(), InBinding.BindingID, Hierarchy);
 }
 
-FMovieSceneBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* RootSequence, FMovieSceneObjectBindingID InObjectBindingID)
 {
-	if (!MasterSequence)
+	if (!RootSequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call ResolveBindingID on a null sequence"), ELogVerbosity::Error);
 		return FMovieSceneBindingProxy();
 	}
 
-	UMovieSceneSequence* Sequence = MasterSequence;
+	UMovieSceneSequence* Sequence = RootSequence;
 
-	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterSequence);
+	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(RootSequence);
 
 	const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
 	if (Hierarchy)

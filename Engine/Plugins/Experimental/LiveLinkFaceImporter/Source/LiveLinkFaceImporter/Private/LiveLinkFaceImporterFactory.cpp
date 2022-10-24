@@ -180,8 +180,8 @@ UObject* ULiveLinkFaceImporterFactory::FactoryCreateText(UClass* InClass, UObjec
 	const FFrameRate TickResolution = NewLevelSequence->GetMovieScene()->GetTickResolution();
 	const FFrameRate DisplayRate = NewLevelSequence->GetMovieScene()->GetDisplayRate();
 
-	// Add the master LL track
-	UMovieSceneLiveLinkTrack* LiveLinkTrack = NewLevelSequence->GetMovieScene()->AddMasterTrack<UMovieSceneLiveLinkTrack>();
+	// Add the LL track
+	UMovieSceneLiveLinkTrack* LiveLinkTrack = NewLevelSequence->GetMovieScene()->AddTrack<UMovieSceneLiveLinkTrack>();
 	LiveLinkTrack->SetTrackRole(SubjectRole);
 	LiveLinkTrack->SetPropertyNameAndPath(SubjectName, SubjectName.ToString());
 

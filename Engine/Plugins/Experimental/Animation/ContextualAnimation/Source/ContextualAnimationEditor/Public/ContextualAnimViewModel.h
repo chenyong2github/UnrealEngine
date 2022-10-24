@@ -78,7 +78,7 @@ public:
 	UContextualAnimMovieSceneSequence* GetMovieSceneSequence() const { return MovieSceneSequence; }
 	UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset; }
 	UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstance.Get(); }
-	UContextualAnimMovieSceneTrack* FindMasterTrackByRole(const FName& Role) const;
+	UContextualAnimMovieSceneTrack* FindTrackByRole(const FName& Role) const;
 
 	void AddNewAnimSet(const FContextualAnimNewAnimSetParams& Params);
 

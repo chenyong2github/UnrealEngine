@@ -568,10 +568,10 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 	else if (ColumnName == FRenderGridJobListColumns::RenderPreset)
 	{
 		return SNew(SObjectPropertyEntryBox)
-			.AllowedClass(UMoviePipelineMasterConfig::StaticClass())
+			.AllowedClass(UMoviePipelinePrimaryConfig::StaticClass())
 			.ObjectPath_Lambda([this]() -> FString
 			{
-				if (UMoviePipelineMasterConfig* Preset = RenderGridJob->GetRenderPreset(); IsValid(Preset))
+				if (UMoviePipelinePrimaryConfig* Preset = RenderGridJob->GetRenderPreset(); IsValid(Preset))
 				{
 					return Preset->GetPathName();
 				}
@@ -582,7 +582,7 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 				RenderGridJob->SetRenderPreset(nullptr);
 				if (UObject* AssetDataAsset = AssetData.GetAsset(); IsValid(AssetDataAsset))
 				{
-					if (UMoviePipelineMasterConfig* Preset = Cast<UMoviePipelineMasterConfig>(AssetDataAsset))
+					if (UMoviePipelinePrimaryConfig* Preset = Cast<UMoviePipelinePrimaryConfig>(AssetDataAsset))
 					{
 						RenderGridJob->SetRenderPreset(Preset);
 					}

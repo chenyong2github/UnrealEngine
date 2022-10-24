@@ -20,7 +20,7 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 
 	/**
 	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate

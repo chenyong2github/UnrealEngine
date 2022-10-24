@@ -488,10 +488,10 @@ namespace DatasmithLevelSequenceImporterImpl
 
 		// Create SubTrack
 		UMovieScene* MovieScene = LevelSequence->GetMovieScene();
-		UMovieSceneSubTrack* SubTrack = MovieScene->FindMasterTrack<UMovieSceneSubTrack>();
+		UMovieSceneSubTrack* SubTrack = MovieScene->FindTrack<UMovieSceneSubTrack>();
 		if (!SubTrack)
 		{
-			SubTrack = MovieScene->AddMasterTrack<UMovieSceneSubTrack>();
+			SubTrack = MovieScene->AddTrack<UMovieSceneSubTrack>();
 		}
 		else if (SubTrack && bShouldClearReferenceTrack)
 		{

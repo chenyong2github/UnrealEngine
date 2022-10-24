@@ -4,14 +4,14 @@
 #include "UObject/Object.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "LevelSequence.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineConfigBase.h"
 #include "MovieSceneSequenceID.h"
 
 #include "MoviePipelineQueue.generated.h"
 
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 class ULevel;
 class ULevelSequence;
 
@@ -203,7 +203,7 @@ public:
 		bEnabled = true;
 		StatusProgress = 0.f;
 		bIsConsumed = false;
-		Configuration = CreateDefaultSubobject<UMoviePipelineMasterConfig>("DefaultConfig");
+		Configuration = CreateDefaultSubobject<UMoviePipelinePrimaryConfig>("DefaultConfig");
 	}
 
 public:	
@@ -336,22 +336,22 @@ public:
 	void OnDuplicated();
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void SetPresetOrigin(UMoviePipelineMasterConfig* InPreset);
+	void SetPresetOrigin(UMoviePipelinePrimaryConfig* InPreset);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	UMoviePipelineMasterConfig* GetPresetOrigin() const 
+	UMoviePipelinePrimaryConfig* GetPresetOrigin() const 
 	{
 		return PresetOrigin.LoadSynchronous();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	UMoviePipelineMasterConfig* GetConfiguration() const
+	UMoviePipelinePrimaryConfig* GetConfiguration() const
 	{
 		return Configuration;
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void SetConfiguration(UMoviePipelineMasterConfig* InPreset);
+	void SetConfiguration(UMoviePipelinePrimaryConfig* InPreset);
 
 	UFUNCTION(BlueprintSetter, Category = "Movie Render Pipeline")
 	void SetSequence(FSoftObjectPath InSequence);
@@ -419,12 +419,12 @@ private:
 	/** 
 	*/
 	UPROPERTY(Instanced)
-	TObjectPtr<UMoviePipelineMasterConfig> Configuration;
+	TObjectPtr<UMoviePipelinePrimaryConfig> Configuration;
 
 	/**
 	*/
 	UPROPERTY()
-	TSoftObjectPtr<UMoviePipelineMasterConfig> PresetOrigin;
+	TSoftObjectPtr<UMoviePipelinePrimaryConfig> PresetOrigin;
 
 	/** Whether this job is enabled and should be rendered. */
 	UPROPERTY()

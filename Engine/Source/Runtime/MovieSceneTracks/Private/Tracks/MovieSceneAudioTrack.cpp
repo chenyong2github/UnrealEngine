@@ -145,14 +145,6 @@ UMovieSceneSection* UMovieSceneAudioTrack::AddNewSoundOnRow(USoundBase* Sound, F
 	return NewSection;
 }
 
-
-bool UMovieSceneAudioTrack::IsAMasterTrack() const
-{
-	UMovieScene* MovieScene = Cast<UMovieScene>(GetOuter());
-	return MovieScene ? MovieScene->IsAMasterTrack(*this) : false;
-}
-
-
 UMovieSceneSection* UMovieSceneAudioTrack::CreateNewSection()
 {
 	return NewObject<UMovieSceneAudioSection>(this, NAME_None, RF_Transactional);

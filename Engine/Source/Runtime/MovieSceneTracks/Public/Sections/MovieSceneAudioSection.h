@@ -18,7 +18,7 @@
 class USoundBase;
 
 /**
- * Audio section, for use in the master audio, or by attached audio objects
+ * Audio section, for use in the audio track, or by attached audio objects
  */
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneAudioSection

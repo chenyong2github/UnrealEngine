@@ -2,7 +2,7 @@
 #include "CinePrestreamingEditorSubsystem.h"
 #include "CinePrestreamingData.h"
 
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineDeferredPasses.h"

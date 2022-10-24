@@ -15,7 +15,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineCameraSetting.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineOutputSetting.h"
@@ -181,18 +181,18 @@ void UMoviePipeline::TickProducingFrames()
 			// to render the first frame we will be on the correct offset.
 			TicksToEndOfPreviousFrame += FFrameRate::TransformTime(FFrameTime(FFrameNumber(CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution());
 			AccumulatedTickSubFrameDeltas -= TicksToEndOfPreviousFrame.GetSubFrame();
-			CurrentCameraCut->ShotInfo.CurrentTickInMaster = CurrentCameraCut->ShotInfo.CurrentTickInMaster - TicksToEndOfPreviousFrame.FloorToFrame();
+			CurrentCameraCut->ShotInfo.CurrentTickInRoot = CurrentCameraCut->ShotInfo.CurrentTickInRoot - TicksToEndOfPreviousFrame.FloorToFrame();
 			SequencerEvalOffset = TicksToEndOfPreviousFrame.FloorToFrame();
 		}
 
 		// Jump to the first frame of the sequence that we will be playing from. This doesn't take into account camera timing offset or temporal sampling, but that is
 		// proably okay as it means the first frame (frame 0) is exactly evaluated which is easier to preview effects in the editor instead of -.25 of a frame.
-		FFrameNumber CurrentMasterSeqTick = CurrentCameraCut->ShotInfo.CurrentTickInMaster + SequencerEvalOffset;
-		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
+		FFrameNumber CurrentRootSeqTick = CurrentCameraCut->ShotInfo.CurrentTickInRoot + SequencerEvalOffset;
+		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(CurrentRootSeqTick, TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
 
 		// We tell it to jump so that things responding to different scrub-types work correctly.
 		LevelSequenceActor->GetSequencePlayer()->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(TimeInPlayRate, EUpdatePositionMethod::Jump));
-		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(CurrentMasterSeqTick, TargetSequence->GetMovieScene()->GetTickResolution()));
+		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(CurrentRootSeqTick, TargetSequence->GetMovieScene()->GetTickResolution()));
 
 		if (!CurrentCameraCut->ShotInfo.bEmulateFirstFrameMotionBlur)
 		{
@@ -223,7 +223,7 @@ void UMoviePipeline::TickProducingFrames()
 			// the error we're trying to catch.
 			if (CurrentCameraCut->ShotInfo.SubSectionHierarchy->CameraCutSection.IsValid())
 			{
-				ensureMsgf(bSuccess, TEXT("Failed to evaluate camera to create cur/prev camera locations. No camera actor found on Eval Tick: %d"), CurrentMasterSeqTick.Value);
+				ensureMsgf(bSuccess, TEXT("Failed to evaluate camera to create cur/prev camera locations. No camera actor found on Eval Tick: %d"), CurrentRootSeqTick.Value);
 			}
 		}
 
@@ -263,7 +263,7 @@ void UMoviePipeline::TickProducingFrames()
 		CachedOutputState.bSkipRendering = !bRenderFrame;
 
 		// Render the next frame at a reasonable frame rate to pass time in the world.
-		double FrameDeltaTime = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
+		double FrameDeltaTime = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
 
 		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Shot WarmUp set engine DeltaTime to %f seconds."), GFrameCounter, FrameDeltaTime);
 		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
@@ -271,10 +271,10 @@ void UMoviePipeline::TickProducingFrames()
 		if (!CurrentCameraCut->ShotInfo.bEmulateFirstFrameMotionBlur)
 		{
 			// If we're using real warmup frames we need to advance the sequence instead of just sitting there like normal.
-			CurrentCameraCut->ShotInfo.CurrentTickInMaster = CurrentCameraCut->ShotInfo.CurrentTickInMaster + FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+			CurrentCameraCut->ShotInfo.CurrentTickInRoot = CurrentCameraCut->ShotInfo.CurrentTickInRoot + FrameMetrics.TicksPerOutputFrame.FloorToFrame();
 
 			// The sequence player will already be playing (due to the Uninitialized block) so we just tell it which frame it should be playing at.
-			FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut->ShotInfo.CurrentTickInMaster);
+			FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut->ShotInfo.CurrentTickInRoot);
 			CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(FinalEvalTime, FrameMetrics.TickResolution));
 		}
 
@@ -329,7 +329,7 @@ void UMoviePipeline::TickProducingFrames()
 			TicksToEndOfPreviousFrame = TicksToEndOfPreviousFrame * WorldTimeDilation;
 		}
 		AccumulatedTickSubFrameDeltas -= TicksToEndOfPreviousFrame.GetSubFrame();
-		CurrentCameraCut->ShotInfo.CurrentTickInMaster = CurrentCameraCut->ShotInfo.CurrentTickInMaster - TicksToEndOfPreviousFrame.FloorToFrame();
+		CurrentCameraCut->ShotInfo.CurrentTickInRoot = CurrentCameraCut->ShotInfo.CurrentTickInRoot - TicksToEndOfPreviousFrame.FloorToFrame();
 
 		// Skip to rendering which will skip the next block.
 		CurrentCameraCut->ShotInfo.State = EMovieRenderShotState::Rendering;
@@ -358,7 +358,7 @@ void UMoviePipeline::TickProducingFrames()
 
 		// CurrentShot.CurrentTick should be at the first frame they want to evaluate, without the shutter timing/motion blur
 		// offsets taken into account. When we evaluate for this frame, take those into account.
-		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut->ShotInfo.CurrentTickInMaster + MotionBlurDurationTicks);
+		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut->ShotInfo.CurrentTickInRoot + MotionBlurDurationTicks);
 
 		// Jump to the motion blur frame
 		FFrameTime TimeInPlayRate = FFrameRate::TransformTime(FinalEvalTime, FrameMetrics.TickResolution, TargetSequence->GetMovieScene()->GetDisplayRate());
@@ -639,12 +639,12 @@ void UMoviePipeline::TickProducingFrames()
 		AccumulatedTickSubFrameDeltas += DeltaFrameTime.GetSubFrame();
 
 		// Increment where we should evaluate on the current camera cut.
-		CurrentCameraCut->ShotInfo.CurrentTickInMaster += DeltaFrameTime.GetFrame();
+		CurrentCameraCut->ShotInfo.CurrentTickInRoot += DeltaFrameTime.GetFrame();
 
-		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut->ShotInfo.CurrentTickInMaster);
+		FFrameTime FinalEvalTime = FrameMetrics.GetFinalEvalTime(CurrentCameraCut->ShotInfo.CurrentTickInRoot);
 		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] FinalEvalTime: %s (Tick: %d SOffset: %d MOffset: %d)"), 
 			GFrameCounter, *LexToString(FinalEvalTime.FloorToFrame()),
-			CurrentCameraCut->ShotInfo.CurrentTickInMaster.Value, FrameMetrics.ShutterOffsetTicks.GetFrame().Value, FrameMetrics.MotionBlurCenteringOffsetTicks.GetFrame().Value);
+			CurrentCameraCut->ShotInfo.CurrentTickInRoot.Value, FrameMetrics.ShutterOffsetTicks.GetFrame().Value, FrameMetrics.MotionBlurCenteringOffsetTicks.GetFrame().Value);
 
 
 		if (!LevelSequenceActor->GetSequencePlayer()->IsPlaying())
@@ -680,7 +680,7 @@ void UMoviePipeline::TickProducingFrames()
 
 		// Now that we know the delta time for the upcoming frame, we can see if this time would extend past the end of our
 		// camera cut. If it does, we don't want to produce this frame as that would produce an extra frame at the end!
-		if (CurrentCameraCut->ShotInfo.CurrentTickInMaster >= CurrentCameraCut->ShotInfo.TotalOutputRangeMaster.GetUpperBoundValue())
+		if (CurrentCameraCut->ShotInfo.CurrentTickInRoot >= CurrentCameraCut->ShotInfo.TotalOutputRangeRoot.GetUpperBoundValue())
 		{
 			// If this isn't the last shot, we'll immediately call this function again to just
 			// determine a new setup/seek/etc. on the same engine tick. Otherwise we would have
@@ -709,7 +709,7 @@ void UMoviePipeline::TickProducingFrames()
 	
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
 		{
-			UMoviePipelineDebugSettings* DebugSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineDebugSettings>();
+			UMoviePipelineDebugSettings* DebugSettings = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineDebugSettings>();
 			if (IsValid(DebugSettings) && DebugSettings->IsRenderDocEnabled())
 			{
 				if (CachedOutputState.SourceFrameNumber == DebugSettings->CaptureFrame)
@@ -723,7 +723,7 @@ void UMoviePipeline::TickProducingFrames()
 		// Check to see if we should be rendering this frame. If they are frame stepping (rendering every Nth frame) then we
 		// just disable rendering but otherwise let the game logic remain the same for evaluation consistency.
 		{
-			UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+			UMoviePipelineOutputSetting* OutputSettings = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 			int32 OutputFrameStep = FMath::Max(1, OutputSettings->OutputFrameStep);
 			CachedOutputState.bSkipRendering = ((CachedOutputState.OutputFrameNumber + OutputSettings->DEBUG_OutputFrameStepOffset) % OutputFrameStep) != 0;
 		}
@@ -748,13 +748,13 @@ void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FF
 {
 	// Find the closest number on the source Sequence. We use the effective framerate and not the original Sequence framerate because had they actually resampled their sequence
 	// to the given display rate then the frame numbers would match what they see. This may produce duplicates when using slow-mo tracks, in that case the user should use the _rel version.
-	FFrameRate SourceDisplayRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
+	FFrameRate SourceDisplayRate = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence);
 
 	// "Closest" isn't straightforward when using temporal sub-sampling, ie: A large enough shutter angle pushes a sample over the half way point and it rounds to
 	// the wrong one. Because temporal sub-sampling isn't centered around a frame (the centering is done via the final eval time) we can just subtract TS*TPS to get our centered value.
 	FFrameNumber CenteringOffset = FFrameNumber(InOutOutputState.TemporalSampleIndex * InFrameMetrics.TicksPerSample.RoundToFrame().Value);
 	{
-		FFrameNumber CenteredTick = InCameraCut->ShotInfo.CurrentTickInMaster - CenteringOffset;
+		FFrameNumber CenteredTick = InCameraCut->ShotInfo.CurrentTickInRoot - CenteringOffset;
 
 		InOutOutputState.SourceFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.TickResolution, SourceDisplayRate).RoundToFrame().Value;
 		InOutOutputState.SourceTimeCode = FTimecode::FromFrameNumber(InOutOutputState.SourceFrameNumber, InFrameMetrics.FrameRate, false);
@@ -763,9 +763,9 @@ void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FF
 	}
 
 	{
-		FFrameNumber CenteredTick = InCameraCut->ShotInfo.CurrentTickInMaster - CenteringOffset;
+		FFrameNumber CenteredTick = InCameraCut->ShotInfo.CurrentTickInRoot - CenteringOffset;
 
-		// Convert from master space back into shot space - based on the inner most detected shot.
+		// Convert from Root space back into shot space - based on the inner most detected shot.
 		CenteredTick = (CenteredTick * InCameraCut->ShotInfo.OuterToInnerTransform).FloorToFrame();
 
 		InOutOutputState.CurrentShotSourceFrameNumber = FFrameRate::TransformTime(CenteredTick, InFrameMetrics.ShotTickResolution, SourceDisplayRate).RoundToFrame().Value;
@@ -774,6 +774,6 @@ void UMoviePipeline::CalculateFrameNumbersForOutputState(const MoviePipeline::FF
 
 	InOutOutputState.ShotName = InCameraCut->OuterName;
 
-	// Continue to use the InnerName (which is the master camera for the shot), individual render passes can override it later if rendering more than one camera.
+	// Continue to use the InnerName (which is the Root camera for the shot), individual render passes can override it later if rendering more than one camera.
 	InOutOutputState.CameraName = InCameraCut->InnerName;
 }

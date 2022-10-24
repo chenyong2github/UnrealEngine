@@ -25,7 +25,7 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
-bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipelineMasterConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelineMasterConfig*& OutAsset, FText& OutErrorReason)
+bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipelinePrimaryConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelinePrimaryConfig*& OutAsset, FText& OutErrorReason)
 {
 	if(!InConfig)
 	{
@@ -46,7 +46,7 @@ bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipel
 	NewPackage->AddToRoot();
 	
 	// Duplicate the provided config into this package.
-	UMoviePipelineMasterConfig* NewConfig = Cast<UMoviePipelineMasterConfig>(StaticDuplicateObject(InConfig, NewPackage, FName(*InFileName), RF_NoFlags));
+	UMoviePipelinePrimaryConfig* NewConfig = Cast<UMoviePipelinePrimaryConfig>(StaticDuplicateObject(InConfig, NewPackage, FName(*InFileName), RF_NoFlags));
 	NewConfig->SetFlags(RF_Public | RF_Transactional | RF_Standalone);
 	NewConfig->MarkPackageDirty();
 

@@ -558,7 +558,7 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	/** Utility function called when the task is dispatched to populate the filter based on our component typs */
 	void PopulatePrerequisites(const FSystemTaskPrerequisites& InPrerequisites, FGraphEventArray* OutGatheredPrereqs) const
 	{
-		// Gather any master tasks
+		// Gather any root tasks
 		InPrerequisites.FilterByComponent(*OutGatheredPrereqs, FComponentTypeID::Invalid());
 
 		int Temp[] = { (UE::MovieScene::PopulatePrerequisites(&Accessors.template Get<Indices>(), InPrerequisites, OutGatheredPrereqs), 0)..., 0 };
@@ -568,7 +568,7 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	/** Utility function called when the task is dispatched to populate the filter based on our component typs */
 	void PopulateSubsequents(const FGraphEventRef& InEvent, FSystemSubsequentTasks& OutSubsequents) const
 	{
-		OutSubsequents.AddMasterTask(InEvent);
+		OutSubsequents.AddRootTask(InEvent);
 
 		int Temp[] = { (UE::MovieScene::PopulateSubsequents(&Accessors.template Get<Indices>(), InEvent, OutSubsequents), 0)..., 0 };
 		(void)Temp;

@@ -218,7 +218,7 @@ void FCinePrestreamingTrackEditor::HandleAddTrack()
 	const FScopedTransaction Transaction(LOCTEXT("AddDataLayerTrack_Transaction", "Add Cinematic Prestreaming Track"));
 	FocusedMovieScene->Modify();
 
-	UMovieSceneCinePrestreamingTrack* NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneCinePrestreamingTrack>();
+	UMovieSceneCinePrestreamingTrack* NewTrack = FocusedMovieScene->AddTrack<UMovieSceneCinePrestreamingTrack>();
 	checkf(NewTrack, TEXT("Failed to create new cinematic prestreaming track."));
 
 	UMovieSceneCinePrestreamingSection* NewSection = AddNewSection(FocusedMovieScene, NewTrack);

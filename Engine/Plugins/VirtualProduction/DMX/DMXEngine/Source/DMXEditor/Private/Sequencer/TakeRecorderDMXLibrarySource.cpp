@@ -60,11 +60,11 @@ void UTakeRecorderDMXLibrarySource::AddAllPatches()
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	if (DMXLibrary)
 	{
-		UMovieScene* MovieScene = InMasterSequence->GetMovieScene();
+		UMovieScene* MovieScene = InRootSequence->GetMovieScene();
 		TrackRecorder = NewObject<UMovieSceneDMXLibraryTrackRecorder>();
 		CachedDMXLibraryTrack = TrackRecorder->CreateTrack(MovieScene, DMXLibrary, FixturePatchRefs, bDiscardSamplesBeforeStart, bRecordNormalizedValues);
 	}
@@ -100,7 +100,7 @@ void UTakeRecorderDMXLibrarySource::StopRecording(class ULevelSequence* InSequen
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	if (TrackRecorder)
 	{
@@ -115,7 +115,7 @@ void UTakeRecorderDMXLibrarySource::AddContentsToFolder(UMovieSceneFolder* InFol
 {
 	if (CachedDMXLibraryTrack.IsValid())
 	{
-		InFolder->AddChildMasterTrack(CachedDMXLibraryTrack.Get());
+		InFolder->AddChildTrack(CachedDMXLibraryTrack.Get());
 	}
 }
 

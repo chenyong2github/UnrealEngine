@@ -7,7 +7,7 @@
 #include "Delegates/IDelegateInstance.h"
 
 class UMoviePipelineShotConfig;
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 class UMoviePipelineExecutorBase;
 
 class FMovieRenderPipelineEditorModule : public IMovieRenderPipelineEditorModule
@@ -24,7 +24,7 @@ private:
 	void RegisterMovieRenderer();
 	void UnregisterMovieRenderer();
 
-	TSharedPtr<class FAssetTypeActions_PipelineMasterConfig> MasterConfigAssetActions;
+	TSharedPtr<class FAssetTypeActions_PipelinePrimaryConfig> PrimaryConfigAssetActions;
 	TSharedPtr<class FAssetTypeActions_PipelineShotConfig> ShotConfigAssetActions;
 	TSharedPtr<class FAssetTypeActions_PipelineQueue> QueueAssetActions;
 	FDelegateHandle MovieRendererDelegate;

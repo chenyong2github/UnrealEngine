@@ -61,9 +61,9 @@ bool FSequenceBindingTree::ConditionalRebuild(UMovieSceneSequence* InSequence, F
 			}
 
 			UMovieScene* ThisMovieScene = ThisSequence->GetMovieScene();
-			for (const UMovieSceneTrack* MasterTrack : ThisMovieScene->GetMasterTracks())
+			for (const UMovieSceneTrack* Track : ThisMovieScene->GetTracks())
 			{
-				const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>(MasterTrack);
+				const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>(Track);
 				if (SubTrack)
 				{
 					for (UMovieSceneSection* Section : SubTrack->GetAllSections())
@@ -192,9 +192,9 @@ void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDSta
 	}
 
 	// Iterate all sub sections
-	for (const UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
+	for (const UMovieSceneTrack* Track : MovieScene->GetTracks())
 	{
-		const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>(MasterTrack);
+		const UMovieSceneSubTrack* SubTrack = Cast<const UMovieSceneSubTrack>(Track);
 		if (SubTrack)
 		{
 			for (UMovieSceneSection* Section : SubTrack->GetAllSections())

@@ -66,7 +66,7 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 	UMoviePipelineExecutorJob* NewJob = UMoviePipelineEditorBlueprintLibrary::CreateJobFromSequence(RenderJob->PipelineQueue, JobSequence);
 	RenderJob->PipelineExecutorJob = NewJob;
 
-	UMoviePipelineMasterConfig* JobRenderPreset = Job->GetRenderPreset();
+	UMoviePipelinePrimaryConfig* JobRenderPreset = Job->GetRenderPreset();
 	if (IsValid(JobRenderPreset))
 	{
 		NewJob->SetConfiguration(JobRenderPreset);

@@ -99,7 +99,7 @@ namespace UE::Interchange::Private
 
 		FFrameNumber MinFrameNumber;
 		FFrameNumber MaxFrameNumber;
-		bool ClearSubsequenceMasterTrack = true;
+		bool ClearSubsequenceTrack = true;
 	};
 
 	void FAnimationTrackSetHelper::PopulateLevelSequence()
@@ -293,12 +293,12 @@ namespace UE::Interchange::Private
 		UMovieSceneSequence* TargetMovieSceneSequence = CastChecked<UMovieSceneSequence>(ReferenceObject.TryLoad());
 
 		// Create SubTrack
-		UMovieSceneSubTrack* SubTrack = MovieScene->FindMasterTrack<UMovieSceneSubTrack>();
+		UMovieSceneSubTrack* SubTrack = MovieScene->FindTrack<UMovieSceneSubTrack>();
 		if (!SubTrack)
 		{
-			SubTrack = MovieScene->AddMasterTrack<UMovieSceneSubTrack>();
+			SubTrack = MovieScene->AddTrack<UMovieSceneSubTrack>();
 		}
-		else if (SubTrack && ClearSubsequenceMasterTrack)
+		else if (SubTrack && ClearSubsequenceTrack)
 		{
 			SubTrack->RemoveAllAnimationData();
 		}
@@ -348,7 +348,7 @@ namespace UE::Interchange::Private
 		MinFrameNumber = FMath::Min(MinFrameNumber, NewSection->GetRange().GetLowerBoundValue());
 		MaxFrameNumber = FMath::Max(MaxFrameNumber, NewSection->GetRange().GetUpperBoundValue());
 
-		ClearSubsequenceMasterTrack = false;
+		ClearSubsequenceTrack = false;
 	}
 
 	void FAnimationTrackSetHelper::PopulateAnimationTrack(const UInterchangeAnimationTrackNode& AnimationTrackNode, int32 TrackIndex)

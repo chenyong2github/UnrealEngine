@@ -11,10 +11,10 @@
 
 void UMovieSceneTrackInstance::Initialize(UObject* InAnimatedObject, UMovieSceneEntitySystemLinker* InLinker)
 {
-	// We make the difference between a master track instance, and a bound track instance that lost its binding,
+	// We make the difference between a root track instance, and a bound track instance that lost its binding,
 	// by remembering if this track instance was initialized with a valid bound object.
 	AnimatedObject = InAnimatedObject;
-	bIsMasterTrackInstance = (InAnimatedObject == nullptr);
+	bIsRootTrackInstance = (InAnimatedObject == nullptr);
 
 	PrivateLinker = InLinker;
 
@@ -30,7 +30,7 @@ void UMovieSceneTrackInstance::Destroy()
 {
 	using namespace UE::MovieScene;
 
-	if (bIsMasterTrackInstance || !UE::MovieScene::FBuiltInComponentTypes::IsBoundObjectGarbage(AnimatedObject))
+	if (bIsRootTrackInstance || !UE::MovieScene::FBuiltInComponentTypes::IsBoundObjectGarbage(AnimatedObject))
 	{
 		OnDestroyed();
 	}

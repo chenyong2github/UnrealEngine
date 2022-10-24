@@ -695,7 +695,7 @@ void SCinematicLevelViewport::Tick(const FGeometry& AllottedGeometry, const doub
 	}
 
 	// Find the cinematic shot track
-	UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(Sequence->GetMovieScene()->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass()));
+	UMovieSceneCinematicShotTrack* CinematicShotTrack = Cast<UMovieSceneCinematicShotTrack>(Sequence->GetMovieScene()->FindTrack(UMovieSceneCinematicShotTrack::StaticClass()));
 
 	const FFrameRate OuterResolution = Sequencer->GetFocusedTickResolution();
 	const FFrameRate OuterPlayRate   = Sequencer->GetFocusedDisplayRate();
@@ -751,16 +751,16 @@ void SCinematicLevelViewport::Tick(const FGeometry& AllottedGeometry, const doub
 
 	const FMovieSceneEditorData& EditorData = Sequence->GetMovieScene()->GetEditorData();
 
-	FQualifiedFrameTime MasterStartTime(EditorData.WorkStart * OuterPlayRate, OuterPlayRate);
-	UIData.MasterStartText = FText::Format(
+	FQualifiedFrameTime RootStartTime(EditorData.WorkStart * OuterPlayRate, OuterPlayRate);
+	UIData.RootStartText = FText::Format(
 		TimeFormat,
-		FText::FromString(TimeDisplayFormatInterface->ToString(MasterStartTime.Time.GetFrame().Value))
+		FText::FromString(TimeDisplayFormatInterface->ToString(RootStartTime.Time.GetFrame().Value))
 	);
 
-	FQualifiedFrameTime MasterEndTime(EditorData.WorkEnd * OuterPlayRate, OuterPlayRate);
-	UIData.MasterEndText = FText::Format(
+	FQualifiedFrameTime RootEndTime(EditorData.WorkEnd * OuterPlayRate, OuterPlayRate);
+	UIData.RootEndText = FText::Format(
 		TimeFormat,
-		FText::FromString(TimeDisplayFormatInterface->ToString(MasterEndTime.Time.GetFrame().Value))
+		FText::FromString(TimeDisplayFormatInterface->ToString(RootEndTime.Time.GetFrame().Value))
 	);
 
 	UIData.CameraName = FText::GetEmpty();

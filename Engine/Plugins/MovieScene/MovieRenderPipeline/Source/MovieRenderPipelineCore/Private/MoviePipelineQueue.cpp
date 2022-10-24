@@ -176,7 +176,7 @@ void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
 	}
 }
 
-void UMoviePipelineExecutorJob::SetConfiguration(UMoviePipelineMasterConfig* InPreset)
+void UMoviePipelineExecutorJob::SetConfiguration(UMoviePipelinePrimaryConfig* InPreset)
 {
 	if (InPreset)
 	{
@@ -185,12 +185,12 @@ void UMoviePipelineExecutorJob::SetConfiguration(UMoviePipelineMasterConfig* InP
 	}
 }
 
-void UMoviePipelineExecutorJob::SetPresetOrigin(UMoviePipelineMasterConfig* InPreset)
+void UMoviePipelineExecutorJob::SetPresetOrigin(UMoviePipelinePrimaryConfig* InPreset)
 {
 	if (InPreset)
 	{
 		Configuration->CopyFrom(InPreset);
-		PresetOrigin = TSoftObjectPtr<UMoviePipelineMasterConfig>(InPreset);
+		PresetOrigin = TSoftObjectPtr<UMoviePipelinePrimaryConfig>(InPreset);
 	}
 }
 

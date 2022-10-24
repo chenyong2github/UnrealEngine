@@ -7,7 +7,7 @@
 #include "ImageWriteQueue.h"
 #include "MoviePipeline.h"
 #include "ImageWriteStream.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieRenderTileImage.h"
 #include "MovieRenderOverlappedImage.h"
 #include "MovieRenderPipelineCoreModule.h"
@@ -88,10 +88,10 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 	MoviePipeline::GetPassCompositeData(InMergedOutputFrame, CompositedPasses);
 
 
-	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
-	UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
+	UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineColorSetting>();
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 

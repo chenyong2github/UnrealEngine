@@ -910,7 +910,7 @@ protected:
 	void OnScrubPositionParentChanged(FMovieSceneSequenceID InScrubPositionParent);
 
 	/** Exports sequence to a FBX file */
-	void ExportFBXInternal(const FString& Filename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& MasterTracks);
+	void ExportFBXInternal(const FString& Filename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& Tracks);
 
 protected:
 
@@ -1097,8 +1097,8 @@ private:
 	/** Get actors that want to rerun construction scripts */
 	void GetConstructionScriptActors(UMovieScene*, FMovieSceneSequenceIDRef SequenceID, TSet<TWeakObjectPtr<AActor> >& BoundActors, TArray < TPair<FMovieSceneSequenceID, FGuid> >& BoundGuids);
 
-	/** Check whether we're viewing the master sequence or not */
-	bool IsViewingMasterSequence() const { return ActiveTemplateIDs.Num() == 1; }
+	/** Check whether we're viewing the root sequence or not */
+	bool IsViewingRootSequence() const { return ActiveTemplateIDs.Num() == 1; }
 
 	/** Recompile any dirty director blueprints in the sequence hierarchy */
 	void RecompileDirtyDirectors();

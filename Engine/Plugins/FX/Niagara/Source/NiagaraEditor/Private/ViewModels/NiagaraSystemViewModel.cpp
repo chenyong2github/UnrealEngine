@@ -1749,12 +1749,12 @@ void FNiagaraSystemViewModel::ResetEmitterHandleViewModelsAndTracks()
 	if (NiagaraSequence)
 	{
 		TGuardValue<bool> UpdateGuard(bResetingSequencerTracks, true);
-		TArray<UMovieSceneTrack*> MainTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
-		for (UMovieSceneTrack* MainTrack : MainTracks)
+		TArray<UMovieSceneTrack*> Tracks = NiagaraSequence->GetMovieScene()->GetTracks();
+		for (UMovieSceneTrack* Track : Tracks)
 		{
-			if (MainTrack != nullptr)
+			if (Track != nullptr)
 			{
-				NiagaraSequence->GetMovieScene()->RemoveMasterTrack(*MainTrack);
+				NiagaraSequence->GetMovieScene()->RemoveTrack(*Track);
 			}
 		}
 	}
@@ -1851,9 +1851,9 @@ void PopulateChildMovieSceneFoldersFromNiagaraFolders(const UNiagaraSystemEditor
 	for (const FGuid& ChildEmitterHandleId : NiagaraFolder->GetChildEmitterHandleIds())
 	{
 		UMovieSceneNiagaraEmitterTrack* const* TrackPtr = EmitterHandleIdToTrackMap.Find(ChildEmitterHandleId);
-		if (TrackPtr != nullptr && MovieSceneFolder->GetChildMasterTracks().Contains(*TrackPtr) == false)
+		if (TrackPtr != nullptr && MovieSceneFolder->GetChildTracks().Contains(*TrackPtr) == false)
 		{
-			MovieSceneFolder->AddChildMasterTrack(*TrackPtr);
+			MovieSceneFolder->AddChildTrack(*TrackPtr);
 		}
 	}
 }
@@ -1864,19 +1864,19 @@ void FNiagaraSystemViewModel::RefreshSequencerTracks()
 
 	if (Sequencer.IsValid())
 	{
-		TArray<UMovieSceneTrack*> MainTracks = NiagaraSequence->GetMovieScene()->GetMasterTracks();
-		for (UMovieSceneTrack* MainTrack : MainTracks)
+		TArray<UMovieSceneTrack*> Tracks = NiagaraSequence->GetMovieScene()->GetTracks();
+		for (UMovieSceneTrack* Track : Tracks)
 		{
-			if (MainTrack != nullptr)
+			if (Track != nullptr)
 			{
-				NiagaraSequence->GetMovieScene()->RemoveMasterTrack(*MainTrack);
+				NiagaraSequence->GetMovieScene()->RemoveTrack(*Track);
 			}
 		}
 
 		TMap<FGuid, UMovieSceneNiagaraEmitterTrack*> EmitterHandleIdToTrackMap;
 		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 		{
-			UMovieSceneNiagaraEmitterTrack* EmitterTrack = Cast<UMovieSceneNiagaraEmitterTrack>(NiagaraSequence->GetMovieScene()->AddMasterTrack(UMovieSceneNiagaraEmitterTrack::StaticClass()));
+			UMovieSceneNiagaraEmitterTrack* EmitterTrack = Cast<UMovieSceneNiagaraEmitterTrack>(NiagaraSequence->GetMovieScene()->AddTrack(UMovieSceneNiagaraEmitterTrack::StaticClass()));
 			EmitterTrack->Initialize(*this, EmitterHandleViewModel, NiagaraSequence->GetMovieScene()->GetTickResolution());
 			EmitterHandleIdToTrackMap.Add(EmitterHandleViewModel->GetId(), EmitterTrack);
 		}
@@ -1905,7 +1905,7 @@ void FNiagaraSystemViewModel::UpdateSequencerTracksForEmitters(const TArray<FGui
 	if (Sequencer.IsValid())
 	{
 		TGuardValue<bool> UpdateGuard(bUpdatingSequencerFromEmitterDataChange, true);
-		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetTracks())
 		{
 			UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
 			if (EmitterIdsRequiringUpdate.Contains(EmitterTrack->GetEmitterHandleViewModel()->GetId()))
@@ -1921,7 +1921,7 @@ UMovieSceneNiagaraEmitterTrack* FNiagaraSystemViewModel::GetTrackForHandleViewMo
 {
 	if (NiagaraSequence)
 	{
-		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetTracks())
 		{
 			UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
 			if (EmitterTrack->GetEmitterHandleViewModel() == EmitterHandleViewModel)
@@ -2182,7 +2182,7 @@ void FNiagaraSystemViewModel::EmitterHandlePropertyChanged(FGuid OwningEmitterHa
 	if (bUpdatingEmittersFromSequencerDataChange == false && NiagaraSequence)
 	{
 		TGuardValue<bool> UpdateGuard(bUpdatingSequencerFromEmitterDataChange, true);
-		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetTracks())
 		{
 			UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
 			if (EmitterTrack->GetEmitterHandleViewModel()->GetId() == OwningEmitterHandleId)
@@ -2263,7 +2263,7 @@ void FNiagaraSystemViewModel::EmitterParameterStoreChanged(const FNiagaraParamet
 		else if (Sequencer.IsValid())
 		{
 			TGuardValue<bool> UpdateGuard(bUpdatingSequencerFromEmitterDataChange, true);
-			for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+			for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetTracks())
 			{
 				UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
 				EmitterTrack->UpdateTrackFromEmitterParameterChange(NiagaraSequence->GetMovieScene()->GetTickResolution());
@@ -2316,7 +2316,7 @@ void PopulateNiagaraFoldersFromMovieSceneFolders(TArrayView<UMovieSceneFolder* c
 			ParentFolder->AddChildFolder(MatchingNiagaraFolder);
 		}
 
-		PopulateNiagaraFoldersFromMovieSceneFolders(MovieSceneFolder->GetChildFolders(), MovieSceneFolder->GetChildMasterTracks(), MatchingNiagaraFolder);
+		PopulateNiagaraFoldersFromMovieSceneFolders(MovieSceneFolder->GetChildFolders(), MovieSceneFolder->GetChildTracks(), MatchingNiagaraFolder);
 	}
 
 	TArray<UNiagaraSystemEditorFolder*> ChildNiagaraFolders = ParentFolder->GetChildFolders();
@@ -2370,7 +2370,7 @@ void FNiagaraSystemViewModel::SequencerDataChanged(EMovieSceneDataChangeType Dat
 		TArray<TTuple<TSharedPtr<FNiagaraEmitterHandleViewModel>, FName>> EmitterHandlesToRename;
 
 		bool bRefreshAllTracks = false;
-		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetTracks())
 		{
 			UMovieSceneNiagaraEmitterTrack* EmitterTrack = CastChecked<UMovieSceneNiagaraEmitterTrack>(Track);
 			if (EmitterTrack->GetEmitterHandleViewModel().IsValid())
@@ -2613,9 +2613,9 @@ void FNiagaraSystemViewModel::UpdateSequencerFromEmitterHandleSelection()
 	Sequencer->EmptySelection();
 	for (FGuid SelectedEmitterHandleId : SelectionViewModel->GetSelectedEmitterHandleIds())
 	{
-		for (UMovieSceneTrack* MainTrack : NiagaraSequence->GetMovieScene()->GetMasterTracks())
+		for (UMovieSceneTrack* Track : NiagaraSequence->GetMovieScene()->GetTracks())
 		{
-			UMovieSceneNiagaraEmitterTrack* EmitterTrack = Cast<UMovieSceneNiagaraEmitterTrack>(MainTrack);
+			UMovieSceneNiagaraEmitterTrack* EmitterTrack = Cast<UMovieSceneNiagaraEmitterTrack>(Track);
 			if (EmitterTrack != nullptr && EmitterTrack->GetEmitterHandleViewModel()->GetId() == SelectedEmitterHandleId)
 			{
 				Sequencer->SelectTrack(EmitterTrack);

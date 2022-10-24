@@ -120,7 +120,7 @@ void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovie
 
 void TimeHelpers::MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovieScene* MovieScene, bool bApplyRecursively)
 {
-	int32 TotalNumTracks = MovieScene->GetMasterTracks().Num() + (MovieScene->GetCameraCutTrack() ? 1 : 0);
+	int32 TotalNumTracks = MovieScene->GetTracks().Num() + (MovieScene->GetCameraCutTrack() ? 1 : 0);
 	for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
 	{
 		TotalNumTracks += Binding.GetTracks().Num();
@@ -140,7 +140,7 @@ void TimeHelpers::MigrateFrameTimes(FFrameRate SourceRate, FFrameRate Destinatio
 	MovieScene->SetSelectionRange(MigrateFrameRange(MovieScene->GetSelectionRange(), SourceRate, DestinationRate));
 #endif
 
-	for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 	{
 		SlowTask.EnterProgressFrame();
 		UE::MovieScene::MigrateFrameTimes(SourceRate, DestinationRate, Track);

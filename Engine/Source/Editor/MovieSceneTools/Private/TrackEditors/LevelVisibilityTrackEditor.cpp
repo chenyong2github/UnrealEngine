@@ -138,7 +138,7 @@ void FLevelVisibilityTrackEditor::OnAddTrack()
 	const FScopedTransaction Transaction( LOCTEXT( "AddLevelVisibilityTrack_Transaction", "Add Level Visibility Track" ) );
 	FocusedMovieScene->Modify();
 
-	UMovieSceneLevelVisibilityTrack* NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneLevelVisibilityTrack>();
+	UMovieSceneLevelVisibilityTrack* NewTrack = FocusedMovieScene->AddTrack<UMovieSceneLevelVisibilityTrack>();
 	checkf( NewTrack != nullptr, TEXT("Failed to create new level visibility track.") );
 
 	UMovieSceneLevelVisibilitySection* NewSection = AddNewSection( FocusedMovieScene, NewTrack, ELevelVisibility::Visible );

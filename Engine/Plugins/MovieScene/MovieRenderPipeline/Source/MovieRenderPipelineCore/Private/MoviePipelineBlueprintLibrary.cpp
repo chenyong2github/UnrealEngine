@@ -162,13 +162,13 @@ UMovieSceneSequence* UMoviePipelineBlueprintLibrary::DuplicateSequence(UObject* 
 	// Now go through looking for Shot and SubSequence tracks. These currently point to the same (shared) sequence as the InSequence.
 	TArray<UMovieSceneSection*> AllSubSequenceSections;
 
-	UMovieSceneCinematicShotTrack* ShotTrack = DuplicatedSequence->GetMovieScene()->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+	UMovieSceneCinematicShotTrack* ShotTrack = DuplicatedSequence->GetMovieScene()->FindTrack<UMovieSceneCinematicShotTrack>();
 	if (ShotTrack)
 	{
 		AllSubSequenceSections.Append(ShotTrack->GetAllSections());
 	}
 
-	UMovieSceneSubTrack* SubTrack = DuplicatedSequence->GetMovieScene()->FindMasterTrack<UMovieSceneSubTrack>();
+	UMovieSceneSubTrack* SubTrack = DuplicatedSequence->GetMovieScene()->FindTrack<UMovieSceneSubTrack>();
 	if (SubTrack)
 	{
 		AllSubSequenceSections.Append(SubTrack->GetAllSections());
@@ -233,7 +233,7 @@ float UMoviePipelineBlueprintLibrary::GetCompletionPercentage(const UMoviePipeli
 	return CompletionPercentage;
 }
 
-FTimecode UMoviePipelineBlueprintLibrary::GetMasterTimecode(const UMoviePipeline* InMoviePipeline)
+FTimecode UMoviePipelineBlueprintLibrary::GetRootTimecode(const UMoviePipeline* InMoviePipeline)
 {
 	if (InMoviePipeline)
 	{
@@ -243,14 +243,14 @@ FTimecode UMoviePipelineBlueprintLibrary::GetMasterTimecode(const UMoviePipeline
 	return FTimecode();
 }
 
-FFrameNumber UMoviePipelineBlueprintLibrary::GetMasterFrameNumber(const UMoviePipeline* InMoviePipeline)
+FFrameNumber UMoviePipelineBlueprintLibrary::GetRootFrameNumber(const UMoviePipeline* InMoviePipeline)
 {
 	if (InMoviePipeline)
 	{
 		if (InMoviePipeline->GetTargetSequence() && InMoviePipeline->GetTargetSequence()->GetMovieScene())
 		{
-			FFrameRate EffectiveFrameRate = InMoviePipeline->GetPipelineMasterConfig()->GetEffectiveFrameRate(InMoviePipeline->GetTargetSequence());
-			return GetMasterTimecode(InMoviePipeline).ToFrameNumber(EffectiveFrameRate);
+			FFrameRate EffectiveFrameRate = InMoviePipeline->GetPipelinePrimaryConfig()->GetEffectiveFrameRate(InMoviePipeline->GetTargetSequence());
+			return GetRootTimecode(InMoviePipeline).ToFrameNumber(EffectiveFrameRate);
 		}
 	}
 
@@ -271,7 +271,7 @@ FFrameNumber UMoviePipelineBlueprintLibrary::GetCurrentShotFrameNumber(const UMo
 {
 	if (InMoviePipeline)
 	{
-		FFrameRate EffectiveFrameRate = InMoviePipeline->GetPipelineMasterConfig()->GetEffectiveFrameRate(InMoviePipeline->GetTargetSequence());
+		FFrameRate EffectiveFrameRate = InMoviePipeline->GetPipelinePrimaryConfig()->GetEffectiveFrameRate(InMoviePipeline->GetTargetSequence());
 		return GetCurrentShotTimecode(InMoviePipeline).ToFrameNumber(EffectiveFrameRate);
 	}
 
@@ -483,7 +483,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 
 	{
 		UE::MovieScene::FSequenceVisitParams Params;
-		Params.bVisitMasterTracks = true;
+		Params.bVisitRootTracks = true;
 		Params.bVisitSubSequences = true;
 		FSequenceRangeVisitor RangeVisitor;
 
@@ -679,21 +679,21 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 
 			// To make the camera cut range detection more consistent, we'll convert the start of this Entity into root sequence space, and then we'll convert the start of the
 			// camera cut into root sequence space, and the difference between them is the range to use. This is a more reliable way than looking at the actual Playback Range.
-			TRange<FFrameNumber> EntityRangeInMaster = Entity.Range;
-			TRange<FFrameNumber> CameraCutRangeInMaster = EntityRangeInMaster;
+			TRange<FFrameNumber> EntityRangeInRoot = Entity.Range;
+			TRange<FFrameNumber> CameraCutRangeInRoot = EntityRangeInRoot;
 			if (LeafNode->CameraCutSection.IsValid())
 			{
-				CameraCutRangeInMaster = LeafNode->CameraCutSection->GetRange() * InnerToOuterTransform;
+				CameraCutRangeInRoot = LeafNode->CameraCutSection->GetRange() * InnerToOuterTransform;
 			}
 
 			TRange<FFrameNumber> CameraCutWarmUpRange = TRange<FFrameNumber>::Empty();
-			if (EntityRangeInMaster.GetLowerBound().IsClosed() && CameraCutRangeInMaster.GetLowerBound().IsClosed())
+			if (EntityRangeInRoot.GetLowerBound().IsClosed() && CameraCutRangeInRoot.GetLowerBound().IsClosed())
 			{
-				CameraCutWarmUpRange = TRange<FFrameNumber>(CameraCutRangeInMaster.GetLowerBound(), EntityRangeInMaster.GetLowerBound());
+				CameraCutWarmUpRange = TRange<FFrameNumber>(CameraCutRangeInRoot.GetLowerBound(), EntityRangeInRoot.GetLowerBound());
 			}
-			if (CameraCutRangeInMaster.IsDegenerate())
+			if (CameraCutRangeInRoot.IsDegenerate())
 			{
-				CameraCutRangeInMaster = TRange<FFrameNumber>::Empty();
+				CameraCutRangeInRoot = TRange<FFrameNumber>::Empty();
 			}
 
 			Entity.CameraCutWarmUpRange = CameraCutWarmUpRange;
@@ -784,7 +784,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 				}
 			}
 
-			// We can run into certain situations where the shots look the same ie: a master with a sub-scene and a camera being used multiple times
+			// We can run into certain situations where the shots look the same ie: a root with a sub-scene and a camera being used multiple times
 			// have the same inner and outer name. We don't want to re-use the same shot multiple times
 
 			if (!NewShot)
@@ -804,11 +804,11 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			NewShot->InnerName = Entity.Name.Get<0>();
 			NewShot->OuterName = Entity.Name.Get<1>();
 			NewShot->ShotInfo.SubSectionHierarchy = Entity.LeafNode;
-			NewShot->ShotInfo.TotalOutputRangeMaster = Entity.Range;
-			NewShot->ShotInfo.WarmupRangeMaster = Entity.CameraCutWarmUpRange;
+			NewShot->ShotInfo.TotalOutputRangeRoot = Entity.Range;
+			NewShot->ShotInfo.WarmupRangeRoot = Entity.CameraCutWarmUpRange;
 			NewShot->ShotInfo.OuterToInnerTransform = Entity.InnerToOuterTransform.Inverse();
 			NewShot->SidecarCameras = Entity.SidecarCameras;
-			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Registering range: %s (InnerName: %s OuterName: %s)"), *LexToString(NewShot->ShotInfo.TotalOutputRangeMaster), *NewShot->InnerName, *NewShot->OuterName);
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Registering range: %s (InnerName: %s OuterName: %s)"), *LexToString(NewShot->ShotInfo.TotalOutputRangeRoot), *NewShot->InnerName, *NewShot->OuterName);
 		}
 
 		// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
@@ -898,12 +898,12 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(FMoviePipelineFilenam
 	return 0;
 }
 
-FIntPoint UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot)
+FIntPoint UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(UMoviePipelinePrimaryConfig* InPrimaryConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot)
 {
-	if (InMasterConfig && InPipelineExecutorShot)
+	if (InPrimaryConfig && InPipelineExecutorShot)
 	{
-		UMoviePipelineOutputSetting* OutputSetting = InMasterConfig->FindSetting<UMoviePipelineOutputSetting>();
-		const UMoviePipelineCameraSetting* CameraSetting = Cast<const UMoviePipelineCameraSetting>(UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(UMoviePipelineCameraSetting::StaticClass(), InMasterConfig, InPipelineExecutorShot));
+		UMoviePipelineOutputSetting* OutputSetting = InPrimaryConfig->FindSetting<UMoviePipelineOutputSetting>();
+		const UMoviePipelineCameraSetting* CameraSetting = Cast<const UMoviePipelineCameraSetting>(UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(UMoviePipelineCameraSetting::StaticClass(), InPrimaryConfig, InPipelineExecutorShot));
 		check(OutputSetting);
 		check(CameraSetting);
 		FIntPoint EffectiveResolution(OutputSetting->OutputResolution);
@@ -922,7 +922,7 @@ FIntPoint UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(UMoviePip
 }
 
 
-UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot)
+UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelinePrimaryConfig* InPrimaryConfig, const UMoviePipelineExecutorShot* InShot)
 {
 	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
 	if (InShot && InShot->GetShotOverrideConfiguration())
@@ -936,10 +936,10 @@ UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingFo
 		}
 	}
 
-	// If they didn't have a shot override, or the setting wasn't enabled, we'll check the master config.
-	if (InMasterConfig)
+	// If they didn't have a shot override, or the setting wasn't enabled, we'll check the primary config.
+	if (InPrimaryConfig)
 	{
-		UMoviePipelineSetting* Setting = InMasterConfig->FindSettingByClass(InSettingType);
+		UMoviePipelineSetting* Setting = InPrimaryConfig->FindSettingByClass(InSettingType);
 		if (Setting && Setting->IsEnabled())
 		{
 			return Setting;
@@ -1035,7 +1035,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 
 	// And from ourself
 	{
-		// Use the shared function as UMoviePipelineMasterConfig::GetFormatArguments to ensure all the time variables get overwritten.
+		// Use the shared function as UMoviePipelinePrimaryConfig::GetFormatArguments to ensure all the time variables get overwritten.
 		UE::MoviePipeline::GetSharedFormatArguments(OutMergedFormatArgs.FilenameArguments, OutMergedFormatArgs.FileMetadata, InParams.InitializationTime, InParams.InitializationVersion, InParams.Job);
 		
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,

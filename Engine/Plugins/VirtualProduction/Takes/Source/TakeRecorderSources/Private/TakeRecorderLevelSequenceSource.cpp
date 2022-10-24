@@ -18,7 +18,7 @@ UTakeRecorderLevelSequenceSource::UTakeRecorderLevelSequenceSource(const FObject
 	TrackTint = FColor(164, 74, 74);
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderLevelSequenceSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderLevelSequenceSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	UWorld* World = TakesUtils::GetFirstPIEWorld();
 	if (!World)

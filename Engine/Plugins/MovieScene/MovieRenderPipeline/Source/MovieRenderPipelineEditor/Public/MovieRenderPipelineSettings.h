@@ -10,7 +10,7 @@
 
 class UMoviePipelineExecutorBase;
 class UMoviePipeline;
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 
 /**
  * Universal Movie Render Pipeline settings that apply to the whole project.
@@ -34,7 +34,7 @@ public:
 	* What was the last configuration preset the user used? Can be null.
 	*/
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movie Render Pipeline")
-	TSoftObjectPtr<UMoviePipelineMasterConfig> LastPresetOrigin;
+	TSoftObjectPtr<UMoviePipelinePrimaryConfig> LastPresetOrigin;
 	
 	/**
 	* When the user uses the UI to request we render a movie locally, which implementation should we use
@@ -71,7 +71,7 @@ public:
 	FSoftClassPath DefaultPipeline;
 
 	/**
-	* The settings specified here will automatically be added to a Movie Pipeline Master Configuration when using the UI. 
+	* The settings specified here will automatically be added to a Movie Pipeline Primary Configuration when using the UI. 
 	* This does not apply to scripting and does not apply to runtime. It is only a convenience function so that when a job is
 	* created, it can be pre-filled with some settings to make the render functional out of the gate. It can also be
 	* used to automatically add your own setting to jobs.

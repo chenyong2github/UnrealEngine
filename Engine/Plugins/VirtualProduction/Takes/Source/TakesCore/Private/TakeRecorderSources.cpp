@@ -84,14 +84,14 @@ void UTakeRecorderSources::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 }
 
-void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InMasterSequence, TArray<UTakeRecorderSource*>& NewSourcesOut, FManifestSerializer* InManifestSerializer)
+void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InRootSequence, TArray<UTakeRecorderSource*>& NewSourcesOut, FManifestSerializer* InManifestSerializer)
 {
 
 	TArray<UTakeRecorderSource*> NewSources;
 
 	// Optionally create a folder in the Sequencer UI that will contain this source. We don't want sub-sequences to have folders
 	// created for their sources as you would end up with a Subscene with one item in it hidden inside of a folder, so instead
-	// only the master sequence gets folders created.
+	// only the root sequence gets folders created.
 	const bool bCreateSequencerFolders = true;
 	NewSourcesOut.Append(InSources);
 
@@ -99,25 +99,25 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 	{
 		if (Source->bEnabled)
 		{
-			ULevelSequence* TargetSequence = InMasterSequence;
+			ULevelSequence* TargetSequence = InRootSequence;
 			FMovieSceneSequenceID TargetSequenceID = MovieSceneSequenceID::Root;
 
 			// The Sequencer Take system is built around swapping out sub-sequences. If they want to use this system, we create a sub-sequence
-			// for the Source and tell it to write into this sub-sequence instead of the master sequence. We then keep track of which Source
+			// for the Source and tell it to write into this sub-sequence instead of the root sequence. We then keep track of which Source
 			// is using which sub-sequence so that we can push the correct sequence for all points of the Source's recording lifecycle.
 			if (Settings.bRecordSourcesIntoSubSequences && Source->SupportsSubscenes())
 			{
-				const FString& SubSequenceTrackName = ObjectTools::SanitizeObjectName(Source->GetSubsceneTrackName(InMasterSequence));
-				const FString& SubSequenceAssetName = ObjectTools::SanitizeObjectName(Source->GetSubsceneAssetName(InMasterSequence));
+				const FString& SubSequenceTrackName = ObjectTools::SanitizeObjectName(Source->GetSubsceneTrackName(InRootSequence));
+				const FString& SubSequenceAssetName = ObjectTools::SanitizeObjectName(Source->GetSubsceneAssetName(InRootSequence));
 
-				TargetSequence = CreateSubSequenceForSource(InMasterSequence, SubSequenceTrackName, SubSequenceAssetName);
+				TargetSequence = CreateSubSequenceForSource(InRootSequence, SubSequenceTrackName, SubSequenceAssetName);
 
 				// If there's already a Subscene Track for our sub-sequence we need to remove that track before create a new one. No data is lost in this process as the
 				// sequence that the subscene points to has been copied by CreateSubSequenceForSource so a new track pointed to the new subsequence includes all the old data.
 				const FString SequenceName = FPaths::GetBaseFilename(TargetSequence->GetPathName());
 				UMovieSceneSubTrack* SubsceneTrack = nullptr;
 
-				for (UMovieSceneTrack* Track : InMasterSequence->GetMovieScene()->GetMasterTracks())
+				for (UMovieSceneTrack* Track : InRootSequence->GetMovieScene()->GetTracks())
 				{
 					if (Track->IsA<UMovieSceneSubTrack>())
 					{
@@ -129,31 +129,31 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 					}
 				}
 
-				// We need to add the new subsequence to the master sequence immediately so that it shows up in the UI and you can tell that things
+				// We need to add the new subsequence to the root sequence immediately so that it shows up in the UI and you can tell that things
 				// are being recorded, otherwise they don't show up until recording stops and then it magically pops in.
 				if (!SubsceneTrack)
 				{
-					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InMasterSequence->GetMovieScene()->AddMasterTrack(UMovieSceneSubTrack::StaticClass()));
+					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InRootSequence->GetMovieScene()->AddTrack(UMovieSceneSubTrack::StaticClass()));
 				}
 
 				// Track should not be transactional during the recording process
 				SubsceneTrack->ClearFlags(RF_Transactional);
 
 				// We create a new sub track for every Source so that we can name the Subtrack after the Source instead of just the sections within it.
-				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneTrackName(InMasterSequence)));
+				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneTrackName(InRootSequence)));
 				SubsceneTrack->SetColorTint(Source->TrackTint);
 
 				// When we create the Subscene Track we'll make sure a folder is created for it to sort into and add the new Subscene Track as a child of it.
 				if (bCreateSequencerFolders)
 				{
-					UMovieSceneFolder* Folder = AddFolderForSource(Source, InMasterSequence->GetMovieScene());
-					Folder->AddChildMasterTrack(SubsceneTrack);
+					UMovieSceneFolder* Folder = AddFolderForSource(Source, InRootSequence->GetMovieScene());
+					Folder->AddChildTrack(SubsceneTrack);
 				}
 
 				// We initialize the sequence to start at zero and be a 0 frame length section as there is no data in the sections yet.
 				// We'll have to update these sections each frame as the recording progresses so they appear to get longer like normal
 				// tracks do as we record into them.
-				FFrameNumber RecordStartFrame = Settings.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(FApp::GetTimecode().ToFrameNumber(TargetLevelSequenceDisplayRate)), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution).FloorToFrame() : InMasterSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
+				FFrameNumber RecordStartFrame = Settings.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(FApp::GetTimecode().ToFrameNumber(TargetLevelSequenceDisplayRate)), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution).FloorToFrame() : InRootSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
 				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartFrame, 0);
 
 				// Section should not be transactional during the recording process
@@ -205,7 +205,7 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 			// Update our mappings of which sources use which sub-sequence.
 			SourceSubSequenceMap.FindOrAdd(Source) = TargetSequence;
 
-			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, TargetSequenceID, InMasterSequence, InManifestSerializer))
+			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, TargetSequenceID, InRootSequence, InManifestSerializer))
 			{
 				// Add it to our classes list of sources 
 				Sources.Add(NewlyAddedSource);
@@ -218,7 +218,7 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 			// so that the Source has had a chance to create any required sections that will go in the folder.
 			if (!Settings.bRecordSourcesIntoSubSequences && bCreateSequencerFolders)
 			{
-				UMovieSceneFolder* Folder = AddFolderForSource(Source, InMasterSequence->GetMovieScene());
+				UMovieSceneFolder* Folder = AddFolderForSource(Source, InRootSequence->GetMovieScene());
 
 				// Different sources can create different kinds of tracks so we allow each source to decide how it gets
 				// represented inside the folder.
@@ -229,9 +229,9 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 
 	if (NewSources.Num())
 	{
-		// We don't want to nestle sub-sequences recursively so we always pass the Master Sequence and not the sequence
+		// We don't want to nestle sub-sequences recursively so we always pass the Root Sequence and not the sequence
 		// created for a new source.
-		PreRecordingRecursive(NewSources, InMasterSequence, NewSourcesOut, InManifestSerializer);
+		PreRecordingRecursive(NewSources, InRootSequence, NewSourcesOut, InManifestSerializer);
 		SourcesSerialNumber++;
 	}
 }
@@ -503,7 +503,7 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, const
 	TArray<UObject*> AssetsToCleanUp;
 	for (auto SourceSubSequence : SourceSubSequenceMap)
 	{
-		// Only save subsequences but not the master sequence, it is already saved in UTakeRecorder::StopInternal
+		// Only save subsequences but not the root sequence, it is already saved in UTakeRecorder::StopInternal
 		const bool bIsValidSubSequence = SourceSubSequence.Value && SourceSubSequence.Value.Get() != InSequence;
 		if (bIsValidSubSequence)
 		{
@@ -530,20 +530,20 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, const
 	}
 }
 
-ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName)
+ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence* InRootSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
 	// We want to sanitize the object names because sometimes they come from names with spaces and other invalid characters in them.
-	const FString& SequenceDirectory = FPaths::GetPath(InMasterSequence->GetPathName());
-	const FString& SequenceName = FPaths::GetBaseFilename(InMasterSequence->GetPathName());
+	const FString& SequenceDirectory = FPaths::GetPath(InRootSequence->GetPathName());
+	const FString& SequenceName = FPaths::GetBaseFilename(InRootSequence->GetPathName());
 
-	// We need to check the Master Sequence to see if they already have a sub-sequence with this name so that we duplicate the right
+	// We need to check the Root Sequence to see if they already have a sub-sequence with this name so that we duplicate the right
 	// sequence and re-use that, instead of just making a new blank sequence every time. This will help in cases where they've done a recording, 
 	// modified a sub-sequence and want to record from that setup. Each source will individually remove any old data inside the Sub Sequence
 	// so we don't have to worry about any data the user added via Sequencer unrelated to what they recorded.
 	ULevelSequence* ExistingSubSequence = nullptr;
-	UMovieSceneSubTrack* SubTrack = InMasterSequence->GetMovieScene()->FindMasterTrack<UMovieSceneSubTrack>();
+	UMovieSceneSubTrack* SubTrack = InRootSequence->GetMovieScene()->FindTrack<UMovieSceneSubTrack>();
 	if (SubTrack)
 	{
 		// Look at each section in the track to see if it has the same name as our new SubSequence name.
@@ -575,16 +575,16 @@ ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence*
 			// Movie scene should not be transactional during the recording process
 			OutAsset->GetMovieScene()->ClearFlags(RF_Transactional);
 
-			OutAsset->GetMovieScene()->SetTickResolutionDirectly(InMasterSequence->GetMovieScene()->GetTickResolution());
-			OutAsset->GetMovieScene()->SetDisplayRate(InMasterSequence->GetMovieScene()->GetDisplayRate());
+			OutAsset->GetMovieScene()->SetTickResolutionDirectly(InRootSequence->GetMovieScene()->GetTickResolution());
+			OutAsset->GetMovieScene()->SetDisplayRate(InRootSequence->GetMovieScene()->GetDisplayRate());
 		}
 
-		UTakeMetaData* TakeMetaData = InMasterSequence->FindMetaData<UTakeMetaData>();
+		UTakeMetaData* TakeMetaData = InRootSequence->FindMetaData<UTakeMetaData>();
 		if (TakeMetaData)
 		{
 			UTakeMetaData* OutTakeMetaData = OutAsset->CopyMetaData(TakeMetaData);
 
-			// Tack on the sub sequence name so that it's unique from the master sequence
+			// Tack on the sub sequence name so that it's unique from the root sequence
 			OutTakeMetaData->SetSlate(TakeMetaData->GetSlate() + TEXT("_") + SubSequenceTrackName, false);
 		}
 

@@ -7,7 +7,7 @@
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineQueueSubsystem.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieRenderPipelineStyle.h"
 #include "MovieRenderPipelineSettings.h"
 #include "Sections/MovieSceneCameraCutSection.h"
@@ -198,7 +198,7 @@ public:
 		return FText();
 	}
 
-	FText GetMasterConfigLabel() const
+	FText GetPrimaryConfigLabel() const
 	{
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
@@ -226,7 +226,7 @@ public:
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
 		{
-			Job->SetPresetOrigin(CastChecked<UMoviePipelineMasterConfig>(AssetData.GetAsset()));
+			Job->SetPresetOrigin(CastChecked<UMoviePipelinePrimaryConfig>(AssetData.GetAsset()));
 		}
 
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
@@ -248,7 +248,7 @@ public:
 		OnChosePresetCallback.ExecuteIfBound(WeakJob, nullptr);
 	}
 
-	EVisibility GetMasterConfigModifiedVisibility() const
+	EVisibility GetPrimaryConfigModifiedVisibility() const
 	{
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
 		if (Job)
@@ -259,7 +259,7 @@ public:
 		return EVisibility::Collapsed;
 	}
 
-	void OnEditMasterConfigForJob()
+	void OnEditPrimaryConfigForJob()
 	{
 		OnEditConfigCallback.ExecuteIfBound(WeakJob, nullptr);
 	}
@@ -339,7 +339,7 @@ public:
 
 	TSharedRef<SWidget> OnGenerateConfigPresetPickerMenu()
 	{
-		return OnGenerateConfigPresetPickerMenuFromClass(UMoviePipelineMasterConfig::StaticClass(),
+		return OnGenerateConfigPresetPickerMenuFromClass(UMoviePipelinePrimaryConfig::StaticClass(),
 			FOnAssetSelected::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickPresetFromAsset),
 			FExecuteAction::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickNewPreset)
 			);
@@ -366,7 +366,7 @@ public:
 			AssetPickerConfig.ThumbnailScale = 0.1f;
 			AssetPickerConfig.SaveSettingsName = TEXT("MoviePipelineConfigAsset");
 
-			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoConfigs_Warning", "No Master Configurations Found");
+			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoConfigs_Warning", "No Primary Configurations Found");
 			AssetPickerConfig.Filter.ClassPaths.Add(InClass->GetClassPathName());
 			AssetPickerConfig.OnAssetSelected = InOnAssetSelected;
 		}
@@ -461,8 +461,8 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 		.Padding(2, 0)
 		[
 			SNew(SHyperlink)
-			.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetMasterConfigLabel)))
-			.OnNavigate(Item.Get(), &FMoviePipelineQueueJobTreeItem::OnEditMasterConfigForJob)
+			.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetPrimaryConfigLabel)))
+			.OnNavigate(Item.Get(), &FMoviePipelineQueueJobTreeItem::OnEditPrimaryConfigForJob)
 		]
 
 		+ SHorizontalBox::Slot()
@@ -470,7 +470,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("ModifiedConfigIndicator", "*"))
-			.Visibility(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetMasterConfigModifiedVisibility)
+			.Visibility(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetPrimaryConfigModifiedVisibility)
 		]
 
 		+ SHorizontalBox::Slot()

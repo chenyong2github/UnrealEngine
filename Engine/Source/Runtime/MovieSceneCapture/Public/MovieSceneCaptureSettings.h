@@ -50,7 +50,7 @@ struct MOVIESCENECAPTURE_API FMovieSceneCaptureSettings
 	 * {quality}	- The image compression quality setting
 	 * {material}   - The material/render pass
 	 * {shot}       - The name of the level sequence asset shot being played
-	 * {sequence}   - The name of the level sequence asset (ie. master) being played
+	 * {sequence}   - The name of the level sequence asset being played
 	 * {camera}     - The name of the current camera
 	 * {date}       - The date in the format of {year}.{month}.{day}
 	 * {year}       - The current year

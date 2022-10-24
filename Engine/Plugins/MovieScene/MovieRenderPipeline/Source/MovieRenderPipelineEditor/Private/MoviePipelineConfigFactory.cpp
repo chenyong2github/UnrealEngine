@@ -1,25 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineConfigFactory.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineShotConfig.h"
 #include "AssetTypeCategories.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineConfigFactory)
 
-UMoviePipelineMasterConfigFactory::UMoviePipelineMasterConfigFactory()
+UMoviePipelinePrimaryConfigFactory::UMoviePipelinePrimaryConfigFactory()
 {
 	bCreateNew = true;
 	bEditAfterNew = false;
-	SupportedClass = UMoviePipelineMasterConfig::StaticClass();
+	SupportedClass = UMoviePipelinePrimaryConfig::StaticClass();
 }
 
-UObject* UMoviePipelineMasterConfigFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+UObject* UMoviePipelinePrimaryConfigFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	return NewObject<UMoviePipelineMasterConfig>(InParent, Class, Name, Flags);
+	return NewObject<UMoviePipelinePrimaryConfig>(InParent, Class, Name, Flags);
 }
 
-uint32 UMoviePipelineMasterConfigFactory::GetMenuCategories() const
+uint32 UMoviePipelinePrimaryConfigFactory::GetMenuCategories() const
 {
 	return EAssetTypeCategories::Type::None; 
 }

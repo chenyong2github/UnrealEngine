@@ -20,7 +20,7 @@ public:
 	virtual bool CanBeDisabled() const override { return false; }
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override;
 

@@ -42,18 +42,18 @@
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditorHelpers"
 
-TWeakPtr<SWindow> MasterSequenceSettingsWindow;
+TWeakPtr<SWindow> LevelSequenceWithShotsSettingsWindow;
 
-class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
+class SLevelSequenceWithShotsSettings : public SCompoundWidget, public FGCObject
 {
-	SLATE_BEGIN_ARGS(SMasterSequenceSettings) {}
-		SLATE_ARGUMENT(ULevelSequenceMasterSequenceSettings*, MasterSequenceSettings)
+	SLATE_BEGIN_ARGS(SLevelSequenceWithShotsSettings) {}
+		SLATE_ARGUMENT(ULevelSequenceWithShotsSettings*, LevelSequenceWithShotsSettings)
 		SLATE_ARGUMENT(UMovieSceneToolsProjectSettings*, ToolsProjectSettings)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
 	{
-		const ULevelSequenceMasterSequenceSettings* LevelSequenceSettings = GetDefault<ULevelSequenceMasterSequenceSettings>();
+		const ULevelSequenceWithShotsSettings* LevelSequenceSettings = GetDefault<ULevelSequenceWithShotsSettings>();
 
 		FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -64,7 +64,7 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 		Details1ViewArgs.bShowOptions = false;
 		Details1ViewArgs.bAllowFavoriteSystem = false;
 		Details1ViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-		Details1ViewArgs.ViewIdentifier = "MasterSequenceSettings";
+		Details1ViewArgs.ViewIdentifier = "LevelSequenceWithShotsSettings";
 
 		Details1View = PropertyEditor.CreateDetailView(Details1ViewArgs);
 
@@ -105,7 +105,7 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 			.Padding(10.f)
 			[
 				SNew(STextBlock)
-				.Text(this, &SMasterSequenceSettings::GetMasterSequenceFullPath)
+				.Text(this, &SLevelSequenceWithShotsSettings::GetFullPath)
 			]
 
 			+ SVerticalBox::Slot()
@@ -114,7 +114,7 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 			.Padding(5.f)
 			[
 				SAssignNew(ErrorText, STextBlock)
-				.Text(this, &SMasterSequenceSettings::GetErrorText)
+				.Text(this, &SLevelSequenceWithShotsSettings::GetErrorText)
 				.TextStyle(FAppStyle::Get(), TEXT("Log.Warning"))
 			]
 
@@ -124,14 +124,14 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 			.Padding(5.f)
 			[
 				SNew(SPrimaryButton)
-				.Text(LOCTEXT("CreateMasterSequence", "Create Master Sequence"))
-				.OnClicked(this, &SMasterSequenceSettings::OnCreateMasterSequence)
+				.Text(LOCTEXT("CreateLevelSequenceWithShots", "Create Level Sequence with Shots"))
+				.OnClicked(this, &SLevelSequenceWithShotsSettings::OnLevelCreateSequenceWithShots)
 			]
 		];
 
-		if (InArgs._MasterSequenceSettings)
+		if (InArgs._LevelSequenceWithShotsSettings)
 		{
-			SetMasterSequenceSettings(InArgs._MasterSequenceSettings);
+			SetLevelSequenceWithShotsSettings(InArgs._LevelSequenceWithShotsSettings);
 		}
 		if (InArgs._ToolsProjectSettings)
 		{
@@ -139,11 +139,11 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 		}
 	}
 
-	void SetMasterSequenceSettings(ULevelSequenceMasterSequenceSettings* InMasterSequenceSettings)
+	void SetLevelSequenceWithShotsSettings(ULevelSequenceWithShotsSettings* InLevelSequenceWithShotsSettings)
 	{
-		MasterSequenceSettings = InMasterSequenceSettings;
+		LevelSequenceWithShotsSettings = InLevelSequenceWithShotsSettings;
 
-		Details1View->SetObject(InMasterSequenceSettings);
+		Details1View->SetObject(InLevelSequenceWithShotsSettings);
 	}
 
 	void SetToolsProjectSettings(UMovieSceneToolsProjectSettings* InToolsProjectSettings)
@@ -155,23 +155,23 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
 	{
-		Collector.AddReferencedObject(MasterSequenceSettings);
+		Collector.AddReferencedObject(LevelSequenceWithShotsSettings);
 		Collector.AddReferencedObject(ToolsProjectSettings);
 	}
 	virtual FString GetReferencerName() const override
 	{
-		return TEXT("SMasterSequenceSettings");
+		return TEXT("SLevelSequenceWithShotsSettings");
 	}
 
 private:
 
-	FText GetMasterSequenceFullPath() const
+	FText GetFullPath() const
 	{
-		const ULevelSequenceMasterSequenceSettings* LevelSequenceSettings = GetDefault<ULevelSequenceMasterSequenceSettings>();
-		FString FullPath = LevelSequenceSettings->MasterSequenceBasePath.Path;
-		FullPath /= LevelSequenceSettings->MasterSequenceName;
-		FullPath /= LevelSequenceSettings->MasterSequenceName;
-		FullPath += LevelSequenceSettings->MasterSequenceSuffix;
+		const ULevelSequenceWithShotsSettings* LevelSequenceSettings = GetDefault<ULevelSequenceWithShotsSettings>();
+		FString FullPath = LevelSequenceSettings->BasePath.Path;
+		FullPath /= LevelSequenceSettings->Name;
+		FullPath /= LevelSequenceSettings->Name;
+		FullPath += LevelSequenceSettings->Suffix;
 		FullPath += TEXT(".uasset");
 		return FText::FromString(FullPath);
 	}
@@ -180,40 +180,40 @@ private:
 	{			
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-		const ULevelSequenceMasterSequenceSettings* LevelSequenceSettings = GetDefault<ULevelSequenceMasterSequenceSettings>();
-		FString FullPath = LevelSequenceSettings->MasterSequenceBasePath.Path;
-		FullPath /= LevelSequenceSettings->MasterSequenceName;
-		FullPath /= LevelSequenceSettings->MasterSequenceName;
-		FullPath += LevelSequenceSettings->MasterSequenceSuffix;
+		const ULevelSequenceWithShotsSettings* LevelSequenceSettings = GetDefault<ULevelSequenceWithShotsSettings>();
+		FString FullPath = LevelSequenceSettings->BasePath.Path;
+		FullPath /= LevelSequenceSettings->Name;
+		FullPath /= LevelSequenceSettings->Name;
+		FullPath += LevelSequenceSettings->Suffix;
 		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(FullPath));
 		if (AssetData.IsValid())
 		{
-			return LOCTEXT("MasterSequenceExists", "Warning: Master Sequence Exists");
+			return LOCTEXT("LevelSequenceWithShotsExists", "Warning: Level Sequence with Shots Exists");
 		}
 
 		return FText::GetEmpty();
 	}
 
 
-	FReply OnCreateMasterSequence()
+	FReply OnLevelCreateSequenceWithShots()
 	{
-		const ULevelSequenceMasterSequenceSettings* LevelSequenceSettings = GetDefault<ULevelSequenceMasterSequenceSettings>();
+		const ULevelSequenceWithShotsSettings* LevelSequenceSettings = GetDefault<ULevelSequenceWithShotsSettings>();
 		
-		// Create a master sequence
-		FString MasterSequenceAssetName = LevelSequenceSettings->MasterSequenceName;
-		FString MasterSequencePackagePath = LevelSequenceSettings->MasterSequenceBasePath.Path;
-		MasterSequencePackagePath /= MasterSequenceAssetName;
-		MasterSequenceAssetName += LevelSequenceSettings->MasterSequenceSuffix;
+		// Create a sequence with shots
+		FString AssetName = LevelSequenceSettings->Name;
+		FString PackagePath = LevelSequenceSettings->BasePath.Path;
+		PackagePath /= AssetName;
+		AssetName += LevelSequenceSettings->Suffix;
 
-		UObject* MasterSequenceAsset = LevelSequenceEditorHelpers::CreateLevelSequenceAsset(MasterSequenceAssetName, MasterSequencePackagePath);
-		if (MasterSequenceAsset)
+		UObject* LevelSequenceWithShotsAsset = LevelSequenceEditorHelpers::CreateLevelSequenceAsset(AssetName, PackagePath);
+		if (LevelSequenceWithShotsAsset)
 		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(MasterSequenceAsset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequenceWithShotsAsset);
 		
 			ILevelSequenceEditorModule& LevelSequenceEditorModule = FModuleManager::LoadModuleChecked<ILevelSequenceEditorModule>("LevelSequenceEditor");		
-			LevelSequenceEditorModule.OnMasterSequenceCreated().Broadcast(MasterSequenceAsset);
+			LevelSequenceEditorModule.OnLevelSequenceWithShotsCreated().Broadcast(LevelSequenceWithShotsAsset);
 			
-			MasterSequenceSettingsWindow.Pin()->RequestDestroyWindow();
+			LevelSequenceWithShotsSettingsWindow.Pin()->RequestDestroyWindow();
 		}
 
 		return FReply::Handled();
@@ -221,16 +221,16 @@ private:
 
 	TSharedPtr<IDetailsView> Details1View;
 	TSharedPtr<IDetailsView> Details2View;
-	TSharedPtr<SEditableTextBox> MasterSequencePathText;
+	TSharedPtr<SEditableTextBox> SequenceWithShotsPathText;
 	TSharedPtr<STextBlock> ErrorText;
-	ULevelSequenceMasterSequenceSettings* MasterSequenceSettings;
+	ULevelSequenceWithShotsSettings* LevelSequenceWithShotsSettings;
 	UMovieSceneToolsProjectSettings* ToolsProjectSettings;
 };
 	
 
-void LevelSequenceEditorHelpers::OpenMasterSequenceDialog(const TSharedRef<FTabManager>& TabManager)
+void LevelSequenceEditorHelpers::OpenLevelSequenceWithShotsDialog(const TSharedRef<FTabManager>& TabManager)
 {
-	TSharedPtr<SWindow> ExistingWindow = MasterSequenceSettingsWindow.Pin();
+	TSharedPtr<SWindow> ExistingWindow = LevelSequenceWithShotsSettingsWindow.Pin();
 	if (ExistingWindow.IsValid())
 	{
 		ExistingWindow->BringToFront();
@@ -238,7 +238,7 @@ void LevelSequenceEditorHelpers::OpenMasterSequenceDialog(const TSharedRef<FTabM
 	else
 	{
 		ExistingWindow = SNew(SWindow)
-			.Title( LOCTEXT("MasterSequenceSettingsTitle", "Master Sequence Settings") )
+			.Title( LOCTEXT("LevelSequenceWithShotsSettingsTitle", "Level Sequence with Shots Settings") )
 			.HasCloseButton(true)
 			.SupportsMaximize(false)
 			.SupportsMinimize(false)
@@ -256,16 +256,16 @@ void LevelSequenceEditorHelpers::OpenMasterSequenceDialog(const TSharedRef<FTabM
 		}
 	}
 
-	ULevelSequenceMasterSequenceSettings* MasterSequenceSettings = GetMutableDefault<ULevelSequenceMasterSequenceSettings>();
+	ULevelSequenceWithShotsSettings* LevelSequenceWithShotsSettings = GetMutableDefault<ULevelSequenceWithShotsSettings>();
 	UMovieSceneToolsProjectSettings* ToolsProjectSettings = GetMutableDefault<UMovieSceneToolsProjectSettings>();
 
 	ExistingWindow->SetContent(
-		SNew(SMasterSequenceSettings)
-		.MasterSequenceSettings(MasterSequenceSettings)
+		SNew(SLevelSequenceWithShotsSettings)
+		.LevelSequenceWithShotsSettings(LevelSequenceWithShotsSettings)
 		.ToolsProjectSettings(ToolsProjectSettings)
 	);
 
-	MasterSequenceSettingsWindow = ExistingWindow;
+	LevelSequenceWithShotsSettingsWindow = ExistingWindow;
 }
 
 UObject* LevelSequenceEditorHelpers::CreateLevelSequenceAsset(const FString& AssetName, const FString& PackagePath, UObject* AssetToDuplicate)

@@ -138,7 +138,7 @@ UMovieSceneMaterialParameterCollectionSystem::UMovieSceneMaterialParameterCollec
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineComponentConsumer(GetClass(), BuiltInComponents->Tags.Master);
+		DefineComponentConsumer(GetClass(), BuiltInComponents->Tags.Root);
 		DefineComponentProducer(GetClass(), TracksComponents->BoundMaterial);
 		DefineImplicitPrerequisite(UMovieSceneCachePreAnimatedStateSystem::StaticClass(), GetClass());
 	}

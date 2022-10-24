@@ -21,7 +21,7 @@
 
 namespace
 {
-	bool SupportMultipleAudioMasterTracks()
+	bool SupportMultipleAudioTracks()
 	{
 		return true;
 	}
@@ -130,34 +130,34 @@ bool FMovieSceneExportData::ConstructMovieSceneData(const UMovieScene* InMovieSc
 	MovieSceneData->TickResolution = TickResolution;
 	MovieSceneData->Duration = ConvertFrameTime(UE::MovieScene::DiscreteSize(PlaybackRange), TickResolution, FrameRate).FrameNumber.Value;
 
-	bool bFoundCinematicMasterTrack = false;
+	bool bFoundCinematicTrack = false;
 
-	// sort audio master tracks
-	TMap<int32, TSharedPtr<FMovieSceneExportAudioMasterTrackData>> AudioTrackMap;
+	// sort audio tracks
+	TMap<int32, TSharedPtr<FMovieSceneExportAudioData>> AudioTrackMap;
 
-	const TArray<UMovieSceneTrack*> MasterTracks = InMovieScene->GetMasterTracks();
-	for (UMovieSceneTrack* MasterTrack : MasterTracks)
+	const TArray<UMovieSceneTrack*> Tracks = InMovieScene->GetTracks();
+	for (UMovieSceneTrack* Track : Tracks)
 	{
-		if (!bFoundCinematicMasterTrack && MasterTrack->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
+		if (!bFoundCinematicTrack && Track->IsA(UMovieSceneCinematicShotTrack::StaticClass()))
 		{
-			const UMovieSceneCinematicShotTrack* CinematicTrack = Cast<UMovieSceneCinematicShotTrack>(MasterTrack);
-			if (CinematicTrack == nullptr || !ConstructCinematicMasterTrackData(InMovieScene, CinematicTrack))
+			const UMovieSceneCinematicShotTrack* CinematicTrack = Cast<UMovieSceneCinematicShotTrack>(Track);
+			if (CinematicTrack == nullptr || !ConstructCinematicData(InMovieScene, CinematicTrack))
 			{ 
 				return false; 
 			}
-			bFoundCinematicMasterTrack = true;
+			bFoundCinematicTrack = true;
 		}
-		else if (MasterTrack->IsA(UMovieSceneAudioTrack::StaticClass()))
+		else if (Track->IsA(UMovieSceneAudioTrack::StaticClass()))
 		{
-			const UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(MasterTrack);
-			if (AudioTrack == nullptr || !ConstructAudioMasterTrackData(InMovieScene, AudioTrack, AudioTrackMap))
+			const UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(Track);
+			if (AudioTrack == nullptr || !ConstructAudioData(InMovieScene, AudioTrack, AudioTrackMap))
 			{ 
 				return false; 
 			}
 		}
 	}
 
-	// sort the audio master tracks by their sorting index and add to the AudioMasterTracks array
+	// sort the audio tracks by their sorting index and add to the AudioTracks array
 	if (AudioTrackMap.Num() > 0)
 	{
 		AudioTrackMap.KeySort([](int32 A, int32 B) {
@@ -168,9 +168,9 @@ bool FMovieSceneExportData::ConstructMovieSceneData(const UMovieScene* InMovieSc
 		{
 			if (Elem.Value.IsValid())
 			{
-				MovieSceneData->AudioMasterTracks.Add(Elem.Value);
+				MovieSceneData->AudioData.Add(Elem.Value);
 
-				if (!SupportMultipleAudioMasterTracks())
+				if (!SupportMultipleAudioTracks())
 				{
 					break;
 				}
@@ -181,19 +181,19 @@ bool FMovieSceneExportData::ConstructMovieSceneData(const UMovieScene* InMovieSc
 	return true;
 }
 
-bool FMovieSceneExportData::ConstructCinematicMasterTrackData(const UMovieScene* InMovieScene, const UMovieSceneCinematicShotTrack* InCinematicMasterTrack)
+bool FMovieSceneExportData::ConstructCinematicData(const UMovieScene* InMovieScene, const UMovieSceneCinematicShotTrack* InCinematicTrack)
 {
 	if (InMovieScene == nullptr || !MovieSceneData.IsValid())
 	{
 		return false;
 	}
 
-	TSharedPtr<FMovieSceneExportCinematicMasterTrackData> MasterTrackData = MakeShared<FMovieSceneExportCinematicMasterTrackData>();
-	MasterTrackData->MovieSceneTrack = InCinematicMasterTrack;
-	MovieSceneData->CinematicMasterTrack = MasterTrackData;
+	TSharedPtr<FMovieSceneExportCinematicData> CinematicData = MakeShared<FMovieSceneExportCinematicData>();
+	CinematicData->MovieSceneTrack = InCinematicTrack;
+	MovieSceneData->CinematicData = CinematicData;
 
 	// Make a list of shotnames and how many duplicates
-	for (UMovieSceneSection* Section : InCinematicMasterTrack->GetAllSections())
+	for (UMovieSceneSection* Section : InCinematicTrack->GetAllSections())
 	{
 		const UMovieSceneCinematicShotSection* CinematicSection = Cast<UMovieSceneCinematicShotSection>(Section);
 
@@ -224,13 +224,13 @@ bool FMovieSceneExportData::ConstructCinematicMasterTrackData(const UMovieScene*
 	// Construct sections & create track row index array
 	TArray<int32> CinematicTrackRowIndices;
 
-	for (UMovieSceneSection* Section : InCinematicMasterTrack->GetAllSections())
+	for (UMovieSceneSection* Section : InCinematicTrack->GetAllSections())
 	{
 		const UMovieSceneCinematicShotSection* CinematicSection = Cast<UMovieSceneCinematicShotSection>(Section);
 
 		if (CinematicSection != nullptr && CinematicSection->GetSequence() != nullptr)
 		{
-			if (!ConstructCinematicSectionData(InMovieScene, MasterTrackData, CinematicSection))
+			if (!ConstructCinematicSectionData(InMovieScene, CinematicData, CinematicSection))
 			{
 				return false;
 			}
@@ -248,7 +248,7 @@ bool FMovieSceneExportData::ConstructCinematicMasterTrackData(const UMovieScene*
 
 	for (int32 CinematicTrackRowIndex : CinematicTrackRowIndices)
 	{	
-		if (!ConstructCinematicTrackData(InMovieScene, MasterTrackData, CinematicTrackRowIndex))
+		if (!ConstructCinematicTrackData(InMovieScene, CinematicData, CinematicTrackRowIndex))
 		{
 			return false;
 		}		
@@ -257,18 +257,18 @@ bool FMovieSceneExportData::ConstructCinematicMasterTrackData(const UMovieScene*
 	return true;
 }
 
-bool FMovieSceneExportData::ConstructCinematicTrackData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicMasterTrackData> InCinematicMasterTrackData, int32 InRowIndex)
+bool FMovieSceneExportData::ConstructCinematicTrackData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicData> InCinematicData, int32 InRowIndex)
 {
-	if (InMovieScene == nullptr || !InCinematicMasterTrackData.IsValid() || !MovieSceneData.IsValid() || !MovieSceneData->CinematicMasterTrack.IsValid())
+	if (InMovieScene == nullptr || !InCinematicData.IsValid() || !MovieSceneData.IsValid() || !MovieSceneData->CinematicData.IsValid())
 	{
 		return false;
 	}
 
 	TSharedPtr<FMovieSceneExportCinematicTrackData> TrackData = MakeShared<FMovieSceneExportCinematicTrackData>();
 	TrackData->RowIndex = InRowIndex;
-	MovieSceneData->CinematicMasterTrack->CinematicTracks.Add(TrackData);
+	MovieSceneData->CinematicData->CinematicTracks.Add(TrackData);
 
-	for (TSharedPtr<FMovieSceneExportCinematicSectionData> Section : InCinematicMasterTrackData->CinematicSections)
+	for (TSharedPtr<FMovieSceneExportCinematicSectionData> Section : InCinematicData->CinematicSections)
 	{
 		if (Section.IsValid() && Section->RowIndex == InRowIndex)
 		{
@@ -279,23 +279,23 @@ bool FMovieSceneExportData::ConstructCinematicTrackData(const UMovieScene* InMov
 	return true;
 }
 
-bool FMovieSceneExportData::ConstructAudioMasterTrackData(const UMovieScene* InMovieScene, const UMovieSceneAudioTrack* InAudioMasterTrack, TMap<int32, TSharedPtr<FMovieSceneExportAudioMasterTrackData>>& InAudioTrackMap)
+bool FMovieSceneExportData::ConstructAudioData(const UMovieScene* InMovieScene, const UMovieSceneAudioTrack* InAudioTrack, TMap<int32, TSharedPtr<FMovieSceneExportAudioData>>& InAudioTrackMap)
 {
 	if (InMovieScene == nullptr || !MovieSceneData.IsValid())
 	{
 		return false;
 	}
 
-	TSharedPtr<FMovieSceneExportAudioMasterTrackData> MasterTrackData = MakeShared<FMovieSceneExportAudioMasterTrackData>();
-	MasterTrackData->MovieSceneTrack = InAudioMasterTrack;
-	InAudioTrackMap.Add(InAudioMasterTrack->GetSortingOrder(), MasterTrackData);
+	TSharedPtr<FMovieSceneExportAudioData> TrackData = MakeShared<FMovieSceneExportAudioData>();
+	TrackData->MovieSceneTrack = InAudioTrack;
+	InAudioTrackMap.Add(InAudioTrack->GetSortingOrder(), TrackData);
 
 	// Construct sections & create track row index array
 	TArray<int32> AudioTrackRowIndices;
 
 	TArray<FString> SectionPathNames;
 
-	for (UMovieSceneSection* Section : InAudioMasterTrack->GetAudioSections())
+	for (UMovieSceneSection* Section : InAudioTrack->GetAudioSections())
 	{
 		const UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(Section);
 		if (AudioSection == nullptr)
@@ -311,7 +311,7 @@ bool FMovieSceneExportData::ConstructAudioMasterTrackData(const UMovieScene* InM
 
 		if (AudioSectionIsSoundWave(AudioSection))
 		{
-			if (!ConstructAudioSectionData(InMovieScene, MasterTrackData, AudioSection))
+			if (!ConstructAudioSectionData(InMovieScene, TrackData, AudioSection))
 			{
 				return false;
 			}
@@ -330,7 +330,7 @@ bool FMovieSceneExportData::ConstructAudioMasterTrackData(const UMovieScene* InM
 
 	for (int32 AudioTrackRowIndex : AudioTrackRowIndices)
 	{
-		if (!ConstructAudioTrackData(InMovieScene, MasterTrackData, AudioTrackRowIndex))
+		if (!ConstructAudioData(InMovieScene, TrackData, AudioTrackRowIndex))
 		{
 			return false;
 		}
@@ -339,9 +339,9 @@ bool FMovieSceneExportData::ConstructAudioMasterTrackData(const UMovieScene* InM
 	return true;
 }
 
-bool FMovieSceneExportData::ConstructAudioTrackData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioMasterTrackData> InAudioMasterTrackData, int32 InRowIndex)
+bool FMovieSceneExportData::ConstructAudioData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioData> InAudioData, int32 InRowIndex)
 {
-	if (InMovieScene == nullptr || !InAudioMasterTrackData.IsValid())
+	if (InMovieScene == nullptr || !InAudioData.IsValid())
 	{
 		return false;
 	}
@@ -349,9 +349,9 @@ bool FMovieSceneExportData::ConstructAudioTrackData(const UMovieScene* InMovieSc
 	TSharedPtr<FMovieSceneExportAudioTrackData> TrackData = MakeShared<FMovieSceneExportAudioTrackData>();
 	TrackData->SampleRate = DefaultAudioSampleRate;
 	TrackData->RowIndex = InRowIndex;
-	InAudioMasterTrackData->AudioTracks.Add(TrackData);
+	InAudioData->AudioTracks.Add(TrackData);
 
-	for (TSharedPtr<FMovieSceneExportAudioSectionData> Section : InAudioMasterTrackData->AudioSections)
+	for (TSharedPtr<FMovieSceneExportAudioSectionData> Section : InAudioData->AudioSections)
 	{
 		if (Section.IsValid() && Section->RowIndex == InRowIndex)
 		{
@@ -362,15 +362,15 @@ bool FMovieSceneExportData::ConstructAudioTrackData(const UMovieScene* InMovieSc
 	return true;
 }
 
-bool FMovieSceneExportData::ConstructCinematicSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicMasterTrackData> InMasterTrackData, const UMovieSceneCinematicShotSection* InCinematicSection)
+bool FMovieSceneExportData::ConstructCinematicSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicData> InCinematicData, const UMovieSceneCinematicShotSection* InCinematicSection)
 {
-	if (InMovieScene == nullptr || !InMasterTrackData.IsValid() || InCinematicSection == nullptr)
+	if (InMovieScene == nullptr || !InCinematicData.IsValid() || InCinematicSection == nullptr)
 	{
 		return false;
 	}
 
 	TSharedPtr<FMovieSceneExportCinematicSectionData> SectionData = MakeShared<FMovieSceneExportCinematicSectionData>();
-	InMasterTrackData->CinematicSections.Add(SectionData);
+	InCinematicData->CinematicSections.Add(SectionData);
 
 	SectionData->DisplayName = InCinematicSection->GetShotDisplayName();
 	if (DuplicateShotNameCounts.Contains(SectionData->DisplayName))
@@ -387,9 +387,9 @@ bool FMovieSceneExportData::ConstructCinematicSectionData(const UMovieScene* InM
 	return true;
 }
 
-bool FMovieSceneExportData::ConstructAudioSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioMasterTrackData> InTrackData, const UMovieSceneAudioSection* InAudioSection)
+bool FMovieSceneExportData::ConstructAudioSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioData> InAudioData, const UMovieSceneAudioSection* InAudioSection)
 {
-	if (InMovieScene == nullptr || !InTrackData.IsValid() || InAudioSection == nullptr)
+	if (InMovieScene == nullptr || !InAudioData.IsValid() || InAudioSection == nullptr)
 	{
 		return false;
 	}
@@ -408,7 +408,7 @@ bool FMovieSceneExportData::ConstructAudioSectionData(const UMovieScene* InMovie
 	}
 
 	TSharedPtr<FMovieSceneExportAudioSectionData> SectionData = MakeShared<FMovieSceneExportAudioSectionData>();
-	InTrackData->AudioSections.Add(SectionData);
+	InAudioData->AudioSections.Add(SectionData);
 
 	TArray<FString> Filenames = SoundWave->AssetImportData->ExtractFilenames();
 	if (Filenames.Num() < 1)
@@ -510,9 +510,9 @@ bool FMovieSceneExportData::FindAudioSections(const FString& InSoundPathName, TA
 		return false;
 	}
 
-	for (TSharedPtr<FMovieSceneExportAudioMasterTrackData> AudioMasterTrack : MovieSceneData->AudioMasterTracks)
+	for (TSharedPtr<FMovieSceneExportAudioData> AudioData : MovieSceneData->AudioData)
 	{
-		for (TSharedPtr<FMovieSceneExportAudioSectionData> AudioSectionData : AudioMasterTrack->AudioSections)
+		for (TSharedPtr<FMovieSceneExportAudioSectionData> AudioSectionData : AudioData->AudioSections)
 		{
 			if (!AudioSectionData.IsValid() || AudioSectionData->MovieSceneSection == nullptr)
 			{
@@ -628,13 +628,13 @@ bool FMovieSceneImportData::IsImportDataValid() const
 
 TSharedPtr<FMovieSceneImportCinematicSectionData> FMovieSceneImportData::FindCinematicSection(const FString& InSectionPathName)
 {
-	TSharedPtr<FMovieSceneImportCinematicMasterTrackData> MasterTrackData = GetCinematicMasterTrackData(false);
-	if (!MasterTrackData.IsValid())
+	TSharedPtr<FMovieSceneImportCinematicData> CinematicData = GetCinematicData(false);
+	if (!CinematicData.IsValid())
 	{
 		return nullptr;
 	}
 
-	for (TSharedPtr<FMovieSceneImportCinematicSectionData> CinematicSection : MasterTrackData->CinematicSections)
+	for (TSharedPtr<FMovieSceneImportCinematicSectionData> CinematicSection : CinematicData->CinematicSections)
 	{
 		UMovieSceneCinematicShotSection* CinematicShotSection = CinematicSection->CinematicSection;
 		if (CinematicShotSection != nullptr)
@@ -659,14 +659,14 @@ TSharedPtr<FMovieSceneImportCinematicSectionData> FMovieSceneImportData::CreateC
 		return nullptr;
 	}
 
-	TSharedPtr<FMovieSceneImportCinematicMasterTrackData> MasterTrackData = GetCinematicMasterTrackData(true);
-	if (!MasterTrackData.IsValid() || MasterTrackData->MovieSceneTrack == nullptr)
+	TSharedPtr<FMovieSceneImportCinematicData> CinematicData = GetCinematicData(true);
+	if (!CinematicData.IsValid() || CinematicData->MovieSceneTrack == nullptr)
 	{
 		return nullptr;
 	}
 
-	UMovieSceneCinematicShotTrack* MasterTrack = Cast<UMovieSceneCinematicShotTrack>(MasterTrackData->MovieSceneTrack);
-	if (MasterTrack == nullptr)
+	UMovieSceneCinematicShotTrack* CinematicTrack = Cast<UMovieSceneCinematicShotTrack>(CinematicData->MovieSceneTrack);
+	if (CinematicTrack == nullptr)
 	{
 		return nullptr;
 	}
@@ -713,8 +713,8 @@ TSharedPtr<FMovieSceneImportCinematicSectionData> FMovieSceneImportData::CreateC
 	FFrameNumber EndFrame = ConvertFrameTime(InEndFrame, InFrameRate, TickResolution).RoundToFrame();
 	int32 Duration = (EndFrame - StartFrame).Value;
 	
-	MasterTrack->Modify();
-	UMovieSceneCinematicShotSection* Section = Cast<UMovieSceneCinematicShotSection>(MasterTrack->AddSequence(SequenceToAdd, StartFrame, Duration));
+	CinematicTrack->Modify();
+	UMovieSceneCinematicShotSection* Section = Cast<UMovieSceneCinematicShotSection>(CinematicTrack->AddSequence(SequenceToAdd, StartFrame, Duration));
 	if (Section == nullptr)
 	{
 		return nullptr;
@@ -725,8 +725,8 @@ TSharedPtr<FMovieSceneImportCinematicSectionData> FMovieSceneImportData::CreateC
 	Section->SetRange(TRange<FFrameNumber>(StartFrame, EndFrame));
 
 	TSharedPtr<FMovieSceneImportCinematicSectionData> SectionData = ConstructCinematicSectionData(Section);
-	MasterTrackData->CinematicSections.Add(SectionData);
-	for (TSharedPtr<FMovieSceneImportCinematicTrackData> TrackData : MasterTrackData->CinematicTracks)
+	CinematicData->CinematicSections.Add(SectionData);
+	for (TSharedPtr<FMovieSceneImportCinematicTrackData> TrackData : CinematicData->CinematicTracks)
 	{
 		if (InRow == TrackData->RowIndex)
 		{
@@ -762,49 +762,49 @@ bool FMovieSceneImportData::SetCinematicSection(TSharedPtr<FMovieSceneImportCine
 	return true;
 }
 
-TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::FindAudioSection(const FString& InSectionPathName, TSharedPtr<FMovieSceneImportAudioMasterTrackData>& OutMasterTrackData)
+TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::FindAudioSection(const FString& InSectionPathName, TSharedPtr<FMovieSceneImportAudioData>& OutAudioData)
 {
 	if (!MovieSceneData.IsValid())
 	{
-		OutMasterTrackData = nullptr;
+		OutAudioData = nullptr;
 		return nullptr;
 	}
 
-	for (TSharedPtr<FMovieSceneImportAudioMasterTrackData> MasterTrackData : MovieSceneData->AudioMasterTracks)
+	for (TSharedPtr<FMovieSceneImportAudioData> AudioData : MovieSceneData->AudioData)
 	{
-		if (!MasterTrackData.IsValid())
+		if (!AudioData.IsValid())
 		{
 			continue;
 		}
 
-		for (TSharedPtr<FMovieSceneImportAudioSectionData> AudioSectionData : MasterTrackData->AudioSections)
+		for (TSharedPtr<FMovieSceneImportAudioSectionData> AudioSectionData : AudioData->AudioSections)
 		{
 			if (AudioSectionData.IsValid() && AudioSectionData->AudioSection != nullptr)
 			{
 				FString SectionName = AudioSectionData->AudioSection->GetPathName();
 				if (SectionName == InSectionPathName)
 				{
-					OutMasterTrackData = MasterTrackData;
+					OutAudioData = AudioData;
 					return AudioSectionData;
 				}
 			}
 		}
 	}
 
-	OutMasterTrackData = nullptr;
+	OutAudioData = nullptr;
 	return nullptr;
 }
 
 /** Create audio section */
-TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::CreateAudioSection(FString InFilenameOrAssetPathName, bool bIsPathName, TSharedPtr<FMovieSceneImportAudioMasterTrackData> InMasterTrackData, int32 InRow, FFrameRate InFrameRate, FFrameNumber InStartFrame, FFrameNumber InEndFrame, FFrameNumber InStartOffsetFrame)
+TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::CreateAudioSection(FString InFilenameOrAssetPathName, bool bIsPathName, TSharedPtr<FMovieSceneImportAudioData> InData, int32 InRow, FFrameRate InFrameRate, FFrameNumber InStartFrame, FFrameNumber InEndFrame, FFrameNumber InStartOffsetFrame)
 {
-	if (!MovieSceneData.IsValid() || MovieSceneData->MovieScene == nullptr || !InMasterTrackData.IsValid() || InMasterTrackData->MovieSceneTrack == nullptr)
+	if (!MovieSceneData.IsValid() || MovieSceneData->MovieScene == nullptr || !InData.IsValid() || InData->MovieSceneTrack == nullptr)
 	{
 		return nullptr;
 	}
 
-	UMovieSceneAudioTrack* MasterTrack = Cast<UMovieSceneAudioTrack>(InMasterTrackData->MovieSceneTrack);
-	if (MasterTrack == nullptr)
+	UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(InData->MovieSceneTrack);
+	if (AudioTrack == nullptr)
 	{
 		return nullptr;
 	}
@@ -869,8 +869,8 @@ TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::CreateAudio
 	FFrameNumber EndFrame = ConvertFrameTime(InEndFrame, InFrameRate, TickResolution).RoundToFrame();
 	int32 Duration = (EndFrame - StartFrame).Value;
 
-	MasterTrack->Modify();
-	UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(MasterTrack->AddNewSoundOnRow(SoundToAdd, StartFrame, InRow));
+	AudioTrack->Modify();
+	UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(AudioTrack->AddNewSoundOnRow(SoundToAdd, StartFrame, InRow));
 	if (AudioSection == nullptr)
 	{
 		return nullptr;
@@ -882,8 +882,8 @@ TSharedPtr<FMovieSceneImportAudioSectionData> FMovieSceneImportData::CreateAudio
 
 	TSharedPtr<FMovieSceneImportAudioSectionData> AudioSectionData = ConstructAudioSectionData(AudioSection);
 
-	InMasterTrackData->AudioSections.Add(AudioSectionData);
-	for (TSharedPtr<FMovieSceneImportAudioTrackData> TrackData : InMasterTrackData->AudioTracks)
+	InData->AudioSections.Add(AudioSectionData);
+	for (TSharedPtr<FMovieSceneImportAudioTrackData> TrackData : InData->AudioTracks)
 	{
 		if (InRow == TrackData->RowIndex)
 		{
@@ -917,20 +917,20 @@ bool FMovieSceneImportData::SetAudioSection(TSharedPtr<FMovieSceneImportAudioSec
 	return true;
 }
 
-bool FMovieSceneImportData::MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSectionData> InAudioSectionData, TSharedPtr<FMovieSceneImportAudioMasterTrackData> InFromMasterTrackData, TSharedPtr<FMovieSceneImportAudioMasterTrackData> InToMasterTrackData, int32 InToRowIndex)
+bool FMovieSceneImportData::MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSectionData> InAudioSectionData, TSharedPtr<FMovieSceneImportAudioData> InFromData, TSharedPtr<FMovieSceneImportAudioData> InToData, int32 InToRowIndex)
 {
-	if (!MovieSceneData.IsValid() || !InAudioSectionData.IsValid() || !InFromMasterTrackData.IsValid() || !InToMasterTrackData.IsValid())
+	if (!MovieSceneData.IsValid() || !InAudioSectionData.IsValid() || !InFromData.IsValid() || !InToData.IsValid())
 	{
 		return false;
 	}
 
-	UMovieSceneAudioTrack* FromTrack = Cast<UMovieSceneAudioTrack>(InFromMasterTrackData->MovieSceneTrack);
+	UMovieSceneAudioTrack* FromTrack = Cast<UMovieSceneAudioTrack>(InFromData->MovieSceneTrack);
 	if (FromTrack == nullptr)
 	{
 		return false;
 	}
 
-	UMovieSceneAudioTrack* ToTrack = Cast<UMovieSceneAudioTrack>(InToMasterTrackData->MovieSceneTrack);
+	UMovieSceneAudioTrack* ToTrack = Cast<UMovieSceneAudioTrack>(InToData->MovieSceneTrack);
 	if (ToTrack == nullptr)
 	{
 		return false;
@@ -946,8 +946,8 @@ bool FMovieSceneImportData::MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSe
 	ToTrack->Modify();
 	ToTrack->AddSection(*AudioSection);
 
-	InFromMasterTrackData->AudioSections.Remove(InAudioSectionData);
-	for (TSharedPtr<FMovieSceneImportAudioTrackData> AudioTrackData : InFromMasterTrackData->AudioTracks)
+	InFromData->AudioSections.Remove(InAudioSectionData);
+	for (TSharedPtr<FMovieSceneImportAudioTrackData> AudioTrackData : InFromData->AudioTracks)
 	{
 		if (AudioTrackData->AudioSections.Contains(InAudioSectionData))
 		{
@@ -956,8 +956,8 @@ bool FMovieSceneImportData::MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSe
 	}
 
 	bool bFoundTrack = false;
-	InToMasterTrackData->AudioSections.Add(InAudioSectionData);
-	for (TSharedPtr<FMovieSceneImportAudioTrackData> AudioTrackData : InToMasterTrackData->AudioTracks)
+	InToData->AudioSections.Add(InAudioSectionData);
+	for (TSharedPtr<FMovieSceneImportAudioTrackData> AudioTrackData : InToData->AudioTracks)
 	{
 		if (AudioTrackData->RowIndex == InToRowIndex)
 		{
@@ -972,37 +972,37 @@ bool FMovieSceneImportData::MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSe
 		TSharedPtr<FMovieSceneImportAudioTrackData> TrackData = MakeShared<FMovieSceneImportAudioTrackData>();
 		TrackData->RowIndex = InToRowIndex;
 		TrackData->AudioSections.Add(InAudioSectionData);
-		InToMasterTrackData->AudioTracks.Add(TrackData);
+		InToData->AudioTracks.Add(TrackData);
 	}
 
 	return true;
 }
 
-TSharedPtr<FMovieSceneImportCinematicMasterTrackData> FMovieSceneImportData::GetCinematicMasterTrackData(bool CreateTrackIfNull) 
+TSharedPtr<FMovieSceneImportCinematicData> FMovieSceneImportData::GetCinematicData(bool CreateTrackIfNull) 
 {
 	if (!MovieSceneData.IsValid())
 	{
 		return nullptr;
 	}
-	if (!MovieSceneData->CinematicMasterTrack.IsValid() && CreateTrackIfNull)
+	if (!MovieSceneData->CinematicData.IsValid() && CreateTrackIfNull)
 	{
-		UMovieSceneCinematicShotTrack* CinematicMasterTrack = MovieSceneData->MovieScene->AddMasterTrack<UMovieSceneCinematicShotTrack>();
-		MovieSceneData->CinematicMasterTrack = ConstructCinematicMasterTrackData(CinematicMasterTrack);
+		UMovieSceneCinematicShotTrack* CinematicTrack = MovieSceneData->MovieScene->AddTrack<UMovieSceneCinematicShotTrack>();
+		MovieSceneData->CinematicData = ConstructCinematicData(CinematicTrack);
 	}
-	return MovieSceneData->CinematicMasterTrack;
+	return MovieSceneData->CinematicData;
 }
 
-TSharedPtr<FMovieSceneImportAudioMasterTrackData> FMovieSceneImportData::GetAudioMasterTrackData()
+TSharedPtr<FMovieSceneImportAudioData> FMovieSceneImportData::GetAudioData()
 {
 	if (!MovieSceneData.IsValid())
 	{
 		return nullptr;
 	}
-	for (TSharedPtr<FMovieSceneImportAudioMasterTrackData> MasterTrack : MovieSceneData->AudioMasterTracks)
+	for (TSharedPtr<FMovieSceneImportAudioData> AudioData : MovieSceneData->AudioData)
 	{
-		if (MasterTrack.IsValid())
+		if (AudioData.IsValid())
 		{
-			return MasterTrack;
+			return AudioData;
 		}
 	}
 	return nullptr;
@@ -1018,57 +1018,57 @@ TSharedPtr<FMovieSceneImportMovieSceneData> FMovieSceneImportData::ConstructMovi
 	MovieSceneData = MakeShared<FMovieSceneImportMovieSceneData>();
 	MovieSceneData->MovieScene = InMovieScene;
 
-	// Get cinematic master track
-	UMovieSceneCinematicShotTrack* CinematicMasterTrack = InMovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
-	if (CinematicMasterTrack != nullptr)
+	// Get cinematic track
+	UMovieSceneCinematicShotTrack* CinematicTrack = InMovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
+	if (CinematicTrack != nullptr)
 	{
-		MovieSceneData->CinematicMasterTrack = ConstructCinematicMasterTrackData(CinematicMasterTrack);
-		if (!MovieSceneData->CinematicMasterTrack.IsValid())
+		MovieSceneData->CinematicData = ConstructCinematicData(CinematicTrack);
+		if (!MovieSceneData->CinematicData.IsValid())
 		{
 			return nullptr;
 		}
 	}
 
 	// Get audio tracks
-	TMap<int32, TSharedPtr<FMovieSceneImportAudioMasterTrackData>> AudioMasterTrackMap;
+	TMap<int32, TSharedPtr<FMovieSceneImportAudioData>> AudioDataMap;
 
-	const TArray<UMovieSceneTrack*> MasterTracks = InMovieScene->GetMasterTracks();
-	for (UMovieSceneTrack* MasterTrack : MasterTracks)
+	const TArray<UMovieSceneTrack*> Tracks = InMovieScene->GetTracks();
+	for (UMovieSceneTrack* Track : Tracks)
 	{
-		if (MasterTrack->IsA(UMovieSceneAudioTrack::StaticClass()))
+		if (Track->IsA(UMovieSceneAudioTrack::StaticClass()))
 		{
 
-			UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(MasterTrack);
+			UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>(Track);
 			if (AudioTrack == nullptr)
 			{
 				continue;
 			}
 
-			TSharedPtr<FMovieSceneImportAudioMasterTrackData> AudioMasterTrackData = ConstructAudioMasterTrackData(AudioTrack);
-			if (!AudioMasterTrackData.IsValid())
+			TSharedPtr<FMovieSceneImportAudioData> AudioData = ConstructAudioData(AudioTrack);
+			if (!AudioData.IsValid())
 			{
 				continue;
 			}
 
-			AudioMasterTrackMap.Add(AudioTrack->GetSortingOrder(), AudioMasterTrackData);
+			AudioDataMap.Add(AudioTrack->GetSortingOrder(), AudioData);
 		}
 	}
 
 
-	// sort the audio master tracks by their sorting index and add to the AudioMasterTracks array
-	if (AudioMasterTrackMap.Num() > 0)
+	// sort the audio tracks by their sorting index and add to the AudioTracks array
+	if (AudioDataMap.Num() > 0)
 	{
-		AudioMasterTrackMap.KeySort([](int32 A, int32 B) {
+		AudioDataMap.KeySort([](int32 A, int32 B) {
 			return A < B; // sort keys in order
 		});
 
-		for (auto& Elem : AudioMasterTrackMap)
+		for (auto& Elem : AudioDataMap)
 		{
 			if (Elem.Value.IsValid())
 			{
-				MovieSceneData->AudioMasterTracks.Add(Elem.Value);
+				MovieSceneData->AudioData.Add(Elem.Value);
 
-				if (!SupportMultipleAudioMasterTracks())
+				if (!SupportMultipleAudioTracks())
 				{
 					break;
 				}
@@ -1080,20 +1080,20 @@ TSharedPtr<FMovieSceneImportMovieSceneData> FMovieSceneImportData::ConstructMovi
 }
 
 
-TSharedPtr<FMovieSceneImportCinematicMasterTrackData> FMovieSceneImportData::ConstructCinematicMasterTrackData(UMovieSceneCinematicShotTrack* InCinematicMasterTrack)
+TSharedPtr<FMovieSceneImportCinematicData> FMovieSceneImportData::ConstructCinematicData(UMovieSceneCinematicShotTrack* InCinematicTrack)
 {
-	if (!MovieSceneData.IsValid() || InCinematicMasterTrack == nullptr)
+	if (!MovieSceneData.IsValid() || InCinematicTrack == nullptr)
 	{
 		return nullptr;
 	}
 
-	TSharedPtr<FMovieSceneImportCinematicMasterTrackData> MasterTrackData = MakeShared<FMovieSceneImportCinematicMasterTrackData>();
-	MasterTrackData->MovieSceneTrack = InCinematicMasterTrack;
+	TSharedPtr<FMovieSceneImportCinematicData> CinematicData = MakeShared<FMovieSceneImportCinematicData>();
+	CinematicData->MovieSceneTrack = InCinematicTrack;
 
 	// Construct sections & create track row index array
 	TArray<int32> CinematicTrackRowIndices;
 
-	for (UMovieSceneSection* ShotSection : InCinematicMasterTrack->GetAllSections())
+	for (UMovieSceneSection* ShotSection : InCinematicTrack->GetAllSections())
 	{
 		UMovieSceneCinematicShotSection* CinematicSection = Cast<UMovieSceneCinematicShotSection>(ShotSection);
 
@@ -1112,27 +1112,27 @@ TSharedPtr<FMovieSceneImportCinematicMasterTrackData> FMovieSceneImportData::Con
 
 	for (int32 CinematicTrackRowIndex : CinematicTrackRowIndices)
 	{
-		TSharedPtr<FMovieSceneImportCinematicTrackData> TrackData = ConstructCinematicTrackData(InCinematicMasterTrack, CinematicTrackRowIndex);
+		TSharedPtr<FMovieSceneImportCinematicTrackData> TrackData = ConstructCinematicTrackData(InCinematicTrack, CinematicTrackRowIndex);
 		if (TrackData.IsValid())
 		{
-			MasterTrackData->CinematicTracks.Add(TrackData);
+			CinematicData->CinematicTracks.Add(TrackData);
 
 			for (TSharedPtr<FMovieSceneImportCinematicSectionData> SectionData : TrackData->CinematicSections)
 			{
 				if (SectionData.IsValid())
 				{
-					MasterTrackData->CinematicSections.Add(SectionData);
+					CinematicData->CinematicSections.Add(SectionData);
 				}
 			}
 		}
 	}
 
-	return MasterTrackData;
+	return CinematicData;
 }
 
-TSharedPtr<FMovieSceneImportCinematicTrackData> FMovieSceneImportData::ConstructCinematicTrackData(UMovieSceneCinematicShotTrack* InCinematicMasterTrack, int32 InRowIndex)
+TSharedPtr<FMovieSceneImportCinematicTrackData> FMovieSceneImportData::ConstructCinematicTrackData(UMovieSceneCinematicShotTrack* InCinematicTrack, int32 InRowIndex)
 {
-	if (!MovieSceneData.IsValid() || InCinematicMasterTrack == nullptr)
+	if (!MovieSceneData.IsValid() || InCinematicTrack == nullptr)
 	{
 		return nullptr;
 	}
@@ -1140,7 +1140,7 @@ TSharedPtr<FMovieSceneImportCinematicTrackData> FMovieSceneImportData::Construct
 	TSharedPtr<FMovieSceneImportCinematicTrackData> TrackData = MakeShared<FMovieSceneImportCinematicTrackData>();
 	TrackData->RowIndex = InRowIndex;
 
-	for (UMovieSceneSection* ShotSection : InCinematicMasterTrack->GetAllSections())
+	for (UMovieSceneSection* ShotSection : InCinematicTrack->GetAllSections())
 	{
 		UMovieSceneCinematicShotSection* CinematicSection = Cast<UMovieSceneCinematicShotSection>(ShotSection);
 
@@ -1159,21 +1159,21 @@ TSharedPtr<FMovieSceneImportCinematicTrackData> FMovieSceneImportData::Construct
 }
 
 
-TSharedPtr<FMovieSceneImportAudioMasterTrackData> FMovieSceneImportData::ConstructAudioMasterTrackData(UMovieSceneAudioTrack* InAudioMasterTrack)
+TSharedPtr<FMovieSceneImportAudioData> FMovieSceneImportData::ConstructAudioData(UMovieSceneAudioTrack* InAudioTrack)
 {
-	if (!MovieSceneData.IsValid() || InAudioMasterTrack == nullptr)
+	if (!MovieSceneData.IsValid() || InAudioTrack == nullptr)
 	{
 		return nullptr;
 	}
 
-	TSharedPtr<FMovieSceneImportAudioMasterTrackData> MasterTrackData = MakeShared<FMovieSceneImportAudioMasterTrackData>();
-	MasterTrackData->MovieSceneTrack = InAudioMasterTrack;
-	MasterTrackData->MaxRowIndex = 0;
+	TSharedPtr<FMovieSceneImportAudioData> AudioData = MakeShared<FMovieSceneImportAudioData>();
+	AudioData->MovieSceneTrack = InAudioTrack;
+	AudioData->MaxRowIndex = 0;
 
 	// Construct sections & create track row index array
 	TArray<int32> AudioTrackRowIndices;
 
-	for (UMovieSceneSection* ShotSection : InAudioMasterTrack->GetAllSections())
+	for (UMovieSceneSection* ShotSection : InAudioTrack->GetAllSections())
 	{
 		UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(ShotSection);
 
@@ -1184,9 +1184,9 @@ TSharedPtr<FMovieSceneImportAudioMasterTrackData> FMovieSceneImportData::Constru
 			{
 				AudioTrackRowIndices.AddUnique(RowIndex);
 
-				if (RowIndex > MasterTrackData->MaxRowIndex)
+				if (RowIndex > AudioData->MaxRowIndex)
 				{
-					MasterTrackData->MaxRowIndex = RowIndex;
+					AudioData->MaxRowIndex = RowIndex;
 				}
 			}
 		}
@@ -1197,27 +1197,27 @@ TSharedPtr<FMovieSceneImportAudioMasterTrackData> FMovieSceneImportData::Constru
 
 	for (int32 AudioTrackRowIndex : AudioTrackRowIndices)
 	{
-		TSharedPtr<FMovieSceneImportAudioTrackData> TrackData = ConstructAudioTrackData(InAudioMasterTrack, AudioTrackRowIndex);
+		TSharedPtr<FMovieSceneImportAudioTrackData> TrackData = ConstructAudioTrackData(InAudioTrack, AudioTrackRowIndex);
 		if (TrackData.IsValid())
 		{
-			MasterTrackData->AudioTracks.Add(TrackData);
+			AudioData->AudioTracks.Add(TrackData);
 
 			for (TSharedPtr<FMovieSceneImportAudioSectionData> SectionData : TrackData->AudioSections)
 			{
 				if (SectionData.IsValid())
 				{
-					MasterTrackData->AudioSections.Add(SectionData);
+					AudioData->AudioSections.Add(SectionData);
 				}
 			}
 		}
 	}
 
-	return MasterTrackData;
+	return AudioData;
 }
 
-TSharedPtr<FMovieSceneImportAudioTrackData> FMovieSceneImportData::ConstructAudioTrackData(UMovieSceneAudioTrack* InAudioMasterTrack, int32 InRowIndex)
+TSharedPtr<FMovieSceneImportAudioTrackData> FMovieSceneImportData::ConstructAudioTrackData(UMovieSceneAudioTrack* InAudioTrack, int32 InRowIndex)
 {
-	if (!MovieSceneData.IsValid() || InAudioMasterTrack == nullptr)
+	if (!MovieSceneData.IsValid() || InAudioTrack == nullptr)
 	{
 		return nullptr;
 	}
@@ -1225,7 +1225,7 @@ TSharedPtr<FMovieSceneImportAudioTrackData> FMovieSceneImportData::ConstructAudi
 	TSharedPtr<FMovieSceneImportAudioTrackData> TrackData = MakeShared<FMovieSceneImportAudioTrackData>();
 	TrackData->RowIndex = InRowIndex;
 
-	for (UMovieSceneSection* Section : InAudioMasterTrack->GetAllSections())
+	for (UMovieSceneSection* Section : InAudioTrack->GetAllSections())
 	{
 		UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(Section);
 

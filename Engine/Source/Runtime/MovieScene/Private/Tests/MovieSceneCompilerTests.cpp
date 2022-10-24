@@ -33,7 +33,7 @@ bool FMovieSceneCompilerPerfTest::RunTest(const FString& Parameters)
 
 	for (int32 i = 0; i < 100; ++i)
 	{
-		UTestMovieSceneTrack* Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneTrack>();
+		UTestMovieSceneTrack* Track = Sequence->MovieScene->AddTrack<UTestMovieSceneTrack>();
 
 		int32 NumSections = FMath::Rand() % 10;
 		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
@@ -186,7 +186,7 @@ bool FMovieSceneCompilerRangeTest::RunTest(const FString& Parameters)
 	UTestMovieSceneSequence* Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
 	for (TRange<FFrameNumber> Range : Ranges)
 	{
-		UTestMovieSceneTrack*   Track   = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneTrack>();
+		UTestMovieSceneTrack*   Track   = Sequence->MovieScene->AddTrack<UTestMovieSceneTrack>();
 		UTestMovieSceneSection* Section = NewObject<UTestMovieSceneSection>(Track);
 
 		Section->SetRange(Range);
@@ -300,7 +300,7 @@ bool FMovieSceneCompilerEmptySpaceOnTheFlyTest::RunTest(const FString& Parameter
 	}
 
 	UTestMovieSceneSequence* Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
-	UTestMovieSceneTrack*    Track    = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneTrack>();
+	UTestMovieSceneTrack*    Track    = Sequence->MovieScene->AddTrack<UTestMovieSceneTrack>();
 
 	for (TRange<FFrameNumber> Range : SectionRanges)
 	{
@@ -406,7 +406,7 @@ bool FMovieSceneCompilerSubSequencesTest::RunTest(const FString& Parameters)
 	};
 
 	UTestMovieSceneSequence* RootSequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
-	UTestMovieSceneSubTrack* RootSubTrack = RootSequence->MovieScene->AddMasterTrack<UTestMovieSceneSubTrack>();
+	UTestMovieSceneSubTrack* RootSubTrack = RootSequence->MovieScene->AddTrack<UTestMovieSceneSubTrack>();
 	
 	UTestMovieSceneSequence* Shot1Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());
 	Shot1Sequence->GetMovieScene()->SetPlaybackRange(0, 100);
@@ -416,7 +416,7 @@ bool FMovieSceneCompilerSubSequencesTest::RunTest(const FString& Parameters)
 	Shot1SubSection->SetSequence(Shot1Sequence);
 	RootSubTrack->SectionArray.Add(Shot1SubSection);
 	
-	UTestMovieSceneTrack* Shot1Track = Shot1Sequence->MovieScene->AddMasterTrack<UTestMovieSceneTrack>();
+	UTestMovieSceneTrack* Shot1Track = Shot1Sequence->MovieScene->AddTrack<UTestMovieSceneTrack>();
 	UTestMovieSceneSection* Shot1Section = NewObject<UTestMovieSceneSection>(Shot1Track);
 	Shot1Section->SetRange(TRange<FFrameNumber>(0, 60));
 	Shot1Track->SectionArray.Add(Shot1Section);

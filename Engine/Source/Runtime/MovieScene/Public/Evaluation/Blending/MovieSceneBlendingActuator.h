@@ -43,7 +43,7 @@ public:
 	/**
 	 * Apply the the specified value to an object.
 	 *
-	 * @param InObject 		The object to apply the value to. nullptr where this actuator is being used for a master track.
+	 * @param InObject 		The object to apply the value to. nullptr where this actuator is being used for a root track.
 	 * @param InValue 		The value to apply to the object.
 	 * @param OriginalStack	Reference to the original stack from which the final result was derived.
 	 * @param Context		Movie scene context structure from the root level
@@ -65,7 +65,7 @@ public:
 	/**
 	 * Retrieve the current value of the specified object
 	 *
-	 * @param InObject 		The object to retrieve the value from. nullptr where this actuator is being used for a master track.
+	 * @param InObject 		The object to retrieve the value from. nullptr where this actuator is being used for a root track.
 	 * @param Player		The movie scene player currently running the sequence. Null when this actuator is used in an interrogation context.
 	 * @return The current value of the object
 	 */

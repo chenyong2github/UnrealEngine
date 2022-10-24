@@ -6,7 +6,7 @@
 #include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedCaptureSource.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectTokenStorage.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedMasterTokenStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedRootTokenStorage.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneComponentPtr.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
@@ -574,14 +574,14 @@ void FPreAnimatedStateExtension::SavePreAnimatedStateDirectly(FMovieSceneAnimTyp
 {
 	using namespace UE::MovieScene;
 
-	TSharedPtr<FAnimTypePreAnimatedStateMasterStorage> MasterStorage = WeakGenericMasterStorage.Pin();
-	if (!MasterStorage)
+	TSharedPtr<FAnimTypePreAnimatedStateRootStorage> RootStorage = WeakGenericRootStorage.Pin();
+	if (!RootStorage)
 	{
-		MasterStorage = GetOrCreateStorage<FAnimTypePreAnimatedStateMasterStorage>();
-		WeakGenericMasterStorage = MasterStorage;
+		RootStorage = GetOrCreateStorage<FAnimTypePreAnimatedStateRootStorage>();
+		WeakGenericRootStorage = RootStorage;
 	}
 
-	FPreAnimatedStateEntry   Entry        = MasterStorage->MakeEntry(InTokenType);
+	FPreAnimatedStateEntry   Entry        = RootStorage->MakeEntry(InTokenType);
 	FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
 
 	AddSourceMetaData(Entry);
@@ -590,18 +590,18 @@ void FPreAnimatedStateExtension::SavePreAnimatedStateDirectly(FMovieSceneAnimTyp
 		? EPreAnimatedStorageRequirement::Transient
 		: EPreAnimatedStorageRequirement::Persistent;
 
-	if (!MasterStorage->IsStorageRequirementSatisfied(StorageIndex, Requirement))
+	if (!RootStorage->IsStorageRequirementSatisfied(StorageIndex, Requirement))
 	{
 		IMovieScenePreAnimatedGlobalTokenPtr Token = Producer.CacheExistingState();
 		if (Token.IsValid())
 		{
-			const bool bHasEverAninmated = MasterStorage->HasEverAnimated(StorageIndex);
+			const bool bHasEverAninmated = RootStorage->HasEverAnimated(StorageIndex);
 			if (!bHasEverAninmated)
 			{
 				Producer.InitializeForAnimation();
 			}
 
-			MasterStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
+			RootStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
 		}
 	}
 }

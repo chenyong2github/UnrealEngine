@@ -96,20 +96,20 @@ static FString MakeNewAssetName(const FString& BaseAssetPath, const FString& Bas
 	return AssetName;
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
-	for (auto MasterTrack : MovieScene->GetMasterTracks())
+	for (auto Track : MovieScene->GetTracks())
 	{
-		if (MasterTrack->IsA(UMovieSceneAudioTrack::StaticClass()) && MasterTrack->GetDisplayName().EqualTo(AudioTrackName))
+		if (Track->IsA(UMovieSceneAudioTrack::StaticClass()) && Track->GetDisplayName().EqualTo(AudioTrackName))
 		{
-			CachedAudioTrack = Cast<UMovieSceneAudioTrack>(MasterTrack);
+			CachedAudioTrack = Cast<UMovieSceneAudioTrack>(Track);
 		}
 	}
 
 	if (!CachedAudioTrack.IsValid())
 	{
-		CachedAudioTrack = MovieScene->AddMasterTrack<UMovieSceneAudioTrack>();
+		CachedAudioTrack = MovieScene->AddTrack<UMovieSceneAudioTrack>();
 		CachedAudioTrack->SetDisplayName(AudioTrackName);
 	}
 
@@ -131,7 +131,7 @@ void UTakeRecorderMicrophoneAudioSource::AddContentsToFolder(UMovieSceneFolder* 
 {
 	if (CachedAudioTrack.IsValid())
 	{
-		InFolder->AddChildMasterTrack(CachedAudioTrack.Get());
+		InFolder->AddChildTrack(CachedAudioTrack.Get());
 	}
 }
 
@@ -179,7 +179,7 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 	AudioRecorder.Reset();
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	if (!RecordedSoundWaves.Num())
 	{

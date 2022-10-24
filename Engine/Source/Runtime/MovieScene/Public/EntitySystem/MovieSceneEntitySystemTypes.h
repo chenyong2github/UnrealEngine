@@ -95,7 +95,7 @@ ENUM_CLASS_FLAGS(EComplexFilterMode);
 
 /**
  * A numeric identifier used to represent a specific 'channel' within an interrogation linker.
- * Interrogation channels are used to identify groupings of tracks or entities that relate to the same output (eg: a property on an object; a master track etc).
+ * Interrogation channels are used to identify groupings of tracks or entities that relate to the same output (eg: a property on an object; a root track etc).
  * See FInterrogationKey for a combination of a channel with a specific interrogation index (or time)
  */
 struct FInterrogationChannel

@@ -61,7 +61,7 @@ public:
 
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 
 public:
 	// Reference to Display Cluster Root Actor

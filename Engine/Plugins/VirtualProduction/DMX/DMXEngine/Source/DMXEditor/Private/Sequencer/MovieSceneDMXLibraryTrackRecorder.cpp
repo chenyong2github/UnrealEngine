@@ -50,7 +50,7 @@ TWeakObjectPtr<UMovieSceneDMXLibraryTrack> UMovieSceneDMXLibraryTrackRecorder::C
 	MovieScene = InMovieScene;
 	bDiscardSamplesBeforeStart = bInDiscardSamplesBeforeStart;
 
-	DMXLibraryTrack = MovieScene->AddMasterTrack<UMovieSceneDMXLibraryTrack>();
+	DMXLibraryTrack = MovieScene->AddTrack<UMovieSceneDMXLibraryTrack>();
 	DMXLibraryTrack->SetDMXLibrary(Library);
 
 	DMXLibrarySection = Cast<UMovieSceneDMXLibrarySection>(DMXLibraryTrack->CreateNewSection());

@@ -393,7 +393,7 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 			FGraphEventRef AccumulateTask = TGraphTask<FAccumulateHierarchicalEasings>::CreateTask(&AccumulatePrereqs, Linker->EntityManager.GetDispatchThread())
 				.ConstructAndDispatchWhenReady(&EasingChannels);
 
-			PropagatePrereqs.AddMasterTask(AccumulateTask);
+			PropagatePrereqs.AddRootTask(AccumulateTask);
 		}
 
 		// Step 3: Apply hierarchical easing results to all entities inside affected sub-sequences.

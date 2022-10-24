@@ -62,12 +62,12 @@ FMovieSceneSequenceID ResolveExternalSequenceID(FMovieSceneSequenceID SourceSequ
 }
 
 
-FRelativeObjectBindingID::FRelativeObjectBindingID(FMovieSceneSequenceID SourceSequenceID, FMovieSceneSequenceID TargetSequenceID, const FGuid& TargetGuid, UMovieSceneSequence* MasterSequence)
+FRelativeObjectBindingID::FRelativeObjectBindingID(FMovieSceneSequenceID SourceSequenceID, FMovieSceneSequenceID TargetSequenceID, const FGuid& TargetGuid, UMovieSceneSequence* RootSequence)
 {
 	UMovieSceneCompiledDataManager* CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
 
 	FMovieSceneSequenceHierarchy TempHierarchy;
-	UMovieSceneCompiledDataManager::CompileHierarchy(MasterSequence, &TempHierarchy, EMovieSceneServerClientMask::All);
+	UMovieSceneCompiledDataManager::CompileHierarchy(RootSequence, &TempHierarchy, EMovieSceneServerClientMask::All);
 
 	ConstructInternal(SourceSequenceID, TargetSequenceID, TargetGuid, &TempHierarchy);
 }

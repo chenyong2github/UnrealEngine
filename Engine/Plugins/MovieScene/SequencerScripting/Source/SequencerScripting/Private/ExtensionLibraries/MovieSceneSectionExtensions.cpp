@@ -623,9 +623,9 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::GetChannelsBy
 bool GetSubSectionChain(UMovieSceneSubSection* InSubSection, UMovieSceneSequence* ParentSequence, TArray<UMovieSceneSubSection*>& SubSectionChain)
 {
 	UMovieScene* ParentMovieScene = ParentSequence->GetMovieScene();
-	for (UMovieSceneTrack* MasterTrack : ParentMovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : ParentMovieScene->GetTracks())
 	{
-		for (UMovieSceneSection* Section : MasterTrack->GetAllSections())
+		for (UMovieSceneSection* Section : Track->GetAllSections())
 		{
 			if (Section == InSubSection)
 			{

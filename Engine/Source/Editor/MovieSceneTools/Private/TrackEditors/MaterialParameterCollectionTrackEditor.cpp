@@ -173,7 +173,7 @@ void FMaterialParameterCollectionTrackEditor::AddTrackToSequence(const FAssetDat
 	}
 
 	// Attempt to find an existing MPC track that animates this object
-	for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 	{
 		if (auto* MPCTrack = Cast<UMovieSceneMaterialParameterCollectionTrack>(Track))
 		{
@@ -187,7 +187,7 @@ void FMaterialParameterCollectionTrackEditor::AddTrackToSequence(const FAssetDat
 	const FScopedTransaction Transaction(LOCTEXT("AddTrackDescription", "Add Material Parameter Collection Track"));
 
 	MovieScene->Modify();
-	UMovieSceneMaterialParameterCollectionTrack* Track = MovieScene->AddMasterTrack<UMovieSceneMaterialParameterCollectionTrack>();
+	UMovieSceneMaterialParameterCollectionTrack* Track = MovieScene->AddTrack<UMovieSceneMaterialParameterCollectionTrack>();
 	check(Track);
 
 	UMovieSceneSection* NewSection = Track->CreateNewSection();

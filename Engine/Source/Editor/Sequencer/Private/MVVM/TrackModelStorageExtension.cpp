@@ -33,30 +33,30 @@ void FTrackModelStorageExtension::OnReinitialize()
 	{
 		MovieScene->EventHandlers.Link(this);
 
-		TSet<UMovieSceneTrack*> MasterTracksInFolders;
+		TSet<UMovieSceneTrack*> TracksInFolders;
 
 		TArray<UMovieSceneFolder*> AllFolders;
 		GetMovieSceneFoldersRecursive(MovieScene->GetRootFolders(), AllFolders);
 		for (UMovieSceneFolder* Folder : AllFolders)
 		{
-			for (UMovieSceneTrack* Track : Folder->GetChildMasterTracks())
+			for (UMovieSceneTrack* Track : Folder->GetChildTracks())
 			{
-				MasterTracksInFolders.Add(Track);
+				TracksInFolders.Add(Track);
 			}
 		}
 
-		for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+		for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 		{
-			if (!MasterTracksInFolders.Contains(Track))
+			if (!TracksInFolders.Contains(Track))
 			{
-				OnMasterTrackAdded(Track);
+				OnTrackAdded(Track);
 			}
 		}
 		if (UMovieSceneTrack* Track = MovieScene->GetCameraCutTrack())
 		{
-			if (!MasterTracksInFolders.Contains(Track))
+			if (!TracksInFolders.Contains(Track))
 			{
-				OnMasterTrackAdded(Track);
+				OnTrackAdded(Track);
 			}
 		}
 	}
@@ -128,12 +128,12 @@ TSharedPtr<FTrackModel> FTrackModelStorageExtension::FindModelForTrack(UMovieSce
 	return TrackToModel.FindRef(TrackAsKey).Pin();
 }
 
-void FTrackModelStorageExtension::OnMasterTrackAdded(UMovieSceneTrack* InTrack)
+void FTrackModelStorageExtension::OnTrackAdded(UMovieSceneTrack* InTrack)
 {
 	CreateModelForTrack(InTrack);
 }
 
-void FTrackModelStorageExtension::OnMasterTrackRemoved(UMovieSceneTrack* InTrack)
+void FTrackModelStorageExtension::OnTrackRemoved(UMovieSceneTrack* InTrack)
 {
 	FObjectKey TrackAsKey(InTrack);
 

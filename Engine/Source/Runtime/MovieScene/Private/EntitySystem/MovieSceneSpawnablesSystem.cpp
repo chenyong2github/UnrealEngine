@@ -192,7 +192,7 @@ void UMovieSceneSpawnablesSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 			IMovieScenePlayer* Player = Instance.GetPlayer();
 
 			// If the sequence instance has finished and it is a sub sequence, we do not destroy the spawnable
-			// if it is owned by the master sequence or externally. These will get destroyed or forgotten by the player when it ends
+			// if it is owned by the root sequence or externally. These will get destroyed or forgotten by the player when it ends
 			if (Instance.HasFinished() && Instance.IsSubSequence())
 			{
 				const UMovieSceneSequence* Sequence = Player->State.FindSequence(Instance.GetSequenceID());

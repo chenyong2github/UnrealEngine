@@ -53,20 +53,20 @@ void FSystemSubsequentTasks::ResetNode(uint16 InNodeID)
 	}
 }
 
-void FSystemSubsequentTasks::AddMasterTask(FGraphEventRef MasterTask)
+void FSystemSubsequentTasks::AddRootTask(FGraphEventRef RootTask)
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SystemDependencyCost)
 
-	if (MasterTask)
+	if (RootTask)
 	{
 		if (!Subsequents)
 		{
 			Subsequents = MakeShared<FSystemTaskPrerequisites>();
 			Graph->Nodes.Array[NodeID].SubsequentTasks = Subsequents;
 		}
-		Subsequents->AddMasterTask(MasterTask);
+		Subsequents->AddRootTask(RootTask);
 
-		AllTasks->Add(MasterTask);
+		AllTasks->Add(RootTask);
 	}
 }
 

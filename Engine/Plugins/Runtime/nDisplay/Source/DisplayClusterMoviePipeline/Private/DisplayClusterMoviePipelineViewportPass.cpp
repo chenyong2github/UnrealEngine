@@ -130,9 +130,9 @@ FIntPoint UDisplayClusterMoviePipelineViewportPassBase::GetEffectiveOutputResolu
 	}
 
 	// Use one size from OutputSettings
-	UMoviePipelineMasterConfig* MasterConfig = GetPipeline()->GetPipelineMasterConfig();
+	UMoviePipelinePrimaryConfig* PrimaryConfig = GetPipeline()->GetPipelinePrimaryConfig();
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()];
-	const FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(MasterConfig, CurrentShot);
+	const FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(PrimaryConfig, CurrentShot);
 
 	return OutputResolution;
 }
@@ -395,7 +395,7 @@ void UDisplayClusterMoviePipelineViewportPassBase::GetViewportCutOffset(const FM
 		const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCacheView();
 
 		// Taking overscan into account.
-		FIntPoint FullOutputSize = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipeline()->GetPipelineMasterConfig(), GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()]);
+		FIntPoint FullOutputSize = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipeline()->GetPipelinePrimaryConfig(), GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()]);
 
 		float OutputSizeAspectRatio = FullOutputSize.X / (float)FullOutputSize.Y;
 		const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > OutputSizeAspectRatio ?

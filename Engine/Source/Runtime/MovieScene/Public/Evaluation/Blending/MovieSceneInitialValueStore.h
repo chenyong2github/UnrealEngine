@@ -49,7 +49,7 @@ struct TMovieSceneInitialValueStore
 	 * Constructor
 	 * @param InActuator 			The actuator that will apply the final value
 	 * @param InStack 				The stack of tokens that are currently being blended (used for saving pre-animated state)
-	 * @param InAnimatingObject 	(Optional) The object that is currently being animated (nullptr for master tracks)
+	 * @param InAnimatingObject 	(Optional) The object that is currently being animated (nullptr for root tracks)
 	 * @param InPlayer 				(Optional) The movie scene player currently playing the sequence (nullptr for data interrogation)
 	 */
 	TMovieSceneInitialValueStore(TMovieSceneBlendingActuator<DataType>& InActuator, const TBlendableTokenStack<DataType>& InStack, UObject* InAnimatingObject, IMovieScenePlayer* InPlayer)
@@ -103,8 +103,8 @@ private:
 	TMovieSceneBlendingActuator<DataType>& Actuator;
 	/** The stack of tokens that are being applied */
 	const TBlendableTokenStack<DataType>& Stack;
-	/** The object that is being animated (nullptr for master track animation) */
+	/** The object that is being animated (nullptr for root track animation) */
 	UObject* AnimatingObject;
-	/** Player that's playing back the sequence. Can be null. Potentially used when accessing values for master tracks. */
+	/** Player that's playing back the sequence. Can be null. Potentially used when accessing values for root tracks. */
 	IMovieScenePlayer* Player;
 };

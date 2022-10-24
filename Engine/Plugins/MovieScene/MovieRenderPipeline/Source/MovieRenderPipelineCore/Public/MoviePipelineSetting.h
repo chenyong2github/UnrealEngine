@@ -43,13 +43,13 @@ public:
 	void OnMoviePipelineShutdown(UMoviePipeline* InPipeline) { TeardownForPipelineImpl(InPipeline); }
 
 	/**
-	* Called only on settings that have been added to the Master Configuration to let you know that
+	* Called only on settings that have been added to the Primary Configuration to let you know that
 	* a shot is about to be rendered. Useful if your setting needs to know something about the shot
 	* to do something correctly, without using a per-shot override.
 	*/
 	void OnSetupForShot(UMoviePipelineExecutorShot* InShot) { OnSetupForShotImpl(InShot); }
 	/**
-	* Called only on settings that have been added to the Master Configuration to let you know that
+	* Called only on settings that have been added to the Primary Configuration to let you know that
 	* a shot has finished rendering and is being torn down.
 	*/
 	void OnTeardownForShot(UMoviePipelineExecutorShot* InShot) { OnTeardownForShotImpl(InShot); }
@@ -117,8 +117,12 @@ public:
 #endif
 	/** Can this configuration setting be added to shots? If not, it will throw an error when trying to add it to a shot config. */
 	virtual bool IsValidOnShots() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnShots, return false; );
-	/** Can this configuration setting be added to the master configuration? If not, it will throw an error when trying to add it to the master configuration. */
-	virtual bool IsValidOnMaster() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnMaster, return false; );
+	/** Can this configuration setting be added to the primary configuration? If not, it will throw an error when trying to add it to the primary configuration. */
+	virtual bool IsValidOnPrimary() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnPrimary, return false; );
+
+	UE_DEPRECATED(5.2, "IsValidOnMaster is deprecated. Please use IsValidOnPrimary instead")
+	virtual bool IsValidOnMaster() const { return IsValidOnPrimary(); }
+
 	/**
 	* If true, then this setting will be included when searching for settings even if it was added transiently. This is used for the rare case where a setting
 	* needs to be run (to set reasonable default values) even if the user hasn't added it.

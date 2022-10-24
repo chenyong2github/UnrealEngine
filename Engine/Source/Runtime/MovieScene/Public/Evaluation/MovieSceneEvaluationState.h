@@ -64,7 +64,7 @@ struct FMovieSceneObjectCache
 	 * Set the sequence that this cache applies to
 	 *
 	 * @param InSequence		The sequence that this cache applies to
-	 * @param InSequenceID		The ID of the sequence within the master sequence
+	 * @param InSequenceID		The ID of the sequence within the root sequence
 	 */
 	MOVIESCENE_API void SetSequence(UMovieSceneSequence& InSequence, FMovieSceneSequenceIDRef InSequenceID, IMovieScenePlayer& Player);
 
@@ -166,7 +166,7 @@ private:
 	/** The sequence that we're caching objects for */
 	TWeakObjectPtr<UMovieSceneSequence> WeakSequence;
 
-	/** The sequence ID of the sequence within the master sequence */
+	/** The sequence ID of the sequence within the root sequence */
 	FMovieSceneSequenceID SequenceID;
 
 	template<typename ValueType>

@@ -76,7 +76,7 @@ public:
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("PlayableDirectly_Label", "Playable Directly"),
-			LOCTEXT("PlayableDirectly_Tip", "When enabled, this sequence will also support being played directly outside of the master sequence. Disable this to save some memory on complex hierarchies of sequences."),
+			LOCTEXT("PlayableDirectly_Tip", "When enabled, this sequence will also support being played directly outside of the root sequence. Disable this to save some memory on complex hierarchies of sequences."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FSubSection::TogglePlayableDirectly),
@@ -436,7 +436,7 @@ bool FSubTrackEditor::CanAddSubSequence(const UMovieSceneSequence& Sequence) con
 
 UMovieSceneSubTrack* FSubTrackEditor::CreateNewTrack(UMovieScene* MovieScene) const
 {
-	return MovieScene->AddMasterTrack<UMovieSceneSubTrack>();
+	return MovieScene->AddTrack<UMovieSceneSubTrack>();
 }
 
 void FSubTrackEditor::GetSupportedSequenceClassPaths(TArray<FTopLevelAssetPath>& ClassPaths) const
@@ -565,7 +565,7 @@ void FSubTrackEditor::InsertSequence(UMovieSceneTrack* Track)
 	UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track);
 	if (!SubTrack)
 	{
-		SubTrack = FindOrCreateMasterTrack<UMovieSceneSubTrack>().Track;
+		SubTrack = FindOrCreateRootTrack<UMovieSceneSubTrack>().Track;
 	}
 
 	FString NewSequencePath = FPaths::GetPath(GetSequencer()->GetFocusedMovieSceneSequence()->GetPathName());
@@ -642,7 +642,7 @@ FKeyPropertyResult FSubTrackEditor::HandleSequenceAdded(FFrameNumber KeyTime, UM
 	UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track);
 	if (!SubTrack)
 	{
-		SubTrack = FindOrCreateMasterTrack<UMovieSceneSubTrack>().Track;
+		SubTrack = FindOrCreateRootTrack<UMovieSceneSubTrack>().Track;
 	}
 
 	const FFrameRate TickResolution = Sequence->GetMovieScene()->GetTickResolution();

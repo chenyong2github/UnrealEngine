@@ -356,7 +356,7 @@ bool FMovieScenePreAnimatedStateTrackTypesTest::RunTest(const FString& Parameter
 
 	// Make a keep-state eval hook section
 	{
-		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneEvalHookTrack>();
+		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddTrack<UTestMovieSceneEvalHookTrack>();
 		UTestMovieSceneEvalHookSection* Section = NewObject<UTestMovieSceneEvalHookSection>(Track);
 
 		Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
@@ -368,7 +368,7 @@ bool FMovieScenePreAnimatedStateTrackTypesTest::RunTest(const FString& Parameter
 	}
 	// Make a restore-state eval hook section
 	{
-		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneEvalHookTrack>();
+		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddTrack<UTestMovieSceneEvalHookTrack>();
 		UTestMovieSceneEvalHookSection* Section = NewObject<UTestMovieSceneEvalHookSection>(Track);
 
 		Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;
@@ -450,7 +450,7 @@ bool FMovieScenePreAnimatedStateContextChangedTest::RunTest(const FString& Param
 
 	// Make a keep-state eval hook section
 	{
-		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddMasterTrack<UTestMovieSceneEvalHookTrack>();
+		UTestMovieSceneEvalHookTrack*   Track = Sequence->MovieScene->AddTrack<UTestMovieSceneEvalHookTrack>();
 		UTestMovieSceneEvalHookSection* Section = NewObject<UTestMovieSceneEvalHookSection>(Track);
 
 		Section->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;

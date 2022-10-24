@@ -7,7 +7,7 @@
 #include "IMovieRenderPipelineEditorModule.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-void FAssetTypeActions_PipelineMasterConfig::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )
+void FAssetTypeActions_PipelinePrimaryConfig::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )
 {
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	if (AssetEditorSubsystem)

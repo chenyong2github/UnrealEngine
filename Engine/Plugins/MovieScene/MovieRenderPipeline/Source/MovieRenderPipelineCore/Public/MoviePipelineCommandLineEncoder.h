@@ -38,7 +38,7 @@ public:
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline);
 	virtual void ValidateStateImpl() override;
 	virtual bool IsValidOnShots() const override { return false; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 	virtual bool HasFinishedExportingImpl() override;
 	virtual void BeginExportImpl() override;
 	

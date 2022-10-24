@@ -74,12 +74,12 @@ struct FSequencerExportFBXParams
 	GENERATED_BODY()
 
 	FSequencerExportFBXParams() {}
-	FSequencerExportFBXParams(UWorld* InWorld, ULevelSequence* InSequence, ULevelSequence* InRootSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* InOverrideOptions, const FString& InFBXFileName)
+	FSequencerExportFBXParams(UWorld* InWorld, ULevelSequence* InSequence, ULevelSequence* InRootSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InTracks, UFbxExportOption* InOverrideOptions, const FString& InFBXFileName)
 		: World(InWorld)
 		, Sequence(InSequence)
 		, RootSequence(InRootSequence)
 		, Bindings(InBindings)
-		, MasterTracks(InMasterTracks)
+		, Tracks(InTracks)
 		, OverrideOptions(InOverrideOptions)
 		, FBXFileName(InFBXFileName) {}
 	
@@ -96,7 +96,7 @@ struct FSequencerExportFBXParams
 	TArray<FMovieSceneBindingProxy> Bindings;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Scene")
-	TArray<TObjectPtr<UMovieSceneTrack>> MasterTracks;
+	TArray<TObjectPtr<UMovieSceneTrack>> Tracks;
 	
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Scene")
 	TObjectPtr<UFbxExportOption> OverrideOptions;
@@ -158,13 +158,13 @@ public:
 public:
 
 	/*
-	 * Export Passed in Bindings and Master Tracks to FBX
+	 * Export Passed in Bindings and Tracks to FBX
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
 	static bool ExportLevelSequenceFBX(const FSequencerExportFBXParams& InParams);
 	
 	UE_DEPRECATED(5.1, "Please use ExportLevelSequenceFBX that takes a FSequencerExportFBXParams")
-	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* InOverrideOptions, const FString& InFBXFileName) { FSequencerExportFBXParams Params(InWorld, InSequence, InSequence, InBindings, InMasterTracks, InOverrideOptions, InFBXFileName); return ExportLevelSequenceFBX(Params); }
+	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InTracks, UFbxExportOption* InOverrideOptions, const FString& InFBXFileName) { FSequencerExportFBXParams Params(InWorld, InSequence, InSequence, InBindings, InTracks, InOverrideOptions, InFBXFileName); return ExportLevelSequenceFBX(Params); }
 
 	/*
 	 * Export Passed in Binding as an Anim Seqquence.

@@ -37,7 +37,7 @@ private:
 
 private:
 
-	void AddNewMasterTrack(FAssetData AssetData);
+	void AddNewTrack(FAssetData AssetData);
 
 	void AddNewObjectBindingTrack(FAssetData AssetData, TArray<FGuid> InObjectBindings);
 

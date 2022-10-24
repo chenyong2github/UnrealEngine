@@ -9,7 +9,7 @@
 #include "LevelSequence.h"
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "AudioMixerSubmix.h"
 #include "DSP/BufferVectorOperations.h"
@@ -174,7 +174,7 @@ void UMoviePipeline::ProcessAudioTick()
 		bCanRenderAudio = CachedOutputState.IsLastTemporalSample();
 		
 		// Process work that has been submitted from the game thread to the audio thread over the temporal samples of this frame.
-		AudioDeltaTime = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
+		AudioDeltaTime = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence).AsInterval();
 	}
 
 	{
@@ -184,7 +184,7 @@ void UMoviePipeline::ProcessAudioTick()
 
 	{
 		// Process work that has been submitted from the game thread to the audio thread over the temporal samples of this frame.
-		FFrameRate OutputFrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
+		FFrameRate OutputFrameRate = GetPipelinePrimaryConfig()->GetEffectiveFrameRate(TargetSequence);
 		NRTPlatform->RenderAudio(OutputFrameRate.AsInterval());
 	}
 }

@@ -381,7 +381,7 @@ void FDMXLibraryTrackEditor::AddDMXLibraryTrackToSequence(const FAssetData& InAs
 	}
 
 	// Attempt to find an existing DMX track that animates this object
-	for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 	{
 		if (auto* DMXTrack = Cast<UMovieSceneDMXLibraryTrack>(Track))
 		{
@@ -395,7 +395,7 @@ void FDMXLibraryTrackEditor::AddDMXLibraryTrackToSequence(const FAssetData& InAs
 	const FScopedTransaction Transaction(LOCTEXT("AddDMXTrackTransaction", "Add DMX Library Track"));
 
 	MovieScene->Modify();
-	UMovieSceneDMXLibraryTrack* Track = MovieScene->AddMasterTrack<UMovieSceneDMXLibraryTrack>();
+	UMovieSceneDMXLibraryTrack* Track = MovieScene->AddTrack<UMovieSceneDMXLibraryTrack>();
 	check(Track);
 
 	Track->SetDMXLibrary(Library);

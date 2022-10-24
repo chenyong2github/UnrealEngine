@@ -365,7 +365,7 @@ void FTrackRowModel::Delete()
 	if (TViewModelPtr<FFolderModel> ParentFolder = CastParent<FFolderModel>())
 	{
 		ParentFolder->GetFolder()->Modify();
-		ParentFolder->GetFolder()->RemoveChildMasterTrack(Track);
+		ParentFolder->GetFolder()->RemoveChildTrack(Track);
 	}
 
 	// Remove sub tracks belonging to this row only

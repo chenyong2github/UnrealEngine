@@ -236,7 +236,7 @@ struct FMovieSceneSubSequenceTree
 template<> struct TStructOpsTypeTraits<FMovieSceneSubSequenceTree> : public TStructOpsTypeTraitsBase2<FMovieSceneSubSequenceTree> { enum { WithSerializer = true, WithIdenticalViaEquality = true }; };
 
 /**
- * Structure that stores hierarchical information pertaining to all sequences contained within a master sequence
+ * Structure that stores hierarchical information pertaining to all sequences contained within a root sequence
  */
 USTRUCT()
 struct FMovieSceneSequenceHierarchy

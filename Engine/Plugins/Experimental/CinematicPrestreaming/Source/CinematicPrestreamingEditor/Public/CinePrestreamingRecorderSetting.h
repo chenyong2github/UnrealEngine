@@ -47,7 +47,7 @@ public:
 protected:
 	// UMoviePipelineSetting interface
 	bool IsValidOnShots() const override { return true; }
-	bool IsValidOnMaster() const override { return true; }
+	bool IsValidOnPrimary() const override { return true; }
 #if WITH_EDITOR
 	FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "CinePrestreamingSettingDisplayName", "Prestreaming Recorder"); }
 	FText GetFooterText(UMoviePipelineExecutorJob* InJob) const;
@@ -112,7 +112,7 @@ private:
 		TMap<FFrameNumber, FFrameData> FrameData;
 		/** OutputState required for creating output file names. */
 		FMoviePipelineFrameOutputState OutputState;
-		/** TickInMaster at first tick in frame. */
+		/** TickInRoot first tick in frame. */
 		FFrameNumber InitialShotTick;
 	};
 

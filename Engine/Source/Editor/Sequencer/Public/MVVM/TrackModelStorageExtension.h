@@ -37,8 +37,8 @@ public:
 
 private:
 
-	void OnMasterTrackAdded(UMovieSceneTrack*) override;
-	void OnMasterTrackRemoved(UMovieSceneTrack*) override;
+	void OnTrackAdded(UMovieSceneTrack*) override;
+	void OnTrackRemoved(UMovieSceneTrack*) override;
 
 private:
 

@@ -9,7 +9,7 @@
 
 class URenderGridQueue;
 class UMoviePipelineOutputSetting;
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 class ULevelSequence;
 class URenderGrid;
 
@@ -198,13 +198,13 @@ public:
 
 
 	UFUNCTION(BlueprintPure, Category="Render Grid|Job")
-	UMoviePipelineMasterConfig* GetRenderPreset() const { return RenderPreset; }
+	UMoviePipelinePrimaryConfig* GetRenderPreset() const { return RenderPreset; }
 
 	UFUNCTION(BlueprintPure, Category="Render Grid|Job")
 	UMoviePipelineOutputSetting* GetRenderPresetOutputSettings() const;
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid|Job")
-	void SetRenderPreset(UMoviePipelineMasterConfig* NewRenderPreset) { RenderPreset = NewRenderPreset; }
+	void SetRenderPreset(UMoviePipelinePrimaryConfig* NewRenderPreset) { RenderPreset = NewRenderPreset; }
 
 
 	bool HasRemoteControlValue(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity) const;
@@ -268,7 +268,7 @@ private:
 
 	/** The movie pipeline render preset. Render grid jobs are rendered using the movie pipeline plugin. This 'preset' contains the configuration of that plugin. */
 	UPROPERTY()
-	TObjectPtr<UMoviePipelineMasterConfig> RenderPreset;
+	TObjectPtr<UMoviePipelinePrimaryConfig> RenderPreset;
 
 	/** The remote control plugin can be used to customize and modify the way a job is rendered. If remote control is being used, the property values of this job will be stored in this map (remote control entity id -> value as bytes). */
 	UPROPERTY()

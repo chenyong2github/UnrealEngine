@@ -7,12 +7,12 @@
 #include "UObject/TextProperty.h"
 #include "Internationalization/Text.h"
 #include "Containers/UnrealString.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 
 #include "MoviePipelineEditorBlueprintLibrary.generated.h"
 
 // Forward Declare
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 class UMoviePipelineExecutorJob;
 class ULevelSequence;
 
@@ -23,7 +23,7 @@ class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineEditorBlueprintLibrary : publi
 	
 public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	static bool ExportConfigToAsset(const UMoviePipelineMasterConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelineMasterConfig*& OutAsset, FText& OutErrorReason);
+	static bool ExportConfigToAsset(const UMoviePipelinePrimaryConfig* InConfig, const FString& InPackagePath, const FString& InFileName, const bool bInSaveAsset, UMoviePipelinePrimaryConfig*& OutAsset, FText& OutErrorReason);
 
 	/** Checks to see if any of the Jobs try to point to maps that wouldn't be valid on a remote render (ie: unsaved maps) */
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")

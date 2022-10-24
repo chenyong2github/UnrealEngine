@@ -311,7 +311,7 @@ void FSequenceModel::PerformDrop(const FViewModelPtr& TargetModel, const FDragDr
 					{
 						OldFolder->SetFlags(RF_Transactional);
 						OldFolder->Modify();
-						OldFolder->RemoveChildMasterTrack(Track);
+						OldFolder->RemoveChildTrack(Track);
 					}
 
 					bSuccess = true;

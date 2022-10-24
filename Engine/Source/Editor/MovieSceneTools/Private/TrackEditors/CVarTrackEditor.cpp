@@ -107,7 +107,7 @@ void FCVarTrackEditor::HandleAddCVarTrackMenuEntryExecute()
 	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "AddCVarTrack_Transaction", "Add Console Variable Track"));
 	FocusedMovieScene->Modify();
 	
-	UMovieSceneCVarTrack* NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneCVarTrack>();
+	UMovieSceneCVarTrack* NewTrack = FocusedMovieScene->AddTrack<UMovieSceneCVarTrack>();
 	ensure(NewTrack);
 
 	NewTrack->SetDisplayName(LOCTEXT("CVarTrackName", "Console Variable"));

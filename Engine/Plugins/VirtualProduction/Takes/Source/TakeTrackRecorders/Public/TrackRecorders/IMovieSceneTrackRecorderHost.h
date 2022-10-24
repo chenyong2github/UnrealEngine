@@ -185,8 +185,8 @@ public:
 	*/
 	virtual FTransform GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const = 0;
 
-	/** Get the master level sequence being recorded into */
-	virtual ULevelSequence* GetMasterLevelSequence() const = 0;
+	/** Get the root level sequence being recorded into */
+	virtual ULevelSequence* GetRootLevelSequence() const = 0;
 
 	/**/
 	virtual FMovieSceneSequenceID GetSequenceID() const = 0;

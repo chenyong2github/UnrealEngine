@@ -38,7 +38,7 @@ public:
 	static UMovieSceneSequence* DuplicateSequence(UObject* Outer, UMovieSceneSequence* InSequence);
 
 	/**
-	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
+	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the primary config.
 	* @param	InFormatString		A format string (in the form of "{format_key1}_{format_key2}") to resolve.
 	* @param	InParams			The parameters to resolve the format string with. See FMoviePipelineFilenameResolveParams properties for details. 
 	*								Expected that you fill out all of the parameters so that they can be used to resolve strings, otherwise default
@@ -101,10 +101,18 @@ public:
 	static float GetCompletionPercentage(const UMoviePipeline* InPipeline);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static FTimecode GetMasterTimecode(const UMoviePipeline* InMoviePipeline);
+	static FTimecode GetRootTimecode(const UMoviePipeline* InMoviePipeline);
+
+	UE_DEPRECATED(5.2, "GetMasterTimecode is deprecated. Please use GetRootTimecode instead")
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline", meta = (DeprecatedFunction, DeprecationMessage = "GetMasterTimecode is deprecated. Please use GetRootTimecode instead"))
+	static FTimecode GetMasterTimecode(const UMoviePipeline* InMoviePipeline) { return GetRootTimecode(InMoviePipeline); }
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static FFrameNumber GetMasterFrameNumber(const UMoviePipeline* InMoviePipeline);
+	static FFrameNumber GetRootFrameNumber(const UMoviePipeline* InMoviePipeline);
+
+	UE_DEPRECATED(5.2, "GetMasterFrameNumber is deprecated. Please use GetRootFrameNumber instead")
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline", meta = (DeprecatedFunction, DeprecationMessage = "GetMasterFrameNumber is deprecated. Please GetRootFrameNumber instead"))
+	static FFrameNumber GetMasterFrameNumber(const UMoviePipeline* InMoviePipeline) { return GetRootFrameNumber(InMoviePipeline); }
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FTimecode GetCurrentShotTimecode(const UMoviePipeline* InMoviePipeline);
@@ -139,11 +147,11 @@ public:
 
 	/** In case of Overscan percentage being higher than 0 we render additional pixels. This function returns the resolution with overscan taken into account. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	static FIntPoint GetEffectiveOutputResolution(UMoviePipelineMasterConfig* InMasterConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot);
+	static FIntPoint GetEffectiveOutputResolution(UMoviePipelinePrimaryConfig* InPrimaryConfig, UMoviePipelineExecutorShot* InPipelineExecutorShot);
 
 	/** Allows access to a setting of provided type for specific shot. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline", meta = (DeterminesOutputType = "InSettingType"))
-	static UMoviePipelineSetting* FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot);
+	static UMoviePipelineSetting* FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelinePrimaryConfig* InPrimaryConfig, const UMoviePipelineExecutorShot* InShot);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static ULevelSequence* GetCurrentSequence(const UMoviePipeline* InMoviePipeline);

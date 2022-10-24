@@ -49,14 +49,14 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTrack(UMovieScene* InMovieScene, co
 	CreateTracks();
 }
 
-UMovieSceneLiveLinkTrack* UMovieSceneLiveLinkTrackRecorder::DoesLiveLinkMasterTrackExist(const FName& MasterTrackName, const TSubclassOf<ULiveLinkRole>& InTrackRole)
+UMovieSceneLiveLinkTrack* UMovieSceneLiveLinkTrackRecorder::DoesLiveLinkTrackExist(const FName& TrackName, const TSubclassOf<ULiveLinkRole>& InTrackRole)
 {
-	for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
+	for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 	{
-		if (MasterTrack->IsA(UMovieSceneLiveLinkTrack::StaticClass()))
+		if (Track->IsA(UMovieSceneLiveLinkTrack::StaticClass()))
 		{
-			UMovieSceneLiveLinkTrack* TestLiveLinkTrack = CastChecked<UMovieSceneLiveLinkTrack>(MasterTrack);
-			if (TestLiveLinkTrack && TestLiveLinkTrack->GetPropertyName() == MasterTrackName && TestLiveLinkTrack->GetTrackRole() == InTrackRole)
+			UMovieSceneLiveLinkTrack* TestLiveLinkTrack = CastChecked<UMovieSceneLiveLinkTrack>(Track);
+			if (TestLiveLinkTrack && TestLiveLinkTrack->GetPropertyName() == TrackName && TestLiveLinkTrack->GetTrackRole() == InTrackRole)
 			{
 				return TestLiveLinkTrack;
 			}
@@ -114,10 +114,10 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 
 	if(bRegistered)
 	{
-		LiveLinkTrack = DoesLiveLinkMasterTrackExist(SubjectName, SubjectRole);
+		LiveLinkTrack = DoesLiveLinkTrackExist(SubjectName, SubjectRole);
 		if (!LiveLinkTrack.IsValid())
 		{
-			LiveLinkTrack = MovieScene->AddMasterTrack<UMovieSceneLiveLinkTrack>();
+			LiveLinkTrack = MovieScene->AddTrack<UMovieSceneLiveLinkTrack>();
 			LiveLinkTrack->SetTrackRole(SubjectRole);
 		}
 		else
@@ -309,7 +309,7 @@ void UMovieSceneLiveLinkTrackRecorder::AddContentsToFolder(UMovieSceneFolder* In
 {
 	if (LiveLinkTrack.IsValid())
 	{
-		InFolder->AddChildMasterTrack(LiveLinkTrack.Get());
+		InFolder->AddChildTrack(LiveLinkTrack.Get());
 	}
 }
 

@@ -84,10 +84,10 @@ bool FFCPXMLImporter::Import(UMovieScene* InMovieScene, FFrameRate InFrameRate, 
 		bSuccess = FCPXMLFile->Accept(ImportVisitor);
 
 		// Flip rows
-		if (ImportData->GetCinematicMasterTrackData(false).IsValid())
+		if (ImportData->GetCinematicData(false).IsValid())
 		{
 			int32 MaxVideoTrackRowIndex = ImportVisitor.GetMaxVideoTrackRowIndex();
-			for (TSharedPtr<FMovieSceneImportCinematicSectionData> SectionData : ImportData->GetCinematicMasterTrackData(false)->CinematicSections)
+			for (TSharedPtr<FMovieSceneImportCinematicSectionData> SectionData : ImportData->GetCinematicData(false)->CinematicSections)
 			{
 				if (SectionData.IsValid())
 				{
@@ -99,10 +99,10 @@ bool FFCPXMLImporter::Import(UMovieScene* InMovieScene, FFrameRate InFrameRate, 
 				}
 			}
 		}
-		if (ImportData->GetAudioMasterTrackData().IsValid())
+		if (ImportData->GetAudioData().IsValid())
 		{
 			int32 MaxAudioTrackRowIndex = ImportVisitor.GetMaxAudioTrackRowIndex();
-			for (TSharedPtr<FMovieSceneImportAudioSectionData> SectionData : ImportData->GetAudioMasterTrackData()->AudioSections)
+			for (TSharedPtr<FMovieSceneImportAudioSectionData> SectionData : ImportData->GetAudioData()->AudioSections)
 			{
 				if (SectionData.IsValid())
 				{

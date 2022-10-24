@@ -591,7 +591,7 @@ void FTrackModel::Resize(float NewSize)
 
 bool FTrackModel::CanDrag() const
 {
-	// Can only drag master tracks at the moment
+	// Can only drag root tracks at the moment
 	TSharedPtr<IObjectBindingExtension> ObjectBindingExtension = FindAncestorOfType<IObjectBindingExtension>();
 	return ObjectBindingExtension == nullptr;
 }
@@ -673,7 +673,7 @@ void FTrackModel::Delete()
 	if (TViewModelPtr<FFolderModel> ParentFolder = CastParent<FFolderModel>())
 	{
 		ParentFolder->GetFolder()->Modify();
-		ParentFolder->GetFolder()->RemoveChildMasterTrack(Track);
+		ParentFolder->GetFolder()->RemoveChildTrack(Track);
 	}
 
 	TSharedPtr<FSequenceModel> OwnerModel = FindAncestorOfType<FSequenceModel>();
@@ -698,7 +698,7 @@ void FTrackModel::Delete()
 	}
 	else
 	{
-		MovieScene->RemoveMasterTrack(*Track);
+		MovieScene->RemoveTrack(*Track);
 	}
 }
 

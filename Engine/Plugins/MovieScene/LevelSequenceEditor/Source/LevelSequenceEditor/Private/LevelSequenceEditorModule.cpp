@@ -145,8 +145,8 @@ protected:
 		CommandList->MapAction(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceInLevel,
 			FExecuteAction::CreateStatic(&FLevelSequenceEditorModule::OnCreateActorInLevel)
 		);
-		CommandList->MapAction(FLevelSequenceEditorCommands::Get().CreateNewMasterSequenceInLevel,
-			FExecuteAction::CreateStatic(&FLevelSequenceEditorModule::OnCreateMasterSequenceInLevel)
+		CommandList->MapAction(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceWithShotsInLevel,
+			FExecuteAction::CreateStatic(&FLevelSequenceEditorModule::OnCreateLevelSequenceWithShotsInLevel)
 		);
 
 		// Create and register the level editor toolbar menu extension
@@ -155,7 +155,7 @@ protected:
 			MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceInLevel);
 		}));
 		CinematicsMenuExtender->AddMenuExtension("LevelEditorNewCinematics", EExtensionHook::First, CommandList, FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder) {
-			MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().CreateNewMasterSequenceInLevel);
+			MenuBuilder.AddMenuEntry(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceWithShotsInLevel);
 		}));
 
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
@@ -353,15 +353,15 @@ protected:
 	}
 
 	/** Callback for creating a new level sequence asset in the level. */
-	static void OnCreateMasterSequenceInLevel()
+	static void OnCreateLevelSequenceWithShotsInLevel()
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelSequenceEditorHelpers::OpenMasterSequenceDialog(LevelEditorModule.GetLevelEditorTabManager().ToSharedRef());
+		LevelSequenceEditorHelpers::OpenLevelSequenceWithShotsDialog(LevelEditorModule.GetLevelEditorTabManager().ToSharedRef());
 	}
 
-	FOnMasterSequenceCreated& OnMasterSequenceCreated() override
+	FOnLevelSequenceWithShotsCreated& OnLevelSequenceWithShotsCreated() override
 	{
-		return OnMasterSequenceCreatedEvent;
+		return OnLevelSequenceWithShotsCreatedEvent;
 	}
 
 	FAllowPlaybackContext& OnComputePlaybackContext() override
@@ -398,7 +398,7 @@ private:
 
 	TSharedPtr<FUICommandList> CommandList;
 
-	FOnMasterSequenceCreated OnMasterSequenceCreatedEvent;
+	FOnLevelSequenceWithShotsCreated OnLevelSequenceWithShotsCreatedEvent;
 
 	FAllowPlaybackContext OnComputePlaybackContextDelegate;
 

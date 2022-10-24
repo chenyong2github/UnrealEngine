@@ -3,7 +3,7 @@
 #include "MoviePipelineVideoOutputBase.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineOutputSetting.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineUtils.h"
 #include "ImageWriteTask.h"
@@ -26,7 +26,7 @@ void UMoviePipelineVideoOutputBase::OnShotFinishedImpl(const UMoviePipelineExecu
 	{
 		// If they don't have {shot_name} or {camera_name} in their output path, this probably doesn't do what they expect
 		// as it will finalize and then overwrite itself.
-		UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+		UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 		check(OutputSettings);
 		FString FullPath = OutputSettings->OutputDirectory.Path / OutputSettings->FileNameFormat;
 		if (!(FullPath.Contains(TEXT("{shot_name}")) || FullPath.Contains(TEXT("{camera_name}"))))
@@ -56,7 +56,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 		return;
 	}
 
-	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
@@ -117,7 +117,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			// off so we can generate a "stable" filename for the incoming image sample, then compare it against existing writers, and
 			// if we don't find a writer, then generate a new one (respecting Overwrite Existing) to add the sample to.
 			{
-				UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+				UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 				const bool bPreviousOverwriteExisting = OutputSetting->bOverrideExistingOutput;
 				OutputSetting->bOverrideExistingOutput = true;
 				
@@ -216,7 +216,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 		FImagePixelData* RawRenderPassData = RenderPassData.Value.Get();
 
 		// Making sure that if OCIO is enabled the Quantization won't do additional color conversion.
-		UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
+		UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineColorSetting>();
 		OutputWriter->Get<0>()->bConvertToSrgb = !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled);
 
 		//FGraphEventRef Event = Task.Execute([this, OutputWriter, RawRenderPassData]

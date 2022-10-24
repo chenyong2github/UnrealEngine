@@ -37,7 +37,7 @@ public:
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "HighResSettingDisplayName", "High Resolution"); }
 #endif
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 	virtual void ValidateStateImpl() override
 	{
 		Super::ValidateStateImpl();
@@ -82,7 +82,7 @@ public:
 				UMoviePipelineAntiAliasingSetting* AASettings = OwningConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
 
 				// If we don't have an output setting we know this is a shot override. If this is a shot override we'll fall back
-				// to the cached master configuration values. We don't do this for non-shot overrides as it would pull the cached
+				// to the cached primary configuration values. We don't do this for non-shot overrides as it would pull the cached
 				// values, not the transient ones in the UI.
 				if (!OutputSettings)
 				{
@@ -91,14 +91,14 @@ public:
 						return FText();
 					}
 
-					UMoviePipelineMasterConfig* MasterConfig = InJob->GetConfiguration();
+					UMoviePipelinePrimaryConfig* PrimaryConfig = InJob->GetConfiguration();
 					if (!OutputSettings)
 					{
-						OutputSettings = MasterConfig->FindSetting<UMoviePipelineOutputSetting>();
+						OutputSettings = PrimaryConfig->FindSetting<UMoviePipelineOutputSetting>();
 					}
 					if (!AASettings)
 					{
-						AASettings = MasterConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
+						AASettings = PrimaryConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
 					}
 				}
 

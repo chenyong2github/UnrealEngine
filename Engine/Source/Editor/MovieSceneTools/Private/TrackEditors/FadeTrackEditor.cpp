@@ -178,7 +178,7 @@ void FFadeTrackEditor::HandleAddFadeTrackMenuEntryExecute()
 		return;
 	}
 
-	UMovieSceneTrack* FadeTrack = MovieScene->FindMasterTrack<UMovieSceneFadeTrack>();
+	UMovieSceneTrack* FadeTrack = MovieScene->FindTrack<UMovieSceneFadeTrack>();
 
 	if (FadeTrack != nullptr)
 	{
@@ -189,7 +189,7 @@ void FFadeTrackEditor::HandleAddFadeTrackMenuEntryExecute()
 
 	MovieScene->Modify();
 
-	FadeTrack = FindOrCreateMasterTrack<UMovieSceneFadeTrack>().Track;
+	FadeTrack = FindOrCreateRootTrack<UMovieSceneFadeTrack>().Track;
 	check(FadeTrack);
 
 	UMovieSceneSection* NewSection = FadeTrack->CreateNewSection();
@@ -208,7 +208,7 @@ bool FFadeTrackEditor::HandleAddFadeTrackMenuEntryCanExecute() const
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
 	
-	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindMasterTrack<UMovieSceneFadeTrack>() == nullptr));
+	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindTrack<UMovieSceneFadeTrack>() == nullptr));
 }
 
 #undef LOCTEXT_NAMESPACE

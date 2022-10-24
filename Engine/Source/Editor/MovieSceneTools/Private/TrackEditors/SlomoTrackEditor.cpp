@@ -96,7 +96,7 @@ void FSlomoTrackEditor::HandleAddSlomoTrackMenuEntryExecute()
 		return;
 	}
 
-	UMovieSceneTrack* SlomoTrack = MovieScene->FindMasterTrack<UMovieSceneSlomoTrack>();
+	UMovieSceneTrack* SlomoTrack = MovieScene->FindTrack<UMovieSceneSlomoTrack>();
 
 	if (SlomoTrack != nullptr)
 	{
@@ -107,7 +107,7 @@ void FSlomoTrackEditor::HandleAddSlomoTrackMenuEntryExecute()
 
 	MovieScene->Modify();
 
-	SlomoTrack = FindOrCreateMasterTrack<UMovieSceneSlomoTrack>().Track;
+	SlomoTrack = FindOrCreateRootTrack<UMovieSceneSlomoTrack>().Track;
 	check(SlomoTrack);
 
 	UMovieSceneSection* NewSection = SlomoTrack->CreateNewSection();
@@ -126,7 +126,7 @@ bool FSlomoTrackEditor::HandleAddSlomoTrackMenuEntryCanExecute() const
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
 
-	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindMasterTrack<UMovieSceneSlomoTrack>() == nullptr));
+	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindTrack<UMovieSceneSlomoTrack>() == nullptr));
 }
 
 #undef LOCTEXT_NAMESPACE

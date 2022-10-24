@@ -49,7 +49,7 @@ struct FMovieSceneBinding;
 *	};
 *	
 *	UE::MovieScene::FSequenceVisitParams Params;
-*	Params.bVisitMasterTracks = true;
+*	Params.bVisitRootTracks = true;
 *	Params.bVisitSubSequences = true;
 *	FCameraCutVisitor CameraCutVisitor;
 *	
@@ -95,7 +95,7 @@ struct MOVIESCENE_API ISequenceVisitor
 struct FSequenceVisitParams
 {
 	FSequenceVisitParams()
-		: bVisitMasterTracks(false)
+		: bVisitRootTracks(false)
 		, bVisitObjectBindings(false)
 		, bVisitTracks(false)
 		, bVisitSections(false)
@@ -109,7 +109,7 @@ struct FSequenceVisitParams
 		return bVisitTracks || bVisitSections;
 	}
 
-	bool bVisitMasterTracks;
+	bool bVisitRootTracks;
 	bool bVisitObjectBindings;
 	bool bVisitTracks;
 	bool bVisitSections;

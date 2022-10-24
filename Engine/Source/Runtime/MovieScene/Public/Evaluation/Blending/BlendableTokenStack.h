@@ -51,7 +51,7 @@ public:
 	/**
 	 * Implemented by typed stacks to compute the final blended value for its data, and apply that result to the specified object
 	 *
-	 * @param InObject			The object to apply the result to. Nullptr for master track data.
+	 * @param InObject			The object to apply the result to. Nullptr for root track data.
 	 * @param Accumulator 		The accumulator that was used to gather and consolidate the blendable tokens
 	 * @param ActuatorTypeID	A unique identifier to the actuator that should be used to apply the result to the object
 	 * @param Context			Root-level movie scene evaluation context for the current frame
@@ -116,7 +116,7 @@ public:
 	/**
 	 * Implemented by typed stacks to compute the final blended value for its data, and apply that result to the specified object
 	 *
-	 * @param InObject			The object to apply the result to. Nullptr for master track data.
+	 * @param InObject			The object to apply the result to. Nullptr for root track data.
 	 * @param Accumulator 		The accumulator that was used to gather and consolidate the blendable tokens
 	 * @param ActuatorTypeID	A unique identifier to the actuator that should be used to apply the result to the object
 	 * @param Context			Root-level movie scene evaluation context for the current frame

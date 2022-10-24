@@ -14,7 +14,7 @@ class USequencerSectionBP;
 UENUM()
 enum class ECustomSequencerTrackType
 {
-	MasterTrack,
+	RootTrack,
 	ObjectTrack,
 };
 

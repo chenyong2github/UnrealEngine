@@ -80,9 +80,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<ULevelSequence> TargetLevelSequence;
 
-	/** The master or uppermost level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
+	/** The root or uppermost level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
 	UPROPERTY()
-	TObjectPtr<ULevelSequence> MasterLevelSequence;
+	TObjectPtr<ULevelSequence> RootLevelSequence;
 
 	/**
 	* Dynamically created list of settings objects for the different factories that are recording something 
@@ -135,11 +135,11 @@ public:
 	
 	// UTakeRecorderSource Interface
 	virtual bool IsValid()const override;
-	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
+	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
 	virtual void TickRecording(const FQualifiedFrameTime& CurrentSequenceTime) override;
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
-	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled) override;
+	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled) override;
 	virtual void FinalizeRecording() override;
 	virtual TArray<UObject*> GetAdditionalSettingsObjects() const { return TArray<UObject*>(FactorySettings); }
 	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
@@ -264,8 +264,8 @@ protected:
 	FTrackRecorderSettings GetTrackRecorderSettings() const override;
 	/** Returns offset that may get set when recording a skeletal mesh animation. Needed to correctly transform attached children*/
 	FTransform GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const override;
-	/** Returns the master level sequence being recorded into */
-	ULevelSequence* GetMasterLevelSequence() const override { return MasterLevelSequence; };
+	/** Returns the root level sequence being recorded into */
+	ULevelSequence* GetRootLevelSequence() const override { return RootLevelSequence; };
 	// ~IMovieSceneTrackRecorderHost Interface
 	
 	/** Initializes an instance of the specified class if we don't already have it in our Settings array. */

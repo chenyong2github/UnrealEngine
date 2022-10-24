@@ -65,7 +65,7 @@ struct FSystemTaskPrerequisites
 
 	MOVIESCENE_API void FilterByComponent(FGraphEventArray& OutArray, std::initializer_list<FComponentTypeID> ComponentTypes) const;
 
-	void AddMasterTask(const FGraphEventRef& InNewTask)
+	void AddRootTask(const FGraphEventRef& InNewTask)
 	{
 		AddComponentTask(FComponentTypeID::Invalid(), InNewTask);
 	}
@@ -97,7 +97,7 @@ struct MOVIESCENE_API FSystemSubsequentTasks
 {
 	using FComponentTypeID = UE::MovieScene::FComponentTypeID;
 
-	void AddMasterTask(FGraphEventRef MasterTask);
+	void AddRootTask(FGraphEventRef RootTask);
 
 	void AddComponentTask(FComponentTypeID ComponentType, FGraphEventRef ComponentTask);
 

@@ -214,7 +214,7 @@ void UMovieSceneSubSection::PostEditChangeProperty(FPropertyChangedEvent& Proper
 {
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMovieSceneSubSection, SubSequence))
 	{
-		// Check whether the subsequence that was just set has master tracks that contain the sequence that this subsection is in.
+		// Check whether the subsequence that was just set has tracks that contain the sequence that this subsection is in.
 		UMovieScene* SubSequenceMovieScene = SubSequence ? SubSequence->GetMovieScene() : nullptr;
 
 		UMovieSceneSubTrack* TrackOuter = Cast<UMovieSceneSubTrack>(GetOuter());
@@ -225,9 +225,9 @@ void UMovieSceneSubSection::PostEditChangeProperty(FPropertyChangedEvent& Proper
 			{
 				TArray<UMovieSceneSubTrack*> SubTracks;
 
-				for (UMovieSceneTrack* MasterTrack : SubSequenceMovieScene->GetMasterTracks())
+				for (UMovieSceneTrack* Track : SubSequenceMovieScene->GetTracks())
 				{
-					if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MasterTrack))
+					if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track))
 					{
 						SubTracks.Add(SubTrack);
 					}

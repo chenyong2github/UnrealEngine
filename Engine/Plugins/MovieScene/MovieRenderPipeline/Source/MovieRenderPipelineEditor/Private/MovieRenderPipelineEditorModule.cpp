@@ -201,8 +201,8 @@ void FMovieRenderPipelineEditorModule::StartupModule()
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	{
-		MasterConfigAssetActions = MakeShared<FAssetTypeActions_PipelineMasterConfig>();
-		AssetTools.RegisterAssetTypeActions(MasterConfigAssetActions.ToSharedRef());
+		PrimaryConfigAssetActions = MakeShared<FAssetTypeActions_PipelinePrimaryConfig>();
+		AssetTools.RegisterAssetTypeActions(PrimaryConfigAssetActions.ToSharedRef());
 
 		ShotConfigAssetActions = MakeShared<FAssetTypeActions_PipelineShotConfig>();
 		AssetTools.RegisterAssetTypeActions(ShotConfigAssetActions.ToSharedRef());
@@ -217,7 +217,7 @@ void FMovieRenderPipelineEditorModule::ShutdownModule()
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
 	if (AssetToolsModule)
 	{
-		AssetToolsModule->Get().UnregisterAssetTypeActions(MasterConfigAssetActions.ToSharedRef());
+		AssetToolsModule->Get().UnregisterAssetTypeActions(PrimaryConfigAssetActions.ToSharedRef());
 		AssetToolsModule->Get().UnregisterAssetTypeActions(ShotConfigAssetActions.ToSharedRef());
 		AssetToolsModule->Get().UnregisterAssetTypeActions(QueueAssetActions.ToSharedRef());
 	}

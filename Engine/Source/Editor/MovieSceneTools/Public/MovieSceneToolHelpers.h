@@ -309,14 +309,14 @@ public:
 	* @param InMovieScene The movie scene to export frome
 	* @param MoviePlayer to use
 	* @param Bindings The sequencer binding map
-	* @param MasterTracks Master tracks to export
+	* @param Tracks The tracks to export
 	* @param NodeNameAdaptor Adaptor to look up actor names.
 	* @param InFBXFileName the fbx file name.
 	* @param Template Movie scene sequence id.
 	* @param RootToLocalTransform The root to local transform time.
 	* @return Whether the export was successful
 	*/
-	static bool ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& MasterTracks, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template,  const FString& InFBXFileName, FMovieSceneSequenceTransform& RootToLocalTransform);
+	static bool ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& Tracks, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template,  const FString& InFBXFileName, FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/**
 	* Import FBX with dialog

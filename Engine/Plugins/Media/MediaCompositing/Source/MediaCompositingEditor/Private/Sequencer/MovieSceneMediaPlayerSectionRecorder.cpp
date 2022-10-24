@@ -49,7 +49,7 @@ void FMovieSceneMediaPlayerSectionRecorder::CreateSection(UObject* InObjectToRec
 	MovieSceneTrack = InMovieScene->FindTrack<UMovieSceneMediaTrack>(InGuid, ObjectToRecord->GetFName());
 	if (!MovieSceneTrack.IsValid())
 	{
-		MovieSceneTrack = InMovieScene->AddMasterTrack<UMovieSceneMediaTrack>();
+		MovieSceneTrack = InMovieScene->AddTrack<UMovieSceneMediaTrack>();
 		MovieSceneTrack->SetDisplayName(FText::FromName(ObjectToRecord->GetFName()));
 	}
 	else

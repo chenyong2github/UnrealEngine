@@ -3,7 +3,7 @@
 #include "MoviePipelineFCPXMLExporterSetting.h"
 #include "MoviePipeline.h"
 #include "MoviePipelineOutputSetting.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 
@@ -26,7 +26,7 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 	bHasFinishedExporting = true;
 
 #if WITH_EDITOR
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 
 	// Use our file name format on the end of the shared common directory.
 	FString FileNameFormat = FileNameFormatOverride.Len() > 0 ? FileNameFormatOverride : OutputSetting->FileNameFormat;
@@ -59,7 +59,7 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 			return;
 		}
 
-		UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
+		UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
 		if (!ShotTrack)
 		{
 			UE_LOG(LogMovieRenderPipeline, Error, TEXT("FCPXML Export only works with a Cinematic Shot track. No FCPXML file will be written."));
@@ -68,7 +68,7 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 		
 		FString FilenameFormat = OutputSetting->FileNameFormat;
 		int32 HandleFrames = OutputSetting->HandleFrameCount;
-		FFrameRate FrameRate = GetPipeline()->GetPipelineMasterConfig()->GetEffectiveFrameRate(Sequence);
+		FFrameRate FrameRate = GetPipeline()->GetPipelinePrimaryConfig()->GetEffectiveFrameRate(Sequence);
 		uint32 ResX = OutputSetting->OutputResolution.X;
 		uint32 ResY = OutputSetting->OutputResolution.Y;
 		FString MovieExtension = ".mxf";
@@ -117,7 +117,7 @@ bool UMoviePipelineFCPXMLExporter::EnsureWritableFile()
 		IFileManager::Get().MakeDirectory(*Directory);
 	}
 
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 
 	// If the file doesn't exist, we're ok to continue
 	if (IFileManager::Get().FileSize(*FilePath) == -1)

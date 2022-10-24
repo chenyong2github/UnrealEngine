@@ -924,7 +924,7 @@ void FAudioTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddTrack", "Audio Track"),
-		LOCTEXT("AddTooltip", "Adds a new master audio track that can play sounds."),
+		LOCTEXT("AddTooltip", "Adds a new audio track that can play sounds."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Audio"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FAudioTrackEditor::HandleAddAudioTrackMenuEntryExecute)
@@ -1090,7 +1090,7 @@ FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, const FSeq
 			}
 			else
 			{
-				AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FAudioTrackEditor::AddNewMasterSound, Sound, AudioTrack, DragDropParams.RowIndex));
+				AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FAudioTrackEditor::AddNewSound, Sound, AudioTrack, DragDropParams.RowIndex));
 			}
 
 			bAnyDropped = true;
@@ -1144,7 +1144,7 @@ bool FAudioTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObje
 		else
 		{
 			int32 RowIndex = INDEX_NONE;
-			AnimatablePropertyChanged( FOnKeyProperty::CreateRaw(this, &FAudioTrackEditor::AddNewMasterSound, Sound, DummyTrack, RowIndex));
+			AnimatablePropertyChanged( FOnKeyProperty::CreateRaw(this, &FAudioTrackEditor::AddNewSound, Sound, DummyTrack, RowIndex));
 		}
 
 		return true;
@@ -1153,7 +1153,7 @@ bool FAudioTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObje
 }
 
 
-FKeyPropertyResult FAudioTrackEditor::AddNewMasterSound( FFrameNumber KeyTime, USoundBase* Sound, UMovieSceneAudioTrack* AudioTrack, int32 RowIndex )
+FKeyPropertyResult FAudioTrackEditor::AddNewSound( FFrameNumber KeyTime, USoundBase* Sound, UMovieSceneAudioTrack* AudioTrack, int32 RowIndex )
 {
 	FKeyPropertyResult KeyPropertyResult;
 
@@ -1165,11 +1165,11 @@ FKeyPropertyResult FAudioTrackEditor::AddNewMasterSound( FFrameNumber KeyTime, U
 
 	FocusedMovieScene->Modify();
 
-	FFindOrCreateMasterTrackResult<UMovieSceneAudioTrack> TrackResult;
+	FFindOrCreateRootTrackResult<UMovieSceneAudioTrack> TrackResult;
 	TrackResult.Track = AudioTrack;
 	if (!AudioTrack)
 	{
-		TrackResult = FindOrCreateMasterTrack<UMovieSceneAudioTrack>();
+		TrackResult = FindOrCreateRootTrack<UMovieSceneAudioTrack>();
 		AudioTrack = TrackResult.Track;
 	}
 
@@ -1261,7 +1261,7 @@ void FAudioTrackEditor::HandleAddAudioTrackMenuEntryExecute()
 	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "AddAudioTrack_Transaction", "Add Audio Track"));
 	FocusedMovieScene->Modify();
 	
-	auto NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneAudioTrack>();
+	auto NewTrack = FocusedMovieScene->AddTrack<UMovieSceneAudioTrack>();
 	ensure(NewTrack);
 
 	NewTrack->SetDisplayName(LOCTEXT("AudioTrackName", "Audio"));

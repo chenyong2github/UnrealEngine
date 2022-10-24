@@ -99,7 +99,7 @@ struct TStructOpsTypeTraits<FMovieSceneTrackInstanceInput> : public TStructOpsTy
 
 
 /**
- * Base class for all track instances. Can also be used for master tracks where AnimatedObject will be nullptr
+ * Base class for all track instances. Can also be used for root tracks where AnimatedObject will be nullptr
  */
 UCLASS(transient)
 class MOVIESCENE_API UMovieSceneTrackInstance : public UObject
@@ -138,7 +138,7 @@ public:
 
 
 	/**
-	 * Retrieve the object that is being animated (may be nullptr for master tracks)
+	 * Retrieve the object that is being animated (may be nullptr for root tracks)
 	 */
 	UObject* GetAnimatedObject() const
 	{
@@ -194,7 +194,7 @@ private:
 	TObjectPtr<UObject> AnimatedObject;
 
 	UPROPERTY()
-	bool bIsMasterTrackInstance;
+	bool bIsRootTrackInstance;
 
 	UPROPERTY()
 	TObjectPtr<UMovieSceneEntitySystemLinker> PrivateLinker;

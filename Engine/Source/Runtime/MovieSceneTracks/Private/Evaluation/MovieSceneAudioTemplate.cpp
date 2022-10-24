@@ -108,7 +108,7 @@ struct FCachedAudioTrackData : IPersistentEvaluationData
 	
 	FCachedAudioTrackData()
 	{
-		// Create the container for master tracks, which do not have an actor to attach to
+		// Create the container for root tracks, which do not have an actor to attach to
 		AudioComponentsByActorKey.Add(FObjectKey(), TMap<FObjectKey, TWeakObjectPtr<UAudioComponent>>());
 	}
 
@@ -208,7 +208,7 @@ struct FCachedAudioTrackData : IPersistentEvaluationData
 	}
 
 	/** Only to be called on the game thread */
-	UAudioComponent* AddMasterAudioComponentForRow(int32 RowIndex, FObjectKey SectionKey, UWorld* World, IMovieScenePlayer& Player)
+	UAudioComponent* AddRootAudioComponentForRow(int32 RowIndex, FObjectKey SectionKey, UWorld* World, IMovieScenePlayer& Player)
 	{
 		UAudioComponent* ExistingComponent = GetAudioComponent(FObjectKey(), SectionKey);
 		if (!ExistingComponent)
@@ -221,7 +221,7 @@ struct FCachedAudioTrackData : IPersistentEvaluationData
 
 			if (!ExistingComponent)
 			{
-				UE_LOG(LogMovieScene, Warning, TEXT("Failed to create audio component for master audio track (row %d)."), RowIndex);
+				UE_LOG(LogMovieScene, Warning, TEXT("Failed to create audio component for root audio track (row %d)."), RowIndex);
 				return nullptr;
 			}
 
@@ -275,7 +275,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			TrackData.StopAllSounds();
 		}
 
-		// Master audio track
+		// Root audio track
 		else if (!Operand.ObjectBindingID.IsValid())
 		{
 			UObject* PlaybackContext = Player.GetPlaybackContext();
@@ -307,7 +307,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			if (!AudioComponent)
 			{
 				// Initialize the sound
-				AudioComponent = TrackData.AddMasterAudioComponentForRow(AudioSection->GetRowIndex(), SectionKey, PlaybackContext ? PlaybackContext->GetWorld() : nullptr, Player);
+				AudioComponent = TrackData.AddRootAudioComponentForRow(AudioSection->GetRowIndex(), SectionKey, PlaybackContext ? PlaybackContext->GetWorld() : nullptr, Player);
 
 				if (AudioComponent)
 				{

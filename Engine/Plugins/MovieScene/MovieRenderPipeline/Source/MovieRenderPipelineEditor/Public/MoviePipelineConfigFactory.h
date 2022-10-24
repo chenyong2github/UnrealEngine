@@ -7,11 +7,11 @@
 
 // Forward Declare
 UCLASS(BlueprintType)
-class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineMasterConfigFactory : public UFactory
+class MOVIERENDERPIPELINEEDITOR_API UMoviePipelinePrimaryConfigFactory : public UFactory
 {
     GENERATED_BODY()
 public:
-	UMoviePipelineMasterConfigFactory();
+	UMoviePipelinePrimaryConfigFactory();
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	virtual uint32 GetMenuCategories() const override;

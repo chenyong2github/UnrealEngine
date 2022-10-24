@@ -82,7 +82,7 @@ void UTakeRecorderNiagaraCacheSource::AddContentsToFolder(UMovieSceneFolder* InF
 {
 	if (CachedNiagaraCacheTrack.IsValid())
 	{
-		InFolder->AddChildMasterTrack(CachedNiagaraCacheTrack.Get());
+		InFolder->AddChildTrack(CachedNiagaraCacheTrack.Get());
 	}
 }
 

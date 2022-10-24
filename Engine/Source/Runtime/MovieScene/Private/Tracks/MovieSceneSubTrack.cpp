@@ -118,7 +118,7 @@ bool UMovieSceneSubTrack::ContainsSequence(const UMovieSceneSequence& Sequence, 
 			continue;
 		}
 
-		UMovieSceneSubTrack* SubSubTrack = SubMovieScene->FindMasterTrack<UMovieSceneSubTrack>();
+		UMovieSceneSubTrack* SubSubTrack = SubMovieScene->FindTrack<UMovieSceneSubTrack>();
 
 		if ((SubSubTrack != nullptr) && SubSubTrack->ContainsSequence(Sequence))
 		{

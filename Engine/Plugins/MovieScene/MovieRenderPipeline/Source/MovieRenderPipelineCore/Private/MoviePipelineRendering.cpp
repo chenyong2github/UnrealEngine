@@ -12,7 +12,7 @@
 #include "MoviePipelineDebugSettings.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineConfigBase.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineBlueprintLibrary.h"
 #include "Math/Halton.h"
 #include "ImageWriteTask.h"
@@ -59,12 +59,12 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	*/
 	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
 	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(InShot);
-	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
 
 	FIntPoint BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
-	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipelineMasterConfig(), InShot);
+	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipelinePrimaryConfig(), InShot);
 
 	// Figure out how big each sub-region (tile) is.
 	FIntPoint BackbufferResolution = FIntPoint(
@@ -163,11 +163,11 @@ void UMoviePipeline::RenderFrame()
 	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
-	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	UMoviePipelineDebugSettings* DebugSettings = FindOrAddSettingForShot<UMoviePipelineDebugSettings>(ActiveShotList[CurrentShotIndex]);
 	
 	// Color settings are optional, so we don't need to do any assertion checks.
-	UMoviePipelineColorSetting* ColorSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
+	UMoviePipelineColorSetting* ColorSettings = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineColorSetting>();
 	check(AntiAliasingSettings);
 	check(CameraSettings);
 	check(HighResSettings);
@@ -175,7 +175,7 @@ void UMoviePipeline::RenderFrame()
 
 	FIntPoint TileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 	FIntPoint OriginalTileCount = TileCount;
-	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipelineMasterConfig(), ActiveShotList[CurrentShotIndex]);
+	FIntPoint OutputResolution = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipelinePrimaryConfig(), ActiveShotList[CurrentShotIndex]);
 
 	int32 NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
 	int32 NumTemporalSamples = AntiAliasingSettings->TemporalSampleCount;
@@ -390,7 +390,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.OverscanPercentage = FMath::Clamp(CameraSettings->OverscanPercentage, 0.0f, 1.0f);
 
 				// Render each output pass
-				FMoviePipelineRenderPassMetrics SampleStateForCurrentResolution = UE::MoviePipeline::GetRenderPassMetrics(GetPipelineMasterConfig(), ActiveShotList[CurrentShotIndex], SampleState, OutputResolution);
+				FMoviePipelineRenderPassMetrics SampleStateForCurrentResolution = UE::MoviePipeline::GetRenderPassMetrics(GetPipelinePrimaryConfig(), ActiveShotList[CurrentShotIndex], SampleState, OutputResolution);
 				for (UMoviePipelineRenderPass* RenderPass : InputBuffers)
 				{
 					RenderPass->RenderSample_GameThread(SampleStateForCurrentResolution);
@@ -450,7 +450,7 @@ void UMoviePipeline::ProcessOutstandingFinishedFrames()
 		FRenderTimeStatistics& TimeStats = RenderTimeFrameStatistics.FindOrAdd(OutputFrame.FrameOutputState.OutputFrameNumber);
 		TimeStats.EndTime = FDateTime::UtcNow();
 	
-		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
+		for (UMoviePipelineOutputBase* OutputContainer : GetPipelinePrimaryConfig()->GetOutputContainers())
 		{
 			OutputContainer->OnReceiveImageData(&OutputFrame);
 		}
@@ -462,7 +462,7 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 {
 	// This function handles the "Write all Samples" feature which lets you inspect data
 	// pre-accumulation.
-	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
 	// This is for debug output, writing every individual sample to disk that comes off of the GPU (that isn't discarded).

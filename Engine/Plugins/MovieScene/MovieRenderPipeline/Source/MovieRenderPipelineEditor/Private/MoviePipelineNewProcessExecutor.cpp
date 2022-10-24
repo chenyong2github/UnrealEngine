@@ -148,7 +148,7 @@ void UMoviePipelineNewProcessExecutor::Execute_Implementation(UMoviePipelineQueu
 		FString PipelineConfig = TEXT("MovieRenderPipeline/QueueManifest.utxt");
 		
 		// Because the Queue has multiple jobs in it, we don't need to pass which sequence to render. That's only needed if you're rendering a 
-		// specific sequence with a specific master config.
+		// specific sequence with a specific primary config.
 		MoviePipelineArgs = FString::Printf(TEXT("-MoviePipelineConfig=\"%s\""), *PipelineConfig); // -MoviePipeline=\"%s\" -MoviePipelineLocalExecutorClass=\"%s\" -MoviePipelineClass=\"%s\""),
 	}
 

@@ -351,7 +351,7 @@ void FDataLayerTrackEditor::HandleAddTrack()
 	const FScopedTransaction Transaction(LOCTEXT("AddDataLayerTrack_Transaction", "Add Data Layer Track"));
 	FocusedMovieScene->Modify();
 
-	UMovieSceneDataLayerTrack* NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneDataLayerTrack>();
+	UMovieSceneDataLayerTrack* NewTrack = FocusedMovieScene->AddTrack<UMovieSceneDataLayerTrack>();
 	checkf(NewTrack, TEXT("Failed to create new data layer track."));
 
 	UMovieSceneDataLayerSection* NewSection = AddNewSection(FocusedMovieScene, NewTrack, EDataLayerRuntimeState::Activated);

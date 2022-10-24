@@ -28,10 +28,10 @@ UTakeRecorderCameraCutSource::UTakeRecorderCameraCutSource(const FObjectInitiali
 	TrackTint = FColor(160, 160, 160);
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	World = TakeRecorderSourcesUtils::GetSourceWorld(InSequence);
-	MasterLevelSequence = InMasterSequence;
+	RootLevelSequence = InRootSequence;
 
 	return TArray<UTakeRecorderSource*>();
 }
@@ -90,7 +90,7 @@ void UTakeRecorderCameraCutSource::TickRecording(const FQualifiedFrameTime& Curr
 	}
 
 	FGuid RecordedCameraGuid = TakeRecorderSourcesUtils::GetRecordedActorGuid(this, Target);
-	FMovieSceneSequenceID RecordedCameraSequenceID = TakeRecorderSourcesUtils::GetLevelSequenceID(this, Target, MasterLevelSequence);
+	FMovieSceneSequenceID RecordedCameraSequenceID = TakeRecorderSourcesUtils::GetLevelSequenceID(this, Target, RootLevelSequence);
 
 	// If this camera is already noted, skip it until it changes
 	if (CameraCutData.Num() && CameraCutData.Last().Guid == RecordedCameraGuid && CameraCutData.Last().SequenceID == RecordedCameraSequenceID)
@@ -102,22 +102,22 @@ void UTakeRecorderCameraCutSource::TickRecording(const FQualifiedFrameTime& Curr
 }
 
 
-TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	// Build the camera cut track
 	if (!bCancelled && CameraCutData.Num())
 	{
-		UMovieSceneTrack* CameraCutTrack = InMasterSequence->GetMovieScene()->GetCameraCutTrack();
+		UMovieSceneTrack* CameraCutTrack = InRootSequence->GetMovieScene()->GetCameraCutTrack();
 		if (!CameraCutTrack)
 		{
-			CameraCutTrack = InMasterSequence->GetMovieScene()->AddCameraCutTrack(UMovieSceneCameraCutTrack::StaticClass());
+			CameraCutTrack = InRootSequence->GetMovieScene()->AddCameraCutTrack(UMovieSceneCameraCutTrack::StaticClass());
 		}
 		else
 		{
 			CameraCutTrack->RemoveAllAnimationData();
 		}
 
- 		FFrameRate TickResolution = InMasterSequence->GetMovieScene()->GetTickResolution();
+ 		FFrameRate TickResolution = InRootSequence->GetMovieScene()->GetTickResolution();
 
 		for (int32 CameraCutIndex = 0; CameraCutIndex < CameraCutData.Num(); ++CameraCutIndex)
 		{
@@ -129,12 +129,12 @@ TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class U
 				FFrameNumber NextCameraCutTime = 
 					CameraCutIndex+1 < CameraCutData.Num() ? 
 					CameraCutData[CameraCutIndex+1].Time.ConvertTo(TickResolution).FloorToFrame() : 
-					InMasterSequence->GetMovieScene()->GetPlaybackRange().GetUpperBoundValue();
-				Range = TRange<FFrameNumber>(InMasterSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue(), NextCameraCutTime);
+					InRootSequence->GetMovieScene()->GetPlaybackRange().GetUpperBoundValue();
+				Range = TRange<FFrameNumber>(InRootSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue(), NextCameraCutTime);
 			}
 			else if (CameraCutIndex == CameraCutData.Num()-1)
 			{
-				Range = TRange<FFrameNumber>(CameraCutTime, InMasterSequence->GetMovieScene()->GetPlaybackRange().GetUpperBoundValue());
+				Range = TRange<FFrameNumber>(CameraCutTime, InRootSequence->GetMovieScene()->GetPlaybackRange().GetUpperBoundValue());
 			}
 			else
 			{
@@ -160,7 +160,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class U
 	}
 
 	World = nullptr;
-	MasterLevelSequence = nullptr;
+	RootLevelSequence = nullptr;
 
 	return SourcesToRemove;
 }

@@ -40,7 +40,7 @@ FString GetPreferredFormat(const TArray<FString>& Extensions)
 
 bool FFCPXMLMetadataExportVisitor::ConstructMasterVideoClipNodes(TSharedRef<FFCPXMLNode> InParentNode)
 {
-	if (!ExportData->IsExportDataValid() || !ExportData->MovieSceneData.IsValid() || !ExportData->MovieSceneData->CinematicMasterTrack.IsValid())
+	if (!ExportData->IsExportDataValid() || !ExportData->MovieSceneData.IsValid() || !ExportData->MovieSceneData->CinematicData.IsValid())
 	{
 		return false;
 	}
@@ -243,7 +243,7 @@ bool FFCPXMLMetadataExportVisitor::GetFileIdName(const FString& InFileName, FStr
 	return true;
 }
 
-bool FFCPXMLMetadataExportVisitor::ConstructVideoTrackNode(TSharedRef<FFCPXMLNode> InParentNode, const TSharedPtr<FMovieSceneExportCinematicTrackData> InCinematicTrackData, const TSharedPtr<FMovieSceneExportCinematicMasterTrackData> InCinematicMasterTrackData)
+bool FFCPXMLMetadataExportVisitor::ConstructVideoTrackNode(TSharedRef<FFCPXMLNode> InParentNode, const TSharedPtr<FMovieSceneExportCinematicTrackData> InCinematicTrackData, const TSharedPtr<FMovieSceneExportCinematicData> InCinematicData)
 {
 	if (!ExportData->IsExportDataValid() || !InCinematicTrackData.IsValid())
 	{

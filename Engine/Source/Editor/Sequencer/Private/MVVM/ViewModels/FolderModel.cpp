@@ -137,7 +137,7 @@ void FFolderModel::RepopulateChildren()
 	}
 
 	// Create/recycle models for any tracks
-	for (UMovieSceneTrack* Track : Folder->GetChildMasterTracks())
+	for (UMovieSceneTrack* Track : Folder->GetChildTracks())
 	{
 		if (Track)
 		{
@@ -646,10 +646,10 @@ void FFolderModel::PerformDrop(const FViewModelPtr& TargetModel, const FDragDrop
 					{
 						OldFolder->SetFlags(RF_Transactional);
 						OldFolder->Modify();
-						OldFolder->RemoveChildMasterTrack(Track);
+						OldFolder->RemoveChildTrack(Track);
 					}
 
-					Folder->AddChildMasterTrack(Track);
+					Folder->AddChildTrack(Track);
 					bSuccess = true;
 				}
 			}

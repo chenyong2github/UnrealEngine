@@ -19,7 +19,7 @@ enum class ESpawnOwnership : uint8
 	InnerSequence,
 
 	/** The object's lifetime is managed by the outermost sequence */
-	MasterSequence,
+	RootSequence,
 
 	/** Once spawned, the object's lifetime is managed externally. */
 	External,

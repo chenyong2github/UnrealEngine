@@ -621,89 +621,106 @@ public:
 public:
 
 	/**
-	 * Adds a master track.
+	 * Adds a track.
 	 *
 	 * Note: The type should not already exist.
 	 *
 	 * @param TrackClass The class of the track to create
 	 * @param Type	The newly created type
-	 * @see FindMasterTrack, GetMasterTracks, IsMasterTrack, RemoveMasterTrack
+	 * @see FindTrack, GetTracks, IsTrack, RemoveTrack
 	 */
-	UMovieSceneTrack* AddMasterTrack(TSubclassOf<UMovieSceneTrack> TrackClass);
+	UMovieSceneTrack* AddTrack(TSubclassOf<UMovieSceneTrack> TrackClass);
 	
-	/**
-	 * Adds a master track.
-	 *
-	 * Note: The type should not already exist.
-	 *
-	 * @param TrackClass The class of the track to create
-	 * @param Type	The newly created type
-	 * @see FindMasterTrack, GetMasterTracks, IsMasterTrack, RemoveMasterTrack
-	 */
-	template<typename TrackClass>
-	TrackClass* AddMasterTrack()
-	{
-		return Cast<TrackClass>(AddMasterTrack(TrackClass::StaticClass()));
-	}
+	UE_DEPRECATED(5.2, "AddMasterTrack is deprecated. Please use AddTrack instead")
+	UMovieSceneTrack* AddMasterTrack(TSubclassOf<UMovieSceneTrack> TrackClass) { return AddTrack(TrackClass); }
 
 	/**
-	* Adds a given track as a master track
+	 * Adds a track.
+	 *
+	 * Note: The type should not already exist.
+	 *
+	 * @param TrackClass The class of the track to create
+	 * @param Type	The newly created type
+	 * @see FindTrack, GetTracks, IsTrack, RemoveTrack
+	 */
+	template<typename TrackClass>
+	TrackClass* AddTrack()
+	{
+		return Cast<TrackClass>(AddTrack(TrackClass::StaticClass()));
+	}
+
+	template<typename TrackClass>
+	UE_DEPRECATED(5.2, "AddMasterTrack is deprecated. Please use AddTrack instead")
+	TrackClass* AddMasterTrack() { return AddTrack<TrackClass>(); }
+
+	/**
+	* Adds a given track as a track
 	*
 	* @param InTrack The track to add.
 	* @see  FindTrack, RemoveTrack
 	* @return true if the track is successfully added, false otherwise.
 	*/
-	bool AddGivenMasterTrack(UMovieSceneTrack* InTrack);
+	bool AddGivenTrack(UMovieSceneTrack* InTrack);
+
+	UE_DEPRECATED(5.2, "AddGivenMasterTrack is deprecated. Please use AddGivenTrack instead")
+	bool AddGivenMasterTrack(UMovieSceneTrack* InTrack) { return AddGivenTrack(InTrack); }
 
 	/**
-	 * Finds a master track (one not bound to a runtime objects).
+	 * Finds a track (one not bound to a runtime objects).
 	 *
 	 * @param TrackClass The class of the track to find.
 	 * @return The found track or nullptr if one does not exist.
-	 * @see AddMasterTrack, GetMasterTracks, IsMasterTrack, RemoveMasterTrack
+	 * @see AddTrack, GetTracks, IsTrack, RemoveTrack
 	 */
-	UMovieSceneTrack* FindMasterTrack(TSubclassOf<UMovieSceneTrack> TrackClass) const;
+	UMovieSceneTrack* FindTrack(TSubclassOf<UMovieSceneTrack> TrackClass) const;
+
+	UE_DEPRECATED(5.2, "FindMasterTrack is deprecated. Please use FindTrack instead")
+	UMovieSceneTrack* FindMasterTrack(TSubclassOf<UMovieSceneTrack> TrackClass) const { return FindTrack(TrackClass); }
 
 	/**
-	 * Finds a master track (one not bound to a runtime objects).
+	 * Finds a track (one not bound to a runtime objects).
 	 *
 	 * @param TrackClass The class of the track to find.
 	 * @return The found track or nullptr if one does not exist.
-	 * @see AddMasterTrack, GetMasterTracks, IsMasterTrack, RemoveMasterTrack
+	 * @see AddTrack, GetTracks, IsTrack, RemoveTrack
 	 */
 	template<typename TrackClass>
-	TrackClass* FindMasterTrack() const
+	TrackClass* FindTrack() const
 	{
-		return Cast<TrackClass>(FindMasterTrack(TrackClass::StaticClass()));
+		return Cast<TrackClass>(FindTrack(TrackClass::StaticClass()));
 	}
 
+	template<typename TrackClass>
+	UE_DEPRECATED(5.2, "FindMasterTrack is deprecated. Please use FindTrack instead")
+	TrackClass* FindMasterTrack() const { return FindTrack<TrackClass>(); }
+
 	/**
-	 * Get all master tracks.
+	 * Get all tracks.
 	 *
 	 * @return Track collection.
-	 * @see AddMasterTrack, FindMasterTrack, IsMasterTrack, RemoveMasterTrack
+	 * @see AddTrack, FindTrack, IsTrack, RemoveTrack
 	 */
-	const TArray<UMovieSceneTrack*>& GetMasterTracks() const
+	const TArray<UMovieSceneTrack*>& GetTracks() const
 	{
-		return MasterTracks;
+		return Tracks;
 	}
 
-	/**
-	 * Check whether the specified track is a master track in this scene.
-	 *
-	 * @return true if the track is a master track, false otherwise.
-	 * @see AddMasterTrack, FindMasterTrack, GetMasterTracks, RemoveMasterTrack
-	 */
-	bool IsAMasterTrack(const UMovieSceneTrack& Track) const;
+	UE_DEPRECATED(5.2, "GetMasterTracks is deprecated. Please use GetTracks instead")
+	const TArray<UMovieSceneTrack*>& GetMasterTracks() const { return GetTracks(); }
 
 	/**
-	 * Removes a master track.
+	 * Check whether the specified track is a track in this movie scene.
 	 *
-	 * @param Track The track to remove.
-	 * @return true if anything was removed.
-	 * @see AddMasterTrack, FindMasterTrack, GetMasterTracks, IsMasterTrack
+	 * @return true if the track is a track, false otherwise.
+	 * @see AddTrack, FindTrack, GetTracks, RemoveTrack
 	 */
-	bool RemoveMasterTrack(UMovieSceneTrack& Track);
+	bool ContainsTrack(const UMovieSceneTrack& Track) const;
+
+	UE_DEPRECATED(5.2, "IsAMasterTrack is deprecated. Please use ContainsTrack instead")
+	bool IsAMasterTrack(const UMovieSceneTrack& Track) const { return ContainsTrack(Track); }
+
+	UE_DEPRECATED(5.2, "RemoveMasterTrack is deprecated. Please use RemoveTrack instead")
+	bool RemoveMasterTrack(UMovieSceneTrack& Track) { return RemoveTrack(Track); }
 
 	/**
 	 * Move all the contents (tracks, child bindings) of the specified binding ID onto another
@@ -1230,9 +1247,9 @@ private:
 	UPROPERTY()
 	TMap<FName, FMovieSceneObjectBindingIDs> BindingGroups;
 
-	/** Master tracks which are not bound to spawned or possessed objects */
+	/** Tracks which are not bound to spawned or possessed objects */
 	UPROPERTY(Instanced)
-	TArray<TObjectPtr<UMovieSceneTrack>> MasterTracks;
+	TArray<TObjectPtr<UMovieSceneTrack>> Tracks;
 
 	/** The camera cut track is a specialized track for switching between cameras on a cinematic */
 	UPROPERTY(Instanced)
@@ -1333,10 +1350,11 @@ private:
 	UPROPERTY()
 	float FixedFrameInterval_DEPRECATED;
 
+	UPROPERTY()
+	TArray<TObjectPtr<UMovieSceneTrack>> MasterTracks_DEPRECATED;
+
 	//delegates
 	private:
 	FMovieSceneOnChannelChanged OnChannelChangedDelegate;
 #endif
-
-		
 };

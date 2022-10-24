@@ -2630,7 +2630,7 @@ UMovieSceneSection* FSequencer::FindNextOrPreviousShot(UMovieSceneSequence* Sequ
 {
 	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
 
-	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass());
+	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
 	if (!CinematicShotTrack)
 	{
 		return nullptr;
@@ -2728,7 +2728,7 @@ void FSequencer::SetPlaybackRangeToAllShots()
 	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
 	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
 
-	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass());
+	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
 	if (!CinematicShotTrack || CinematicShotTrack->GetAllSections().Num() == 0)
 	{
 		return;
@@ -5428,7 +5428,7 @@ void FSequencer::AddSubSequence(UMovieSceneSequence* Sequence)
 	const FScopedTransaction Transaction( LOCTEXT("UndoAddingObject", "Add Object to MovieScene") );
 	OwnerMovieScene->Modify();
 
-	UMovieSceneSubTrack* SubTrack = OwnerMovieScene->AddMasterTrack<UMovieSceneSubTrack>();
+	UMovieSceneSubTrack* SubTrack = OwnerMovieScene->AddTrack<UMovieSceneSubTrack>();
 
 	FFrameNumber Duration = ConvertFrameTime(
 		Sequence->GetMovieScene()->GetPlaybackRange().Size<FFrameNumber>(),
@@ -7323,10 +7323,10 @@ void FSequencer::MoveNodeToFolder(TSharedRef<FViewModel> NodeToMove, UMovieScene
 		{
 			FFolderModel* NodeParentFolder = ParentNode->CastThisChecked<FFolderModel>();
 			NodeParentFolder->GetFolder()->Modify();
-			NodeParentFolder->GetFolder()->RemoveChildMasterTrack(TrackNode->GetTrack());
+			NodeParentFolder->GetFolder()->RemoveChildTrack(TrackNode->GetTrack());
 		}
 
-		DestinationFolder->AddChildMasterTrack(TrackNode->GetTrack());
+		DestinationFolder->AddChildTrack(TrackNode->GetTrack());
 	}
 	else if (IObjectBindingExtension* ObjectBindingNode = NodeToMove->CastThis<IObjectBindingExtension>())
 	{
@@ -7426,7 +7426,7 @@ TArray<TSharedRef<UE::Sequencer::FViewModel> > FSequencer::GetSelectedNodesInFol
 			{
 				if (TrackNode->GetTrack())
 				{
-					if (Folder->GetFolder()->GetChildMasterTracks().Contains(TrackNode->GetTrack()))
+					if (Folder->GetFolder()->GetChildTracks().Contains(TrackNode->GetTrack()))
 					{
 						NodesToFolders.Add(SelectedNode);
 					}
@@ -7823,7 +7823,7 @@ void FSequencer::RemoveSelectedNodesFromFolders()
 			{
 				if (TrackNode->GetTrack())
 				{
-					Folder->GetFolder()->RemoveChildMasterTrack(TrackNode->GetTrack());
+					Folder->GetFolder()->RemoveChildTrack(TrackNode->GetTrack());
 				}
 			}
 		}
@@ -8825,7 +8825,7 @@ void FSequencer::OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, con
 		if (SelectedParentFolders.Num() == 1)
 		{
 			SelectedParentFolders[0]->Modify();
-			SelectedParentFolders[0]->AddChildMasterTrack(InTrack.Get());
+			SelectedParentFolders[0]->AddChildTrack(InTrack.Get());
 		}
 	}
 
@@ -9489,11 +9489,11 @@ TSet<FFrameNumber> FSequencer::GetVerticalFrames() const
 		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
 		if (FocusedMovieScene != nullptr)
 		{
-			for (UMovieSceneTrack* MasterTrack : FocusedMovieScene->GetMasterTracks())
+			for (UMovieSceneTrack* Track : FocusedMovieScene->GetTracks())
 			{
-				if (MasterTrack && MasterTrack->DisplayOptions.bShowVerticalFrames)
+				if (Track && Track->DisplayOptions.bShowVerticalFrames)
 				{
-					AddVerticalFrames(VerticalFrames, MasterTrack);
+					AddVerticalFrames(VerticalFrames, Track);
 				}
 			}
 
@@ -10214,7 +10214,7 @@ void FSequencer::ExportFBX()
 		
 		// Select selected nodes if there are selected nodes
 		TArray<FGuid> Bindings;
-		TArray<UMovieSceneTrack*> MasterTracks;
+		TArray<UMovieSceneTrack*> Tracks;
 		UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
 		for (const TWeakPtr<FViewModel>& Node : Selection.GetSelectedOutlinerItems())
 		{
@@ -10236,9 +10236,9 @@ void FSequencer::ExportFBX()
 			else if (ITrackExtension* TrackNode = ICastable::CastWeakPtr<ITrackExtension>(Node))
 			{
 				UMovieSceneTrack* Track = TrackNode->GetTrack();
-				if (Track && MovieScene->IsAMasterTrack(*Track))
+				if (Track && MovieScene->ContainsTrack(*Track))
 				{
-					MasterTracks.Add(Track);
+					Tracks.Add(Track);
 				}
 			}
 		}
@@ -10246,7 +10246,7 @@ void FSequencer::ExportFBX()
 		FString FileExtension = FPaths::GetExtension(ExportFilename);
 		if (FileExtension == TEXT("fbx"))
 		{
-			ExportFBXInternal(ExportFilename, Bindings, (Bindings.Num() + MasterTracks.Num()) > 0 ? MasterTracks : MovieScene->GetMasterTracks());
+			ExportFBXInternal(ExportFilename, Bindings, (Bindings.Num() + Tracks.Num()) > 0 ? Tracks : MovieScene->GetTracks());
 		}
 		else
 		{
@@ -10283,7 +10283,7 @@ void FSequencer::ExportFBX()
 }
 
 
-void FSequencer::ExportFBXInternal(const FString& ExportFilename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& MasterTracks)
+void FSequencer::ExportFBXInternal(const FString& ExportFilename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& Tracks)
 {
 	{
 		UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
@@ -10306,7 +10306,7 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, const TArray<F
 					SetLocalTimeDirectly(UE::MovieScene::DiscreteInclusiveLower(GetTimeBounds()));
 				}
 
-				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, MasterTracks, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
+				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, Tracks, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
 				{
 					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXSucceeded", "FBX Export Succeeded."));
 					Info.Hyperlink = FSimpleDelegate::CreateStatic([](FString InFilename) { FPlatformProcess::ExploreFolder(*InFilename); }, ExportFilename);
@@ -10409,7 +10409,7 @@ void FSequencer::TrimOrExtendSection(bool bTrimOrExtendLeft)
 	}
 	else
 	{
-		for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+		for (UMovieSceneTrack* Track : MovieScene->GetTracks())
 		{
 			MovieSceneToolHelpers::TrimOrExtendSection(Track, TOptional<int32>(), GetLocalTime(), bTrimOrExtendLeft, Settings->GetDeleteKeysWhenTrimming());
 		}
@@ -11319,17 +11319,17 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeToNextShot,
 		FExecuteAction::CreateSP( this, &FSequencer::SetSelectionRangeToShot, true ),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingRootSequence ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeToPreviousShot,
 		FExecuteAction::CreateSP( this, &FSequencer::SetSelectionRangeToShot, false ),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingRootSequence ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetPlaybackRangeToAllShots,
 		FExecuteAction::CreateSP( this, &FSequencer::SetPlaybackRangeToAllShots ),
-		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingRootSequence ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.RefreshUI,

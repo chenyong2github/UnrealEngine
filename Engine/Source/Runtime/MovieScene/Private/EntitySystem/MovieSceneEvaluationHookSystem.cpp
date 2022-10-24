@@ -144,7 +144,7 @@ void UMovieSceneEvaluationHookSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 			FGraphEventRef SortTask = TGraphTask<FEvaluationHookSorter>::CreateTask(&Prereqs, Linker->EntityManager.GetDispatchThread())
 			.ConstructAndDispatchWhenReady(this);
 
-			Subsequents.AddMasterTask(SortTask);
+			Subsequents.AddRootTask(SortTask);
 		}
 	}
 	else if (HasEvents())

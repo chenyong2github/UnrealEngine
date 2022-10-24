@@ -33,7 +33,7 @@ namespace UE
 namespace MovieScene
 {
 
-struct FAnimTypePreAnimatedStateMasterStorage;
+struct FAnimTypePreAnimatedStateRootStorage;
 struct FAnimTypePreAnimatedStateObjectStorage;
 struct FPreAnimatedEntityCaptureSource;
 struct FPreAnimatedStateExtension;
@@ -322,8 +322,8 @@ private:
 
 	/** Pointers to the storage for state bound to objects, organized by FMovieSceneAnimTypeID */
 	TWeakPtr<FAnimTypePreAnimatedStateObjectStorage> WeakGenericObjectStorage;
-	/** Pointers to the storage for state created from master tracks, or otherwise not bound to objects */
-	TWeakPtr<FAnimTypePreAnimatedStateMasterStorage> WeakGenericMasterStorage;
+	/** Pointers to the storage for state created from root tracks, or otherwise not bound to objects */
+	TWeakPtr<FAnimTypePreAnimatedStateRootStorage> WeakGenericRootStorage;
 
 private:
 

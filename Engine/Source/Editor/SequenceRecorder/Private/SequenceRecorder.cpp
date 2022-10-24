@@ -934,47 +934,47 @@ bool FSequenceRecorder::StopRecording(bool bAllowLooping)
 
 		if (RecordedSoundWaves.Num())
 		{
-			// Add a new master audio track to the level sequence		
+			// Add a new audio track to the level sequence		
 			UMovieScene* MovieScene = LevelSequence->GetMovieScene();
-			UMovieSceneAudioTrack* RecordedAudioMasterTrack = nullptr;
+			UMovieSceneAudioTrack* RecordedAudioTrack = nullptr;
 
 			FText RecordedAudioTrackName = Settings->AudioTrackName;
-			for (auto MasterTrack : MovieScene->GetMasterTracks())
+			for (auto Track : MovieScene->GetTracks())
 			{
-				if (MasterTrack->IsA(UMovieSceneAudioTrack::StaticClass()) && MasterTrack->GetDisplayName().EqualTo(RecordedAudioTrackName))
+				if (Track->IsA(UMovieSceneAudioTrack::StaticClass()) && Track->GetDisplayName().EqualTo(RecordedAudioTrackName))
 				{
-					RecordedAudioMasterTrack = Cast<UMovieSceneAudioTrack>(MasterTrack);
+					RecordedAudioTrack = Cast<UMovieSceneAudioTrack>(Track);
 				}
 			}
 
-			if (!RecordedAudioMasterTrack)
+			if (!RecordedAudioTrack)
 			{
-				RecordedAudioMasterTrack = MovieScene->AddMasterTrack<UMovieSceneAudioTrack>();
-				RecordedAudioMasterTrack->SetDisplayName(RecordedAudioTrackName);
+				RecordedAudioTrack = MovieScene->AddTrack<UMovieSceneAudioTrack>();
+				RecordedAudioTrack->SetDisplayName(RecordedAudioTrackName);
 			}
 
 			if (Settings->bReplaceRecordedAudio)
 			{
-				RecordedAudioMasterTrack->RemoveAllAnimationData();
+				RecordedAudioTrack->RemoveAllAnimationData();
 			}
 
 			for (USoundWave* RecordedAudio : RecordedSoundWaves)
 			{
 				int32 RowIndex = -1;
-				for (UMovieSceneSection* Section : RecordedAudioMasterTrack->GetAllSections())
+				for (UMovieSceneSection* Section : RecordedAudioTrack->GetAllSections())
 				{
 					RowIndex = FMath::Max(RowIndex, Section->GetRowIndex());
 				}
 
-				UMovieSceneAudioSection* NewAudioSection = NewObject<UMovieSceneAudioSection>(RecordedAudioMasterTrack, UMovieSceneAudioSection::StaticClass());
+				UMovieSceneAudioSection* NewAudioSection = NewObject<UMovieSceneAudioSection>(RecordedAudioTrack, UMovieSceneAudioSection::StaticClass());
 
-				FFrameRate TickResolution = RecordedAudioMasterTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
+				FFrameRate TickResolution = RecordedAudioTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 				NewAudioSection->SetRowIndex(RowIndex + 1);
 				NewAudioSection->SetSound(RecordedAudio);
 				NewAudioSection->SetRange(TRange<FFrameNumber>(FFrameNumber(0), (RecordedAudio->GetDuration() * TickResolution).CeilToFrame()));
 
-				RecordedAudioMasterTrack->AddSection(*NewAudioSection);
+				RecordedAudioTrack->AddSection(*NewAudioSection);
 
 				if(Settings->bAutoSaveAsset || GEditor == nullptr)
 				{

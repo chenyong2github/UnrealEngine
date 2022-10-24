@@ -90,7 +90,7 @@ bool FReplayTrackEditor::HandleAddReplayTrackMenuEntryCanExecute() const
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
 
-	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindMasterTrack<UMovieSceneReplayTrack>() == nullptr));
+	return ((FocusedMovieScene != nullptr) && (FocusedMovieScene->FindTrack<UMovieSceneReplayTrack>() == nullptr));
 }
 
 void FReplayTrackEditor::HandleAddReplayTrackMenuEntryExecute()
@@ -189,14 +189,14 @@ UMovieSceneReplayTrack* FReplayTrackEditor::FindOrCreateReplayTrack(bool* bWasCr
 		return nullptr;
 	}
 
-	UMovieSceneReplayTrack* ReplayTrack = FocusedMovieScene->FindMasterTrack<UMovieSceneReplayTrack>();
+	UMovieSceneReplayTrack* ReplayTrack = FocusedMovieScene->FindTrack<UMovieSceneReplayTrack>();
 
 	if (ReplayTrack == nullptr)
 	{
 		const FScopedTransaction Transaction(LOCTEXT("AddReplayTrack_Transaction", "Add Replay Track"));
 		FocusedMovieScene->Modify();
 		
-		ReplayTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneReplayTrack>();
+		ReplayTrack = FocusedMovieScene->AddTrack<UMovieSceneReplayTrack>();
 
 		if (bWasCreated)
 		{

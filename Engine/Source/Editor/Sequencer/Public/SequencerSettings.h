@@ -602,7 +602,7 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category = General)
 	bool bActivateRealtimeViewports;
 
-	/** When enabled, entering a sub sequence will evaluate that sub sequence in isolation, rather than from the master sequence */
+	/** When enabled, entering a sub sequence will evaluate that sub sequence in isolation, rather than from the root sequence */
 	UPROPERTY(config, EditAnywhere, Category=Playback)
 	bool bEvaluateSubSequencesInIsolation;
 

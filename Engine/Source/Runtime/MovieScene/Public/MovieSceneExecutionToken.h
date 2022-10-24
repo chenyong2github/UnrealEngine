@@ -69,7 +69,7 @@ struct IMovieScenePreAnimatedGlobalToken
 	virtual ~IMovieScenePreAnimatedGlobalToken() {}
 
 	/**
-	 * Restore global state for a master track.
+	 * Restore global state for a root track.
 	 *
 	 * @param Params Parameters for restoring state
 	 */

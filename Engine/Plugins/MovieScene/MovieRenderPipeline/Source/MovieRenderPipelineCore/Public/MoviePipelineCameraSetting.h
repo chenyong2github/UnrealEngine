@@ -21,7 +21,7 @@ public:
 #endif
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
-	virtual bool IsValidOnMaster() const override { return true; }
+	virtual bool IsValidOnPrimary() const override { return true; }
 	
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
 	{

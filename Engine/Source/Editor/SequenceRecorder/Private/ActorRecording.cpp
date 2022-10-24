@@ -784,10 +784,10 @@ bool UActorRecording::StopRecording(ULevelSequence* OriginalSequence, float Curr
 	if (CurrentSequence && OriginalSequence && OriginalSequence != CurrentSequence)
 	{
 		UMovieScene* MovieScene = OriginalSequence->GetMovieScene();
-		UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MovieScene->FindMasterTrack(UMovieSceneSubTrack::StaticClass()));
+		UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MovieScene->FindTrack(UMovieSceneSubTrack::StaticClass()));
 		if (!SubTrack)
 		{
-			SubTrack = Cast<UMovieSceneSubTrack>(MovieScene->AddMasterTrack(UMovieSceneSubTrack::StaticClass()));
+			SubTrack = Cast<UMovieSceneSubTrack>(MovieScene->AddTrack(UMovieSceneSubTrack::StaticClass()));
 		}
 
 		// Remove the current take if it exists

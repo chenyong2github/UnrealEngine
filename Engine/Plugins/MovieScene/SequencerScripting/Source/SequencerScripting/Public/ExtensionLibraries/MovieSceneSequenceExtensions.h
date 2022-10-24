@@ -33,53 +33,73 @@ public:
 	static UMovieScene* GetMovieScene(UMovieSceneSequence* Sequence);
 
 	/**
-	 * Get all master tracks
+	 * Get all tracks
 	 *
 	 * @param Sequence        The sequence to use
-	 * @return An array containing all master tracks in this sequence
+	 * @return An array containing all tracks in this sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<UMovieSceneTrack*> GetMasterTracks(UMovieSceneSequence* Sequence);
+	static TArray<UMovieSceneTrack*> GetTracks(UMovieSceneSequence* Sequence);
+
+	UE_DEPRECATED(5.2, "GetMasterTracks is deprecated. Please use GetTracks instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "GetMasterTracks is deprecated. Please use GetTracks instead"))
+	static TArray<UMovieSceneTrack*> GetMasterTracks(UMovieSceneSequence* Sequence) { return GetTracks(Sequence); }
 
 	/**
-	 * Find all master tracks of the specified type
+	 * Find all tracks of the specified type
 	 *
 	 * @param Sequence        The sequence to use
 	 * @param TrackType     A UMovieSceneTrack class type specifying which types of track to return
 	 * @return An array containing any tracks that match the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
-	static TArray<UMovieSceneTrack*> FindMasterTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeterminesOutputType = "TrackType"))
+	static TArray<UMovieSceneTrack*> FindTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+
+	UE_DEPRECATED(5.2, "FindMasterTracksByType is deprecated. Please use FindTracksByType instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeterminesOutputType = "TrackType", DeprecatedFunction, DeprecationMessage = "FindMasterTracksByType is deprecated. Please use FindTracksByType instead"))
+	static TArray<UMovieSceneTrack*> FindMasterTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType) { return FindTracksByType(Sequence, TrackType); }
 
 	/**
-	 * Find all master tracks of the specified type, not allowing sub-classed types
+	 * Find all tracks of the specified type, not allowing sub-classed types
 	 *
 	 * @param Sequence        The sequence to use
 	 * @param TrackType     A UMovieSceneTrack class type specifying the exact types of track to return
 	 * @return An array containing any tracks that are exactly the same as the type specified
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
-	static TArray<UMovieSceneTrack*> FindMasterTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+	static TArray<UMovieSceneTrack*> FindTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+
+	UE_DEPRECATED(5.2, "FindMasterTracksByExactType is deprecated. Please use FindTracksByExactType instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeterminesOutputType = "TrackType", DeprecatedFunction, DeprecationMessage = "FindMasterTracksByExactType is deprecated. Please use FindTracksByExactType instead"))
+	static TArray<UMovieSceneTrack*> FindMasterTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType) { return FindTracksByExactType(Sequence, TrackType); }
 
 	/**
-	 * Add a new master track of the specified type
+	 * Add a new track of the specified type
 	 *
 	 * @param Sequence        The sequence to use
 	 * @param TrackType     A UMovieSceneTrack class type to create
 	 * @return The newly created track, if successful
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
-	static UMovieSceneTrack* AddMasterTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeterminesOutputType = "TrackType"))
+	static UMovieSceneTrack* AddTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+
+	UE_DEPRECATED(5.2, "AddMasterTrack is deprecated. Please use AddTrack instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeterminesOutputType = "TrackType", DeprecatedFunction, DeprecationMessage = "AddMasterTrack is deprecated. Please use AddTrack instead"))
+	static UMovieSceneTrack* AddMasterTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType) { return AddTrack(Sequence, TrackType); }
 
 	/**
-	 * Removes a master track
+	 * Removes a track
 	 *
 	 * @param Sequence        The sequence to use
-	 * @param MasterTrack     The master track to remove
-	 * @return Whether the master track was successfully removed
+	 * @param Track           The track to remove
+	 * @return Whether the track was successfully removed
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static bool RemoveMasterTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* MasterTrack);
+	static bool RemoveTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* Track);
+
+	UE_DEPRECATED(5.2, "RemoveMasterTrack is deprecated. Please use RemoveTrack instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "RemoveMasterTrack is deprecated. Please use RemoveTrack instead"))
+	static bool RemoveMasterTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* Track) { return RemoveTrack(Sequence, Track); }
 
 	/**
 	 * Gets this sequence's display rate
@@ -439,14 +459,14 @@ public:
 	/**
 	 * Make a binding id for the given binding in this sequence
 	 *
-	 * @param MasterSequence  The master sequence that contains the sequence
+	 * @param Sequence  The sequence that contains the sequence
 	 * @param Binding The binding proxy to generate the binding id from
 	 * @param Space The object binding space to resolve from (Root or Local)
 	 * @return The new object binding id
 	 */
 	UE_DEPRECATED(5.0, "Please migrate to GetBindingID or GetPortableBindingID depending on use-case.")
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Please migrate to GetBindingID or GetPortableBindingID depending on use-case."))
-	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
+	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* Sequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
 
 
 	/**
@@ -463,25 +483,25 @@ public:
 	/**
 	 * Get a portable binding ID for a binding that resides in a different sequence to the one where this binding will be resolved.
 	 * @note: This function must be used over GetBindingID when the target binding resides in different shots or sub-sequences.
-	 * @note: Only unique instances of sequences within a master sequences are supported
+	 * @note: Only unique instances of sequences within a root sequences are supported
 	 *
-	 * @param MasterSequence The master sequence that contains both the destination sequence (that will resolve the binding ID) and the target sequence that contains the actual binding
+	 * @param RootSequence The root sequence that contains both the destination sequence (that will resolve the binding ID) and the target sequence that contains the actual binding
 	 * @param DestinationSequence The sequence that will own or resolve the resulting binding ID. For example, if the binding ID will be applied to a camera cut section pass the sequence that contains the camera cut track to this parameter.
 	 * @param Binding The target binding to create the ID from
 	 * @return The binding's id
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static FMovieSceneObjectBindingID GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FMovieSceneBindingProxy& InBinding);
+	static FMovieSceneObjectBindingID GetPortableBindingID(UMovieSceneSequence* RootSequence, UMovieSceneSequence* DestinationSequence, const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Make a binding for the given binding ID
 	 *
-	 * @param MasterSequence  The master sequence that contains the sequence
+	 * @param RootSequence  The root sequence that contains the sequence
 	 * @param ObjectBindingID The object binding id that has the guid and the sequence id
 	 * @return The new binding proxy
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static FMovieSceneBindingProxy ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID);
+	static FMovieSceneBindingProxy ResolveBindingID(UMovieSceneSequence* RootSequence, FMovieSceneObjectBindingID InObjectBindingID);
 
 
 	/**

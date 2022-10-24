@@ -380,7 +380,7 @@ FString MovieSceneToolHelpers::GenerateNewShotPath(UMovieScene* SequenceMovieSce
 
 	UObject* SequenceAsset = SequenceMovieScene->GetOuter();
 	UPackage* SequencePackage = SequenceAsset->GetOutermost();
-	FString SequencePackageName = SequencePackage->GetName(); // ie. /Game/cine/max/master
+	FString SequencePackageName = SequencePackage->GetName(); // ie. /Game/cine/max/root
 	int32 LastSlashPos = SequencePackageName.Find(TEXT("/"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 	FString SequencePath = SequencePackageName.Left(LastSlashPos);
 
@@ -1215,7 +1215,7 @@ void MovieSceneToolHelpers::LockCameraActorToViewport(const TSharedPtr<ISequence
 void MovieSceneToolHelpers::CreateCameraCutSectionForCamera(UMovieScene* OwnerMovieScene, FGuid CameraGuid, FFrameNumber FrameNumber)
 {
 	// If there's a cinematic shot track, no need to set this camera to a shot
-	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindMasterTrack(UMovieSceneCinematicShotTrack::StaticClass());
+	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
 	if (CinematicShotTrack)
 	{
 		return;
@@ -3779,7 +3779,7 @@ void ExportLevelMesh(UnFbx::FFbxExporter* Exporter, ULevel* Level, IMovieScenePl
 	Exporter->ExportLevelMesh(Level, !bSelectedOnly, ActorToExport, NodeNameAdapter, bSaveAnimSeq);
 }
 
-bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& MasterTracks, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template, const FString& InFBXFileName, FMovieSceneSequenceTransform& RootToLocalTransform)
+bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& Tracks, INodeNameAdapter& NodeNameAdapter, FMovieSceneSequenceIDRef& Template, const FString& InFBXFileName, FMovieSceneSequenceTransform& RootToLocalTransform)
 {
 	UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
 
@@ -3803,14 +3803,9 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 
 	Exporter->ExportLevelSequence(MovieScene, Bindings, Player, NodeNameAdapter, Template, RootToLocalTransform);
 
-	//Export given master tracks
-
-	for (UMovieSceneTrack* MasterTrack : MasterTracks)
-	{
-		TArray<UMovieSceneTrack*> Tracks;
-		Tracks.Add(MasterTrack);
-		Exporter->ExportLevelSequenceTracks(MovieScene, Player, Template, nullptr, nullptr, Tracks, RootToLocalTransform);
-	}
+	//Export given tracks
+	Exporter->ExportLevelSequenceTracks(MovieScene, Player, Template, nullptr, nullptr, Tracks, RootToLocalTransform);
+	
 	// Save to disk
 	Exporter->WriteToFile(*InFBXFileName);
 
@@ -4103,7 +4098,7 @@ FSpawnableRestoreState::FSpawnableRestoreState(UMovieScene* MovieScene)
 			
 			// Spawnable could be in a subscene, so temporarily override it to persist throughout
 			SpawnOwnershipMap.Add(Spawnable.GetGuid(), Spawnable.GetSpawnOwnership());
-			Spawnable.SetSpawnOwnership(ESpawnOwnership::MasterSequence);
+			Spawnable.SetSpawnOwnership(ESpawnOwnership::RootSequence);
 
 			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->GetAllSections()[0]);
 			SpawnSection->Modify();

@@ -63,13 +63,13 @@ public:
 	* Will not be called if this recording source is not enabled.
 	*
 	* @param InSequence - The Level Sequence the take is being recorded into
-	* @param InSequenceID - The sequence ID for InSequence, or MovieSceneSequenceID::Root where InSequence == InMasterSequence (ie, not sub-sequence recording)
-	* @param InMasterSequence - The Master Level Sequence that may contain the InSequence as a child or if no subsequences, is the same as InSequence.
+	* @param InSequenceID - The sequence ID for InSequence, or MovieSceneSequenceID::Root where InSequence == InRootSequence (ie, not sub-sequence recording)
+	* @param InRootSequence - The Root Level Sequence that may contain the InSequence as a child or if no subsequences, is the same as InSequence.
 	* @param InManifestSerializer - Manifest Serializer that we may write into.
 	* @return An array of newly created take recorder sources. Can be an empty list if no additional sources needed to be
 	* created by this source.
 	*/
-	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer);
+	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer);
 
 	/**
 	* This is called when the UTakeRecorderSources starts a recording, after all sources have had PreRecording called on them.
@@ -117,7 +117,7 @@ public:
 	* @return An array of take recorder sources to be removed. Likely to match the same list as PreRecording. Can be an empty list
 	* if no additional sources are required by this source.
 	*/
-	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled) { return TArray<UTakeRecorderSource*>(); }
+	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled) { return TArray<UTakeRecorderSource*>(); }
 
 	/*
 	 * This is called on all sources after post recording. There should not be any dependencies between sources at this point.

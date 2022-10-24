@@ -179,7 +179,7 @@ public:
 					&Linker->EntityManager, InPrerequisites, nullptr, BlenderSystem->GetBlenderSystemID(), BlendChannelResults);
 		if (Task)
 		{
-			Prereqs.AddMasterTask(Task);
+			Prereqs.AddRootTask(Task);
 		}
 
 		// Compute the final blended values and assign them to the blend channel output entities.

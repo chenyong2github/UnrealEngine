@@ -92,7 +92,7 @@ private:
 	TSharedRef<SWidget> GetMenuContent();
 
 	/** Construct the part of the menu that defines the set of film overlays */
-	TSharedRef<SWidget> ConstructMasterOverlaysMenu();
+	TSharedRef<SWidget> ConstructPrimaryOverlaysMenu();
 
 	/** Construct the part of the menu that defines the set of toggleable overlays (currently just safe-frames) */
 	TSharedRef<SWidget> ConstructToggleableOverlaysMenu();
@@ -102,29 +102,29 @@ private:
 	/** Get the thumbnail to be displayed on the combo box button */
 	const FSlateBrush* GetCurrentThumbnail() const;
 
-	/** Get the master film overlay ptr (may be nullptr) */
-	IFilmOverlay* GetMasterFilmOverlay() const;
+	/** Get the primary film overlay ptr (may be nullptr) */
+	IFilmOverlay* GetPrimaryFilmOverlay() const;
 
 	/** Get an array of all enabled film overlays */
 	TArray<IFilmOverlay*> GetActiveFilmOverlays() const;
 
-	/** Set the current master overlay to the specified name */
-	FReply SetMasterFilmOverlay(FName InName);
+	/** Set the current primary overlay to the specified name */
+	FReply SetPrimaryFilmOverlay(FName InName);
 
-	/** Get/Set the color tint override for the current master overlay */
-	FLinearColor GetMasterColorTint() const;
-	void OnMasterColorTintChanged(const FLinearColor& Tint);
+	/** Get/Set the color tint override for the current primary overlay */
+	FLinearColor GetPrimaryColorTint() const;
+	void OnPrimaryColorTintChanged(const FLinearColor& Tint);
 
 private:
 
-	/** Set of master film overlays (only one can be active at a time) */
-	TMap<FName, TUniquePtr<IFilmOverlay>> MasterFilmOverlays;
+	/** Set of primary film overlays (only one can be active at a time) */
+	TMap<FName, TUniquePtr<IFilmOverlay>> PrimaryFilmOverlays;
 
-	/** The name of the current master overlay */
-	FName CurrentMasterOverlay;
+	/** The name of the current primary overlay */
+	FName CurrentPrimaryOverlay;
 
-	/** Color tint to apply to master overlays */
-	FLinearColor MasterColorTint;
+	/** Color tint to apply to primary overlays */
+	FLinearColor PrimaryColorTint;
 
 	/** A map of toggleable overlays (any number can be active at a time) */
 	TMap<FName, TUniquePtr<IFilmOverlay>> ToggleableOverlays;

@@ -75,7 +75,7 @@ struct FMovieSceneExportAudioSectionData : public FMovieSceneExportSectionData
 
 struct FMovieSceneExportCinematicTrackData
 {
-	/** This indicates the sub-track's row index in the master track */
+	/** This indicates the sub-track's row index in the track */
 	int32 RowIndex;
 	TArray< TSharedPtr<FMovieSceneExportCinematicSectionData> > CinematicSections;
 };
@@ -84,17 +84,17 @@ struct FMovieSceneExportAudioTrackData
 {
 	int32 SampleRate;
 
-	/** This indicates the sub-track's row index in the master track */
+	/** This indicates the sub-track's row index in the track */
 	int32 RowIndex;
 	TArray< TSharedPtr<FMovieSceneExportAudioSectionData> > AudioSections;
 };
 
-struct FMovieSceneExportMasterTrackData
+struct FMovieSceneExportTrackData
 {
 	const UMovieSceneTrack* MovieSceneTrack;
 };
 
-struct FMovieSceneExportAudioMasterTrackData : public FMovieSceneExportMasterTrackData
+struct FMovieSceneExportAudioData : public FMovieSceneExportTrackData
 {
 	int32 SampleRate;
 
@@ -106,7 +106,7 @@ struct FMovieSceneExportAudioMasterTrackData : public FMovieSceneExportMasterTra
 
 };
 
-struct FMovieSceneExportCinematicMasterTrackData : public FMovieSceneExportMasterTrackData
+struct FMovieSceneExportCinematicData : public FMovieSceneExportTrackData
 {
 	/** Array of all sections in order they appear in UMovieSceneCinematicTrack*/
 	TArray< TSharedPtr<FMovieSceneExportCinematicSectionData> > CinematicSections;
@@ -123,8 +123,8 @@ struct FMovieSceneExportMovieSceneData
 	int32 Duration;
 	FFrameNumber PlaybackRangeStartFrame;
 	FFrameNumber PlaybackRangeEndFrame;
-	TSharedPtr<FMovieSceneExportCinematicMasterTrackData> CinematicMasterTrack;
-	TArray< TSharedPtr<FMovieSceneExportAudioMasterTrackData> > AudioMasterTracks;
+	TSharedPtr<FMovieSceneExportCinematicData> CinematicData;
+	TArray< TSharedPtr<FMovieSceneExportAudioData> > AudioData;
 	FString MovieExtension;
 };
 
@@ -184,18 +184,18 @@ private:
 	bool ConstructData(const UMovieScene* InMovieScene);
 	/** Loads intermediate movie scene data from Sequencer. */
 	bool ConstructMovieSceneData(const UMovieScene* InMovieScene);
-	/** Loads intermediate cinematic master track data from Sequencer. */
-	bool ConstructCinematicMasterTrackData(const UMovieScene* InMovieScene, const UMovieSceneCinematicShotTrack* InCinematicMasterTrack);
-	/** Loads intermediate cinematic track data from Sequencer. */
-	bool ConstructCinematicTrackData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicMasterTrackData> InCinematicMasterTrack, int32 InRowIndex);
-	/** Loads intermediate audio track data from Sequencer. */
-	bool ConstructAudioMasterTrackData(const UMovieScene* InMovieScene, const UMovieSceneAudioTrack* InAudioMasterTrack, TMap<int32, TSharedPtr<FMovieSceneExportAudioMasterTrackData>>& InAudioTrackMap);
-	/** Loads intermediate audio track data from Sequencer. */
-	bool ConstructAudioTrackData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioMasterTrackData> InAudioMasterTrack, int32 InRowIndex);
+	/** Loads intermediate cinematic data from Sequencer. */
+	bool ConstructCinematicData(const UMovieScene* InMovieScene, const UMovieSceneCinematicShotTrack* InCinematicTrack);
+	/** Loads intermediate cinematic data from Sequencer. */
+	bool ConstructCinematicTrackData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicData> InCinematicData, int32 InRowIndex);
+	/** Loads intermediate audio data from Sequencer. */
+	bool ConstructAudioData(const UMovieScene* InMovieScene, const UMovieSceneAudioTrack* InAudioTrack, TMap<int32, TSharedPtr<FMovieSceneExportAudioData>>& InAudioDataMap);
+	/** Loads intermediate audio data from Sequencer. */
+	bool ConstructAudioData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioData> InAudioData, int32 InRowIndex);
 	/** Loads intermediate cinematic section data from Sequencer. */
-	bool ConstructCinematicSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicMasterTrackData> InMasterTrackData, const UMovieSceneCinematicShotSection* InCinematicSection);
+	bool ConstructCinematicSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportCinematicData> InCinematicData, const UMovieSceneCinematicShotSection* InCinematicSection);
 	/** Loads intermediate audio section data from Sequencer. */
-	bool ConstructAudioSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioMasterTrackData> InTrackData, const UMovieSceneAudioSection* InAudioSection);
+	bool ConstructAudioSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportAudioData> InAudioData, const UMovieSceneAudioSection* InAudioSection);
 	/** Loads intermediate common section data from Sequencer. */
 	bool ConstructSectionData(const UMovieScene* InMovieScene, TSharedPtr<FMovieSceneExportSectionData> InSectionData, const UMovieSceneSection* InSection, EMovieSceneTranslatorSectionType InSectionType, const FString& InSectionDisplayName);
 
@@ -247,12 +247,12 @@ struct FMovieSceneImportAudioTrackData
 	TArray< TSharedPtr<FMovieSceneImportAudioSectionData> > AudioSections;
 };
 
-struct FMovieSceneImportMasterTrackData
+struct FMovieSceneImportTrackData
 {
 	UMovieSceneTrack* MovieSceneTrack;
 };
         
-struct FMovieSceneImportAudioMasterTrackData : public FMovieSceneImportMasterTrackData
+struct FMovieSceneImportAudioData : public FMovieSceneImportTrackData
 {
 	/** Array of all sections in order they appear in UMovieSceneAudioTrack*/
 	TArray< TSharedPtr<FMovieSceneImportAudioSectionData> > AudioSections;
@@ -260,11 +260,11 @@ struct FMovieSceneImportAudioMasterTrackData : public FMovieSceneImportMasterTra
 	/** Array of sorted audio sub tracks, containing pointers to sections within the sub track row*/
 	TArray< TSharedPtr<FMovieSceneImportAudioTrackData> > AudioTracks;
 
-	/** Max row index existing in this master track */
+	/** Max row index existing in this track */
 	int32 MaxRowIndex;
 };
 
-struct FMovieSceneImportCinematicMasterTrackData : public FMovieSceneImportMasterTrackData
+struct FMovieSceneImportCinematicData : public FMovieSceneImportTrackData
 {
 	/** Array of all sections in order they appear in UMovieSceneCinematicTrack*/
 	TArray< TSharedPtr<FMovieSceneImportCinematicSectionData> > CinematicSections;
@@ -276,8 +276,8 @@ struct FMovieSceneImportCinematicMasterTrackData : public FMovieSceneImportMaste
 struct FMovieSceneImportMovieSceneData
 {
 	UMovieScene* MovieScene;
-	TSharedPtr<FMovieSceneImportCinematicMasterTrackData> CinematicMasterTrack;
-	TArray< TSharedPtr<FMovieSceneImportAudioMasterTrackData> > AudioMasterTracks;
+	TSharedPtr<FMovieSceneImportCinematicData> CinematicData;
+	TArray< TSharedPtr<FMovieSceneImportAudioData> > AudioData;
 };
 
 /**
@@ -296,8 +296,8 @@ public:
 	/** True when the export data was successfully constructed. */
 	bool IsImportDataValid() const;
 
-	/** Returns the cinematic master track data pointer or nullptr if one does not exist */
-	TSharedPtr<FMovieSceneImportCinematicMasterTrackData> GetCinematicMasterTrackData(bool CreateTrackIfNull);
+	/** Returns the cinematic data pointer or nullptr if one does not exist */
+	TSharedPtr<FMovieSceneImportCinematicData> GetCinematicData(bool CreateTrackIfNull);
 	/** Find cinematic section */
 	TSharedPtr<FMovieSceneImportCinematicSectionData> FindCinematicSection(const FString& InSectionPathName);
 	/** Create cinematic section */
@@ -305,29 +305,29 @@ public:
 	/** Set cinematic section */
 	bool SetCinematicSection(TSharedPtr<FMovieSceneImportCinematicSectionData> InSection, int32 InRow, FFrameRate InFrameRate, FFrameNumber InStartFrame, FFrameNumber InEndFrame, TOptional<FFrameNumber> InStartOffsetFrame);
 
-	/** Returns the audio master track data pointer or nullptr if one does not exist */
-	TSharedPtr<FMovieSceneImportAudioMasterTrackData> GetAudioMasterTrackData();
+	/** Returns the audio data pointer or nullptr if one does not exist */
+	TSharedPtr<FMovieSceneImportAudioData> GetAudioData();
 	/** Find audio sections */
-	TSharedPtr<FMovieSceneImportAudioSectionData>  FindAudioSection(const FString& InSectionPathName, TSharedPtr<FMovieSceneImportAudioMasterTrackData>& OutMasterTrackData);
+	TSharedPtr<FMovieSceneImportAudioSectionData>  FindAudioSection(const FString& InSectionPathName, TSharedPtr<FMovieSceneImportAudioData>& OutAudioData);
 	/** Create audio section */
-	TSharedPtr<FMovieSceneImportAudioSectionData> CreateAudioSection(FString InFilenameOrAssetPathName, bool bIsPathName, TSharedPtr<FMovieSceneImportAudioMasterTrackData> InMasterTrack, int32 InRow, FFrameRate InFrameRate, FFrameNumber InStartFrame, FFrameNumber InEndFrame, FFrameNumber InStartOffsetFrame);
+	TSharedPtr<FMovieSceneImportAudioSectionData> CreateAudioSection(FString InFilenameOrAssetPathName, bool bIsPathName, TSharedPtr<FMovieSceneImportAudioData> InAudioData, int32 InRow, FFrameRate InFrameRate, FFrameNumber InStartFrame, FFrameNumber InEndFrame, FFrameNumber InStartOffsetFrame);
 	/** Set audio section */
 	bool SetAudioSection(TSharedPtr<FMovieSceneImportAudioSectionData> InSection, int32 InRow, FFrameRate InFrameRate, FFrameNumber InStartFrame, FFrameNumber InEndFrame, FFrameNumber InStartOffsetFrame);
 	/** Move audio section */
-	bool MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSectionData> InAudioSectionData, TSharedPtr<FMovieSceneImportAudioMasterTrackData> InFromMasterTrackData, TSharedPtr<FMovieSceneImportAudioMasterTrackData> InToMasterTrackData, int32 InToRowIndex);
+	bool MoveAudioSection(TSharedPtr<FMovieSceneImportAudioSectionData> InAudioSectionData, TSharedPtr<FMovieSceneImportAudioData> InFromAudioData, TSharedPtr<FMovieSceneImportAudioData> InToAudioData, int32 InToRowIndex);
 
 private:
 
 	/** Entry point for setting up intermediate data for use when importing. */
 	TSharedPtr<FMovieSceneImportMovieSceneData> ConstructMovieSceneData(UMovieScene* InMovieScene);
-	/** Gets cinematic master track data from Sequencer. */
-	TSharedPtr<FMovieSceneImportCinematicMasterTrackData> ConstructCinematicMasterTrackData(UMovieSceneCinematicShotTrack* InCinematicMasterTrack);
+	/** Gets cinematic data from Sequencer. */
+	TSharedPtr<FMovieSceneImportCinematicData> ConstructCinematicData(UMovieSceneCinematicShotTrack* InCinematicTrack);
 	/** Gets cinematic track data from Sequencer. */
-	TSharedPtr<FMovieSceneImportCinematicTrackData> ConstructCinematicTrackData(UMovieSceneCinematicShotTrack* InCinematicMasterTrack, int32 InRowIndex);
-	/** Gets audio master track data from Sequencer. */
-	TSharedPtr<FMovieSceneImportAudioMasterTrackData> ConstructAudioMasterTrackData(UMovieSceneAudioTrack* InAudioMasterTrack);
+	TSharedPtr<FMovieSceneImportCinematicTrackData> ConstructCinematicTrackData(UMovieSceneCinematicShotTrack* InCinematicTrack, int32 InRowIndex);
+	/** Gets audio data from Sequencer. */
+	TSharedPtr<FMovieSceneImportAudioData> ConstructAudioData(UMovieSceneAudioTrack* InAudioTrack);
 	/** Gets audio track data from Sequencer. */
-	TSharedPtr<FMovieSceneImportAudioTrackData> ConstructAudioTrackData(UMovieSceneAudioTrack* InAudioMasterTrack, int32 InRowIndex);
+	TSharedPtr<FMovieSceneImportAudioTrackData> ConstructAudioTrackData(UMovieSceneAudioTrack* InAudioTrack, int32 InRowIndex);
 	/** Gets cinematic section data from Sequencer. */
 	TSharedPtr<FMovieSceneImportCinematicSectionData> ConstructCinematicSectionData(UMovieSceneCinematicShotSection* InCinematicSection);
 	/** Gets audio section data from Sequencer. */

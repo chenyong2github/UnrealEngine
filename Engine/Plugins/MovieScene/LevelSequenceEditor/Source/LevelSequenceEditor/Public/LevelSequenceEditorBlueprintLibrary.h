@@ -52,7 +52,7 @@ public:
 	static bool OpenLevelSequence(ULevelSequence* LevelSequence);
 
 	/*
-	 * Get the currently opened root/master level sequence asset
+	 * Get the currently opened root level sequence asset
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static ULevelSequence* GetCurrentLevelSequence();

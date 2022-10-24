@@ -40,7 +40,7 @@ public:
 		return AudioSections;
 	}
 
-	/** @return true if this is a master audio track */
+	UE_DEPRECATED(5.2, "IsAMasterTrack is deprecated. Please use Cast<UMovieScene>(GetOuter())->ContainsTrack instead")
 	bool IsAMasterTrack() const;
 
 public:
@@ -63,7 +63,7 @@ public:
 
 private:
 
-	/** List of all master audio sections */
+	/** List of all root audio sections */
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneSection>> AudioSections;
 

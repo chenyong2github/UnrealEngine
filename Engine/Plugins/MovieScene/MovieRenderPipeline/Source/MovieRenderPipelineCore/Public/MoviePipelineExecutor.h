@@ -10,7 +10,7 @@
 #include "MovieRenderDebugWidget.h"
 #include "MoviePipelineExecutor.generated.h"
 
-class UMoviePipelineMasterConfig;
+class UMoviePipelinePrimaryConfig;
 class UMoviePipelineExecutorBase;
 class UMoviePipelineExecutorJob;
 class UMoviePipeline;

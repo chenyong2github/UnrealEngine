@@ -65,8 +65,8 @@ public:
 	
 protected:
 
-	/** Delegate for AnimatablePropertyChanged in HandleAssetAdded for master sounds */
-	FKeyPropertyResult AddNewMasterSound(FFrameNumber KeyTime, class USoundBase* Sound, UMovieSceneAudioTrack* Track, int32 RowIndex);
+	/** Delegate for AnimatablePropertyChanged in HandleAssetAdded for sounds */
+	FKeyPropertyResult AddNewSound(FFrameNumber KeyTime, class USoundBase* Sound, UMovieSceneAudioTrack* Track, int32 RowIndex);
 
 	/** Delegate for AnimatablePropertyChanged in HandleAssetAdded for attached sounds */
 	FKeyPropertyResult AddNewAttachedSound(FFrameNumber KeyTime, class USoundBase* Sound, UMovieSceneAudioTrack* Track, TArray<TWeakObjectPtr<UObject>> ObjectsToAttachTo);

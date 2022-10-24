@@ -4,7 +4,7 @@
 #include "EntitySystem/TrackInstance/MovieSceneTrackInstance.h"
 #include "EntitySystem/MovieSceneBoundObjectInstantiator.h"
 #include "EntitySystem/MovieSceneBoundSceneComponentInstantiator.h"
-#include "EntitySystem/MovieSceneMasterInstantiatorSystem.h"
+#include "EntitySystem/MovieSceneRootInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
@@ -76,7 +76,7 @@ UMovieSceneTrackInstanceInstantiator::UMovieSceneTrackInstanceInstantiator(const
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineImplicitPrerequisite(UMovieSceneMasterInstantiatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieSceneRootInstantiatorSystem::StaticClass(), GetClass());
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->BoundObject);
 	}
 }
@@ -287,6 +287,6 @@ void UMovieSceneTrackInstanceSystem::OnRun(FSystemTaskPrerequisites& InPrerequis
 		};
 
 		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Run), GET_STATID(MovieSceneEval_GenericTrackInstanceTask), InPrerequisites.All(), Linker->EntityManager.GetGatherThread());
-		Subsequents.AddMasterTask(Task);
+		Subsequents.AddRootTask(Task);
 	}
 }

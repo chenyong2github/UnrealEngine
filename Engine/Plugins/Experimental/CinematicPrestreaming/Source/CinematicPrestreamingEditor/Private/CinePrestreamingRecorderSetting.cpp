@@ -9,7 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "MoviePipeline.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineQueue.h"
 #include "MoviePipelineUtils.h"
@@ -120,7 +120,7 @@ void UCinePrestreamingRecorderSetting::OnBeginFrame_GameThread()
 
 		SegmentData[ActiveShotIndex].bValid = true;
 		SegmentData[ActiveShotIndex].OutputState = GetPipeline()->GetOutputState();
-		SegmentData[ActiveShotIndex].InitialShotTick = GetPipeline()->GetActiveShotList()[ActiveShotIndex]->ShotInfo.CurrentTickInMaster;
+		SegmentData[ActiveShotIndex].InitialShotTick = GetPipeline()->GetActiveShotList()[ActiveShotIndex]->ShotInfo.CurrentTickInRoot;
 
 		PrevActiveShotIndex = ActiveShotIndex;
 	}
@@ -130,7 +130,7 @@ void UCinePrestreamingRecorderSetting::OnBeginFrame_GameThread()
 	// emulate motion blur, ie: frame 0 -> frame 1 -> frame 0 again. 
 	// So when building data it needs to be additive.
 	UMoviePipelineExecutorShot* CurrentShot = GetPipeline()->GetActiveShotList()[ActiveShotIndex];
-	const FFrameNumber FrameNumber = CurrentShot->ShotInfo.CurrentTickInMaster - SegmentData[ActiveShotIndex].InitialShotTick;
+	const FFrameNumber FrameNumber = CurrentShot->ShotInfo.CurrentTickInRoot - SegmentData[ActiveShotIndex].InitialShotTick;
 	
 	// Allocate virtual texture recording page buffer for this frame on the render thread.
 	ENQUEUE_RENDER_COMMAND(SetRecordBuffer)(
@@ -183,7 +183,7 @@ void UCinePrestreamingRecorderSetting::OnEndFrame_RenderThread()
 
 void UCinePrestreamingRecorderSetting::CreateAssetsFromData()
 {
-	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelinePrimaryConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	FString FileNameFormatString = PackageDirectory.Path;
 
 	const bool bIncludeRenderPass = false;
@@ -254,7 +254,7 @@ void UCinePrestreamingRecorderSetting::CreateAssetsFromData()
 
 			// We only use the leafmost moviescene as that's the one that actually gets modified.
 			OutputSegment->MovieScene = Node->MovieScene.Get();
-			OutputSegment->Range = ShotInfo.TotalOutputRangeMaster * ShotInfo.OuterToInnerTransform;
+			OutputSegment->Range = ShotInfo.TotalOutputRangeRoot * ShotInfo.OuterToInnerTransform;
 		}
 
 		// Convert our samples and append them to the existing array
@@ -336,10 +336,10 @@ void UCinePrestreamingRecorderSetting::ModifyTargetSequences(const TArray<FMovie
 		Data.MovieScene->SetReadOnly(false);
 
 		// If there's an existing track we'll edit that instead.
-		UMovieSceneCinePrestreamingTrack* PrestreamingTrack = Data.MovieScene->FindMasterTrack<UMovieSceneCinePrestreamingTrack>();
+		UMovieSceneCinePrestreamingTrack* PrestreamingTrack = Data.MovieScene->FindTrack<UMovieSceneCinePrestreamingTrack>();
 		if (!PrestreamingTrack)
 		{
-			PrestreamingTrack = Data.MovieScene->AddMasterTrack<UMovieSceneCinePrestreamingTrack>();
+			PrestreamingTrack = Data.MovieScene->AddTrack<UMovieSceneCinePrestreamingTrack>();
 		}
 
 		// Remove any existing sections, as they may point to an old object, or have the wrong length, etc.

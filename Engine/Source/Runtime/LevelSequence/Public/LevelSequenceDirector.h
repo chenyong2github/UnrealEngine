@@ -24,14 +24,18 @@ public:
 	void OnCreated();
 	
 	/**
-	 * Get the current time for the outermost (root, or master) sequence
-	 * @return The current playback position of the master sequence
+	 * Get the current time for the outermost (root) sequence
+	 * @return The current playback position of the outermost (root) sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Director")
-	FQualifiedFrameTime GetMasterSequenceTime() const;
+	FQualifiedFrameTime GetRootSequenceTime() const;
+
+	UE_DEPRECATED(5.2, "GetMasterSequenceTime is deprecated. Please use GetRootSequenceTime instead")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Director", meta = (DeprecatedFunction, DeprecationMessage = "Use GetRootSequenceTime"))
+	FQualifiedFrameTime GetMasterSequenceTime() const { return GetRootSequenceTime(); }
 
 	/**
-	 * Get the current time for this director's sub-sequence (or the master sequence, if this is a master sequence director)
+	 * Get the current time for this director's sub-sequence (or the root sequence, if this is a root sequence director)
 	 * @return The current playback position of this director's sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Director")

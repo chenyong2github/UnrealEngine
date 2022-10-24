@@ -21,7 +21,7 @@ UTakeRecorderPlayerSource::UTakeRecorderPlayerSource(const FObjectInitializer& O
 }
 
 
-TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	TArray<UTakeRecorderSource*> NewSources;
 
@@ -71,7 +71,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PreRecording(ULevelSeque
 	return NewSources;
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderPlayerSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	TArray<UTakeRecorderSource*> SourcesToRemove;
 

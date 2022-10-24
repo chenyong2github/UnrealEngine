@@ -165,8 +165,8 @@ public:
 	*  Static functions used by other parts of the take system
 	*/
 
-	/** Creates a sub-sequence asset for the specified sub sequence name based on the given master sequence. */
-	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName);
+	/** Creates a sub-sequence asset for the specified sub sequence name based on the given root sequence. */
+	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InRootSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName);
 
 	/**
 	 * Array of pairs - key time and the corresponding timecode
@@ -187,7 +187,7 @@ private:
 	FOnSourcesChanged OnSourcesChangedEvent;
 
 	/** Calls PreRecording on sources recursively allowing them to create other sources which properly get PreRecording called on them as well. */
-	void PreRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InMasterSequence, TArray<UTakeRecorderSource*>& NewSourcesOut, FManifestSerializer* InManifestSerializer);
+	void PreRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InRootSequence, TArray<UTakeRecorderSource*>& NewSourcesOut, FManifestSerializer* InManifestSerializer);
 
 	/** Finds the folder that the given Source should be created in, creating it if necessary. */
 	class UMovieSceneFolder* AddFolderForSource(const UTakeRecorderSource* InSource, class UMovieScene* InMovieScene);
@@ -209,7 +209,7 @@ private:
 	UPROPERTY(Instanced)
 	TArray<TObjectPtr<UTakeRecorderSource>> Sources;
 
-	/** Maps each source to the level sequence that was created for that source, or to the master source if a subsequence was not created. */
+	/** Maps each source to the level sequence that was created for that source, or to the root source if a subsequence was not created. */
 	UPROPERTY(Transient)
 	TMap<TObjectPtr<UTakeRecorderSource>, TObjectPtr<ULevelSequence>> SourceSubSequenceMap;
 

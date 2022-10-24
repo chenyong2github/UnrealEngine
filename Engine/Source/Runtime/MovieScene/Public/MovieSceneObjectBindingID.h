@@ -57,17 +57,17 @@ struct FRelativeObjectBindingID
 	{}
 
 	/**
-	 * Construction from a master sequence asset
+	 * Construction from a root sequence asset
 	 *
-	 * @param SourceSequenceID      Absolute sequence ID within MasterSequence that represents the start of the path (ie, the sequence that this binding ID is serialized within)
-	 * @param TargetSequenceID      Absolute sequence ID within MasterSequence that holds the target object
+	 * @param SourceSequenceID      Absolute sequence ID within RootSequence that represents the start of the path (ie, the sequence that this binding ID is serialized within)
+	 * @param TargetSequenceID      Absolute sequence ID within RootSequence that holds the target object
 	 * @param TargetGuid            The GUID of the object binding within TargetSequenceID that represents the object at runtime
-	 * @param MasterSequence        The master sequence asset
+	 * @param RootSequence          The root sequence asset
 	 */
-	MOVIESCENE_API FRelativeObjectBindingID(FMovieSceneSequenceID SourceSequenceID, FMovieSceneSequenceID TargetSequenceID, const FGuid& TargetGuid, UMovieSceneSequence* MasterSequence);
+	MOVIESCENE_API FRelativeObjectBindingID(FMovieSceneSequenceID SourceSequenceID, FMovieSceneSequenceID TargetSequenceID, const FGuid& TargetGuid, UMovieSceneSequence* RootSequence);
 
 	/**
-	 * Construction from a master sequence Hierarchy
+	 * Construction from a root sequence Hierarchy
 	 *
 	 * @param SourceSequenceID      Absolute sequence ID within Hierarchy that represents the start of the path (ie, the sequence that this binding ID is serialized within)
 	 * @param TargetSequenceID      Absolute sequence ID within Hierarchy that holds the target object
@@ -77,12 +77,12 @@ struct FRelativeObjectBindingID
 	MOVIESCENE_API FRelativeObjectBindingID(FMovieSceneSequenceID SourceSequenceID, FMovieSceneSequenceID TargetSequenceID, const FGuid& TargetGuid, const FMovieSceneSequenceHierarchy* Hierarchy);
 
 	/**
-	 * Construction from a master sequence Player
+	 * Construction from a root sequence Player
 	 *
-	 * @param SourceSequenceID      Absolute sequence ID within Player's master sequence hierarchy that represents the start of the path (ie, the sequence that this binding ID is serialized within)
-	 * @param TargetSequenceID      Absolute sequence ID within Player's master sequence hierarchy that holds the target object
+	 * @param SourceSequenceID      Absolute sequence ID within Player's root sequence hierarchy that represents the start of the path (ie, the sequence that this binding ID is serialized within)
+	 * @param TargetSequenceID      Absolute sequence ID within Player's root sequence hierarchy that holds the target object
 	 * @param TargetGuid            The GUID of the object binding within TargetSequenceID that represents the object at runtime
-	 * @param Player                The movie scene player that is currently playing the master sequence
+	 * @param Player                The movie scene player that is currently playing the root sequence
 	 */
 	MOVIESCENE_API FRelativeObjectBindingID(FMovieSceneSequenceID SourceSequenceID, FMovieSceneSequenceID TargetSequenceID, const FGuid& TargetGuid, IMovieScenePlayer& Player);
 
@@ -140,7 +140,7 @@ public:
 	 * Convert this fixed binding ID to one that is resolved relative to the specified Sequence.
 	 *
 	 * @param SourceSequenceID    The sequence ID to make this fixed ID relative to
-	 * @param InPlayer            The active movie scene player to retrieve a master sequence hierarchy from
+	 * @param InPlayer            The active movie scene player to retrieve a root sequence hierarchy from
 	 * @return A new binding ID that will resolve relative to the specified sequence
 	 */
 	MOVIESCENE_API FRelativeObjectBindingID ConvertToRelative(FMovieSceneSequenceID SourceSequenceID, IMovieScenePlayer& InPlayer) const;
@@ -149,7 +149,7 @@ public:
 	 * Convert this fixed binding ID to one that is resolved relative to the specified Sequence.
 	 *
 	 * @param SourceSequenceID    The sequence ID to make this fixed ID relative to
-	 * @param Hierarchy           The hierarchy that represents the master sequence that SourceSequenceID is contained within
+	 * @param Hierarchy           The hierarchy that represents the root sequence that SourceSequenceID is contained within
 	 * @return A new binding ID that will resolve relative to the specified sequence
 	 */
 	MOVIESCENE_API FRelativeObjectBindingID ConvertToRelative(FMovieSceneSequenceID SourceSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy) const;
@@ -186,12 +186,12 @@ enum class EMovieSceneObjectBindingSpace : uint8
 /**
  * Persistent identifier to a specific object binding within a sequence hierarchy.
  * 
- * Binding IDs come in 3 flavors with Local and External being preferred as they are reslilient towards sequences being authored in isolation or included in other master sequences:
+ * Binding IDs come in 3 flavors with Local and External being preferred as they are reslilient towards sequences being authored in isolation or included in other root sequences:
  *     Local: (ResolveParentIndex == 0) SequenceID relates to _this sequence's_ local hierarchy; represents an object binding within the same sequence as the ID is resolved, or inside one of its sub-sequences. Sequence ID must be remapped at runtime.
  *     External: (ResolveParentIndex > 0) SequenceID is local to the parent sequence of this one denoted by the parent index (ie, 1 = parent, 2 = grandparent etc). Sequence ID must be remapped at runtime.
  *     Fixed: Represents a binding anywhere in the sequence; always resolved from the root sequence.
  *
- * Fixed bindings will break if the sequence is evaluated inside a different master sequence.
+ * Fixed bindings will break if the sequence is evaluated inside a different root sequence.
  */
 USTRUCT(BlueprintType, meta=(HasNativeMake))
 struct FMovieSceneObjectBindingID
@@ -326,28 +326,28 @@ public:
 
 
 	/**
-	 * Resolve this binding ID to a fixed object binding ID resolvable from the root master sequence
+	 * Resolve this binding ID to a fixed object binding ID resolvable from the root sequence
 	 *
 	 * @param SourceSequenceID      The source sequence ID that owns this binding ID
-	 * @param Player                The movie scene player that is currently playing the master sequence
-	 * @return A fixed binding ID whose SequenceID relates to the master sequence hierarchy
+	 * @param Player                The movie scene player that is currently playing the root sequence
+	 * @return A fixed binding ID whose SequenceID relates to the root sequence hierarchy
 	 */
 	MOVIESCENE_API UE::MovieScene::FFixedObjectBindingID ResolveToFixed(FMovieSceneSequenceID SourceSequenceID, IMovieScenePlayer& Player) const;
 
 
 
 	/**
-	 * Resolve the sequence ID for this binding for the root master sequence
+	 * Resolve the sequence ID for this binding for the root sequence
 	 *
 	 * @param SourceSequenceID      The source sequence ID that owns this binding ID
-	 * @param Player                The movie scene player that is currently playing the master sequence
+	 * @param Player                The movie scene player that is currently playing the sequence
 	 * @return The sequence ID that holds the target object
 	 */
 	MOVIESCENE_API FMovieSceneSequenceID ResolveSequenceID(FMovieSceneSequenceID SourceSequenceID, IMovieScenePlayer& Player) const;
 
 
 	/**
-	 * Resolve the sequence ID for this binding for the root master sequence
+	 * Resolve the sequence ID for this binding for the root sequence
 	 *
 	 * @param SourceSequenceID      The source sequence ID that owns this binding ID
 	 * @param Hierarchy             The hierachy to use for computation of the relative path. Many be nullptr where Source and Targets are both MovieSceneSequenceID::Root
@@ -401,7 +401,7 @@ private:
 	UPROPERTY()
 	int32 SequenceID;
 
-	/** The parent index to resolve the sequence ID from. 0 signifies the sequence this binding ID is serialized within, -1 signifies the master sequence (previously EMovieSceneObjectBindingSpace::Root) */
+	/** The parent index to resolve the sequence ID from. 0 signifies the sequence this binding ID is serialized within, -1 signifies the root sequence (previously EMovieSceneObjectBindingSpace::Root) */
 	UPROPERTY()
 	int32 ResolveParentIndex;
 

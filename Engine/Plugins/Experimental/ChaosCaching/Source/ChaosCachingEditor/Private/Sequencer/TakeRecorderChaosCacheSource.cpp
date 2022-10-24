@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/TakeRecorderChaosCacheSource.h"
 
@@ -24,18 +24,18 @@ UTakeRecorderChaosCacheSource::UTakeRecorderChaosCacheSource(const FObjectInitia
 	TrackTint = FColor(0.0f, 125.0f, 255.0f, 65.0f);
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderChaosCacheSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderChaosCacheSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
 	if (ChaosCacheManager)
 	{
-		UMovieScene* MovieScene = InMasterSequence->GetMovieScene();
+		UMovieScene* MovieScene = InRootSequence->GetMovieScene();
 		TrackRecorder = NewObject<UMovieSceneChaosCacheTrackRecorder>();
 
 		// We only support possessable for now since the spawnable template is clearing out the component reference
 		// Would be better to use a TSoftObjectPtr for the actor and have a mechanism similar to the FixUpPIE to go
 		// from PIE to editor to have a correct soft object path
 		const FGuid ObjectGuid = MovieScene->AddPossessable(ChaosCacheManager->GetActorLabel(), ChaosCacheManager->GetClass());
-		InMasterSequence->BindPossessableObject(ObjectGuid, *ChaosCacheManager, ChaosCacheManager->GetWorld());
+		InRootSequence->BindPossessableObject(ObjectGuid, *ChaosCacheManager, ChaosCacheManager->GetWorld());
 		
 		TrackRecorder->CreateTrack(nullptr, ChaosCacheManager.Get(), MovieScene, nullptr, ObjectGuid);
 		CachedChaosCacheTrack = TrackRecorder->GetChaosCacheTrack();
@@ -68,7 +68,7 @@ void UTakeRecorderChaosCacheSource::StopRecording(class ULevelSequence* InSequen
 	}
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderChaosCacheSource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence, const bool bCancelled)
+TArray<UTakeRecorderSource*> UTakeRecorderChaosCacheSource::PostRecording(class ULevelSequence* InSequence, ULevelSequence* InRootSequence, const bool bCancelled)
 {
 	if (TrackRecorder)
 	{
@@ -83,7 +83,7 @@ void UTakeRecorderChaosCacheSource::AddContentsToFolder(UMovieSceneFolder* InFol
 {
 	if (CachedChaosCacheTrack.IsValid())
 	{
-		InFolder->AddChildMasterTrack(CachedChaosCacheTrack.Get());
+		InFolder->AddChildTrack(CachedChaosCacheTrack.Get());
 	}
 }
 

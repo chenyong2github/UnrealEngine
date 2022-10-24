@@ -76,7 +76,7 @@ void FMediaTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AddTrack", "Media Track"),
-		LOCTEXT("AddTooltip", "Adds a new master media track that can play media sources."),
+		LOCTEXT("AddTooltip", "Adds a new media track that can play media sources."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Tracks.Media"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FMediaTrackEditor::HandleAddMediaTrackMenuEntryExecute)
@@ -170,7 +170,7 @@ bool FMediaTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObje
 	else
 	{
 		int32 RowIndex = INDEX_NONE;
-		AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FMediaTrackEditor::AddMasterMediaSource, MediaSource, RowIndex));
+		AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FMediaTrackEditor::AddMediaSource, MediaSource, RowIndex));
 	}
 
 	return true;
@@ -259,11 +259,11 @@ FKeyPropertyResult FMediaTrackEditor::AddAttachedMediaSource(FFrameNumber KeyTim
 }
 
 
-FKeyPropertyResult FMediaTrackEditor::AddMasterMediaSource(FFrameNumber KeyTime, UMediaSource* MediaSource, int32 RowIndex)
+FKeyPropertyResult FMediaTrackEditor::AddMediaSource(FFrameNumber KeyTime, UMediaSource* MediaSource, int32 RowIndex)
 {
 	FKeyPropertyResult KeyPropertyResult;
 
-	FFindOrCreateMasterTrackResult<UMovieSceneMediaTrack> TrackResult = FindOrCreateMasterTrack<UMovieSceneMediaTrack>();
+	FFindOrCreateRootTrackResult<UMovieSceneMediaTrack> TrackResult = FindOrCreateRootTrack<UMovieSceneMediaTrack>();
 	UMovieSceneTrack* Track = TrackResult.Track;
 	auto MediaTrack = Cast<UMovieSceneMediaTrack>(Track);
 
@@ -337,7 +337,7 @@ void FMediaTrackEditor::HandleAddMediaTrackMenuEntryExecute()
 	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "AddMediaTrack_Transaction", "Add Media Track"));
 	FocusedMovieScene->Modify();
 	
-	auto NewTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneMediaTrack>();
+	auto NewTrack = FocusedMovieScene->AddTrack<UMovieSceneMediaTrack>();
 	ensure(NewTrack);
 	NewTrack->SetDisplayName(LOCTEXT("MediaTrackName", "Media"));
 

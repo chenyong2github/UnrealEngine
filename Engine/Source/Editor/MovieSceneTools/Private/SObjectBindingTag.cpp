@@ -65,7 +65,7 @@ void SObjectBindingTags::OnBindingCacheUpdated(const FObjectBindingTagCache* Bin
 			.OnDeleted(OnDeleteDelegate)
 			.ColorTint(BindingCache->GetTagColor(TagName))
 			.Text(FText::FromName(TagName))
-			.ToolTipText(FText::Format(LOCTEXT("TagToolTip", "This object binding can be looked up, resolved, and overridden in the master sequence by using the tag '{0}'"), FText::FromName(TagName)))
+			.ToolTipText(FText::Format(LOCTEXT("TagToolTip", "This object binding can be looked up, resolved, and overridden in the root sequence by using the tag '{0}'"), FText::FromName(TagName)))
 		];
 
 		LeftPadding = 5.f;

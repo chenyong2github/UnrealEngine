@@ -223,7 +223,7 @@ void UMovieSceneEventSystem::TriggerEventWithParameters(UObject* DirectorInstanc
 		}
 	}
 
-	// At this point we know the event is a master track with parameters - either trigger for global contexts, or just on its own
+	// At this point we know the event is a track with parameters - either trigger for global contexts, or just on its own
 	else if (GlobalContexts.Num() != 0)
 	{
 		for (UObject* Context : GlobalContexts)
@@ -278,7 +278,7 @@ bool UMovieSceneEventSystem::PatchBoundObject(uint8* Parameters, UObject* BoundO
 			FMessageLog("PIE").Warning()
 				->AddToken(FUObjectToken::Create(BoundObjectProperty->GetOwnerUObject()))
 				->AddToken(FUObjectToken::Create(Player->GetEvaluationTemplate().GetSequence(SequenceID)))
-				->AddToken(FTextToken::Create(LOCTEXT("LevelBP_LevelScriptActor_Error", "Failed to trigger event: only Interface pins are supported for master tracks within Level Sequences. Please remove the pin, or change it to an interface that is implemented on the desired level blueprint.")));
+				->AddToken(FTextToken::Create(LOCTEXT("LevelBP_LevelScriptActor_Error", "Failed to trigger event: only Interface pins are supported for root tracks within Level Sequences. Please remove the pin, or change it to an interface that is implemented on the desired level blueprint.")));
 
 			return false;
 		}

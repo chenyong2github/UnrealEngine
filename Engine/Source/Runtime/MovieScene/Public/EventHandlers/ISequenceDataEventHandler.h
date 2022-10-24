@@ -21,9 +21,9 @@ class ISequenceDataEventHandler
 {
 public:
 
-	virtual void OnMasterTrackAdded(UMovieSceneTrack*)     {}
+	virtual void OnTrackAdded(UMovieSceneTrack*)           {}
 
-	virtual void OnMasterTrackRemoved(UMovieSceneTrack*)   {}
+	virtual void OnTrackRemoved(UMovieSceneTrack*)         {}
 
 	virtual void OnBindingAdded(const FMovieSceneBinding&) {}
 

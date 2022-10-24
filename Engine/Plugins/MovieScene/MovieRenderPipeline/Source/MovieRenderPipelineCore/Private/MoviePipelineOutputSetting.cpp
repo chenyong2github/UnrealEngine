@@ -2,7 +2,7 @@
 
 #include "MoviePipelineOutputSetting.h"
 #include "Misc/Paths.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineQueue.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipeline.h"
@@ -53,11 +53,11 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 	FMoviePipelineFormatArgs FormatArgs;
 	FormatArgs.InJob = InJob;
 	
-	// Find the master configuration that owns us
-	UMoviePipelineMasterConfig* MasterConfig = GetTypedOuter<UMoviePipelineMasterConfig>();
-	if (MasterConfig)
+	// Find the primary configuration that owns us
+	UMoviePipelinePrimaryConfig* PrimaryConfig = GetTypedOuter<UMoviePipelinePrimaryConfig>();
+	if (PrimaryConfig)
 	{
-		MasterConfig->GetFormatArguments(FormatArgs);
+		PrimaryConfig->GetFormatArguments(FormatArgs);
 	}
 
 	for (const TPair<FString, FString>& KVP : FormatArgs.FilenameArguments)

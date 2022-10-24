@@ -12,7 +12,7 @@
 #include "MoviePipelineViewFamilySetting.h"
 #include "MoviePipelineQueue.h"
 #include "LegacyScreenPercentageDriver.h"
-#include "MoviePipelineMasterConfig.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineGameOverrideSetting.h"
 #include "EngineModule.h"
 #include "Engine/LocalPlayer.h"
@@ -238,7 +238,7 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 
 	// Override the Motion Blur settings since these are controlled by the movie pipeline.
 	{
-		FFrameRate OutputFrameRate = GetPipeline()->GetPipelineMasterConfig()->GetEffectiveFrameRate(GetPipeline()->GetTargetSequence());
+		FFrameRate OutputFrameRate = GetPipeline()->GetPipelinePrimaryConfig()->GetEffectiveFrameRate(GetPipeline()->GetTargetSequence());
 
 		// We need to inversly scale the target FPS by time dilation to counteract slowmo. If scaling isn't applied then motion blur length
 		// stays the same length despite the smaller delta time and the blur ends up too long.
