@@ -19,7 +19,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Base class for VC appx manifest generation
 	/// </summary>
-	abstract public class VCManifestGenerator
+	abstract public class AppXManifestGeneratorBase
 	{
 		/// default schema namespace
         protected virtual string Schema2010NS { get { return "http://schemas.microsoft.com/appx/2010/manifest"; } }
@@ -86,7 +86,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Create a manifest generator for the given platform variant.
 		/// </summary>
-		public VCManifestGenerator( UnrealTargetPlatform InPlatform, ILogger InLogger )
+		public AppXManifestGeneratorBase( UnrealTargetPlatform InPlatform, ILogger InLogger )
 		{
 			Platform = InPlatform;
 			Logger = InLogger;
