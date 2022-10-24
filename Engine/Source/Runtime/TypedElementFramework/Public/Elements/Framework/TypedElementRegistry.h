@@ -17,6 +17,8 @@
 #include "Elements/Framework/TypedElementLimits.h"
 #include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/TypedElementListFwd.h"
+#include "Elements/Interfaces/TypedElementDataStorageInterface.h"
+#include "Elements/Interfaces/TypedElementDataStorageCompatibilityInterface.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformCrt.h"
 #include "Logging/LogVerbosity.h"
@@ -74,6 +76,14 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, DisplayName="Get Default Typed Element Registry", Category = "TypedElementFramework|Registry", meta=(ScriptName="GetDefaultTypedElementRegistry"))
 	static UTypedElementRegistry* GetInstance();
+
+	ITypedElementDataStorageInterface* GetMutableDataStorage();
+	const ITypedElementDataStorageInterface* GetDataStorage() const;
+	void SetDataStorage(ITypedElementDataStorageInterface* Storage);
+
+	ITypedElementDataStorageCompatibilityInterface* GetMutableDataStorageCompatibility();
+	const ITypedElementDataStorageCompatibilityInterface* GetDataStorageCompatibility() const;
+	void SetDataStorageCompatibility(ITypedElementDataStorageCompatibilityInterface* Storage);
 
 	/**
 	 * Event fired when references to one element should be replaced with a reference to a different element.
@@ -671,4 +681,7 @@ private:
 	FOnElementReplaced OnElementReplacedDelegate;
 	FOnElementUpdated OnElementUpdatedDelegate;
 	FSimpleMulticastDelegate OnProcessingDeferredElementsToDestroyDelegate;
+
+	ITypedElementDataStorageInterface* DataStorage = nullptr;
+	ITypedElementDataStorageCompatibilityInterface* DataStorageCompatibility = nullptr;
 };

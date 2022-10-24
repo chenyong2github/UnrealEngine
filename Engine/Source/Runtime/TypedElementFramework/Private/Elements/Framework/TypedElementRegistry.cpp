@@ -62,6 +62,36 @@ UTypedElementRegistry* UTypedElementRegistry::GetInstance()
 	return Instance.Get();
 }
 
+ITypedElementDataStorageInterface* UTypedElementRegistry::GetMutableDataStorage()
+{
+	return DataStorage;
+}
+
+const ITypedElementDataStorageInterface* UTypedElementRegistry::GetDataStorage() const
+{
+	return DataStorage;
+}
+
+void UTypedElementRegistry::SetDataStorage(ITypedElementDataStorageInterface* Storage)
+{
+	DataStorage = Storage;
+}
+
+ITypedElementDataStorageCompatibilityInterface* UTypedElementRegistry::GetMutableDataStorageCompatibility()
+{
+	return DataStorageCompatibility;
+}
+
+const ITypedElementDataStorageCompatibilityInterface* UTypedElementRegistry::GetDataStorageCompatibility() const
+{
+	return DataStorageCompatibility;
+}
+
+void UTypedElementRegistry::SetDataStorageCompatibility(ITypedElementDataStorageCompatibilityInterface* Storage)
+{
+	DataStorageCompatibility = Storage;
+}
+
 void UTypedElementRegistry::FinishDestroy()
 {
 	TStrongObjectPtr<UTypedElementRegistry>& Instance = GetTypedElementRegistryInstance();

@@ -1187,6 +1187,7 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 		{
 			InSelectionSet->DeselectElement(ActorHandle, SelectionOptions);
 		}
+		UEngineElementsLibrary::UnregisterActorElement(Actor);
 
 		// Modify the level.  Each level is modified only once.
 		// @todo DB: Shouldn't this be calling UWorld::ModifyLevel?
