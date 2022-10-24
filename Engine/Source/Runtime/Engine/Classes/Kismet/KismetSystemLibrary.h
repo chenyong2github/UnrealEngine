@@ -484,6 +484,15 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static void ExecuteConsoleCommand(const UObject* WorldContextObject, const FString& Command, class APlayerController* SpecificPlayer = NULL );
 
 	/**
+	 * Attempts to retrieve the value of the specified string console variable, if it exists.
+	 * 
+	 * @param	VariableName	Name of the console variable to find.
+	 * @return	The value if found, empty string otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Development")
+	static FString GetConsoleVariableStringValue(const FString& VariableName);
+
+	/**
 	 * Attempts to retrieve the value of the specified float console variable, if it exists.
 	 * 
 	 * @param	VariableName	Name of the console variable to find.

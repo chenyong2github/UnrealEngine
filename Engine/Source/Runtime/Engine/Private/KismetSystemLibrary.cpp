@@ -454,6 +454,23 @@ void UKismetSystemLibrary::ExecuteConsoleCommand(const UObject* WorldContextObje
 	}
 }
 
+FString UKismetSystemLibrary::GetConsoleVariableStringValue(const FString& VariableName)
+{
+	FString Value = "";
+	
+	IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(*VariableName);
+	if (Variable)
+	{
+		Value = Variable->GetString();
+	}
+	else
+	{
+		UE_LOG(LogBlueprintUserMessages, Warning, TEXT("Failed to find console variable '%s'."), *VariableName);
+	}
+	
+	return Value;
+}
+
 float UKismetSystemLibrary::GetConsoleVariableFloatValue(const FString& VariableName)
 {
 	float Value = 0.0f;
