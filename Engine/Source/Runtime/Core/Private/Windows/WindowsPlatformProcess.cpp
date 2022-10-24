@@ -26,6 +26,8 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/Fork.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <shellapi.h>
@@ -1914,6 +1916,10 @@ static bool ResolveImport(const FString& Name, const TArray<FString>& SearchPath
 	return false;
 }
 
+UE_TRACE_EVENT_BEGIN(Cpu, ResolveMissingImports, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+UE_TRACE_EVENT_END()
+
 /**
  * Resolve all the imports for the given library, searching through a set of directories.
  *
@@ -1924,6 +1930,9 @@ static bool ResolveImport(const FString& Name, const TArray<FString>& SearchPath
  */
 static void ResolveMissingImportsRecursive(const FString& FileName, const TArray<FString>& SearchPaths, TArray<FString>& ImportFileNames, TSet<FString>& VisitedImportNames)
 {
+	UE_TRACE_LOG_SCOPED_T(Cpu, ResolveMissingImports, CpuChannel)
+		<< ResolveMissingImports.Name(*FileName);
+
 	// Read the imports for this library
 	TArray<FString> ImportNames;
 	if(ReadLibraryImports(*FileName, ImportNames))
@@ -1982,6 +1991,10 @@ static void LogImportDiagnostics(const FString& FileName, const TArray<FString>&
 	}
 }
 
+UE_TRACE_EVENT_BEGIN(Cpu, Windows_LoadLibrary, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+UE_TRACE_EVENT_END()
+
 void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileName, const TArray<FString>& SearchPaths)
 {
 	UE_SCOPED_IO_ACTIVITY(*WriteToString<256>("Loading Dll ", FileName));
@@ -2010,7 +2023,8 @@ void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileNam
 			{
 				const void* DependencyHandle = [&ImportFileName]() 
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(Windows::LoadLibrary);
+					UE_TRACE_LOG_SCOPED_T(Cpu, Windows_LoadLibrary, CpuChannel)
+						<< Windows_LoadLibrary.Name(*ImportFileName);
 					return LoadLibrary(*ImportFileName);
 				}();
 				
@@ -2030,7 +2044,8 @@ void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileNam
 	// Try to load the actual library
 	void* Handle = [FullFileName]() 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(Windows::LoadLibrary);
+		UE_TRACE_LOG_SCOPED_T(Cpu, Windows_LoadLibrary, CpuChannel)
+			<< Windows_LoadLibrary.Name(*FullFileName);
 		return LoadLibrary(*FullFileName);
 	}();
 	
