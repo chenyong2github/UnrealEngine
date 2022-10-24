@@ -22,10 +22,10 @@ bool FActorDescContainerCollection::RemoveContainer(UActorDescContainer* Contain
 
 bool FActorDescContainerCollection::Contains(const FName& ContainerPackageName) const
 {
-	 return Find(ContainerPackageName) != nullptr;
+	 return FindContainer(ContainerPackageName) != nullptr;
 }
 
-UActorDescContainer* FActorDescContainerCollection::Find(const FName& ContainerPackageName) const
+UActorDescContainer* FActorDescContainerCollection::FindContainer(const FName& ContainerPackageName) const
 {
 	auto* ContainerPtr = ActorDescContainerCollection.FindByPredicate([&ContainerPackageName](const UActorDescContainer* ActorDescContainer) { return ActorDescContainer->GetContainerPackage() == ContainerPackageName; });
 	return ContainerPtr != nullptr ? *ContainerPtr : nullptr;

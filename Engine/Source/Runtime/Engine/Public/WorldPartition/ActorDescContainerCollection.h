@@ -15,7 +15,7 @@ public:
 	void AddContainer(UActorDescContainer* Container);
 	bool RemoveContainer(UActorDescContainer* Container);
 	bool Contains(const FName& ContainerPackageName) const;
-	UActorDescContainer* Find(const FName& ContainerPackageName) const;
+	UActorDescContainer* FindContainer(const FName& ContainerPackageName) const;
 
 	void Empty() { ActorDescContainerCollection.Empty(); }
 	bool IsEmpty() const { return ActorDescContainerCollection.IsEmpty(); }
