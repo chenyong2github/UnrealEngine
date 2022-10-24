@@ -27,7 +27,7 @@ float3 DecodeSurfaceCacheNormal(FLumenCardData Card, float2 EncodedNormal)
 	float3 CardSpaceNormal;
 	CardSpaceNormal.xy = EncodedNormal.xy * 2.0f - 1.0f;
 	CardSpaceNormal.z = sqrt(max(1.0f - length2(CardSpaceNormal.xy), 0.0001f));
-	return mul(Card.WorldToLocalRotation, CardSpaceNormal);
+	return normalize(mul(Card.WorldToLocalRotation, CardSpaceNormal));
 }
 #endif
 
@@ -67,7 +67,7 @@ FLumenSurfaceCacheData GetSurfaceCacheData(FLumenCardData Card, float2 CardUV, f
 	SurfaceCacheData.Albedo = float3(0.0f, 0.0f, 0.0f);
 	SurfaceCacheData.Emissive = float3(0.0f, 0.0f, 0.0f);
 
-	float2 NormalXY = float2(0.0f, 0.0f);
+	float2 NormalXY = float2(0.5f, 0.5f);
 
 	if (SurfaceCacheData.bValid)
 	{
