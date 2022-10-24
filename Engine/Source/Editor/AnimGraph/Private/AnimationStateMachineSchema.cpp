@@ -67,8 +67,8 @@ UEdGraphNode* FEdGraphSchemaAction_NewStateNode::PerformAction(class UEdGraph* P
 		NodeTemplate->AllocateDefaultPins();
 		NodeTemplate->AutowireNewNode(FromPin);
 
-		NodeTemplate->NodePosX = Location.X;
-		NodeTemplate->NodePosY = Location.Y;
+		NodeTemplate->NodePosX = static_cast<int32>(Location.X);
+		NodeTemplate->NodePosY = static_cast<int32>(Location.Y);
 		NodeTemplate->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 
 		ResultNode = NodeTemplate;

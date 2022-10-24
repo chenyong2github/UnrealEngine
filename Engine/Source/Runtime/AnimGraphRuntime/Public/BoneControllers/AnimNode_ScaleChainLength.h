@@ -74,5 +74,5 @@ public:
 	// End of FAnimNode_Base interface
 
 protected:
-	float GetInitialChainLength(FCompactPose& InLSPose, FCSPose<FCompactPose>& InCSPose) const;
+	double GetInitialChainLength(FCompactPose& InLSPose, FCSPose<FCompactPose>& InCSPose) const;
 };

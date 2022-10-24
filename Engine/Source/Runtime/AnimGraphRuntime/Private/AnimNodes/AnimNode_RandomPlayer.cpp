@@ -433,7 +433,7 @@ void FAnimNode_RandomPlayer::InitPlayData(FRandomAnimPlayData& Data, int32 InVal
 
 	Data.Entry = Entry;
 	Data.BlendWeight = InBlendWeight;
-	Data.PlayRate = RandomStream.FRandRange(Entry->MinPlayRate, Entry->MaxPlayRate);
+	Data.PlayRate = static_cast<float>(RandomStream.FRandRange(Entry->MinPlayRate, Entry->MaxPlayRate));
 	Data.RemainingLoops = FMath::Clamp(RandomStream.RandRange(Entry->MinLoopCount, Entry->MaxLoopCount), 0, MAX_int32);
 
 	Data.PlayStartTime = 0.0f;

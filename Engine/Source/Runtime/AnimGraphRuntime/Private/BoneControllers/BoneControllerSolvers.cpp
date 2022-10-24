@@ -17,8 +17,8 @@ FTransform FIKFootPelvisPullDownSolver::Solve(FTransform PelvisTransform, TArray
 	FVector AdjustedPelvisLocation = InitialPelvisLocation;
 	FVector DeltaAdjustment = FVector::ZeroVector;
 
-	const float PerFootWeight = 1.f / static_cast<float>(IKFootLocationsCount);
-	const float AdjustmentDistMaxSquared = FMath::Pow(PelvisAdjustmentMaxDistance, 2.f);
+	const double PerFootWeight = 1.0 / static_cast<double>(IKFootLocationsCount);
+	const double AdjustmentDistMaxSquared = FMath::Pow(PelvisAdjustmentMaxDistance, 2.0);
 
 	// Pull pelvis closer to feet iteratively
 	for (int32 Iter = 0; Iter < PelvisAdjustmentMaxIter; ++Iter)
@@ -35,7 +35,7 @@ FTransform FIKFootPelvisPullDownSolver::Solve(FTransform PelvisTransform, TArray
 
 		const FVector PrevDeltaAdjustment = DeltaAdjustment;
 		DeltaAdjustment = AdjustedPelvisLocation - InitialPelvisLocation;
-		const float DeltaAdjustmentDist = FVector::Dist(PrevDeltaAdjustment, DeltaAdjustment);
+		const double DeltaAdjustmentDist = FVector::Dist(PrevDeltaAdjustment, DeltaAdjustment);
 
 		// Keep track of how much delta adjustment is being applied per iteration
 		if (DeltaAdjustmentDist <= PelvisAdjustmentErrorTolerance)

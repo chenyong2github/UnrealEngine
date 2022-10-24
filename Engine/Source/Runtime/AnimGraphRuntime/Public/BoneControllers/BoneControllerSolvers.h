@@ -22,11 +22,11 @@ struct ANIMGRAPHRUNTIME_API FIKFootPelvisPullDownSolver
 	// Specifies an alpha between the original and final adjusted pelvis locations
 	// This is used to retain some degree of the original pelvis motion
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0", ClampMax="1.0"))
-	float PelvisAdjustmentInterpAlpha = 0.5f;
+	double PelvisAdjustmentInterpAlpha = 0.5;
 
 	// Specifies the maximum displacement the pelvis can be adjusted relative to its original location
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0"))
-	float PelvisAdjustmentMaxDistance = 10.f;
+	double PelvisAdjustmentMaxDistance = 10.0;
 
 	// Specifies the pelvis adjustment distance error that is tolerated for each iteration of the solver
 	// 
@@ -36,7 +36,7 @@ struct ANIMGRAPHRUNTIME_API FIKFootPelvisPullDownSolver
 	//
 	// The default value of 0.01 specifies 1 centimeter of error
 	UPROPERTY(EditAnywhere, Category=Advanced, meta=(ClampMin="0.001"))
-	float PelvisAdjustmentErrorTolerance = 0.01f;
+	double PelvisAdjustmentErrorTolerance = 0.01;
 
 	// Specifies the maximum number of iterations to run for the pelvis adjustment solver
 	// Higher iterations will guarantee closer PelvisAdjustmentErrorTolerance convergence at the cost of performance

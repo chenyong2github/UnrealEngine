@@ -163,15 +163,15 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 	TSharedPtr<SVerticalBox> TargetEntryVertBox;
 
 	TSharedRef<SWidget> RowWidget = SNew(SBox)
-	.Padding(2)
+	.Padding(2.f)
 	[
 		SNew(SBorder)
-		.Padding(0)
+		.Padding(0.f)
 		.ForegroundColor(FLinearColor::White)
 		.BorderImage(FAppStyle::GetBrush("NoBorder"))
 		[
 			SAssignNew(ExpandArea, SExpandableArea)
-			.Padding(0)
+			.Padding(0.f)
 			.InitiallyCollapsed(true)
 			.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 			.OnAreaExpansionChanged(this, &SPDD_TargetRow::OnTargetExpansionChanged)
@@ -198,7 +198,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 				.AutoWidth()
 				[
 					SNew(SBox)
-					.MinDesiredWidth(150)
+					.MinDesiredWidth(150.f)
 					.Content()
 					[
 						SNew(SHorizontalBox)
@@ -225,8 +225,8 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 				.Padding(FMargin(3, 0))
 				[
 					SNew(SBox)
-					.MinDesiredWidth(40)
-					.MaxDesiredWidth(40)
+					.MinDesiredWidth(40.f)
+					.MaxDesiredWidth(40.f)
 					.Content()
 					[
 						SNew(STextBlock)
@@ -600,7 +600,7 @@ TOptional<float> SPDD_TargetRow::GetTranslation(int32 BoneIndex, EAxis::Type Axi
 	const FPoseDriverTarget* Target = GetTarget();
 	if (Target && Target->BoneTransforms.IsValidIndex(BoneIndex))
 	{
-		Translation = Target->BoneTransforms[BoneIndex].TargetTranslation.GetComponentForAxis(Axis);
+		Translation = static_cast<float>(Target->BoneTransforms[BoneIndex].TargetTranslation.GetComponentForAxis(Axis));
 	}
 
 	return Translation;
@@ -612,7 +612,7 @@ TOptional<float> SPDD_TargetRow::GetRotation(int32 BoneIndex, EAxis::Type Axis) 
 	const FPoseDriverTarget* Target = GetTarget();
 	if (Target && Target->BoneTransforms.IsValidIndex(BoneIndex))
 	{
-		Rotation = Target->BoneTransforms[BoneIndex].TargetRotation.GetComponentForAxis(Axis);
+		Rotation = static_cast<float>(Target->BoneTransforms[BoneIndex].TargetRotation.GetComponentForAxis(Axis));
 	}
 
 	return Rotation;
@@ -1110,7 +1110,7 @@ void FPoseDriverDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			.AutoWidth()
 			[
 				SAssignNew(ToolsButton, SComboButton)
-				.ContentPadding(3)
+				.ContentPadding(3.f)
 				.ForegroundColor(this, &FPoseDriverDetails::GetToolsForegroundColor)
 				.ButtonStyle(FAppStyle::Get(), "ToggleButton") // Use the tool bar item style for this button
 				.OnGetMenuContent(this, &FPoseDriverDetails::GetToolsMenuContent)

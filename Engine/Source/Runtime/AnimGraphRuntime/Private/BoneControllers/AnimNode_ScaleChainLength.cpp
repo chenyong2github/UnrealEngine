@@ -104,13 +104,13 @@ void FAnimNode_ScaleChainLength::Evaluate_AnyThread(FPoseContext& Output)
 
 	const FTransform StartTransformCompSpace = CSPose.GetComponentSpaceTransform(ChainBoneIndices[0]);
 
-	const float DesiredChainLength = (TargetLocationCompSpace - StartTransformCompSpace.GetLocation()).Size();
-	const float InitialChainLength = GetInitialChainLength(Output.Pose, CSPose);
-	const float ChainLengthScale = !FMath::IsNearlyZero(InitialChainLength) ? (DesiredChainLength / InitialChainLength) : 1.f;
-	const float ChainLengthScaleWithAlpha = FMath::LerpStable(1.f, ChainLengthScale, ActualAlpha);
+	const double DesiredChainLength = (TargetLocationCompSpace - StartTransformCompSpace.GetLocation()).Size();
+	const double InitialChainLength = GetInitialChainLength(Output.Pose, CSPose);
+	const double ChainLengthScale = !FMath::IsNearlyZero(InitialChainLength) ? (DesiredChainLength / InitialChainLength) : 1.0;
+	const double ChainLengthScaleWithAlpha = FMath::LerpStable(1.0, ChainLengthScale, ActualAlpha);
 
 	// If we're not going to scale anything, early out.
-	if (FMath::IsNearlyEqual(ChainLengthScaleWithAlpha, 1.f))
+	if (FMath::IsNearlyEqual(ChainLengthScaleWithAlpha, 1.0))
 	{
 		return;
 	}
@@ -124,7 +124,7 @@ void FAnimNode_ScaleChainLength::Evaluate_AnyThread(FPoseContext& Output)
 	}
 }
 
-float FAnimNode_ScaleChainLength::GetInitialChainLength(FCompactPose& InLSPose, FCSPose<FCompactPose>& InCSPose) const
+double FAnimNode_ScaleChainLength::GetInitialChainLength(FCompactPose& InLSPose, FCSPose<FCompactPose>& InCSPose) const
 {
 	switch (ChainInitialLength)
 	{
@@ -137,7 +137,7 @@ float FAnimNode_ScaleChainLength::GetInitialChainLength(FCompactPose& InLSPose, 
 
 	case EScaleChainInitialLength::ChainLength :
 	{
-		float ChainLength = 0.f;
+		double ChainLength = 0.0;
 		for (const FCompactPoseBoneIndex& BoneIndex : ChainBoneIndices)
 		{
 			ChainLength += InLSPose[BoneIndex].GetTranslation().Size();

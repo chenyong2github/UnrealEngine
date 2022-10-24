@@ -97,7 +97,7 @@ void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 		OutBoneTransforms[TransformIndex] = FBoneTransform(BoneIndex, BoneCSTransform);
 
 		// Calculate the combined length of this segment of skeleton
-		float const BoneLength = FVector::Dist(BoneCSPosition, OutBoneTransforms[TransformIndex - 1].Transform.GetLocation());
+		double const BoneLength = FVector::Dist(BoneCSPosition, OutBoneTransforms[TransformIndex - 1].Transform.GetLocation());
 
 		if (!FMath::IsNearlyZero(BoneLength))
 		{

@@ -95,9 +95,9 @@ void FSplineIKEditMode::Render(const FSceneView* View, FViewport* Viewport, FPri
 
 		PDI->SetHitProxy(new HSplineHandleHitProxy(SplineHandleIndex));
 		FTransform StartTransform = SplineIKRuntimeNode->GetTransformedSplinePoint(SplineHandleIndex);
-		const float Scale = View->WorldToScreen(StartTransform.GetLocation()).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
-		DrawSphere(PDI, StartTransform.GetLocation(), FRotator::ZeroRotator, FVector(4.0f) * Scale, 64, 64, SphereMaterialProxy, SDPG_Foreground);
-		DrawCoordinateSystem(PDI, StartTransform.GetLocation(), StartTransform.GetRotation().Rotator(), 30.0f * Scale, SDPG_Foreground);
+		const double Scale = View->WorldToScreen(StartTransform.GetLocation()).W * (4.0 / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
+		DrawSphere(PDI, StartTransform.GetLocation(), FRotator::ZeroRotator, FVector(4.0) * Scale, 64, 64, SphereMaterialProxy, SDPG_Foreground);
+		DrawCoordinateSystem(PDI, StartTransform.GetLocation(), StartTransform.GetRotation().Rotator(), static_cast<float>(30.0 * Scale), SDPG_Foreground);
 	}
 
 	PDI->SetHitProxy(nullptr);

@@ -796,10 +796,10 @@ float UAnimPreviewInstance::MontagePreview_CalculateStepLength()
 {
 	if (UAnimMontage* Montage = Cast<UAnimMontage>(CurrentAsset))
 	{
-		return Montage->GetSamplingFrameRate().AsInterval();
+		return static_cast<float>(Montage->GetSamplingFrameRate().AsInterval());
 	}
 
-	return UAnimationSettings::Get()->GetDefaultFrameRate().AsInterval();
+	return static_cast<float>(UAnimationSettings::Get()->GetDefaultFrameRate().AsInterval());
 }
 
 void UAnimPreviewInstance::MontagePreview_JumpToStart()

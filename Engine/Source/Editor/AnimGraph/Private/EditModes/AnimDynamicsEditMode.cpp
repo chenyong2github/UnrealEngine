@@ -83,21 +83,21 @@ void DrawAngularLimits(FPrimitiveDrawInterface* PDI, FTransform JointTransform, 
 	{
 		FTransform XAxisConeTM(YAxis, XAxis ^ YAxis, XAxis, JointTransform.GetTranslation());
 		XAxisConeTM.SetRotation(FQuat(XAxis, FMath::DegreesToRadians(-Middle.X)) * XAxisConeTM.GetRotation());
-		DrawCone(PDI, FScaleMatrix(30.0f) * XAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(AngleRange.X / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialX->GetRenderProxy(), SDPG_World);
+		DrawCone(PDI, FScaleMatrix(30.0f) * XAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(static_cast<float>(AngleRange.X) / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialX->GetRenderProxy(), SDPG_World);
 	}
 
 	if (AngleRange.Y > 0.0f && AngleRange.Y < 180.0f)
 	{
 		FTransform YAxisConeTM(ZAxis, YAxis ^ ZAxis, YAxis, JointTransform.GetTranslation());
 		YAxisConeTM.SetRotation(FQuat(YAxis, FMath::DegreesToRadians(Middle.Y)) * YAxisConeTM.GetRotation());
-		DrawCone(PDI, FScaleMatrix(30.0f) * YAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(AngleRange.Y / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
+		DrawCone(PDI, FScaleMatrix(30.0f) * YAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(static_cast<float>(AngleRange.Y) / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialY->GetRenderProxy(), SDPG_World);
 	}
 
 	if (AngleRange.Z > 0.0f && AngleRange.Z < 180.0f)
 	{
 		FTransform ZAxisConeTM(XAxis, ZAxis ^ XAxis, ZAxis, JointTransform.GetTranslation());
 		ZAxisConeTM.SetRotation(FQuat(ZAxis, FMath::DegreesToRadians(Middle.Z)) * ZAxisConeTM.GetRotation());
-		DrawCone(PDI, FScaleMatrix(30.0f) * ZAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(AngleRange.Z / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), SDPG_World);
+		DrawCone(PDI, FScaleMatrix(30.0f) * ZAxisConeTM.ToMatrixWithScale(), FMath::DegreesToRadians(static_cast<float>(AngleRange.Z) / 2.0f), 0.0f, 24, false, FLinearColor::White, GEngine->ConstraintLimitMaterialZ->GetRenderProxy(), SDPG_World);
 	}
 }
 
@@ -392,7 +392,7 @@ bool FAnimDynamicsEditMode::HandleClick(FEditorViewportClient* InViewportClient,
 	const bool bIsAltKeyDown = Viewport->KeyState(EKeys::LeftAlt) || Viewport->KeyState(EKeys::RightAlt);
 	bool bHandled = false;
 
-	const bool bModifySelection = bIsCtrlKeyDown | bIsShiftKeyDown;
+	const bool bModifySelection = bIsCtrlKeyDown || bIsShiftKeyDown;
 
 	const HAnimDynamicsEditModeHitProxy* const AnimDynamicsProxy = HitProxyCast<HAnimDynamicsEditModeHitProxy>(HitProxy);
 
@@ -759,7 +759,7 @@ void FAnimDynamicsEditMode::DoRotation(FRotator& InRotation)
 
 void FAnimDynamicsEditMode::DoScale(FVector& InScale)
 {
-	const float Scale = InScale.X + InScale.Y + InScale.Z;
+	const float Scale = static_cast<float>(InScale.X + InScale.Y + InScale.Z);
 
 	for (const FAnimDynamicsViewportObjectReference& SelectedObjectRef : SelectedViewportObjects)
 	{
