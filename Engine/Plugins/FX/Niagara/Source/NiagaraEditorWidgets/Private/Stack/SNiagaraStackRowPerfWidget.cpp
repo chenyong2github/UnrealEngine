@@ -268,6 +268,7 @@ FText SNiagaraStackRowPerfWidget::GetPerformanceDisplayText() const
 	TimeFormatOptions.MinimumIntegralDigits = 1;
 	TimeFormatOptions.MinimumFractionalDigits = 2;
 	TimeFormatOptions.MaximumFractionalDigits = 2;
+	TimeFormatOptions.UseGrouping = false;
 	
 	if (IsGroupHeaderEntry())
 	{
@@ -275,10 +276,18 @@ FText SNiagaraStackRowPerfWidget::GetPerformanceDisplayText() const
 		{
 			return FText::FromString("N/A");
 		}
+		if (GroupOverallTime >= 1000)
+		{
+			return FText::Format(FText::FromString("{0}s"), FText::AsNumber(GroupOverallTime / 1000, &TimeFormatOptions));
+		}
 		return FText::Format(FText::FromString("{0}ms"), FText::AsNumber(GroupOverallTime, &TimeFormatOptions));
 	}
 	if (GetDisplayMode() == ENiagaraStatDisplayMode::Absolute)
 	{
+		if (StackEntryTime >= 1000)
+		{
+			return FText::Format(FText::FromString("{0}s"), FText::AsNumber(StackEntryTime / 1000, &TimeFormatOptions));
+		}
 		return FText::Format(FText::FromString("{0}ms"), FText::AsNumber(StackEntryTime, &TimeFormatOptions));
 	}
 	FNumberFormattingOptions PercentFormatOptions;

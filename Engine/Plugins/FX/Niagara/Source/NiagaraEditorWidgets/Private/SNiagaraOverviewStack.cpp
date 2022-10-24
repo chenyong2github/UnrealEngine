@@ -975,14 +975,6 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		];
 
 
-		// Perf widget
-		ContentBox->AddSlot()
-        .AutoWidth()
-        .Padding(3, 0, 0, 0)
-        [
-            SNew(SNiagaraStackRowPerfWidget, Item)
-        ];
-
 		TSharedRef<SHorizontalBox> OptionsBox = SNew(SHorizontalBox);
 		
 		UNiagaraStackModuleItem* StackModuleItem = Cast<UNiagaraStackModuleItem>(StackItem);
@@ -1087,6 +1079,13 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					]
 				]
 			]
+			// Perf widget
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SNiagaraStackRowPerfWidget, Item)
+			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -1105,7 +1104,14 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.MaxDesiredWidth(250.f)
 				[
 					ContentBox
-				]			
+				]
+			]
+			// Perf widget
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SNiagaraStackRowPerfWidget, Item)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
