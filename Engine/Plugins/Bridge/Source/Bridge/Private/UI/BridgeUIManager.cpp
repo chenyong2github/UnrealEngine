@@ -165,23 +165,23 @@ void FBridgeUIManagerImpl::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 
 void FBridgeUIManagerImpl::CreateWindow()
 {
-#if PLATFORM_MAC
-	// Check if WebBrowserWidget plugin is enabled
-	if (TSharedPtr<IPlugin> WebBrowserPlugin = IPluginManager::Get().FindPlugin("WebBrowserWidget"))
-	{
-		if (!WebBrowserPlugin->IsEnabled())
-		{
-			const FText Title = FText::FromString(TEXT("Enable Web Browser Plugin"));
-			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Quixel Bridge requires the “Web Browser” plugin, which is disabled. Go to Edit > Plugins and search for “Web Browser” to enable it.")), &Title);
-			return;
-		}
-	}
-	else
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WebBrowserWidgetPluginNotFound", "Web Browser plugin is not found."));
-		return;
-	}
-#endif
+// #if PLATFORM_MAC
+// 	// Check if WebBrowserWidget plugin is enabled
+// 	if (TSharedPtr<IPlugin> WebBrowserPlugin = IPluginManager::Get().FindPlugin("WebBrowserWidget"))
+// 	{
+// 		if (!WebBrowserPlugin->IsEnabled())
+// 		{
+// 			const FText Title = FText::FromString(TEXT("Enable Web Browser Plugin"));
+// 			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Quixel Bridge requires the “Web Browser” plugin, which is disabled. Go to Edit > Plugins and search for “Web Browser” to enable it.")), &Title);
+// 			return;
+// 		}
+// 	}
+// 	else
+// 	{
+// 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WebBrowserWidgetPluginNotFound", "Web Browser plugin is not found."));
+// 		return;
+// 	}
+// #endif
 
 	FGlobalTabmanager::Get()->TryInvokeTab(BridgeTabName);
 
@@ -232,26 +232,13 @@ void FBridgeUIManager::Shutdown()
 
 TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& Args)
 {
-#if PLATFORM_MAC
-	// Check if WebBrowserWidget plugin is enabled
-	TSharedPtr<IPlugin> WebBrowserPlugin = IPluginManager::Get().FindPlugin("WebBrowserWidget");
-	if (WebBrowserPlugin.IsValid() && !WebBrowserPlugin->IsEnabled())
-	{
-		const FText Title = FText::FromString(TEXT("Enable Web Browser Plugin"));
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Quixel Bridge requires the “Web Browser” plugin, which is disabled. Go to Edit > Plugins and search for “Web Browser” to enable it.")), &Title);
-
-		return SAssignNew(LocalBrowserDock, SDockTab)
-			.TabRole(ETabRole::NomadTab);
-	}
-
-	// Call to GetSingleton initializes WebBrowser
-	if (!(IWebBrowserModule::Get().IsWebModuleAvailable() && IWebBrowserModule::Get().GetSingleton() != nullptr))
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("Bridge: WebBrowserModule is not available"));
-	}
-#endif
 	// Start node process
 	FNodeProcessManager::Get()->StartNodeProcess();
+
+	// Delay launch on Mac to avoid getting "Background process stopped" toast
+#if PLATFORM_MAC
+	FGenericPlatformProcess::Sleep(1);
+#endif
 
 	FString PluginPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Bridge"));
 	FString IndexUrl = FPaths::ConvertRelativePathToFull(FPaths::Combine(PluginPath, TEXT("ThirdParty"), TEXT("megascans"), TEXT("index.html")));
@@ -283,12 +270,6 @@ TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& 
 
 	TSharedPtr<SWebBrowser> PluginWebBrowser;
 
-#if PLATFORM_MAC
-	PluginWebBrowser = SAssignNew(WebBrowserWidget, SWebBrowser)
-		.ShowAddressBar(false)
-		.ShowControls(false)
-		.InitialURL(FinalUrl);
-#elif PLATFORM_WINDOWS || PLATFORM_LINUX
 	FWebBrowserInitSettings browserInitSettings = FWebBrowserInitSettings();
 	IWebBrowserModule::Get().CustomInitialize(browserInitSettings);
 	WindowSettings.InitialURL = FinalUrl;
@@ -309,7 +290,6 @@ TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& 
 		return SAssignNew(LocalBrowserDock, SDockTab)
 			.TabRole(ETabRole::NomadTab);
 	}
-#endif
 
 	SAssignNew(LocalBrowserDock, SDockTab)
 		.OnTabClosed_Lambda([](TSharedRef<class SDockTab> InParentTab)

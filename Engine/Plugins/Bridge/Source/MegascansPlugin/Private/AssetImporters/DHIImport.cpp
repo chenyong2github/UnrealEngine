@@ -375,6 +375,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		ModifiedFiles = GetModifiedFileList(AssetsImportInfo, AssetsToUpdateList);
 	}
 
+
 	// Get confirmation from the user to update the existing common assets
 	if (AssetsToUpdateList.Num() > 0) 
 	{
@@ -389,13 +390,14 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		if (UpdateAssetsDialog != EAppReturnType::Yes)
 			return;
 	}
+
+
+	// Not part of ^
 	/*if (AssetsToUpdateList.Num() > 0 ) 
 	{
 		ShowDialog(SourceMetahumanPath, DestinationMetahumanPath, CommonOverwriteMessage);
 		return;
 	}*/
-
-	
 
 	// Found files that were modified locally, inform user about these before continui
 	//if (ModifiedFiles.Num() > 0)
@@ -452,33 +454,34 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
 	ProjectUpgradeMessage += TEXT("\nthese are incompatible with UE5 MetaHumans and may result in some errors when they’re together in the same project. We highly recommend that you update all MetaHumans to be UE5 MetaHumans.\nTo continue importing this MetaHuman, please close the project and copy the following files from:");
 
+	// This is where we decide based on the number of UE4 characters whether to show dialog or not
 	if (IncompatibleCharacters.Num() > 0)
 	{
 		ShowDialog(SourceMetahumanPath, DestinationMetahumanPath, ProjectUpgradeMessage, UpgradeFooter);
 		return;
 	}
 
+
+	// TODO: Removed
+	// if (PlatformFile.DirectoryExists(*CharacterDestination))
+	// {
+	// 	bIsNewCharacter = false;
+	// 	if (MHInLevel(BPPath))
+	// 	{
+	// 		EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::Ok, FText(FText::FromString("This MetaHuman already exists in this level. In order to continue, you will need to close the level and import the MetaHuman into a new or different level.")));
+	// 		return;
+	// 	}
+	// }
+
+
+	// TODO: Partially Removed
 	if (PlatformFile.DirectoryExists(*CharacterDestination))
 	{
 		bIsNewCharacter = false;
-		if (MHInLevel(BPPath))
-		{
-			EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::Ok, FText(FText::FromString("This MetaHuman already exists in this level. In order to continue, you will need to close the level and import the MetaHuman into a new or different level.")));
-			return;
-		}
-
-	}
-
-
-	if (PlatformFile.DirectoryExists(*CharacterDestination))
-	{
-		bIsNewCharacter = false;
 		
-		EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::YesNo, FText(FText::FromString("The MetaHuman you are trying to import already exists in this project. Do you want to overwrite them?")));
-		if (ContinueImport != EAppReturnType::Yes)
-			return;
-		
-		
+	// 	EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::YesNo, FText(FText::FromString("The MetaHuman you are trying to import already exists in this project. Do you want to overwrite them?")));
+	// 	if (ContinueImport != EAppReturnType::Yes)
+	// 		return;
 	}
 
 	/*if (PlatformFile.DirectoryExists(*CharacterDestination))

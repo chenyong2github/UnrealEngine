@@ -86,16 +86,16 @@ class UMaterialPresetsSettings
 public:
 	/** Replace default master material with your own custom master material for all 3D assets. Default material is used if field is left empty. */
 	UPROPERTY(Transient, DisplayName = "3D Master Material", EditAnywhere, Category = "MasterMaterialOverrides")		
-		TLazyObjectPtr <class UMaterialInterface> MasterMaterial3d;
+		TLazyObjectPtr <class UMaterial> MasterMaterial3d;
 	//TLazyObjectPtr<class UMaterialInterface> MasterMaterial3d;
 
 	/** Replace default master material with your own custom master material for all Surfaces. Default material is used if field is left empty. */
 	UPROPERTY(Transient, DisplayName = "Surface Master Material", EditAnywhere, Category = "MasterMaterialOverrides")
-		TLazyObjectPtr<class UMaterialInterface> MasterMaterialSurface;
+		TLazyObjectPtr<class UMaterial> MasterMaterialSurface;
 
 	/** Replace default master material with your own custom master material for all 3D Plants. Default material is used if field is left empty. */
 	UPROPERTY(Transient, DisplayName = "Plant Master Material", EditAnywhere, Category = "MasterMaterialOverrides")
-		TLazyObjectPtr<class UMaterialInterface> MasterMaterialPlant;
+		TLazyObjectPtr<class UMaterial> MasterMaterialPlant;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyThatWillChange) override;

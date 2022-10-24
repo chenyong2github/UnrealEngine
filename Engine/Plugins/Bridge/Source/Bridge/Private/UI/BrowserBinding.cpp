@@ -301,9 +301,13 @@ void UBrowserBinding::SwitchDragDropOp(TArray<FString> URLs, TSharedRef<FAssetDr
 
 	FModifierKeysState ModifierKeyState;
 
+
+	const int32 UserIndexForMouse = FSlateApplication::Get().GetUserIndexForMouse();
+	const uint32 CursorPointerIndex = FSlateApplicationBase::CursorPointerIndex;
+
 	FPointerEvent FakePointerEvent(
-			FSlateApplication::Get().GetUserIndexForMouse(),
-			FSlateApplicationBase::CursorPointerIndex,
+			UserIndexForMouse,
+			CursorPointerIndex,
 			CurrentCursorPosition,
 			LastCursorPosition,
 			PressedMouseButtons,
@@ -315,11 +319,7 @@ void UBrowserBinding::SwitchDragDropOp(TArray<FString> URLs, TSharedRef<FAssetDr
 	// Make a fake mouse event for slate, so we can initiate a drag and drop.
 	FDragDropEvent DragDropEvent(FakePointerEvent, DragDropOperation);
 
-	TSharedPtr<IWebBrowserWindow> WebBrowserWindow = FBridgeUIManager::Instance->Browser;
-	if (WebBrowserWindow.IsValid() && WebBrowserWindow->GetParentWindow().IsValid())
-	{
-		FSlateApplication::Get().ProcessDragEnterEvent(WebBrowserWindow->GetParentWindow().ToSharedRef(), DragDropEvent);
-	}
+	FSlateApplication::Get().ProcessDragEnterEvent(FSlateApplication::Get().GetActiveTopLevelWindow().ToSharedRef(), DragDropEvent);
 }
 
 void SetupOnActorsDroppedEvent()
@@ -356,6 +356,11 @@ void SetupOnActorsDroppedEvent()
 				FString ID = FBridgeUIManager::BrowserBinding->DragDropIDs[i];
 				if (Type == "surface" || Type == "imperfection") continue;
 				Filtered3dIDs.Add(ID);
+			}
+
+			if (Filtered3dActors.Num() != Filtered3dObjects.Num())
+			{
+				return;
 			}
 
 			// Search for the ID against filtered objects (specific case for decals)
