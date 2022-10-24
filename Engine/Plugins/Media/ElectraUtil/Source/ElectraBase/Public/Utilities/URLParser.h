@@ -61,7 +61,9 @@ namespace Electra
 		// Decodes %XX escaped sequences into their original characters. Appends to the output. Hence in and out must not be the same.
 		static bool UrlDecode(FString& OutResult, const FString& InUrlToDecode);
 		// Encodes characters not permitted in a URL into %XX escaped sequences. Appends to the output. Hence in and out must not be the same.
-		static bool UrlEncode(FString& OutResult, const FString& InUrlToEncode, const FString& InReservedChars);
+		// A list of characters that should NOT be escaped, even if they normally would, can be passed. These characters must be strictly ASCII
+		// characters only. This is useful to prevent '/' path delimiters to be escaped if the string to be encoded represents a path.
+		static bool UrlEncode(FString& OutResult, const FString& InUrlToEncode, const FString& InCharsToKeep);
 
 		// Returns the standard port for the given scheme. An empty string is returned if none is known.
 		static FString GetStandardPortForScheme(const FString& InScheme, bool bIgnoreCase=true);
