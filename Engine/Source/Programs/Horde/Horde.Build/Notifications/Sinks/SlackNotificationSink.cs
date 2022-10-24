@@ -1014,6 +1014,11 @@ namespace Horde.Build.Notifications.Sinks
 					}
 				}
 
+				if (message.Blocks.Count == 0)
+				{
+					message.AddSection("");
+				}
+
 				await SendOrUpdateMessageToThreadAsync(triageChannel, $"{eventId}_buttons", null, threadId, message);
 			}
 
