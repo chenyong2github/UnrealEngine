@@ -113,7 +113,7 @@ namespace EpicGames.Horde.Storage
 				{
 					if (!IsValidChar(text[idx]))
 					{
-						throw new ArgumentException($"'{(char)text[idx]} is not a valid host identifier character", name);
+						throw new ArgumentException($"'{(char)text[idx]}' is not a valid host identifier character", name);
 					}
 				}
 			}

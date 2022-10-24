@@ -103,6 +103,29 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="hostId"></param>
+		/// <param name="blobId"></param>
+		public BlobLocator(ReadOnlySpan<byte> hostId, ReadOnlySpan<byte> blobId)
+		{
+			if (hostId.Length > 0)
+			{
+				byte[] buffer = new byte[hostId.Length + 1 + blobId.Length];
+
+				hostId.CopyTo(buffer);
+				buffer[hostId.Length] = (byte)':';
+				blobId.CopyTo(buffer.AsSpan(hostId.Length + 1));
+
+				Inner = new Utf8String(buffer);
+			}
+			else
+			{
+				Inner = new Utf8String(blobId.ToArray());
+			}
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="inner"></param>
 		/// <param name="sanitize"></param>
 		public BlobLocator(Utf8String inner, Sanitize sanitize)

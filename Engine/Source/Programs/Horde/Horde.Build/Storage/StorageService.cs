@@ -5,11 +5,13 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.EC2.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
@@ -40,30 +42,52 @@ namespace Horde.Build.Storage
 	}
 
 	/// <summary>
+	/// Interface for storage clients which includes a backend implementation. Some functionality is exposed through the backend which is not part of the regular storage API (eg. enumerating).
+	/// </summary>
+	public interface IStorageClientImpl : IStorageClient
+	{
+		/// <summary>
+		/// Configuration for this namespace
+		/// </summary>
+		public NamespaceConfig Config { get; }
+
+		/// <summary>
+		/// The storage backend
+		/// </summary>
+		public IStorageBackend Backend { get; }
+
+		/// <summary>
+		/// The ref collection
+		/// </summary>
+		public IRefCollection Refs { get; }
+	}
+
+	/// <summary>
 	/// Functionality related to the storage service
 	/// </summary>
 	public sealed class StorageService : IDisposable
 	{
-		sealed class StorageClient : StorageClientBase, IDisposable
+		sealed class StorageClient : StorageClientBase, IStorageClientImpl, IDisposable
 		{
 			public NamespaceConfig Config { get; }
 
+			public IStorageBackend Backend { get; }
+
 			NamespaceId NamespaceId => Config.Id;
 
-			readonly IStorageBackend _backend;
-			readonly IRefCollection _refs;
+			public IRefCollection Refs { get; }
 
 			public StorageClient(NamespaceConfig config, IStorageBackend backend, IRefCollection refs, IMemoryCache cache, ILogger logger)
 				: base(cache, logger)
 			{
 				Config = config;
-				_backend = backend;
-				_refs = refs;
+				Backend = backend;
+				Refs = refs;
 			}
 
 			public void Dispose()
 			{
-				if (_backend is IDisposable disposable)
+				if (Backend is IDisposable disposable)
 				{
 					disposable.Dispose();
 				}
@@ -78,7 +102,7 @@ namespace Horde.Build.Storage
 			{
 				string path = GetBlobPath(locator.BlobId);
 
-				Stream? stream = await _backend.TryReadAsync(path, cancellationToken);
+				Stream? stream = await Backend.TryReadAsync(path, cancellationToken);
 				if (stream == null)
 				{
 					throw new StorageException($"Unable to read data from {path}");
@@ -92,7 +116,7 @@ namespace Horde.Build.Storage
 			{
 				string path = GetBlobPath(locator.BlobId);
 
-				Stream? stream = await _backend.TryReadAsync(path, offset, length, cancellationToken);
+				Stream? stream = await Backend.TryReadAsync(path, offset, length, cancellationToken);
 				if (stream == null)
 				{
 					throw new StorageException($"Unable to read data from {path}");
@@ -107,7 +131,7 @@ namespace Horde.Build.Storage
 				BlobId id = BlobId.CreateNew(prefix);
 
 				string path = GetBlobPath(id);
-				await _backend.WriteAsync(path, stream, cancellationToken);
+				await Backend.WriteAsync(path, stream, cancellationToken);
 
 				return new BlobLocator(HostId.Empty, id);
 			}
@@ -117,13 +141,13 @@ namespace Horde.Build.Storage
 			#region Refs
 
 			/// <inheritdoc/>
-			public override Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _refs.TryReadRefTargetAsync(NamespaceId, name, cacheTime, cancellationToken);
+			public override Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => Refs.TryReadRefTargetAsync(NamespaceId, name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public override Task WriteRefTargetAsync(RefName name, NodeLocator target, CancellationToken cancellationToken = default) => _refs.WriteRefTargetAsync(NamespaceId, name, target, cancellationToken);
+			public override Task WriteRefTargetAsync(RefName name, NodeLocator target, CancellationToken cancellationToken = default) => Refs.WriteRefTargetAsync(NamespaceId, name, target, cancellationToken);
 
 			/// <inheritdoc/>
-			public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => _refs.DeleteRefAsync(NamespaceId, name, cancellationToken);
+			public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => Refs.DeleteRefAsync(NamespaceId, name, cancellationToken);
 
 			#endregion
 		}
@@ -131,10 +155,10 @@ namespace Horde.Build.Storage
 		class NamespaceInfo : IDisposable
 		{
 			public NamespaceConfig Config { get; }
-			public IStorageClient Client { get; }
+			public IStorageClientImpl Client { get; }
 			public Acl? Acl { get; }
 
-			public NamespaceInfo(NamespaceConfig config, IStorageClient client)
+			public NamespaceInfo(NamespaceConfig config, IStorageClientImpl client)
 			{
 				Config = config;
 				Client = client;
@@ -212,12 +236,23 @@ namespace Horde.Build.Storage
 		}
 
 		/// <summary>
+		/// Finds the configuration for all current namespaces
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>List of namespace configurations</returns>
+		public async Task<List<NamespaceConfig>> GetNamespacesAsync(CancellationToken cancellationToken)
+		{
+			State state = await _cachedState.GetAsync(cancellationToken);
+			return state.Namespaces.Select(x => x.Value.Config).ToList();
+		}
+
+		/// <summary>
 		/// Gets a storage client for the given namespace
 		/// </summary>
 		/// <param name="namespaceId">Namespace identifier</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<IStorageClient> GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
+		public async ValueTask<IStorageClientImpl> GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
 		{
 			NamespaceInfo namespaceInfo = await GetNamespaceInfoAsync(namespaceId, cancellationToken);
 			return namespaceInfo.Client;

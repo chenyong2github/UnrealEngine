@@ -413,6 +413,18 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Reads a bundle header from the given blob locator, or retrieves it from the cache
+		/// </summary>
+		/// <param name="locator"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		{
+			BundleInfo info = await GetBundleInfoAsync(locator, cancellationToken);
+			return info.Header;
+		}
+
+		/// <summary>
 		/// Reads the header and structural metadata about the bundle
 		/// </summary>
 		/// <param name="locator">The bundle location</param>

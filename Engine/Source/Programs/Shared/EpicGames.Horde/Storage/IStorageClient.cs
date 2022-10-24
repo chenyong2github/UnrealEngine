@@ -138,6 +138,14 @@ namespace EpicGames.Horde.Storage
 		Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Reads the header for a bundle from the store
+		/// </summary>
+		/// <param name="locator">The blob identifier</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Writes a new bundle to the store
 		/// </summary>
 		/// <param name="bundle">Bundle data</param>
@@ -245,6 +253,9 @@ namespace EpicGames.Horde.Storage
 
 			/// <inheritdoc/>
 			public Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default) => _inner.ReadBundleAsync(locator, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default) => _inner.ReadBundleHeaderAsync(locator, cancellationToken);
 
 			/// <inheritdoc/>
 			public Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteBundleAsync(bundle, prefix, cancellationToken);

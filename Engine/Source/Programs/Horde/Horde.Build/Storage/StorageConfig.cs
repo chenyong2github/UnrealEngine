@@ -108,6 +108,11 @@ namespace Horde.Build.Storage
 		public BackendId Backend { get; set; }
 
 		/// <summary>
+		/// How frequently to run garbage collection, in hours.
+		/// </summary>
+		public double GcFrequencyHrs { get; set; } = 2.0;
+
+		/// <summary>
 		/// Access list for this namespace
 		/// </summary>
 		public AclConfig Acl { get; set; } = new AclConfig();

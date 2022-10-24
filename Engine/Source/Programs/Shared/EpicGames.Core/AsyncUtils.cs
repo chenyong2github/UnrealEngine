@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -139,6 +140,64 @@ namespace EpicGames.Core
 			tasks.RemoveRange(outIdx, tasks.Count - outIdx);
 
 			return results;
+		}
+
+		/// <summary>
+		/// Starts prefetching the next item from an async enumerator while the current one is being processes
+		/// </summary>
+		/// <typeparam name="T">Value type</typeparam>
+		/// <param name="source">Sequence to enumerate</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public static async IAsyncEnumerable<T> Prefetch<T>(this IAsyncEnumerable<T> source, [EnumeratorCancellation] CancellationToken cancellationToken)
+		{
+			await using IAsyncEnumerator<T> enumerator = source.GetAsyncEnumerator(cancellationToken);
+			if (await enumerator.MoveNextAsync())
+			{
+				T value = enumerator.Current;
+
+				for (; ; )
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+
+					Task<bool> task = enumerator.MoveNextAsync().AsTask();
+					try
+					{
+						yield return value;
+					}
+					finally
+					{
+						await task; // Async state machine throws a NotSupportedException if disposed before awaiting this task
+					}
+
+					if (!await task)
+					{
+						break;
+					}
+
+					value = enumerator.Current;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Starts prefetching a number of items from an async enumerator while the current one is being processes
+		/// </summary>
+		/// <typeparam name="T">Value type</typeparam>
+		/// <param name="source">Sequence to enumerate</param>
+		/// <param name="count">Number of items to prefetch</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public static IAsyncEnumerable<T> Prefetch<T>(this IAsyncEnumerable<T> source, int count, CancellationToken cancellationToken = default)
+		{
+			if (count == 0)
+			{
+				return source;
+			}
+			else
+			{
+				return Prefetch(source, count - 1, cancellationToken);
+			}
 		}
 	}
 }

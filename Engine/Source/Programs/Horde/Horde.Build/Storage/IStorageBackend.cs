@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 
 namespace Horde.Build.Storage
 {
@@ -75,13 +76,13 @@ namespace Horde.Build.Storage
 	/// <summary>
 	/// Extension methods for <see cref="IStorageBackend"/>
 	/// </summary>
-	public static class StorageBackendExtensions
+	public static class StorageBackend
 	{
 		/// <summary>
 		/// Wrapper for <see cref="IStorageBackend"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		class StorageBackend<T> : IStorageBackend<T>
+		class TypedStorageBackend<T> : IStorageBackend<T>
 		{
 			readonly IStorageBackend _inner;
 
@@ -89,7 +90,7 @@ namespace Horde.Build.Storage
 			/// Constructor
 			/// </summary>
 			/// <param name="inner"></param>
-			public StorageBackend(IStorageBackend inner) => _inner = inner;
+			public TypedStorageBackend(IStorageBackend inner) => _inner = inner;
 
 			/// <inheritdoc/>
 			public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken) => _inner.TryReadAsync(path, cancellationToken);
@@ -111,6 +112,53 @@ namespace Horde.Build.Storage
 		}
 
 		/// <summary>
+		/// Extension for blob files
+		/// </summary>
+		public const string BlobExtension = ".blob";
+
+		/// <summary>
+		/// Gets the blob id from a path
+		/// </summary>
+		/// <param name="path">Path to the blob</param>
+		/// <returns>Path to the blob</returns>
+		public static BlobId GetBlobIdFromPath(string path)
+		{
+			BlobId blobId;
+			if (!TryGetBlobIdFromPath(path, out blobId))
+			{
+				throw new ArgumentException("Path is not a valid blob identifier", nameof(path));
+			}
+			return blobId;
+		}
+
+		/// <summary>
+		/// Gets the path to a blob
+		/// </summary>
+		/// <param name="blobId">Blob identifier</param>
+		/// <returns>Path to the blob</returns>
+		public static string GetBlobPath(BlobId blobId) => $"{blobId}{BlobExtension}";
+
+		/// <summary>
+		/// Gets a blob id from a path within the storage backend
+		/// </summary>
+		/// <param name="path">Path to the file</param>
+		/// <param name="blobId">Receives the blob id on success</param>
+		/// <returns>True on success</returns>
+		public static bool TryGetBlobIdFromPath(string path, out BlobId blobId)
+		{
+			if (path.EndsWith(BlobExtension, StringComparison.Ordinal))
+			{
+				blobId = new BlobId(path.Substring(0, path.Length - BlobExtension.Length));
+				return true;
+			}
+			else
+			{
+				blobId = default;
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Creates a typed wrapper around the given storage backend
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
@@ -118,7 +166,43 @@ namespace Horde.Build.Storage
 		/// <returns></returns>
 		public static IStorageBackend<T> ForType<T>(this IStorageBackend backend)
 		{
-			return new StorageBackend<T>(backend);
+			return new TypedStorageBackend<T>(backend);
+		}
+
+		/// <summary>
+		/// Writes a block of memory to storage
+		/// </summary>
+		/// <param name="storageBackend"></param>
+		/// <param name="path"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task<Stream> ReadAsync(this IStorageBackend storageBackend, string path, CancellationToken cancellationToken = default)
+		{
+			Stream? stream = await storageBackend.TryReadAsync(path, cancellationToken);
+			if (stream == null)
+			{
+				throw new FileNotFoundException($"Unable to read from path {path}");
+			}
+			return stream;
+		}
+
+		/// <summary>
+		/// Writes a block of memory to storage
+		/// </summary>
+		/// <param name="storageBackend"></param>
+		/// <param name="path"></param>
+		/// <param name="offset">Offset of the data to read</param>
+		/// <param name="length">Length of the data to read</param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task<Stream> ReadAsync(this IStorageBackend storageBackend, string path, int offset, int length, CancellationToken cancellationToken = default)
+		{
+			Stream? stream = await storageBackend.TryReadAsync(path, offset, length, cancellationToken);
+			if (stream == null)
+			{
+				throw new FileNotFoundException($"Unable to read from path {path}");
+			}
+			return stream;
 		}
 
 		/// <summary>

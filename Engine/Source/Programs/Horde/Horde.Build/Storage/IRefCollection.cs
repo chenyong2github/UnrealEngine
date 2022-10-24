@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -38,5 +39,12 @@ namespace Horde.Build.Storage
 		/// <param name="name">The ref name</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		Task DeleteRefAsync(NamespaceId namespaceId, RefName name, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Enumerate refs in a particular namespace
+		/// </summary>
+		/// <param name="namespaceId">Namespace for the ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		IAsyncEnumerable<NodeLocator> EnumerateRefs(NamespaceId namespaceId, CancellationToken cancellationToken = default);
 	}
 }

@@ -830,6 +830,21 @@ namespace Horde.Build
 			}
 		}
 
+		public sealed class IoHashBsonSerializer : SerializerBase<IoHash>
+		{
+			/// <inheritdoc/>
+			public override IoHash Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+			{
+				return IoHash.Parse(context.Reader.ReadString());
+			}
+
+			/// <inheritdoc/>
+			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, IoHash value)
+			{
+				context.Writer.WriteString(value.ToString());
+			}
+		}
+
 		public sealed class NamespaceIdBsonSerializer : SerializerBase<NamespaceId>
 		{
 			/// <inheritdoc/>
@@ -861,6 +876,7 @@ namespace Horde.Build
 				BsonSerializer.RegisterSerializer(new BlobIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new RefIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new RefNameBsonSerializer());
+				BsonSerializer.RegisterSerializer(new IoHashBsonSerializer());
 				BsonSerializer.RegisterSerializer(new NamespaceIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new ConditionSerializer());
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());

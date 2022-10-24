@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -165,6 +167,21 @@ namespace Horde.Build.Storage
 			}
 			
 			AddRefToCache(namespaceId, name, target);
+		}
+
+		/// <inheritdoc/>
+		public async IAsyncEnumerable<NodeLocator> EnumerateRefs(NamespaceId namespaceId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			using (IAsyncCursor<RefDocument> cursor = await _refs.Find(x => x.NamespaceId == namespaceId).ToCursorAsync(cancellationToken))
+			{
+				while (await cursor.MoveNextAsync(cancellationToken))
+				{
+					foreach (RefDocument refDoc in cursor.Current)
+					{
+						yield return new NodeLocator(refDoc.Blob, refDoc.ExportIdx);
+					}
+				}
+			}
 		}
 	}
 }

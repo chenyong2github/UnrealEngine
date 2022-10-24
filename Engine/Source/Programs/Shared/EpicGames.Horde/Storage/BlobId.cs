@@ -5,6 +5,7 @@ using EpicGames.Serialization;
 using System;
 using System.Buffers.Binary;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -63,7 +64,7 @@ namespace EpicGames.Horde.Storage
 			_ = validate;
 		}
 
-		static readonly Utf8String s_process;
+		static Utf8String s_process;
 		static int s_counter;
 
 		/// <summary>
@@ -117,13 +118,30 @@ namespace EpicGames.Horde.Storage
 		/// <param name="output">Buffer to receive the output. The first 24 bytes will be written to.</param>
 		public static void GenerateUniqueId(Span<byte> output)
 		{
-			uint timestamp = (uint)((DateTime.UtcNow - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerSecond);
-			StringUtils.FormatUtf8HexString(timestamp, output);
+			if (s_process.IsEmpty)
+			{
+				output.Slice(0, 16).Fill((byte)'0');
+			}
+			else
+			{
+				uint timestamp = (uint)((DateTime.UtcNow - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerSecond);
+				StringUtils.FormatUtf8HexString(timestamp, output);
 
-			s_process.Span.CopyTo(output.Slice(8));
+				s_process.Span.CopyTo(output.Slice(8));
+			}
 
 			uint counter = (uint)Interlocked.Increment(ref s_counter);
 			StringUtils.FormatUtf8HexString(counter, output.Slice(16));
+		}
+
+		/// <summary>
+		/// Enables the generation of deterministic ids, for tests
+		/// </summary>
+		/// <param name="counter">Next counter for new ids</param>
+		public static void UseDeterministicIds(int counter = 0)
+		{
+			s_process = Utf8String.Empty;
+			s_counter = counter;
 		}
 
 		/// <summary>

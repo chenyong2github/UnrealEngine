@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -147,13 +149,14 @@ namespace Horde.Build.Utilities
 		/// <typeparam name="TDocument"></typeparam>
 		/// <param name="collection">Collection to insert into</param>
 		/// <param name="newDocuments">The document to insert</param>
-		public static async Task InsertManyIgnoreDuplicatesAsync<TDocument>(this IMongoCollection<TDocument> collection, List<TDocument> newDocuments)
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task InsertManyIgnoreDuplicatesAsync<TDocument>(this IMongoCollection<TDocument> collection, List<TDocument> newDocuments, CancellationToken cancellationToken = default)
 		{
 			try
 			{
 				if (newDocuments.Count > 0)
 				{
-					await collection.InsertManyAsync(newDocuments, new InsertManyOptions { IsOrdered = false });
+					await collection.InsertManyAsync(newDocuments, new InsertManyOptions { IsOrdered = false }, cancellationToken);
 				}
 			}
 			catch (MongoWriteException ex)
@@ -288,6 +291,28 @@ namespace Horde.Build.Utilities
 			return expression;
 		}
 #pragma warning restore IDE0060
+
+		/// <summary>
+		/// Creates an async enumerator from the given query
+		/// </summary>
+		/// <typeparam name="T">Document type</typeparam>
+		/// <param name="source">Query source</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(this IAsyncCursorSource<T> source, [EnumeratorCancellation] CancellationToken cancellationToken)
+		{
+			using (IAsyncCursor<T> cursor = await source.ToCursorAsync(cancellationToken))
+			{
+				while (await cursor.MoveNextAsync(cancellationToken))
+				{
+					foreach (T value in cursor.Current)
+					{
+						yield return value;
+						cancellationToken.ThrowIfCancellationRequested();
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Converts a JsonElement to a BsonValue

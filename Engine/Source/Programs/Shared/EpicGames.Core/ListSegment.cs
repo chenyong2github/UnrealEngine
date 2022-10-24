@@ -16,7 +16,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// An empty list segment of the given element type
 		/// </summary>
-		public static ListSegment<T> Empty<T>() => new ListSegment<T>(null!, 0, 0);
+		public static ListSegment<T> Empty<T>() => new ListSegment<T>(Array.Empty<T>(), 0, 0);
 	}
 
 	/// <summary>
