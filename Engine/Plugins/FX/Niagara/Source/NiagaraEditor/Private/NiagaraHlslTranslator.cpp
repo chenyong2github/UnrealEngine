@@ -5735,7 +5735,7 @@ void FHlslNiagaraTranslator::SetConstantByStaticVariable(int32& OutValue, const 
 			PinToTest = InDefaultPin->LinkedTo[0];
 		}
 		FGraphTraversalHandle PinHandle(ActiveHistoryForFunctionCalls.ActivePath);
-		PinHandle.Push(PinToTest);
+		PinHandle.PushPin(PinToTest);
 
 		const FString* ConstantPtr = CompileData->PinToConstantValues.Find(PinHandle);
 		if (ConstantPtr != nullptr)

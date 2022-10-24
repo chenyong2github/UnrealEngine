@@ -77,9 +77,11 @@ public:
 		Path.Add(Guid);
 	}
 
-	void Push(const UEdGraphNode* Node);
-	void Push(const UEdGraphPin* Pin);
-	void Pop();
+	void PushNode(const UEdGraphNode* Node);
+	void PopNode();
+
+	void PushPin(const UEdGraphPin* Pin);
+	void PopPin();
 
 	bool operator==(const FGraphTraversalHandle& Rhs) const
 	{
