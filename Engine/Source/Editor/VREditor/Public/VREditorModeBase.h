@@ -67,6 +67,9 @@ protected:
 	/** Close the current viewport */
 	virtual void CloseViewport(bool bShouldDisableStereo);
 
+	virtual void EnableStereo();
+	virtual void DisableStereo();
+
 protected:
 	/** True if we're in using an actual HMD in this mode, or false if we're "faking" VR mode for testing */
 	bool bActuallyUsingVR;

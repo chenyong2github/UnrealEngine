@@ -384,7 +384,7 @@ void UVREditorMode::FinishEntry()
 
 void UVREditorMode::Exit(const bool bShouldDisableStereo)
 {
-	FSavedEditorState& SavedEditorState = static_cast<FSavedEditorState&>(SavedEditorStateChecked());
+	const FSavedEditorState& SavedEditorState = static_cast<const FSavedEditorState&>(SavedEditorStateChecked());
 
 	{
 		GetLevelViewportPossessedForVR().RemoveAllPreviews(false);
@@ -538,7 +538,7 @@ void UVREditorMode::PreTick( const float DeltaTime )
 		return;
 	}
 
-	FSavedEditorState& SavedEditorState = static_cast<FSavedEditorState&>(SavedEditorStateChecked());
+	const FSavedEditorState& SavedEditorState = static_cast<const FSavedEditorState&>(SavedEditorStateChecked());
 
 	//Setting the initial position and rotation based on the editor viewport when going into VR mode
 	if( bFirstTick && bActuallyUsingVR )
@@ -946,7 +946,7 @@ void UVREditorMode::TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTrans
 
 void UVREditorMode::RestoreWorldToMeters()
 {
-	FSavedEditorState& SavedEditorState = static_cast<FSavedEditorState&>(SavedEditorStateChecked());
+	const FSavedEditorState& SavedEditorState = static_cast<const FSavedEditorState&>(SavedEditorStateChecked());
 
 	const float DefaultWorldToMeters = VREd::DefaultWorldToMeters->GetFloat();
 	GetWorld()->GetWorldSettings()->WorldToMeters = DefaultWorldToMeters != 0.0f ? DefaultWorldToMeters : SavedEditorState.WorldToMetersScale;
