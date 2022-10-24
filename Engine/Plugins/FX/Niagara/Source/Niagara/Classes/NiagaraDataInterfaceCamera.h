@@ -91,6 +91,8 @@ private:
 	static const FName GetCameraPropertiesName;
 	static const FName GetFieldOfViewName;
 	static const FName GetTAAJitterName;
+	static const FName ApplyPreViewTranslationToPosition;
+	static const FName RemovePreViewTranslationFromPosition;
 };
 
 struct FNiagaraDataIntefaceProxyCameraQuery : public FNiagaraDataInterfaceProxy

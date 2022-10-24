@@ -64,3 +64,18 @@ void GetViewSpaceTransformsGPU_{ParameterName}(out float4x4 Out_TranslatedWorldT
 	Out_ViewToClipTransform = View.ViewToClip;
 	Out_ViewToClipNoAATransform = View.ViewToClipNoAA;
 }
+
+void ApplyPreViewTranslationToPositionGPU_{ParameterName}(in float3 In_WorldPosition, out float4 Out_TranslatedPosition)
+{
+	FLWCVector3 LwcPos = MakeLWCVector3({ParameterName}_SystemLWCTile, In_WorldPosition);
+	float3 ResolvedLwcPos = LWCToFloat(LWCAdd(LwcPos, PrimaryView.PreViewTranslation));
+	Out_TranslatedPosition = float4(ResolvedLwcPos, 1);
+}
+
+void RemovePreViewTranslationFromPositionGPU_{ParameterName}(in float4 In_TranslatedPosition, out float3 Out_WorldPosition)
+{
+	FLWCVector3 TranslatedPos = LWCPromote(In_TranslatedPosition.xyz / In_TranslatedPosition.w);
+	FLWCVector3 WorldPos = LWCSubtract(TranslatedPos, PrimaryView.PreViewTranslation);
+	WorldPos.Tile -= {ParameterName}_SystemLWCTile;
+	Out_WorldPosition = LWCToFloat(WorldPos);
+}
