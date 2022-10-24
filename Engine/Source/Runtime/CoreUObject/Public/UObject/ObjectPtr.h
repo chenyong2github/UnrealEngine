@@ -431,6 +431,7 @@ public:
 
 private:
 	FORCEINLINE T* GetNoReadNoCheck() const { return (T*)(ResolveObjectHandleNoReadNoCheck(ObjectPtr.GetHandleRef())); }
+	FORCEINLINE T* GetNoResolveNoCheck() const { return (T*)(ReadObjectHandlePointerNoCheck(ObjectPtr.GetHandleRef())); }
 
 	// @TODO: OBJPTR: There is a risk of a gap in access tracking here.  The caller may get a mutable pointer, write to it, then
 	//			read from it.  That last read would happen without an access being recorded.  Not sure if there is a good way
@@ -537,12 +538,12 @@ namespace ObjectPtr_Private
 	}
 
 	template <typename T, typename U>
-	FORCEINLINE bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other)
+	bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other)
 	{
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 		if (Ptr.IsResolved())
 		{
-			return Ptr.GetHandle().PointerOrRef == uintptr_t(Other);
+			return Ptr.GetNoResolveNoCheck() == Other;
 		}
 		else if (!Other) //avoids resolving if Other is null
 		{
@@ -561,7 +562,7 @@ namespace ObjectPtr_Private
 			decltype(CoerceToPointer<T>(std::declval<U>()) == std::declval<const T*>())
 		>* = nullptr
 	>
-	FORCEINLINE bool IsObjectPtrEqual(const TObjectPtr<T>& Ptr, U&& Other)
+	bool IsObjectPtrEqual(const TObjectPtr<T>& Ptr, U&& Other)
 	{
 		// This function deliberately avoids the tracking code path as we are only doing
 		// a shallow pointer comparison.

@@ -149,7 +149,6 @@ public:
 protected:
 };
 
-
 TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Null Behavior", "[CoreUObject][ObjectPtr]")
 {
 	TObjectPtr<UObject> NullObjectPtr(nullptr);
@@ -357,6 +356,62 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Long Path", "[Cor
 // 	TUniquePtr<FLinkerSave> Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(nullptr /*InOuter*/, false /*bForceByteSwapping*/, true /*bSaveUnversioned*/));
 // 	return true;
 // }
+
+
+//bunch of class to reproduce multiple inheritance issues
+class FTestBaseClass
+{
+public:
+	virtual ~FTestBaseClass() = default;
+	virtual void VirtFunc() { };
+};
+
+class UMiddleClass : public UObject, public FTestBaseClass
+{
+	DECLARE_CLASS_INTRINSIC(UMiddleClass, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
+
+public:
+	virtual void VirtFunc() override { };
+};
+
+
+class FAnotherBaseClass
+{
+public:
+	virtual ~FAnotherBaseClass() = default;
+	virtual void AnotherVirtFunc() { };
+};
+
+
+class UDerrivedClass : public UMiddleClass, public FAnotherBaseClass
+{
+	DECLARE_CLASS_INTRINSIC(UDerrivedClass, UMiddleClass, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
+public:
+	virtual void AnotherVirtFunc() override { };
+};
+
+IMPLEMENT_CORE_INTRINSIC_CLASS(UMiddleClass, UObject,
+	{
+	}
+);
+
+IMPLEMENT_CORE_INTRINSIC_CLASS(UDerrivedClass, UMiddleClass,
+	{
+	}
+);
+
+TEST_CASE("CoreUObject::TObjectPtr::TestEquals")
+{
+	const FName TestPackageName(TEXT("/Engine/Test/TestEquals/Transient"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+	UDerrivedClass* Obj = NewObject<UDerrivedClass>(TestPackage, TEXT("DefaultSerializeObject"));
+
+	FTestBaseClass* BasePtr = Obj;
+	TObjectPtr<UDerrivedClass> ObjPtr(Obj);
+
+	CHECK(BasePtr == ObjPtr);
+}
 
 #endif
 
