@@ -318,6 +318,8 @@ namespace EpicGames.Perforce
 			_backgroundThread = new Thread(BackgroundThreadProc);
 			_backgroundThread.IsBackground = true;
 			_backgroundThread.Start();
+
+			logger.LogTrace("Created Perforce connection {ConnectionId} (server: {ServerAndPort}, user: {UserName}, client: {ClientName})", _uniqueId, settings.ServerAndPort, settings.UserName, settings.ClientName);
 		}
 
 		/// <summary>
@@ -385,6 +387,11 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		void Dispose(bool disposing)
 		{
+			if (disposing)
+			{
+				Logger.LogTrace("Disposing Perforce connection {ConnectionId}", _uniqueId);
+			}
+
 			if (_backgroundThread != null)
 			{
 				_requests.Add(null);

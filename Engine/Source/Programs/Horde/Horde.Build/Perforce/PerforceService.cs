@@ -476,6 +476,8 @@ namespace Horde.Build.Perforce
 				return handle;
 			}
 
+			_logger.LogDebug("Unable to allocate existing pooled connection (total: {Total}, cluster: {Cluster}, user: {UserName}, stream: {StreamName})", _pooledConnections.Count, clusterName, userName, streamName);
+
 			using (PooledConnectionHandle perforce = await ConnectAsync(cluster, userName, cancellationToken))
 			{
 				InfoRecord info = await perforce.GetInfoAsync(cancellationToken);
@@ -487,7 +489,7 @@ namespace Horde.Build.Perforce
 				client.Stream = streamName;
 				await perforce.CreateClientAsync(client, cancellationToken);
 
-				_logger.LogDebug("Created client {ClientName} (user: {User}, root: {Root}, stream: {Stream}, server: {ServerId})", client.Name, client.Owner, client.Root, client.Stream, info.ServerId ?? "unknown");
+				_logger.LogDebug("Created client {ClientName} (user: {User}, root: {Root}, stream: {Stream}, server: {ServerId}, serverAndPort: {ServerAndPort})", client.Name, client.Owner, client.Root, client.Stream, info.ServerId ?? "unknown", perforce.Settings.ServerAndPort);
 				return await CreatePooledConnectionAsync(perforce.Settings.ServerAndPort, perforce.Credentials, client, cancellationToken);
 			}
 		}
