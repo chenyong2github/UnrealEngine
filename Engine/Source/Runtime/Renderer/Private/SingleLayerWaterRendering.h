@@ -5,8 +5,23 @@
 #include "RenderGraph.h"
 #include "PixelShaderUtils.h"
 #include "ScreenSpaceRayTracing.h"
+#include "SingleLayerWaterDefinitions.h"
 
 class FViewInfo;
+
+struct FSingleLayerWaterTileClassification
+{
+	FTiledReflection TiledReflection = FTiledReflection{ nullptr, nullptr, nullptr, SLW_TILE_SIZE_XY };
+	FRDGBufferRef TileMaskBuffer = nullptr;
+	FIntPoint TiledViewRes;
+};
+
+struct FSingleLayerWaterPrePassResult
+{
+	FRDGTextureMSAA DepthPrepassTexture;
+	TArray<FSingleLayerWaterTileClassification> ViewTileClassification;
+};
+
 
 struct FSceneWithoutWaterTextures
 {

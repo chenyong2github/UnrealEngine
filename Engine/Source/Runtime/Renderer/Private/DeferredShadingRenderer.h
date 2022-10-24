@@ -48,6 +48,7 @@ struct FHairStrandsTransmittanceMaskData;
 struct FVolumetricFogLocalLightFunctionInfo;
 struct FTranslucencyLightingVolumeTextures;
 struct FLumenSceneFrameTemporaries;
+struct FSingleLayerWaterPrePassResult;
 
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.
@@ -364,16 +365,17 @@ public:
 		FRDGBuilder& GraphBuilder,
 		FSceneTextures& SceneTextures,
 		bool bDoParallelPass);
-
-	void RenderSingleLayerWaterDepthPrepass(
+	/**
+	 * Runs water pre-pass if enabled and returns an RDG-allocated object with intermediates, or null.
+	 */
+	FSingleLayerWaterPrePassResult* RenderSingleLayerWaterDepthPrepass(
 		FRDGBuilder& GraphBuilder,
-		const FSceneTextures& SceneTextures,
-		FRDGTextureMSAA& OutDepthPrepassTexture);
+		const FSceneTextures& SceneTextures);
 
 	void RenderSingleLayerWater(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		const FRDGTextureMSAA& SingleLayerWaterDepthPrepassTexture,
+		const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult,
 		bool bShouldRenderVolumetricCloud,
 		FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
 		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
@@ -382,12 +384,13 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
 		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
-		const FRDGTextureMSAA& SingleLayerWaterDepthPrepassTexture);
+		const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult);
 
 	void RenderSingleLayerWaterReflections(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
 		const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
+		const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult,
 		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
 
 	void RenderOcclusion(

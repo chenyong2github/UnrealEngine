@@ -3241,11 +3241,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
 
 	// Single layer water depth prepass. Needs to run before VSM page allocation.
-	FRDGTextureMSAA SingleLayerWaterDepthPrepassOutput;
+	const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult = nullptr;
+
 	const bool bShouldRenderSingleLayerWaterDepthPrepass = !bHasRayTracedOverlay && ShouldRenderSingleLayerWaterDepthPrepass(Views);
 	if (bShouldRenderSingleLayerWaterDepthPrepass)
 	{
-		RenderSingleLayerWaterDepthPrepass(GraphBuilder, SceneTextures, SingleLayerWaterDepthPrepassOutput);
+		SingleLayerWaterPrePassResult = RenderSingleLayerWaterDepthPrepass(GraphBuilder, SceneTextures);
 	}
 
 	FAsyncLumenIndirectLightingOutputs AsyncLumenIndirectLightingOutputs;
@@ -3272,7 +3273,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
 
 				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
-				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, SingleLayerWaterDepthPrepassOutput.Resolve);
+				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, SingleLayerWaterPrePassResult);
 			}
 
 			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
@@ -3534,14 +3535,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_WaterPass));
-		RenderSingleLayerWater(GraphBuilder, SceneTextures, SingleLayerWaterDepthPrepassOutput, bShouldRenderVolumetricCloud, SceneWithoutWaterTextures, LumenFrameTemporaries);
+		RenderSingleLayerWater(GraphBuilder, SceneTextures, SingleLayerWaterPrePassResult, bShouldRenderVolumetricCloud, SceneWithoutWaterTextures, LumenFrameTemporaries);
 
 		// Replace main depth texture with the output of the SLW depth prepass which contains the scene + water.
 		// Note: Stencil now has all water bits marked with 1. As long as no other passes after this point want to read the depth buffer,
 		// a stencil clear should not be necessary here.
-		if (bShouldRenderSingleLayerWaterDepthPrepass)
+		if (SingleLayerWaterPrePassResult)
 		{
-			SceneTextures.Depth = SingleLayerWaterDepthPrepassOutput;
+			SceneTextures.Depth = SingleLayerWaterPrePassResult->DepthPrepassTexture;
 		}
 	}
 

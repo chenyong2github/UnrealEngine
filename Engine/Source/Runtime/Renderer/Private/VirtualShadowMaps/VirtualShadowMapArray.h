@@ -19,6 +19,7 @@ class FVirtualShadowMapArrayCacheManager;
 struct FSortedLightSetSceneInfo;
 class FVirtualShadowMapClipmap;
 struct FScreenPassTexture;
+struct FSingleLayerWaterPrePassResult;
 
 // TODO: does this exist?
 constexpr uint32 ILog2Const(uint32 n)
@@ -263,7 +264,7 @@ public:
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
 		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults,
-		FRDGTextureRef SingleLayerWaterDepthTexture);
+		const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult);
 
 	bool IsAllocated() const
 	{

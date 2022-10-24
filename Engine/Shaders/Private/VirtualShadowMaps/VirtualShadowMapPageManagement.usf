@@ -4,6 +4,7 @@
 	VirtualShadowMapPageManagement.usf: 
 =============================================================================*/
 
+#include "/Engine/Shared/SingleLayerWaterDefinitions.h"
 #include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
 #include "../WaveOpUtil.ush"
@@ -182,10 +183,16 @@ void PruneLightGridCS(uint GridLinearIndex : SV_DispatchThreadID)
 
 StructuredBuffer<uint> PrunedLightGridData;
 StructuredBuffer<uint> PrunedNumCulledLightsGrid;
-Texture2D<float> SingeLayerWaterDepthTexture;
+uint2 PixelStride;
 
+#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
+Texture2D<float> SingleLayerWaterDepthTexture;
+StructuredBuffer< uint > SingleLayerWaterTileMask;
+int2 SingleLayerWaterTileViewRes;
+#endif
 
-[numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
+// Note: we use the tile size defined by the water as the group-size - this is needed because the tile mask testing code relies on the size being the same to scalarize efficiently.
+[numthreads(SLW_TILE_SIZE_XY, SLW_TILE_SIZE_XY, 1)]
 void GeneratePageFlagsFromPixels(
 	uint3 InGroupId : SV_GroupID,
 	uint  GroupIndex : SV_GroupIndex,
@@ -207,8 +214,8 @@ void GeneratePageFlagsFromPixels(
 #else // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER || PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
 	const uint2 GroupId = InGroupId.xy;
 #endif
-	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
-	const uint2 PixelPos = uint2(View.ViewRectMin.xy) + VSM_DEFAULT_CS_GROUP_XY * GroupId.xy + MortonDecode(GroupIndex);
+	const uint2 PixelLocalPos = DispatchThreadId.xy * PixelStride;
+	const uint2 PixelPos = uint2(View.ViewRectMin.xy) + PixelLocalPos;
 
 	if (any(PixelPos >= uint2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy)))
 	{
@@ -244,8 +251,38 @@ void GeneratePageFlagsFromPixels(
 #endif // STRATA_ENABLED
 
 #if PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
-		DeviceZWater = SingeLayerWaterDepthTexture.Load(uint3(PixelPos, 0)).x;
-		bIsWaterDepthValid = DeviceZWater != DeviceZ;
+
+		// uint2 WaterTileIndex = DispatchThreadId.xy * PixelStride / SLW_TILE_SIZE_XY; <=>
+		// uint2 WaterTileIndex = (groupId*SLW_TILE_SIZE_XY + threadgroupIndex) * PixelStride / SLW_TILE_SIZE_XY; <=>
+		// uint2 WaterTileIndex = groupId * PixelStride + threadgroupIndex * PixelStride / SLW_TILE_SIZE_XY; <=>
+		// uint2 WaterTileMin = groupId * PixelStride + {0,0} * PixelStride / SLW_TILE_SIZE_XY; <=> groupId * PixelStride
+		// uint2 WaterTileMax = groupId * PixelStride + (SLW_TILE_SIZE_XY-1) * PixelStride / SLW_TILE_SIZE_XY; <=> 
+		// uint2 WaterTileMax = groupId * PixelStride + (SLW_TILE_SIZE_XY * PixelStride - PixelStride)  / SLW_TILE_SIZE_XY; <=> 
+		// uint2 WaterTileMax = groupId * PixelStride + PixelStride - PixelStride / SLW_TILE_SIZE_XY; <~> 
+		// uint2 WaterTileMax = groupId * PixelStride + PixelStride; <~> 
+
+		// Bit-scalarized version, must test rect
+		uint2 WaterTileMin = GroupId * PixelStride;
+		uint2 WaterTileMax = WaterTileMin + PixelStride;
+		
+		bIsWaterDepthValid = false;
+		for (uint WaterTileY = WaterTileMin.y; WaterTileY < WaterTileMax.y && !bIsWaterDepthValid; ++WaterTileY)
+		{
+			for (uint WaterTileX = WaterTileMin.x; WaterTileX < WaterTileMax.x; ++WaterTileX)
+			{
+				uint MaskLinearIndex = uint(SingleLayerWaterTileViewRes.x) * WaterTileY + WaterTileX;
+				if ((SingleLayerWaterTileMask[MaskLinearIndex / 32U] & (1U << (MaskLinearIndex % 32U))) != 0U)
+				{
+					bIsWaterDepthValid = true;
+					break;
+				}
+			}
+		}
+		if (bIsWaterDepthValid)
+		{
+			DeviceZWater = SingleLayerWaterDepthTexture.Load(uint3(PixelPos, 0)).x;
+			bIsWaterDepthValid = DeviceZWater != DeviceZ;
+		}
 #endif // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER_AND_WATER_DEPTH
 
 	}

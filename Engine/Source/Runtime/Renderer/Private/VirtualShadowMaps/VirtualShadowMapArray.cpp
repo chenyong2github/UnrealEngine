@@ -18,6 +18,7 @@
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapClipmap.h"
 #include "VirtualShadowMapVisualizationData.h"
+#include "SingleLayerWaterRendering.h"
 
 #define DEBUG_ALLOW_STATIC_SEPARATE_WITHOUT_CACHING 0
 
@@ -312,6 +313,18 @@ static TAutoConsoleVariable<int32> CVarShadowsVirtualForceFullHZBUpdate(
 
 static TAutoConsoleVariable<int32> CVarVirtualShadowSinglePassBatched(
 	TEXT("r.Shadow.Virtual.NonNanite.SinglePassBatched"),
+	1,
+	TEXT("."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarVirtualShadowMapPageMarkingPixelStrideX(
+	TEXT("r.Shadow.Virtual.PageMarkingPixelStrideX"),
+	1,
+	TEXT("."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarVirtualShadowMapPageMarkingPixelStrideY(
+	TEXT("r.Shadow.Virtual.PageMarkingPixelStrideY"),
 	1,
 	TEXT("."),
 	ECVF_RenderThreadSafe);
@@ -617,7 +630,6 @@ public:
 	// Kernel launch group sizes
 	static constexpr uint32 DefaultCSGroupXY = 8;
 	static constexpr uint32 DefaultCSGroupX = 256;
-	static constexpr uint32 GeneratePageFlagsGroupXYZ = 4;
 	static constexpr uint32 BuildExplicitBoundsGroupXY = 16;
 
 	FVirtualPageManagementShader()
@@ -646,7 +658,6 @@ public:
 
 		OutEnvironment.SetDefine(TEXT("VSM_DEFAULT_CS_GROUP_X"), DefaultCSGroupX);
 		OutEnvironment.SetDefine(TEXT("VSM_DEFAULT_CS_GROUP_XY"), DefaultCSGroupXY);
-		OutEnvironment.SetDefine(TEXT("VSM_GENERATE_PAGE_FLAGS_CS_GROUP_XYZ"), GeneratePageFlagsGroupXYZ);
 		OutEnvironment.SetDefine(TEXT("VSM_BUILD_EXPLICIT_BOUNDS_CS_XY"), BuildExplicitBoundsGroupXY);
 
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
@@ -688,7 +699,9 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, DirectionalLightIds)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PrunedLightGridData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PrunedNumCulledLightsGrid)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SingeLayerWaterDepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SingleLayerWaterDepthTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, SingleLayerWaterTileMask)
+		SHADER_PARAMETER(FIntPoint, SingleLayerWaterTileViewRes)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(uint32, InputType)
@@ -698,6 +711,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER(float, PageDilationBorderSizeDirectional)
 		SHADER_PARAMETER(float, PageDilationBorderSizeLocal)
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
+		SHADER_PARAMETER(FIntPoint, PixelStride)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FGeneratePageFlagsFromPixelsCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPageManagement.usf", "GeneratePageFlagsFromPixels", SF_Compute);
@@ -1142,7 +1156,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	const FSortedLightSetSceneInfo& SortedLightsInfo,
 	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
-	FRDGTextureRef SingleLayerWaterDepthTexture)
+	const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult)
 {
 	check(IsEnabled());
 
@@ -1440,6 +1454,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 
+					const FIntPoint PixelStride(
+						FMath::Clamp(CVarVirtualShadowMapPageMarkingPixelStrideX.GetValueOnRenderThread(), 1, 128),
+						FMath::Clamp(CVarVirtualShadowMapPageMarkingPixelStrideY.GetValueOnRenderThread(), 1, 128));
+
 					PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 					PassParameters->View = View.ViewUniformBuffer;
 					PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
@@ -1447,17 +1465,24 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					PassParameters->DirectionalLightIds = GraphBuilder.CreateSRV(DirectionalLightIdsRDG);
 					PassParameters->PrunedLightGridData = GraphBuilder.CreateSRV(PrunedLightGridDataRDG);
 					PassParameters->PrunedNumCulledLightsGrid = GraphBuilder.CreateSRV(PrunedNumCulledLightsGridRDG);
-					PassParameters->SingeLayerWaterDepthTexture = SingleLayerWaterDepthTexture;
+					if (SingleLayerWaterPrePassResult)
+					{
+						PassParameters->SingleLayerWaterDepthTexture = SingleLayerWaterPrePassResult->DepthPrepassTexture.Resolve;
+						PassParameters->SingleLayerWaterTileMask = GraphBuilder.CreateSRV(SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TileMaskBuffer);
+						PassParameters->SingleLayerWaterTileViewRes = SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TiledViewRes;
+					}
 					PassParameters->NumDirectionalLightSmInds = uint32(DirectionalLightIds.Num());
 					PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();
 					PassParameters->PageDilationBorderSizeDirectional = CVarPageDilationBorderSizeDirectional.GetValueOnRenderThread();
 					PassParameters->bCullBackfacingPixels = ShouldCullBackfacingPixels() ? 1 : 0;
 					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+					PassParameters->PixelStride = PixelStride;
 
 					auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
-					static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
-					const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
+					const FIntPoint StridedPixelSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), PixelStride);
+					// Note: we use the tile size defined by the water as the group-size - this is needed because the tile mask testing code relies on the size being the same to scalarize efficiently.
+					const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(StridedPixelSize, SLW_TILE_SIZE_XY);
 
 					if (InputType == EVirtualShadowMapProjectionInputType::HairStrands)
 					{
@@ -1475,14 +1500,14 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					{
 						FComputeShaderUtils::AddPass(
 							GraphBuilder,
-							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s,NumShadowMaps=%d)", ToString(InputType), GetNumFullShadowMaps()),
+							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s,NumShadowMaps=%d,{%d,%d})", ToString(InputType), GetNumFullShadowMaps(), GridSize.X, GridSize.Y),
 							ComputeShader,
 							PassParameters,
 							FIntVector(GridSize.X, GridSize.Y, 1));
 					}
 				};
 
-				const bool bHasValidSingleLayerWaterDepth = SingleLayerWaterDepthTexture != nullptr;
+				const bool bHasValidSingleLayerWaterDepth = SingleLayerWaterPrePassResult != nullptr;
 				GeneratePageFlags(bHasValidSingleLayerWaterDepth ? EVirtualShadowMapProjectionInputType::GBufferAndSingleLayerWaterDepth : EVirtualShadowMapProjectionInputType::GBuffer);
 				if (HairStrands::HasViewHairStrandsData(View))
 				{

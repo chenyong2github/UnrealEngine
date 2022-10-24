@@ -11,6 +11,7 @@
 #include "ShadingModels.ush"
 #include "SceneTextureParameters.ush"
 #include "LightGridCommon.ush"
+#include "/Engine/Shared/SingleLayerWaterDefinitions.h"
 #include "SingleLayerWaterCommon.ush"
 
 #define ENABLE_SKY_LIGHT 1
@@ -268,20 +269,42 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 #ifdef TILE_CATERGORISATION_SHADER
 
+#if USE_WATER_PRE_PASS_STENCIL
+Texture2D<uint2> WaterDepthStencilTexture;
+#endif
 
 uint VertexCountPerInstanceIndirect;
-
+int2 TiledViewRes;
 RWBuffer<uint> DrawIndirectDataUAV;
 RWBuffer<uint> DispatchIndirectDataUAV;
 RWBuffer<uint> WaterTileListDataUAV;
+RWStructuredBuffer<uint> TileMaskBufferOut;
 
 #if COMPILER_SUPPORTS_WAVE_VOTE
 groupshared uint bAnyWaterPixels;
 #else
-groupshared bool ContainsWater[WORK_TILE_SIZE * WORK_TILE_SIZE];
+groupshared bool ContainsWater[SLW_TILE_SIZE_XY * SLW_TILE_SIZE_XY];
 #endif
 
-[numthreads(WORK_TILE_SIZE, WORK_TILE_SIZE, 1)]
+bool DoesPixelContainWater(uint2 PixelPos)
+{
+#if USE_WATER_PRE_PASS_STENCIL
+	uint Stencil = WaterDepthStencilTexture.Load(uint3(PixelPos, 0)) STENCIL_COMPONENT_SWIZZLE;
+	return (Stencil & 1U) != 0U;
+#else // !USE_WATER_PRE_PASS_STENCIL
+#if STRATA_ENABLED
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	return (StrataPixelHeader.BSDFCount > 0 && IsSingleLayerWater(StrataPixelHeader));
+#else
+	float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	return (GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER);
+#endif
+#endif // USE_WATER_PRE_PASS_STENCIL
+}
+
+[numthreads(SLW_TILE_SIZE_XY, SLW_TILE_SIZE_XY, 1)]
 void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 GroupId : SV_GroupID, uint3 GroupThreadId : SV_GroupThreadID)
 {
 	if (ThreadId.x == 0 && ThreadId.y == 0 && GroupThreadId.x == 0 && GroupThreadId.y == 0)
@@ -298,25 +321,15 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 
 #if 0
 	// Slow reference path
-	const int LinearIndex = GroupThreadId.y * WORK_TILE_SIZE + GroupThreadId.x;
+	const int LinearIndex = GroupThreadId.y * SLW_TILE_SIZE_XY + GroupThreadId.x;
 	if (LinearIndex < 1)
 	{
 		bool bContainsWater = false;
-		for (uint i = 0; i < WORK_TILE_SIZE; ++i)
+		for (uint i = 0; i < SLW_TILE_SIZE_XY; ++i)
 		{
-			for (uint j = 0; j < WORK_TILE_SIZE; ++j)
+			for (uint j = 0; j < SLW_TILE_SIZE_XY; ++j)
 			{
-				uint2 PixelPos = (ThreadId.xy + uint2(i, j)) + View.ViewRectMin.xy;
-				float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
-
-			#if STRATA_ENABLED
-				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-				FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-				bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && IsSingleLayerWater(StrataPixelHeader));
-			#else
-				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-				bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
-			#endif
+				bContainsWater = bContainsWater || DoesPixelContainWater((ThreadId.xy + uint2(i, j)) + View.ViewRectMin.xy);
 			}
 		}
 		if (bContainsWater)
@@ -333,17 +346,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 	bool bContainsWater = false;
 	if(ThreadId.x < uint(View.BufferSizeAndInvSize.x) && ThreadId.y < uint(View.BufferSizeAndInvSize.y))
 	{
-		uint2 PixelPos = ThreadId.xy + View.ViewRectMin.xy;
-		float2 BufferUV = (PixelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
-
-	#if STRATA_ENABLED
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-		bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && IsSingleLayerWater(StrataPixelHeader));
-	#else
-		FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
-		bContainsWater = bContainsWater || (GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER);
-	#endif
+		bContainsWater = bContainsWater || DoesPixelContainWater(ThreadId.xy + View.ViewRectMin.xy);
 	}
 
 	bool bWriteTile = false;
@@ -370,7 +373,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 
 #else
 
-	const int LinearIndex = GroupThreadId.y * WORK_TILE_SIZE + GroupThreadId.x;
+	const int LinearIndex = GroupThreadId.y * SLW_TILE_SIZE_XY + GroupThreadId.x;
 	ContainsWater[LinearIndex] = bContainsWater;
 	GroupMemoryBarrierWithGroupSync();
 
@@ -416,6 +419,10 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 		InterlockedAdd(DrawIndirectDataUAV[1], 1, WriteToIndex);
 		InterlockedAdd(DispatchIndirectDataUAV[0], 1);
 		WaterTileListDataUAV[WriteToIndex] = GroupId.x | (GroupId.y << 16); // assumes 16bit is enought to represent a tiled resolution up to 65,535 :)
+
+		// Set bit to indicate tile is occupied.
+		uint MaskLinearIndex = TiledViewRes.x * GroupId.y + GroupId.x;
+		InterlockedOr(TileMaskBufferOut[MaskLinearIndex / 32U], 1U << (MaskLinearIndex % 32U));
 	}
 #endif
 } 
@@ -433,11 +440,11 @@ void WaterTileVS(
 	out float4 Position : SV_POSITION) 
 {
 	uint TileData = TileListData[InstanceId.x];
-	uint2 TileOrigin = uint2((TileData & 0x0000FFFF) * WORK_TILE_SIZE, (TileData >> 16) * WORK_TILE_SIZE);
+	uint2 TileOrigin = uint2((TileData & 0x0000FFFF) * SLW_TILE_SIZE_XY, (TileData >> 16) * SLW_TILE_SIZE_XY);
 
 	uint2 TileVertex = TileOrigin;
-	TileVertex.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? WORK_TILE_SIZE : 0;
-	TileVertex.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? WORK_TILE_SIZE : 0;
+	TileVertex.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? SLW_TILE_SIZE_XY : 0;
+	TileVertex.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? SLW_TILE_SIZE_XY : 0;
 
 	// View port is set on the view rect. So no offset are needed.
 	Position = float4(float2(TileVertex) * View.ViewSizeAndInvSize.zw * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
