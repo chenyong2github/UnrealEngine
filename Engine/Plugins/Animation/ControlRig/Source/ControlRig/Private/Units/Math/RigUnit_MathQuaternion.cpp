@@ -9,6 +9,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathQuaternion)
 
+FRigUnit_MathQuaternionMake_Execute()
+{
+	Result = FQuat(X, Y, Z, W);
+}
+
 FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

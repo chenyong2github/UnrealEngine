@@ -84,6 +84,26 @@ struct CONTROLRIG_API FRigUnit_MathDoubleBinaryAggregateOp : public FRigUnit_Mat
 };
 
 /**
+ * A double constant
+ */
+USTRUCT(meta=(DisplayName="Double", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathDoubleMake : public FRigUnit_MathDoubleBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathDoubleMake()
+	{
+		Value = 0.0;
+	}
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input, Output))
+	double Value;
+};
+
+/**
  * Returns PI
  */
 USTRUCT(meta=(DisplayName="Pi", TemplateName="Pi"))

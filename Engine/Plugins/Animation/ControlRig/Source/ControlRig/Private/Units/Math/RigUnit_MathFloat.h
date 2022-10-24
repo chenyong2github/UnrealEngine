@@ -83,6 +83,26 @@ struct CONTROLRIG_API FRigUnit_MathFloatBinaryAggregateOp : public FRigUnit_Math
 };
 
 /**
+ * A float constant
+ */
+USTRUCT(meta=(DisplayName="Float", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathFloatMake : public FRigUnit_MathFloatBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathFloatMake()
+	{
+		Value = 0.f;
+	}
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input, Output))
+	float Value;
+};
+
+/**
  * Returns PI
  */
 USTRUCT(meta=(DisplayName="Pi", TemplateName="Pi"))

@@ -9,6 +9,11 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathTransform)
 
+FRigUnit_MathTransformMake_Execute()
+{
+	Result = FTransform(Rotation, Translation, Scale);
+}
+
 FRigUnit_MathTransformFromEulerTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

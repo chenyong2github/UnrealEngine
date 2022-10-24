@@ -84,6 +84,26 @@ struct CONTROLRIG_API FRigUnit_MathBoolBinaryAggregateOp : public FRigUnit_MathB
 };
 
 /**
+ * A boolean constant
+ */
+USTRUCT(meta=(DisplayName="Bool", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathBoolMake : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathBoolMake()
+	{
+		Value = false;
+	}
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input, Output))
+	bool Value;
+};
+
+/**
  * Returns true
  */
 USTRUCT(meta=(DisplayName="True", Keywords="Yes"))

@@ -70,6 +70,35 @@ struct CONTROLRIG_API FRigUnit_MathVectorBinaryAggregateOp : public FRigUnit_Mat
 };
 
 /**
+ * Makes a vector from its components
+ */
+USTRUCT(meta=(DisplayName="Make Vector", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathVectorMake : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathVectorMake()
+	{
+		X = Y = Z = 0.f;
+		Result = FVector::ZeroVector;
+	}
+
+	UPROPERTY(meta=(Input))
+	float X;
+
+	UPROPERTY(meta=(Input))
+	float Y;
+
+	UPROPERTY(meta=(Input))
+	float Z;
+
+	UPROPERTY(meta=(Output))
+	FVector Result;
+};
+
+/**
  * Makes a vector from a single float
  */
 USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))

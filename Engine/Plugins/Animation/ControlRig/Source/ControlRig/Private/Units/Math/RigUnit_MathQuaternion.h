@@ -70,6 +70,38 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionBinaryAggregateOp : public FRigUnit
 };
 
 /**
+ * Makes a quaternion from its components
+ */
+USTRUCT(meta=(DisplayName="Make Quat", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathQuaternionMake : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathQuaternionMake()
+	{
+		X = Y = Z = W = 0.f;
+		Result = FQuat::Identity;
+	}
+
+	UPROPERTY(meta=(Input))
+	float X;
+
+	UPROPERTY(meta=(Input))
+	float Y;
+
+	UPROPERTY(meta=(Input))
+	float Z;
+
+	UPROPERTY(meta=(Input))
+	float W;
+
+	UPROPERTY(meta=(Output))
+	FQuat Result;
+};
+
+/**
  * Makes a quaternion from an axis and an angle in radians
  */
 USTRUCT(meta=(DisplayName="From Axis And Angle", TemplateName="FromAxisAndAngle", Keywords="Make,Construct"))

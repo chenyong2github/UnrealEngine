@@ -6,6 +6,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathFloat)
 
+FRigUnit_MathFloatMake_Execute()
+{
+}
+
 FRigUnit_MathFloatConstPi_Execute()
 {
 	Value = PI;

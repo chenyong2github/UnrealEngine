@@ -53,6 +53,39 @@ struct CONTROLRIG_API FRigUnit_MathColorBinaryAggregateOp : public FRigUnit_Math
 };
 
 /**
+ * Makes a color from its components
+ */
+USTRUCT(meta=(DisplayName="Make Color", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathColorMake : public FRigUnit_MathColorBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathColorMake()
+	{
+		R = G = B = 0.f;
+		A = 1.f;
+		Result = FLinearColor::Black;
+	}
+
+	UPROPERTY(meta=(Input))
+	float R;
+
+	UPROPERTY(meta=(Input))
+	float G;
+
+	UPROPERTY(meta=(Input))
+	float B;
+
+	UPROPERTY(meta=(Input))
+	float A;
+
+	UPROPERTY(meta=(Output))
+	FLinearColor Result;
+};
+
+/**
  * Makes a vector from a single float
  */
 USTRUCT(meta=(DisplayName="From Float", TemplateName="Cast", Keywords="Make,Construct"))

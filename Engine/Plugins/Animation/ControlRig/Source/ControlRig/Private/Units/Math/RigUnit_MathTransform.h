@@ -77,6 +77,37 @@ struct CONTROLRIG_API FRigUnit_MathTransformBinaryAggregateOp : public FRigUnit_
 };
 
 /**
+ * Makes a transform from its components
+ */
+USTRUCT(meta=(DisplayName="Make Transform", Keywords="Make,Construct,Constant"))
+struct CONTROLRIG_API FRigUnit_MathTransformMake : public FRigUnit_MathTransformBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathTransformMake()
+	{
+		Translation = FVector::ZeroVector;
+		Rotation = FQuat::Identity;
+		Scale = FVector::OneVector;
+		Result = FTransform::Identity;
+	}
+
+	UPROPERTY(meta=(Input))
+	FVector Translation;
+
+	UPROPERTY(meta=(Input))
+	FQuat Rotation;
+
+	UPROPERTY(meta=(Input))
+	FVector Scale;
+
+	UPROPERTY(meta=(Output))
+	FTransform Result;
+};
+
+/**
  * Makes a quaternion based transform from a euler based transform
  */
 USTRUCT(meta=(DisplayName="From Euler Transform", TemplateName="FromEulerTransform", Keywords="Make,Construct", Deprecated="5.0.1"))
