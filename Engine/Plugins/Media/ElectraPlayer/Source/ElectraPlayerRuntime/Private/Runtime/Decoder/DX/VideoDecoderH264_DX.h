@@ -194,7 +194,7 @@ namespace Electra
 		// Per platform specialization
 		virtual bool InternalDecoderCreate() = 0;
 		virtual bool CreateDecoderOutputBuffer() = 0;
-		virtual void PreInitDecodeOutputForSW(const FIntPoint& Dim) = 0;
+		virtual bool PreInitDecodeOutputForSW(const FIntPoint& Dim) = 0;
 		virtual bool SetupDecodeOutputData(const FIntPoint& ImageDim, const TRefCountPtr<IMFSample>& DecodedOutputSample, FParamDict* OutputBufferSampleProperties) = 0;
 		virtual void PlatformTick() {}
 

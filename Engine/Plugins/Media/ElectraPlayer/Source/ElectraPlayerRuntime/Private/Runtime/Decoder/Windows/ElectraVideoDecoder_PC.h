@@ -42,7 +42,7 @@ public:
 
 	// Software decode (into texture if DX11 device specified - available only Win8+)
 	void SetSWDecodeTargetBufferSize(uint32 InTargetBufferSize);
-	void PreInitForDecode(FIntPoint OutputDim, const TFunction<void(int32 /*ApiReturnValue*/, const FString& /*Message*/, uint16 /*Code*/, UEMediaError /*Error*/)>& PostError);
+	bool PreInitForDecode(FIntPoint OutputDim, const TFunction<void(int32 /*ApiReturnValue*/, const FString& /*Message*/, uint16 /*Code*/, UEMediaError /*Error*/)>& PostError);
 	void ProcessDecodeOutput(FIntPoint OutputDim, Electra::FParamDict* InParamDict);
 
 	void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer) override;
@@ -79,6 +79,7 @@ private:
 
 	// WMF sample (owned by this class if SW decoder is used)
 	TRefCountPtr<IMFSample> MFSample;
+	uint32 AllocatedBufferSize;
 
 	// Dimension of any internally allocated buffer - stored explicitly to cover various special cases for DX
 	FIntPoint SampleDim;

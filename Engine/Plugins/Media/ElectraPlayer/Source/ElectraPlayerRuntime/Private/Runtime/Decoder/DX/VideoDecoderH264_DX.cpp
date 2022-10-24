@@ -1149,8 +1149,12 @@ bool FVideoDecoderH264::Decode(TSharedPtrTS<FDecoderInput> AU, bool bResolutionC
 			// Check if we got an output buffer. When flushing or terminating AcquireOutputBuffer() may return with no buffer!
 			if (CurrentRenderOutputBuffer)
 			{
-				// Setup texture sample to receive data during decode
-				PreInitDecodeOutputForSW(FIntPoint(CurrentSampleInfo.GetResolution().Width, CurrentSampleInfo.GetResolution().Height));
+				// Setup texture sample to receive data during decode. If this created a new IMFSample then we need to
+				// reset and re-create the output buffer to update the sample in there.
+				if (PreInitDecodeOutputForSW(FIntPoint(CurrentSampleInfo.GetResolution().Width, CurrentSampleInfo.GetResolution().Height)))
+				{
+					CurrentDecoderOutputBuffer.Reset();
+				}
 			}
 			else
 			{

@@ -62,7 +62,7 @@ public:
 private:
 	virtual bool InternalDecoderCreate() override;
 	virtual bool CreateDecoderOutputBuffer() override;
-	virtual void PreInitDecodeOutputForSW(const FIntPoint& Dim);
+	virtual bool PreInitDecodeOutputForSW(const FIntPoint& Dim);
 	virtual bool SetupDecodeOutputData(const FIntPoint& ImageDim, const TRefCountPtr<IMFSample>& DecodedOutputSample, FParamDict* OutputBufferSampleProperties) override;
 
 	bool CopyTexture(const TRefCountPtr<IMFSample>& DecodedSample, Electra::FParamDict* ParamDict, FIntPoint OutputDim);
@@ -288,7 +288,7 @@ bool FVideoDecoderH264_PC::CreateDecoderOutputBuffer()
 }
 
 
-void FVideoDecoderH264_PC::PreInitDecodeOutputForSW(const FIntPoint& Dim)
+bool FVideoDecoderH264_PC::PreInitDecodeOutputForSW(const FIntPoint& Dim)
 {
 	TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
 	check(DecoderOutput);
@@ -304,7 +304,7 @@ void FVideoDecoderH264_PC::PreInitDecodeOutputForSW(const FIntPoint& Dim)
 		}
 	}
 
-	DecoderOutput->PreInitForDecode(Dim, [this](int32 ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error) { PostError(ApiReturnValue, Message, Code, Error); });
+	return DecoderOutput->PreInitForDecode(Dim, [this](int32 ApiReturnValue, const FString& Message, uint16 Code, UEMediaError Error) { PostError(ApiReturnValue, Message, Code, Error); });
 }
 
 
