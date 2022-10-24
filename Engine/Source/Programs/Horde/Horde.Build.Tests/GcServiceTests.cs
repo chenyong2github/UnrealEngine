@@ -24,7 +24,7 @@ namespace Horde.Build.Tests
 		{
 			GlobalConfig globalConfig = new GlobalConfig();
 			globalConfig.Storage.Backends.Add(new BackendConfig { Id = new BackendId("default-backend"), Type = StorageBackendType.Memory });
-			globalConfig.Storage.Namespaces.Add(new NamespaceConfig { Id = new NamespaceId("default"), Backend = new BackendId("default-backend") });
+			globalConfig.Storage.Namespaces.Add(new NamespaceConfig { Id = new NamespaceId("default"), Backend = new BackendId("default-backend"), GcDelayHrs = 0.0 });
 			await ConfigCollection.AddConfigAsync("globals", globalConfig);
 			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
 		}
@@ -50,6 +50,8 @@ namespace Horde.Build.Tests
 			}
 
 			HashSet<BlobLocator> nodes = await FindNodes(store, roots);
+
+			await Clock.AdvanceAsync(TimeSpan.FromDays(1.0));
 
 			GcService gc = ServiceProvider.GetRequiredService<GcService>();
 			await gc.RunAsync(new NamespaceId("default"), CancellationToken.None);

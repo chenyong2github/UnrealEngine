@@ -113,6 +113,11 @@ namespace Horde.Build.Storage
 		public double GcFrequencyHrs { get; set; } = 2.0;
 
 		/// <summary>
+		/// How long to keep newly uploaded orphanned objects before allowing them to be deleted, in hours.
+		/// </summary>
+		public double GcDelayHrs { get; set; } = 6.0;
+
+		/// <summary>
 		/// Access list for this namespace
 		/// </summary>
 		public AclConfig Acl { get; set; } = new AclConfig();
