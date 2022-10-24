@@ -6,9 +6,11 @@
 #include "WorldPartition/ContentBundle/ContentBundleBase.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 
 #if WITH_EDITOR
 #include "String/Find.h"
+#include "PackageTools.h"
 #endif
 
 namespace ContentBundlePaths
@@ -116,6 +118,32 @@ FStringView ContentBundlePaths::GetActorPathRelativeToExternalActors(FStringView
 		}
 	}
 	return FStringView();
+}
+
+bool ContentBundlePaths::BuildActorDescContainerPackgePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath)
+{
+	if (InContenBundleMountPoint.IsEmpty() || !InContentBundleGuid.IsValid())
+	{
+		return false;
+	}
+
+	FString LevelRoot, LevelPackagePath, LevelName;
+	if (FPackageName::SplitLongPackageName(InLevelPackagePath, LevelRoot, LevelPackagePath, LevelName))
+	{
+		TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ContentBundleActorDescContainerPackage;
+		ContentBundleActorDescContainerPackage += TEXT("/");
+		ContentBundleActorDescContainerPackage += InContenBundleMountPoint;
+		ContentBundleActorDescContainerPackage += GetContentBundleFolder();
+		ContentBundleActorDescContainerPackage += InContentBundleGuid.ToString();
+		ContentBundleActorDescContainerPackage += TEXT("/");
+		ContentBundleActorDescContainerPackage += LevelPackagePath;
+		ContentBundleActorDescContainerPackage += LevelName;
+
+		OutContainerPackagePath = UPackageTools::SanitizePackageName(*ContentBundleActorDescContainerPackage);
+		return true;
+	}
+
+	return false;
 }
 
 #endif

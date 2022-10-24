@@ -53,7 +53,8 @@ void FContentBundleEditor::DoUninitialize()
 void FContentBundleEditor::DoInjectContent()
 {
 	FString ActorDescContainerPackage;
-	if (BuildContentBundleContainerPackagePath(ActorDescContainerPackage))
+	bool bCreatedContainerPath = ContentBundlePaths::BuildActorDescContainerPackgePath(GetDescriptor()->GetPackageRoot(), GetDescriptor()->GetGuid(), GetInjectedWorld()->GetPackage()->GetName(), ActorDescContainerPackage);
+	if (bCreatedContainerPath)
 	{
 		UnsavedActorMonitor = NewObject<UContentBundleUnsavedActorMonitor>(GetTransientPackage(), NAME_None, RF_Transactional);
 		UnsavedActorMonitor->Initialize(*this);
@@ -87,6 +88,7 @@ void FContentBundleEditor::DoInjectContent()
 	}
 	else
 	{
+		UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Failed to build Container Package Path using %s"), *GetDescriptor()->GetDisplayName(), *GetInjectedWorld()->GetPackage()->GetName());
 		SetStatus(EContentBundleStatus::FailedToInject);
 	}
 
@@ -468,29 +470,6 @@ void FContentBundleEditor::BroadcastChanged()
 	{
 		EditorSubsystem->NotifyContentBundleChanged(this);
 	}
-}
-
-bool FContentBundleEditor::BuildContentBundleContainerPackagePath(FString& ContainerPackagePath) const
-{
-	FString PackageRoot, PackagePath, PackageName;
-	FString LongPackageName = GetInjectedWorld()->GetPackage()->GetName();
-	if (FPackageName::SplitLongPackageName(LongPackageName, PackageRoot, PackagePath, PackageName))
-	{
-		TStringBuilderWithBuffer<TCHAR, NAME_SIZE> PluginLeveldPackagePath;
-		PluginLeveldPackagePath += TEXT("/");
-		PluginLeveldPackagePath += GetDescriptor()->GetPackageRoot();
-		PluginLeveldPackagePath += TEXT("/ContentBundle/");
-		PluginLeveldPackagePath += GetDescriptor()->GetGuid().ToString();
-		PluginLeveldPackagePath += TEXT("/");
-		PluginLeveldPackagePath += PackagePath;
-		PluginLeveldPackagePath += PackageName;
-
-		ContainerPackagePath = UPackageTools::SanitizePackageName(*PluginLeveldPackagePath);
-		return true;
-	}
-
-	UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] Failed to build Container Package Path using %s"), *GetDescriptor()->GetDisplayName(), *LongPackageName);
-	return false;
 }
 
 UPackage* FContentBundleEditor::CreateActorPackage(const FName& ActorName) const

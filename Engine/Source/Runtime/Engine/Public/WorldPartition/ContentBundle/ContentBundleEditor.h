@@ -75,7 +75,6 @@ private:
 	void OnUnsavedActorDeleted(AActor* Actor);
 
 	void BroadcastChanged();
-	bool BuildContentBundleContainerPackagePath(FString& ContainerPackagePath) const;
 	UPackage* CreateActorPackage(const FName& ActorName) const;
 	FName BuildWorlDataLayersName() const;
 
