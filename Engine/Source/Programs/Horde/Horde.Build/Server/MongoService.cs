@@ -818,13 +818,31 @@ namespace Horde.Build.Server
 		/// <typeparam name="T"></typeparam>
 		/// <param name="updater"></param>
 		/// <returns></returns>
-		public async Task UpdateSingletonAsync<T>(Action<T> updater) where T : SingletonBase, new()
+		public Task UpdateSingletonAsync<T>(Action<T> updater) where T : SingletonBase, new()
+		{
+			bool Update(T instance)
+			{
+				updater(instance);
+				return true;
+			}
+			return UpdateSingletonAsync<T>(Update);
+		}
+
+		/// <summary>
+		/// Updates a singleton
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="updater"></param>
+		/// <returns></returns>
+		public async Task UpdateSingletonAsync<T>(Func<T, bool> updater) where T : SingletonBase, new()
 		{
 			for (; ; )
 			{
 				T document = await GetSingletonAsync(() => new T());
-				updater(document);
-
+				if (!updater(document))
+				{
+					break;
+				}
 				if (await TryUpdateSingletonAsync(document))
 				{
 					break;
