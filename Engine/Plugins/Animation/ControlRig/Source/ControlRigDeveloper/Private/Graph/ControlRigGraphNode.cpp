@@ -1623,7 +1623,7 @@ TArray<URigVMPin*>& UControlRigGraphNode::PinListForPin(const URigVMPin* InModel
 {
 	if(IsValid(InModelPin))
 	{
-		if(InModelPin->IsExecuteContext())
+		if(InModelPin->IsExecuteContext() && InModelPin->GetDirection() == ERigVMPinDirection::IO)
 		{
 			return ExecutePins;
 		}
