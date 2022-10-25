@@ -526,6 +526,14 @@ namespace Horde.Build.Issues
 			{
 				return "null";
 			}
+			else if (UserId == IIssue.ResolvedByUnknownId)
+			{
+				return "Horde (Unknown)";
+			}
+			else if (UserId == IIssue.ResolvedByTimeoutId)
+			{
+				return "Horde (Timeout)";
+			}
 
 			IUser? user = await _userCollection.GetCachedUserAsync(UserId);
 			if (user == null)
