@@ -1584,7 +1584,7 @@ namespace Horde.Build.Logs
 			List<int> results = new List<int>();
 			if (count > 0)
 			{
-				IAsyncEnumerator<int> enumerator = SearchLogDataInternalAsync(logFile, text, firstLine, searchStats).GetAsyncEnumerator();
+				await using IAsyncEnumerator<int> enumerator = SearchLogDataInternalAsync(logFile, text, firstLine, searchStats).GetAsyncEnumerator();
 				while (await enumerator.MoveNextAsync() && results.Count < count)
 				{
 					results.Add(enumerator.Current);
