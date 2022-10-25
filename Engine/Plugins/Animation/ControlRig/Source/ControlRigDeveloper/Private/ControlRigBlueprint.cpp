@@ -2246,6 +2246,7 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 					{
 
 						bool bHitFirstExecute = false;
+						bool bRenamedExecute = false;
 						for (auto Pin : EntryNode->GetPins())
 						{
 							if (Pin->GetDirection() != ERigVMPinDirection::Output)
@@ -2258,6 +2259,14 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 								if(!bHitFirstExecute)
 								{
 									bHitFirstExecute = true;
+									if (Pin->GetName() != FRigVMStruct::ExecuteContextName.ToString())
+									{
+										bRenamedExecute = true;
+										InternalCommands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').rename_exposed_pin('%s', '%s')"),
+											*Graph->GetGraphName(),
+											*FRigVMStruct::ExecuteContextName.ToString(),
+											*Pin->GetName()));
+									}
 									continue;
 								}
 							}
@@ -2285,6 +2294,14 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 								if(!bHitFirstExecute)
 								{
 									bHitFirstExecute = true;
+									if (!bRenamedExecute && Pin->GetName() != FRigVMStruct::ExecuteContextName.ToString())
+									{
+										bRenamedExecute = true;
+										InternalCommands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').rename_exposed_pin('%s', '%s')"),
+											*Graph->GetGraphName(),
+											*FRigVMStruct::ExecuteContextName.ToString(),
+											*Pin->GetName()));
+									}
 									continue;
 								}
 							}

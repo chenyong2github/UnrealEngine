@@ -285,9 +285,9 @@ bool URigVMNode::IsPure() const
 
 bool URigVMNode::IsMutable() const
 {
-	if (const URigVMPin* ExecutePin = FindPin(FRigVMStruct::ExecuteContextName.ToString()))
+	for (const URigVMPin* Pin : GetPins())
 	{
-		if(const UScriptStruct* ScriptStruct = ExecutePin->GetScriptStruct())
+		if(const UScriptStruct* ScriptStruct = Pin->GetScriptStruct())
 		{
 			return ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
 		}
