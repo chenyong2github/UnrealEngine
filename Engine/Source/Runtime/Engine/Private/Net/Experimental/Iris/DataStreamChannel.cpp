@@ -158,7 +158,7 @@ void UDataStreamChannel::Tick()
 		return;
 	}
 
-	if (!IsNetReady(Private::bIrisSaturateBandwidth) || IsPacketWindowFull() || !Connection->HasReceivedClientPacket() || (Connection->Handler != nullptr && !Connection->Handler->IsFullyInitialized()))
+	if (!IsNetReady(UE::Net::Private::bIrisSaturateBandwidth) || IsPacketWindowFull() || !Connection->HasReceivedClientPacket() || (Connection->Handler != nullptr && !Connection->Handler->IsFullyInitialized()))
 	{
 		return;
 	}
@@ -276,7 +276,7 @@ void UDataStreamChannel::Tick()
 	{
 		// Write data until we are not allowed to write more
 	}
-	while ((WriteDataFunction() == UDataStream::EWriteResult::HasMoreData) && IsNetReady(Private::bIrisSaturateBandwidth) && (!IsPacketWindowFull()));
+	while ((WriteDataFunction() == UDataStream::EWriteResult::HasMoreData) && IsNetReady(UE::Net::Private::bIrisSaturateBandwidth) && (!IsPacketWindowFull()));
 
 	// call end write to cleanup data initialized in BeginWrite	
 	DataStreamManager->EndWrite();
