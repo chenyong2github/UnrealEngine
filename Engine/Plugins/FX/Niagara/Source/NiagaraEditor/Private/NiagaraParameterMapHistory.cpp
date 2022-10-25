@@ -78,27 +78,46 @@ bool NiagaraDebugShouldLogEntriesByNameSubstring(const FName& InName)
 
 void FGraphTraversalHandle::PushNode(const UEdGraphNode* Node)
 {
-	ensure(Node->NodeGuid.IsValid());
-	Path.Push(Node->NodeGuid);
-	FriendlyPath.Push(Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	if (ensure(Node))
+	{
+		ensure(Node->NodeGuid.IsValid());
+		Path.Push(Node->NodeGuid);
+		FriendlyPath.Push(Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+	}
+	else
+	{
+		Path.Push(FGuid());
+		FriendlyPath.Push(FString());
+	}
 }
 
 void FGraphTraversalHandle::PushPin(const UEdGraphPin* Pin)
 {
-	PushNode(Pin->GetOwningNode());
+	if (ensure(Pin && Pin->GetOwningNode()))
+	{
+		PushNode(Pin->GetOwningNode());
 
-	if (Pin->PersistentGuid.IsValid())
-	{
-		Path.Push(Pin->PersistentGuid);
-	}
-	else if (Pin->GetOwningNode())
-	{
-		int32 Index = Pin->GetOwningNode()->GetPinIndex((UEdGraphPin*)Pin);
-		FGuid PinIndexGuid(Index, 0, 0, 0);
-		Path.Push(PinIndexGuid);
-	}
+		if (Pin->PersistentGuid.IsValid())
+		{
+			Path.Push(Pin->PersistentGuid);
+		}
+		else if (Pin->GetOwningNode())
+		{
+			int32 Index = Pin->GetOwningNode()->GetPinIndex((UEdGraphPin*)Pin);
+			FGuid PinIndexGuid(Index, 0, 0, 0);
+			Path.Push(PinIndexGuid);
+		}
 	
-	FriendlyPath.Push(Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::FullTitle).ToString() + TEXT("->") + Pin->PinName.ToString());
+		FriendlyPath.Push(Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::FullTitle).ToString() + TEXT("->") + Pin->PinName.ToString());
+	}
+	else
+	{
+		Path.Push(FGuid());
+		FriendlyPath.Push(FString());
+
+		Path.Push(FGuid());
+		FriendlyPath.Push(FString());
+	}
 }
 
 void FGraphTraversalHandle::PopNode()
