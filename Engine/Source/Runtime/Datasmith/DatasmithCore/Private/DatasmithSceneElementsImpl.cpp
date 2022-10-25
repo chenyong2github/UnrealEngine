@@ -1317,8 +1317,11 @@ namespace DatasmithSceneImplInternal
 					for (int32 ChildIndex = InActor->GetChildrenCount() - 1; ChildIndex >= 0; --ChildIndex)
 					{
 						const TSharedPtr< IDatasmithActorElement > Child = InActor->GetChild(ChildIndex);
-						InActor->RemoveChild(Child);
-						SceneImpl->AddActor(Child);
+						if (!Child->IsAComponent())
+						{
+							InActor->RemoveChild(Child);
+							SceneImpl->AddActor(Child);
+						}
 					}
 				}
 				else
@@ -1336,8 +1339,11 @@ namespace DatasmithSceneImplInternal
 					for (int32 ChildIndex = InActor->GetChildrenCount() - 1; ChildIndex >= 0; --ChildIndex)
 					{
 						const TSharedPtr< IDatasmithActorElement > Child = InActor->GetChild(ChildIndex);
-						InActor->RemoveChild(Child);
-						FoundHierarchy.Last()->AddChild(Child);
+						if (!Child->IsAComponent())
+						{
+							InActor->RemoveChild(Child);
+							FoundHierarchy.Last()->AddChild(Child);
+						}
 					}
 				}
 				else
