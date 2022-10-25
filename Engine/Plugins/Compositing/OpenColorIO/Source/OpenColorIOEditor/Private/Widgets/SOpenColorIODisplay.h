@@ -50,8 +50,8 @@ protected:
 	TSharedPtr<SWidget> ClassPicker;
 
 	/** ColorSpace pickers reference to update them when config asset is changed */
-	TSharedPtr<SOpenColorIOColorSpacePicker> SourceColorSpace;
-	TSharedPtr<SOpenColorIOColorSpacePicker> DestinationColorSpace;
+	TSharedPtr<SOpenColorIOColorSpacePicker> TransformSourcePicker;
+	TSharedPtr<SOpenColorIOColorSpacePicker> TransformDestinationPicker;
 
 	/** Current configuration */
 	FOpenColorIODisplayConfiguration Configuration;

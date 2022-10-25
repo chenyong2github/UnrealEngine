@@ -61,7 +61,7 @@ void SOpenColorIODisplay::Construct(const FArguments& InArgs)
 	));
 
 	// Source color space picker widget
-	SourceColorSpace =
+	TransformSourcePicker =
 		SNew(SOpenColorIOColorSpacePicker)
 		.Config(Configuration.ColorConfiguration.ConfigurationSource)
 		.InitialColorSpace(Configuration.ColorConfiguration.SourceColorSpace)
@@ -71,7 +71,7 @@ void SOpenColorIODisplay::Construct(const FArguments& InArgs)
 		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnSourceColorSpaceChanged));
 
 	// Source color space picker widget
-	DestinationColorSpace =
+	TransformDestinationPicker =
 		SNew(SOpenColorIOColorSpacePicker)
 		.Config(Configuration.ColorConfiguration.ConfigurationSource)
 		.InitialColorSpace(Configuration.ColorConfiguration.DestinationColorSpace)
@@ -80,8 +80,8 @@ void SOpenColorIODisplay::Construct(const FArguments& InArgs)
 		.IsDestination(true)
 		.OnColorSpaceChanged(FOnColorSpaceChanged::CreateSP(this, &SOpenColorIODisplay::OnDestinationColorSpaceChanged));
 	
-	Section.AddEntry(FToolMenuEntry::InitWidget("SourceColor", SourceColorSpace.ToSharedRef(), FText::GetEmpty(), true, false));
-	Section.AddEntry(FToolMenuEntry::InitWidget("DestinationColor", DestinationColorSpace.ToSharedRef(), FText::GetEmpty(), true, false));
+	Section.AddEntry(FToolMenuEntry::InitWidget("SourceColor", TransformSourcePicker.ToSharedRef(), FText::GetEmpty(), true, false));
+	Section.AddEntry(FToolMenuEntry::InitWidget("DestinationColor", TransformDestinationPicker.ToSharedRef(), FText::GetEmpty(), true, false));
 
 	TSharedRef<SWidget> Widget = UToolMenus::Get()->GenerateWidget(Menu);
 	ChildSlot
@@ -148,8 +148,8 @@ void SOpenColorIODisplay::OnConfigSelected(const FAssetData& AssetData)
 
 	UOpenColorIOConfiguration* NewConfig = Cast<UOpenColorIOConfiguration>(AssetData.GetAsset());
 	Configuration.ColorConfiguration.ConfigurationSource = NewConfig;
-	SourceColorSpace->SetConfiguration(NewConfig);
-	DestinationColorSpace->SetConfiguration(NewConfig);
+	TransformSourcePicker->SetConfiguration(NewConfig);
+	TransformDestinationPicker->SetConfiguration(NewConfig);
 
 	OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);
 }
@@ -176,13 +176,16 @@ void SOpenColorIODisplay::OnSourceColorSpaceChanged(const FOpenColorIOColorSpace
 {
 	//When color space changes, assign it, update restriction on the other picker and let know our listeners we changed
 	Configuration.ColorConfiguration.SourceColorSpace = NewColorSpace;
-	DestinationColorSpace->SetRestrictedColorSpace(NewColorSpace);
+	TransformDestinationPicker->SetRestrictedColorSpace(NewColorSpace);
+
 	OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);
 }
 
 void SOpenColorIODisplay::OnDestinationColorSpaceChanged(const FOpenColorIOColorSpace& NewColorSpace, const FOpenColorIODisplayView& NewDisplayView)
 {
 	Configuration.ColorConfiguration.DestinationColorSpace = NewColorSpace;
+	TransformSourcePicker->SetRestrictedColorSpace(NewColorSpace);
+
 	Configuration.ColorConfiguration.DestinationDisplayView = NewDisplayView;
 	OnDisplayConfigurationChanged.ExecuteIfBound(Configuration);
 }

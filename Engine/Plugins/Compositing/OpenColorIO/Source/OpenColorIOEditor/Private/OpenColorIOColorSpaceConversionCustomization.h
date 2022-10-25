@@ -6,6 +6,8 @@
 #include "IPropertyTypeCustomization.h"
 #include "Widgets/SWidget.h"
 
+class SOpenColorIOColorSpacePicker;
+
 /**
  * Implements a details view customization for the FOpenColorIOColorConversionSettings
  */
@@ -22,22 +24,9 @@ public:
 	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
 
 private:
-	void AddDestinationModeRow(IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils);
-	void AddPropertyRow(FDetailWidgetRow& InWidgetRow, TSharedRef<IPropertyHandle> InChildHandle, IPropertyTypeCustomizationUtils& InCustomizationUtils, bool bIsDisplayViewRow) const;
-	
-	TSharedRef<SWidget> HandleColorSpaceComboButtonMenuContent(TSharedPtr<IPropertyHandle> InPropertyHandle) const;
-	TSharedRef<SWidget> HandleDisplayViewComboButtonMenuContent(TSharedPtr<IPropertyHandle> InPropertyHandle) const;
+	/** Callback to reset the configuration in the transform source/destination pickers. */
+	void OnConfigurationReset();
 
-	void SetDestinationMode(bool bInIsDestinationDisplayView);
-	/** Controls visibility for widgets when the destination is a color space. */
-	EVisibility ShouldShowDestinationColorSpace() const;
-
-	/** Controls visibility for widgets when the destination is a display-view. */
-	EVisibility ShouldShowDestinationDisplayView() const;
-
-	/** Pointer to the ColorConversion struct property handle. */
-	TSharedPtr<IPropertyHandle> ColorConversionProperty;
-	
 	/** Pointer to the ColorConversion struct member SourceColorSpace property handle. */
 	TSharedPtr<IPropertyHandle> SourceColorSpaceProperty;
 	
@@ -47,5 +36,10 @@ private:
 	/** Pointer to the ColorConversion struct member DestinationColorSpace property handle. */
 	TSharedPtr<IPropertyHandle> DestinationDisplayViewProperty;
 
-	bool bIsDestinationDisplayView = false;
+	/** ColorSpace pickers reference to update them when config asset is changed */
+	TSharedPtr<SOpenColorIOColorSpacePicker> TransformSourcePicker = nullptr;
+	TSharedPtr<SOpenColorIOColorSpacePicker> TransformDestinationPicker = nullptr;
+
+	/** Raw pointer to the conversion settings struct. */
+	struct FOpenColorIOColorConversionSettings* ColorSpaceConversion = nullptr;
 };
