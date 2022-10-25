@@ -229,6 +229,10 @@ namespace Generator
 					check(InGroups.Num() == 1);
 					SetMaterialExpressionGroup(InGroups[0], ParameterExpression);
 				}
+				else if (AnnotationName.StartsWith(TEXT("::nvidia::core_definitions::dimension(")))
+				{
+					// Skip annotation which we can't apply, to avoid confusing warning for the user
+				}
 				else
 				{
 					LogMessages.Emplace(MDLImporterLogging::EMessageSeverity::Warning, TEXT("Parameter Ignored: ") + AnnotationName);

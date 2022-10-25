@@ -531,14 +531,14 @@ namespace Mdl
 				case Mdl::EValueType::Float:
 				{
 					float Value;
-					ValueData->get_interface<mi::IFloat32>()->get_value(Value);
+					make_handle(ValueData->get_interface<mi::IFloat32>())->get_value(Value);
 					UE_LOG(LogMDLImporter, Log, TEXT("Baked value: %f for: %s from: %s"), Value, Mdl::ToString(MapType), *MapBakeParam.InputBakePath);
 					break;
 				}
 				case Mdl::EValueType::Float3:
 				{
 					mi::Float32_3 Value;
-					ValueData->get_interface<mi::IFloat32_3>()->get_value(Value);
+					make_handle(ValueData->get_interface<mi::IFloat32_3>())->get_value(Value);
 					UE_LOG(LogMDLImporter, Log, TEXT("Baked float3: %f %f %f for: %s from: %s"), Value.x, Value.y, Value.z, Mdl::ToString(MapType),
 					       *MapBakeParam.InputBakePath);
 					break;
@@ -546,7 +546,7 @@ namespace Mdl
 				case Mdl::EValueType::ColorRGB:
 				{
 					mi::Color Value;
-					ValueData->get_interface<mi::IColor>()->get_value(Value);
+					make_handle(ValueData->get_interface<mi::IColor>())->get_value(Value);
 					UE_LOG(LogMDLImporter, Log, TEXT("Baked color: %f %f %f %f for: %s from: %s"), Value.r, Value.g, Value.b, Value.a,
 					       Mdl::ToString(MapType), *MapBakeParam.InputBakePath);
 					break;

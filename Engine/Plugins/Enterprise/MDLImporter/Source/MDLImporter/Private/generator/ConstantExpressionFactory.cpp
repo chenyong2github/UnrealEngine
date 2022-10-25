@@ -94,7 +94,7 @@ namespace Generator
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_vector>());
 
-				const mi::neuraylib::IType::Kind ElementKind = Value->get_type()->get_element_type()->get_kind();
+				const mi::neuraylib::IType::Kind ElementKind = make_handle(make_handle(Value->get_type())->get_element_type())->get_kind();
 				FMaterialExpressionConnectionList Result;
 				switch (ElementKind)
 				{
