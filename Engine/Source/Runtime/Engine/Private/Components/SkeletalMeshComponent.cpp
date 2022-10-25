@@ -358,10 +358,13 @@ void USkeletalMeshComponent::Serialize(FArchive& Ar)
 	}
 
 	Ar.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
+
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.CustomVer(FAnimPhysObjectVersion::GUID) < FAnimPhysObjectVersion::RenameDisableAnimCurvesToAllowAnimCurveEvaluation)
 	{
 		bAllowAnimCurveEvaluation = !bDisableAnimCurves_DEPRECATED;
 	}
+#endif
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

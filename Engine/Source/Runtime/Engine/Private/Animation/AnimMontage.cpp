@@ -65,8 +65,10 @@ UAnimMontage::UAnimMontage(const FObjectInitializer& ObjectInitializer)
 	BlendProfileIn = nullptr;
 	BlendProfileOut = nullptr;
 
+#if WITH_EDITORONLY_DATA
 	BlendInTime_DEPRECATED = -1.f;
 	BlendOutTime_DEPRECATED = -1.f;
+#endif
 
 	AddSlot(FAnimSlotGroup::DefaultSlotName);
 
@@ -402,12 +404,14 @@ void UAnimMontage::PostLoad()
 
 	for(FCompositeSection& Composite : CompositeSections)
 	{
+#if WITH_EDITORONLY_DATA
 		if(Composite.StartTime_DEPRECATED != 0.0f)
 		{
 			Composite.Clear();
 			Composite.Link(this, Composite.StartTime_DEPRECATED);
 		}
 		else
+#endif
 		{
 			Composite.RefreshSegmentOnLoad();
 			Composite.Link(this, Composite.GetTime());
@@ -484,12 +488,14 @@ void UAnimMontage::PostLoad()
 
 	for(FAnimNotifyEvent& Notify : Notifies)
 	{
+#if WITH_EDITORONLY_DATA
 		if(Notify.DisplayTime_DEPRECATED != 0.0f)
 		{
 			Notify.Clear();
 			Notify.Link(this, Notify.DisplayTime_DEPRECATED);
 		}
 		else
+#endif
 		{
 			Notify.Link(this, Notify.GetTime());
 		}
@@ -506,6 +512,7 @@ void UAnimMontage::PostLoad()
 		ConvertBranchingPointsToAnimNotifies();
 	}
 
+#if WITH_EDITORONLY_DATA
 	// fix up blending time deprecated variable
 	if (BlendInTime_DEPRECATED != -1.f)
 	{
@@ -518,6 +525,7 @@ void UAnimMontage::PostLoad()
 		BlendOut.SetBlendTime(BlendOutTime_DEPRECATED);
 		BlendOutTime_DEPRECATED = -1.f;
 	}
+#endif
 
 	// collect markers if it's valid
 	CollectMarkers();
@@ -525,6 +533,7 @@ void UAnimMontage::PostLoad()
 
 void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 {
+#if WITH_EDITORONLY_DATA
 	if (BranchingPoints_DEPRECATED.Num() > 0)
 	{
 		// Handle deprecated DisplayTime first
@@ -544,7 +553,6 @@ void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 		// Then convert to AnimNotifies
 		USkeleton * MySkeleton = GetSkeleton();
 
-#if WITH_EDITORONLY_DATA
 		// Add a new AnimNotifyTrack, and place all branching points in there.
 		int32 TrackIndex = AnimNotifyTracks.Num();
 
@@ -552,7 +560,6 @@ void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 		NewItem.TrackName = *FString::FromInt(TrackIndex + 1);
 		NewItem.TrackColor = FLinearColor::White;
 		AnimNotifyTracks.Add(NewItem);
-#endif
 
 		for (auto BranchingPoint : BranchingPoints_DEPRECATED)
 		{
@@ -565,26 +572,23 @@ void UAnimMontage::ConvertBranchingPointsToAnimNotifies()
 #if WITH_EDITOR
 			NewEvent.TriggerTimeOffset = GetTriggerTimeOffsetForType(CalculateOffsetForNotify(TriggerTime));
 #endif
-#if WITH_EDITORONLY_DATA
 			NewEvent.TrackIndex = TrackIndex;
-#endif
 			NewEvent.Notify = nullptr;
 			NewEvent.NotifyStateClass = nullptr;
 			NewEvent.bConvertedFromBranchingPoint = true;
 			NewEvent.MontageTickType = EMontageNotifyTickType::BranchingPoint;
 
-#if WITH_EDITORONLY_DATA
 			// Add as a custom AnimNotify event to Skeleton.
 			if (MySkeleton)
 			{
 				MySkeleton->AnimationNotifies.AddUnique(NewEvent.NotifyName);
 			}
-#endif
 		}
 
 		BranchingPoints_DEPRECATED.Empty();
 		RefreshBranchingPointMarkers();
 	}
+#endif
 }
 
 void UAnimMontage::RefreshBranchingPointMarkers()

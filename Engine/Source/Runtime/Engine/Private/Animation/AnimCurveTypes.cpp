@@ -27,12 +27,17 @@ void FAnimCurveBase::PostSerialize(FArchive& Ar)
 				Ar << CurveUid;
 
 				Name.UID = CurveUid;
+
+#if WITH_EDITORONLY_DATA
 				Name.DisplayName = LastObservedName_DEPRECATED;
+#endif
 			}
+#if WITH_EDITORONLY_DATA
 			else
 			{
 				Name.DisplayName = LastObservedName_DEPRECATED;
 			}
+#endif
 		}
 
 #if WITH_EDITORONLY_DATA

@@ -46,6 +46,7 @@ private:
 	UPROPERTY(transient)
 	TMap<FString, TWeakObjectPtr<URigVMPin>> PinPathToModelPin;
 
+#if WITH_EDITORONLY_DATA
 	/** The property we represent. For template nodes this represents the struct/property type name. */
 	UPROPERTY()
 	FName PropertyName_DEPRECATED;
@@ -64,6 +65,7 @@ private:
 	/** Expanded pins */
 	UPROPERTY()
 	TArray<FString> ExpandedPins_DEPRECATED;
+#endif
 
 	/** Cached dimensions of this node (used for auto-layout) */
 	FVector2D Dimensions;

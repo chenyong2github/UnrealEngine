@@ -670,10 +670,12 @@ private:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SkeletalMesh)
 	uint8 bAllowAnimCurveEvaluation : 1;
 
+#if WITH_EDITORONLY_DATA
 	/** DEPRECATED. Use bAllowAnimCurveEvaluation instead */
 	UE_DEPRECATED(4.18, "This property is deprecated. Please use bAllowAnimCurveEvaluatiuon instead. Note that the meaning is reversed.")	
 	UPROPERTY()
 	uint8 bDisableAnimCurves_DEPRECATED : 1;
+#endif
 
 	/** Whether or not we're taking cloth sim information from our leader component */
 	uint8 bBindClothToLeaderComponent:1;

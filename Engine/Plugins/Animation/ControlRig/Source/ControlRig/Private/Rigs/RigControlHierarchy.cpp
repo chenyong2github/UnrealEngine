@@ -77,6 +77,7 @@ FRigControl& FRigControlHierarchy::Add(
 
 void FRigControlHierarchy::PostLoad()
 {
+#if WITH_EDITORONLY_DATA
 	for (FRigControl& Control : Controls)
 	{
 		for (int32 ValueType = 0; ValueType <= (int32)ERigControlValueType::Maximum; ValueType++)
@@ -88,4 +89,5 @@ void FRigControlHierarchy::PostLoad()
 			}
 		}
 	}
+#endif
 }

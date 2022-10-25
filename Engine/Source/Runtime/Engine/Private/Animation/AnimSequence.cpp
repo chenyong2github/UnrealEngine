@@ -963,12 +963,14 @@ void UAnimSequence::PostLoad()
 
 	for(FAnimNotifyEvent& Notify : Notifies)
 	{
+#if WITH_EDITORONLY_DATA
 		if(Notify.DisplayTime_DEPRECATED != 0.0f)
 		{
 			Notify.Clear();
 			Notify.Link(this, Notify.DisplayTime_DEPRECATED);
 		}
 		else
+#endif
 		{
 			Notify.Link(this, Notify.GetTime());
 		}

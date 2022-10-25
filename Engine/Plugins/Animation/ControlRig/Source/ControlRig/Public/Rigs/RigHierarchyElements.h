@@ -1126,6 +1126,7 @@ struct CONTROLRIG_API FRigControlSettings
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
 	bool bRestrictSpaceSwitching;
 
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Deprecated properties.
 	 */
@@ -1134,6 +1135,7 @@ struct CONTROLRIG_API FRigControlSettings
 	
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage = "Use animation_type or shape_visible instead."))
 	bool bShapeEnabled_DEPRECATED = true;
+#endif
 	
 	/** Applies the limits expressed by these settings to a value */
 	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const

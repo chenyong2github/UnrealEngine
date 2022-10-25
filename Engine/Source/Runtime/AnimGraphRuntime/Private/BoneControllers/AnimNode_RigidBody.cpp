@@ -111,7 +111,9 @@ FSimSpaceSettings::FSimSpaceSettings()
 	, MaxAngularVelocity(10000)
 	, MaxLinearAcceleration(10000)
 	, MaxAngularAcceleration(10000)
+#if WITH_EDITORONLY_DATA
 	, ExternalLinearDrag_DEPRECATED(0)
+#endif
 	, ExternalLinearDragV(FVector::ZeroVector)
 	, ExternalLinearVelocity(FVector::ZeroVector)
 	, ExternalAngularVelocity(FVector::ZeroVector)
@@ -120,6 +122,7 @@ FSimSpaceSettings::FSimSpaceSettings()
 
 void FSimSpaceSettings::PostSerialize(const FArchive& Ar)
 {
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())
 	{
 		if (ExternalLinearDrag_DEPRECATED != 0.0f)
@@ -127,6 +130,7 @@ void FSimSpaceSettings::PostSerialize(const FArchive& Ar)
 			ExternalLinearDragV = FVector(ExternalLinearDrag_DEPRECATED, ExternalLinearDrag_DEPRECATED, ExternalLinearDrag_DEPRECATED);
 		}
 	}
+#endif
 }
 
 

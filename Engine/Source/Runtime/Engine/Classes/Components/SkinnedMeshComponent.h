@@ -629,9 +629,11 @@ public:
 	UPROPERTY()
 	uint8 bForceWireframe:1;
 
+#if WITH_EDITORONLY_DATA
 	/** Draw the skeleton hierarchy for this skel mesh. */
 	UPROPERTY()
 	uint8 bDisplayBones_DEPRECATED:1;
+#endif
 
 	/** Disable Morphtarget for this component. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = SkeletalMesh)

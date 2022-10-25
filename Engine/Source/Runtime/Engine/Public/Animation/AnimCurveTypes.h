@@ -77,11 +77,13 @@ struct ENGINE_API FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
+#if WITH_EDITORONLY_DATA
 	// Last observed name of the curve. We store this so we can recover from situations that
 	// mean the skeleton doesn't have a mapped name for our UID (such as a user saving the an
 	// animation but not the skeleton).
 	UPROPERTY()
 	FName		LastObservedName_DEPRECATED;
+#endif
 
 	UPROPERTY()
 	FSmartName	Name;

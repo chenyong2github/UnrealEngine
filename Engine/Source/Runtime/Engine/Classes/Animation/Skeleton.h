@@ -83,6 +83,7 @@ struct FBoneNode
 {
 	GENERATED_USTRUCT_BODY()
 
+#if WITH_EDITORONLY_DATA
 	/** Name of bone, this is the search criteria to match with mesh bone. This will be NAME_None if deleted. */
 	UPROPERTY()
 	FName Name_DEPRECATED;
@@ -90,21 +91,28 @@ struct FBoneNode
 	/** Parent Index. -1 if not used. The root has 0 as its parent. Do not delete the element but set this to -1. If it is revived by other reason, fix up this link. */
 	UPROPERTY()
 	int32 ParentIndex_DEPRECATED;
+#endif
 
 	/** Retargeting Mode for Translation Component. */
 	UPROPERTY(EditAnywhere, Category=BoneNode)
 	TEnumAsByte<EBoneTranslationRetargetingMode::Type> TranslationRetargetingMode;
 
 	FBoneNode()
-		: ParentIndex_DEPRECATED(INDEX_NONE)
-		, TranslationRetargetingMode(EBoneTranslationRetargetingMode::Animation)
+		:
+#if WITH_EDITORONLY_DATA
+		ParentIndex_DEPRECATED(INDEX_NONE),
+#endif
+		TranslationRetargetingMode(EBoneTranslationRetargetingMode::Animation)
 	{
 	}
 
 	FBoneNode(FName InBoneName, int32 InParentIndex)
-		: Name_DEPRECATED(InBoneName)
-		, ParentIndex_DEPRECATED(InParentIndex)
-		, TranslationRetargetingMode(EBoneTranslationRetargetingMode::Animation)
+		:
+#if WITH_EDITORONLY_DATA
+		Name_DEPRECATED(InBoneName),
+		ParentIndex_DEPRECATED(InParentIndex),
+#endif
+		TranslationRetargetingMode(EBoneTranslationRetargetingMode::Animation)
 	{
 	}
 };
@@ -457,9 +465,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category=Skeleton)
 	TArray<struct FBoneNode> BoneTree;
 
+#if WITH_EDITORONLY_DATA
 	/** Reference skeleton poses in local space */
 	UPROPERTY()
 	TArray<FTransform> RefLocalPoses_DEPRECATED;
+#endif
 
 	/** Reference Skeleton */
 	FReferenceSkeleton ReferenceSkeleton;

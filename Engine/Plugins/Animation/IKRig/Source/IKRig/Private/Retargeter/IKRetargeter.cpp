@@ -164,6 +164,7 @@ void URetargetChainSettings::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
 
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())
 	{
 		// load the old chain settings into the new struct format
@@ -190,6 +191,7 @@ void URetargetChainSettings::Serialize(FArchive& Ar)
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
+#endif
 }
 
 void URetargetRootSettings::Serialize(FArchive& Ar)
@@ -197,6 +199,7 @@ void URetargetRootSettings::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
 
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())
 	{
 		// load the old root settings into the new struct format
@@ -211,6 +214,7 @@ void URetargetRootSettings::Serialize(FArchive& Ar)
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
+#endif
 }
 
 FQuat FIKRetargetPose::GetDeltaRotationForBone(const FName BoneName) const

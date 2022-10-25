@@ -35,8 +35,10 @@ public:
 		bInjectedAsInput = true;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<URigVMUnitNode> UnitNode_DEPRECATED;
+#endif
 
 	UPROPERTY()
 	TObjectPtr<URigVMNode> Node;
@@ -513,8 +515,10 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<URigVMInjectionInfo>> InjectionInfos;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString BoundVariablePath_DEPRECATED;
+#endif
 
 	mutable FString LastKnownCPPType;
 	mutable TRigVMTypeIndex LastKnownTypeIndex;

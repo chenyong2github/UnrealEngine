@@ -182,10 +182,12 @@ protected:
 	UPROPERTY()
 	FString ResolvedFunctionName;
 
+#if WITH_EDITORONLY_DATA
 	// Indicates a preferred permutation using the types of the arguments
 	// Each element is in the format "ArgumentName:CPPType"
 	UPROPERTY()
 	TArray<FString> PreferredPermutationTypes_DEPRECATED;
+#endif
 
 	UPROPERTY()
 	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs;

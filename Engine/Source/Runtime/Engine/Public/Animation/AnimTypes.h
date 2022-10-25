@@ -289,9 +289,11 @@ struct FAnimNotifyEvent : public FAnimLinkableElement
 {
 	GENERATED_USTRUCT_BODY()
 
+#if WITH_EDITORONLY_DATA
 	/** The user requested time for this notify */
 	UPROPERTY()
 	float DisplayTime_DEPRECATED;
+#endif
 
 	/** An offset from the DisplayTime to the actual time we will trigger the notify, as we cannot always trigger it exactly at the time the user wants */
 	UPROPERTY()
@@ -371,7 +373,9 @@ private:
 public:
 	FAnimNotifyEvent()
 		: FAnimLinkableElement()
+#if WITH_EDITORONLY_DATA
 		, DisplayTime_DEPRECATED(0)
+#endif
 		, TriggerTimeOffset(0)
 		, EndTriggerTimeOffset(0)
 		, TriggerWeightThreshold(ZERO_ANIMWEIGHT_THRESH)

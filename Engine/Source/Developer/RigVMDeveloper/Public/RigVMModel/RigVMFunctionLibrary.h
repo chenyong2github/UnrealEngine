@@ -72,8 +72,10 @@ public:
 	
 private:
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TMap< TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray > FunctionReferences_DEPRECATED;
+#endif
 
 	// A map which stores a library node per original pathname.
 	// The source pathname is the full path of the source function that was localized

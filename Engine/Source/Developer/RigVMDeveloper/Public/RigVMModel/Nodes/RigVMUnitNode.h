@@ -79,11 +79,13 @@ protected:
 
 private:
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<UScriptStruct> ScriptStruct_DEPRECATED;
 
 	UPROPERTY()
 	FName MethodName_DEPRECATED;
+#endif
 
 	friend class URigVMController;
 };

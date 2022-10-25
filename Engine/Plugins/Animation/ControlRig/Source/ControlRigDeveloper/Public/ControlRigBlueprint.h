@@ -395,11 +395,13 @@ public:
 
 protected:
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<URigVMGraph> Model_DEPRECATED;
 
 	UPROPERTY()
 	TObjectPtr<URigVMFunctionLibrary> FunctionLibrary_DEPRECATED;
+#endif
 
 	UPROPERTY()
 	FRigVMClient RigVMClient;
@@ -475,10 +477,10 @@ public:
 	TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries;
 
 	const FControlRigShapeDefinition* GetControlShapeByName(const FName& InName) const;
-#endif
 
 	UPROPERTY(transient, DuplicateTransient, meta = (DisplayName = "VM Statistics", DisplayAfter = "VMCompileSettings"))
 	FRigVMStatistics Statistics_DEPRECATED;
+#endif
 
 	UPROPERTY(EditAnywhere, Category = "Drawing")
 	FControlRigDrawContainer DrawContainer;
@@ -506,8 +508,10 @@ public:
 
 public:
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FRigHierarchyContainer HierarchyContainer_DEPRECATED;
+#endif
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hierarchy")
 	TObjectPtr<URigHierarchy> Hierarchy;

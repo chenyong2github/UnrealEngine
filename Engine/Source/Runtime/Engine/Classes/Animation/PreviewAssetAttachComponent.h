@@ -25,12 +25,18 @@ private:
 	UPROPERTY()
 	TSoftObjectPtr<class UObject> AttachedObject;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<UObject> Object_DEPRECATED;
+#endif
 
 public:
 
-	FPreviewAttachedObjectPair() : Object_DEPRECATED(NULL) {}
+	FPreviewAttachedObjectPair()
+#if WITH_EDITORONLY_DATA
+		: Object_DEPRECATED(NULL)
+#endif
+	{}
 
 	/** The name of the attach point of the Object (for example a bone or socket name) */
 	UPROPERTY()
@@ -38,11 +44,13 @@ public:
 
 	void SaveAttachedObjectFromDeprecatedProperty()
 	{
+#if WITH_EDITORONLY_DATA
 		if (Object_DEPRECATED)
 		{
 			AttachedObject = Object_DEPRECATED;
 			Object_DEPRECATED = NULL;
 		}
+#endif
 	}
 
 	UObject* GetAttachedObject() const

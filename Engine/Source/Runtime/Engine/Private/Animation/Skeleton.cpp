@@ -828,6 +828,7 @@ void USkeleton::PostEditUndo()
 /** Remove this function when VER_UE4_REFERENCE_SKELETON_REFACTOR is removed. */
 void USkeleton::ConvertToFReferenceSkeleton()
 {
+#if WITH_EDITORONLY_DATA
 	FReferenceSkeletonModifier RefSkelModifier(ReferenceSkeleton, this);
 
 	check( BoneTree.Num() == RefLocalPoses_DEPRECATED.Num() );
@@ -849,6 +850,7 @@ void USkeleton::ConvertToFReferenceSkeleton()
 	// VER_UE4_REFERENCE_SKELETON_REFACTOR, this shouldn't be needed. It shouldn't have any 
 	// AnimatedRetargetSources
 	ensure (AnimRetargetSources.Num() == 0);
+#endif
 }
 
 void USkeleton::ClearSkeletonRemappings()

@@ -1315,10 +1315,13 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		}
 
 		FRigControlValue InitialValue = Control.InitialValue;
+
+#if WITH_EDITORONLY_DATA
 		if(!InitialValue.IsValid())
 		{
 			InitialValue.SetFromTransform(InitialValue.Storage_DEPRECATED, Settings.ControlType, Settings.PrimaryAxis);
 		}
+#endif
 		
 		const FRigElementKey Key = AddControl(
 			Control.Name,
