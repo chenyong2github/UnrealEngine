@@ -189,6 +189,10 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 		}
 		else
 		{
+			if(NewNode)
+			{
+				NewNode->ModelNodePath = ModelNode->GetNotation().ToString();
+			}
 			Controller->RemoveNode(ModelNode, false);
 		}
 	}

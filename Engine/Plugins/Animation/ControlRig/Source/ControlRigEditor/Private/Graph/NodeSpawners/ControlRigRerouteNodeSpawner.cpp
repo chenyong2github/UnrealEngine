@@ -109,7 +109,7 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 		}
 	}
 
-	URigVMNode* ModelNode = nullptr;
+	URigVMRerouteNode* ModelNode = nullptr;
 	if(!PinPath.IsEmpty())
 	{
 		ModelNode = Controller->AddRerouteNodeOnPin(PinPath, bIsInput, true, Location, FString(), bIsUserFacingNode, bIsUserFacingNode);
@@ -137,6 +137,10 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 		}
 		else
 		{
+			if(NewNode)
+			{
+				NewNode->ModelNodePath = ModelNode->GetNotation().ToString();
+			}
 			Controller->RemoveNode(ModelNode, false);
 		}
 	}

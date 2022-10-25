@@ -141,98 +141,98 @@ FName URigVMArrayNode::GetNotation() const
     {
     	case ERigVMOpCode::ArrayReset:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName);
             return Notation;
     	}
     	case ERigVMOpCode::ArrayGetNum:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(in %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *NumName);
     		return Notation;
     	} 
     	case ERigVMOpCode::ArraySetNum:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *NumName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayGetAtIndex:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(in %s, in %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *IndexName, *ElementName);
     		return Notation;
     	}  
     	case ERigVMOpCode::ArraySetAtIndex:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s, in %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s,in %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *IndexName, *ElementName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayAdd:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *ElementName, *IndexName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayInsert:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s, in %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s,in %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *IndexName, *ElementName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayRemove:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *IndexName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayFind:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(in %s, in %s, out %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,out %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *ElementName, *IndexName, *SuccessName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayAppend:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *OtherName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayClone:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(in %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *CloneName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayIterator:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, in %s, out %s, out %s, out %s, out %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s,out %s,out %s,out %s,out %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(),
     			*ArrayName, *ElementName, *IndexName, *CountName, *RatioName, *CompletedName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayUnion:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s, in %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *OtherName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayDifference:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(in %s, in %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *OtherName, *ResultName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayIntersection:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(in %s, in %s, out %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,out %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *OtherName, *ResultName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayReverse:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s, io %s)");
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s)");
     		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName);
     		return Notation;
     	}

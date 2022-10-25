@@ -24,7 +24,7 @@ bool URigVMSelectNode::AllowsLinksOn(const URigVMPin* InPin) const
 
 FName URigVMSelectNode::GetNotation() const
 {
-	static constexpr TCHAR Format[] = TEXT("%s(in %s, in %s, out %s)");
+	static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,out %s)");
 	static const FName Notation = *FString::Printf(Format, *SelectName, *IndexName, *ValueName, *ResultName);
 	return Notation;
 }

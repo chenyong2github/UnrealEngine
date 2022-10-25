@@ -442,13 +442,14 @@ const FRigVMTemplate* UControlRigGraphNode::GetTemplate() const
 {
 	if(CachedTemplate == nullptr)
 	{
+		const FRigVMRegistry& Registry = FRigVMRegistry::Get();
 		if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(GetModelNode()))
 		{
 			CachedTemplate = TemplateNode->GetTemplate();
 		}
-		else if(ModelNodePath.Contains(TEXT("::Execute(")))
+		else if(const FRigVMTemplate* Template = Registry.FindTemplate(*ModelNodePath))
 		{
-			CachedTemplate = FRigVMRegistry::Get().FindTemplate(*ModelNodePath); 
+			CachedTemplate = Template; 
 		}
 	}
 	return CachedTemplate;

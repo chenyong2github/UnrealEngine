@@ -268,4 +268,8 @@ private:
 	friend class FControlRigArgumentLayout;
 	friend class FControlRigGraphDetails;
 	friend class UControlRigTemplateNodeSpawner;
+	friend class UControlRigRerouteNodeSpawner;
+	friend class UControlRigArrayNodeSpawner;
+	friend class UControlRigIfNodeSpawner;
+	friend class UControlRigSelectNodeSpawner;
 };

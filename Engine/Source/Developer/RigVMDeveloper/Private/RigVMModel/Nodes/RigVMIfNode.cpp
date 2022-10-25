@@ -13,7 +13,7 @@ const FString URigVMIfNode::ResultName = TEXT("Result");
 
 FName URigVMIfNode::GetNotation() const
 {
-	static constexpr TCHAR Format[] = TEXT("%s(in %s, in %s, in %s, out %s)");
+	static constexpr TCHAR Format[] = TEXT("%s(in %s,in %s,in %s,out %s)");
 	static const FName Notation = *FString::Printf(Format, *IfName, *ConditionName, *TrueName, *FalseName, *ResultName);
 	return Notation;
 }
