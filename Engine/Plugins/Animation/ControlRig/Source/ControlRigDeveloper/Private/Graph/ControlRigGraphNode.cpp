@@ -346,7 +346,7 @@ void UControlRigGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 	for (UEdGraphPin* Pin : InPins)
 	{
 		Pin->BreakAllPinLinks(bNotify);
-
+		Pin->SubPins.Remove(nullptr);
 		UEdGraphNode::DestroyPin(Pin);
 	}
 }
@@ -1483,6 +1483,9 @@ void UControlRigGraphNode::SetupPinDefaultsFromModel(UEdGraphPin* Pin, const URi
 		InModelPin = FindModelPinFromGraphPin(Pin);
 	}
 
+	// remove stale subpins
+	Pin->SubPins.Remove(nullptr);
+
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	if (InModelPin && IsValid(InModelPin))
 	{
@@ -1586,6 +1589,15 @@ bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIn
 	}
 	}
 	return false;
+}
+
+void UControlRigGraphNode::BeginDestroy()
+{
+	for(UEdGraphPin* Pin : Pins)
+	{
+		Pin->SubPins.Remove(nullptr);
+	}
+	Super::BeginDestroy();
 }
 
 FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(const URigVMPin* InModelPin)

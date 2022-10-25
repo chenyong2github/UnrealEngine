@@ -117,6 +117,7 @@ public:
 	virtual bool SupportsCommentBubble() const override { return false; }
 	virtual bool IsSelectedInEditor() const;
 	virtual bool ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIndex, int32& OutOutputPinIndex) const override;
+	virtual void BeginDestroy() override;
 
 	virtual bool IsDeprecated() const override;
 	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
