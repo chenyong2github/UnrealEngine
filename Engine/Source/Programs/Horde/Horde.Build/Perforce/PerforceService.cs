@@ -1075,6 +1075,11 @@ namespace Horde.Build.Perforce
 					SubmitRecord submit = await perforce.SubmitShelvedAsync(change, cancellationToken);
 					return (submit.SubmittedChangeNumber, records[0].Description);
 				}
+				catch (PerforceException ex) when (ex.Error != null && ex.Error.Generic == PerforceGenericCode.NotYet)
+				{
+					_logger.LogInformation(ex, "Unable to submit shelved change {Change}: {Message}", change, ex.Message);
+					return (null, $"Submit command failed: {ex.Message}");
+				}
 				catch (Exception ex)
 				{
 					_logger.LogError(ex, "Unable to submit shelved change {Change}: {Message}", change, ex.Message);
