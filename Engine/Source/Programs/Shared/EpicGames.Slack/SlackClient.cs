@@ -385,7 +385,10 @@ namespace EpicGames.Slack
 			InviteMessage message = new InviteMessage();
 			message.Channel = channel;
 			message.Users = String.Join(",", userIds);
-			await SendRequestAsync<SlackResponse>(ConversationsInviteUrl, message);
+
+			static bool ShouldLogError(SlackResponse response) => !response.Ok && !String.Equals(response.Error, "already_in_channel", StringComparison.Ordinal);
+
+			await SendRequestAsync<SlackResponse>(ConversationsInviteUrl, message, ShouldLogError);
 		}
 
 		#endregion
