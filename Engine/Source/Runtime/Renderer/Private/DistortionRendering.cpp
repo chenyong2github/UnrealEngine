@@ -209,12 +209,6 @@ public:
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		if (IsMobilePlatform(Parameters.Platform))
-		{
-			// use same path for scene textures as post-process material
-			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_MOBILE"), 1);
-		}
-
 		// Skip the material clip if depth test should not be done
 		OutEnvironment.SetDefine(TEXT("MATERIAL_SHOULD_DISABLE_DEPTH_TEST"), Parameters.MaterialParameters.bShouldDisableDepthTest ? 1 : 0);
 	}

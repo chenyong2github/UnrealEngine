@@ -870,7 +870,7 @@ namespace DecalRendering
 		return nullptr;
 	}
 
-	void ModifyCompilationEnvironment(FDecalBlendDesc DecalBlendDesc, EDecalRenderStage DecalRenderStage, FShaderCompilerEnvironment& OutEnvironment)
+	void ModifyCompilationEnvironment(EShaderPlatform Platform, FDecalBlendDesc DecalBlendDesc, EDecalRenderStage DecalRenderStage, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		DecalRenderStage = DecalRenderStage != EDecalRenderStage::None ? DecalRenderStage : GetBaseRenderStage(DecalBlendDesc);
 		check(DecalRenderStage != EDecalRenderStage::None);
@@ -909,5 +909,11 @@ namespace DecalRendering
 		// Decals needs to both read Strata data (deferred path) and write (inline path)
 		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
 		OutEnvironment.SetDefine(TEXT("STRATA_DEFERRED_SHADING"), 1);
+
+		if (IsMobilePlatform(Platform))
+		{
+			// On mobile decals are rendered in a "depth read" sub-pass
+			OutEnvironment.SetDefine(TEXT("IS_MOBILE_DEPTHREAD_SUBPASS"), 1u);
+		}
 	}
 }

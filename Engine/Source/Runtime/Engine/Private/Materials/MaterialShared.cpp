@@ -6071,6 +6071,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bShouldDisableDepthTest = InMaterial->ShouldDisableDepthTest();
 	bHasRenderTracePhysicalMaterialOutput = InMaterial->HasRenderTracePhysicalMaterialOutputs();
 	bIsUsedWithVolumetricCloud = InMaterial->IsUsedWithVolumetricCloud();
+	bIsMobileSeparateTranslucencyEnabled = InMaterial->IsMobileSeparateTranslucencyEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE

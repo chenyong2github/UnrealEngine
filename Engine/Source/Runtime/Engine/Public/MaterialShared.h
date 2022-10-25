@@ -3588,6 +3588,7 @@ struct FMaterialShaderParameters
 			uint64 bShouldDisableDepthTest : 1;
 			uint64 bHasRenderTracePhysicalMaterialOutput : 1;
 			uint64 bIsUsedWithVolumetricCloud : 1;
+			uint64 bIsMobileSeparateTranslucencyEnabled : 1;
 		};
 	};
 

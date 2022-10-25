@@ -5,10 +5,6 @@
 #include "Common.ush"
 #include "SHCommon.ush"
 
-#if MATERIAL_SHADER
-#include "/Engine/Generated/Material.ush"
-#endif
-
 // Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
 #define MobileSceneTextures		MobileBasePass.SceneTextures
 #define ForwardLightData		MobileBasePass.Forward
@@ -17,73 +13,19 @@
 #define PreIntegratedGF			ReflectionStruct.PreIntegratedGF
 #define PreIntegratedGFSampler	ReflectionStruct.PreIntegratedGFSampler
 
+#if MATERIAL_SHADER
+#include "/Engine/Generated/Material.ush"
+#endif
+
 #include "MobileLightingCommon.ush"
 #if MATERIAL_SHADER
 #include "LightFunctionCommon.ush"
 #endif
 #include "LightDataUniforms.ush"
 
-#if METAL_PROFILE
-#include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
-#elif VULKAN_PROFILE
-#include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
-#elif OPENGL_PROFILE
-#include "/Engine/Public/Platform/GL/GLSubpassSupport.ush"
-#endif
-
 #ifndef IS_SPOT_LIGHT 
 #define IS_SPOT_LIGHT 0 
 #endif 
-
-void FetchGBuffer(in float2 UV, out half4 GBufferA, out half4 GBufferB, out half4 GBufferC, out half4 GBufferD, out float SceneDepth)
-{
-	GBufferD = 0;
-
-#if VULKAN_PROFILE
-	GBufferA = VulkanSubpassFetch1(); 
-	GBufferB = VulkanSubpassFetch2(); 
-	GBufferC = VulkanSubpassFetch3();
-	#if MOBILE_EXTENDED_GBUFFER
-		GBufferD = VulkanSubpassFetch4();
-	#endif
-	SceneDepth = ConvertFromDeviceZ(VulkanSubpassDepthFetch());
-#elif METAL_PROFILE
-	GBufferA = SubpassFetchRGBA_1(); 
-	GBufferB = SubpassFetchRGBA_2(); 
-	GBufferC = SubpassFetchRGBA_3(); 
-	#if MOBILE_EXTENDED_GBUFFER
-		GBufferD = SubpassFetchRGBA_4();
-	#endif
-	SceneDepth = ConvertFromDeviceZ(SubpassFetchR_4());
-#elif USE_GLES_FBF_DEFERRED
-	GBufferA = GLSubpassFetch1(); 
-	GBufferB = GLSubpassFetch2(); 
-	GBufferC = GLSubpassFetch3();  
-	GBufferD = 0; // PLS is limited to 128bits
-	SceneDepth = ConvertFromDeviceZ(DepthbufferFetchES2());
-#else
-	GBufferA = Texture2DSampleLevel(MobileSceneTextures.GBufferATexture, MobileSceneTextures.GBufferATextureSampler, UV, 0); 
-	GBufferB = Texture2DSampleLevel(MobileSceneTextures.GBufferBTexture, MobileSceneTextures.GBufferBTextureSampler, UV, 0);
-	GBufferC = Texture2DSampleLevel(MobileSceneTextures.GBufferCTexture, MobileSceneTextures.GBufferCTextureSampler, UV, 0);
-	#if MOBILE_EXTENDED_GBUFFER
-		GBufferD = Texture2DSampleLevel(MobileSceneTextures.GBufferDTexture, MobileSceneTextures.GBufferDTextureSampler, UV, 0);
-	#endif
-	SceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, UV, 0).r);
-#endif
-}
-
-FGBufferData FetchAndDecodeGBuffer(in float2 UV)
-{
-	float SceneDepth = 0;
-	half4 GBufferA = 0;
-	half4 GBufferB = 0;
-	half4 GBufferC = 0;
-	half4 GBufferD = 0;
-	FetchGBuffer(UV, GBufferA, GBufferB, GBufferC, GBufferD, SceneDepth);
-	FGBufferData GBuffer = MobileDecodeGBuffer(GBufferA, GBufferB, GBufferC, GBufferD);
-	GBuffer.Depth = SceneDepth;
-	return GBuffer;
-}
 
 float4x4 TranslatedWorldToLight;
 float3 LightFunctionParameters2;
@@ -142,7 +84,7 @@ void MobileDirectionalLightPS(
 {
 	ResolvedView = ResolveView();
 
-	FGBufferData GBuffer = FetchAndDecodeGBuffer(UVAndScreenPos.xy);
+	FGBufferData GBuffer = MobileFetchAndDecodeGBuffer(UVAndScreenPos.xy, UVAndScreenPos.zw);
 	float2 ScreenPos = UVAndScreenPos.zw;
 	float3 TranslatedWorldPosition = mul(float4(ScreenPos * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
@@ -182,7 +124,7 @@ void MobileDirectionalLightPS(
 	Color *= View.PreExposure;
 
 	Color = SafeGetOutColor(Color);
-#if defined(MOBILE_DEFERRED_SHADING) && USE_GLES_FBF_DEFERRED == 1
+#if USE_GLES_FBF_DEFERRED
 	OutProxyAdditive.rgb = Color;
 #else
 	OutColor.rgb = Color;
@@ -215,7 +157,7 @@ void MobileRadialLightPS(
 	ResolvedView = ResolveView();
 
 	float2 ScreenUV = InScreenPosition.xy / InScreenPosition.w * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-	FGBufferData GBuffer = FetchAndDecodeGBuffer(ScreenUV);
+	FGBufferData GBuffer = MobileFetchAndDecodeGBuffer(ScreenUV, SVPos.xy);
 	// With a perspective projection, the clip space position is NDC * Clip.w
 	// With an orthographic projection, clip space is the same as NDC
 	float2 ClipPosition = InScreenPosition.xy / InScreenPosition.w * (View.ViewToClip[3][3] < 1.0f ? GBuffer.Depth : 1.0f);
@@ -285,7 +227,7 @@ void MobileRadialLightPS(
 	Color *= View.PreExposure;
 
 	Color = SafeGetOutColor(Color);
-#if defined(MOBILE_DEFERRED_SHADING) && USE_GLES_FBF_DEFERRED == 1
+#if USE_GLES_FBF_DEFERRED
 	OutProxyAdditive.rgb = Color;
 #else
 	OutColor.rgb = Color;
@@ -307,7 +249,7 @@ void MobileReflectionEnvironmentSkyLightingPS(
 )
 {
 	ResolvedView = ResolveView();
-	FGBufferData GBuffer = FetchAndDecodeGBuffer(UVAndScreenPos.xy);
+	FGBufferData GBuffer = MobileFetchAndDecodeGBuffer(UVAndScreenPos.xy, UVAndScreenPos.zw);
 	float2 ScreenPos = UVAndScreenPos.zw;
 	float3 TranslatedWorldPosition = mul(float4(ScreenPos * GBuffer.Depth, GBuffer.Depth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 	half3 CameraVector = normalize(TranslatedWorldPosition);
@@ -324,7 +266,7 @@ void MobileReflectionEnvironmentSkyLightingPS(
 
 	ReflectionAndSky *= View.PreExposure;
 
-#if defined(MOBILE_DEFERRED_SHADING) && USE_GLES_FBF_DEFERRED == 1
+#if USE_GLES_FBF_DEFERRED
 	OutProxyAdditive.rgb = ReflectionAndSky.rgb;
 #else
 	OutColor.rgb = ReflectionAndSky.rgb;

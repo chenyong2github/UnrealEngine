@@ -6547,7 +6547,7 @@ int32 FHLSLMaterialTranslator::SceneDepth(int32 Offset, int32 ViewportUV, bool b
 		*GetParameterCode(TexCoordCode)
 		);
 }
-	
+
 // @param SceneTextureId of type ESceneTextureId e.g. PPI_SubsurfaceColor
 int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSceneTextureId, bool bFiltered)
 {
@@ -6559,17 +6559,7 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 	{
 		return Error(TEXT("Only custom depth and custom stencil can be sampled with SceneTexture when used with the Single Layer Water shading model."));
 	}
-
-	const bool bSupportedOnMobile = SceneTextureId == PPI_PostProcessInput0 ||
-									SceneTextureId == PPI_CustomDepth ||
-									SceneTextureId == PPI_SceneDepth ||
-									SceneTextureId == PPI_CustomStencil;
-
-	if (!bSupportedOnMobile && ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
+	
 	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Vertex)
 	{
 		// we can relax this later if needed
@@ -6688,9 +6678,26 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 
 	const bool bNeedsGBuffer = MaterialCompilationOutput.NeedsGBuffer();
 
-	if (bNeedsGBuffer && IsForwardShadingEnabled(Platform))
+	if (bNeedsGBuffer)
 	{
-		Errorf(TEXT("GBuffer scene textures not available with forward shading (platform id %d)."), Platform);
+		if (IsForwardShadingEnabled(Platform) || (IsMobilePlatform(Platform) && !IsMobileDeferredShadingEnabled(Platform)))
+		{
+			Errorf(TEXT("GBuffer scene textures not available with forward shading (platform id %d)."), Platform);
+		}
+		
+		// Post-process can't access memoryless GBuffer on mobile
+		if (IsMobilePlatform(Platform))
+		{
+			if (Material->GetMaterialDomain() == MD_PostProcess)
+			{
+				Errorf(TEXT("GBuffer scene textures not available in post-processing with mobile shading (platform id %d)."), Platform);
+			}
+
+			if (Material->IsMobileSeparateTranslucencyEnabled())
+			{
+				Errorf(TEXT("GBuffer scene textures not available for separate translucency with mobile shading (platform id %d)."), Platform);
+			}
+		}
 	}
 
 	if (SceneTextureId == PPI_Velocity)

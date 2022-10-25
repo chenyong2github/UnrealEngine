@@ -4,9 +4,6 @@
 	SceneCapturePixelShader.usf: 
 =============================================================================*/
 
-// Sample SceneDepthAux texture on mobile
-#define POST_PROCESS_MATERIAL_MOBILE 1
-
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
 

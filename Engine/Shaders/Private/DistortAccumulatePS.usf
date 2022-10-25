@@ -143,13 +143,7 @@ void Main(
 
 #endif // STRATA_ENABLED
 
-
-#if SHADING_PATH_MOBILE
-	// sample depth from SceneColor.A on Mobile
-	float DistortSceneDepth = ConvertFromDeviceZ(LookupDeviceZ(DistortBufferUV)); 
-#else
 	float DistortSceneDepth = CalcSceneDepth(DistortBufferUV);
-#endif
 
 	// Post process UV distortion according to depth
 	PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, DistortSceneDepth, BufferUVDistortion, Refraction);

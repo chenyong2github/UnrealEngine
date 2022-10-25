@@ -434,11 +434,6 @@ struct FMaterialPixelParameters
 	FTexCoordScalesParams TexCoordScalesParams;
 #endif
 
-#if POST_PROCESS_MATERIAL && FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
-	/** Used in mobile custom pp material to preserve original SceneColor Alpha */
-	half BackupSceneColorAlpha;
-#endif
-
 #if COMPILER_HLSL
 	// Workaround for "error X3067: 'GetObjectWorldPosition': ambiguous function call"
 	// Which happens when FMaterialPixelParameters and FMaterialVertexParameters have the same number of floats with the HLSL compiler ver 9.29.952.3111
@@ -2257,56 +2252,68 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 		return 0.0f;
 	}
 #else
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-	if (SceneTextureId == PPI_CustomDepth)
-	{
-		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r);
-		return MaterialFloat4(Depth.rrr, 0.f);
-	}
-	else if (SceneTextureId == PPI_CustomStencil)
-	{
-		MaterialFloat Stencil = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
-		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
-	}
-#else // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-	if (SceneTextureId == PPI_SceneDepth)
-	{
-		MaterialFloat Depth = CalcSceneDepth(UV);
-		return MaterialFloat4(Depth.rrr, 0.f);
-	}
-	else if (SceneTextureId == PPI_CustomDepth)
-	{
-		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r);
-		return MaterialFloat4(Depth.rrr, 0.f);
-	}
-	else if (SceneTextureId == PPI_PostProcessInput0)
-	{
-#if POST_PROCESS_MATERIAL
-		MaterialFloat4 Input0 = Texture2DSample(PostProcessInput_0_Texture, PostProcessInput_0_SharedSampler, UV);
-		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
-			#if METAL_PROFILE
-				// Decode the input color since the color is encoded for MSAA 
-				// The decode instructions might be able to skip with dynamic branch
-				if (bMetalMSAAHDRDecode)
-				{
-					Input0.rgb = Input0.rgb * rcp(Input0.r*(-0.299) + Input0.g*(-0.587) + Input0.b*(-0.114) + 1.0);
-				}
-			#endif
-		#endif
-		// We need to preserve original SceneColor Alpha as it's used by tonemapper on mobile
-		Parameters.BackupSceneColorAlpha = Input0.a;
-		return Input0;
-#endif// POST_PROCESS_MATERIAL
-	}
-	else if (SceneTextureId == PPI_CustomStencil)
-	{
-		MaterialFloat Stencil = MobileSceneTextures.CustomStencilTexture.Load(int3(Parameters.SvPosition.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
-		return MaterialFloat4(Stencil, Stencil, Stencil, 0.f);
-	}
-#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-#endif // SCENE_TEXTURES_DISABLED
+	FGBufferData GBuffer = MobileFetchAndDecodeGBuffer(UV, Parameters.SvPosition.xy);
 
-	return MaterialFloat4(0.0f, 0.0f, 0.0f, 0.0f);
+	switch(SceneTextureId)
+	{
+		// order needs to match to ESceneTextureId
+	case PPI_SceneDepth:
+		return GBuffer.Depth;
+	case PPI_DiffuseColor:
+		return MaterialFloat4(GBuffer.DiffuseColor, 0);
+	case PPI_SpecularColor:
+		return MaterialFloat4(GBuffer.SpecularColor, 0);
+	case PPI_SubsurfaceColor:
+		return IsSubsurfaceModel(GBuffer.ShadingModelID) ? MaterialFloat4( ExtractSubsurfaceColor(GBuffer), GBuffer.CustomData.a ) : GBuffer.CustomData;
+	case PPI_BaseColor:
+		return MaterialFloat4(GBuffer.BaseColor, 0);
+	case PPI_Specular:
+		return GBuffer.Specular;
+	case PPI_Metallic:
+		return GBuffer.Metallic;
+	case PPI_WorldNormal:
+		return MaterialFloat4(GBuffer.WorldNormal, 0);
+	case PPI_SeparateTranslucency:
+		return MaterialFloat4(1, 1, 1, 1);	// todo
+	case PPI_Opacity:
+		return GBuffer.CustomData.a;
+	case PPI_Roughness:
+		return GBuffer.Roughness;
+	case PPI_MaterialAO:
+		return GBuffer.GBufferAO;
+	case PPI_CustomDepth:
+		return GBuffer.CustomDepth;
+#if POST_PROCESS_MATERIAL
+	case PPI_PostProcessInput0:
+	{
+		MaterialFloat4 Input0 = Texture2DSample(PostProcessInput_0_Texture, PostProcessInput_0_SharedSampler, UV);
+		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP && METAL_PROFILE
+		// Decode the input color since the color is encoded for MSAA 
+		// The decode instructions might be able to skip with dynamic branch
+		if (bMetalMSAAHDRDecode)
+		{
+			Input0.rgb = Input0.rgb * rcp(Input0.r*(-0.299) + Input0.g*(-0.587) + Input0.b*(-0.114) + 1.0);
+		}
+		#endif
+		return Input0;
+	}
+#endif // POST_PROCESS_MATERIAL
+	case PPI_DecalMask:
+		return 0;  // material compiler will return an error
+	case PPI_ShadingModelColor:
+		return MaterialFloat4(GetShadingModelColor(GBuffer.ShadingModelID), 1);
+	case PPI_ShadingModelID:
+		return MaterialFloat4(GBuffer.ShadingModelID, 0, 0, 0);
+	case PPI_AmbientOcclusion:
+		return 1;
+	case PPI_CustomStencil:
+		return GBuffer.CustomStencil;
+	case PPI_WorldTangent:
+		return MaterialFloat4(GBuffer.WorldTangent, 0);
+	default:
+		return MaterialFloat4(0, 0, 0, 0);
+	}
+#endif
 }
 
 #endif // SHADING_PATH_MOBILE

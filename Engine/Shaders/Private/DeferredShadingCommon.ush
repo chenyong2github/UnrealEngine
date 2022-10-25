@@ -467,12 +467,9 @@ float4 ComputeIndirectLightingSampleE(uint2 TracingPixelCoord, uint TracingRayIn
 #endif
 
 #if SHADING_PATH_MOBILE
+
 #ifndef ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED
 #define ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED 0
-#endif
-
-#ifndef MOBILE_DEFERRED_SHADING
-#define MOBILE_DEFERRED_SHADING 0
 #endif
 
 #define MOBILE_SHADINGMODEL_SUPPORT (!MOBILE_DEFERRED_SHADING || ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED)
@@ -746,6 +743,75 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 	return GBuffer;
 }
 
+#if MOBILE_DEFERRED_SHADING && PIXELSHADER
+
+#if METAL_PROFILE
+#include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
+#elif VULKAN_PROFILE
+#include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
+#elif COMPILER_GLSL_ES3_1
+#include "/Engine/Public/Platform/GL/GLSubpassSupport.ush"
+#endif
+
+void MobileFetchGBuffer(in float2 UV, out half4 GBufferA, out half4 GBufferB, out half4 GBufferC, out half4 GBufferD, out float SceneDepth)
+{
+	GBufferD = 0;
+
+#if VULKAN_PROFILE
+	GBufferA = VulkanSubpassFetch1(); 
+	GBufferB = VulkanSubpassFetch2(); 
+	GBufferC = VulkanSubpassFetch3();
+#if MOBILE_EXTENDED_GBUFFER
+	GBufferD = VulkanSubpassFetch4();
+#endif
+	SceneDepth = ConvertFromDeviceZ(VulkanSubpassDepthFetch());
+#elif METAL_PROFILE
+	GBufferA = SubpassFetchRGBA_1(); 
+	GBufferB = SubpassFetchRGBA_2(); 
+	GBufferC = SubpassFetchRGBA_3(); 
+#if MOBILE_EXTENDED_GBUFFER
+	GBufferD = SubpassFetchRGBA_4();
+#endif
+	SceneDepth = ConvertFromDeviceZ(SubpassFetchR_4());
+#elif USE_GLES_FBF_DEFERRED
+	GBufferA = GLSubpassFetch1(); 
+	GBufferB = GLSubpassFetch2(); 
+	GBufferC = GLSubpassFetch3();  
+	GBufferD = 0; // PLS is limited to 128bits
+	SceneDepth = ConvertFromDeviceZ(DepthbufferFetchES2());
+#else
+	GBufferA = Texture2DSampleLevel(MobileSceneTextures.GBufferATexture, MobileSceneTextures.GBufferATextureSampler, UV, 0); 
+	GBufferB = Texture2DSampleLevel(MobileSceneTextures.GBufferBTexture, MobileSceneTextures.GBufferBTextureSampler, UV, 0);
+	GBufferC = Texture2DSampleLevel(MobileSceneTextures.GBufferCTexture, MobileSceneTextures.GBufferCTextureSampler, UV, 0);
+#if MOBILE_EXTENDED_GBUFFER
+	GBufferD = Texture2DSampleLevel(MobileSceneTextures.GBufferDTexture, MobileSceneTextures.GBufferDTextureSampler, UV, 0);
+#endif
+	SceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, UV, 0).r);
+#endif
+}
+#endif //MOBILE_DEFERRED_SHADING
+
+FGBufferData MobileFetchAndDecodeGBuffer(in float2 UV, in float2 PixelPos)
+{
+	FGBufferData GBuffer = (FGBufferData)0;
+#if (MOBILE_DEFERRED_SHADING && IS_MOBILE_DEFERREDSHADING_SUBPASS && PIXELSHADER)
+	float SceneDepth = 0;
+	half4 GBufferA = 0;
+	half4 GBufferB = 0;
+	half4 GBufferC = 0;
+	half4 GBufferD = 0;
+	MobileFetchGBuffer(UV, GBufferA, GBufferB, GBufferC, GBufferD, SceneDepth);
+	GBuffer = MobileDecodeGBuffer(GBufferA, GBufferB, GBufferC, GBufferD);
+	GBuffer.Depth = SceneDepth;
+#else
+	GBuffer.Depth = CalcSceneDepth(UV);
+#endif
+
+	GBuffer.CustomDepth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r);
+	GBuffer.CustomStencil = MobileSceneTextures.CustomStencilTexture.Load(int3(PixelPos.xy, 0)) STENCIL_COMPONENT_SWIZZLE;
+
+	return GBuffer;
+}
 #endif //SHADING_PATH_MOBILE
 
 /** Populates OutGBufferA, B and C */
