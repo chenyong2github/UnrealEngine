@@ -176,7 +176,7 @@ UWidget* FWidgetTemplateClass::CreateNamed(class UWidgetTree* Tree, FName NameOv
 	}
 
 	UWidget* NewWidget = Tree->ConstructWidget<UWidget>(WidgetClass.Get(), NameOverride);
-	NewWidget->OnCreationFromPalette();
+	NewWidget->CreatedFromPalette();
 
 	return NewWidget;
 }

@@ -14,6 +14,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/UserInterfaceSettings.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -1180,6 +1181,18 @@ FText UWidget::GetDisplayNameBase() const
 const FText UWidget::GetPaletteCategory()
 {
 	return LOCTEXT("Uncategorized", "Uncategorized");
+}
+
+void UWidget::CreatedFromPalette()
+{
+	// Allowing the variable creation if the setting allows it.
+	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>();
+	if (!UISettings->bAuthorizeAutomaticWidgetVariableCreation)
+	{
+		bIsVariable = false;
+	}
+
+	OnCreationFromPalette();
 }
 
 EVisibility UWidget::GetVisibilityInDesigner() const

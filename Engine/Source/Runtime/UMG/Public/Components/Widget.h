@@ -997,9 +997,12 @@ public:
 	/** Gets the palette category of the widget */
 	virtual const FText GetPaletteCategory();
 
+	/** Called by the palette after constructing a new widget. */
+	void CreatedFromPalette();
+
 	/**
-	 * Called by the palette after constructing a new widget, allows the widget to perform interesting 
-	 * default setup that we don't want to be UObject Defaults.
+	 * Called after constructing a new widget from the palette.
+	 * Allows the widget to perform interesting default setup that we don't want to be UObject Defaults.
 	 */
 	virtual void OnCreationFromPalette() { }
 

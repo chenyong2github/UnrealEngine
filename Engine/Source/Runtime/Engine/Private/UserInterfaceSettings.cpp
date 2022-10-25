@@ -16,6 +16,7 @@ UUserInterfaceSettings::UUserInterfaceSettings(const FObjectInitializer& ObjectI
 	, RenderFocusRule(ERenderFocusRule::NavigationOnly)
 	, ApplicationScale(1)
 	, bLoadWidgetsOnDedicatedServer(true)
+	, bAuthorizeAutomaticWidgetVariableCreation(true)
 {
 	SectionName = TEXT("UI");
 }

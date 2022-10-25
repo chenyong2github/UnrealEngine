@@ -193,6 +193,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Widgets")
 	bool bLoadWidgetsOnDedicatedServer;
 
+	/** 
+	 * Setting to authorize or not automatic variable creation.
+	 * If true, variables will be created automatically, if the type created allows it. Drawback: it's easier to have a bad data architecture because various blueprint graph will have access to many variables.
+	 * If false, variables are never created automatically, and you have to create them manually on a case by case basis.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Widgets")
+	bool bAuthorizeAutomaticWidgetVariableCreation;
+
 public:
 
 	virtual void PostInitProperties() override;
