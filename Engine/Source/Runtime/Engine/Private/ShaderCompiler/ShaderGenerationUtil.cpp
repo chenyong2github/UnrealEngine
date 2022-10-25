@@ -156,7 +156,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderMaterialPropertyDefin
 	FETCH_COMPILE_BOOL(MATERIAL_SHADINGMODEL_SINGLELAYERWATER);
 	FETCH_COMPILE_BOOL(MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT);
 
-	FETCH_COMPILE_BOOL(SINGLE_LAYER_WATER_DF_SHADOW_ENABLED);
+	FETCH_COMPILE_BOOL(SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT);
 
 	FETCH_COMPILE_BOOL(MATERIAL_FULLY_ROUGH);
 
@@ -1797,7 +1797,7 @@ static void DetermineUsedMaterialSlots(
 	{
 		// single layer water uses standard slots
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		if (Mat.SINGLE_LAYER_WATER_DF_SHADOW_ENABLED)
+		if (Mat.SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT)
 		{
 			Slots[GBS_SeparatedMainDirLight] = true;
 		}
@@ -2181,8 +2181,8 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatfor
 	static const auto CVarFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
 	Ret.LegacyFormatIndex = CVarFormat->GetValueOnAnyThread();
 
-	// This should match with SINGLE_LAYER_WATER_SEPARATED_DIR_LIGHT
-	Ret.bHasSingleLayerWaterSeparatedMainLight = IsWaterDistanceFieldShadowEnabled(Platform);
+	// This should match with SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT
+	Ret.bHasSingleLayerWaterSeparatedMainLight = IsWaterDistanceFieldShadowEnabled(Platform) || IsWaterVirtualShadowMapFilteringEnabled(Platform);
 
 	return Ret;
 }

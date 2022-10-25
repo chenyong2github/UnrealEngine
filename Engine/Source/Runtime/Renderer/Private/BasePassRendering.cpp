@@ -873,7 +873,8 @@ void ModifyBasePassCSPSCompilationEnvironment(const FMeshMaterialShaderPermutati
 		OutEnvironment.SetRenderTargetOutputFormat(VelocityIndex, PF_G16R16);
 	}
 
-	if (bIsSingleLayerWater && IsWaterDistanceFieldShadowEnabled(Parameters.Platform))
+	const bool bNeedsSeparateMainDirLightTexture = IsWaterDistanceFieldShadowEnabled(Parameters.Platform) || IsWaterVirtualShadowMapFilteringEnabled(Parameters.Platform);
+	if (bIsSingleLayerWater && bNeedsSeparateMainDirLightTexture)
 	{
 		// See FShaderCompileUtilities::FetchGBufferParamsRuntime for the details
 		const bool bHasTangent = false;

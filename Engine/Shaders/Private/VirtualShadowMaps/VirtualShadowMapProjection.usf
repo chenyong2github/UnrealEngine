@@ -534,15 +534,23 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 	}
 }
 
-[numthreads(8, 8, 1)]
+#if USE_TILE_LIST
+Buffer<uint> TileListData;
+#endif
+
+[numthreads(WORK_TILE_SIZE, WORK_TILE_SIZE, 1)]
 void VirtualShadowMapProjection(
 	uint3	GroupId				: SV_GroupID,
 	uint	GroupIndex			: SV_GroupIndex,
 	uint3	DispatchThreadId	: SV_DispatchThreadID )
 {
+#if USE_TILE_LIST
+	uint PackedTile = TileListData.Load(GroupId.x);
+	uint2 LocalPixelPos = WORK_TILE_SIZE * uint2(PackedTile & 0xFFFF, PackedTile >> 16u) + MortonDecode(GroupIndex);
+#else
 	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
-	uint2 PixelCoord = DispatchThreadId.xy;
-	uint2 LocalPixelPos = 8 * GroupId.xy + MortonDecode( GroupIndex );
+	uint2 LocalPixelPos = WORK_TILE_SIZE * GroupId.xy + MortonDecode( GroupIndex );
+#endif // USE_TILE_LIST
 	uint2 PixelPos = LocalPixelPos + uint2( ProjectionRect.xy );
 	if ( any( PixelPos >= uint2( ProjectionRect.zw ) ) )
 	{

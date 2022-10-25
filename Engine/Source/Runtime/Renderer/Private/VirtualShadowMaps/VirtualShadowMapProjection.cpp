@@ -174,6 +174,10 @@ static TAutoConsoleVariable<int32> CVarTestPermutation(
 );
 #endif
 
+// The tile size in pixels for VSM projection with tile list.
+// Is also used as the workgroup size for the CS without tile list.
+static constexpr int32 VSMProjectionWorkTileSize = 8;
+
 const TCHAR* ToString(EVirtualShadowMapProjectionInputType In)
 {
 	switch (In)
@@ -195,6 +199,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
 	class FVisualizeOutputDim		: SHADER_PERMUTATION_BOOL("VISUALIZE_OUTPUT");
 	class FExtrapolateSlopeDim		: SHADER_PERMUTATION_BOOL("SMRT_EXTRAPOLATE_SLOPE");
+	class FUseTileList				: SHADER_PERMUTATION_BOOL("USE_TILE_LIST");
 	// -1 means dynamic count
 	class FSMRTStaticSampleCount	: SHADER_PERMUTATION_RANGE_INT("SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY", -1, 2);
 	// Used for A/B testing a change that affects reg allocation, etc.
@@ -206,6 +211,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FHairStrandsDim,
 		FVisualizeOutputDim,
 		FExtrapolateSlopeDim,
+		FUseTileList,
 		FSMRTStaticSampleCount
 #if MAX_TEST_PERMUTATION > 0
 		, FTestDim
@@ -246,6 +252,9 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(int32, VisualizeModeId)
 		SHADER_PARAMETER(int32, VisualizeVirtualShadowMapId)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutVisualize)
+		// Optional tile list
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileListData)
+		RDG_BUFFER_ACCESS(IndirectDispatchArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -264,6 +273,8 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_AllowRealTypes);
 		}
+
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), VSMProjectionWorkTileSize);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -296,9 +307,13 @@ static void RenderVirtualShadowMapProjectionCommon(
 	EVirtualShadowMapProjectionInputType InputType,
 	FRDGTextureRef OutputTexture,
 	const FLightSceneProxy* LightProxy = nullptr,
-	int32 VirtualShadowMapId = INDEX_NONE)
+	int32 VirtualShadowMapId = INDEX_NONE,
+	FTiledVSMProjection* TiledVSMProjection = nullptr)
 {
 	check(GRHISupportsWaveOperations);
+
+	const bool bUseTileList = TiledVSMProjection != nullptr;
+	check(!bUseTileList || TiledVSMProjection->TileSize == VSMProjectionWorkTileSize);
 
 	// Use hair strands data (i.e., hair voxel tracing) only for Gbuffer input for casting hair shadow onto opaque geometry.
 	const bool bHasHairStrandsData = HairStrands::HasViewHairStrandsData(View);
@@ -316,6 +331,11 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
 	PassParameters->bSMRTUseAdaptiveRayCount = CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0 ? 1 : 0;
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	if (bUseTileList)
+	{
+		PassParameters->TileListData = TiledVSMProjection->TileListDataBufferSRV;
+		PassParameters->IndirectDispatchArgs = TiledVSMProjection->DispatchIndirectParametersBuffer;
+	}
 	if (bHasHairStrandsData)
 	{
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
@@ -386,6 +406,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FVisualizeOutputDim >( bDebugOutput );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FExtrapolateSlopeDim >( PassParameters->SMRTExtrapolateSlope > 0.0f );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FUseTileList >(bUseTileList);
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTStaticSampleCount >( StaticSamplesPerRay );
 #if MAX_TEST_PERMUTATION > 0
 	{
@@ -398,19 +419,38 @@ static void RenderVirtualShadowMapProjectionCommon(
 	ClearUnusedGraphResources( ComputeShader, PassParameters );
 	ValidateShaderParameters( ComputeShader, *PassParameters );
 
-	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( ProjectionRect.Size(), 8 );
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%u(%s),SamplesPerRay:%u,Input:%s%s)",
-			PassParameters->SMRTRayCount,
-			PassParameters->bSMRTUseAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"), 
-			PassParameters->SMRTSamplesPerRay,
-			ToString(InputType),
-			bDebugOutput ? TEXT(",Debug") : TEXT("")),
-		ComputeShader,
-		PassParameters,
-		FIntVector( GroupCount.X, GroupCount.Y, 1 )
-	);
+	if (bUseTileList)
+	{
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%u(%s),SamplesPerRay:%u,Input:%s%s,TileList)",
+				PassParameters->SMRTRayCount,
+				PassParameters->bSMRTUseAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"),
+				PassParameters->SMRTSamplesPerRay,
+				ToString(InputType),
+				bDebugOutput ? TEXT(",Debug") : TEXT("")),
+			PassParameters,
+			ERDGPassFlags::Compute,
+			[PassParameters, ComputeShader](FRHICommandList& RHICmdList)
+			{
+				FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *PassParameters, PassParameters->IndirectDispatchArgs->GetIndirectRHICallBuffer(), 0);
+			});
+	}
+	else
+	{
+		const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp(ProjectionRect.Size(), VSMProjectionWorkTileSize);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%u(%s),SamplesPerRay:%u,Input:%s%s)",
+				PassParameters->SMRTRayCount,
+				PassParameters->bSMRTUseAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"),
+				PassParameters->SMRTSamplesPerRay,
+				ToString(InputType),
+				bDebugOutput ? TEXT(",Debug") : TEXT("")),
+			ComputeShader,
+			PassParameters,
+			FIntVector(GroupCount.X, GroupCount.Y, 1)
+		);
+	}
 }
 
 FRDGTextureRef CreateVirtualShadowMapMaskBits(
@@ -499,6 +539,8 @@ void RenderVirtualShadowMapProjection(
 		ScissorRect,
 		VirtualShadowMaskTexture,
 		false,	// bDirectionalLight
+		false, // bModulateRGB
+		nullptr, //TiledVSMProjection
 		OutputShadowMaskTexture);
 }
 
@@ -510,6 +552,8 @@ void RenderVirtualShadowMapProjection(
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
+	bool bModulateRGB,
+	FTiledVSMProjection* TiledVSMProjection,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
 	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowMaskTexture(GraphBuilder, View.ViewRect.Max);
@@ -523,7 +567,8 @@ void RenderVirtualShadowMapProjection(
 		InputType,
 		VirtualShadowMaskTexture,
 		Clipmap->GetLightSceneInfo().Proxy,
-		Clipmap->GetVirtualShadowMap()->ID);
+		Clipmap->GetVirtualShadowMap()->ID,
+		TiledVSMProjection);
 	
 	CompositeVirtualShadowMapMask(
 		GraphBuilder,
@@ -531,8 +576,34 @@ void RenderVirtualShadowMapProjection(
 		ScissorRect,
 		VirtualShadowMaskTexture,
 		true,	// bDirectionalLight
+		bModulateRGB,
+		TiledVSMProjection,
 		OutputShadowMaskTexture);
 }
+
+class FVirtualShadowMapProjectionCompositeTileVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositeTileVS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositeTileVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListData)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportVirtualShadowMaps(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Required right now due to where the shader function lives, but not actually used
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), VSMProjectionWorkTileSize);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositeTileVS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjectionComposite.usf", "VirtualShadowMapCompositeTileVS", SF_Vertex);
 
 // Composite denoised shadow projection mask onto the light's shadow mask
 // Basically just a copy shader with a special blend mode
@@ -543,6 +614,7 @@ class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InputShadowFactor)
+		SHADER_PARAMETER(uint32, bModulateRGB)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -555,9 +627,16 @@ class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
 	{
 		// Required right now due to where the shader function lives, but not actually used
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), VSMProjectionWorkTileSize);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjectionComposite.usf", "VirtualShadowMapCompositePS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositeTile, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapProjectionCompositePS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapProjectionCompositeTileVS::FParameters, VS)
+	RDG_BUFFER_ACCESS(IndirectDrawParameter, ERHIAccess::IndirectArgs)
+END_SHADER_PARAMETER_STRUCT()
 
 void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
@@ -565,31 +644,90 @@ void CompositeVirtualShadowMapMask(
 	const FIntRect ScissorRect,
 	const FRDGTextureRef Input,
 	bool bDirectionalLight,
+	bool bModulateRGB,
+	FTiledVSMProjection* TiledVSMProjection,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FVirtualShadowMapProjectionCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositePS::FParameters>();
-	PassParameters->InputShadowFactor = Input;
-
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
-
-	FRHIBlendState* BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
-		0,					// ShadowMapChannel
-		bDirectionalLight,	// bIsWholeSceneDirectionalShadow,
-		false,				// bUseFadePlane
-		false,				// bProjectingForForwardShading, 
-		false				// bMobileModulatedProjections
-	);
+	const bool bUseTileList = TiledVSMProjection != nullptr;
+	check(!bUseTileList || TiledVSMProjection->TileSize == VSMProjectionWorkTileSize);
 
 	auto PixelShader = View.ShaderMap->GetShader<FVirtualShadowMapProjectionCompositePS>();
-	ValidateShaderParameters(PixelShader, *PassParameters);
 
-	FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
-		View.ShaderMap,
-		RDG_EVENT_NAME("CompositeVirtualShadowMapMask"),
-		PixelShader,
-		PassParameters,
-		ScissorRect,
-		BlendState);
+	FRHIBlendState* BlendState;
+	if (bModulateRGB)
+	{
+		// This has the shadow contribution modulate all the channels, e.g. used for water rendering to apply VSM on the main light RGB luminance for the updated depth buffer with water in it.
+		BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
+	}
+	else
+	{
+		BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
+			0,					// ShadowMapChannel
+			bDirectionalLight,	// bIsWholeSceneDirectionalShadow,
+			false,				// bUseFadePlane
+			false,				// bProjectingForForwardShading, 
+			false				// bMobileModulatedProjections
+		);
+	}
+
+	if (bUseTileList)
+	{
+		FVirtualShadowMapProjectionCompositeTile* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositeTile>();
+		PassParameters->VS.ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->VS.TileListData = TiledVSMProjection->TileListDataBufferSRV;
+		PassParameters->PS.InputShadowFactor = Input;
+		PassParameters->PS.bModulateRGB = bModulateRGB;
+		PassParameters->PS.RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->IndirectDrawParameter = TiledVSMProjection->DrawIndirectParametersBuffer;
+
+		auto VertexShader = View.ShaderMap->GetShader<FVirtualShadowMapProjectionCompositeTileVS>();
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("CompositeVirtualShadowMapMask(TileList)"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[BlendState, VertexShader, PixelShader, ScissorRect, PassParameters](FRHICommandList& RHICmdList)
+			{
+				RHICmdList.SetViewport(ScissorRect.Min.X, ScissorRect.Min.Y, 0.0f, ScissorRect.Max.X, ScissorRect.Max.Y, 1.0f);
+				RHICmdList.SetScissorRect(true, ScissorRect.Min.X, ScissorRect.Min.Y, ScissorRect.Max.X, ScissorRect.Max.Y);
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicsPSOInit.BlendState = BlendState;
+				GraphicsPSOInit.bDepthBounds = false;
+				GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+
+				RHICmdList.DrawPrimitiveIndirect(PassParameters->IndirectDrawParameter->GetIndirectRHICallBuffer(), 0);
+
+				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+			});
+	}
+	else
+	{
+		FVirtualShadowMapProjectionCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositePS::FParameters>();
+		PassParameters->InputShadowFactor = Input;
+		PassParameters->bModulateRGB = bModulateRGB;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
+
+		ValidateShaderParameters(PixelShader, *PassParameters);
+
+		FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
+			View.ShaderMap,
+			RDG_EVENT_NAME("CompositeVirtualShadowMapMask"),
+			PixelShader,
+			PassParameters,
+			ScissorRect,
+			BlendState);
+	}
 }
 
 class FVirtualShadowMapProjectionCompositeFromMaskBitsPS : public FGlobalShader

@@ -802,6 +802,17 @@ inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const 
 	return EnableCVar->GetInt() != 0 && UseVirtualShadowMaps(ShaderPlatform, FeatureLevel);
 }
 
+/** Returns if water should evaluate virtual shadow maps a second time for the water surface. This is for a platform so can be used at cook time. */
+inline bool IsWaterVirtualShadowMapFilteringEnabled(const FStaticShaderPlatform Platform)
+{
+	static const auto CVarWaterSingleLayerShaderSupportVSMFiltering = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.SingleLayer.ShadersSupportVSMFiltering"));
+	const bool bWaterVSMFilteringSupported = CVarWaterSingleLayerShaderSupportVSMFiltering && (CVarWaterSingleLayerShaderSupportVSMFiltering->GetInt() > 0);
+
+	const bool bVirtualShadowMapsSupported = DoesPlatformSupportVirtualShadowMaps(Platform);
+
+	return !IsForwardShadingEnabled(Platform) && bWaterVSMFilteringSupported && bVirtualShadowMapsSupported;
+}
+
 /**
 *	(Non-runtime) Checks if the depth prepass for single layer water is enabled. This also depends on virtual shadow maps to be supported on the platform.
 */
@@ -810,9 +821,9 @@ inline bool IsSingleLayerWaterDepthPrepassEnabled(const FStaticShaderPlatform& P
 	static const auto CVarWaterSingleLayerDepthPrepass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.SingleLayer.DepthPrepass"));
 	const bool bPrepassEnabled = CVarWaterSingleLayerDepthPrepass && CVarWaterSingleLayerDepthPrepass->GetInt() > 0;
 	// Currently VSM is the only feature dependent on the depth prepass which is why we only enable it if VSM could also be enabled.
-	// VSM can be toggled at runtime, but we need a compile time value here, so we fall back to DoesRuntimeSupportNanite() to check if
+	// VSM can be toggled at runtime, but we need a compile time value here, so we fall back to DoesPlatformSupportVirtualShadowMaps() to check if
 	// VSM *could* be enabled.
-	const bool bVSMSupported = DoesPlatformSupportNanite(Platform, false /* check project setting */);
+	const bool bVSMSupported = DoesPlatformSupportVirtualShadowMaps(Platform);
 
 	return bPrepassEnabled && bVSMSupported;
 }
