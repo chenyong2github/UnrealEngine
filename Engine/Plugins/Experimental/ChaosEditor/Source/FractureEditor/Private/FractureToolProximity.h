@@ -44,6 +44,31 @@ public:
 };
 
 
+/**
+ * UFUNCTION actions to manage default proximity detection settings for geometry collections
+ * (These are pulled out from the above settings object mainly to control their ordering in the properties panel)
+ */
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureProximityActions : public UFractureToolSettings
+{
+public:
+
+	GENERATED_BODY()
+
+	UFractureProximityActions(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+	{}
+
+	/** Save settings as project defaults, to be used for all new geometry collections */
+	UFUNCTION(CallInEditor, Category = ProjectDefaults, meta = (DisplayName = "Save As Defaults"))
+	void SaveAsDefaults();
+
+	/** Set settings from current project defaults */
+	UFUNCTION(CallInEditor, Category = ProjectDefaults, meta = (DisplayName = "Set From Defaults"))
+	void SetFromDefaults();
+
+};
+
 
 UCLASS(DisplayName = "Proximity Tool", Category = "FractureTools")
 class UFractureToolProximity : public UFractureModalTool
@@ -79,10 +104,13 @@ public:
 
 	virtual void Setup() override;
 
+	UPROPERTY(EditAnywhere, Category = Proximity)
+	TObjectPtr<UFractureProximitySettings> ProximitySettings;
+
 private:
 
 	UPROPERTY(EditAnywhere, Category = Proximity)
-	TObjectPtr<UFractureProximitySettings> ProximitySettings;
+	TObjectPtr<UFractureProximityActions> ProximityActions;
 
 	void UpdateVisualizations();
 	virtual void ClearVisualizations() override

@@ -14,12 +14,36 @@
 #define LOCTEXT_NAMESPACE "FractureToolProximity"
 
 
+void UFractureProximityActions::SaveAsDefaults()
+{
+	UFractureToolProximity* ProximityTool = Cast<UFractureToolProximity>(OwnerTool.Get());
+	UFractureModeSettings* ModeSettings = GetMutableDefault<UFractureModeSettings>();
+	ModeSettings->Modify();
+	ModeSettings->ProximityMethod = ProximityTool->ProximitySettings->Method;
+	ModeSettings->ProximityDistanceThreshold = ProximityTool->ProximitySettings->DistanceThreshold;
+	ModeSettings->bProximityUseAsConnectionGraph = ProximityTool->ProximitySettings->bUseAsConnectionGraph;
+}
+
+void UFractureProximityActions::SetFromDefaults()
+{
+	UFractureToolProximity* ProximityTool = Cast<UFractureToolProximity>(OwnerTool.Get());
+	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
+	ProximityTool->ProximitySettings->Method = ModeSettings->ProximityMethod;
+	ProximityTool->ProximitySettings->DistanceThreshold = ModeSettings->ProximityDistanceThreshold;
+	ProximityTool->ProximitySettings->bUseAsConnectionGraph = ModeSettings->bProximityUseAsConnectionGraph;
+
+	ProximityTool->NotifyOfPropertyChangeByTool(this);
+}
+
+
 
 UFractureToolProximity::UFractureToolProximity(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	ProximitySettings = NewObject<UFractureProximitySettings>(GetTransientPackage(), UFractureProximitySettings::StaticClass());
 	ProximitySettings->OwnerTool = this;
+	ProximityActions = NewObject<UFractureProximityActions>(GetTransientPackage(), UFractureProximityActions::StaticClass());
+	ProximityActions->OwnerTool = this;
 }
 
 bool UFractureToolProximity::CanExecute() const
@@ -57,6 +81,7 @@ TArray<UObject*> UFractureToolProximity::GetSettingsObjects() const
 {
 	TArray<UObject*> Settings;
 	Settings.Add(ProximitySettings);
+	Settings.Add(ProximityActions);
 	return Settings;
 }
 

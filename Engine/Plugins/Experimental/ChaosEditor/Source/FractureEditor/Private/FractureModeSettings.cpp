@@ -4,6 +4,7 @@
 
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionConvexPropertiesInterface.h"
+#include "GeometryCollection/GeometryCollectionProximityPropertiesInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FractureModeSettings)
 
@@ -16,4 +17,19 @@ void UFractureModeSettings::ApplyDefaultConvexSettings(FGeometryCollection& Geom
 	Properties.RemoveOverlaps = ConvexRemoveOverlaps;
 	Properties.OverlapRemovalShrinkPercent = ConvexOverlapRemovalShrinkPercent;
 	GeometryCollection.SetConvexProperties(Properties);
+}
+
+void UFractureModeSettings::ApplyDefaultProximitySettings(FGeometryCollection& GeometryCollection) const
+{
+	FGeometryCollectionProximityPropertiesInterface::FProximityProperties Properties = GeometryCollection.GetProximityProperties();
+	Properties.bUseAsConnectionGraph = bProximityUseAsConnectionGraph;
+	Properties.DistanceThreshold = ProximityDistanceThreshold;
+	Properties.Method = ProximityMethod;
+	GeometryCollection.SetProximityProperties(Properties);
+}
+
+void UFractureModeSettings::ApplyDefaultSettings(FGeometryCollection& GeometryCollection) const
+{
+	ApplyDefaultProximitySettings(GeometryCollection);
+	ApplyDefaultConvexSettings(GeometryCollection);
 }

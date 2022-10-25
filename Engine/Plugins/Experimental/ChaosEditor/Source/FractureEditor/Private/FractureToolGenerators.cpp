@@ -686,7 +686,7 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 	::GeometryCollection::GenerateTemporaryGuids(FracturedGeometryCollection->GetGeometryCollection().Get(), 0 , true);
 
 	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
-	ModeSettings->ApplyDefaultConvexSettings(*FracturedGeometryCollection->GetGeometryCollection());
+	ModeSettings->ApplyDefaultSettings(*FracturedGeometryCollection->GetGeometryCollection());
 
 	return NewActor;
 }
@@ -874,7 +874,7 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 				}
 
 				const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
-				ModeSettings->ApplyDefaultConvexSettings(*GeometryCollection);
+				ModeSettings->ApplyDefaultSettings(*GeometryCollection);
 
 				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 				AddSingleRootNodeIfRequired(GeometryCollectionObject);

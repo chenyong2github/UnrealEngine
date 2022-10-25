@@ -6,6 +6,7 @@
 #include "Engine/EngineTypes.h"
 
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 
 #include "FractureModeSettings.generated.h"
 
@@ -52,8 +53,28 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults|Overlap Removal", meta = (DisplayName = "Max Removal Fraction", ClampMin = ".01", ClampMax = "1"))
 	double ConvexFractionAllowRemove = .5;
 
+
+	/** Default method used to detect proximity of geometry in a new geometry collection */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Proximity Detection Defaults", meta = (DisplayName = "Detection Method"))
+	EProximityMethod ProximityMethod = EProximityMethod::Precise;
+
+	/** When Proximity Detection Method is Convex Hull, how close two hulls need to be to be considered as 'in proximity' */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Proximity Detection Defaults", meta = (ClampMin = "0", DisplayName = "Distance Threshold", EditCondition = "ProximityMethod == EProximityMethod::ConvexHull"))
+	float ProximityDistanceThreshold = 1;
+
+	/** Whether to automatically transform the proximity graph into a connection graph to be used for simulation */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Proximity Detection Defaults", meta = (DisplayName = "Use As Connection Graph"))
+	bool bProximityUseAsConnectionGraph = false;
+	
+
 	// Apply Convex Generation Defaults to a GeometryCollection
 	void ApplyDefaultConvexSettings(FGeometryCollection& GeometryCollection) const;
+
+	// Apply Proximity Detection Defaults to a GeometryCollection
+	void ApplyDefaultProximitySettings(FGeometryCollection& GeometryCollection) const;
+
+	// Apply all default settings to a GeometryCollection
+	void ApplyDefaultSettings(FGeometryCollection& GeometryCollection) const;
 
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(UFractureModeSettingsModified, UObject*, FProperty*);
