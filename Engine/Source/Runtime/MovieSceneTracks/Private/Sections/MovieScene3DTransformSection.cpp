@@ -1090,6 +1090,20 @@ void UMovieScene3DTransformSection::OnChannelOverridesChanged()
 
 #if WITH_EDITOR
 
+void UMovieScene3DTransformSection::PostPaste()
+{
+	Super::PostPaste();
+	
+	if (OverrideRegistry)
+	{
+		OverrideRegistry->OnPostPaste();
+	}
+	if (Constraints)
+	{
+		Constraints->ClearFlags(RF_Transient);
+	}
+}
+
 void UMovieScene3DTransformSectionConstraints::PostEditUndo()
 {
 	Super::PostEditUndo();

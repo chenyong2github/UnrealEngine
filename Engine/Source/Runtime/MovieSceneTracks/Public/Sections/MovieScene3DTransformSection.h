@@ -235,6 +235,10 @@ public:
 	MOVIESCENETRACKS_API virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
 	MOVIESCENETRACKS_API virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 
+#if WITH_EDITOR
+	MOVIESCENETRACKS_API virtual void PostPaste() override;
+#endif
+
 public:
 
 	/**

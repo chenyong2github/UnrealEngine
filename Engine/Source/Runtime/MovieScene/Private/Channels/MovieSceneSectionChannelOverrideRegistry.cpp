@@ -103,3 +103,20 @@ void UMovieSceneSectionChannelOverrideRegistry::PopulateEvaluationFieldImpl(cons
 	}
 }
 
+#if WITH_EDITOR
+
+void UMovieSceneSectionChannelOverrideRegistry::OnPostPaste()
+{
+	ClearFlags(RF_Transient);
+
+	for (TPair<FName, TObjectPtr<UMovieSceneChannelOverrideContainer>> Pair : Overrides)
+	{
+		if (ensure(Pair.Value))
+		{
+			Pair.Value->ClearFlags(RF_Transient);
+		}
+	}
+}
+
+#endif
+

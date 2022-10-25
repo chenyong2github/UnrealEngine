@@ -55,5 +55,9 @@ private:
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
 	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
+
+#if WITH_EDITOR
+	MOVIESCENETRACKS_API virtual void PostPaste() override;
+#endif
 };
 
