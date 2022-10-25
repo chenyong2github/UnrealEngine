@@ -21,6 +21,7 @@
 #include "Iris/Serialization/ObjectNetSerializer.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/Trace/NetDebugName.h"
 #include "DequantizeAndApplyHelper.h"
 #include "HAL/IConsoleManager.h"
 

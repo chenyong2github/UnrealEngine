@@ -6,6 +6,7 @@
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/IrisDebugging.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/Trace/NetDebugName.h"
 #include "Iris/DataStream/DataStream.h"
 #include "Iris/ReplicationSystem/DeltaCompression/DeltaCompressionBaselineManager.h"
 #include "Iris/ReplicationSystem/NetHandleManager.h"
