@@ -19,7 +19,6 @@ class FVulkanOcclusionQueryPool;
 class FVulkanRenderPassManager;
 
 #if VULKAN_RHI_RAYTRACING
-class FVulkanBasicRaytracingPipeline;
 class FVulkanRayTracingCompactionRequestHandler;
 #endif
 
@@ -560,7 +559,6 @@ private:
 
 #if VULKAN_RHI_RAYTRACING
 	FRayTracingProperties RayTracingProperties;
-	FVulkanBasicRaytracingPipeline* BasicRayTracingPipeline = nullptr;
 	FVulkanRayTracingCompactionRequestHandler* RayTracingCompactionRequestHandler = nullptr;
 #endif // VULKAN_RHI_RAYTRACING
 

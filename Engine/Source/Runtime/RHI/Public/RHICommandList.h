@@ -197,24 +197,6 @@ enum class ERayTracingBindingType : uint8
 	CallableShader,
 	MissShader,
 };
-
-// C++ counter-part of FBasicRayData declared in RayTracingCommon.ush
-struct UE_DEPRECATED(5.1, "Please use an explicit ray generation shader with a custom intersection structure instead.") FBasicRayData
-{
-	float Origin[3];
-	uint32 Mask;
-	float Direction[3];
-	float TFar;
-};
-
-// C++ counter-part of FIntersectionPayload declared in RayTracingCommon.ush
-struct UE_DEPRECATED(5.1, "Please use an explicit ray generation shader with a custom intersection structure instead.") FIntersectionPayload
-{
-	float  HitT;            // Distance from ray origin to the intersection point in the ray direction. Negative on miss.
-	uint32 PrimitiveIndex;  // Index of the primitive within the geometry inside the bottom-level acceleration structure instance. Undefined on miss.
-	uint32 InstanceIndex;   // Index of the current instance in the top-level structure. Undefined on miss.
-	float  Barycentrics[2]; // Primitive barycentric coordinates of the intersection point. Undefined on miss.
-};
 #endif // RHI_RAYTRACING
 
 struct RHI_API FLockTracker
@@ -2255,46 +2237,6 @@ struct FRHICommandBuildAccelerationStructures final : public FRHICommand<FRHICom
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandRayTraceOcclusion)
-{
-	FRHIRayTracingScene* Scene;
-	FRHIShaderResourceView* Rays;
-	FRHIUnorderedAccessView* Output;
-	uint32 NumRays;
-
-	FRHICommandRayTraceOcclusion(FRHIRayTracingScene* InScene,
-		FRHIShaderResourceView* InRays,
-		FRHIUnorderedAccessView* InOutput,
-		uint32 InNumRays)
-		: Scene(InScene)
-		, Rays(InRays)
-		, Output(InOutput)
-		, NumRays(InNumRays)
-	{}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandRayTraceIntersection)
-{
-	FRHIRayTracingScene* Scene;
-	FRHIShaderResourceView* Rays;
-	FRHIUnorderedAccessView* Output;
-	uint32 NumRays;
-
-	FRHICommandRayTraceIntersection(FRHIRayTracingScene* InScene,
-		FRHIShaderResourceView* InRays,
-		FRHIUnorderedAccessView* InOutput,
-		uint32 InNumRays)
-		: Scene(InScene)
-		, Rays(InRays)
-		, Output(InOutput)
-		, NumRays(InNumRays)
-	{}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandRayTraceDispatch)
 {
 	FRayTracingPipelineState* Pipeline;
@@ -3766,51 +3708,6 @@ public:
 		{
 			ALLOC_COMMAND(FRHICommandClearRayTracingBindings)(Scene);
 		}
-	}
-
-	/**
-	 * Trace rays from an input buffer of FBasicRayData.
-	 * Binary intersection results are written to output buffer as R32_UINTs.
-	 * 0xFFFFFFFF is written if ray intersects any scene triangle, 0 otherwise.
-	 */
-	UE_DEPRECATED(5.1, "Please use an explicit ray generation shader and RayTraceDispatch() instead.")
-	FORCEINLINE_DEBUGGABLE void RayTraceOcclusion(FRHIRayTracingScene* Scene,
-		FRHIShaderResourceView* Rays,
-		FRHIUnorderedAccessView* Output,
-		uint32 NumRays)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (Bypass())
-		{
-			GetContext().RHIRayTraceOcclusion(Scene, Rays, Output, NumRays);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandRayTraceOcclusion)(Scene, Rays, Output, NumRays);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	/**
-	 * Trace rays from an input buffer of FBasicRayData.
-	 * Primitive intersection results are written to output buffer as FIntersectionPayload.
-	 */
-	UE_DEPRECATED(5.1, "Please use an explicit ray generation shader and RayTraceDispatch() instead.")
-	FORCEINLINE_DEBUGGABLE void RayTraceIntersection(FRHIRayTracingScene* Scene,
-		FRHIShaderResourceView* Rays,
-		FRHIUnorderedAccessView* Output,
-		uint32 NumRays)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (Bypass())
-		{
-			GetContext().RHIRayTraceIntersection(Scene, Rays, Output, NumRays);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandRayTraceIntersection)(Scene, Rays, Output, NumRays);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* RayGenShader, FRHIRayTracingScene* Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)

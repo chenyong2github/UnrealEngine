@@ -2734,35 +2734,6 @@ public:
 			CallableShaders.Identifiers[ShaderIndex] = GetEntryShaderIdentifier(CallableShaderEntries[ShaderIndex]);
 		}
 
-		// Setup default shader binding table, which simply includes all provided RGS and MS plus a single default closest hit shader.
-		// Hit record indexing and local resources access is disabled when using using this SBT.
-
-		FD3D12RayTracingShaderTable::FInitializer SBTInitializer = {};
-		SBTInitializer.NumRayGenShaders = RayGenShaders.Identifiers.Num();
-		SBTInitializer.NumMissShaders = MissShaders.Identifiers.Num();
-		SBTInitializer.NumCallableRecords = 0; // Default SBT does not support callable shaders
-		SBTInitializer.NumMissRecords = 1;
-		SBTInitializer.NumHitRecords = 0; // Default SBT does not support indexable hit shaders
-		SBTInitializer.LocalRootDataSize = 0; // Shaders in default SBT are not allowed to access any local resources
-
-		// Create default shader tables for every node in the LDA group
-		FD3D12Adapter* Adapter = Device->GetParentAdapter();
-
-		for (uint32 GPUIndex : FRHIGPUMask::All())
-		{
-			FD3D12Device* NodeDevice = Adapter->GetDevice(GPUIndex);
-			DefaultShaderTables[GPUIndex].Init(
-				SBTInitializer,
-				NodeDevice,
-				RayGenShaders.Identifiers,
-				HitGroupShaders.Identifiers[0]);
-
-			if (MissShaders.Identifiers.Num())
-			{
-				DefaultShaderTables[GPUIndex].SetMissIdentifier(0, MissShaders.Identifiers[0]);
-			}			
-		}
-
 		PipelineStackSize = PipelineProperties->GetPipelineStackSize();
 
 		TotalCreationTime += FPlatformTime::Cycles64();
@@ -2812,11 +2783,6 @@ public:
 	FD3D12RayTracingShaderLibrary HitGroupShaders;
 	FD3D12RayTracingShaderLibrary CallableShaders;
 
-	// Shader table that can be used to dispatch ray tracing work that doesn't require real SBT bindings.
-	// This is useful for the case where user only provides default RayGen, Miss and HitGroup shaders.
-	// Currently only used by RayTraceOcclusion/Intersection.
-	FD3D12RayTracingShaderTable DefaultShaderTables[MAX_NUM_GPUS];
-
 	ID3D12RootSignature* GlobalRootSignature = nullptr;
 
 	TRefCountPtr<ID3D12StateObject> StateObject;
@@ -2848,66 +2814,6 @@ public:
 	};
 	TArray<FShaderStats> ShaderStats;
 #endif // !NO_LOGGING
-};
-
-class FD3D12BasicRayTracingPipeline
-{
-public:
-
-	UE_NONCOPYABLE(FD3D12BasicRayTracingPipeline)
-
-	FD3D12BasicRayTracingPipeline(FD3D12Device* Device)
-	{
-		// Occlusion pipeline
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-			FRayTracingPipelineStateInitializer OcclusionInitializer;
-
-			FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuildInRayTracingShader<FOcclusionMainRG>() };
-			OcclusionInitializer.SetRayGenShaderTable(OcclusionRGSTable);
-
-			FRHIRayTracingShader* OcclusionMSTable[] = { GetBuildInRayTracingShader<FDefaultPayloadMS>() };
-			OcclusionInitializer.SetMissShaderTable(OcclusionMSTable);
-
-			OcclusionInitializer.bAllowHitGroupIndexing = false;
-
-			Occlusion = new FD3D12RayTracingPipelineState(Device, OcclusionInitializer);
-
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-
-		// Intersection pipeline
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-			FRayTracingPipelineStateInitializer IntersectionInitializer;
-
-			FRHIRayTracingShader* IntersectionRGSTable[] = { GetBuildInRayTracingShader<FIntersectionMainRG>() };
-			IntersectionInitializer.SetRayGenShaderTable(IntersectionRGSTable);
-
-			FRHIRayTracingShader* IntersectionMSTable[] = { GetBuildInRayTracingShader<FDefaultPayloadMS>() };
-			IntersectionInitializer.SetMissShaderTable(IntersectionMSTable);
-
-			FRHIRayTracingShader* IntersectionHitTable[] = { GetBuildInRayTracingShader<FIntersectionMainCHS>() };
-			IntersectionInitializer.SetHitGroupTable(IntersectionHitTable);
-
-			IntersectionInitializer.bAllowHitGroupIndexing = false;
-
-			Intersection = new FD3D12RayTracingPipelineState(Device, IntersectionInitializer);
-
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-	}
-
-	~FD3D12BasicRayTracingPipeline()
-	{
-		delete Intersection;
-		delete Occlusion;
-	}
-
-	FD3D12RayTracingPipelineState* Occlusion;
-	FD3D12RayTracingPipelineState* Intersection;
 };
 
 struct FD3D12RHICommandInitializeRayTracingGeometryString
@@ -2971,25 +2877,10 @@ void FD3D12Device::InitRayTracing()
 
 	check(RayTracingDescriptorHeapCache == nullptr);
 	RayTracingDescriptorHeapCache = new FD3D12RayTracingDescriptorHeapCache(this);
-
-	check(BasicRayTracingPipeline == nullptr);
-	// the pipeline will be initialized on the first use
-}
-
-const FD3D12BasicRayTracingPipeline* FD3D12Device::GetBasicRayTracingPipeline()
-{
-	if (UNLIKELY(BasicRayTracingPipeline == nullptr))
-	{
-		BasicRayTracingPipeline = new FD3D12BasicRayTracingPipeline(this);
-	}
-	return BasicRayTracingPipeline;
 }
 
 void FD3D12Device::CleanupRayTracing()
 {
-	delete BasicRayTracingPipeline;
-	BasicRayTracingPipeline = nullptr;
-
 	delete RayTracingPipelineCache;
 	RayTracingPipelineCache = nullptr;
 
@@ -5378,82 +5269,6 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	// Restore old global descriptor heaps
 	CommandContext.StateCache.GetDescriptorCache()->RestoreAfterExternalHeapsSet();
-}
-
-
-void FD3D12CommandContext::RHIRayTraceOcclusion(FRHIRayTracingScene* InScene,
-	FRHIShaderResourceView* Rays,
-	FRHIUnorderedAccessView* Output,
-	uint32 NumRays)
-{
-	checkf(GetParentDevice()->GetBasicRayTracingPipeline(), TEXT("Ray tracing support is not initialized for this device. Ensure that InitRayTracing() is called before issuing any ray tracing work."));
-
-	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
-
-	FD3D12RayTracingPipelineState* Pipeline = GetParentDevice()->GetBasicRayTracingPipeline()->Occlusion;
-	FD3D12RayTracingShaderTable& ShaderTable = Pipeline->DefaultShaderTables[GetGPUIndex()];
-
-	if (ShaderTable.bIsDirty)
-	{
-		ShaderTable.CopyToGPU(*this);
-	}
-
-	Scene->UpdateResidency(*this);
-
-	D3D12_DISPATCH_RAYS_DESC DispatchDesc = ShaderTable.GetDispatchRaysDesc(0, 0, 0);
-
-	DispatchDesc.Width = NumRays;
-	DispatchDesc.Height = 1;
-	DispatchDesc.Depth = 1;
-
-	FRayTracingShaderBindings Bindings;
-	Bindings.SRVs[0] = Scene->Layers[0].ShaderResourceView; // TODO: Expose layers
-	Bindings.SRVs[1] = Rays;
-	Bindings.UAVs[0] = Output;
-
-	ShaderTable.UpdateResidency(*this);
-
-	DispatchRays(*this, Bindings, Pipeline, 0, nullptr, DispatchDesc);
-}
-
-void FD3D12CommandContext::RHIRayTraceIntersection(FRHIRayTracingScene* InScene,
-	FRHIShaderResourceView* InRays,
-	FRHIUnorderedAccessView* InOutput,
-	uint32 NumRays)
-{
-	checkf(GetParentDevice()->GetBasicRayTracingPipeline(), TEXT("Ray tracing support is not initialized for this device. Ensure that InitRayTracing() is called before issuing any ray tracing work."));
-
-	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
-	FD3D12ShaderResourceView* Rays = FD3D12DynamicRHI::ResourceCast(InRays);
-	FD3D12UnorderedAccessView* Output = FD3D12DynamicRHI::ResourceCast(InOutput);
-
-	FD3D12RayTracingPipelineState* Pipeline = GetParentDevice()->GetBasicRayTracingPipeline()->Intersection;
-	FD3D12RayTracingShaderTable& ShaderTable = Pipeline->DefaultShaderTables[GetGPUIndex()];
-
-	if (ShaderTable.bIsDirty)
-	{
-		ShaderTable.CopyToGPU(*this);
-	}
-
-	Scene->UpdateResidency(*this);
-
-	D3D12_DISPATCH_RAYS_DESC DispatchDesc = ShaderTable.GetDispatchRaysDesc(0, 0, 0);
-
-	DispatchDesc.Width = NumRays;
-	DispatchDesc.Height = 1;
-	DispatchDesc.Depth = 1;
-
-	FRayTracingShaderBindings Bindings;
-	Bindings.SRVs[0] = Scene->Layers[0].ShaderResourceView; // TODO: Expose layers
-	Bindings.SRVs[1] = Rays;
-	// #dxr_todo: intersection and occlusion shaders should be split into separate files to avoid resource slot collisions.
-	// Workaround for now is to bind a valid UAV to slots 0 and 1, even though only slot 1 is referenced.
-	Bindings.UAVs[0] = Output;
-	Bindings.UAVs[1] = Output;
-
-	ShaderTable.UpdateResidency(*this);
-
-	DispatchRays(*this, Bindings, Pipeline, 0, nullptr, DispatchDesc);
 }
 
 void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRayTracingPipelineState, FRHIRayTracingShader* RayGenShaderRHI,

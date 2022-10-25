@@ -903,12 +903,6 @@ void FVulkanCommandListContext::RHIBuildAccelerationStructure(const FRayTracingS
 		InstanceBuffer, SceneBuildParams.InstanceBufferOffset);
 }
 
-void FVulkanCommandListContext::RHIRayTraceOcclusion(FRHIRayTracingScene* Scene, FRHIShaderResourceView* Rays, FRHIUnorderedAccessView* Output, uint32 NumRays)
-{
-	// todo
-	return;
-}
-
 template<typename ShaderType>
 static FRHIRayTracingShader* GetBuiltInRayTracingShader()
 {
@@ -919,18 +913,10 @@ static FRHIRayTracingShader* GetBuiltInRayTracingShader()
 
 void FVulkanDevice::InitializeRayTracing()
 {
-	check(BasicRayTracingPipeline == nullptr);
-	// the pipeline should be initialized on the first use due to the ability to disable RT in the game settings
-	//BasicRayTracingPipeline = new FVulkanBasicRaytracingPipeline(this);
 }
 
 void FVulkanDevice::CleanUpRayTracing()
 {
-	if (BasicRayTracingPipeline != nullptr)
-	{
-		delete BasicRayTracingPipeline;
-		BasicRayTracingPipeline = nullptr;
-	}
 }
 
 static uint32 GetAlignedSize(uint32 Value, uint32 Alignment)
@@ -1115,42 +1101,6 @@ FVulkanRayTracingPipelineState::~FVulkanRayTracingPipelineState()
 	{
 		delete Layout;
 		Layout = nullptr;
-	}
-}
-
-FVulkanBasicRaytracingPipeline::FVulkanBasicRaytracingPipeline(FVulkanDevice* const InDevice)
-{
-	check(Occlusion == nullptr);
-
-	// Occlusion pipeline
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-		FRayTracingPipelineStateInitializer OcclusionInitializer;
-
-		FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuiltInRayTracingShader<FOcclusionMainRG>() };
-		OcclusionInitializer.SetRayGenShaderTable(OcclusionRGSTable);
-
-		FRHIRayTracingShader* OcclusionMSTable[] = { GetBuiltInRayTracingShader<FDefaultPayloadMS>() };
-		OcclusionInitializer.SetMissShaderTable(OcclusionMSTable);
-
-		FRHIRayTracingShader* OcclusionCHSTable[] = { GetBuiltInRayTracingShader<FDefaultMainCHS>() };
-		OcclusionInitializer.SetHitGroupTable(OcclusionCHSTable);
-
-		OcclusionInitializer.bAllowHitGroupIndexing = false;
-
-		Occlusion = new FVulkanRayTracingPipelineState(InDevice, OcclusionInitializer);
-
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
-FVulkanBasicRaytracingPipeline::~FVulkanBasicRaytracingPipeline()
-{
-	if (Occlusion != nullptr)
-	{
-		delete Occlusion;
-		Occlusion = nullptr;
 	}
 }
 

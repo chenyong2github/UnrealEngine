@@ -605,14 +605,6 @@ public:
 	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange) final override;
 	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) final override;
 	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene) final override;
-	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
-		FRHIShaderResourceView* Rays,
-		FRHIUnorderedAccessView* Output,
-		uint32 NumRays) final override;
-	virtual void RHIRayTraceIntersection(FRHIRayTracingScene* Scene,
-		FRHIShaderResourceView* Rays,
-		FRHIUnorderedAccessView* Output,
-		uint32 NumRays) final override;
 	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,
 		FRHIRayTracingScene* Scene,
 		const FRayTracingShaderBindings& GlobalResourceBindings,
@@ -987,26 +979,6 @@ public:
 	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) final override
 	{
 		ContextRedirect(RHIBuildAccelerationStructure(SceneBuildParams));
-	}
-
-	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
-		FRHIShaderResourceView* Rays,
-		FRHIUnorderedAccessView* Output,
-		uint32 NumRays) final override
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		ContextRedirect(RHIRayTraceOcclusion(Scene, Rays, Output, NumRays));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	virtual void RHIRayTraceIntersection(FRHIRayTracingScene* Scene,
-		FRHIShaderResourceView* Rays,
-		FRHIUnorderedAccessView* Output,
-		uint32 NumRays) final override
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		ContextRedirect(RHIRayTraceIntersection(Scene, Rays, Output, NumRays));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual void RHIRayTraceDispatch(FRHIRayTracingPipelineState* RayTracingPipelineState, FRHIRayTracingShader* RayGenShader,

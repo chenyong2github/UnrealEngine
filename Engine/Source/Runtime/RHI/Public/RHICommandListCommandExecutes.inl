@@ -54,8 +54,6 @@ struct FRHICommandTransitionTexturesPipeline;
 struct FRHICommandTransitionTexturesDepth;
 struct FRHICommandTransitionTexturesArray;
 struct FRHICommandClearRayTracingBindings;
-struct FRHICommandRayTraceOcclusion;
-struct FRHICommandRayTraceIntersection;
 struct FRHICommandRayTraceDispatch;
 struct FRHICommandSetRayTracingBindings;
 
@@ -591,22 +589,6 @@ void FRHICommandBuildAccelerationStructures::Execute(FRHICommandListBase& CmdLis
 {
 	RHISTAT(BuildAccelerationStructure);
 	INTERNAL_DECORATOR_COMPUTE(RHIBuildAccelerationStructures)(Params, ScratchBufferRange);
-}
-
-void FRHICommandRayTraceOcclusion::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(RayTraceOcclusion);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	INTERNAL_DECORATOR(RHIRayTraceOcclusion)(Scene, Rays, Output, NumRays);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void FRHICommandRayTraceIntersection::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(RayTraceIntersection);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	INTERNAL_DECORATOR(RHIRayTraceIntersection)(Scene, Rays, Output, NumRays);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FRHICommandRayTraceDispatch::Execute(FRHICommandListBase& CmdList)

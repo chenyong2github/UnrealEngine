@@ -152,19 +152,6 @@ private:
 	FVkRtAllocation HitShaderBindingTable;
 };
 
-class FVulkanBasicRaytracingPipeline
-{
-public:
-
-	UE_NONCOPYABLE(FVulkanBasicRaytracingPipeline);
-	FVulkanBasicRaytracingPipeline(FVulkanDevice* const InDevice);
-	~FVulkanBasicRaytracingPipeline();
-
-private:
-
-	FVulkanRayTracingPipelineState* Occlusion = nullptr;
-};
-
 class FVulkanRayTracingCompactedSizeQueryPool : public FVulkanQueryPool
 {
 public:

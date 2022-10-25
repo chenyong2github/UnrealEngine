@@ -6,15 +6,9 @@
 
 #if RHI_RAYTRACING
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FOcclusionMainRG,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf",		"OcclusionMainRG",				SF_RayGen, ERayTracingPayloadType::Minimal);
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FIntersectionMainRG,	"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf",		"IntersectionMainRG",			SF_RayGen, ERayTracingPayloadType::Minimal);
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FIntersectionMainCHS,	"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "IntersectionMainCHS",	SF_RayHitGroup, ERayTracingPayloadType::Minimal);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultMainCHS,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultMainCHS",		SF_RayHitGroup, ERayTracingPayloadType::Minimal);
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultMainCHSOpaqueAHS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "closesthit=DefaultMainCHS anyhit=DefaultOpaqueAHS", SF_RayHitGroup, ERayTracingPayloadType::Minimal);
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultPayloadMS,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultPayloadMS",			SF_RayMiss, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultMainCHS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultMainCHS", SF_RayHitGroup, ERayTracingPayloadType::Default);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultMainCHSOpaqueAHS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "closesthit=DefaultMainCHS anyhit=DefaultOpaqueAHS", SF_RayHitGroup, ERayTracingPayloadType::Default);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultPayloadMS", SF_RayMiss, ERayTracingPayloadType::Default);
 IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FPackedMaterialClosestHitPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "PackedMaterialClosestHitPayloadMS", SF_RayMiss, ERayTracingPayloadType::RayTracingMaterial);
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDispatchDescCS, "/Engine/Private/RayTracing/RayTracingDispatchDesc.usf", "RayTracingDispatchDescCS", SF_Compute);
