@@ -132,6 +132,50 @@ namespace Interchange
 						const FName RGBA = TEXT("RGBA"); // Type: linear color
 					}
 				}
+
+				namespace Time
+				{
+					const FName Name = TEXT("Time");
+
+					namespace Attributes
+					{
+						const FName IgnorePause= TEXT("bIgnorePause");
+						const FName OverridePeriod = TEXT("bOverride_Period");
+						const FName Period = TEXT("Period");
+					}
+				}
+
+				namespace TransformPosition
+				{
+					const FName Name = TEXT("TransformPosition");
+
+					namespace Attributes
+					{
+						const FName TransformSourceType = TEXT("TransformSourceType");
+						const FName TransformType = TEXT("TransformType");
+					}
+
+					namespace Inputs
+					{
+						const FName Input = TEXT("Input");
+					}
+				}
+
+				namespace TransformVector
+				{
+					const FName Name = TEXT("Transform");
+
+					namespace Attributes
+					{
+						const FName TransformSourceType = TEXT("TransformSourceType");
+						const FName TransformType = TEXT("TransformType");
+					}
+
+					namespace Inputs
+					{
+						const FName Input = TEXT("Input");
+					}
+				}
 			}
 		}
 

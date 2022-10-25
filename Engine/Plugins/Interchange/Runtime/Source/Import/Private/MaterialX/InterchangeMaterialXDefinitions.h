@@ -251,7 +251,12 @@ MATERIALX_NAMESPACE_BEGIN
 		// Texture nodes 
 		static constexpr const char* Image = "image";
 		static constexpr const char* TiledImage = "tiledimage";
-		// Geometric nodes 
+		// Geometric nodes
+		static constexpr const char* Bitangent = "bitangent";
+		static constexpr const char* GeomColor = "geomcolor";
+		static constexpr const char* Normal = "normal";
+		static constexpr const char* Position = "position";
+		static constexpr const char* Tangent = "tangent";
 		static constexpr const char* TexCoord = "texcoord";
 		// Light nodes
 		static constexpr const char* DirectionalLight = "directional_light";
@@ -264,6 +269,8 @@ MATERIALX_NAMESPACE_BEGIN
 		static constexpr const char* RgbToHsv = "rgbtohsv";
 		static constexpr const char* Saturate = "saturate";
 		static constexpr const char* Smoothstep = "smoothstep";
+		// Application
+		static constexpr const char* Time= "time";
 		// PBR
 		static constexpr const char* StandardSurface = "standard_surface";
 	}

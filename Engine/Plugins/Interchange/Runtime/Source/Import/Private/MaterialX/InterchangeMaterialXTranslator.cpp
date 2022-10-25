@@ -14,6 +14,9 @@
 #include "Nodes/InterchangeSourceNode.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+#include "Materials/MaterialExpressionTransformPosition.h"
+#include "Materials/MaterialExpressionTransform.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMaterialXTranslator)
 
 #define LOCTEXT_NAMESPACE "InterchangeMaterialXTranslator"
@@ -143,6 +146,7 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::Combine3,     TEXT("Append3Vector")},
 	{MaterialX::Category::Combine4,     TEXT("Append4Vector")},
 	// Geometric nodes 
+	{MaterialX::Category::GeomColor,	TEXT("VertexColor")},
 	{MaterialX::Category::TexCoord,		TEXT("TextureCoordinate")},
 	// Adjustment nodes,
 	{MaterialX::Category::HsvToRgb,		TEXT("HsvToRgb")},
@@ -977,6 +981,26 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				{
 					ConnectOutsideInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
 				}
+				else if(UpstreamNode->getCategory() == mx::Category::Position)
+				{
+					ConnectPositionInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::Normal)
+				{
+					ConnectNormalInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::Tangent)
+				{
+					ConnectTangentInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::Bitangent)
+				{
+					ConnectBitangentInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::Time)
+				{
+					ConnectTimeInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
 				else
 				{
 					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
@@ -1737,6 +1761,184 @@ void UInterchangeMaterialXTranslator::ConnectOutsideInputToOutput(MaterialX::Nod
 	UInterchangeShaderNode* NodeOneMinus = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_OneMinus")), TEXT("OneMinus"), NamesToShaderNodes, NodeContainer);
 	AddAttributeFromValueOrInterface(UpstreamNode->getInput("mask"), TEXT("Input"), NodeOneMinus);
 	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeMultiply, TEXT("B"), NodeOneMinus->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectPositionInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	// MaterialX defines the space as: object, model, world
+	// model: The local coordinate space of the geometry, before any local deformations or global transforms have been applied.
+	// object: The local coordinate space of the geometry, after local deformations have been applied, but before any global transforms.
+	// world : The global coordinate space of the geometry, after local deformationsand global transforms have been applied.
+
+	// For the moment we don't have the distinction between model/object, so let's just create an UMaterialExpressionObjectPositionWS
+	// In case of model/object we need to add a TransformPoint from world to local space
+	UInterchangeShaderNode* PositionNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("ObjectPositionWS"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderNode* NodeToConnectTo = ParentShaderNode;
+	FString InputToConnectTo = InputChannelName;
+
+	std::string Space = "world";
+	mx::InputPtr InputSpace = UpstreamNode->getInput("space");
+
+	if(InputSpace)
+	{
+		Space = InputSpace->getValueString();
+	}
+
+	//the default space defined by the nodedef is "object"
+	if(Space != "world" || !InputSpace)
+	{
+		using namespace UE::Interchange::Materials::Standard::Nodes;
+
+		UInterchangeShaderNode* TransformNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Transform")), TransformPosition::Name.ToString(), NamesToShaderNodes, NodeContainer);
+		NodeToConnectTo = TransformNode;
+		InputToConnectTo = TransformPosition::Inputs::Input.ToString();
+		TransformNode->AddInt32Attribute(TransformPosition::Attributes::TransformSourceType, EMaterialPositionTransformSource::TRANSFORMPOSSOURCE_World);
+		TransformNode->AddInt32Attribute(TransformPosition::Attributes::TransformType, EMaterialPositionTransformSource::TRANSFORMPOSSOURCE_Local);
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TransformNode->GetUniqueID());
+	}
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, PositionNode->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	// MaterialX defines the space as: object, model, world
+	// model: The local coordinate space of the geometry, before any local deformations or global transforms have been applied.
+	// object: The local coordinate space of the geometry, after local deformations have been applied, but before any global transforms.
+	// world : The global coordinate space of the geometry, after local deformationsand global transforms have been applied.
+
+	// For the moment we don't have the distinction between model/object, so let's just create an UMaterialExpressionVertexNormalWS
+	// In case of model/object we need to add a TransformVector from world to local space
+	UInterchangeShaderNode* NormalNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("VertexNormalWS"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderNode* NodeToConnectTo = ParentShaderNode;
+	FString InputToConnectTo = InputChannelName;
+
+	std::string Space = "world";
+	mx::InputPtr InputSpace = UpstreamNode->getInput("space");
+
+	if(InputSpace)
+	{
+		Space = InputSpace->getValueString();
+	}
+
+	//the default space defined by the nodedef is "object"
+	if(Space != "world" || !InputSpace)
+	{
+		using namespace UE::Interchange::Materials::Standard::Nodes;
+
+		UInterchangeShaderNode* TransformNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Transform")), TransformVector::Name.ToString(), NamesToShaderNodes, NodeContainer);
+		NodeToConnectTo = TransformNode;
+		InputToConnectTo = TransformVector::Inputs::Input.ToString();
+		TransformNode->AddInt32Attribute(TransformVector::Attributes::TransformSourceType, EMaterialVectorCoordTransformSource::TRANSFORMSOURCE_World);
+		TransformNode->AddInt32Attribute(TransformVector::Attributes::TransformType, EMaterialVectorCoordTransform::TRANSFORM_Local);
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TransformNode->GetUniqueID());
+	}
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, NormalNode->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectTangentInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	// MaterialX defines the space as: object, model, world
+	// model: The local coordinate space of the geometry, before any local deformations or global transforms have been applied.
+	// object: The local coordinate space of the geometry, after local deformations have been applied, but before any global transforms.
+	// world : The global coordinate space of the geometry, after local deformationsand global transforms have been applied.
+
+	// For the moment we don't have the distinction between model/object, so let's just create an UMaterialExpressionVertexTangentWS
+	// In case of model/object we need to add a TransformVector from world to local space
+	UInterchangeShaderNode* TangentNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("VertexTangentWS"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderNode* NodeToConnectTo = ParentShaderNode;
+	FString InputToConnectTo = InputChannelName;
+
+	std::string Space = "world";
+	mx::InputPtr InputSpace = UpstreamNode->getInput("space");
+
+	if(InputSpace)
+	{
+		Space = InputSpace->getValueString();
+	}
+
+	//the default space defined by the nodedef is "object"
+	if(Space != "world" || !InputSpace)
+	{
+		using namespace UE::Interchange::Materials::Standard::Nodes;
+
+		UInterchangeShaderNode* TransformNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Transform")), TransformVector::Name.ToString(), NamesToShaderNodes, NodeContainer);
+		NodeToConnectTo = TransformNode;
+		InputToConnectTo = TransformVector::Inputs::Input.ToString();
+		TransformNode->AddInt32Attribute(TransformVector::Attributes::TransformSourceType, EMaterialVectorCoordTransformSource::TRANSFORMSOURCE_World);
+		TransformNode->AddInt32Attribute(TransformVector::Attributes::TransformType, EMaterialVectorCoordTransform::TRANSFORM_Local);
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TransformNode->GetUniqueID());
+	}
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TangentNode->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectBitangentInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	// MaterialX defines the space as: object, model, world
+	// model: The local coordinate space of the geometry, before any local deformations or global transforms have been applied.
+	// object: The local coordinate space of the geometry, after local deformations have been applied, but before any global transforms.
+	// world : The global coordinate space of the geometry, after local deformationsand global transforms have been applied.
+
+	// For the moment we don't have the distinction between model/object, so let's just do the cross product between the normal and the tangent
+	// In case of model/object we need to add a TransformVector from world to local space
+	UInterchangeShaderNode* NormalNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Normal")), TEXT("VertexNormalWS"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderNode* TangentNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Tangent")), TEXT("VertexTangentWS"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderNode* BitangentNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("CrossProduct"), NamesToShaderNodes, NodeContainer);
+	
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(BitangentNode, TEXT("A"), NormalNode->GetUniqueID());
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(BitangentNode, TEXT("B"), TangentNode->GetUniqueID());
+
+
+	UInterchangeShaderNode* NodeToConnectTo = ParentShaderNode;
+	FString InputToConnectTo = InputChannelName;
+
+	std::string Space = "world";
+	mx::InputPtr InputSpace = UpstreamNode->getInput("space");
+
+	if(InputSpace)
+	{
+		Space = InputSpace->getValueString();
+	}
+
+	//the default space defined by the nodedef is "object"
+	if(Space != "world" || !InputSpace)
+	{
+		using namespace UE::Interchange::Materials::Standard::Nodes;
+
+		UInterchangeShaderNode* TransformNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Transform")), TransformVector::Name.ToString(), NamesToShaderNodes, NodeContainer);
+		NodeToConnectTo = TransformNode;
+		InputToConnectTo = TransformVector::Inputs::Input.ToString();
+		TransformNode->AddInt32Attribute(TransformVector::Attributes::TransformSourceType, EMaterialVectorCoordTransformSource::TRANSFORMSOURCE_World);
+		TransformNode->AddInt32Attribute(TransformVector::Attributes::TransformType, EMaterialVectorCoordTransform::TRANSFORM_Local);
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TransformNode->GetUniqueID());
+	}
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, BitangentNode->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectTimeInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+	UInterchangeShaderNode* TimeNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("Time"), NamesToShaderNodes, NodeContainer);
+	TimeNode->AddBooleanAttribute(Time::Attributes::OverridePeriod, true);
+
+	float FPS; 
+	mx::InputPtr Input = UpstreamNode->getInput("fps");
+
+	//Take the default value from the node definition
+	if(!Input)
+	{
+		Input = UpstreamNode->getNodeDef()->getInput("fps");
+	}
+
+	FPS = mx::fromValueString<float>(Input->getValueString());
+
+	//UE is a period
+	TimeNode->AddFloatAttribute(Time::Attributes::Period, 1.f / FPS);
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TimeNode->GetUniqueID());
 }
 
 UInterchangeShaderNode* UInterchangeMaterialXTranslator::CreateMaskShaderNode(uint8 RGBA, const FString& NodeName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
