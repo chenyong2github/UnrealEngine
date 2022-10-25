@@ -123,6 +123,8 @@ namespace DatasmithRevitExporter
 				}
 			}
 
+			FDocument.ActiveDocument?.ActiveDirectLinkInstance?.ExportMetadataBatch();
+
 			return Result.Succeeded;
 		}
 	}
@@ -341,6 +343,8 @@ namespace DatasmithRevitExporter
 					}
 				}
 			}
+
+			FDocument.ActiveDocument?.ActiveDirectLinkInstance?.ExportMetadataBatch();
 
 			return Result.Succeeded;
 		}
