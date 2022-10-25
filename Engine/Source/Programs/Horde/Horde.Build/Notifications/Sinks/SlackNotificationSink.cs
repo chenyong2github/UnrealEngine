@@ -1016,7 +1016,7 @@ namespace Horde.Build.Notifications.Sinks
 
 				if (message.Blocks.Count == 0)
 				{
-					message.AddSection("");
+					message.AddSection("Issue has been closed.");
 				}
 
 				await SendOrUpdateMessageToThreadAsync(triageChannel, $"{eventId}_buttons", null, threadId, message);
