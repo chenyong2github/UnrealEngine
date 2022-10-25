@@ -36,8 +36,8 @@ struct FRandomPlayerSequenceEntry
 	}
 
 	/** Sequence to play when this entry is picked */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	TObjectPtr<UAnimSequence> Sequence;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (DisallowedClasses = "/Script/Engine.AnimMontage"))
+	TObjectPtr<UAnimSequenceBase> Sequence;
 
 	/** When not in shuffle mode, this is the chance this entry will play (normalized against all other sample chances) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (UIMin = "0", ClampMin = "0"))
