@@ -38,5 +38,5 @@ struct FDisplayClusterPositionalParams
 	double RadialOffset = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Orientation)
-	FVector2D Scale;
+	FVector2D Scale = FVector2D(1.0f);
 };
